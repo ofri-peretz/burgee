@@ -14,6 +14,11 @@ export interface Pane<S = unknown> {
   component: Component<S>;
   state: S;
   label?: string;
+  /**
+   * Drawn on a live screen only, and left out of the static projection: a hint line or a tab
+   * bar means nothing to a pipe, a screen reader or an agent, which get every pane instead (R6).
+   */
+  liveOnly?: boolean;
 }
 
 export type Panes = Readonly<Record<string, Pane>>;

@@ -356,7 +356,7 @@ Graded by the incumbent's own test suite:
 | `restore-cursor` | 6 / 6 |
 | `signal-exit` | 134 / 135 |
 
-Weight, installed and tree-inclusive: **117,783 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.6408**.
+Weight, installed and tree-inclusive: **120,266 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.6543**.
 
 ## For agents
 
@@ -400,7 +400,7 @@ And the two leaves, for a program that wants one of them and none of the rest:
 | | |
 | :-- | :-- |
 | `closeout/once` | `once(fn)` — 441 B, reaching nothing |
-| `closeout/cursor` | `showCursor`, `hideCursor`, `alternateScreen`, `rawMode` (each taking the registrar as a second argument), `HIDE_CURSOR`, `SHOW_CURSOR`, `ENTER_ALTERNATE_SCREEN`, `LEAVE_ALTERNATE_SCREEN` — 1,458 B, no registry |
+| `closeout/cursor` | `showCursor`, `hideCursor`, `alternateScreen`, `bracketedPaste`, `rawMode` (each taking the registrar as a second argument), `HIDE_CURSOR`, `SHOW_CURSOR`, `ENTER_ALTERNATE_SCREEN`, `LEAVE_ALTERNATE_SCREEN`, `ENABLE_BRACKETED_PASTE`, `DISABLE_BRACKETED_PASTE` — 1,786 B, no registry |
 
 And from `closeout/plugin`:
 
@@ -447,7 +447,7 @@ takes a dependency from outside the family.
 | [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, dotenv and rc |
 | **closeout** (this package) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook and restore-cursor |
 | [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
-| [controlroom](https://burgee.interlace.tools/docs/packages/controlroom) | Reserved, not usable yet — planned: full-screen, keyboard-driven terminal screens | ink, planned |
+| [controlroom](https://burgee.interlace.tools/docs/packages/controlroom) | Full-screen, keyboard-driven terminal screens | ink, graded by ink's own suite |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

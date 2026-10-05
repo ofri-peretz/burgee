@@ -180,6 +180,7 @@ live, what to flush on exit, a prompt of its own, and a command every one of its
 | [`burgee`](./packages/burgee/) | `commands`, `hooks` | `npx burgee check ./plugin.mjs` |
 | [`caique`](./packages/caique/) | `widgets` | `npx caique check ./plugin.mjs` |
 | [`closeout`](./packages/closeout/) | `handlers` | `npx closeout check ./plugin.mjs` |
+| [`controlroom`](./packages/controlroom/) | `keymaps`, `panes` | `npx controlroom check ./plugin.mjs` |
 | [`flagstaff`](./packages/flagstaff/) | `tokens`, `glyphs`, `spinners`, `borders`, `components` | `npx flagstaff check ./plugin.mjs` |
 | [`linegauge`](./packages/linegauge/) | `widths` | `npx linegauge check ./plugin.mjs` |
 | [`paratext`](./packages/paratext/) | `capabilities` | `npx paratext check ./plugin.mjs` |
@@ -256,7 +257,7 @@ published figure taken on another machine, not reproduced here.
 | :--- | ---: | ---: | ---: | ---: | ---: |
 | Runtime dependencies | **5**, none outside the burgee family | 0 | 6 | **18** | 0 |
 | Full CLI run over bare node | **+14.0 ms** | +15.3 ms | +78.5 ms | +131 ms † | +4.0 ms |
-| Installed size | 1435 KB | 203 KB | 515 KB | 912 KB † | 40 KB |
+| Installed size | 1474 KB | 203 KB | 515 KB | 912 KB † | 40 KB |
 
 The speed comes from `node:util.parseArgs` being in the standard library, not from a faster
 language: burgee is TypeScript, like both incumbents.

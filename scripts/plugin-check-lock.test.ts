@@ -37,6 +37,8 @@ import { check as caique } from '../packages/caique/src/check.js';
 // eslint-disable-next-line import-next/no-relative-packages -- see above
 import { check as closeout } from '../packages/closeout/src/check.js';
 // eslint-disable-next-line import-next/no-relative-packages -- see above
+import { check as controlroom } from '../packages/controlroom/src/check.js';
+// eslint-disable-next-line import-next/no-relative-packages -- see above
 import { check as linegauge } from '../packages/linegauge/src/check.js';
 // eslint-disable-next-line import-next/no-relative-packages -- see above
 import { check as paratext } from '../packages/paratext/src/check.js';
@@ -72,6 +74,7 @@ const HOSTS: { name: string; check: Check; valid: string; key: string }[] = [
   { name: 'bellpull', check: bellpull, key: 'resolvers', valid: "{ name: 't', resolvers: { asdf: { rank: -10, paths: ['{ASDF_DATA_DIR}/shims'], when: { envAny: ['ASDF_DATA_DIR'] } } } }" },
   { name: 'caique', check: caique, key: 'widgets', valid: "{ name: 't', widgets: { rating: { static: () => 'yes / no', sample: { running: {}, done: {} } } } }" },
   { name: 'closeout', check: closeout, key: 'handlers', valid: "{ name: 't', handlers: [{ name: 'unlock', run() {} }] }" },
+  { name: 'controlroom', check: controlroom, key: 'keymaps', valid: "{ name: 't', keymaps: { vim: { keys: { h: 'tab.prev' } } } }" },
   { name: 'linegauge', check: linegauge, key: 'widths', valid: "{ name: 't', widths: { icons: { ranges: [[0xE0A0, 0xE0A0]], columns: 2, why: 'a Nerd Font glyph, measured in the test' } } }" },
   { name: 'paratext', check: paratext, key: 'capabilities', valid: "{ name: 't', capabilities: { beep: { name: 'beep', osc: 'BEL', when: { tty: true }, encode: '\\u0007', fallback: '' } } }" },
   { name: 'roundel', check: roundel, key: 'tokens', valid: "{ name: 't', tokens: { ok: '#336699' } }" },

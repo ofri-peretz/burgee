@@ -62,6 +62,11 @@ it records every change here.
   `hints(keymap, labels)`. Key routing waits on R2 and the screen on R4.
 - **R10 · plugins.** Panes, keymaps and tab bars register through one `register()` against
   the family schema. The built-ins use the same call.
+  **Built 2026-10-05** as `src/plugin.ts` (`controlroom/plugin`), `src/check.ts` and
+  `controlroom check`: keymaps and panes as data, in the family schema. A tab bar is a pane over
+  flagstaff's `tab-bar`, so it has no key of its own. The built-in `default` keymap registers
+  through `register()` on first use rather than at load, so the root keeps `sideEffects: false`.
+  The eval case is `evals/cases/controlroom-plugin-from-schema.json`.
 
 **The Ink drop-in.**
 
@@ -78,8 +83,11 @@ it records every change here.
   load with `import()`, so a missing one is `E_PEER_MISSING` with the install line as its
   `fix`. ink's write protocol is reproduced in one file, `ink/terminal.ts`, from the family's
   sequences; R15's lock names it as the drop-in's one boundary. Graded **ink 576 / 584**
-  (control 584 / 584; 593 vendored, 9 colour cases excluded with reasons) — the 8 failing are
-  kitty keyboard negotiation, not built.
+  (control 584 / 584; 593 vendored, 9 colour cases excluded with reasons) — the 8 failing were
+  kitty keyboard negotiation. **584 / 584 from 2026-10-05**: the protocol's push, pop and query
+  joined `paratext/csi` (`kittyKeyboardPush`, `kittyKeyboardPop`, `kittyKeyboardQuery`), the
+  drop-in's key parser reads the answer (`kittyReply` in `ink/keypress.ts`), and the drop-in negotiates as ink does — pushed at once in `enabled` mode, and
+  in `auto` mode only once a known terminal answers, handing every other byte back to stdin.
 - **R12 · Ink's layout.** A TypeScript flexbox subset that covers the `Box` props Ink's
   suite exercises. It lives under `controlroom/ink` only. Every uncovered case is a
   conditional case with its reason.
@@ -178,6 +186,11 @@ shape, and it is the most common one.
   and a completion menu the program feeds (for `/commands` and `@files`). The editor stays
   caique's; controlroom places it and routes keys to it while it has focus. Outside `tty`,
   input comes from stdin lines or the flag the program declares, never a wait (R7).
+  **controlroom's half built 2026-10-05** as `open(rt, { input })`: keys go to caique's editor
+  while its pane has focus, and a key the editor leaves unchanged falls through to the keymap,
+  so Esc and the program's own bindings still arrive. Bracketed paste is on while the screen is
+  open, through a new `bracketedPaste()` in `closeout/cursor`. A static session reads piped
+  stdin a line an entry, and never reads a terminal's stdin: its input ends at once instead.
   **Built 2026-10-05** (caique's half) as caique/editor (PR #801); hosting it in the live
   region is controlroom's, in phase 2.
 - **R21 · the chat widgets.** flagstaff gains `markdown`, streamed as tokens arrive and
@@ -195,6 +208,16 @@ shape, and it is the most common one.
     through the alias: R17's proof for a whole app, not just its components;
   - `examples/dashboard`, the reference demo from the intent (the PostHog wizard's layout):
     tabs, a task list with progress, a log tail and collapse, in the alternate screen.
+
+  **`examples/chat-cli` built 2026-10-05**: piped, a prompt a line, in order (entries that
+  arrive mid-reply queue), a clean transcript, and exit when stdin ends; under `--json`, one
+  commit event per entry; on a terminal, driven in-process and by hand under a real PTY: the
+  reply streams under a status line, Esc interrupts, Tab completes, Ctrl+C quits. Under
+  `--json`, closing a screen no longer repeats its last commit.
+  **`examples/dashboard` built 2026-10-05**: under a pipe and `--json` its test applies R6's
+  clean-transcript check and runs with stdin closed; on a terminal it is driven in-process
+  (keys, collapse, quit, leaving the alternate screen), and by hand under a real PTY. Panes it
+  shows only on a terminal (the tab bar, the hint line) are `liveOnly`, which R6 needed.
 
   The docs gain **"Start from a boilerplate"**, with the copy command for each. There is no
   `create-*` package: it would be an eleventh package against D-158's cap of ten. It is

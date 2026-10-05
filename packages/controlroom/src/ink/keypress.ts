@@ -292,3 +292,50 @@ export function parseKeypress(input: string | Buffer = ''): Keypress {
   }
   return key;
 }
+
+/**
+ * The kitty keyboard protocol's answer to a query (`paratext/csi`'s `kittyKeyboardQuery`, which
+ * spells the sequences): `ESC [ ? <flags> u`, read as bytes off a raw stdin.
+ */
+const ESC_BYTE = 0x1b;
+const BRACKET_BYTE = 0x5b;
+const QUESTION_BYTE = 0x3f;
+const U_BYTE = 0x75;
+const ZERO_BYTE = 0x30;
+const NINE_BYTE = 0x39;
+/** `ESC [ ?`: where a reply's digits begin. */
+const PREFIX = 3;
+const isDigit = (byte: number | undefined): boolean => byte !== undefined && byte >= ZERO_BYTE && byte <= NINE_BYTE;
+
+/** A reply `ESC [ ? <digits> u` starting at `at`: complete (and where it ends), still arriving, or not one. */
+function replyAt(bytes: readonly number[], at: number): { end: number } | 'partial' | undefined {
+  if (bytes[at] !== ESC_BYTE || bytes[at + 1] !== BRACKET_BYTE || bytes[at + 2] !== QUESTION_BYTE) return undefined;
+  let i = at + PREFIX;
+  while (isDigit(bytes[i])) i += 1;
+  if (i === at + PREFIX) return undefined;
+  if (i === bytes.length) return 'partial';
+  return bytes[i] === U_BYTE ? { end: i } : undefined;
+}
+
+/**
+ * What came back on stdin while a host waited for the answer to the kitty query: whether
+ * a complete reply arrived, and every other byte, in order, for the host to hand back to its
+ * input. A reply still arriving at the end is dropped rather than leaked as keys; anything
+ * that only looks like one (`ESC [ ?` with no digits, or the wrong final byte) is kept.
+ */
+export function kittyReply(bytes: readonly number[]): { replied: boolean; rest: number[] } {
+  const rest: number[] = [];
+  let replied = false;
+  for (let at = 0; at < bytes.length; ) {
+    const reply = replyAt(bytes, at);
+    if (reply === 'partial') break;
+    if (reply !== undefined) {
+      replied = true;
+      at = reply.end + 1;
+      continue;
+    }
+    rest.push(bytes[at]!);
+    at += 1;
+  }
+  return { replied, rest };
+}

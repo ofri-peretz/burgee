@@ -253,6 +253,9 @@ const _default: Readonly<{
     beginSynchronizedOutput: "\u001B[?2026h";
     endSynchronizedOutput: "\u001B[?2026l";
     synchronizedOutput: (text: string) => string;
+    kittyKeyboardPush: (flags: number) => string;
+    kittyKeyboardPop: "\u001B[<u";
+    kittyKeyboardQuery: "\u001B[?u";
 }>;
 ```
 

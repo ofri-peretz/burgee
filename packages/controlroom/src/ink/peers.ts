@@ -12,9 +12,12 @@ export type PeerName = 'react' | 'react-reconciler';
 /** The install line a missing peer's `fix` names: both peers, since the reconciler is React's own. */
 export const INSTALL = 'npm install react react-reconciler';
 
+/** The drop-in's refusal vocabulary: a missing optional peer, and nothing else. */
+export type InkErrorCode = 'E_PEER_MISSING';
+
 /** A refusal in the family's shape: what is wrong, and what to do about it. */
 export class InkPeerError extends Error {
-  readonly code = 'E_PEER_MISSING';
+  readonly code: InkErrorCode = 'E_PEER_MISSING';
   readonly fix: string;
   constructor(readonly peer: PeerName) {
     super(`controlroom/ink needs \`${peer}\`, which is an optional peer and is not installed`);

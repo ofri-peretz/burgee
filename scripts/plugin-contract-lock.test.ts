@@ -49,6 +49,8 @@ import * as burgee from '../packages/burgee/src/plugin.js';
 import * as caique from '../packages/caique/src/plugin.js';
 // eslint-disable-next-line import-next/no-namespace, import-next/no-relative-packages -- the source, by path, on purpose: the package-name form resolves to `dist/`, which would measure the last build rather than the tree. Every host is read the same way, so one host being stale cannot look like agreement
 import * as closeout from '../packages/closeout/src/plugin.js';
+// eslint-disable-next-line import-next/no-namespace, import-next/no-relative-packages -- see above
+import * as controlroom from '../packages/controlroom/src/plugin.js';
 // eslint-disable-next-line import-next/no-namespace, import-next/no-relative-packages -- the source, by path, on purpose: the package-name form resolves to `dist/`, which would measure the last build rather than the tree. Every host is read the same way, so one host being stale cannot look like agreement
 import * as flagstaff from '../packages/flagstaff/src/plugin.js';
 // eslint-disable-next-line import-next/no-namespace, import-next/no-relative-packages -- the source, by path, on purpose: the package-name form resolves to `dist/`, which would measure the last build rather than the tree. Every host is read the same way, so one host being stale cannot look like agreement
@@ -75,7 +77,7 @@ interface PluginModule {
   definePlugin?: (plugin: unknown) => unknown;
 }
 
-const MODULES: Record<string, PluginModule> = { bellpull, burgee, caique, closeout, flagstaff, linegauge, paratext, roundel, seniority };
+const MODULES: Record<string, PluginModule> = { bellpull, burgee, caique, closeout, controlroom, flagstaff, linegauge, paratext, roundel, seniority };
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const PACKAGES = join(ROOT, 'packages');
@@ -102,6 +104,7 @@ const HOST_KEYS: Record<string, string> = {
   seniority: 'sources',
   bellpull: 'resolvers',
   linegauge: 'widths',
+  controlroom: 'keymaps',
   paratext: 'capabilities',
   burgee: 'commands',
 };
@@ -254,6 +257,7 @@ describe('one object registers into every host', () => {
     capabilities: {},
     commands: [],
     widths: { ambiguous: { ranges: [[0x2013, 0x2013]], columns: 1, why: 'the contract lock, measured nowhere — this object exists to be registered, not believed' } },
+    keymaps: { contract: { keys: { x: 'contract.check' } } },
   });
 
   it('imports a module for every host in the tree, and no more', () => {

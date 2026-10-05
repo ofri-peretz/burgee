@@ -76,6 +76,13 @@ export function majorOf(version: string): number | undefined {
 const HOST_OF = new Map(DROP_INS.map((d) => [packageOf(d.from), d.host]));
 
 /**
+ * What a target needs installed beside its own package. ink brought `react-reconciler` in as
+ * its own dependency; `controlroom/ink` takes it as an optional peer, so a program moving off
+ * ink has to install it, and `next` says so (D-20261005-controlroom-ink-drop-in).
+ */
+const PEERS_OF: Readonly<Record<string, readonly string[]>> = { 'controlroom/ink': ['react-reconciler'] };
+
+/**
  * Every name each target exports — values and types alike — so a rewrite that moves
  * `import { Argv } from 'yargs'` can first ask whether `burgee/yargs` has an `Argv`.
  *
@@ -362,6 +369,37 @@ export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
   ],
   'closeout/signal-exit/signals': [
     'signals',
+  ],
+  'controlroom/ink': [
+    'Box',
+    'BoxProps',
+    'DOMElement',
+    'Instance',
+    'Key',
+    'Newline',
+    'RenderMetrics',
+    'RenderOptions',
+    'Spacer',
+    'Static',
+    'StaticProps',
+    'Text',
+    'TextProps',
+    'Transform',
+    'TransformProps',
+    'kittyFlags',
+    'kittyModifiers',
+    'measureElement',
+    'render',
+    'renderToString',
+    'useApp',
+    'useCursor',
+    'useFocus',
+    'useFocusManager',
+    'useInput',
+    'useIsScreenReaderEnabled',
+    'useStderr',
+    'useStdin',
+    'useStdout',
   ],
   'flagstaff/boxen': [
     'BoxenBorderStyle',
@@ -1447,7 +1485,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
   const stillUsed = new Set([...refused, ...kept].map((r) => packageOf(r.specifier)).concat(results.flatMap(({ result }) => result.retained ?? [])));
   const removable = declared.filter((host) => !stillUsed.has(host) && !skip.has(host));
   const touched = [...new Set(all.map((m) => m.file))];
-  const add = [...new Set(all.map((m) => packageOf(m.to)))].filter((p) => !dependencies.has(p)).sort();
+  const add = [...new Set(all.flatMap((m) => [packageOf(m.to), ...(PEERS_OF[m.to] ?? [])]))].filter((p) => !dependencies.has(p)).sort();
   const partial = PARTIAL.filter((d) => dependencies.has(d.from)).map((d) => ({ from: d.from, to: d.to, ...(GRADED[d.host] as Row) }));
 
   return {

@@ -7,18 +7,21 @@
  */
 import { onExit } from 'closeout';
 import { wrap } from 'linegauge';
+import { kittyKeyboardPop, kittyKeyboardPush, kittyKeyboardQuery } from 'paratext/csi';
 
 import { AccessibilityContext, App } from './components.js';
 import { createNode, type DOMElement, syncFlexTree } from './dom.js';
 import { calculateLayout } from './flex.js';
 import { createContainer, updateContainer } from './host.js';
-import { type KittyFlagName } from './keypress.js';
-import { defaultStreams, isInCi, onceBeforeExit, patchConsole, screenReaderByDefault } from './process.js';
+import { type KittyFlagName, kittyReply, resolveFlags } from './keypress.js';
+import { defaultStreams, isInCi, knownKittyTerminal, onceBeforeExit, patchConsole, screenReaderByDefault } from './process.js';
 import { React } from './react.js';
 import { renderer } from './render.js';
 import { bsu, clearTerminal, createLogUpdate, type CursorPosition, eraseLines, esu, type InkStream, type LogUpdate, write } from './terminal.js';
 
 const DEFAULT_COLUMNS = 80;
+/** How long `auto` mode waits for the terminal to answer the kitty query, as Ink does. */
+const KITTY_WAIT = 200;
 const DEFAULT_FPS = 30;
 const MS_PER_SECOND = 1000;
 
@@ -126,6 +129,8 @@ export class Ink {
   #unsubscribeResize: (() => void) | undefined;
   #unsubscribeExit: () => void;
   #hasPendingThrottledRender = false;
+  #kittyEnabled = false;
+  #cancelKittyDetection: (() => void) | undefined;
 
   constructor(options: InkOptions) {
     this.#options = options;
@@ -167,6 +172,55 @@ export class Ink {
       this.#stdout.on?.('resize', this.resized);
       this.#unsubscribeResize = () => this.#stdout.off?.('resize', this.resized);
     }
+    this.#initKittyKeyboard();
+  }
+
+  /**
+   * The kitty keyboard protocol, opt-in through `kittyKeyboard`, as Ink negotiates it: pushed
+   * at once in `enabled` mode; in `auto` mode, on a terminal known to speak it and outside CI,
+   * only once the terminal answers the query. Both streams must be terminals.
+   */
+  #initKittyKeyboard(): void {
+    const opts = this.#options.kittyKeyboard;
+    if (opts === undefined) return;
+    const mode = opts.mode ?? 'auto';
+    const { stdin, stdout } = this.#options;
+    if (mode === 'disabled' || stdin.isTTY !== true || stdout.isTTY !== true) return;
+    const flags = resolveFlags(opts.flags ?? ['disambiguateEscapeCodes']);
+    if (mode === 'enabled') this.#enableKitty(flags);
+    else if (!this.#ci && knownKittyTerminal()) this.#confirmKitty(flags);
+  }
+
+  /**
+   * Ask, and listen before asking so a terminal that answers synchronously is not missed. What
+   * arrives that is not the answer goes back to stdin, unchanged, when the wait ends — on the
+   * answer, after 200 ms, or at unmount — and an answer after unmount turns nothing on.
+   */
+  #confirmKitty(flags: number): void {
+    const { stdin } = this.#options;
+    let received: number[] = [];
+    const settle = (): boolean => {
+      this.#cancelKittyDetection = undefined;
+      clearTimeout(timer);
+      stdin.removeListener('data', onData);
+      const { replied, rest } = kittyReply(received);
+      received = [];
+      if (rest.length > 0) stdin.unshift(Buffer.from(rest));
+      return replied;
+    };
+    const onData = (data: string | Uint8Array): void => {
+      received.push(...(typeof data === 'string' ? Buffer.from(data) : data));
+      if (kittyReply(received).replied && settle() && !this.#isUnmounted) this.#enableKitty(flags);
+    };
+    stdin.on('data', onData);
+    const timer = setTimeout(settle, KITTY_WAIT);
+    this.#cancelKittyDetection = () => void settle();
+    write(this.#stdout, kittyKeyboardQuery);
+  }
+
+  #enableKitty(flags: number): void {
+    write(this.#stdout, kittyKeyboardPush(flags));
+    this.#kittyEnabled = true;
   }
 
   #terminalWidth(): number {
@@ -351,6 +405,7 @@ export class Ink {
     this.#isUnmounting = true;
     this.#offBeforeExit?.();
     this.#offBeforeExit = undefined;
+    this.#cancelKittyDetection?.();
     const stdout = this.#stdout;
     const canWrite = stdout.destroyed !== true && stdout.writableEnded !== true && (stdout.writable ?? true);
     const settle = (throttled: Partial<Throttled<never[]>>): void => {
@@ -371,6 +426,8 @@ export class Ink {
     this.#restoreConsole?.();
     this.#unsubscribeResize?.();
     settle(this.#throttledLog as Partial<Throttled<never[]>>);
+    if (canWrite && this.#kittyEnabled) write(stdout, kittyKeyboardPop);
+    this.#kittyEnabled = false;
     if (canWrite) {
       if (this.#ci) write(stdout, `${this.#lastOutput}\n`);
       else if (!this.#options.debug) this.#log.done();

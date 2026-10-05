@@ -1,10 +1,12 @@
 import { PassThrough } from 'node:stream';
 
+import { editor } from 'caique/editor';
 import { manualClock } from 'flagstaff/loop';
-import { type Component } from 'flagstaff/plugin';
+import { type Component, register as registerFlagstaff } from 'flagstaff/plugin';
 import { describe, expect, it, vi } from 'vitest';
 
 import { type Layout } from './layout.js';
+import { register } from './plugin.js';
 import { processRuntime, type Runtime } from './runtime.js';
 import { open, type ScreenOptions } from './screen.js';
 
@@ -141,7 +143,10 @@ describe('R6 — the static session', () => {
     screen.commit('done');
     const events = f.err.join('').trim().split('\n').map((line) => JSON.parse(line) as unknown);
     expect(events).toContainEqual({ event: 'tasks', state: '◼ install' });
+    screen.close();
     expect(events).toContainEqual({ event: 'commit', state: 'done' });
+    const after = f.err.join('').trim().split('\n').map((line) => JSON.parse(line) as { event: string });
+    expect(after.filter((e) => e.event === 'commit'), 'closing must not repeat the last commit').toHaveLength(1);
     expect(f.out).toEqual([]);
   });
 
@@ -171,6 +176,14 @@ describe('R6 — the static session', () => {
     const screen = open(fake().rt, options());
     expect(() => screen.update('nope', 1)).toThrow(/no pane named "nope"/u);
     screen.close();
+  });
+
+  it('R6 — a live-only pane (a hint line, a tab bar) is left out of the static projection, and updating it is a no-op', () => {
+    const f = fake({ tty: false });
+    const screen = open(f.rt, options({ panes: { hint: { component: text, state: '←→ switch tab', liveOnly: true }, body: { component: text, state: 'content' } } }));
+    screen.update('hint', 'changed');
+    screen.close();
+    expect(f.out.join('')).toBe('content\n');
   });
 
   it('a pane with no label prints its projection alone', () => {
@@ -327,6 +340,123 @@ describe('keys — routed through the keymap, as data', () => {
     expect(f.raw).toEqual([true, false]);
     screen.dispatch('tab.next');
     expect(heard).toEqual(['quit']);
+  });
+});
+
+describe('R10 — registered keymaps and panes', () => {
+  it('the default keymap is the registered one: arrows switch tabs with no keymap passed', async () => {
+    const f = fake();
+    const screen = open(f.rt, options({ tabs: ['A', 'B'] }));
+    press(f, `${ESC}[C`);
+    await flush();
+    expect(screen.state.active).toBe(1);
+    screen.close();
+  });
+
+  it('a keymap can be named, and a registered pane draws with the flagstaff component it names', async () => {
+    registerFlagstaff({ name: 'demo-components', components: { shout: { static: (s: unknown) => String(s).toUpperCase() } } });
+    register({ name: 'demo', keymaps: { vim: { keys: { l: 'tab.next' } } }, panes: { loud: { component: 'shout', label: 'Loud' } } });
+    const f = fake({ tty: false });
+    const screen = open(f.rt, { layout: 'x', tabs: ['A', 'B'], keymap: 'vim', panes: { x: { pane: 'loud', state: 'hi' } } });
+    screen.close();
+    expect(f.out.join('')).toBe('Loud\nHI\n');
+    const g = fake();
+    const live = open(g.rt, { layout: 'x', tabs: ['A', 'B'], keymap: 'vim', panes: { x: { pane: 'loud', state: 'hi' } } });
+    press(g, 'l');
+    await flush();
+    expect(live.state.active).toBe(1);
+    live.close();
+  });
+
+  it('a registered pane with no label prints its projection alone', () => {
+    register({ name: 'demo2', panes: { plain: { component: 'shout' } } });
+    const f = fake({ tty: false });
+    open(f.rt, { layout: 'x', panes: { x: { pane: 'plain', state: 'hi' } } }).close();
+    expect(f.out.join('')).toBe('HI\n');
+  });
+
+  it('a name nothing registered throws with a fix, for a keymap, a pane, and a pane whose component is missing', () => {
+    const rt = fake({ tty: false }).rt;
+    expect(() => open(rt, { layout: 'x', keymap: 'nope', panes: {} })).toThrow(/no keymap named "nope"/u);
+    expect(() => open(rt, { layout: 'x', panes: { x: { pane: 'nope', state: 0 } } })).toThrow(/no pane named "nope"/u);
+    register({ name: 'demo3', panes: { ghost: { component: 'never-registered' } } });
+    expect(() => open(rt, { layout: 'x', panes: { x: { pane: 'ghost', state: 0 } } })).toThrow(/"never-registered", which flagstaff has not registered/u);
+  });
+});
+
+/** A chat-shaped screen: a transcript over a prompt line, with Esc bound to the program's own `interrupt`. */
+const chat = (heard: string[], extra: Partial<ScreenOptions> = {}): ScreenOptions => ({
+  layout: { direction: 'column', parts: [{ size: 'fit', content: 'log' }, { size: 'fit', content: 'prompt' }] },
+  panes: { log: { component: text, state: 'transcript' } },
+  keymap: { escape: 'interrupt' },
+  input: { editor: editor({ prompt: '> ' }), pane: 'prompt', onSubmit: (t) => heard.push(`submit:${t}`), onEnd: () => heard.push('end') },
+  onAction: (a) => heard.push(a),
+  ...extra,
+});
+
+describe('R20 — an input line inside a screen', () => {
+  it('typing goes to the editor, Enter submits it to the program, and the line is drawn in its pane', async () => {
+    const f = fake();
+    const heard: string[] = [];
+    const screen = open(f.rt, chat(heard));
+    press(f, 'hi');
+    await flush();
+    expect(f.out.join('')).toContain('> hi');
+    press(f, '\r');
+    await flush();
+    expect(heard).toEqual(['submit:hi']);
+    screen.close();
+  });
+
+  it('a key the editor does not use falls through to the keymap: Esc reaches the program', async () => {
+    const f = fake();
+    const heard: string[] = [];
+    const screen = open(f.rt, chat(heard));
+    press(f, ESC);
+    // A lone ESC is only a key once readline's escape timeout says no sequence follows it.
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(heard).toEqual(['interrupt']);
+    screen.close();
+  });
+
+  it('ctrl+c in the editor quits the screen; bracketed paste is on while it is open and off after', async () => {
+    const f = fake();
+    const heard: string[] = [];
+    open(f.rt, chat(heard));
+    expect(f.out.join('')).toContain(`${ESC}[?2004h`);
+    press(f, '\u0003');
+    await flush();
+    expect(heard).toEqual(['quit']);
+    expect(f.out.join('')).toContain(`${ESC}[?2004l`);
+  });
+
+  it('when another pane has focus, keys go to the keymap and not to the editor', async () => {
+    const f = fake();
+    const heard: string[] = [];
+    const screen = open(f.rt, chat(heard, { focus: ['log', 'prompt'], keymap: { x: 'mark' } }));
+    press(f, 'x');
+    await flush();
+    expect(heard).toEqual(['mark']);
+    screen.close();
+  });
+
+  it('outside a terminal, each piped stdin line is an entry, and the end of stdin is the end of input', async () => {
+    const f = fake({ tty: false, raw: false });
+    const heard: string[] = [];
+    open(f.rt, chat(heard));
+    f.stdin.end('first\nsecond\n');
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(heard).toEqual(['submit:first', 'submit:second', 'end']);
+    expect(f.out.join('')).not.toContain('> ');
+  });
+
+  it('R7 — a terminal stdin is never read by a static session: the input ends at once instead of waiting', async () => {
+    const f = fake({ tty: true, raw: true });
+    const heard: string[] = [];
+    open(f.rt, { ...chat(heard), json: true });
+    await flush();
+    expect(heard).toEqual(['end']);
+    expect(f.stdin.listenerCount('data')).toBe(0);
   });
 });
 

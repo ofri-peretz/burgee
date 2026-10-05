@@ -14,7 +14,7 @@ is its README, projected; the family-wide pages — [compatibility](/docs/compat
 | [bellpull](https://bellpull.interlace.tools/docs) | cross-spawn and which | [bellpull.interlace.tools](https://bellpull.interlace.tools) |
 | [caique](https://caique.interlace.tools/docs) | inquirer and clack | [caique.interlace.tools](https://caique.interlace.tools) |
 | [closeout](https://closeout.interlace.tools/docs) | signal-exit, exit-hook and restore-cursor | [closeout.interlace.tools](https://closeout.interlace.tools) |
-| [controlroom](https://burgee.interlace.tools/docs/packages/controlroom) | ink | [burgee.interlace.tools](https://burgee.interlace.tools) |
+| [controlroom](https://burgee.interlace.tools/docs/packages/controlroom) | ink, graded by ink's own suite | [burgee.interlace.tools](https://burgee.interlace.tools) |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | ora, log-update, boxen and cli-table3 | [flagstaff.interlace.tools](https://flagstaff.interlace.tools) |
 | [linegauge](https://linegauge.interlace.tools/docs) | string-width, wrap-ansi, strip-ansi and slice-ansi | [linegauge.interlace.tools](https://linegauge.interlace.tools) |
 | [paratext](https://paratext.interlace.tools/docs) | ansi-escapes, terminal-link and term-img | [paratext.interlace.tools](https://paratext.interlace.tools) |

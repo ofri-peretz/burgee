@@ -20,5 +20,5 @@ export type Status = typeof status;
 export { distribute, layout, type Contents, type Layout, type Part, type Rect, type Size, type Split } from './layout.js';
 export { hints, initial, reduce, type Action, type Keymap, type ScreenState } from './tabs.js';
 export { collapse, compose, fit, render, type Frame, type Pane, type Panes } from './compose.js';
-export { open, type Screen, type ScreenOptions } from './screen.js';
+export { open, type Screen, ScreenError, type ScreenOptions } from './screen.js';
 export { processRuntime, type Runtime } from './runtime.js';
