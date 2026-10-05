@@ -13,7 +13,7 @@
  * `ink/` is held to the whole rule.
  */
 import { readdirSync, readFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
@@ -51,7 +51,8 @@ function sources(dir = SRC): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const at = join(dir, entry.name);
     if (entry.isDirectory()) return sources(at);
-    return entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts') && !entry.name.endsWith('.d.ts') ? [relative(SRC, at)] : [];
+    // POSIX separators on every OS: the boundaries are written with them.
+    return entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts') && !entry.name.endsWith('.d.ts') ? [relative(SRC, at).split(sep).join('/')] : [];
   });
 }
 

@@ -14,7 +14,7 @@
  * because the peers' bytes are the program's own install and not in `dist/`.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, relative, resolve } from 'node:path';
+import { dirname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
@@ -99,7 +99,7 @@ function walk(entry: string): { reached: string[]; external: string[]; bytes: nu
       else if (spec !== '' && !spec.startsWith('node:')) external.add(spec);
     }
   }
-  return { reached: [...files].map((f) => relative(dist, f)), external: [...external], bytes };
+  return { reached: [...files].map((f) => relative(dist, f).split(sep).join('/')), external: [...external], bytes };
 }
 
 function entryFile(subpath: string): string {

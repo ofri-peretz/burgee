@@ -45,12 +45,15 @@ interface Manifest {
   dependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
   optionalDependencies?: Record<string, string>;
+  peerDependenciesMeta?: Record<string, { optional?: boolean }>;
 }
 
 interface Node {
   readonly name: string;
   readonly uses: readonly string[];
   readonly outside: readonly string[];
+  /** Peers marked optional: never installed, so not an edge — the program brings its own (controlroom R11, D-111's one exception). */
+  readonly optionalPeers: readonly string[];
   readonly role: 'composes' | 'leaf' | 'reserved';
 }
 
@@ -63,11 +66,16 @@ const manifests: Manifest[] = readdirSync(join(root, 'packages'), { withFileType
 const family = new Set(manifests.map((m) => m.name));
 
 const nodes: Node[] = manifests.map((m) => {
-  const declared = Object.keys({ ...m.dependencies, ...m.peerDependencies, ...m.optionalDependencies }).toSorted();
+  const optionalPeers = Object.keys(m.peerDependencies ?? {})
+    .filter((d) => !family.has(d) && m.peerDependenciesMeta?.[d]?.optional === true)
+    .toSorted();
+  const declared = Object.keys({ ...m.dependencies, ...m.peerDependencies, ...m.optionalDependencies })
+    .filter((d) => !optionalPeers.includes(d))
+    .toSorted();
   const uses = declared.filter((d) => family.has(d));
   let role: Node['role'] = uses.length > 0 ? 'composes' : 'leaf';
   if ((m.description ?? '').startsWith('Reserved')) role = 'reserved';
-  return { name: m.name, uses, outside: declared.filter((d) => !family.has(d)), role };
+  return { name: m.name, uses, outside: declared.filter((d) => !family.has(d)), optionalPeers, role };
 });
 
 const composers = nodes.filter((n) => n.role === 'composes');
@@ -78,7 +86,6 @@ const edges = composers.flatMap((c) => c.uses.map((to) => [c.name, to] as const)
 const problems = [
   ...nodes.flatMap((n) => n.outside.map((d) => `${n.name} depends on ${d}, which is outside the family`)),
   ...edges.filter(([, to]) => !leaves.some((l) => l.name === to)).map(([from, to]) => `${from} → ${to} does not end at a leaf; the diagram has two rows`),
-  ...reserved.filter((n) => n.uses.length > 0).map((n) => `${n.name} is reserved but declares ${n.uses.join(', ')}`),
 ];
 if (problems.length > 0) {
   for (const p of problems) process.stderr.write(`✖ ${p}\n`);
@@ -130,7 +137,7 @@ const box = ({ x, y, w, label, stroke, dashed = false }: Box): string =>
 const svg = [
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" width="${WIDTH}" height="${HEIGHT}" role="img" aria-labelledby="t d">`,
   '  <title id="t">The burgee family\'s dependency graph</title>',
-  `  <desc id="d">${composers.map((c) => `${c.name} depends on ${c.uses.join(', ')}`).join('. ')}. ${leaves.map((l) => l.name).join(', ')} depend on nothing.${reserved.length > 0 ? ` ${reserved.map((r) => r.name).join(', ')} is reserved and depends on nothing.` : ''}</desc>`,
+  `  <desc id="d">${composers.map((c) => `${c.name} depends on ${c.uses.join(', ')}`).join('. ')}. ${leaves.map((l) => l.name).join(', ')} depend on nothing.${reserved.map((r) => ` ${r.name} is reserved${r.uses.length > 0 ? `; it will depend on ${r.uses.join(', ')} when it publishes, and is drawn apart until then` : ' and depends on nothing'}.`).join('')}</desc>`,
   '  <defs>',
   ...composers.map((_, i) => `    <marker id="a${i}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${PALETTE[i % PALETTE.length]}"/></marker>`),
   '  </defs>',
@@ -153,9 +160,12 @@ const svg = [
 
 const pkgLink = (name: string): string => `\`${name}\``;
 const rows = [...composers, ...leaves, ...reserved].map((n) => {
-  const layer = n.role === 'reserved' ? 'reserved, no API yet' : n.role;
+  // A reserved package is published as a placeholder. Its manifest may already declare what the
+  // repository's unreleased code uses; those edges are listed, and drawn once it publishes.
+  const layer = n.role === 'reserved' ? (n.uses.length > 0 ? 'reserved on npm; built in the repository' : 'reserved, no API yet') : n.role;
+  const outside = [...n.outside, ...n.optionalPeers.map((d) => `${d} (optional peer)`)];
   const users = composers.filter((c) => c.uses.includes(n.name)).map((c) => pkgLink(c.name));
-  return `| ${pkgLink(n.name)} | ${layer} | ${n.uses.length === 0 ? 'nothing' : n.uses.map(pkgLink).join(', ')} | ${users.length === 0 ? '—' : users.join(', ')} | ${n.outside.length === 0 ? 'nothing' : n.outside.join(', ')} |`;
+  return `| ${pkgLink(n.name)} | ${layer} | ${n.uses.length === 0 ? 'nothing' : n.uses.map(pkgLink).join(', ')} | ${users.length === 0 ? '—' : users.join(', ')} | ${outside.length === 0 ? 'nothing' : outside.join(', ')} |`;
 });
 
 const block = [
