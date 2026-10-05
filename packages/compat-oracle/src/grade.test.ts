@@ -20,12 +20,12 @@
 import { type ExecFileSyncOptions } from 'node:child_process';
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type Host } from './hosts.js';
-import { cjsLoad, grade, installSuiteDeps, internalShimBody, jestGlobals, readBaseline } from './run.js';
+import { ALIAS_HOOK, aliasHook, cjsLoad, grade, installSuiteDeps, internalShimBody, jestGlobals, readBaseline } from './run.js';
 
 interface Call {
   file: string;
@@ -393,6 +393,75 @@ describe('the shims a run writes', () => {
   });
 });
 
+/**
+ * `Host.alias` — `@inkjs/ui`'s shape: a suite whose subject is built on the incumbent. The
+ * library stays itself on both runs, and only a target run moves the incumbent under it.
+ * `semver` stands in for the target because it is in this workspace and tiny.
+ */
+/** An aliasing host whose library, on both runs, is `node:path`. */
+const lib = (over: Partial<Host> = {}): Host => host({ alias: 'the-incumbent', imports: [{ upstream: '../index.js', subpath: '', reexportDefault: false, control: 'node:path' }], ...over });
+const hook = (hostDir: string): string => join(hostDir, ALIAS_HOOK);
+
+describe('a host that grades a library built on the incumbent', () => {
+
+  it('hands the suite the library itself on both runs', () => {
+    const hostDir = vendored(lib(), { 'a.test.js': '' });
+    seam.exec = prints(SUMMARY(1, 1));
+    grade(lib(), vendorDir, 'fake');
+    expect(read(hostDir, 'shim.js')).toBe("// generated per run — COMPAT_TARGET=fake\nexport * from 'node:path';\n");
+    grade(lib(), vendorDir, 'semver');
+    expect(read(hostDir, 'shim.js')).toBe("// generated per run — COMPAT_TARGET=semver\nexport * from 'node:path';\n");
+  });
+
+  it('loads the hook into a target run, after whatever NODE_OPTIONS already held, and into a control run never', () => {
+    vi.stubEnv('NODE_OPTIONS', '--no-warnings');
+    const hostDir = vendored(lib(), { 'a.test.js': '' });
+    seam.exec = prints(SUMMARY(1, 1));
+    grade(lib(), vendorDir, 'semver');
+    expect(read(hook(hostDir))).toBe(aliasHook('the-incumbent', import.meta.resolve('semver'), 'semver'));
+    expect((seam.calls[0] as Call).options.env.NODE_OPTIONS).toBe(`--no-warnings --import=${pathToFileURL(hook(hostDir)).href}`);
+    // A control run removes the previous run's hook and loads nothing.
+    grade(lib(), vendorDir, 'fake');
+    expect(existsSync(hook(hostDir))).toBe(false);
+    expect((seam.calls[1] as Call).options.env.NODE_OPTIONS).toBe('--no-warnings');
+  });
+
+  it('starts NODE_OPTIONS with the hook when nothing else is in it', () => {
+    vi.stubEnv('NODE_OPTIONS', undefined);
+    const hostDir = vendored(lib(), { 'a.test.js': '' });
+    seam.exec = prints(SUMMARY(1, 1));
+    grade(lib(), vendorDir, 'semver');
+    expect(only().options.env.NODE_OPTIONS).toBe(`--import=${pathToFileURL(hook(hostDir)).href}`);
+  });
+
+  it('writes no hook for a host that aliases nothing', () => {
+    const hostDir = vendored(host(), { 'a.test.js': '' });
+    seam.exec = prints(SUMMARY(1, 1));
+    grade(host(), vendorDir, 'vitest');
+    expect(existsSync(hook(hostDir))).toBe(false);
+  });
+
+  it('is a note when the target the alias moves to is not built, whatever the library’s own entries are', () => {
+    vendored(lib(), { 'a.test.js': '' });
+    expect(grade(lib(), vendorDir, 'no-such-target-anywhere')).toMatchObject({ passed: 0, note: 'target not built yet: no-such-target-anywhere' });
+  });
+
+  // For real, because the claim is about resolution in a child process the oracle never sees.
+  it('sends the incumbent to the target in the runner’s own children, and leaves it alone on the control', () => {
+    const suite = [
+      "import test from 'node:test';",
+      "import assert from 'node:assert';",
+      "test('the incumbent is whatever the run says it is', async () => {",
+      "  const { default: semver } = await import('the-incumbent');",
+      "  assert.equal(semver.valid('1.2.3'), '1.2.3');",
+      '});',
+    ].join('\n');
+    vendored(lib(), { 'a.test.js': suite });
+    expect(grade(lib(), vendorDir, 'semver')).toMatchObject({ tests: 1, passed: 1 });
+    expect(grade(lib(), vendorDir, 'fake')).toMatchObject({ tests: 1, passed: 0, failed: 1 });
+  });
+});
+
 describe('the internal shims a run writes', () => {
   const tap = prints(SUMMARY(1, 1));
   const shipped = join(COMMANDER, 'lib', 'command.js');
@@ -457,6 +526,21 @@ describe('the internal shims a run writes', () => {
     grade(h, vendorDir, 'commander');
     expect(lstatSync(at).isSymbolicLink()).toBe(true);
     expect(read(shipped)).not.toContain('generated per run');
+  });
+
+  it('links the compiled file on the control of a host that publishes its internals elsewhere, and shims the target', () => {
+    // ink's shape, on commander's files: the suite names `src/…`, the tarball ships `lib/…`.
+    const h = incumbent({ internalDir: 'src', publishedInternalDir: 'lib' });
+    const hostDir = vendored(h, { 'a.test.js': '' }, { source: { internals: ['src/command.js'] } });
+    seam.exec = tap;
+    grade(h, vendorDir, 'commander');
+    const at = join(hostDir, 'src', 'command.js');
+    // A link, not `export *`, which would drop the `default` ink's `parseKeypress` is.
+    expect(lstatSync(at).isSymbolicLink()).toBe(true);
+    expect(realpathSync(at)).toBe(realpathSync(shipped));
+    grade(h, vendorDir, 'vitest');
+    expect(lstatSync(at).isSymbolicLink()).toBe(false);
+    expect(read(at)).toBe("// generated per run — COMPAT_TARGET=vitest\nexport * from 'vitest';\n");
   });
 
   it('falls back to an ordinary shim where the platform refuses the link', () => {

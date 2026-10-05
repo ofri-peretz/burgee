@@ -70,6 +70,8 @@ export const GRADED: Readonly<Record<string, Row>> = {
   'restore-cursor': { reference: 6, passed: 6, rate: 1, control: 6 },
   'exit-hook': { reference: 21, passed: 21, rate: 1, control: 21 },
   'signal-exit': { reference: 135, passed: 134, rate: 0.9925925925925926, control: 134 },
+  ink: { reference: 593, passed: 0, rate: 0, control: 593 },
+  'inkjs-ui': { reference: 103, passed: 0, rate: 0, control: 103 },
 };
 
 /** One graded path: an incumbent's specifier, and the family specifier that replaces it. */
@@ -116,6 +118,7 @@ export const DROP_INS: readonly DropIn[] = [
   { host: 'exit-hook', from: 'exit-hook', to: 'closeout/exit-hook' },
   { host: 'signal-exit', from: 'signal-exit', to: 'closeout/signal-exit' },
   { host: 'signal-exit', from: 'signal-exit/signals', to: 'closeout/signal-exit/signals' },
+  { host: 'ink', from: 'ink', to: 'controlroom' },
 ];
 
 /**
@@ -137,6 +140,7 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
   'cross-spawn': '7.0.6',
   dotenv: '17.4.2',
   'exit-hook': '5.1.0',
+  ink: '6.8.0',
   lilconfig: '3.1.3',
   'log-update': '8.0.0',
   meow: '14.1.0',
@@ -189,6 +193,7 @@ export const SUPPORTED_MAJORS: Readonly<Record<string, readonly number[]>> = {
   'cross-spawn': [7],
   dotenv: [17],
   'exit-hook': [5],
+  ink: [6],
   lilconfig: [3],
   'log-update': [8],
   meow: [14],

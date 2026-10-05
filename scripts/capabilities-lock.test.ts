@@ -408,11 +408,13 @@ describe('the lock refuses what it exists to refuse', () => {
     expect(problems('flagstaff', clone()).filter((p) => p.includes('cli-spinners'))).toEqual([]);
   });
 
+  // `blessed`, which nothing grades and nothing will (`controlroom/spec.md` R18 migrates it
+  // rather than grading a drop-in). It was `ink` until ink's suite was vendored.
   it('an incumbent nothing grades, added', () => {
     const caps = clone();
-    (caps as { incumbents: string[] }).incumbents = [...caps.incumbents, 'ink'];
-    refused(caps, /ink is neither in LAYERS/u);
-    refused(caps, /no cell for ink/u);
+    (caps as { incumbents: string[] }).incumbents = [...caps.incumbents, 'blessed'];
+    refused(caps, /blessed is neither in LAYERS/u);
+    refused(caps, /no cell for blessed/u);
   });
 
   it('a row missing a column', () => {

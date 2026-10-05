@@ -233,9 +233,13 @@ describe('the lock can fail', () => {
     expect(problems('controlroom', read('controlroom')), 'the reserved package itself passes').toEqual([]);
   });
 
+  // controlroom was the ungraded package until its two rows landed (D-20261005-controlroom-ink-suite),
+  // and every package is graded now — so a name no host targets stands in for the next one, read
+  // through the section check alone, because the header checks read a manifest it does not have.
   it('fails an ungraded package whose Compatibility section does not say so', () => {
-    const text = read('controlroom').replace('Not graded yet.', 'Coming soon.');
-    expect(text).not.toBe(read('controlroom'));
-    expect(problems('controlroom', text).join('\n')).toMatch(/does not say "not graded"/u);
+    const said = read('controlroom').replace(/## Compatibility\n\n[\s\S]*?\n## /u, '## Compatibility\n\nNot graded yet.\n\n## ');
+    expect(said).not.toBe(read('controlroom'));
+    expect(sectionProblems('ungraded-fixture', said).join('\n')).not.toMatch(/does not say "not graded"/u);
+    expect(sectionProblems('ungraded-fixture', said.replace('Not graded yet.', 'Coming soon.')).join('\n')).toMatch(/does not say "not graded"/u);
   });
 });

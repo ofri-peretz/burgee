@@ -205,6 +205,26 @@ describe('a control run’s internal shim', () => {
   it('points a target run at the target, never at an installed path', () => {
     expect(internalShimFrom(clack, { target: 'caique', installed: undefined, rel: 'src/common.js' })).toBe('caique');
   });
+
+  // ink's tests import `../src/write-synchronized.js` and ink publishes only `build/`.
+  describe('for a host that publishes its internals compiled elsewhere', () => {
+    const ink = { ...clack, internalDir: 'src', publishedInternalDir: 'build' };
+    mkdirSync(join(installed, 'build'), { recursive: true });
+    writeFileSync(join(installed, 'build', 'write-synchronized.js'), 'export const bsu = 1;\n');
+
+    it('points at the compiled file of the same name', () => {
+      expect(internalShimFrom(ink, { target: 'ink', installed, rel: 'src/write-synchronized.js' })).toBe(join(installed, 'build', 'write-synchronized.js'));
+    });
+
+    it('still prefers the file the suite names, when the package ships that too', () => {
+      expect(internalShimFrom(ink, { target: 'ink', installed, rel: 'src/cell' })).toBe(join(installed, 'src', 'cell'));
+    });
+
+    it('moves only a path under the host’s own internal directory, and falls back by name for the rest', () => {
+      writeFileSync(join(installed, 'build', 'elsewhere.js'), '');
+      expect(internalShimFrom(ink, { target: 'ink', installed, rel: 'lib/elsewhere.js' })).toBe('@clack/prompts');
+    });
+  });
 });
 
 /**
@@ -312,6 +332,30 @@ describe('a case the incumbent expects to fail, and we pass', () => {
   it('leaves an ordinary failure alone', () => {
     const ordinary = ['not ok 2 - slices a string', '# tests 3', '# pass 2', '# fail 1'].join('\n');
     expect(parseNodeTest(ordinary)).toMatchObject({ passed: 2, failed: 1, exceeded: 0 });
+  });
+});
+
+/**
+ * A `test.todo()` is a title with no body, and supertap — ava's TAP — adds it to `# fail`
+ * while leaving it out of `# tests`. ink 6.8.0 has one (`hooks › useStderr - write to
+ * stderr`), and before this its control read `1 failing against its own package`, against
+ * ink itself, for a case nobody has written. The output is ink's own, cut to the shape.
+ */
+describe('a todo, which is not a case', () => {
+  const ava = ['ok 280 - hooks › useStdout - write to stdout', 'not ok 281 - hooks › useStderr - write to stderr # TODO', '1..594', '# tests 593', '# pass 593', '# fail 1'].join('\n');
+
+  it('is not a failure in ava’s dialect, which counts it in `# fail`', () => {
+    expect(parseNodeTest(ava)).toMatchObject({ tests: 593, passed: 593, failed: 0 });
+  });
+
+  it('is not subtracted twice in node:test’s, which keeps todos out of `# fail` and says so', () => {
+    const node = ['not ok 1 - later # TODO', 'not ok 2 - broken', '# tests 2', '# pass 0', '# fail 1', '# todo 1'].join('\n');
+    expect(parseNodeTest(node)).toMatchObject({ tests: 2, passed: 0, failed: 1 });
+  });
+
+  it('is only a todo with the directive at the end of a failing line', () => {
+    const real = ['not ok 1 - fails while discussing a # TODO list in its title', 'ok 2 - passes # TODO', '# tests 2', '# pass 1', '# fail 1'].join('\n');
+    expect(parseNodeTest(real)).toMatchObject({ passed: 1, failed: 1 });
   });
 });
 

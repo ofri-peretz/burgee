@@ -183,6 +183,20 @@ export interface Host {
    */
   internalDir?: string;
   /**
+   * Where the **published** package carries the modules the suite imports from
+   * `internalDir`, when the tarball ships them compiled under another directory.
+   *
+   * ink's tests import `../src/write-synchronized.js` and `../src/parse-keypress.js`, and
+   * ink publishes `build/` and nothing else (`files: ["build"]`), so the file the suite names
+   * is not in the installed package and the control fell back to the package by name — whose
+   * main entry exports neither `bsu` nor `parseKeypress`. `render.tsx` and
+   * `kitty-keyboard.tsx` then died at link time against ink itself (measured 2026-10-05). With
+   * this set, the control's internal path is the compiled file of the same name, and it is
+   * **linked** rather than re-exported, because an ESM `export *` drops `default` and
+   * `parseKeypress` is one. A target run never consults it.
+   */
+  publishedInternalDir?: string;
+  /**
    * For a **target** run only, the export the target publishes under each internal path.
    *
    * The default shim re-exports the target's whole main entry at every internal path, which
@@ -363,6 +377,22 @@ export interface Host {
    * make behave differently, and signal-exit does.
    */
   shim?: 'cjs';
+  /**
+   * The incumbent this suite reaches only **through the library it grades** — set for a suite
+   * whose subject is built on the incumbent rather than being it.
+   *
+   * `@inkjs/ui`'s suite tests `@inkjs/ui`, which imports `ink`, and renders through
+   * `ink-testing-library`, which imports `ink` too. Swapping the suite's own import for the
+   * target, as every other row does, would grade the target in place of `@inkjs/ui` — a
+   * façade `controlroom/spec.md` R17 rules out. What R17 grades is `@inkjs/ui` unmodified on
+   * top of the target. So for a host that sets this, the shim hands the suite its library on
+   * **both** runs (each import's `control`), and a target run loads a resolve hook into every
+   * process that sends every `import 'ink'` — the suite's, the library's, the testing
+   * helper's — to the target instead. The control run loads nothing. Not a drop-in pair of its
+   * own: the drop-in it exercises is the alias's own row, so `migrate` reads this row as
+   * neither.
+   */
+  alias?: string;
   /** Our entry point graded against it. */
   target: string;
   /**
@@ -1393,6 +1423,102 @@ export const HOSTS: Host[] = [
     target: 'closeout',
     status: 'active',
     note: "198.9 M/wk and stale since 2023-07-29 — the layer's headline incumbent. Graded against `closeout/signal-exit` (with `closeout/signal-exit/signals` for the suite's second public import): **134 of 135 on ubuntu, the same case the control fails** (126 of 127 on darwin, whose signal list is four shorter — see `conditionalCases`). The façade is the one CommonJS file in the family, and that is measured rather than preferred: `no-process.js` and `signals.js` require the module, swap out the global `process`, evict it from `require.cache` and require it again, and an ES module is evaluated once per process however the cache is edited — measured 2026-09-23, an ESM build of the same façade failed `process missing from the start` and all three `signals.js` snapshots when those files were run directly, and a two-line probe confirmed a second `require()` of an evicted ES module returns the first instance. It exports `export = { onExit, load, unload, signals }`, which Node's CommonJS lexer reads as named exports, so `import { onExit } from 'closeout/signal-exit'` works from ESM too. It shares signal-exit's global emitter (`Symbol.for('signal-exit emitter')`), so a program with this façade and a transitive copy of the real package runs each handler once.",
+  },
+  // ---------------------------------------------------------------------------------------
+  // controlroom's two incumbents (`controlroom/spec.md` R13, R17; phase 1 of its intent).
+  // ---------------------------------------------------------------------------------------
+  {
+    name: 'ink',
+    repo: 'https://github.com/vadimdemedes/ink',
+    testDir: 'test',
+    testGlob: '*.{ts,tsx}',
+    internalDir: 'src',
+    publishedInternalDir: 'build',
+    imports: [{ upstream: '../src/index.js', subpath: '', reexportDefault: false }],
+    extraDirs: ['tsconfig.json'],
+    ungradedDirs: [
+      {
+        dir: 'helpers',
+        why: "Seven modules the tests import — `render-to-string.ts`, `create-stdout.ts`, `create-stdin.ts`, `test-renderer.ts`, `force-colors.ts`, and `run.ts` and `term.ts`, which spawn a fixture under `node-pty`. Upstream's own `ava.files` excludes the directory (`!test/helpers/**/*`); none of them declares a case.",
+      },
+      {
+        dir: 'fixtures',
+        why: "Twenty-eight TSX programs `run.ts` and `term.ts` spawn in a pseudo-terminal (`node --import=tsx fixtures/<name>.tsx`) for the cases that need a real TTY: `exit`, raw mode, `useInput` keystrokes, erase and `<Static>` in a short viewport. Upstream's `ava.files` excludes them (`!test/fixtures/**/*`); each renders an app and exits, and grades nothing on its own.",
+      },
+    ],
+    avaConfig: {
+      workerThreads: false,
+      serial: true,
+      files: ['test/**/*', '!test/helpers/**/*', '!test/fixtures/**/*'],
+      extensions: { ts: 'module', tsx: 'module' },
+      nodeArguments: ['--import=tsx'],
+    },
+    env: { FORCE_COLOR: 'true', CI: 'false' },
+    pinnedVersion: '6.8.0',
+    suiteDeps: [
+      'ink@6.8.0',
+      'ava@5.3.1',
+      'tsx@4.23.15',
+      '@sindresorhus/tsconfig@7.0.0',
+      'react@19.3.0',
+      'node-pty@1.2.0-beta.15',
+      'sinon@21.1.2',
+      '@sinonjs/fake-timers@15.4.0',
+      'delay@7.0.0',
+      'strip-ansi@7.2.0',
+      'chalk@5.6.2',
+      'ansi-escapes@7.3.0',
+      'boxen@8.0.1',
+      'slice-ansi@8.0.0',
+      'patch-console@2.0.0',
+      'is-in-ci@2.0.0',
+      'indent-string@5.0.0',
+      'cli-boxes@3.0.0',
+    ],
+    surfaceFiles: ['src/index.ts'],
+    runner: 'ava',
+    // The package root, not `controlroom/ink`: D-006 and D-007 — a row at zero names the root,
+    // and a façade is named only once it exists. R11 builds `controlroom/ink`, and the change
+    // that builds it moves this row there, as `caique` moved to `caique/inquirer`.
+    target: 'controlroom',
+    status: 'active',
+    note: "Vendored 2026-10-05 at **6.8.0**, the last 6.x and the release `controlroom/intent.md` names (D-20261005-controlroom-ink-suite records why not 7.1.1 or the 8.0.0 published two days earlier, which moved its suite off ava). **The denominator: 39 files — 32 gated, 7 informational because they import only ink's own modules — and 593 gated cases plus one `test.todo`, with 148 cases on the internals line.** Control **593 / 593** and internals **148 / 148** on darwin, measured under upstream's own CI environment (`CI=false`, `FORCE_COLOR=true`, from ink's `.github/workflows/test.yml`; under the runner's own `CI=true` ink takes its CI path, and one darwin measurement read **457 / 593** against ink itself — 42 failing, 94 never registering). **78 cases need a real PTY**: they spawn a fixture through `node-pty` (`helpers/run.ts`, `helpers/term.ts`) — `exit` 13, `hooks-use-input` 16, `hooks-use-input-navigation` 17, `hooks-use-input-kitty` 15, `render` 10, `hooks` 5, `components` 2. `node-pty` 1.2.0-beta.15 ships prebuilds for linux, darwin and win32, all 78 pass in the control, and none is excluded. Target `controlroom` **0 / 593**: the root exports `status` and nothing else, so every gated file fails at link time — a measured zero, not a placeholder.",
+  },
+  {
+    name: 'inkjs-ui',
+    npmName: '@inkjs/ui',
+    repo: 'https://github.com/vadimdemedes/ink-ui',
+    testDir: 'test',
+    testGlob: '*.tsx',
+    imports: [{ upstream: '../source/index.js', subpath: '', reexportDefault: false, control: '@inkjs/ui' }],
+    alias: 'ink',
+    extraDirs: ['tsconfig.json'],
+    avaConfig: {
+      extensions: { ts: 'module', tsx: 'module' },
+      nodeArguments: ['--import=tsx'],
+      environmentVariables: { NODE_NO_WARNINGS: '1', FORCE_COLOR: 'true' },
+    },
+    suiteDeps: [
+      '@inkjs/ui@2.0.0',
+      'ink@5.2.1',
+      'react@18.3.1',
+      'ink-testing-library@4.0.0',
+      'ava@5.3.1',
+      'tsx@4.23.15',
+      '@sindresorhus/tsconfig@5.1.1',
+      'chalk@5.6.2',
+      'figures@6.1.0',
+      'delay@6.0.0',
+      'cli-spinners@3.4.0',
+      'cat-names@4.0.0',
+      'boxen@7.1.1',
+    ],
+    surfaceFiles: ['source/index.ts'],
+    runner: 'ava',
+    // The root, for D-007's reason, and reached through `alias`: `'ink'` resolves here.
+    target: 'controlroom',
+    status: 'active',
+    note: "Vendored 2026-10-05 at **2.0.0**, the latest release (2024-05-22). `controlroom/spec.md` R17: `@inkjs/ui` runs unmodified with `'ink'` resolved to the drop-in, and there is no `@inkjs/ui` façade — so this row grades `@inkjs/ui` itself on both runs and moves only `ink` under it (`alias`). **13 files, 103 cases. Control 103 / 103** on darwin, against `ink@5.2.1` and `react@18.3.1`: upstream's own devDependencies at v2.0.0 (`ink ^5.0.0`, `react ^18.3.1`), which is not what ink's own row runs (6.8.0, React 19) — the drop-in is graded on both React lines. One substitution, and it touches no assertion: upstream loads its TypeScript with `--import=tsimp`, and tsimp 2.0.12 on Node 24 loads nothing — measured 2026-10-05, `node --import=tsimp` on a two-line `.ts` exits 0 without running it, and ava reports `Timed out while running tests` with 0 cases. `tsx`, which ink's own suite uses, runs all 103. Target `controlroom` **0 / 103**: every `import 'ink'` lands on the root, which has none of ink's names.",
   },
 ];
 

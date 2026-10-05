@@ -75,7 +75,7 @@ what was asked for and what is now claimed in its place.
 
 ### Landed after this design was written
 
-Five things the tree gained since 2026-09-08 that a design written then could not know, and
+Six things the tree gained since 2026-09-08 that a design written then could not know, and
 what each one settles above.
 
 - **`unsatisfiedPins`** (`src/run.ts`) — a pin is satisfied only by a copy under
@@ -100,6 +100,15 @@ what each one settles above.
   `baseline-scope.test.ts` in both directions — a `planned` host that loses its flag takes
   the whole compat axis to `? unmeasured`, and an `active` host that keeps one is graded
   into a rate nobody publishes.
+
+- **controlroom's two hosts, `ink` and `inkjs-ui` (2026-10-05, D-20261005-controlroom-ink-suite)**,
+  and three harness changes they needed. `Host.alias` grades a library built *on* the
+  incumbent: `@inkjs/ui` stays itself on both runs, and a target run moves every `import 'ink'`
+  in every process to the target through a `module.registerHooks` resolve hook loaded by
+  `NODE_OPTIONS`. `Host.publishedInternalDir` points a control's internal shim at the
+  compiled file a package publishes (`src/x.js` → `build/x.js`), linked so `default`
+  survives. A `test.todo` is no longer counted as a failure in ava's TAP. The vendor step
+  also rewrites `.tsx` files now, because ink's fixtures are TSX programs.
 
 **Two notes this reconciliation found stale, in entries other lanes own.** They are recorded
 here and not edited there, per `.sdlc/LANES.md`: a package lane owns its own incumbents'
