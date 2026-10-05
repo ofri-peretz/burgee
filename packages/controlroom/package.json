@@ -1,7 +1,7 @@
 {
   "name": "controlroom",
   "version": "0.0.1",
-  "description": "Reserved, and not usable yet: full-screen, keyboard-driven terminal screens with a static projection for pipes, CI and --json. The planned drop-in path for ink. Its only export today is status = 'reserved'.",
+  "description": "Full-screen, keyboard-driven terminal screens with a static projection for pipes, CI and --json. In progress: the layout and the tab, focus and collapse state are built; the screen is not, and controlroom/ink is planned as an ink migration path, not built yet. No dependency outside the burgee family.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

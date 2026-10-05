@@ -8,14 +8,14 @@
 </p>
 
 <p align="center">
-  Full-screen terminal screens that still print clean lines to a pipe. Reserved; not usable yet.
+  Full-screen terminal screens that still print clean lines to a pipe. In progress.
 </p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/controlroom"><img src="https://img.shields.io/npm/v/controlroom?style=flat-square&color=0a6b47" alt="controlroom on npm: the latest version" /></a>
   <a href="https://www.npmjs.com/package/controlroom"><img src="https://img.shields.io/npm/dm/controlroom?style=flat-square" alt="controlroom downloads per month on npm" /></a>
   <a href="https://github.com/ofri-peretz/burgee/actions/workflows/quality.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/ofri-peretz/burgee/quality.yml?branch=main&style=flat-square&label=Quality%20Gate" alt="Quality Gate: the CI status of main" /></a>
-  <a href="https://github.com/ofri-peretz/burgee/tree/main/.sdlc/intents/controlroom"><img src="https://img.shields.io/badge/status-reserved-a84c17?style=flat-square" alt="Status: reserved, not usable yet" /></a>
+  <a href="https://app.codecov.io/gh/ofri-peretz/burgee/components"><img src="https://img.shields.io/codecov/c/github/ofri-peretz/burgee/main?component=controlroom&style=flat-square" alt="controlroom line coverage: its Codecov component" /></a>
   <a href="https://scorecard.dev/viewer/?uri=github.com/ofri-peretz/burgee"><img src="https://img.shields.io/ossf-scorecard/github.com/ofri-peretz/burgee?style=flat-square&label=OpenSSF%20Scorecard" alt="OpenSSF Scorecard for the repository" /></a>
   <a href="https://www.npmjs.com/package/controlroom?activeTab=code"><img src="https://img.shields.io/npm/unpacked-size/controlroom?style=flat-square" alt="Unpacked size of the latest controlroom release on npm" /></a>
   <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/controlroom/package.json"><img src="https://img.shields.io/badge/dependencies-1%20in%20family%2C%200%20outside-0a6b47?style=flat-square" alt="One dependency, all in the burgee family (linegauge), none outside it" /></a>
@@ -35,9 +35,11 @@
   Planned drop-in for: ink — not built yet
 </p>
 
-**Reserved; not usable yet.** This version exports one constant, `status = 'reserved'`, and
-nothing else. There is no screen, no layout and no `controlroom/ink` to import today, so
-don't build on it. The design is approved, and it is set out in the intent:
+**In progress, and not a screen yet.** Two pieces are built: `layout()`, which turns a tree
+of rows and columns into a rectangle per pane, and the tab, focus and collapse state with a
+hint line generated from the keymap. The screen that draws them (R4–R7, R19) and
+`controlroom/ink` are not built, so don't build an app on it yet. The design is approved, and
+it is set out in the intent:
 [`.sdlc/intents/controlroom/`](https://github.com/ofri-peretz/burgee/tree/main/.sdlc/intents/controlroom).
 
 **What it is for.** controlroom will replace **ink** and `@inkjs/ui` in the burgee family. It
@@ -51,7 +53,7 @@ A **control room** is where a system is watched and run from.
 
 ## Install
 
-The reserved version installs, and gives you the one constant below:
+Install it for the layout and the tab state below:
 
 ```bash
 npm install controlroom
@@ -63,15 +65,25 @@ bun add controlroom
 ## Quick start
 
 ```js
-import { status } from 'controlroom';
+import { hints, layout, reduce, initial } from 'controlroom';
 
-console.log(status); // 'reserved'
+const panes = layout(
+  { direction: 'row', parts: [{ content: 'learn' }, { size: { fr: 2, min: 30 }, content: 'tasks' }] },
+  { x: 0, y: 0, width: 80, height: 24 },
+);
+panes.get('tasks'); // { x: 27, y: 0, width: 53, height: 24 }
+
+const keymap = { left: 'tab.prev', right: 'tab.next', s: 'toggle:status' };
+hints(keymap, { 'tab.prev': 'switch tab', 'tab.next': 'switch tab', 'toggle:status': 'toggle status' });
+// '←→ switch tab  s toggle status'
+
+reduce(initial(['Status', 'Logs']), 'tab.next').active; // 1
 ```
 
-That is the whole of the package today. Everything under the headings below is planned, and
-each plan is a requirement in the
+That is what is built. Everything under the headings below that says "planned" is a
+requirement in the
 [spec](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/controlroom/spec.md); this
-README will change when one ships.
+README changes when one ships.
 
 ## Migrating
 
@@ -127,9 +139,17 @@ The family's machine-readable docs are at
 
 ## API
 
-`status` — the string `'reserved'` — and its type, `Status`. There is nothing else to document
-yet; the planned surface is in the
-[spec](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/controlroom/spec.md).
+- `layout(tree, area, contents?)` — a `Map` from pane name to `{ x, y, width, height }`. A
+  part's size is a number of cells, `{ fr, min }`, or `'fit'` (its widest line in a row, its
+  wrapped line count in a column, measured by linegauge). A terminal too small for the
+  minimums clips the later parts and never the first.
+- `distribute(total, sizes)` — the same arithmetic for one axis.
+- `initial(tabs, panes)`, `reduce(state, action)` — tabs (`tab.next`, `tab.prev`, `tab:<name>`),
+  focus (`focus.next`, `focus.prev`) and collapse (`toggle:<section>`); any other action is the
+  program's own and leaves the state alone.
+- `hints(keymap, labels)` — the hint line, generated from the keymap so it cannot name an
+  unbound key.
+- `status` — `'reserved'`, kept until the first release that ships a screen.
 
 When it ships, it will build on its siblings rather than beside them: flagstaff draws the
 panes, caique reads the keys, closeout restores the terminal, linegauge measures, and roundel
@@ -158,7 +178,7 @@ takes a dependency from outside the family.
 | [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, dotenv and rc |
 | [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook and restore-cursor |
 | [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
-| **controlroom** (this package) | Reserved, not usable yet — planned: full-screen, keyboard-driven terminal screens | ink, planned |
+| **controlroom** (this package) | Full-screen, keyboard-driven terminal screens | ink |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

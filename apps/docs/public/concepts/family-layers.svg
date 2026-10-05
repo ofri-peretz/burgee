@@ -1,30 +1,34 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 300" width="760" height="300" role="img" aria-labelledby="t d">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 260" width="760" height="260" role="img" aria-labelledby="t d">
   <title id="t">The burgee family's dependency graph</title>
-  <desc id="d">burgee depends on bellpull, closeout, linegauge, roundel, seniority. caique depends on closeout, linegauge, paratext, roundel. flagstaff depends on closeout, linegauge, paratext, roundel. bellpull, closeout, linegauge, paratext, roundel, seniority depend on nothing. controlroom is reserved and depends on nothing.</desc>
+  <desc id="d">burgee depends on bellpull, closeout, linegauge, roundel, seniority. caique depends on closeout, linegauge, paratext, roundel. controlroom depends on linegauge. flagstaff depends on closeout, linegauge, paratext, roundel. bellpull, closeout, linegauge, paratext, roundel, seniority depend on nothing.</desc>
   <defs>
     <marker id="a0" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3b82f6"/></marker>
     <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#f59e0b"/></marker>
     <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#10b981"/></marker>
+    <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#a855f7"/></marker>
   </defs>
-  <line x1="190.0" y1="64" x2="52.0" y2="194" stroke="#3b82f6" stroke-width="2" marker-end="url(#a0)"/>
-  <line x1="190.0" y1="64" x2="176.0" y2="194" stroke="#3b82f6" stroke-width="2" marker-end="url(#a0)"/>
-  <line x1="190.0" y1="64" x2="300.0" y2="194" stroke="#3b82f6" stroke-width="2" marker-end="url(#a0)"/>
-  <line x1="190.0" y1="64" x2="548.0" y2="194" stroke="#3b82f6" stroke-width="2" marker-end="url(#a0)"/>
-  <line x1="190.0" y1="64" x2="672.0" y2="194" stroke="#3b82f6" stroke-width="2" marker-end="url(#a0)"/>
-  <line x1="380.0" y1="64" x2="194.0" y2="194" stroke="#f59e0b" stroke-width="2" marker-end="url(#a1)"/>
-  <line x1="380.0" y1="64" x2="318.0" y2="194" stroke="#f59e0b" stroke-width="2" marker-end="url(#a1)"/>
-  <line x1="380.0" y1="64" x2="442.0" y2="194" stroke="#f59e0b" stroke-width="2" marker-end="url(#a1)"/>
-  <line x1="380.0" y1="64" x2="566.0" y2="194" stroke="#f59e0b" stroke-width="2" marker-end="url(#a1)"/>
-  <line x1="570.0" y1="64" x2="212.0" y2="194" stroke="#10b981" stroke-width="2" marker-end="url(#a2)"/>
-  <line x1="570.0" y1="64" x2="336.0" y2="194" stroke="#10b981" stroke-width="2" marker-end="url(#a2)"/>
-  <line x1="570.0" y1="64" x2="460.0" y2="194" stroke="#10b981" stroke-width="2" marker-end="url(#a2)"/>
-  <line x1="570.0" y1="64" x2="584.0" y2="194" stroke="#10b981" stroke-width="2" marker-end="url(#a2)"/>
-  <rect x="120.0" y="24" width="140" height="40" rx="6" fill="#f4f4f5" stroke="#3b82f6" stroke-width="2"/>
-  <text x="190.0" y="49" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">burgee</text>
-  <rect x="310.0" y="24" width="140" height="40" rx="6" fill="#f4f4f5" stroke="#f59e0b" stroke-width="2"/>
-  <text x="380.0" y="49" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">caique</text>
-  <rect x="500.0" y="24" width="140" height="40" rx="6" fill="#f4f4f5" stroke="#10b981" stroke-width="2"/>
-  <text x="570.0" y="49" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">flagstaff</text>
+  <line x1="152.0" y1="64" x2="43.0" y2="194" stroke="#3b82f6" stroke-width="2" marker-end="url(#a0)"/>
+  <line x1="152.0" y1="64" x2="167.0" y2="194" stroke="#3b82f6" stroke-width="2" marker-end="url(#a0)"/>
+  <line x1="152.0" y1="64" x2="291.0" y2="194" stroke="#3b82f6" stroke-width="2" marker-end="url(#a0)"/>
+  <line x1="152.0" y1="64" x2="539.0" y2="194" stroke="#3b82f6" stroke-width="2" marker-end="url(#a0)"/>
+  <line x1="152.0" y1="64" x2="663.0" y2="194" stroke="#3b82f6" stroke-width="2" marker-end="url(#a0)"/>
+  <line x1="304.0" y1="64" x2="185.0" y2="194" stroke="#f59e0b" stroke-width="2" marker-end="url(#a1)"/>
+  <line x1="304.0" y1="64" x2="309.0" y2="194" stroke="#f59e0b" stroke-width="2" marker-end="url(#a1)"/>
+  <line x1="304.0" y1="64" x2="433.0" y2="194" stroke="#f59e0b" stroke-width="2" marker-end="url(#a1)"/>
+  <line x1="304.0" y1="64" x2="557.0" y2="194" stroke="#f59e0b" stroke-width="2" marker-end="url(#a1)"/>
+  <line x1="456.0" y1="64" x2="327.0" y2="194" stroke="#10b981" stroke-width="2" marker-end="url(#a2)"/>
+  <line x1="608.0" y1="64" x2="221.0" y2="194" stroke="#a855f7" stroke-width="2" marker-end="url(#a3)"/>
+  <line x1="608.0" y1="64" x2="345.0" y2="194" stroke="#a855f7" stroke-width="2" marker-end="url(#a3)"/>
+  <line x1="608.0" y1="64" x2="469.0" y2="194" stroke="#a855f7" stroke-width="2" marker-end="url(#a3)"/>
+  <line x1="608.0" y1="64" x2="593.0" y2="194" stroke="#a855f7" stroke-width="2" marker-end="url(#a3)"/>
+  <rect x="82.0" y="24" width="140" height="40" rx="6" fill="#f4f4f5" stroke="#3b82f6" stroke-width="2"/>
+  <text x="152.0" y="49" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">burgee</text>
+  <rect x="234.0" y="24" width="140" height="40" rx="6" fill="#f4f4f5" stroke="#f59e0b" stroke-width="2"/>
+  <text x="304.0" y="49" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">caique</text>
+  <rect x="386.0" y="24" width="140" height="40" rx="6" fill="#f4f4f5" stroke="#10b981" stroke-width="2"/>
+  <text x="456.0" y="49" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">controlroom</text>
+  <rect x="538.0" y="24" width="140" height="40" rx="6" fill="#f4f4f5" stroke="#a855f7" stroke-width="2"/>
+  <text x="608.0" y="49" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">flagstaff</text>
   <rect x="16.0" y="196" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#71717a" stroke-width="2"/>
   <text x="70.0" y="221" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">bellpull</text>
   <rect x="140.0" y="196" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#71717a" stroke-width="2"/>
@@ -37,6 +41,4 @@
   <text x="566.0" y="221" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">roundel</text>
   <rect x="636.0" y="196" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#71717a" stroke-width="2"/>
   <text x="690.0" y="221" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">seniority</text>
-  <rect x="16.0" y="252" width="200" height="40" rx="6" fill="#f4f4f5" stroke="#a1a1aa" stroke-width="2" stroke-dasharray="4 3"/>
-  <text x="116.0" y="277" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">controlroom (reserved)</text>
 </svg>
