@@ -37,15 +37,22 @@ it records every change here.
   screen, and raw mode, only when `roundel/policy` says `tty` and stdin is raw-capable
   (R19 adds `screen: 'inline'`, the default). In every other mode it opens a
   static session. `close()` and every exit path restore through R1.
+  **Built 2026-10-05** as `src/screen.ts` (`open()`): the alternate screen, the cursor and
+  raw mode each register their restore in closeout's `restore` phase in the same call.
 - **R5 · compositor.** Several live components share one frame. The compositor writes the
   whole frame through R3's seam, diffed line by line and wrapped in synchronized output. It
   lays out again on the runtime's `resize`.
+  **Built 2026-10-05** as `src/compose.ts`, painting through flagstaff's `frameWriter`.
 - **R6 · static projection of a screen.** In `pipe`, `ci` and `accessible` mode, each pane's
   component uses its own static projection, printed in declared pane order with the pane
   label. There is no hint line and no tab hiding. Under `--json`, NDJSON goes to stderr as
   `{ event, pane, state }`.
+  **Built 2026-10-05**; the event shape is `{ event: <pane>, state }`, flagstaff's own
+  (D-20261005-controlroom-screen-core).
 - **R7 · no hang.** No API waits for a key outside `tty` with a raw-capable stdin. A wait
   that cannot be satisfied resolves at once with the static result, or throws with a `fix`.
+  **Built 2026-10-05**: no controlroom API waits; a static session reads no key at all, and
+  `dispatch()` is what it has instead.
 
 **The native API.**
 
@@ -86,9 +93,12 @@ be compatible and allow easy migration to it from the leading competitors."_
   through flagstaff's repaint loop, and each widget through its static projection;
   controlroom only lays out regions and routes keys. A lock fails if anything under
   `packages/controlroom/src` writes to stdout or stderr outside the flagstaff path.
+  **Built 2026-10-05** as `src/boundary.test.ts`.
 - **R16 · the widget contract.** The flagstaff surface controlroom consumes (the widget and
   region interface, and R3's frame-writing seam) is pinned by a lock on both sides, in
   flagstaff and in controlroom, so neither changes it silently.
+  **controlroom's side built 2026-10-05** as `src/widget-contract.test.ts`, over a byte copy
+  of flagstaff's `widget-contract.d.ts`.
 - **R17 · the Ink ecosystem runs unchanged.** `@inkjs/ui`, `ink-spinner`, `ink-text-input`
   and `ink-select-input` import from `'ink'`. Resolving `'ink'` to `controlroom/ink`, through
   a documented `package.json` alias or `overrides`, runs them unmodified. `@inkjs/ui`'s own
@@ -112,6 +122,8 @@ shape, and it is the most common one.
   Inline is the default, as it is Ink's; `'alternate'` is R4's full screen. A resize reflows
   only the live region. The static projection is R6's: committed lines print as they commit,
   and the live region prints its final state once.
+  **Built 2026-10-05** in `src/screen.ts`; the scrollback is checked by replaying the bytes
+  through a small terminal model in `screen.test.ts`.
 - **R20 · an input line inside a screen.** caique exposes its line editor as a component,
   and controlroom hosts it in the live region: multi-line entry, history, bracketed paste,
   and a completion menu the program feeds (for `/commands` and `@files`). The editor stays
