@@ -13,6 +13,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./ink": {
+      "types": "./dist/ink/index.d.ts",
+      "import": "./dist/ink/index.js",
+      "default": "./dist/ink/index.js"
     }
   },
   "files": [
@@ -55,9 +60,25 @@
     "closeout": "^0.6.1",
     "flagstaff": "^1.0.3",
     "linegauge": "^1.0.3",
+    "paratext": "^0.8.0",
     "roundel": "^0.6.2"
   },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-reconciler": ">=0.29.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-reconciler": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@types/react": "^19.3.0",
+    "react": "^19.3.0",
+    "react-reconciler": "^0.33.0",
     "vitest": "^5.0.1"
   }
 }

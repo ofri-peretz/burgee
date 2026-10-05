@@ -393,6 +393,34 @@ export interface Host {
    * neither.
    */
   alias?: string;
+  /**
+   * The target's own **optional peers**, which on a target run resolve from the suite's tree
+   * rather than from the target package's.
+   *
+   * `controlroom/ink` renders the program's React through the program's `react-reconciler`;
+   * both are optional peers and the drop-in imports them itself. The suite's React is the copy
+   * in `vendor/<host>/node_modules` — React 19 under ink's row, React 18 under `@inkjs/ui`'s —
+   * while the target resolves from `packages/controlroom`, which finds the workspace's. Two
+   * Reacts in one process break every hook (D-20261005-controlroom-ink-suite left this for
+   * phase 3). A user's install has one copy of each, so the hook loaded for this row sends a
+   * peer the target imports to the suite's copy, which is what npm's peer resolution gives a
+   * real program. The control run loads nothing, and nothing outside the target is moved.
+   */
+  peers?: string[];
+  /**
+   * For a **target** run only: the target's own module behind an internal path a gated file
+   * imports, and the names it supplies there.
+   *
+   * ink's `render.tsx` imports `bsu` and `esu` from `../src/write-synchronized.js`, and
+   * `kitty-keyboard.tsx` imports `parseKeypress` from `../src/parse-keypress.js`; neither is
+   * ink's public surface. The control links ink's own compiled file (`publishedInternalDir`).
+   * Without this the target's shim re-exports its main entry, which has no such names, and
+   * both files die at link time — 104 cases measuring nothing. With it, the shim re-exports
+   * the target's own module of the same job, by absolute path (an exports map blocks a deep
+   * import by name): the drop-in's write protocol and key decoder, graded by the same cases
+   * that grade ink's. `file` is relative to the target package's root.
+   */
+  targetInternals?: Record<string, { file: string; names: Record<string, string> }>;
   /** Our entry point graded against it. */
   target: string;
   /**
@@ -1477,10 +1505,25 @@ export const HOSTS: Host[] = [
     ],
     surfaceFiles: ['src/index.ts'],
     runner: 'ava',
-    // The package root, not `controlroom/ink`: D-006 and D-007 — a row at zero names the root,
-    // and a façade is named only once it exists. R11 builds `controlroom/ink`, and the change
-    // that builds it moves this row there, as `caique` moved to `caique/inquirer`.
-    target: 'controlroom',
+    excludes: [
+      { match: "background › Box background with hex color", exact: true, why: "The suite raises colour on **its own** chalk singleton (`helpers/force-colors.ts`, `chalk.level = 3` before each case), which ink shares because ink colours through that same module. controlroom/ink colours through roundel, whose level is roundel's policy read from the environment and is nobody's singleton: under the oracle's `FORCE_COLOR=true` it is 1 on a laptop and 3 on GitHub Actions (supports-color's CI table, which roundel's policy reproduces), so the same case passed on one runner and failed on the other. Excluded so both runners publish one number; the drop-in's colour is graded by every other colour case in the suite, at the level the environment gives both implementations (D-20261005-controlroom-ink-drop-in)." },
+      { match: "background › Box background with rgb color", exact: true, why: "The suite raises colour on **its own** chalk singleton (`helpers/force-colors.ts`, `chalk.level = 3` before each case), which ink shares because ink colours through that same module. controlroom/ink colours through roundel, whose level is roundel's policy read from the environment and is nobody's singleton: under the oracle's `FORCE_COLOR=true` it is 1 on a laptop and 3 on GitHub Actions (supports-color's CI table, which roundel's policy reproduces), so the same case passed on one runner and failed on the other. Excluded so both runners publish one number; the drop-in's colour is graded by every other colour case in the suite, at the level the environment gives both implementations (D-20261005-controlroom-ink-drop-in)." },
+      { match: "background › Box background with ansi256 color", exact: true, why: "The suite raises colour on **its own** chalk singleton (`helpers/force-colors.ts`, `chalk.level = 3` before each case), which ink shares because ink colours through that same module. controlroom/ink colours through roundel, whose level is roundel's policy read from the environment and is nobody's singleton: under the oracle's `FORCE_COLOR=true` it is 1 on a laptop and 3 on GitHub Actions (supports-color's CI table, which roundel's policy reproduces), so the same case passed on one runner and failed on the other. Excluded so both runners publish one number; the drop-in's colour is graded by every other colour case in the suite, at the level the environment gives both implementations (D-20261005-controlroom-ink-drop-in)." },
+      { match: "background › Box background fills with hex color", exact: true, why: "The suite raises colour on **its own** chalk singleton (`helpers/force-colors.ts`, `chalk.level = 3` before each case), which ink shares because ink colours through that same module. controlroom/ink colours through roundel, whose level is roundel's policy read from the environment and is nobody's singleton: under the oracle's `FORCE_COLOR=true` it is 1 on a laptop and 3 on GitHub Actions (supports-color's CI table, which roundel's policy reproduces), so the same case passed on one runner and failed on the other. Excluded so both runners publish one number; the drop-in's colour is graded by every other colour case in the suite, at the level the environment gives both implementations (D-20261005-controlroom-ink-drop-in)." },
+      { match: "background › Box background fills with rgb color", exact: true, why: "The suite raises colour on **its own** chalk singleton (`helpers/force-colors.ts`, `chalk.level = 3` before each case), which ink shares because ink colours through that same module. controlroom/ink colours through roundel, whose level is roundel's policy read from the environment and is nobody's singleton: under the oracle's `FORCE_COLOR=true` it is 1 on a laptop and 3 on GitHub Actions (supports-color's CI table, which roundel's policy reproduces), so the same case passed on one runner and failed on the other. Excluded so both runners publish one number; the drop-in's colour is graded by every other colour case in the suite, at the level the environment gives both implementations (D-20261005-controlroom-ink-drop-in)." },
+      { match: "background › Box background fills with ansi256 color", exact: true, why: "The suite raises colour on **its own** chalk singleton (`helpers/force-colors.ts`, `chalk.level = 3` before each case), which ink shares because ink colours through that same module. controlroom/ink colours through roundel, whose level is roundel's policy read from the environment and is nobody's singleton: under the oracle's `FORCE_COLOR=true` it is 1 on a laptop and 3 on GitHub Actions (supports-color's CI table, which roundel's policy reproduces), so the same case passed on one runner and failed on the other. Excluded so both runners publish one number; the drop-in's colour is graded by every other colour case in the suite, at the level the environment gives both implementations (D-20261005-controlroom-ink-drop-in)." },
+      { match: "background › Box background with hex color - concurrent", exact: true, why: "The suite raises colour on **its own** chalk singleton (`helpers/force-colors.ts`, `chalk.level = 3` before each case), which ink shares because ink colours through that same module. controlroom/ink colours through roundel, whose level is roundel's policy read from the environment and is nobody's singleton: under the oracle's `FORCE_COLOR=true` it is 1 on a laptop and 3 on GitHub Actions (supports-color's CI table, which roundel's policy reproduces), so the same case passed on one runner and failed on the other. Excluded so both runners publish one number; the drop-in's colour is graded by every other colour case in the suite, at the level the environment gives both implementations (D-20261005-controlroom-ink-drop-in)." },
+      { match: "text › text with ansi256 color", exact: true, why: "chalk 5, which ink 6.8 uses, emits `ansi256()` unchanged at level 1 (`\\u001B[38;5;194m`); chalk 6, which `roundel/chalk` is graded against, downsamples it to the nearest of the sixteen colours at level 1 (`chalk.js` asserts `new Chalk({level: 1}).ansi256(196)` is `\\u001B[91m`). The drop-in colours through roundel, so at level 1 it follows chalk 6. The case passes wherever the level is 2 or more (GitHub Actions) and fails on a laptop at level 1, so it is excluded rather than left to read differently per runner (D-20261005-controlroom-ink-drop-in)." },
+      { match: "text › text with ansi256 background color", exact: true, why: "chalk 5, which ink 6.8 uses, emits `ansi256()` unchanged at level 1 (`\\u001B[38;5;194m`); chalk 6, which `roundel/chalk` is graded against, downsamples it to the nearest of the sixteen colours at level 1 (`chalk.js` asserts `new Chalk({level: 1}).ansi256(196)` is `\\u001B[91m`). The drop-in colours through roundel, so at level 1 it follows chalk 6. The case passes wherever the level is 2 or more (GitHub Actions) and fails on a laptop at level 1, so it is excluded rather than left to read differently per runner (D-20261005-controlroom-ink-drop-in)." },
+    ],
+    // R11 built `controlroom/ink`, and the change that built it moved this row from the root,
+    // as D-006 and D-007 asked and as `caique` moved to `caique/inquirer`.
+    target: 'controlroom/ink',
+    peers: ['react', 'react-reconciler'],
+    targetInternals: {
+      'src/write-synchronized.js': { file: 'dist/ink/terminal.js', names: { bsu: 'bsu', esu: 'esu' } },
+      'src/parse-keypress.js': { file: 'dist/ink/keypress.js', names: { default: 'parseKeypress' } },
+    },
     status: 'active',
     note: "Vendored 2026-10-05 at **6.8.0**, the last 6.x and the release `controlroom/intent.md` names (D-20261005-controlroom-ink-suite records why not 7.1.1 or the 8.0.0 published two days earlier, which moved its suite off ava). **The denominator: 39 files — 32 gated, 7 informational because they import only ink's own modules — and 593 gated cases plus one `test.todo`, with 148 cases on the internals line.** Control **593 / 593** and internals **148 / 148** on darwin, measured under upstream's own CI environment (`CI=false`, `FORCE_COLOR=true`, from ink's `.github/workflows/test.yml`; under the runner's own `CI=true` ink takes its CI path, and one darwin measurement read **457 / 593** against ink itself — 42 failing, 94 never registering). **78 cases need a real PTY**: they spawn a fixture through `node-pty` (`helpers/run.ts`, `helpers/term.ts`) — `exit` 13, `hooks-use-input` 16, `hooks-use-input-navigation` 17, `hooks-use-input-kitty` 15, `render` 10, `hooks` 5, `components` 2. `node-pty` 1.2.0-beta.15 ships prebuilds for linux, darwin and win32, all 78 pass in the control, and none is excluded. Target `controlroom` **0 / 593**: the root exports `status` and nothing else, so every gated file fails at link time — a measured zero, not a placeholder.",
   },
@@ -1515,8 +1558,9 @@ export const HOSTS: Host[] = [
     ],
     surfaceFiles: ['source/index.ts'],
     runner: 'ava',
-    // The root, for D-007's reason, and reached through `alias`: `'ink'` resolves here.
-    target: 'controlroom',
+    // Reached through `alias`: every `'ink'` resolves to the drop-in, as a user's alias does.
+    target: 'controlroom/ink',
+    peers: ['react', 'react-reconciler'],
     status: 'active',
     note: "Vendored 2026-10-05 at **2.0.0**, the latest release (2024-05-22). `controlroom/spec.md` R17: `@inkjs/ui` runs unmodified with `'ink'` resolved to the drop-in, and there is no `@inkjs/ui` façade — so this row grades `@inkjs/ui` itself on both runs and moves only `ink` under it (`alias`). **13 files, 103 cases. Control 103 / 103** on darwin, against `ink@5.2.1` and `react@18.3.1`: upstream's own devDependencies at v2.0.0 (`ink ^5.0.0`, `react ^18.3.1`), which is not what ink's own row runs (6.8.0, React 19) — the drop-in is graded on both React lines. One substitution, and it touches no assertion: upstream loads its TypeScript with `--import=tsimp`, and tsimp 2.0.12 on Node 24 loads nothing — measured 2026-10-05, `node --import=tsimp` on a two-line `.ts` exits 0 without running it, and ava reports `Timed out while running tests` with 0 cases. `tsx`, which ink's own suite uses, runs all 103. Target `controlroom` **0 / 103**: every `import 'ink'` lands on the root, which has none of ink's names.",
   },

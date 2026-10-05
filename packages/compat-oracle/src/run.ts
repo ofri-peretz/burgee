@@ -486,8 +486,21 @@ function writeInternalShims(host: Host, { hostDir, target, internals, packageTyp
     // the incumbent's own file with a shim that requires itself.
     rmSync(at, { force: true });
     if (linksInternal(host, { from, at })) continue;
-    writeFileSync(at, `// generated per run — COMPAT_TARGET=${target}\n${internalShimBody(from, language, named)}`);
+    // A target run of a host that names the target's own module for this path (`targetInternals`).
+    const own = from === target ? host.targetInternals?.[rel] : undefined;
+    const body = own === undefined ? internalShimBody(from, language, named) : targetInternalBody(packageRoot(target), own);
+    writeFileSync(at, `// generated per run — COMPAT_TARGET=${target}\n${body}`);
   }
+}
+
+/**
+ * The shim at an internal path a target run fills from the target's own module
+ * (`Host.targetInternals`): each name the suite imports, re-exported from the file by absolute
+ * URL — an exports map blocks a deep import by name, as it does the control's.
+ */
+export function targetInternalBody(root: string, { file, names }: { file: string; names: Record<string, string> }): string {
+  const list = Object.entries(names).map(([as, name]) => (as === name ? name : `${name} as ${as}`));
+  return `export { ${list.join(', ')} } from '${pathToFileURL(join(root, file)).href}';\n`;
 }
 
 /**
@@ -789,6 +802,9 @@ export const ALIAS_HOOK = 'alias-hook.mjs';
 /** Whether this run swaps the host's alias for the target: a target run of an aliasing host. */
 const aliasing = (host: Host, target: string): boolean => host.alias !== undefined && target !== controlName(host);
 
+/** Whether this run loads the hook: a target run of a host that aliases, or whose target brings peers. */
+const hooking = (host: Host, target: string): boolean => aliasing(host, target) || (host.peers !== undefined && target !== controlName(host));
+
 /**
  * The hook's source: every resolution of `alias` — the suite's own import, the library's, a
  * testing helper's from inside `node_modules` — lands on `url`, and everything else resolves
@@ -810,11 +826,42 @@ export function aliasHook(alias: string, url: string, target: string): string {
   ].join('\n');
 }
 
-/** Writes the hook for a run that aliases, and removes a previous run's otherwise. */
+/**
+ * The hook's source for a host whose target brings optional peers (`Host.peers`): the alias,
+ * when there is one, as `aliasHook` writes it, and every resolution of a peer — or a subpath
+ * of one — made from inside the target package (`inside`) resolved as if from the vendored
+ * root (`from`) instead, so the target and the suite share one React.
+ */
+export function peerHook({ alias, url, peers, inside, from, target }: { alias: string | undefined; url: string; peers: readonly string[]; inside: string; from: string; target: string }): string {
+  return [
+    `// generated per run — COMPAT_TARGET=${target}`,
+    "import { registerHooks } from 'node:module';",
+    `const alias = ${JSON.stringify(alias ?? null)};`,
+    `const url = ${JSON.stringify(url)};`,
+    `const peers = ${JSON.stringify(peers)};`,
+    `const inside = ${JSON.stringify(inside)};`,
+    `const from = ${JSON.stringify(from)};`,
+    'const peer = (specifier) => peers.some((name) => specifier === name || specifier.startsWith(`${name}/`));',
+    'registerHooks({',
+    '  resolve: (specifier, context, next) =>',
+    '    specifier === alias ? { url, shortCircuit: true } : peer(specifier) && context.parentURL?.startsWith(inside) === true ? next(specifier, { ...context, parentURL: from }) : next(specifier, context),',
+    '});',
+    '',
+  ].join('\n');
+}
+
+/** Writes the hook for a target run that aliases or moves peers, and removes a previous run's otherwise. */
 function writeAliasHook(host: Host, hostDir: string, target: string): void {
   const at = join(hostDir, ALIAS_HOOK);
   rmSync(at, { force: true });
-  if (aliasing(host, target)) writeFileSync(at, aliasHook(host.alias as string, import.meta.resolve(target), target));
+  if (!hooking(host, target)) return;
+  const url = import.meta.resolve(target);
+  if (host.peers === undefined) {
+    writeFileSync(at, aliasHook(host.alias as string, url, target));
+    return;
+  }
+  const inside = `${pathToFileURL(packageRoot(target)).href}/`;
+  writeFileSync(at, peerHook({ alias: host.alias, url, peers: host.peers, inside, from: pathToFileURL(join(hostDir, 'package.json')).href, target }));
 }
 
 /**
@@ -823,7 +870,7 @@ function writeAliasHook(host: Host, hostDir: string, target: string): void {
  */
 function suiteEnv(host: Host, hostDir: string, target: string): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...neutralEnv(), ...host.env, COMPAT_TARGET: target };
-  if (aliasing(host, target)) env['NODE_OPTIONS'] = `${env['NODE_OPTIONS'] ?? ''} --import=${pathToFileURL(join(hostDir, ALIAS_HOOK)).href}`.trim();
+  if (hooking(host, target)) env['NODE_OPTIONS'] = `${env['NODE_OPTIONS'] ?? ''} --import=${pathToFileURL(join(hostDir, ALIAS_HOOK)).href}`.trim();
   return env;
 }
 

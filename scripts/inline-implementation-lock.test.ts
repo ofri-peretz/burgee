@@ -158,6 +158,8 @@ const KNOWN: Record<string, string> = {
     "a declared fork of supports-color 10.2.2, the version supports-hyperlinks 4.5.0 depends on, graded against the real package case by case. paratext is a leaf and may not import roundel (PLAN's architecture rule: no leaf-to-leaf edge), and roundel follows chalk 6's newer vendored copy, which differs from 10.2.2 on purpose in three rows. `scripts/colour-fork-parity.test.ts` holds the two to agreement everywhere else.",
   'compat-oracle/src/upstream.ts':
     "`execFileSync('npm', …)` with no Windows guard — the exact bug bellpull exists to prevent, and the one `burgee/src/shape.test.ts` already works around with `shell: true`, which is the spelling cross-spawn refuses because it reopens command injection.",
+  'controlroom/src/ink/process.ts':
+    "is-in-ci as ink 6.8 reads it — `CI` or `CONTINUOUS_INTEGRATION` or any `CI_*` present, and `CI=0` or `CI=false` not CI, whether or not stdout is a terminal — which decides ink's CI path (Static as it arrives, the last frame once) and is graded by ink's suite, run under `CI=false` on a pipe. roundel's `outputMode` answers a different question (a pipe whose `CI` is set, `false` included, is `ci`), and routing the drop-in through it sent every case of ink's suite down the CI path. The suite decides where the two differ (controlroom constraint 1, D-20261005-controlroom-ink-drop-in).",
   // ── Moving: an open PR takes each of these onto its owner.
 };
 
