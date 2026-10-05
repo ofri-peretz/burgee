@@ -70,6 +70,10 @@ const ALLOWED: Record<string, string[]> = {
   // their built-in instance through it — the same door a plugin replaces them through.
   'log-tail.js': ['./plugin.js'],
   'tab-bar.js': ['./plugin.js'],
+  // The chat widgets (controlroom R21) are self-contained, like `progress`: tokens and
+  // string work, no registry — a program streaming a reply pays for nothing else here.
+  'markdown.js': [],
+  'diff.js': [],
   // `./link.js` is where OSC 8 enters, and it enters from `paratext` (R12). It is a relative
   // edge rather than a bare specifier on purpose: the adapter — which runtime paratext is
   // asked about, and what a static projection is defined against — is this package's, and

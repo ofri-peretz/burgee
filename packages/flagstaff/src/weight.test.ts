@@ -280,6 +280,12 @@ const RULES: Record<string, EntryRule> = {
   // the caller's, through `hoist` or `frameWriter`.
   './log-tail': { allow: ['roundel/tokens'], budget: 13_500, measured: 11_879, denied: ['loop.js', 'projection.js', 'tasks.js', 'tab-bar.js', 'cli.js', 'index.js'] },
   './tab-bar': { allow: ['roundel/tokens'], budget: 12_500, measured: 10_893, denied: ['loop.js', 'projection.js', 'tasks.js', 'log-tail.js', 'cli.js', 'index.js'] },
+  // The chat widgets (controlroom R21), new on 2026-10-05. Self-contained like `./progress`:
+  // tokens and string work, no registry, no loop. `./markdown` is the block splitter (the
+  // part a byte-offset property holds stable) and an inline pass for code, strong and
+  // emphasis; `./diff` reads hunk counts and numbers lines. Budgets at roughly 1.5x.
+  './markdown': { allow: ['roundel/tokens'], budget: 5_000, measured: 3_854, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'schema.json', 'cli.js', 'index.js'] },
+  './diff': { allow: ['roundel/tokens'], budget: 2_500, measured: 1_644, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'schema.json', 'cli.js', 'index.js'] },
   // `box` reads its named borders from the registry, the way `tasks` reads its glyphs, so
   // it carries the plugin host: 34,145 B, up from 24,764 when the border table was its own.
   // That is the price of R11 — a corpus imported with `fromCliBoxes()` is a registered
