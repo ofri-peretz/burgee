@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { PAIRS, resolvePairs, ROUNDS, runtimeRecord, type Sample, sample, workloadEnv } from './axes/runtime.js';
+import { failureText, PAIRS, resolvePairs, ROUNDS, runtimeRecord, type Sample, sample, workloadEnv } from './axes/runtime.js';
 import manifest from './package.json' with { type: 'json' };
 import { verdict } from './run.js';
 import { readRuntimeRatchets } from './runtime-ratchets.js';
@@ -62,6 +62,11 @@ describe('the workloads run in front of a terminal', () => {
     },
     PARITY_TIMEOUT_MS,
   );
+
+  it('and its words survive a stderr full of cursor sequences, as log-update writes', () => {
+    const stderr = `${'\u001B[?25l'.repeat(500)}\n\n\u001B[?25lAssertionError: frames differ\n    at check (workload.mjs:3:9)\n`;
+    expect(failureText(stderr)).toBe('AssertionError: frames differ\n    at check (workload.mjs:3:9)');
+  });
 
   it('and a workload whose parity check fails stops the run with its own words', () => {
     const broken = { id: 'broken', host: 'nothing', pkg: 'linegauge', hostPkg: 'string-width', file: 'does-not-exist.mjs' };

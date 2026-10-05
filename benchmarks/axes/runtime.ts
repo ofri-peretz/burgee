@@ -98,6 +98,21 @@ const PAIR_TIMEOUT_MS = 300_000;
 const STDERR_LINES = 8;
 
 /**
+ * A failed workload's stderr, as a person can read it. A terminal workload writes cursor and
+ * mode sequences to stderr on every call (log-update hides the cursor each time), and on
+ * 2026-10-05 the first eight lines of a failing run were nothing but `ESC[?25l`, so the error
+ * named no cause. Escape sequences and blank lines go; the first lines that say something stay.
+ */
+export function failureText(stderr: string): string {
+  return stderr
+    .replace(/\u001B\[[0-9;?]*[A-Za-z]/gu, '')
+    .split('\n')
+    .filter((line) => line.trim() !== '')
+    .slice(0, STDERR_LINES)
+    .join('\n');
+}
+
+/**
  * The terminal every workload runs in front of: a TTY (the harness sets `isTTY`), iTerm2, with
  * colour and hyperlinks forced on. See `harness.mjs` for why a pipe would time the wrong job.
  * `NO_COLOR` is removed because it outranks `FORCE_COLOR` in some of these and not others.
@@ -127,7 +142,7 @@ export interface Sample {
 /** One pair, in its own process. Throws with the workload's own words when its parity check fails. */
 export function sample(p: RuntimePair, rounds: number = ROUNDS): Sample {
   const r = spawnSync(process.execPath, ['--expose-gc', HARNESS, `${FIXTURES}${p.file}`, String(rounds)], { encoding: 'utf8', env: workloadEnv(), timeout: PAIR_TIMEOUT_MS });
-  if (r.status !== 0) throw new Error(`${p.id} ÷ ${p.host}: the workload failed before or while timing (exit ${String(r.status)}): ${r.stderr.trim().split('\n').slice(0, STDERR_LINES).join('\n')}`);
+  if (r.status !== 0) throw new Error(`${p.id} ÷ ${p.host}: the workload failed before or while timing (exit ${String(r.status)}): ${failureText(r.stderr)}`);
   return JSON.parse(r.stdout) as Sample;
 }
 
