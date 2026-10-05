@@ -1,6 +1,6 @@
 {
   "name": "controlroom",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Reserved, and not usable yet: full-screen, keyboard-driven terminal screens with a static projection for pipes, CI and --json. The planned drop-in path for ink. Its only export today is status = 'reserved'.",
   "license": "MIT",
   "type": "module",
@@ -56,9 +56,9 @@
     "zero-dependency"
   ],
   "dependencies": {
-    "caique": "^0.6.4",
+    "caique": "^0.7.0",
     "closeout": "^0.6.1",
-    "flagstaff": "^1.0.3",
+    "flagstaff": "^1.1.0",
     "linegauge": "^1.0.3",
     "paratext": "^0.8.0",
     "roundel": "^0.6.2"

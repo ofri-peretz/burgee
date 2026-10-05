@@ -1,5 +1,13 @@
 # flagstaff
 
+## 1.1.0
+
+### Minor Changes
+
+- [#806](https://github.com/ofri-peretz/burgee/pull/806) [`f30e011`](https://github.com/ofri-peretz/burgee/commit/f30e011b129abe89c4c79706e4e6a7432c2fab7f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - New `flagstaff/markdown`: a reply streamed as tokens arrive, committed a block at a time (headings, lists, emphasis, inline code, fenced code); off a terminal it prints the markdown's own source, each block once. New `flagstaff/diff`: a unified diff with old and new line numbers on a terminal, and the diff unchanged everywhere else.
+
+- [#806](https://github.com/ofri-peretz/burgee/pull/806) [`f30e011`](https://github.com/ofri-peretz/burgee/commit/f30e011b129abe89c4c79706e4e6a7432c2fab7f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `frameWriter()` from `flagstaff/loop`: paint a whole frame and only the changed rows are written, in one synchronized-output block. `hoist` repaints through it, so a terminal frame no longer redraws unchanged text. New `flagstaff/log-tail` (the last lines of a stream, `┊` and `◆`, a static projection that appends) and `flagstaff/tab-bar` (the active tab's label off a terminal), each registered through `register()`. The task list's pending mark is the replaceable `pending` glyph.
+
 ## 1.0.3
 
 ### Patch Changes

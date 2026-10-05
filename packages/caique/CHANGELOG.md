@@ -1,5 +1,13 @@
 # caique
 
+## 0.7.0
+
+### Minor Changes
+
+- [#801](https://github.com/ofri-peretz/burgee/pull/801) [`81fc994`](https://github.com/ofri-peretz/burgee/commit/81fc994c27ae7731495c810c4f642ba63d7eb073) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `caique/editor`: the line editor as a component a host drives (`editor()` returns `initial`, an `onKey` reducer and `render`), with multi-line entry, history, bracketed paste treated as text, and a completion menu the program feeds. Its commands are a `caique/keys` keymap (`EDITOR_KEYS`). Off a terminal, `submissions(stdin)` yields one entry per line and ends when the input does. The editing itself moved into a module `caique/clack`'s prompts share, so there is one line editor in the package.
+
+- [#801](https://github.com/ofri-peretz/burgee/pull/801) [`81fc994`](https://github.com/ofri-peretz/burgee/commit/81fc994c27ae7731495c810c4f642ba63d7eb073) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `caique/keys`: key presses decoded through `node:readline`'s keypress events into one `KeyPress` shape, keymaps as plain data (`match()`, `bindings()`), and `readKeys()`, which takes raw mode once through `closeout/cursor` and throws `E_NOT_A_TERMINAL` with a `fix` instead of waiting when stdin is not a terminal. `caique/raw`'s `keyOf` is rebuilt on the same decoder, and now reads the application-mode arrows (`ESC O A`) a terminal can send.
+
 ## 0.6.4
 
 ### Patch Changes
