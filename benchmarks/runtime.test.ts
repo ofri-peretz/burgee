@@ -90,6 +90,14 @@ describe('the record', () => {
 
   it('runs an odd number of rounds, so the median is a round that happened', () => {
     expect(ROUNDS % 2).toBe(1);
+    for (const p of PAIRS) if (p.rounds !== undefined) expect(p.rounds % 2, p.id).toBe(1);
+  });
+
+  it('gives a spec bar more rounds instead of a higher ceiling (D-20260930-b5-ceilings-from-spread)', () => {
+    const ratchets = readRuntimeRatchets().ratchets;
+    const bars = PAIRS.filter((p) => ratchets[p.id]?.bar !== undefined);
+    expect(bars.map((p) => p.id)).toContain('bellpull');
+    for (const p of bars) expect(p.rounds ?? ROUNDS, p.id).toBeGreaterThan(ROUNDS);
   });
 });
 

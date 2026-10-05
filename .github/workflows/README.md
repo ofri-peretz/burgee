@@ -9,7 +9,7 @@ Node from `.nvmrc`, npm cache).
 | Workflow | Check name | When |
 | :-- | :-- | :-- |
 | [`quality.yml`](./quality.yml) | `Quality Gate` | every PR push, push to main — lint, markdown, workflow conventions, lockfile |
-| [`quality-full.yml`](./quality-full.yml) | `Quality (Full) Gate` | non-draft PRs, `run-full-ci` label, push to main, weekly — test, build, typecheck |
+| [`quality-full.yml`](./quality-full.yml) | `Quality (Full) Gate` | non-draft PRs, `run-full-ci` label, push to main, weekly — test, build, typecheck, and each changed package's coverage thresholds |
 | [`claude-code-review.yml`](./claude-code-review.yml) | `review` | non-draft PRs; green no-op until `CLAUDE_CODE_OAUTH_TOKEN` exists, and on a queue entry or a dispatched run |
 
 ## Release loop
@@ -48,7 +48,7 @@ if `changesets-pr.yml`'s `checks` matrix has no row for it.
 
 | Workflow | Role |
 | :-- | :-- |
-| [`codecov.yml`](./codecov.yml) | Monday 06:00 UTC and on demand — never in CI: one workspace-wide `vitest --coverage` run, uploaded once and split per package by root `codecov.yml`'s components. Reports; does not gate |
+| [`codecov.yml`](./codecov.yml) | Monday 06:00 UTC and on demand: one workspace-wide `vitest --coverage` run, uploaded once and split per package by root `codecov.yml`'s components. Reports only; the thresholds gate PRs in `quality-full.yml`'s `coverage` job |
 
 Secrets: none for npm — `release.yml` publishes through each package's npm trusted publisher (OIDC),
 and `trusted-publishing-lock.test.ts` refuses an npm token in any workflow. `CLAUDE_CODE_OAUTH_TOKEN` (optional), `RELEASE_APP_PRIVATE_KEY` with the repo *variable*

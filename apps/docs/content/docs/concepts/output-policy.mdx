@@ -105,6 +105,11 @@ does not have is a person. Pinned by the `interactive` block of
 [`terminal.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/roundel/src/terminal.test.ts),
 including `names CLAUDECODE, which is the case that hung an agent`.
 
+Those five are the whole list, and a variable joins it only when it **uniquely** identifies an
+agent: the agent sets it, and no terminal a person types in does. `CURSOR_TRACE_ID` fails that
+test, because Cursor sets it in every integrated terminal, and taking it would stop every person
+in Cursor from being asked anything (`asks a person in Cursor` in the same file).
+
 ## Run it
 
 `colorLevel` and `outputMode` read a runtime; this one describes the real process:
@@ -168,18 +173,18 @@ rule), so the policy is read by the three packages that draw, and by nothing bel
 | flagstaff | `unicode` | `flagstaff/ora`'s symbols, as is-unicode-supported decides them |
 | [caique](https://caique.interlace.tools/docs/guides/never-hangs) | `interactive` | `caique/decide`: nobody there means refuse and name the flag, never wait |
 | caique | `unicode` | `caique/inquirer`'s glyphs |
+| burgee | `interactive` | `ctx.interactive`, whether a handler may ask: loaded only on the path that runs one |
 | burgee | `colorLevel` | whether help is coloured (`help.ts`'s `colorFor`) |
 
-burgee's handler context is the one place the family answers "interactive" differently.
-`ctx.interactive` comes from burgee's own `detectAgent` (`agent.ts`): `FORCE_TTY=1`, or
-stdout is a terminal and no agent variable is set. It probes the same five variables as
-`AGENTS`, but it reads stdout rather than stdin and does not read `CI`. Pinned by
+Every question-side decision in the family is `interactive()`. burgee's `ctx.interactive` is
+roundel's answer, not a rule of its own: before 2026-09-30 it came from `detectAgent`, which read
+stdout and ignored `CI`, so a CI job with a pseudo-terminal was "ask" to a burgee handler and
+"refuse" to a caique prompt (D-20260930-one-interactive-rule). burgee imports `roundel/terminal`
+in a chunk of its own, on the path that hands a handler its context, so its root entry, which
+denies roundel by name, reaches none of it. Output-side decisions stay on the output policy: help
+colours by `colorLevel` over stdout, and `ctx.agent` still names the agent. Pinned by
+`one rule for whether a person may be asked (N12)` in
 [`agent.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/agent.test.ts).
-The owner decided on 2026-09-30 that roundel's `interactive()` is the family's one rule for
-whether a person may be asked, with every agent variable `@vercel/detect-agent` probes. burgee's
-prompt decisions will move to it, and its output decisions stay on `outputMode` and `colorLevel`.
-Until that lands, which waits on two byte budgets and a call about Cursor's terminal, the two
-answers above still differ.
 
 The leaves take a runtime slice of the same shape and decide their own narrower question
 from it: paratext whether a terminal escape is supported, for instance. They cannot import

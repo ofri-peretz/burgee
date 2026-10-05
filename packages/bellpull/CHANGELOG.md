@@ -1,5 +1,13 @@
 # bellpull
 
+## 0.5.1
+
+### Patch Changes
+
+- [#777](https://github.com/ofri-peretz/burgee/pull/777) [`1857ff6`](https://github.com/ofri-peretz/burgee/commit/1857ff65ca0e1b0b5686480c1a37dc8834bf688b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The `bellpull/node-which` façade reads the environment once per lookup, and builds each candidate path only as it tries it, rather than joining every `PATH` entry with every extension up front.
+
+  A hit in the first directory now costs one `stat`. In B5, `bellpull/node-which` ÷ which is 0.30× locally (0.43× on CI before this change).
+
 ## 0.5.0
 
 ### Minor Changes

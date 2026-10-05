@@ -1,0 +1,157 @@
+{
+  "1": "integer key",
+  "name": "seniority",
+  "quoted key": "single 'quoted' value",
+  "escapes": "tab\there, e-acute é, hex A, astral 😀, slash /, quote \", nul-free",
+  "folded quoted": "first line second line\nnew paragraph",
+  "single folded": "one two",
+  "escaped break": "joinedwithout a space",
+  "plain multi": "this plain scalar continues here\nand keeps a paragraph",
+  "numbers": [
+    0,
+    -12,
+    7,
+    31,
+    15,
+    1.5,
+    0.5,
+    -2000,
+    12,
+    6.02e+23
+  ],
+  "not numbers": [
+    "0b11",
+    "-0x1F",
+    "1_000",
+    "1.2.3",
+    "0x",
+    "."
+  ],
+  "booleans": [
+    true,
+    true,
+    true,
+    false,
+    false,
+    false,
+    "yes",
+    "no",
+    "on",
+    "off"
+  ],
+  "nulls": [
+    null,
+    null,
+    null,
+    null
+  ],
+  "empty value": null,
+  "tagged": [
+    "123",
+    42,
+    1,
+    true,
+    null,
+    "",
+    "12",
+    5,
+    {},
+    []
+  ],
+  "anchors": {
+    "base": {
+      "retries": 3,
+      "timeout": 30
+    },
+    "copy": {
+      "retries": 3,
+      "timeout": 30
+    },
+    "list": [
+      "a",
+      "b"
+    ],
+    "again": [
+      "a",
+      "b"
+    ],
+    "scalar": "hello",
+    "word again": "hello"
+  },
+  "merge is a key": {
+    "<<": {
+      "retries": 3,
+      "timeout": 30
+    }
+  },
+  "literal": "line one\n  indented\nline three\n",
+  "literal strip": "no trailing newline",
+  "literal keep": "keeps its blank line\n\n",
+  "folded": "folded text\nnew paragraph\n  more indented\nback\n",
+  "folded explicit": "  two extra spaces\n",
+  "folded strip": "a b",
+  "seq of maps": [
+    {
+      "name": "a",
+      "value": 1
+    },
+    {
+      "name": "b",
+      "nested": [
+        "x",
+        [
+          "deep",
+          "er"
+        ]
+      ]
+    },
+    {
+      "below": "the dash"
+    },
+    null
+  ],
+  "seq at key indent": [
+    "one",
+    "two"
+  ],
+  "flow map": {
+    "a": 1,
+    "b": [
+      2,
+      3
+    ],
+    "c": {
+      "d": "e"
+    },
+    "bare": null
+  },
+  "flow seq multiline": [
+    "first",
+    "second"
+  ],
+  "pairs": [
+    {
+      "k": "v"
+    },
+    "plain"
+  ],
+  "json style": {
+    "a": 1,
+    "b": null
+  },
+  "comment#not": "value#not",
+  "url": "https://example.com:8080/path?q=1#frag",
+  "colon value": "a:b",
+  "dash value": "-x",
+  "question": "?x",
+  "props below": {
+    "x": 1
+  },
+  "seq below props": [
+    "p"
+  ],
+  "__proto__": {
+    "polluted": true
+  },
+  "null": "null key"
+}

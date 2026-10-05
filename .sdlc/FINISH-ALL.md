@@ -25,7 +25,7 @@ against it.
 | ~~cli-table3 (internals)~~ | `flagstaff/cli-table3` | **103 / 104** | 0 | **closed 2026-09-21 — equals the control** |
 | lilconfig | `seniority` | 0 / 77 | 67 | gap + a **permanent** 10-case blind spot |
 | dotenv | `seniority` | 74 / 141 | 67 | gap |
-| cosmiconfig | `seniority` | 186 / 243 | 57 | gap |
+| ~~cosmiconfig~~ | `seniority` | **240 / 243** | 3 | **level 2026-09-30 — equals the control (D-20260930-seniority-yaml)** |
 | inquirer-core | `caique` | 0 / 41 | 41 | gap |
 | ~~term-img~~ | `paratext/term-img` | **18 / 18** | 0 | **level 2026-09-30 — equals the control (D-20260930-paratext-term-img-path)** |
 | clack | `caique` | 0 / 606 | **17** | design disagreement |

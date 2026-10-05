@@ -6,19 +6,16 @@
  * are written out rather than generated from a shorter rule because the *order* is the
  * contract and a generator would hide it.
  *
- * **The YAML question, answered here rather than hedged.** cosmiconfig maps `.yaml`, `.yml`
- * and extensionless files to `js-yaml`. seniority bundles no format parser (R6, constraint 3;
- * `js-yaml` 264 M + `json5` 205 M + `yaml` 176 M + `ini` 102 M is 747 M/wk deliberately not
- * taken), so `loadYaml` here reads the subset of YAML that is also JSON — which is every
- * JSON document, YAML being a superset — and **refuses the rest by name**, with the option
- * that would supply a real parser. That is a listed divergence, not a silent one: a program
- * whose configs are YAML passes `loaders: { '.yaml': … }` and gets cosmiconfig's behaviour
- * exactly, and a program whose configs are JSON never notices.
+ * **YAML.** cosmiconfig maps `.yaml`, `.yml` and extensionless files to `js-yaml`. seniority
+ * takes no dependency (constraint 3), so it reads them with its own parser, `seniority/yaml`
+ * (D-20260930-seniority-yaml, which supersedes D-097's "no format parser bundled"). `loadYaml`
+ * loads that parser the first time a YAML file is read and not before, so a program whose
+ * configs are all JSON or JS never pays for it.
  */
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 
-import { LoaderError, type Loader } from './load.js';
+import { type Loader } from './load.js';
 
 /** `.foorc`, `.foorc.json`, `foo.config.js`, … — the async explorer's twenty-one places, in order. */
 export function getDefaultSearchPlaces(moduleName: string): string[] {
@@ -127,20 +124,29 @@ export function loadJson(filepath: string, content: string): unknown {
   }
 }
 
+let yaml: typeof import('./yaml.js') | undefined;
+
 /**
- * Every JSON document is a YAML document, so this reads the overlap and refuses everything
- * past it **by name** (R6). The refusal is `USAGE`, not `CONFIG`: the file may be perfectly
- * good YAML, and the thing that is missing is a parser the program never supplied.
+ * `js-yaml`'s `load`, as cosmiconfig calls it: the parser's own error, with cosmiconfig's
+ * `YAML Error in <file>:` in front, which its suite asserts word for word.
+ *
+ * The parser is `require`d on the first call — cosmiconfig does the same with `js-yaml` — so it
+ * is not on the load path of anything that never reads YAML. It has to be `require` and not
+ * `import()`: this loader is synchronous, because `cosmiconfigSync` calls the same function.
+ * And it is required **by the package's own name**, which Node resolves through this
+ * package's `exports`, rather than as `./yaml.js`: the built file is the one that exists in
+ * every layout this module runs from, including its own test run against `src/`.
  */
 export function loadYaml(filepath: string, content: string): unknown {
+  yaml ??= requireFrom('seniority/yaml') as typeof import('./yaml.js');
   try {
-    return JSON.parse(content);
-  } catch {
-    throw new LoaderError(
-      `no YAML parser for ${filepath}`,
-      '.yaml',
-      'pass loaders: { ".yaml": yaml.load, ".yml": yaml.load, noExt: yaml.load } — seniority reads the JSON subset of YAML and bundles no format parser',
-    );
+    // eslint-disable-next-line secure-coding/no-unsafe-deserialization -- The rule reads the name `yaml.parse`. This parser builds plain data and nothing else: it constructs no type from a tag (custom tags are refused by name), calls nothing from the document, and writes `__proto__` as an own key. `src/yaml.test.ts` asserts the last.
+    return yaml.parse(content);
+  } catch (error) {
+    // Only `YAMLException` reaches here — the parser throws nothing else — so the message is
+    // always there to prefix, exactly as upstream does it.
+    (error as Error).message = `YAML Error in ${filepath}:\n${(error as Error).message}`;
+    throw error;
   }
 }
 
