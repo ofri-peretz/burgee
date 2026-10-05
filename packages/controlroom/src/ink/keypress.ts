@@ -148,9 +148,7 @@ export const nonAlphanumericKeys = [...Object.values(KEY_NAMES), 'backspace'];
 const SHIFT_CODES = new Set(['[a', '[b', '[c', '[d', '[e', '[2$', '[3$', '[5$', '[6$', '[7$', '[8$', '[Z']);
 const CTRL_CODES = new Set(['Oa', 'Ob', 'Oc', 'Od', 'Oe', '[2^', '[3^', '[5^', '[6^', '[7^', '[8^']);
 
-// eslint-disable-next-line no-control-regex -- the escape is the sequence being matched
 const META_KEY = /^\u001B([a-zA-Z0-9])$/u;
-// eslint-disable-next-line no-control-regex -- as above
 const FN_KEY = /^\u001B+(O|N|\[|\[\[)(?:(\d+)(?:;(\d+))?([~^$])|(?:1;)?(\d+)?([a-zA-Z]))/u;
 /**
  * The kitty protocol's two forms, matched on a CSI's parameters and final byte — what follows
@@ -178,8 +176,8 @@ const SPECIAL_NUMBERS: Readonly<Record<number, string>> = {
   11: 'f1', 12: 'f2', 13: 'f3', 14: 'f4', 15: 'f5', 17: 'f6', 18: 'f7', 19: 'f8', 20: 'f9', 21: 'f10', 23: 'f11', 24: 'f12',
 };
 
-/** kitty's functional keys by code point: the named few, then a generated run for the private-use block. */
-const KITTY_NAMES: Readonly<Record<number, string>> = (() => {
+/** kitty's functional keys by code point: the named few, then each run of the private-use block. */
+function kittyNames(): Record<number, string> {
   const names: Record<number, string> = { 27: 'escape', 9: 'tab', 127: 'delete', 8: 'backspace' };
   const run = (from: number, list: string[]): void => list.forEach((name, i) => (names[from + i] = name));
   run(57_358, ['capslock', 'scrolllock', 'numlock', 'printscreen', 'pause', 'menu']);
@@ -188,7 +186,8 @@ const KITTY_NAMES: Readonly<Record<number, string>> = (() => {
   run(57_428, ['mediaplay', 'mediapause', 'mediaplaypause', 'mediareverse', 'mediastop', 'mediafastforward', 'mediarewind', 'mediatracknext', 'mediatrackprevious', 'mediarecord', 'lowervolume', 'raisevolume', 'mutevolume']);
   run(57_441, ['leftshift', 'leftcontrol', 'leftalt', 'leftsuper', 'lefthyper', 'leftmeta', 'rightshift', 'rightcontrol', 'rightalt', 'rightsuper', 'righthyper', 'rightmeta', 'isoLevel3Shift', 'isoLevel5Shift']);
   return names;
-})();
+}
+const KITTY_NAMES: Readonly<Record<number, string>> = kittyNames();
 
 const validCodePoint = (cp: number): boolean => cp >= 0 && cp <= 0x10_ffff && !(cp >= 0xd8_00 && cp <= 0xdf_ff);
 const fromCodePoint = (cp: number): string => (validCodePoint(cp) ? String.fromCodePoint(cp) : '?');

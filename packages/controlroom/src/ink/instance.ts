@@ -8,8 +8,7 @@
 import { onExit } from 'closeout';
 import { wrap } from 'linegauge';
 
-import { App } from './components.js';
-import { AccessibilityContext } from './components.js';
+import { AccessibilityContext, App } from './components.js';
 import { createNode, type DOMElement, syncFlexTree } from './dom.js';
 import { calculateLayout } from './flex.js';
 import { createContainer, updateContainer } from './host.js';

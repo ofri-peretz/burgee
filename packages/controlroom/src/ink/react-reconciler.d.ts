@@ -17,12 +17,3 @@ declare module 'react-reconciler' {
   const createReconciler: (config: Record<string, unknown>) => Reconciler;
   export default createReconciler;
 }
-
-declare module 'react-reconciler/constants.js' {
-  export const LegacyRoot: number;
-  export const ConcurrentRoot: number;
-  export const DefaultEventPriority: number;
-  export const NoEventPriority: number | undefined;
-  const constants: { LegacyRoot: number; ConcurrentRoot: number; DefaultEventPriority: number; NoEventPriority?: number };
-  export default constants;
-}

@@ -9,7 +9,8 @@ import { existsSync, readFileSync } from 'node:fs';
 
 import { onExit } from 'closeout';
 import { rawMode, type Registrar } from 'closeout/cursor';
-import type * as ReactTypes from 'react';
+import type { ReactElement, ReactNode } from 'react';
+import chalk from 'roundel/chalk';
 
 import { type Accessibility, type DOMElement, type Styles, type TextWrap } from './dom.js';
 import { createInputParser, parseKeypress } from './keypress.js';
@@ -17,10 +18,9 @@ import { cwd, defaultStreams, isProcessStdin } from './process.js';
 import { React } from './react.js';
 import { colorize } from './render.js';
 import { type CursorPosition, type InkStream, showCursorOn } from './terminal.js';
-import chalk from 'roundel/chalk';
 
 const h = React.createElement;
-type Node = ReactTypes.ReactNode;
+type Node = ReactNode;
 
 // ── Contexts ────────────────────────────────────────────────────────────────────────────
 
@@ -148,7 +148,7 @@ export interface TextProps {
   readonly 'aria-hidden'?: boolean | undefined;
 }
 
-export function Text({ color, backgroundColor, dimColor = false, bold = false, italic = false, underline = false, strikethrough = false, inverse = false, wrap = 'wrap', children, 'aria-label': ariaLabel, 'aria-hidden': ariaHidden = false }: TextProps): ReactTypes.ReactElement | null {
+export function Text({ color, backgroundColor, dimColor = false, bold = false, italic = false, underline = false, strikethrough = false, inverse = false, wrap = 'wrap', children, 'aria-label': ariaLabel, 'aria-hidden': ariaHidden = false }: TextProps): ReactElement | null {
   const { isScreenReaderEnabled } = React.useContext(AccessibilityContext);
   const inherited = React.useContext(BackgroundContext);
   const content = isScreenReaderEnabled && ariaLabel !== undefined && ariaLabel !== '' ? ariaLabel : children;
@@ -177,7 +177,7 @@ export interface StaticProps<T> {
 }
 
 /** Items rendered once, above everything else, and never again: what has finished. */
-export function Static<T>({ items, children: render, style: customStyle }: StaticProps<T>): ReactTypes.ReactElement {
+export function Static<T>({ items, children: render, style: customStyle }: StaticProps<T>): ReactElement {
   const [index, setIndex] = React.useState(0);
   const itemsToRender = React.useMemo(() => items.slice(index), [items, index]);
   React.useLayoutEffect(() => {
@@ -194,18 +194,18 @@ export interface TransformProps {
   readonly children?: Node | undefined;
 }
 
-export function Transform({ children, transform, accessibilityLabel }: TransformProps): ReactTypes.ReactElement | null {
+export function Transform({ children, transform, accessibilityLabel }: TransformProps): ReactElement | null {
   const { isScreenReaderEnabled } = React.useContext(AccessibilityContext);
   if (children === undefined || children === null) return null;
   return h('ink-text', { style: { flexGrow: 0, flexShrink: 1, flexDirection: 'row' }, internal_transform: transform }, isScreenReaderEnabled && accessibilityLabel !== undefined && accessibilityLabel !== '' ? accessibilityLabel : children);
 }
 
-export function Newline({ count = 1 }: { readonly count?: number }): ReactTypes.ReactElement {
+export function Newline({ count = 1 }: { readonly count?: number }): ReactElement {
   return h('ink-text', null, '\n'.repeat(count));
 }
 
 /** A flexible space that fills the main axis between its siblings. */
-export function Spacer(): ReactTypes.ReactElement {
+export function Spacer(): ReactElement {
   return h(Box, { flexGrow: 1 });
 }
 
@@ -242,7 +242,7 @@ function excerpt(source: string, line: number): { line: number; value: string }[
   return out;
 }
 
-export function ErrorOverview({ error }: { readonly error: Error }): ReactTypes.ReactElement {
+export function ErrorOverview({ error }: { readonly error: Error }): ReactElement {
   const stack = error.stack?.split('\n').slice(1);
   const origin = stack?.[0] === undefined ? undefined : parseStackLine(stack[0]);
   const filePath = cleanupPath(origin?.file);
@@ -253,11 +253,12 @@ export function ErrorOverview({ error }: { readonly error: Error }): ReactTypes.
     for (const { line } of lines) lineWidth = Math.max(lineWidth, String(line).length);
   }
   const at = origin?.line;
+  const where = origin === undefined || filePath === undefined ? undefined : `${filePath}:${origin.line}:${origin.column}`;
   return h(
     Box,
     { flexDirection: 'column', padding: 1 },
     h(Box, null, h(Text, { backgroundColor: 'red', color: 'white' }, ' ', 'ERROR', ' '), h(Text, null, ' ', error.message)),
-    origin !== undefined && filePath !== undefined && h(Box, { marginTop: 1 }, h(Text, { dimColor: true }, filePath, ':', origin.line, ':', origin.column)),
+    where !== undefined && h(Box, { marginTop: 1 }, h(Text, { dimColor: true }, where)),
     origin !== undefined &&
       lines !== undefined &&
       h(
@@ -342,7 +343,7 @@ const restore: Registrar = (handler) => onExit(handler, { phase: 'restore' });
 
 const RAW_MODE_HELP = 'https://github.com/vadimdemedes/ink/#israwmodesupported';
 
-export function App({ children, stdin, stdout, stderr, writeToStdout, writeToStderr, exitOnCtrlC, onExit, setCursorPosition }: AppOptions): ReactTypes.ReactElement {
+export function App({ children, stdin, stdout, stderr, writeToStdout, writeToStderr, exitOnCtrlC, onExit, setCursorPosition }: AppOptions): ReactElement {
   const [isFocusEnabled, setIsFocusEnabled] = React.useState(true);
   const [activeFocusId, setActiveFocusId] = React.useState<string | undefined>(undefined);
   const [, setFocusables] = React.useState<Focusable[]>([]);

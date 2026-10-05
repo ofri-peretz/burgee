@@ -9,14 +9,17 @@ import React from 'react';
 import { describe, expect, it } from 'vitest';
 
 import { calculateLayout, defaults, type FlexNode, type FlexStyle } from './flex.js';
-import * as ink from './index.js';
+import { Box, renderToString, Text } from './index.js';
 import { InkPeerError, INSTALL, loadPeer } from './peers.js';
 
 const h = React.createElement;
 
+/** A peer that is not installed, as `import()` reports one. */
+const absent = (): Promise<never> => Promise.reject(Object.assign(new Error("Cannot find package 'react'"), { code: 'ERR_MODULE_NOT_FOUND' }));
+
 describe('the surface', () => {
-  it('exports ink 6.8.0’s runtime names, and nothing of its own', () => {
-    expect(Object.keys(ink).sort()).toEqual(
+  it('exports ink 6.8.0’s runtime names, and nothing of its own', async () => {
+    expect(Object.keys(await import('./index.js')).sort()).toEqual(
       [
         'Box',
         'Newline',
@@ -43,14 +46,12 @@ describe('the surface', () => {
   });
 
   it('renders a bordered box with flexbox and roundel, through React’s own reconciler', () => {
-    const out = ink.renderToString(h(ink.Box, { borderStyle: 'round', width: 9, justifyContent: 'center' }, h(ink.Text, null, 'hi')), { columns: 20 });
+    const out = renderToString(h(Box, { borderStyle: 'round', width: 9, justifyContent: 'center' }, h(Text, null, 'hi')), { columns: 20 });
     expect(out).toBe(['╭───────╮', '│  hi   │', '╰───────╯'].join('\n'));
   });
 });
 
 describe('R11 — a missing optional peer', () => {
-  const absent = (): Promise<never> => Promise.reject(Object.assign(new Error("Cannot find package 'react'"), { code: 'ERR_MODULE_NOT_FOUND' }));
-
   it('is a refusal whose fix is the install line', async () => {
     const refusal = await loadPeer('react', absent).catch((error: unknown) => error);
     expect(refusal).toBeInstanceOf(InkPeerError);
@@ -78,6 +79,9 @@ function node(style: Partial<FlexStyle>, children: FlexNode[] = [], size?: [numb
   };
 }
 
+/** Two text leaves, one and two cells wide. */
+const items = (): FlexNode[] => [node({}, [], [1, 1]), node({}, [], [2, 1])];
+
 describe('R12 — the flexbox subset reproduces yoga, rounding and quirks included', () => {
   it('shrinks by flex basis and rounds each edge to the grid, as yoga does', () => {
     // 6 + 6 + 1 into 10: each loses 3 × basis / 13. yoga rounds the edges, not the widths.
@@ -102,9 +106,7 @@ describe('R12 — the flexbox subset reproduces yoga, rounding and quirks includ
     expect([a.layout.left, b.layout.left]).toEqual([0, 3]);
   });
 
-  it('wraps onto a second line, and wrap-reverse stacks the lines from the far edge', () => {
-    const items = (): FlexNode[] => [node({}, [], [1, 1]), node({}, [], [2, 1])];
-    const wrapped = node({ flexDirection: 'row', width: 2, flexWrap: 'wrap' }, items());
+  it('wraps onto a second line, and wrap-reverse stacks the lines from the far edge', () => {    const wrapped = node({ flexDirection: 'row', width: 2, flexWrap: 'wrap' }, items());
     calculateLayout(wrapped, 100);
     expect(wrapped.children.map((n) => [n.layout.left, n.layout.top])).toEqual([
       [0, 0],

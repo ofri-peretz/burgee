@@ -176,6 +176,8 @@ export function renderNodeToScreenReaderOutput(node: DOMNode, options: { parentR
     const separator = direction === 'row' || direction === 'row-reverse' ? ' ' : '\n';
     const children = direction === 'row-reverse' || direction === 'column-reverse' ? [...node.childNodes].reverse() : node.childNodes;
     output = children
+      // The host tree is React's, as deep as the program's components: the recursion is bounded by it.
+      // eslint-disable-next-line secure-coding/no-unchecked-loop-condition -- a tree walk over the program's own host nodes
       .map((child) => renderNodeToScreenReaderOutput(child, { parentRole: node.internal_accessibility?.role, skipStaticElements: options.skipStaticElements }))
       .filter(Boolean)
       .join(separator);

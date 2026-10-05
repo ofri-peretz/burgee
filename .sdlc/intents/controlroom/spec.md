@@ -69,9 +69,27 @@ it records every change here.
   `react` and `react-reconciler` are **optional peers** (`peerDependenciesMeta`), and
   nothing else in the package imports them. If a peer is missing on first import, the error
   carries a `fix` naming the install line.
+  **Built 2026-10-05** as `src/ink/` (D-20261005-controlroom-ink-drop-in): ink 6.8's whole
+  runtime surface — `render` (`rerender`, `unmount`, `waitUntilExit`, `clear`, `cleanup`),
+  `renderToString`, `Box`, `Text` (wrap and the three truncations), `Static`, `Transform`,
+  `Newline`, `Spacer`, `useInput`, `useApp`, `useStdin`, `useStdout`, `useStderr`, `useFocus`,
+  `useFocusManager`, `useIsScreenReaderEnabled`, `useCursor`, `measureElement`, `kittyFlags`,
+  `kittyModifiers` — on one host config for both reconciler lines (React 18 and 19). The peers
+  load with `import()`, so a missing one is `E_PEER_MISSING` with the install line as its
+  `fix`. ink's write protocol is reproduced in one file, `ink/terminal.ts`, from the family's
+  sequences; R15's lock names it as the drop-in's one boundary. Graded **ink 576 / 584**
+  (control 584 / 584; 593 vendored, 9 colour cases excluded with reasons) — the 8 failing are
+  kitty keyboard negotiation, not built.
 - **R12 · Ink's layout.** A TypeScript flexbox subset that covers the `Box` props Ink's
   suite exercises. It lives under `controlroom/ink` only. Every uncovered case is a
   conditional case with its reason.
+  **Built 2026-10-05** as `src/ink/flex.ts`: yoga 3's `CalculateLayout` for the props ink
+  sets — sizes and minimums in cells or percent, all four directions, grow, shrink, basis,
+  wrap and wrap-reverse, the six justifications, `alignItems`/`alignSelf`, gap, padding,
+  margins (negative too), borders, `display: none`, absolute children, and yoga's rounding,
+  including the quirk ink marks `test.failing`. No layout case of either suite is excluded;
+  what yoga has and ink never sets (`aspectRatio`, max sizes, insets, auto margins, baseline,
+  RTL) is not reproduced.
 - **R13 · grading.** Ink's suite is vendored into `compat-oracle` at a pinned release. It
   runs on the ava runner, with a `--control` run against real Ink, and with a baseline that
   only ratchets.
@@ -82,9 +100,17 @@ it records every change here.
   CI's), @inkjs/ui@2.0.0 (13 files, 103 cases, control 103 / 103, graded through the `'ink'`
   alias as R17 asks). Both target the root `controlroom` at 0 until R11 builds
   `controlroom/ink` (D-006, D-007). PR #PR_NUMBER, D-20261005-controlroom-ink-suite.
+  **Both rows moved to `controlroom/ink` on 2026-10-05** with R11, graded with the target's
+  peers resolved from the suite's tree (`Host.peers`) and ink's two internal imports served by
+  the drop-in's own modules (`Host.targetInternals`).
 - **R14 · weight.** The W1–W4 fixtures from the intent are added to
   `benchmarks/fixtures/entry-points.ts`, and each is gated at ≤ 1.0×. The root entry is
   `denied` both peers in the weight lock.
+  **The lock half built 2026-10-05** as `src/weight.test.ts`: the root may import only family
+  subpaths and is denied `react`, `react-reconciler` and every `ink/` module (12,672 B);
+  `controlroom/ink` is 130,443 B of `dist/` before its peers, against ink 6.8's own 169,374 B
+  before yoga. The walker reads `import()` as well as static imports, so a peer cannot hide.
+  The W1–W4 benchmark fixtures are not added yet.
 
 **Compatibility and migration** (D-168). The owner's rule, 2026-09-27: _"controlroom should
 be compatible and allow easy migration to it from the leading competitors."_
@@ -93,6 +119,10 @@ be compatible and allow easy migration to it from the leading competitors."_
   through flagstaff's repaint loop, and each widget through its static projection;
   controlroom only lays out regions and routes keys. A lock fails if anything under
   `packages/controlroom/src` writes to stdout or stderr outside the flagstaff path.
+  **Amended 2026-10-05** (D-20261005-controlroom-ink-drop-in): the lock walks `src/ink/` too,
+  and names one boundary there — `ink/terminal.ts`, which writes ink's byte protocol because
+  ink's suite grades it write by write, with every sequence taken from `paratext/csi` and
+  `closeout`. The native API still paints only through flagstaff.
 - **R16 · the widget contract.** The flagstaff surface controlroom consumes (the widget and
   region interface, and R3's frame-writing seam) is pinned by a lock on both sides, in
   flagstaff and in controlroom, so neither changes it silently.
@@ -101,6 +131,11 @@ be compatible and allow easy migration to it from the leading competitors."_
   a documented `package.json` alias or `overrides`, runs them unmodified. `@inkjs/ui`'s own
   suite is graded through the drop-in in `compat-oracle`, with a `--control` run, as in
   R13. There is no separate `@inkjs/ui` façade.
+  **Graded 2026-10-05: `@inkjs/ui` 103 / 103** on `controlroom/ink` through the alias, on
+  `@inkjs/ui`'s own React 18 and `react-reconciler` 0.29 (control 103 / 103; 7 of the 103 are
+  cases upstream marks `failing` against ink 5, which the drop-in draws as the case expects).
+  The fixture that installs `ink-spinner`, `ink-text-input` and `ink-select-input` is not
+  built yet.
 - **R18 · migrating off blessed, neo-blessed and terminal-kit.** No drop-in: their API
   surfaces are too large to reproduce honestly. Instead, a coming-from guide for each, and
   `burgee migrate` codemod rules for the common screen, box, list and key patterns, as the

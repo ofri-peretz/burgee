@@ -78,7 +78,7 @@ function commitUpdate(node: DOMElement, oldProps: Props, newProps: Props): void 
 
 const resetAfterCommit = (rootNode: DOMElement): void => {
   rootNode.onComputeLayout?.();
-  // <Static> children render once and are then removed, so a commit that added some is
+  // Static's children render once and are then removed, so a commit that added some is
   // written at once rather than waiting on the throttle, before the next commit erases them.
   if (rootNode.isStaticDirty === true) {
     rootNode.isStaticDirty = false;
@@ -146,7 +146,7 @@ export const reconciler: Reconciler = createReconciler({
     else commitUpdate(node, rest[2] as Props, rest[3] as Props);
   },
   commitTextUpdate: (node: TextNode, _old: string, text: string) => setTextNodeValue(node, text),
-  // React 18's priority hook, and React 19's three.
+  // Event priority: one hook on React 18's reconciler line, three on React 19's.
   getCurrentEventPriority: () => constants.DefaultEventPriority,
   setCurrentUpdatePriority(priority: number) {
     currentUpdatePriority = priority;

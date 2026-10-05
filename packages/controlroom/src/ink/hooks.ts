@@ -2,8 +2,8 @@
  * Ink's hooks, over the contexts `App` provides. `useInput` decodes each key event with Ink's
  * own parser and calls the handler inside the reconciler's batch, as Ink does.
  */
-import { type DOMElement } from './dom.js';
 import { AccessibilityContext, AppContext, type AppProps, CursorContext, FocusContext, StderrContext, type StderrProps, StdinContext, type StdinProps, StdoutContext, type StdoutProps } from './components.js';
+import { type DOMElement } from './dom.js';
 import { reconciler } from './host.js';
 import { nonAlphanumericKeys, parseKeypress } from './keypress.js';
 import { React } from './react.js';
