@@ -1,5 +1,15 @@
 # compat-oracle
 
+## 0.1.7
+
+### Patch Changes
+
+- [#816](https://github.com/ofri-peretz/burgee/pull/816) [`5230016`](https://github.com/ofri-peretz/burgee/commit/52300169a98ece41b3544e5316833464e63a7c83) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `controlroom/ink` negotiates the kitty keyboard protocol as ink does: pushed at once with `kittyKeyboard: { mode: 'enabled' }`, and in `auto` mode only once a known terminal answers the query, with every other byte handed back to stdin and the pop written at unmount. ink's own suite now passes 584 / 584. paratext's `csi` spells the protocol's three sequences (`kittyKeyboardPush`, `kittyKeyboardPop`, `kittyKeyboardQuery`).
+- Updated dependencies [[`5230016`](https://github.com/ofri-peretz/burgee/commit/52300169a98ece41b3544e5316833464e63a7c83), [`5230016`](https://github.com/ofri-peretz/burgee/commit/52300169a98ece41b3544e5316833464e63a7c83)]:
+  - burgee@0.18.0
+  - flagstaff@1.1.1
+  - roundel@0.6.3
+
 ## 0.1.6
 
 ### Patch Changes

@@ -1,5 +1,21 @@
 # burgee
 
+## 0.18.0
+
+### Minor Changes
+
+- [#816](https://github.com/ofri-peretz/burgee/pull/816) [`5230016`](https://github.com/ofri-peretz/burgee/commit/52300169a98ece41b3544e5316833464e63a7c83) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` moves ink to `controlroom/ink` now that the drop-in is level with ink's own suite (584 / 584), and its `next` command installs `react-reconciler` beside `controlroom`: ink brought the reconciler in itself, and the drop-in takes it as an optional peer.
+
+### Patch Changes
+
+- [#816](https://github.com/ofri-peretz/burgee/pull/816) [`5230016`](https://github.com/ofri-peretz/burgee/commit/52300169a98ece41b3544e5316833464e63a7c83) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - controlroom hosts plugins (R10): `keymaps` and `panes` register through `controlroom/plugin`'s `register()` against the family schema, a screen takes either by name, and `controlroom check <plugin-file>` reports what a plugin contributes. The family schema every host ships gains the `keymaps` and `panes` definitions.
+- Updated dependencies [[`5230016`](https://github.com/ofri-peretz/burgee/commit/52300169a98ece41b3544e5316833464e63a7c83), [`5230016`](https://github.com/ofri-peretz/burgee/commit/52300169a98ece41b3544e5316833464e63a7c83)]:
+  - closeout@0.7.0
+  - bellpull@0.5.2
+  - linegauge@1.0.4
+  - roundel@0.6.3
+  - seniority@0.7.2
+
 ## 0.17.2
 
 ### Patch Changes

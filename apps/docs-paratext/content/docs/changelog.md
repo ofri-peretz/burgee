@@ -3,6 +3,16 @@ title: Changelog
 description: "Every release of paratext, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 0.9.0
+
+### Minor Changes
+
+- [#816](https://github.com/ofri-peretz/burgee/pull/816) [`5230016`](https://github.com/ofri-peretz/burgee/commit/52300169a98ece41b3544e5316833464e63a7c83) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `controlroom/ink` negotiates the kitty keyboard protocol as ink does: pushed at once with `kittyKeyboard: { mode: 'enabled' }`, and in `auto` mode only once a known terminal answers the query, with every other byte handed back to stdin and the pop written at unmount. ink's own suite now passes 584 / 584. paratext's `csi` spells the protocol's three sequences (`kittyKeyboardPush`, `kittyKeyboardPop`, `kittyKeyboardQuery`).
+
+### Patch Changes
+
+- [#816](https://github.com/ofri-peretz/burgee/pull/816) [`5230016`](https://github.com/ofri-peretz/burgee/commit/52300169a98ece41b3544e5316833464e63a7c83) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - controlroom hosts plugins (R10): `keymaps` and `panes` register through `controlroom/plugin`'s `register()` against the family schema, a screen takes either by name, and `controlroom check <plugin-file>` reports what a plugin contributes. The family schema every host ships gains the `keymaps` and `panes` definitions.
+
 ## 0.8.0
 
 ### Minor Changes

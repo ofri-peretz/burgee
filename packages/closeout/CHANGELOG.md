@@ -1,5 +1,15 @@
 # closeout
 
+## 0.7.0
+
+### Minor Changes
+
+- [#816](https://github.com/ofri-peretz/burgee/pull/816) [`5230016`](https://github.com/ofri-peretz/burgee/commit/52300169a98ece41b3544e5316833464e63a7c83) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - controlroom hosts an input line inside a screen (R20): `open(rt, { input: { editor, pane, onSubmit } })` routes keys to caique's line editor while its pane has focus and lets unused keys fall through to the keymap; outside a terminal, entries come from piped stdin, never a wait. closeout gains `bracketedPaste()` in `closeout/cursor`, paired with its restore like the alternate screen.
+
+### Patch Changes
+
+- [#816](https://github.com/ofri-peretz/burgee/pull/816) [`5230016`](https://github.com/ofri-peretz/burgee/commit/52300169a98ece41b3544e5316833464e63a7c83) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - controlroom hosts plugins (R10): `keymaps` and `panes` register through `controlroom/plugin`'s `register()` against the family schema, a screen takes either by name, and `controlroom check <plugin-file>` reports what a plugin contributes. The family schema every host ships gains the `keymaps` and `panes` definitions.
+
 ## 0.6.1
 
 ### Patch Changes

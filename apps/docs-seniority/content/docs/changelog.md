@@ -3,6 +3,12 @@ title: Changelog
 description: "Every release of seniority, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 0.7.2
+
+### Patch Changes
+
+- [#816](https://github.com/ofri-peretz/burgee/pull/816) [`5230016`](https://github.com/ofri-peretz/burgee/commit/52300169a98ece41b3544e5316833464e63a7c83) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - controlroom hosts plugins (R10): `keymaps` and `panes` register through `controlroom/plugin`'s `register()` against the family schema, a screen takes either by name, and `controlroom check <plugin-file>` reports what a plugin contributes. The family schema every host ships gains the `keymaps` and `panes` definitions.
+
 ## 0.7.1
 
 ### Patch Changes
