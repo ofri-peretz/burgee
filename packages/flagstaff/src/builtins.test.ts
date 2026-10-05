@@ -17,7 +17,7 @@ import { describe, expect, it } from 'vitest';
 import { box, boxComponent } from './box.js';
 import { STATIC } from './link.js';
 import { hoist, manualClock, type Runtime } from './loop.js';
-import { type Component } from './plugin.js';
+import { type Component, register } from './plugin.js';
 import { progress } from './progress.js';
 import { table, tableComponent } from './table.js';
 import { tasks } from './tasks.js';
@@ -111,6 +111,19 @@ describe('tasks', () => {
     const lines = w.text().trimEnd().split('\n');
     expect(lines).toEqual(['✔ a', '✔ b', '✔ c', '✔ d']);
     expect(new Set(lines).size, 'a line was printed twice').toBe(lines.length);
+  });
+
+  it('the pending mark is the `pending` glyph, a space until a plugin replaces it (controlroom R3)', () => {
+    const waiting = { tasks: [{ title: 'test' }] };
+    expect(tasks().frame?.(0, waiting)).toBe('  test');
+    register({ name: 'boxes', glyphs: { pending: '◻' } });
+    try {
+      expect(tasks().frame?.(0, waiting)).toBe('◻ test');
+      // Still nothing off a terminal: a task that has not started has not settled.
+      expect(tasks().static(waiting)).toBe('');
+    } finally {
+      register({ name: 'flagstaff', glyphs: { pending: ' ' } });
+    }
   });
 
   it('a component with nothing to say yet costs no blank line', () => {

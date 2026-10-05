@@ -27,6 +27,8 @@ const closeoutRoot = resolve(pkgRoot, '../closeout');
 /** OSC 8, since 2026-09-16: `box` and `table` link a path through `paratext/link` (R12). */
 const paratextRoot = resolve(pkgRoot, '../paratext');
 const ESC = String.fromCharCode(27);
+/** Every tty frame is one synchronized-output block: the repaint is `frameWriter()`'s. */
+const synced = (bytes: string): string => `${ESC}[?2026h${bytes}${ESC}[?2026l`;
 
 /**
  * The whole program: a spinner over three states. `.mjs` so it runs in any project whatever
@@ -67,7 +69,7 @@ describe('Z1 — one file, npm i, no build step', () => {
 
   it('animates on a terminal and leaves the static line behind', () => {
     const erase = `${ESC}[1G${ESC}[0J`;
-    expect(run('tty')).toBe(`${ESC}[?25l⠋ building${erase}⠙ building${erase}⠹ building${erase}⠹ linking${erase}✔ built\n${ESC}[?25h`);
+    expect(run('tty')).toBe(`${ESC}[?25l${synced('⠋ building')}${['⠙ building', '⠹ building', '⠹ linking', '✔ built'].map((f) => synced(erase + f)).join('')}\n${ESC}[?25h`);
   });
 
   it('the user authored exactly one file, and never ran a build', () => {

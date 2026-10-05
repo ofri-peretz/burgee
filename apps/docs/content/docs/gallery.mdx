@@ -22,7 +22,7 @@ The running glyph and the text, then the settled glyph — never a frame.
 
 | mode | what it writes |
 | :-- | :-- |
-| `tty` | `␛[?25l⠋ building␛[1G␛[0J⠙ building␛[1G␛[0J⠹ building␛[1G␛[0J⠸ building␛[1G␛[0J✔ built⏎ ␛[?25h` |
+| `tty` | `␛[?25l␛[?2026h⠋ building␛[?2026l␛[?2026h␛[1G␛[0J⠙ building␛[?2026l␛[?2026h␛[1G␛[0J⠹ building␛[?2026l␛[?2026h␛[1G␛[0J⠸ building␛[?2026l␛[?2026h␛[1G␛[0J✔ built␛[?2026l⏎ ␛[?25h` |
 | `pipe` | `… building⏎ ✔ built⏎` |
 | `ci` | `… building⏎ ✔ built⏎` |
 | `json` | `{"event":"spinner","state":{"text":"building"}}⏎ {"event":"spinner","state":{"text":"built","status":"ok"}}⏎` |
@@ -34,7 +34,7 @@ The count and the percentage; a bar of blocks says nothing in a log.
 
 | mode | what it writes |
 | :-- | :-- |
-| `tty` | `␛[?25l█████░░░░░░░ 12/30 files␛[1G␛[0J30/30 files · 100%⏎ ␛[?25h` |
+| `tty` | `␛[?25l␛[?2026h█████░░░░░░░ 12/30 files␛[?2026l␛[?2026h␛[1G␛[0J30/30 files · 100%␛[?2026l⏎ ␛[?25h` |
 | `pipe` | `12/30 files · 40%⏎ 30/30 files · 100%⏎` |
 | `ci` | `12/30 files · 40%⏎ 30/30 files · 100%⏎` |
 | `json` | `{"event":"progress","state":{"done":12,"total":30,"label":"files"}}⏎ {"event":"progress","state":{"done":30,"total":30,"label":"files"}}⏎` |
@@ -46,7 +46,7 @@ Only what has settled, so a pipe is not told twice that a step is running.
 
 | mode | what it writes |
 | :-- | :-- |
-| `tty` | `␛[?25l✔ install⏎ ⠋ build␛[1G␛[1A␛[0J✔ install⏎ ⠙ build␛[1G␛[1A␛[0J✔ install⏎ ⠹ build␛[1G␛[1A␛[0J✔ install⏎ ⠸ build␛[1G␛[1A␛[0J✔ install⏎ ✔ build⏎ ␛[?25h` |
+| `tty` | `␛[?25l␛[?2026h✔ install⏎ ⠋ build␛[?2026l␛[?2026h␛[1G␛[0J⠙ build␛[?2026l␛[?2026h␛[1G␛[0J⠹ build␛[?2026l␛[?2026h␛[1G␛[0J⠸ build␛[?2026l␛[?2026h␛[1G␛[0J✔ build␛[?2026l⏎ ␛[?25h` |
 | `pipe` | `✔ install⏎ ✔ build⏎` |
 | `ci` | `✔ install⏎ ✔ build⏎` |
 | `json` | `{"event":"tasks","state":{"tasks":[{"title":"install","status":"ok"},{"title":"build","status":"running"}]}}⏎ {"event":"tasks","state":{"tasks":[{"title":"install","status":"ok"},{"title":"build","status":"ok"}]}}⏎` |
@@ -58,7 +58,7 @@ The title and the text; a border is noise a screen reader reads character by cha
 
 | mode | what it writes |
 | :-- | :-- |
-| `tty` | `␛[?25l╭─ dev ──────────────────────────╮⏎ │ starting                       │⏎ ╰────────────────────────────────╯␛[1G␛[2A␛[0Jdev: ready on :3000⏎ ␛[?25h` |
+| `tty` | `␛[?25l␛[?2026h╭─ dev ──────────────────────────╮⏎ │ starting                       │⏎ ╰────────────────────────────────╯␛[?2026l␛[?2026h␛[1G␛[2A␛[0Jdev: ready on :3000␛[?2026l⏎ ␛[?25h` |
 | `pipe` | `dev: starting⏎ dev: ready on :3000⏎` |
 | `ci` | `dev: starting⏎ dev: ready on :3000⏎` |
 | `json` | `{"event":"box","state":{"text":"starting","title":"dev"}}⏎ {"event":"box","state":{"text":"ready on :3000","title":"dev"}}⏎` |
@@ -70,7 +70,7 @@ One line per row of header-and-value pairs, parseable without knowing the drawin
 
 | mode | what it writes |
 | :-- | :-- |
-| `tty` | `␛[?25l┌──────┬───────┐⏎ │ host │ tests │⏎ ├──────┼───────┤⏎ │ ora  │ 99    │⏎ └──────┴───────┘␛[1G␛[4A␛[0Jhost: ora, tests: 99⏎ host: log-update, tests: 99⏎ ␛[?25h` |
+| `tty` | `␛[?25l␛[?2026h┌──────┬───────┐⏎ │ host │ tests │⏎ ├──────┼───────┤⏎ │ ora  │ 99    │⏎ └──────┴───────┘␛[?2026l␛[?2026h␛[1G␛[4A␛[2Khost: ora, tests: 99␛[1G␛[1B␛[0Jhost: log-update, tests: 99␛[?2026l⏎ ␛[?25h` |
 | `pipe` | `host: ora, tests: 99⏎ host: log-update, tests: 99⏎` |
 | `ci` | `host: ora, tests: 99⏎ host: log-update, tests: 99⏎` |
 | `json` | `{"event":"table","state":{"rows":[["ora","99"]]}}⏎ {"event":"table","state":{"rows":[["ora","99"],["log-update","99"]]}}⏎` |

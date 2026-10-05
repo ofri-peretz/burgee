@@ -12,6 +12,8 @@
     "spinner",
     "progress",
     "tasks",
+    "log-tail",
+    "tab-bar",
     "box",
     "table"
   ]

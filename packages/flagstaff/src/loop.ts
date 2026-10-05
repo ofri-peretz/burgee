@@ -7,7 +7,7 @@
 import { outputMode, type ModeOptions, type OutputMode, type Runtime as PolicyRuntime } from 'roundel/policy';
 
 import { type Component } from './plugin.js';
-import { type Clock, jsonProjection, type Projection, staticProjection, ttyProjection, type Writer } from './projection.js';
+import { type Clock, frameWriter, jsonProjection, type Projection, staticProjection, ttyProjection, type Writer } from './projection.js';
 
 /** What the loop needs from the world: the policy's slice plus the two streams and a clock. */
 export interface Runtime extends PolicyRuntime {
@@ -103,4 +103,10 @@ export function manualClock(start = 0): ManualClock {
   };
 }
 
-export type { Clock, Writer } from './projection.js';
+/**
+ * The frame-writing seam (controlroom R3, R15): a whole frame of lines in, the changed rows
+ * out in one synchronized-output block. Exported from here, beside `hoist`, because it is the
+ * same repaint `hoist` uses on a terminal — a compositor gets the loop's bytes, not a copy.
+ */
+export { frameWriter };
+export type { Clock, FrameWriter, Writer } from './projection.js';
