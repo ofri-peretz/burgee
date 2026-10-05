@@ -65,6 +65,8 @@ const EXTENSION_POINTS: Record<string, string> = {
   'restore-cursor': 'None',
   'cross-spawn': 'None',
   which: 'None',
+  ink: 'Components are the extension: any React component renders (`@inkjs/ui`, `ink-spinner`); no registry, no theme',
+  'inkjs-ui': 'A theme object passed to `ThemeProvider`, per tree (`extendTheme`)',
 };
 
 /** The member names of a host's exported `Plugin` type. */

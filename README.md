@@ -180,6 +180,7 @@ live, what to flush on exit, a prompt of its own, and a command every one of its
 | [`burgee`](./packages/burgee/) | `commands`, `hooks` | `npx burgee check ./plugin.mjs` |
 | [`caique`](./packages/caique/) | `widgets` | `npx caique check ./plugin.mjs` |
 | [`closeout`](./packages/closeout/) | `handlers` | `npx closeout check ./plugin.mjs` |
+| [`controlroom`](./packages/controlroom/) | `keymaps`, `panes` | `npx controlroom check ./plugin.mjs` |
 | [`flagstaff`](./packages/flagstaff/) | `tokens`, `glyphs`, `spinners`, `borders`, `components` | `npx flagstaff check ./plugin.mjs` |
 | [`linegauge`](./packages/linegauge/) | `widths` | `npx linegauge check ./plugin.mjs` |
 | [`paratext`](./packages/paratext/) | `capabilities` | `npx paratext check ./plugin.mjs` |

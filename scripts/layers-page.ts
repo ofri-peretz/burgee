@@ -18,8 +18,9 @@
  * edges. The rules the picture illustrates are enforced elsewhere —
  * `scripts/layer-boundaries-lock.test.ts`, `scripts/inline-implementation-lock.test.ts`,
  * `scripts/composition-lock.test.ts` and `scripts/dependency-claim-lock.test.ts` — so this script
- * refuses only what would make the picture wrong: a leaf-to-leaf edge would have no row to be
- * drawn in, and an edge out of the family would have no box to point at.
+ * refuses only what would make the picture wrong: an edge out of the family would have no box to
+ * point at. A package's row is its depth above the leaves, so every edge points down and any
+ * depth draws (controlroom, over caique and flagstaff, was the first third row, 2026-10-05).
  *
  * `--check` regenerates both and compares, and runs in the `fast` job the required
  * `Quality Gate` reads.
@@ -85,7 +86,6 @@ const edges = composers.flatMap((c) => c.uses.map((to) => [c.name, to] as const)
 
 const problems = [
   ...nodes.flatMap((n) => n.outside.map((d) => `${n.name} depends on ${d}, which is outside the family`)),
-  ...edges.filter(([, to]) => !leaves.some((l) => l.name === to)).map(([from, to]) => `${from} → ${to} does not end at a leaf; the diagram has two rows`),
 ];
 if (problems.length > 0) {
   for (const p of problems) process.stderr.write(`✖ ${p}\n`);
@@ -99,25 +99,51 @@ if (problems.length > 0) {
 const WIDTH = 760;
 const BOX_H = 40;
 const TOP_Y = 24;
-const LEAF_Y = 196;
-const LEAF_W = 108;
-const TOP_W = 140;
-/** Room under the leaves: a row for the reserved packages, or a margin. */
+/** From one layer's top to the next one's. */
+const ROW_STEP = 120;
+const BOX_W = 108;
+/** Room under the bottom layer: a row for the reserved packages, or a margin. */
 const FOOT_RESERVED = 64;
 const FOOT = 24;
 /** Where a label's baseline sits inside its box, and the gap above the reserved row. */
 const LABEL_Y = 25;
 const RESERVED_GAP = 16;
 const RESERVED_W = 200;
-/** Arrows from different composers land this far apart on a leaf, so their heads do not overlap. */
-const LANE = 18;
-const PALETTE = ['#3b82f6', '#f59e0b', '#10b981', '#a855f7'];
+/** The reserved row's left margin, and the gap between its boxes. */
+const RESERVED_MARGIN = 24;
+/** Arrows from different packages land this far apart on a box, so their heads do not overlap. */
+const LANE = 14;
+const PALETTE = ['#3b82f6', '#f59e0b', '#10b981', '#a855f7', '#ef4444'];
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
 
-const leafGap = (WIDTH - leaves.length * LEAF_W) / (leaves.length + 1);
-const leafX = (i: number): number => leafGap + i * (LEAF_W + leafGap);
-const topX = (i: number): number => (WIDTH * (i + 1)) / (composers.length + 1) - TOP_W / 2;
+/**
+ * A package's layer is how far it sits above the leaves: a leaf is 0, and one that uses others is
+ * one more than the highest of them. So every edge points down at least one layer, and a
+ * package that composes composers (controlroom, over caique and flagstaff) gets a row of its own.
+ */
+const depthOf = new Map<string, number>();
+const depth = (name: string): number => {
+  const known = depthOf.get(name);
+  if (known !== undefined) return known;
+  const uses = nodes.find((n) => n.name === name && n.role !== 'reserved')?.uses ?? [];
+  const d = uses.length === 0 ? 0 : 1 + Math.max(...uses.map(depth));
+  depthOf.set(name, d);
+  return d;
+};
+const drawn = [...composers, ...leaves];
+const top = Math.max(0, ...drawn.map((n) => depth(n.name)));
+/** Layers top to bottom: the most composed first, the leaves last. */
+const layers = Array.from({ length: top + 1 }, (_, r) => drawn.filter((n) => depth(n.name) === top - r));
+const LEAF_Y = TOP_Y + top * ROW_STEP;
 const HEIGHT = LEAF_Y + BOX_H + (reserved.length > 0 ? FOOT_RESERVED : FOOT);
+
+/** Where each drawn package's box sits, by name. */
+const place = new Map<string, { x: number; y: number }>();
+layers.forEach((layer, r) => {
+  const gap = (WIDTH - layer.length * BOX_W) / (layer.length + 1);
+  layer.forEach((n, i) => place.set(n.name, { x: gap + i * (BOX_W + gap), y: TOP_Y + r * ROW_STEP }));
+});
+const spot = (name: string): { x: number; y: number } => place.get(name) as { x: number; y: number };
 
 interface Box {
   readonly x: number;
@@ -134,24 +160,27 @@ const box = ({ x, y, w, label, stroke, dashed = false }: Box): string =>
     `  <text x="${(x + w / 2).toFixed(1)}" y="${y + LABEL_Y}" text-anchor="middle" font-family="${MONO}" font-size="14" fill="#18181b">${label}</text>`,
   ].join('\n');
 
+const colour = (i: number): string => PALETTE[i % PALETTE.length] as string;
+
 const svg = [
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" width="${WIDTH}" height="${HEIGHT}" role="img" aria-labelledby="t d">`,
   '  <title id="t">The burgee family\'s dependency graph</title>',
   `  <desc id="d">${composers.map((c) => `${c.name} depends on ${c.uses.join(', ')}`).join('. ')}. ${leaves.map((l) => l.name).join(', ')} depend on nothing.${reserved.map((r) => ` ${r.name} is reserved${r.uses.length > 0 ? `; it will depend on ${r.uses.join(', ')} when it publishes, and is drawn apart until then` : ' and depends on nothing'}.`).join('')}</desc>`,
   '  <defs>',
-  ...composers.map((_, i) => `    <marker id="a${i}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${PALETTE[i % PALETTE.length]}"/></marker>`),
+  ...composers.map((_, i) => `    <marker id="a${i}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${colour(i)}"/></marker>`),
   '  </defs>',
   ...composers.flatMap((c, i) =>
     c.uses.map((to) => {
-      const j = leaves.findIndex((l) => l.name === to);
-      const x1 = topX(i) + TOP_W / 2;
-      const x2 = leafX(j) + LEAF_W / 2 + (i - (composers.length - 1) / 2) * LANE;
-      return `  <line x1="${x1.toFixed(1)}" y1="${TOP_Y + BOX_H}" x2="${x2.toFixed(1)}" y2="${LEAF_Y - 2}" stroke="${PALETTE[i % PALETTE.length]}" stroke-width="2" marker-end="url(#a${i})"/>`;
+      const from = spot(c.name);
+      const dest = spot(to);
+      const x1 = from.x + BOX_W / 2;
+      const x2 = dest.x + BOX_W / 2 + (i - (composers.length - 1) / 2) * LANE;
+      return `  <line x1="${x1.toFixed(1)}" y1="${from.y + BOX_H}" x2="${x2.toFixed(1)}" y2="${dest.y - 2}" stroke="${colour(i)}" stroke-width="2" marker-end="url(#a${i})"/>`;
     }),
   ),
-  ...composers.map((c, i) => box({ x: topX(i), y: TOP_Y, w: TOP_W, label: c.name, stroke: PALETTE[i % PALETTE.length] as string })),
-  ...leaves.map((l, j) => box({ x: leafX(j), y: LEAF_Y, w: LEAF_W, label: l.name, stroke: '#71717a' })),
-  ...reserved.map((r, k) => box({ x: leafGap + k * (RESERVED_W + leafGap), y: LEAF_Y + BOX_H + RESERVED_GAP, w: RESERVED_W, label: `${r.name} (reserved)`, stroke: '#a1a1aa', dashed: true })),
+  ...composers.map((c, i) => box({ ...spot(c.name), w: BOX_W, label: c.name, stroke: colour(i) })),
+  ...leaves.map((l) => box({ ...spot(l.name), w: BOX_W, label: l.name, stroke: '#71717a' })),
+  ...reserved.map((r, k) => box({ x: RESERVED_MARGIN + k * (RESERVED_W + RESERVED_MARGIN), y: LEAF_Y + BOX_H + RESERVED_GAP, w: RESERVED_W, label: `${r.name} (reserved)`, stroke: '#a1a1aa', dashed: true })),
   '</svg>',
   '',
 ].join('\n');
@@ -174,7 +203,7 @@ const block = [
   '',
   `![The family's dependency graph: ${composers.map((c) => `${c.name} depends on ${c.uses.join(', ')}`).join('; ')}. The ${leaves.length} leaves depend on nothing.](${SVG_URL})`,
   '',
-  `${composers.length} packages compose, ${leaves.length} are leaves${reserved.length > 0 ? `, and ${reserved.length} is reserved` : ''}: ${edges.length} dependency edges inside the family, every one from a package that composes to a leaf, and none outside it. Generated by \`npm run layers:page\` from each public package's \`package.json\`; do not edit by hand.`,
+  `${composers.length} packages compose, ${leaves.length} are leaves${reserved.length > 0 ? `, and ${reserved.length} is reserved` : ''}: ${edges.length} dependency edges inside the family, every one pointing down at least one layer, and none outside it. Generated by \`npm run layers:page\` from each public package's \`package.json\`; do not edit by hand.`,
   '',
   '| Package | Layer | Depends on | Used by | Outside the family |',
   '| :--- | :--- | :--- | :--- | :--- |',
