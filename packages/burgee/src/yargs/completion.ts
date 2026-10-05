@@ -1,6 +1,6 @@
 /**
  * yargs' completion — `--get-yargs-completions`, the custom completion function in its
- * three arities, and the bash/zsh script templates — ported for `burgee/yargs`.
+ * three arities, and the bash/zsh/fish script templates — ported for `burgee/yargs`.
  */
  
 import { type CommandInstance, isCommandBuilderCallback } from './command.js';
@@ -8,14 +8,28 @@ import type { PlatformShim } from './shim.js';
 import type { UsageInstance } from './usage.js';
 import { isPromise, parseCommand } from './utils.js';
 
-export const completionShTemplate = `###-begin-{{app_name}}-completions-###
+/**
+ * The three templates open and close alike, so the shared text is written once: the
+ * scripts produced are upstream's byte for byte (`completion-templates.test.ts` holds
+ * them to the installed yargs), and the bundle carries the header and footer once, not
+ * three times.
+ */
+const head = `###-begin-{{app_name}}-completions-###
 #
 # yargs command completion script
 #
-# Installation: {{app_path}} {{completion_command}} >> ~/.bashrc
+# Installation: {{app_path}} {{completion_command}} `;
+const foot = `###-end-{{app_name}}-completions-###
+`;
+/** The shell function the bash and zsh scripts define and register. */
+const fn = '_{{app_name}}_yargs_completions';
+/** The command every script runs to ask the program for its candidates. */
+const ask = '{{app_path}} --get-yargs-completions';
+
+export const completionShTemplate = `${head}>> ~/.bashrc
 #    or {{app_path}} {{completion_command}} >> ~/.bash_profile on OSX.
 #
-_{{app_name}}_yargs_completions()
+${fn}()
 {
     local cur_word args type_list
 
@@ -24,7 +38,7 @@ _{{app_name}}_yargs_completions()
 
     # ask yargs to generate completions.
     # see https://stackoverflow.com/a/40944195/7080036 for the spaces-handling awk
-    mapfile -t type_list < <({{app_path}} --get-yargs-completions "\${args[@]}")
+    mapfile -t type_list < <(${ask} "\${args[@]}")
     mapfile -t COMPREPLY < <(compgen -W "$( printf '%q ' "\${type_list[@]}" )" -- "\${cur_word}" |
         awk '/ / { print "\\""$0"\\"" } /^[^ ]+$/ { print $0 }')
 
@@ -35,23 +49,18 @@ _{{app_name}}_yargs_completions()
 
     return 0
 }
-complete -o bashdefault -o default -F _{{app_name}}_yargs_completions {{app_name}}
-###-end-{{app_name}}-completions-###
-`;
+complete -o bashdefault -o default -F ${fn} {{app_name}}
+${foot}`;
 
 export const completionZshTemplate = `#compdef {{app_name}}
-###-begin-{{app_name}}-completions-###
-#
-# yargs command completion script
-#
-# Installation: {{app_path}} {{completion_command}} >> ~/.zshrc
+${head}>> ~/.zshrc
 #    or {{app_path}} {{completion_command}} >> ~/.zprofile on OSX.
 #
-_{{app_name}}_yargs_completions()
+${fn}()
 {
   local reply
   local si=$IFS
-  IFS=$'\n' reply=($(COMP_CWORD="$((CURRENT-1))" COMP_LINE="$BUFFER" COMP_POINT="$CURSOR" {{app_path}} --get-yargs-completions "\${words[@]}"))
+  IFS=$'\n' reply=($(COMP_CWORD="$((CURRENT-1))" COMP_LINE="$BUFFER" COMP_POINT="$CURSOR" ${ask} "\${words[@]}"))
   IFS=$si
   if [[ \${#reply} -gt 0 ]]; then
     _describe 'values' reply
@@ -59,13 +68,17 @@ _{{app_name}}_yargs_completions()
     _default
   fi
 }
-if [[ "'\${zsh_eval_context[-1]}" == "loadautofunc" ]]; then
-  _{{app_name}}_yargs_completions "$@"
+if [[ "\${zsh_eval_context[-1]}" == "loadautofunc" ]]; then
+  ${fn} "$@"
 else
-  compdef _{{app_name}}_yargs_completions {{app_name}}
+  compdef ${fn} {{app_name}}
 fi
-###-end-{{app_name}}-completions-###
-`;
+${foot}`;
+
+export const completionFishTemplate = `${head}> ~/.config/fish/completions/{{app_name}}.fish
+#
+complete -f -c {{app_name}} -a '(${ask} (commandline -o)[2..-1])'
+${foot}`;
 
 type Done = (err: Error | null, completions: string[] | undefined) => void;
 
@@ -87,6 +100,7 @@ export class Completion {
   private customCompletionFunction: CompletionFunction | null = null;
   private indexAfterLastReset = 0;
   private readonly zshShell: boolean;
+  private readonly fishShell: boolean;
   private readonly yargs: any;
   private readonly usage: UsageInstance;
   private readonly command: CommandInstance;
@@ -97,7 +111,22 @@ export class Completion {
     this.usage = usage;
     this.command = command;
     this.shim = shim;
-    this.zshShell = (this.shim.getEnv('SHELL')?.includes('zsh') || this.shim.getEnv('ZSH_NAME')?.includes('zsh')) ?? false;
+    const shell = shim.getEnv('SHELL');
+    this.zshShell = (shell?.includes('zsh') || shim.getEnv('ZSH_NAME')?.includes('zsh')) ?? false;
+    this.fishShell = shell?.includes('fish') ?? false;
+  }
+
+  /**
+   * A candidate with its description, in the shell's own format: fish reads `value<TAB>desc`
+   * as it is, zsh's `_describe` reads `value:desc` with the value escaped, bash the bare value.
+   */
+  private describe(value: string, desc: string): string {
+    return this.fishShell ? `${value}\t${desc}` : this.zshShell ? `${escapeDescribe(value)}:${desc}` : value;
+  }
+
+  /** A choice as a candidate: fish takes it verbatim, the others as `_describe` would read it. */
+  private choice(value: string): string {
+    return this.fishShell ? value : escapeDescribe(value);
   }
 
   private defaultCompletion(args: string[], argv: any, current: string, done: Done): any {
@@ -127,13 +156,7 @@ export class Completion {
     if (!/^-/.exec(current) && parentCommands.at(-1) !== current && !this.previousArgHasChoices(args)) {
       this.usage.getCommands().forEach((usageCommand) => {
         const commandName = parseCommand(usageCommand[0]).cmd;
-        if (args.indexOf(commandName) === -1) {
-          if (!this.zshShell) completions.push(commandName);
-          else {
-            const desc = usageCommand[1] || '';
-            completions.push(`${escapeDescribe(commandName)}:${desc}`);
-          }
-        }
+        if (args.indexOf(commandName) === -1) completions.push(this.describe(commandName, usageCommand[1] || ''));
       });
     }
   }
@@ -155,7 +178,7 @@ export class Completion {
   private choicesFromOptionsCompletions(completions: string[], args: string[], _argv: any, _current: string): void {
     if (this.previousArgHasChoices(args)) {
       const choices = this.getPreviousArgChoices(args);
-      if (choices && choices.length > 0) completions.push(...choices.map(escapeDescribe));
+      if (choices && choices.length > 0) completions.push(...choices.map((c) => this.choice(c)));
     }
   }
 
@@ -167,7 +190,7 @@ export class Completion {
     if (!positionalKey) return;
     const choices: string[] = this.yargs.getOptions().choices[positionalKey] || [];
     for (const choice of choices) {
-      if (choice.startsWith(current)) completions.push(escapeDescribe(choice));
+      if (choice.startsWith(current)) completions.push(this.choice(choice));
     }
   }
 
@@ -212,20 +235,15 @@ export class Completion {
   }
 
   private completeOptionKey(key: string, completions: string[], current: string, negable: boolean): void {
-    let keyWithDesc = key;
-    if (this.zshShell) {
-      const descs = this.usage.getDescriptions();
-      const aliasKey = this.aliases?.[key]?.find((alias) => {
-        const desc = descs[alias];
-        return typeof desc === 'string' && desc.length > 0;
-      });
-      const descFromAlias = aliasKey ? descs[aliasKey] : undefined;
-      const desc = descs[key] ?? descFromAlias ?? '';
-      keyWithDesc = `${escapeDescribe(key)}:${desc.replace('__yargsString__:', '').replace(/(\r\n|\n|\r)/gm, ' ')}`;
-    }
-    const startsByTwoDashes = (s: string): boolean => /^--/.test(s);
-    const isShortOption = (s: string): boolean => /^[^0-9]$/.test(s);
-    const dashes = !startsByTwoDashes(current) && isShortOption(key) ? '-' : '--';
+    const descs = this.usage.getDescriptions();
+    const aliasKey = this.aliases?.[key]?.find((alias) => {
+      const desc = descs[alias];
+      return typeof desc === 'string' && desc.length > 0;
+    });
+    const descFromAlias = aliasKey ? descs[aliasKey] : undefined;
+    const desc = descs[key] ?? descFromAlias ?? '';
+    const keyWithDesc = this.describe(key, desc.replace('__yargsString__:', '').replace(/(\r\n|\n|\r)/gm, ' '));
+    const dashes = !/^--/.test(current) && /^[^0-9]$/.test(key) ? '-' : '--';
     completions.push(dashes + keyWithDesc);
     if (negable) completions.push(`${dashes}no-${keyWithDesc}`);
   }
@@ -274,7 +292,7 @@ export class Completion {
   }
 
   generateCompletionScript($0: string, cmd: string): string {
-    let script = this.zshShell ? completionZshTemplate : completionShTemplate;
+    let script = this.zshShell ? completionZshTemplate : this.fishShell ? completionFishTemplate : completionShTemplate;
     const name = this.shim.path.basename($0);
     if (/\.js$/.exec($0)) $0 = `./${$0}`;
     script = script.replace(/{{app_name}}/g, name);

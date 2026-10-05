@@ -3,8 +3,9 @@
   "private": true,
   "type": "module",
   "main": "./shim.js",
-  "version": "18.1.0",
+  "version": "18.2.0",
   "license": "MIT",
+  "description": "yargs the modern, pirate-themed, successor to optimist.",
   "repository": {
     "type": "git",
     "url": "https://github.com/yargs/yargs.git"

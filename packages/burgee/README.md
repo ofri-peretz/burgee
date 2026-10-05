@@ -28,7 +28,7 @@
 <p align="center">
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/commander%20suite-1360%2F1360-0a6b47?style=flat-square" alt="burgee/commander passes 1360 of 1360 cases of the commander test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/meow%20suite-146%2F148-b45309?style=flat-square" alt="burgee/meow passes 146 of 148 cases of the meow test suite" /></a>
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/yargs%20suite-804%2F804-0a6b47?style=flat-square" alt="burgee/yargs passes 804 of 804 cases of the yargs test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/yargs%20suite-816%2F816-0a6b47?style=flat-square" alt="burgee/yargs passes 816 of 816 cases of the yargs test suite" /></a>
 </p>
 
 <p align="center">
@@ -160,7 +160,7 @@ to run next — [Migrate](https://burgee.interlace.tools/docs/migrate).
 ## Compatibility
 
 Drop-in compatible with both incumbents, graded by **their own test suites** — 1,360 / 1,360
-of commander's tests and 804 / 804 of yargs' on the
+of commander's tests and 816 / 816 of yargs' on the
 [compatibility page](https://burgee.interlace.tools/docs/compatibility) — with the pass rate
 published and ratcheting. A façade is never called "compatible" until its host's own suite
 passes 100%; below that the rate is published instead of claimed.
@@ -175,7 +175,7 @@ Graded by the incumbent's own test suite:
 | :-- | --: |
 | `commander` | 1360 / 1360 |
 | `meow` | 146 / 148 |
-| `yargs` | 804 / 804 |
+| `yargs` | 816 / 816 |
 
 ## For agents
 

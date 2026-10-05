@@ -13,7 +13,7 @@ two ways:
    | Host | Release | Runner | Target | Control | Ours |
    | :-- | :-- | :-- | :-- | --: | --: |
    | commander | 15.0.0 | node:test | `burgee/commander` | 1360 / 1360 | 1360 / 1360 |
-   | yargs | 18.1.0 | mocha | `burgee/yargs` | 802 / 804 | 804 / 804 |
+   | yargs | 18.2.0 | mocha | `burgee/yargs` | 814 / 816 | 816 / 816 (2026-09-30) |
    | chalk | 6.0.1 | ava | `roundel/chalk` | 59 / 59 | 59 / 59 (2026-09-30) |
 
    `npm run compat -- chalk --control` grades one host; bare `npm run compat` grades all.
