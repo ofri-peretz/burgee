@@ -39,6 +39,9 @@ beforeAll(() => {
 
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
+/** A tty frame as `check` prints it: one synchronized-output block, escapes made visible. */
+const synced = (bytes: string): string => `␛[?2026h${bytes}␛[?2026l`;
+
 describe('flagstaff check', () => {
   it('prints the plugin in all five modes side by side and exits 0', () => {
     const { code, stdout } = check('check', 'nyan.mjs');
@@ -49,7 +52,7 @@ describe('flagstaff check', () => {
     expect(stdout).toMatch(/\nnyan: ok\n$/);
     // U3: the style's own static projection is what `check` shows the author, not a glyph.
     expect(stdout).toContain('~nyan~');
-    expect(stdout).toContain('  tty         ␛[?25l≋ working␛[1G␛[0J≈ working␛[1G␛[0J~ working␛[1G␛[0J≋ working␛[1G␛[0J✔ done⏎ ␛[?25h');
+    expect(stdout).toContain(`  tty         ␛[?25l${synced('≋ working')}${['≈ working', '~ working', '≋ working', '✔ done'].map((f) => synced(`␛[1G␛[0J${f}`)).join('')}⏎ ␛[?25h`);
     expect(stdout).toContain('  pipe        ~nyan~ working⏎ ✔ done⏎ ');
     expect(stdout).toContain('  ci          ~nyan~ working⏎ ✔ done⏎ ');
     expect(stdout).toContain('  json        {"event":"spinner","state":{"text":"working"}}⏎ {"event":"spinner","state":{"text":"done","status":"ok"}}⏎ ');
@@ -60,7 +63,7 @@ describe('flagstaff check', () => {
     const { code, stdout } = check('box.mjs');
     expect(code).toBe(0);
     expect(stdout).toContain('component box\n  sample      assumed {"running":{"phase":"running"},"done":{"phase":"done"}}');
-    expect(stdout).toContain('  tty         ␛[?25l[running]␛[1G␛[0J[done]⏎ ␛[?25h\n  pipe        [running]⏎ [done]⏎ ');
+    expect(stdout).toContain(`  tty         ␛[?25l${synced('[running]')}${synced('␛[1G␛[0J[done]')}⏎ ␛[?25h\n  pipe        [running]⏎ [done]⏎ `);
   });
 
   it('refuses a spinner without a static projection: exit 1, the code and the fix', () => {

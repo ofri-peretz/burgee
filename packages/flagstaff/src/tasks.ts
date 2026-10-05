@@ -31,8 +31,6 @@ export interface TasksOptions {
 }
 
 const PAINT: Record<Exclude<TaskStatus, 'pending' | 'running'>, (s: string) => string> = { ok, fail: error, warn, info: hint };
-/** What a task that has not started yet is drawn with; never a glyph a plugin owns. */
-const PENDING = ' ';
 
 const settled = (status: TaskStatus): status is 'ok' | 'fail' | 'warn' | 'info' => status !== 'pending' && status !== 'running';
 
@@ -42,7 +40,9 @@ export function tasks({ spinner = 'dots' }: TasksOptions = {}): Component<TasksS
 
   const symbol = (status: TaskStatus, t: number): string => {
     if (settled(status)) return PAINT[status](glyph(status));
-    if (status === 'pending') return muted(PENDING);
+    // The `pending` glyph, a space unless a plugin replaces it (`◻`, say): until 2026-10-05 a
+    // literal here, the one mark in the list no plugin could reach (controlroom R3).
+    if (status === 'pending') return muted(glyph('pending'));
     const at = Math.floor(t / style.interval) % style.frames.length;
     return style.frames[at] ?? '';
   };

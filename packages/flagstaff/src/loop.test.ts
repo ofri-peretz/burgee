@@ -1,6 +1,6 @@
 /**
- * R1 — one component, five modes, one answer each; R5 — nothing but text off a terminal;
- * R9 — the same bytes every run. The runtime is a literal and the clock is manual, so every
+ * R1 â one component, five modes, one answer each; R5 â nothing but text off a terminal;
+ * R9 â the same bytes every run. The runtime is a literal and the clock is manual, so every
  * assertion here is exact.
  */
 import { describe, expect, it } from 'vitest';
@@ -12,6 +12,11 @@ import { HIDE_CURSOR, SHOW_CURSOR } from './projection.js';
 const ESC = '\u001B';
 /** What one repaint writes before the next frame: column 1, clear to the end of the screen. */
 const ERASE_ONE = `${ESC}[1G${ESC}[0J`;
+/**
+ * Every frame goes out inside one synchronized-output block, through `frameWriter()`
+ * (controlroom R3) â the seam a compositor paints through too.
+ */
+const synced = (bytes: string): string => `${ESC}[?2026h${bytes}${ESC}[?2026l`;
 
 interface Count {
   n: number;
@@ -47,8 +52,8 @@ function world(mode: Mode, columns?: number) {
 
 /**
  * Just enough of a terminal to grade a repaint: autowrap with a pending wrap at the last
- * column, `\n` as a newline, and the CSI forms the tty projection writes (`nG`, `nA`, `0J`,
- * and the cursor's `?25l`/`?25h`, which move nothing).
+ * column, `\n` as a newline, the CSI forms the tty projection writes (`nG`, `nA`, `0J`, `2K`,
+ * and the private modes `?25l`/`?25h` and `?2026h`/`?2026l`, which move nothing), and DECSC/DECRC.
  */
 class Terminal {
   readonly #columns: number;
@@ -56,14 +61,26 @@ class Terminal {
   #row = 0;
   #col = 0;
 
+  #saved: [number, number] = [0, 0];
+
   constructor(columns: number) {
     this.#columns = columns;
+  }
+
+  /** DECSC / DECRC: an in-place edit keeps the cursor across itself. */
+  save(): void {
+    this.#saved = [this.#row, this.#col];
+  }
+
+  restore(): void {
+    [this.#row, this.#col] = this.#saved;
   }
 
   csi(privateMode: string, n: number, op: string): void {
     if (privateMode !== '') return;
     if (op === 'G') this.#col = n - 1;
     else if (op === 'A') this.#row = Math.max(0, this.#row - n);
+    else if (op === 'K') this.#rows[this.#row] = [];
     else if (op === 'J') {
       this.#rows[this.#row] = (this.#rows[this.#row] ?? []).slice(0, this.#col);
       this.#rows.length = this.#row + 1;
@@ -92,6 +109,12 @@ const CSI_FORM = new RegExp(`^${ESC}\\[(\\??)(\\d*)([A-Za-z])`);
 function screen(bytes: string, columns: number): string[] {
   const term = new Terminal(columns);
   for (let i = 0; i < bytes.length; ) {
+    if (bytes.startsWith(`${ESC}7`, i) || bytes.startsWith(`${ESC}8`, i)) {
+      if (bytes[i + 1] === '7') term.save();
+      else term.restore();
+      i += 2;
+      continue;
+    }
     const escape = CSI_FORM.exec(bytes.slice(i));
     if (escape === null) {
       term.print(bytes[i] ?? '');
@@ -108,7 +131,8 @@ function screen(bytes: string, columns: number): string[] {
 /** Hoist a 100-column static at `columns` and lower it: the bytes written. */
 function wideAt(columns: number | undefined): string {
   const w = world('tty', columns);
-  hoist({ name: 'wide', static: () => 'x'.repeat(100) }, w.rt, undefined).lower();
+  // The final static differs from the frame, so lowering repaints it — an identical one writes nothing.
+  hoist({ name: 'wide', static: (s: Count) => String(s.n).repeat(100) }, w.rt, { n: 1 }).lower({ n: 2 });
   return w.stdout();
 }
 
@@ -123,12 +147,12 @@ function transcript(mode: Mode) {
   return { mode: flag.mode, stdout: w.stdout(), stderr: w.stderr() };
 }
 
-describe('R1 · one component, five modes', () => {
+describe('R1 Â· one component, five modes', () => {
   it('tty: repaints in place on the clock, and leaves the static line behind', () => {
     const { mode, stdout, stderr } = transcript('tty');
     expect(mode).toBe('tty');
     expect(stdout).toBe(
-      [HIDE_CURSOR, 'count 0 @0', ERASE_ONE, 'count 0 @100', ERASE_ONE, 'count 0 @200', ERASE_ONE, 'count 1 @250', ERASE_ONE, 'count 1 @300', ERASE_ONE, 'count 2\n', SHOW_CURSOR].join(''),
+      [HIDE_CURSOR, synced('count 0 @0'), ...['count 0 @100', 'count 0 @200', 'count 1 @250', 'count 1 @300', 'count 2'].map((f) => synced(ERASE_ONE + f)), '\n', SHOW_CURSOR].join(''),
     );
     expect(stderr).toBe('');
   });
@@ -166,14 +190,17 @@ describe('R1 · one component, five modes', () => {
     w.clock.tick(INTERVAL * 5);
     flag.update({ n: 2 });
     flag.lower();
-    expect(w.stdout()).toBe(`${HIDE_CURSOR}n=1${ERASE_ONE}n=2${ERASE_ONE}n=2\n${SHOW_CURSOR}`);
+    // Lowering on the text already painted writes no repaint at all, only the newline.
+    expect(w.stdout()).toBe(`${HIDE_CURSOR}${synced('n=1')}${synced(`${ERASE_ONE}n=2`)}\n${SHOW_CURSOR}`);
   });
 
-  it('a multi-line frame is erased from its first line', () => {
+  it('a multi-line frame is erased from its first changed line', () => {
     const w = world('tty');
-    const flag = hoist({ name: 'two', static: () => 'a\nb' }, w.rt, undefined);
-    flag.lower();
-    expect(w.stdout()).toBe(`${HIDE_CURSOR}a\nb${ESC}[1G${ESC}[1A${ESC}[0Ja\nb\n${SHOW_CURSOR}`);
+    const flag = hoist({ name: 'two', static: (s: Count) => `a${s.n}\nb` }, w.rt, { n: 1 });
+    flag.lower({ n: 2 });
+    // The first line changed and the last did not: rewritten in place, the cursor kept.
+    expect(w.stdout()).toBe(`${HIDE_CURSOR}${synced('a1\nb')}${synced(`${ESC}7${ESC}[1G${ESC}[1A${ESC}[2Ka2${ESC}8`)}\n${SHOW_CURSOR}`);
+    expect(screen(w.stdout(), 80)).toEqual(['a2', 'b', '']);
   });
 
   it('a frame wider than the terminal repaints without leaving stale wrapped rows', () => {
@@ -206,14 +233,14 @@ describe('R1 · one component, five modes', () => {
   });
 });
 
-describe('R5 · off a terminal, no carriage return and no cursor escape', () => {
+describe('R5 Â· off a terminal, no carriage return and no cursor escape', () => {
   it.each<Mode>(['pipe', 'ci', 'json', 'accessible'])('%s output carries no carriage return and no escape', (mode) => {
     const { stdout, stderr } = transcript(mode);
     expect(stdout + stderr).not.toMatch(/[\r\u001B]/);
   });
 
   /**
-   * The case above uses `counter`, whose `static` is plain text — it cannot contain an
+   * The case above uses `counter`, whose `static` is plain text â it cannot contain an
    * escape whatever the loop does, so it tested neither reading of R5. This one paints the
    * static, which is what an explicit `FORCE_COLOR` / `--color` ask produces under
    * roundel's revised R2, and separates the two things the old wording ran together:
@@ -239,7 +266,7 @@ describe('R5 · off a terminal, no carriage return and no cursor escape', () => 
   });
 });
 
-describe('R9 · deterministic', () => {
+describe('R9 Â· deterministic', () => {
   it('the tty transcript is the same bytes twenty runs over', () => {
     const first = transcript('tty').stdout;
     for (let i = 0; i < 20; i += 1) expect(transcript('tty').stdout).toBe(first);

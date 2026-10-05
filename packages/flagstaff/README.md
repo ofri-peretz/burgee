@@ -167,6 +167,48 @@ table([['ora', '99'], ['log-update', '99']], { head: ['host', 'tests'] });
 No layout engine, and there will not be one: these measure with `width()`, wrap with
 `wrap()`, and join strings.
 
+### A log tail and a tab bar
+
+Two output-only components for screens built on flagstaff — controlroom's panes, or a plain
+scrolling terminal. Neither reads a key.
+
+```js
+import { logTail } from 'flagstaff/log-tail';
+import { tabBar } from 'flagstaff/tab-bar';
+
+hoist(logTail({ height: 5 }), rt, { lines: [{ step: 'Installing' }, 'npm install', 'added 12 packages'] });
+hoist(tabBar(), rt, { tabs: ['Status', 'Tail logs', 'Visualizer'], active: 1 });
+```
+
+| component | on a terminal | everywhere else |
+| :-- | :-- | :-- |
+| `logTail` | the last _n_ rows, `┊` before each line, `◆` on the step in progress — pinned to the top once it scrolls out | the whole stream, **appended**: each new line printed once, nothing repainted |
+| `tabBar` | `Status · Tail logs · Visualizer`, the active tab styled through roundel's `heading` (bracketed without colour) | the active tab's label |
+
+Importing either registers its built-in (`log-tail`, `tab-bar`) through the same public
+`register()` a plugin uses, so a plugin can replace it; the `┊` and `◆` marks are the `tail`
+and `step` glyphs. The task list's pending mark is the `pending` glyph too — a space unless a
+plugin sets one, `◻` say.
+
+### Writing a whole frame
+
+`hoist` repaints one component. A program that lays several out in one frame paints the frame
+through the same writer `hoist` uses:
+
+```js
+import { frameWriter } from 'flagstaff/loop';
+
+const frame = frameWriter(process.stdout);
+frame.paint(['Status · Tail logs', '┊ npm install', '┊ added 12 packages']);
+frame.paint(['Status · Tail logs', '┊ npm install', '┊ added 13 packages']); // rewrites one row
+frame.release(); // the frame stays on screen as scrollback
+```
+
+`paint` writes only the rows that changed since the last paint, inside one synchronized-output
+block (`ESC[?2026h … ESC[?2026l`), so a terminal that supports it never shows a half-drawn
+frame and one that does not ignores the two sequences. It is the only grid-writing code in the
+family: controlroom composites through it rather than painting on its own.
+
 ### Bringing a corpus with you
 
 The ecosystem already has ~80 spinner styles and eight border sets, as plain JSON. Neither
