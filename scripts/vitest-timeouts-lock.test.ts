@@ -23,7 +23,8 @@ function workspaces(root: string): string[] {
     glob.endsWith('/*')
       ? readdirSync(join(root, glob.slice(0, -2)), { withFileTypes: true })
           .filter((e) => e.isDirectory())
-          .map((e) => join(glob.slice(0, -2), e.name))
+          // POSIX on every OS: a workspace is named the way the manifest's globs name it.
+          .map((e) => `${glob.slice(0, -2)}/${e.name}`)
       : [glob],
   );
 }
