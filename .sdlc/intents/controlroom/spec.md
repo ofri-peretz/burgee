@@ -50,9 +50,15 @@ it records every change here.
 
 - **R8 · layout.** Rows and columns, with fixed, fractional and minimum sizes, computed as
   arithmetic over `linegauge` widths. There is no flexbox and no solver.
+  **Built 2026-10-05** as `src/layout.ts`: `layout(tree, area, contents)` and `distribute()`.
+  Sizes are cells, `{ fr, min }` or `'fit'` (widest line in a row, wrapped line count in a
+  column, both measured by `linegauge`). A terminal too small for the minimums clips the later
+  parts and never the first; rounding leftovers go to the earliest fractional parts.
 - **R9 · tabs, focus, collapse.** Tab state, focus order across panes, collapsible sections,
   and a hint line **generated from the active keymap**, so that a hint cannot name an
   unbound key.
+  **State and hint built 2026-10-05** as `src/tabs.ts`: `initial()`, `reduce()` and
+  `hints(keymap, labels)`. Key routing waits on R2 and the screen on R4.
 - **R10 · plugins.** Panes, keymaps and tab bars register through one `register()` against
   the family schema. The built-ins use the same call.
 
