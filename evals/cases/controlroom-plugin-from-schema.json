@@ -1,0 +1,28 @@
+{
+  "id": "controlroom-plugin-from-schema",
+  "why": "PRINCIPLES 7, for controlroom. The claim every plugin host makes is that its `schema.json` plus its README is enough for an agent to write a working plugin in one turn, and that `controlroom check` tells it so without a human reading the output. This is controlroom's half, from the day its plugin surface (R10) exists.",
+  "prompt": "Read packages/controlroom/src/schema.json and packages/controlroom/README.md. Write a controlroom plugin to the file evals/results/vim-keys-plugin.mjs. It must be a single ES module with a default export, must be named \"vim-keys\", and must contribute one keymap called \"vim\" that binds h to tab.prev and l to tab.next, with both actions labelled \"switch tab\". Then verify it by running: node packages/controlroom/dist/cli.js check evals/results/vim-keys-plugin.mjs \u2014 and if that command exits non-zero, fix the plugin until it exits zero. Do not modify anything under packages/.",
+  "allowedTools": "Read,Write,Edit,Bash",
+  "expect": [
+    {
+      "check": "shell",
+      "value": "test -f evals/results/vim-keys-plugin.mjs"
+    },
+    {
+      "check": "shell",
+      "value": "node packages/controlroom/dist/cli.js check evals/results/vim-keys-plugin.mjs"
+    },
+    {
+      "check": "shell",
+      "value": "node packages/controlroom/dist/cli.js check evals/results/vim-keys-plugin.mjs | grep -q '^vim-keys: ok'"
+    },
+    {
+      "check": "shell",
+      "value": "node packages/controlroom/dist/cli.js check evals/results/vim-keys-plugin.mjs | grep -q 'hint: h/l switch tab'"
+    },
+    {
+      "check": "output-omits",
+      "value": "E_PLUGIN_SCHEMA"
+    }
+  ]
+}

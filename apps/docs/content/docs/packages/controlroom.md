@@ -134,9 +134,41 @@ It builds on its siblings rather than beside them: flagstaff draws the panes and
 frame, caique reads the keys, closeout restores the terminal, linegauge measures, and roundel
 decides the output mode.
 
+## Plugins
+
+controlroom hosts two keys, **`keymaps`** and **`panes`**, and both are data. A keymap maps a
+key, spelled the way `caique/keys` spells it (`left`, `enter`, `ctrl+c`, `shift+tab`, `s`), to
+an action name, and labels the actions the hint line should show. A pane names the flagstaff
+component that draws it and the label a pipe prints above it. A tab bar is a pane over
+flagstaff's `tab-bar`.
+
+```js
+import { register } from 'controlroom/plugin';
+
+register({
+  name: 'vim-keys',
+  keymaps: {
+    vim: { keys: { h: 'tab.prev', l: 'tab.next' }, labels: { 'tab.prev': 'switch tab', 'tab.next': 'switch tab' } },
+  },
+  panes: { log: { component: 'log-tail', label: 'Log' } },
+});
+```
+
+A screen takes a keymap by name (`keymap: 'vim'`), and a pane by name with its state
+(`panes: { main: { pane: 'log', state } }`). The built-in `default` keymap is registered through
+the same `register()`; register your own `default` to replace it. Check a plugin file before you
+ship it:
+
+```bash
+npx controlroom check ./vim-keys.mjs
+```
+
+It prints each keymap as the hint line it generates, and each pane as the component that
+draws it, then `ok`. A refusal carries a code and a fix.
+
 ## Where it sits
 
-It hosts no plugin key of its own.
+Plugins register under the `keymaps` and `panes` keys, against the one schema the whole family shares.
 
 Nothing in this family builds on it yet, and it builds on `caique`, `closeout`, `flagstaff`, `linegauge`, `paratext`, `roundel`.
 

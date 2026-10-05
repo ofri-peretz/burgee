@@ -138,6 +138,12 @@
       "type": "string",
       "pattern": "^(pre|post)$",
       "description": "burgee: order this plugin's hooks before (`pre`) or after (`post`) the others."
+    },
+    "keymaps": {
+      "$ref": "#/$defs/keymaps"
+    },
+    "panes": {
+      "$ref": "#/$defs/panes"
     }
   },
   "$defs": {
@@ -636,6 +642,63 @@
         },
         "handler": {
           "description": "(ctx) => void | Promise<void>. Required. On parse it may return the string[] argv to use instead."
+        }
+      }
+    },
+    "keymaps": {
+      "type": "object",
+      "description": "controlroom keymaps by name: key spec to action name, and the label each action shows in the hint line. `default` replaces the built-in keymap.",
+      "additionalProperties": {
+        "$ref": "#/$defs/keymap"
+      }
+    },
+    "keymap": {
+      "type": "object",
+      "required": [
+        "keys"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "keys": {
+          "type": "object",
+          "description": "Key spec, as caique/keys spells it ('left', 'enter', 'ctrl+c', 'shift+tab', 's'), to an action name ('tab.next', 'toggle:status', or the program's own).",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "labels": {
+          "type": "object",
+          "description": "Action name to the label the hint line shows. An action with no label is bound but not advertised.",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "panes": {
+      "type": "object",
+      "description": "controlroom panes by name: the flagstaff component that draws each one, and its label. A tab bar is a pane over flagstaff's `tab-bar`.",
+      "additionalProperties": {
+        "$ref": "#/$defs/pane"
+      }
+    },
+    "pane": {
+      "type": "object",
+      "required": [
+        "component"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "component": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The name of a component flagstaff has registered, e.g. 'log-tail' or 'tab-bar'."
+        },
+        "label": {
+          "type": "string",
+          "description": "The text a static projection prints above the pane."
         }
       }
     }
