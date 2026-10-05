@@ -149,8 +149,9 @@ of its own, and a command every one of its CLIs gets.
 ${example}
 \`\`\`
 
-This is a committed file, not an illustration: \`scripts/plugin-example-lock.test.ts\` runs all
-${hosts.length} \`check\` commands against it, and the published schema over it, on every CI run.
+This is a committed file, not an illustration: \`scripts/plugin-example-lock.test.ts\` runs
+${hosts.length - 1} \`check\` commands and flagstaff's validator against it, and the published
+schema over it, on every CI run.
 
 ## What each layer takes
 

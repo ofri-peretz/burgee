@@ -9,13 +9,13 @@
  * What is untested here is the model's behaviour, which is exactly what the credential
  * buys and nothing else can substitute for.
  */
-import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { type Attempt, blockers, classifyFailure, installTool, ISOLATION, isPosix, nothingCameBack, parseClaudeJson, POSIX_ONLY, redact, run, runOne, STORED_LOGIN_OPT_IN, storedLogin, summariseFailures, type Task, type Variant } from './axes/agent.js';
+import { AGENT_ENV_RULE, agentEnv, type Attempt, blockers, classifyFailure, installTool, ISOLATION, isPosix, nothingCameBack, OUTPUT_FORMAT, parseClaudeJson, perTaskDetail, POSIX_ONLY, redact, resultObject, run, runOne, STORED_LOGIN_OPT_IN, storedLogin, summariseFailures, type Task, type Variant } from './axes/agent.js';
 import { type BenchRecord } from './record.js';
 
 const EXECUTABLE = 0o755;
@@ -178,6 +178,98 @@ describe.skipIf(!isPosix())('isolation from the machine it runs on', () => {
     const argv = attempt(bin).result;
     expect(argv).toContain(ISOLATION.join(' '));
     expect(argv).toContain('--setting-sources project,local');
+    expect(argv).toContain(OUTPUT_FORMAT.join(' '));
+  });
+});
+
+/**
+ * D-20260930-b1-ci-environment. The first CI run read burgee at 6 turns against a local 3,
+ * and the first suspect was the runner's environment leaking into the tool: `claude` was
+ * spawned with `{ ...process.env }`, so on CI the CLI under test saw `CI=true` and
+ * `GITHUB_ACTIONS=true`, and burgee's output policy reads `CI`. It turned out not to be the
+ * cause — burgee's demo prints byte-identical output either way — but a benchmark that
+ * measures a different environment on each machine is one it cannot be sure of, so the
+ * environment is now the same on both, and says so.
+ */
+describe.skipIf(!isPosix())('the environment the measured tool runs in', () => {
+  const runner = { PATH: '/usr/bin', HOME: '/home/runner', CI: 'true', GITHUB_ACTIONS: 'true', GITHUB_SHA: 'abc', RUNNER_OS: 'Linux', ACTIONS_RUNTIME_TOKEN: 'x', CLAUDE_CODE_OAUTH_TOKEN: 'kept', CIRCLE: 'kept' };
+
+  it('drops what a CI runner sets and a laptop does not, and keeps the credential', () => {
+    const env = agentEnv(runner, '/tool');
+    expect(Object.keys(env).toSorted()).toEqual(['CIRCLE', 'CLAUDE_CODE_OAUTH_TOKEN', 'HOME', 'PATH']);
+    expect(env['PATH']).toBe('/tool:/usr/bin');
+    expect(AGENT_ENV_RULE).toContain('CI, GITHUB_*, RUNNER_*, ACTIONS_*');
+  });
+
+  it('is what claude is actually spawned with', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'stub-claude-env-'));
+    const bin = join(dir, 'claude');
+    // Answers with the variables it was given, so the assertion reads the real spawn.
+    writeFileSync(bin, `#!/bin/sh\nprintf '{"type":"result","is_error":false,"num_turns":1,"usage":{},"result":"CI=%s GHA=%s tool=%s"}' "$CI" "$GITHUB_ACTIONS" "$(command -v mytool)"\n`);
+    chmodSync(bin, EXECUTABLE);
+    const workdir = mkdtempSync(join(tmpdir(), 'bench-work-'));
+    const r = runOne({ claudeBin: bin, task, toolDir: installTool('/bin/echo'), workdir, model: 'm', timeoutMs: 30_000, env: { ...process.env, CI: 'true', GITHUB_ACTIONS: 'true' } });
+    expect(r.result).toMatch(/^CI= GHA= tool=\/.+\/mytool$/);
+  });
+});
+
+describe('reading claude\'s output', () => {
+  // `--output-format stream-json --verbose`: one event a line, the result last.
+  const stream = [
+    JSON.stringify({ type: 'system', subtype: 'init', claude_code_version: '2.1.283' }),
+    JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Bash', input: { command: 'mytool --help' } }] } }),
+    JSON.stringify({ type: 'result', subtype: 'success', is_error: false, num_turns: 4, usage: { input_tokens: 10, output_tokens: 5 }, result: 'ada', permission_denials: [{}, {}] }),
+    '',
+  ].join('\n');
+
+  it('takes the result event out of a stream, and still reads a single JSON result', () => {
+    expect(resultObject(stream)).toMatchObject({ type: 'result', num_turns: 4 });
+    expect(parseClaudeJson(stream)).toMatchObject({ turns: 4, tokensIn: 10, tokensOut: 5, denials: 2, result: 'ada' });
+    expect(resultObject(JSON.stringify({ num_turns: 1 }))).toEqual({ num_turns: 1 });
+    expect(resultObject('not json\n{"type":"assistant"}')).toBeUndefined();
+  });
+});
+
+describe.skipIf(!isPosix())('a run that ended at --max-turns', () => {
+  // `claude` exits 1 on error_max_turns after spending every turn it had. Those runs were
+  // recorded as 0 tokens and 0 turns, which pulled a variant's medians down for each run it
+  // failed that way — the opposite of what the run cost.
+  it('keeps the turns and tokens it spent, and is a failure', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'stub-claude-mt-'));
+    const bin = join(dir, 'claude');
+    const body = JSON.stringify({ type: 'result', subtype: 'error_max_turns', is_error: true, num_turns: 16, usage: { input_tokens: 350_000, output_tokens: 2000 }, permission_denials: [{}, {}, {}] });
+    writeFileSync(bin, `#!/bin/sh\ncat <<'JSON'\n${body}\nJSON\nexit 1\n`);
+    chmodSync(bin, EXECUTABLE);
+    const r = attempt(bin);
+    expect(r).toMatchObject({ success: false, usage: true, turns: 16, tokensIn: 350_000, denials: 3 });
+    expect(r.failure?.kind).toBe('max-turns');
+  });
+});
+
+/** One attempt of `task` that took `turns` turns, a thousand tokens each and one refusal. */
+const a = (task: string, turns: number, success: boolean, extra: Partial<Attempt> = {}): Attempt => ({ task, tokensIn: turns * 1000, tokensOut: 0, turns, denials: 1, isError: !success, result: '', success, usage: true, transcript: '', ...extra });
+
+describe('perTaskDetail', () => {
+
+  it('lists every run of every task, so a median can be traced to the task that moved it', () => {
+    const detail = perTaskDetail([
+      a('recover', 16, false, { failure: { task: 'recover', kind: 'max-turns', exit: '1', excerpt: '' } }),
+      a('recover', 3, false, { failure: { task: 'recover', kind: 'check-failed', exit: '0', excerpt: '' } }),
+      a('discover', 6, true),
+      a('discover', 0, false, { usage: false, failure: { task: 'discover', kind: 'timeout', exit: 'signal SIGTERM', excerpt: '' } }),
+    ]);
+    expect(detail).toEqual({
+      'recover.turns': '16,3',
+      'recover.tokens': '16000,3000',
+      'recover.passed': '0/2',
+      'recover.denials': 2,
+      'recover.failures': 'max-turns×1, check-failed×1',
+      'discover.turns': '6,-',
+      'discover.tokens': '6000,-',
+      'discover.passed': '1/2',
+      'discover.denials': 2,
+      'discover.failures': 'timeout×1',
+    });
   });
 });
 
@@ -221,6 +313,20 @@ describe.skipIf(!isPosix())('run(), end to end, against a stub claude', () => {
     // is exactly 1 — and it is 1 because it was divided, not because it was written.
     expect(find('burgee ÷ commander', 'tokens-per-task-ratio')).toBe(1);
     expect(find('burgee ÷ commander', 'turns-per-task-ratio')).toBe(1);
+  });
+
+  it('records the agent, its environment and every task\'s runs, and keeps each run\'s transcript', () => {
+    const transcriptDir = join(mkdtempSync(join(tmpdir(), 'b1-transcripts-')), 'out');
+    const out = run({ ...options, env: { ...env, CLAUDE_CODE_OAUTH_TOKEN: 'secret-oauth-value' }, claudeBin: stubClaude('the value is ada secret-oauth-value'), transcriptDir });
+    if (!('records' in out)) throw new Error(`expected records, got: ${out.reason}`);
+    const success = out.records.find((r) => r.variant === 'burgee' && r.metric === 'success-rate');
+    expect(success?.detail).toMatchObject({ model: 'test-model', env: AGENT_ENV_RULE, 'stub.turns': '3', 'stub.passed': '1/1', 'stub.denials': 0 });
+    expect(String(success?.detail?.['claude'])).toMatch(/^claude /);
+    expect(typeof success?.detail?.['claudePinned']).toBe('boolean');
+    expect(readdirSync(transcriptDir).toSorted()).toEqual(['burgee-stub-0.jsonl', 'commander-stub-0.jsonl']);
+    const transcript = readFileSync(join(transcriptDir, 'burgee-stub-0.jsonl'), 'utf8');
+    expect(transcript).toContain('num_turns');
+    expect(transcript).not.toContain('secret-oauth-value');
   });
 
   it('skips rather than reporting zeros when the CLI answers but every run fails its check', () => {
@@ -340,7 +446,7 @@ describe('classifyFailure', () => {
 
 describe('summariseFailures', () => {
   it('is empty when nothing failed', () => {
-    const ok: Attempt = { tokensIn: 1, tokensOut: 1, turns: 1, isError: false, result: 'ada', success: true, transcript: '{}' };
+    const ok: Attempt = { task: 't', tokensIn: 1, tokensOut: 1, turns: 1, denials: 0, isError: false, result: 'ada', success: true, usage: true, transcript: '{}' };
     expect(summariseFailures([ok])).toBe('');
     expect(nothingCameBack({ id: 'v', bin: 'x', floor: true }, [])).toContain('measured nothing');
   });

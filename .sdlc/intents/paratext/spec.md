@@ -24,6 +24,13 @@ waiting on. The `## What shipped` sections below carry the detail.
   believed to understand it**. **Built** — and the requirement's second clause, "it never
   returns an empty string", is **withdrawn as false**: five of the seven built-ins project
   to `''` on purpose. See *What the design claimed and the code does not do*.
+  **The output mode, 2026-09-30.** "Not believed to understand it" now includes a run that the
+  family's policy sends to the static projection. A host that asked roundel's `outputMode`
+  passes the answer as `Runtime.mode`, and anything but `tty` renders the fallback, as
+  flagstaff's `hoist()` does for `pipe`, `ci` and `accessible`. paratext may not read
+  `CLI_ACCESSIBLE` or import roundel, so `processRuntime()` leaves `mode` out.
+  [D-20260930-paratext-standalone-mode](../../decisions/D-20260930-paratext-standalone-mode.md)
+  is the owner's decision on that standalone default.
 - **R3** `register(capability)` adds or replaces by name; `reset()` clears; `capabilities()`
   lists. The seven built-ins register through the same call at import. **Built**.
 - **R4** `check(candidate)` validates a plugin document against `schema.json` and returns the
@@ -646,6 +653,10 @@ done yet".
 - **Reading files for `image`.** `term-img` accepts a path, which means `node:fs` in a
   package that otherwise touches nothing but strings. The caller reads the file and owns the
   I/O; this package owns bytes-to-escape.
+  *Reversed 2026-09-30 for `paratext/term-img` only (D-20260930-paratext-term-img-path).* The
+  subpath reads a path with `node:fs`, as `term-img` does, so its row is 18 / 18. The root
+  `image()` still takes bytes, and no other published entry reaches `node:fs`;
+  `weight.test.ts` holds that boundary.
 - **Any styling.** `link` returns the text unstyled. Colour is SGR and SGR is `roundel`;
   wrapping the result in a roundel token is one call and keeps the two layers separable.
 - **Querying the terminal to find out what it supports.** DA1/XTVERSION round-trip on stdin,
@@ -789,3 +800,33 @@ this is a narrower divergence on one façade, not a dependency. With detection e
 cases that assign `supportsHyperlinks.{stdout,stderr} = true` on the incumbent's module object
 are excluded by exact title, and the row is **8 / 8**. R5 still holds: `commandLineRuntime()`
 in `runtime.ts` is the one new `process` read, and only this façade imports it.
+
+## `term-img` at level (2026-09-30)
+
+`paratext/term-img` grades **18 / 18**, level with a control of 18 / 18, at term-img 7.1.0,
+the latest release. The six cases D-030 cost all hand a file path to a supported terminal,
+and the subpath now reads that path with `node:fs` `readFileSync`, as term-img does
+(D-20260930-paratext-term-img-path, which supersedes D-030 for this subpath only). A file
+`URL` is read too, which upstream refuses as `Image required`.
+
+**The order is upstream's.** The argument is checked, then the terminal, then the file is
+read. A path handed to an unsupported terminal is `UnsupportedTerminalError` or the
+`fallback`, and the file is never opened. `term-img.test.ts` pins this with a missing file:
+on an unsupported terminal it is not `ENOENT`.
+
+**The boundary is a lock, not a sentence.** `weight.test.ts` walks each published entry's
+built graph and records the `node:` builtins it reaches, through a static import, a dynamic
+`import()` or `process.getBuiltinModule()`. `./term-img` may reach `node:fs`. `.`, `./csi`,
+`./link`, `./plugin` and `./terminal-link` may reach none. A second test asserts that
+`./term-img` is the only entry that reaches `node:fs`. The `paratext` CLI already used
+`node:fs` to load a plugin file; it is a `bin`, not an import entry, so the lock does not
+cover it.
+
+**The types are upstream's too.** `Options<FallbackType>` is exported and `fallback` may
+return anything, so term-img's README idiom, a `fallback` that returns nothing, type-checks.
+
+**Weight.** `./term-img` measured 4,815 B, down from 4,955 B, because the import line cost
+less than the refusal message it replaced. Its budget went from 5,000 to 4,900. The root is
+unchanged at 16,733 B.
+
+Level means `burgee migrate` now rewrites `term-img` to `paratext/term-img` (D-137).

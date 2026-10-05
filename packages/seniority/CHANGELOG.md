@@ -1,5 +1,23 @@
 # seniority
 
+## 0.7.0
+
+### Minor Changes
+
+- [#778](https://github.com/ofri-peretz/burgee/pull/778) [`24300f4`](https://github.com/ofri-peretz/burgee/commit/24300f42455836e73ba36daaf400c4ab2f8d1893) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `seniority`'s cosmiconfig drop-in now reads YAML the way cosmiconfig does. `.yaml`, `.yml` and extensionless rc files go through `seniority/yaml`, the package's own parser, which is loaded the first time a YAML file is read and never before. The loader used to read only the JSON subset of YAML and throw a `LoaderError` (`no YAML parser for <file>`) for the rest. It now returns what `js-yaml` 5 returns. A malformed file throws cosmiconfig's own message, `YAML Error in <file>:` followed by the reason and `(line:column)`. cosmiconfig 10.0.1's own suite grades `seniority` at 240 / 243, up from 186 / 243, level with the control's 240 / 243.
+
+  `burgee migrate` now rewrites `cosmiconfig` to `seniority`, because the row is level. A file that imports a name `seniority` does not export, such as the type `LoaderSync`, is refused as `unknown-export` and stays on cosmiconfig. On Linux, the global config directory is still resolved from the home directory rather than from `XDG_CONFIG_HOME` (D-20260930-seniority-yaml).
+
+- [#776](https://github.com/ofri-peretz/burgee/pull/776) [`8ba7c33`](https://github.com/ofri-peretz/burgee/commit/8ba7c33b8196ee9324b129a6eb25ca9daa4eeeab) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - New entry, `seniority/yaml`: a YAML parser with no dependency. `parse(text)` returns what `js-yaml` 5's `load` returns for the part of YAML a configuration file is written in — block and flow mappings and sequences, plain, quoted and block scalars, comments, document markers, anchors and aliases, and the core schema (`null`, booleans, integers, floats, strings, and the `!!str` / `!!int` / … tags). Malformed input throws a `YAMLException` with js-yaml's reason and its 1-based `(line:column)`. Every expectation in its tests is also checked against js-yaml on every run. Nothing else in the package imports it, so a program that reads no YAML carries none of it. Pass it to `discover` as a loader to read YAML config files: `loaders: { '.yaml': (_path, text) => parse(text) }` with `extensions` naming `.yaml` (D-20260930-seniority-yaml).
+
+## 0.6.5
+
+### Patch Changes
+
+- [#752](https://github.com/ofri-peretz/burgee/pull/752) [`22e6dae`](https://github.com/ofri-peretz/burgee/commit/22e6dae1b71bfa478265829a1b98d20a6f9de4f7) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A plugin that declares `contract: 0` or a negative contract is now refused with `E_PLUGIN_CONTRACT`, as `schema.json`'s minimum of 1 always said. These hosts checked only that a contract was not newer than the one they know, so 0 and below registered.
+
+- [#749](https://github.com/ofri-peretz/burgee/pull/749) [`bc59cab`](https://github.com/ofri-peretz/burgee/commit/bc59cabea92366de1a4a48d7b5153046d8546794) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - At an equal rank the plugin registered later now wins, as the docs and `register()` always said. `sources()` returned tied plugins oldest first and `resolve` takes the first candidate with a value, so the earlier registration won the tie.
+
 ## 0.6.4
 
 ### Patch Changes

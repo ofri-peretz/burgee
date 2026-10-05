@@ -1,6 +1,6 @@
 ---
 title: paratext
-description: "Everything around your terminal output that is not the output: hyperlinks, images, window title, clipboard, notifications and the bell — each with a static fallback for terminals that cannot do it. Drop-in paths for ansi-escapes, terminal-link and term-img; term-img's takes image bytes, not file paths. Zero dependencies."
+description: "Everything around your terminal output that is not the output: hyperlinks, images, window title, clipboard, notifications and the bell — each with a static fallback for terminals that cannot do it. Drop-in paths for ansi-escapes, terminal-link and term-img. Zero dependencies."
 ---
 
 *Paratext* is the literary term for everything around a text that is not the text — the
@@ -10,8 +10,8 @@ character grid. Hyperlinks, inline images, the window title, the clipboard, desk
 notifications, the working directory, and the bell.
 
 It replaces **ansi-escapes** (the package root, 4 / 4), **terminal-link**
-(`paratext/terminal-link`, 8 / 8) and **term-img** (`paratext/term-img`, 12 / 18 — it takes
-image bytes, not file paths), each graded by the incumbent's own suite. Every OSC capability
+(`paratext/terminal-link`, 8 / 8) and **term-img** (`paratext/term-img`, 18 / 18), each
+graded by the incumbent's own suite and level with it. Every OSC capability
 has a static projection, so a pipe or an agent gets `Docs (https://x.dev)`, never raw escape
 bytes.
 
@@ -105,9 +105,9 @@ One import per incumbent:
 + import terminalImage, { UnsupportedTerminalError } from 'paratext/term-img';
 ```
 
-`paratext/term-img` takes image bytes rather than a file path —
-[Coming from term-img](https://paratext.interlace.tools/docs/coming-from/term-img) shows the
-`readFile` that bridges it.
+`paratext/term-img` takes a file path or image bytes, as term-img does. It is the one entry
+that imports `node:fs`, to read that path; the root and every other entry touch nothing but
+strings ([Coming from term-img](https://paratext.interlace.tools/docs/coming-from/term-img)).
 
 The root is `ansi-escapes`' surface, both halves of it — `setCwd` included.
 
@@ -145,9 +145,8 @@ the control. Three of its four cases assert CSI; until the CSI half landed, that
 1 / 4.
 
 `paratext/terminal-link` is graded by terminal-link's suite and `paratext/term-img` by
-term-img's. term-img's 12 / 18 is a ceiling rather than a gap: each of the six cases that stay
-red hands a file *path* to a terminal the suite has just declared supported, and
-`paratext/term-img` takes image bytes, so the caller owns the file read. The current grades are
+term-img's, and both are level with the incumbent. term-img's six path cases went green when
+`paratext/term-img` began reading a path the way term-img does. The current grades are
 generated under *Benchmarks* below and published on the
 [compatibility page](https://burgee.interlace.tools/docs/compatibility).
 
@@ -160,7 +159,7 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `ansi-escapes` | 4 / 4 |
-| `term-img` | 12 / 18 |
+| `term-img` | 18 / 18 |
 | `terminal-link` | 8 / 8 |
 
 Weight, installed and tree-inclusive: **115,259 bytes** against **2,235,987** for the incumbents it replaces — a ratio of **0.0515**.

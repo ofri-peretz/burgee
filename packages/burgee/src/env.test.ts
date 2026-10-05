@@ -71,6 +71,47 @@ describe('precedence through the engine', () => {
   });
 });
 
+/*
+ * Provenance names the flag as it was typed. seniority names a flag after the key it
+ * resolved, so until 2026-09-30 `--dry-run` came back as `--dryRun` — a flag burgee refuses —
+ * in `meta.provenance` and in `--explain`, which is what an agent reads to know what to type.
+ */
+describe('a flag provenance is the flag the caller typed', () => {
+  const ship = defineProgram({
+    name: 'ship',
+    commands: [
+      defineCommand({
+        name: 'go',
+        options: { dryRun: { type: 'boolean', short: 'n' }, color: { type: 'boolean', default: true }, targetEnv: { type: 'string' } },
+        effects: 'withheld',
+        run: ({ options }) => options,
+      }),
+    ],
+  });
+  const go = async (argv: string[]): Promise<{ stdout: string }> => {
+    const out: string[] = [];
+    await execute(ship, { argv: ['go', ...argv], env: {}, cwd: dir, entry, stdout: { write: (s: string) => out.push(s) }, stderr: { write: () => true }, exit: () => undefined });
+    return { stdout: out.join('') };
+  };
+
+  it('--dry-run, --no-color and --target-env, not the camelCase keys', async () => {
+    const r = json((await go(['--json', '--dry-run', '--no-color', '--target-env', 'prod'])).stdout);
+    expect(r.meta.provenance['dryRun']).toEqual({ source: 'flag', location: '--dry-run' });
+    expect(r.meta.provenance['color']).toEqual({ source: 'flag', location: '--no-color' });
+    expect(r.meta.provenance['targetEnv']).toEqual({ source: 'flag', location: '--target-env' });
+  });
+
+  it('a short flag as the short flag', async () => {
+    expect(json((await go(['--json', '-n'])).stdout).meta.provenance['dryRun']).toEqual({ source: 'flag', location: '-n' });
+  });
+
+  it('--explain lists an untyped flag in kebab-case, as it can be typed', async () => {
+    const r = await go(['--explain', 'targetEnv']);
+    expect(r.stdout).toContain('--target-env');
+    expect(r.stdout).not.toContain('--targetEnv');
+  });
+});
+
 describe('--explain and --version', () => {
   it('--explain <option> prints the winner and the candidates it beat, and runs nothing', async () => {
     const r = await run(['deploy', '--explain', 'region'], { APP_REGION: 'env' });

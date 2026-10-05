@@ -6,15 +6,15 @@ Grades burgee's compatibility against commander and yargs, and roundel's against
 two ways:
 
 1. **Their own test suites**, vendored and pointed at our implementation by a
-   one-line shim. Proves we pass the tests they wrote. Measured baseline:
-   1,210 of 1,215 commander tests pass against real commander, so the gate itself
-   is proven before it grades anything.
+   one-line shim. Proves we pass the tests they wrote. Each suite is also run against
+   the real incumbent (`--control`), so the gate itself is proven before it grades
+   anything; the current counts are in `baseline/` and on the compatibility page.
 
    | Host | Release | Runner | Target | Control | Ours |
    | :-- | :-- | :-- | :-- | --: | --: |
-   | commander | 15.0.0 | node:test | `burgee/commander` | 1361 / 1361 | 1361 / 1361 |
+   | commander | 15.0.0 | node:test | `burgee/commander` | 1360 / 1360 | 1360 / 1360 |
    | yargs | 18.1.0 | mocha | `burgee/yargs` | 802 / 804 | 804 / 804 |
-   | chalk | 6.0.0 | ava | `roundel/chalk` | 58 / 58 | 58 / 58 (2026-09-08) |
+   | chalk | 6.0.1 | ava | `roundel/chalk` | 59 / 59 | 59 / 59 (2026-09-30) |
 
    `npm run compat -- chalk --control` grades one host; bare `npm run compat` grades all.
    `npm run compat -- --majors` grades each drop-in against its incumbent's **previous**

@@ -1,26 +1,30 @@
 /**
- * `paratext/term-img` — the drop-in, and the one thing it deliberately will not do.
+ * `paratext/term-img` — the drop-in, and the order it reads a file in.
  *
  * The compat oracle grades this façade against `term-img`'s own eighteen cases and is the
  * measurement that counts; this file exists for the three things that measurement cannot
  * state on its own.
  *
- *   1. **The ceiling is a decision, not a bug.** D-030 says `image` takes bytes, so a path
- *      is refused — and it is refused *at the line upstream reads the file*, which is what
- *      keeps the twelve gradeable cases gradeable. Both halves are asserted here, because a
- *      later "helpful" change that moved the refusal earlier would take four passing cases
- *      down with it and the oracle would report it as a compatibility regression with no
- *      explanation attached.
+ *   1. **A path is read, and read late.** The subpath takes a file path (or a `URL`) and
+ *      reads it *at the line upstream reads the file* — after the terminal check. The suite
+ *      only proves a path renders *something*; this file proves it renders the file's bytes,
+ *      and that a terminal which cannot draw never has the file opened
+ *      (D-20260930-paratext-term-img-path).
  *   2. **The subpath registers nothing.** Same promise `link.test.ts` makes, same way of
  *      observing it: vitest gives each file its own module graph, so a registry that is
  *      still empty after importing this module is evidence rather than coincidence.
  *   3. **The terminal table is upstream's**, including the four version floors that only
  *      appear in upstream's suite as refusals.
  */
-import { describe, expect, it } from 'vitest';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+
+import { afterAll, describe, expect, expectTypeOf, it } from 'vitest';
 
 import { capabilities } from './capability.js';
-import terminalImage, { supportsInlineImage, terminalImageFor, UnsupportedTerminalError } from './term-img.js';
+import terminalImage, { type Options, supportsInlineImage, type TerminalImageOptions, terminalImageFor, UnsupportedTerminalError } from './term-img.js';
 
 const BEL = '';
 const OSC = ']';
@@ -111,22 +115,69 @@ describe('`Image required` comes before the terminal is consulted', () => {
   });
 });
 
-describe('a path is refused, and refused late — D-030', () => {
-  it('names the decision rather than failing at an fs call nobody made', () => {
-    expect(() => terminalImageFor(wezterm)('fixture.jpg')).toThrow(/D-030/);
+describe('a path is read, and read late — D-20260930-paratext-term-img-path', () => {
+  // A real file with known bytes, so the assertion is on what was read rather than on a stub
+  // of `node:fs`: the same four bytes as `bytes`, so path and bytes must render one sequence.
+  const dir = mkdtempSync(join(tmpdir(), 'paratext-term-img-'));
+  const file = join(dir, 'four.bin');
+  writeFileSync(file, bytes);
+  const missing = join(dir, 'missing.jpg');
+  afterAll(() => {
+    rmSync(dir, { recursive: true, force: true });
   });
 
-  it('is a TypeError, not an UnsupportedTerminalError: the terminal was fine', () => {
-    expect(() => terminalImageFor(wezterm)('fixture.jpg')).toThrow(TypeError);
-    expect(() => terminalImageFor(wezterm)('fixture.jpg')).not.toThrow(UnsupportedTerminalError);
+  const expected = `${OSC}1337;File=inline=1;size=4:AQIDBA==${BEL}`;
+
+  it('reads a string path and renders exactly what the bytes render', () => {
+    expect(terminalImageFor(wezterm)(file)).toBe(expected);
   });
 
-  it('**does not** pre-empt the unsupported branch, which is what keeps four cases gradeable', () => {
-    // The whole reason the refusal sits where upstream's `readFileSync` sits. A path handed
-    // to a terminal that cannot draw it is upstream's `UnsupportedTerminalError`, because
-    // upstream would not have opened the file either.
-    expect(() => terminalImageFor(unsupported)('fixture.jpg')).toThrow(UnsupportedTerminalError);
-    expect(terminalImageFor(unsupported)('fixture.jpg', { fallback: () => 'fallback-result' })).toBe('fallback-result');
+  it('reads a file URL too — a superset: upstream answers `Image required` to a URL', () => {
+    expect(terminalImageFor(wezterm)(pathToFileURL(file))).toBe(expected);
+  });
+
+  it('passes the options through for a path as it does for bytes', () => {
+    expect(terminalImageFor(wezterm)(file, { width: 100, height: 50 })).toBe(`${OSC}1337;File=inline=1;width=100;height=50;size=4:AQIDBA==${BEL}`);
+  });
+
+  it('lets `node:fs` report a missing file, as upstream does', () => {
+    expect(() => terminalImageFor(wezterm)(missing)).toThrow(expect.objectContaining({ code: 'ENOENT' }));
+  });
+
+  it('**does not** open the file on an unsupported terminal — upstream never reaches its read', () => {
+    // The order that keeps four of upstream's cases passing: a path handed to a terminal that
+    // cannot draw it is `UnsupportedTerminalError` or the fallback, never `ENOENT`.
+    expect(() => terminalImageFor(unsupported)(missing)).toThrow(UnsupportedTerminalError);
+    expect(terminalImageFor(unsupported)(missing, { fallback: () => 'fallback-result' })).toBe('fallback-result');
+    expect(terminalImageFor(unsupported)(pathToFileURL(missing), { fallback: () => 'fallback-result' })).toBe('fallback-result');
+  });
+});
+
+/** term-img's README idiom: a `fallback` that does something else and returns nothing. */
+const fallback = (): void => undefined;
+
+describe('the types are upstream`s, so a typed term-img program compiles unchanged', () => {
+  // Checked by `tsc` (`npm run typecheck`), not at run time: upstream's `Options` is generic
+  // over what `fallback` returns, and its README's `fallback` returns nothing.
+  it('takes a `fallback` that returns nothing, and types the call `string | void`', () => {
+    const result = terminalImageFor(unsupported)(bytes, { fallback });
+    expectTypeOf(result).toEqualTypeOf<string | void>();
+    expect(result).toBeUndefined();
+  });
+
+  it('types a call with no `fallback` as `string`, which is what it returns', () => {
+    expectTypeOf(terminalImageFor(wezterm)(bytes)).toEqualTypeOf<string>();
+  });
+
+  it('exports upstream`s `Options` name', () => {
+    const options: Options<number> = { width: 1, fallback: () => 1 };
+    expectTypeOf(options).toEqualTypeOf<TerminalImageOptions<number>>();
+    expect(terminalImageFor(unsupported)(bytes, options)).toBe(1);
+  });
+
+  it('takes any `fallback` under a bare `Options`, as upstream`s `unknown` default does', () => {
+    const options: Options = { fallback: () => 'fallback-result' };
+    expect(terminalImageFor(unsupported)(bytes, options)).toBe('fallback-result');
   });
 });
 

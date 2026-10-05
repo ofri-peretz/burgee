@@ -30,7 +30,6 @@ import {
   loadYaml,
   metaSearchPlaces,
 } from './cosmiconfig-defaults.js';
-import { LoaderError } from './load.js';
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'seniority-cosmiconfig-defaults-')));
 afterAll(() => {
@@ -103,17 +102,21 @@ describe('loadJson and loadYaml', () => {
     expect((caught as Error).message).toMatch(/^JSON Error in \/x\.json:\n\S/);
   });
 
-  it('reads the JSON subset of YAML and refuses the rest by name, with the option that fixes it', () => {
+  it('reads YAML, and writes the file into a parse error’s message the way cosmiconfig does', () => {
     expect(loadYaml('/x.yaml', '{"a":[1]}')).toEqual({ a: [1] });
+    expect(loadYaml('/x.yaml', 'a: 1\nb: [x, "y"]\n')).toEqual({ a: 1, b: ['x', 'y'] });
     let caught: unknown;
     try {
-      loadYaml('/x.yaml', 'a: 1\n');
+      loadYaml('/x.yaml', 'foo: true: false');
     } catch (error) {
       caught = error;
     }
-    expect(caught).toBeInstanceOf(LoaderError);
-    expect(caught).toMatchObject({ message: 'no YAML parser for /x.yaml', extension: '.yaml' });
-    expect((caught as LoaderError).hint).toMatch(/^pass loaders: \{ "\.yaml": yaml\.load/);
+    // cosmiconfig's own suite asserts this exact string (`failed-files.test.ts`), so the
+    // prefix, the reason and the 1-based position are the contract.
+    // By name, not `instanceof`: the loader requires the *built* parser (`seniority/yaml`, see
+    // `loadYaml`), which is a different class object from the `src/yaml.ts` a test imports.
+    expect((caught as Error).name).toBe('YAMLException');
+    expect((caught as Error).message).toMatch(/^YAML Error in \/x\.yaml:\nbad indentation of a mapping entry \(1:10\)/);
   });
 });
 

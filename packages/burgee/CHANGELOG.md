@@ -1,5 +1,86 @@
 # burgee
 
+## 0.17.0
+
+### Minor Changes
+
+- [#782](https://github.com/ofri-peretz/burgee/pull/782) [`4eb5f44`](https://github.com/ofri-peretz/burgee/commit/4eb5f4468892fbcaae490237b09cf17bb3690aaf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A failure now says what to do next. When a `USAGE` or `RUNTIME` failure carries no `fix`, stderr adds the failing command's `usage:` line and its options, with required, default, choices, relations and env noted, and the `--json` envelope carries the same thing as `error.usage: { command, options?, commands?, more? }`. The list is at most 8 rows, and `more` names the `--help` that has the rest. An unknown command lists the commands that exist and points at `--schema`. When exactly one command is near, the error's `fix` is the caller's own command line with the word corrected (`fix: tool push --target prod`). Every runnable command's help lists `--explain <option>`, and the root help ends with one `For agents:` line naming `--schema`, `--json` and `--explain`. Exit codes are unchanged. The core entry is unchanged too, at 0 bytes: the new text lives in the lazy `failure.js`, `surfaces.js`, `usage.js` and `help.js` chunks. `burgee/commander`, `burgee/yargs` and `burgee/meow` are untouched (D-20260930-failures-teach-recovery).
+
+### Patch Changes
+
+- Updated dependencies [[`df87199`](https://github.com/ofri-peretz/burgee/commit/df87199c8484ffaeae523dc55131f33eca485f5f)]:
+  - linegauge@1.0.3
+
+## 0.16.0
+
+### Minor Changes
+
+- [#783](https://github.com/ofri-peretz/burgee/pull/783) [`08976ae`](https://github.com/ofri-peretz/burgee/commit/08976ae734f0494720e0dce06dd850bf7177766f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `ctx.interactive` is roundel's `interactive()`, the family's one rule for whether a person may be asked: a terminal on **stdin**, no `CI`, and no detected agent, with `FORCE_TTY=1` over all three. caique's prompts already ask it, so a handler and a prompt now agree about the same shell.
+
+  It used to read stdout and ignore `CI`. Three things change for a handler that reads it:
+
+  - Under a non-empty `CI` it is `false`, even on a pseudo-terminal.
+  - With stdin piped it is `false`, even when stdout is a terminal.
+  - With stdout piped and stdin a terminal (`tool deploy | tee log`) it is `true`, because an answer can still be typed.
+
+  burgee loads `roundel/terminal` in a chunk of its own (`ctx.js`, 330 B), only on the path that runs a handler. Help, `--version`, `--schema`, `--mcp` and failures never load it. The root entry shrinks (35,629 → 35,437 B on disk), and so does the bundled initial load of `import { run } from 'burgee'` (24,297 → 24,278 B). `ctx.agent`, `detectAgent`, `AGENT_PROBES` and help's colour, which reads stdout, are unchanged. `runBurgee` forwards `tty` onto stdin too, so `tty: true` is still a terminal a person can answer on.
+
+  The agent variables stay at five (`AI_AGENT`, `CLAUDECODE`, `CURSOR_AGENT`, `CODEX_THREAD_ID`, `GEMINI_CLI`). One joins only when it uniquely identifies an agent, so `CURSOR_TRACE_ID`, which Cursor sets in every integrated terminal, never will. roundel's `AGENTS` documents that rule, and a test pins that a person in Cursor is asked.
+
+### Patch Changes
+
+- Updated dependencies [[`1857ff6`](https://github.com/ofri-peretz/burgee/commit/1857ff65ca0e1b0b5686480c1a37dc8834bf688b), [`1857ff6`](https://github.com/ofri-peretz/burgee/commit/1857ff65ca0e1b0b5686480c1a37dc8834bf688b), [`08976ae`](https://github.com/ofri-peretz/burgee/commit/08976ae734f0494720e0dce06dd850bf7177766f)]:
+  - bellpull@0.5.1
+  - linegauge@1.0.2
+  - roundel@0.6.2
+
+## 0.15.0
+
+### Minor Changes
+
+- [#778](https://github.com/ofri-peretz/burgee/pull/778) [`24300f4`](https://github.com/ofri-peretz/burgee/commit/24300f42455836e73ba36daaf400c4ab2f8d1893) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `seniority`'s cosmiconfig drop-in now reads YAML the way cosmiconfig does. `.yaml`, `.yml` and extensionless rc files go through `seniority/yaml`, the package's own parser, which is loaded the first time a YAML file is read and never before. The loader used to read only the JSON subset of YAML and throw a `LoaderError` (`no YAML parser for <file>`) for the rest. It now returns what `js-yaml` 5 returns. A malformed file throws cosmiconfig's own message, `YAML Error in <file>:` followed by the reason and `(line:column)`. cosmiconfig 10.0.1's own suite grades `seniority` at 240 / 243, up from 186 / 243, level with the control's 240 / 243.
+
+  `burgee migrate` now rewrites `cosmiconfig` to `seniority`, because the row is level. A file that imports a name `seniority` does not export, such as the type `LoaderSync`, is refused as `unknown-export` and stays on cosmiconfig. On Linux, the global config directory is still resolved from the home directory rather than from `XDG_CONFIG_HOME` (D-20260930-seniority-yaml).
+
+### Patch Changes
+
+- [#768](https://github.com/ofri-peretz/burgee/pull/768) [`d901bcb`](https://github.com/ofri-peretz/burgee/commit/d901bcb082af3ce748aba39dd18944b3efa769ea) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` now refuses a file that imports `@clack/prompts` and also imports, `import()`s or `require()`s `@clack/core`. Until now the file's prompts moved to `caique/clack` while its `updateSettings` from `@clack/core` kept configuring clack, which caique's prompts never read, and nothing said so. The refusal's reason is `sibling-state`, and it carries a `fix`: `import { updateSettings } from 'caique/clack' instead of '@clack/core', then re-run burgee migrate`. The file is left whole and the run exits 1. A type-only import of `@clack/core` does not refuse, and a file that imports `@clack/core` without `@clack/prompts` is left alone (D-20260930-migrate-refuses-clack-core).
+
+- [#774](https://github.com/ofri-peretz/burgee/pull/774) [`b44f426`](https://github.com/ofri-peretz/burgee/commit/b44f426621ed799700cceda8c979de8f759f56b7) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `paratext/term-img` now takes a file path, as `term-img` does. `terminalImage('unicorn.jpg')` reads the file with `node:fs` and draws it, and a file `URL` works too. The read happens after the terminal check, so a path handed to a terminal that cannot draw it reaches your `fallback` (or `UnsupportedTerminalError`) without the file being opened. A missing file on a supported terminal throws `node:fs`'s `ENOENT`, as `term-img` does. The `Options` type is exported under term-img's name and is generic over what `fallback` returns, so a `fallback` that returns nothing type-checks.
+
+  `paratext/term-img` now grades 18 / 18 against term-img 7.1.0's own suite, level with term-img itself. It was 12 / 18: the six cases that pass a path were refused under D-030. This supersedes D-030 for this subpath only (D-20260930-paratext-term-img-path). It is the only paratext entry that imports `node:fs`. The root `image()` still takes bytes, and a lock fails if `node:fs` reaches the root or any other entry.
+
+  Because the row is level, `burgee migrate` now rewrites `term-img` to `paratext/term-img`.
+
+- [#757](https://github.com/ofri-peretz/burgee/pull/757) [`b69d513`](https://github.com/ofri-peretz/burgee/commit/b69d5136ac6a49e6bf39178f73fbd89f3f4c2653) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A flag's provenance now names the flag as it was typed: `--dry-run`, `-n` or `--no-color` in `meta.provenance` and in `--explain`, instead of the camelCase key (`--dryRun`, which burgee itself refuses). A flag that was not typed is listed in kebab-case.
+- Updated dependencies [[`6195b99`](https://github.com/ofri-peretz/burgee/commit/6195b99344a21b4a05ab100fc38358deab229ce8), [`24300f4`](https://github.com/ofri-peretz/burgee/commit/24300f42455836e73ba36daaf400c4ab2f8d1893), [`8ba7c33`](https://github.com/ofri-peretz/burgee/commit/8ba7c33b8196ee9324b129a6eb25ca9daa4eeeab)]:
+  - roundel@0.6.1
+  - seniority@0.7.0
+
+## 0.14.3
+
+### Patch Changes
+
+- [#764](https://github.com/ofri-peretz/burgee/pull/764) [`1817b62`](https://github.com/ofri-peretz/burgee/commit/1817b6286fae3943e79686a42dc635cca0f0cdda) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `caique/clack` now grades 16 / 16 against `@clack/prompts` 1.8.1's own suite, level with clack itself at 16 / 16. It was 16 / 17. The pass count did not change. The denominator did: one case, `guide.test.ts`'s `no prompt renders a guide when withGuide is globally false`, is now excluded by its exact title. It imports `updateSettings` from `@clack/core` and asserts that the prompts read that package's module state, so it grades `@clack/core` and not `@clack/prompts` (D-20260930-caique-clack-core-exclusion). The exclusion and its reason are on the compatibility page.
+
+  Because the row is level, `burgee migrate` now rewrites `@clack/prompts` to `caique/clack`. It refuses a file that imports `box`, `progress` or `taskLog`, which `caique/clack` does not build, and leaves that file on clack. It does not rewrite `@clack/core`. So a migrated program that imports `updateSettings` from `@clack/core` is still changing clack's settings, and caique's prompts never read them. Import `updateSettings` from `caique/clack` instead.
+
+- [#755](https://github.com/ofri-peretz/burgee/pull/755) [`ee2b2ce`](https://github.com/ofri-peretz/burgee/commit/ee2b2ce452a3c5469ebadcb637dcc23015e81d3f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` no longer calls an incumbent removable, or suggests `npm uninstall` for it, when the only file that imports it was refused and left as it was. The dirty-tree refusal now prints its fix (`commit or stash your changes, or pass --force`) on stderr and in the `--json` envelope.
+- Updated dependencies [[`e928581`](https://github.com/ofri-peretz/burgee/commit/e928581996fdeb317b4c849ae285593bfecf6b4d), [`6c2e9c5`](https://github.com/ofri-peretz/burgee/commit/6c2e9c5cee5d9962c0d75d84a766c76b76760f7f)]:
+  - bellpull@0.5.0
+  - linegauge@1.0.1
+
+## 0.14.2
+
+### Patch Changes
+
+- [#760](https://github.com/ofri-peretz/burgee/pull/760) [`a115799`](https://github.com/ofri-peretz/burgee/commit/a1157991a5defddadfbea49ba8ea3bf161d4a832) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - chalk's graded release is 6.0.1: compat-oracle's vendored suite is re-vendored at `v6.0.1` (59 tests, one added), and `burgee migrate` names 6.0.1 as the chalk release `roundel/chalk` was graded at.
+
+  B2 cold start also spawns `picocolors`, `roundel/tokens` and `roundel/chalk`, and gates roundel's R8 time bar — each colour entry within picocolors + 10 ms — as `cold-start-delta-ms`, the median of per-round differences.
+
+- Updated dependencies [[`a115799`](https://github.com/ofri-peretz/burgee/commit/a1157991a5defddadfbea49ba8ea3bf161d4a832)]:
+  - roundel@0.6.0
+
 ## 0.14.1
 
 ### Patch Changes

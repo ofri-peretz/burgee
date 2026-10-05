@@ -57,7 +57,8 @@
     "ledger": "tsx scripts/ledgers.ts",
     "weight:page": "tsx scripts/subpath-weight.ts",
     "weight:converge": "node scripts/weight-converge.mjs",
-    "plugins:page": "tsx scripts/plugins-page.ts"
+    "plugins:page": "tsx scripts/plugins-page.ts",
+    "layers:page": "tsx scripts/layers-page.ts"
   },
   "overrides": {
     "smol-toml": "^1.7.1"
@@ -79,7 +80,7 @@
     "boxen": "^8.0.1",
     "burgee": "*",
     "chai": "^6.2.2",
-    "chalk": "^6.0.0",
+    "chalk": "^6.0.1",
     "cli-boxes": "^4.0.1",
     "cli-spinners": "^3.2.0",
     "cli-table": "0.3.11",

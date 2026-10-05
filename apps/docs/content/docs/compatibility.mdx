@@ -17,7 +17,7 @@ would flatter a partial implementation; measuring against the control's total do
 | :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
 | [**commander**](https://burgee.interlace.tools/docs/vs/commander) | `burgee/commander` | 1360 / 1360 | 100.0% | 1360 / 1360 | 100.0% | 12 / 12 | 12 / 12 |
 | [**yargs**](https://burgee.interlace.tools/docs/vs/yargs) | `burgee/yargs` | 804 / 804 | 100.0% | 802 / 804 | 99.8% | 23 / 23 | 23 / 23 |
-| [**chalk**](https://roundel.interlace.tools/docs/coming-from/chalk) | `roundel/chalk` | 58 / 58 | 100.0% | 58 / 58 | 100.0% | — | — |
+| [**chalk**](https://roundel.interlace.tools/docs/coming-from/chalk) | `roundel/chalk` | 59 / 59 | 100.0% | 59 / 59 | 100.0% | — | — |
 | [**ora**](https://flagstaff.interlace.tools/docs/coming-from/ora) | `flagstaff/ora` | 99 / 99 | 100.0% | 99 / 99 | 100.0% | — | — |
 | [**log-update**](https://flagstaff.interlace.tools/docs/coming-from/log-update) | `flagstaff/log-update` | 99 / 99 | 100.0% | 99 / 99 | 100.0% | — | — |
 | [**boxen**](https://flagstaff.interlace.tools/docs/coming-from/boxen) | `flagstaff/boxen` | 84 / 84 | 100.0% | 84 / 84 | 100.0% | — | — |
@@ -30,15 +30,15 @@ would flatter a partial implementation; measuring against the control's total do
 | [**rc**](https://seniority.interlace.tools/docs/coming-from/rc) | `seniority/rc` | 1 / 1 | 100.0% | 1 / 1 | 100.0% | — | — |
 | [**wrap-ansi**](https://linegauge.interlace.tools/docs/coming-from/wrap-ansi) | `linegauge/wrap` | 85 / 85 | 100.0% | 85 / 85 | 100.0% | — | — |
 | [**slice-ansi**](https://linegauge.interlace.tools/docs/coming-from/slice-ansi) | `linegauge/slice` | 104 / 104 | 100.0% | 104 / 104 | 100.0% | — | — |
-| [**cosmiconfig**](https://seniority.interlace.tools/docs/coming-from/cosmiconfig) | `seniority` | 186 / 243 | 76.5% | 240 / 243 | 98.8% | 10 / 10 | 0 / 10 |
+| [**cosmiconfig**](https://seniority.interlace.tools/docs/coming-from/cosmiconfig) | `seniority` | 240 / 243 | 98.8% | 240 / 243 | 98.8% | 10 / 10 | 0 / 10 |
 | **lilconfig** | `seniority` | 77 / 77 | 100.0% | 77 / 77 | 100.0% | — | — |
 | [**dotenv**](https://seniority.interlace.tools/docs/coming-from/dotenv) | `seniority` | 106 / 141 | 75.2% | 141 / 141 | 100.0% | 0 / 0 | 7 / 13 |
-| [**clack**](https://caique.interlace.tools/docs/coming-from/clack) | `caique/clack` | 16 / 17 | 94.1% | 17 / 17 | 100.0% | — | — |
+| [**clack**](https://caique.interlace.tools/docs/coming-from/clack) | `caique/clack` | 16 / 16 | 100.0% | 16 / 16 | 100.0% | — | — |
 | [**inquirer-core**](https://caique.interlace.tools/docs/coming-from/inquirer) | `caique/inquirer` | 41 / 41 | 100.0% | 41 / 41 | 100.0% | — | — |
 | **meow** | `burgee/meow` | 146 / 148 | 98.6% | 146 / 148 | 98.6% | — | — |
 | [**ansi-escapes**](https://paratext.interlace.tools/docs/coming-from/ansi-escapes) | `paratext` | 4 / 4 | 100.0% | 4 / 4 | 100.0% | — | — |
 | [**terminal-link**](https://paratext.interlace.tools/docs/coming-from/terminal-link) | `paratext/terminal-link` | 8 / 8 | 100.0% | 8 / 8 | 100.0% | — | — |
-| [**term-img**](https://paratext.interlace.tools/docs/coming-from/term-img) | `paratext/term-img` | 12 / 18 | 66.7% | 18 / 18 | 100.0% | — | — |
+| [**term-img**](https://paratext.interlace.tools/docs/coming-from/term-img) | `paratext/term-img` | 18 / 18 | 100.0% | 18 / 18 | 100.0% | — | — |
 | [**restore-cursor**](https://closeout.interlace.tools/docs/coming-from/restore-cursor) | `closeout` | 6 / 6 | 100.0% | 6 / 6 | 100.0% | — | — |
 | [**exit-hook**](https://closeout.interlace.tools/docs/coming-from/exit-hook) | `closeout` | 21 / 21 | 100.0% | 21 / 21 | 100.0% | — | — |
 | [**signal-exit**](https://closeout.interlace.tools/docs/coming-from/signal-exit) | `closeout` | 134 / 135 | 99.3% | 134 / 135 | 99.3% | — | — |
@@ -81,6 +81,7 @@ rate. These are excluded by name — they still run, and they still appear in th
 | **clack** | `test/spinner.test.ts >` | 60 cases, 28 snapshot assertions — spinner frames, drawn. |
 | **clack** | `test/task-log.test.ts >` | 64 cases, 27 snapshot assertions — the task log drawn as it fills and clears. |
 | **clack** | `test/text.test.ts >` | 28 cases, 14 snapshot assertions — the text prompt drawn. |
+| **clack** | `test/guide.test.ts > guide > no prompt renders a guide when withGuide is globally false` | One case, not a drawing, and it is excluded because it grades a package other than `@clack/prompts`. The test file itself runs `import { updateSettings } from '@clack/core'`, calls it, and asserts that every prompt reads the module-level state of that sibling package. U6 forbids caique a runtime dependency, so no implementation of ours can see that state (D-152). The same setting through the public name is `updateSettings`, which `@clack/prompts` re-exports and `caique/clack` exports. `packages/caique/src/clack.test.ts` holds all twelve prompts to it. The sibling case `no prompt renders a guide when withGuide is false` stays graded and passes. A program that imports `updateSettings` from `@clack/core` directly still reaches clack's state, not caique's (D-20260930-caique-clack-core-exclusion). |
 | **terminal-link** | `main` | Sets `supportsHyperlinks.stdout = true` on the incumbent's detection module and expects OSC 8 on a headless runner. paratext takes no runtime dependency, so it cannot see an assignment to another package's module object; it answers from the same detection that module computes — graded environment by environment against supports-hyperlinks 4.5.0 in `paratext/src/hyperlinks.test.ts` (A27) — and on that runner the answer is no. The six cases that assign `false` stay graded and pass. |
 | **terminal-link** | `stderr` | Sets `supportsHyperlinks.stderr = true` on the incumbent's detection module and expects OSC 8 on a headless runner. paratext takes no runtime dependency, so it cannot see an assignment to another package's module object; it answers from the same detection that module computes — graded environment by environment against supports-hyperlinks 4.5.0 in `paratext/src/hyperlinks.test.ts` (A27) — and on that runner the answer is no. The six cases that assign `false` stay graded and pass. |
 
@@ -158,7 +159,7 @@ to these rows (C1).
 | :-- | :-- | :-- | :-- |
 | commander | **15** | 15.0.0 | **commander-14** (14.0.3) — graded, not claimed |
 | yargs | **18** | 18.1.0 | **yargs-17** (17.7.3) — graded, not claimed |
-| chalk | **6** | 6.0.0 | — |
+| chalk | **6** | 6.0.1 | — |
 | ora | **9** | 9.4.1 | — |
 | log-update | **8** | 8.0.0 | — |
 | boxen | **8** | 8.0.1 | — |
@@ -195,7 +196,7 @@ left alone by `burgee migrate`, and the note in `hosts.ts` names the cases that 
 
 A front-end does not reach 1.0 until its rate is **100%** (C7). Below that it ships pre-1.0
 and is never described as compatible. The rate ratchets: a pull request that lowers it fails
-CI unless it edits the baseline with a written reason (C5).
+CI unless it also lowers the committed baseline, an edit a reviewer sees (C5).
 
 ## Other hosts
 

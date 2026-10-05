@@ -43,15 +43,19 @@ export function supports(runtime: Runtime, capability: { readonly when: Support 
    * do it" is always *no* (rule 6). See `shape.test.ts`.
    */
   const declared: unknown = capability.when;
-  if (typeof declared !== 'object' || declared === null) return false;
+  // The second clause is the output mode, when a host that asked roundel's `outputMode` passed
+  // it: anything but `tty` is the static projection — `accessible`, `ci`, `pipe`, `json` —
+  // even on a terminal that does the sequence (R2, `Runtime.mode`).
+  if (typeof declared !== 'object' || declared === null || (runtime.mode ?? 'tty') !== 'tty') return false;
   const { tty, termProgram, envAny, term } = declared as Support;
   if (tty === true && !runtime.isTTY.stdout) return false;
   if (runtime.env['TERM'] === 'dumb') return false;
   if (term !== undefined && runtime.env['TERM'] !== term) return false;
   if (termProgram !== undefined || envAny !== undefined) {
-    const byProgram = termProgram?.includes(runtime.env['TERM_PROGRAM'] ?? '') ?? false;
-    const byEnv = envAny?.some((name) => runtime.env[name] !== undefined) ?? false;
-    if (!byProgram && !byEnv) return false;
+    // `undefined` when the clause is absent, which reads as no match — the same as `false`.
+    const byProgram = termProgram?.includes(runtime.env['TERM_PROGRAM'] ?? '');
+    const byEnv = envAny?.some((name) => runtime.env[name] !== undefined);
+    if (byProgram !== true && byEnv !== true) return false;
   }
   return true;
 }

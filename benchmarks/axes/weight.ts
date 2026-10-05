@@ -490,13 +490,19 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // combining mark after an escape composed with its final byte (`ESC[31m` + U+0301 became
   // `ESC[31ḿ`) and an OSC payload was rewritten. It normalizes only the text between
   // sequences now, as wrap-ansi 10.0.2 does; +62, measured 11,480.
-  linegauge: 6_530,
+  //
+  // **2026-09-30 (B5): three fall, for one rewrite.** `strip` is strip-ansi's own grammar in one
+  // regex, so `width` no longer reaches `style.ts` through it: `linegauge` 6,448 → 5,640 and
+  // `linegauge/strip` 950 → 272, both now lighter than the incumbent. `linegauge/slice` 11,435
+  // (was 11,575): the cut walks clusters lazily and stops at `end`. `linegauge/wrap` 11,457 holds
+  // under its ceiling. Each keeps the 80 B CI margin, rounded up to the next fifty.
+  linegauge: 5_750,
 
   'linegauge/wrap': 11_560,
 
-  'linegauge/slice': 11_660,
+  'linegauge/slice': 11_550,
 
-  'linegauge/strip': 1_000,
+  'linegauge/strip': 400,
   //
   // **Down from 11,150 to 6,800, and the reason is the most useful thing this block records.**
   // paratext imported the whole family plugin schema to validate against one definition in it,
@@ -510,7 +516,13 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // 8,450 on 2026-09-23 for **1,630 bytes**, D-138: paratext took `ansi-escapes`' CSI half, so
   // the entry now carries what the incumbent carries. The ceiling below it was set against an
   // entry with none of it. Measured 8,430.
-  paratext: 8_450,
+  //
+  // 7,150 on 2026-09-30 (B5, D-20260929-b5-runtime-ratchets): the capability fragment ships
+  // without the schema's prose — validation reads none of it — which is 1,356 B off the root
+  // after paying for the cached renderer and the kept `eraseLines` that made a link and a redraw
+  // faster than ansi-escapes'. Measured 7,086 after #754's output-mode check, with the 80 B CI
+  // margin rounded up to the next fifty.
+  paratext: 7_200,
   // bellpull R8, first measured 2026-09-27 (GAPS A10, D-160): `run` bundles to **5,901** bytes
   // against tinyexec 1.3.1's `x` at **5,969** — 0.989, so the ratio gate stays at the default 1
   // and it is R8's bytes half, met. This ceiling is the ratchet beside it: the measurement plus
@@ -656,13 +668,15 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // 6,013 against 8.2.2's 6,110, so `linegauge` at the same size read 1.067 on the bump alone;
   // the ReDoS fix in `width()` (+32, see the byte ceiling above) takes it to 6,448 / 6,013 =
   // 1.072, and the one step is CI's heavier build.
-  linegauge: 1.08,
+  // 1 on 2026-09-30 with the byte ceilings above (B5): 5,640 / 6,013 = 0.938 and strip 272 / 457
+  // = 0.595 — both lighter than the incumbent now, so both are held to U5's bar like wrap and slice.
+  linegauge: 1,
 
   'linegauge/wrap': 1,
 
   'linegauge/slice': 1,
 
-  'linegauge/strip': 2.25,
+  'linegauge/strip': 1,
   // The layer that is over its D1 ceiling too — 66,305 against ansi-escapes' tree at 30,912,
   // a ratio of 2.145. That breach is real, it is recorded in the ceilings file, and this
   // ratchet exists so the bundled half cannot grow while it is being dealt with.
@@ -672,7 +686,8 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // `ansi-escapes` *with* it. Both sides now carry the same thirty-one members, so 1.937 is the
   // first like-for-like figure — what is left over is the capability registry that makes the
   // OSC half degrade on a pipe. Measured 1.937.
-  paratext: 1.94,
+  // 1.65 on 2026-09-30 with the byte ceiling above: (7,086 + 80) / 4,351 = 1.647.
+  paratext: 1.65,
 };
 
 /** Why a pair's ratio gate sits where it does: the claim's own ratchet, U5 at 1, or a B4 ratchet. */

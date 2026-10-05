@@ -1,0 +1,177 @@
+---
+title: Exit codes and errors
+description: "Seven typed exit codes a caller can branch on, one error envelope under --json, and a fixed rule for which stream a failure goes to."
+---
+
+## What it is
+
+An exit code is the one thing every caller reads — a shell, a CI runner, an agent — before it
+decides what to do next. burgee makes it a contract: seven named codes, each with one meaning,
+and nothing else reaches `process.exitCode`.
+
+| Code | Name | Means | The caller should |
+| ---: | :-- | :-- | :-- |
+| 0 | `OK` | the command completed | carry on |
+| 1 | `RUNTIME` | the command ran and failed; never accompanied by help | read the message |
+| 2 | `USAGE` | bad arguments, unknown command, missing flag, a prompt with nobody to answer | rewrite the command |
+| 3 | `CONFIG` | a config file or the environment could not be loaded or validated | fix the environment |
+| 4 | `CANCELLED` | the user or caller cancelled, or the command needs a decision (`actionRequired`) | decide, then run a `next` command |
+| 5 | `AUTH` | a credential is missing, expired or refused | log in and run it again |
+| 130 | `SIGINT` | interrupted, after the terminal was restored | stop |
+
+`ExitCode` and `isExitCode()` are exported from `burgee`. `--schema` carries the table as
+`exitCodes`, so an agent reads the codes from the program instead of from this page.
+
+## Why it exists
+
+A CLI that exits 1 for everything tells a caller "something went wrong" and nothing about what
+to do. The split above is by *response*: `USAGE` says fix the command, `CONFIG` says fix the
+environment, `AUTH` says fix the credential, and none of them needs the message parsed. `AUTH`
+is 5 rather than `gh`'s 4 because 4 was already `CANCELLED`, and moving a published code is a
+breaking change for everyone who branches on it (the reasoning is in `exit-code.ts`).
+
+## The rules
+
+**Only the seven.** `isExitCode()` accepts exactly these (`recognises only the seven codes` in
+[`exit-code.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/exit-code.test.ts)).
+[`exit-code-lock.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/exit-code-lock.test.ts)
+reads them out of `exit-code.ts` and fails on any bare numeric literal passed to an `exit` call
+or assigned to `process.exitCode` (`no bare literal reaches an exit outside the two
+front-ends`), and on any package's named exit constant that is not one of them (`every exit
+constant any package declares is one of the seven`). The two exceptions are the commander and
+yargs front-ends, which reproduce their host's own exit codes because the host's suite grades
+exactly that.
+
+**A thrown error becomes a code in a fixed order** (`describeFailure` in `failure.ts`):
+
+1. `ctx.exit(code)` with one of the seven leaves silently with that code.
+2. `ctx.actionRequired(…)` is 4, with its `next` commands.
+3. `UsageError` is 2, `AuthError` is 5, and seniority's `ConfigError` is 3.
+4. A class made with `defineError({ name, code })` leaves with its own code.
+5. An object whose `code` is the string `'USAGE'`, `'CONFIG'`, `'CANCELLED'` or `'AUTH'` leaves
+   with that code. This is how caique's "nobody is there to answer" refusal reaches exit 2 with
+   no dependency between caique and burgee.
+6. An unknown or malformed option from the parser is 2, with a hint and, where one is close
+   enough, the spelling it meant.
+7. Anything else — any other `Error`, a rejection, a thrown string — is 1.
+
+**Your own codes.** `defineError({ name, code })` claims a code from 7 to 125 for one class:
+below 7 is the contract, and 126 and above mean *not executable*, *not found* and *killed by a
+signal* to a shell. A second class claiming a code is refused when it is defined, and a subclass
+leaves with its parent's code (`defineError (E7)` in
+[`define-error.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/define-error.test.ts)).
+
+**A signal is not an exit code.** On `SIGINT` the program's cleanup runs, the terminal is
+restored, and the process dies of the signal, which a shell reports as 130
+([Shutdown](/docs/concepts/shutdown) has the mechanism; `dies of the signal rather than exiting,
+which is what 130 actually means` in `pty-signal.test.ts`).
+
+## The envelope, and where errors go
+
+| Run | stdout | stderr |
+| :-- | :-- | :-- |
+| success | the result as text | warnings, such as a deprecation |
+| success, `--json` | `{"ok":true,"data":…,"meta":{"provenance":…}}` | warnings |
+| failure | nothing | `error: <message>`, then `hint:` and `fix:` when the error carries them, then `usage:` when there is no `fix` |
+| failure, `--json` | `{"ok":false,"error":{"code":…,"message":…,"hint"?:…,"fix"?:…,"usage"?:…}}` | nothing |
+| needs a decision, `--json` | `{"ok":false,"status":"action_required","reason":…,"message":…,"next":[…],"error":{"code":4,…}}` | nothing |
+
+Under `--json` a failure goes to **stdout**, alone, so a caller that parses stdout gets exactly
+one JSON document whether the command succeeded or not; `error.code` is the numeric exit code.
+`hint` is for a person and `fix` is a command a caller can run. Pinned by `$name: the envelope is
+on stdout, alone, and stderr is empty`, `$name: plain mode is unchanged — prose on stderr,
+nothing on stdout` and `puts a usage failure on stdout too, so one rule covers every --json
+failure` in
+[`json-failure.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/json-failure.test.ts).
+
+**A failure says what to do next.** `fix` is one line to run, and it is filled in only when there
+is exactly one: the flag an unknown option was nearest to, or the caller's own command line with
+an unknown command's word corrected. When there is none and the code is `USAGE` or `RUNTIME`, the
+failure carries `usage` instead. That is the failing command's usage line from the program name,
+then its visible options with the notes help prints: required, default, choices, relations and
+env. An unknown command carries the commands that exist and points at `--schema`. Either list is
+at most 8 rows, and `more` names the `--help` that has the rest. It is a reminder, not a help
+screen: no description, no examples, no global options, and the exit code is the one the table
+above gives. `AUTH`, `CONFIG` and your own codes carry no `usage`, because their remedy is not an
+option. In the envelope it is
+`"usage":{"command":"deploy push [options]","options":[{"name":"--target <value>","description":"where to push (required)"}]}`,
+with `commands` in place of `options` for an unknown command. Pinned by
+[`failure-teaches.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/failure-teaches.test.ts).
+
+On `burgee/commander` and `burgee/yargs`, `error.code` is a string (`'usage'`, `'auth'`,
+`'runtime'`), and a parse error keeps the host's own code, such as `commander.unknownOption`:
+the front-ends reproduce their host.
+
+## Run it
+
+```js title="deploy.mjs"
+import { AuthError, defineCommand, defineError, defineProgram, run } from 'burgee';
+
+const QuotaError = defineError({ name: 'QuotaError', code: 7 });
+
+const program = defineProgram({
+  name: 'deploy',
+  commands: [
+    defineCommand({
+      name: 'push',
+      description: 'Push a build',
+      effects: 'non_idempotent',
+      options: {
+        target: { type: 'string', required: true, description: 'where to push' },
+        token: { type: 'string', description: 'an access token' },
+      },
+      run: ({ options }) => {
+        if (options.token === undefined) throw new AuthError('no access token', 'pass --token', 'run `deploy login` first');
+        if (options.target === 'moon') throw new QuotaError('the moon is out of quota', { hint: 'try --target mars' });
+        return { target: options.target, pushed: true };
+      },
+    }),
+  ],
+});
+
+await run(program);
+```
+
+```text title="node deploy.mjs push --target prod --token t --json"
+{"ok":true,"data":{"target":"prod","pushed":true},"meta":{"provenance":{"target":{"source":"flag","location":"--target"},"token":{"source":"flag","location":"--token"}}}}
+```
+
+A missing credential is 5, as prose on stderr or as the envelope on stdout:
+
+```text title="node deploy.mjs push --target prod" exit="5"
+error: no access token
+hint: pass --token
+fix: run `deploy login` first
+```
+
+```text title="node deploy.mjs push --target prod --json" exit="5"
+{"ok":false,"error":{"code":5,"message":"no access token","hint":"pass --token","fix":"run `deploy login` first"}}
+```
+
+A missing option and a mistyped command are both 2. With no `fix` to run, the missing option
+carries what `push` takes:
+
+```text title="node deploy.mjs push --token t --json" exit="2"
+{"ok":false,"error":{"code":2,"message":"missing required option --target","hint":"pass --target <value>","usage":{"command":"deploy push [options]","options":[{"name":"--target <value>","description":"where to push (required)"},{"name":"--token <value>","description":"an access token"}]}}}
+```
+
+A mistyped command is corrected, and the fix is the caller's own line with the word replaced:
+
+```text title="node deploy.mjs psuh --target prod" exit="2"
+error: unknown command "psuh"
+hint: did you mean push?
+fix: deploy push --target prod
+```
+
+An author's own class leaves with its own code:
+
+```text title="node deploy.mjs push --target moon --token t --json" exit="7"
+{"ok":false,"error":{"code":7,"message":"the moon is out of quota","hint":"try --target mars"}}
+```
+
+## Where the rules live
+
+- Spec: [burgee E1–E7](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/burgee/spec.md).
+- [Your CLI is an agent tool](/docs/agent-surfaces) — the `action_required` envelope and
+  `next[]`.
+- [The floor](/docs/the-floor) — the requirements every CLI on burgee meets.

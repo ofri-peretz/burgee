@@ -1,5 +1,35 @@
 # paratext
 
+## 0.8.0
+
+### Minor Changes
+
+- [#774](https://github.com/ofri-peretz/burgee/pull/774) [`b44f426`](https://github.com/ofri-peretz/burgee/commit/b44f426621ed799700cceda8c979de8f759f56b7) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `paratext/term-img` now takes a file path, as `term-img` does. `terminalImage('unicorn.jpg')` reads the file with `node:fs` and draws it, and a file `URL` works too. The read happens after the terminal check, so a path handed to a terminal that cannot draw it reaches your `fallback` (or `UnsupportedTerminalError`) without the file being opened. A missing file on a supported terminal throws `node:fs`'s `ENOENT`, as `term-img` does. The `Options` type is exported under term-img's name and is generic over what `fallback` returns, so a `fallback` that returns nothing type-checks.
+
+  `paratext/term-img` now grades 18 / 18 against term-img 7.1.0's own suite, level with term-img itself. It was 12 / 18: the six cases that pass a path were refused under D-030. This supersedes D-030 for this subpath only (D-20260930-paratext-term-img-path). It is the only paratext entry that imports `node:fs`. The root `image()` still takes bytes, and a lock fails if `node:fs` reaches the root or any other entry.
+
+  Because the row is level, `burgee migrate` now rewrites `term-img` to `paratext/term-img`.
+
+## 0.7.5
+
+### Patch Changes
+
+- [#763](https://github.com/ofri-peretz/burgee/pull/763) [`6c2e9c5`](https://github.com/ofri-peretz/burgee/commit/6c2e9c5cee5d9962c0d75d84a766c76b76760f7f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Faster, and lighter:
+
+  - `link()` from `paratext` reads the process once, on its first call, where it used to rebuild the runtime and re-read the environment on every call.
+  - `paratext/terminal-link` decides hyperlink support once per stream, as `supports-hyperlinks` does at import, and emits a link as a single concatenation.
+  - Templates are parsed once, and `eraseLines` keeps the strings for the counts a redraw uses.
+  - In B5 (ours ÷ incumbent, in-process), `paratext` against ansi-escapes went from 8.9× to 0.97× locally, and `paratext/terminal-link` against terminal-link from 20.9× to 0.78×.
+  - The root bundle is 1,356 B smaller (8,417 → 7,061), because the plugin-schema fragments paratext and flagstaff import to validate no longer carry the schema's prose. The published `schema.json` is unchanged.
+
+## 0.7.4
+
+### Patch Changes
+
+- [#754](https://github.com/ofri-peretz/burgee/pull/754) [`12bac9c`](https://github.com/ofri-peretz/burgee/commit/12bac9c99cb87ec2b67a56b4afc38de2c21687c7) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A capability now renders its fallback when the runtime says the output mode is not `tty` (`Runtime.mode`, the value of roundel's `outputMode`). A host that has decided this run is `accessible`, `ci`, `pipe` or `json` gets the text form even on a terminal that supports the sequence, as flagstaff's components do. Without `mode`, nothing changes.
+
+- [#752](https://github.com/ofri-peretz/burgee/pull/752) [`22e6dae`](https://github.com/ofri-peretz/burgee/commit/22e6dae1b71bfa478265829a1b98d20a6f9de4f7) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A plugin that declares `contract: 0` or a negative contract is now refused with `E_PLUGIN_CONTRACT`, as `schema.json`'s minimum of 1 always said. These hosts checked only that a contract was not newer than the one they know, so 0 and below registered.
+
 ## 0.7.3
 
 ### Patch Changes

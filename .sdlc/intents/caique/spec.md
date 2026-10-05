@@ -447,7 +447,7 @@ match an incumbent's, and a façade may not be named in a host row before it exi
 | Suite | Control | Target, before | Target, after |
 | :-- | --: | --: | --: |
 | `@inquirer/core` 12.0.3 | **41 / 41** | `caique` 0 / 41 | **`caique/inquirer` 41 / 41, 100.0%** |
-| `@clack/prompts` 1.8.1 | **17 / 17** (was 576 / 606) | `caique` 0 / 606 | **`caique/clack` 16 / 17, 94.1%** (14 / 17 until D-152) |
+| `@clack/prompts` 1.8.1 | **16 / 16** (17 / 17 until D-20260930; 576 / 606 before D-001) | `caique` 0 / 606 | **`caique/clack` 16 / 16, 100.0%** (16 / 17 until D-20260930-caique-clack-core-exclusion; 14 / 17 until D-152) |
 
 ### R8 — `caique/inquirer`
 
@@ -514,8 +514,15 @@ control red rather than quietly shrinking the denominator.
   unfinished. `caique/clack`'s own `updateSettings` does the same job, and
   `packages/caique/src/clack.test.ts` holds all twelve prompts to it.
 
-16 / 17 with that paragraph beside it is the honest number. It is not level with the
-control, so `burgee migrate` reports `@clack/prompts` and does not rewrite it (D-137).
+16 / 17 with that paragraph beside it was the honest number until 2026-09-30. **Restated by
+D-20260930-caique-clack-core-exclusion:** the case grades `@clack/core`'s module state and not
+`@clack/prompts`' contract. So it is excluded by its exact title (`Exclusion.exact`, the
+mechanism A27 built for terminal-link), with the reason on the compatibility page. The row
+reads **16 / 16, level with a control of 16 / 16**, and `burgee migrate` rewrites
+`@clack/prompts` to `caique/clack` (D-137). It refuses a file that imports a name caique has
+not built. A program that imports `updateSettings` from `@clack/core` keeps changing clack's
+settings after migration, and caique's prompts never read them. The decision names that as
+the one residual gap.
 Not built, because no graded case reaches them: `box`, `progress`, `taskLog`.
 
 Still open, and named so it is a decision rather than a silence:

@@ -50,6 +50,23 @@ describe('what it ships', () => {
 });
 
 describe('the projection, which is the point', () => {
+  /*
+   * The family's static-projection rule: `pipe`, `ci` and `accessible` get the text form, as
+   * flagstaff's `hoist()` gives them. Until 2026-09-30 paratext decided from `when` alone, so
+   * a screen-reader user on a terminal (`CLI_ACCESSIBLE`) got raw OSC. paratext may not read
+   * that variable or import roundel, so the host that asked `outputMode` passes the answer.
+   */
+  it.each(['accessible', 'ci', 'pipe', 'json'])('prints the fallback in %s mode, even on a terminal that supports the sequence', (mode) => {
+    const told: Runtime = { ...iterm, mode };
+    expect(emit(told, 'link', { text: 'Docs', url: 'https://x.dev' })).toBe('Docs (https://x.dev)');
+    expect(emit(told, 'title', { text: 'build' })).toBe('');
+    expect(supports(told, { when: {} })).toBe(false);
+  });
+
+  it('emits in tty mode exactly as without a mode', () => {
+    expect(emit({ ...iterm, mode: 'tty' }, 'link', { text: 'Docs', url: 'https://x.dev' })).toBe(emit(iterm, 'link', { text: 'Docs', url: 'https://x.dev' }));
+  });
+
   it('prints something a human can read instead of bytes a pipe cannot', () => {
     expect(emit(pipe, 'link', { text: 'Docs', url: 'https://x.dev' })).toBe('Docs (https://x.dev)');
     expect(emit(pipe, 'link', { text: 'Docs' })).toBe('Docs');
@@ -160,6 +177,12 @@ describe('the template language', () => {
     expect(render('x[ {b}]', {})).toBe('x');
     // An empty value counts as absent: `Done: ` reads worse than `Done`.
     expect(render('x[: {b}]', { b: '' })).toBe('x');
+  });
+
+  it('renders the same after its parsed templates are dropped — the cache is bounded, never load-bearing', () => {
+    // More distinct templates than the cache keeps, so it clears at least once mid-run (B5).
+    for (let i = 0; i < 600; i += 1) expect(render(`${String(i)}:{a}[ {b}]`, { a: 'x', b: i % 2 ? 'y' : '' })).toBe(`${String(i)}:x${i % 2 ? ' y' : ''}`);
+    expect(render('{a}-{b}', { a: '1', b: '2' })).toBe('1-2');
   });
 
   it('renders an absent field outside a group as nothing, never as `undefined`', () => {

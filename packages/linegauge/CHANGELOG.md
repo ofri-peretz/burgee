@@ -1,5 +1,39 @@
 # linegauge
 
+## 1.0.3
+
+### Patch Changes
+
+- [#781](https://github.com/ofri-peretz/burgee/pull/781) [`df87199`](https://github.com/ofri-peretz/burgee/commit/df87199c8484ffaeae523dc55131f33eca485f5f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Remove 20 unreachable `??` fallbacks from `width` and `wrap`. Each one guarded a value that is
+  always present: an in-range table index, the code point of a non-empty cluster, the first element
+  of `String.prototype.split`, or a named group of a regex that declares it. No output changes: the
+  compat grades are unchanged at 233/85/8/104. The coverage gate is now a plain 100% on lines,
+  functions, statements and branches, with no per-file exception.
+
+## 1.0.2
+
+### Patch Changes
+
+- [#777](https://github.com/ofri-peretz/burgee/pull/777) [`1857ff6`](https://github.com/ofri-peretz/burgee/commit/1857ff65ca0e1b0b5686480c1a37dc8834bf688b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `measure` answers a one-unit string without building a grapheme segmenter.
+
+  A prompt frame's glyphs (`│`, `●`, `◆`) arrive at `wrap` as words of their own, and segmenting each one was most of what `caique/clack` spent measuring. In B5, `caique/clack` ÷ @clack/prompts went from 1.45× on CI to 1.09× locally.
+
+## 1.0.1
+
+### Patch Changes
+
+- [#763](https://github.com/ofri-peretz/burgee/pull/763) [`6c2e9c5`](https://github.com/ofri-peretz/burgee/commit/6c2e9c5cee5d9962c0d75d84a766c76b76760f7f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Faster at every entry point, with the same answers:
+
+  - `strip` is strip-ansi's own grammar in one pass, with its fast path for a string with no escape.
+  - `slice` segments lazily and stops at `end`.
+  - `width` and `wrap` measure each cluster once, and skip the emoji regexes for Latin, CJK and box-drawing clusters.
+
+  B5, ours ÷ incumbent: `slice` 8.7× → 0.76×, `width` 1.34× → 0.70×, `wrap` 1.82× → 0.73×, `strip` 4.3× → 1.0×. `flagstaff`'s log-update, boxen and cli-table3 drop to 0.39–0.72× on the back of it.
+
+  `width` and `strip` now also agree with string-width and strip-ansi on the edges the old two-pass strip answered differently: a C1 OSC, and `ESC [` before a byte that ends no sequence.
+
+  Bundles are lighter too: `linegauge` 6,448 → 5,653 B (0.94× string-width) and `linegauge/strip` 950 → 272 B (0.60× strip-ansi).
+
 ## 1.0.0
 
 ### Major Changes

@@ -43,6 +43,13 @@ const manifest = JSON.parse(readFileSync(resolve(pkgRoot, 'package.json'), 'utf8
 interface EntryRule {
   /** Bare specifiers this entry may import. Empty everywhere: paratext depends on nothing. */
   allow: string[];
+  /**
+   * `node:` builtins this entry may reach. Empty everywhere but `./term-img`, which reads a
+   * file path with `node:fs` because `term-img` does (D-20260930-paratext-term-img-path). The
+   * rest of the package touches nothing but strings, and this is the field that says so: a
+   * `node:fs` that leaked into the root, or into any subpath but that one, fails here.
+   */
+  builtins: string[];
   /** Bytes reachable from it. A ratchet: lowering is free, raising is a decision with a comment. */
   budget: number;
   /** Modules this entry must never reach, whatever else changes. */
@@ -98,7 +105,10 @@ const RULES: Record<string, EntryRule> = {
   // 17,700 → 17,900 under A27: `runtime.js` gained `commandLineRuntime()` for `./terminal-link`
   // (R5 keeps every `process` read in that one file). A bundler drops it from this entry; this
   // walk counts the whole file. Measured 17,813.
-  '.': { allow: [], budget: 17_900, denied: ['plugin.js'] },
+  // 17,900 → 16,800 on 2026-09-30 (B5): the capability fragment ships without its schema prose
+  // (`scripts/schema-annotations.mjs`, −1.6 KB), which pays for a cached renderer, a kept
+  // `eraseLines` and the root reading the process once. Measured 16,741.
+  '.': { allow: [], builtins: [], budget: 16_800, denied: ['plugin.js'] },
   /**
    * OSC 8 alone, for a host that wants one clickable URL and not a plugin contract.
    * Measured **2,337 B**: `link.js` 768, `template.js` 774, `supports.js` 652,
@@ -112,8 +122,8 @@ const RULES: Record<string, EntryRule> = {
    * be registered. Measured **2,700 B**: `csi.js` 2,403 and `runtime.js` 297, which it reads
    * once for Terminal.app's save/restore spelling.
    */
-  './csi': { allow: [], budget: 3_000, denied: ['index.js', 'capability.js', 'builtins.js', 'plugin.js', 'ansi-escapes.js', 'schema.json', 'link.js', 'template.js'] },
-  './link': { allow: [], budget: 3_000, denied: ['index.js', 'capability.js', 'builtins.js', 'plugin.js', 'ansi-escapes.js', 'schema.json'] },
+  './csi': { allow: [], builtins: [], budget: 3_000, denied: ['index.js', 'capability.js', 'builtins.js', 'plugin.js', 'ansi-escapes.js', 'schema.json', 'link.js', 'template.js'] },
+  './link': { allow: [], builtins: [], budget: 3_000, denied: ['index.js', 'capability.js', 'builtins.js', 'plugin.js', 'ansi-escapes.js', 'schema.json'] },
   /**
    * The `terminal-link` façade. It reaches `link.js` for the `LINK` record and `supports`,
    * `runtime.js` for the process seam and `template.js` to render — the same graph `./link`
@@ -123,8 +133,12 @@ const RULES: Record<string, EntryRule> = {
    *
    * 6,000 → 9,300 under A27: `hyperlinks.js` is `supports-hyperlinks`' own detection table,
    * carried so the façade links exactly where the incumbent does. Measured 9,222.
+   *
+   * 9,300 → 7,300 on 2026-09-30 (B5): the OSC 8 record moved to `osc8.ts`, and the façade splits
+   * its `encode` once at load, so the template renderer `./link` needs is no longer reached.
+   * Measured 7,212.
    */
-  './terminal-link': { allow: [], budget: 9_300, denied: ['index.js', 'capability.js', 'builtins.js', 'plugin.js', 'ansi-escapes.js', 'schema.json'] },
+  './terminal-link': { allow: [], builtins: [], budget: 7_300, denied: ['index.js', 'capability.js', 'builtins.js', 'plugin.js', 'ansi-escapes.js', 'schema.json'] },
   /**
    * The `term-img` façade. It reaches `image.js` for the `IMAGE` record and the field
    * arithmetic, `runtime.js` for the process seam and `template.js` to render — and, unlike
@@ -139,8 +153,14 @@ const RULES: Record<string, EntryRule> = {
    * Measured **4,362 B**: `term-img.js` 2,526, `image.js` 880, `template.js` 774,
    * `runtime.js` 182. Most of its own file is the five-terminal version table, which is the
    * part `term-img` pays two dependencies for.
+   *
+   * 5,000 → 4,900 on 2026-09-30, and `node:fs` allowed here and nowhere else: the subpath now
+   * reads a path as `term-img` does (D-20260930-paratext-term-img-path). The one import line
+   * and the `URL` test cost less than the D-030 refusal message they replaced, so the entry got
+   * *lighter* — measured **4,815 B**, down from 4,955 (`term-img.js` 2,836 → 2,696). A builtin
+   * adds no bytes to this walk; the `builtins` field is what holds the boundary.
    */
-  './term-img': { allow: [], budget: 5_000, denied: ['index.js', 'capability.js', 'builtins.js', 'plugin.js', 'ansi-escapes.js', 'schema.json'] },
+  './term-img': { allow: [], builtins: ['node:fs'], budget: 4_900, denied: ['index.js', 'capability.js', 'builtins.js', 'plugin.js', 'ansi-escapes.js', 'schema.json'] },
   /**
    * The plugin host: `validate`, `contributions`, `attach`, and the `capability.ts` it
    * delegates to, which is what pulls `schema.json`. Measured 15,116 B. It must never reach
@@ -154,14 +174,28 @@ const RULES: Record<string, EntryRule> = {
   // 13,500 for **96 bytes**: `FIX` is a runtime table keyed by `PluginErrorCode`, so the
   // `E_NO_CONTRIBUTION` code `paratext check` refuses with has to carry its fix text here, where
   // every refusal's fix lives. Measured 13,496.
-  './plugin': { allow: [], budget: 13_500, denied: ['index.js', 'builtins.js', 'ansi-escapes.js'] },
+  // 13,550 for **16 bytes** (2026-09-30): #752 made `validate` refuse a `contract` below 1, the
+  // family-wide floor the shared schema already stated — `|| contract < 1` in `plugin.js`.
+  // Measured 13,512 on main after it merged: 12 B over, with every pre-push battery on it red.
+  // 13,550 → 12,200 the same day (B5): the capability fragment without its prose. Measured
+  // 12,099 with #752's floor and #754's output-mode check.
+  './plugin': { allow: [], builtins: [], budget: 12_200, denied: ['index.js', 'builtins.js', 'ansi-escapes.js'] },
 };
 
-const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;
+/**
+ * A static `from '…'` / side-effect `import '…'`, a dynamic `import('…')`, and Node's
+ * `process.getBuiltinModule('…')` — the last two so a builtin cannot be smuggled past the
+ * `builtins` rule by reaching it any way but the one this walk used to read. Either quote.
+ */
+const SPECIFIER = /(?:from|import|getBuiltinModule)\s*\(?\s*['"]([^'"]+)['"]/g;
 
-function walk(entry: string): { reached: string[]; external: string[]; bytes: number } {
+/** `getBuiltinModule('fs')` takes the bare name too; the rule is written with the prefix. */
+const BUILTIN = /^node:|^(?:fs|fs\/promises|path|url|os|child_process|process|stream|util)$/;
+
+function walk(entry: string): { reached: string[]; external: string[]; builtins: string[]; bytes: number } {
   const files = new Set<string>();
   const external = new Set<string>();
+  const builtins = new Set<string>();
   const queue = [entry];
   let bytes = 0;
 
@@ -172,10 +206,11 @@ function walk(entry: string): { reached: string[]; external: string[]; bytes: nu
     bytes += statSync(file).size;
     for (const [, spec = ''] of readFileSync(file, 'utf8').matchAll(SPECIFIER)) {
       if (spec.startsWith('.')) queue.push(resolve(dirname(file), spec));
-      else if (spec !== '' && !spec.startsWith('node:')) external.add(spec);
+      else if (BUILTIN.test(spec)) builtins.add(spec.startsWith('node:') ? spec : `node:${spec}`);
+      else if (spec !== '') external.add(spec);
     }
   }
-  return { reached: [...files].map((f) => relative(dist, f)), external: [...external], bytes };
+  return { reached: [...files].map((f) => relative(dist, f)), external: [...external], builtins: [...builtins], bytes };
 }
 
 function entryFile(subpath: string): string {
@@ -190,6 +225,10 @@ describe.each(Object.keys(RULES))('entry %s', (subpath) => {
 
   it('imports only what its rule allows', () => {
     expect(graph.external.sort()).toEqual([...rule.allow].sort());
+  });
+
+  it('reaches only the node builtins its rule allows', () => {
+    expect(graph.builtins.sort()).toEqual([...rule.builtins].sort());
   });
 
   it('reaches nothing on its denied list', () => {
@@ -216,6 +255,13 @@ describe('the lock grows with the package', () => {
     for (const subpath of Object.keys(RULES)) {
       expect(walk(entryFile(subpath)).external, `${subpath} reaches a package`).toEqual([]);
     }
+  });
+
+  it('`node:fs` is reachable from `./term-img` and from no other published entry', () => {
+    // The boundary D-20260930-paratext-term-img-path draws, stated as the relation rather than
+    // per row, so a second entry granted `node:fs` has to edit this line and say why.
+    const reaching = Object.keys(RULES).filter((subpath) => walk(entryFile(subpath)).builtins.includes('node:fs'));
+    expect(reaching).toEqual(['./term-img']);
   });
 
   it('`./link` is the entry a cold start can afford — under a sixth of the root', () => {

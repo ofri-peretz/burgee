@@ -26,7 +26,7 @@
 </p>
 
 <p align="center">
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/%40clack%2Fprompts%20suite-16%2F17-b45309?style=flat-square" alt="caique/clack passes 16 of 17 cases of the @clack/prompts test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/%40clack%2Fprompts%20suite-16%2F16-0a6b47?style=flat-square" alt="caique/clack passes 16 of 16 cases of the @clack/prompts test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/%40inquirer%2Fcore%20suite-41%2F41-0a6b47?style=flat-square" alt="caique/inquirer passes 41 of 41 cases of the @inquirer/core test suite" /></a>
 </p>
 
@@ -278,7 +278,7 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
-| `clack` | 16 / 17 |
+| `clack` | 16 / 16 |
 | `inquirer-core` | 41 / 41 |
 
 Weight, installed and tree-inclusive: **218,134 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.5607**.

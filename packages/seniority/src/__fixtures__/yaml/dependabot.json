@@ -1,0 +1,166 @@
+{
+  "version": 2,
+  "updates": [
+    {
+      "package-ecosystem": "npm",
+      "directory": "/",
+      "schedule": {
+        "interval": "weekly",
+        "day": "monday",
+        "time": "09:00"
+      },
+      "open-pull-requests-limit": 1,
+      "labels": [
+        "dependencies",
+        "npm"
+      ],
+      "commit-message": {
+        "prefix": "chore(deps)",
+        "include": "scope"
+      },
+      "groups": {
+        "all-packages": {
+          "patterns": [
+            "*"
+          ]
+        }
+      },
+      "ignore": [
+        {
+          "dependency-name": "typescript",
+          "versions": [
+            ">=6"
+          ]
+        },
+        {
+          "dependency-name": "commander"
+        },
+        {
+          "dependency-name": "yargs"
+        },
+        {
+          "dependency-name": "yargs-parser"
+        },
+        {
+          "dependency-name": "which"
+        },
+        {
+          "dependency-name": "mocha"
+        },
+        {
+          "dependency-name": "chai"
+        },
+        {
+          "dependency-name": "chalk"
+        },
+        {
+          "dependency-name": "ora"
+        },
+        {
+          "dependency-name": "get-stream"
+        },
+        {
+          "dependency-name": "log-update"
+        },
+        {
+          "dependency-name": "terminal.js"
+        },
+        {
+          "dependency-name": "wcwidth"
+        },
+        {
+          "dependency-name": "cross-spawn"
+        },
+        {
+          "dependency-name": "cpr"
+        },
+        {
+          "dependency-name": "hashish"
+        },
+        {
+          "dependency-name": "yargs-test-extends"
+        },
+        {
+          "dependency-name": "boxen"
+        },
+        {
+          "dependency-name": "cosmiconfig"
+        },
+        {
+          "dependency-name": "exit-hook"
+        },
+        {
+          "dependency-name": "restore-cursor"
+        },
+        {
+          "dependency-name": "terminal-link"
+        },
+        {
+          "dependency-name": "string-width"
+        },
+        {
+          "dependency-name": "wrap-ansi"
+        },
+        {
+          "dependency-name": "slice-ansi"
+        },
+        {
+          "dependency-name": "strip-ansi"
+        },
+        {
+          "dependency-name": "ansi-escapes"
+        },
+        {
+          "dependency-name": "cli-table3"
+        },
+        {
+          "dependency-name": "tinyexec"
+        },
+        {
+          "dependency-name": "@clack/prompts"
+        }
+      ]
+    },
+    {
+      "package-ecosystem": "npm",
+      "directory": "/.github/tools/claude-code",
+      "schedule": {
+        "interval": "weekly",
+        "day": "monday",
+        "time": "09:00"
+      },
+      "open-pull-requests-limit": 1,
+      "labels": [
+        "dependencies",
+        "ci"
+      ],
+      "commit-message": {
+        "prefix": "chore(ci)"
+      }
+    },
+    {
+      "package-ecosystem": "github-actions",
+      "directory": "/",
+      "schedule": {
+        "interval": "weekly",
+        "day": "monday",
+        "time": "09:00"
+      },
+      "open-pull-requests-limit": 1,
+      "groups": {
+        "codeql-action": {
+          "patterns": [
+            "github/codeql-action*"
+          ]
+        }
+      },
+      "labels": [
+        "dependencies",
+        "ci"
+      ],
+      "commit-message": {
+        "prefix": "chore(ci)"
+      }
+    }
+  ]
+}

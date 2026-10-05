@@ -277,6 +277,15 @@ const RULES: Record<string, EntryRule> = {
     // 36,392 on 2026-09-24 for U5: every surface the engine answers without running a command — help, `--version`, `help [command…]`, `completion`, `__complete`, `config explain`, `--schema`, `--mcp` — routed from `surfaces.js`, imported only when argv could ask for one. Measured 36,312.
     // 35,561 on 2026-09-24 for U5: the config and package.json layers moved to `config-layers.js`, imported only for a program that opted into config discovery (V6). Measured 35,481.
     // 35,681 on 2026-09-24 for U5 merged with N15 (#586): the four U5 moves on top of `--format=agent`. Measured 35,601.
+    // 2026-09-30, D-20260930-one-interactive-rule: `ctx.interactive` is roundel's `interactive()`,
+    // read in `ctx.js` behind an `await import()` on the path that hands a handler its context.
+    // That chunk also takes `env`, `onExit` and `ctx.agent`, and help reads stdout's `isTTY` itself
+    // in `surfaces.js`, so `execute.js` stops importing `detectAgent` and carries only the call:
+    // 35,629 -> 35,437 (-192), with `roundel` still denied by name. Bundled, the initial load of
+    // `import { run } from 'burgee'` is 24,297 -> 24,278 (-19). The lazy side is `ctx.js`, 330 B,
+    // plus `roundel/terminal` (878 B, roundel's own file), on a command run only — never on help,
+    // `--version`, `--schema`, `--mcp` or a failure. `./cli` 55,812 -> 54,727 and `./testing`
+    // 39,150 -> 38,143, because neither takes the barrel and `agent.js` left the engine's graph.
     budget: 35_681,
     // 45,400 with D-140 and #521 on top of S4. Measured 45,361.
     // 45,250 with D-140 (the `--json` failure classification) on top of D-122 and #521. Measured 45,227.
@@ -289,6 +298,9 @@ const RULES: Record<string, EntryRule> = {
       // scanner has no business in a user's shipped CLI — `cli.ts` loads it on the
       // `migrate` path only (K6), the same arrangement `dev.js` has above.
       "migrate.js",
+      // Whether a person may be asked (N12) is roundel's rule, and roundel is denied here by
+      // name, so its call lives in a chunk the engine imports on dispatch and never statically.
+      "ctx.js",
       "roundel",
       "flagstaff",
       "caique",
@@ -374,6 +386,8 @@ const RULES: Record<string, EntryRule> = {
   // 39,200 on 2026-09-24 for U5 merged with N15 (#586) — the same engine bytes as `.`. Measured 39,120.
   // `linegauge/strip` on 2026-09-28: `stripAnsi` is linegauge's `strip` rather than a regex
   // that missed private modes, the colon SGR form and OSC 8. Measured 39,150 (+8).
+  // 38,143 on 2026-09-30 (-1,007): `ctx.interactive` moved to the lazy `ctx.js`, taking `agent.js`
+  // off the engine's static graph; the harness now forwards `tty` onto stdin as well (+78).
   "./testing": { allow: ["closeout", "linegauge/strip", "seniority/precedence"], budget: 39_200, denied: ["dev.js", "migrate.js"] },
   // 48,900 with D-140 and #521 on top of S4 — the same engine bytes as `.`. Measured 48,880.
   // 48,750 with D-140 on top of D-122 and #521 — the same engine bytes as `.`. Measured 48,746.
@@ -395,6 +409,8 @@ const RULES: Record<string, EntryRule> = {
   // 2026-09-28: `colorFor` is roundel's `colorLevel`, so `roundel/policy` (1,972 B, reaching
   // nothing) leaves the denied list for this entry alone. It is the lazy help chunk: the core
   // path, which still denies `roundel` by name, does not move. Measured 8,512 (-58).
+  // 2026-09-30 (D-20260930-failures-teach-recovery): every runnable command lists `--explain`,
+  // and the root help ends with one line for agents. Measured 8,953 (+459), inside the budget.
   "./help": {
     allow: ["linegauge", "roundel/policy"],
     budget: 9_130,

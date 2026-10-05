@@ -1,14 +1,17 @@
 /**
- * `paratext/term-img` — the `term-img` surface, drop-in for the bytes it can produce.
+ * `paratext/term-img` — the `term-img` surface, drop-in for everything it accepts.
  *
  * A subpath rather than the package root, because the root default export is already
- * `ansi-escapes`' object (R8) and `term-img`'s is a function (D-006). Graded **12 / 18**
- * against term-img's own suite, and 12 is the ceiling: the six red cases all hand a **path**
- * to a supported terminal, and D-030 says `image` takes bytes, so that `node:fs` stays out
- * of a package that otherwise touches nothing but strings. The refusal below sits at exactly
- * the line upstream calls `readFileSync`, which is what keeps the four path-to-an-unsupported-
- * terminal cases passing. The six are named in `compat-oracle/src/hosts.ts` and the whole
- * argument is in `.sdlc/intents/paratext/design.md`.
+ * `ansi-escapes`' object (R8) and `term-img`'s is a function (D-006). Graded **18 / 18**
+ * against term-img's own suite, level with the control. It takes a file **path** (a string,
+ * or a `URL`) as well as bytes, and reads the path with `node:fs` at exactly the line upstream
+ * calls `readFileSync` — after the argument check and after the terminal check, so a path
+ * handed to an unsupported terminal is never opened, as upstream never opens it.
+ *
+ * **This is the one module in paratext that imports `node:fs`**
+ * (D-20260930-paratext-term-img-path, superseding D-030 for this subpath only). The root
+ * `image()` still takes bytes, and `weight.test.ts` fails if `node:fs` is reachable from any
+ * published entry but this one.
  *
  * This file carries `term-img`'s own terminal table rather than `IMAGE.when`, which also
  * requires a tty. Not to buy a case: `term-img`'s unsupported branch is `fallback()`, whose
@@ -17,6 +20,8 @@
  * The root's `image()` keeps the clause, where the projection really is a string.
  * `term-img.test.ts` pins the divergence so a later consistency edit has to argue with it.
  */
+import { readFileSync } from 'node:fs';
+
 import { IMAGE, imageFields, type ImageOptions } from './image.js';
 import { processRuntime, type Runtime } from './runtime.js';
 import { render } from './template.js';
@@ -39,11 +44,22 @@ export class UnsupportedTerminalError extends Error {
   }
 }
 
-/** `term-img`'s options: `ansi-escapes`' four, plus the escape hatch from the throw. */
-export interface TerminalImageOptions extends ImageOptions {
-  /** Called instead of throwing when the terminal cannot draw it. Its return value is ours. */
-  fallback?: () => string;
+/**
+ * `term-img`'s options: `ansi-escapes`' four, plus the escape hatch from the throw.
+ *
+ * Generic over what `fallback` returns, as upstream's `Options<FallbackType>` is, so the
+ * idiom in term-img's own README — a `fallback` that does something and returns nothing —
+ * type-checks here too. The default is upstream's `unknown`, so a bare `Options` annotation
+ * takes any `fallback`; the *call* defaults to `never` instead, so a call with no `fallback`
+ * is typed `string`, which is what it returns, where upstream's is typed `unknown`.
+ */
+export interface TerminalImageOptions<FallbackType = unknown> extends ImageOptions {
+  /** Called instead of throwing when the terminal cannot draw it. What it returns is returned. */
+  fallback?: () => FallbackType;
 }
+
+/** Upstream's name for the options, so `import { type Options } from 'term-img'` migrates. */
+export type Options<FallbackType = unknown> = TerminalImageOptions<FallbackType>;
 
 function unsupported(): never {
   throw new UnsupportedTerminalError(SUPPORTED_TERMINALS);
@@ -110,8 +126,12 @@ export function supportsInlineImage(runtime: Runtime): boolean {
   return false;
 }
 
-/** What upstream's argument accepts, including the path form this package refuses. */
-export type TerminalImageInput = Uint8Array | string | null | undefined;
+/**
+ * What upstream's argument accepts — bytes or a file path — plus a file `URL`, which
+ * `readFileSync` takes and upstream refuses as `Image required` only because a `URL` has no
+ * `length`. A superset: every call upstream accepts means the same thing here.
+ */
+export type TerminalImageInput = Uint8Array | string | URL | null | undefined;
 
 /**
  * `terminalImage` bound to a runtime you supply — the pure form, and what the export wraps.
@@ -119,17 +139,19 @@ export type TerminalImageInput = Uint8Array | string | null | undefined;
  * The order of the three checks is upstream's, exactly, because every one of its cases
  * depends on it: the argument is validated *before* the terminal is consulted, and the
  * terminal is consulted *before* the bytes are wanted. That is why a path handed to an
- * unsupported terminal still raises `UnsupportedTerminalError` here rather than the path
- * refusal — upstream would not have opened the file either.
+ * unsupported terminal raises `UnsupportedTerminalError` (or calls `fallback`) without the
+ * file being opened — a missing file on a terminal that cannot draw it is not an `ENOENT`,
+ * because upstream would not have opened it either.
  */
 export function terminalImageFor(runtime: Runtime) {
-  return (image?: TerminalImageInput, options: TerminalImageOptions = {}): string => {
+  return <FallbackType = never>(image?: TerminalImageInput, options: TerminalImageOptions<FallbackType> = {}): string | FallbackType => {
     const fallback = typeof options.fallback === 'function' ? options.fallback : unsupported;
-    if (image === undefined || image === null || image.length === 0) throw new TypeError('Image required');
+    if (image === undefined || image === null || (!(image instanceof URL) && image.length === 0)) throw new TypeError('Image required');
     if (!supportsInlineImage(runtime)) return fallback();
-    // Upstream's `fs.readFileSync(image)` is this line. See the ceiling note above.
-    if (typeof image === 'string') throw new TypeError('Image must be bytes, not a path. paratext takes no `node:fs` dependency (D-030), so the caller owns the read: `terminalImage(await readFile(path))`. `term-img` accepted a path and this is the one call it made that this package will not.');
-    return render(IMAGE.encode, imageFields(image, options));
+    // Upstream's `fs.readFileSync(image)` is this line, and so is its error: a missing file
+    // is `ENOENT` from `node:fs`, not a message of ours.
+    const bytes = typeof image === 'string' || image instanceof URL ? readFileSync(image) : image;
+    return render(IMAGE.encode, imageFields(bytes, options));
   };
 }
 

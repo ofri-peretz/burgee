@@ -1,0 +1,160 @@
+---
+title: Drop-in façades and migration
+description: "A drop-in reproduces its incumbent's API and behaviour, never its mechanism; burgee migrate moves only the imports the compatibility oracle grades level, and refuses the rest file by file."
+---
+
+## What it is
+
+Each family package publishes **drop-ins**: subpaths that export an incumbent's API over the
+family's own implementation. `burgee/commander` for `commander`, `roundel/chalk` for `chalk`,
+`flagstaff/ora` for `ora`, `linegauge` for `string-width`, and 26 specifiers in all. Moving to
+one is an import change and nothing else:
+
+```diff
+- import { Command } from 'commander';
++ import { Command } from 'burgee/commander';
+```
+
+[`burgee migrate`](/docs/migrate) makes that change across a project, for every drop-in that is
+ready.
+
+## Why it exists
+
+A replacement nobody can adopt without a rewrite is not a replacement. A drop-in lets a program
+move one import at a time and keep working at every step — and once it has moved, the program
+is on the family's mechanisms: one output policy, one exit registry, one width function, and
+the [agent surfaces](/docs/concepts/agent-surfaces) that come with burgee's engine.
+
+## The rule: API and behaviour, never mechanism
+
+A drop-in reproduces what the incumbent **does** — its exports, its return values, its exit
+codes, its output — because that is what the incumbent's own test suite grades. It does not
+reproduce **how** the incumbent does it when a layer of the family owns that job.
+`burgee/src/yargs/cliui.ts` is the model the rule cites: a yargs façade that takes `width`,
+`strip` and `wrap` from linegauge and keeps only yargs' own layout. The rule is stated, and
+enforced, by
+[`inline-implementation-lock.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/inline-implementation-lock.test.ts):
+a façade that measures text by hand, reads `NO_COLOR` itself or spawns a process with
+`node:child_process` fails it, unless the file is a row in the lock's `KNOWN` table with the
+reason — which is how `burgee/commander` keeps commander's own colour rule, because commander's
+suite grades exactly that rule.
+
+The façades are also never wrappers: `burgee/commander` is written over burgee's engine, and
+no published package depends on commander. The real incumbents are development dependencies of
+this repository, installed only to be compared against — by the compatibility oracle and the
+benchmarks.
+
+Three more locks hold the surface:
+
+- a drop-in exports every name its incumbent exports, types included, except the gaps listed by
+  name
+  ([`drop-in-type-surface-lock.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/drop-in-type-surface-lock.test.ts));
+- `require()` of a drop-in returns the same kind of value as `require()` of its incumbent
+  ([`drop-in-require-shape-lock.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/drop-in-require-shape-lock.test.ts));
+- the table `burgee migrate` rewrites by is exactly the set of pairs the oracle grades, and the
+  table on [Migrate](/docs/migrate) is exactly the one in the code
+  ([`migrate-drop-ins-lock.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/migrate-drop-ins-lock.test.ts)).
+
+## How a drop-in reaches 100%
+
+The [compatibility oracle](/docs/concepts/evidence#the-compatibility-oracle) runs the incumbent's
+own test suite against the drop-in. The rate is `passed / reference`, where the reference is
+the number of cases the same suite registers against the real incumbent (the *control*), so a
+file that fails to load cannot shrink the denominator. Three thresholds use that number:
+
+| Threshold | Condition | What it gates |
+| :-- | :-- | :-- |
+| **level** | passes at least as many cases as the incumbent passes against itself | whether `burgee migrate` rewrites the import (D-137) |
+| **full** | passes every case of the reference | a `yes` in a capability matrix that cites the grade |
+| **1.0** | a rate of 100% | the front-end's own 1.0 release; below it, never described as compatible |
+
+A drop-in that is graded but not level — cosmiconfig and dotenv today — is
+reported by `migrate` as `partial`, with its grade, and left alone. The rates are on
+[Compatibility](/docs/compatibility).
+
+## `burgee migrate`
+
+It rewrites **import specifiers and nothing else**: `import … from`, bare `import`, `export …
+from`, `import()` and `require()` with a literal string. Everything else in a file is left
+byte for byte. Its safety rules:
+
+- **Only level drop-ins.** The mapping is derived from the graded table, not typed by hand.
+- **Only the graded major.** An incumbent installed, or declared, on another major is reported
+  under `offMajor` with both versions, and its files are skipped.
+- **A file is rewritten whole or not at all.** One refused specifier leaves the whole file as it
+  was. The refusals are `deep-import` (`commander/lib/command.js`), `non-literal-specifier`
+  (`require(name)`), `unknown-export` (a value import of a name the drop-in does not export) and
+  `require-of-default` (a `require()` whose two sides would return different kinds of value), and
+  `sibling-state` (a clack file that also imports `@clack/core`, whose settings `caique/clack`
+  never reads; it carries a `fix`). A
+  type-only import of a missing name is `kept` on the incumbent, not refused.
+- **No dirty tree.** Without `--force`, uncommitted changes stop the run before anything is
+  written, so the rewrite is one reviewable diff, and the refusal prints its fix: `commit or
+  stash your changes, or pass --force`. `--dry-run` writes nothing, so it skips that check.
+- **It never edits `package.json`.** It prints the one command that adds the family packages and
+  removes the incumbents that are no longer imported, for the package manager the lockfile names.
+  A refused file still imports everything in it, so no incumbent it names is called removable or
+  uninstalled (`keeps an incumbent imported only in a refused file out of removable, and out of
+  npm uninstall`).
+- **It exits 1 when anything was refused**, with the whole report still printed, so an agent can
+  run it unattended and branch on the result.
+
+Each rule is a case in
+[`migrate.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/migrate.test.ts):
+`refuses a deep import and leaves the file exactly as it was`, `leaves a file entirely unchanged
+when one specifier in it is refused`, `leaves an incumbent on another major alone, and says which
+versions`, `refuses a dirty tree, and names the fix`, `writes nothing under --dry-run, and still
+reports what it would do` and `reports RUNTIME when anything was refused`.
+
+## Run it
+
+A project with two level drop-ins and one deep import:
+
+```json title="package.json"
+{ "name": "hello", "dependencies": { "chalk": "^6.0.0", "commander": "^15.0.0" } }
+```
+
+```js title="cli.mjs"
+import chalk from 'chalk';
+import { Command } from 'commander';
+
+const program = new Command('hello');
+program.action(() => console.log(chalk.green('hi')));
+program.parse();
+```
+
+```js title="legacy.mjs"
+import { Help } from 'commander/lib/help.js';
+
+export const help = new Help();
+```
+
+```text title="npx burgee migrate --dry-run" exit="1"
+files: 1
+imports: 2
+mapped: [{"from":"commander","to":"burgee/commander","imports":1,"files":1},{"from":"chalk","to":"roundel/chalk","imports":1,"files":1}]
+refused: [{"file":"legacy.mjs","line":1,"specifier":"commander/lib/help.js","reason":"deep-import"}]
+kept: []
+detected: {"declared":["commander","chalk"],"imported":["chalk","commander"]}
+dependencies: {"before":["commander","chalk"],"removable":["chalk"],"after":1,"add":["burgee","roundel"]}
+graded: [{"host":"chalk","reference":59,"passed":59,"rate":1,"control":59},{"host":"commander","reference":1360,"passed":1360,"rate":1,"control":1360}]
+partial: []
+offMajor: []
+next: npm install burgee roundel && npm uninstall chalk
+dryRun: true
+changed: false
+exitCode: 1
+```
+
+`cli.mjs` would move; `legacy.mjs` is refused and stays as it was, so `commander` stays
+installed and only `chalk` is removable.
+
+## Where the rules live
+
+- [Migrate](/docs/migrate) — the full table of what moves, and every case it leaves alone.
+- Spec: [burgee-migrate](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/burgee-migrate/spec.md);
+  decision [D-137](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/decisions/D-137.md) (what
+  "level" means).
+- Each package's **Drop-ins** page and its **Coming from** guides, such as
+  [Coming from chalk](https://roundel.interlace.tools/docs/coming-from/chalk).
+- [burgee vs commander](/docs/vs/commander) and [burgee vs yargs](/docs/vs/yargs).

@@ -1,0 +1,200 @@
+---
+title: The output policy
+description: "One function decides where output is going and how much colour it may carry: roundel/policy's outputMode() and colorLevel(), and roundel/terminal's interactive(). The packages that draw ask them rather than reading the process themselves."
+---
+
+## What it is
+
+Two subpaths of [roundel](https://roundel.interlace.tools/docs) answer the questions every
+package that draws has to ask before it writes a byte:
+
+- [`roundel/policy`](https://roundel.interlace.tools/docs/api/policy): **which mode** this run
+  is in (`outputMode`), and **how much colour** it may use (`colorLevel`).
+- [`roundel/terminal`](https://roundel.interlace.tools/docs/api/terminal): **is anybody there
+  to type** (`interactive`), and can the terminal draw a tick (`unicode`).
+
+All four are pure functions of a runtime you pass in (`env`, `isTTY`, and for colour `argv`),
+never of `process`. The same input always gives the same answer, so a test passes a literal
+and a harness can ask the question a program asked.
+
+## Why it exists
+
+A spinner, a prompt and the help text each have to decide whether the terminal is a
+terminal. When each package decides its own way, they disagree about the same run: one
+animates into a CI log while another has already gone plain. `roundel/policy`'s own
+documentation cites that failure (clack #286) as the reason it exists: every package in the
+family that draws asks here instead of reading `isTTY`, `NO_COLOR`, `FORCE_COLOR`, `CI`,
+`CLI_ACCESSIBLE` or a `--color` flag itself.
+
+The exceptions are named, not tolerated: `flagstaff/ora`'s `isInteractive`, `caique/clack`'s
+`isCI`, `burgee/commander`'s colour check and paratext's hyperlink detection each reproduce
+their incumbent's own detection, because the incumbent's suite grades exactly that. Each is a
+row, with its reason, in the `KNOWN` table of
+[`inline-implementation-lock.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/inline-implementation-lock.test.ts).
+
+## The modes
+
+`outputMode(rt, { json })` returns one of five modes. The first row that matches wins:
+
+| Order | Mode | Chosen when |
+| ---: | :-- | :-- |
+| 1 | `json` | the caller passed `{ json: true }`: the run was asked for `--json` |
+| 2 | `accessible` | `CLI_ACCESSIBLE` is set, terminal or not |
+| 3 | `tty` | stdout is a terminal |
+| 4 | `ci` | `CI` is set and stdout is not a terminal |
+| 5 | `pipe` | anything else |
+
+An empty variable is not set: `CI=` and `CLI_ACCESSIBLE=` are the same as leaving them out,
+the convention `NO_COLOR` established. `--json` is passed in rather than read from `argv`,
+because whether a run asked for structured output is the argument parser's knowledge.
+
+There is no `agent` mode. An agent reading a pipe is `pipe`, an agent that asked for
+`--json` is `json`, and whether an agent can be *asked* something is a separate question,
+`interactive()`, below.
+
+Pinned by `outputMode — R1, first match wins` and `an empty variable is not set` in
+[`policy.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/roundel/src/policy.test.ts).
+
+## The mode is not the colour
+
+The mode decides **redraws**: whether a component animates in place (`tty`) or prints its
+[static projection](/docs/concepts/static-projection) once per change. It never decides the
+colour level, which `colorLevel(rt, { json })` answers from the user's instruction first and
+detection second, in this order:
+
+1. **`--json`, `NO_COLOR`, or accessible with nothing asked → 0.** Structured output carries no
+   escapes. A non-empty `NO_COLOR` beats every instruction below, including `FORCE_COLOR=3`
+   and `--color`. `CLI_ACCESSIBLE` defaults to 0, because colour is noise to a screen reader,
+   but an explicit ask still wins over it.
+2. **An exact instruction → that level.** `FORCE_COLOR=0` (or `false`) is read *before* any
+   flag, so `FORCE_COLOR=0 --color=256` is off: an explicit "off" is never undone by a level
+   flag. After that the `--color` flags in `argv` outrank a numeric `FORCE_COLOR`:
+   `--no-color`, `--no-colors`, `--color=false|never` are 0; `--color=256` is 2;
+   `--color=16m|full|truecolor` is 3. A numeric `FORCE_COLOR` is that level, clamped to 3.
+   Only flags before a `--` terminator count, and an unrecognised value (`--color=lots`) is no
+   instruction.
+3. **Azure Pipelines** (`TF_BUILD` and `AGENT_NAME`) → 1, the one runner read above the pipe
+   check.
+4. **A pipe nobody asked to colour → 0.**
+5. **`TERM=dumb`** → the floor: 1 if something asked for colour (`FORCE_COLOR=true`,
+   `--color`), else 0.
+6. **Detection.** With `CI` present, the CI vendor's level (`GITHUB_ACTIONS`, `GITEA_ACTIONS`,
+   `CIRCLECI` are 3; `TRAVIS`, `APPVEYOR`, `GITLAB_CI`, `BUILDKITE`, `DRONE` and Codeship are
+   1; any other runner 0); otherwise `COLORTERM=truecolor` is 3, a `TERM` ending in `-256` or
+   `-256color` is 2, and a known `TERM` or any `COLORTERM` is 1. An ask for colour without a
+   level (`FORCE_COLOR=true`, `--color`) never goes below 1.
+
+The levels are chalk's: 0 none, 1 sixteen colours, 2 256 colours, 3 truecolor. With no
+instruction the order is supports-color's, which chalk's own `level.js` asserts, so the
+family and chalk agree about a bare pipe. Each rule is a `describe` block in
+[`policy.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/roundel/src/policy.test.ts):
+`R2 revised 2026-09-08: FORCE_COLOR is the user’s instruction, in any mode`,
+`the --color flags, when the caller hands over argv`,
+`an explicit “colour off” is never overridden into colour on`,
+`accessible mode is a pipe, not a terminal (R2)` and
+`the CI vendor table, once the run has asked for colour`.
+[Colour levels](https://roundel.interlace.tools/docs/guides/colour-levels) on roundel's site
+has the full table.
+
+## Is anybody there to type?
+
+`interactive(rt)` is true when `FORCE_TTY=1`, and otherwise only with a terminal on stdin,
+no non-empty `CI`, and none of the agent variables `AI_AGENT`, `CLAUDECODE`, `CURSOR_AGENT`,
+`CODEX_THREAD_ID`, `GEMINI_CLI` (exported as `AGENTS`). An agent may have a terminal; what it
+does not have is a person. Pinned by the `interactive` block of
+[`terminal.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/roundel/src/terminal.test.ts),
+including `names CLAUDECODE, which is the case that hung an agent`.
+
+Those five are the whole list, and a variable joins it only when it **uniquely** identifies an
+agent: the agent sets it, and no terminal a person types in does. `CURSOR_TRACE_ID` fails that
+test, because Cursor sets it in every integrated terminal, and taking it would stop every person
+in Cursor from being asked anything (`asks a person in Cursor` in the same file).
+
+## Run it
+
+`colorLevel` and `outputMode` read a runtime; this one describes the real process:
+
+```js title="policy.mjs"
+import { colorLevel, outputMode } from 'roundel/policy';
+import { interactive } from 'roundel/terminal';
+
+const json = process.argv.includes('--json');
+const rt = {
+  env: process.env,
+  argv: process.argv.slice(2),
+  isTTY: { stdout: process.stdout.isTTY === true, stdin: process.stdin.isTTY === true },
+};
+
+console.log(`mode=${outputMode(rt, { json })} level=${colorLevel(rt, { json })} interactive=${interactive(rt)}`);
+```
+
+Piped, as every command below runs, with stdin closed:
+
+```text title="node policy.mjs"
+mode=pipe level=0 interactive=false
+```
+
+```text title="CI=1 node policy.mjs"
+mode=ci level=0 interactive=false
+```
+
+```text title="CLI_ACCESSIBLE=1 node policy.mjs --color=256"
+mode=accessible level=2 interactive=false
+```
+
+```text title="NO_COLOR=1 FORCE_COLOR=3 node policy.mjs --color=256"
+mode=pipe level=0 interactive=false
+```
+
+```text title="FORCE_COLOR=0 node policy.mjs --color=256"
+mode=pipe level=0 interactive=false
+```
+
+```text title="CI=1 GITHUB_ACTIONS=true FORCE_COLOR=true node policy.mjs"
+mode=ci level=3 interactive=false
+```
+
+```text title="FORCE_COLOR=1 node policy.mjs --json"
+mode=json level=0 interactive=false
+```
+
+```text title="FORCE_TTY=1 node policy.mjs"
+mode=pipe level=0 interactive=true
+```
+
+## How the family consults it
+
+Only packages that compose may import roundel ([the family](/docs/concepts/family) has the
+rule), so the policy is read by the three packages that draw, and by nothing below them:
+
+| Package | Asks | For |
+| :-- | :-- | :-- |
+| [flagstaff](https://flagstaff.interlace.tools/docs/guides/static-projection) | `outputMode` | once per `hoist()`: `tty` animates, `json` writes NDJSON to stderr, every other mode prints the static projection |
+| flagstaff | `unicode` | `flagstaff/ora`'s symbols, as is-unicode-supported decides them |
+| [caique](https://caique.interlace.tools/docs/guides/never-hangs) | `interactive` | `caique/decide`: nobody there means refuse and name the flag, never wait |
+| caique | `unicode` | `caique/inquirer`'s glyphs |
+| burgee | `interactive` | `ctx.interactive`, whether a handler may ask: loaded only on the path that runs one |
+| burgee | `colorLevel` | whether help is coloured (`help.ts`'s `colorFor`) |
+
+Every question-side decision in the family is `interactive()`. burgee's `ctx.interactive` is
+roundel's answer, not a rule of its own: before 2026-09-30 it came from `detectAgent`, which read
+stdout and ignored `CI`, so a CI job with a pseudo-terminal was "ask" to a burgee handler and
+"refuse" to a caique prompt (D-20260930-one-interactive-rule). burgee imports `roundel/terminal`
+in a chunk of its own, on the path that hands a handler its context, so its root entry, which
+denies roundel by name, reaches none of it. Output-side decisions stay on the output policy: help
+colours by `colorLevel` over stdout, and `ctx.agent` still names the agent. Pinned by
+`one rule for whether a person may be asked (N12)` in
+[`agent.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/agent.test.ts).
+
+The leaves take a runtime slice of the same shape and decide their own narrower question
+from it: paratext whether a terminal escape is supported, for instance. They cannot import
+roundel, because a leaf depends on nothing in the family.
+
+## Where the rules live
+
+- Spec: [roundel R1, R2 and R12](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/roundel/spec.md).
+- API: [`roundel/policy`](https://roundel.interlace.tools/docs/api/policy),
+  [`roundel/terminal`](https://roundel.interlace.tools/docs/api/terminal).
+- Guides: [The output policy](https://roundel.interlace.tools/docs/guides/output-policy) and
+  [Colour levels](https://roundel.interlace.tools/docs/guides/colour-levels) on roundel's
+  site.

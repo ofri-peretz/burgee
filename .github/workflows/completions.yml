@@ -50,4 +50,6 @@ jobs:
       - name: Build
         run: npx turbo run build --filter=burgee
       - name: Every shell exercises its script
+        env:
+          REQUIRE_SHELLS: "1"
         run: cd packages/burgee && npx vitest run src/completions.test.ts --reporter=verbose

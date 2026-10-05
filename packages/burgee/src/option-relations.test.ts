@@ -105,8 +105,22 @@ describe('the failure is a usage error in this CLI’s established shape', () =>
   it('exits 2, prints `error:` and a hint, and no stack', async () => {
     const r = await run(['export', '--out', 'rows.csv']);
     expect(r.code).toBe(ExitCode.USAGE);
-    expect(r.stderr).toBe('error: --out requires --force\nhint: pass --force\n');
-    expect(r.stderr).not.toContain('at ');
+    // D-20260930 — and what the command takes, since the error carries no `fix` to run instead.
+    expect(r.stderr).toBe(
+      [
+        'error: --out requires --force',
+        'hint: pass --force',
+        'usage: app export [options]',
+        'options:',
+        '  --out <value>  where to write (requires --force)',
+        '  --force        overwrite what is there',
+        '  --csv          comma separated (conflicts with --table)',
+        '  --table        a drawn table',
+        '',
+      ].join('\n'),
+    );
+    // A stack frame, not the word: the usage block says "overwrite what is there".
+    expect(r.stderr).not.toMatch(/^\s+at /mu);
   });
 
   it('--json carries it in the same envelope every other usage error uses', async () => {
@@ -115,7 +129,7 @@ describe('the failure is a usage error in this CLI’s established shape', () =>
     expect(r.stderr).toBe('');
     expect(JSON.parse(r.stdout)).toEqual({
       ok: false,
-      error: { code: ExitCode.USAGE, message: '--csv, --table cannot be used together', hint: 'drop one of them' },
+      error: { code: ExitCode.USAGE, message: '--csv, --table cannot be used together', hint: 'drop one of them', usage: expect.objectContaining({ command: 'app export [options]' }) },
     });
   });
 });

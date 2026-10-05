@@ -1,5 +1,45 @@
 # compat-oracle
 
+## 0.1.4
+
+### Patch Changes
+
+- [#774](https://github.com/ofri-peretz/burgee/pull/774) [`b44f426`](https://github.com/ofri-peretz/burgee/commit/b44f426621ed799700cceda8c979de8f759f56b7) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `paratext/term-img` now takes a file path, as `term-img` does. `terminalImage('unicorn.jpg')` reads the file with `node:fs` and draws it, and a file `URL` works too. The read happens after the terminal check, so a path handed to a terminal that cannot draw it reaches your `fallback` (or `UnsupportedTerminalError`) without the file being opened. A missing file on a supported terminal throws `node:fs`'s `ENOENT`, as `term-img` does. The `Options` type is exported under term-img's name and is generic over what `fallback` returns, so a `fallback` that returns nothing type-checks.
+
+  `paratext/term-img` now grades 18 / 18 against term-img 7.1.0's own suite, level with term-img itself. It was 12 / 18: the six cases that pass a path were refused under D-030. This supersedes D-030 for this subpath only (D-20260930-paratext-term-img-path). It is the only paratext entry that imports `node:fs`. The root `image()` still takes bytes, and a lock fails if `node:fs` reaches the root or any other entry.
+
+  Because the row is level, `burgee migrate` now rewrites `term-img` to `paratext/term-img`.
+
+- Updated dependencies [[`d901bcb`](https://github.com/ofri-peretz/burgee/commit/d901bcb082af3ce748aba39dd18944b3efa769ea), [`b44f426`](https://github.com/ofri-peretz/burgee/commit/b44f426621ed799700cceda8c979de8f759f56b7), [`b69d513`](https://github.com/ofri-peretz/burgee/commit/b69d5136ac6a49e6bf39178f73fbd89f3f4c2653), [`6195b99`](https://github.com/ofri-peretz/burgee/commit/6195b99344a21b4a05ab100fc38358deab229ce8), [`24300f4`](https://github.com/ofri-peretz/burgee/commit/24300f42455836e73ba36daaf400c4ab2f8d1893)]:
+  - burgee@0.15.0
+  - roundel@0.6.1
+  - flagstaff@1.0.3
+
+## 0.1.3
+
+### Patch Changes
+
+- [#764](https://github.com/ofri-peretz/burgee/pull/764) [`1817b62`](https://github.com/ofri-peretz/burgee/commit/1817b6286fae3943e79686a42dc635cca0f0cdda) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `caique/clack` now grades 16 / 16 against `@clack/prompts` 1.8.1's own suite, level with clack itself at 16 / 16. It was 16 / 17. The pass count did not change. The denominator did: one case, `guide.test.ts`'s `no prompt renders a guide when withGuide is globally false`, is now excluded by its exact title. It imports `updateSettings` from `@clack/core` and asserts that the prompts read that package's module state, so it grades `@clack/core` and not `@clack/prompts` (D-20260930-caique-clack-core-exclusion). The exclusion and its reason are on the compatibility page.
+
+  Because the row is level, `burgee migrate` now rewrites `@clack/prompts` to `caique/clack`. It refuses a file that imports `box`, `progress` or `taskLog`, which `caique/clack` does not build, and leaves that file on clack. It does not rewrite `@clack/core`. So a migrated program that imports `updateSettings` from `@clack/core` is still changing clack's settings, and caique's prompts never read them. Import `updateSettings` from `caique/clack` instead.
+
+- Updated dependencies [[`1817b62`](https://github.com/ofri-peretz/burgee/commit/1817b6286fae3943e79686a42dc635cca0f0cdda), [`ee2b2ce`](https://github.com/ofri-peretz/burgee/commit/ee2b2ce452a3c5469ebadcb637dcc23015e81d3f), [`6c2e9c5`](https://github.com/ofri-peretz/burgee/commit/6c2e9c5cee5d9962c0d75d84a766c76b76760f7f)]:
+  - burgee@0.14.3
+  - flagstaff@1.0.2
+
+## 0.1.2
+
+### Patch Changes
+
+- [#760](https://github.com/ofri-peretz/burgee/pull/760) [`a115799`](https://github.com/ofri-peretz/burgee/commit/a1157991a5defddadfbea49ba8ea3bf161d4a832) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - chalk's graded release is 6.0.1: compat-oracle's vendored suite is re-vendored at `v6.0.1` (59 tests, one added), and `burgee migrate` names 6.0.1 as the chalk release `roundel/chalk` was graded at.
+
+  B2 cold start also spawns `picocolors`, `roundel/tokens` and `roundel/chalk`, and gates roundel's R8 time bar — each colour entry within picocolors + 10 ms — as `cold-start-delta-ms`, the median of per-round differences.
+
+- Updated dependencies [[`a115799`](https://github.com/ofri-peretz/burgee/commit/a1157991a5defddadfbea49ba8ea3bf161d4a832), [`a115799`](https://github.com/ofri-peretz/burgee/commit/a1157991a5defddadfbea49ba8ea3bf161d4a832)]:
+  - burgee@0.14.2
+  - roundel@0.6.0
+  - flagstaff@1.0.1
+
 ## 0.1.1
 
 ### Patch Changes

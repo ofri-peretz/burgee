@@ -50,9 +50,12 @@ equal.
 | `which` | `bellpull/node-which` |
 | `rc` | `seniority/rc` |
 | `lilconfig` | `seniority/lilconfig` |
+| `cosmiconfig` | `seniority` |
+| `@clack/prompts` | `caique/clack` |
 | `@inquirer/core` | `caique/inquirer` |
 | `meow` | `burgee/meow` |
 | `terminal-link` | `paratext/terminal-link` |
+| `term-img` | `paratext/term-img` |
 | `restore-cursor` | `closeout/restore-cursor` |
 | `exit-hook` | `closeout/exit-hook` |
 | `signal-exit` | `closeout/signal-exit` |
@@ -60,9 +63,9 @@ equal.
 
 ## What it leaves alone, and says so
 
-- **A drop-in that is not level yet.** dotenv, cosmiconfig, clack and term-img each have a
-  graded replacement that passes fewer of the incumbent's cases than the incumbent does. The report lists them under `partial` with the
-  grade, and never rewrites them: a codemod that breaks your CLI is worse than none.
+- **A drop-in that is not level yet.** dotenv has a
+  graded replacement that passes fewer of the incumbent's cases than the incumbent does. The report lists it under `partial` with the
+  grade, and never rewrites it: a codemod that breaks your CLI is worse than none.
 - **A name the replacement does not export.** Every imported name is checked against the
   replacement's exports. A type-only import of a missing name stays on the incumbent, with a
   note to keep its types installed; a value import of one refuses the file.
@@ -73,16 +76,28 @@ equal.
   rewritten. Upgrade it first, and run the command again.
 - **A `require()` whose two sides return different kinds of value.** `require()` of an ES
   module returns its namespace. The incumbents that ship ESM only (chalk 6, ora 9, boxen 8 and
-  nine more) already hand `require()` a namespace, and so do their replacements, so
+  ten more) already hand `require()` a namespace, and so do their replacements, so
   `const chalk = require('chalk')` moves. Where the incumbent hands back its export itself — a
   function or a class — and the replacement would hand back a namespace, the file is refused
   with `require-of-default`. No current replacement is in that position: each one whose
   incumbent returns a function exports it as `'module.exports'`, which is what Node hands a
   CommonJS caller. `const { Command } = require('commander')` moves, because it reads names.
+- **A clack file that also imports `@clack/core`.** `@clack/prompts` reads its settings from
+  `@clack/core`, and `caique/clack` does not depend on it. So once the prompts move, an
+  `updateSettings` imported from `@clack/core` changes settings nothing reads. A file that
+  imports `@clack/prompts` and imports, `import()`s or `require()`s `@clack/core` is refused
+  with `sibling-state`, and the refusal carries its `fix`:
+  `import { updateSettings } from 'caique/clack' instead of '@clack/core', then re-run burgee migrate`.
+  A type-only import of `@clack/core` configures nothing and does not refuse. A file that
+  imports `@clack/core` and not `@clack/prompts` is not rewritten, so it is not refused either.
+  The check reads one file at a time: an `updateSettings` from `@clack/core` in a file with no
+  clack prompts is not seen.
 - **A deep import** (`commander/lib/command.js`) or **a specifier that is not a literal**
   (`require(name)`). The file is refused by name and line, and left exactly as it was — a
   file is rewritten whole or not at all.
-- **A dirty git tree**, unless you pass `--force`, so the rewrite is one reviewable diff.
+- **A dirty git tree**, unless you pass `--force`, so the rewrite is one reviewable diff. The
+  command exits 1 and writes nothing. `--dry-run` writes nothing either way, so it skips the
+  check, and a directory that is not a git repository has nothing to be dirty.
 
 ## Why an import, not `overrides`
 

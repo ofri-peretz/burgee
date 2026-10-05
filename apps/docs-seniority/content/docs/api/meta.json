@@ -10,6 +10,7 @@
     "lilconfig",
     "rc",
     "find-up",
+    "yaml",
     "config"
   ]
 }

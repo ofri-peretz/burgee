@@ -3,6 +3,37 @@ title: Changelog
 description: "Every release of flagstaff, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.0.3
+
+### Patch Changes
+
+- Updated dependencies [[`b44f426`](https://github.com/ofri-peretz/burgee/commit/b44f426621ed799700cceda8c979de8f759f56b7), [`6195b99`](https://github.com/ofri-peretz/burgee/commit/6195b99344a21b4a05ab100fc38358deab229ce8)]:
+  - paratext@0.8.0
+  - roundel@0.6.1
+
+## 1.0.2
+
+### Patch Changes
+
+- [#763](https://github.com/ofri-peretz/burgee/pull/763) [`6c2e9c5`](https://github.com/ofri-peretz/burgee/commit/6c2e9c5cee5d9962c0d75d84a766c76b76760f7f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Faster, and lighter:
+
+  - `link()` from `paratext` reads the process once, on its first call, where it used to rebuild the runtime and re-read the environment on every call.
+  - `paratext/terminal-link` decides hyperlink support once per stream, as `supports-hyperlinks` does at import, and emits a link as a single concatenation.
+  - Templates are parsed once, and `eraseLines` keeps the strings for the counts a redraw uses.
+  - In B5 (ours ÷ incumbent, in-process), `paratext` against ansi-escapes went from 8.9× to 0.97× locally, and `paratext/terminal-link` against terminal-link from 20.9× to 0.78×.
+  - The root bundle is 1,356 B smaller (8,417 → 7,061), because the plugin-schema fragments paratext and flagstaff import to validate no longer carry the schema's prose. The published `schema.json` is unchanged.
+
+- Updated dependencies [[`6c2e9c5`](https://github.com/ofri-peretz/burgee/commit/6c2e9c5cee5d9962c0d75d84a766c76b76760f7f), [`6c2e9c5`](https://github.com/ofri-peretz/burgee/commit/6c2e9c5cee5d9962c0d75d84a766c76b76760f7f)]:
+  - linegauge@1.0.1
+  - paratext@0.7.5
+
+## 1.0.1
+
+### Patch Changes
+
+- Updated dependencies [[`a115799`](https://github.com/ofri-peretz/burgee/commit/a1157991a5defddadfbea49ba8ea3bf161d4a832)]:
+  - roundel@0.6.0
+
 ## 1.0.0
 
 ### Major Changes

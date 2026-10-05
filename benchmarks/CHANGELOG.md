@@ -1,5 +1,73 @@
 # benchmarks
 
+## 0.0.10
+
+### Patch Changes
+
+- [#780](https://github.com/ofri-peretz/burgee/pull/780) [`c901047`](https://github.com/ofri-peretz/burgee/commit/c90104751a84e46b8bfd4d007a90c40d3f88658c) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - B5 ceilings are derived from each pair's CI spread, max(mean + 3σ, largest reading), and the derivation is written beside each ceiling. Spec bars keep their value and run more rounds.
+- Updated dependencies [[`1857ff6`](https://github.com/ofri-peretz/burgee/commit/1857ff65ca0e1b0b5686480c1a37dc8834bf688b), [`1857ff6`](https://github.com/ofri-peretz/burgee/commit/1857ff65ca0e1b0b5686480c1a37dc8834bf688b), [`08976ae`](https://github.com/ofri-peretz/burgee/commit/08976ae734f0494720e0dce06dd850bf7177766f)]:
+  - bellpull@0.5.1
+  - linegauge@1.0.2
+  - burgee@0.16.0
+  - roundel@0.6.2
+
+## 0.0.9
+
+### Patch Changes
+
+- Updated dependencies [[`d901bcb`](https://github.com/ofri-peretz/burgee/commit/d901bcb082af3ce748aba39dd18944b3efa769ea), [`b44f426`](https://github.com/ofri-peretz/burgee/commit/b44f426621ed799700cceda8c979de8f759f56b7), [`b69d513`](https://github.com/ofri-peretz/burgee/commit/b69d5136ac6a49e6bf39178f73fbd89f3f4c2653), [`6195b99`](https://github.com/ofri-peretz/burgee/commit/6195b99344a21b4a05ab100fc38358deab229ce8), [`24300f4`](https://github.com/ofri-peretz/burgee/commit/24300f42455836e73ba36daaf400c4ab2f8d1893)]:
+  - burgee@0.15.0
+  - paratext@0.8.0
+  - compat-oracle@0.1.4
+  - roundel@0.6.1
+  - caique@0.6.4
+  - flagstaff@1.0.3
+
+## 0.0.8
+
+### Patch Changes
+
+- Updated dependencies [[`e928581`](https://github.com/ofri-peretz/burgee/commit/e928581996fdeb317b4c849ae285593bfecf6b4d), [`1817b62`](https://github.com/ofri-peretz/burgee/commit/1817b6286fae3943e79686a42dc635cca0f0cdda), [`6c2e9c5`](https://github.com/ofri-peretz/burgee/commit/6c2e9c5cee5d9962c0d75d84a766c76b76760f7f), [`ee2b2ce`](https://github.com/ofri-peretz/burgee/commit/ee2b2ce452a3c5469ebadcb637dcc23015e81d3f), [`6c2e9c5`](https://github.com/ofri-peretz/burgee/commit/6c2e9c5cee5d9962c0d75d84a766c76b76760f7f)]:
+  - bellpull@0.5.0
+  - burgee@0.14.3
+  - caique@0.6.3
+  - compat-oracle@0.1.3
+  - linegauge@1.0.1
+  - paratext@0.7.5
+  - flagstaff@1.0.2
+
+## 0.0.7
+
+### Patch Changes
+
+- [#760](https://github.com/ofri-peretz/burgee/pull/760) [`a115799`](https://github.com/ofri-peretz/burgee/commit/a1157991a5defddadfbea49ba8ea3bf161d4a832) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - chalk's graded release is 6.0.1: compat-oracle's vendored suite is re-vendored at `v6.0.1` (59 tests, one added), and `burgee migrate` names 6.0.1 as the chalk release `roundel/chalk` was graded at.
+
+  B2 cold start also spawns `picocolors`, `roundel/tokens` and `roundel/chalk`, and gates roundel's R8 time bar — each colour entry within picocolors + 10 ms — as `cold-start-delta-ms`, the median of per-round differences.
+
+- Updated dependencies [[`a115799`](https://github.com/ofri-peretz/burgee/commit/a1157991a5defddadfbea49ba8ea3bf161d4a832), [`a115799`](https://github.com/ofri-peretz/burgee/commit/a1157991a5defddadfbea49ba8ea3bf161d4a832)]:
+  - burgee@0.14.2
+  - compat-oracle@0.1.2
+  - roundel@0.6.0
+  - caique@0.6.2
+  - flagstaff@1.0.1
+
+## 0.0.6
+
+### Patch Changes
+
+- [#756](https://github.com/ofri-peretz/burgee/pull/756) [`5881db0`](https://github.com/ofri-peretz/burgee/commit/5881db06176716a7f9bc42011a4bb2a2c9e0dd7a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - B5 gains `bellpull ÷ tinyexec`, bellpull R8's spawn half: `run('node', ['--version'])` against tinyexec's `x`, each awaited to the child's close with its stdout read. Gated at 1.0 — R8's own bar, not a ratchet above a measurement. Reads 0.933 on an M4 Pro.
+- Updated dependencies [[`12bac9c`](https://github.com/ofri-peretz/burgee/commit/12bac9c99cb87ec2b67a56b4afc38de2c21687c7), [`22e6dae`](https://github.com/ofri-peretz/burgee/commit/22e6dae1b71bfa478265829a1b98d20a6f9de4f7)]:
+  - paratext@0.7.4
+  - bellpull@0.4.5
+  - caique@0.6.1
+  - roundel@0.5.6
+
+## 0.0.5
+
+### Patch Changes
+
+- [#744](https://github.com/ofri-peretz/burgee/pull/744) [`e60303c`](https://github.com/ofri-peretz/burgee/commit/e60303ce839e4342b86963d6cbd6faa97d7ee921) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - B5, runtime against the incumbent: `npm run bench -- --axis runtime` times each entry point doing one realistic job against the package it replaces, in-process and interleaved, and gates every pair with a downward-only ratchet in `.sdlc/bands/runtime-ratchets.json` toward ≤ 1.0.
+
 ## 0.0.4
 
 ### Patch Changes

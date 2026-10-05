@@ -1,0 +1,150 @@
+---
+title: How we prove claims
+description: "Every number the family publishes comes from a file a command produced: incumbent suites graded against a control, baselines that only ratchet, weight bands, capability matrices whose every cell cites its evidence, and the locks that fail when prose outruns the measurement."
+---
+
+## What it is
+
+The family's rule for claims is one sentence in
+[`AGENTS.md`](https://github.com/ofri-peretz/burgee/blob/main/AGENTS.md): every number in prose
+comes from a file in this repository — a generated page, a baseline, a band — and a claim that
+cannot be measured is written as *unmeasured*, not estimated. This page is how that rule is kept:
+what produces each number, what stops it drifting, and what a check can and cannot see.
+
+## Why it exists
+
+"Compatible", "lightweight" and "fast" are words every CLI library uses and few measure. A
+reader cannot tell a measured claim from a hopeful one, and a claim that was true when written
+goes stale the day a dependency moves. So the family publishes numbers, not adjectives, and
+makes each one fail a check when the thing it describes changes.
+
+## The compatibility oracle
+
+`packages/compat-oracle` is private and never published. It grades each drop-in with **the
+incumbent's own test suite**.
+
+- **Vendored and pinned.** Each suite is copied into `vendor/<host>/`, unmodified apart from the
+  import specifier, which a script rewrites to point at a generated shim. A `.source.json` beside
+  it records the release, tag, commit and a sha256 per file; a human-readable `PROVENANCE` agrees
+  with it field for field (`provenance.test.ts`). Every package a suite needs is pinned exactly,
+  because the suite is graded against one release.
+- **Control runs.** `--control` runs the same suite against the real incumbent. That proves the
+  gate works before it grades anything, and the control's case count is the **reference** every
+  rate is divided by — so a file of ours that fails to load cannot shrink the denominator. A
+  control is red if it passes nothing, fails more than the allowance declared for that host,
+  stops registering cases, or registers more than the reference (`the control verdict` in
+  [`gate.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/compat-oracle/src/gate.test.ts)).
+- **Baselines that only ratchet.** Each host's grade is committed in `baseline/<host>.json`. A run
+  that passes fewer cases than the baseline fails (`the compatibility ratchet` in
+  [`run.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/compat-oracle/src/run.test.ts)),
+  in `compat.yml`'s `ratchet` job, a required check. Lowering a baseline is a deliberate edit to
+  that file, visible in review; no check reads a reason for it.
+- **The upstream check.** `compat-upstream.yml` runs daily and opens an issue for each new
+  release of an incumbent; `compat-refresh.yml` runs weekly, re-vendors the suites, re-grades, and
+  opens a pull request with the diff, never merged automatically.
+
+[Compatibility](/docs/compatibility) is generated from the oracle's run, and `compat:page
+--check` in the same required job fails when the published page is not what the results
+generate. [Drop-ins](/docs/concepts/drop-ins#how-a-drop-in-reaches-100) has what the rate gates.
+
+## Weight
+
+- **Per subpath.** [Weight, per subpath](/docs/weight) bundles every export of every published
+  entry point with `esbuild --bundle --minify --format=esm --platform=node --splitting`, and
+  reports the cheapest export, the dearest, and the whole namespace. The same function produces
+  the bundle figures on [Benchmarks](/docs/benchmarks).
+- **The foundation ceilings.** `.sdlc/bands/foundation-ceilings.json` holds, per layer, the
+  installed bytes of the incumbents it replaces *including their dependency trees* — what a user
+  removes by switching — and the layer's own size. The band is the only copy of a layer's size;
+  each package's `weight.test.ts` fails when the package and the band disagree, and `npm run
+  weight:converge` rebuilds, re-measures and rewrites the band and the READMEs that quote it.
+- **Tarballs.** `check-published-artifacts.ts` fails when a package's tarball or unpacked size
+  grows more than 10% past `.sdlc/bands/artifact-size-baseline.json`
+  ([`artifact-size-ratchet-lock.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/artifact-size-ratchet-lock.test.ts)).
+- **Claim ratchets.** A published claim whose measurement sits above its original bar gets a
+  ceiling in `.sdlc/bands/claim-ratchets.json` that is gated on every benchmark run and may only
+  be lowered: its history is append-only, and a higher entry must cite a newer decision
+  ([`claim-ratchets-lock.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/claim-ratchets-lock.test.ts)).
+
+## Capability matrices
+
+Each package's "Why" page and the [comparison](/docs/comparison) render
+`packages/<package>/capabilities.json`: one row per capability, a cell for the package and one per
+incumbent it replaces. [`capabilities-lock.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/capabilities-lock.test.ts)
+reads every cell:
+
+- **Ours.** A `yes` or `partial` names a test file that exists and a substring of a test title in
+  it, or a compat baseline — and a `yes` from a baseline only at a full pass.
+- **Theirs.** Every incumbent cell names a source: a URL pinned to a release, never a moving
+  branch, or a file in the installed or vendored incumbent at the version the oracle grades. A
+  local source is read: it must contain what the cell quotes and must not contain what it says
+  the incumbent lacks.
+- **The columns** are exactly the incumbents the oracle grades for that package.
+
+The lock proves itself with a battery of broken matrices it must refuse (`the lock refuses what it
+exists to refuse`): a title the file does not contain, a URL on a moving branch, a grade marked
+`yes` that is not a full pass, and more.
+
+## Claim locks
+
+Prose is where a number goes stale, so the places prose quotes a number are locked to its source:
+
+| Lock | Holds |
+| :-- | :-- |
+| [`dependency-claim-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/dependency-claim-lock.test.ts) | a dependency count claimed in a README, a description, a badge or a docs page matches the manifest |
+| [`readme-benchmarks-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/readme-benchmarks-lock.test.ts) | the benchmark figures in each README are what was measured |
+| [`readme-gates-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/readme-gates-lock.test.ts) | a quoted bundle figure is what the current build bundles to |
+| [`claim-table-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/claim-table-lock.test.ts) | the README's claim table cannot claim more than the newest measurement |
+| [`pitch-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/pitch-lock.test.ts) | the one-line pitch is the same sentence everywhere it appears |
+| [`generated-page-gate-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/generated-page-gate-lock.test.ts) | every generated page's `--check` runs in a job that reports a required check |
+
+Generated pages — [Compatibility](/docs/compatibility), [Benchmarks](/docs/benchmarks),
+[Plugins](/docs/plugins), the graph on [The family and its layers](/docs/concepts/family), each
+package's README page and API reference — have a writer and a `--check` twin, and are never edited
+by hand. The runnable examples on these concept pages are run by this site's own tests, which
+compare what each prints with what the page says it prints.
+
+## Coverage gates
+
+Nine packages declare coverage thresholds of 100% for lines, branches, functions and statements
+in their `vitest.config.ts`; linegauge declares 100% except branches at 96.5%, and controlroom,
+which has no API, declares none.
+[`coverage-config-lock.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/coverage-config-lock.test.ts)
+holds every package to the shared coverage settings, with only `thresholds` added. The thresholds
+are evaluated by `npm run coverage`, which runs in the weekly `codecov.yml` workflow and on
+demand. The pre-push battery and pull-request CI do not run it, so a pull request that lowers
+coverage below a threshold is caught by the next weekly run, not before it merges.
+
+## Run it
+
+A published number, read from the file it comes from. Run it anywhere inside a checkout:
+
+```js title="rates.mjs"
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+
+let root = process.cwd();
+while (!existsSync(join(root, 'packages', 'compat-oracle', 'baseline'))) root = dirname(root);
+
+for (const host of ['commander', 'chalk']) {
+  const { passed, reference } = JSON.parse(readFileSync(join(root, 'packages', 'compat-oracle', 'baseline', `${host}.json`), 'utf8'));
+  console.log(`${host}: ${passed} / ${reference}`);
+}
+```
+
+```text title="node rates.mjs"
+commander: 1360 / 1360
+chalk: 59 / 59
+```
+
+The same two numbers are in the table on [Compatibility](/docs/compatibility). If the baseline
+moves, this example fails until the page says what the file says.
+
+## Where the rules live
+
+- Specs: [compat-oracle](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/compat-oracle/spec.md),
+  [compat-grader-layer](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/compat-grader-layer/intent.md)
+  and [upstream-watch](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/upstream-watch/spec.md).
+- The research every claim traces to: [Research](/docs/research) and
+  [`.sdlc/research/`](https://github.com/ofri-peretz/burgee/tree/main/.sdlc/research).
+- Reproducing a grade: the commands at the end of [Compatibility](/docs/compatibility).

@@ -30,7 +30,7 @@ mytool --mcp
 ```
 
 Serves the same manifest as [MCP](https://modelcontextprotocol.io) tools over stdio —
-JSON-RPC 2.0, three methods, no dependency outside the burgee family. A tool call runs the command exactly as a
+JSON-RPC 2.0, four methods (`initialize`, `ping`, `tools/list`, `tools/call`), no dependency outside the burgee family. A tool call runs the command exactly as a
 `--json` caller would; the result is that envelope, byte for byte, so an agent reading
 your CLI over MCP and one shelling out with `--json` see one payload.
 
@@ -101,20 +101,23 @@ server — nothing else to write:
 }
 ```
 
-If the program declares its own `--schema` or `--mcp` option, burgee leaves it alone: the
-surfaces are additive, never a change to a program that already exists.
+On `burgee/commander` and `burgee/yargs`, a program that declares its own `--schema` or
+`--mcp` option keeps it, and burgee leaves it alone: the surfaces are additive, never a change
+to a program that already exists. On burgee's own API the names are reserved, and
+`defineCommand` refuses an option that redefines one.
 
-## `completion <shell>` — static, never runs your CLI on TAB
+## `completion <shell>` — static unless you ask
 
 ```bash
 mytool completion zsh > "${fpath[1]}/_mytool"   # also: bash, fish, pwsh, fig
 ```
 
 Commands, subcommands, options and choice values, with descriptions where the shell shows
-them — generated from the same manifest, as plain shell. Pressing TAB never executes the
-program. Each script is pinned by a snapshot and exercised by its real shell in CI. The
-templates live in `burgee/completions` and load only on that command, so a program pays
-for them when it prints a script, never at startup.
+them — generated from the same manifest, as plain shell. Pressing TAB does not execute the
+program, with one exception you opt into: an option that declares `complete` has its values
+asked for at TAB time, through `mytool __complete`. Each script is pinned by a snapshot and
+exercised by its real shell in CI. The templates live in `burgee/completions` and load only
+on that command, so a program pays for them when it prints a script, never at startup.
 
 ## `--explain <option>` — where a value came from
 
@@ -128,17 +131,19 @@ region = "eu-1"   from config file ./mytool.config.json
          candidates: flag --region (unset), env MYTOOL_REGION (unset), default "us-1"
 ```
 
-The same information rides under `--json` as `meta.provenance`, per option — for an agent,
+Every command that runs lists `--explain <option>` in its help, and the root help's `For
+agents:` line names it beside `--schema` and `--json`. The same information rides under `--json` as `meta.provenance`, per option — for an agent,
 the difference between one call and five. `envPrefix` and `config: true` on
 `defineProgram` opt a program into env names and config discovery; nothing is read that
 the running command did not declare.
 
 ## Stopping instead of prompting
 
-Under a detected agent (`AI_AGENT`, `CLAUDECODE`, `CURSOR_AGENT`, `CODEX_THREAD_ID`,
-`GEMINI_CLI`, …) a program is non-interactive by default, terminal or not; `FORCE_TTY=1`
-overrides. A handler reads `ctx.interactive` and `ctx.agent`, and where it would have
-prompted it stops with what the caller must do:
+`ctx.interactive` is true only with a terminal on stdin, no `CI`, and no detected agent
+(`AI_AGENT`, `CLAUDECODE`, `CURSOR_AGENT`, `CODEX_THREAD_ID`, `GEMINI_CLI`), terminal or not;
+`FORCE_TTY=1` overrides. It is roundel's `interactive()`, the same rule caique's prompts ask. A
+handler reads `ctx.interactive` and `ctx.agent`, and where it would have prompted it stops with
+what the caller must do:
 
 ```ts
 if (!ctx.interactive) ctx.actionRequired({

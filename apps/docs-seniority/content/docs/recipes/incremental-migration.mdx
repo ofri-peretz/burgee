@@ -10,15 +10,10 @@ description: "Swap cosmiconfig for seniority in one import, then move to discove
 + import { cosmiconfig } from 'seniority';
 ```
 
-The explorer is cosmiconfig's (`search`, `load`, `clearCaches`), graded 186 of 243 by
-cosmiconfig's own suite. The gap is YAML. If your config can be YAML, pass the parser:
-
-```js
-import yaml from 'js-yaml';
-import { cosmiconfig } from 'seniority';
-
-const explorer = cosmiconfig('mytool', { loaders: { '.yaml': (_path, text) => yaml.load(text), '.yml': (_path, text) => yaml.load(text) } });
-```
+The explorer is cosmiconfig's (`search`, `load`, `clearCaches`), graded 240 of 243 by
+cosmiconfig's own suite, the same as cosmiconfig itself. YAML config files are read as
+cosmiconfig reads them, with no parser to add: `seniority/yaml` is loaded on the first one.
+`npx burgee migrate` makes this swap for you.
 
 For lilconfig the swap is `seniority/lilconfig`, graded 77 of 77, and `npx burgee migrate`
 makes it for you.

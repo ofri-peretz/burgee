@@ -127,8 +127,8 @@ function inTable(table: readonly number[], codePoint: number): boolean {
   let high = table.length / PAIR - 1;
   while (low <= high) {
     const mid = (low + high) >> 1;
-    const start = table[mid * PAIR] ?? 0;
-    const end = table[mid * PAIR + 1] ?? 0;
+    const start = table[mid * PAIR] as number;
+    const end = table[mid * PAIR + 1] as number;
     if (codePoint < start) high = mid - 1;
     else if (codePoint > end) low = mid + 1;
     else return true;
@@ -179,7 +179,7 @@ function isAmbiguous(codePoint: number): boolean {
  * places each. Those 141 bytes were what put `linegauge`, `linegauge/wrap` and
  * `linegauge/slice` over their B4 ceilings the day this laziness landed.
  */
-let invisibleClass: RegExp | undefined;
+let visibleClass: RegExp | undefined;
 let rgiClass: RegExp | undefined;
 let spacingClass: RegExp | undefined;
 let pictographicClass: RegExp | undefined;
@@ -195,6 +195,9 @@ let pictographicClass: RegExp | undefined;
 export const INVISIBLE_CLASSES = ['\\p{Default_Ignorable_Code_Point}', '\\p{Control}', '\\p{Format}', '\\p{Nonspacing_Mark}', '\\p{Enclosing_Mark}', '\\p{Surrogate}'] as const;
 const INVISIBLE_SET = INVISIBLE_CLASSES.join('');
 
+/** Printable ASCII only — see `width` for why this is the first question asked. */
+const ASCII = /^[ -~]*$/u;
+
 /**
  * Each flag is written literally at its own construction.
  *
@@ -204,8 +207,12 @@ const INVISIBLE_SET = INVISIBLE_CLASSES.join('');
  * right, the fix is three more lines, and it is worth noting that the rule caught it in the
  * repository that ships the rule.
  */
-/** One code point of the set. No quantifier: it is asked about one character at a time. */
-const INVISIBLE = (): RegExp => (invisibleClass ??= new RegExp(`^[${INVISIBLE_SET}]$`, 'v'));
+/**
+ * One code point *outside* the set — string-width 8.3.0's `visibleCharacterRegex`. No
+ * quantifier: `search` walks forward once for the first visible code point, and `test` on one
+ * character asks whether it is visible, so the set needs no second, anchored spelling (B5).
+ */
+const VISIBLE = (): RegExp => (visibleClass ??= new RegExp(`[^${INVISIBLE_SET}]`, 'v'));
 const RGI_EMOJI = (): RegExp => (rgiClass ??= new RegExp('^\\p{RGI_Emoji}$', 'v'));
 const SPACING_MARK = (): RegExp => (spacingClass ??= new RegExp('^\\p{Spacing_Mark}$', 'v'));
 const EXTENDED_PICTOGRAPHIC = (): RegExp => (pictographicClass ??= new RegExp('^\\p{Extended_Pictographic}$', 'u'));
@@ -228,12 +235,11 @@ const EXTENDED_PICTOGRAPHIC = (): RegExp => (pictographicClass ??= new RegExp('^
  * finishes on — `width.test.ts` compares them exhaustively over short strings.
  */
 export function leadingInvisible(text: string): number {
-  let index = 0;
-  for (const character of text) {
-    if (!INVISIBLE().test(character)) break;
-    index += character.length;
-  }
-  return index;
+  // One negated class, no quantifier — string-width 8.3.0's spelling: `search` walks forward
+  // once and cannot backtrack, and it asks the same question per code point as a loop did,
+  // without a regex call per character (B5).
+  const at = text.search(VISIBLE());
+  return at === -1 ? text.length : at;
 }
 
 /**
@@ -298,7 +304,7 @@ function columnsOf(codePoint: number, ambiguousIsWide: boolean): number {
 function trailingColumns(visible: string, ambiguousIsWide: boolean): number {
   let extra = 0;
   for (const character of [...visible].slice(1)) {
-    const codePoint = character.codePointAt(0) ?? 0;
+    const codePoint = character.codePointAt(0) as number;
     const isForm = codePoint >= FORMS_FIRST && codePoint <= FORMS_LAST;
     if (isForm || SPACING_MARK().test(character)) extra += columnsOf(codePoint, ambiguousIsWide);
   }
@@ -332,7 +338,7 @@ function isUnqualifiedEmojiSequence(cluster: string): boolean {
 /** Whether `codePoint` falls in one of a flat `[low, high]` pair list. */
 function inPairs(pairs: readonly number[], codePoint: number): boolean {
   for (let i = 0; i < pairs.length; i += PAIR) {
-    if (codePoint >= (pairs[i] ?? 0) && codePoint <= (pairs[i + 1] ?? 0)) return true;
+    if (codePoint >= (pairs[i] as number) && codePoint <= (pairs[i + 1] as number)) return true;
   }
   return false;
 }
@@ -357,18 +363,19 @@ function isJamo(codePoint: number): boolean {
  * East Asian Width, which is how `U+1100 U+AC00` comes to 4 rather than 2.
  */
 function hangulColumns(visible: string, ambiguousIsWide: boolean): number | undefined {
+  // `visible` starts at the cluster's first visible code point, which is the first entry below:
+  // a cluster that does not open with a jamo is answered before anything is collected.
+  if (!isJamo(visible.codePointAt(0) as number)) return undefined;
   const codePoints: number[] = [];
   for (const character of visible) {
-    if (INVISIBLE().test(character)) continue;
-    codePoints.push(character.codePointAt(0) ?? 0);
+    if (!VISIBLE().test(character)) continue;
+    codePoints.push(character.codePointAt(0) as number);
   }
-  if (codePoints.length === 0 || !isJamo(codePoints[0] ?? 0)) return undefined;
-
   let columns = 0;
   for (let index = 0; index < codePoints.length; index += 1) {
-    const codePoint = codePoints[index] ?? 0;
+    const codePoint = codePoints[index] as number;
     if (!isJamo(codePoint)) {
-      for (let rest = index; rest < codePoints.length; rest += 1) columns += columnsOf(codePoints[rest] ?? 0, ambiguousIsWide);
+      for (let rest = index; rest < codePoints.length; rest += 1) columns += columnsOf(codePoints[rest] as number, ambiguousIsWide);
       return columns;
     }
     if (inPairs(JAMO_LEADING, codePoint) && inPairs(JAMO_VOWEL, codePoints[index + 1] ?? -1)) {
@@ -408,35 +415,49 @@ export function setClaim(fn: ((code: number) => number | undefined) | undefined)
  * give a malformed sequence a second chance to be mistaken for one.
  */
 export function measure(text: string, ambiguousIsWide = false): number {
+  // Printable ASCII is its length, as in `width` — unless a plugin claims code points, which
+  // may include ASCII ones, and must be asked per cluster.
+  if (claim === undefined && ASCII.test(text)) return text.length;
+  // One code unit is one cluster: nothing to segment (B5 — a prompt frame's glyphs are words).
+  if (text.length === 1) return clusterColumns(text, ambiguousIsWide);
   let columns = 0;
-  for (const { segment } of segmenter().segment(text)) {
-    // A plugin's answer comes first — before the zero-width and emoji rules, not after. A user
-    // who says a Private Use code point is two columns because their Nerd Font draws an icon
-    // there is describing the terminal in front of them, and the built-in tables are describing
-    // terminals in general. The local answer wins or the override is decorative.
-    const claimed = claim?.(segment.codePointAt(0) ?? 0);
-    if (claimed !== undefined) {
-      columns += claimed;
-      continue;
-    }
-    // All of it invisible: ignorables, controls, formats, marks, lone surrogates. A segment
-    // is never empty, so this is exactly the old `^(?:…)+$`.
-    const skipped = leadingInvisible(segment);
-    if (skipped === segment.length) continue;
-    if (RGI_EMOJI().test(segment) || isUnqualifiedEmojiSequence(segment)) {
-      columns += WIDE_COLUMNS;
-      continue;
-    }
-    const visible = segment.slice(skipped);
-    const hangul = hangulColumns(visible, ambiguousIsWide);
-    if (hangul !== undefined) {
-      columns += hangul;
-      continue;
-    }
-    columns += columnsOf(visible.codePointAt(0) ?? 0, ambiguousIsWide);
-    columns += trailingColumns(visible, ambiguousIsWide);
-  }
+  for (const { segment } of segmenter().segment(text)) columns += clusterColumns(segment, ambiguousIsWide);
   return columns;
+}
+
+/**
+ * Whether a cluster could be an emoji at all. Every emoji sequence either rule below accepts
+ * carries a code point in U+2000..U+2FFF or at U+D800 and above: an Emoji_Presentation code
+ * point (U+231A..U+2B55 in the BMP, the rest astral), a surrogate, `U+FE0F`, the keycap's
+ * `U+20E3` or the joiner `U+200D`. Three stretches are left out: below U+2000 (Latin, Greek,
+ * Cyrillic and their marks); the box-drawing, block and shape rows U+2500..U+25FC, which every
+ * prompt frame is drawn in and none of which is an emoji without a `U+FE0F`; and U+3000..U+D7FF
+ * (CJK, kana, Hangul), where the four with an emoji reading (〰 〽 ㊗ ㊙) are one only with a
+ * `U+FE0F` after them. None of those clusters asks the two emoji regexes, which were a fifth of
+ * a `slice` over accented text and most of one over Japanese (B5). `width.test.ts` checks every
+ * code point left out, alone and with a mark.
+ */
+const MAY_BE_EMOJI = /[\u2000-\u24FF\u25FD-\u2FFF\uD800-\u{10FFFF}]/u;
+
+/**
+ * Columns one grapheme cluster occupies — `measure`'s body, for callers that already hold a
+ * cluster: `slice` and `wrap` segment their text once and used to hand each cluster back to
+ * `measure`, which segmented it again (B5).
+ */
+export function clusterColumns(segment: string, ambiguousIsWide = false): number {
+  // A plugin's answer comes first — before the zero-width and emoji rules, not after. A user
+  // who says a Private Use code point is two columns because their Nerd Font draws an icon
+  // there is describing the terminal in front of them, and the built-in tables are describing
+  // terminals in general. The local answer wins or the override is decorative.
+  const claimed = claim?.(segment.codePointAt(0) as number);
+  if (claimed !== undefined) return claimed;
+  // All of it invisible: ignorables, controls, formats, marks, lone surrogates — no visible
+  // code point at all (`leadingInvisible`'s search, asked directly). A segment is never empty.
+  const skipped = segment.search(VISIBLE());
+  if (skipped === -1) return 0;
+  if (MAY_BE_EMOJI.test(segment) && (RGI_EMOJI().test(segment) || isUnqualifiedEmojiSequence(segment))) return WIDE_COLUMNS;
+  const visible = segment.slice(skipped);
+  return hangulColumns(visible, ambiguousIsWide) ?? columnsOf(visible.codePointAt(0) as number, ambiguousIsWide) + trailingColumns(visible, ambiguousIsWide);
 }
 
 /**
@@ -448,18 +469,9 @@ export function measure(text: string, ambiguousIsWide = false): number {
  * It is not a micro-optimisation. `widest` over many lines is one `Intl.Segmenter` walk per
  * line, and `truncate.test.ts`'s 200,000-line case — the one proving `widest` survives where
  * `Math.max(...)` throws — timed out at five seconds without this. ASCII is the common line.
+ * A class and not a loop since 2026-09-30: the same answer in a quarter of the bytes, which
+ * `measure` now pays for too (B5).
  */
-function asciiColumns(text: string): number | undefined {
-  for (let i = 0; i < text.length; i += 1) {
-    // `codePointAt` over `charCodeAt` (Interlace unicode-safety rule, and it is the right
-    // call): on a surrogate pair this returns the whole code point, which is above 0x7E and
-    // bails to the full path. `charCodeAt` would have seen a lone high surrogate instead.
-    // `?? 0` cannot mislead — 0 is below 0x20, so an out-of-range index also bails.
-    const code = text.codePointAt(i) ?? 0;
-    if (code < 0x20 || code > 0x7e) return undefined;
-  }
-  return text.length;
-}
 
 /**
  * What `width` accepts beyond the string. Graded against `string-width`'s own suite, so the
@@ -498,8 +510,7 @@ export interface WidthOptions {
  */
 export function width(input: string, options: WidthOptions = {}): number {
   if (typeof input !== 'string' || input === '') return 0;
-  const ascii = asciiColumns(input);
-  if (ascii !== undefined) return ascii;
+  if (ASCII.test(input)) return input.length;
   // `strip`, not `node:util`'s: Node's scanner stops at the first colon in the ITU T.416
   // sub-parameter form (`ESC[38:2::255:0:0m`), which chalk and wrap-ansi both emit — it
   // measured 15 where string-width says 3. The fast path above never reaches here with an

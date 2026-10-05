@@ -40,10 +40,11 @@ const ALLOWED: Record<string, string[]> = {
   // Over `slice`, never over `wrap` — the ellipsis-fits arithmetic needs a cut, not a fold.
   'truncate.js': ['./slice.js', './width.js'],
   'widest.js': ['./width.js'],
-  // The lowest entry there is: it reaches the shared scanner and nothing else, and `width`
-  // reaches *it* — which is why `style.js` no longer reaches `width.js`. A strip that needed
-  // a measurement would be a cycle, and there is nothing to measure in removing bytes.
-  'strip.js': ['./style.js'],
+  // The lowest entry there is, and `width` reaches *it* — which is why `style.js` no longer
+  // reaches `width.js`. A strip that needed a measurement would be a cycle, and there is nothing
+  // to measure in removing bytes. Since 2026-09-30 it reaches nothing at all: one regex, the
+  // incumbent's own grammar, instead of the shared scanner plus Node's stripper (B5).
+  'strip.js': [],
   // The plugin host reaches `width.js` and nothing else — the module that reads `widths` is the
   // module that owns the override table, and a host that reached `wrap` or `slice` would mean
   // the extension point had grown past the one measurement it exists to correct.

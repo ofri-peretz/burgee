@@ -1,0 +1,155 @@
+---
+title: Agent surfaces
+description: "One declaration projected into every form a caller reads — help, the --json envelope, --schema, an MCP server, completions — and a program that stops and says what to run instead of prompting an agent."
+---
+
+## What it is
+
+A burgee command is declared once, as data. Every surface a caller reads is projected from
+that declaration rather than written beside it:
+
+| Surface | For | What it is |
+| :-- | :-- | :-- |
+| `--help` | a person | the rendered manifest; `--help --json` is the same as a document. The root help ends with one line for agents naming `--schema`, `--json` and `--explain` |
+| `--json` | a script, an agent | one envelope on stdout: `{ ok, data, meta }` or `{ ok: false, error }` |
+| `--schema` | an agent, before it calls | the program as data: commands, options, `effects`, the exit-code table, a JSON Schema per command |
+| `--mcp` | an MCP client | the same commands as MCP tools over stdio |
+| `completion <shell>` | a shell | a static script for bash, zsh, fish, pwsh or fig |
+| `--explain <option>` | anyone asking "why this value?" | the [configuration](/docs/concepts/configuration) record for one option, on every command that runs and listed in its help |
+
+[Your CLI is an agent tool](/docs/agent-surfaces) has each surface in full: `--schema` and its
+character budget, what becomes an MCP tool, how tool arguments map back to flags, the client
+configuration, and completions. This page is the model behind them.
+
+## Why it exists
+
+An agent driving a CLI through a shell pays in calls, tokens and misreads: it scrapes help
+text, guesses which output line is the result, and waits on a prompt nobody will answer. When
+each surface is written by hand beside the command, they drift — the help names a flag the
+schema does not, the MCP tool takes an argument the command refuses. Projecting all of them
+from one declaration leaves them nothing to drift from.
+
+## The rules
+
+**The envelope is one document on stdout.** Success is
+`{"ok":true,"data":<what run returned>,"meta":{"provenance":{…}}}`, with `meta.changed` for an
+idempotent command. Failure is `{"ok":false,"error":{"code","message","hint"?,"fix"?,"usage"?}}`,
+also on stdout, with stderr empty. `--json` counts only before a `--`. [Exit codes and
+errors](/docs/concepts/exit-codes) has the failure side.
+
+**A refusal carries its next step.** A failure has a `fix` to run, or, when there is none,
+`usage`: the failing command's usage line and options, or the commands that exist for a word the
+program does not know, at most 8 rows. An unknown command near a real one gets a `fix` that is
+the caller's own line with the word corrected. The agent recovers from the error it already read,
+not from a `--help` walk.
+
+**`effects` is required on burgee's own API.** `defineCommand` refuses a runnable command without
+`read_only`, `idempotent`, `non_idempotent` or `withheld`. It becomes MCP's `readOnlyHint`,
+`idempotentHint` and `destructiveHint`, and `withheld` keeps a command out of `tools/list`. On
+`burgee/commander` and `burgee/yargs`, a command that declared nothing is listed as
+`effects: 'undeclared'` with no hints (`maps effects to the hints an agent reads, never
+defaulting destructive to silence (N6)` in
+[`mcp.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/mcp.test.ts)).
+
+**An MCP result is the `--json` envelope, byte for byte.** A tool call runs the command as a
+`--json` caller would, so an agent on MCP and one shelling out see one payload (`returns the
+--json envelope as the tool result, byte for byte (N4)`).
+
+**An agent is detected, not assumed to be a terminal.** Five variables name one: `AI_AGENT`,
+`CLAUDECODE`, `CURSOR_AGENT`, `CODEX_THREAD_ID` and `GEMINI_CLI`. The first one set names
+`ctx.agent`. `ctx.interactive` is roundel's `interactive()`, the family's one rule for whether a
+person may be asked: a terminal on **stdin**, no `CI`, and none of those five, with `FORCE_TTY=1`
+over all three. caique's prompts ask the same function, so a handler and a prompt never disagree
+about the same shell (`one rule for whether a person may be asked (N12)` in
+[`agent.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/agent.test.ts)).
+burgee loads `roundel/terminal` only when it is about to run a handler, so help, `--version`,
+`--schema` and `--mcp` never load it. Help's colour is an output decision and still reads stdout
+([the output policy](/docs/concepts/output-policy) has both).
+
+A variable joins the five only when it names an agent and nothing else. `CURSOR_TRACE_ID` does
+not qualify, because Cursor sets it in every integrated terminal and a person typing there would
+never be asked anything.
+
+**Never prompt an agent.** burgee draws no prompt itself. A handler that would ask reads
+`ctx.interactive` and, when nobody can answer, calls `ctx.actionRequired({ reason, message, next })`:
+the run ends with exit 4 and an envelope carrying `status: "action_required"` and `next[]` —
+runnable commands with the program's name in front and the caller's `--json` carried. A prompt
+drawn with caique refuses instead of waiting and names the flag to pass (exit 2). Either way the
+caller gets a next step, not a hang (`under --json: status, reason, message, runnable next[]
+carrying the caller's --json, hint; exit CANCELLED (4)` in `agent.test.ts`).
+
+## Run it
+
+```js title="tool.mjs"
+import { defineCommand, defineProgram, run } from 'burgee';
+
+const program = defineProgram({
+  name: 'tool',
+  commands: [
+    defineCommand({
+      name: 'deploy',
+      description: 'Deploy a build',
+      effects: 'non_idempotent',
+      options: {
+        target: { type: 'string', required: true, description: 'where to deploy' },
+        yes: { type: 'boolean', description: 'skip the confirmation' },
+      },
+      run: (ctx) => {
+        if (!ctx.options.yes && !ctx.interactive) {
+          ctx.actionRequired({
+            reason: 'confirm',
+            message: `deploying to ${ctx.options.target} needs confirmation`,
+            next: [{ command: `deploy --target ${ctx.options.target} --yes`, when: 'once you have reviewed the plan' }],
+          });
+        }
+        return { target: ctx.options.target, agent: ctx.agent ?? null };
+      },
+    }),
+  ],
+});
+
+await run(program);
+```
+
+Nobody to confirm, so the program stops and says what to run:
+
+```text title="CLAUDECODE=1 node tool.mjs deploy --target prod --json" exit="4"
+{"ok":false,"status":"action_required","reason":"confirm","message":"deploying to prod needs confirmation","next":[{"command":"tool deploy --target prod --yes --json","when":"once you have reviewed the plan"}],"error":{"code":4,"message":"deploying to prod needs confirmation"}}
+```
+
+```text title="node tool.mjs deploy --target prod" exit="4"
+action required (confirm): deploying to prod needs confirmation
+next:
+  tool deploy --target prod --yes    once you have reviewed the plan
+```
+
+The next command, run by the agent:
+
+```text title="CLAUDECODE=1 node tool.mjs deploy --target prod --yes --json"
+{"ok":true,"data":{"target":"prod","agent":"claude-code"},"meta":{"provenance":{"target":{"source":"flag","location":"--target"},"yes":{"source":"flag","location":"--yes"}}}}
+```
+
+A run that fails with nothing to fix names what the command takes, in the same envelope:
+
+```text title="CLAUDECODE=1 node tool.mjs deploy --json" exit="2"
+{"ok":false,"error":{"code":2,"message":"missing required option --target","hint":"pass --target <value>","usage":{"command":"tool deploy [options]","options":[{"name":"--target <value>","description":"where to deploy (required)"},{"name":"--yes","description":"skip the confirmation"}]}}}
+```
+
+What an agent reads before it calls, from the same declaration:
+
+```text title="node tool.mjs --schema deploy --field inputSchema"
+{"type":"object","properties":{"target":{"type":"string","flag":"--target","description":"where to deploy"},"yes":{"type":"boolean","flag":"--yes","description":"skip the confirmation"}},"required":["target"],"additionalProperties":false}
+```
+
+```text title="node tool.mjs --schema deploy --field effects"
+"non_idempotent"
+```
+
+## Where the rules live
+
+- [Your CLI is an agent tool](/docs/agent-surfaces) — every surface in full.
+- [Getting started](/docs/getting-started) — `burgee dev`, which serves the program over MCP while
+  you write it.
+- Specs: [burgee N1–N14](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/burgee/spec.md)
+  and [agent-surface-declared](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/agent-surface-declared/spec.md).
+- The document `--schema` prints is described by `burgee/program-schema.json`.

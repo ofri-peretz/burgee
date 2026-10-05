@@ -20,6 +20,16 @@ npm run bench -- --no-oracle     # B3 reads results.json or skips; never runs th
 | **B4** weight | are we lighter than what we replace? | every PR |
 | **B5** runtime | are we faster than what we replace, doing the same job? | every PR |
 
+## B2 — roundel's colour entries against picocolors
+
+Besides the parsers, B2 spawns three colour fixtures — `picocolors`, `roundel/tokens` and
+`roundel/chalk` — each importing its package and painting the line every fixture prints, under
+`NO_COLOR` so a CI runner's environment cannot turn the paint on (picocolors colours whenever
+`CI` is set). They carry roundel's R8 time bar: **a colour entry may cost no more than
+picocolors + 10 ms to start**, gated as `cold-start-delta-ms`, the median of the per-round
+differences — round *i* of the entry less round *i* of picocolors — so the machine's own
+startup cancels, as it does in a ratio. Measured 2026-09-30 on an M4 Pro: +1.26 ms and +2.97 ms.
+
 ## B5 — runtime against the incumbent
 
 `--axis runtime`. One realistic workload per (package, incumbent) pair, in
@@ -74,6 +84,24 @@ is already logged in, `BURGEE_USE_CLAUDE_LOGIN=1`, which the harness checks with
 **First run, 2026-09-24** (`results/agent-cli-bench/2026-09-24-2a51440-local.json`, D-147):
 burgee 78,225 tokens / 3 turns per task, commander 130,165 / 5; tokens ratio **0.601 — the
 ≥40% claim is not met**, by 0.001 on n = 25 a side; turns ratio 0.600 — the ≥30% claim is met.
+
+**That run and CI's measure different agents.** It used the `claude` on the laptop's PATH,
+2.1.145; CI installs the one `.github/tools/claude-code` pins, 2.1.283. The first CI reading
+(run 36740119305: burgee 6 turns, commander 5, ratio 1.2, commander's success 0.76 so the run
+is invalid) is not comparable with it (D-20260930-b1-ci-environment). So a local run now uses
+the pinned `claude` whenever `npm ci --prefix .github/tools/claude-code` has installed it, and
+every record's `detail` names the version (`claude`, `claudePinned`). The tool runs in the
+caller's environment minus `CI`, `GITHUB_*`, `RUNNER_*` and `ACTIONS_*` (`detail.env`), so the
+CLI under test sees the same variables on a runner as on a laptop.
+
+**Reading a run.** The `success-rate` record's `detail` lists every task's runs:
+`<task>.turns` and `<task>.tokens` in order, `<task>.passed`, `<task>.denials` (tool calls
+`claude` refused) and `<task>.failures` by kind; CI prints it as a table in the job summary.
+With `BENCH_AGENT_TRANSCRIPTS=<dir>` each run's full `stream-json` event stream is written
+there, redacted, as `<variant>-<task>-<n>.jsonl`; CI uploads it as the `b1-transcripts`
+artifact. A run that ends at `--max-turns` counts the turns and tokens it spent (it used to
+count as zero, which lowered the median of whichever variant failed that way); a run that
+reported no usage at all is left out of the medians and counted as a failure.
 
 Without a credential the axis reports
 `skipped` with the reason, its two bands carry that reason instead of a number, and the

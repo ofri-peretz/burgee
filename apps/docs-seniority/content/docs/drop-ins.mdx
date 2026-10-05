@@ -1,6 +1,6 @@
 ---
 title: Compatibility
-description: "How seniority's four drop-ins are graded by their incumbents' own suites — lilconfig 77 / 77, rc 1 / 1 (one bit), cosmiconfig 186 / 243 (YAML), dotenv 106 / 141 (the vault) — and the differences that remain."
+description: "How seniority's four drop-ins are graded by their incumbents' own suites — lilconfig 77 / 77, rc 1 / 1 (one bit), cosmiconfig 240 / 243 (level with cosmiconfig itself), dotenv 106 / 141 (the vault) — and the differences that remain."
 ---
 
 `seniority` (cosmiconfig's API at the root), `seniority/lilconfig`, `seniority/dotenv` and
@@ -33,13 +33,15 @@ generated from the oracle's last run and is the authority for the current figure
 - **rc: 1 of 1, by exit code.** rc's suite is one script of bare assertions with no reporter,
   so the grade is one bit: the script ran against seniority and exited 0. It is not 100% of
   anything.
-- **cosmiconfig: 186 of 243.** Of the 57 not passing:
-  - 54 carry the "no YAML parser" refusal (all 22 cases of `import.test.ts` among them, because
-    `$import` is tested only over `.yml` fixtures);
+- **cosmiconfig: 240 of 243**, the same count the real cosmiconfig gets here. YAML files are
+  read with `seniority/yaml`, the package's own parser, loaded on the first YAML file. The 54
+  YAML cases that failed until 2026-09-30 pass, all 22 of `import.test.ts` among them. Of the
+  three not passing:
   - 1 is `index.test.ts`, which imports cosmiconfig's entry by a file path and fails for the
     control too;
-  - 2 are an XDG pair that registers only on Linux. seniority resolves the global directory
-    differently, and those two are counted against it on every platform.
+  - 2 are an XDG pair that registers only on Linux, where cosmiconfig passes it. seniority
+    resolves the global directory without reading `XDG_CONFIG_HOME`, and those two are counted
+    against it on every platform.
 - **dotenv: 106 of 141.** The suite runs under node-tap, which counts assertions, so 141 is
   assertions. Of the 35 not passing:
   - 27 are the `.env.vault` and `decrypt` path, declined;

@@ -17,10 +17,11 @@
  *   options**, which is the opposite of how every other option merge in this family works.
  * - `searchStrategy` is never validated. An unknown value yields no directories at all.
  *
- * Two things are **not** reproduced, and both are listed rather than hidden:
+ * YAML is read the way cosmiconfig reads it: `loadYaml` loads `seniority/yaml`, this package's
+ * own parser, on the first YAML file (see `cosmiconfig-defaults.ts`, D-20260930-seniority-yaml).
  *
- * - **YAML.** `loadYaml` reads the JSON subset and refuses the rest by name (see
- *   `cosmiconfig-defaults.ts`). Constraint 3: no format parser is bundled.
+ * One thing is **not** reproduced, and it is listed rather than hidden:
+ *
  * - **The global config directory is computed, not read from the environment.** cosmiconfig
  *   asks `env-paths`, which reads `XDG_CONFIG_HOME` and `APPDATA`; nothing in seniority reads
  *   `process.*` (R11), so the directory is derived from `os.homedir()` and the platform and

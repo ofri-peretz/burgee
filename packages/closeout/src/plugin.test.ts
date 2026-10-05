@@ -255,6 +255,12 @@ describe('the door', () => {
     }
   });
 
+  // schema.json gives `contract` a minimum of 1. Until 2026-09-30 this host accepted 0 and
+  // any negative number; the same case is in every host, and plugin-contract-lock runs it.
+  it.each([0, -1])('refuses contract %s, below the first contract there is (R6)', (contract) => {
+    expect(() => { validate({ name: 'acme', contract }); }).toThrow(expect.objectContaining({ code: 'E_PLUGIN_CONTRACT' }));
+  });
+
   it('refuses an unnamed plugin, and a plugin that is not an object', () => {
     expect(() => { validate({ handlers: [] }); }).toThrow(/needs a name/);
     expect(() => { validate(() => undefined); }).toThrow(/plain object/);

@@ -3,6 +3,43 @@ title: Changelog
 description: "Every release of caique, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 0.6.4
+
+### Patch Changes
+
+- Updated dependencies [[`b44f426`](https://github.com/ofri-peretz/burgee/commit/b44f426621ed799700cceda8c979de8f759f56b7), [`6195b99`](https://github.com/ofri-peretz/burgee/commit/6195b99344a21b4a05ab100fc38358deab229ce8)]:
+  - paratext@0.8.0
+  - roundel@0.6.1
+
+## 0.6.3
+
+### Patch Changes
+
+- [#764](https://github.com/ofri-peretz/burgee/pull/764) [`1817b62`](https://github.com/ofri-peretz/burgee/commit/1817b6286fae3943e79686a42dc635cca0f0cdda) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `caique/clack` now grades 16 / 16 against `@clack/prompts` 1.8.1's own suite, level with clack itself at 16 / 16. It was 16 / 17. The pass count did not change. The denominator did: one case, `guide.test.ts`'s `no prompt renders a guide when withGuide is globally false`, is now excluded by its exact title. It imports `updateSettings` from `@clack/core` and asserts that the prompts read that package's module state, so it grades `@clack/core` and not `@clack/prompts` (D-20260930-caique-clack-core-exclusion). The exclusion and its reason are on the compatibility page.
+
+  Because the row is level, `burgee migrate` now rewrites `@clack/prompts` to `caique/clack`. It refuses a file that imports `box`, `progress` or `taskLog`, which `caique/clack` does not build, and leaves that file on clack. It does not rewrite `@clack/core`. So a migrated program that imports `updateSettings` from `@clack/core` is still changing clack's settings, and caique's prompts never read them. Import `updateSettings` from `caique/clack` instead.
+
+- Updated dependencies [[`6c2e9c5`](https://github.com/ofri-peretz/burgee/commit/6c2e9c5cee5d9962c0d75d84a766c76b76760f7f), [`6c2e9c5`](https://github.com/ofri-peretz/burgee/commit/6c2e9c5cee5d9962c0d75d84a766c76b76760f7f)]:
+  - linegauge@1.0.1
+  - paratext@0.7.5
+
+## 0.6.2
+
+### Patch Changes
+
+- Updated dependencies [[`a115799`](https://github.com/ofri-peretz/burgee/commit/a1157991a5defddadfbea49ba8ea3bf161d4a832)]:
+  - roundel@0.6.0
+
+## 0.6.1
+
+### Patch Changes
+
+- [#752](https://github.com/ofri-peretz/burgee/pull/752) [`22e6dae`](https://github.com/ofri-peretz/burgee/commit/22e6dae1b71bfa478265829a1b98d20a6f9de4f7) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A plugin that declares `contract: 0` or a negative contract is now refused with `E_PLUGIN_CONTRACT`, as `schema.json`'s minimum of 1 always said. These hosts checked only that a contract was not newer than the one they know, so 0 and below registered.
+- Updated dependencies [[`12bac9c`](https://github.com/ofri-peretz/burgee/commit/12bac9c99cb87ec2b67a56b4afc38de2c21687c7), [`22e6dae`](https://github.com/ofri-peretz/burgee/commit/22e6dae1b71bfa478265829a1b98d20a6f9de4f7)]:
+  - paratext@0.7.4
+  - closeout@0.6.1
+  - roundel@0.5.6
+
 ## 0.6.0
 
 ### Minor Changes

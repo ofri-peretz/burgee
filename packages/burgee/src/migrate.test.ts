@@ -83,7 +83,10 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
       which: 'bellpull/node-which',
       rc: 'seniority/rc',
       'terminal-link': 'paratext/terminal-link',
+      'term-img': 'paratext/term-img',
       lilconfig: 'seniority/lilconfig',
+      cosmiconfig: 'seniority',
+      '@clack/prompts': 'caique/clack',
       '@inquirer/core': 'caique/inquirer',
       meow: 'burgee/meow',
       'restore-cursor': 'closeout/restore-cursor',
@@ -216,6 +219,20 @@ describe('A5 — the unit of success is the file', () => {
     // `add` joined the report with A12: the rewritten import names burgee, which this
     // project does not declare yet.
     expect(report.dependencies).toEqual({ before: ['commander', 'yargs'], removable: ['yargs'], after: 1, add: ['burgee'] });
+  });
+
+  it('keeps an incumbent imported only in a refused file out of removable, and out of `npm uninstall`', async () => {
+    // The refused file is left whole, so its `chalk` is still imported although only the deep
+    // commander import was refused. Until 2026-09-30 chalk was called removable here.
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { commander: '^15.0.0', chalk: '^6.0.0' } }),
+      'src/legacy.ts': "import 'commander/lib/help.js';\nimport chalk from 'chalk';\n",
+      'src/cli.ts': "import { Command } from 'commander';\n",
+    });
+    const report = await migrate({ dir, status: clean });
+    expect(read(dir, 'src/legacy.ts')).toBe("import 'commander/lib/help.js';\nimport chalk from 'chalk';\n");
+    expect(report.dependencies.removable).toEqual([]);
+    expect(report.next).toBe('npm install burgee');
   });
 });
 
@@ -418,7 +435,7 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     const report = await migrate({ dir, status: clean });
     expect(read(dir, 'src/a.js')).toBe("const onExit = require('signal-exit');\nimport chalk from 'chalk';\nimport ora from 'flagstaff/ora';\n");
     expect(report.offMajor).toEqual([
-      { from: 'chalk', found: '4.1.2', graded: '6.0.0' },
+      { from: 'chalk', found: '4.1.2', graded: '6.0.1' },
       { from: 'signal-exit', found: '^3.0.7', graded: '4.1.0' },
     ]);
     expect(report.dependencies.removable).toEqual(['ora']);
@@ -482,7 +499,26 @@ describe('A11 — a rewrite moves only names the target exports', () => {
       refused: [{ line: 2, specifier: 'commander', reason: 'unknown-export', names: ['NotACommanderExport'] }],
       kept: [],
       relevant: true,
+      retained: ['commander'],
     });
+  });
+
+  it('moves a clack program to caique/clack, and refuses a file that reaches for a prompt caique has not built', () => {
+    // clack went level on 2026-09-30 (D-20260930-caique-clack-core-exclusion), so `migrate`
+    // rewrites it. `box`, `progress` and `taskLog` are three of the names `caique/clack` does
+    // not export (D-152). A file that imports one of them has to stay on clack whole.
+    expect(rewriteSource("import { intro, text, isCancel } from '@clack/prompts';\n").source).toBe("import { intro, text, isCancel } from 'caique/clack';\n");
+    const source = "import { box, progress, taskLog, text } from '@clack/prompts';\n";
+    expect(rewriteSource(source)).toMatchObject({ source, mapped: [], refused: [{ line: 1, specifier: '@clack/prompts', reason: 'unknown-export', names: ['box', 'progress', 'taskLog'] }] });
+  });
+
+  it('moves a cosmiconfig program to seniority, and refuses a file that names a type seniority does not export', () => {
+    // cosmiconfig went level on 2026-09-30 (D-20260930-seniority-yaml): its 54 YAML cases pass
+    // since `seniority/yaml`. `LoaderSync` is one of the names cosmiconfig exports that the
+    // root of `seniority` does not, and a file that imports it has to stay on cosmiconfig whole.
+    expect(rewriteSource("import { cosmiconfig, cosmiconfigSync } from 'cosmiconfig';\n").source).toBe("import { cosmiconfig, cosmiconfigSync } from 'seniority';\n");
+    const source = "import { cosmiconfig, type LoaderSync } from 'cosmiconfig';\n";
+    expect(rewriteSource(source)).toMatchObject({ source, mapped: [], refused: [{ line: 1, specifier: 'cosmiconfig', reason: 'unknown-export', names: ['LoaderSync'] }] });
   });
 
   it('refuses a mixed import with a missing type — a scan cannot split the statement', () => {
@@ -528,6 +564,55 @@ describe('A11 — a rewrite moves only names the target exports', () => {
   it('does not carry a clause into a later dynamic import', () => {
     const source = "export function load() {\n  return import('yargs');\n}\n";
     expect(scan(source).sites[0]).not.toHaveProperty('clause');
+  });
+});
+
+describe('A4 — a sibling whose state the incumbent reads refuses the file (D-20260930-migrate-refuses-clack-core)', () => {
+  // `@clack/prompts` reads its settings from `@clack/core`, and `caique/clack` never imports
+  // `@clack/core`. Before this refusal each file below had its prompts moved to caique while
+  // its `updateSettings` kept configuring clack, and the report said nothing. Each case was
+  // run against that code first and failed on `refused: []` and a rewritten `source`.
+  const fix = "import { updateSettings } from 'caique/clack' instead of '@clack/core', then re-run burgee migrate";
+
+  it.each([
+    ['an import … from', "import { updateSettings } from '@clack/core';\n"],
+    ['an import()', "const { updateSettings } = await import('@clack/core');\n"],
+    ['a require()', "const { updateSettings } = require('@clack/core');\n"],
+  ])('refuses a clack file that reaches @clack/core through %s, and leaves it whole', (_form, core) => {
+    const source = `import { intro, text } from '@clack/prompts';\n${core}updateSettings({ withGuide: false });\n`;
+    expect(rewriteSource(source)).toEqual({
+      source,
+      mapped: [],
+      refused: [{ line: 2, specifier: '@clack/core', reason: 'sibling-state', fix }],
+      kept: [],
+      relevant: true,
+      retained: ['@clack/prompts'],
+    });
+  });
+
+  it('leaves a file that imports @clack/core and not @clack/prompts alone — it is not a rewrite candidate', () => {
+    const source = "import { updateSettings } from '@clack/core';\nupdateSettings({ withGuide: false });\n";
+    expect(rewriteSource(source)).toEqual({ source, mapped: [], refused: [], kept: [], relevant: false });
+  });
+
+  it('moves a clack file whose @clack/core import is type-only — erased types configure nothing', () => {
+    const source = "import { text } from '@clack/prompts';\nimport type { ClackSettings } from '@clack/core';\n";
+    expect(rewriteSource(source)).toMatchObject({ source: "import { text } from 'caique/clack';\nimport type { ClackSettings } from '@clack/core';\n", refused: [] });
+  });
+
+  it('reports the refusal with its fix, exits RUNTIME, and keeps @clack/prompts out of removable', async () => {
+    const setup = "import { intro } from '@clack/prompts';\nimport { updateSettings } from '@clack/core';\n";
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { '@clack/prompts': '^1.8.1', '@clack/core': '^1.3.0' } }),
+      'src/setup.ts': setup,
+      'src/ask.ts': "import { text } from '@clack/prompts';\n",
+    });
+    const report = await migrate({ dir, status: clean });
+    expect(read(dir, 'src/setup.ts')).toBe(setup);
+    expect(read(dir, 'src/ask.ts')).toBe("import { text } from 'caique/clack';\n");
+    expect(report.refused).toEqual([{ file: 'src/setup.ts', line: 2, specifier: '@clack/core', reason: 'sibling-state', fix }]);
+    expect(report.dependencies.removable).toEqual([]);
+    expect(report.exitCode).toBe(ExitCode.RUNTIME);
   });
 });
 

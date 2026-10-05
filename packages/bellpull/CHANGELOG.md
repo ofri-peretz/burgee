@@ -1,5 +1,25 @@
 # bellpull
 
+## 0.5.1
+
+### Patch Changes
+
+- [#777](https://github.com/ofri-peretz/burgee/pull/777) [`1857ff6`](https://github.com/ofri-peretz/burgee/commit/1857ff65ca0e1b0b5686480c1a37dc8834bf688b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The `bellpull/node-which` façade reads the environment once per lookup, and builds each candidate path only as it tries it, rather than joining every `PATH` entry with every extension up front.
+
+  A hit in the first directory now costs one `stat`. In B5, `bellpull/node-which` ÷ which is 0.30× locally (0.43× on CI before this change).
+
+## 0.5.0
+
+### Minor Changes
+
+- [#766](https://github.com/ofri-peretz/burgee/pull/766) [`e928581`](https://github.com/ofri-peretz/burgee/commit/e928581996fdeb317b4c849ae285593bfecf6b4d) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `whichSync`, and so `resolveExecutable` and every `run()`, stops at the first `PATH` entry that answers instead of statting every entry after it, and an absent candidate is no longer an exception (`statSync` with `throwIfNoEntry: false`). Resolution on an 18-entry ubuntu-latest `PATH` went from ~195 µs a call to a few µs, which was the whole of `run`'s 6 % over tinyexec's `x` on spawn time. `whichAllSync` still walks every entry. A candidate whose stat fails for any other reason (`ELOOP`, `EACCES`) is still a miss, not a throw.
+
+## 0.4.5
+
+### Patch Changes
+
+- [#752](https://github.com/ofri-peretz/burgee/pull/752) [`22e6dae`](https://github.com/ofri-peretz/burgee/commit/22e6dae1b71bfa478265829a1b98d20a6f9de4f7) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A plugin that declares `contract: 0` or a negative contract is now refused with `E_PLUGIN_CONTRACT`, as `schema.json`'s minimum of 1 always said. These hosts checked only that a contract was not newer than the one they know, so 0 and below registered.
+
 ## 0.4.4
 
 ### Patch Changes

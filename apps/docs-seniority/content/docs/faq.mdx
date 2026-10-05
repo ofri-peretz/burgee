@@ -16,8 +16,10 @@ and put defaults in the spec's `default`, which ranks last.
 
 ## Does it read YAML?
 
-Not without a parser you pass: `loaders: { '.yaml': yaml.load }`. seniority bundles no format
-parser, and that is a product decision. It is also why cosmiconfig's suite grades it 186 of 243.
+Yes, with its own parser and no dependency. The cosmiconfig drop-in reads `.yaml`, `.yml` and
+extensionless files as cosmiconfig does, loading `seniority/yaml` on the first one; that is how
+cosmiconfig's suite grades it 240 of 243, level with cosmiconfig. `discover` and `loadPath` take
+it as a loader: `loaders: { '.yaml': (_path, text) => parse(text) }`.
 [Config files](/docs/guides/config-files#loaders-bring-your-own-format).
 
 ## A number from the environment comes out as a string.

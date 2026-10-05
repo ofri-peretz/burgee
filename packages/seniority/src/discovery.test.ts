@@ -7,6 +7,10 @@ import { describe, expect, it } from 'vitest';
 
 import { discover, lineOf } from './config.js';
 import { LoaderError } from './load.js';
+import { parse } from './yaml.js';
+
+/** The README's YAML loader, word for word. */
+const yaml = (_path: string, text: string): unknown => parse(text);
 
 const dir = mkdtempSync(join(tmpdir(), 'seniority-discovery-'));
 const write = (rel: string, body: string): string => {
@@ -46,6 +50,13 @@ describe('loaders reach discovery (R6)', () => {
     const loaders = { '.ini': (_f: string, content: string): unknown => Object.fromEntries([content.split(' = ') as [string, string]]) };
     const found = await discover({ name: 'app', cwd, env: {}, loaders, extensions: ['.ini'] });
     expect(found?.data).toEqual({ region: 'eu' });
+  });
+
+  it('`seniority/yaml` is that loader for YAML, exactly as the README passes it', async () => {
+    const cwd = join(dir, 'yaml');
+    write('yaml/app.config.yml', 'region: eu\nretries: 3\n');
+    const found = await discover({ name: 'app', cwd, env: {}, loaders: { '.yaml': yaml, '.yml': yaml }, extensions: ['.json', '.yaml', '.yml', '.js'] });
+    expect(found?.data).toEqual({ region: 'eu', retries: 3 });
   });
 
   it('an explicit --config in a format nobody supplied a loader for is the USAGE refusal, not silence', async () => {

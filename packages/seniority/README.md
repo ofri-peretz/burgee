@@ -26,7 +26,7 @@
 </p>
 
 <p align="center">
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/cosmiconfig%20suite-186%2F243-b45309?style=flat-square" alt="seniority passes 186 of 243 cases of the cosmiconfig test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/cosmiconfig%20suite-240%2F243-b45309?style=flat-square" alt="seniority passes 240 of 243 cases of the cosmiconfig test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/dotenv%20suite-106%2F141-b45309?style=flat-square" alt="seniority passes 106 of 141 cases of the dotenv test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/lilconfig%20suite-77%2F77-0a6b47?style=flat-square" alt="seniority passes 77 of 77 cases of the lilconfig test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/rc%20suite-1%2F1-0a6b47?style=flat-square" alt="seniority/rc passes 1 of 1 cases of the rc test suite" /></a>
@@ -149,7 +149,26 @@ deep-merged left to right, and cycles are rejected with the chain that formed th
 explicit `--config` that is missing is an error; a _discovered_ file that is missing is
 silence.
 
-No YAML: JSON and JavaScript cover the cases, and a YAML parser would be a dependency.
+YAML is one loader away, and still not a dependency. `seniority/yaml` is this package's own
+parser — the part of YAML a config file is written in, read the way `js-yaml` 5 reads it — in
+an entry of its own, so a program that never imports it never carries it:
+
+```js
+import { discover } from "seniority";
+import { parse } from "seniority/yaml";
+
+const yaml = (_path, text) => parse(text);
+await discover({
+  name: "mytool",
+  cwd: process.cwd(),
+  env: process.env,
+  loaders: { ".yaml": yaml, ".yml": yaml },
+  extensions: [".json", ".yaml", ".yml", ".js"],
+});
+```
+
+Supplying the parser and asking discovery to look for the format are two options on purpose:
+a program may want either without the other.
 
 ## Bring your own option type
 
@@ -301,22 +320,21 @@ current grades are generated under *Benchmarks* below and published on the
 
 ### `cosmiconfig`
 
-**Graded by cosmiconfig 10.0.1's own test suite: 186 of 243 cases.** Not "compatible" — a
-number, from the incumbent's tests, run unmodified. Where it stops is one thing:
+**Graded by cosmiconfig 10.0.1's own test suite: 240 of 243 cases, the same as the real
+`cosmiconfig` gets here.** Not "compatible" — a number, from the incumbent's tests, run
+unmodified.
 
-> **YAML.** cosmiconfig reads `.yaml`, `.yml` and extensionless files through `js-yaml`.
-> This package bundles no format parser, so `loadYaml` here reads the subset of YAML that is
-> also JSON — which is every JSON document — and **refuses the rest by name**, telling you to
-> pass `loaders: { '.yaml': yaml.load }`. Do that and you have cosmiconfig's behaviour
-> exactly, with the parser as *your* dependency rather than everyone's.
+YAML is read the way cosmiconfig reads it. cosmiconfig takes `js-yaml` for `.yaml`, `.yml`
+and extensionless files; this package reads them with `seniority/yaml`, its own parser, loaded
+the first time a YAML file is — so a program whose configs are JSON or JavaScript never loads
+it. It returns what `js-yaml` 5 returns, and its errors carry js-yaml's reason and position,
+which cosmiconfig's suite asserts word for word.
 
-Of the 57 cases not passing, 54 are that — counted rather than claimed: every failing entry in
-the raw output was matched against its own diagnostic, and those 54 carry the "no YAML parser"
-refusal above. The largest block is the whole of `import.test.ts`, 22 cases: `$import` works,
-and every fixture it is tested with is `.yml`. One more is the test harness reaching for a file
-path the vendored copy does not have, and it fails for cosmiconfig too. The last two are the
-suite's XDG global-directory pair, which registers only on Linux: the drop-in resolves the
-global directory differently, and the pair is counted against it on every platform.
+Of the three cases not passing, one fails for cosmiconfig too: the test harness reaching for
+a file path the vendored copy does not have. The other two are the suite's XDG global-directory pair, which registers only on Linux.
+There real cosmiconfig passes it and this package does not: it resolves the global directory
+from the home directory and the platform rather than reading `XDG_CONFIG_HOME` (R11), and the
+pair is counted against it on every platform.
 
 ### `seniority/dotenv`
 
@@ -345,7 +363,7 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
-| `cosmiconfig` | 186 / 243 |
+| `cosmiconfig` | 240 / 243 |
 | `dotenv` | 106 / 141 |
 | `lilconfig` | 77 / 77 |
 | `rc` | 1 / 1 |
