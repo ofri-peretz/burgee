@@ -5,7 +5,8 @@
 //
 // It takes rounds because each package's README prints these weights and the README is in
 // the tarball: rewriting the band changes the README, which changes the size. Usually one.
-// The band is the only file it writes besides the READMEs: linegauge's `ceilings.json` used to
+// The band is the only file it writes besides the READMEs and their docs-app projections
+// (`scripts/sync-package-docs.ts`): linegauge's `ceilings.json` used to
 // mirror `layers.linegauge` under `y8.measured`, and its test now reads the band instead.
 //
 // It clears every package's `dist/` and rebuilds before measuring, because the measurement
@@ -47,6 +48,8 @@ for (let round = 1; round <= ROUNDS; round += 1) {
     layer.ratio = ratio(ours, layer.ceiling);
   }
   if (moved === 0) {
+    // The docs apps carry a projection of each README; leaving it stale fails `sync-package-docs.test.ts`.
+    if (round > 1) execFileSync('npx', ['tsx', 'scripts/sync-package-docs.ts'], { cwd: root, stdio: 'ignore' });
     process.stdout.write(`✓ stable after ${round - 1} round(s)\n`);
     process.exit(0);
   }
