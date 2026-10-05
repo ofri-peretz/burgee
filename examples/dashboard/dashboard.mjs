@@ -6,6 +6,8 @@
  *
  * Copy this directory to start your own. What to change first is in README.md.
  */
+import { pathToFileURL } from 'node:url';
+
 import { hints, open, processRuntime } from 'controlroom';
 import { logTail } from 'flagstaff/log-tail';
 import { tabBar } from 'flagstaff/tab-bar';
@@ -98,4 +100,5 @@ export function run(rt, argv = []) {
   });
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) await run(processRuntime(), process.argv.slice(2));
+// `pathToFileURL`, not `file://` + argv[1]: on Windows the two spellings of the path never match.
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) await run(processRuntime(), process.argv.slice(2));

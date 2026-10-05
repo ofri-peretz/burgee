@@ -9,6 +9,8 @@
  * The model is scripted (`MODEL`), so the boilerplate runs with no key and no network. Replace
  * `MODEL` with your client first; README.md says what else to change.
  */
+import { pathToFileURL } from 'node:url';
+
 import { editor } from 'caique/editor';
 import { hints, open, processRuntime } from 'controlroom';
 import { markdown } from 'flagstaff/markdown';
@@ -158,4 +160,5 @@ export function run(rt, argv = []) {
   });
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) await run(processRuntime(), process.argv.slice(2));
+// `pathToFileURL`, not `file://` + argv[1]: on Windows the two spellings of the path never match.
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) await run(processRuntime(), process.argv.slice(2));
