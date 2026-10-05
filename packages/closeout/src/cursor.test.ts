@@ -10,7 +10,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 
-import { alternateScreen, hideCursor, rawMode, showCursor, type InputStream, type OutputStream } from './cursor.js';
+import { alternateScreen, bracketedPaste, hideCursor, rawMode, showCursor, type InputStream, type OutputStream } from './cursor.js';
 import { createRegistry } from './registry.js';
 
 const unregister = (): void => undefined;
@@ -174,6 +174,39 @@ describe('alternateScreen', () => {
     expect(registry.size).toBe(0);
     leave();
     await registry.run({ code: 0, signal: null });
+    expect(stream.written).toBe('');
+  });
+});
+
+describe('bracketedPaste', () => {
+  const ON = '\u001B[?2004h';
+  const OFF = '\u001B[?2004l';
+
+  it('turns bracketed paste off when the program exits without turning it off', async () => {
+    const stream = recorder();
+    const registry = createRegistry();
+    bracketedPaste(stream, (handler) => registry.add(handler));
+    expect(stream.written).toBe(ON);
+    await registry.run({ code: null, signal: 'SIGINT' });
+    expect(stream.written).toBe(ON + OFF);
+  });
+
+  it('turns it off once, however many times it is asked, and unregisters itself', async () => {
+    const stream = recorder();
+    const registry = createRegistry();
+    const off = bracketedPaste(stream, (handler) => registry.add(handler));
+    off();
+    off();
+    expect(registry.size).toBe(0);
+    await registry.run({ code: 0, signal: null });
+    expect(stream.written).toBe(ON + OFF);
+  });
+
+  it('writes nothing to a pipe, in either direction', () => {
+    const stream = recorder(false);
+    const registry = createRegistry();
+    bracketedPaste(stream, (handler) => registry.add(handler))();
+    expect(registry.size).toBe(0);
     expect(stream.written).toBe('');
   });
 });
