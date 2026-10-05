@@ -93,6 +93,25 @@ be compatible and allow easy migration to it from the leading competitors."_
   existing coming-from guides have. The docs gain a **"Which one do I need?"** section:
   flagstaff for inline output in a scrolling terminal, controlroom for a full screen.
 
+  **Built 2026-10-05** (PR #PR_NUMBER): guides `coming-from/blessed`, `coming-from/neo-blessed`
+  and `coming-from/terminal-kit` under `apps/docs/content/docs/`, on the front door until
+  controlroom has a docs host (`familyRedirects()` moves them with a 301 when it does); the
+  **"Which one do I need?"** section on the package map, written by
+  `scripts/sync-package-docs.ts`; and `burgee migrate`'s guided rules in
+  `packages/burgee/src/migrate-guided.ts`, for the `import`, `screen`, `alternate-screen`,
+  `box`, `list`, `key`, `render`, `mouse` and `text-input` patterns. Every rule **reports and
+  none rewrites**: each site goes under the report's `guided` key with its file, line and
+  guide section, the file is left as it was, and the exit code does not change. A site is
+  reported only when its receiver was bound from one of the three packages in the same file.
+  `scripts/migrate-guides-lock.test.ts` holds the rules, the guides' headings, their example
+  reports and the Migrate page's table to each other, and fails on a controlroom snippet that
+  imports a name `src/index.ts` does not export unless the snippet is marked "Planned, not
+  built". **Waits on R4 and R19:** no rule can rewrite until `open()` exists, and pane
+  registration (R5, R10) is designed, so the screen, render and alternate-screen snippets are
+  marked and no rewrite ships. The layout and keymap snippets are marked too, because R8 and
+  R9 are not on main; when they land, those markers drop their "not on main" clause. The
+  lock checks only the unsafe direction, so it will not say so.
+
 **Claude-Code-class apps and boilerplates** (D-167). The owner, 2026-09-27: _"we should also
 be able to build things such as the Claude CLI, we can even have a demo CLI boilerplates."_
 Claude Code is written for Ink and runs **inline**: in the main screen, with its transcript

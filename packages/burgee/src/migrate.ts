@@ -18,6 +18,10 @@
  * codemod that half-works fails later as a runtime error in someone else's CLI, and the
  * first thing they will blame is burgee.
  *
+ * blessed, neo-blessed and terminal-kit have no drop-in to rewrite to (controlroom R18). Their
+ * screen, box, list and key sites are reported under `guided`, each with the section of its
+ * coming-from guide, and never rewritten — `migrate-guided.ts` says why.
+ *
  * Nothing here is reachable from `import 'burgee'`: `cli.ts` loads it with a dynamic
  * import on the `migrate` path only, and `weight.test.ts` denies `migrate.js` to the root
  * entry by name so that cannot drift.
@@ -30,6 +34,7 @@ import { ambientRuntime, run } from 'bellpull';
 
 import { DROP_INS, GRADED, GRADED_VERSIONS, isLevel, type Row, SUPPORTED_MAJORS } from './compat.js';
 import { ExitCode } from './exit-code.js';
+import { guidedSites, mentionsAGuided, type GuidedSite, type Token } from './migrate-guided.js';
 
 /** The npm package a specifier names: `@scope/name/x` → `@scope/name`, `name/x` → `name`. */
 export function packageOf(specifier: string): string {
@@ -773,6 +778,15 @@ export interface NotLevel extends Row {
   to: string;
 }
 
+/**
+ * A blessed, neo-blessed or terminal-kit site, reported with the guide section that covers it
+ * and never rewritten: there is no drop-in for them (controlroom R18), and the API a rewrite
+ * would target is not built. See `migrate-guided.ts`.
+ */
+export interface Guided extends GuidedSite {
+  file: string;
+}
+
 export interface MigrationReport {
   files: number;
   imports: number;
@@ -788,6 +802,8 @@ export interface MigrationReport {
   partial: NotLevel[];
   /** Incumbents on a major the oracle did not grade — left alone, never rewritten onto an API they do not use. */
   offMajor: OffMajor[];
+  /** blessed, neo-blessed and terminal-kit sites by file and line, each with its guide section. Reported, never rewritten, and not a refusal. */
+  guided: Guided[];
   /** The install and uninstall to run next, for the package manager the lockfile names; `''` when there is none. */
   next: string;
   dryRun: boolean;
@@ -986,6 +1002,43 @@ function siteOf(source: string, at: { open: number; close: number; line: number 
 }
 
 /**
+ * One linear pass over the text, handing every code token to `emit`: a word (an identifier or
+ * a number), one punctuation character, {@link QUOTED} for a `'…'` or `"…"`, or `lit` for a
+ * template or a regular expression. Comments, whitespace and `;` are skipped as the shapes
+ * they are. `start` and `end` bound the token, quotes included, and `line` is where it starts.
+ *
+ * Shared by {@link scan} and {@link tokensOf}, so the specifier rewrite and the guided report
+ * read one token stream and cannot disagree about where a string or a comment ends.
+ */
+function lex(source: string, emit: (text: string, line: number, start: number, end: number) => void): void {
+  let previous = '';
+  let line = 1;
+  let i = 0;
+  while (i < source.length) {
+    const trivia = endOfTrivia(source, i);
+    if (trivia !== i) {
+      line += newlines(source, i, trivia);
+      i = trivia;
+      continue;
+    }
+    const literal = endOfLiteral(source, i, previous);
+    if (literal !== -1) {
+      const c = source.charAt(i);
+      previous = c === "'" || c === '"' ? QUOTED : 'lit';
+      emit(previous, line, i, literal);
+      line += newlines(source, i, literal);
+      i = literal;
+      continue;
+    }
+    const word = endOfWord(source, i);
+    const end = word === i ? i + 1 : word;
+    previous = source.slice(i, end);
+    emit(previous, line, i, end);
+    i = end;
+  }
+}
+
+/**
  * One linear pass over the text: comments, strings, templates and regular expressions are
  * skipped as the shapes they are, and every quoted literal is classified by the two code
  * tokens in front of it.
@@ -997,36 +1050,22 @@ function siteOf(source: string, at: { open: number; close: number; line: number 
 export function scan(source: string): Scan {
   const sites: Site[] = [];
   const tokens: Tokens = { previous: '', before: '', pending: false, nonLiteral: [], clause: undefined };
-  let line = 1;
-  let i = 0;
-
-  while (i < source.length) {
-    const trivia = endOfTrivia(source, i);
-    if (trivia !== i) {
-      line += newlines(source, i, trivia);
-      i = trivia;
-      continue;
-    }
-    const literal = endOfLiteral(source, i, tokens.previous);
-    if (literal !== -1) {
-      const c = source.charAt(i);
-      const quoted = c === "'" || c === '"';
-      if (quoted && isSpecifier(tokens.previous, tokens.before)) sites.push(siteOf(source, { open: i, close: literal, line }, tokens));
-      push(tokens, quoted ? QUOTED : 'lit', line);
-      line += newlines(source, i, literal);
-      i = literal;
-      continue;
-    }
-    const word = endOfWord(source, i);
-    if (word !== i) {
-      push(tokens, source.slice(i, word), line);
-      i = word;
-      continue;
-    }
-    push(tokens, source.charAt(i), line);
-    i += 1;
-  }
+  lex(source, (text, line, start, end) => {
+    if (text === QUOTED && isSpecifier(tokens.previous, tokens.before)) sites.push(siteOf(source, { open: start, close: end, line }, tokens));
+    push(tokens, text, line);
+  });
   return { sites, nonLiteral: tokens.nonLiteral };
+}
+
+/** Every code token of `source`, with a quoted literal's contents as `value` — what {@link guidedSites} reads. */
+export function tokensOf(source: string): Token[] {
+  const out: Token[] = [];
+  lex(source, (text, line, start, end) => {
+    // The source text, never the lexer's `str`/`lit` stand-ins: a variable named `str` must not match every string.
+    const raw = source.slice(start, end);
+    out.push(text === QUOTED ? { text: raw, line, value: raw.slice(1, -1) } : { text: raw, line });
+  });
+  return out;
 }
 
 /* ------------------------------------------------------- the rewrite of one file */
@@ -1323,12 +1362,15 @@ const EMPTY: Rewrite = { source: '', mapped: [], refused: [], kept: [], relevant
  * record, is **3.1–5.2 seconds** — an order of magnitude, which is why the concurrency is
  * here at all.)
  */
-async function migrateBatch(dir: string, batch: string[], write: boolean, skip: ReadonlySet<string>): Promise<Rewrite[]> {
+async function migrateBatch(dir: string, batch: string[], write: boolean, skip: ReadonlySet<string>): Promise<{ result: Rewrite; guided: GuidedSite[] }[]> {
   // Read as bytes and decode only what the pre-filter admits: on the bench tree a third of
   // the files never become a string at all, which is 405 ms against 427 for the same work.
   const sources = await Promise.all(batch.map(async (file) => await readFile(join(dir, file))));
-  const results = sources.map((bytes) => (mentionsAHost(bytes) ? rewriteSource(bytes.toString('utf8'), skip) : EMPTY));
-  if (write) await Promise.all(results.map(async (r, i) => (r.mapped.length === 0 ? undefined : await writeFile(join(dir, batch[i] as string), r.source))));
+  const results = sources.map((bytes) => ({
+    result: mentionsAHost(bytes) ? rewriteSource(bytes.toString('utf8'), skip) : EMPTY,
+    guided: mentionsAGuided(bytes) ? guidedSites(tokensOf(bytes.toString('utf8'))) : [],
+  }));
+  if (write) await Promise.all(results.map(async ({ result: r }, i) => (r.mapped.length === 0 ? undefined : await writeFile(join(dir, batch[i] as string), r.source))));
   return results;
 }
 
@@ -1382,17 +1424,18 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
   const offMajor = await offMajorOf(dir, dependencies);
   const skip = new Set(offMajor.map((o) => o.from));
   const files = sourceFiles(dir);
-  const results: { file: string; result: Rewrite }[] = [];
+  const results: { file: string; result: Rewrite; guided: GuidedSite[] }[] = [];
   for (let i = 0; i < files.length; i += BATCH) {
     const batch = files.slice(i, i + BATCH);
     // eslint-disable-next-line reliability/no-await-in-loop -- the await IS the bound (A10). Each batch is 256 files in flight at once; awaiting one before opening the next is what keeps the command inside the open-file limit on a repository of any size, and `Promise.all` over every file in a monorepo is EMFILE.
     const done = await migrateBatch(dir, batch, !dryRun, skip);
-    results.push(...done.map((result, k) => ({ file: batch[k] as string, result })));
+    results.push(...done.map((one, k) => ({ file: batch[k] as string, ...one })));
   }
 
   const all = results.flatMap(({ file, result }) => result.mapped.map((m) => ({ ...m, file })));
   const refused: Refusal[] = results.flatMap(({ file, result }) => result.refused.map((r) => ({ file, ...r })));
   const kept: Kept[] = results.flatMap(({ file, result }) => result.kept.map((k) => ({ file, ...k })));
+  const guided: Guided[] = results.flatMap(({ file, guided: sites }) => sites.map((site) => ({ file, ...site })));
   const imported = [...new Set(results.flatMap(({ result }) => (result.relevant ? [...result.mapped.map((m) => packageOf(m.from)), ...result.kept.map((k) => packageOf(k.specifier))] : [])))].sort();
   const declared = HOSTS.filter((host) => dependencies.has(host));
   // A dependency is removable only when nothing still imports it — a file that was refused
@@ -1418,6 +1461,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
     graded: gradedFor([...new Set([...declared, ...imported])].sort()),
     partial,
     offMajor,
+    guided,
     next: nextStep(dir, add, removable),
     dryRun,
     changed: !dryRun && touched.length > 0,

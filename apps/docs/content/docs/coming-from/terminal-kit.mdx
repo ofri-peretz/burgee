@@ -1,0 +1,272 @@
+---
+title: Coming from terminal-kit
+description: "A terminal-kit alternative for full-screen programs is planned, not built: controlroom is reserved at 0.0.1 and none of its screen API exists yet. This page maps fullscreen, grabInput, on('key'), menus and screen buffers onto controlroom's spec, says what does not map, and shows what burgee migrate reports today."
+---
+
+**controlroom** is the burgee family's planned **terminal-kit alternative** for full-screen,
+keyboard-driven terminal programs. It is **reserved, not usable yet**: the published version
+exports one constant, `status = 'reserved'`, and every controlroom snippet on this page is
+marked **Planned, not built**.
+
+terminal-kit is several libraries in one. Its styled output, spinners, progress bars and
+yes/no questions map to packages you can use today: roundel for colour, flagstaff for
+spinners and progress, caique for questions. This page is about the part that takes over the
+screen and reads keys, which is controlroom's. If you only draw inline output, start at
+[Which one do I need?](/docs/packages#which-one-do-i-need)
+
+## Migrate from terminal-kit: not one import
+
+There will be no `controlroom/terminal-kit`: its surface is too large to reproduce honestly
+(spec R18), so moving is a rewrite of each screen, not of the import line. What exists today
+is the report. `burgee migrate` finds the terminal-kit sites in your project and names the
+section of this page that covers each one:
+
+```bash
+npx burgee migrate --dry-run --json
+```
+
+It reports and never rewrites, because the API a rewrite would target is not built. For this
+program:
+
+```js
+const term = require('terminal-kit').terminal;
+
+term.fullscreen(true);
+term.grabInput(true);
+term.on('key', (name) => {
+  if (name === 'CTRL_C') term.processExit(0);
+});
+term.singleColumnMenu(['build', 'test'], (error, response) => {});
+```
+
+the report's `guided` list reads:
+
+```json
+[
+  { "file": "src/ui.js", "line": 1, "from": "terminal-kit", "pattern": "import", "guide": "https://burgee.interlace.tools/docs/coming-from/terminal-kit#the-mapping" },
+  { "file": "src/ui.js", "line": 3, "from": "terminal-kit", "pattern": "alternate-screen", "guide": "https://burgee.interlace.tools/docs/coming-from/terminal-kit#alternate-screen" },
+  { "file": "src/ui.js", "line": 4, "from": "terminal-kit", "pattern": "key", "guide": "https://burgee.interlace.tools/docs/coming-from/terminal-kit#key-handling" },
+  { "file": "src/ui.js", "line": 5, "from": "terminal-kit", "pattern": "key", "guide": "https://burgee.interlace.tools/docs/coming-from/terminal-kit#key-handling" },
+  { "file": "src/ui.js", "line": 8, "from": "terminal-kit", "pattern": "list", "guide": "https://burgee.interlace.tools/docs/coming-from/terminal-kit#list" }
+]
+```
+
+A site is reported only when its receiver came from terminal-kit in the same file: the
+`terminal` or `realTerminal` the module hands out, one made by `createTerminal()`, or a
+`ScreenBuffer`. A `term` passed in from another file is not followed. The exit code stays 0,
+because nothing was refused. The [Migrate](/docs/migrate) page has the whole report.
+
+## The mapping
+
+| terminal-kit | controlroom | spec | on main today |
+| :-- | :-- | :-- | :-- |
+| `require('terminal-kit').terminal` | `open(runtime, { screen })` | R4, R19 | no |
+| `term.fullscreen(true)` | `open(runtime, { screen: 'alternate' })` | R4 | no; closeout's `alternateScreen` is |
+| `term.fullscreen(false)` | `close()` on what `open()` returned, or any exit | R4, R1 | no |
+| `term.grabInput(true)` | nothing: raw mode is taken once by the screen | R1, R4 | no; closeout's `rawMode` is |
+| `term.on('key', fn)` | an entry in a keymap, which is data | R2, R9 | no |
+| `new termkit.ScreenBuffer()` and `draw()` | nothing: a state change repaints through flagstaff | R5, R15 | no |
+| `term.moveTo(x, y)` with text | a pane in a `layout()` tree, holding a flagstaff component | R8, R5 | no; flagstaff's `boxComponent` is |
+| `term.singleColumnMenu()` | flagstaff's `tasks` for a list you show; caique's `select` for a pick | R5 | `tasks` and `select` are |
+| `term.on('resize', fn)` | nothing: the compositor lays out again | R5 | no |
+| `term.grabInput({ mouse })`, `on('mouse')` | nothing | out of scope | — |
+| `term.inputField()` | caique's prompts, outside a pane | out of scope | caique is |
+
+"On main today" is literal: a row that says no has no code behind it yet.
+
+### Screen
+
+terminal-kit hands you a terminal and leaves the rest to you. controlroom's
+`open(runtime, { screen: 'alternate' })` is one call for the alternate screen, raw mode,
+the compositor and the restore (R4). It takes the terminal **only** when roundel's output
+policy says `tty` and stdin can go raw. In every other mode it opens a static session
+instead, so the same program runs in a pipe, in CI and under `--json`. `runtime` is the
+structural runtime the family's packages take instead of reading `process`.
+
+```js
+// Planned, not built: open() is R4. controlroom exports none of this today.
+import { open } from 'controlroom';
+
+const screen = open(runtime, { screen: 'alternate' });
+try {
+  await runTheApp(screen);
+} finally {
+  screen.close();
+}
+```
+
+R19 adds `screen: 'inline'`, the default: a live region under the program's own output,
+which stays in the scrollback.
+
+`burgee migrate` reports `createTerminal()`, `new termkit.ScreenBuffer()` and
+`new termkit.ScreenBufferHD()` here, and follows `terminal` and `realTerminal` to their uses.
+
+### Box
+
+terminal-kit has no box: a program moves the cursor and writes, or fills a `ScreenBuffer`.
+In controlroom a region of the screen is a pane, a name in one layout tree of rows and
+columns with fixed, fractional (`{ fr, min }`) and fit-to-content sizes (R8). What a pane
+draws is a flagstaff component, so a border, padding and a title come from flagstaff's
+`boxComponent`, which exists today.
+
+```js
+// Planned, not built: layout() is R8, and it is not on main.
+import { layout } from 'controlroom';
+
+const tree = {
+  direction: 'column',
+  parts: [
+    { content: { direction: 'row', parts: [{ size: { fr: 1, min: 20 }, content: 'learn' }, { size: { fr: 2 }, content: 'tasks' }] } },
+    { size: 8, content: 'logs' },
+  ],
+};
+layout(tree, { x: 0, y: 0, width: 100, height: 30 }).get('tasks');
+// { x: 34, y: 0, width: 66, height: 22 }
+```
+
+No absolute `moveTo()` survives the move: positions are arithmetic over the terminal's size,
+done again on every resize. How a pane is handed its component (R5, R10) is not designed in
+detail yet, so it is not shown.
+
+### List
+
+`singleColumnMenu()`, `singleLineMenu()`, `singleRowMenu()` and `gridMenu()` each ask the
+user to pick. A pick is a prompt, and prompts are caique's: `select`, asked before or after
+the screen, not inside it. No planned pane component picks. A list you only **show**, such
+as steps with a state each, is flagstaff's `tasks` in a pane, which exists today.
+`burgee migrate` reports the four menus here.
+
+### Key handling
+
+terminal-kit has you call `grabInput(true)` and then subscribe to `on('key')` with a function
+that switches on the key name. controlroom takes raw mode once for the screen's whole life,
+hands it back through closeout, and binds each key to an **action name** in a keymap that is
+plain data (R2, R9). The hint line is generated from the same keymap.
+
+```js
+// Planned, not built: initial(), reduce() and hints() are R9, and they are not on main.
+import { hints, initial, reduce } from 'controlroom';
+
+const keymap = { left: 'tab.prev', right: 'tab.next', s: 'toggle:status', q: 'quit', 'ctrl+c': 'quit' };
+const labels = { 'tab.prev': 'switch tab', 'tab.next': 'switch tab', 'toggle:status': 'toggle status', quit: 'quit' };
+
+let state = initial(['Status', 'Tail logs'], ['learn', 'tasks']);
+state = reduce(state, keymap.right); // the second tab is active
+hints(keymap, labels); // '←→ switch tab  s toggle status  q/^C quit'
+```
+
+An action the reducer does not know, such as `quit` here, leaves the state alone and is the
+program's own to handle. Key names change spelling, as the spec's examples write them:
+
+| terminal-kit | controlroom |
+| :-- | :-- |
+| `CTRL_C` | `ctrl+c` |
+| `SHIFT_TAB` | `shift+tab` |
+| `LEFT`, `RIGHT`, `ESCAPE` | `left`, `right`, `escape` |
+
+The final spelling is caique's key decoder (R2), which is not built either. No API waits for
+a key unless there is a terminal to press it on (R7): there is no `grabInput()` to forget to
+release.
+
+`burgee migrate` reports `grabInput()` and every `on()` or `once()` whose event name starts
+with `key`.
+
+### Render loop
+
+A terminal-kit program writes as it goes, or fills a `ScreenBuffer` and calls
+`draw({ delta: true })` when it decides to. controlroom has no draw call to make. A state
+change is drawn by the compositor (R5): it writes the whole frame through flagstaff's repaint
+loop, diffed line by line and wrapped in synchronized output, and lays it out again on
+resize. controlroom never writes to the terminal itself (R15). `burgee migrate` reports each
+`draw()` on a screen buffer.
+
+### Alternate screen
+
+`fullscreen(true)` enters the alternate screen and `fullscreen(false)` leaves it. controlroom's
+is the `screen: 'alternate'` option, and leaving it is registered with closeout, so Ctrl+C,
+SIGTERM, a throw and a normal return all hand the terminal back (R1, R4).
+
+The mechanism `open()` is specified to use is on main today, in closeout:
+
+```js
+import { alternateScreen, rawMode } from 'closeout';
+
+const undo = [rawMode(process.stdin), alternateScreen(process.stdout)];
+try {
+  await runTheFullScreenApp();
+} finally {
+  for (const back of undo) back();
+}
+```
+
+Each call makes its change and registers its undo, which runs once on whichever exit comes
+first. `rawMode` changes nothing if the input is already raw. This has not been tested beside
+terminal-kit, which manages the terminal itself, so it is shown as the mechanism and not as
+a step to add to a terminal-kit program. `burgee migrate` reports each `fullscreen()` here.
+
+## What does not map
+
+These are out of scope in controlroom's intent, so a program that depends on them should
+stay on terminal-kit.
+
+### Mouse
+
+`grabInput({ mouse: 'button' })` and `on('mouse')` have no controlroom equivalent, and none
+is planned. Mouse support is reopened only by an adopter's measured need. `burgee migrate`
+reports the `mouse` option and each mouse subscription it can see.
+
+### Text editing in a pane
+
+`inputField()` edits text in place. controlroom does not edit text in a pane: prompts stay
+with caique, asked outside a pane, and `burgee migrate` reports each `inputField()` here. The
+one planned exception is caique's line editor as the input line of an inline screen (R20). A
+text editor pane stays out.
+
+### Legacy Windows consoles
+
+controlroom handles no Windows legacy console quirks beyond what `node:readline` already
+does. If your program relies on terminal-kit's handling of a particular terminal, check that
+before you plan a move.
+
+terminal-kit's document model, images and terminal capability database have no controlroom
+counterpart either. The mapping above is the whole of what is planned.
+
+## Is controlroom compatible with terminal-kit?
+
+**No, by design.** There is no drop-in and nothing is graded: no terminal-kit suite runs
+against controlroom, and none will, because the API is not being reproduced. The
+[Compatibility](/docs/compatibility) page carries controlroom's planned grade against
+**Ink** (R13), and will not carry a terminal-kit row.
+
+## What you gain over terminal-kit
+
+All of this is what the spec commits controlroom to, not something it does today.
+
+- **Every caller gets an answer, not just a terminal.** In `pipe`, `ci` and `accessible`
+  mode a screen prints each pane's static projection, in the declared pane order and under
+  its label. It writes no alternate screen, no cursor movement, no `\r` and no escape byte.
+  Tabs hide nothing and no key hints are printed (R6).
+- **`--json` is an event stream.** Under `--json`, stdout belongs to the result envelope and
+  the screen's events go to stderr as NDJSON, `{ event, pane, state }` (R6).
+- **It never hangs.** No API waits for a key unless the mode is `tty` and stdin can go raw.
+  A wait that cannot be satisfied resolves at once with the static result, or throws with a
+  `fix` (R7).
+- **The terminal comes back.** Leaving the alternate screen and raw mode is registered with
+  closeout when they are entered, not left to an exit handler the program has to write (R1).
+- **One render engine.** The spinner in a pane is the same flagstaff component, drawn by the
+  same frame loop, as the spinner in an ordinary CLI (R15).
+
+This page does not say what terminal-kit writes to a pipe or under CI, and makes no size or
+speed comparison: none has been measured here. The spec's conformance test, which spawns a
+screen in every mode and fails on an escape byte, a `\r` or a hang, is how these claims will
+be checked when the code exists.
+
+## When to switch from terminal-kit
+
+**Not yet** for a full screen: none of controlroom's screen API exists. The inline parts of
+terminal-kit — colour, spinners, progress bars, questions — can move to roundel, flagstaff
+and caique today, a file at a time.
+
+When controlroom exists, switch a screen if its output has to work for a pipe, CI, a screen
+reader or an agent as well as for a person at a terminal. Stay on terminal-kit if you depend
+on the mouse, on editing text in place, or on its document model.
