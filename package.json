@@ -7,7 +7,9 @@
     "apps/*",
     "benchmarks",
     "packages/*",
-    "examples/*"
+    "examples/*",
+    "!examples/chat-cli-ink",
+    "!examples/ink-ecosystem"
   ],
   "packageManager": "npm@11.6.2",
   "repository": {
