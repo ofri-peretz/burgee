@@ -31,3 +31,7 @@ packages/compat-oracle/competitors-upstream.json
 # The two outside checkers the floor axis runs (N10), downloaded and digest-checked by
 # `benchmarks/floor-tools.ts`. Pinned there; a binary is not source.
 benchmarks/.tools/
+
+# grade.test.ts makes its fixtures under the package (mkdtempSync(.grade-)); a run killed
+# before afterAll leaves one behind, and `git add -A` once committed three of them.
+packages/compat-oracle/.grade-*/
