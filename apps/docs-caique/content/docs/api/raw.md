@@ -54,6 +54,10 @@ What a keypress means. Only the six that drive a list — everything else is `ot
 a widget that does not know what to do with a key does nothing, which is what a person
 expects from a key they pressed by accident.
 
+Decoded by `caique/keys`, the one decoder in the package. A chunk that holds anything but
+exactly one key — two keys typed faster than they were read, or a partial sequence — is
+`other`, as it was when this compared the chunk's bytes.
+
 ```ts
 function keyOf(data: string): Key;
 ```
