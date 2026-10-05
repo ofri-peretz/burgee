@@ -11,10 +11,11 @@ that says what to change first. Copy one; there is no generator to install.
 | Boilerplate | What it is | Copy it |
 | :-- | :-- | :-- |
 | [`chat-cli`](https://github.com/ofri-peretz/burgee/tree/main/examples/chat-cli) | A chat CLI in the shape of Claude Code, inline: a streamed markdown reply, slash commands with completion, a permission prompt, a status line, Esc to interrupt | `npx degit ofri-peretz/burgee/examples/chat-cli my-chat` |
+| [`chat-cli-ink`](https://github.com/ofri-peretz/burgee/tree/main/examples/chat-cli-ink) | The same chat written for Ink (`ink`, `react`, `ink-text-input`), run on `controlroom/ink` through one `package.json` line | `npx degit ofri-peretz/burgee/examples/chat-cli-ink my-chat` |
 | [`dashboard`](https://github.com/ofri-peretz/burgee/tree/main/examples/dashboard) | A full-screen dashboard: tabs, a checklist with progress, a log tail and a status line that collapses | `npx degit ofri-peretz/burgee/examples/dashboard my-dashboard` |
 
-`chat-cli-ink`, the same chat written for Ink and run on `controlroom/ink`, follows when the
-Ink drop-in is built.
+`chat-cli-ink` runs unchanged on ink itself when that one line points back at ink: it is the
+proof that a whole Ink app, not just its components, moves by changing a dependency.
 
 ## Every caller, from one program
 
