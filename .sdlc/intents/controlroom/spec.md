@@ -24,6 +24,7 @@ it records every change here.
   arrows, tab, enter, escape, letters, and ctrl and meta combinations. A keymap is **data**:
   an object from key to action name. Raw mode is acquired once for a screen's whole life,
   through R1. Rebuild `raw.ts`'s `keyOf` on this decoder, and keep its suite unchanged.
+  **Built 2026-10-05** as caique/keys (PR #799).
 - **R3 · flagstaff components.** Add `logTail` (the last _n_ lines, a current-step marker,
   and a static projection that appends) and `tabBar` (whose static projection is the active
   tab's label). Both register through `register()` and read no keys. Replace the literal

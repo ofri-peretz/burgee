@@ -7,6 +7,7 @@
 export * from './ask.js';
 export * from './binding.js';
 export * from './decide.js';
+export * from './keys.js';
 export * from './raw.js';
 export * from './spec.js';
 export * from './terminal.js';

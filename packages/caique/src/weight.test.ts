@@ -93,7 +93,12 @@ const RULES: Record<string, EntryRule> = {
   // ansi-escapes' cursor moves from paratext rather than by hand. Measured 14,542.
   // `roundel/terminal` joined the same day (+98): whether anybody is there to type is
   // roundel's `interactive()`, which knows an agent from a person. Measured 14,640.
-  '.': { allow: [...CLOSEOUT, 'linegauge', 'paratext/csi', 'roundel/terminal'], budget: 15_000, denied: ['clack.js', 'inquirer.js'] },
+  //
+  // 19,297 B (+4,657) on 2026-10-05, with `keys.js` (controlroom R2): the raw renderer's
+  // `keyOf` is decoded by `caique/keys` rather than by comparing bytes, and the root re-exports
+  // the decoder and keymaps. Still under a fifth of clack's 101,684 B; the budget moved from
+  // 15,000 because the surface did.
+  '.': { allow: [...CLOSEOUT, 'linegauge', 'paratext/csi', 'roundel/terminal'], budget: 20_000, denied: ['clack.js', 'inquirer.js'] },
   // The shape and its validator. The floor every other subpath stands on, and a leaf: a
   // program that only declares prompts pays 739 B and never loads a widget.
   './spec': { allow: [], budget: 1_000, denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
@@ -167,7 +172,19 @@ const RULES: Record<string, EntryRule> = {
   // 3,846 B (+187): the repaint counts rows with linegauge's `lineCount`
   // against the writer's `columns`, instead of counting `\n`s and ignoring wrap.
   // 3,916 B (+70) on 2026-09-28, the repaint in `paratext/csi`'s spelling.
-  './raw': { allow: [...CLOSEOUT, 'linegauge', 'paratext/csi'], budget: 4_500, denied: ['decide.js', 'binding.js', 'terminal.js', 'index.js'] },
+  // 8,644 B (+4,728) on 2026-10-05: `keyOf` is rebuilt on `caique/keys`' decoder (controlroom
+  // R2), so a list prompt and a screen read the same keys the same way. The budget moved from
+  // 4,500 with it — one decoder in the package, paid by the renderer that reads keys.
+  './raw': { allow: [...CLOSEOUT, 'linegauge', 'paratext/csi'], budget: 9_000, denied: ['decide.js', 'binding.js', 'terminal.js', 'index.js'] },
+  // Key presses through `node:readline`'s decoder, keymaps as data, and a reader that takes raw
+  // mode once through `closeout/cursor` (controlroom R2). A leaf: a screen that reads keys pays
+  // for no prompt, and the two closeout subpaths are the raw-mode restore it owes on every exit
+  // path. Measured 4,723 B on 2026-10-05.
+  './keys': {
+    allow: CLOSEOUT,
+    budget: 5_000,
+    denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js', 'spec.js', 'plugin.js', 'clack.js', 'inquirer.js'],
+  },
   // Resolving a whole command's prompts in one pass: the decision plus the widgets it may
   // reach for. Never the terminal, and never the raw renderer — a framework hands caique an
   // `Io`, and which one is the caller's business. Measured 8,123 B; 8,395 B on 2026-09-28,
