@@ -1,5 +1,7 @@
 import { defineConfig } from 'vitest/config';
 
+import { timeouts } from '../../vitest-timeouts.config.js';
+
 export default defineConfig({
-  test: { include: ['tests/**/*.test.ts'] },
+  test: { ...timeouts, include: ['tests/**/*.test.ts'] },
 });
