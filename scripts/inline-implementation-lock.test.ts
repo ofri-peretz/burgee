@@ -146,8 +146,6 @@ const KNOWN: Record<string, string> = {
     "`nearestPackage` runs on every start-up (V4), and burgee's core bundle is 24,277 B against a 24,282 B ceiling. `findUpSync` from `seniority/find-up` measured 24,924 B (+647) and the `seniority` root's `search` 29,639 B; neither nets out (D-182, #683).",
   'burgee/src/yargs/shim.ts':
     "escalade's `findUp(start, callback)` for the yargs façade: a callback handed each directory's `readdir` listing. seniority's spec keeps its walk an override target for `find-up` only and declines to publish a second discovery product in escalade's shape (R5, D-182).",
-  'caique/src/raw.ts':
-    "the arrow keys a terminal *sends* (`ESC[A`, `ESC[B`) are decoded here — input, which is caique's own keypress job, not an escape it writes. Its raw mode moved in #680, its row count in #677 and its repaint's sequences in #684; the key table is what stays.",
   'compat-oracle/src/run.ts': 'runs each vendored suite in a child process. Internal tooling, never published — but it is still bellpull\'s job, and it is where the executable-resolution bug would bite CI first.',
   'compat-oracle/src/vendor.ts': '`git clone` and `git rev-parse`. Same as above.',
   'burgee/src/pkg.ts':
