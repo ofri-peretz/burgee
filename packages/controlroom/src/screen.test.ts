@@ -174,6 +174,14 @@ describe('R6 — the static session', () => {
     screen.close();
   });
 
+  it('R6 — a live-only pane (a hint line, a tab bar) is left out of the static projection, and updating it is a no-op', () => {
+    const f = fake({ tty: false });
+    const screen = open(f.rt, options({ panes: { hint: { component: text, state: '←→ switch tab', liveOnly: true }, body: { component: text, state: 'content' } } }));
+    screen.update('hint', 'changed');
+    screen.close();
+    expect(f.out.join('')).toBe('content\n');
+  });
+
   it('a pane with no label prints its projection alone', () => {
     const f = fake({ tty: false });
     open(f.rt, options({ panes: { bare: { component: text, state: 'just this' } } })).close();
