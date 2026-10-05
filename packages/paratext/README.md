@@ -222,7 +222,7 @@ surface; `paratext/plugin` for the host. Every export, with its types, is on
 
 Plugins register under the `capabilities` key, against the one schema the whole family shares.
 
-`caique` and `flagstaff` build on it, and it builds on nothing in this family.
+`caique`, `controlroom`, `flagstaff` build on it, and it builds on nothing in this family.
 
 ## The family
 

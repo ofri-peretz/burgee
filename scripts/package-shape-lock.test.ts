@@ -22,8 +22,19 @@ interface Pkg {
   dependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
   optionalDependencies?: Record<string, string>;
+  peerDependenciesMeta?: Record<string, { optional?: boolean }>;
   exports?: Record<string, string | Record<string, string>>;
 }
+
+/**
+ * The external peers a spec admits, each an optional peer npm never installs: controlroom's
+ * `react` and `react-reconciler`, which only `controlroom/ink` reaches (controlroom R11, D-158).
+ */
+const OPTIONAL_PEERS: Readonly<Record<string, readonly string[]>> = { controlroom: ['react', 'react-reconciler'] };
+
+/** A peer this package may name although it is not ours: admitted above, and marked optional. */
+const isUninstalledPeer = (pkg: Pkg, dep: string): boolean =>
+  (OPTIONAL_PEERS[pkg.name] ?? []).includes(dep) && pkg.peerDependencies?.[dep] !== undefined && pkg.peerDependenciesMeta?.[dep]?.optional === true;
 
 /** K2's floor, restated 2026-09-23 (D-132). The matrix in `compat.yml` tests both ends. */
 const NODE_FLOOR = '^20.19.0 || >=22.13.0';
@@ -156,8 +167,19 @@ describe.each(published)('published package $pkg.name', ({ dir, pkg }) => {
   it('installs nothing from outside this repository — dependencies, peers or optional (D-111)', () => {
     const family = new Set(published.map((p) => p.pkg.name));
     const fields = [pkg.dependencies, pkg.peerDependencies, pkg.optionalDependencies];
-    const external = fields.flatMap((f) => Object.keys(f ?? {})).filter((dep) => !family.has(dep));
+    const external = fields.flatMap((f) => Object.keys(f ?? {})).filter((dep) => !family.has(dep) && !isUninstalledPeer(pkg, dep));
     expect(external, `${pkg.name} would install ${external.join(', ')} from outside this repository`).toEqual([]);
+  });
+
+  // The one exception D-111 admits, and the reason it does not open the door D-111 closed: a
+  // peer marked optional in `peerDependenciesMeta` is never installed by npm, so it costs an
+  // adopter nothing unless their own program already has it. controlroom/spec.md R11 (D-158)
+  // makes the program's own `react` and `react-reconciler` the drop-in's renderer, as optional
+  // peers reached from `controlroom/ink` alone. Any other external peer is still refused.
+  it('declares an external peer only where a spec admits it, and only as optional', () => {
+    const peers = Object.keys(pkg.peerDependencies ?? {}).filter((dep) => !published.some((p) => p.pkg.name === dep));
+    expect(peers, `${pkg.name}'s external peers`).toEqual(OPTIONAL_PEERS[pkg.name] ?? []);
+    for (const peer of peers) expect(pkg.peerDependenciesMeta?.[peer]?.optional, `${pkg.name} → ${peer} must be optional`).toBe(true);
   });
 
   // The floor is where `require(esm)` loads without a warning: 20.19 and 22.13 (22.12 loads it

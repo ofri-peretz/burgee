@@ -70,8 +70,8 @@ export const GRADED: Readonly<Record<string, Row>> = {
   'restore-cursor': { reference: 6, passed: 6, rate: 1, control: 6 },
   'exit-hook': { reference: 21, passed: 21, rate: 1, control: 21 },
   'signal-exit': { reference: 135, passed: 134, rate: 0.9925925925925926, control: 134 },
-  ink: { reference: 593, passed: 0, rate: 0, control: 593 },
-  'inkjs-ui': { reference: 103, passed: 0, rate: 0, control: 103 },
+  ink: { reference: 584, passed: 576, rate: 0.9863013698630136, control: 584 },
+  'inkjs-ui': { reference: 103, passed: 103, rate: 1, control: 103 },
 };
 
 /** One graded path: an incumbent's specifier, and the family specifier that replaces it. */
@@ -118,7 +118,7 @@ export const DROP_INS: readonly DropIn[] = [
   { host: 'exit-hook', from: 'exit-hook', to: 'closeout/exit-hook' },
   { host: 'signal-exit', from: 'signal-exit', to: 'closeout/signal-exit' },
   { host: 'signal-exit', from: 'signal-exit/signals', to: 'closeout/signal-exit/signals' },
-  { host: 'ink', from: 'ink', to: 'controlroom' },
+  { host: 'ink', from: 'ink', to: 'controlroom/ink' },
 ];
 
 /**
