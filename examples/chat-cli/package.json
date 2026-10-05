@@ -1,0 +1,23 @@
+{
+  "name": "example-chat-cli",
+  "version": "0.0.0",
+  "private": true,
+  "description": "controlroom's chat boilerplate (R22): a Claude-Code-class CLI on the native API, inline, with a streamed markdown reply, slash commands, a permission prompt, a status line, Esc to interrupt and --json. Copy it to start your own.",
+  "type": "module",
+  "bin": { "chat": "./chat.mjs" },
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node chat.mjs",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "caique": "*",
+    "controlroom": "*",
+    "flagstaff": "*"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.1"
+  }
+}

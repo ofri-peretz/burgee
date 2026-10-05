@@ -206,6 +206,11 @@ shape, and it is the most common one.
   - `examples/dashboard`, the reference demo from the intent (the PostHog wizard's layout):
     tabs, a task list with progress, a log tail and collapse, in the alternate screen.
 
+  **`examples/chat-cli` built 2026-10-05**: piped, a prompt a line, in order (entries that
+  arrive mid-reply queue), a clean transcript, and exit when stdin ends; under `--json`, one
+  commit event per entry; on a terminal, driven in-process and by hand under a real PTY: the
+  reply streams under a status line, Esc interrupts, Tab completes, Ctrl+C quits. Under
+  `--json`, closing a screen no longer repeats its last commit.
   **`examples/dashboard` built 2026-10-05**: under a pipe and `--json` its test applies R6's
   clean-transcript check and runs with stdin closed; on a terminal it is driven in-process
   (keys, collapse, quit, leaving the alternate screen), and by hand under a real PTY. Panes it
