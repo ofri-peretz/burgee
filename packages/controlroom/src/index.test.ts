@@ -10,7 +10,7 @@ describe('controlroom, reserved', () => {
     expect(status).toBe('reserved');
   });
 
-  it('exports nothing else, so nobody builds on a stub', async () => {
-    expect(Object.keys(await import('./index.js'))).toEqual(['status']);
+  it('exports only what is built: the layout (R8) and the tab, focus and collapse state (R9)', async () => {
+    expect(Object.keys(await import('./index.js')).sort()).toEqual(['distribute', 'hints', 'initial', 'layout', 'reduce', 'status']);
   });
 });

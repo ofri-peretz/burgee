@@ -100,7 +100,7 @@ decides the output mode.
 
 It hosts no plugin key of its own.
 
-Nothing in this family builds on it yet, and it builds on nothing in this family.
+Nothing in this family builds on it yet, and it builds on `linegauge`.
 
 ## The family
 
