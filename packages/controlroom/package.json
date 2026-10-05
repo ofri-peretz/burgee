@@ -50,6 +50,9 @@
     "non-tty",
     "zero-dependency"
   ],
+  "dependencies": {
+    "linegauge": "^1.0.3"
+  },
   "devDependencies": {
     "vitest": "^5.0.1"
   }
