@@ -39,6 +39,11 @@
       "import": "./dist/inquirer.js",
       "default": "./dist/inquirer.js"
     },
+    "./keys": {
+      "types": "./dist/keys.d.ts",
+      "import": "./dist/keys.js",
+      "default": "./dist/keys.js"
+    },
     "./plugin": {
       "types": "./dist/plugin.d.ts",
       "import": "./dist/plugin.js",
