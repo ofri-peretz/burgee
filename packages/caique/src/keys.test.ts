@@ -113,6 +113,14 @@ describe('canonical: one spelling per key', () => {
     expect(canonical(spec)).toBe(expected);
   });
 
+  it('reads a long run of modifiers in linear time, so a keymap from a file cannot stall it', () => {
+    // The regular expression this replaced backtracked polynomially here (CodeQL, #799).
+    const started = performance.now();
+    expect(() => canonical('alt+'.repeat(50_000))).toThrow(KeysError);
+    expect(canonical(`${'alt+'.repeat(50_000)}x`)).toBe('meta+x');
+    expect(performance.now() - started).toBeLessThan(1_000);
+  });
+
   it.each(['', 'shift+', 'hyper+x', 'ctrl+ab', 'leftt'])('refuses %j, with a fix', (spec) => {
     const thrown = refusal(() => canonical(spec));
     expect(thrown).toBeInstanceOf(KeysError);

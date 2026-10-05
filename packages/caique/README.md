@@ -238,12 +238,12 @@ measured. **The ceiling is clack**: `@clack/prompts`
 
 | Subpath | Bytes | Reaches |
 | :-- | --: | :-- |
-| `caique` (everything but the façades) | 19,297 | `closeout/cursor` and `closeout/exit-hook` — never a façade |
+| `caique` (everything but the façades) | 19,549 | `closeout/cursor` and `closeout/exit-hook` — never a façade |
 | `caique/spec` | 739 | a leaf — declare prompts without loading a widget |
 | `caique/decide` | 2,133 | the spec only |
 | `caique/ask` | 4,234 | the six widgets, no terminal, no raw mode |
-| `caique/raw` | 8,644 | line mode, which it sits on top of, the key decoder, and `closeout` for the cursor |
-| `caique/keys` | 4,723 | `closeout` for raw mode, and nothing else in caique |
+| `caique/raw` | 8,896 | line mode, which it sits on top of, the key decoder, and `closeout` for the cursor |
+| `caique/keys` | 4,991 | `closeout` for raw mode, and nothing else in caique |
 | `caique/binding` | 8,123 | the decision and the widgets |
 | `caique/terminal` | 1,947 | the one file that touches a stream |
 | `caique/plugin` | 9,788 | the widgets, and the family schema |

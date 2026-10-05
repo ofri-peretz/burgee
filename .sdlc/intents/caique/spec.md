@@ -581,8 +581,8 @@ answer to "can this read keys". One behaviour moved, and it is a fix: a terminal
 application-cursor mode sends `ESC O A` for Up, which byte comparison read as `other` and the
 decoder reads as `up`.
 
-**Weight.** `keys.js` is 4,723 B and reaches `closeout/cursor` and `closeout/exit-hook` only.
-`./raw` went from 3,916 to 8,644 B and the root from 14,640 to 19,297 B, still under a fifth of
+**Weight.** `keys.js` is 4,991 B and reaches `closeout/cursor` and `closeout/exit-hook` only.
+`./raw` went from 3,916 to 8,896 B and the root from 14,640 to 19,549 B, still under a fifth of
 clack's 101,684 B. Both budgets moved, each with its reason, in `weight.test.ts`.
 
 **Proven to bite.** Fifteen mutations were run against `keys.ts` and `raw.ts`, and every
@@ -596,6 +596,12 @@ first of several keys in a chunk (1), and `keyOf` without Ctrl-D (1). Two first-
 survived, and both were the mutation's fault rather than the suite's: toggling through
 `rawMode()` is a no-op once the input is raw, and a second `stop()` was harmless until a
 second reader opened on the same stream, which the suite now does.
+
+**CodeQL's finding on the PR, fixed.** The first `canonical()` split a spec with the regular
+expression `(modifier\+)*(.+)`, which backtracks polynomially on a long run of `alt+`. A keymap
+is data and can come from a file, so that is a stall a config file could cause. It is now one
+left-to-right walk. The case that proves it, 50,000 `alt+`s in under a second, did not finish
+in 120 s against the regular expression.
 
 Not done here, and named: **bracketed paste mode** (`ESC[?2004h`) is a terminal state a program
 owes back, like the cursor, and switching it on is the host's job. The decoder already reports

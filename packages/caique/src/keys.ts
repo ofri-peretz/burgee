@@ -143,8 +143,25 @@ const NAMED = new Set([
   ...Array.from({ length: 12 }, (_, i) => `f${String(i + 1)}`),
 ]);
 const ALIASES: Readonly<Record<string, string>> = { esc: 'escape', return: 'enter', ' ': 'space' };
-const MODIFIER = { ctrl: 'ctrl', meta: 'meta', alt: 'meta', shift: 'shift' } as const;
-const SPEC = /^((?:(?:ctrl|meta|alt|shift)\+)*)(.+)$/i;
+const MODIFIER: Readonly<Record<string, string>> = { ctrl: 'ctrl', meta: 'meta', alt: 'meta', shift: 'shift' };
+
+/**
+ * A spec split into its modifiers and the key after them, by one left-to-right walk. It was a
+ * regular expression, `(modifier\+)*(.+)`, and CodeQL was right that it backtracks
+ * polynomially on a long run of `alt+` — a keymap is data, and data can come from a file.
+ * A `+` with nothing after it is the key `+` itself (`ctrl++`), never a modifier's separator.
+ */
+function split(spec: string): { modifiers: string[]; rawName: string } {
+  const modifiers: string[] = [];
+  let rest = spec;
+  for (let at = rest.indexOf('+'); at > 0 && at < rest.length - 1; at = rest.indexOf('+')) {
+    const modifier = MODIFIER[rest.slice(0, at).toLowerCase()];
+    if (modifier === undefined) break;
+    modifiers.push(modifier);
+    rest = rest.slice(at + 1);
+  }
+  return { modifiers, rawName: rest };
+}
 
 /** The modifiers and name of a spec, in canonical order: `ctrl+meta+shift+name`. */
 function spelled(modifiers: ReadonlySet<string>, name: string): string {
@@ -160,15 +177,15 @@ function spelled(modifiers: ReadonlySet<string>, name: string): string {
  * is ignored (`Ctrl+C` is `ctrl+c` — a terminal cannot tell the two apart anyway).
  */
 export function canonical(spec: string): string {
-  const [, prefix = '', rawName = ''] = SPEC.exec(spec) ?? [];
-  const modifiers = new Set(prefix.toLowerCase().split('+').filter(Boolean).map((m) => MODIFIER[m as keyof typeof MODIFIER]));
+  const { modifiers: named, rawName } = split(spec);
+  const modifiers = new Set(named);
   const lower = rawName.toLowerCase();
   const name = ALIASES[lower] ?? lower;
   if (NAMED.has(name)) return spelled(modifiers, name);
   if (!printable(rawName)) {
     throw new KeysError('E_KEY_SPEC', `"${spec}" does not name a key`, `write a key as [ctrl+][meta+][shift+]<key>, where <key> is one character or one of: ${[...NAMED].join(', ')}`);
   }
-  if (prefix === '' && rawName !== lower) modifiers.add('shift');
+  if (named.length === 0 && rawName !== lower) modifiers.add('shift');
   return spelled(modifiers, name);
 }
 
