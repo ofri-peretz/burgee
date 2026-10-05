@@ -37,6 +37,13 @@ export const SHOW_CURSOR = `${ESC}[?25h`;
  */
 export const ENTER_ALTERNATE_SCREEN = `${ESC}[?1049h`;
 export const LEAVE_ALTERNATE_SCREEN = `${ESC}[?1049l`;
+/**
+ * Bracketed paste, DEC private mode 2004: while it is on, the terminal wraps pasted text in
+ * `ESC[200~ … ESC[201~`, so a line editor can take a multi-line paste as text instead of as
+ * keys — Enter included — and a terminal left with it on wraps every later paste in the shell.
+ */
+export const ENABLE_BRACKETED_PASTE = `${ESC}[?2004h`;
+export const DISABLE_BRACKETED_PASTE = `${ESC}[?2004l`;
 
 /** The half of `NodeJS.WriteStream` this needs, so a test can pass a recorder. */
 export interface OutputStream {
@@ -134,6 +141,16 @@ export function alternateScreen(stream: OutputStream, onExit: Registrar): () => 
   if (stream.isTTY !== true) return noop;
   stream.write(ENTER_ALTERNATE_SCREEN);
   return paired(() => stream.write(LEAVE_ALTERNATE_SCREEN), onExit);
+}
+
+/**
+ * Turn bracketed paste on, and register turning it off, with {@link alternateScreen}'s
+ * contract: once only, early calls unregister, and a non-TTY gets nothing in either direction.
+ */
+export function bracketedPaste(stream: OutputStream, onExit: Registrar): () => void {
+  if (stream.isTTY !== true) return noop;
+  stream.write(ENABLE_BRACKETED_PASTE);
+  return paired(() => stream.write(DISABLE_BRACKETED_PASTE), onExit);
 }
 
 /**

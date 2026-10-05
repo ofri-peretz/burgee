@@ -183,6 +183,11 @@ shape, and it is the most common one.
   and a completion menu the program feeds (for `/commands` and `@files`). The editor stays
   caique's; controlroom places it and routes keys to it while it has focus. Outside `tty`,
   input comes from stdin lines or the flag the program declares, never a wait (R7).
+  **controlroom's half built 2026-10-05** as `open(rt, { input })`: keys go to caique's editor
+  while its pane has focus, and a key the editor leaves unchanged falls through to the keymap,
+  so Esc and the program's own bindings still arrive. Bracketed paste is on while the screen is
+  open, through a new `bracketedPaste()` in `closeout/cursor`. A static session reads piped
+  stdin a line an entry, and never reads a terminal's stdin: its input ends at once instead.
   **Built 2026-10-05** (caique's half) as caique/editor (PR #801); hosting it in the live
   region is controlroom's, in phase 2.
 - **R21 · the chat widgets.** flagstaff gains `markdown`, streamed as tokens arrive and

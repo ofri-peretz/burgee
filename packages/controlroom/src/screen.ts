@@ -12,9 +12,10 @@
  * screen, the cursor, raw mode, each with its restore registered in the same call). This file
  * lays out and routes keys; it never paints (R15).
  */
+import { type Editor, type EditorState, submissions } from 'caique/editor';
 import { type KeyPress, match, readKeys, canReadKeys, type Keymap } from 'caique/keys';
 import { onExit } from 'closeout';
-import { alternateScreen, hideCursor, type Registrar } from 'closeout/cursor';
+import { alternateScreen, bracketedPaste, hideCursor, type Registrar } from 'closeout/cursor';
 import { frameWriter, type FrameWriter, hoist, type Hoisted } from 'flagstaff/loop';
 import { type Component, registered as flagstaffRegistered } from 'flagstaff/plugin';
 import { outputMode, type OutputMode } from 'roundel/policy';
@@ -44,7 +45,34 @@ export interface ScreenOptions {
   json?: boolean;
   /** Every action, after the screen's own state has taken it: the program's half of the keymap. */
   onAction?(action: string, screen: Screen): void;
+  /** R20 — an input line, drawn in one pane of the layout. */
+  input?: InputOptions;
 }
+
+/**
+ * R20 — an input line inside a screen. The editor is caique's (`caique/editor`); controlroom
+ * places it in `pane` and routes keys to it while that pane has focus. A key the editor does
+ * not use (its state comes back unchanged, with no event) falls through to the keymap, so Esc
+ * and the program's own bindings still reach the program. Outside a terminal the entries come
+ * from piped stdin, a line each, and a terminal's stdin is never read: that would be a wait.
+ */
+export interface InputOptions {
+  editor: Editor;
+  pane: string;
+  onSubmit(text: string, screen: Screen): void;
+  /** The input has no more to give: piped stdin ended, or there is no stdin to read without waiting. */
+  onEnd?(screen: Screen): void;
+}
+
+/** The input line as a pane: caique's render, drawn on a live screen only. */
+function inputPane({ editor, pane }: InputOptions): Pane {
+  const component: Component<EditorState> = { name: pane, static: (state) => editor.render(state).lines.join('\n') };
+  return { component: component as Component<unknown>, state: editor.initial, liveOnly: true };
+}
+
+/** Whether an editor step changed nothing a person could see. */
+const unchanged = (a: EditorState, b: EditorState): boolean =>
+  a.text === b.text && a.cursor === b.cursor && a.at === b.at && a.paste === b.paste && a.menu === b.menu && a.dismissed === b.dismissed;
 
 export interface Screen {
   /** What `open()` decided, from roundel's policy. */
@@ -85,7 +113,9 @@ function unknownPane(name: string): never {
 export function open(rt: Runtime, given: ScreenOptions): Screen {
   // Resolved before the mode is decided, so a name nobody registered fails in a pipe exactly as
   // it fails on a terminal, not only where keys are read.
-  const options: Resolved = { ...given, panes: panesOf(given), keymap: keymapOf(given) };
+  const { input } = given;
+  const panes = input === undefined ? panesOf(given) : Object.fromEntries([...Object.entries(panesOf(given)), [input.pane, inputPane(input)]]);
+  const options: Resolved = { ...given, panes, keymap: keymapOf(given) };
   const mode = outputMode(rt, { json: options.json === true });
   if (mode === 'tty' && canReadKeys(rt.stdin)) return live(rt, options);
   // ponytail: a tty whose stdin cannot go raw (`cmd < file` in a terminal) is projected
@@ -186,20 +216,34 @@ function projected(rt: Runtime, options: Resolved, mode: OutputMode): Screen {
       commits?.lower();
     },
   };
+  // A throw from the program's own onSubmit is the program's, as from any event handler: it is
+  // left to surface as an unhandled rejection rather than swallowed here.
+  // eslint-disable-next-line maintainability/no-unhandled-promise, reliability/no-unhandled-promise -- see above
+  if (options.input !== undefined) void feed(rt, options.input, screen);
   return screen;
+}
+
+/** R20 outside a terminal: piped stdin, a line an entry; a terminal's stdin is never read (R7). */
+async function feed(rt: Runtime, input: InputOptions, screen: Screen): Promise<void> {
+  if (rt.stdin.isTTY !== true) for await (const line of submissions(rt.stdin)) input.onSubmit(line, screen);
+  else await Promise.resolve();
+  input.onEnd?.(screen);
 }
 
 /** R4, R5, R19 — the live screen. */
 function live(rt: Runtime, options: Resolved): Screen {
   const alternate = options.screen === 'alternate';
   const panes = new Map(Object.entries(options.panes));
-  const { keymap } = options;
+  const { keymap, input } = options;
+  /** The input has focus when its pane is the focused one, or when no pane takes focus at all. */
+  const focused = (pane: string): boolean => state.panes.length === 0 || state.panes[state.focused] === pane;
   let state = initial(options.tabs, options.focus);
   const started = rt.clock.now();
   const committed: string[] = [];
   const undo: (() => void)[] = [];
   if (alternate) undo.push(alternateScreen(rt.stdout, restore));
   undo.push(hideCursor(rt.stdout, restore));
+  if (options.input !== undefined) undo.push(bracketedPaste(rt.stdout, restore));
   let writer = frameWriter(rt.stdout);
 
   const frame = (animated: boolean): string[] => {
@@ -228,6 +272,16 @@ function live(rt: Runtime, options: Resolved): Screen {
   const stopKeys = readKeys(
     rt.stdin,
     (key: KeyPress) => {
+      if (input !== undefined && focused(input.pane)) {
+        const before = panes.get(input.pane)!.state as EditorState;
+        const step = input.editor.onKey(before, key);
+        if (step.event?.type === 'cancel') return screen.dispatch('quit');
+        if (step.event !== undefined || !unchanged(before, step.state)) {
+          screen.update(input.pane, step.state);
+          if (step.event?.type === 'submit') input.onSubmit(step.event.text, screen);
+          return;
+        }
+      }
       const action = match(keymap, key);
       if (action !== undefined) screen.dispatch(action);
     },
