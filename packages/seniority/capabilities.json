@@ -171,8 +171,8 @@
         },
         {
           "capability": "Passes cosmiconfig's own test suite",
-          "why": "`seniority` passes 240 of the 243 cases of cosmiconfig 10.0.1's own suite, the count the published control run passes too.",
-          "ours": {"status": "partial", "grade": "packages/compat-oracle/baseline/cosmiconfig.json", "missing": "3 cases: 1 imports cosmiconfig's entry by a file path the harness cannot load, which fails for cosmiconfig too, and 2 are a Linux-only XDG pair that cosmiconfig passes there by reading XDG_CONFIG_HOME, which seniority does not read (R11)"},
+          "why": "`seniority` passes 242 of the 243 cases of cosmiconfig 10.0.1's own suite on Linux, the count the published control run passes too, the XDG global-directory pair included.",
+          "ours": {"status": "partial", "grade": "packages/compat-oracle/baseline/cosmiconfig.json", "missing": "1 case: `index.test.ts` imports cosmiconfig's entry by a file path the harness cannot load, which fails for cosmiconfig too"},
           "incumbents": {
             "cosmiconfig": {"status": "yes", "source": "packages/compat-oracle/vendor/cosmiconfig/test/successful-files.test.ts", "quote": "import { cosmiconfig, cosmiconfigSync } from '../shim.mjs';", "note": "its own suite, the control run; the case the harness cannot load fails for it too"},
             "lilconfig": {"status": "n/a", "source": "packages/compat-oracle/vendor/lilconfig/src/spec/index.spec.js", "quote": "const {lilconfig, lilconfigSync} = require('../../shim.mjs');", "note": "a different API"},

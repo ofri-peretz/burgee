@@ -1,8 +1,8 @@
 /**
  * `seniority/cosmiconfig`, driven in this process.
  *
- * The public grade is cosmiconfig's own suite through `compat-oracle` (240 / 243 on ubuntu,
- * level with cosmiconfig itself since `seniority/yaml`). That suite runs in another
+ * The public grade is cosmiconfig's own suite through `compat-oracle` (242 / 243 on ubuntu,
+ * level with cosmiconfig itself since `seniority/yaml` and the XDG read). That suite runs in another
  * process against `dist/`, so none of it moves a counter here, and `cosmiconfig.ts` is not in
  * the shared `TESTED_IN_ANOTHER_PROCESS` list: it is measured, so it is tested here too.
  *
@@ -64,14 +64,21 @@ function meta(body: string): void {
   writeFileSync(join(cwd, '.config', 'config.json'), body);
 }
 
-/** A fresh copy of the module over an `os` that answers for the platform and the home directory. */
-async function load(platform: string, home: string): Promise<typeof import('./cosmiconfig.js')> {
+/**
+ * A fresh copy of the module over an `os` that answers for the platform and the home directory,
+ * and a runtime seam (`runtime.ts`, D-135) whose environment is `env` — the live object, so a
+ * case can change it between searches; `null` is a runtime with no process at all. Never the real `process.env`: a CI runner sets
+ * `XDG_CONFIG_HOME` (GitHub's ubuntu image does), and these cases must not read the machine.
+ */
+async function load(platform: string, home: string, env: Record<string, string | undefined> | null = {}): Promise<typeof import('./cosmiconfig.js')> {
   vi.resetModules();
   vi.doMock('node:os', async (importOriginal) => ({ ...(await importOriginal<typeof import('node:os')>()), homedir: () => home, platform: () => platform }));
+  vi.doMock('./runtime.js', () => ({ ambientEnv: () => env ?? undefined, ambientCwd: () => cwd }));
   try {
     return await import('./cosmiconfig.js');
   } finally {
     vi.doUnmock('node:os');
+    vi.doUnmock('./runtime.js');
   }
 }
 
@@ -557,5 +564,77 @@ describe('the global config directory, by platform', () => {
     const expected = { config: { from: 'global' }, filepath: join(home, ...segments) };
     expect(await fresh.cosmiconfig('app', { searchStrategy: 'global' }).search(join(home, 'project', 'a'))).toEqual(expected);
     expect(fresh.cosmiconfigSync('app', { searchStrategy: 'global' }).search(join(home, 'project', 'a'))).toEqual(expected);
+  });
+});
+
+/** Both explorers, one global search from `<home>/project/a`, answered as `[async, sync]` file paths. */
+async function found(fresh: typeof import('./cosmiconfig.js'), home: string): Promise<[string | undefined, string | undefined]> {
+  const from = join(home, 'project', 'a');
+  const options = { searchStrategy: 'global', cache: false } as const;
+  return [(await fresh.cosmiconfig('app', options).search(from))?.filepath, fresh.cosmiconfigSync('app', options).search(from)?.filepath];
+}
+
+describe('the global config directory reads the environment as env-paths does (D-20260930-seniority-xdg-config-home)', () => {
+  it('on linux, a non-default `XDG_CONFIG_HOME` is where the global config is — not `~/.config`', async () => {
+    // cosmiconfig's own `finds config in OS default directory (XDG)` pair, which registers only
+    // on linux. Until this, a migrated Linux user with this variable set lost their config.
+    const root = tree({ 'home/.config/app/config.json': '{"from":"home"}', 'xdg/app/config.json': '{"from":"xdg"}', 'home/project/a/': '' });
+    const home = join(root, 'home');
+    const fresh = await load('linux', home, { XDG_CONFIG_HOME: join(root, 'xdg') });
+    const at = join(root, 'xdg', 'app', 'config.json');
+    expect(await found(fresh, home)).toEqual([at, at]);
+  });
+
+  it('on linux, reads the variable at each search, and falls back to `~/.config` when it is unset or empty', async () => {
+    // Live, as env-paths is: it destructures `process.env` once and reads the key per call.
+    // Empty counts as unset (`env.XDG_CONFIG_HOME || …`); read with `??`, it would search `app/`
+    // relative to the working directory.
+    const root = tree({ 'home/.config/app/config.json': '{"from":"home"}', 'xdg/app/config.json': '{"from":"xdg"}', 'home/project/a/': '' });
+    const home = join(root, 'home');
+    const env: Record<string, string | undefined> = { XDG_CONFIG_HOME: join(root, 'xdg') };
+    const fresh = await load('linux', home, env);
+    const xdg = join(root, 'xdg', 'app', 'config.json');
+    const fallback = join(home, '.config', 'app', 'config.json');
+    expect(await found(fresh, home)).toEqual([xdg, xdg]);
+    delete env['XDG_CONFIG_HOME'];
+    expect(await found(fresh, home)).toEqual([fallback, fallback]);
+    env['XDG_CONFIG_HOME'] = '';
+    expect(await found(fresh, home)).toEqual([fallback, fallback]);
+  });
+
+  it('on win32, `APPDATA` replaces `AppData/Roaming`, and empty falls back to it', async () => {
+    const root = tree({ 'home/AppData/Roaming/app/Config/config.json': '{"from":"home"}', 'appdata/app/Config/config.json': '{"from":"appdata"}', 'home/project/a/': '' });
+    const home = join(root, 'home');
+    const env: Record<string, string | undefined> = { APPDATA: join(root, 'appdata') };
+    const fresh = await load('win32', home, env);
+    const appdata = join(root, 'appdata', 'app', 'Config', 'config.json');
+    const fallback = join(home, 'AppData', 'Roaming', 'app', 'Config', 'config.json');
+    expect(await found(fresh, home)).toEqual([appdata, appdata]);
+    env['APPDATA'] = '';
+    expect(await found(fresh, home)).toEqual([fallback, fallback]);
+  });
+
+  it('on darwin, neither variable moves it: `~/Library/Preferences`, as env-paths has it', async () => {
+    const root = tree({ 'home/Library/Preferences/app/config.json': '{"from":"home"}', 'xdg/app/config.json': '{"from":"xdg"}', 'home/project/a/': '' });
+    const home = join(root, 'home');
+    const fresh = await load('darwin', home, { XDG_CONFIG_HOME: join(root, 'xdg'), APPDATA: join(root, 'xdg') });
+    const at = join(home, 'Library', 'Preferences', 'app', 'config.json');
+    expect(await found(fresh, home)).toEqual([at, at]);
+  });
+
+  it('on a runtime with no process, reads as neither variable set', async () => {
+    const root = tree({ 'home/.config/app/config.json': '{"from":"home"}', 'home/project/a/': '' });
+    const home = join(root, 'home');
+    const fresh = await load('linux', home, null);
+    const at = join(home, '.config', 'app', 'config.json');
+    expect(await found(fresh, home)).toEqual([at, at]);
+  });
+
+  it('never reads the environment when `globalConfigDir` is passed', async () => {
+    const root = tree({ 'xdg/app/config.json': '{"from":"xdg"}', 'given/config.json': '{"from":"given"}', 'home/project/a/': '' });
+    const home = join(root, 'home');
+    const fresh = await load('linux', home, { XDG_CONFIG_HOME: join(root, 'xdg') });
+    const result = await fresh.cosmiconfig('app', { searchStrategy: 'global', globalConfigDir: join(root, 'given') }).search(join(home, 'project', 'a'));
+    expect(result?.config).toEqual({ from: 'given' });
   });
 });

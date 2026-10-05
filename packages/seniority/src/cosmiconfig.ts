@@ -20,13 +20,14 @@
  * YAML is read the way cosmiconfig reads it: `loadYaml` loads `seniority/yaml`, this package's
  * own parser, on the first YAML file (see `cosmiconfig-defaults.ts`, D-20260930-seniority-yaml).
  *
- * One thing is **not** reproduced, and it is listed rather than hidden:
- *
- * - **The global config directory is computed, not read from the environment.** cosmiconfig
- *   asks `env-paths`, which reads `XDG_CONFIG_HOME` and `APPDATA`; nothing in seniority reads
- *   `process.*` (R11), so the directory is derived from `os.homedir()` and the platform and
- *   is overridable through `globalConfigDir`. On every platform with those variables unset —
- *   which is the normal case, and every case on macOS — the two agree exactly.
+ * The global config directory is where `env-paths` puts it, and it is read the way
+ * `env-paths` reads it: `$XDG_CONFIG_HOME/<name>` on Linux (`~/.config/<name>` when that is
+ * unset or empty), `%APPDATA%\<name>\Config` on Windows, `~/Library/Preferences/<name>` on
+ * macOS. The environment is reached through `runtime.ts`, the one seam the drop-in façades
+ * share (D-135), and only when the caller did not pass `globalConfigDir`
+ * (D-20260930-seniority-xdg-config-home). Until then this façade derived the directory from
+ * the home directory alone, and a Linux user with a non-default `XDG_CONFIG_HOME` lost their
+ * global config on migrating.
  */
 /**
  * **Reached through the module object, never through a named binding.** cosmiconfig's suite
@@ -53,6 +54,7 @@ import {
 } from './cosmiconfig-defaults.js';
 import { decodeFileContent, emplace, getPropertyByPath, mergeAll, removeUndefinedValuesFromObject } from './cosmiconfig-util.js';
 import { type Loader } from './load.js';
+import { ambientEnv } from './runtime.js';
 
 export type Config = unknown;
 export type CosmiconfigResult = { config: Config; filepath: string; isEmpty?: boolean } | null;
@@ -70,9 +72,9 @@ export interface CommonOptions {
   mergeSearchPlaces: boolean;
   searchStrategy: SearchStrategy;
   /**
-   * seniority's one addition: the directory a `global` search ends in. cosmiconfig derives it
-   * from the environment through `env-paths`; this package takes it as an argument so nothing
-   * here reads `process.*` (R11), and defaults it from `os.homedir()` and the platform.
+   * seniority's one addition: the directory a `global` search ends in. cosmiconfig always
+   * derives it from the environment through `env-paths`; here it can be passed, and when it is
+   * not, it is derived the same way, reading the environment through `runtime.ts` (D-135).
    */
   globalConfigDir?: string;
 }
@@ -128,12 +130,22 @@ const isSkippable = (error: unknown): boolean => SKIPPABLE.has(String((error as 
 // eslint-disable-next-line conventions/consistent-existence-index-check -- cosmiconfig's own `hasOwn` is `Object.prototype.hasOwnProperty`, and the difference matters here: `'$import' in loaded` would be true for an object that merely inherits the key, which is how a prototype-polluted config would start importing files.
 const hasOwn = (o: unknown, key: string): boolean => typeof o === 'object' && o !== null && Object.hasOwn(o, key);
 
-/** `env-paths(name, { suffix: '' }).config`, computed from the platform rather than read from the environment. */
+/** An environment variable as `env-paths` reads one: `env.X || fallback`, so empty is unset. */
+function setOr(value: string | undefined, fallback: string): string {
+  return value === undefined || value === '' ? fallback : value;
+}
+
+/**
+ * `env-paths(name, { suffix: '' }).config`, as env-paths 2.2.1 — the version cosmiconfig 10.0.1
+ * resolves — works it out. The variables are read at the search, not at import, and through
+ * the runtime seam; a runtime with no process reads as one with neither variable set.
+ */
 function defaultGlobalConfigDir(moduleName: string): string {
   const home = homedir();
+  const env = ambientEnv() ?? {};
   if (platform() === 'darwin') return join(home, 'Library', 'Preferences', moduleName);
-  if (platform() === 'win32') return join(home, 'AppData', 'Roaming', moduleName, 'Config');
-  return join(home, '.config', moduleName);
+  if (platform() === 'win32') return join(setOr(env['APPDATA'], join(home, 'AppData', 'Roaming')), moduleName, 'Config');
+  return join(setOr(env['XDG_CONFIG_HOME'], join(home, '.config')), moduleName);
 }
 
 /** Everything both explorers share: the config, the caches, and the parts that touch no filesystem. */

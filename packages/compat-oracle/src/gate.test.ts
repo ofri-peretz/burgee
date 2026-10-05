@@ -271,10 +271,15 @@ describe('a suite whose case count depends on the platform', () => {
 
   it('credits the ratchet with declared passes only where the cases are absent (signal-exit)', () => {
     // signal-exit's 8 Linux-only cases pass where they run, so darwin may not be read as
-    // having lost them; cosmiconfig's 2 fail where they run, so darwin is credited nothing.
+    // having lost them. cosmiconfig's 2 failed where they run until the global search read
+    // `XDG_CONFIG_HOME` (D-20260930-seniority-xdg-config-home); they pass now and are declared.
     expect(absentPassing('signal-exit', 'darwin')).toBe(8);
     expect(absentPassing('signal-exit', 'linux')).toBe(0);
-    expect(absentPassing('cosmiconfig', 'darwin')).toBe(0);
+    expect(absentPassing('cosmiconfig', 'darwin')).toBe(2);
+    expect(absentPassing('cosmiconfig', 'linux')).toBe(0);
+    // A guard that declares no `passing` credits nothing where its cases are absent:
+    // lilconfig's two are missing on Windows and say nothing about whether they pass.
+    expect(absentPassing('lilconfig', 'win32')).toBe(0);
     const baseline = { 'signal-exit': { reference: 135, passed: 134, rate: 134 / 135 } };
     expect(regressed(onDarwin(126), baseline, absentPassing('signal-exit', 'darwin'))).toBe(false);
     // A real loss on darwin is still a loss: the credit is exact, not a cushion.
