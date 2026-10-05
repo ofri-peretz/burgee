@@ -10,7 +10,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, isAbsolute, join, relative, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { testFiles } from './discover.js';
 import { type Exclusion, type Host, type HostImport } from './hosts.js';
@@ -110,6 +110,10 @@ const TAP_OK = /^\s*ok \d+/;
  * `test.failing` succeeds as annotated, and ava prints a plain `ok` with no diagnostic.
  */
 const AVA_UNEXPECTED_PASS = /Test was expected to fail, but succeeded/g;
+/** node:test's todo summary line; supertap, ava's reporter, prints none. */
+const TAP_TODO = /^# todo \d+$/m;
+/** A case line carrying the TODO directive, as supertap prints a `test.todo()`. */
+const AVA_TODO = /^not ok \d+ .*# TODO$/;
 
 function count(pattern: RegExp, output: string): number {
   const found = pattern.exec(output);
@@ -138,10 +142,17 @@ export function parseNodeTest(output: string): { tests: number; passed: number; 
   const inlineSkips = output.split('\n').filter((l) => TAP_OK.test(l) && l.includes('# SKIP')).length;
   const skipped = summarySkips || inlineSkips;
   const exceeded = [...output.matchAll(AVA_UNEXPECTED_PASS)].length;
+  // A `test.todo()` is a title with no body — upstream saying a case is not written yet. ava's
+  // reporter (supertap) prints it `not ok … # TODO` and adds it to `# fail` while leaving it out
+  // of `# tests`, so ink's one todo (`useStderr - write to stderr`) read as a failure of ink
+  // itself. It is neither a pass nor a failure of anything. node:test prints its own `# todo`
+  // summary and keeps todos out of `# fail` already, so the subtraction is for the dialect
+  // without that line only.
+  const todos = TAP_TODO.test(output) ? 0 : output.split('\n').filter((l) => AVA_TODO.test(l)).length;
   return {
     tests: count(TAP_TESTS, output) - summarySkips,
     passed: count(TAP_PASS, output) + exceeded,
-    failed: count(TAP_FAIL, output) - exceeded,
+    failed: count(TAP_FAIL, output) - exceeded - todos,
     skipped,
     exceeded,
   };
@@ -306,23 +317,26 @@ const packageDirOf = (host: Host, hostDir: string): string => join(hostDir, host
  */
 function missingTarget(host: Host, target: string): string | undefined {
   if (target === controlName(host)) return undefined;
-  // The filter is an inferred type predicate (TS 5.5+), so only public entries reach map.
-  return host.imports
-    .map((e) => `${target}${e.subpath}`)
-    .find((spec) => {
-      try {
-        import.meta.resolve(spec);
-        return false;
-      } catch {
-        return true;
-      }
-    });
+  // An aliasing host's imports name the library it grades, which is the same on both runs;
+  // what the target replaces is the alias, so the target itself is the one entry to find.
+  const wanted = host.alias === undefined ? host.imports.map((e) => `${target}${e.subpath}`) : [target];
+  return wanted.find((spec) => {
+    try {
+      import.meta.resolve(spec);
+      return false;
+    } catch {
+      return true;
+    }
+  });
 }
 
 /** The source of one generated public shim. */
 function shimSource(entry: HostImport, host: Host, target: string): string {
   const header = `// generated per run — COMPAT_TARGET=${target}`;
-  const from = target === controlName(host) ? (entry.control ?? `${target}${entry.subpath}`) : `${target}${entry.subpath}`;
+  // An aliasing host grades a library built on the incumbent, so the shim hands the suite that
+  // library on both runs; the target arrives underneath it, through `aliasHook`.
+  const own = target === controlName(host) || host.alias !== undefined;
+  const from = own ? (entry.control ?? `${controlName(host)}${entry.subpath}`) : `${target}${entry.subpath}`;
   // A CommonJS shim hands the suite whatever `require()` of the implementation returns — the
   // `require` condition, where an ESM shim takes `import`. For a dual package that is a
   // different build: signal-exit's suite is written against `dist/cjs`, whose behaviour
@@ -427,12 +441,21 @@ interface Source {
  */
 export function internalShimFrom(host: Host, { target, installed, rel }: { target: string; installed: string | undefined; rel: string }): string {
   if (installed === undefined) return target;
-  const shipped = join(installed, rel);
   // Resolved, not `existsSync`d. The suite writes these specifiers the way CommonJS reads
   // them — cli-table3's tests import `../src/cell`, and the file is `src/cell.js` — so a
   // plain existence check says "not shipped" for four files that are shipped, and sent all
   // 104 of its internal cases to the wrong module.
-  return resolvesFileFrom(shipped, installed) ? shipped : controlName(host);
+  const shipped = [rel, publishedAs(host, rel)].map((p) => join(installed, p)).find((at) => resolvesFileFrom(at, installed));
+  return shipped ?? controlName(host);
+}
+
+/**
+ * The path the published package carries an internal module at: `src/x.js` is `build/x.js`
+ * for a host that declares `publishedInternalDir: 'build'`, and unchanged for every other.
+ */
+function publishedAs(host: Host, rel: string): string {
+  const own = `${host.internalDir ?? 'lib'}/`;
+  return host.publishedInternalDir !== undefined && rel.startsWith(own) ? `${host.publishedInternalDir}/${rel.slice(own.length)}` : rel;
 }
 
 function writeInternalShims(host: Host, { hostDir, target, internals, packageType }: { hostDir: string; target: string; internals: string[]; packageType: string }): void {
@@ -488,7 +511,9 @@ function writeInternalShims(host: Host, { hostDir, target, internals, packageTyp
 function linksInternal(host: Host, { from, at }: { from: string; at: string }): boolean {
   // `from` is an absolute path exactly when `internalShimFrom` found the file the package ships,
   // which it looks for on a control run only — so this is the target-run test as well.
-  if (host.shim !== 'cjs' || !isAbsolute(from)) return false;
+  // A host whose internals are published compiled (`publishedInternalDir`) is linked for the
+  // other reason that field gives: an ESM `export *` drops the `default` the suite imports.
+  if ((host.shim !== 'cjs' && host.publishedInternalDir === undefined) || !isAbsolute(from)) return false;
   // Cannot throw: `internalShimFrom` already resolved this same absolute path, and an absolute
   // specifier resolves the same from any anchor.
   const file = resolverAt(dirname(from)).resolve(from);
@@ -758,6 +783,50 @@ function neutralEnv(): NodeJS.ProcessEnv {
   return env;
 }
 
+/** The resolve hook a target run of an aliasing host writes beside its suite (`Host.alias`). */
+export const ALIAS_HOOK = 'alias-hook.mjs';
+
+/** Whether this run swaps the host's alias for the target: a target run of an aliasing host. */
+const aliasing = (host: Host, target: string): boolean => host.alias !== undefined && target !== controlName(host);
+
+/**
+ * The hook's source: every resolution of `alias` — the suite's own import, the library's, a
+ * testing helper's from inside `node_modules` — lands on `url`, and everything else resolves
+ * as it would have. `registerHooks` is the in-thread, synchronous form, so `require()` and
+ * `import` both pass through it, in the runner and in every process it starts, because the
+ * hook is loaded through `NODE_OPTIONS`, which a child inherits.
+ *
+ * This is the oracle performing what `controlroom/spec.md` R17 asks a user to do with an alias
+ * or `overrides`: the library is installed unmodified and only the incumbent under it moves.
+ */
+export function aliasHook(alias: string, url: string, target: string): string {
+  return [
+    `// generated per run — COMPAT_TARGET=${target}`,
+    "import { registerHooks } from 'node:module';",
+    `const alias = ${JSON.stringify(alias)};`,
+    `const url = ${JSON.stringify(url)};`,
+    'registerHooks({ resolve: (specifier, context, next) => (specifier === alias ? { url, shortCircuit: true } : next(specifier, context)) });',
+    '',
+  ].join('\n');
+}
+
+/** Writes the hook for a run that aliases, and removes a previous run's otherwise. */
+function writeAliasHook(host: Host, hostDir: string, target: string): void {
+  const at = join(hostDir, ALIAS_HOOK);
+  rmSync(at, { force: true });
+  if (aliasing(host, target)) writeFileSync(at, aliasHook(host.alias as string, import.meta.resolve(target), target));
+}
+
+/**
+ * The environment every runner is started with: the ambient colour removed, the host's own
+ * on top, the target named, and — on a run that aliases — the hook loaded into every process.
+ */
+function suiteEnv(host: Host, hostDir: string, target: string): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...neutralEnv(), ...host.env, COMPAT_TARGET: target };
+  if (aliasing(host, target)) env['NODE_OPTIONS'] = `${env['NODE_OPTIONS'] ?? ''} --import=${pathToFileURL(join(hostDir, ALIAS_HOOK)).href}`.trim();
+  return env;
+}
+
 /**
  * Runs each graded file with node and reports which exited non-zero. No reporter, no
  * parser: the file's own `assert` calls throw, node exits 1, and that is the measurement.
@@ -774,7 +843,7 @@ function runExitCodes(host: Host, hostDir: string, files: string[], target: stri
       execFileSync(process.execPath, [join(dir, file)], {
         encoding: 'utf8',
         cwd: hostDir,
-        env: { ...neutralEnv(), ...host.env, COMPAT_TARGET: target },
+        env: suiteEnv(host, hostDir, target),
         stdio: ['ignore', 'pipe', 'pipe'],
         timeout: SUITE_TIMEOUT_MS,
         maxBuffer: MAX_OUTPUT_BYTES,
@@ -842,7 +911,7 @@ function runTapFiles(host: Host, hostDir: string, files: string[], target: strin
       stdout = execFileSync(process.execPath, [...preload, join(dir, file)], {
         encoding: 'utf8',
         cwd: hostDir,
-        env: { ...neutralEnv(), ...host.env, COMPAT_TARGET: target },
+        env: suiteEnv(host, hostDir, target),
         stdio: ['ignore', 'pipe', 'pipe'],
         timeout: SUITE_TIMEOUT_MS,
         maxBuffer: MAX_OUTPUT_BYTES,
@@ -875,7 +944,7 @@ function runSuite(host: Host, hostDir: string, files: string[], target: string):
     const output = execFileSync(bin, args, {
       encoding: 'utf8',
       cwd: hostDir,
-      env: { ...neutralEnv(), ...host.env, COMPAT_TARGET: target },
+      env: suiteEnv(host, hostDir, target),
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout: SUITE_TIMEOUT_MS,
       // A mostly-failing suite emits more TAP diagnostic than the 1 MB default holds, and
@@ -1032,6 +1101,7 @@ export function grade(host: Host, vendorDir: string, target: string, reference =
   installSuiteDeps(host, hostDir);
   writeShims(host, hostDir, target, packageType);
   writeInternalShims(host, { hostDir, target, internals: source.internals ?? [], packageType });
+  writeAliasHook(host, hostDir, target);
 
   if (host.runner === 'exit-code') {
     const outcome = runExitCodes(host, hostDir, files, target);

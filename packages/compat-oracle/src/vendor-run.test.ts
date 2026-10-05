@@ -44,6 +44,8 @@ const SUITE: Record<string, string> = {
   'test/issues/d.test.js': "const deep = require('../../lib/deep.js');\n",
   'test/issues/e.test.js': "const host = require('../../index.js');\n",
   'test/fixtures/load.js': "module.exports = require('../../index.js');\n",
+  // ink's fixtures are TSX programs the tests spawn: text, and rewritten like any other.
+  'test/fixtures/app.tsx': "import {render} from '../../index.js';\n",
   'test/fixtures/plain.json': '{"a":1}\n',
   'test/fixtures/image.png': "require('../../index.js')",
   'test/.cache/x.test.js': "require('../index.js');\n",
@@ -121,6 +123,7 @@ describe('vendoring a whole suite', () => {
     expect(read(live, 'test', 'issues', 'e.test.js')).toBe("const host = require('../../shim.mjs');\n");
     expect(read(live, 'test', 'fixtures', 'load.js')).toBe("module.exports = require('../../shim.mjs');\n");
     expect(read(live, 'test', 'fixtures', 'deep', 'nested.js')).toBe("module.exports = require('../../../shim.mjs');\n");
+    expect(read(live, 'test', 'fixtures', 'app.tsx')).toBe("import {render} from '../../shim.mjs';\n");
     // Not text, so not touched; and a text file with nothing to rewrite is left as it was.
     expect(read(live, 'test', 'fixtures', 'image.png')).toBe("require('../../index.js')");
     expect(read(live, 'test', 'fixtures', 'plain.json')).toBe('{"a":1}\n');

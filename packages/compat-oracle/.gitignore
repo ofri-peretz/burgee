@@ -7,6 +7,9 @@ vendor/*/shim*.mjs
 vendor/*/shim*.cjs
 vendor/*/vitest.config.mjs
 vendor/*/vitest.setup.mjs
+# The resolve hook a target run of an aliasing host (`Host.alias`, @inkjs/ui) loads through
+# NODE_OPTIONS; it names the target and an absolute file URL from this machine.
+vendor/*/alias-hook.mjs
 # The generated internal shims, at whatever path a host files its own modules: `lib/` for
 # commander, dotenv and yargs, `src/` for cli-table3 and cosmiconfig, `build/` where a host
 # compiles first.
@@ -20,6 +23,7 @@ vendor/*/vitest.setup.mjs
 vendor/*/lib/
 vendor/cli-table3/src/
 vendor/cosmiconfig/src/
+vendor/ink/src/
 vendor/*/build/
 # Written by a *suite* rather than by the oracle, and upstream ignores both in its own
 # repository (`node-cross-spawn/.gitignore`: `test/fixtures/(*` and `test/tmp/`). Its

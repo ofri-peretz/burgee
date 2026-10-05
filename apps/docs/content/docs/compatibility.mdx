@@ -42,6 +42,8 @@ would flatter a partial implementation; measuring against the control's total do
 | [**restore-cursor**](https://closeout.interlace.tools/docs/coming-from/restore-cursor) | `closeout` | 6 / 6 | 100.0% | 6 / 6 | 100.0% | — | — |
 | [**exit-hook**](https://closeout.interlace.tools/docs/coming-from/exit-hook) | `closeout` | 21 / 21 | 100.0% | 21 / 21 | 100.0% | — | — |
 | [**signal-exit**](https://closeout.interlace.tools/docs/coming-from/signal-exit) | `closeout` | 134 / 135 | 99.3% | 134 / 135 | 99.3% | — | — |
+| **ink** | `controlroom` | 0 / 593 | 0.0% | 593 / 593 | 100.0% | 0 / 0 | 148 / 148 |
+| **inkjs-ui** | `controlroom` | 0 / 103 | 0.0% | 103 / 103 | 100.0% | — | — |
 
 **Every file of every suite is vendored and run**, and every case that leaves the gate is
 named below. Files that import only the host's *internal* modules (its own file layout) are
@@ -133,6 +135,8 @@ where the reason says so, vendored whole and left out of the grade for what it c
 | **execa** | `verbose/` | Vendored and not graded, for cost. execa's suite is 5,125 cases run one file at a time (upstream's own `concurrency: 1`), and the control measured **647 s** across the twelve directories on 2026-09-27 — past the oracle's 300 s cap on one suite run, and more than half of the ratchet job's 20 minutes on its own. The graded slice is `arguments/`, `methods/` and `return/`: how a command is built, the entry points, and the result and error a caller reads, which is the whole of what bellpull's `run` overlaps with execa (bellpull R1, R6). Nothing is hidden by leaving these out: graded over all 149 files the same day, `bellpull` passed **0** — every file imports `execa`, which bellpull does not export, and fails at link time. D-160. |
 | **meow** | `fixtures/` | Twenty-four CLI programs the tests spawn with execa — two thirds of everything under `test/`. ava's own globs exclude them and the harness's walk did not, so ava was handed them as test files and each one that exits non-zero was counted: the row read `# fail 22` beside `# tests 148 / # pass 144`, a summary that disagrees with itself. Ungraded, `test/` is 12 test files. |
 | **signal-exit** | `fixtures/` | Programs the tests spawn as child processes to watch them exit — `exit.js`, `sigint.js`, `sigkill.js` and eighteen more. They match `*.{js,ts}` because that is simply how they are written, and running one as a test grades nothing: it installs a handler and kills itself. Two of them (`signal-capture.js`, `sigkill.js`) reach the implementation through `../../dist/`, which is why `dist/cjs/signals.js` is on the internal-shim list at all. |
+| **ink** | `helpers/` | Seven modules the tests import — `render-to-string.ts`, `create-stdout.ts`, `create-stdin.ts`, `test-renderer.ts`, `force-colors.ts`, and `run.ts` and `term.ts`, which spawn a fixture under `node-pty`. Upstream's own `ava.files` excludes the directory (`!test/helpers/**/*`); none of them declares a case. |
+| **ink** | `fixtures/` | Twenty-eight TSX programs `run.ts` and `term.ts` spawn in a pseudo-terminal (`node --import=tsx fixtures/<name>.tsx`) for the cases that need a real TTY: `exit`, raw mode, `useInput` keystrokes, erase and `<Static>` in a short viewport. Upstream's `ava.files` excludes them (`!test/fixtures/**/*`); each renders an app and exits, and grades nothing on its own. |
 | **yargs-17** | `helpers/` | `utils.cjs`, the output-capture helper the top-level tests require. A helper, never a test. |
 
 ### Graded as a ceiling, not a drop-in
@@ -184,6 +188,8 @@ to these rows (C1).
 | restore-cursor | **5** | 5.1.0 | — |
 | exit-hook | **5** | 5.1.0 | — |
 | signal-exit | **4** | 4.1.0 | — |
+| ink | **6** | 6.8.0 | — |
+| inkjs-ui | — | — | — |
 
 | Host | Front-end | burgee | rate | control | rate | internals (burgee) | internals (control) |
 | :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: |

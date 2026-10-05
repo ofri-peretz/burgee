@@ -62,17 +62,24 @@ codemod rules for the common screen, box, list and key patterns instead (R18).
 
 ## Compatibility
 
-Not graded yet. No incumbent suite runs against this package, because there is nothing to run
-it against. The plan is Ink's suite vendored into `compat-oracle` at a pinned release, with a
-control run against real Ink and a baseline that only ratchets (R13), and `@inkjs/ui`'s suite
-graded through the same alias (R17). Its row will appear on the
-[compatibility page](https://burgee.interlace.tools/docs/compatibility) when it exists.
+Graded, and at zero, because there is nothing to pass yet. Ink's own suite is vendored into
+`compat-oracle` at ink 6.8.0 (593 cases) and `@inkjs/ui`'s at 2.0.0 (103 cases), each with a
+control run against the real package and a baseline that only ratchets (R13, R17). `@inkjs/ui`
+is graded unmodified, with `'ink'` resolved to this package. Both rows grade the package root
+until `controlroom/ink` exists, and they read 0 there: the root exports `status` and nothing
+else. The rows are on the
+[compatibility page](https://burgee.interlace.tools/docs/compatibility).
 
 ## Benchmarks
 
 Every number here is produced by `npm run bench` and published at [burgee.interlace.tools/docs/benchmarks](https://burgee.interlace.tools/docs/benchmarks).
 
-No suite is graded against this package yet, so there is no compatibility number to quote.
+Graded by the incumbent's own test suite:
+
+| suite | passing |
+| :-- | --: |
+| `ink` | 0 / 593 |
+| `inkjs-ui` | 0 / 103 |
 
 ## For agents
 

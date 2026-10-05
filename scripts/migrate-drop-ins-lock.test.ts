@@ -34,9 +34,12 @@ const BASELINE = join(ROOT, 'packages/compat-oracle/baseline');
 /**
  * Every graded pair, from the oracle: hosts with a baseline and a family target — less a row
  * graded to publish a `ceiling`, whose target is not a drop-in and which `migrate` must neither
- * rewrite to nor report as a path (execa against `bellpull`, bellpull spec R7, D-160).
+ * rewrite to nor report as a path (execa against `bellpull`, bellpull spec R7, D-160) — and less
+ * a row that grades a library built on the incumbent (`Host.alias`): `@inkjs/ui` stays installed
+ * and is not replaced, so its own import is no pair at all, and the pair it exercises (`ink`) is
+ * the alias's own row (D-20261005-controlroom-ink-suite).
  */
-const derived = HOSTS.filter((h) => existsSync(join(BASELINE, `${h.name}.json`)) && h.target !== '—' && h.ceiling === undefined).flatMap((h) =>
+const derived = HOSTS.filter((h) => existsSync(join(BASELINE, `${h.name}.json`)) && h.target !== '—' && h.ceiling === undefined && h.alias === undefined).flatMap((h) =>
   h.imports.map((i) => ({ host: h.name, from: i.control ?? `${h.npmName ?? h.name}${i.subpath}`, to: `${h.target}${i.subpath}` })),
 );
 const unique = [...new Map(derived.map((d) => [`${d.from} ${d.to}`, d])).values()];
