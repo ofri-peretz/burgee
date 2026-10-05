@@ -24,7 +24,10 @@ const terminal = world({ tty: true });
 const flag = hoist(spinner(), terminal.rt, { text: 'building' });
 terminal.clock.tick(170);
 flag.lower({ text: 'built', status: 'ok' });
-assert.equal(terminal.text(), '\u001B[?25l⠋ building\u001B[1G\u001B[0J⠙ building\u001B[1G\u001B[0J⠹ building\u001B[1G\u001B[0J✔ built\n\u001B[?25h');
+// Each frame is one synchronized-output block; a repaint clears from column 1 first.
+const frame = (bytes) => `\u001B[?2026h${bytes}\u001B[?2026l`;
+const repaint = (text) => frame(`\u001B[1G\u001B[0J${text}`);
+assert.equal(terminal.text(), `\u001B[?25l${frame('⠋ building')}${repaint('⠙ building')}${repaint('⠹ building')}${repaint('✔ built')}\n\u001B[?25h`);
 
 const pipe = world({ tty: false });
 hoist(spinner(), pipe.rt, { text: 'building' }).lower({ text: 'built', status: 'ok' });
