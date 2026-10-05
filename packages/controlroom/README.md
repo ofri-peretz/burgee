@@ -32,7 +32,7 @@
 
 <p align="center">
   Docs: <a href="https://burgee.interlace.tools/docs/packages/controlroom">https://burgee.interlace.tools/docs/packages/controlroom</a><br />
-  Planned drop-in for: ink — not built yet
+  Migrating from: <a href="https://burgee.interlace.tools/docs/coming-from/blessed">blessed</a> · <a href="https://burgee.interlace.tools/docs/coming-from/neo-blessed">neo-blessed</a> · <a href="https://burgee.interlace.tools/docs/coming-from/terminal-kit">terminal-kit</a>
 </p>
 
 **In progress, and not a screen yet.** Two pieces are built: `layout()`, which turns a tree
