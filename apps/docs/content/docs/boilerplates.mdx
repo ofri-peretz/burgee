@@ -1,0 +1,35 @@
+---
+title: Start from a boilerplate
+description: Copy a working controlroom app and change it, instead of starting from an empty file.
+---
+
+Each boilerplate is a directory under
+[`examples/`](https://github.com/ofri-peretz/burgee/tree/main/examples) that runs as it is, is
+tested by this repository's CI in a pipe, under `--json` and on a terminal, and has a README
+that says what to change first. Copy one; there is no generator to install.
+
+| Boilerplate | What it is | Copy it |
+| :-- | :-- | :-- |
+| [`chat-cli`](https://github.com/ofri-peretz/burgee/tree/main/examples/chat-cli) | A chat CLI in the shape of Claude Code, inline: a streamed markdown reply, slash commands with completion, a permission prompt, a status line, Esc to interrupt | `npx degit ofri-peretz/burgee/examples/chat-cli my-chat` |
+| [`dashboard`](https://github.com/ofri-peretz/burgee/tree/main/examples/dashboard) | A full-screen dashboard: tabs, a checklist with progress, a log tail and a status line that collapses | `npx degit ofri-peretz/burgee/examples/dashboard my-dashboard` |
+
+`chat-cli-ink`, the same chat written for Ink and run on `controlroom/ink`, follows when the
+Ink drop-in is built.
+
+## Every caller, from one program
+
+Each boilerplate draws its screen only for a person at a terminal. A pipe, CI and a screen
+reader get clean lines, and an agent gets NDJSON on stderr under `--json`. Nothing waits for a
+key that nobody can press: piped input is read a line at a time, and a closed stdin ends the
+program.
+
+```bash
+node chat.mjs                              # a terminal
+printf 'hello\n' | node chat.mjs           # a pipe
+printf 'hello\n' | node chat.mjs --json    # an agent
+```
+
+## Why there is no create-* package
+
+A generator would be an eleventh package against the family's cap of ten (D-158), for what
+`degit` already does. It is reopened if copying a directory is measured to be the friction.
