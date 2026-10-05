@@ -1,5 +1,24 @@
 # benchmarks
 
+## 0.0.12
+
+### Patch Changes
+
+- [#815](https://github.com/ofri-peretz/burgee/pull/815) [`28cb9a5`](https://github.com/ofri-peretz/burgee/commit/28cb9a5e13f3e638a77ecc78bba514113d2b8b3a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - controlroom's README documents the line that runs packages written for ink on `controlroom/ink` unchanged — `"ink": "file:./ink"`, a two-file package that re-exports the drop-in — and why a bare `npm:` alias cannot: it names a package, not a subpath. `ink-spinner`, `ink-text-input` and `ink-select-input` run that way, as published, in `examples/ink-ecosystem`, and `examples/chat-cli-ink` is the chat boilerplate written for Ink and run on the drop-in.
+
+  The benchmarks measure controlroom's weight gates against ink 6.8.0 on React 19.3.0, each at ≤ 1.0×: the drop-in with React and the reconciler bundled against ink with React (W1, 0.745), the same two installed, in bytes and in packages (W2, 0.378 and 0.238), the native root against ink alone (W3, 0.048), and importing each entry point against importing ink and React (W4, 0.289 and 0.144). A B4 side may now be several imports, with externals, and counted whole when its peers load under top-level await.
+
+- Updated dependencies [[`a47209b`](https://github.com/ofri-peretz/burgee/commit/a47209b3a7774e4ecdd1def3043d19afed5a1266), [`28cb9a5`](https://github.com/ofri-peretz/burgee/commit/28cb9a5e13f3e638a77ecc78bba514113d2b8b3a), [`5230016`](https://github.com/ofri-peretz/burgee/commit/52300169a98ece41b3544e5316833464e63a7c83), [`5230016`](https://github.com/ofri-peretz/burgee/commit/52300169a98ece41b3544e5316833464e63a7c83), [`5230016`](https://github.com/ofri-peretz/burgee/commit/52300169a98ece41b3544e5316833464e63a7c83), [`5230016`](https://github.com/ofri-peretz/burgee/commit/52300169a98ece41b3544e5316833464e63a7c83), [`5230016`](https://github.com/ofri-peretz/burgee/commit/52300169a98ece41b3544e5316833464e63a7c83)]:
+  - caique@0.7.1
+  - controlroom@0.2.0
+  - paratext@0.9.0
+  - compat-oracle@0.1.7
+  - bellpull@0.5.2
+  - burgee@0.18.0
+  - flagstaff@1.1.1
+  - linegauge@1.0.4
+  - roundel@0.6.3
+
 ## 0.0.11
 
 ### Patch Changes
