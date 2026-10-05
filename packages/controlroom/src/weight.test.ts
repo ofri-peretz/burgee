@@ -50,9 +50,12 @@ const INK = readdirSync(resolve(dist, 'ink'))
 const RULES: Record<string, EntryRule> = {
   // The native API: the screen, the compositor, layout and tab state over the family. Measured
   // 12,672 B on 2026-10-05, reaching only same-repo subpaths and nothing of `ink/`.
+  // Raised 2026-10-05 for R10 and R20, measured 20,485 B: `open()` resolves registered keymaps
+  // and panes (the plugin registry and its validation) and hosts caique's line editor, so the
+  // root reaches `plugin.js`, `caique/editor` and `flagstaff/plugin`'s registry.
   '.': {
-    allow: ['caique/keys', 'closeout', 'closeout/cursor', 'flagstaff/loop', 'linegauge', 'roundel/policy'],
-    budget: 13_500,
+    allow: ['caique/editor', 'caique/keys', 'closeout', 'closeout/cursor', 'flagstaff/loop', 'flagstaff/plugin', 'linegauge', 'roundel/policy'],
+    budget: 21_000,
     denied: ['react', 'react-reconciler', ...INK],
   },
   // The Ink drop-in (R11, R12): the host config, the flexbox subset, the output grid, Ink's
@@ -60,6 +63,13 @@ const RULES: Record<string, EntryRule> = {
   // are not counted here. Measured 130,443 B on 2026-10-05 — the flexbox subset is 34,688 B
   // of it — against `ink` 6.8.0's own 169,374 B, before the 134,274 B of `yoga-layout` this
   // replaces. With React bundled it is W1's number, which the benchmark axis owns.
+  // R10: keymaps and panes as data, validated against the family schema. Key specs are read by
+  // caique's own `canonical()`, so no second key grammar lives here.
+  './plugin': {
+    allow: ['caique/keys'],
+    budget: 4_200, // measured 3,965 B on 2026-10-05
+    denied: ['react', 'react-reconciler', ...INK],
+  },
   './ink': {
     allow: [
       'closeout',

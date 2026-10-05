@@ -283,7 +283,7 @@ Graded by the incumbent's own test suite:
 | `clack` | 16 / 16 |
 | `inquirer-core` | 41 / 41 |
 
-Weight, installed and tree-inclusive: **238,724 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.6136**.
+Weight, installed and tree-inclusive: **240,120 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.6172**.
 
 ## For agents
 

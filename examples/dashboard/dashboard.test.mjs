@@ -27,12 +27,12 @@ describe('the dashboard, as a pipe, CI or an agent sees it', () => {
     expect(out).not.toContain('switch tab');
   });
 
-  it('--json writes parseable NDJSON to stderr, one event per pane change, ends with the commit, and leaves stdout empty', () => {
+  it('--json writes parseable NDJSON to stderr, one event per pane change and one for the commit, and leaves stdout empty', () => {
     const { stdout, stderr, status } = spawnSync(process.execPath, [APP, '--json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
     expect(status).toBe(0);
     expect(stdout).toBe('');
     const events = stderr.trim().split('\n').map((line) => JSON.parse(line));
-    expect(events.at(-1)).toEqual({ event: 'commit', state: `Done: Progress: ${String(STEPS.length)}/${String(STEPS.length)} completed` });
+    expect(events.filter((e) => e.event === 'commit')).toEqual([{ event: 'commit', state: `Done: Progress: ${String(STEPS.length)}/${String(STEPS.length)} completed` }]);
     expect(new Set(events.map((e) => e.event))).toEqual(new Set(['status', 'learn', 'tasks', 'log', 'commit']));
   });
 });
