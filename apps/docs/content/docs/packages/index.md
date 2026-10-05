@@ -20,3 +20,26 @@ is its README, projected; the family-wide pages — [compatibility](/docs/compat
 | [paratext](https://paratext.interlace.tools/docs) | ansi-escapes, terminal-link and term-img | [paratext.interlace.tools](https://paratext.interlace.tools) |
 | [roundel](https://roundel.interlace.tools/docs) | chalk | [roundel.interlace.tools](https://roundel.interlace.tools) |
 | [seniority](https://seniority.interlace.tools/docs) | cosmiconfig, dotenv and rc | [seniority.interlace.tools](https://seniority.interlace.tools) |
+
+## Which one do I need?
+
+Two packages draw in a terminal. They split on whether the program owns the screen.
+
+- **flagstaff, for inline output in a scrolling terminal.** Spinners, progress, task lists,
+  boxes and tables, drawn in place under what the program has already printed and left in
+  the scrollback as ordinary lines. It reads no keys. Usable today, with drop-in paths for
+  ora, log-update, boxen and cli-table3.
+- **controlroom, for a full screen.** Panes, tabs with key hints, focus and collapse, in the
+  alternate screen, with keys routed to the program. **Reserved, not usable yet**: its
+  screen API is planned, not built. Coming from blessed, neo-blessed or terminal-kit? The
+  [coming-from guides](/docs/coming-from/blessed) map each one onto the plan, and
+  `burgee migrate` already reports their sites.
+
+If a program only draws, it is flagstaff, even when the drawing is busy. If it reads keys
+while it draws, it is controlroom. controlroom's planned inline screen (R19) is for the
+second kind kept in the main screen, the shape of a chat CLI. A question asked once, such
+as a confirm or a pick, is neither: it is a prompt, and prompts are caique's.
+
+Off a terminal, flagstaff gives a pipe, CI, a screen reader and `--json` each component's
+static projection, never a redraw, and controlroom is specified to do the same for a whole
+screen (R6).

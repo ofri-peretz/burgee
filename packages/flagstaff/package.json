@@ -75,6 +75,16 @@
       "import": "./dist/tab-bar.js",
       "default": "./dist/tab-bar.js"
     },
+    "./markdown": {
+      "types": "./dist/markdown.d.ts",
+      "import": "./dist/markdown.js",
+      "default": "./dist/markdown.js"
+    },
+    "./diff": {
+      "types": "./dist/diff.d.ts",
+      "import": "./dist/diff.js",
+      "default": "./dist/diff.js"
+    },
     "./box": {
       "types": "./dist/box.d.ts",
       "import": "./dist/box.js",

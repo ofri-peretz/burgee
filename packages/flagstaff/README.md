@@ -190,6 +190,34 @@ Importing either registers its built-in (`log-tail`, `tab-bar`) through the same
 and `step` glyphs. The task list's pending mark is the `pending` glyph too — a space unless a
 plugin sets one, `◻` say.
 
+### A streamed reply and a diff
+
+Two components for chat-style programs, where a model's reply arrives a token at a time and an
+edit is shown before it is written.
+
+```js
+import { markdown } from 'flagstaff/markdown';
+import { diff } from 'flagstaff/diff';
+
+let text = '';
+const reply = hoist(markdown(), rt, { text });
+for await (const token of stream) reply.update({ text: (text += token) });
+reply.lower({ text, done: true });
+
+hoist(diff(), rt, { diff: patch }).lower();
+```
+
+| component | on a terminal | everywhere else |
+| :-- | :-- | :-- |
+| `markdown` | the reply so far: headings, lists, emphasis, inline code and fenced code styled through roundel; with no colour, the source as written | the markdown's own source, **committed a block at a time** — each block printed once, when a later line closes it |
+| `diff` | old and new line numbers on every line, removals and additions coloured | the diff unchanged, byte for byte |
+
+A block is committed only by a complete line — a blank line, a heading, a fence, a closing
+fence — so wherever the stream is cut, the blocks committed so far are the whole reply's first
+blocks; the suite cuts a fixture at every byte offset and holds that. There is no syntax
+highlighting inside a fence. `markdownBlocks(text, done)` is exported for a program that
+places committed blocks itself, as controlroom's inline screen does.
+
 ### Writing a whole frame
 
 `hoist` repaints one component. A program that lays several out in one frame paints the frame

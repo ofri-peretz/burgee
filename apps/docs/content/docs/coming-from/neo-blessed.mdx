@@ -1,0 +1,126 @@
+---
+title: Coming from neo-blessed
+description: "A neo-blessed alternative is planned, not built: controlroom is reserved at 0.0.1 and none of its screen API exists yet. neo-blessed keeps blessed's API, so its mapping is blessed's; this page gives it section by section, with what does not map and what burgee migrate reports today."
+---
+
+**controlroom** is the burgee family's planned **neo-blessed alternative** for full-screen,
+keyboard-driven terminal programs. It is **reserved, not usable yet**: the published version
+exports one constant, `status = 'reserved'`, and every controlroom snippet linked from this
+page is marked **Planned, not built**.
+
+neo-blessed is a fork of blessed that keeps blessed's API under another name: the same
+`screen()`, `box()`, `list()`, `key()` and `render()`. So its path to controlroom is
+blessed's, and the snippets live once, on [Coming from blessed](/docs/coming-from/blessed).
+This page keeps the same sections so that every link `burgee migrate` prints for a
+neo-blessed site lands on one.
+
+Only drawing inline output, with no keys? You want flagstaff, which you can use today:
+[Which one do I need?](/docs/packages#which-one-do-i-need)
+
+## Migrate from neo-blessed: not one import
+
+There will be no `controlroom/neo-blessed`, for blessed's reason: the surface is too large to
+reproduce honestly (spec R18). `burgee migrate` reports every neo-blessed site it can see,
+with `"from": "neo-blessed"` and a link to the section below, and rewrites none of them:
+
+```bash
+npx burgee migrate --dry-run --json
+```
+
+A site is reported only when its receiver came from neo-blessed in the same file, by
+`require('neo-blessed')`, `import blessed from 'neo-blessed'` or a destructured factory. The
+exit code stays 0, because nothing was refused.
+
+## The mapping
+
+| neo-blessed | controlroom | spec | on main today |
+| :-- | :-- | :-- | :-- |
+| `blessed.screen()` | `open(runtime, { screen: 'alternate' })` | R4 | no |
+| `blessed.box()` | a pane in a `layout()` tree, holding a flagstaff component | R8, R5 | no; flagstaff's `boxComponent` is |
+| `blessed.list()` | flagstaff's `tasks` in a pane, for a list you show | R5 | no; `tasks` is |
+| `screen.key([...], fn)` | an entry in a keymap, which is data | R2, R9 | no |
+| `screen.render()` | nothing: a state change repaints through flagstaff | R5, R15 | no |
+| `screen.program.alternateBuffer()` | `screen: 'alternate'`, left on every exit path | R4, R1 | closeout's `alternateScreen` is |
+| `mouse: true`, `on('click')` | nothing | out of scope | — |
+| `blessed.textbox()`, `blessed.textarea()` | caique's prompts, outside a pane | out of scope | caique is |
+
+The full table, with `listbar()`, `log()` and `destroy()`, is
+[blessed's](/docs/coming-from/blessed#the-mapping).
+
+### Screen
+
+`blessed.screen()`, `new blessed.Screen()` and `blessed.program()` become
+`open(runtime, { screen: 'alternate' })` (R4), which takes the terminal only when there is
+one, and opens a static session everywhere else. The snippet is
+[blessed's Screen section](/docs/coming-from/blessed#screen).
+
+### Box
+
+`box()`, `text()`, `element()`, `log()` and `layout()` become panes: names in one layout
+tree of rows and columns with fixed, fractional and fit-to-content sizes (R8), each drawing a
+flagstaff component. See [blessed's Box section](/docs/coming-from/blessed#box).
+
+### List
+
+`list()` and `listtable()` you show become flagstaff's `tasks` in a pane. A list the user
+picks from has no pane component; a pick is caique's `select` prompt, outside the screen.
+`listbar()` becomes a tab bar (R3, R9). See [blessed's List section](/docs/coming-from/blessed#list).
+
+### Key handling
+
+`key()`, `onceKey()`, `unkey()` and `removeKey()`, and every `on()` or `once()` whose event
+starts with `key`, become entries in a keymap that is plain data, `{ q: 'quit' }`, with the
+screen's state moved by R9's reducer and the hint line generated from the same keymap.
+`C-c` is spelled `ctrl+c`. See [blessed's Key handling section](/docs/coming-from/blessed#key-handling).
+
+### Render loop
+
+Every `render()`, including `box.screen.render()`, is deleted rather than translated: a state
+change repaints through flagstaff's frame loop (R5, R15). See
+[blessed's Render loop section](/docs/coming-from/blessed#render-loop).
+
+### Alternate screen
+
+`alternateBuffer()` and `normalBuffer()`, on a program or on `screen.program`, become the
+`screen: 'alternate'` option, left on every exit path through closeout (R1, R4). closeout's
+`alternateScreen` and `rawMode` are on main today. See
+[blessed's Alternate screen section](/docs/coming-from/blessed#alternate-screen).
+
+## What does not map
+
+Out of scope in controlroom's intent. A program that depends on these should stay on
+neo-blessed.
+
+### Mouse
+
+`enableMouse()`, and `on()` with `mouse`, `click`, `mousedown`, `mouseup`, `mousemove`,
+`mouseover`, `mouseout`, `wheeldown` or `wheelup`. None is planned; mouse support is
+reopened only by an adopter's measured need.
+
+### Text editing in a pane
+
+`textbox()` and `textarea()`. Prompts stay with caique, outside a pane; the one planned
+exception is caique's line editor as the input line of an inline screen (R20).
+
+### Legacy Windows consoles
+
+controlroom handles no Windows legacy console quirks beyond what `node:readline` already
+does.
+
+## Is controlroom compatible with neo-blessed?
+
+**No, by design.** There is no drop-in and nothing is graded, for neo-blessed or for blessed.
+
+## What you gain over neo-blessed
+
+What the spec commits controlroom to, and not something it does today: a static projection
+of every screen for `pipe`, `ci` and `accessible` callers, NDJSON events on stderr under
+`--json`, no wait for a key that nobody can press, and one render engine shared with
+flagstaff. [blessed's page](/docs/coming-from/blessed#what-you-gain-over-blessed) has each
+with its spec row. Nothing about neo-blessed's own output or size has been measured here.
+
+## When to switch from neo-blessed
+
+**Not yet.** None of controlroom's screen API exists. When it does, switch if your program
+has to work for a pipe, CI, a screen reader or an agent as well as for a person at a
+terminal; stay on neo-blessed if you depend on the mouse or on editing text in a pane.
