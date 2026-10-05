@@ -15,6 +15,7 @@
  * The model is scripted (`MODEL`), so it runs with no key and no network. Replace `MODEL` first.
  */
 import { createInterface } from 'node:readline';
+import { pathToFileURL } from 'node:url';
 
 import { Box, render, Static, Text, useApp, useInput } from 'ink';
 import Spinner from 'ink-spinner';
@@ -222,4 +223,5 @@ export async function run(argv = [], { stdin = process.stdin, stdout = process.s
   return 0;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) process.exitCode = await run(process.argv.slice(2));
+// Through `pathToFileURL`, so the check holds on Windows, where argv[1] is `C:\…` and the URL is `file:///C:/…`.
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) process.exitCode = await run(process.argv.slice(2));

@@ -117,10 +117,12 @@ describe('ink-select-input 6.2.0', () => {
     let selected;
     const app = t.mount(h(SelectInput, { items, onSelect: (item) => (selected = item) }));
     await wait(FRAME_MS);
-    assert.equal(t.last(), '❯ First\n  Second');
+    // `figures` draws the pointer as ❯, or as > where the terminal is not known to be Unicode (Windows).
+    const [, pointer] = /^([❯>]) First\n {2}Second$/u.exec(t.last()) ?? [];
+    assert.ok(pointer !== undefined, t.last());
     t.stdin.write('\u001B[B');
     await wait(FRAME_MS);
-    assert.equal(t.last(), '  First\n❯ Second');
+    assert.equal(t.last(), `  First\n${pointer} Second`);
     t.stdin.write('\r');
     await wait(FRAME_MS);
     app.unmount();
