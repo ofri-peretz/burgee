@@ -55,14 +55,20 @@ defaulting destructive to silence (N6)` in
 `--json` caller would, so an agent on MCP and one shelling out see one payload (`returns the
 --json envelope as the tool result, byte for byte (N4)`).
 
-**An agent is detected, not assumed to be a terminal.** `detectAgent` reads `AI_AGENT`,
-`CLAUDECODE`, `CURSOR_AGENT`, `CODEX_THREAD_ID` and `GEMINI_CLI`; the first one set names
-`ctx.agent`. `ctx.interactive` is `FORCE_TTY=1`, or a terminal on stdout with no agent
-(`agent detection, not just isTTY (N12)` in
+**An agent is detected, not assumed to be a terminal.** Five variables name one: `AI_AGENT`,
+`CLAUDECODE`, `CURSOR_AGENT`, `CODEX_THREAD_ID` and `GEMINI_CLI`. The first one set names
+`ctx.agent`. `ctx.interactive` is roundel's `interactive()`, the family's one rule for whether a
+person may be asked: a terminal on **stdin**, no `CI`, and none of those five, with `FORCE_TTY=1`
+over all three. caique's prompts ask the same function, so a handler and a prompt never disagree
+about the same shell (`one rule for whether a person may be asked (N12)` in
 [`agent.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/agent.test.ts)).
-caique's prompts ask roundel's `interactive()`, which reads the same five variables and also
-treats `CI`, and a closed stdin, as nobody there ([the output policy](/docs/concepts/output-policy)
-has both rules).
+burgee loads `roundel/terminal` only when it is about to run a handler, so help, `--version`,
+`--schema` and `--mcp` never load it. Help's colour is an output decision and still reads stdout
+([the output policy](/docs/concepts/output-policy) has both).
+
+A variable joins the five only when it names an agent and nothing else. `CURSOR_TRACE_ID` does
+not qualify, because Cursor sets it in every integrated terminal and a person typing there would
+never be asked anything.
 
 **Never prompt an agent.** burgee draws no prompt itself. A handler that would ask reads
 `ctx.interactive` and, when nobody can answer, calls `ctx.actionRequired({ reason, message, next })`:

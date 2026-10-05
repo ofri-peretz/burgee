@@ -1,0 +1,108 @@
+# Weekly grouped dependency PRs, one at a time. Ported from ofri-peretz/eslint.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 1
+    labels: ["dependencies", "npm"]
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    groups:
+      all-packages:
+        patterns: ["*"]
+    # compat-oracle runs commander's and yargs' *own* test suites, vendored at a pinned
+    # release, against their own devDependencies at that release (yargs' integration tests
+    # use which@2's callback API; a bump to which@7 timed them out — #5; chalk is pinned to
+    # the chalk host's own release, 6.0.1, and ora to 9.4.1, each the control for our façade
+    # of it). The hosts and their suite dependencies move only through the re-vendor flow
+    # (compat-refresh.yml), never through a version bump here.
+    ignore:
+      # `typescript-eslint` declares `typescript: ">=4.8.4 <6.1.0"` — no release of that
+      # line supports TypeScript 7, so a grouped bump to 7.x fails ERESOLVE on every job
+      # in the matrix before a test runs. Proposed and reverted by hand three times
+      # (#5, #31). Drop this entry when typescript-eslint ships a TS 7 peer range.
+      - dependency-name: "typescript"
+        versions: [">=6"]
+      - dependency-name: "commander"
+      - dependency-name: "yargs"
+      - dependency-name: "yargs-parser"
+      - dependency-name: "which"
+      - dependency-name: "mocha"
+      - dependency-name: "chai"
+      - dependency-name: "chalk"
+      - dependency-name: "ora"
+      - dependency-name: "get-stream"
+      - dependency-name: "log-update"
+      - dependency-name: "terminal.js"
+      - dependency-name: "wcwidth"
+      - dependency-name: "cross-spawn"
+      - dependency-name: "cpr"
+      - dependency-name: "hashish"
+      - dependency-name: "yargs-test-extends"
+      # Hosts vendored after the list above was written. Each one is declared at the release
+      # compat-oracle vendors and grades (vendor/<name>/.source.json), and nothing ignored them.
+      # #593 then proposed boxen 8.0.1 → 9.0.0, which would have moved the flagstaff/boxen ÷
+      # boxen weight gate onto a release whose suite compat-oracle does not grade.
+      - dependency-name: "boxen"
+      - dependency-name: "cosmiconfig"
+      - dependency-name: "exit-hook"
+      - dependency-name: "restore-cursor"
+      - dependency-name: "terminal-link"
+      # B4's incumbents, pinned *exactly* in benchmarks/package.json by PLAN 3.5/3.1 (#339).
+      # A weight ratio only means something if the release we weigh against is the release
+      # whose own suite we pass — `slice-ansi` sat at 7.1.2 while npm had 9 for that reason, and
+      # moved to 9.0.1 with its re-vendored suite (#317). #333 bumped it to 9.0.0 in a grouped
+      # PR, which would have silently re-pointed the comparison at a version compat-oracle
+      # did not grade. Like the hosts above, these move
+      # only through the re-vendor flow, and the two sides move together.
+      - dependency-name: "string-width"
+      - dependency-name: "wrap-ansi"
+      - dependency-name: "slice-ansi"
+      - dependency-name: "strip-ansi"
+      - dependency-name: "ansi-escapes"
+      # cli-table3 0.6.5 is the release compat-oracle vendors and grades (vendor/cli-table3/.source.json),
+      # and since 2026-09-23 the one B4 weighs flagstaff/table and flagstaff/cli-table3 against.
+      - dependency-name: "cli-table3"
+      # tinyexec 1.3.1 is bellpull R8's ceiling (GAPS A10, D-160): B4 weighs `bellpull`'s `run`
+      # against its `x`. No suite of its is graded, so the pin is the release the ceiling was
+      # measured against, and it moves only when somebody re-measures the pair on purpose.
+      - dependency-name: "tinyexec"
+      # @clack/prompts 1.8.1 is the release compat-oracle vendors and grades (vendor/clack), and
+      # B5 times caique/clack against it (D-20260929-b5-runtime-ratchets): a runtime ratio against
+      # a release whose suite we do not pass would compare two different contracts.
+      - dependency-name: "@clack/prompts"
+  # The `claude` binary bench.yml (B1) and evals.yml install with `npm ci`. It was
+  # `npm install --global` with no version, which Scorecard flags as unpinned (#34, #81);
+  # the lockfile pins it, and this entry is what keeps the pin from going stale.
+  - package-ecosystem: "npm"
+    directory: "/.github/tools/claude-code"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 1
+    labels: ["dependencies", "ci"]
+    commit-message:
+      prefix: "chore(ci)"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 1
+    # CodeQL refuses to run when init, autobuild and analyze are on different releases
+    # ("Loaded a configuration file for version X, but running version Y"). Bumped one PR per
+    # sub-action, #592 and #690 each moved `init` alone and broke Analyze on main; one group
+    # moves all three together.
+    groups:
+      codeql-action:
+        patterns: ["github/codeql-action*"]
+    labels: ["dependencies", "ci"]
+    commit-message:
+      prefix: "chore(ci)"

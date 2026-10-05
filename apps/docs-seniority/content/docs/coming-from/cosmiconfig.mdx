@@ -1,6 +1,6 @@
 ---
 title: Coming from cosmiconfig
-description: "A cosmiconfig alternative with zero dependencies: import { cosmiconfig } from seniority, graded 186 / 243 by cosmiconfig's own suite (YAML is the gap) — with provenance, so every resolved value can say where it came from, as text, --json data or an agent event."
+description: "A cosmiconfig alternative with zero dependencies: import { cosmiconfig } from seniority, graded 240 / 243 by cosmiconfig's own suite, level with cosmiconfig itself — with provenance, so every resolved value can say where it came from, as text, --json data or an agent event."
 ---
 
 **seniority** is a **cosmiconfig alternative** that also covers what `dotenv`, `rc` and
@@ -19,30 +19,29 @@ The root export carries cosmiconfig's surface: `cosmiconfig`, `cosmiconfigSync`,
 `globalConfigSearchPlaces` and `metaSearchPlaces` — all three search strategies, both caches,
 `$import`, and the meta-config merge.
 
-**YAML is the one gap.** seniority bundles no format parser, so its `loadYaml` reads the
-subset of YAML that is also JSON and refuses the rest by name. Pass
-`loaders: { '.yaml': yaml.load }` and you have cosmiconfig's behaviour, with the parser as
-your dependency rather than everyone's.
+**YAML reads as it does in cosmiconfig.** cosmiconfig takes `js-yaml` for `.yaml`, `.yml` and
+extensionless files; seniority reads them with `seniority/yaml`, its own parser, loaded on the
+first YAML file and never before. It returns what js-yaml 5 returns, and its errors carry
+js-yaml's reason and position. `npx burgee migrate` makes the import swap for you.
 
 ## Is seniority compatible with cosmiconfig?
 
-Not fully, and the number says so. cosmiconfig's own suite, vendored at 10.0.1 and unmodified
+Level with cosmiconfig on its own suite, with one pair of Linux-only cases still against it. cosmiconfig's own suite, vendored at 10.0.1 and unmodified
 apart from the import specifier, runs against `seniority` beside a control that runs it
 against real cosmiconfig:
 
 | | passing | rate |
 | :-- | --: | --: |
-| `seniority` | 186 / 243 | 76.5% |
+| `seniority` | 240 / 243 | 98.8% |
 | cosmiconfig itself (control) | 240 / 243 | 98.8% |
 
 From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `npm run compat:page` generates from the
 oracle's last run; that page is the authority, and it names every case that leaves the gate.
-Of the 57 cases not passing, seniority's README and that page account for each: 54 are the
-YAML refusal above (the largest block is `import.test.ts`, whose fixtures are all `.yml`),
-one is the harness reaching for a file path the vendored copy does not have, and two are the
-XDG global-directory cases, which register only on Linux and are counted against seniority
-on every platform.
-Below 100%, seniority is never described as cosmiconfig-*compatible*; this is a grade.
+Of the three cases not passing, one fails for cosmiconfig too: the harness reaching for a file
+path the vendored copy does not have. The other two are the XDG global-directory cases, which
+register only on Linux. cosmiconfig passes them there, because it reads `XDG_CONFIG_HOME` and
+seniority does not; they are counted against seniority on every platform.
+Level with the control is the claim, and it is a grade, not the word *compatible*.
 
 The same page grades `seniority/lilconfig` (lilconfig's own suite), `seniority/dotenv` and
 `seniority/rc`.

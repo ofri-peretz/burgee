@@ -1,0 +1,88 @@
+# Composite action: standard repo setup for CI jobs. Ported from
+# ofri-peretz/eslint/.github/actions/setup, trimmed to what this repo has.
+#
+# Caller must run `actions/checkout` first. Layered caching, fastest-first:
+#   1. node_modules keyed on package-lock.json — skips `npm ci` on hit.
+#   2. ~/.npm (via setup-node).
+#   3. .turbo task cache (opt-out with turbo-cache: "false").
+#   4. (opt-in) every docs app's .next/cache.
+#
+# Node version comes from .nvmrc — single source of truth.
+
+name: Setup
+description: Install Node from .nvmrc, hydrate npm + Turbo caches, run `npm ci` (skipped on cache hit).
+
+inputs:
+  turbo-cache:
+    description: Restore + save the Turborepo task cache. "false" for jobs that don't run turbo.
+    required: false
+    default: "true"
+  next-cache:
+    description: Restore + save every docs app's .next/cache. "true" for jobs that build the docs.
+    required: false
+    default: "false"
+  node-modules-cache:
+    description: >-
+      Restore + save node_modules. "false" forces a fresh `npm ci` from the registry every
+      run — the lint job does this on purpose: this repo is a customer of the Interlace ESLint
+      plugins, and each install is a real download that counts toward their adoption.
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node (from .nvmrc)
+      uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+      with:
+        node-version-file: .nvmrc
+        # No ~/.npm cache either when node_modules caching is off: a tarball served from
+        # the local cache is not a download.
+        cache: ${{ inputs.node-modules-cache == 'true' && 'npm' || '' }}
+
+    - name: Restore node_modules cache
+      if: inputs.node-modules-cache == 'true'
+      id: node-modules-cache
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
+      with:
+        # Every workspace's node_modules, or `npm ci` is skipped on a cache hit and the
+        # workspace left off this list resolves out of the root instead. `benchmarks/`
+        # was missing here on its first CI run, and B4 measured the commander the *root*
+        # has hoisted — 8.3.0, from 2021 — rather than the 15.0.0 it grades against. It
+        # reported a plausible number and a red gate. A workspace absent from this list
+        # is a silently wrong measurement, not a slow build.
+        path: |
+          node_modules
+          packages/*/node_modules
+          apps/*/node_modules
+          examples/*/node_modules
+          benchmarks/node_modules
+        key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json', '.github/actions/setup/action.yml') }}
+
+    - name: Install dependencies
+      if: inputs.node-modules-cache != 'true' || steps.node-modules-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: npm ci --prefer-offline --no-audit --fund=false
+
+    - name: Restore Turbo cache
+      if: inputs.turbo-cache == 'true'
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
+      with:
+        path: .turbo
+        key: turbo-${{ runner.os }}-${{ github.job }}-${{ github.sha }}
+        restore-keys: |
+          turbo-${{ runner.os }}-${{ github.job }}-
+          turbo-${{ runner.os }}-
+
+    - name: Restore Next.js build cache
+      if: inputs.next-cache == 'true'
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
+      with:
+        # Every app, one glob: a path per app would be an edit here per app, which
+        # is exactly what `.github/vercel-apps.json` exists to prevent. It costs a
+        # little cache precision — any app's change busts every app's cache.
+        path: apps/*/.next/cache
+        key: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('apps/**/*.[jt]s', 'apps/**/*.[jt]sx', 'apps/**/*.mdx', 'apps/**/*.md') }}
+        restore-keys: |
+          nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+          nextjs-${{ runner.os }}-

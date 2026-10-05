@@ -28,10 +28,20 @@ export interface RuntimeRatchet {
   /** The bar the pair is held to in the end: at or below the incumbent. */
   target: number;
   /**
-   * How a ceiling is derived from CI: the largest median of the last `observations` CI runs,
-   * times `headroom` for the runner's noise, rounded up to `step`.
+   * How a ceiling is derived from CI (D-20260930-b5-ceilings-from-spread): over the pair's CI
+   * series since its code last changed — up to the last `observations` runs, every attempt — the
+   * larger of mean + `sigmas` sample standard deviations and the largest value seen, rounded up
+   * to `step`. The cold-start claim ratchet's rule (`claim-ratchets.json`), for the same reason:
+   * a runner's run-to-run spread, which B5's ratios have too — different CPUs read the same code
+   * 20% apart. `rule` records the series and the arithmetic behind the current ceiling.
    */
-  derive: { source: 'ci'; observations: number; headroom: number; step: number; rule: string };
+  derive: { source: 'ci'; observations: number; sigmas: number; step: number; rule: string };
+  /**
+   * Set when the ceiling is a bar a spec or a decision writes down, not a ratchet from spread —
+   * `bellpull ÷ tinyexec` is bellpull R8's "not slower than tinyexec". Such a ceiling is never
+   * re-derived upward: its noise is cut with more rounds (`benchmarks/axes/runtime.ts`).
+   */
+  bar?: string;
   history: RatchetStep[];
 }
 

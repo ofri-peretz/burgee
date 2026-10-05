@@ -1,9 +1,15 @@
 /** cli-mcp's second slice on the engine: N7 changed, N11 action required, N12 agent detection, N13 the schema budget. */
+import { Readable } from 'node:stream';
+
+import { AGENTS, interactive } from 'roundel/terminal';
 import { describe, expect, it } from 'vitest';
 
-import { defineCommand, defineProgram, detectAgent, execute, type RunOptions } from './index.js';
+import { AGENT_PROBES, defineCommand, defineProgram, detectAgent, execute, type RunOptions } from './index.js';
 import { summaryOf } from './schema-entry.js';
 import { runBurgee } from './testing.js';
+
+/** A stdin a person could type on. */
+const terminal = (): NodeJS.ReadableStream => Object.assign(Readable.from([]), { isTTY: true });
 
 describe('agent detection, not just isTTY (N12)', () => {
   it('names the agent from the environment and turns interaction off, terminal or not', () => {
@@ -17,13 +23,61 @@ describe('agent detection, not just isTTY (N12)', () => {
     expect(detectAgent({}, true)).toEqual({ interactive: true });
     expect(detectAgent({}, false)).toEqual({ interactive: false });
   });
-  it('reaches the handler as ctx.interactive and ctx.agent, from the injected stdout', async () => {
+  it('reaches the handler as ctx.agent, and ctx.interactive reads the injected stdin, not stdout', async () => {
     const seen: unknown[] = [];
     const program = defineProgram({ name: 'app', commands: [defineCommand({ name: 'x', effects: 'withheld', run: ({ interactive, agent }) => void seen.push({ interactive, agent }) })] });
-    const base: RunOptions = { argv: ['x'], stderr: { write: () => true }, exit: () => undefined };
-    await execute(program, { ...base, env: {}, stdout: { write: () => true, isTTY: true } });
-    await execute(program, { ...base, env: { GEMINI_CLI: '1' }, stdout: { write: () => true, isTTY: true } });
-    expect(seen).toEqual([{ interactive: true, agent: undefined }, { interactive: false, agent: 'gemini' }]);
+    const base: RunOptions = { argv: ['x'], stdout: { write: () => true }, stderr: { write: () => true }, exit: () => undefined };
+    await execute(program, { ...base, env: {}, stdin: terminal() });
+    await execute(program, { ...base, env: { GEMINI_CLI: '1' }, stdin: terminal() });
+    // A terminal on stdout with nothing on stdin: output can be drawn, and no answer can arrive.
+    await execute(program, { ...base, env: {}, stdin: Readable.from([]), stdout: { write: () => true, isTTY: true } });
+    expect(seen).toEqual([
+      { interactive: true, agent: undefined },
+      { interactive: false, agent: 'gemini' },
+      { interactive: false, agent: undefined },
+    ]);
+  });
+});
+
+/** What `ctx.interactive` read for one run on a terminal, under `env`. */
+const ask = async (env: Record<string, string>): Promise<boolean> => {
+  let asked: boolean | undefined;
+  const program = defineProgram({ name: 'app', commands: [defineCommand({ name: 'x', effects: 'withheld', run: ({ interactive }) => void (asked = interactive) })] });
+  await runBurgee(program, { argv: ['x'], env, tty: true });
+  return asked as boolean;
+};
+
+/**
+ * D-20260930-one-interactive-rule: whether a person may be asked is roundel's `interactive()`,
+ * the rule caique's prompts already ask — a terminal on stdin, no `CI`, no agent variable.
+ * burgee read stdout and ignored `CI`, so the same shell was "ask" to one and "refuse" to the other.
+ */
+describe('one rule for whether a person may be asked (N12)', () => {
+  it('an agent on a terminal is not asked', async () => {
+    const variables = ['AI_AGENT', 'CLAUDECODE', 'CURSOR_AGENT', 'CODEX_THREAD_ID', 'GEMINI_CLI'];
+    expect(await Promise.all(variables.map(async (variable) => await ask({ [variable]: '1' })))).toEqual(variables.map(() => false));
+  });
+  it('CI on a terminal is not asked, where burgee used to ask it', async () => {
+    expect(await ask({ CI: 'true' })).toBe(false);
+    expect(await ask({ CI: '1' })).toBe(false);
+  });
+  it('a person at a terminal is asked, and an empty CI or agent variable is not set', async () => {
+    expect(await ask({})).toBe(true);
+    expect(await ask({ CI: '', CLAUDECODE: '' })).toBe(true);
+  });
+  it('FORCE_TTY=1 asks under CI and under an agent, as the one explicit instruction', async () => {
+    expect(await ask({ CI: 'true', CLAUDECODE: '1', FORCE_TTY: '1' })).toBe(true);
+  });
+  it('agrees with roundel/terminal for every case, because it is roundel/terminal', async () => {
+    const cases: Record<string, string>[] = [{}, { CI: 'true' }, { CLAUDECODE: '1' }, { FORCE_TTY: '1', CI: '1' }, { CURSOR_TRACE_ID: 'abc' }];
+    expect(await Promise.all(cases.map(async (env) => await ask(env)))).toEqual(cases.map((env) => interactive({ env, isTTY: { stdin: true } })));
+  });
+  it('probes the same five variables roundel does, in the same order, and never CURSOR_TRACE_ID', () => {
+    expect(AGENT_PROBES.map((p) => p.variable)).toEqual([...AGENTS]);
+    expect(AGENT_PROBES.map((p) => p.variable)).not.toContain('CURSOR_TRACE_ID');
+  });
+  it('a person in Cursor is asked: CURSOR_TRACE_ID is in every integrated terminal and is not an agent', async () => {
+    expect(await ask({ CURSOR_TRACE_ID: 'abc' })).toBe(true);
   });
 });
 

@@ -203,7 +203,10 @@ export interface RunContext {
   env: Record<string, string | undefined>;
   /** Exit with an E1 code. Unwinds cleanly: the code is honoured and nothing is printed. */
   exit: (code: number) => never;
-  /** A person may be prompted (N12): a terminal, no detected agent, or `FORCE_TTY=1`. */
+  /**
+   * A person may be asked and be expected to answer (N12): roundel's `interactive()`, the
+   * family's one rule — a terminal on stdin, no `CI`, no detected agent — or `FORCE_TTY=1`.
+   */
   interactive: boolean;
   /** The agent the environment names, if any (N12). */
   agent?: string;

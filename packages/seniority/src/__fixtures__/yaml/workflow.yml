@@ -1,0 +1,185 @@
+# The compatibility scoreboard, on every change.
+#
+#   ratchet — C5: each host's own suite against burgee; falling below the recorded baseline
+#             fails. Runs where the baselines were recorded (Linux, the .nvmrc Node).
+#             C1: the same, for each incumbent's previous major (`--majors`).
+#   matrix  — C3: every Node LTS in `engines` × Linux, macOS, Windows. Our own suite is a
+#             hard gate everywhere; the controls are informational off Linux, because the
+#             hosts' suites are themselves OS-sensitive and a baseline recorded on one OS
+#             is not a contract for another.
+name: Compatibility
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # `ratchet` is a REQUIRED context as of this change. A merge queue builds
+  # `refs/heads/gh-readonly-queue/...` and waits for the required checks to report on
+  # THAT event; without this trigger the check never reports and the entry sits in the
+  # queue forever with no error. `scripts/lint-workflows.ts` enforces the pairing.
+  merge_group:
+  workflow_dispatch:
+
+concurrency:
+  group: compat-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ratchet:
+    name: Ratchet · each host's suite against burgee
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: write # the broken-main reporter below
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - name: Build
+        run: npx turbo run build --filter='./packages/*'
+      - name: Grade burgee (fails below baseline)
+        shell: bash
+        run: node packages/compat-oracle/dist/bin.js 2>&1 | tee compat.log
+      # Both halves, in the one job that can hold them: `results.json` from the grade
+      # above and `results.control.json` from here. The control's numbers are the Linux
+      # ones — yargs scores 802 / 804 here and 804 / 804 on the other runners — so this is
+      # the only place the committed page can be compared against a measurement.
+      - name: Grade the real packages, so the page has its control column
+        shell: bash
+        run: node packages/compat-oracle/dist/bin.js --control 2>&1 | tee -a compat.log
+      # C1 — each drop-in against its incumbent's OLDER major, graded by that major's own
+      # suite (`PREVIOUS_MAJORS` in hosts.ts: commander 14, yargs 17). Same ratchet, same
+      # control, same Linux runner as the two steps above, and before the page check because
+      # the page carries these rows. `SUPPORTED_MAJORS` in burgee's compat.ts claims an older
+      # major only when this grades it level; `scripts/supported-majors-lock.test.ts` holds that.
+      - name: Grade burgee against the previous majors (C1, fails below baseline)
+        shell: bash
+        run: node packages/compat-oracle/dist/bin.js --majors 2>&1 | tee -a compat.log
+      - name: Grade the previous majors' real packages
+        shell: bash
+        run: node packages/compat-oracle/dist/bin.js --majors --control 2>&1 | tee -a compat.log
+      # The page went stale in silence once: `flagstaff/cli-table3` was graded 29 / 29 and
+      # the published table went on saying `flagstaff/table` 0 / 29, because the number was
+      # measured, merged, and never regenerated. `bench:page` has had this check since it
+      # was written; this is the same check on the other generated page.
+      - name: The published page is the one these results generate
+        run: npm run compat:page -- --check
+      - name: Summary
+        if: always()
+        run: |
+          { echo '## Compatibility'; echo; echo '```'; cat compat.log || echo '(no output)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: compat-results
+          path: packages/compat-oracle/results.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+      # This job going red on main used to notify nobody. On 2026-09-10 it failed on the
+      # #197 merge at 14:44 and main stayed red until #199 — noticed only because #191,
+      # #195 and #198 all went red on a job none of them had touched, which reads as
+      # three broken PRs rather than one broken main.
+      #
+      # Making the check REQUIRED is the fix for the merge; this is the fix for
+      # everything that gets in another way — an admin merge, a re-run that flips, an
+      # upstream host suite changing under a green PR. A red main is an outage, so it is
+      # an issue and not a finding. Dedup by title, so a run of red merges opens one.
+      - name: Say so — a red main is an outage
+        if: failure() && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          TITLE="main is red — the compatibility ratchet failed after a merge"
+          EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty')
+          BODY=$(printf 'The ratchet failed on a push to main, so main is broken now and every branch cut from it inherits it. The merge that did it is `%s`.\n\nMost likely the published `compatibility.mdx` no longer matches what the oracle measures — rebuild, run `packages/compat-oracle/dist/bin.js --control` then without flags, then `npm run compat:page`, and commit the page.\n\n[Run](%s)\n' "$SHA" "$RUN_URL")
+          if [ -z "$EXISTING" ]; then
+            gh issue create --title "$TITLE" --body "$BODY"
+          else
+            echo "already open as #$EXISTING"
+          fi
+
+  matrix:
+    name: Node ${{ matrix.node }} · ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        # Every even major `engines` admits (C3). 26 was narrowed out on 2026-09-08 (#64) to
+        # halve the matrix while the output stack landed; it landed, and 26 came back on
+        # 2026-09-23 after the whole suite passed on v26.10.0 locally. 26 is Current until its
+        # LTS promotion in late October — graded now so it is not first graded as an LTS.
+        node: [24, 26]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The shared setup action pins Node from .nvmrc; a matrix needs the version varied,
+      # so this job installs Node directly.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci --ignore-scripts
+      # Same `turbo run build`, the same 24 tasks with the same hashes, on every cell. On
+      # macOS it runs two tasks at a time instead of turbo's default ten. macos-latest has
+      # three cores, and ten concurrent `next build`s (every docs app) oversubscribe them:
+      # each app's Turbopack compile took 14–24 minutes instead of ~20 s, the step took
+      # ~16 minutes at the median and 25 on a bad run, and this job sat at its 30-minute
+      # timeout. Measured on one commit, one runner type, 2026-09-27 (run 36354199521):
+      # concurrency 10 → 1503 s, 4 → 220 s, 2 → 152 s, the task list and hashes identical
+      # across all three. Linux and Windows (four cores) keep the default.
+      - run: npm run build -- ${{ matrix.os == 'macos-latest' && '--concurrency=2' || '' }}
+      - name: Our suite (hard gate on every cell)
+        run: npm test
+      - name: Controls (informational off Linux)
+        continue-on-error: ${{ matrix.os != 'ubuntu-latest' }}
+        run: node packages/compat-oracle/dist/bin.js --control
+
+  # C3 for the lower half of `engines` (D-132). The nine published packages declare
+  # `^20.19.0 || >=22.13.0`; the job above covers 24 and 26, this one the two floors,
+  # exact — a floor is only a claim if the floor itself is what runs. 20.19 and 22.13 are
+  # where `require(esm)` loads without a warning, which is what K2's CommonJS promise needs.
+  #
+  # Built once on the .nvmrc Node, because that is the Node the release builds on and the
+  # dist npm ships is what a Node 20 or 22 user runs. The workspace tooling (root tests,
+  # compat-oracle, docs) stays on 24 — its `engines` says so — so only the published
+  # suites run here. Hard gate on every cell, the same policy as `matrix`.
+  floor:
+    name: Node ${{ matrix.node }} · ${{ matrix.os }} · published suites
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: ['20.19.0', '22.13.0']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - name: Build on the .nvmrc Node — the dist npm ships
+        run: npx turbo run build --filter='./packages/*'
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - name: Every published package's suite (hard gate on every cell)
+        shell: bash
+        run: |
+          set -uo pipefail
+          node --version
+          failed=()
+          for dir in packages/*/; do
+            name=$(basename "$dir")
+            [ "$(node -p "require('./${dir}package.json').private === true")" = true ] && continue
+            echo "::group::$name"
+            (cd "$dir" && npx vitest run) || failed+=("$name")
+            echo "::endgroup::"
+          done
+          if [ ${#failed[@]} -gt 0 ]; then echo "::error::red on Node $(node --version): ${failed[*]}"; exit 1; fi

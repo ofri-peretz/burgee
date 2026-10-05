@@ -139,10 +139,11 @@ the running command did not declare.
 
 ## Stopping instead of prompting
 
-Under a detected agent (`AI_AGENT`, `CLAUDECODE`, `CURSOR_AGENT`, `CODEX_THREAD_ID`,
-`GEMINI_CLI`) a program is non-interactive by default, terminal or not; `FORCE_TTY=1`
-overrides. A handler reads `ctx.interactive` and `ctx.agent`, and where it would have
-prompted it stops with what the caller must do:
+`ctx.interactive` is true only with a terminal on stdin, no `CI`, and no detected agent
+(`AI_AGENT`, `CLAUDECODE`, `CURSOR_AGENT`, `CODEX_THREAD_ID`, `GEMINI_CLI`), terminal or not;
+`FORCE_TTY=1` overrides. It is roundel's `interactive()`, the same rule caique's prompts ask. A
+handler reads `ctx.interactive` and `ctx.agent`, and where it would have prompted it stops with
+what the caller must do:
 
 ```ts
 if (!ctx.interactive) ctx.actionRequired({
