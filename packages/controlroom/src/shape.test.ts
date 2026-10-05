@@ -7,7 +7,7 @@
  * CommonJS, with nothing installed beside it. Mirrors `roundel/src/shape.test.ts`.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -70,10 +70,10 @@ describe('Z1 — one file, npm i, no build step', { timeout: SPAWN }, () => {
     }
   });
 
-  it('the package it installed has zero runtime dependencies (U6)', () => {
-    const manifest = JSON.parse(npm(['ls', 'controlroom', '--json', '--depth', '1'], { cwd: dir, encoding: 'utf8' })) as {
-      dependencies?: Record<string, { dependencies?: Record<string, unknown> }>;
-    };
-    expect(Object.keys(manifest.dependencies?.controlroom?.dependencies ?? {})).toEqual([]);
+  it('the package it installed depends on linegauge and on nothing else (U6: 0 external, 1 same-repo)', () => {
+    const installed = JSON.parse(readFileSync(join(dir, 'node_modules/controlroom/package.json'), 'utf8')) as { dependencies?: Record<string, string> };
+    expect(Object.keys(installed.dependencies ?? {})).toEqual(['linegauge']);
+    expect(existsSync(join(dir, 'node_modules/linegauge/package.json'))).toBe(true);
+    expect(existsSync(join(dir, 'node_modules/controlroom/node_modules'))).toBe(false);
   });
 });
