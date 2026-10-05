@@ -162,7 +162,8 @@ const pkgLink = (name: string): string => `\`${name}\``;
 const rows = [...composers, ...leaves, ...reserved].map((n) => {
   // A reserved package is published as a placeholder. Its manifest may already declare what the
   // repository's unreleased code uses; those edges are listed, and drawn once it publishes.
-  const layer = n.role === 'reserved' ? (n.uses.length > 0 ? 'reserved on npm; built in the repository' : 'reserved, no API yet') : n.role;
+  const reservedLayer = n.uses.length > 0 ? 'reserved on npm; built in the repository' : 'reserved, no API yet';
+  const layer = n.role === 'reserved' ? reservedLayer : n.role;
   const outside = [...n.outside, ...n.optionalPeers.map((d) => `${d} (optional peer)`)];
   const users = composers.filter((c) => c.uses.includes(n.name)).map((c) => pkgLink(c.name));
   return `| ${pkgLink(n.name)} | ${layer} | ${n.uses.length === 0 ? 'nothing' : n.uses.map(pkgLink).join(', ')} | ${users.length === 0 ? '—' : users.join(', ')} | ${outside.length === 0 ? 'nothing' : outside.join(', ')} |`;
