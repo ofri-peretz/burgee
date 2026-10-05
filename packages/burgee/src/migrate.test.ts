@@ -93,6 +93,7 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
       'exit-hook': 'closeout/exit-hook',
       'signal-exit': 'closeout/signal-exit',
       'signal-exit/signals': 'closeout/signal-exit/signals',
+      ink: 'controlroom/ink',
     });
   });
 
@@ -368,6 +369,17 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     expect(read(dir, 'src/a.ts')).toBe("import 'dotenv/config';\nimport chalk from 'roundel/chalk';\n");
     expect(report.refused).toEqual([]);
     expect(report.partial).toEqual([{ from: 'dotenv', to: 'seniority/dotenv', reference: 141, passed: 106, rate: 0.75177304964539, control: 141 }]);
+  });
+
+  it('an ink program moves to controlroom/ink, and is told to install the reconciler ink used to bring', async () => {
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { ink: '^6.8.0', react: '^19.0.0' } }),
+      'src/a.tsx': "import { render, Text } from 'ink';\n",
+    });
+    const report = await migrate({ dir, status: clean });
+    expect(read(dir, 'src/a.tsx')).toBe("import { render, Text } from 'controlroom/ink';\n");
+    expect(report.dependencies.add).toEqual(['controlroom', 'react-reconciler']);
+    expect(report.next).toBe('npm install controlroom react-reconciler && npm uninstall ink');
   });
 
   it('names the family packages to add, and the command that adds them and removes the incumbents', async () => {
