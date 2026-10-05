@@ -1,7 +1,7 @@
 {
   "name": "controlroom",
   "version": "0.0.1",
-  "description": "Reserved, and not usable yet: full-screen, keyboard-driven terminal screens with a static projection for pipes, CI and --json. The planned drop-in path for ink. Its only export today is status = 'reserved'.",
+  "description": "Keyboard-driven terminal screens, inline or full-screen, with a static projection for pipes, CI and --json — and a drop-in path for ink, graded by ink's own suite. No dependency outside the burgee family; react is an optional peer of controlroom/ink only.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

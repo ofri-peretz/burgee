@@ -64,6 +64,23 @@ export const TESTED_IN_ANOTHER_PROCESS = [
   'src/cli-table3.ts',
   // roundel — chalk 58.
   'src/chalk.ts',
+  // controlroom — `controlroom/ink`, graded by ink's own suite (576 / 584) and @inkjs/ui's
+  // (103 / 103) through `compat-oracle`, in a child process per case (D-20261005-controlroom-ink-drop-in).
+  'src/ink/ansi.ts',
+  'src/ink/components.ts',
+  'src/ink/dom.ts',
+  'src/ink/flex.ts',
+  'src/ink/hooks.ts',
+  'src/ink/host.ts',
+  'src/ink/index.ts',
+  'src/ink/instance.ts',
+  'src/ink/keypress.ts',
+  'src/ink/output.ts',
+  'src/ink/peers.ts',
+  'src/ink/process.ts',
+  'src/ink/react.ts',
+  'src/ink/render.ts',
+  'src/ink/terminal.ts',
   // `flagstaff check <file>` — seven cases in `cli.test.ts`, every one of them
   // `execFileSync(dist/cli.js)`, because a CLI's contract is its exit code and its stdout.
   'src/cli.ts',

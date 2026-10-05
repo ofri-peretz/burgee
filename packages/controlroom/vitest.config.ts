@@ -5,6 +5,10 @@ import { defineConfig } from 'vitest/config';
 import { coverage } from '../../vitest-coverage.config.js';
 import { timeouts } from '../../vitest-timeouts.config.js';
 
+// The family's bar: every line, branch, function and statement covered, so a suite that stops
+// covering its source fails here instead of drifting (controlroom had no thresholds until 2026-10-05).
+const FULL = { lines: 100, branches: 100, functions: 100, statements: 100 };
+
 export default defineConfig({
   // Pinned before there are tests to pin: a config that inherits the shell is a bug waiting
   // for its first assertion. See `vitest-colour-setup.ts`.
@@ -14,6 +18,6 @@ export default defineConfig({
     // see `benchmarks/vitest.config.ts` for the measurements.
     testTimeout: 60_000,
     hookTimeout: 60_000,
-    include: ['src/**/*.test.ts'], setupFiles: ['../../vitest-colour-setup.ts'], coverage,
+    include: ['src/**/*.test.ts'], setupFiles: ['../../vitest-colour-setup.ts'], coverage: { ...coverage, thresholds: FULL },
   },
 });

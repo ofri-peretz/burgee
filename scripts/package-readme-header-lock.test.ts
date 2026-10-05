@@ -230,7 +230,8 @@ describe('the lock can fail', () => {
     const found = problems(pkg, text).join('\n');
     expect(found).toMatch(/the badge row reads \[npm version, downloads, Quality Gate, status,/u);
     expect(found).toMatch(/only a reserved package may omit "Migrating from:"/u);
-    expect(problems('controlroom', read('controlroom')), 'the reserved package itself passes').toEqual([]);
+    // There is no reserved package left to point at: controlroom was the last, until 2026-10-05.
+    expect(problems('controlroom', read('controlroom')), 'the package that was reserved passes as an ordinary one').toEqual([]);
   });
 
   // controlroom was the ungraded package until its two rows landed (D-20261005-controlroom-ink-suite),
