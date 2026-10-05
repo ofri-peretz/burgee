@@ -143,7 +143,10 @@ describe('R6 — the static session', () => {
     screen.commit('done');
     const events = f.err.join('').trim().split('\n').map((line) => JSON.parse(line) as unknown);
     expect(events).toContainEqual({ event: 'tasks', state: '◼ install' });
+    screen.close();
     expect(events).toContainEqual({ event: 'commit', state: 'done' });
+    const after = f.err.join('').trim().split('\n').map((line) => JSON.parse(line) as { event: string });
+    expect(after.filter((e) => e.event === 'commit'), 'closing must not repeat the last commit').toHaveLength(1);
     expect(f.out).toEqual([]);
   });
 

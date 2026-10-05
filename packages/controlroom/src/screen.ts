@@ -213,7 +213,9 @@ function projected(rt: Runtime, options: Resolved, mode: OutputMode): Screen {
       if (closed) return;
       closed = true;
       for (const { hoisted: h } of hoisted.values()) h.lower();
-      commits?.lower();
+      // Under --json a lowered projection emits its last state once more, which for the commit
+      // log would be the last commit twice: each commit is its own event already.
+      if (mode !== 'json') commits?.lower();
     },
   };
   // A throw from the program's own onSubmit is the program's, as from any event handler: it is
