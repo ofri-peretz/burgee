@@ -293,7 +293,8 @@ export default [
     // a config, not source reading source, and the alternative is the same exclusion list
     // copied into four files — which is how it drifts and how a façade quietly starts being
     // counted again. The packages themselves still depend on nothing.
-    files: ["packages/*/vitest.config.ts"],
+    // The docs apps' configs reach the root's clocks for the same reason (vitest-timeouts-lock).
+    files: ["packages/*/vitest.config.ts", "apps/*/vitest.config.ts"],
     rules: {
       "import-next/no-relative-parent-imports": "off",
       "import-next/no-relative-packages": "off",
