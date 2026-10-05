@@ -7,24 +7,90 @@
  * fine. `weight.test.ts` pins the generated source.
  */
 
+/** One import a fixture makes: a specifier, and the one symbol it uses. */
+export interface Import {
+  specifier: string;
+  symbol: string;
+}
+
+/**
+ * One side of a pair. Most sides are one import; an Ink program is not, because it imports the
+ * `react` it renders beside `ink`, and the drop-in's user installs `react-reconciler` as well.
+ */
+export interface Side extends Import {
+  /**
+   * The rest of the program's imports, each used by one symbol and bundled as one program with
+   * the first — what a user's bundler does, so a module two of them share is paid for once.
+   */
+  with?: readonly Import[];
+  /**
+   * Left out of the bundle. For an optional peer the package reaches only behind a branch that
+   * does not run at startup (ink's `react-devtools-core`, under `DEV=true`), which no bundler can
+   * resolve when the peer is not installed — and for ink measured "alone", without React (W3).
+   */
+  external?: readonly string[];
+  /**
+   * Every chunk is on the startup path. `controlroom/ink` loads its optional peers with `import()`
+   * under top-level await, so the edges `initialBytes` treats as lazy run when the module loads;
+   * counting only the statically imported closure would leave the `import()` stubs out, in our
+   * favour.
+   */
+  eager?: true;
+}
+
 export interface EntryPair {
   /** Row id, and the `from.variant` a band matches for our side. */
   id: string;
   /** Our specifier, and the one symbol the fixture uses. */
-  ours: { specifier: string; symbol: string };
+  ours: Side;
   /** What it replaces. `default` means the fixture imports the default export. */
-  incumbent: { specifier: string; symbol: string };
+  incumbent: Side;
+  /**
+   * Gate the installed tree too, in packages and in bytes (controlroom W2). Off for every other
+   * pair: installed size is per package, not per entry point, so it is reported and not gated —
+   * except where a requirement states its bar on it.
+   */
+  installed?: true;
   /**
    * The claim id, when `lighter-than-<incumbent>` would collide: a package can have a drop-in
    * façade *and* a native API against the same incumbent (flagstaff/ora and flagstaff/spinner),
    * and one id may only ever name one row.
    */
   claim?: string;
+  /** Where the claim is written, when it is a package's own bar rather than U5's. */
+  source?: string;
   /** Why this is the right comparison, for the table. */
   why: string;
 }
 
+/** Where controlroom's weight bars are written: the claims these rows settle cite it. */
+export const CONTROLROOM_WEIGHT = '.sdlc/intents/controlroom/intent.md — the size gates W1–W4 — and spec R14';
+
 export const DEFAULT_EXPORT = 'default';
+
+/** The package a specifier belongs to: `burgee/commander` is published by `burgee`. */
+export function packageOf(specifier: string): string {
+  const parts = specifier.split('/');
+  return specifier.startsWith('@') ? parts.slice(0, 2).join('/') : (parts[0] as string);
+}
+
+/** Every package a side installs, in import order, each once. */
+export function packagesOf(side: Side): string[] {
+  return [...new Set([side, ...(side.with ?? [])].map((s) => packageOf(s.specifier)))];
+}
+
+/**
+ * How a side is named on its rows: its specifier, then each further package it imports. A
+ * one-import side is named by its specifier, so no row written before a side could be several
+ * packages changes its name.
+ */
+export function sideLabel(side: Side): string {
+  const [, ...rest] = packagesOf(side);
+  return [side.specifier, ...rest].join(' + ');
+}
+
+/** The ratio row's variant, which claims and bands key on: ours ÷ theirs. */
+export const ratioVariant = (pair: EntryPair): string => `${sideLabel(pair.ours)} ÷ ${sideLabel(pair.incumbent)}`;
 
 export const PAIRS: readonly EntryPair[] = [
   {
@@ -169,6 +235,33 @@ export const PAIRS: readonly EntryPair[] = [
     incumbent: { specifier: 'tinyexec', symbol: 'x' },
     why: "bellpull R8: `run` against tinyexec's `x`, the zero-dependency rival the ceiling names",
   },
+  // controlroom R14, the intent's weight table. The incumbent is ink 6.8.0 on React 19.3.0, the
+  // versions compat-oracle grades it at. ink's `react-devtools-core` is an optional peer it
+  // imports only under `DEV=true`, through a dynamic import, so it is left external on every
+  // ink side: it is never installed, and it is not on the startup path when it is.
+  {
+    // W1 — what an Ink program bundles today against what the same program bundles on the
+    // drop-in: the program's own React on both sides, and the reconciler ink used to bring along
+    // on ours. `eager`, because the drop-in reaches both peers under top-level await.
+    id: 'controlroom/ink',
+    claim: 'controlroom-ink-no-heavier-than-ink',
+    source: CONTROLROOM_WEIGHT,
+    ours: { specifier: 'controlroom/ink', symbol: 'render', with: [{ specifier: 'react', symbol: DEFAULT_EXPORT }, { specifier: 'react-reconciler', symbol: DEFAULT_EXPORT }], eager: true },
+    incumbent: { specifier: 'ink', symbol: 'render', with: [{ specifier: 'react', symbol: DEFAULT_EXPORT }], external: ['react-devtools-core'] },
+    // W2 is the same two programs installed: packages and bytes, both gated.
+    installed: true,
+    why: 'controlroom W1 and W2: the drop-in with the React and reconciler it renders through, against ink and the React it renders through',
+  },
+  {
+    // W3, the root half: the native API against ink alone, with React external as the intent
+    // measured it. The demo half waits on `examples/dashboard` (spec R14).
+    id: 'controlroom',
+    claim: 'controlroom-lighter-than-ink',
+    source: CONTROLROOM_WEIGHT,
+    ours: { specifier: 'controlroom', symbol: 'open' },
+    incumbent: { specifier: 'ink', symbol: 'render', external: ['react', 'react-devtools-core'] },
+    why: "controlroom W3: the native API's screen against ink alone — where \"lighter than Ink\" may be claimed once measured",
+  },
 ];
 
 /**
@@ -181,6 +274,11 @@ export function fixtureSource({ specifier, symbol }: { specifier: string; symbol
   return symbol === DEFAULT_EXPORT
     ? `import x from ${JSON.stringify(specifier)};\nexport default x;\n`
     : `import { ${symbol} } from ${JSON.stringify(specifier)};\nexport { ${symbol} };\n`;
+}
+
+/** A side's fixture: one import as above, or, for a side of several, the stack shape below. */
+export function sideSource(side: Side): string {
+  return side.with === undefined ? fixtureSource(side) : stackFixtureSource([side, ...side.with]);
 }
 
 /**

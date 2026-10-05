@@ -38,7 +38,7 @@ afterEach(() => {
 /** What `verdict()` said on stderr in this case. */
 const said = (): string => stderr.mock.calls.flat().join('\n');
 
-const measuredAt = (bundled: number): Measured => ({ bundled, whole: bundled, installed: 1, version: '0.0.0-test', dir: '<repo>/packages/test' });
+const measuredAt = (bundled: number, installed = 1, packages = 1): Measured => ({ bundled, whole: bundled, installed, packages, version: '0.0.0-test', dir: '<repo>/packages/test' });
 
 describe('B4 weight — the bundled-bytes ratchet', () => {
   const pair = PAIRS.find((p) => p.id === 'burgee') as (typeof PAIRS)[number];
@@ -73,6 +73,61 @@ describe('B4 weight — the "lighter than what it replaces" ratio gate', () => {
 
   it('exits zero at parity', () => {
     expect(verdict(pairRecords(pair, measuredAt(1000), measuredAt(1000)))).toBe(0);
+  });
+});
+
+/**
+ * controlroom R14: the four gates the intent writes at 1.0×, each seen to go red one step over
+ * and to hold at parity. W1 and W3 are the bundled ratio, W2 the installed tree in its two units,
+ * W4 the paired cold-start ratio.
+ */
+/** The bar the claim on one record asserts. */
+const at = (variant: string, metric: string): number | undefined => CLAIMS.find((c) => c.from.variant === variant && c.from.metric === metric)?.test.max;
+
+describe('controlroom R14 — W1 to W4 are gated at 1.0×', () => {
+  const ink = PAIRS.find((p) => p.id === 'controlroom/ink') as (typeof PAIRS)[number];
+  const root = PAIRS.find((p) => p.id === 'controlroom') as (typeof PAIRS)[number];
+
+  it.each([
+    ['W1', ink, 'controlroom/ink + react + react-reconciler ÷ ink + react bundled-bytes-ratio'],
+    ['W3', root, 'controlroom ÷ ink bundled-bytes-ratio'],
+  ] as const)('%s exits non-zero one byte over its incumbent, and zero at parity', (_, pair, row) => {
+    expect(verdict(pairRecords(pair, measuredAt(1001), measuredAt(1000)))).toBe(1);
+    expect(said()).toContain(row);
+    expect(verdict(pairRecords(pair, measuredAt(1000), measuredAt(1000)))).toBe(0);
+  });
+
+  it.each([
+    ['bytes', measuredAt(1, 1001, 10), 'installed-bytes-ratio'],
+    ['packages', measuredAt(1, 1000, 11), 'installed-packages-ratio'],
+  ] as const)('W2 exits non-zero when the drop-in installs more %s than ink + react', (_, ours, metric) => {
+    const records = pairRecords(ink, ours, measuredAt(1, 1000, 10));
+    expect(gateFailures(records).map((f) => f.record.metric)).toEqual([metric]);
+    expect(verdict(pairRecords(ink, measuredAt(1, 1000, 10), measuredAt(1, 1000, 10)))).toBe(0);
+  });
+
+  it('gates the installed tree only where a requirement states a bar on it', () => {
+    expect(PAIRS.filter((p) => p.installed === true).map((p) => p.id)).toEqual(['controlroom/ink']);
+    expect(pairRecords(root, measuredAt(1), measuredAt(1)).some((r) => r.metric.startsWith('installed-') && r.metric.endsWith('-ratio'))).toBe(false);
+  });
+
+  it.each(['controlroom/ink', 'controlroom'])('W4: %s exits non-zero past ink + react at 1.0×, and zero at it', (id) => {
+    const v = VARIANTS.find((x) => x.id === id) as Variant;
+    const host = Array.from({ length: 13 }, () => 100);
+    expect(v.host).toBe('ink + react');
+    expect(PERF_CEILING[id]).toBeUndefined();
+    expect(verdict([ratioRecord({ v, ours: host.map((ms) => ms * 1.01), host, gateMax: 1 })])).toBe(1);
+    expect(said()).toContain(`${id} ÷ ink + react cold-start-ratio`);
+    expect(verdict([ratioRecord({ v, ours: host, host, gateMax: 1 })])).toBe(0);
+  });
+
+  it('each gate settles a published claim at the same bar', () => {
+    expect(at('controlroom/ink + react + react-reconciler ÷ ink + react', 'bundled-bytes-ratio')).toBe(1);
+    expect(at('controlroom/ink + react + react-reconciler ÷ ink + react', 'installed-bytes-ratio')).toBe(1);
+    expect(at('controlroom/ink + react + react-reconciler ÷ ink + react', 'installed-packages-ratio')).toBe(1);
+    expect(at('controlroom ÷ ink', 'bundled-bytes-ratio')).toBe(1);
+    expect(at('controlroom/ink ÷ ink + react', 'cold-start-ratio')).toBe(1);
+    expect(at('controlroom ÷ ink + react', 'cold-start-ratio')).toBe(1);
   });
 });
 

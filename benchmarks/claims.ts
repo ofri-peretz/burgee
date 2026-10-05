@@ -21,7 +21,7 @@
  * important one.
  */
 import { claimRatchet, RATCHETED } from './claim-ratchets.js';
-import { PAIRS, PARITY } from './fixtures/entry-points.js';
+import { CONTROLROOM_WEIGHT, packageOf, PAIRS, PARITY, ratioVariant, type Side, sideLabel } from './fixtures/entry-points.js';
 import { type AxisName } from './record.js';
 
 export interface ClaimSpec {
@@ -34,6 +34,15 @@ export interface ClaimSpec {
   /** What has to be true of the record's median for the claim to hold. */
   test: { max?: number; min?: number };
 }
+
+const U5 = 'U5 in .sdlc/intents/README.md — "lighter per subpath than the incumbent it replaces"';
+
+/** A side as prose: each package it imports, in code. */
+const code = (side: Side): string =>
+  sideLabel(side)
+    .split(' + ')
+    .map((s) => `\`${s}\``)
+    .join(' + ');
 
 /** 52 KB, the figure `replacement-parser` #3 publishes, in bytes. */
 const KB = 1024;
@@ -86,12 +95,12 @@ export const CLAIMS: readonly ClaimSpec[] = [
   },
   ...PAIRS.map((pair) => {
     const id = pair.claim ?? `lighter-than-${pair.incumbent.specifier}`;
-    const base = { id, from: { axis: 'weight' as const, variant: `${pair.id} ÷ ${pair.incumbent.specifier}`, metric: 'bundled-bytes-ratio' } };
+    const base = { id, from: { axis: 'weight' as const, variant: ratioVariant(pair), metric: 'bundled-bytes-ratio' } };
     if (!RATCHETED.has(id)) {
       return {
         ...base,
-        claim: `\`${pair.ours.specifier}\` is lighter in a user's bundle than \`${pair.incumbent.specifier}\`, the package it replaces`,
-        source: 'U5 in .sdlc/intents/README.md — "lighter per subpath than the incumbent it replaces"',
+        claim: `${code(pair.ours)} is lighter in a user's bundle than ${code(pair.incumbent)}, ${pair.incumbent.with === undefined ? 'the package' : 'what'} it replaces`,
+        source: pair.source ?? U5,
         test: { max: 1 },
       };
     }
@@ -103,6 +112,32 @@ export const CLAIMS: readonly ClaimSpec[] = [
       test: { max: ceiling },
     };
   }),
+  /**
+   * controlroom W2: the drop-in's installed tree against ink's, in both of the intent's units.
+   * The hypothesis is a large reduction, because none of ink's other dependencies come along; it
+   * stays a hypothesis until these two rows print it.
+   */
+  ...PAIRS.filter((pair) => pair.installed === true).flatMap((pair) =>
+    (['bytes', 'packages'] as const).map((unit) => ({
+      id: `${pair.id.replaceAll('/', '-')}-installs-no-more-${unit}-than-${packageOf(pair.incumbent.specifier)}`,
+      claim: `${code(pair.ours)} installs no more ${unit} than ${code(pair.incumbent)}`,
+      source: pair.source ?? U5,
+      from: { axis: 'weight' as const, variant: ratioVariant(pair), metric: `installed-${unit}-ratio` },
+      test: { max: 1 },
+    })),
+  ),
+  /**
+   * controlroom W4: importing either entry point starts no slower than importing ink and the
+   * React it renders through, as the B2 axis's same-run paired ratio. There is no baseline before
+   * this row, so the number is the measurement and the bar is the intent's.
+   */
+  ...(['controlroom/ink', 'controlroom'] as const).map((variant) => ({
+    id: `${variant.replace('/', '-')}-starts-no-slower-than-ink`,
+    claim: `importing \`${variant}\` starts no slower than importing \`ink\` + \`react\`, as a same-run ratio`,
+    source: CONTROLROOM_WEIGHT,
+    from: { axis: 'perf' as const, variant: `${variant} ÷ ink + react`, metric: 'cold-start-ratio' },
+    test: { max: 1 },
+  })),
   /**
    * The same claim as `lighter-than-*`, asked the way a reader actually chooses.
    *

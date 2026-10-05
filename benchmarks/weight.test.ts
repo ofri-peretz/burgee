@@ -19,7 +19,7 @@ import { join, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { installedDependencies, uniqueRecords } from './axes/weight.js';
-import { PAIRS } from './fixtures/entry-points.js';
+import { packagesOf, PAIRS } from './fixtures/entry-points.js';
 import manifest from './package.json' with { type: 'json' };
 import { BENCH_ROOT, packageDir, satisfies } from './resolve.js';
 
@@ -55,7 +55,7 @@ describe('satisfies', () => {
 
 describe('the entry-point table', () => {
   it('declares every package it measures, so no version is whatever npm happened to hoist', () => {
-    const measured = new Set(PAIRS.flatMap((p) => [p.ours.specifier, p.incumbent.specifier].map((s) => (s.startsWith('@') ? s.split('/').slice(0, 2).join('/') : (s.split('/')[0] as string)))));
+    const measured = new Set(PAIRS.flatMap((p) => [...packagesOf(p.ours), ...packagesOf(p.incumbent)]));
     for (const name of measured) expect(declared[name], `${name} is measured by B4 but not declared in benchmarks/package.json`).toBeDefined();
   });
 
