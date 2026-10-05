@@ -53,6 +53,17 @@ describe('createIo', () => {
     await expect(io.reader.line()).resolves.toBeUndefined();
   });
 
+  it('keeps lines that arrive before anyone asks, so one piped chunk answers two prompts', async () => {
+    // A pipe hands readline every line in one chunk, before the first question is asked.
+    // The lines come back in order, and only then does the end read as a cancellation.
+    const s = streams(false);
+    const io = createIo({ input: s.input, output: s.output });
+    s.input.end('a\nb\n');
+    await new Promise((resolve) => setImmediate(resolve));
+    const read = [await io.reader.line(), await io.reader.line(), await io.reader.line()];
+    expect(read).toEqual(['a', 'b', undefined]);
+  });
+
   it('writes what it is given, unchanged', () => {
     const s = streams();
     const io = createIo({ input: s.input, output: s.output });
