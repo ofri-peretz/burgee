@@ -3,10 +3,9 @@ repo:     https://github.com/sindresorhus/ora
 version:  9.4.1
 tag:      v9.4.1
 commit:   79cd8c15ac34572cffb3ab53e3d4b6bab6d59ea8
-vendored: 2026-09-08
+vendored: 2026-10-05
 files:    1
 tool:     scripts/vendor-suite.ts
-verified: 2026-09-14 — v9.4.1 resolves to this commit at the host
 
 How this directory was made
 ---------------------------

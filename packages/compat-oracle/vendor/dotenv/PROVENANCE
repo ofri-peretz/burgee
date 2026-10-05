@@ -1,16 +1,15 @@
 package:  dotenv
 repo:     https://github.com/motdotla/dotenv
-version:  17.4.2
-tag:      v17.4.2
-commit:   f116f70310abab44fbfddbaeb833698b5bf84a9b
-vendored: 2026-09-14
-files:    9
+version:  18.0.5
+tag:      v18.0.5
+commit:   05215e09b73575b6f8e272658ca7849685651384
+vendored: 2026-10-05
+files:    10
 tool:     scripts/vendor-suite.ts
-verified: 2026-09-14 — v17.4.2 resolves to this commit at the host
 
 How this directory was made
 ---------------------------
-A shallow clone of https://github.com/motdotla/dotenv at v17.4.2, then that repository's own test directory and
+A shallow clone of https://github.com/motdotla/dotenv at v18.0.5, then that repository's own test directory and
 its fixtures copied here. The only edit is to the import specifiers that reach the library:
 each is rewritten to a generated shim, so one unedited suite can grade any implementation.
 Everything else — assertions, fixtures, helpers — is upstream's, byte for byte.
@@ -34,7 +33,7 @@ vendor step deletes any shim it finds, so a stale one can never grade the wrong 
 
 Reproduce
 ---------
-    npx tsx scripts/vendor-suite.ts dotenv --version 17.4.2
+    npx tsx scripts/vendor-suite.ts dotenv --version 18.0.5
 
 Every field above is reproduced exactly, with one exception that is a date and not a
 defect: `vendored` is the day the copy was taken, so a fresh run writes today's.

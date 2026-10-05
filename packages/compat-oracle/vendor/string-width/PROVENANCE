@@ -3,7 +3,7 @@ repo:     https://github.com/sindresorhus/string-width
 version:  8.3.0
 tag:      v8.3.0
 commit:   ffa1de3894af8f0471a86b60a624a3fd7a44580d
-vendored: 2026-09-28
+vendored: 2026-10-05
 files:    1
 tool:     scripts/vendor-suite.ts
 

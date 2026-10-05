@@ -3,7 +3,7 @@ repo:     https://github.com/chalk/wrap-ansi
 version:  10.0.2
 tag:      v10.0.2
 commit:   4e44ec236852ac3ca28a554dbc3b5fc396346f1d
-vendored: 2026-09-28
+vendored: 2026-10-05
 files:    1
 tool:     scripts/vendor-suite.ts
 

@@ -3,7 +3,7 @@ repo:     https://github.com/sindresorhus/ansi-escapes
 version:  7.3.0
 tag:      v7.3.0
 commit:   73e652efe7a353bdf25f456e592c858e4648db3d
-vendored: 2026-09-14
+vendored: 2026-10-05
 files:    1
 tool:     scripts/vendor-suite.ts
 

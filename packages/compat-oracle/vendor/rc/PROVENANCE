@@ -3,7 +3,7 @@ repo:     https://github.com/dominictarr/rc
 version:  1.2.8
 tag:      (none — release was not tagged; HEAD was used)
 commit:   a97f6adcc37ee1cad06ab7dc9b0bd842bbc5c664
-vendored: 2026-09-14
+vendored: 2026-10-05
 files:    1
 tool:     scripts/vendor-suite.ts
 

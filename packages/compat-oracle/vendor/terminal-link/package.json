@@ -5,6 +5,7 @@
   "main": "./shim.js",
   "version": "5.0.0",
   "license": "MIT",
+  "description": "Create clickable links in the terminal",
   "repository": "sindresorhus/terminal-link",
   "devDependencies": {
     "terminal-link": "5.0.0",

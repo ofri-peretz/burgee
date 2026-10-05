@@ -5,6 +5,7 @@
   "main": "./shim.mjs",
   "version": "3.1.3",
   "license": "MIT",
+  "description": "A zero-dependency alternative to cosmiconfig",
   "repository": {
     "type": "git",
     "url": "https://github.com/antonk52/lilconfig"

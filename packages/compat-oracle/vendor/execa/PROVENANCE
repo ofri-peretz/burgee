@@ -3,7 +3,7 @@ repo:     https://github.com/sindresorhus/execa
 version:  10.0.1
 tag:      v10.0.1
 commit:   8017b279e19347efaf2587711c2d57dbd4330740
-vendored: 2026-09-28
+vendored: 2026-10-05
 files:    29
 tool:     scripts/vendor-suite.ts
 

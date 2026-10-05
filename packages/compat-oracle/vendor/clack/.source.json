@@ -1,10 +1,10 @@
 {
   "repo": "https://github.com/bombshell-dev/clack",
   "version": "1.8.1",
-  "tag": "@clack/prompts@1.8.1",
-  "commit": "da44e23128c2f6a64f908224683e22d1190a576b",
-  "vendored": "2026-09-14",
-  "files": 19,
+  "tag": null,
+  "commit": "cbeefcb1d2e4f932203f681a6bb98970f3084907",
+  "vendored": "2026-10-05",
+  "files": 20,
   "internalFiles": [],
   "internals": [
     "src/autocomplete.js",
@@ -27,6 +27,7 @@
     "packages/prompts/test/progress-bar.test.ts": "9a966d642303499bafe472cb3d3089752e66225908a9949fee825d6898b9b8fd",
     "packages/prompts/test/select-key.test.ts": "506cf239df0ba2ca8d2273d4cec067e0fb02897738b36279c1e8262acb114f03",
     "packages/prompts/test/select.test.ts": "617a269eb93289dc18fc8e9a891ab22098cc9be231ea8575c247f4ff57c53b60",
+    "packages/prompts/test/spinner-accessible.test.ts": "e9d427a4451030b7215eafffebd63d67608d69c89f1ed827c3ace55daa216c3c",
     "packages/prompts/test/spinner.test.ts": "5458af2bb6124ede824d0afc19d751ec403af157fecf244874d724980ebc0e99",
     "packages/prompts/test/task-log.test.ts": "b45123ab8f815791376af57a1a08732de2f49c6c3b0a01eef2c05c6f4f20c589",
     "packages/prompts/test/test-utils.ts": "ddbb894870886db8083f4fbb3a33d0763a6d9d04c0c5a8da63654e1a14959f90",
@@ -329,6 +330,15 @@
       "maxItems accounts for instruction footer",
       "showInstructions: false hides instruction footer",
       "correctly limits options with explicit multiline message"
+    ],
+    "packages/prompts/test/spinner-accessible.test.ts": [
+      "spinner (accessible)",
+      "renders static append-only output with no decorations",
+      "falls back to plain status words when stopped without a message",
+      "abort signal cancels with a plain line",
+      "accessible takes precedence over CI mode",
+      "enabled via ACCESSIBLE env var",
+      "accessible: false option overrides the global setting"
     ],
     "packages/prompts/test/spinner.test.ts": [
       "returns spinner API",

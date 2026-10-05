@@ -3,7 +3,7 @@ repo:     https://github.com/moxystudio/node-cross-spawn
 version:  7.0.6
 tag:      v7.0.6
 commit:   77cd97f3ca7b62c904a63a698fc4a79bf41977d0
-vendored: 2026-09-14
+vendored: 2026-10-05
 files:    1
 tool:     scripts/vendor-suite.ts
 

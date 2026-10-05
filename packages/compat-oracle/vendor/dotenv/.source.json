@@ -1,70 +1,73 @@
 {
   "repo": "https://github.com/motdotla/dotenv",
-  "version": "17.4.2",
-  "tag": "v17.4.2",
-  "commit": "f116f70310abab44fbfddbaeb833698b5bf84a9b",
-  "vendored": "2026-09-14",
-  "files": 9,
+  "version": "18.0.5",
+  "tag": "v18.0.5",
+  "commit": "05215e09b73575b6f8e272658ca7849685651384",
+  "vendored": "2026-10-05",
+  "files": 10,
   "internalFiles": [
-    "test-cli-options.js",
-    "test-env-options.js"
+    "test-config-options.js"
   ],
   "internals": [
-    "lib/cli-options",
-    "lib/env-options",
-    "lib/main"
+    "lib/config-options"
   ],
   "hashes": {
-    "tests/test-cli-options.js": "816c0d5e1dec25492bf9a4c67c0ccfa0bbb3bf6ff5acf2c40f38c9a0a859a38d",
-    "tests/test-config-cli.js": "09d7d1905c374e9e9b0e4adcf52ffe7a3c72079e71ee19b979d24a43b80d1e4a",
-    "tests/test-config-vault.js": "6f1441c472644a7473194c733358e6bf47064f2b564d1a19b3ea2cb88b3bc5a1",
-    "tests/test-config.js": "f2a46c6571dbdd8b5a692b6916d29a318ac8f0246d615173ef29c58135fadd0e",
-    "tests/test-decrypt.js": "0a7eaafe8bbc7c1cc736987f30a54d7936e817a8266c91c542a50c9ada7aed82",
-    "tests/test-env-options.js": "1594d2f1336e796fd84905ed54bf6337f2d0f03352265c7dd282cbcef6e0cc56",
+    "tests/test-cli-signals.js": "c8cb0d2b0c13ed72fb1969652e36a7bc707d7a0b50ebabd329bd3475ca7e2c2e",
+    "tests/test-cli.js": "b7dbdee2efdd1b0c103ef86dcf1930ddd729f7c582a838b5a9f990aec87b0821",
+    "tests/test-config-import.js": "e7879965e0e0f0558f0090374b7bf078d0a21b57511c6c69a3a7a2e4d4891bba",
+    "tests/test-config-options.js": "0f9a313d50a923d435b02c71eca792aa32081bfb24b5ad50a5df1b18611669bf",
+    "tests/test-config-quiet.js": "3b047074adc445ae7f4818517abbb14a6c7c1e12b549ea66ff4fdbaf7e90db2a",
+    "tests/test-config.js": "f18dae86302ccb202379de9fb50cd977e2e9d1aa0791753dc04046d786a6f82c",
+    "tests/test-parse-fast.js": "ff2ea39873f365fe52f96d8644ba5c5030b2ae2d0cfa23a25815106a1243026c",
     "tests/test-parse-multiline.js": "f6281c83730796680f2362d3d8c123e3342ac210813652aa66937b6aadb1503b",
     "tests/test-parse.js": "62aa22388fb0f766fbe530b919cede7798e46d0117bd61c1ebd49d7ce046841d",
-    "tests/test-populate.js": "fd3fdc6628f2cd7291c1bdfc424a109bc0b5abc6eeb7151d6cb54373b3c8e0ba",
-    "lib/main.d.ts": "85652d7bb13bd2141b3d0c68d07ac1a11e933dd32ca2bb4b1b83b8aa5f62251c",
-    "lib/main.js": "46c50c6399a53bde79a1f85e720a80a073cb959b21072fad44a98b1bde72c3c2"
+    "tests/test-populate.js": "fb5844ad0bb84e21e4f2b4e78101550f53a2b228a3d8d6443d5188bc28b46c11",
+    "lib/main.d.ts": "e68bc9948d54c842e0fdaf6fc11138a8825768f87459066971e26d7433487f00",
+    "lib/main.js": "10fce09c8730da5994dff0f8874dae4513a2db5f6d40f28c2c178a91a0579f63"
   },
   "tests": {
-    "tests/test-cli-options.js": [],
-    "tests/test-config-cli.js": [],
-    "tests/test-config-vault.js": [
-      "does log when testPath calls to .env.vault directly (interpret what the user meant)",
-      "warns if DOTENV_KEY exists but .env.vault does not exist",
-      "warns if DOTENV_KEY exists but .env.vault does not exist (set as array)",
-      "logs when testPath calls to .env.vault directly (interpret what the user meant) and debug true",
-      "returns parsed object",
-      "returns parsed object (set path as array)",
-      "returns parsed object (set path as mulit-array)",
-      "returns parsed object (set path as array with .vault extension)",
-      "throws not found if .env.vault is empty",
-      "throws missing data when somehow parsed badly",
-      "throws error when invalid formed DOTENV_KEY",
-      "throws error when invalid formed DOTENV_KEY that otherwise is not caught",
-      "throws error when DOTENV_KEY missing password",
-      "throws error when DOTENV_KEY missing environment",
-      "when DOTENV_KEY is empty string falls back to .env file",
-      "does not write over keys already in process.env by default",
-      "does write over keys already in process.env if override turned on",
-      "when DOTENV_KEY is passed as an option it successfully decrypts and injects",
-      "can write to a different object rather than process.env",
-      "logs when debug and override are turned on",
-      "logs when debug is on and override is false",
-      "raises an INVALID_DOTENV_KEY if key RangeError",
-      "raises an DECRYPTION_FAILED if key fails to decrypt payload",
-      "raises an DECRYPTION_FAILED if both (comma separated) keys fail to decrypt",
-      "raises error if some other uncaught decryption error",
-      "_parseVault when empty args"
+    "tests/test-cli-signals.js": [
+      "POSIX signal forwarding",
+      "forwards ${signal} and waits for graceful shutdown",
+      "preserves signal exit status",
+      "forwards termination to subprocesses too",
+      "terminal group Ctrl-C is not forwarded twice",
+      "repeated interrupts can force an unresponsive child to stop"
+    ],
+    "tests/test-cli.js": [
+      "runs a command ${separator.length ? 'with' : 'without'} -- and forwards its options",
+      "preserves child exit code ${separator.length ? 'with' : 'without'} --",
+      "rejects unknown dotenv options before the command",
+      "requires a command and a value for -f",
+      "help before the command still shows dotenv help",
+      "loads files in order: ${flags.join(' ')}",
+      "file flags reject missing or empty lists",
+      "preserves spaces, quotes, empty arguments, and shell metacharacters",
+      "Windows resolves executables and batch shims with spaces in their paths"
+    ],
+    "tests/test-config-import.js": [
+      "built package supports named, default, and namespace ESM imports",
+      "${mode} loads env quietly by default"
+    ],
+    "tests/test-config-options.js": [
+      "${name} supports both names and preserves explicit false/empty values",
+      "${mode} honors aliases and their precedence in the built package",
+      "explicit config options and CLI flags override both environment names"
+    ],
+    "tests/test-config-quiet.js": [
+      "${mode}: ${testCase.name}"
     ],
     "tests/test-config.js": [
+      "uses DOTENV_CONFIG_* values as config defaults",
+      "config options override DOTENV_CONFIG_* defaults",
       "takes string for path option",
       "takes array for path option",
       "takes two or more files in the array for path option",
       "sets values from both .env.local and .env. first file key wins.",
       "sets values from both .env.local and .env. but none is used as value existed in process.env.",
       "takes URL for path option",
+      "logs decoded file URL paths in debug mode",
+      "preserves file read errors for URL paths",
       "takes option for path along with home directory char ~",
       "takes option for encoding",
       "takes option for debug",
@@ -81,21 +84,30 @@
       "deals with file:// path",
       "deals with file:// path and debug true",
       "path.relative fails somehow",
-      "displays random tips from the tips array",
-      "displays random tips from the tips array with fallback for isTTY false",
+      "displays the injected env message without tips",
       "logs when no path is set",
       "does log by default",
       "does not log if quiet flag passed true",
-      "does not log if process.env.DOTENV_CONFIG_QUIET is true",
       "does log if quiet flag false",
-      "does log if process.env.DOTENV_CONFIG_QUIET is false",
       "does log if quiet flag present and undefined/null",
-      "logs if debug set"
+      "logs if debug set",
+      "config treats encrypted values as ordinary strings"
     ],
-    "tests/test-decrypt.js": [
-      "can decrypt"
+    "tests/test-parse-fast.js": [
+      "fast parse matches classic parse for tests/.env",
+      "fast parse matches classic parse for multiline fixture",
+      "fast parse matches classic parse for edge cases",
+      "fast parse matches classic parse for a leading UTF-8 BOM",
+      "fast parse matches classic parse for an escaped backslash before the closing quote",
+      "issue #1043: ${name}",
+      "fast parse handles whitespace without consuming the next assignment",
+      "fast parse matches classic for colon newlines and export keys",
+      "fast parse respects Unicode line separators around quotes and comments",
+      "fast parse handles backslashes before quotes on a later line",
+      "fast parse matches classic across quoted value combinations",
+      "config({ fast: true }) reads a .env written with a BOM",
+      "config({ fast: true }) loads with fast parser"
     ],
-    "tests/test-env-options.js": [],
     "tests/test-parse-multiline.js": [],
     "tests/test-parse.js": [],
     "tests/test-populate.js": [
@@ -104,20 +116,22 @@
       "does write over keys already in processEnv if override turned on",
       "logs any errors populating when in debug mode but override turned off",
       "logs populating when debug mode and override turned on",
-      "returns any errors thrown on passing not json type"
+      "returns any errors thrown on passing not json type",
+      "throws OBJECT_REQUIRED instead of TypeError when parsed is null",
+      "throws OBJECT_REQUIRED instead of TypeError when processEnv is null"
     ]
   },
   "surface": {
     "lib/main.d.ts": [
       "DotenvConfigOptions",
       "DotenvConfigOutput",
+      "DotenvParseOptions",
       "DotenvParseOutput",
       "DotenvPopulateInput",
       "DotenvPopulateOptions",
       "DotenvPopulateOutput",
       "config",
       "configDotenv",
-      "decrypt",
       "parse",
       "populate"
     ],
