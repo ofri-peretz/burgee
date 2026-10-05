@@ -72,5 +72,5 @@ it deliberately.
 
 ## Open questions
 
-- Is this a real regression, a change in what we measure, or a change in the corpus?
-- Which commit is the first one outside the band?
+- Decided 2026-10-05 → D-20261005-cold-start-band-questions: answered by the bisect over `benchmarks/results/`. Is this a real regression, a change in what we measure, or a change in the corpus?
+- Decided 2026-10-05 → D-20261005-cold-start-band-questions: the same bisect's output, not here. Which commit is the first one outside the band?
