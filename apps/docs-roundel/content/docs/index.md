@@ -229,7 +229,7 @@ on [roundel.interlace.tools](https://roundel.interlace.tools/docs).
 
 Plugins register under the `tokens` key, against the one schema the whole family shares.
 
-`burgee`, `caique`, `flagstaff` build on it, and it builds on nothing in this family.
+`burgee`, `caique`, `controlroom`, `flagstaff` build on it, and it builds on nothing in this family.
 
 ## The family
 

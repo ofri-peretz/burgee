@@ -9,7 +9,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -21,6 +21,8 @@ function npm(args: string[], options: Parameters<typeof execFileSync>[2]): strin
 }
 
 const pkgRoot = fileURLToPath(new URL('..', import.meta.url));
+/** controlroom's same-repo dependencies: the whole of what it may install (U6). */
+const SIBLINGS = ['caique', 'closeout', 'flagstaff', 'linegauge', 'roundel'];
 
 /** The whole program. `.mjs` so it runs in any project whatever its package.json says about "type". */
 const ONE_FILE = `import { status } from 'controlroom';
@@ -36,8 +38,12 @@ function node(file: string): string {
 
 beforeAll(() => {
   dir = mkdtempSync(join(tmpdir(), 'controlroom-shape-'));
-  const tarball = npm(['pack', '--silent', '--pack-destination', dir], { cwd: pkgRoot, encoding: 'utf8' }).trim();
-  npm(['install', '--no-audit', '--no-fund', '--silent', join(dir, tarball)], { cwd: dir, stdio: 'ignore' });
+  // The siblings' real tarballs too, as flagstaff's shape lock packs its own: controlroom
+  // stands on subpaths (`caique/keys`, flagstaff's frame writer) that ship in the same
+  // release, so the registry's copies would test last release's family, not this one.
+  const roots = [...SIBLINGS, 'paratext'].map((name) => resolve(pkgRoot, '..', name)).concat(pkgRoot);
+  const tarballs = roots.map((root) => join(dir, npm(['pack', '--silent', '--pack-destination', dir], { cwd: root, encoding: 'utf8' }).trim()));
+  npm(['install', '--no-audit', '--no-fund', '--silent', ...tarballs], { cwd: dir, stdio: 'ignore' });
   writeFileSync(join(dir, 'cli.mjs'), ONE_FILE);
 }, 120_000);
 
@@ -70,10 +76,10 @@ describe('Z1 — one file, npm i, no build step', { timeout: SPAWN }, () => {
     }
   });
 
-  it('the package it installed depends on linegauge and on nothing else (U6: 0 external, 1 same-repo)', () => {
+  it('the package it installed depends on five of its siblings and on nothing else (U6: 0 external, 5 same-repo)', () => {
     const installed = JSON.parse(readFileSync(join(dir, 'node_modules/controlroom/package.json'), 'utf8')) as { dependencies?: Record<string, string> };
-    expect(Object.keys(installed.dependencies ?? {})).toEqual(['linegauge']);
-    expect(existsSync(join(dir, 'node_modules/linegauge/package.json'))).toBe(true);
+    expect(Object.keys(installed.dependencies ?? {}).toSorted()).toEqual(SIBLINGS);
+    for (const sibling of SIBLINGS) expect(existsSync(join(dir, `node_modules/${sibling}/package.json`))).toBe(true);
     expect(existsSync(join(dir, 'node_modules/controlroom/node_modules'))).toBe(false);
   });
 });

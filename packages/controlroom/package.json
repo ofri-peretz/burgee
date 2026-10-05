@@ -51,7 +51,11 @@
     "zero-dependency"
   ],
   "dependencies": {
-    "linegauge": "^1.0.3"
+    "caique": "^0.6.4",
+    "closeout": "^0.6.1",
+    "flagstaff": "^1.0.3",
+    "linegauge": "^1.0.3",
+    "roundel": "^0.6.2"
   },
   "devDependencies": {
     "vitest": "^5.0.1"
