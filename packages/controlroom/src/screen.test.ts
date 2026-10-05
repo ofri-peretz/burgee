@@ -1,10 +1,11 @@
 import { PassThrough } from 'node:stream';
 
 import { manualClock } from 'flagstaff/loop';
-import { type Component } from 'flagstaff/plugin';
+import { type Component, register as registerFlagstaff } from 'flagstaff/plugin';
 import { describe, expect, it, vi } from 'vitest';
 
 import { type Layout } from './layout.js';
+import { register } from './plugin.js';
 import { processRuntime, type Runtime } from './runtime.js';
 import { open, type ScreenOptions } from './screen.js';
 
@@ -327,6 +328,47 @@ describe('keys — routed through the keymap, as data', () => {
     expect(f.raw).toEqual([true, false]);
     screen.dispatch('tab.next');
     expect(heard).toEqual(['quit']);
+  });
+});
+
+describe('R10 — registered keymaps and panes', () => {
+  it('the default keymap is the registered one: arrows switch tabs with no keymap passed', async () => {
+    const f = fake();
+    const screen = open(f.rt, options({ tabs: ['A', 'B'] }));
+    press(f, `${ESC}[C`);
+    await flush();
+    expect(screen.state.active).toBe(1);
+    screen.close();
+  });
+
+  it('a keymap can be named, and a registered pane draws with the flagstaff component it names', async () => {
+    registerFlagstaff({ name: 'demo-components', components: { shout: { static: (s: unknown) => String(s).toUpperCase() } } });
+    register({ name: 'demo', keymaps: { vim: { keys: { l: 'tab.next' } } }, panes: { loud: { component: 'shout', label: 'Loud' } } });
+    const f = fake({ tty: false });
+    const screen = open(f.rt, { layout: 'x', tabs: ['A', 'B'], keymap: 'vim', panes: { x: { pane: 'loud', state: 'hi' } } });
+    screen.close();
+    expect(f.out.join('')).toBe('Loud\nHI\n');
+    const g = fake();
+    const live = open(g.rt, { layout: 'x', tabs: ['A', 'B'], keymap: 'vim', panes: { x: { pane: 'loud', state: 'hi' } } });
+    press(g, 'l');
+    await flush();
+    expect(live.state.active).toBe(1);
+    live.close();
+  });
+
+  it('a registered pane with no label prints its projection alone', () => {
+    register({ name: 'demo2', panes: { plain: { component: 'shout' } } });
+    const f = fake({ tty: false });
+    open(f.rt, { layout: 'x', panes: { x: { pane: 'plain', state: 'hi' } } }).close();
+    expect(f.out.join('')).toBe('HI\n');
+  });
+
+  it('a name nothing registered throws with a fix, for a keymap, a pane, and a pane whose component is missing', () => {
+    const rt = fake({ tty: false }).rt;
+    expect(() => open(rt, { layout: 'x', keymap: 'nope', panes: {} })).toThrow(/no keymap named "nope"/u);
+    expect(() => open(rt, { layout: 'x', panes: { x: { pane: 'nope', state: 0 } } })).toThrow(/no pane named "nope"/u);
+    register({ name: 'demo3', panes: { ghost: { component: 'never-registered' } } });
+    expect(() => open(rt, { layout: 'x', panes: { x: { pane: 'ghost', state: 0 } } })).toThrow(/"never-registered", which flagstaff has not registered/u);
   });
 });
 

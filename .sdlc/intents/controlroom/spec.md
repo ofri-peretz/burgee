@@ -62,6 +62,11 @@ it records every change here.
   `hints(keymap, labels)`. Key routing waits on R2 and the screen on R4.
 - **R10 · plugins.** Panes, keymaps and tab bars register through one `register()` against
   the family schema. The built-ins use the same call.
+  **Built 2026-10-05** as `src/plugin.ts` (`controlroom/plugin`), `src/check.ts` and
+  `controlroom check`: keymaps and panes as data, in the family schema. A tab bar is a pane over
+  flagstaff's `tab-bar`, so it has no key of its own. The built-in `default` keymap registers
+  through `register()` on first use rather than at load, so the root keeps `sideEffects: false`.
+  The eval case is `evals/cases/controlroom-plugin-from-schema.json`.
 
 **The Ink drop-in.**
 

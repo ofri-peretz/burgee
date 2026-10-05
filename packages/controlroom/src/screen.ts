@@ -16,11 +16,12 @@ import { type KeyPress, match, readKeys, canReadKeys, type Keymap } from 'caique
 import { onExit } from 'closeout';
 import { alternateScreen, hideCursor, type Registrar } from 'closeout/cursor';
 import { frameWriter, type FrameWriter, hoist, type Hoisted } from 'flagstaff/loop';
-import { type Component } from 'flagstaff/plugin';
+import { type Component, registered as flagstaffRegistered } from 'flagstaff/plugin';
 import { outputMode, type OutputMode } from 'roundel/policy';
 
 import { collapse, compose, type Pane, type Panes } from './compose.js';
 import { type Layout } from './layout.js';
+import { registered } from './plugin.js';
 import { type Runtime } from './runtime.js';
 import { initial, reduce, type ScreenState } from './tabs.js';
 
@@ -29,9 +30,13 @@ export interface ScreenOptions {
   screen?: 'inline' | 'alternate';
   /** The panes' arrangement, or a function of the screen state when tabs change what is shown. */
   layout: Layout | ((state: ScreenState) => Layout);
-  panes: Panes;
-  /** Key spec → action, as data (caique R2). `ctrl+c` is `quit` unless the keymap binds it. */
-  keymap?: Keymap;
+  /** Each pane is a component with its state, or a registered pane (R10) by name with its state. */
+  panes: Readonly<Record<string, Pane | { pane: string; state: unknown }>>;
+  /**
+   * Key spec → action, as data (caique R2), or the name of a registered keymap (R10). Defaults
+   * to the registered `default`. `ctrl+c` is `quit` unless the keymap binds it.
+   */
+  keymap?: Keymap | string;
   tabs?: readonly string[];
   /** Panes that take focus, in order. */
   focus?: readonly string[];
@@ -77,7 +82,10 @@ function unknownPane(name: string): never {
   throw new TypeError(`controlroom: no pane named "${name}"`);
 }
 
-export function open(rt: Runtime, options: ScreenOptions): Screen {
+export function open(rt: Runtime, given: ScreenOptions): Screen {
+  // Resolved before the mode is decided, so a name nobody registered fails in a pipe exactly as
+  // it fails on a terminal, not only where keys are read.
+  const options: Resolved = { ...given, panes: panesOf(given), keymap: keymapOf(given) };
   const mode = outputMode(rt, { json: options.json === true });
   if (mode === 'tty' && canReadKeys(rt.stdin)) return live(rt, options);
   // ponytail: a tty whose stdin cannot go raw (`cmd < file` in a terminal) is projected
@@ -91,11 +99,46 @@ function treeOf(options: ScreenOptions, state: ScreenState): Layout {
 }
 
 function keymapOf(options: ScreenOptions): Keymap {
-  return { 'ctrl+c': 'quit', ...options.keymap };
+  const { keymap = 'default' } = options;
+  if (typeof keymap !== 'string') return { 'ctrl+c': 'quit', ...keymap };
+  const def = registered().keymaps.get(keymap) ?? missing(`no keymap named "${keymap}" is registered`, "register a plugin with `keymaps: { … }`, or pass the keymap itself");
+  return { 'ctrl+c': 'quit', ...def.keys };
+}
+
+/** A screen asked for something nobody registered: what is missing, and what to do about it. */
+export class ScreenError extends TypeError {
+  constructor(
+    message: string,
+    readonly fix: string,
+  ) {
+    super(`controlroom: ${message}`);
+    this.name = 'ScreenError';
+  }
+}
+
+function missing(message: string, fix: string): never {
+  throw new ScreenError(message, fix);
+}
+
+/** The options with every registered pane resolved to its component. */
+type Resolved = Omit<ScreenOptions, 'panes' | 'keymap'> & { panes: Panes; keymap: Keymap };
+
+/** Every pane as a component and its state: a registered pane resolves to the flagstaff component it names. */
+function panesOf(options: ScreenOptions): Panes {
+  const components = flagstaffRegistered().components;
+  const panes = registered().panes;
+  return Object.fromEntries(
+    Object.entries(options.panes).map(([name, entry]): [string, Pane] => {
+      if (!('pane' in entry)) return [name, entry];
+      const def = panes.get(entry.pane) ?? missing(`no pane named "${entry.pane}" is registered`, "register a plugin with `panes: { … }`");
+      const component = components.get(def.component) ?? missing(`pane "${entry.pane}" draws with "${def.component}", which flagstaff has not registered`, 'register the plugin that provides that component before opening the screen');
+      return [name, def.label === undefined ? { component, state: entry.state } : { component, state: entry.state, label: def.label }];
+    }),
+  );
 }
 
 /** R6 — the static session: hoisted panes, a committed log, and no keys at all. */
-function projected(rt: Runtime, options: ScreenOptions, mode: OutputMode): Screen {
+function projected(rt: Runtime, options: Resolved, mode: OutputMode): Screen {
   const opts = { json: options.json === true };
   let state = initial(options.tabs, options.focus);
   const hoisted = new Map<string, { pane: Pane; hoisted: Hoisted<unknown> }>();
@@ -145,10 +188,10 @@ function projected(rt: Runtime, options: ScreenOptions, mode: OutputMode): Scree
 }
 
 /** R4, R5, R19 — the live screen. */
-function live(rt: Runtime, options: ScreenOptions): Screen {
+function live(rt: Runtime, options: Resolved): Screen {
   const alternate = options.screen === 'alternate';
   const panes = new Map(Object.entries(options.panes));
-  const keymap = keymapOf(options);
+  const { keymap } = options;
   let state = initial(options.tabs, options.focus);
   const started = rt.clock.now();
   const committed: string[] = [];

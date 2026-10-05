@@ -31,6 +31,8 @@ type Rule = keyof typeof RULES;
 /** Each boundary, and the part of the rule that is its job. */
 const BOUNDARIES: Readonly<Record<string, readonly Rule[]>> = {
   'runtime.ts': ['write', 'streams', 'console', 'escape'],
+  // `controlroom check`'s command line prints a report to stdout, not a screen.
+  'cli.ts': ['write', 'streams'],
   'ink/terminal.ts': ['write'],
   'ink/process.ts': ['console'],
 };

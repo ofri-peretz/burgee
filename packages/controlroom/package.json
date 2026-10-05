@@ -4,9 +4,14 @@
   "description": "Keyboard-driven terminal screens, inline or full-screen, with a static projection for pipes, CI and --json — and a drop-in path for ink, graded by ink's own suite. No dependency outside the burgee family; react is an optional peer of controlroom/ink only.",
   "license": "MIT",
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/cli.js"
+  ],
   "engines": {
     "node": "^20.19.0 || >=22.13.0"
+  },
+  "bin": {
+    "controlroom": "./dist/cli.js"
   },
   "exports": {
     ".": {
@@ -18,7 +23,13 @@
       "types": "./dist/ink/index.d.ts",
       "import": "./dist/ink/index.js",
       "default": "./dist/ink/index.js"
-    }
+    },
+    "./plugin": {
+      "types": "./dist/plugin.d.ts",
+      "import": "./dist/plugin.js",
+      "default": "./dist/plugin.js"
+    },
+    "./schema.json": "./dist/schema.json"
   },
   "files": [
     "dist",
@@ -26,7 +37,7 @@
     "!dist/**/*.test.*"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && node ../../scripts/strip-comments.mjs dist",
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/schema-to-dist.mjs && node ../../scripts/strip-comments.mjs dist",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
     "coverage": "vitest run --coverage.enabled",
