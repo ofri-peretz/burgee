@@ -1,5 +1,11 @@
 # burgee
 
+## 0.19.0
+
+### Minor Changes
+
+- [#827](https://github.com/ofri-peretz/burgee/pull/827) [`cd34546`](https://github.com/ofri-peretz/burgee/commit/cd345466edf47327be61a469eba5add35e1da2a2) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` reads the new graded releases: boxen 9.0.0 (`flagstaff/boxen`, level), dotenv 18.0.5 and `@inquirer/core` 12.0.4. A project on boxen 8 or dotenv 17 is now listed under `offMajor` and left alone, because those majors are no longer the ones graded.
+
 ## 0.18.0
 
 ### Minor Changes
