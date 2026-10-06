@@ -131,6 +131,8 @@ const KNOWN: Record<string, string> = {
     "`useColor()` is commander 14's own rule — `NO_COLOR` and `FORCE_COLOR=0|false` off, `FORCE_COLOR` or `CLICOLOR_FORCE` on, otherwise the stream decides — graded by commander's suite (1360 / 1360). roundel's policy answers a different question, and routing commander through it would change what a migrated program prints.",
   'flagstaff/src/cli-table3.ts':
     "cli-table3's own `utils` — its SGR regex and the escape codes it re-opens across a wrapped cell — ported for the façade and graded by cli-table3's suite. Measurement itself is linegauge's (`measure`); what stays is the incumbent's cell-colour bookkeeping.",
+  'flagstaff/src/boxen.ts':
+    "boxen 9's own `writeControls` — which escapes a box keeps (an SGR and an OSC 8 hyperlink), which it drops, and how a backspace overtypes across them — ported for the façade and graded by boxen's suite (213 / 213, `control-character.test.js`). Its split is boxen's, not a tokenizer's: an unterminated OSC runs to the end and `ESC` plus any one character is a two-character escape, which linegauge's `ANSI_ESCAPE` reads differently. Measurement, slicing and wrapping are linegauge's (D-20261006-flagstaff-boxen-9).",
   'flagstaff/src/ora.ts':
     "is-interactive as ora inlines it — the *stream's* TTY, `TERM=dumb`, `'CI' in env` — which is ora's own definition of an animated spinner and differs from roundel's `interactive()` (stdin, agents), so it stays ora's. Its raw mode moved in #680 and the synchronized-output pair in #684.",
   'flagstaff/src/projection.ts':
@@ -170,8 +172,15 @@ const KNOWN: Record<string, string> = {
  * testing-helpers' regex and #684 the CSI in inquirer-screen and log-update, and #678 help's
  * colour policy and caique's `decide`, all before this landed: sixteen. Like every
  * ratchet here it only goes down: lower it when an entry leaves, never raise it to admit one.
+ *
+ * **Raised once, 16 -> 17, on 2026-10-06, and it is the owner's to accept or reverse
+ * (D-20261006-flagstaff-boxen-9).** boxen 9.0.0 added a control-character writer to the
+ * incumbent itself, and its suite grades it (`control-character.test.js`, 15 cases). The façade
+ * has to reproduce which escapes a box keeps; linegauge exports no tokenizer that splits the way
+ * boxen splits, so the alternatives were a new linegauge export in a package at 1.0, or this
+ * entry. The way back down is that export, and then `flagstaff/src/boxen.ts` leaves KNOWN.
  */
-const CEILING = 16;
+const CEILING = 17;
 
 const sources = (dir: string, out: string[] = []): string[] => {
   for (const e of readdirSync(dir, { withFileTypes: true })) {

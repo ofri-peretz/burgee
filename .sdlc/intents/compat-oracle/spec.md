@@ -110,6 +110,18 @@ what each one settles above.
   survives. A `test.todo` is no longer counted as a failure in ava's TAP. The vendor step
   also rewrites `.tsx` files now, because ink's fixtures are TSX programs.
 
+- **The first incumbent majors to land after 1.0 (2026-10-06, D-20261006-flagstaff-boxen-9)** —
+  boxen 9.0.0, dotenv 18.0.5 and a clack re-vendor, each of whose controls failed against its
+  own package on PR #794 for a harness reason. `SAFE_REF` refused every `@scope/pkg@x` tag and
+  the refusal fell back to the default branch, so clack's suite was vendored three unreleased
+  commits past 1.8.1; a refused ref is now an error and a scoped tag is cloned at the tag. The
+  sibling walk reads a side-effect `import './x.js'`, which boxen 9's `setup.js` is reached by.
+  `Host.entries` and `Host.selfExports` let a suite that tests the incumbent's *build* — dotenv
+  18 spawns `dist/index.cjs` and self-references `dotenv/config` — reach whichever is graded.
+  `Host.migrated` sends a suite's other incumbent import to the drop-in `burgee migrate` would
+  rewrite it to, on a target run only, for state that reaches the drawing (boxen's `chalk.level`),
+  and a lock holds every such pair to `DROP_INS`.
+
 **Two notes this reconciliation found stale, in entries other lanes own.** They are recorded
 here and not edited there, per `.sdlc/LANES.md`: a package lane owns its own incumbents'
 entries in `hosts.ts`.

@@ -55,18 +55,24 @@ export interface VendorResult {
  * the live hazard is not a metacharacter but a **leading dash**: a ref named `--upload-pack=…`
  * is read by git as an option, not a ref. So: no leading dash, and nothing outside the
  * characters a git ref may legally contain.
+ *
+ * A leading `@` is allowed, because a monorepo tags each package by its npm name
+ * (`@clack/prompts@1.8.1`, `@inquirer/core@12.0.4`) and `@` reads as nothing to git's option
+ * parser. Without it every scoped host was "untagged" and vendored its default branch.
  */
-const SAFE_REF = /^[A-Za-z0-9][\w./@+-]*$/;
+const SAFE_REF = /^[A-Za-z0-9@][\w./@+-]*$/;
 
 function cloneRelease(host: Host, version: string, clone: string): { commit: string; tag: string | null } {
   const tag = `${host.tagPrefix ?? 'v'}${version}`;
+  // A refused ref is not an untagged release. Falling back to HEAD here is how clack's suite
+  // was vendored three unreleased commits past 1.8.1 and failed its own control (PR #794).
+  if (!SAFE_REF.test(tag)) throw new Error(`refusing to pass ${JSON.stringify(tag)} to git as a ref`);
   const head = (): string => execFileSync('git', ['-C', clone, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
   // `--` before the positionals, so a repo URL cannot be read as an option either.
   const shallow = (ref?: string): void => {
     execFileSync('git', ['clone', '--depth', '1', ...(ref === undefined ? [] : ['--branch', ref]), '--', host.repo, clone], { stdio: 'ignore' });
   };
   try {
-    if (!SAFE_REF.test(tag)) throw new Error(`refusing to pass ${JSON.stringify(tag)} to git as a ref`);
     shallow(tag);
     return { commit: head(), tag };
   } catch {
@@ -146,8 +152,11 @@ function rewriteTree(dir: string, host: Host, hostDir: string, packageType: stri
   }
 }
 
-/** A sibling module a test imports by relative path — commander's `./testHelpers.js`. */
-const SIBLING = /(?:from|require\()\s*['"]\.\/([^'"/]+)['"]/g;
+/**
+ * A sibling module a test imports by relative path — commander's `./testHelpers.js`, and
+ * boxen 9's `import './setup.js'`, which names its module with no `from` at all.
+ */
+const SIBLING = /(?:from\s*|require\(\s*|import\s*\(\s*|import\s+)['"]\.\/([^'"/]+)['"]/g;
 
 /** Every same-directory module a source imports: vendored beside the tests, never run. */
 export function siblingImports(source: string): string[] {
@@ -239,6 +248,10 @@ export interface UpstreamPackage {
 export function rootPackage(host: Host, upstream: UpstreamPackage): Record<string, unknown> {
   const type = upstream.type ?? 'commonjs';
   const pkg: Record<string, unknown> = { name: `@vendored/${host.name}-suite`, private: true, type, main: `./${shimName(0, type, host.shim)}` };
+  // The one exception, and it is declared: a host whose suite reaches the incumbent by its
+  // own name from its own root gets that name and an exports map of generated entries, so
+  // self-reference lands on whatever the run is grading (`Host.selfExports`).
+  if (host.selfExports !== undefined) Object.assign(pkg, { name: host.npmName ?? host.name, exports: host.selfExports });
   if (upstream.version !== undefined) pkg.version = upstream.version;
   if (upstream.license !== undefined) pkg.license = upstream.license;
   // Upstream's own description, because a suite may read it back. meow's help block opens

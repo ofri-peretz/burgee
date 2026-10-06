@@ -3,7 +3,13 @@
   "private": true,
   "type": "module",
   "main": "./shim.js",
-  "version": "8.0.1",
+  "version": "9.0.0",
   "license": "MIT",
-  "repository": "sindresorhus/boxen"
+  "description": "Create boxes in the terminal",
+  "repository": "sindresorhus/boxen",
+  "devDependencies": {
+    "boxen": "9.0.0",
+    "chalk": "6.0.1",
+    "string-width": "8.3.0"
+  }
 }

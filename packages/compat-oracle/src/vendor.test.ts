@@ -87,6 +87,27 @@ describe('the vendored root package', () => {
     const pkg = rootPackage(yargs, { name: 'yargs', type: 'module' });
     expect(pkg.type).toBe('module');
     expect(pkg.name).toBe('@vendored/yargs-suite');
+    expect(pkg).not.toHaveProperty('exports');
+  });
+
+  /**
+   * The one declared exception: dotenv 18's spawned programs name `dotenv` from the repo root,
+   * where upstream answers by self-reference. The vendored root takes the incumbent's name and
+   * an exports map of the per-run entries, so the name reaches whatever the run grades.
+   */
+  it('takes the incumbent’s own name and an exports map for a host that declares `selfExports`', () => {
+    const dotenv = HOSTS.find((h) => h.name === 'dotenv') as Host;
+    const pkg = rootPackage(dotenv, { name: 'dotenv', type: 'commonjs' });
+    expect(pkg.name).toBe('dotenv');
+    expect(pkg.exports).toEqual({ '.': './dist/index.cjs', './config': './dist/config.cjs', './config.js': './dist/config.cjs' });
+    expect(rootPackage({ ...dotenv, npmName: 'scoped-dotenv' }, { type: 'commonjs' }).name).toBe('scoped-dotenv');
+  });
+
+  it('points every self-export at an entry the run writes', () => {
+    for (const h of HOSTS.filter((x) => x.selfExports !== undefined)) {
+      const written = new Set((h.entries ?? []).map((e) => `./${e.at}`));
+      expect(Object.values(h.selfExports ?? {}).filter((at) => !written.has(at))).toEqual([]);
+    }
   });
 
   /**

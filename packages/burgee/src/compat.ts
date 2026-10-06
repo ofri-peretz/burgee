@@ -49,7 +49,7 @@ export const GRADED: Readonly<Record<string, Row>> = {
   chalk: { reference: 59, passed: 59, rate: 1, control: 59 },
   ora: { reference: 99, passed: 99, rate: 1, control: 99 },
   'log-update': { reference: 99, passed: 99, rate: 1, control: 99 },
-  boxen: { reference: 84, passed: 84, rate: 1, control: 84 },
+  boxen: { reference: 213, passed: 213, rate: 1, control: 213 },
   'cli-table3': { reference: 29, passed: 29, rate: 1, control: 29 },
   'string-width': { reference: 233, passed: 233, rate: 1, control: 233 },
   'strip-ansi': { reference: 8, passed: 8, rate: 1, control: 8 },
@@ -60,7 +60,7 @@ export const GRADED: Readonly<Record<string, Row>> = {
   'slice-ansi': { reference: 104, passed: 104, rate: 1, control: 104 },
   cosmiconfig: { reference: 243, passed: 242, rate: 0.9958847736625515, control: 242 },
   lilconfig: { reference: 77, passed: 77, rate: 1, control: 77 },
-  dotenv: { reference: 141, passed: 106, rate: 0.75177304964539, control: 141 },
+  dotenv: { reference: 179, passed: 128, rate: 0.7111111111111111, control: 179 },
   clack: { reference: 16, passed: 16, rate: 1, control: 16 },
   'inquirer-core': { reference: 41, passed: 41, rate: 1, control: 41 },
   meow: { reference: 148, passed: 146, rate: 0.9864864864864865, control: 146 },
@@ -130,15 +130,15 @@ export const DROP_INS: readonly DropIn[] = [
  */
 export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
   '@clack/prompts': '1.8.1',
-  '@inquirer/core': '12.0.3',
+  '@inquirer/core': '12.0.4',
   'ansi-escapes': '7.3.0',
-  boxen: '8.0.1',
+  boxen: '9.0.0',
   chalk: '6.0.1',
   'cli-table3': '0.6.5',
   commander: '15.0.0',
   cosmiconfig: '10.0.1',
   'cross-spawn': '7.0.6',
-  dotenv: '17.4.2',
+  dotenv: '18.0.5',
   'exit-hook': '5.1.0',
   ink: '6.8.0',
   lilconfig: '3.1.3',
@@ -169,11 +169,16 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
  * tag and graded in CI by `compat.yml`'s ratchet job — whose baseline passes as many cases as
  * its control does.
  *
- * Two older majors are graded today and **neither is claimed**, because neither is level:
- * commander 14 grades 1329 / 1331 (15 names the surplus argument in the excess-arguments
- * message, 14 does not) and yargs 17 grades 191 / 794 (17's `require('yargs')` is a
- * singleton, which 18 removed). The measurements are on the compatibility page; the claim
- * waits for the number.
+ * The older majors graded today are **not claimed**, because none is level: commander 14
+ * grades 1329 / 1331 (15 names the surplus argument in the excess-arguments message, 14 does
+ * not), yargs 17 grades 191 / 794 (17's `require('yargs')` is a singleton, which 18 removed),
+ * and dotenv 17 grades 106 / 141 (vault and `DOTENV_KEY`, which seniority declines). The
+ * measurements are on the compatibility page; the claim waits for the number.
+ *
+ * boxen 8 is neither graded nor claimed since boxen 9.0.0: `flagstaff/boxen` follows 9 where
+ * the two disagree (a hex colour is real hex, `vertical` is a fallback for `left` rather than
+ * an override), so a claim on 8 would need 8's suite vendored as a previous major and graded
+ * level first (D-20261006-flagstaff-boxen-9).
  *
  * `migrate` reads this, and not `GRADED_VERSIONS`, to decide a project is on a major it may
  * rewrite — so a major that becomes level here is a major `migrate` serves, with no second
@@ -185,13 +190,13 @@ export const SUPPORTED_MAJORS: Readonly<Record<string, readonly number[]>> = {
   '@clack/prompts': [1],
   '@inquirer/core': [12],
   'ansi-escapes': [7],
-  boxen: [8],
+  boxen: [9],
   chalk: [6],
   'cli-table3': [0],
   commander: [15],
   cosmiconfig: [10],
   'cross-spawn': [7],
-  dotenv: [17],
+  dotenv: [18],
   'exit-hook': [5],
   ink: [6],
   lilconfig: [3],

@@ -12,7 +12,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -180,14 +180,28 @@ describe('the ref it clones', () => {
     expect(result.files).toBe(5);
   });
 
-  it('never hands git a ref that reads as an option, and clones HEAD instead', () => {
+  it('never hands git a ref that reads as an option, and refuses rather than cloning HEAD', () => {
     const repo = upstream();
     vi.mocked(execFileSync).mockClear();
-    const result = vendor(hostAt(repo, { tagPrefix: '--upload-pack=touch /tmp/pwned;' }), into());
-    expect(result.tag).toBeNull();
-    expect(result.files).toBe(5);
+    expect(() => vendor(hostAt(repo, { tagPrefix: '--upload-pack=touch /tmp/pwned;' }), into())).toThrow('refusing to pass "--upload-pack=touch /tmp/pwned;1.0.0" to git as a ref');
     const clones = vi.mocked(execFileSync).mock.calls.filter(([, args]) => (args as string[]).includes('clone'));
-    expect(clones.map(([, args]) => args)).toEqual([['clone', '--depth', '1', '--', repo, expect.any(String)]]);
+    expect(clones).toEqual([]);
+  });
+
+  // A monorepo tags each package by its npm name, so the tag opens with `@`. Refusing the
+  // `@` read the release as untagged and vendored the default branch instead: clack's
+  // `spinner-accessible.test.ts`, three commits past 1.8.1 and in no release, failed the
+  // control 5 times against 1.8.1 itself (PR #794, 2026-10-05).
+  it('clones a scoped tag, which opens with @, at the tag and not at HEAD', () => {
+    const repo = upstream();
+    const cwd = fileURLToPath(repo);
+    const git = (...args: string[]): string => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', '-c', 'tag.gpgsign=false', ...args], { cwd, encoding: 'utf8' }).trim();
+    git('tag', '@fake/host@1.0.0');
+    const tagged = git('rev-parse', 'HEAD');
+    git('commit', '-q', '--allow-empty', '-m', 'unreleased');
+    const result = vendor(hostAt(repo, { tagPrefix: '@fake/host@' }), into());
+    expect(result.tag).toBe('@fake/host@1.0.0');
+    expect(result.commit).toBe(tagged);
   });
 });
 
@@ -200,6 +214,13 @@ describe('the pieces vendor() is made of', () => {
     expect(internalImports("import x from '../../build/lib/y.js';\nrequire('../dist/cjs/index.js');", 'lib')).toEqual(['build/lib/y.js']);
     expect(internalImports("require('../dist/cjs/index.js');", 'dist')).toEqual(['dist/cjs/index.js']);
     expect(siblingImports("import a from './a.js';\nconst b = require('./b');\nrequire('../c.js');")).toEqual(['a.js', 'b']);
+  });
+
+  // boxen 9's every test file opens with `import './setup.js';` — a side-effect import, no
+  // `from` — and the file it names fixes COLUMNS, chalk's level and the snapshot path. Missed,
+  // every file failed to load and the control read 0 / 84 against boxen 9.0.0 itself.
+  it('reads a side-effect import and a dynamic import of a sibling as well', () => {
+    expect(siblingImports("import './setup.js';\nawait import('./later.js');\nimport x from './y.js';")).toEqual(['setup.js', 'later.js', 'y.js']);
   });
 
   it('calls a file with an internal import public when it also imports a public entry, in either quote', () => {

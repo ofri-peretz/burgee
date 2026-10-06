@@ -20,7 +20,7 @@ would flatter a partial implementation; measuring against the control's total do
 | [**chalk**](https://roundel.interlace.tools/docs/coming-from/chalk) | `roundel/chalk` | 59 / 59 | 100.0% | 59 / 59 | 100.0% | — | — |
 | [**ora**](https://flagstaff.interlace.tools/docs/coming-from/ora) | `flagstaff/ora` | 99 / 99 | 100.0% | 99 / 99 | 100.0% | — | — |
 | [**log-update**](https://flagstaff.interlace.tools/docs/coming-from/log-update) | `flagstaff/log-update` | 99 / 99 | 100.0% | 99 / 99 | 100.0% | — | — |
-| [**boxen**](https://flagstaff.interlace.tools/docs/coming-from/boxen) | `flagstaff/boxen` | 84 / 84 | 100.0% | 84 / 84 | 100.0% | — | — |
+| [**boxen**](https://flagstaff.interlace.tools/docs/coming-from/boxen) | `flagstaff/boxen` | 213 / 213 | 100.0% | 213 / 213 | 100.0% | — | — |
 | [**cli-table3**](https://flagstaff.interlace.tools/docs/coming-from/cli-table3) | `flagstaff/cli-table3` | 29 / 29 | 100.0% | 29 / 29 | 100.0% | 103 / 104 | 103 / 104 |
 | [**string-width**](https://linegauge.interlace.tools/docs/coming-from/string-width) | `linegauge` | 233 / 233 | 100.0% | 233 / 233 | 100.0% | — | — |
 | [**strip-ansi**](https://linegauge.interlace.tools/docs/coming-from/strip-ansi) | `linegauge/strip` | 8 / 8 | 100.0% | 8 / 8 | 100.0% | — | — |
@@ -32,7 +32,7 @@ would flatter a partial implementation; measuring against the control's total do
 | [**slice-ansi**](https://linegauge.interlace.tools/docs/coming-from/slice-ansi) | `linegauge/slice` | 104 / 104 | 100.0% | 104 / 104 | 100.0% | — | — |
 | [**cosmiconfig**](https://seniority.interlace.tools/docs/coming-from/cosmiconfig) | `seniority` | 242 / 243 | 99.6% | 242 / 243 | 99.6% | 10 / 10 | 0 / 10 |
 | **lilconfig** | `seniority` | 77 / 77 | 100.0% | 77 / 77 | 100.0% | — | — |
-| [**dotenv**](https://seniority.interlace.tools/docs/coming-from/dotenv) | `seniority` | 106 / 141 | 75.2% | 141 / 141 | 100.0% | 0 / 0 | 7 / 13 |
+| [**dotenv**](https://seniority.interlace.tools/docs/coming-from/dotenv) | `seniority` | 128 / 179 | 71.1% | 179 / 179 | 100.0% | 0 / 10 | 4 / 10 |
 | [**clack**](https://caique.interlace.tools/docs/coming-from/clack) | `caique/clack` | 16 / 16 | 100.0% | 16 / 16 | 100.0% | — | — |
 | [**inquirer-core**](https://caique.interlace.tools/docs/coming-from/inquirer) | `caique/inquirer` | 41 / 41 | 100.0% | 41 / 41 | 100.0% | — | — |
 | **meow** | `burgee/meow` | 146 / 148 | 98.6% | 146 / 148 | 98.6% | — | — |
@@ -175,7 +175,7 @@ to these rows (C1).
 | chalk | **6** | 6.0.1 | — |
 | ora | **9** | 9.4.1 | — |
 | log-update | **8** | 8.0.0 | — |
-| boxen | **8** | 8.0.1 | — |
+| boxen | **9** | 9.0.0 | — |
 | cli-table3 | **0** | 0.6.5 | — |
 | string-width | **8** | 8.3.0 | — |
 | strip-ansi | **7** | 7.2.0 | — |
@@ -187,9 +187,9 @@ to these rows (C1).
 | slice-ansi | **9** | 9.0.1 | **slice-ansi-7** (7.1.2) — graded, not claimed |
 | cosmiconfig | **10** | 10.0.1 | — |
 | lilconfig | **3** | 3.1.3 | — |
-| dotenv | **17** | 17.4.2 | — |
+| dotenv | **18** | 18.0.5 | **dotenv-17** (17.4.2) — graded, not claimed |
 | clack | **1** | 1.8.1 | — |
-| inquirer-core | **12** | 12.0.3 | — |
+| inquirer-core | **12** | 12.0.4 | — |
 | meow | **14** | 14.1.0 | — |
 | ansi-escapes | **7** | 7.3.0 | — |
 | terminal-link | **5** | 5.0.0 | — |
@@ -205,6 +205,7 @@ to these rows (C1).
 | **commander-14** | `burgee/commander` | 1329 / 1331 | 99.8% | 1331 / 1331 | 100.0% | 25 / 36 | 36 / 36 |
 | **yargs-17** | `burgee/yargs` | 191 / 794 | 24.1% | 793 / 794 | 99.9% | 7 / 23 | 23 / 23 |
 | **slice-ansi-7** | `linegauge/slice` | 14 / 15 (1 the host marks failing and we pass) | 93.3% | 15 / 15 | 100.0% | — | — |
+| **dotenv-17** | `seniority` | 106 / 141 | 75.2% | 141 / 141 | 100.0% | 0 / 0 | 7 / 13 |
 
 An older major that grades below level is published here and not claimed: a program on it is
 left alone by `burgee migrate`, and the note in `hosts.ts` names the cases that differ.

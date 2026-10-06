@@ -13,7 +13,7 @@ import { dirname, isAbsolute, join, relative, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { testFiles } from './discover.js';
-import { type Exclusion, type Host, type HostImport } from './hosts.js';
+import { type Exclusion, type Host, type HostEntry, type HostImport } from './hosts.js';
 import { readSuiteDeps, shimName } from './vendor.js';
 
 export interface Grade {
@@ -283,8 +283,16 @@ const require = createRequire(import.meta.url);
 export type Write = (s: string) => void;
 const silent: Write = () => undefined;
 
-/** A CommonJS resolver anchored at a directory, for packages installed beside a suite. */
-const resolverAt = (dir: string): NodeJS.Require => createRequire(join(dir, 'resolve.cjs'));
+/**
+ * A CommonJS resolver anchored at a directory, for packages installed beside a suite.
+ *
+ * Anchored *inside* its `node_modules`, where Node looks first anyway, because that is the
+ * one place its self-reference rule does not reach: package-scope lookup stops at a
+ * `node_modules` segment. A vendored root that takes the incumbent's own name
+ * (`Host.selfExports`) would otherwise answer `resolve('dotenv')` with itself — the
+ * generated entries — and the control would be linked to a shim of itself.
+ */
+const resolverAt = (dir: string): NodeJS.Require => createRequire(join(dir, 'node_modules', 'resolve.cjs'));
 
 /** Whether a path resolves as a CommonJS module — extensionless specifiers included. */
 function resolvesFileFrom(path: string, from: string): boolean {
@@ -501,6 +509,46 @@ function writeInternalShims(host: Host, { hostDir, target, internals, packageTyp
 export function targetInternalBody(root: string, { file, names }: { file: string; names: Record<string, string> }): string {
   const list = Object.entries(names).map(([as, name]) => (as === name ? name : `${name} as ${as}`));
   return `export { ${list.join(', ')} } from '${pathToFileURL(join(root, file)).href}';\n`;
+}
+
+/**
+ * The target-run body of one {@link HostEntry}: CommonJS whatever the host is, because every
+ * entry is a `.cjs` or `.js` file under a CommonJS package that the suite `require`s, spawns or
+ * preloads. It is upstream's `index.js` with the two modules it names pointed at the target.
+ */
+export function entryBody(target: string, entry: HostEntry): string {
+  const lines = [`// generated per run — COMPAT_TARGET=${target}`, `const loaded = require(${JSON.stringify(`${target}${entry.target}`)});`, 'module.exports = loaded?.default ?? loaded;'];
+  for (const name of entry.names ?? []) lines.push(`module.exports.${name} = module.exports.${name};`);
+  if (entry.runs !== undefined) lines.push(`if (require.main === module) require(${JSON.stringify(`${target}${entry.runs}`)}).run(process.argv.slice(2));`);
+  return `${lines.join('\n')}\n`;
+}
+
+/**
+ * Write every {@link Host.entries} file for this run. On a control run each is a **link** to
+ * the installed incumbent's own file — a shim that `require`d it would be the main module
+ * instead of it, and `dist/index.cjs` runs its CLI only when it is `require.main`. Where the
+ * platform refuses the link it falls back to a `require`, which serves every entry but that.
+ */
+function writeEntries(host: Host, hostDir: string, target: string): void {
+  const entries = host.entries ?? [];
+  if (entries.length === 0) return;
+  const besideSuite = host.suiteDeps === undefined ? undefined : hostDir;
+  const installed = target === controlName(host) ? packageRoot(controlName(host), besideSuite) : undefined;
+  for (const entry of entries) {
+    const at = join(hostDir, entry.at);
+    mkdirSync(dirname(at), { recursive: true });
+    rmSync(at, { force: true });
+    if (installed === undefined) {
+      writeFileSync(at, entryBody(target, entry));
+      continue;
+    }
+    const file = join(installed, entry.control);
+    try {
+      symlinkSync(file, at);
+    } catch {
+      writeFileSync(at, `// generated per run — COMPAT_TARGET=${target}\nmodule.exports = require(${JSON.stringify(file)});\n`);
+    }
+  }
 }
 
 /**
@@ -799,69 +847,73 @@ function neutralEnv(): NodeJS.ProcessEnv {
 /** The resolve hook a target run of an aliasing host writes beside its suite (`Host.alias`). */
 export const ALIAS_HOOK = 'alias-hook.mjs';
 
-/** Whether this run swaps the host's alias for the target: a target run of an aliasing host. */
-const aliasing = (host: Host, target: string): boolean => host.alias !== undefined && target !== controlName(host);
-
-/** Whether this run loads the hook: a target run of a host that aliases, or whose target brings peers. */
-const hooking = (host: Host, target: string): boolean => aliasing(host, target) || (host.peers !== undefined && target !== controlName(host));
+/** Whether this run loads the hook: a target run of a host that aliases, migrates a sibling, or whose target brings peers. */
+const hooking = (host: Host, target: string): boolean => target !== controlName(host) && (host.alias !== undefined || host.migrated !== undefined || host.peers !== undefined);
 
 /**
- * The hook's source: every resolution of `alias` — the suite's own import, the library's, a
- * testing helper's from inside `node_modules` — lands on `url`, and everything else resolves
- * as it would have. `registerHooks` is the in-thread, synchronous form, so `require()` and
- * `import` both pass through it, in the runner and in every process it starts, because the
- * hook is loaded through `NODE_OPTIONS`, which a child inherits.
+ * The hook's source: every resolution of a key of `redirects` — the suite's own import, the
+ * library's, a testing helper's from inside `node_modules` — lands on its URL, and everything
+ * else resolves as it would have. `registerHooks` is the in-thread, synchronous form, so
+ * `require()` and `import` both pass through it, in the runner and in every process it starts,
+ * because the hook is loaded through `NODE_OPTIONS`, which a child inherits.
  *
- * This is the oracle performing what `controlroom/spec.md` R17 asks a user to do with an alias
- * or `overrides`: the library is installed unmodified and only the incumbent under it moves.
+ * For `Host.alias` this is the oracle performing what `controlroom/spec.md` R17 asks a user to
+ * do with an alias or `overrides`: the library is installed unmodified and only the incumbent
+ * under it moves. For `Host.migrated` it is what `burgee migrate` does to the program's other
+ * imports.
  */
-export function aliasHook(alias: string, url: string, target: string): string {
+export function aliasHook(redirects: Record<string, string>, target: string): string {
   return [
     `// generated per run — COMPAT_TARGET=${target}`,
     "import { registerHooks } from 'node:module';",
-    `const alias = ${JSON.stringify(alias)};`,
-    `const url = ${JSON.stringify(url)};`,
-    'registerHooks({ resolve: (specifier, context, next) => (specifier === alias ? { url, shortCircuit: true } : next(specifier, context)) });',
+    `const redirects = ${JSON.stringify(redirects)};`,
+    'registerHooks({ resolve: (specifier, context, next) => (Object.hasOwn(redirects, specifier) ? { url: redirects[specifier], shortCircuit: true } : next(specifier, context)) });',
     '',
   ].join('\n');
 }
 
 /**
- * The hook's source for a host whose target brings optional peers (`Host.peers`): the alias,
- * when there is one, as `aliasHook` writes it, and every resolution of a peer — or a subpath
- * of one — made from inside the target package (`inside`) resolved as if from the vendored
- * root (`from`) instead, so the target and the suite share one React.
+ * The hook's source for a host whose target brings optional peers (`Host.peers`): the
+ * redirects, as `aliasHook` writes them, and every resolution of a peer — or a subpath of one —
+ * made from inside the target package (`inside`) resolved as if from the vendored root
+ * (`from`) instead, so the target and the suite share one React.
  */
-export function peerHook({ alias, url, peers, inside, from, target }: { alias: string | undefined; url: string; peers: readonly string[]; inside: string; from: string; target: string }): string {
+export function peerHook({ redirects, peers, inside, from, target }: { redirects: Record<string, string>; peers: readonly string[]; inside: string; from: string; target: string }): string {
   return [
     `// generated per run — COMPAT_TARGET=${target}`,
     "import { registerHooks } from 'node:module';",
-    `const alias = ${JSON.stringify(alias ?? null)};`,
-    `const url = ${JSON.stringify(url)};`,
+    `const redirects = ${JSON.stringify(redirects)};`,
     `const peers = ${JSON.stringify(peers)};`,
     `const inside = ${JSON.stringify(inside)};`,
     `const from = ${JSON.stringify(from)};`,
     'const peer = (specifier) => peers.some((name) => specifier === name || specifier.startsWith(`${name}/`));',
     'registerHooks({',
     '  resolve: (specifier, context, next) =>',
-    '    specifier === alias ? { url, shortCircuit: true } : peer(specifier) && context.parentURL?.startsWith(inside) === true ? next(specifier, { ...context, parentURL: from }) : next(specifier, context),',
+    '    Object.hasOwn(redirects, specifier) ? { url: redirects[specifier], shortCircuit: true } : peer(specifier) && context.parentURL?.startsWith(inside) === true ? next(specifier, { ...context, parentURL: from }) : next(specifier, context),',
     '});',
     '',
   ].join('\n');
 }
 
-/** Writes the hook for a target run that aliases or moves peers, and removes a previous run's otherwise. */
+/** What a target run's hook redirects: the alias to the target, and each migrated sibling to its drop-in. */
+function redirectsFor(host: Host, target: string): Record<string, string> {
+  const pairs: [string, string][] = Object.entries(host.migrated ?? {}).map(([specifier, dropIn]) => [specifier, import.meta.resolve(dropIn)]);
+  if (host.alias !== undefined) pairs.unshift([host.alias, import.meta.resolve(target)]);
+  return Object.fromEntries(pairs);
+}
+
+/** Writes the hook for a target run that aliases, migrates or moves peers, and removes a previous run's otherwise. */
 function writeAliasHook(host: Host, hostDir: string, target: string): void {
   const at = join(hostDir, ALIAS_HOOK);
   rmSync(at, { force: true });
   if (!hooking(host, target)) return;
-  const url = import.meta.resolve(target);
+  const redirects = redirectsFor(host, target);
   if (host.peers === undefined) {
-    writeFileSync(at, aliasHook(host.alias as string, url, target));
+    writeFileSync(at, aliasHook(redirects, target));
     return;
   }
   const inside = `${pathToFileURL(packageRoot(target)).href}/`;
-  writeFileSync(at, peerHook({ alias: host.alias, url, peers: host.peers, inside, from: pathToFileURL(join(hostDir, 'package.json')).href, target }));
+  writeFileSync(at, peerHook({ redirects, peers: host.peers, inside, from: pathToFileURL(join(hostDir, 'package.json')).href, target }));
 }
 
 /**
@@ -1149,6 +1201,7 @@ export function grade(host: Host, vendorDir: string, target: string, reference =
   writeShims(host, hostDir, target, packageType);
   writeInternalShims(host, { hostDir, target, internals: source.internals ?? [], packageType });
   writeAliasHook(host, hostDir, target);
+  writeEntries(host, hostDir, target);
 
   if (host.runner === 'exit-code') {
     const outcome = runExitCodes(host, hostDir, files, target);

@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { rewrite } from './readme-benchmarks.js';
+import { grades, rewrite } from './readme-benchmarks.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PACKAGES = join(ROOT, 'packages');
@@ -30,6 +30,13 @@ describe('README benchmark sections', () => {
   it('every package README links the published page', () => {
     const missing = readmes().filter((pkg) => !readFileSync(join(PACKAGES, pkg, 'README.md'), 'utf8').includes('/benchmarks'));
     expect(missing, 'a package whose README cites no measurement is a package making unchecked claims').toEqual([]);
+  });
+
+  // The host's own `target:`, not the first line spelled that way below its name: dotenv's
+  // `entries` carry `target: '/dotenv'` above the host's `target: 'seniority'`, and reading the
+  // first one dropped the dotenv row from seniority's README (2026-10-06).
+  it('reads a host’s own target, not one nested inside it', () => {
+    expect(grades('seniority').map((g) => g.host)).toContain('dotenv');
   });
 
   it('matches what was measured, so a hand edit goes red', () => {

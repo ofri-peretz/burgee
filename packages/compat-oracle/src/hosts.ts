@@ -36,6 +36,29 @@ export interface HostImport {
   namedOnly?: boolean;
 }
 
+/** One file a suite reaches by path; see {@link Host.entries}. */
+export interface HostEntry {
+  /** Where the suite looks for it, relative to the vendored root: `dist/index.cjs`. */
+  at: string;
+  /** The incumbent's own file it stands for on a control run, relative to the installed package. */
+  control: string;
+  /** What it loads on a target run, as a subpath of the target: `/dotenv`. */
+  target: string;
+  /**
+   * Names written out as `module.exports.<name> = …` assignments. Node finds a CommonJS
+   * module's named exports by reading its source, so `import { config } from 'dotenv'` fails
+   * to link against a file whose only line is `module.exports = loaded`. Upstream's
+   * `index.js` keeps the same explicit assignments for the same reason.
+   */
+  names?: string[];
+  /**
+   * A target subpath whose `run(argv)` is called when this file is the main module: the
+   * `if (require.main === module) run(process.argv.slice(2))` at the foot of upstream's
+   * `index.js`, pointed at the target's CLI.
+   */
+  runs?: string;
+}
+
 /**
  * A directory under `testDir` whose files match the host's `testGlob` and are nonetheless
  * **not** graded. Declaring one is the only way a copied directory stays out of the walk,
@@ -214,6 +237,30 @@ export interface Host {
    */
   internalExports?: Record<string, string>;
   /**
+   * Files the suite reaches by **path**, not by import, written per run at that path.
+   *
+   * dotenv 18 builds its package with esbuild and its suite tests the build: it spawns
+   * `node dist/index.cjs run …`, preloads `dist/config.cjs`, and its root `config.js` (the
+   * `-r ./config.js` mode) requires `./lib/main`. No specifier names these files, so neither
+   * the rewrite nor the internal-import walk can find them, and without them 38 cases fail
+   * against dotenv itself. A control run links each path to the installed incumbent's own
+   * file, so `require.main === module` holds in the incumbent exactly as it does upstream. A
+   * target run writes a CommonJS module that loads `<target><entry.target>`.
+   */
+  entries?: HostEntry[];
+  /**
+   * An `exports` map for the vendored root, which then also takes the incumbent's own name.
+   *
+   * `rootPackage` gives every other host a name of its own so that Node's self-reference rule
+   * cannot resolve the incumbent's name to a file that is not here. dotenv 18's suite needs
+   * the opposite: its spawned programs write `require('dotenv')`, `import 'dotenv/config'`
+   * and `-r dotenv/config` from the repo root, where upstream answers them by self-reference.
+   * Under the vendored name they reached `node_modules/dotenv` — the incumbent — on the target
+   * run too, which grades dotenv against itself. Every path in this map is an
+   * {@link entries} file, which the run writes for whichever package it is grading.
+   */
+  selfExports?: Record<string, string>;
+  /**
    * Every public specifier the tests use to reach the library, each rewritten to a
    * generated shim that re-exports `<target><subpath>`. One entry for most hosts;
    * yargs also imports `yargs/helpers`.
@@ -365,7 +412,7 @@ export interface Host {
    * collapses a 47-case file to one `ok`.
    *
    * One property of this dialect a reader has to carry: node-tap's plan counts **assertions**,
-   * so the denominator moves with the branches that ran. dotenv's control plans sum to 141 and
+   * so the denominator moves with the branches that ran. dotenv 17.4.2's control plans summed to 141 and
    * its target's to 147. `rate()` divides by the larger, so nothing can score above its own
    * denominator, and the row is coarser than a per-case one without being dishonest.
    */
@@ -407,6 +454,21 @@ export interface Host {
    * real program. The control run loads nothing, and nothing outside the target is moved.
    */
   peers?: string[];
+  /**
+   * Other incumbents the suite imports by bare name **whose state reaches the drawing**, each
+   * sent on a target run to the drop-in `burgee migrate` rewrites it to — so the suite runs as
+   * a migrated program does, with both imports moved.
+   *
+   * boxen 9's colour cases set `chalk.level = 3` on the suite's own `chalk` and assert the box
+   * comes out coloured. That holds for boxen because npm hands boxen and the program one chalk;
+   * it holds for `flagstaff/boxen` because a migrated program's `chalk` is `roundel/chalk`, the
+   * one instance flagstaff draws with. Left on the real chalk, a target run grades ten cases on
+   * which of two unrelated objects a level was written to (measured 2026-10-06: 203 / 213).
+   * Keys are specifiers, values the drop-in, and each pair must be a row of `burgee`'s
+   * `DROP_INS` — a lock holds that, so this can only name a rewrite `migrate` really makes. The
+   * control loads nothing: there the suite's chalk is boxen's, installed beside it.
+   */
+  migrated?: Record<string, string>;
   /**
    * For a **target** run only: the target's own module behind an internal path a gated file
    * imports, and the names it supplies there.
@@ -454,6 +516,9 @@ export interface Host {
 const EXECA_UNGRADED = ['convert', 'io', 'ipc', 'pipe', 'resolve', 'stdio', 'terminate', 'transform', 'verbose'];
 const EXECA_UNGRADED_WHY =
   "Vendored and not graded, for cost. execa's suite is 5,125 cases run one file at a time (upstream's own `concurrency: 1`), and the control measured **647 s** across the twelve directories on 2026-09-27 — past the oracle's 300 s cap on one suite run, and more than half of the ratchet job's 20 minutes on its own. The graded slice is `arguments/`, `methods/` and `return/`: how a command is built, the entry points, and the result and error a caller reads, which is the whole of what bellpull's `run` overlaps with execa (bellpull R1, R6). Nothing is hidden by leaving these out: graded over all 149 files the same day, `bellpull` passed **0** — every file imports `execa`, which bellpull does not export, and fails at link time. D-160.";
+
+/** The four names dotenv's `index.js` assigns one by one so Node can see them from ESM. */
+const DOTENV_NAMES = ['config', 'configDotenv', 'parse', 'populate'];
 
 export const HOSTS: Host[] = [
   {
@@ -555,13 +620,20 @@ export const HOSTS: Host[] = [
     name: 'boxen',
     repo: 'https://github.com/sindresorhus/boxen',
     testDir: 'tests',
-    testGlob: '*.js',
+    // boxen 9 moved its suite from ava to `node --test` (its own `npm test`), renamed every
+    // file `*.test.js`, and added `setup.js` — a helper every file imports, not a test.
+    testGlob: '*.test.js',
     imports: [{ upstream: '../index.js', subpath: '', reexportDefault: true }],
     surfaceFiles: ['index.d.ts'],
-    runner: 'ava',
+    // Installed beside the suite so the control is 9.0.0 and not the workspace's hoisted 8.0.1,
+    // and so the suite's `chalk` is the instance boxen draws with: `setup.js` sets
+    // `chalk.level = 0` and the colourless snapshots depend on that reaching boxen.
+    suiteDeps: ['boxen@9.0.0', 'chalk@6.0.1', 'string-width@8.3.0'],
+    migrated: { chalk: 'roundel/chalk' },
+    runner: 'node:test',
     target: 'flagstaff/boxen',
     status: 'active',
-    note: 'Unblocked 2026-09-08 by the decision in `.sdlc/intents/output-stack-compat/spec.md`: a drawing is a contract, and for a pure string function it is the *whole* contract, so every `t.snapshot(box)` case gates. `box()` takes a state and returns a string — that is `static(state)` — so there was never a U3 tension here to resolve.',
+    note: "**2026-10-06: re-vendored at 9.0.0 — control 213 / 213, `flagstaff/boxen` 213 / 213 (D-20261006-flagstaff-boxen-9).** boxen 9 moved its suite from ava to `node --test` with `.snapshot` files, renamed every file `*.test.js`, and grew it from 84 cases to 213: control characters in the text, the labels and the border, border sides wider than a column or empty, `footer`, `maxWidth`, `titleColor`, `borderBackgroundColor`, and an option that is not a usable size meaning its default. PR #794's control read 0 / 84 for two harness reasons and none of boxen's: the glob still named every `.js` (so the runner was ava over files ava cannot run), and `import './setup.js'` — a side-effect import with no `from` — was not seen as a sibling, so the helper that fixes `COLUMNS`, chalk's level and the snapshot path was never vendored. The incumbent is installed beside the suite (`suiteDeps`), because the workspace hoists 8.0.1 and the suite's `chalk` has to be the one boxen draws with. The port of 9 read 203 / 213 with the suite's `chalk` left alone, and the ten were the colour cases that set `chalk.level = 3` on that import; `migrated` sends it to `roundel/chalk`, as `burgee migrate` does to a program that imports both, and the row is level. Before 9: unblocked 2026-09-08 by the decision in `.sdlc/intents/output-stack-compat/spec.md` — a drawing is a contract, and for a pure string function it is the *whole* contract, so every snapshot case gates. `box()` takes a state and returns a string — that is `static(state)` — so there was never a U3 tension here to resolve.",
   },
   {
     name: 'cli-table3',
@@ -998,30 +1070,38 @@ export const HOSTS: Host[] = [
     // carry one.
     imports: [{ upstream: '../lib/main', subpath: '/dotenv', reexportDefault: true, control: 'dotenv' }],
     // Everything the suite reaches for by name, installed into `vendor/dotenv/node_modules`
-    // and pinned to what upstream's own manifest declares at 17.4.2. This is the route the
+    // and pinned to what upstream's own lockfile resolves at 18.0.5 — tap 21, and
+    // `process-on-spawn`, which `test-config-quiet.js` requires. This is the route the
     // earlier note called closed: it said `tap` "pulls 203 packages and 140 MB, which this
     // repository will not commit beside a suite or put in its lockfile" — both true, and
     // neither is what `suiteDeps` does. They are installed on the first grade of a clean
     // checkout, under a gitignored directory, and touch no manifest and no lockfile.
     // Measured 2026-09-16: 319 packages, 86 MB, once.
-    suiteDeps: ['dotenv@17.4.2', 'tap@19.2.0', 'sinon@14.0.2', 'decache@4.6.2'],
-    // Seven files, all of them named individually because `copyTests` copies a *directory*
+    suiteDeps: ['dotenv@18.0.5', 'tap@21.7.4', 'sinon@14.0.1', 'process-on-spawn@1.1.0'],
+    // Six files, all of them named individually because `copyTests` copies a *directory*
     // whole and otherwise takes only files the glob matches — and every fixture dotenv reads
     // is a dotfile beside the tests, which no glob of runnable tests can name.
     //
-    //   `config.js`  the preload entry `test-config-cli.js` spawns as `node -r ./config`.
-    //                It is at the repo root, not under `tests/`, and it reaches the library
-    //                through `./lib/main`, which is already a shimmed internal — so
-    //                vendoring the file is enough to point it at whatever is being graded.
-    //                Measured: without it that file scores 0 / 3, with it 3 / 3.
-    //   `tests/.env…` the five fixtures the suite parses.
-    //
-    // Right for 17.4.2 and not for 18: dotenv 18 deleted `tests/.env.vault` with the vault
-    // tests that read it (upstream 4bb2dbd) and added `tests/.env.bom`. `vendor()` skips and
-    // names a listed fixture a release does not ship, so the upstream check survives it;
-    // whoever re-vendors at 18 swaps the one for the other here.
-    extraDirs: ['config.js', 'tests/.env', 'tests/.env-multiline', 'tests/.env.local', 'tests/.env.multiline', 'tests/.env.vault'],
+    //   `config.js`  the source-mode preload `test-config-import.js` spawns as
+    //                `node -r ./config.js`. It is at the repo root, not under `tests/`, and
+    //                it reaches the library through `./lib/main`, which `entries` writes.
+    //   `tests/.env…` the five fixtures the suite parses; 18 deleted `.env.vault` with the
+    //                vault tests and added `.env.bom`. 17.4.2's list is on `dotenv-17`.
+    extraDirs: ['config.js', 'tests/.env', 'tests/.env-multiline', 'tests/.env.bom', 'tests/.env.local', 'tests/.env.multiline'],
     surfaceFiles: ['lib/main.d.ts', 'lib/main.js'],
+    // dotenv 18's suite tests the *build*: `dist/index.cjs` is spawned as the `dotenv run`
+    // CLI, `dist/config.cjs` is preloaded, and the vendored root `config.js` requires
+    // `./lib/main`. The published package ships only `dist/`, so the control's `lib/main`
+    // is the bundle too — which is what upstream's `lib/main.js` is bundled into.
+    entries: [
+      { at: 'dist/index.cjs', control: 'dist/index.cjs', target: '/dotenv', names: DOTENV_NAMES, runs: '/dotenv/cli' },
+      { at: 'dist/config.cjs', control: 'dist/config.cjs', target: '/dotenv/config' },
+      { at: 'lib/main.js', control: 'dist/index.cjs', target: '/dotenv', names: DOTENV_NAMES },
+    ],
+    // Upstream's own exports map, less `./package.json`: the spawned programs name `dotenv`,
+    // `dotenv/config` and `dotenv/config.js` from the repo root and upstream answers all three
+    // by self-reference.
+    selfExports: { '.': './dist/index.cjs', './config': './dist/config.cjs', './config.js': './dist/config.cjs' },
     runner: 'tap',
     // The package **root**, with the façade reached through the import's own `/dotenv`
     // subpath — the `restore-cursor` / `exit-hook` shape. It read `seniority/dotenv` while
@@ -1031,7 +1111,7 @@ export const HOSTS: Host[] = [
     // until a run touches it, which is the same lesson `wrap-ansi`'s note records.
     target: 'seniority',
     status: 'active',
-    note: "**2026-09-23: 80 → 106 / 141 under D-135.** `config()` now defaults `processEnv` to the process's own and `path` to `./.env` through `seniority/src/runtime.ts`, reads through the `fs` and `os` module objects the suite stubs, takes a `URL` or a `~` path, and returns `{ parsed, error }` together as dotenv 17 does. The 35 left: 27 vault/decrypt (declined), 2 dotenvx tips (declined), and 6 that load dotenv's private `lib/*` modules, which the harness maps to the package root. The history below predates this. Activated 2026-09-16; re-measured 2026-09-20 at **80 / 141, 56.7%**, up from 74. Control **141 / 141, 100%**, unchanged — the first row graded through the `tap` arm, one `node <file>` spawn per file with the outputs concatenated. **Four of the six came from the harness declaration, not from this package.** `test-populate.js` opens with `sinon.stub(dotenv, 'parse')` in a top-level `beforeEach`; an ES module namespace is non-extensible with non-configurable properties, so sinon refused with `ES Modules cannot be stubbed`, the hook threw, and all six of that file's cases failed before their first assertion — twelve entries in the raw TAP against the control's plan of six, none of them having reached a `populate` call. Probed directly 2026-09-20: `require` of a shim that `export *`s from the **CJS** incumbent hands back a mutable object (`parse` writable, enumerable, configurable), and the same shim over an ESM target hands back a sealed namespace. The fix is `reexportDefault: true` on this row plus a default export on `seniority/dotenv` carrying the three functions — the `module.exports` name Node's `require()` of an ES module returns whole, which is the mechanism commander's and yargs' CJS fixtures already run on and which this row simply never declared. The control is 141 / 141 with it and was 141 / 141 without it. The other two came from `populate` itself: it validates **`parsed`** and not `processEnv` upstream (the `OBJECT_REQUIRED` message names the wrong argument, and a case asserts that exact string), returns what it set, and logs through `console.log` under `debug`. **The remaining 61 are a ceiling with two named causes and no third.** 26 in `test-config-vault.js` plus 1 in `test-decrypt.js` are `DOTENV_KEY` / `.env.vault`, which dotenv deprecated in favour of dotenvx and this package declines; 31 of `test-config.js`'s 32 and all 3 of `test-config-cli.js` need `config()` to default `processEnv` to `process.env` and `path` to a cwd-relative `.env`, which R11 forbids — read the case list and every one of them asserts `process.env.BASIC` after a bare `config()`. The single case in that file that hands `config` an object of its own, `can write to a different object rather than process.env`, passes. **One thing to read carefully in this row and in any `tap` row after it:** node-tap's plan counts *assertions*, not cases, so the size of the suite depends on which branches ran — the control plans sum to 141 and the target's to 141 now that the populate hook no longer throws (it was 147). `rate()` divides by `max(reference, registered)`, so a target can never score above its own denominator. Three things had to change together when this row was activated and none of them is about dotenv: the arm in `run.ts`; `control: 'dotenv'` on the import, without which the control's shim re-exported the non-existent `dotenv/dotenv`; and `target` reading the package root rather than the subpath it was already composing. The suite's own `tap`, `sinon` and `decache` are `suiteDeps` — 319 packages and 86 MB installed once into a gitignored `vendor/dotenv/node_modules`, in no manifest and no lockfile.",
+    note: "**2026-10-06: re-vendored at 18.0.5 — control 179 / 179, `seniority` 128 / 179 (D-20261006-flagstaff-boxen-9 records the harness).** dotenv 18.0.0 (2026-09-17) deleted `.env.vault`, `DOTENV_KEY`, `decrypt` and the log-line tips together with the 31 cases that asserted them, and added 42: the `{ fast: true }` character scanner (`test-parse-fast.js`), `DOTENV_*` defaults and their `DOTENV_CONFIG_*` fallbacks (`test-config-options.js`), the `quiet` rules of `config()` and of `dotenv/config` (`test-config-quiet.js`, `test-config-import.js`), and a `dotenv run` command line with signal forwarding (`test-cli.js`, `test-cli-signals.js`). **The suite tests the build, so the row declares it.** It spawns `node dist/index.cjs run …`, preloads `dist/config.cjs`, and runs programs that name `dotenv` and `dotenv/config` from the repo root; `entries` writes those files per run (a link to the incumbent's own file on the control, upstream's `index.js` pointed at the target otherwise) and `selfExports` gives the vendored root dotenv's name so the spawned programs reach whichever is graded. Without them the control was 141 / 179 against dotenv 18 — and against 17.4.2 before the pin moved, which is what PR #794 read as 52 failing. The 51 the target fails are seniority's: it still speaks 17, and the `seniority/dotenv/config` and `seniority/dotenv/cli` subpaths the entries point at are not built yet; that lane brings them. The informational line is **4 / 10 on the control**: `test-config-options.js` loads the private `lib/config-options`, the published package ships only `dist/`, so its six `optionsFromEnv` cases fail against dotenv itself, and its four spawned cases pass. One case, `Windows resolves executables and batch shims with spaces in their paths`, skips itself off win32 on both sides. dotenv 17.4.2 is graded as `dotenv-17` in `PREVIOUS_MAJORS`. The paragraphs below are the 17.4.2 history. **2026-09-23: 80 → 106 / 141 under D-135.** `config()` now defaults `processEnv` to the process's own and `path` to `./.env` through `seniority/src/runtime.ts`, reads through the `fs` and `os` module objects the suite stubs, takes a `URL` or a `~` path, and returns `{ parsed, error }` together as dotenv 17 does. The 35 left: 27 vault/decrypt (declined), 2 dotenvx tips (declined), and 6 that load dotenv's private `lib/*` modules, which the harness maps to the package root. The history below predates this. Activated 2026-09-16; re-measured 2026-09-20 at **80 / 141, 56.7%**, up from 74. Control **141 / 141, 100%**, unchanged — the first row graded through the `tap` arm, one `node <file>` spawn per file with the outputs concatenated. **Four of the six came from the harness declaration, not from this package.** `test-populate.js` opens with `sinon.stub(dotenv, 'parse')` in a top-level `beforeEach`; an ES module namespace is non-extensible with non-configurable properties, so sinon refused with `ES Modules cannot be stubbed`, the hook threw, and all six of that file's cases failed before their first assertion — twelve entries in the raw TAP against the control's plan of six, none of them having reached a `populate` call. Probed directly 2026-09-20: `require` of a shim that `export *`s from the **CJS** incumbent hands back a mutable object (`parse` writable, enumerable, configurable), and the same shim over an ESM target hands back a sealed namespace. The fix is `reexportDefault: true` on this row plus a default export on `seniority/dotenv` carrying the three functions — the `module.exports` name Node's `require()` of an ES module returns whole, which is the mechanism commander's and yargs' CJS fixtures already run on and which this row simply never declared. The control is 141 / 141 with it and was 141 / 141 without it. The other two came from `populate` itself: it validates **`parsed`** and not `processEnv` upstream (the `OBJECT_REQUIRED` message names the wrong argument, and a case asserts that exact string), returns what it set, and logs through `console.log` under `debug`. **The remaining 61 are a ceiling with two named causes and no third.** 26 in `test-config-vault.js` plus 1 in `test-decrypt.js` are `DOTENV_KEY` / `.env.vault`, which dotenv deprecated in favour of dotenvx and this package declines; 31 of `test-config.js`'s 32 and all 3 of `test-config-cli.js` need `config()` to default `processEnv` to `process.env` and `path` to a cwd-relative `.env`, which R11 forbids — read the case list and every one of them asserts `process.env.BASIC` after a bare `config()`. The single case in that file that hands `config` an object of its own, `can write to a different object rather than process.env`, passes. **One thing to read carefully in this row and in any `tap` row after it:** node-tap's plan counts *assertions*, not cases, so the size of the suite depends on which branches ran — the control plans sum to 141 and the target's to 141 now that the populate hook no longer throws (it was 147). `rate()` divides by `max(reference, registered)`, so a target can never score above its own denominator. Three things had to change together when this row was activated and none of them is about dotenv: the arm in `run.ts`; `control: 'dotenv'` on the import, without which the control's shim re-exported the non-existent `dotenv/dotenv`; and `target` reading the package root rather than the subpath it was already composing. The suite's own `tap`, `sinon` and `decache` are `suiteDeps` — 319 packages and 86 MB installed once into a gitignored `vendor/dotenv/node_modules`, in no manifest and no lockfile.",
   },
   {
     // The first monorepo host. Its key is flat because `@clack/prompts` cannot be a
@@ -1143,16 +1223,16 @@ export const HOSTS: Host[] = [
     imports: [{ upstream: './src/index.ts', subpath: '', reexportDefault: false }],
     surfaceFiles: ['packages/core/src/index.ts'],
     suiteDeps: [
-      '@inquirer/core@12.0.3',
-      '@inquirer/ansi@2.0.8',
+      '@inquirer/core@12.0.4',
+      '@inquirer/ansi@2.0.9',
       // The harness the suite renders through: a headless xterm that asserts the screen,
       // not the bytes. Same shape as log-update's `terminal.js`.
-      '@inquirer/testing@3.3.13',
+      '@inquirer/testing@3.3.14',
     ],
     runner: 'vitest',
     target: 'caique/inquirer',
     status: 'active',
-    note: "Activated 2026-09-20 at **41 / 41, 100.0%**, control **41 / 41**. The row moved from the package root `caique` (0 / 41) to the drop-in subpath `caique/inquirer` the same day the subpath was built, which is D-006 and D-007 in one edit: every row at 100% names a dedicated façade and every row at zero names a root, and a façade may not be named before it exists. **The 41 are a loop, not a drawing, and that is why they were reachable.** `@inquirer/testing` renders through a headless xterm and asserts the screen, so what is graded is hooks keeping their place across re-renders, keypresses that stop the instant a prompt settles, a `useEffect` cleanup that throws superseding the answer it was about to give, and an already-aborted signal still restoring the cursor — behaviours a second implementation can share. Contrast `clack`'s row directly below, where 289 of 444 assertions snapshot the incumbent's exact frames. **Three things had to be right that no amount of reading the API would have told us**, and each is a case: `AsyncResource.bind` on every setter and every keypress handler, without which a `setState` called from an `EventEmitter` listener registered inside an effect finds no hook store; the first render deferred by one `setImmediate` **only** when the input has `readableFlowing`, which is how a keystroke typed before the prompt existed is discarded rather than answered (upstream issue #1303); and `createPrompt`'s caller file captured at construction through `Error.prepareStackTrace`, because the error a render function gets for returning nothing names that file and the case snapshots it. The façade reaches `closeout/exit-hook` and `linegauge/wrap` and nothing else — both published from this repository, both declared in `packages/caique/package.json`, and `weight.test.ts` is what enforces that. `@inquirer/core`'s `usePagination` is **not** implemented and is named as a gap in `.sdlc/intents/caique/spec.md`: it is 121 lines of list-window arithmetic this suite does not touch, and shipping an ungraded re-derivation of it would be the unmeasured claim the rest of this file exists to prevent.",
+    note: "**Re-vendored 2026-10-06 at 12.0.4: 41 / 41, control 41 / 41**, the suite unchanged from 12.0.3. PR #794 recorded it `tag: null` because the vendor step refused every `@scope/pkg@x` tag as unsafe and cloned the default branch; that branch happened to be 12.0.4. Activated 2026-09-20 at **41 / 41, 100.0%**, control **41 / 41**. The row moved from the package root `caique` (0 / 41) to the drop-in subpath `caique/inquirer` the same day the subpath was built, which is D-006 and D-007 in one edit: every row at 100% names a dedicated façade and every row at zero names a root, and a façade may not be named before it exists. **The 41 are a loop, not a drawing, and that is why they were reachable.** `@inquirer/testing` renders through a headless xterm and asserts the screen, so what is graded is hooks keeping their place across re-renders, keypresses that stop the instant a prompt settles, a `useEffect` cleanup that throws superseding the answer it was about to give, and an already-aborted signal still restoring the cursor — behaviours a second implementation can share. Contrast `clack`'s row directly below, where 289 of 444 assertions snapshot the incumbent's exact frames. **Three things had to be right that no amount of reading the API would have told us**, and each is a case: `AsyncResource.bind` on every setter and every keypress handler, without which a `setState` called from an `EventEmitter` listener registered inside an effect finds no hook store; the first render deferred by one `setImmediate` **only** when the input has `readableFlowing`, which is how a keystroke typed before the prompt existed is discarded rather than answered (upstream issue #1303); and `createPrompt`'s caller file captured at construction through `Error.prepareStackTrace`, because the error a render function gets for returning nothing names that file and the case snapshots it. The façade reaches `closeout/exit-hook` and `linegauge/wrap` and nothing else — both published from this repository, both declared in `packages/caique/package.json`, and `weight.test.ts` is what enforces that. `@inquirer/core`'s `usePagination` is **not** implemented and is named as a gap in `.sdlc/intents/caique/spec.md`: it is 121 lines of list-window arithmetic this suite does not touch, and shipping an ungraded re-derivation of it would be the unmeasured claim the rest of this file exists to prevent.",
   },
   {
     name: 'meow',
@@ -1704,6 +1784,28 @@ export const PREVIOUS_MAJORS: Host[] = [
     target: 'linegauge/slice',
     status: 'active',
     note: "**Measured 2026-09-27: 14 / 15 against a control of 15 / 15 — 7 is graded and not claimed** (`SUPPORTED_MAJORS['slice-ansi']` is `[9]`). The one that fails is `supports unicode surrogate pairs`, and it is the same assertion as 9's with the opposite answer: 7's suite wants `slice('a🈀BC', 0, 2)` to be `a🈀` — the wide `U+1F200` included although it runs one column past the end — and 9's wants `a`. `linegauge/slice` rounds inward, as 9 does and as `truncate` needs, so it cannot pass both majors' version of that case, and it passes 9's. Until 2026-09-27 this suite *was* the current row and read 15 / 15, the rounding then being outward. `slice links` is still `test.failing()` in 7 and still passes here, counted as `exceeded`.",
+  },
+  {
+    name: 'dotenv-17',
+    npmName: 'dotenv',
+    majorOf: 'dotenv',
+    repo: 'https://github.com/motdotla/dotenv',
+    testDir: 'tests',
+    testGlob: 'test-*.js',
+    imports: [{ upstream: '../lib/main', subpath: '/dotenv', reexportDefault: true, control: 'dotenv' }],
+    // 17's fixtures, `.env.vault` among them, and the root `config.js` its `test-config-cli.js`
+    // preloads.
+    extraDirs: ['config.js', 'tests/.env', 'tests/.env-multiline', 'tests/.env.local', 'tests/.env.multiline', 'tests/.env.vault'],
+    surfaceFiles: ['lib/main.d.ts', 'lib/main.js'],
+    // The root `config.js` requires `./lib/main`, which no test imports by that path, so the walk
+    // does not shim it; 17 ships the file itself, so the control links to it.
+    entries: [{ at: 'lib/main.js', control: 'lib/main.js', target: '/dotenv', names: DOTENV_NAMES }],
+    runner: 'tap',
+    pinnedVersion: '17.4.2',
+    suiteDeps: ['dotenv@17.4.2', 'tap@19.2.0', 'sinon@14.0.2', 'decache@4.6.2'],
+    target: 'seniority',
+    status: 'active',
+    note: "**Measured 2026-10-06: 106 / 141 against a control of 141 / 141 — 17 is graded and not claimed** (`SUPPORTED_MAJORS.dotenv` is `[18]`, the current major). The 35 are the ones the current row's history names for 17.4.2: the vault and `DOTENV_KEY` cases and the dotenvx tips, which seniority declines, and the cases that load 17's private `lib/*` modules. The control needs one `entries` file, `lib/main.js`, because the root `config.js` requires `./lib/main` and no test imports it by that path. This was the current row until 18.0.5 was vendored; its history is the `dotenv` row's note.",
   },
 ];
 

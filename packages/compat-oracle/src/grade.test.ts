@@ -25,7 +25,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type Host } from './hosts.js';
-import { ALIAS_HOOK, aliasHook, cjsLoad, grade, installSuiteDeps, internalShimBody, jestGlobals, peerHook, readBaseline, targetInternalBody } from './run.js';
+import { ALIAS_HOOK, aliasHook, cjsLoad, entryBody, grade, installSuiteDeps, internalShimBody, jestGlobals, peerHook, readBaseline, targetInternalBody } from './run.js';
 
 interface Call {
   file: string;
@@ -421,7 +421,7 @@ describe('a host that grades a library built on the incumbent', () => {
     const hostDir = vendored(lib(), { 'a.test.js': '' });
     seam.exec = prints(SUMMARY(1, 1));
     grade(lib(), vendorDir, 'semver');
-    expect(read(hook(hostDir))).toBe(aliasHook('the-incumbent', import.meta.resolve('semver'), 'semver'));
+    expect(read(hook(hostDir))).toBe(aliasHook({ 'the-incumbent': import.meta.resolve('semver') }, 'semver'));
     expect((seam.calls[0] as Call).options.env.NODE_OPTIONS).toBe(`--no-warnings --import=${pathToFileURL(hook(hostDir)).href}`);
     // A control run removes the previous run's hook and loads nothing.
     grade(lib(), vendorDir, 'fake');
@@ -435,6 +435,41 @@ describe('a host that grades a library built on the incumbent', () => {
     seam.exec = prints(SUMMARY(1, 1));
     grade(lib(), vendorDir, 'semver');
     expect(only().options.env.NODE_OPTIONS).toBe(`--import=${pathToFileURL(hook(hostDir)).href}`);
+  });
+
+  // `Host.migrated` — boxen 9's shape: the suite's `chalk` is the one boxen draws with, so a
+  // target run sends it to the drop-in a migrated program would import instead.
+  it('sends each migrated sibling to its drop-in on a target run, beside the alias, and on the control nowhere', () => {
+    const h = lib({ migrated: { 'the-sibling': 'vitest' } });
+    const hostDir = vendored(h, { 'a.test.js': '' });
+    seam.exec = prints(SUMMARY(1, 1));
+    grade(h, vendorDir, 'semver');
+    expect(read(hook(hostDir))).toBe(aliasHook({ 'the-incumbent': import.meta.resolve('semver'), 'the-sibling': import.meta.resolve('vitest') }, 'semver'));
+    grade(h, vendorDir, 'fake');
+    expect(existsSync(hook(hostDir))).toBe(false);
+  });
+
+  it('loads the hook for a host that only migrates a sibling, with no alias of its own', () => {
+    const h = host({ migrated: { 'the-sibling': 'vitest' } });
+    const hostDir = vendored(h, { 'a.test.js': '' });
+    seam.exec = prints(SUMMARY(1, 1));
+    grade(h, vendorDir, 'semver');
+    expect(read(hook(hostDir))).toBe(aliasHook({ 'the-sibling': import.meta.resolve('vitest') }, 'semver'));
+  });
+
+  // For real: the sibling is whatever the run says in the runner's own child process.
+  it('resolves a migrated sibling to the drop-in in the runner’s children', () => {
+    const h = host({ migrated: { 'the-sibling': 'semver' } });
+    const suite = [
+      "import test from 'node:test';",
+      "import assert from 'node:assert';",
+      "test('the sibling is the drop-in', async () => {",
+      "  const { default: semver } = await import('the-sibling');",
+      "  assert.equal(semver.valid('1.2.3'), '1.2.3');",
+      '});',
+    ].join('\n');
+    vendored(h, { 'a.test.js': suite });
+    expect(grade(h, vendorDir, 'vitest')).toMatchObject({ tests: 1, passed: 1 });
   });
 
   it('writes no hook for a host that aliases nothing', () => {
@@ -489,7 +524,7 @@ describe('a host whose target brings optional peers', () => {
     grade(peered(), vendorDir, 'vitest');
     const inside = `${pathToFileURL(installed('vitest')).href}/`;
     const from = pathToFileURL(join(hostDir, 'package.json')).href;
-    expect(read(hook(hostDir))).toBe(peerHook({ alias: undefined, url: import.meta.resolve('vitest'), peers: ['the-peer'], inside, from, target: 'vitest' }));
+    expect(read(hook(hostDir))).toBe(peerHook({ redirects: {}, peers: ['the-peer'], inside, from, target: 'vitest' }));
     expect(only().options.env.NODE_OPTIONS).toContain(`--import=${pathToFileURL(hook(hostDir)).href}`);
   });
 
@@ -498,7 +533,7 @@ describe('a host whose target brings optional peers', () => {
     const hostDir = vendored(h, { 'a.test.js': '' });
     seam.exec = prints(SUMMARY(1, 1));
     grade(h, vendorDir, 'vitest');
-    expect(read(hook(hostDir))).toContain('const alias = "the-incumbent";');
+    expect(read(hook(hostDir))).toContain(`const redirects = ${JSON.stringify({ 'the-incumbent': import.meta.resolve('vitest') })};`);
     expect(read(hook(hostDir))).toContain('const peers = ["the-peer"];');
   });
 
@@ -524,7 +559,7 @@ describe('a host whose target brings optional peers', () => {
     writeFileSync(join(target, 'index.js'), "import peer from 'the-peer';\nimport sub from 'the-peer/sub.js';\nexport default [peer, sub];\n");
     const hookFile = join(vendorDir, 'peer-hook.mjs');
     const inside = `${pathToFileURL(realpathSync(target)).href}/`;
-    writeFileSync(hookFile, peerHook({ alias: undefined, url: 'node:path', peers: ['the-peer'], inside, from: pathToFileURL(join(root, 'package.json')).href, target: 'target-package' }));
+    writeFileSync(hookFile, peerHook({ redirects: {}, peers: ['the-peer'], inside, from: pathToFileURL(join(root, 'package.json')).href, target: 'target-package' }));
     const probe = `import(${JSON.stringify(pathToFileURL(join(target, 'index.js')).href)}).then((m) => process.stdout.write(m.default.join(',')))`;
     const run = (args: string[]): string => String(realExec(process.execPath, [...args, '--input-type=module', '-e', probe], { cwd: root, encoding: 'utf8' }));
     expect(run([`--import=${pathToFileURL(hookFile).href}`])).toBe('suite,suite/sub');
@@ -646,6 +681,89 @@ describe('the internal shims a run writes', () => {
     seam.exec = tap;
     expect(grade(h, vendorDir, 'not-installed-anywhere').error).toBeUndefined();
     expect(existsSync(join(hostDir, 'lib'))).toBe(false);
+  });
+});
+
+describe('the files a suite reaches by path (`entries`, dotenv 18)', () => {
+  const tap = prints(SUMMARY(1, 1));
+  const shipped = join(COMMANDER, 'index.js');
+  const entry = { at: 'dist/index.cjs', control: 'index.js', target: '/sub', names: ['config', 'parse'], runs: '/sub/cli' };
+
+  it('links each one to the incumbent’s own file on the control, so the incumbent is `require.main`', () => {
+    const h = incumbent({ entries: [entry] });
+    const hostDir = vendored(h, { 'a.test.js': '' }, { pkg: {} });
+    seam.exec = tap;
+    grade(h, vendorDir, 'commander');
+    const at = join(hostDir, 'dist', 'index.cjs');
+    expect(lstatSync(at).isSymbolicLink()).toBe(true);
+    expect(realpathSync(at)).toBe(realpathSync(shipped));
+    // Unlinked first on the next run, never written through into the incumbent.
+    grade(h, vendorDir, 'commander');
+    expect(read(shipped)).not.toContain('generated per run');
+  });
+
+  it('requires the incumbent’s file instead where the platform refuses the link', () => {
+    const h = incumbent({ entries: [entry] });
+    const hostDir = vendored(h, { 'a.test.js': '' }, { pkg: {} });
+    seam.exec = tap;
+    seam.refuseLinks = true;
+    grade(h, vendorDir, 'commander');
+    expect(read(hostDir, 'dist', 'index.cjs')).toBe(`// generated per run — COMPAT_TARGET=commander\nmodule.exports = require(${JSON.stringify(shipped)});\n`);
+  });
+
+  it('writes upstream’s index.js pointed at the target on a target run: the module, its names, its CLI', () => {
+    const h = incumbent({ entries: [entry, { at: 'dist/config.cjs', control: 'index.js', target: '/sub/config' }] });
+    const hostDir = vendored(h, { 'a.test.js': '' }, { pkg: {} });
+    seam.exec = tap;
+    grade(h, vendorDir, 'commander');
+    // The target here is commander too, under another name: a target run is any run whose
+    // target is not the control's, and only the body is under test.
+    grade({ ...h, npmName: 'not-this' }, vendorDir, 'commander');
+    expect(lstatSync(join(hostDir, 'dist', 'index.cjs')).isSymbolicLink()).toBe(false);
+    expect(read(hostDir, 'dist', 'index.cjs')).toBe(entryBody('commander', entry));
+    expect(read(hostDir, 'dist', 'config.cjs')).toBe(
+      ['// generated per run — COMPAT_TARGET=commander', "const loaded = require(\"commander/sub/config\");", 'module.exports = loaded?.default ?? loaded;', ''].join('\n'),
+    );
+  });
+
+  it('is a module Node can name the exports of, and runs the CLI only as the main module', () => {
+    expect(entryBody('t', entry).split('\n')).toEqual([
+      '// generated per run — COMPAT_TARGET=t',
+      'const loaded = require("t/sub");',
+      'module.exports = loaded?.default ?? loaded;',
+      'module.exports.config = module.exports.config;',
+      'module.exports.parse = module.exports.parse;',
+      'if (require.main === module) require("t/sub/cli").run(process.argv.slice(2));',
+      '',
+    ]);
+  });
+
+  /**
+   * The vendored root of a `selfExports` host answers to the incumbent's own name, so a resolver
+   * anchored *at* it finds itself by self-reference: the control's entry would be linked to a
+   * file of the vendored tree instead of the installed incumbent. Anchored inside
+   * `node_modules`, the package-scope lookup stops and the installed copy is what resolves.
+   */
+  it('links the control to the copy installed beside the suite, not to the vendored root that shares its name', () => {
+    const h = incumbent({ entries: [{ ...entry, control: 'main.js' }], suiteDeps: ['commander@9.9.9'], selfExports: { '.': './dist/index.cjs' } });
+    const hostDir = vendored(h, { 'a.test.js': '' }, { pkg: { name: 'commander', exports: { '.': './dist/index.cjs' }, devDependencies: { commander: '9.9.9' } } });
+    const beside = join(hostDir, 'node_modules', 'commander');
+    mkdirSync(beside, { recursive: true });
+    writeFileSync(join(beside, 'package.json'), JSON.stringify({ name: 'commander', version: '9.9.9', main: 'main.js' }));
+    writeFileSync(join(beside, 'main.js'), 'module.exports = {};\n');
+    seam.exec = tap;
+    grade(h, vendorDir, 'commander');
+    // No install was needed: the pin is satisfied by the copy beside the suite, found as itself.
+    expect(seam.calls.filter((c) => c.file === 'npm')).toEqual([]);
+    expect(realpathSync(join(hostDir, 'dist', 'index.cjs'))).toBe(realpathSync(join(beside, 'main.js')));
+  });
+
+  it('writes nothing for a host that declares none', () => {
+    const h = incumbent();
+    const hostDir = vendored(h, { 'a.test.js': '' }, { pkg: {} });
+    seam.exec = tap;
+    grade(h, vendorDir, 'commander');
+    expect(existsSync(join(hostDir, 'dist'))).toBe(false);
   });
 });
 

@@ -380,7 +380,7 @@ describe('the lock refuses what it exists to refuse', () => {
 
   it('another incumbent’s vendored suite as the source', () => {
     const caps = clone();
-    first(caps).incumbents.ora = { status: 'yes', source: 'packages/compat-oracle/vendor/boxen/tests/main.js', quote: 'import boxen' };
+    first(caps).incumbents.ora = { status: 'yes', source: 'packages/compat-oracle/vendor/boxen/tests/main.test.js', quote: 'import boxen' };
     refused(caps, /boxen's vendored suite, not ora's/u);
   });
 

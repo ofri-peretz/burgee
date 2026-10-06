@@ -331,7 +331,7 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `cosmiconfig` | 242 / 243 |
-| `dotenv` | 106 / 141 |
+| `dotenv` | 128 / 179 |
 | `lilconfig` | 77 / 77 |
 | `rc` | 1 / 1 |
 

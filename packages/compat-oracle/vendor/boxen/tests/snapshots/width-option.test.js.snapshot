@@ -1,0 +1,58 @@
+exports[`width option with a character wider than the box 1`] = `
+┌──┐
+│字│
+└──┘
+`;
+
+exports[`width option with a character wider than the box 2`] = `
+┌──┐
+│字│
+└──┘
+`;
+
+exports[`width option with a character wider than the box 3`] = `
+┌──┐
+│字│
+└──┘
+`;
+
+exports[`width option with big padding 1`] = `
+┌────┐
+│    │
+│    │
+│    │
+│foo │
+│    │
+│    │
+│    │
+└────┘
+`;
+
+exports[`width option with border style (none) 1`] = `
+foo
+`;
+
+exports[`width option with padding + margin 1`] = `
+
+
+      ┌──────────────────┐
+      │                  │
+      │   foo            │
+      │                  │
+      └──────────────────┘
+
+
+`;
+
+exports[`width option works 1`] = `
+┌──────────────────┐
+│foo               │
+└──────────────────┘
+`;
+
+exports[`width option works 2`] = `
+┌────────┐
+│foo bar │
+│foo bar │
+└────────┘
+`;

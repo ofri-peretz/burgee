@@ -1,11 +1,12 @@
 ---
 title: Coming from boxen
-description: "A boxen alternative with a drop-in path: import boxen from flagstaff/boxen, graded 84 / 84 by boxen's own test suite — then a box component whose static projection gives a pipe, an agent and a screen reader the text and title, not the border."
+description: "A boxen alternative with a drop-in path: import boxen from flagstaff/boxen, graded 213 / 213 by boxen's own test suite — then a box component whose static projection gives a pipe, an agent and a screen reader the text and title, not the border."
 ---
 
 **flagstaff** is a **boxen alternative** you adopt by changing one import. `flagstaff/boxen`
-is boxen 8's API, and boxen's own test suite is the grade. boxen 9 is out of scope for
-flagstaff 1.0: it is not graded or claimed, and `burgee migrate` leaves a program on it alone.
+is boxen 9's API, and boxen 9.0.0's own test suite is the grade. boxen 8 is no longer graded:
+9 changed two of 8's answers — a hex colour must be real hex, and `vertical` / `horizontal`
+are a fallback for the sides rather than an override — and the façade follows 9.
 
 ## Migrate from boxen in one import
 
@@ -16,21 +17,24 @@ flagstaff 1.0: it is not graded or claimed, and `burgee migrate` leaves a progra
 
 Everything else stays: `boxen(text, options)` with `borderStyle` (all eight of cli-boxes'
 styles, a style object of your own, or `none`), `borderColor`, `backgroundColor`,
-`dimBorder`, `title`, `titleAlignment`, `textAlignment`, `padding`, `margin`, `width`,
-`height`, `float` and `fullscreen`, plus `_borderStyles` and the `Options`,
-`CustomBorderStyle` and `Spacing` types. An invalid `borderColor` or `backgroundColor` throws,
-as boxen's does.
+`borderBackgroundColor`, `dimBorder`, `title`, `titleColor`, `titleAlignment`, `footer`,
+`footerAlignment`, `textAlignment`, `padding`, `margin`, `width`, `maxWidth`, `height`,
+`float` and `fullscreen`, plus `_borderStyles` and the `Options`, `CustomBorderStyle`,
+`Spacing` and `Color` types. An invalid colour throws, as boxen's does.
 
 ## Is flagstaff compatible with boxen?
 
-Graded, not claimed. boxen's own suite, vendored at 8.0.1 and unmodified apart from the
+Graded, not claimed. boxen's own suite, vendored at 9.0.0 and unmodified apart from the
 import specifier, runs against `flagstaff/boxen` beside a control that runs it against real
-boxen. Every one of its cases is a snapshot of the exact characters the box comes out as:
+boxen. Its cases assert the exact characters the box comes out as. The suite's colour cases
+set `chalk.level` on the program's own `chalk`, so the grade runs the suite the way
+`burgee migrate` leaves a program that imports both: `chalk` is `roundel/chalk`, the one
+`flagstaff/boxen` draws with.
 
 | | passing | rate |
 | :-- | --: | --: |
-| `flagstaff/boxen` | 84 / 84 | 100.0% |
-| boxen itself (control) | 84 / 84 | 100.0% |
+| `flagstaff/boxen` | 213 / 213 | 100.0% |
+| boxen itself (control) | 213 / 213 | 100.0% |
 
 From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `npm run compat:page` generates from the
 oracle's last run; that page is the authority. The same page grades flagstaff's `ora`,
@@ -39,10 +43,10 @@ oracle's last run; that page is the authority. The same page grades flagstaff's 
 ## What you gain over boxen
 
 For a box the drawing **is** the contract, so `flagstaff/boxen` matches it byte for byte and
-the façade alone changes the dependency tree, not the output. boxen 8.0.1 resolves to
-nineteen packages; its eight direct dependencies — `string-width`, `wrap-ansi`, `cli-boxes`,
-`ansi-align`, `widest-line`, `camelcase`, `chalk` and `type-fest` — are folded in here, and
-the subpath reaches only `linegauge` and `roundel/chalk`, both from the burgee family.
+the façade alone changes the dependency tree, not the output. boxen 9.0.0 resolves to
+fourteen packages; its seven direct dependencies — `string-width`, `wrap-ansi`, `slice-ansi`,
+`widest-line`, `cli-boxes`, `chalk` and `type-fest` — are folded in here, and the subpath
+reaches only `linegauge` and `roundel/chalk`, both from the burgee family.
 
 The gain beyond that is `flagstaff/box`, a separate API you adopt a file at a time:
 `box(text, { border, padding, title, width, href })` for the string, and `boxComponent()` to
@@ -64,7 +68,7 @@ OSC 8, and as `text (url)` everywhere else. Named borders come from the plugin r
 ## When to switch from boxen
 
 - Your boxes end up in CI logs, in an agent's context or in front of a screen reader.
-- You want boxen's exact drawing without its nineteen-package tree — the import swap alone
+- You want boxen's exact drawing without its fourteen-package tree — the import swap alone
   does that.
 
 The loop, the built-ins and the other drop-in paths are on

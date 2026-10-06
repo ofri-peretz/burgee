@@ -165,7 +165,7 @@
           "incumbents": {
             "ora": { "status": "no", "source": "node_modules/ora/package.json", "quote": "\"cli-cursor\": \"^5.0.0\",", "note": "eight dependencies from other repositories" },
             "log-update": { "status": "no", "source": "node_modules/log-update/package.json", "quote": "\"ansi-escapes\": \"^7.3.0\",", "note": "six dependencies from other repositories" },
-            "boxen": { "status": "no", "source": "node_modules/boxen/package.json", "quote": "\"ansi-align\": \"^3.0.1\",", "note": "eight dependencies from other repositories" },
+            "boxen": { "status": "no", "source": "node_modules/boxen/package.json", "quote": "\"chalk\": \"^6.0.0\",", "note": "seven dependencies from other repositories" },
             "cli-table3": { "status": "no", "source": "node_modules/cli-table3/package.json", "quote": "\"string-width\": \"^4.2.0\"", "note": "string-width, and @colors/colors as an optional dependency" }
           }
         }
@@ -181,7 +181,7 @@
           "incumbents": {
             "ora": { "status": "yes", "source": "packages/compat-oracle/vendor/ora/test.js", "quote": "import ora, {oraPromise, spinners} from './shim.js';", "note": "its own suite, the control run" },
             "log-update": { "status": "n/a", "source": "packages/compat-oracle/vendor/log-update/test.js", "quote": "import {createLogUpdate} from './shim.js';", "note": "a different API" },
-            "boxen": { "status": "n/a", "source": "packages/compat-oracle/vendor/boxen/tests/main.js", "quote": "import boxen from '../shim.js';", "note": "a different API" },
+            "boxen": { "status": "n/a", "source": "packages/compat-oracle/vendor/boxen/tests/main.test.js", "quote": "import boxen from '../shim.js';", "note": "a different API" },
             "cli-table3": { "status": "n/a", "source": "packages/compat-oracle/vendor/cli-table3/test/table-test.js", "quote": "const Table = require('..');", "note": "a different API" }
           }
         },
@@ -192,18 +192,18 @@
           "incumbents": {
             "ora": { "status": "n/a", "source": "packages/compat-oracle/vendor/ora/test.js", "quote": "import ora, {oraPromise, spinners} from './shim.js';", "note": "a different API" },
             "log-update": { "status": "yes", "source": "packages/compat-oracle/vendor/log-update/test.js", "quote": "import {createLogUpdate} from './shim.js';", "note": "its own suite, the control run" },
-            "boxen": { "status": "n/a", "source": "packages/compat-oracle/vendor/boxen/tests/main.js", "quote": "import boxen from '../shim.js';", "note": "a different API" },
+            "boxen": { "status": "n/a", "source": "packages/compat-oracle/vendor/boxen/tests/main.test.js", "quote": "import boxen from '../shim.js';", "note": "a different API" },
             "cli-table3": { "status": "n/a", "source": "packages/compat-oracle/vendor/cli-table3/test/table-test.js", "quote": "const Table = require('..');", "note": "a different API" }
           }
         },
         {
           "capability": "Passes boxen's own test suite",
-          "why": "`flagstaff/boxen` is graded by boxen 8.0.1's own tests, each a snapshot of the exact characters the box comes out as.",
+          "why": "`flagstaff/boxen` is graded by boxen 9.0.0's own tests, which assert the exact characters the box comes out as.",
           "ours": { "status": "yes", "grade": "packages/compat-oracle/baseline/boxen.json" },
           "incumbents": {
             "ora": { "status": "n/a", "source": "packages/compat-oracle/vendor/ora/test.js", "quote": "import ora, {oraPromise, spinners} from './shim.js';", "note": "a different API" },
             "log-update": { "status": "n/a", "source": "packages/compat-oracle/vendor/log-update/test.js", "quote": "import {createLogUpdate} from './shim.js';", "note": "a different API" },
-            "boxen": { "status": "yes", "source": "packages/compat-oracle/vendor/boxen/tests/main.js", "quote": "import boxen from '../shim.js';", "note": "its own suite, the control run" },
+            "boxen": { "status": "yes", "source": "packages/compat-oracle/vendor/boxen/tests/main.test.js", "quote": "import boxen from '../shim.js';", "note": "its own suite, the control run" },
             "cli-table3": { "status": "n/a", "source": "packages/compat-oracle/vendor/cli-table3/test/table-test.js", "quote": "const Table = require('..');", "note": "a different API" }
           }
         },
@@ -214,7 +214,7 @@
           "incumbents": {
             "ora": { "status": "n/a", "source": "packages/compat-oracle/vendor/ora/test.js", "quote": "import ora, {oraPromise, spinners} from './shim.js';", "note": "a different API" },
             "log-update": { "status": "n/a", "source": "packages/compat-oracle/vendor/log-update/test.js", "quote": "import {createLogUpdate} from './shim.js';", "note": "a different API" },
-            "boxen": { "status": "n/a", "source": "packages/compat-oracle/vendor/boxen/tests/main.js", "quote": "import boxen from '../shim.js';", "note": "a different API" },
+            "boxen": { "status": "n/a", "source": "packages/compat-oracle/vendor/boxen/tests/main.test.js", "quote": "import boxen from '../shim.js';", "note": "a different API" },
             "cli-table3": { "status": "yes", "source": "packages/compat-oracle/vendor/cli-table3/test/table-test.js", "quote": "const Table = require('..');", "note": "its own suite, the control run" }
           }
         }

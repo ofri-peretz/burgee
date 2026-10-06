@@ -4,7 +4,7 @@
  *
  * **Most of this repo's strongest tests are invisible to line coverage.** 2,537 upstream
  * tests run through `compat-oracle` in a *separate process* against the built `dist/`
- * (commander 1,360, yargs 804, ora 99, log-update 99, boxen 84, chalk 58, cli-table3 33);
+ * (commander 1,360, yargs 804, ora 99, log-update 99, boxen 213, chalk 58, cli-table3 33);
  * the signal tests spawn a child and kill it; the mutation batteries prove a suite bites by
  * breaking the source and watching it go red. None of that moves a v8 counter in the vitest
  * process, so every façade reads as poorly covered while being the most thoroughly graded
@@ -57,7 +57,7 @@ export const TESTED_IN_ANOTHER_PROCESS = [
   'src/yargs/utils.ts',
   'src/yargs/validation.ts',
   'src/yargs/y18n.ts',
-  // flagstaff — ora 99, log-update 99, boxen 84, cli-table3 33.
+  // flagstaff — ora 99, log-update 99, boxen 213, cli-table3 33.
   'src/ora.ts',
   'src/log-update.ts',
   'src/boxen.ts',
