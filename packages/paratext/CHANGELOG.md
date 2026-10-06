@@ -1,5 +1,15 @@
 # paratext
 
+## 1.0.0
+
+### Major Changes
+
+- [#830](https://github.com/ofri-peretz/burgee/pull/830) [`1945d65`](https://github.com/ofri-peretz/burgee/commit/1945d65f22aafabd380d67f1e40341d6ef3aa6fa) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - paratext 1.0.0. The spec is fully built, every drop-in passes its incumbent's own suite at the latest release level with the incumbent itself, and coverage is 100% on all four measures (D-20261006-foundation-1-0-evidence). 1.0 makes the published entries, the plugin `schema.json` and the `paratext` bin a semver contract. No API changed in this release.
+
+### Patch Changes
+
+- [#834](https://github.com/ofri-peretz/burgee/pull/834) [`9ebef65`](https://github.com/ofri-peretz/burgee/commit/9ebef654930ac4565f1ee04ec5f8b6f735c6a1d9) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The root default (the `ansi-escapes` drop-in object) again carries exactly the incumbent's members. 0.9.0 spread `kittyKeyboardPush`, `kittyKeyboardPop` and `kittyKeyboardQuery` into it, which `ansi-escapes` does not have and which took the entry 128 B over its weight ceiling. They are still exported from `paratext/csi`.
+
 ## 0.9.0
 
 ### Minor Changes

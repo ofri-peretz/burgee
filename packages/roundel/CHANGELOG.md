@@ -1,5 +1,11 @@
 # roundel
 
+## 1.0.0
+
+### Major Changes
+
+- [#830](https://github.com/ofri-peretz/burgee/pull/830) [`1945d65`](https://github.com/ofri-peretz/burgee/commit/1945d65f22aafabd380d67f1e40341d6ef3aa6fa) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - roundel 1.0.0. The spec is fully built, every drop-in passes its incumbent's own suite at the latest release level with the incumbent itself, and coverage is 100% on all four measures (D-20261006-foundation-1-0-evidence). 1.0 makes the published entries, the plugin `schema.json` and the `roundel` bin a semver contract. No API changed in this release.
+
 ## 0.6.3
 
 ### Patch Changes
