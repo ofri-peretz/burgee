@@ -1,5 +1,11 @@
 # burgee
 
+## 0.21.0
+
+### Minor Changes
+
+- [#839](https://github.com/ofri-peretz/burgee/pull/839) [`7694faa`](https://github.com/ofri-peretz/burgee/commit/7694faa1328fb5db10eeea8ffc7b074ca667f82e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` reads ink 8.0.0 as the graded release of `controlroom/ink` (1304 / 1304, control 1303 / 1304) and knows ink 8's export names. A project on ink 6 is now listed under `offMajor` and left alone, because ink 6 is graded (540 / 584) but not claimed.
+
 ## 0.20.0
 
 ### Minor Changes

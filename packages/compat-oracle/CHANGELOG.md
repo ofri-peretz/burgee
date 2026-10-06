@@ -1,5 +1,16 @@
 # compat-oracle
 
+## 0.3.0
+
+### Minor Changes
+
+- [#839](https://github.com/ofri-peretz/burgee/pull/839) [`7694faa`](https://github.com/ofri-peretz/burgee/commit/7694faa1328fb5db10eeea8ffc7b074ca667f82e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Grade ink 8.0.0's `node:test` suite: the `node:test` runner takes `tsLoader` and a new `testConcurrency`, a host may set `suiteTimeoutMs`, and `rewrittenDirs` vendors a directory outside the tests with its imports rewritten. ink 6.8.0 stays graded as `ink-6`, and the compatibility page publishes the previous majors' exclusions.
+
+### Patch Changes
+
+- Updated dependencies [[`7694faa`](https://github.com/ofri-peretz/burgee/commit/7694faa1328fb5db10eeea8ffc7b074ca667f82e)]:
+  - burgee@0.21.0
+
 ## 0.2.0
 
 ### Minor Changes
