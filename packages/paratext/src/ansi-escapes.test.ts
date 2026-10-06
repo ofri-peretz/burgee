@@ -125,6 +125,13 @@ describe('the CSI half, byte-exact with the incumbent (D-138)', () => {
    */
   const CSI_VALUES = ['cursorLeft', 'cursorSavePosition', 'cursorRestorePosition', 'cursorGetPosition', 'cursorNextLine', 'cursorPrevLine', 'cursorHide', 'cursorShow', 'eraseEndLine', 'eraseStartLine', 'eraseLine', 'eraseDown', 'eraseUp', 'eraseScreen', 'scrollUp', 'scrollDown', 'clearScreen', 'clearViewport', 'clearTerminal', 'enterAlternativeScreen', 'exitAlternativeScreen', 'beginSynchronizedOutput', 'endSynchronizedOutput'] as const;
 
+  it('the default carries no member the incumbent\'s default lacks', async () => {
+    // On 2026-10-05 `csi.ts` gained the kitty keyboard helpers, the default spread them in, and
+    // the drop-in's object had three members `ansi-escapes` does not, plus 128 B over its ceiling.
+    const incumbent = ((await import('ansi-escapes')) as unknown as { default: object }).default;
+    expect(Object.keys(ansiEscapes).filter((key) => !(key in incumbent))).toEqual([]);
+  });
+
   it.each(CSI_VALUES)('%s is the incumbent\'s bytes', async (name) => {
     const incumbent = (await import('ansi-escapes')) as unknown as Record<string, unknown>;
     expect((ansiEscapes as unknown as Record<string, unknown>)[name]).toBe(incumbent[name]);

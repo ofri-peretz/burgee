@@ -123,7 +123,7 @@ const JOBS: Job[] = [
  */
 const KNOWN: Record<string, string> = {
   // ── Standing: a façade reproducing its incumbent, or a job that cannot move, each with the why.
-  'paratext/src/csi.ts':
+  'paratext/src/ansi-csi.ts':
     "`cursorHide` and `cursorShow` are two members of `ansi-escapes`' public surface, which the drop-in has to export as constants (D-138). `closeout/cursor` owns *doing* it; importing closeout here would add its whole installed tree (~103 KB) to paratext's, against paratext's own weight ceiling, for two string literals.",
   'paratext/src/hyperlinks.ts':
     "a declared fork of supports-color 10.2.2 — the copy supports-hyperlinks 4.5.0 depends on — for `paratext/terminal-link`, graded case by case against the real package. paratext is a leaf and may not import roundel (no leaf-to-leaf edge); roundel follows chalk 6's newer vendored copy, which differs on purpose in a few rows, so the fork's colour and CI reads stay.",
