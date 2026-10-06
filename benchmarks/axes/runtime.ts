@@ -139,10 +139,17 @@ export interface Sample {
   n: number;
 }
 
-/** One pair, in its own process. Throws with the workload's own words when its parity check fails. */
+/**
+ * One pair, in its own process. Throws with the workload's own words when its parity check fails.
+ *
+ * No output cap. log-update hides the cursor on `process.stderr` every frame, on both sides, and
+ * at `MORE_ROUNDS` that is ~1.1 MB. Under `spawnSync`'s default 1 MiB `maxBuffer` the child was
+ * killed with `ENOBUFS`, exit 1, and a stderr of nothing but escapes. B2–B4 were red on main
+ * from 2026-10-05 with no cause named. A spawn error now names itself.
+ */
 export function sample(p: RuntimePair, rounds: number = ROUNDS): Sample {
-  const r = spawnSync(process.execPath, ['--expose-gc', HARNESS, `${FIXTURES}${p.file}`, String(rounds)], { encoding: 'utf8', env: workloadEnv(), timeout: PAIR_TIMEOUT_MS });
-  if (r.status !== 0) throw new Error(`${p.id} ÷ ${p.host}: the workload failed before or while timing (exit ${String(r.status)}): ${failureText(r.stderr)}`);
+  const r = spawnSync(process.execPath, ['--expose-gc', HARNESS, `${FIXTURES}${p.file}`, String(rounds)], { encoding: 'utf8', env: workloadEnv(), timeout: PAIR_TIMEOUT_MS, maxBuffer: Infinity });
+  if (r.status !== 0 || r.error !== undefined) throw new Error(`${p.id} ÷ ${p.host}: the workload failed before or while timing (exit ${String(r.status)}${r.error === undefined ? '' : `, ${r.error.message}`}): ${failureText(r.stderr)}`);
   return JSON.parse(r.stdout) as Sample;
 }
 

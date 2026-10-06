@@ -68,6 +68,16 @@ describe('the workloads run in front of a terminal', () => {
     expect(failureText(stderr)).toBe('AssertionError: frames differ\n    at check (workload.mjs:3:9)');
   });
 
+  it(
+    'and a pair runs its full rounds, however much it writes to stderr (log-update: ~1.1 MB at 21 rounds)',
+    () => {
+      const logUpdate = PAIRS.find((p) => p.id === 'flagstaff/log-update');
+      expect(logUpdate?.rounds).toBeGreaterThan(ROUNDS);
+      expect(sample(logUpdate!, logUpdate!.rounds).ours).toHaveLength(logUpdate!.rounds!);
+    },
+    PARITY_TIMEOUT_MS,
+  );
+
   it('and a workload whose parity check fails stops the run with its own words', () => {
     const broken = { id: 'broken', host: 'nothing', pkg: 'linegauge', hostPkg: 'string-width', file: 'does-not-exist.mjs' };
     expect(() => sample(broken, 0)).toThrow(/broken ÷ nothing: the workload failed/);
