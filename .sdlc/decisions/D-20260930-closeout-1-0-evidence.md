@@ -3,7 +3,7 @@ id: D-20260930-closeout-1-0-evidence
 subject: 'Does closeout meet the 1.0 bar D-170 set for linegauge and flagstaff, and on what evidence'
 taken: Taken
 date: '2026-09-30'
-superseded_by: —
+superseded_by: D-20261006-foundation-1-0-evidence
 ---
 
 **Yes. closeout meets every written 1.0 criterion. This records the evidence. It does not release anything**: no changeset is written. Cutting 1.0.0 is the owner's call, as it was for D-170. **Criterion 1, the spec is fully built.** `.sdlc/intents/closeout/spec.md` has no `Not built` row. R1–R12 each have a `## What shipped` entry, and `scripts/plan-progress.ts` reports `✓ 3.3 closeout at 1.0` (`designComplete('closeout')`). The spec's `## Where this document and the code disagree` section is out-of-date text, not unbuilt work: R7's file name, the file map, and R6's root default. D-133 restated R6 as three subpaths, and all three are built and graded. **Criterion 2: every drop-in passes 100% of its incumbent's own suite at the latest release, level with its control.** Latest releases on 2026-09-30 (`npm view`): `exit-hook` 5.1.0, `restore-cursor` 5.1.0, `signal-exit` 4.1.0. Each is the vendored version (`vendor/<host>/PROVENANCE`), so nothing was re-vendored. The grades are from `node packages/compat-oracle/dist/bin.js exit-hook restore-cursor signal-exit` and the same run with `--control`, on darwin, Node 24.13.0, at `1970ee50`:
