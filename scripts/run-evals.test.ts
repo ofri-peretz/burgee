@@ -107,13 +107,13 @@ describe('turn budget — D-143', () => {
   const authoring = { id: 'x', why: '', prompt: 'p', allowedTools: 'Read,Write,Edit,Bash', expect: [] };
   const cap = (env: NodeJS.ProcessEnv) => Number(claudeArgs(authoring, env)[claudeArgs(authoring, env).indexOf('--max-turns') + 1]);
 
-  it('gives the authoring prompt its four tool steps plus one repair', () => {
-    expect(DEFAULT_MAX_TURNS).toBe(8);
-    expect(cap({})).toBe(8);
+  it('gives the authoring prompt its four tool steps plus room to repair (D-20261006-eval-turn-budget)', () => {
+    expect(DEFAULT_MAX_TURNS).toBe(12);
+    expect(cap({})).toBe(12);
   });
 
   it('still lets EVAL_MAX_TURNS override it', () => {
-    expect(cap({ EVAL_MAX_TURNS: '12' })).toBe(12);
+    expect(cap({ EVAL_MAX_TURNS: '20' })).toBe(20);
   });
 });
 

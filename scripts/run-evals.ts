@@ -303,9 +303,11 @@ const NO_USAGE: CaseUsage = { turns: null, tokens: null, model: null };
  * D-143: "one turn" is one user prompt, not one model step. The authoring prompt asks for four
  * tool steps (read the schema, read the README, write, run `check`) plus a fix-and-rerun, so a
  * cap of 3 failed 8 of 9 on `error_max_turns` before a plugin was written. 8 fits the prompt
- * with one repair; `EVAL_MAX_TURNS` still overrides it.
+ * with one repair; `EVAL_MAX_TURNS` still overrides it. D-20261006-eval-turn-budget raised it to
+ * 12: on 2026-10-06 every one of four failures stopped at 8 with `error_max_turns`, one of them
+ * mid-repair with the file already written — the cap was being measured again, not the schema.
  */
-export const DEFAULT_MAX_TURNS = 8;
+export const DEFAULT_MAX_TURNS = 12;
 
 export function claudeArgs(c: EvalCase, env: NodeJS.ProcessEnv = process.env): string[] {
   const args = ['-p', c.prompt, '--allowedTools', c.allowedTools ?? 'Read,Grep,Glob', '--max-turns', env.EVAL_MAX_TURNS ?? String(DEFAULT_MAX_TURNS), '--output-format', 'json', ...ISOLATION];
@@ -347,7 +349,7 @@ function runTaskLayer(cases: EvalCase[], credential: ReturnType<typeof billingFo
   if (bothSet) console.warn('  ⚠️ Both credentials are set; ANTHROPIC_API_KEY wins and bills per token. Unset one.\n');
   const results = cases.map(runCase);
   for (const r of results) {
-    console.warn(`  ${r.status === 'pass' ? '✓' : '✗'} ${r.id}`);
+    console.warn(`  ${r.status === 'pass' ? '✓' : '✗'} ${r.id}${r.turns === null ? '' : ` — ${r.turns} turn(s)`}`);
     for (const f of r.failed) console.warn(`      ${f}`);
   }
   const passed = results.filter((r) => r.status === 'pass').length;
