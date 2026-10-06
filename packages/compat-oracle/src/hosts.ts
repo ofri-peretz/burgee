@@ -497,6 +497,12 @@ export interface Host {
    * Keys are specifiers, values the drop-in, and each pair must be a row of `burgee`'s
    * `DROP_INS` — a lock holds that, so this can only name a rewrite `migrate` really makes. The
    * control loads nothing: there the suite's chalk is boxen's, installed beside it.
+   *
+   * ink 8 is the second row: `helpers/force-colors.ts` sets `chalk.level = 3` on the suite's
+   * chalk 6, which ink colours through, and seven background cases assert truecolor and
+   * 256-colour output. At 6.8 those seven were excluded as runner-dependent colour; with the
+   * suite's chalk moved to `roundel/chalk`, the level is written to the instance
+   * `controlroom/ink` colours through, and they are graded (D-20261006-controlroom-ink-8).
    */
   migrated?: Record<string, string>;
   /**
@@ -1640,11 +1646,22 @@ export const HOSTS: Host[] = [
       count: 1,
       why: "`measure-element.tsx` › `calculate layout while rendering is throttled` fails against ink 8.0.0 itself on darwin, three runs in three (2026-10-06): it renders, re-renders, waits 50 ms and asserts the last write is `Width: 100`, and ink's throttled trailing frame lands after that on this machine — the same program with a 300 ms wait writes `Width: 100`. A timing the case leaves to the machine, not a property of ink. `controlroom/ink` passes it.",
     },
+    migrated: { chalk: 'roundel/chalk' },
     target: 'controlroom/ink',
     peers: ['react', 'react-reconciler'],
+    // Every module of ink's own that a gated file imports beside the public entry, served by the
+    // drop-in's module of the same job. The type-only ones (`styles.js`, `dom.js`,
+    // `components/AppContext.js`) need no names: the loader erases their imports.
     targetInternals: {
       'src/write-synchronized.js': { file: 'dist/ink/terminal.js', names: { bsu: 'bsu', esu: 'esu' } },
       'src/parse-keypress.js': { file: 'dist/ink/keypress.js', names: { default: 'parseKeypress' } },
+      'src/ink.js': { file: 'dist/ink/terminal.js', names: { homeAndEraseDown: 'homeAndEraseDown' } },
+      'src/log-update.js': { file: 'dist/ink/terminal.js', names: { default: 'logUpdate' } },
+      'src/components/ErrorOverview.js': { file: 'dist/ink/components.js', names: { default: 'ErrorOverview' } },
+      'src/kitty-keyboard.js': { file: 'dist/ink/keypress.js', names: { resolveFlags: 'resolveFlags' } },
+      'src/instances.js': { file: 'dist/ink/instance.js', names: { default: 'instances' } },
+      'src/sanitize-ansi.js': { file: 'dist/ink/ansi.js', names: { default: 'sanitizeAnsi' } },
+      'src/wrap-text.js': { file: 'dist/ink/dom.js', names: { default: 'wrapText', wrapTextCache: 'wrapTextCache' } },
     },
     status: 'active',
     note: "MEASURE_INK8",
@@ -1680,6 +1697,13 @@ export const HOSTS: Host[] = [
     ],
     surfaceFiles: ['source/index.ts'],
     runner: 'ava',
+    excludes: [
+      {
+        match: 'spinner › spinner',
+        exact: true,
+        why: "The case collects every write `ink-testing-library` sees across a spinner's life and expects ink 5's: on unmount ink 5 wrote nothing more in debug mode. ink 8 — the incumbent `controlroom/ink` follows since D-20261006-controlroom-ink-8 — ends a non-interactive debug run with a final `\\n` (its own suite pins it: `components.tsx` › `debug mode in CI keeps final newline separation after waitUntilExit`) and then an empty write that resolves the exit only once every queued write has flushed. Measured 2026-10-06: `@inkjs/ui` 2.0.0's suite against real **ink 8.0.0** on React 19.3.0 fails this case with the same diff (`'\\n'` and `''` after the last frame) and passes the other 102. The case grades which ink major `@inkjs/ui` is installed over, not the drop-in, so it is excluded on both runs rather than read as 102 here and 103 under ink 5.",
+      },
+    ],
     // Reached through `alias`: every `'ink'` resolves to the drop-in, as a user's alias does.
     target: 'controlroom/ink',
     peers: ['react', 'react-reconciler'],
