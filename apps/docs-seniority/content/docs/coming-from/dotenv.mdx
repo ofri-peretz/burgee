@@ -1,6 +1,6 @@
 ---
 title: Coming from dotenv
-description: "A dotenv alternative with a drop-in path: import dotenv from seniority/dotenv, graded 106 / 141 by dotenv's own test suite (the declined .env.vault is most of the gap) — then the same package resolves every value across flags, env, config files and defaults, with provenance as text, --json data or an agent event."
+description: "A dotenv alternative with a drop-in path: import dotenv from seniority/dotenv, graded 179 / 179 by dotenv 18's own test suite, level with dotenv itself — then the same package resolves every value across flags, env, config files and defaults, with provenance as text, --json data or an agent event."
 ---
 
 **seniority** is a **dotenv alternative** that also covers what `cosmiconfig`, `rc` and
@@ -12,46 +12,51 @@ description: "A dotenv alternative with a drop-in path: import dotenv from senio
 ```diff
 - import dotenv from 'dotenv';
 + import dotenv from 'seniority/dotenv';
+- import 'dotenv/config';
++ import 'seniority/dotenv/config';
 ```
 
-`seniority/dotenv` carries dotenv 17's `config`, `parse` and `populate`, as named exports and
-on a default export shaped like dotenv's `module.exports`. `parse` is dotenv's line grammar,
-character for character. `config()` behaves as dotenv's does when told nothing: it reads
-`./.env` from the working directory into `process.env`, and it takes dotenv's options —
-`path` (one file or several, a `URL`, a leading `~`), `processEnv`, `encoding`, `override`
-and `debug` — returning `{ parsed }` or `{ parsed, error }` rather than throwing for a missing
-file.
+`npx burgee migrate` makes both edits for you.
 
-**There is no `dotenv/config` preload entry.** Where you had `import 'dotenv/config'` or
-`node -r dotenv/config`, call it once at your entry point:
+`seniority/dotenv` carries dotenv 18's `config`, `configDotenv`, `parse` and `populate`, as
+named exports and on a default export shaped like dotenv's `module.exports`. `parse` is
+dotenv's line grammar, character for character, and `parse(src, { fast: true })` is its
+character scanner. `config()` behaves as dotenv's does when told nothing: it reads `./.env`
+from the working directory into `process.env`. It takes dotenv's options — `path` (one file or
+several, a `URL`, a leading `~`), `processEnv`, `encoding`, `override`, `debug`, `quiet` and
+`fast` — and their defaults from `DOTENV_PATH`, `DOTENV_QUIET` and the rest, or the older
+`DOTENV_CONFIG_*` names. It prints `◇ injected env (n) from .env` on stderr unless quiet, and
+returns `{ parsed }` or `{ parsed, error }` rather than throwing for a missing file.
 
-```js
-import { config } from 'seniority/dotenv';
+- **`seniority/dotenv/config`** is `import 'dotenv/config'` and `node -r dotenv/config`:
+  importing it loads the file, quietly unless `DOTENV_QUIET=false`.
+- **`seniority/dotenv/cli`** is `dotenv run`. Its `run(argv)` takes what follows the program
+  name — `run(['run', '-f', '.env.local', '--', 'node', 'app.js'])` — loads the files, starts
+  the command, forwards SIGINT, SIGTERM, SIGHUP and SIGQUIT to it, and exits with its code.
 
-config();
-```
-
-**Not built, on purpose:** `decrypt`, `DOTENV_KEY` and the `.env.vault` format, which dotenv
-deprecated in favour of dotenvx, and `config`'s `quiet` banner and tips.
+**Not built, because dotenv 18 removed them:** `decrypt`, `DOTENV_KEY`, the `.env.vault`
+format and the log-line tips.
 
 ## Is seniority compatible with dotenv?
 
-Not fully, and the number says so. dotenv's own suite, vendored at 17.4.2 and unmodified
-apart from the import specifier, runs against `seniority/dotenv` beside a control that runs
-it against real dotenv:
+At dotenv 18, yes, by the measure this page uses. dotenv's own suite, vendored at 18.0.5 and
+unmodified apart from the import specifier, runs against `seniority/dotenv` beside a control
+that runs it against real dotenv:
 
 | | passing | rate |
 | :-- | --: | --: |
-| `seniority/dotenv` | 106 / 141 | 75.2% |
-| dotenv itself (control) | 141 / 141 | 100.0% |
+| `seniority/dotenv` | 179 / 179 | 100.0% |
+| dotenv itself (control) | 179 / 179 | 100.0% |
 
 From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `npm run compat:page` generates from the
 oracle's last run; that page is the authority. The suite runs under node-tap, whose plan
-counts assertions rather than test cases, so 141 is assertions. Of the 35 not passing, the
-oracle's row accounts for each: 27 are the vault and `decrypt` path and 2 are dotenvx tips,
-both declined above, and 6 load dotenv's private `lib/*` modules by path, which the harness
-maps to the package root. Below 100%, seniority is never described as dotenv-*compatible*;
-this is a grade.
+counts assertions rather than test cases, so 179 is assertions. They include `dotenv run`
+spawned for real, its signal forwarding, and programs that `import 'dotenv/config'`.
+
+dotenv 17.4.2's suite is graded too, and **not claimed**: 107 / 141 against a control of
+141 / 141. The 34 are what dotenv 18 changed — the vault and `decrypt`, the tips, and the log
+line moving from `console.log` to `console.error` — so `burgee migrate` leaves a project on
+dotenv 17 alone and says so.
 
 The same page grades `seniority` (cosmiconfig's own suite), `seniority/lilconfig` and
 `seniority/rc`.
@@ -82,7 +87,7 @@ receipt:
   on whether a flag, the environment or a config file won.
 - You load `.env` and then hand-write the order in which a flag, an env var and a config file
   override each other.
-- You do not use `.env.vault` or `DOTENV_KEY`.
+- You are on dotenv 18, or can move to it: 18 already removed `.env.vault` and `DOTENV_KEY`.
 
 The API, the discovery rules and the other drop-in paths are on
 [seniority](/docs).

@@ -163,8 +163,15 @@ function measure(): Row[] {
     for (const subpath of subpaths) {
       const specifier = subpath === '.' ? pkg : `${pkg}/${subpath.slice(2)}`;
       const names = exportsOf(specifier);
-      if (names.length === 0) continue;
       const stem = specifier.replaceAll('/', '__').replaceAll('@', '');
+      if (names.length === 0) {
+        // A side-effect entry — `seniority/dotenv/config`, as `dotenv/config` is — exports
+        // nothing, and importing it is the whole of using it. Its one row is that import, so it
+        // is priced rather than skipped: skipping is how it would have had no row at all.
+        const bytes = bundled(`${stem}--import`, `import ${JSON.stringify(specifier)};\n`);
+        rows.push({ pkg, specifier, names: 0, cheapest: { name: 'import', bytes }, dearest: { name: 'import', bytes }, all: bytes });
+        continue;
+      }
       const each = names.toSorted().map((name, i) => ({
         name,
         bytes: bundled(

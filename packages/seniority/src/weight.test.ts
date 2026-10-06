@@ -53,7 +53,14 @@ const RULES: Record<string, EntryRule> = {
   './plugin': { budget: 8_200, denied: [...NEVER, ...FACADES, ...DISK] },
   './config': { budget: 13_000, denied: [...NEVER, ...FACADES] },
   './cosmiconfig': { budget: 26_000, denied: [...NEVER, ...others('cosmiconfig.js')] },
-  './dotenv': { budget: 10_700, denied: [...NEVER, ...others('dotenv.js')] },
+  // Raised 10,700 → 18,200 on 2026-10-06 for dotenv 18: its `{ fast: true }` character scanner
+  // (`dotenv-scan.js`) and the `DOTENV_*` defaults (`dotenv-options.js`), both on `config()`'s
+  // path as upstream has them. 17,479.
+  './dotenv': { budget: 18_200, denied: [...NEVER, ...others('dotenv.js')] },
+  // `import 'dotenv/config'`: the façade and one call. 17,713.
+  './dotenv/config': { budget: 18_500, denied: [...NEVER, ...others('dotenv.js')] },
+  // `dotenv run`: the façade, argv and the spawn that forwards signals. 28,682.
+  './dotenv/cli': { budget: 29_800, denied: [...NEVER, ...others('dotenv.js')] },
   './lilconfig': { budget: 13_500, denied: [...NEVER, ...others('lilconfig.js')] },
   './rc': { budget: 12_000, denied: [...NEVER, ...others('rc.js')] },
   './find-up': { budget: 2_800, denied: [...NEVER, ...others('find-up.js')] },

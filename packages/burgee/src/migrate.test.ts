@@ -27,7 +27,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { ExitCode } from './exit-code.js';
 import { bindingsOf, DirtyTreeError, FACADE_EXPORTS, MAPPING, migrate, packageOf, rewriteSource, scan, sourceFiles, workingTree } from './migrate.js';
@@ -86,6 +86,9 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
       'term-img': 'paratext/term-img',
       lilconfig: 'seniority/lilconfig',
       cosmiconfig: 'seniority',
+      dotenv: 'seniority/dotenv',
+      'dotenv/config': 'seniority/dotenv/config',
+      'dotenv/config.js': 'seniority/dotenv/config',
       '@clack/prompts': 'caique/clack',
       '@inquirer/core': 'caique/inquirer',
       meow: 'burgee/meow',
@@ -357,18 +360,58 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     expect(packageOf('@inquirer/core/dist/x.js')).toBe('@inquirer/core');
   });
 
-  it('leaves a drop-in that is not level yet alone, and says so with its grade', async () => {
-    // dotenv's drop-in passes 128 of the 179 cases dotenv itself passes: rewriting it would
-    // be a migration that breaks someone. It is reported, not refused — `dotenv/config` is
-    // not a deep import into anything this command rewrites.
+  it('rewrites dotenv and its side-effect entry now that the drop-in is level at 18', async () => {
+    // dotenv 18.0.5's own suite passes 179 / 179 against seniority/dotenv, as it does against
+    // dotenv. `dotenv/config` is graded too — the suite spawns `import 'dotenv/config'` — so it
+    // moves rather than being reported as a deep import.
     const dir = project({
-      'package.json': JSON.stringify({ name: 'x', dependencies: { dotenv: '^18.0.0', chalk: '^6.0.0' } }),
-      'src/a.ts': "import 'dotenv/config';\nimport chalk from 'chalk';\n",
+      'package.json': JSON.stringify({ name: 'x', dependencies: { dotenv: '^18.0.0' } }),
+      'src/a.ts': "import 'dotenv/config';\nimport dotenv, { config } from 'dotenv';\n",
+      'src/b.cjs': "require('dotenv/config.js');\n",
     });
     const report = await migrate({ dir, status: clean });
-    expect(read(dir, 'src/a.ts')).toBe("import 'dotenv/config';\nimport chalk from 'roundel/chalk';\n");
+    expect(read(dir, 'src/a.ts')).toBe("import 'seniority/dotenv/config';\nimport dotenv, { config } from 'seniority/dotenv';\n");
+    expect(read(dir, 'src/b.cjs')).toBe("require('seniority/dotenv/config');\n");
     expect(report.refused).toEqual([]);
-    expect(report.partial).toEqual([{ from: 'dotenv', to: 'seniority/dotenv', reference: 179, passed: 128, rate: 0.7111111111111111, control: 179 }]);
+    expect(report.partial).toEqual([]);
+  });
+
+  it('leaves dotenv 17 alone: its own suite does not grade the drop-in level', async () => {
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { dotenv: '^17.0.0' } }),
+      'src/a.ts': "import 'dotenv/config';\n",
+    });
+    const report = await migrate({ dir, status: clean });
+    expect(read(dir, 'src/a.ts')).toBe("import 'dotenv/config';\n");
+    expect(report.offMajor).toEqual([{ from: 'dotenv', found: '^17.0.0', graded: '18.0.5' }]);
+  });
+
+  it('leaves a drop-in that is not level yet alone, and says so with its grade', async () => {
+    // No graded drop-in is short of its control today, so the case is built: dotenv's row read
+    // as it stood at 17.4.2, 106 of the 141 cases dotenv itself passed. Rewriting it would be a
+    // migration that breaks someone, so it is reported — never refused, and never rewritten.
+    vi.resetModules();
+    vi.doMock('./compat.js', async (original) => {
+      const real = await original<typeof import('./compat.js')>();
+      const GRADED = { ...real.GRADED, dotenv: { reference: 141, passed: 106, rate: 0.75177304964539, control: 141 } };
+      // `isLevel` reads the module's own table, so it is restated over this one.
+      return { ...real, GRADED, isLevel: (host: string) => host !== 'dotenv' && real.isLevel(host) };
+    });
+    try {
+      const { migrate: partialMigrate } = await import('./migrate.js');
+      const dir = project({
+        'package.json': JSON.stringify({ name: 'x', dependencies: { dotenv: '^18.0.0', chalk: '^6.0.0' } }),
+        'src/a.ts': "import 'dotenv/config';\nimport chalk from 'chalk';\n",
+      });
+      const report = await partialMigrate({ dir, status: clean });
+      expect(read(dir, 'src/a.ts')).toBe("import 'dotenv/config';\nimport chalk from 'roundel/chalk';\n");
+      expect(report.refused).toEqual([]);
+      // One row per dependency, not per specifier: `dotenv/config` is the same package.
+      expect(report.partial).toEqual([{ from: 'dotenv', to: 'seniority/dotenv', reference: 141, passed: 106, rate: 0.75177304964539, control: 141 }]);
+    } finally {
+      vi.doUnmock('./compat.js');
+      vi.resetModules();
+    }
   });
 
   it('an ink program moves to controlroom/ink, and is told to install the reconciler ink used to bring', async () => {

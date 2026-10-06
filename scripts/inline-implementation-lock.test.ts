@@ -162,6 +162,8 @@ const KNOWN: Record<string, string> = {
     "`execFileSync('npm', …)` with no Windows guard — the exact bug bellpull exists to prevent, and the one `burgee/src/shape.test.ts` already works around with `shell: true`, which is the spelling cross-spawn refuses because it reopens command injection.",
   'controlroom/src/ink/process.ts':
     "is-in-ci as ink 6.8 reads it — `CI` or `CONTINUOUS_INTEGRATION` or any `CI_*` present, and `CI=0` or `CI=false` not CI, whether or not stdout is a terminal — which decides ink's CI path (Static as it arrives, the last frame once) and is graded by ink's suite, run under `CI=false` on a pipe. roundel's `outputMode` answers a different question (a pipe whose `CI` is set, `false` included, is `ci`), and routing the drop-in through it sent every case of ink's suite down the CI path. The suite decides where the two differ (controlroom constraint 1, D-20261005-controlroom-ink-drop-in).",
+  'seniority/src/dotenv-spawn.ts':
+    "`seniority/dotenv/cli` is dotenv 18's `dotenv run`, and this file is its `lib/spawn-command.js` ported line for line: `child_process.spawn` on POSIX, and on Windows a `PATHEXT` lookup and cmd/C-runtime escaping that dotenv's `test-cli.js` pins with arguments built to break each layer — graded 179 / 179 at 18.0.5 (D-20261001-seniority-dotenv-vault). The child's `error` and `exit` listeners and the `taskkill` `spawnSync` live here too, so this one file holds every child-process mechanism the drop-in has; the CLI imports none. bellpull owns spawning, but seniority is a foundation layer with zero dependencies and may not take a leaf-to-leaf edge to it.",
   // ── Moving: an open PR takes each of these onto its owner.
 };
 
@@ -179,8 +181,14 @@ const KNOWN: Record<string, string> = {
  * has to reproduce which escapes a box keeps; linegauge exports no tokenizer that splits the way
  * boxen splits, so the alternatives were a new linegauge export in a package at 1.0, or this
  * entry. The way back down is that export, and then `flagstaff/src/boxen.ts` leaves KNOWN.
+ *
+ * **Raised again, 17 → 18, the same day, and also the owner's to accept or reverse.**
+ * dotenv 18 added `dotenv run` to the incumbent, and D-170 makes a drop-in level with the
+ * incumbent's suite at its latest release the bar for 1.0; `seniority/src/dotenv-spawn.ts` is
+ * the one file that carries it. It is a façade reproducing its incumbent's own spawn, graded
+ * case for case, in a zero-dependency foundation layer that cannot import bellpull.
  */
-const CEILING = 17;
+const CEILING = 18;
 
 const sources = (dir: string, out: string[] = []): string[] => {
   for (const e of readdirSync(dir, { withFileTypes: true })) {

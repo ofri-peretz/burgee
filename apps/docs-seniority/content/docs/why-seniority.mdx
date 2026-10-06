@@ -32,8 +32,9 @@ a cited test no longer contains the title it is cited for, or a link is not pinn
 - **TOML, INI and JSON5.** seniority bundles no parser for them; pass one as a loader. YAML is
   the exception since 2026-09-30: `seniority/yaml` is the package's own parser, no dependency,
   and it is why cosmiconfig's suite grades `seniority` 242 of 243, level with cosmiconfig.
-- **dotenv's vault and dotenvx.** The encrypted `.env.vault`, `decrypt`, and the dotenvx tips
-  are declined. They account for 29 of the 35 assertions `seniority/dotenv` does not pass.
+- **dotenv's vault.** The encrypted `.env.vault`, `DOTENV_KEY` and `decrypt` are not built,
+  because dotenv 18 removed them; `seniority/dotenv` passes all 179 assertions of dotenv 18's
+  suite without them.
 - **Rearranging the order.** A precedence a program can reorder is one nobody can reason about
   from outside. A plugin can add a source between two built-ins, never reorder them.
 

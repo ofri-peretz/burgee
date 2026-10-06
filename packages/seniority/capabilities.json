@@ -13,7 +13,7 @@
           "incumbents": {
             "cosmiconfig": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/dist/Explorer.js", "note": "finds and loads one config file or package.json field; merging it with flags and the environment is the caller's"},
             "lilconfig": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "note": "finds and loads one config file or package.json field; merging it with flags and the environment is the caller's"},
-            "dotenv": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/dotenv@17.4.2/lib/main.js", "note": "one layer: a `.env` file under the variables already set, or over them with `override`"},
+            "dotenv": {"status": "no", "source": "https://github.com/motdotla/dotenv/blob/v18.0.5/lib/main.js", "note": "one layer: a `.env` file under the variables already set, or over them with `override`"},
             "rc": {"status": "yes", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/index.js", "note": "defaults, then rc files, then `<name>_` variables, then argv"}
           }
         },
@@ -24,7 +24,7 @@
           "incumbents": {
             "cosmiconfig": {"status": "partial", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/dist/Explorer.js", "missing": "the result names the file (`filepath`); not which key came from where, or what it overrode"},
             "lilconfig": {"status": "partial", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "missing": "the result names the file (`filepath`); not which key came from where, or what it overrode"},
-            "dotenv": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/dotenv@17.4.2/lib/main.js", "note": "records nothing about which of `.env` and the environment set a variable"},
+            "dotenv": {"status": "no", "source": "https://github.com/motdotla/dotenv/blob/v18.0.5/lib/main.js", "note": "records nothing about which of `.env` and the environment set a variable"},
             "rc": {"status": "partial", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/index.js", "missing": "`configs` lists the files read; not which source set each value"}
           }
         },
@@ -35,7 +35,7 @@
           "incumbents": {
             "cosmiconfig": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/dist/Explorer.js", "note": "has no precedence step; it loads files, which is `discover`'s job here too"},
             "lilconfig": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "note": "has no precedence step; it loads files, which is `discover`'s job here too"},
-            "dotenv": {"status": "partial", "source": "https://cdn.jsdelivr.net/npm/dotenv@17.4.2/lib/main.js", "missing": "`parse` and `populate` take their input and target as arguments, and `config()` takes `processEnv`; by default it writes `process.env` and resolves paths against `process.cwd()`"},
+            "dotenv": {"status": "partial", "source": "https://github.com/motdotla/dotenv/blob/v18.0.5/lib/main.js", "missing": "`parse` and `populate` take their input and target as arguments, and `config()` takes `processEnv`; by default it writes `process.env` and resolves paths against `process.cwd()`"},
             "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/lib/utils.js", "note": "reads `process.env` itself, and `process.argv` when no argv is passed"}
           }
         }
@@ -51,7 +51,7 @@
           "incumbents": {
             "cosmiconfig": {"status": "partial", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/dist/ExplorerBase.js", "missing": "stops at `stopDir` (the home directory by default) and does not walk at all unless asked; no depth limit"},
             "lilconfig": {"status": "partial", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "missing": "stops at `stopDir` (the home directory by default) or the root; no depth limit"},
-            "dotenv": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/dotenv@17.4.2/lib/main.js", "note": "reads `.env` in the working directory, or the paths it is given; it does not search"},
+            "dotenv": {"status": "n/a", "source": "https://github.com/motdotla/dotenv/blob/v18.0.5/lib/main.js", "note": "reads `.env` in the working directory, or the paths it is given; it does not search"},
             "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/lib/utils.js", "note": "walks from the working directory to the root; nothing stops it sooner"}
           }
         },
@@ -62,7 +62,7 @@
           "incumbents": {
             "cosmiconfig": {"status": "yes", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/dist/defaults.js", "note": "`loaders`, over its defaults"},
             "lilconfig": {"status": "yes", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "note": "`loaders`, over its defaults"},
-            "dotenv": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/dotenv@17.4.2/lib/main.js", "note": "reads the `.env` format only"},
+            "dotenv": {"status": "n/a", "source": "https://github.com/motdotla/dotenv/blob/v18.0.5/lib/main.js", "note": "reads the `.env` format only"},
             "rc": {"status": "yes", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/index.js", "note": "a parser in its fourth argument"}
           }
         },
@@ -73,7 +73,7 @@
           "incumbents": {
             "cosmiconfig": {"status": "yes", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/package.json", "note": "through its js-yaml dependency"},
             "lilconfig": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "note": "JavaScript and JSON only, unless a loader is given"},
-            "dotenv": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/dotenv@17.4.2/lib/main.js", "note": "reads the `.env` format only"},
+            "dotenv": {"status": "n/a", "source": "https://github.com/motdotla/dotenv/blob/v18.0.5/lib/main.js", "note": "reads the `.env` format only"},
             "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/lib/utils.js", "note": "JSON with comments, or INI"}
           }
         }
@@ -89,7 +89,7 @@
           "incumbents": {
             "cosmiconfig": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/dist/Explorer.js", "note": "reads no configuration from the environment"},
             "lilconfig": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "note": "reads no configuration from the environment"},
-            "dotenv": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/dotenv@17.4.2/lib/main.js", "note": "loads variables; it maps none of them to options"},
+            "dotenv": {"status": "n/a", "source": "https://github.com/motdotla/dotenv/blob/v18.0.5/lib/main.js", "note": "loads variables; it maps none of them to options"},
             "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/lib/utils.js", "note": "every `<name>_` variable becomes a key, nested on `__`, declared or not"}
           }
         },
@@ -100,7 +100,7 @@
           "incumbents": {
             "cosmiconfig": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/dist/Explorer.js", "note": "reads no configuration from the environment"},
             "lilconfig": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "note": "reads no configuration from the environment"},
-            "dotenv": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/dotenv@17.4.2/lib/main.js", "note": "every value is a string; `FLAG=false` is the truthy string `\"false\"`"},
+            "dotenv": {"status": "no", "source": "https://github.com/motdotla/dotenv/blob/v18.0.5/lib/main.js", "note": "every value is a string; `FLAG=false` is the truthy string `\"false\"`"},
             "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/lib/utils.js", "note": "every value is a string; `FLAG=false` is the truthy string `\"false\"`"}
           }
         }
@@ -116,7 +116,7 @@
           "incumbents": {
             "cosmiconfig": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/dist/Explorer.js", "note": "returns the config as loaded; checking it is the caller's"},
             "lilconfig": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "note": "returns the config as loaded; checking it is the caller's"},
-            "dotenv": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/dotenv@17.4.2/lib/main.js", "note": "returns the variables as parsed"},
+            "dotenv": {"status": "no", "source": "https://github.com/motdotla/dotenv/blob/v18.0.5/lib/main.js", "note": "returns the variables as parsed"},
             "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/index.js", "note": "returns the merged object"}
           }
         },
@@ -127,7 +127,7 @@
           "incumbents": {
             "cosmiconfig": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/dist/index.js", "note": "loaders parse files; there is no source to add"},
             "lilconfig": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "note": "loaders parse files; there is no source to add"},
-            "dotenv": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/dotenv@17.4.2/lib/main.js", "note": "reads `.env` files and its encrypted `.env.vault`"},
+            "dotenv": {"status": "no", "source": "https://github.com/motdotla/dotenv/blob/v18.0.5/lib/main.js", "note": "reads `.env` files only"},
             "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/index.js", "note": "a fixed list of files"}
           }
         },
@@ -138,7 +138,7 @@
           "incumbents": {
             "cosmiconfig": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/package.json", "note": "env-paths and js-yaml"},
             "lilconfig": {"status": "yes", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/package.json"},
-            "dotenv": {"status": "yes", "source": "https://cdn.jsdelivr.net/npm/dotenv@17.4.2/package.json"},
+            "dotenv": {"status": "yes", "source": "https://cdn.jsdelivr.net/npm/dotenv@18.0.5/package.json"},
             "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/package.json", "note": "deep-extend, ini, minimist and strip-json-comments"}
           }
         }
@@ -181,9 +181,9 @@
           }
         },
         {
-          "capability": "Passes dotenv's own test suite, bar the vault",
-          "why": "`seniority/dotenv` passes 106 of the 141 assertions of dotenv 17.4.2's own suite (node-tap counts assertions); the encrypted `.env.vault` and the dotenvx tips are declined, not missing.",
-          "ours": {"status": "partial", "grade": "packages/compat-oracle/baseline/dotenv.json", "missing": "35 assertions: 27 in the `.env.vault` and `decrypt` path and 2 dotenvx tips, both declined, and 6 that load dotenv's private `lib/*` modules by path"},
+          "capability": "Passes dotenv's own test suite",
+          "why": "`seniority/dotenv` passes all 179 assertions of dotenv 18.0.5's own suite (node-tap counts assertions), as dotenv itself does here — its `dotenv run` command line and `import 'dotenv/config'` included.",
+          "ours": {"status": "yes", "grade": "packages/compat-oracle/baseline/dotenv.json"},
           "incumbents": {
             "cosmiconfig": {"status": "n/a", "source": "packages/compat-oracle/vendor/cosmiconfig/test/successful-files.test.ts", "quote": "import { cosmiconfig, cosmiconfigSync } from '../shim.mjs';", "note": "a different API"},
             "lilconfig": {"status": "n/a", "source": "packages/compat-oracle/vendor/lilconfig/src/spec/index.spec.js", "quote": "const {lilconfig, lilconfigSync} = require('../../shim.mjs');", "note": "a different API"},

@@ -60,7 +60,7 @@ export const GRADED: Readonly<Record<string, Row>> = {
   'slice-ansi': { reference: 104, passed: 104, rate: 1, control: 104 },
   cosmiconfig: { reference: 243, passed: 242, rate: 0.9958847736625515, control: 242 },
   lilconfig: { reference: 77, passed: 77, rate: 1, control: 77 },
-  dotenv: { reference: 179, passed: 128, rate: 0.7111111111111111, control: 179 },
+  dotenv: { reference: 179, passed: 179, rate: 1, control: 179 },
   clack: { reference: 16, passed: 16, rate: 1, control: 16 },
   'inquirer-core': { reference: 41, passed: 41, rate: 1, control: 41 },
   meow: { reference: 148, passed: 146, rate: 0.9864864864864865, control: 146 },
@@ -85,8 +85,11 @@ export interface DropIn {
 /**
  * Every drop-in pair the oracle grades, derived from `hosts.ts`: `from` is what the
  * incumbent's own tests import (`<host><subpath>`, or the import's `control` where the
- * incumbent is a separate package, as `yargs-parser` is), `to` is `<target><subpath>`.
- * `scripts/migrate-drop-ins-lock.test.ts` re-derives this list and fails on any difference.
+ * incumbent is a separate package, as `yargs-parser` is), `to` is `<target><subpath>`. A
+ * host's suite can also reach the incumbent by name from a spawned program — dotenv 18's
+ * `import 'dotenv/config'` — and each name in its `selfExports` is graded the same way, so
+ * `dotenv/config` and `dotenv/config.js` are pairs too. `scripts/migrate-drop-ins-lock.test.ts`
+ * re-derives this list and fails on any difference.
  */
 export const DROP_INS: readonly DropIn[] = [
   { host: 'commander', from: 'commander', to: 'burgee/commander' },
@@ -108,6 +111,8 @@ export const DROP_INS: readonly DropIn[] = [
   { host: 'cosmiconfig', from: 'cosmiconfig', to: 'seniority' },
   { host: 'lilconfig', from: 'lilconfig', to: 'seniority/lilconfig' },
   { host: 'dotenv', from: 'dotenv', to: 'seniority/dotenv' },
+  { host: 'dotenv', from: 'dotenv/config', to: 'seniority/dotenv/config' },
+  { host: 'dotenv', from: 'dotenv/config.js', to: 'seniority/dotenv/config' },
   { host: 'clack', from: '@clack/prompts', to: 'caique/clack' },
   { host: 'inquirer-core', from: '@inquirer/core', to: 'caique/inquirer' },
   { host: 'meow', from: 'meow', to: 'burgee/meow' },
@@ -172,8 +177,9 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
  * The older majors graded today are **not claimed**, because none is level: commander 14
  * grades 1329 / 1331 (15 names the surplus argument in the excess-arguments message, 14 does
  * not), yargs 17 grades 191 / 794 (17's `require('yargs')` is a singleton, which 18 removed),
- * and dotenv 17 grades 106 / 141 (vault and `DOTENV_KEY`, which seniority declines). The
- * measurements are on the compatibility page; the claim waits for the number.
+ * and dotenv 17 grades 107 / 141 (18 moved `config()`'s log line to `console.error` and
+ * deleted `.env.vault`, `DOTENV_KEY` and the tips, and the façade speaks 18). The measurements
+ * are on the compatibility page; the claim waits for the number.
  *
  * boxen 8 is neither graded nor claimed since boxen 9.0.0: `flagstaff/boxen` follows 9 where
  * the two disagree (a hex colour is real hex, `vertical` is a fallback for `left` rather than

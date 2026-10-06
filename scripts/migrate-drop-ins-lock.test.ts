@@ -39,9 +39,15 @@ const BASELINE = join(ROOT, 'packages/compat-oracle/baseline');
  * and is not replaced, so its own import is no pair at all, and the pair it exercises (`ink`) is
  * the alias's own row (D-20261005-controlroom-ink-suite).
  */
-const derived = HOSTS.filter((h) => existsSync(join(BASELINE, `${h.name}.json`)) && h.target !== '—' && h.ceiling === undefined && h.alias === undefined).flatMap((h) =>
-  h.imports.map((i) => ({ host: h.name, from: i.control ?? `${h.npmName ?? h.name}${i.subpath}`, to: `${h.target}${i.subpath}` })),
-);
+const derived = HOSTS.filter((h) => existsSync(join(BASELINE, `${h.name}.json`)) && h.target !== '—' && h.ceiling === undefined && h.alias === undefined).flatMap((h) => [
+  ...h.imports.map((i) => ({ host: h.name, from: i.control ?? `${h.npmName ?? h.name}${i.subpath}`, to: `${h.target}${i.subpath}` })),
+  // The names a spawned program reaches the incumbent by (`Host.selfExports`), each graded
+  // through the entry the run writes there: `dotenv/config` is `<target>` + that entry's target.
+  ...Object.entries(h.selfExports ?? {}).flatMap(([key, at]) => {
+    const entry = h.entries?.find((e) => `./${e.at}` === at);
+    return entry === undefined ? [] : [{ host: h.name, from: `${h.npmName ?? h.name}${key.slice(1)}`, to: `${h.target}${entry.target}` }];
+  }),
+]);
 const unique = [...new Map(derived.map((d) => [`${d.from} ${d.to}`, d])).values()];
 
 const key = (d: { host: string; from: string; to: string }): string => `${d.host} ${d.from} ${d.to}`;

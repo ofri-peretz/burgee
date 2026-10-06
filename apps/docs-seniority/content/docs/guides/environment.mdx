@@ -78,7 +78,7 @@ console.log(values, provenance.region.location);
 ```
 
 Called with no `processEnv`, `config()` populates `process.env`, as dotenv does. The encrypted
-`.env.vault` and dotenvx's features are declined: see [Compatibility](/docs/drop-ins).
+`.env.vault` is not built, because dotenv 18 removed it: see [Compatibility](/docs/drop-ins).
 
 ## What is tested
 
@@ -88,5 +88,5 @@ Called with no `processEnv`, `config()` populates `process.env`, as dotenv does.
   - anything else is a CONFIG error naming the fix;
   - `PREFIX_NO_X` is rejected.
 - [`dotenv.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/seniority/src/dotenv.test.ts):
-  - parsing as dotenv 17.4.2 does;
+  - parsing as dotenv 18.0.5 does;
   - `config` populates the object it was given.

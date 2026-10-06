@@ -1,51 +1,55 @@
 /**
- * `seniority/dotenv` — dotenv 17's surface (R8, Y3).
+ * `seniority/dotenv` — dotenv 18's surface (R8, Y3), graded against dotenv 18.0.5's own suite.
  *
  * `.sdlc/intents/seniority/issues.md` records twenty **closed** dotenv issues at ten
  * reactions or more, topped by #89 "Importing dotenv in ES6" at 165: the largest closed-issue
  * demand signal of any incumbent in this layer. A façade is how that demand is answered
  * without asking anyone to rewrite anything.
  *
- * **One deliberate divergence, and it is the whole of it.** dotenv's `config()` writes
- * `process.env`. Nothing in seniority reads or writes `process.*` (R11) — that is the property
- * that makes `resolve` pure and `--explain` trustworthy — so `config()` takes the object to
- * populate as `processEnv`, which is an option dotenv itself already has, and **refuses**
- * rather than guessing when it is absent. A caller migrating writes
- * `config({ processEnv: process.env })`: one word, at the one place a program is entitled to
- * own its process. `parse` and `populate` are unchanged and need no such argument, and they
- * are the two a tool actually composes with.
+ * `config()` behaves as dotenv's does, defaults included: it populates the process's own
+ * environment and reads `./.env` when told neither, takes its defaults from `DOTENV_*` (and the
+ * older `DOTENV_CONFIG_*`) variables, and reports what it injected on `console.error`. The
+ * process is reached through `runtime.ts` and nowhere else (D-135), and every default is an
+ * argument first: `config({ processEnv, path })` never touches the process at all except to
+ * read the `DOTENV_*` defaults, which an explicit option outranks.
  *
- * Not built here: `decrypt` and the `.env.vault` format, which dotenv deprecated in favour of
- * dotenvx, and `config`'s `quiet` banner and tips, which are written to a stream on a
- * schedule this package has no opinion about. `populate`'s `debug` line **is** built, because
- * it is `console.log` rather than a stream and one graded case asserts it.
+ * Not here because dotenv 18 is not either: `decrypt`, `.env.vault`, `DOTENV_KEY` and the
+ * rotating log-line tips. dotenv 18.0.0 deleted all four (D-20261001-seniority-dotenv-18). The
+ * `dotenv run` command line is `seniority/dotenv/cli`, and `import 'dotenv/config'` is
+ * `seniority/dotenv/config`.
  */
-// Default imports, read through at call time: dotenv's suite stubs `fs.readFileSync` and
-// `os.homedir` on the module objects, and a named import binds past the stub.
+// Default imports, read through at call time: dotenv's suite stubs `fs.readFileSync`,
+// `os.homedir` and `path.relative` on the module objects, and a named import binds past the stub.
 import fs from 'node:fs';
 import os from 'node:os';
-import { join } from 'node:path';
+import path from 'node:path';
+import url from 'node:url';
 
+import { optionsFromEnv, truthy } from './dotenv-options.js';
+import { parseFast } from './dotenv-scan.js';
 import { LoaderError } from './load.js';
 import { ambientCwd, ambientEnv } from './runtime.js';
 
 /**
- * dotenv's own line grammar, character for character (`lib/main.js`, 17.4.2).
+ * dotenv's own line grammar, character for character (`lib/main.js`, `parseRegex`).
  *
  * Reproduced rather than rewritten: it is the thing being graded, its edge cases are the
  * reason people file the issues above, and "cleaner" here would mean "different".
  */
 const LINE =
-  // eslint-disable-next-line secure-coding/no-redos-vulnerable-regex -- dotenv 17.4.2's own grammar, character for character, and reproducing it exactly is what `seniority/dotenv` is for. Its input is a `.env` file on the program's own disk, written by the program's own author — never a request body — and rewriting the quantifiers would change which lines parse, which is the whole surface being graded.
+   
   /(?:^|^)\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^#\r\n]+)?\s*(?:#.*)?(?:$|$)/gm;
 
 const DOUBLE_QUOTE = '"';
-const SINGLE_QUOTE = "'";
-const BACKTICK = '`';
-const QUOTES: ReadonlySet<string> = new Set([DOUBLE_QUOTE, SINGLE_QUOTE, BACKTICK]);
+
+export interface ParseOptions {
+  /** Use the character scanner (dotenv's `{ fast: true }`) instead of the regular expression; read as dotenv reads a boolean. */
+  fast?: boolean | string | undefined;
+}
 
 /** Every `KEY=value` in a `.env`, as an object. Accepts the Buffer `readFileSync` hands back. */
-export function parse(src: string | Buffer): Record<string, string> {
+export function parse(src: string | Buffer, options?: ParseOptions): Record<string, string> {
+  if (options !== undefined && truthy(options.fast)) return parseFast(src);
   // A Map, not an object literal: the keys come from the file, so `__proto__=x` would
   // otherwise be an assignment to the prototype rather than an entry.
   const out = new Map<string, string>();
@@ -60,16 +64,20 @@ export function parse(src: string | Buffer): Record<string, string> {
   return Object.fromEntries(out);
 }
 
-/** Strip the surrounding quotes, then expand escapes only for the quoting that defines them. */
+/**
+ * dotenv's own three steps, as it writes them: trim, strip a matching pair of quotes, and
+ * expand `\n` and `\r` when the value **opened** with a double quote — whether or not that
+ * quote closed. dotenv 18's suite pins the unclosed case (`KEY="line one\nline two` gives a
+ * real newline, issue #1043). The strip is upstream's `m`-flagged pattern, and the
+ * flag is observable: `$` matches before a U+2028, so a line holding one strips differently
+ * (pinned in `dotenv-scan.test.ts`).
+ */
 function unwrap(raw: string): string {
   const value = raw.trim();
-  const quote = value[0];
-  const quoted = quote !== undefined && QUOTES.has(quote) && value.endsWith(quote) && value.length > 1;
-  if (!quoted) return value;
-  const inner = value.slice(1, -1);
-  // Only a double-quoted value expands `\n` and `\r`; a single-quoted one is literal, which
-  // is the distinction half of dotenv's multi-line issues turn on.
-  return quote === DOUBLE_QUOTE ? inner.replaceAll('\\n', '\n').replaceAll('\\r', '\r') : inner;
+  const unquoted = value.replace(/^(['"`])([\s\S]*)\1$/gm, '$2');
+  // A single-quoted or backticked value is literal, which is the distinction half of dotenv's
+  // multi-line issues turn on.
+  return value.startsWith(DOUBLE_QUOTE) ? unquoted.replaceAll('\\n', '\n').replaceAll('\\r', '\r') : unquoted;
 }
 
 export interface PopulateOptions {
@@ -80,10 +88,8 @@ export interface PopulateOptions {
 }
 
 /**
- * `OBJECT_REQUIRED`, with dotenv's own `code` — and its own wording, which names the wrong
- * argument. 17.4.2 validates `parsed` and then says "Please check the **processEnv**
- * argument"; `returns any errors thrown on passing not json type` asserts that exact string
- * after calling `populate(process.env, '')`, so the slip is the contract.
+ * `OBJECT_REQUIRED`, with dotenv's own `code` and its own wording — which names `processEnv`
+ * whichever argument was wrong, and a case asserts that exact string.
  */
 function objectRequired(): Error {
   const error = new Error('OBJECT_REQUIRED: Please check the processEnv argument being passed to populate');
@@ -93,27 +99,20 @@ function objectRequired(): Error {
 /**
  * Copy `parsed` into `target` and return what was actually set. Without `override` a key the
  * target already holds is left alone — the same rule seniority's own `ORDER` states as
- * `env > config` (R1), arrived at independently by dotenv and worth noticing.
- *
- * Two things are dotenv's and not ours. The **`parsed` check** comes first, because that is
- * the one it makes; the guard on `target` is kept after it, because dotenv reaching
- * `hasOwnProperty.call(undefined, …)` throws a `TypeError` about converting undefined, which
- * tells its caller nothing. And `debug` prints through `console.log`, which is what `_debug`
- * does upstream — not a stream this package owns, and not `process.stdout`, which it may not
- * name (R11). The text names seniority rather than a dotenv version: the suite asserts that
- * something was logged, never what.
+ * `env > config` (R1), arrived at independently by dotenv and worth noticing. Either argument
+ * that is not an object is `OBJECT_REQUIRED`, as dotenv 18 checks both before it reads either.
  */
 export function populate(target: Record<string, string | undefined>, parsed: Record<string, string>, options: PopulateOptions = {}): Record<string, string> {
-  // eslint-disable-next-line maintainability/no-missing-error-context, reliability/no-missing-error-context -- The message is a constant with dotenv's own wording and its own `code`; `objectRequired` exists so the two throw sites cannot drift apart, which is exactly what the rule's "add a message" advice would reintroduce.
-  if (typeof parsed !== 'object' || parsed === null) throw objectRequired();
-  // eslint-disable-next-line maintainability/no-missing-error-context, reliability/no-missing-error-context -- see above
-  if (typeof target !== 'object' || target === null) throw objectRequired();
+   
+  if (typeof target !== 'object' || target === null || typeof parsed !== 'object' || parsed === null) throw objectRequired();
   const populated: Record<string, string> = {};
-  const override = options.override === true;
+  // `Boolean`, as dotenv does: `config` hands its options through unparsed.
+  const override = Boolean(options.override);
+  const debug = Boolean(options.debug);
   for (const [key, value] of Object.entries(parsed)) {
-    // eslint-disable-next-line conventions/consistent-existence-index-check -- `in` would treat `toString` as already present in every environment and silently drop a variable of that name. dotenv uses `Object.prototype.hasOwnProperty.call` here for the same reason.
+     
     const held = Object.hasOwn(target, key);
-    if (held && options.debug === true) debugLog(`"${key}" is already defined and ${override ? 'WAS overwritten' : 'was NOT overwritten'}`);
+    if (held && debug) debugLog(`"${key}" is already defined and ${override ? 'WAS overwritten' : 'was NOT overwritten'}`);
     if (held && !override) continue;
     target[key] = value;
     populated[key] = value;
@@ -121,15 +120,26 @@ export function populate(target: Record<string, string | undefined>, parsed: Rec
   return populated;
 }
 
-/** dotenv's `_debug`, with this package's name in the tag. */
+/** dotenv's `_debug`, to the byte: `console.log`, behind its `┆` mark. */
 function debugLog(message: string): void {
-  // eslint-disable-next-line operability/no-console-log, operability/no-debug-code-in-production -- `_debug` writes to `console.log` upstream and one graded case (`logs any errors populating when in debug mode but override turned off`) asserts only that something was written. `process.stdout` is the alternative and this package may not name it (R11); a stream option would be a surface dotenv does not have.
-  console.log(`[seniority/dotenv][DEBUG] ${message}`);
+   
+  console.log(`┆ ${message}`);
 }
 
-export interface ConfigOptions extends Omit<PopulateOptions, 'debug'> {
+/** dotenv's `_log`: the one line `config` reports, on `console.error`, behind its `◇` mark. */
+function infoLog(message: string): void {
+  console.error(`◇ ${message}`);
+}
+
+export interface ConfigOptions extends Omit<PopulateOptions, 'debug' | 'override'> {
   /** Log what it does, through `console.log`; a string is read as dotenv reads it (`'false'`, `'0'`, … are false). */
   debug?: boolean | string;
+  /** Replace keys the environment already has. */
+  override?: boolean | string;
+  /** Suppress the `injected env` line. Off by default, as in dotenv. */
+  quiet?: boolean | string | undefined;
+  /** Parse with the character scanner. */
+  fast?: boolean | string;
   /** One file or several, highest priority first — an earlier file's key is not overwritten by a later one. `./.env` when omitted; a leading `~` is the home directory; a `URL` is read as one. */
   path: string | URL | readonly (string | URL)[];
   /** The object to populate; the process's own environment when omitted, as dotenv does (D-135). */
@@ -142,61 +152,94 @@ export interface ConfigResult {
   error?: Error;
 }
 
+// dotenv 18's own type names (`lib/main.d.ts`), so `import type { DotenvConfigOptions } from
+// 'dotenv'` moves with the import line instead of being refused by `burgee migrate`.
+export type DotenvConfigOptions = Partial<ConfigOptions>;
+export type DotenvConfigOutput = ConfigResult;
+export type DotenvParseOptions = ParseOptions;
+export type DotenvParseOutput = Record<string, string>;
+export type DotenvPopulateInput = Record<string, string | undefined>;
+export type DotenvPopulateOptions = PopulateOptions;
+export type DotenvPopulateOutput = Record<string, string>;
+
 /**
- * Read, parse and populate. Returns `{ parsed }` or `{ error }` and **never throws for a
- * missing file** — dotenv is loaded at import time, where a throw takes the program down
- * before it can say anything useful.
+ * Read, parse and populate. Returns `{ parsed }`, or `{ parsed, error }` with the last error,
+ * and **never throws for a missing file** — dotenv is loaded at import time, where a throw
+ * takes the program down before it can say anything useful.
  */
-export function config(options: Partial<ConfigOptions> = {}): ConfigResult {
+export function configDotenv(given: Partial<ConfigOptions> = {}): ConfigResult {
+  // The environment's defaults first and the caller's options over them, as dotenv merges.
+  const options: Partial<ConfigOptions> = { ...(optionsFromEnv() as Partial<ConfigOptions>), ...given };
   // D-135: dotenv populates `process.env` and reads `./.env` when told nothing, and so does the
   // drop-in — through `runtime.ts`, the one seam, and only when the caller passed nothing.
   const processEnv = options.processEnv ?? ambientEnv();
   if (typeof processEnv !== 'object' || processEnv === null) {
     throw new LoaderError('seniority/dotenv has no environment to populate', '', 'pass processEnv: the object to write into — this runtime has no process');
   }
-  const debug = truthy(processEnv['DOTENV_CONFIG_DEBUG'] ?? options.debug);
-  if (options.encoding === undefined && debug) debugLog('no encoding is specified (UTF-8 is used by default)');
-  const given = options.path ?? join(ambientCwd() ?? '.', '.env');
-  const paths = (Array.isArray(given) ? given : [given]).map(home);
-  const { parsedAll, lastError } = readAll(paths, options.encoding ?? 'utf8', debug);
-  dotenv.populate(processEnv, parsedAll, { ...options, debug });
-  return lastError === undefined ? { parsed: parsedAll } : { parsed: parsedAll, error: lastError };
+  const debug = truthy(options.debug);
+  if (!options.encoding && debug) debugLog('no encoding is specified (UTF-8 is used by default)');
+  const cwd = ambientCwd() ?? '.';
+  // Truthiness, not presence, as upstream tests it: an empty `DOTENV_PATH` means the default.
+  const wanted = options.path ? options.path : path.resolve(cwd, '.env');
+  const paths = (Array.isArray(wanted) ? wanted : [wanted]).map(home);
+
+  const { parsedAll, lastError } = readAll(paths, options, debug);
+  const populated = dotenv.populate(processEnv, parsedAll, options as PopulateOptions);
+
+  // Read after the files are loaded, so a `DOTENV_QUIET` in the `.env` itself counts — unless
+  // the caller or the starting environment already said, `false` included.
+  const quiet = truthy(Object.hasOwn(options, 'quiet') ? options.quiet : optionsFromEnv(processEnv).quiet);
+  let error = lastError;
+  if (debug || !quiet) {
+    const shortPaths: string[] = [];
+    for (const filePath of paths) {
+      try {
+        shortPaths.push(path.relative(cwd, filePath instanceof URL ? url.fileURLToPath(filePath) : filePath));
+      } catch (cause) {
+        error = asError(cause);
+        if (debug) debugLog(`failed to load ${String(filePath)} ${error.message}`);
+      }
+    }
+    infoLog(`injected env (${String(Object.keys(populated).length)}) from ${shortPaths.join(',')}`);
+  }
+  return error === undefined ? { parsed: parsedAll } : { parsed: parsedAll, error };
+}
+
+/** dotenv's `config`: `configDotenv`, through the module object a stub can patch. */
+export function config(options?: Partial<ConfigOptions>): ConfigResult {
+  return dotenv.configDotenv(options);
 }
 
 /**
- * dotenv 17, step for step: every path is tried, a failure is remembered rather than returned,
- * and what did parse is still returned beside the last error.
+ * dotenv, step for step: every path is tried, a failure is remembered rather than returned,
+ * and what did parse is still returned beside the last error. Each file is populated into the
+ * running total with the caller's own options, so `override` lets a later file win and `debug`
+ * reports the collision.
  */
-function readAll(paths: readonly (string | URL)[], encoding: BufferEncoding, debug: boolean): { parsedAll: Record<string, string>; lastError?: Error } {
+function readAll(paths: readonly (string | URL)[], options: Partial<ConfigOptions>, debug: boolean): { parsedAll: Record<string, string>; lastError?: Error } {
   const parsedAll: Record<string, string> = {};
   let lastError: Error | undefined;
-  for (const path of paths) {
+  for (const filePath of paths) {
     try {
       // Through the module object, exactly as dotenv's own `configDotenv` reaches
       // `DotenvModule.parse`: its suite stubs `dotenv.parse` and then asserts on what
       // `config` returned, which only works if the call goes through the object a stub can
       // patch. A direct call to the local binding is invisible to the stub.
-      const parsed = dotenv.parse(fs.readFileSync(path, { encoding }));
-      // Earlier file wins, so `populate`'s own rule does the work: keys already set are kept.
-      dotenv.populate(parsedAll, parsed);
+      const parsed = dotenv.parse(fs.readFileSync(filePath, { encoding: options.encoding ? options.encoding : 'utf8' }), { fast: options.fast });
+      dotenv.populate(parsedAll, parsed, options as PopulateOptions);
     } catch (cause) {
-      const error = cause instanceof Error ? cause : new Error(String(cause));
-      if (debug) debugLog(`failed to load ${String(path)} ${error.message}`);
-      lastError = error;
+      lastError = asError(cause);
+      if (debug) debugLog(`failed to load ${String(filePath)} ${lastError.message}`);
     }
   }
   return lastError === undefined ? { parsedAll } : { parsedAll, lastError };
 }
 
-/** dotenv's `parseBoolean`: a string is true unless it spells false; anything else by truthiness. */
-function truthy(value: unknown): boolean {
-  if (typeof value === 'string') return !['false', '0', 'no', 'off', ''].includes(value.toLowerCase());
-  return Boolean(value);
-}
+const asError = (cause: unknown): Error => (cause instanceof Error ? cause : new Error(String(cause)));
 
 /** dotenv's `_resolveHome`: a leading `~` is the home directory; a URL passes through to `fs`. */
-function home(path: string | URL): string | URL {
-  return typeof path === 'string' && path.startsWith('~') ? join(os.homedir(), path.slice(1)) : path;
+function home(filePath: string | URL): string | URL {
+  return typeof filePath === 'string' && filePath.startsWith('~') ? path.join(os.homedir(), filePath.slice(1)) : filePath;
 }
 
 /**
@@ -207,18 +250,13 @@ function home(path: string | URL): string | URL {
  * a top-level `beforeEach`. An ES module namespace cannot be stubbed: every property is
  * non-configurable and the object is not extensible, so sinon refuses with
  * `ES Modules cannot be stubbed`, the `beforeEach` throws, and **every** case in the file
- * fails before its first assertion. Measured 2026-09-20: 12 failing entries in the raw TAP
- * against the control's plan of 6, and not one of them reached a `populate` call.
+ * fails before its first assertion.
  *
  * So the subpath publishes the same shape its incumbent does — one mutable object carrying
- * the three functions — and the host's import declares `reexportDefault`, which makes the
- * generated shim re-export it under the `'module.exports'` name Node's `require()` of an ES
- * module returns whole. That is the mechanism commander's and yargs' CJS fixtures already
- * run on; dotenv's row simply never declared it. Nothing about seniority changed to make
- * those cases pass — what changed is that the suite can now reach the functions the way it
- * reaches dotenv's.
+ * the four functions — under the `'module.exports'` name Node's `require()` of an ES module
+ * returns whole. Every internal call goes through it, as dotenv's go through `DotenvModule`.
  */
-const dotenv = { config, parse, populate };
+const dotenv = { config, configDotenv, parse, populate };
 // `'module.exports'` is what Node hands a CommonJS `require()` of an ES module, so
 // `require('seniority/dotenv')` gets this object — mutable, as a test that stubs `config` needs, as `require('dotenv')` does.
 export { dotenv as 'module.exports' };

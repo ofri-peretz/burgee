@@ -41,7 +41,7 @@ const manifest = JSON.parse(readFileSync(join(PKG_ROOT, 'package.json'), 'utf8')
  * a user asks *why did this option get that value*. `seniority/precedence` no longer re-exports
  * it; the root still does, so `import { explain } from 'seniority'` is unchanged.
  */
-const SUBPATHS = ['.', './precedence', './explain', './config', './plugin', './cosmiconfig', './dotenv', './lilconfig', './rc', './find-up', './yaml', './schema.json'];
+const SUBPATHS = ['.', './precedence', './explain', './config', './plugin', './cosmiconfig', './dotenv', './dotenv/config', './dotenv/cli', './lilconfig', './rc', './find-up', './yaml', './schema.json'];
 
 describe('the export map is the compatibility claim (R8)', () => {
   it('publishes the root, the plugin host and one override target per graded incumbent', () => {
