@@ -13,12 +13,12 @@
  * regression. So the version is checked against what `benchmarks/package.json` declares,
  * and a mismatch stops the run.
  */
-import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { join, sep } from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, onTestFinished } from 'vitest';
 
-import { installedDependencies, uniqueRecords } from './axes/weight.js';
+import { bundle, installedDependencies, uniqueRecords } from './axes/weight.js';
 import { packagesOf, PAIRS } from './fixtures/entry-points.js';
 import manifest from './package.json' with { type: 'json' };
 import { BENCH_ROOT, packageDir, satisfies } from './resolve.js';
@@ -129,4 +129,23 @@ describe('installed bytes count every copy on disk, once', () => {
     const copies = [...closure('ink')].filter((d) => d.endsWith(`${sep}string-width`));
     expect(copies.length).toBeGreaterThan(1);
   });
+});
+
+describe('a peer the program brings is bundled once', () => {
+  it(
+    'W1 reaches one react-reconciler, however the workspace nests it',
+    () => {
+      const w1 = PAIRS.find((p) => p.id === 'controlroom/ink');
+      if (w1 === undefined) throw new Error('the controlroom/ink pair is gone');
+      const scratch = mkdtempSync(join(BENCH_ROOT, '.fixtures-'));
+      onTestFinished(() => rmSync(scratch, { recursive: true, force: true }));
+      const copies = new Set(
+        bundle(w1.ours, w1.id, scratch)
+          .inputs.filter((input) => input.includes('react-reconciler/cjs/'))
+          .map((input) => input.slice(0, input.indexOf('react-reconciler/cjs/'))),
+      );
+      expect([...copies]).toHaveLength(1);
+    },
+    120_000,
+  );
 });
