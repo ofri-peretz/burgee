@@ -134,8 +134,11 @@ jobs:
       # ~16 minutes at the median and 25 on a bad run, and this job sat at its 30-minute
       # timeout. Measured on one commit, one runner type, 2026-09-27 (run 36354199521):
       # concurrency 10 → 1503 s, 4 → 220 s, 2 → 152 s, the task list and hashes identical
-      # across all three. Linux and Windows (four cores) keep the default.
-      - run: npm run build -- ${{ matrix.os == 'macos-latest' && '--concurrency=2' || '' }}
+      # across all three. Linux and Windows have four cores and run four: at turbo's default ten,
+      # ubuntu runners died mid-build with exit 137 and "received a shutdown signal" (9 of 25
+      # Quality (Full) runs, 2026-10-06), the shape of ten `next build`s running out of memory.
+      # `scripts/turbo-concurrency-lock.test.ts` holds every unfiltered build to a cap.
+      - run: npm run build -- --concurrency=${{ matrix.os == 'macos-latest' && '2' || '4' }}
       - name: Our suite (hard gate on every cell)
         run: npm test
       - name: Controls (informational off Linux)
