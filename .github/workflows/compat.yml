@@ -139,8 +139,11 @@ jobs:
       # Quality (Full) runs, 2026-10-06), the shape of ten `next build`s running out of memory.
       # `scripts/turbo-concurrency-lock.test.ts` holds every unfiltered build to a cap.
       - run: npm run build -- --concurrency=${{ matrix.os == 'macos-latest' && '2' || '4' }}
+      # npm appends the flag to the script's last command, `turbo run test`. Linux runs four;
+      # Windows and macOS run two. At the default ten, Windows' Node 26 cell failed 2 of 10 runs
+      # on timing alone, each time a different test: vendor-run, ink-alias, completions.
       - name: Our suite (hard gate on every cell)
-        run: npm test
+        run: npm test -- --concurrency=${{ matrix.os == 'ubuntu-latest' && '4' || '2' }}
       - name: Controls (informational off Linux)
         continue-on-error: ${{ matrix.os != 'ubuntu-latest' }}
         run: node packages/compat-oracle/dist/bin.js --control

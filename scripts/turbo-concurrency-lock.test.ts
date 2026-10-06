@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const WORKFLOWS = join(import.meta.dirname, '..', '.github', 'workflows');
-const WHOLE_WORKSPACE = /\brun:\s*(?:npx turbo run (?:build|test|typecheck)\b|npm run (?:build|typecheck)\b)/u;
+const WHOLE_WORKSPACE = /\brun:\s*(?:npx turbo run (?:build|test|typecheck)\b|npm (?:run )?(?:build|typecheck|test)\b)/u;
 
 /** `file:line` for every whole-workspace turbo step with no `--concurrency`. */
 export function uncapped(files: Record<string, string>): string[] {
@@ -21,7 +21,7 @@ export function uncapped(files: Record<string, string>): string[] {
 
 describe('turbo concurrency lock', () => {
   it('finds an uncapped step, and passes a capped or filtered one', () => {
-    expect(uncapped({ 'a.yml': '      - run: npx turbo run build\n      - run: npm run build -- --concurrency=4\n      - run: npx turbo run build --filter=x' })).toEqual(['a.yml:1']);
+    expect(uncapped({ 'a.yml': '      - run: npx turbo run build\n      - run: npm run build -- --concurrency=4\n      - run: npx turbo run build --filter=x\n        run: npm test' })).toEqual(['a.yml:1', 'a.yml:4']);
   });
 
   it('caps every whole-workspace turbo step in .github/workflows', () => {
