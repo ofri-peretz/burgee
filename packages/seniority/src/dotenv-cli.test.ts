@@ -7,7 +7,7 @@
 import cp, { type ChildProcess } from 'node:child_process';
 // eslint-disable-next-line modernization/prefer-event-target -- the fake stands in for a `ChildProcess` and a `process`, which are both EventEmitters; `dotenv run` calls their `on` and `removeListener`.
 import { EventEmitter } from 'node:events';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import os, { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -189,10 +189,16 @@ describe('loading the files', () => {
   });
 
   it('refuses to start when the default .env exists but cannot be read', () => {
-    const proc = fakeProcess({ cwd: () => join(dir, 'a.env') });
-    run(['run', 'node'], proc, { spawn: vi.fn() });
-    expect(printed('error')[0]).toMatch(/^dotenv: ENOTDIR/);
+    // A directory named `.env`: unreadable as a file with EISDIR on every platform. (A cwd under
+    // a file gave ENOTDIR on POSIX and ENOENT on Windows, where a missing default is fine.)
+    const cwd = join(dir, 'unreadable');
+    mkdirSync(join(cwd, '.env'), { recursive: true });
+    const proc = fakeProcess({ cwd: () => cwd });
+    const spawn = vi.fn();
+    run(['run', 'node'], proc, { spawn });
+    expect(printed('error')[0]).toMatch(/^dotenv: EISDIR/);
     expect(proc.exitCode).toBe(1);
+    expect(spawn).not.toHaveBeenCalled();
   });
 });
 
