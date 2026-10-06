@@ -1,3 +1,5 @@
+// eslint-disable-next-line import-next/no-namespace -- the default export carries exactly csi's members, as the incumbent's carries its CSI half; listing thirty-one names twice cost 1.5 KB of the package against its weight ceiling
+import * as csi from './ansi-csi.js';
 /**
  * R8 — the `ansi-escapes` surface, all of it paratext implements.
  *
@@ -25,8 +27,6 @@
  */
 import { registerBuiltins } from './builtins.js';
 import { emit } from './capability.js';
-// eslint-disable-next-line import-next/no-namespace -- the default export carries exactly csi's members, as the incumbent's carries its CSI half; listing thirty-one names twice cost 1.5 KB of the package against its weight ceiling
-import * as csi from './csi.js';
 import { imageFields, type ImageOptions } from './image.js';
 import { processRuntime, type Runtime } from './runtime.js';
 
@@ -147,5 +147,5 @@ export default Object.freeze({ ...csi, beep, image, link, setCwd });
  * object, and one definition is what keeps the two façades describing one call.
  */
 export { type ImageOptions };
-export { beginSynchronizedOutput, clearScreen, clearTerminal, clearViewport, cursorBackward, cursorDown, cursorForward, cursorGetPosition, cursorHide, cursorLeft, cursorMove, cursorNextLine, cursorPrevLine, cursorRestorePosition, cursorSavePosition, cursorShow, cursorTo, cursorUp, endSynchronizedOutput, enterAlternativeScreen, eraseDown, eraseEndLine, eraseLine, eraseLines, eraseScreen, eraseStartLine, eraseUp, exitAlternativeScreen, scrollDown, scrollUp, synchronizedOutput } from './csi.js';
+export { beginSynchronizedOutput, clearScreen, clearTerminal, clearViewport, cursorBackward, cursorDown, cursorForward, cursorGetPosition, cursorHide, cursorLeft, cursorMove, cursorNextLine, cursorPrevLine, cursorRestorePosition, cursorSavePosition, cursorShow, cursorTo, cursorUp, endSynchronizedOutput, enterAlternativeScreen, eraseDown, eraseEndLine, eraseLine, eraseLines, eraseScreen, eraseStartLine, eraseUp, exitAlternativeScreen, scrollDown, scrollUp, synchronizedOutput } from './ansi-csi.js';
 
