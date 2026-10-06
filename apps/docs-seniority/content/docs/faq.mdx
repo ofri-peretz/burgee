@@ -41,8 +41,9 @@ directories. [Config files](/docs/guides/config-files#walking-upward-bounded) an
 
 ## Does `seniority/dotenv` support `.env.vault`?
 
-No. The encrypted vault, `decrypt` and the dotenvx features are declined; they are most of the
-35 assertions of dotenv's suite it does not pass. [Compatibility](/docs/drop-ins).
+No, and neither does dotenv 18, which removed the vault, `DOTENV_KEY` and `decrypt`.
+`seniority/dotenv` is graded against dotenv 18's own suite and passes all 179 assertions.
+[Compatibility](/docs/drop-ins).
 
 ## How do I test my configuration handling?
 

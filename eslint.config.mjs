@@ -878,6 +878,14 @@ export default [
       // code points; reshaping either to satisfy a rule would change the cells and keys those
       // suites compare. The same structural rules are off for the same reason. Tests are not.
       "packages/controlroom/src/ink/!(*.test).ts",
+      // seniority/dotenv is dotenv 18.0.5 ported from `lib/main.js`, `config.js`, `cli.js` and
+      // `lib/spawn-command.js`, graded by dotenv's own suite (179 / 179). `parseFast` is
+      // upstream's character scanner with its index arithmetic as written, `configDotenv` its
+      // option resolution in upstream's order, and `dotenv run` its argv loop and signal
+      // forwarding; the debug and injected lines are on the console streams the suite stubs.
+      // `seniority/dotenv/config` exports nothing because `dotenv/config` exports nothing.
+      // Tests are not exempt.
+      "packages/seniority/src/dotenv!(*.test).ts",
     ],
     rules: {
       "maintainability/consistent-function-scoping": "off",

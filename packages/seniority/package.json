@@ -4,7 +4,7 @@
   "description": "Which source outranks the others. One resolution for flags, environment, project and home config files and defaults \u2014 with provenance, so every value can say where it came from. Drop-in paths for cosmiconfig, dotenv and rc. Zero dependencies.",
   "license": "MIT",
   "type": "module",
-  "sideEffects": ["./dist/cli.js"],
+  "sideEffects": ["./dist/cli.js", "./dist/dotenv-config.js"],
   "engines": {
     "node": "^20.19.0 || >=22.13.0"
   },
@@ -38,6 +38,16 @@
       "types": "./dist/dotenv.d.ts",
       "import": "./dist/dotenv.js",
       "default": "./dist/dotenv.js"
+    },
+    "./dotenv/config": {
+      "types": "./dist/dotenv-config.d.ts",
+      "import": "./dist/dotenv-config.js",
+      "default": "./dist/dotenv-config.js"
+    },
+    "./dotenv/cli": {
+      "types": "./dist/dotenv-cli.d.ts",
+      "import": "./dist/dotenv-cli.js",
+      "default": "./dist/dotenv-cli.js"
     },
     "./lilconfig": {
       "types": "./dist/lilconfig.d.ts",

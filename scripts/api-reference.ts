@@ -331,14 +331,21 @@ function describeEntry(entry: Entry, docs: readonly Documented[]): string {
   const typeWords = types === 0 ? '' : `${types} type${plural}`;
   const joiner = values.length > 0 && types > 0 ? ', plus ' : '';
   const summary = [listed, typeWords].filter((part) => part !== '').join(joiner);
+  if (docs.length === 0) return `${entry.specifier} exports nothing: importing it is the call.`;
   return `Every export of ${entry.specifier}, with its signature and doc comment${summary === '' ? '' : `: ${summary}`}.`;
 }
+
+/** What the page of an entry with no exports says, and what `api-reference-lock` looks for on it. */
+export const SIDE_EFFECT_ONLY = 'This entry exports nothing. Importing it is the call.';
 
 /** How a caller imports from the entry: the default, a few values, or the types alone. */
 function importLines(entry: Entry, docs: readonly Documented[]): string[] {
   const named = docs.filter((d) => d.name !== 'default' && !isType(d)).map((d) => d.name);
   const typeNames = docs.filter(isType).map((d) => d.name);
   const fallback = docs.find((d) => d.name === 'default');
+  // An entry that exports nothing is a side-effect entry (`seniority/dotenv/config`, as
+  // `dotenv/config` is): importing it is the call, and that import is the whole of its API.
+  if (docs.length === 0) return [SIDE_EFFECT_ONLY, '', '```ts', `import '${entry.specifier}';`, '```', ''];
   const lines = [
     ...(fallback === undefined ? [] : [`import ${fallback.local ?? 'value'} from '${entry.specifier}';`]),
     ...(named.length === 0 ? [] : [`import { ${importList(named)} } from '${entry.specifier}';`]),

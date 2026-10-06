@@ -28,3 +28,27 @@ export function ambientEnv(): Record<string, string | undefined> | undefined {
 export function ambientCwd(): string | undefined {
   return host?.cwd?.();
 }
+
+/**
+ * What `seniority/dotenv/cli` needs from a process: dotenv 18's `dotenv run` reads its
+ * environment and working directory, forwards signals to the child it starts, and leaves with
+ * that child's exit code. The command line is the one drop-in that *is* a program, so it takes
+ * the whole object — from here, the seam, and never by naming the global itself.
+ */
+export interface CliProcess {
+  env: Record<string, string | undefined>;
+  cwd: () => string;
+  platform: string;
+  pid: number;
+  stdin: { isTTY?: boolean };
+  exitCode?: number | string | null | undefined;
+  exit: (code?: number) => void;
+  kill: (pid: number, signal?: string | number) => unknown;
+  on: (event: string, listener: () => void) => unknown;
+  removeListener: (event: string, listener: () => void) => unknown;
+}
+
+/** The process itself, for the command line; `undefined` on a runtime with none. */
+export function ambientProcess(): CliProcess | undefined {
+  return host as CliProcess | undefined;
+}

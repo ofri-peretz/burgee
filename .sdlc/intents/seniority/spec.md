@@ -3,6 +3,12 @@
 Intent: [`intent.md`](./intent.md). Umbrella:
 [`cli-foundation-stack`](../cli-foundation-stack/spec.md). **Status:** approved (2026-09-23, under the owner's delegation, D-129).
 
+**Build state, 2026-10-06 (PLAN 3.2 — done).** Every requirement in
+[§ What is built](#what-is-built) reads **Built**, R11 the last of them. All four drop-ins are
+level with their incumbents' controls at the latest release: cosmiconfig 242 / 243 (the
+control's own count), lilconfig 77 / 77, rc 1 / 1, and dotenv **179 / 179 at 18.0.5** (D-170).
+The paragraph below is the 2026-09-15 state, kept as the record.
+
 **Build state, 2026-09-15 (PLAN 3.2).** Every requirement's status is in
 [§ What is built](#what-is-built), which is the list 3.2's "Done when" reads. Fourteen of the
 fifteen are built; **R10 is the one that is not, and it is not this package's to finish** —
@@ -128,6 +134,8 @@ them the absent YAML parser, one of them the harness.
   exporting both surfaces fails it *by construction*. `seniority/lilconfig` therefore publishes
   four runtime names and no more, and `lilconfig.test.ts` locks that, because adding an export
   is the least alarming edit anyone could make to it.
+
+  **Restated 2026-10-01 (D-20261001-seniority-dotenv-vault):** the drop-in follows dotenv 18.0.5 and grades 179 / 179, level with dotenv; the `processEnv` divergence below was lifted by D-135 and nothing replaced it. The paragraph is the history.
 
   **`seniority/dotenv` has exactly one divergence, and it is R11.** `parse` and `populate` are
   dotenv 17.4.2's, grammar included — its line regex is reproduced character for character,
@@ -320,10 +328,10 @@ are.
 | R5 | **Built** | `src/search.ts` — 120 lines, bounded by `stopAt`, `WALK_LIMIT` and the root; real paths compared so a symlink ring ends the walk | `search.test.ts`, 10 cases incl. a link pointing back at its own ancestor |
 | R6 | **Built** | `src/load.ts` — four builtin loaders, injected loaders for everything else, `LoaderError` (`exitCode: 2`) naming the extension and the option | `load.test.ts`, 11 cases; `NOT_BUNDLED` is asserted absent from `defaultLoaders` |
 | R7 | **Built** | shipped 0.1.0. `src/config.ts` — `loadWithExtends`, deep merge, cycle rejection | `config.test.ts` |
-| R8 | **Built** | `src/cosmiconfig.ts` + `-defaults` + `-util` re-exported from the root; `./cosmiconfig`, `./dotenv`, `./lilconfig`, `./rc`, `./find-up` as separate entry points | the incumbents' own suites: cosmiconfig **242 / 243** on ubuntu (level with its control since 2026-09-30, R16; the XDG pair since D-20260930-seniority-xdg-config-home), dotenv **80 / 141**, lilconfig **67 / 77**, rc **0 / 1**. `shape.test.ts` locks the export map and subpath isolation |
+| R8 | **Built** | `src/cosmiconfig.ts` + `-defaults` + `-util` re-exported from the root; `./cosmiconfig`, `./dotenv` (with `./dotenv/config` and `./dotenv/cli` since 2026-10-06), `./lilconfig`, `./rc`, `./find-up` as separate entry points | the incumbents' own suites: cosmiconfig **242 / 243** on ubuntu (level with its control since 2026-09-30, R16; the XDG pair since D-20260930-seniority-xdg-config-home), dotenv **179 / 179** at 18.0.5 (level with its control since 2026-10-06, D-20261001-seniority-dotenv-vault; 17.4.2 graded and not claimed at 107 / 141), lilconfig **67 / 77**, rc **0 / 1**. `shape.test.ts` locks the export map and subpath isolation |
 | R9 | **Built** | `src/shape.test.ts` — a ceiling on the **built** `dist`, not on the source | `shape.test.ts`: 95,907 B against a 140,000 B ceiling, and a floor so an empty build cannot pass |
-| R10 | **Built** | all four vendored and graded control-first, re-measured 2026-09-20: `cosmiconfig` **186 / 243, 76.5%** (**240 / 243, 98.8%** since 2026-09-30, R16; **242 / 243, 99.6%** on ubuntu once the global search read `XDG_CONFIG_HOME`, D-20260930-seniority-xdg-config-home), `dotenv` **80 / 141, 56.7%**, `lilconfig` **67 / 77, 87.0%**, `rc` **0 / 1** (measured, not a placeholder) | `npm run compat -- cosmiconfig --control`, and the same for the other three; see [§ The four suites, measured](#the-four-suites-measured) |
-| R11 | **Built — restated by D-135** | the resolver names `process` nowhere; the one file that does is `src/runtime.ts`, the family's Y9 seam, which only the dotenv, rc and cosmiconfig drop-ins open and only as a default when the caller passed no world (cosmiconfig's global directory since D-20260930-seniority-xdg-config-home). Before 2026-09-23 the claim was *no source names `process` at all*, and it cost 34 dotenv cases and rc's one: their incumbents read the process by default and their suites assert it | `shape.test.ts` locally; `packages/burgee/src/process-reference-lock.test.ts` repo-wide, where `seniority/src/runtime.ts` is now the one allow-listed entry |
+| R10 | **Built** | all four vendored and graded control-first, re-measured 2026-09-20: `cosmiconfig` **186 / 243, 76.5%** (**240 / 243, 98.8%** since 2026-09-30, R16; **242 / 243, 99.6%** on ubuntu once the global search read `XDG_CONFIG_HOME`, D-20260930-seniority-xdg-config-home), `dotenv` **80 / 141, 56.7%** (**106 / 141** since D-135; **179 / 179, 100%** at 18.0.5 since 2026-10-06, level with its control), `lilconfig` **67 / 77, 87.0%**, `rc` **0 / 1** (measured, not a placeholder) | `npm run compat -- cosmiconfig --control`, and the same for the other three; see [§ The four suites, measured](#the-four-suites-measured) |
+| R11 | **Built** | restated by D-135, and recorded as built 2026-10-06 once dotenv was level: the resolver names `process` nowhere; the one file that does is `src/runtime.ts`, the family's Y9 seam, which only the dotenv, rc and cosmiconfig drop-ins open and only as a default when the caller passed no world (cosmiconfig's global directory since D-20260930-seniority-xdg-config-home). `seniority/dotenv/cli` is the one drop-in that is a program — dotenv 18's `dotenv run` — and it takes the process whole through the same seam (`ambientProcess`), never by naming the global. Before 2026-09-23 the claim was *no source names `process` at all*, and it cost 34 dotenv cases and rc's one: their incumbents read the process by default and their suites assert it | `shape.test.ts` locally; `packages/burgee/src/process-reference-lock.test.ts` repo-wide, where `seniority/src/runtime.ts` is now the one allow-listed entry |
 | R12 | **Built** | `src/validate.ts` — `validate` returns every violation, `check` throws one `ConfigError` | `validate.test.ts`: ``` `out` must be a string; `./mytool.config.js:3` set it to `4` ``` |
 | R13 | **Built** | 2026-09-14. `src/precedence.ts` — open union, `describe`'s `default` branch | `precedence.test.ts`: a `vault` source renders itself in `--explain` |
 | R14 | **Built** | 2026-09-14, re-checked 2026-09-15. `ORDER` is the one declaration; `Source` and `RANK` are derived | `precedence.test.ts` asserts all three agree. Nothing added in 3.2 writes a source kind: the new files touch `RANK` only through `plugin.ts`, which already did |
@@ -384,7 +392,11 @@ packages/seniority/src/
   cosmiconfig.ts           Explorer, ExplorerSync, cosmiconfig(), cosmiconfigSync()  (R8)
   cosmiconfig-defaults.ts  search places and loaders, as data                        (R8)
   cosmiconfig-util.ts      decodeFileContent, getPropertyByPath, mergeAll            (R8)
-  dotenv.ts       dotenv 17's parse/populate/config                     (R8)
+  dotenv.ts       dotenv 18's parse/populate/config/configDotenv        (R8)
+  dotenv-scan.ts  dotenv 18's `{ fast: true }` character scanner       (R8)
+  dotenv-config.ts  `seniority/dotenv/config`, the side-effect entry   (R8)
+  dotenv-cli.ts   `seniority/dotenv/cli`, `dotenv run`                  (R8)
+  dotenv-spawn.ts how `dotenv run` starts a command, Windows included  (R8)
   find-up.ts      the override target over `search`                     (R8)
   schema.json     the family plugin schema, byte-identical       (plugin-contract R2)
   index.ts        seniority's own API + cosmiconfig's surface

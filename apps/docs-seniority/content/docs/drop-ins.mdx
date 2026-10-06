@@ -1,6 +1,6 @@
 ---
 title: Compatibility
-description: "How seniority's four drop-ins are graded by their incumbents' own suites — lilconfig 77 / 77, rc 1 / 1 (one bit), cosmiconfig 242 / 243 (level with cosmiconfig itself), dotenv 106 / 141 (the vault) — and the differences that remain."
+description: "How seniority's four drop-ins are graded by their incumbents' own suites — lilconfig 77 / 77, rc 1 / 1 (one bit), cosmiconfig 242 / 243 (level with cosmiconfig itself), dotenv 179 / 179 (level with dotenv 18 itself) — and the differences that remain."
 ---
 
 `seniority` (cosmiconfig's API at the root), `seniority/lilconfig`, `seniority/dotenv` and
@@ -18,7 +18,7 @@ generated from the oracle's last run and is the authority for the current figure
 
 1. The incumbent's repository is cloned at the graded version, and its test directory is copied
    into `packages/compat-oracle/vendor/`. The versions are cosmiconfig 10.0.1, lilconfig
-   3.1.3, dotenv 17.4.2, and rc 1.2.8 (rc's release was never tagged, so its commit is pinned).
+   3.1.3, dotenv 18.0.5, and rc 1.2.8 (rc's release was never tagged, so its commit is pinned).
    Each copy has a `PROVENANCE` file.
 2. The only edit is the import that reaches the library, rewritten to a shim generated per run.
 3. A **control run** points the shim at the real incumbent first. Its total is what every rate
@@ -39,11 +39,11 @@ generated from the oracle's last run and is the authority for the current figure
   the XDG pair that registers only on Linux: the global config directory is read from
   `XDG_CONFIG_HOME` as cosmiconfig reads it. The one not passing is `index.test.ts`, which
   imports cosmiconfig's entry by a file path and fails for the control too.
-- **dotenv: 106 of 141.** The suite runs under node-tap, which counts assertions, so 141 is
-  assertions. Of the 35 not passing:
-  - 27 are the `.env.vault` and `decrypt` path, declined;
-  - 2 are dotenvx tips, declined;
-  - 6 load dotenv's private `lib/*` modules by path.
+- **dotenv: 179 of 179**, the same count the real dotenv gets here. The suite runs under
+  node-tap, which counts assertions, so 179 is assertions. It spawns `dotenv run` and programs
+  that `import 'dotenv/config'`, and seniority answers both. dotenv 17.4.2's suite is graded
+  and not claimed: 107 of 141, the 34 being the vault, the tips and the log line 18 moved to
+  stderr.
 
 ## Known differences
 
@@ -51,7 +51,7 @@ generated from the oracle's last run and is the authority for the current figure
   refuse YAML and INI by name, with a hint naming the argument that supplies a parser.
 - **`seniority/dotenv` writes `process.env` only when you give it nothing else.** Pass
   `processEnv` and it fills that object instead.
-- **The vault is declined.** `.env.vault`, `DOTENV_KEY` and `decrypt` are not implemented.
+- **No vault.** `.env.vault`, `DOTENV_KEY` and `decrypt` are not implemented, because dotenv 18 removed them.
 - **seniority's own API is stricter than the drop-ins.** `resolve` reads only declared options
   from the environment and refuses unclear booleans. `seniority/rc` keeps rc's behaviour, which
   is to take every `<name>_` variable.

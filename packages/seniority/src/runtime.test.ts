@@ -5,7 +5,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { ambientCwd, ambientEnv } from './runtime.js';
+import { ambientCwd, ambientEnv, ambientProcess } from './runtime.js';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -19,5 +19,11 @@ describe('the runtime seam', () => {
   it('asks the process for its working directory at the call, not at import', () => {
     vi.spyOn(process, 'cwd').mockReturnValue('/moved/here');
     expect(ambientCwd()).toBe('/moved/here');
+  });
+});
+
+describe('the command line’s view of the process', () => {
+  it('is the process itself, so a signal handler it installs is a real one', () => {
+    expect(ambientProcess()).toBe(process);
   });
 });

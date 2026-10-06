@@ -7,6 +7,8 @@
     "plugin",
     "cosmiconfig",
     "dotenv",
+    "dotenv/config",
+    "dotenv/cli",
     "lilconfig",
     "rc",
     "find-up",

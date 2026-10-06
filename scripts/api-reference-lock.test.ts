@@ -33,7 +33,7 @@ import { describe, expect, it } from 'vitest';
 // eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and scripts read the app table through its one typed reader rather than re-parsing it
 import { appForPackage } from '../apps/docs-chassis/src/config';
 
-import { entriesOf, orphans, pages, prose, renderEntry, spacedSpan, STANDARD_SITES, stale } from './api-reference.js';
+import { entriesOf, orphans, pages, prose, renderEntry, SIDE_EFFECT_ONLY, spacedSpan, STANDARD_SITES, stale } from './api-reference.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -51,6 +51,16 @@ function exportedNames(types: string): string[] {
   return checker.getPropertiesOfType(checker.getTypeOfSymbolAtLocation(assigned, sf)).map((s) => s.name);
 }
 
+/**
+ * Whether the module behind `types` is listed in its package's `sideEffects`: the one way an entry
+ * may export nothing. Anything else with no exports is an unbuilt `dist/`, and still fails.
+ */
+function sideEffectEntry(pkg: string, types: string): boolean {
+  const dir = join(ROOT, 'packages', pkg);
+  const listed = (JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as { sideEffects?: boolean | string[] }).sideEffects;
+  return Array.isArray(listed) && listed.some((file) => resolve(dir, file) === types.replace(/\.d\.ts$/, '.js'));
+}
+
 describe.each(STANDARD_SITES.map((pkg) => [pkg] as const))('%s: the API reference', (pkg) => {
   const app = appForPackage(pkg);
   if (app === undefined) throw new Error(`${pkg} is in STANDARD_SITES and has no app`);
@@ -66,6 +76,12 @@ describe.each(STANDARD_SITES.map((pkg) => [pkg] as const))('%s: the API referenc
     expect(existsSync(file), `no page for ${entry.specifier}`).toBe(true);
     const page = readFileSync(file, 'utf8');
     const names = exportedNames(entry.types);
+    if (names.length === 0 && sideEffectEntry(pkg, entry.types)) {
+      // `seniority/dotenv/config`, as `dotenv/config` is: declared a side effect in the manifest,
+      // and its page says that importing it is the whole of its API.
+      expect(page, `${entry.specifier} exports nothing and its page does not say so`).toContain(SIDE_EFFECT_ONLY);
+      return;
+    }
     expect(names.length, `${entry.specifier} exports nothing the checker can see — is dist/ built?`).toBeGreaterThan(0);
     const unlisted = names.filter((name) => !page.includes(`### ${name}\n`) && !page.includes(`| \`${name}\` |`));
     expect(unlisted, `${entry.specifier} exports these and its page does not name them`).toEqual([]);

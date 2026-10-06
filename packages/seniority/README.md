@@ -27,7 +27,7 @@
 
 <p align="center">
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/cosmiconfig%20suite-242%2F243-b45309?style=flat-square" alt="seniority passes 242 of 243 cases of the cosmiconfig test suite" /></a>
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/dotenv%20suite-128%2F179-b45309?style=flat-square" alt="seniority passes 128 of 179 cases of the dotenv test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/dotenv%20suite-179%2F179-0a6b47?style=flat-square" alt="seniority passes 179 of 179 cases of the dotenv test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/lilconfig%20suite-77%2F77-0a6b47?style=flat-square" alt="seniority passes 77 of 77 cases of the lilconfig test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/rc%20suite-1%2F1-0a6b47?style=flat-square" alt="seniority/rc passes 1 of 1 cases of the rc test suite" /></a>
 </p>
@@ -251,19 +251,25 @@ The root export carries cosmiconfig's own surface, so a migration is the import 
 
 ### `seniority/dotenv`
 
-`config`, `parse` and `populate` are dotenv 17's, grammar included, so a migration is the
-import line:
+`config`, `configDotenv`, `parse` and `populate` are dotenv 18's, both of its parsers
+included, so a migration is the import line:
 
 ```diff
 - import dotenv from "dotenv";
 + import dotenv from "seniority/dotenv";
+- import "dotenv/config";
++ import "seniority/dotenv/config";
 ```
 
 `config()` behaves as dotenv's does when told nothing: it reads `./.env` from the working
-directory into `process.env`. Pass `processEnv` to populate another object, and `path` for
-another file (or several, a `URL`, a leading `~`). There is no `dotenv/config` preload entry —
-call `config()` once at your entry point — and `decrypt` and the `.env.vault` format, which
-dotenv deprecated in favour of dotenvx, are not built.
+directory into `process.env`, takes its defaults from `DOTENV_PATH`, `DOTENV_QUIET` and the
+rest (or their older `DOTENV_CONFIG_*` names), and prints `◇ injected env (n) from .env` on
+stderr unless quiet. Pass `processEnv` to populate another object, and `path` for another file
+(or several, a `URL`, a leading `~`). `parse(src, { fast: true })` is dotenv's character
+scanner. `seniority/dotenv/config` is the side-effect entry, quiet unless asked, and
+`seniority/dotenv/cli` is `dotenv run` — `run(['run', '-f', '.env.local', '--', 'node',
+'app.js'])` loads the files, starts the command, and forwards its signals. `decrypt`,
+`DOTENV_KEY` and the `.env.vault` format are not built, because dotenv 18 removed them.
 
 The process is read in one place, `src/runtime.ts`, and only by the drop-in paths whose
 incumbents read it by default. `resolve` never reads it, and `parse` works on a string you
@@ -339,9 +345,10 @@ read 240 of 241.
 
 ### `seniority/dotenv`
 
-**Graded by dotenv 17.4.2's own test suite: 106 of 141.** The 35 not passing are 27 in the
-`.env.vault` / `decrypt` path and 2 dotenvx tips, both declined above, and 6 that load
-dotenv's private `lib/*` modules by path.
+**Graded by dotenv 18.0.5's own test suite: 179 of 179, the same as the real `dotenv` gets
+here.** That includes its `dotenv run` command line and signal forwarding, both parsers, and
+`import 'dotenv/config'`. dotenv 17.4.2's suite is graded too and not claimed: 107 of 141,
+because 17's vault, tips and `console.log` line are what 18 changed.
 
 ### `seniority/lilconfig`
 
@@ -365,11 +372,11 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `cosmiconfig` | 242 / 243 |
-| `dotenv` | 128 / 179 |
+| `dotenv` | 179 / 179 |
 | `lilconfig` | 77 / 77 |
 | `rc` | 1 / 1 |
 
-Weight, installed and tree-inclusive: **195,013 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.0989**.
+Weight, installed and tree-inclusive: **221,359 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1122**.
 
 ## For agents
 
