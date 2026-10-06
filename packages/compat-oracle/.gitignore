@@ -24,6 +24,7 @@ vendor/*/lib/
 vendor/cli-table3/src/
 vendor/cosmiconfig/src/
 vendor/ink/src/
+vendor/ink-6/src/
 vendor/*/build/
 # A host's `entries` (`hosts.ts`): files its suite spawns or preloads by path, written per run.
 # dotenv 18's are `dist/index.cjs` and `dist/config.cjs`; its `lib/main.js` is covered above.

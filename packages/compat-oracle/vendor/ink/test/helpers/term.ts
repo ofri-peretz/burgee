@@ -11,20 +11,9 @@ const {spawn} = require('node-pty') as typeof import('node-pty');
 const fixturesDir = url.fileURLToPath(new URL('../fixtures', import.meta.url));
 
 const term = (fixture: string, args: string[] = []) => {
-	let resolve: (value?: any) => void;
-	let reject: (error?: Error) => void;
-
-	// eslint-disable-next-line promise/param-names
-	const exitPromise = new Promise((resolve2, reject2) => {
-		resolve = resolve2;
-		reject = reject2;
-	});
-
-	let readyResolve: () => void;
-	// eslint-disable-next-line promise/param-names
-	const readyPromise = new Promise<void>(r => {
-		readyResolve = r;
-	});
+	const {promise: exitPromise, resolve, reject} = Promise.withResolvers<void>();
+	const {promise: readyPromise, resolve: readyResolve} =
+		Promise.withResolvers<void>();
 
 	const env: Record<string, string> = {
 		...(process.env as Record<string, string>),
@@ -35,7 +24,7 @@ const term = (fixture: string, args: string[] = []) => {
 	};
 
 	const ps = spawn(
-		'node',
+		process.execPath,
 		['--import=tsx', path.join(fixturesDir, `${fixture}.tsx`), ...args],
 		{
 			name: 'xterm-color',
@@ -48,7 +37,7 @@ const term = (fixture: string, args: string[] = []) => {
 	const result = {
 		write(input: string) {
 			// Wait for the fixture to signal it's ready to accept input
-			// eslint-disable-next-line promise/prefer-await-to-then
+
 			void readyPromise.then(() => {
 				ps.write(input);
 			});

@@ -630,7 +630,13 @@ function command(host: Host, hostDir: string, dir: string, paths: string[]): { b
     // with no config in it, and not where vitest looks for a `__mocks__` directory.
     return { bin: process.execPath, args: [vitestBin(), 'run', '--root', packageDirOf(host, hostDir), '--reporter=tap-flat'] };
   }
-  if (host.runner === 'node:test') return { bin: process.execPath, args: ['--test', '--test-reporter=tap', ...paths] };
+  if (host.runner === 'node:test') {
+    // The loader goes ahead of `--test`, where upstream's own `npm test` puts it (ink 8:
+    // `node --import=tsx --test --test-concurrency=1`); node hands every file process it starts
+    // the same `--import`. Neither is set for a host that declares neither.
+    const concurrency = host.testConcurrency === undefined ? [] : [`--test-concurrency=${host.testConcurrency}`];
+    return { bin: process.execPath, args: [...tsLoaderArgs(host), '--test', '--test-reporter=tap', ...concurrency, ...paths] };
+  }
   // ava takes the paths as a filter over its own `files` globs, under which a `_`-prefixed
   // file is a helper, never a test: chalk's two spawned fixtures are vendored beside the
   // tests (their import is rewritten like any other) and ava leaves them to the tests
@@ -1045,7 +1051,7 @@ function runSuite(host: Host, hostDir: string, files: string[], target: string):
       cwd: hostDir,
       env: suiteEnv(host, hostDir, target),
       stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: SUITE_TIMEOUT_MS,
+      timeout: host.suiteTimeoutMs ?? SUITE_TIMEOUT_MS,
       // A mostly-failing suite emits more TAP diagnostic than the 1 MB default holds, and
       // the overflow drops the summary lines the count lives in. Seen at 1.16 MB.
       maxBuffer: MAX_OUTPUT_BYTES,

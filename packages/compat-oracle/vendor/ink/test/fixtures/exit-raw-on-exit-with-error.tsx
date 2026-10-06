@@ -1,28 +1,23 @@
-import React from 'react';
+import React, {useEffect} from 'react';
 import {render, Text, useApp, useStdin} from '../../shim.js';
-
-class Exit extends React.Component<{
-	onSetRawMode: (value: boolean) => void;
-	onExit: (error: Error) => void;
-}> {
-	override render() {
-		return <Text>Hello World</Text>;
-	}
-
-	override componentDidMount() {
-		this.props.onSetRawMode(true);
-
-		setTimeout(() => {
-			this.props.onExit(new Error('errored'));
-		}, 500);
-	}
-}
 
 function Test() {
 	const {exit} = useApp();
 	const {setRawMode} = useStdin();
 
-	return <Exit onExit={exit} onSetRawMode={setRawMode} />;
+	useEffect(() => {
+		setRawMode(true);
+
+		const timer = setTimeout(() => {
+			exit(new Error('errored'));
+		}, 500);
+
+		return () => {
+			clearTimeout(timer);
+		};
+	}, [exit, setRawMode]);
+
+	return <Text>Hello World</Text>;
 }
 
 const app = render(<Test />);

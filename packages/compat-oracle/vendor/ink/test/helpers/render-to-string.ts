@@ -1,6 +1,6 @@
-import {act} from 'react';
 import {render} from '../../shim.js';
 import createStdout from './create-stdout.js';
+import {act} from './act.js';
 
 type RenderToStringOptions = {
 	columns?: number;

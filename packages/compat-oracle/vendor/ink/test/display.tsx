@@ -1,21 +1,22 @@
+import test, {type TestContext} from 'node:test';
 import React from 'react';
-import test from 'ava';
-import {Box, Text} from '../shim.js';
+import {Box, Text, render} from '../shim.js';
+import createStdout from './helpers/create-stdout.js';
 import {
 	renderToString,
 	renderToStringAsync,
 } from './helpers/render-to-string.js';
 
-test('display flex', t => {
+test('display flex', (t: TestContext) => {
 	const output = renderToString(
 		<Box display="flex">
 			<Text>X</Text>
 		</Box>,
 	);
-	t.is(output, 'X');
+	t.assert.strictEqual(output, 'X');
 });
 
-test('display none', t => {
+test('display none', (t: TestContext) => {
 	const output = renderToString(
 		<Box flexDirection="column">
 			<Box display="none">
@@ -25,20 +26,51 @@ test('display none', t => {
 		</Box>,
 	);
 
-	t.is(output, 'Doggo');
+	t.assert.strictEqual(output, 'Doggo');
 });
+
+for (const initialDisplay of ['none', 'flex'] as const) {
+	test(`removing display="${initialDisplay}" restores the default layout`, (t: TestContext) => {
+		function Example({display}: {readonly display?: 'none' | 'flex'}) {
+			return (
+				<Box>
+					<Box display={display}>
+						<Text>Cat</Text>
+					</Box>
+					<Text>Dog</Text>
+				</Box>
+			);
+		}
+
+		const stdout = createStdout();
+		const {rerender, unmount} = render(<Example display={initialDisplay} />, {
+			stdout,
+			debug: true,
+		});
+		t.after(() => {
+			unmount();
+		});
+
+		t.assert.strictEqual(
+			stdout.get(),
+			initialDisplay === 'none' ? 'Dog' : 'CatDog',
+		);
+		rerender(<Example />);
+		t.assert.strictEqual(stdout.get(), 'CatDog');
+	});
+}
 
 // Concurrent mode tests
-test('display flex - concurrent', async t => {
+test('display flex - concurrent', async (t: TestContext) => {
 	const output = await renderToStringAsync(
 		<Box display="flex">
 			<Text>X</Text>
 		</Box>,
 	);
-	t.is(output, 'X');
+	t.assert.strictEqual(output, 'X');
 });
 
-test('display none - concurrent', async t => {
+test('display none - concurrent', async (t: TestContext) => {
 	const output = await renderToStringAsync(
 		<Box flexDirection="column">
 			<Box display="none">
@@ -48,5 +80,5 @@ test('display none - concurrent', async t => {
 		</Box>,
 	);
 
-	t.is(output, 'Doggo');
+	t.assert.strictEqual(output, 'Doggo');
 });

@@ -1,15 +1,15 @@
 package:  ink
 repo:     https://github.com/vadimdemedes/ink
-version:  6.8.0
-tag:      v6.8.0
-commit:   be1b1bb6ec65056e2ed60ef3c5ae642704b82d31
-vendored: 2026-10-05
-files:    39
+version:  8.0.0
+tag:      v8.0.0
+commit:   26d2c3f83008142061c22267482489588cc3823c
+vendored: 2026-10-06
+files:    95
 tool:     scripts/vendor-suite.ts
 
 How this directory was made
 ---------------------------
-A shallow clone of https://github.com/vadimdemedes/ink at v6.8.0, then that repository's own test directory and
+A shallow clone of https://github.com/vadimdemedes/ink at v8.0.0, then that repository's own test directory and
 its fixtures copied here. The only edit is to the import specifiers that reach the library:
 each is rewritten to a generated shim, so one unedited suite can grade any implementation.
 Everything else — assertions, fixtures, helpers — is upstream's, byte for byte.
@@ -33,7 +33,7 @@ vendor step deletes any shim it finds, so a stale one can never grade the wrong 
 
 Reproduce
 ---------
-    npx tsx scripts/vendor-suite.ts ink --version 6.8.0
+    npx tsx scripts/vendor-suite.ts ink --version 8.0.0
 
 Every field above is reproduced exactly, with one exception that is a date and not a
 defect: `vendored` is the day the copy was taken, so a fresh run writes today's.

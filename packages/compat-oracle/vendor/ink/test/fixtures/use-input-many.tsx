@@ -18,8 +18,12 @@ function App() {
 	const {exit} = useApp();
 
 	useEffect(() => {
-		setTimeout(exit, 100);
-	}, []);
+		const timer = setTimeout(exit, 100);
+
+		return () => {
+			clearTimeout(timer);
+		};
+	}, [exit]);
 
 	return (
 		<>

@@ -1,38 +1,24 @@
-import React from 'react';
+import React, {useState, useEffect} from 'react';
 import {render, Text, useApp} from '../../shim.js';
 
-class Exit extends React.Component<
-	{onExit: (error: Error) => void},
-	{counter: number}
-> {
-	timer?: NodeJS.Timeout;
-
-	override state = {
-		counter: 0,
-	};
-
-	override render() {
-		return <Text>Counter: {this.state.counter}</Text>;
-	}
-
-	override componentDidMount() {
-		setTimeout(this.props.onExit, 500);
-
-		this.timer = setInterval(() => {
-			this.setState(prevState => ({
-				counter: prevState.counter + 1,
-			}));
-		}, 100);
-	}
-
-	override componentWillUnmount() {
-		clearInterval(this.timer);
-	}
-}
-
 function Test() {
+	const [counter, setCounter] = useState(0);
 	const {exit} = useApp();
-	return <Exit onExit={exit} />;
+
+	useEffect(() => {
+		const exitTimer = setTimeout(exit, 500);
+
+		const timer = setInterval(() => {
+			setCounter(previous => previous + 1);
+		}, 100);
+
+		return () => {
+			clearTimeout(exitTimer);
+			clearInterval(timer);
+		};
+	}, [exit]);
+
+	return <Text>Counter: {counter}</Text>;
 }
 
 const app = render(<Test />);
