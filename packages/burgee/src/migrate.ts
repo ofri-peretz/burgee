@@ -405,6 +405,7 @@ export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
     'BoxenBorderStyle',
     'BoxenOptions',
     'Boxes',
+    'Color',
     'CustomBorderStyle',
     'Options',
     'Spacing',

@@ -26,7 +26,7 @@
 </p>
 
 <p align="center">
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/boxen%20suite-84%2F84-0a6b47?style=flat-square" alt="flagstaff/boxen passes 84 of 84 cases of the boxen test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/boxen%20suite-213%2F213-0a6b47?style=flat-square" alt="flagstaff/boxen passes 213 of 213 cases of the boxen test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/cli--table3%20suite-29%2F29-0a6b47?style=flat-square" alt="flagstaff/cli-table3 passes 29 of 29 cases of the cli-table3 test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/log--update%20suite-99%2F99-0a6b47?style=flat-square" alt="flagstaff/log-update passes 99 of 99 cases of the log-update test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/ora%20suite-99%2F99-0a6b47?style=flat-square" alt="flagstaff/ora passes 99 of 99 cases of the ora test suite" /></a>
@@ -392,9 +392,10 @@ guarantee.
 
 ### The boxen path
 
-`flagstaff/boxen` is boxen 8's API, graded **84 / 84 by boxen's own test suite** — every one
-of whose cases is a snapshot of the exact characters the box comes out as. boxen 9 is out of
-scope for 1.0: it is not graded or claimed, and `burgee migrate` leaves a program on it alone.
+`flagstaff/boxen` is boxen 9's API, graded **213 / 213 by boxen 9.0.0's own test suite** — whose
+cases assert the exact characters the box comes out as. boxen 8 is no longer graded or claimed:
+9 changed two of its answers (a hex colour must be real hex, and `vertical` / `horizontal` are a
+fallback for the sides rather than an override), and this follows 9.
 
 ```diff
 -import boxen from 'boxen';
@@ -402,8 +403,11 @@ scope for 1.0: it is not graded or claimed, and `burgee migrate` leaves a progra
 ```
 
 `borderStyle` (all eight of cli-boxes', a style object, or `none`), `borderColor`,
-`backgroundColor`, `dimBorder`, `title` and `titleAlignment`, `textAlignment`, `padding`,
-`margin`, `width`, `height`, `float`, `fullscreen`, and `_borderStyles`.
+`backgroundColor`, `borderBackgroundColor`, `dimBorder`, `title`, `titleColor` and
+`titleAlignment`, `footer` and `footerAlignment`, `textAlignment`, `padding`, `margin`, `width`,
+`maxWidth`, `height`, `float`, `fullscreen`, and `_borderStyles`. A tab, a backspace or a cursor
+move inside the text, a label or a border is written the way a terminal would draw it, as boxen 9
+does, so it cannot break the box.
 
 The drawing **is** the contract here, and matching it byte for byte is the compatibility
 claim rather than a way of avoiding one: a user leaving boxen cares about one thing, whether
@@ -452,8 +456,8 @@ Every subpath is a lock, not a convention, and the numbers below are asserted by
 never the plugin registry; `flagstaff/plugin` 8.4 KB, of which 2.4 KB is the schema;
 `flagstaff/spinner` 9.4 KB; `flagstaff/ora` 46.5 KB — 55.9 KB with roundel counted, against
 ora's own 113.6 KB; `flagstaff/log-update` 29.6 KB, against
-log-update's own 113.4 KB across sixteen, reaching only `linegauge/wrap` and `closeout`; `flagstaff/boxen` 33.7 KB — 43.0 KB with roundel
-counted, against boxen's own 132.4 KB across nineteen; `flagstaff/cli-table3` 32.9 KB —
+log-update's own 113.4 KB across sixteen, reaching only `linegauge/wrap` and `closeout`; `flagstaff/boxen` 17.6 KB — 67.8 KB with linegauge and
+roundel counted, against boxen 9's own 114.9 KB across fourteen; `flagstaff/cli-table3` 32.9 KB —
 42.3 KB with roundel, against cli-table3's own 106.0 KB across seven. The three façades share `wrap.js` and
 `width.js`, and the first two share `closeout`; none reaches another's port, and none
 reaches the core. `sideEffects: false` lets a
@@ -468,7 +472,7 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
-| `boxen` | 84 / 84 |
+| `boxen` | 213 / 213 |
 | `cli-table3` | 29 / 29 |
 | `log-update` | 99 / 99 |
 | `ora` | 99 / 99 |

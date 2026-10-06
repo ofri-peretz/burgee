@@ -1,15 +1,15 @@
 package:  inquirer-core
 repo:     https://github.com/SBoudrias/Inquirer.js
-version:  12.0.3
-tag:      @inquirer/core@12.0.3
-commit:   cbdb34bfc6c245941d80ef88493c50b3d6dbfce6
-vendored: 2026-09-14
+version:  12.0.4
+tag:      @inquirer/core@12.0.4
+commit:   a9436bd94d55a439df308f50e77a7cd0b2078e98
+vendored: 2026-10-06
 files:    1
 tool:     scripts/vendor-suite.ts
 
 How this directory was made
 ---------------------------
-A shallow clone of https://github.com/SBoudrias/Inquirer.js at @inquirer/core@12.0.3, then that repository's own test directory and
+A shallow clone of https://github.com/SBoudrias/Inquirer.js at @inquirer/core@12.0.4, then that repository's own test directory and
 its fixtures copied here. The only edit is to the import specifiers that reach the library:
 each is rewritten to a generated shim, so one unedited suite can grade any implementation.
 Everything else — assertions, fixtures, helpers — is upstream's, byte for byte.
@@ -33,7 +33,7 @@ vendor step deletes any shim it finds, so a stale one can never grade the wrong 
 
 Reproduce
 ---------
-    npx tsx scripts/vendor-suite.ts inquirer-core --version 12.0.3
+    npx tsx scripts/vendor-suite.ts inquirer-core --version 12.0.4
 
 Every field above is reproduced exactly, with one exception that is a date and not a
 defect: `vendored` is the day the copy was taken, so a fresh run writes today's.

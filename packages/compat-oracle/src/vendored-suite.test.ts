@@ -336,6 +336,8 @@ describe('the generated files really are gitignored', () => {
     // The resolve hook a target run of an aliasing host writes (`Host.alias`), at the vendored root.
     `vendor/${host.name}/${ALIAS_HOOK}`,
     ...(readInternals(host) ?? []).map((rel) => at(host, rel.split(sep).join('/'))),
+    // Written at the vendored root, as `writeEntries` writes them.
+    ...(host.entries ?? []).map((entry) => `vendor/${host.name}/${entry.at}`),
   ]);
 
   const rules = readFileSync(join(root, '.gitignore'), 'utf8')

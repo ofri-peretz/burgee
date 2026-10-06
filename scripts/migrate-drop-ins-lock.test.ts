@@ -54,6 +54,13 @@ describe("burgee migrate's drop-ins are the oracle's", () => {
   it('holds DROP_INS equal to the pairs the oracle grades', () => {
     expect(DROP_INS.map(key).sort()).toEqual(unique.map(key).sort());
   });
+
+  // `Host.migrated` moves a suite's other import to a drop-in on a target run, which is honest
+  // only when it is a rewrite `migrate` really makes — otherwise the oracle grades a program no
+  // user is left with.
+  it.each(HOSTS.flatMap((h) => Object.entries(h.migrated ?? {}).map(([from, to]) => [h.name, from, to] as const)))('%s migrates %s to %s, which is a rewrite migrate makes', (_host, from, to) => {
+    expect(DROP_INS.some((d) => d.from === from && d.to === to)).toBe(true);
+  });
 });
 
 describe('the Migrate page lists exactly what the codemod rewrites', () => {

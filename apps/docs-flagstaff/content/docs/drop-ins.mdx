@@ -18,7 +18,7 @@ the family.
 ## How a suite is graded
 
 1. The incumbent's repository is cloned at the release tag of the graded version — ora 9.4.1,
-   log-update 8.0.0, boxen 8.0.1, cli-table3 0.6.5 — and its test directory copied into
+   log-update 8.0.0, boxen 9.0.0, cli-table3 0.6.5 — and its test directory copied into
    `packages/compat-oracle/vendor/`. No incumbent ships its tests to npm, so a tarball could not
    be used. Each copy's `PROVENANCE` file names the tag, the commit and the command that
    reproduces it.
@@ -35,7 +35,7 @@ the family.
   flagstaff's own `ora.test.ts` grades that instead: the cursor comes back on `SIGINT`,
   `SIGTERM` and `SIGHUP`, and the process still terminates.
 - **log-update — 99 cases**, each rendered through a terminal emulator with the screen asserted.
-- **boxen — 84 cases**, each a snapshot of the exact characters the box comes out as.
+- **boxen — 213 cases**, each asserting the exact characters the box comes out as. Its colour cases set `chalk.level` on the program's own `chalk`, so they run with `chalk` moved to `roundel/chalk`, as `burgee migrate` moves it.
 - **cli-table3 — 29 cases.** cli-table3's suite has 38 cases that go through its public API;
   nine of them grade `cli-table`, the older incumbent, and pass whatever the target is, so they
   are excluded by name. The rest of its suite `require`s its four internal modules directly;

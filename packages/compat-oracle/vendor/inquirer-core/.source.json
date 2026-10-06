@@ -1,9 +1,9 @@
 {
   "repo": "https://github.com/SBoudrias/Inquirer.js",
-  "version": "12.0.3",
-  "tag": "@inquirer/core@12.0.3",
-  "commit": "cbdb34bfc6c245941d80ef88493c50b3d6dbfce6",
-  "vendored": "2026-09-14",
+  "version": "12.0.4",
+  "tag": "@inquirer/core@12.0.4",
+  "commit": "a9436bd94d55a439df308f50e77a7cd0b2078e98",
+  "vendored": "2026-10-06",
   "files": 1,
   "internalFiles": [],
   "internals": [],

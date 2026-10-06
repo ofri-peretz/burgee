@@ -119,6 +119,14 @@ jobs:
             -o Dir::Etc::sourceparts=/dev/null \
             -o APT::Get::List-Cleanup=0
           sudo apt-get install -y -q zsh fish
+      # Every package built first, not only the affected ones. A suite may import a package it
+      # does not depend on: burgee's `facade-types.test.ts` type-checks every drop-in `migrate`
+      # rewrites to, `controlroom/ink` among them, and `coverage` depends only on its own
+      # `build`. With controlroom in the affected set the two raced at `--concurrency=2` and
+      # burgee failed with "controlroom/ink does not resolve" (release PR, #827); without it
+      # in the set, nothing would build controlroom at all.
+      - name: Build every package
+        run: npx turbo run build --filter='./packages/*'
       - name: Each affected package's suite, against its coverage thresholds
         env:
           BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.merge_group.base_sha || '' }}

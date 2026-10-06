@@ -95,7 +95,9 @@ export function grades(pkg: string): Grade[] {
     // The host entry names its target; `linegauge/strip` belongs to linegauge.
     const at = hosts.indexOf(`name: '${host}'`);
     if (at === -1) continue;
-    const found = /target: '([^']+)'/.exec(hosts.slice(at));
+    // The host's own property, at the host's indentation: an `entries` row nests a `target:` of
+    // its own (dotenv's `'/dotenv'`), and the first match below the name would be that one.
+    const found = /\n {4}target: '([^']+)'/.exec(hosts.slice(at));
     const target = found?.[1] ?? '';
     if (target.split('/')[0] !== pkg) continue;
     const npm = /npmName: '([^']+)'/.exec(hosts.slice(at, at + (found?.index ?? 0)))?.[1] ?? host;

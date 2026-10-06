@@ -38,7 +38,7 @@
     "@clack/prompts": "1.8.1",
     "@inkjs/ui": "2.0.0",
     "ansi-escapes": "7.3.0",
-    "boxen": "^8.0.1",
+    "boxen": "^9.0.0",
     "cac": "^7.0.0",
     "chalk": "^6.0.1",
     "cli-table3": "0.6.5",

@@ -1,28 +1,31 @@
-import { width as stringWidth } from 'linegauge';
+import { slice as sliceAnsi, widest, width as stringWidth } from 'linegauge';
 import { wrap as wrapAnsi } from 'linegauge/wrap';
 /**
- * `flagstaff/boxen` — boxen 8.0.1 ported method for method, graded by boxen's own suite.
+ * `flagstaff/boxen` — boxen 9.0.0 ported function for function, graded by boxen's own suite.
  *
- * **The drawing is the contract here, and that is the whole point.** boxen's suite is 84
- * `t.snapshot(box)` cases: every one asserts the exact characters it produces. A user
- * migrating off boxen cares about one thing — does my box still look the same — so matching
- * the drawing byte for byte *is* the compatibility claim, not a way of avoiding one. The
- * decision is recorded in `.sdlc/intents/output-stack-compat/spec.md`.
+ * **The drawing is the contract here, and that is the whole point.** boxen's suite snapshots
+ * the exact characters every box comes out as. A user migrating off boxen cares about one
+ * thing — does my box still look the same — so matching the drawing byte for byte *is* the
+ * compatibility claim, not a way of avoiding one. The decision is recorded in
+ * `.sdlc/intents/output-stack-compat/spec.md`.
  *
- * There is no U3 tension to resolve. `boxen()` takes a state and returns a string; that is
- * `static(state)` already, with no frame to project and no non-TTY caller to protect. U3's
- * tension is between an animation and a pipe, and a box does not animate.
+ * **boxen 9, not 8.** 9.0.0 rewrote most of the measuring: a control character inside the
+ * text, a label or a border is written the way a terminal would draw it (a tab is a space, a
+ * backspace overtypes, a cursor move is dropped), a border side may be wider than one column
+ * or empty, a label may sit on the bottom bar (`footer`), `maxWidth` caps a box that grows,
+ * and an option that is not a usable size means its default rather than a broken box. Two
+ * of 8's answers changed and this file follows 9 on both: a hex colour is real hex now
+ * (8 took `#GGG`), and `vertical` / `horizontal` are a fallback for the sides rather than an
+ * override of them. Graded against 9.0.0 on 2026-10-06 (D-20261006-flagstaff-boxen-9).
  *
- * **Eight dependencies folded in.** boxen reaches `string-width`, `wrap-ansi`, `cli-boxes`,
- * `ansi-align`, `widest-line`, `camelcase`, `chalk` and `type-fest`. This file reaches
- * `width.js`, `wrap.js` and `roundel/chalk` — the first two already existed for `./ora` and
- * `./log-update`, and the rest are a few lines each, written below where they are used.
+ * **Seven dependencies folded in.** boxen reaches `string-width`, `wrap-ansi`, `slice-ansi`,
+ * `widest-line`, `cli-boxes`, `chalk` and `type-fest`. This file reaches `linegauge`,
+ * `linegauge/wrap` and `roundel/chalk` — each graded level with the package it replaces.
  *
  * **It carries the cli-boxes table itself** rather than reading flagstaff's plugin registry.
  * boxen has no plugin concept, `_borderStyles` is part of its public surface, and a façade
  * that resolved border names through our registry would draw differently once somebody
- * registered a plugin — which is exactly the reinterpretation a façade must not do. The
- * registry stays `./box`'s business; this subpath is a leaf.
+ * registered a plugin — which is exactly the reinterpretation a façade must not do.
  */
 import chalk from 'roundel/chalk';
 
@@ -39,12 +42,17 @@ const NEWLINE = '\n';
 const PAD = ' ';
 const NONE = 'none';
 const FALLBACK_COLUMNS = 80;
-const DECIMAL = 10;
-/** A border costs one cell on each side. */
-const BORDERED = 2;
+/** The top and the bottom bar are a row each. */
+const BAR_ROWS = 2;
+/** The spaces `formatLabel` draws around a label. */
+const LABEL_FRAME = 2;
 /** `margin: 2` means two rows but six columns — boxen's own ratio, kept exactly. */
 const SIDE_MARGIN_RATIO = 3;
 const HALF = 2;
+const ESC = '\u{1B}';
+const BACKSPACE = '\u{8}';
+
+type Alignment = 'left' | 'center' | 'right';
 
 export interface BoxenBorderStyle {
   topLeft: string;
@@ -55,9 +63,9 @@ export interface BoxenBorderStyle {
   bottomLeft: string;
   bottom: string;
   bottomRight: string;
-  /** Retro-compatibility: sets `left` and `right` together. */
+  /** @deprecated boxen's own name for `left` and `right` together; a fallback for either. */
   vertical?: string;
-  /** Retro-compatibility: sets `top` and `bottom` together. */
+  /** @deprecated boxen's own name for `top` and `bottom` together; a fallback for either. */
   horizontal?: string;
 }
 
@@ -68,21 +76,30 @@ export interface Spacing {
   left?: number;
 }
 
+/** boxen's `Color`: one of chalk's sixteen foreground names, or a hex. */
+export type Color = 'black' | 'red' | 'green' | 'yellow' | 'blue' | 'magenta' | 'cyan' | 'white' | 'gray' | 'grey' | 'blackBright' | 'redBright' | 'greenBright' | 'yellowBright' | 'blueBright' | 'magentaBright' | 'cyanBright' | 'whiteBright' | (string & Record<never, never>);
+
 export interface BoxenOptions {
   borderStyle?: string | BoxenBorderStyle;
-  borderColor?: string;
-  backgroundColor?: string;
+  borderColor?: Color;
+  backgroundColor?: Color;
+  /** The border's background: a colour, `'inherit'` (the default) to take `backgroundColor`, or `undefined` for none. */
+  borderBackgroundColor?: Color | 'inherit' | undefined;
   dimBorder?: boolean;
   title?: string;
-  titleAlignment?: 'left' | 'center' | 'right';
-  textAlignment?: 'left' | 'center' | 'right';
+  titleColor?: Color;
+  titleAlignment?: Alignment;
+  footer?: string;
+  footerAlignment?: Alignment;
+  textAlignment?: Alignment;
   /** @deprecated boxen's own name for `textAlignment`, still honoured. */
-  align?: 'left' | 'center' | 'right';
+  align?: Alignment;
   padding?: number | Spacing;
   margin?: number | Spacing;
-  width?: number;
-  height?: number;
-  float?: 'left' | 'center' | 'right';
+  width?: number | `${number}`;
+  maxWidth?: number | `${number}`;
+  height?: number | `${number}`;
+  float?: Alignment;
   fullscreen?: boolean | ((columns: number, rows: number) => [number, number]);
 }
 
@@ -101,292 +118,375 @@ const BOXES: Record<string, BoxenBorderStyle> = {
   arrow: { topLeft: '↘', top: '↓', topRight: '↙', right: '←', bottomRight: '↖', bottom: '↑', bottomLeft: '↗', left: '→' },
 };
 
+/** Every line break a terminal honours, so none can move the cursor inside the box. */
+const LINE_BREAKS = /\r\n|[\n\v\f\r]/gu;
+
 /**
- * The terminal's width, in boxen's order of preference: stdout, then stderr, then
- * `COLUMNS`, then 80. Read at call time rather than at import, because a box drawn after a
- * resize should use the new width.
+ * A style escape (SGR) and an OSC 8 hyperlink are drawn with the text they wrap; every other
+ * escape is dropped. boxen's two patterns, written with `u` where boxen writes `v` — neither
+ * uses a set operation, so they match the same strings.
  */
-function terminalColumns(): number {
-  const { env, stdout, stderr } = rt;
-  if (stdout?.columns) return stdout.columns;
-  if (stderr?.columns) return stderr.columns;
-  if (env['COLUMNS'] !== undefined) return Number.parseInt(env['COLUMNS'], DECIMAL);
-  return FALLBACK_COLUMNS;
-}
+const STYLING_ESCAPE = /^(?:\u{1B}\[[0-9:;]*m|\u{1B}\]8;[^\u{0}-\u{1F};\u{7F}]*;[^\u{0}-\u{1F}\u{7F}]*(?:\u{7}|\u{1B}\\))$/u;
+const CONTROL_ESCAPE = /(\u{1B}\].*?(?:\u{7}|\u{1B}\\|$)|\u{1B}\[[\u{20}-\u{3F}]*[\u{40}-\u{7E}]|\u{1B}[^\u{7}\u{5B}\u{5D}]?)/gsu;
 
-/** `padding: 2` is two rows and six columns; an object is taken as written. */
-function getObject(detail: number | Spacing | undefined): Required<Spacing> {
-  if (typeof detail === 'number') {
-    return { top: detail, right: detail * SIDE_MARGIN_RATIO, bottom: detail, left: detail * SIDE_MARGIN_RATIO };
+/**
+ * Write the text the way a terminal would draw it inside a box: a tab is one space (the row
+ * stays as wide as it is measured), a backspace overtypes the character before it — never a
+ * line break, never half an escape — and an escape that is not a style or a hyperlink is not
+ * drawn. The escapes are the odd entries of the split, so a whole OSC is handled before any
+ * styling escape inside it.
+ */
+function writeControls(text: string): string {
+  const characters: string[] = [];
+  for (const [index, part] of text.split(CONTROL_ESCAPE).entries()) {
+    if (index % HALF === 1) {
+      if (STYLING_ESCAPE.test(part)) characters.push(part);
+      continue;
+    }
+    for (const character of part.replaceAll('\t', PAD)) {
+      if (character !== BACKSPACE) {
+        characters.push(character);
+        continue;
+      }
+      const previous = characters.findLastIndex((c) => !c.startsWith(ESC));
+      if (previous !== -1 && characters[previous] !== NEWLINE) characters.splice(previous, 1);
+    }
   }
-  return { top: 0, right: 0, bottom: 0, left: 0, ...detail };
+  return characters.join('');
 }
 
-const getBorderWidth = (borderStyle: string | BoxenBorderStyle | undefined): number => (borderStyle === NONE ? 0 : BORDERED);
+/** A label or a border side is one row: its line breaks are spaces, its controls written. */
+const oneRow = (text: string): string => writeControls(text.replaceAll(LINE_BREAKS, PAD)).toWellFormed();
+
+const columnsOf = (value: unknown): number => Number(value);
+
+/** The terminal's width: stdout, then stderr, then `COLUMNS`, then 80 — read per box. */
+const terminalColumns = (): number => rt.stdout?.columns || rt.stderr?.columns || columnsOf(rt.env['COLUMNS']) || FALLBACK_COLUMNS;
+
+/** A terminal has no height when the output is not a terminal, and there is nothing to fill then. */
+const terminalRows = (): number => rt.stdout?.rows || rt.stderr?.rows || columnsOf(rt.env['LINES']);
+
+/** `padding: 2` is two rows and six columns; each side a finite non-negative whole number, or none. */
+function getObject(detail: unknown): Required<Spacing> {
+  const object: Record<string, unknown> =
+    typeof detail === 'number'
+      ? { top: detail, right: detail * SIDE_MARGIN_RATIO, bottom: detail, left: detail * SIDE_MARGIN_RATIO }
+      : { top: 0, right: 0, bottom: 0, left: 0, ...(detail as Spacing | undefined) };
+  const side = (name: keyof Spacing): number => {
+    const value = Number(object[name]);
+    return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+  };
+  return { top: side('top'), right: side('right'), bottom: side('bottom'), left: side('left') };
+}
 
 const SIDES = ['topLeft', 'topRight', 'bottomRight', 'bottomLeft', 'left', 'right', 'top', 'bottom'] as const;
-
-/** widest-line, which is one line: the widest row, measured. */
-const widestLine = (text: string): number => Math.max(0, ...text.split(NEWLINE).map((line) => stringWidth(line)));
-
-/** ansi-align, ported. `left` is a no-op; `center` pads by half the difference, floored. */
-function ansiAlign(text: string, align: 'left' | 'center' | 'right'): string {
-  if (text === '' || align === 'left') return text;
-  const lines = text.split(NEWLINE).map((line) => ({ line, width: stringWidth(line) }));
-  const maxWidth = Math.max(0, ...lines.map((l) => l.width));
-  const diff = (w: number): number => (align === 'right' ? maxWidth - w : Math.floor((maxWidth - w) / HALF));
-  return lines.map((l) => PAD.repeat(diff(l.width)) + l.line).join(NEWLINE);
-}
+type Chars = Record<(typeof SIDES)[number], string>;
 
 /** Resolve a border style name or object to its eight characters, refusing anything else. */
-function getBorderChars(borderStyle: string | BoxenBorderStyle | undefined): BoxenBorderStyle {
+function getBorderChars(borderStyle: string | BoxenBorderStyle): Chars {
+  let characters: Record<string, unknown>;
   if (borderStyle === NONE) {
-    return { topLeft: '', top: '', topRight: '', left: '', right: '', bottomLeft: '', bottom: '', bottomRight: '' };
+    characters = Object.fromEntries(SIDES.map((side) => [side, '']));
+  } else if (typeof borderStyle === 'string') {
+    // An own property, or an inherited name like `constructor` would pass as a style.
+    if (!Object.hasOwn(BOXES, borderStyle)) throw new TypeError(`Invalid border style: ${borderStyle}`);
+    characters = BOXES[borderStyle] as unknown as Record<string, unknown>;
+  } else {
+    // `vertical` and `horizontal` are the deprecated names of the sides, so a fallback for
+    // them. Copied, because the object belongs to the caller.
+    const given = borderStyle as Partial<BoxenBorderStyle> | null;
+    characters = { ...given, left: given?.left ?? given?.vertical, right: given?.right ?? given?.vertical, top: given?.top ?? given?.horizontal, bottom: given?.bottom ?? given?.horizontal };
+    for (const side of SIDES) {
+      if (typeof characters[side] !== 'string') throw new TypeError(`Invalid border style: ${side}`);
+    }
   }
-
-  if (typeof borderStyle === 'string') {
-    const characters = BOXES[borderStyle];
-    if (!characters) throw new TypeError(`Invalid border style: ${borderStyle}`);
-    return characters;
-  }
-
-  const style = { ...borderStyle } as BoxenBorderStyle;
-  // Retro-compatibility, kept because boxen keeps it: `vertical`/`horizontal` set both sides.
-  if (typeof style.vertical === 'string') {
-    style.left = style.vertical;
-    style.right = style.vertical;
-  }
-  if (typeof style.horizontal === 'string') {
-    style.top = style.horizontal;
-    style.bottom = style.horizontal;
-  }
-  for (const side of SIDES) {
-    if (typeof style[side] !== 'string') throw new TypeError(`Invalid border style: ${side}`);
-  }
-  return style;
+  return Object.fromEntries(SIDES.map((side) => [side, oneRow(characters[side] as string)])) as Chars;
 }
 
-/** The title written into the top border, aligned within the horizontal run it replaces. */
-function makeTitle(text: string, horizontalRun: string, alignment: BoxenOptions['titleAlignment']): string {
+/** The width of the border is the width of the sides it draws; a side that draws nothing is a space. */
+function getBorderWidth(borderStyle: string | BoxenBorderStyle): number {
+  if (borderStyle === NONE) return 0;
+  const { left, right } = getBorderChars(borderStyle);
+  return stringWidth(left || PAD) + stringWidth(right || PAD);
+}
+
+const getBorderHeight = (borderStyle: string | BoxenBorderStyle): number => (borderStyle === NONE ? 0 : BAR_ROWS);
+
+/** The corners of a bar can be wider than its sides, and a label is drawn between them. */
+function getCornerWidths(borderStyle: string | BoxenBorderStyle): { top: number; bottom: number } {
+  const { topLeft, topRight, bottomLeft, bottomRight } = getBorderChars(borderStyle);
+  return { top: stringWidth(topLeft) + stringWidth(topRight), bottom: stringWidth(bottomLeft) + stringWidth(bottomRight) };
+}
+
+/** A size is a finite positive number, and the space inside the border — so not below `minimum`. */
+function sanitizeSize(size: unknown, borderWidth: number, minimum = 1): number | undefined {
+  const value = Number(size);
+  return Number.isFinite(value) && value > 0 ? Math.max(minimum, value - borderWidth) : undefined;
+}
+
+const isValidSize = (size: unknown): boolean => sanitizeSize(size, 0) !== undefined;
+
+/** Wrapping trims the whitespace at the edges of a line, so a line that fits is kept as it is. */
+const wrapLine = (line: string, width: number): string => (stringWidth(line) > width ? wrapAnsi(line, width, { hard: true }) : line);
+
+const widestLine = (text: string): number => widest(text.split(NEWLINE));
+
+/** Pad each line to `width` for the alignment; a line wider than that is not padded. */
+function alignText(text: string, alignment: Alignment, width: number): string {
+  if (alignment === 'left') return text;
+  return text
+    .split(NEWLINE)
+    .map((line) => {
+      const padding = Math.max(0, width - stringWidth(line));
+      return PAD.repeat(alignment === 'right' ? padding : Math.floor(padding / HALF)) + line;
+    })
+    .join(NEWLINE);
+}
+
+/** A label placed in a bar, by the bar's width rather than its length — a bar character can be wide. */
+function makeLabel(text: string, horizontal: string, alignment: Alignment | undefined): string {
   const textWidth = stringWidth(text);
-  if (alignment === 'left') return text + horizontalRun.slice(textWidth);
-  if (alignment === 'right') return horizontalRun.slice(textWidth) + text;
-
-  let horizontal = horizontalRun.slice(textWidth);
-  if (horizontal.length % HALF === 1) {
-    // An odd remainder cannot split evenly; boxen takes one character off the left so the
-    // bar does not run past its own corner.
-    horizontal = horizontal.slice(Math.floor(horizontal.length / HALF));
-    return horizontal.slice(1) + text + horizontal;
+  if (alignment === 'left') return text + sliceAnsi(horizontal, textWidth);
+  if (alignment === 'right') return sliceAnsi(horizontal, textWidth) + text;
+  const spare = Math.max(0, stringWidth(horizontal) - textWidth);
+  if (spare % HALF === 1) {
+    // An odd remainder cannot split evenly: one column comes off the left, or the bar runs past its corner.
+    const rest = sliceAnsi(horizontal, Math.floor(spare / HALF) + textWidth);
+    return sliceAnsi(rest, 1) + text + rest;
   }
-  horizontal = horizontal.slice(horizontal.length / HALF);
-  return horizontal + text + horizontal;
+  const rest = sliceAnsi(horizontal, spare / HALF + textWidth);
+  return rest + text + rest;
 }
 
-interface Resolved extends Omit<BoxenOptions, 'padding' | 'margin'> {
+interface Resolved {
+  borderStyle: string | BoxenBorderStyle;
+  borderColor?: string | undefined;
+  backgroundColor?: string | undefined;
+  borderBackgroundColor?: string | undefined;
+  dimBorder?: boolean | undefined;
+  title?: string | undefined;
+  titleColor?: string | undefined;
+  titleAlignment: Alignment;
+  footer?: string | undefined;
+  footerAlignment: Alignment;
+  textAlignment: Alignment;
   padding: Required<Spacing>;
   margin: Required<Spacing>;
-  width: number;
+  width: number | undefined;
+  maxWidth: number | undefined;
+  height: number | undefined;
+  float?: Alignment | undefined;
+  fullscreen?: BoxenOptions['fullscreen'];
 }
 
-/** One over-wide line, wrapped and re-aligned within the width the box actually has. */
-function rewrap(line: string, max: number, align: 'left' | 'center' | 'right'): string[] {
-  const alignedLines = ansiAlign(wrapAnsi(line, max, { hard: true }), align).split(NEWLINE);
-  const longest = Math.max(0, ...alignedLines.map((s) => stringWidth(s)));
-  if (align === 'center') return alignedLines.map((l) => PAD.repeat((max - longest) / HALF) + l);
-  if (align === 'right') return alignedLines.map((l) => PAD.repeat(max - longest) + l);
-  return alignedLines;
-}
+type Sized = Resolved & { width: number };
 
-/** Pad every row to the box's width, then add the top and bottom padding rows. */
-function padRows(lines: string[], padding: Required<Spacing>, width: number): string[] {
-  const left = PAD.repeat(padding.left);
-  const right = PAD.repeat(padding.right);
-  const padded = lines.map((line) => {
-    const newLine = left + line + right;
-    return newLine + PAD.repeat(width - stringWidth(newLine));
-  });
-  return [
-    ...Array.from({ length: padding.top }, () => PAD.repeat(width)),
-    ...padded,
-    ...Array.from({ length: padding.bottom }, () => PAD.repeat(width)),
-  ];
-}
-
-/** Cut or grow to a fixed height. `height` of 0 or undefined leaves the rows alone. */
-function fitHeight(lines: string[], height: number | undefined, width: number): string[] {
-  if (height === undefined || height <= 0) return lines;
-  if (lines.length > height) return lines.slice(0, height);
-  return [...lines, ...Array.from({ length: height - lines.length }, () => PAD.repeat(width))];
-}
-
-/** Wrap and align the content, pad it, and cut or grow it to a fixed height. */
-function makeContentText(text: string, { padding, width, textAlignment, height }: Resolved): string {
-  const align = textAlignment ?? 'left';
-  const aligned = ansiAlign(text, align);
-  let lines = aligned.split(NEWLINE);
-  const textWidth = widestLine(aligned);
+/** Wrap and align the content, pad it, and crop or grow it to a fixed height. */
+function makeContentText(text: string, { padding, width, textAlignment, height }: Sized): string {
   const max = width - padding.left - padding.right;
+  // Wrapped first, so the alignment measures the rows that are drawn.
+  const wrappedText = text
+    .split(NEWLINE)
+    .map((line) => wrapLine(line, max))
+    .join(NEWLINE);
+  // A character can be wider than the box: its row overflows, and the others are not aligned to it.
+  const textWidth = Math.min(max, widestLine(wrappedText));
+  const alignedText = alignText(wrappedText, textAlignment, textWidth);
+  let offset = 0;
+  if (textAlignment === 'right') offset = max - textWidth;
+  else if (textAlignment === 'center') offset = Math.floor((max - textWidth) / HALF);
 
-  if (textWidth > max) lines = lines.flatMap((line) => rewrap(line, max, align));
+  const paddingLeft = PAD.repeat(padding.left);
+  const paddingRight = PAD.repeat(padding.right);
+  let lines = alignedText.split(NEWLINE).map((line) => {
+    const newLine = paddingLeft + PAD.repeat(offset) + line + paddingRight;
+    return newLine + PAD.repeat(Math.max(0, width - stringWidth(newLine)));
+  });
 
-  if (align === 'center' && textWidth < max) lines = lines.map((line) => PAD.repeat((max - textWidth) / HALF) + line);
-  else if (align === 'right' && textWidth < max) lines = lines.map((line) => PAD.repeat(max - textWidth) + line);
-
-  return fitHeight(padRows(lines, padding, width), height, width).join(NEWLINE);
+  // The padding rows are part of the height, so only the text is cropped.
+  const textRows = height === undefined ? undefined : Math.max(0, height - padding.top - padding.bottom);
+  if (textRows !== undefined && lines.length > textRows) lines = lines.slice(0, textRows);
+  const blank = (count: number): string[] => Array.from({ length: count }, () => PAD.repeat(width));
+  lines = [...blank(padding.top), ...lines, ...blank(padding.bottom)];
+  if (height !== undefined && lines.length < height) lines = [...lines, ...blank(height - lines.length)];
+  return lines.join(NEWLINE);
 }
 
-/**
- * boxen's own hex test, character for character (`boxen/index.js:337`).
- *
- * `[0-f]` is not hex. It is the 55-character range from `0` to `f`, which takes in
- * `:;<=>?@`, `A-Z`, `` [\]^_` `` — and with the `i` flag, `a-z` as well. So boxen draws a
- * box for `borderColor: '#GGG'` and so do we, which `boxen.test.ts` pins.
- *
- * Kept deliberately. A stricter regex would be correct in isolation and a **divergence**
- * here: a façade is its incumbent's behaviour, and rejecting a colour boxen accepts breaks
- * exactly the migration this file exists to serve. CodeQL flags the range, rightly, and the
- * answer is that the surprise belongs to the host.
- */
-// codeql[js/overly-large-range]
-const isHex = (color: string): boolean => /^#(?:[0-f]{3}){1,2}$/i.test(color);
+/** Fill a bar with a side's character, repeated and cut to width; an empty side fills with spaces. */
+function fillBar(character: string, width: number): string {
+  const fill = character || PAD;
+  const count = Math.ceil(Math.max(0, width) / Math.max(1, stringWidth(fill)));
+  return sliceAnsi(fill.repeat(count), 0, Math.max(0, width));
+}
+
+/** boxen 9's hex test: three or six real hex digits. */
+const isHex = (color: string): boolean => /^#(?:[\da-f]{3}){1,2}$/iu.test(color);
+
+const COLOR_NAMES = new Set(['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white', 'gray', 'grey', 'blackBright', 'redBright', 'greenBright', 'yellowBright', 'blueBright', 'magentaBright', 'cyanBright', 'whiteBright']);
+
 type ChalkFn = (s: string) => string;
 
-/**
- * chalk, looked up by name. boxen resolves its colours as `chalk[color]` and
- * `chalk[bgRed]` — a string reaching a property — which is the one shape a typed façade
- * cannot express directly. Going through `Record<string, unknown>` and checking the result
- * is a function keeps the lookup honest: an unknown name yields `undefined` rather than
- * something that blows up at the call site, and `isColorValid()` refuses it before then.
- */
-function named(name: string): ChalkFn | undefined {
-  const value: unknown = Reflect.get(chalk, name);
-  return typeof value === 'function' ? (value as ChalkFn) : undefined;
-}
+/** chalk, by name — a string reaching a property, which only `isColorValid` has let through. */
+const named = (name: string): ChalkFn => Reflect.get(chalk, name) as ChalkFn;
 
-/** `bg` + `red` → `bgRed`; camelcase, for the one shape boxen asks of it. */
-const bgName = (color: string): string => `bg${color.charAt(0).toUpperCase()}${color.slice(1)}`;
+const isColorValid = (color: unknown): boolean => typeof color === 'string' && (COLOR_NAMES.has(color) || isHex(color));
+const colorFunction = (color: string): ChalkFn => (isHex(color) ? chalk.hex(color) : named(color));
+const bgColorFunction = (color: string): ChalkFn => (isHex(color) ? chalk.bgHex(color) : named(`bg${color.charAt(0).toUpperCase()}${color.slice(1)}`));
 
-/** What an unknown colour would paint with. Unreachable: `isColorValid()` refuses one first. */
-const asIs: ChalkFn = (text) => text;
-
-const isColorValid = (color: unknown): boolean => typeof color === 'string' && (named(color) !== undefined || isHex(color));
-const colorFunction = (color: string): ChalkFn => (isHex(color) ? chalk.hex(color) : (named(color) ?? asIs));
-const bgColorFunction = (color: string): ChalkFn => (isHex(color) ? chalk.bgHex(color) : (named(bgName(color)) ?? asIs));
-
-/** Draw the borders and the margins around content that is already the right size. */
-function boxContent(content: string, contentWidth: number, options: Resolved): string {
+/** Draw the bars, the sides and the margins around content that is already the right size. */
+function boxContent(content: string, contentWidth: number, options: Sized): string {
   const colorizeBorder = (border: string): string => {
-    const painted = options.borderColor === undefined ? border : colorFunction(options.borderColor)(border);
-    return options.dimBorder === true ? chalk.dim(painted) : painted;
+    const colored = options.borderColor ? colorFunction(options.borderColor)(border) : border;
+    let background = colored;
+    if (options.borderBackgroundColor === 'inherit') {
+      if (options.backgroundColor) background = bgColorFunction(options.backgroundColor)(colored);
+    } else if (options.borderBackgroundColor !== undefined) {
+      background = bgColorFunction(options.borderBackgroundColor)(colored);
+    }
+    return options.dimBorder ? chalk.dim(background) : background;
   };
-  const colorizeContent = (line: string): string => (options.backgroundColor === undefined ? line : bgColorFunction(options.backgroundColor)(line));
+  const colorizeContent = (text: string): string => (options.backgroundColor ? bgColorFunction(options.backgroundColor)(text) : text);
+  // Styling already applied to the title takes precedence.
+  const colorizeTitle = (title: string): string => (options.titleColor ? colorFunction(options.titleColor)(title) : title);
 
   const chars = getBorderChars(options.borderStyle);
   const columns = terminalColumns();
   let marginLeft = PAD.repeat(options.margin.left);
-
   if (options.float === 'center') {
     marginLeft = PAD.repeat(Math.max((columns - contentWidth - getBorderWidth(options.borderStyle)) / HALF, 0));
   } else if (options.float === 'right') {
     marginLeft = PAD.repeat(Math.max(columns - contentWidth - options.margin.right - getBorderWidth(options.borderStyle), 0));
   }
 
-  let result = '';
-  if (options.margin.top) result += NEWLINE.repeat(options.margin.top);
+  // A style that draws a border draws a space for a side that is empty.
+  const hasBorder = options.borderStyle !== NONE;
+  const left = hasBorder ? chars.left || PAD : '';
+  const right = hasBorder ? chars.right || PAD : '';
+  const rowWidth = contentWidth + stringWidth(left) + stringWidth(right);
+  // A bar spans a row: filled to the width between its corners, with the label placed in the fill.
+  const bar = (character: string, cornerStart: string, cornerEnd: string, label: string, alignment: Alignment): string => {
+    const span = Math.max(0, rowWidth - stringWidth(cornerStart) - stringWidth(cornerEnd));
+    const fill = fillBar(character, span);
+    const filled = label ? makeLabel(label, fill, alignment) : fill;
+    // A wide character does not fill the last column of an odd width, and a label can end inside one.
+    return sliceAnsi(filled + PAD.repeat(Math.max(0, span - stringWidth(filled))), 0, Math.max(0, span));
+  };
 
-  if (options.borderStyle !== NONE || options.title !== undefined) {
-    const run = chars.top.repeat(contentWidth);
-    const top = options.title === undefined ? run : makeTitle(options.title, run, options.titleAlignment);
-    result += `${colorizeBorder(marginLeft + chars.topLeft + top + chars.topRight)}${NEWLINE}`;
+  const rows: string[] = [];
+  if (hasBorder || options.title) {
+    const topBar = bar(chars.top, chars.topLeft, chars.topRight, options.title ? colorizeTitle(options.title) : '', options.titleAlignment);
+    rows.push(marginLeft + colorizeBorder(chars.topLeft + topBar + chars.topRight));
   }
-
-  result += content
-    .split(NEWLINE)
-    .map((line) => marginLeft + colorizeBorder(chars.left) + colorizeContent(line) + colorizeBorder(chars.right))
-    .join(NEWLINE);
-
-  if (options.borderStyle !== NONE) {
-    result += NEWLINE + colorizeBorder(marginLeft + chars.bottomLeft + chars.bottom.repeat(contentWidth) + chars.bottomRight);
+  // A box of no rows has no content to draw.
+  for (const line of content === '' ? [] : content.split(NEWLINE)) {
+    const padded = line + PAD.repeat(Math.max(0, contentWidth - stringWidth(line)));
+    rows.push(marginLeft + colorizeBorder(left) + colorizeContent(padded) + colorizeBorder(right));
   }
-  if (options.margin.bottom) result += NEWLINE.repeat(options.margin.bottom);
-  return result;
+  if (hasBorder || options.footer) {
+    const bottomBar = bar(chars.bottom, chars.bottomLeft, chars.bottomRight, options.footer ?? '', options.footerAlignment);
+    rows.push(marginLeft + colorizeBorder(chars.bottomLeft + bottomBar + chars.bottomRight));
+  }
+  // A margin is drawn as empty rows around the box.
+  return NEWLINE.repeat(options.margin.top) + rows.join(NEWLINE) + NEWLINE.repeat(options.margin.bottom);
 }
 
-/** `fullscreen` maxes out whichever of width/height was not given. */
-function sanitizeOptions(options: Resolved & { fullscreen?: BoxenOptions['fullscreen'] }): Resolved {
-  if (options.fullscreen !== undefined && options.fullscreen !== false && rt.stdout) {
-    let dimensions: [number, number] = [rt.stdout.columns, rt.stdout.rows];
+/** `fullscreen` maxes out whichever size was not given; every size becomes the space inside the border. */
+function sanitizeOptions(options: Resolved): Resolved {
+  if (options.fullscreen) {
+    let dimensions: [number, number] = [terminalColumns(), terminalRows()];
     if (typeof options.fullscreen === 'function') dimensions = options.fullscreen(...dimensions);
-    options.width ||= dimensions[0];
-    options.height ||= dimensions[1];
+    if (!isValidSize(options.width)) options.width = dimensions[0];
+    if (!isValidSize(options.height)) options.height = dimensions[1];
   }
-  // `&&=`, as boxen writes it: a width of 0 stays 0 rather than becoming 1.
-  if (options.width) options.width = Math.max(1, options.width - getBorderWidth(options.borderStyle));
-  if (options.height) options.height = Math.max(1, options.height - getBorderWidth(options.borderStyle));
+  const borderWidth = getBorderWidth(options.borderStyle);
+  options.width = sanitizeSize(options.width, borderWidth);
+  options.maxWidth = sanitizeSize(options.maxWidth, borderWidth);
+  // A box can have no row for the text; it is still a box of the height that is given.
+  options.height = sanitizeSize(options.height, getBorderHeight(options.borderStyle), 0);
   return options;
 }
 
-const formatTitle = (title: string, borderStyle: BoxenOptions['borderStyle']): string => (borderStyle === NONE ? title : ` ${title} `);
+const formatLabel = (label: string, borderStyle: string | BoxenBorderStyle): string => (borderStyle === NONE ? label : ` ${label} `);
 
-/**
- * Cut the title to what the box can hold, and — when the width was not fixed — let a title
- * wider than the content decide the box's width. Mutates, as boxen does.
- */
-function sizeTitle(options: Resolved, { widthOverride, maxWidth, widest }: { widthOverride: boolean; maxWidth: number; widest: number }): void {
-  if (options.title === undefined) return;
-  if (widthOverride) {
-    options.title = options.title.slice(0, Math.max(0, options.width - HALF));
-    if (options.title) options.title = formatTitle(options.title, options.borderStyle);
-    return;
-  }
-  options.title = options.title.slice(0, Math.max(0, maxWidth - HALF));
-  if (!options.title) return;
-  options.title = formatTitle(options.title, options.borderStyle);
-  if (stringWidth(options.title) > widest) options.width = stringWidth(options.title);
+/** Slice a label to the space between the corners of its bar, and frame it with spaces. */
+function fitLabel(label: string | undefined, width: number, borderStyle: string | BoxenBorderStyle, cornerWidth: number): string | undefined {
+  if (!label) return label;
+  const frame = borderStyle === NONE ? 0 : LABEL_FRAME;
+  const fitted = sliceAnsi(oneRow(label), 0, Math.max(0, width + getBorderWidth(borderStyle) - cornerWidth - frame));
+  return fitted && formatLabel(fitted, borderStyle);
 }
 
-/** Settle the box's width, the title's width, and how much the margins may keep. */
-function determineDimensions(text: string, input: Resolved): Resolved {
+/** Settle the box's width, the labels, and how much the margins may keep. */
+function determineDimensions(text: string, input: Resolved): Sized {
   const options = sanitizeOptions(input);
-  const widthOverride = options.width !== undefined && options.width !== 0;
+  const isWidthOverride = options.width !== undefined;
   const columns = terminalColumns();
   const borderWidth = getBorderWidth(options.borderStyle);
-  const maxWidth = columns - options.margin.left - options.margin.right - borderWidth;
-  const widest = widestLine(wrapAnsi(text, columns - borderWidth, { hard: true, trim: false })) + options.padding.left + options.padding.right;
+  const cornerWidths = getCornerWidths(options.borderStyle);
+  const corners = Math.max(cornerWidths.top, cornerWidths.bottom);
+  const terminalWidth = columns - borderWidth;
+  // The box grows with the content up to the terminal width and `maxWidth`.
+  const maxContentWidth = Math.min(terminalWidth, options.maxWidth || terminalWidth);
+  // A floated box is centred or pushed right rather than indented, so only a drawn margin takes columns.
+  const marginWidth = (): number => {
+    if (options.float === 'center') return 0;
+    if (options.float === 'right') return options.margin.right;
+    return options.margin.left + options.margin.right;
+  };
+  // A fixed width brings its own size, so only an indenting margin can push the box past the terminal.
+  const availableWidth = isWidthOverride ? columns - borderWidth - (options.float === 'left' ? options.margin.left : 0) : terminalWidth - marginWidth();
 
-  sizeTitle(options, { widthOverride, maxWidth, widest });
-  options.width ||= widest;
+  // Measured the way it is wrapped, or the box can end up a column wider than the text.
+  const maxTextWidth = Math.max(1, maxContentWidth - options.padding.left - options.padding.right);
+  const wrappedText = text
+    .split(NEWLINE)
+    .map((line) => wrapLine(line, maxTextWidth))
+    .join(NEWLINE);
+  let widestRow = Math.min(widestLine(wrappedText) + options.padding.left + options.padding.right, maxContentWidth);
+  options.width ||= widestRow;
 
-  if (!widthOverride) {
-    if (options.margin.left && options.margin.right && options.width > maxWidth) {
-      // Both margins shrink in proportion, so a box that cannot fit keeps their ratio.
-      const spaceForMargins = columns - options.width - borderWidth;
-      const multiplier = spaceForMargins / (options.margin.left + options.margin.right);
-      options.margin.left = Math.max(0, Math.floor(options.margin.left * multiplier));
-      options.margin.right = Math.max(0, Math.floor(options.margin.right * multiplier));
-    }
-    options.width = Math.min(options.width, columns - borderWidth - options.margin.left - options.margin.right);
+  // The margin shrinks, on one side or both, or the box is pushed past the terminal; the content keeps a column.
+  if ((options.margin.left || options.margin.right) && Math.max(1, options.width) > availableWidth) {
+    const spaceForMargins = columns - Math.max(1, options.width) - borderWidth;
+    const multiplier = spaceForMargins / (options.margin.left + options.margin.right);
+    options.margin.left = Math.max(0, Math.floor(options.margin.left * multiplier));
+    options.margin.right = Math.max(0, Math.floor(options.margin.right * multiplier));
   }
 
-  if (options.width - (options.padding.left + options.padding.right) <= 0) {
+  // The labels fit the space the margin leaves, so a shrunk margin still fits them.
+  const labelWidth = isWidthOverride ? options.width : Math.min(columns - borderWidth - marginWidth(), maxContentWidth);
+  options.title = fitLabel(options.title, labelWidth, options.borderStyle, cornerWidths.top);
+  options.footer = fitLabel(options.footer, labelWidth, options.borderStyle, cornerWidths.bottom);
+
+  // A label is drawn on a bar, but on a row of its own when there is no border.
+  if (getBorderHeight(options.borderStyle) === 0 && options.height !== undefined) {
+    options.height = Math.max(0, options.height - (options.title ? 1 : 0) - (options.footer ? 1 : 0));
+  }
+
+  if (!isWidthOverride) {
+    // A label wider than the content decides the width, keeping the room its bar's corners need.
+    for (const [label, cornerWidth] of [
+      [options.title, cornerWidths.top],
+      [options.footer, cornerWidths.bottom],
+    ] as const) {
+      if (label) widestRow = Math.max(widestRow, stringWidth(label) - borderWidth + cornerWidth);
+    }
+    options.width = Math.max(1, Math.min(widestRow, columns - borderWidth - marginWidth()));
+  }
+
+  // The box is at least as wide as the corners of its bars, and padding never overflows it.
+  options.width = Math.max(options.width, corners - borderWidth, 1);
+  if (options.padding.left + options.padding.right >= options.width) {
     options.padding.left = 0;
     options.padding.right = 0;
   }
-  if (options.height !== undefined && options.height - (options.padding.top + options.padding.bottom) <= 0) {
+  if (options.height !== undefined && options.padding.top + options.padding.bottom >= options.height) {
     options.padding.top = 0;
     options.padding.bottom = 0;
   }
-  return options;
+  return options as Sized;
 }
 
-/**
- * Draw a box around `text`, exactly as boxen 8 draws it.
- *
- * An invalid `borderColor` or `backgroundColor` throws rather than drawing something
- * plausible, because boxen throws: a colour name that is not one is a typo, and a box drawn
- * in the wrong colour is a bug somebody ships.
- */
 /** boxen re-exports cli-boxes under this name, so it is surface a caller can reach. */
 export { BOXES as _borderStyles };
 
@@ -397,24 +497,49 @@ export type CustomBorderStyle = BoxenBorderStyle;
 export type Boxes = typeof BOXES;
 
 /**
+ * Draw a box around `text`, exactly as boxen 9 draws it.
+ *
+ * An invalid colour throws rather than drawing something plausible, because boxen throws: a
+ * colour name that is not one is a typo, and a box drawn in the wrong colour is a bug somebody
+ * ships.
+ *
  * `import boxen from 'boxen'` is the incumbent's surface. A named export here would break
  * every migration this file exists to serve, so the house rule yields to the host.
  */
-export default function boxen(text: string, options: BoxenOptions = {}): string {
-  const merged: BoxenOptions = { borderStyle: 'single', dimBorder: false, textAlignment: 'left', float: 'left', titleAlignment: 'left', padding: 0, ...options };
-  // `align` is boxen's deprecated name for `textAlignment`, and its suite still passes it.
-  if (merged.align !== undefined) merged.textAlignment = merged.align;
+export default function boxen(input: string, options: BoxenOptions = {}): string {
+  // Line breaks are normalised so none can move the cursor, and a lone surrogate is written
+  // as a replacement character, which is one column wide and measured as one.
+  const text = writeControls(input.replaceAll(LINE_BREAKS, NEWLINE)).toWellFormed();
+  const merged = { padding: 0, dimBorder: false, float: 'left', ...options } as BoxenOptions;
+  // A nullish option, an explicit `undefined` included, means its default.
+  const borderStyle = merged.borderStyle ?? 'single';
+  const textAlignment = merged.textAlignment ?? merged.align ?? 'left';
 
-  if (merged.borderColor !== undefined && !isColorValid(merged.borderColor)) throw new Error(`${merged.borderColor} is not a valid borderColor`);
-  if (merged.backgroundColor !== undefined && !isColorValid(merged.backgroundColor)) throw new Error(`${merged.backgroundColor} is not a valid backgroundColor`);
+  for (const name of ['borderColor', 'titleColor', 'backgroundColor'] as const) {
+    const color = merged[name];
+    if (color && !isColorValid(color)) throw new Error(`${color} is not a valid ${name}`);
+  }
+  // `inherit` unless the key is there at all — an explicit `undefined` means no border background.
+  const borderBackgroundColor = 'borderBackgroundColor' in merged ? merged.borderBackgroundColor : 'inherit';
+  if (borderBackgroundColor !== undefined && borderBackgroundColor !== 'inherit' && !isColorValid(borderBackgroundColor)) {
+    throw new Error(`${borderBackgroundColor} is not a valid borderBackgroundColor`);
+  }
 
-  const resolved = {
+  const resolved: Resolved = {
     ...merged,
+    borderStyle,
+    textAlignment,
+    titleAlignment: merged.titleAlignment ?? 'left',
+    footerAlignment: merged.footerAlignment ?? 'left',
+    borderBackgroundColor,
     padding: getObject(merged.padding),
     margin: getObject(merged.margin),
-    width: merged.width ?? 0,
-  } as Resolved;
-
+    width: merged.width as number | undefined,
+    maxWidth: merged.maxWidth as number | undefined,
+    height: merged.height as number | undefined,
+  };
   const dimensions = determineDimensions(text, resolved);
-  return boxContent(makeContentText(text, dimensions), dimensions.width, dimensions);
+  const content = makeContentText(text, dimensions);
+  // A character wider than the space left for it widens its row, so the border follows the widest row.
+  return boxContent(content, Math.max(dimensions.width, widestLine(content)), dimensions);
 }

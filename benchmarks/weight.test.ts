@@ -122,9 +122,11 @@ describe('installed bytes count every copy on disk, once', () => {
   });
 
   it('distinguishes two installed copies of the same package, which a user pays for twice', () => {
-    // boxen is the case that made the published number 2.1x wrong: three separate
-    // string-width directories, collapsed to one by a name-keyed `seen` set.
-    const copies = [...closure('boxen')].filter((d) => d.endsWith(`${sep}string-width`));
+    // boxen 8 is the case that made the published number 2.1x wrong: three separate
+    // string-width directories, collapsed to one by a name-keyed `seen` set. boxen 9's tree
+    // dedupes to one copy, so the case is held on ink, whose `wrap-ansi` nests its own
+    // string-width beside the one ink resolves (2026-10-06).
+    const copies = [...closure('ink')].filter((d) => d.endsWith(`${sep}string-width`));
     expect(copies.length).toBeGreaterThan(1);
   });
 });
