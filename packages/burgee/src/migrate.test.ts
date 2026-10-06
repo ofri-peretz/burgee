@@ -358,17 +358,17 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
   });
 
   it('leaves a drop-in that is not level yet alone, and says so with its grade', async () => {
-    // dotenv's drop-in passes 106 of the 141 cases dotenv itself passes: rewriting it would
+    // dotenv's drop-in passes 128 of the 179 cases dotenv itself passes: rewriting it would
     // be a migration that breaks someone. It is reported, not refused — `dotenv/config` is
     // not a deep import into anything this command rewrites.
     const dir = project({
-      'package.json': JSON.stringify({ name: 'x', dependencies: { dotenv: '^17.0.0', chalk: '^6.0.0' } }),
+      'package.json': JSON.stringify({ name: 'x', dependencies: { dotenv: '^18.0.0', chalk: '^6.0.0' } }),
       'src/a.ts': "import 'dotenv/config';\nimport chalk from 'chalk';\n",
     });
     const report = await migrate({ dir, status: clean });
     expect(read(dir, 'src/a.ts')).toBe("import 'dotenv/config';\nimport chalk from 'roundel/chalk';\n");
     expect(report.refused).toEqual([]);
-    expect(report.partial).toEqual([{ from: 'dotenv', to: 'seniority/dotenv', reference: 141, passed: 106, rate: 0.75177304964539, control: 141 }]);
+    expect(report.partial).toEqual([{ from: 'dotenv', to: 'seniority/dotenv', reference: 179, passed: 128, rate: 0.7111111111111111, control: 179 }]);
   });
 
   it('an ink program moves to controlroom/ink, and is told to install the reconciler ink used to bring', async () => {
