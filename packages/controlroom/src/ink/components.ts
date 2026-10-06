@@ -1,11 +1,14 @@
 /**
- * Ink's components and the contexts its hooks read, written against the program's React
- * (R11). `App` is the root every render wraps the program in: it owns raw mode, the input
- * stream's key events, focus, and the error boundary that turns a thrown render into Ink's
- * error overview and an exit.
+ * ink's components and the contexts its hooks read, written against the program's React
+ * (R11). `App` is the root every render wraps the program in: it owns raw mode, bracketed
+ * paste, the input stream's key and paste events, focus, the one timer every animation shares,
+ * and the error boundary that turns a thrown render into ink's error overview and an exit.
  */
 import { EventEmitter } from 'node:events';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { types } from 'node:util';
 
 import { onExit } from 'closeout';
 import { rawMode, type Registrar } from 'closeout/cursor';
@@ -13,27 +16,59 @@ import type { ReactElement, ReactNode } from 'react';
 import chalk from 'roundel/chalk';
 
 import { type Accessibility, type DOMElement, type Styles, type TextWrap } from './dom.js';
-import { createInputParser, parseKeypress } from './keypress.js';
+import { createInputParser, type InputEvent, isCompleteControlSequence, isKittyQueryReply, parseKeypress } from './keypress.js';
 import { cwd, defaultStreams, isProcessStdin } from './process.js';
 import { React } from './react.js';
 import { colorize } from './render.js';
-import { type CursorPosition, type InkStream, showCursorOn } from './terminal.js';
+import { bracketedPasteOff, bracketedPasteOn, type CursorPosition, type InkStream, showCursorOn } from './terminal.js';
 
 const h = React.createElement;
 type Node = ReactNode;
 
 // ── Contexts ────────────────────────────────────────────────────────────────────────────
 
+/** The handle `suspendTerminal()` returns without a callback. */
+export interface TerminalSuspension {
+  readonly resume: () => Promise<void>;
+  readonly [Symbol.asyncDispose]: () => Promise<void>;
+}
+
+export interface SuspendTerminal {
+  (callback: () => void | Promise<void>): Promise<void>;
+  (): Promise<TerminalSuspension>;
+}
+
 export interface AppProps {
   /** Exit (unmount) the whole app; an `Error` rejects `waitUntilExit()`, anything else resolves it. */
   readonly exit: (errorOrResult?: unknown) => void;
+  /** Settles once pending render output has reached stdout. */
+  readonly waitUntilRenderFlush: () => Promise<void>;
+  /** Hand the terminal to a child process, then take it back and redraw. */
+  readonly suspendTerminal: SuspendTerminal;
 }
-export const AppContext = React.createContext<AppProps>({ exit() {} });
+
+const noopSuspension: TerminalSuspension = {
+  async resume() {},
+  async [Symbol.asyncDispose]() {},
+};
+
+export const AppContext = React.createContext<AppProps>({
+  exit() {},
+  async waitUntilRenderFlush() {},
+  suspendTerminal: (async (callback?: () => void | Promise<void>) => {
+    if (callback !== undefined) {
+      await callback();
+      return undefined;
+    }
+    return noopSuspension;
+  }) as SuspendTerminal,
+});
 AppContext.displayName = 'InternalAppContext';
 
 export interface StdinProps {
   readonly stdin: NodeJS.ReadStream;
   readonly setRawMode: (value: boolean) => void;
+  readonly setBracketedPasteMode: (value: boolean) => void;
   readonly isRawModeSupported: boolean;
   readonly internal_exitOnCtrlC: boolean;
   readonly internal_eventEmitter: EventEmitter;
@@ -42,6 +77,7 @@ export const StdinContext = React.createContext<StdinProps>({
   stdin: defaultStreams().stdin,
   internal_eventEmitter: new EventEmitter(),
   setRawMode() {},
+  setBracketedPasteMode() {},
   isRawModeSupported: false,
   internal_exitOnCtrlC: true,
 });
@@ -87,17 +123,27 @@ export const FocusContext = React.createContext<FocusProps>({
 });
 FocusContext.displayName = 'InternalFocusContext';
 
+export interface AnimationProps {
+  readonly renderThrottleMs: number;
+  readonly subscribe: (callback: (currentTime: number) => void, interval: number) => { readonly startTime: number; readonly unsubscribe: () => void };
+}
+export const AnimationContext = React.createContext<AnimationProps>({
+  renderThrottleMs: 0,
+  subscribe: () => ({ startTime: 0, unsubscribe() {} }),
+});
+AnimationContext.displayName = 'InternalAnimationContext';
+
 export const CursorContext = React.createContext<{ readonly setCursorPosition: (position: CursorPosition | undefined) => void }>({ setCursorPosition() {} });
 CursorContext.displayName = 'InternalCursorContext';
 
 export const AccessibilityContext = React.createContext({ isScreenReaderEnabled: false });
 export const BackgroundContext = React.createContext<string | undefined>(undefined);
+export const RootNodeContext = React.createContext<DOMElement | undefined>(undefined);
 
 // ── Box, Text and the small ones ────────────────────────────────────────────────────────
 
-export type BoxProps = Styles & {
+export type BoxProps = Omit<Styles, 'textWrap'> & {
   readonly children?: Node | undefined;
-  readonly backgroundColor?: string | undefined;
   readonly 'aria-label'?: string | undefined;
   readonly 'aria-hidden'?: boolean | undefined;
   readonly 'aria-role'?: string | undefined;
@@ -105,19 +151,21 @@ export type BoxProps = Styles & {
 };
 
 export const Box = React.forwardRef<DOMElement, BoxProps>(function Box(
-  { children, backgroundColor, 'aria-label': ariaLabel, 'aria-hidden': ariaHidden, 'aria-role': role, 'aria-state': ariaState, ...style },
+  { children, backgroundColor, flexWrap = 'nowrap', flexDirection = 'row', 'aria-label': ariaLabel, 'aria-hidden': ariaHidden, 'aria-role': role, 'aria-state': ariaState, ...style },
   ref,
 ) {
   const { isScreenReaderEnabled } = React.useContext(AccessibilityContext);
-  const label = ariaLabel === undefined || ariaLabel === '' ? undefined : h('ink-text', null, ariaLabel);
+  const inherited = React.useContext(BackgroundContext);
   if (isScreenReaderEnabled && ariaHidden === true) return null;
+  // An empty background inherits too.
+  const effective = backgroundColor || inherited;
   const box = h(
     'ink-box',
     {
       ref,
       style: {
-        flexWrap: 'nowrap',
-        flexDirection: 'row',
+        flexWrap,
+        flexDirection,
         flexGrow: 0,
         flexShrink: 1,
         ...style,
@@ -127,9 +175,9 @@ export const Box = React.forwardRef<DOMElement, BoxProps>(function Box(
       },
       internal_accessibility: { role, state: ariaState },
     },
-    isScreenReaderEnabled && label !== undefined ? label : children,
+    isScreenReaderEnabled && Boolean(ariaLabel) ? h('ink-text', null, ariaLabel) : children,
   );
-  return backgroundColor === undefined || backgroundColor === '' ? box : h(BackgroundContext.Provider, { value: backgroundColor }, box);
+  return h(BackgroundContext.Provider, { value: effective }, box);
 });
 Box.displayName = 'Box';
 
@@ -151,15 +199,15 @@ export interface TextProps {
 export function Text({ color, backgroundColor, dimColor = false, bold = false, italic = false, underline = false, strikethrough = false, inverse = false, wrap = 'wrap', children, 'aria-label': ariaLabel, 'aria-hidden': ariaHidden = false }: TextProps): ReactElement | null {
   const { isScreenReaderEnabled } = React.useContext(AccessibilityContext);
   const inherited = React.useContext(BackgroundContext);
-  const content = isScreenReaderEnabled && ariaLabel !== undefined && ariaLabel !== '' ? ariaLabel : children;
-  if (content === undefined || content === null) return null;
-  if (isScreenReaderEnabled && ariaHidden) return null;
+  // An explicit background wins; otherwise the nearest parent Text's or Box's.
+  const background = backgroundColor ?? inherited;
+  const content = isScreenReaderEnabled && Boolean(ariaLabel) ? ariaLabel : children;
+  if (content === undefined || content === null || (isScreenReaderEnabled && ariaHidden)) return null;
   const transform = (text: string): string => {
     let out = text;
     if (dimColor) out = chalk.dim(out);
-    if (color !== undefined && color !== '') out = colorize(out, color, 'foreground');
-    const background = backgroundColor ?? inherited;
-    if (background !== undefined && background !== '') out = colorize(out, background, 'background');
+    out = colorize(out, color, 'foreground');
+    out = colorize(out, background, 'background');
     if (bold) out = chalk.bold(out);
     if (italic) out = chalk.italic(out);
     if (underline) out = chalk.underline(out);
@@ -167,7 +215,11 @@ export function Text({ color, backgroundColor, dimColor = false, bold = false, i
     if (inverse) out = chalk.inverse(out);
     return out;
   };
-  return h('ink-text', { style: { flexGrow: 0, flexShrink: 1, flexDirection: 'row', textWrap: wrap }, internal_transform: transform }, content);
+  return h(
+    BackgroundContext.Provider,
+    { value: background },
+    h('ink-text', { style: { flexGrow: 0, flexShrink: 1, flexDirection: 'row', textWrap: wrap }, internal_transform: isScreenReaderEnabled ? undefined : transform }, content),
+  );
 }
 
 export interface StaticProps<T> {
@@ -179,13 +231,18 @@ export interface StaticProps<T> {
 /** Items rendered once, above everything else, and never again: what has finished. */
 export function Static<T>({ items, children: render, style: customStyle }: StaticProps<T>): ReactElement {
   const [index, setIndex] = React.useState(0);
+  const inherited = React.useContext(BackgroundContext);
+  const effective = customStyle?.backgroundColor || inherited;
   const itemsToRender = React.useMemo(() => items.slice(index), [items, index]);
   React.useLayoutEffect(() => {
     setIndex(items.length);
   }, [items.length]);
   const children = itemsToRender.map((item, i) => render(item, index + i));
-  const style = React.useMemo(() => ({ position: 'absolute', flexDirection: 'column', ...customStyle }), [customStyle]);
-  return h('ink-box', { internal_static: true, style }, children);
+  const style = React.useMemo(
+    (): Styles => ({ position: 'absolute', flexDirection: 'column', ...customStyle, display: itemsToRender.length > 0 ? customStyle?.display : 'none' }),
+    [customStyle, itemsToRender.length],
+  );
+  return h(BackgroundContext.Provider, { value: effective }, h('ink-box', { internal_static: true, style }, children));
 }
 
 export interface TransformProps {
@@ -196,11 +253,17 @@ export interface TransformProps {
 
 export function Transform({ children, transform, accessibilityLabel }: TransformProps): ReactElement | null {
   const { isScreenReaderEnabled } = React.useContext(AccessibilityContext);
-  if (children === undefined || children === null) return null;
-  return h('ink-text', { style: { flexGrow: 0, flexShrink: 1, flexDirection: 'row' }, internal_transform: transform }, isScreenReaderEnabled && accessibilityLabel !== undefined && accessibilityLabel !== '' ? accessibilityLabel : children);
+  const content = isScreenReaderEnabled ? (accessibilityLabel ?? children) : children;
+  if (content === undefined || content === null) return null;
+  return h('ink-text', { style: { flexGrow: 0, flexShrink: 1, flexDirection: 'row' }, internal_transform: isScreenReaderEnabled ? undefined : transform }, content);
 }
 
-export function Newline({ count = 1 }: { readonly count?: number }): ReactElement {
+export interface NewlineProps {
+  /** Newlines to insert. Default 1. */
+  readonly count?: number;
+}
+
+export function Newline({ count = 1 }: NewlineProps): ReactElement {
   return h('ink-text', null, '\n'.repeat(count));
 }
 
@@ -212,87 +275,132 @@ export function Spacer(): ReactElement {
 // ── The error overview ──────────────────────────────────────────────────────────────────
 
 interface StackLine {
-  function: string | undefined;
-  file: string;
-  line: number;
-  column: number;
+  function?: string;
+  file?: string;
+  line?: number;
+  column?: number;
 }
 
-const STACK_LINE = /^\s*at (?:(?:async |new )?(.+?) \()?(.+?):(\d+):(\d+)\)?$/u;
+/** stack-utils' frame grammar: `at [new ]fn (file:line:col)`, `at file:line:col`, or native. */
+const STACK_LINE = /^(?:\s*at )?(?:(new) )?(?:(.*?) \()?(?:eval at ([^ ]+) \((.+?):(\d+):(\d+)\), )?(?:(.+?):(\d+):(\d+)|(native))(\)?)$/u;
+const METHOD = /^(.*?) \[as (.*?)\]$/u;
 
-function parseStackLine(line: string): StackLine | undefined {
+/** stack-utils' `parseLine`, with the working directory taken off the file. */
+export function parseStackLine(line: string): StackLine | undefined {
   const match = STACK_LINE.exec(line);
   if (match === null) return undefined;
-  return { function: match[1], file: match[2]!, line: Number(match[3]), column: Number(match[4]) };
+  let fname = match[2];
+  let file = match[7];
+  const result: StackLine = {};
+  if (match[8] !== undefined) result.line = Number(match[8]);
+  if (match[9] !== undefined) result.column = Number(match[9]);
+  if (match[11] === ')' && file !== undefined) {
+    // Balance the parens: an unbalanced `(` belongs to the function name, not the file.
+    let closes = 0;
+    for (let i = file.length - 1; i > 0; i -= 1) {
+      if (file.charAt(i) === ')') closes += 1;
+      else if (file.charAt(i) === '(' && file.charAt(i - 1) === ' ') {
+        closes -= 1;
+        if (closes === -1 && file.charAt(i - 1) === ' ') {
+          const before = file.slice(0, i - 1);
+          file = file.slice(i + 1);
+          fname = `${fname ?? ''} (${before}`;
+          break;
+        }
+      }
+    }
+  }
+  if (fname !== undefined) {
+    const method = METHOD.exec(fname);
+    if (method !== null) fname = method[1];
+  }
+  if (file !== undefined && file !== '') {
+    let name = file.replaceAll('\\', '/');
+    const root = `${cwd()}/`;
+    if (name.startsWith(root)) name = name.slice(root.length);
+    result.file = name;
+  }
+  if (fname !== undefined) result.function = fname;
+  return result;
 }
 
-/** A stack frame's file, relative to the working directory, as stack-utils and Ink's own cleanup leave it. */
-const cleanupPath = (path: string | undefined): string | undefined => {
-  if (path === undefined) return undefined;
-  const root = `${cwd()}/`;
-  const file = path.replaceAll('\\', '/');
-  return file.startsWith(root) ? file.slice(root.length) : file.replace(`file://${root}`, '');
-};
+/** A file URL to a path relative to the working directory, as ink reports a frame's file. */
+const cleanupPath = (path: string | undefined): string | undefined => (path?.startsWith('file://') === true ? relative(cwd(), fileURLToPath(path)) : path);
 
-/** code-excerpt's three lines either side of `line`. */
-function excerpt(source: string, line: number): { line: number; value: string }[] {
-  const lines = source.split('\n');
+/** code-excerpt's three lines either side of `line`, leading tabs as two spaces each. */
+function excerpt(source: string, line: number): { line: number; value: string }[] | undefined {
+  const lines = source.replaceAll(/^\t+/gmu, (tabs) => '  '.repeat(tabs.length)).split(/\r?\n/u);
+  if (line > lines.length) return undefined;
   const out: { line: number; value: string }[] = [];
-  for (let n = Math.max(1, line - 3); n <= Math.min(lines.length, line + 3); n += 1) out.push({ line: n, value: lines[n - 1]!.replace(/^\t+/u, (tabs) => '  '.repeat(tabs.length)) });
+  for (let n = line - 3; n <= line + 3; n += 1) if (lines[n - 1] !== undefined) out.push({ line: n, value: lines[n - 1]! });
   return out;
 }
 
+function readExcerpt(filePath: string, line: number): { line: number; value: string }[] | undefined {
+  try {
+    if (!existsSync(filePath) || !statSync(filePath).isFile()) return undefined;
+    return excerpt(readFileSync(filePath, 'utf8'), line);
+  } catch {
+    // A source excerpt is best-effort and must not hide the error.
+    return undefined;
+  }
+}
+
 export function ErrorOverview({ error }: { readonly error: Error }): ReactElement {
-  const stack = error.stack?.split('\n').slice(1);
-  const origin = stack?.[0] === undefined ? undefined : parseStackLine(stack[0]);
+  const stack = error.stack?.split('\n').slice(error.message.split('\n').length);
+  const origin = stack === undefined || stack[0] === undefined ? undefined : parseStackLine(stack[0]);
   const filePath = cleanupPath(origin?.file);
   let lines: { line: number; value: string }[] | undefined;
   let lineWidth = 0;
-  if (filePath !== undefined && origin !== undefined && existsSync(filePath)) {
-    lines = excerpt(readFileSync(filePath, 'utf8'), origin.line);
-    for (const { line } of lines) lineWidth = Math.max(lineWidth, String(line).length);
+  if (filePath !== undefined && filePath !== '' && origin?.line !== undefined && origin.line !== 0) {
+    lines = readExcerpt(filePath, origin.line);
+    for (const { line } of lines ?? []) lineWidth = Math.max(lineWidth, String(line).length);
   }
+  const counts = new Map<string, number>();
   const at = origin?.line;
-  const where = origin === undefined || filePath === undefined ? undefined : `${filePath}:${origin.line}:${origin.column}`;
   return h(
     Box,
     { flexDirection: 'column', padding: 1 },
     h(Box, null, h(Text, { backgroundColor: 'red', color: 'white' }, ' ', 'ERROR', ' '), h(Text, null, ' ', error.message)),
-    where !== undefined && h(Box, { marginTop: 1 }, h(Text, { dimColor: true }, where)),
-    origin !== undefined &&
-      lines !== undefined &&
-      h(
-        Box,
-        { marginTop: 1, flexDirection: 'column' },
-        lines.map(({ line, value }) =>
-          h(
-            Box,
-            { key: line },
-            h(Box, { width: lineWidth + 1 }, h(Text, { dimColor: line !== at, backgroundColor: line === at ? 'red' : undefined, color: line === at ? 'white' : undefined, 'aria-label': line === at ? `Line ${line}, error` : `Line ${line}` }, String(line).padStart(lineWidth, ' '), ':')),
-            h(Text, { key: line, backgroundColor: line === at ? 'red' : undefined, color: line === at ? 'white' : undefined }, ` ${value}`),
+    origin !== undefined && filePath !== undefined && filePath !== '' ? h(Box, { marginTop: 1 }, h(Text, { dimColor: true }, filePath, ':', origin.line, ':', origin.column)) : null,
+    origin !== undefined && lines !== undefined
+      ? h(
+          Box,
+          { marginTop: 1, flexDirection: 'column' },
+          lines.map(({ line, value }) =>
+            h(
+              Box,
+              { key: line },
+              h(Box, { width: lineWidth + 1 }, h(Text, { dimColor: line !== at, backgroundColor: line === at ? 'red' : undefined, color: line === at ? 'white' : undefined, 'aria-label': line === at ? `Line ${line}, error` : `Line ${line}` }, String(line).padStart(lineWidth, ' '), ':')),
+              h(Text, { key: line, backgroundColor: line === at ? 'red' : undefined, color: line === at ? 'white' : undefined }, ` ${value}`),
+            ),
           ),
-        ),
-      ),
-    error.stack !== undefined &&
-      h(
-        Box,
-        { marginTop: 1, flexDirection: 'column' },
-        error.stack
-          .split('\n')
-          .slice(1)
-          .map((line) => {
+        )
+      : null,
+    stack === undefined
+      ? null
+      : h(
+          Box,
+          { marginTop: 1, flexDirection: 'column' },
+          stack.map((line) => {
             const parsed = parseStackLine(line);
-            if (parsed === undefined) return h(Box, { key: line }, h(Text, { dimColor: true }, '- '), h(Text, { dimColor: true, bold: true }, line, '\\t', ' '));
+            const count = counts.get(line) ?? 0;
+            counts.set(line, count + 1);
+            const key = `${line}-${count}`;
+            // A frame with no source location (`at native`) is printed as it came.
+            if (parsed?.file === undefined || parsed.file === '' || parsed.line === undefined || parsed.line === 0 || parsed.column === undefined || parsed.column === 0) {
+              return h(Box, { key }, h(Text, { dimColor: true }, '- '), h(Text, { dimColor: true, bold: true }, line, '\\t', ' '));
+            }
             const file = cleanupPath(parsed.file) ?? '';
             return h(
               Box,
-              { key: line },
+              { key },
               h(Text, { dimColor: true }, '- '),
               h(Text, { dimColor: true, bold: true }, parsed.function),
               h(Text, { dimColor: true, color: 'gray', 'aria-label': `at ${file} line ${parsed.line} column ${parsed.column}` }, ' ', '(', file, ':', parsed.line, ':', parsed.column, ')'),
             );
           }),
-      ),
+        ),
   );
 }
 
@@ -303,12 +411,12 @@ interface BoundaryProps {
 
 export class ErrorBoundary extends React.PureComponent<BoundaryProps, { error: Error | undefined }> {
   static displayName = 'InternalErrorBoundary';
-  static getDerivedStateFromError(error: Error): { error: Error } {
-    return { error };
+  static getDerivedStateFromError(error: unknown): { error: Error } {
+    return { error: types.isNativeError(error) ? error : new Error(String(error)) };
   }
   override state = { error: undefined as Error | undefined };
-  override componentDidCatch(error: Error): void {
-    this.props.onError(error);
+  override componentDidCatch(): void {
+    this.props.onError(this.state.error!);
   }
   override render(): Node {
     return this.state.error === undefined ? this.props.children : h(ErrorOverview, { error: this.state.error });
@@ -316,9 +424,6 @@ export class ErrorBoundary extends React.PureComponent<BoundaryProps, { error: E
 }
 
 // ── App ─────────────────────────────────────────────────────────────────────────────────
-
-const ESCAPE = '\u001B';
-const CTRL_C = '\u0003';
 
 export interface AppOptions {
   readonly children?: Node | undefined;
@@ -329,12 +434,25 @@ export interface AppOptions {
   readonly writeToStderr: (data: string) => void;
   readonly exitOnCtrlC: boolean;
   readonly onExit: (errorOrResult?: unknown) => void;
+  readonly onWaitUntilRenderFlush: () => Promise<void>;
+  readonly onSuspendTerminal: SuspendTerminal;
+  readonly onKittyQueryResponse: () => void;
+  readonly onRegisterInputControl: (pauseInput: () => void, resumeInput: () => void) => void;
   readonly setCursorPosition: (position: CursorPosition | undefined) => void;
+  readonly interactive: boolean;
+  readonly renderThrottleMs: number;
 }
 
 interface Focusable {
-  id: string;
-  isActive: boolean;
+  readonly id: string;
+  readonly isActive: boolean;
+}
+
+interface AnimationSubscriber {
+  readonly callback: (currentTime: number) => void;
+  readonly interval: number;
+  readonly startTime: number;
+  nextDueTime: number;
 }
 
 const noop = (): void => undefined;
@@ -346,103 +464,320 @@ const RAW_MODE_HELP = `Read about how to prevent this error on https://github.co
 const RAW_MODE_ON_PROCESS = ['Raw mode is not supported on the current process.stdin, which Ink uses as input stream by default.', RAW_MODE_HELP].join('\n');
 const RAW_MODE_ON_STDIN = ['Raw mode is not supported on the stdin provided to Ink.', RAW_MODE_HELP].join('\n');
 
-export function App({ children, stdin, stdout, stderr, writeToStdout, writeToStderr, exitOnCtrlC, onExit, setCursorPosition }: AppOptions): ReactElement {
-  const [isFocusEnabled, setIsFocusEnabled] = React.useState(true);
-  const [activeFocusId, setActiveFocusId] = React.useState<string | undefined>(undefined);
-  const [, setFocusables] = React.useState<Focusable[]>([]);
-  const focusablesCount = React.useRef(0);
-  const rawModeEnabledCount = React.useRef(0);
-  const releaseRawMode = React.useRef<() => void>(noop);
-  const emitter = React.useRef(new EventEmitter());
-  emitter.current.setMaxListeners(Infinity);
-  const readableListener = React.useRef<(() => void) | undefined>(undefined);
-  const parser = React.useRef(createInputParser());
-  const pendingFlush = React.useRef<NodeJS.Immediate | undefined>(undefined);
-  const isRawModeSupported = stdin.isTTY;
+/** Components sharing an ID are one slot to focus, at their first registration. */
+function uniqueFocusables(focusables: Focusable[]): Focusable[] {
+  const seen = new Set<string>();
+  return focusables.filter((f) => {
+    if (seen.has(f.id)) return false;
+    seen.add(f.id);
+    return true;
+  });
+}
 
-  const clearPendingFlush = React.useCallback(() => {
-    if (pendingFlush.current === undefined) return;
-    clearImmediate(pendingFlush.current);
-    pendingFlush.current = undefined;
+/** How long a lone Escape waits for the rest of a chunked sequence before it is a key. */
+const PENDING_INPUT_FLUSH_MS = 20;
+
+interface RawStream {
+  isTTY?: boolean;
+  setRawMode?: (mode: boolean) => unknown;
+  ref?: () => unknown;
+  unref?: () => unknown;
+  setEncoding?: (encoding: BufferEncoding) => unknown;
+}
+
+const rawCapable = (stdin: NodeJS.ReadStream): boolean => (stdin as RawStream).isTTY === true && typeof (stdin as RawStream).setRawMode === 'function';
+
+export function App({
+  children,
+  stdin,
+  stdout,
+  stderr,
+  writeToStdout,
+  writeToStderr,
+  exitOnCtrlC,
+  onExit,
+  onWaitUntilRenderFlush,
+  onSuspendTerminal,
+  onKittyQueryResponse,
+  onRegisterInputControl,
+  setCursorPosition,
+  interactive,
+  renderThrottleMs,
+}: AppOptions): ReactElement {
+  const isFocusEnabledRef = React.useRef(true);
+  const [activeFocusId, setActiveFocusId] = React.useState<string | undefined>(undefined);
+  const focusablesRef = React.useRef<Focusable[]>([]);
+  const animationSubscribersRef = React.useRef(new Map<(currentTime: number) => void, AnimationSubscriber>());
+  const animationTimerRef = React.useRef<NodeJS.Timeout | undefined>(undefined);
+  const rawModeEnabledCountRef = React.useRef(0);
+  const pendingDisableRawModeRef = React.useRef(false);
+  const isInputPausedRef = React.useRef(false);
+  const bracketedPasteCountRef = React.useRef(0);
+  const releaseRawModeRef = React.useRef<() => void>(noop);
+  const emitterRef = React.useRef(new EventEmitter());
+  emitterRef.current.setMaxListeners(Infinity);
+  const readableListenerRef = React.useRef<(() => void) | undefined>(undefined);
+  const parserRef = React.useRef(createInputParser());
+  const pendingInputFlushRef = React.useRef<NodeJS.Timeout | undefined>(undefined);
+  const raw = stdin as unknown as RawStream;
+  const isRawModeSupported = rawCapable(stdin);
+  const output = stdout as unknown as InkStream;
+
+  const clearPendingInputFlush = React.useCallback(() => {
+    if (pendingInputFlushRef.current === undefined) return;
+    clearTimeout(pendingInputFlushRef.current);
+    pendingInputFlushRef.current = undefined;
   }, []);
+
+  const clearAnimationTimer = React.useCallback(() => {
+    if (animationTimerRef.current === undefined) return;
+    clearTimeout(animationTimerRef.current);
+    animationTimerRef.current = undefined;
+  }, []);
+
+  const scheduleAnimationTick = React.useCallback(() => {
+    clearAnimationTimer();
+    if (animationSubscribersRef.current.size === 0) return;
+    let nextDueTime = Infinity;
+    // One shared timer wakes at the earliest deadline; slower animations skip that tick.
+    for (const subscriber of animationSubscribersRef.current.values()) nextDueTime = Math.min(nextDueTime, subscriber.nextDueTime);
+    const delay = Math.max(0, nextDueTime - performance.now());
+    const tick = (): void => {
+      animationTimerRef.current = undefined;
+      const currentTime = performance.now();
+      for (const subscriber of animationSubscribersRef.current.values()) {
+        if (currentTime < subscriber.nextDueTime) continue;
+        subscriber.callback(currentTime);
+        // Advance from elapsed time, so a late tick catches up rather than stretching the timeline.
+        const elapsedFrames = Math.floor((currentTime - subscriber.startTime) / subscriber.interval) + 1;
+        subscriber.nextDueTime = subscriber.startTime + elapsedFrames * subscriber.interval;
+      }
+      scheduleAnimationTick();
+    };
+    animationTimerRef.current = setTimeout(tick, delay);
+  }, [clearAnimationTimer]);
+
+  const animationSubscribe = React.useCallback(
+    (callback: (currentTime: number) => void, interval: number) => {
+      const startTime = performance.now();
+      animationSubscribersRef.current.set(callback, { callback, interval, startTime, nextDueTime: startTime + interval });
+      scheduleAnimationTick();
+      return {
+        startTime,
+        unsubscribe() {
+          animationSubscribersRef.current.delete(callback);
+          if (animationSubscribersRef.current.size === 0) {
+            clearAnimationTimer();
+            return;
+          }
+          scheduleAnimationTick();
+        },
+      };
+    },
+    [clearAnimationTimer, scheduleAnimationTick],
+  );
+
+  React.useEffect(
+    () => () => {
+      clearAnimationTimer();
+    },
+    [clearAnimationTimer],
+  );
+
   const detachReadable = React.useCallback(() => {
-    if (readableListener.current === undefined) return;
-    stdin.removeListener('readable', readableListener.current);
-    readableListener.current = undefined;
+    if (readableListenerRef.current === undefined) return;
+    stdin.removeListener('readable', readableListenerRef.current);
+    readableListenerRef.current = undefined;
   }, [stdin]);
-  const disableRawMode = React.useCallback(() => {
-    releaseRawMode.current();
-    releaseRawMode.current = noop;
+
+  const clearInputState = React.useCallback(() => {
+    parserRef.current.reset();
+    clearPendingInputFlush();
     detachReadable();
-    stdin.unref();
-    rawModeEnabledCount.current = 0;
-    parser.current.reset();
-    clearPendingFlush();
-  }, [stdin, detachReadable, clearPendingFlush]);
+  }, [clearPendingInputFlush, detachReadable]);
+
+  /** closeout takes the mode and registers giving it back on every exit path. */
+  const takeRawMode = React.useCallback(() => {
+    raw.ref?.();
+    releaseRawModeRef.current = rawMode(stdin, restore);
+  }, [stdin, raw]);
+  const giveRawModeBack = React.useCallback(() => {
+    releaseRawModeRef.current();
+    releaseRawModeRef.current = noop;
+    raw.unref?.();
+  }, [raw]);
+
+  const disableRawMode = React.useCallback(() => {
+    if (!isRawModeSupported) return;
+    pendingDisableRawModeRef.current = false;
+    giveRawModeBack();
+    rawModeEnabledCountRef.current = 0;
+    clearInputState();
+  }, [isRawModeSupported, giveRawModeBack, clearInputState]);
+
   const handleExit = React.useCallback(
     (errorOrResult?: unknown) => {
-      if (isRawModeSupported && rawModeEnabledCount.current > 0) disableRawMode();
+      if (isRawModeSupported && (rawModeEnabledCountRef.current > 0 || pendingDisableRawModeRef.current)) disableRawMode();
       onExit(errorOrResult);
     },
     [isRawModeSupported, disableRawMode, onExit],
   );
+
   const handleInput = React.useCallback(
     (input: string) => {
-      if (input === CTRL_C && exitOnCtrlC) {
+      const key = parseKeypress(input);
+      if (exitOnCtrlC && key.ctrl && key.name === 'c' && key.eventType !== 'release') {
         handleExit();
         return;
       }
-      if (input === ESCAPE) setActiveFocusId((current) => (current === undefined ? current : undefined));
+      // Escape, unmodified, drops focus.
+      if (isFocusEnabledRef.current && key.name === 'escape' && key.eventType !== 'release' && !key.shift && !key.ctrl && !key.meta && key.super !== true && key.hyper !== true) setActiveFocusId(undefined);
     },
     [exitOnCtrlC, handleExit],
   );
+
   const emitInput = React.useCallback(
     (input: string) => {
       handleInput(input);
-      emitter.current.emit('input', input);
+      emitterRef.current.emit('input', input);
     },
     [handleInput],
   );
-  const schedulePendingFlush = React.useCallback(() => {
-    clearPendingFlush();
-    pendingFlush.current = setImmediate(() => {
-      pendingFlush.current = undefined;
-      const pending = parser.current.flushPendingEscape();
-      if (pending !== undefined) emitInput(pending);
-    });
-  }, [clearPendingFlush, emitInput]);
+
+  const schedulePendingInputFlush = React.useCallback(() => {
+    clearPendingInputFlush();
+    pendingInputFlushRef.current = setTimeout(() => {
+      pendingInputFlushRef.current = undefined;
+      const pending = parserRef.current.flushPendingEscape();
+      if (pending === undefined || pending === '') return;
+      emitInput(pending);
+    }, PENDING_INPUT_FLUSH_MS);
+  }, [clearPendingInputFlush, emitInput]);
+
   const handleReadable = React.useCallback(() => {
-    clearPendingFlush();
+    const handleEvent = (event: InputEvent): void => {
+      if (typeof event === 'string') {
+        // The kitty query's answer is consumed here; a bracketed paste stays literal.
+        if (isKittyQueryReply(event)) {
+          onKittyQueryResponse();
+          return;
+        }
+        // A terminal reply (focus, cursor position, mouse) maps to no key: it is not typed text.
+        if (isCompleteControlSequence(event)) {
+          const key = parseKeypress(event);
+          if (key.isKittyProtocol !== true && key.name === '') return;
+        }
+        emitInput(event);
+        return;
+      }
+      // A paste is its own channel, unless nobody listens for one.
+      if (emitterRef.current.listenerCount('paste') === 0) {
+        emitInput(event.paste);
+        return;
+      }
+      emitterRef.current.emit('paste', event.paste);
+    };
+    clearPendingInputFlush();
     let chunk: unknown;
     while ((chunk = stdin.read()) !== null) {
-      for (const input of parser.current.push(String(chunk))) emitInput(input);
+      for (const event of parserRef.current.push(String(chunk))) handleEvent(event);
     }
-    if (parser.current.hasPendingEscape()) schedulePendingFlush();
-  }, [stdin, emitInput, clearPendingFlush, schedulePendingFlush]);
+    if (parserRef.current.hasPendingEscape()) schedulePendingInputFlush();
+  }, [stdin, emitInput, clearPendingInputFlush, schedulePendingInputFlush, onKittyQueryResponse]);
+
+  const attachReadable = React.useCallback(() => {
+    if (readableListenerRef.current !== undefined) return;
+    readableListenerRef.current = handleReadable;
+    stdin.addListener('readable', handleReadable);
+  }, [stdin, handleReadable]);
+
   const handleSetRawMode = React.useCallback(
     (isEnabled: boolean) => {
       if (!isRawModeSupported) {
         if (isProcessStdin(stdin)) throw new Error(RAW_MODE_ON_PROCESS);
         throw new Error(RAW_MODE_ON_STDIN);
       }
-      stdin.setEncoding('utf8');
+      raw.setEncoding?.('utf8');
       if (isEnabled) {
-        if (rawModeEnabledCount.current === 0) {
-          stdin.ref();
-          // closeout takes the mode and registers giving it back on every exit path.
-          releaseRawMode.current = rawMode(stdin, restore);
-          readableListener.current = handleReadable;
-          stdin.addListener('readable', handleReadable);
+        if (rawModeEnabledCountRef.current === 0) {
+          // A same-render swap may have left raw mode on until the queued disable runs.
+          const alreadyEnabled = pendingDisableRawModeRef.current;
+          pendingDisableRawModeRef.current = false;
+          if (!isInputPausedRef.current) {
+            if (!alreadyEnabled) takeRawMode();
+            attachReadable();
+          }
         }
-        rawModeEnabledCount.current += 1;
+        rawModeEnabledCountRef.current += 1;
         return;
       }
-      if (rawModeEnabledCount.current === 0) return;
-      rawModeEnabledCount.current -= 1;
-      if (rawModeEnabledCount.current === 0) disableRawMode();
+      if (rawModeEnabledCountRef.current === 0) return;
+      rawModeEnabledCountRef.current -= 1;
+      if (rawModeEnabledCountRef.current !== 0 || isInputPausedRef.current) return;
+      // Stop owning input now, so pending parser state cannot reach a replacement mounted in the same update.
+      clearInputState();
+      // Defer only the terminal's raw mode, so a same-render replacement keeps it without a cycle.
+      pendingDisableRawModeRef.current = true;
+      queueMicrotask(() => {
+        if (!pendingDisableRawModeRef.current) return;
+        disableRawMode();
+      });
     },
-    [isRawModeSupported, stdin, handleReadable, disableRawMode],
+    [isRawModeSupported, stdin, raw, takeRawMode, attachReadable, clearInputState, disableRawMode],
   );
+
+  const handleSetBracketedPasteMode = React.useCallback(
+    (isEnabled: boolean) => {
+      if (output.isTTY !== true) return;
+      if (isEnabled) {
+        if (bracketedPasteCountRef.current === 0 && !isInputPausedRef.current) bracketedPasteOn(output);
+        bracketedPasteCountRef.current += 1;
+        return;
+      }
+      if (bracketedPasteCountRef.current === 0) return;
+      bracketedPasteCountRef.current -= 1;
+      if (bracketedPasteCountRef.current === 0 && !isInputPausedRef.current) bracketedPasteOff(output);
+    },
+    [output],
+  );
+
+  // Pausing and resuming leave the counts alone: the components still own the modes.
+  const pauseInput = React.useCallback(() => {
+    isInputPausedRef.current = true;
+    if (bracketedPasteCountRef.current > 0 && output.isTTY === true) {
+      try {
+        bracketedPasteOff(output);
+      } catch {
+        // The stream is gone; there is no mode left to turn off.
+      }
+    }
+    if (!(isRawModeSupported && (rawModeEnabledCountRef.current > 0 || pendingDisableRawModeRef.current))) return;
+    pendingDisableRawModeRef.current = false;
+    giveRawModeBack();
+    clearInputState();
+  }, [isRawModeSupported, output, giveRawModeBack, clearInputState]);
+
+  // Hooks may have changed while suspended: restore only the modes that still have an owner.
+  const resumeInput = React.useCallback(() => {
+    isInputPausedRef.current = false;
+    if (isRawModeSupported && rawModeEnabledCountRef.current > 0) {
+      raw.setEncoding?.('utf8');
+      takeRawMode();
+      attachReadable();
+    }
+    if (bracketedPasteCountRef.current > 0 && output.isTTY === true) {
+      try {
+        bracketedPasteOn(output);
+      } catch {
+        // The stream is gone; there is no mode left to turn on.
+      }
+    }
+  }, [isRawModeSupported, raw, output, takeRawMode, attachReadable]);
+
+  // Registered before any passive effect, so a child suspending from its own effect finds it.
+  React.useInsertionEffect(() => {
+    onRegisterInputControl(pauseInput, resumeInput);
+  }, [onRegisterInputControl, pauseInput, resumeInput]);
 
   const next = (list: Focusable[], current: string | undefined, step: 1 | -1): string | undefined => {
     const at = list.findIndex((f) => f.id === current);
@@ -450,75 +785,72 @@ export function App({ children, stdin, stdout, stderr, writeToStdout, writeToStd
     return undefined;
   };
   const focusNext = React.useCallback(() => {
-    setFocusables((list) => {
-      setActiveFocusId((current) => next(list, current, 1) ?? list.find((f) => f.isActive)?.id);
-      return list;
-    });
+    const list = uniqueFocusables(focusablesRef.current);
+    setActiveFocusId((current) => next(list, current, 1) ?? list.find((f) => f.isActive)?.id);
   }, []);
   const focusPrevious = React.useCallback(() => {
-    setFocusables((list) => {
-      setActiveFocusId((current) => next(list, current, -1) ?? list.findLast((f) => f.isActive)?.id);
-      return list;
-    });
+    const list = uniqueFocusables(focusablesRef.current);
+    setActiveFocusId((current) => next(list, current, -1) ?? list.findLast((f) => f.isActive)?.id);
   }, []);
+
   React.useEffect(() => {
     const onTab = (input: string): void => {
-      if (!isFocusEnabled || focusablesCount.current === 0) return;
-      // Tab and Shift+Tab (`CSI Z`), decoded as `useInput` decodes them.
+      if (!isFocusEnabledRef.current || focusablesRef.current.length === 0) return;
       const key = parseKeypress(input);
-      if (key.name !== 'tab' || key.isKittyProtocol === true) return;
+      if (key.name !== 'tab' || key.eventType === 'release' || key.ctrl || key.meta || key.super === true || key.hyper === true) return;
       if (key.shift) focusPrevious();
       else focusNext();
     };
-    const events = emitter.current;
+    const events = emitterRef.current;
     events.on('input', onTab);
     return () => {
       events.off('input', onTab);
     };
-  }, [isFocusEnabled, focusNext, focusPrevious]);
-  const enableFocus = React.useCallback(() => setIsFocusEnabled(true), []);
-  const disableFocus = React.useCallback(() => setIsFocusEnabled(false), []);
+  }, [focusNext, focusPrevious]);
+
+  const enableFocus = React.useCallback(() => {
+    isFocusEnabledRef.current = true;
+  }, []);
+  const disableFocus = React.useCallback(() => {
+    isFocusEnabledRef.current = false;
+    setActiveFocusId(undefined);
+  }, []);
   const focus = React.useCallback((id: string) => {
-    setFocusables((list) => {
-      if (list.some((f) => f.id === id)) setActiveFocusId(id);
-      return list;
-    });
+    if (focusablesRef.current.some((f) => f.id === id && f.isActive)) setActiveFocusId(id);
   }, []);
   const add = React.useCallback((id: string, { autoFocus }: { autoFocus: boolean }) => {
-    setFocusables((list) => {
-      focusablesCount.current = list.length + 1;
-      return [...list, { id, isActive: true }];
-    });
-    if (autoFocus) setActiveFocusId((current) => current ?? id);
+    focusablesRef.current = [...focusablesRef.current, { id, isActive: true }];
+    if (autoFocus && isFocusEnabledRef.current) setActiveFocusId((current) => current ?? id);
   }, []);
   const remove = React.useCallback((id: string) => {
     setActiveFocusId((current) => (current === id ? undefined : current));
-    setFocusables((list) => {
-      const kept = list.filter((f) => f.id !== id);
-      focusablesCount.current = kept.length;
-      return kept;
-    });
+    focusablesRef.current = focusablesRef.current.filter((f) => f.id !== id);
   }, []);
   const activate = React.useCallback((id: string) => {
-    setFocusables((list) => list.map((f) => (f.id === id ? { id, isActive: true } : f)));
+    focusablesRef.current = focusablesRef.current.map((f) => (f.id === id ? { id, isActive: true } : f));
   }, []);
   const deactivate = React.useCallback((id: string) => {
     setActiveFocusId((current) => (current === id ? undefined : current));
-    setFocusables((list) => list.map((f) => (f.id === id ? { id, isActive: false } : f)));
+    focusablesRef.current = focusablesRef.current.map((f) => (f.id === id ? { id, isActive: false } : f));
   }, []);
 
+  // The cursor, raw mode and bracketed paste, put back at unmount.
   React.useEffect(
     () => () => {
-      showCursorOn(stdout as InkStream);
-      if (isRawModeSupported && rawModeEnabledCount.current > 0) disableRawMode();
+      const canWrite = output.destroyed !== true && output.writableEnded !== true;
+      if (interactive && canWrite) showCursorOn(output);
+      if (isRawModeSupported && (rawModeEnabledCountRef.current > 0 || pendingDisableRawModeRef.current)) disableRawMode();
+      if (!(bracketedPasteCountRef.current > 0)) return;
+      if (canWrite && output.isTTY === true) bracketedPasteOff(output);
+      bracketedPasteCountRef.current = 0;
     },
-    [stdout, isRawModeSupported, disableRawMode],
+    [output, isRawModeSupported, disableRawMode, interactive],
   );
 
-  const appValue = React.useMemo(() => ({ exit: handleExit }), [handleExit]);
+  const appValue = React.useMemo(() => ({ exit: handleExit, waitUntilRenderFlush: onWaitUntilRenderFlush, suspendTerminal: onSuspendTerminal }), [handleExit, onWaitUntilRenderFlush, onSuspendTerminal]);
   const stdinValue = React.useMemo(
-    () => ({ stdin, setRawMode: handleSetRawMode, isRawModeSupported, internal_exitOnCtrlC: exitOnCtrlC, internal_eventEmitter: emitter.current }),
-    [stdin, handleSetRawMode, isRawModeSupported, exitOnCtrlC],
+    () => ({ stdin, setRawMode: handleSetRawMode, setBracketedPasteMode: handleSetBracketedPasteMode, isRawModeSupported, internal_exitOnCtrlC: exitOnCtrlC, internal_eventEmitter: emitterRef.current }),
+    [stdin, handleSetRawMode, handleSetBracketedPasteMode, isRawModeSupported, exitOnCtrlC],
   );
   const stdoutValue = React.useMemo(() => ({ stdout, write: writeToStdout }), [stdout, writeToStdout]);
   const stderrValue = React.useMemo(() => ({ stderr, write: writeToStderr }), [stderr, writeToStderr]);
@@ -527,6 +859,7 @@ export function App({ children, stdin, stdout, stderr, writeToStdout, writeToStd
     () => ({ activeId: activeFocusId, add, remove, activate, deactivate, enableFocus, disableFocus, focusNext, focusPrevious, focus }),
     [activeFocusId, add, remove, activate, deactivate, enableFocus, disableFocus, focusNext, focusPrevious, focus],
   );
+  const animationValue = React.useMemo(() => ({ renderThrottleMs, subscribe: animationSubscribe }), [animationSubscribe, renderThrottleMs]);
   return h(
     AppContext.Provider,
     { value: appValue },
@@ -536,7 +869,11 @@ export function App({ children, stdin, stdout, stderr, writeToStdout, writeToStd
       h(
         StdoutContext.Provider,
         { value: stdoutValue },
-        h(StderrContext.Provider, { value: stderrValue }, h(FocusContext.Provider, { value: focusValue }, h(CursorContext.Provider, { value: cursorValue }, h(ErrorBoundary, { onError: handleExit }, children)))),
+        h(
+          StderrContext.Provider,
+          { value: stderrValue },
+          h(FocusContext.Provider, { value: focusValue }, h(AnimationContext.Provider, { value: animationValue }, h(CursorContext.Provider, { value: cursorValue }, h(ErrorBoundary, { onError: handleExit }, children)))),
+        ),
       ),
     ),
   );

@@ -70,8 +70,8 @@ export const GRADED: Readonly<Record<string, Row>> = {
   'restore-cursor': { reference: 6, passed: 6, rate: 1, control: 6 },
   'exit-hook': { reference: 21, passed: 21, rate: 1, control: 21 },
   'signal-exit': { reference: 135, passed: 134, rate: 0.9925925925925926, control: 134 },
-  ink: { reference: 584, passed: 584, rate: 1, control: 584 },
-  'inkjs-ui': { reference: 103, passed: 103, rate: 1, control: 103 },
+  ink: { reference: 1304, passed: 1304, rate: 1, control: 1303 },
+  'inkjs-ui': { reference: 102, passed: 102, rate: 1, control: 102 },
 };
 
 /** One graded path: an incumbent's specifier, and the family specifier that replaces it. */
@@ -145,7 +145,7 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
   'cross-spawn': '7.0.6',
   dotenv: '18.0.5',
   'exit-hook': '5.1.0',
-  ink: '6.8.0',
+  ink: '8.0.0',
   lilconfig: '3.1.3',
   'log-update': '8.0.0',
   meow: '14.1.0',
@@ -177,9 +177,12 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
  * The older majors graded today are **not claimed**, because none is level: commander 14
  * grades 1329 / 1331 (15 names the surplus argument in the excess-arguments message, 14 does
  * not), yargs 17 grades 191 / 794 (17's `require('yargs')` is a singleton, which 18 removed),
- * and dotenv 17 grades 107 / 141 (18 moved `config()`'s log line to `console.error` and
- * deleted `.env.vault`, `DOTENV_KEY` and the tips, and the façade speaks 18). The measurements
- * are on the compatibility page; the claim waits for the number.
+ * dotenv 17 grades 107 / 141 (18 moved `config()`'s log line to `console.error` and
+ * deleted `.env.vault`, `DOTENV_KEY` and the tips, and the façade speaks 18), and ink 6 grades
+ * 540 / 584 (`controlroom/ink` follows ink 8 where the two majors disagree — Delete is
+ * backspace, a kitty Ctrl+letter is its own code point, the cursor and frame protocol moved;
+ * D-20261006-controlroom-ink-8). The measurements are on the compatibility page; the claim
+ * waits for the number.
  *
  * boxen 8 is neither graded nor claimed since boxen 9.0.0: `flagstaff/boxen` follows 9 where
  * the two disagree (a hex colour is real hex, `vertical` is a fallback for `left` rather than
@@ -204,7 +207,7 @@ export const SUPPORTED_MAJORS: Readonly<Record<string, readonly number[]>> = {
   'cross-spawn': [7],
   dotenv: [18],
   'exit-hook': [5],
-  ink: [6],
+  ink: [8],
   lilconfig: [3],
   'log-update': [8],
   meow: [14],

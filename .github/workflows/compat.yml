@@ -31,7 +31,11 @@ jobs:
   ratchet:
     name: Ratchet · each host's suite against burgee
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 30, not 20: ink 8's suite is 1,309 cases run one file at a time with 78 of them in a
+    # PTY, measured at 268 s for the control and 115 s for the drop-in on darwin, and ink 6.8
+    # is now graded as a previous major too — about six minutes more than the 10.5 this job
+    # took before it (D-20261006-controlroom-ink-8), with repeat-and-agree re-runs on top.
+    timeout-minutes: 30
     permissions:
       contents: read
       issues: write # the broken-main reporter below

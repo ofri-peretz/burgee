@@ -98,7 +98,9 @@ const others = HOSTS.filter((h) => h.status !== 'active').map((h) => `| ${h.name
  * explicit, named and justified in the repo — an exclusion that grows silently is how a
  * compat claim becomes a lie." Generated from `hosts.ts`, so it cannot drift from the gate.
  */
-const excluded = HOSTS.filter((h) => (h.excludes ?? []).length > 0).flatMap((h) => (h.excludes ?? []).map((e) => `| **${h.name}** | \`${e.match.trim()}\` | ${e.why} |`));
+// The previous majors' too: `ink-6` keeps the nine colour exclusions the 6.8 suite was graded
+// under, and an exclusion subtracts from a row on this page wherever that row is.
+const excluded = [...HOSTS, ...PREVIOUS_MAJORS].filter((h) => (h.excludes ?? []).length > 0).flatMap((h) => (h.excludes ?? []).map((e) => `| **${h.name}** | \`${e.match.trim()}\` | ${e.why} |`));
 
 /**
  * The other three ways a case leaves a number, published beside the exclusions (C4). Each is

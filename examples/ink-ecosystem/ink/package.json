@@ -1,6 +1,6 @@
 {
   "name": "ink",
-  "version": "6.8.0",
+  "version": "8.0.0",
   "private": true,
   "description": "'ink', resolved to controlroom/ink. The version is the ink API the drop-in implements, so each component's peer range on ink is met by this directory, and npm installs no other ink.",
   "type": "module",

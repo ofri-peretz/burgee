@@ -416,7 +416,7 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
 
   it('an ink program moves to controlroom/ink, and is told to install the reconciler ink used to bring', async () => {
     const dir = project({
-      'package.json': JSON.stringify({ name: 'x', dependencies: { ink: '^6.8.0', react: '^19.0.0' } }),
+      'package.json': JSON.stringify({ name: 'x', dependencies: { ink: '^8.0.0', react: '^19.3.0' } }),
       'src/a.tsx': "import { render, Text } from 'ink';\n",
     });
     const report = await migrate({ dir, status: clean });

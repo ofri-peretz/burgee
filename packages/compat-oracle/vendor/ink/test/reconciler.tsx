@@ -1,10 +1,141 @@
-import React, {Suspense} from 'react';
-import test from 'ava';
+import test, {type TestContext} from 'node:test';
+import React, {Suspense, startTransition} from 'react';
 import chalk from 'chalk';
 import {Box, Text, render} from '../shim.js';
 import createStdout from './helpers/create-stdout.js';
+import {renderAsync} from './helpers/test-renderer.js';
+import {act} from './helpers/act.js';
 
-test('update child', t => {
+test('fragment refs remain unsupported while their children render and update', async (t: TestContext) => {
+	const ref = React.createRef<React.FragmentInstance>();
+	const frame = (text: string) => (
+		// The fragment ref is the subject of this test.
+		<React.Fragment ref={ref}>
+			<Text>{text}</Text>
+		</React.Fragment>
+	);
+	const {getOutput, rerenderAsync, unmount} = await renderAsync(frame('first'));
+	t.after(() => {
+		unmount();
+	});
+	t.assert.strictEqual(getOutput(), 'first');
+	t.assert.strictEqual(ref.current, null);
+	await rerenderAsync(frame('second'));
+	t.assert.strictEqual(getOutput(), 'second');
+	t.assert.strictEqual(ref.current, null);
+});
+
+test('terminal host updates complete inside a transition', async (t: TestContext) => {
+	const instance = await renderAsync(<Text>first</Text>);
+	t.after(() => {
+		instance.unmount();
+	});
+	await act(async () => {
+		startTransition(() => {
+			instance.rerender(<Text>second</Text>);
+		});
+	});
+	t.assert.strictEqual(instance.getOutput(), 'second');
+});
+
+test('Suspense hides nested text while showing its fallback', async (t: TestContext) => {
+	const {promise, resolve: resolvePromise} = Promise.withResolvers<void>();
+	t.after(() => {
+		resolvePromise();
+	});
+
+	function Suspendable({pending}: {readonly pending: boolean}) {
+		if (pending) {
+			// eslint-disable-next-line @typescript-eslint/only-throw-error
+			throw promise;
+		}
+
+		return <Text>Ready</Text>;
+	}
+
+	function Example({
+		pending,
+		showFallback = true,
+	}: {
+		readonly pending: boolean;
+		readonly showFallback?: boolean;
+	}) {
+		return (
+			<Box>
+				<Text>
+					Status:{' '}
+					<Suspense fallback={showFallback ? <Text>Loading</Text> : null}>
+						<Suspendable pending={pending} />
+					</Suspense>
+				</Text>
+				<Text>!</Text>
+			</Box>
+		);
+	}
+
+	const {getOutput, rerenderAsync, unmount} = await renderAsync(
+		<Example pending={false} />,
+	);
+	t.after(() => {
+		unmount();
+	});
+	t.assert.strictEqual(getOutput(), 'Status: Ready!');
+
+	await rerenderAsync(<Example pending />);
+	t.assert.strictEqual(getOutput(), 'Status: Loading!');
+
+	await rerenderAsync(<Example pending={false} />);
+	t.assert.strictEqual(getOutput(), 'Status: Ready!');
+
+	await rerenderAsync(<Example pending showFallback={false} />);
+	t.assert.strictEqual(getOutput(), 'Status: !');
+
+	await rerenderAsync(<Example pending={false} showFallback={false} />);
+	t.assert.strictEqual(getOutput(), 'Status: Ready!');
+});
+
+test('resuming Suspense preserves display none', async (t: TestContext) => {
+	const {promise, resolve: resolvePromise} = Promise.withResolvers<void>();
+	t.after(() => {
+		resolvePromise();
+	});
+
+	function Suspendable({pending}: {readonly pending: boolean}) {
+		if (pending) {
+			// eslint-disable-next-line @typescript-eslint/only-throw-error
+			throw promise;
+		}
+
+		return <Text>Visible</Text>;
+	}
+
+	function Test({pending}: {readonly pending: boolean}) {
+		return (
+			<Suspense fallback={<Text>Loading</Text>}>
+				<Box display="none">
+					<Text>Hidden</Text>
+				</Box>
+				<Suspendable pending={pending} />
+			</Suspense>
+		);
+	}
+
+	const {getOutput, rerenderAsync, unmount} = await renderAsync(
+		<Test pending={false} />,
+	);
+	t.after(() => {
+		unmount();
+	});
+	t.assert.strictEqual(getOutput(), 'Visible');
+
+	await rerenderAsync(<Test pending />);
+	t.assert.strictEqual(getOutput(), 'Loading');
+
+	await rerenderAsync(<Test pending={false} />);
+	t.assert.strictEqual(getOutput(), 'Visible');
+});
+
+test('update child', (t: TestContext) => {
 	function Test({update}: {readonly update?: boolean}) {
 		return <Text>{update ? 'B' : 'A'}</Text>;
 	}
@@ -22,7 +153,7 @@ test('update child', t => {
 		debug: true,
 	});
 
-	t.is(
+	t.assert.strictEqual(
 		(stdoutActual.write as any).lastCall.args[0],
 		(stdoutExpected.write as any).lastCall.args[0],
 	);
@@ -30,13 +161,13 @@ test('update child', t => {
 	actual.rerender(<Test update />);
 	expected.rerender(<Text>B</Text>);
 
-	t.is(
+	t.assert.strictEqual(
 		(stdoutActual.write as any).lastCall.args[0],
 		(stdoutExpected.write as any).lastCall.args[0],
 	);
 });
 
-test('update text node', t => {
+test('update text node', (t: TestContext) => {
 	function Test({update}: {readonly update?: boolean}) {
 		return (
 			<Box>
@@ -59,7 +190,7 @@ test('update text node', t => {
 		debug: true,
 	});
 
-	t.is(
+	t.assert.strictEqual(
 		(stdoutActual.write as any).lastCall.args[0],
 		(stdoutExpected.write as any).lastCall.args[0],
 	);
@@ -67,13 +198,35 @@ test('update text node', t => {
 	actual.rerender(<Test update />);
 	expected.rerender(<Text>Hello B</Text>);
 
-	t.is(
+	t.assert.strictEqual(
 		(stdoutActual.write as any).lastCall.args[0],
 		(stdoutExpected.write as any).lastCall.args[0],
 	);
 });
 
-test('append child', t => {
+test('remove style prop from intrinsic node', (t: TestContext) => {
+	function Test({withStyle}: {readonly withStyle: boolean}) {
+		return (
+			<ink-box style={withStyle ? {marginLeft: 1} : undefined}>
+				<ink-text>X</ink-text>
+			</ink-box>
+		);
+	}
+
+	const stdout = createStdout();
+
+	const {rerender} = render(<Test withStyle />, {
+		stdout,
+		debug: true,
+	});
+
+	t.assert.strictEqual((stdout.write as any).lastCall.args[0], ' X');
+
+	rerender(<Test withStyle={false} />);
+	t.assert.strictEqual((stdout.write as any).lastCall.args[0], 'X');
+});
+
+test('append child', (t: TestContext) => {
 	function Test({append}: {readonly append?: boolean}) {
 		if (append) {
 			return (
@@ -109,7 +262,7 @@ test('append child', t => {
 		},
 	);
 
-	t.is(
+	t.assert.strictEqual(
 		(stdoutActual.write as any).lastCall.args[0],
 		(stdoutExpected.write as any).lastCall.args[0],
 	);
@@ -123,13 +276,13 @@ test('append child', t => {
 		</Box>,
 	);
 
-	t.is(
+	t.assert.strictEqual(
 		(stdoutActual.write as any).lastCall.args[0],
 		(stdoutExpected.write as any).lastCall.args[0],
 	);
 });
 
-test('insert child between other children', t => {
+test('insert child between other children', (t: TestContext) => {
 	function Test({insert}: {readonly insert?: boolean}) {
 		if (insert) {
 			return (
@@ -168,7 +321,7 @@ test('insert child between other children', t => {
 		},
 	);
 
-	t.is(
+	t.assert.strictEqual(
 		(stdoutActual.write as any).lastCall.args[0],
 		(stdoutExpected.write as any).lastCall.args[0],
 	);
@@ -183,13 +336,13 @@ test('insert child between other children', t => {
 		</Box>,
 	);
 
-	t.is(
+	t.assert.strictEqual(
 		(stdoutActual.write as any).lastCall.args[0],
 		(stdoutExpected.write as any).lastCall.args[0],
 	);
 });
 
-test('remove child', t => {
+test('remove child', (t: TestContext) => {
 	function Test({remove}: {readonly remove?: boolean}) {
 		if (remove) {
 			return (
@@ -226,7 +379,7 @@ test('remove child', t => {
 		},
 	);
 
-	t.is(
+	t.assert.strictEqual(
 		(stdoutActual.write as any).lastCall.args[0],
 		(stdoutExpected.write as any).lastCall.args[0],
 	);
@@ -239,13 +392,13 @@ test('remove child', t => {
 		</Box>,
 	);
 
-	t.is(
+	t.assert.strictEqual(
 		(stdoutActual.write as any).lastCall.args[0],
 		(stdoutExpected.write as any).lastCall.args[0],
 	);
 });
 
-test('reorder children', t => {
+test('reorder children', (t: TestContext) => {
 	function Test({reorder}: {readonly reorder?: boolean}) {
 		if (reorder) {
 			return (
@@ -283,7 +436,7 @@ test('reorder children', t => {
 		},
 	);
 
-	t.is(
+	t.assert.strictEqual(
 		(stdoutActual.write as any).lastCall.args[0],
 		(stdoutExpected.write as any).lastCall.args[0],
 	);
@@ -297,13 +450,13 @@ test('reorder children', t => {
 		</Box>,
 	);
 
-	t.is(
+	t.assert.strictEqual(
 		(stdoutActual.write as any).lastCall.args[0],
 		(stdoutExpected.write as any).lastCall.args[0],
 	);
 });
 
-test('replace child node with text', t => {
+test('replace child node with text', (t: TestContext) => {
 	const stdout = createStdout();
 
 	function Dynamic({replace}: {readonly replace?: boolean}) {
@@ -315,13 +468,16 @@ test('replace child node with text', t => {
 		debug: true,
 	});
 
-	t.is((stdout.write as any).lastCall.args[0], chalk.green('test'));
+	t.assert.strictEqual(
+		(stdout.write as any).lastCall.args[0],
+		chalk.green('test'),
+	);
 
 	rerender(<Dynamic replace />);
-	t.is((stdout.write as any).lastCall.args[0], 'x');
+	t.assert.strictEqual((stdout.write as any).lastCall.args[0], 'x');
 });
 
-test('support suspense', async t => {
+test('support suspense', async (t: TestContext) => {
 	const stdout = createStdout();
 
 	let promise: Promise<void> | undefined;
@@ -368,21 +524,18 @@ test('support suspense', async t => {
 		debug: true,
 	});
 
-	t.is((stdout.write as any).lastCall.args[0], 'Loading');
+	t.assert.strictEqual((stdout.write as any).lastCall.args[0], 'Loading');
 
 	await promise;
 	out.rerender(<Test />);
 
-	t.is((stdout.write as any).lastCall.args[0], 'Hello World');
+	t.assert.strictEqual((stdout.write as any).lastCall.args[0], 'Hello World');
 });
 
-test('support suspense with concurrent mode', async t => {
+test('support suspense with concurrent mode', async (t: TestContext) => {
 	const stdout = createStdout();
 
-	let resolvePromise: () => void;
-	const promise = new Promise<void>(resolve => {
-		resolvePromise = resolve;
-	});
+	const {promise, resolve: resolvePromise} = Promise.withResolvers<void>();
 
 	// eslint-disable-next-line prefer-const
 	let data: string | undefined;
@@ -404,8 +557,6 @@ test('support suspense with concurrent mode', async t => {
 		);
 	}
 
-	const {act} = await import('react');
-
 	await act(async () => {
 		render(<Test />, {
 			stdout,
@@ -414,7 +565,7 @@ test('support suspense with concurrent mode', async t => {
 		});
 	});
 
-	t.is((stdout.write as any).lastCall.args[0], 'Loading');
+	t.assert.strictEqual((stdout.write as any).lastCall.args[0], 'Loading');
 
 	// Resolve the suspense and wait for React to re-render
 	data = 'Hello Concurrent World';
@@ -423,5 +574,8 @@ test('support suspense with concurrent mode', async t => {
 		await promise;
 	});
 
-	t.is((stdout.write as any).lastCall.args[0], 'Hello Concurrent World');
+	t.assert.strictEqual(
+		(stdout.write as any).lastCall.args[0],
+		'Hello Concurrent World',
+	);
 });

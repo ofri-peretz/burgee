@@ -1,27 +1,36 @@
 /**
- * The kitty query's answer, read as ink reads it: ink's own suite grades the negotiation end to
- * end (584 / 584); this pins the parser's four outcomes on their own.
+ * The kitty query's answer, read as ink 8 reads it: one input event `ESC [ ? <flags> u`, which
+ * `App` consumes instead of handing to `useInput`. ink's own suite grades the negotiation end
+ * to end (`kitty-negotiation.tsx`); this pins the recognizer's edges on their own.
  */
 import { describe, expect, it } from 'vitest';
 
-import { kittyReply } from './keypress.js';
+import { createInputParser, isKittyQueryReply, resolveFlags } from './keypress.js';
 
-const bytes = (s: string): number[] => [...Buffer.from(s)];
-
-describe('kittyReply', () => {
-  it('finds a complete reply anywhere, and keeps every other byte in order', () => {
-    expect(kittyReply(bytes('a\u001B[?1ub'))).toEqual({ replied: true, rest: bytes('ab') });
-    expect(kittyReply(bytes('\u001B[?15u'))).toEqual({ replied: true, rest: [] });
+describe('isKittyQueryReply', () => {
+  it('reads a complete reply, whatever its flags', () => {
+    expect(isKittyQueryReply('\u001B[?1u')).toBe(true);
+    expect(isKittyQueryReply('\u001B[?15u')).toBe(true);
   });
 
-  it('drops a reply still arriving at the end, rather than leaking it as keys', () => {
-    expect(kittyReply(bytes('x\u001B[?1'))).toEqual({ replied: false, rest: bytes('x') });
+  it('refuses what only looks like one: no digits, a non-digit, the wrong final byte or introducer', () => {
+    expect(isKittyQueryReply('\u001B[?u')).toBe(false);
+    expect(isKittyQueryReply('\u001B[?1xu')).toBe(false);
+    expect(isKittyQueryReply('\u001B[?1x')).toBe(false);
+    expect(isKittyQueryReply('\u001B[1u')).toBe(false);
+    expect(isKittyQueryReply('[?1u')).toBe(false);
   });
 
-  it('keeps what only looks like a reply: no digits, or the wrong final byte', () => {
-    expect(kittyReply(bytes('\u001B[?'))).toEqual({ replied: false, rest: bytes('\u001B[?') });
-    expect(kittyReply(bytes('\u001B[?u'))).toEqual({ replied: false, rest: bytes('\u001B[?u') });
-    expect(kittyReply(bytes('\u001B[?1x'))).toEqual({ replied: false, rest: bytes('\u001B[?1x') });
-    expect(kittyReply(bytes('\u001B[A'))).toEqual({ replied: false, rest: bytes('\u001B[A') });
+  it('arrives as one event from the input splitter, even when it lands in two chunks', () => {
+    const parser = createInputParser();
+    expect(parser.push('a\u001B[?')).toEqual(['a']);
+    expect(parser.push('1ub')).toEqual(['\u001B[?1u', 'b']);
+  });
+});
+
+describe('resolveFlags', () => {
+  it('ORs the named flags, and associated text brings all-keys reporting with it', () => {
+    expect(resolveFlags(['disambiguateEscapeCodes', 'reportEventTypes'])).toBe(3);
+    expect(resolveFlags(['reportAssociatedText'])).toBe(24);
   });
 });

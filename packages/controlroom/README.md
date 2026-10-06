@@ -26,8 +26,8 @@
 </p>
 
 <p align="center">
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/ink%20suite-584%2F584-0a6b47?style=flat-square" alt="controlroom/ink passes 584 of 584 cases of the ink test suite" /></a>
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/%40inkjs%2Fui%20suite-103%2F103-0a6b47?style=flat-square" alt="controlroom/ink passes 103 of 103 cases of the @inkjs/ui test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/ink%20suite-1304%2F1304-0a6b47?style=flat-square" alt="controlroom/ink passes 1304 of 1304 cases of the ink test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/%40inkjs%2Fui%20suite-102%2F102-0a6b47?style=flat-square" alt="controlroom/ink passes 102 of 102 cases of the @inkjs/ui test suite" /></a>
 </p>
 
 <p align="center">
@@ -43,8 +43,8 @@ again on resize. The same program gives every other caller a **static projection
 lines in a pipe, in CI and for a screen reader, and NDJSON events under `--json` for an agent.
 It never waits for a key that nobody can press.
 
-An ink program moves by changing its import: `controlroom/ink` is graded by ink's own test
-suite, 584 of 584 cases, and `@inkjs/ui`'s, 103 of 103.
+An ink program moves by changing its import: `controlroom/ink` is graded by ink 8's own test
+suite, 1304 of 1304 cases, and `@inkjs/ui`'s, 102 of 102.
 
 A **control room** is where a system is watched and run from.
 
@@ -112,14 +112,14 @@ of your own that re-exports the drop-in:
   "dependencies": {
     "ink": "file:./ink",
     "controlroom": "*",
-    "react": "^19.0.0",
-    "react-reconciler": "^0.33.0"
+    "react": "^19.3.0",
+    "react-reconciler": "^0.34.0"
   }
 }
 ```
 
 ```js
-// ink/index.js — and ink/package.json: { "name": "ink", "version": "6.8.0", "type": "module", "exports": "./index.js" }
+// ink/index.js — and ink/package.json: { "name": "ink", "version": "8.0.0", "type": "module", "exports": "./index.js" }
 export * from 'controlroom/ink';
 ```
 
@@ -129,7 +129,7 @@ met and npm installs no other ink. That is how `ink-spinner`, `ink-text-input` a
 [`examples/ink-ecosystem`](https://github.com/ofri-peretz/burgee/tree/main/examples/ink-ecosystem),
 and how [`examples/chat-cli-ink`](https://github.com/ofri-peretz/burgee/tree/main/examples/chat-cli-ink),
 a whole Ink app, runs on the drop-in (R17, R22). `@inkjs/ui` runs the same way: its own suite
-passes 103 / 103 with `'ink'` resolved to this package. None of them has a façade here.
+passes 102 / 102 with `'ink'` resolved to this package. None of them has a façade here.
 
 From **blessed**, **neo-blessed** and **terminal-kit** there is no drop-in — their surfaces are
 too large to reproduce honestly. Each has a coming-from guide, and `burgee migrate` reports the
@@ -137,13 +137,15 @@ common screen, box, list and key patterns with a link to the matching section (R
 
 ## Compatibility
 
-Ink's own suite is vendored into `compat-oracle` at ink 6.8.0 and `@inkjs/ui`'s at 2.0.0,
+Ink's own suite is vendored into `compat-oracle` at ink 8.0.0 and `@inkjs/ui`'s at 2.0.0,
 each with a control run against the real package and a baseline that only ratchets (R13,
-R17), and both grade `controlroom/ink`. ink's passes **584 of 584** cases: 593 are vendored,
-and nine colour cases are excluded with their reason — the suite raises the level on its own
-chalk singleton, and the drop-in's colour is roundel's, read from the environment. `@inkjs/ui`'s passes
-**103 / 103**, graded unmodified with `'ink'` resolved to this package, on `@inkjs/ui`'s own
-React 18. The rows are on the
+R17), and both grade `controlroom/ink`. ink's passes **1304 of 1304** cases: 1309 are graded,
+four of the five set aside test ink's own repository build and one type-checks its source
+tree, which no vendored suite has. `@inkjs/ui`'s passes **102 / 102**, graded unmodified with
+`'ink'` resolved to this package, on `@inkjs/ui`'s own React 18; its one spinner case that
+expects ink 5's unmount writes is set aside, because real ink 8 fails it too. ink 6.8.0 is
+graded as a previous major — 540 / 584, where ink 8 changed what 6 asserted — and not claimed.
+The rows are on the
 [compatibility page](https://burgee.interlace.tools/docs/compatibility).
 
 ## Benchmarks
@@ -154,8 +156,8 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
-| `ink` | 584 / 584 |
-| `inkjs-ui` | 103 / 103 |
+| `ink` | 1304 / 1304 |
+| `inkjs-ui` | 102 / 102 |
 
 ## For agents
 
@@ -185,8 +187,9 @@ The family's machine-readable docs are at
 - `initial`, `reduce(state, action)` — tabs, focus and collapse; `hints(keymap, labels)` — the
   hint line, generated from the keymap so it cannot name an unbound key.
 - `compose`, `fit`, `render`, `collapse`, `distribute` — the compositor's arithmetic.
-- `controlroom/ink` — ink 6.8's API: `render`, `renderToString`, `Box`, `Text`, `Static`,
-  `Transform`, `Newline`, `Spacer`, every hook and `measureElement`.
+- `controlroom/ink` — ink 8's API: `render`, `renderToString`, `Box`, `Text`, `Static`,
+  `Transform`, `Newline`, `Spacer`, every hook (`useAnimation`, `usePaste`, `useBoxMetrics` and
+  `useWindowSize` among them) and `measureElement`.
 - `status` — kept for the reserved release's one export.
 
 It builds on its siblings rather than beside them: flagstaff draws the panes and writes every

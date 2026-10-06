@@ -453,6 +453,16 @@ export function vendor(host: Host, into: string, version = host.pinnedVersion ??
     writeFileSync(join(staging, 'package.json'), `${JSON.stringify(rootPackage(host, upstream), null, 2)}\n`);
 
     const packageType = upstream.type ?? 'commonjs';
+    // Programs the suite runs from outside its own directory, rewritten so they reach the shim
+    // (`Host.rewrittenDirs`). Missing ones are named the way a missing extra is.
+    for (const tree of host.rewrittenDirs ?? []) {
+      if (!existsSync(join(clone, tree))) {
+        missingExtras.push(tree);
+        continue;
+      }
+      cpSync(join(clone, tree), join(staging, tree), { recursive: true, verbatimSymlinks: true });
+      rewriteTree(join(staging, tree), host, staging, packageType);
+    }
     const { files, internalFiles, internals } = copyTests(host, { from, dest, hostDir: staging }, packageType);
 
     const record = snapshot(clone, host, {

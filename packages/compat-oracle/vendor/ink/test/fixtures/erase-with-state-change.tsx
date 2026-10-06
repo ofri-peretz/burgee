@@ -8,7 +8,7 @@ function Erase() {
 	useEffect(() => {
 		const timer = setTimeout(() => {
 			setShow(false);
-		});
+		}, 0);
 
 		return () => {
 			clearTimeout(timer);
@@ -17,13 +17,13 @@ function Erase() {
 
 	return (
 		<Box flexDirection="column">
-			{show && (
+			{show ? (
 				<>
 					<Text>A</Text>
 					<Text>B</Text>
 					<Text>C</Text>
 				</>
-			)}
+			) : null}
 		</Box>
 	);
 }

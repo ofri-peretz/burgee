@@ -1,7 +1,7 @@
 /**
  * `controlroom/ink`'s own checks. The drop-in is graded by ink's and `@inkjs/ui`'s suites in
- * `compat-oracle`, in another process and against `dist/` (576 / 584 and 103 / 103 on
- * 2026-10-05); these pin what those suites do not: that the surface is ink 6.8's and no
+ * `compat-oracle`, in another process and against `dist/` (1304 / 1304 at ink 8.0.0 and
+ * 102 / 102 on 2026-10-06); these pin what those suites do not: that the surface is ink 8's and no
  * more, that a missing peer is a refusal with a `fix`, and the yoga behaviours the flexbox
  * subset reproduces on purpose, including the ones that are yoga's bugs.
  */
@@ -18,7 +18,7 @@ const h = React.createElement;
 const absent = (): Promise<never> => Promise.reject(Object.assign(new Error("Cannot find package 'react'"), { code: 'ERR_MODULE_NOT_FOUND' }));
 
 describe('the surface', () => {
-  it('exports ink 6.8.0’s runtime names, and nothing of its own', async () => {
+  it('exports ink 8.0.0’s runtime names, and nothing of its own', async () => {
     expect(Object.keys(await import('./index.js')).sort()).toEqual(
       [
         'Box',
@@ -32,15 +32,19 @@ describe('the surface', () => {
         'measureElement',
         'render',
         'renderToString',
+        'useAnimation',
         'useApp',
+        'useBoxMetrics',
         'useCursor',
         'useFocus',
         'useFocusManager',
         'useInput',
         'useIsScreenReaderEnabled',
+        'usePaste',
         'useStderr',
         'useStdin',
         'useStdout',
+        'useWindowSize',
       ].sort(),
     );
   });

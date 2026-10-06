@@ -1,37 +1,40 @@
 /**
  * The laid-out host tree to text: each node drawn into an `Output` at its computed cell —
- * backgrounds, borders, wrapped and transformed text, and clipping for `overflow: hidden` —
- * plus the screen-reader projection, which is the tree as plain sentences with each
- * `aria-role` and `aria-state` spoken. Colour is roundel's (`roundel/chalk`), borders are
- * flagstaff's registry.
+ * backgrounds, borders (with their own background colours), wrapped and transformed text,
+ * clipping for `overflow: hidden` and the content offset a scrolled box moves its children
+ * by — plus the screen-reader projection, which is the tree as plain sentences with each
+ * `aria-role` and `aria-state` spoken. ink 8's `render-node-to-output.ts` and `renderer.ts`.
+ * Colour is roundel's (`roundel/chalk`), borders are flagstaff's registry.
  */
 import { lookupBorder } from 'flagstaff/plugin';
-import chalk from 'roundel/chalk';
+import chalk, { foregroundColorNames } from 'roundel/chalk';
 
 import { type BoxStyle, type DOMElement, type DOMNode, squashTextNodes, type Transformer, widestLine, wrapText } from './dom.js';
 import { type FlexNode } from './flex.js';
 import { Output } from './output.js';
 
-const RGB = /^rgb\(\s?(\d+),\s?(\d+),\s?(\d+)\s?\)$/u;
+const RGB = /^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/u;
 const ANSI256 = /^ansi256\(\s?(\d+)\s?\)$/u;
+const NAMED = new Set<string>(foregroundColorNames);
 
 type Painter = (text: string) => string;
 const painterOf = (name: string): Painter => (chalk as unknown as Record<string, Painter>)[name]!;
 
-/** Ink's `colorize`: a chalk name, `#hex`, `rgb(r, g, b)` or `ansi256(n)`, as text or background. */
-export function colorize(text: string, color: string | undefined, type: 'foreground' | 'background'): string {
-  if (color === undefined || color === '') return text;
-  if (color in chalk) return painterOf(type === 'foreground' ? color : `bg${color[0]!.toUpperCase()}${color.slice(1)}`)(text);
+/** ink's `colorize`: a chalk colour name, `#hex`, `rgb(r, g, b)` or `ansi256(n)`, as text or background; anything else, or nothing, leaves the text alone. */
+export function colorize(text: string, color: string | undefined | null | false, type: 'foreground' | 'background'): string {
+  if (typeof color !== 'string' || color === '') return text;
+  if (NAMED.has(color)) return painterOf(type === 'foreground' ? color : `bg${color[0]!.toUpperCase()}${color.slice(1)}`)(text);
   if (color.startsWith('#')) return type === 'foreground' ? chalk.hex(color)(text) : chalk.bgHex(color)(text);
-  const ansi = ANSI256.exec(color);
   if (color.startsWith('ansi256')) {
-    if (ansi === null) return text;
-    const n = Number(ansi[1]);
+    const match = ANSI256.exec(color);
+    if (match === null) return text;
+    const n = Number(match[1]);
     return type === 'foreground' ? chalk.ansi256(n)(text) : chalk.bgAnsi256(n)(text);
   }
-  const rgb = RGB.exec(color);
-  if (color.startsWith('rgb') && rgb !== null) {
-    const [r, g, b] = [Number(rgb[1]), Number(rgb[2]), Number(rgb[3])];
+  if (color.startsWith('rgb')) {
+    const match = RGB.exec(color);
+    if (match === null) return text;
+    const [r, g, b] = [Number(match[1]), Number(match[2]), Number(match[3])];
     return type === 'foreground' ? chalk.rgb(r, g, b)(text) : chalk.bgRgb(r, g, b)(text);
   }
   return text;
@@ -51,9 +54,15 @@ function boxOf(style: string | BoxStyle): BoxStyle {
 
 const flexOf = (node: DOMElement): FlexNode => node.yogaNode!;
 
+/** One border piece: its colour, its background, then dim, as ink's `stylePiece` paints it. */
+function stylePiece(segment: string, foreground: string | undefined, background: string | undefined, dim: boolean | undefined): string {
+  const styled = colorize(colorize(segment, foreground, 'foreground'), background, 'background');
+  return dim === true ? chalk.dim(styled) : styled;
+}
+
 function renderBorder(x: number, y: number, node: DOMElement, output: Output): void {
   const { style } = node;
-  if (style.borderStyle === undefined || style.borderStyle === '') return;
+  if (!style.borderStyle) return;
   const { width, height } = flexOf(node).layout;
   const box = boxOf(style.borderStyle);
   const showTop = style.borderTop !== false;
@@ -61,34 +70,34 @@ function renderBorder(x: number, y: number, node: DOMElement, output: Output): v
   const showLeft = style.borderLeft !== false;
   const showRight = style.borderRight !== false;
   const contentWidth = width - (showLeft ? 1 : 0) - (showRight ? 1 : 0);
-  const dim = (text: string, flag: boolean | undefined): string => (flag === true ? chalk.dim(text) : text);
-  const side = (text: string, color: string | undefined, flag: boolean | undefined): string => dim(colorize(text, color, 'foreground'), flag);
-  const vertical = height - (showTop ? 1 : 0) - (showBottom ? 1 : 0);
   const repeat = (s: string, n: number): string => s.repeat(Math.max(0, n));
+  const vertical = height - (showTop ? 1 : 0) - (showBottom ? 1 : 0);
   if (showTop) {
     const top = (showLeft ? box.topLeft : '') + repeat(box.top, contentWidth) + (showRight ? box.topRight : '');
-    output.draw(x, y, side(top, style.borderTopColor ?? style.borderColor, style.borderTopDimColor ?? style.borderDimColor), { transformers: [] });
+    const painted = stylePiece(top, style.borderTopColor ?? style.borderColor, style.borderTopBackgroundColor ?? style.borderBackgroundColor, style.borderTopDimColor ?? style.borderDimColor);
+    if (painted !== '') output.draw(x, y, painted, { transformers: [] });
   }
   const offsetY = showTop ? 1 : 0;
   if (showLeft) {
-    const left = repeat(`${colorize(box.left, style.borderLeftColor ?? style.borderColor, 'foreground')}\n`, vertical);
-    output.draw(x, y + offsetY, dim(left, style.borderLeftDimColor ?? style.borderDimColor), { transformers: [] });
+    const one = stylePiece(box.left, style.borderLeftColor ?? style.borderColor, style.borderLeftBackgroundColor ?? style.borderBackgroundColor, style.borderLeftDimColor ?? style.borderDimColor);
+    output.draw(x, y + offsetY, repeat(`${one}\n`, vertical), { transformers: [] });
   }
   if (showRight) {
-    const right = repeat(`${colorize(box.right, style.borderRightColor ?? style.borderColor, 'foreground')}\n`, vertical);
-    output.draw(x + width - 1, y + offsetY, dim(right, style.borderRightDimColor ?? style.borderDimColor), { transformers: [] });
+    const one = stylePiece(box.right, style.borderRightColor ?? style.borderColor, style.borderRightBackgroundColor ?? style.borderBackgroundColor, style.borderRightDimColor ?? style.borderDimColor);
+    output.draw(x + width - 1, y + offsetY, repeat(`${one}\n`, vertical), { transformers: [] });
   }
   if (showBottom) {
     const bottom = (showLeft ? box.bottomLeft : '') + repeat(box.bottom, contentWidth) + (showRight ? box.bottomRight : '');
-    output.draw(x, y + height - 1, side(bottom, style.borderBottomColor ?? style.borderColor, style.borderBottomDimColor ?? style.borderDimColor), { transformers: [] });
+    const painted = stylePiece(bottom, style.borderBottomColor ?? style.borderColor, style.borderBottomBackgroundColor ?? style.borderBackgroundColor, style.borderBottomDimColor ?? style.borderDimColor);
+    if (painted !== '') output.draw(x, y + height - 1, painted, { transformers: [] });
   }
 }
 
 function renderBackground(x: number, y: number, node: DOMElement, output: Output): void {
   const { style } = node;
-  if (style.backgroundColor === undefined || style.backgroundColor === '') return;
+  if (!style.backgroundColor) return;
   const { width, height } = flexOf(node).layout;
-  const bordered = style.borderStyle !== undefined && style.borderStyle !== '';
+  const bordered = Boolean(style.borderStyle);
   const left = bordered && style.borderLeft !== false ? 1 : 0;
   const right = bordered && style.borderRight !== false ? 1 : 0;
   const top = bordered && style.borderTop !== false ? 1 : 0;
@@ -115,6 +124,9 @@ function maxWidthOf(flex: FlexNode): number {
   const { padding, border } = flex.style;
   return flex.layout.width - padding[0] - padding[2] - border[0] - border[2];
 }
+
+/** A content offset is a cell coordinate: truncated toward zero, and 0 when it is not a finite number. */
+const contentOffset = (value: number | undefined): number => (typeof value === 'number' && Number.isFinite(value) ? Math.trunc(value) : 0);
 
 interface RenderOptions {
   offsetX?: number;
@@ -145,8 +157,8 @@ export function renderNodeToOutput(node: DOMElement, output: Output, options: Re
   if (node.nodeName === 'ink-box') {
     renderBackground(x, y, node, output);
     renderBorder(x, y, node, output);
-    const horizontally = node.style.overflowX === 'hidden' || node.style.overflow === 'hidden';
-    const vertically = node.style.overflowY === 'hidden' || node.style.overflow === 'hidden';
+    const horizontally = (node.style.overflowX ?? node.style.overflow) === 'hidden';
+    const vertically = (node.style.overflowY ?? node.style.overflow) === 'hidden';
     if (horizontally || vertically) {
       const [bl, bt, br, bb] = flex.style.border;
       output.clip({
@@ -158,8 +170,11 @@ export function renderNodeToOutput(node: DOMElement, output: Output, options: Re
       clipped = true;
     }
   }
+  if (node.nodeName !== 'ink-root' && node.nodeName !== 'ink-box') return;
+  const childX = x - contentOffset(node.style.contentOffsetX);
+  const childY = y - contentOffset(node.style.contentOffsetY);
   for (const child of node.childNodes) {
-    if (child.nodeName !== '#text') renderNodeToOutput(child, output, { offsetX: x, offsetY: y, transformers: next, skipStaticElements });
+    if (child.nodeName !== '#text') renderNodeToOutput(child, output, { offsetX: childX, offsetY: childY, transformers: next, skipStaticElements });
   }
   if (clipped) output.unclip();
 }
@@ -167,8 +182,7 @@ export function renderNodeToOutput(node: DOMElement, output: Output, options: Re
 /** The screen-reader projection: text in reading order, rows joined by spaces, roles and states spoken. */
 export function renderNodeToScreenReaderOutput(node: DOMNode, options: { parentRole?: string | undefined; skipStaticElements: boolean }): string {
   if (node.nodeName === '#text') return '';
-  if (options.skipStaticElements && node.internal_static === true) return '';
-  if (node.yogaNode?.style.display === 'none') return '';
+  if ((options.skipStaticElements && node.internal_static === true) || node.yogaNode?.style.display === 'none') return '';
   let output = '';
   if (node.nodeName === 'ink-text') output = squashTextNodes(node);
   else if (node.nodeName === 'ink-box' || node.nodeName === 'ink-root') {
@@ -191,7 +205,7 @@ export function renderNodeToScreenReaderOutput(node: DOMNode, options: { parentR
         .join(', ');
       if (said !== '') output = `(${said}) ${output}`;
     }
-    if (role !== undefined && role !== '' && role !== options.parentRole) output = `${role}: ${output}`;
+    if (Boolean(role) && role !== options.parentRole) output = `${role}: ${output}`;
   }
   return output;
 }
@@ -202,22 +216,30 @@ export interface Rendered {
   staticOutput: string;
 }
 
+/** The `<Static>` node, unless it or an ancestor is not displayed: static output renders apart from the tree. */
+function visibleStaticNode(node: DOMElement | undefined): DOMElement | undefined {
+  for (let ancestor = node; ancestor !== undefined; ancestor = ancestor.parentNode) if (ancestor.yogaNode?.style.display === 'none') return undefined;
+  return node;
+}
+
 /** The whole root: the live output, its height, and any new `<Static>` output above it. */
 export function renderer(node: DOMElement, isScreenReaderEnabled: boolean): Rendered {
   if (node.yogaNode === undefined) return { output: '', outputHeight: 0, staticOutput: '' };
+  const staticNode = visibleStaticNode(node.staticNode);
   if (isScreenReaderEnabled) {
     const output = renderNodeToScreenReaderOutput(node, { skipStaticElements: true });
-    const staticOutput = node.staticNode === undefined ? '' : renderNodeToScreenReaderOutput(node.staticNode, { skipStaticElements: false });
+    const staticOutput = staticNode === undefined ? '' : renderNodeToScreenReaderOutput(staticNode, { skipStaticElements: false });
     return { output, outputHeight: output === '' ? 0 : output.split('\n').length, staticOutput: staticOutput === '' ? '' : `${staticOutput}\n` };
   }
   const output = new Output({ width: node.yogaNode.layout.width, height: node.yogaNode.layout.height });
   renderNodeToOutput(node, output, { skipStaticElements: true });
   let staticOutput = '';
-  const staticFlex = node.staticNode?.yogaNode;
-  if (node.staticNode !== undefined && staticFlex !== undefined) {
-    const out = new Output({ width: staticFlex.layout.width, height: staticFlex.layout.height });
-    renderNodeToOutput(node.staticNode, out, { skipStaticElements: false });
-    staticOutput = `${out.get().output}\n`;
+  const staticFlex = staticNode?.yogaNode;
+  if (staticNode !== undefined && staticFlex !== undefined) {
+    const { left, top, width, height } = staticFlex.layout;
+    const out = new Output({ width: left + width + staticFlex.style.margin[2], height: top + height + staticFlex.style.margin[3] });
+    renderNodeToOutput(staticNode, out, { skipStaticElements: false });
+    if (out.height > 0) staticOutput = `${out.get().output}\n`;
   }
   const { output: generated, height } = output.get();
   return { output: generated, outputHeight: height, staticOutput };

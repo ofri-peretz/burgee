@@ -165,6 +165,22 @@ describe('a host that cannot be graded yet', () => {
   });
 });
 
+/** A TypeScript test file the TypeScript loader must load, holding a lock the other file checks. */
+const typed = (name: string): string =>
+  [
+    "import test from 'node:test';",
+    "import assert from 'node:assert';",
+    "import { existsSync, rmSync, writeFileSync } from 'node:fs';",
+    'enum Kind { One = 1 }',
+    `test('${name}', async () => {`,
+    "  assert.equal(existsSync('busy'), false);",
+    "  writeFileSync('busy', '');",
+    '  await new Promise((resolve) => setTimeout(resolve, 200));',
+    "  rmSync('busy');",
+    '  assert.equal(Kind.One, 1);',
+    '});',
+  ].join('\n');
+
 describe('a node:test suite, run for real', () => {
   const suite = [
     "import test from 'node:test';",
@@ -179,6 +195,17 @@ describe('a node:test suite, run for real', () => {
     vendored(host(), { 'a.test.js': suite });
     // node:test counts the skip in `# tests` and not in `# pass`, so it comes off `tests` only.
     expect(grade(host(), vendorDir, 'fake', 5)).toEqual({ host: 'fake', target: 'fake', files: 1, tests: 3, passed: 2, failed: 1, skipped: 1, reference: 5, rate: 2 / 5 });
+  });
+
+  it('loads TypeScript through the declared loader, one file at a time when upstream asks', () => {
+    // ink 8's `npm test` is `node --import=tsx --test --test-concurrency=1`. An `enum` is not
+    // erasable, so Node's own type stripping refuses the file: it loads only through `tsx`.
+    // The two files share a lock the first holds for 200 ms, so they agree only when run serially.
+    const h = host({ testGlob: '*.test.ts', tsLoader: 'tsx', testConcurrency: 1, suiteTimeoutMs: 120_000 });
+    vendored(h, { 'a.test.ts': typed('a'), 'b.test.ts': typed('b') });
+    expect(grade(h, vendorDir, 'fake', 2)).toMatchObject({ files: 2, tests: 2, passed: 2, failed: 0 });
+    // Without the loader, the same files do not load at all.
+    expect(grade(host({ testGlob: '*.test.ts' }), vendorDir, 'fake', 2)).toMatchObject({ passed: 0 });
   });
 
   it('grades internal-only files on their own line, outside the gate', () => {

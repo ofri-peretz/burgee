@@ -325,4 +325,19 @@ describe('a vendor run that cannot finish', () => {
     rmSync(into, { recursive: true, force: true });
     rmSync(fileURLToPath(host.repo), { recursive: true, force: true });
   });
+
+  it('copies a `rewrittenDirs` tree with its imports of the library pointed at the shim, and names one the release lacks', () => {
+    // ink 8's `render.tsx` runs upstream's `examples/*` under a PTY, and each imports
+    // `../../src/index.js`. Copied as an `extraDirs` entry, the import would name ink's source
+    // tree, which no published package has, for the control and the target alike.
+    const into = mkdtempSync(join(tmpdir(), 'vendor-rewritten-'));
+    const host = localSliceAnsi({ 'examples/demo/demo.js': "import sliceAnsi from '../../index.js';\nconsole.log(sliceAnsi('abc', 1));\n" });
+    const result = vendor({ ...host, rewrittenDirs: ['examples', 'gone'] }, into);
+    const demo = readFileSync(join(into, host.name, 'examples', 'demo', 'demo.js'), 'utf8');
+    expect(demo).toContain("from '../../shim.js'");
+    expect(demo).not.toContain('index.js');
+    expect(result.missingExtras, 'a rewritten tree the release no longer ships is named like a missing extra').toEqual(['gone']);
+    rmSync(into, { recursive: true, force: true });
+    rmSync(fileURLToPath(host.repo), { recursive: true, force: true });
+  });
 });

@@ -23,6 +23,16 @@ function UserInput({test}: {readonly test: string | undefined}) {
 	}, [test]);
 
 	useInput((input, key) => {
+		if (test === 'ctrlSpace' && input === ' ' && key.ctrl && !key.meta) {
+			exit();
+			return;
+		}
+
+		if (test === 'ctrlPunctuation' && input === '_' && key.ctrl && !key.meta) {
+			exit();
+			return;
+		}
+
 		if (test === 'rapidArrowsEnter') {
 			if (key.downArrow) {
 				rapidDownArrowCountRef.current++;
@@ -68,7 +78,17 @@ function UserInput({test}: {readonly test: string | undefined}) {
 			return;
 		}
 
+		if (test === 'bracketedPaste' && input === 'hello') {
+			exit();
+			return;
+		}
+
 		if (test === 'escape' && key.escape) {
+			exit();
+			return;
+		}
+
+		if (test === 'escapeNoMeta' && key.escape && !key.meta) {
 			exit();
 			return;
 		}
@@ -79,6 +99,16 @@ function UserInput({test}: {readonly test: string | undefined}) {
 		}
 
 		if (test === 'meta' && input === 'm' && key.meta) {
+			exit();
+			return;
+		}
+
+		if (test === 'ctrlMeta' && input === 'b' && key.ctrl && key.meta) {
+			exit();
+			return;
+		}
+
+		if (test === 'metaBackspace' && input === '' && key.meta && key.backspace) {
 			exit();
 			return;
 		}
@@ -183,6 +213,17 @@ function UserInput({test}: {readonly test: string | undefined}) {
 			return;
 		}
 
+		if (
+			test === 'metaTab' &&
+			input === '' &&
+			key.tab &&
+			key.meta &&
+			!key.ctrl
+		) {
+			exit();
+			return;
+		}
+
 		if (test === 'backspace' && input === '' && key.backspace) {
 			exit();
 			return;
@@ -199,6 +240,16 @@ function UserInput({test}: {readonly test: string | undefined}) {
 		}
 
 		if (test === 'returnMeta' && key.return && key.meta) {
+			exit();
+			return;
+		}
+
+		if (test === 'ctrlF1' && input === '' && key.ctrl) {
+			exit();
+			return;
+		}
+
+		if (test === 'unmappedCtrlSequence' && input === 'q') {
 			exit();
 			return;
 		}

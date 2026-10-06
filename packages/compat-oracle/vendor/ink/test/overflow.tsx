@@ -1,28 +1,42 @@
+import test, {type TestContext} from 'node:test';
 import React from 'react';
-import test from 'ava';
 import boxen, {type Options} from 'boxen';
 import sliceAnsi from 'slice-ansi';
-import {Box, Text} from '../shim.js';
+import {Box, Text, Transform} from '../shim.js';
 import {
 	renderToString,
 	renderToStringAsync,
 } from './helpers/render-to-string.js';
 
-const box = (text: string, options?: Options): string => {
-	return boxen(text, {
+const box = (text: string, options?: Options): string =>
+	boxen(text, {
 		...options,
 		borderStyle: 'round',
 	});
-};
 
-const clipX = (text: string, columns: number): string => {
-	return text
+const clipX = (text: string, columns: number): string =>
+	text
 		.split('\n')
 		.map(line => sliceAnsi(line, 0, columns).trim())
 		.join('\n');
-};
 
-test('overflowX - single text node in a box inside overflow container', t => {
+test('vertical clipping preserves Transform line indices', (t: TestContext) => {
+	const output = renderToString(
+		<Box height={2} overflow="hidden" contentOffsetY={1}>
+			<Box flexDirection="column" flexShrink={0}>
+				<Transform
+					transform={(line, index) => line.replaceAll('x', () => String(index))}
+				>
+					<Text>{'xx\nxx\nxx'}</Text>
+				</Transform>
+			</Box>
+		</Box>,
+	);
+
+	t.assert.strictEqual(output, '11\n22');
+});
+
+test('overflowX - single text node in a box inside overflow container', (t: TestContext) => {
 	const output = renderToString(
 		<Box width={6} overflowX="hidden">
 			<Box width={16} flexShrink={0}>
@@ -31,10 +45,23 @@ test('overflowX - single text node in a box inside overflow container', t => {
 		</Box>,
 	);
 
-	t.is(output, 'Hello');
+	t.assert.strictEqual(output, 'Hello');
 });
 
-test('overflowX - single text node inside overflow container with border', t => {
+test('overflowX - single text node in a zero-width overflow container', (t: TestContext) => {
+	const output = renderToString(
+		<Box>
+			<Box width={0} overflowX="hidden">
+				<Text>hello</Text>
+			</Box>
+			<Text>|</Text>
+		</Box>,
+	);
+
+	t.assert.strictEqual(output, '|');
+});
+
+test('overflowX - single text node inside overflow container with border', (t: TestContext) => {
 	const output = renderToString(
 		<Box width={6} overflowX="hidden" borderStyle="round">
 			<Box width={16} flexShrink={0}>
@@ -43,10 +70,10 @@ test('overflowX - single text node inside overflow container with border', t => 
 		</Box>,
 	);
 
-	t.is(output, box('Hell'));
+	t.assert.strictEqual(output, box('Hell'));
 });
 
-test('overflowX - single text node in a box with border inside overflow container', t => {
+test('overflowX - single text node in a box with border inside overflow container', (t: TestContext) => {
 	const output = renderToString(
 		<Box width={6} overflowX="hidden">
 			<Box width={16} flexShrink={0} borderStyle="round">
@@ -55,10 +82,10 @@ test('overflowX - single text node in a box with border inside overflow containe
 		</Box>,
 	);
 
-	t.is(output, clipX(box('Hello'), 6));
+	t.assert.strictEqual(output, clipX(box('Hello'), 6));
 });
 
-test('overflowX - multiple text nodes in a box inside overflow container', t => {
+test('overflowX - multiple text nodes in a box inside overflow container', (t: TestContext) => {
 	const output = renderToString(
 		<Box width={6} overflowX="hidden">
 			<Box width={12} flexShrink={0}>
@@ -68,10 +95,10 @@ test('overflowX - multiple text nodes in a box inside overflow container', t => 
 		</Box>,
 	);
 
-	t.is(output, 'Hello');
+	t.assert.strictEqual(output, 'Hello');
 });
 
-test('overflowX - multiple text nodes in a box inside overflow container with border', t => {
+test('overflowX - multiple text nodes in a box inside overflow container with border', (t: TestContext) => {
 	const output = renderToString(
 		<Box width={8} overflowX="hidden" borderStyle="round">
 			<Box width={12} flexShrink={0}>
@@ -81,10 +108,10 @@ test('overflowX - multiple text nodes in a box inside overflow container with bo
 		</Box>,
 	);
 
-	t.is(output, box('Hello '));
+	t.assert.strictEqual(output, box('Hello '));
 });
 
-test('overflowX - multiple text nodes in a box with border inside overflow container', t => {
+test('overflowX - multiple text nodes in a box with border inside overflow container', (t: TestContext) => {
 	const output = renderToString(
 		<Box width={8} overflowX="hidden">
 			<Box width={12} flexShrink={0} borderStyle="round">
@@ -94,10 +121,10 @@ test('overflowX - multiple text nodes in a box with border inside overflow conta
 		</Box>,
 	);
 
-	t.is(output, clipX(box('HelloWo\n'), 8));
+	t.assert.strictEqual(output, clipX(box('HelloWo\n'), 8));
 });
 
-test('overflowX - multiple boxes inside overflow container', t => {
+test('overflowX - multiple boxes inside overflow container', (t: TestContext) => {
 	const output = renderToString(
 		<Box width={6} overflowX="hidden">
 			<Box width={6} flexShrink={0}>
@@ -109,10 +136,10 @@ test('overflowX - multiple boxes inside overflow container', t => {
 		</Box>,
 	);
 
-	t.is(output, 'Hello');
+	t.assert.strictEqual(output, 'Hello');
 });
 
-test('overflowX - multiple boxes inside overflow container with border', t => {
+test('overflowX - multiple boxes inside overflow container with border', (t: TestContext) => {
 	const output = renderToString(
 		<Box width={8} overflowX="hidden" borderStyle="round">
 			<Box width={6} flexShrink={0}>
@@ -124,10 +151,10 @@ test('overflowX - multiple boxes inside overflow container with border', t => {
 		</Box>,
 	);
 
-	t.is(output, box('Hello '));
+	t.assert.strictEqual(output, box('Hello '));
 });
 
-test('overflowX - box before left edge of overflow container', t => {
+test('overflowX - box before left edge of overflow container', (t: TestContext) => {
 	const output = renderToString(
 		<Box width={6} overflowX="hidden">
 			<Box marginLeft={-12} width={6} flexShrink={0}>
@@ -136,10 +163,10 @@ test('overflowX - box before left edge of overflow container', t => {
 		</Box>,
 	);
 
-	t.is(output, '');
+	t.assert.strictEqual(output, '');
 });
 
-test('overflowX - box before left edge of overflow container with border', t => {
+test('overflowX - box before left edge of overflow container with border', (t: TestContext) => {
 	const output = renderToString(
 		<Box width={6} overflowX="hidden" borderStyle="round">
 			<Box marginLeft={-12} width={6} flexShrink={0}>
@@ -148,10 +175,10 @@ test('overflowX - box before left edge of overflow container with border', t => 
 		</Box>,
 	);
 
-	t.is(output, box(' '.repeat(4)));
+	t.assert.strictEqual(output, box(' '.repeat(4)));
 });
 
-test('overflowX - box intersecting with left edge of overflow container', t => {
+test('overflowX - box intersecting with left edge of overflow container', (t: TestContext) => {
 	const output = renderToString(
 		<Box width={6} overflowX="hidden">
 			<Box marginLeft={-3} width={12} flexShrink={0}>
@@ -160,10 +187,10 @@ test('overflowX - box intersecting with left edge of overflow container', t => {
 		</Box>,
 	);
 
-	t.is(output, 'lo Wor');
+	t.assert.strictEqual(output, 'lo Wor');
 });
 
-test('overflowX - box intersecting with left edge of overflow container with border', t => {
+test('overflowX - box intersecting with left edge of overflow container with border', (t: TestContext) => {
 	const output = renderToString(
 		<Box width={8} overflowX="hidden" borderStyle="round">
 			<Box marginLeft={-3} width={12} flexShrink={0}>
@@ -172,10 +199,10 @@ test('overflowX - box intersecting with left edge of overflow container with bor
 		</Box>,
 	);
 
-	t.is(output, box('lo Wor'));
+	t.assert.strictEqual(output, box('lo Wor'));
 });
 
-test('overflowX - box after right edge of overflow container', t => {
+test('overflowX - box after right edge of overflow container', (t: TestContext) => {
 	const output = renderToString(
 		<Box width={6} overflowX="hidden">
 			<Box marginLeft={6} width={6} flexShrink={0}>
@@ -184,10 +211,10 @@ test('overflowX - box after right edge of overflow container', t => {
 		</Box>,
 	);
 
-	t.is(output, '');
+	t.assert.strictEqual(output, '');
 });
 
-test('overflowX - box intersecting with right edge of overflow container', t => {
+test('overflowX - box intersecting with right edge of overflow container', (t: TestContext) => {
 	const output = renderToString(
 		<Box width={6} overflowX="hidden">
 			<Box marginLeft={3} width={6} flexShrink={0}>
@@ -196,30 +223,30 @@ test('overflowX - box intersecting with right edge of overflow container', t => 
 		</Box>,
 	);
 
-	t.is(output, '   Hel');
+	t.assert.strictEqual(output, '   Hel');
 });
 
-test('overflowY - single text node inside overflow container', t => {
+test('overflowY - single text node inside overflow container', (t: TestContext) => {
 	const output = renderToString(
 		<Box height={1} overflowY="hidden">
 			<Text>Hello{'\n'}World</Text>
 		</Box>,
 	);
 
-	t.is(output, 'Hello');
+	t.assert.strictEqual(output, 'Hello');
 });
 
-test('overflowY - single text node inside overflow container with border', t => {
+test('overflowY - single text node inside overflow container with border', (t: TestContext) => {
 	const output = renderToString(
 		<Box width={20} height={3} overflowY="hidden" borderStyle="round">
 			<Text>Hello{'\n'}World</Text>
 		</Box>,
 	);
 
-	t.is(output, box('Hello'.padEnd(18, ' ')));
+	t.assert.strictEqual(output, box('Hello'.padEnd(18, ' ')));
 });
 
-test('overflowY - multiple boxes inside overflow container', t => {
+test('overflowY - multiple boxes inside overflow container', (t: TestContext) => {
 	const output = renderToString(
 		<Box height={2} overflowY="hidden" flexDirection="column">
 			<Box flexShrink={0}>
@@ -237,10 +264,10 @@ test('overflowY - multiple boxes inside overflow container', t => {
 		</Box>,
 	);
 
-	t.is(output, 'Line #1\nLine #2');
+	t.assert.strictEqual(output, 'Line #1\nLine #2');
 });
 
-test('overflowY - multiple boxes inside overflow container with border', t => {
+test('overflowY - multiple boxes inside overflow container with border', (t: TestContext) => {
 	const output = renderToString(
 		<Box
 			width={9}
@@ -264,10 +291,10 @@ test('overflowY - multiple boxes inside overflow container with border', t => {
 		</Box>,
 	);
 
-	t.is(output, box('Line #1\nLine #2'));
+	t.assert.strictEqual(output, box('Line #1\nLine #2'));
 });
 
-test('overflowY - box above top edge of overflow container', t => {
+test('overflowY - box above top edge of overflow container', (t: TestContext) => {
 	const output = renderToString(
 		<Box height={1} overflowY="hidden">
 			<Box marginTop={-2} height={2} flexShrink={0}>
@@ -276,10 +303,10 @@ test('overflowY - box above top edge of overflow container', t => {
 		</Box>,
 	);
 
-	t.is(output, '');
+	t.assert.strictEqual(output, '');
 });
 
-test('overflowY - box above top edge of overflow container with border', t => {
+test('overflowY - box above top edge of overflow container with border', (t: TestContext) => {
 	const output = renderToString(
 		<Box width={7} height={3} overflowY="hidden" borderStyle="round">
 			<Box marginTop={-3} height={2} flexShrink={0}>
@@ -288,10 +315,10 @@ test('overflowY - box above top edge of overflow container with border', t => {
 		</Box>,
 	);
 
-	t.is(output, box(' '.repeat(5)));
+	t.assert.strictEqual(output, box(' '.repeat(5)));
 });
 
-test('overflowY - box intersecting with top edge of overflow container', t => {
+test('overflowY - box intersecting with top edge of overflow container', (t: TestContext) => {
 	const output = renderToString(
 		<Box height={1} overflowY="hidden">
 			<Box marginTop={-1} height={2} flexShrink={0}>
@@ -300,10 +327,10 @@ test('overflowY - box intersecting with top edge of overflow container', t => {
 		</Box>,
 	);
 
-	t.is(output, 'World');
+	t.assert.strictEqual(output, 'World');
 });
 
-test('overflowY - box intersecting with top edge of overflow container with border', t => {
+test('overflowY - box intersecting with top edge of overflow container with border', (t: TestContext) => {
 	const output = renderToString(
 		<Box width={7} height={3} overflowY="hidden" borderStyle="round">
 			<Box marginTop={-1} height={2} flexShrink={0}>
@@ -312,10 +339,10 @@ test('overflowY - box intersecting with top edge of overflow container with bord
 		</Box>,
 	);
 
-	t.is(output, box('World'));
+	t.assert.strictEqual(output, box('World'));
 });
 
-test('overflowY - box below bottom edge of overflow container', t => {
+test('overflowY - box below bottom edge of overflow container', (t: TestContext) => {
 	const output = renderToString(
 		<Box height={1} overflowY="hidden">
 			<Box marginTop={1} height={2} flexShrink={0}>
@@ -324,10 +351,10 @@ test('overflowY - box below bottom edge of overflow container', t => {
 		</Box>,
 	);
 
-	t.is(output, '');
+	t.assert.strictEqual(output, '');
 });
 
-test('overflowY - box below bottom edge of overflow container with border', t => {
+test('overflowY - box below bottom edge of overflow container with border', (t: TestContext) => {
 	const output = renderToString(
 		<Box width={7} height={3} overflowY="hidden" borderStyle="round">
 			<Box marginTop={2} height={2} flexShrink={0}>
@@ -336,10 +363,10 @@ test('overflowY - box below bottom edge of overflow container with border', t =>
 		</Box>,
 	);
 
-	t.is(output, box(' '.repeat(5)));
+	t.assert.strictEqual(output, box(' '.repeat(5)));
 });
 
-test('overflowY - box intersecting with bottom edge of overflow container', t => {
+test('overflowY - box intersecting with bottom edge of overflow container', (t: TestContext) => {
 	const output = renderToString(
 		<Box height={1} overflowY="hidden">
 			<Box height={2} flexShrink={0}>
@@ -348,10 +375,10 @@ test('overflowY - box intersecting with bottom edge of overflow container', t =>
 		</Box>,
 	);
 
-	t.is(output, 'Hello');
+	t.assert.strictEqual(output, 'Hello');
 });
 
-test('overflowY - box intersecting with bottom edge of overflow container with border', t => {
+test('overflowY - box intersecting with bottom edge of overflow container with border', (t: TestContext) => {
 	const output = renderToString(
 		<Box width={7} height={3} overflowY="hidden" borderStyle="round">
 			<Box height={2} flexShrink={0}>
@@ -360,10 +387,38 @@ test('overflowY - box intersecting with bottom edge of overflow container with b
 		</Box>,
 	);
 
-	t.is(output, box('Hello'));
+	t.assert.strictEqual(output, box('Hello'));
 });
 
-test('overflow - single text node inside overflow container', t => {
+test('overflowX visible overrides overflow hidden while preserving vertical clipping', (t: TestContext) => {
+	const output = renderToString(
+		<Box width={6} height={2}>
+			<Box width={3} height={1} overflow="hidden" overflowX="visible">
+				<Box width={6} height={2} flexShrink={0}>
+					<Text>{'ABCDEF\nGHIJKL'}</Text>
+				</Box>
+			</Box>
+		</Box>,
+	);
+
+	t.assert.strictEqual(output, 'ABCDEF\n');
+});
+
+test('overflowY visible overrides overflow hidden while preserving horizontal clipping', (t: TestContext) => {
+	const output = renderToString(
+		<Box width={6} height={2}>
+			<Box width={3} height={1} overflow="hidden" overflowY="visible">
+				<Box width={6} height={2} flexShrink={0}>
+					<Text>{'ABCDEF\nGHIJKL'}</Text>
+				</Box>
+			</Box>
+		</Box>,
+	);
+
+	t.assert.strictEqual(output, 'ABC\nGHI');
+});
+
+test('overflow - single text node inside overflow container', (t: TestContext) => {
 	const output = renderToString(
 		<Box paddingBottom={1}>
 			<Box width={6} height={1} overflow="hidden">
@@ -374,10 +429,10 @@ test('overflow - single text node inside overflow container', t => {
 		</Box>,
 	);
 
-	t.is(output, 'Hello\n');
+	t.assert.strictEqual(output, 'Hello\n');
 });
 
-test('overflow - single text node inside overflow container with border', t => {
+test('overflow - single text node inside overflow container with border', (t: TestContext) => {
 	const output = renderToString(
 		<Box paddingBottom={1}>
 			<Box width={8} height={3} overflow="hidden" borderStyle="round">
@@ -388,10 +443,10 @@ test('overflow - single text node inside overflow container with border', t => {
 		</Box>,
 	);
 
-	t.is(output, `${box('Hello ')}\n`);
+	t.assert.strictEqual(output, `${box('Hello ')}\n`);
 });
 
-test('overflow - multiple boxes inside overflow container', t => {
+test('overflow - multiple boxes inside overflow container', (t: TestContext) => {
 	const output = renderToString(
 		<Box paddingBottom={1}>
 			<Box width={4} height={1} overflow="hidden">
@@ -405,10 +460,10 @@ test('overflow - multiple boxes inside overflow container', t => {
 		</Box>,
 	);
 
-	t.is(output, 'TLTR\n');
+	t.assert.strictEqual(output, 'TLTR\n');
 });
 
-test('overflow - multiple boxes inside overflow container with border', t => {
+test('overflow - multiple boxes inside overflow container with border', (t: TestContext) => {
 	const output = renderToString(
 		<Box paddingBottom={1}>
 			<Box width={6} height={3} overflow="hidden" borderStyle="round">
@@ -422,10 +477,10 @@ test('overflow - multiple boxes inside overflow container with border', t => {
 		</Box>,
 	);
 
-	t.is(output, `${box('TLTR')}\n`);
+	t.assert.strictEqual(output, `${box('TLTR')}\n`);
 });
 
-test('overflow - box intersecting with top left edge of overflow container', t => {
+test('overflow - box intersecting with top left edge of overflow container', (t: TestContext) => {
 	const output = renderToString(
 		<Box width={4} height={4} overflow="hidden">
 			<Box marginTop={-2} marginLeft={-2} width={4} height={4} flexShrink={0}>
@@ -436,10 +491,10 @@ test('overflow - box intersecting with top left edge of overflow container', t =
 		</Box>,
 	);
 
-	t.is(output, 'CC\nDD\n\n');
+	t.assert.strictEqual(output, 'CC\nDD\n\n');
 });
 
-test('overflow - box intersecting with top right edge of overflow container', t => {
+test('overflow - box intersecting with top right edge of overflow container', (t: TestContext) => {
 	const output = renderToString(
 		<Box width={4} height={4} overflow="hidden">
 			<Box marginTop={-2} marginLeft={2} width={4} height={4} flexShrink={0}>
@@ -450,10 +505,10 @@ test('overflow - box intersecting with top right edge of overflow container', t 
 		</Box>,
 	);
 
-	t.is(output, '  CC\n  DD\n\n');
+	t.assert.strictEqual(output, '  CC\n  DD\n\n');
 });
 
-test('overflow - box intersecting with bottom left edge of overflow container', t => {
+test('overflow - box intersecting with bottom left edge of overflow container', (t: TestContext) => {
 	const output = renderToString(
 		<Box width={4} height={4} overflow="hidden">
 			<Box marginTop={2} marginLeft={-2} width={4} height={4} flexShrink={0}>
@@ -464,10 +519,10 @@ test('overflow - box intersecting with bottom left edge of overflow container', 
 		</Box>,
 	);
 
-	t.is(output, '\n\nAA\nBB');
+	t.assert.strictEqual(output, '\n\nAA\nBB');
 });
 
-test('overflow - box intersecting with bottom right edge of overflow container', t => {
+test('overflow - box intersecting with bottom right edge of overflow container', (t: TestContext) => {
 	const output = renderToString(
 		<Box width={4} height={4} overflow="hidden">
 			<Box marginTop={2} marginLeft={2} width={4} height={4} flexShrink={0}>
@@ -478,10 +533,10 @@ test('overflow - box intersecting with bottom right edge of overflow container',
 		</Box>,
 	);
 
-	t.is(output, '\n\n  AA\n  BB');
+	t.assert.strictEqual(output, '\n\n  AA\n  BB');
 });
 
-test('nested overflow', t => {
+test('nested overflow', (t: TestContext) => {
 	const output = renderToString(
 		<Box paddingBottom={1}>
 			<Box width={4} height={4} overflow="hidden" flexDirection="column">
@@ -502,11 +557,11 @@ test('nested overflow', t => {
 		</Box>,
 	);
 
-	t.is(output, 'AA\nBB\nXXXX\nYYYY\n');
+	t.assert.strictEqual(output, 'AA\nBB\nXXXX\nYYYY\n');
 });
 
 // See https://github.com/vadimdemedes/ink/pull/564#issuecomment-1637022742
-test('out of bounds writes do not crash', t => {
+test('out of bounds writes do not crash', (t: TestContext) => {
 	const output = renderToString(
 		<Box width={12} height={10} borderStyle="round" />,
 		{columns: 10},
@@ -518,18 +573,18 @@ test('out of bounds writes do not crash', t => {
 		borderStyle: 'round',
 	})
 		.split('\n')
-		.map((line, index) => {
-			return index === 0 || index === 9
+		.map((line, index) =>
+			index === 0 || index === 9
 				? line
-				: `${line.slice(0, 10)}${line[11] ?? ''}`;
-		})
+				: `${line.slice(0, 10)}${line[11] ?? ''}`,
+		)
 		.join('\n');
 
-	t.is(output, expected);
+	t.assert.strictEqual(output, expected);
 });
 
 // Concurrent mode tests
-test('overflowX - single text node in a box inside overflow container - concurrent', async t => {
+test('overflowX - single text node in a box inside overflow container - concurrent', async (t: TestContext) => {
 	const output = await renderToStringAsync(
 		<Box width={6} overflowX="hidden">
 			<Box width={16} flexShrink={0}>
@@ -537,19 +592,19 @@ test('overflowX - single text node in a box inside overflow container - concurre
 			</Box>
 		</Box>,
 	);
-	t.is(output, 'Hello');
+	t.assert.strictEqual(output, 'Hello');
 });
 
-test('overflowY - single text node inside overflow container - concurrent', async t => {
+test('overflowY - single text node inside overflow container - concurrent', async (t: TestContext) => {
 	const output = await renderToStringAsync(
 		<Box height={1} overflowY="hidden">
 			<Text>Hello{'\n'}World</Text>
 		</Box>,
 	);
-	t.is(output, 'Hello');
+	t.assert.strictEqual(output, 'Hello');
 });
 
-test('overflow - single text node inside overflow container - concurrent', async t => {
+test('overflow - single text node inside overflow container - concurrent', async (t: TestContext) => {
 	const output = await renderToStringAsync(
 		<Box paddingBottom={1}>
 			<Box width={6} height={1} overflow="hidden">
@@ -559,10 +614,10 @@ test('overflow - single text node inside overflow container - concurrent', async
 			</Box>
 		</Box>,
 	);
-	t.is(output, 'Hello\n');
+	t.assert.strictEqual(output, 'Hello\n');
 });
 
-test('nested overflow - concurrent', async t => {
+test('nested overflow - concurrent', async (t: TestContext) => {
 	const output = await renderToStringAsync(
 		<Box paddingBottom={1}>
 			<Box width={4} height={4} overflow="hidden" flexDirection="column">
@@ -582,5 +637,5 @@ test('nested overflow - concurrent', async t => {
 			</Box>
 		</Box>,
 	);
-	t.is(output, 'AA\nBB\nXXXX\nYYYY\n');
+	t.assert.strictEqual(output, 'AA\nBB\nXXXX\nYYYY\n');
 });

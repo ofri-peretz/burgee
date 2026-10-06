@@ -87,7 +87,11 @@ const RULES: Record<string, EntryRule> = {
       'roundel/tokens',
     ],
     // 134,554 B on 2026-10-05 with kitty keyboard negotiation (ink 584 / 584): still under ink's own.
-    budget: 135_000,
+    // Raised 2026-10-06 for ink 8 (D-20261006-controlroom-ink-8), measured 212,195 B: ink 8's
+    // own runtime — the alternate screen, `suspendTerminal`, bracketed paste, `useAnimation`,
+    // `useBoxMetrics`, incremental line updates, and yoga's insets, maxima, aspect ratio and
+    // baselines in the flexbox port — against ink 8.0.0's own `build/` of 250,669 B before yoga.
+    budget: 213_000,
     denied: ['screen.js', 'compose.js', 'layout.js', 'tabs.js'],
   },
 };
