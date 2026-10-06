@@ -323,7 +323,7 @@ Everything else stays: `ora({ text, spinner, color, indent, prefixText, suffixTe
 the `spinners` corpus, the stream hooks that keep a `console.log` above the frame, the
 synchronized-output sequences, the render deferral, the stdin discarder.
 
-What changes is the bill. ora 9.4.1 ships 113,577 B of JavaScript across **seventeen
+What changes is the bill. ora 9.4.1 ships 114,102 B of JavaScript across **seventeen
 packages** — ora, chalk, cli-spinners, string-width, log-symbols, cli-cursor,
 restore-cursor, onetime, mimic-function, signal-exit, is-interactive, is-unicode-supported,
 stdin-discarder, yoctocolors, strip-ansi, ansi-regex, get-east-asian-width. `flagstaff/ora`

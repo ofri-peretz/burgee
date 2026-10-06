@@ -216,6 +216,8 @@ const RULES: Record<string, EntryRule> = {
   // string-width 6,194 · yoctocolors 4,466 · mimic-function 3,038 · the other nine 6,652).
   // Those are the 2026-09-09 figures the total was taken from. get-east-asian-width is 8,917
   // at 1.7.0 (2026-09-27, burgee#363) — +132, which does not move the 49% below.
+  // On 2026-10-06 ora's whole tree is 114,102 B (string-width 6,447 at 8.3.0, burgee#704);
+  // 55,641 B is still 49% of it.
   // Counting ora the stricter way — only the 27 files its graph reaches, whole packages
   // ignored — gives 101,809 B, and ours is still 55% of that.
   //
@@ -229,7 +231,8 @@ const RULES: Record<string, EntryRule> = {
   // The log-update façade: the port, the ANSI-aware wrapper and the width function, against
   // log-update's own 113,368 B across sixteen packages (slice-ansi 27,630 · signal-exit 21,983
   // · wrap-ansi 20,004 · the rest) — 2026-09-09 figures, when slice-ansi resolved to 9.0.0; it
-  // is 26,813 at 9.0.1 (2026-09-27). signal-exit's 21,983 B is what `closeout` replaces, shared
+  // is 26,813 at 9.0.1 (2026-09-27), and wrap-ansi is 20,370 at 10.0.2, the tree 113,442 B
+  // (2026-10-06, burgee#705). signal-exit's 21,983 B is what `closeout` replaces, shared
   // with `./ora` rather than ported twice — and, since 2026-09-15, owned one package over
   // rather than here.
   //

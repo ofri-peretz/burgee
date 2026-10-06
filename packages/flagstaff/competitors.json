@@ -6,8 +6,8 @@
       "claim": "compat",
       "seen": {
         "version": "9.4.1",
-        "weight": 113577,
-        "measured": "2026-09-09",
+        "weight": 114102,
+        "measured": "2026-10-06",
         "cited": [
           "packages/flagstaff/src/weight.test.ts",
           "packages/flagstaff/README.md"
@@ -45,7 +45,7 @@
       "seen": {
         "version": "3.4.0",
         "weight": 27841,
-        "measured": "2026-09-09",
+        "measured": "2026-10-06",
         "cited": [
           "packages/flagstaff/src/weight.test.ts"
         ],
@@ -76,7 +76,7 @@
       "seen": {
         "version": "5.6.2",
         "weight": 16727,
-        "measured": "2026-09-09",
+        "measured": "2026-10-06",
         "cited": [
           "packages/flagstaff/src/weight.test.ts",
           "packages/flagstaff/README.md"
@@ -142,7 +142,7 @@
       "seen": {
         "version": "4.1.0",
         "weight": 21983,
-        "measured": "2026-09-09",
+        "measured": "2026-10-06",
         "cited": [
           "packages/flagstaff/src/weight.test.ts"
         ],
@@ -199,22 +199,22 @@
       "claim": "surface",
       "via": "ora",
       "seen": {
-        "version": "8.2.2",
-        "weight": 6194,
-        "measured": "2026-09-09",
+        "version": "8.3.0",
+        "weight": 6447,
+        "measured": "2026-10-06",
         "cited": [
           "packages/flagstaff/src/weight.test.ts",
           "packages/flagstaff/src/width.test.ts"
         ],
         "registry": "string-width",
-        "shasum": "7310516493df575742fe98af6fae87d85d5ed0ac",
-        "self": 6194,
+        "shasum": "f1e85ca6d276ed9226c979c3651fb7abf548fbbe",
+        "self": 6447,
         "packages": 1,
         "files": {
           "index.d.ts": "2386b50ac5929c1a1374725e6b4b9dcbf06a5843c107713fbc54c652bcf59290",
-          "index.js": "60c197f20cc966a2ede2dfec1ad4b764aa4095a43d225792b2652bca6afeb21b",
+          "index.js": "abc20775da6b552188b098688ebec671e29f5416d6339d3534bb7b016174003e",
           "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
-          "package.json": "26e7e6a32cdca3ae61b6cf02eadfcf6cf6f6133ba7779de57f9e99c261393da2",
+          "package.json": "91dd282553b13e201d56de724f61c6755996f3120c3ff4d024a8a7171e0aa2cb",
           "readme.md": "f634d81182a56e7732165e16c49215688911d560d5b738ff6741c51d964b19c6"
         },
         "exports": [
@@ -230,7 +230,7 @@
       "seen": {
         "version": "1.7.0",
         "weight": 8917,
-        "measured": "2026-09-27",
+        "measured": "2026-10-06",
         "cited": [
           "packages/flagstaff/src/weight.test.ts"
         ],
@@ -286,7 +286,7 @@
       "seen": {
         "version": "2.2.0",
         "weight": 4466,
-        "measured": "2026-09-09",
+        "measured": "2026-10-06",
         "cited": [
           "packages/flagstaff/src/weight.test.ts"
         ],
@@ -376,7 +376,7 @@
       "seen": {
         "version": "5.0.1",
         "weight": 3038,
-        "measured": "2026-09-09",
+        "measured": "2026-10-06",
         "cited": [
           "packages/flagstaff/src/weight.test.ts"
         ],
@@ -404,8 +404,8 @@
       "claim": "compat",
       "seen": {
         "version": "8.0.0",
-        "weight": 113368,
-        "measured": "2026-09-09",
+        "weight": 113442,
+        "measured": "2026-10-06",
         "cited": [
           "packages/flagstaff/src/weight.test.ts",
           "packages/flagstaff/README.md"
@@ -434,21 +434,21 @@
       "claim": "weight",
       "via": "log-update",
       "seen": {
-        "version": "10.0.1",
-        "weight": 20004,
-        "measured": "2026-09-09",
+        "version": "10.0.2",
+        "weight": 20370,
+        "measured": "2026-10-06",
         "cited": [
           "packages/flagstaff/src/weight.test.ts"
         ],
         "registry": "wrap-ansi",
-        "shasum": "59b821b7987d36a87a367bc9517284ff974086ea",
-        "self": 20004,
+        "shasum": "92f8f14b014136d034389a8700d6ce3df79c65d5",
+        "self": 20370,
         "packages": 1,
         "files": {
           "index.d.ts": "06f92be4ba4f9cf7a447ecabb0f37f0520861b837ca7a2a4455a64c0831bd0d9",
-          "index.js": "f65241b568824dcbfee59df47a24f9a891029899af101066d08c7a28013a0dca",
+          "index.js": "0c65e1cad00d994a60eb6755ea7ed1bde4d81d072b0ab83d19a301bf67ca1750",
           "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
-          "package.json": "71491d7eba713c7874d18ea55a27d9b8dcd0e20b086274c95aa26decf6f6f650",
+          "package.json": "b4090ca81b7fa1d93972f363e5220095b2d7743fb41cf3ba8d66187d85b39321",
           "readme.md": "064cb1b710679d984818f6b8af174cb39031a8a7725bdf6f8e603d6719aabbab"
         },
         "exports": [
@@ -464,7 +464,7 @@
       "seen": {
         "version": "9.0.1",
         "weight": 26813,
-        "measured": "2026-09-27",
+        "measured": "2026-10-06",
         "cited": [
           "packages/flagstaff/src/weight.test.ts"
         ],
@@ -492,26 +492,27 @@
       "claim": "surface",
       "seen": {
         "registry": "boxen",
-        "version": "8.0.1",
-        "shasum": "7e9fcbb45e11a2d7e6daa8fdcebfc3242fc19fe3",
-        "weight": 132414,
-        "self": 10923,
-        "packages": 19,
+        "version": "9.0.0",
+        "shasum": "05185a8f87e418b543762d8c66673ca178431bcd",
+        "weight": 114927,
+        "self": 22037,
+        "packages": 14,
         "files": {
-          "index.d.ts": "5728fd6e79e51c877314783a38af0316f6da7ddc662f090ca816b9aa0199720d",
-          "index.js": "77873b83c528c92c69d7352635312a908affa43ea5c5b0e9e7989c63b31945e1",
+          "index.d.ts": "70aaba80ae23cb0aaf108bd4f70dc2fb90ca866045d0009ecb0085556ccf6551",
+          "index.js": "6bbcbe08ddde229e2069aee7be08d8674269e48b99fd604acffd32f954fcdaa8",
           "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
-          "package.json": "e0b1939dd53428414a94848b36b6b4f8d1d0b1139484b821a9f16417b7b5fb58",
-          "readme.md": "50d7ec856d5f668d3c66a21b3623c266f81ec5284889dcace84038abe311dc46"
+          "package.json": "6ed6b48ab962549fb11aeec9ffcf48fd4393136d6e98b27e4baf41f3749fcf93",
+          "readme.md": "4c5ce6445a92a78ad6225094db324f8ccab13b19ce314378d5a84d3aac9863ca"
         },
         "exports": [
+          "Color",
           "CustomBorderStyle",
           "Options",
           "Spacing",
           "_borderStyles",
           "default"
         ],
-        "measured": "2026-09-09"
+        "measured": "2026-10-06"
       }
     }
   ],
@@ -542,7 +543,7 @@
           "CliTable3",
           "default"
         ],
-        "measured": "2026-09-09"
+        "measured": "2026-10-06"
       }
     }
   ],
@@ -571,7 +572,7 @@
           "default",
           "randomSpinner"
         ],
-        "measured": "2026-09-09"
+        "measured": "2026-10-06"
       }
     },
     {
@@ -597,7 +598,7 @@
           "Boxes",
           "default"
         ],
-        "measured": "2026-09-09"
+        "measured": "2026-10-06"
       }
     }
   ],
@@ -606,25 +607,26 @@
       "package": "boxen",
       "claim": "compat",
       "seen": {
-        "version": "8.0.1",
-        "weight": 132414,
-        "measured": "2026-09-09",
+        "version": "9.0.0",
+        "weight": 114927,
+        "measured": "2026-10-06",
         "cited": [
           "packages/flagstaff/src/weight.test.ts",
           "packages/flagstaff/README.md"
         ],
         "registry": "boxen",
-        "shasum": "7e9fcbb45e11a2d7e6daa8fdcebfc3242fc19fe3",
-        "self": 10923,
-        "packages": 19,
+        "shasum": "05185a8f87e418b543762d8c66673ca178431bcd",
+        "self": 22037,
+        "packages": 14,
         "files": {
-          "index.d.ts": "5728fd6e79e51c877314783a38af0316f6da7ddc662f090ca816b9aa0199720d",
-          "index.js": "77873b83c528c92c69d7352635312a908affa43ea5c5b0e9e7989c63b31945e1",
+          "index.d.ts": "70aaba80ae23cb0aaf108bd4f70dc2fb90ca866045d0009ecb0085556ccf6551",
+          "index.js": "6bbcbe08ddde229e2069aee7be08d8674269e48b99fd604acffd32f954fcdaa8",
           "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
-          "package.json": "e0b1939dd53428414a94848b36b6b4f8d1d0b1139484b821a9f16417b7b5fb58",
-          "readme.md": "50d7ec856d5f668d3c66a21b3623c266f81ec5284889dcace84038abe311dc46"
+          "package.json": "6ed6b48ab962549fb11aeec9ffcf48fd4393136d6e98b27e4baf41f3749fcf93",
+          "readme.md": "4c5ce6445a92a78ad6225094db324f8ccab13b19ce314378d5a84d3aac9863ca"
         },
         "exports": [
+          "Color",
           "CustomBorderStyle",
           "Options",
           "Spacing",
@@ -643,7 +645,7 @@
         "version": "0.6.5",
         "shasum": "013b91351762739c16a9567c21a04632e449bf2f",
         "weight": 105983,
-        "measured": "2026-09-09",
+        "measured": "2026-10-06",
         "cited": [
           "packages/flagstaff/src/weight.test.ts",
           "packages/flagstaff/README.md"
