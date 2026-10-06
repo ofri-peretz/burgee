@@ -313,13 +313,32 @@ export function claudeArgs(c: EvalCase, env: NodeJS.ProcessEnv = process.env): s
   return args;
 }
 
+/** How much of the agent's last words a failed case carries into the log. */
+const LAST_WORDS = 240;
+
+/**
+ * Why a case failed, in the agent's own terms: how its run ended (`subtype`: `success`,
+ * `error_max_turns`, …), after how many turns, and the end of what it said — or, when there is
+ * no JSON document, the end of stderr. Until 2026-10-06 a failed case logged only the shell
+ * checks that failed, and three cases of #787 failed with `test -f` and nothing else.
+ */
+export function whyFailed(stdout: string, stderr = ''): string {
+  try {
+    const doc = JSON.parse(stdout) as { subtype?: unknown; num_turns?: unknown; result?: unknown };
+    const said = typeof doc.result === 'string' ? doc.result.replaceAll(/\s+/gu, ' ').trim().slice(-LAST_WORDS) : '';
+    return `agent stopped: ${String(doc.subtype ?? 'unknown')} after ${String(doc.num_turns ?? '?')} turn(s) — "${said}"`;
+  } catch {
+    return `agent produced no result document; stderr: ${stderr.replaceAll(/\s+/gu, ' ').trim().slice(-LAST_WORDS) || '(empty)'}`;
+  }
+}
+
 function runCase(c: EvalCase): CaseResult {
   const args = claudeArgs(c);
   const r = spawnSync('claude', args, { cwd: REPO_ROOT, encoding: 'utf8', env: evalEnv(process.env), timeout: CASE_TIMEOUT_MS, maxBuffer: OUTPUT_BUFFER });
   if (r.error || typeof r.stdout !== 'string') return { id: c.id, status: 'error', failed: [String(r.error ?? 'no output')], ...NO_USAGE };
   const { text, usage } = parseClaudeJson(r.stdout);
   const { ok, failed } = grade(text, c.expect);
-  return { id: c.id, status: ok ? 'pass' : 'fail', failed, ...usage };
+  return { id: c.id, status: ok ? 'pass' : 'fail', failed: ok ? failed : [...failed, whyFailed(r.stdout, r.stderr)], ...usage };
 }
 
 function runTaskLayer(cases: EvalCase[], credential: ReturnType<typeof billingFor>): CaseResult[] {

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { brokenLinks, claudeArgs, DEFAULT_MAX_TURNS, grade, missingScripts, billingFor, STORED_LOGIN_OPT_IN, storedLogin, unknownFloorIds } from './run-evals';
+import { brokenLinks, claudeArgs, DEFAULT_MAX_TURNS, grade, missingScripts, billingFor, STORED_LOGIN_OPT_IN, storedLogin, unknownFloorIds, whyFailed } from './run-evals';
 
 /** A throwaway repo root with one doc, so each checker is exercised on a known tree. */
 function repo(files: Record<string, string>): string {
@@ -114,5 +114,24 @@ describe('turn budget — D-143', () => {
 
   it('still lets EVAL_MAX_TURNS override it', () => {
     expect(cap({ EVAL_MAX_TURNS: '12' })).toBe(12);
+  });
+});
+
+describe('whyFailed — a failed case says how the agent stopped', () => {
+  it('reads the result document: how it ended, after how many turns, and its last words', () => {
+    const doc = JSON.stringify({ type: 'result', subtype: 'error_max_turns', num_turns: 8, result: 'I need permission\nto write evals/results/asdf-plugin.mjs.' });
+    expect(whyFailed(doc)).toBe('agent stopped: error_max_turns after 8 turn(s) — "I need permission to write evals/results/asdf-plugin.mjs."');
+  });
+
+  it('keeps only the end of a long answer', () => {
+    const said = whyFailed(JSON.stringify({ subtype: 'success', num_turns: 3, result: `${'x'.repeat(1000)} the end` }));
+    expect(said.endsWith('the end"')).toBe(true);
+    expect(said.length).toBeLessThan(320);
+  });
+
+  it('falls back to stderr when there is no document, and says so when stderr is empty too', () => {
+    expect(whyFailed('not json', 'Error: Invalid API key\n')).toBe('agent produced no result document; stderr: Error: Invalid API key');
+    expect(whyFailed('', '')).toBe('agent produced no result document; stderr: (empty)');
+    expect(whyFailed(JSON.stringify({}))).toBe('agent stopped: unknown after ? turn(s) — ""');
   });
 });
