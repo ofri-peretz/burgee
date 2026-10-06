@@ -7,7 +7,7 @@
       "seen": {
         "version": "1.1.1",
         "weight": 3261,
-        "measured": "2026-09-09",
+        "measured": "2026-10-06",
         "cited": [
           "packages/roundel/src/weight.test.ts",
           "packages/roundel/README.md"
@@ -40,7 +40,7 @@
       "seen": {
         "version": "6.0.1",
         "weight": 21568,
-        "measured": "2026-09-30",
+        "measured": "2026-10-06",
         "cited": [
           "packages/roundel/src/weight.test.ts",
           "packages/roundel/README.md"
