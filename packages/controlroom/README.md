@@ -26,7 +26,7 @@
 </p>
 
 <p align="center">
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/ink%20suite-1304%2F1304-0a6b47?style=flat-square" alt="controlroom/ink passes 1304 of 1304 cases of the ink 8 test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/ink%20suite-1304%2F1304-0a6b47?style=flat-square" alt="controlroom/ink passes 1304 of 1304 cases of the ink test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/%40inkjs%2Fui%20suite-102%2F102-0a6b47?style=flat-square" alt="controlroom/ink passes 102 of 102 cases of the @inkjs/ui test suite" /></a>
 </p>
 

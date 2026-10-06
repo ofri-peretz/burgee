@@ -88,6 +88,11 @@ it records every change here.
   joined `paratext/csi` (`kittyKeyboardPush`, `kittyKeyboardPop`, `kittyKeyboardQuery`), the
   drop-in's key parser reads the answer (`kittyReply` in `ink/keypress.ts`), and the drop-in negotiates as ink does — pushed at once in `enabled` mode, and
   in `auto` mode only once a known terminal answers, handing every other byte back to stdin.
+  **Follows ink 8.0.0 from 2026-10-06** (D-20261006-controlroom-ink-8): every module ported
+  again from ink 8's source, adding `usePaste`, `useAnimation`, `useBoxMetrics`,
+  `useWindowSize`, `suspendTerminal`, `waitUntilRenderFlush` and the alternate screen; the
+  kitty answer is read off the input stream (`isKittyQueryReply`). Graded **ink 1304 / 1304**
+  (control 1303 / 1304).
 - **R12 · Ink's layout.** A TypeScript flexbox subset that covers the `Box` props Ink's
   suite exercises. It lives under `controlroom/ink` only. Every uncovered case is a
   conditional case with its reason.
@@ -98,6 +103,8 @@ it records every change here.
   including the quirk ink marks `test.failing`. No layout case of either suite is excluded;
   what yoga has and ink never sets (`aspectRatio`, max sizes, insets, auto margins, baseline,
   RTL) is not reproduced.
+  **Extended 2026-10-06** for ink 8, which sets more of yoga: max sizes, `aspectRatio`,
+  insets with `position: relative | absolute | static`, `alignContent`, baseline alignment.
 - **R13 · grading.** Ink's suite is vendored into `compat-oracle` at a pinned release. It
   runs on the ava runner, with a `--control` run against real Ink, and with a baseline that
   only ratchets.
@@ -111,6 +118,11 @@ it records every change here.
   **Both rows moved to `controlroom/ink` on 2026-10-05** with R11, graded with the target's
   peers resolved from the suite's tree (`Host.peers`) and ink's two internal imports served by
   the drop-in's own modules (`Host.targetInternals`).
+  **Re-vendored at ink@8.0.0 on 2026-10-06** (D-20261006-controlroom-ink-8): `node:test`
+  through `tsx`, one file at a time; 95 files, 1,309 counted cases, 5 excluded with reasons,
+  reference 1304, one control failure allowed. ink 6.8.0 stays graded as `ink-6` in
+  `PREVIOUS_MAJORS` (540 / 584, control 584 / 584), not claimed. @inkjs/ui is 102 / 102 with
+  one case excluded that real ink 8 fails too.
 - **R14 · weight.** The W1–W4 fixtures from the intent are added to
   `benchmarks/fixtures/entry-points.ts`, and each is gated at ≤ 1.0×. The root entry is
   `denied` both peers in the weight lock.
