@@ -125,7 +125,9 @@ const RULES: Record<string, EntryRule> = {
    * once for Terminal.app's save/restore spelling.
    */
   // 3,122 B on 2026-10-05: the kitty keyboard push, pop and query, for controlroom/ink.
-  './csi': { allow: [], builtins: [], budget: 3_200, denied: ['index.js', 'capability.js', 'builtins.js', 'plugin.js', 'ansi-escapes.js', 'schema.json', 'link.js', 'template.js'] },
+  // 3,223 B on 2026-10-06: ansi-escapes' members moved to `ansi-csi.js` so the root default
+  // stops spreading the kitty helpers, and `csi.js` became a re-export. The extra module costs 23 B.
+  './csi': { allow: [], builtins: [], budget: 3_250, denied: ['index.js', 'capability.js', 'builtins.js', 'plugin.js', 'ansi-escapes.js', 'schema.json', 'link.js', 'template.js'] },
   './link': { allow: [], builtins: [], budget: 3_000, denied: ['index.js', 'capability.js', 'builtins.js', 'plugin.js', 'ansi-escapes.js', 'schema.json'] },
   /**
    * The `terminal-link` façade. It reaches `link.js` for the `LINK` record and `supports`,

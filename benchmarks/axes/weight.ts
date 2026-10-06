@@ -192,6 +192,7 @@ function esbuildBin(): string {
  * every row.
  */
 export interface Metafile {
+  inputs?: Record<string, unknown>;
   outputs: Record<string, { bytes: number; entryPoint?: string; imports?: { path: string; kind: string }[] }>;
 }
 
@@ -217,7 +218,19 @@ export function initialBytes(meta: Metafile, entryFile: string): number {
   return total;
 }
 
-function bundle(side: Side, id: string, scratch: string): { initial: number; whole: number } {
+/**
+ * `--alias` for every package a side brings beside its entry (`with`), pointing at the copy the
+ * program resolves from `benchmarks/`. A peer has one copy in a consumer's install. In this
+ * workspace a package's own devDependency can nest a second one: after #820 bumped
+ * react-reconciler to ^0.34 while ink kept the hoisted 0.33, `controlroom/ink` resolved its own
+ * nested copy and the program resolved benchmarks'. W1 bundled both, 881,459 B against the
+ * 473,361 B recorded, and its claim went red for a measurement artifact.
+ */
+export function peerAliases(side: Side, from: string = BENCH_ROOT): string[] {
+  return (side.with ?? []).map((s) => packageOf(s.specifier)).map((name) => `--alias:${name}=${resolvePackage(name, from).dir}`);
+}
+
+export function bundle(side: Side, id: string, scratch: string): { initial: number; whole: number; inputs: string[] } {
   mkdirSync(scratch, { recursive: true });
   const stem = id.replaceAll('/', '__');
   const file = join(scratch, `${stem}.mjs`);
@@ -228,7 +241,7 @@ function bundle(side: Side, id: string, scratch: string): { initial: number; who
   const external = (side.external ?? []).map((name) => `--external:${name}`);
   // esbuild from the CLI, not the API: one fewer import in a suite that measures imports,
   // and the exact command is quotable in the results file.
-  execFileSync(esbuildBin(), [file, '--bundle', '--minify', '--format=esm', '--platform=node', '--splitting', ...external, `--outdir=${outdir}`, `--metafile=${metafile}`], {
+  execFileSync(esbuildBin(), [file, '--bundle', '--minify', '--format=esm', '--platform=node', '--splitting', ...external, ...peerAliases(side), `--outdir=${outdir}`, `--metafile=${metafile}`], {
     cwd: BENCH_ROOT,
     stdio: 'pipe',
   });
@@ -236,7 +249,7 @@ function bundle(side: Side, id: string, scratch: string): { initial: number; who
   const whole = readdirSync(outdir)
     .filter((f) => f.endsWith('.js'))
     .reduce((sum, f) => sum + statSync(join(outdir, f)).size, 0);
-  return { initial: side.eager === true ? whole : initialBytes(meta, `${stem}.js`), whole };
+  return { initial: side.eager === true ? whole : initialBytes(meta, `${stem}.js`), whole, inputs: Object.keys(meta.inputs ?? {}) };
 }
 
 export interface Measured {
