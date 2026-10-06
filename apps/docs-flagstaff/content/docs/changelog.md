@@ -3,6 +3,16 @@ title: Changelog
 description: "Every release of flagstaff, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.2.0
+
+### Minor Changes
+
+- [#827](https://github.com/ofri-peretz/burgee/pull/827) [`cd34546`](https://github.com/ofri-peretz/burgee/commit/cd345466edf47327be61a469eba5add35e1da2a2) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `flagstaff/boxen` is boxen 9.0.0's API, graded 213 / 213 by boxen 9's own suite (control 213 / 213). New options: `footer` and `footerAlignment`, `titleColor`, `borderBackgroundColor`, `maxWidth`; a tab, a backspace or a cursor move inside the text, a label or a border is written the way a terminal would draw it; a border side may be wider than one column or empty; and a size or spacing that is not a usable number means its default. Two of boxen 8's answers change with boxen 9: a hex colour must be real hex (`#GGG` now throws, as it does in boxen 9), and `vertical` / `horizontal` are a fallback for the sides rather than an override of them.
+
+### Patch Changes
+
+- [#824](https://github.com/ofri-peretz/burgee/pull/824) [`4be8d59`](https://github.com/ofri-peretz/burgee/commit/4be8d5999875f7decb1963a91a0ad6cce3289176) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The README states ora's current tree, 114,102 B (it was 113,577 B on 2026-09-09); `flagstaff/ora` is still 49% of it.
+
 ## 1.1.1
 
 ### Patch Changes
