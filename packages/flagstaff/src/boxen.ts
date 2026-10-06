@@ -248,13 +248,13 @@ function makeLabel(text: string, horizontal: string, alignment: Alignment | unde
   const textWidth = stringWidth(text);
   if (alignment === 'left') return text + sliceAnsi(horizontal, textWidth);
   if (alignment === 'right') return sliceAnsi(horizontal, textWidth) + text;
-  const width = Math.max(0, stringWidth(horizontal) - textWidth);
-  if (width % HALF === 1) {
+  const spare = Math.max(0, stringWidth(horizontal) - textWidth);
+  if (spare % HALF === 1) {
     // An odd remainder cannot split evenly: one column comes off the left, or the bar runs past its corner.
-    const rest = sliceAnsi(horizontal, Math.floor(width / HALF) + textWidth);
+    const rest = sliceAnsi(horizontal, Math.floor(spare / HALF) + textWidth);
     return sliceAnsi(rest, 1) + text + rest;
   }
-  const rest = sliceAnsi(horizontal, width / HALF + textWidth);
+  const rest = sliceAnsi(horizontal, spare / HALF + textWidth);
   return rest + text + rest;
 }
 
@@ -365,11 +365,11 @@ function boxContent(content: string, contentWidth: number, options: Sized): stri
   const rowWidth = contentWidth + stringWidth(left) + stringWidth(right);
   // A bar spans a row: filled to the width between its corners, with the label placed in the fill.
   const bar = (character: string, cornerStart: string, cornerEnd: string, label: string, alignment: Alignment): string => {
-    const width = Math.max(0, rowWidth - stringWidth(cornerStart) - stringWidth(cornerEnd));
-    const fill = fillBar(character, width);
+    const span = Math.max(0, rowWidth - stringWidth(cornerStart) - stringWidth(cornerEnd));
+    const fill = fillBar(character, span);
     const filled = label ? makeLabel(label, fill, alignment) : fill;
     // A wide character does not fill the last column of an odd width, and a label can end inside one.
-    return sliceAnsi(filled + PAD.repeat(Math.max(0, width - stringWidth(filled))), 0, Math.max(0, width));
+    return sliceAnsi(filled + PAD.repeat(Math.max(0, span - stringWidth(filled))), 0, Math.max(0, span));
   };
 
   const rows: string[] = [];

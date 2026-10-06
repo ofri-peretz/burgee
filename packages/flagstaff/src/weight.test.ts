@@ -248,17 +248,17 @@ const RULES: Record<string, EntryRule> = {
   // slice and widest), `linegauge/wrap` and `roundel/chalk`, each graded level with the package
   // it replaces, and carries the cli-boxes table and the control-character writer itself.
   //
-  // 12,634 -> 17,604 (+4,970) on 2026-10-06, and the budget 13,000 -> 18,000 with it: the port
+  // 12,634 -> 17,600 (+4,966) on 2026-10-06, and the budget 13,000 -> 18,000 with it: the port
   // moved from boxen 8 to boxen 9 (D-20261006-flagstaff-boxen-9), whose suite grew from 84
   // cases to 213 — control characters written the way a terminal draws them, border sides of
   // any width, `footer`, `maxWidth`, `titleColor`, `borderBackgroundColor`, and every size
   // option sanitised. boxen's own package doubled across the same release (10,923 -> 22,037
   // B self). Measured across packages the way `competitors.json` measures boxen — every file
-  // the import reaches — `flagstaff/boxen` is **67,752 B in three packages** (flagstaff 17,604,
+  // the import reaches — `flagstaff/boxen` is **67,748 B in three packages** (flagstaff 17,600,
   // linegauge 40,787, roundel 9,361), **against boxen 9.0.0's 114,927 B in fourteen — 59%.**
   // linegauge is reached whole through its main entry, as it already was for `width`, and is
   // shared with every other façade, so a program on two of them pays for it once.
-  './boxen': { allow: ['linegauge', 'linegauge/wrap', 'roundel/chalk'], budget: 18_000, measured: 17_604, denied: ['ora.js', 'spinners.json', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js', 'log-update.js'] },
+  './boxen': { allow: ['linegauge', 'linegauge/wrap', 'roundel/chalk'], budget: 18_000, measured: 17_600, denied: ['ora.js', 'spinners.json', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js', 'log-update.js'] },
   // The cli-table3 façade (R10). cli-table3 0.6.5 reaches `string-width` and
   // `@colors/colors`; this reaches `width.js` — already here for the other three façades —
   // and `roundel/chalk` for the two default styles. Measured 32,989 B on 2026-09-09 — 45 B
