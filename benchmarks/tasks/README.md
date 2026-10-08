@@ -5,7 +5,7 @@ agent's path between the two builds (design, "B1 — agent cost").
 
 Each is `{ id, requirement, prompt, setup, check, maxTurns }`:
 
-- `prompt` is given to `claude -p` verbatim. The agent may run `mytool` and nothing else,
+- `prompt` is given to `claude -p` verbatim. The agent may run `demo` and nothing else,
   so the CLI's own output is its only information channel.
 - `setup` runs in the task's scratch directory before the agent starts.
 - `check` runs after, in that directory, with `$BENCH_RESULT` pointing at a file holding

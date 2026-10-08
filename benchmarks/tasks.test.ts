@@ -44,7 +44,7 @@ describe.skipIf(!isPosix())('the B1 task set', () => {
 
   it.each(tasks)('$id names the floor requirement it is there to move', (task) => {
     expect(task.requirement).not.toBe('');
-    expect(task.prompt).toContain('mytool');
+    expect(task.prompt).toContain('demo');
     expect(task.maxTurns).toBeGreaterThan(0);
   });
 

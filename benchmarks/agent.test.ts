@@ -30,7 +30,7 @@ function stubClaude(result: string, extra: Record<string, unknown> = {}): string
   return bin;
 }
 
-const task: Task = { id: 'stub', requirement: 'F1', prompt: 'find user.name with mytool', setup: [], check: 'grep -qi ada "$BENCH_RESULT"', maxTurns: 5 };
+const task: Task = { id: 'stub', requirement: 'F1', prompt: 'find user.name with demo', setup: [], check: 'grep -qi ada "$BENCH_RESULT"', maxTurns: 5 };
 
 function attempt(bin: string, t: Task = task): ReturnType<typeof runOne> {
   const workdir = mkdtempSync(join(tmpdir(), 'bench-work-'));
@@ -205,11 +205,11 @@ describe.skipIf(!isPosix())('the environment the measured tool runs in', () => {
     const dir = mkdtempSync(join(tmpdir(), 'stub-claude-env-'));
     const bin = join(dir, 'claude');
     // Answers with the variables it was given, so the assertion reads the real spawn.
-    writeFileSync(bin, `#!/bin/sh\nprintf '{"type":"result","is_error":false,"num_turns":1,"usage":{},"result":"CI=%s GHA=%s tool=%s"}' "$CI" "$GITHUB_ACTIONS" "$(command -v mytool)"\n`);
+    writeFileSync(bin, `#!/bin/sh\nprintf '{"type":"result","is_error":false,"num_turns":1,"usage":{},"result":"CI=%s GHA=%s tool=%s"}' "$CI" "$GITHUB_ACTIONS" "$(command -v demo)"\n`);
     chmodSync(bin, EXECUTABLE);
     const workdir = mkdtempSync(join(tmpdir(), 'bench-work-'));
     const r = runOne({ claudeBin: bin, task, toolDir: installTool('/bin/echo'), workdir, model: 'm', timeoutMs: 30_000, env: { ...process.env, CI: 'true', GITHUB_ACTIONS: 'true' } });
-    expect(r.result).toMatch(/^CI= GHA= tool=\/.+\/mytool$/);
+    expect(r.result).toMatch(/^CI= GHA= tool=\/.+\/demo$/);
   });
 });
 
@@ -217,7 +217,7 @@ describe('reading claude\'s output', () => {
   // `--output-format stream-json --verbose`: one event a line, the result last.
   const stream = [
     JSON.stringify({ type: 'system', subtype: 'init', claude_code_version: '2.1.283' }),
-    JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Bash', input: { command: 'mytool --help' } }] } }),
+    JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Bash', input: { command: 'demo --help' } }] } }),
     JSON.stringify({ type: 'result', subtype: 'success', is_error: false, num_turns: 4, usage: { input_tokens: 10, output_tokens: 5 }, result: 'ada', permission_denials: [{}, {}] }),
     '',
   ].join('\n');
@@ -449,5 +449,16 @@ describe('summariseFailures', () => {
     const ok: Attempt = { task: 't', tokensIn: 1, tokensOut: 1, turns: 1, denials: 0, isError: false, result: 'ada', success: true, usage: true, transcript: '{}' };
     expect(summariseFailures([ok])).toBe('');
     expect(nothingCameBack({ id: 'v', bin: 'x', floor: true }, [])).toContain('measured nothing');
+  });
+});
+
+describe('the tool is installed under the name the demos print (D-20261008-b1-tool-name)', () => {
+  it('matches the name each demo CLI declares', () => {
+    const repo = join(import.meta.dirname, '..');
+    const burgeeName = /name: '([^']+)'/u.exec(readFileSync(join(repo, 'examples/demo-cli-burgee/src/index.ts'), 'utf8'))?.[1];
+    const commanderName = /new lib\.Command\('([^']+)'\)/u.exec(readFileSync(join(repo, 'examples/demo-cli-commander/src/program.ts'), 'utf8'))?.[1];
+    const installed = readdirSync(installTool('/bin/echo'));
+    expect(installed).toEqual([burgeeName]);
+    expect(installed).toEqual([commanderName]);
   });
 });
