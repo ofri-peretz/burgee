@@ -12,14 +12,41 @@ npx burgee migrate
 `'roundel/chalk'`, `'commander'` becomes `'burgee/commander'`, and the code around them is
 left exactly as it was. It then prints what it changed, what it would not change and why,
 the family packages to add, and the one command that adds them and removes the incumbents —
-for the package manager your lockfile names:
+for the package manager your lockfile names, each family package pinned to the version that
+carries the graded drop-in:
 
 ```text
-next: npm install burgee flagstaff roundel && npm uninstall commander chalk ora
+next: npm install burgee@^X flagstaff@^Y roundel@^Z && npm uninstall commander chalk ora
 ```
 
-`--json` gives the same report as data, and the command exits 1 when anything was refused,
-so an agent can run it unattended and branch on the result.
+`X`, `Y` and `Z` are the versions this burgee was built beside, read from each package's own
+manifest at build time; [Run it](/docs/concepts/drop-ins#run-it) shows a real run. Unpinned, a package manager is free to pick an older release that
+predates the drop-in; under pnpm's `minimumReleaseAge` one did exactly that. When your
+project sets a minimum release age (`minimumReleaseAge` in `pnpm-workspace.yaml`, or
+`minimum-release-age` in `.npmrc`), the report says so under `releaseAge`: a graded version
+younger than the rule allows will not install.
+
+The first line of the report says how it went — `complete: 3 files rewritten`,
+`partial: 2 files rewritten, 1 refused`, or `nothing to rewrite` — and the rest is the detail,
+as text. `--json` gives the same report as data, with that line as `summary`. The command
+exits 1 when anything was refused, so an agent can run it unattended and branch on the
+result. A refused run is partial, not undone: the files that could move have moved, and the
+summary says how many.
+
+## What it moves, and what you choose
+
+By default it moves the incumbents your `package.json` declares — in `dependencies`,
+`devDependencies`, `optionalDependencies` or `peerDependencies`. An incumbent your code
+imports without declaring it, because it arrives through another package (`@inquirer/core`
+through `@inquirer/confirm`, say), is listed under `undeclared` and left alone. Two flags
+change the choice, both taking incumbent package names, comma-separated or repeated:
+
+```bash
+npx burgee migrate --only chalk,ora      # these and nothing else, declared or not
+npx burgee migrate --skip @inquirer/core  # everything it would move, except these
+```
+
+A name it does not migrate is a usage error, exit 2, with the list of names it does.
 
 ## What it rewrites
 
@@ -65,6 +92,13 @@ equal.
 | `signal-exit/signals` | `closeout/signal-exit/signals` |
 | `ink` | `controlroom/ink` |
 
+A test's mocks move with the imports they mock. The first argument of `vi.mock`,
+`vi.doMock`, `vi.unmock`, `vi.doUnmock`, `vi.importActual`, `vi.importMock`, `jest.mock`,
+`jest.doMock`, `jest.unmock`, `jest.requireActual`, `jest.requireMock`,
+`jest.unstable_mockModule` and `require.resolve` is a specifier like any other, type arguments
+included (`vi.importActual<typeof import('chalk')>('chalk')`). A mock left on `chalk` while the
+code imports `roundel/chalk` mocks a module nothing loads, and the tests that relied on it fail.
+
 ink brought `react-reconciler` in as its own dependency; `controlroom/ink` takes it as an
 optional peer, so for an ink program the `next` command installs it beside `controlroom`.
 The rewrite is for ink 8, the major whose own suite grades `controlroom/ink` level (1304 of
@@ -73,6 +107,21 @@ grades the drop-in 540 of 584, because it follows ink 8 where the two majors dis
 
 ## What it leaves alone, and says so
 
+- **An incumbent it cannot move everywhere.** An incumbent moves in every file or in none.
+  When one file is refused, every incumbent that file imports stays imported there, so each
+  of them is listed under `held`, with the files that hold it, and rewritten in no file. The
+  same goes for an import kept on the incumbent. Moving the rest would put two copies of the
+  incumbent in one program, and a class from one is not `instanceof` the other's: a prompt
+  cancelled with Ctrl+C throws one `ExitPromptError`, the `catch` tests for the other, and the
+  program prints an error where it used to exit 0.
+- **An error class another dependency still throws.** When a dependency your `package.json`
+  declares depends on the incumbent itself — `@inquirer/confirm` depends on `@inquirer/core` —
+  the incumbent stays installed after the migration, and the report lists it under
+  `transitive` with the dependencies and the replacement's error classes. That dependency
+  throws the incumbent's classes, never the replacement's, so an import that names one of
+  them (`ExitPromptError`, `CommanderError`, `YError` …) is kept on the incumbent, and so is
+  one whose names cannot be read (`import * as`, `require()`). Kept, it holds the incumbent as
+  above. A type-only import compares nothing at run time, and moves.
 - **A drop-in that is not level yet.** Every graded drop-in is level today. One that passes
   fewer of its incumbent's cases than the incumbent does is listed under `partial` with the
   grade, and never rewritten: a codemod that breaks your CLI is worse than none.
@@ -104,10 +153,20 @@ grades the drop-in 540 of 584, because it follows ink 8 where the two majors dis
   clack prompts is not seen.
 - **A deep import** (`commander/lib/command.js`) or **a specifier that is not a literal**
   (`require(name)`). The file is refused by name and line, and left exactly as it was — a
-  file is rewritten whole or not at all.
+  file is rewritten whole or not at all — and its incumbents are held. A mock or a
+  `require.resolve` whose argument is not a literal is not refused: it loads nothing into
+  the program.
 - **A dirty git tree**, unless you pass `--force`, so the rewrite is one reviewable diff. The
   command exits 1 and writes nothing. `--dry-run` writes nothing either way, so it skips the
   check, and a directory that is not a git repository has nothing to be dirty.
+
+## Exit codes
+
+| Code | When |
+| ---: | :-- |
+| 0 | nothing was refused — `complete: …` or `nothing to rewrite`. Held, kept, undeclared and off-major incumbents are reported and are not failures. |
+| 1 | something was refused — `partial: N files rewritten, M refused` — or the git tree is dirty and nothing was written. The report is printed either way. |
+| 2 | `--only` or `--skip` named a package it does not migrate; nothing was read or written. |
 
 ## What it reports, and never rewrites
 

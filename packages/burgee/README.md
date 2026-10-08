@@ -188,9 +188,13 @@ npx burgee migrate --dry-run
 npx burgee migrate
 ```
 
-It rewrites import specifiers and nothing else, leaves a replacement that is not level yet
-alone with its grade, refuses a file it cannot rewrite whole, and prints the install command
-to run next — [Migrate](https://burgee.interlace.tools/docs/migrate).
+It rewrites import specifiers and nothing else — the mocks in your tests included — for the
+incumbents your `package.json` declares (`--only` and `--skip` change the choice). It leaves a
+replacement that is not level yet alone with its grade, refuses a file it cannot rewrite whole,
+moves an incumbent in every file or in none, and prints the install command to run next, each
+family package pinned to the version that carries its drop-in. It exits 1 when anything was
+refused, and the report's first line then says the run was `partial` and how many files moved —
+[Migrate](https://burgee.interlace.tools/docs/migrate).
 
 ## Compatibility
 

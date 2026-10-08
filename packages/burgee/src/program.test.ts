@@ -161,6 +161,18 @@ describe('burgee migrate', () => {
     expect(r.data['changed']).toBe(true);
     expect(readFileSync(join(dir, 'cli.js'), 'utf8')).toContain("from 'burgee/commander'");
   });
+  it('hands --only and --skip to the engine as lists, and leaves them out when not typed (U12-3)', async () => {
+    project(dir);
+    const skipped = await json(['migrate', dir, '--dry-run', '--skip', 'commander']);
+    expect(skipped.data).toMatchObject({ files: 0, mapped: [] });
+    const only = await json(['migrate', dir, '--dry-run', '--only', 'chalk,commander']);
+    expect(only.data).toMatchObject({ files: 1 });
+  });
+  it('prints the report as text, its first line the summary (U12-5)', async () => {
+    project(dir);
+    const r = await runCommand(program, ['migrate', dir, '--dry-run']);
+    expect(r.stdout.split('\n')[0]).toBe('complete: 1 file would be rewritten');
+  });
 });
 
 describe('burgee check', () => {

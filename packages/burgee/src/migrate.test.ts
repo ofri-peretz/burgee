@@ -42,6 +42,15 @@ function project(files: Record<string, string>): string {
   return dir;
 }
 
+/**
+ * A `package.json` declaring `dependencies`. Since U12-3 an incumbent moves only when the
+ * project declares it (or `--only` names it), so a fixture about the rewrite declares one.
+ */
+const declares = (dependencies: Record<string, string>): string => JSON.stringify({ name: 'x', dependencies });
+
+/** `name@^version` at the version the family package's own manifest declares — what `next` pins to since U12-2. */
+const pinned = (name: string): string => `${name}@^${(JSON.parse(readFileSync(new URL(`../../${name}/package.json`, import.meta.url), 'utf8')) as { version: string }).version}`;
+
 /** No repository, so A6's dirty-tree check has nothing to refuse — the fixtures are about the rewrite. */
 const clean = (): undefined => undefined;
 const read = (dir: string, file: string): string => readFileSync(join(dir, file), 'utf8');
@@ -165,7 +174,7 @@ describe('A3 — the five specifier positions, and nothing else', () => {
 
 describe('A4 — refusals are named by file and line, never guessed at', () => {
   it('refuses a deep import and leaves the file exactly as it was', async () => {
-    const dir = project({ 'src/a.ts': "import 'commander';\nimport { Command } from 'commander/lib/command.js';\n" });
+    const dir = project({ 'package.json': declares({ commander: '^15.0.0' }), 'src/a.ts': "import 'commander';\nimport { Command } from 'commander/lib/command.js';\n" });
     const before = read(dir, 'src/a.ts');
     const report = await migrate({ dir, status: clean });
     expect(report.refused).toEqual([{ file: 'src/a.ts', line: 2, specifier: 'commander/lib/command.js', reason: 'deep-import' }]);
@@ -197,12 +206,24 @@ describe('A5 — the unit of success is the file', () => {
     // M-c: writing the mapped half of a mixed file is the mutation. It passes every case in
     // A2 and A3, and it ships a CLI that imports burgee for `Command` and commander for
     // `Command` in the same module — a failure that surfaces in someone else's runtime.
+    //
+    // Restated 2026-10-08 (U12-4, D-20261008-migrate-u12-findings). `clean.ts` moved to
+    // burgee/commander here while `mixed.ts` stayed on commander, and that is the split that
+    // broke mac-cleaner: one program, two copies of the incumbent, classes that are not
+    // `instanceof` each other. A refused file now holds every incumbent in it, in every file.
+    // The refusal is still per file for the incumbents it does not name: `other.ts` moves.
     const mixed = "import { Command } from 'commander';\nimport { helpers } from 'commander/lib/help.js';\n";
-    const dir = project({ 'src/mixed.ts': mixed, 'src/clean.ts': "import { Command } from 'commander';\n" });
+    const dir = project({
+      'package.json': declares({ commander: '^15.0.0', chalk: '^6.0.0' }),
+      'src/mixed.ts': mixed,
+      'src/clean.ts': "import { Command } from 'commander';\n",
+      'src/other.ts': "import chalk from 'chalk';\n",
+    });
     const report = await migrate({ dir, status: clean });
     expect(read(dir, 'src/mixed.ts')).toBe(mixed);
-    expect(read(dir, 'src/clean.ts'), 'the other files still migrate — the refusal is per file, not per run').toBe("import { Command } from 'burgee/commander';\n");
-    expect(report).toMatchObject({ files: 1, imports: 1 });
+    expect(read(dir, 'src/clean.ts'), 'a held incumbent moves in no file').toBe("import { Command } from 'commander';\n");
+    expect(read(dir, 'src/other.ts'), 'an incumbent the refused file does not name still moves').toBe("import chalk from 'roundel/chalk';\n");
+    expect(report).toMatchObject({ files: 1, imports: 1, held: [{ from: 'commander', files: ['src/mixed.ts'], because: 'refused' }] });
   });
 
   it('does not count a refused file’s imports as mapped', async () => {
@@ -236,7 +257,11 @@ describe('A5 — the unit of success is the file', () => {
     const report = await migrate({ dir, status: clean });
     expect(read(dir, 'src/legacy.ts')).toBe("import 'commander/lib/help.js';\nimport chalk from 'chalk';\n");
     expect(report.dependencies.removable).toEqual([]);
-    expect(report.next).toBe('npm install burgee');
+    // Restated 2026-10-08 (U12-4): this was `npm install burgee`, because `cli.ts` moved to
+    // burgee/commander beside a refused file still on commander. Both are held now, so there
+    // is nothing to install and nothing to remove.
+    expect(read(dir, 'src/cli.ts')).toBe("import { Command } from 'commander';\n");
+    expect(report.next).toBe('');
   });
 });
 
@@ -248,20 +273,20 @@ describe('A6 — never silently', () => {
   });
 
   it('migrates a dirty tree under --force', async () => {
-    const dir = project({ 'src/a.ts': "import 'commander';\n" });
+    const dir = project({ 'package.json': declares({ commander: '^15.0.0' }), 'src/a.ts': "import 'commander';\n" });
     await migrate({ dir, force: true, status: () => [' M src/a.ts'] });
     expect(read(dir, 'src/a.ts')).toBe("import 'burgee/commander';\n");
   });
 
   it('writes nothing under --dry-run, and still reports what it would do', async () => {
-    const dir = project({ 'src/a.ts': "import 'commander';\n" });
+    const dir = project({ 'package.json': declares({ commander: '^15.0.0' }), 'src/a.ts': "import 'commander';\n" });
     const report = await migrate({ dir, dryRun: true, status: () => [' M src/a.ts'] });
     expect(read(dir, 'src/a.ts')).toBe("import 'commander';\n");
     expect(report).toMatchObject({ files: 1, imports: 1, dryRun: true, changed: false });
   });
 
   it('proceeds where there is no repository to ask, because there is nothing to be dirty', async () => {
-    const dir = project({ 'src/a.ts': "import 'commander';\n" });
+    const dir = project({ 'package.json': declares({ commander: '^15.0.0' }), 'src/a.ts': "import 'commander';\n" });
     await expect(workingTree(dir), 'a bare temporary directory is not a git tree').resolves.toBeUndefined();
     await migrate({ dir });
     expect(read(dir, 'src/a.ts')).toBe("import 'burgee/commander';\n");
@@ -296,7 +321,7 @@ describe('A1 — two independent sources, and they are allowed to disagree', () 
 
 describe('A7 — the numbers in the report are read, not typed', () => {
   it('carries the oracle’s graded row for each host it touched', async () => {
-    const dir = project({ 'src/a.ts': "import 'commander';\n" });
+    const dir = project({ 'package.json': declares({ commander: '^15.0.0' }), 'src/a.ts': "import 'commander';\n" });
     // M-d lands in `compat-baseline-lock.test.ts`, which holds these equal to
     // `compat-oracle/baseline/commander.json`. This case only proves the report reaches them.
     // `control` joined the row with A12 (D-137): it is what decides whether a drop-in is
@@ -305,12 +330,16 @@ describe('A7 — the numbers in the report are read, not typed', () => {
   });
 
   it('does not claim a graded row for a host the project does not use', async () => {
-    const dir = project({ 'src/a.ts': "import 'yargs';\n" });
+    const dir = project({ 'package.json': declares({ yargs: '^18.0.0' }), 'src/a.ts': "import 'yargs';\n" });
     expect((await migrate({ dir, status: clean })).graded.map((g) => g.host)).toEqual(['yargs']);
+    // U12-3: nor for one it imports and does not declare, which this run leaves alone.
+    const undeclared = project({ 'package.json': declares({}), 'src/a.ts': "import 'yargs';\n" });
+    expect((await migrate({ dir: undeclared, status: clean })).graded).toEqual([]);
   });
 
   it('rolls the imports up per mapping, in the order the mapping declares', async () => {
     const dir = project({
+      'package.json': declares({ commander: '^15.0.0', yargs: '^18.0.0' }),
       'src/a.ts': "import 'commander';\nimport 'commander';\n",
       'src/b.ts': "import { hideBin } from 'yargs/helpers';\nimport yargs from 'yargs/yargs';\n",
     });
@@ -331,7 +360,7 @@ describe('A8 — the exit code says whether anything was left undone', () => {
   it('reports RUNTIME when anything was refused', async () => {
     // M-e: a report that always carries `exitCode: 0` is the mutation, and it is invisible
     // to every other case in this file — the document is identical apart from one number.
-    const dir = project({ 'src/a.ts': "import 'commander/lib/command.js';\n" });
+    const dir = project({ 'package.json': declares({ commander: '^15.0.0' }), 'src/a.ts': "import 'commander/lib/command.js';\n" });
     expect((await migrate({ dir, status: clean })).exitCode).toBe(ExitCode.RUNTIME);
   });
 
@@ -339,7 +368,8 @@ describe('A8 — the exit code says whether anything was left undone', () => {
     const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { commander: '^15.0.0' } }), 'src/a.ts': "import 'commander';\n" });
     expect(Object.keys(await migrate({ dir, status: clean })).sort()).toEqual(
       // `partial`, `offMajor` and `next` joined with A12: what was left alone and why, and the command to run.
-      ['changed', 'dependencies', 'detected', 'dryRun', 'exitCode', 'files', 'graded', 'guided', 'imports', 'kept', 'mapped', 'next', 'offMajor', 'partial', 'refused'].sort(),
+      // `summary`, `undeclared`, `held`, `transitive` and `releaseAge` joined with U12.
+      ['changed', 'dependencies', 'detected', 'dryRun', 'exitCode', 'files', 'graded', 'guided', 'held', 'imports', 'kept', 'mapped', 'next', 'offMajor', 'partial', 'refused', 'releaseAge', 'summary', 'transitive', 'undeclared'].sort(),
     );
   });
 });
@@ -422,7 +452,7 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     const report = await migrate({ dir, status: clean });
     expect(read(dir, 'src/a.tsx')).toBe("import { render, Text } from 'controlroom/ink';\n");
     expect(report.dependencies.add).toEqual(['controlroom', 'react-reconciler']);
-    expect(report.next).toBe('npm install controlroom react-reconciler && npm uninstall ink');
+    expect(report.next).toBe(`npm install ${pinned('controlroom')} react-reconciler && npm uninstall ink`);
   });
 
   it('names the family packages to add, and the command that adds them and removes the incumbents', async () => {
@@ -434,12 +464,12 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     const report = await migrate({ dir, status: clean });
     // flagstaff is already declared, so only roundel is new.
     expect(report.dependencies.add).toEqual(['roundel']);
-    expect(report.next).toBe('pnpm add roundel && pnpm remove chalk ora');
+    expect(report.next).toBe(`pnpm add ${pinned('roundel')} && pnpm remove chalk ora`);
   });
 
   it('defaults the next step to npm, and prints nothing when there is nothing to do', async () => {
     const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { 'string-width': '^8.0.0' } }), 'src/a.ts': "import w from 'string-width';\n" });
-    expect((await migrate({ dir, status: clean })).next).toBe('npm install linegauge && npm uninstall string-width');
+    expect((await migrate({ dir, status: clean })).next).toBe(`npm install ${pinned('linegauge')} && npm uninstall string-width`);
     const empty = project({ 'src/a.ts': 'export {};\n' });
     expect((await migrate({ dir: empty, status: clean })).next).toBe('');
   });
@@ -588,10 +618,12 @@ describe('A11 — a rewrite moves only names the target exports', () => {
     });
     const report = await migrate({ dir, status: clean });
     expect(report.kept).toMatchObject([{ file: 'src/a.ts', line: 2, specifier: 'yargs', names: ['NotAYargsType'] }]);
-    // `add` joined the report with A12: the rewritten imports now name burgee.
-    expect(report.dependencies).toEqual({ before: ['yargs'], removable: [], after: 1, add: ['burgee'] });
+    // Restated 2026-10-08 (U12-4): the value import moved to burgee/yargs beside the kept type
+    // import, and `add` named burgee. A kept import holds its incumbent in every file now — the
+    // two would be different copies of yargs — so nothing moves and nothing is added.
+    expect(report.dependencies).toEqual({ before: ['yargs'], removable: [], after: 1, add: [] });
     expect(report.exitCode, 'a kept type import is a note, not a failure — the program compiles and runs').toBe(ExitCode.OK);
-    expect(read(dir, 'src/a.ts')).toBe("import yargs from 'burgee/yargs';\nimport type { NotAYargsType } from 'yargs';\n");
+    expect(read(dir, 'src/a.ts')).toBe("import yargs from 'yargs';\nimport type { NotAYargsType } from 'yargs';\n");
   });
 
   it('checks every target the mapping can produce', () => {
@@ -664,7 +696,9 @@ describe('A4 — a sibling whose state the incumbent reads refuses the file (D-2
     });
     const report = await migrate({ dir, status: clean });
     expect(read(dir, 'src/setup.ts')).toBe(setup);
-    expect(read(dir, 'src/ask.ts')).toBe("import { text } from 'caique/clack';\n");
+    // Restated 2026-10-08 (U12-4): `ask.ts` moved to caique/clack while `setup.ts` stayed on
+    // @clack/prompts — two prompt libraries in one program. The refusal now holds clack everywhere.
+    expect(read(dir, 'src/ask.ts')).toBe("import { text } from '@clack/prompts';\n");
     expect(report.refused).toEqual([{ file: 'src/setup.ts', line: 2, specifier: '@clack/core', reason: 'sibling-state', fix }]);
     expect(report.dependencies.removable).toEqual([]);
     expect(report.exitCode).toBe(ExitCode.RUNTIME);
