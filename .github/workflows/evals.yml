@@ -65,6 +65,14 @@ jobs:
       - name: Install the agent the task evals run
         if: env.HAS_CREDENTIAL == 'true'
         run: npm ci --prefix .github/tools/claude-code --no-audit --no-fund && echo "$PWD/.github/tools/claude-code/node_modules/.bin" >> "$GITHUB_PATH"
+      # An agent that installs a package gets its `dist/`; a clone does not. Without this step
+      # every case spent turns finding out how to build before `check` could run (burgee's own
+      # build fails alone, its CLI then crashes on a missing `seniority/dist`), and that measured
+      # this job's checkout, not the schema and README the eval is about.
+      # D-20261007-eval-builds-first.
+      - name: Build the packages the cases check against
+        if: env.HAS_CREDENTIAL == 'true'
+        run: npx turbo run build --filter='./packages/*' --concurrency=4
       - name: Run evals
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
