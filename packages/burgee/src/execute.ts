@@ -488,13 +488,17 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   return { json, lines, data: selected, provenance, ...(changed === undefined ? {} : { changed }) };
 }
 
-/** A declared, required positional that argv did not supply is a usage error naming it, as on both hosts. */
+/**
+ * A declared, required positional that argv did not supply is a usage error naming it, as on
+ * both hosts. No hint: the refusal already prints the command's usage line (`failure.js`), so
+ * "run --help to see what it takes" sent the reader for a page it was already holding.
+ */
 function requirePositionals(node: CommandNode, positionals: string[]): void {
   const required = (node.arguments ?? []).filter((a) => a.required !== false && a.variadic !== true);
   // Defined exactly when fewer positionals were typed than are required: the first one missing.
   const missing = required[positionals.length];
   if (missing !== undefined) {
-    throw new UsageError(`missing required argument "${missing.name}"`, `run --help to see what "${node.path.slice(1).join(' ')}" takes`);
+    throw new UsageError(`missing required argument "${missing.name}"`);
   }
 }
 

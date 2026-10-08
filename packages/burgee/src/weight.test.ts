@@ -286,6 +286,8 @@ const RULES: Record<string, EntryRule> = {
     // plus `roundel/terminal` (878 B, roundel's own file), on a command run only — never on help,
     // `--version`, `--schema`, `--mcp` or a failure. `./cli` 55,812 -> 54,727 and `./testing`
     // 39,150 -> 38,143, because neither takes the barrel and `agent.js` left the engine's graph.
+    // 2026-10-08: a missing argument no longer adds "run --help to see what it takes" beside the
+    // usage line it already prints: 35,540 -> 35,474 (-66), bundled 24,270 -> 24,208 (-62).
     budget: 35_681,
     // 45,400 with D-140 and #521 on top of S4. Measured 45,361.
     // 45,250 with D-140 (the `--json` failure classification) on top of D-122 and #521. Measured 45,227.
@@ -411,6 +413,8 @@ const RULES: Record<string, EntryRule> = {
   // path, which still denies `roundel` by name, does not move. Measured 8,512 (-58).
   // 2026-09-30 (D-20260930-failures-teach-recovery): every runnable command lists `--explain`,
   // and the root help ends with one line for agents. Measured 8,953 (+459), inside the budget.
+  // 2026-10-08: each command row lists its arguments (`get <key>`), as commander's does — B1's
+  // agents spent a turn on `config get --help` without it. Measured 9,007 (+54), inside the budget.
   "./help": {
     allow: ["linegauge", "roundel/policy"],
     budget: 9_130,

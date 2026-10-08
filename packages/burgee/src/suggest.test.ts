@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { suggestSimilar } from './suggest.js';
-import { singleDashHint, unknownOption } from './unknown-option.js';
+import { jsonSpelling, singleDashHint, unknownOption } from './unknown-option.js';
 
 describe('suggestSimilar', () => {
   it('offers nothing for no candidates', () => {
@@ -49,15 +49,39 @@ const parseError = (flag: string): Error => new Error(`Unknown option '${flag}'.
 
 describe('unknownOption', () => {
   it('names the flag and the nearest declared one, as a hint and as the fix', () => {
-    expect(unknownOption(parseError('--nmae'), ['name', 'force'])).toEqual({ message: 'unknown option --nmae', hint: 'did you mean --name?', fix: '--name' });
+    expect(unknownOption(parseError('--nmae'), ['name', 'force'], ['--nmae'])).toEqual({ message: 'unknown option --nmae', hint: 'did you mean --name?', fix: '--name' });
   });
   it('points at --help, and names no fix, when nothing is near', () => {
-    expect(unknownOption(parseError('--zzzzzz'), ['name'])).toEqual({ message: 'unknown option --zzzzzz', hint: 'run --help to see the available options' });
+    expect(unknownOption(parseError('--zzzzzz'), ['name'], ['--zzzzzz'])).toEqual({ message: 'unknown option --zzzzzz', hint: 'run --help to see the available options' });
   });
   it('says nothing about a cause that is not an Error, or is not this error', () => {
     // A thrown object that only looks like parseArgs' error is not one.
-    expect(unknownOption({ message: "Unknown option '--x'" }, ['x'])).toBeUndefined();
-    expect(unknownOption(new Error('something else'), ['x'])).toBeUndefined();
+    expect(unknownOption({ message: "Unknown option '--x'" }, ['x'], ['--x'])).toBeUndefined();
+    expect(unknownOption(new Error('something else'), ['x'], [])).toBeUndefined();
+  });
+  it('offers --json, which every command parses, for a near miss of it', () => {
+    expect(unknownOption(parseError('--jsno'), ['name'], ['--jsno'])).toEqual({ message: 'unknown option --jsno', hint: 'did you mean --json?', fix: '--json' });
+  });
+  // B1: 14 of 20 runs of the task that asks for JSON opened with `--format json` or `--output json`,
+  // and a refusal that only said "run --help" sent each of them looking for the flag.
+  it('reads --format json and --output=json as a request for --json', () => {
+    const json = { hint: 'did you mean --json?', fix: '--json' };
+    expect(unknownOption(parseError('--format'), ['name'], ['get', 'k', '--format', 'json'])).toEqual({ message: 'unknown option --format', ...json });
+    expect(unknownOption(parseError('--output'), ['name'], ['get', '--output=json', 'k'])).toEqual({ message: 'unknown option --output', ...json });
+    // Another format is not JSON, and a near declared flag still wins over nothing.
+    expect(unknownOption(parseError('--format'), ['name'], ['--format', 'yaml'])).toEqual({ message: 'unknown option --format', hint: 'run --help to see the available options' });
+  });
+});
+
+describe('jsonSpelling', () => {
+  it('counts the words that ask for JSON in another CLI\'s spelling, and nothing else', () => {
+    expect(jsonSpelling(['--format', 'json'], 0)).toBe(2);
+    expect(jsonSpelling(['--output=json'], 0)).toBe(1);
+    expect(jsonSpelling(['x', '--output', 'json'], 1)).toBe(2);
+    expect(jsonSpelling(['--format'], 0)).toBe(0);
+    expect(jsonSpelling(['--format=agent'], 0)).toBe(0);
+    expect(jsonSpelling(['--json'], 0)).toBe(0);
+    expect(jsonSpelling([], 0)).toBe(0);
   });
 });
 

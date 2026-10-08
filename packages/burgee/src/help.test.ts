@@ -79,7 +79,9 @@ describe('help is rendered from the manifest (H1)', () => {
 
   it('groups commands under headings and lists them bare, with the summary (yargs #684, #1964, #1265)', () => {
     const text = renderHelp(program, root, { width: 100 });
-    expect(text).toMatch(/Release commands:\n {2}deploy +Ship a build\n {2}status +Show status/);
+    // Bare of the program's name, not of what the command takes: `deploy <target> [files...]`,
+    // the way commander lists `deploy [options] <target>`, so the line to run is on the screen.
+    expect(text).toMatch(/Release commands:\n {2}deploy <target> \[files\.\.\.\] +Ship a build\n {2}status +Show status/);
     expect(text).toMatch(/Commands:\n {2}login +Sign in/);
     expect(text).not.toMatch(/app deploy/);
     expect(text).toMatch(/Usage: app <command> \[options\]/);
@@ -192,7 +194,7 @@ describe('theme seam (R7; roundel used without being imported)', () => {
 
   it('a provided token replaces the default; an omitted one keeps it', () => {
     const themed = renderHelp(program, root, { width: 100, color: true, theme: { command: wrapIn('35', '39') } });
-    expect(themed).toContain(`${ESC}[35mdeploy${ESC}[39m`);
+    expect(themed).toContain(`${ESC}[35mdeploy <target> [files...]${ESC}[39m`);
     // heading fell back to the default (bold), so the section title is still styled
     expect(themed).toContain(`${ESC}[1mRelease commands:${ESC}[22m`);
     const defaults = renderHelp(program, deploy, { width: 100, color: true });
@@ -205,8 +207,8 @@ describe('theme seam (R7; roundel used without being imported)', () => {
     const themed = renderHelp(program, root, { width: 100, color: true, theme });
     expect(JSON.stringify(program.commands.map((c) => c.path))).toBe(before);
     // the coloured term is padded to the same column as the plain one
-    expect(themed).toMatch(new RegExp(`\\n {2}${ESC}\\[35mdeploy${ESC}\\[39m +Ship a build\\n`));
-    expect(themed.replace(ANSI, '')).toMatch(/\n {2}deploy +Ship a build\n/);
+    expect(themed).toMatch(new RegExp(`\\n {2}${ESC}\\[35mdeploy <target> \\[files\\.\\.\\.\\]${ESC}\\[39m +Ship a build\\n`));
+    expect(themed.replace(ANSI, '')).toMatch(/\n {2}deploy <target> \[files\.\.\.\] +Ship a build\n/);
   });
 
   // This case once read "the engine still renders help plain: no colour decision was added

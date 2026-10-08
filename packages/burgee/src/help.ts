@@ -196,7 +196,12 @@ function argumentRows(args: ArgumentSpec[]): Row[] {
   }));
 }
 
-/** Commands one level below `node`, visible, in declaration order, grouped by heading (yargs #684). */
+/**
+ * Commands one level below `node`, visible, in declaration order, grouped by heading (yargs #684).
+ * Each is listed with what it takes — `get <key>`, as commander lists `get [options] <key>` — so
+ * the line to run is on the screen: B1's agents read a bare `get` and spent a turn on
+ * `config get --help` to learn it takes a key, in 5 of 20 runs of the task that asks for one.
+ */
 function commandSections(manifest: Manifest, node: CommandNode): Section[] {
   const children = manifest.commands.filter(
     (c) => c.hidden !== true && c.path.length === node.path.length + 1 && node.path.every((seg, i) => c.path[i] === seg),
@@ -205,7 +210,7 @@ function commandSections(manifest: Manifest, node: CommandNode): Section[] {
   for (const c of children) {
     const heading = c.group ?? 'Commands:';
     const rows = groups.get(heading) ?? [];
-    rows.push({ term: c.path.at(-1) as string, text: `${c.summary ?? c.description ?? ''}${deprecation(c.deprecated)}`.trim(), kind: 'command' });
+    rows.push({ term: [c.path.at(-1), ...(c.arguments ?? []).map(argumentTerm)].join(' '), text:`${c.summary ?? c.description ?? ''}${deprecation(c.deprecated)}`.trim(), kind: 'command' });
     groups.set(heading, rows);
   }
   return [...groups].map(([title, rows]) => ({ title, rows }));

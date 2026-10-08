@@ -33,18 +33,35 @@ export function singleDashHint(argv: readonly string[]): string | undefined {
   return undefined;
 }
 
+/** How other CLIs ask for JSON: `--format json`, `--output=json`. */
+const JSON_SPELLINGS = ['--format', '--output'];
+
+/**
+ * How many words at `at` ask for `--json` the way other CLIs spell it — `--format json` is two,
+ * `--output=json` is one — or 0. `--format=agent` is burgee's own (N15) and is not one of them.
+ * B1's agents opened the task that asks for JSON with one of these in 14 of its 20 runs, and each
+ * refusal that did not name `--json` cost a turn spent looking for it.
+ */
+export function jsonSpelling(words: readonly string[], at: number): number {
+  const word = String(words[at]);
+  if (JSON_SPELLINGS.some((flag) => word === `${flag}=json`)) return 1;
+  return JSON_SPELLINGS.includes(word) && words[at + 1] === 'json' ? 2 : 0;
+}
+
 export function unknownOption(
   cause: unknown,
   declared: readonly string[],
+  argv: readonly string[],
 ): { message: string; hint: string; fix?: string } | undefined {
   if (!(cause instanceof Error)) return undefined;
   const flag = UNKNOWN_OPTION.exec(cause.message)?.groups?.['flag'];
   if (flag === undefined) return undefined;
   // `suggestSimilar` slices `--` off the word AND off every candidate, so bare names
   // arrive two characters short: `name` becomes `me`, and `--nmae` is nearer to that than
-  // to anything real. Candidates go in dashed.
-  const dashed = declared.map((option) => `--${option}`);
-  const near = NEAREST.exec(suggestSimilar(flag, dashed))?.[0];
+  // to anything real. Candidates go in dashed. `--json` is one of them: every command parses it.
+  const dashed = [...declared, 'json'].map((option) => `--${option}`);
+  const typed = argv.findIndex((word) => word === flag || word.startsWith(`${flag}=`));
+  const near = jsonSpelling(argv, typed) > 0 ? '--json' : NEAREST.exec(suggestSimilar(flag, dashed))?.[0];
   return {
     message: `unknown option ${flag}`,
     hint: near === undefined ? 'run --help to see the available options' : `did you mean ${near}?`,

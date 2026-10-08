@@ -9,18 +9,21 @@ enough to wrap at two of the
 three widths.
 
 Global options:
-  --json    machine-readable
-            output
-  --help    show this help
-  --schema  the program as data
+  --json         machine-readable
+                 output
+  --help         show this help
+  --schema       the program as
+                 data
 
 Release commands:
-  deploy    Ship a build
-  status    Show status
+  deploy <target> [files...]
+                 Ship a build
+  status         Show status
 
 Commands:
-  login     Sign in
-  old       Legacy (deprecated)
+  login          Sign in
+  old            Legacy
+                 (deprecated)
 
 For agents: --schema prints every
 command, option, default and env
@@ -38,17 +41,17 @@ A fixture with every kind of help data, whose description is long enough to wrap
 at two of the three widths.
 
 Global options:
-  --json    machine-readable output
-  --help    show this help
-  --schema  the program as data
+  --json                      machine-readable output
+  --help                      show this help
+  --schema                    the program as data
 
 Release commands:
-  deploy    Ship a build
-  status    Show status
+  deploy <target> [files...]  Ship a build
+  status                      Show status
 
 Commands:
-  login     Sign in
-  old       Legacy (deprecated)
+  login                       Sign in
+  old                         Legacy (deprecated)
 
 For agents: --schema prints every command, option, default and env var as JSON,
 in one call. --json prints one envelope on stdout, and --explain <option> says
@@ -62,17 +65,17 @@ exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > a group: gr
 A fixture with every kind of help data, whose description is long enough to wrap at two of the three widths.
 
 Global options:
-  --json    machine-readable output
-  --help    show this help
-  --schema  the program as data
+  --json                      machine-readable output
+  --help                      show this help
+  --schema                    the program as data
 
 Release commands:
-  deploy    Ship a build
-  status    Show status
+  deploy <target> [files...]  Ship a build
+  status                      Show status
 
 Commands:
-  login     Sign in
-  old       Legacy (deprecated)
+  login                       Sign in
+  old                         Legacy (deprecated)
 
 For agents: --schema prints every command, option, default and env var as JSON, in one call. --json prints one envelope
 on stdout, and --explain <option> says where a value came from.
