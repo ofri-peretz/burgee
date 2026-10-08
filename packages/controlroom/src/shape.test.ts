@@ -8,8 +8,9 @@
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -24,8 +25,18 @@ const pkgRoot = fileURLToPath(new URL('..', import.meta.url));
 /** controlroom's same-repo dependencies: the whole of what it may install (U6). */
 const SIBLINGS = ['caique', 'closeout', 'flagstaff', 'linegauge', 'paratext', 'roundel'];
 
-/** The drop-in's optional peers, and the one the reconciler brings with it, packed from this workspace's own copies so nothing is fetched. */
-const PEERS = ['react', 'react-reconciler', 'react-reconciler/node_modules/scheduler'];
+/**
+ * The drop-in's optional peers, and the scheduler the reconciler brings with it, packed from
+ * this workspace's own copies so nothing is fetched. The scheduler is the copy the reconciler
+ * *resolves*, wherever npm put it. A spelled-out path was a guess about hoisting: under ink 6.8,
+ * the root reconciler was 0.33 with scheduler 0.27 nested inside it, and under ink 8 the root
+ * reconciler is 0.34 with scheduler 0.28 hoisted beside it.
+ */
+function peerDirs(workspace: string): string[] {
+  const reconciler = join(workspace, 'react-reconciler');
+  const scheduler = dirname(createRequire(join(reconciler, 'package.json')).resolve('scheduler/package.json'));
+  return [join(workspace, 'react'), reconciler, scheduler];
+}
 
 /** The whole program. `.mjs` so it runs in any project whatever its package.json says about "type". */
 const ONE_FILE = `import { status } from 'controlroom';
@@ -122,7 +133,7 @@ process.stdout.write(renderToString(h(Box, { borderStyle: 'single', padding: 1 }
     const app = mkdtempSync(join(tmpdir(), 'controlroom-ink-'));
     try {
       const workspace = resolve(pkgRoot, '..', '..', 'node_modules');
-      const peers = PEERS.map((name) => join(app, npm(['pack', '--silent', '--pack-destination', app], { cwd: join(workspace, name), encoding: 'utf8' }).trim()));
+      const peers = peerDirs(workspace).map((at) => join(app, npm(['pack', '--silent', '--pack-destination', app], { cwd: at, encoding: 'utf8' }).trim()));
       const ours = readdirSync(dir).filter((f) => f.endsWith('.tgz')).map((f) => join(dir, f));
       npm(['install', '--offline', '--no-audit', '--no-fund', '--silent', ...ours, ...peers], { cwd: app, stdio: 'ignore' });
       writeFileSync(join(app, 'app.mjs'), INK_APP);
