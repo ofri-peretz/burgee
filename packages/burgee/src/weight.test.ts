@@ -286,8 +286,7 @@ const RULES: Record<string, EntryRule> = {
     // plus `roundel/terminal` (878 B, roundel's own file), on a command run only — never on help,
     // `--version`, `--schema`, `--mcp` or a failure. `./cli` 55,812 -> 54,727 and `./testing`
     // 39,150 -> 38,143, because neither takes the barrel and `agent.js` left the engine's graph.
-    // 35,840 on 2026-10-07: plugin.js +320 (3,947 -> 4,267): a hook `filter` that is not `{ command: RegExp }` is refused at registration (a string threw at fire() time, a bare RegExp fired for every command), and a contributed command's refusal carries `checkCommand`'s own remedy as its `fix` instead of one sentence naming no edit — the field `burgee check --json` tells an agent to act on. Measured 35,757.
-    budget: 35_840,
+    budget: 35_681,
     // 45,400 with D-140 and #521 on top of S4. Measured 45,361.
     // 45,250 with D-140 (the `--json` failure classification) on top of D-122 and #521. Measured 45,227.
     // 43,500 on 2026-09-23 for P2/P3: a thrown refusal names its exit code by string (`USAGE`, `CANCELLED`, …), which is how caique's prompt verdicts reach an exit status with no dependency edge — the four-row table and its lookup sit in `describeFailure`, where every failure is read. Measured 43,450.
@@ -436,8 +435,7 @@ const RULES: Record<string, EntryRule> = {
     // 21,000 with F1 on top of D-122, N14 and E7, after merging main. Measured 20,897.
     // 25,250 on 2026-09-23: D-140 and #521 on top of main (72a810352e). Measured 25,229.
     // 25,900 on 2026-09-24: the MCP session hold on top of P2/P3 (#484). Measured 25,806.
-    // 26,140 on 2026-10-07: plugin.js +320, the hook-filter and command-fix refusals recorded on `.` above. Measured 26,052.
-    budget: 26_140,
+    budget: 25_900,
     // 24,850 with the MCP stdout capture (#521) on top of D-122's 20,568. Measured 24,835.
     // 24,950 with D-140's MCP error classification on top of #521. Measured 24,900.
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
@@ -451,8 +449,7 @@ const RULES: Record<string, EntryRule> = {
     // 15,300 with D-122 on top of N14 and E7, after merging main. Measured 15,294.
     // 15,550 on 2026-09-23 for F1, the exit-code table in `--schema`. Measured 15,535.
     // 15,700 with F1 on top of D-122, N14 and E7, after merging main. Measured 15,623.
-    // 16,020 on 2026-10-07: plugin.js +320, the hook-filter and command-fix refusals recorded on `.` above. Measured 15,931.
-    budget: 16_020,
+    budget: 15_700,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
   },
   // Configuration precedence, provenance and `--explain`, which are `seniority`'s and are
@@ -493,10 +490,17 @@ const RULES: Record<string, EntryRule> = {
   //
   // 7,400 on 2026-09-22 for D1, the same door refusing `deprecated: true` — a plugin's
   // command names its replacement exactly as a first-party one must. Measured 7,359.
+  //
+  // 7,530 on 2026-10-08 for **64 bytes** of `plugin.js` (3,947 -> 4,011): a hook whose `filter`
+  // is not `{ command: RegExp }` is refused at registration — a string threw a TypeError at
+  // fire() time and a bare RegExp fired for every command — and a contributed command's refusal
+  // carries `checkCommand`'s remedy as its `fix`. Paid for in the same file on the bundled
+  // startup path: `burgee` 24,278 -> 24,260 B, because the hook refusals are one branch and the
+  // contract fix got shorter. The other entries that reach `plugin.js` absorb the 64 bytes inside
+  // their budgets. Measured 7,444.
   "./plugin": {
     allow: [],
-    // 7,790 on 2026-10-07: plugin.js +320, the hook-filter and command-fix refusals recorded on `.` above. Measured 7,700.
-    budget: 7_790,
+    budget: 7_530,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js"],
   },
   // The brand generator. Pure geometry and string building — it must never reach
@@ -768,8 +772,7 @@ const RULES: Record<string, EntryRule> = {
     // (`yargs/flag-shapes.js`, 1,880 B, for five regexes one of which was cubic), and an async
     // builder's rejection under `showHelp()` reaches `fail` instead of going unhandled.
     // Measured 220,848.
-    // 221,170 on 2026-10-07: plugin.js +320, the hook-filter and command-fix refusals recorded on `.` above. Measured 221,081.
-    budget: 221_170,
+    budget: 220_900,
     // 217,100 with D-140 on top of D-122, N14 and E7, after merging #521. Measured 217,090.
     // 217,150 with A29's CommonJS export on top. Measured 217,123.
     denied: ["testing.js", "testing-helpers.js", "dev.js"],

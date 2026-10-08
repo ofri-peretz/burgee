@@ -174,7 +174,7 @@ describe('the plugin object itself', () => {
     for (const filter of ['deploy', /^deploy/, { command: 'deploy' }, { command: ['deploy'] }, {}, null]) {
       expect(refusal(() => new Manifest().use(plugin({ hooks: { preRun: { filter, handler: noop } } }))), String(filter)).toMatchObject({
         code: 'E_PLUGIN_SCHEMA',
-        message: expect.stringMatching(/preRun filter is not \{ command: RegExp \}/),
+        message: expect.stringMatching(/preRun is not \{ handler, filter\?: \{ command: RegExp \} \}/),
       });
     }
   });
@@ -236,7 +236,7 @@ describe('a contributed command’s refusal carries the edit to make as its fix'
    */
   it('shows the one-object shape of a stage when a hook is a function or an array', () => {
     for (const hook of [noop, [{ handler: noop }]]) {
-      expect(fixOf({ hooks: { preRun: hook } }), String(hook)).toBe('`preRun: { handler(ctx) {} }` — one object, not a function or array');
+      expect(fixOf({ hooks: { preRun: hook } }), String(hook)).toBe('`preRun: { handler(ctx) {}, filter?: { command: /^deploy/ } }`');
     }
   });
 
@@ -244,8 +244,8 @@ describe('a contributed command’s refusal carries the edit to make as its fix'
     expect(fixOf({ commands: [{ path: ['audit'], options: {}, effects: 'readonly', run: noop }] })).toBe('use read_only, idempotent, non_idempotent, withheld');
   });
 
-  it('keeps the general fix when the message carries no remedy', () => {
-    expect(fixOf({ commands: [command({ json: { type: 'string' } })] })).toBe('a plugin command is declared exactly as a first-party one');
+  it('gives the message itself as the fix when it carries no separate remedy', () => {
+    expect(fixOf({ commands: [command({ json: { type: 'string' } })] })).toBe('burgee: option "json" is reserved and cannot be redefined');
   });
 });
 
