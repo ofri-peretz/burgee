@@ -1,4 +1,4 @@
-import { chmodSync, mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -133,5 +133,14 @@ describe('whyFailed — a failed case says how the agent stopped', () => {
     expect(whyFailed('not json', 'Error: Invalid API key\n')).toBe('agent produced no result document; stderr: Error: Invalid API key');
     expect(whyFailed('', '')).toBe('agent produced no result document; stderr: (empty)');
     expect(whyFailed(JSON.stringify({}))).toBe('agent stopped: unknown after ? turn(s) — ""');
+  });
+});
+
+describe('the eval job builds before it runs the cases — D-20261007-eval-builds-first', () => {
+  it('runs a packages build step before `run-evals.ts`', () => {
+    const workflow = readFileSync(join(import.meta.dirname, '..', '.github', 'workflows', 'evals.yml'), 'utf8');
+    const build = workflow.indexOf("npx turbo run build --filter='./packages/*'");
+    expect(build).toBeGreaterThan(-1);
+    expect(build).toBeLessThan(workflow.indexOf('npx tsx scripts/run-evals.ts'));
   });
 });
