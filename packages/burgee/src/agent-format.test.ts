@@ -111,6 +111,13 @@ describe('--format=agent — one compact line per record (N15)', () => {
     expect(r.stdout).toBe('done=1 left=2 exitCode=1\n');
   });
 
+  it('under --json the same result is ok: false and keeps its data, because ok follows the code', async () => {
+    // An agent that reads `ok` read a pass on a run the shell was told failed.
+    const r = await runBurgee(program, { argv: ['partial', '--json'] });
+    expect(r.code).toBe(1);
+    expect(JSON.parse(r.stdout)).toEqual({ ok: false, data: { done: 1, left: 2, exitCode: 1 }, meta: { provenance: {} } });
+  });
+
   it('sits anywhere among the command options, like --json', async () => {
     expect((await runBurgee(program, { argv: ['sync', AGENT, '--force'] })).stdout).toBe('changed=true synced=3\n');
   });

@@ -519,9 +519,12 @@ async function emit(io: Io, outcome: Outcome): Promise<void> {
   }
   // `meta.provenance` says where every option value came from (V3) — the difference between one call and five for an agent.
   const meta = { provenance: outcome.provenance, ...(outcome.changed === undefined ? {} : { changed: outcome.changed }) };
-  const envelope = { ok: true, data: outcome.data, meta };
+  // `ok` follows the code (D-20261008-ok-follows-exit-code): a returned non-zero `exitCode` keeps
+  // its `data`, the report being the point, but is not a pass to an agent that reads only `ok`.
+  const code = exitCodeOf(outcome.data);
+  const envelope = { ok: code === ExitCode.OK, data: outcome.data, meta };
   io.out.write(outcome.json ? `${JSON.stringify(envelope)}\n` : (outcome.lines?.(outcome.data) ?? `${render(outcome.data)}\n`));
-  return await leave(io, exitCodeOf(outcome.data));
+  return await leave(io, code);
 }
 
 interface FailureContext {

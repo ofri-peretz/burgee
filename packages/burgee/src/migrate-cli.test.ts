@@ -102,7 +102,7 @@ describe('A8 — an agent branches on the code and reads the reason from `refuse
     const { code, stdout } = burgee(['migrate', dir, '--json']);
     const { ok, data } = envelope(stdout);
     expect(code, 'refusals present and the shell was told the run succeeded').toBe(ExitCode.RUNTIME);
-    expect(ok).toBe(true);
+    expect(ok, 'refusals present and the envelope said ok').toBe(false);
     expect(data['refused']).toEqual([{ file: 'src/a.ts', line: 1, specifier: 'commander/lib/command.js', reason: 'deep-import' }]);
   });
 
