@@ -43,7 +43,7 @@ A reply that wants to run a tool asks first: type `y` or `n`.
 
 `ink/` is a two-file package, `export * from 'controlroom/ink'`, versioned at the ink API the
 drop-in implements, so `ink-text-input`'s and `ink-spinner`'s peer range on ink is met and npm
-installs no other ink. Change the line to `"ink": "6.8.0"` and delete `ink/` to run on ink.
+installs no other ink. Change the line to `"ink": "8.0.0"` and delete `ink/` to run on ink.
 
 ## Try every caller
 
