@@ -1,5 +1,11 @@
 # burgee
 
+## 0.22.1
+
+### Patch Changes
+
+- [#870](https://github.com/ofri-peretz/burgee/pull/870) [`54d3fd6`](https://github.com/ofri-peretz/burgee/commit/54d3fd6d199c32b2965391b1df0e2d631ff318ca) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--version` reports the CLI's own version when it runs through the bin link npm installs. It looked up the owning `package.json` from the link's directory, so `node_modules/.bin/burgee --version` printed the installing project's version and `npx burgee --version` printed "no version declared". The same applied to every CLI built with `defineProgram` that takes its version from `package.json`.
+
 ## 0.22.0
 
 ### Minor Changes
