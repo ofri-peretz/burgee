@@ -230,6 +230,49 @@ explain('region', r); // region = "eu-1"   from vault acme://vault/ci
   `read` gets the `{ env, cwd }` you pass it — this package still touches no globals.
 - **Every other key is ignored**, so one plugin object works across the whole family.
 
+A lower rank wins. Where a source lands, as the number to write:
+
+| to rank… | `rank` |
+| :-- | :-- |
+| above the environment, below a flag | 1–9 |
+| above the config file, below the environment | 11–19 |
+| above `package.json`, below the config file | 21–29 |
+| above the default, below `package.json` | 31–39 |
+
+The same plugin as a file of its own — one module whose default export is a plain object, with
+no import, which is the shape `check` loads:
+
+```js
+// acme-vault.mjs
+export default {
+  name: 'acme-vault',
+  contract: 1,
+  sources: {
+    vault: {
+      rank: 11, // env is 10 and the config file 20: this beats the file and loses to the environment
+      read: (runtime) => (runtime.env.CI_REGION === undefined ? undefined : { location: 'acme://vault/ci', values: { region: runtime.env.CI_REGION } }),
+    },
+  },
+};
+```
+
+Check it before it ships:
+
+```bash
+npx seniority check ./acme-vault.mjs
+# in a clone of this repository, where dist/ is not committed:
+npx turbo run build --filter=seniority && node packages/seniority/dist/cli.js check ./acme-vault.mjs
+```
+
+```text
+acme-vault — 1 sources
+  vault
+acme-vault: ok
+```
+
+A refusal exits 1 with a code and the edit to make: a rank outside 1–39, both `values` and
+`read` or neither, or a `sources` that is not an object keyed by name.
+
 ## Migrating
 
 Each path starts with one import change. `npx burgee migrate --dry-run` lists the imports the
@@ -376,7 +419,7 @@ Graded by the incumbent's own test suite:
 | `lilconfig` | 77 / 77 |
 | `rc` | 1 / 1 |
 
-Weight, installed and tree-inclusive: **221,359 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1122**.
+Weight, installed and tree-inclusive: **223,452 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1133**.
 
 ## For agents
 
@@ -390,7 +433,7 @@ Weight, installed and tree-inclusive: **221,359 bytes** against **1,972,507** fo
   environment in and the same inputs give the same answer anywhere.
 - **A source plugin can be checked before it ships.** `npx seniority check ./vault.mjs`
   validates it against the family schema and exits 0, 1 with a code and a fix, or 2 on a usage
-  error.
+  error. The whole plugin, the rank to write and the report are under [Plugins](#plugins).
 - **The docs are machine-readable** at
   [seniority.interlace.tools/llms.txt](https://seniority.interlace.tools/llms.txt) and
   [llms-full.txt](https://seniority.interlace.tools/llms-full.txt).
