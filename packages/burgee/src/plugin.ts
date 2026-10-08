@@ -163,20 +163,17 @@ function checkHooks(hooks: unknown, name: string): void {
   if (!isRecord(hooks)) throw schema(`plugin "${name}": hooks must be an object`, 'map a stage to a hook: `{ preRun: { filter?, handler } }`');
   for (const [stage, hook] of Object.entries(hooks)) {
     if (!STAGES.includes(stage)) throw schema(`plugin "${name}": "${stage}" is not a hook stage`, `use one of ${STAGES.join(', ')}`);
-    // A function or an array here was told "add handler(ctx)", which reads as a missing key
-    // when what was written is the wrong shape for a stage.
-    if (!isRecord(hook) || typeof hook['handler'] !== 'function') {
-      throw schema(`plugin "${name}": ${stage} has no handler()`, `\`${stage}: { handler(ctx) {} }\` — one object, not a function or array`);
-    }
     /*
-     * `hookApplies` calls `filter.command.test(name)` at fire() time, and nothing read the filter
-     * before it. A string `command` registered — `check` reported "commands matching deploy" —
-     * and threw a TypeError on the first run; a bare RegExp as the filter has no `command`, so
-     * the hook fired for every command, the opposite of what it was written to do.
+     * One refusal for the shape of a stage, so the check costs the startup path almost nothing.
+     * `hookApplies` calls `filter.command.test(name)` at fire() time, and nothing read the
+     * filter before it: a string `command` registered — `check` reported "commands matching
+     * deploy" — and threw a TypeError on the first run, and a bare RegExp as the filter has no
+     * `command`, so the hook fired for every command. A function or an array at a stage was
+     * told "add handler(ctx)", which reads as a missing key when the shape is what is wrong.
      */
-    const filter = hook['filter'];
-    if (filter !== undefined && !((filter as { command?: unknown } | null)?.command instanceof RegExp)) {
-      throw schema(`plugin "${name}": ${stage} filter is not { command: RegExp }`, 'use `{ command: /^deploy/ }`, or leave it out');
+    const filter = (hook as { filter?: { command?: unknown } | null } | null)?.filter;
+    if (!isRecord(hook) || typeof hook['handler'] !== 'function' || (filter !== undefined && !(filter?.command instanceof RegExp))) {
+      throw schema(`plugin "${name}": ${stage} is not { handler, filter?: { command: RegExp } }`, `\`${stage}: { handler(ctx) {}, filter?: { command: /^deploy/ } }\``);
     }
   }
 }
@@ -206,11 +203,11 @@ function checkCommands(commands: unknown, name: string, taken: readonly string[]
       checkCommand(path, node as Declared);
     } catch (error) {
       // `checkCommand` writes for a program author and puts the remedy after the message's last
-      // `; ` (`declares no effects; declare read_only, …`), so that remedy is the fix. The fix was
-      // one sentence for every command, about the door it came through, naming no edit.
+      // `; ` (`declares no effects; declare read_only, …`), so that remedy is the fix; a message
+      // with no remedy in it is its own fix. The fix was one sentence for every command, about
+      // the door it came through, naming no edit.
       const { message } = error as Error;
-      const cut = message.lastIndexOf('; ');
-      throw schema(`${at}: ${message}`, cut < 0 ? 'a plugin command is declared exactly as a first-party one' : message.slice(cut + 2));
+      throw schema(`${at}: ${message}`, message.split('; ').pop() as string);
     }
   }
 }
