@@ -59,6 +59,7 @@ const HOSTS = [
       'a resolver with no paths': { ...base, resolvers: { a: { rank: 1, paths: [] } } },
       'a relative path': { ...base, resolvers: { a: { rank: 1, paths: ['bin'] } } },
       'a `when.platform` that is not a list': { ...base, resolvers: { a: { rank: 1, paths: ['/opt/bin'], when: { platform: 'linux' } } } },
+      'a `when` key bellpull does not read': { ...base, resolvers: { a: { rank: 1, paths: ['/opt/bin'], when: { env: 'ASDF_DATA_DIR' } } } },
     },
   },
   {

@@ -201,6 +201,12 @@ describe('the rest of the shape, refused at the door', () => {
     expect(refusal({ name: 'a', resolvers: { r: { rank: 0, paths: ['/o'], when: 'win32' } } })).toBe('plugin "a": resolver "r" has a `when` that is not an object');
   });
 
+  // `when: { env: … }` used to pass, and a `when` with no clause it reads always holds — so a
+  // misspelled condition applied the resolver everywhere, the opposite of what was written.
+  it('a `when` key it does not read, which would otherwise make the resolver apply always', () => {
+    expect(refusal({ name: 'a', resolvers: { r: { rank: 0, paths: ['/o'], when: { env: 'ASDF_DATA_DIR' } } } })).toBe('plugin "a": resolver "r" has an unknown `when.env`');
+  });
+
   it('accepts every absolute spelling a template can start with', () => {
     expect(() => register({ name: 'ok', resolvers: { r: { rank: 0, paths: ['/opt/bin', '{HOME}/bin', 'C:\\tools', 'd:/tools', '\\\\server\\share'] } } })).not.toThrow();
   });

@@ -203,5 +203,5 @@ interface WidgetSample {
 ### PluginErrorCode
 
 ```ts
-type PluginErrorCode = 'E_PLUGIN_SCHEMA' | 'E_PLUGIN_CONTRACT' | 'E_NO_STATIC_PROJECTION' | 'E_UNKNOWN_KIND' | 'E_NO_CONTRIBUTION';
+type PluginErrorCode = 'E_PLUGIN_SCHEMA' | 'E_PLUGIN_CONTRACT' | 'E_NO_STATIC_PROJECTION' | 'E_UNKNOWN_KIND' | 'E_NO_CONTRIBUTION' | 'E_COMPONENT_THREW';
 ```

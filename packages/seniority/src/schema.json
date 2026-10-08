@@ -448,6 +448,7 @@
         "when": {
           "type": "object",
           "description": "When the resolver applies. Leave it out and it always does.",
+          "additionalProperties": false,
           "properties": {
             "platform": {
               "type": "array",

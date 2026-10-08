@@ -96,14 +96,19 @@ describe('a plugin that contributes', () => {
     expect(out).not.toContain('never shown');
   });
 
-  it('reports a static projection that throws, by its message or by the value thrown, and still exits 0', async () => {
+  // `ok` here used to follow the rows, exit 0: a widget whose static projection throws breaks
+  // every pipe, CI log and agent that renders it, so it is flagstaff's E_COMPONENT_THREW (R8).
+  it('reports a static projection that throws, by its message or by the value thrown, and refuses with E_COMPONENT_THREW', async () => {
     const file = pluginFile(`export default { name: 'loud', widgets: {
       'loud-error': { static: () => { throw new Error('no spec.choices'); }, sample: { running: {}, done: {} } },
       'loud-value': { static: () => { throw 'a bare string'; }, sample: { running: {}, done: {} } },
     } };`);
     expect(await run([file])).toEqual({
-      code: EXIT_OK,
-      out: 'loud — 2 widgets\n  loud-error  static projection threw: no spec.choices\n  loud-value  static projection threw: a bare string\nloud: ok\n',
+      code: EXIT_RUNTIME,
+      out:
+        'loud — 2 widgets\n  loud-error  static projection threw: no spec.choices\n  loud-value  static projection threw: a bare string\n' +
+        'E_COMPONENT_THREW: loud-error threw in static; loud-value threw in static\n' +
+        '  fix: `static(state)` must return a string for the state it is rendered with; give the widget a `sample: { running, done }` of the shape it expects\n',
     });
   });
 

@@ -205,6 +205,11 @@ function templateIsAbsolute(template: string): boolean {
 function validateWhen(when: unknown, at: string): void {
   if (when === undefined) return;
   if (!isRecord(when)) throw new PluginError('E_PLUGIN_SCHEMA', `${at} has a \`when\` that is not an object`, 'a `when` is `{ platform?, envAny? }`, or leave it out and the resolver always applies');
+  // A `when` holds unless a clause it reads says otherwise, so a key it does not read — `env`
+  // for `envAny` — would apply the resolver everywhere: the opposite of what was written.
+  for (const key of Object.keys(when)) {
+    if (key !== 'platform' && key !== 'envAny') throw new PluginError('E_PLUGIN_SCHEMA', `${at} has an unknown \`when.${key}\``, 'a `when` is `{ platform?, envAny? }` — `envAny: ["VAR"]` applies it when any of those variables is set');
+  }
   for (const key of ['platform', 'envAny']) {
     const value = when[key];
     if (value === undefined) continue;

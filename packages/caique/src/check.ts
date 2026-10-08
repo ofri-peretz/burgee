@@ -104,6 +104,7 @@ async function inspect(argv: readonly string[], write: (s: string) => void): Pro
   validate(plugin);
   register(plugin);
   const name = (plugin as { name: string }).name;
+  const broke: string[] = [];
   const rows = Object.entries((plugin as { widgets?: Record<string, Widget> }).widgets ?? {}).map(([kind, w]) => {
     // The static projection is the one every widget must have — it is what a pipe, a CI log and
     // an agent see — so it is the one shown. Rendered with the widget's own sample when it has
@@ -112,6 +113,7 @@ async function inspect(argv: readonly string[], write: (s: string) => void): Pro
     try {
       return `${kind}  static ${JSON.stringify(w.static({ kind, message: 'preview', ...(w.sample.done as object) } as Parameters<Widget['static']>[0]))}`;
     } catch (error) {
+      broke.push(`${kind} threw in static`);
       return `${kind}  static projection threw: ${error instanceof Error ? error.message : String(error)}`;
     }
   });
@@ -125,6 +127,16 @@ async function inspect(argv: readonly string[], write: (s: string) => void): Pro
     );
   }
   for (const row of rows) write(`  ${row}\n`);
+  // A projection that throws breaks every pipe, CI log and agent that renders the widget, so it
+  // is a refusal, not a row above `ok` — flagstaff's E_COMPONENT_THREW, in the same words (R8).
+  if (broke.length > 0) {
+    return refuse(
+      'E_COMPONENT_THREW',
+      broke.join('; '),
+      '`static(state)` must return a string for the state it is rendered with; give the widget a `sample: { running, done }` of the shape it expects',
+      write,
+    );
+  }
   write(`${name}: ok\n`);
   return EXIT_OK;
 }
