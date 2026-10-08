@@ -72,6 +72,7 @@ which is what 130 actually means` in `pty-signal.test.ts`).
 | :-- | :-- | :-- |
 | success | the result as text | warnings, such as a deprecation |
 | success, `--json` | `{"ok":true,"data":…,"meta":{"provenance":…}}` | warnings |
+| a result naming a non-zero `exitCode`, `--json` | `{"ok":false,"data":…,"meta":{"provenance":…}}` | warnings |
 | failure | nothing | `error: <message>`, then `hint:` and `fix:` when the error carries them, then `usage:` when there is no `fix` |
 | failure, `--json` | `{"ok":false,"error":{"code":…,"message":…,"hint"?:…,"fix"?:…,"usage"?:…}}` | nothing |
 | needs a decision, `--json` | `{"ok":false,"status":"action_required","reason":…,"message":…,"next":[…],"error":{"code":4,…}}` | nothing |
@@ -83,6 +84,12 @@ on stdout, alone, and stderr is empty`, `$name: plain mode is unchanged — pros
 nothing on stdout` and `puts a usage failure on stdout too, so one rule covers every --json
 failure` in
 [`json-failure.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/json-failure.test.ts).
+
+`ok` is the exit code's verdict. A command that finishes and names a non-zero `exitCode` in its
+result, like `burgee check` refusing a plugin or `burgee migrate` with refusals, keeps its report
+in `data` and says `"ok":false`, because it exits non-zero. Pinned by `says ok: false in its
+--json envelope on a refusal, because it exits 1, and still carries the fix` in
+[`program.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/program.test.ts).
 
 **A failure says what to do next.** `fix` is one line to run, and it is filled in only when there
 is exactly one: the flag an unknown option was nearest to, or the caller's own command line with

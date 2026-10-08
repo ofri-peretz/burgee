@@ -201,6 +201,10 @@ describe('the rest of the shape, refused at the door', () => {
     expect(refusal({ name: 'a', resolvers: { r: { rank: 0, paths: ['/o'], when: 'win32' } } })).toBe('plugin "a": resolver "r" has a `when` that is not an object');
   });
 
+  it('a `when` with a key that is not a condition, which would otherwise apply everywhere', () => {
+    expect(refusal({ name: 'a', resolvers: { r: { rank: 0, paths: ['/o'], when: { platform: ['linux'], arch: ['x64'] } } } })).toBe('plugin "a": resolver "r": `when.arch` is not a condition bellpull reads');
+  });
+
   it('accepts every absolute spelling a template can start with', () => {
     expect(() => register({ name: 'ok', resolvers: { r: { rank: 0, paths: ['/opt/bin', '{HOME}/bin', 'C:\\tools', 'd:/tools', '\\\\server\\share'] } } })).not.toThrow();
   });

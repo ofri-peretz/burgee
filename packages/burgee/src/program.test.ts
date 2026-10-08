@@ -171,4 +171,25 @@ describe('burgee check', () => {
     expect(r.code).toBe(ExitCode.OK);
     expect(r.data).toEqual({ name: 'hello', commands: [{ path: 'hello', description: 'Say hello', effects: 'read_only' }], hooks: [] });
   });
+
+  it('says ok: true in its --json envelope when it exits 0', async () => {
+    const file = join(dir, 'plugin.mjs');
+    writeFileSync(file, "export default { name: 'hello', contract: 1, hooks: { preRun: { handler() {} } } };\n");
+    const r = await runCommand(program, ['check', file, '--json']);
+    expect(r.code).toBe(ExitCode.OK);
+    expect(JSON.parse(r.stdout)).toMatchObject({ ok: true, data: { name: 'hello' } });
+  });
+
+  it('says ok: false in its --json envelope on a refusal, because it exits 1, and still carries the fix', async () => {
+    // Until this case the envelope said `ok: true` while the process exited 1: an agent that
+    // read `ok`, the field the envelope exists to answer, was told a refused plugin worked.
+    const file = join(dir, 'plugin.mjs');
+    writeFileSync(file, "export default { name: 'old' };\n");
+    const r = await runCommand(program, ['check', file, '--json']);
+    const envelope = JSON.parse(r.stdout) as { ok: boolean; data: { refused: { code: string; fix: string }; exitCode: number } };
+    expect(r.code).toBe(ExitCode.RUNTIME);
+    expect(envelope.ok, 'the envelope must agree with the exit code').toBe(false);
+    expect(envelope.data.refused).toMatchObject({ code: 'E_PLUGIN_CONTRACT', fix: expect.stringContaining('contract: 1') });
+    expect(envelope.data.exitCode).toBe(ExitCode.RUNTIME);
+  });
 });

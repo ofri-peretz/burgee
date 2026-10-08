@@ -91,6 +91,17 @@ describe('the report', () => {
     expect(out).toMatch(/^E_PLUGIN_SCHEMA: plugin "typo": resolver "local": "bin" is not an absolute path\n {2}fix: use an absolute path/);
     expect(code).toBe(EXIT_RUNTIME);
   });
+
+  it('refuses an unknown key under `when`, naming it and the keys allowed, rather than ending in ok', async () => {
+    // `env` for `envAny`: the condition was never read, so the resolver applied on every
+    // machine, and `check` said `ok` to it.
+    const { code, out } = await run([file("export default { name: 'typo', resolvers: { asdf: { rank: -10, paths: ['/opt/asdf/shims'], when: { env: ['ASDF_DATA_DIR'] } } } };")]);
+    expect(out).toBe(
+      'E_PLUGIN_SCHEMA: plugin "typo": resolver "asdf": `when.env` is not a condition bellpull reads\n' +
+        '  fix: the keys a `when` allows are `platform` and `envAny`; rename it to one of them, or remove it\n',
+    );
+    expect(code).toBe(EXIT_RUNTIME);
+  });
 });
 
 describe('what check does not own', () => {

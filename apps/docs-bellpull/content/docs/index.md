@@ -112,7 +112,7 @@ substitution: `$VAR` and `~` are not expanded, and are refused as relative.
   absolute path.
 - **`when`** — optional. `envAny: ['VAR', …]` applies the resolver only while one of those
   variables is set; `platform: ['linux', …]` only on those `process.platform` values. Leave it
-  out and the resolver always applies.
+  out and the resolver always applies. Any other key under `when` is refused.
 - **`extensions`** — optional, Windows only: what to try in place of `PATHEXT`.
 
 The same plugin as a file of its own — one module whose default export is a plain object, with
@@ -196,7 +196,7 @@ Graded by the incumbent's own test suite:
 | `execa` | 0 / 1180 |
 | `which` | 5 / 5 |
 
-Weight, installed and tree-inclusive: **115,963 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1515**.
+Weight, installed and tree-inclusive: **116,519 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1522**.
 
 ## For agents
 
