@@ -3,14 +3,14 @@
  * the walk is unusual: a package.json that does not parse, a tree deeper than the walk goes,
  * and an entry with no package.json above it at all.
  */
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { configLayers } from './config-layers.js';
-import { nearestPackage } from './pkg.js';
+import { nearestPackage, owningPackage } from './pkg.js';
 
 let dir = '';
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
@@ -34,6 +34,33 @@ describe('nearestPackage', () => {
     // 63 levels below: the 64th directory looked at is `dir` itself.
     expect(nearestPackage(at(63))?.data).toEqual({ name: 'top' });
     expect(nearestPackage(at(64))).toBeUndefined();
+  });
+});
+
+describe('owningPackage — the package that owns a CLI reached through its bin link', () => {
+  it('finds the CLI\'s own package.json, not the installing project\'s', () => {
+    dir = mkdtempSync(join(tmpdir(), 'burgee-bin-'));
+    const tool = join(dir, 'project', 'node_modules', 'tool');
+    mkdirSync(join(tool, 'dist'), { recursive: true });
+    mkdirSync(join(dir, 'project', 'node_modules', '.bin'), { recursive: true });
+    writeFileSync(join(dir, 'project', 'package.json'), '{ "name": "project", "version": "0.0.0" }');
+    writeFileSync(join(tool, 'package.json'), '{ "name": "tool", "version": "1.2.3" }');
+    writeFileSync(join(tool, 'dist', 'cli.js'), '');
+    const link = join(dir, 'project', 'node_modules', '.bin', 'tool');
+    // npm links the bin on POSIX; Windows has no unprivileged symlink, and npm writes a shim there.
+    try {
+      symlinkSync(join(tool, 'dist', 'cli.js'), link);
+    } catch {
+      return;
+    }
+    expect(nearestPackage(dirname(link))?.data['version']).toBe('0.0.0');
+    expect(owningPackage(link)?.data['version']).toBe('1.2.3');
+  });
+
+  it('walks from a path that does not resolve as given', () => {
+    dir = mkdtempSync(join(tmpdir(), 'burgee-bin-missing-'));
+    writeFileSync(join(dir, 'package.json'), '{ "name": "here" }');
+    expect(owningPackage(join(dir, 'no-such-cli.js'))?.data).toEqual({ name: 'here' });
   });
 });
 

@@ -5,7 +5,6 @@
  *
  * Kept out of the barrel so a façade can import it without loading the entry.
  */
-import { dirname } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import { type Layers, type Provenance, resolve as resolveLayers } from 'seniority/precedence';
@@ -15,7 +14,7 @@ import { checkCommand } from './definition.js';
 import { ExitCode, isExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
 import { type ActionRequiredSpec, type ArgumentSpec, type CommandNode, type DeclaredEffects, type Example, type LazyModule, Manifest, type OptionSpec, type Relation, relationsOf, type RunContext } from './manifest.js';
 import { camel, kebab } from './names.js';
-import { nearestPackage, type Package } from './pkg.js';
+import { owningPackage, type Package } from './pkg.js';
 import { host } from './runtime.js';
 import { detachedTeardown, processTeardown, type Teardown } from './shutdown.js';
 import { coerce, UsageError } from './validate.js';
@@ -560,7 +559,7 @@ function ioOf(opts: RunOptions): Io {
     width: out.columns ?? HELP_WIDTH,
     stdin: opts.stdin ?? host.stdin,
     cwd: opts.cwd ?? host.cwd(),
-    pkg: nearestPackage(dirname(opts.entry ?? host.argv[1] ?? host.cwd())),
+    pkg: owningPackage(opts.entry ?? host.argv[1] ?? host.cwd()),
     // An injected `exit` is the whole definition of "this run does not own the process":
     // the harness, the MCP loop and every façade test pass one, and none of them may have
     // nine listeners attached to the runner's own process on their behalf.
