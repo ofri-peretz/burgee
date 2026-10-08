@@ -248,10 +248,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
-      contents: read
+      contents: write
+      pull-requests: write
       issues: write
+    env:
+      HAS_APP_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY != '' }}
     steps:
+      # No persisted credentials: the landing step below pushes with its own token (see `cheap`).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup
       - name: Build
         run: npx turbo run build --concurrency=4
@@ -324,6 +330,58 @@ jobs:
       # the ::warning:: are enough there, and one issue per labelled PR is noise.
       # Redacted by the harness before they are written. Kept 14 days: long enough to read
       # the last run's transcripts, short enough that nobody treats them as the record.
+      # B1's own reading never reached the tree: the `cheap` job lands the three suites with the
+      # agent axis `not-run`, and this job only uploaded transcripts. So the claim table, the
+      # agent bands and C1 had no CI document to read while B1 measured on every push (found
+      # 2026-10-08, four readings visible only in job logs). It lands its one file the same way.
+      - name: Mint the release App's token
+        id: app
+        if: github.event_name == 'push' && steps.status.outputs.status == 'measured' && vars.RELEASE_APP_ID != '' && env.HAS_APP_KEY == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Land B1's observation
+        if: github.event_name == 'push' && steps.status.outputs.status == 'measured'
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || secrets.RELEASE_BOT_PAT || github.token }}
+          BODY: "B1's agent-cost reading from the push to main, landed so `agent-tokens-40pct`, `agent-turns-30pct` and the agent bands have a CI series to read."
+        run: |
+          set -euo pipefail
+          FILE=$(ls -1t benchmarks/results/agent-cli-bench/*.json | sed -n 1p)
+          case "$FILE" in
+            *-${GITHUB_SHA::7}-ci.json) ;;
+            *) mv "$FILE" "${FILE%.json}-${GITHUB_SHA::7}-ci.json"; FILE="${FILE%.json}-${GITHUB_SHA::7}-ci.json" ;;
+          esac
+          KEEP=$(mktemp); cp "$FILE" "$KEEP"
+          git checkout -- benchmarks/results/ && git clean -fdq benchmarks/results/
+          BRANCH="chore/b1-series"
+          TITLE="chore(benchmarks): record B1 agent-cost observations"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if gh pr view "$BRANCH" --json state --jq .state 2>/dev/null | grep -qx OPEN; then
+            git fetch "$REMOTE" "$BRANCH"
+            git checkout -B "$BRANCH" FETCH_HEAD
+            OPEN=1
+          else
+            git checkout -B "$BRANCH"
+            OPEN=0
+          fi
+          cp "$KEEP" "$FILE"
+          git add "$FILE"
+          git commit -m "$TITLE"
+          if [ "$OPEN" = 1 ]; then
+            git push "$REMOTE" "HEAD:refs/heads/$BRANCH"
+          else
+            git push --force "$REMOTE" "HEAD:refs/heads/$BRANCH"
+            gh pr create --base main --head "$BRANCH" --label skip-changeset --title "$TITLE" --body "$BODY"
+          fi
+          gh pr merge --auto --squash "$BRANCH" || true
+
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
