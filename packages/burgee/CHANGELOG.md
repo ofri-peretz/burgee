@@ -1,5 +1,37 @@
 # burgee
 
+## 0.21.1
+
+### Patch Changes
+
+- [#857](https://github.com/ofri-peretz/burgee/pull/857) [`d80b2d0`](https://github.com/ofri-peretz/burgee/commit/d80b2d0f4a535400c6825b42ac2d8e1be2827f4e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The `--json` envelope's `ok` now agrees with the exit code. A command whose result names a non-zero `exitCode` printed `"ok":true` and then exited non-zero, so `burgee check <file> --json` said `ok` about a plugin it refused and `burgee migrate --json` said `ok` about a run with refusals. Both now print `"ok":false`, with the report still in `data`: `data.refused` (code, message, fix) for `check`, `data.refused[]` for `migrate`. A result with no `exitCode`, or `exitCode: 0`, prints `"ok":true` as before.
+
+- [#847](https://github.com/ofri-peretz/burgee/pull/847) [`6d3eda2`](https://github.com/ofri-peretz/burgee/commit/6d3eda268a7368acf9051ed31564813a2ac31c38) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` reads dotenv 18.0.6 as the graded release of `seniority/dotenv` (181 / 181, control 181 / 181).
+
+- [#848](https://github.com/ofri-peretz/burgee/pull/848) [`6ae533e`](https://github.com/ofri-peretz/burgee/commit/6ae533e4610c32bad557f5d74a24d0c9a0f07f7e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The plugin host refuses a hook `filter` that is not `{ command: RegExp }` when the plugin is registered. Until now a string `command` was accepted, reported by `burgee check` as "commands matching deploy", and threw a `TypeError` on the first run of any command. A bare RegExp used as the whole filter has no `command`, so its hook fired for every command. A contributed command's refusal now carries the edit to make as its `fix`, taken from the refusal itself (`declare read_only, idempotent, non_idempotent — or withheld, …`), where it used to give one sentence for every command. A plugin with no `contract` is told to add `contract: 1`. The README now shows a whole plugin as a default export, the `check --json` document with `data.name`, `data.commands` and `data.hooks[].stage`, the shape of a refusal, and how to build and run `check` from a clone.
+
+- [#853](https://github.com/ofri-peretz/burgee/pull/853) [`86d746f`](https://github.com/ofri-peretz/burgee/commit/86d746f398911b655a6f82a77615fb79c6c326c4) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The plugin host's hook refusals are now a single refusal, `<stage> is not { handler, filter?: { command: RegExp } }`, and its fix shows that shape. It covers a missing handler, a function or an array where the hook object should be, a string `command` and a bare RegExp used as the filter. A contributed command whose refusal carries no separate remedy now gets its own message as the fix. The core bundle goes from 24,431 back to 24,260 bytes, under the 24,282 ceiling that [#848](https://github.com/ofri-peretz/burgee/issues/848) crossed.
+
+- [#865](https://github.com/ofri-peretz/burgee/pull/865) [`85dfea9`](https://github.com/ofri-peretz/burgee/commit/85dfea950dd4d743f5b074380a38d56fc5cd2d5b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Refusals in a native burgee program now name the command to run, so an agent no longer has to spend a turn working it out.
+
+  - **An unknown command lists the commands that run, with what each takes.** If they fit in the eight rows, a group's refusal lists `config get <key>` rather than `config`. A larger tree still lists one level, now also with arguments.
+  - **A word that exactly names a deeper command is corrected to that command.** `get user.name` gets `fix: demo config get user.name`. Before, the fix pointed at `greet`, two edits away. When two deeper commands share the word, nothing is guessed.
+  - **The fix asks for JSON in burgee's spelling.** A JSON request typed before the command (`--json config get k`, `--format json …`), or spelled as `--format json` or `--output=json`, is moved into the fix as `--json`, before any `--`. An unknown `--format json` or `--output json` on a command now suggests `--json`. `--json` is also a candidate for near misses such as `--jsno`.
+  - **Help lists each command with its arguments**, the way commander does: `get <key>`, not `get`.
+  - **A missing required argument no longer adds "run --help to see what it takes".** The refusal already prints the command's usage line.
+
+  The façades are unchanged. The core entry is 66 bytes lighter, and `./help` is 54 bytes heavier, inside its budget.
+
+- [#848](https://github.com/ofri-peretz/burgee/pull/848) [`6ae533e`](https://github.com/ofri-peretz/burgee/commit/6ae533e4610c32bad557f5d74a24d0c9a0f07f7e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The family `schema.json` describes what five values look like. `contract` is `1`, and burgee refuses a plugin that declares none. A caique widget's `static(spec)` gets `{ kind, message, ...sample.done }`. A seniority `rank` sits between the built-in layers at flag 0, environment 10, config file 20, `package.json` 30 and default 40. A burgee hook's `filter` is `{ command: RegExp }`, now with `command` required, so the schema and the host refuse the same filters.
+
+- [#857](https://github.com/ofri-peretz/burgee/pull/857) [`d80b2d0`](https://github.com/ofri-peretz/burgee/commit/d80b2d0f4a535400c6825b42ac2d8e1be2827f4e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The family `schema.json` closes a bellpull resolver's `when` with `additionalProperties: false`, so the schema and bellpull's own validation refuse the same unknown keys.
+- Updated dependencies [[`d80b2d0`](https://github.com/ofri-peretz/burgee/commit/d80b2d0f4a535400c6825b42ac2d8e1be2827f4e), [`6ae533e`](https://github.com/ofri-peretz/burgee/commit/6ae533e4610c32bad557f5d74a24d0c9a0f07f7e), [`d80b2d0`](https://github.com/ofri-peretz/burgee/commit/d80b2d0f4a535400c6825b42ac2d8e1be2827f4e), [`6ae533e`](https://github.com/ofri-peretz/burgee/commit/6ae533e4610c32bad557f5d74a24d0c9a0f07f7e), [`6aab9c5`](https://github.com/ofri-peretz/burgee/commit/6aab9c5f2e3b3c5cd551b723022952660d681f16), [`6d3eda2`](https://github.com/ofri-peretz/burgee/commit/6d3eda268a7368acf9051ed31564813a2ac31c38)]:
+  - bellpull@1.0.1
+  - closeout@1.0.1
+  - linegauge@1.0.5
+  - roundel@1.0.1
+  - seniority@1.0.0
+
 ## 0.21.0
 
 ### Minor Changes

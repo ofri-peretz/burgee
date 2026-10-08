@@ -1,5 +1,15 @@
 # compat-oracle
 
+## 0.3.2
+
+### Patch Changes
+
+- [#847](https://github.com/ofri-peretz/burgee/pull/847) [`6d3eda2`](https://github.com/ofri-peretz/burgee/commit/6d3eda268a7368acf9051ed31564813a2ac31c38) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - execa re-vendored at 10.1.0, whose suite moved from ava to `node:test`: the row runs under `node:test` one file at a time, and a host's `timeoutMs` now reaches node's `--test-timeout`. `conditionalCases` takes an `arch` list for a case the suite registers on one CPU only. Control 1180 / 1180; `bellpull` 0 / 1180, still a ceiling. dotenv re-vendored at 18.0.6: control 181 / 181.
+- Updated dependencies [[`d80b2d0`](https://github.com/ofri-peretz/burgee/commit/d80b2d0f4a535400c6825b42ac2d8e1be2827f4e), [`6d3eda2`](https://github.com/ofri-peretz/burgee/commit/6d3eda268a7368acf9051ed31564813a2ac31c38), [`6ae533e`](https://github.com/ofri-peretz/burgee/commit/6ae533e4610c32bad557f5d74a24d0c9a0f07f7e), [`86d746f`](https://github.com/ofri-peretz/burgee/commit/86d746f398911b655a6f82a77615fb79c6c326c4), [`85dfea9`](https://github.com/ofri-peretz/burgee/commit/85dfea950dd4d743f5b074380a38d56fc5cd2d5b), [`6ae533e`](https://github.com/ofri-peretz/burgee/commit/6ae533e4610c32bad557f5d74a24d0c9a0f07f7e), [`d80b2d0`](https://github.com/ofri-peretz/burgee/commit/d80b2d0f4a535400c6825b42ac2d8e1be2827f4e), [`fd8e659`](https://github.com/ofri-peretz/burgee/commit/fd8e659076420852b954c8dc57828f575c1df8b8)]:
+  - burgee@0.21.1
+  - flagstaff@1.2.2
+  - roundel@1.0.1
+
 ## 0.3.1
 
 ### Patch Changes

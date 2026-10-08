@@ -1,5 +1,21 @@
 # benchmarks
 
+## 0.0.14
+
+### Patch Changes
+
+- [#849](https://github.com/ofri-peretz/burgee/pull/849) [`fa4e3f5`](https://github.com/ofri-peretz/burgee/commit/fa4e3f5dc7e4f6a4fda0637fdfd985a69bd24fbd) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - controlroom's weight and cold-start gates are measured against ink 8.0.0, the release `controlroom/ink` follows, instead of ink 6.8.0. All six still meet the bar. The W1 bundled ratio is 0.790, W2 is 0.412 by installed bytes and 0.250 by packages, W3 is 0.061, and W4 is 0.295 and 0.149.
+- Updated dependencies [[`d80b2d0`](https://github.com/ofri-peretz/burgee/commit/d80b2d0f4a535400c6825b42ac2d8e1be2827f4e), [`d80b2d0`](https://github.com/ofri-peretz/burgee/commit/d80b2d0f4a535400c6825b42ac2d8e1be2827f4e), [`6d3eda2`](https://github.com/ofri-peretz/burgee/commit/6d3eda268a7368acf9051ed31564813a2ac31c38), [`6ae533e`](https://github.com/ofri-peretz/burgee/commit/6ae533e4610c32bad557f5d74a24d0c9a0f07f7e), [`86d746f`](https://github.com/ofri-peretz/burgee/commit/86d746f398911b655a6f82a77615fb79c6c326c4), [`85dfea9`](https://github.com/ofri-peretz/burgee/commit/85dfea950dd4d743f5b074380a38d56fc5cd2d5b), [`446a691`](https://github.com/ofri-peretz/burgee/commit/446a691ae1b1ff05e06699fd44034f61e91906c2), [`d80b2d0`](https://github.com/ofri-peretz/burgee/commit/d80b2d0f4a535400c6825b42ac2d8e1be2827f4e), [`6d3eda2`](https://github.com/ofri-peretz/burgee/commit/6d3eda268a7368acf9051ed31564813a2ac31c38), [`6ae533e`](https://github.com/ofri-peretz/burgee/commit/6ae533e4610c32bad557f5d74a24d0c9a0f07f7e), [`d80b2d0`](https://github.com/ofri-peretz/burgee/commit/d80b2d0f4a535400c6825b42ac2d8e1be2827f4e), [`fd8e659`](https://github.com/ofri-peretz/burgee/commit/fd8e659076420852b954c8dc57828f575c1df8b8), [`6ae533e`](https://github.com/ofri-peretz/burgee/commit/6ae533e4610c32bad557f5d74a24d0c9a0f07f7e)]:
+  - bellpull@1.0.1
+  - burgee@0.21.1
+  - caique@1.0.0
+  - compat-oracle@0.3.2
+  - controlroom@0.3.1
+  - flagstaff@1.2.2
+  - linegauge@1.0.5
+  - paratext@1.0.1
+  - roundel@1.0.1
+
 ## 0.0.13
 
 ### Patch Changes

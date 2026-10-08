@@ -1,5 +1,21 @@
 # seniority
 
+## 1.0.0
+
+### Major Changes
+
+- [#862](https://github.com/ofri-peretz/burgee/pull/862) [`6aab9c5`](https://github.com/ofri-peretz/burgee/commit/6aab9c5f2e3b3c5cd551b723022952660d681f16) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - seniority 1.0.0. The spec is fully built, every drop-in passes its incumbent's own suite at the latest release level with the incumbent itself (dotenv 18.0.6 181 / 181, lilconfig 3.1.3 77 / 77, rc 1.2.8 1 / 1, cosmiconfig 10.0.1 242 / 243 against its own 242), and coverage is 100% on all four measures (D-20261008-seniority-1-0-evidence). The published entries, the plugin `schema.json` and the `seniority` bin become a semver contract. No API changed in this release.
+
+### Patch Changes
+
+- [#848](https://github.com/ofri-peretz/burgee/pull/848) [`6ae533e`](https://github.com/ofri-peretz/burgee/commit/6ae533e4610c32bad557f5d74a24d0c9a0f07f7e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The family `schema.json` describes what five values look like. `contract` is `1`, and burgee refuses a plugin that declares none. A caique widget's `static(spec)` gets `{ kind, message, ...sample.done }`. A seniority `rank` sits between the built-in layers at flag 0, environment 10, config file 20, `package.json` 30 and default 40. A burgee hook's `filter` is `{ command: RegExp }`, now with `command` required, so the schema and the host refuse the same filters.
+
+- [#857](https://github.com/ofri-peretz/burgee/pull/857) [`d80b2d0`](https://github.com/ofri-peretz/burgee/commit/d80b2d0f4a535400c6825b42ac2d8e1be2827f4e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The family `schema.json` closes a bellpull resolver's `when` with `additionalProperties: false`, so the schema and bellpull's own validation refuse the same unknown keys.
+
+- [#848](https://github.com/ofri-peretz/burgee/pull/848) [`6ae533e`](https://github.com/ofri-peretz/burgee/commit/6ae533e4610c32bad557f5d74a24d0c9a0f07f7e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Each README now shows a whole plugin as a default export, the command that checks it (from an install, and from a clone where `dist/` has to be built first), and the report `check` prints when the plugin passes. caique says what a widget's `static(spec)` receives. seniority gives the `rank` for each slot between the built-in layers. bellpull says that `{VAR}` is the only substitution a path gets.
+
+- [#847](https://github.com/ofri-peretz/burgee/pull/847) [`6d3eda2`](https://github.com/ofri-peretz/burgee/commit/6d3eda268a7368acf9051ed31564813a2ac31c38) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `seniority/dotenv` follows dotenv 18.0.6: `populate` reads `override` and `debug` the way dotenv's `parseBoolean` does, so the string `'false'` (or `'0'`, `'no'`, `'off'`, `''`) turns them off instead of on. dotenv 18.0.6's own suite grades it 181 / 181, level with dotenv itself.
+
 ## 0.8.0
 
 ### Minor Changes
