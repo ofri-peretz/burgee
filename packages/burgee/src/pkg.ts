@@ -1,5 +1,5 @@
 /** The `package.json` that owns a file: the nearest one walking up from it (V4). */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 export interface Package {
@@ -23,4 +23,15 @@ export function nearestPackage(from: string): Package | undefined {
     dir = up;
   }
   return undefined;
+}
+
+/**
+ * The package.json that owns a file, found from where the file really is. npm puts a CLI's bin
+ * in `node_modules/.bin` as a link, so `argv[1]` is the link and the nearest package.json above
+ * it is the *installing* project's: `burgee --version` printed that project's version, and
+ * under `npx` (no package.json above the cache's `.bin`) "no version declared". A path that
+ * is not on disk (an injected entry in a test) is walked from as given.
+ */
+export function owningPackage(file: string): Package | undefined {
+  return nearestPackage(dirname(existsSync(file) ? realpathSync(file) : file));
 }
