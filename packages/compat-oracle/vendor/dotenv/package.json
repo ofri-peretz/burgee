@@ -8,7 +8,7 @@
     "./config": "./dist/config.cjs",
     "./config.js": "./dist/config.cjs"
   },
-  "version": "18.0.5",
+  "version": "18.0.6",
   "license": "BSD-2-Clause",
   "description": "Loads environment variables from .env file",
   "repository": {
@@ -16,7 +16,7 @@
     "url": "git://github.com/motdotla/dotenv.git"
   },
   "devDependencies": {
-    "dotenv": "18.0.5",
+    "dotenv": "18.0.6",
     "tap": "21.7.4",
     "sinon": "14.0.1",
     "process-on-spawn": "1.1.0"

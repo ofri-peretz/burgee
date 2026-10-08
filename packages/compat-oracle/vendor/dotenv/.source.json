@@ -1,9 +1,9 @@
 {
   "repo": "https://github.com/motdotla/dotenv",
-  "version": "18.0.5",
-  "tag": "v18.0.5",
-  "commit": "05215e09b73575b6f8e272658ca7849685651384",
-  "vendored": "2026-10-01",
+  "version": "18.0.6",
+  "tag": "v18.0.6",
+  "commit": "5d7cc39e468b96cd7c82c02aaf74b3fdcacf1a4b",
+  "vendored": "2026-10-07",
   "files": 10,
   "internalFiles": [
     "test-config-options.js"
@@ -21,9 +21,9 @@
     "tests/test-parse-fast.js": "ff2ea39873f365fe52f96d8644ba5c5030b2ae2d0cfa23a25815106a1243026c",
     "tests/test-parse-multiline.js": "f6281c83730796680f2362d3d8c123e3342ac210813652aa66937b6aadb1503b",
     "tests/test-parse.js": "62aa22388fb0f766fbe530b919cede7798e46d0117bd61c1ebd49d7ce046841d",
-    "tests/test-populate.js": "fb5844ad0bb84e21e4f2b4e78101550f53a2b228a3d8d6443d5188bc28b46c11",
+    "tests/test-populate.js": "8e7878ba3ec5a4fd98eb839569344bf9f3563fa6702ad9d22232deaa9adbb9f2",
     "lib/main.d.ts": "e68bc9948d54c842e0fdaf6fc11138a8825768f87459066971e26d7433487f00",
-    "lib/main.js": "10fce09c8730da5994dff0f8874dae4513a2db5f6d40f28c2c178a91a0579f63"
+    "lib/main.js": "687f5ff71ef353815ba87b4127615adc44be9aaa0b477c3e21f319de70d6ed37"
   },
   "tests": {
     "tests/test-cli-signals.js": [
@@ -114,6 +114,8 @@
       "takes processEnv and check if all keys applied to processEnv",
       "does not write over keys already in processEnv",
       "does write over keys already in processEnv if override turned on",
+      "does not write over keys already in processEnv if override is the string false",
+      "does not log when debug is the string false",
       "logs any errors populating when in debug mode but override turned off",
       "logs populating when debug mode and override turned on",
       "returns any errors thrown on passing not json type",

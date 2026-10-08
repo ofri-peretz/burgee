@@ -1,6 +1,6 @@
 ---
 title: Coming from dotenv
-description: "A dotenv alternative with a drop-in path: import dotenv from seniority/dotenv, graded 179 / 179 by dotenv 18's own test suite, level with dotenv itself — then the same package resolves every value across flags, env, config files and defaults, with provenance as text, --json data or an agent event."
+description: "A dotenv alternative with a drop-in path: import dotenv from seniority/dotenv, graded 181 / 181 by dotenv 18's own test suite, level with dotenv itself — then the same package resolves every value across flags, env, config files and defaults, with provenance as text, --json data or an agent event."
 ---
 
 **seniority** is a **dotenv alternative** that also covers what `cosmiconfig`, `rc` and
@@ -39,18 +39,18 @@ format and the log-line tips.
 
 ## Is seniority compatible with dotenv?
 
-At dotenv 18, yes, by the measure this page uses. dotenv's own suite, vendored at 18.0.5 and
+At dotenv 18, yes, by the measure this page uses. dotenv's own suite, vendored at 18.0.6 and
 unmodified apart from the import specifier, runs against `seniority/dotenv` beside a control
 that runs it against real dotenv:
 
 | | passing | rate |
 | :-- | --: | --: |
-| `seniority/dotenv` | 179 / 179 | 100.0% |
-| dotenv itself (control) | 179 / 179 | 100.0% |
+| `seniority/dotenv` | 181 / 181 | 100.0% |
+| dotenv itself (control) | 181 / 181 | 100.0% |
 
 From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `npm run compat:page` generates from the
 oracle's last run; that page is the authority. The suite runs under node-tap, whose plan
-counts assertions rather than test cases, so 179 is assertions. They include `dotenv run`
+counts assertions rather than test cases, so 181 is assertions. They include `dotenv run`
 spawned for real, its signal forwarding, and programs that `import 'dotenv/config'`.
 
 dotenv 17.4.2's suite is graded too, and **not claimed**: 107 / 141 against a control of

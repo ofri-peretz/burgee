@@ -1,6 +1,6 @@
 ---
 title: Coming from execa
-description: "An execa alternative with zero dependencies: bellpull's run() treats a non-zero exit as a value, not an exception, says which binary ran, and renders one result as text, --json or an agent event. Not an execa drop-in: execa's own suite grades it 0 / 1048, and that zero is the design."
+description: "An execa alternative with zero dependencies: bellpull's run() treats a non-zero exit as a value, not an exception, says which binary ran, and renders one result as text, --json or an agent event. Not an execa drop-in: execa's own suite grades it 0 / 1179, and that zero is the design."
 ---
 
 **bellpull** is an **execa alternative** for running subprocesses: executable resolution, a
@@ -40,12 +40,12 @@ oracle's last run, grades execa's own suite against `bellpull` and publishes the
 
 | | passing | rate |
 | :-- | --: | --: |
-| `bellpull` against execa 10.0.1's suite | 0 / 1048 | 0.0% |
-| execa itself (control) | 1048 / 1048 | 100.0% |
+| `bellpull` against execa 10.1.0's suite | 0 / 1179 | 0.0% |
+| execa itself (control) | 1179 / 1179 | 100.0% |
 | `bellpull/cross-spawn` against cross-spawn's suite | 68 / 68 | 100.0% |
 | cross-spawn itself (control) | 68 / 68 | 100.0% |
 
-The 1048 are execa's `arguments/`, `methods/` and `return/` directories — how a command is
+The 1179 are execa's `arguments/`, `methods/` and `return/` directories — how a command is
 built, the entry points, and the result and error a caller reads. Every file imports `execa`,
 which bellpull does not export, so every one fails before a case runs; the other nine
 directories are vendored too and read the same zero, and are left out of the recurring grade

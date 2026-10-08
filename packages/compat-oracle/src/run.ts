@@ -635,7 +635,9 @@ function command(host: Host, hostDir: string, dir: string, paths: string[]): { b
     // `node --import=tsx --test --test-concurrency=1`); node hands every file process it starts
     // the same `--import`. Neither is set for a host that declares neither.
     const concurrency = host.testConcurrency === undefined ? [] : [`--test-concurrency=${host.testConcurrency}`];
-    return { bin: process.execPath, args: [...tsLoaderArgs(host), '--test', '--test-reporter=tap', ...concurrency, ...paths] };
+    // node:test has no per-test timeout unless asked (execa 10.1.0: `--test-timeout=240000`).
+    const timeout = host.timeoutMs === undefined ? [] : [`--test-timeout=${host.timeoutMs}`];
+    return { bin: process.execPath, args: [...tsLoaderArgs(host), '--test', '--test-reporter=tap', ...concurrency, ...timeout, ...paths] };
   }
   // ava takes the paths as a filter over its own `files` globs, under which a `_`-prefixed
   // file is a helper, never a test: chalk's two spawned fixtures are vendored beside the
