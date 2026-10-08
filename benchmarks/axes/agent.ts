@@ -131,10 +131,10 @@ export const readTasks = (): Task[] =>
     .toSorted()
     .map((f) => JSON.parse(readFileSync(join(TASKS_DIR, f), 'utf8')) as Task);
 
-/** A scratch PATH holding one executable called `mytool`, so the prompt can name it. */
+/** A scratch PATH holding one executable called `demo` — the name both demo CLIs declare and print, so the command an agent reads in their help and errors is the one it can run (D-20261008-b1-tool-name). */
 export function installTool(binPath: string): string {
   const dir = mkdtempSync(join(tmpdir(), 'bench-tool-'));
-  const shim = join(dir, 'mytool');
+  const shim = join(dir, 'demo');
   writeFileSync(shim, `#!/bin/sh\nexec "${process.execPath}" "${binPath}" "$@"\n`);
   const EXECUTABLE = 0o755;
   chmodSync(shim, EXECUTABLE);
@@ -356,7 +356,7 @@ export const isPosix = (platform: string = process.platform): boolean => platfor
  * on `PATH`. The rule is recorded in every record's `detail.env`.
  */
 const RUNNER_ONLY = /^(CI|GITHUB_\w*|RUNNER_\w*|ACTIONS_\w*)$/;
-export const AGENT_ENV_RULE = 'caller env minus CI, GITHUB_*, RUNNER_*, ACTIONS_*; mytool first on PATH';
+export const AGENT_ENV_RULE = 'caller env minus CI, GITHUB_*, RUNNER_*, ACTIONS_*; demo first on PATH';
 
 export function agentEnv(env: NodeJS.ProcessEnv, toolDir: string): NodeJS.ProcessEnv {
   const kept = Object.entries(env).filter(([k]) => !RUNNER_ONLY.test(k));
@@ -364,14 +364,14 @@ export function agentEnv(env: NodeJS.ProcessEnv, toolDir: string): NodeJS.Proces
 }
 
 /**
- * One task, once. The agent sees Bash on `mytool` and nothing else (intent constraint 2):
+ * One task, once. The agent sees Bash on `demo` and nothing else (intent constraint 2):
  * no file reads, so the CLI's own output is the only channel through which it can learn
  * anything — which is the whole hypothesis under test.
  */
 export function runOne(opts: RunOne): Attempt {
   const { claudeBin, task, toolDir, workdir, model, timeoutMs } = opts;
   for (const cmd of task.setup) execFileSync(SHELL, ['-c', cmd], { cwd: workdir, stdio: 'ignore' });
-  const argv = ['-p', task.prompt, '--allowedTools', 'Bash(mytool:*)', '--max-turns', String(task.maxTurns), ...OUTPUT_FORMAT, '--model', model, ...ISOLATION];
+  const argv = ['-p', task.prompt, '--allowedTools', 'Bash(demo:*)', '--max-turns', String(task.maxTurns), ...OUTPUT_FORMAT, '--model', model, ...ISOLATION];
   const r = spawnSync(claudeBin, argv, {
     cwd: workdir,
     encoding: 'utf8',
@@ -720,4 +720,4 @@ export function run(options: AgentOptions = {}): { records: BenchRecord[] } | { 
   return { records };
 }
 
-export const method = `For each of the ${String(readTasks().length)} tasks and each of the two builds, \`claude -p <prompt> --allowedTools 'Bash(mytool:*)' --max-turns <n> --output-format stream-json --verbose --setting-sources project,local --strict-mcp-config\` — the \`claude\` pinned in \`.github/tools/claude-code\` when it is installed there — is spawned in a scratch directory with the build installed as \`mytool\`, ${String(RUNS_PER_TASK)} times, in the caller's environment minus \`CI\`, \`GITHUB_*\`, \`RUNNER_*\` and \`ACTIONS_*\`; the task's own \`check\` decides success. Tokens are input + cache + output as the CLI reports them; turns is its \`num_turns\`, including runs that ended at the turn limit; a run that reported no usage is left out of the medians and counted as a failure. The model and the \`claude\` version are recorded per results file, and a change of either starts a new band history.`;
+export const method = `For each of the ${String(readTasks().length)} tasks and each of the two builds, \`claude -p <prompt> --allowedTools 'Bash(demo:*)' --max-turns <n> --output-format stream-json --verbose --setting-sources project,local --strict-mcp-config\` — the \`claude\` pinned in \`.github/tools/claude-code\` when it is installed there — is spawned in a scratch directory with the build installed as \`demo\`, ${String(RUNS_PER_TASK)} times, in the caller's environment minus \`CI\`, \`GITHUB_*\`, \`RUNNER_*\` and \`ACTIONS_*\`; the task's own \`check\` decides success. Tokens are input + cache + output as the CLI reports them; turns is its \`num_turns\`, including runs that ended at the turn limit; a run that reported no usage is left out of the medians and counted as a failure. The model and the \`claude\` version are recorded per results file, and a change of either starts a new band history.`;
