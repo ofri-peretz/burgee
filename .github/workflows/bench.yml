@@ -71,7 +71,13 @@ jobs:
       HAS_APP_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY != '' }}
       HAS_PAT: ${{ secrets.RELEASE_BOT_PAT != '' }}
     steps:
+      # No persisted credentials: checkout v7 keeps GITHUB_TOKEN in an includeIf config the
+      # landing step's `--unset-all …extraheader` cannot reach, and that header outranks the
+      # token in the push URL. Every push after the PR opened went out as github-actions[bot],
+      # whose runs wait for approval and which the review action refuses (#858, 2026-10-08).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup
       - name: Build (the axes measure what is built, never what is written)
         run: npx turbo run build --concurrency=4
