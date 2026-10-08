@@ -75,10 +75,18 @@ reported by `migrate` as `partial`, with its grade, and left alone. The rates ar
 ## `burgee migrate`
 
 It rewrites **import specifiers and nothing else**: `import … from`, bare `import`, `export …
-from`, `import()` and `require()` with a literal string. Everything else in a file is left
-byte for byte. Its safety rules:
+from`, `import()` and `require()` with a literal string, and the module a test mocks
+(`vi.mock`, `jest.mock`, `vi.importActual`, `jest.requireActual`, `require.resolve` and their
+kin). Everything else in a file is left byte for byte. Its safety rules:
 
 - **Only level drop-ins.** The mapping is derived from the graded table, not typed by hand.
+- **Only what the project chose.** An incumbent moves when `package.json` declares it, or
+  `--only` names it; one imported without being declared is reported as `undeclared`, and
+  `--skip` leaves any incumbent alone.
+- **Everywhere or nowhere.** An incumbent a refused file or a kept import still names is
+  `held` and rewritten in no file, so a program never runs on two copies of one incumbent.
+  An import of an error class that another declared dependency still throws is kept for the
+  same reason, and that dependency is listed under `transitive`.
 - **Only the graded major.** An incumbent installed, or declared, on another major is reported
   under `offMajor` with both versions, and its files are skipped.
 - **A file is rewritten whole or not at all.** One refused specifier leaves the whole file as it
@@ -91,13 +99,13 @@ byte for byte. Its safety rules:
 - **No dirty tree.** Without `--force`, uncommitted changes stop the run before anything is
   written, so the rewrite is one reviewable diff, and the refusal prints its fix: `commit or
   stash your changes, or pass --force`. `--dry-run` writes nothing, so it skips that check.
-- **It never edits `package.json`.** It prints the one command that adds the family packages and
-  removes the incumbents that are no longer imported, for the package manager the lockfile names.
-  A refused file still imports everything in it, so no incumbent it names is called removable or
-  uninstalled (`keeps an incumbent imported only in a refused file out of removable, and out of
-  npm uninstall`).
-- **It exits 1 when anything was refused**, with the whole report still printed, so an agent can
-  run it unattended and branch on the result.
+- **It never edits `package.json`.** It prints the one command that adds the family packages,
+  each pinned to the version that carries its graded drop-in, and removes the incumbents that
+  are no longer imported, for the package manager the lockfile names. A held incumbent is still
+  imported, so it is never called removable or uninstalled (`keeps an incumbent imported only in
+  a refused file out of removable, and out of npm uninstall`).
+- **It exits 1 when anything was refused**, with the whole report still printed and its first
+  line saying the run was `partial`, so an agent can run it unattended and branch on the result.
 
 Each rule is a case in
 [`migrate.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/migrate.test.ts):
@@ -108,10 +116,10 @@ reports what it would do` and `reports RUNTIME when anything was refused`.
 
 ## Run it
 
-A project with two level drop-ins and one deep import:
+A project with two level drop-ins and one deep import, which already depends on roundel:
 
 ```json title="package.json"
-{ "name": "hello", "dependencies": { "chalk": "^6.0.0", "commander": "^15.0.0" } }
+{ "name": "hello", "dependencies": { "chalk": "^6.0.0", "commander": "^15.0.0", "roundel": "^1.0.0" } }
 ```
 
 ```js title="cli.mjs"
@@ -130,25 +138,27 @@ export const help = new Help();
 ```
 
 ```text title="npx burgee migrate --dry-run" exit="1"
-files: 1
-imports: 2
-mapped: [{"from":"commander","to":"burgee/commander","imports":1,"files":1},{"from":"chalk","to":"roundel/chalk","imports":1,"files":1}]
-refused: [{"file":"legacy.mjs","line":1,"specifier":"commander/lib/help.js","reason":"deep-import"}]
-kept: []
-detected: {"declared":["commander","chalk"],"imported":["chalk","commander"]}
-dependencies: {"before":["commander","chalk"],"removable":["chalk"],"after":1,"add":["burgee","roundel"]}
-graded: [{"host":"chalk","reference":59,"passed":59,"rate":1,"control":59},{"host":"commander","reference":1360,"passed":1360,"rate":1,"control":1360}]
-partial: []
-offMajor: []
-guided: []
-next: npm install burgee roundel && npm uninstall chalk
-dryRun: true
-changed: false
-exitCode: 1
+partial: 1 file would be rewritten, 1 refused
+would rewrite:
+  chalk -> roundel/chalk  1 import in 1 file
+refused, and left exactly as it was:
+  legacy.mjs:1  commander/lib/help.js  deep-import
+held, rewritten in no file:
+  commander  refused in legacy.mjs
+graded by the incumbent’s own suite:
+  chalk  59 / 59 (the incumbent passes 59)
+  commander  1360 / 1360 (the incumbent passes 1360)
+declared: commander, chalk
+imported: chalk, commander
+add: none
+removable: chalk
+next: npm uninstall chalk
 ```
 
-`cli.mjs` would move; `legacy.mjs` is refused and stays as it was, so `commander` stays
-installed and only `chalk` is removable.
+`legacy.mjs` is refused and stays as it was, so `commander` is held: `cli.mjs` keeps its
+commander import too, and moves only its chalk. `commander` stays installed, and only `chalk`
+is removable. roundel is already a dependency, so there is nothing to add; a project without
+it would be told `npm install roundel@^` and roundel's current version.
 
 ## Where the rules live
 

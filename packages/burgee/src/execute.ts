@@ -211,26 +211,13 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** A leaf renders as itself; anything deeper renders as compact JSON. */
-function leaf(value: unknown): string {
-  if (value === undefined || value === null) return '';
-  return typeof value === 'string' ? value : JSON.stringify(value);
-}
-
 /**
- * The text surface. One level deep on purpose, and deliberately not recursive: a caller
- * who wants the whole structure asks for `--json`, which is the surface that promises it.
+ * The text surface. Nothing and a string are printed here; anything else is `render.ts`'s,
+ * a chunk loaded only for a result that needs it (U5), which also honours a result's own text.
  */
-function render(value: unknown): string {
+async function render(value: unknown): Promise<string> {
   if (value === undefined || value === null) return '';
-  if (typeof value === 'string') return value;
-  if (Array.isArray(value)) return value.map((v) => leaf(v)).join('\n');
-  if (isPlainObject(value)) {
-    return Object.entries(value)
-      .map(([k, v]) => `${k}: ${leaf(v)}`)
-      .join('\n');
-  }
-  return String(value);
+  return typeof value === 'string' ? value : (await import('./render.js')).render(value);
 }
 
 /** The negation prefix, in one place: `toParseConfig` writes it and `canonical` reads it. */
@@ -527,7 +514,7 @@ async function emit(io: Io, outcome: Outcome): Promise<void> {
   // `exitCode` (a `check` refusal, `migrate` with refusals) leaves non-zero, so it says `false`.
   const code = exitCodeOf(outcome.data);
   const envelope = { ok: code === ExitCode.OK, data: outcome.data, meta };
-  io.out.write(outcome.json ? `${JSON.stringify(envelope)}\n` : (outcome.lines?.(outcome.data) ?? `${render(outcome.data)}\n`));
+  io.out.write(outcome.json ? `${JSON.stringify(envelope)}\n` : (outcome.lines?.(outcome.data) ?? `${await render(outcome.data)}\n`));
   return await leave(io, code);
 }
 

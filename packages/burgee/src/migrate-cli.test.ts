@@ -12,7 +12,7 @@
  * passes every in-process case and tells an unattended agent the migration is complete.
  */
 import { execFileSync, type ExecFileSyncOptions } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -50,6 +50,9 @@ function project(files: Record<string, string>): string {
 
 const envelope = (out: string): { ok: boolean; data: Record<string, unknown> } => JSON.parse(out) as never;
 
+/** Since U12-3 an incumbent moves only when the project declares it. */
+const DECLARES_COMMANDER = JSON.stringify({ name: 'x', dependencies: { commander: '^15.0.0' } });
+
 describe('the built binary', () => {
   it('has been built — every case below runs it, so a missing dist must fail loudly', () => {
     expect(existsSync(CLI), `${CLI} is missing; \`turbo run test\` builds it first`).toBe(true);
@@ -67,19 +70,41 @@ describe('A9 — the surfaces are the framework’s, not this feature’s', () =
     // an agent reading `dryRun` and typing `--dryRun` is the failure this field exists to stop.
     expect(doc.inputSchema.properties['dryRun']?.flag).toBe('--dry-run');
     expect(doc.inputSchema.properties['force']?.flag).toBe('--force');
+    // U12-3: the two selection flags are the manifest's, so they reach every surface with it.
+    expect(doc.inputSchema.properties['only']).toMatchObject({ flag: '--only', type: 'array' });
+    expect(doc.inputSchema.properties['skip']).toMatchObject({ flag: '--skip', type: 'array' });
   });
 
   it('appears in the program’s --schema without this feature publishing one', () => {
     const { code, stdout } = burgee(['--schema']);
     expect(code).toBe(ExitCode.OK);
     expect(stdout).toContain('migrate');
+    expect(stdout).toContain('"only"');
+    expect(stdout).toContain('"skip"');
   });
 
   it('answers --help in prose, with the examples the declaration carries', () => {
     const { code, stdout } = burgee(['migrate', '--help']);
     expect(code).toBe(ExitCode.OK);
     expect(stdout).toContain('--dry-run');
+    expect(stdout).toContain('--only <lib,…>');
+    expect(stdout).toContain('--skip <lib,…>');
     expect(stdout).toContain('burgee migrate --json');
+  });
+});
+
+describe('U12-2 — the versions next pins to ship with the binary', () => {
+  it('wrote family-versions.json beside migrate.js, equal to every published manifest in this repository', () => {
+    const packages = resolve(fileURLToPath(new URL('../..', import.meta.url)));
+    const expected = Object.fromEntries(
+      readdirSync(packages, { withFileTypes: true })
+        .filter((e) => e.isDirectory() && existsSync(join(packages, e.name, 'package.json')))
+        .map((e) => JSON.parse(readFileSync(join(packages, e.name, 'package.json'), 'utf8')) as { name: string; version: string; private?: boolean })
+        .filter((pkg) => pkg.private !== true)
+        .map((pkg) => [pkg.name, pkg.version]),
+    );
+    const built = JSON.parse(readFileSync(resolve(dirname(CLI), 'family-versions.json'), 'utf8')) as Record<string, string>;
+    expect(built).toEqual(expected);
   });
 });
 
@@ -98,7 +123,7 @@ describe('A8 — an agent branches on the code and reads the reason from `refuse
     // M-e. The document and the code are one answer: an agent that read only the document
     // would call this migration complete, and an agent that read only the code would not
     // know which file to open.
-    const dir = project({ 'src/a.ts': "import { Command } from 'commander/lib/command.js';\n" });
+    const dir = project({ 'package.json': DECLARES_COMMANDER, 'src/a.ts': "import { Command } from 'commander/lib/command.js';\n" });
     const { code, stdout } = burgee(['migrate', dir, '--json']);
     const { ok, data } = envelope(stdout);
     expect(code, 'refusals present and the shell was told the run succeeded').toBe(ExitCode.RUNTIME);
@@ -109,7 +134,7 @@ describe('A8 — an agent branches on the code and reads the reason from `refuse
   });
 
   it('exits OK under --dry-run when nothing was refused, having written nothing', () => {
-    const dir = project({ 'src/a.ts': "import { Command } from 'commander';\n" });
+    const dir = project({ 'package.json': DECLARES_COMMANDER, 'src/a.ts': "import { Command } from 'commander';\n" });
     const { code, stdout } = burgee(['migrate', dir, '--dry-run', '--json']);
     expect(code).toBe(ExitCode.OK);
     expect(envelope(stdout).data).toMatchObject({ files: 1, dryRun: true, changed: false });
@@ -117,11 +142,44 @@ describe('A8 — an agent branches on the code and reads the reason from `refuse
   });
 
   it('prints the report on the text surface too', () => {
-    const dir = project({ 'src/a.ts': "import { Command } from 'commander';\n" });
+    // Restated 2026-10-08 (U12-5): this asserted `files: 1` and `imports: 1`, the engine's
+    // one-level rendering, which printed every list in the report as a line of JSON.
+    const dir = project({ 'package.json': DECLARES_COMMANDER, 'src/a.ts': "import { Command } from 'commander';\n" });
     const { code, stdout } = burgee(['migrate', dir]);
     expect(code).toBe(ExitCode.OK);
-    expect(stdout).toContain('files: 1');
-    expect(stdout).toContain('imports: 1');
+    expect(stdout.split('\n')[0]).toBe('complete: 1 file rewritten');
+    expect(stdout).toContain('commander -> burgee/commander  1 import in 1 file');
+    expect(stdout, 'no field prints as raw JSON').not.toMatch(/[[{]"/);
+  });
+
+  it('says a run that refused something is partial, in the text and the code', () => {
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { commander: '^15.0.0', chalk: '^6.0.0' } }),
+      'src/a.ts': "import chalk from 'chalk';\n",
+      'src/b.ts': "import 'commander/lib/help.js';\n",
+    });
+    const { code, stdout } = burgee(['migrate', dir]);
+    expect(code).toBe(ExitCode.RUNTIME);
+    expect(stdout.split('\n')[0]).toBe('partial: 1 file rewritten, 1 refused');
+    expect(stdout).toContain('src/b.ts:1  commander/lib/help.js  deep-import');
+  });
+});
+
+describe('U12-3 — --only and --skip, through the binary', () => {
+  it('moves only what --only names, comma-separated', () => {
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { chalk: '^6.0.0', ora: '^9.0.0' } }), 'src/a.ts': "import chalk from 'chalk';\nimport ora from 'ora';\n" });
+    const { code, stdout } = burgee(['migrate', dir, '--only', 'ora,chalk', '--skip', 'chalk', '--json']);
+    expect(code).toBe(ExitCode.OK);
+    expect(envelope(stdout).data).toMatchObject({ mapped: [{ from: 'ora', to: 'flagstaff/ora' }] });
+    expect(readFileSync(join(dir, 'src/a.ts'), 'utf8')).toBe("import chalk from 'chalk';\nimport ora from 'flagstaff/ora';\n");
+  });
+
+  it('exits USAGE on a name it does not migrate, and writes nothing', () => {
+    const dir = project({ 'package.json': DECLARES_COMMANDER, 'src/a.ts': "import { Command } from 'commander';\n" });
+    const { code, stderr } = burgee(['migrate', dir, '--only', 'kleur']);
+    expect(code).toBe(ExitCode.USAGE);
+    expect(stderr).toContain('burgee migrate does not migrate kleur');
+    expect(readFileSync(join(dir, 'src/a.ts'), 'utf8')).toBe("import { Command } from 'commander';\n");
   });
 });
 

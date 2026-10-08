@@ -59,6 +59,8 @@ function module_(n: number): string {
 /** A fresh tree per timed run, so no run is measured against another's page cache. */
 function tree(): string {
   const dir = mkdtempSync(join(tmpdir(), 'burgee-migrate-bench-'));
+  // Since U12-3 an incumbent moves only when the project declares it, as a real one does.
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'bench', dependencies: { commander: '^15.0.0', yargs: '^18.0.0' } }));
   for (let n = 0; n < FILES; n += 1) {
     const sub = join(dir, `src/g${n % 20}`);
     mkdirSync(sub, { recursive: true });

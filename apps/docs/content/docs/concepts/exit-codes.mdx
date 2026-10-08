@@ -87,7 +87,10 @@ failure` in
 
 `ok` is the exit code's verdict. A command that finishes and names a non-zero `exitCode` in its
 result, like `burgee check` refusing a plugin or `burgee migrate` with refusals, keeps its report
-in `data` and says `"ok":false`, because it exits non-zero. Pinned by `says ok: false in its
+in `data` and says `"ok":false`, because it exits non-zero. Exit 1 there does not mean nothing
+happened: `burgee migrate` has rewritten every file it could, and its report's first line, and
+its `summary`, says `partial: N files rewritten, M refused`
+([Migrate](/docs/migrate#exit-codes) has its codes). Pinned by `says ok: false in its
 --json envelope on a refusal, because it exits 1, and still carries the fix` in
 [`program.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/program.test.ts).
 

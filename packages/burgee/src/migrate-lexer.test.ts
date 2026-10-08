@@ -8,7 +8,7 @@
  * the next real import or rewrites text inside the literal. Each case puts a real import
  * right after the literal, so both failures show up as a wrong list of sites.
  */
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -99,11 +99,13 @@ describe('the report', () => {
   const next = async (at: string): Promise<string> => (await migrate({ dir: at, dryRun: true, status: async () => undefined })).next;
 
   it('writes the next step for the package manager whose lockfile is there', async () => {
-    expect(await next(project('yarn.lock'))).toBe('yarn add roundel && yarn remove chalk');
+    // Pinned since U12-2, to the version roundel's own manifest declares.
+    const roundel = `roundel@^${(JSON.parse(readFileSync(new URL('../../roundel/package.json', import.meta.url), 'utf8')) as { version: string }).version}`;
+    expect(await next(project('yarn.lock'))).toBe(`yarn add ${roundel} && yarn remove chalk`);
     rmSync(dir, { recursive: true, force: true });
-    expect(await next(project('bun.lockb'))).toBe('bun add roundel && bun remove chalk');
+    expect(await next(project('bun.lockb'))).toBe(`bun add ${roundel} && bun remove chalk`);
     rmSync(dir, { recursive: true, force: true });
-    expect(await next(project('bun.lock'))).toBe('bun add roundel && bun remove chalk');
+    expect(await next(project('bun.lock'))).toBe(`bun add ${roundel} && bun remove chalk`);
   });
 
   it('counts one uncommitted change in the singular', () => {

@@ -204,15 +204,21 @@ export const migrateCommand = defineCommand({
   options: {
     dryRun: { type: 'boolean', description: 'scan and report; write nothing' },
     force: { type: 'boolean', description: 'migrate even though the git tree has uncommitted changes' },
+    // U12-3: by default an incumbent moves only when package.json declares it. Names are checked
+    // in `migrate.js`, so the list of incumbents stays out of this module's weight.
+    only: { type: 'string', multiple: true, placeholder: 'lib,…', description: 'rewrite only these incumbents, by package name, declared or not' },
+    skip: { type: 'string', multiple: true, placeholder: 'lib,…', description: 'leave these incumbents alone, by package name' },
   },
   effects: 'idempotent',
   examples: [
     { command: 'burgee migrate --dry-run', description: 'what it would change, without changing it' },
+    { command: 'burgee migrate --only chalk,ora', description: 'move two incumbents and leave the rest' },
     { command: 'burgee migrate --json', description: 'the same report as data; exit 1 when anything was refused' },
   ],
   run: async ({ positionals, options }) => {
     const [{ migrate }, { host }] = await Promise.all([import('./migrate.js'), import('./runtime.js')]);
-    return await migrate({ dir: positionals[0] ?? host.cwd(), dryRun: options.dryRun === true, force: options.force === true });
+    const { only, skip } = options as { only?: string[]; skip?: string[] };
+    return await migrate({ dir: positionals[0] ?? host.cwd(), dryRun: options.dryRun === true, force: options.force === true, ...(only === undefined ? {} : { only }), ...(skip === undefined ? {} : { skip }) });
   },
 });
 
