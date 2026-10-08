@@ -17,7 +17,7 @@
     "contract": {
       "type": "integer",
       "minimum": 1,
-      "description": "The plugin contract this object follows. A host refuses a newer contract than it knows."
+      "description": "The plugin contract this object follows: `1` today. A host refuses a newer contract than it knows, and burgee also refuses a plugin that declares none \u2014 `definePlugin` stamps it, a plain object writes `contract: 1`."
     },
     "tokens": {
       "type": "object",
@@ -475,7 +475,7 @@
       "description": "One caique widget: how a prompt kind of the plugin's own is drawn.",
       "properties": {
         "static": {
-          "description": "(spec) => string. Required: what a pipe, an agent or a screen reader gets instead of the interactive prompt."
+          "description": "(spec) => string. Required: what a pipe, an agent or a screen reader gets instead of the interactive prompt. `spec` is the prompt \u2014 `{ kind, message }` plus any field the kind reads; `caique check` passes `{ kind, message: 'preview', ...sample.done }`."
         },
         "frame": {
           "description": "(t, spec) => string. Optional: the animated form; leave it out and the widget is line-mode only."
@@ -486,7 +486,7 @@
             "running",
             "done"
           ],
-          "description": "Two named states of plain data that `caique check` renders the widget with."
+          "description": "Two named states of plain data that `caique check` renders the widget with, e.g. `{ running: { value: 0 }, done: { value: 4 } }`; each is spread into the `spec` that `static` receives."
         }
       }
     },
@@ -524,7 +524,7 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 39,
-          "description": "Precedence, strictly between the flag (0) and the declared default (40): a source may not beat what the user typed, nor sink below the default."
+          "description": "Precedence, strictly between the flag (0) and the declared default (40): a source may not beat what the user typed, nor sink below the default. Lower wins, and the built-in layers are flag 0, environment 10, config file 20, package.json 30, default 40 \u2014 so 11 to 19 ranks above the config file and below the environment."
         },
         "values": {
           "type": "object",
@@ -638,7 +638,10 @@
       "properties": {
         "filter": {
           "type": "object",
-          "description": "`{ command: RegExp }`: fire only for commands whose path matches."
+          "required": [
+            "command"
+          ],
+          "description": "`{ command: RegExp }`, e.g. `{ command: /^deploy/ }`: fire only for commands whose path, its words joined by spaces, matches. Leave it out and the hook fires for every command."
         },
         "handler": {
           "description": "(ctx) => void | Promise<void>. Required. On parse it may return the string[] argv to use instead."

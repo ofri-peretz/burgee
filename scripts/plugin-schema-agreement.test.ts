@@ -106,6 +106,8 @@ const HOSTS = [
       'an option of no known type': { ...base, contract: 1, commands: [{ path: ['x'], options: { tags: { type: 'array' } }, effects: 'read_only' }] },
       'an effects burgee does not know': { ...base, contract: 1, commands: [{ path: ['x'], options: {}, effects: 'sometimes' }] },
       'a hook stage that does not exist': { ...base, contract: 1, hooks: { later: { handler: noop } } },
+      'a hook filter that names no command': { ...base, contract: 1, hooks: { preRun: { filter: {}, handler: noop } } },
+      'a hook filter that is a string': { ...base, contract: 1, hooks: { preRun: { filter: 'deploy', handler: noop } } },
       'an enforce that is neither pre nor post': { ...base, contract: 1, enforce: 'first' },
     },
   },

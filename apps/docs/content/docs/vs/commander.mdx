@@ -75,14 +75,14 @@ Weight. From the root README's *Measured* table (2026-09-09, one machine, genera
 | :-- | --: | --: |
 | Runtime dependencies | 5, none outside the burgee family | 0 |
 | Full CLI run over bare node | +14.0 ms | +15.3 ms |
-| Installed size | 1474 KB | 203 KB |
+| Installed size | 1511 KB | 203 KB |
 
-Against commander alone, `burgee/commander` is the heavier bundle (1.559×). Lighter than
+Against commander alone, `burgee/commander` is the heavier bundle (1.562×). Lighter than
 commander alone is not reachable while the front end also carries a manifest, a schema and an
 MCP server, so the `lighter-than-commander` gate is a downward-only ratchet instead: it holds
 the ratio within 1.565× and may only be lowered (D-157). Against commander *plus* what a
 commander user installs to match burgee's config, shutdown and
-cursor handling, it is met (0.482×). Both rows are on the README and neither is hidden. And
+cursor handling, it is met (0.483×). Both rows are on the README and neither is hidden. And
 commander has users; burgee is new.
 
 ## When to switch

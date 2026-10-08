@@ -18,7 +18,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { type Host } from './hosts.js';
 import { latestVersion } from './upstream.js';
-import { classify, internalImports, readSuiteDeps, rewriteAt, rootPackage, siblingImports, splitSpec, vendor } from './vendor.js';
+import { classify, internalImports, keptPath, readSuiteDeps, rewriteAt, rootPackage, siblingImports, splitSpec, vendor } from './vendor.js';
 
 // Every git call still runs for real; the spy only records what `vendor()` asked for.
 vi.mock('node:child_process', async (importOriginal) => {
@@ -169,6 +169,55 @@ describe('vendoring a whole suite', () => {
     expect(vi.mocked(latestVersion)).toHaveBeenCalledWith('@scope/fakehost');
     vendor(unpinned, into());
     expect(vi.mocked(latestVersion)).toHaveBeenLastCalledWith('fakehost');
+  });
+});
+
+// #794's re-vendor deleted `vendor/exit-hook/node_modules/exit-hook/` and
+// `vendor/wrap-ansi/.gitignore`: committed by hand, needed by the suites, and provided by no
+// upstream release, so the staging swap replaced the directory without them.
+describe('what the host keeps across a re-vendor', () => {
+  it('carries every declared path from the suite it replaces, on the first re-vendor and every one after', () => {
+    const dir = into();
+    const host = hostAt(upstream(), { keep: ['.gitignore', 'node_modules/incumbent'] });
+    vendor(host, dir);
+    const live = join(dir, 'fakehost');
+    writeFileSync(join(live, '.gitignore'), '!node_modules/\n');
+    mkdirSync(join(live, 'node_modules', 'incumbent', 'lib'), { recursive: true });
+    writeFileSync(join(live, 'node_modules', 'incumbent', 'lib', 'index.js'), 'export default 1;\n');
+
+    vendor(host, dir);
+    vendor(host, dir);
+
+    expect(read(live, '.gitignore')).toBe('!node_modules/\n');
+    expect(read(live, 'node_modules', 'incumbent', 'lib', 'index.js')).toBe('export default 1;\n');
+    // The suite itself is still the freshly vendored one.
+    expect(read(live, 'test', 'a.test.js')).toContain("require('../shim.mjs')");
+  });
+
+  it('drops what the host does not declare, so the list is the whole of what survives', () => {
+    const dir = into();
+    const host = hostAt(upstream(), { keep: ['.gitignore'] });
+    vendor(host, dir);
+    const live = join(dir, 'fakehost');
+    writeFileSync(join(live, 'stray.js'), '1;\n');
+    vendor(host, dir);
+    expect(existsSync(join(live, 'stray.js'))).toBe(false);
+  });
+
+  it('prefers the committed copy over one the clone also produced', () => {
+    const dir = into();
+    const host = hostAt(upstream(), { keep: ['test/data.json'] });
+    vendor(host, dir);
+    writeFileSync(join(dir, 'fakehost', 'test', 'data.json'), '{"data":"ours"}\n');
+    vendor(host, dir);
+    expect(read(dir, 'fakehost', 'test', 'data.json')).toBe('{"data":"ours"}\n');
+  });
+
+  it('refuses an entry that is absolute, empty, or climbs out of the vendored directory', () => {
+    for (const bad of ['', '/etc', '../yargs', 'a/../../b', 'a//b', './a', 'a\\b']) {
+      expect(() => keptPath(bad), bad).toThrow('must be a relative posix path inside the vendored directory');
+    }
+    expect(keptPath('node_modules/exit-hook')).toBe(join('node_modules', 'exit-hook'));
   });
 });
 

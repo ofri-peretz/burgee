@@ -407,6 +407,36 @@ function siblingFile(from: string, name: string): { name: string; path: string }
   return found === undefined ? undefined : { name: found, path: join(from, found) };
 }
 
+/**
+ * A `Host.keep` entry as a path under the vendored root, or a refusal. Posix, relative, and
+ * never climbing out: the list is copied from one directory into another, and an entry like
+ * `../yargs` would carry another host's suite into this one.
+ */
+export function keptPath(entry: string): string {
+  const parts = entry.split('/');
+  if (entry === '' || entry.startsWith('/') || entry.includes('\\') || parts.some((p) => p === '' || p === '.' || p === '..')) {
+    throw new Error(`keep entry ${JSON.stringify(entry)} must be a relative posix path inside the vendored directory`);
+  }
+  return join(...parts);
+}
+
+/**
+ * Copy what the host declares as hand-committed (`Host.keep`) from the directory about to be
+ * replaced into the one replacing it. Without this the swap below deletes it: #794's re-vendor
+ * removed exit-hook's unpacked incumbent and wrap-ansi's `.gitignore`, and nothing in the
+ * clone could bring them back.
+ */
+function carryKept(host: Host, live: string, staging: string): void {
+  for (const entry of host.keep ?? []) {
+    const rel = keptPath(entry);
+    const from = join(live, rel);
+    if (!existsSync(from)) continue;
+    const to = join(staging, rel);
+    rmSync(to, { recursive: true, force: true });
+    cpSync(from, to, { recursive: true, verbatimSymlinks: true });
+  }
+}
+
 /** Vendor the host's suite at its latest npm release (or the given version). */
 export function vendor(host: Host, into: string, version = host.pinnedVersion ?? latestVersion(host.npmName ?? host.name)): VendorResult {
   const clone = mkdtempSync(join(tmpdir(), `vendor-${host.name}-`));
@@ -495,6 +525,7 @@ export function vendor(host: Host, into: string, version = host.pinnedVersion ??
       rmSync(staging, { recursive: true, force: true });
       throw new Error(`vendor: ${host.name} produced no test files at ${version} — refusing to replace the vendored suite with nothing. Check the tag and the host's testDir/testGlob.`);
     }
+    carryKept(host, live, staging);
     rmSync(live, { recursive: true, force: true });
     renameSync(staging, live);
 
