@@ -137,7 +137,7 @@ async function classify(cause: unknown, argv: string[], node: CommandNode | unde
     const dash = explain.singleDashHint(argv);
     if (dash !== undefined) return { code: ExitCode.USAGE, message, hint: dash };
     // The flags as typed, not the canonical keys: `fix` is run verbatim, and `--dryRun` is refused.
-    const better = explain.unknownOption(cause, Object.keys(node?.options ?? {}).map(kebab));
+    const better = explain.unknownOption(cause, Object.keys(node?.options ?? {}).map(kebab), argv);
     return { code: ExitCode.USAGE, message, hint: 'run --help to see the available options', ...better };
   }
   return { code: ExitCode.RUNTIME, message };

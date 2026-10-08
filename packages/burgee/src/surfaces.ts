@@ -18,7 +18,8 @@ import { ExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
 import { type CommandNode, type Manifest, type OptionSpec } from './manifest.js';
 import { type Package } from './pkg.js';
 import { suggestSimilar } from './suggest.js';
-import { childrenOf, groupUsage } from './usage.js';
+import { jsonSpelling } from './unknown-option.js';
+import { childrenOf, groupUsage, runnableBelow } from './usage.js';
 
 /** The slice of the engine's `Io` a surface reads. */
 export interface SurfaceIo {
@@ -165,17 +166,71 @@ const shellWord = (word: string): string => (/^[\w@%+=:,./-]+$/u.test(word) ? wo
  * guesses nothing (E3: an executed guess burns the turn `fix` exists to save). The hint names
  * the flag and not `<program> --schema`: a program is often run under another name (`node
  * cli.mjs`, an alias, a wrapper), and B1 watched an agent run the declared name literally.
+ *
+ * The listing is the commands that run, each with what it takes (`groupUsage`), and the fix
+ * carries the caller's request for JSON in burgee's spelling, wherever it was typed — so
+ * `get user.name --format json` is one line to run, not two refusals in a row.
  */
 function unknownCommand({ manifest, root }: Resolving, node: CommandNode, before: string[], typed: string[]): UsageError {
-  const first = typed[0] as string;
+  const { words, json } = jsonAsked(typed);
+  const lead = typed[0] as string;
+  // A request for JSON typed before the command — `--json config get key`, `--format json …` —
+  // is a request for that command's `--json`. When what follows it names a command that runs,
+  // the fix is that command with `--json` where it is parsed.
+  const reached = manifest.resolve([...before, ...words], root);
+  if ((isJsonFlag(lead) || jsonSpelling(typed, 0) > 0) && (reached.node as CommandNode).run !== undefined) {
+    const error = new UsageError(isJsonFlag(lead) ? `${lead} goes after the command` : `unknown option ${lead}`, isJsonFlag(lead) ? undefined : 'did you mean --json?');
+    return Object.assign(error, { fix: line((reached.node as CommandNode).path, reached.rest, json) });
+  }
+  const first = words[0] ?? lead;
   const said = suggestSimilar(first, childrenOf(manifest, node).map((c) => c.path.at(-1) as string));
+  const near = meant(manifest, node, first, said);
+  if (near === undefined) {
+    const hint = said === '' ? 'run --schema for every command and option as JSON, in one call' : said.trim().slice(1, -1).replace('Did', 'did');
+    return Object.assign(new UsageError(`unknown command "${first}"`, hint), { usage: groupUsage(manifest, node) });
+  }
+  const error = new UsageError(`unknown command "${first}"`, `did you mean ${near.join(' ')}?`);
+  return Object.assign(error, { fix: line([...root, ...before, ...near], words.slice(1), json) });
+}
+
+/**
+ * The command a word meant, as the words to type from `node`, or nothing when that is a guess.
+ *
+ * A word that is exactly the name of one command deeper down is that command — `get` is
+ * `config get` — ahead of a sibling a few edits away. B1's agents typed `get` without `config` in
+ * 18 of 40 runs of the two tasks that read config; `get` is two edits from `greet`, so the fix
+ * said `greet user.name`, and four of those runs ran it. Otherwise, the one sibling `said` names.
+ */
+function meant(manifest: Manifest, node: CommandNode, word: string, said: string): string[] | undefined {
+  const exact = runnableBelow(manifest, node).filter((c) => c.path.length > node.path.length + 1 && c.path.at(-1) === word);
+  if (exact.length === 1) return (exact[0] as CommandNode).path.slice(node.path.length);
   // String slicing, not a regex over the typed word (CodeQL js/polynomial-redos): `suggestSimilar`
   // says `\n(Did you mean X?)` for one match and `\n(Did you mean one of X, Y?)` for a tie.
   const one = said.startsWith('\n(Did you mean ') && !said.startsWith('\n(Did you mean one of ');
-  const near = one ? said.slice('\n(Did you mean '.length, -'?)'.length) : undefined;
-  const error = new UsageError(`unknown command "${first}"`, said === '' ? 'run --schema for every command and option as JSON, in one call' : said.trim().slice(1, -1).replace('Did', 'did'));
-  if (near === undefined) return Object.assign(error, { usage: groupUsage(manifest, node) });
-  return Object.assign(error, { fix: [...root, ...before, near, ...typed.slice(1)].map(shellWord).join(' ') });
+  return one ? [said.slice('\n(Did you mean '.length, -'?)'.length)] : undefined;
+}
+
+/**
+ * The words with every request for JSON taken out — `--json`, `--json=<fields>`, and the
+ * spellings other CLIs use for it (`jsonSpelling`) — and the flag that asks for it in burgee's
+ * own spelling. Nothing after `--` is read: that is the handler's (G5).
+ */
+function jsonAsked(typed: string[]): { words: string[]; json?: string } {
+  const end = typed.includes('--') ? typed.indexOf('--') : typed.length;
+  for (let at = 0; at < end; at++) {
+    const word = typed[at] as string;
+    const spelled = jsonSpelling(typed, at);
+    const taken = isJsonFlag(word) ? 1 : spelled;
+    if (taken > 0) return { words: [...typed.slice(0, at), ...typed.slice(at + taken)], json: spelled > 0 ? '--json' : word };
+  }
+  return { words: typed };
+}
+
+/** A command line to run: the path, the caller's own words, and `--json` before any `--`. */
+function line(path: string[], words: string[], json: string | undefined): string {
+  const end = words.includes('--') ? words.indexOf('--') : words.length;
+  const all = json === undefined ? [...path, ...words] : [...path, ...words.slice(0, end), json, ...words.slice(end)];
+  return all.map(shellWord).join(' ');
 }
 
 /**

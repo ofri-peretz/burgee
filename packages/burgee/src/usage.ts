@@ -73,10 +73,31 @@ export function commandUsage(node: CommandNode): Usage {
 export const childrenOf = (manifest: Manifest, node: CommandNode): CommandNode[] =>
   manifest.commands.filter((c) => c.hidden !== true && c.path.length === node.path.length + 1 && node.path.every((seg, i) => c.path[i] === seg));
 
-/** A group's usage line and its visible commands. */
+/** Whether `c` is `group` or sits anywhere below it. */
+const within = (c: CommandNode, group: CommandNode): boolean => group.path.length <= c.path.length && group.path.every((seg, i) => c.path[i] === seg);
+
+/** Every visible command that runs, at any depth below `node`, in declaration order; a hidden group hides what it holds. */
+export const runnableBelow = (manifest: Manifest, node: CommandNode): CommandNode[] =>
+  manifest.commands.filter(
+    (c) => c.run !== undefined && c.path.length > node.path.length && within(c, node) && !manifest.commands.some((g) => g.hidden === true && g.path.length > node.path.length && within(c, g)),
+  );
+
+/** A command as typed from `from`, with what it takes: `config get <key>`. */
+export const signature = (c: CommandNode, from: CommandNode): string => [...c.path.slice(from.path.length), ...(c.arguments ?? []).map(argumentTerm)].join(' ');
+
+/**
+ * A group's usage line and its commands, each with what it takes.
+ *
+ * When every command that runs below the group fits in the rows, those are the rows —
+ * `config get <key>`, not `config` — so the line to run is in the refusal. B1's agents ran
+ * `config user.name` after a list that said only `config` in 15 of the 40 runs of the two tasks
+ * that read config, each a turn spent learning that the word was `get <key>`. A tree too large
+ * for the rows lists its own level, as before.
+ */
 export function groupUsage(manifest: Manifest, node: CommandNode): Usage {
   const at = node.path.join(' ');
-  const rows = childrenOf(manifest, node).map((c) => ({ name: c.path.at(-1) as string, description: c.summary ?? c.description ?? '' }));
+  const below = runnableBelow(manifest, node);
+  const rows = (below.length <= ROWS ? below : childrenOf(manifest, node)).map((c) => ({ name: signature(c, node), description: c.summary ?? c.description ?? '' }));
   return bounded({ command: `${at} <command>` }, 'commands', rows, `${at} --help`);
 }
 

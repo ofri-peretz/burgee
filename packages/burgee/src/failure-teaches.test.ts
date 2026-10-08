@@ -140,9 +140,9 @@ describe('an unknown command names what exists, and the nearest one', () => {
         'hint: run --schema for every command and option as JSON, in one call',
         'usage: tool <command>',
         'commands:',
-        '  fail     fail on purpose',
-        '  shapes',
-        '  bare     short',
+        '  fail                     fail on purpose',
+        '  shapes [file] <rest...>',
+        '  bare                     short',
         '  wide',
         '  login',
         '  fixed',
@@ -193,5 +193,99 @@ describe('help names the agent surfaces', () => {
     expect((await run('fail', '--help')).stdout).toContain("  --explain <option>  where an option's value came from\n");
     expect((await run('config', '--help')).stdout).not.toContain('--explain');
     expect((await run('fail', '--help')).stdout).not.toContain('For agents');
+  });
+});
+
+/**
+ * B1's CI transcripts (`b1-transcripts` of the bench runs at #847, #853, #855 and #856): the
+ * refusals that cost burgee a turn each. A list naming `config` but not `config get <key>`; `get`
+ * corrected to `greet` while `config get` existed; `--json` and `--format json` typed before the
+ * command and answered with `unknown command "--json"`. Each case below is one of those.
+ */
+const small = defineProgram({
+  name: 'demo',
+  commands: [
+    defineCommand({ name: 'greet', description: 'Greet someone', effects: 'read_only', arguments: [{ name: 'name', required: true }], run: () => 'hi' }),
+    defineCommand({
+      name: 'config',
+      description: 'Read configuration',
+      commands: [defineCommand({ name: 'get', description: 'Print one value', effects: 'read_only', arguments: [{ name: 'key', required: true }], run: ({ positionals }) => positionals[0] })],
+    }),
+    defineCommand({
+      name: 'secrets',
+      hidden: true,
+      commands: [defineCommand({ name: 'rotate', effects: 'idempotent', run: () => ({ changed: false }) })],
+    }),
+    defineCommand({ name: 'fail', description: 'Fail on purpose', effects: 'read_only', run: () => 'no' }),
+  ],
+});
+const demo = async (...argv: string[]): ReturnType<typeof runCommand> => await runCommand(small, argv);
+
+describe('a refusal carries the line to run', () => {
+  it('lists every command that runs, with what it takes, when they fit — and nothing under a hidden group', async () => {
+    expect((await demo('user.name')).stderr).toBe(
+      [
+        'error: unknown command "user.name"',
+        'hint: run --schema for every command and option as JSON, in one call',
+        'usage: demo <command>',
+        'commands:',
+        '  greet <name>      Greet someone',
+        '  config get <key>  Print one value',
+        '  fail              Fail on purpose',
+        '',
+      ].join('\n'),
+    );
+    expect((await demo('config', 'user.name')).stderr).toContain('usage: demo config <command>\ncommands:\n  get <key>  Print one value\n');
+  });
+
+  it('reads a word that names exactly one deeper command as that command, ahead of a sibling a few edits away', async () => {
+    // `get` is two edits from `greet`; it is the whole name of `config get`.
+    expect(await demo('get', 'user.name')).toEqual({ code: ExitCode.USAGE, stdout: '', stderr: 'error: unknown command "get"\nhint: did you mean config get?\nfix: demo config get user.name\n' });
+  });
+
+  it('guesses nothing when two deeper commands share the word', async () => {
+    const twice = defineProgram({
+      name: 'two',
+      commands: ['a', 'b'].map((name) => defineCommand({ name, commands: [defineCommand({ name: 'get', effects: 'read_only', run: () => name })] })),
+    });
+    const r = await runCommand(twice, ['get']);
+    expect(r.stderr).not.toContain('fix:');
+    expect(r.stderr).toContain('  a get\n  b get\n');
+  });
+
+  it('carries a request for JSON into the fix in burgee’s own spelling, before any --', async () => {
+    expect((await demo('get', 'k', '--format', 'json')).stderr).toBe('error: unknown command "get"\nhint: did you mean config get?\nfix: demo config get k --json\n');
+    expect(JSON.parse((await demo('get', 'k', '--json', '--', 'x')).stdout)).toMatchObject({ error: { fix: 'demo config get k --json -- x' } });
+    // After `--` the words are the handler's, and nothing there is read as a request.
+    expect((await demo('get', 'k', '--', '--format', 'json')).stderr).toContain('fix: demo config get k -- --format json\n');
+  });
+
+  it('answers --json before the command with the command that takes it, on stdout as an envelope', async () => {
+    expect(await demo('--json', 'config', 'get', 'user.name')).toEqual({
+      code: ExitCode.USAGE,
+      stdout: `${JSON.stringify({ ok: false, error: { code: 2, message: '--json goes after the command', fix: 'demo config get user.name --json' } })}\n`,
+      stderr: '',
+    });
+    expect(JSON.parse((await demo('--json=value', 'config', 'get', 'k')).stdout)).toMatchObject({ error: { fix: 'demo config get k --json=value' } });
+  });
+
+  it('answers --format json or --output=json before the command as the unknown option it is, with --json as the fix', async () => {
+    const said = 'error: unknown option --format\nhint: did you mean --json?\nfix: demo config get user.name --json\n';
+    expect((await demo('--format', 'json', 'config', 'get', 'user.name')).stderr).toBe(said);
+    expect((await demo('--output=json', 'config', 'get', 'user.name')).stderr).toContain('fix: demo config get user.name --json\n');
+    // When what follows names no command that runs, the word that does not is the refusal.
+    expect((await demo('--format', 'json', 'user.name')).stderr).toContain('error: unknown command "user.name"\n');
+    expect((await demo('--json')).stdout).toContain(String.raw`"message":"unknown command \"--json\""`);
+  });
+
+  it('lists what the group takes when --json precedes a group and no command', async () => {
+    expect((await demo('config', '--json')).stdout).toContain('"commands":[{"name":"get <key>","description":"Print one value"}]');
+  });
+});
+
+describe('help says what each command takes', () => {
+  it('lists a command with its arguments, the way commander does', async () => {
+    expect((await demo('config', '--help')).stdout).toContain('Commands:\n  get <key>  Print one value\n');
+    expect((await demo('--help')).stdout).toContain('  greet <name>  Greet someone\n');
   });
 });

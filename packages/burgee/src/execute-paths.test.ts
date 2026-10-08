@@ -62,9 +62,9 @@ describe('required input is refused before the handler runs', () => {
     expect(r.stdout).toMatch(/^token is unset/);
     expect(handler).not.toHaveBeenCalled();
   });
-  it('names a missing required argument, and the command to ask about (requirePositionals)', async () => {
+  it('names a missing required argument, and prints what the command takes rather than pointing at --help (requirePositionals)', async () => {
     const r = await runCommand(program(need), ['need', '--token', 't']);
-    expect(r).toEqual({ code: ExitCode.USAGE, stdout: '', stderr: 'error: missing required argument "target"\nhint: run --help to see what "need" takes\nusage: app need [options] <target>\noptions:\n  --token <value>  (required)\n' });
+    expect(r).toEqual({ code: ExitCode.USAGE, stdout: '', stderr: 'error: missing required argument "target"\nusage: app need [options] <target>\noptions:\n  --token <value>  (required)\n' });
     expect(handler).not.toHaveBeenCalled();
   });
   it('runs once both are there', async () => {
