@@ -16,4 +16,8 @@ describe('B1 lands its own observation', () => {
     expect(agentJob).toMatch(/benchmarks\/results\/agent-cli-bench\//u);
     expect(agentJob).toMatch(/git add "\$FILE"/u);
   });
+
+  it('never cancels a started run on main, where B1 spends an hour of agent runs', () => {
+    expect(bench).toMatch(/cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}/u);
+  });
 });
