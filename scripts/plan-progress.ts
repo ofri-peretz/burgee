@@ -251,7 +251,7 @@ const STEPS: Step[] = [
   { id: '0.2', what: 'every roadmap row agrees with its intent (runs the check)', done: () => { execFileSync(shim('npx'), ['tsx', 'scripts/roadmap-index.ts', '--check'], spawnOpts({ cwd: ROOT, stdio: 'ignore' as const })); return true; } },
   {
     id: '0.4',
-    what: 'chalk back to its 58 baseline (runs the gate, does not read it)',
+    what: 'chalk passes its whole suite (runs the gate, does not read it)',
     // First version read `baseline.json` and printed a tick while `npm run compat -- chalk`
     // said 57. A check that reads the number it is meant to verify cannot fail for the
     // reason the thing is broken — the same mistake as trusting `npm ci --dry-run` on the
@@ -265,8 +265,10 @@ const STEPS: Step[] = [
       // the chalk grade flake — red here while `npm run compat -- chalk` printed 58 / 58 in
       // the very next shell. A number that depends on what else this process is doing is not
       // a reading of the tree.
+      // 59 since chalk 6.0.1 added a case: the step is "the whole suite passes", so the reading
+      // is `N / N` for whatever N the vendored suite has — never a number written down here.
       const out = chalkGrade();
-      return out.includes('58 / 58') && !out.includes('\u2716');
+      return /chalk\s+\S+\s+(\d+) \/ \1\b/u.test(out) && !out.includes('\u2716');
     },
   },
   { id: '1.1', what: 'one plugin schema across the family', done: () => schemaHashes().size === 1 },
