@@ -447,7 +447,8 @@
         },
         "when": {
           "type": "object",
-          "description": "When the resolver applies. Leave it out and it always does.",
+          "description": "When the resolver applies. Leave it out and it always does. Only `platform` and `envAny` are conditions: any other key is refused, because a condition nobody reads would make the resolver apply everywhere.",
+          "additionalProperties": false,
           "properties": {
             "platform": {
               "type": "array",

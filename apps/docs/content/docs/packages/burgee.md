@@ -124,11 +124,11 @@ node packages/burgee/dist/cli.js check ./acme-plugin.mjs --json
 
 `data.name` is the plugin, `data.commands` one row per contributed command, and `data.hooks`
 one row per hook with its `stage`. A refusal exits 1 and carries `data.refused` instead —
-`{ code, message, fix }`, where `fix` is the edit to make — so read the exit code and
-`data.refused`, not `ok`, which only says the command ran:
+`{ code, message, fix }`, where `fix` is the edit to make. `ok` agrees with the exit code, so
+it is `false` here, and `data.refused.fix` says what to change:
 
 ```json
-{"ok":true,"data":{"refused":{"code":"E_PLUGIN_CONTRACT","message":"plugin \"acme\" declares no contract; …","fix":"add `contract: 1` — `definePlugin` from `burgee/plugin` stamps it"},"exitCode":1},"meta":{"provenance":{}}}
+{"ok":false,"data":{"refused":{"code":"E_PLUGIN_CONTRACT","message":"plugin \"acme\" declares no contract; …","fix":"add `contract: 1` — `definePlugin` from `burgee/plugin` stamps it"},"exitCode":1},"meta":{"provenance":{}}}
 ```
 
 ## Migrating

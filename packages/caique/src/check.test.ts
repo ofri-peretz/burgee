@@ -96,17 +96,6 @@ describe('a plugin that contributes', () => {
     expect(out).not.toContain('never shown');
   });
 
-  it('reports a static projection that throws, by its message or by the value thrown, and still exits 0', async () => {
-    const file = pluginFile(`export default { name: 'loud', widgets: {
-      'loud-error': { static: () => { throw new Error('no spec.choices'); }, sample: { running: {}, done: {} } },
-      'loud-value': { static: () => { throw 'a bare string'; }, sample: { running: {}, done: {} } },
-    } };`);
-    expect(await run([file])).toEqual({
-      code: EXIT_OK,
-      out: 'loud — 2 widgets\n  loud-error  static projection threw: no spec.choices\n  loud-value  static projection threw: a bare string\nloud: ok\n',
-    });
-  });
-
   it('forgets whatever was registered before, so the report is this file’s alone', async () => {
     await run([pluginFile(`export default { name: 'first', widgets: { 'first-kind': { static: () => '' } } };`)]);
     await run([pluginFile(`export default { name: 'second', widgets: { 'second-kind': { static: () => '' } } };`)]);
@@ -121,6 +110,24 @@ describe('a refusal is the code, the message and the fix, exit 1 (R8)', () => {
     expect(code).toBe(EXIT_RUNTIME);
     expect(out).toMatch(/^typo — 0 widgets\nE_NO_CONTRIBUTION: typo registers, but contributes nothing caique reads\n {2}fix: add a `widgets` section/);
     expect(out).not.toContain('typo: ok');
+  });
+
+  it('a static projection that throws on its own sample, by its message or by the value thrown — never followed by ok', async () => {
+    // This case used to pin exit 0 and `loud: ok` after both rows said the projection threw: a
+    // widget whose `static` throws gives a pipe, an agent and a screen reader nothing.
+    const file = pluginFile(`export default { name: 'loud', widgets: {
+      'loud-error': { static: () => { throw new Error('no spec.choices'); }, sample: { running: {}, done: {} } },
+      'loud-value': { static: () => { throw 'a bare string'; }, sample: { running: {}, done: {} } },
+      'loud-fine': { static: () => 'drawn', sample: { running: {}, done: {} } },
+    } };`);
+    const fix = '  fix: make `static` return a string for its `sample.done` — it is what a pipe, an agent and a screen reader get, and a throw leaves them nothing\n';
+    expect(await run([file])).toEqual({
+      code: EXIT_RUNTIME,
+      out:
+        'loud — 3 widgets\n  loud-error  static projection threw: no spec.choices\n  loud-value  static projection threw: a bare string\n  loud-fine  static "drawn"\n' +
+        `E_NO_STATIC_PROJECTION: plugin "loud": widget "loud-error"’s static projection threw on its own sample: no spec.choices\n${fix}` +
+        `E_NO_STATIC_PROJECTION: plugin "loud": widget "loud-value"’s static projection threw on its own sample: a bare string\n${fix}`,
+    });
   });
 
   it('a plugin the schema refuses', async () => {

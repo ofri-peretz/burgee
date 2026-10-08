@@ -228,7 +228,8 @@ acme: ok
 ```
 
 The census comes first and `ok` last. A refusal exits 1 with a code and the edit to make —
-`E_NO_STATIC_PROJECTION` for a widget with no `static`, `E_PLUGIN_SCHEMA` for a built-in kind or
+`E_NO_STATIC_PROJECTION` for a widget with no `static`, or one whose `static` throws on its own
+`sample`, `E_PLUGIN_SCHEMA` for a built-in kind or
 a `sample` that is not `{ running, done }`.
 
 ## Migrating
@@ -325,7 +326,7 @@ Graded by the incumbent's own test suite:
 | `clack` | 16 / 16 |
 | `inquirer-core` | 41 / 41 |
 
-Weight, installed and tree-inclusive: **242,623 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.6236**.
+Weight, installed and tree-inclusive: **243,336 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.6255**.
 
 ## For agents
 

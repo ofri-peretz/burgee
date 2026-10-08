@@ -9,7 +9,8 @@
  *
  * A refusal is data too: `{ refused: { code, message, fix }, exitCode: 1 }`. The command
  * still exits 1 — `exitCodeOf` reads the code off the result — so a script branches on the
- * status and an agent reads the fix, and neither has to do both.
+ * status and an agent reads the fix, and neither has to do both. The `--json` envelope's `ok`
+ * is that same verdict: `false` on a refusal, because the exit is.
  *
  * **Registered into a throwaway `Manifest`, not validated alone.** `validate` checks the shape;
  * `Manifest.use()` is what runs every contributed command through the same door a first-party

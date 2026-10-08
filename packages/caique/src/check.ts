@@ -104,6 +104,7 @@ async function inspect(argv: readonly string[], write: (s: string) => void): Pro
   validate(plugin);
   register(plugin);
   const name = (plugin as { name: string }).name;
+  const threw: string[] = [];
   const rows = Object.entries((plugin as { widgets?: Record<string, Widget> }).widgets ?? {}).map(([kind, w]) => {
     // The static projection is the one every widget must have — it is what a pipe, a CI log and
     // an agent see — so it is the one shown. Rendered with the widget's own sample when it has
@@ -112,7 +113,11 @@ async function inspect(argv: readonly string[], write: (s: string) => void): Pro
     try {
       return `${kind}  static ${JSON.stringify(w.static({ kind, message: 'preview', ...(w.sample.done as object) } as Parameters<Widget['static']>[0]))}`;
     } catch (error) {
-      return `${kind}  static projection threw: ${error instanceof Error ? error.message : String(error)}`;
+      // A `static` that throws on the widget's own sample is a widget with no static projection
+      // on exactly the surfaces that need one, so it is refused below, never followed by `ok`.
+      const said = error instanceof Error ? error.message : String(error);
+      threw.push(`plugin "${name}": widget "${kind}"’s static projection threw on its own sample: ${said}`);
+      return `${kind}  static projection threw: ${said}`;
     }
   });
   write(`${name} — ${String(rows.length)} widgets\n`);
@@ -125,6 +130,12 @@ async function inspect(argv: readonly string[], write: (s: string) => void): Pro
     );
   }
   for (const row of rows) write(`  ${row}\n`);
+  if (threw.length > 0) {
+    for (const message of threw) {
+      refuse('E_NO_STATIC_PROJECTION', message, 'make `static` return a string for its `sample.done` — it is what a pipe, an agent and a screen reader get, and a throw leaves them nothing', write);
+    }
+    return EXIT_RUNTIME;
+  }
   write(`${name}: ok\n`);
   return EXIT_OK;
 }

@@ -205,6 +205,13 @@ function templateIsAbsolute(template: string): boolean {
 function validateWhen(when: unknown, at: string): void {
   if (when === undefined) return;
   if (!isRecord(when)) throw new PluginError('E_PLUGIN_SCHEMA', `${at} has a \`when\` that is not an object`, 'a `when` is `{ platform?, envAny? }`, or leave it out and the resolver always applies');
+  // A key bellpull does not read is a condition that never runs: `{ env: [...] }` for `envAny`
+  // made the resolver apply everywhere, silently. Refused here, as the schema's
+  // `additionalProperties: false` refuses it, so the two give one verdict.
+  const unknown = Object.keys(when).find((key) => key !== 'platform' && key !== 'envAny');
+  if (unknown !== undefined) {
+    throw new PluginError('E_PLUGIN_SCHEMA', `${at}: \`when.${unknown}\` is not a condition bellpull reads`, 'the keys a `when` allows are `platform` and `envAny`; rename it to one of them, or remove it');
+  }
   for (const key of ['platform', 'envAny']) {
     const value = when[key];
     if (value === undefined) continue;
