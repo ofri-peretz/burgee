@@ -430,7 +430,7 @@
       ]
     },
     "flagstaff/boxen": {
-      "ceiling": 0.6,
+      "ceiling": 0.45,
       "unit": "ratio",
       "target": 1,
       "derive": {
@@ -438,7 +438,7 @@
         "observations": 30,
         "sigmas": 3,
         "step": 0.05,
-        "rule": "max(mean + 3 sd, max) over the CI runs carrying #763, every attempt, 2026-09-30 (D-20260930-b5-ceilings-from-spread): n 21, mean 0.505, sd 0.028, max 0.552; mean + 3 sd = 0.589; up to 0.05 = 0.6. Lowered as the series grows: npm run ratchets:propose."
+        "rule": "1.25x the local reading until CI measures this code (the series restarts here, 2026-10-07): boxen 9.0.0 is the incumbent since #827 and the fast paths below changed ours. Lowered as the series grows: npm run ratchets:propose. Previous rule: max(mean + 3 sd, max) over the CI runs carrying #763, 2026-09-30 (D-20260930-b5-ceilings-from-spread): n 21, mean 0.505, sd 0.028, max 0.552 -> 0.6."
       },
       "history": [
         {
@@ -468,6 +468,13 @@
           "decision": "D-20260930-b5-ceilings-from-spread",
           "measured": 0.505,
           "why": "From CI spread, not one run: n 21, mean 0.505, sd 0.028, max 0.552 -> 0.6 (was 0.65, which was 1.25x a single reading)."
+        },
+        {
+          "ceiling": 0.45,
+          "setOn": "2026-10-07",
+          "decision": "D-20260929-b5-runtime-ratchets",
+          "measured": 0.345,
+          "why": "Against boxen 9.0.0 the CI series had crept to 0.508, 0.586, 0.570, 0.603 and broke 0.6 on main. Two exact fast paths in flagstaff/boxen: writeControls returns text with no ESC, tab or backspace unchanged (it was 9% of a box), and a bar of printable ASCII and box-drawing characters is sliced by index instead of walked (16%). 0.58 -> 0.345 locally over three 21-round runs; 0.345 x 1.25 = 0.431, up to 0.05 = 0.45. boxen 9's own suite is still 213 / 213."
         }
       ]
     },

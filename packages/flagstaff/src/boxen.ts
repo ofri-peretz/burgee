@@ -127,6 +127,15 @@ const LINE_BREAKS = /\r\n|[\n\v\f\r]/gu;
  * uses a set operation, so they match the same strings.
  */
 const STYLING_ESCAPE = /^(?:\u{1B}\[[0-9:;]*m|\u{1B}\]8;[^\u{0}-\u{1F};\u{7F}]*;[^\u{0}-\u{1F}\u{7F}]*(?:\u{7}|\u{1B}\\))$/u;
+const PLAIN_CONTROLS = /[\u{1B}\t\u{8}]/u;
+/**
+ * A run where every column is one UTF-16 code unit and nothing is an escape: printable ASCII and
+ * the box-drawing block, which string-width and linegauge both count as one column. Such a run is
+ * sliced by index; anything else goes through `sliceAnsi`, which walks it. A border bar is almost
+ * always one of these, and the walk was 16% of a box.
+ */
+const NARROW_RUN = /^[\u{20}-\u{7E}\u{2500}-\u{257F}]*$/u;
+const cut = (text: string, start: number, end?: number): string => (NARROW_RUN.test(text) ? text.slice(start, end) : sliceAnsi(text, start, end));
 const CONTROL_ESCAPE = /(\u{1B}\].*?(?:\u{7}|\u{1B}\\|$)|\u{1B}\[[\u{20}-\u{3F}]*[\u{40}-\u{7E}]|\u{1B}[^\u{7}\u{5B}\u{5D}]?)/gsu;
 
 /**
@@ -137,6 +146,9 @@ const CONTROL_ESCAPE = /(\u{1B}\].*?(?:\u{7}|\u{1B}\\|$)|\u{1B}\[[\u{20}-\u{3F}]
  * styling escape inside it.
  */
 function writeControls(text: string): string {
+  // ponytail: every CONTROL_ESCAPE match starts with ESC, so text without ESC, a tab or a
+  // backspace comes back as it went in. Most box text is that, and the walk below was 9% of a box.
+  if (!PLAIN_CONTROLS.test(text)) return text;
   const characters: string[] = [];
   for (const [index, part] of text.split(CONTROL_ESCAPE).entries()) {
     if (index % HALF === 1) {
@@ -246,15 +258,15 @@ function alignText(text: string, alignment: Alignment, width: number): string {
 /** A label placed in a bar, by the bar's width rather than its length — a bar character can be wide. */
 function makeLabel(text: string, horizontal: string, alignment: Alignment | undefined): string {
   const textWidth = stringWidth(text);
-  if (alignment === 'left') return text + sliceAnsi(horizontal, textWidth);
-  if (alignment === 'right') return sliceAnsi(horizontal, textWidth) + text;
+  if (alignment === 'left') return text + cut(horizontal, textWidth);
+  if (alignment === 'right') return cut(horizontal, textWidth) + text;
   const spare = Math.max(0, stringWidth(horizontal) - textWidth);
   if (spare % HALF === 1) {
     // An odd remainder cannot split evenly: one column comes off the left, or the bar runs past its corner.
-    const rest = sliceAnsi(horizontal, Math.floor(spare / HALF) + textWidth);
-    return sliceAnsi(rest, 1) + text + rest;
+    const rest = cut(horizontal, Math.floor(spare / HALF) + textWidth);
+    return cut(rest, 1) + text + rest;
   }
-  const rest = sliceAnsi(horizontal, spare / HALF + textWidth);
+  const rest = cut(horizontal, spare / HALF + textWidth);
   return rest + text + rest;
 }
 
@@ -316,7 +328,7 @@ function makeContentText(text: string, { padding, width, textAlignment, height }
 function fillBar(character: string, width: number): string {
   const fill = character || PAD;
   const count = Math.ceil(Math.max(0, width) / Math.max(1, stringWidth(fill)));
-  return sliceAnsi(fill.repeat(count), 0, Math.max(0, width));
+  return cut(fill.repeat(count), 0, Math.max(0, width));
 }
 
 /** boxen 9's hex test: three or six real hex digits. */
@@ -369,7 +381,7 @@ function boxContent(content: string, contentWidth: number, options: Sized): stri
     const fill = fillBar(character, span);
     const filled = label ? makeLabel(label, fill, alignment) : fill;
     // A wide character does not fill the last column of an odd width, and a label can end inside one.
-    return sliceAnsi(filled + PAD.repeat(Math.max(0, span - stringWidth(filled))), 0, Math.max(0, span));
+    return cut(filled + PAD.repeat(Math.max(0, span - stringWidth(filled))), 0, Math.max(0, span));
   };
 
   const rows: string[] = [];
