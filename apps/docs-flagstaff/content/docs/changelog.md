@@ -3,6 +3,21 @@ title: Changelog
 description: "Every release of flagstaff, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.2.2
+
+### Patch Changes
+
+- [#848](https://github.com/ofri-peretz/burgee/pull/848) [`6ae533e`](https://github.com/ofri-peretz/burgee/commit/6ae533e4610c32bad557f5d74a24d0c9a0f07f7e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The family `schema.json` describes what five values look like. `contract` is `1`, and burgee refuses a plugin that declares none. A caique widget's `static(spec)` gets `{ kind, message, ...sample.done }`. A seniority `rank` sits between the built-in layers at flag 0, environment 10, config file 20, `package.json` 30 and default 40. A burgee hook's `filter` is `{ command: RegExp }`, now with `command` required, so the schema and the host refuse the same filters.
+
+- [#857](https://github.com/ofri-peretz/burgee/pull/857) [`d80b2d0`](https://github.com/ofri-peretz/burgee/commit/d80b2d0f4a535400c6825b42ac2d8e1be2827f4e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The family `schema.json` closes a bellpull resolver's `when` with `additionalProperties: false`, so the schema and bellpull's own validation refuse the same unknown keys.
+
+- [#854](https://github.com/ofri-peretz/burgee/pull/854) [`fd8e659`](https://github.com/ofri-peretz/burgee/commit/fd8e659076420852b954c8dc57828f575c1df8b8) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `flagstaff/boxen` draws a box about 40% faster: text with no escape, tab or backspace skips the control-character walk, and a border bar of ASCII or box-drawing characters is cut by index instead of walked. Output is unchanged; boxen 9.0.0's own suite still passes 213 / 213.
+- Updated dependencies [[`6ae533e`](https://github.com/ofri-peretz/burgee/commit/6ae533e4610c32bad557f5d74a24d0c9a0f07f7e), [`d80b2d0`](https://github.com/ofri-peretz/burgee/commit/d80b2d0f4a535400c6825b42ac2d8e1be2827f4e)]:
+  - closeout@1.0.1
+  - linegauge@1.0.5
+  - paratext@1.0.1
+  - roundel@1.0.1
+
 ## 1.2.1
 
 ### Patch Changes

@@ -3,6 +3,18 @@ title: Changelog
 description: "Every release of bellpull, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.0.1
+
+### Patch Changes
+
+- [#857](https://github.com/ofri-peretz/burgee/pull/857) [`d80b2d0`](https://github.com/ofri-peretz/burgee/commit/d80b2d0f4a535400c6825b42ac2d8e1be2827f4e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A resolver's `when` refuses any key other than `platform` and `envAny`, at `register()` and in `bellpull check`, with `E_PLUGIN_SCHEMA` naming the key and the keys allowed. A misspelled condition such as `when: { env: [...] }` was ignored, so the resolver applied on every machine and `check` reported `ok`.
+
+- [#848](https://github.com/ofri-peretz/burgee/pull/848) [`6ae533e`](https://github.com/ofri-peretz/burgee/commit/6ae533e4610c32bad557f5d74a24d0c9a0f07f7e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The family `schema.json` describes what five values look like. `contract` is `1`, and burgee refuses a plugin that declares none. A caique widget's `static(spec)` gets `{ kind, message, ...sample.done }`. A seniority `rank` sits between the built-in layers at flag 0, environment 10, config file 20, `package.json` 30 and default 40. A burgee hook's `filter` is `{ command: RegExp }`, now with `command` required, so the schema and the host refuse the same filters.
+
+- [#857](https://github.com/ofri-peretz/burgee/pull/857) [`d80b2d0`](https://github.com/ofri-peretz/burgee/commit/d80b2d0f4a535400c6825b42ac2d8e1be2827f4e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The family `schema.json` closes a bellpull resolver's `when` with `additionalProperties: false`, so the schema and bellpull's own validation refuse the same unknown keys.
+
+- [#848](https://github.com/ofri-peretz/burgee/pull/848) [`6ae533e`](https://github.com/ofri-peretz/burgee/commit/6ae533e4610c32bad557f5d74a24d0c9a0f07f7e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Each README now shows a whole plugin as a default export, the command that checks it (from an install, and from a clone where `dist/` has to be built first), and the report `check` prints when the plugin passes. caique says what a widget's `static(spec)` receives. seniority gives the `rank` for each slot between the built-in layers. bellpull says that `{VAR}` is the only substitution a path gets.
+
 ## 1.0.0
 
 ### Major Changes
