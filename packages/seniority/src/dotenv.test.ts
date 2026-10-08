@@ -131,7 +131,7 @@ describe('parse({ fast }) routes to the scanner, and only then', () => {
   });
 });
 
-describe('populate (dotenv 18.0.5)', () => {
+describe('populate (dotenv 18.0.6)', () => {
   it('sets what is missing and leaves what is already there', () => {
     const target: Record<string, string | undefined> = { A: 'already' };
     populate(target, { A: 'from-file', B: 'from-file' });
@@ -169,6 +169,27 @@ describe('populate (dotenv 18.0.5)', () => {
   it('treats a key that is only inherited as absent, so `toString` can be set', () => {
     const target: Record<string, string | undefined> = {};
     expect(populate(target, { toString: 'x' })).toEqual({ toString: 'x' });
+  });
+
+  // dotenv 18.0.6 (#1069) reads both options through `parseBoolean`, not `Boolean`: an option
+  // that arrives as a string, from a config file or a CLI flag, is off when it spells false.
+  it.each(['false', 'FALSE', '0', 'no', 'off', ''])('does not overwrite when `override` is the string %j', (override) => {
+    const target: Record<string, string | undefined> = { A: 'already' };
+    populate(target, { A: 'from-file' }, { override } as unknown as { override: boolean });
+    expect(target).toEqual({ A: 'already' });
+  });
+
+  it('overwrites when `override` is a string that does not spell false', () => {
+    const target: Record<string, string | undefined> = { A: 'already' };
+    populate(target, { A: 'from-file' }, { override: 'true' } as unknown as { override: boolean });
+    expect(target).toEqual({ A: 'from-file' });
+  });
+
+  it('does not log when `debug` is the string "false"', () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    populate({ A: 'held' }, { A: 'file' }, { debug: 'false' } as unknown as { debug: boolean });
+    expect(log).not.toHaveBeenCalled();
+    log.mockRestore();
   });
 });
 

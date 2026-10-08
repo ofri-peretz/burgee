@@ -286,6 +286,22 @@ describe('a suite whose case count depends on the platform', () => {
     expect(regressed(onDarwin(125), baseline, absentPassing('signal-exit', 'darwin'))).toBe(true);
   });
 
+  it('reads a guard on the CPU as well as the platform (execa 10.1.0, `arch() === \'x64\'`)', () => {
+    // `early-error.js` registers `write to fast-exit subprocess` inside `if (!isWindows)` and
+    // then `if (arch() === 'x64')`: the ratchet's ubuntu runner has it, an arm64 Mac does not,
+    // and an Intel Mac does. A platform alone cannot say that.
+    expect(absentHere('execa', 'linux', 'x64')).toBe(0);
+    expect(absentHere('execa', 'darwin', 'x64')).toBe(0);
+    expect(absentHere('execa', 'darwin', 'arm64')).toBe(1);
+    expect(absentHere('execa', 'linux', 'arm64')).toBe(1);
+    expect(absentHere('execa', 'win32', 'x64')).toBe(1);
+    // bellpull passes none of execa's cases anywhere, so nothing is credited where it is absent.
+    expect(absentPassing('execa', 'darwin', 'arm64')).toBe(0);
+    // The same one reference on the machine that registers 1179 and the one that registers 1180.
+    expect(1179 + absentHere('execa', 'darwin', 'arm64')).toBe(1180);
+    expect(1180 + absentHere('execa', 'linux', 'x64')).toBe(1180);
+  });
+
   it('claims nothing for a host that declares nothing', () => {
     for (const host of ['commander', 'dotenv', 'rc']) {
       for (const platform of ['darwin', 'linux', 'win32'] as const) expect(absentHere(host, platform)).toBe(0);

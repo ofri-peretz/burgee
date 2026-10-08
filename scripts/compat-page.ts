@@ -113,8 +113,8 @@ const active = [...HOSTS.filter((h) => h.status === 'active'), ...PREVIOUS_MAJOR
 const allowances = active.flatMap((h) =>
   h.controlFailures === undefined ? [] : [`| **${h.name}** | ${h.controlFailures.count} | ${h.controlFailures.why} |`],
 );
-const platformOnly = (c: { only?: readonly string[]; notOn?: readonly string[] }): string =>
-  c.only !== undefined ? `only on ${c.only.join(', ')}` : `not on ${(c.notOn ?? []).join(', ')}`;
+const platformOnly = (c: { only?: readonly string[]; notOn?: readonly string[]; arch?: readonly string[] }): string =>
+  `${c.only !== undefined ? `only on ${c.only.join(', ')}` : `not on ${(c.notOn ?? []).join(', ')}`}${c.arch === undefined ? '' : `, and only on ${c.arch.join(', ')}`}`;
 const conditional = active.flatMap((h) =>
   h.conditionalCases === undefined ? [] : [`| **${h.name}** | ${h.conditionalCases.count} | ${platformOnly(h.conditionalCases)} | ${h.conditionalCases.why} |`],
 );

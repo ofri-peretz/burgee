@@ -27,7 +27,7 @@
 
 <p align="center">
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/cosmiconfig%20suite-242%2F243-b45309?style=flat-square" alt="seniority passes 242 of 243 cases of the cosmiconfig test suite" /></a>
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/dotenv%20suite-179%2F179-0a6b47?style=flat-square" alt="seniority passes 179 of 179 cases of the dotenv test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/dotenv%20suite-181%2F181-0a6b47?style=flat-square" alt="seniority passes 181 of 181 cases of the dotenv test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/lilconfig%20suite-77%2F77-0a6b47?style=flat-square" alt="seniority passes 77 of 77 cases of the lilconfig test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/rc%20suite-1%2F1-0a6b47?style=flat-square" alt="seniority/rc passes 1 of 1 cases of the rc test suite" /></a>
 </p>
@@ -388,7 +388,7 @@ read 240 of 241.
 
 ### `seniority/dotenv`
 
-**Graded by dotenv 18.0.5's own test suite: 179 of 179, the same as the real `dotenv` gets
+**Graded by dotenv 18.0.6's own test suite: 181 of 181, the same as the real `dotenv` gets
 here.** That includes its `dotenv run` command line and signal forwarding, both parsers, and
 `import 'dotenv/config'`. dotenv 17.4.2's suite is graded too and not claimed: 107 of 141,
 because 17's vault, tips and `console.log` line are what 18 changed.
@@ -415,11 +415,11 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `cosmiconfig` | 242 / 243 |
-| `dotenv` | 179 / 179 |
+| `dotenv` | 181 / 181 |
 | `lilconfig` | 77 / 77 |
 | `rc` | 1 / 1 |
 
-Weight, installed and tree-inclusive: **223,452 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1133**.
+Weight, installed and tree-inclusive: **223,450 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1133**.
 
 ## For agents
 

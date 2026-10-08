@@ -222,19 +222,21 @@ const allowedFailures = (host: string): number => hostNamed(host)?.controlFailur
  * is why `cosmiconfig`'s 241-on-darwin against 243-on-ubuntu reached a published page as two
  * different rates for one commit.
  */
-export function absentHere(host: string, platform: NodeJS.Platform = process.platform): number {
+export function absentHere(host: string, platform: NodeJS.Platform = process.platform, cpu: NodeJS.Architecture = process.arch): number {
   const declared = hostNamed(host)?.conditionalCases;
   if (declared === undefined) return 0;
-  const absent = declared.only === undefined ? declared.notOn.includes(platform) : !declared.only.includes(platform);
-  return absent ? declared.count : 0;
+  const offPlatform = declared.only === undefined ? declared.notOn.includes(platform) : !declared.only.includes(platform);
+  // An architecture guard only narrows: execa's case sits under `!isWindows` *and* `x64`.
+  const offCpu = declared.arch !== undefined && !declared.arch.includes(cpu);
+  return offPlatform || offCpu ? declared.count : 0;
 }
 
 /**
  * The passes this machine cannot see: a host's declared `passing`, on a platform where
  * {@link absentHere} says its conditional cases never register, and `0` everywhere else.
  */
-export function absentPassing(host: string, platform: NodeJS.Platform = process.platform): number {
-  if (absentHere(host, platform) === 0) return 0;
+export function absentPassing(host: string, platform: NodeJS.Platform = process.platform, cpu: NodeJS.Architecture = process.arch): number {
+  if (absentHere(host, platform, cpu) === 0) return 0;
   return hostNamed(host)?.conditionalCases?.passing ?? 0;
 }
 
