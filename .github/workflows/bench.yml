@@ -48,9 +48,13 @@ on:
     - cron: "40 5 * * 2"
   workflow_dispatch:
 
+# On a PR a newer push supersedes the run. On main a started run finishes: B1 is an hour of paid
+# agent runs, and cancelling it threw away the spend and the reading. 21 of 30 runs on main were
+# cancelled on 2026-10-08. GitHub keeps one run and only the newest pending one, so commits in
+# between are skipped before they start, not killed halfway.
 concurrency:
   group: bench-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
