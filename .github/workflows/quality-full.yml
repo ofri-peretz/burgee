@@ -79,6 +79,11 @@ jobs:
         with:
           next-cache: "true"
       - run: npx turbo run build --concurrency=4
+      # The published-artifact gate, on every PR. It ran only in the lint job, which is not
+      # required, and at release: #828 grew seniority's tarball 14.6% and merged, and
+      # release.yml then refused three main commits and held four 1.0.0s back. Here it feeds
+      # Quality (Full) Gate, which is required.
+      - run: npm run check:artifacts
 
   typecheck:
     name: Typecheck (Turbo)
