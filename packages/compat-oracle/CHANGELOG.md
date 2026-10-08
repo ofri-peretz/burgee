@@ -1,5 +1,11 @@
 # compat-oracle
 
+## 0.3.1
+
+### Patch Changes
+
+- [#845](https://github.com/ofri-peretz/burgee/pull/845) [`0b8c2fd`](https://github.com/ofri-peretz/burgee/commit/0b8c2fd8ae2da26b591cd4ec3f9a27f09c957acb) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A re-vendor keeps the files a host commits by hand. `Host.keep` lists paths under `vendor/<host>/` that no upstream release provides, and `vendor()` carries them from the directory it replaces across the staging swap. exit-hook keeps its unpacked incumbent under `node_modules/exit-hook/` and wrap-ansi keeps its `.gitignore` and `node_modules/`, which the re-vendor in [#794](https://github.com/ofri-peretz/burgee/issues/794) deleted.
+
 ## 0.3.0
 
 ### Minor Changes
