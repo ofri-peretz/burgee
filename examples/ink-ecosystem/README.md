@@ -10,7 +10,7 @@ unmodified, with a check on what it drew and what it reported:
 ```
 
 `ink/` is a two-file package, `export * from 'controlroom/ink'`, versioned at the ink API the
-drop-in implements (6.8.0), so each component's peer range on ink is met and npm installs no
+drop-in implements (8.0.0), so each component's peer range on ink is met and npm installs no
 other ink. The test checks that first: every component's own `import 'ink'` must land on the
 drop-in, or the rest would pass on ink and prove nothing.
 
