@@ -21,6 +21,10 @@
  *
  * The `unpacked` case below is the one that fails on the old single-dimension check.
  */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -82,5 +86,14 @@ describe("artifact size ratchet", () => {
     const baseline = base();
     expect(sizeVerdict(pkg, pack(9999, 8888), baseline, true)).toEqual([]);
     expect(baseline["demo"]).toEqual({ size: 9999, unpackedSize: 8888 });
+  });
+});
+
+describe("the gate runs where a PR cannot merge past it", () => {
+  // The lint job is not a required check; the build job feeds the required Quality (Full) Gate.
+  it("runs check:artifacts in quality-full.yml's build job", () => {
+    const workflow = readFileSync(join(import.meta.dirname, "..", ".github", "workflows", "quality-full.yml"), "utf8");
+    const build = workflow.slice(workflow.indexOf("\n  build:"), workflow.indexOf("\n  typecheck:"));
+    expect(build).toContain("npm run check:artifacts");
   });
 });
