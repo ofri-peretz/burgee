@@ -102,7 +102,9 @@ describe('A8 — an agent branches on the code and reads the reason from `refuse
     const { code, stdout } = burgee(['migrate', dir, '--json']);
     const { ok, data } = envelope(stdout);
     expect(code, 'refusals present and the shell was told the run succeeded').toBe(ExitCode.RUNTIME);
-    expect(ok).toBe(true);
+    // This pinned `ok: true` until the envelope learned to agree with the exit code: it was
+    // the lock on the very contradiction the comment above names.
+    expect(ok, 'the envelope agrees with the exit code').toBe(false);
     expect(data['refused']).toEqual([{ file: 'src/a.ts', line: 1, specifier: 'commander/lib/command.js', reason: 'deep-import' }]);
   });
 

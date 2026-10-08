@@ -519,9 +519,12 @@ async function emit(io: Io, outcome: Outcome): Promise<void> {
   }
   // `meta.provenance` says where every option value came from (V3) — the difference between one call and five for an agent.
   const meta = { provenance: outcome.provenance, ...(outcome.changed === undefined ? {} : { changed: outcome.changed }) };
-  const envelope = { ok: true, data: outcome.data, meta };
+  // `ok` is the exit code's verdict, not "the handler returned": a result that names a non-zero
+  // `exitCode` (a `check` refusal, `migrate` with refusals) leaves non-zero, so it says `false`.
+  const code = exitCodeOf(outcome.data);
+  const envelope = { ok: code === ExitCode.OK, data: outcome.data, meta };
   io.out.write(outcome.json ? `${JSON.stringify(envelope)}\n` : (outcome.lines?.(outcome.data) ?? `${render(outcome.data)}\n`));
-  return await leave(io, exitCodeOf(outcome.data));
+  return await leave(io, code);
 }
 
 interface FailureContext {
