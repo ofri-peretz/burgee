@@ -372,6 +372,24 @@ export interface Host {
    */
   suiteDeps?: string[];
   /**
+   * Paths under `vendor/<name>/` that are committed by hand and that no upstream release
+   * provides, carried across a re-vendor from the directory being replaced.
+   *
+   * `vendor()` builds the new suite in a staging directory and swaps it in whole, so anything
+   * the clone does not produce is gone after the swap. On the re-vendor in PR #794 that was
+   * `exit-hook`'s unpacked incumbent under `node_modules/exit-hook/` and `wrap-ansi`'s
+   * `.gitignore`, both of which the suites need. A list here is data a reviewer can read;
+   * "keep whatever was committed" would be a guess the vendor step cannot check.
+   *
+   * Each entry is a file or directory, relative to the vendored root, posix, and may not
+   * climb out of it. One the live directory does not have is skipped (a first vendor has
+   * nothing to keep); one the clone also produced is replaced by the committed copy, because
+   * declaring it here says the committed copy is the one the suite is graded with.
+   * `vendored-suite.test.ts` holds every committed `node_modules/` path and root dotfile to
+   * this list.
+   */
+  keep?: string[];
+  /**
    * Settings from the host's own vitest config that its suite depends on, merged into the
    * generated one. Upstream's config is not vendored — it sits beside the package, not
    * beside the tests, and the runner writes its own so the file list is the graded one —
@@ -908,6 +926,10 @@ export const HOSTS: Host[] = [
     // on `Cannot find package 'has-ansi'`. A documented hazard is still a hazard.
     // `installSuiteDeps` restores this on every grade, so a re-vendor cannot remove it.
     suiteDeps: ['has-ansi@6.0.2'],
+    // Committed by hand, so a re-vendor carries them over instead of dropping them (#794
+    // deleted the `.gitignore`). It un-ignores this directory's `node_modules/`, which is why
+    // that tree is committed at all.
+    keep: ['.gitignore', 'node_modules'],
     target: 'linegauge/wrap',
     status: 'active',
     note: "**Moved to 10.0.2 on 2026-09-28: 85 / 85 against a control of 85 / 85.** The five new cases keep an escape sequence whole when a combining mark follows it and leave OSC payloads un-normalized; `linegauge/wrap` failed four of them, because `wrap()` ran NFC over the whole string and `ESC[31m` + `U+0301` composed into `ESC[31ḿ`. It normalizes only the text between sequences now, as 10.0.2 does. Before that: 80 / 80 control and 80 / 80 target, measured 2026-09-14 — the port reproduces wrap-ansi 10 exactly, which is what `wrap.test.ts` already asserted in-package and this makes public. Its suite imports `has-ansi`, declared in `suiteDeps` since 2026-09-21: it was a committed `vendor/wrap-ansi/node_modules/` directory, the `.gitignore` beside it named the hazard that a re-vendor would delete it, and a re-vendor then deleted it and took the row to 0 / 80.",
@@ -1498,6 +1520,9 @@ export const HOSTS: Host[] = [
     imports: [{ upstream: './index.js', subpath: '/exit-hook', reexportDefault: true, control: 'exit-hook' }],
     surfaceFiles: ['index.d.ts', 'index.js'],
     runner: 'ava',
+    // The unpacked 5.1.0 tarball described above. No release of exit-hook ships it, so a
+    // re-vendor carries it over (#794 deleted it).
+    keep: ['node_modules/exit-hook'],
     target: 'closeout',
     status: 'active',
     note: "Graded against `closeout/exit-hook`. The suite's fixtures live in `fixtures/` and `import … from '../index.js'`, which the vendor step rewrites to the same generated shim the test file gets, so one unedited suite grades either implementation. `ava` and `execa` are declared at the workspace root already, which is what `vendored-suite.test.ts` checks; the incumbent itself is the vendor-local copy described above.",

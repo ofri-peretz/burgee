@@ -14,10 +14,10 @@
 # lockfile, where it would read as one. `ansi-regex` is nested under `has-ansi` rather than
 # left to the hoisted copy so this directory resolves on its own.
 #
-# The hazard, written down because it is not obvious: `npm run compat -- --vendor` deletes
-# `vendor/wrap-ansi/` whole before re-copying, so a re-vendor removes this tree. Restore it
-# with `git checkout -- packages/compat-oracle/vendor/wrap-ansi/node_modules` and the row
-# comes back; the control run is what catches it if you forget, at 0 / 80.
+# A re-vendor used to delete this tree and this file: `vendor()` swaps a freshly built
+# directory in whole, and #794's run dropped both. `hosts.ts` now lists them in this host's
+# `keep`, which the vendor step carries across the swap, and `vendored-suite.test.ts` fails if
+# a committed `node_modules/` path or root dotfile here is missing from that list.
 !node_modules/
 
 # ava's per-run scratch file. A record of which cases failed on this machine last time —

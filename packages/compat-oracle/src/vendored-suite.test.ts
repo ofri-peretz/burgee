@@ -369,6 +369,44 @@ describe('the generated files really are gitignored', () => {
   });
 });
 
+/**
+ * `vendor()` swaps a freshly built directory in whole, so a committed file no release provides
+ * survives only if the host declares it in `keep`. Two shapes are never produced by the clone:
+ * anything under the vendored root's own `node_modules/` (a suite-local install), and a
+ * dotfile at the vendored root (the step writes `.source.json` and nothing else there). #794
+ * deleted one of each.
+ */
+describe('a re-vendor keeps what was committed by hand', () => {
+  const tracked = trackedVendorFiles();
+
+  it.each(onDisk.map((h) => [h.name, h] as const))('%s declares in `keep` every committed file no release provides', (_name, host) => {
+    if (tracked === undefined) {
+      expect.soft('git unavailable').toBe('the index check did not run');
+      return;
+    }
+    const prefix = `vendor/${host.name}/`;
+    const handCommitted = tracked
+      .filter((p) => p.startsWith(prefix))
+      .map((p) => p.slice(prefix.length))
+      .filter((rel) => rel.startsWith('node_modules/') || (!rel.includes('/') && rel.startsWith('.') && rel !== '.source.json'));
+    const kept = host.keep ?? [];
+    expect(handCommitted.filter((rel) => !kept.some((k) => rel === k || rel.startsWith(`${k}/`)))).toEqual([]);
+  });
+
+  it.each([...HOSTS, ...PREVIOUS_MAJORS].filter((h) => (h.keep ?? []).length > 0).map((h) => [h.name, h] as const))('%s keeps only paths that exist', (_name, host) => {
+    for (const k of host.keep ?? []) expect(existsSync(join(VENDOR, host.name, k)), `${host.name}: keep entry ${k} is not on disk`).toBe(true);
+  });
+});
+
+/** `git ls-files vendor`, or undefined where there is no usable git. */
+function trackedVendorFiles(): string[] | undefined {
+  try {
+    return execFileSync('git', ['ls-files', '--', 'vendor'], { cwd: root, encoding: 'utf8' }).split('\n').filter((l) => l !== '');
+  } catch {
+    return undefined;
+  }
+}
+
 function readInternals(host: Host): string[] | undefined {
   const at = join(VENDOR, host.name, '.source.json');
   if (!existsSync(at)) return undefined;
