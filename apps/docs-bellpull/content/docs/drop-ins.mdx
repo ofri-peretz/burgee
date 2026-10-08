@@ -1,6 +1,6 @@
 ---
 title: Compatibility
-description: "How bellpull's drop-ins are graded — cross-spawn 68 / 68 and node-which 5 / 5 by their own suites — and why execa's suite grades bellpull 0 / 1179 and is declared a ceiling, not a drop-in."
+description: "How bellpull's drop-ins are graded — cross-spawn 68 / 68 and node-which 5 / 5 by their own suites — and why execa's suite grades bellpull 0 / 1180 and is declared a ceiling, not a drop-in."
 ---
 
 `bellpull/cross-spawn` and `bellpull/node-which` are graded, not described as compatible. Each
@@ -35,7 +35,7 @@ generated from the oracle's last run and is the authority for the current figure
   suite's count of top-level tests, each run under `posix` and `win32` and through both
   `which()` and `which.sync()`. `test/bin.js` grades node-which's command-line tool, which
   bellpull does not ship, and is not graded.
-- **execa — 0 of 1,179, a ceiling.** The 1,179 are execa's `arguments/`, `methods/` and
+- **execa — 0 of 1,180, a ceiling.** The 1,180 are execa's `arguments/`, `methods/` and
   `return/` directories. Every file imports `execa`, which bellpull does not export, so each
   dies before a case runs; the other nine directories read the same zero and are left out of
   the recurring grade because the whole suite takes about eleven minutes. Declaring the row a

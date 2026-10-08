@@ -149,6 +149,13 @@ interface ConditionalCount {
   /** How many cases the platforms that lack them do not register. Exact, not a ceiling. */
   count: number;
   /**
+   * The CPU architectures that register them, for a guard spelled `arch() === 'x'` inside the
+   * platform one — execa 10.1.0's `write to fast-exit subprocess` is under `!isWindows` and then
+   * `arch() === 'x64'`, so the ratchet's ubuntu runner has it and an arm64 Mac does not. It only
+   * narrows: a platform the clause above leaves out stays out. Omitted means every architecture.
+   */
+  arch?: NodeJS.Architecture[];
+  /**
    * How many of them the target passes on the platforms that run them. The ratchet credits
    * exactly this many on a platform that lacks them, so a machine cannot regress cases it
    * never registered — and, because it is declared rather than assumed, cannot hide a real
@@ -837,6 +844,12 @@ export const HOSTS: Host[] = [
     // `ava` block (`concurrency: 1`, `timeout: '240s'`); 10.1.0 moved the suite to `node:test`.
     testConcurrency: 1,
     timeoutMs: 240_000,
+    conditionalCases: {
+      count: 1,
+      notOn: ['win32'],
+      arch: ['x64'],
+      why: "`return/early-error.js` registers `write to fast-exit subprocess` inside `if (!isWindows)` and then `if (arch() === 'x64')`, so the case exists on the ratchet's ubuntu runner and on an Intel Mac, and is **not registered at all** on arm64 or on Windows. The reference is the full set, 1180, measured on ubuntu; an arm64 Mac registers 1179. `bellpull` fails it where it runs, so nothing is credited where it is absent.",
+    },
     ungradedDirs: [
       {
         dir: 'fixtures',
@@ -854,7 +867,7 @@ export const HOSTS: Host[] = [
     ceiling:
       "bellpull ships no execa API and will not: `run` resolves a record on a non-zero exit where execa throws, so an execa façade would silently stop every caller's error path firing (bellpull spec R7). The row is graded to publish that distance as a number rather than as a sentence — every graded file imports `execa`, which `bellpull` does not export, and fails at link time.",
     status: 'active',
-    note: "**Re-vendored 2026-10-07 at 10.1.0 (#843): target `bellpull` 0 / 1179, control 1179 / 1179.** 10.1.0 moved the suite from ava to `node:test` (`node --test --test-concurrency=1 --test-timeout=240000`), so the row's runner moved with it and `timeoutMs` now reaches node's `--test-timeout`; `ava` left `suiteDeps` and `c8` joined it, because `arguments/local.js` now proves `preferLocal` by running `c8` where it ran `ava`. The upstream check named 144 test titles added and 4 removed (`prototype-pollution.js` is new); the counted cases moved 1048 -> 1179. The zero is still a link-time zero and still the whole suite's: over all 152 files, every one fails on `does not provide an export named 'execa'`. The paragraph below is 10.0.1's. Vendored 2026-09-27 at 10.0.1 (GAPS A10, D-160). **Target `bellpull` 0 / 1048, control 1048 / 1048** over `arguments/`, `methods/` and `return/`; the other nine directories are vendored and named in `ungradedDirs` with the cost that keeps them out. Every graded file fails at link time against the target — `The requested module '../../shim.js' does not provide an export named 'execa'` — and the same was measured over all 149 files, so the zero is the whole suite's and not the slice's. This is a ceiling by design, not a façade in progress: see `ceiling`. The one rewrite this row needed was `namedOnly` on the bare `execa` import, because `test/verbose/info.js` also uses the word as a `NODE_DEBUG` value.",
+    note: "**Re-vendored 2026-10-07 at 10.1.0 (#843): target `bellpull` 0 / 1180, control 1180 / 1180 on ubuntu (1179 / 1179 on an arm64 Mac, see `conditionalCases`).** 10.1.0 moved the suite from ava to `node:test` (`node --test --test-concurrency=1 --test-timeout=240000`), so the row's runner moved with it and `timeoutMs` now reaches node's `--test-timeout`; `ava` left `suiteDeps` and `c8` joined it, because `arguments/local.js` now proves `preferLocal` by running `c8` where it ran `ava`. The upstream check named 144 test titles added and 4 removed (`prototype-pollution.js` is new); the counted cases moved 1048 -> 1180. The zero is still a link-time zero and still the whole suite's: over all 152 files, every one fails on `does not provide an export named 'execa'`. The paragraph below is 10.0.1's. Vendored 2026-09-27 at 10.0.1 (GAPS A10, D-160). **Target `bellpull` 0 / 1048, control 1048 / 1048** over `arguments/`, `methods/` and `return/`; the other nine directories are vendored and named in `ungradedDirs` with the cost that keeps them out. Every graded file fails at link time against the target — `The requested module '../../shim.js' does not provide an export named 'execa'` — and the same was measured over all 149 files, so the zero is the whole suite's and not the slice's. This is a ceiling by design, not a façade in progress: see `ceiling`. The one rewrite this row needed was `namedOnly` on the bare `execa` import, because `test/verbose/info.js` also uses the word as a `NODE_DEBUG` value.",
   },
   {
     // The host with no parseable output, and the reason `mode: "exit-code"` exists.

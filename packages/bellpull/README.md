@@ -27,7 +27,7 @@
 
 <p align="center">
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/cross--spawn%20suite-68%2F68-0a6b47?style=flat-square" alt="bellpull/cross-spawn passes 68 of 68 cases of the cross-spawn test suite" /></a>
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/execa%20suite-0%2F1179-b45309?style=flat-square" alt="bellpull passes 0 of 1179 cases of the execa test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/execa%20suite-0%2F1180-b45309?style=flat-square" alt="bellpull passes 0 of 1180 cases of the execa test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/which%20suite-5%2F5-0a6b47?style=flat-square" alt="bellpull passes 5 of 5 cases of the which test suite" /></a>
 </p>
 
@@ -185,7 +185,7 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `cross-spawn` | 68 / 68 |
-| `execa` | 0 / 1179 |
+| `execa` | 0 / 1180 |
 | `which` | 5 / 5 |
 
 Weight, installed and tree-inclusive: **113,666 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1485**.
