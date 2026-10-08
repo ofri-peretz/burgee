@@ -21,7 +21,7 @@
           "why": "Every argument is quoted for `CommandLineToArgvW` and every `cmd.exe` metacharacter escaped, so a `&` in caller data stays one argument instead of starting a second command.",
           "ours": {"status": "yes", "test": "packages/bellpull/src/escape.test.ts", "title": "escapeArgument survives cmd.exe and then the argv parser"},
           "incumbents": {
-            "execa": {"status": "yes", "source": "node_modules/execa/lib/arguments/command-file.js", "quote": "const escapedArguments = parsed.commandArguments.map(argument => escapeArgument(argument, isDoubleEscape));", "note": "and it refuses CR and LF, which cannot be escaped for `cmd.exe`; bellpull records that as an unverified gap"},
+            "execa": {"status": "yes", "source": "node_modules/execa/lib/arguments/command-file.js", "quote": "const escapedArguments = parsed.commandArguments.map(argument => escapeArgument(argument));", "note": "and it refuses CR and LF, which cannot be escaped for `cmd.exe`; bellpull records that as an unverified gap"},
             "cross-spawn": {"status": "yes", "source": "node_modules/cross-spawn/lib/parse.js", "quote": "parsed.args = parsed.args.map((arg) => escape.argument(arg, needsDoubleEscapeMetaChars));"},
             "which": {"status": "n/a", "source": "https://github.com/npm/node-which/blob/v7.0.0/lib/index.js", "note": "resolves a command; it spawns nothing"}
           }
@@ -31,7 +31,7 @@
           "why": "Arguments go to the child as an argv array, so nothing in them is interpreted; `shell: true` exists, off by default, and is documented as the injection surface it is.",
           "ours": {"status": "yes", "test": "packages/bellpull/src/escape.test.ts", "title": "the same argument through a shell executes the injected command — which is why shell is off by default"},
           "incumbents": {
-            "execa": {"status": "yes", "source": "node_modules/execa/lib/arguments/command-file.js", "quote": "if (options.shell || process.platform !== 'win32') {"},
+            "execa": {"status": "yes", "source": "node_modules/execa/lib/arguments/command-file.js", "quote": "return options.shell || process.platform !== 'win32' ? parsed : escapeWindowsCommand(parsed);"},
             "cross-spawn": {"status": "yes", "source": "node_modules/cross-spawn/lib/parse.js", "quote": "return options.shell ? parsed : parseNonShell(parsed);"},
             "which": {"status": "n/a", "source": "https://github.com/npm/node-which/blob/v7.0.0/lib/index.js", "note": "resolves a command; it spawns nothing"}
           }
@@ -66,7 +66,7 @@
           "why": "An empty or relative `PATH` entry means a different directory wherever the program runs, one somebody else may be able to write to, so the resolver skips it and says why.",
           "ours": {"status": "yes", "test": "packages/bellpull/src/which.test.ts", "title": "skips an empty PATH entry instead of reading it as the working directory"},
           "incumbents": {
-            "execa": {"status": "no", "source": "node_modules/execa/lib/arguments/command-file.js", "quote": "if (options.shell || process.platform !== 'win32') {", "note": "off Windows the operating system searches `PATH` as given, empty entries included"},
+            "execa": {"status": "no", "source": "node_modules/execa/lib/arguments/command-file.js", "quote": "return options.shell || process.platform !== 'win32' ? parsed : escapeWindowsCommand(parsed);", "note": "off Windows the operating system searches `PATH` as given, empty entries included"},
             "cross-spawn": {"status": "no", "source": "node_modules/cross-spawn/lib/parse.js", "quote": "if (!isWin) {", "note": "off Windows it resolves nothing; on Windows it asks `which` 2, which searches every entry"},
             "which": {"status": "no", "source": "https://github.com/npm/node-which/blob/v7.0.0/lib/index.js", "note": "joins an empty entry with the command, which resolves against the working directory, and searches relative entries as given"}
           }

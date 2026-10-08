@@ -1,5 +1,5 @@
 /**
- * `seniority/dotenv` — dotenv 18's surface (R8, Y3), graded against dotenv 18.0.5's own suite.
+ * `seniority/dotenv` — dotenv 18's surface (R8, Y3), graded against dotenv 18.0.6's own suite.
  *
  * `.sdlc/intents/seniority/issues.md` records twenty **closed** dotenv issues at ten
  * reactions or more, topped by #89 "Importing dotenv in ES6" at 165: the largest closed-issue
@@ -106,9 +106,10 @@ export function populate(target: Record<string, string | undefined>, parsed: Rec
    
   if (typeof target !== 'object' || target === null || typeof parsed !== 'object' || parsed === null) throw objectRequired();
   const populated: Record<string, string> = {};
-  // `Boolean`, as dotenv does: `config` hands its options through unparsed.
-  const override = Boolean(options.override);
-  const debug = Boolean(options.debug);
+  // `parseBoolean`, as dotenv 18.0.6 does (#1069): `config` hands its options through
+  // unparsed, so `{ override: 'false' }` from a config file or a flag is off, not truthy.
+  const override = truthy(options.override);
+  const debug = truthy(options.debug);
   for (const [key, value] of Object.entries(parsed)) {
      
     const held = Object.hasOwn(target, key);

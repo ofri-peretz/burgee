@@ -208,6 +208,17 @@ describe('a node:test suite, run for real', () => {
     expect(grade(host({ testGlob: '*.test.ts' }), vendorDir, 'fake', 2)).toMatchObject({ passed: 0 });
   });
 
+  it('holds each case to the per-test timeout upstream declares, and to none when it declares none', () => {
+    // execa 10.1.0's `npm run unit` is `node --test --test-concurrency=1 --test-timeout=240000`.
+    // node:test has no per-test timeout by default, so without the flag a case upstream fails
+    // for hanging would run until the whole-suite cap and pass.
+    const slow = ["import test from 'node:test';", "test('slow', async () => { await new Promise((resolve) => setTimeout(resolve, 1500)); });", "test('fast', () => {});"].join('\n');
+    vendored(host({ timeoutMs: 300 }), { 'a.test.js': slow });
+    // node tallies a timed-out case as `# cancelled`, not `# fail`: it is simply not a pass.
+    expect(grade(host({ timeoutMs: 300 }), vendorDir, 'fake', 2)).toMatchObject({ tests: 2, passed: 1 });
+    expect(grade(host(), vendorDir, 'fake', 2)).toMatchObject({ tests: 2, passed: 2, failed: 0 });
+  });
+
   it('grades internal-only files on their own line, outside the gate', () => {
     vendored(host(), { 'a.test.js': "import test from 'node:test';\ntest('a', () => {});\n", 'internal.test.js': suite }, { source: { internalFiles: ['internal.test.js'] } });
     const g = grade(host(), vendorDir, 'fake', 1);

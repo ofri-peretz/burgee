@@ -182,7 +182,7 @@
         },
         {
           "capability": "Passes dotenv's own test suite",
-          "why": "`seniority/dotenv` passes all 179 assertions of dotenv 18.0.5's own suite (node-tap counts assertions), as dotenv itself does here — its `dotenv run` command line and `import 'dotenv/config'` included.",
+          "why": "`seniority/dotenv` passes all 181 assertions of dotenv 18.0.6's own suite (node-tap counts assertions), as dotenv itself does here — its `dotenv run` command line and `import 'dotenv/config'` included.",
           "ours": {"status": "yes", "grade": "packages/compat-oracle/baseline/dotenv.json"},
           "incumbents": {
             "cosmiconfig": {"status": "n/a", "source": "packages/compat-oracle/vendor/cosmiconfig/test/successful-files.test.ts", "quote": "import { cosmiconfig, cosmiconfigSync } from '../shim.mjs';", "note": "a different API"},

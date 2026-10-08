@@ -24,7 +24,7 @@ against it.
 | :--- | :--- | ---: | ---: | :--- |
 | ~~cli-table3 (internals)~~ | `flagstaff/cli-table3` | **103 / 104** | 0 | **closed 2026-09-21 — equals the control** |
 | lilconfig | `seniority` | 0 / 77 | 67 | gap + a **permanent** 10-case blind spot |
-| ~~dotenv~~ | `seniority/dotenv` | **179 / 179** | 0 | **level 2026-10-06 at 18.0.5 — equals the control (D-20261001-seniority-dotenv-vault)** |
+| ~~dotenv~~ | `seniority/dotenv` | **181 / 181** | 0 | **level 2026-10-06 at 18.0.5 — equals the control (D-20261001-seniority-dotenv-vault); level again 2026-10-07 at 18.0.6 (#844)** |
 | ~~cosmiconfig~~ | `seniority` | **242 / 243** | 1 | **level 2026-09-30 — equals the control on ubuntu (D-20260930-seniority-yaml, D-20260930-seniority-xdg-config-home)** |
 | inquirer-core | `caique` | 0 / 41 | 41 | gap |
 | ~~term-img~~ | `paratext/term-img` | **18 / 18** | 0 | **level 2026-09-30 — equals the control (D-20260930-paratext-term-img-path)** |

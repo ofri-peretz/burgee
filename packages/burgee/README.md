@@ -113,21 +113,56 @@ Nothing here needs keeping in sync, because nothing is written twice.
 
 ## Writing a plugin
 
-```ts
-import { definePlugin } from 'burgee/plugin';
+A plugin is one module whose default export is a plain object. In full, with a command and a
+hook:
 
-export default definePlugin({
+```js
+// acme-plugin.mjs
+export default {
   name: 'acme',
-  commands: [{ path: ['audit'], description: 'Audit the tree', options: {}, effects: 'read_only', run: () => ({ findings: 0 }) }],
-});
+  contract: 1, // required on a plain object; `definePlugin` from `burgee/plugin` stamps it for you
+  commands: [
+    { path: ['audit'], description: 'Audit the tree', options: {}, effects: 'read_only', run: () => ({ findings: 0 }) },
+  ],
+  hooks: {
+    // One hook per stage: parse, preRun, postRun, onError, shutdown. `filter.command` is a
+    // RegExp tested against the command's path, words joined by spaces (`deploy prod`);
+    // leave `filter` out and the hook fires for every command.
+    preRun: { filter: { command: /^publish/ }, handler: (ctx) => {} },
+  },
+};
 ```
 
 A plugin's command is read by exactly the code a first-party one is read by, so the same
 refusals apply: reserved option names, duplicate flags, a contributed path that is already
-declared — and `effects`, which every runnable command declares. `definePlugin` stamps the
-`contract` this burgee was compiled against; an object that reaches `use()` without one is
-refused rather than accepted on trust, because burgee's extension point shipped before it
-validated anything.
+declared — and `effects`, which every runnable command declares: `read_only`, `idempotent`,
+`non_idempotent` or `withheld`. An object that reaches `use()` without a `contract` is refused
+rather than accepted on trust, because burgee's extension point shipped before it validated
+anything.
+
+Check it before it ships. `--json` returns the report as a document, and the exit code is the
+verdict:
+
+```bash
+npx burgee check ./acme-plugin.mjs --json
+# in a clone of this repository, where dist/ is not committed: build burgee and the five
+# packages it imports, then run the built bin
+npx turbo run build --filter=burgee
+node packages/burgee/dist/cli.js check ./acme-plugin.mjs --json
+```
+
+```json
+{"ok":true,"data":{"name":"acme","commands":[{"path":"audit","description":"Audit the tree","effects":"read_only"}],"hooks":[{"stage":"preRun","applies":"commands matching /^publish/"}]},"meta":{"provenance":{}}}
+```
+
+`data.name` is the plugin, `data.commands` one row per contributed command, and `data.hooks`
+one row per hook with its `stage`. A refusal exits 1 and carries `data.refused` instead —
+`{ code, message, fix }`, where `fix` is the edit to make. `ok` agrees with the exit code, so
+it is `false` here, and `data.refused.fix` says what to change:
+
+```json
+{"ok":false,"data":{"refused":{"code":"E_PLUGIN_CONTRACT","message":"plugin \"acme\" declares no contract; …","fix":"add `contract: 1` — `definePlugin` from `burgee/plugin` stamps it"},"exitCode":1},"meta":{"provenance":{}}}
+```
 
 ## Migrating
 
@@ -193,6 +228,9 @@ Every command answers the same declaration four more ways, with nothing written 
   envelope.
 - `--explain <option>` — where a value came from: flag, env, config or default. Every
   command's help lists it, and the root help ends with one line for agents.
+- **A plugin can be checked before it ships.** `npx burgee check ./plugin.mjs --json` returns
+  `{ name, commands, hooks }` as `data`, or `data.refused` with a `fix` and exit 1 — the whole
+  plugin and both documents are under [Writing a plugin](#writing-a-plugin).
 
 [Your CLI is an agent tool](https://burgee.interlace.tools/docs/agent-surfaces) has each
 surface; the docs themselves are at

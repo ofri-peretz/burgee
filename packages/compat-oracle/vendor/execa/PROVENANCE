@@ -1,15 +1,15 @@
 package:  execa
 repo:     https://github.com/sindresorhus/execa
-version:  10.0.1
-tag:      v10.0.1
-commit:   8017b279e19347efaf2587711c2d57dbd4330740
-vendored: 2026-09-28
-files:    29
+version:  10.1.0
+tag:      v10.1.0
+commit:   63ddae6aeb6934da06fdb3754647791e58cd87c3
+vendored: 2026-10-08
+files:    30
 tool:     scripts/vendor-suite.ts
 
 How this directory was made
 ---------------------------
-A shallow clone of https://github.com/sindresorhus/execa at v10.0.1, then that repository's own test directory and
+A shallow clone of https://github.com/sindresorhus/execa at v10.1.0, then that repository's own test directory and
 its fixtures copied here. The only edit is to the import specifiers that reach the library:
 each is rewritten to a generated shim, so one unedited suite can grade any implementation.
 Everything else — assertions, fixtures, helpers — is upstream's, byte for byte.
@@ -33,7 +33,7 @@ vendor step deletes any shim it finds, so a stale one can never grade the wrong 
 
 Reproduce
 ---------
-    npx tsx scripts/vendor-suite.ts execa --version 10.0.1
+    npx tsx scripts/vendor-suite.ts execa --version 10.1.0
 
 Every field above is reproduced exactly, with one exception that is a date and not a
 defect: `vendored` is the day the copy was taken, so a fresh run writes today's.

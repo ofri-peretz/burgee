@@ -164,6 +164,27 @@ describe('the plugin object itself', () => {
     expect(refusal(() => manifest.use(plugin({ hooks: 'nope' }))).code).toBe('E_PLUGIN_SCHEMA');
   });
 
+  /**
+   * `hookApplies` reads `filter.command.test(name)` at fire() time, and nothing read the filter
+   * before it. A string `command` registered — `burgee check` reported it as "commands matching
+   * deploy" — and threw a TypeError on the first run; a bare RegExp as the filter has no
+   * `command`, so the hook fired for every command, the opposite of what it was written to do.
+   */
+  it('refuses a hook filter that is not { command: RegExp }, at registration rather than at fire()', () => {
+    for (const filter of ['deploy', /^deploy/, { command: 'deploy' }, { command: ['deploy'] }, {}, null]) {
+      expect(refusal(() => new Manifest().use(plugin({ hooks: { preRun: { filter, handler: noop } } }))), String(filter)).toMatchObject({
+        code: 'E_PLUGIN_SCHEMA',
+        message: expect.stringMatching(/preRun is not \{ handler, filter\?: \{ command: RegExp \} \}/),
+      });
+    }
+  });
+
+  it('accepts a RegExp command filter, and a hook with no filter at all', () => {
+    for (const hook of [{ filter: { command: /^deploy/ }, handler: noop }, { handler: noop }]) {
+      expect(refusal(() => new Manifest().use(plugin({ hooks: { preRun: hook } }))).message, JSON.stringify(hook)).toBe('(nothing was thrown)');
+    }
+  });
+
   it('refuses a commands key that is not an array of command nodes with a path', () => {
     const manifest = new Manifest();
     expect(refusal(() => manifest.use(plugin({ commands: 'nope' }))).code).toBe('E_PLUGIN_SCHEMA');
@@ -183,6 +204,48 @@ describe('the plugin object itself', () => {
     manifest.add({ path: ['audit'], options: {} });
     expect(refusal(() => manifest.use(plugin({ commands: [command({})] }))).message).toMatch(/audit/);
     expect(refusal(() => manifest.use(plugin({ commands: [command({})] }))).code).toBe('E_PLUGIN_SCHEMA');
+  });
+});
+
+/**
+ * The `fix` an author is told to apply. `checkCommand`'s message carries its own remedy, and the
+ * fix used to be one sentence for every contributed command — "a plugin command is declared
+ * exactly as a first-party one" — which names no edit, on the field `burgee check --json` tells
+ * an agent to act on.
+ */
+/** The `fix` a plugin is refused with, or nothing when it was accepted. */
+function fixOf(extra: Record<string, unknown>): string | undefined {
+  try {
+    new Manifest().use(plugin(extra));
+  } catch (error) {
+    return (error as { fix?: string }).fix;
+  }
+  return undefined;
+}
+
+describe('a contributed command’s refusal carries the edit to make as its fix', () => {
+  it('names the effects to declare when a runnable command declares none', () => {
+    expect(fixOf({ commands: [{ path: ['audit'], options: {}, run: noop }] })).toBe(
+      'declare read_only, idempotent, non_idempotent — or withheld, which serves it to people and keeps it out of the MCP tool list',
+    );
+  });
+
+  /**
+   * A function or an array at a stage was refused with "add `handler(ctx)`" — an edit that reads
+   * as "add a key to what you wrote", when what was written is the wrong shape for a stage.
+   */
+  it('shows the one-object shape of a stage when a hook is a function or an array', () => {
+    for (const hook of [noop, [{ handler: noop }]]) {
+      expect(fixOf({ hooks: { preRun: hook } }), String(hook)).toBe('`preRun: { handler(ctx) {}, filter?: { command: /^deploy/ } }`');
+    }
+  });
+
+  it('lists the effects there are when a command misspells one', () => {
+    expect(fixOf({ commands: [{ path: ['audit'], options: {}, effects: 'readonly', run: noop }] })).toBe('use read_only, idempotent, non_idempotent, withheld');
+  });
+
+  it('gives the message itself as the fix when it carries no separate remedy', () => {
+    expect(fixOf({ commands: [command({ json: { type: 'string' } })] })).toBe('burgee: option "json" is reserved and cannot be redefined');
   });
 });
 

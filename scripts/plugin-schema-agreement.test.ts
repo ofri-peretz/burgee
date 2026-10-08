@@ -59,6 +59,7 @@ const HOSTS = [
       'a resolver with no paths': { ...base, resolvers: { a: { rank: 1, paths: [] } } },
       'a relative path': { ...base, resolvers: { a: { rank: 1, paths: ['bin'] } } },
       'a `when.platform` that is not a list': { ...base, resolvers: { a: { rank: 1, paths: ['/opt/bin'], when: { platform: 'linux' } } } },
+      'an unknown key under `when`': { ...base, resolvers: { a: { rank: 1, paths: ['/opt/bin'], when: { env: ['ASDF_DATA_DIR'] } } } },
     },
   },
   {
@@ -106,6 +107,8 @@ const HOSTS = [
       'an option of no known type': { ...base, contract: 1, commands: [{ path: ['x'], options: { tags: { type: 'array' } }, effects: 'read_only' }] },
       'an effects burgee does not know': { ...base, contract: 1, commands: [{ path: ['x'], options: {}, effects: 'sometimes' }] },
       'a hook stage that does not exist': { ...base, contract: 1, hooks: { later: { handler: noop } } },
+      'a hook filter that names no command': { ...base, contract: 1, hooks: { preRun: { filter: {}, handler: noop } } },
+      'a hook filter that is a string': { ...base, contract: 1, hooks: { preRun: { filter: 'deploy', handler: noop } } },
       'an enforce that is neither pre nor post': { ...base, contract: 1, enforce: 'first' },
     },
   },

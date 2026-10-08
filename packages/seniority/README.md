@@ -27,7 +27,7 @@
 
 <p align="center">
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/cosmiconfig%20suite-242%2F243-b45309?style=flat-square" alt="seniority passes 242 of 243 cases of the cosmiconfig test suite" /></a>
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/dotenv%20suite-179%2F179-0a6b47?style=flat-square" alt="seniority passes 179 of 179 cases of the dotenv test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/dotenv%20suite-181%2F181-0a6b47?style=flat-square" alt="seniority passes 181 of 181 cases of the dotenv test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/lilconfig%20suite-77%2F77-0a6b47?style=flat-square" alt="seniority passes 77 of 77 cases of the lilconfig test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/rc%20suite-1%2F1-0a6b47?style=flat-square" alt="seniority/rc passes 1 of 1 cases of the rc test suite" /></a>
 </p>
@@ -230,6 +230,49 @@ explain('region', r); // region = "eu-1"   from vault acme://vault/ci
   `read` gets the `{ env, cwd }` you pass it — this package still touches no globals.
 - **Every other key is ignored**, so one plugin object works across the whole family.
 
+A lower rank wins. Where a source lands, as the number to write:
+
+| to rank… | `rank` |
+| :-- | :-- |
+| above the environment, below a flag | 1–9 |
+| above the config file, below the environment | 11–19 |
+| above `package.json`, below the config file | 21–29 |
+| above the default, below `package.json` | 31–39 |
+
+The same plugin as a file of its own — one module whose default export is a plain object, with
+no import, which is the shape `check` loads:
+
+```js
+// acme-vault.mjs
+export default {
+  name: 'acme-vault',
+  contract: 1,
+  sources: {
+    vault: {
+      rank: 11, // env is 10 and the config file 20: this beats the file and loses to the environment
+      read: (runtime) => (runtime.env.CI_REGION === undefined ? undefined : { location: 'acme://vault/ci', values: { region: runtime.env.CI_REGION } }),
+    },
+  },
+};
+```
+
+Check it before it ships:
+
+```bash
+npx seniority check ./acme-vault.mjs
+# in a clone of this repository, where dist/ is not committed:
+npx turbo run build --filter=seniority && node packages/seniority/dist/cli.js check ./acme-vault.mjs
+```
+
+```text
+acme-vault — 1 sources
+  vault
+acme-vault: ok
+```
+
+A refusal exits 1 with a code and the edit to make: a rank outside 1–39, both `values` and
+`read` or neither, or a `sources` that is not an object keyed by name.
+
 ## Migrating
 
 Each path starts with one import change. `npx burgee migrate --dry-run` lists the imports the
@@ -345,7 +388,7 @@ read 240 of 241.
 
 ### `seniority/dotenv`
 
-**Graded by dotenv 18.0.5's own test suite: 179 of 179, the same as the real `dotenv` gets
+**Graded by dotenv 18.0.6's own test suite: 181 of 181, the same as the real `dotenv` gets
 here.** That includes its `dotenv run` command line and signal forwarding, both parsers, and
 `import 'dotenv/config'`. dotenv 17.4.2's suite is graded too and not claimed: 107 of 141,
 because 17's vault, tips and `console.log` line are what 18 changed.
@@ -372,11 +415,11 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `cosmiconfig` | 242 / 243 |
-| `dotenv` | 179 / 179 |
+| `dotenv` | 181 / 181 |
 | `lilconfig` | 77 / 77 |
 | `rc` | 1 / 1 |
 
-Weight, installed and tree-inclusive: **221,359 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1122**.
+Weight, installed and tree-inclusive: **223,625 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1134**.
 
 ## For agents
 
@@ -390,7 +433,7 @@ Weight, installed and tree-inclusive: **221,359 bytes** against **1,972,507** fo
   environment in and the same inputs give the same answer anywhere.
 - **A source plugin can be checked before it ships.** `npx seniority check ./vault.mjs`
   validates it against the family schema and exits 0, 1 with a code and a fix, or 2 on a usage
-  error.
+  error. The whole plugin, the rank to write and the report are under [Plugins](#plugins).
 - **The docs are machine-readable** at
   [seniority.interlace.tools/llms.txt](https://seniority.interlace.tools/llms.txt) and
   [llms-full.txt](https://seniority.interlace.tools/llms-full.txt).

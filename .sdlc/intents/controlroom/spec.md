@@ -133,24 +133,36 @@ it records every change here.
   **W1, W2, W4 and W3's root half built 2026-10-05** (D-20261005-controlroom-ink-alias), as B4
   pairs in `benchmarks/fixtures/entry-points.ts` and B2 variants in `benchmarks/axes/perf.ts`,
   against ink 6.8.0 on React 19.3.0 (benchmarks devDependencies, the versions the oracle grades),
-  each gated at ≤ 1.0× with a claim in `benchmarks/claims.ts`. Measured on darwin (a laptop,
-  `npm run bench -- --axis weight` and `--axis perf`, 52 rounds):
+  each gated at ≤ 1.0× with a claim in `benchmarks/claims.ts`.
+  **Restated 2026-10-07 against ink 8.0.0**, the release `controlroom/ink` has followed since
+  #839, on React 19.3.0 (ink 8's peer is `react >=19.3.0`). Measured on darwin (a laptop under
+  load, `npm run bench -- --axis weight` and `--axis perf`, 52 rounds). The ink 6.8.0 column is
+  the same sources against the old incumbent: the bytes from CI's run at #839 (`7694faa`,
+  byte counts do not depend on the machine), and the times from the 2026-10-05 laptop run,
+  which timed the drop-in before the port. At #839 itself CI read 0.436 and 0.154 on ubuntu.
 
-  | Gate | Ours | Against | Ratio |
-  | :-- | --: | --: | --: |
-  | W1 · bundled: `controlroom/ink` + `react` + `react-reconciler` against `ink` + `react` | 473,361 B | 635,541 B | **0.745** |
-  | W2 · installed bytes, the same two programs | 3,053,223 B | 8,067,173 B | **0.378** |
-  | W2 · installed packages | 10 | 42 | **0.238** |
-  | W3 · bundled: the `controlroom` root (`open`) against `ink` alone, React external | 28,848 B | 604,713 B | **0.048** |
-  | W4 · cold start: importing `controlroom/ink` against importing `ink` + `react` | 94.06 ms | 338.52 ms | **0.289** |
-  | W4 · cold start: importing `controlroom` against importing `ink` + `react` | 43.26 ms | 338.52 ms | **0.144** |
+  | Gate | Ours | Against ink 8.0.0 | Ratio | Against ink 6.8.0 |
+  | :-- | --: | --: | --: | --: |
+  | W1 · bundled: `controlroom/ink` + `react` + `react-reconciler` against `ink` + `react` | 531,641 B | 673,137 B | **0.790** | 635,541 B · 0.837 |
+  | W2 · installed bytes, the same two programs | 3,367,943 B | 8,165,450 B | **0.412** | 8,067,173 B · 0.417 |
+  | W2 · installed packages | 10 | 40 | **0.250** | 42 · 0.238 |
+  | W3 · bundled: the `controlroom` root (`open`) against `ink` alone, React external | 39,434 B | 642,330 B | **0.061** | 604,713 B · 0.065 |
+  | W4 · cold start: importing `controlroom/ink` against importing `ink` + `react` | 105.05 ms | 374.46 ms | **0.295** | 338.52 ms · 0.289 |
+  | W4 · cold start: importing `controlroom` against importing `ink` + `react` | 53.73 ms | 374.46 ms | **0.149** | 338.52 ms · 0.144 |
+
+  Our side moved too, and not because of ink 8. The first table (2026-10-05) measured the
+  drop-in before #839 ported it to ink 8: 473,361 B bundled (W1), 3,053,223 B installed (W2) and
+  28,848 B for the root (W3). The figures above are the drop-in as shipped. ink 8 bundles
+  37,596 B more than 6.8 with React and 37,617 B more alone, and it installs two fewer packages.
+  A second perf run read 0.284 and 0.147. The W4 times are same-run ratios on a machine at load
+  average 22–42, so the milliseconds are not comparable across the two columns.
 
   All six meet the bar. The intent's figures (674,652 B and 644,976 B) were esbuild 0.28.2 over
   React 19.2.4 in a scratch install; the axis's are the ones that publish. W1's side counts every
   chunk (`eager`): the drop-in loads its peers with `import()` under top-level await, so the
   axis's "initial load" would leave three stubs out in our favour. W2's package count is the
-  axis's own walk (`installedTree`, the one mechanism added), and ink + react is 42 where the
-  intent's 45 included `@inkjs/ui`, which both sides would install. **W3's demo half is not an
+  axis's own walk (`installedTree`, the one mechanism added), and ink + react is 40 at ink 8 (42 at
+  6.8) where the intent's 45 included `@inkjs/ui`, which both sides would install. **W3's demo half is not an
   axis record yet**: `examples/dashboard` is not on this base (it is on `feat/controlroom-input`).
   Measured out of tree with the same flags, the dashboard bundled from that branch's sources is
   44,809 B against 695,034 B for the Ink screen fixture (0.064); its pair is one row in

@@ -157,6 +157,49 @@ proves the two agree by running the same spec through both and comparing the ans
 `Ctrl-C` cancels — in raw mode it arrives as a byte rather than a signal — and the terminal
 is put back the way it was found either way.
 
+### A prompt kind of your own
+
+A plugin adds a kind under `widgets`; the six built-ins cannot be replaced. It is one module
+whose default export is a plain object — in full:
+
+```js
+// acme-plugin.mjs
+export default {
+  name: 'acme',
+  contract: 1,
+  widgets: {
+    'acme-rating': {
+      // Required. `spec` is the prompt — `{ kind, message, ... }` plus any field your kind reads —
+      // and the string is what a pipe, an agent and a screen reader get.
+      static: (spec) => `${spec.message} ${'★'.repeat(spec.value ?? 0)}${'☆'.repeat(5 - (spec.value ?? 0))}`,
+      // Optional: `(t, spec) => string`, the animated form. Leave it out for line mode only.
+      // frame: (t, spec) => '…',
+      // Two states of plain data to preview it with; `check` renders `static({ kind, message: 'preview', ...done })`.
+      sample: { running: { value: 0 }, done: { value: 4 } },
+    },
+  },
+};
+```
+
+Check it before it ships — in a clone of this repository, where `dist/` is not committed, build
+caique and the four packages it imports first:
+
+```bash
+npx caique check ./acme-plugin.mjs
+# in a clone: npx turbo run build --filter=caique && node packages/caique/dist/cli.js check ./acme-plugin.mjs
+```
+
+```text
+acme — 1 widgets
+  acme-rating  static "preview ★★★★☆"
+acme: ok
+```
+
+The census comes first and `ok` last. A refusal exits 1 with a code and the edit to make —
+`E_NO_STATIC_PROJECTION` for a widget with no `static`, or one whose `static` throws on its own
+`sample`, `E_PLUGIN_SCHEMA` for a built-in kind or
+a `sample` that is not `{ running, done }`.
+
 ## Migrating
 
 From **`@inquirer/core`**, one import — `createPrompt`, the hooks and the keypress helpers:
@@ -251,7 +294,7 @@ Graded by the incumbent's own test suite:
 | `clack` | 16 / 16 |
 | `inquirer-core` | 41 / 41 |
 
-Weight, installed and tree-inclusive: **240,290 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.6176**.
+Weight, installed and tree-inclusive: **243,336 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.6255**.
 
 ## For agents
 
@@ -263,7 +306,8 @@ Weight, installed and tree-inclusive: **240,290 bytes** against **389,049** for 
 - **The question without the conversation.** `projection(spec)` renders a prompt for a gallery,
   a `--help` or a transcript.
 - **A widget plugin can be checked before it ships.** `npx caique check ./widget.mjs` validates
-  it against the family schema and exits 0, 1 with a code and a fix, or 2 on a usage error.
+  it against the family schema and exits 0, 1 with a code and a fix, or 2 on a usage error. The
+  whole plugin and the report are under [A prompt kind of your own](#a-prompt-kind-of-your-own).
 - **The docs are machine-readable** at
   [caique.interlace.tools/llms.txt](https://caique.interlace.tools/llms.txt) and
   [llms-full.txt](https://caique.interlace.tools/llms-full.txt).

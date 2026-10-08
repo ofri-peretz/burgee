@@ -235,10 +235,20 @@ export const PAIRS: readonly EntryPair[] = [
     incumbent: { specifier: 'tinyexec', symbol: 'x' },
     why: "bellpull R8: `run` against tinyexec's `x`, the zero-dependency rival the ceiling names",
   },
-  // controlroom R14, the intent's weight table. The incumbent is ink 6.8.0 on React 19.3.0, the
-  // versions compat-oracle grades it at. ink's `react-devtools-core` is an optional peer it
-  // imports only under `DEV=true`, through a dynamic import, so it is left external on every
-  // ink side: it is never installed, and it is not on the startup path when it is.
+  // controlroom R14, the intent's weight table. The incumbent is ink 8.0.0 on React 19.3.0, the
+  // versions compat-oracle grades it at (ink 8's peer is `react >=19.3.0`). It was ink 6.8.0
+  // until 2026-10-07, after `controlroom/ink` had already moved to 8 in #839. ink's
+  // `react-devtools-core` is an optional peer it imports only under `DEV=true`, through a
+  // dynamic import, so it is left external on every ink side: it is never installed, and it is
+  // not on the startup path when it is.
+  //
+  // Measured against ink 8.0.0 on darwin, 2026-10-07 (`npm run bench -- --axis weight` and
+  // `--axis perf`, 52 rounds), with the ink 6.8.0 figure from the same sources in brackets:
+  //   W1 bundled   531,641 B against 673,137 B (635,541 B) = 0.790 (0.837)
+  //   W2 installed 3,367,943 B against 8,165,450 B (8,067,173 B) = 0.412 (0.417);
+  //                10 packages against 40 (42) = 0.250 (0.238)
+  //   W3 bundled   39,434 B against 642,330 B (604,713 B) = 0.061 (0.065)
+  //   W4 cold start 105.05 ms and 53.73 ms against 374.46 ms = 0.295 and 0.149
   {
     // W1 — what an Ink program bundles today against what the same program bundles on the
     // drop-in: the program's own React on both sides, and the reconciler ink used to bring along

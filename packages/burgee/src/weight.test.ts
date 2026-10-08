@@ -490,9 +490,17 @@ const RULES: Record<string, EntryRule> = {
   //
   // 7,400 on 2026-09-22 for D1, the same door refusing `deprecated: true` — a plugin's
   // command names its replacement exactly as a first-party one must. Measured 7,359.
+  //
+  // 7,530 on 2026-10-08 for **64 bytes** of `plugin.js` (3,947 -> 4,011): a hook whose `filter`
+  // is not `{ command: RegExp }` is refused at registration — a string threw a TypeError at
+  // fire() time and a bare RegExp fired for every command — and a contributed command's refusal
+  // carries `checkCommand`'s remedy as its `fix`. Paid for in the same file on the bundled
+  // startup path: `burgee` 24,278 -> 24,260 B, because the hook refusals are one branch and the
+  // contract fix got shorter. The other entries that reach `plugin.js` absorb the 64 bytes inside
+  // their budgets. Measured 7,444.
   "./plugin": {
     allow: [],
-    budget: 7_400,
+    budget: 7_530,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js"],
   },
   // The brand generator. Pure geometry and string building — it must never reach

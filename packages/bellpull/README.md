@@ -27,7 +27,7 @@
 
 <p align="center">
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/cross--spawn%20suite-68%2F68-0a6b47?style=flat-square" alt="bellpull/cross-spawn passes 68 of 68 cases of the cross-spawn test suite" /></a>
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/execa%20suite-0%2F1048-b45309?style=flat-square" alt="bellpull passes 0 of 1048 cases of the execa test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/execa%20suite-0%2F1180-b45309?style=flat-square" alt="bellpull passes 0 of 1180 cases of the execa test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/which%20suite-5%2F5-0a6b47?style=flat-square" alt="bellpull passes 5 of 5 cases of the which test suite" /></a>
 </p>
 
@@ -137,7 +137,48 @@ register({
 
 A negative `rank` searches before `PATH`. A path must be absolute after `{VAR}` substitution,
 or it is refused at `register()` — a relative entry means a different directory every time the
-program runs from somewhere else, including one somebody else can write to.
+program runs from somewhere else, including one somebody else can write to. `{VAR}` is the only
+substitution: `$VAR` and `~` are not expanded, and are refused as relative.
+
+- **`rank`** — a number: negative searches before `PATH`, positive after it.
+- **`paths`** — one or more directories, each absolute or starting with a `{VAR}` that holds an
+  absolute path.
+- **`when`** — optional. `envAny: ['VAR', …]` applies the resolver only while one of those
+  variables is set; `platform: ['linux', …]` only on those `process.platform` values. Leave it
+  out and the resolver always applies. Any other key under `when` is refused.
+- **`extensions`** — optional, Windows only: what to try in place of `PATHEXT`.
+
+The same plugin as a file of its own — one module whose default export is a plain object, with
+no import, which is the shape `check` loads:
+
+```js
+// asdf-plugin.mjs
+export default {
+  name: 'asdf',
+  contract: 1,
+  resolvers: {
+    asdf: { rank: -10, paths: ['{ASDF_DATA_DIR}/shims'], when: { envAny: ['ASDF_DATA_DIR'] } },
+  },
+};
+```
+
+Check it before it ships:
+
+```bash
+npx bellpull check ./asdf-plugin.mjs
+# in a clone of this repository, where dist/ is not committed:
+npx turbo run build --filter=bellpull && node packages/bellpull/dist/cli.js check ./asdf-plugin.mjs
+```
+
+```text
+asdf — 1 resolvers
+  asdf
+asdf: ok
+```
+
+The census comes first and `ok` last; the resolvers are listed in the order they are searched.
+A refusal exits 1 with a code and the edit to make — `E_PLUGIN_SCHEMA` for a missing `rank`, a
+relative path, or a `resolvers` that is not an object keyed by name.
 
 ## Migrating
 
@@ -185,10 +226,10 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `cross-spawn` | 68 / 68 |
-| `execa` | 0 / 1048 |
+| `execa` | 0 / 1180 |
 | `which` | 5 / 5 |
 
-Weight, installed and tree-inclusive: **113,666 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1485**.
+Weight, installed and tree-inclusive: **116,519 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1522**.
 
 ## For agents
 
@@ -199,7 +240,8 @@ Weight, installed and tree-inclusive: **113,666 bytes** against **765,553** for 
 - **`result.executable` says which binary ran**, and from which `PATH` entry.
 - **A resolver plugin can be checked before it ships.** `npx bellpull check ./asdf.mjs`
   validates it against the family schema and exits 0, 1 with a code and a fix, or 2 on a usage
-  error.
+  error. The whole plugin and the report are under
+  [The `resolvers` plugin host](#the-resolvers-plugin-host).
 - **The docs are machine-readable** at
   [bellpull.interlace.tools/llms.txt](https://bellpull.interlace.tools/llms.txt) and
   [llms-full.txt](https://bellpull.interlace.tools/llms-full.txt).
