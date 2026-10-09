@@ -65,11 +65,17 @@ describe('unknownOption', () => {
   // B1: 14 of 20 runs of the task that asks for JSON opened with `--format json` or `--output json`,
   // and a refusal that only said "run --help" sent each of them looking for the flag.
   it('reads --format json and --output=json as a request for --json', () => {
-    const json = { hint: 'did you mean --json?', fix: '--json' };
-    expect(unknownOption(parseError('--format'), ['name'], ['get', 'k', '--format', 'json'])).toEqual({ message: 'unknown option --format', ...json });
-    expect(unknownOption(parseError('--output'), ['name'], ['get', '--output=json', 'k'])).toEqual({ message: 'unknown option --output', ...json });
+    const json = { hint: 'did you mean --json?' };
+    expect(unknownOption(parseError('--format'), ['name'], ['get', 'k', '--format', 'json'])).toEqual({ message: 'unknown option --format', ...json, fix: 'get k --json' });
+    expect(unknownOption(parseError('--output'), ['name'], ['get', '--output=json', 'k'])).toEqual({ message: 'unknown option --output', ...json, fix: 'get --json k' });
     // Another format is not JSON, and a near declared flag still wins over nothing.
     expect(unknownOption(parseError('--format'), ['name'], ['--format', 'yaml'])).toEqual({ message: 'unknown option --format', hint: 'run --help to see the available options' });
+  });
+  // B1 at ba8a89c: `fix: --json` sent the agent to rebuild the line around a flag. The fix is the
+  // line as typed with the flag corrected — its value kept — and none when no word can be corrected.
+  it('names the whole line as the fix, with the flag corrected and its value kept', () => {
+    expect(unknownOption(parseError('--nmae'), ['name'], ['tool', 'greet', '--nmae=Ada Lovelace', 'x'])).toEqual({ message: 'unknown option --nmae', hint: 'did you mean --name?', fix: "tool greet '--name=Ada Lovelace' x" });
+    expect(unknownOption(parseError('--nmae'), ['name'], [])).toEqual({ message: 'unknown option --nmae', hint: 'did you mean --name?' });
   });
 });
 

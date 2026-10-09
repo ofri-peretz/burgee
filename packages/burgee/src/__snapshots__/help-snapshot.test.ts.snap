@@ -347,6 +347,76 @@ Global options:
 "
 `;
 
+exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > a root over a group, listed by the commands that run, at 33 columns 1`] = `
+"Usage: demo <command> [options]
+
+The burgee reference demo
+
+Global options:
+  --json         machine-readable
+                 output
+  --help         show this help
+  --schema       the program as
+                 data
+
+Commands:
+  greet <name>   Greet someone
+  config get <key>
+                 Print one
+                 configuration
+                 value
+  fail           Fail on purpose
+
+For agents: --schema prints every
+command, option, default and env
+var as JSON, in one call. --json
+prints one envelope on stdout,
+and --explain <option> says where
+a value came from.
+"
+`;
+
+exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > a root over a group, listed by the commands that run, at 80 columns 1`] = `
+"Usage: demo <command> [options]
+
+The burgee reference demo
+
+Global options:
+  --json            machine-readable output
+  --help            show this help
+  --schema          the program as data
+
+Commands:
+  greet <name>      Greet someone
+  config get <key>  Print one configuration value
+  fail              Fail on purpose
+
+For agents: --schema prints every command, option, default and env var as JSON,
+in one call. --json prints one envelope on stdout, and --explain <option> says
+where a value came from.
+"
+`;
+
+exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > a root over a group, listed by the commands that run, at 120 columns 1`] = `
+"Usage: demo <command> [options]
+
+The burgee reference demo
+
+Global options:
+  --json            machine-readable output
+  --help            show this help
+  --schema          the program as data
+
+Commands:
+  greet <name>      Greet someone
+  config get <key>  Print one configuration value
+  fail              Fail on purpose
+
+For agents: --schema prints every command, option, default and env var as JSON, in one call. --json prints one envelope
+on stdout, and --explain <option> says where a value came from.
+"
+`;
+
 exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > terms wider than their code-unit count, at 33 columns 1`] = `
 "Usage: app <command> [options]
 

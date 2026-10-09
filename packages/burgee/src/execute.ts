@@ -537,7 +537,8 @@ interface FailureContext {
 async function report(cause: unknown, { manifest, io, argv, json, name }: FailureContext): Promise<void> {
   // U5 — the whole failure vocabulary is its own chunk: a run that succeeds never loads it.
   const { describeFailure, failureText } = await import('./failure.js');
-  const failure = await describeFailure(cause, argv, resolveCommand(manifest, argv) ?? undefined, cause instanceof ActionRequired ? cause.spec : undefined);
+  // The line as typed, program first: a fix that corrects an option names the whole line.
+  const failure = await describeFailure(cause, [...manifest.rootPath, ...argv], resolveCommand(manifest, argv) ?? undefined, cause instanceof ActionRequired ? cause.spec : undefined);
   if (failure.silent === true) return await leave(io, failure.code);
   await manifest.fire('onError', name, {});
   (json ? io.out : io.err).write(failureText(failure, manifest, json));

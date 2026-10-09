@@ -95,8 +95,11 @@ its `summary`, says `partial: N files rewritten, M refused`
 [`program.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/program.test.ts).
 
 **A failure says what to do next.** `fix` is one line to run, and it is filled in only when there
-is exactly one: the flag an unknown option was nearest to, or the caller's own command line with
-an unknown command's word corrected. When there is none and the code is `USAGE` or `RUNTIME`, the
+is exactly one. It is always the caller's own command line, from the program name, with one thing
+corrected: an unknown option replaced by the flag it was nearest to (`--format json` becomes
+`--json`), an unknown command's word replaced by the command it was nearest to, or, when the word
+was really an argument, the one command below that takes it inserted before it (`config user.name`
+becomes `config get user.name`). When there is none and the code is `USAGE` or `RUNTIME`, the
 failure carries `usage` instead. That is the failing command's usage line from the program name,
 then its visible options with the notes help prints: required, default, choices, relations and
 env. An unknown command carries the commands that exist and points at `--schema`. Either list is

@@ -86,18 +86,23 @@ export const runnableBelow = (manifest: Manifest, node: CommandNode): CommandNod
 export const signature = (c: CommandNode, from: CommandNode): string => [...c.path.slice(from.path.length), ...(c.arguments ?? []).map(argumentTerm)].join(' ');
 
 /**
- * A group's usage line and its commands, each with what it takes.
+ * The commands a listing at `node` names: every one that runs below it when they fit in the
+ * rows — `config get <key>`, not `config` — so the line to run is on the screen; a tree too
+ * large for the rows lists its own level. One rule for the refusal's list and for `--help`.
  *
- * When every command that runs below the group fits in the rows, those are the rows —
- * `config get <key>`, not `config` — so the line to run is in the refusal. B1's agents ran
- * `config user.name` after a list that said only `config` in 15 of the 40 runs of the two tasks
- * that read config, each a turn spent learning that the word was `get <key>`. A tree too large
- * for the rows lists its own level, as before.
+ * B1's agents ran `config user.name` after a list that said only `config` in 15 of the 40 runs
+ * of the two tasks that read config, and after a root `--help` that said only `config`, 5 of 5
+ * runs of the task that asks for a subcommand spent a turn on `config --help`.
  */
+export function listed(manifest: Manifest, node: CommandNode): CommandNode[] {
+  const below = runnableBelow(manifest, node);
+  return below.length <= ROWS ? below : childrenOf(manifest, node);
+}
+
+/** A group's usage line and its commands (`listed`), each with what it takes. */
 export function groupUsage(manifest: Manifest, node: CommandNode): Usage {
   const at = node.path.join(' ');
-  const below = runnableBelow(manifest, node);
-  const rows = (below.length <= ROWS ? below : childrenOf(manifest, node)).map((c) => ({ name: signature(c, node), description: c.summary ?? c.description ?? '' }));
+  const rows = listed(manifest, node).map((c) => ({ name: signature(c, node), description: c.summary ?? c.description ?? '' }));
   return bounded({ command: `${at} <command>` }, 'commands', rows, `${at} --help`);
 }
 

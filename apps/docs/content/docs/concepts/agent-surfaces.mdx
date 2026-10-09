@@ -10,7 +10,7 @@ that declaration rather than written beside it:
 
 | Surface | For | What it is |
 | :-- | :-- | :-- |
-| `--help` | a person | the rendered manifest; `--help --json` is the same as a document. The root help ends with one line for agents naming `--schema`, `--json` and `--explain` |
+| `--help` | a person | the rendered manifest; `--help --json` is the same as a document. When every command that runs fits in 8 rows, each is listed by its full path with what it takes (`config get <key>`, not `config`). The root help ends with one line for agents naming `--schema`, `--json` and `--explain` |
 | `--json` | a script, an agent | one envelope on stdout: `{ ok, data, meta }` or `{ ok: false, error }` |
 | `--schema` | an agent, before it calls | the program as data: commands, options, `effects`, the exit-code table, a JSON Schema per command |
 | `--mcp` | an MCP client | the same commands as MCP tools over stdio |
