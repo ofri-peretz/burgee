@@ -12,14 +12,16 @@
  * claim ever passed, and since when" had no answer in the repository. A recorded run is
  * one compact JSON line, written to its own file under `evals/history/`:
  *
- *   evals/history/<YYYY-MM-DD>-<sha7>.json
+ *   evals/history/<YYYY-MM-DD>-<sha7>[-<run>].json
  *
  * One file per run rather than one appended `history.jsonl`, for the same reason
  * `benchmarks/results/` holds one dated observation per run: the recorder lands its line
  * through a pull request, and under the GITHUB_TOKEN fallback those pull requests raise no
  * checks and wait for a human. Two of them that each append to the end of one file
  * conflict with each other the moment the first merges; two that each add a new file
- * never do. `cat evals/history/*.json` is the JSONL, in date order.
+ * never do — unless both ran the same commit on the same day, which is how #913 and #914
+collided. `<run>` is the Actions run id, so two runs of one commit name two files.
+`cat evals/history/*.json` is the JSONL, in date order.
  *
  * The shape is versioned (`v`), and `scripts/eval-history-lock.test.ts` holds every
  * committed file to it, so a reader plotting the series can rely on the field names.
@@ -31,8 +33,8 @@ import path from 'node:path';
 export const HISTORY_DIR = 'evals/history';
 export const HISTORY_VERSION = 1;
 
-/** `2026-09-24-0a1b2c3.json`: the UTC date of the run, then the commit it evaluated. */
-export const HISTORY_FILE = /^(\d{4}-\d{2}-\d{2})-([0-9a-f]{7})\.json$/;
+/** `2026-09-24-0a1b2c3[-37959323649].json`: the UTC date, the commit, then the Actions run id when there is one. */
+export const HISTORY_FILE = /^(\d{4}-\d{2}-\d{2})-([0-9a-f]{7})(?:-(\d+))?\.json$/;
 
 export type CaseStatus = 'pass' | 'fail' | 'error';
 
@@ -62,6 +64,8 @@ export interface HistoryLine {
   date: string;
   /** The full commit the run evaluated. */
   commit: string;
+  /** `GITHUB_RUN_ID`; absent on a local run and on lines recorded before it existed. */
+  run?: number;
   /** The model the cases ran on, as `claude` reported it; `null` when no case ran. */
   model: string | null;
   billing: 'none' | 'subscription' | 'console';
@@ -112,6 +116,7 @@ export function parseClaudeJson(stdout: string): { text: string; usage: CaseUsag
 export interface RunSummary {
   date: string;
   commit: string;
+  run?: number;
   billing: HistoryLine['billing'];
   /** `EVAL_MODEL`, when the run pinned one; otherwise the model `claude` reports is used. */
   pinnedModel?: string;
@@ -128,6 +133,7 @@ export function historyLine(run: RunSummary): HistoryLine {
     v: HISTORY_VERSION,
     date: run.date,
     commit: run.commit,
+    ...(run.run ? { run: run.run } : {}),
     model: run.pinnedModel || (ran.find((c) => c.model !== null)?.model ?? null),
     billing: run.billing,
     config: run.config,
@@ -144,7 +150,7 @@ export function historyLine(run: RunSummary): HistoryLine {
 const SHORT_SHA = 7;
 
 export function historyFileName(line: HistoryLine): string {
-  return `${line.date}-${line.commit.slice(0, SHORT_SHA)}.json`;
+  return `${line.date}-${line.commit.slice(0, SHORT_SHA)}${line.run ? `-${line.run}` : ''}.json`;
 }
 
 /** One line, one trailing newline: `cat evals/history/*.json` must be valid JSONL. */
@@ -197,6 +203,7 @@ export function historyProblems(doc: unknown): string[] {
   if (doc.v !== HISTORY_VERSION) out.push(`v is not ${HISTORY_VERSION}`);
   if (typeof doc.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(doc.date)) out.push('date is not YYYY-MM-DD');
   if (typeof doc.commit !== 'string' || !/^[0-9a-f]{40}$/.test(doc.commit)) out.push('commit is not a full 40-character sha');
+  if (doc.run !== undefined && !(Number.isInteger(doc.run) && (doc.run as number) > 0)) out.push('run is not a positive integer');
   if (doc.model !== null && typeof doc.model !== 'string') out.push('model is not a string or null');
   if (!['none', 'subscription', 'console'].includes(doc.billing as string)) out.push('billing is not none | subscription | console');
   if (!isObject(doc.config) || !isCount(doc.config.passed) || !isCount(doc.config.total)) out.push('config is not { passed, total } counts');
