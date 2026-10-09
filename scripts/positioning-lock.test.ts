@@ -83,9 +83,11 @@ describe('the switch stays one command (R6)', () => {
   });
 });
 
+/** A host's grade as the README's prose writes it: `1360 of 1360`. */
+const grade = (host: string): string => `${String(GRADED[host]!.passed)} of ${String(GRADED[host]!.reference)}`;
+
 describe("the root README's grades are compat.ts's", () => {
   const readme = read('README.md');
-  const grade = (host: string): string => `${String(GRADED[host]!.passed)} of ${String(GRADED[host]!.reference)}`;
 
   it.each(['commander', 'yargs'])("quotes %s's grade as compat.ts holds it", (host) => {
     expect(readme, `the README should say "${host}'s ${grade(host)}" or "${host}' ${grade(host)}"`).toMatch(new RegExp(String.raw`${host}'s? ${grade(host)}`, 'u'));
