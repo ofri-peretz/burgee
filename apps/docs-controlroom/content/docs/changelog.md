@@ -3,6 +3,19 @@ title: Changelog
 description: "Every release of controlroom, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 0.3.4
+
+### Patch Changes
+
+- [#917](https://github.com/ofri-peretz/burgee/pull/917) [`735f0f6`](https://github.com/ofri-peretz/burgee/commit/735f0f68048f2d0f5e4effad151ed5132b480bb8) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - README: the opening paragraph says what the package does first. The drop-in path follows it as one line, naming the incumbent and `npx burgee migrate`, and every compatibility row and benchmark is unchanged.
+- Updated dependencies [[`735f0f6`](https://github.com/ofri-peretz/burgee/commit/735f0f68048f2d0f5e4effad151ed5132b480bb8)]:
+  - caique@1.0.3
+  - closeout@1.0.3
+  - flagstaff@1.2.4
+  - linegauge@1.0.7
+  - paratext@1.0.3
+  - roundel@1.0.3
+
 ## 0.3.3
 
 ### Patch Changes

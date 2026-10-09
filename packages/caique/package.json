@@ -1,6 +1,6 @@
 {
   "name": "caique",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "The parrot that always answers back, and the boat that goes between ship and shore. Prompts that are flags first, so agents answer before they are asked and non-TTY callers get an error naming the flag, never a hang. Drop-in path for inquirer and clack.",
   "license": "MIT",
   "type": "module",
@@ -108,10 +108,10 @@
     "ai-agent"
   ],
   "dependencies": {
-    "closeout": "^1.0.2",
-    "linegauge": "^1.0.6",
-    "paratext": "^1.0.2",
-    "roundel": "^1.0.2"
+    "closeout": "^1.0.3",
+    "linegauge": "^1.0.7",
+    "paratext": "^1.0.3",
+    "roundel": "^1.0.3"
   },
   "devDependencies": {
     "vitest": "^5.0.1"
