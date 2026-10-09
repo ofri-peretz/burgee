@@ -257,7 +257,7 @@ published figure taken on another machine, not reproduced here.
 | :--- | ---: | ---: | ---: | ---: | ---: |
 | Runtime dependencies | **5**, none outside the burgee family | 0 | 6 | **18** | 0 |
 | Full CLI run over bare node | +20.3 ms | +14.8 ms | +75.0 ms | +131 ms † | +3.8 ms |
-| Installed size | 1511 KB | 203 KB | 515 KB | 912 KB † | 40 KB |
+| Installed size | 1542 KB | 203 KB | 515 KB | 912 KB † | 40 KB |
 
 The speed comes from `node:util.parseArgs` being in the standard library, not from a faster
 language: burgee is TypeScript, like both incumbents.
