@@ -3,14 +3,20 @@ title: burgee
 description: "An agent-native CLI framework, drop-in compatible with commander and yargs. One declaration; help, --json, --schema, --mcp and completions all projected from it."
 ---
 
+**burgee** is a CLI framework built on one declaration. A command declares itself once, and
+help, `--json`, `--schema`, an MCP server, shell completions and TypeScript types are all read
+from it. An agent gets contracts rather than prose: exit `2` means *rewrite the command*, a
+mistyped command comes back with a `fix:` line it can run, and `--explain` says where each
+value came from. Five dependencies, all from the burgee family, and no dependency outside it.
+
+Drop-in for **commander** and **yargs**: `npx burgee migrate` rewrites the imports to
+`burgee/commander` and `burgee/yargs`, graded by each one's own test suite, and the same
+program answers agents too.
+
 A **burgee** is the small swallowtail flag a boat flies to say which club or fleet it
 belongs to — a flag of identity, not of instruction. That is what this framework does for
 a command-line program: a command declares itself once, and every surface is that
 declaration read by a different reader.
-
-It replaces **commander** and **yargs**: `burgee/commander` and `burgee/yargs` are drop-in,
-graded by each one's own test suite. Change one import and the same program answers agents
-too — `--json` for results, `--schema` for the command tree, `--mcp` for an MCP server.
 
 ## Install
 

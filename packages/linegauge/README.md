@@ -37,14 +37,16 @@
   Migrating from: <a href="https://linegauge.interlace.tools/docs/coming-from/string-width">string-width</a> · <a href="https://linegauge.interlace.tools/docs/coming-from/wrap-ansi">wrap-ansi</a> · <a href="https://linegauge.interlace.tools/docs/coming-from/strip-ansi">strip-ansi</a> · <a href="https://linegauge.interlace.tools/docs/coming-from/slice-ansi">slice-ansi</a>
 </p>
 
+**linegauge** measures, wraps, truncates and slices styled terminal text without the edge
+fraying, grapheme-correct over the platform's own `Intl.Segmenter`. Nothing here reads
+`process`, so a pipe, `--json` and an agent get the same columns a terminal does — burgee,
+caique and flagstaff measure their output with it. Zero dependencies.
+
+Drop-in for **string-width** (the default export), **wrap-ansi**, **strip-ansi** and
+**slice-ansi**: `npx burgee migrate` moves the imports, each graded by the incumbent's own suite.
+
 A printer's line gauge is the steel rule marked in picas and points: a compositor holds it
 against a line of type and checks it fits the measure it was set to.
-
-Zero dependencies. Grapheme-correct over the platform's own `Intl.Segmenter`.
-
-Drop-in paths for **string-width** (the default export), **wrap-ansi**, **strip-ansi** and
-**slice-ansi**. Nothing here reads `process`, so a pipe, `--json` and an agent get the same
-columns a terminal does — burgee, caique and flagstaff measure their output with it.
 
 ## Install
 
@@ -212,7 +214,7 @@ Graded by the incumbent's own test suite:
 | `strip-ansi` | 8 / 8 |
 | `wrap-ansi` | 85 / 85 |
 
-Weight, installed and tree-inclusive: **107,036 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5508**.
+Weight, installed and tree-inclusive: **107,211 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5517**.
 
 ## For agents
 

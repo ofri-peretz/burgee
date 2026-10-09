@@ -27,11 +27,12 @@
  *     grades and the number of other graded hosts. Each is rebuilt from `GRADED` here, so a
  *     grade that moves without the prose moving fails.
  *
- * The package READMEs join `PAGES` with R4. A lock that landed red over pages a later PR fixes
- * would block every PR in between.
+ * The package READMEs joined `PAGES` with R4, in the PR that rewrote their openings: a lock that
+ * landed red over pages a later PR fixes would block every PR in between.
  *
- * Proven red on `fc0f897104`, the tree the intent was opened against: both pages failed, the
- * root README naming `commander, yargs` and the docs landing the same.
+ * Proven red on `fc0f897104`, the tree the intent was opened against: the root README and the
+ * docs landing named `commander, yargs`; caique `clack, inquirer`; closeout `exit-hook,
+ * restore-cursor, signal-exit`; controlroom `ink`; flagstaff `ink, ora`; roundel `chalk`.
  */
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -42,13 +43,13 @@ import { describe, expect, it } from 'vitest';
 // eslint-disable-next-line import-next/no-relative-packages -- by path, for the same reason as migrate-drop-ins-lock.test.ts: `compat.ts` is not an export
 import { DROP_INS, GRADED } from '../packages/burgee/src/compat.js';
 
-import { body, DOCS_LANDING, firstParagraph, incumbents, named } from './positioning-audit.js';
+import { body, DOCS_LANDING, firstParagraph, incumbents, named, packageReadmes } from './positioning-audit.js';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const read = (page: string): string => readFileSync(join(ROOT, page), 'utf8');
 
-/** The pages R1 holds today. */
-export const PAGES = ['README.md', DOCS_LANDING];
+/** The pages R1 holds: the root README, every published package README (R4), the docs landing. */
+export const PAGES = ['README.md', ...packageReadmes(), DOCS_LANDING];
 
 /** What is wrong with one page's opening, or nothing. */
 export function problems(page: string, text: string): string[] {
@@ -64,6 +65,10 @@ describe('no front page opens on an incumbent', () => {
     for (const host of Object.keys(GRADED)) expect(all, `GRADED's ${host}`).toContain(host);
     for (const { from } of DROP_INS) expect(all.some((name) => from === name || from.startsWith(`${name}/`)), `DROP_INS' ${from}`).toBe(true);
     expect(all).toEqual(expect.arrayContaining(['commander', 'yargs', 'chalk', 'ink', '@clack/prompts', 'clack', 'inquirer']));
+  });
+
+  it('holds every published package README', () => {
+    expect(PAGES.filter((page) => page.startsWith('packages/')).length, 'the ten packages, minus any without a README').toBeGreaterThanOrEqual(10);
   });
 
   it.each(PAGES)('%s', (page) => {

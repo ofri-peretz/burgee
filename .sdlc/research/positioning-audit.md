@@ -120,6 +120,60 @@ Lead sentences, the first sentence of the first paragraph after the hero:
 6. **The package docs landings are projections,** so they read exactly as their READMEs do.
    Fixing a README fixes its site.
 
+## After — positioning R1, R2 and R4
+
+The same script, after the root README, the docs landing and the ten package READMEs were
+rewritten (`.sdlc/intents/positioning/`). No first paragraph names an incumbent, and
+`scripts/positioning-lock.test.ts` holds that. Every page still names its incumbents, in an
+adoption note right after the opening, in the switch section, and in the compatibility and
+benchmark tables. Densities barely move, which is the intended result: the proof stays, and
+the opening changes.
+
+| Page | Words | Incumbent mentions | per 100 words | First incumbent at body word | First paragraph names |
+| :-- | --: | --: | --: | --: | :-- |
+| `README.md` | 5119 | 101 | 2.0 | 171 | none |
+| `packages/bellpull/README.md` | 1997 | 47 | 2.4 | 47 | none |
+| `packages/burgee/README.md` | 2222 | 78 | 3.5 | 80 | none |
+| `packages/caique/README.md` | 3097 | 79 | 2.6 | 49 | none |
+| `packages/closeout/README.md` | 3495 | 65 | 1.9 | 56 | none |
+| `packages/controlroom/README.md` | 1906 | 75 | 3.9 | 86 | none |
+| `packages/flagstaff/README.md` | 4251 | 133 | 3.1 | 76 | none |
+| `packages/linegauge/README.md` | 1948 | 59 | 3.0 | 53 | none |
+| `packages/paratext/README.md` | 1701 | 63 | 3.7 | 70 | none |
+| `packages/roundel/README.md` | 2452 | 73 | 3.0 | 79 | none |
+| `packages/seniority/README.md` | 3369 | 88 | 2.6 | 62 | none |
+| `apps/docs/content/docs/index.mdx` | 597 | 12 | 2.0 | 326 | none |
+
+| Page | surfaces | exit-codes | fix-lines | explain | static-projection | plugins-as-data | zero-deps | own-suite |
+| :-- | --: | --: | --: | --: | --: | --: | --: | --: |
+| `README.md` | 4 | 56 | 78 | 87 | 3393 | 858 | 115 | 144 |
+| `packages/bellpull/README.md` | 1579 | — | — | 1676 | — | 978 | 42 | 61 |
+| `packages/burgee/README.md` | 8 | 43 | 52 | 59 | — | 674 | 73 | 92 |
+| `packages/caique/README.md` | 2686 | — | 751 | 2785 | — | 1317 | — | 62 |
+| `packages/closeout/README.md` | 3077 | — | — | 3174 | — | 2531 | 48 | 69 |
+| `packages/controlroom/README.md` | 1492 | — | — | 1589 | 52 | 1222 | — | 95 |
+| `packages/flagstaff/README.md` | 3806 | — | 1882 | 3905 | 26 | 60 | — | 88 |
+| `packages/linegauge/README.md` | 1518 | — | — | 804 | — | 779 | 48 | 67 |
+| `packages/paratext/README.md` | 1278 | — | — | 1377 | 50 | 401 | 65 | 94 |
+| `packages/roundel/README.md` | 2076 | — | — | 2175 | — | 1921 | 68 | 93 |
+| `packages/seniority/README.md` | 402 | — | — | 20 | — | 1215 | 92 | 73 |
+| `apps/docs/content/docs/index.mdx` | 8 | 139 | 149 | 164 | — | — | 226 | 257 |
+
+| Page | Lead sentence after |
+| :-- | :-- |
+| ``README.md` | One declaration, six surfaces. |
+| ``packages/bellpull/README.md` | bellpull runs a subprocess, resolves the executable it names, and returns one structured result that every caller can read: `format()` for a person, `toJson()` for `--json`, `toEvent()` for an agent. |
+| ``packages/burgee/README.md` | burgee is a CLI framework built on one declaration. |
+| ``packages/caique/README.md` | caique asks a question only when someone can answer it. |
+| ``packages/closeout/README.md` | closeout runs every exit handler exactly once, on every path out of the process, restores the terminal, and holds shutdown to a deadline so it cannot hang. |
+| ``packages/controlroom/README.md` | controlroom draws keyboard-driven terminal screens — panes, tabs with key hints, a checklist, a log tail, sections that collapse — either inline, under a transcript that flows into the terminal's own scrollback, or in the alternate screen, laid out again on resize. |
+| ``packages/flagstaff/README.md` | flagstaff is a terminal frame loop: it hoists a component, holds it, changes it and lowers it. |
+| ``packages/linegauge/README.md` | linegauge measures, wraps, truncates and slices styled terminal text without the edge fraying, grapheme-correct over the platform's own `Intl.Segmenter`. |
+| ``packages/paratext/README.md` | paratext owns everything around terminal output that is not the output: hyperlinks, inline images, the window title, the clipboard, desktop notifications, the working directory and the bell — OSC, the escape class (`ESC ]`) that addresses the terminal *program* rather than the character grid. |
+| ``packages/roundel/README.md` | roundel is the colours a CLI carries: one output policy decided once from the runtime, nine semantic tokens over `util.styleText` — `error`, `hint`, `command` and `flag` rather than `red` and `blue` — and a theme that changes them all together, contrast-checked before it flies. |
+| ``packages/seniority/README.md` | seniority resolves flags, environment variables, config files, a `package.json` field and declared defaults in one fixed order, with provenance: every value can say where it came from. |
+| ``apps/docs/content/docs/index.mdx` | burgee is a CLI framework built on one declaration. |
+
 ## What it does not measure
 
 - Whether a reader understands the page. The counts are proxies for ordering. The fix is

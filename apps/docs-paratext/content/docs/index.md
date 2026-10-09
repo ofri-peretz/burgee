@@ -3,19 +3,20 @@ title: paratext
 description: "Everything around your terminal output that is not the output: hyperlinks, images, window title, clipboard, notifications and the bell — each with a static fallback for terminals that cannot do it. Drop-in paths for ansi-escapes, terminal-link and term-img. Zero dependencies."
 ---
 
+**paratext** owns everything around terminal output that is not the output: hyperlinks,
+inline images, the window title, the clipboard, desktop notifications, the working directory
+and the bell — **OSC**, the escape class (`ESC ]`) that addresses the terminal *program*
+rather than the character grid. Every OSC capability has a static projection, so a pipe or an
+agent gets `Docs (https://x.dev)`, never raw escape bytes. Zero dependencies.
+
+Drop-in for **ansi-escapes** (the package root, 4 / 4), **terminal-link**
+(`paratext/terminal-link`, 8 / 8) and **term-img** (`paratext/term-img`, 18 / 18):
+`npx burgee migrate` moves the imports, each graded by the incumbent's own suite and level
+with it.
+
 *Paratext* is the literary term for everything around a text that is not the text — the
-title, the cover, the margins, the notes. This package owns the terminal equivalent:
-**OSC**, the escape class (`ESC ]`) that addresses the terminal *program* rather than the
-character grid. Hyperlinks, inline images, the window title, the clipboard, desktop
-notifications, the working directory, and the bell.
-
-It replaces **ansi-escapes** (the package root, 4 / 4), **terminal-link**
-(`paratext/terminal-link`, 8 / 8) and **term-img** (`paratext/term-img`, 18 / 18), each
-graded by the incumbent's own suite and level with it. Every OSC capability
-has a static projection, so a pipe or an agent gets `Docs (https://x.dev)`, never raw escape
-bytes.
-
-Zero dependencies. The intent and design live at
+title, the cover, the margins, the notes. This package owns the terminal equivalent. The
+intent and design live at
 [`.sdlc/intents/paratext/`](https://github.com/ofri-peretz/burgee/tree/main/.sdlc/intents/paratext).
 
 ## Install
@@ -162,7 +163,7 @@ Graded by the incumbent's own test suite:
 | `term-img` | 18 / 18 |
 | `terminal-link` | 8 / 8 |
 
-Weight, installed and tree-inclusive: **120,453 bytes** against **2,235,987** for the incumbents it replaces — a ratio of **0.0539**.
+Weight, installed and tree-inclusive: **120,571 bytes** against **2,235,987** for the incumbents it replaces — a ratio of **0.0539**.
 
 ## For agents
 

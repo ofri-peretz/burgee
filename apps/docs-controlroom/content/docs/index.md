@@ -3,16 +3,16 @@ title: controlroom
 description: "Keyboard-driven terminal screens, inline or full-screen, with a static projection for pipes, CI and --json — and a drop-in path for ink, graded by ink's own suite. No dependency outside the burgee family; react is an optional peer of controlroom/ink only."
 ---
 
-**What it is for.** controlroom replaces **ink** and `@inkjs/ui` in the burgee family. It
-draws keyboard-driven terminal screens — panes, tabs with key hints, a checklist, a log tail,
-sections that collapse — either **inline**, under a transcript that flows into the terminal's
-own scrollback (Ink's shape, and Claude Code's), or in the **alternate screen**, laid out
-again on resize. The same program gives every other caller a **static projection**: stable
-lines in a pipe, in CI and for a screen reader, and NDJSON events under `--json` for an agent.
-It never waits for a key that nobody can press.
+**controlroom** draws keyboard-driven terminal screens — panes, tabs with key hints, a
+checklist, a log tail, sections that collapse — either **inline**, under a transcript that
+flows into the terminal's own scrollback, or in the **alternate screen**, laid out again on
+resize. The same program gives every other caller a **static projection**: stable lines in a
+pipe, in CI and for a screen reader, and NDJSON events under `--json` for an agent. It never
+waits for a key that nobody can press.
 
-An ink program moves by changing its import: `controlroom/ink` is graded by ink 8's own test
-suite, 1304 of 1304 cases, and `@inkjs/ui`'s, 102 of 102.
+Drop-in for **ink**: `npx burgee migrate` moves an ink program to `controlroom/ink`, graded by
+ink 8's own test suite, 1304 of 1304 cases; `@inkjs/ui`'s suite passes 102 of 102 against it.
+The inline shape is Ink's, and Claude Code's.
 
 A **control room** is where a system is watched and run from.
 
