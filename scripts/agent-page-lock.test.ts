@@ -12,13 +12,16 @@
  * run" is false within the hour. The page names each run by commit, and this lock reads that
  * run's committed `benchmarks/results/agent-cli-bench/<date>-<sha>-ci.json`:
  *
- *   - **every run row** — tokens ratio, turns ratio, each build's median turns, the time it was
- *     measured — equals that run's records;
+ *   - **every run row** equals that run's result: the time it was measured, the tokens and turns
+ *     ratios as totals (each build's `<task>.tokens` and `<task>.turns` summed here, the measure
+ *     the claims read since D-20261009-b1-totals-and-explain), each build's total turns, and the
+ *     old median tokens ratio. A run that also carries a `*-total-ratio` record must agree with
+ *     the sum;
  *   - **no run is left out.** Every landed run that measured B1 between the table's first row and
  *     its last is a row, in order. A table that dropped the runs where the claim missed would read
  *     better and be false, so it fails here;
- *   - **the count in the prose** ("held on N of these M runs") is recomputed from the rows against
- *     the claim's own bar in `benchmarks/claims.ts`;
+ *   - **the counts in the prose** ("The tokens claim held on N of these M runs", and the same for
+ *     turns) are recomputed from the rows against each claim's own bar in `benchmarks/claims.ts`;
  *   - **every per-task row** equals that run's `<task>.turns` and `<task>.passed`;
  *   - **every quoted session** (`{/* session <sha> <build> <task> turns=<n> *\/}`) took a number
  *     of turns that run actually recorded for that build and task;
@@ -62,36 +65,53 @@ export function landed(dir = RESULTS): Map<string, Doc> {
 
 const agent = (doc: Doc, variant: string, metric: string): Record_ | undefined => doc.records.find((r) => r.axis === 'agent' && r.variant === variant && r.metric === metric);
 
-/** The tokens claim's bar: `agent-tokens-40pct`'s `max`, read from the claim rather than restated. */
-function tokensBar(): number {
-  const max = CLAIMS.find((c) => c.id === 'agent-tokens-40pct')?.test.max;
-  if (max === undefined) throw new Error('benchmarks/claims.ts no longer declares agent-tokens-40pct with a max — update this lock with it');
+/** A claim's bar, read from `benchmarks/claims.ts` rather than restated. */
+function bar(id: 'agent-tokens-40pct' | 'agent-turns-30pct'): number {
+  const max = CLAIMS.find((c) => c.id === id)?.test.max;
+  if (max === undefined) throw new Error(`benchmarks/claims.ts no longer declares ${id} with a max — update this lock with it`);
   return max;
 }
 
-const RUN_ROW = /^\| `([0-9a-f]{7})` \| (\d{4}-\d{2}-\d{2} \d{2}:\d{2}) \| ([\d.]+) \| ([\d.]+) \| (\d+) \| (\d+) \|$/gmu;
+/** The five tasks' sessions, summed for one build: `<task>.tokens` or `<task>.turns` from its detail. */
+function total(doc: Doc, build: string, what: 'tokens' | 'turns'): number {
+  const detail = agent(doc, build, 'success-rate')?.detail ?? {};
+  return Object.entries(detail)
+    .filter(([key]) => key.endsWith(`.${what}`))
+    .flatMap(([, value]) => String(value).split(','))
+    .reduce((sum, n) => sum + Number(n), 0);
+}
+
+const THOUSANDTHS = 1000;
+const ratio = (a: number, b: number): number => Math.round((a / b) * THOUSANDTHS) / THOUSANDTHS;
+
+const RUN_ROW = /^\| `([0-9a-f]{7})` \| (\d{4}-\d{2}-\d{2} \d{2}:\d{2}) \| ([\d.]+) \| ([\d.]+) \| (\d+) \| (\d+) \| ([\d.]+) \|$/gmu;
 const TASK_ROW = /^\| `([0-9a-f]{7})` \| ([a-z-]+) \| ([\d, ]+) \| (\d+\/\d+) \| ([\d, ]+) \| (\d+\/\d+) \|$/gmu;
 const SESSION = /\{\/\* session ([0-9a-f]{7}) (burgee|commander) ([a-z-]+) turns=(\d+) \*\/\}/gu;
-const COUNT = /held on (\d+) of these (\d+) runs/u;
+const COUNT = /The (tokens|turns) claim held on (\d+) of these (\d+) runs/gu;
 
 const minute = (measured: string): string => measured.slice(0, 16).replace('T', ' ');
 const list = (cell: string): string => cell.replaceAll(/\s+/gu, '');
 
 type Row = RegExpMatchArray;
 
-/** One run row against its result: the time, both ratios, both builds' median turns. */
-function runRow([, sha, at, tokens, turns, burgee, commander]: Row, docs: Map<string, Doc>): string[] {
+/** One run row against its result: the time, both totals ratios, both builds' total turns, the old median ratio. */
+function runRow([, sha, at, tokens, turns, burgee, commander, medians]: Row, docs: Map<string, Doc>): string[] {
   const doc = docs.get(sha!);
   if (doc === undefined) return [`${sha!}: no landed result for this run`];
   const want = {
     measured: minute(doc.measured),
-    tokens: agent(doc, RATIO, 'tokens-per-task-ratio')?.median,
-    turns: agent(doc, RATIO, 'turns-per-task-ratio')?.median,
-    burgee: agent(doc, 'burgee', 'turns-per-task')?.median,
-    commander: agent(doc, 'commander', 'turns-per-task')?.median,
+    tokens: ratio(total(doc, 'burgee', 'tokens'), total(doc, 'commander', 'tokens')),
+    turns: ratio(total(doc, 'burgee', 'turns'), total(doc, 'commander', 'turns')),
+    burgee: total(doc, 'burgee', 'turns'),
+    commander: total(doc, 'commander', 'turns'),
+    medians: agent(doc, RATIO, 'tokens-per-task-ratio')?.median,
   };
-  const got = { measured: at, tokens: Number(tokens), turns: Number(turns), burgee: Number(burgee), commander: Number(commander) };
-  return (Object.keys(want) as (keyof typeof want)[]).filter((key) => want[key] !== got[key]).map((key) => `${sha!}: the page says ${key} ${String(got[key])}, the result says ${String(want[key])}`);
+  const got = { measured: at, tokens: Number(tokens), turns: Number(turns), burgee: Number(burgee), commander: Number(commander), medians: Number(medians) };
+  const recorded = { tokens: agent(doc, RATIO, 'tokens-total-ratio')?.median, turns: agent(doc, RATIO, 'turns-total-ratio')?.median };
+  return [
+    ...(Object.keys(want) as (keyof typeof want)[]).filter((key) => want[key] !== got[key]).map((key) => `${sha!}: the page says ${key} ${String(got[key])}, the result says ${String(want[key])}`),
+    ...(['tokens', 'turns'] as const).filter((key) => recorded[key] !== undefined && recorded[key] !== want[key]).map((key) => `${sha!}: the summed ${key} ratio ${String(want[key])} disagrees with the run's own ${key}-total-ratio ${String(recorded[key])}`),
+  ];
 }
 
 /** No run between the first row and the last may be missing: a table without its bad runs reads better and is false. */
@@ -107,12 +127,19 @@ function complete(rows: readonly Row[], docs: Map<string, Doc>): string[] {
   return expected.join(' ') === shown.join(' ') ? [] : [`the run table is not every landed B1 run from ${shown[0]!} to ${shown.at(-1)!}, in order: expected ${expected.join(', ')}`];
 }
 
-/** "held on N of these M runs", recomputed from the rows against the claim's bar. */
-function counted(page: string, rows: readonly Row[], bar: number): string[] {
-  const count = COUNT.exec(page);
-  if (count === null) return ['the page no longer says "held on N of these M runs" — say how many runs met the claim'];
-  const met = rows.filter((r) => Number(r[3]) <= bar).length;
-  return Number(count[1]) === met && Number(count[2]) === rows.length ? [] : [`the page says the claim held on ${count[1]!} of ${count[2]!} runs; the table says ${String(met)} of ${String(rows.length)}`];
+/** "The tokens claim held on N of these M runs", and the same for turns, recomputed from the rows against each claim's bar. */
+function counted(page: string, rows: readonly Row[]): string[] {
+  const counts = new Map([...page.matchAll(COUNT)].map((m) => [m[1]!, [Number(m[2]), Number(m[3])]] as const));
+  const claims = [
+    { what: 'tokens', column: 3, max: bar('agent-tokens-40pct') },
+    { what: 'turns', column: 4, max: bar('agent-turns-30pct') },
+  ];
+  return claims.flatMap(({ what, column, max }) => {
+    const said = counts.get(what);
+    if (said === undefined) return [`the page no longer says "The ${what} claim held on N of these M runs" — say how many runs met it`];
+    const met = rows.filter((r) => Number(r[column]) <= max).length;
+    return said[0] === met && said[1] === rows.length ? [] : [`the page says the ${what} claim held on ${String(said[0])} of ${String(said[1])} runs; the table says ${String(met)} of ${String(rows.length)}`];
+  });
 }
 
 /** One per-task row against that run's `<task>.turns` and `<task>.passed`. */
@@ -142,13 +169,13 @@ function models(page: string, rows: readonly Row[], docs: Map<string, Doc>): str
 }
 
 /** Everything on the page that disagrees with the landed results. */
-export function problems(page: string, docs: Map<string, Doc>, bar = tokensBar()): string[] {
+export function problems(page: string, docs: Map<string, Doc>): string[] {
   const rows = [...page.matchAll(RUN_ROW)];
   if (rows.length === 0) return ['the page has no run table this lock can read — the reader is broken, or the table changed shape'];
   return [
     ...rows.flatMap((row) => runRow(row, docs)),
     ...complete(rows, docs),
-    ...counted(page, rows, bar),
+    ...counted(page, rows),
     ...[...page.matchAll(TASK_ROW)].flatMap((row) => taskRow(row, docs)),
     ...[...page.matchAll(SESSION)].flatMap((row) => session(row, docs)),
     ...models(page, rows, docs),
@@ -183,14 +210,21 @@ describe('the lock can fail', () => {
 
   it('catches a run dropped from the middle of the table', () => {
     const rows = [...page.matchAll(RUN_ROW)];
-    const missed = rows.find((r) => Number(r[3]) > tokensBar() && r !== rows[0] && r !== rows.at(-1));
+    const missed = rows.find((r) => Number(r[3]) > bar('agent-tokens-40pct') && r !== rows[0] && r !== rows.at(-1));
     expect(missed, 'no missed run in the middle of the table to drop').toBeDefined();
     const tampered = page.replace(`${missed![0]}\n`, '');
     expect(problems(tampered, docs).join('\n')).toMatch(/not every landed B1 run/u);
   });
 
+  it("catches a summed total that disagrees with the run's own total record", () => {
+    const [, sha] = /`([0-9a-f]{7})`/u.exec(firstRow)!;
+    const doc = docs.get(sha!)!;
+    const forged: Doc = { ...doc, records: [...doc.records, { axis: 'agent', variant: RATIO, metric: 'tokens-total-ratio', median: 0.5 }] };
+    expect(problems(page, new Map([...docs, [sha!, forged]])).join('\n')).toMatch(/disagrees with the run's own tokens-total-ratio 0\.5/u);
+  });
+
   it('catches a count that does not match the rows', () => {
-    const tampered = page.replace(COUNT, 'held on 12 of these 12 runs');
+    const tampered = page.replace('The tokens claim held on 5', 'The tokens claim held on 12');
     expect(problems(tampered, docs).join('\n')).toMatch(/the table says/u);
   });
 

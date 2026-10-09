@@ -117,11 +117,12 @@ greeting = "Hello"   from default
 `--explain` answers the question in one call: the value, where it came from, and every place
 it could have come from instead. This session still took 11 turns. Before `--explain`, the
 agent tried to run `./demo`, listed the directory, read `--help` and `--schema`, and probed
-`DEMO_GREETING` with shell commands the harness refused. The root `--help` names
-`--explain`, and `--schema` does not. Most burgee sessions on this task read `--schema` first,
-which is why burgee's lead on this task is small, and on `e6cff20` absent
-([D-20261009-b1-two-turns](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/decisions/D-20261009-b1-two-turns.md)
-has the count, and a proposal that is the owner's call).
+`DEMO_GREETING` with shell commands the harness refused. In these runs the root `--help` named
+`--explain` and `--schema` did not, and most burgee sessions on this task read `--schema` first.
+That is why burgee's lead on this task is small, and on `e6cff20` absent. Since
+[D-20261009-b1-totals-and-explain](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/decisions/D-20261009-b1-totals-and-explain.md),
+`--schema` and the unknown-command hint name `--explain` too. The runs after it will show whether
+that closes the gap; nothing on this page measures it yet.
 
 ## Every task on one run
 
@@ -139,42 +140,43 @@ own check:
 burgee's lead is in recover-failure. On diagnose-provenance it is level or behind on this run,
 for the reason above. On the other three tasks the two builds are close.
 
-## The pooled claim, every run
+## The claims, every run
 
-The published claim is that an agent spends at least 40% fewer tokens per task against a
-burgee program: the median tokens on burgee over the median on commander, 0.6 or lower. A
-second claim is at least 30% fewer turns, a ratio of 0.7 or lower. These are every run on
-`main` that measured B1 since it began installing the demo under the name it prints
+The published claims are that an agent spends at least 40% fewer tokens, and takes at least 30%
+fewer turns, over the five tasks against a burgee program. Since
+[D-20261009-b1-totals-and-explain](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/decisions/D-20261009-b1-totals-and-explain.md),
+accepted by the owner on 2026-10-09, each is a total: burgee's tokens or turns summed over its
+25 sessions, over commander's, 0.6 or lower for tokens and 0.7 or lower for turns. Before that,
+they were a ratio of pooled medians. These are every run on `main` that measured B1 since it
+began installing the demo under the name it prints
 ([D-20261008-b1-tool-name](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/decisions/D-20261008-b1-tool-name.md)),
-through `e6cff20`:
+through `e6cff20`. Each total is summed from the run's per-task detail, and the last column is
+the old measure:
 
-| run | measured (UTC) | tokens ratio | turns ratio | burgee median turns | commander median turns |
-| :-- | :-- | --: | --: | --: | --: |
-| `ba8a89c` | 2026-10-08 22:44 | 0.995 | 1 | 4 | 4 |
-| `98c355c` | 2026-10-09 03:43 | 0.495 | 0.5 | 3 | 6 |
-| `d33ae03` | 2026-10-09 04:34 | 0.491 | 0.5 | 3 | 6 |
-| `e641aa3` | 2026-10-09 05:41 | 0.493 | 0.5 | 3 | 6 |
-| `367cefb` | 2026-10-09 06:08 | 0.747 | 0.75 | 3 | 4 |
-| `f29f159` | 2026-10-09 06:57 | 0.493 | 0.5 | 3 | 6 |
-| `689c403` | 2026-10-09 07:23 | 0.493 | 0.5 | 3 | 6 |
-| `a0aa992` | 2026-10-09 08:19 | 0.492 | 0.5 | 3 | 6 |
-| `fe4c90f` | 2026-10-09 08:51 | 0.493 | 0.5 | 3 | 6 |
-| `8d601e7` | 2026-10-09 09:18 | 0.494 | 0.5 | 3 | 6 |
-| `04e48de` | 2026-10-09 09:43 | 0.746 | 0.75 | 3 | 4 |
-| `e6cff20` | 2026-10-09 10:13 | 0.492 | 0.5 | 3 | 6 |
+| run | measured (UTC) | tokens, totals | turns, totals | burgee turns | commander turns | tokens, medians |
+| :-- | :-- | --: | --: | --: | --: | --: |
+| `ba8a89c` | 2026-10-08 22:44 | 0.671 | 0.702 | 106 | 151 | 0.995 |
+| `98c355c` | 2026-10-09 03:43 | 0.571 | 0.598 | 107 | 179 | 0.495 |
+| `d33ae03` | 2026-10-09 04:34 | 0.575 | 0.601 | 104 | 173 | 0.491 |
+| `e641aa3` | 2026-10-09 05:41 | 0.628 | 0.631 | 106 | 168 | 0.493 |
+| `367cefb` | 2026-10-09 06:08 | 0.692 | 0.703 | 111 | 158 | 0.747 |
+| `f29f159` | 2026-10-09 06:57 | 0.549 | 0.584 | 101 | 173 | 0.493 |
+| `689c403` | 2026-10-09 07:23 | 0.643 | 0.701 | 115 | 164 | 0.493 |
+| `a0aa992` | 2026-10-09 08:19 | 0.595 | 0.606 | 106 | 175 | 0.492 |
+| `fe4c90f` | 2026-10-09 08:51 | 0.569 | 0.583 | 102 | 175 | 0.493 |
+| `8d601e7` | 2026-10-09 09:18 | 0.638 | 0.656 | 105 | 160 | 0.494 |
+| `04e48de` | 2026-10-09 09:43 | 0.616 | 0.66 | 107 | 162 | 0.746 |
+| `e6cff20` | 2026-10-09 10:13 | 0.699 | 0.677 | 105 | 155 | 0.492 |
 
-**The tokens claim held on 9 of these 12 runs, and it is not met as a claim, because it does
-not hold on every run.** It missed on `ba8a89c` (0.995), `367cefb` (0.747) and `04e48de`
-(0.746). burgee's median is 3 turns on every run after the first. commander's median is 4 or
-6, depending on how many of its 25 sessions guess `demo config get user.name` straight away
-and finish structured-output in 2 turns. So the turns ratio is 3/6 on commander's slower runs and
-3/4 on its faster ones, and tokens follow turns. burgee's own median cannot reach 2 on these
-five tasks: recover-failure and diagnose-provenance need at least three calls each, and nearly
-every agent reads help before discover-subcommand
-([D-20261009-b1-two-turns](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/decisions/D-20261009-b1-two-turns.md)).
-On these tasks the claim holds when commander has a slow run and misses when it has a fast
-one.
+**The tokens claim held on 5 of these 12 runs, so it is not met.** The newest of them, `e6cff20`,
+reads 0.699. The turns claim held on 9 of these 12 runs, and its three misses are 0.701 to 0.703.
+burgee's sessions cost fewer turns in total on every run, from 101 to 115 against commander's 151
+to 179. Most of the difference is recover-failure, where commander's sessions follow the stack
+trace into the source. The medians swung from 0.491 to 0.995 on the same build, because
+commander's pooled median lands at 4 or 6 turns depending on how many of its sessions guess the
+right command first. The totals move between 0.549 and 0.699, which is why the claims read them
+now.
 
-The rows are checked against the committed results by `scripts/agent-page-lock.test.ts`, and so
-is the count above. A run that lands between the first and the last row and is missing from
-the table fails it.
+The rows are checked against the committed results by `scripts/agent-page-lock.test.ts`, which
+sums the totals itself, and so are both counts above. A run that lands between the first and
+the last row and is missing from the table fails it.
