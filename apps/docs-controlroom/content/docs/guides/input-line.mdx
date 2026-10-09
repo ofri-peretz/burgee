@@ -1,0 +1,71 @@
+---
+title: The input line
+description: "caique's line editor hosted in a pane: keys go to it while it has focus and fall through to the keymap when it does not use them; in a pipe, each stdin line is an entry and nothing ever waits."
+---
+
+A chat CLI, a REPL or a command palette needs a line the user types into while the screen keeps
+drawing. controlroom hosts **caique's line editor** in one pane of the layout:
+
+```js title="echo.mjs"
+import { editor } from 'caique/editor';
+import { open, processRuntime } from 'controlroom';
+
+open(processRuntime(), {
+  json: process.argv.includes('--json'),
+  layout: { direction: 'column', parts: [{ size: 'fit', content: 'prompt' }] },
+  panes: {},
+  input: {
+    editor: editor({ prompt: '> ' }),
+    pane: 'prompt',
+    onSubmit(entry, screen) {
+      screen.commit(`you said: ${entry}`);
+    },
+    onEnd(screen) {
+      screen.close();
+    },
+  },
+});
+```
+
+`input.pane` names a pane of the layout, which controlroom fills with the editor; you do not
+list it under `panes`. `onSubmit(text, screen)` runs for each entry, and `onEnd(screen)` once
+there is nothing more to read. controlroom already depends on caique; add it to your own
+dependencies too (`npm install caique`), because your program imports `caique/editor`.
+
+## On a terminal
+
+While the input pane has focus (or when no pane takes focus at all), every key goes to the
+editor first. The editor is caique's: history on `↑` `↓`, completion on `Tab` through its
+`complete` option, `Meta+Enter` or `Ctrl+J` for a new line, and pasted text arriving whole,
+because the screen turns bracketed paste on and closeout turns it off again on every exit.
+
+A key the editor does not use (its state comes back unchanged and it raises no event) **falls
+through to the keymap**. `Esc` closes an open completion menu; with none open it changes
+nothing, so it reaches a program that binds it to `interrupt` while the user is typing. The
+editor's `ctrl+c` is its cancel, and a cancel is the screen's `quit`.
+
+The input line is drawn on a live screen only. It is a `liveOnly` pane: a pipe and an agent get
+the entries and what the program commits, not the prompt.
+
+## In a pipe
+
+Off a terminal, each line of piped stdin is one entry, and `onEnd` runs when stdin ends:
+
+```text title="printf 'hello\nship it\n' | node echo.mjs"
+you said: hello
+you said: ship it
+```
+
+Under `--json` each commit is one event:
+
+```text title="printf 'hello\nship it\n' | node echo.mjs --json"
+{"event":"commit","state":"you said: hello"}
+{"event":"commit","state":"you said: ship it"}
+```
+
+A terminal's stdin is never read by a static screen, because reading it would be a wait for a
+key nobody may press. `onEnd` runs straight away instead, so a program run as
+`node echo.mjs > out.txt` in a terminal ends rather than hangs.
+
+The [chat CLI recipe](/docs/recipes/chat-cli) is a whole program on this: a streamed reply,
+slash commands with completion, a permission prompt, and `Esc` to interrupt.

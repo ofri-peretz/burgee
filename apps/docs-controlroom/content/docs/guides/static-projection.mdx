@@ -1,0 +1,106 @@
+---
+title: Live and static
+description: "One program, two kinds of screen: live on a terminal that can read keys, and a static projection everywhere else — each pane's text under its label for a pipe, CI and a screen reader, and NDJSON events under --json."
+---
+
+A full-screen program is useless to a pipe, a CI log, a screen reader and an agent, and most
+full-screen libraries hand them the drawing anyway: cursor moves, erases and a frame per tick.
+controlroom decides once, in `open()`, which of two screens a program gets, and the program's
+code is the same for both.
+
+| | live | static |
+| :-- | :-- | :-- |
+| when | roundel's policy says `tty`, and stdin can go raw | every other case |
+| a pane | drawn in its rectangle, animated if it has a `frame` | its `static(state)` text, under its `label` |
+| `update()` | repaints the rows that changed | prints the pane's lines that are new since it last printed |
+| `commit()` | text into the scrollback above the live region | appended to the output |
+| keys | read, through the keymap | never read; `dispatch()` instead |
+| `liveOnly` panes | drawn | left out |
+| tabs | the active tab's layout | nothing hidden: every pane prints |
+
+## What a pipe, CI and a screen reader get
+
+The static screen prints each pane's **static projection**, the text form every flagstaff
+component is required to have, under the pane's `label`. It writes no escape byte, no carriage
+return and no cursor movement, and it never reprints a pane: each update prints only the lines
+that are new since that pane last printed, so a pipe reads as a log.
+
+```js title="watch.mjs"
+import { hints, open, processRuntime } from 'controlroom';
+
+const text = { name: 'text', static: (s) => s };
+const keymap = { r: 'refresh', q: 'quit' };
+
+const screen = open(processRuntime(), {
+  json: process.argv.includes('--json'),
+  keymap,
+  layout: {
+    direction: 'column',
+    parts: [
+      { content: 'health' },
+      { size: 1, content: 'hints' },
+    ],
+  },
+  panes: {
+    health: { component: text, state: 'api: up\nqueue: 3 waiting', label: 'Health' },
+    // A key hint means nothing to a pipe or an agent: it is drawn on a terminal only.
+    hints: { component: text, state: hints(keymap, { refresh: 'refresh', quit: 'quit' }), liveOnly: true },
+  },
+});
+
+screen.update('health', 'api: up\nqueue: 0 waiting');
+screen.close();
+```
+
+```text title="node watch.mjs"
+Health
+api: up
+queue: 3 waiting
+queue: 0 waiting
+```
+
+`api: up` did not change, so it was not printed twice. CI and a screen reader get exactly the
+same lines: `CI` set with stdout not a terminal is the `ci` mode, and `CLI_ACCESSIBLE` is the
+`accessible` mode, which wins even on a terminal.
+
+```text title="CLI_ACCESSIBLE=1 node watch.mjs"
+Health
+api: up
+queue: 3 waiting
+queue: 0 waiting
+```
+
+The rules for what a projection prints are flagstaff's, because the static screen hands each
+pane to flagstaff's loop; they are on flagstaff's
+[static projection](https://flagstaff.interlace.tools/docs/guides/static-projection) page.
+
+## Under `--json`
+
+Pass `json: true` when the program was run with `--json`. stdout is then left for the
+program's own result, and stderr carries one NDJSON event per change:
+
+```text title="node watch.mjs --json"
+{"event":"health","state":"api: up\nqueue: 3 waiting"}
+{"event":"health","state":"api: up\nqueue: 0 waiting"}
+{"event":"health","state":"api: up\nqueue: 0 waiting"}
+```
+
+- `event` is the **pane's name** in `panes`, and `state` is the state you passed, serialised
+  as you passed it, so keep it plain data.
+- Every `update()` is an event, including one that changes nothing.
+- Each `commit()` is one `{"event":"commit","state":<text>}`.
+- `close()` sends each pane's last state once more, so an agent sees when the screen closed.
+  Commits are not repeated.
+- `liveOnly` panes send nothing.
+
+An agent parses the state instead of scraping a drawing, and it is the same program a person
+watches. A CLI built on [burgee](https://burgee.interlace.tools/docs) passes `json` for you
+and writes its result envelope to stdout.
+
+## Never a wait
+
+No call waits for a key unless keys are being read, which is the live screen only. A static
+screen reads no keys at all: a program that needs an action off a terminal runs it with
+`dispatch()` ([Screens](/docs/guides/screens#doing-what-a-key-would-have-done)), and an input
+line reads piped stdin, never a terminal's ([The input line](/docs/guides/input-line#in-a-pipe)).
+A screen run by an agent, in CI or behind `< file` cannot hang on a key.

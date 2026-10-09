@@ -36,6 +36,24 @@
  * Criterion 6 is not a test but a diff: the commit that added `apps/docs-roundel` and its row
  * touched nothing under `.github/workflows/`. What makes that stay true is criterion 5's
  * lock, since a workflow that names no app has nothing to edit when one arrives.
+ *
+ * **Pending apps.** An app can be built before the owner creates its Vercel project
+ * (`apps/docs-controlroom`, gap C8). It is filed under `pending` with every fact of a row but
+ * `projectId`, so it is held to everything a row is held to that does not need a project —
+ * its directory, workspace, host, index, chassis and package dependencies, its own host
+ * resolved, no literal of that host in source, no mention of it in a workflow, links that land
+ * — while the two things that would need one are checked the other way: neither workflow
+ * resolves it, so nothing deploys it, and its package keeps its `excluded` reason, so every
+ * link to it still lands on the front door's section until the row goes live.
+ *
+ * Proven red, one mutation at a time (2026-10-08):
+ *
+ * | mutation | fails |
+ * | :-- | :-- |
+ * | a `projectId` added to the pending controlroom entry | carries no Vercel project |
+ * | controlroom's `excluded` reason deleted | keeps its package's excluded reason |
+ * | controlroom copied into `apps` with a placeholder `prj_` id, `pending` left as is | is not also a deployable row |
+ * | `pending` emptied, `apps/docs-controlroom` left on disk | has no Next app under apps/ that the table does not name |
  */
 import { spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -63,9 +81,12 @@ interface Row {
   outputDirectory: string;
   familyPages: boolean;
 }
+/** A built app with no Vercel project yet: a row's facts except `projectId`. */
+type PendingRow = Omit<Row, 'projectId'>;
 interface Table {
   orgId: string;
   apps: Record<string, Row>;
+  pending?: Record<string, PendingRow>;
   excluded: Record<string, string>;
 }
 interface Manifest {
@@ -78,6 +99,9 @@ interface Manifest {
 
 const TABLE = JSON.parse(readFileSync(TABLE_PATH, 'utf8')) as Table;
 const ROWS = Object.entries(TABLE.apps);
+const PENDING = Object.entries(TABLE.pending ?? {});
+/** Every app with a directory: deployable rows and pending ones. */
+const SITES: [string, PendingRow][] = [...ROWS, ...PENDING];
 const FAMILY_PAGES = ['compatibility.mdx', 'comparison.mdx', 'gallery.mdx'] as const;
 
 const read = (path: string): string => readFileSync(join(REPO_ROOT, path), 'utf8');
@@ -117,7 +141,7 @@ function urlOf(content: string, abs: string): string {
 }
 
 /** Every page URL an app serves, from its content directory. */
-const pagesOf = (row: Row): Set<string> => {
+const pagesOf = (row: PendingRow): Set<string> => {
   const content = join(REPO_ROOT, row.dir, 'content', 'docs');
   return new Set(walk(content).filter((f) => /\.mdx?$/u.test(f)).map((f) => urlOf(content, f)));
 };
@@ -188,7 +212,7 @@ describe('criterion 1: every published package has a site, or a written reason',
 
   it('names only real, published packages in rows and exclusions', () => {
     const published = new Set(publishedPackages(join(REPO_ROOT, 'packages')));
-    const stray = [...ROWS.map(([, row]) => row.package), ...Object.keys(TABLE.excluded)].filter((name) => !published.has(name));
+    const stray = [...SITES.map(([, row]) => row.package), ...Object.keys(TABLE.excluded)].filter((name) => !published.has(name));
     expect(stray, 'a row or exclusion for a package that is not published from packages/').toEqual([]);
   });
 });
@@ -196,21 +220,21 @@ describe('criterion 1: every published package has a site, or a written reason',
 // ─── Criterion 2 ──────────────────────────────────────────────────────────────────────
 
 describe('criterion 2: every row is an app, and every app is a row', () => {
-  it.each(ROWS)('%s: its directory exists and its workspace is the row’s', (key, row) => {
+  it.each(SITES)('%s: its directory exists and its workspace is the row’s', (key, row) => {
     expect(existsSync(join(REPO_ROOT, row.dir, 'package.json')), `${row.dir} does not exist (row '${key}')`).toBe(true);
     expect(manifestAt(row.dir).name, `${row.dir}/package.json is not named '${row.workspace}'`).toBe(row.workspace);
     expect(row.package, 'an app key is the package it documents — it is also the subdomain').toBe(key);
   });
 
   it('has no Next app under apps/ that the table does not name', () => {
-    const dirs = new Set(ROWS.map(([, row]) => row.dir));
+    const dirs = new Set(SITES.map(([, row]) => row.dir));
     const apps = readdirSync(join(REPO_ROOT, 'apps'))
       .map((name) => `apps/${name}`)
       .filter((dir) => existsSync(join(REPO_ROOT, dir, 'next.config.mjs')));
     expect(apps.filter((dir) => !dirs.has(dir)), 'a docs app with no row is an app no workflow can deploy').toEqual([]);
   });
 
-  it.each(ROWS)('%s: has an index page and depends on the chassis and on its own package (R10a)', (_key, row) => {
+  it.each(SITES)('%s: has an index page and depends on the chassis and on its own package (R10a)', (_key, row) => {
     expect(pagesOf(row).has('/docs'), `${row.dir}/content/docs has no index`).toBe(true);
     const m = manifestAt(row.dir);
     expect(m.dependencies?.['docs-chassis'], `${row.dir} does not depend on docs-chassis`).toBeDefined();
@@ -219,11 +243,11 @@ describe('criterion 2: every row is an app, and every app is a row', () => {
     expect({ ...m.dependencies, ...m.devDependencies }[row.package], `${row.dir} does not depend on ${row.package}`).toBeDefined();
   });
 
-  it.each(ROWS.filter(([, row]) => !row.familyPages))('%s: carries the page for the incumbent a reader arrives from', (_key, row) => {
+  it.each(SITES.filter(([, row]) => !row.familyPages))('%s: carries the page for the incumbent a reader arrives from', (_key, row) => {
     expect([...pagesOf(row)].some((url) => url.startsWith('/docs/coming-from/')), `${row.dir} has no /docs/coming-from/<incumbent> page`).toBe(true);
   });
 
-  it.each(ROWS)('%s: every workspace is kept out of changesets', (_key, row) => {
+  it.each(SITES)('%s: every workspace is kept out of changesets', (_key, row) => {
     // A private docs site that changesets tries to version fails `changeset version`. The
     // ignore list is a glob, so a new app needs no edit here — this checks the glob holds.
     const ignore = (JSON.parse(read('.changeset/config.json')) as { ignore: string[] }).ignore;
@@ -236,8 +260,8 @@ describe('criterion 2: every row is an app, and every app is a row', () => {
 
 describe('each row states its own facts, and no two rows share one', () => {
   it('lives on its own subdomain', () => {
-    for (const [key, row] of ROWS) expect(row.productionUrl, key).toBe(`https://${key}.interlace.tools`);
-    expect(new Set(ROWS.map(([, row]) => row.productionUrl)).size).toBe(ROWS.length);
+    for (const [key, row] of SITES) expect(row.productionUrl, key).toBe(`https://${key}.interlace.tools`);
+    expect(new Set(SITES.map(([, row]) => row.productionUrl)).size).toBe(SITES.length);
   });
 
   it('points at its own Vercel project', () => {
@@ -249,7 +273,7 @@ describe('each row states its own facts, and no two rows share one', () => {
   });
 
   it('builds from the repo root, every row (PR #85)', () => {
-    for (const [key, row] of ROWS) expect(row.rootDirectory, key).toBe('');
+    for (const [key, row] of SITES) expect(row.rootDirectory, key).toBe('');
   });
 
   it('keeps per-app build settings out of the root vercel.json, which every project reads', () => {
@@ -291,10 +315,10 @@ describe('criterion 3: one copy of every family-wide page', () => {
 // ─── Criterion 4 ──────────────────────────────────────────────────────────────────────
 
 /** The module an app states its site in: `src/site.ts`, or the front door's `src/lib/site.ts`. */
-const siteModule = (row: Row): string => [join(row.dir, 'src', 'site.ts'), join(row.dir, 'src', 'lib', 'site.ts')].find((f) => existsSync(join(REPO_ROOT, f))) ?? `${row.dir}/src/site.ts`;
+const siteModule = (row: PendingRow): string => [join(row.dir, 'src', 'site.ts'), join(row.dir, 'src', 'lib', 'site.ts')].find((f) => existsSync(join(REPO_ROOT, f))) ?? `${row.dir}/src/site.ts`;
 
 describe('criterion 4: each app resolves its own row’s host', () => {
-  it.each(ROWS)('%s', async (key, row) => {
+  it.each(SITES)('%s', async (key, row) => {
     // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- one module per row of a table; the path is the app's own site module, resolved from the repo, never from input
     const { site } = (await import(pathToFileURL(join(REPO_ROOT, siteModule(row))).href)) as { site?: { key: string; url: string } };
     expect(site, `${siteModule(row)} exports no \`site\``).toBeDefined();
@@ -304,8 +328,8 @@ describe('criterion 4: each app resolves its own row’s host', () => {
 
   it('writes no host literal into any app’s source', () => {
     // The host is the row's. A literal in `src/` is the second copy that drifts.
-    const hosts = ROWS.map(([, row]) => new URL(row.productionUrl).host);
-    const offenders = ROWS.flatMap(([, row]) => walk(join(REPO_ROOT, row.dir, 'src')))
+    const hosts = SITES.map(([, row]) => new URL(row.productionUrl).host);
+    const offenders = SITES.flatMap(([, row]) => walk(join(REPO_ROOT, row.dir, 'src')))
       .concat(walk(join(REPO_ROOT, 'apps', 'docs-chassis', 'src')))
       .filter((f) => /\.(?:ts|tsx|mjs)$/u.test(f))
       .filter((f) => hosts.some((host) => readFileSync(f, 'utf8').includes(host)))
@@ -325,14 +349,14 @@ describe('criterion 5: no workflow names an app', () => {
     expect(files.some((f) => f.endsWith('auto-deploy.yml'))).toBe(true);
   });
 
-  it.each(ROWS)('%s: its host, project, directory and workspace appear in .github/ only in the table', (_key, row) => {
-    const facts = [new URL(row.productionUrl).host, row.projectId, `--filter=${row.workspace}`];
+  it.each(SITES)('%s: its host, project, directory and workspace appear in .github/ only in the table', (_key, row) => {
+    const facts = [new URL(row.productionUrl).host, ...('projectId' in row ? [(row as Row).projectId] : []), `--filter=${row.workspace}`];
     const dir = new RegExp(String.raw`${escape(row.dir)}(?![\w-])`, 'u');
     const hits = files.flatMap((f) => [...facts.filter((fact) => text(f).includes(fact)), ...(dir.test(text(f)) ? [row.dir] : [])].map((fact) => `${relative(REPO_ROOT, f)}: ${fact}`));
     expect(hits).toEqual([]);
   });
 
-  it.each(ROWS)('%s: the deploy path never names the app at all', (key) => {
+  it.each(SITES)('%s: the deploy path never names the app at all', (key) => {
     // The files that deploy (they mention Vercel or dispatch deploy-docs.yml) and the setup
     // action they share. A package name elsewhere — "grade burgee" in compat.yml — is about
     // the package; here, any mention is a per-app branch or a hand-kept mapping.
@@ -377,6 +401,45 @@ describe('criterion 5: no workflow names an app', () => {
   });
 });
 
+// ─── A pending app is built, and never deployed ───────────────────────────────────────
+
+describe('a pending app is built, and never deployed', () => {
+  it.each(PENDING)('%s: carries no Vercel project — one that has a project is a row', (_key, row) => {
+    expect('projectId' in row, 'a pending entry with a projectId belongs in "apps"').toBe(false);
+  });
+
+  it.each(PENDING)('%s: is not also a deployable row', (key) => {
+    expect(Object.keys(TABLE.apps)).not.toContain(key);
+    expect(ROWS.map(([, row]) => row.workspace)).not.toContain(TABLE.pending?.[key]?.workspace);
+  });
+
+  it.each(PENDING)('%s: keeps its package’s excluded reason, so links to it still land on the front door', (_key, row) => {
+    expect((TABLE.excluded[row.package] ?? '').trim(), `${row.package} is pending with no "excluded" reason`).not.toBe('');
+  });
+
+  executes.each(PENDING)('%s: deploy-docs.yml refuses it, as it refuses an app the table does not have', (key) => {
+    const r = runStep(runBlock('preflight', 'deploy-docs.yml', 'app'), { APP: key });
+    expect(r.status, `a pending app resolved for deploy: ${r.output}`).not.toBe(0);
+    expect(r.githubOutput).not.toContain('project_id=');
+  });
+
+  executes.each(PENDING)('%s: auto-deploy.yml maps its workspace onto no row', (_key, row) => {
+    const json = JSON.stringify({ tasks: [{ package: row.workspace, task: 'build' }, { package: row.package, task: 'build' }] });
+    const r = runStep(runBlock('affected', 'auto-deploy.yml', 'compute'), { BEFORE_SHA: 'a'.repeat(40) }, { npx: `printf '%s' '${json}'`, git: 'exit 0' });
+    expect(r.status, r.output).toBe(0);
+    const apps = JSON.parse(/^apps=(.*)$/mu.exec(r.githubOutput)?.[1] ?? 'null') as string[];
+    expect(apps.filter((app) => PENDING.some(([key]) => key === app))).toEqual([]);
+  });
+
+  it('no deployed app links to a pending host, which serves nothing yet', () => {
+    const hosts = PENDING.map(([, row]) => new URL(row.productionUrl).host);
+    const offenders = ROWS.flatMap(([, row]) => walk(join(REPO_ROOT, row.dir, 'content')))
+      .filter((f) => /\.mdx?$/u.test(f))
+      .flatMap((file) => links(file).filter((href) => hosts.some((host) => href.includes(`//${host}`))).map((href) => `${relative(REPO_ROOT, file)} → ${href}`));
+    expect(offenders).toEqual([]);
+  });
+});
+
 // ─── The chassis is private ───────────────────────────────────────────────────────────
 
 describe('the chassis stays a private workspace (intent constraint 5)', () => {
@@ -412,7 +475,7 @@ function links(file: string): string[] {
  * A path the app serves from a route handler rather than a content page — `/llms.txt` is
  * `src/app/llms.txt/route.ts`, which every package README's *For agents* section links.
  */
-const routed = (row: Row, path: string): boolean => path !== '' && existsSync(join(REPO_ROOT, row.dir, 'src', 'app', ...path.split('/').filter(Boolean), 'route.ts'));
+const routed = (row: PendingRow, path: string): boolean => path !== '' && existsSync(join(REPO_ROOT, row.dir, 'src', 'app', ...path.split('/').filter(Boolean), 'route.ts'));
 
 /**
  * Whether `href`, written in `row`'s content, lands on a page: a root-relative `/docs` link
@@ -420,7 +483,7 @@ const routed = (row: Row, path: string): boolean => path !== '' && existsSync(jo
  * content pages, or a route handler. Links anywhere else — GitHub, npm, a site's home page —
  * are not this lock's to judge.
  */
-function lands(row: Row, href: string): boolean {
+function lands(row: PendingRow, href: string): boolean {
   const target = href.replace(/[#?].*$/u, '').replace(/\/$/u, '');
   if (target.startsWith('/docs')) return pagesOf(row).has(target.replace(/\.md$/u, ''));
   if (!target.startsWith('https://')) return true;
@@ -438,7 +501,7 @@ describe('every link in every app’s content lands on a page', () => {
     expect(lands(row, `${host}/llms-nowhere.txt`)).toBe(false);
   });
 
-  it.each(ROWS)('%s', (_key, row) => {
+  it.each(SITES)('%s', (_key, row) => {
     const broken = walk(join(REPO_ROOT, row.dir, 'content'))
       .filter((f) => /\.mdx?$/u.test(f))
       .flatMap((file) => links(file).filter((href) => !lands(row, href)).map((href) => `${relative(REPO_ROOT, file)} → ${href}`));

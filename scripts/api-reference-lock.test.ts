@@ -35,7 +35,7 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 // eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and scripts read the app table through its one typed reader rather than re-parsing it
-import { appForPackage } from '../apps/docs-chassis/src/config';
+import { siteForPackage } from '../apps/docs-chassis/src/config';
 // eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: a bare `burgee/*` resolves from another checkout's dist/ in an uninstalled worktree, and `compat.ts` is not an export
 import { DROP_INS, GRADED_VERSIONS } from '../packages/burgee/src/compat.js';
 
@@ -68,7 +68,7 @@ function sideEffectEntry(pkg: string, types: string): boolean {
 }
 
 describe.each(REFERENCED.map((pkg) => [pkg] as const))('%s: the API reference', (pkg) => {
-  const app = appForPackage(pkg);
+  const app = siteForPackage(pkg);
   if (app === undefined) throw new Error(`${pkg} is in REFERENCED and has no app`);
   const owned = pages([pkg]);
   const entries = entriesOf(pkg);

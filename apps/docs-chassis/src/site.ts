@@ -7,7 +7,7 @@
  * never written in an app; `scripts/vercel-apps-lock.test.ts` fails the moment an app's
  * resolved origin is not its own row's (docs-per-package, criterion 4).
  */
-import { type App, appConfig, familyApp } from './config';
+import { type App, familyApp, type PendingApp, siteConfig } from './config';
 
 /** The source repository, for JSON-LD's `codeRepository` and the GitHub nav link. */
 export const REPO = 'https://github.com/ofri-peretz/burgee';
@@ -31,7 +31,8 @@ export interface Site {
   readonly familyPages: boolean;
   /** The family front door, which every other site links to for the family-wide pages. */
   readonly family: { readonly name: string; readonly url: string };
-  readonly row: App;
+  /** The row it was resolved from: deployable, or `pending` until the owner creates its Vercel project. */
+  readonly row: App | PendingApp;
 }
 
 /**
@@ -40,7 +41,7 @@ export interface Site {
  * than the row names fails the build rather than titling roundel's site "burgee".
  */
 export function defineSite(key: string, manifest: Manifest): Site {
-  const row = appConfig(key);
+  const row = siteConfig(key);
   if (manifest.name !== row.package) throw new Error(`${row.dir}/src/site.ts passes the manifest of '${manifest.name}', but row '${key}' documents '${row.package}'`);
   const family = familyApp();
   return {

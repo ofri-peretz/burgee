@@ -89,10 +89,11 @@ const pages = (dir: string): string[] =>
         .map((f) => join(dir, f))
     : [];
 
-/** The docs app a package owns, from `.github/vercel-apps.json`. */
+/** The docs app a package owns, deployed or pending its Vercel project, from `.github/vercel-apps.json`. */
 const docsDir = (name: string): string | undefined => {
-  const table = JSON.parse(readFileSync(join(ROOT, '.github', 'vercel-apps.json'), 'utf8')) as { apps: Record<string, { package?: string; dir?: string }> };
-  return Object.values(table.apps).find((a) => a.package === name)?.dir;
+  type Row = { package?: string; dir?: string };
+  const table = JSON.parse(readFileSync(join(ROOT, '.github', 'vercel-apps.json'), 'utf8')) as { apps: Record<string, Row>; pending?: Record<string, Row> };
+  return [...Object.values(table.apps), ...Object.values(table.pending ?? {})].find((a) => a.package === name)?.dir;
 };
 
 const read = (file: string): Surface[] => (existsSync(join(ROOT, file)) ? [{ file, text: readFileSync(join(ROOT, file), 'utf8') }] : []);

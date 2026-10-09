@@ -1,0 +1,111 @@
+---
+title: Layout
+description: "Rows and columns of panes, sized in cells, by fraction with a minimum, or to fit their content — integer arithmetic, no flexbox, and what happens when the terminal is too small."
+---
+
+A layout is a tree. A leaf is a pane's name; a split is a `direction` and its `parts`:
+
+```js
+{
+  direction: 'column',           // parts top to bottom; 'row' is left to right
+  parts: [
+    { size: 1, content: 'tabs' },
+    { content: { direction: 'row', parts: [ /* … */ ] } },
+  ],
+}
+```
+
+A part's `size` is one of three things along its parent's direction:
+
+| size | what the part gets |
+| :-- | :-- |
+| a number | exactly that many cells |
+| `{ fr, min }` | a share of what the fixed and fitted parts leave, never below `min` |
+| `'fit'` | as many cells as the pane's content needs: its line count in a column, its widest line in a row |
+
+A part with no `size` is `{ fr: 1 }`. Only a pane can fit; a split has no content of its own.
+Widths are measured with linegauge, so colour codes take no cells and a wide character
+takes two.
+
+## Seeing the arithmetic
+
+`layout(tree, area, contents?)` is the function `open()` calls on every paint, exported so you
+can see what it decides. It returns a rectangle per pane:
+
+```js title="rects.mjs"
+import { layout } from 'controlroom';
+
+const tree = {
+  direction: 'column',
+  parts: [
+    { size: 1, content: 'tabs' },
+    { content: { direction: 'row', parts: [{ size: { fr: 1, min: 20 }, content: 'learn' }, { size: { fr: 2 }, content: 'tasks' }] } },
+    { size: 'fit', content: 'status' },
+    { size: 1, content: 'hints' },
+  ],
+};
+
+// What `'fit'` measures: the status pane's lines.
+const contents = { status: ['Progress: 1/4 completed', 'next: Install the SDK'] };
+
+for (const [width, height] of [[100, 30], [24, 6]]) {
+  console.log(`${width} × ${height}`);
+  for (const [pane, r] of layout(tree, { x: 0, y: 0, width, height }, contents)) {
+    console.log(`  ${pane.padEnd(6)} x=${r.x} y=${r.y} ${r.width}×${r.height}`);
+  }
+}
+```
+
+```text title="node rects.mjs"
+100 × 30
+  tabs   x=0 y=0 100×1
+  learn  x=0 y=1 34×26
+  tasks  x=34 y=1 66×26
+  status x=0 y=27 100×2
+  hints  x=0 y=29 100×1
+24 × 6
+  tabs   x=0 y=0 24×1
+  learn  x=0 y=1 20×2
+  tasks  x=20 y=1 4×2
+  status x=0 y=3 24×2
+  hints  x=0 y=5 24×1
+```
+
+At 100 columns, `learn` and `tasks` split the width 1 : 2, and the leftover cell goes to the
+earlier part, so the same input always lays out the same way. At 24 columns, `learn` keeps its
+minimum of 20 and `tasks` gets what is left.
+
+## The rules
+
+There is no flexbox and no constraint solver. Two passes, in integers:
+
+1. Fixed sizes, fitted sizes and every minimum are handed out first, in declared order.
+2. What is left is shared by fraction, on top of each minimum. A part whose minimum already
+   covers its share takes nothing more.
+
+A terminal too small for the minimums **clips the later parts, never the first**: the first
+pane stays readable, because it is the one people look at. Rounding leftovers go one cell
+each to the earliest fractional parts, so a frame is always filled.
+
+## A layout per tab
+
+`layout` may be a function of the screen's state, called on every paint. That is how a tab
+changes what the screen shows:
+
+```js
+function layout(state) {
+  const body = state.active === 0 ? { direction: 'row', parts: [{ content: 'learn' }, { size: { fr: 2 }, content: 'tasks' }] } : 'log';
+  return { direction: 'column', parts: [{ size: 1, content: 'tabs' }, { content: body }, { size: 1, content: 'hints' }] };
+}
+```
+
+The [dashboard recipe](/docs/recipes/dashboard) is built on exactly this. A pane that is not in
+the current tree is not drawn on a terminal; off a terminal every pane is printed, so tabs hide
+nothing from a pipe or an agent.
+
+## Collapse
+
+A pane whose name is in the screen's collapsed set gets a size of 0, and the fractional parts
+beside it share the space it gave up. A `toggle:<pane>` action collapses and expands it
+([Tabs, focus and keys](/docs/guides/tabs-and-keys)). `collapse(tree, collapsed)` is the same
+step as a function, if you want the collapsed tree yourself.

@@ -1,0 +1,67 @@
+---
+title: FAQ
+description: "Short answers about controlroom — flagstaff or controlroom, React, ink, modes, stdout versus stderr, testing, the mouse and CommonJS — each with where to read more."
+---
+
+## flagstaff or controlroom?
+
+If a program only draws (spinners, progress, task lists, boxes, tables) under what it has
+already printed, it is [flagstaff](https://flagstaff.interlace.tools/docs), even when the drawing
+is busy. If it reads keys while it draws, panes, tabs, focus, an input line, it is controlroom.
+A question asked once, a confirm or a pick, is neither: it is a prompt, and prompts are
+[caique](https://caique.interlace.tools/docs)'s. controlroom builds on flagstaff, so a pane is a
+flagstaff component either way.
+
+## Do I need React?
+
+Only for `controlroom/ink`. The native API, `open()` and everything on the
+[guides](/docs/guides/screens), never loads React; `react` and `react-reconciler` are optional
+peers that only `controlroom/ink` imports.
+
+## Is `controlroom/ink` exactly ink?
+
+It passes 1304 of 1304 cases of ink 8.0.0's own suite, where real ink 8.0.0 passes 1303, and
+102 of 102 of @inkjs/ui 2.0.0's. The cases set aside and the differences that remain are on
+[Compatibility](/docs/drop-ins).
+
+## Which screen will my program get?
+
+A live one when roundel's policy says `tty` and stdin can go raw. Otherwise a static one: `json`
+if you passed `json: true`, `accessible` if `CLI_ACCESSIBLE` is set, `ci` if `CI` is set and
+stdout is not a terminal, and `pipe` for the rest. The table is on
+[Getting started](/docs/getting-started#which-screen-a-program-gets).
+
+## Where does output go?
+
+The live screen, a pipe, CI and accessible mode write to **stdout**. Under `--json`, the events go
+to **stderr**, and stdout is left for your program's own result.
+
+## Will my program hang in CI?
+
+No call waits for a key unless keys are being read, and keys are read only on a terminal whose
+stdin can go raw. In CI, in a pipe, with `< file` or under an agent, a screen reads no keys, and
+an input line reads piped stdin or ends at once
+([Live and static](/docs/guides/static-projection#never-a-wait)).
+
+## How do I test a screen?
+
+`open()` takes a runtime instead of reading `process`, so a test passes its own: streams that
+collect what is written, an environment, and a manual clock from `flagstaff/loop`. The
+transcript is then a fixed string. controlroom's own `screen.test.ts` and the two recipes'
+tests are written that way.
+
+## Does it support the mouse?
+
+No, and none is planned. Clicks, the wheel and drags are out of scope; a program that depends on
+them should stay where it is ([Why controlroom](/docs/why-controlroom#what-is-left-out)).
+
+## Can I use it from CommonJS?
+
+The package is ESM with a `default` condition, so `require('controlroom')` loads it through
+Node's `require(esm)` on the versions the package supports, Node 20.19+ and 22.13+.
+`shape.test.ts` installs the packed tarball and requires it.
+
+## What is `status`?
+
+The reserved release's one export, kept so a program that read it still loads. It is still
+`'reserved'`; the package is not.
