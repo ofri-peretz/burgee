@@ -3,6 +3,12 @@ title: Changelog
 description: "Every release of burgee, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 0.22.4
+
+### Patch Changes
+
+- [#898](https://github.com/ofri-peretz/burgee/pull/898) [`8d601e7`](https://github.com/ofri-peretz/burgee/commit/8d601e7d7b7f82dc376fc224d05762c5ba291e3d) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A run starts faster: the engine reads `parseArgs` and the `fs` calls behind `--version` and config discovery through `process.getBuiltinModule` instead of an ES `import` of `node:util` and `node:fs`. An ES import builds a namespace over every export and loads 24 Node internals to do it (`worker_threads`, `fs/promises`, `readline`), none of which a run calls. Measured over 300 interleaved spawns, the paired CPU ratio against cac fell from 1.590 to 1.517. No behaviour changes: the calls and the objects they are made on are the same.
+
 ## 0.22.3
 
 ### Patch Changes
