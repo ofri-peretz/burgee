@@ -52,3 +52,27 @@ So the mismatch had been costing commander more than burgee, and the old claim f
 on it. The claim stands or falls on this harness from here, and the README restatement must
 use the post-change series. The burgee changes that recover the lost turns are product work in
 burgee's own help and errors, in a separate PR, measured the same way.
+
+## Correction (2026-10-09): one run is not a level, and neither is three
+
+The section above read one run as the new level. Five runs have now landed on the same `demo`
+harness:
+
+| run | tokens | turns | burgee turns / tokens | commander turns / tokens |
+| :-- | --: | --: | :-- | :-- |
+| `ba8a89c` | 0.995 | 1.0 | 4 / 84,969 | 4 / 85,426 |
+| `98c355c` | 0.495 | 0.5 | 3 / 63,833 | 6 / 128,991 |
+| `d33ae03` | 0.491 | 0.5 | 3 / 63,478 | 6 / 129,277 |
+| `e641aa3` | 0.493 | 0.5 | 3 / 63,461 | 6 / 128,719 |
+| `367cefb` | 0.747 | 0.75 | 3 / 63,548 | 4 / 85,119 |
+
+**burgee's side is stable at 3 turns**: four runs of five, and #891 did not move it. **The ratio
+swings because commander's pooled median is bimodal**, landing at 4 or 6 turns depending on
+how many of its 25 task-runs guess `demo config get user.name` straight away. With 5 runs a task
+the median is one or two lucky guesses wide. So the claim holds when commander has a bad run
+(3/6 = 0.5) and misses when it has a good one (3/4 = 0.75).
+
+The README follows the repository's rule (a ✅ needs the newest CI run to meet the claim):
+❌ on `367cefb`, with the 5-run range and median beside it. To meet the claim reliably, burgee
+has to finish in 2 turns where it takes 3, or the claim has to be restated. That decision belongs
+to gap A-20261009-agent-cost-claims.

@@ -56,7 +56,7 @@ The full reading of citty's tracker is on [Research](/docs/research).
 ## Weight against citty
 
 burgee's cells are from [burgee vs the alternatives](/docs/comparison), measured by
-`npm run bench` (2026-09-09, one machine). citty's download count and startup are from the
+`npm run bench` (2026-10-08, one CI runner). citty's download count and startup are from the
 research snapshot of 2026-09-06 (`competitor-landscape.md` §1 and §2), timed on a different
 machine at a different time and not reproduced by the suite, so the two startup cells are
 not a like-for-like measurement. The suite does not install citty, so its installed size is
@@ -66,7 +66,7 @@ not a like-for-like measurement. The suite does not install citty, so its instal
 | :-- | --: | --: |
 | Downloads / week | new | 30.5M |
 | Runtime dependencies | 5, none outside the burgee family | 0 |
-| Full CLI run over bare node | +14.0 ms | +6 ms (surveyed, another machine) |
+| Full CLI run over bare node | +20.3 ms | +6 ms (surveyed, another machine) |
 | Installed size | 1511 KB | not measured here |
 
 citty wins on dependencies and downloads, and its surveyed startup is lower too. The case

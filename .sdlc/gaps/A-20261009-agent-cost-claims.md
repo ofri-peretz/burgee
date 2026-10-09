@@ -19,3 +19,14 @@ turns and 0.747 for tokens from the transcripts. That is better, still short of 
 it has to be measured on main.
 
 C1 (the CI series exists) closes separately; this gap is the claim itself.
+
+**Still open (2026-10-09, after five post-#881 runs).** The runs read 0.995, 0.495, 0.491, 0.493
+and 0.747 (median 0.495). burgee holds at 3 turns, while commander's median lands at 4 or 6, so
+the claim is met only when commander has a bad run, and the newest reading (0.747) misses. Two
+ways to close it:
+- burgee finishes the common tasks in 2 turns, so even commander's good runs leave burgee at 3 or
+  fewer of 6 (≤ 0.5) or 4 (≤ 0.5);
+- a decision restates the claims to the measured series (for example "fewer turns in 4 of 5
+  runs", or median-based).
+
+Either way, the README states what the newest run says.
