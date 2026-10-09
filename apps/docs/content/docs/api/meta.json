@@ -1,0 +1,21 @@
+{
+  "title": "API reference",
+  "pages": [
+    "index",
+    "plugin",
+    "help",
+    "mcp",
+    "schema",
+    "config",
+    "brand",
+    "contrast",
+    "cli",
+    "testing",
+    "commander",
+    "meow",
+    "completions",
+    "yargs",
+    "yargs/helpers",
+    "yargs/parser"
+  ]
+}
