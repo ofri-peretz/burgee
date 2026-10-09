@@ -55,7 +55,7 @@ jobs:
     name: Unit Tests (Turbo)
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false || contains(github.event.pull_request.labels.*.name, 'run-full-ci')
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
@@ -66,6 +66,14 @@ jobs:
       # turbo's cache for every build and runs the suites on a quiet machine. Four at a time,
       # one per core: at turbo's default ten the runner died with exit 137 (see compat.yml).
       - run: npx turbo run build --concurrency=4
+      # The repository's own locks (`scripts/*.test.ts`: generated pages, the API reference,
+      # claims, gaps, decisions, workflows). They ran only in the pre-push hook and in
+      # compat.yml's matrix, and neither is a required check. Two PRs each green on their own
+      # base merged into a stale API reference on main (#891 added a `renderHelp` option the
+      # generated page lacked), and every PR after it, the release PR included, failed the lock.
+      # Here it runs on the merge ref and feeds the required Quality (Full) Gate.
+      - name: The repository's own locks
+        run: npx vitest run --config vitest.root.config.ts
       - run: npx turbo run test --concurrency=4
 
   build:
