@@ -172,22 +172,20 @@ an action name, and labels the actions the hint line should show. A pane names t
 component that draws it and the label a pipe prints above it. A tab bar is a pane over
 flagstaff's `tab-bar`.
 
-```js
-import { register } from 'controlroom/plugin';
+A plugin file default-exports the plugin:
 
-register({
+```js
+// vim-keys.mjs
+export default {
   name: 'vim-keys',
   keymaps: {
     vim: { keys: { h: 'tab.prev', l: 'tab.next' }, labels: { 'tab.prev': 'switch tab', 'tab.next': 'switch tab' } },
   },
   panes: { log: { component: 'log-tail', label: 'Log' } },
-});
+};
 ```
 
-A screen takes a keymap by name (`keymap: 'vim'`), and a pane by name with its state
-(`panes: { main: { pane: 'log', state } }`). The built-in `default` keymap is registered through
-the same `register()`; register your own `default` to replace it. Check a plugin file before you
-ship it:
+Check it before you ship it:
 
 ```bash
 npx controlroom check ./vim-keys.mjs
@@ -195,6 +193,27 @@ npx controlroom check ./vim-keys.mjs
 
 It prints each keymap as the hint line it generates, and each pane as the component that
 draws it, then `ok`. A refusal carries a code and a fix.
+
+Register it before the first screen opens. A pane draws with a component **flagstaff** has
+registered, and `open()` throws a `ScreenError` for one nobody registered. `log-tail` is
+flagstaff's own, registered when `flagstaff/log-tail` is imported; a component of your own is
+registered with `flagstaff/plugin`'s `register()`.
+
+```js
+import { open, processRuntime } from 'controlroom';
+import { register } from 'controlroom/plugin';
+import 'flagstaff/log-tail'; // registers the `log-tail` component the `log` pane draws with
+
+import vimKeys from './vim-keys.mjs';
+
+register(vimKeys);
+
+const screen = open(processRuntime(), { keymap: 'vim', layout: 'main', panes: { main: { pane: 'log', state: { lines: ['ready'] } } } });
+```
+
+A screen takes a keymap by name (`keymap: 'vim'`), and a pane by name with its state. The
+built-in `default` keymap is registered through the same `register()`; register your own
+`default` to replace it.
 
 ## Where it sits
 
