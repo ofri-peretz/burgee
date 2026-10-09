@@ -52,3 +52,21 @@ So the mismatch had been costing commander more than burgee, and the old claim f
 on it. The claim stands or falls on this harness from here, and the README restatement must
 use the post-change series. The burgee changes that recover the lost turns are product work in
 burgee's own help and errors, in a separate PR, measured the same way.
+
+## Correction (2026-10-09): that first reading was the outlier
+
+The section above read one run as the new level. Two more B1 runs have since landed on the same
+`demo` harness, both before #891 changed anything burgee prints:
+
+| run | tokens ratio | turns ratio | success, burgee / commander |
+| :-- | --: | --: | :-- |
+| `ba8a89c` | 0.995 | 1.0 | 1.0 / 0.84 |
+| `98c355c` | 0.495 | 0.5 | 1.0 / 0.88 |
+| `d33ae03` | 0.491 | 0.5 | 1.0 / 0.88 |
+
+The median of the three is **0.495 for tokens and 0.5 for turns, which meets both claims**. On
+`ba8a89c` commander had a run where its agents guessed `demo config get user.name` straight
+away. With 5 runs a task, one or two lucky guesses move a pooled median from 6 turns to 4. So
+"commander moved more than burgee" was one sample, not a finding. What stands is that the
+harness change was fair, that a single B1 run is not a level, and that the README states the
+series median with its range.

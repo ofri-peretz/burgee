@@ -50,6 +50,7 @@ import { describe, expect, it } from 'vitest';
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const README = join(REPO_ROOT, 'README.md');
 const RESULTS = join(REPO_ROOT, 'benchmarks/results/cli-benchmarks');
+const AGENT_RESULTS = join(REPO_ROOT, 'benchmarks/results/agent-cli-bench');
 
 /**
  * `| <claim prose> | \`<gate id>\` | <measured> | <verdict> |` — the table's four columns.
@@ -102,10 +103,14 @@ const CI_BACKED = /^\d{4}-\d{2}-\d{2}(?:-[0-9a-f]{7}-ci)?\.json$/;
 /** The newest CI-backed document that measures this claim's record at all. */
 function backing(claim: (typeof CLAIMS)[number]): Doc | undefined {
   const measures = (d: Doc): boolean => d.records.some((r) => r.axis === claim.from.axis && r.variant === claim.from.variant && r.metric === claim.from.metric);
+  // The agent axis writes its own suite. Reading only `cli-benchmarks/` meant an agent claim
+  // marked met could never be backed: it went unnoticed while both agent rows read ❌, and
+  // failed the first time a CI series met them (2026-10-09).
+  const dir = claim.from.axis === 'agent' ? AGENT_RESULTS : RESULTS;
   return newestOf(
-    readdirSync(RESULTS)
+    readdirSync(dir)
       .filter((f) => CI_BACKED.test(f))
-      .map(readDoc)
+      .map((f) => JSON.parse(readFileSync(join(dir, f), 'utf8')) as Doc)
       .filter(measures),
   );
 }

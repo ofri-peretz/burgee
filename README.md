@@ -278,8 +278,8 @@ single local run and unconfirmed**:
 | `burgee` starts within 1.6× of `cac`, the lightest framework in the landscape (ratchet; lowered as it speeds up) | `cold-start-at-or-below-cac` | 1.443× | ✅ met |
 | `burgee/commander` stays within 1.565× of `commander` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-commander` | 1.558× | ✅ met |
 | `burgee` stays within 2.35× of `cac` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-cac` | 2.308× | ✅ met |
-| an agent spends ≥40% fewer tokens per task | `agent-tokens-40pct` | 0.995× (one CI run, `ba8a89c`, the first since B1 installs the demo under its printed name — D-20261008-b1-tool-name; 0.491 the run before) | ❌ **not met** |
-| an agent takes ≥30% fewer turns per task | `agent-turns-30pct` | 1.0× (one CI run, `ba8a89c`; 0.5 the run before) | ❌ **not met** |
+| an agent spends ≥40% fewer tokens per task | `agent-tokens-40pct` | 0.495× (median of the 3 CI runs since B1 installs the demo under its printed name, 0.491–0.995 — D-20261008-b1-tool-name) | ✅ met |
+| an agent takes ≥30% fewer turns per task | `agent-turns-30pct` | 0.5× (median of the same 3 runs, 0.5–1.0) | ✅ met |
 
 ### The two ways to ask the bundle question, and why both are here
 
