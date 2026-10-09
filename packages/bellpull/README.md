@@ -36,16 +36,18 @@
   Migrating from: <a href="https://bellpull.interlace.tools/docs/coming-from/execa">execa</a> · <a href="https://bellpull.interlace.tools/docs/coming-from/cross-spawn">cross-spawn</a> · <a href="https://bellpull.interlace.tools/docs/coming-from/which">which</a>
 </p>
 
+**bellpull** runs a subprocess, resolves the executable it names, and returns one structured
+result that every caller can read: `format()` for a person, `toJson()` for `--json`,
+`toEvent()` for an agent. A `--json` flag cannot report something the human output did not.
+Zero dependencies.
+
+Drop-in for **cross-spawn** and npm's **which**: `npx burgee migrate` moves the imports to
+`bellpull/cross-spawn` and `bellpull/node-which`, each graded by the incumbent's own test suite.
+**execa** has no drop-in; `run()` below is the alternative.
+
 A **bellpull** is the cord in one room wired to a bell in another. You pull it here; a bell rings there; someone comes back to you.
 
 That is a subprocess. Request work at a distance, work happens elsewhere, a result returns. **That last clause is the package.**
-
-Coming from **cross-spawn** or npm's **which**? Change one import: `bellpull/cross-spawn` and
-`bellpull/node-which` are drop-ins, each graded by the incumbent's own test suite. Coming from
-**execa**? There is no drop-in — `run()` below is the alternative.
-
-One result, three readers: `format()` for a person, `toJson()` for `--json`, `toEvent()` for
-an agent — so a `--json` flag cannot report something the human output did not.
 
 ## Install
 
@@ -229,7 +231,7 @@ Graded by the incumbent's own test suite:
 | `execa` | 0 / 1180 |
 | `which` | 5 / 5 |
 
-Weight, installed and tree-inclusive: **116,503 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1522**.
+Weight, installed and tree-inclusive: **116,607 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1523**.
 
 ## For agents
 

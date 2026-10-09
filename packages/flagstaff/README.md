@@ -37,17 +37,20 @@
   Migrating from: <a href="https://flagstaff.interlace.tools/docs/coming-from/ora">ora</a> · <a href="https://flagstaff.interlace.tools/docs/coming-from/log-update">log-update</a> · <a href="https://flagstaff.interlace.tools/docs/coming-from/boxen">boxen</a> · <a href="https://flagstaff.interlace.tools/docs/coming-from/cli-table3">cli-table3</a>
 </p>
 
-ora animates a spinner on a terminal and, off one, writes the line it started with and the
-line it stopped with — every state in between is lost to the log an agent reads back. Ink fixes the terminal by shipping React and a layout engine.
-**flagstaff** is the staff the flag flies from: a frame loop that hoists a component, holds
-it, changes it and lowers it, and a **static projection** that is what every mode but the
-terminal gets — one line per state on a pipe, one event per transition under `--json`,
-plain text for a screen reader. Plugins are data. No layout engine. Four dependencies, all
-from this repository: [roundel](https://github.com/ofri-peretz/burgee/blob/main/packages/roundel/README.md), [paratext](https://github.com/ofri-peretz/burgee/blob/main/packages/paratext/README.md),
-[linegauge](https://github.com/ofri-peretz/burgee/blob/main/packages/linegauge/README.md) and [closeout](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/README.md).
+**flagstaff** is a terminal frame loop: it hoists a component, holds it, changes it and
+lowers it. Every mode but the terminal gets a **static projection** — one line per state on a
+pipe, one event per transition under `--json`, plain text for a screen reader — so no state is
+lost to the log an agent reads back. Plugins are data. No layout engine, and no dependency
+outside the burgee family.
 
-It replaces **ora**, **log-update**, **boxen** and **cli-table3**, each through a drop-in path
-graded by the incumbent's own suite — see [Migrating](#migrating).
+Drop-in for **ora**, **log-update**, **boxen** and **cli-table3**: `npx burgee migrate` moves
+the imports, each path graded by the incumbent's own suite — see [Migrating](#migrating).
+
+ora animates a spinner on a terminal and, off one, writes the line it started with and the
+line it stopped with — every state in between is lost. Ink fixes the terminal by shipping
+React and a layout engine. flagstaff takes four dependencies, all from this repository:
+[roundel](https://github.com/ofri-peretz/burgee/blob/main/packages/roundel/README.md), [paratext](https://github.com/ofri-peretz/burgee/blob/main/packages/paratext/README.md),
+[linegauge](https://github.com/ofri-peretz/burgee/blob/main/packages/linegauge/README.md) and [closeout](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/README.md).
 
 A **flagstaff** is the simplest part of the whole apparatus and the only one that is always
 in view: a flag is hoisted on it, held there, changed, and lowered when it is done. That is a

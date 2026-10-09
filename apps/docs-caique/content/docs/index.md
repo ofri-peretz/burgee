@@ -3,6 +3,13 @@ title: caique
 description: "The parrot that always answers back, and the boat that goes between ship and shore. Prompts that are flags first, so agents answer before they are asked and non-TTY callers get an error naming the flag, never a hang. Drop-in path for inquirer and clack."
 ---
 
+**caique** asks a question only when someone can answer it. Every prompt is a flag first, so
+an agent passes the answer before it is asked, and a non-TTY caller gets an error naming the
+flag instead of a prompt that waits. **It never hangs.**
+
+Drop-in for **@inquirer/core** and **@clack/prompts**: `npx burgee migrate` moves the imports
+to `caique/inquirer` and `caique/clack`, each graded by its incumbent's own suite.
+
 **1.0.** `decide()`, `ask()` and the `caique/inquirer` and `caique/clack` drop-in paths are a
 semver contract, each path graded by its incumbent's own suite on the
 [compatibility page](https://burgee.interlace.tools/docs/compatibility), level with the incumbent
@@ -294,7 +301,7 @@ Graded by the incumbent's own test suite:
 | `clack` | 16 / 16 |
 | `inquirer-core` | 41 / 41 |
 
-Weight, installed and tree-inclusive: **243,283 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.6253**.
+Weight, installed and tree-inclusive: **243,705 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.6264**.
 
 ## For agents
 
