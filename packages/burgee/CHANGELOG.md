@@ -1,5 +1,17 @@
 # burgee
 
+## 0.22.3
+
+### Patch Changes
+
+- [#897](https://github.com/ofri-peretz/burgee/pull/897) [`f29f159`](https://github.com/ofri-peretz/burgee/commit/f29f159ca0c9746f58d8ba84eec9be72b1140093) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - controlroom has its own docs site at https://controlroom.interlace.tools: its README's Docs line, its `homepage`, and every family table now link there.
+- Updated dependencies [[`f29f159`](https://github.com/ofri-peretz/burgee/commit/f29f159ca0c9746f58d8ba84eec9be72b1140093)]:
+  - bellpull@1.0.2
+  - closeout@1.0.2
+  - linegauge@1.0.6
+  - roundel@1.0.2
+  - seniority@1.0.1
+
 ## 0.22.2
 
 ### Patch Changes
