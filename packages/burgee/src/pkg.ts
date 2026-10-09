@@ -1,6 +1,7 @@
 /** The `package.json` that owns a file: the nearest one walking up from it (V4). */
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+
+import { builtin } from './runtime.js';
 
 export interface Package {
   path: string;
@@ -8,6 +9,7 @@ export interface Package {
 }
 
 export function nearestPackage(from: string): Package | undefined {
+  const { existsSync, readFileSync } = builtin('node:fs');
   let dir = from;
   for (let i = 0; i < 64; i++) {
     const at = join(dir, 'package.json');
@@ -33,5 +35,6 @@ export function nearestPackage(from: string): Package | undefined {
  * is not on disk (an injected entry in a test) is walked from as given.
  */
 export function owningPackage(file: string): Package | undefined {
+  const { existsSync, realpathSync } = builtin('node:fs');
   return nearestPackage(dirname(existsSync(file) ? realpathSync(file) : file));
 }
