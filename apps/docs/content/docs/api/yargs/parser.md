@@ -9,7 +9,7 @@ description: "burgee/yargs/parser is a drop-in for yargs-parser: the same API, d
 
 - **Reference:** [yargs-parser 22.0.0](https://www.npmjs.com/package/yargs-parser/v/22.0.0), the release that suite is run at.
 - **How closely it matches:** [Compatibility](/docs/compatibility), that suite's result in CI, with every case left out of the gate and the reason.
-- **Side by side:** [burgee vs yargs](/docs/vs/yargs).
+- **Switching:** [Switching from yargs](/docs/vs/yargs).
 - **Moving a program over:** [`burgee migrate`](/docs/migrate) rewrites `'yargs-parser'` to `'burgee/yargs/parser'` across a project.
 
 ## Exports
