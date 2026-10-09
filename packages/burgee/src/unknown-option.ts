@@ -48,6 +48,14 @@ export function jsonSpelling(words: readonly string[], at: number): number {
   return JSON_SPELLINGS.includes(word) && words[at + 1] === 'json' ? 2 : 0;
 }
 
+/** A word safe to paste into a shell as it is; anything else goes in single quotes. */
+export const shellWord = (word: string): string => (/^[\w@%+=:,./-]+$/u.test(word) ? word : `'${word.replaceAll("'", `'\\''`)}'`);
+
+/**
+ * `argv` is the whole line as typed, program first, so the fix can be that line with the flag
+ * corrected: `demo config get user.name --json`, not `--json`. B1's agents rebuilt the line from
+ * a bare flag every time; a line runs as it stands, a flag has to be put somewhere first.
+ */
 export function unknownOption(
   cause: unknown,
   declared: readonly string[],
@@ -61,14 +69,15 @@ export function unknownOption(
   // to anything real. Candidates go in dashed. `--json` is one of them: every command parses it.
   const dashed = [...declared, 'json'].map((option) => `--${option}`);
   const typed = argv.findIndex((word) => word === flag || word.startsWith(`${flag}=`));
-  const near = jsonSpelling(argv, typed) > 0 ? '--json' : NEAREST.exec(suggestSimilar(flag, dashed))?.[0];
-  return {
-    message: `unknown option ${flag}`,
-    hint: near === undefined ? 'run --help to see the available options' : `did you mean ${near}?`,
-    // E3 — `hint` is prose a person reads; `fix` is the exact flag a caller runs. An agent
-    // can execute one and has to interpret the other, which is the turn this field saves.
-    // Omitted rather than guessed when there is no near match: an executed guess burns the
-    // turn the field exists to save.
-    ...(near === undefined ? {} : { fix: near }),
-  };
+  const spelled = jsonSpelling(argv, typed);
+  const near = spelled > 0 ? '--json' : NEAREST.exec(suggestSimilar(flag, dashed))?.[0];
+  if (near === undefined) return { message: `unknown option ${flag}`, hint: 'run --help to see the available options' };
+  // E3 — `hint` is prose a person reads; `fix` is the exact line a caller runs. An agent
+  // can execute one and has to interpret the other, which is the turn this field saves.
+  // Omitted rather than guessed when there is no near match, or no word to correct: an
+  // executed guess burns the turn the field exists to save. `--format json` is two words
+  // and `--json` one; `--nmae=ada` keeps its value as `--name=ada`.
+  const word = spelled > 0 ? near : near + String(argv[typed]).slice(flag.length);
+  const line = typed < 0 ? undefined : argv.toSpliced(typed, spelled || 1, word);
+  return { message: `unknown option ${flag}`, hint: `did you mean ${near}?`, ...(line === undefined ? {} : { fix: line.map(shellWord).join(' ') }) };
 }

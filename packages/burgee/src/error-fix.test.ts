@@ -43,21 +43,21 @@ describe('an error says what to run, not only what went wrong', () => {
   it('carries the nearest declared flag as `fix` in the envelope', async () => {
     const { json } = await failWith(['deploy', '--forc', '--json']);
     const error = (json?.['error'] ?? {}) as Record<string, unknown>;
-    expect(error['fix'], 'the exact flag, executable without interpretation').toBe('--force');
+    expect(error['fix'], 'the whole line, the flag corrected, executable without interpretation').toBe('tool deploy --force --json');
   });
 
   it('spells the fix as the flag is typed, never as the key it is declared under', async () => {
     // The candidates were the canonical keys, so a near miss on `--dry-run` was "fixed" to
     // `--dryRun`, which the parser refuses in turn: an agent that ran the fix failed twice.
     const { json } = await failWith(['deploy', '--dryrun', '--json']);
-    expect(json?.['error']).toMatchObject({ fix: '--dry-run' });
+    expect(json?.['error']).toMatchObject({ fix: 'tool deploy --dry-run --json' });
   });
 
   it('keeps `hint` as the prose beside it — they are different things', async () => {
     const { json } = await failWith(['deploy', '--forc', '--json']);
     const error = (json?.['error'] ?? {}) as Record<string, unknown>;
     expect(error['hint'], 'advice a person reads').toMatch(/did you mean/);
-    expect(error['fix'], 'and the thing a machine runs').toBe('--force');
+    expect(error['fix'], 'and the thing a machine runs').toBe('tool deploy --force --json');
     expect(error['fix']).not.toBe(error['hint']);
   });
 

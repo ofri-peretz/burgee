@@ -415,6 +415,9 @@ const RULES: Record<string, EntryRule> = {
   // and the root help ends with one line for agents. Measured 8,953 (+459), inside the budget.
   // 2026-10-08: each command row lists its arguments (`get <key>`), as commander's does — B1's
   // agents spent a turn on `config get --help` without it. Measured 9,007 (+54), inside the budget.
+  // 2026-10-08: help lists the `commands` the engine hands it (`config get <key>` at the root, by
+  // full path, under its ancestor's heading). The row rule stays in `usage.js` and is passed in:
+  // importing it would have put that whole file on this door. Measured 9,112 (+105), inside.
   "./help": {
     allow: ["linegauge", "roundel/policy"],
     budget: 9_130,

@@ -87,6 +87,25 @@ describe('help is rendered from the manifest (H1)', () => {
     expect(text).toMatch(/Usage: app <command> \[options\]/);
   });
 
+  // The engine passes `commands` (every command that runs, when they fit) so the root's help names
+  // `release cut <version>`, not `release`: B1's agents spent a turn on `config --help` without it.
+  it('lists the commands it is given by their path from the node, under their top-level ancestor’s heading', () => {
+    const nested = defineProgram({
+      name: 'app',
+      commands: [
+        defineCommand({ name: 'release', group: 'Release commands:', commands: [defineCommand({ name: 'cut', description: 'Cut one', effects: 'withheld', arguments: [{ name: 'version', required: true }], run: ok })] }),
+        defineCommand({ name: 'login', description: 'Sign in', effects: 'withheld', run: ok }),
+      ],
+    });
+    const top = { path: ['app'], options: {} };
+    const leaves = nested.commands.filter((c) => c.run !== undefined);
+    expect(renderHelp(nested, top, { commands: leaves })).toMatch(/Release commands:\n {2}release cut <version> +Cut one\n\nCommands:\n {2}login +Sign in\n/);
+    // Without `commands`, the node's own children, as before.
+    expect(renderHelp(nested, top)).toMatch(/Release commands:\n {2}release\n\nCommands:\n {2}login +Sign in\n/);
+    // A command reached through no declared node lists under the default heading.
+    expect(renderHelp(nested, top, { commands: [{ path: ['app', 'ghost', 'run'], options: {} }] })).toMatch(/Commands:\n {2}ghost run\n/);
+  });
+
   it('hides hidden commands and options, and marks deprecated ones inline (yargs #2248)', () => {
     expect(renderHelp(program, root)).not.toContain('hush');
     expect(renderHelp(program, root)).toMatch(/old +Legacy \(deprecated\)/);
