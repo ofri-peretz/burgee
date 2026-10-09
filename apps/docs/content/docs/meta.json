@@ -3,6 +3,7 @@
   "pages": [
     "index",
     "getting-started",
+    "what-an-agent-sees",
     "concepts",
     "migrate",
     "coming-from",
