@@ -48,6 +48,16 @@ export function jsonSpelling(words: readonly string[], at: number): number {
   return JSON_SPELLINGS.includes(word) && words[at + 1] === 'json' ? 2 : 0;
 }
 
+/**
+ * Not a refusal: the line to run in its place, program first (D-20261009-json-asked-is-json). Thrown
+ * where the only fault in argv was how JSON was asked for; `execute` runs `again` and reports nothing.
+ */
+export class Again extends Error {
+  constructor(readonly again: string[]) {
+    super('again');
+  }
+}
+
 /** A word safe to paste into a shell as it is; anything else goes in single quotes. */
 export const shellWord = (word: string): string => (/^[\w@%+=:,./-]+$/u.test(word) ? word : `'${word.replaceAll("'", `'\\''`)}'`);
 
@@ -60,7 +70,7 @@ export function unknownOption(
   cause: unknown,
   declared: readonly string[],
   argv: readonly string[],
-): { message: string; hint: string; fix?: string } | undefined {
+): { message: string; hint: string; fix?: string; again?: string[] } | undefined {
   if (!(cause instanceof Error)) return undefined;
   const flag = UNKNOWN_OPTION.exec(cause.message)?.groups?.['flag'];
   if (flag === undefined) return undefined;
@@ -79,5 +89,15 @@ export function unknownOption(
   // and `--json` one; `--nmae=ada` keeps its value as `--name=ada`.
   const word = spelled > 0 ? near : near + String(argv[typed]).slice(flag.length);
   const line = typed < 0 ? undefined : argv.toSpliced(typed, spelled || 1, word);
-  return { message: `unknown option ${flag}`, hint: `did you mean ${near}?`, ...(line === undefined ? {} : { fix: line.map(shellWord).join(' ') }) };
+  // D-20261009-json-asked-is-json — `--format json` on a command that declares no option near
+  // `--format` asks for one thing, `--json`, and the line runs with it rather than being refused.
+  // Only the spelling of that request is read: the command and every other word are as typed.
+  // A declared `--formats` beside it makes it a guess, and a guess stays a refusal.
+  const again = spelled > 0 && suggestSimilar(flag, declared.map((option) => `--${option}`)) === '' ? line : undefined;
+  return {
+    message: `unknown option ${flag}`,
+    hint: `did you mean ${near}?`,
+    ...(line === undefined ? {} : { fix: line.map(shellWord).join(' ') }),
+    ...(again === undefined ? {} : { again }),
+  };
 }

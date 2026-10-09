@@ -16,9 +16,10 @@ import { beforeTerminator, isJsonFlag } from './argv.js';
 import { UsageError } from './errors.js';
 import { ExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
 import { type ArgumentSpec, type CommandNode, type Manifest, type OptionSpec } from './manifest.js';
+import { kebab } from './names.js';
 import { type Package } from './pkg.js';
 import { suggestSimilar } from './suggest.js';
-import { jsonSpelling, shellWord } from './unknown-option.js';
+import { Again, jsonSpelling, shellWord } from './unknown-option.js';
 import { childrenOf, groupUsage, listed, runnableBelow } from './usage.js';
 
 /** The slice of the engine's `Io` a surface reads. */
@@ -172,32 +173,43 @@ export async function unresolved({ manifest, root, io }: Resolving, argv: string
  * carries the caller's request for JSON in burgee's spelling, wherever it was typed — so
  * `get user.name --format json` is one line to run, not two refusals in a row.
  */
-function unknownCommand({ manifest, root }: Resolving, node: CommandNode, before: string[], typed: string[]): UsageError {
-  const { words, json } = jsonAsked(typed);
+function unknownCommand({ manifest, root }: Resolving, from: CommandNode, before: string[], typed: string[]): UsageError | Again {
+  const { words: all, json } = jsonAsked(typed);
   const lead = typed[0] as string;
-  // A request for JSON typed before the command — `--json config get key`, `--format json …` —
-  // is a request for that command's `--json`. When what follows it names a command that runs,
-  // the fix is that command with `--json` where it is parsed.
-  const reached = manifest.resolve([...before, ...words], root);
-  if ((isJsonFlag(lead) || jsonSpelling(typed, 0) > 0) && (reached.node as CommandNode).run !== undefined) {
-    const error = new UsageError(isJsonFlag(lead) ? `${lead} goes after the command` : `unknown option ${lead}`, isJsonFlag(lead) ? undefined : 'did you mean --json?');
-    return Object.assign(error, { fix: line((reached.node as CommandNode).path, reached.rest, json) });
+  // A request for JSON typed before the command — `--json config get key`, `--format json …` — is
+  // a request for that command's `--json`. When what follows it names a command that runs, that
+  // command runs with `--json` where it is parsed (D-20261009-json-asked-is-json): the words are
+  // the caller's, in the caller's order, and only the request moved. A command that declares an
+  // option near `--format` itself owns the word, so that one is a refusal with the fix.
+  const reached = manifest.resolve([...before, ...all], root);
+  const node = reached.node ?? from;
+  if ((isJsonFlag(lead) || jsonSpelling(typed, 0) > 0) && node.run !== undefined) {
+    const flag = lead.split('=')[0] as string;
+    if (isJsonFlag(lead) || suggestSimilar(flag, Object.keys(node.options).map((o) => `--${kebab(o)}`)) === '') return new Again(lineWords(node.path, reached.rest, json));
+    return Object.assign(new UsageError(`unknown option ${flag}`, 'did you mean --json?'), { fix: line(node.path, reached.rest, json) });
   }
-  const first = words[0] ?? lead;
-  const said = suggestSimilar(first, childrenOf(manifest, node).map((c) => c.path.at(-1) as string));
-  const near = meant(manifest, node, first, said);
+  // From where the request for JSON left off: `--format json config user.name` is `config
+  // user.name` with `--json`, and the word to correct is `user.name`, not `config`.
+  before = node.path.slice(root.length);
+  const rest = reached.rest;
+  // A word typed with dashes where a command goes is matched by its name: `--get` is `get`. The
+  // dashes are not part of any command's name, and matched with them `--get` came out `--eet`.
+  const first = rest[0] ?? lead;
+  const name = first.replace(/^-+/u, '');
+  const said = suggestSimilar(name, childrenOf(manifest, node).map((c) => c.path.at(-1) as string));
+  const near = meant(manifest, node, name, said);
   // A word near no command's name, and not a flag, may be what a command takes: `config user.name`
   // is `config get user.name`. Then the fix keeps every word and inserts the command before them.
-  const takes = near === undefined && said === '' && !first.startsWith('-') ? argumentOf(manifest, node, words) : undefined;
+  const takes = near === undefined && said === '' && !first.startsWith('-') ? argumentOf(manifest, node, rest) : undefined;
   if (takes !== undefined) {
-    return Object.assign(new UsageError(`unknown command "${first}"`, `did you mean ${[...takes, first].join(' ')}?`), { fix: line([...root, ...before, ...takes], words, json) });
+    return Object.assign(new UsageError(`unknown command "${first}"`, `did you mean ${[...takes, first].join(' ')}?`), { fix: line([...root, ...before, ...takes], rest, json) });
   }
   if (near === undefined) {
     const hint = said === '' ? 'run --schema for every command and option as JSON, in one call' : said.trim().slice(1, -1).replace('Did', 'did');
     return Object.assign(new UsageError(`unknown command "${first}"`, hint), { usage: groupUsage(manifest, node) });
   }
   const error = new UsageError(`unknown command "${first}"`, `did you mean ${near.join(' ')}?`);
-  return Object.assign(error, { fix: line([...root, ...before, ...near], words.slice(1), json) });
+  return Object.assign(error, { fix: line([...root, ...before, ...near], rest.slice(1), json) });
 }
 
 /**
@@ -254,12 +266,14 @@ function jsonAsked(typed: string[]): { words: string[]; json?: string } {
   return { words: typed };
 }
 
-/** A command line to run: the path, the caller's own words, and `--json` before any `--`. */
-function line(path: string[], words: string[], json: string | undefined): string {
+/** A command line's words: the path, the caller's own words, and `--json` before any `--`. */
+function lineWords(path: string[], words: string[], json: string | undefined): string[] {
   const end = words.includes('--') ? words.indexOf('--') : words.length;
-  const all = json === undefined ? [...path, ...words] : [...path, ...words.slice(0, end), json, ...words.slice(end)];
-  return all.map(shellWord).join(' ');
+  return json === undefined ? [...path, ...words] : [...path, ...words.slice(0, end), json, ...words.slice(end)];
 }
+
+/** A command line to run, quoted for a shell. */
+const line = (path: string[], words: string[], json: string | undefined): string => lineWords(path, words, json).map(shellWord).join(' ');
 
 /**
  * `completion <shell>` is synthesised unless the program defines its own `completion`

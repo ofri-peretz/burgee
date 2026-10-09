@@ -34,8 +34,13 @@ from one declaration leaves them nothing to drift from.
 **The envelope is one document on stdout.** Success is
 `{"ok":true,"data":<what run returned>,"meta":{"provenance":{…}}}`, with `meta.changed` for an
 idempotent command. Failure is `{"ok":false,"error":{"code","message","hint"?,"fix"?,"usage"?}}`,
-also on stdout, with stderr empty. `--json` counts only before a `--`. [Exit codes and
-errors](/docs/concepts/exit-codes) has the failure side.
+also on stdout, with stderr empty. `--json` counts only before a `--`. It counts wherever it is
+typed before that, including ahead of the command (`demo --json config get user.name`). The
+spellings other CLIs use count too: `--format json`, `--format=json`, `--output json` and
+`--output=json` are read as `--json`, unless the command declares an option of that name or
+one near it. In that case the option is the program's, and a near one makes the reading a
+guess, which is refused with a `fix`. [Exit codes and errors](/docs/concepts/exit-codes) has
+the failure side.
 
 **A refusal carries its next step.** A failure has a `fix` to run, or, when there is none,
 `usage`: the failing command's usage line and options, or the commands that exist for a word the
