@@ -18,6 +18,11 @@
  * rather than a copy. `scripts/api-reference-lock.test.ts` fails when a page is stale, when
  * an export has no entry, and when a file under `api/` is no longer owned.
  *
+ * The packages are `STANDARD_SITES`, each on a site of its own, and `FAMILY_SITE_REFERENCES`,
+ * whose reference lives on the family app. On the family app a graded drop-in entry
+ * (`burgee/commander`, `burgee/yargs`, …) gets `renderLinkOut`'s page instead: every name it
+ * exports, and a link to the incumbent's own docs at the graded release.
+ *
  * Output is `.md`, not `.mdx`, for the reason `sync-package-docs.ts` gives: doc comments are
  * full of `{`, `<T>` and `a | b` that MDX would parse as JSX.
  *
@@ -31,6 +36,8 @@ import ts from 'typescript';
 
 // eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and scripts read the app table through its one typed reader rather than re-parsing it
 import { appForPackage } from '../apps/docs-chassis/src/config';
+// eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: a bare `burgee/*` resolves from another checkout's dist/ in an uninstalled worktree, and `compat.ts` is not an export
+import { type DropIn, DROP_INS, GRADED_VERSIONS, isLevel } from '../packages/burgee/src/compat.js';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -41,6 +48,36 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
  * reference and changelog in sync.
  */
 export const STANDARD_SITES: readonly string[] = ['flagstaff', 'linegauge', 'closeout', 'paratext', 'bellpull', 'caique', 'roundel', 'seniority'];
+
+/**
+ * The packages whose reference and changelog live on the family app — the `familyPages: true`
+ * row of `.github/vercel-apps.json` — rather than on a site of their own. That site is not the
+ * standard shape: it carries the family-wide pages too, and its package page is
+ * `packages/<name>.md`, not `index.md`. What it shares with a standard site is the reference
+ * at `content/docs/api/` and the changelog at `content/docs/changelog.md`, generated and
+ * locked the same way.
+ *
+ * One difference, recorded in `.sdlc/decisions/D-20261008-burgee-api-reference.md`: an entry
+ * that is a graded drop-in (`DROP_INS` in `burgee/src/compat.ts` — `burgee/commander`,
+ * `burgee/yargs`, …) gets a page that names every export and links to the incumbent's own docs
+ * at the graded release, instead of restating the incumbent's API.
+ */
+export const FAMILY_SITE_REFERENCES: readonly string[] = ['burgee'];
+
+/** Every package this script writes a reference for. */
+export const REFERENCED: readonly string[] = [...STANDARD_SITES, ...FAMILY_SITE_REFERENCES];
+
+/** The drop-in pair an entry is the family side of, when its reference links out rather than restating. */
+export function linksOut(pkg: string, entry: Entry): DropIn | undefined {
+  return FAMILY_SITE_REFERENCES.includes(pkg) ? DROP_INS.find((d) => d.to === entry.specifier) : undefined;
+}
+
+/** The npm package an incumbent specifier names: `yargs/helpers` → `yargs`, `@clack/prompts` → itself. */
+export const incumbentPackage = (specifier: string): string =>
+  specifier
+    .split('/')
+    .slice(0, specifier.startsWith('@') ? 2 : 1)
+    .join('/');
 
 type ExportTarget = string | { types?: string; import?: string; default?: string };
 interface Manifest {
@@ -400,8 +437,67 @@ export function renderEntry({ pkg, entry, docs, intro, entries }: EntryPage): st
   return `${body.join('\n').trimEnd()}\n`;
 }
 
-/** The documented exports of every entry of `pkg`, keyed by slug. Throws when `dist` is missing. */
-export function documentPackage(pkg: string): Map<Entry, { docs: Documented[]; intro: string }> {
+/** What a drop-in's page says first, and what `api-reference-lock` looks for to tell one from a full page. */
+export const LINKS_OUT = "Its API is the incumbent's, so its reference is the incumbent's own documentation.";
+
+/** Where a reader finds an incumbent's documentation at one release: its npm page, which carries that release's README. */
+export const incumbentDocs = (pkg: string, version: string): string => `https://www.npmjs.com/package/${pkg}/v/${version}`;
+
+/** What a drop-in entry's page is made from. */
+export interface LinkOutPage {
+  readonly entry: Entry;
+  readonly docs: readonly Documented[];
+  readonly dropIn: DropIn;
+  /** The family app's `vs/<host>` comparison, when it has one. */
+  readonly comparison?: string;
+}
+
+/**
+ * A drop-in entry's page: what it replaces, the incumbent's own docs at the release the
+ * drop-in is graded against, the compatibility page that grades it, and every name it exports
+ * — a row each, so an editor's autocomplete and this page agree on the surface without the
+ * page restating an API whose documentation already exists.
+ */
+export function renderLinkOut({ entry, docs, dropIn, comparison }: LinkOutPage): string {
+  const pkg = incumbentPackage(dropIn.from);
+  const version = GRADED_VERSIONS[pkg];
+  if (version === undefined) throw new Error(`${entry.specifier} replaces ${dropIn.from}, and GRADED_VERSIONS has no release for ${pkg}`);
+  const rows = docs.toSorted((a, b) => Number(b.name === 'default') - Number(a.name === 'default') || KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind) || a.name.localeCompare(b.name));
+  const body = [
+    '---',
+    `title: ${entry.specifier}`,
+    `description: ${JSON.stringify(`${entry.specifier} is a drop-in for ${dropIn.from}: the same API, documented by ${pkg} itself. Every name it exports, and where its reference lives.`)}`,
+    '---',
+    '',
+    '<!-- Generated by scripts/api-reference.ts from the built dist/*.d.ts and burgee/src/compat.ts. Do not edit; run `npx tsx scripts/api-reference.ts`. -->',
+    '',
+    `\`${entry.specifier}\` is a drop-in for \`${dropIn.from}\`, graded by the incumbent's own test suite. ${LINKS_OUT}`,
+    '',
+    `- **Reference:** [${pkg} ${version}](${incumbentDocs(pkg, version)}), the release that suite is run at.`,
+    `- **How closely it matches:** [Compatibility](/docs/compatibility), that suite's result in CI, with every case left out of the gate and the reason.`,
+    ...(comparison === undefined ? [] : [`- **Side by side:** [burgee vs ${dropIn.host}](${comparison}).`]),
+    isLevel(dropIn.host)
+      ? `- **Moving a program over:** [\`burgee migrate\`](/docs/migrate) rewrites \`'${dropIn.from}'\` to \`'${entry.specifier}'\` across a project.`
+      : `- **Moving a program over:** [\`burgee migrate\`](/docs/migrate) reports \`'${dropIn.from}'\` and leaves it alone until this entry grades level with ${dropIn.host}.`,
+    '',
+    '## Exports',
+    '',
+    `Every name \`${entry.specifier}\` exports, as the built declarations state them. Signatures and behaviour are ${pkg}'s.`,
+    '',
+    '| Export | Kind |',
+    '| :-- | :-- |',
+    ...rows.map((doc) => `| \`${doc.name}\` | ${doc.kind} |`),
+  ];
+  return `${body.join('\n').trimEnd()}\n`;
+}
+
+/**
+ * The documented exports of every entry of `pkg`, keyed by slug. Throws when `dist` is missing.
+ *
+ * An entry in `linkingOut` never owns a declaration: a native entry that re-exports a name a
+ * drop-in also exports documents it in full rather than pointing at a page that does not.
+ */
+export function documentPackage(pkg: string, linkingOut: ReadonlySet<string> = new Set()): Map<Entry, { docs: Documented[]; intro: string }> {
   const entries = entriesOf(pkg);
   const missing = entries.filter((e) => !existsSync(e.types));
   if (missing.length > 0) throw new Error(`${pkg}: no ${missing.map((e) => relative(REPO_ROOT, e.types)).join(', ')} — build it first (npx turbo run build --filter=${pkg}).`);
@@ -420,20 +516,39 @@ export function documentPackage(pkg: string): Map<Entry, { docs: Documented[]; i
   // subpath that exports it (a type from an internal file, re-exported); else the root. The
   // root re-exports every subpath, so it documents only what no subpath carries.
   const owners = new Map<ts.Symbol, string>();
-  for (const { entry, sf, targets } of loaded) for (const t of targets) if (t.declarations?.[0]?.getSourceFile() === sf) owners.set(t, entry.slug);
-  for (const { entry, targets } of [...loaded.filter((l) => l.entry.slug !== 'index'), ...loaded.filter((l) => l.entry.slug === 'index')]) for (const t of targets) if (!owners.has(t)) owners.set(t, entry.slug);
+  const owning = loaded.filter((l) => !linkingOut.has(l.entry.slug));
+  for (const { entry, sf, targets } of owning) for (const t of targets) if (t.declarations?.[0]?.getSourceFile() === sf) owners.set(t, entry.slug);
+  for (const { entry, targets } of [...owning.filter((l) => l.entry.slug !== 'index'), ...owning.filter((l) => l.entry.slug === 'index')]) for (const t of targets) if (!owners.has(t)) owners.set(t, entry.slug);
   return new Map(loaded.map(({ entry, sf }) => [entry, { docs: documentModule(checker, sf, entry.slug, owners), intro: moduleDoc(sf) }]));
 }
 
+/** The entries of `pkg` whose page links out, by slug, with the drop-in pair each one is. */
+function dropInsOf(pkg: string): Map<string, DropIn> {
+  return new Map(entriesOf(pkg).flatMap((e): [string, DropIn][] => {
+    const dropIn = linksOut(pkg, e);
+    return dropIn === undefined ? [] : [[e.slug, dropIn]];
+  }));
+}
+
+/** A drop-in's page, with the site's `vs/<host>` comparison linked when the site has one. */
+function linkOutPage(appDir: string, entry: Entry, docs: readonly Documented[], dropIn: DropIn): string {
+  const compared = ['md', 'mdx'].some((ext) => existsSync(join(REPO_ROOT, appDir, 'content/docs/vs', `${dropIn.host}.${ext}`)));
+  return renderLinkOut({ entry, docs, dropIn, ...(compared ? { comparison: `/docs/vs/${dropIn.host}` } : {}) });
+}
+
 /** Every file this script owns, as `repo-relative path → contents`. */
-export function pages(packages: readonly string[] = STANDARD_SITES): Map<string, string> {
+export function pages(packages: readonly string[] = REFERENCED): Map<string, string> {
   const out = new Map<string, string>();
   for (const pkg of packages) {
     const app = appForPackage(pkg);
-    if (app === undefined || app.familyPages) throw new Error(`${pkg} has no site of its own to carry an API reference`);
-    const documented = documentPackage(pkg);
+    if (app === undefined || app.familyPages !== FAMILY_SITE_REFERENCES.includes(pkg)) throw new Error(`${pkg} has no site to carry an API reference: a standard site needs an app of its own, and a FAMILY_SITE_REFERENCES package the familyPages app`);
+    const dropIns = dropInsOf(pkg);
+    const documented = documentPackage(pkg, new Set(dropIns.keys()));
     const entries = [...documented.keys()];
-    for (const [entry, { docs, intro }] of documented) out.set(`${app.dir}/content/docs/api/${entry.slug}.md`, renderEntry({ pkg, entry, docs, intro, entries }));
+    for (const [entry, { docs, intro }] of documented) {
+      const dropIn = dropIns.get(entry.slug);
+      out.set(`${app.dir}/content/docs/api/${entry.slug}.md`, dropIn === undefined ? renderEntry({ pkg, entry, docs, intro, entries }) : linkOutPage(app.dir, entry, docs, dropIn));
+    }
     const meta = { title: 'API reference', pages: entries.map((e) => e.slug) };
     out.set(`${app.dir}/content/docs/api/meta.json`, `${JSON.stringify(meta, null, 2)}\n`);
   }
@@ -441,7 +556,7 @@ export function pages(packages: readonly string[] = STANDARD_SITES): Map<string,
 }
 
 /** Files under an owned `api/` directory that this script no longer writes. */
-export function orphans(owned: ReadonlyMap<string, string>, packages: readonly string[] = STANDARD_SITES): string[] {
+export function orphans(owned: ReadonlyMap<string, string>, packages: readonly string[] = REFERENCED): string[] {
   const walk = (dir: string): string[] => (existsSync(join(REPO_ROOT, dir)) ? readdirSync(join(REPO_ROOT, dir), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${dir}/${e.name}`) : [`${dir}/${e.name}`])) : []);
   return packages.flatMap((pkg) => {
     const app = appForPackage(pkg);
@@ -454,7 +569,7 @@ export function orphans(owned: ReadonlyMap<string, string>, packages: readonly s
  * which must be the packages `owned` was generated for, or every other site's pages read as
  * orphans.
  */
-export function stale(owned: ReadonlyMap<string, string>, packages: readonly string[] = STANDARD_SITES): string[] {
+export function stale(owned: ReadonlyMap<string, string>, packages: readonly string[] = REFERENCED): string[] {
   const differ = [...owned].filter(([file, text]) => {
     const path = join(REPO_ROOT, file);
     return !existsSync(path) || readFileSync(path, 'utf8') !== text;

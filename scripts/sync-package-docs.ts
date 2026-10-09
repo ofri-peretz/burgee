@@ -23,7 +23,9 @@
  * A package whose site carries the standard page set (`STANDARD_SITES` in
  * `api-reference.ts`) also gets its `CHANGELOG.md` as `content/docs/changelog.md`: changesets
  * writes the file on every release, `changeset:version` runs this script right after, and the
- * page is never a second copy anybody edits.
+ * page is never a second copy anybody edits. A package in `FAMILY_SITE_REFERENCES` — burgee,
+ * whose site is the family app — gets the same page at the family app's
+ * `content/docs/changelog.md`.
  *
  * Output is `.md`, not `.mdx`: README prose is full of `{`, `<name>` and autolinks that MDX
  * would parse as JSX. The centred HTML header (logo, badges) and the `# name` heading are
@@ -41,7 +43,7 @@ import { appForPackage, familyApp } from "../apps/docs-chassis/src/config";
 // eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and scripts read the app table through its one typed reader rather than re-parsing it
 import { publicPackages } from "../apps/docs-chassis/src/packages";
 
-import { STANDARD_SITES } from "./api-reference.js";
+import { FAMILY_SITE_REFERENCES, STANDARD_SITES } from "./api-reference.js";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PACKAGES = join(REPO_ROOT, "packages");
@@ -134,6 +136,17 @@ const WHICH_ONE = [
   "",
 ];
 
+/**
+ * The changelog page a package gets, as `[path, contents]`, or nothing: a `STANDARD_SITES`
+ * package on its own site, a `FAMILY_SITE_REFERENCES` package on the family app.
+ */
+function changelogPage(dir: string, manifest: Manifest, siteDir: string, onFamily: boolean): [string, string] | undefined {
+  const listed = onFamily ? FAMILY_SITE_REFERENCES : STANDARD_SITES;
+  const path = join(PACKAGES, dir, "CHANGELOG.md");
+  if (!listed.includes(manifest.name) || !existsSync(path)) return undefined;
+  return [`${siteDir}/content/docs/changelog.md`, renderChangelog(manifest, readFileSync(path, "utf8"))];
+}
+
 /** Every page this script owns, as `repo-relative path → contents`, across every app. */
 export function pages(): Map<string, string> {
   const out = new Map<string, string>();
@@ -147,14 +160,15 @@ export function pages(): Map<string, string> {
     if (manifest.private) continue;
     const readme = readFileSync(readmePath, "utf8");
     const own = appForPackage(manifest.name);
-    if (own !== undefined && !own.familyPages) {
-      out.set(`${own.dir}/content/docs/index.md`, render(e.name, manifest, readme, family.productionUrl));
-      const changelogPath = join(PACKAGES, e.name, "CHANGELOG.md");
-      if (STANDARD_SITES.includes(manifest.name) && existsSync(changelogPath)) out.set(`${own.dir}/content/docs/changelog.md`, renderChangelog(manifest, readFileSync(changelogPath, "utf8")));
-    } else {
+    const onFamily = own === undefined || own.familyPages;
+    if (onFamily) {
       out.set(`${family.dir}/content/docs/packages/${e.name}.md`, render(e.name, manifest, readme));
       sections.push(e.name);
+    } else {
+      out.set(`${own.dir}/content/docs/index.md`, render(e.name, manifest, readme, family.productionUrl));
     }
+    const changelog = changelogPage(e.name, manifest, onFamily ? family.dir : own.dir, onFamily);
+    if (changelog !== undefined) out.set(...changelog);
   }
   // The family's own package first, then any package kept as a section, alphabetically.
   const names = sections.toSorted((a, b) => Number(b === family.package) - Number(a === family.package) || a.localeCompare(b));

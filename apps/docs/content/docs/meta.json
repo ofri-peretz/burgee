@@ -8,6 +8,7 @@
     "coming-from",
     "packages",
     "plugins",
+    "api",
     "the-floor",
     "comparison",
     "compatibility",
@@ -19,6 +20,7 @@
     "agent-surfaces",
     "boilerplates",
     "your-own-burgee",
-    "research"
+    "research",
+    "changelog"
   ]
 }
