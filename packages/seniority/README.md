@@ -37,13 +37,14 @@
   Migrating from: <a href="https://seniority.interlace.tools/docs/coming-from/cosmiconfig">cosmiconfig</a> · <a href="https://seniority.interlace.tools/docs/coming-from/dotenv">dotenv</a> · <a href="https://seniority.interlace.tools/docs/coming-from/rc">rc</a>
 </p>
 
-One resolution for flags, environment variables, config files, a `package.json` field and
-declared defaults — in a fixed order, with **provenance**.
+**seniority** resolves flags, environment variables, config files, a `package.json` field and
+declared defaults in one fixed order, with **provenance**: every value can say where it came
+from. The provenance is data too — `explanationJson()` is the `--json` record and
+`explanationEvent()` the agent event — so an agent asking "why is this set?" gets the answer a
+person does.
 
-It replaces **cosmiconfig**, **dotenv** and **rc**, each through a drop-in path graded by that
-incumbent's own suite. The provenance is data too: `explanationJson()` is the `--json` record
-and `explanationEvent()` the agent event, so an agent asking "why is this set?" gets the
-answer a person does.
+Drop-in for **cosmiconfig**, **dotenv** and **rc**: `npx burgee migrate` moves the imports,
+each path graded by that incumbent's own suite.
 
 ```
 flag  >  env  >  config file  >  package.json field  >  default
@@ -419,7 +420,7 @@ Graded by the incumbent's own test suite:
 | `lilconfig` | 77 / 77 |
 | `rc` | 1 / 1 |
 
-Weight, installed and tree-inclusive: **223,609 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1134**.
+Weight, installed and tree-inclusive: **223,679 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1134**.
 
 ## For agents
 

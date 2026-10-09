@@ -163,7 +163,7 @@ export const leadSentence = (paragraph: string): string => /^.*?[.!?](?=\s+[A-Z*
 export const CAPABILITIES: readonly { id: string; label: string; pattern: RegExp }[] = [
   { id: 'surfaces', label: 'one declaration served as help, --json, --schema, MCP and completions', pattern: /--schema\b|--mcp\b|one declaration/iu },
   { id: 'exit-codes', label: 'exit codes that tell an agent to rewrite the command', pattern: /rewrite the command|exit[- ]code contract/iu },
-  { id: 'fix-lines', label: '`fix:` lines', pattern: /`fix:|\bfix: [a-z]/u },
+  { id: 'fix-lines', label: '`fix:` lines', pattern: /`fix:|<em>fix:<\/em>|\bfix: [a-z]/u },
   { id: 'explain', label: '`--explain` provenance', pattern: /--explain\b|(?<!npm )provenance(?! attestation)/iu },
   { id: 'static-projection', label: 'static projection', pattern: /static projection/iu },
   { id: 'plugins-as-data', label: 'plugins as data (`schema.json` + `check`)', pattern: /schema\.json|plugins? (?:are|as) data|npx [\w-]+ check\b/iu },

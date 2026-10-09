@@ -36,17 +36,17 @@
   Migrating from: <a href="https://closeout.interlace.tools/docs/coming-from/signal-exit">signal-exit</a> · <a href="https://closeout.interlace.tools/docs/coming-from/exit-hook">exit-hook</a> · <a href="https://closeout.interlace.tools/docs/coming-from/restore-cursor">restore-cursor</a>
 </p>
 
-**Close everything out.**
+**closeout** runs every exit handler exactly once, on every path out of the process, restores
+the terminal, and holds shutdown to a deadline so it cannot hang. Every handler gets one
+record, and `reportToJson()` and `reportToEvent()` project that record as a `--json` line or
+an agent event. Zero dependencies. Node builtins only.
 
-It replaces **signal-exit**, **exit-hook** and **restore-cursor**, each through a drop-in
-subpath graded by the incumbent's own suite. Every handler gets one record, and `reportToJson()` and `reportToEvent()` project
-that record as a `--json` line or an agent event.
+Drop-in for **signal-exit**, **exit-hook** and **restore-cursor**: `npx burgee migrate` moves
+the imports to closeout's subpaths, each graded by the incumbent's own suite.
 
-To *close out* is to settle and finish — an account, a position, a shift. Everything
-outstanding is resolved and nothing is left open. That is what a process should do on the
-way out, and mostly does not.
-
-Zero dependencies. Node builtins only.
+**Close everything out.** To *close out* is to settle and finish — an account, a position, a
+shift. Everything outstanding is resolved and nothing is left open. That is what a process
+should do on the way out, and mostly does not.
 
 ## Install
 
@@ -356,7 +356,7 @@ Graded by the incumbent's own test suite:
 | `restore-cursor` | 6 / 6 |
 | `signal-exit` | 134 / 135 |
 
-Weight, installed and tree-inclusive: **121,123 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.6590**.
+Weight, installed and tree-inclusive: **121,319 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.6600**.
 
 ## For agents
 

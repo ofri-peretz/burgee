@@ -34,16 +34,19 @@
   Migrating from: <a href="https://roundel.interlace.tools/docs/coming-from/chalk">chalk</a>
 </p>
 
+**roundel** is the colours a CLI carries: one output policy decided once from the runtime,
+nine semantic tokens over `util.styleText` — `error`, `hint`, `command` and `flag` rather than
+`red` and `blue` — and a theme that changes them all together, contrast-checked before it
+flies. Under `--json`, `NO_COLOR` or a pipe nobody asked to colour, every token returns its
+input unchanged, so captured output never carries an escape. Zero dependencies, five
+subpaths, each costing only itself.
+
+Drop-in for **chalk**: `npx burgee migrate` moves the import to `roundel/chalk`, chalk's API
+over the same tokens, graded by chalk's own suite.
+
 chalk gives you `red`; picocolors gives you `red` for fewer bytes. Neither gives you
 `error`, and each decides on its own whether the terminal has colour — which is why a
-program's spinner, prompt and help so often disagree. **roundel** is the colours a CLI
-carries: one output policy decided once from the runtime, nine semantic tokens over
-`util.styleText`, and a theme that changes them all together, contrast-checked before it
-flies — plus chalk's API over the same tokens, for the program that is not ready to give
-chalk up. Zero dependencies, five subpaths, each costing only itself.
-
-For an agent, the policy is the point: under `--json`, `NO_COLOR` or a pipe nobody asked to
-colour, every token returns its input unchanged, so captured output never carries an escape.
+program's spinner, prompt and help so often disagree.
 
 A **roundel** is a flag's colours carried onto another surface — the rings on an aircraft's
 wing, the London Underground sign. Identity, expressed purely in colour, on something that is

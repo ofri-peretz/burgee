@@ -9,7 +9,7 @@ description: "burgee/yargs is a drop-in for yargs: the same API, documented by y
 
 - **Reference:** [yargs 18.2.0](https://www.npmjs.com/package/yargs/v/18.2.0), the release that suite is run at.
 - **How closely it matches:** [Compatibility](/docs/compatibility), that suite's result in CI, with every case left out of the gate and the reason.
-- **Side by side:** [burgee vs yargs](/docs/vs/yargs).
+- **Switching:** [Switching from yargs](/docs/vs/yargs).
 - **Moving a program over:** [`burgee migrate`](/docs/migrate) rewrites `'yargs'` to `'burgee/yargs'` across a project.
 
 ## Exports
