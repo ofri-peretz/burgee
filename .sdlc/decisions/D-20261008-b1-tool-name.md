@@ -53,20 +53,26 @@ on it. The claim stands or falls on this harness from here, and the README resta
 use the post-change series. The burgee changes that recover the lost turns are product work in
 burgee's own help and errors, in a separate PR, measured the same way.
 
-## Correction (2026-10-09): that first reading was the outlier
+## Correction (2026-10-09): one run is not a level, and neither is three
 
-The section above read one run as the new level. Two more B1 runs have since landed on the same
-`demo` harness, both before #891 changed anything burgee prints:
+The section above read one run as the new level. Five runs have now landed on the same `demo`
+harness:
 
-| run | tokens ratio | turns ratio | success, burgee / commander |
-| :-- | --: | --: | :-- |
-| `ba8a89c` | 0.995 | 1.0 | 1.0 / 0.84 |
-| `98c355c` | 0.495 | 0.5 | 1.0 / 0.88 |
-| `d33ae03` | 0.491 | 0.5 | 1.0 / 0.88 |
+| run | tokens | turns | burgee turns / tokens | commander turns / tokens |
+| :-- | --: | --: | :-- | :-- |
+| `ba8a89c` | 0.995 | 1.0 | 4 / 84,969 | 4 / 85,426 |
+| `98c355c` | 0.495 | 0.5 | 3 / 63,833 | 6 / 128,991 |
+| `d33ae03` | 0.491 | 0.5 | 3 / 63,478 | 6 / 129,277 |
+| `e641aa3` | 0.493 | 0.5 | 3 / 63,461 | 6 / 128,719 |
+| `367cefb` | 0.747 | 0.75 | 3 / 63,548 | 4 / 85,119 |
 
-The median of the three is **0.495 for tokens and 0.5 for turns, which meets both claims**. On
-`ba8a89c` commander had a run where its agents guessed `demo config get user.name` straight
-away. With 5 runs a task, one or two lucky guesses move a pooled median from 6 turns to 4. So
-"commander moved more than burgee" was one sample, not a finding. What stands is that the
-harness change was fair, that a single B1 run is not a level, and that the README states the
-series median with its range.
+**burgee's side is stable at 3 turns**: four runs of five, and #891 did not move it. **The ratio
+swings because commander's pooled median is bimodal**, landing at 4 or 6 turns depending on
+how many of its 25 task-runs guess `demo config get user.name` straight away. With 5 runs a task
+the median is one or two lucky guesses wide. So the claim holds when commander has a bad run
+(3/6 = 0.5) and misses when it has a good one (3/4 = 0.75).
+
+The README follows the repository's rule (a ✅ needs the newest CI run to meet the claim):
+❌ on `367cefb`, with the 5-run range and median beside it. To meet the claim reliably, burgee
+has to finish in 2 turns where it takes 3, or the claim has to be restated. That decision belongs
+to gap A-20261009-agent-cost-claims.
