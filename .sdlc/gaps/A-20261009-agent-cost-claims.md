@@ -30,3 +30,11 @@ ways to close it:
   runs", or median-based).
 
 Either way, the README states what the newest run says.
+
+**What a 2-turn burgee median would take (2026-10-09, later).** It is out of reach on these five
+tasks. recover-failure and diagnose-provenance have a floor of 3, and 33 of 35 discover-subcommand
+agents read help before anything else, so at most about 10 of 25 runs can take 2 turns.
+D-20261009-json-asked-is-json takes the turns that were burgee's to take (structured-output: 2-turn
+runs 5 → 14 of 35 on replay). D-20261009-b1-two-turns sets out the arithmetic and the three levers
+left, each the owner's: auto-running read-only fixes (not recommended), `--schema` leading to
+`--explain`, and restating the claims as totals.

@@ -534,11 +534,12 @@ interface FailureContext {
  * promises read nothing on exactly the runs that needed one, and `--mcp` only found it because
  * its reader fell back to stderr. Without `--json` it is prose on stderr, as it was.
  */
-async function report(cause: unknown, { manifest, io, argv, json, name }: FailureContext): Promise<void> {
+async function report(cause: unknown, { manifest, io, argv, json, name }: FailureContext): Promise<string[] | void> {
   // U5 — the whole failure vocabulary is its own chunk: a run that succeeds never loads it.
   const { describeFailure, failureText } = await import('./failure.js');
-  // The line as typed, program first: a fix that corrects an option names the whole line.
-  const failure = await describeFailure(cause, [...manifest.rootPath, ...argv], resolveCommand(manifest, argv) ?? undefined, cause instanceof ActionRequired ? cause.spec : undefined);
+  const failure = await describeFailure(cause, { root: manifest.rootPath, argv }, resolveCommand(manifest, argv) ?? undefined, cause instanceof ActionRequired ? cause.spec : undefined);
+  // Nothing is reported and nothing has run: the caller runs this line instead (`execute`).
+  if (failure.again) return failure.again;
   if (failure.silent === true) return await leave(io, failure.code);
   await manifest.fire('onError', name, {});
   (json ? io.out : io.err).write(failureText(failure, manifest, json));
@@ -583,24 +584,33 @@ export async function execute(manifest: Manifest, opts: RunOptions & { root?: st
   // teardown `ctx.onExit` uses. Registered only when a plugin declares one.
   if (manifest.declares('shutdown')) io.teardown.add(async () => await manifest.fire('shutdown', name, {}), 'plugin shutdown hooks');
   let argv = typed;
-  try {
-    argv = manifest.declares('parse') ? await manifest.parse([...typed]) : typed;
-    json = beforeTerminator(argv).some(isJsonFlag);
-    // U5 — every surface lives in `surfaces.js`, imported only when argv could be asking for one.
-    if (mayServe(argv) && (await (await import('./surfaces.js')).serve(manifest, argv, io, { resolution: (specs, flags) => resolution(manifest, specs, flags, io), execute }))) return await leave(io, ExitCode.OK);
-    const { node, rest } = manifest.resolve(argv, root);
-    if (node?.run === undefined) {
-      const { text, code } = await (await import('./surfaces.js')).unresolved({ manifest, root, io }, argv, node);
-      (code === ExitCode.OK ? io.out : io.err).write(text);
-      return await leave(io, code);
+  // One pass over argv, from resolution to the exit. A refusal whose only fault was how JSON was
+  // asked for runs nothing and hands back the same words with `--json` where it is read, for the
+  // next pass (D-20261009-json-asked-is-json). That line skips the parse hook, which had its words.
+  const pass = async (next: string[] | Promise<string[]>): Promise<string[] | void> => {
+    try {
+      argv = await next;
+      json = beforeTerminator(argv).some(isJsonFlag);
+      // U5 — every surface lives in `surfaces.js`, imported only when argv could be asking for one.
+      if (mayServe(argv) && (await (await import('./surfaces.js')).serve(manifest, argv, io, { resolution: (specs, flags) => resolution(manifest, specs, flags, io), execute }))) return await leave(io, ExitCode.OK);
+      const { node, rest } = manifest.resolve(argv, root);
+      if (node?.run === undefined) {
+        const { text, code } = await (await import('./surfaces.js')).unresolved({ manifest, root, io }, argv, node);
+        (code === ExitCode.OK ? io.out : io.err).write(text);
+        return await leave(io, code);
+      }
+      name = node.path.slice(root.length).join(' ');
+      const outcome = await dispatch(manifest, { node: node as Runnable, rest, name }, io);
+      json = outcome.json;
+      return await emit(io, outcome);
+    } catch (cause) {
+      return await report(cause, { manifest, io, argv, json, name });
     }
-    name = node.path.slice(root.length).join(' ');
-    const outcome = await dispatch(manifest, { node: node as Runnable, rest, name }, io);
-    json = outcome.json;
-    return await emit(io, outcome);
-  } catch (cause) {
-    return await report(cause, { manifest, io, argv, json, name });
-  }
+  };
+  // The parse hook's promise goes in unawaited, so a hook that rejects is reported like any refusal.
+  let next: string[] | Promise<string[]> | void = manifest.declares('parse') ? manifest.parse([...typed]) : typed;
+  // eslint-disable-next-line reliability/no-await-in-loop -- each pass runs the line the one before it handed back, so none can start before the last has refused
+  while (next) next = await pass(next);
 }
 
 /** M6: which command argv names, or null — the same longest-prefix match `execute` uses. */

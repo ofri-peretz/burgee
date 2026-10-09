@@ -47,7 +47,7 @@ describe('an action required with nothing to run next (N11)', () => {
   });
   it('carries no hint key at all, rather than one set to undefined', async () => {
     const spec = { reason: 'login', message: 'sign in first' };
-    expect(await describeFailure(new Error('sign in first'), [], undefined, spec)).toStrictEqual({ code: ExitCode.CANCELLED, message: 'sign in first', action: spec });
+    expect(await describeFailure(new Error('sign in first'), { root: [], argv: [] }, undefined, spec)).toStrictEqual({ code: ExitCode.CANCELLED, message: 'sign in first', action: spec });
   });
   it('as JSON: an empty next[] and no hint', async () => {
     const r = await runCommand(program, ['login', '--json']);
@@ -58,7 +58,7 @@ describe('an action required with nothing to run next (N11)', () => {
 describe('a parse failure with no command to suggest from', () => {
   it('is USAGE, and points at --help', async () => {
     const cause = Object.assign(new TypeError("Unknown option '--nope'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--nope\"'"), { code: 'ERR_PARSE_ARGS_UNKNOWN_OPTION' });
-    expect(await describeFailure(cause, ['--nope'], undefined, undefined)).toEqual({
+    expect(await describeFailure(cause, { root: [], argv: ['--nope'] }, undefined, undefined)).toEqual({
       code: ExitCode.USAGE,
       message: 'unknown option --nope',
       hint: 'run --help to see the available options',

@@ -96,10 +96,14 @@ its `summary`, says `partial: N files rewritten, M refused`
 
 **A failure says what to do next.** `fix` is one line to run, and it is filled in only when there
 is exactly one. It is always the caller's own command line, from the program name, with one thing
-corrected: an unknown option replaced by the flag it was nearest to (`--format json` becomes
-`--json`), an unknown command's word replaced by the command it was nearest to, or, when the word
-was really an argument, the one command below that takes it inserted before it (`config user.name`
-becomes `config get user.name`). When there is none and the code is `USAGE` or `RUNTIME`, the
+corrected: an unknown option replaced by the flag it was nearest to (`--nmae=ada` becomes
+`--name=ada`), an unknown command's word replaced by the command it was nearest to, or, when the
+word was really an argument, the one command below that takes it inserted before it (`config
+user.name` becomes `config get user.name`). A word typed with dashes where a command goes is
+matched by its name, so `--get` is `config get`. A fix is never run for you. The one exception is
+a request for JSON in another CLI's spelling or position (`--format json`, or `--json` ahead of
+the command), which is not a refusal at all: the command runs with `--json`
+([Agent surfaces](/docs/concepts/agent-surfaces#the-rules)). When there is none and the code is `USAGE` or `RUNTIME`, the
 failure carries `usage` instead. That is the failing command's usage line from the program name,
 then its visible options with the notes help prints: required, default, choices, relations and
 env. An unknown command carries the commands that exist and points at `--schema`. Either list is

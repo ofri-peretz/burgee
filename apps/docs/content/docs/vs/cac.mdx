@@ -23,8 +23,8 @@ cac is the lightest framework in the landscape, and burgee's own gates say it is
 than burgee. Measured against `cac@7.0.0`, the version the benchmark suite resolves, with
 each ratio taken between the two in the same run:
 
-- **Bundle size.** cac alone is the lighter bundle, and burgee is 2.312× it: burgee's
-  core bundles to 24,163 bytes and cac to 10,452. The `lighter-than-cac` gate is a
+- **Bundle size.** cac alone is the lighter bundle, and burgee is 2.317× it: burgee's
+  core bundles to 24,221 bytes and cac to 10,452. The `lighter-than-cac` gate is a
   downward-only ratchet that holds the ratio within 2.35× and may only be lowered (D-157).
 - **Cold start.** cac starts faster in every run on record. Across the 178 runs committed
   under `benchmarks/results/cli-benchmarks/`, burgee's full-run cold start is 1.29×–2.13×
@@ -46,7 +46,7 @@ byte counts, choose cac.
 - **You would otherwise add the rest yourself.** A cac program that wants its config file
   read, its shutdown bounded on every path out and its cursor handed back on Ctrl-C
   installs `cosmiconfig`, `exit-hook` and `restore-cursor`. Against that stack burgee's
-  `lighter-than-cac-at-parity` gate is met (0.247×): 24,163 bytes against 97,692. Both
+  `lighter-than-cac-at-parity` gate is met (0.248×): 24,221 bytes against 97,692. Both
   gates are the README's, and every bundle figure on this page is rewritten from a fresh
   build by `npm run readme:gates`, so it cannot drift from what the build measures.
 - **You want an agent to drive it.** The comparison marks cac without a `--json` envelope,
