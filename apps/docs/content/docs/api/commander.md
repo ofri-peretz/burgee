@@ -9,7 +9,7 @@ description: "burgee/commander is a drop-in for commander: the same API, documen
 
 - **Reference:** [commander 15.0.0](https://www.npmjs.com/package/commander/v/15.0.0), the release that suite is run at.
 - **How closely it matches:** [Compatibility](/docs/compatibility), that suite's result in CI, with every case left out of the gate and the reason.
-- **Side by side:** [burgee vs commander](/docs/vs/commander).
+- **Switching:** [Switching from commander](/docs/vs/commander).
 - **Moving a program over:** [`burgee migrate`](/docs/migrate) rewrites `'commander'` to `'burgee/commander'` across a project.
 
 ## Exports

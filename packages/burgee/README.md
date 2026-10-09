@@ -265,9 +265,9 @@ Roadmap, architecture and the 114-requirement floor:
 Yes — and a yargs alternative. It is drop-in compatible with both: change
 `import { Command } from 'commander'` to `import { Command } from 'burgee/commander'` (or
 `yargs` to `burgee/yargs`) and your code and tests are unchanged. Compatibility is graded by
-each host's own test suite in CI, not asserted. Side by side:
-[burgee vs commander](https://burgee.interlace.tools/docs/vs/commander) and
-[burgee vs yargs](https://burgee.interlace.tools/docs/vs/yargs).
+each host's own test suite in CI, not asserted. The guides:
+[Switching from commander](https://burgee.interlace.tools/docs/vs/commander) and
+[Switching from yargs](https://burgee.interlace.tools/docs/vs/yargs).
 
 ### How do I make my CLI usable by an AI agent?
 

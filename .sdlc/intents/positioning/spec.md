@@ -61,7 +61,7 @@ READMEs, and the comparison pages, one PR each.
 | R2 | **Built** | `README.md`, `apps/docs/content/docs/index.mdx`, and `SUMMARY` in `apps/docs/src/lib/site.ts` | `scripts/positioning-lock.test.ts`, proven red on `fc0f897104`; it also rebuilds the hero's grades from `GRADED` |
 | R3 | **Built** | `apps/docs/content/docs/what-an-agent-sees.mdx`, second in the navigation; linked from the docs landing and the root README's agent section | `scripts/agent-page-lock.test.ts`: every run row, per-task row, quoted session and the met count equal the landed results, and no landed run between the first row and the last is missing; five mutations prove it red |
 | R4 | **Built** | `packages/*/README.md`, projected to each package's docs landing by `sync-package-docs.ts`; patch changeset `positioning-readme-openings` | `scripts/positioning-lock.test.ts` over every package README, and `readme-opening-lock.test.ts` still finds each incumbent within 25 lines |
-| R5 | Not built | `apps/docs/content/docs/vs/*.mdx`, `vs/meta.json`, `meta.json` | `scripts/vercel-apps-lock.test.ts`: every link lands |
+| R5 | **Built** | `vs/*.mdx` titled "Switching from X" with slugs, descriptions and every table unchanged; `vs/meta.json` is "Switching from…" and `coming-from/meta.json` "Switching a terminal UI from…"; both sit after the capability and proof pages in `meta.json`; the generated API pages link "Switching from X" | `scripts/vercel-apps-lock.test.ts` (every link lands, no URL changed) and `scripts/api-reference-lock.test.ts` |
 | R6 | **Built** | the root README's and the docs landing's "Switch in one command", and each package README's adoption note | the lock asserts `npx burgee migrate` on every page it holds |
 
 ## Design

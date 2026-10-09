@@ -475,7 +475,7 @@ export function renderLinkOut({ entry, docs, dropIn, comparison }: LinkOutPage):
     '',
     `- **Reference:** [${pkg} ${version}](${incumbentDocs(pkg, version)}), the release that suite is run at.`,
     `- **How closely it matches:** [Compatibility](/docs/compatibility), that suite's result in CI, with every case left out of the gate and the reason.`,
-    ...(comparison === undefined ? [] : [`- **Side by side:** [burgee vs ${dropIn.host}](${comparison}).`]),
+    ...(comparison === undefined ? [] : [`- **Switching:** [Switching from ${dropIn.host}](${comparison}).`]),
     isLevel(dropIn.host)
       ? `- **Moving a program over:** [\`burgee migrate\`](/docs/migrate) rewrites \`'${dropIn.from}'\` to \`'${entry.specifier}'\` across a project.`
       : `- **Moving a program over:** [\`burgee migrate\`](/docs/migrate) reports \`'${dropIn.from}'\` and leaves it alone until this entry grades level with ${dropIn.host}.`,
