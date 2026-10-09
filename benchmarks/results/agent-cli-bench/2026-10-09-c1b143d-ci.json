@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "suite": "agent-cli-bench",
+  "measured": "2026-10-09T22:06:34.968Z",
+  "commit": "c1b143d1d086ce4b02fa4df33ff37134ac2fef98-dirty",
+  "machine": {
+    "os": "linux",
+    "release": "6.17.0-1022-azure",
+    "arch": "x64",
+    "cpu": "AMD EPYC 7763 64-Core Processor",
+    "cores": 4,
+    "memoryGb": 16,
+    "node": "v24.13.0",
+    "ci": true
+  },
+  "axes": {
+    "agent": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    }
+  },
+  "records": [],
+  "bands": {
+    "agent-tokens-per-task": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "agent-turns-per-task": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    }
+  },
+  "claims": {
+    "agent-tokens-40pct": {
+      "claim": "an agent spends at least 40% fewer tokens over the benchmark tasks against a CLI that meets the floor (total over every task-run)",
+      "source": ".sdlc/intents/burgee/intent.md — the roadmap headline; measured as totals since D-20261009-b1-totals-and-explain",
+      "target": "<= 0.6",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    },
+    "agent-turns-30pct": {
+      "claim": "an agent takes at least 30% fewer turns over the benchmark tasks against a CLI that meets the floor (total over every task-run)",
+      "source": ".sdlc/intents/burgee/intent.md — the roadmap headline; measured as totals since D-20261009-b1-totals-and-explain",
+      "target": "<= 0.7",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    }
+  }
+}
