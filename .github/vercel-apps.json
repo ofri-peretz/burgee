@@ -101,13 +101,12 @@
       "buildCommand": "npx turbo run build --filter=docs-paratext",
       "outputDirectory": "apps/docs-paratext/.next",
       "familyPages": false
-    }
-  },
-  "pending": {
+    },
     "controlroom": {
       "package": "controlroom",
       "workspace": "docs-controlroom",
       "dir": "apps/docs-controlroom",
+      "projectId": "prj_JNARpVbMhWKBnAKtBetekkfBFcfI",
       "productionUrl": "https://controlroom.interlace.tools",
       "rootDirectory": "",
       "buildCommand": "npx turbo run build --filter=docs-controlroom",
@@ -115,7 +114,6 @@
       "familyPages": false
     }
   },
-  "excluded": {
-    "controlroom": "site built at apps/docs-controlroom; waits only on the owner's Vercel project + DNS"
-  }
+  "pending": {},
+  "excluded": {}
 }

@@ -48,6 +48,12 @@ interface HelpOptions {
      * `HelpTheme` for the lines it leaves plain: the `Usage:` command name and `$ example`.
      */
     theme?: HelpTheme;
+    /**
+     * The commands to list, in place of the node's visible children: each by its path from the
+     * node, with what it takes (`config get <key>`), under the heading of the child it is reached
+     * through. The engine passes every command that runs when they fit (`listed` in `usage.ts`).
+     */
+    commands?: readonly CommandNode[];
 }
 ```
 

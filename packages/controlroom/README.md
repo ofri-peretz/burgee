@@ -31,7 +31,7 @@
 </p>
 
 <p align="center">
-  Docs: <a href="https://burgee.interlace.tools/docs/packages/controlroom">https://burgee.interlace.tools/docs/packages/controlroom</a><br />
+  Docs: <a href="https://controlroom.interlace.tools">https://controlroom.interlace.tools</a><br />
   Migrating from: <a href="https://burgee.interlace.tools/docs/coming-from/blessed">blessed</a> · <a href="https://burgee.interlace.tools/docs/coming-from/neo-blessed">neo-blessed</a> · <a href="https://burgee.interlace.tools/docs/coming-from/terminal-kit">terminal-kit</a>
 </p>
 
