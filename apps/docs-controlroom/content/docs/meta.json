@@ -1,0 +1,15 @@
+{
+  "title": "controlroom",
+  "pages": [
+    "index",
+    "getting-started",
+    "guides",
+    "why-controlroom",
+    "drop-ins",
+    "coming-from",
+    "recipes",
+    "api",
+    "faq",
+    "changelog"
+  ]
+}

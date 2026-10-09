@@ -1,0 +1,142 @@
+---
+title: Getting started
+description: "Install controlroom, open a screen with two panes, and see the same program on a terminal, in a pipe and under --json."
+---
+
+controlroom draws a **screen**: panes laid out in rows and columns, each pane a flagstaff
+component with its state. You **open** a screen, **update** a pane's state as work moves, and
+**close** it. Whether that is a live screen redrawn in place or a stream of plain lines is
+decided once, when you open it, from the process it runs in.
+
+## Install
+
+```bash
+npm install controlroom flagstaff
+```
+
+controlroom installs six packages from this repository (caique, closeout, flagstaff,
+linegauge, paratext and roundel) and nothing from outside it. You install flagstaff yourself
+because your program imports its components. `react` and `react-reconciler` are optional peers,
+and only `controlroom/ink` loads them; the API on this page never does. It runs on Node 20.19+
+and 22.13+.
+
+## A first screen
+
+A deploy with a checklist on the left and a log on the right:
+
+```js title="deploy.mjs"
+import { setTimeout as sleep } from 'node:timers/promises';
+
+import { open, processRuntime } from 'controlroom';
+import { logTail } from 'flagstaff/log-tail';
+import { tasks } from 'flagstaff/tasks';
+
+const steps = [
+  { title: 'Install', status: 'ok' },
+  { title: 'Build', status: 'running' },
+  { title: 'Upload', status: 'pending' },
+];
+const lines = ['added 12 packages'];
+
+const screen = open(processRuntime(), {
+  json: process.argv.includes('--json'),
+  layout: {
+    direction: 'row',
+    parts: [
+      { size: { fr: 1, min: 20 }, content: 'steps' },
+      { size: { fr: 2 }, content: 'log' },
+    ],
+  },
+  panes: {
+    steps: { component: tasks(), state: { tasks: steps }, label: 'Steps' },
+    log: { component: logTail({ height: 6 }), state: { lines }, label: 'Log' },
+  },
+});
+
+/** Settle the running step, start the next one, and log what happened. */
+function advance(line) {
+  const running = steps.findIndex((s) => s.status === 'running');
+  steps[running].status = 'ok';
+  if (running + 1 < steps.length) steps[running + 1].status = 'running';
+  lines.push(line);
+  screen.update('steps', { tasks: steps });
+  screen.update('log', { lines });
+}
+
+await sleep(300);
+advance('built dist/ in 1.2s');
+await sleep(300);
+advance('uploaded 3 files');
+screen.commit('Deployed.');
+screen.close();
+```
+
+`processRuntime()` is the real process as controlroom reads it: the environment, the
+terminal, the streams and a clock. In a test you pass a literal instead, and the screen
+becomes a fixed transcript.
+
+On a terminal, the two panes are drawn side by side under your prompt and redrawn in place as
+the steps move. `commit()` writes `Deployed.` above the live region, into the scrollback, and
+`close()` prints the live region's final state once, as its static projection, and hands the
+terminal back.
+
+Pipe it, and the same program prints each pane under its label, then only the lines that are
+new since it last printed:
+
+```text title="node deploy.mjs"
+Steps
+✔ Install
+Log
+┊ added 12 packages
+✔ Build
+┊ built dist/ in 1.2s
+✔ Upload
+┊ uploaded 3 files
+Deployed.
+```
+
+There is no escape byte, no carriage return and no cursor movement in it. Ask for `--json`,
+and stdout stays empty while stderr carries one NDJSON event per change, named after the pane:
+
+```text title="node deploy.mjs --json"
+{"event":"steps","state":{"tasks":[{"title":"Install","status":"ok"},{"title":"Build","status":"running"},{"title":"Upload","status":"pending"}]}}
+{"event":"log","state":{"lines":["added 12 packages"]}}
+{"event":"steps","state":{"tasks":[{"title":"Install","status":"ok"},{"title":"Build","status":"ok"},{"title":"Upload","status":"running"}]}}
+{"event":"log","state":{"lines":["added 12 packages","built dist/ in 1.2s"]}}
+{"event":"steps","state":{"tasks":[{"title":"Install","status":"ok"},{"title":"Build","status":"ok"},{"title":"Upload","status":"ok"}]}}
+{"event":"log","state":{"lines":["added 12 packages","built dist/ in 1.2s","uploaded 3 files"]}}
+{"event":"commit","state":"Deployed."}
+{"event":"steps","state":{"tasks":[{"title":"Install","status":"ok"},{"title":"Build","status":"ok"},{"title":"Upload","status":"ok"}]}}
+{"event":"log","state":{"lines":["added 12 packages","built dist/ in 1.2s","uploaded 3 files"]}}
+```
+
+`close()` sends each pane's last state once more, so an agent sees when the screen closed and
+not only what it last showed. Every output block on this site is checked:
+`tests/examples.test.ts` writes each titled file, runs the command in the block's title, and
+compares.
+
+## Which screen a program gets
+
+`open()` asks roundel's output policy, the rule every package in the family asks, for one of
+five modes:
+
+| mode | chosen when | what the screen does |
+| :-- | :-- | :-- |
+| `json` | the program passed `json: true` | one NDJSON event per change, on stderr |
+| `accessible` | `CLI_ACCESSIBLE` is set | each pane's text once per change, never a redraw |
+| `tty` | stdout is a terminal | the live screen, **if stdin can go raw too** |
+| `ci` | `CI` is set and stdout is not a terminal | each pane's text once per change |
+| `pipe` | anything else | each pane's text once per change |
+
+The first row that matches wins. Keys are read only in `tty` mode, and only when stdin is a
+terminal that can go raw; `node deploy.mjs < input.txt` in a terminal gets the static screen,
+because nobody can press a key into a file. That is the whole of the rule that a screen never
+waits for a key nobody can press.
+
+## Where next
+
+- [Screens](/docs/guides/screens): `open()`, inline and alternate, and what a screen returns.
+- [Layout](/docs/guides/layout) and [Tabs, focus and keys](/docs/guides/tabs-and-keys).
+- [The static projection](/docs/guides/static-projection): what a pipe, CI and `--json` get.
+- [Coming from ink](/docs/coming-from/ink): one import, graded by ink's own suite.
+- [Recipes](/docs/recipes/dashboard): a full-screen dashboard and a chat CLI to copy.

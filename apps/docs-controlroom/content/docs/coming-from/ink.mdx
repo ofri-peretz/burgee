@@ -1,0 +1,124 @@
+---
+title: Coming from ink
+description: "Move an ink program to controlroom/ink by changing its import and installing react-reconciler; graded by ink 8.0.0's own suite at 1304 of 1304. Packages written for ink run unchanged with one package.json line."
+---
+
+`controlroom/ink` is ink 8.0.0's API, graded by ink's own test suite at **1304 of 1304** cases
+and by @inkjs/ui 2.0.0's at **102 of 102** ([Compatibility](/docs/drop-ins)). Your components,
+hooks and props stay as they are.
+
+## Migrate from ink: one import
+
+```diff
+- import { render, Box, Text, useInput } from 'ink';
++ import { render, Box, Text, useInput } from 'controlroom/ink';
+```
+
+```bash
+npm install controlroom react-reconciler
+npm uninstall ink
+```
+
+ink installs React's reconciler for you; `controlroom/ink` renders your React through React's
+own reconciler, so you install it yourself. `react` and `react-reconciler` are optional peers of
+controlroom: if either is missing, `controlroom/ink` refuses on first import with
+`E_PEER_MISSING`, and its `fix` is the install line. The rest of controlroom never loads them.
+
+`burgee migrate` does this for you on a project whose ink is 8.x: it rewrites each `'ink'`
+import to `'controlroom/ink'`, and its report's next step is
+`npm install controlroom@^<version> react-reconciler && npm uninstall ink`. A project still on
+ink 6 is reported and left alone, because ink 6's suite grades the drop-in at 540 / 584.
+
+## It renders the same
+
+A component written for ink, rendered by the drop-in:
+
+```js title="summary.mjs"
+import { createElement as h } from 'react';
+import { Box, renderToString, Text } from 'controlroom/ink';
+
+const Summary = ({ passed, failed }) =>
+  h(
+    Box,
+    { borderStyle: 'round', paddingX: 1, flexDirection: 'column' },
+    h(Text, { bold: true }, 'Test run'),
+    h(Text, null, `${passed} passed, ${failed} failed`),
+  );
+
+console.log(renderToString(h(Summary, { passed: 41, failed: 1 }), { columns: 32 }));
+```
+
+```text title="node summary.mjs"
+╭──────────────────────────────╮
+│ Test run                     │
+│ 41 passed, 1 failed          │
+╰──────────────────────────────╯
+```
+
+(`createElement` stands in for JSX so the file runs with plain `node`; with your JSX build the
+component is the one you already have.) The border is flagstaff's, the bold is roundel's, and
+the box was laid out by controlroom's port of yoga's flexbox: there is no yoga in the install.
+
+## What is in it
+
+`render`, `renderToString`, `Box`, `Text`, `Static`, `Transform`, `Newline`, `Spacer`, every
+ink hook (`useInput`, `useApp`, `useFocus`, `useFocusManager`, `useCursor`, `useStdin`,
+`useStdout`, `useStderr`, `useIsScreenReaderEnabled`, `useAnimation`, `usePaste`,
+`useBoxMetrics` and `useWindowSize`), and `measureElement`. ink 8's additions are there too: the `alternateScreen` and `interactive`
+options, `wrap="hard"`, `suspendTerminal` and `waitUntilRenderFlush` on `useApp`, and kitty
+keyboard negotiation. The [API reference](/docs/api/ink) lists every export with its signature.
+
+## Packages written for ink
+
+`ink-spinner`, `ink-text-input`, `ink-select-input` and `@inkjs/ui` import `'ink'`, not
+`'controlroom/ink'`. They run unchanged when `'ink'` resolves to the drop-in. An `npm:` alias
+cannot do that, because it names a package and not a subpath. A two-file package of your own
+can:
+
+```json
+{
+  "dependencies": {
+    "ink": "file:./ink",
+    "controlroom": "*",
+    "react": "^19.3.0",
+    "react-reconciler": "^0.34.0"
+  }
+}
+```
+
+```js
+// ink/index.js
+export * from 'controlroom/ink';
+```
+
+```json
+// ink/package.json
+{ "name": "ink", "version": "8.0.0", "type": "module", "exports": "./index.js" }
+```
+
+The version is the ink API the drop-in implements, so every component's peer range on ink is
+met and npm installs no other ink.
+[`examples/ink-ecosystem`](https://github.com/ofri-peretz/burgee/tree/main/examples/ink-ecosystem)
+runs `ink-spinner`, `ink-text-input` and `ink-select-input` that way, as published, and
+[`examples/chat-cli-ink`](https://github.com/ofri-peretz/burgee/tree/main/examples/chat-cli-ink)
+is a whole Ink chat app on the drop-in. @inkjs/ui's suite passes 102 / 102 the same way.
+
+## What changes
+
+- **Colour comes from the environment.** ink colours through chalk, so setting `chalk.level`
+  on the chalk module ink shares changes ink's colour. The drop-in colours through roundel,
+  whose level is the family's output policy, read from the environment: `NO_COLOR`,
+  `FORCE_COLOR`, a pipe and `--json` decide it, and an assignment to chalk does not. Set
+  `FORCE_COLOR` instead.
+- **ink 8's behaviour, not ink 6's.** Where the two majors disagree, the drop-in follows 8:
+  Delete is not read as Backspace, and a non-interactive debug run ends with a newline.
+- **Smaller.** With `react` and `react-reconciler` bundled, the drop-in is 0.790× of `ink` +
+  `react`, and installs 10 packages where ink + react install 40
+  ([Why controlroom](/docs/why-controlroom#weight-measured-against-ink-800)).
+
+## Going further: the native API
+
+`controlroom/ink` is the way in. A new screen can be written against `open()` instead, without
+React: its root bundles at 0.061× of ink alone, every pane gets a static projection for pipes
+and CI, `--json` gives an agent events, and no call waits on a key nobody can press.
+[Getting started](/docs/getting-started) is the native API's first page.

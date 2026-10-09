@@ -1,0 +1,104 @@
+---
+title: Screens
+description: "open(): a screen inline under the transcript or in the alternate screen, its panes, and the five calls a screen answers — update, commit, dispatch, close, and its state."
+---
+
+A screen is what `open(runtime, options)` returns. You give it a layout and the panes the
+layout names; it gives you back five calls and three facts about itself.
+
+## The options
+
+| option | what it is |
+| :-- | :-- |
+| `layout` | rows and columns of pane names, or a function of the screen's state ([Layout](/docs/guides/layout)) |
+| `panes` | name → `{ component, state, label?, liveOnly? }`, or a registered pane `{ pane, state }` ([Plugins](/docs/guides/plugins)) |
+| `screen` | `'inline'` (the default) or `'alternate'` |
+| `keymap` | key → action name, as data, or a registered keymap's name; `'default'` when left out ([Tabs, focus and keys](/docs/guides/tabs-and-keys)) |
+| `tabs`, `focus` | the tab titles, and the panes that take focus, in order |
+| `json` | whether this run was asked for `--json` |
+| `onAction(action, screen)` | every action, after the screen's own state has taken it |
+| `input` | an input line in one pane ([The input line](/docs/guides/input-line)) |
+
+A pane's `component` is any flagstaff component: an object with a `name` and a
+`static(state)` that returns its text. flagstaff's built-ins (`tasks`, `logTail`, `spinner`,
+`progress`, `tabBar`, `markdown` and the rest) all qualify, and so does
+`{ name: 'text', static: (s) => s }`, the smallest one, which several examples here use. A
+`label` is printed above the pane's text off a terminal.
+
+## What a screen answers
+
+| member | what it does |
+| :-- | :-- |
+| `update(pane, state)` | gives a pane its new state; a live screen repaints, a static one prints what changed |
+| `commit(text)` | writes text once, above the live region, into the scrollback: ink's `<Static>` |
+| `dispatch(action)` | runs an action as if its key had been pressed |
+| `close()` | ends the screen and hands the terminal back; calling it twice does nothing |
+| `state` | tabs, the active tab, focus and collapsed sections ([Tabs, focus and keys](/docs/guides/tabs-and-keys)) |
+| `mode` | what roundel's policy decided: `tty`, `pipe`, `ci`, `accessible` or `json` |
+| `interactive` | whether keys are being read |
+
+`update()` on a name the screen was not given throws `controlroom: no pane named "…"`. A
+keymap or a registered pane that nobody registered throws a `ScreenError` with a `fix`, and it
+throws in a pipe exactly as on a terminal, because both are resolved before the mode is.
+
+## Doing what a key would have done
+
+`dispatch()` is what a program has instead of keys. Off a terminal nobody can press one, so a
+program that needs the action runs it itself:
+
+```js title="refresh.mjs"
+import { open, processRuntime } from 'controlroom';
+
+/** The smallest flagstaff component: its state is the text it shows. */
+const text = { name: 'text', static: (s) => s };
+
+const screen = open(processRuntime(), {
+  json: process.argv.includes('--json'),
+  layout: 'status',
+  keymap: { r: 'refresh', q: 'quit' },
+  panes: { status: { component: text, state: 'cache: stale', label: 'Status' } },
+  onAction(action, s) {
+    if (action === 'refresh') s.update('status', 'cache: fresh');
+  },
+});
+
+console.log(`mode ${screen.mode}, reading keys: ${screen.interactive}`);
+// Off a terminal nobody can press `r`, so the program does what the key would have done.
+if (!screen.interactive) screen.dispatch('refresh');
+screen.close();
+```
+
+```text title="node refresh.mjs"
+Status
+cache: stale
+mode pipe, reading keys: false
+cache: fresh
+```
+
+On a terminal the same program waits for `r` or `q`. `ctrl+c` is `quit` unless the keymap
+binds it to something else, and `quit` closes a live screen.
+
+## Inline or alternate
+
+**Inline**, the default, keeps the main screen. The live region is drawn under what the
+program has already printed, and `commit()` releases text above it into the terminal's own
+scrollback, where the user can scroll back to it after the program exits. The live region is
+only as tall as what it shows. This is ink's shape, and a chat CLI's.
+
+**Alternate** (`screen: 'alternate'`) takes the whole terminal, as `vim` and `htop` do, and
+lays the screen out again on every resize. The alternate screen has no scrollback, so
+`commit()` keeps the text and hands it to the main screen when the screen closes.
+
+Either way the terminal comes back as it was. The alternate screen, the hidden cursor, raw mode
+and bracketed paste are each entered through closeout with their undo registered in the same
+call, so `close()`, Ctrl+C, a signal and a throw all restore them.
+
+## How a live screen paints
+
+controlroom never writes to the terminal itself. Each frame is the layout composed from every
+pane's frame (or its static text, for a pane with no animation), handed to flagstaff's frame
+writer, which writes only the rows that changed, inside one synchronized-output block. A
+spinner in a pane is therefore the same component, drawn by the same loop, as a spinner in an
+ordinary CLI. A pane with a `frame` animates on a clock: at the
+shortest `interval` among the panes on screen, 80 ms when none sets one. A pane with no
+`frame` costs nothing between updates.

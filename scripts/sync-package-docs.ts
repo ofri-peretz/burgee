@@ -16,7 +16,9 @@
  * Where each page goes is `.github/vercel-apps.json`'s decision, not this script's: a package
  * with an app of its own gets its README as that app's `content/docs/index.md`, served at
  * `<host>/docs`; the family app's own package, and any package the table lists under
- * `excluded`, get `content/docs/packages/<name>.md` on the family app. The family app also
+ * `excluded`, get `content/docs/packages/<name>.md` on the family app. A package whose app is
+ * built but `pending` its Vercel project gets both: its app's index, and the front door's
+ * section every link still points at until the host is live. The family app also
  * gets `packages/index.md`, the family map — every package, what it replaces, where it lives.
  * Regrouping a package is a table edit; this script follows it.
  *
@@ -39,7 +41,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and scripts read the app table through its one typed reader rather than re-parsing it
-import { appForPackage, familyApp } from "../apps/docs-chassis/src/config";
+import { appForPackage, familyApp, siteForPackage } from "../apps/docs-chassis/src/config";
 // eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and scripts read the app table through its one typed reader rather than re-parsing it
 import { publicPackages } from "../apps/docs-chassis/src/packages";
 
@@ -147,6 +149,12 @@ function changelogPage(dir: string, manifest: Manifest, siteDir: string, onFamil
   return [`${siteDir}/content/docs/changelog.md`, renderChangelog(manifest, readFileSync(path, "utf8"))];
 }
 
+/** The directory of the app built for `pkg` alone — deployable, or `pending` its Vercel project — or nothing. */
+function ownSite(pkg: string): string | undefined {
+  const site = siteForPackage(pkg);
+  return site === undefined || site.familyPages ? undefined : site.dir;
+}
+
 /** Every page this script owns, as `repo-relative path → contents`, across every app. */
 export function pages(): Map<string, string> {
   const out = new Map<string, string>();
@@ -159,15 +167,16 @@ export function pages(): Map<string, string> {
     const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as Manifest;
     if (manifest.private) continue;
     const readme = readFileSync(readmePath, "utf8");
-    const own = appForPackage(manifest.name);
-    const onFamily = own === undefined || own.familyPages;
-    if (onFamily) {
+    // The front door keeps a section until the package's own host is live; the app built for
+    // the package — deployable, or `pending` its Vercel project — carries the projection.
+    const live = appForPackage(manifest.name);
+    if (live === undefined || live.familyPages) {
       out.set(`${family.dir}/content/docs/packages/${e.name}.md`, render(e.name, manifest, readme));
       sections.push(e.name);
-    } else {
-      out.set(`${own.dir}/content/docs/index.md`, render(e.name, manifest, readme, family.productionUrl));
     }
-    const changelog = changelogPage(e.name, manifest, onFamily ? family.dir : own.dir, onFamily);
+    const site = ownSite(manifest.name);
+    if (site !== undefined) out.set(`${site}/content/docs/index.md`, render(e.name, manifest, readme, family.productionUrl));
+    const changelog = changelogPage(e.name, manifest, site ?? family.dir, site === undefined);
     if (changelog !== undefined) out.set(...changelog);
   }
   // The family's own package first, then any package kept as a section, alphabetically.

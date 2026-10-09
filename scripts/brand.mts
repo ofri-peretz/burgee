@@ -399,12 +399,11 @@ const CLIP_FREE: Record<string, boolean> = { roundel: true, flagstaff: true, cai
  * the same file as its nav mark and its social card, so this is the only copy of the mark an
  * app carries — generated, never hand-copied.
  */
+type AppDir = { package: string; dir: string; familyPages: boolean };
+const TABLE = JSON.parse(readFileSync(join(repo, '.github', 'vercel-apps.json'), 'utf8')) as { apps: Record<string, AppDir>; pending?: Record<string, AppDir> };
+// A `pending` app — built, waiting on its Vercel project — serves its favicon the same way.
 const APP_DIRS: ReadonlyMap<string, string> = new Map(
-  Object.values(
-    (JSON.parse(readFileSync(join(repo, '.github', 'vercel-apps.json'), 'utf8')) as { apps: Record<string, { package: string; dir: string; familyPages: boolean }> }).apps,
-  )
-    .filter((app) => !app.familyPages)
-    .map((app) => [app.package, app.dir]),
+  [...Object.values(TABLE.apps), ...Object.values(TABLE.pending ?? {})].filter((app) => !app.familyPages).map((app) => [app.package, app.dir]),
 );
 
 /** Every surface, and the file that consumes it. */

@@ -1,0 +1,103 @@
+---
+title: Plugins
+description: "controlroom hosts two plugin keys, keymaps and panes, both data. One plugin object can also carry the flagstaff component its pane draws with, and controlroom check reports what a plugin contributes."
+---
+
+controlroom hosts two keys of the family's plugin schema, **`keymaps`** and **`panes`**, and
+both are data:
+
+- a **keymap** maps keys to action names, and labels the actions the hint line shows;
+- a **pane** names the flagstaff component that draws it, and the label a pipe prints above it.
+
+The schema is the one every package in the family reads, so a single plugin object can extend
+several of them at once. Here one object gives flagstaff a component and controlroom the keymap
+and the pane that use it:
+
+```js title="ops-plugin.mjs"
+/** One plugin object: a flagstaff component, and the controlroom keymap and pane that use it. */
+export default {
+  name: 'ops',
+  components: {
+    requests: { static: (s) => s.lines.map((l) => `→ ${l}`).join('\n') },
+  },
+  keymaps: {
+    vim: {
+      keys: { h: 'tab.prev', l: 'tab.next', s: 'toggle:status', q: 'quit' },
+      labels: { 'tab.prev': 'switch tab', 'tab.next': 'switch tab', 'toggle:status': 'toggle status', quit: 'quit' },
+    },
+  },
+  panes: { requests: { component: 'requests', label: 'Requests' } },
+};
+```
+
+## Checking a plugin
+
+`controlroom check` loads a plugin file, validates it against the family schema, registers it,
+and prints what controlroom does with it: each keymap as the hint line it generates, each pane
+as the component that draws it.
+
+```text title="npx controlroom check ops-plugin.mjs"
+ops — 1 keymaps, 1 panes
+  keymap vim  4 keys  hint: h/l switch tab  s toggle status  q quit
+  pane requests  drawn by flagstaff's "requests", labelled "Requests"
+ops: ok
+```
+
+The file's default export is the plugin. A refusal carries a code and a fix, and exits 1:
+
+```js title="typo.mjs"
+export default {
+  name: 'typo',
+  keymaps: { vim: { keys: { 'ctl+x': 'quit' } } },
+};
+```
+
+```text title="npx controlroom check typo.mjs" exit="1"
+E_PLUGIN_SCHEMA: keymaps.vim: "ctl+x" does not name a key
+  fix: write a key as [ctrl+][meta+][shift+]<key>, where <key> is one character or one of: up, down, left, right, tab, enter, escape, backspace, delete, home, end, pageup, pagedown, space, insert, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12
+```
+
+A plugin that contributes nothing to controlroom is refused too (`E_NO_CONTRIBUTION`), so a
+misspelled `keymap:` tells on itself. Exit 2 is a usage error.
+
+## Using one
+
+Register with each host whose keys the plugin carries, before the screen opens. A screen then
+takes the keymap by name, and a pane by name with its state:
+
+```js title="requests.mjs"
+import { open, processRuntime } from 'controlroom';
+import { register } from 'controlroom/plugin';
+import { register as registerComponents } from 'flagstaff/plugin';
+
+import ops from './ops-plugin.mjs';
+
+registerComponents(ops);
+register(ops);
+
+const screen = open(processRuntime(), {
+  json: process.argv.includes('--json'),
+  keymap: 'vim',
+  layout: 'main',
+  panes: { main: { pane: 'requests', state: { lines: ['GET /health 200'] } } },
+});
+screen.update('main', { lines: ['GET /health 200', 'GET /users 200'] });
+screen.close();
+```
+
+```text title="node requests.mjs"
+Requests
+→ GET /health 200
+→ GET /users 200
+```
+
+A registered pane draws with a component **flagstaff** has registered. If nobody registered it,
+`open()` throws a `ScreenError` saying so, with the fix, in a pipe as on a terminal. The same
+goes for a keymap name nobody registered.
+
+## Replacing the default keymap
+
+The built-in `default` keymap ([Tabs, focus and keys](/docs/guides/tabs-and-keys#keymaps)) is
+registered through the same `register()` as yours, on first use. Register your own `default`
+before the first screen opens and every screen that names no keymap uses it. A later
+registration of the same name replaces an earlier one.

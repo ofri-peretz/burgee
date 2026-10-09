@@ -35,7 +35,7 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 
 // eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and scripts read the app table through its one typed reader rather than re-parsing it
-import { appForPackage } from '../apps/docs-chassis/src/config';
+import { siteForPackage } from '../apps/docs-chassis/src/config';
 // eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: a bare `burgee/*` resolves from another checkout's dist/ in an uninstalled worktree, and `compat.ts` is not an export
 import { type DropIn, DROP_INS, GRADED_VERSIONS, isLevel } from '../packages/burgee/src/compat.js';
 
@@ -47,7 +47,7 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
  * joins by being added here once its hand-written pages exist, and the lock then holds its
  * reference and changelog in sync.
  */
-export const STANDARD_SITES: readonly string[] = ['flagstaff', 'linegauge', 'closeout', 'paratext', 'bellpull', 'caique', 'roundel', 'seniority'];
+export const STANDARD_SITES: readonly string[] = ['flagstaff', 'linegauge', 'closeout', 'paratext', 'bellpull', 'caique', 'roundel', 'seniority', 'controlroom'];
 
 /**
  * The packages whose reference and changelog live on the family app — the `familyPages: true`
@@ -540,7 +540,7 @@ function linkOutPage(appDir: string, entry: Entry, docs: readonly Documented[], 
 export function pages(packages: readonly string[] = REFERENCED): Map<string, string> {
   const out = new Map<string, string>();
   for (const pkg of packages) {
-    const app = appForPackage(pkg);
+    const app = siteForPackage(pkg);
     if (app === undefined || app.familyPages !== FAMILY_SITE_REFERENCES.includes(pkg)) throw new Error(`${pkg} has no site to carry an API reference: a standard site needs an app of its own, and a FAMILY_SITE_REFERENCES package the familyPages app`);
     const dropIns = dropInsOf(pkg);
     const documented = documentPackage(pkg, new Set(dropIns.keys()));
@@ -559,7 +559,7 @@ export function pages(packages: readonly string[] = REFERENCED): Map<string, str
 export function orphans(owned: ReadonlyMap<string, string>, packages: readonly string[] = REFERENCED): string[] {
   const walk = (dir: string): string[] => (existsSync(join(REPO_ROOT, dir)) ? readdirSync(join(REPO_ROOT, dir), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${dir}/${e.name}`) : [`${dir}/${e.name}`])) : []);
   return packages.flatMap((pkg) => {
-    const app = appForPackage(pkg);
+    const app = siteForPackage(pkg);
     return app === undefined ? [] : walk(`${app.dir}/content/docs/api`).filter((path) => !owned.has(path));
   });
 }
