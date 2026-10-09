@@ -28,3 +28,27 @@ has.
 
 **History.** The agent bands have no landed CI series yet: B1's results never reached the tree
 until #871. So nothing is restated, and the series starts on this harness.
+
+## What it did (2026-10-09)
+
+**The prediction above was wrong: commander moved more than burgee.** The first landed reading
+on the `demo` harness, `ba8a89c`
+(`benchmarks/results/agent-cli-bench/2026-10-08-ba8a89c-ci.json`), compares with the last
+complete pre-change run, `0931c79`, as follows:
+
+| | 0931c79 (`mytool`) | ba8a89c (`demo`) |
+| :-- | :-- | :-- |
+| burgee | 3 turns, 63,513 tokens, success 0.96 | 4 turns, 84,969 tokens, success 1.0 |
+| commander | 6 turns, 129,386 tokens, success 0.76 | 4 turns, 85,426 tokens, success 0.84 |
+| tokens ratio | 0.491 | **0.995** |
+| turns ratio | 0.5 | **1.0** |
+
+Commander's agents now often run `demo config get user.name` first and finish in two turns.
+burgee's agents read `--help` and `config --help` first. On this harness burgee's lead is in
+`recover-failure` (3 turns against 9–11, where commander's agents pass 1 of 5) and
+`diagnose-provenance` (about 7 against 10–12). The pooled median does not show that lead.
+
+So the mismatch had been costing commander more than burgee, and the old claim figures leaned
+on it. The claim stands or falls on this harness from here, and the README restatement must
+use the post-change series. The burgee changes that recover the lost turns are product work in
+burgee's own help and errors, in a separate PR, measured the same way.
