@@ -3,7 +3,7 @@ id: D-20261009-b1-two-turns
 subject: 'Can burgee''s B1 pooled median reach 2 turns, so the agent claims hold even on commander''s good runs; and if not, what closes A-20261009-agent-cost-claims'
 taken: Owner — default stands
 date: '2026-10-09'
-superseded_by: —
+superseded_by: D-20261009-b1-totals-and-explain
 ---
 
 **No product change can make the pooled median 2 on the current five tasks. Default, until the

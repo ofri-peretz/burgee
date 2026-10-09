@@ -15,7 +15,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { AGENT_ENV_RULE, agentEnv, type Attempt, blockers, classifyFailure, installTool, ISOLATION, isPosix, nothingCameBack, OUTPUT_FORMAT, parseClaudeJson, perTaskDetail, POSIX_ONLY, redact, resultObject, run, runOne, STORED_LOGIN_OPT_IN, storedLogin, summariseFailures, type Task, type Variant } from './axes/agent.js';
+import { AGENT_ENV_RULE, agentEnv, type Attempt, blockers, classifyFailure, installTool, ISOLATION, isPosix, nothingCameBack, OUTPUT_FORMAT, parseClaudeJson, perTaskDetail, POSIX_ONLY, redact, resultObject, run, runOne, STORED_LOGIN_OPT_IN, storedLogin, summariseFailures, type Task, totalRecords, type Variant } from './axes/agent.js';
 import { type BenchRecord } from './record.js';
 
 const EXECUTABLE = 0o755;
@@ -273,6 +273,43 @@ describe('perTaskDetail', () => {
   });
 });
 
+const read = (records: BenchRecord[], variant: string, metric: string): number | undefined => records.find((r) => r.variant === variant && r.metric === metric)?.median;
+
+/**
+ * D-20261009-b1-totals-and-explain: the two claims are settled on totals over every task-run,
+ * not on the pooled median. The fixture has the shape that made the median a coin flip.
+ * burgee holds at 3 turns and commander's median is 4, so the median ratio is 0.75, while
+ * burgee's lead sits in one long task the median cannot see.
+ */
+describe('totalRecords', () => {
+  const ours = [a('easy', 3, true), a('easy', 3, true), a('easy', 3, true), a('long', 3, true), a('long', 8, true)];
+  const theirs = [a('easy', 4, true), a('easy', 4, true), a('easy', 4, true), a('long', 6, true), a('long', 14, true)];
+
+  it('sums each variant\'s turns and tokens over its task-runs, and divides the sums', () => {
+    const records = totalRecords(new Map([['burgee', ours], ['commander', theirs]]), {});
+    expect(read(records, 'burgee', 'turns-total')).toBe(20);
+    expect(read(records, 'burgee', 'tokens-total')).toBe(20_000);
+    expect(read(records, 'commander', 'turns-total')).toBe(32);
+    expect(read(records, 'commander', 'tokens-total')).toBe(32_000);
+    // 20 / 32, where the pooled medians read 3 / 4 = 0.75.
+    expect(read(records, 'burgee ÷ commander', 'turns-total-ratio')).toBe(0.625);
+    expect(read(records, 'burgee ÷ commander', 'tokens-total-ratio')).toBe(0.625);
+  });
+
+  it('leaves a run that reported no usage out of the sum, and divides per run so a lost run flatters neither side', () => {
+    const lost = a('long', 0, false, { usage: false });
+    const records = totalRecords(new Map([['burgee', [...ours.slice(0, 4), lost]], ['commander', theirs]]), {});
+    expect(read(records, 'burgee', 'turns-total')).toBe(12);
+    expect(records.find((r) => r.variant === 'burgee' && r.metric === 'turns-total')?.samples).toBe(4);
+    // (12 / 4) / (32 / 5) = 3 / 6.4, not 12 / 32.
+    expect(read(records, 'burgee ÷ commander', 'turns-total-ratio')).toBe(0.469);
+  });
+
+  it('emits nothing when either side measured nothing', () => {
+    expect(totalRecords(new Map([['burgee', ours], ['commander', []]]), {})).toEqual([]);
+  });
+});
+
 /**
  * The wiring above `runOne`, pinned the same way.
  *
@@ -313,6 +350,12 @@ describe.skipIf(!isPosix())('run(), end to end, against a stub claude', () => {
     // is exactly 1 — and it is 1 because it was divided, not because it was written.
     expect(find('burgee ÷ commander', 'tokens-per-task-ratio')).toBe(1);
     expect(find('burgee ÷ commander', 'turns-per-task-ratio')).toBe(1);
+    // The totals the claims are settled on (D-20261009-b1-totals-and-explain): one run of one
+    // task, so each total is that run's usage, and the ratio of the totals is again exactly 1.
+    expect(find('burgee', 'tokens-total')).toBe(1320);
+    expect(find('burgee', 'turns-total')).toBe(3);
+    expect(find('burgee ÷ commander', 'tokens-total-ratio')).toBe(1);
+    expect(find('burgee ÷ commander', 'turns-total-ratio')).toBe(1);
   });
 
   it('records the agent, its environment and every task\'s runs, and keeps each run\'s transcript', () => {

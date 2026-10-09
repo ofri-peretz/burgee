@@ -121,7 +121,7 @@ describe('assertHonest refuses', () => {
       machine: {},
       measured: '2026-09-09T00:00:00.000Z',
       axes: { agent: measured },
-      records: [tokens(1200), turns(4), { axis: 'agent', variant: 'burgee ÷ commander', metric: 'tokens-per-task-ratio', unit: 'ratio', samples: 25, median: 0.8, p95: 0.8 }],
+      records: [tokens(1200), turns(4), { axis: 'agent', variant: 'burgee ÷ commander', metric: 'tokens-total-ratio', unit: 'ratio', samples: 25, median: 0.8, p95: 0.8 }],
     });
     expect(doc.claims['agent-tokens-40pct']?.met).toBe(false);
     const settled = doc.claims['agent-tokens-40pct'] as ClaimEntry;
@@ -142,6 +142,9 @@ describe('assertHonest refuses', () => {
   });
 });
 
+/** A `burgee ÷ commander` ratio record, as the agent axis emits one. */
+const ratio = (metric: string, median: number): BenchRecord => ({ axis: 'agent', variant: 'burgee ÷ commander', metric, unit: 'ratio', samples: 25, median, p95: median });
+
 describe('buildDocument', () => {
   it('refuses to build when a measured axis did not produce a band it is responsible for', () => {
     expect(() =>
@@ -155,8 +158,23 @@ describe('buildDocument', () => {
       commit: 'x',
       machine: {},
       axes: { agent: measured },
-      records: [tokens(1200), turns(4), { axis: 'agent', variant: 'burgee ÷ commander', metric: 'turns-per-task-ratio', unit: 'ratio', samples: 25, median: 0.55, p95: 0.55 }],
+      records: [tokens(1200), turns(4), { axis: 'agent', variant: 'burgee ÷ commander', metric: 'turns-total-ratio', unit: 'ratio', samples: 25, median: 0.55, p95: 0.55 }],
     });
     expect(doc.claims['agent-turns-30pct']).toMatchObject({ measured: 0.55, met: true, target: '<= 0.7' });
+  });
+
+  it('settles the agent claims on the ratio of totals, and no longer on the pooled medians (D-20261009-b1-totals-and-explain)', () => {
+    const doc = buildDocument({
+      suite: SUITE.agent,
+      commit: 'x',
+      machine: {},
+      axes: { agent: measured },
+      // The 367cefb shape: the medians read 0.747 and 0.75, the totals 0.692 and 0.703.
+      records: [tokens(1200), turns(4), ratio('tokens-per-task-ratio', 0.747), ratio('turns-per-task-ratio', 0.75), ratio('tokens-total-ratio', 0.692), ratio('turns-total-ratio', 0.703)],
+    });
+    expect(doc.claims['agent-tokens-40pct']).toMatchObject({ measured: 0.692, met: false });
+    expect(doc.claims['agent-turns-30pct']).toMatchObject({ measured: 0.703, met: false });
+    const mediansOnly = buildDocument({ suite: SUITE.agent, commit: 'x', machine: {}, axes: { agent: measured }, records: [tokens(1200), turns(4), ratio('turns-per-task-ratio', 0.5)] });
+    expect(mediansOnly.claims['agent-turns-30pct']).toMatchObject({ status: 'unmeasured', reason: 'axis agent produced no burgee ÷ commander turns-total-ratio record' });
   });
 });

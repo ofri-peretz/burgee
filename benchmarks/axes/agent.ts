@@ -524,11 +524,11 @@ const measured = (attempts: readonly Attempt[]): Attempt[] => attempts.filter((a
 type Detail = Record<string, string | number | boolean>;
 
 /**
- * The before/after the article is: the layered build's median against the plain build's,
- * for tokens and for turns. These are the records the roadmap's ≥40% / ≥30% claim is
- * settled against, and they are the reason the two variants are run in one invocation —
- * a ratio between two numbers measured on different days by different model versions
- * would not be a comparison of the CLIs.
+ * The layered build's median against the plain build's, for tokens and for turns. The
+ * roadmap's ≥40% / ≥30% claim was settled against these until D-20261009-b1-totals-and-explain;
+ * they stay on the record so the series keeps its history. Both variants are run in one
+ * invocation because a ratio between two numbers measured on different days by different model
+ * versions would not be a comparison of the CLIs.
  */
 function ratioRecords(byVariant: Map<VariantId, Attempt[]>, detail: Detail): BenchRecord[] {
   const ours = measured(byVariant.get('burgee') ?? []);
@@ -537,8 +537,48 @@ function ratioRecords(byVariant: Map<VariantId, Attempt[]>, detail: Detail): Ben
   const ratio = (pick: (a: Attempt) => number): number => round(median(ours.map(pick)) / median(theirs.map(pick)), RATIO_PLACES);
   const common = { axis: 'agent', variant: 'burgee ÷ commander', unit: 'ratio', samples: Math.min(ours.length, theirs.length), detail } as const;
   return [
-    { ...common, metric: 'tokens-per-task-ratio', median: ratio(tokensOf), p95: ratio(tokensOf), note: 'median tokens on the floor-meeting build over median tokens on the plain one; 0.6 or below confirms the ≥40% claim' },
-    { ...common, metric: 'turns-per-task-ratio', median: ratio(turnsOf), p95: ratio(turnsOf), note: 'median turns on the floor-meeting build over median turns on the plain one; 0.7 or below confirms the ≥30% claim' },
+    { ...common, metric: 'tokens-per-task-ratio', median: ratio(tokensOf), p95: ratio(tokensOf), note: 'median tokens on the floor-meeting build over median tokens on the plain one; kept for history, the claim reads tokens-total-ratio' },
+    { ...common, metric: 'turns-per-task-ratio', median: ratio(turnsOf), p95: ratio(turnsOf), note: 'median turns on the floor-meeting build over median turns on the plain one; kept for history, the claim reads turns-total-ratio' },
+  ];
+}
+
+/** A variant's tokens or turns summed over its task-runs. */
+const sum = (runs: readonly Attempt[], pick: (a: Attempt) => number): number => runs.reduce((total, a) => total + pick(a), 0);
+
+/**
+ * What the roadmap's ≥40% / ≥30% claim is settled against (D-20261009-b1-totals-and-explain):
+ * each variant's tokens and turns summed over its task-runs, and burgee's sum over commander's.
+ *
+ * The pooled median of 25 task-runs is set by the task mix. burgee holds at 3 turns, and
+ * commander's median lands at 4 or 6 depending on how many of its agents guess one command
+ * straight away, so the median ratio read 0.5 or 0.75 on the same build. It cannot see where
+ * burgee's lead is: recover-failure in 3 turns against 8 to 16, diagnose-provenance in about 9
+ * against 11. A total counts every turn spent.
+ *
+ * The ratio is taken per measured run, `(Σ ours / n ours) ÷ (Σ theirs / n theirs)`, which is the
+ * ratio of the totals whenever both sides measured the same number of runs, as they do on every
+ * landed reading (25 and 25). A run that reported no usage has no numbers; dividing raw sums
+ * would let it shrink one side's total and flatter it.
+ */
+export function totalRecords(byVariant: ReadonlyMap<VariantId, readonly Attempt[]>, detail: Detail): BenchRecord[] {
+  const ours = measured(byVariant.get('burgee') ?? []);
+  const theirs = measured(byVariant.get('commander') ?? []);
+  if (ours.length === 0 || theirs.length === 0) return [];
+  const totals = (variant: VariantId, runs: readonly Attempt[]): BenchRecord[] => {
+    const common = { axis: 'agent', variant, samples: runs.length, detail } as const;
+    const note = `sum over ${String(runs.length)} task-runs that reported usage`;
+    return [
+      { ...common, metric: 'tokens-total', unit: 'tokens', median: sum(runs, tokensOf), p95: sum(runs, tokensOf), note },
+      { ...common, metric: 'turns-total', unit: 'turns', median: sum(runs, turnsOf), p95: sum(runs, turnsOf), note },
+    ];
+  };
+  const ratio = (pick: (a: Attempt) => number): number => round(sum(ours, pick) / ours.length / (sum(theirs, pick) / theirs.length), RATIO_PLACES);
+  const common = { axis: 'agent', variant: 'burgee ÷ commander', unit: 'ratio', samples: Math.min(ours.length, theirs.length), detail } as const;
+  return [
+    ...totals('burgee', ours),
+    ...totals('commander', theirs),
+    { ...common, metric: 'tokens-total-ratio', median: ratio(tokensOf), p95: ratio(tokensOf), note: 'tokens summed over every task-run on the floor-meeting build over the same on the plain one, per run; 0.6 or below confirms the ≥40% claim' },
+    { ...common, metric: 'turns-total-ratio', median: ratio(turnsOf), p95: ratio(turnsOf), note: 'turns summed over every task-run on the floor-meeting build over the same on the plain one, per run; 0.7 or below confirms the ≥30% claim' },
   ];
 }
 
@@ -716,8 +756,8 @@ export function run(options: AgentOptions = {}): { records: BenchRecord[] } | { 
     byVariant.set(variant.id, attempts);
     records.push(...variantRecords(variant.id, attempts, detail));
   }
-  records.push(...ratioRecords(byVariant, detail));
+  records.push(...ratioRecords(byVariant, detail), ...totalRecords(byVariant, detail));
   return { records };
 }
 
-export const method = `For each of the ${String(readTasks().length)} tasks and each of the two builds, \`claude -p <prompt> --allowedTools 'Bash(demo:*)' --max-turns <n> --output-format stream-json --verbose --setting-sources project,local --strict-mcp-config\` — the \`claude\` pinned in \`.github/tools/claude-code\` when it is installed there — is spawned in a scratch directory with the build installed as \`demo\`, ${String(RUNS_PER_TASK)} times, in the caller's environment minus \`CI\`, \`GITHUB_*\`, \`RUNNER_*\` and \`ACTIONS_*\`; the task's own \`check\` decides success. Tokens are input + cache + output as the CLI reports them; turns is its \`num_turns\`, including runs that ended at the turn limit; a run that reported no usage is left out of the medians and counted as a failure. The model and the \`claude\` version are recorded per results file, and a change of either starts a new band history.`;
+export const method = `For each of the ${String(readTasks().length)} tasks and each of the two builds, \`claude -p <prompt> --allowedTools 'Bash(demo:*)' --max-turns <n> --output-format stream-json --verbose --setting-sources project,local --strict-mcp-config\` — the \`claude\` pinned in \`.github/tools/claude-code\` when it is installed there — is spawned in a scratch directory with the build installed as \`demo\`, ${String(RUNS_PER_TASK)} times, in the caller's environment minus \`CI\`, \`GITHUB_*\`, \`RUNNER_*\` and \`ACTIONS_*\`; the task's own \`check\` decides success. Tokens are input + cache + output as the CLI reports them; turns is its \`num_turns\`, including runs that ended at the turn limit; a run that reported no usage is left out of the medians and totals and counted as a failure. The claims are settled on each build's tokens and turns summed over its task-runs, burgee's over commander's (per run, which is the ratio of the totals when both measured the same number); the pooled medians are reported beside them. The model and the \`claude\` version are recorded per results file, and a change of either starts a new band history.`;
