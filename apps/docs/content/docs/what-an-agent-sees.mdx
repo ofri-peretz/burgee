@@ -1,0 +1,180 @@
+---
+title: What an agent sees
+description: Recorded sessions from B1, the agent benchmark — the same five tasks against one program built on burgee and on commander, with every turn and every number taken from runs on main.
+---
+
+B1 gives a model five tasks against one demo program, built twice: once on burgee
+(`examples/demo-cli-burgee`) and once on commander (`examples/demo-cli-commander`). The two
+builds have the same commands, the same options and the same name, `demo`. Each task runs
+five times per build on every push to `main`, through `claude -p` on `claude-sonnet-4-5`,
+non-interactively, with `demo` the only command the agent is allowed to run. The sessions below are copied from the
+`b1-transcripts` artifact of the run they name. Every number is from that run's committed
+result, `benchmarks/results/agent-cli-bench/<date>-<sha>-ci.json`. Where output is shortened,
+the page says "trimmed".
+
+## A failure that names its own remedy
+
+The task: *"Run `demo fail`. It will fail. Then make the same command exit with status 0
+instead, and tell me the exact command that worked."* Both builds have a `--code` option on
+`fail` that does exactly that. The check passes when the answer names it.
+
+{/* session e6cff20 burgee recover-failure turns=3 */}
+
+**burgee**, run `e6cff20`, one of five sessions, 3 turns:
+
+```console
+$ demo fail
+error: boom
+usage: demo fail [options]
+options:
+  --code <value>  exit with this E1 code instead of throwing
+                                                  # exit 1
+$ demo fail --code 0
+                                                  # exit 0
+```
+
+The failure prints the command's own usage, so the next call is on the screen. The agent
+answers `demo fail --code 0`.
+
+{/* session e6cff20 commander recover-failure turns=9 */}
+
+**commander**, the same run, one of five sessions, 9 turns:
+
+```console
+$ demo fail
+file:///home/runner/work/burgee/burgee/examples/demo-cli-commander/dist/program.js:53
+        throw new Error('boom');
+              ^
+
+Error: boom
+    at Command.<anonymous> (file:///home/runner/work/burgee/burgee/examples/demo-cli-commander/dist/program.js:53:15)
+    at Command.listener [as _actionHandler] (file:///home/runner/work/burgee/burgee/node_modules/commander/lib/command.js:569:17)
+    … 8 more frames inside commander/lib/command.js (trimmed)
+
+Node.js v24.13.0
+                                                  # exit 1
+```
+
+The stack trace points into the program's source, so the agent goes to read it. The harness
+does not allow that: it tries to read `dist/program.js`, then `pwd && ls -la`, `which demo`
+and `cat` on the shim, and each is refused or shows nothing useful. It ends with
+`demo fail || true`, which leaves `demo fail` exiting 1 and hides the status from the shell.
+The check fails. Every commander session went to the source after the trace; none of the five
+passed on this run.
+
+## A `fix:` line
+
+The task: *"Using the `demo` command, get the configuration value for user.name as JSON."*
+
+{/* session 04e48de burgee structured-output turns=3 */}
+
+**burgee**, run `04e48de`, 3 turns. The agent's first guess puts `get` at the top level:
+
+```console
+$ demo --format json get user.name
+error: unknown command "get"
+hint: did you mean config get?
+fix: demo config get user.name --json
+                                                  # exit 2
+$ demo config get user.name --json
+{"ok":true,"data":"ada","meta":{"provenance":{}}}
+```
+
+Exit `2` says the command was wrong, not the world, and `fix:` is the command to run instead,
+with the agent's request for JSON kept as `--json`. The agent ran it as written.
+
+{/* session 04e48de commander structured-output turns=2 */}
+
+**commander**, the same run, 2 turns. Here the agent guessed the right command first, and
+commander's demo printed its own JSON:
+
+```console
+$ demo config get user.name --json
+{"key":"user.name","value":"ada"}
+```
+
+A right first guess costs one call on either build. `fix:` is for the wrong one. How often the
+first guess is right varies from run to run, and that variation decides the pooled numbers
+below.
+
+## Where a value came from
+
+The task: *"Greet the name grace. The greeting word it uses comes from somewhere. Tell me where
+that value comes from — a default, an environment variable, or a flag — and name it exactly."*
+
+{/* session 8d601e7 burgee diagnose-provenance turns=11 */}
+
+**burgee**, run `8d601e7`, 11 turns. The last two calls:
+
+```console
+$ demo greet grace
+Hello, grace!
+$ demo greet grace --explain greeting
+greeting = "Hello"   from default
+         candidates: flag --greeting (unset), env DEMO_GREETING (unset)
+```
+
+`--explain` answers the question in one call: the value, where it came from, and every place
+it could have come from instead. This session still took 11 turns. Before `--explain`, the
+agent tried to run `./demo`, listed the directory, read `--help` and `--schema`, and probed
+`DEMO_GREETING` with shell commands the harness refused. The root `--help` names
+`--explain`, and `--schema` does not. Most burgee sessions on this task read `--schema` first,
+which is why burgee's lead on this task is small, and on `e6cff20` absent
+([D-20261009-b1-two-turns](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/decisions/D-20261009-b1-two-turns.md)
+has the count, and a proposal that is the owner's call).
+
+## Every task on one run
+
+Run `e6cff20`, turns per session for each of the five sessions, and how many passed the task's
+own check:
+
+| run | task | burgee turns | burgee passed | commander turns | commander passed |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| `e6cff20` | recover-failure | 3, 3, 3, 4, 4 | 5/5 | 9, 9, 11, 12, 15 | 0/5 |
+| `e6cff20` | diagnose-provenance | 7, 10, 11, 11, 11 | 5/5 | 7, 9, 9, 10, 10 | 5/5 |
+| `e6cff20` | discover-subcommand | 3, 2, 3, 5, 3 | 5/5 | 4, 2, 4, 4, 4 | 5/5 |
+| `e6cff20` | non-tty-required | 2, 3, 2, 2, 2 | 5/5 | 2, 3, 2, 3, 2 | 5/5 |
+| `e6cff20` | structured-output | 2, 2, 2, 2, 3 | 5/5 | 6, 3, 7, 2, 6 | 5/5 |
+
+burgee's lead is in recover-failure. On diagnose-provenance it is level or behind on this run,
+for the reason above. On the other three tasks the two builds are close.
+
+## The pooled claim, every run
+
+The published claim is that an agent spends at least 40% fewer tokens per task against a
+burgee program: the median tokens on burgee over the median on commander, 0.6 or lower. A
+second claim is at least 30% fewer turns, a ratio of 0.7 or lower. These are every run on
+`main` that measured B1 since it began installing the demo under the name it prints
+([D-20261008-b1-tool-name](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/decisions/D-20261008-b1-tool-name.md)),
+through `e6cff20`:
+
+| run | measured (UTC) | tokens ratio | turns ratio | burgee median turns | commander median turns |
+| :-- | :-- | --: | --: | --: | --: |
+| `ba8a89c` | 2026-10-08 22:44 | 0.995 | 1 | 4 | 4 |
+| `98c355c` | 2026-10-09 03:43 | 0.495 | 0.5 | 3 | 6 |
+| `d33ae03` | 2026-10-09 04:34 | 0.491 | 0.5 | 3 | 6 |
+| `e641aa3` | 2026-10-09 05:41 | 0.493 | 0.5 | 3 | 6 |
+| `367cefb` | 2026-10-09 06:08 | 0.747 | 0.75 | 3 | 4 |
+| `f29f159` | 2026-10-09 06:57 | 0.493 | 0.5 | 3 | 6 |
+| `689c403` | 2026-10-09 07:23 | 0.493 | 0.5 | 3 | 6 |
+| `a0aa992` | 2026-10-09 08:19 | 0.492 | 0.5 | 3 | 6 |
+| `fe4c90f` | 2026-10-09 08:51 | 0.493 | 0.5 | 3 | 6 |
+| `8d601e7` | 2026-10-09 09:18 | 0.494 | 0.5 | 3 | 6 |
+| `04e48de` | 2026-10-09 09:43 | 0.746 | 0.75 | 3 | 4 |
+| `e6cff20` | 2026-10-09 10:13 | 0.492 | 0.5 | 3 | 6 |
+
+**The tokens claim held on 9 of these 12 runs, and it is not met as a claim, because it does
+not hold on every run.** It missed on `ba8a89c` (0.995), `367cefb` (0.747) and `04e48de`
+(0.746). burgee's median is 3 turns on every run after the first. commander's median is 4 or
+6, depending on how many of its 25 sessions guess `demo config get user.name` straight away
+and finish structured-output in 2 turns. So the turns ratio is 3/6 on commander's slower runs and
+3/4 on its faster ones, and tokens follow turns. burgee's own median cannot reach 2 on these
+five tasks: recover-failure and diagnose-provenance need at least three calls each, and nearly
+every agent reads help before discover-subcommand
+([D-20261009-b1-two-turns](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/decisions/D-20261009-b1-two-turns.md)).
+On these tasks the claim holds when commander has a slow run and misses when it has a fast
+one.
+
+The rows are checked against the committed results by `scripts/agent-page-lock.test.ts`, and so
+is the count above. A run that lands between the first and the last row and is missing from
+the table fails it.

@@ -168,8 +168,10 @@ program on each engine:
 
 Exit code is the one that decides an agent's next move: `2` means *rewrite the command*, any
 other non-zero means *the command was fine and the world was not*. This measures legibility,
-not tokens — the token and turn halves of B1 are still [unmeasured](#-measured), and are
-labelled as such rather than estimated.
+not tokens. The token and turn halves of B1 run a model against the same program on every push
+to `main`. [What an agent sees](https://burgee.interlace.tools/docs/what-an-agent-sees) quotes
+those sessions and lists every run, including the ones where the claim in [Measured](#-measured)
+misses.
 
 ---
 
