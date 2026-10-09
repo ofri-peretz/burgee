@@ -33,6 +33,10 @@
       },
       "description": "What each exit code means (F1): the contract's names and numbers, so a caller branches on the code without reading prose."
     },
+    "explain": {
+      "type": "string",
+      "description": "How to ask where an option's value came from: `--explain <option>` on a command. A native program's `--schema` carries it ahead of `commands`; a commander- or yargs-syntax program's does not (D-20261009-b1-totals-and-explain)."
+    },
     "commands": {
       "type": "array",
       "description": "Every runnable, visible command, in declaration order.",

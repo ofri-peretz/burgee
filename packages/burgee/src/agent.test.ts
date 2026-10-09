@@ -141,7 +141,8 @@ describe('--schema under a budget (N13)', () => {
     expect(summary).toMatchObject({ summarised: true, budget: 200 });
     expect(summary.commands.map((c) => c.name)).toEqual(['sync', 'silent', 'status', 'deploy']);
     expect(summary.hint).toBe('run `app <command> --schema` for one command in full');
-    expect(summary).toEqual(summaryOf(program, 200));
+    // The native surface adds the pointer to `--explain` (D-20261009-b1-totals-and-explain); the rest is `summaryOf`'s.
+    expect(summary).toEqual({ ...summaryOf(program, 200), explain: '--explain <option> on a command says where its value came from: default, env, config or flag' });
   });
   it('drills into one command in full', async () => {
     const r = await runBurgee(program, { argv: ['deploy', '--schema'] });

@@ -35,6 +35,15 @@ export function fieldOf(doc: unknown, path: string, command: string): unknown {
 const SCHEMA_BUDGET = 48_000;
 
 /**
+ * D-20261009-b1-totals-and-explain — the one question the program document cannot answer is which
+ * source a value came from, and agents that read `--schema` spent 3 to 8 turns probing the env var
+ * it names (B1's diagnose-provenance, 56 of 60 runs). So the document names the flag that answers
+ * it. Here and not in `schemaOf`: the façades' `--schema` stays as it was, and so does their weight.
+ * It names the flag, not `<program> --explain` (D-20260930 rule 4).
+ */
+const EXPLAIN = '--explain <option> on a command says where its value came from: default, env, config or flag';
+
+/**
  * `--schema` under a character budget (N13): one command's full schema when a command is
  * named (the drilling), the whole program when it fits, a summary naming every command
  * and how to drill when it does not.
@@ -59,5 +68,8 @@ export async function schemaSurface(manifest: Manifest, argv: string[]): Promise
   if (node?.run !== undefined) return commandSchemaOf(node, manifest.rootPath);
   const full = schemaOf(manifest);
   const budget = manifest.schemaBudget ?? SCHEMA_BUDGET;
-  return JSON.stringify(full).length <= budget ? full : summaryOf(manifest, budget);
+  const doc = JSON.stringify(full).length <= budget ? full : summaryOf(manifest, budget);
+  // Just ahead of `commands`, so a reader that stops partway through the list has seen it, and
+  // every other key keeps its place: without `explain` the bytes are the façades' (machine-json.test).
+  return Object.fromEntries(Object.entries(doc).flatMap((entry) => (entry[0] === 'commands' ? [['explain', EXPLAIN], entry] : [entry])));
 }

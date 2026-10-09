@@ -188,19 +188,38 @@ const frontEnds: [string, (argv: string[]) => string | Promise<string>][] = [
   ['the yargs façade', throughYargs],
 ];
 
+/**
+ * The engine's document, re-written without `explain`, in the same whitespace. `explain` names
+ * `--explain`, which only the engine parses (D-20261009-b1-totals-and-explain): a façade that
+ * carried it would advertise a flag it refuses. Every other byte is the same document, and the
+ * re-writing keeps key order, so the comparison below is still byte for byte.
+ */
+const withoutExplain = (out: string, pretty: boolean): string => {
+  const { explain, ...rest } = JSON.parse(out) as Record<string, unknown>;
+  expect(explain).toMatch(/^--explain <option>/);
+  return `${JSON.stringify(rest, null, pretty ? 2 : 0)}\n`;
+};
+
 describe('the three front ends emit the same document', () => {
   it('agrees byte for byte on the compact document', async () => {
     const argv = ['--schema'];
-    const engine = await throughEngine(argv);
+    const engine = withoutExplain(await throughEngine(argv), false);
     expect(throughCommander(argv)).toBe(engine);
     expect(await throughYargs(argv)).toBe(engine);
   });
 
   it('agrees byte for byte on the readable one', async () => {
     const argv = ['--schema', JSON_PRETTY];
-    const engine = await throughEngine(argv);
+    const engine = withoutExplain(await throughEngine(argv), true);
     expect(throughCommander(argv)).toBe(engine);
     expect(await throughYargs(argv)).toBe(engine);
+  });
+
+  it('only the engine names --explain, the one front end that parses it', async () => {
+    const argv = ['--schema'];
+    expect(JSON.parse(await throughEngine(argv))).toHaveProperty('explain');
+    expect(JSON.parse(throughCommander(argv))).not.toHaveProperty('explain');
+    expect(JSON.parse(await throughYargs(argv))).not.toHaveProperty('explain');
   });
 
   it.each(frontEnds)('%s indents only when asked, and ends in one newline either way', async (_name, run) => {
