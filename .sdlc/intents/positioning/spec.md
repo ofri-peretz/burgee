@@ -59,7 +59,7 @@ READMEs, and the comparison pages, one PR each.
 | :-- | :-- | :-- | :-- |
 | R1 | Not built | `scripts/positioning-audit.ts` derives the incumbents and finds the first paragraph. The lock holds the root README and the docs landing; the package READMEs join with R4 | `scripts/positioning-lock.test.ts` |
 | R2 | **Built** | `README.md`, `apps/docs/content/docs/index.mdx`, and `SUMMARY` in `apps/docs/src/lib/site.ts` | `scripts/positioning-lock.test.ts`, proven red on `fc0f897104`; it also rebuilds the hero's grades from `GRADED` |
-| R3 | Not built | `apps/docs/content/docs/what-an-agent-sees.mdx`, `meta.json` | a lock that every run cited on the page has a landed result carrying the cited figure |
+| R3 | **Built** | `apps/docs/content/docs/what-an-agent-sees.mdx`, second in the navigation; linked from the docs landing and the root README's agent section | `scripts/agent-page-lock.test.ts`: every run row, per-task row, quoted session and the met count equal the landed results, and no landed run between the first row and the last is missing; five mutations prove it red |
 | R4 | Not built | `packages/*/README.md` | the lock, extended to every package README, and `readme-opening-lock.test.ts` |
 | R5 | Not built | `apps/docs/content/docs/vs/*.mdx`, `vs/meta.json`, `meta.json` | `scripts/vercel-apps-lock.test.ts`: every link lands |
 | R6 | Not built | the root README's "Switch in one command" and the docs landing's section of the same name are built; the package READMEs' adoption notes come with R4 | the lock asserts `npx burgee migrate` on every page it holds |
