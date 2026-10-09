@@ -3,6 +3,12 @@ title: Changelog
 description: "Every release of caique, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.0.1
+
+### Patch Changes
+
+- [#886](https://github.com/ofri-peretz/burgee/pull/886) [`d33ae03`](https://github.com/ofri-peretz/burgee/commit/d33ae0342583cebfa54be1a043d0c085efd9eaaf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The README and docs index say caique is 1.0, not "Released, pre-1.0.": it shipped 1.0.0 on 2026-10-08.
+
 ## 1.0.0
 
 ### Major Changes

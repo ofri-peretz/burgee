@@ -3,6 +3,16 @@ title: Changelog
 description: "Every release of controlroom, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 0.3.2
+
+### Patch Changes
+
+- [#892](https://github.com/ofri-peretz/burgee/pull/892) [`82292af`](https://github.com/ofri-peretz/burgee/commit/82292af35404c36566d9f977574118f2f56f6ed6) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The root entry's doc comment, which TypeScript shows on hover and the API reference prints, no longer says the package is reserved and exports one constant. It names what the entry exports: `open()` and its runtime, the layout arithmetic, the tab, focus and collapse reducer with its hint line, and the compositor, with ink's API at `controlroom/ink` and plugins at `controlroom/plugin`. `status` is still `'reserved'`, kept so a program that read it still loads.
+
+- [#895](https://github.com/ofri-peretz/burgee/pull/895) [`e641aa3`](https://github.com/ofri-peretz/burgee/commit/e641aa3a7494d09ad620edcd90cc0df30f2ea800) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - README: the Plugins example now default-exports its plugin, so `controlroom check` accepts it, and registers flagstaff's `log-tail` before `open()`, which threw for a pane drawn with an unregistered component.
+- Updated dependencies [[`d33ae03`](https://github.com/ofri-peretz/burgee/commit/d33ae0342583cebfa54be1a043d0c085efd9eaaf)]:
+  - caique@1.0.1
+
 ## 0.3.1
 
 ### Patch Changes
