@@ -198,7 +198,8 @@ Every command answers the same declaration four more ways, with nothing written 
   command, the commands that exist. It is prose on stderr, and `error.usage` in the `--json`
   envelope.
 - `--explain <option>` — where a value came from: flag, env, config or default. Every
-  command's help lists it, and the root help ends with one line for agents.
+  command's help lists it, the root help ends with one line for agents, and `--schema` and the
+  unknown-command hint name it too.
 - **A plugin can be checked before it ships.** `npx burgee check ./plugin.mjs --json` returns
   `{ name, commands, hooks }` as `data`, or `data.refused` with a `fix` and exit 1 — the whole
   plugin and both documents are under [Writing a plugin](#writing-a-plugin).

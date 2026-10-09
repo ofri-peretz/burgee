@@ -106,7 +106,8 @@ the command), which is not a refusal at all: the command runs with `--json`
 ([Agent surfaces](/docs/concepts/agent-surfaces#the-rules)). When there is none and the code is `USAGE` or `RUNTIME`, the
 failure carries `usage` instead. That is the failing command's usage line from the program name,
 then its visible options with the notes help prints: required, default, choices, relations and
-env. An unknown command carries the commands that exist and points at `--schema`. Either list is
+env. An unknown command carries the commands that exist and points at `--schema`, and at
+`--explain` for where a value came from. Either list is
 at most 8 rows, and `more` names the `--help` that has the rest. It is a reminder, not a help
 screen: no description, no examples, no global options, and the exit code is the one the table
 above gives. `AUTH`, `CONFIG` and your own codes carry no `usage`, because their remedy is not an

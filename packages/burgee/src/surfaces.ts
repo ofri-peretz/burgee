@@ -164,7 +164,9 @@ export async function unresolved({ manifest, root, io }: Resolving, argv: string
 /**
  * D-20260930 — an unknown command names what exists, as git does. With one command near
  * enough, `fix` is the caller's own line with the word corrected, runnable as it stands; with
- * none, or a tie, the error carries the group's commands and points at `--schema`, and
+ * none, or a tie, the error carries the group's commands and points at `--schema` and
+ * `--explain` (D-20261009-b1-totals-and-explain: an agent that guessed `demo grace` was asking
+ * where a value comes from, and `--schema` alone cannot answer that), and
  * guesses nothing (E3: an executed guess burns the turn `fix` exists to save). The hint names
  * the flag and not `<program> --schema`: a program is often run under another name (`node
  * cli.mjs`, an alias, a wrapper), and B1 watched an agent run the declared name literally.
@@ -205,7 +207,7 @@ function unknownCommand({ manifest, root }: Resolving, from: CommandNode, before
     return Object.assign(new UsageError(`unknown command "${first}"`, `did you mean ${[...takes, first].join(' ')}?`), { fix: line([...root, ...before, ...takes], rest, json) });
   }
   if (near === undefined) {
-    const hint = said === '' ? 'run --schema for every command and option as JSON, in one call' : said.trim().slice(1, -1).replace('Did', 'did');
+    const hint = said === '' ? 'run --schema for every command and option as JSON, in one call; --explain <option> says where a value came from' : said.trim().slice(1, -1).replace('Did', 'did');
     return Object.assign(new UsageError(`unknown command "${first}"`, hint), { usage: groupUsage(manifest, node) });
   }
   const error = new UsageError(`unknown command "${first}"`, `did you mean ${near.join(' ')}?`);

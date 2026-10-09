@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 
 import { runCommand } from './execute.js';
 import { AuthError, defineCommand, defineProgram, ExitCode, UsageError } from './index.js';
+import { runBurgee } from './testing.js';
 
 const many = Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`opt${String(i)}`, { type: 'boolean' as const, description: `option ${String(i)}` }]));
 
@@ -137,7 +138,7 @@ describe('an unknown command names what exists, and the nearest one', () => {
       stdout: '',
       stderr: [
         'error: unknown command "user.name"',
-        'hint: run --schema for every command and option as JSON, in one call',
+        'hint: run --schema for every command and option as JSON, in one call; --explain <option> says where a value came from',
         'usage: tool <command>',
         'commands:',
         '  fail                     fail on purpose',
@@ -226,7 +227,7 @@ describe('a refusal carries the line to run', () => {
     expect((await demo('user.name')).stderr).toBe(
       [
         'error: unknown command "user.name"',
-        'hint: run --schema for every command and option as JSON, in one call',
+        'hint: run --schema for every command and option as JSON, in one call; --explain <option> says where a value came from',
         'usage: demo <command>',
         'commands:',
         '  greet <name>      Greet someone',
@@ -456,5 +457,36 @@ describe('a request for JSON is read as one, wherever and however it is typed', 
     const next = fix === undefined ? first : await demo(...fix.split(' '));
     // A refusal with no fix carries the list to choose from instead.
     expect(next.code === ExitCode.OK || `${next.stdout}${next.stderr}`.includes('config get <key>')).toBe(true);
+  });
+});
+
+/**
+ * D-20261009-b1-totals-and-explain — `--schema` and the unknown-command hint lead to `--explain`.
+ *
+ * In 56 of 60 burgee diagnose-provenance runs on main (12 B1 readings, `b1-transcripts`), the
+ * agent read `--schema`, saw the option's default and its env name, and then spent 3 to 8 turns
+ * probing `DEMO_GREETING` with shell calls the allowlist refused. `--schema` describes the
+ * program and could not say how to ask which source applied; `--explain` can, and nothing on
+ * that path named it. The pointer is on the program document only, where those agents look; one
+ * command's schema and the façades' `--schema` are unchanged.
+ */
+describe('the agent surfaces lead to --explain', () => {
+  const EXPLAIN = '--explain <option> on a command says where its value came from: default, env, config or flag';
+
+  it('names --explain in the program document, ahead of the commands', async () => {
+    const doc = JSON.parse((await runBurgee(small, { argv: ['--schema'] })).stdout) as Record<string, unknown>;
+    expect(doc['explain']).toBe(EXPLAIN);
+    const keys = Object.keys(doc);
+    expect(keys.indexOf('explain')).toBeLessThan(keys.indexOf('commands'));
+  });
+
+  it('names it in the summary a program over its schema budget prints', async () => {
+    const tight = defineProgram({ name: 'demo', schemaBudget: 10, commands: [defineCommand({ name: 'greet', effects: 'read_only', run: () => 'hi' })] });
+    const doc = JSON.parse((await runBurgee(tight, { argv: ['--schema'] })).stdout) as Record<string, unknown>;
+    expect(doc).toMatchObject({ summarised: true, explain: EXPLAIN });
+  });
+
+  it('leaves one command\'s schema as it was', async () => {
+    expect(JSON.parse((await runBurgee(small, { argv: ['greet', '--schema'] })).stdout)).not.toHaveProperty('explain');
   });
 });

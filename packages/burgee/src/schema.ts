@@ -112,6 +112,11 @@ export interface ProgramSchema {
    * the contract's seven, the same table `ExitCode` exports.
    */
   exitCodes: Readonly<Record<string, number>>;
+  /**
+   * D-20261009-b1-totals-and-explain — how to ask where a value came from (`--explain`). A native
+   * program's `--schema` carries it; `schemaOf` does not set it, so the façades' document is unchanged.
+   */
+  explain?: string;
   commands: CommandSchema[];
   /**
    * J4 — the reserved surfaces a façade program declares for itself, which burgee therefore
@@ -210,6 +215,8 @@ export interface SchemaSummary {
   budget: number;
   commands: { name: string; summary?: string; effects?: DeclaredEffects }[];
   hint: string;
+  /** As on `ProgramSchema`. */
+  explain?: string;
 }
 
 /** Above the budget (N13): every command by name and summary, and the drilling command for one in full. */

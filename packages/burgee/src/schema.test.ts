@@ -63,7 +63,8 @@ describe('--schema', () => {
   it('is served by every program with no config, no network and no handler run (N8)', async () => {
     const r = await runBurgee(program, { argv: ['--schema'], env: {} });
     expect(r.code).toBe(0);
-    expect(JSON.parse(r.stdout)).toEqual(schemaOf(program));
+    // The native surface adds where to ask for a value's source (D-20261009-b1-totals-and-explain).
+    expect(JSON.parse(r.stdout)).toEqual({ ...schemaOf(program), explain: '--explain <option> on a command says where its value came from: default, env, config or flag' });
     // Naming a command drills into it (N13): that command's schema alone.
     const later = await runBurgee(program, { argv: ['deploy', '--schema'], env: {} });
     expect(JSON.parse(later.stdout)).toEqual(schemaOf(program).commands[0]);

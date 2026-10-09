@@ -17,6 +17,14 @@ required), each command's `effects`, its examples, and a JSON Schema per command
 the manifest and nothing else: no config file, no network, no handler runs (N8), so it is
 safe to call first.
 
+The document shows each option's default and env var, but not which of them a run used. So
+just before `commands` it carries one line naming the flag that answers that:
+`"explain":"--explain <option> on a command says where its value came from: default, env, config or flag"`.
+Agents that read `--schema` without it spent three to eight turns probing the env var through
+shell calls (D-20261009-b1-totals-and-explain). One command's schema (`mytool deploy --schema`)
+does not carry it, and neither does `--schema` on `burgee/commander` or `burgee/yargs`, which
+do not parse `--explain`.
+
 `mytool schema` is the same request spelled as a subcommand — `schema deploy` and
 `schema deploy --field options.region` print exactly what the flag forms print — because
 that is where [clispec.dev](https://clispec.dev) and the agents that follow it look. A
@@ -132,7 +140,8 @@ region = "eu-1"   from config file ./mytool.config.json
 ```
 
 Every command that runs lists `--explain <option>` in its help, and the root help's `For
-agents:` line names it beside `--schema` and `--json`. The same information rides under `--json` as `meta.provenance`, per option — for an agent,
+agents:` line names it beside `--schema` and `--json`. So do the `--schema` document and the
+hint on an unknown command that matches nothing. The same information rides under `--json` as `meta.provenance`, per option — for an agent,
 the difference between one call and five. `envPrefix` and `config: true` on
 `defineProgram` opt a program into env names and config discovery; nothing is read that
 the running command did not declare.

@@ -145,7 +145,7 @@ describe('a manifest with no root node', () => {
   });
   it('still reports an unknown command as a usage error', async () => {
     const r = await runCommand(rootless(), ['nope']);
-    expect(r).toEqual({ code: ExitCode.USAGE, stdout: '', stderr: 'error: unknown command "nope"\nhint: run --schema for every command and option as JSON, in one call\nusage: app <command>\ncommands:\n  only\n' });
+    expect(r).toEqual({ code: ExitCode.USAGE, stdout: '', stderr: 'error: unknown command "nope"\nhint: run --schema for every command and option as JSON, in one call; --explain <option> says where a value came from\nusage: app <command>\ncommands:\n  only\n' });
   });
 });
 
@@ -168,7 +168,7 @@ describe('every default run() takes from the process (ioOf, execute)', () => {
     const write = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     vi.spyOn(process, 'exit').mockImplementation(noExit);
     await run(program(defineCommand({ name: 'boom', ...read, run: () => undefined })), { argv: ['nope'] });
-    expect(write).toHaveBeenCalledWith('error: unknown command "nope"\nhint: run --schema for every command and option as JSON, in one call\nusage: app <command>\ncommands:\n  boom\n');
+    expect(write).toHaveBeenCalledWith('error: unknown command "nope"\nhint: run --schema for every command and option as JSON, in one call; --explain <option> says where a value came from\nusage: app <command>\ncommands:\n  boom\n');
   });
   it('slices an injected argv only when it is told it came from node', async () => {
     const m = program(defineCommand({ name: 'hi', ...read, run: () => 'from node' }));

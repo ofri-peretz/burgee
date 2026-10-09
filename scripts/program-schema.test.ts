@@ -25,6 +25,8 @@ import { defineCommand, defineProgram } from '../packages/burgee/src/index.js';
 // eslint-disable-next-line import-next/no-relative-packages -- see above
 import { schemaOf } from '../packages/burgee/src/schema.js';
 // eslint-disable-next-line import-next/no-relative-packages -- see above
+import { runBurgee } from '../packages/burgee/src/testing.js';
+// eslint-disable-next-line import-next/no-relative-packages -- see above
 import yargs from '../packages/burgee/src/yargs.js';
 // eslint-disable-next-line import-next/no-relative-packages -- see above
 import { check, type Root } from '../packages/flagstaff/src/conforms.js';
@@ -69,6 +71,11 @@ function everything(): ReturnType<typeof defineProgram> {
   return program;
 }
 
+/** `--schema` from a native program, as `run()` prints it: the document plus what only the native surface adds. */
+async function nativeSchema(): Promise<Record<string, unknown>> {
+  return JSON.parse((await runBurgee(everything(), { argv: ['--schema'] })).stdout) as Record<string, unknown>;
+}
+
 describe('burgee/program-schema.json describes `--schema` (F1, D-123)', () => {
   const doc = JSON.parse(JSON.stringify(schemaOf(everything()))) as Record<string, unknown> & { commands: Record<string, unknown>[] };
 
@@ -78,6 +85,12 @@ describe('burgee/program-schema.json describes `--schema` (F1, D-123)', () => {
 
   it('accepts the document a program with every optional field prints', () => {
     expect(check(doc, published, 'schema')).toBeUndefined();
+  });
+
+  it('accepts what the native surface prints, which names --explain (D-20261009-b1-totals-and-explain)', async () => {
+    const native = await nativeSchema();
+    expect(native['explain']).toMatch(/^--explain <option>/);
+    expect(check(native, published, 'schema')).toBeUndefined();
   });
 
   it('carries the exit-code table, so a caller branches on the number (F1)', () => {
@@ -144,8 +157,8 @@ describe('--schema names the reserved surfaces a façade program shadows (J4)', 
     ]);
   });
 
-  it('every top-level field the file describes is emitted by a fixture here', () => {
-    const emitted = new Set([...Object.keys(JSON.parse(JSON.stringify(schemaOf(everything()))) as object), ...Object.keys(commanderSchema(commanderShadowingAll()))]);
+  it('every top-level field the file describes is emitted by a fixture here', async () => {
+    const emitted = new Set([...Object.keys(JSON.parse(JSON.stringify(schemaOf(everything()))) as object), ...Object.keys(commanderSchema(commanderShadowingAll())), ...Object.keys(await nativeSchema())]);
     expect(Object.keys(published.properties ?? {}).filter((k) => !emitted.has(k))).toEqual([]);
   });
 });
