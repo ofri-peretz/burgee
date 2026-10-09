@@ -5,7 +5,7 @@
  *
  * Kept out of the barrel so a façade can import it without loading the entry.
  */
-import { parseArgs } from 'node:util';
+import type { parseArgs } from 'node:util';
 
 import { type Layers, type Provenance, resolve as resolveLayers } from 'seniority/precedence';
 
@@ -15,7 +15,7 @@ import { ExitCode, isExitCode, type ExitCode as ExitCodeType } from './exit-code
 import { type ActionRequiredSpec, type ArgumentSpec, type CommandNode, type DeclaredEffects, type Example, type LazyModule, Manifest, type OptionSpec, type Relation, relationsOf, type RunContext } from './manifest.js';
 import { camel, kebab } from './names.js';
 import { owningPackage, type Package } from './pkg.js';
-import { host } from './runtime.js';
+import { builtin, host } from './runtime.js';
 import { detachedTeardown, processTeardown, type Teardown } from './shutdown.js';
 import { coerce, UsageError } from './validate.js';
 
@@ -438,7 +438,7 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   const { args: rest, fields, lines } = select?.jsonFields(typed, node) ?? { args: typed };
   if (fields?.length === 0) return { json: true, text: `${JSON.stringify(select?.listFields(node))}\n` };
   if (fields !== undefined) select?.checkFields(fields, node);
-  const parsed = parseArgs({ args: rest, options: toParseConfig(node.options, manifest.config !== undefined), allowPositionals: true, strict: true, tokens: true });
+  const parsed = builtin('node:util').parseArgs({ args: rest, options: toParseConfig(node.options, manifest.config !== undefined), allowPositionals: true, strict: true, tokens: true });
   const flags = canonical(parsed.values as Values, node.options, parsed.tokens);
   const json = flags.json === true;
   // F2 — help as data when both flags are given. It printed the same prose as `--help`, so a
