@@ -19,8 +19,8 @@ do, and every cell here now says where it comes from.
 
 ## Measured
 
-⚙️ rows: 2026-09-09, a GitHub Actions runner (AMD EPYC 7763, 4 cores), linux/x64, Node
-24.13, 42 interleaved spawns per variant. Milliseconds are a property of that machine, so the deltas below are for reading,
+⚙️ rows: 2026-10-08 (`ba8a89c`), a GitHub Actions runner (AMD EPYC 7763, 4 cores), linux/x64, Node
+24.13, 52 interleaved spawns per variant. Milliseconds are a property of that machine, so the deltas below are for reading,
 never for gating; the machine-independent figure is the ratio on
 [Benchmarks](/docs/benchmarks).
 
@@ -28,13 +28,13 @@ never for gating; the machine-independent figure is the ratio on
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
 | Downloads / week | new | 508.2M | 259.3M | 10.9M | 49.4M | 30.5M |
 | Runtime dependencies | **5**, none outside the burgee family | 0 | 6 | **18** | 0 | 0 |
-| Installed size ⚙️ | 1511 KB | 203 KB | 515 KB | 912 KB 📖 | 40 KB | 52 KB 📖 |
-| Full CLI run over bare node ⚙️ | **+14.0 ms** | +15.3 ms | +78.5 ms | +131 ms 📖 | +4.0 ms | +6 ms 📖 |
+| Installed size ⚙️ | 1542 KB | 203 KB | 515 KB | 912 KB 📖 | 40 KB | 52 KB 📖 |
+| Full CLI run over bare node ⚙️ | +20.3 ms | +14.8 ms | +75.0 ms | +131 ms 📖 | +3.8 ms | +6 ms 📖 |
 
 Three things in that table got worse when they were measured rather than asserted, and
 they stay in it.
 
-**Installed size.** burgee installs at **1511 KB**. It is our largest number, it is our least
+**Installed size.** burgee installs at **1542 KB**. It is our largest number, it is our least
 flattering one, and it has now been wrong on this page twice in opposite directions.
 
 First it said 104 KB, a guess at the tarball rather than a measurement. That was corrected
@@ -62,17 +62,20 @@ argument for the check.
 loads it — no module on burgee's path imports it, and its bundled column did not move — but it
 is on disk.
 
-It buys no dependency outside the burgee family and seven drop-in front ends. It is still 1511 KB, and the
+It buys no dependency outside the burgee family and seven drop-in front ends. It is still 1542 KB, and the
 bundled column on [Benchmarks](/docs/benchmarks) — what an application actually grows by —
 is the number to judge us on. That one is over its own ceiling too, and says so.
 
 **Speed.** This page previously ran two rows, an import cost and a full run, with burgee's
 cells in both unsourced. The suite times one thing, a full CLI run as a process, so there
-is one row. burgee does **not** land level with cac: it starts at **1.32x** cac's cold
+is one row. burgee does **not** land level with cac: it starts at **1.56x** cac's cold
 start against a published target of at or below cac, and that target is recorded as not
-met. Since D-157 the gate is what is reachable: a downward-only ratchet at 1.6x cac, set
-from CI's own spread and only ever lowered. It is faster than yargs — measurably, 0.82x —
-and level with commander at 1.08x.
+met. It read 1.32x on 2026-09-09, and every CI run since 2026-10-06 has read 1.47x to 1.56x:
+burgee's start-up got slower in that month, and this page says so rather than keeping the
+older figure. Since D-157 the gate is what is reachable: a downward-only ratchet at 1.6x
+cac, set from CI's own spread and only ever lowered, which it still meets. The `burgee/yargs`
+drop-in starts at 0.64x yargs (0.82x on 2026-09-09). The `burgee/commander` drop-in starts at
+**1.18x** commander, no longer level (1.08x on 2026-09-09).
 
 These are the figures from the CI runner, which is where the suite now publishes from: the
 same commit measured eleven times there put `burgee ÷ cac` inside 2.3%, where a developer
@@ -87,8 +90,8 @@ against us, from 0.69x to 0.82x. The machine was chosen for its variance, before
 numbers were read.
 
 burgee's speed comes from `node:util.parseArgs` being in the standard library, not from a
-faster language: burgee is TypeScript, exactly like commander and yargs. That buys parity
-with commander, not a lead over cac.
+faster language: burgee is TypeScript, exactly like commander and yargs. On this run it buys
+a lead over yargs, and neither parity with commander nor a lead over cac.
 
 `@oclif/core`'s **131 ms** is a surveyed number, not one this suite reproduces, and it is
 carried here rather than dropped because eighteen runtime dependencies against none outside the burgee family is the

@@ -14,6 +14,8 @@ import { AuthError, UsageError } from './errors.js';
 import { ExitCode, isExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
 import { type ActionRequiredSpec, type CommandNode, type Manifest } from './manifest.js';
 import { kebab } from './names.js';
+// The failure path's own vocabulary, in this chunk with it: a run that succeeds loads neither (K6).
+import { Again, singleDashHint, unknownOption } from './unknown-option.js';
 import { commandUsage, type Usage, usageText } from './usage.js';
 
 /**
@@ -45,6 +47,11 @@ export interface Failure {
   action?: ActionRequiredSpec;
   /** What the failing command takes, when there is no `fix` to run instead (E3, D-20260930). */
   usage?: Usage;
+  /**
+   * The line to run instead of reporting, program first: set only when the one thing wrong was how
+   * JSON was asked for (`--format json`), so it runs the command as typed (D-20261009-json-asked-is-json).
+   */
+  again?: string[];
 }
 
 /**
@@ -102,8 +109,11 @@ function carried(cause: unknown): { hint?: string; fix?: string; usage?: Usage }
  * own class and hands over; the class stays in `execute.ts` because a handler throws it on the
  * startup path.
  */
-export async function describeFailure(cause: unknown, argv: string[], node: CommandNode | undefined, action: ActionRequiredSpec | undefined): Promise<Failure> {
-  const failure = await classify(cause, argv, node, action);
+export async function describeFailure(cause: unknown, { root, argv }: { root: readonly string[]; argv: readonly string[] }, node: CommandNode | undefined, action: ActionRequiredSpec | undefined): Promise<Failure> {
+  // The line as typed, program first: a fix that corrects an option names the whole line.
+  const failure = await classify(cause, [...root, ...argv], node, action);
+  // A line to run instead is argv, without the program in front (D-20261009-json-asked-is-json).
+  if (failure.again) failure.again = failure.again.slice(root.length);
   // D-20260930 — a failure with nothing to run next says what the command takes: its usage
   // line and options, so the recovery is in the refusal and not one `--help` away. Only for
   // the two codes that mean *the command* (USAGE: how it was typed; RUNTIME: what it did), and
@@ -113,6 +123,7 @@ export async function describeFailure(cause: unknown, argv: string[], node: Comm
 }
 
 async function classify(cause: unknown, argv: string[], node: CommandNode | undefined, action: ActionRequiredSpec | undefined): Promise<Failure> {
+  if (cause instanceof Again) return { code: ExitCode.USAGE, message: '', again: cause.again };
   const signal = exitSignal(cause);
   if (signal !== undefined) return { code: signal, message: '', silent: true };
   const message = messageOf(cause);
@@ -132,12 +143,10 @@ async function classify(cause: unknown, argv: string[], node: CommandNode | unde
   const byName = namedCode(cause);
   if (byName !== undefined) return { code: byName, message, ...carried(cause) };
   if (isParseArgsFailure(cause)) {
-    // Loaded only here: see unknown-option.ts for why none of this is imported.
-    const explain = await import('./unknown-option.js');
-    const dash = explain.singleDashHint(argv);
+    const dash = singleDashHint(argv);
     if (dash !== undefined) return { code: ExitCode.USAGE, message, hint: dash };
     // The flags as typed, not the canonical keys: `fix` is run verbatim, and `--dryRun` is refused.
-    const better = explain.unknownOption(cause, Object.keys(node?.options ?? {}).map(kebab), argv);
+    const better = unknownOption(cause, Object.keys(node?.options ?? {}).map(kebab), argv);
     return { code: ExitCode.USAGE, message, hint: 'run --help to see the available options', ...better };
   }
   return { code: ExitCode.RUNTIME, message };

@@ -8,7 +8,7 @@
  * that names the property it is checking and therefore cannot see a change it was not
  * looking for. A snapshot sees all of them.
  *
- * Five command shapes × three widths. The widths are the plan's — 33, 80 and 120 — chosen
+ * Six command shapes × three widths. The widths are the plan's — 33, 80 and 120 — chosen
  * because that is where the layout changes rather than to sample it evenly: at 33 the term
  * column is clamped by `TERM_SHARE` and long terms drop their descriptions to the next
  * line, at 80 the ordinary case wraps, at 120 almost nothing wraps and the alignment is
@@ -25,6 +25,7 @@ import { describe, expect, it } from 'vitest';
 import { renderHelp } from './help-entry.js';
 import { defineCommand, defineProgram } from './index.js';
 import { type CommandNode, type Manifest } from './manifest.js';
+import { listed } from './usage.js';
 
 const ok = (): string => 'ok';
 
@@ -90,25 +91,44 @@ const wide = defineProgram({
   ],
 });
 
+/**
+ * B1's demo: a command group among leaves. The engine lists every command that runs by its full
+ * path when they fit (`listed`), so the root screen names `config get <key>` and not `config`.
+ */
+const nested = defineProgram({
+  name: 'demo',
+  description: 'The burgee reference demo',
+  commands: [
+    defineCommand({ name: 'greet', description: 'Greet someone', effects: 'read_only', arguments: [{ name: 'name', required: true }], run: ok }),
+    defineCommand({
+      name: 'config',
+      description: 'Read configuration',
+      commands: [defineCommand({ name: 'get', description: 'Print one configuration value', effects: 'read_only', arguments: [{ name: 'key', required: true }], run: ok })],
+    }),
+    defineCommand({ name: 'fail', description: 'Fail on purpose', effects: 'idempotent', run: ok }),
+  ],
+});
+
 function node(manifest: Manifest, path: string[]): CommandNode {
   const found = manifest.find(path);
   if (found === undefined) throw new Error(`fixture: no ${path.join(' ')}`);
   return found;
 }
 
-const shapes: { name: string; manifest: Manifest; node: CommandNode; verbose: boolean }[] = [
+const shapes: { name: string; manifest: Manifest; node: CommandNode; verbose: boolean; commands?: CommandNode[] }[] = [
   { name: 'a group: grouped children, a deprecated one, a hidden one omitted', manifest: full, node: node(full, ['app']), verbose: false },
   { name: 'a leaf with every field', manifest: full, node: node(full, ['app', 'deploy']), verbose: false },
   { name: 'a leaf with every field, verbose', manifest: full, node: node(full, ['app', 'deploy']), verbose: true },
   { name: 'a leaf with nothing but a name', manifest: bare, node: node(bare, ['app', 'ping']), verbose: false },
   { name: 'terms wider than their code-unit count', manifest: wide, node: node(wide, ['app']), verbose: false },
+  { name: 'a root over a group, listed by the commands that run', manifest: nested, node: node(nested, ['demo']), verbose: false, commands: listed(nested, node(nested, ['demo'])) },
 ];
 
 describe('help is a drawing, and the drawing is pinned (PLAN 2.5.1)', () => {
   for (const shape of shapes) {
     for (const width of WIDTHS) {
       it(`${shape.name}, at ${width} columns`, () => {
-        expect(renderHelp(shape.manifest, shape.node, { width, verbose: shape.verbose })).toMatchSnapshot();
+        expect(renderHelp(shape.manifest, shape.node, { width, verbose: shape.verbose, ...(shape.commands === undefined ? {} : { commands: shape.commands }) })).toMatchSnapshot();
       });
     }
   }

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft-07/schema",
-  "$comment": "Every deployable docs app in this repo, once. Read by .github/workflows/deploy-docs.yml, .github/workflows/auto-deploy.yml, each app's src/site.ts (through apps/docs-chassis), scripts/brand.mts, scripts/sync-package-docs.ts and scripts/vercel-apps-lock.test.ts. orgId and projectId are PUBLIC identifiers, not secrets; VERCEL_TOKEN is the only secret. Adding a package means adding a row here and an app directory - never a workflow edit. A published package with no row needs an 'excluded' entry with its reason; its README page then renders as a section of the familyPages app.",
+  "$comment": "Every deployable docs app in this repo, once. Read by .github/workflows/deploy-docs.yml, .github/workflows/auto-deploy.yml, each app's src/site.ts (through apps/docs-chassis), scripts/brand.mts, scripts/sync-package-docs.ts and scripts/vercel-apps-lock.test.ts. orgId and projectId are PUBLIC identifiers, not secrets; VERCEL_TOKEN is the only secret. Adding a package means adding a row here and an app directory - never a workflow edit. A published package with no row needs an 'excluded' entry with its reason; its README page then renders as a section of the familyPages app. 'pending' holds an app that is built but has no Vercel project yet: every fact of a row except projectId, so the app builds and tests against its own host while nothing deploys it (both workflows read 'apps' only). Its package keeps its 'excluded' entry until the owner creates the project; then the entry moves into 'apps' with that projectId and leaves 'excluded'.",
   "orgId": "team_sZpUs6MAa1BKXZJY6Hq2nfnh",
   "apps": {
     "burgee": {
@@ -101,9 +101,19 @@
       "buildCommand": "npx turbo run build --filter=docs-paratext",
       "outputDirectory": "apps/docs-paratext/.next",
       "familyPages": false
+    },
+    "controlroom": {
+      "package": "controlroom",
+      "workspace": "docs-controlroom",
+      "dir": "apps/docs-controlroom",
+      "projectId": "prj_JNARpVbMhWKBnAKtBetekkfBFcfI",
+      "productionUrl": "https://controlroom.interlace.tools",
+      "rootDirectory": "",
+      "buildCommand": "npx turbo run build --filter=docs-controlroom",
+      "outputDirectory": "apps/docs-controlroom/.next",
+      "familyPages": false
     }
   },
-  "excluded": {
-    "controlroom": "docs site pending: Vercel project + DNS (owner)"
-  }
+  "pending": {},
+  "excluded": {}
 }

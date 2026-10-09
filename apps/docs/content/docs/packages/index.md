@@ -14,7 +14,7 @@ is its README, projected; the family-wide pages — [compatibility](/docs/compat
 | [bellpull](https://bellpull.interlace.tools/docs) | cross-spawn and which | [bellpull.interlace.tools](https://bellpull.interlace.tools) |
 | [caique](https://caique.interlace.tools/docs) | inquirer and clack | [caique.interlace.tools](https://caique.interlace.tools) |
 | [closeout](https://closeout.interlace.tools/docs) | signal-exit, exit-hook and restore-cursor | [closeout.interlace.tools](https://closeout.interlace.tools) |
-| [controlroom](https://burgee.interlace.tools/docs/packages/controlroom) | ink, graded by ink's own suite | [burgee.interlace.tools](https://burgee.interlace.tools) |
+| [controlroom](https://controlroom.interlace.tools/docs) | ink, graded by ink's own suite | [controlroom.interlace.tools](https://controlroom.interlace.tools) |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | ora, log-update, boxen and cli-table3 | [flagstaff.interlace.tools](https://flagstaff.interlace.tools) |
 | [linegauge](https://linegauge.interlace.tools/docs) | string-width, wrap-ansi, strip-ansi and slice-ansi | [linegauge.interlace.tools](https://linegauge.interlace.tools) |
 | [paratext](https://paratext.interlace.tools/docs) | ansi-escapes, terminal-link and term-img | [paratext.interlace.tools](https://paratext.interlace.tools) |
@@ -29,17 +29,17 @@ Two packages draw in a terminal. They split on whether the program owns the scre
   boxes and tables, drawn in place under what the program has already printed and left in
   the scrollback as ordinary lines. It reads no keys. Usable today, with drop-in paths for
   ora, log-update, boxen and cli-table3.
-- **controlroom, for a full screen.** Panes, tabs with key hints, focus and collapse, in the
-  alternate screen, with keys routed to the program. **Reserved, not usable yet**: its
-  screen API is planned, not built. Coming from blessed, neo-blessed or terminal-kit? The
-  [coming-from guides](/docs/coming-from/blessed) map each one onto the plan, and
-  `burgee migrate` already reports their sites.
+- **controlroom, for a screen that reads keys.** Panes, tabs with key hints, focus and
+  collapse, an input line, with keys routed to the program, either inline under the
+  program's output or in the alternate screen. An ink program moves by its import, to
+  `controlroom/ink`. Coming from blessed, neo-blessed or terminal-kit? The
+  [coming-from guides](/docs/coming-from/blessed) map each one onto `open()`, and
+  `burgee migrate` reports their sites.
 
 If a program only draws, it is flagstaff, even when the drawing is busy. If it reads keys
-while it draws, it is controlroom. controlroom's planned inline screen (R19) is for the
-second kind kept in the main screen, the shape of a chat CLI. A question asked once, such
-as a confirm or a pick, is neither: it is a prompt, and prompts are caique's.
+while it draws, it is controlroom, and its inline screen keeps that in the main screen,
+the shape of a chat CLI. A question asked once, such as a confirm or a pick, is neither:
+it is a prompt, and prompts are caique's.
 
 Off a terminal, flagstaff gives a pipe, CI, a screen reader and `--json` each component's
-static projection, never a redraw, and controlroom is specified to do the same for a whole
-screen (R6).
+static projection, never a redraw, and controlroom does the same for a whole screen.

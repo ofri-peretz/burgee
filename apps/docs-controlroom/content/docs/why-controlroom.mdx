@@ -1,0 +1,102 @@
+---
+title: Why controlroom
+description: "controlroom against ink and blessed: what it does that a terminal-only screen does not, the measured weight against ink 8.0.0 (W1–W4), and what it deliberately leaves out."
+---
+
+ink renders React to a terminal. blessed is a widget toolkit that owns the terminal. Both are
+built for one caller, a person at a terminal. controlroom draws the same kind of screen for that
+person, and gives every other caller a screen of its own from the same program: a pipe, a CI log
+and a screen reader get each pane's text, and an agent gets NDJSON events under `--json`.
+
+## What it does that a terminal screen does not
+
+- **Every caller gets an answer.** Off a terminal, `open()` returns a static screen: each pane's
+  static projection under its label, with no escape byte, no carriage return and no cursor
+  movement, and only the lines that changed on each update
+  ([Live and static](/docs/guides/static-projection)).
+- **`--json` is an event stream.** One NDJSON event per change on stderr, named after the pane,
+  with stdout left for the program's result.
+- **It never waits for a key nobody can press.** Keys are read only when stdout is a terminal
+  and stdin can go raw. Behind a pipe, in CI or with `< file`, a screen reads no keys, and
+  `dispatch()` is what the program has instead.
+- **Keys are data.** A keymap maps a key to an action name; the hint line is generated from it,
+  so it cannot advertise a key that is not bound, and a plugin can ship one
+  ([Tabs, focus and keys](/docs/guides/tabs-and-keys)).
+- **Inline or full screen.** Inline keeps a transcript in the terminal's own scrollback, ink's
+  shape and a chat CLI's; `screen: 'alternate'` takes the whole terminal, as blessed does.
+- **One render engine.** A pane is a flagstaff component, drawn by flagstaff's frame loop, so a
+  spinner in a pane is the spinner an ordinary CLI prints. controlroom itself never writes to the
+  terminal.
+- **The terminal comes back.** The alternate screen, the hidden cursor, raw mode and bracketed
+  paste are each entered through closeout with their undo registered at once, so Ctrl+C, a
+  signal and a throw all restore them.
+- **Nothing from outside the family.** controlroom installs six packages from this repository and
+  none from anywhere else. React is an optional peer, and only `controlroom/ink` loads it.
+
+## Weight, measured against ink 8.0.0
+
+The intent bars every one of these at ≤ 1.0×, each is a claim in
+[`benchmarks/claims.ts`](https://github.com/ofri-peretz/burgee/blob/main/benchmarks/claims.ts)
+checked by `npm run bench`, and the figures are the
+[spec's table](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/controlroom/spec.md)
+as restated on 2026-10-07, on React 19.3.0:
+
+| Gate | controlroom | ink 8.0.0 | Ratio |
+| :-- | --: | --: | --: |
+| **W1** · bundled: `controlroom/ink` + `react` + `react-reconciler` against `ink` + `react` | 531,641 B | 673,137 B | **0.790** |
+| **W2** · installed bytes, the same two programs | 3,367,943 B | 8,165,450 B | **0.412** |
+| **W2** · installed packages | 10 | 40 | **0.250** |
+| **W3** · bundled: the `controlroom` root (`open`) against `ink` alone, React external | 39,434 B | 642,330 B | **0.061** |
+| **W4** · cold start: importing `controlroom/ink` against importing `ink` + `react` | 105.05 ms | 374.46 ms | **0.295** |
+| **W4** · cold start: importing `controlroom` against importing `ink` + `react` | 53.73 ms | 374.46 ms | **0.149** |
+
+How to read it:
+
+- **W1 and W2 are the drop-in.** A program that moves from `ink` to `controlroom/ink` bundles
+  less and installs less, peers included. W1 counts every chunk the drop-in loads, its peers
+  with them.
+- **W3 is the native API.** A screen written against `open()` does not load React at all, which
+  is most of the difference. The per-export bytes are on the family's
+  [weight page](https://burgee.interlace.tools/docs/weight).
+- **W4's milliseconds are not portable.** They are same-run ratios from one laptop under load
+  (52 rounds); the ratio is the claim, not the times. A second run read 0.284 and 0.147.
+- **W2's package count** walks the installed tree. ink + react is 40 packages at ink 8.
+
+## Against blessed
+
+There is no `controlroom/blessed`, and none is planned: blessed's surface is too large to
+reproduce honestly, so a blessed program moves screen by screen, not import by import. The
+shapes map like this:
+
+| blessed | controlroom |
+| :-- | :-- |
+| `blessed.screen()` | `open(runtime, { screen: 'alternate' })` |
+| `screen.destroy()` | `close()` on what `open()` returned |
+| `blessed.box({ top, left, width, height })` | a pane in a [layout](/docs/guides/layout) tree, holding a flagstaff component |
+| `blessed.list()` that you show | flagstaff's `tasks` in a pane |
+| `blessed.listbar()` | a pane over flagstaff's `tabBar`, with the screen's tab state |
+| `blessed.log()` | flagstaff's `logTail` in a pane |
+| `screen.key([...], fn)` | an entry in a keymap, and `onAction` |
+| `screen.render()` | nothing: an `update()` repaints |
+| `blessed.textbox()` | the [input line](/docs/guides/input-line), for a single line in an inline screen |
+
+`burgee migrate` reports each blessed, neo-blessed and terminal-kit site it finds and names the
+section of the matching guide; it does not rewrite them. The guides are on the front door:
+[blessed](https://burgee.interlace.tools/docs/coming-from/blessed),
+[neo-blessed](https://burgee.interlace.tools/docs/coming-from/neo-blessed) and
+[terminal-kit](https://burgee.interlace.tools/docs/coming-from/terminal-kit).
+
+## What is left out
+
+These are out of scope, so a program that depends on them should stay where it is:
+
+- **The mouse.** Clicks, the wheel and drags have no equivalent, and none is planned.
+- **Editing text inside a pane.** The input line is one editor line hosted in a screen; a text
+  area or a form inside the layout is not. A question asked once is a prompt, and prompts are
+  caique's.
+- **A widget catalogue.** There are no images, embedded terminals or forms. A pane draws any
+  flagstaff component, and you can register your own ([Plugins](/docs/guides/plugins)).
+- **Legacy Windows consoles**, beyond what Node's own terminal handling does.
+
+No comparison here says what ink or blessed print in a pipe or under CI, and none times their
+render loops: those have not been measured in this repository, so they are not claimed.

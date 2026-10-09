@@ -1,0 +1,89 @@
+---
+title: Tabs, focus and keys
+description: "A keymap is data: key to action name. A pure reducer moves tabs, focus and collapse, and the hint line is generated from the keymap, so it can never name a key that does nothing."
+---
+
+controlroom never binds a key to a function. A **keymap** maps a key to an **action name**,
+the screen's state moves through a **reducer** on that name, and your `onAction` sees every
+action after the reducer has. Because the keymap is plain data, the hint line is generated
+from it, and a plugin can ship one.
+
+## Keymaps
+
+```js
+const keymap = { left: 'tab.prev', right: 'tab.next', s: 'toggle:status', q: 'quit', 'ctrl+c': 'quit' };
+```
+
+Keys are spelled as caique's key decoder spells them: a character (`s`, `q`), a named key
+(`left`, `right`, `up`, `down`, `enter`, `escape`, `tab`), and modifiers joined with `+`
+(`ctrl+c`, `shift+tab`). A screen given no `keymap` uses the registered `default`:
+
+| key | action |
+| :-- | :-- |
+| `left`, `right` | `tab.prev`, `tab.next` |
+| `tab`, `shift+tab` | `focus.next`, `focus.prev` |
+| `ctrl+c` | `quit` |
+
+`ctrl+c` is `quit` in every keymap that does not bind it to something else, so a screen can
+always be left. A [plugin](/docs/guides/plugins) can register a keymap under a name, including
+its own `default`.
+
+## The actions the reducer knows
+
+| action | what it changes |
+| :-- | :-- |
+| `tab.next`, `tab.prev` | the active tab, wrapping around |
+| `tab:<title>` | the active tab, by title; an unknown title changes nothing |
+| `focus.next`, `focus.prev` | the focused pane, among the screen's `focus` list, wrapping |
+| `toggle:<pane>` | collapses the pane, or expands it again |
+
+Anything else, such as `quit` or `refresh`, leaves the state alone and is your program's to
+handle in `onAction`. The reducer is exported as `initial(tabs, focus)` and
+`reduce(state, action)`, pure functions you can run without a screen:
+
+```js title="tabs.mjs"
+import { hints, initial, reduce } from 'controlroom';
+
+const keymap = { left: 'tab.prev', right: 'tab.next', s: 'toggle:status', q: 'quit', 'ctrl+c': 'quit' };
+const labels = { 'tab.prev': 'switch tab', 'tab.next': 'switch tab', 'toggle:status': 'toggle status', quit: 'quit' };
+
+console.log(hints(keymap, labels));
+
+let state = initial(['Status', 'Tail logs'], ['learn', 'tasks']);
+for (const action of ['tab.next', 'focus.next', 'toggle:status', 'quit']) {
+  state = reduce(state, action);
+  console.log(`${action.padEnd(13)} active=${state.active} focused=${state.panes[state.focused]} collapsed=[${[...state.collapsed].join(', ')}]`);
+}
+```
+
+```text title="node tabs.mjs"
+←→ switch tab  s toggle status  q/^C quit
+tab.next      active=1 focused=learn collapsed=[]
+focus.next    active=1 focused=tasks collapsed=[]
+toggle:status active=1 focused=tasks collapsed=[status]
+quit          active=1 focused=tasks collapsed=[status]
+```
+
+## The hint line
+
+`hints(keymap, labels)` prints one entry per label, with every key bound to it. Arrows run
+together (`←→`); any other set of keys is joined by a slash (`q/^C`). An action with no label
+is bound but not advertised. Since the line is derived from the keymap, it cannot name a key
+that is not bound, and a labelled action cannot be missing from it.
+
+Put the hint line in a pane of its own with `liveOnly: true`: a key hint is for someone who can
+press the key, so a pipe and an agent never see it.
+
+## A tab bar
+
+A tab bar is a pane over flagstaff's `tabBar()`, given the titles and the active index. Keep it
+in step from `onAction`, which runs after the reducer has moved:
+
+```js
+onAction(action, screen) {
+  screen.update('tabs', { tabs: TABS, active: screen.state.active });
+}
+```
+
+Mark it `liveOnly` too. Off a terminal there are no tabs to switch: every pane prints, under its
+label.

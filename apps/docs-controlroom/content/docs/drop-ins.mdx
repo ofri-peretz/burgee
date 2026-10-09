@@ -1,0 +1,82 @@
+---
+title: Compatibility
+description: "How controlroom/ink is graded — ink 8.0.0's own test suite, 1304 of 1304, and @inkjs/ui 2.0.0's, 102 of 102 — what is set aside and why, and the ink 6 grade that is measured but not claimed."
+---
+
+`controlroom/ink` is graded, not described as compatible. It runs against **ink's own test
+suite** and **@inkjs/ui's own test suite**, unedited, by
+[compat-oracle](https://github.com/ofri-peretz/burgee/blob/main/packages/compat-oracle/README.md),
+in CI.
+
+| Suite | Version | `controlroom/ink` | Control (the real package) |
+| :-- | :-- | --: | --: |
+| ink | 8.0.0 | **1304 / 1304** | 1303 / 1304 |
+| @inkjs/ui | 2.0.0 | **102 / 102** | 102 / 102 |
+
+These are compat-oracle's baselines, the pass counts the drop-in is held to and which only
+ratchet up. The family's [compatibility page](https://burgee.interlace.tools/docs/compatibility)
+is generated from the oracle's last run and is the authority for the current figures, beside
+every other drop-in in the family.
+
+## How a suite is graded
+
+1. The incumbent's repository is cloned at the release tag (ink `v8.0.0`, @inkjs/ui `v2.0.0`)
+   and its test directory copied into `packages/compat-oracle/vendor/`. Each copy's `PROVENANCE`
+   file names the tag, the commit and the command that reproduces it.
+2. The only edit is the import that reaches the library: it is rewritten to a shim generated per
+   run. Assertions, fixtures and helpers are upstream's, byte for byte.
+3. A **control run** points the shim at the real package first. That proves the harness before
+   it grades anything of ours, and the control's total is what every rate is measured against.
+   Real ink 8.0.0 passes 1303 of its own 1304 here, and the one control failure is allowed.
+4. The **target run** points the same shim at `controlroom/ink`.
+
+@inkjs/ui is graded the way a program would use it: its suite runs unmodified, with `'ink'`
+resolved to `controlroom/ink`, on @inkjs/ui's own React 18. `controlroom/ink` renders through
+React 18 and 19 alike.
+
+## What is set aside, and why
+
+ink's suite counts 1309 cases. Five are excluded by name, and each is listed with its reason on
+the compatibility page:
+
+- **Four test ink's repository, not its library.** `build-output.ts` deletes `build/`, runs
+  `npm run build` in the repo root, and asserts the compiled layout, `package.json`'s `exports`
+  and `tsconfig.json`'s `include`. A vendored suite has no build script and no source tree, so
+  ink 8.0.0 itself fails all four there, as would any implementation.
+- **One type-checks ink's own source tree.** `style-types.ts` compiles ink's `src/global.d.ts`,
+  which a vendored suite does not have. What it checks, that `minWidth` and `maxWidth` take
+  numbers only, is held for `controlroom/ink` by `@ts-expect-error` lines in
+  [`types.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/controlroom/src/ink/types.test.ts),
+  which the package's typecheck compiles.
+
+@inkjs/ui sets aside one case, `spinner › spinner`. It expects ink 5's writes on unmount, and
+ink 8 ends a non-interactive debug run with a final newline and an empty write. Measured on
+2026-10-06, @inkjs/ui 2.0.0's suite against real ink 8.0.0 fails that case with the same diff
+and passes the other 102, so the case grades which ink is installed, not the drop-in.
+
+## ink 6: measured, not claimed
+
+`controlroom/ink` follows ink 8 where the two majors disagree: Delete is no longer read as
+Backspace, a kitty-protocol Ctrl+letter is its own code point, and a non-interactive debug run
+ends with a newline. So ink 6.8.0's suite, graded as a previous major, reads **540 / 584**, and
+ink 6 is not a claimed major. `burgee migrate` rewrites an `ink` import only on a project whose
+ink is 8.x; a project still on ink 6 is listed under `offMajor` in its report and left alone.
+
+## What a drop-in grade does not cover
+
+- **Layout is a port, not yoga.** `controlroom/ink` lays out with a TypeScript port of yoga's
+  flexbox for the props ink exposes, including the ones ink 8 added (`maxWidth`, `maxHeight`,
+  `aspectRatio`, `top`/`right`/`bottom`/`left`, `position: static`, `alignContent`). There is
+  no yoga in the install.
+- **Colour is roundel's.** ink colours through chalk; the drop-in colours through roundel, whose
+  level is read from the environment rather than from a chalk singleton your program can set.
+  Cases that raise colour by assigning `chalk.level` on ink 6's suite are excluded by name on the
+  compatibility page for exactly that reason.
+- **Packages written for ink** run unchanged when `'ink'` resolves to the drop-in;
+  [Coming from ink](/docs/coming-from/ink#packages-written-for-ink) shows the one line that
+  does it.
+
+## Types
+
+`controlroom/ink` ships declarations for every export, hooks and props included, so a
+TypeScript program moves by its import. The [API reference](/docs/api/ink) lists each one.

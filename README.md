@@ -250,14 +250,14 @@ Everything beyond that first rung — precomputed manifests, plugins, the dev lo
 
 ## 📏 Measured
 
-2026-09-09, Apple M4 Pro, darwin/arm64, Node 24, 42 interleaved spawns per variant. † is a
+2026-10-08 (`ba8a89c`), a GitHub Actions runner (AMD EPYC 7763, 4 cores), linux/x64, Node 24, 52 interleaved spawns per variant. † is a
 published figure taken on another machine, not reproduced here.
 
 | | **burgee** | commander | yargs | @oclif/core | cac |
 | :--- | ---: | ---: | ---: | ---: | ---: |
 | Runtime dependencies | **5**, none outside the burgee family | 0 | 6 | **18** | 0 |
-| Full CLI run over bare node | **+14.0 ms** | +15.3 ms | +78.5 ms | +131 ms † | +4.0 ms |
-| Installed size | 1511 KB | 203 KB | 515 KB | 912 KB † | 40 KB |
+| Full CLI run over bare node | +20.3 ms | +14.8 ms | +75.0 ms | +131 ms † | +3.8 ms |
+| Installed size | 1542 KB | 203 KB | 515 KB | 912 KB † | 40 KB |
 
 The speed comes from `node:util.parseArgs` being in the standard library, not from a faster
 language: burgee is TypeScript, like both incumbents.
@@ -270,20 +270,20 @@ single local run and unconfirmed**:
 
 | Claim | Gate | Measured | |
 | :--- | :--- | ---: | :--- |
-| the core entry point is under 52 KB bundled | `core-under-52kb-bundled` | 24,101 bytes | ✅ met |
+| the core entry point is under 52 KB bundled | `core-under-52kb-bundled` | 24,221 bytes | ✅ met |
 | `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 0.969× | ✅ met |
-| `burgee` is lighter than `cac` **plus what a cac user installs to match it** | `lighter-than-cac-at-parity` | 0.247× | ✅ met |
+| `burgee` is lighter than `cac` **plus what a cac user installs to match it** | `lighter-than-cac-at-parity` | 0.248× | ✅ met |
 | `burgee/commander` is lighter than `commander` **plus the same** | `lighter-than-commander-at-parity` | 0.482× | ✅ met |
 | `burgee/yargs` is lighter than `yargs` **plus the same** | `lighter-than-yargs-at-parity` | 0.545× | ✅ met |
 | `burgee` starts within 1.6× of `cac`, the lightest framework in the landscape (ratchet; lowered as it speeds up) | `cold-start-at-or-below-cac` | 1.443× | ✅ met |
 | `burgee/commander` stays within 1.565× of `commander` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-commander` | 1.558× | ✅ met |
-| `burgee` stays within 2.35× of `cac` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-cac` | 2.306× | ✅ met |
-| an agent spends ≥40% fewer tokens per task | `agent-tokens-40pct` | 0.601× (one local run, D-147) | ❌ **not met** |
-| an agent takes ≥30% fewer turns per task | `agent-turns-30pct` | 0.600× (one local run, D-147) | met locally, **unconfirmed** — no CI run yet |
+| `burgee` stays within 2.35× of `cac` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-cac` | 2.317× | ✅ met |
+| an agent spends ≥40% fewer tokens per task | `agent-tokens-40pct` | 0.747× on the newest CI run (`367cefb`); 0.491–0.995 over the 5 runs since B1 installs the demo under its printed name, median 0.495. burgee holds at 3 turns, and commander's median lands at 4 or 6 turns from run to run (D-20261008-b1-tool-name) | ❌ **not met** |
+| an agent takes ≥30% fewer turns per task | `agent-turns-30pct` | 0.75× on the newest CI run; 0.5–1.0 over the same 5 runs, median 0.5 | ❌ **not met** |
 
 ### The two ways to ask the bundle question, and why both are here
 
-`burgee` is 24,101 bundled bytes and `cac` is 10,452, so the bare row reads **2.306× and it
+`burgee` is 24,221 bundled bytes and `cac` is 10,452, so the bare row reads **2.317× and it
 stays on this page**. It is also not the choice anyone makes. A program that picks `cac` and
 then wants its config file read, its shutdown bounded on every path out, and its cursor handed
 back on Ctrl-C installs three more packages — and *that* is what one `import` of burgee competes
@@ -291,7 +291,7 @@ with:
 
 | | the incumbent alone | + what you add to match burgee | ours |
 | :--- | ---: | ---: | ---: |
-| `cac` | 10,452 B | **97,692 B** | 24,101 B |
+| `cac` | 10,452 B | **97,692 B** | 24,221 B |
 | `commander` | 39,084 B | **126,335 B** | 60,895 B |
 | `yargs` | 111,686 B | **198,784 B** | 108,239 B |
 
@@ -316,7 +316,7 @@ more than finding a package to charge for them.
 
 `cold-start-at-or-below-cac` and the two bare weight rows began as **≤ 1** and have a
 measured floor above it, and it is worth saying plainly rather than leaving as a to-do.
-`cac` is 10,452 bytes of parser and help renderer; burgee's 24,101 is that plus coercion,
+`cac` is 10,452 bytes of parser and help renderer; burgee's 24,221 is that plus coercion,
 choices, relations, Standard Schema, configuration precedence, signal-bound shutdown, terminal
 restore and agent detection.
 Our `commander/command.js` is 33,487 bundled against commander's 27,226, and the front-end also
@@ -412,18 +412,18 @@ the number, 0 against the dozen.
 
 | | Layer | Package | What the layer owns | Replaces | Status |
 | :-- | :-- | :-- | :-- | :-- | :-- |
-| **Engine** | argv, dispatch, manifest | [`burgee`](./packages/burgee/) | one declaration projected to help, `--json`, `--schema`, MCP, completions, types | commander · yargs | released — `burgee@0.22.1` |
-| **Output stack** | colour | [`roundel`](./packages/roundel/) | one output policy, nine semantic tokens, a contrast-checked theme, and chalk's API over them | chalk · picocolors | released — `roundel@1.0.1` |
-| | render | [`flagstaff`](./packages/flagstaff/) | frame loop with a static projection; plugin host for spinners, progress, boxes, tables | ora · log-update · boxen · cli-table3 | released — `flagstaff@1.2.2` |
-| | prompt | [`caique`](./packages/caique/) | prompts that are flags first, and never hang | inquirer · clack · prompts | released — `caique@1.0.0` |
-| | screen | [`controlroom`](./packages/controlroom/) | full-screen, keyboard-driven screens over flagstaff's loop, each with a static projection | ink · @inkjs/ui | reserved — `controlroom@0.3.1`, not usable yet |
-| **Foundation** | text | [`linegauge`](./packages/linegauge/) | measure, wrap, truncate and slice styled text without the edge fraying | string-width · wrap-ansi · strip-ansi · slice-ansi | released — `linegauge@1.0.5` |
-| | config | [`seniority`](./packages/seniority/) | precedence across flag, env, project file, home file and default — with provenance | cosmiconfig · dotenv · rc | released — `seniority@1.0.0` |
-| | process | [`bellpull`](./packages/bellpull/) | run a subprocess; resolve the executable; return a result every caller can read | execa · cross-spawn · which | released — `bellpull@1.0.1` |
-| | lifecycle | [`closeout`](./packages/closeout/) | exit handlers that run once on every path, terminal restore, bounded deadline | signal-exit · exit-hook · restore-cursor | released — `closeout@1.0.1` |
-| | terminal | [`paratext`](./packages/paratext/) | hyperlinks, images, window title, clipboard, notifications, bell — each with a static fallback | ansi-escapes (OSC half) · terminal-link · term-img | released — `paratext@1.0.1` |
+| **Engine** | argv, dispatch, manifest | [`burgee`](./packages/burgee/) | one declaration projected to help, `--json`, `--schema`, MCP, completions, types | commander · yargs | released — `burgee@0.23.0` |
+| **Output stack** | colour | [`roundel`](./packages/roundel/) | one output policy, nine semantic tokens, a contrast-checked theme, and chalk's API over them | chalk · picocolors | released — `roundel@1.0.2` |
+| | render | [`flagstaff`](./packages/flagstaff/) | frame loop with a static projection; plugin host for spinners, progress, boxes, tables | ora · log-update · boxen · cli-table3 | released — `flagstaff@1.2.3` |
+| | prompt | [`caique`](./packages/caique/) | prompts that are flags first, and never hang | inquirer · clack · prompts | released — `caique@1.0.2` |
+| | screen | [`controlroom`](./packages/controlroom/) | full-screen, keyboard-driven screens over flagstaff's loop, each with a static projection | ink · @inkjs/ui | released — `controlroom@0.3.3` |
+| **Foundation** | text | [`linegauge`](./packages/linegauge/) | measure, wrap, truncate and slice styled text without the edge fraying | string-width · wrap-ansi · strip-ansi · slice-ansi | released — `linegauge@1.0.6` |
+| | config | [`seniority`](./packages/seniority/) | precedence across flag, env, project file, home file and default — with provenance | cosmiconfig · dotenv · rc | released — `seniority@1.0.1` |
+| | process | [`bellpull`](./packages/bellpull/) | run a subprocess; resolve the executable; return a result every caller can read | execa · cross-spawn · which | released — `bellpull@1.0.2` |
+| | lifecycle | [`closeout`](./packages/closeout/) | exit handlers that run once on every path, terminal restore, bounded deadline | signal-exit · exit-hook · restore-cursor | released — `closeout@1.0.2` |
+| | terminal | [`paratext`](./packages/paratext/) | hyperlinks, images, window title, clipboard, notifications, bell — each with a static fallback | ansi-escapes (OSC half) · terminal-link · term-img | released — `paratext@1.0.2` |
 
-Nine are released on npm. The tenth is the reservation `controlroom@0.3.1`, which exports
+Nine are released on npm. The tenth is the reservation `controlroom@0.3.3`, which exports
 only `status = 'reserved'`; its approved design is in
 [`.sdlc/intents/controlroom/`](./.sdlc/intents/controlroom/). Where an incumbent's own test suite has been vendored, the
 compat oracle grades the drop-in path against it and publishes the rate — including the ones
@@ -455,7 +455,7 @@ was built before that gate was evaluated. The measurements behind the layers are
 | [`packages/bellpull/`](./packages/bellpull/) | **bellpull** — pull here, work happens there: subprocesses with a structured result and a static projection. Released; intent in [`.sdlc/intents/bellpull/`](./.sdlc/intents/bellpull/). |
 | [`packages/closeout/`](./packages/closeout/) | **closeout** — settle and finish: exit handlers that run once, terminal restore, and a deadline so shutdown cannot hang. Released; intent in [`.sdlc/intents/closeout/`](./.sdlc/intents/closeout/). |
 | [`packages/paratext/`](./packages/paratext/) | **paratext** — everything around the output that is not the output: hyperlinks, images, window title, clipboard, notifications and the bell, each with a static fallback. Released; intent in [`.sdlc/intents/paratext/`](./.sdlc/intents/paratext/). |
-| [`packages/controlroom/`](./packages/controlroom/) | **controlroom** — where a system is run from: full-screen, keyboard-driven terminal screens with a static projection for every other caller, and a planned `controlroom/ink` drop-in. **Reserved as `controlroom@0.3.1`, not usable yet**: its only export is `status = 'reserved'`. Intent in [`.sdlc/intents/controlroom/`](./.sdlc/intents/controlroom/). |
+| [`packages/controlroom/`](./packages/controlroom/) | **controlroom** — where a system is run from: full-screen, keyboard-driven terminal screens with a static projection for every other caller, and `controlroom/ink`, ink's drop-in, graded by ink's own suite. Released; intent in [`.sdlc/intents/controlroom/`](./.sdlc/intents/controlroom/). |
 | [`packages/compat-oracle/`](./packages/compat-oracle/) | Internal, never published. Grades compatibility using the hosts' own suites, plus reference drivers that run the real incumbents for byte-for-byte comparison. |
 | [`examples/`](./examples/) | Demo CLIs and the conformance suite that runs every floor case on every host. |
 | [`apps/docs/`](./apps/docs/) | The front-door documentation site (Next.js + fumadocs), deployed at [burgee.interlace.tools](https://burgee.interlace.tools) with [`llms.txt`](https://burgee.interlace.tools/llms.txt) and a Markdown twin of every page. Every other package has its own site at `https://<package>.interlace.tools` — `apps/docs-<package>/`, on the shared chassis `apps/docs-chassis/` — named once in [`.github/vercel-apps.json`](./.github/vercel-apps.json). |

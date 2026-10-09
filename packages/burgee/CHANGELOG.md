@@ -1,5 +1,48 @@
 # burgee
 
+## 0.23.0
+
+### Minor Changes
+
+- [#905](https://github.com/ofri-peretz/burgee/pull/905) [`4c05c47`](https://github.com/ofri-peretz/burgee/commit/4c05c47a4b62a238a5d9ea3d74957d5c005f43d7) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A native burgee program now reads a request for JSON wherever and however it is typed, and every fix it prints runs.
+
+  - **`--format json` is `--json`.** `--format json`, `--format=json`, `--output json` and `--output=json` now run the command with `--json`. They used to be refused with `fix: … --json`. A command that declares an option of that name keeps it, and a command that declares one near it (`--formats`) still gets the refusal, because then which was meant is a guess.
+  - **`--json` before the command is read.** `demo --json config get user.name` and `demo --format json config get user.name` now run `config get user.name --json`. They used to be refused with `--json goes after the command`.
+  - **A fix after a request for JSON starts where the request left off.** `demo --format json config user.name` printed `fix: demo config user.name --json`, which is refused in turn. It now prints `fix: demo config get user.name --json`.
+  - **A dashed word where a command goes is matched by its name.** `demo --get user.name` printed `did you mean --eet?` and a fix naming a command that does not exist. It now prints `did you mean config get?` and `fix: demo config get user.name`.
+
+  Only the request for JSON is ever read this way. A misspelt or misplaced command word is still a usage error with a `fix`, and nothing is run for you. The façades are unchanged: commander 1360/1360, yargs 816/816. The core entry is 58 bytes heavier and inside its ceiling.
+
+## 0.22.4
+
+### Patch Changes
+
+- [#898](https://github.com/ofri-peretz/burgee/pull/898) [`8d601e7`](https://github.com/ofri-peretz/burgee/commit/8d601e7d7b7f82dc376fc224d05762c5ba291e3d) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A run starts faster: the engine reads `parseArgs` and the `fs` calls behind `--version` and config discovery through `process.getBuiltinModule` instead of an ES `import` of `node:util` and `node:fs`. An ES import builds a namespace over every export and loads 24 Node internals to do it (`worker_threads`, `fs/promises`, `readline`), none of which a run calls. Measured over 300 interleaved spawns, the paired CPU ratio against cac fell from 1.590 to 1.517. No behaviour changes: the calls and the objects they are made on are the same.
+
+## 0.22.3
+
+### Patch Changes
+
+- [#897](https://github.com/ofri-peretz/burgee/pull/897) [`f29f159`](https://github.com/ofri-peretz/burgee/commit/f29f159ca0c9746f58d8ba84eec9be72b1140093) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - controlroom has its own docs site at https://controlroom.interlace.tools: its README's Docs line, its `homepage`, and every family table now link there.
+- Updated dependencies [[`f29f159`](https://github.com/ofri-peretz/burgee/commit/f29f159ca0c9746f58d8ba84eec9be72b1140093)]:
+  - bellpull@1.0.2
+  - closeout@1.0.2
+  - linegauge@1.0.6
+  - roundel@1.0.2
+  - seniority@1.0.1
+
+## 0.22.2
+
+### Patch Changes
+
+- [#891](https://github.com/ofri-peretz/burgee/pull/891) [`6b8e3d9`](https://github.com/ofri-peretz/burgee/commit/6b8e3d92d3c9fa217905bfa51bcb48da8d62fbf7) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Help and refusals in a native burgee program now put the whole line to run on the first screen.
+
+  - **`--help` lists the commands that run by their full path.** When every command that runs fits in eight rows, the root help lists `config get <key>  Print one configuration value` where it listed `config  Read configuration`. It uses the same rule as the unknown-command listing. Hidden commands stay hidden, and a larger program keeps its group rows. `renderHelp` takes the list as a new optional `commands` option, and without it renders as before.
+  - **A refused word that is really an argument gets a fix.** `demo config user.name --format json` now prints `fix: demo config get user.name --json`. This happens when one command below the group takes arguments, or when the words fit the arguments of exactly one of them: `config user.name` fits `get <key>` and not `set <key> <value>`. When two fit, nothing is guessed. A flag is never read as an argument.
+  - **An unknown-option fix is the whole corrected command line.** `demo config get user.name --format json` now prints `fix: demo config get user.name --json`, not `fix: --json`. A near miss keeps its value (`--nmae=ada` becomes `--name=ada`), and words a shell needs quoted are quoted.
+
+  The façades are unchanged: commander 1360/1360, yargs 816/816. The core entry is 19 bytes heavier, and `./help` is 105 bytes heavier. Both are inside their budgets.
+
 ## 0.22.1
 
 ### Patch Changes

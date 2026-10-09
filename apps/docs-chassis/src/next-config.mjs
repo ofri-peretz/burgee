@@ -25,10 +25,13 @@ const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
  */
 const POSTHOG_PROJECT_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY?.trim() || 'phc_vNTTtpj4s6nXGJ5pnnXxHey6WBjHJWnytQ4Zv6HeDTT3';
 
-/** The row whose `workspace` is the `name` of the app `next` is running in. */
+/**
+ * The row whose `workspace` is the `name` of the app `next` is running in — a deployable row,
+ * or a `pending` one, which builds the same way and is only never deployed.
+ */
 function ownRow() {
   const { name } = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8'));
-  const found = Object.entries(TABLE.apps).find(([, row]) => row.workspace === name);
+  const found = [...Object.entries(TABLE.apps), ...Object.entries(TABLE.pending ?? {})].find(([, row]) => row.workspace === name);
   if (found === undefined) throw new Error(`${process.cwd()} is workspace '${name}', which no row of .github/vercel-apps.json names`);
   return { key: found[0], ...found[1] };
 }

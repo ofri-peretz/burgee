@@ -35,10 +35,10 @@
   Migrating from: <a href="https://caique.interlace.tools/docs/coming-from/inquirer">inquirer</a> · <a href="https://caique.interlace.tools/docs/coming-from/clack">clack</a>
 </p>
 
-**Released, pre-1.0.** `decide()`, `ask()` and the `caique/inquirer` and `caique/clack`
-drop-in paths ship today, each path graded by its incumbent's own suite on the
-[compatibility page](https://burgee.interlace.tools/docs/compatibility); what is still to come
-follows [`.sdlc/intents/caique/`](https://github.com/ofri-peretz/burgee/tree/main/.sdlc/intents/caique).
+**1.0.** `decide()`, `ask()` and the `caique/inquirer` and `caique/clack` drop-in paths are a
+semver contract, each path graded by its incumbent's own suite on the
+[compatibility page](https://burgee.interlace.tools/docs/compatibility), level with the incumbent
+at its latest release (D-20261007-caique-controlroom-1-0-evidence).
 
 A **caique** (kah-EEK) is a small, loud, never-silent parrot — and this one always answers
 back. It is also the light wooden boat of the Bosphorus and the Greek islands, the one that
@@ -326,7 +326,7 @@ Graded by the incumbent's own test suite:
 | `clack` | 16 / 16 |
 | `inquirer-core` | 41 / 41 |
 
-Weight, installed and tree-inclusive: **243,336 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.6255**.
+Weight, installed and tree-inclusive: **243,283 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.6253**.
 
 ## For agents
 
@@ -395,7 +395,7 @@ takes a dependency from outside the family.
 | [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, dotenv and rc |
 | [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook and restore-cursor |
 | [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
-| [controlroom](https://burgee.interlace.tools/docs/packages/controlroom) | Full-screen, keyboard-driven terminal screens | ink, graded by ink's own suite |
+| [controlroom](https://controlroom.interlace.tools/docs) | Full-screen, keyboard-driven terminal screens | ink, graded by ink's own suite |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

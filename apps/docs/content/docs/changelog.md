@@ -1,0 +1,1556 @@
+---
+title: Changelog
+description: "Every release of burgee, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
+---
+
+## 0.23.0
+
+### Minor Changes
+
+- [#905](https://github.com/ofri-peretz/burgee/pull/905) [`4c05c47`](https://github.com/ofri-peretz/burgee/commit/4c05c47a4b62a238a5d9ea3d74957d5c005f43d7) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A native burgee program now reads a request for JSON wherever and however it is typed, and every fix it prints runs.
+
+  - **`--format json` is `--json`.** `--format json`, `--format=json`, `--output json` and `--output=json` now run the command with `--json`. They used to be refused with `fix: … --json`. A command that declares an option of that name keeps it, and a command that declares one near it (`--formats`) still gets the refusal, because then which was meant is a guess.
+  - **`--json` before the command is read.** `demo --json config get user.name` and `demo --format json config get user.name` now run `config get user.name --json`. They used to be refused with `--json goes after the command`.
+  - **A fix after a request for JSON starts where the request left off.** `demo --format json config user.name` printed `fix: demo config user.name --json`, which is refused in turn. It now prints `fix: demo config get user.name --json`.
+  - **A dashed word where a command goes is matched by its name.** `demo --get user.name` printed `did you mean --eet?` and a fix naming a command that does not exist. It now prints `did you mean config get?` and `fix: demo config get user.name`.
+
+  Only the request for JSON is ever read this way. A misspelt or misplaced command word is still a usage error with a `fix`, and nothing is run for you. The façades are unchanged: commander 1360/1360, yargs 816/816. The core entry is 58 bytes heavier and inside its ceiling.
+
+## 0.22.4
+
+### Patch Changes
+
+- [#898](https://github.com/ofri-peretz/burgee/pull/898) [`8d601e7`](https://github.com/ofri-peretz/burgee/commit/8d601e7d7b7f82dc376fc224d05762c5ba291e3d) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A run starts faster: the engine reads `parseArgs` and the `fs` calls behind `--version` and config discovery through `process.getBuiltinModule` instead of an ES `import` of `node:util` and `node:fs`. An ES import builds a namespace over every export and loads 24 Node internals to do it (`worker_threads`, `fs/promises`, `readline`), none of which a run calls. Measured over 300 interleaved spawns, the paired CPU ratio against cac fell from 1.590 to 1.517. No behaviour changes: the calls and the objects they are made on are the same.
+
+## 0.22.3
+
+### Patch Changes
+
+- [#897](https://github.com/ofri-peretz/burgee/pull/897) [`f29f159`](https://github.com/ofri-peretz/burgee/commit/f29f159ca0c9746f58d8ba84eec9be72b1140093) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - controlroom has its own docs site at https://controlroom.interlace.tools: its README's Docs line, its `homepage`, and every family table now link there.
+- Updated dependencies [[`f29f159`](https://github.com/ofri-peretz/burgee/commit/f29f159ca0c9746f58d8ba84eec9be72b1140093)]:
+  - bellpull@1.0.2
+  - closeout@1.0.2
+  - linegauge@1.0.6
+  - roundel@1.0.2
+  - seniority@1.0.1
+
+## 0.22.2
+
+### Patch Changes
+
+- [#891](https://github.com/ofri-peretz/burgee/pull/891) [`6b8e3d9`](https://github.com/ofri-peretz/burgee/commit/6b8e3d92d3c9fa217905bfa51bcb48da8d62fbf7) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Help and refusals in a native burgee program now put the whole line to run on the first screen.
+
+  - **`--help` lists the commands that run by their full path.** When every command that runs fits in eight rows, the root help lists `config get <key>  Print one configuration value` where it listed `config  Read configuration`. It uses the same rule as the unknown-command listing. Hidden commands stay hidden, and a larger program keeps its group rows. `renderHelp` takes the list as a new optional `commands` option, and without it renders as before.
+  - **A refused word that is really an argument gets a fix.** `demo config user.name --format json` now prints `fix: demo config get user.name --json`. This happens when one command below the group takes arguments, or when the words fit the arguments of exactly one of them: `config user.name` fits `get <key>` and not `set <key> <value>`. When two fit, nothing is guessed. A flag is never read as an argument.
+  - **An unknown-option fix is the whole corrected command line.** `demo config get user.name --format json` now prints `fix: demo config get user.name --json`, not `fix: --json`. A near miss keeps its value (`--nmae=ada` becomes `--name=ada`), and words a shell needs quoted are quoted.
+
+  The façades are unchanged: commander 1360/1360, yargs 816/816. The core entry is 19 bytes heavier, and `./help` is 105 bytes heavier. Both are inside their budgets.
+
+## 0.22.1
+
+### Patch Changes
+
+- [#870](https://github.com/ofri-peretz/burgee/pull/870) [`54d3fd6`](https://github.com/ofri-peretz/burgee/commit/54d3fd6d199c32b2965391b1df0e2d631ff318ca) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--version` reports the CLI's own version when it runs through the bin link npm installs. It looked up the owning `package.json` from the link's directory, so `node_modules/.bin/burgee --version` printed the installing project's version and `npx burgee --version` printed "no version declared". The same applied to every CLI built with `defineProgram` that takes its version from `package.json`.
+
+## 0.22.0
+
+### Minor Changes
+
+- [#866](https://github.com/ofri-peretz/burgee/pull/866) [`4f01ff0`](https://github.com/ofri-peretz/burgee/commit/4f01ff055713076e19f67e266769c0ac2683b63e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` fixes five findings from a trial on two real CLIs (D-20261008-migrate-u12-findings):
+
+  - **Mocks move with the imports they mock.** The first argument of `vi.mock`, `vi.doMock`, `vi.unmock`, `vi.doUnmock`, `vi.importActual`, `vi.importMock`, `jest.mock`, `jest.doMock`, `jest.unmock`, `jest.requireActual`, `jest.requireMock`, `jest.unstable_mockModule` and `require.resolve` is now rewritten like an import, type arguments included. A `vi.mock('chalk')` left behind mocked a module nothing loaded any more.
+  - **The install command is pinned.** `next` prints each family package at a caret range of the version that carries the graded drop-in, `roundel@^1.0.0` rather than `roundel`, read from the packages' manifests at build time. A project that sets `minimumReleaseAge` (`pnpm-workspace.yaml`) or `minimum-release-age` (`.npmrc`) is told so under `releaseAge`.
+  - **You choose what moves.** New `--only <lib,…>` and `--skip <lib,…>` flags take incumbent package names. By default only the incumbents `package.json` declares (in any of its four dependency fields) are rewritten; one imported without being declared is listed under `undeclared` and left alone. An unknown name is a usage error, exit 2.
+  - **An incumbent moves in every file or in none.** When one of its imports is refused or kept, it is listed under `held` and rewritten nowhere, so a program never runs on two copies of it. An incumbent another declared dependency still depends on is listed under `transitive`, and imports of the error classes that dependency still throws stay on the incumbent.
+  - **The report reads as text.** The human report is sentences and aligned lines instead of one-line JSON, and its first line, also `summary` in `--json`, says `complete: …`, `partial: N files rewritten, M refused` or `nothing to rewrite`. The exit codes are unchanged.
+
+  The engine's text surface for a result that is not a string moved to its own lazily loaded chunk, which also prints a result's own text when it carries one under `Symbol.for('burgee.text')`; `--json` is unchanged.
+
+## 0.21.1
+
+### Patch Changes
+
+- [#857](https://github.com/ofri-peretz/burgee/pull/857) [`d80b2d0`](https://github.com/ofri-peretz/burgee/commit/d80b2d0f4a535400c6825b42ac2d8e1be2827f4e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The `--json` envelope's `ok` now agrees with the exit code. A command whose result names a non-zero `exitCode` printed `"ok":true` and then exited non-zero, so `burgee check <file> --json` said `ok` about a plugin it refused and `burgee migrate --json` said `ok` about a run with refusals. Both now print `"ok":false`, with the report still in `data`: `data.refused` (code, message, fix) for `check`, `data.refused[]` for `migrate`. A result with no `exitCode`, or `exitCode: 0`, prints `"ok":true` as before.
+
+- [#847](https://github.com/ofri-peretz/burgee/pull/847) [`6d3eda2`](https://github.com/ofri-peretz/burgee/commit/6d3eda268a7368acf9051ed31564813a2ac31c38) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` reads dotenv 18.0.6 as the graded release of `seniority/dotenv` (181 / 181, control 181 / 181).
+
+- [#848](https://github.com/ofri-peretz/burgee/pull/848) [`6ae533e`](https://github.com/ofri-peretz/burgee/commit/6ae533e4610c32bad557f5d74a24d0c9a0f07f7e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The plugin host refuses a hook `filter` that is not `{ command: RegExp }` when the plugin is registered. Until now a string `command` was accepted, reported by `burgee check` as "commands matching deploy", and threw a `TypeError` on the first run of any command. A bare RegExp used as the whole filter has no `command`, so its hook fired for every command. A contributed command's refusal now carries the edit to make as its `fix`, taken from the refusal itself (`declare read_only, idempotent, non_idempotent — or withheld, …`), where it used to give one sentence for every command. A plugin with no `contract` is told to add `contract: 1`. The README now shows a whole plugin as a default export, the `check --json` document with `data.name`, `data.commands` and `data.hooks[].stage`, the shape of a refusal, and how to build and run `check` from a clone.
+
+- [#853](https://github.com/ofri-peretz/burgee/pull/853) [`86d746f`](https://github.com/ofri-peretz/burgee/commit/86d746f398911b655a6f82a77615fb79c6c326c4) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The plugin host's hook refusals are now a single refusal, `<stage> is not { handler, filter?: { command: RegExp } }`, and its fix shows that shape. It covers a missing handler, a function or an array where the hook object should be, a string `command` and a bare RegExp used as the filter. A contributed command whose refusal carries no separate remedy now gets its own message as the fix. The core bundle goes from 24,431 back to 24,260 bytes, under the 24,282 ceiling that [#848](https://github.com/ofri-peretz/burgee/issues/848) crossed.
+
+- [#865](https://github.com/ofri-peretz/burgee/pull/865) [`85dfea9`](https://github.com/ofri-peretz/burgee/commit/85dfea950dd4d743f5b074380a38d56fc5cd2d5b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Refusals in a native burgee program now name the command to run, so an agent no longer has to spend a turn working it out.
+
+  - **An unknown command lists the commands that run, with what each takes.** If they fit in the eight rows, a group's refusal lists `config get <key>` rather than `config`. A larger tree still lists one level, now also with arguments.
+  - **A word that exactly names a deeper command is corrected to that command.** `get user.name` gets `fix: demo config get user.name`. Before, the fix pointed at `greet`, two edits away. When two deeper commands share the word, nothing is guessed.
+  - **The fix asks for JSON in burgee's spelling.** A JSON request typed before the command (`--json config get k`, `--format json …`), or spelled as `--format json` or `--output=json`, is moved into the fix as `--json`, before any `--`. An unknown `--format json` or `--output json` on a command now suggests `--json`. `--json` is also a candidate for near misses such as `--jsno`.
+  - **Help lists each command with its arguments**, the way commander does: `get <key>`, not `get`.
+  - **A missing required argument no longer adds "run --help to see what it takes".** The refusal already prints the command's usage line.
+
+  The façades are unchanged. The core entry is 66 bytes lighter, and `./help` is 54 bytes heavier, inside its budget.
+
+- [#848](https://github.com/ofri-peretz/burgee/pull/848) [`6ae533e`](https://github.com/ofri-peretz/burgee/commit/6ae533e4610c32bad557f5d74a24d0c9a0f07f7e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The family `schema.json` describes what five values look like. `contract` is `1`, and burgee refuses a plugin that declares none. A caique widget's `static(spec)` gets `{ kind, message, ...sample.done }`. A seniority `rank` sits between the built-in layers at flag 0, environment 10, config file 20, `package.json` 30 and default 40. A burgee hook's `filter` is `{ command: RegExp }`, now with `command` required, so the schema and the host refuse the same filters.
+
+- [#857](https://github.com/ofri-peretz/burgee/pull/857) [`d80b2d0`](https://github.com/ofri-peretz/burgee/commit/d80b2d0f4a535400c6825b42ac2d8e1be2827f4e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The family `schema.json` closes a bellpull resolver's `when` with `additionalProperties: false`, so the schema and bellpull's own validation refuse the same unknown keys.
+- Updated dependencies [[`d80b2d0`](https://github.com/ofri-peretz/burgee/commit/d80b2d0f4a535400c6825b42ac2d8e1be2827f4e), [`6ae533e`](https://github.com/ofri-peretz/burgee/commit/6ae533e4610c32bad557f5d74a24d0c9a0f07f7e), [`d80b2d0`](https://github.com/ofri-peretz/burgee/commit/d80b2d0f4a535400c6825b42ac2d8e1be2827f4e), [`6ae533e`](https://github.com/ofri-peretz/burgee/commit/6ae533e4610c32bad557f5d74a24d0c9a0f07f7e), [`6aab9c5`](https://github.com/ofri-peretz/burgee/commit/6aab9c5f2e3b3c5cd551b723022952660d681f16), [`6d3eda2`](https://github.com/ofri-peretz/burgee/commit/6d3eda268a7368acf9051ed31564813a2ac31c38)]:
+  - bellpull@1.0.1
+  - closeout@1.0.1
+  - linegauge@1.0.5
+  - roundel@1.0.1
+  - seniority@1.0.0
+
+## 0.21.0
+
+### Minor Changes
+
+- [#839](https://github.com/ofri-peretz/burgee/pull/839) [`7694faa`](https://github.com/ofri-peretz/burgee/commit/7694faa1328fb5db10eeea8ffc7b074ca667f82e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` reads ink 8.0.0 as the graded release of `controlroom/ink` (1304 / 1304, control 1303 / 1304) and knows ink 8's export names. A project on ink 6 is now listed under `offMajor` and left alone, because ink 6 is graded (540 / 584) but not claimed.
+
+## 0.20.0
+
+### Minor Changes
+
+- [#828](https://github.com/ofri-peretz/burgee/pull/828) [`8118d5c`](https://github.com/ofri-peretz/burgee/commit/8118d5c8754a09a61c8b050169d9515121908591) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `seniority/dotenv` now follows dotenv 18, graded by dotenv 18.0.5's own suite at 179 / 179, level with dotenv itself (it was 106 / 141 against 17.4.2). `config()` takes its defaults from `DOTENV_PATH`, `DOTENV_ENCODING`, `DOTENV_QUIET`, `DOTENV_DEBUG`, `DOTENV_OVERRIDE` and `DOTENV_FAST`, or their older `DOTENV_CONFIG_*` names. It reports `◇ injected env (n) from <paths>` on `console.error` unless quiet, and its debug lines behind `┆` on `console.log`. `parse(src, { fast: true })` is dotenv's character scanner, and the regular-expression parser now expands `\n` in a value that opens with a double quote even when the quote never closes, as dotenv does. `configDotenv` is exported. Two entries are new: `seniority/dotenv/config` (`import 'dotenv/config'`, quiet unless asked) and `seniority/dotenv/cli` (`dotenv run`, with signal forwarding). `.env.vault`, `DOTENV_KEY` and `decrypt` are not built, because dotenv 18 removed them (D-20261001-seniority-dotenv-vault).
+
+  `burgee migrate` now rewrites `dotenv` to `seniority/dotenv`, and `dotenv/config` and `dotenv/config.js` to `seniority/dotenv/config`, on dotenv 18. A project on dotenv 17 is left alone and listed under `offMajor`: 17's own suite grades the drop-in 107 / 141, because the façade speaks 18.
+
+### Patch Changes
+
+- Updated dependencies [[`1945d65`](https://github.com/ofri-peretz/burgee/commit/1945d65f22aafabd380d67f1e40341d6ef3aa6fa), [`1945d65`](https://github.com/ofri-peretz/burgee/commit/1945d65f22aafabd380d67f1e40341d6ef3aa6fa), [`1945d65`](https://github.com/ofri-peretz/burgee/commit/1945d65f22aafabd380d67f1e40341d6ef3aa6fa), [`8118d5c`](https://github.com/ofri-peretz/burgee/commit/8118d5c8754a09a61c8b050169d9515121908591)]:
+  - bellpull@1.0.0
+  - closeout@1.0.0
+  - roundel@1.0.0
+  - seniority@0.8.0
+
+## 0.19.0
+
+### Minor Changes
+
+- [#827](https://github.com/ofri-peretz/burgee/pull/827) [`cd34546`](https://github.com/ofri-peretz/burgee/commit/cd345466edf47327be61a469eba5add35e1da2a2) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` reads the new graded releases: boxen 9.0.0 (`flagstaff/boxen`, level), dotenv 18.0.5 and `@inquirer/core` 12.0.4. A project on boxen 8 or dotenv 17 is now listed under `offMajor` and left alone, because those majors are no longer the ones graded.
+
+## 0.18.0
+
+### Minor Changes
+
+- [#816](https://github.com/ofri-peretz/burgee/pull/816) [`5230016`](https://github.com/ofri-peretz/burgee/commit/52300169a98ece41b3544e5316833464e63a7c83) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` moves ink to `controlroom/ink` now that the drop-in is level with ink's own suite (584 / 584), and its `next` command installs `react-reconciler` beside `controlroom`: ink brought the reconciler in itself, and the drop-in takes it as an optional peer.
+
+### Patch Changes
+
+- [#816](https://github.com/ofri-peretz/burgee/pull/816) [`5230016`](https://github.com/ofri-peretz/burgee/commit/52300169a98ece41b3544e5316833464e63a7c83) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - controlroom hosts plugins (R10): `keymaps` and `panes` register through `controlroom/plugin`'s `register()` against the family schema, a screen takes either by name, and `controlroom check <plugin-file>` reports what a plugin contributes. The family schema every host ships gains the `keymaps` and `panes` definitions.
+- Updated dependencies [[`5230016`](https://github.com/ofri-peretz/burgee/commit/52300169a98ece41b3544e5316833464e63a7c83), [`5230016`](https://github.com/ofri-peretz/burgee/commit/52300169a98ece41b3544e5316833464e63a7c83)]:
+  - closeout@0.7.0
+  - bellpull@0.5.2
+  - linegauge@1.0.4
+  - roundel@0.6.3
+  - seniority@0.7.2
+
+## 0.17.2
+
+### Patch Changes
+
+- [#804](https://github.com/ofri-peretz/burgee/pull/804) [`385f2d9`](https://github.com/ofri-peretz/burgee/commit/385f2d910489c12be205238cc0153e18cab12ebe) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - compat-oracle grades two new incumbents: Ink's own suite at 6.8.0 (593 cases, plus 148 on the internals line) and `@inkjs/ui`'s at 2.0.0 (103 cases), each with a control run against the real package. Both target the `controlroom` root and read 0 until `controlroom/ink` exists. `@inkjs/ui` is graded the way `controlroom` will ask users to run it: unmodified, with `'ink'` resolved to the target.
+
+  `burgee migrate` now reports `ink` as a graded drop-in path that is not level yet (`controlroom`, 0 / 593), and never rewrites it.
+
+- [#809](https://github.com/ofri-peretz/burgee/pull/809) [`4f45dbf`](https://github.com/ofri-peretz/burgee/commit/4f45dbf339ee02e4c7721b0099b8b3f486bb86f3) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `controlroom/ink`: a drop-in for `ink` 6.8 — `render`, `renderToString`, `Box`, `Text`, `Static`, `Transform`, `Newline`, `Spacer`, every ink hook and `measureElement` — rendered by the program's own React through React's own reconciler (React 18 and 19), and laid out by a TypeScript port of yoga's flexbox for the props ink exposes, with no yoga. `react` and `react-reconciler` are optional peers: installed alone, the subpath refuses on first import with `E_PEER_MISSING` and `npm install react react-reconciler` as its `fix`, and the package root never loads either. Graded by ink's own suite at 576 of 584 cases and by `@inkjs/ui`'s at 103 / 103, with `'ink'` resolved to the drop-in.
+
+  compat-oracle resolves a target's optional peers from the suite's own tree (`Host.peers`) and can serve a gated file's internal import from the target's own module (`Host.targetInternals`); both ink rows now grade `controlroom/ink`.
+
+  `burgee migrate` reports `ink` → `controlroom/ink` as a graded drop-in path that is not level yet, and does not rewrite it.
+
+- [#803](https://github.com/ofri-peretz/burgee/pull/803) [`91ba281`](https://github.com/ofri-peretz/burgee/commit/91ba281bb5a82b322d779ead5e6d1f7a1dc1ec3a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` now reports blessed, neo-blessed and terminal-kit programs. They have no drop-in, so nothing is rewritten: each screen, box, list, key, render, alternate-screen, mouse and text-input site goes under a new `guided` key in the report, with its file, line and a link to the section of that incumbent's coming-from guide. A site is reported only when its receiver came from one of the three packages in the same file, so a `screen.key(` or `.render(` on anything else is left out. The exit code is unchanged: nothing was refused.
+
+## 0.17.1
+
+### Patch Changes
+
+- [#779](https://github.com/ofri-peretz/burgee/pull/779) [`ec04103`](https://github.com/ofri-peretz/burgee/commit/ec04103616b66bc1bab43f400a94c23f40358b9c) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/yargs` follows yargs 18.2.0 and passes all 816 of its tests (real yargs: 814). With `SHELL` naming fish, `--get-yargs-completions` answers `value<TAB>description` and offers choices verbatim, and `completion` prints the fish script (`> ~/.config/fish/completions/<app>.fish`). The zsh script's `zsh_eval_context` test no longer carries a stray quote, so an autoloaded function is called rather than re-registered — the fix 18.2.0 made. The façade's bundle is 3 bytes smaller than before, fish included.
+
+  compat-oracle's yargs suite is re-vendored at `v18.2.0` (816 tests, twelve added), and `burgee migrate` names 18.2.0 as the yargs release `burgee/yargs` was graded at.
+
+- Updated dependencies [[`d810ac0`](https://github.com/ofri-peretz/burgee/commit/d810ac0d29ab11f04525d3394b29e83762853bcb)]:
+  - seniority@0.7.1
+
+## 0.17.0
+
+### Minor Changes
+
+- [#782](https://github.com/ofri-peretz/burgee/pull/782) [`4eb5f44`](https://github.com/ofri-peretz/burgee/commit/4eb5f4468892fbcaae490237b09cf17bb3690aaf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A failure now says what to do next. When a `USAGE` or `RUNTIME` failure carries no `fix`, stderr adds the failing command's `usage:` line and its options, with required, default, choices, relations and env noted, and the `--json` envelope carries the same thing as `error.usage: { command, options?, commands?, more? }`. The list is at most 8 rows, and `more` names the `--help` that has the rest. An unknown command lists the commands that exist and points at `--schema`. When exactly one command is near, the error's `fix` is the caller's own command line with the word corrected (`fix: tool push --target prod`). Every runnable command's help lists `--explain <option>`, and the root help ends with one `For agents:` line naming `--schema`, `--json` and `--explain`. Exit codes are unchanged. The core entry is unchanged too, at 0 bytes: the new text lives in the lazy `failure.js`, `surfaces.js`, `usage.js` and `help.js` chunks. `burgee/commander`, `burgee/yargs` and `burgee/meow` are untouched (D-20260930-failures-teach-recovery).
+
+### Patch Changes
+
+- Updated dependencies [[`df87199`](https://github.com/ofri-peretz/burgee/commit/df87199c8484ffaeae523dc55131f33eca485f5f)]:
+  - linegauge@1.0.3
+
+## 0.16.0
+
+### Minor Changes
+
+- [#783](https://github.com/ofri-peretz/burgee/pull/783) [`08976ae`](https://github.com/ofri-peretz/burgee/commit/08976ae734f0494720e0dce06dd850bf7177766f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `ctx.interactive` is roundel's `interactive()`, the family's one rule for whether a person may be asked: a terminal on **stdin**, no `CI`, and no detected agent, with `FORCE_TTY=1` over all three. caique's prompts already ask it, so a handler and a prompt now agree about the same shell.
+
+  It used to read stdout and ignore `CI`. Three things change for a handler that reads it:
+
+  - Under a non-empty `CI` it is `false`, even on a pseudo-terminal.
+  - With stdin piped it is `false`, even when stdout is a terminal.
+  - With stdout piped and stdin a terminal (`tool deploy | tee log`) it is `true`, because an answer can still be typed.
+
+  burgee loads `roundel/terminal` in a chunk of its own (`ctx.js`, 330 B), only on the path that runs a handler. Help, `--version`, `--schema`, `--mcp` and failures never load it. The root entry shrinks (35,629 → 35,437 B on disk), and so does the bundled initial load of `import { run } from 'burgee'` (24,297 → 24,278 B). `ctx.agent`, `detectAgent`, `AGENT_PROBES` and help's colour, which reads stdout, are unchanged. `runBurgee` forwards `tty` onto stdin too, so `tty: true` is still a terminal a person can answer on.
+
+  The agent variables stay at five (`AI_AGENT`, `CLAUDECODE`, `CURSOR_AGENT`, `CODEX_THREAD_ID`, `GEMINI_CLI`). One joins only when it uniquely identifies an agent, so `CURSOR_TRACE_ID`, which Cursor sets in every integrated terminal, never will. roundel's `AGENTS` documents that rule, and a test pins that a person in Cursor is asked.
+
+### Patch Changes
+
+- Updated dependencies [[`1857ff6`](https://github.com/ofri-peretz/burgee/commit/1857ff65ca0e1b0b5686480c1a37dc8834bf688b), [`1857ff6`](https://github.com/ofri-peretz/burgee/commit/1857ff65ca0e1b0b5686480c1a37dc8834bf688b), [`08976ae`](https://github.com/ofri-peretz/burgee/commit/08976ae734f0494720e0dce06dd850bf7177766f)]:
+  - bellpull@0.5.1
+  - linegauge@1.0.2
+  - roundel@0.6.2
+
+## 0.15.0
+
+### Minor Changes
+
+- [#778](https://github.com/ofri-peretz/burgee/pull/778) [`24300f4`](https://github.com/ofri-peretz/burgee/commit/24300f42455836e73ba36daaf400c4ab2f8d1893) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `seniority`'s cosmiconfig drop-in now reads YAML the way cosmiconfig does. `.yaml`, `.yml` and extensionless rc files go through `seniority/yaml`, the package's own parser, which is loaded the first time a YAML file is read and never before. The loader used to read only the JSON subset of YAML and throw a `LoaderError` (`no YAML parser for <file>`) for the rest. It now returns what `js-yaml` 5 returns. A malformed file throws cosmiconfig's own message, `YAML Error in <file>:` followed by the reason and `(line:column)`. cosmiconfig 10.0.1's own suite grades `seniority` at 240 / 243, up from 186 / 243, level with the control's 240 / 243.
+
+  `burgee migrate` now rewrites `cosmiconfig` to `seniority`, because the row is level. A file that imports a name `seniority` does not export, such as the type `LoaderSync`, is refused as `unknown-export` and stays on cosmiconfig. On Linux, the global config directory is still resolved from the home directory rather than from `XDG_CONFIG_HOME` (D-20260930-seniority-yaml).
+
+### Patch Changes
+
+- [#768](https://github.com/ofri-peretz/burgee/pull/768) [`d901bcb`](https://github.com/ofri-peretz/burgee/commit/d901bcb082af3ce748aba39dd18944b3efa769ea) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` now refuses a file that imports `@clack/prompts` and also imports, `import()`s or `require()`s `@clack/core`. Until now the file's prompts moved to `caique/clack` while its `updateSettings` from `@clack/core` kept configuring clack, which caique's prompts never read, and nothing said so. The refusal's reason is `sibling-state`, and it carries a `fix`: `import { updateSettings } from 'caique/clack' instead of '@clack/core', then re-run burgee migrate`. The file is left whole and the run exits 1. A type-only import of `@clack/core` does not refuse, and a file that imports `@clack/core` without `@clack/prompts` is left alone (D-20260930-migrate-refuses-clack-core).
+
+- [#774](https://github.com/ofri-peretz/burgee/pull/774) [`b44f426`](https://github.com/ofri-peretz/burgee/commit/b44f426621ed799700cceda8c979de8f759f56b7) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `paratext/term-img` now takes a file path, as `term-img` does. `terminalImage('unicorn.jpg')` reads the file with `node:fs` and draws it, and a file `URL` works too. The read happens after the terminal check, so a path handed to a terminal that cannot draw it reaches your `fallback` (or `UnsupportedTerminalError`) without the file being opened. A missing file on a supported terminal throws `node:fs`'s `ENOENT`, as `term-img` does. The `Options` type is exported under term-img's name and is generic over what `fallback` returns, so a `fallback` that returns nothing type-checks.
+
+  `paratext/term-img` now grades 18 / 18 against term-img 7.1.0's own suite, level with term-img itself. It was 12 / 18: the six cases that pass a path were refused under D-030. This supersedes D-030 for this subpath only (D-20260930-paratext-term-img-path). It is the only paratext entry that imports `node:fs`. The root `image()` still takes bytes, and a lock fails if `node:fs` reaches the root or any other entry.
+
+  Because the row is level, `burgee migrate` now rewrites `term-img` to `paratext/term-img`.
+
+- [#757](https://github.com/ofri-peretz/burgee/pull/757) [`b69d513`](https://github.com/ofri-peretz/burgee/commit/b69d5136ac6a49e6bf39178f73fbd89f3f4c2653) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A flag's provenance now names the flag as it was typed: `--dry-run`, `-n` or `--no-color` in `meta.provenance` and in `--explain`, instead of the camelCase key (`--dryRun`, which burgee itself refuses). A flag that was not typed is listed in kebab-case.
+- Updated dependencies [[`6195b99`](https://github.com/ofri-peretz/burgee/commit/6195b99344a21b4a05ab100fc38358deab229ce8), [`24300f4`](https://github.com/ofri-peretz/burgee/commit/24300f42455836e73ba36daaf400c4ab2f8d1893), [`8ba7c33`](https://github.com/ofri-peretz/burgee/commit/8ba7c33b8196ee9324b129a6eb25ca9daa4eeeab)]:
+  - roundel@0.6.1
+  - seniority@0.7.0
+
+## 0.14.3
+
+### Patch Changes
+
+- [#764](https://github.com/ofri-peretz/burgee/pull/764) [`1817b62`](https://github.com/ofri-peretz/burgee/commit/1817b6286fae3943e79686a42dc635cca0f0cdda) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `caique/clack` now grades 16 / 16 against `@clack/prompts` 1.8.1's own suite, level with clack itself at 16 / 16. It was 16 / 17. The pass count did not change. The denominator did: one case, `guide.test.ts`'s `no prompt renders a guide when withGuide is globally false`, is now excluded by its exact title. It imports `updateSettings` from `@clack/core` and asserts that the prompts read that package's module state, so it grades `@clack/core` and not `@clack/prompts` (D-20260930-caique-clack-core-exclusion). The exclusion and its reason are on the compatibility page.
+
+  Because the row is level, `burgee migrate` now rewrites `@clack/prompts` to `caique/clack`. It refuses a file that imports `box`, `progress` or `taskLog`, which `caique/clack` does not build, and leaves that file on clack. It does not rewrite `@clack/core`. So a migrated program that imports `updateSettings` from `@clack/core` is still changing clack's settings, and caique's prompts never read them. Import `updateSettings` from `caique/clack` instead.
+
+- [#755](https://github.com/ofri-peretz/burgee/pull/755) [`ee2b2ce`](https://github.com/ofri-peretz/burgee/commit/ee2b2ce452a3c5469ebadcb637dcc23015e81d3f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` no longer calls an incumbent removable, or suggests `npm uninstall` for it, when the only file that imports it was refused and left as it was. The dirty-tree refusal now prints its fix (`commit or stash your changes, or pass --force`) on stderr and in the `--json` envelope.
+- Updated dependencies [[`e928581`](https://github.com/ofri-peretz/burgee/commit/e928581996fdeb317b4c849ae285593bfecf6b4d), [`6c2e9c5`](https://github.com/ofri-peretz/burgee/commit/6c2e9c5cee5d9962c0d75d84a766c76b76760f7f)]:
+  - bellpull@0.5.0
+  - linegauge@1.0.1
+
+## 0.14.2
+
+### Patch Changes
+
+- [#760](https://github.com/ofri-peretz/burgee/pull/760) [`a115799`](https://github.com/ofri-peretz/burgee/commit/a1157991a5defddadfbea49ba8ea3bf161d4a832) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - chalk's graded release is 6.0.1: compat-oracle's vendored suite is re-vendored at `v6.0.1` (59 tests, one added), and `burgee migrate` names 6.0.1 as the chalk release `roundel/chalk` was graded at.
+
+  B2 cold start also spawns `picocolors`, `roundel/tokens` and `roundel/chalk`, and gates roundel's R8 time bar — each colour entry within picocolors + 10 ms — as `cold-start-delta-ms`, the median of per-round differences.
+
+- Updated dependencies [[`a115799`](https://github.com/ofri-peretz/burgee/commit/a1157991a5defddadfbea49ba8ea3bf161d4a832)]:
+  - roundel@0.6.0
+
+## 0.14.1
+
+### Patch Changes
+
+- [#723](https://github.com/ofri-peretz/burgee/pull/723) [`3e837cb`](https://github.com/ofri-peretz/burgee/commit/3e837cbd557735dd8823a54bd9f5cd03c8852221) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee dev` serves a commander program as commander again. A `Command` has a `burgee()` method too, so it was recognised as a yargs instance: a tool call ran without the injected streams, writing onto the MCP channel, and read its argv `from: 'node'`, dropping the first two words. Four code paths no input could reach are removed from the engine, the MCP server and `burgee`'s own commands, which takes 27 bytes off the core bundle; behaviour is otherwise unchanged.
+
+- [#736](https://github.com/ofri-peretz/burgee/pull/736) [`1f9ad70`](https://github.com/ofri-peretz/burgee/commit/1f9ad70189396c701b17034a98fcd8f59fb700de) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Five fallbacks no input could reach are removed from help, the unknown-command error and the contrast check; behaviour is unchanged. Help no longer defaults a subcommand's last path word, an env name under a filter that keeps only options with one, or a wrapped description's first row, all of which are always there. The unknown-command error names the word it already read, and a field colour between two stops no longer tests for a zero-width span the loop has already stepped past.
+
+- [#724](https://github.com/ofri-peretz/burgee/pull/724) [`063025e`](https://github.com/ofri-peretz/burgee/commit/063025e5f9ca5ae30d4987989b23ee3248ce523e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Three code paths no input could reach are removed from `burgee/meow` and `burgee migrate`; behaviour is unchanged. `burgee/meow` no longer reads a deprecated `alias` as a spelling of its flag, because meow refuses a flag that declares one before anything is parsed. `burgee migrate` no longer falls back to an empty table for a drop-in with no export list or no supported majors, because two locks hold a table for every one.
+
+- [#725](https://github.com/ofri-peretz/burgee/pull/725) [`8b6b1e0`](https://github.com/ofri-peretz/burgee/commit/8b6b1e04109c8dfb1bf7d623750dd3d415c996d3) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--schema` over its budget lists each command by its declared `summary` again. `a ?? b === undefined` binds as `a ?? (b === undefined)`, so a declared summary read as true and was dropped, leaving only commands that had a description and no summary with one. The PowerShell completion script offers a camelCase option's choices after the flag as typed, `--output-format`, where it was keyed by `--outputFormat` and never matched. Code paths no input could reach are removed from completions, suggestions, the failure path, relations, config layers, the brand renderer and the test harness; behaviour is otherwise unchanged.
+
+- [#638](https://github.com/ofri-peretz/burgee/pull/638) [`e4c1f69`](https://github.com/ofri-peretz/burgee/commit/e4c1f6951dcbc73d581ce1edce4cf3f9ae183058) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `caique/clack` now carries `@clack/prompts`' prompts, not only `limitOptions`: `text`, `password`, `confirm`, `multiline`, `date`, `path`, `select`, `selectKey`, `multiselect`, `groupMultiselect`, `autocomplete` and `autocompleteMultiselect`, with `intro`, `outro`, `cancel`, `note`, `log`, `stream`, `spinner`, `tasks`, `group`, the `S_*` glyphs, `settings`/`updateSettings` and `isCancel`, under clack's names and options. They run on caique's own keypress loop and reach nothing outside this repository. Graded by clack's own suite at 16 / 17 (was 14 / 17; the control is 17 / 17): the one case left imports `updateSettings` from `@clack/core`, which caique does not depend on (D-152). The spinner animates only on a terminal outside CI and prints each message once anywhere else. `box`, `progress` and `taskLog` are not built. `burgee migrate` reports the new grade and, since it is not level with the control, still does not rewrite `@clack/prompts`.
+
+- [#677](https://github.com/ofri-peretz/burgee/pull/677) [`8bc14e6`](https://github.com/ofri-peretz/burgee/commit/8bc14e644f02a28ce54333d683742f2fca027917) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Measuring text against a terminal is linegauge's job, and four places did it by hand.
+
+  - `caique/raw`: the repaint counted a frame's rows with `split('\n')` and ignored wrapping, so a choice whose hint was wider than the terminal left a stale copy of the question on screen after every keypress. It counts rows with linegauge's `lineCount` against the terminal's width, which `Writer` now carries as an optional `columns` (read through to the output stream by `createIo`). A writer without one is treated as never wrapping, as before.
+  - `burgee/testing`: `stripAnsi` is linegauge's `strip`. The regex it used left private modes (`ESC[?25l`), the colon form of a truecolor SGR (`ESC[38:2::255:0:0m`) and OSC 8 hyperlinks in the text.
+  - `burgee` help: descriptions and epilogues are folded by `linegauge/wrap` rather than a loop of help's own. A styled description now opens and closes its styles on each row instead of running its colour into the next row's indent, and a run of spaces at a break no longer leaves trailing whitespace. Lines the author indented are still kept verbatim, and a word wider than the row still overflows rather than breaking.
+  - `burgee` `config explain`: the option column is padded in terminal columns, so a CJK option name no longer pushes its value two columns right of the others.
+
+- [#665](https://github.com/ofri-peretz/burgee/pull/665) [`12fea8e`](https://github.com/ofri-peretz/burgee/commit/12fea8eae4d556b11dc693581cca73e16c2b633c) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Three defects carried over from the incumbents, and three places where a port answered differently from the incumbent on a bad value.
+
+  - `burgee/yargs/parser`: with `unknown-options-as-args`, every `-`-prefixed argument ran through five flag regexes, and two of them backtracked — one quadratically, one cubically (a 4,000-character argument took ten seconds). They are linear scans now, and give the same answer as the regexes for every input, checked against them over every short string of the characters involved. yargs' own suite still passes 804 of 804.
+  - `burgee/yargs/parser`: `{ "a": null }` in one config and `a.b` from a default or a second config threw "Cannot read properties of null". A `null` parent is now an absent one, as the parser's own key lookup already treated it.
+  - `burgee/yargs`: `showHelp()` with an async default-command builder that rejected left an unhandled rejection that ended the process. The rejection now goes to `fail`, where yargs sends a command handler's rejection, so a `.fail()` handler receives it.
+  - `burgee/meow`: `importMeta: null` throws meow's own "The `importMeta` option is required" TypeError instead of a null dereference, and `input: null` or an array is refused as meow refuses it.
+  - `flagstaff/cli-table3`: a style name that cannot be read off a colour function (`caller`, `arguments`) draws the cell plain, as cli-table3 does, instead of throwing out of `toString()`.
+
+- [#673](https://github.com/ofri-peretz/burgee/pull/673) [`5b3dafa`](https://github.com/ofri-peretz/burgee/commit/5b3dafa8c94096d59a286d13ebc06ac30d75bfa5) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/meow` now behaves as meow 14 does in the places it did not, and meow's own suite grades it 146 / 148, level with real meow (was 132 / 148). With `allowUnknownFlags: false`, unknown flags are reported from the tokens as typed, so a declared `noAutoHelp` no longer makes `--no-auto-help` "unknown", and a subcommand's own flags are left to the subcommand. `--help` and `--version` answer only when they are the whole command line, including when the program declares them (`-h`, `-v`). The help block keeps meow's trailing blank line. Choices of the wrong type, `flags: null` and `booleanDefault: null` are refused as meow refuses them. `-F` keeps its case, `--flag ''` satisfies a required flag, `input.isRequired` receives the input alone, and `cli.pkg` is normalized lazily in the object you passed. `burgee migrate` now rewrites `meow` to `burgee/meow`.
+
+  Its types come along too: `burgee/meow` exports meow's `Flag`, `AnyFlags`, `TypedFlags`, `FlagType`, `InputOption`, `InputOptionType` and `IsRequiredPredicate`, with the generic `Options<Flags>` and `Result<Flags>`, so `cli.flags` keeps its types after the rewrite.
+
+- [#674](https://github.com/ofri-peretz/burgee/pull/674) [`e9f45d8`](https://github.com/ofri-peretz/burgee/commit/e9f45d85d9db5b2e3dcaa1e43f292a1281a6952a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - README: family header, badges, install, migrating, the family table.
+
+  Every package README now opens the same way — lockup, tagline, one badge row in one order (npm version, downloads, Quality Gate, the package's own coverage, OpenSSF Scorecard, unpacked size, dependencies, types, Node, licence, npm provenance), a row of compatibility badges read from the graded baseline — and carries the same sections in the same order: Install for npm, pnpm, yarn and bun, Quick start, Migrating as a before/after diff, Compatibility, Benchmarks, For agents, API, and a generated table of the nine packages. Links are absolute, so they work on npm as well as GitHub.
+
+- [#678](https://github.com/ofri-peretz/burgee/pull/678) [`088cecc`](https://github.com/ofri-peretz/burgee/commit/088ceccb7dda1cbe878950c631f49f48980dd2e2) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Whether anybody is there, whether to colour, and whether a tick can be drawn are roundel's questions, and three packages answered them by hand.
+
+  - `roundel/terminal` (new subpath, 878 B, reaching nothing): `interactive(rt)` — a terminal on stdin, no `CI`, and no agent variable (`CLAUDECODE`, `AI_AGENT`, `CURSOR_AGENT`, `CODEX_THREAD_ID`, `GEMINI_CLI`, exported as `AGENTS`), with `FORCE_TTY=1` as the override — and `unicode(rt)`, is-unicode-supported 2.1.0's table over `{ env, platform }`.
+  - `caique/decide` now depends on `roundel` and asks `interactive()`. **Behaviour change:** under an agent that has a terminal — `CLAUDECODE=1` and a TTY on stdin — a missing required value is refused with a usage error naming the flag (`--x is required when nobody is there to answer`) instead of prompting and hanging the agent. `FORCE_TTY=1` now prompts even without a terminal on stdin, as it does for burgee.
+  - `caique/inquirer`'s tick and `flagstaff/ora`'s log symbols and spinner fallback use roundel's `unicode()`. caique's copy was a four-condition subset: the Linux console (`TERM=linux`) now gets `√` rather than `✔`, and ConEmu/Cmder, Terminus, Alacritty, rxvt-unicode and JetBrains' terminal on Windows now get `✔`, as `figures` draws them.
+  - `burgee` help colour is roundel's `colorLevel(rt) > 0`. **Behaviour changes:** `NO_COLOR` now beats `FORCE_COLOR`; `--no-color` and `--color=…` on the command line are honoured; `CLI_ACCESSIBLE` turns help colour off; and a terminal that sets no `TERM` (Windows' conhost) gets plain help unless `FORCE_COLOR`, `--color` or `COLORTERM` asks for colour.
+  - `burgee/contrast` rounds with roundel's `round2`; no output changes.
+  - `paratext`: the supports-color fork behind `paratext/terminal-link` is unchanged, and now held to roundel's policy by a parity test everywhere their two incumbents agree.
+
+- [#683](https://github.com/ofri-peretz/burgee/pull/683) [`5052d67`](https://github.com/ofri-peretz/burgee/commit/5052d67489c4c58f610cf161f5cc50a0c8ef2263) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/meow` finds the caller's `package.json` with `seniority/find-up` instead of a directory walk of its own. The answer is unchanged — the nearest `package.json` above the module that parses — and the walk is now bounded and ends on a symlink cycle.
+
+- [#655](https://github.com/ofri-peretz/burgee/pull/655) [`4319563`](https://github.com/ofri-peretz/burgee/commit/4319563b902c9d968786196f495cf47e7d4d9d39) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - linegauge: `linegauge/slice` is graded against slice-ansi 9.0.1's own suite (104 cases, up from 15 at 7.1.2) and passes all 104; East Asian Width is Unicode 17.
+
+  - `slice` rounds **inward** at a wide character, as slice-ansi does: a cluster the range only half covers is left out instead of returned whole. Before, `slice('あいう', 0, 3)` returned `あい` (four columns), and `truncate('あいう', 4)` returned `あい…` (five columns, over its budget). Both now stay inside the columns asked for.
+  - `slice` reads the escapes slice-ansi 9 reads: `OSC 8` links ended by `ESC \` or `U+009C`, the C1 `OSC` introducer, `DCS`, `SOS`, `PM` and `APC` strings, a lone `ST`, and truncated or malformed `CSI`. A malformed `CSI` ends at the first byte that cannot belong to it, so the text after it is kept.
+  - An escape inside a grapheme cluster (`e`, a style, then a combining mark) no longer splits the cluster.
+  - Hyperlinks don't nest: a second open replaces the first, and the first is closed with its own introducer and terminator. A link around no visible text is removed. A close just past the end of the range is kept as written, and an opener with no text after it is dropped.
+  - Where a cut lands, `slice` gives every cluster at least one position (so CRLF and zero-width characters can start or end a range) and a lone regional indicator two, as slice-ansi does. `width` is unchanged and still answers as string-width does.
+  - The Wide/Fullwidth table is generated from get-east-asian-width 1.7.0 (Unicode 17), like the Ambiguous table next to it. The hand-written table was missing 1,147 code points, which `width` measured as one column where string-width measures two.
+
+  burgee: `burgee migrate` serves slice-ansi 9 (its compatibility row moved from 7.1.2 to 9.0.1). slice-ansi 7 is still graded, at 14 of 15, but no longer claimed, so a project on slice-ansi 7 is left on it.
+
+- [#651](https://github.com/ofri-peretz/burgee/pull/651) [`b74a24d`](https://github.com/ofri-peretz/burgee/commit/b74a24de9fa747b25aa1b405cff8958f7c42d0db) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/yargs`: four defects carried over from yargs 18.1.0, fixed without changing an answer yargs' own suite checks (804 of 804).
+
+  - Parsing a command string is linear. Upstream's parse-command regexes backtracked quadratically on a long run of whitespace or dots (20,000 took 0.7 s); the rewrite gives the same result for every input, checked against the original regexes over every short string of the characters involved.
+  - `extends` in a config tells a path from a module name in linear time, for the same reason.
+  - `pkgConf(key)` reads only a key the package.json has. `pkgConf('__proto__')` used to hand `Object.prototype` to the `extends` loader, which deletes `extends` from the object it is given.
+  - zsh completions escape `\` as well as `:`. zsh's `_describe` strips one level of backslashes, so a command, option or choice containing one completed without it.
+
+- [#681](https://github.com/ofri-peretz/burgee/pull/681) [`deffcc6`](https://github.com/ofri-peretz/burgee/commit/deffcc679cf3e97e0d2f538bc09c6810e478b80e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/yargs`: resolving a config's `extends` no longer deletes `extends` from the object you passed in. It reads a copy instead, so a config object is never written to while it is being resolved (CodeQL [#27](https://github.com/ofri-peretz/burgee/issues/27)). The resolved result is unchanged, and yargs' own suite still passes 804 of 804.
+- Updated dependencies [[`3250edf`](https://github.com/ofri-peretz/burgee/commit/3250edf439a45ccfd203213eddec0d9fb091e8cd), [`6d8aadf`](https://github.com/ofri-peretz/burgee/commit/6d8aadff01a4c65ef3be16fe2082b0abd0c00b90), [`ff4159d`](https://github.com/ofri-peretz/burgee/commit/ff4159d25544fd45257f145e40ff0c5f8dfc4b3a), [`5e635b0`](https://github.com/ofri-peretz/burgee/commit/5e635b0a79c16ff2b459a4d00c80d334d5d945d1), [`ff4159d`](https://github.com/ofri-peretz/burgee/commit/ff4159d25544fd45257f145e40ff0c5f8dfc4b3a), [`6ef8227`](https://github.com/ofri-peretz/burgee/commit/6ef822762f5ad19564215945d7e76aa329614585), [`7c77cd2`](https://github.com/ofri-peretz/burgee/commit/7c77cd25c8fbeea4199c38c135e3a8937907f849), [`6ef8227`](https://github.com/ofri-peretz/burgee/commit/6ef822762f5ad19564215945d7e76aa329614585), [`6ef8227`](https://github.com/ofri-peretz/burgee/commit/6ef822762f5ad19564215945d7e76aa329614585), [`e9f45d8`](https://github.com/ofri-peretz/burgee/commit/e9f45d85d9db5b2e3dcaa1e43f292a1281a6952a), [`620fc74`](https://github.com/ofri-peretz/burgee/commit/620fc74af013834ca6b15faa2772aeb94c5013b1), [`088cecc`](https://github.com/ofri-peretz/burgee/commit/088ceccb7dda1cbe878950c631f49f48980dd2e2), [`bc68493`](https://github.com/ofri-peretz/burgee/commit/bc684935589d3f3d8d5d297f292ae4ccdbb48c32), [`ee6780b`](https://github.com/ofri-peretz/burgee/commit/ee6780b4c9558de1143ff7e5983c16a71973b529), [`4319563`](https://github.com/ofri-peretz/burgee/commit/4319563b902c9d968786196f495cf47e7d4d9d39)]:
+  - bellpull@0.4.3
+  - closeout@0.6.0
+  - linegauge@1.0.0
+  - roundel@0.5.5
+  - seniority@0.6.4
+
+## 0.14.0
+
+### Minor Changes
+
+- [#631](https://github.com/ofri-peretz/burgee/pull/631) [`478cb96`](https://github.com/ofri-peretz/burgee/commit/478cb968212fdd814c796530155918d7e2e16fb2) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `schema` answers as an alias of `--schema` (D-151, GAPS B22). `mytool schema`, `mytool schema deploy` and `mytool schema deploy --field options.region` print exactly what the flag forms print, because `<tool> schema` is where clispec.dev and the agents that follow it look for a program's schema. A program's own meaning of the word wins: a declared `schema` command runs as written, and a root command that takes arguments receives `schema` as one. The root `--help` now lists `--schema  the program as data` among its global options. Loaded through the existing lazy `surfaces.js`; the core entry grows 14 bundled bytes.
+
+## 0.13.2
+
+### Patch Changes
+
+- [#627](https://github.com/ofri-peretz/burgee/pull/627) [`4a629a9`](https://github.com/ofri-peretz/burgee/commit/4a629a9ff1129f2ce6f0c34e7cfc1d159304d18a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Lint with every published Interlace ESLint plugin, and fix what the upgrade surfaced.
+
+  - caique: the inquirer theme merge skips `__proto__`, `constructor` and `prototype` keys, so a theme object cannot swap the merged object's prototype.
+  - burgee: last-element reads use `.at(-1)`.
+  - burgee, closeout, flagstaff, roundel: helpers that capture nothing from their enclosing function move to module scope.
+  - seniority: suppression comments name the `no-dynamic-require` rule that now reports the config loader's dynamic `require`.
+
+  No public API or output changes.
+
+- Updated dependencies [[`4a629a9`](https://github.com/ofri-peretz/burgee/commit/4a629a9ff1129f2ce6f0c34e7cfc1d159304d18a)]:
+  - closeout@0.5.4
+  - roundel@0.5.4
+  - seniority@0.6.3
+
+## 0.13.1
+
+### Patch Changes
+
+- [#604](https://github.com/ofri-peretz/burgee/pull/604) [`0e7b1e8`](https://github.com/ofri-peretz/burgee/commit/0e7b1e88a7021350cf689f109c7728f799be1589) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Each README links to its migration guides under the docs link: "Migrating from: chalk", "ora · log-update · boxen · cli-table3", and so on. That puts a path from the npm page to the guide for the library you are replacing. No code changes.
+- Updated dependencies [[`0e7b1e8`](https://github.com/ofri-peretz/burgee/commit/0e7b1e88a7021350cf689f109c7728f799be1589)]:
+  - roundel@0.5.3
+  - linegauge@0.5.4
+  - seniority@0.6.2
+  - bellpull@0.4.2
+  - closeout@0.5.3
+
+## 0.13.0
+
+### Minor Changes
+
+- [#586](https://github.com/ofri-peretz/burgee/pull/586) [`a0c691a`](https://github.com/ofri-peretz/burgee/commit/a0c691ae6b5d3e244ddf6177238c239ece71485c) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--format=agent` prints a command's result the way an agent wants to read it: one compact logfmt line per record — `key=value` pairs, nested keys dotted, lists of scalars comma-joined, a value quoted only when it holds a space, `=`, `"` or `,` — with no envelope, no `meta`, no summary and whitespace collapsed. A list result is one line per element; a scalar is itself. It is not JSON on purpose (oxlint's and vitest's agent reporters converged on the same shape), and it is smaller than `--json` on the same result: 31% over a representative set, from 20% on a twelve-row list to 96% on a bare count. `--json` wins when both are typed, so the envelope and D-140's failure contract are unchanged; a failure without `--json` is still prose on stderr; the exit code is the one the result names. A command that declares its own `format` option keeps the flag. The formatter loads only when the flag is typed.
+
+- [#582](https://github.com/ofri-peretz/burgee/pull/582) [`120ba7b`](https://github.com/ofri-peretz/burgee/commit/120ba7bfb026395e691e9c50174e61741659f732) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `.burgee({ floor: true })` on the commander and yargs façades turns on the behavioural floor in one call (J3, D-121): a usage error exits 2 rather than the host's 1, and a handler that throws or rejects prints one line and exits with its E1 code rather than a stack trace (and, on yargs, the help screen). Off by default, so the hosts' own suites still pass, and it changes nothing else — a returned value is not printed, `--json` keeps its envelope, and a commander program that called `exitOverride()` keeps its exits. `--schema` from a façade program now names the reserved surfaces the program shadows, as `shadows` (J4), and `burgee/program-schema.json` describes it — and the option `negatable` flag the commander façade already printed, which the file had left out.
+
+### Patch Changes
+
+- [#589](https://github.com/ofri-peretz/burgee/pull/589) [`d7d9e75`](https://github.com/ofri-peretz/burgee/commit/d7d9e757d967def8a63c879b65343ca147783287) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `import 'burgee'` loads less at startup. Four things now load only when they are needed:
+
+  - What a failed run prints (the exit-code classification, the `--json` failure envelope and the stderr message) loads only when a run fails.
+  - The checks between options (`exactlyOneOf`, `conflicts`, `implies`, `dependsOn`, `exclusive`) load only for a command that declares one.
+  - Everything answered without running a command (help, `--version`, `help [command]`, `completion`, `config explain`, `--schema`, `--mcp`) loads only when it is asked for.
+  - Reading a config file and the `package.json` field loads only for a program that turned on config discovery.
+
+  Output and exit codes are unchanged.
+
+- [#594](https://github.com/ofri-peretz/burgee/pull/594) [`60c4603`](https://github.com/ofri-peretz/burgee/commit/60c46034a25fe8ca630976f6879a29e32c93884e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` decides whether a project's commander, yargs or other incumbent is on a major it may rewrite from a declared range per drop-in (`SUPPORTED_MAJORS`), rather than from the one graded version alone. Every range is the current major today, so what `migrate` rewrites is unchanged: commander 14 and yargs 17 are now graded by their own suites (1329 / 1331 and 191 / 794) and neither grades level, so neither is claimed. The compatibility page publishes both rows.
+- Updated dependencies [[`073037a`](https://github.com/ofri-peretz/burgee/commit/073037ab38b13490ab119c84122a46c7c605be14)]:
+  - bellpull@0.4.1
+  - linegauge@0.5.3
+  - seniority@0.6.1
+
+## 0.12.1
+
+### Patch Changes
+
+- [#566](https://github.com/ofri-peretz/burgee/pull/566) [`c938fbf`](https://github.com/ofri-peretz/burgee/commit/c938fbf2a4955bb0de704c4208d93c840a87f9ca) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--mcp` holds stdout for the whole session, not only during a tool call. A timer or stream a handler left behind that printed after its reply went out still landed on the JSON-RPC transport, and a strict client stopped parsing there. Between calls, anything written to stdout now goes to stderr; replies are the only thing on the transport.
+
+## 0.12.0
+
+### Minor Changes
+
+- [#481](https://github.com/ofri-peretz/burgee/pull/481) [`3a7131f`](https://github.com/ofri-peretz/burgee/commit/3a7131fc279b5964b5d193af68bc0fe81d37821f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `config explain [command…]` is added automatically to programs that read config. It prints the precedence order (flag > env > config > package.json > default), then each option's resolved value and the source that won, including file and line. The order comes from the resolver itself, so the output always matches what a real run does. Pass `--json` for machine-readable output. A program that defines its own `config explain` keeps it.
+
+- [#472](https://github.com/ofri-peretz/burgee/pull/472) [`c992bf2`](https://github.com/ofri-peretz/burgee/commit/c992bf2536ba3ad0c55f45a41167cc9b4be026ec) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `defineError({ name, code })` declares an error class with its own exit code (7–125). Throw it from a handler and the program leaves with that code, printing the message and any `hint` and `fix` the same way `UsageError` does, with `error.code` in the JSON envelope. Subclasses inherit the code. Defining a second class with the same code throws when the module loads.
+
+- [#478](https://github.com/ofri-peretz/burgee/pull/478) [`4e5054c`](https://github.com/ofri-peretz/burgee/commit/4e5054cb97ddf6a2838ffc2205ce76d8508feb0b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Options can compute their shell completions at TAB time. Give an option `complete: (partial) => string[]`, and the generated bash, zsh, fish and PowerShell scripts call the program back for that option only. Options without a completer still complete statically from `choices`, and the program never runs for them. The callback prints nothing and exits 0 if a completer fails, so TAB never shows an error.
+
+- [#470](https://github.com/ofri-peretz/burgee/pull/470) [`3e56073`](https://github.com/ofri-peretz/burgee/commit/3e560731b386be3429afc7ad0396bcd1c48ad9dd) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--json=<a,b>` selects the fields of a command's result, and `--json=` lists the fields a command declares (`fields: [...]` on `defineCommand`) without running it. An unknown field is refused with the valid set in the hint. Only the `=` form takes fields, so `cmd --json name` keeps `name` a positional. Declared fields appear in `--schema`.
+
+- [#484](https://github.com/ofri-peretz/burgee/pull/484) [`635eb8c`](https://github.com/ofri-peretz/burgee/commit/635eb8cd2dfc6954c500a67fd8f76c69fcb1031a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A handler can throw an error, or a plain `{ code, message, fix }` object, whose `code` names an exit code: `'USAGE'` exits 2, `'CONFIG'` 3, `'CANCELLED'` 4, `'AUTH'` 5. The message and fix print as usual. This lets caique's prompt refusals set the right exit status: a question that can't be asked without a terminal exits 2 and names the flag to pass instead, and a cancelled question exits 4, never 1. burgee still does not import caique. Any other string code, such as `ENOENT`, still exits 1.
+
+- [#474](https://github.com/ofri-peretz/burgee/pull/474) [`1955419`](https://github.com/ofri-peretz/burgee/commit/19554194342b55f8893161f894a8c2a4df1b0f21) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - burgee plugins can hook two more stages. `parse` runs before the command is resolved: it receives argv and may return a replacement, which is how an alias plugin maps `d` to `deploy`. `shutdown` runs once as the program exits, whether the command succeeded or failed. The family `schema.json` shipped in every package now describes both stages.
+
+- [#483](https://github.com/ofri-peretz/burgee/pull/483) [`72a8103`](https://github.com/ofri-peretz/burgee/commit/72a810352e9197fdeeb278d283c0f6ae4669d909) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/program-schema.json` is published: a JSON Schema for the document `--schema` prints, so anyone reading a program's `--schema` can validate it. `--schema` also now includes `exitCodes`, the contract's seven exit codes by name, so a caller can branch on a code without reading prose.
+
+- [#475](https://github.com/ofri-peretz/burgee/pull/475) [`8a7f387`](https://github.com/ofri-peretz/burgee/commit/8a7f3877936fed75121b325d66b1a78c11f737ac) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A positional argument declared with `type: 'file'` treats `-` as standard input: the handler receives the stream as `ctx.stdin`, while the positional still reads `-`. Giving `-` to two file arguments is a usage error, because standard input can only be read once.
+
+- [#517](https://github.com/ofri-peretz/burgee/pull/517) [`0d65c75`](https://github.com/ofri-peretz/burgee/commit/0d65c754d3b8cbb46349acb272a62e03caa27236) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` now migrates the whole family, not just commander and yargs. Every drop-in the compatibility oracle grades level with its incumbent is rewritten in the same run: chalk → `roundel/chalk`, ora → `flagstaff/ora`, string-width → `linegauge`, cross-spawn → `bellpull/cross-spawn`, signal-exit → `closeout/signal-exit` and eleven more. Drop-ins not yet level (dotenv, cosmiconfig, clack, meow, …) are reported under `partial` with their grade and left alone. The report names the family packages to add and prints `next`, the install-and-uninstall command for the package manager your lockfile names.
+
+### Patch Changes
+
+- [#490](https://github.com/ofri-peretz/burgee/pull/490) [`8a02d68`](https://github.com/ofri-peretz/burgee/commit/8a02d68fbf30e7837efc7f38899b1f4beb4cee69) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `bellpull/node-which` is a drop-in replacement for node-which 7: `which(cmd, opts)` returns a promise and `which.sync` runs synchronously, with node-which's `all`, `nothrow`, `path`, `pathExt` and `delimiter` options and its `ENOENT` error. It passes node-which's own test suite, 5 of 5. `bellpull/which` is unchanged: it stays bellpull's own resolution API and never reads the process.
+
+  `require('bellpull/node-which')` returns the function with `.sync` on it, as `require('which')` does, and `burgee migrate` now rewrites `which` to it.
+
+- [#526](https://github.com/ofri-peretz/burgee/pull/526) [`91f46ee`](https://github.com/ofri-peretz/burgee/commit/91f46ee83c839863eecd7d63fd01174087fbb815) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--mcp` keeps stdout for JSON-RPC frames only. A tool call whose handler printed — `console.log` in a `burgee/commander` action, the common case, or a direct `process.stdout.write` — wrote onto the stream the frames go out on, so the client read `hello` between two replies as a malformed message and the tool result itself said `data: null`. During a call, stdout and the stdout-printing `console` methods are now captured and returned as a second text item after the envelope, so printed output becomes the tool result; stderr is left on stderr. Both are restored when the call settles, including when it throws, and a runner that rejects is answered as an `isError` result instead of ending the server.
+
+- [#522](https://github.com/ofri-peretz/burgee/pull/522) [`f4be6a8`](https://github.com/ofri-peretz/burgee/commit/f4be6a8733e338bea4483992edeaa72fcddd36fd) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `require('bellpull/cross-spawn')`, `require('flagstaff/cli-table3')`, `require('burgee/yargs')`, `require('seniority/dotenv')` and `require('seniority/rc')` now return what the incumbent's `require()` does — the function, the class, the factory, the object — instead of an ES module namespace. Each exports its default as `'module.exports'`, which is what Node hands a CommonJS caller, and which yargs' own entry already does. `const spawn = require('…'); spawn(…)` threw before.
+
+- [#495](https://github.com/ofri-peretz/burgee/pull/495) [`31efa5b`](https://github.com/ofri-peretz/burgee/commit/31efa5b5e6120eb0d7bcc70778bc38d3dd9a3d7c) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - burgee's own commands move to `program.js`; `cli.js` stays the bin and still re-exports them. Importing the definitions no longer runs the CLI.
+
+- [#519](https://github.com/ofri-peretz/burgee/pull/519) [`77ff1cb`](https://github.com/ofri-peretz/burgee/commit/77ff1cb8e595d32bb8bddf441ae21fc61e6f247d) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The drop-ins now export their incumbents' type names, so a TypeScript program migrates by its import alone: `roundel/chalk` gains chalk's `Color`, `ForegroundColor`, `BackgroundColor`, `Modifiers` and `Options`; `flagstaff/ora` gains `Spinner`, `PrefixTextGenerator` and `SuffixTextGenerator`; `flagstaff/boxen` gains `Options`, `CustomBorderStyle` and `Boxes`; `flagstaff/log-update`, `linegauge`, `linegauge/wrap` and `closeout/exit-hook` gain `Options`; `burgee/yargs/parser` gains `Arguments`, `Options` and `Configuration`. Types only — no runtime bytes.
+
+- [#526](https://github.com/ofri-peretz/burgee/pull/526) [`91f46ee`](https://github.com/ofri-peretz/burgee/commit/91f46ee83c839863eecd7d63fd01174087fbb815) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A handler that fails under `--json` is now one `{ "ok": false, "error": … }` envelope on stdout and the exit code its error names, on every front end. A `burgee/commander` action that threw under a plain `parseAsync(process.argv)` escaped as a stack trace; the native engine wrote the failure envelope to stderr with stdout empty; `burgee/yargs` let a synchronous throw or a thrown non-Error escape `parseAsync()`, filed a thrown string as a usage error, and wrote an async rejection's envelope twice under `--mcp`; and both façades exited 1 for an `AuthError` where E6 promises 5. Without `--json` a façade program run the incumbent's way behaves exactly as before — a throw is still commander's or yargs' to surface; through an injected seam (`--mcp`, `burgee/testing`) an `AuthError` now exits 5 there too.
+
+- [#549](https://github.com/ofri-peretz/burgee/pull/549) [`d5a1b02`](https://github.com/ofri-peretz/burgee/commit/d5a1b02792e7109a9ce6c2056683a98f622b2310) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `seniority/lilconfig` grades **77 / 77** against lilconfig 3.1.3's own suite, up from 67. The difference was all in the harness: two jest semantics it didn't reproduce made ten cases fail against lilconfig itself. `burgee migrate`'s report carries the new grade.
+
+- [#547](https://github.com/ofri-peretz/burgee/pull/547) [`ef512ea`](https://github.com/ofri-peretz/burgee/commit/ef512ea6052747390b37077e2ea3e1aa3b196e48) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` now rewrites `require()` of the incumbents that ship ESM only: ansi-escapes, chalk 6, ora 9, log-update, boxen 8, string-width, strip-ansi, wrap-ansi, slice-ansi, restore-cursor, exit-hook and terminal-link. Their own `require()` already returns a namespace, as their replacements' does, so the rewrite is exact; before, it was refused as `require-of-default`. `require('burgee/yargs/parser')` now returns the parser function, as `require('yargs-parser')` does.
+
+- [#543](https://github.com/ofri-peretz/burgee/pull/543) [`dc1b1a7`](https://github.com/ofri-peretz/burgee/commit/dc1b1a7156f7548d7229b54b9f3d367bfda0af08) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - paratext implements `ansi-escapes`' CSI half — `cursorTo`, `cursorMove`, `eraseLines`, `clearTerminal`, `enterAlternativeScreen`, `synchronizedOutput` and the rest, byte-exact with ansi-escapes 7.3.0 — so `import ansiEscapes from 'paratext'` is a full drop-in, graded 4 / 4 by ansi-escapes' own suite (it was 1 / 4 with CSI declared `undefined`). `burgee migrate` now rewrites `ansi-escapes` to `paratext`.
+
+- [#546](https://github.com/ofri-peretz/burgee/pull/546) [`0592441`](https://github.com/ofri-peretz/burgee/commit/0592441c9ca8f81098a4aff48f15cfb141a0bece) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `paratext/terminal-link` now links exactly where `supports-hyperlinks` 4.5.0 does. It honours `FORCE_HYPERLINK`, `--no-hyperlink` / `--hyperlink=always`, `CI`, win32 outside Windows Terminal, NETLIFY, and the incumbent's version floors for iTerm2, WezTerm, VS Code and VTE (0.50.0 segfaults on OSC 8). It also recognises kitty, alacritty, ghostty, zed, Orca and Cursor. Its previous guess disagreed with the incumbent in 30 of 55 environments. The compatibility row is now 8 / 8, so `burgee migrate` rewrites `terminal-link` imports to `paratext/terminal-link`.
+- Updated dependencies [[`866b972`](https://github.com/ofri-peretz/burgee/commit/866b9724652bebea867a730b8f2ea5e0ca63f5ab), [`8a02d68`](https://github.com/ofri-peretz/burgee/commit/8a02d68fbf30e7837efc7f38899b1f4beb4cee69), [`1955419`](https://github.com/ofri-peretz/burgee/commit/19554194342b55f8893161f894a8c2a4df1b0f21), [`f4be6a8`](https://github.com/ofri-peretz/burgee/commit/f4be6a8733e338bea4483992edeaa72fcddd36fd), [`1b002e0`](https://github.com/ofri-peretz/burgee/commit/1b002e0b72f8dc1aa61020fb40c26e50949f16e7), [`77ff1cb`](https://github.com/ofri-peretz/burgee/commit/77ff1cb8e595d32bb8bddf441ae21fc61e6f247d), [`f08ff58`](https://github.com/ofri-peretz/burgee/commit/f08ff582f0a0e1a5de90d9c7ff0c9401c867380c)]:
+  - closeout@0.5.2
+  - bellpull@0.4.0
+  - linegauge@0.5.2
+  - roundel@0.5.2
+  - seniority@0.6.0
+
+## 0.11.1
+
+### Patch Changes
+
+- [#508](https://github.com/ofri-peretz/burgee/pull/508) [`1aae1e2`](https://github.com/ofri-peretz/burgee/commit/1aae1e2186ce88421067df5317795773419e53d0) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The installed `burgee` command runs. `dist/cli.js` shipped without `#!/usr/bin/env node`, so `npx burgee …` and the linked bin were handed to `/bin/sh` on macOS and Linux and failed with `import: command not found`. `check:artifacts` now refuses any published bin that is missing from the pack list or does not start with the shebang.
+
+- [#508](https://github.com/ofri-peretz/burgee/pull/508) [`1aae1e2`](https://github.com/ofri-peretz/burgee/commit/1aae1e2186ce88421067df5317795773419e53d0) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Shell completions offer only flags the parser accepts. Every declared boolean was completed with a `--no-<name>` twin, which is right for burgee's own parser and wrong under `burgee/commander`, where commander negates only what the program declared — so `--no-skip-blank`, `--color` (for a lone `--no-color`) and `--no-version` were each a TAB away and each `unknown option`. Completions now read `OptionSpec.negatable`, which the commander façade sets from the program's own declarations.
+
+- [#508](https://github.com/ofri-peretz/burgee/pull/508) [`1aae1e2`](https://github.com/ofri-peretz/burgee/commit/1aae1e2186ce88421067df5317795773419e53d0) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The README's MCP answer says what `--mcp` does: every runnable command declares its `effects`, `withheld` is what keeps one out of the tool list, and a `burgee/commander` or `burgee/yargs` command that declared nothing is listed as `effects: 'undeclared'` rather than left out.
+
+- [#508](https://github.com/ofri-peretz/burgee/pull/508) [`1aae1e2`](https://github.com/ofri-peretz/burgee/commit/1aae1e2186ce88421067df5317795773419e53d0) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--mcp` tool calls reach the program with multi-word options. `tools/call` rebuilt argv as `--<property>`, so `skipBlank` went out as `--skipBlank` and both the engine and `burgee/commander` refused it; it now sends the flag the schema advertises (`--skip-blank`), and a `false` for a boolean that defaults on goes as `--no-<name>`. Under `burgee/commander`, a lone `--no-color` is advertised as `noColor` (flag `--no-color`) instead of a `--color` commander never accepts. `run(defineCommand(…))` now keeps the command's `effects`, `examples`, `arguments` and `relations`, so a single-command program's tool carries the hints it declared and is named after the program rather than `""`. An unknown-option `fix` is spelled as the flag is typed (`--dry-run`, never `--dryRun`). `OptionSpec` gains `negatable?: boolean` — `false` refuses `--no-<name>`.
+
+- [#508](https://github.com/ofri-peretz/burgee/pull/508) [`1aae1e2`](https://github.com/ofri-peretz/burgee/commit/1aae1e2186ce88421067df5317795773419e53d0) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The README's "Start here" runs. The quickstart omitted `effects`, which `defineCommand` requires of every runnable command, so the first thing a new user pasted threw `command "greet" is runnable and declares no effects`; its `--json` line also left out the `meta` the envelope carries. The shape test now runs the snippet and its transcript straight from both READMEs instead of from a private copy.
+- Updated dependencies [[`1aae1e2`](https://github.com/ofri-peretz/burgee/commit/1aae1e2186ce88421067df5317795773419e53d0)]:
+  - bellpull@0.3.1
+  - closeout@0.5.1
+  - linegauge@0.5.1
+  - roundel@0.5.1
+  - seniority@0.5.1
+
+## 0.11.0
+
+### Minor Changes
+
+- [#507](https://github.com/ofri-peretz/burgee/pull/507) [`b8e97dc`](https://github.com/ofri-peretz/burgee/commit/b8e97dcb64772e413f0b6f9e17e063c73314d242) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Runs on Node 20 and 22, not just 24+: `engines.node` is now `^20.19.0 || >=22.13.0`. Those are the first releases where `require(esm)` loads without a warning, so the CommonJS `require()` path keeps working. Every package's test suite runs on exactly 20.19.0 and 22.13.0, on Linux, macOS and Windows. caique's prompts no longer call `Promise.withResolvers`, which Node 20 doesn't have.
+
+### Patch Changes
+
+- [#505](https://github.com/ofri-peretz/burgee/pull/505) [`9800b43`](https://github.com/ofri-peretz/burgee/commit/9800b43d9c74a49dfb66d04a40fd0d1c48892e20) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Docs: the README says "no dependency outside the burgee family" instead of implying none at all — burgee declares five, every one of them a sibling. The `zero-dependency` keyword is now `no-external-dependencies`.
+
+- [#506](https://github.com/ofri-peretz/burgee/pull/506) [`891e132`](https://github.com/ofri-peretz/burgee/commit/891e132c4b1d8fe3001123014ea977c8ab30e973) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/yargs` exports yargs' types — `Argv`, `Arguments`, `ArgumentsCamelCase`, `CommandModule`, `CommandBuilder`, `Options`, `PositionalOptions`, `InferredOptionTypes`, `MiddlewareFunction` and the rest of `@types/yargs`' ESM surface — and its default export is typed as a factory returning `Argv`, so a typed chain infers `argv` and an instance passes wherever a program says `Argv`. `burgee/commander` adds `OptionValues`, `OptionValueSource`, `HelpConfiguration` and `ParseOptionsResult`, `opts<T>()` / `optsWithGlobals<T>()` are generic as in commander, and its `OutputConfiguration` takes any subset. `burgee migrate` now checks every name an import asks for against what the façade exports: a type-only import of a name it lacks stays on the incumbent and is reported under `kept`, and any other is refused as `unknown-export`.
+- Updated dependencies [[`9800b43`](https://github.com/ofri-peretz/burgee/commit/9800b43d9c74a49dfb66d04a40fd0d1c48892e20), [`b8e97dc`](https://github.com/ofri-peretz/burgee/commit/b8e97dcb64772e413f0b6f9e17e063c73314d242)]:
+  - bellpull@0.3.0
+  - closeout@0.5.0
+  - linegauge@0.5.0
+  - seniority@0.5.0
+  - roundel@0.5.0
+
+## 0.10.0
+
+### Minor Changes
+
+- [#476](https://github.com/ofri-peretz/burgee/pull/476) [`23e8b35`](https://github.com/ofri-peretz/burgee/commit/23e8b353b0d3ac8569782ee1712c8f6e9004a1e4) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--schema <command> --field <path>` returns a single field of a command's schema, such as `--field options.region`, so an agent can read the part it needs without loading the whole document. An unknown path step is refused with the valid fields at that level listed.
+
+### Patch Changes
+
+- Updated dependencies [[`69563d1`](https://github.com/ofri-peretz/burgee/commit/69563d1fb14d9a4b29364446bae2fc48d86f6103), [`2dc573f`](https://github.com/ofri-peretz/burgee/commit/2dc573f884e7a4cc46829cd8f2c949a17f07710c)]:
+  - closeout@0.4.0
+  - linegauge@0.4.3
+
+## 0.9.2
+
+### Patch Changes
+
+- [#465](https://github.com/ofri-peretz/burgee/pull/465) [`acf98f3`](https://github.com/ofri-peretz/burgee/commit/acf98f3e612c6d79e6c2b78a847abcd06a063cbc) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Each README now opens with the incumbent it replaces and the agent surface it serves (`--json`, an agent event, or a static projection), so npm shows both above the fold. README text only; no code changed.
+- Updated dependencies [[`acf98f3`](https://github.com/ofri-peretz/burgee/commit/acf98f3e612c6d79e6c2b78a847abcd06a063cbc)]:
+  - roundel@0.4.2
+  - linegauge@0.4.2
+  - seniority@0.4.2
+  - bellpull@0.2.2
+  - closeout@0.3.2
+
+## 0.9.1
+
+### Patch Changes
+
+- [#454](https://github.com/ofri-peretz/burgee/pull/454) [`b4584e7`](https://github.com/ofri-peretz/burgee/commit/b4584e719bc0064b294aab5ea6da1c11f698f0e9) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Every package's npm `homepage` now points at its page on the docs site, `https://burgee.interlace.tools/docs/packages/<name>`, and each README links it under the header. The keywords add what people and models search for: `burgee` gains `cli-framework`, `argument-parser`, `subcommands`, `json-schema`, `mcp-server`, `model-context-protocol`, `ai-agent`, `llm`, `shell-completion`, `typescript`, `zero-dependency`, `commander-alternative` and `yargs-alternative`; the other eight gain `agent`, `ai-agent`, `non-tty`, `json` and `zero-dependency` where the package does that — `zero-dependency` only on the six that install nothing at all.
+
+  `burgee`'s README gains a short FAQ (commander alternative, agent use, MCP, dependencies) and states the compatibility counts the oracle holds — 1,360 / 1,360 of commander's tests and 804 / 804 of yargs' — where it had said 1,215 and 1,185. `caique`'s README no longer calls a released package pre-release.
+
+- [#442](https://github.com/ofri-peretz/burgee/pull/442) [`bdaf364`](https://github.com/ofri-peretz/burgee/commit/bdaf364f81564c1700cf1adec18f927afe6c60c9) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Every package now lists `plugin`, `plugins` and `extensible` in its npm keywords, because every package takes plugins through one shared contract.
+
+  A plugin is a plain object, validated against the `schema.json` that ships in every package, and checked with the package's own `check` command. Each package reads its own key and ignores the rest, so one object can extend any subset of the family. The [plugins page](https://github.com/ofri-peretz/burgee/blob/main/apps/docs/content/docs/plugins.mdx) has a nine-layer example that every package's `check` accepts in CI.
+
+- [#435](https://github.com/ofri-peretz/burgee/pull/435) [`7888524`](https://github.com/ofri-peretz/burgee/commit/78885245eb292cd4a40541fe09382a198c9c45cf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `schema.json` now describes every plugin host in the family.
+
+  The one schema each package ships as its plugin contract used to cover only four hosts: roundel's `tokens`, flagstaff's `glyphs`, `spinners`, `borders` and `components`, paratext's `capabilities`, and linegauge's `widths`. Five hosts validated their keys in their own code, but the file an author (or a model) writes against said nothing about them. It now describes all of them:
+
+  - bellpull `resolvers`, including the absolute-path rule on `paths`
+  - caique `widgets`
+  - closeout `handlers`, including the phases a plugin may use
+  - seniority `sources`, including the rank bounds
+  - burgee `commands`, `hooks` and `enforce`
+
+  Where the schema can express a rule, it gives the same verdict as the host's own validator, and a test holds the two together. Function-valued fields (`static`, `run`, `read`, `handler`) are described and required, but not typed, because JSON Schema can't say "function".
+
+  **flagstaff** now validates a plugin against only its own keys, not the whole family schema. It no longer refuses a plugin over another host's key, which lets one plugin object contribute to several hosts. Its entry points are also 4.7–5.9 KB lighter for it.
+
+- Updated dependencies [[`b4584e7`](https://github.com/ofri-peretz/burgee/commit/b4584e719bc0064b294aab5ea6da1c11f698f0e9), [`bdaf364`](https://github.com/ofri-peretz/burgee/commit/bdaf364f81564c1700cf1adec18f927afe6c60c9), [`7888524`](https://github.com/ofri-peretz/burgee/commit/78885245eb292cd4a40541fe09382a198c9c45cf), [`dac303e`](https://github.com/ofri-peretz/burgee/commit/dac303e944e889ac4175ac38c94e4ca0f0ca5358)]:
+  - bellpull@0.2.1
+  - closeout@0.3.1
+  - linegauge@0.4.1
+  - roundel@0.4.1
+  - seniority@0.4.1
+
+## 0.9.0
+
+### Minor Changes
+
+- [#421](https://github.com/ofri-peretz/burgee/pull/421) [`db3c59e`](https://github.com/ofri-peretz/burgee/commit/db3c59e3dcd373c7e6e4a057715adb173766523f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `ExitCode.AUTH` — a refused credential gets its own code (E6).
+
+  `RUNTIME` is the code for everything: _it failed, read the message_. A caller — a script, a
+  retry loop, an agent — cannot branch on it, so a 401 and a null-pointer look identical from
+  outside and a retry on one is a retry on both, forever.
+
+  ```ts
+  import { AuthError } from "burgee";
+
+  throw new AuthError(
+    "the registry refused the token",
+    "the token has expired",
+    "mytool login",
+  );
+  // exit 5, and on --json: { ok: false, error: { code: 5, message, hint, fix } }
+  ```
+
+  `AUTH` says _get a credential and run it again_, which is a different action from `USAGE`'s
+  _fix the script_ and `CONFIG`'s _fix the runner_. The requirement calls it "the most actionable
+  single code in the survey"; it was the one the taxonomy was missing.
+
+  **5, where `gh` uses 4.** Four is `CANCELLED` here and has been since the contract was written,
+  and moving a published code to match a neighbour's is a breaking change for everyone already
+  branching on it. `aws` v2 uses 252/253/254 and agrees with nobody either — what matters is that
+  the code is stable and documented.
+
+  `fix` is the line a caller runs where `hint` is the prose a person reads, and both reach the
+  `--json` envelope, so an agent never has to parse the message.
+
+  374 bytes on the core entry.
+
+- [#412](https://github.com/ofri-peretz/burgee/pull/412) [`4b64f6a`](https://github.com/ofri-peretz/burgee/commit/4b64f6ac6b90a5f3d6444a6f6a1731dd3fdd296f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/meow` — meow's surface, over burgee.
+
+  `import meow from 'burgee/meow'` takes the place of `import meow from 'meow'`: the options
+  object, the flags contract (`type`, `default`, `shortFlag`, `aliases`, `choices`,
+  `isRequired`, `isMultiple`), `commands`, the help and version blocks with `autoHelp` and
+  `autoVersion`, `showHelp`/`showVersion`, and the `input`/`flags`/`unnormalizedFlags`/`pkg`
+  result. Graded by meow's own suite at **132 / 148 (89.2%)** against a control of 146 / 148.
+
+  meow is one function over `yargs-parser`, and burgee already ships its own for
+  `burgee/yargs`, so this takes no new dependency into the tree. The entry costs 59,820
+  bundled bytes; upstream meow looks lighter only because it depends on `yargs-parser` rather
+  than carrying it, and a caller installing meow installs both.
+
+- [#428](https://github.com/ofri-peretz/burgee/pull/428) [`f0370b4`](https://github.com/ofri-peretz/burgee/commit/f0370b4e56e3c98a0214ac1fe4fcb1aedbeb8b16) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A deprecation now has to name its replacement.
+
+  ```ts
+  defineCommand({ name: 'push', deprecated: 'publish', /* … */ });
+  options: { legacy: { type: 'boolean', deprecated: '--force' } }
+  ```
+
+  `deprecated: true` used to produce `(deprecated)` in help and `warning: 'push' is deprecated` on
+  stderr, which tells the reader to stop without saying where to go. `defineCommand`, and
+  `Manifest.use()` for plugin commands, now refuse `true` and `''` on a command or any option, and
+  the error says how to fix it. A named replacement already appeared in all three places:
+  `(deprecated: use publish)` in help, `deprecated` in `--schema`, and `, use 'publish'` in the
+  warning.
+
+  **Breaking for anyone who wrote `deprecated: true`**: replace it with the name of what to use
+  instead. Commander and yargs programs running on burgee's front-ends are unaffected. Those
+  incumbents accept a bare deprecation, and the front-ends keep accepting it.
+
+- [#424](https://github.com/ofri-peretz/burgee/pull/424) [`fb92e13`](https://github.com/ofri-peretz/burgee/commit/fb92e131039b5504b5b7398a99168760e213e1b0) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Help is coloured on a terminal, and `NO_COLOR` and `FORCE_COLOR` mean what they say.
+
+  The engine rendered help plain everywhere. That met "no ANSI in a pipe or under `NO_COLOR`" only by
+  never colouring at all, and it left `FORCE_COLOR` with nothing to override. Now one decision covers
+  every help path:
+
+  - `FORCE_COLOR` decides whenever it is set: `0` or `false` turns colour off, anything else (the
+    empty string included) turns it on, even through a pipe and over `NO_COLOR`. This matches Node's
+    own `getColorDepth`.
+  - Otherwise help is coloured only on an interactive terminal with no non-empty `NO_COLOR` and a
+    `TERM` other than `dumb`. **A detected agent is not an interactive terminal**, so Claude Code,
+    Cursor and the rest still read plain help even when they have a TTY.
+
+  Colour adds ANSI and nothing else: stripped, coloured help is byte-identical to the plain render,
+  and `NO_COLOR=1` gives back the plain render exactly.
+
+- [#415](https://github.com/ofri-peretz/burgee/pull/415) [`47b541a`](https://github.com/ofri-peretz/burgee/commit/47b541ade1977e781968bdfb94a41c2bd990b203) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - **The root barrel stops holding five modules open, and the initial load a consumer pays halves.**
+
+  `import { run } from 'burgee'` was loading `help.ts`, `mcp.ts`, `schema.ts`, `plugin.ts`,
+  `manifest.ts` and `seniority/precedence` whether or not a program read any of them, because
+  `index.ts` re-exported their value half as a convenience. `execute.ts` already loaded each one
+  behind an `await import()`; the barrel was the only thing keeping them on the startup path.
+
+  Measured over the transitive closure of `import` statements — the bytes a bundler actually puts
+  on a consumer's startup path:
+
+  |                                   |   before |        after |
+  | :-------------------------------- | -------: | -----------: |
+  | `burgee` initial load, bundled    | 57,880 B | **28,637 B** |
+  | `burgee` static graph, on disk    | 60,823 B | **42,223 B** |
+  | cold start, `burgee ÷ cac`        |   2.567× |   **1.737×** |
+  | modules Node loads for the import |       22 |           17 |
+
+  **Breaking, and narrowly.** Every moved value has a subpath of its own:
+
+  | was                                                                     | is now          |
+  | :---------------------------------------------------------------------- | :-------------- |
+  | `renderHelp`                                                            | `burgee/help`   |
+  | `serveMcp`, `toolsOf`, `annotationsOf`, `MCP_PROTOCOL_VERSION`          | `burgee/mcp`    |
+  | `schemaOf`, `commandSchemaOf`, `inputSchemaOf`, `summaryOf`, `Manifest` | `burgee/schema` |
+  | `definePlugin`, `CONTRACT`, `PluginError`                               | `burgee/plugin` |
+  | `resolve`, `explain`, `envName`, `screaming`, `ConfigError`             | `burgee/config` |
+
+  **Every `type` stayed where it was.** A type re-export is erased and costs a consumer nothing,
+  so the whole type surface — `Manifest` included, which is what keeps `defineProgram`'s return
+  type nameable — still imports from `burgee`. A typed program that never called one of the moved
+  functions needs no change at all.
+
+  `--explain` and `--schema` also load on their own branch now rather than at import: `schema.ts`
+  is 2,640 bundled bytes and `seniority`'s explain half is 1,018, and neither runs unless a reader
+  asks for a document.
+
+  This is D-093 reversed. That decision declined the split on a cold-start argument it did not
+  have a number for; the number is 830 ms of ratio and 29,243 bytes.
+
+- [#421](https://github.com/ofri-peretz/burgee/pull/421) [`db3c59e`](https://github.com/ofri-peretz/burgee/commit/db3c59e3dcd373c7e6e4a057715adb173766523f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Every plugin host has a `check` command.
+
+  ```bash
+  npx linegauge check ./my-widths.mjs
+  npx burgee check ./my-plugin.mjs --json
+  ```
+
+  PRINCIPLES 7 asks three things of an extension surface: the plugin is data validated against one
+  published schema, there is a **`check` command that shows it every way it can be seen**, and the
+  bar is measured. The first was built in all nine hosts; the second existed in `flagstaff` alone.
+  So an author writing a plugin for any other host found out what it did by shipping it into a
+  program — and a surface nobody can check is a surface nobody outside this repository can write
+  against.
+
+  Each command validates, registers, and shows what the host does with the plugin, in the host's own
+  terms: linegauge measures each code point **before and after** the override, paratext shows a
+  capability's `encode` **and** its `fallback`, roundel each token and what it replaced, caique each
+  widget's static projection rendered with its own sample. burgee's returns a **document** rather
+  than printing one, so `burgee check --json` is the form an agent that just wrote a plugin reads.
+
+  They share one contract with the author, held identically across all nine:
+
+  - a readable report, contribution by contribution, with **`ok` as the last line**;
+  - a refusal with a code from the family's vocabulary and a `fix`, exit 1;
+  - **`E_NO_CONTRIBUTION`** for a plugin that contributes nothing to this host — the schema allows
+    unknown keys so one object registers everywhere, which makes a misspelled key silent, and this
+    is how that typo tells on itself;
+  - exit 2 with no file.
+
+  Each host also gains an eval case measuring the one-turn claim, proved to discriminate before it
+  was committed: green against a correct plugin, red against the same plugin with one field broken.
+
+### Patch Changes
+
+- [#421](https://github.com/ofri-peretz/burgee/pull/421) [`db3c59e`](https://github.com/ofri-peretz/burgee/commit/db3c59e3dcd373c7e6e4a057715adb173766523f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `runBurgee` forwards `cwd`, `stdin` and TTY-ness to the engine. It did not.
+
+  The harness built a whole `fakeRuntime` — argv, env, cwd, stdin, per-stream TTY-ness, exit,
+  clock — and then passed **six of those nine** to `execute`. The other three were computed and
+  dropped, which `.sdlc/intents/burgee/spec.md` records as T1 and calls _"the row most likely to
+  make a test pass for the wrong reason"_. It is, and precisely:
+
+  - **`tty: true` changed nothing.** `execute` reads TTY-ness off `opts.stdout.isTTY` and hands it
+    to `detectAgent`; the harness passed a bare `{ write }`. A test asking for a terminal got the
+    non-interactive floor and asserted on it happily.
+  - **`cwd` changed nothing.** Config discovery starts at `io.cwd`, which fell through to
+    `host.cwd()` — the _real_ process directory. A test pointing at a fixture tree was reading the
+    repository it was running in.
+  - **`stdin` changed nothing**, so nothing that reads it could be driven through the harness at all.
+
+  `testing-harness-forward.test.ts` is the check and both cases were proved to fail on the
+  six-field version: `interactive` read `[false, false]` for `tty: true`/`false`, and a
+  `<name>.config.json` under the given `cwd` never reached the handler.
+
+  The cost is **92 bytes** on `burgee/testing`, which is test-time only.
+
+- [#415](https://github.com/ofri-peretz/burgee/pull/415) [`47b541a`](https://github.com/ofri-peretz/burgee/commit/47b541ade1977e781968bdfb94a41c2bd990b203) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The MCP server and the help renderer load on the branch that uses them.
+
+  `--mcp` serves a protocol until stdin closes and `--help` lays out prose with measured
+  columns; a program that does neither should carry neither. Both are now reached through
+  `await import()`, so a bundler with code splitting leaves them off the startup path.
+
+  Measured as an entry chunk: `burgee` **58,056 → 19,540 bytes**, and `burgee/commander`
+  **69,431 → 51,306**. No API changed — `renderHelp` and `serveMcp` are still exported from the
+  root and still do the same thing.
+
+  `commander`'s `--schema` deliberately stayed synchronous: `parse()` is synchronous by
+  contract and a lazy import there returned a Promise nobody awaited, so the document never
+  printed. The suite caught it.
+
+- [#421](https://github.com/ofri-peretz/burgee/pull/421) [`db3c59e`](https://github.com/ofri-peretz/burgee/commit/db3c59e3dcd373c7e6e4a057715adb173766523f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `onError` fires on the commander and yargs front ends. It did not.
+
+  The plugin contract is three hooks, and the contract _between_ them is what makes them usable:
+  `preRun` opens, and **exactly one of `postRun` or `onError` closes**. A plugin that starts a
+  span, opens a file, takes a lock or writes an audit line in `preRun` has nowhere to finish it
+  otherwise — and "otherwise" is every command that throws.
+
+  The engine held that. Both façades ran `preRun → handler → postRun` as a `.then` chain, so a
+  handler that threw **skipped `postRun` and never reached `onError`**: a plugin got an opening
+  hook and no closing one at all. And `onError` was never fired by either façade under any
+  circumstances, so a plugin declaring it was silently dead on a commander- or yargs-syntax
+  program — the two drop-in front ends this package exists for, and a hook neither commander nor
+  yargs can offer at all.
+
+  `plugin-lifecycle.test.ts` holds the contract on both façades, in both directions, and all four
+  new cases were proved to fail on the `.then`-only chain.
+
+  68 bytes on `burgee/yargs`, 62 on `burgee/commander`.
+
+- [#418](https://github.com/ofri-peretz/burgee/pull/418) [`c0fa8a3`](https://github.com/ofri-peretz/burgee/commit/c0fa8a37913fab17a6d06615b7432116b1c0e1db) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `explain` moves from `seniority/precedence` to `seniority/explain`.
+
+  A re-export is not free across a package boundary. `explain` was exported from `precedence.ts`,
+  so every program that resolved a configuration loaded `explain.js` whether or not anything ever
+  explained one — **1,018 bundled bytes and one more module on the startup path** for the branch
+  taken when a user asks _why did this option get that value_.
+
+  `import { explain } from 'seniority'` is unchanged: the root barrel still exports it, from its
+  new home. Only `seniority/precedence` stops re-exporting it. `burgee/config` re-exports it the
+  same way it always did, and `burgee`'s engine loads it behind an `await import('seniority/explain')`
+  on the `--explain` branch, which is now the only thing that pays for it.
+
+  Measured on burgee's core entry: **28,637 → 27,552 bundled bytes**, and 22 → 21 modules for
+  `import 'burgee'`.
+
+- [#418](https://github.com/ofri-peretz/burgee/pull/418) [`c0fa8a3`](https://github.com/ofri-peretz/burgee/commit/c0fa8a37913fab17a6d06615b7432116b1c0e1db) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/yargs` loads the MCP server on the `--mcp` branch, not at import.
+
+  `yargs/factory.ts` imported `serveMcp` at the top of the file while the note above `#surfaces`
+  said _"Completions and `--mcp` load lazily, so those two return a promise"_. The note was right
+  about the shape and wrong about the fact: the branch already returns a promise, so the server
+  always could have been loaded on it, and until now its **2,520 bytes sat on the startup path of
+  every `burgee/yargs` program**.
+
+      burgee/yargs, bundled     107,665 B  ->  105,240 B
+      burgee/yargs ÷ yargs          0.969  ->  0.947
+
+  The same shape as the root-barrel split, missed here because a comment said it had already been
+  done. The weight lock's `./yargs` budget comes down from 256,000 to 214,800 with it — a ceiling
+  41 KB above the measurement is not a ratchet.
+
+- Updated dependencies [[`47b541a`](https://github.com/ofri-peretz/burgee/commit/47b541ade1977e781968bdfb94a41c2bd990b203), [`4d1b2b3`](https://github.com/ofri-peretz/burgee/commit/4d1b2b399cff354864d1e2e843a19fde80ef1f30), [`db3c59e`](https://github.com/ofri-peretz/burgee/commit/db3c59e3dcd373c7e6e4a057715adb173766523f), [`db3c59e`](https://github.com/ofri-peretz/burgee/commit/db3c59e3dcd373c7e6e4a057715adb173766523f), [`c0fa8a3`](https://github.com/ofri-peretz/burgee/commit/c0fa8a37913fab17a6d06615b7432116b1c0e1db)]:
+  - bellpull@0.2.0
+  - closeout@0.3.0
+  - linegauge@0.4.0
+  - roundel@0.4.0
+  - seniority@0.4.0
+
+## 0.8.0
+
+### Minor Changes
+
+- [#382](https://github.com/ofri-peretz/burgee/pull/382) [`0a37307`](https://github.com/ofri-peretz/burgee/commit/0a37307b01d0909753285c7ca88a2e4ef7cd4eee) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` — the mechanical path from commander or yargs to burgee.
+
+  Every migration that actually happened shipped the codemod before the wave, not after it:
+  `jest-codemods`, `pnpm import`, `biome migrate eslint`. burgee already had the strongest
+  possible version of the claim — change one import and commander's own 1,360 tests still pass
+  — and no path from _could_ to _did_.
+
+  ```
+  $ burgee migrate --dry-run
+  files: 3
+  imports: 3
+  mapped: [{"from":"commander","to":"burgee/commander","imports":3,"files":3}]
+  refused: []
+  detected: {"declared":["commander"],"imported":["commander"]}
+  dependencies: {"before":["commander"],"removable":["commander"],"after":0}
+  graded: [{"host":"commander","reference":1360,"passed":1360,"rate":1}]
+  ```
+
+  It detects hosts from two independent sources that are allowed to disagree — `package.json`
+  and the specifiers source actually imports — rewrites `commander`, `yargs`, `yargs/yargs`
+  and `yargs/helpers` across all five specifier positions, and **refuses by file and line** on
+  a deep import or a non-literal dynamic specifier, leaving that whole file untouched (D-051).
+  It refuses a dirty git tree unless `--force`, writes nothing under `--dry-run`, never edits
+  `package.json` (D-054), and never touches an API call site (D-053). The compat figures are
+  read from `compat-oracle`'s baseline through a lock, never typed into the report.
+
+  **Specifiers, not syntax trees** (D-050): a scan over five known positions needs no parser
+  and therefore no dependency, and it is the fast choice as well as the rule-2 one. Measured
+  over a generated 1,000-file tree: **the whole scan phase is 17 ms** and **the slowest single
+  file 0.074 ms** against a 1 ms budget; the rest of the command is filesystem.
+
+  The gate is `examples/demo-cli-commander`, which holds the same program written twice — once
+  against `commander`, once against `burgee/commander` — and predates this feature. Migrating
+  the commander variant produces the hand-written drop-in's import byte for byte.
+
+  The engine gains one thing on its behalf, in `execute.ts`: a command's result may name an
+  `exitCode`, and `emit` honours it. Before this there was exactly one success path and it left
+  with `OK`, so a command could emit a document _or_ fail, never both — and an agent migrating
+  a repository unattended needs the refusal list **and** the code. **162 bytes** measured
+  (60,661 → 60,823 on the root entry), opt-in by naming the field. `migrate` itself is 10,878
+  bytes loaded through a dynamic import and is denied to the root entry by name, so
+  `import 'burgee'` never reaches it.
+
+- [#384](https://github.com/ofri-peretz/burgee/pull/384) [`7f32875`](https://github.com/ofri-peretz/burgee/commit/7f328752e8318fefd70bf87eebcb0c05d789d607) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A program written in commander's or yargs' own syntax now gets burgee's agent surfaces.
+
+  `--mcp` lists every command instead of none: a façade command arrives with no `effects`
+  because neither incumbent has such a concept, and the filter used to read undeclared as
+  _not a tool_. It is now listed with `effects: "undeclared"` — absent from the list is
+  strictly worse for a caller than present with an honest annotation. `withheld` still means
+  absent.
+
+  `tools/call` used to return **nothing at all** — the reply writer was read out of
+  `_outputConfiguration` at reply time, and the first tool call replaces that so the run can
+  be captured. A client waited forever. It now answers the `--json` envelope, call after call.
+
+  `--json` works at the root of a command group and no longer swallows the operand after it,
+  and a failure under `--json` is the envelope on stdout with `fix:` rather than prose on
+  stderr.
+
+  commander stays 1360 / 1360 and yargs 804 / 804 against their own suites.
+
+### Patch Changes
+
+- [#385](https://github.com/ofri-peretz/burgee/pull/385) [`c219e65`](https://github.com/ofri-peretz/burgee/commit/c219e65e2a4b0de1836b285c0df8e43a92c74189) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A kebab-case option key is now refused where it is declared, instead of silently never
+  reaching the handler.
+
+  `toParseConfig` kebabs each declared name to build the flag and `canonical` camels every
+  parsed key back, so the flag layer handed to `resolveLayers` is keyed camelCase while the
+  specs beside it are keyed as declared. Declare `'dry-run'` and the two never meet: `--dry-run`
+  parses, resolves to nothing, and the handler is given `undefined`. No error anywhere.
+
+  Three of burgee's own commands were live instances. `burgee brand --allow-low-contrast` never
+  suppressed the WCAG failure it names, `--bordure-width` was always `1.5` whatever was passed,
+  and `burgee dev --no-watch` still watched. All three are fixed by spelling the key `camelCase`;
+  the flags are unchanged, and `--bordure-width 7` now reaches the SVG as `stroke-width="14"`
+  against the default's `3`, `--allow-low-contrast` emits, and `--no-watch` logs no reload when
+  the entry is edited.
+
+  **Breaking for a declaration, not for a command line.** `checkDefinition` refuses a key that
+  does not survive `camel(kebab(key))` — `'dry-run'`, and also `URL`, whose canonical form is
+  `url`. It throws through the clash message that was already there, because it is the same
+  defect: two keys that meet on the command line, one of them written by `kebab()` rather than
+  by the author. The engine was not taught a second spelling. Threading one through help,
+  `--schema`, Fig, the env, config and package.json layers and the relation names, to reach a
+  key that already has exactly one canonical form, is a larger surface than the bug.
+
+  **No weight ceiling moved**, which is what D-073 asks for. `./plugin` had 5 bytes of headroom
+  and a standalone message cost 187, so two things moved to pay for it: V5's reserved names out
+  of their own loop in `checkCommand` into the pass `checkDefinition` was already making, and
+  the numeric-bound check out of that loop into the spec helper beside the relation names. Both
+  read better where they are now — `flag` is computed once and `kebab` is the identity on every
+  reserved name, and a numeric bound is a fact about a spec rather than about a name.
+  `definition.js` is 51 bytes smaller than before the check existed. `checkDefinition` now
+  carries the reserved names; `checkCommand` is still the one door both callers reach.
+
+  Found while building `burgee migrate`: it showed up only through the built binary, because
+  every in-process case had been written camelCase.
+
+- Updated dependencies [[`5a85175`](https://github.com/ofri-peretz/burgee/commit/5a85175da66df5e797446eaada1c3492cc8b8fff), [`88a6996`](https://github.com/ofri-peretz/burgee/commit/88a699645f986c6e5dcead465e3f36238f0ae77d)]:
+  - linegauge@0.3.2
+  - seniority@0.3.1
+
+## 0.7.1
+
+### Patch Changes
+
+- [#373](https://github.com/ofri-peretz/burgee/pull/373) [`a1f1d40`](https://github.com/ofri-peretz/burgee/commit/a1f1d40b7d1e7244f3a180943b641bb3b491d256) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Stage 2's artifact is now `spec.md`, the name Anthropic's AI-Native SDLC playbook gives it, so the source comments and README sections that cite a package's own design document point at `spec.md` rather than `design.md`.
+
+  No behaviour changes. The published tarballs do move, by two bytes per surviving reference — `design.md` is nine characters and `spec.md` is seven — so the four packages carrying a weight band were re-measured against it: linegauge 83,538 to 83,536; paratext 66,343 to 66,341; closeout 84,455 to 84,453; bellpull 86,113 to 86,107.
+
+- Updated dependencies [[`955b979`](https://github.com/ofri-peretz/burgee/commit/955b9790560ad2e478a1abbcbe42ec2bc4ba7423), [`a1f1d40`](https://github.com/ofri-peretz/burgee/commit/a1f1d40b7d1e7244f3a180943b641bb3b491d256)]:
+  - seniority@0.3.0
+  - bellpull@0.1.1
+  - closeout@0.2.1
+  - linegauge@0.3.1
+
+## 0.7.0
+
+### Minor Changes
+
+- [#332](https://github.com/ofri-peretz/burgee/pull/332) [`3ea38c3`](https://github.com/ofri-peretz/burgee/commit/3ea38c363b9f0cee9f1c1c2dae4037b047e98328) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - E5 and O5, which the design has marked `R` since it was written and which nothing implemented.
+
+  `exit-code.ts` has declared `SIGINT: 130` with the comment _"SIGINT after the terminal was restored (E5)"_ from the first day of the contract, and `exit-code-lock.test.ts` grades that no other literal reaches an exit. Neither could see what was actually missing: **no code path produced 130 and nothing restored anything.** `grep -rn SIGINT packages/burgee/src` returned the declaration and nothing else. O5 — _"stdout is flushed before any exit path"_, yargs [#1519](https://github.com/ofri-peretz/burgee/issues/1519) and [#2118](https://github.com/ofri-peretz/burgee/issues/2118), _"No truncated JSON"_ — was the same shape one line down, against `host.exit(code)`, which is `process.exit` and truncates a pipe by definition.
+
+  Both are now `closeout`'s, which is burgee's first dependency on it and the reason it exists: bound every exit path, run the handlers exactly once, hand the terminal back last. Writing the listener in burgee instead would have been the fourth copy of one in this repository.
+
+  - **`ctx.onExit(handler, label?)`** — cleanup that runs on every path out of a run: a normal return, `ctx.exit`, Ctrl-C, SIGTERM, a terminal closing out from under you, an uncaught throw. It runs after stdout has drained and before the terminal is handed back, and exactly once however many of those arrive together. `label` is what a breached shutdown deadline calls it; an unlabelled arrow is reported as `(anonymous)`, and the anonymous arrow is the shape that hangs.
+  - **A run that owns the process** gets closeout's full wiring — `exit`, `beforeExit`, five signals, `uncaughtException`, `unhandledRejection`. A run that injects its own `exit` — the harness, the MCP loop, every façade test — gets the same registry **detached**, with no listeners on anybody's process.
+  - **Every exit now goes through one place.** `ctx.exit(code)` used to call the injected exit and then throw; on the real path the first half was `process.exit`, so cleanup registered a line earlier could never run. It now throws only, and the failure path drains, runs the cleanup and leaves — which makes the file's own sentence, _"exactly one code path from argv to exit"_, true of the exit as well as of the parse.
+
+  Measured: commander 1360 / 1360 and yargs 804 / 804 before and after, unchanged — the two front-ends do not reach `execute.ts`. The core entry is 51,293 → 52,683 bytes against an unchanged 53,300 budget, so nothing was ratcheted for it; `shutdown.ts` is 1,001 of those and the engine's routing is the other 389. `npm i burgee` gains closeout's 81,360 bytes unpacked, and closeout depends on nothing.
+
+- [#361](https://github.com/ofri-peretz/burgee/pull/361) [`a0cb8ca`](https://github.com/ofri-peretz/burgee/commit/a0cb8caf22a1e1e56105cccd65fe02cab1516804) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - An error carries `fix` — the exact flag to run next — beside `hint`.
+
+  E3 asks for _"`code`, `message`, `hint`, and where possible `fix`: **the exact command or flag
+  to run next**"_. The envelope was `{code, message, hint}`, and `hint` is prose.
+
+  The distinction matters most for the caller this package exists for. **An agent can execute a
+  `fix`.** A `hint` it has to read, interpret and guess at — one more turn, and the turn where
+  it invents a flag that does not exist. Every _plugin_ error in the family already carried
+  `fix`; the engine's own did not.
+
+  ```
+  $ tool deploy --forc --json
+  {"ok":false,"error":{"code":2,"message":"unknown option --forc",
+                       "hint":"did you mean --force?","fix":"--force"}}
+  ```
+
+  `fix` is omitted, never guessed, when there is no near match: an executed guess burns the turn
+  the field exists to save.
+
+- [#361](https://github.com/ofri-peretz/burgee/pull/361) [`a0cb8ca`](https://github.com/ofri-peretz/burgee/commit/a0cb8caf22a1e1e56105cccd65fe02cab1516804) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--help --json` prints help as data.
+
+  It printed the same prose as `--help`. A caller who asked for a machine-readable answer got
+  one they had to parse — the exact failure the whole `--json` surface exists to avoid, on the
+  flag people type first. burgee's design recorded it as **F2, `Not built`**: _"no JSON help
+  surface; `--help --json` prints the same prose as `--help`."_
+
+  The document is `commandSchemaOf` scoped to the node you asked about — the same shape
+  `--schema` publishes, so a reader learns it once — plus `schemaVersion`, and for a group the
+  names of its children. A group's help is a menu; a reader who wants a child's detail asks for
+  that child, which is the same walk they would do on the text.
+
+  Plain `--help` is unchanged.
+
+- [#337](https://github.com/ofri-peretz/burgee/pull/337) [`e974114`](https://github.com/ofri-peretz/burgee/commit/e974114a8da753d4fd4f97d7e79928407d82e54a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Options can declare `dependsOn` and `exclusive`, and the declaration is enforced rather
+  than documented.
+
+  They are an **alias**, not a second engine: `exclusive` desugars to `conflicts` and
+  `dependsOn` to `implies`, into the `Relation` union that already existed. Command-level
+  `relations` are evaluated first and the derived entries after, so no existing command
+  changes which error it reports first.
+
+  The second spelling exists because it is the one the two incumbents use on the _option_
+  rather than on the command — commander's `.conflicts()` / `.implies()` and yargs'
+  `conflicts` / `implies` both hang off an option, and a drop-in that only accepts the
+  command-level form is not drop-in.
+
+  Enforced at parse time through the existing usage path: `UsageError`, exit 2, text
+  `error: --out requires --force` with `hint: pass --force`, and `--json` gives exactly
+  `{ok:false,error:{code:2,message,hint}}`. No new error shape.
+
+  Refused at _definition_ time when a name is not an option of that command, or is the
+  option itself. Both are silent at run time, in opposite directions: the first can never
+  fire, the second always does.
+
+  Projected three ways, because a relationship a caller cannot see is a relationship they
+  will violate: `--schema` carries both spellings, help renders `(requires --force)` and
+  `(conflicts with --table)` — it rendered no constraint of any kind before this — and the
+  Fig spec emits `dependsOn` / `exclusiveOn`, Fig's own two keys.
+
+- [#334](https://github.com/ofri-peretz/burgee/pull/334) [`0f00f72`](https://github.com/ofri-peretz/burgee/commit/0f00f7273ab0ca111c5869e2b08eb79314df7f70) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - burgee's plugin host now refuses a plugin it cannot host, and a plugin's commands go through
+  the guards a first-party command goes through. **This is a breaking change to a published
+  extension point, and it is deliberately a loud one.**
+
+  The defect, measured rather than inferred. `definePlugin(plugin)` was `return plugin;`, and
+  `Manifest.use()` pushed the plugin and called `this.add()` directly — where `defineCommand`
+  enforces the reserved names of V5 and runs `checkDefinition`. So a plugin's command was
+  admitted unread, and `toParseConfig` seeds `json: { type: 'boolean' }` and then writes every
+  declared option over the top of it. **A plugin option named `json` therefore did not clash
+  with the envelope flag; it replaced it**, on a framework whose entire agent-facing contract is
+  that `--json` is machine-readable output. Four more were accepted the same way: `enforce:
+'mid'` (`NaN` in the hook comparator), a plugin with no `name` (commands carried
+  `plugin: undefined`, so M3 attribution was silently lost), a hook with no `handler` (a
+  `TypeError` one run later, classified `RUNTIME`), and a contributed path that was already
+  declared — which `find()` and `resolve()` answer differently.
+
+  **What `contract` means, and how an old plugin fails.** `packages/burgee/src/plugin.ts` is
+  now a plugin host in the sense the rest of the family means: it owns `Plugin`, `validate()`,
+  `PluginError` and a `PluginErrorCode` of `E_PLUGIN_SCHEMA | E_PLUGIN_CONTRACT`, both already
+  in the vocabulary home's union. `contract` is the revision of the family plugin object a
+  plugin was written against, and this burgee knows `1`. A plugin that declares none is refused
+  with `E_PLUGIN_CONTRACT` naming the version:
+
+  > plugin "acme" declares no contract; burgee 0.6.1 and earlier validated none of it
+  > — rebuild it against this burgee (`definePlugin` stamps `contract: 1`), or add that key by hand
+
+  That refusal is the point rather than a side effect. An object with no `contract` was authored
+  against a host that checked nothing, so the honest reading of its silence is _unknown_, not
+  _fine_ — and it may be carrying exactly the `json` option above. A silent behaviour change on
+  a published extension point is worse than a loud breaking one. `definePlugin` now stamps the
+  contract it was compiled against, so a plugin rebuilt against this release needs no edit, and
+  only objects built against the unvalidated host are refused.
+
+  Two supporting changes. The definition-time checks moved from `validate.ts` to a new
+  `definition.ts`, because the plugin host pulls them into every graph that reaches the manifest
+  — including the commander and yargs front-ends, which reach nothing else of the engine.
+  Importing `validate.js` whole for `checkDefinition` put 6,409 bytes of run-time coercion into
+  both front-ends and took `burgee/commander` over the 128,000-byte budget that exists to prove
+  it is no heavier than commander's own `lib/`; the split keeps it at 125,667. And burgee ships
+  `src/schema.json`, byte-identical to the family's, exported as `burgee/schema.json`.
+
+  Measured: `burgee/commander` 1,360 / 1,360 and `burgee/yargs` 804 / 804 against the
+  incumbents' own suites, unchanged. Core costs 4,191 bytes on disk (52,959 → 57,150), priced
+  per entry in `weight.test.ts`.
+
+- [#361](https://github.com/ofri-peretz/burgee/pull/361) [`a0cb8ca`](https://github.com/ofri-peretz/burgee/commit/a0cb8caf22a1e1e56105cccd65fe02cab1516804) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - burgee's extension surface: `./plugin` is published, and `effects` is no longer optional.
+
+  **`burgee/plugin`.** Every other host in the family publishes its plugin module at
+  `<host>/plugin` — `bellpull`, `caique`, `closeout`, `flagstaff`, `paratext`, `roundel`,
+  `seniority`. burgee, the package that declares the plugin shape the other seven register
+  against, did not, so `scripts/plugin-contract-lock.test.ts` had to reach it by relative path
+  and recorded the gap as a declared one. It is the shape `plugin-schema-lock` caught in
+  flagstaff — a host whose own refusal names something the author cannot reach — and burgee's
+  version was the quieter kind, because the `fix` named no specifier at all: it said _rebuild
+  it against this burgee, `definePlugin` stamps the contract_, and left the author to work out
+  where `definePlugin` lives. The convention the family teaches is `burgee/plugin`, and that
+  threw `ERR_PACKAGE_PATH_NOT_EXPORTED`. Both halves are fixed: the subpath resolves, and the
+  message says its name. `burgee/plugin` exports `CONTRACT`, `definePlugin`, `validate`,
+  `PluginError`, `Plugin` and `PluginErrorCode`; the root barrel keeps the four it always
+  carried, because one module behind two doors is what `burgee/yargs` and
+  `burgee/yargs/helpers` already are, and `Manifest.use(plugin: Plugin)` is a root export.
+  `validate()` and the `Plugin` interface are the half only the subpath carries — the host's
+  vocabulary rather than a program author's.
+
+  **`effects` is required on a command that runs — a breaking change.** Any CLI with an
+  un-annotated runnable command will now fail at definition time rather than starting. The
+  one-line migration: add `effects: 'withheld'` to every runnable command that declared none,
+  then replace it with `read_only`, `idempotent` or `non_idempotent` on each command an agent
+  should be able to call.
+
+  It is breaking on purpose, because the old behaviour was silent. `toolsOf` serves only a
+  command that declared its `effects`, and that filter is right and unchanged: an agent gaining
+  shell-equivalent power over a CLI nobody meant to publish is a security posture, not a
+  convenience. What was wrong is that its input had one spelling for two different things.
+  _I decided agents should not have this_ and _I forgot_ both arrived as `undefined`, so the
+  second shipped as the first — you released, and the tool you built for an agent simply was
+  not in `tools/list`, with a shorter list than you expected as the only evidence.
+
+  So `effects` has no default, and declining is something an author writes down:
+  `effects: 'withheld'`, a fourth value of the same field. Not `'none'`, which reads as _this
+  command has no effects_ — that is `read_only`, the one value it could be confused with. Not a
+  second boolean field either: beside a now-required `effects` that would mean declaring what a
+  command does to the world silently opts it into the tool list, and the new field's default
+  would be the silence this change removes. One field, four answers, no default, and therefore
+  no state in which forgetting is possible.
+
+  The three projections then disagree on purpose, each correctly. `--schema` publishes
+  `effects: "withheld"`, because an agent reading a program as data is better served by _this
+  exists and is not for you_ than by a gap it cannot tell from a command that does not exist.
+  `tools/list` omits it. The Fig spec and the shell completions carry it exactly as before —
+  nothing in `completions.ts` reads `effects` and nothing here makes it start, because
+  withholding is about agents and a person typing at a terminal is not one.
+
+  Two limits, stated rather than implied. The refusal is on burgee's own declaration API:
+  a command built through `burgee/commander` or `burgee/yargs` reaches the manifest without
+  passing that door, because neither incumbent has a notion of effects and their graded suites
+  declare none — commander **1360 / 1360** and yargs **804 / 804**, both unchanged by this
+  release — so a façade user's command is withheld in fact and cannot be made to say so. And
+  `effects` stays optional on the TypeScript type, because a field whose presence depends on a
+  sibling's would mean splitting `Command` into a union at the cost of the option-spec
+  inference every caller relies on; the check is at definition time, not at compile time.
+
+  `burgee dev` is the first command in this repository to declare `'withheld'`, and not as a
+  formality: `dev` **is** an MCP server, so a tool call that started it would be a second,
+  never-finishing server nested inside the first, on the same pipe. `burgee brand` declares
+  `non_idempotent`, because it overwrites six files in a directory the caller names.
+
+  Weight, measured on a forced rebuild rather than a cached `dist/`: the core entry goes
+  58,771 → 59,732 bytes on disk (`+961` over both changes, of which `+938` is the refusal),
+  `burgee/testing` 62,992 → 63,953, `burgee/cli` 78,071 → 79,088, `burgee/commander`
+  126,989 → 127,876 inside its unchanged 128,000, and `burgee/yargs` 230,869 → 231,756 inside
+  its unchanged 256,000. The new `burgee/plugin` entry is 7,095 and costs a program nothing:
+  `manifest.js` imports `validate` as a value because `use()` is synchronous, so every entry
+  that reaches the manifest already carried those bytes.
+
+- [#360](https://github.com/ofri-peretz/burgee/pull/360) [`61c51f9`](https://github.com/ofri-peretz/burgee/commit/61c51f99481aab65c0743077feaea2dbff39acca) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/commander` spawns `executableSubcommand` through `bellpull`, and burgee no longer
+  imports `node:child_process` anywhere.
+
+  The gap was declared, dated, and carried its own release condition.
+  `inline-implementation-lock` read: _"commander's `executableSubcommand` spawns a sub-binary
+  and forwards five signals to it. Both are bellpull's job; bellpull was a seven-line
+  placeholder when this was written, and the engine lane adopts it once bellpull grades
+  against cross-spawn's suite."_ It grades **68 / 68**.
+
+  What it buys a consumer is the Windows branch. Upstream commander sends **every** Windows
+  spawn through `node`, because `spawn` does not search `PATHEXT` and, since the fix for
+  CVE-2024-27980, Node refuses a `.cmd` without `shell: true`. That is a workaround for a
+  resolution problem, and it is wrong for a subcommand that is a `.cmd`, a `.bat`, or has a
+  shebang that is not node — a real program with a real sub-binary. `bellpull` resolves the
+  executable, builds the `cmd.exe /d /s /c` line itself and escapes every argument, so
+  nothing reaches a shell as text.
+
+  `ChildProcess` comes from `bellpull/cross-spawn` too, which re-exports it precisely so a
+  consumer does not have to name `node:child_process` for a type.
+
+  **commander stays 1360 / 1360, ▲ 0**, measured after the wiring — which is the whole
+  question, since `spawn` is mocked in roughly 23 of those cases and the earlier attempt at
+  this took the row to ungradeable. `bellpull/cross-spawn` reads `spawn` off its default
+  import for that reason, and this consumer reads it off the namespace at the call site.
+
+  Cost: **+1,097 B** on `./commander`, ratcheted at the measurement.
+
+### Patch Changes
+
+- [#332](https://github.com/ofri-peretz/burgee/pull/332) [`3ea38c3`](https://github.com/ofri-peretz/burgee/commit/3ea38c363b9f0cee9f1c1c2dae4037b047e98328) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Two checks that grade what was previously asserted by snapshot or by fake: the Fig spec is
+  checked against Fig's own vocabulary, and Ctrl+C is pressed at a real terminal.
+
+  **`fig-schema.test.ts` — Fig publishes no schema, and that is the finding.** PLAN 2.5.3 asks
+  for the emitted spec to be validated "against Fig's own schema". There is none:
+  `@withfig/autocomplete-types@1.31.0` ships four files — `LICENSE`, `README.md`,
+  `package.json` and `index.d.ts` — so the contract is a TypeScript namespace declaration, not
+  anything a validator reads at runtime. It was last published 2024-05-08.
+
+  So the check is structural, and the objection `fig-spec.test.ts` recorded against doing one —
+  _"writing the allowed-key table from memory would be worse than not checking"_ — is answered
+  by giving the table a provenance rather than by giving up. The allowed keys were extracted
+  mechanically from Fig's own `index.d.ts`, recorded with the version and the file's SHA-256, the
+  way `compat-oracle` vendors an incumbent's suite. **No dependency is added**: the table is
+  forty strings, and the package is not installed, not in `devDependencies` and not in the
+  lockfile. It reproduces Fig's own asymmetry — `Subcommand` and `Option` extend
+  `BaseSuggestion`, `Arg` extends nothing and so has no `priority` and no `displayName` — which
+  is the part a table written from memory gets wrong.
+
+  Covered: every emitted key is one Fig declares, on the node type it is emitted on; `name` is
+  present and is `SingleOrArray<string>` where Fig requires one; `subcommands`, `options`, `args`
+  and `suggestions` have the shapes Fig declares; the whole tree is walked. Not covered, and said
+  rather than implied: Fig's semantics past its key names — a `priority` outside 0–100, a
+  malformed `generators` entry, a `loadSpec` naming a spec that does not exist. Nothing here
+  means "this works in Fig", only "this is not obviously not a Fig spec".
+
+  Proven red on the unfixed state: with `renderFigSpec` emitting `subCommands` — the typo the
+  snapshot blessed — the case fails with `<root>: 'subCommands' is not a key Fig declares on a
+subcommand`. Nine more cases prove it refuses a missing name, a name of the wrong type, a
+  container that is not a list, an arg given a subcommand-only key, and a fault three levels
+  down; one more proves it is not simply refusing everything.
+
+  **`pty-signal.test.ts` — the signal path, graded through a real tty.** `shutdown.test.ts`
+  raises signals on a `ProcessLike` that records, so the "signal" never leaves the test process.
+  Between a keypress and a handler sits the tty line discipline, which neither that test nor a
+  pipe has: in canonical mode `ISIG` turns `0x03` into a `SIGINT`, and in **raw** mode the
+  identical keystroke arrives as a byte and raises nothing. A test that writes `\x03` to a pipe
+  grades the raw path whatever it believes it is grading — which is how `caique` shipped a prompt
+  that restored the cursor on a cancel and never on a signal, with a green suite.
+
+  This runs burgee's built `dist/shutdown.js` on a real pty, presses Ctrl+C, and asserts the tty
+  echoed `^C`, that the handler the program registered ran, and that the process **died of**
+  `SIGINT` rather than calling `exit(130)` — which is the POSIX-correct outcome and not what
+  `shutdown.test.ts`'s fake records: 130 is a shell's arithmetic for `128 + 2`, not an exit call.
+  A program that exited 130 here would tell its parent it chose to stop.
+
+  The pty comes from `python3`'s standard-library `pty.fork()`, so nothing enters the lockfile —
+  the same borrowing as calling `git` in `compat-oracle/src/vendor.ts`. Two other dependency-free
+  routes were considered: `script(1)` was measured and rejected, because BSD `script` calls
+  `tcgetattr` on its own stdin and dies with `Operation not supported on socket` under any test
+  runner; and `zsh/zpty`, which `scripts/complete-zsh.zsh` already uses for the zsh completion
+  case, is right where the subject _is_ a shell widget but is gated on `has('zsh')` and an
+  apt-install, where `python3` is preinstalled on every hosted runner. **Windows is skipped with its
+  reason**, not quietly dropped: Python's `pty` is POSIX-only and a Windows pseudo-console means
+  ConPTY through a native addon, so the third OS PLAN 2.5.4 asks for costs `node-pty` — a native
+  build on every runner, and `compat.yml` installs with `--ignore-scripts`. That is a decision for
+  a person.
+
+  Proven red on the unfixed state: with the fixture using the engine's pre-`shutdown.ts` exit — a
+  bare `process.exit(130)` on SIGINT — both cases fail, on `cleanup ran: expected '' to be
+'cleaned up'` and `killed by SIGINT (2): expected +0 to be 2`.
+
+  commander 1360 / 1360, yargs 804 / 804 and cross-spawn 68 / 68 before and after, unchanged.
+
+- [#332](https://github.com/ofri-peretz/burgee/pull/332) [`3ea38c3`](https://github.com/ofri-peretz/burgee/commit/3ea38c363b9f0cee9f1c1c2dae4037b047e98328) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Help measured its columns with `String.length`, so a CJK or emoji command name mis-drew its own help screen.
+
+  `.length` is the count of UTF-16 code units, which equals the number of columns a terminal draws only for the Latin-1 subset. `部署` is two code units and four columns; `🚀` is two and two. `help.ts` used it in five places — sizing the shared term column, deciding which terms overflow it, padding after a term, and both width tests inside the word wrapper — so a program whose commands are not spelled in ASCII got a description column that did not line up and description text wider than the terminal it asked for.
+
+  `yargs/cliui.ts`, one directory over, has imported `width` from `linegauge` for exactly this job since it was ported, and its own comment records the reason: cliui's port carried its own `stringWidth`, the ITU T.416 sub-parameter form `ESC[38:2::255:0:0m` that chalk emits for truecolor left `:2::255:0:0m` behind, and a 13-column string measured 25. burgee already depended on `linegauge`. This file simply was not asking.
+
+  - **Every measurement of rendered text in `help.ts` is now `linegauge`'s `width`**, and the term column is `widest`, which is the function that exists so a caller does not spread a large array into `Math.max`. The wrapper carries a running column count rather than re-measuring the accumulated line per word, so a long paragraph stays linear.
+  - **For ASCII the two agree exactly**, which is why no graded screen moves: commander 1360 / 1360 and yargs 804 / 804 before and after, unchanged.
+  - **What is still not fixed, in any character set:** a single token longer than the row is not broken. `wrap('see https://…/no/spaces now', 20)` leaves the URL on one over-long row today, `linegauge`'s own `wrap` defaults to `hard: false` for the same reason, and hard-breaking would re-draw the graded screens that contain URLs. A test pins that as a known limit rather than leaving it to be re-found.
+
+  Help also has snapshots now (PLAN 2.5.1), which it had none of: five command shapes × the plan's three widths — 33 where the term column is clamped, 80 where the ordinary case wraps, 120 where alignment is what is on trial. A help screen is a drawing and a drawing is a contract, which is the call this repository already made for `boxen`; the renderer's by-construction fixes were each asserted once by a test that names the property it checks, and therefore could not see a change nobody was looking for.
+
+  The core entry is 52,683 → 52,893 bytes against an unchanged 53,300 budget, so nothing was ratcheted. `linegauge` joins `closeout` and `seniority/precedence` as a bare import core admits, on the same argument as both: measuring a line is linegauge's own job the way precedence is the parser's, and the alternative here was the second copy of a width function staying wrong.
+
+- [#343](https://github.com/ofri-peretz/burgee/pull/343) [`b245fb0`](https://github.com/ofri-peretz/burgee/commit/b245fb06db7fb796fe9e12d1f15c72adc10dd5c9) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee` declares `sideEffects`, so a consumer's bundler may drop a module nothing imports.
+
+  Every module in the package is a declaration or a pure const except one, and that one is
+  named rather than the field being set to a flat `false`: `dist/cli.js` ends in `run(program)`,
+  because it is the package's own command line and executing on import is the whole point of it.
+  `sideEffects: ["./dist/cli.js"]` is therefore the accurate statement, where `false` would have
+  been a claim the package does not meet. `roundel` and `flagstaff` already carried the field;
+  `burgee` did not, which is the only reason this is a change rather than a fact.
+
+  Measured against the B4 fixtures, esbuild takes **9 bytes** off the core entry point
+  (56,868 → 56,859) and nothing off `burgee/commander` or `burgee/yargs` — esbuild's own
+  tree-shaking had already reached everything the field would have licensed it to drop. The
+  field is worth more to webpack and rollup, which consult it directly and are conservative
+  without it. No entry point changes shape, and every compat row is where it was: commander
+  1360 / 1360, yargs 804 / 804.
+
+- [#351](https://github.com/ofri-peretz/burgee/pull/351) [`488cbe5`](https://github.com/ofri-peretz/burgee/commit/488cbe56b8d2b0b8f6f21b252f4d9db95e290d81) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--schema` on a yargs-shaped CLI now emits the same document as the other two front ends.
+
+  `yargs/factory.ts` hand-rolled `JSON.stringify(schemaOf(manifest), null, 2)` where `execute.ts` and `commander/command.ts` both call `machineJson(value, head)`. The façade therefore could not see `--format=json-pretty` — the escape hatch R1 added for the person debugging a schema — and emitted the indented document unconditionally. On the fixture this change is tested against, a plain `--schema` wrote **365 bytes through yargs against 240 through the engine and through commander**: the same value, 52% more bytes, and no way to ask for either form.
+
+  **What changes for a caller.** A yargs-shaped program's `--schema` is now compact by default, and indented only when `--format=json-pretty` is passed. Both documents parse to the same value, so a reader that parses is unaffected; a reader that diffed the raw bytes, or eyeballed the stream, will see the compact form where it used to see the pretty one.
+
+  The cost is **+71 bytes** on `burgee/yargs` bundled (114,738 → 114,809): `machineJson` and its flag constant could previously be tree-shaken out of that entry, and now cannot. `burgee` core and `burgee/commander` are unchanged to the byte. That entry is already over `lighter-than-yargs` (1.032 → 1.033), and this makes it marginally worse on purpose — three front ends that disagree about what `--schema` means is not a weight saving, it is a defect the weight measurement was hiding.
+
+  The property is now locked end to end rather than per writer: `machine-json.test.ts` drives one CLI definition through all three front ends and asserts the bytes are identical, in both the compact and the pretty form. The two suites that existed before were each true of a single writer in isolation, which is how three writers came to disagree.
+
+- [#298](https://github.com/ofri-peretz/burgee/pull/298) [`ead5f01`](https://github.com/ofri-peretz/burgee/commit/ead5f016ee7fd20492a041c1e6159aea27b2ed5f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `cliui`'s `toString()` is now linear in the cell it renders. `rowToString` ended each line
+  with `str.replace(/ +$/, "")`, whose unanchored start makes the engine retry at every
+  position in a run of trailing spaces; a row built from a 50,000-space cell cost 1,223 ms,
+  and doubling the cell quadrupled it. The trim now scans, and the same call takes 69 ms —
+  the second half of the fix that `measurePadding` got in [#278](https://github.com/ofri-peretz/burgee/issues/278). Output is unchanged: only
+  U+0020 is removed, so a trailing tab still survives under `wrap: false` as it did before.
+
+- [#332](https://github.com/ofri-peretz/burgee/pull/332) [`3ea38c3`](https://github.com/ofri-peretz/burgee/commit/3ea38c363b9f0cee9f1c1c2dae4037b047e98328) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A ratchet on whether the family actually composes: every package except `burgee` must be used
+  by another package in it.
+
+  `layer-boundaries-lock` is the negative half of PRINCIPLES rule 14 — no package does a job a
+  sibling exists to do. This is the positive half, and it is the one that was failing. Measured:
+  **five dependency edges in a nine-package family**, with `caique`, `paratext`, `closeout`,
+  `bellpull` and `flagstaff` used by nothing at all — and one job, putting the cursor back
+  however the process dies, implemented **three times**, by three files each of which argues in
+  its own comments that a second copy is the danger.
+
+  A layer nothing else uses has never been proven to fit the stack. The split into nine packages
+  is only real if the packages compose; otherwise it is a directory layout and the fit is an
+  assumption.
+
+  `edges` may only go up and `awaiting` may only shrink, each entry carrying the reason it is
+  still there. A package must leave `awaiting` the moment it gains a consumer — otherwise the
+  list becomes a place to park the problem, and the ratchet never notices the work was done.
+
+- [#332](https://github.com/ofri-peretz/burgee/pull/332) [`3ea38c3`](https://github.com/ofri-peretz/burgee/commit/3ea38c363b9f0cee9f1c1c2dae4037b047e98328) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Six designs now say what their package offers, how a consumer extends it, and what it
+  deliberately does not do — derived from `package.json`'s `exports` map and `src/plugin.ts`,
+  not from the README.
+
+  `burgee`, `roundel`, `flagstaff`, `caique`, `closeout` and `bellpull` each gain two sections:
+  a table with one row per published subpath and the exported names behind it, an extension
+  section stating what a plugin may contribute, what is validated, what is refused and what
+  happens on a bad one — and a record of every claim the design was making that the code does
+  not support. Each table carries the two commands that re-derive it, so the next reader checks
+  rather than trusts.
+
+  The findings are the point. `roundel/import` (`fromBase16`, `fromITerm`) is described in
+  `roundel`'s R11 and in its shipped README and exists in neither the `exports` map nor `src/`.
+  `bellpull`'s R7 promises a root default export matching `execa`'s and a `./run-path` subpath;
+  neither exists, so the `npm-run-path` override recipe cannot be written, and R3's `which` is
+  spelled `whichSync` in the code while R5's `toJSON` is `toJson`. `closeout`'s R6 promises a
+  root default matching `signal-exit`'s, and the root has no default export.
+  `flagstaff`'s R6 names `flagstaff/table` as the `cli-table3` façade — `./table` is the
+  built-in grid component and `./cli-table3` is the façade, so a reader following R6 imports the
+  wrong module — and its R10 "depends on `roundel` only" is contradicted by the package's own
+  shape test, which asserts three dependencies.
+
+  Two structural findings cross package lines. **burgee's `definePlugin` is not the shape the
+  layers register against.** `manifest.ts` declares `{ name, commands?, hooks?, enforce? }` —
+  no `contract`, no layer key — validates nothing (its body is `return plugin;`), refuses
+  nothing, and has no `src/plugin.ts`, so it is outside the vocabulary lock that polices every
+  other host. Plugin-contributed commands bypass `defineCommand`, so the reserved-name guard
+  and `checkDefinition` never run on them, and a plugin option named `json` silently overwrites
+  the envelope flag. **And the shared `schema.json` describes none of the three newest keys:**
+  `widgets`, `handlers` and `resolvers` validate only because the root sets
+  `additionalProperties: true`, so `caique`, `closeout` and `bellpull` each publish a schema
+  that says nothing about the one key they host — and announces itself as flagstaff's file.
+
+  Documentation only: no `packages/**` file is touched, and `npx tsx scripts/plan-progress.ts`
+  prints the same 22/36 before and after, byte for byte.
+
+- [#332](https://github.com/ofri-peretz/burgee/pull/332) [`3ea38c3`](https://github.com/ofri-peretz/burgee/commit/3ea38c363b9f0cee9f1c1c2dae4037b047e98328) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The cliui backtracking guard is checked by shape rather than by clock, after three timing
+  instruments failed on it, each differently.
+
+  1. `< 400 ms` at a small size — a CI box returned 440. A 10% margin measures the runner.
+  2. A growth **ratio** read **15.04 on macOS CI against 4.09 locally for identical code**,
+     batched 256 times, so not noise. Per call that runner was 3x slower at n and 11x slower at
+     4n: a 48,000-character cell is 96 KB of UTF-16 where a 12,000-character one is 24 KB, and the
+     larger crosses a cache boundary the smaller does not. The ratio measured the memory
+     hierarchy, and no ceiling repairs that.
+  3. An absolute budget cannot work either, and the numbers say why: at n = 50,000 the quadratic
+     implementation costs **1,072 ms here** while the linear one costs **~1,780 ms on CI**.
+     Correct code on the slow machine is dearer than buggy code on the fast one, so no threshold
+     separates them — and any threshold that passes CI cannot fail locally.
+
+  The bug is one shape: a quantifier with no anchor before it, matched against the row text, so
+  the engine retries at every position in a long run and each attempt walks to the end.
+  `cliui.ts`'s own comment records the cost — 1,049 ms of `toString()`'s 1,223 ms for a cell of
+  50,000 spaces, quadrupling when the cell doubled. The check now asserts that shape is absent:
+  deterministic, microseconds, no flake. Reintroducing `str.replace(/ +$/, "")` turns it red.
+
+  What it gives up is generality — it catches the shape rather than the behaviour, so a new
+  quadratic written another way would pass. That is stated in the test. Its first run also
+  matched the comment that documents the bug, which is why comments are stripped first: the third
+  checker in this repository to be caught reading printed source rather than shape.
+
+- [#324](https://github.com/ofri-peretz/burgee/pull/324) [`4a7b4ca`](https://github.com/ofri-peretz/burgee/commit/4a7b4ca59981ec00728fa17c49c3da9618f37868) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `scripts/lanes.ts --check` now grants every lane its own changeset, which `.sdlc/LANES.md` has
+  granted since the first run of these lanes.
+
+  The document said it; the script did not implement it. So `--check` called each lane's own
+  changeset a stray, and every lane brief had to tell its agent to ignore the result of its own
+  boundary check — which makes the check worth nothing. A rule stated in the document and absent
+  from the enforcement is the exact drift this file exists to prevent, committed by the file that
+  prevents it.
+
+  The exemption is read from the paragraph that grants it rather than written down a second time,
+  and it is narrow on both axes: `.changeset/config.json` is still a stray, `*` does not cross a
+  slash, and another lane's source file is still another lane's. `lane-boundaries-lock.test.ts`
+  holds all three, and goes red when the exemption is reverted.
+
+- [#332](https://github.com/ofri-peretz/burgee/pull/332) [`3ea38c3`](https://github.com/ofri-peretz/burgee/commit/3ea38c363b9f0cee9f1c1c2dae4037b047e98328) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A lock for PRINCIPLES rule 14: no package does a job another package in the family exists to
+  do.
+
+  The family splits nine ways precisely so a program can adopt one layer without the other
+  eight. The moment `burgee` measures a string's width itself, or reaches for `chalk` instead of
+  `roundel`, that split stops being real and the layers become a directory layout. Until now
+  that was intent — every other invariant here has a lock and this one did not.
+
+  The concern table is not restated. `compat-oracle/src/demand.ts` already declares which
+  incumbents each layer replaces, and that list _is_ the definition of each layer's job, so the
+  rule is derived from it: a package may not depend on an incumbent another layer replaces, nor
+  on the one it replaces itself. Needing that job is the same thing as needing the sibling.
+
+  It does not forbid a drop-in façade reproducing its own incumbent — `burgee/commander` spawns
+  child processes and forwards five signals because commander's `executableSubcommand` does, and
+  commander's own 1360-case suite grades exactly that. Reproducing the incumbent is the
+  compatibility claim.
+
+  Family state today: no package depends on any incumbent, its own or a sibling's, and no
+  package carries a runtime dependency outside the family.
+
+- [#326](https://github.com/ofri-peretz/burgee/pull/326) [`88f7ba6`](https://github.com/ofri-peretz/burgee/commit/88f7ba65e3a79ed20bf7c5bc4feae8b87684122b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Read the process through one live seam, and fix the cliui growth gate's instrument.
+
+  `src/runtime.ts` is now the only file in the package that names `process` (PLAN 4.3, Y9); the
+  allow-list in `process-reference-lock.test.ts` is down from nine burgee entries to one. Every
+  member of the new `host` export is a getter, because the commander and yargs front-ends
+  reproduce their incumbents' process contracts and those suites swap `process.argv`, `exit` and
+  `env` per test — a captured object literal would hand a test the value from before its own
+  swap. Graded before and after: commander 1360/1360, yargs 804/804, unchanged. Two reads that
+  had been captured at import are now live, `yargs-parser`'s default env among them.
+
+  `growth()` in `yargs/cliui.test.ts` was measuring the clock on one of its two assertions: at
+  n = 12,000 both the cost at n and the cost at 4n fell under the helper's 0.05 ms floor, so the
+  padding gate computed `0.05 / 0.05` and reported 1.0000 in 17 of 20 runs. It now calibrates a
+  batch until the window at n is a real measurement, and takes the minimum of each side across
+  samples rather than the minimum of the per-sample ratios — the second is what let a
+  GC-perturbed numerator produce the 10.145 that failed CI. The ceiling stays at 8.
+
+- [#339](https://github.com/ofri-peretz/burgee/pull/339) [`f295630`](https://github.com/ofri-peretz/burgee/commit/f2956301d5f9dcbcac0b001b00ebaf0315891fac) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `schema.json` constrains token names, because it was promising something no host honours.
+
+  `tokens` was described as any name to a `#rrggbb` colour. `roundel`'s `validate()` accepts
+  ten semantic names — `error`, `warn`, `ok`, `hint`, `muted`, `command`, `flag`, `value`,
+  `heading`, `ground` — and throws on everything else. So a plugin author doing exactly what
+  their own `E_PLUGIN_SCHEMA` error tells them, comparing their object against
+  `roundel/schema.json`, got a green from the schema and `"accent" is not a token` from
+  `register()`. Measured 2026-09-16 with `{ accent: '[#336699](https://github.com/ofri-peretz/burgee/issues/336699)' }`.
+
+  The schema now carries `propertyNames.enum`, and `scripts/plugin-contract-lock.test.ts`
+  pins the enum and the runtime set to each other from both sides, so neither can grow a
+  name the other does not know.
+
+  Every host ships a byte-identical copy of this file (`plugin-schema-lock.test.ts` asserts
+  it), which is why nine packages are listed. Only the key `roundel` owns is constrained:
+  describing `widgets`, `handlers`, `sources`, `resolvers` or `commands` in a file all eight
+  hosts share is what made _flagstaff_ start validating caique's key last time
+  (`PluginError: plugin.widgets.later: expected object, got boolean`), and those stay in
+  `plugin-schema-lock`'s `UNDESCRIBED` list with that reason.
+
+  `linegauge` is in the list for a different change: `ceilings.json`'s R9 block now records
+  the bar as D1's tree-inclusive ceiling — 83,538 against 170,342, a ratio of 0.4904 — and
+  keeps the superseded `get-east-asian-width` bar beside it with the count of entries that
+  cleared it.
+
+- [#326](https://github.com/ofri-peretz/burgee/pull/326) [`88f7ba6`](https://github.com/ofri-peretz/burgee/commit/88f7ba65e3a79ed20bf7c5bc4feae8b87684122b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The process-reference lock now catches the **binding**, not only the member read.
+
+  The seams built for PLAN 4.3 showed the hole up. `flagstaff/src/runtime.ts` reads the world
+  through `import process from 'node:process'`, and `roundel/src/runtime.ts` through a guarded
+  `(globalThis as { process?: … }).process` bound to a local — and both files passed the existing
+  pattern **untouched**. Their being on the allow-list was a statement of intent rather than
+  something the lock enforced.
+
+  Which means any file in any package could have done the same and stayed green: bind the global
+  once, then read `proc.env` forever, because the member read is now on a local whose name a
+  textual pattern cannot tell from any other. The same hole the `globalThis.` lookbehind closed
+  in September, reopened through a different door.
+
+  Proven against a real file in `linegauge/src` — a package with no allow-list entry — in both
+  spellings, each green before the change and caught after. And the new pattern's own first catch
+  was a **comment** in `chalk.ts` saying where a cast had moved to, which is the defect this file
+  already carries a paragraph about: a checker that reads printed source and not shape. Comments
+  are stripped before it sees them, and that case is now one of its row-by-row tests.
+
+- [#321](https://github.com/ofri-peretz/burgee/pull/321) [`48aec0a`](https://github.com/ofri-peretz/burgee/commit/48aec0a500b474be8f4c477f1d18433e4b3467bf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Every package README now carries a generated `## Where it sits`: which key plugins register
+  under, and what is above and below the package in the family (PLAN 5.2).
+
+  Both facts are derived rather than written down a second time. The keys come off each
+  package's own `export interface Plugin` — its members besides `name` and `contract` _are_ the
+  keys — and the edges come from the manifests' own dependency lists. The first version matched
+  a fixed alternation of key names instead and reported flagstaff as hosting none, when it hosts
+  four the alternation had never heard of: the whole argument against a second copy, made by the
+  function that was the second copy.
+
+  `scripts/readme-lock.test.ts` holds it. The assertion that matters is 5.2's own
+  done-condition — a hand edit fails — and it is proven rather than asserted: the test edits a
+  README and requires the check to notice. Tampering `caique`'s real file with a `gadgets` key
+  turns it red, which is the check that makes the other five mean something.
+
+- Updated dependencies [[`3ea38c3`](https://github.com/ofri-peretz/burgee/commit/3ea38c363b9f0cee9f1c1c2dae4037b047e98328), [`3ea38c3`](https://github.com/ofri-peretz/burgee/commit/3ea38c363b9f0cee9f1c1c2dae4037b047e98328), [`3ea38c3`](https://github.com/ofri-peretz/burgee/commit/3ea38c363b9f0cee9f1c1c2dae4037b047e98328), [`c8acb28`](https://github.com/ofri-peretz/burgee/commit/c8acb2848714a1cbe3e26a2f9895d7498fb4f096), [`fc640dd`](https://github.com/ofri-peretz/burgee/commit/fc640ddec11255c12d1e0948c5b8e99cc3f3263b), [`3f92a60`](https://github.com/ofri-peretz/burgee/commit/3f92a6099b1b8d5d476c64405ca963d40bf9af45), [`3ea38c3`](https://github.com/ofri-peretz/burgee/commit/3ea38c363b9f0cee9f1c1c2dae4037b047e98328), [`fc640dd`](https://github.com/ofri-peretz/burgee/commit/fc640ddec11255c12d1e0948c5b8e99cc3f3263b), [`3ea38c3`](https://github.com/ofri-peretz/burgee/commit/3ea38c363b9f0cee9f1c1c2dae4037b047e98328), [`c8acb28`](https://github.com/ofri-peretz/burgee/commit/c8acb2848714a1cbe3e26a2f9895d7498fb4f096), [`c8acb28`](https://github.com/ofri-peretz/burgee/commit/c8acb2848714a1cbe3e26a2f9895d7498fb4f096), [`88f7ba6`](https://github.com/ofri-peretz/burgee/commit/88f7ba65e3a79ed20bf7c5bc4feae8b87684122b), [`3f92a60`](https://github.com/ofri-peretz/burgee/commit/3f92a6099b1b8d5d476c64405ca963d40bf9af45), [`f295630`](https://github.com/ofri-peretz/burgee/commit/f2956301d5f9dcbcac0b001b00ebaf0315891fac), [`c8acb28`](https://github.com/ofri-peretz/burgee/commit/c8acb2848714a1cbe3e26a2f9895d7498fb4f096), [`3f92a60`](https://github.com/ofri-peretz/burgee/commit/3f92a6099b1b8d5d476c64405ca963d40bf9af45)]:
+  - bellpull@0.1.0
+  - closeout@0.2.0
+  - linegauge@0.3.0
+  - seniority@0.2.0
+  - roundel@0.3.1
+
+## 0.6.1
+
+### Patch Changes
+
+- [#280](https://github.com/ofri-peretz/burgee/pull/280) [`50cc1a3`](https://github.com/ofri-peretz/burgee/commit/50cc1a325bc99b144b4e1dba701de624bbd76de6) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The B1 agent-cost axis now recognises an empty credential as no credential. A workflow that maps an unset repository secret into the environment leaves the variable **present and empty**, not absent, so a guard testing against `undefined` never fired: the axis ran, `claude` failed to authenticate on all 25 task-runs, and the skip reported that `claude` "answered but nothing it produced passed a task's own check" — pointing a reader at a prompt-quality problem that did not exist.
+
+- [#278](https://github.com/ofri-peretz/burgee/pull/278) [`862e837`](https://github.com/ofri-peretz/burgee/commit/862e83716b66e9aa363a0fa3b703cc9cd38b8929) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - **🐛 Fix** — help screens wrap against the real width: `width`, `strip` and `wrap` come from `linegauge`
+
+  `burgee/yargs`' cliui port carried its own `stringWidth`, `stripAnsi` and a wrap-ansi
+  implementation. The strip was wrong: the ITU T.416 sub-parameter form
+  `ESC[38:2::255:0:0m` — what chalk emits for truecolor — left `:2::255:0:0m` in the string,
+  so a 13-column string measured as 25 and every help screen wrapped against a width that was
+  not the width. linegauge owns measuring and wrapping text and had already fixed it.
+
+## 0.6.0
+
+### Minor Changes
+
+- [#265](https://github.com/ofri-peretz/burgee/pull/265) [`0750ebc`](https://github.com/ofri-peretz/burgee/commit/0750ebcf2a66c0254a8f9ae52c83d3d50a37b67a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - **♻️ Refactor** — precedence and config discovery come from `seniority` rather than a second copy
+
+  burgee carried its own `precedence.ts` and `config.ts`; `config.ts` was byte-identical to
+  seniority's and `precedence.ts` differed by nineteen lines. Two copies of a precedence order
+  is two answers to "where did this value come from", and `--explain` is only worth anything
+  if the thing that picked the value is the thing that reports it.
+
+  The public surface is unchanged — `resolve`, `explain`, `envName`, `screaming`,
+  `ConfigError` and their types are still exported from `burgee`, now re-exported from
+  `seniority@^0.1.0`, which is a new runtime dependency.
+
+## 0.5.0
+
+### Minor Changes
+
+- [#194](https://github.com/ofri-peretz/burgee/pull/194) [`8693415`](https://github.com/ofri-peretz/burgee/commit/86934153a9389d7e2380c07424cd414748e696a1) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - burgee consumes `roundel` instead of carrying a copy of it.
+
+  `contrast.ts` existed twice — the same WCAG luminance and ratio code in both packages,
+  identical constants and identical maths, differing only in which package name the hex error
+  message says. That is what a rule forbidding the dependency arrow produces: it does not
+  remove the need, it converts it into a copy, which is the one outcome zero-external-deps
+  exists to prevent.
+
+  The family order now runs bottom-up — foundation, output stack, engine — so each layer
+  consumes the layers below it. burgee is last, because a command declares itself and then
+  asks the layers beneath it to render, colour and prompt.
+
+  What a caller installs still comes from one repo: **zero external dependencies** is
+  unchanged, and is the claim that was ever worth making.
+
+- [#246](https://github.com/ofri-peretz/burgee/pull/246) [`14b4cb2`](https://github.com/ofri-peretz/burgee/commit/14b4cb2be80deb78079aea2d748ad44aac9a96ff) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--schema` publishes `relations` (S2/S6). `validate.ts` has enforced `exactlyOneOf`,
+  `conflicts`, `implies` and the rest since the surface shipped, and the schema never said so —
+  an agent could only discover a constraint by violating it. A predicate `implies` publishes as
+  `"(predicate)"` rather than the `null` `JSON.stringify` would leave.
+
+### Patch Changes
+
+- Updated dependencies [[`214f6f8`](https://github.com/ofri-peretz/burgee/commit/214f6f83b16068d7dc53d79799fba03c26a3cbe2), [`214f6f8`](https://github.com/ofri-peretz/burgee/commit/214f6f83b16068d7dc53d79799fba03c26a3cbe2)]:
+  - roundel@0.3.0
+
+## 0.4.0
+
+### Minor Changes
+
+- [#156](https://github.com/ofri-peretz/burgee/pull/156) [`799a461`](https://github.com/ofri-peretz/burgee/commit/799a4616881f6cedc0bb1eae31b0b186969b217c) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--schema` is compact by default (agent-headroom R1). The document an agent reads to
+  discover a CLI drops 42% — 39,512 → 22,964 bytes on the large reference demo — for a
+  byte-identical parse. `--format=json-pretty` restores indentation for a person reading it.
+  Both writers change: the engine's `--schema` and the commander front-end's.
+
+- [#160](https://github.com/ofri-peretz/burgee/pull/160) [`b6fc349`](https://github.com/ofri-peretz/burgee/commit/b6fc349b113f50b6aba3961718aaea76c0f84ffa) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Every boolean option accepts `--no-<name>`. burgee's precedence is `flag > env > config file > package.json field > default`, and the config and package.json layers set options by name — so any boolean can arrive `true` without the user typing anything, while a boolean flag carries no value and `--x=false` is refused. Before this the top layer of that chain could only ever say `true`, and a boolean turned on in a config file could not be turned off from the command line at all. `--x` and `--no-x` together: the later one wins. String options are unaffected, and `--no-config` still means "load none".
+
+- [#134](https://github.com/ofri-peretz/burgee/pull/134) [`7a38fe7`](https://github.com/ofri-peretz/burgee/commit/7a38fe7c321ca2efe54d89a73dcba9205316dc2d) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/brand` gains three options, so a family of marks can come out of one declaration.
+
+  `shape` replaces the swallowtail with your own silhouette (SVG path data, same `0 0 100 100` box, filled `evenodd` so a nested subpath cuts a hole) — for a sibling brand whose name is not a flag: a roundel is rings, a parrot is a parrot.
+
+  `sheen` lays a soft highlight across the field, clipped to the silhouette and drawn under the charge, so the mark keeps the contrast it was measured at. `alive()` is the same mark with that highlight sweeping across — for a site header, never a favicon — parked still under `prefers-reduced-motion`.
+
+  `bevel` is the third dimension a logo can afford: two stroked copies of the silhouette clipped to itself, light offset toward the light source and dark away from it, so the edge lifts and the face stays flat. Sub-pixel at 16px, where it disappears rather than muddies.
+
+  All three are additive: a brand that declares none renders byte-for-byte what it rendered before.
+
+- [#151](https://github.com/ofri-peretz/burgee/pull/151) [`8f1043a`](https://github.com/ofri-peretz/burgee/commit/8f1043ae367aeb4b7d107e18491bb6c2653cde42) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A mistyped option now says which one was meant: `error: unknown option --nmae` / `hint: did you mean --name?`, taken from the options the command declared. Exit 2 already told an agent to rewrite the command; this is the half that says how. Previously the native path printed `node:util.parseArgs`'s own message — three lines about `--` and positional arguments, which never mentions the option the caller almost typed — while the commander façade had suggestions all along.
+
+  The edit-distance code is loaded on the failure path only, so `import { defineCommand } from 'burgee'` does not carry it. The core entry point got _smaller_, because the single-dash hint moved out of it too.
+
+### Patch Changes
+
+- [#151](https://github.com/ofri-peretz/burgee/pull/151) [`8f1043a`](https://github.com/ofri-peretz/burgee/commit/8f1043ae367aeb4b7d107e18491bb6c2653cde42) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The repo now dogfoods a twelfth Interlace ESLint plugin, `browser-security`, scoped to the docs app — 41 more rules at `error` over the surface the engine never touches and a browser application does.
+
+- [#151](https://github.com/ofri-peretz/burgee/pull/151) [`8f1043a`](https://github.com/ofri-peretz/burgee/commit/8f1043ae367aeb4b7d107e18491bb6c2653cde42) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Marks for the foundation tier — `linegauge`, `seniority`, `bellpull` and `closeout` — from the same declaration as the other four. No API change: `burgee/brand` already had `shape`, and this is four more of them.
+
+- [#162](https://github.com/ofri-peretz/burgee/pull/162) [`a447fc4`](https://github.com/ofri-peretz/burgee/commit/a447fc434b2162a61b6cf5ce7814cacb1559d06a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Completions offer `--no-<name>` for every declared boolean, in all four shells, and fish emits the CLI form rather than the declaration name. fish alone built its own spelling instead of going through `flags()`, so it had been completing `-l dryRun` where the flag is `--dry-run` — a flag the parser refuses — for every camelCase option. The reserved surfaces are excluded: `--no-json` and `--no-help` are not accepted by the parser and are not offered.
+
+- [#158](https://github.com/ofri-peretz/burgee/pull/158) [`97ca535`](https://github.com/ofri-peretz/burgee/commit/97ca53593c253d2504892cda62247a0d574bd698) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--version` and `-V` answer on a program that is a pure command group. `dispatch` had always handled them, but only once a command resolved, so a program whose root runs nothing fell through to `unknown command "--version"` and exit 2 — which under E1 means _rewrite the command_. Real commander and real yargs both print the version and exit 0 for the identical program.
+
+- [#170](https://github.com/ofri-peretz/burgee/pull/170) [`3e4071c`](https://github.com/ofri-peretz/burgee/commit/3e4071c75e417c71961891e18a85238deb3e3d8d) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/yargs` finds its locale table from the package root rather than from the depth of
+  one file. It resolved `../locales` relative to itself, which was correct only while that file
+  sat directly in `dist/`; the moment it moved into a directory the path became `dist/locales`,
+  y18n returned the key for every string, and 14 of yargs' own 804 tests failed. Walking up to
+  `package.json` resolves the same from `src/`, from `dist/`, and from an installed
+  `node_modules/burgee/dist/`.
+
+## 0.3.0
+
+### Minor Changes
+
+- [#24](https://github.com/ofri-peretz/burgee/pull/24) [`cf951de`](https://github.com/ofri-peretz/burgee/commit/cf951de876b23c5f9bc38d734e3028b723983178) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `Runtime` gains a `clock` (`now`, `schedule`) with a deterministic fake in `burgee/testing`, and `renderHelp` accepts `{ color, theme }` — a structural token map the output stack can fill without burgee importing it.
+
+- [#33](https://github.com/ofri-peretz/burgee/pull/33) [`8ad4d4a`](https://github.com/ofri-peretz/burgee/commit/8ad4d4abb5077433dfa875f3f1a95480e95c2a52) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Large CLIs (M1–M6): `load: () => import('./x.js')` on a command loads its handler on dispatch only — help, `--schema` (which marks it `lazy`), completions and the MCP tool list are complete without it; `sharedOptions(name, specs)` declares a set once and each copy is tagged `sharedFrom` in the schema; a command with `deprecated: 'new'` warns once on stderr and runs; `group` and `plugin` ride on the schema; `resolveCommand` and `runCommand` are public. The commander façade gains `.deprecate(use?)` and projects `.helpGroup()`. A required positional that argv did not supply is now a usage error naming it — it had never been enforced.
+
+- [#23](https://github.com/ofri-peretz/burgee/pull/23) [`0770990`](https://github.com/ofri-peretz/burgee/commit/07709908c423411ab97252812dfa5ec8d3cf4e0a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee dev <entry>`: your agent is connected to your CLI while you write it. The entry (exporting `program` as a burgee manifest, a commander `Command` or a yargs instance) is served as MCP on stdio; on every save it is re-imported as a fresh module graph, the served manifest is swapped, `notifications/tools/list_changed` goes out, and the diff plus the rendered help are printed on stderr. Dev-time only and removable: nothing a shipped CLI imports can reach it. `startMcp()` is the swappable server `serveMcp()` now wraps.
+
+- [#19](https://github.com/ofri-peretz/burgee/pull/19) [`9670224`](https://github.com/ofri-peretz/burgee/commit/96702248dfccff5074874ce4a3d0b9d19754a3fc) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - burgee's additions on yargs syntax, guarded so a program that asks for none of them runs exactly as on yargs (804 / 804 still): `yargs.manifest` projected from what the program registered (builders run on a scratch instance, as yargs' completion does), `use(plugin)` with `preRun`/`postRun` around every handler, `.effects()` inside a builder, `--json` as the `{ ok, data, meta }` envelope when the program did not declare it anywhere in its tree, `--schema`, `--mcp` and `completion <shell>` from the manifest, and `.burgee({ stdout, stderr, exit })` injecting the streams and reporting E1 exit codes.
+
+- [#16](https://github.com/ofri-peretz/burgee/pull/16) [`c7d1aa0`](https://github.com/ofri-peretz/burgee/commit/c7d1aa0f271c0733b42213c0351e6aebcc7dd909) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/yargs/parser`: the ported yargs-parser as its own entry — what `import parser from 'yargs-parser'` gave, for a program that imported the parser directly. With it, and with the compatibility harness able to `require()` its vendored root as a package, both façades now pass **100%** of their hosts' own suites: `burgee/commander` 1,361 / 1,361 and `burgee/yargs` 804 / 804.
+
+## 0.2.0
+
+### Minor Changes
+
+- [#14](https://github.com/ofri-peretz/burgee/pull/14) [`95a954f`](https://github.com/ofri-peretz/burgee/commit/95a954f82f44ce1249fa1a051e529ad46b258376) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/yargs` and `burgee/yargs/helpers`: yargs 18 ported method for method — with its whole dependency tree (yargs-parser 22, cliui 9 with string-width and wrap-ansi, y18n 5 and the 29 locales, escalade, get-caller-file) reimplemented over no dependency — and graded by yargs' own suite: **782 / 804** on the first run, one short of the 783 the real package scores in the same environment. The one test left asserts that `Parser` is the same object as the `yargs-parser` npm package, which a dependency-free port cannot be. `import yargs from 'burgee/yargs'` and `import { hideBin, applyExtends, Parser } from 'burgee/yargs/helpers'` are the drop-in; `examples/conformance` proves the demo byte-identical on both.
+
+### Patch Changes
+
+- [#13](https://github.com/ofri-peretz/burgee/pull/13) [`21d0f4f`](https://github.com/ofri-peretz/burgee/commit/21d0f4f32722b19831fcfa3c7f4d73849eaeaed5) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/commander`: `parse()` is synchronous again and `parseAsync()` starts synchronously, exactly as commander's do. Since the `--schema`/`--mcp` surface landed, both went through an `async` surface check, so a synchronous action ran a microtask after `parse()` returned and a `preAction` hook after `parseAsync()` handed back its promise — commander's own suite asserts on both after every parse. 638 of its 1,331 tests had been failing on `main` while the Compatibility job reported success, because a `| tee` pipe hid the grader's exit code; every workflow step that pipes into `tee` now runs with `pipefail`.

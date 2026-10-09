@@ -68,12 +68,20 @@ export interface BuiltApp {
   readonly built: (file: string) => string;
 }
 
+/**
+ * Every row of the table by key, deployable and `pending` alike: a pending app builds and is
+ * tested exactly as a deployed one is, against its own row's host.
+ */
+function rowsOf(appDir: string): Record<string, Row> {
+  const table = JSON.parse(readFileSync(join(appDir, '..', '..', '.github', 'vercel-apps.json'), 'utf8')) as { apps: Record<string, Row>; pending?: Record<string, Row> };
+  return { ...table.apps, ...table.pending };
+}
+
 /** Resolve the app a test file belongs to, from its `import.meta.url`. */
 export function builtApp(testFileUrl: string): BuiltApp {
   const dir = resolve(dirname(fileURLToPath(testFileUrl)), '..');
   const { name } = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as { name: string };
-  const table = JSON.parse(readFileSync(join(dir, '..', '..', '.github', 'vercel-apps.json'), 'utf8')) as { apps: Record<string, Row> };
-  const row = Object.values(table.apps).find((r) => r.workspace === name);
+  const row = Object.values(rowsOf(dir)).find((r) => r.workspace === name);
   if (row === undefined) throw new Error(`${dir} is workspace '${name}', which no row of .github/vercel-apps.json names`);
   const content = join(dir, 'content', 'docs');
   const prerendered = join(dir, '.next', 'server', 'app');
@@ -177,7 +185,7 @@ export function docsSiteSuite(testFileUrl: string): void {
     });
 
     it('tells PostHog which site it is on, from the row', () => {
-      const key = Object.entries(JSON.parse(readFileSync(join(app.dir, '..', '..', '.github', 'vercel-apps.json'), 'utf8')).apps as Record<string, Row>).find(([, r]) => r.workspace === app.row.workspace)?.[0];
+      const key = Object.entries(rowsOf(app.dir)).find(([, r]) => r.workspace === app.row.workspace)?.[0];
       expect(app.built('index.html'), 'the Analytics element is not given this app’s row key').toContain(String.raw`\"site\":\"${key}\"`);
     });
 

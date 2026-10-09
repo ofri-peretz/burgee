@@ -1,5 +1,28 @@
 # controlroom
 
+## 0.3.3
+
+### Patch Changes
+
+- [#897](https://github.com/ofri-peretz/burgee/pull/897) [`f29f159`](https://github.com/ofri-peretz/burgee/commit/f29f159ca0c9746f58d8ba84eec9be72b1140093) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - controlroom has its own docs site at https://controlroom.interlace.tools: its README's Docs line, its `homepage`, and every family table now link there.
+- Updated dependencies [[`f29f159`](https://github.com/ofri-peretz/burgee/commit/f29f159ca0c9746f58d8ba84eec9be72b1140093)]:
+  - caique@1.0.2
+  - closeout@1.0.2
+  - flagstaff@1.2.3
+  - linegauge@1.0.6
+  - paratext@1.0.2
+  - roundel@1.0.2
+
+## 0.3.2
+
+### Patch Changes
+
+- [#892](https://github.com/ofri-peretz/burgee/pull/892) [`82292af`](https://github.com/ofri-peretz/burgee/commit/82292af35404c36566d9f977574118f2f56f6ed6) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The root entry's doc comment, which TypeScript shows on hover and the API reference prints, no longer says the package is reserved and exports one constant. It names what the entry exports: `open()` and its runtime, the layout arithmetic, the tab, focus and collapse reducer with its hint line, and the compositor, with ink's API at `controlroom/ink` and plugins at `controlroom/plugin`. `status` is still `'reserved'`, kept so a program that read it still loads.
+
+- [#895](https://github.com/ofri-peretz/burgee/pull/895) [`e641aa3`](https://github.com/ofri-peretz/burgee/commit/e641aa3a7494d09ad620edcd90cc0df30f2ea800) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - README: the Plugins example now default-exports its plugin, so `controlroom check` accepts it, and registers flagstaff's `log-tail` before `open()`, which threw for a pane drawn with an unregistered component.
+- Updated dependencies [[`d33ae03`](https://github.com/ofri-peretz/burgee/commit/d33ae0342583cebfa54be1a043d0c085efd9eaaf)]:
+  - caique@1.0.1
+
 ## 0.3.1
 
 ### Patch Changes

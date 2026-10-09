@@ -25,7 +25,7 @@ repository. The tenth is the reservation `controlroom@0.0.1`, with no API yet.
 | [`bellpull`](./packages/bellpull/) | subprocesses and executable resolution | execa · cross-spawn · which |
 | [`closeout`](./packages/closeout/) | exit handlers, terminal restore, bounded shutdown | signal-exit · exit-hook · restore-cursor |
 | [`paratext`](./packages/paratext/) | hyperlinks, images, title, clipboard, notifications, bell | ansi-escapes (OSC half) · terminal-link · term-img |
-| [`controlroom`](./packages/controlroom/) | full-screen screens over flagstaff's loop, each with a static projection; **reserved, not usable yet** | ink · @inkjs/ui |
+| [`controlroom`](./packages/controlroom/) | full-screen screens over flagstaff's loop, each with a static projection, inline or full-screen; `controlroom/ink` is ink's drop-in | ink · @inkjs/ui |
 | [`compat-oracle`](./packages/compat-oracle/) | private: grades each drop-in path with the incumbent's own test suite | — |
 
 Each package's `package.json` `description` is the canonical one-liner, and its README is

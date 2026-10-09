@@ -52,6 +52,12 @@ export interface HelpOptions {
    * `HelpTheme` for the lines it leaves plain: the `Usage:` command name and `$ example`.
    */
   theme?: HelpTheme;
+  /**
+   * The commands to list, in place of the node's visible children: each by its path from the
+   * node, with what it takes (`config get <key>`), under the heading of the child it is reached
+   * through. The engine passes every command that runs when they fit (`listed` in `usage.ts`).
+   */
+  commands?: readonly CommandNode[];
 }
 
 /** What a term is, so the theme can style it; the term itself stays plain text. */
@@ -197,20 +203,20 @@ function argumentRows(args: ArgumentSpec[]): Row[] {
 }
 
 /**
- * Commands one level below `node`, visible, in declaration order, grouped by heading (yargs #684).
- * Each is listed with what it takes — `get <key>`, as commander lists `get [options] <key>` — so
- * the line to run is on the screen: B1's agents read a bare `get` and spent a turn on
- * `config get --help` to learn it takes a key, in 5 of 20 runs of the task that asks for one.
+ * Commands one level below `node`, visible, in declaration order, grouped by heading (yargs #684),
+ * or the `listed` ones by their path from `node`. Each is listed with what it takes — `get <key>`,
+ * as commander lists `get [options] <key>` — so the line to run is on the screen: B1's agents read
+ * a bare `get` and spent a turn on `config get --help` to learn it takes a key, in 5 of 20 runs of
+ * the task that asks for one. A listed command sits under its top-level ancestor's heading.
  */
-function commandSections(manifest: Manifest, node: CommandNode): Section[] {
-  const children = manifest.commands.filter(
-    (c) => c.hidden !== true && c.path.length === node.path.length + 1 && node.path.every((seg, i) => c.path[i] === seg),
-  );
+function commandSections(manifest: Manifest, node: CommandNode, listed?: readonly CommandNode[]): Section[] {
+  const children =
+    listed ?? manifest.commands.filter((c) => c.hidden !== true && c.path.length === node.path.length + 1 && node.path.every((seg, i) => c.path[i] === seg));
   const groups = new Map<string, Row[]>();
   for (const c of children) {
-    const heading = c.group ?? 'Commands:';
+    const heading = manifest.find(c.path.slice(0, node.path.length + 1))?.group ?? 'Commands:';
     const rows = groups.get(heading) ?? [];
-    rows.push({ term: [c.path.at(-1), ...(c.arguments ?? []).map(argumentTerm)].join(' '), text:`${c.summary ?? c.description ?? ''}${deprecation(c.deprecated)}`.trim(), kind: 'command' });
+    rows.push({ term: [...c.path.slice(node.path.length), ...(c.arguments ?? []).map(argumentTerm)].join(' '), text: `${c.summary ?? c.description ?? ''}${deprecation(c.deprecated)}`.trim(), kind: 'command' });
     groups.set(heading, rows);
   }
   return [...groups].map(([title, rows]) => ({ title, rows }));
@@ -310,7 +316,7 @@ export function renderHelp(manifest: Manifest, node: CommandNode, opts: HelpOpti
   const verbose = opts.verbose === true;
   const paint = paintOf(opts);
   const root = manifest.rootPath;
-  const commands = commandSections(manifest, node);
+  const commands = commandSections(manifest, node, opts.commands);
   const args = argumentRows(node.arguments ?? []);
   const options = optionRows(node.options, verbose);
   const env = environmentRows(node.options);

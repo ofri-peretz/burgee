@@ -8,7 +8,7 @@
  * Lock — a package site's API reference is its shipped surface, all of it, as shipped.
  *
  * `scripts/api-reference.ts` writes `content/docs/api/<entry>.md` from the built `dist/*.d.ts`
- * of every package in `STANDARD_SITES`. A reference goes wrong in two ways, and both are
+ * of every package in `STANDARD_SITES` and `FAMILY_SITE_REFERENCES` (together, `REFERENCED`). A reference goes wrong in two ways, and both are
  * silent on the page: it falls behind the code (an export renamed, a signature changed, a doc
  * comment rewritten), or it misses part of the surface (an entry point added to `exports`
  * with no page, an export nobody listed). So:
@@ -18,7 +18,11 @@
  *   2. every entry point in `exports` with types has a page, and every export of it — read
  *      from the checker here, not from the generator's output — is named on that page, as a
  *      section of its own or a row pointing at the page that documents it;
- *   3. the site's nav lists the reference and the pages that exist.
+ *   3. the site's nav lists the reference and the pages that exist;
+ *   4. on the family app, exactly the entries `DROP_INS` names link out to the incumbent's
+ *      docs, at the release `GRADED_VERSIONS` grades, and every other entry is documented in
+ *      full — so a native entry cannot slip into a bare list of names, nor a drop-in into a
+ *      restatement of its incumbent's API.
  *
  * It reads `dist/`, so it needs the packages built — `turbo run build` before the root
  * suite, as `lefthook`'s pre-push and CI both run it. A missing `dist/` fails by name.
@@ -31,9 +35,11 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 // eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and scripts read the app table through its one typed reader rather than re-parsing it
-import { appForPackage } from '../apps/docs-chassis/src/config';
+import { siteForPackage } from '../apps/docs-chassis/src/config';
+// eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: a bare `burgee/*` resolves from another checkout's dist/ in an uninstalled worktree, and `compat.ts` is not an export
+import { DROP_INS, GRADED_VERSIONS } from '../packages/burgee/src/compat.js';
 
-import { entriesOf, orphans, pages, prose, renderEntry, SIDE_EFFECT_ONLY, spacedSpan, STANDARD_SITES, stale } from './api-reference.js';
+import { entriesOf, FAMILY_SITE_REFERENCES, incumbentDocs, incumbentPackage, LINKS_OUT, orphans, pages, prose, REFERENCED, renderEntry, renderLinkOut, SIDE_EFFECT_ONLY, spacedSpan, STANDARD_SITES, stale } from './api-reference.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -61,9 +67,9 @@ function sideEffectEntry(pkg: string, types: string): boolean {
   return Array.isArray(listed) && listed.some((file) => resolve(dir, file) === types.replace(/\.d\.ts$/, '.js'));
 }
 
-describe.each(STANDARD_SITES.map((pkg) => [pkg] as const))('%s: the API reference', (pkg) => {
-  const app = appForPackage(pkg);
-  if (app === undefined) throw new Error(`${pkg} is in STANDARD_SITES and has no app`);
+describe.each(REFERENCED.map((pkg) => [pkg] as const))('%s: the API reference', (pkg) => {
+  const app = siteForPackage(pkg);
+  if (app === undefined) throw new Error(`${pkg} is in REFERENCED and has no app`);
   const owned = pages([pkg]);
   const entries = entriesOf(pkg);
 
@@ -94,6 +100,21 @@ describe.each(STANDARD_SITES.map((pkg) => [pkg] as const))('%s: the API referenc
     expect(leaked).toEqual([]);
   });
 
+  it.each(entries.map((e) => [e.specifier, e] as const))('%s is documented in full, or is a graded drop-in that links to its incumbent', (_specifier, entry) => {
+    const page = readFileSync(join(ROOT, app.dir, 'content/docs/api', `${entry.slug}.md`), 'utf8');
+    // Which entries link out is read from DROP_INS here, not from the generator's `linksOut`.
+    const dropIn = FAMILY_SITE_REFERENCES.includes(pkg) ? DROP_INS.find((d) => d.to === entry.specifier) : undefined;
+    const why = dropIn === undefined ? `${entry.specifier} is not a graded drop-in on the family app, and its page only links out` : `${entry.specifier} is a drop-in for ${dropIn.from}, and its page restates the API`;
+    expect(page.includes(LINKS_OUT), why).toBe(dropIn !== undefined);
+    if (dropIn === undefined) return;
+    const incumbent = incumbentPackage(dropIn.from);
+    const version = GRADED_VERSIONS[incumbent];
+    expect(version, `GRADED_VERSIONS has no release for ${incumbent}`).toBeDefined();
+    expect(page).toContain(`](${incumbentDocs(incumbent, version ?? '')})`);
+    expect(page).toContain('](/docs/compatibility)');
+    expect(page, "a drop-in page states no signatures: they are the incumbent's").not.toContain('```ts');
+  });
+
   it('lists the reference in the site nav, and every page of it in its own', () => {
     const meta = JSON.parse(readFileSync(join(ROOT, app.dir, 'content/docs/meta.json'), 'utf8')) as { pages: string[] };
     expect(meta.pages).toContain('api');
@@ -122,6 +143,16 @@ describe('the lock refuses what it exists to refuse', () => {
   it('a page under api/ the generator does not write is an orphan', () => {
     const fewer = new Map([...owned].filter(([file]) => file !== path));
     expect(orphans(fewer, [pkg])).toContain(path);
+  });
+
+  it('a drop-in page that loses a name is caught by the export check', () => {
+    const [family] = FAMILY_SITE_REFERENCES;
+    const entry = family === undefined ? undefined : entriesOf(family).find((e) => e.specifier === 'burgee/yargs/helpers');
+    const dropIn = DROP_INS.find((d) => d.to === 'burgee/yargs/helpers');
+    if (entry === undefined || dropIn === undefined) throw new Error('no burgee/yargs/helpers entry to mutate');
+    const page = renderLinkOut({ entry, docs: [], dropIn });
+    expect(page).toContain(LINKS_OUT);
+    expect(exportedNames(entry.types).filter((name) => !page.includes(`### ${name}\n`) && !page.includes(`| \`${name}\` |`))).toContain('hideBin');
   });
 
   it('an export dropped from a page is caught by the export check', () => {

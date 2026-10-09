@@ -16,14 +16,18 @@
  * Where each page goes is `.github/vercel-apps.json`'s decision, not this script's: a package
  * with an app of its own gets its README as that app's `content/docs/index.md`, served at
  * `<host>/docs`; the family app's own package, and any package the table lists under
- * `excluded`, get `content/docs/packages/<name>.md` on the family app. The family app also
+ * `excluded`, get `content/docs/packages/<name>.md` on the family app. A package whose app is
+ * built but `pending` its Vercel project gets both: its app's index, and the front door's
+ * section every link still points at until the host is live. The family app also
  * gets `packages/index.md`, the family map — every package, what it replaces, where it lives.
  * Regrouping a package is a table edit; this script follows it.
  *
  * A package whose site carries the standard page set (`STANDARD_SITES` in
  * `api-reference.ts`) also gets its `CHANGELOG.md` as `content/docs/changelog.md`: changesets
  * writes the file on every release, `changeset:version` runs this script right after, and the
- * page is never a second copy anybody edits.
+ * page is never a second copy anybody edits. A package in `FAMILY_SITE_REFERENCES` — burgee,
+ * whose site is the family app — gets the same page at the family app's
+ * `content/docs/changelog.md`.
  *
  * Output is `.md`, not `.mdx`: README prose is full of `{`, `<name>` and autolinks that MDX
  * would parse as JSX. The centred HTML header (logo, badges) and the `# name` heading are
@@ -37,11 +41,11 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and scripts read the app table through its one typed reader rather than re-parsing it
-import { appForPackage, familyApp } from "../apps/docs-chassis/src/config";
+import { appForPackage, familyApp, siteForPackage } from "../apps/docs-chassis/src/config";
 // eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and scripts read the app table through its one typed reader rather than re-parsing it
 import { publicPackages } from "../apps/docs-chassis/src/packages";
 
-import { STANDARD_SITES } from "./api-reference.js";
+import { FAMILY_SITE_REFERENCES, STANDARD_SITES } from "./api-reference.js";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PACKAGES = join(REPO_ROOT, "packages");
@@ -117,22 +121,39 @@ const WHICH_ONE = [
   "  boxes and tables, drawn in place under what the program has already printed and left in",
   "  the scrollback as ordinary lines. It reads no keys. Usable today, with drop-in paths for",
   "  ora, log-update, boxen and cli-table3.",
-  "- **controlroom, for a full screen.** Panes, tabs with key hints, focus and collapse, in the",
-  "  alternate screen, with keys routed to the program. **Reserved, not usable yet**: its",
-  "  screen API is planned, not built. Coming from blessed, neo-blessed or terminal-kit? The",
-  "  [coming-from guides](/docs/coming-from/blessed) map each one onto the plan, and",
-  "  `burgee migrate` already reports their sites.",
+  "- **controlroom, for a screen that reads keys.** Panes, tabs with key hints, focus and",
+  "  collapse, an input line, with keys routed to the program, either inline under the",
+  "  program's output or in the alternate screen. An ink program moves by its import, to",
+  "  `controlroom/ink`. Coming from blessed, neo-blessed or terminal-kit? The",
+  "  [coming-from guides](/docs/coming-from/blessed) map each one onto `open()`, and",
+  "  `burgee migrate` reports their sites.",
   "",
   "If a program only draws, it is flagstaff, even when the drawing is busy. If it reads keys",
-  "while it draws, it is controlroom. controlroom's planned inline screen (R19) is for the",
-  "second kind kept in the main screen, the shape of a chat CLI. A question asked once, such",
-  "as a confirm or a pick, is neither: it is a prompt, and prompts are caique's.",
+  "while it draws, it is controlroom, and its inline screen keeps that in the main screen,",
+  "the shape of a chat CLI. A question asked once, such as a confirm or a pick, is neither:",
+  "it is a prompt, and prompts are caique's.",
   "",
   "Off a terminal, flagstaff gives a pipe, CI, a screen reader and `--json` each component's",
-  "static projection, never a redraw, and controlroom is specified to do the same for a whole",
-  "screen (R6).",
+  "static projection, never a redraw, and controlroom does the same for a whole screen.",
   "",
 ];
+
+/**
+ * The changelog page a package gets, as `[path, contents]`, or nothing: a `STANDARD_SITES`
+ * package on its own site, a `FAMILY_SITE_REFERENCES` package on the family app.
+ */
+function changelogPage(dir: string, manifest: Manifest, siteDir: string, onFamily: boolean): [string, string] | undefined {
+  const listed = onFamily ? FAMILY_SITE_REFERENCES : STANDARD_SITES;
+  const path = join(PACKAGES, dir, "CHANGELOG.md");
+  if (!listed.includes(manifest.name) || !existsSync(path)) return undefined;
+  return [`${siteDir}/content/docs/changelog.md`, renderChangelog(manifest, readFileSync(path, "utf8"))];
+}
+
+/** The directory of the app built for `pkg` alone — deployable, or `pending` its Vercel project — or nothing. */
+function ownSite(pkg: string): string | undefined {
+  const site = siteForPackage(pkg);
+  return site === undefined || site.familyPages ? undefined : site.dir;
+}
 
 /** Every page this script owns, as `repo-relative path → contents`, across every app. */
 export function pages(): Map<string, string> {
@@ -146,15 +167,17 @@ export function pages(): Map<string, string> {
     const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as Manifest;
     if (manifest.private) continue;
     const readme = readFileSync(readmePath, "utf8");
-    const own = appForPackage(manifest.name);
-    if (own !== undefined && !own.familyPages) {
-      out.set(`${own.dir}/content/docs/index.md`, render(e.name, manifest, readme, family.productionUrl));
-      const changelogPath = join(PACKAGES, e.name, "CHANGELOG.md");
-      if (STANDARD_SITES.includes(manifest.name) && existsSync(changelogPath)) out.set(`${own.dir}/content/docs/changelog.md`, renderChangelog(manifest, readFileSync(changelogPath, "utf8")));
-    } else {
+    // The front door keeps a section until the package's own host is live; the app built for
+    // the package — deployable, or `pending` its Vercel project — carries the projection.
+    const live = appForPackage(manifest.name);
+    if (live === undefined || live.familyPages) {
       out.set(`${family.dir}/content/docs/packages/${e.name}.md`, render(e.name, manifest, readme));
       sections.push(e.name);
     }
+    const site = ownSite(manifest.name);
+    if (site !== undefined) out.set(`${site}/content/docs/index.md`, render(e.name, manifest, readme, family.productionUrl));
+    const changelog = changelogPage(e.name, manifest, site ?? family.dir, site === undefined);
+    if (changelog !== undefined) out.set(...changelog);
   }
   // The family's own package first, then any package kept as a section, alphabetically.
   const names = sections.toSorted((a, b) => Number(b === family.package) - Number(a === family.package) || a.localeCompare(b));

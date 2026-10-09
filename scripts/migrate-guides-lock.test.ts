@@ -12,16 +12,17 @@
  * in the docs app. Each side can drift without the other noticing: a renamed heading turns
  * every link a report prints into a link to the top of a page, a factory added to the rules
  * points users at a section that never mentions it, and the example report on a guide stops
- * being what the command prints. And the guides describe an API that is mostly not built, so
- * the most dangerous drift is a snippet that reads as working code when controlroom does not
- * export what it imports. Each of those is a case below, derived from the rule tables and the
+ * being what the command prints. And the guides show controlroom code, so the most dangerous
+ * drift is a snippet that reads as working code when controlroom does not export what it
+ * imports. Each of those is a case below, derived from the rule tables and the
  * page files rather than restated, in the manner of `migrate-drop-ins-lock.test.ts`.
  *
  * Proven red, one mutation each: renaming `### Key handling` on one guide fails "every section
  * a report links to is a heading"; removing `listtable()` from the blessed guide fails "names
  * every call it reports"; changing a line number in a guide's example report fails "prints
- * what the command prints"; deleting a `// Planned, not built` line fails "marks every
- * snippet that imports what controlroom does not export"; dropping a row from the Migrate
+ * what the command prints"; importing a name controlroom does not export, with no
+ * `// Planned, not built` first line, fails "marks every snippet that imports what controlroom
+ * does not export"; dropping a row from the Migrate
  * page's guided table fails "lists exactly the patterns it reports".
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';

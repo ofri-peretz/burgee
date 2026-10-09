@@ -1,5 +1,22 @@
 # caique
 
+## 1.0.2
+
+### Patch Changes
+
+- [#897](https://github.com/ofri-peretz/burgee/pull/897) [`f29f159`](https://github.com/ofri-peretz/burgee/commit/f29f159ca0c9746f58d8ba84eec9be72b1140093) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - controlroom has its own docs site at https://controlroom.interlace.tools: its README's Docs line, its `homepage`, and every family table now link there.
+- Updated dependencies [[`f29f159`](https://github.com/ofri-peretz/burgee/commit/f29f159ca0c9746f58d8ba84eec9be72b1140093)]:
+  - closeout@1.0.2
+  - linegauge@1.0.6
+  - paratext@1.0.2
+  - roundel@1.0.2
+
+## 1.0.1
+
+### Patch Changes
+
+- [#886](https://github.com/ofri-peretz/burgee/pull/886) [`d33ae03`](https://github.com/ofri-peretz/burgee/commit/d33ae0342583cebfa54be1a043d0c085efd9eaaf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The README and docs index say caique is 1.0, not "Released, pre-1.0.": it shipped 1.0.0 on 2026-10-08.
+
 ## 1.0.0
 
 ### Major Changes

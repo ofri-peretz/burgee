@@ -39,6 +39,27 @@ export interface Runtime {
 const ARGV_PROGRAM_AND_SCRIPT = 2;
 
 /**
+ * A Node builtin, read as its own exports object: `builtin('node:util').parseArgs`.
+ *
+ * Not `import { parseArgs } from 'node:util'`, and the difference is measured. An ES `import`
+ * of a builtin builds a module namespace over *every* export, and building it reads every lazy
+ * getter the builtin has: `node:util` loads `worker_threads`, `internal/util/diff` and eleven
+ * more internals so `parseArgs` can be named, and `node:fs` loads `fs/promises`,
+ * `readline/interface`, `fs/streams` and the watchers so `existsSync` can be. That was 24
+ * internal modules on every run of every burgee program, none of which it calls.
+ * `process.getBuiltinModule` (Node 20.16, 22.3; Deno 2.1) hands back the CommonJS exports and
+ * reads only the property asked for. Measured 2026-10-09 over 250 interleaved spawns of the B2
+ * `burgee` fixture: 1.27 ms less CPU per run, 4% of the whole process
+ * (`benchmarks/cold-start-modules.test.ts` holds it).
+ *
+ * Read at the call, never captured: it is the object `require('node:fs')` returns, so a test
+ * that swaps a member sees the swap, and nothing about *what* is called changes — only what
+ * loads. One arrow rather than a getter per module because every entry reaching this file
+ * carries it, and three of their byte budgets had under 80 bytes to give.
+ */
+export const builtin = ((id: string) => process.getBuiltinModule(id)) as typeof process.getBuiltinModule;
+
+/**
  * The one place in the layer that names `process` — the whole of Y9. Every other file in
  * this package reads it through `host` or through an injected `Runtime`, which is what
  * `process-reference-lock.test.ts` enforces.
