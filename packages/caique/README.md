@@ -35,10 +35,10 @@
   Migrating from: <a href="https://caique.interlace.tools/docs/coming-from/inquirer">inquirer</a> · <a href="https://caique.interlace.tools/docs/coming-from/clack">clack</a>
 </p>
 
-**Released, pre-1.0.** `decide()`, `ask()` and the `caique/inquirer` and `caique/clack`
-drop-in paths ship today, each path graded by its incumbent's own suite on the
-[compatibility page](https://burgee.interlace.tools/docs/compatibility); what is still to come
-follows [`.sdlc/intents/caique/`](https://github.com/ofri-peretz/burgee/tree/main/.sdlc/intents/caique).
+**1.0.** `decide()`, `ask()` and the `caique/inquirer` and `caique/clack` drop-in paths are a
+semver contract, each path graded by its incumbent's own suite on the
+[compatibility page](https://burgee.interlace.tools/docs/compatibility), level with the incumbent
+at its latest release (D-20261007-caique-controlroom-1-0-evidence).
 
 A **caique** (kah-EEK) is a small, loud, never-silent parrot — and this one always answers
 back. It is also the light wooden boat of the Bosphorus and the Greek islands, the one that
@@ -326,7 +326,7 @@ Graded by the incumbent's own test suite:
 | `clack` | 16 / 16 |
 | `inquirer-core` | 41 / 41 |
 
-Weight, installed and tree-inclusive: **243,336 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.6255**.
+Weight, installed and tree-inclusive: **243,299 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.6254**.
 
 ## For agents
 
