@@ -58,7 +58,7 @@ byte counts, choose cac.
 ## Weight against cac
 
 From [burgee vs the alternatives](/docs/comparison), where both sides are measured by
-`npm run bench` in one run on one machine (2026-09-09), with downloads from the research
+`npm run bench` in one run on one machine (2026-10-08, CI), with downloads from the research
 snapshot of 2026-09-06. Milliseconds are a property of the machine that measured them; the
 ratios above are the figures that cancel it out:
 
@@ -66,7 +66,7 @@ ratios above are the figures that cancel it out:
 | :-- | --: | --: |
 | Downloads / week | new | 49.4M |
 | Runtime dependencies | 5, none outside the burgee family | 0 |
-| Full CLI run over bare node | +14.0 ms | +4.0 ms |
+| Full CLI run over bare node | +20.3 ms | +3.8 ms |
 | Installed size | 1511 KB | 40 KB |
 
 cac wins every row, and every row stays on the page. The case for burgee is the capability
