@@ -167,8 +167,8 @@ flowchart LR
 **And plugins ride the same road.** A plugin contributes *to the manifest*, and the
 manifest does not record which façade filled it — so one plugin works identically on a
 commander-syntax program, a yargs-syntax program and a native one. That matters more than
-it first appears: **commander has no plugin system at all** (its RFC, #2505, is still
-unlanded after years) and yargs has none either. So a commander user who changes one
+it first appears: **commander has no plugin system at all** (its RFC, #2505, opened in
+April 2026, was closed for inactivity on 2026-10-09 without one) and yargs has none either. So a commander user who changes one
 import does not merely gain `--json`; they gain a plugin ecosystem their own framework
 never had, without touching a line of their code — and any plugin they write is portable
 to every other rung of the ladder.
