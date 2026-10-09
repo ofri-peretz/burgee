@@ -68,9 +68,11 @@ describe('the chat, as a pipe sees it', () => {
   });
 
   it('prints each entry once', () => {
-    const { stdout } = chat('hello\n');
-    assert.equal(stdout.split('> hello').length, 2);
-    assert.equal(stdout.split('You said').length, 2);
+    // Says what came back when it fails: on Windows this once saw no `> hello` at all, and the bare count said nothing more (A-20261009-chat-ink-windows-lost-line).
+    const { stdout, stderr, status, signal } = chat('hello\n');
+    const seen = `status ${String(status)} signal ${String(signal)}\nstdout:\n${stdout}\nstderr:\n${stderr}`;
+    assert.equal(stdout.split('> hello').length, 2, seen);
+    assert.equal(stdout.split('You said').length, 2, seen);
   });
 
   it('a refused tool is not run, and empty stdin ends the program at once', () => {
