@@ -16,15 +16,16 @@ import manifest from '../../../../packages/burgee/package.json';
 export const site = defineSite('burgee', manifest);
 
 /**
- * What burgee is, in one sentence, in the words the root README uses: burgee *replaces*
- * commander and yargs. The docs home once said it *delegates* to them — a different product —
- * and a model asked "what is burgee?" quotes whichever sentence it met first.
+ * What burgee is, in one sentence: what it does first, then what it replaces
+ * (`.sdlc/intents/positioning/`). The docs home once said burgee *delegates* to commander — a
+ * different product — and a model asked "what is burgee?" quotes whichever sentence it met
+ * first, so this sentence and the root README's hero say the same thing.
  *
  * This is the definition, not the pitch. The pitch — the tagline — is `PITCH` in
  * `#/lib/llms`, and `scripts/pitch-lock.test.ts` holds every copy of it to that one string.
  */
 export const SUMMARY =
-  'A CLI framework that replaces commander and yargs, is drop-in compatible with both, and projects help, --json, --schema, an MCP server and shell completions from one declaration.';
+  'A CLI framework built on one declaration: help, --json, --schema, an MCP server and shell completions are all read from it, and its drop-in paths for commander and yargs are graded by their own test suites.';
 
 /**
  * Design benches, not documentation: the 3D brand stage and the caique modelling sheets.

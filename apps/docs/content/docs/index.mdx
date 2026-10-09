@@ -1,12 +1,11 @@
 ---
 title: Overview
-description: "burgee is a CLI framework that replaces commander and yargs, is drop-in compatible with both, and projects help, --json, --schema, an MCP server and completions from one declaration."
+description: "burgee serves one command declaration as help, --json, --schema, an MCP server, completions and types; answers an agent with exit codes, fix: lines and --explain; takes no dependency outside its family; and grades each drop-in path by the incumbent's own test suite."
 ---
 
-**burgee** is a CLI framework that **replaces commander and yargs**, is drop-in compatible
-with both, and serves every command through every format a caller wants. You declare a
-command once; help, `--json`, `--schema`, an MCP server and shell completions are all read
-from that one declaration, so none of them can drift from the others.
+**burgee** is a CLI framework built on one declaration. You declare a command once, and
+help, `--json`, `--schema`, an MCP server, shell completions and TypeScript types are all read
+from that declaration, so none of them can drift from the others.
 
 ```text
 defineCommand()  ──▶  manifest  ──┬──▶  human help
@@ -18,27 +17,52 @@ defineCommand()  ──▶  manifest  ──┬──▶  human help
                                   └──▶  docs + llms.txt
 ```
 
-## Built for the CLIs agents drive
+## Contracts an agent can act on
 
-An agent calling a CLI through a shell pays in calls, tokens and misreads. A burgee
-command declares itself once and an agent reads that declaration directly: a stable
-`{ ok, data }` envelope under `--json`, a versioned schema under `--schema`, the same
-commands as MCP tools under `--mcp`, and an exit code that says *rewrite the command* (`2`)
-rather than *something went wrong*. [Your CLI is an agent tool](/docs/agent-surfaces) has
-each surface.
+An agent calling a CLI through a shell pays in calls, tokens and misreads. A burgee command
+gives it contracts instead of prose to interpret:
 
-## Already on commander or yargs?
+- a stable `{ ok, data }` envelope under `--json`, and a versioned schema under `--schema`;
+- an exit code that says *rewrite the command* (`2`) rather than *something went wrong*;
+- a `fix:` line on a mistyped command, which the agent can run as written;
+- `--explain <option>`, which says whether a value came from a flag, an environment
+  variable, a config file or a default;
+- the same commands as MCP tools under `--mcp`.
 
-Change one import:
+[Your CLI is an agent tool](/docs/agent-surfaces) has each surface.
+
+## One supply chain
+
+Ten packages, one repository, one release pipeline, and no dependency outside the burgee
+family in any of them. Six take nothing at all; the other four take only each other.
+[Packages](/docs/packages) has each one.
+
+## Proved by each incumbent's own suite
+
+Every drop-in path is graded by the test suite of the package it replaces, vendored
+unmodified apart from the import specifier and run in CI beside a control that runs the real
+package. The rates are on [Compatibility](/docs/compatibility), generated, never hand-edited.
+The [benchmarks](/docs/benchmarks) publish every comparison, the rows burgee loses included.
+
+## Switch in one command
+
+```bash
+npx burgee migrate --dry-run
+npx burgee migrate
+```
+
+burgee replaces commander and yargs, and the family replaces chalk, ora, string-width and the
+other incumbents graded level with their own suites. `burgee migrate` rewrites the import
+specifiers and nothing else, then prints the install command to run next. For one commander
+program, that is one line:
 
 ```diff
 - import { Command } from 'commander';
 + import { Command } from 'burgee/commander';
 ```
 
-Compatibility is graded, not asserted: each host's own test suite runs against burgee in
-CI. The rates are on [Compatibility](/docs/compatibility), and the migration is on
-[burgee vs commander](/docs/vs/commander) and [burgee vs yargs](/docs/vs/yargs).
+[Migrate](/docs/migrate) has the whole report, and [burgee vs commander](/docs/vs/commander)
+and [burgee vs yargs](/docs/vs/yargs) go through each API.
 
 ## Where to go next
 
