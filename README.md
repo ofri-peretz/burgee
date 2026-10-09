@@ -265,8 +265,8 @@ language: burgee is TypeScript, like both incumbents.
 Milliseconds are a property of the machine that produced them, so nothing gates on them.
 What is gated is the ratio between two spawns interleaved in the same run, which cancels the
 machine out. Ten of those gates are stated in public — **eight are met, three of them as
-downward-only ratchets rather than the bar they started with; one is not met; and one is met on a
-single local run and unconfirmed**:
+downward-only ratchets rather than the bar they started with; one is not met; and one is not
+settled yet, because its measure changed**:
 
 | Claim | Gate | Measured | |
 | :--- | :--- | ---: | :--- |
@@ -278,8 +278,15 @@ single local run and unconfirmed**:
 | `burgee` starts within 1.6× of `cac`, the lightest framework in the landscape (ratchet; lowered as it speeds up) | `cold-start-at-or-below-cac` | 1.443× | ✅ met |
 | `burgee/commander` stays within 1.565× of `commander` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-commander` | 1.558× | ✅ met |
 | `burgee` stays within 2.35× of `cac` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-cac` | 2.317× | ✅ met |
-| an agent spends ≥40% fewer tokens per task | `agent-tokens-40pct` | 0.747× on the newest CI run (`367cefb`); 0.491–0.995 over the 5 runs since B1 installs the demo under its printed name, median 0.495. burgee holds at 3 turns, and commander's median lands at 4 or 6 turns from run to run (D-20261008-b1-tool-name) | ❌ **not met** |
-| an agent takes ≥30% fewer turns per task | `agent-turns-30pct` | 0.75× on the newest CI run; 0.5–1.0 over the same 5 runs, median 0.5 | ❌ **not met** |
+| an agent spends ≥40% fewer tokens over the benchmark tasks (total over every task-run) | `agent-tokens-40pct` | 0.699× on the newest CI run (`e6cff20`); 0.549–0.699 over the 12 runs since B1 installs the demo under its printed name, met on 5 of them | ❌ **not met** |
+| an agent takes ≥30% fewer turns over the benchmark tasks (total over every task-run) | `agent-turns-30pct` | 0.677× on the newest CI run (`e6cff20`); 0.583–0.703 over the same 12 runs, met on 9 of them | **unmeasured** as a record until the next CI run; the figures are its per-task detail, summed |
+
+**The two agent claims changed measure on 2026-10-09** (D-20261009-b1-totals-and-explain). They
+compared pooled medians until then, and the median ratio was decided by commander's luck: burgee
+holds at 3 turns, while commander's median lands at 4 or 6 from run to run, so the same build
+read 0.5 or 0.75. They now compare the tokens and turns each CLI spends, summed over all 25
+task-runs. The figures above are those sums, recomputed from each landed run's per-task detail.
+On the old measure the newest run read 0.492 tokens and 0.5 turns, both met.
 
 ### The two ways to ask the bundle question, and why both are here
 

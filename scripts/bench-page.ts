@@ -16,6 +16,7 @@ import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { PAIRS as RUNTIME_PAIRS } from 'benchmarks/axes/runtime.js';
+import { CLAIMS } from 'benchmarks/claims.js';
 import { publishedResults } from 'benchmarks/published.js';
 import { readRuntimeRatchets } from 'benchmarks/runtime-ratchets.js';
 
@@ -39,6 +40,7 @@ interface Record_ {
   p95: number;
   note?: string;
   gate?: { max?: number; min?: number; why: string };
+  detail?: Record<string, unknown>;
 }
 interface Claim {
   claim: string;
@@ -48,6 +50,7 @@ interface Claim {
   unit?: string;
   met?: boolean;
   reason?: string;
+  from?: { metric: string };
 }
 interface Machine {
   os: string;
@@ -236,6 +239,41 @@ const claimRow = (id: string, c: Claim): string => {
 };
 const claims = [...Object.entries(cheap.claims), ...Object.entries(agent?.claims ?? {})].map(([id, c]) => claimRow(id, c));
 
+/**
+ * D-20261009-b1-totals-and-explain — the agent claims moved from the pooled median ratio to the
+ * ratio of totals over every task-run. A published document settled before that change carries
+ * the old verdict, so the page says so beside it and gives the totals summed from that same
+ * run's per-task detail (`<task>.turns`, `<task>.tokens`), rather than leaving a reader to take
+ * the old measure for the current one. Once a published document carries the total records, the
+ * claim's `from` matches and this says nothing.
+ */
+function totalFromDetail(doc: Doc, variant: string, field: 'turns' | 'tokens'): { sum: number; runs: number } {
+  const detail = doc.records.find((r) => r.variant === variant && r.metric === 'success-rate')?.detail ?? {};
+  const values = Object.entries(detail)
+    .filter(([key]) => key.endsWith(`.${field}`))
+    .flatMap(([, list]) => String(list).split(','))
+    .filter((v) => v !== '-')
+    .map(Number);
+  return { sum: values.reduce((a, b) => a + b, 0), runs: values.length };
+}
+function totalRatio(doc: Doc, field: 'turns' | 'tokens'): string {
+  const ours = totalFromDetail(doc, 'burgee', field);
+  const theirs = totalFromDetail(doc, 'commander', field);
+  return (ours.sum / ours.runs / (theirs.sum / theirs.runs)).toFixed(RATIO_PLACES);
+}
+const remeasured = CLAIMS.filter((spec) => spec.from.axis === 'agent' && agent?.claims[spec.id]?.from !== undefined && agent.claims[spec.id]?.from?.metric !== spec.from.metric);
+const agentMeasureNote =
+  agent === undefined || remeasured.length === 0
+    ? ''
+    : `
+> **The two agent rows changed measure on 2026-10-09** (D-20261009-b1-totals-and-explain). This run settled
+> them on the ratio of pooled medians, which commander's bimodal median turned into a coin flip. They are
+> now settled on the tokens and turns each build spends summed over every task-run. Summed from this run's
+> per-task detail, burgee ÷ commander is **${totalRatio(agent, 'tokens')}** for tokens (claim ≤ 0.6) and
+> **${totalRatio(agent, 'turns')}** for turns (claim ≤ 0.7). The first published run that carries the total
+> records settles both rows here.
+`;
+
 const m = cheap.machine;
 const agentAxis = agent?.axes['agent'];
 const agentLine =
@@ -260,7 +298,7 @@ one says we measured and it is not true, the other says we have not measured.
 | Claim | Target | Measured | |
 | :--- | :--- | ---: | :--- |
 ${claims.join('\n')}
-
+${agentMeasureNote}
 ## B2 — cold start
 
 Spawned processes, not an in-process micro-benchmark: process time is what a user and an

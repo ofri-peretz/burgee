@@ -58,18 +58,25 @@ const COMPAT_TARGETS = [
 ] as const;
 
 export const CLAIMS: readonly ClaimSpec[] = [
+  /**
+   * B1's two claims are settled on totals over every task-run, burgee's over commander's, since
+   * D-20261009-b1-totals-and-explain. They read the pooled median until then, and with five
+   * runs a task commander's median landed at 4 or 6 turns from one run to the next, so the
+   * verdict was a coin flip on the incumbent's luck. The ids stay: they key every results
+   * document that has settled them.
+   */
   {
     id: 'agent-tokens-40pct',
-    claim: 'an agent spends at least 40% fewer tokens per task against a CLI that meets the floor',
-    source: '.sdlc/intents/burgee/intent.md — the roadmap headline',
-    from: { axis: 'agent', variant: 'burgee ÷ commander', metric: 'tokens-per-task-ratio' },
+    claim: 'an agent spends at least 40% fewer tokens over the benchmark tasks against a CLI that meets the floor (total over every task-run)',
+    source: '.sdlc/intents/burgee/intent.md — the roadmap headline; measured as totals since D-20261009-b1-totals-and-explain',
+    from: { axis: 'agent', variant: 'burgee ÷ commander', metric: 'tokens-total-ratio' },
     test: { max: 0.6 },
   },
   {
     id: 'agent-turns-30pct',
-    claim: 'an agent takes at least 30% fewer turns per task against a CLI that meets the floor',
-    source: '.sdlc/intents/burgee/intent.md — the roadmap headline',
-    from: { axis: 'agent', variant: 'burgee ÷ commander', metric: 'turns-per-task-ratio' },
+    claim: 'an agent takes at least 30% fewer turns over the benchmark tasks against a CLI that meets the floor (total over every task-run)',
+    source: '.sdlc/intents/burgee/intent.md — the roadmap headline; measured as totals since D-20261009-b1-totals-and-explain',
+    from: { axis: 'agent', variant: 'burgee ÷ commander', metric: 'turns-total-ratio' },
     test: { max: 0.7 },
   },
   /**

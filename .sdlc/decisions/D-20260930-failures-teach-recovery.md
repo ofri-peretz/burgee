@@ -3,7 +3,7 @@ id: D-20260930-failures-teach-recovery
 subject: What a failure, an unknown command and the root help say, so an agent recovers from the refusal instead of from a --help walk
 taken: Taken
 date: '2026-09-30'
-superseded_by: —
+superseded_by: D-20261009-b1-totals-and-explain
 ---
 
 **A failure with nothing to run next now says what the command takes. An unknown command

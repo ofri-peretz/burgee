@@ -52,6 +52,13 @@ one says we measured and it is not true, the other says we have not measured.
 | an agent spends at least 40% fewer tokens per task against a CLI that meets the floor | `<= 0.6` | 0.747 ratio | ❌ **not met** |
 | an agent takes at least 30% fewer turns per task against a CLI that meets the floor | `<= 0.7` | 0.75 ratio | ❌ **not met** |
 
+> **The two agent rows changed measure on 2026-10-09** (D-20261009-b1-totals-and-explain). This run settled
+> them on the ratio of pooled medians, which commander's bimodal median turned into a coin flip. They are
+> now settled on the tokens and turns each build spends summed over every task-run. Summed from this run's
+> per-task detail, burgee ÷ commander is **0.692** for tokens (claim ≤ 0.6) and
+> **0.703** for turns (claim ≤ 0.7). The first published run that carries the total
+> records settles both rows here.
+
 ## B2 — cold start
 
 Spawned processes, not an in-process micro-benchmark: process time is what a user and an
