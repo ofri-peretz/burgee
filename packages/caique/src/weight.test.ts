@@ -31,6 +31,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 const pkgRoot = fileURLToPath(new URL('..', import.meta.url));
@@ -211,7 +212,12 @@ const RULES: Record<string, EntryRule> = {
   './terminal': { allow: [], budget: 2_500, denied: ['decide.js', 'raw.js', 'binding.js', 'index.js'] },
 };
 
-const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;
+/**
+ * Every module a file loads — `import`, `export … from`, and `import('…')` — read as tokens
+ * by TypeScript's own pre-processor. A pattern over printed text missed `from "x"` entirely
+ * (tsc keeps the source's quote style) and read `came from", kind: '` out of a string.
+ */
+const specifiers = (source: string): string[] => ts.preProcessFile(source, true, true).importedFiles.map((f) => f.fileName);
 
 function walk(entry: string): { reached: string[]; external: string[]; bytes: number } {
   const files = new Set<string>();
@@ -224,7 +230,7 @@ function walk(entry: string): { reached: string[]; external: string[]; bytes: nu
     if (file === undefined || files.has(file)) continue;
     files.add(file);
     bytes += statSync(file).size;
-    for (const [, spec = ''] of readFileSync(file, 'utf8').matchAll(SPECIFIER)) {
+    for (const spec of specifiers(readFileSync(file, 'utf8'))) {
       if (spec.startsWith('.')) queue.push(resolve(dirname(file), spec));
       else if (spec !== '' && !spec.startsWith('node:')) external.add(spec);
     }

@@ -99,7 +99,7 @@ function hasCheck(name: string): boolean {
   const cli = join(src, 'cli.ts');
   if (!existsSync(cli)) return false;
   const text = readFileSync(cli, 'utf8');
-  const local = [...text.matchAll(/from '\.\/([\w-]+)\.js'/gu)].map(([, file]) => join(src, `${file!}.ts`)).filter((f) => existsSync(f));
+  const local = [...text.matchAll(/from ['"]\.\/([\w-]+)\.js['"]/gu)].map(([, file]) => join(src, `${file!}.ts`)).filter((f) => existsSync(f));
   return [text, ...local.map((f) => readFileSync(f, 'utf8'))].some((t) => /['"`]check['"`]/u.test(t));
 }
 

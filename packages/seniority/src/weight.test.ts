@@ -22,6 +22,7 @@ import { readFileSync, statSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 const pkgRoot = fileURLToPath(new URL('..', import.meta.url));
@@ -68,13 +69,9 @@ const RULES: Record<string, EntryRule> = {
   './yaml': { budget: 25_000, denied: ['cli.js', 'check.js', 'index.js', ...FACADES, ...DISK] },
 };
 
-/** Static `from '…'`, `import('…')` and bare `import '…'`, line-anchored as in `shape.test.ts`. */
+/** Static `from '…'`, `import('…')` and bare `import '…'`, read as tokens as in `shape.test.ts`. */
 function specifiers(text: string): string[] {
-  const code = text
-    .split('\n')
-    .filter((line) => !/^\s*(\*|\/\/|\/\*)/.test(line))
-    .join('\n');
-  return [/^\s*(?:import|export)\b[^'"\n]*from\s*'([^']+)'/gmu, /\bimport\(\s*'([^']+)'/gu, /^\s*import\s*'([^']+)'/gmu].flatMap((re) => [...code.matchAll(re)].map((m) => m[1] ?? ''));
+  return ts.preProcessFile(text, true, true).importedFiles.map((f) => f.fileName);
 }
 
 function walk(entry: string): { reached: string[]; external: string[]; bytes: number } {
