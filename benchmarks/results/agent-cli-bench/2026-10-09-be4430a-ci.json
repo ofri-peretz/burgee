@@ -1,13 +1,13 @@
 {
   "schema": 1,
   "suite": "agent-cli-bench",
-  "measured": "2026-10-09T20:37:52.965Z",
-  "commit": "a37caac2363f5660b0de1198e528e31179f804e9-dirty",
+  "measured": "2026-10-09T21:58:19.900Z",
+  "commit": "be4430a2d5a21c16328c713c31f01171de53980c-dirty",
   "machine": {
     "os": "linux",
     "release": "6.17.0-1022-azure",
     "arch": "x64",
-    "cpu": "Intel(R) Xeon(R) 6973P-C",
+    "cpu": "AMD EPYC 7763 64-Core Processor",
     "cores": 4,
     "memoryGb": 16,
     "node": "v24.13.0",
@@ -32,8 +32,8 @@
       "samples": 25,
       "metric": "tokens-per-task",
       "unit": "tokens",
-      "median": 63406,
-      "p95": 152105,
+      "median": 63456,
+      "p95": 152077,
       "note": "median over 25 task-runs on model claude-sonnet-4-5"
     },
     {
@@ -61,24 +61,24 @@
         "claudePinned": true,
         "env": "caller env minus CI, GITHUB_*, RUNNER_*, ACTIONS_*; demo first on PATH",
         "failed": 0,
-        "diagnose-provenance.turns": "5,7,7,5,5",
-        "diagnose-provenance.tokens": "107935,152105,152186,108092,107984",
+        "diagnose-provenance.turns": "5,10,5,7,5",
+        "diagnose-provenance.tokens": "108326,219987,108129,152077,107025",
         "diagnose-provenance.passed": "5/5",
-        "diagnose-provenance.denials": 0,
-        "discover-subcommand.turns": "3,3,3,3,3",
-        "discover-subcommand.tokens": "63493,63617,63554,63472,63471",
+        "diagnose-provenance.denials": 3,
+        "discover-subcommand.turns": "3,3,2,3,3",
+        "discover-subcommand.tokens": "63475,63563,42017,63626,63529",
         "discover-subcommand.passed": "5/5",
         "discover-subcommand.denials": 0,
-        "non-tty-required.turns": "3,2,2,2,2",
-        "non-tty-required.tokens": "63406,42075,42110,42080,42094",
+        "non-tty-required.turns": "2,2,2,2,2",
+        "non-tty-required.tokens": "42088,42119,42082,42170,42088",
         "non-tty-required.passed": "5/5",
-        "non-tty-required.denials": 1,
-        "recover-failure.turns": "3,3,3,3,4",
-        "recover-failure.tokens": "63423,63378,63374,63360,85002",
+        "non-tty-required.denials": 0,
+        "recover-failure.turns": "3,3,3,3,3",
+        "recover-failure.tokens": "63456,63374,63401,63373,63411",
         "recover-failure.passed": "5/5",
-        "recover-failure.denials": 1,
-        "structured-output.turns": "2,2,2,2,2",
-        "structured-output.tokens": "42092,42098,42118,42123,42153",
+        "recover-failure.denials": 0,
+        "structured-output.turns": "3,2,3,2,3",
+        "structured-output.tokens": "63555,42160,63572,42155,63484",
         "structured-output.passed": "5/5",
         "structured-output.denials": 0
       },
@@ -105,8 +105,8 @@
       "samples": 25,
       "metric": "tokens-per-task",
       "unit": "tokens",
-      "median": 85210,
-      "p95": 274810,
+      "median": 85110,
+      "p95": 345266,
       "note": "median over 25 task-runs on model claude-sonnet-4-5"
     },
     {
@@ -122,7 +122,7 @@
       "metric": "turns-per-task",
       "unit": "turns",
       "median": 4,
-      "p95": 12,
+      "p95": 15,
       "note": "`num_turns` as `claude -p` reports it, including runs that ended at --max-turns"
     },
     {
@@ -133,39 +133,39 @@
         "claude": "claude 2.1.283 (Claude Code)",
         "claudePinned": true,
         "env": "caller env minus CI, GITHUB_*, RUNNER_*, ACTIONS_*; demo first on PATH",
-        "failed": 5,
-        "diagnose-provenance.turns": "8,11,10,8,13",
-        "diagnose-provenance.tokens": "173495,242201,219449,174087,289475",
+        "failed": 4,
+        "diagnose-provenance.turns": "5,9,11,11,11",
+        "diagnose-provenance.tokens": "85461,196809,242556,220305,242637",
         "diagnose-provenance.passed": "5/5",
-        "diagnose-provenance.denials": 18,
+        "diagnose-provenance.denials": 14,
         "discover-subcommand.turns": "4,4,4,4,4",
-        "discover-subcommand.tokens": "85246,85032,85210,85086,85095",
+        "discover-subcommand.tokens": "85110,85127,85129,85083,85099",
         "discover-subcommand.passed": "5/5",
         "discover-subcommand.denials": 0,
-        "non-tty-required.turns": "2,2,2,2,2",
-        "non-tty-required.tokens": "42019,42000,42015,42033,42012",
+        "non-tty-required.turns": "3,2,2,2,2",
+        "non-tty-required.tokens": "63476,42059,42028,42010,42038",
         "non-tty-required.passed": "5/5",
-        "non-tty-required.denials": 0,
-        "recover-failure.turns": "12,9,10,11,10",
-        "recover-failure.tokens": "274810,202453,224998,249586,224830",
-        "recover-failure.passed": "0/5",
-        "recover-failure.denials": 21,
-        "recover-failure.failures": "permission-denied×5",
-        "structured-output.turns": "3,3,6,2,3",
-        "structured-output.tokens": "63402,63602,129152,42296,63433",
+        "non-tty-required.denials": 1,
+        "recover-failure.turns": "15,8,12,16,9",
+        "recover-failure.tokens": "347824,178264,270772,345266,202908",
+        "recover-failure.passed": "1/5",
+        "recover-failure.denials": 28,
+        "recover-failure.failures": "permission-denied×3, max-turns×1",
+        "structured-output.turns": "2,2,3,2,3",
+        "structured-output.tokens": "42315,42277,63392,42002,63390",
         "structured-output.passed": "5/5",
         "structured-output.denials": 0
       },
       "samples": 25,
       "metric": "success-rate",
       "unit": "ratio",
-      "median": 0.8,
-      "p95": 0.8,
+      "median": 0.84,
+      "p95": 0.84,
       "gate": {
         "min": 0.8,
         "why": "below this the tokens and turns medians are taken over whichever task-runs happened to survive, which is a different measurement from the one the band is watching"
       },
-      "note": "20 of 25 task-runs passed their own check"
+      "note": "21 of 25 task-runs passed their own check"
     },
     {
       "axis": "agent",
@@ -179,8 +179,8 @@
         "env": "caller env minus CI, GITHUB_*, RUNNER_*, ACTIONS_*; demo first on PATH"
       },
       "metric": "tokens-per-task-ratio",
-      "median": 0.744,
-      "p95": 0.744,
+      "median": 0.746,
+      "p95": 0.746,
       "note": "median tokens on the floor-meeting build over median tokens on the plain one; kept for history, the claim reads tokens-total-ratio"
     },
     {
@@ -211,8 +211,8 @@
       },
       "metric": "tokens-total",
       "unit": "tokens",
-      "median": 1726795,
-      "p95": 1726795,
+      "median": 1794242,
+      "p95": 1794242,
       "note": "sum over 25 task-runs that reported usage"
     },
     {
@@ -227,8 +227,8 @@
       },
       "metric": "turns-total",
       "unit": "turns",
-      "median": 81,
-      "p95": 81,
+      "median": 84,
+      "p95": 84,
       "note": "sum over 25 task-runs that reported usage"
     },
     {
@@ -243,8 +243,8 @@
       },
       "metric": "tokens-total",
       "unit": "tokens",
-      "median": 3273017,
-      "p95": 3273017,
+      "median": 3243337,
+      "p95": 3243337,
       "note": "sum over 25 task-runs that reported usage"
     },
     {
@@ -259,8 +259,8 @@
       },
       "metric": "turns-total",
       "unit": "turns",
-      "median": 149,
-      "p95": 149,
+      "median": 150,
+      "p95": 150,
       "note": "sum over 25 task-runs that reported usage"
     },
     {
@@ -275,8 +275,8 @@
         "env": "caller env minus CI, GITHUB_*, RUNNER_*, ACTIONS_*; demo first on PATH"
       },
       "metric": "tokens-total-ratio",
-      "median": 0.528,
-      "p95": 0.528,
+      "median": 0.553,
+      "p95": 0.553,
       "note": "tokens summed over every task-run on the floor-meeting build over the same on the plain one, per run; 0.6 or below confirms the ≥40% claim"
     },
     {
@@ -291,14 +291,14 @@
         "env": "caller env minus CI, GITHUB_*, RUNNER_*, ACTIONS_*; demo first on PATH"
       },
       "metric": "turns-total-ratio",
-      "median": 0.544,
-      "p95": 0.544,
+      "median": 0.56,
+      "p95": 0.56,
       "note": "turns summed over every task-run on the floor-meeting build over the same on the plain one, per run; 0.7 or below confirms the ≥30% claim"
     }
   ],
   "bands": {
     "agent-tokens-per-task": {
-      "value": 63406,
+      "value": 63456,
       "from": {
         "axis": "agent",
         "variant": "burgee",
@@ -319,7 +319,7 @@
       "claim": "an agent spends at least 40% fewer tokens over the benchmark tasks against a CLI that meets the floor (total over every task-run)",
       "source": ".sdlc/intents/burgee/intent.md — the roadmap headline; measured as totals since D-20261009-b1-totals-and-explain",
       "target": "<= 0.6",
-      "measured": 0.528,
+      "measured": 0.553,
       "unit": "ratio",
       "met": true,
       "from": {
@@ -332,7 +332,7 @@
       "claim": "an agent takes at least 30% fewer turns over the benchmark tasks against a CLI that meets the floor (total over every task-run)",
       "source": ".sdlc/intents/burgee/intent.md — the roadmap headline; measured as totals since D-20261009-b1-totals-and-explain",
       "target": "<= 0.7",
-      "measured": 0.544,
+      "measured": 0.56,
       "unit": "ratio",
       "met": true,
       "from": {
