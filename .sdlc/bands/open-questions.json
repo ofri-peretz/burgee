@@ -1,6 +1,6 @@
 {
-  "ceiling": 0,
-  "measured": "2026-09-20",
-  "why": "Zero open. 102 first read, 94 once items carrying their own answer stopped counting, 70 after the package design questions (D-013..D-033), 45 after the infrastructure ones (D-034..D-049), 0 after the last sweep (D-056..D-072). The ceiling at zero is the point: the next question raised is visible the moment it is raised, and it either closes in .sdlc/DECISIONS.md or this number moves deliberately with the reason beside it. A backlog is only invisible while nothing counts it.",
+  "ceiling": 3,
+  "measured": "2026-10-10",
+  "why": "Zero open. 102 first read, 94 once items carrying their own answer stopped counting, 70 after the package design questions (D-013..D-033), 45 after the infrastructure ones (D-034..D-049), 0 after the last sweep (D-056..D-072). The ceiling at zero is the point: the next question raised is visible the moment it is raised, and it either closes in .sdlc/DECISIONS.md or this number moves deliberately with the reason beside it. A backlog is only invisible while nothing counts it. Raised to 3 on 2026-10-10, deliberately: the draft intent first-cli carries three questions only the owner answers at its Design\u2192Build gate (which command, the language, whether it writes a test). It returns to 0 when they close.",
   "closedIn": ".sdlc/decisions/"
 }
