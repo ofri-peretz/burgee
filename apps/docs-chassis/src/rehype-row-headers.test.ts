@@ -5,7 +5,7 @@
  * column unnamed. The plugin owns the first case; the content check owns the second, which no
  * plugin can fix because only the author knows the column's name.
  */
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -95,7 +95,7 @@ function contentFiles(): string[] {
   };
   for (const app of readdirSync(APPS_DIR)) {
     const content = join(APPS_DIR, app, 'content');
-    if (statSync(join(APPS_DIR, app)).isDirectory() && readdirSync(join(APPS_DIR, app)).includes('content')) walk(content);
+    if (existsSync(content) && statSync(content).isDirectory()) walk(content);
   }
   return out;
 }

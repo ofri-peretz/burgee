@@ -19,10 +19,11 @@ const CSS = readFileSync(new URL('global.css', import.meta.url), 'utf8');
 
 /** The `--color-fd-card` value inside the first rule whose selector is `selector`. */
 function cardColour(selector: string): string {
+  const missing = new Error(`global.css states no --color-fd-card under ${selector}`);
   const start = CSS.indexOf(`${selector} {`);
-  const block = CSS.slice(start, CSS.indexOf('}', start));
-  const match = /--color-fd-card:\s*(#[\da-f]{6})/iu.exec(block);
-  if (start === -1 || match?.[1] === undefined) throw new Error(`global.css states no --color-fd-card under ${selector}`);
+  if (start === -1) throw missing;
+  const match = /--color-fd-card:\s*(#[\da-f]{6})/iu.exec(CSS.slice(start, CSS.indexOf('}', start)));
+  if (match?.[1] === undefined) throw missing;
   return match[1];
 }
 
@@ -37,10 +38,10 @@ function rgb(hex: string, ground?: Rgb): Rgb {
   return [0, 1, 2].map((i) => colour[i]! * alpha + ground[i]! * (1 - alpha)) as unknown as Rgb;
 }
 
-/** One sRGB channel, 0–255, linearised. */
+/** One sRGB channel, 0–255, linearised at IEC 61966-2-1's 0.04045, as axe-core (which Lighthouse runs) does. */
 function linear(value: number): number {
   const c = value / 255;
-  return c <= 0.039_28 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  return c <= 0.040_45 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
 }
 
 function luminance([r, g, b]: Rgb): number {
