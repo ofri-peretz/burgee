@@ -198,7 +198,7 @@ Graded by the incumbent's own test suite:
 | `execa` | 0 / 1180 |
 | `which` | 5 / 5 |
 
-Weight, installed and tree-inclusive: **117,460 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1534**.
+Weight, installed and tree-inclusive: **117,441 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1534**.
 
 ## For agents
 

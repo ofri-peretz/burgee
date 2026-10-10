@@ -180,7 +180,7 @@ Graded by the incumbent's own test suite:
 | `strip-ansi` | 8 / 8 |
 | `wrap-ansi` | 85 / 85 |
 
-Weight, installed and tree-inclusive: **108,138 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5565**.
+Weight, installed and tree-inclusive: **108,119 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5564**.
 
 ## For agents
 
