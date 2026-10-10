@@ -5,8 +5,9 @@ description: "One job per package: six leaves that depend on nothing, three pack
 
 ## What it is
 
-burgee is one package of ten published from this repository. Each owns one job and replaces
-the incumbents that do that job today; the [package map](/docs/packages) lists them. They
+burgee is one package of ten published from this repository. Each owns one job, and has a
+drop-in path for the packages that do that job today; the [package map](/docs/packages) lists
+them. They
 split into three layers:
 
 - **Six leaves** depend on nothing: `bellpull` (subprocesses), `closeout` (exit handlers and
@@ -83,8 +84,8 @@ reads.
 paratext is the case that shows the cost: it is a leaf, so its hyperlink detection keeps a
 declared fork of supports-color rather than importing roundel.
 
-**4. No package depends on an incumbent a sibling replaces.** The list of what each layer
-replaces is `LAYERS` in
+**4. No package depends on an incumbent a sibling layer covers.** The list of what each layer
+covers is `LAYERS` in
 [`compat-oracle/src/demand.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/compat-oracle/src/demand.ts),
 and that list *is* the definition of each layer's job: needing `string-width` is the same
 thing as needing `linegauge`. `layer-boundaries-lock` derives the rule from it — `%s depends
