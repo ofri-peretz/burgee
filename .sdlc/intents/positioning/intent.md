@@ -111,7 +111,8 @@ whole dependency graph. The npm descriptions, the family section, the section ti
 
 - Whether the home page `<title>` keeps naming commander and yargs. **Decided 2026-10-09 →
   [D-20261009-positioning-home-title](../../decisions/D-20261009-positioning-home-title.md)**,
-  as an owner decision with a default: the title stays and the body changes.
+  as an owner decision with a default: the title stays and the body changes. **Decided again
+  2026-10-10**: the owner chose capability-first titles for every site; `spec.md` R13.
 - Whether mentions per 100 words is gated. **Decided 2026-10-09 →
   [D-20261009-positioning-density-reported](../../decisions/D-20261009-positioning-density-reported.md)**:
   it is reported, not gated. The opening is what is held.

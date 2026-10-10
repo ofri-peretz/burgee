@@ -101,6 +101,25 @@ whole dependency graph. Measured on `main` at `e992fc7619` before anything chang
   through their generator. Like R1's density, this is reported, not gated: a word budget would
   push counts down by rewording proof (D-20261009-positioning-density-reported).
 
+### Titles and the package map — decided by the owner, 2026-10-10
+
+R1–R12 held the openings, the descriptions and the headings, and not the two strings a search
+result and an agent's map show first. Measured live on 2026-10-10: every docs site's home
+`<title>` read `<name> — replaces X` (`roundel — replaces chalk`, `bellpull — replaces
+cross-spawn and which`), burgee's read "burgee — the CLI framework that replaces commander and
+yargs", and every row of `https://burgee.interlace.tools/llms.txt`'s package map opened
+"— replaces X." before the description. The owner's hold on burgee's title
+(D-20261009-positioning-home-title) is decided the same way: capability first.
+
+- **R13** **Page titles and llms.txt rows say what the package does; incumbents only in a
+  description's last sentence.** Every docs app's home `<title>` reads `<name> — <what it does,
+  short>`: the part after the dash names no incumbent (R1's list), does not say "replaces",
+  "replacement" or "alternative", does not rank (R8), and fits a search result (60 characters).
+  Each home page's meta description names the incumbents in its last sentence and nowhere
+  earlier, so a search for "chalk alternative" still finds the page. Each row of the front door's
+  llms.txt package map is the package's link, then its npm description whole, with nothing
+  between them. A family subpath (`controlroom/ink`) is the family's code, not an incumbent.
+
 ## Status
 
 | R | Status | Where | Check |
@@ -116,6 +135,7 @@ whole dependency graph. Measured on `main` at `e992fc7619` before anything chang
 | R9 | **Built** | `family()` in `scripts/readme-benchmarks.ts`, projected by `sync-package-docs.ts`; the root README's layer table and the family map at `apps/docs/content/docs/packages/index.md` | `positioning-lock` (`replacesColumnProblems`, and one family text across the ten), proven red on `e992fc7619` for all ten READMEs, the root README and the family map |
 | R10 | **Built** | caique's "Guarantees" and "Design documents", flagstaff's "Design documents" | `positioning-lock` (`sectionProblems`), proven red on `e992fc7619` for caique and flagstaff |
 | R11 | **Built** | controlroom's "What it does" | `positioning-lock` (`sectionProblems`), proven red on `e992fc7619` for controlroom |
+| R13 | **Built** | `HOME_TITLES` in `apps/docs-chassis/src/home-title.ts`, rendered by `homeMetadata` in `package-home.tsx` for all ten home pages (the front door's now included, with `SUMMARY` as its description); `packageRow` in `apps/docs-chassis/src/llms.ts` | `scripts/positioning-lock.test.ts` (`titleProblems`, `placementProblems`, `llmsRowProblems`), reading `homeMetadata` over every row of `.github/vercel-apps.json` and `llmsIndex` over `publicPackages()`; proven red on `d68f63a68d`: all ten titles and the llms.txt map, 11 failures |
 | R12 | **Reported** | the root README, the package READMEs and the docs prose | not gated, by design; the before and after counts are in the PR that made each change |
 
 ## Design
@@ -184,7 +204,7 @@ quotes by commit, and a lock checks each cited figure against that run's committ
 
 ## Out of scope
 
-- The home page `<title>`, which names commander and yargs for search (an open question in the
-  intent).
+- ~~The home page `<title>`~~. In scope since 2026-10-10 as R13
+  (D-20261009-positioning-home-title, decided).
 - The benchmark claims and their verdicts. The README's claim table is `claim-table-lock`'s.
 - `burgee migrate`'s behaviour, and the compatibility grades.

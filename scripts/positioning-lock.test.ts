@@ -39,13 +39,32 @@
  * front-page heading, no `Replaces` column and one family section across the ten READMEs, no
  * roadmap section in a 1.x README, and a capability section before the migration. Proven red on
  * `e992fc7619`: 27 failures, every description among them.
+ *
+ * R13 (the owner's decision on titles, 2026-10-10) is the last section: every docs site's home
+ * `<title>` says what the package does, each home page's meta description names the incumbents
+ * in its last sentence only, and the front door's llms.txt package map leads each row with the
+ * description rather than "— replaces X.". Read from `homeMetadata` and `llmsIndex`, the code the
+ * sites render. Proven red on `d68f63a68d`: all ten titles and the package map, 11 failures.
  */
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { type Metadata } from 'next';
 import { describe, expect, it } from 'vitest';
 
+// eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and R13 reads the code the sites render, not a copy of its output
+import { APPS, type App, PENDING, type PendingApp } from '../apps/docs-chassis/src/config';
+// eslint-disable-next-line import-next/no-relative-packages -- by path, as above: the llms.txt projection every site serves
+import { llmsIndex } from '../apps/docs-chassis/src/llms';
+// eslint-disable-next-line import-next/no-relative-packages -- by path, as above: the metadata every home page exports
+import { homeMetadata } from '../apps/docs-chassis/src/package-home';
+// eslint-disable-next-line import-next/no-relative-packages -- by path, as above: the package map the front door's llms.txt prints
+import { publicPackages, type PublicPackage } from '../apps/docs-chassis/src/packages';
+// eslint-disable-next-line import-next/no-relative-packages -- by path, as above: the site each app resolves from its row
+import { defineSite, type Manifest, type Site } from '../apps/docs-chassis/src/site';
+// eslint-disable-next-line import-next/no-relative-packages -- by path: the front door's meta description, `SUMMARY`, is not an export of a private app
+import { SUMMARY } from '../apps/docs/src/lib/site';
 // eslint-disable-next-line import-next/no-relative-packages -- by path, for the same reason as migrate-drop-ins-lock.test.ts: `compat.ts` is not an export
 import { DROP_INS, GRADED } from '../packages/burgee/src/compat.js';
 
@@ -396,5 +415,157 @@ describe('the voice lock can fail', () => {
     expect(sectionProblems('caique', '1.0.3', '## Quick start\n\n## What it does\n\n## What it will be\n')).toEqual([expect.stringMatching(/titles a 1\.x package's section as a future/u)]);
     expect(sectionProblems('controlroom', '0.3.4', '## Install\n\n## Quick start\n\n## Migrating\n')).toEqual([expect.stringMatching(/after "## Quick start" is "## Migrating"/u)]);
     expect(sectionProblems('controlroom', '0.3.4', '## Quick start\n\n## What it does\n\n## Migrating\n')).toEqual([]);
+  });
+});
+
+// ── R13: titles and llms.txt rows say what the package does (owner, 2026-10-10) ────────────────
+//
+// R1–R12 held the openings, the descriptions and the headings, and not the two strings a search
+// result and an agent's map show first. Every docs site's home `<title>` read `<name> — replaces
+// X` (burgee's: "the CLI framework that replaces commander and yargs"), and every row of the front
+// door's llms.txt package map opened "— replaces X." before the description. What follows reads
+// both from the code the sites render — `homeMetadata` and `llmsIndex`, over the rows in
+// `.github/vercel-apps.json` and the manifests in `packages/` — never from a copy of their output.
+// The search signal stays where R7 put it: each home page's meta description names the
+// incumbents, in its last sentence.
+
+/** Every published package's name: the family, whose subpaths are not incumbents. */
+const FAMILY = packageReadmes().map((page) => page.split('/')[1]!);
+
+/** Every docs app, deployable or pending: its row, the site it resolves, and its home page's source. */
+const docsApps = (): { row: App | PendingApp; site: Site; page: string }[] =>
+  [...APPS, ...PENDING].map((row) => ({
+    row,
+    site: defineSite(row.key, JSON.parse(read(`packages/${row.package}/package.json`)) as Manifest),
+    page: read(`${row.dir}/src/app/(home)/page.tsx`),
+  }));
+
+/** The meta description a home page renders: the front door's is `SUMMARY`, a package site's its npm description. */
+const homeDescription = (row: App | PendingApp, site: Site): string => (row.familyPages ? SUMMARY : site.description);
+
+/** The length a search result shows of a title before it truncates. */
+export const TITLE_LIMIT = 60;
+
+/** Words that frame a package as a substitute rather than say what it does. */
+const SUBSTITUTE = /\b(?:replaces?|replacement|alternative)\b/iu;
+
+/**
+ * What is wrong with one home `<title>` (R13): it reads `<name> — <what it does>`, and the part
+ * after the dash names no incumbent, does not call the package a replacement or an alternative,
+ * does not rank it (R8), and fits a search result.
+ */
+export function titleProblems(name: string, title: string): string[] {
+  const prefix = `${name} — `;
+  if (!title.startsWith(prefix)) return [`${name}: the home title "${title}" should read "${name} — <what it does, short>"`];
+  const does = title.slice(prefix.length);
+  const names = named(does);
+  return [
+    ...(names.length === 0 ? [] : [`${name}: the home title "${title}" names ${names.join(', ')} — say what ${name} does; the incumbents belong in the description's last sentence`]),
+    ...(SUBSTITUTE.test(does) ? [`${name}: the home title "${title}" frames ${name} as a substitute — say what it does`] : []),
+    ...(COMPARATIVE.test(does) ? [`${name}: the home title "${title}" ranks rather than describes`] : []),
+    ...(title.length > TITLE_LIMIT ? [`${name}: the home title "${title}" is ${String(title.length)} characters; a search result shows about ${String(TITLE_LIMIT)}`] : []),
+  ];
+}
+
+/** `text` with every family subpath (`controlroom/ink`) removed: it is the family's code, not the incumbent it shares a word with. */
+const withoutFamilySubpaths = (text: string, family: readonly string[]): string =>
+  family.reduce((out, name) => out.split(`${name}/`).map((part, i) => (i === 0 ? part : part.replace(/^[\w./-]+/u, ''))).join(name), text);
+
+/**
+ * What is wrong with one meta description (R13): every incumbent it names is in its last sentence,
+ * and the last sentence names at least one — a reader searching "chalk alternative" still finds
+ * the page, after it has said what the package does.
+ */
+export function placementProblems(page: string, description: string, family: readonly string[] = FAMILY): string[] {
+  const parts = sentences(withoutFamilySubpaths(description, family));
+  const early = [...new Set(parts.slice(0, -1).flatMap((s) => named(s)))];
+  return [
+    ...(early.length === 0 ? [] : [`${page}: the meta description names ${early.join(', ')} before its last sentence — the incumbents belong in the last sentence only: "${description}"`]),
+    ...(named(parts.at(-1) ?? '').length > 0 ? [] : [`${page}: the meta description's last sentence names no incumbent, so a search for one no longer finds the page: "${description}"`]),
+  ];
+}
+
+/**
+ * What is wrong with the llms.txt package map (R13): each package's row is its link, then its npm
+ * description whole, with nothing between them that names an incumbent or says "replaces".
+ */
+export function llmsRowProblems(map: string, packages: readonly PublicPackage[]): string[] {
+  const rows = map.split('\n').filter((line) => line.startsWith('- ['));
+  return packages.flatMap(({ name, url, description }) => {
+    const link = `- [${name}](${url})`;
+    const row = rows.find((line) => line.startsWith(link));
+    if (row === undefined) return [`llms.txt: no package-map row for ${name}`];
+    const at = row.indexOf(description);
+    if (at === -1) return [`llms.txt: the ${name} row does not carry its npm description whole: "${row}"`];
+    const lead = row.slice(link.length, at);
+    const names = named(lead);
+    return [
+      ...(names.length === 0 ? [] : [`llms.txt: the ${name} row names ${names.join(', ')} before its description — the description's last sentence already names the drop-ins: "${row.slice(0, at)}…"`]),
+      ...(SUBSTITUTE.test(lead) ? [`llms.txt: the ${name} row opens "${lead.trim()}" — lead with what it does`] : []),
+    ];
+  });
+}
+
+/** The `absolute` title a home page's metadata sets. */
+const absoluteTitle = (title: Metadata['title']): string => (typeof title === 'object' && title !== null && 'absolute' in title ? title.absolute : String(title));
+
+describe('every home title says what the package does (R13)', () => {
+  it('holds every docs app, deployable or pending', () => {
+    expect(docsApps().length).toBeGreaterThanOrEqual(10);
+  });
+
+  it.each(docsApps().map((app) => [app.row.package, app] as const))('%s', (name, { row, site, page }) => {
+    expect(page, `${row.dir}'s home page should take its metadata from docs-chassis's homeMetadata, the one source this lock reads`).toMatch(/\bhomeMetadata\(site\b/u);
+    const metadata = homeMetadata(site, homeDescription(row, site));
+    expect(titleProblems(name, absoluteTitle(metadata.title))).toEqual([]);
+    expect(metadata.description).toBe(homeDescription(row, site));
+    expect(placementProblems(name, metadata.description ?? '')).toEqual([]);
+  });
+});
+
+describe("the front door's llms.txt package map leads each row with what the package does (R13)", () => {
+  const packages = publicPackages(join(ROOT, 'packages'));
+  const front = docsApps().find(({ row }) => row.familyPages)!;
+  const text = llmsIndex({ site: front.site, pages: [], packages });
+
+  it('maps every published package', () => {
+    expect(packages.length).toBeGreaterThanOrEqual(10);
+  });
+
+  it('opens no row on an incumbent', () => {
+    expect(llmsRowProblems(text, packages)).toEqual([]);
+  });
+});
+
+describe('the title lock can fail', () => {
+  it('fails every title it was written against (live, 2026-10-10)', () => {
+    expect(titleProblems('burgee', 'burgee — the CLI framework that replaces commander and yargs').join('\n')).toMatch(/names commander, yargs[\s\S]*substitute/u);
+    expect(titleProblems('roundel', 'roundel — replaces chalk')).toHaveLength(2);
+    expect(titleProblems('bellpull', 'bellpull — replaces cross-spawn and which').join('\n')).toMatch(/names cross-spawn/u);
+  });
+
+  it('passes the shape it asks for, and fails a misshapen, ranking or long one', () => {
+    expect(titleProblems('roundel', 'roundel — colour for CLIs')).toEqual([]);
+    expect(titleProblems('roundel', 'roundel: colour for CLIs')).toHaveLength(1);
+    expect(titleProblems('roundel', 'roundel — colour for CLIs, lighter than the rest')).toHaveLength(1);
+    expect(titleProblems('roundel', `roundel — ${'colour '.repeat(10)}`)).toEqual([expect.stringMatching(/characters/u)]);
+  });
+
+  it('fails a description that names an incumbent early, or none at all', () => {
+    expect(placementProblems('roundel', 'A palette, unlike chalk. Zero dependencies. Drop-in path for chalk.')).toEqual([expect.stringMatching(/names chalk before/u)]);
+    expect(placementProblems('roundel', 'Colour for a CLI. Zero dependencies.')).toEqual([expect.stringMatching(/names no incumbent/u)]);
+    expect(placementProblems('roundel', 'Colour for a CLI. Zero dependencies. Drop-in path for chalk.')).toEqual([]);
+  });
+
+  it("reads a family subpath as the family's, not as the incumbent it shares a word with", () => {
+    expect(placementProblems('controlroom', 'Terminal screens. Optional peers, loaded only by controlroom/ink. Drop-in path for ink.', ['controlroom'])).toEqual([]);
+    expect(placementProblems('controlroom', 'Terminal screens, like ink. Drop-in path for ink.', ['controlroom'])).toEqual([expect.stringMatching(/names ink before/u)]);
+  });
+
+  it('fails the llms.txt row it was written against', () => {
+    const bellpull: PublicPackage = { name: 'bellpull', url: 'https://bellpull.interlace.tools/docs', description: 'Runs a subprocess. Zero dependencies. Drop-in paths for cross-spawn and which.', replaces: 'cross-spawn and which', guides: [] };
+    expect(llmsRowProblems(`- [bellpull](${bellpull.url}) — replaces cross-spawn and which. ${bellpull.description}`, [bellpull]).join('\n')).toMatch(/names cross-spawn[\s\S]*opens/u);
+    expect(llmsRowProblems(`- [bellpull](${bellpull.url}): ${bellpull.description}`, [bellpull])).toEqual([]);
+    expect(llmsRowProblems(`- [bellpull](${bellpull.url}): Runs a subprocess.`, [bellpull])).toEqual([expect.stringMatching(/whole/u)]);
   });
 });
