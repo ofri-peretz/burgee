@@ -196,7 +196,7 @@ Graded by the incumbent's own test suite:
 | `term-img` | 18 / 18 |
 | `terminal-link` | 8 / 8 |
 
-Weight, installed and tree-inclusive: **121,518 bytes** against **2,235,987** for the incumbents it replaces — a ratio of **0.0543**.
+Weight, installed and tree-inclusive: **121,499 bytes** against **2,235,987** for the incumbents it replaces — a ratio of **0.0543**.
 
 ## For agents
 
@@ -249,7 +249,7 @@ keeps both true.
 | [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander, yargs and meow |
 | [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
-| [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | @inquirer/core and @clack/prompts |
+| [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | @inquirer/core |
 | [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi and slice-ansi |
 | **paratext** (this package) | Hyperlinks, images, title, clipboard and notifications | ansi-escapes, terminal-link and term-img |
 | [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, lilconfig, dotenv and rc |
