@@ -1,5 +1,18 @@
 # controlroom
 
+## 0.3.5
+
+### Patch Changes
+
+- [#938](https://github.com/ofri-peretz/burgee/pull/938) [`9babb6d`](https://github.com/ofri-peretz/burgee/commit/9babb6da1ae7783c7e8367f89e3da9dffc85ffdb) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - npm description and README: the description says what the package does, then its dependency fact in one of two wordings ("Zero dependencies." or "No dependency outside the burgee family."), then its drop-in paths. The README's family section states how the family is built — the leaves, one-way dependencies, nothing from outside the family, trusted publishing with provenance — and its table column is "Migrates from". No API, compatibility grade or benchmark changes.
+- Updated dependencies [[`9babb6d`](https://github.com/ofri-peretz/burgee/commit/9babb6da1ae7783c7e8367f89e3da9dffc85ffdb)]:
+  - caique@1.0.4
+  - closeout@1.0.4
+  - flagstaff@1.2.5
+  - linegauge@1.0.8
+  - paratext@1.0.4
+  - roundel@1.0.4
+
 ## 0.3.4
 
 ### Patch Changes

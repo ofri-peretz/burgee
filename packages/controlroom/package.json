@@ -1,6 +1,6 @@
 {
   "name": "controlroom",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "Keyboard-driven terminal screens, inline or full-screen, with a static projection for pipes, CI and --json. No dependency outside the burgee family; react and react-reconciler are optional peers, loaded only by controlroom/ink. Drop-in path for ink.",
   "license": "MIT",
   "type": "module",
@@ -67,12 +67,12 @@
     "zero-dependency"
   ],
   "dependencies": {
-    "caique": "^1.0.3",
-    "closeout": "^1.0.3",
-    "flagstaff": "^1.2.4",
-    "linegauge": "^1.0.7",
-    "paratext": "^1.0.3",
-    "roundel": "^1.0.3"
+    "caique": "^1.0.4",
+    "closeout": "^1.0.4",
+    "flagstaff": "^1.2.5",
+    "linegauge": "^1.0.8",
+    "paratext": "^1.0.4",
+    "roundel": "^1.0.4"
   },
   "peerDependencies": {
     "react": ">=18.0.0",
