@@ -101,6 +101,17 @@ describe('historyLine', () => {
     expect(text.split('\n')).toEqual([JSON.stringify(line), '']);
   });
 
+  it('names two runs of one commit on one day apart, so neither overwrites the other', () => {
+    // #913 and #914 were two 10/10 runs of 3ff3b8e on 2026-10-09; both wrote 2026-10-09-3ff3b8e.json.
+    const a = historyLine({ ...base, run: 37959323649, cases: null });
+    const b = historyLine({ ...base, run: 37960474558, cases: null });
+    expect(historyFileName(a)).toBe('2026-09-24-0a1b2c3-37959323649.json');
+    expect(historyFileName(a)).not.toBe(historyFileName(b));
+    expect(HISTORY_FILE.test(historyFileName(a))).toBe(true);
+    expect(historyProblems(a)).toEqual([]);
+    expect(historyProblems({ ...a, run: 'x' })).toContain('run is not a positive integer');
+  });
+
   it('rejects the shapes a renamed or hand-edited line would take', () => {
     const good = historyLine({ ...base, cases: null });
     expect(historyProblems({ ...good, v: 2 })).toContain('v is not 1');
@@ -120,7 +131,7 @@ describe('every committed history file is one v1 line', () => {
   it.each(files.length > 0 ? files : ['(none yet)'])('%s', (file) => {
     if (file === '(none yet)') return;
     const name = HISTORY_FILE.exec(file);
-    expect(name, `${file} is not <YYYY-MM-DD>-<sha7>.json`).not.toBeNull();
+    expect(name, `${file} is not <YYYY-MM-DD>-<sha7>[-<run>].json`).not.toBeNull();
     const text = readFileSync(join(dir, file), 'utf8');
     expect(text.endsWith('\n') && text.indexOf('\n') === text.length - 1, `${file} is not exactly one line`).toBe(true);
     const doc = JSON.parse(text) as Parameters<typeof historyFileName>[0];

@@ -3,6 +3,35 @@ title: Changelog
 description: "Every release of burgee, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.0.0
+
+### Major Changes
+
+- [#919](https://github.com/ofri-peretz/burgee/pull/919) [`1ea5801`](https://github.com/ofri-peretz/burgee/commit/1ea5801521c36d235b5eb1156c78f7eaeefcd620) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - burgee 1.0.0. The spec is fully built (U9 and U12 closed 2026-10-09), every drop-in passes its incumbent's own suite at the latest release level with the incumbent itself (commander 15.0.0 1360 / 1360, yargs 18.2.0 816 / 816 against its own 814, meow 14.1.0 146 / 148 against its own 146), and coverage is 100% on all four measures (D-20261009-burgee-1-0-evidence). The published entries, the drop-ins, both schema files, the `burgee` bin and the agent contracts (the `--json` envelope, the versioned `--schema`, exit-code meanings and `fix:` lines) become a semver contract. No API changed in this release.
+
+### Patch Changes
+
+- [#921](https://github.com/ofri-peretz/burgee/pull/921) [`8d6f2e4`](https://github.com/ofri-peretz/burgee/commit/8d6f2e4171055bc4561043c8cda22424ffcae9ed) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--schema` and the unknown-command hint now name `--explain`, for where a value came from.
+
+  A native program's `--schema` document carries one new field just before `commands`:
+  `"explain":"--explain <option> on a command says where its value came from: default, env, config or flag"`.
+  An unknown command that matches nothing now hints `run --schema for every command and option as
+JSON, in one call; --explain <option> says where a value came from`. In B1's transcripts, 56 of
+  60 agents asked where a value came from read `--schema` and then spent three to eight turns
+  probing the env var it named. `burgee/program-schema.json` describes the new field. One
+  command's schema is unchanged. So is `--schema` on `burgee/commander` and `burgee/yargs`, which do
+  not parse `--explain` (D-20261009-b1-totals-and-explain).
+
+- [#917](https://github.com/ofri-peretz/burgee/pull/917) [`735f0f6`](https://github.com/ofri-peretz/burgee/commit/735f0f68048f2d0f5e4effad151ed5132b480bb8) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - README: the opening paragraph says what the package does first. The drop-in path follows it as one line, naming the incumbent and `npx burgee migrate`, and every compatibility row and benchmark is unchanged.
+
+- [#917](https://github.com/ofri-peretz/burgee/pull/917) [`735f0f6`](https://github.com/ofri-peretz/burgee/commit/735f0f68048f2d0f5e4effad151ed5132b480bb8) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - README: the FAQ links the comparison guides by their new titles, "Switching from commander" and "Switching from yargs". The URLs are unchanged.
+- Updated dependencies [[`735f0f6`](https://github.com/ofri-peretz/burgee/commit/735f0f68048f2d0f5e4effad151ed5132b480bb8)]:
+  - bellpull@1.0.3
+  - closeout@1.0.3
+  - linegauge@1.0.7
+  - roundel@1.0.3
+  - seniority@1.0.2
+
 ## 0.23.0
 
 ### Minor Changes

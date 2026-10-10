@@ -108,8 +108,8 @@ because we are not bound to their existing behaviour.
 
 ## The finding that cuts against us
 
-**commander #2505 — the maintainers' own plugin-API RFC — has drawn 1 comment and 0
-reactions in five months.** yargs #1751 and #2298 are the nearest equivalents and are
+**commander #2505 — the maintainers' own plugin-API RFC — drew 1 comment and 0
+reactions in six months, and was closed for inactivity on 2026-10-09.** yargs #1751 and #2298 are the nearest equivalents and are
 similarly quiet.
 
 Stated plainly because it is inconvenient: **there is no tracker demand for a plugin

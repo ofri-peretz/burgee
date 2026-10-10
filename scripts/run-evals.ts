@@ -399,6 +399,7 @@ function main(): void {
     const line = historyLine({
       date: new Date().toISOString().slice(0, 'YYYY-MM-DD'.length),
       commit: currentCommit(),
+      run: Number(process.env.GITHUB_RUN_ID) || undefined,
       billing: credential.billing,
       pinnedModel: process.env.EVAL_MODEL,
       config: { passed: config.filter((r) => r.passed).length, total: config.length },
