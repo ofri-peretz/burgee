@@ -19,6 +19,7 @@ import { readFileSync, statSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 const pkgRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -717,11 +718,11 @@ const RULES: Record<string, EntryRule> = {
   // cliui 9 (wrap-ansi), y18n 5, escalade, get-caller-file — because burgee depends on
   // nothing outside the family (J9).
   //
-  // NOTE: this entry's rule still reads `allow: []`, and that is what the walk observes —
-  // but `dist/yargs.js` -> `yargs/shim.js` -> `yargs/cliui.js` -> `linegauge` is a static
-  // chain in the built artifact, so the edge is real and this lock does not see it. Left as
-  // measured rather than asserted-at, because a rule that disagrees with the walk fails the
-  // suite either way; the gap in the walk is the thing to fix, not the number here.
+  // `allow: ["linegauge"]` since 2026-10-10 (D-20261010-yargs-entry-allows-linegauge, the
+  // owner's call): `dist/yargs.js` -> `yargs/shim.js` -> `yargs/cliui.js` -> `linegauge` is
+  // a static chain in the built artifact, and it read `allow: []` only because the walk
+  // matched `from '…'` and `src/yargs/*.ts` is double-quoted. The walk reads the syntax
+  // tree now. Bytes were unchanged by the fix: 220,888 over 23 files either way.
   //
   // `linegauge` is the exception the layering asks for, and it arrived as a bug fix rather
   // than tidying. cliui's port carried its own `stringWidth` and `stripAnsi`, and the strip
@@ -762,7 +763,7 @@ const RULES: Record<string, EntryRule> = {
   // share), the `--json` catch on the unseamed path, the one-envelope latch, and 65 B of
   // `host.exitCode`'s setter in `runtime.js`. `json-failure.test.ts` holds each case.
   "./yargs": {
-    allow: [],
+    allow: ["linegauge"],
     // 215,300 on 2026-09-23 for N14, through the engine and the schema. Measured 215,252.
     // 215,250 on 2026-09-23: `export { Yargs as 'module.exports' }`, which yargs' own entry has, so `require('burgee/yargs')` hands a CommonJS caller the factory rather than a namespace. Measured 215,221.
     // 215,500 on 2026-09-23 for D-122, through the engine and the manifest. Measured 215,422.
@@ -828,16 +829,26 @@ const RULES: Record<string, EntryRule> = {
  * Static imports are what an entry costs at startup. A dynamic `import('./x.js')` is paid
  * only on the path that runs it (K6), so it is reported as `lazy` and not counted — an
  * entry may defer a rarely used surface without carrying it for every run.
+ *
+ * Read from the syntax tree, not the text. The pattern this replaced matched only
+ * `from '…'`, and tsc keeps the source's quote style, so `src/yargs/*.ts` — written with
+ * double quotes — had its `linegauge` import and every relative import unread: the lock
+ * passed while measuring less than ships.
  */
-const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;
-const LAZY = /import\(\s*'([^']+)'\s*\)/g;
-
-/** One file's imports: static specifiers to follow or count, dynamic ones only to report. */
 function scan(source: string): { specs: string[]; lazy: string[] } {
-  return {
-    specs: [...source.matchAll(SPECIFIER)].map((m) => m[1] ?? ""),
-    lazy: [...source.matchAll(LAZY)].map((m) => m[1] ?? ""),
+  const specs: string[] = [];
+  const lazy: string[] = [];
+  const visit = (node: ts.Node): void => {
+    if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier !== undefined && ts.isStringLiteral(node.moduleSpecifier)) {
+      specs.push(node.moduleSpecifier.text);
+    } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+      const [arg] = node.arguments;
+      if (arg !== undefined && ts.isStringLiteralLike(arg)) lazy.push(arg.text);
+    }
+    ts.forEachChild(node, visit);
   };
+  visit(ts.createSourceFile("entry.js", source, ts.ScriptTarget.Latest, false, ts.ScriptKind.JS));
+  return { specs, lazy };
 }
 
 function walk(entry: string): {
@@ -937,5 +948,14 @@ describe("the lock grows with the package", () => {
       (e) => !DATA_EXPORTS.includes(e),
     );
     expect(code.sort()).toEqual(Object.keys(RULES).sort());
+  });
+});
+
+describe("the walker", () => {
+  it("reads either quote style and no string, so neither can hide or invent an import", () => {
+    expect(scan(`import { a } from "x"; export * from './y.js'; const s = "came from", k = 'z'; await import("./z.js");`)).toEqual({
+      specs: ["x", "./y.js"],
+      lazy: ["./z.js"],
+    });
   });
 });

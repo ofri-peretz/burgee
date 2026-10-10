@@ -17,6 +17,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 const pkgRoot = fileURLToPath(new URL('..', import.meta.url));
@@ -96,7 +97,12 @@ const RULES: Record<string, EntryRule> = {
   },
 };
 
-const SPECIFIER = /(?:from|import)\s*'([^']+)'|import\(\s*'([^']+)'\s*\)/g;
+/**
+ * Every module a file loads — `import`, `export … from`, and `import('…')` — read as tokens
+ * by TypeScript's own pre-processor. A pattern over printed text missed `from "x"` entirely
+ * (tsc keeps the source's quote style) and read `came from", kind: '` out of a string.
+ */
+const specifiers = (source: string): string[] => ts.preProcessFile(source, true, true).importedFiles.map((f) => f.fileName);
 
 function walk(entry: string): { reached: string[]; external: string[]; bytes: number } {
   const files = new Set<string>();
@@ -108,8 +114,7 @@ function walk(entry: string): { reached: string[]; external: string[]; bytes: nu
     if (file === undefined || files.has(file)) continue;
     files.add(file);
     bytes += statSync(file).size;
-    for (const [, fromStatic, fromDynamic] of readFileSync(file, 'utf8').matchAll(SPECIFIER)) {
-      const spec = fromStatic ?? fromDynamic ?? '';
+    for (const spec of specifiers(readFileSync(file, 'utf8'))) {
       if (spec.startsWith('.')) queue.push(resolve(dirname(file), spec));
       else if (spec !== '' && !spec.startsWith('node:')) external.add(spec);
     }
@@ -163,6 +168,10 @@ describe('the lock grows with the package', () => {
   });
 
   it('the walker sees a dynamic import, so a peer loaded with import() cannot hide', () => {
-    expect([...`await import('react');`.matchAll(SPECIFIER)].map((m) => m[2])).toEqual(['react']);
+    expect(specifiers(`await import('react');`)).toEqual(['react']);
+  });
+
+  it('the walker reads either quote style and no string, so neither can hide or invent an import', () => {
+    expect(specifiers(`import { a } from "x"; export * from './y.js'; const s = "came from", k = 'z';`)).toEqual(['x', './y.js']);
   });
 });
