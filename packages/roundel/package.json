@@ -1,7 +1,7 @@
 {
   "name": "roundel",
   "version": "1.0.3",
-  "description": "The colours a CLI carries. One output policy, semantic tokens, a theme, and a chalk migration path lighter than chalk. Zero dependencies.",
+  "description": "Colour for a CLI: one output policy decided from the runtime, nine semantic tokens over util.styleText, and a theme that changes them together, contrast-checked. Zero dependencies. Drop-in path for chalk.",
   "license": "MIT",
   "type": "module",
   "sideEffects": ["./dist/cli.js"],

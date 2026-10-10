@@ -1,7 +1,7 @@
 {
   "name": "seniority",
   "version": "1.0.2",
-  "description": "Which source outranks the others. One resolution for flags, environment, project and home config files and defaults \u2014 with provenance, so every value can say where it came from. Drop-in paths for cosmiconfig, dotenv and rc. Zero dependencies.",
+  "description": "Resolves flags, environment variables, config files and defaults in one fixed order, with provenance: every value can say where it came from. Zero dependencies. Drop-in paths for cosmiconfig, lilconfig, dotenv and rc.",
   "license": "MIT",
   "type": "module",
   "sideEffects": ["./dist/cli.js", "./dist/dotenv-config.js"],
