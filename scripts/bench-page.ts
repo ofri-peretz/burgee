@@ -295,7 +295,7 @@ Every number this repository states in public, checked against the record that s
 **"Not met" and "unmeasured" are different outcomes** and never collapse into each other:
 one says we measured and it is not true, the other says we have not measured.
 
-| Claim | Target | Measured | |
+| Claim | Target | Measured | Outcome |
 | :--- | :--- | ---: | :--- |
 ${claims.join('\n')}
 ${agentMeasureNote}

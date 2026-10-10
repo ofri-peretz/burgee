@@ -1,13 +1,13 @@
 {
   "schema": 1,
   "suite": "agent-cli-bench",
-  "measured": "2026-10-10T14:01:50.685Z",
+  "measured": "2026-10-10T14:13:28.736Z",
   "commit": "a5c3282d83f0d98ad36c83b6acbbd9898d0dfffc-dirty",
   "machine": {
     "os": "linux",
     "release": "6.17.0-1022-azure",
     "arch": "x64",
-    "cpu": "AMD EPYC 7763 64-Core Processor",
+    "cpu": "AMD EPYC 9V74 80-Core Processor",
     "cores": 4,
     "memoryGb": 16,
     "node": "v24.13.0",
@@ -15,19 +15,304 @@
   },
   "axes": {
     "agent": {
-      "status": "not-run",
-      "reason": "not selected by --axis"
+      "status": "measured",
+      "method": "For each of the 5 tasks and each of the two builds, `claude -p <prompt> --allowedTools 'Bash(demo:*)' --max-turns <n> --output-format stream-json --verbose --setting-sources project,local --strict-mcp-config` — the `claude` pinned in `.github/tools/claude-code` when it is installed there — is spawned in a scratch directory with the build installed as `demo`, 5 times, in the caller's environment minus `CI`, `GITHUB_*`, `RUNNER_*` and `ACTIONS_*`; the task's own `check` decides success. Tokens are input + cache + output as the CLI reports them; turns is its `num_turns`, including runs that ended at the turn limit; a run that reported no usage is left out of the medians and totals and counted as a failure. The claims are settled on each build's tokens and turns summed over its task-runs, burgee's over commander's (per run, which is the ratio of the totals when both measured the same number); the pooled medians are reported beside them. The model and the `claude` version are recorded per results file, and a change of either starts a new band history."
     }
   },
-  "records": [],
+  "records": [
+    {
+      "axis": "agent",
+      "variant": "burgee",
+      "detail": {
+        "model": "claude-sonnet-4-5",
+        "claude": "claude 2.1.283 (Claude Code)",
+        "claudePinned": true,
+        "env": "caller env minus CI, GITHUB_*, RUNNER_*, ACTIONS_*; demo first on PATH"
+      },
+      "samples": 25,
+      "metric": "tokens-per-task",
+      "unit": "tokens",
+      "median": 63453,
+      "p95": 153452,
+      "note": "median over 25 task-runs on model claude-sonnet-4-5"
+    },
+    {
+      "axis": "agent",
+      "variant": "burgee",
+      "detail": {
+        "model": "claude-sonnet-4-5",
+        "claude": "claude 2.1.283 (Claude Code)",
+        "claudePinned": true,
+        "env": "caller env minus CI, GITHUB_*, RUNNER_*, ACTIONS_*; demo first on PATH"
+      },
+      "samples": 25,
+      "metric": "turns-per-task",
+      "unit": "turns",
+      "median": 3,
+      "p95": 8,
+      "note": "`num_turns` as `claude -p` reports it, including runs that ended at --max-turns"
+    },
+    {
+      "axis": "agent",
+      "variant": "burgee",
+      "detail": {
+        "model": "claude-sonnet-4-5",
+        "claude": "claude 2.1.283 (Claude Code)",
+        "claudePinned": true,
+        "env": "caller env minus CI, GITHUB_*, RUNNER_*, ACTIONS_*; demo first on PATH",
+        "failed": 0,
+        "diagnose-provenance.turns": "8,9,5,5,5",
+        "diagnose-provenance.tokens": "174259,153452,107984,108039,107959",
+        "diagnose-provenance.passed": "5/5",
+        "diagnose-provenance.denials": 3,
+        "discover-subcommand.turns": "3,3,3,3,3",
+        "discover-subcommand.tokens": "63485,63444,63475,63644,63497",
+        "discover-subcommand.passed": "5/5",
+        "discover-subcommand.denials": 0,
+        "non-tty-required.turns": "3,2,3,2,4",
+        "non-tty-required.tokens": "63372,42087,63453,42097,84888",
+        "non-tty-required.passed": "5/5",
+        "non-tty-required.denials": 4,
+        "recover-failure.turns": "4,3,3,3,3",
+        "recover-failure.tokens": "85003,63416,63381,63378,63402",
+        "recover-failure.passed": "5/5",
+        "recover-failure.denials": 1,
+        "structured-output.turns": "3,2,2,2,2",
+        "structured-output.tokens": "63496,42083,42134,42119,42098",
+        "structured-output.passed": "5/5",
+        "structured-output.denials": 0
+      },
+      "samples": 25,
+      "metric": "success-rate",
+      "unit": "ratio",
+      "median": 1,
+      "p95": 1,
+      "gate": {
+        "min": 0.8,
+        "why": "below this the tokens and turns medians are taken over whichever task-runs happened to survive, which is a different measurement from the one the band is watching"
+      },
+      "note": "25 of 25 task-runs passed their own check"
+    },
+    {
+      "axis": "agent",
+      "variant": "commander",
+      "detail": {
+        "model": "claude-sonnet-4-5",
+        "claude": "claude 2.1.283 (Claude Code)",
+        "claudePinned": true,
+        "env": "caller env minus CI, GITHUB_*, RUNNER_*, ACTIONS_*; demo first on PATH"
+      },
+      "samples": 25,
+      "metric": "tokens-per-task",
+      "unit": "tokens",
+      "median": 151073,
+      "p95": 288850,
+      "note": "median over 25 task-runs on model claude-sonnet-4-5"
+    },
+    {
+      "axis": "agent",
+      "variant": "commander",
+      "detail": {
+        "model": "claude-sonnet-4-5",
+        "claude": "claude 2.1.283 (Claude Code)",
+        "claudePinned": true,
+        "env": "caller env minus CI, GITHUB_*, RUNNER_*, ACTIONS_*; demo first on PATH"
+      },
+      "samples": 25,
+      "metric": "turns-per-task",
+      "unit": "turns",
+      "median": 7,
+      "p95": 13,
+      "note": "`num_turns` as `claude -p` reports it, including runs that ended at --max-turns"
+    },
+    {
+      "axis": "agent",
+      "variant": "commander",
+      "detail": {
+        "model": "claude-sonnet-4-5",
+        "claude": "claude 2.1.283 (Claude Code)",
+        "claudePinned": true,
+        "env": "caller env minus CI, GITHUB_*, RUNNER_*, ACTIONS_*; demo first on PATH",
+        "failed": 5,
+        "diagnose-provenance.turns": "9,12,13,16,10",
+        "diagnose-provenance.tokens": "152480,265262,288850,338066,219044",
+        "diagnose-provenance.passed": "4/5",
+        "diagnose-provenance.denials": 19,
+        "diagnose-provenance.failures": "max-turns×1",
+        "discover-subcommand.turns": "4,4,4,4,4",
+        "discover-subcommand.tokens": "85038,85081,85437,85047,85137",
+        "discover-subcommand.passed": "5/5",
+        "discover-subcommand.denials": 0,
+        "non-tty-required.turns": "3,3,2,4,2",
+        "non-tty-required.tokens": "63304,63314,42029,84867,42049",
+        "non-tty-required.passed": "5/5",
+        "non-tty-required.denials": 4,
+        "recover-failure.turns": "11,11,10,11,10",
+        "recover-failure.tokens": "249218,249670,226444,249270,223377",
+        "recover-failure.passed": "1/5",
+        "recover-failure.denials": 22,
+        "recover-failure.failures": "permission-denied×4",
+        "structured-output.turns": "7,7,7,3,3",
+        "structured-output.tokens": "151073,151156,151189,63410,63460",
+        "structured-output.passed": "5/5",
+        "structured-output.denials": 0
+      },
+      "samples": 25,
+      "metric": "success-rate",
+      "unit": "ratio",
+      "median": 0.8,
+      "p95": 0.8,
+      "gate": {
+        "min": 0.8,
+        "why": "below this the tokens and turns medians are taken over whichever task-runs happened to survive, which is a different measurement from the one the band is watching"
+      },
+      "note": "20 of 25 task-runs passed their own check"
+    },
+    {
+      "axis": "agent",
+      "variant": "burgee ÷ commander",
+      "unit": "ratio",
+      "samples": 25,
+      "detail": {
+        "model": "claude-sonnet-4-5",
+        "claude": "claude 2.1.283 (Claude Code)",
+        "claudePinned": true,
+        "env": "caller env minus CI, GITHUB_*, RUNNER_*, ACTIONS_*; demo first on PATH"
+      },
+      "metric": "tokens-per-task-ratio",
+      "median": 0.42,
+      "p95": 0.42,
+      "note": "median tokens on the floor-meeting build over median tokens on the plain one; kept for history, the claim reads tokens-total-ratio"
+    },
+    {
+      "axis": "agent",
+      "variant": "burgee ÷ commander",
+      "unit": "ratio",
+      "samples": 25,
+      "detail": {
+        "model": "claude-sonnet-4-5",
+        "claude": "claude 2.1.283 (Claude Code)",
+        "claudePinned": true,
+        "env": "caller env minus CI, GITHUB_*, RUNNER_*, ACTIONS_*; demo first on PATH"
+      },
+      "metric": "turns-per-task-ratio",
+      "median": 0.429,
+      "p95": 0.429,
+      "note": "median turns on the floor-meeting build over median turns on the plain one; kept for history, the claim reads turns-total-ratio"
+    },
+    {
+      "axis": "agent",
+      "variant": "burgee",
+      "samples": 25,
+      "detail": {
+        "model": "claude-sonnet-4-5",
+        "claude": "claude 2.1.283 (Claude Code)",
+        "claudePinned": true,
+        "env": "caller env minus CI, GITHUB_*, RUNNER_*, ACTIONS_*; demo first on PATH"
+      },
+      "metric": "tokens-total",
+      "unit": "tokens",
+      "median": 1835645,
+      "p95": 1835645,
+      "note": "sum over 25 task-runs that reported usage"
+    },
+    {
+      "axis": "agent",
+      "variant": "burgee",
+      "samples": 25,
+      "detail": {
+        "model": "claude-sonnet-4-5",
+        "claude": "claude 2.1.283 (Claude Code)",
+        "claudePinned": true,
+        "env": "caller env minus CI, GITHUB_*, RUNNER_*, ACTIONS_*; demo first on PATH"
+      },
+      "metric": "turns-total",
+      "unit": "turns",
+      "median": 88,
+      "p95": 88,
+      "note": "sum over 25 task-runs that reported usage"
+    },
+    {
+      "axis": "agent",
+      "variant": "commander",
+      "samples": 25,
+      "detail": {
+        "model": "claude-sonnet-4-5",
+        "claude": "claude 2.1.283 (Claude Code)",
+        "claudePinned": true,
+        "env": "caller env minus CI, GITHUB_*, RUNNER_*, ACTIONS_*; demo first on PATH"
+      },
+      "metric": "tokens-total",
+      "unit": "tokens",
+      "median": 3763272,
+      "p95": 3763272,
+      "note": "sum over 25 task-runs that reported usage"
+    },
+    {
+      "axis": "agent",
+      "variant": "commander",
+      "samples": 25,
+      "detail": {
+        "model": "claude-sonnet-4-5",
+        "claude": "claude 2.1.283 (Claude Code)",
+        "claudePinned": true,
+        "env": "caller env minus CI, GITHUB_*, RUNNER_*, ACTIONS_*; demo first on PATH"
+      },
+      "metric": "turns-total",
+      "unit": "turns",
+      "median": 174,
+      "p95": 174,
+      "note": "sum over 25 task-runs that reported usage"
+    },
+    {
+      "axis": "agent",
+      "variant": "burgee ÷ commander",
+      "unit": "ratio",
+      "samples": 25,
+      "detail": {
+        "model": "claude-sonnet-4-5",
+        "claude": "claude 2.1.283 (Claude Code)",
+        "claudePinned": true,
+        "env": "caller env minus CI, GITHUB_*, RUNNER_*, ACTIONS_*; demo first on PATH"
+      },
+      "metric": "tokens-total-ratio",
+      "median": 0.488,
+      "p95": 0.488,
+      "note": "tokens summed over every task-run on the floor-meeting build over the same on the plain one, per run; 0.6 or below confirms the ≥40% claim"
+    },
+    {
+      "axis": "agent",
+      "variant": "burgee ÷ commander",
+      "unit": "ratio",
+      "samples": 25,
+      "detail": {
+        "model": "claude-sonnet-4-5",
+        "claude": "claude 2.1.283 (Claude Code)",
+        "claudePinned": true,
+        "env": "caller env minus CI, GITHUB_*, RUNNER_*, ACTIONS_*; demo first on PATH"
+      },
+      "metric": "turns-total-ratio",
+      "median": 0.506,
+      "p95": 0.506,
+      "note": "turns summed over every task-run on the floor-meeting build over the same on the plain one, per run; 0.7 or below confirms the ≥30% claim"
+    }
+  ],
   "bands": {
     "agent-tokens-per-task": {
-      "status": "not-run",
-      "reason": "not selected by --axis"
+      "value": 63453,
+      "from": {
+        "axis": "agent",
+        "variant": "burgee",
+        "metric": "tokens-per-task"
+      }
     },
     "agent-turns-per-task": {
-      "status": "not-run",
-      "reason": "not selected by --axis"
+      "value": 3,
+      "from": {
+        "axis": "agent",
+        "variant": "burgee",
+        "metric": "turns-per-task"
+      }
     }
   },
   "claims": {
@@ -35,15 +320,27 @@
       "claim": "an agent spends at least 40% fewer tokens over the benchmark tasks against a CLI that meets the floor (total over every task-run)",
       "source": ".sdlc/intents/burgee/intent.md — the roadmap headline; measured as totals since D-20261009-b1-totals-and-explain",
       "target": "<= 0.6",
-      "status": "unmeasured",
-      "reason": "not selected by --axis"
+      "measured": 0.488,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "agent",
+        "variant": "burgee ÷ commander",
+        "metric": "tokens-total-ratio"
+      }
     },
     "agent-turns-30pct": {
       "claim": "an agent takes at least 30% fewer turns over the benchmark tasks against a CLI that meets the floor (total over every task-run)",
       "source": ".sdlc/intents/burgee/intent.md — the roadmap headline; measured as totals since D-20261009-b1-totals-and-explain",
       "target": "<= 0.7",
-      "status": "unmeasured",
-      "reason": "not selected by --axis"
+      "measured": 0.506,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "agent",
+        "variant": "burgee ÷ commander",
+        "metric": "turns-total-ratio"
+      }
     }
   }
 }
