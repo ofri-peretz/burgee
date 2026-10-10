@@ -1,6 +1,6 @@
 {
   "name": "closeout",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Runs every exit handler exactly once on every path out of the process, restores the terminal, and holds shutdown to a deadline so it cannot hang. Zero dependencies. Drop-in paths for signal-exit, exit-hook and restore-cursor.",
   "license": "MIT",
   "type": "module",

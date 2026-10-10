@@ -1,6 +1,6 @@
 {
   "name": "bellpull",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Runs a subprocess, resolves the executable it names, and returns one structured result every caller can read: a line for a person, a --json envelope or an agent event. Zero dependencies. Drop-in paths for cross-spawn and which.",
   "license": "MIT",
   "type": "module",

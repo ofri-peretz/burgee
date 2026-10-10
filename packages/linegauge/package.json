@@ -1,6 +1,6 @@
 {
   "name": "linegauge",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Measures, wraps, truncates and slices styled terminal text, grapheme-correct over Intl.Segmenter, with the same result on a terminal, a pipe or --json. Zero dependencies. Drop-in paths for string-width, wrap-ansi, strip-ansi and slice-ansi.",
   "license": "MIT",
   "type": "module",

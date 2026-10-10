@@ -1,6 +1,6 @@
 {
   "name": "seniority",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Resolves flags, environment variables, config files and defaults in one fixed order, with provenance: every value can say where it came from. Zero dependencies. Drop-in paths for cosmiconfig, lilconfig, dotenv and rc.",
   "license": "MIT",
   "type": "module",
