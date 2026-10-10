@@ -1,7 +1,7 @@
 {
   "name": "controlroom",
   "version": "0.3.4",
-  "description": "Keyboard-driven terminal screens, inline or full-screen, with a static projection for pipes, CI and --json — and a drop-in path for ink, graded by ink's own suite. No dependency outside the burgee family; react is an optional peer of controlroom/ink only.",
+  "description": "Keyboard-driven terminal screens, inline or full-screen, with a static projection for pipes, CI and --json. No dependency outside the burgee family; react and react-reconciler are optional peers, loaded only by controlroom/ink. Drop-in path for ink.",
   "license": "MIT",
   "type": "module",
   "sideEffects": [

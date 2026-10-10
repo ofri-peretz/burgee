@@ -33,6 +33,12 @@
  * Proven red on `fc0f897104`, the tree the intent was opened against: the root README and the
  * docs landing named `commander, yargs`; caique `clack, inquirer`; closeout `exit-hook,
  * restore-cursor, signal-exit`; controlroom `ink`; flagstaff `ink, ora`; roundel `chalk`.
+ *
+ * R7–R11 (the owner's neutral-voice follow-up, 2026-10-09) are held in the second half of this
+ * file: the npm descriptions' three-sentence shape, no self-ranking words in a description or a
+ * front-page heading, no `Replaces` column and one family section across the ten READMEs, no
+ * roadmap section in a 1.x README, and a capability section before the migration. Proven red on
+ * `e992fc7619`: 27 failures, every description among them.
  */
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -172,5 +178,223 @@ describe('the lock can fail', () => {
 
   it('fails a page with no paragraph after the hero, rather than passing it', () => {
     expect(problems('empty', '<p align="center">\n  Only a tagline here.\n</p>\n\n## Install\n')).toEqual([expect.stringMatching(/no paragraph after the hero/u)]);
+  });
+});
+
+// ── R7–R11: a neutral voice (requested by the owner, 2026-10-09) ──────────────────────────────
+//
+// The openings were fixed by R1–R6, and the rest of the voice was not: six npm descriptions led
+// with the name's etymology, burgee's led with "drop-in compatible with commander and yargs",
+// roundel's promised "a chalk migration path lighter than chalk", the dependency fact was worded
+// three ways, the family table's column was headed `Replaces`, and the root README had a
+// section titled "A better commander". What follows holds the shape that replaced them.
+
+interface Described {
+  name: string;
+  version: string;
+  description: string;
+  dependencies: string[];
+}
+
+/** Every published package's manifest, as the npm registry shows it. */
+const described = (): Described[] =>
+  packageReadmes().map((readme) => {
+    const name = readme.split('/')[1]!;
+    const m = JSON.parse(read(`packages/${name}/package.json`)) as { version: string; description?: string; dependencies?: Record<string, string> };
+    return { name, version: m.version, description: m.description ?? '', dependencies: Object.keys(m.dependencies ?? {}) };
+  });
+
+/** A description's sentences. A full stop inside a word (`util.styleText`, `Intl.Segmenter`) does not end one. */
+export const sentences = (text: string): string[] => text.split(/(?<=[.!?])\s+(?=[A-Z@`])/u).filter((s) => s !== '');
+
+/** The one dependency wording a package with none uses, and the one a package with in-family dependencies uses. */
+export const NO_DEPENDENCIES = 'Zero dependencies.';
+export const IN_FAMILY_ONLY = /^No dependency outside the burgee family[.;]/u;
+
+/** The migration clause, last, in the form `readme-opening-lock` and the docs' package map read. */
+const MIGRATION = /^Drop-in paths? for (.+)\.$/u;
+
+/** Self-ranking words, which no measurement on a front page or in a description backs as written. */
+const COMPARATIVE = /\b(?:a better|better than|lighter than|faster than|smaller than|superior|best-in-class|the alternatives do not)\b/iu;
+
+/** The drop-ins `burgee migrate` moves to `pkg`, by the specifier a program imports today. */
+const dropInsOf = (pkg: string): string[] => DROP_INS.filter(({ to }) => to.split('/')[0] === pkg).map(({ from }) => from);
+
+/**
+ * What is wrong with one npm description (R7): it is three sentences — what the package does, the
+ * dependency fact, the migration clause — in that order. The first names no incumbent, the
+ * second is one of two wordings and true of the manifest, and the third lists only drop-ins
+ * `compat.ts` holds for this package. No sentence ranks the package against another (R8).
+ */
+export function descriptionProblems({ name, description, dependencies }: Described, dropIns: readonly string[] = dropInsOf(name)): string[] {
+  const parts = sentences(description);
+  const [first = '', dependency = '', migration = ''] = parts.length === 3 ? parts : [parts[0] ?? '', parts.at(-2) ?? '', parts.at(-1) ?? ''];
+  const names = named(first);
+  const ranked = COMPARATIVE.exec(description);
+  return [
+    ...(parts.length === 3 ? [] : [`${name}: the description is ${String(parts.length)} sentence(s); it should be three — what it does, the dependency fact, the migration clause — and nothing before the first (an etymology lead is a fourth): "${description}"`]),
+    ...(names.length === 0 ? [] : [`${name}: the description's first sentence names ${names.join(', ')} — say what it does first; the incumbents belong in the last sentence`]),
+    ...dependencyProblems(name, dependency, dependencies),
+    ...migrationProblems(name, migration, dropIns),
+    ...(ranked === null ? [] : [`${name}: the description says "${ranked[0]}" — state what it does and let the measurements compare`]),
+  ];
+}
+
+/** The dependency sentence: one of two wordings, and the one the manifest makes true. */
+function dependencyProblems(name: string, dependency: string, dependencies: readonly string[]): string[] {
+  const none = dependencies.length === 0;
+  if (none ? dependency === NO_DEPENDENCIES : IN_FAMILY_ONLY.test(dependency)) return [];
+  const expected = none ? NO_DEPENDENCIES : 'No dependency outside the burgee family.';
+  return [`${name}: the dependency sentence is "${dependency}" — with ${String(dependencies.length)} dependenc${dependencies.length === 1 ? 'y' : 'ies'} it should read "${expected}"`];
+}
+
+/** The migration clause: last, in the one form, listing only drop-ins compat.ts holds for this package. */
+function migrationProblems(name: string, migration: string, dropIns: readonly string[]): string[] {
+  const listed = MIGRATION.exec(migration)?.[1];
+  if (listed === undefined) return [`${name}: the description should end with "Drop-in paths for X, Y and Z." — it ends "${migration}"`];
+  const unknown = listed.split(/,\s*|\s+and\s+/u).filter((item) => !dropIns.includes(item));
+  return unknown.length === 0 ? [] : [`${name}: the description lists ${unknown.join(', ')} as drop-in paths, and compat.ts's DROP_INS has none for ${name}`];
+}
+
+/** Every heading line, and an `.mdx` page's `title:`. */
+const headings = (text: string): string[] => text.split('\n').filter((line) => /^#{1,6} |^title: /u.test(line));
+
+/** What is wrong with one page's headings (R8): none ranks the package against another. */
+export function headingProblems(page: string, text: string): string[] {
+  return headings(text)
+    .filter((line) => COMPARATIVE.test(line))
+    .map((line) => `${page}: the heading "${line}" ranks rather than describes — title the section by what it shows`);
+}
+
+/** The header row of every Markdown table on a page. */
+const tableHeaders = (text: string): string[] => {
+  const lines = text.split('\n');
+  return lines.filter((line, i) => line.trimStart().startsWith('|') && /^\s*\|\s*:?-{2,}/u.test(lines[i + 1] ?? ''));
+};
+
+/** What is wrong with one page's tables (R9): no column is headed `Replaces`. */
+export function replacesColumnProblems(page: string, text: string): string[] {
+  return tableHeaders(text)
+    .filter((row) => row.split('|').some((cell) => /^\s*replaces\s*$/iu.test(cell)))
+    .map((row) => `${page}: a table is headed "Replaces" — say "Migrates from" (or "incumbent" for a measurement): ${row.trim()}`);
+}
+
+/**
+ * A README's `## The family` section with each row's first cell reduced to the package's name, so
+ * the one difference a README is allowed — its own row is `**name** (this package)` where the
+ * others link the sibling — is the only thing removed before the sections are compared.
+ */
+export function familySection(name: string, readme: string): string | undefined {
+  const at = readme.indexOf('\n## The family\n');
+  if (at === -1) return undefined;
+  const rest = readme.slice(at + 1);
+  const end = rest.indexOf('\n## ', 1);
+  const section = end === -1 ? rest : rest.slice(0, end);
+  if (!section.includes(`| **${name}** (this package) |`)) return `${section}\n(no "(this package)" row for ${name})`;
+  return section.replaceAll(/^\| (?:\*\*([\w-]+)\*\* \(this package\)|\[([\w-]+)\]\([^)]*\)) \|/gmu, (_, own: string | undefined, sibling: string | undefined) => `| ${own ?? sibling ?? ''} |`);
+}
+
+/** A version at 1.0 or later. */
+const stable = (version: string): boolean => Number(version.split('.')[0]) >= 1;
+
+/** Section titles that describe a package that does not exist yet. */
+const ROADMAP = /^## (?:What it will be|Following along|Coming soon|Roadmap)\b/imu;
+
+/**
+ * What is wrong with one README's sections (R10, R11): a 1.x package's README does not title a
+ * section as a future, and the section after `## Quick start` says what the package does — it is
+ * not `## Migrating`, `## Install` or `## Compatibility`.
+ */
+export function sectionProblems(name: string, version: string, readme: string): string[] {
+  const out: string[] = [];
+  const future = ROADMAP.exec(readme);
+  if (stable(version) && future !== null) out.push(`${name}@${version}: "${future[0]}" titles a 1.x package's section as a future — say what is built in the present tense, and say plainly what is not`);
+  const sections = readme.split('\n').filter((line) => line.startsWith('## '));
+  const next = sections[sections.indexOf('## Quick start') + 1];
+  if (sections.includes('## Quick start') && (next === undefined || /^## (?:Migrating|Install|Compatibility)\b/u.test(next))) {
+    out.push(`${name}: the section after "## Quick start" is "${String(next)}" — add one that says what the package does before the migration`);
+  }
+  return out;
+}
+
+describe('the npm descriptions say what each package does, then the dependency fact, then the migration (R7, R8)', () => {
+  it('holds every published package', () => {
+    expect(described().length).toBeGreaterThanOrEqual(10);
+  });
+
+  it.each(described().map((d) => [d.name, d] as const))('%s', (_, pkg) => {
+    expect(descriptionProblems(pkg)).toEqual([]);
+  });
+});
+
+describe('no front page heading ranks a package against another (R8)', () => {
+  it.each(['README.md', ...packageReadmes()])('%s', (page) => {
+    expect(headingProblems(page, read(page))).toEqual([]);
+  });
+});
+
+describe('no table is headed "Replaces" (R9)', () => {
+  it.each(['README.md', ...packageReadmes(), 'apps/docs/content/docs/packages/index.md'])('%s', (page) => {
+    expect(replacesColumnProblems(page, read(page))).toEqual([]);
+  });
+
+  it('the family section is one text in every package README, but for the "(this package)" row', () => {
+    const sections = packageReadmes().map((page) => familySection(page.split('/')[1]!, read(page)));
+    expect(sections.every((s) => s !== undefined), 'a package README has no "## The family" section').toBe(true);
+    expect(new Set(sections).size, 'the family sections differ — run `npx tsx scripts/readme-benchmarks.ts`').toBe(1);
+  });
+});
+
+describe('a 1.x README describes what is built, and says what the package does before how to switch (R10, R11)', () => {
+  it.each(described().map((d) => [d.name, d] as const))('%s', (name, { version }) => {
+    expect(sectionProblems(name, version, read(`packages/${name}/README.md`))).toEqual([]);
+  });
+});
+
+/** A description to test the lock with, as roundel's manifest would carry it. */
+const pkg = (description: string, dependencies: string[] = []): Described => ({ name: 'roundel', version: '1.0.3', description, dependencies });
+
+describe('the voice lock can fail', () => {
+
+  it("fails every description it was written against (origin/main, 2026-10-09)", () => {
+    const etymology = pkg('Which source outranks the others. One resolution for flags, environment, project and home config files and defaults. Drop-in paths for cosmiconfig, dotenv and rc. Zero dependencies.');
+    expect(descriptionProblems({ ...etymology, name: 'seniority' }, ['cosmiconfig', 'dotenv', 'rc']).join('\n')).toMatch(/4 sentence\(s\)[\s\S]*dependency sentence[\s\S]*should end with/u);
+    const lighter = pkg('The colours a CLI carries. One output policy, semantic tokens, a theme, and a chalk migration path lighter than chalk. Zero dependencies.');
+    expect(descriptionProblems(lighter, ['chalk']).join('\n')).toMatch(/names chalk|lighter than/u);
+    expect(descriptionProblems(lighter, ['chalk']).join('\n')).toMatch(/"lighter than"/u);
+    const rivalFirst = pkg('An agent-native CLI framework, drop-in compatible with commander and yargs. One declaration; help, --json, --schema, --mcp and completions all projected from it.', ['bellpull']);
+    expect(descriptionProblems({ ...rivalFirst, name: 'burgee' }, ['commander', 'yargs']).join('\n')).toMatch(/first sentence names commander, yargs/u);
+  });
+
+  it('passes the shape it asks for, and refuses a drop-in compat.ts does not hold', () => {
+    expect(descriptionProblems(pkg('Colour for a CLI, decided once. Zero dependencies. Drop-in path for chalk.'), ['chalk'])).toEqual([]);
+    expect(descriptionProblems(pkg('Colour for a CLI, decided once. Zero dependencies. Drop-in paths for chalk and kleur.'), ['chalk'])).toEqual([expect.stringMatching(/lists kleur/u)]);
+    expect(descriptionProblems(pkg('Colour for a CLI, decided once. Zero dependencies. Drop-in path for chalk.', ['linegauge']), ['chalk'])).toEqual([expect.stringMatching(/No dependency outside the burgee family/u)]);
+    expect(descriptionProblems(pkg('Colour for a CLI, decided once. No dependency outside the burgee family. Drop-in path for chalk.', ['linegauge']), ['chalk'])).toEqual([]);
+  });
+
+  it('reads a full stop inside a word as part of it', () => {
+    expect(sentences('Tokens over util.styleText, grapheme-correct over Intl.Segmenter. Zero dependencies. Drop-in path for chalk.')).toHaveLength(3);
+  });
+
+  it('fails the heading and the table column it was written against', () => {
+    expect(headingProblems('README.md', '## 🧭 A better commander, not another oclif\n')).toHaveLength(1);
+    expect(headingProblems('bellpull', '## What it does that the alternatives do not\n')).toHaveLength(1);
+    expect(headingProblems('README.md', '## 🧭 It starts as one file\n')).toEqual([]);
+    expect(replacesColumnProblems('x', '| Package | What it is | Replaces |\n| :-- | :-- | :-- |\n| a | b | c |\n')).toHaveLength(1);
+    expect(replacesColumnProblems('x', 'It replaces nothing.\n| Package | Migrates from |\n| :-- | :-- |\n')).toEqual([]);
+  });
+
+  it('fails a family section that differs between two READMEs', () => {
+    const one = '# a\n\n## The family\n\nTen packages.\n\n| **a** (this package) | A |\n| [b](https://b) | B |\n\n## Contributing\n';
+    const two = '# b\n\n## The family\n\nNine packages.\n\n| [a](https://a) | A |\n| **b** (this package) | B |\n\n## Contributing\n';
+    expect(familySection('a', one)).not.toBe(familySection('b', two));
+    expect(familySection('a', one)).toBe(familySection('b', two.replace('Nine', 'Ten')));
+  });
+
+  it('fails a 1.x roadmap heading, and a Quick start followed straight by Migrating', () => {
+    expect(sectionProblems('caique', '1.0.3', '## Quick start\n\n## What it does\n\n## What it will be\n')).toEqual([expect.stringMatching(/titles a 1\.x package's section as a future/u)]);
+    expect(sectionProblems('controlroom', '0.3.4', '## Install\n\n## Quick start\n\n## Migrating\n')).toEqual([expect.stringMatching(/after "## Quick start" is "## Migrating"/u)]);
+    expect(sectionProblems('controlroom', '0.3.4', '## Quick start\n\n## What it does\n\n## Migrating\n')).toEqual([]);
   });
 });

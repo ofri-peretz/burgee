@@ -45,8 +45,8 @@
 </p>
 
 <p align="center">
-  <strong>Proved by the incumbents' own tests.</strong> Each drop-in path is graded by the test
-  suite of the package it replaces, run in CI beside a control that runs the real package:
+  <strong>Proved by the incumbents' own tests.</strong> Each drop-in path is graded by the
+  original package's own test suite, run in CI beside a control that runs the real package:
   commander's 1360 of 1360, yargs' 816 of 816, and 26 more hosts on the compatibility page.
   The benchmarks below publish every comparison, the rows burgee loses included.
 </p>
@@ -219,9 +219,9 @@ npx burgee migrate --dry-run   # what it would change, and nothing written
 npx burgee migrate
 ```
 
-burgee **replaces commander and yargs**, and the family replaces chalk, ora, string-width,
-cross-spawn, signal-exit and the other incumbents graded level with their own suites. Each
-has a drop-in path, and `burgee migrate` rewrites the import specifiers and nothing else, then
+burgee has **drop-in paths for commander and yargs**, and the family has them for chalk, ora,
+string-width, cross-spawn, signal-exit and the other packages graded level with their own
+suites. `burgee migrate` rewrites the import specifiers and nothing else, then
 prints the install command to run next ([Migrate](./apps/docs/content/docs/migrate.mdx)). For
 one commander program, that is one line:
 
@@ -255,7 +255,7 @@ commander syntax, yargs syntax and native alike.
 
 ---
 
-## 🧭 A better commander, not another oclif
+## 🧭 It starts as one file
 
 oclif has every capability on this page and does **10.9M downloads a week against
 commander's 508M**. The difference is not features, it is shape. So the shape is locked
@@ -428,40 +428,38 @@ installed-size figures come from the measurement published in
 </p>
 
 **burgee** declares; the **output stack** is what a CLI shows; the **foundation** is what it
-stands on. Every one is an independent product with its own README and its own incumbents, and
-none has a dependency outside the burgee family.
+stands on. Each package is an independent product with its own README, installs on its own,
+and declares no dependency outside the burgee family.
 
-A complete CLI on the incumbents is a dozen packages under a handful of accounts. This is
-ten packages, one repository, one release pipeline and one supply chain to audit, with a
-single schema byte-identical in every tarball. That is the argument for one codebase here:
-not convenience, but the number of things a user has to trust — and the dependency bill is
-the number, 0 against the dozen.
+Ten packages, one repository, one release pipeline and one supply chain to audit, with a
+single schema byte-identical in every tarball. Six leaves depend on nothing, and every other
+dependency points one way, down the [layers](https://burgee.interlace.tools/docs/concepts/family);
+the locks that hold each rule are named there. Releases are published through npm trusted
+publishing, with SLSA provenance and no npm token (`trusted-publishing-lock`). The case for one
+codebase is the number of things a user has to trust, not convenience.
 
-| | Layer | Package | What the layer owns | Replaces | Status |
+| | Layer | Package | What the layer owns | Migrates from | Status |
 | :-- | :-- | :-- | :-- | :-- | :-- |
-| **Engine** | argv, dispatch, manifest | [`burgee`](./packages/burgee/) | one declaration projected to help, `--json`, `--schema`, MCP, completions, types | commander · yargs | released — `burgee@1.0.0` |
+| **Engine** | argv, dispatch, manifest | [`burgee`](./packages/burgee/) | one declaration projected to help, `--json`, `--schema`, MCP, completions, types | commander · yargs · meow | released — `burgee@1.0.0` |
 | **Output stack** | colour | [`roundel`](./packages/roundel/) | one output policy, nine semantic tokens, a contrast-checked theme, and chalk's API over them | chalk · picocolors | released — `roundel@1.0.3` |
 | | render | [`flagstaff`](./packages/flagstaff/) | frame loop with a static projection; plugin host for spinners, progress, boxes, tables | ora · log-update · boxen · cli-table3 | released — `flagstaff@1.2.4` |
 | | prompt | [`caique`](./packages/caique/) | prompts that are flags first, and never hang | inquirer · clack · prompts | released — `caique@1.0.3` |
-| | screen | [`controlroom`](./packages/controlroom/) | full-screen, keyboard-driven screens over flagstaff's loop, each with a static projection | ink · @inkjs/ui | released — `controlroom@0.3.4` |
+| | screen | [`controlroom`](./packages/controlroom/) | keyboard-driven screens, inline or full-screen, over flagstaff's loop, each with a static projection | ink · @inkjs/ui | released — `controlroom@0.3.4` |
 | **Foundation** | text | [`linegauge`](./packages/linegauge/) | measure, wrap, truncate and slice styled text without the edge fraying | string-width · wrap-ansi · strip-ansi · slice-ansi | released — `linegauge@1.0.7` |
-| | config | [`seniority`](./packages/seniority/) | precedence across flag, env, project file, home file and default — with provenance | cosmiconfig · dotenv · rc | released — `seniority@1.0.2` |
+| | config | [`seniority`](./packages/seniority/) | precedence across flag, env, project file, home file and default — with provenance | cosmiconfig · lilconfig · dotenv · rc | released — `seniority@1.0.2` |
 | | process | [`bellpull`](./packages/bellpull/) | run a subprocess; resolve the executable; return a result every caller can read | execa · cross-spawn · which | released — `bellpull@1.0.3` |
 | | lifecycle | [`closeout`](./packages/closeout/) | exit handlers that run once on every path, terminal restore, bounded deadline | signal-exit · exit-hook · restore-cursor | released — `closeout@1.0.3` |
 | | terminal | [`paratext`](./packages/paratext/) | hyperlinks, images, window title, clipboard, notifications, bell — each with a static fallback | ansi-escapes (OSC half) · terminal-link · term-img | released — `paratext@1.0.3` |
 
-Nine are released on npm. The tenth is the reservation `controlroom@0.3.4`, which exports
-only `status = 'reserved'`; its approved design is in
-[`.sdlc/intents/controlroom/`](./.sdlc/intents/controlroom/). Where an incumbent's own test suite has been vendored, the
+All ten are released on npm. Nine are at 1.x, with their public API under semver;
+`controlroom@0.3.4` is built to its approved design in
+[`.sdlc/intents/controlroom/`](./.sdlc/intents/controlroom/), and its API can still move. Where an incumbent's own test suite has been vendored, the
 compat oracle grades the drop-in path against it and publishes the rate — including the ones
 not yet at 100% — on the [compatibility page](https://burgee.interlace.tools/docs/compatibility).
 Released is not the same as accepted: the four
 foundation packages began as `0.0.1` name reservations, were built out in waves F1–F4, and
 their intents under [`.sdlc/intents/cli-foundation-stack/`](./.sdlc/intents/cli-foundation-stack/)
-are still at `draft` — the human gate on the design has not run. Eight of the ten are
-pre-1.0, so their APIs can still move. `linegauge` and `flagstaff` are 1.0: their public API is
-under semver, and every drop-in path each publishes is graded 100% by its incumbent's own
-suite (D-170). The `bellpull` intent carries a kill gate, because a zero-dependency
+are still at `draft` — the human gate on the design has not run. The `bellpull` intent carries a kill gate, because a zero-dependency
 rival already holds the weight pitch in that layer, and its spec says plainly that the package
 was built before that gate was evaluated. The measurements behind the layers are in
 [`candidate-layers.md`](./.sdlc/research/candidate-layers.md) and

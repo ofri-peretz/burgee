@@ -230,6 +230,8 @@ interface Manifest {
   license?: string;
   engines?: { node?: string };
   dependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+  peerDependenciesMeta?: Record<string, { optional?: boolean }>;
   exports?: Record<string, unknown>;
 }
 
@@ -368,7 +370,7 @@ const LICENCE_HEADING = '## Licence';
 
 /**
  * What each package is, in a few words — the one hand-kept column of the family table, kept once
- * here rather than once per README. What each replaces is not kept at all: it is read
+ * here rather than once per README. What each migrates from is not kept at all: it is read
  * out of the package's own description, as the docs site's package map reads it.
  */
 const ROLE: Readonly<Record<string, string>> = {
@@ -381,12 +383,38 @@ const ROLE: Readonly<Record<string, string>> = {
   seniority: 'Configuration precedence and discovery, with provenance',
   closeout: 'Exit handlers, terminal restore and a bounded shutdown',
   bellpull: 'Subprocesses, and which executable actually ran',
-  controlroom: 'Full-screen, keyboard-driven terminal screens',
+  controlroom: 'Keyboard-driven terminal screens, inline or full-screen',
+};
+
+/** The column generated prose is broken at — the width the hand-written READMEs keep. */
+const WRAP_WIDTH = 100;
+
+/** A lock named in prose, linked to its file. */
+const lock = (file: string): string => `[\`${file}\`](${BLOB}/scripts/${file}.test.ts)`;
+
+/** Prose joined and broken at {@link WRAP_WIDTH} columns, never inside a word or a link. */
+const wrap = (...parts: string[]): string[] => {
+  const lines: string[] = [];
+  let line = '';
+  for (const word of parts.join(' ').split(' ')) {
+    if (line !== '' && line.length + 1 + word.length > WRAP_WIDTH) {
+      lines.push(line);
+      line = word;
+    } else line = line === '' ? word : `${line} ${word}`;
+  }
+  return line === '' ? lines : [...lines, line];
 };
 
 /**
  * `## The family` — every sibling, one row each, generated so the copies cannot disagree. A
  * reserved package says so in both columns: what it will be is not what it is.
+ *
+ * The opening paragraph states how the family is built, as facts a reader can check, and each
+ * fact is either read from the manifests here or names the lock that holds it: the package
+ * count, the leaves (no dependency at all), that no package declares a dependency from outside
+ * the family (this function throws if one does), the optional peers a program brings itself,
+ * and how a release is published. It names no incumbent and compares with none: what each
+ * package migrates from is the table's third column (positioning R9).
  */
 export function family(pkg: string): string {
   if (!FAMILY.includes(pkg)) return '';
@@ -397,18 +425,43 @@ export function family(pkg: string): string {
     const outside = Object.keys(m.dependencies ?? {}).filter((d) => !FAMILY.includes(d));
     if (outside.length > 0) throw new Error(`${name} depends on ${outside.join(', ')}, outside the family — the family table's opening sentence would be false`);
     const cell = name === pkg ? `**${name}** (this package)` : `[${name}](${packageDocsUrl(name)})`;
-    const replaces = replacesOf(name, m.description ?? '');
-    return reserved(name) ? `| ${cell} | Reserved, not usable yet — planned: ${role.toLowerCase()} | ${replaces}, planned |` : `| ${cell} | ${role} | ${replaces} |`;
+    const from = replacesOf(name, m.description ?? '');
+    return reserved(name) ? `| ${cell} | Reserved, not usable yet — planned: ${role.toLowerCase()} | ${from}, planned |` : `| ${cell} | ${role} | ${from} |`;
   });
   const count = WORDS[FAMILY.length] ?? String(FAMILY.length);
+  const leaves = FAMILY.filter((name) => Object.keys(manifest(name).dependencies ?? {}).length === 0).toSorted();
+  // A peer from outside the family must be optional, and is named: it is the one thing a
+  // program installs for itself, and a sentence that hid it would be the false one.
+  const peers = FAMILY.toSorted().flatMap((name) => {
+    const m = manifest(name);
+    const outside = Object.keys(m.peerDependencies ?? {}).filter((d) => !FAMILY.includes(d));
+    const required = outside.filter((d) => m.peerDependenciesMeta?.[d]?.optional !== true);
+    if (required.length > 0) throw new Error(`${name} has a required peer from outside the family (${required.join(', ')}) — the family table's opening paragraph would be false`);
+    if (outside.length === 0) return [];
+    const verb = outside.length === 1 ? 'is an optional peer' : 'are optional peers';
+    return [`${list(outside)} ${verb} of \`${name}\`, which npm does not install`];
+  });
   return [
     FAMILY_HEADING,
     '',
-    `${count} packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel`,
-    'carries its colours, flagstaff flies it and caique answers back; each installs on its own, and none',
-    'takes a dependency from outside the family.',
+    ...wrap(
+      `${count} packages, one repository, one release pipeline. Each installs and works on its own, and each owns one job.`,
+      `${WORDS[leaves.length] ?? String(leaves.length)} of them — ${list(leaves)} — depend on nothing; the others depend only on packages in this table,`,
+      'and every dependency points one way, down the [layers](https://burgee.interlace.tools/docs/concepts/family).',
+    ),
     '',
-    '| Package | What it is | Replaces |',
+    ...wrap(
+      `No package declares a dependency from outside the family${peers.map((p) => `; ${p}`).join('')}.`,
+      `${lock('package-shape-lock')} holds that for every manifest, and ${lock('independence-install-lock')} installs each package alone`,
+      'and finds nothing but the family packages it declares.',
+    ),
+    '',
+    ...wrap(
+      'Releases are published by one workflow through npm trusted publishing: no npm token is used, and each release',
+      `carries SLSA provenance, which \`npm view <package> dist.attestations\` shows. ${lock('trusted-publishing-lock')} keeps both true.`,
+    ),
+    '',
+    '| Package | What it is | Migrates from |',
     '| :-- | :-- | :-- |',
     ...rows,
     '',

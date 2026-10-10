@@ -1,7 +1,7 @@
 {
   "name": "paratext",
   "version": "1.0.3",
-  "description": "Everything around your terminal output that is not the output: hyperlinks, images, window title, clipboard, notifications and the bell \u2014 each with a static fallback for terminals that cannot do it. Drop-in paths for ansi-escapes, terminal-link and term-img. Zero dependencies.",
+  "description": "Hyperlinks, inline images, the window title, the clipboard, notifications and the bell, each with a static fallback for a terminal, pipe or agent that cannot show it. Zero dependencies. Drop-in paths for ansi-escapes, terminal-link and term-img.",
   "license": "MIT",
   "type": "module",
   "sideEffects": ["./dist/ansi-escapes.js", "./dist/cli.js", "./dist/index.js"],
