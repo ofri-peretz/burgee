@@ -70,7 +70,7 @@ generate. [Drop-ins](/docs/concepts/drop-ins#how-a-drop-in-reaches-100) has what
 
 Each package's "Why" page and the [comparison](/docs/comparison) render
 `packages/<package>/capabilities.json`: one row per capability, a cell for the package and one per
-incumbent it replaces. [`capabilities-lock.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/capabilities-lock.test.ts)
+incumbent it is compared with. [`capabilities-lock.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/capabilities-lock.test.ts)
 reads every cell:
 
 - **Ours.** A `yes` or `partial` names a test file that exists and a substring of a test title in

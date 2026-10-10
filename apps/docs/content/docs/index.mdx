@@ -40,7 +40,7 @@ family in any of them. Six take nothing at all; the other four take only each ot
 
 ## Proved by each incumbent's own suite
 
-Every drop-in path is graded by the test suite of the package it replaces, vendored
+Every drop-in path is graded by the original package's own test suite, vendored
 unmodified apart from the import specifier and run in CI beside a control that runs the real
 package. The rates are on [Compatibility](/docs/compatibility), generated, never hand-edited.
 The [benchmarks](/docs/benchmarks) publish every comparison, the rows burgee loses included.
@@ -52,8 +52,8 @@ npx burgee migrate --dry-run
 npx burgee migrate
 ```
 
-burgee replaces commander and yargs, and the family replaces chalk, ora, string-width and the
-other incumbents graded level with their own suites. `burgee migrate` rewrites the import
+burgee has drop-in paths for commander and yargs, and the family has them for chalk, ora,
+string-width and the other packages graded level with their own suites. `burgee migrate` rewrites the import
 specifiers and nothing else, then prints the install command to run next. For one commander
 program, that is one line:
 
