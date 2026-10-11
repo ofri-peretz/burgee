@@ -247,10 +247,9 @@ jobs:
           meets() { [ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -n 1)" = "$2" ]; }
           node_v=$(node -p 'process.versions.node')
           meets "$node_v" 22.14.0 || { echo "::error::Node $node_v is older than 22.14.0, which npm trusted publishing requires. Raise .nvmrc."; exit 1; }
-          if ! meets "$(npm -v)" 11.5.1; then
-            echo "npm $(npm -v) predates trusted publishing — installing npm@11.6.2."
-            npm install -g npm@11.6.2
-          fi
+          # No fallback: a global npm upgrade there is an unpinned install, which Scorecard's Pinned-Dependencies
+          # flags, and the Node .nvmrc pins already ships a new enough npm (Node 24.13 → npm 11.6.2).
+          meets "$(npm -v)" 11.5.1 || { echo "::error::npm $(npm -v) predates trusted publishing (11.5.1). Raise .nvmrc to a Node that ships it."; exit 1; }
           echo "Publishing with Node $node_v and npm $(npm -v)."
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
