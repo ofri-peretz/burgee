@@ -287,7 +287,7 @@ description: "Every release of roundel, newest first, from its CHANGELOG.md — 
   `heading`, `ground` — and throws on everything else. So a plugin author doing exactly what
   their own `E_PLUGIN_SCHEMA` error tells them, comparing their object against
   `roundel/schema.json`, got a green from the schema and `"accent" is not a token` from
-  `register()`. Measured 2026-09-16 with `{ accent: '[#336699](https://github.com/ofri-peretz/burgee/issues/336699)' }`.
+  `register()`. Measured 2026-09-16 with `{ accent: '#336699' }`.
 
   The schema now carries `propertyNames.enum`, and `scripts/plugin-contract-lock.test.ts`
   pins the enum and the runtime set to each other from both sides, so neither can grow a
