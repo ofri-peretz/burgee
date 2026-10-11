@@ -56,6 +56,26 @@ export function securityStatusProblems(security: string, versions: Record<string
   return out;
 }
 
+const COUNT_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
+
+/**
+ * What is wrong with the root README's release status, given every published package's version.
+ * On 2026-10-10 it read "Nine are at 1.x … `controlroom@1.0.0` … its API can still move" with all
+ * ten at 1.x: a hand-typed count and a stability caveat nobody re-read when controlroom cut 1.0.
+ */
+export function rootStatusProblems(readme: string, versions: Record<string, string>): string[] {
+  const out: string[] = [];
+  const atOne = Object.values(versions).filter(stable).length;
+  const all = Object.keys(versions).length;
+  for (const m of readme.matchAll(/\b(\w+) (?:are|is) at 1\.x\b/giu)) {
+    const said = COUNT_WORDS.indexOf(m[1]!.toLowerCase());
+    const n = said === -1 ? Number(m[1]) : said;
+    if (Number.isInteger(n) && n !== atOne) out.push(`README.md says "${m[0]}", and ${String(atOne)} published packages are at 1.x`);
+  }
+  if (atOne === all && /\bcan still move\b/iu.test(readme)) out.push('README.md says an API "can still move", and every published package is at 1.0 or later, under semver');
+  return out;
+}
+
 /** Every package under `packages/` that has a README, with its manifest's version. */
 const published = (): Record<string, { version: string; readme: string }> =>
   Object.fromEntries(
@@ -77,6 +97,22 @@ describe('a 1.x package does not call itself pre-1.0', () => {
 
 /** Every published package's manifest version, by name. */
 const versions = (): Record<string, string> => Object.fromEntries(Object.entries(published()).map(([pkg, { version }]) => [pkg, version]));
+
+describe("the root README's release status agrees with the manifests", () => {
+  it('holds for README.md as it stands', () => {
+    expect(rootStatusProblems(readFileSync(join(ROOT, 'README.md'), 'utf8'), versions())).toEqual([]);
+  });
+
+  it('fails the paragraph it was written against (origin/main, 2026-10-10), with all ten at 1.x', () => {
+    const ten = Object.fromEntries(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'].map((p) => [p, '1.0.0']));
+    const stale = 'All ten are released on npm. Nine are at 1.x, with their public API under semver;\n`controlroom@1.0.0` is built to its approved design, and its API can still move.';
+    expect(rootStatusProblems(stale, ten)).toEqual([
+      'README.md says "Nine are at 1.x", and 10 published packages are at 1.x',
+      'README.md says an API "can still move", and every published package is at 1.0 or later, under semver',
+    ]);
+    expect(rootStatusProblems('All ten are released on npm at 1.x.', ten)).toEqual([]);
+  });
+});
 
 describe("SECURITY.md's supported versions agree with the manifests", () => {
   it('reads every published package', () => {
