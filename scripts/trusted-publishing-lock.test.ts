@@ -155,6 +155,18 @@ describe("no long-lived npm token", () => {
     expect(run).toMatch(/\.intoto\.jsonl/);
     expect(run).toMatch(/\.sigstore\.json/);
   });
+
+  /**
+   * An SBOM a reviewer can read without installing anything: what `npm i <pkg>` brings in, as
+   * CycloneDX, on the Release. Read from the lockfile, because the publish job runs no `npm ci`,
+   * and without dev, optional or peer dependencies, which a user's install does not bring in.
+   */
+  it("attaches a CycloneDX SBOM of what installing the package brings in to every GitHub Release", () => {
+    const run = String(loopStep().run);
+    expect(run).toMatch(/attach_sbom "\$PKG_NAME" "\$PKG_VER" "\$tag_name"/);
+    expect(run).toMatch(/npm sbom --sbom-format cyclonedx\b[^\n]*--omit dev --omit optional --omit peer --package-lock-only/);
+    expect(run).toMatch(/gh release upload "\$tag" "\$out"/);
+  });
 });
 
 describe("OIDC is available to the publish", () => {
