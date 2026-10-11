@@ -13,17 +13,18 @@ otherwise.
 
 ## Supported versions
 
-`linegauge` and `flagstaff` are 1.0. Their public API is under semver, so a fix, a security
-fix included, ships in a release that a `^1` range installs without a breaking change. Every
-other published package is pre-1.0, and its API can still move between minors. For all of
-them only the latest release is supported, and there are no long-term support branches.
+Every published package is at 1.0 or later, and its public API is under semver. A fix, a
+security fix included, ships as a patch or minor release of the current major, so a caret
+range on that major installs it without a breaking change. Only the latest release of each
+package is supported, and there are no long-term support branches: a fix lands on the newest
+release and is not backported.
 
 ## What reduces the attack surface here
 
 - **Zero external runtime dependencies** in every published package: the supply chain a
-  caller inherits from burgee is this repo. burgee depends on `roundel` and will depend on
-  more of the family as the layers land, each of them built, reviewed and published here —
-  one chain to audit, and no transitive install from anywhere else.
+  caller inherits from burgee is this repo. The packages that depend on anything depend only
+  on their siblings, each of them built, reviewed and published here — one chain to audit,
+  and no transitive install from anywhere else.
 - **`node:util.parseArgs`** does the parsing, rather than a hand-rolled tokeniser.
 - **CodeQL** runs on every push, and `secure-coding` and `node-security` lint rules run at
   `error` on every file — those rules caught a prototype-pollution vector in our own option
