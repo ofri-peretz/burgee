@@ -21,6 +21,9 @@ export const program = defineProgram({
       effects: 'read_only',
       arguments: [{ name: 'name', description: 'who to greet', required: true }],
       examples: [{ command: 'demo greet ada --shout', description: 'greet ada, loudly' }],
+      // clispec-conformance R8 — one value, a string: what `--schema` publishes as `cardinality`
+      // and `stdout_schema`, and what TypeScript holds the handler to.
+      output: { cardinality: 'single', schema: { type: 'string' } },
       options: {
         shout: { type: 'boolean', description: 'uppercase the greeting' },
         greeting: { type: 'string', description: 'the greeting word', env: 'DEMO_GREETING', default: 'Hello' },
@@ -41,6 +44,7 @@ export const program = defineProgram({
           effects: 'read_only',
           arguments: [{ name: 'key', description: 'dotted key', required: true }],
           examples: [{ command: 'demo config get user.name --json', description: 'one value, as the --json envelope' }],
+          output: { cardinality: 'single', schema: { type: 'string' } },
           run: ({ positionals }) => {
             const [key = ''] = positionals;
             const value = CONFIG.get(key);
@@ -56,6 +60,8 @@ export const program = defineProgram({
       effects: 'idempotent',
       options: { code: { type: 'string', description: 'exit with this E1 code instead of throwing' } },
       examples: [{ command: 'demo fail --code 3', description: 'leave with exit 3, CONFIG, and print nothing' }],
+      // It never returns: `not: {}` is the JSON Schema no value satisfies.
+      output: { cardinality: 'single', schema: { not: {} } },
       run: ({ options, exit }) => {
         if (options['code'] !== undefined) {
           const code = Number(options['code']);

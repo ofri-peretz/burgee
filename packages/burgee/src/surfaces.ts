@@ -21,7 +21,7 @@ import { kebab } from './names.js';
 import { type Package } from './pkg.js';
 import { completionNode, exitRows, rootExamples } from './root-help.js';
 import { suggestSimilar } from './suggest.js';
-import { Again, jsonSpelling, shellWord } from './unknown-option.js';
+import { Again, jsonSpelling, shellWord, textSpelling } from './unknown-option.js';
 import { childrenOf, groupUsage, listed, runnableBelow } from './usage.js';
 
 /** The slice of the engine's `Io` a surface reads. */
@@ -67,9 +67,12 @@ async function helpDocumentOf(manifest: Manifest, node: CommandNode): Promise<Re
   const children = manifest.commands
     .filter((c) => c.path.length === node.path.length + 1 && c.path.slice(0, node.path.length).join(' ') === node.path.join(' '))
     .map((c) => typedName(c, root));
+  // clispec-conformance R4, R5 — with the clispec keys `--schema` gives the same command, so the shape stays one.
+  const { commandKeysOf } = await import('./clispec.js');
   return {
     schemaVersion: 1,
     ...commandSchemaOf(node, root),
+    ...commandKeysOf(node, root),
     ...(children.length === 0 ? {} : { commands: children }),
   };
 }
@@ -139,8 +142,11 @@ export async function helpFor(manifest: Manifest, node: CommandNode, io: Surface
 }
 
 /** `--version`: the declared version, else the owning package.json's (V4). */
+/** The program's version: declared to `defineProgram`, else the owning package.json's (V4), else none. */
+const declaredVersion = (manifest: Manifest, io: Pick<SurfaceIo, 'pkg'>): string | undefined => manifest.version ?? (typeof io.pkg?.data['version'] === 'string' ? io.pkg.data['version'] : undefined);
+
 export function versionOf(manifest: Manifest, io: Pick<SurfaceIo, 'pkg'>): string {
-  const declared = manifest.version ?? (typeof io.pkg?.data['version'] === 'string' ? io.pkg.data['version'] : undefined);
+  const declared = declaredVersion(manifest, io);
   if (declared === undefined) throw new ConfigError('no version declared', 'pass version to defineProgram, or set "version" in the owning package.json');
   return declared;
 }
@@ -202,7 +208,19 @@ export async function unresolved({ manifest, root, io }: Resolving, argv: string
  * carries the caller's request for JSON in burgee's spelling, wherever it was typed — so
  * `get user.name --format json` is one line to run, not two refusals in a row.
  */
+/**
+ * clispec-conformance R7 — `--format text` typed before a command that runs is a request for what
+ * that command prints anyway: the line runs without it.
+ */
+function textAsked(manifest: Manifest, root: string[], before: string[], typed: string[]): Again | undefined {
+  const text = textSpelling(typed, 0);
+  const plain = manifest.resolve([...before, ...typed.slice(text)], root);
+  return text > 0 && plain.node?.run !== undefined ? new Again(lineWords(plain.node.path, plain.rest, undefined)) : undefined;
+}
+
 function unknownCommand({ manifest, root }: Resolving, from: CommandNode, before: string[], typed: string[]): UsageError | Again {
+  const text = textAsked(manifest, root, before, typed);
+  if (text !== undefined) return text;
   const { words: all, json } = jsonAsked(typed);
   const lead = typed[0] as string;
   // A request for JSON typed before the command — `--json config get key`, `--format json …` — is
@@ -386,7 +404,8 @@ export async function serve(manifest: Manifest, argv: string[], io: SurfaceIo, e
   if (askedHead.includes('--schema')) {
     // The whole surface is its own chunk (M2): only `--schema` loads it, or the schema it serves.
     const { schemaSurface } = await import('./schema-surface.js');
-    io.out.write(`${await machineJson(await schemaSurface(manifest, asked), askedHead)}\n`);
+    // clispec-conformance R1 — the document always carries a version: the declared one, else the owning package.json's.
+    io.out.write(`${await machineJson(await schemaSurface(manifest, asked, declaredVersion(manifest, io)), askedHead)}\n`);
     return true;
   }
   if (head[0] === '--mcp') {

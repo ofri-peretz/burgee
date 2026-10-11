@@ -97,7 +97,7 @@ describe('the reload report (W3)', () => {
   it('prints no help for a program with no root node, rather than a blank one', () => {
     const m = new Manifest();
     m.rootPath = ['bare'];
-    m.add({ path: ['bare', 'x'], options: {}, effects: 'read_only', examples: [{ command: 'bare x' }], run: () => undefined });
+    m.add({ path: ['bare', 'x'], options: {}, effects: 'read_only', examples: [{ command: 'bare x' }], output: { cardinality: 'single' }, run: () => undefined });
     expect(report(undefined, loaded(m))).toBe('loaded bare (burgee) in 1 ms — 1 commands, 1 MCP tools\n  + bare x\n');
   });
 });
