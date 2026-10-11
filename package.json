@@ -61,7 +61,8 @@
     "weight:converge": "node scripts/weight-converge.mjs",
     "plugins:page": "tsx scripts/plugins-page.ts",
     "layers:page": "tsx scripts/layers-page.ts",
-    "check:osv": "tsx scripts/osv-check.ts"
+    "check:osv": "tsx scripts/osv-check.ts",
+    "install-graph": "tsx scripts/install-graph.ts"
   },
   "overrides": {
     "js-yaml@3": {
