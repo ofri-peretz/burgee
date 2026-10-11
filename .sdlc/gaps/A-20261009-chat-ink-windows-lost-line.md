@@ -24,3 +24,9 @@ written before `run()` and in the same tick as `render()`, lost the line 0 times
 run says only that stdout lacked it. It is not known whether stdout was empty, whether stderr
 had anything, or how the process exited. The case now puts status, signal, stdout and stderr
 in its failure message, so the next occurrence names itself.
+
+**No recurrence, 2026-10-12.** Of the 127 Compatibility runs since #932 added the diagnostic
+message (merged 2026-10-09 21:12 UTC), 70 completed (68 green, 2 red). Both red runs failed
+`readme-quick-start-lock`'s setup timeout on Windows, not this case; `prints each entry once`
+did not fail once. The gap stays open until it recurs with its diagnosis or a further 30 days pass
+without one.

@@ -72,8 +72,12 @@ const READERS_OWN: Readonly<Record<string, Readonly<Record<string, string>>>> = 
   },
 };
 
-/** One pack and one install, ~3 s idle; the margin is for a loaded machine, as the independence lock's. */
-const SETUP_TIMEOUT_MS = 120_000;
+/**
+ * One pack and one install, ~3 s idle. The margin is the independence and install-graph locks'
+ * 240 s: at 120 s the setup timed out on CI's Windows runners twice on 2026-10-11 (Compatibility
+ * runs 38108661838 and 38111836387) with every assertion it guards still passing.
+ */
+const SETUP_TIMEOUT_MS = 240_000;
 /** A quick start that has not exited by now is waiting for something a pipe will never send. */
 const RUN_TIMEOUT_MS = 20_000;
 
