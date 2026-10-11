@@ -112,7 +112,7 @@ non-zero on failure.
 
 | R | Status | Where | Check |
 | :-- | :-- | :-- | :-- |
-| R1 | Not built | `scripts/graded-claims-lock.test.ts` | itself |
+| R1 | **Built** 2026-10-11 | `scripts/graded-claims-lock.test.ts` | itself: red on `e04e05e7f3`, naming `seniority/find-up` ("find-up has no GRADED row behind a DROP_INS pair"), green once the README and the header said "not graded yet" |
 | R2 | Not built | `seniority/find-up` | `npm run compat -- find-up` |
 | R3 | Not built | `closeout/onetime` | `npm run compat -- onetime` |
 | R4 | Not built | `closeout/cli-cursor` | `npm run compat -- cli-cursor` |

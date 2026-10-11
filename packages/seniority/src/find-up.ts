@@ -11,6 +11,9 @@
  *
  * The walk itself is `search.ts` — bounded, symlink-cycle-safe, injectable (R5, Y10) — and
  * this is the naming layer over it.
+ *
+ * **Not graded yet**: no `find-up` suite is vendored in `compat-oracle`, so this file states an
+ * aim, not a measurement (`graded-override-targets` R1, R2).
  */
 import { search, searchAll, type SearchOptions } from './search.js';
 
