@@ -2,11 +2,11 @@
  * agent-lint-conformance R1–R3 — the three global options every command takes: `--no-color` /
  * `--color=<when>`, `--quiet` / `-q`, and `--timeout <duration>`.
  *
- * Read off argv before the command's own parse, the way `fields.js` reads `--json=` and
- * `--format=agent`, and from a chunk of its own for the same reason (U5): `execute.ts` imports
- * this module only when `isGlobal` (`argv.ts`) spots one of the words, so a run that types none
- * pays one test per word and nothing else. The core had 130 bytes of headroom against its budget
- * in `weight.test.ts`; the parse, the checks and the deadline live here.
+ * Read off argv before the command's own parse, beside `--json=` and `--format=agent`, and off
+ * the startup path for the same reason (U5): `execute.ts` loads `fields.js`, which calls in here,
+ * only when its `readsLazily` test spots one of the words, so a run that types none pays that
+ * one test and nothing else. The startup bundle had 3 bytes under its ceiling
+ * (`benchmarks/axes/weight.ts`); the parse, the checks and the deadline live here.
  *
  * **A command's own option wins.** A command that declares `color`, `quiet` or `timeout` keeps
  * the word, and the global steps aside for it, the way the engine's `schema` alias steps aside
@@ -29,6 +29,9 @@ export interface Globals {
   /** The handler's result, or the timeout error once the deadline passes. */
   within: <T>(ran: T | Promise<T>) => Promise<T>;
 }
+
+/** A word that may be one of the globals; `globalOf` decides whether it is, for this command. */
+export const isGlobal = (arg: string): boolean => /^(-q|--(no-color|quiet|color|timeout)(=.*)?)$/.test(arg);
 
 const WHEN = ['always', 'never', 'auto'];
 const DURATION = /^([1-9]\d*)(ms|s|m)?$/;

@@ -9,10 +9,10 @@ import type { parseArgs } from 'node:util';
 
 import { type Layers, type Provenance, resolve as resolveLayers } from 'seniority/precedence';
 
-import { beforeTerminator, isGlobal, isJsonFlag, mayServe } from './argv.js';
+import { beforeTerminator, isJsonFlag, mayServe } from './argv.js';
 import { checkCommand } from './definition.js';
 import { ExitCode, isExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
-import { type Globals } from './globals.js';
+import { type LazyArgs } from './fields.js';
 import { type ActionRequiredSpec, type ArgumentSpec, type CommandNode, type DeclaredEffects, type Example, type LazyModule, Manifest, type OptionSpec, type Relation, relationsOf, type RunContext } from './manifest.js';
 import { camel, kebab } from './names.js';
 import { owningPackage, type Package } from './pkg.js';
@@ -431,23 +431,19 @@ function exitCodeOf(data: unknown): ExitCodeType {
   return isExitCode(code) ? code : ExitCode.OK;
 }
 
-/** A flag `fields.js` reads off argv: N14's `--json=<fields>` and N15's `--format=agent`. */
-const readsLazily = (arg: string): boolean => arg.startsWith('--json=') || arg === '--format=agent';
-
 /**
- * agent-lint-conformance R1–R3 — `--color`, `--quiet` and `--timeout`, read off argv by
- * `globals.js` before the command's own parse, and imported only when one was typed (U5).
+ * A flag `fields.js` reads off argv: N14's `--json=<fields>`, N15's `--format=agent`, and the
+ * globals of agent-lint-conformance R1–R3 (`--color`, `--no-color`, `--quiet`, `-q`,
+ * `--timeout`), which it hands to `globals.js`. One test and one lazy load for all of them:
+ * the startup bundle had 3 bytes under its ceiling, and a second loader cost 42.
  */
-const globalsIn = async (words: string[], node: CommandNode): Promise<Globals | undefined> =>
-  words.some(isGlobal) ? (await import('./globals.js')).globalsOf(words, node) : undefined;
+const readsLazily = (arg: string): boolean => /^(--json=|--format=agent$|-q$|--(no-color|quiet|color|timeout)(=|$))/.test(arg);
 
-async function dispatch(manifest: Manifest, { node, rest: words, name }: Resolved, io: Io): Promise<Outcome> {
-  const global = await globalsIn(words, node);
-  const typed = global?.args ?? words;
-  // N14's selection and N15's format are imported only when a caller typed `--json=` or
-  // `--format=agent` (M2): every other run pays nothing for either.
+async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolved, io: Io): Promise<Outcome> {
+  // N14's selection, N15's format and the R1–R3 globals are imported only when a caller typed
+  // one of them (M2): every other run pays nothing for any.
   const select = typed.some(readsLazily) ? await import('./fields.js') : undefined;
-  const { args: rest, fields, lines } = select?.jsonFields(typed, node) ?? { args: typed };
+  const { args: rest, fields, lines, global } = select?.lazyArgs(typed, node) ?? ({ args: typed } as LazyArgs);
   if (fields?.length === 0) return { json: true, text: `${JSON.stringify(select?.listFields(node))}\n` };
   if (fields !== undefined) select?.checkFields(fields, node);
   const parsed = builtin('node:util').parseArgs({ args: rest, options: toParseConfig(node.options, manifest.config !== undefined), allowPositionals: true, strict: true, tokens: true });
@@ -482,7 +478,7 @@ async function dispatch(manifest: Manifest, { node, rest: words, name }: Resolve
   // chunk loaded on this path only: whether a person may be asked is roundel's rule, over stdin
   // (D-20260930-one-interactive-rule). `--timeout` races the handler against its deadline (R3).
   const ran = node.run({ options: values, positionals, passthrough, ...stdin, exit: ctxExit, actionRequired, ...(await import('./ctx.js')).ctxOf(io, global) });
-  const data = await (global === undefined ? ran : global.within(ran));
+  const data = await (global?.within(ran) ?? ran);
   await manifest.fire('postRun', name, values);
   const changed = changedOf(node, data);
   const selected = fields === undefined || select === undefined ? data : select.selectFields(data, fields);
