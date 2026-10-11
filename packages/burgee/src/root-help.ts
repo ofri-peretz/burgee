@@ -25,6 +25,7 @@ export const EXIT_ADVICE: Readonly<Record<keyof typeof ExitCode, string>> = {
   CONFIG: 'the config or environment did not load; fix it, not the command',
   CANCELLED: 'cancelled, or a decision is needed; decide, then run a next command',
   AUTH: 'a credential is missing or refused; log in and run it again',
+  TIMEOUT: 'the --timeout deadline passed; run it again with more time',
   SIGINT: 'interrupted; stop',
 };
 
