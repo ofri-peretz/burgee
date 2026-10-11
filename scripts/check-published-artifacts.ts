@@ -38,6 +38,7 @@ export type Baseline = Record<string, { size: number; unpackedSize: number }>;
 const FORBIDDEN = [
   /\.map$/,
   /\.test\.[cm]?[jt]s$/,
+  /(^|\/)__fixtures__\//,
   /(^|\/)AGENTS\.md$/,
   /(^|\/)CLAUDE\.md$/,
 ];
@@ -58,8 +59,8 @@ function missingExportTargets(dir: string, pkg: Pkg): string[] {
   return problems;
 }
 
-/** Nothing in the pack list may be a source map, a test, or agent instructions. */
-function forbiddenInPack(pkg: Pkg, pack: PackEntry): string[] {
+/** Nothing in the pack list may be a source map, a test or a test's fixture, or agent instructions. */
+export function forbiddenInPack(pkg: Pkg, pack: PackEntry): string[] {
   return pack.files
     .filter(({ path }) => FORBIDDEN.some((re) => re.test(path)))
     .map(({ path }) => `${pkg.name}: would publish ${path}`);
