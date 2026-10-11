@@ -1,5 +1,5 @@
 /**
- * `seniority/dotenv/cli` — dotenv 18's `dotenv run`, ported from its `cli.js` (18.0.5).
+ * `seniority/dotenv/cli` — dotenv 18's `dotenv run`, ported from its `cli.js` (18.0.7).
  *
  * `run(argv)` takes the arguments after the program name, exactly as dotenv's own `run` does:
  * `['run', '-f', '.env.local', '--', 'node', 'server.js']`. It loads the files, prints dotenv's
@@ -94,7 +94,8 @@ export function parseRunArgs(args: readonly string[]): RunArgs {
 
 interface RunOptions {
   encoding: BufferEncoding;
-  quiet: boolean;
+  /** `undefined` when neither the flags nor the starting environment said, so the loaded `.env` may. */
+  quiet: boolean | undefined;
   debug: boolean;
   override: boolean;
   fast: boolean;
@@ -107,7 +108,7 @@ function resolveRunOptions(parsed: Extract<RunArgs, { command: string[] }>, env:
   const envOptions = optionsFromEnv(env);
   const options: RunOptions = {
     encoding: (envOptions.encoding ? envOptions.encoding : 'utf8') as BufferEncoding,
-    quiet: envOptions.quiet === true,
+    quiet: envOptions.quiet,
     debug: envOptions.debug === true,
     override: envOptions.override === true,
     fast: envOptions.fast === true,
@@ -206,7 +207,10 @@ export function run(argv: readonly string[], proc: CliProcess = ambientProcess()
   const options = resolveRunOptions(parsed, proc.env);
   try {
     const result = loadEnvFiles(options, proc);
-    if (!options.quiet) {
+    // dotenv 18.0.7 (#1071): when nothing before the files said, a `DOTENV_QUIET` the `.env`
+    // itself just injected decides — read off the environment as it now stands.
+    const quiet = options.quiet ?? optionsFromEnv(proc.env).quiet;
+    if (quiet !== true) {
       const from = result.loadedPaths.length > 0 ? ` from ${result.loadedPaths.join(', ')}` : '';
       console.error(`◇ injected env (${String(Object.keys(result.injected).length)})${from}`);
     }
