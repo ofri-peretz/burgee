@@ -13,7 +13,7 @@ import { dirname, isAbsolute, join, relative, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { testFiles } from './discover.js';
-import { type Exclusion, type Host, type HostEntry, type HostImport } from './hosts.js';
+import { type Exclusion, exclusionsHere, type Host, type HostEntry, type HostImport } from './hosts.js';
 import { readSuiteDeps, shimName } from './vendor.js';
 
 export interface Grade {
@@ -1220,7 +1220,9 @@ export function grade(host: Host, vendorDir: string, target: string, reference =
   const run = runSuite(host, hostDir, files, target);
   keepTap(host, target, 'public', run);
   if ('error' in run) return { ...base, files: files.length, error: run.error };
-  const graded: Grade = { ...base, ...summarize(run.output, files.length, reference, { excludes: host.excludes ?? [], requireMatch: target === controlName(host) }) };
+  // Less any exclusion whose case this machine never registers (`Exclusion.registers`): there it
+  // subtracts nothing, and the control must not be asked to find a case the suite never wrote.
+  const graded: Grade = { ...base, ...summarize(run.output, files.length, reference, { excludes: exclusionsHere(host.excludes ?? []), requireMatch: target === controlName(host) }) };
 
   if (internal.length > 0) {
     const extra = runSuite(host, hostDir, internal, target);

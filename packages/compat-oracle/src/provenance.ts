@@ -24,6 +24,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { type OmittedFile } from './binaries.js';
 import { type CompatRecord } from './upstream.js';
 
 /** The file name, one constant, so the tool and the lock cannot disagree about it. */
@@ -53,6 +54,8 @@ export interface ProvenanceFields {
   verified?: string;
   /** Set when the origin could not be established, saying so in place of a guess. */
   note?: string;
+  /** Compiled executables upstream ships here and the vendor step did not copy. */
+  omitted?: OmittedFile[];
 }
 
 const KEY = /^[a-z][a-z-]*$/;
@@ -90,6 +93,7 @@ export function fieldsFromRecord(name: string, record: CompatRecord, verified?: 
     files: record.files,
   };
   if (verified !== undefined) fields.verified = verified;
+  if (record.omitted !== undefined && record.omitted.length > 0) fields.omitted = record.omitted;
   return fields;
 }
 
@@ -106,6 +110,7 @@ const header = (fields: ProvenanceFields): string => {
   ];
   if (fields.verified !== undefined) rows.push(['verified', fields.verified]);
   if (fields.note !== undefined) rows.push(['note', fields.note]);
+  if (fields.omitted !== undefined) rows.push(['omitted', String(fields.omitted.length)]);
   const width = Math.max(...rows.map(([k]) => k.length));
   return rows.map(([k, v]) => `${k}:${' '.repeat(width - k.length + 1)}${v}`).join('\n');
 };
@@ -113,6 +118,29 @@ const header = (fields: ProvenanceFields): string => {
 /** The command that remakes this directory, byte for byte apart from the `vendored` date. */
 export const reproduceCommand = (fields: ProvenanceFields): string =>
   `npx tsx scripts/vendor-suite.ts ${fields.package} --version ${fields.version}`;
+
+/**
+ * The section naming what upstream ships here and this directory does not hold. Empty for a
+ * suite with nothing omitted, so those files render exactly as they did before it existed.
+ */
+function notVendored(omitted: OmittedFile[]): string {
+  if (omitted.length === 0) return '';
+  const width = Math.max(...omitted.map((o) => o.path.length));
+  const rows = omitted.map((o) => `    ${o.path}${' '.repeat(width - o.path.length + 2)}${o.format} executable  sha256 ${o.sha256}`);
+  return `
+Not vendored
+------------
+Compiled executables are never copied into this repository, whatever upstream ships beside
+its tests: nobody here can review a binary, and its sources are not in the clone. They are
+found by content — ELF, Mach-O or PE magic bytes, never the file name — removed, and listed
+here and under \`omitted\` in .source.json, so the omission is visible:
+
+${rows.join('\n')}
+
+A case that needs one of them is excluded by name in packages/compat-oracle/src/hosts.ts,
+for ours and the control alike, so it counts for neither side.
+`;
+}
 
 /**
  * The whole file. Deterministic in its fields, so re-running the tool on an unchanged
@@ -128,7 +156,7 @@ A shallow clone of ${fields.repo} at ${tag}, then that repository's own test dir
 its fixtures copied here. The only edit is to the import specifiers that reach the library:
 each is rewritten to a generated shim, so one unedited suite can grade any implementation.
 Everything else — assertions, fixtures, helpers — is upstream's, byte for byte.
-
+${notVendored(fields.omitted ?? [])}
 Why a clone and not the npm tarball
 -----------------------------------
 No incumbent ships its tests to npm. Measured 2026-09-13:
@@ -181,6 +209,9 @@ export function disagreements(provenance: Record<string, string>, record: Compat
     vendored: record.vendored,
     files: String(record.files),
   };
+  // Only where either side mentions it: a suite with nothing omitted carries no such line.
+  const omitted = (record.omitted ?? []).length;
+  if (omitted > 0 || provenance['omitted'] !== undefined) expected['omitted'] = String(omitted);
   return Object.entries(expected)
     .filter(([field, value]) => provenance[field] !== value)
     .map(([field, value]) => ({ field, provenance: provenance[field] ?? '(absent)', source: value }));

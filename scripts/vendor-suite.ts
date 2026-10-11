@@ -23,6 +23,8 @@
  *      than pretending, when a release was never tagged.
  *   3. Copies the test directory and its fixtures, rewriting only the specifiers that
  *      reach the library, and writes the vendored root `package.json` the suites read.
+ *      **Never a compiled executable**: a file whose content is ELF, Mach-O or PE is removed
+ *      and listed under `omitted` (`compat-oracle/src/binaries.ts`) — execa ships two.
  *   4. Records the release, tag, commit and a hash per file in `.source.json`, and the
  *      human-readable origin in `PROVENANCE`.
  *
@@ -246,6 +248,9 @@ function one(host: Host, into: string, version: string, { verify, vendored }: Pi
     `  tag ${result.tag ?? '(none — HEAD)'} · commit ${result.commit} · ${result.files} test file(s)\n` +
       `  wrote ${join(dir, PROVENANCE_FILE)}\n`,
   );
+  for (const o of result.omitted) {
+    process.stdout.write(`  not vendored: ${o.path} — a compiled ${o.format} executable (recorded in .source.json and ${PROVENANCE_FILE})\n`);
+  }
   if (result.missingExtras.length > 0) {
     process.stderr.write(`  extraDirs not shipped at ${version}, skipped: ${result.missingExtras.join(', ')} — prune them from hosts.ts\n`);
   }

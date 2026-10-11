@@ -1,0 +1,19 @@
+---
+id: D-20261011-no-vendored-binaries
+subject: 'OpenSSF Scorecard scored Binary-Artifacts 8 / 10 for the two compiled executables vendored with execa''s suite. Does a vendored suite carry binaries, and how is the one case that runs them graded?'
+taken: Taken
+date: '2026-10-11'
+superseded_by: —
+---
+
+**No vendored suite carries a compiled executable, and execa's `write to fast-exit subprocess` is excluded for ours and the control alike. execa now reads control 1179 / 1179 and `bellpull` 0 / 1179, on every machine.** Measured on darwin arm64, Node 24.13.0, 2026-10-11, with `node packages/compat-oracle/dist/bin.js execa --control` and without; before the change the row was 1180 on ubuntu and 1179 on an arm64 Mac.
+
+**What Scorecard found.** `packages/compat-oracle/vendor/execa/test/fixtures/fast-exit-darwin` (Mach-O) and `fast-exit-linux` (ELF), copied verbatim with the rest of execa 10.1.0's tests. Nobody here can review a binary, and the sources it was built from are not in the clone, so "upstream's, byte for byte" was a claim about them no reader could check.
+
+**The rule is in the vendor step, by content.** `compat-oracle/src/binaries.ts` reads each file's magic bytes — ELF, thin or universal Mach-O (told apart from a Java class file by the word after `CAFEBABE`), and PE only when the DOS header points at a real `PE\0\0` — never the name: both of execa's have no extension, and `vendor.ts`'s `TEXT` pattern even read them as text. `vendor()` sweeps the staged directory after every copy (fixture trees, `extraDirs`, `rewrittenDirs`), removes what it finds, and records each file's path, format and sha256 under `omitted` in `.source.json`; `PROVENANCE` gains an `omitted:` count and a **Not vendored** section listing them. A suite with nothing omitted writes neither, so every other directory reproduces byte for byte. Re-vendoring execa 10.1.0 into scratch with `--vendored 2026-10-08` differs from the committed directory in exactly those two records and the two missing files.
+
+**The test is excluded, not dropped, and equally.** `hosts.ts` declares `excludes: [{ match: 'write to fast-exit subprocess', exact: true, registers: { notOn: ['win32'], arch: ['x64'] } }]` on the execa row, which replaces its `conditionalCases`: the case cannot pass for anyone without its executable, and an exclusion subtracts from both sides and is published by name on the compatibility page. `Exclusion.registers` is new and reuses the `PlatformGuard` that `conditionalCases` already had: the case registers only on x64 off Windows, so on an arm64 Mac there is nothing to exclude, and without the guard the control's "an exclusion must match a case" check would refuse the run. `exclusionsHere()` drops an exclusion where its guard says the case never registers; where it does, the control must still find it. The reference is therefore 1179 everywhere and nothing about the row depends on the machine.
+
+**Locks.** `provenance.test.ts` fails if any file git would commit under `vendor/` — tracked, or new and not ignored — is a compiled executable, read by content; red with `fast-exit-linux` restored (`vendor/execa/test/fixtures/fast-exit-linux (ELF)`) and with the Mach-O copied to `vendor/chalk/helper.js`. A second case fails if an `omitted` file is still in the tree or not named in `PROVENANCE`. `gate.test.ts` holds the exclusion's scoping, including that the arm64 control is refused without the guard.
+
+**Restated.** `baseline/execa.json` reference 1180 → 1179; the compatibility page's execa row, exclusion row and conditional-cases table; bellpull's README badge and table (generated), its docs index (synced), `coming-from/execa.mdx` and `drop-ins.mdx`. execa is a ceiling row, so it has no entry in burgee's `GRADED`. `D-20261007-revendor-execa-dotenv` is history and stays as written.

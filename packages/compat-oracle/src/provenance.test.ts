@@ -6,13 +6,15 @@
  * ora, string-width, yargs`. It is the check that would have caught the defect it fixes —
  * a suite whose origin lives only in someone's memory.
  */
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, lstatSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
+import { executableAt } from './binaries.js';
 import {
   disagreements,
   fieldsFromRecord,
@@ -111,6 +113,32 @@ describe('the provenance header', () => {
     expect(disagreements(parsed, sample)).toEqual([{ field: 'commit', provenance: '(absent)', source: sample.commit }]);
   });
 
+  it('names every omitted executable in the header count and in a section of its own', () => {
+    const omitted = [
+      { path: 'test/fixtures/fast-exit-darwin', format: 'Mach-O' as const, sha256: 'a'.repeat(64) },
+      { path: 'test/fixtures/fast-exit-linux', format: 'ELF' as const, sha256: 'b'.repeat(64) },
+    ];
+    const withOmitted = { ...sample, omitted };
+    const text = renderProvenance(fieldsFromRecord('execa', withOmitted));
+    expect(parseProvenance(text).omitted).toBe('2');
+    expect(text).toContain('Not vendored');
+    expect(text).toContain(`    test/fixtures/fast-exit-darwin  Mach-O executable  sha256 ${'a'.repeat(64)}`);
+    expect(text).toContain(`    test/fixtures/fast-exit-linux   ELF executable  sha256 ${'b'.repeat(64)}`);
+    expect(disagreements(parseProvenance(text), withOmitted)).toEqual([]);
+    // A count that drifts from the record, either way, is a hand-edit.
+    expect(disagreements({ ...parseProvenance(text), omitted: '1' }, withOmitted)).toEqual([{ field: 'omitted', provenance: '1', source: '2' }]);
+    expect(disagreements({ ...parseProvenance(renderProvenance(fieldsFromRecord('chalk', sample))), omitted: '2' }, sample)).toEqual([
+      { field: 'omitted', provenance: '2', source: '0' },
+    ]);
+  });
+
+  it('renders a suite with nothing omitted exactly as before the field existed', () => {
+    const text = renderProvenance(fieldsFromRecord('chalk', { ...sample, omitted: [] }));
+    expect(text).toBe(renderProvenance(fieldsFromRecord('chalk', sample)));
+    expect(text).not.toContain('omitted');
+    expect(text).toContain('byte for byte.\n\nWhy a clone');
+  });
+
   it('prints the command that remakes the directory', () => {
     expect(renderProvenance(fieldsFromRecord('chalk', sample))).toContain('scripts/vendor-suite.ts chalk --version 6.0.0');
   });
@@ -137,6 +165,44 @@ describe('every vendored suite says where it came from', () => {
       }
     }
     expect(wrong).toEqual([]);
+  });
+
+  /**
+   * **No vendored file is a compiled executable.** OpenSSF Scorecard's Binary-Artifacts check
+   * scored this repository 8 / 10 for execa's `test/fixtures/fast-exit-darwin` and
+   * `fast-exit-linux`, vendored verbatim with the rest of its tests. Read by content, over
+   * every file git would commit here — tracked, or new and not ignored — so a binary put back
+   * by hand is as red as one a re-vendor brings. Proven red by restoring `fast-exit-linux`.
+   */
+  it('holds no compiled executable, tracked or about to be', () => {
+    const root = resolve(VENDOR, '..');
+    const listed = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '--', 'vendor'], { cwd: root, encoding: 'utf8' })
+      .split('\n')
+      .filter((l) => l !== '');
+    expect(listed.length, 'git listed nothing under vendor/, so this lock would pass vacuously').toBeGreaterThan(0);
+    const found = listed.flatMap((rel) => {
+      const at = join(root, rel);
+      if (!existsSync(at) || !lstatSync(at).isFile()) return [];
+      const format = executableAt(at);
+      return format === undefined ? [] : [`${rel} (${format})`];
+    });
+    expect(found, `compiled executable(s) under vendor/ — the vendor step omits these (binaries.ts); delete them and record them under \`omitted\`: ${found.join(', ')}`).toEqual([]);
+  });
+
+  it('names every omitted file in PROVENANCE, and none of them is in the tree', () => {
+    const wrong: string[] = [];
+    for (const name of suites()) {
+      const omitted = record(name)?.omitted ?? [];
+      const at = join(VENDOR, name, PROVENANCE_FILE);
+      const text = existsSync(at) ? readFileSync(at, 'utf8') : '';
+      for (const o of omitted) {
+        if (!text.includes(o.path) || !text.includes(o.sha256)) wrong.push(`${name}: ${o.path} is omitted in .source.json and not named in ${PROVENANCE_FILE}`);
+        if (existsSync(join(VENDOR, name, o.path))) wrong.push(`${name}: ${o.path} is recorded as omitted and is still here`);
+      }
+    }
+    expect(wrong).toEqual([]);
+    // Not vacuous: execa's two are recorded.
+    expect(record('execa')?.omitted?.map((o) => o.path)).toEqual(['test/fixtures/fast-exit-darwin', 'test/fixtures/fast-exit-linux']);
   });
 
   /**

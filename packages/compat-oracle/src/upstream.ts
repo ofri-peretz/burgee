@@ -12,6 +12,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { type OmittedFile } from './binaries.js';
 import { posix, testFiles } from './discover.js';
 import { type Host } from './hosts.js';
 
@@ -26,6 +27,12 @@ export interface CompatRecord {
   files: number;
   internalFiles: string[];
   internals: string[];
+  /**
+   * Files upstream ships beside its tests that the vendor step did not copy, because their
+   * content is a compiled executable (`binaries.ts`). Absent when there were none, so every
+   * suite vendored before this field existed still reproduces byte for byte.
+   */
+  omitted?: OmittedFile[];
   /** sha256 of each upstream test file (before the specifier rewrite) and surface file. */
   hashes: Record<string, string>;
   /** Test names per test file, as written. */
@@ -112,6 +119,7 @@ export interface SnapshotMeta {
   files: number;
   internalFiles: string[];
   internals: string[];
+  omitted?: OmittedFile[];
 }
 
 const TEST_FILE = /\.(m?js|cjs|ts)$/;
