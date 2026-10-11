@@ -409,6 +409,26 @@ environment detection, `open` and `terminal-link` as separate packages would fra
 the way the ecosystem being replaced fragmented; twelve packages for one text-measurement job
 is the disease, not the model.
 
+### The next wave — ranked from evidence, 2026-10-12
+
+Opened on the owner's instruction of 2026-10-12 (*"create intent.md, plan.md -s … and execute,
+keep iterate"*), and accepted at the Design → Build gate by it. Every row was ranked from a
+measured number in [`next-wave-2026-10.md`](../research/next-wave-2026-10.md), which also holds
+the candidates left out, each with its reason, and the execution order: rows 43–45 first, in
+parallel lanes, and 51 last. Requirement ids are `R1…` in each spec.
+
+| #   | Intent                                                               | Delivers                                                                                                                                                                                                                       | Floor ids | Status   |
+| :-- | :------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------- | :------- |
+| 43  | [`graded-override-targets/`](./graded-override-targets/)             | **every stand-in has a number** — `find-up`, `onetime`, `cli-cursor`, `cli-truncate`, `widest-line` and `picocolors` (953 M/wk) each graded by its own suite; a lock that fails a README claiming a grade no suite holds, red today on `seniority/find-up` | U5, U11   | approved |
+| 44  | [`agent-lint-conformance/`](./agent-lint-conformance/)               | **cli-agent-lint, full marks for every program** — global `--no-color`, `--quiet`, `--timeout` (exit 124); `completion`, `Exit codes:` and `Examples:` in root help. 81.4% (B) today, eight checks failing                       | N10       | approved |
+| 45  | [`inquirer-prompts-drop-in/`](./inquirer-prompts-drop-in/)           | **`@inquirer/prompts` graded** (43.2 M/wk) — `usePagination` graded first, then ten per-prompt suites; `burgee migrate` maps it; caique's fingerprint re-pointed                                                                 | U11       | approved |
+| 46  | [`clispec-conformance/`](./clispec-conformance/)                     | **`--schema` is a clispec v0.3 document** — declared error kinds with exit codes, global arguments, output cardinality and fields; every failure carries a `kind`, on stderr too. 14 / 24 today                                 | N10, F1   | approved |
+| 47  | [`mcp-current/`](./mcp-current/)                                     | **`--mcp` on the current protocol** — `structuredContent`, `outputSchema`, negotiated revisions, cancellation through `ctx.signal`, progress, and a client config that works when pasted                                       | N2, N6    | approved |
+| 48  | [`agent-skill/`](./agent-skill/)                                     | **a seventh surface** — `--skill` and `burgee skill` project `SKILL.md` and `AGENTS.md` from the declaration; Markdown help (`cli-help-renderer`'s deferred Markdown target)                                                    | N13       | approved |
+| 49  | [`b1-mcp-arm/`](./b1-mcp-arm/)                                       | **B1 over MCP** — the same demo, tasks and checks served both ways, medians and ranges over four weekly readings, published whichever way it falls; +25 paid runs a week, never per push                                        | B1        | approved |
+| 50  | [`extra-typings-drop-in/`](./extra-typings-drop-in/)                 | **`@commander-js/extra-typings` graded** (5.1 M/wk) — a `tsd` runner in the oracle, ported inferred types over `burgee/commander`, mapped by `burgee migrate`                                                                    | U11       | approved |
+| 51  | [`localised-human-surfaces/`](./localised-human-surfaces/)           | **localised for people, invariant for programs** — a message catalog, locale packs as plugins, and a lock that every machine surface is byte-identical under any locale; commander #1801 declined it after 31 comments          | U4, U9    | approved |
+
 ## Owner tasks — outside an agent's reach
 
 Recorded here so the roadmap is honest about what a spawned agent cannot do. Each needs the
