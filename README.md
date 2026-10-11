@@ -451,9 +451,8 @@ codebase is the number of things a user has to trust, not convenience.
 | | lifecycle | [`closeout`](./packages/closeout/) | exit handlers that run once on every path, terminal restore, bounded deadline | signal-exit · exit-hook · restore-cursor | released — `closeout@1.0.4` |
 | | terminal | [`paratext`](./packages/paratext/) | hyperlinks, images, window title, clipboard, notifications, bell — each with a static fallback | ansi-escapes (OSC half) · terminal-link · term-img | released — `paratext@1.0.4` |
 
-All ten are released on npm. Nine are at 1.x, with their public API under semver;
-`controlroom@1.0.0` is built to its approved design in
-[`.sdlc/intents/controlroom/`](./.sdlc/intents/controlroom/), and its API can still move. Where an incumbent's own test suite has been vendored, the
+All ten are released on npm at 1.x, with their public API under semver
+([`SECURITY.md`](./SECURITY.md) says which releases are supported). Where an incumbent's own test suite has been vendored, the
 compat oracle grades the drop-in path against it and publishes the rate — including the ones
 not yet at 100% — on the [compatibility page](https://burgee.interlace.tools/docs/compatibility).
 Released is not the same as accepted: the four
