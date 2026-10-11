@@ -80,7 +80,13 @@ ships with Node rather than with a package.
   figure. Four checks scored 0: Maintained, Code-Review and CII-Best-Practices, which
   SECURITY.md explains no file in the repository can close, and Contributors. Vulnerabilities
   scored 1 of 10. It reads the repository's lockfile, which holds the development tooling; the
-  table above is what an adopter installs.
+  table above is what an adopter installs. The same question is now asked daily, and on every
+  pull request that changes the lockfile or a manifest, by
+  [`check:osv`](https://github.com/ofri-peretz/burgee/blob/main/scripts/osv-check.ts), which
+  queries OSV for every locked package. One advisory with no fixed release, in a development
+  tool, is waived until 2026-11-30, and
+  [the decision](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/decisions/D-20261011-osv-lockfile-zero.md)
+  says why.
 
 ## Licence and continuity
 
