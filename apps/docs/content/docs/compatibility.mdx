@@ -33,6 +33,7 @@ would flatter a partial implementation; measuring against the control's total do
 | [**cosmiconfig**](https://seniority.interlace.tools/docs/coming-from/cosmiconfig) | `seniority` | 242 / 243 | 99.6% | 242 / 243 | 99.6% | 10 / 10 | 0 / 10 |
 | **lilconfig** | `seniority` | 77 / 77 | 100.0% | 77 / 77 | 100.0% | — | — |
 | [**dotenv**](https://seniority.interlace.tools/docs/coming-from/dotenv) | `seniority` | 191 / 191 | 100.0% | 191 / 191 | 100.0% | 4 / 10 | 4 / 10 |
+| **find-up** | `seniority` | 104 / 104 | 100.0% | 104 / 104 | 100.0% | — | — |
 | [**clack**](https://caique.interlace.tools/docs/coming-from/clack) | `caique/clack` | 16 / 16 | 100.0% | 16 / 16 | 100.0% | — | — |
 | [**inquirer-core**](https://caique.interlace.tools/docs/coming-from/inquirer) | `caique/inquirer` | 41 / 41 | 100.0% | 41 / 41 | 100.0% | — | — |
 | **meow** | `burgee/meow` | 146 / 148 | 98.6% | 146 / 148 | 98.6% | — | — |
@@ -67,6 +68,8 @@ rate. These are excluded by name — they still run, and they still appear in th
 | **lilconfig** | `> lilconfig > when to throw > no loader specified for the search place` | Un-awaited `expect(…).rejects.toThrowError`. The `lilconfigSync` case of the same name is gated. |
 | **lilconfig** | `> lilconfig > when to throw > loader is not a function` | Un-awaited `expect(…).rejects.toThrowError`. The `lilconfigSync` case of the same name is gated. |
 | **lilconfig** | `> lilconfig > when to throw > throws for empty strings passed to load` | Un-awaited `expect(…).rejects.toThrowError`. The `lilconfigSync` case of the same name is gated. |
+| **find-up** | `findup › async (dot file)` | Asserts the nearest `.git` directory is the package's own repository root. A vendored copy has none, so the walk finds whatever repository holds the vendored copy: find-up 8.0.0 fails it here, the same way. |
+| **find-up** | `findup › sync (dot file)` | The synchronous twin of `async (dot file)`, with the same expectation of a `.git` at the vendored root, and the same failure against find-up 8.0.0 itself. |
 | **clack** | `test/path.test.ts >` | 30 cases. Snapshots of the path prompt's frames, **and** the one file in this suite that fails against clack's own published package here: it mocks `node:fs` with `vi.mock('node:fs')` and no factory, which vitest answers from a `__mocks__` directory beside the project root. Upstream's `__mocks__/fs.cjs` is vendored there by `extraDirs` and is still never loaded — measured 2026-09-14 by putting a `console.error` in it and watching it not print under vitest 5.0.0, which upstream's vitest 3.2.4 does load; a `test.alias` for `node:fs` is no better. So those 30 read the real filesystem, list the real `/tmp`, and diff against a memfs snapshot. That was a `controlFailures` allowance of 30 until 2026-09-20 and is now redundant: the file is subtracted as a drawing like the other sixteen, and an allowance that excuses a case nobody counts is a dial, which is the objection `term-img`'s note already records. |
 | **clack** | `test/autocomplete.test.ts >` | 27 cases, 24 snapshot assertions — the autocomplete prompt drawn frame by frame. |
 | **clack** | `test/box.test.ts >` | 46 cases, 23 snapshot assertions — box borders, padding and title placement, drawn. |
@@ -198,6 +201,7 @@ to these rows (C1).
 | cosmiconfig | **10** | 10.0.1 | — |
 | lilconfig | **3** | 3.1.3 | — |
 | dotenv | **18** | 18.0.7 | **dotenv-17** (17.4.2) — graded, not claimed |
+| find-up | **8** | 8.0.0 | — |
 | clack | **1** | 1.8.1 | — |
 | inquirer-core | **12** | 12.0.4 | — |
 | meow | **14** | 14.1.0 | — |

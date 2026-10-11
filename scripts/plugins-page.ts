@@ -58,6 +58,7 @@ const EXTENSION_POINTS: Record<string, string> = {
   lilconfig: 'Custom `loaders` per file extension, per call',
   dotenv: 'None',
   rc: 'A custom `parse` function, per call',
+  'find-up': 'A matcher function, per call, in place of a name',
   clack: 'Custom prompts built on `@clack/core`',
   'inquirer-core': 'Custom prompts built with `createPrompt`',
   'signal-exit': 'None — it is the hook',

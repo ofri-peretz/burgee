@@ -106,6 +106,7 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
       'signal-exit': 'closeout/signal-exit',
       'signal-exit/signals': 'closeout/signal-exit/signals',
       ink: 'controlroom/ink',
+      'find-up': 'seniority/find-up',
     });
   });
 

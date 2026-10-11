@@ -7,11 +7,13 @@
  * ESM-only incumbent was refused — ten of them then, chalk 6 to exit-hook 5, and ansi-escapes 7 and terminal-link 5 once they were level — although their
  * `require()` already returned the namespace the target returns.
  */
+import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 import { describe, expect, it } from 'vitest';
 
-import { MAPPING, REQUIRE_NAMESPACE, rewriteSource } from './migrate.js';
+import { SUPPORTED_MAJORS } from './compat.js';
+import { MAPPING, packageOf, REQUIRE_NAMESPACE, rewriteSource } from './migrate.js';
 
 const require = createRequire(new URL('../../../package.json', import.meta.url));
 
@@ -31,7 +33,23 @@ function kind(value: unknown): string {
   return value !== null && typeof value === 'object' && 'default' in value ? 'namespace' : typeof value;
 }
 
-const installed = Object.entries(MAPPING).filter(([from]) => required(from) !== undefined);
+/**
+ * Whether the copy installed here is a major `migrate` rewrites. The root can hoist another
+ * major of an incumbent for some unrelated dependency — `find-up` 5, a CommonJS function, where
+ * the graded 8 is an ES module — and asking Node about that copy measures a package `migrate`
+ * leaves alone (A12).
+ */
+function gradedMajor(specifier: string): boolean {
+  const pkg = packageOf(specifier);
+  try {
+    const { version } = JSON.parse(readFileSync(new URL(`../../../node_modules/${pkg}/package.json`, import.meta.url), 'utf8')) as { version: string };
+    return (SUPPORTED_MAJORS[pkg] ?? []).includes(Number(version.split('.')[0]));
+  } catch {
+    return false;
+  }
+}
+
+const installed = Object.entries(MAPPING).filter(([from]) => required(from) !== undefined && gradedMajor(from));
 
 describe('migrate reads require() shapes from Node, not from a guess (A29)', () => {
   it('finds the incumbents installed, so the comparison cannot pass vacuously', () => {

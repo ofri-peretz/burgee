@@ -72,6 +72,7 @@ export const GRADED: Readonly<Record<string, Row>> = {
   'signal-exit': { reference: 135, passed: 134, rate: 0.9925925925925926, control: 134 },
   ink: { reference: 1304, passed: 1304, rate: 1, control: 1303 },
   'inkjs-ui': { reference: 102, passed: 102, rate: 1, control: 102 },
+  'find-up': { reference: 104, passed: 104, rate: 1, control: 104 },
 };
 
 /** One graded path: an incumbent's specifier, and the family specifier that replaces it. */
@@ -124,6 +125,7 @@ export const DROP_INS: readonly DropIn[] = [
   { host: 'signal-exit', from: 'signal-exit', to: 'closeout/signal-exit' },
   { host: 'signal-exit', from: 'signal-exit/signals', to: 'closeout/signal-exit/signals' },
   { host: 'ink', from: 'ink', to: 'controlroom/ink' },
+  { host: 'find-up', from: 'find-up', to: 'seniority/find-up' },
 ];
 
 /**
@@ -145,6 +147,7 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
   'cross-spawn': '7.0.6',
   dotenv: '18.0.7',
   'exit-hook': '5.1.0',
+  'find-up': '8.0.0',
   ink: '8.0.0',
   lilconfig: '3.1.3',
   'log-update': '8.0.0',
@@ -207,6 +210,7 @@ export const SUPPORTED_MAJORS: Readonly<Record<string, readonly number[]>> = {
   'cross-spawn': [7],
   dotenv: [18],
   'exit-hook': [5],
+  'find-up': [8],
   ink: [8],
   lilconfig: [3],
   'log-update': [8],

@@ -733,6 +733,18 @@ export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
     'lilconfig',
     'lilconfigSync',
   ],
+  'seniority/find-up': [
+    'FindDownOptions',
+    'Match',
+    'Options',
+    'findDown',
+    'findDownSync',
+    'findUp',
+    'findUpMultiple',
+    'findUpMultipleSync',
+    'findUpStop',
+    'findUpSync',
+  ],
   'seniority/rc': [
     'RcConfig',
     'RcOptions',
