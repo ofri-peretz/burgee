@@ -330,9 +330,10 @@ What `cosmiconfig`, `dotenv`, `rc` and `find-up` do between them — discovery, 
 loading, precedence, the upward walk — is one problem. This is one package with no
 dependencies rather than four with a tree.
 
-Each path is graded by its incumbent's own suite, run unmodified through `compat-oracle`; the
-current grades are generated under *Benchmarks* below and published on the
-[compatibility page](https://burgee.interlace.tools/docs/compatibility).
+Each path below is graded by its incumbent's own suite, run unmodified through `compat-oracle`;
+the current grades are generated under *Benchmarks* below and published on the
+[compatibility page](https://burgee.interlace.tools/docs/compatibility). `seniority/find-up` is
+not graded yet: no `find-up` suite is vendored, so it has no number.
 
 ### `cosmiconfig`
 
@@ -386,7 +387,7 @@ Graded by the incumbent's own test suite:
 | `lilconfig` | 77 / 77 |
 | `rc` | 1 / 1 |
 
-Weight, installed and tree-inclusive: **224,790 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1140**.
+Weight, installed and tree-inclusive: **224,888 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1140**.
 
 ## For agents
 
