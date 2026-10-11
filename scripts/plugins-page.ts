@@ -60,6 +60,7 @@ const EXTENSION_POINTS: Record<string, string> = {
   rc: 'A custom `parse` function, per call',
   'find-up': 'A matcher function, per call, in place of a name',
   clack: 'Custom prompts built on `@clack/core`',
+  'inquirer-prompts': 'A `theme` per prompt; new prompts are built on `@inquirer/core`\'s `createPrompt`',
   'inquirer-core': 'Custom prompts built with `createPrompt`',
   'signal-exit': 'None — it is the hook',
   'exit-hook': 'None — it is the hook',
