@@ -4,11 +4,11 @@
  * Parameterised by the app's {@link Site}, so the host in `metadataBase` and the name in the
  * title template come from the app's row — an app states neither itself.
  */
-import { RootProvider } from 'fumadocs-ui/provider/next';
 import { type Metadata } from 'next';
 import { type ReactNode } from 'react';
 
 import { Analytics } from './analytics';
+import { DocsProvider } from './docs-provider';
 import { type Site } from './site';
 
 import './global.css';
@@ -42,7 +42,8 @@ export function rootMetadata(site: Site, description: string = site.description)
 
 /**
  * fumadocs' provider inside PostHog, which is told which site it is on — the row's key and
- * host, so every event in the shared project says where it came from.
+ * host, so every event in the shared project says where it came from. Its search dialog
+ * reports what readers look for and fail to find (`docs_search`, see `search-tracker.ts`).
  */
 export function RootLayout({ site, children }: { readonly site: Site; readonly children: ReactNode }) {
   const properties = { site: site.key, host: site.url };
@@ -50,7 +51,7 @@ export function RootLayout({ site, children }: { readonly site: Site; readonly c
     <html lang="en" suppressHydrationWarning>
       <body className="flex min-h-screen flex-col">
         <Analytics properties={properties}>
-          <RootProvider>{children}</RootProvider>
+          <DocsProvider>{children}</DocsProvider>
         </Analytics>
       </body>
     </html>
