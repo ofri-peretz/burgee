@@ -156,3 +156,15 @@ equal to the façades' once the native-only keys are set aside.
 machine): 2,392 B on `main` at `733e5e0`, 3,235 B with R2's `errors`, **4,752 B** with R1–R8. All
 of it is keys the spec asks for; the `agent-schema-bytes` control band will read it as a step up,
 and that step is this intent, not drift.
+
+**Blocked on the tarball ratchet, an owner's call (2026-10-11).** `npm run check:artifacts`
+measures burgee's packed tarball against `.sdlc/bands/artifact-size-baseline.json` (229,114 B
+gzipped, 869,573 B unpacked, recorded at #841) with 10% allowed. `main` with R2 and R6 (#1015)
+packs **251,814 B gzipped (+9.9%, 211 B of room)** and 942,421 B unpacked. R1, R3–R5, R7 and R8
+pack **256,211 B (+11.8%)** and 956,583 B (+10.0%): +4,397 B gzipped for +14,162 B unpacked,
+half of it declaration files and `program-schema.json`'s descriptions. Lazy loading moves no
+byte out of a tarball, and no trim of this PR's prose closes it: its code alone is more than
+211 B. The ratchet is not raised here. Two ways through, both the owner's:
+bump the baseline deliberately (the lock's own instruction), or stop publishing the 35
+`.d.ts` files no `exports` types entry reaches: 80,794 B unpacked on this branch, among them
+`migrate.d.ts` (20,463 B) and this intent's `clispec.d.ts` (4,144 B).
