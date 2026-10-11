@@ -4,7 +4,7 @@
   "method": "benchmarks/axes/weight.ts installedBytes(name, dir), tree-inclusive, one count per realpath — `dir` a fresh `npm i <incumbent>@latest` in an empty directory, one per incumbent, never the workspace install (whose hoisted copies lag the registry)",
   "layers": {
     "linegauge": {
-      "ours": 108119,
+      "ours": 108205,
       "incumbents": {
         "string-width": 36801,
         "wrap-ansi": 80185,
@@ -12,14 +12,14 @@
         "slice-ansi": 66999
       },
       "ceiling": 194329,
-      "ratio": 0.5564,
+      "ratio": 0.5568,
       "lightestIncumbent": {
         "name": "strip-ansi",
         "bytes": 10344
       }
     },
     "paratext": {
-      "ours": 121499,
+      "ours": 121512,
       "incumbents": {
         "ansi-escapes": 30912,
         "terminal-link": 61152,
