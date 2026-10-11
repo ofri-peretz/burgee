@@ -336,6 +336,19 @@ jobs:
               gh release create "$tag_name" --title "$PKG_NAME@$PKG_VER" --generate-notes --latest=false ${extra[@]+"${extra[@]}"} || return 1
             fi
             attach_provenance "$PKG_NAME" "$PKG_VER" "$tag_name" || echo "::warning::$tag_name: provenance not attached to the GitHub Release (the npm publish itself is unaffected)."
+            attach_sbom "$PKG_NAME" "$PKG_VER" "$tag_name" || echo "::warning::$tag_name: SBOM not attached to the GitHub Release (the npm publish itself is unaffected)."
+          }
+
+          # attach_sbom NAME VERSION TAG: a CycloneDX SBOM of what installing NAME brings in,
+          # from the lockfile alone (this job runs no `npm ci`). Development, optional and
+          # peer dependencies are left out, so it lists what `npm i NAME` installs. npm names
+          # the monorepo root as the document's subject, so the subject is set to NAME@VERSION.
+          attach_sbom() {
+            local name="$1" ver="$2" tag="$3" out="$RUNNER_TEMP/${1##*/}-${2}.cdx.json"
+            npm sbom --sbom-format cyclonedx --sbom-type library -w "$name" --omit dev --omit optional --omit peer --package-lock-only > "$out.raw" || return 1
+            jq --arg n "$name" --arg v "$ver" '.metadata.component = ((.components[] | select(.name == $n)) // .metadata.component) | .metadata.component.version = $v' "$out.raw" > "$out" || return 1
+            gh release upload "$tag" "$out" --clobber || return 1
+            echo "📋 $tag: CycloneDX SBOM attached."
           }
 
           # attach_provenance NAME VERSION TAG — the tarball npm serves, and the SLSA provenance npm
