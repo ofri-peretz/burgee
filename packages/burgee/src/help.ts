@@ -58,6 +58,12 @@ export interface HelpOptions {
    * through. The engine passes every command that runs when they fit (`listed` in `usage.ts`).
    */
   commands?: readonly CommandNode[];
+  /**
+   * More rows for `Global options:`, after `--json`, `--help` and `--schema`: the global flags
+   * the engine parses for this command (`--color`, `--quiet`, `--timeout`; agent-lint-conformance
+   * R1–R3), passed in by the engine like `commands`, so this renderer carries none of their words.
+   */
+  globals?: readonly { term: string; text: string }[];
 }
 
 /** What a term is, so the theme can style it; the term itself stays plain text. */
@@ -98,11 +104,6 @@ const DEFAULTS: Paint = {
   flag: (s) => styleText('cyan', s, { validateStream: false }),
   value: (s) => styleText('dim', s, { validateStream: false }),
 };
-
-function painterFor(paint: Paint, kind: Kind): (s: string) => string {
-  if (kind === 'command') return paint.command;
-  return kind === 'flag' ? paint.flag : paint.value;
-}
 
 function paintOf(opts: HelpOptions): Paint {
   if (opts.color !== true) return PLAIN;
@@ -277,7 +278,11 @@ function layout(rows: Row[], width: number, column: number, paint: Paint): strin
   const textWidth = Math.max(1, width - INDENT.length - column - GUTTER);
   const lines: string[] = [];
   for (const { term, text, kind } of rows) {
-    const cell = painterFor(paint, kind)(term);
+    // `Paint` is keyed by the three kinds, so the painter is a lookup. It replaced a three-branch
+    // `painterFor` to pay for the global rows (agent-lint-conformance R1–R3) inside this door's
+    // budget: 162 bytes. `kind` is the closed union `Kind`, typed on every row, never input.
+    // eslint-disable-next-line secure-coding/detect-object-injection -- a key of a closed literal union, see above
+    const cell = paint[kind](term);
     if (text === '') {
       lines.push(`${INDENT}${cell}`);
       continue;
@@ -324,7 +329,7 @@ export function renderHelp(manifest: Manifest, node: CommandNode, opts: HelpOpti
   const options = optionRows(node.options, verbose);
   const env = environmentRows(node.options);
   const atRoot = node.path.length === root.length;
-  const global = [...(atRoot ? ROOT_GLOBAL : GLOBAL), ...(node.run === undefined ? [] : [EXPLAIN])];
+  const global = [...(atRoot ? ROOT_GLOBAL : GLOBAL), ...(opts.globals ?? []).map((r) => ({ ...r, kind: 'flag' as const })), ...(node.run === undefined ? [] : [EXPLAIN])];
   const column = termColumn([...args, ...options, ...global, ...commands.flatMap((s) => s.rows), ...env], width);
   const lines: string[] = [usageLine(node, root, commands.length > 0, paint), ''];
   if (node.description !== undefined) lines.push(...wrap(`${node.description}${deprecation(node.deprecated)}`, width), '');

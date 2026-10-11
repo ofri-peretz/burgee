@@ -23,7 +23,11 @@ export interface Hoisted<S> {
   lower(state?: S): void;
 }
 
+/** agent-lint-conformance R2 — what a quiet runtime draws: nothing, and the clock never armed. */
+const SILENT: Projection<unknown> = { open: () => undefined, change: () => undefined, close: () => undefined };
+
 function projectionFor<S>(mode: OutputMode, component: Component<S>, rt: Runtime): Projection<S> {
+  if (rt.quiet === true) return SILENT;
   if (mode === 'tty') return ttyProjection(component, rt.stdout, rt.clock);
   if (mode === 'json') return jsonProjection(component, rt.stderr);
   return staticProjection(component, rt.stdout);

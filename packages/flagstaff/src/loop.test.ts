@@ -147,6 +147,31 @@ function transcript(mode: Mode) {
   return { mode: flag.mode, stdout: w.stdout(), stderr: w.stderr() };
 }
 
+/**
+ * agent-lint-conformance R2 — a runtime that says `quiet` (burgee's `--quiet`, handed on as
+ * `ctx.runtime`) draws nothing in any mode: no frame, no static line, no JSON event, and the clock
+ * is never armed. The mode is still the policy's answer, so a caller that branches on it sees the
+ * same one.
+ */
+describe('under quiet, nothing is drawn (agent-lint-conformance R2)', () => {
+  it.each<Mode>(['tty', 'pipe', 'ci', 'json', 'accessible'])('%s: no byte on stdout or stderr, and the same mode', (mode) => {
+    const w = world(mode);
+    let armed = 0;
+    const clock = { ...w.clock, schedule: (fn: () => void, ms: number) => ((armed += 1), w.clock.schedule(fn, ms)) };
+    const flag = hoist(counter, { ...w.rt, clock, quiet: true }, { n: 0 }, { json: w.json });
+    w.clock.tick(INTERVAL * 3);
+    flag.update({ n: 1 });
+    flag.lower({ n: 2 });
+    expect({ mode: flag.mode, stdout: w.stdout(), stderr: w.stderr(), armed }).toEqual({ mode, stdout: '', stderr: '', armed: 0 });
+  });
+
+  it('quiet: false is the default and draws as before', () => {
+    const w = world('pipe');
+    hoist(counter, { ...w.rt, quiet: false }, { n: 0 }).lower({ n: 1 });
+    expect(w.stdout()).toBe('count 0\ncount 1\n');
+  });
+});
+
 describe('R1 Â· one component, five modes', () => {
   it('tty: repaints in place on the clock, and leaves the static line behind', () => {
     const { mode, stdout, stderr } = transcript('tty');

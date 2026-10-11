@@ -13,6 +13,7 @@ describe('ExitCode (E1)', () => {
       CONFIG: 3,
       CANCELLED: 4,
       AUTH: 5,
+      TIMEOUT: 6,
       SIGINT: 130,
     });
   });
@@ -22,13 +23,15 @@ describe('ExitCode (E1)', () => {
     expect(new Set(codes).size).toBe(codes.length);
   });
 
-  it('recognises only the seven codes', () => {
+  it('recognises only the eight codes', () => {
     expect(isExitCode(ExitCode.SIGINT)).toBe(true);
     expect(isExitCode(ExitCode.OK)).toBe(true);
     expect(isExitCode(ExitCode.AUTH)).toBe(true);
-    // 6, not `CANCELLED + 1` — that was 5 and became `AUTH` when E6 landed, so the case
-    // asserting an unknown code was asserting a known one. The next free number instead.
-    expect(isExitCode(ExitCode.AUTH + 1)).toBe(false);
+    expect(isExitCode(ExitCode.TIMEOUT)).toBe(true);
+    // 7, not `AUTH + 1` — that was 6 and became `TIMEOUT` (D-20261011-timeout-exit-code), the
+    // second time a case asserting an unknown code came to assert a known one. 7 is the first
+    // code `defineError` hands to authors, so the contract can never grow into it.
+    expect(isExitCode(ExitCode.TIMEOUT + 1)).toBe(false);
     expect(isExitCode('2')).toBe(false);
   });
 });

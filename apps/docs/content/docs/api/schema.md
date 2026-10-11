@@ -181,7 +181,7 @@ interface ProgramSchema {
     description?: string;
     /**
      * F1 — what each exit code means, so an agent branches on the number without reading prose:
-     * the contract's seven, the same table `ExitCode` exports.
+     * the contract's eight, the same table `ExitCode` exports.
      */
     exitCodes: Readonly<Record<string, number>>;
     /**

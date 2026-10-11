@@ -20,6 +20,7 @@
 import { interactive } from 'roundel/terminal';
 
 import { detectAgent } from './agent.js';
+import { type Globals } from './globals.js';
 import { type RunContext } from './manifest.js';
 import { type Teardown } from './shutdown.js';
 
@@ -27,13 +28,25 @@ import { type Teardown } from './shutdown.js';
 export interface RunIo {
   env: Record<string, string | undefined>;
   stdin: NodeJS.ReadableStream;
+  out: { isTTY?: boolean };
   teardown: Teardown;
 }
 
-/** `ctx.env`, `ctx.onExit`, `ctx.agent` and `ctx.interactive` for one run. */
-export const ctxOf = ({ env, stdin, teardown }: RunIo): Pick<RunContext, 'env' | 'onExit' | 'agent' | 'interactive'> => ({
-  env,
-  onExit: (handler, label) => teardown.add(handler, label),
-  ...detectAgent(env, false),
-  interactive: interactive({ env, isTTY: { stdin: (stdin as { isTTY?: boolean }).isTTY === true } }),
-});
+/**
+ * `ctx.env`, `ctx.onExit`, `ctx.agent` and `ctx.interactive` for one run, and what the globals
+ * set (agent-lint-conformance R1–R3): `ctx.signal`, `ctx.quiet`, and `ctx.runtime`, the output
+ * policy's runtime carrying the caller's colour flag and `quiet` to whatever the handler draws
+ * with. A run that typed no global gets a signal that never aborts and a runtime that asks nothing.
+ */
+export const ctxOf = ({ env, stdin, out, teardown }: RunIo, global?: Globals): Pick<RunContext, 'env' | 'onExit' | 'agent' | 'interactive' | 'signal' | 'quiet' | 'runtime'> => {
+  const quiet = global?.quiet === true;
+  return {
+    env,
+    onExit: (handler, label) => teardown.add(handler, label),
+    ...detectAgent(env, false),
+    interactive: interactive({ env, isTTY: { stdin: (stdin as { isTTY?: boolean }).isTTY === true } }),
+    signal: global?.signal ?? new AbortController().signal,
+    quiet,
+    runtime: { env, argv: global?.color ?? [], isTTY: { stdout: out.isTTY === true }, quiet },
+  };
+};

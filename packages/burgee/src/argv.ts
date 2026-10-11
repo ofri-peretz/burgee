@@ -15,6 +15,9 @@ export function isJsonFlag(arg: string): boolean {
   return arg === '--json' || arg.startsWith('--json=');
 }
 
+/** One of the globals `globals.js` reads (agent-lint-conformance R1–R3): the cheap test that decides whether it loads. */
+export const isGlobal = (arg: string): boolean => /^(-q|--(no-color|quiet|color|timeout)(=.*)?)$/.test(arg);
+
 /**
  * Whether argv could be asking for a surface — the cheap test the engine runs on every
  * invocation, so `surfaces.js` loads only when it might answer (U5). It admits a superset:

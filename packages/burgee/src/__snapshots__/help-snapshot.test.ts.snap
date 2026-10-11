@@ -546,6 +546,11 @@ Exit codes:
                  missing or
                  refused; log in
                  and run it again
+  6              timeout: the
+                 --timeout
+                 deadline passed;
+                 run it again
+                 with more time
   130            sigint:
                  interrupted;
                  stop
@@ -592,6 +597,8 @@ Exit codes:
                       then run a next command
   5                   auth: a credential is missing or refused; log in and run
                       it again
+  6                   timeout: the --timeout deadline passed; run it again with
+                      more time
   130                 sigint: interrupted; stop
 
 Examples:
@@ -628,6 +635,7 @@ Exit codes:
   3                   config: the config or environment did not load; fix it, not the command
   4                   cancelled: cancelled, or a decision is needed; decide, then run a next command
   5                   auth: a credential is missing or refused; log in and run it again
+  6                   timeout: the --timeout deadline passed; run it again with more time
   130                 sigint: interrupted; stop
 
 Examples:
