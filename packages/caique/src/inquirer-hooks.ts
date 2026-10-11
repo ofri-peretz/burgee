@@ -31,8 +31,11 @@ import { type Interface } from 'node:readline';
 
 import { HookError, ValidationError } from './inquirer-errors.js';
 
-/** The readline interface a prompt renders over. The engine only ever reads `input`. */
-export type PromptReadline = Interface & { input: NodeJS.ReadableStream; output: NodeJS.WritableStream };
+/**
+ * The readline interface a prompt renders over. The engine reads `input`; the prompts also
+ * edit readline's own line through `line`, `write` and `clearLine`, as the incumbent's do.
+ */
+export type PromptReadline = Interface & { input: NodeJS.ReadableStream; output: NodeJS.WritableStream & { columns?: number | undefined }; clearLine: (dir: 0 | 1 | -1) => void };
 
 /** A cleanup returned by an effect, or nothing. */
 type Cleanup = (() => void) | undefined | void;

@@ -311,12 +311,14 @@ describe('U12-3 — the project chooses what moves, and an undeclared incumbent 
 describe('U12-4 — an incumbent moves in every file or in none', () => {
   // mac-cleaner: one file's @inquirer/core import was refused (usePagination) and the others
   // moved, so caique's ExitPromptError was not the class @inquirer/confirm threw, and Ctrl+C
-  // printed an error where it used to exit 0.
+  // printed an error where it used to exit 0. `caique/inquirer` carries `usePagination` since
+  // 2026-10-11 (inquirer-prompts-drop-in R1), so the refused import here is a name it does not
+  // export; the rule under test is the same.
   it('does not rewrite an incumbent anywhere once one of its imports is refused, and says why', async () => {
     const clean1 = "import { createPrompt } from '@inquirer/core';\n";
     const dir = project({
       'package.json': manifest({ '@inquirer/core': '^12.0.0', chalk: '^6.0.0' }),
-      'src/page.ts': "import { usePagination } from '@inquirer/core';\n",
+      'src/page.ts': "import { usePromptHistory } from '@inquirer/core';\n",
       'src/prompt.ts': clean1,
       'src/a.ts': "import chalk from 'chalk';\n",
     });

@@ -217,6 +217,10 @@ From **`@inquirer/core`**, one import — `createPrompt`, the hooks and the keyp
 + import { createPrompt, useState, useKeypress, isEnterKey } from 'caique/inquirer';
 ```
 
+From **`@inquirer/prompts`**, `select`, `checkbox` and `Separator` move by the same import, and
+`usePagination` with them. The other eight prompts are not here yet, so `burgee migrate` leaves
+that package alone.
+
 `npx burgee migrate --dry-run` lists the imports the codemod would rewrite — only drop-ins graded
 level with their incumbent — and `npx burgee migrate` makes the change
 ([Migrate](https://burgee.interlace.tools/docs/migrate)).
@@ -268,7 +272,7 @@ measured. **The ceiling is clack**: `@clack/prompts`
 | `caique/terminal` | 1,947 | the one file that touches a stream |
 | `caique/plugin` | 9,788 | the widgets, and the family schema |
 | `caique/clack` | 62,097 | `closeout/cursor`, `closeout/exit-hook` and `linegauge/wrap` |
-| `caique/inquirer` | 20,623 | `closeout/cursor`, `closeout/exit-hook` and `linegauge/wrap` |
+| `caique/inquirer` | 38,121 | `closeout/cursor`, `closeout/exit-hook`, `linegauge/wrap`, `paratext/csi` and `roundel/terminal` |
 
 The root entry is **under a fifth of the lightest incumbent**, and nothing reaches outside this
 repository: every `allow` list in `weight.test.ts` names only `closeout` and `linegauge`
@@ -301,7 +305,7 @@ Graded by the incumbent's own test suite:
 | :-- | --: |
 | `clack` | 16 / 16 |
 | `inquirer-core` | 41 / 41 |
-| `inquirer-prompts` | 0 / 213 |
+| `inquirer-prompts` | 100 / 213 |
 
 Weight, installed and tree-inclusive: **232,356 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.5972**.
 

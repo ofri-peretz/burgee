@@ -46,6 +46,7 @@ const KNOWN = [
   'commander',
   'get-east-asian-width',
   'inquirer',
+  'inquirer-prompts',
   'log-update',
   'mimic-function',
   'ora',

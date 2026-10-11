@@ -1482,7 +1482,7 @@ export const HOSTS: Host[] = [
     runner: 'vitest',
     target: 'caique/inquirer',
     status: 'active',
-    note: "**Vendored 2026-10-11 at 8.7.3 (R2 of inquirer-prompts-drop-in): control 213 / 213, target `caique/inquirer` 0 / 213.** Eleven files, 224 cases, of which `editor.test.ts`'s eleven are excluded above. Every target case fails with `prompt is not a function`: `caique/inquirer` exports `@inquirer/core`'s surface and none of the ten prompts yet. The table of imports and counts this design is read from is in `.sdlc/intents/inquirer-prompts-drop-in/spec.md`.",
+    note: "**2026-10-11: 100 / 213 against a control of 213 / 213** (R1 and R3's first slice of inquirer-prompts-drop-in): `caique/inquirer` carries `select`, `checkbox` and `usePagination`, and passes all 100 of their cases; the other eight prompts are held out of caique's tarball (B-20261011-inquirer-prompts-tarball-room), so their cases still fail with `prompt is not a function` and `burgee migrate` does not rewrite `@inquirer/prompts`. **Vendored the same day at 8.7.3 (R2): control 213 / 213, target 0 / 213.** Eleven files, 224 cases, of which `editor.test.ts`'s eleven are excluded above. Every target case fails with `prompt is not a function`: `caique/inquirer` exports `@inquirer/core`'s surface and none of the ten prompts yet. The table of imports and counts this design is read from is in `.sdlc/intents/inquirer-prompts-drop-in/spec.md`.",
   },
   {
     // 2.16: the testable unit of the inquirer monorepo, and the decision that came with it.

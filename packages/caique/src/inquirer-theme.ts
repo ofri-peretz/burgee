@@ -37,6 +37,18 @@ const UNICODE = unicode({ env, platform: process.platform });
 /** `figures.tick`. */
 export const TICK = UNICODE ? '✔' : '√';
 
+/** `figures.pointer`, the cursor beside the active choice of a list. */
+export const POINTER = UNICODE ? '❯' : '>';
+
+/** `figures.circle`, an unchecked checkbox. */
+export const CIRCLE = UNICODE ? '◯' : '( )';
+
+/** `figures.circleFilled`, a checked checkbox. */
+export const CIRCLE_FILLED = UNICODE ? '◉' : '(*)';
+
+/** `figures.circleDouble`, a checked checkbox that cannot be unchecked. */
+export const CIRCLE_DOUBLE = UNICODE ? '◎' : '( )';
+
 /**
  * `figures.line`, the box-drawing dash a `Separator` is made of.
  *
@@ -75,6 +87,13 @@ export interface Theme {
   keybindings: Keybinding[];
   style: ThemeStyle;
 }
+
+/**
+ * Any subset of `T`, at every depth, as `@inquirer/type`'s `PartialDeep` is: a prompt's
+ * `theme` option may override one style function without restating the rest. Functions and
+ * arrays are leaves, replaced whole, which is also how `makeTheme` merges them.
+ */
+export type PartialDeep<T> = T extends (...args: never[]) => unknown ? T : T extends readonly unknown[] ? T : T extends object ? { [K in keyof T]?: PartialDeep<T[K]> } : T;
 
 /** What a caller may hand `makeTheme`: any subset, nested. */
 export type PartialTheme<Extension = object> = Partial<Omit<Theme, 'style' | 'spinner'>> & {
@@ -149,7 +168,7 @@ function deepMerge(...objects: Record<string, unknown>[]): Record<string, unknow
  * `null` and `undefined` entries are dropped rather than merged, because a prompt passes
  * `config.theme` straight through and a caller who set no theme passes `undefined`.
  */
-export function makeTheme<Extension = object>(...themes: readonly (PartialTheme<Extension> | undefined)[]): Theme & Extension {
+export function makeTheme<Extension = object>(...themes: readonly (PartialTheme<Extension> | PartialDeep<Theme & Extension> | undefined)[]): Theme & Extension {
   const toMerge = [getDefaultTheme(), ...themes.filter((theme) => theme != null)] as Record<string, unknown>[];
   return deepMerge(...toMerge) as Theme & Extension;
 }

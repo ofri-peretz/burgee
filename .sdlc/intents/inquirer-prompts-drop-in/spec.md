@@ -127,6 +127,47 @@ used prompts. The rest share the text-input path.
 | R4 | `scripts/migrate-drop-ins-lock.test.ts`, `packages/burgee/src/migrate.test.ts` (a fixture importing `select` and `checkbox`), and `packages/compat-oracle/src/competitors.test.ts` | a `DROP_INS` row with no `GRADED` row fails the lock |
 | R5 | `scripts/subpath-weight-lock.test.ts` | a façade over the ceiling fails it |
 
+## R1, R3–R5 — what was built, and what the tarball held back (2026-10-11)
+
+**R1 and R3's first slice landed: `select`, `checkbox` and `usePagination`, 100 / 213.** The
+other eight prompts were written and graded too, and do not fit caique's tarball ratchet, so
+they are held out of the package. The ratchet is a budget (`check:artifacts`: 10% over
+`artifact-size-baseline.json`'s 70,917 B gzipped and 240,290 B unpacked), and raising it is a
+decision this design does not take for itself
+([B-20261011-inquirer-prompts-tarball-room](../../gaps/B-20261011-inquirer-prompts-tarball-room.md)).
+
+| caique, `npm pack --dry-run` | gzipped | unpacked |
+| :-- | --: | --: |
+| main | 72,434 | 245,044 |
+| all ten prompts, as first built | 88,160 | 312,487 |
+| all ten, without the shipped fixture and the unreachable `.d.ts` files | 82,960 | 296,753 |
+| `select` and `checkbox` (this change) | 75,740 | 260,476 |
+| ceiling | 78,008 | 264,319 |
+
+- **Room found, not taken.** tsc compiled `src/__fixtures__/inquirer-render.ts`, a stand-in for
+  `@inquirer/testing` that only tests import, into the tarball; `tsconfig.build.json` now
+  excludes it and `check:artifacts` refuses any `__fixtures__/` path
+  (`artifact-size-ratchet-lock.test.ts`). Six declaration files no `exports` entry reaches
+  (`check.d.ts`, `cli.d.ts`, `clack-list.d.ts`, `clack-path.d.ts`, `line-edit.d.ts`,
+  `inquirer-screen.d.ts`, 12,740 B) are deleted after the build by
+  `scripts/prune-declarations.mjs`, which walks `exports`' `types` the way a checker does.
+  Together 5,200 B gzipped and 15,734 B unpacked, which is what lets two prompts in.
+- **The engine split.** `createPrompt`, `useKeypress`, `usePrefix` and `Separator` moved from
+  `inquirer.ts` to `inquirer-core.ts`, unchanged, because the prompts are built on them and
+  `inquirer.ts` re-exports the prompts: one module holding both would import itself.
+  `inquirer.ts` is now the subpath's barrel. `inquirer-core` stays 41 / 41.
+- **What the suites decided that reading the API would not have.** A prompt edits readline's
+  own line (`rl.line`, `rl.clearLine`); `select` clears a typed jump 700 ms after the last key;
+  `checkbox` awaits `validate` before it checks `required`. Each is a graded case.
+- **caique stays at 100% coverage** with the new modules in the denominator, driven through
+  `src/__fixtures__/inquirer-render.ts`.
+- **R4 is half built.** `competitors.json` fingerprints `@inquirer/prompts` 8.7.3 as
+  `inquirer-prompts` (`compat`). The `DROP_INS` row has stood since R2, and `migrate` rewrites a
+  row only when it is level (D-137), so `@inquirer/prompts` is not rewritten until the eight
+  land. `FACADE_EXPORTS` lists what `caique/inquirer` exports now.
+- **R5 is held.** Weighing two prompts against the whole of `@inquirer/prompts` would be a
+  comparison that flatters; the row goes in with the last prompt.
+
 ## Rejected alternatives
 
 - **Grade `inquirer` (the legacy `prompt([...])` API).** `caique/spec.md` rejected an
@@ -148,8 +189,8 @@ used prompts. The rest share the text-input path.
 
 | R | Status | Where | Check |
 | :-- | :-- | :-- | :-- |
-| R1 | Not built — **re-scoped**: the pagination suite is `select`'s (D-20261011-inquirer-pagination-suite-is-selects), so `usePagination` is graded in `inquirer-prompts` with `select` | `caique/src/inquirer*.ts`, `compat-oracle/vendor/inquirer-prompts/packages/select/test/pagination.test.ts` | `npm run compat -- inquirer-prompts` |
+| R1 | **Built** 2026-10-11 — re-scoped: the pagination suite is `select`'s (D-20261011-inquirer-pagination-suite-is-selects); `usePagination` passes its 10 cases and every paging `select` and `checkbox` case | `caique/src/inquirer-pagination.ts`, `compat-oracle/vendor/inquirer-prompts/packages/select/test/pagination.test.ts` | `npm run compat -- inquirer-prompts` |
 | R2 | **Built** 2026-10-11 — vendored at 8.7.3, control 213 / 213, target 0 / 213 | `compat-oracle/vendor/inquirer-prompts`, this file (§ R2 — the measurement) | `npm run compat -- inquirer-prompts --control` |
-| R3 | Not built | `caique/src/inquirer*.ts` | `npm run compat -- inquirer-prompts` |
-| R4 | Not built | `burgee/src/compat.ts`, `caique/competitors.json` | `migrate-drop-ins-lock.test.ts`, `competitors.test.ts` |
-| R5 | Not built | `subpath-weight` table | `subpath-weight-lock.test.ts` |
+| R3 | **Partly built** 2026-10-11 — `select` and `checkbox`, 100 / 213 against a control of 213 / 213; the other eight held by the tarball ratchet (B-20261011-inquirer-prompts-tarball-room) | `caique/src/inquirer-{core,choices,pagination,select,checkbox}.ts` | `npm run compat -- inquirer-prompts`; `compat-baseline-lock.test.ts` |
+| R4 | **Partly built** 2026-10-11 — `competitors.json` fingerprints `@inquirer/prompts` 8.7.3; `migrate` rewrites it once the row is level | `caique/competitors.json`, `burgee/src/migrate.ts` (`FACADE_EXPORTS`) | `competitors-lock.test.ts`, `migrate-drop-ins-lock.test.ts` |
+| R5 | Not built — held until the row is level (B-20261011-inquirer-prompts-tarball-room) | `subpath-weight` table | `subpath-weight-lock.test.ts` |
