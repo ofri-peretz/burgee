@@ -13,6 +13,19 @@
  */
 import { type Declared } from './definition.js';
 
+/**
+ * clispec-conformance R5 — and a runnable command that does not say how many results it returns.
+ * clispec has no safe default for that (`cardinality` is required of every data command in its
+ * v0.3 schema), so neither does burgee: it is said, and nothing stops. An `opaque` or `stream`
+ * command carries no cardinality, so it is not asked for one.
+ */
+export function missingCardinality(name: string, declared: Declared & { output?: { kind?: string; cardinality?: string } }): string | undefined {
+  const runs = declared.run !== undefined || declared.load !== undefined;
+  const data = (declared.output?.kind ?? 'data') === 'data';
+  if (!runs || !data || declared.output?.cardinality !== undefined) return undefined;
+  return `command "${name}" declares no output.cardinality; add output: { cardinality: 'single' | 'bounded' | 'unbounded' } so --schema says how much comes back`;
+}
+
 export function missingExamples(name: string, declared: Declared & { examples?: readonly unknown[] }): string | undefined {
   const runs = declared.run !== undefined || declared.load !== undefined;
   if (!runs || (declared.examples?.length ?? 0) > 0) return undefined;

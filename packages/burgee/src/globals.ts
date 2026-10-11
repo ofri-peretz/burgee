@@ -33,7 +33,8 @@ export interface Globals {
 /** A word that may be one of the globals; `globalOf` decides whether it is, for this command. */
 export const isGlobal = (arg: string): boolean => /^(-q|--(no-color|quiet|color|timeout)(=.*)?)$/.test(arg);
 
-const WHEN = ['always', 'never', 'auto'];
+/** `--color`'s values; `--schema`'s `global_args` publishes them as the flag's `enum` (clispec-conformance R3). */
+export const WHEN = ['always', 'never', 'auto'];
 const DURATION = /^([1-9]\d*)(ms|s|m)?$/;
 const UNIT: Readonly<Record<string, number>> = { ms: 1, s: 1000, m: 60_000 };
 /** The flags that take a value, and the ones that are switches. `no-color` is `--color=never`. */

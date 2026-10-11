@@ -138,7 +138,7 @@ const GLOBAL: Row[] = [
  * program as data (clispec.dev's `help-mentions-schema`). The root only: a command's own help
  * is one command, and `--schema` there drills into it without needing to be advertised.
  */
-const ROOT_GLOBAL: Row[] = [...GLOBAL, { term: '--schema', text: 'the program as data', kind: 'flag' }];
+export const ROOT_GLOBAL: Row[] = [...GLOBAL, { term: '--schema', text: 'the program as data', kind: 'flag' }];
 
 /** Every command that runs parses `--explain` (V3), so its help says so (D-20260930). */
 const EXPLAIN: Row = { term: '--explain <option>', text: "where an option's value came from", kind: 'flag' };
