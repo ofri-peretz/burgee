@@ -1,5 +1,5 @@
 /**
- * `seniority/dotenv` — dotenv 18's surface (R8, Y3), graded against dotenv 18.0.6's own suite.
+ * `seniority/dotenv` — dotenv 18's surface (R8, Y3), graded against dotenv 18.0.7's own suite.
  *
  * `.sdlc/intents/seniority/issues.md` records twenty **closed** dotenv issues at ten
  * reactions or more, topped by #89 "Importing dotenv in ES6" at 165: the largest closed-issue
@@ -169,8 +169,11 @@ export type DotenvPopulateOutput = Record<string, string>;
  * takes the program down before it can say anything useful.
  */
 export function configDotenv(given: Partial<ConfigOptions> = {}): ConfigResult {
-  // The environment's defaults first and the caller's options over them, as dotenv merges.
-  const options: Partial<ConfigOptions> = { ...(optionsFromEnv() as Partial<ConfigOptions>), ...given };
+  // The environment's defaults first and the caller's options over them, as dotenv merges —
+  // less any option given as `undefined`, which dotenv 18.0.7 reads as not given (#1070):
+  // `{ path: undefined }` keeps `DOTENV_PATH` rather than falling back to `./.env`.
+  const defined = Object.fromEntries(Object.entries({ ...given }).filter(([, value]) => value !== undefined)) as Partial<ConfigOptions>;
+  const options: Partial<ConfigOptions> = { ...(optionsFromEnv() as Partial<ConfigOptions>), ...defined };
   // D-135: dotenv populates `process.env` and reads `./.env` when told nothing, and so does the
   // drop-in — through `runtime.ts`, the one seam, and only when the caller passed nothing.
   const processEnv = options.processEnv ?? ambientEnv();
