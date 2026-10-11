@@ -530,8 +530,18 @@ export interface Host {
    * so the denominator moves with the branches that ran. dotenv 17.4.2's control plans summed to 141 and
    * its target's to 147. `rate()` divides by the larger, so nothing can score above its own
    * denominator, and the row is coarser than a per-case one without being dishonest.
+   *
+   * **`tsd` grades a type-only suite, one case per assertion** (`extra-typings-drop-in` R1).
+   * `@commander-js/extra-typings`' `npm test` is `tsd`: its files are `expectType` and
+   * `expectAssignable` calls that compile or do not, and tsd prints diagnostics, not cases.
+   * The arm runs the suite's own pinned tsd (`suiteDeps`) and reports every assertion call site
+   * tsd itself recognises, failing those an error diagnostic falls inside, plus one failure per
+   * error no assertion owns (`tsd.ts`). It never reports a file as one case: a 182-assertion
+   * file that does not compile is 182 failures, not one. The vendored root needs upstream's
+   * `tsconfig.json` (`extraDirs`), or the run is refused — tsd would otherwise find this
+   * repository's own by searching upward.
    */
-  runner: 'node:test' | 'mocha' | 'ava' | 'vitest' | 'tap' | 'exit-code';
+  runner: 'node:test' | 'mocha' | 'ava' | 'vitest' | 'tap' | 'exit-code' | 'tsd';
   /**
    * The shim's module system. Unset, every shim is ESM and Node resolves the implementation
    * through its `import` condition. `'cjs'` writes `module.exports = require(…)` instead, for a
