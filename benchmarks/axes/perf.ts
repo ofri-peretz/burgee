@@ -268,6 +268,10 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // gate reads the same number. It is mean + 3 sd of the last 26 CI observations (mean 1.490,
   // sd 0.034, max 1.553) rounded up to the next 0.05 — the p95 rounded the same way is 1.55, which
   // one of those 26 runs exceeds. `npm run ratchets:propose` says when the series allows lower.
+  //
+  // 1.55 from 1.6 on 2026-10-11, D-157: #898 took node:util and node:fs off the start-up path, and
+  // the 26 CI observations since it merged read mean 1.424, sd 0.033, max 1.463 — mean + 3 sd is
+  // 1.523, rounded up to the next 0.05.
   burgee: claimRatchet('cold-start-at-or-below-cac'),
 };
 

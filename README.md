@@ -295,7 +295,7 @@ settled yet, because its measure changed**:
 | `burgee` is lighter than `cac` **plus what a cac user installs to match it** | `lighter-than-cac-at-parity` | 0.248× | ✅ met |
 | `burgee/commander` is lighter than `commander` **plus the same** | `lighter-than-commander-at-parity` | 0.482× | ✅ met |
 | `burgee/yargs` is lighter than `yargs` **plus the same** | `lighter-than-yargs-at-parity` | 0.545× | ✅ met |
-| `burgee` starts within 1.6× of `cac`, the lightest framework in the landscape (ratchet; lowered as it speeds up) | `cold-start-at-or-below-cac` | 1.443× | ✅ met |
+| `burgee` starts within 1.55× of `cac`, the lightest framework in the landscape (ratchet; lowered as it speeds up) | `cold-start-at-or-below-cac` | 1.443× | ✅ met |
 | `burgee/commander` stays within 1.565× of `commander` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-commander` | 1.558× | ✅ met |
 | `burgee` stays within 2.35× of `cac` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-cac` | 2.317× | ✅ met |
 | an agent spends ≥40% fewer tokens over the benchmark tasks (total over every task-run) | `agent-tokens-40pct` | 0.699× on the newest CI run (`e6cff20`); 0.549–0.699 over the 12 runs since B1 installs the demo under its printed name, met on 5 of them | ❌ **not met** |
@@ -360,7 +360,7 @@ a new decision.
 
 | Gate | Was | Ceiling | Set from, on 2026-09-27 |
 | :--- | :--- | ---: | :--- |
-| `cold-start-at-or-below-cac` | ≤ 1 | 1.6× | the last 26 CI runs: mean 1.490, max 1.553; mean + 3 sd, rounded up to 0.05 |
+| `cold-start-at-or-below-cac` | ≤ 1 | 1.55× | lowered 2026-10-11 after #898: the 26 CI runs since, mean 1.424, max 1.463; mean + 3 sd, rounded up to 0.05 |
 | `lighter-than-commander` | ≤ 1 | 1.565× | measured 1.560, plus 80 B for CI's heavier build, rounded up to 0.005: the gate it already had |
 | `lighter-than-cac` | ≤ 1 | 2.35× | measured 2.317, plus 80 B for CI's heavier build, rounded up to 0.05 |
 
