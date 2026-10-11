@@ -719,6 +719,27 @@ export const HOSTS: Host[] = [
     note: 'Graded against roundel, not burgee: the colour layer has its own façade.',
   },
   {
+    // `roundel/picocolors`' grader (`graded-override-targets` R7). picocolors' own `npm test` is
+    // `node tests/test.js` and nothing else: `tests/environments.js` is not in it, so the glob
+    // names the one file upstream runs. That file is a script of bare assertions that throws on
+    // the first failure, so the grade is its exit code, as rc's is.
+    name: 'picocolors',
+    repo: 'https://github.com/alexeyraspopov/picocolors',
+    testDir: 'tests',
+    testGlob: 'test.js',
+    imports: [{ upstream: '../picocolors.js', subpath: '/picocolors', reexportDefault: true, control: 'picocolors' }],
+    suiteDeps: ['picocolors@1.1.1'],
+    surfaceFiles: ['picocolors.d.ts', 'picocolors.js'],
+    // The suite asserts coloured bytes from the module's default instance, so it needs a run
+    // picocolors itself colours. Upstream's runs are GitHub Actions', which set `CI`; a piped
+    // runner here is not a TTY, and without it the control fails on the first assertion.
+    env: { CI: 'true' },
+    runner: 'exit-code',
+    target: 'roundel',
+    status: 'active',
+    note: "**Graded 2026-10-11 at 1.1.1: `roundel/picocolors` 1 / 1 against a control of 1 / 1, by exit code** (D-20261011-roundel-picocolors). Before the façade the target run read 0 / 1. `tests/environments.js` is not graded: upstream's `npm test` does not run it, and it evaluates picocolors' source text in a `vm` with a fake `process`, which only one self-contained script can pass. Its nine environments are held by `roundel/src/picocolors.test.ts` against picocolors' own source instead. The façade bundles 1,607 B against picocolors' 2,739 B, which is R7's kill criterion, held in `scripts/subpath-weight-lock.test.ts`.",
+  },
+  {
     name: 'ora',
     repo: 'https://github.com/sindresorhus/ora',
     // Its suite is one file at the repo root, beside the implementation it tests.

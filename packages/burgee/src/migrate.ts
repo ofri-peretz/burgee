@@ -378,6 +378,14 @@ export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
   'linegauge/widest-line': [
     'default',
   ],
+  'roundel/picocolors': [
+    'Colors',
+    'Formatter',
+    'createColors',
+    'default',
+    'isColorSupported',
+    'module.exports',
+  ],
   'closeout/signal-exit': [
     'load',
     'onExit',
