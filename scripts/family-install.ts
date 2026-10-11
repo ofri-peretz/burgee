@@ -78,10 +78,11 @@ export async function packFamily(root: string, names: Iterable<string>, into: st
 
 /**
  * `npm install` these tarballs into `dir` and nothing else: `--offline`, so the registry cannot
- * fill a gap, and no lockfile, so nothing is remembered between runs.
+ * fill a gap, and no lockfile, so nothing is remembered between runs. `ignoreScripts` is for a
+ * caller that measures install scripts rather than wanting them run (`install-graph.ts`).
  */
-export async function installTarballs(dir: string, files: string[]): Promise<void> {
-  await npm(['install', '--offline', '--no-package-lock', '--no-audit', '--no-fund', '--silent', ...files], dir);
+export async function installTarballs(dir: string, files: string[], { ignoreScripts = false }: { ignoreScripts?: boolean } = {}): Promise<void> {
+  await npm(['install', '--offline', '--no-package-lock', '--no-audit', '--no-fund', '--silent', ...(ignoreScripts ? ['--ignore-scripts'] : []), ...files], dir);
 }
 
 /**
