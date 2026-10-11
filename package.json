@@ -60,10 +60,15 @@
     "weight:page": "tsx scripts/subpath-weight.ts",
     "weight:converge": "node scripts/weight-converge.mjs",
     "plugins:page": "tsx scripts/plugins-page.ts",
-    "layers:page": "tsx scripts/layers-page.ts"
+    "layers:page": "tsx scripts/layers-page.ts",
+    "check:osv": "tsx scripts/osv-check.ts"
   },
   "overrides": {
-    "smol-toml": "^1.7.1"
+    "js-yaml@3": {
+      "argparse": "^2.0.1"
+    },
+    "katex": "^0.18.2",
+    "smol-toml": "^1.9.0"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^1.0.1",
