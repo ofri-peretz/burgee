@@ -58,13 +58,13 @@ describe('--timeout <duration> ends the run, with its own exit code (R3)', () =>
     expect(cleaned).toBe(1);
     expect(signal?.aborted).toBe(true);
     expect(r.stdout).toBe('');
-    expect(r.stderr).toBe('error: timed out after 50 ms\nhint: run it again with a larger --timeout\n');
+    expect(r.stderr).toBe(`error: timed out after 50 ms\nhint: run it again with a larger --timeout\n${JSON.stringify({ error: { kind: 'timeout', code: 6, message: 'timed out after 50 ms' } })}\n`);
   });
 
   it('says so in the --json envelope, with the code, on stdout', async () => {
     const r = await runCommand(program, ['hang', '--timeout=20ms', '--json']);
     expect(r.code).toBe(ExitCode.TIMEOUT);
-    expect(JSON.parse(r.stdout)).toEqual({ ok: false, error: { code: 6, message: 'timed out after 20 ms', hint: 'run it again with a larger --timeout' } });
+    expect(JSON.parse(r.stdout)).toEqual({ ok: false, error: { kind: 'timeout', code: 6, message: 'timed out after 20 ms', hint: 'run it again with a larger --timeout' } });
   });
 
   it.each([

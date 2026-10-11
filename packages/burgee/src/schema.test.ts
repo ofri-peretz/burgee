@@ -64,9 +64,11 @@ describe('--schema', () => {
     const r = await runBurgee(program, { argv: ['--schema'], env: {} });
     expect(r.code).toBe(0);
     // The native surface adds where to ask for a value's source (D-20261009-b1-totals-and-explain),
-    // and the `completion` command the engine serves (agent-lint-conformance R5), last.
-    const native = JSON.parse(r.stdout) as ReturnType<typeof schemaOf>;
-    expect({ ...native, commands: native.commands.slice(0, -1) }).toEqual({ ...schemaOf(program), explain: '--explain <option> on a command says where its value came from: default, env, config or flag' });
+    // the `completion` command the engine serves (agent-lint-conformance R5), last, and the error
+    // kinds (clispec-conformance R2), which `define-error.test.ts` reads row by row.
+    const native = JSON.parse(r.stdout) as ReturnType<typeof schemaOf> & { errors: unknown[] };
+    expect(native.errors.length).toBeGreaterThan(0);
+    expect({ ...native, commands: native.commands.slice(0, -1) }).toEqual({ ...schemaOf(program), explain: '--explain <option> on a command says where its value came from: default, env, config or flag', errors: native.errors });
     expect(native.commands.at(-1)?.name).toBe('completion');
     // Naming a command drills into it (N13): that command's schema alone.
     const later = await runBurgee(program, { argv: ['deploy', '--schema'], env: {} });

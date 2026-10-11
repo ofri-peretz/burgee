@@ -496,6 +496,16 @@ interface ErrorDefinition {
     name: string;
     /** The exit code, 7–125, owned by this class alone. */
     code: number;
+    /**
+     * clispec-conformance R2 — the word the failure is, snake_case and this class's alone: the
+     * envelope's `error.kind` and its row in `--schema`'s `errors`. Without one it is the name in
+     * snake case, less a trailing `Error` (`QuotaExceededError` → `quota_exceeded`).
+     */
+    kind?: string;
+    /** Whether running the same command again may succeed; `false` unless said (R2). */
+    retryable?: boolean;
+    /** What the failure means, for its `errors` row (R2). */
+    description?: string;
 }
 ```
 
@@ -704,8 +714,10 @@ interface RunOptions {
         columns?: number;
         isTTY?: boolean;
     };
+    /** `isTTY` decides whether a failure adds its structured line (clispec-conformance R6): absent is a pipe. */
     stderr?: {
         write: (s: string) => unknown;
+        isTTY?: boolean;
     };
     /** Receives the E1 code. The default calls process.exit; an injected one may simply record it. */
     exit?: (code: number) => void;

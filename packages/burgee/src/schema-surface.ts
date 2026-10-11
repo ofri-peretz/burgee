@@ -51,6 +51,7 @@ const EXPLAIN = '--explain <option> on a command says where its value came from:
  */
 export async function schemaSurface(manifest: Manifest, argv: string[]): Promise<unknown> {
   const { commandSchemaOf, schemaOf, summaryOf } = await import('./schema.js');
+  const { errorsOf } = await import('./clispec.js');
   const end = argv.indexOf('--');
   const head = end === -1 ? argv : argv.slice(0, end);
   // D-116 — `--field <path>` (or `--field=<path>`) drills below the command into one field.
@@ -82,5 +83,6 @@ export async function schemaSurface(manifest: Manifest, argv: string[]): Promise
   const doc = JSON.stringify(full).length <= budget ? full : summary;
   // Just ahead of `commands`, so a reader that stops partway through the list has seen it, and
   // every other key keeps its place: without `explain` the bytes are the façades' (machine-json.test).
-  return Object.fromEntries(Object.entries(doc).flatMap((entry) => (entry[0] === 'commands' ? [['explain', EXPLAIN], entry] : [entry])));
+  // clispec-conformance R2 — `errors` beside it: what can go wrong, read before the first call.
+  return Object.fromEntries(Object.entries(doc).flatMap((entry) => (entry[0] === 'commands' ? [['explain', EXPLAIN], ['errors', errorsOf()], entry] : [entry])));
 }

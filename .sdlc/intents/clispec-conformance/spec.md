@@ -134,11 +134,20 @@ for the core bytes.
 | R | Status | Where | Check |
 | :-- | :-- | :-- | :-- |
 | R1 | Not built | `schema.ts`, `program-schema.json` | `clispec-document.test.ts`, `schema.test.ts` |
-| R2 | Not built | `failure.ts`, `define-error.ts`, `exit-code.ts`, `schema.ts` | `define-error.test.ts`, `exit-code.test.ts` |
+| R2 | **Built** 2026-10-12 | `error-kinds.ts` (`kindOf`: the `ExitCode` name lower-cased, `SIGINT` → `interrupted`; `definedErrors`: each defined class's kind settled), `failure.ts` (`error.kind` in both envelopes), `define-error.ts` (`kind`, `retryable`, `description`; the registry), `clispec.ts` (`errors[]`, read by `schema-surface.ts` only), `program-schema.json` (`errors`, `$defs.error`). **Two departures from the design.** Kinds are **snake_case** (`quota_exceeded`), not kebab: clispec v0.3's `$defs.error.kind` is `^[a-z][a-z0-9_]*$` and refuses `quota-exceeded`. And kinds are **settled where they are read**, not at `defineError`: `define-error.js` is on `.`'s static walk with 401 B of budget, and settling there cost 1,723 B (35,280 → 37,003). Settled lazily it is 35,610 B. So a class's kind is not a static on the class; a declared kind is still refused at definition when it is not snake_case or another class declared it, and a kind the contract or an earlier class holds (a class named `TimeoutError`) is told apart by its code, `timeout_12`, so no class that defined before stops defining. Façades: no `errors` (see the note under the table) | `exit-code.test.ts` › `every exit code has a kind (R2)`; `define-error.test.ts` › `derives its kind…`, `never takes a kind someone already holds…`, `lists itself under --schema errors…`. Red: `Cannot find module './error-kinds.js'`; `expected undefined to be 'quota'`; `Cannot read properties of undefined (reading 'find')` (no `errors`) |
 | R3 | Not built | `schema.ts`, `help.ts` | `schema.test.ts` |
 | R4 | Not built | `schema.ts` | `clispec-document.test.ts` |
 | R5 | Not built | `execute.ts` (`Command`), `schema.ts`, `definition.ts` | `schema-fields.test.ts`, `facade-types.test.ts` |
-| R6 | Not built | `failure.ts`, closeout's final write | `json-failure.test.ts` |
+| R6 | **Built** 2026-10-12 | `failure.ts` (`reportFailure`: the envelope or the prose where O1 puts it, then the one line unless `stderr.isTTY === true`), `execute.ts` (calls it; `stderr` takes `isTTY`), `testing-helpers.ts` (`runBurgee` forwards `tty.stderr`). Written before `leave`, not through closeout's registry: an `onExit` handler that writes to stderr after it would follow the line, and none in the family does. A bare program run with no command still prints root help and exits 2 with no line: that is help, not a failure report. **recovery-bytes on the demo, 109 → 164 B** (median, `npm run bench -- --axis reliability`, before and after on this machine); `schema-bytes` 2,392 → 3,235 B, all of it R2's `errors`, which steps the `agent-schema-bytes` control band up | `json-failure.test.ts` › `$name: the envelope is on stdout, alone, and stderr is the one structured line (R6)`, `$name: plain mode keeps its prose…`, `$name: at a terminal, stderr is the prose alone — no JSON (R6)`, `an unknown command is structured on stderr too…`. Red: `Unexpected token 'u', "usage: app sync" is not valid JSON`; `Unexpected end of JSON input` (stderr empty under `--json`) |
 | R7 | Not built | `execute.ts`, `schema.ts` | `machine-json.test.ts` |
 | R8 | Not built | `examples/demo-cli-burgee`, `apps/docs` | `clispec-document.test.ts` |
 | R9 | Not built | `benchmarks/axes/floor.ts`, `.sdlc/decisions/` | `benchmarks/floor.test.ts` |
+
+**The façades do not carry the clispec keys.** The design had `burgee/commander` and
+`burgee/yargs` gain them "through the same `schema.ts`". Both build `--schema` synchronously from
+`schemaOf`, which `schema.ts` holds statically, and the budgets that walk it had **21 B
+(`./yargs`, 220,879 / 220,900) and 34 B (`./schema`, 15,666 / 15,700)** to spare on `main` at
+`733e5e0` (`weight.test.ts`). `errors` alone is more than that. So the keys live in `clispec.ts`,
+which only the native `--schema` surface loads, behind its `await import()`, and the façades'
+documents are unchanged. No ratchet was raised. `machine-json.test.ts` holds the native document
+equal to the façades' once the native-only keys are set aside.

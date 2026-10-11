@@ -27,12 +27,12 @@ const throwing = (value: unknown): ReturnType<typeof defineProgram> =>
 describe('a refusal object that names its code by string (P2, D-120)', () => {
   it('leaves with that code and says its own message, hint and fix', async () => {
     const r = await runCommand(throwing({ code: 'USAGE', message: 'pick one', hint: 'try --a', fix: '--a' }), ['go']);
-    expect(r).toEqual({ code: ExitCode.USAGE, stdout: '', stderr: 'error: pick one\nhint: try --a\nfix: --a\n' });
+    expect(r).toEqual({ code: ExitCode.USAGE, stdout: '', stderr: `error: pick one\nhint: try --a\nfix: --a\n${JSON.stringify({ error: { kind: 'usage', code: 2, message: 'pick one' } })}\n` });
   });
   it('carries no hint or fix it was not given, and reads a message that is not a string as the value', async () => {
     const r = await runCommand(throwing({ code: 'AUTH', message: 42, hint: 7 }), ['go']);
     expect(r.code).toBe(ExitCode.AUTH);
-    expect(r.stderr).toBe('error: [object Object]\n');
+    expect(r.stderr).toBe(`error: [object Object]\n${JSON.stringify({ error: { kind: 'auth', code: 5, message: '[object Object]' } })}\n`);
   });
 });
 
@@ -43,15 +43,15 @@ describe('an action required with nothing to run next (N11)', () => {
   });
   it('as text: the reason and message, with no next: block and no hint line', async () => {
     const r = await runCommand(program, ['login']);
-    expect(r).toEqual({ code: ExitCode.CANCELLED, stdout: '', stderr: 'action required (login): sign in first\n' });
+    expect(r).toEqual({ code: ExitCode.CANCELLED, stdout: '', stderr: `action required (login): sign in first\n${JSON.stringify({ error: { kind: 'cancelled', code: 4, message: 'sign in first' } })}\n` });
   });
   it('carries no hint key at all, rather than one set to undefined', async () => {
     const spec = { reason: 'login', message: 'sign in first' };
-    expect(await describeFailure(new Error('sign in first'), { root: [], argv: [] }, undefined, spec)).toStrictEqual({ code: ExitCode.CANCELLED, message: 'sign in first', action: spec });
+    expect(await describeFailure(new Error('sign in first'), { root: [], argv: [] }, undefined, spec)).toStrictEqual({ code: ExitCode.CANCELLED, kind: 'cancelled', message: 'sign in first', action: spec });
   });
   it('as JSON: an empty next[] and no hint', async () => {
     const r = await runCommand(program, ['login', '--json']);
-    expect(JSON.parse(r.stdout)).toEqual({ ok: false, status: 'action_required', reason: 'login', message: 'sign in first', next: [], error: { code: ExitCode.CANCELLED, message: 'sign in first' } });
+    expect(JSON.parse(r.stdout)).toEqual({ ok: false, status: 'action_required', reason: 'login', message: 'sign in first', next: [], error: { kind: 'cancelled', code: ExitCode.CANCELLED, message: 'sign in first' } });
   });
 });
 
@@ -60,6 +60,7 @@ describe('a parse failure with no command to suggest from', () => {
     const cause = Object.assign(new TypeError("Unknown option '--nope'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--nope\"'"), { code: 'ERR_PARSE_ARGS_UNKNOWN_OPTION' });
     expect(await describeFailure(cause, { root: [], argv: ['--nope'] }, undefined, undefined)).toEqual({
       code: ExitCode.USAGE,
+      kind: 'usage',
       message: 'unknown option --nope',
       hint: 'run --help to see the available options',
     });

@@ -54,10 +54,11 @@ describe('a refused credential exits AUTH (E6)', () => {
 
   it('puts both in the envelope, so an agent never parses the prose', async () => {
     const { stdout, stderr } = await runBurgee(program, { argv: ['pull', '--json'] });
-    expect(stderr, 'under --json the envelope is the whole answer, on stdout (D-140)').toBe('');
+    // The envelope is the whole answer, on stdout (D-140); stderr carries only its structured line (clispec-conformance R6).
+    expect(JSON.parse(stderr)).toEqual({ error: { kind: 'auth', code: ExitCode.AUTH, message: 'the registry refused the token' } });
     expect(JSON.parse(stdout)).toEqual({
       ok: false,
-      error: { code: ExitCode.AUTH, message: 'the registry refused the token', hint: 'the token has expired', fix: 'e6 login' },
+      error: { kind: 'auth', code: ExitCode.AUTH, message: 'the registry refused the token', hint: 'the token has expired', fix: 'e6 login' },
     });
   });
 

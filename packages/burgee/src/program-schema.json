@@ -37,6 +37,13 @@
       "type": "string",
       "description": "How to ask where an option's value came from: `--explain <option>` on a command. A native program's `--schema` carries it ahead of `commands`; a commander- or yargs-syntax program's does not (D-20261009-b1-totals-and-explain)."
     },
+    "errors": {
+      "type": "array",
+      "description": "Every kind of failure the program can leave with, and its exit code (clispec v0.3 `errors`): the contract's kinds, then each class the program defined with `defineError`. A failure's envelope names its kind in `error.kind`. A native program's `--schema` carries it; a commander- or yargs-syntax program's does not.",
+      "items": {
+        "$ref": "#/$defs/error"
+      }
+    },
     "commands": {
       "type": "array",
       "description": "Every runnable, visible command, in declaration order.",
@@ -55,6 +62,33 @@
     }
   },
   "$defs": {
+    "error": {
+      "type": "object",
+      "required": [
+        "kind",
+        "exit_code",
+        "retryable"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "The word the failure is, in snake_case: `usage`, `auth`, `timeout`, or a defined error's own."
+        },
+        "exit_code": {
+          "type": "integer",
+          "description": "The exit code it leaves with."
+        },
+        "retryable": {
+          "type": "boolean",
+          "description": "Whether running the same command again may succeed."
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
     "command": {
       "type": "object",
       "required": [

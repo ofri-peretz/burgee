@@ -33,8 +33,9 @@ from one declaration leaves them nothing to drift from.
 
 **The envelope is one document on stdout.** Success is
 `{"ok":true,"data":<what run returned>,"meta":{"provenance":{…}}}`, with `meta.changed` for an
-idempotent command. Failure is `{"ok":false,"error":{"code","message","hint"?,"fix"?,"usage"?}}`,
-also on stdout, with stderr empty. `--json` counts only before a `--`. It counts wherever it is
+idempotent command. Failure is `{"ok":false,"error":{"kind","code","message","hint"?,"fix"?,"usage"?}}`,
+also on stdout, and stderr carries only `{"error":{"kind","code","message"}}`, one line, for a
+caller that reads stderr alone ([Exit codes](/docs/concepts/exit-codes#the-envelope-and-where-errors-go)). `--json` counts only before a `--`. It counts wherever it is
 typed before that, including ahead of the command (`demo --json config get user.name`). The
 spellings other CLIs use count too: `--format json`, `--format=json`, `--output json` and
 `--output=json` are read as `--json`, unless the command declares an option of that name or
@@ -119,13 +120,15 @@ await run(program);
 Nobody to confirm, so the program stops and says what to run:
 
 ```text title="CLAUDECODE=1 node tool.mjs deploy --target prod --json" exit="4"
-{"ok":false,"status":"action_required","reason":"confirm","message":"deploying to prod needs confirmation","next":[{"command":"tool deploy --target prod --yes --json","when":"once you have reviewed the plan"}],"error":{"code":4,"message":"deploying to prod needs confirmation"}}
+{"ok":false,"status":"action_required","reason":"confirm","message":"deploying to prod needs confirmation","next":[{"command":"tool deploy --target prod --yes --json","when":"once you have reviewed the plan"}],"error":{"kind":"cancelled","code":4,"message":"deploying to prod needs confirmation"}}
+{"error":{"kind":"cancelled","code":4,"message":"deploying to prod needs confirmation"}}
 ```
 
 ```text title="node tool.mjs deploy --target prod" exit="4"
 action required (confirm): deploying to prod needs confirmation
 next:
   tool deploy --target prod --yes    once you have reviewed the plan
+{"error":{"kind":"cancelled","code":4,"message":"deploying to prod needs confirmation"}}
 ```
 
 The next command, run by the agent:
@@ -137,7 +140,8 @@ The next command, run by the agent:
 A run that fails with nothing to fix names what the command takes, in the same envelope:
 
 ```text title="CLAUDECODE=1 node tool.mjs deploy --json" exit="2"
-{"ok":false,"error":{"code":2,"message":"missing required option --target","hint":"pass --target <value>","usage":{"command":"tool deploy [options]","options":[{"name":"--target <value>","description":"where to deploy (required)"},{"name":"--yes","description":"skip the confirmation"}]}}}
+{"ok":false,"error":{"kind":"usage","code":2,"message":"missing required option --target","hint":"pass --target <value>","usage":{"command":"tool deploy [options]","options":[{"name":"--target <value>","description":"where to deploy (required)"},{"name":"--yes","description":"skip the confirmation"}]}}}
+{"error":{"kind":"usage","code":2,"message":"missing required option --target"}}
 ```
 
 What an agent reads before it calls, from the same declaration:

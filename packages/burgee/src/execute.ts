@@ -169,7 +169,8 @@ export interface RunOptions {
   env?: Record<string, string | undefined>;
   /** `columns` is read when present, so help wraps to the terminal (H3); `isTTY` decides whether help is coloured (O2). */
   stdout?: { write: (s: string) => unknown; columns?: number; isTTY?: boolean };
-  stderr?: { write: (s: string) => unknown };
+  /** `isTTY` decides whether a failure adds its structured line (clispec-conformance R6): absent is a pipe. */
+  stderr?: { write: (s: string) => unknown; isTTY?: boolean };
   /** Receives the E1 code. The default calls process.exit; an injected one may simply record it. */
   exit?: (code: number) => void;
   /** Where config discovery starts; the process's own otherwise. */
@@ -378,7 +379,7 @@ interface Resolved {
 interface Io {
   /** `isTTY` is read by help's colour only (O2), in `surfaces.ts`: an output decision, never whether to ask. */
   out: { write: (s: string) => unknown; isTTY?: boolean };
-  err: { write: (s: string) => unknown };
+  err: { write: (s: string) => unknown; isTTY?: boolean };
   env: Record<string, string | undefined>;
   exit: (code: number) => void;
   width: number;
@@ -534,13 +535,13 @@ interface FailureContext {
  */
 async function report(cause: unknown, { manifest, io, argv, json, name }: FailureContext): Promise<string[] | void> {
   // U5 — the whole failure vocabulary is its own chunk: a run that succeeds never loads it.
-  const { describeFailure, failureText } = await import('./failure.js');
+  const { describeFailure, reportFailure } = await import('./failure.js');
   const failure = await describeFailure(cause, { root: manifest.rootPath, argv }, resolveCommand(manifest, argv) ?? undefined, cause instanceof ActionRequired ? cause.spec : undefined);
   // Nothing is reported and nothing has run: the caller runs this line instead (`execute`).
   if (failure.again) return failure.again;
   if (failure.silent === true) return await leave(io, failure.code);
   await manifest.fire('onError', name, {});
-  (json ? io.out : io.err).write(failureText(failure, manifest, json));
+  reportFailure(failure, manifest, json, io);
   return await leave(io, failure.code);
 }
 
