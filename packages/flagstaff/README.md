@@ -72,14 +72,28 @@ bun add flagstaff
 import { hoist } from 'flagstaff/loop';
 import { spinner } from 'flagstaff/spinner';
 
+const rt = {
+  env: process.env,
+  isTTY: { stdout: Boolean(process.stdout.isTTY) },
+  stdout: process.stdout,
+  stderr: process.stderr,
+  clock: {
+    now: () => performance.now(),
+    schedule(fn, ms) {
+      const timer = setTimeout(fn, ms);
+      return () => clearTimeout(timer);
+    },
+  },
+};
+
 const flag = hoist(spinner(), rt, { text: 'building' });
 // ... work ...
 flag.update({ text: 'linking' });
 flag.lower({ text: 'built', status: 'ok' });
 ```
 
-`rt` is a runtime — `{ env, isTTY: { stdout }, stdout, stderr, clock }`; burgee's satisfies
-it, so does a literal in a test. Which of the five modes runs is decided once by roundel's
+`rt` is a runtime — `{ env, isTTY: { stdout }, stdout, stderr, clock }`, written out above;
+burgee's satisfies it, so does a literal with `manualClock()` in a test. Which of the five modes runs is decided once by roundel's
 output policy, never by this package:
 
 | mode | what the same three calls write |

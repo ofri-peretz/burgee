@@ -59,6 +59,12 @@ bun add controlroom
 
 ## Quick start
 
+A pane is a flagstaff component, so the quick start installs both:
+
+```bash
+npm install controlroom flagstaff
+```
+
 ```js
 import { open, processRuntime } from 'controlroom';
 import { tasks } from 'flagstaff/tasks';

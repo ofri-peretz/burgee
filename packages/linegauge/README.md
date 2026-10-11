@@ -67,7 +67,8 @@ width('👨‍👩‍👧‍👦'); // 2 — one cluster, not four people
 
 wrap('a long sentence that needs folding', 12);
 truncate('the quick brown fox', 10); // 'the quick…'
-slice(styled, 2, 4); // columns 2 and 3, styles intact
+const styled = '\u001B[1mbold\u001B[22m'; // the word, in bold
+slice(styled, 2, 4); // 'ld' still in bold — columns 2 and 3, styles intact
 widest(['a', 'bbb', 'cc']); // 3
 ```
 
@@ -214,7 +215,7 @@ Graded by the incumbent's own test suite:
 | `strip-ansi` | 8 / 8 |
 | `wrap-ansi` | 85 / 85 |
 
-Weight, installed and tree-inclusive: **108,119 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5564**.
+Weight, installed and tree-inclusive: **108,205 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5568**.
 
 ## For agents
 
