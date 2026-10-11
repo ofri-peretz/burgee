@@ -191,7 +191,7 @@ describe('help names the agent surfaces', () => {
   });
 
   it('lists --explain among the global options of a command that runs, and not of a group', async () => {
-    expect((await run('fail', '--help')).stdout).toContain("  --explain <option>  where an option's value came from\n");
+    expect((await run('fail', '--help')).stdout).toContain("  --explain <option>    where an option's value came from\n");
     expect((await run('config', '--help')).stdout).not.toContain('--explain');
     expect((await run('fail', '--help')).stdout).not.toContain('For agents');
   });
@@ -274,8 +274,8 @@ describe('a refusal carries the line to run', () => {
 
 describe('help says what each command takes', () => {
   it('lists a command with its arguments, the way commander does', async () => {
-    expect((await demo('config', '--help')).stdout).toContain('Commands:\n  get <key>  Print one value\n');
-    expect((await demo('--help')).stdout).toContain('  greet <name>        Greet someone\n');
+    expect((await demo('config', '--help')).stdout).toContain('Commands:\n  get <key>             Print one value\n');
+    expect((await demo('--help')).stdout).toContain('  greet <name>          Greet someone\n');
   });
 });
 
@@ -289,7 +289,7 @@ describe('the line to run is on the first screen, and whole', () => {
   it('lists root help by the commands that run, each by its full path with what it takes, when they fit', async () => {
     // The engine's own `completion` closes the list (agent-lint-conformance R5).
     const commands =
-      'Commands:\n  greet <name>        Greet someone\n  config get <key>    Print one value\n  fail                Fail on purpose\n  completion <shell>  Print a shell completion script: bash, zsh, fish, pwsh or fig\n\n';
+      'Commands:\n  greet <name>          Greet someone\n  config get <key>      Print one value\n  fail                  Fail on purpose\n  completion <shell>    Print a shell completion script: bash, zsh, fish, pwsh or fig\n\n';
     expect((await demo('--help')).stdout).toContain(commands);
     // A bare invocation prints the same screen, as the usage error it is.
     expect((await demo()).stderr).toContain(commands);

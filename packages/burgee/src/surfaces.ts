@@ -15,6 +15,7 @@ import { detectAgent } from './agent.js';
 import { beforeTerminator, isJsonFlag } from './argv.js';
 import { UsageError } from './errors.js';
 import { ExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
+import { globalRows, globalsOf, leadingGlobals } from './globals.js';
 import { type ArgumentSpec, type CommandNode, type Manifest, type OptionSpec } from './manifest.js';
 import { kebab } from './names.js';
 import { type Package } from './pkg.js';
@@ -104,7 +105,10 @@ const renderHelp = async (manifest: Manifest, node: CommandNode, io: SurfaceIo, 
   const completion = atRoot ? completionNode(manifest) : undefined;
   const commands = [...listed(manifest, node), ...(completion === undefined ? [] : [completion]), ...(atRoot ? exitRows(manifest.rootPath) : [])];
   const shown = atRoot ? { ...node, examples: rootExamples(manifest, node) } : node;
-  return help.renderHelp(manifest, shown, { width: io.width, color: help.colorFor(io.env, detectAgent(io.env, io.out.isTTY === true).interactive, argv), commands });
+  // The globals this command leaves global (R1–R3); none on a node the engine made up, such as
+  // `completion`, which parses none of them.
+  const globals = manifest.find(node.path) === undefined ? [] : globalRows(node);
+  return help.renderHelp(manifest, shown, { width: io.width, color: help.colorFor(io.env, detectAgent(io.env, io.out.isTTY === true).interactive, argv), commands, globals });
 };
 
 /**
@@ -126,9 +130,12 @@ const machineJson = async (...args: Parameters<(typeof import('./schema.js'))['m
  * machine-readable answer got one they had to parse: the exact failure the `--json` surface
  * exists to avoid, on the flag people type first.
  */
-export async function helpFor(manifest: Manifest, node: CommandNode, io: SurfaceIo, json: boolean): Promise<string> {
+//
+// `color` is the caller's `--no-color` / `--color=<when>`, read by `globals.js` before the parse
+// (agent-lint-conformance R1), so `--help` on a command that runs is coloured as asked.
+export async function helpFor(manifest: Manifest, node: CommandNode, io: SurfaceIo, { json, color = [] }: { json: boolean; color?: readonly string[] | undefined }): Promise<string> {
   if (json) return `${await machineJson(await helpDocumentOf(manifest, node), ['--json'])}\n`;
-  return await renderHelp(manifest, node, io);
+  return await renderHelp(manifest, node, io, color);
 }
 
 /** `--version`: the declared version, else the owning package.json's (V4). */
@@ -154,7 +161,17 @@ export function versionOf(manifest: Manifest, io: Pick<SurfaceIo, 'pkg'>): strin
  */
 export async function unresolved({ manifest, root, io }: Resolving, argv: string[], at: CommandNode | undefined): Promise<{ text: string; code: ExitCodeType }> {
   const node = at ?? rootNode(manifest, root);
-  const typed = argv.slice(node.path.length - root.length);
+  const before = argv.slice(0, node.path.length - root.length);
+  // agent-lint-conformance R1–R3 — globals typed ahead of the command (`demo --quiet greet ada`)
+  // resolved nothing, because the command is the next word. When the words after them name a
+  // command that runs, the same line runs with the globals behind it, where the parse takes them
+  // (`Again`, as a `--json` typed first does); otherwise they are read here, for help's colour.
+  const { globals, words: typed } = leadingGlobals(argv.slice(before.length));
+  if (globals.length > 0) {
+    const reached = manifest.resolve([...before, ...typed], root);
+    if (reached.node?.run !== undefined) throw new Again(lineWords(reached.node.path, reached.rest, undefined, globals));
+    argv = [...argv, ...globalsOf(globals, node).color];
+  }
   const first = typed[0] ?? '';
   if (typed.length > 0 && HELP_FLAGS.has(first)) {
     // F2 — `--help --json` is help *as data*. Before this it printed the same prose as
@@ -167,7 +184,7 @@ export async function unresolved({ manifest, root, io }: Resolving, argv: string
   }
   if (first === '--version' || first === '-V') return { text: `${versionOf(manifest, io)}\n`, code: ExitCode.OK };
   if (typed.length === 0) return { text: await renderHelp(manifest, node, io, argv), code: ExitCode.USAGE };
-  const refusal = unknownCommand({ manifest, root, io }, node, argv.slice(0, argv.length - typed.length), typed);
+  const refusal = unknownCommand({ manifest, root, io }, node, before, typed);
   throw refusal;
 }
 
@@ -279,9 +296,11 @@ function jsonAsked(typed: string[]): { words: string[]; json?: string } {
 }
 
 /** A command line's words: the path, the caller's own words, and `--json` before any `--`. */
-function lineWords(path: string[], words: string[], json: string | undefined): string[] {
+//
+// The globals typed ahead of a command (R1–R3) go in the same place `--json` does.
+function lineWords(path: string[], words: string[], json: string | undefined, globals: readonly string[] = []): string[] {
   const end = words.includes('--') ? words.indexOf('--') : words.length;
-  return json === undefined ? [...path, ...words] : [...path, ...words.slice(0, end), json, ...words.slice(end)];
+  return [...path, ...words.slice(0, end), ...(json === undefined ? [] : [json]), ...globals, ...words.slice(end)];
 }
 
 /** A command line to run, quoted for a shell. */

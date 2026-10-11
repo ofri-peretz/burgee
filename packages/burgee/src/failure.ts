@@ -78,6 +78,9 @@ const NAMED: ReadonlyMap<unknown, ExitCodeType> = new Map([
   ['CONFIG', ExitCode.CONFIG],
   ['CANCELLED', ExitCode.CANCELLED],
   ['AUTH', ExitCode.AUTH],
+  // agent-lint-conformance R3: the error `globals.js` throws when `--timeout` passes, and one a
+  // handler may throw itself on a deadline of its own.
+  ['TIMEOUT', ExitCode.TIMEOUT],
 ]);
 
 function namedCode(cause: unknown): ExitCodeType | undefined {
