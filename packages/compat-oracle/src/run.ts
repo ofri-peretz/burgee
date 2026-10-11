@@ -368,7 +368,10 @@ function shimSource(entry: HostImport, host: Host, target: string): string {
   // handing a real caller a namespace was never graded (2026-09-23). yargs' entry exports the
   // name, and so does each family drop-in whose incumbent's `require()` returns its default;
   // `scripts/drop-in-require-shape-lock.test.ts` checks that from outside the oracle.
-  const withDefault = entry.reexportDefault ? `export { default } from '${from}';\n` : '';
+  let withDefault = entry.reexportDefault ? `export { default } from '${from}';\n` : '';
+  // A named export standing as the default (`HostImport.defaultExport`): the same name on
+  // both runs, read off whichever module this run grades.
+  if (entry.defaultExport !== undefined) withDefault = `export { ${entry.defaultExport} as default } from '${from}';\n`;
   return `${header}\nexport * from '${from}';\n${withDefault}`;
 }
 

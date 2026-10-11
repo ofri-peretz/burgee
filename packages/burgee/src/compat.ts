@@ -62,6 +62,7 @@ export const GRADED: Readonly<Record<string, Row>> = {
   lilconfig: { reference: 77, passed: 77, rate: 1, control: 77 },
   dotenv: { reference: 191, passed: 191, rate: 1, control: 191 },
   clack: { reference: 16, passed: 16, rate: 1, control: 16 },
+  'inquirer-prompts': { reference: 213, passed: 0, rate: 0, control: 213 },
   'inquirer-core': { reference: 41, passed: 41, rate: 1, control: 41 },
   meow: { reference: 148, passed: 146, rate: 0.9864864864864865, control: 146 },
   'ansi-escapes': { reference: 4, passed: 4, rate: 1, control: 4 },
@@ -117,6 +118,7 @@ export const DROP_INS: readonly DropIn[] = [
   { host: 'dotenv', from: 'dotenv/config', to: 'seniority/dotenv/config' },
   { host: 'dotenv', from: 'dotenv/config.js', to: 'seniority/dotenv/config' },
   { host: 'clack', from: '@clack/prompts', to: 'caique/clack' },
+  { host: 'inquirer-prompts', from: '@inquirer/prompts', to: 'caique/inquirer' },
   { host: 'inquirer-core', from: '@inquirer/core', to: 'caique/inquirer' },
   { host: 'meow', from: 'meow', to: 'burgee/meow' },
   { host: 'ansi-escapes', from: 'ansi-escapes', to: 'paratext' },
@@ -142,6 +144,7 @@ export const DROP_INS: readonly DropIn[] = [
 export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
   '@clack/prompts': '1.8.1',
   '@inquirer/core': '12.0.4',
+  '@inquirer/prompts': '8.7.3',
   'ansi-escapes': '7.3.0',
   boxen: '9.0.0',
   chalk: '6.0.1',
@@ -207,6 +210,7 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
 export const SUPPORTED_MAJORS: Readonly<Record<string, readonly number[]>> = {
   '@clack/prompts': [1],
   '@inquirer/core': [12],
+  '@inquirer/prompts': [8],
   'ansi-escapes': [7],
   boxen: [9],
   chalk: [6],

@@ -40,6 +40,66 @@ evidence are recorded in [`next-wave-2026-10.md`](../../research/next-wave-2026-
   `@inquirer/prompts` with its tree, and `scripts/subpath-weight-lock.test.ts` holds it at or
   under.
 
+## R2 — the measurement (2026-10-11)
+
+`npm run compat -- --vendor inquirer-prompts` at **`@inquirer/prompts` 8.7.3**, the release on
+the day: tag `@inquirer/prompts@8.7.3`, commit `a9436bd9`, which is also `@inquirer/core@12.0.4`'s.
+Eleven files, because `select` keeps its pagination suite beside its own
+(D-20261011-inquirer-pagination-suite-is-selects).
+
+| Prompt | File | Cases | Imports besides vitest |
+| :-- | :-- | --: | :-- |
+| `input` | `input/input.test.ts` | 20 | `@inquirer/testing`, `./src/index.ts` (default) |
+| `select` | `select/test/select.test.ts` | 42 | `@inquirer/testing`, `../src/index.ts` (default, `Separator`) |
+| `select` | `select/test/pagination.test.ts` | 10 | `@inquirer/testing`, `../src/index.ts` (default, `Separator`) |
+| `checkbox` | `checkbox/checkbox.test.ts` | 48 | `@inquirer/testing`, **`@inquirer/core`** (`ValidationError`), `./src/index.ts` (default, `Separator`) |
+| `confirm` | `confirm/confirm.test.ts` | 15 | `node:util` (`styleText`), `@inquirer/testing`, `./src/index.ts` (default) |
+| `password` | `password/password.test.ts` | 11 | `@inquirer/testing`, `./src/index.ts` (default) |
+| `number` | `number/number.test.ts` | 18 | `@inquirer/testing`, `./src/index.ts` (default) |
+| `expand` | `expand/expand.test.ts` | 13 | `@inquirer/testing`, `./src/index.ts` (default, `Separator`) |
+| `rawlist` | `rawlist/rawlist.test.ts` | 16 | `@inquirer/testing`, `./src/index.ts` (default, `Separator`) |
+| `search` | `search/search.test.ts` | 20 | `@inquirer/testing`, **`@inquirer/type`** (`withResolver`, a promise helper), `./src/index.ts` (default, `Separator`) |
+| `editor` | `editor/editor.test.ts` | 11 | `@inquirer/testing`, **`@inquirer/external-editor`** (`editAsync`, mocked with `vi.mock`), `./src/index.ts` (default) |
+| | | **224** | |
+
+**What the imports decided.**
+
+- **Every suite imports its prompt as a default** of its own package. The drop-in is
+  `@inquirer/prompts`', which exports each prompt by name. So the oracle gained
+  `HostImport.defaultExport`: the shim is `export * from '<module>'` plus
+  `export { select as default } from '<module>'`, where `<module>` is `@inquirer/prompts` on the
+  control and `caique/inquirer` on a target run. What is graded is the named import a program
+  migrates.
+- **One host, eleven files in ten packages**, so the oracle also gained `Host.suiteFiles`: the
+  files written out and the only ones vendored. A `testDir` of `packages` copied whole would
+  have vendored every prompt's implementation and every other package's tests.
+- **`@inquirer/core` is rewritten too**, to `caique/inquirer`: checkbox asserts the prompt
+  rejects with `toBeInstanceOf(ValidationError)`, so the class has to be the one the prompt
+  throws. `@inquirer/type`'s `withResolver` stays the real package; it builds a promise in the
+  test and touches no prompt.
+- **`editor.test.ts` cannot grade any implementation of ours.** Every one of its eleven cases
+  asserts on, and answers through, the mocked `editAsync` of `@inquirer/external-editor`, which
+  caique does not import. Excluded by exact title for both sides
+  (D-20261011-inquirer-prompts-editor-mock), so the row is **213** cases.
+
+**The control**, against the real packages (`suiteDeps`: `@inquirer/prompts@8.7.3`,
+`@inquirer/core@12.0.4`, `@inquirer/testing@3.3.14`, `@inquirer/type@4.2.0`,
+`@inquirer/external-editor@3.0.6`):
+
+- first run: **213 / 224**, the eleven editor cases failing — the mock never reached the
+  published `@inquirer/editor`, which vitest externalizes, so each case opened a real `vi` and the
+  run hung to the oracle's cap;
+- with `@inquirer/prompts` and `@inquirer/editor` inlined (`vitestConfig`), upstream's own
+  conditions: **224 / 224**;
+- with the editor exclusion: **213 / 213, 100.0%**.
+
+**The target on today's tree**: **`caique/inquirer` 0 / 213.** Every case fails the same way,
+`TypeError: prompt is not a function` (222 of 224 raw TAP failures; the other two,
+`default is not a function`, are the same absence reached through a different line), because
+`caique/inquirer` exports `@inquirer/core`'s surface and none of the ten prompts. That is the
+R2 red the Verification table names, for every `select` and `checkbox` case that pages and for
+every other case besides.
+
 ## Design
 
 **One host, ten suites.** The oracle already grades multi-file suites (`ink` is 1,304 cases
@@ -88,8 +148,8 @@ used prompts. The rest share the text-input path.
 
 | R | Status | Where | Check |
 | :-- | :-- | :-- | :-- |
-| R1 | Not built | `caique/src/inquirer*.ts`, `compat-oracle/vendor/inquirer-core` | `npm run compat -- inquirer-core` |
-| R2 | Not built | `compat-oracle/vendor/inquirer-prompts`, this file | the control run |
+| R1 | Not built — **re-scoped**: the pagination suite is `select`'s (D-20261011-inquirer-pagination-suite-is-selects), so `usePagination` is graded in `inquirer-prompts` with `select` | `caique/src/inquirer*.ts`, `compat-oracle/vendor/inquirer-prompts/packages/select/test/pagination.test.ts` | `npm run compat -- inquirer-prompts` |
+| R2 | **Built** 2026-10-11 — vendored at 8.7.3, control 213 / 213, target 0 / 213 | `compat-oracle/vendor/inquirer-prompts`, this file (§ R2 — the measurement) | `npm run compat -- inquirer-prompts --control` |
 | R3 | Not built | `caique/src/inquirer*.ts` | `npm run compat -- inquirer-prompts` |
 | R4 | Not built | `burgee/src/compat.ts`, `caique/competitors.json` | `migrate-drop-ins-lock.test.ts`, `competitors.test.ts` |
 | R5 | Not built | `subpath-weight` table | `subpath-weight-lock.test.ts` |

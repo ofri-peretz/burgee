@@ -1,0 +1,18 @@
+{
+  "name": "@vendored/inquirer-prompts-suite",
+  "private": true,
+  "type": "module",
+  "main": "./shim.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SBoudrias/Inquirer.js.git"
+  },
+  "devDependencies": {
+    "@inquirer/prompts": "8.7.3",
+    "@inquirer/core": "12.0.4",
+    "@inquirer/testing": "3.3.14",
+    "@inquirer/type": "4.2.0",
+    "@inquirer/external-editor": "3.0.6"
+  }
+}
