@@ -58,7 +58,11 @@ describe('migrate reads require() shapes from Node, not from a guess (A29)', () 
 
   it('lists exactly the installed incumbents whose require() returns a namespace', () => {
     const measured = installed.filter(([from]) => kind(required(from)) === 'namespace').map(([from]) => from);
-    expect([...REQUIRE_NAMESPACE].sort()).toEqual(measured.sort());
+    // Held over what this run can measure. A CI lane whose tree hoists another major of an
+    // incumbent (or none) cannot say anything about that name, and reading its absence as "not a
+    // namespace" failed the published-suites lanes on cli-truncate (#1007).
+    const here = new Set(installed.map(([from]) => from));
+    expect(REQUIRE_NAMESPACE.filter((name) => here.has(name)).sort()).toEqual(measured.sort());
   });
 
   it.each(installed)('require(%s) moves to %s exactly when both return the same kind', (from, to) => {
