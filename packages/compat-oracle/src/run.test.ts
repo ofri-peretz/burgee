@@ -573,7 +573,12 @@ describe('a CommonJS shim busts the incumbent only when the suite busted the shi
  * come out as one pass and one failure. A runner that counted the file instead — "it compiled" or
  * "it did not" — reads that same fixture as **one** case, and the count below refuses it.
  */
-describe('the tsd runner (extra-typings-drop-in R1)', () => {
+// Not on Windows, where it cannot start: `installSuiteDeps` spawns `npm`, which is `npm.cmd` there
+// and `execFileSync` will not run a `.cmd` without a shell (spawnSync npm ENOENT, Node 24 and 26
+// on windows-latest, 2026-10-11). That is true of every `suiteDeps` host, and none is graded on
+// Windows: the oracle's ratchet runs on ubuntu. `tsdTap` below, the arithmetic of the grade, runs
+// everywhere.
+describe.skipIf(process.platform === 'win32')('the tsd runner (extra-typings-drop-in R1)', () => {
   const TSD_DEPS = { tsd: '0.33.0', '@tsd/typescript': '5.9.3' };
   const PKG = resolve(fileURLToPath(new URL('..', import.meta.url)));
   let vendorDir = '';
