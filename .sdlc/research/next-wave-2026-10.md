@@ -52,7 +52,7 @@ replacement for a named incumbent and carry no grade at all:
 
 **Two published agent-CLI checklists, and burgee's score on each.** The `external-floor` suite
 (D-149) hands the reference demo to clispec 0.3.0 and cli-agent-lint 0.3.5 on CI. Its published
-reading (`benchmarks/results/external-floor/2026-09-27.json`):
+reading (`benchmarks/results/external-floor/2026-09-27-4b8ef1c-local.json`):
 
 | checker | burgee | commander | yargs |
 | :-- | --: | --: | --: |

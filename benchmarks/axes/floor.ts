@@ -56,7 +56,8 @@ export interface ClispecScore {
 export interface AgentLintReport {
   score: { percentage: number; grade: string };
   summary: { total: number; pass: number; warn: number; fail: number; skip: number; error: number };
-  checks: { id: string; name: string; status: string }[];
+  /** `detail` is the probe's own account of what it found (`report/json.go`), when it gave one. */
+  checks: { id: string; name: string; status: string; detail?: string }[];
 }
 
 /** A tool's stdout, parsed — or the reason it could not be, so the axis can say so. */
@@ -82,7 +83,7 @@ export function clispecFailures(report: ClispecScore): string[] {
 
 /** Every check cli-agent-lint did not pass or skip: `fail`, `warn`, `info` and `error` alike. */
 export function agentLintFailures(report: AgentLintReport): string[] {
-  return report.checks.filter((c) => c.status !== 'pass' && c.status !== 'skip').map((c) => `${c.id} ${c.name} (${c.status})`);
+  return report.checks.filter((c) => c.status !== 'pass' && c.status !== 'skip').map((c) => `${c.id} ${c.name} (${c.status})${c.detail === undefined || c.detail === '' ? '' : `: ${c.detail}`}`);
 }
 
 /**
@@ -93,9 +94,13 @@ export function agentLintFailures(report: AgentLintReport): string[] {
 // Landed 2026-09-24 from the first CI measurement (run 36064855115, ddb3eaf): 6 of 24 on
 // clispec, 78% on cli-agent-lint. Raised 2026-09-27 (D-151) to what `4b8ef1c` measures once
 // `schema` answers as `--schema`: 14 of 24 and 81.4% — 81, so one lost check still fails.
+// cli-agent-lint raised 2026-10-11 (agent-lint-conformance R7) to the published 91.5% (A), once
+// the global `--no-color`, `--quiet`, `--timeout` and root help's completion, exit codes and
+// examples landed (#1002, #1006): 91, so losing even an info check (89.8%) fails, and so does
+// falling out of the top grade.
 export const BURGEE_FLOOR = {
   clispec: { min: 14, why: 'N10: a change that loses a point on clispec.dev’s published checklist regresses the floor against someone else’s bar' },
-  agentLint: { min: 81, why: 'N10: a change that loses a check on cli-agent-lint’s 34 regresses the floor against someone else’s bar' },
+  agentLint: { min: 91, why: 'N10: a change that loses a check on cli-agent-lint’s 34 regresses the floor against someone else’s bar' },
 } as const;
 
 export function clispecRecord(variant: string, report: ClispecScore, tool: Tool): BenchRecord {

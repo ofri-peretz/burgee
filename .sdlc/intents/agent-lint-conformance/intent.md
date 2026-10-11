@@ -29,7 +29,7 @@ job relies on:
 ## Why now
 
 The `external-floor` suite (D-149, D-151) runs cli-agent-lint 0.3.5 against the reference demo on
-every PR. Its published reading, `benchmarks/results/external-floor/2026-09-27.json`, scores
+every PR. Its published reading, `benchmarks/results/external-floor/2026-09-27-4b8ef1c-local.json`, scores
 **burgee 81.4% (B)**, commander 71.2% and yargs 71.9%. burgee fails eight checks:
 
 | check | severity | what it probes (read in `checks/*.go` at v0.3.5) | burgee today |
