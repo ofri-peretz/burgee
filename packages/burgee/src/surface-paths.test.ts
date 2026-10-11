@@ -26,7 +26,7 @@ const program = defineProgram({
 describe('--version with no version anywhere', () => {
   it('is a config error naming both places a version can come from', async () => {
     const r = await runCommand(program, ['--version'], { entry: '/' });
-    expect(r).toEqual({ code: ExitCode.CONFIG, stdout: '', stderr: 'error: no version declared\nhint: pass version to defineProgram, or set "version" in the owning package.json\n' });
+    expect(r).toEqual({ code: ExitCode.CONFIG, stdout: '', stderr: `error: no version declared\nhint: pass version to defineProgram, or set "version" in the owning package.json\n${JSON.stringify({ error: { kind: 'config', code: 3, message: 'no version declared' } })}\n` });
   });
 });
 
@@ -34,7 +34,7 @@ describe('completion with no shell named', () => {
   it('is a usage error that lists the shells', async () => {
     const r = await runCommand(program, ['completion']);
     expect(r.code).toBe(ExitCode.USAGE);
-    expect(r.stderr).toMatch(/^error: unknown shell ""\nhint: completion bash\|zsh\|fish\|pwsh\|fig\n$/);
+    expect(r.stderr).toMatch(/^error: unknown shell ""\nhint: completion bash\|zsh\|fish\|pwsh\|fig\n\{"error":\{"kind":"usage","code":2,/);
   });
 });
 
@@ -98,7 +98,7 @@ describe('--schema --field walking into a value', () => {
   it('says the value has no fields', async () => {
     const r = await runCommand(program, ['--schema', 'paint', '--field', 'name.x']);
     expect(r.code).toBe(ExitCode.USAGE);
-    expect(r.stderr).toBe('error: "name" has no field "x"\nhint: fields here: none — it is a value\n');
+    expect(r.stderr).toBe(`error: "name" has no field "x"\nhint: fields here: none — it is a value\n${JSON.stringify({ error: { kind: 'usage', code: 2, message: '"name" has no field "x"' } })}\n`);
   });
   it('reads nothing after --', async () => {
     const r = await runCommand(program, ['--schema', 'paint', '--', '--field', 'effects']);

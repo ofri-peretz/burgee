@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { kindOf } from './error-kinds.js';
 import { ExitCode, isExitCode } from './index.js';
 
 // E1 lock: the contract in spec.md, pinned. A changed number here is a breaking
@@ -33,5 +34,22 @@ describe('ExitCode (E1)', () => {
     // code `defineError` hands to authors, so the contract can never grow into it.
     expect(isExitCode(ExitCode.TIMEOUT + 1)).toBe(false);
     expect(isExitCode('2')).toBe(false);
+  });
+});
+
+/**
+ * clispec-conformance R2 — every code but OK is a failure, and every failure has a word: the
+ * name lower-cased, `SIGINT` as `interrupted`. A code added to the contract without a kind fails
+ * here, because the name is where the kind comes from.
+ */
+describe('every exit code has a kind (R2)', () => {
+  it.each(Object.entries(ExitCode).filter(([name]) => name !== 'OK'))('%s has a snake_case kind', (_name, code) => {
+    expect(kindOf(code)).toMatch(/^[a-z][a-z0-9_]*$/);
+  });
+
+  it('names them as the contract does, and OK is no failure', () => {
+    expect(Object.values(ExitCode).map(kindOf)).toEqual([undefined, 'runtime', 'usage', 'config', 'cancelled', 'auth', 'timeout', 'interrupted']);
+    // A code outside the contract has no kind of the contract's: a defined error carries its own.
+    expect(kindOf(10)).toBeUndefined();
   });
 });

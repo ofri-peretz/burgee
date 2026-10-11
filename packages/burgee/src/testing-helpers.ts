@@ -250,7 +250,8 @@ export async function runBurgee(program: Manifest, opts: RunOptions): Promise<Ru
       // Without `tty` a stream the caller passed keeps its own; the harness's own reads false.
       stdin: opts.tty === undefined ? rt.stdin : Object.assign(rt.stdin, { isTTY: rt.isTTY.stdin }),
       stdout: { write: rt.stdout.write, isTTY: rt.isTTY.stdout },
-      stderr: rt.stderr,
+      // clispec-conformance R6 — stderr's TTY-ness decides whether a failure adds its structured line.
+      stderr: { write: rt.stderr.write, isTTY: rt.isTTY.stderr },
       exit: (c: number) => rt.exit(c as ExitCode),
       root: program.rootPath,
     });

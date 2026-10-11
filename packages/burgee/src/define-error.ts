@@ -27,6 +27,16 @@ export interface ErrorDefinition {
   name: string;
   /** The exit code, 7–125, owned by this class alone. */
   code: number;
+  /**
+   * clispec-conformance R2 — the word the failure is, snake_case and this class's alone: the
+   * envelope's `error.kind` and its row in `--schema`'s `errors`. Without one it is the name in
+   * snake case, less a trailing `Error` (`QuotaExceededError` → `quota_exceeded`).
+   */
+  kind?: string;
+  /** Whether running the same command again may succeed; `false` unless said (R2). */
+  retryable?: boolean;
+  /** What the failure means, for its `errors` row (R2). */
+  description?: string;
 }
 
 /** What `new` takes: the message, and optionally the E3 `hint` and exact `fix`. */
@@ -48,16 +58,28 @@ export interface DefinedErrorClass {
  */
 export const EXIT_CODE = Symbol.for('burgee.exitCode');
 
-const owners = new Map<number, string>();
+const owners = new Map<number, ErrorDefinition>();
+
+/**
+ * R2 — every class defined so far, in the order defined: what `--schema` lists under `errors` and
+ * what a failure's `kind` is read from. Their kinds are settled where they are read
+ * (`error-kinds.js`), off the startup path: this entry had 401 bytes of its budget to spare.
+ */
+export const definitions = (): ErrorDefinition[] => [...owners.values()];
 
 export function defineError(definition: ErrorDefinition): DefinedErrorClass {
   const { name, code } = definition;
   if (!Number.isInteger(code) || code < MIN || code > MAX) {
     throw new RangeError(`burgee: defineError "${name}" claims exit code ${String(code)}; use an integer from ${String(MIN)} to ${String(MAX)} — 0–6 and 130 are the contract's own`);
   }
-  const owner = owners.get(code);
+  const owner = owners.get(code)?.name;
   if (owner !== undefined) throw new Error(`burgee: defineError "${name}" claims exit code ${String(code)}, which "${owner}" already owns; one code, one class (E7)`);
-  owners.set(code, name);
+  // R2 — a declared kind is refused here, where it is written, when it is not snake_case or another class declared it.
+  const { kind } = definition;
+  if (kind !== undefined && (!/^[a-z][a-z\d_]*$/.test(kind) || definitions().some((d) => d.kind === kind))) {
+    throw new RangeError(`burgee: defineError "${name}" declares kind "${kind}"; a kind is snake_case and one class's alone (R2)`);
+  }
+  owners.set(code, definition);
   const Defined = class extends Error {
     static readonly exitCode = code;
     static readonly [EXIT_CODE] = code;

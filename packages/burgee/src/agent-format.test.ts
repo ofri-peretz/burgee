@@ -128,10 +128,10 @@ describe('--format=agent leaves every other contract alone', () => {
     expect(JSON.parse(r.stdout)).toMatchObject({ ok: true, data: { branch: 'main' } });
   });
 
-  it('a --json failure is still one envelope on stdout, stderr empty (D-140)', async () => {
+  it('a --json failure is still one envelope on stdout, and stderr only its structured line (D-140, clispec-conformance R6)', async () => {
     const r = await runBurgee(program, { argv: ['boom', '--json', AGENT] });
     expect(r.code).not.toBe(0);
-    expect(r.stderr).toBe('');
+    expect(JSON.parse(r.stderr)).toEqual({ error: { kind: 'runtime', code: 1, message: 'the disk is full' } });
     expect(JSON.parse(r.stdout)).toMatchObject({ ok: false, error: { message: 'the disk is full' } });
   });
 

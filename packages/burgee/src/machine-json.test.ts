@@ -197,9 +197,15 @@ const frontEnds: [string, (argv: string[]) => string | Promise<string>][] = [
 //
 // The same holds for the last command row, `completion` (agent-lint-conformance R5): the engine
 // publishes the command it synthesises, and the façades' documents stay the bytes they were.
+/**
+ * The engine's document less what only the native surface adds: `explain`, the `completion` it
+ * serves, and the clispec keys (clispec-conformance), which ride the lazy `--schema` chunk the
+ * façades do not load.
+ */
 const withoutExplain = (out: string, pretty: boolean): string => {
-  const { explain, ...rest } = JSON.parse(out) as Record<string, unknown> & { commands: { name: string }[] };
+  const { explain, errors, ...rest } = JSON.parse(out) as Record<string, unknown> & { commands: { name: string }[] };
   expect(explain).toMatch(/^--explain <option>/);
+  expect(errors).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'usage' })]));
   expect(rest.commands.pop()?.name).toBe('completion');
   return `${JSON.stringify(rest, null, pretty ? 2 : 0)}\n`;
 };

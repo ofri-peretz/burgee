@@ -8,9 +8,22 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { runCommand } from './execute.js';
+import { runCommand as runEngine } from './execute.js';
 import { AuthError, defineCommand, defineProgram, ExitCode, UsageError } from './index.js';
 import { runBurgee } from './testing.js';
+
+/**
+ * What these cases read is the prose a person reads. A captured stderr is not a terminal, so a
+ * failure ends with the one structured line clispec-conformance R6 adds (held by
+ * `json-failure.test.ts`); it is checked to be there and then set aside, so each case still pins
+ * its words exactly.
+ */
+async function runCommand(...args: Parameters<typeof runEngine>): ReturnType<typeof runEngine> {
+  const r = await runEngine(...args);
+  const line = /\{"error":\{"kind":"[a-z_]+","code":\d+,"message":.*\}\}\n$/u;
+  if (r.stderr.startsWith('error:')) expect(r.stderr).toMatch(line);
+  return { ...r, stderr: r.stderr.replace(line, '') };
+}
 
 const many = Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`opt${String(i)}`, { type: 'boolean' as const, description: `option ${String(i)}` }]));
 
@@ -80,7 +93,7 @@ describe('a failure with nothing to run next says what the command takes', () =>
     expect(r.stderr).toBe('');
     expect(JSON.parse(r.stdout)).toEqual({
       ok: false,
-      error: { code: 1, message: 'boom', usage: { command: 'tool fail [options]', options: [{ name: '--code <value>', description: 'exit with this code instead' }] } },
+      error: { kind: 'runtime', code: 1, message: 'boom', usage: { command: 'tool fail [options]', options: [{ name: '--code <value>', description: 'exit with this code instead' }] } },
     });
   });
 
@@ -167,7 +180,7 @@ describe('an unknown command names what exists, and the nearest one', () => {
   it('gives the caller’s own line back, corrected, as the fix — quoted where a shell needs it', async () => {
     expect(await run('confg', 'get', "it's here", '--json')).toEqual({
       code: ExitCode.USAGE,
-      stdout: `${JSON.stringify({ ok: false, error: { code: 2, message: 'unknown command "confg"', hint: 'did you mean config?', fix: "tool config get 'it'\\''s here' --json" } })}\n`,
+      stdout: `${JSON.stringify({ ok: false, error: { kind: 'usage', code: 2, message: 'unknown command "confg"', hint: 'did you mean config?', fix: "tool config get 'it'\\''s here' --json" } })}\n`,
       stderr: '',
     });
   });
