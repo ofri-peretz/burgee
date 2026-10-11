@@ -326,6 +326,56 @@ describe('a vendor run that cannot finish', () => {
     rmSync(fileURLToPath(host.repo), { recursive: true, force: true });
   });
 
+  it('vendors exactly the `suiteFiles` of a suite spread over several packages, each rewritten from its own directory', () => {
+    // `@inquirer/prompts`' suite is ten files in ten packages, each beside that package's
+    // `src/`. Copied by directory it would vendor every prompt's implementation, and every
+    // other package's tests with it.
+    const into = mkdtempSync(join(tmpdir(), 'vendor-suite-files-'));
+    const host = localSliceAnsi({
+      'packages/a/a.test.ts': "import a from './src/index.ts';\nimport { helper } from './helper.js';\n",
+      'packages/a/helper.ts': 'export const helper = 1;\n',
+      'packages/a/src/index.ts': 'export default 1;\n',
+      'packages/a/internal.test.ts': "import { x } from '../lib/x.js';\n",
+      'packages/b/test/b.test.ts': "import b from '../src/index.ts';\n",
+      'packages/b/src/index.ts': 'export default 2;\n',
+      'packages/c/c.test.ts': "test('not listed', () => {});\n",
+    });
+    const result = vendor(
+      {
+        ...host,
+        testDir: 'packages',
+        testGlob: '*.test.ts',
+        suiteFiles: ['a/a.test.ts', 'a/internal.test.ts', 'b/test/b.test.ts'],
+        imports: [
+          { upstream: './a/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'a' },
+          { upstream: './b/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'b' },
+        ],
+      },
+      into,
+    );
+    const live = join(into, host.name, 'packages');
+    expect(result.files).toBe(3);
+    // Classified like any other host's file: one that reaches only the host's internals is
+    // vendored and graded on the informational line, and its internal module is shimmed.
+    expect(result.internalFiles).toEqual(['a/internal.test.ts']);
+    expect(result.internals).toEqual(['lib/x.js']);
+    expect(readFileSync(join(live, 'a', 'a.test.ts'), 'utf8')).toContain("import a from '../../shim.js';");
+    expect(readFileSync(join(live, 'b', 'test', 'b.test.ts'), 'utf8')).toContain("import b from '../../../shim-1.js';");
+    expect(existsSync(join(live, 'a', 'helper.ts')), 'the helper a listed file imports from beside itself').toBe(true);
+    for (const absent of ['a/src', 'b/src', 'c']) expect(existsSync(join(live, absent)), absent).toBe(false);
+    expect(Object.keys(result.record.tests)).toEqual(['packages/a/a.test.ts', 'packages/a/internal.test.ts', 'packages/b/test/b.test.ts']);
+    rmSync(into, { recursive: true, force: true });
+    rmSync(fileURLToPath(host.repo), { recursive: true, force: true });
+  });
+
+  it('refuses a `suiteFiles` entry the release does not ship, rather than grading a smaller suite', () => {
+    const into = mkdtempSync(join(tmpdir(), 'vendor-suite-files-missing-'));
+    const host = localSliceAnsi({ 'packages/a/a.test.ts': '' });
+    expect(() => vendor({ ...host, testDir: 'packages', testGlob: '*.test.ts', suiteFiles: ['a/a.test.ts', 'gone/gone.test.ts'] }, into)).toThrow(/lists gone\/gone\.test\.ts in suiteFiles/u);
+    rmSync(into, { recursive: true, force: true });
+    rmSync(fileURLToPath(host.repo), { recursive: true, force: true });
+  });
+
   it('copies a `rewrittenDirs` tree with its imports of the library pointed at the shim, and names one the release lacks', () => {
     // ink 8's `render.tsx` runs upstream's `examples/*` under a PTY, and each imports
     // `../../src/index.js`. Copied as an `extraDirs` entry, the import would name ink's source

@@ -416,6 +416,18 @@ describe('the shims a run writes', () => {
     expect(read(hostDir, 'shim-1.js')).toBe("// generated per run — COMPAT_TARGET=fake\nexport * from 'fake/lib/x.js';\n");
   });
 
+  it('stands a named export as the default on both runs, for a suite that imports one prompt of a package of ten', () => {
+    // `import select from '../src/index.ts'` in `@inquirer/select`'s suite, graded as the
+    // `select` that `@inquirer/prompts` and `caique/inquirer` both export by name.
+    const h = host({ imports: [{ upstream: '../index.js', subpath: '', reexportDefault: false, defaultExport: 'select' }] });
+    const hostDir = vendored(h, { 'a.test.js': '' });
+    seam.exec = tap;
+    grade(h, vendorDir, 'fake');
+    expect(read(hostDir, 'shim.js')).toBe("// generated per run — COMPAT_TARGET=fake\nexport * from 'fake';\nexport { select as default } from 'fake';\n");
+    grade(h, vendorDir, 'vitest');
+    expect(read(hostDir, 'shim.js')).toBe("// generated per run — COMPAT_TARGET=vitest\nexport * from 'vitest';\nexport { select as default } from 'vitest';\n");
+  });
+
   it('re-exports the target on a target run, whatever the control entry says, as .mjs under a CommonJS package', () => {
     const h = host({ imports: [{ upstream: '../x.js', subpath: '/config', reexportDefault: false, control: 'fake/lib/x.js' }] });
     const hostDir = vendored(h, { 'a.test.js': '' }, { pkg: {} });
