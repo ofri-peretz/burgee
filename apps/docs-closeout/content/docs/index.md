@@ -340,7 +340,7 @@ Graded by the incumbent's own test suite:
 | `restore-cursor` | 6 / 6 |
 | `signal-exit` | 134 / 135 |
 
-Weight, installed and tree-inclusive: **128,845 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.7010**.
+Weight, installed and tree-inclusive: **128,146 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.6972**.
 
 ## For agents
 
