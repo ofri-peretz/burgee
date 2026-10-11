@@ -3,6 +3,12 @@ title: Changelog
 description: "Every release of seniority, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.0.4
+
+### Patch Changes
+
+- [#977](https://github.com/ofri-peretz/burgee/pull/977) [`2e2030e`](https://github.com/ofri-peretz/burgee/commit/2e2030e4ae6f7151e1dba876b1b63d49a37afa19) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `seniority/dotenv` follows dotenv 18.0.7: `config()` treats an option passed as `undefined` as not passed, so `{ path: undefined, quiet: undefined }` keeps the `DOTENV_PATH` / `DOTENV_QUIET` (and `DOTENV_CONFIG_*`) defaults instead of overriding them, and `dotenv run` (`seniority/dotenv/cli`) honours a `DOTENV_QUIET` set in the `.env` it loads when neither a flag nor the starting environment said otherwise. dotenv 18.0.7's own suite grades it 191 / 191, level with dotenv itself.
+
 ## 1.0.3
 
 ### Patch Changes
