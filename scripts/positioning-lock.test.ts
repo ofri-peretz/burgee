@@ -569,3 +569,52 @@ describe('the title lock can fail', () => {
     expect(llmsRowProblems(`- [bellpull](${bellpull.url}): Runs a subprocess.`, [bellpull])).toEqual([expect.stringMatching(/whole/u)]);
   });
 });
+
+// ── R14: the supply-chain claims are plain (owner, 2026-10-10) ────────────────────────────────
+//
+// A reviewer suggested marketing "immunity to supply-chain exploits" and "zero external
+// dependencies" as enterprise benefits. What a check proves is narrower: what an install brings
+// in, that nothing runs at install time, how a release is published. The supply-chain page says
+// that, each statement beside its check, and this keeps the words that promise more off it, off
+// the READMEs, the docs landing and the npm descriptions.
+
+/** Words that promise an absence of risk no check measures. */
+const ABSOLUTE = /\b(?:enterprise-grade|immun(?:e|ity)|completely|zero[- ]risk|risk-free|bulletproof|military-grade|unhackable|100% secure)\b/iu;
+
+/** The supply-chain page, and every page R1 holds. */
+export const PLAIN_PAGES = ['apps/docs/content/docs/supply-chain.mdx', ...PAGES];
+
+/** What is wrong with one page or description (R14): each line that uses an absolute. */
+export function absoluteProblems(page: string, text: string): string[] {
+  return text
+    .split('\n')
+    .map((line, i) => [line, i + 1] as const)
+    .filter(([line]) => ABSOLUTE.test(line))
+    .map(([line, at]) => `${page}:${String(at)} says "${ABSOLUTE.exec(line)?.[0] ?? ''}" — state what the check measures, and link it: "${line.trim().slice(0, 120)}"`);
+}
+
+describe('no absolute supply-chain claim (R14)', () => {
+  it('holds the supply-chain page, the root README, every package README and the docs landing', () => {
+    expect(PLAIN_PAGES).toEqual(expect.arrayContaining(['apps/docs/content/docs/supply-chain.mdx', 'README.md', DOCS_LANDING]));
+    expect(PLAIN_PAGES.filter((page) => page.startsWith('packages/')).length).toBeGreaterThanOrEqual(10);
+  });
+
+  it.each(PLAIN_PAGES)('%s', (page) => {
+    expect(absoluteProblems(page, read(page))).toEqual([]);
+  });
+
+  it.each(described().map((d) => [d.name, d] as const))('%s description', (name, { description }) => {
+    expect(absoluteProblems(`packages/${name}/package.json`, description)).toEqual([]);
+  });
+
+  it('fails the phrasing it was written against, and passes the plain one', () => {
+    const suggested = ['## Enterprise-grade security', 'Immunity to supply-chain exploits.', 'Completely free of third-party risk: zero risk.', 'Bulletproof.'].join('\n');
+    expect(absoluteProblems('page', suggested)).toEqual([
+      expect.stringMatching(/:1 says "Enterprise-grade"/u),
+      expect.stringMatching(/:2 says "Immunity"/u),
+      expect.stringMatching(/:3 says "Completely"/u),
+      expect.stringMatching(/:4 says "Bulletproof"/u),
+    ]);
+    expect(absoluteProblems('page', 'Installing any burgee package installs only burgee packages, held by install-graph-lock.')).toEqual([]);
+  });
+});

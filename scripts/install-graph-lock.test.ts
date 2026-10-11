@@ -18,7 +18,9 @@
  *     (react and react-reconciler for `controlroom/ink`), which npm leaves to the adopter;
  *   - no installed package declares `preinstall`, `install` or `postinstall`, or ships a
  *     `binding.gyp`: nothing runs when the family is installed;
- *   - `benchmarks/install-graph.json`, which the docs print, is the measurement as it stands.
+ *   - every installed package is MIT-licensed;
+ *   - `benchmarks/install-graph.json`, and the table `apps/docs/content/docs/supply-chain.mdx`
+ *     prints from it, are the measurement as it stands.
  *
  * Proven red in this file, not only once: two fixture packages are packed and installed the same
  * way — one with a `postinstall` script, one that depends on a package outside the family — and
@@ -35,9 +37,12 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { discard, type Manifest, npm } from './family-install.js';
-import { GRAPH_FILE, type Installed, installAlone, installScripts, measureFamily, outsiders, project, render } from './install-graph.js';
+import { GRAPH_FILE, type Installed, installAlone, installScripts, licenceProblems, measureFamily, outsiders, PAGE_FILE, project, render, table, withTable } from './install-graph.js';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
+
+/** A count as the README's prose spells it. */
+const NUMBERS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
 
 /** One pack of ten packages and ten installs, then two fixtures packed and installed. */
 const SETUP_TIMEOUT_MS = 240_000;
@@ -67,12 +72,30 @@ describe('installing a published package installs only the family, and runs noth
     expect(installs.flatMap((i) => installScripts(i))).toEqual([]);
   });
 
+  it('installs only MIT-licensed packages', () => {
+    expect(installs.flatMap((i) => licenceProblems(i))).toEqual([]);
+  });
+
   it('every install contains the package itself', () => {
     for (const { name, installed } of installs) expect(installed, name).toContain(name);
   });
 
   it('benchmarks/install-graph.json is the measurement — run `npx tsx scripts/install-graph.ts` if not', () => {
     expect(readFileSync(GRAPH_FILE, 'utf8')).toBe(render(project(installs)));
+  });
+
+  it("the root README's count for `npm i burgee` is the measurement", () => {
+    const said = /`npm i burgee` installs (\w+) packages/u.exec(readFileSync(join(ROOT, 'README.md'), 'utf8'))?.[1];
+    expect(said, 'the README no longer says how many packages `npm i burgee` installs').toBeDefined();
+    const count = installs.find((i) => i.name === 'burgee')?.installed.length ?? -1;
+    expect(said).toBe(NUMBERS[count] ?? String(count));
+  });
+
+  it("the supply-chain page's table is the measurement — run `npm run install-graph` if not", () => {
+    const page = readFileSync(PAGE_FILE, 'utf8');
+    const regenerated = withTable(page, table(project(installs)));
+    expect(regenerated, 'the page has no install-graph:start / install-graph:end markers').toBeDefined();
+    expect(page).toBe(regenerated);
   });
 });
 
@@ -145,6 +168,10 @@ describe('the lock can fail', () => {
     expect(outsiders(peer, new Set(['screen']))).toEqual([]);
     const required: Installed = { ...peer, manifests: new Map([...peer.manifests].map(([k, m]) => [k, { ...m, peerDependenciesMeta: {} }])) };
     expect(outsiders(required, new Set(['screen']))).toEqual(['screen: installing it installs react, which is not a burgee package']);
+  });
+
+  it('catches a package under another licence', () => {
+    expect(licenceProblems(withScript)).toEqual([expect.stringMatching(/with-postinstall is licensed "undefined", not MIT/u)]);
   });
 
   it('catches a binding.gyp, which npm builds without a script asking it to', () => {

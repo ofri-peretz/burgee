@@ -120,6 +120,25 @@ yargs", and every row of `https://burgee.interlace.tools/llms.txt`'s package map
   llms.txt package map is the package's link, then its npm description whole, with nothing
   between them. A family subpath (`controlroom/ink`) is the family's code, not an incumbent.
 
+### Supply-chain claims — decided by the owner, 2026-10-10
+
+An external review suggested marketing "Enterprise & Security Benefits": immunity to
+supply-chain exploits, zero external dependencies, forkability, one surface for Dependabot and
+Snyk. The owner asked for the professional, objective version: claim only what a check proves.
+What the checks prove is narrower than the suggestion and specific: what installing each package
+puts on disk, that nothing in it runs at install time, how a release is published and signed,
+the licence, and that a fork inherits the incumbents' suites.
+
+- **R14** **Supply-chain statements are plain and checked.** `/docs/supply-chain` ("Supply
+  chain and continuity") states the install graph of each package, read from
+  `scripts/install-graph.ts`'s measurement; that no installed package has an install script;
+  trusted publishing with SLSA provenance and no npm token; the SBOM on each GitHub Release; the
+  MIT licence; the Scorecard score with the date it was read; and that the vendored incumbent
+  suites travel with a fork. Each statement links its check, and a statement with no check is
+  not made. That page, the root README, every package README, the docs landing and every npm
+  description use none of "enterprise-grade", "immune"/"immunity", "completely", "zero risk",
+  "risk-free", "bulletproof", "military-grade", "unhackable" or "100% secure".
+
 ## Status
 
 | R | Status | Where | Check |
@@ -136,6 +155,7 @@ yargs", and every row of `https://burgee.interlace.tools/llms.txt`'s package map
 | R10 | **Built** | caique's "Guarantees" and "Design documents", flagstaff's "Design documents" | `positioning-lock` (`sectionProblems`), proven red on `e992fc7619` for caique and flagstaff |
 | R11 | **Built** | controlroom's "What it does" | `positioning-lock` (`sectionProblems`), proven red on `e992fc7619` for controlroom |
 | R13 | **Built** | `HOME_TITLES` in `apps/docs-chassis/src/home-title.ts`, rendered by `homeMetadata` in `package-home.tsx` for all ten home pages (the front door's now included, with `SUMMARY` as its description); `packageRow` in `apps/docs-chassis/src/llms.ts` | `scripts/positioning-lock.test.ts` (`titleProblems`, `placementProblems`, `llmsRowProblems`), reading `homeMetadata` over every row of `.github/vercel-apps.json` and `llmsIndex` over `publicPackages()`; proven red on `d68f63a68d`: all ten titles and the llms.txt map, 11 failures |
+| R14 | **Built** | `apps/docs/content/docs/supply-chain.mdx`, in the navigation after Weight; its install table projected by `scripts/install-graph.ts`; the root README's "Supply chain and continuity" section and one sentence in the docs landing's "One supply chain" | `scripts/positioning-lock.test.ts` (`absoluteProblems`) over the page, every R1 page and every description, proven red by writing "enterprise-grade immunity" into the page; `scripts/install-graph-lock.test.ts` holds the table, the README's `npm i burgee` count, install scripts and the licence |
 | R12 | **Reported** | the root README, the package READMEs and the docs prose | not gated, by design; the before and after counts are in the PR that made each change |
 
 ## Design

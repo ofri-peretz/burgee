@@ -387,6 +387,20 @@ installed-size figures come from the measurement published in
 
 ---
 
+## 🔐 Supply chain and continuity
+
+`npm i burgee` installs six packages, all of them from this repository, and installing any
+family package runs no install script
+([`install-graph-lock`](./scripts/install-graph-lock.test.ts)). Every release is published
+through npm trusted publishing with SLSA provenance and no npm token
+([`trusted-publishing-lock`](./scripts/trusted-publishing-lock.test.ts)). Everything is MIT, and
+each incumbent's own test suite is vendored in [`packages/compat-oracle`](./packages/compat-oracle/),
+so a fork keeps the conformance tests that tell it whether it still behaves the same.
+[Supply chain and continuity](https://burgee.interlace.tools/docs/supply-chain) has the install
+graph for each package and the check behind every statement.
+
+---
+
 ## 👥 Who is this for?
 
 | You are… | What burgee gives you |
