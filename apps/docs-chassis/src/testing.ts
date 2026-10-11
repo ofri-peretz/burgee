@@ -189,6 +189,16 @@ export function docsSiteSuite(testFileUrl: string): void {
       expect(app.built('index.html'), 'the Analytics element is not given this app’s row key').toContain(String.raw`\"site\":\"${key}\"`);
     });
 
+    it('ships the search dialog that reports what readers look for', () => {
+      // The tracked dialog is lazy, so it is in a chunk of its own that no page names: read them all.
+      const chunks = join(app.dir, '.next', 'static', 'chunks');
+      expect(existsSync(chunks), `no ${chunks}. Run \`npm run build -w ${app.row.workspace}\` first`).toBe(true);
+      const sends = readdirSync(chunks, { recursive: true, encoding: 'utf8' })
+        .filter((file) => file.endsWith('.js'))
+        .some((file) => /["'`]docs_search["'`]/u.test(readFileSync(join(chunks, file), 'utf8')));
+      expect(sends, 'no client chunk sends `docs_search` — does docs-chassis RootLayout still render DocsProvider, whose search dialog is the tracked one?').toBe(true);
+    });
+
     it('rewrites /ingest to PostHog on the same origin', () => {
       const manifest = JSON.parse(readFileSync(join(app.dir, '.next', 'routes-manifest.json'), 'utf8')) as { rewrites: { afterFiles?: { source: string; destination: string }[] } };
       const ingest = (manifest.rewrites.afterFiles ?? []).map((r) => `${r.source} -> ${r.destination}`);

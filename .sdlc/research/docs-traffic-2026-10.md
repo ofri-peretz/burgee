@@ -49,3 +49,25 @@ then `/docs` landings and `burgee/docs/compatibility` (5) and `burgee/docs/packa
    Search Console (one DNS TXT record at Namecheap) and submit the ten `/sitemap.xml` URLs.
 4. **Instrument search.** A `docs_search` event with the query and result count would make the
    next read of this file actionable.
+
+## How to read it: `docs_search`
+
+Since `docs/search-event`, every docs site's search dialog sends one `docs_search` event per query
+a reader settled on (`apps/docs-chassis/src/search-tracker.ts`): `query` (trimmed, lowercased, at
+most 100 characters; under 2 characters is not sent), `results` (how many entries the search
+returned), and `clicked` (the path of the result opened, or null). A query counts as settled once
+it stood for 800 ms, or when the dialog closed or a result was opened; it is sent when the reader
+moves on, so `clicked` is known. `app`, `site` and `host` come from the super-properties.
+
+The queries readers asked for and the docs could not answer, per site:
+
+```sql
+SELECT properties.site, properties.query, count()
+FROM events
+WHERE event = 'docs_search' AND properties.results = 0 AND properties.app = 'burgee-docs'
+GROUP BY 1, 2
+ORDER BY 3 DESC
+```
+
+A query that returned results but whose `clicked` is null is the second list worth reading: the
+search found something, and the reader did not think it was the answer.

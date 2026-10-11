@@ -105,6 +105,17 @@ function ensureInit({ site, host }: SiteProperties): void {
   initialized = true;
 }
 
+/**
+ * Sends one custom event — only when `ensureInit` above actually started PostHog. No key, a
+ * server render, or a scripted browser: nothing is sent and nothing is queued, so an event
+ * obeys exactly the rules `$pageview` does.
+ */
+export function captureEvent(event: string, properties: Record<string, unknown>): void {
+  if (!initialized) return;
+  // eslint-disable-next-line browser-security/no-tracking-without-consent -- the owner's decision (D-131), as for `$pageview`: anonymous, `person_profiles: 'identified_only'`, and the only free text is a search query, trimmed and capped by `search-tracker.ts`
+  posthog.capture(event, properties);
+}
+
 /** Wraps the app in PostHog and registers which site every event came from. */
 export function Analytics({ properties, children }: { readonly properties: SiteProperties; readonly children: ReactNode }) {
   if (typeof window !== 'undefined') ensureInit(properties);
