@@ -34,7 +34,7 @@ bun add paratext
 import { emit, processRuntime } from 'paratext';
 
 const runtime = processRuntime();
-emit(runtime, 'link', { text: 'Docs', url: 'https://x.dev' });
+console.log(emit(runtime, 'link', { text: 'Docs', url: 'https://x.dev' }));
 // iTerm2:  \e]8;;https://x.dev\aDocs\e]8;;\a
 // a pipe:  Docs (https://x.dev)
 ```
@@ -163,7 +163,7 @@ Graded by the incumbent's own test suite:
 | `term-img` | 18 / 18 |
 | `terminal-link` | 8 / 8 |
 
-Weight, installed and tree-inclusive: **121,499 bytes** against **2,235,987** for the incumbents it replaces — a ratio of **0.0543**.
+Weight, installed and tree-inclusive: **121,512 bytes** against **2,235,987** for the incumbents it replaces — a ratio of **0.0543**.
 
 ## For agents
 
