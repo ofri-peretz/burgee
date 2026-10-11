@@ -22,9 +22,11 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { SHELLS } from './completions.js';
 import { renderHelp } from './help-entry.js';
-import { defineCommand, defineProgram } from './index.js';
+import { defineCommand, defineProgram, ExitCode, runCommand } from './index.js';
 import { type CommandNode, type Manifest } from './manifest.js';
+import { completionNode, EXIT_ADVICE, exitRows } from './root-help.js';
 import { listed } from './usage.js';
 
 const ok = (): string => 'ok';
@@ -122,6 +124,15 @@ const shapes: { name: string; manifest: Manifest; node: CommandNode; verbose: bo
   { name: 'a leaf with nothing but a name', manifest: bare, node: node(bare, ['app', 'ping']), verbose: false },
   { name: 'terms wider than their code-unit count', manifest: wide, node: node(wide, ['app']), verbose: false },
   { name: 'a root over a group, listed by the commands that run', manifest: nested, node: node(nested, ['demo']), verbose: false, commands: listed(nested, node(nested, ['demo'])) },
+  // What the engine hands the renderer at the root (agent-lint-conformance R4–R6, `root-help.ts`):
+  // its `completion`, the exit codes under their own heading, and the commands' first examples.
+  {
+    name: "the engine's root: completion, exit codes and the commands' examples",
+    manifest: nested,
+    node: { ...node(nested, ['demo']), examples: [{ command: 'demo greet ada' }, { command: 'demo config get user.name', description: 'one value' }] },
+    verbose: false,
+    commands: [...listed(nested, node(nested, ['demo'])), completionNode(nested) as CommandNode, ...exitRows(nested.rootPath)],
+  },
 ];
 
 describe('help is a drawing, and the drawing is pinned (PLAN 2.5.1)', () => {
@@ -132,4 +143,94 @@ describe('help is a drawing, and the drawing is pinned (PLAN 2.5.1)', () => {
       });
     }
   }
+});
+
+/**
+ * agent-lint-conformance R4–R6 — the root screen carries what a caller branches on, and what to
+ * type. cli-agent-lint 0.3.5 reads three of them off the root help it discovers: an `Exit codes`
+ * section (PV-4), a `completion` command in the listing (SD-3) and an `Examples:` heading (SD-6).
+ * Each is held here as a property of the screen, beside the drawing that pins it.
+ */
+/** The rows under one heading of a help screen, up to the blank line that ends the section. */
+function sectionOf(text: string, title: string): string[] {
+  const lines = text.split('\n');
+  const at = lines.indexOf(title);
+  if (at === -1) return [];
+  const end = lines.findIndex((l, i) => i > at && l === '');
+  return lines.slice(at + 1, end === -1 ? undefined : end);
+}
+
+/** The engine's root help for the demo-shaped fixture. */
+const root = async (): Promise<string> => (await runCommand(nested, ['--help'])).stdout;
+
+describe('the root help carries the exit codes, completion and examples (agent-lint-conformance R4–R6)', () => {
+
+  it('R4: lists every ExitCode, by number and name, under "Exit codes:" after the commands', async () => {
+    const text = await root();
+    const rows = sectionOf(text, 'Exit codes:');
+    expect(rows).toHaveLength(Object.keys(ExitCode).length);
+    for (const [name, code] of Object.entries(ExitCode)) {
+      expect(rows.some((r) => new RegExp(`^ {2}${String(code)}\\s+${name.toLowerCase()}: \\S`).test(r)), `${name} (${String(code)}) has a line`).toBe(true);
+    }
+    expect(text.indexOf('Exit codes:')).toBeGreaterThan(text.indexOf('Commands:'));
+    // A bare invocation prints the same screen, as the usage error it is.
+    expect((await runCommand(nested, [])).stderr).toBe(text);
+  });
+
+  it('R4: the advice is keyed by the contract, so a code without a line cannot be added', () => {
+    expect(Object.keys(EXIT_ADVICE)).toEqual(Object.keys(ExitCode));
+  });
+
+  it('R4: a command below the root does not repeat the contract', async () => {
+    expect((await runCommand(nested, ['greet', '--help'])).stdout).not.toContain('Exit codes:');
+    expect((await runCommand(nested, ['help', 'config'])).stdout).not.toContain('Exit codes:');
+  });
+
+  it('R5: the engine root help lists completion <shell>, naming every shell it serves', async () => {
+    const { stdout, code } = await runCommand(nested, ['--help']);
+    expect(code).toBe(ExitCode.OK);
+    const row = sectionOf(stdout, 'Commands:').find((r) => r.trimStart().startsWith('completion <shell>'));
+    expect(row, stdout).toBeDefined();
+    for (const shell of [...SHELLS, 'fig']) expect(row).toContain(shell);
+  });
+
+  it('R5: completion --help answers as a listed command does, and a shell still prints its script', async () => {
+    const help = await runCommand(nested, ['completion', '--help']);
+    expect(help.code).toBe(ExitCode.OK);
+    expect(help.stdout).toMatch(/^Usage: completion \[options\] <shell>\n\nPrint a shell completion script/);
+    expect((await runCommand(nested, ['completion', '-h'])).stdout).toBe(help.stdout);
+    expect((await runCommand(nested, ['completion', 'bash'])).stdout).toContain('demo');
+  });
+
+  it('R5: a program that defines its own completion is listed as it declared it, once', async () => {
+    const own = defineProgram({ name: 'own', commands: [defineCommand({ name: 'completion', description: 'mine', effects: 'read_only', run: ok })] });
+    const { stdout } = await runCommand(own, ['--help']);
+    expect(stdout.match(/^ {2}completion/gm)).toHaveLength(1);
+    expect(stdout).toMatch(/^ {2}completion\s+mine$/m);
+  });
+
+  it("R6: the root's examples are its children's first examples when it declares none", async () => {
+    const withExamples = defineProgram({
+      name: 'demo',
+      commands: [
+        defineCommand({ name: 'greet', effects: 'read_only', examples: [{ command: 'demo greet ada' }, { command: 'demo greet ada --shout' }], run: ok }),
+        defineCommand({ name: 'config', commands: [defineCommand({ name: 'get', effects: 'read_only', examples: [{ command: 'demo config get user.name' }], run: ok })] }),
+        defineCommand({ name: 'fail', effects: 'idempotent', run: ok }),
+        defineCommand({ name: 'hush', hidden: true, effects: 'withheld', examples: [{ command: 'demo hush' }], run: ok }),
+        defineCommand({ name: 'secrets', hidden: true, commands: [defineCommand({ name: 'rotate', effects: 'withheld', examples: [{ command: 'demo secrets rotate' }], run: ok })] }),
+      ],
+    });
+    expect(sectionOf((await runCommand(withExamples, ['--help'])).stdout, 'Examples:')).toEqual(['  $ demo greet ada', '  $ demo config get user.name']);
+    // Below the root a command shows its own, as before.
+    expect(sectionOf((await runCommand(withExamples, ['greet', '--help'])).stdout, 'Examples:')).toEqual(['  $ demo greet ada', '  $ demo greet ada --shout']);
+  });
+
+  it("R6: the root's own examples win when it declares them", async () => {
+    const declared = defineProgram({
+      name: 'demo',
+      examples: [{ command: 'demo greet ada', description: 'the one line to try first' }],
+      commands: [defineCommand({ name: 'greet', effects: 'read_only', examples: [{ command: 'demo greet grace' }], run: ok })],
+    });
+    expect(sectionOf((await runCommand(declared, ['--help'])).stdout, 'Examples:')).toEqual(['  $ demo greet ada', '    the one line to try first']);
+  });
 });

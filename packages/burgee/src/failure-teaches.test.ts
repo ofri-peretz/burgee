@@ -275,7 +275,7 @@ describe('a refusal carries the line to run', () => {
 describe('help says what each command takes', () => {
   it('lists a command with its arguments, the way commander does', async () => {
     expect((await demo('config', '--help')).stdout).toContain('Commands:\n  get <key>  Print one value\n');
-    expect((await demo('--help')).stdout).toContain('  greet <name>      Greet someone\n');
+    expect((await demo('--help')).stdout).toContain('  greet <name>        Greet someone\n');
   });
 });
 
@@ -287,7 +287,9 @@ describe('help says what each command takes', () => {
  */
 describe('the line to run is on the first screen, and whole', () => {
   it('lists root help by the commands that run, each by its full path with what it takes, when they fit', async () => {
-    const commands = 'Commands:\n  greet <name>      Greet someone\n  config get <key>  Print one value\n  fail              Fail on purpose\n\n';
+    // The engine's own `completion` closes the list (agent-lint-conformance R5).
+    const commands =
+      'Commands:\n  greet <name>        Greet someone\n  config get <key>    Print one value\n  fail                Fail on purpose\n  completion <shell>  Print a shell completion script: bash, zsh, fish, pwsh or fig\n\n';
     expect((await demo('--help')).stdout).toContain(commands);
     // A bare invocation prints the same screen, as the usage error it is.
     expect((await demo()).stderr).toContain(commands);
@@ -299,7 +301,7 @@ describe('the line to run is on the first screen, and whole', () => {
     const leaves = Array.from({ length: 9 }, (_, i) => defineCommand({ name: `k${String(i)}`, effects: 'read_only', run: () => i }));
     const big = defineProgram({ name: 'big', commands: [defineCommand({ name: 'keys', description: 'Nine of them', commands: leaves })] });
     const help = (await runCommand(big, ['--help'])).stdout;
-    expect(help).toMatch(/Commands:\n {2}keys +Nine of them\n\n/);
+    expect(help).toMatch(/Commands:\n {2}keys +Nine of them\n {2}completion <shell> /);
     expect(help).not.toContain('keys k0');
   });
 

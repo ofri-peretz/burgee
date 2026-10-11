@@ -491,3 +491,151 @@ For agents: --schema prints every command, option, default and env var as JSON, 
 on stdout, and --explain <option> says where a value came from.
 "
 `;
+
+exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > the engine's root: completion, exit codes and the commands' examples, at 33 columns 1`] = `
+"Usage: demo <command> [options]
+
+The burgee reference demo
+
+Global options:
+  --json         machine-readable
+                 output
+  --help         show this help
+  --schema       the program as
+                 data
+
+Commands:
+  greet <name>   Greet someone
+  config get <key>
+                 Print one
+                 configuration
+                 value
+  fail           Fail on purpose
+  completion <shell>
+                 Print a shell
+                 completion
+                 script: bash,
+                 zsh, fish, pwsh
+                 or fig
+
+Exit codes:
+  0              ok: the command
+                 completed
+  1              runtime: it ran
+                 and failed; read
+                 the message
+  2              usage: bad
+                 arguments or an
+                 unknown command;
+                 rewrite the
+                 command
+  3              config: the
+                 config or
+                 environment did
+                 not load; fix
+                 it, not the
+                 command
+  4              cancelled:
+                 cancelled, or a
+                 decision is
+                 needed; decide,
+                 then run a next
+                 command
+  5              auth: a
+                 credential is
+                 missing or
+                 refused; log in
+                 and run it again
+  130            sigint:
+                 interrupted;
+                 stop
+
+Examples:
+  $ demo greet ada
+  $ demo config get user.name
+    one value
+
+For agents: --schema prints every
+command, option, default and env
+var as JSON, in one call. --json
+prints one envelope on stdout,
+and --explain <option> says where
+a value came from.
+"
+`;
+
+exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > the engine's root: completion, exit codes and the commands' examples, at 80 columns 1`] = `
+"Usage: demo <command> [options]
+
+The burgee reference demo
+
+Global options:
+  --json              machine-readable output
+  --help              show this help
+  --schema            the program as data
+
+Commands:
+  greet <name>        Greet someone
+  config get <key>    Print one configuration value
+  fail                Fail on purpose
+  completion <shell>  Print a shell completion script: bash, zsh, fish, pwsh or
+                      fig
+
+Exit codes:
+  0                   ok: the command completed
+  1                   runtime: it ran and failed; read the message
+  2                   usage: bad arguments or an unknown command; rewrite the
+                      command
+  3                   config: the config or environment did not load; fix it,
+                      not the command
+  4                   cancelled: cancelled, or a decision is needed; decide,
+                      then run a next command
+  5                   auth: a credential is missing or refused; log in and run
+                      it again
+  130                 sigint: interrupted; stop
+
+Examples:
+  $ demo greet ada
+  $ demo config get user.name
+    one value
+
+For agents: --schema prints every command, option, default and env var as JSON,
+in one call. --json prints one envelope on stdout, and --explain <option> says
+where a value came from.
+"
+`;
+
+exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > the engine's root: completion, exit codes and the commands' examples, at 120 columns 1`] = `
+"Usage: demo <command> [options]
+
+The burgee reference demo
+
+Global options:
+  --json              machine-readable output
+  --help              show this help
+  --schema            the program as data
+
+Commands:
+  greet <name>        Greet someone
+  config get <key>    Print one configuration value
+  fail                Fail on purpose
+  completion <shell>  Print a shell completion script: bash, zsh, fish, pwsh or fig
+
+Exit codes:
+  0                   ok: the command completed
+  1                   runtime: it ran and failed; read the message
+  2                   usage: bad arguments or an unknown command; rewrite the command
+  3                   config: the config or environment did not load; fix it, not the command
+  4                   cancelled: cancelled, or a decision is needed; decide, then run a next command
+  5                   auth: a credential is missing or refused; log in and run it again
+  130                 sigint: interrupted; stop
+
+Examples:
+  $ demo greet ada
+  $ demo config get user.name
+    one value
+
+For agents: --schema prints every command, option, default and env var as JSON, in one call. --json prints one envelope
+on stdout, and --explain <option> says where a value came from.
+"
+`;

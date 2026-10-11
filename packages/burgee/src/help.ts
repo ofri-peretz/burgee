@@ -207,14 +207,17 @@ function argumentRows(args: ArgumentSpec[]): Row[] {
  * or the `listed` ones by their path from `node`. Each is listed with what it takes — `get <key>`,
  * as commander lists `get [options] <key>` — so the line to run is on the screen: B1's agents read
  * a bare `get` and spent a turn on `config get --help` to learn it takes a key, in 5 of 20 runs of
- * the task that asks for one. A listed command sits under its top-level ancestor's heading.
+ * the task that asks for one. A listed command sits under its top-level ancestor's heading; a row
+ * the engine adds that the manifest does not hold sits under its own `group` — that is how root help
+ * gets `completion <shell>` and its `Exit codes:` (agent-lint-conformance R4, R5), passed in like
+ * the rest so this door carries none of their words.
  */
 function commandSections(manifest: Manifest, node: CommandNode, listed?: readonly CommandNode[]): Section[] {
   const children =
     listed ?? manifest.commands.filter((c) => c.hidden !== true && c.path.length === node.path.length + 1 && node.path.every((seg, i) => c.path[i] === seg));
   const groups = new Map<string, Row[]>();
   for (const c of children) {
-    const heading = manifest.find(c.path.slice(0, node.path.length + 1))?.group ?? 'Commands:';
+    const heading = (manifest.find(c.path.slice(0, node.path.length + 1)) ?? c).group ?? 'Commands:';
     const rows = groups.get(heading) ?? [];
     rows.push({ term: [...c.path.slice(node.path.length), ...(c.arguments ?? []).map(argumentTerm)].join(' '), text: `${c.summary ?? c.description ?? ''}${deprecation(c.deprecated)}`.trim(), kind: 'command' });
     groups.set(heading, rows);

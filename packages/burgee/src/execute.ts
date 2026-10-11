@@ -108,6 +108,8 @@ export interface Program {
    * > `package.json#name` > the user config directory; `true` uses the program's name.
    */
   config?: boolean | { name: string };
+  /** Shown under `Examples:` in root help; without them, each top-level command's first example is (agent-lint-conformance R6). */
+  examples?: Example[];
   commands: AnyCommand[];
 }
 
@@ -153,7 +155,7 @@ export function defineProgram(program: Program): Manifest {
   if (program.schemaBudget !== undefined) manifest.schemaBudget = program.schemaBudget;
   if (program.config === true) manifest.config = { name: program.name };
   else if (typeof program.config === 'object' && program.config !== null) manifest.config = program.config;
-  manifest.add({ path: [program.name], ...(program.description === undefined ? {} : { description: program.description }), options: {} });
+  manifest.add({ path: [program.name], ...helpFields(program as AnyCommand), options: {} });
   addTree(manifest, [program.name], program.commands);
   return manifest;
 }

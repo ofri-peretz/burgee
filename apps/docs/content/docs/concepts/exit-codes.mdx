@@ -20,7 +20,11 @@ and nothing else reaches `process.exitCode`.
 | 130 | `SIGINT` | interrupted, after the terminal was restored | stop |
 
 `ExitCode` and `isExitCode()` are exported from `burgee`. `--schema` carries the table as
-`exitCodes`, so an agent reads the codes from the program instead of from this page.
+`exitCodes`, so an agent reads the codes from the program instead of from this page, and root
+`--help` prints it under `Exit codes:`, one line per code with what to do about it. The section is
+generated from `ExitCode`, so a code appears in help the day it joins the contract (`R4: lists
+every ExitCode, by number and name, under "Exit codes:" after the commands` in
+[`help-snapshot.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/help-snapshot.test.ts)).
 
 ## Why it exists
 

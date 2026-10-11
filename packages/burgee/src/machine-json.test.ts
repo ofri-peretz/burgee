@@ -194,9 +194,13 @@ const frontEnds: [string, (argv: string[]) => string | Promise<string>][] = [
  * carried it would advertise a flag it refuses. Every other byte is the same document, and the
  * re-writing keeps key order, so the comparison below is still byte for byte.
  */
+//
+// The same holds for the last command row, `completion` (agent-lint-conformance R5): the engine
+// publishes the command it synthesises, and the façades' documents stay the bytes they were.
 const withoutExplain = (out: string, pretty: boolean): string => {
-  const { explain, ...rest } = JSON.parse(out) as Record<string, unknown>;
+  const { explain, ...rest } = JSON.parse(out) as Record<string, unknown> & { commands: { name: string }[] };
   expect(explain).toMatch(/^--explain <option>/);
+  expect(rest.commands.pop()?.name).toBe('completion');
   return `${JSON.stringify(rest, null, pretty ? 2 : 0)}\n`;
 };
 

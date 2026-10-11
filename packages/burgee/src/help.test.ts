@@ -6,7 +6,10 @@ import { describe, expect, it } from 'vitest';
 
 import { renderHelp } from './help-entry.js';
 import { defineCommand, defineProgram } from './index.js';
+import { type CommandNode } from './manifest.js';
+import { completionNode, exitRows, rootExamples } from './root-help.js';
 import { runBurgee } from './testing.js';
+import { listed } from './usage.js';
 
 const ok = (): string => 'ok';
 
@@ -169,7 +172,10 @@ describe('help through the engine', () => {
     expect(a.stdout).toBe(b.stdout);
     expect(a.stdout).toBe(renderHelp(program, deploy, { width: 100 }));
     const r = await runBurgee(program, { argv: ['help'] });
-    expect(r.stdout).toBe(renderHelp(program, root, { width: 100 }));
+    // The engine lists the commands that run, then its own `completion` and the exit codes, and
+    // shows the root's examples (agent-lint-conformance R4–R6).
+    const commands = [...listed(program, root), completionNode(program) as CommandNode, ...exitRows(program.rootPath)];
+    expect(r.stdout).toBe(renderHelp(program, { ...root, examples: rootExamples(program, root) }, { width: 100, commands }));
   });
 
   it('takes its width from the injected stdout when it has columns (H3)', async () => {

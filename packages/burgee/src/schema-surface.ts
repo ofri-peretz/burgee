@@ -1,3 +1,4 @@
+import { type Manifest } from './manifest.js';
 /**
  * Copyright (c) 2026 Ofri Peretz
  * Licensed under the MIT License. Use of this source code is governed by the
@@ -12,7 +13,7 @@
  * With the `--schema` surface it serves: `execute.ts` imports this module only when `--schema`
  * is on the command line (M2), so neither weighs on a run that does not ask for it.
  */
-import { type Manifest } from './manifest.js';
+import { completionNode } from './root-help.js';
 import { UsageError } from './validate.js';
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -60,15 +61,25 @@ export async function schemaSurface(manifest: Manifest, argv: string[]): Promise
   const drop = at === -1 ? -1 : at + width;
   // `--format=…` and `--field` are flags, never steps in the command path being drilled into.
   const path = head.filter((a, i) => a !== '--schema' && !a.startsWith('--format=') && (i < at || i > drop));
+  // agent-lint-conformance R5 — the `completion` the engine serves is published like a command the
+  // program declared: listed last, and drilled into by name. Absent when the program has its own.
+  const completion = completionNode(manifest);
   const { node } = manifest.resolve(path as string[], manifest.rootPath);
+  let one = node?.run === undefined ? undefined : node;
+  if (one === undefined && path.length === 1 && path[0] === 'completion') one = completion;
   if (field !== undefined) {
-    if (node?.run === undefined) throw new UsageError('--field drills into one command', 'name the command first: --schema <command> --field <path>');
-    return fieldOf(commandSchemaOf(node, manifest.rootPath), field, path.join(' '));
+    if (one === undefined) throw new UsageError('--field drills into one command', 'name the command first: --schema <command> --field <path>');
+    return fieldOf(commandSchemaOf(one, manifest.rootPath), field, path.join(' '));
   }
-  if (node?.run !== undefined) return commandSchemaOf(node, manifest.rootPath);
+  if (one !== undefined) return commandSchemaOf(one, manifest.rootPath);
   const full = schemaOf(manifest);
   const budget = manifest.schemaBudget ?? SCHEMA_BUDGET;
-  const doc = JSON.stringify(full).length <= budget ? full : summaryOf(manifest, budget);
+  const summary = summaryOf(manifest, budget);
+  if (completion !== undefined) {
+    full.commands.push(commandSchemaOf(completion, manifest.rootPath));
+    summary.commands.push({ name: 'completion', summary: completion.description as string, effects: 'read_only' });
+  }
+  const doc = JSON.stringify(full).length <= budget ? full : summary;
   // Just ahead of `commands`, so a reader that stops partway through the list has seen it, and
   // every other key keeps its place: without `explain` the bytes are the façades' (machine-json.test).
   return Object.fromEntries(Object.entries(doc).flatMap((entry) => (entry[0] === 'commands' ? [['explain', EXPLAIN], entry] : [entry])));
