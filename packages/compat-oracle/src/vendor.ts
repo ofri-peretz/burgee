@@ -10,6 +10,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, 
 import { tmpdir } from 'node:os';
 import { join, matchesGlob, relative, resolve, sep } from 'node:path';
 
+import { type OmittedFile, stripExecutables } from './binaries.js';
 import { testFiles } from './discover.js';
 import { type Host } from './hosts.js';
 import { fieldsFromRecord, PROVENANCE_FILE, renderProvenance } from './provenance.js';
@@ -36,6 +37,8 @@ export interface VendorResult {
    * version and the upstream check vendors a newer one.
    */
   missingExtras: string[];
+  /** Compiled executables upstream ships beside its tests, not copied (`binaries.ts`). */
+  omitted: OmittedFile[];
   /** The record written, and how it differs from the one it replaced. */
   record: CompatRecord;
   previous?: CompatRecord;
@@ -494,6 +497,12 @@ export function vendor(host: Host, into: string, version = host.pinnedVersion ??
       rewriteTree(join(staging, tree), host, staging, packageType);
     }
     const { files, internalFiles, internals } = copyTests(host, { from, dest, hostDir: staging }, packageType);
+    // **Never a compiled executable**, whatever upstream ships beside its tests. Swept after
+    // every copy above, so no route into the directory — a fixture tree, an `extraDirs` entry,
+    // a rewritten program — is exempt; recorded, so the omission is visible in `.source.json`
+    // and `PROVENANCE` rather than silent. A case that needed one is excluded by name in
+    // `hosts.ts`, for both sides (execa's `write to fast-exit subprocess`).
+    const omitted = stripExecutables(staging);
 
     const record = snapshot(clone, host, {
       version,
@@ -503,6 +512,7 @@ export function vendor(host: Host, into: string, version = host.pinnedVersion ??
       files,
       internalFiles,
       internals: [...internals].sort(),
+      ...(omitted.length > 0 ? { omitted } : {}),
     });
     writeFileSync(join(staging, '.source.json'), `${JSON.stringify(record, null, 2)}\n`);
     // **Beside the record, not instead of it.** `scripts/vendor-suite.ts` used to be the only
@@ -529,7 +539,7 @@ export function vendor(host: Host, into: string, version = host.pinnedVersion ??
     rmSync(live, { recursive: true, force: true });
     renameSync(staging, live);
 
-    const result: VendorResult = { host: host.name, commit, version, tag, files, internalFiles, internals: [...internals].sort(), missingExtras, record };
+    const result: VendorResult = { host: host.name, commit, version, tag, files, internalFiles, internals: [...internals].sort(), missingExtras, omitted, record };
     if (previous !== undefined) {
       result.previous = previous;
       result.diff = diffRecords(previous, record);

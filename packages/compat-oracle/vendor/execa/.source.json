@@ -7,6 +7,18 @@
   "files": 30,
   "internalFiles": [],
   "internals": [],
+  "omitted": [
+    {
+      "path": "test/fixtures/fast-exit-darwin",
+      "format": "Mach-O",
+      "sha256": "c62a151e839879ff58af89e80dd476dc5f0e1fd66338546f0d350376627058a7"
+    },
+    {
+      "path": "test/fixtures/fast-exit-linux",
+      "format": "ELF",
+      "sha256": "5aeb91ef2077a4e28ffe35a48671ceb9f26e67fde195dd3bfe2d8611e363f4fe"
+    }
+  ],
   "hashes": {
     "test/arguments/command-resolution.js": "edab57361848fdf9453d1e5081aa314c43a3f77dd82c44860b7f64c339014c19",
     "test/arguments/cwd.js": "67f7fc5856aefb86721a09f60fa9de2c55d08597292acc87c912cda9e81b7a3d",

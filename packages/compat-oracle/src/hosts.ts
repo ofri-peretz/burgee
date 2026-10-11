@@ -89,6 +89,13 @@ export interface Exclusion {
    * has a case titled `stderr` and three more whose titles contain the word (A27).
    */
   exact?: boolean;
+  /**
+   * Where the suite registers the excluded case, when it guards it with the platform or the
+   * CPU. Elsewhere the case is never handed to the runner, so the exclusion legitimately
+   * matches nothing there and is not applied ({@link exclusionsHere}); where the guard holds,
+   * the control must still find it. Omitted means everywhere.
+   */
+  registers?: PlatformGuard;
 }
 
 /**
@@ -125,29 +132,32 @@ export interface ControlAllowance {
  * narrows and never widens — it is spent only on the platforms outside `only`, and only up
  * to `count`.
  */
-export type ConditionalCases = ConditionalCount &
-  (
-    | {
-        /**
-         * The platforms that register them, for a suite written `if (process.platform === 'x')`.
-         * Exactly one of `only` and `notOn` is given — the type holds that, not a reader — and
-         * which one is not a style choice: each mirrors how the guard is actually spelled, so
-         * the declaration can be checked against the line it describes instead of being a list
-         * somebody derived.
-         */
-        only: NodeJS.Platform[];
-        notOn?: never;
-      }
-    | {
-        /** The platforms that do not, for a suite written `if (process.platform !== 'x')`. */
-        notOn: NodeJS.Platform[];
-        only?: never;
-      }
-  );
+export type ConditionalCases = ConditionalCount & PlatformGuard;
 
-interface ConditionalCount {
-  /** How many cases the platforms that lack them do not register. Exact, not a ceiling. */
-  count: number;
+/**
+ * Where a suite registers a case it guards with the platform or the CPU — the condition
+ * written the way the suite writes it. Shared by {@link ConditionalCases}, which counts what
+ * the other platforms lack, and by {@link Exclusion.registers}, which says where an excluded
+ * case exists to be found.
+ */
+export type PlatformGuard = (
+  | {
+      /**
+       * The platforms that register them, for a suite written `if (process.platform === 'x')`.
+       * Exactly one of `only` and `notOn` is given — the type holds that, not a reader — and
+       * which one is not a style choice: each mirrors how the guard is actually spelled, so
+       * the declaration can be checked against the line it describes instead of being a list
+       * somebody derived.
+       */
+      only: NodeJS.Platform[];
+      notOn?: never;
+    }
+  | {
+      /** The platforms that do not, for a suite written `if (process.platform !== 'x')`. */
+      notOn: NodeJS.Platform[];
+      only?: never;
+    }
+) & {
   /**
    * The CPU architectures that register them, for a guard spelled `arch() === 'x'` inside the
    * platform one — execa 10.1.0's `write to fast-exit subprocess` is under `!isWindows` and then
@@ -155,6 +165,26 @@ interface ConditionalCount {
    * narrows: a platform the clause above leaves out stays out. Omitted means every architecture.
    */
   arch?: NodeJS.Architecture[];
+};
+
+/** Does this platform and CPU register what `guard` guards? */
+export function registersOn(guard: PlatformGuard, platform: NodeJS.Platform, cpu: NodeJS.Architecture): boolean {
+  const onPlatform = guard.only === undefined ? !guard.notOn.includes(platform) : guard.only.includes(platform);
+  return onPlatform && (guard.arch === undefined || guard.arch.includes(cpu));
+}
+
+/**
+ * The exclusions that apply on this machine: every one, less those whose case the suite never
+ * registers here ({@link Exclusion.registers}). Dropping one where its case cannot exist
+ * changes no count — there is nothing for it to subtract — and is what keeps the control's
+ * "an exclusion must match something" from going red on a machine doing what the suite says.
+ */
+export const exclusionsHere = (excludes: Exclusion[], platform: NodeJS.Platform = process.platform, cpu: NodeJS.Architecture = process.arch): Exclusion[] =>
+  excludes.filter((e) => e.registers === undefined || registersOn(e.registers, platform, cpu));
+
+interface ConditionalCount {
+  /** How many cases the platforms that lack them do not register. Exact, not a ceiling. */
+  count: number;
   /**
    * How many of them the target passes on the platforms that run them. The ratchet credits
    * exactly this many on a platform that lacks them, so a machine cannot regress cases it
@@ -862,12 +892,17 @@ export const HOSTS: Host[] = [
     // `ava` block (`concurrency: 1`, `timeout: '240s'`); 10.1.0 moved the suite to `node:test`.
     testConcurrency: 1,
     timeoutMs: 240_000,
-    conditionalCases: {
-      count: 1,
-      notOn: ['win32'],
-      arch: ['x64'],
-      why: "`return/early-error.js` registers `write to fast-exit subprocess` inside `if (!isWindows)` and then `if (arch() === 'x64')`, so the case exists on the ratchet's ubuntu runner and on an Intel Mac, and is **not registered at all** on arm64 or on Windows. The reference is the full set, 1180, measured on ubuntu; an arm64 Mac registers 1179. `bellpull` fails it where it runs, so nothing is credited where it is absent.",
-    },
+    excludes: [
+      {
+        match: 'write to fast-exit subprocess',
+        exact: true,
+        // Where the suite registers it — off Windows, and then only on an x64 CPU. On an arm64
+        // Mac or on Windows the case never exists, so there is nothing to exclude and the
+        // control is not asked to find it.
+        registers: { notOn: ['win32'], arch: ['x64'] },
+        why: "`return/early-error.js` runs ``execa(`fast-exit-${process.platform}`, …)`` — a compiled executable upstream ships as `test/fixtures/fast-exit-darwin` (Mach-O) and `fast-exit-linux` (ELF). The vendor step never copies a compiled executable (`binaries.ts`; both are listed under `omitted` in `vendor/execa/PROVENANCE`), so the case cannot pass for anyone and is excluded for ours and the control alike. It was the one case the suite guards with the CPU (`if (!isWindows)`, then `if (arch() === 'x64')`), so the reference is now 1179 on every machine rather than 1180 on ubuntu and 1179 on an arm64 Mac. `bellpull` failed it where it ran, so the target's number does not move.",
+      },
+    ],
     ungradedDirs: [
       {
         dir: 'fixtures',
@@ -885,7 +920,7 @@ export const HOSTS: Host[] = [
     ceiling:
       "bellpull ships no execa API and will not: `run` resolves a record on a non-zero exit where execa throws, so an execa façade would silently stop every caller's error path firing (bellpull spec R7). The row is graded to publish that distance as a number rather than as a sentence — every graded file imports `execa`, which `bellpull` does not export, and fails at link time.",
     status: 'active',
-    note: "**Re-vendored 2026-10-07 at 10.1.0 (#843): target `bellpull` 0 / 1180, control 1180 / 1180 on ubuntu (1179 / 1179 on an arm64 Mac, see `conditionalCases`).** 10.1.0 moved the suite from ava to `node:test` (`node --test --test-concurrency=1 --test-timeout=240000`), so the row's runner moved with it and `timeoutMs` now reaches node's `--test-timeout`; `ava` left `suiteDeps` and `c8` joined it, because `arguments/local.js` now proves `preferLocal` by running `c8` where it ran `ava`. The upstream check named 144 test titles added and 4 removed (`prototype-pollution.js` is new); the counted cases moved 1048 -> 1180. The zero is still a link-time zero and still the whole suite's: over all 152 files, every one fails on `does not provide an export named 'execa'`. The paragraph below is 10.0.1's. Vendored 2026-09-27 at 10.0.1 (GAPS A10, D-160). **Target `bellpull` 0 / 1048, control 1048 / 1048** over `arguments/`, `methods/` and `return/`; the other nine directories are vendored and named in `ungradedDirs` with the cost that keeps them out. Every graded file fails at link time against the target — `The requested module '../../shim.js' does not provide an export named 'execa'` — and the same was measured over all 149 files, so the zero is the whole suite's and not the slice's. This is a ceiling by design, not a façade in progress: see `ceiling`. The one rewrite this row needed was `namedOnly` on the bare `execa` import, because `test/verbose/info.js` also uses the word as a `NODE_DEBUG` value.",
+    note: "**2026-10-11: target `bellpull` 0 / 1179, control 1179 / 1179, on every machine.** The two compiled executables execa ships beside its tests are no longer vendored (OpenSSF Binary-Artifacts), and `write to fast-exit subprocess`, the one case that runs them, is excluded for both sides — see `excludes`. Before that it was declared in `conditionalCases`, because it registers only on x64; with it excluded nothing about this row depends on the machine. **Re-vendored 2026-10-07 at 10.1.0 (#843): target `bellpull` 0 / 1180, control 1180 / 1180 on ubuntu (1179 / 1179 on an arm64 Mac, see `conditionalCases`).** 10.1.0 moved the suite from ava to `node:test` (`node --test --test-concurrency=1 --test-timeout=240000`), so the row's runner moved with it and `timeoutMs` now reaches node's `--test-timeout`; `ava` left `suiteDeps` and `c8` joined it, because `arguments/local.js` now proves `preferLocal` by running `c8` where it ran `ava`. The upstream check named 144 test titles added and 4 removed (`prototype-pollution.js` is new); the counted cases moved 1048 -> 1180. The zero is still a link-time zero and still the whole suite's: over all 152 files, every one fails on `does not provide an export named 'execa'`. The paragraph below is 10.0.1's. Vendored 2026-09-27 at 10.0.1 (GAPS A10, D-160). **Target `bellpull` 0 / 1048, control 1048 / 1048** over `arguments/`, `methods/` and `return/`; the other nine directories are vendored and named in `ungradedDirs` with the cost that keeps them out. Every graded file fails at link time against the target — `The requested module '../../shim.js' does not provide an export named 'execa'` — and the same was measured over all 149 files, so the zero is the whole suite's and not the slice's. This is a ceiling by design, not a façade in progress: see `ceiling`. The one rewrite this row needed was `namedOnly` on the bare `execa` import, because `test/verbose/info.js` also uses the word as a `NODE_DEBUG` value.",
   },
   {
     // The host with no parseable output, and the reason `mode: "exit-code"` exists.

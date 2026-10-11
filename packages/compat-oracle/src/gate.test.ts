@@ -9,7 +9,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { HOSTS } from './hosts.js';
+import { exclusionsHere, HOSTS, type PlatformGuard, registersOn } from './hosts.js';
 import { absentHere, absentPassing, REPEATS, repeatAndAgree, silentDowngrades, verdict } from './report.js';
 import { type Baseline, type Grade, parseFlatTap, regressed, summarize, summarizeExitCodes, unmatchedExclusions } from './run.js';
 
@@ -254,6 +254,10 @@ describe('excluding a case that cannot fail for any target', () => {
 /** A signal-exit grade as darwin measures it: 127 cases registered of the 135 reference. */
 const onDarwin = (passed: number): Grade => ({ host: 'signal-exit', target: 'closeout', files: 8, tests: 127, passed, failed: 127 - passed, skipped: 0, reference: 135, rate: passed / 135 });
 
+/** An x64 runner's TAP for one other case and execa's fast-exit case, which fails there for want of its executable. */
+const fastExitTap = (first: string): string =>
+  `${first}\nnot ok 2 - write to fast-exit subprocess\n1..2\n# tests 2\n# pass ${first.startsWith('ok') ? 1 : 0}\n# fail ${first.startsWith('ok') ? 1 : 2}\n`;
+
 describe('a suite whose case count depends on the platform', () => {
   it('counts the two cosmiconfig guards as absent off linux, and as present on it', () => {
     expect(absentHere('cosmiconfig', 'darwin')).toBe(2);
@@ -290,16 +294,47 @@ describe('a suite whose case count depends on the platform', () => {
     // `early-error.js` registers `write to fast-exit subprocess` inside `if (!isWindows)` and
     // then `if (arch() === 'x64')`: the ratchet's ubuntu runner has it, an arm64 Mac does not,
     // and an Intel Mac does. A platform alone cannot say that.
-    expect(absentHere('execa', 'linux', 'x64')).toBe(0);
-    expect(absentHere('execa', 'darwin', 'x64')).toBe(0);
-    expect(absentHere('execa', 'darwin', 'arm64')).toBe(1);
-    expect(absentHere('execa', 'linux', 'arm64')).toBe(1);
-    expect(absentHere('execa', 'win32', 'x64')).toBe(1);
-    // bellpull passes none of execa's cases anywhere, so nothing is credited where it is absent.
-    expect(absentPassing('execa', 'darwin', 'arm64')).toBe(0);
-    // The same one reference on the machine that registers 1179 and the one that registers 1180.
-    expect(1179 + absentHere('execa', 'darwin', 'arm64')).toBe(1180);
-    expect(1180 + absentHere('execa', 'linux', 'x64')).toBe(1180);
+    const guard = { notOn: ['win32'], arch: ['x64'] } satisfies PlatformGuard;
+    expect(registersOn(guard, 'linux', 'x64')).toBe(true);
+    expect(registersOn(guard, 'darwin', 'x64')).toBe(true);
+    expect(registersOn(guard, 'darwin', 'arm64')).toBe(false);
+    expect(registersOn(guard, 'linux', 'arm64')).toBe(false);
+    expect(registersOn(guard, 'win32', 'x64')).toBe(false);
+    // Omitted, the architecture does not narrow at all.
+    expect(registersOn({ only: ['linux'] }, 'linux', 'arm64')).toBe(true);
+  });
+
+  it('excludes execa\'s fast-exit case for both sides, and only where the suite registers it', () => {
+    // Its executable is not vendored (`binaries.ts`), so the case is excluded rather than
+    // counted — and no longer a conditional case: with it out, the reference is 1179 everywhere.
+    const execa = HOSTS.find((h) => h.name === 'execa');
+    expect(execa?.conditionalCases).toBeUndefined();
+    for (const [platform, cpu] of [['linux', 'x64'], ['darwin', 'arm64'], ['win32', 'x64']] as const) expect(absentHere('execa', platform, cpu)).toBe(0);
+    const excludes = execa?.excludes ?? [];
+    expect(excludes.map((e) => e.match)).toEqual(['write to fast-exit subprocess']);
+    // Applied where the case exists — so the control must find it there — and dropped where it
+    // cannot, so an arm64 control is not refused for a case the suite never wrote.
+    expect(exclusionsHere(excludes, 'linux', 'x64')).toEqual(excludes);
+    expect(exclusionsHere(excludes, 'darwin', 'x64')).toEqual(excludes);
+    expect(exclusionsHere(excludes, 'darwin', 'arm64')).toEqual([]);
+    expect(exclusionsHere(excludes, 'win32', 'x64')).toEqual([]);
+    // An exclusion with no guard applies everywhere, as every one did before `registers`.
+    const unguarded = [{ match: 'x', why: 'y' }];
+    expect(exclusionsHere(unguarded, 'win32', 'arm64')).toEqual(unguarded);
+  });
+
+  it('counts the excluded case for neither side, where it runs and where it does not', () => {
+    // node:test's TAP as an x64 runner prints the file: the case registered, and failed for
+    // want of its executable. Control and target alike end at the same denominator.
+    const execaExcludes = HOSTS.find((h) => h.name === 'execa')?.excludes ?? [];
+    const here = exclusionsHere(execaExcludes, 'linux', 'x64');
+    expect(summarize(fastExitTap('ok 1 - a case'), 1, 1, { excludes: here, requireMatch: true })).toMatchObject({ tests: 1, passed: 1, failed: 0, rate: 1 });
+    expect(summarize(fastExitTap('not ok 1 - a case'), 1, 1, { excludes: here })).toMatchObject({ tests: 1, passed: 0, failed: 1, rate: 0 });
+    // An arm64 control never registers it: nothing to subtract, and nothing to refuse.
+    const arm = 'ok 1 - a case\n1..1\n# tests 1\n# pass 1\n# fail 0\n';
+    expect(summarize(arm, 1, 1, { excludes: exclusionsHere(execaExcludes, 'darwin', 'arm64'), requireMatch: true })).toMatchObject({ tests: 1, passed: 1, rate: 1 });
+    // Without the guard the same arm64 control would be refused — the failure `registers` exists to prevent.
+    expect(summarize(arm, 1, 1, { excludes: execaExcludes, requireMatch: true }).error).toBe('exclusion matched no case: write to fast-exit subprocess');
   });
 
   it('claims nothing for a host that declares nothing', () => {

@@ -195,7 +195,7 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `cross-spawn` | 68 / 68 |
-| `execa` | 0 / 1180 |
+| `execa` | 0 / 1179 |
 | `which` | 5 / 5 |
 
 Weight, installed and tree-inclusive: **117,441 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1534**.

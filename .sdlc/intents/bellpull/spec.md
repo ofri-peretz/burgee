@@ -266,7 +266,7 @@ done** — see "Where that order stopped" above.
   replaces asked for `execa cross-spawn which`: three rows. Two of the three do not exist
   (R9), and a verification step naming a command that cannot run is not a verification step.
   *(All three exist since 2026-09-27: `npm run compat -- cross-spawn which execa` — 68 / 68,
-  5 / 5, and execa's **0 / 1048** ceiling, each with its control; **0 / 1180** at 10.1.0 since 2026-10-07.)*
+  5 / 5, and execa's **0 / 1048** ceiling, each with its control; **0 / 1180** at 10.1.0 since 2026-10-07; **0 / 1179** since 2026-10-11, when the one case that runs a vendored compiled executable was excluded for both sides and the binary left the tree.)*
   *(Re-graded 2026-09-30 at each incumbent's **latest** release — `npm view` reads
   `cross-spawn` 7.0.6 and `which` 7.0.0, the versions already vendored, so nothing was
   re-vendored: **68 / 68** and **5 / 5**, control 68 / 68 and 5 / 5, ▲ 0 on both.)*
