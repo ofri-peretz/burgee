@@ -156,3 +156,15 @@ equal to the façades' once the native-only keys are set aside.
 machine): 2,392 B on `main` at `733e5e0`, 3,235 B with R2's `errors`, **4,752 B** with R1–R8. All
 of it is keys the spec asks for; the `agent-schema-bytes` control band will read it as a step up,
 and that step is this intent, not drift.
+
+**The tarball ratchet, and how it was passed without raising it (2026-10-11).**
+`npm run check:artifacts` holds burgee's packed tarball to `.sdlc/bands/artifact-size-baseline.json`
+with 10% allowed. `main` with R2 and R6 (#1015) packed **251,814 B gzipped, +9.9% of the recorded
+229,114 B**, and R1, R3–R5, R7 and R8 took it to 256,211 B (+11.8%). The owner chose to ship less
+rather than raise the ratchet. #1022 stopped every family package publishing the declaration files
+no `exports` entry reaches, pruned at build by the closure TypeScript computes
+([D-20261011-tarball-unreachable-declarations](../../decisions/D-20261011-tarball-unreachable-declarations.md)).
+burgee went to 225,278 B gzipped and 865,969 B unpacked, and its baseline was lowered to that. This
+branch on top of it packs **228,301 B (+1.3%) and 876,067 B (+1.2%)**. This intent's own
+`clispec.d.ts` and `error-kinds.d.ts` are among the pruned files, so its declarations cost the
+tarball nothing. No ratchet was raised.
