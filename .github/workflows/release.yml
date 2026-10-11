@@ -185,6 +185,16 @@ jobs:
               exit 0
             fi
             if [ -n "$failed" ]; then
+              # A gate job reports `failure` when the jobs it waits on were cancelled, and a newer
+              # push to main cancels them. On a superseded commit that is a skip, not a failure:
+              # the newer commit's release run gates and publishes (release-verify-lock).
+              head=$(gh api "repos/$GH_REPO/commits/main" --jq .sha)
+              if [ "$head" != "$SHA" ] && [ "$(gh api "repos/$GH_REPO/commits/$SHA/check-runs?per_page=100" \
+                  --jq '[.check_runs[] | select(.app.slug == "github-actions" and .conclusion == "cancelled")] | length')" -gt 0 ]; then
+                echo "ok=false" >> "$GITHUB_OUTPUT"
+                echo "::notice::$SHA was superseded by $head, and its gate failed only after jobs it waits on were cancelled ($failed). The release run for the newer commit publishes."
+                exit 0
+              fi
               echo "::error::Refusing to publish $SHA — a required check did not pass: $failed"
               exit 1
             fi
