@@ -2,7 +2,7 @@
   "$comment": "Downward-only ratchets for the three published claims whose measured floor sits above their original <= 1 bar. D-102 says why the floor is structural and D-148 records the shrink to 24,202 B; on 2026-09-27 the owner decided (D-157) that each becomes 'something acceptable and realistic, while we consistently keep them as low as we can': a ceiling just above today's measurement, gated on every run, that may only ever be lowered. `ceiling` is the one number `benchmarks/claims.ts` and the B2/B4 gates read (`benchmarks/claim-ratchets.ts`). `history` is append-only and never rises: `scripts/claim-ratchets-lock.test.ts` refuses a `ceiling` that is not the last entry, an entry above the one before it unless it cites a newer D-row that exists in .sdlc/DECISIONS.md, and a history that rewrites the committed one. `npm run ratchets:propose` prints the lower ceiling each can move to from the latest measurement, by the `derive` rule written beside it.",
   "ratchets": {
     "cold-start-at-or-below-cac": {
-      "ceiling": 1.6,
+      "ceiling": 1.55,
       "unit": "ratio",
       "was": "<= 1: burgee starts at or below cac, the lightest framework in the landscape",
       "derive": {
@@ -10,7 +10,7 @@
         "observations": 26,
         "sigmas": 3,
         "step": 0.05,
-        "rule": "The median `burgee ÷ cac` cold-start ratio of the last 26 CI observations in benchmarks/results/cli-benchmarks/*-ci.json (2026-09-22 c0fa8a3 to 2026-09-27 7b694f7): mean 1.490, sd 0.034, p95 1.540, max 1.553. The larger of mean + 3 sd (1.590) and the max, rounded up to the next 0.05: 1.6. The p95 rounded up would be 1.55, and c938fbf's 1.553 sits above that: one run in 26 red for nothing, the flake #27 already made twice. Absolute milliseconds are the runner's; the ratio of two interleaved spawns is what the gate reads."
+        "rule": "The median `burgee ÷ cac` cold-start ratio of the last 26 CI observations in benchmarks/results/cli-benchmarks/*-ci.json (2026-10-09 8d601e7 to 2026-10-11 42b60dc, every one a descendant of #898, which took node:util and node:fs off the start-up path): mean 1.424, sd 0.033, p95 1.461, max 1.463. The larger of mean + 3 sd (1.523) and the max, rounded up to the next 0.05: 1.55. The first ceiling, 1.6, came from the 26 runs 2026-09-22 c0fa8a3 to 2026-09-27 7b694f7 (mean 1.490, sd 0.034, max 1.553), where the p95 rounded up would have been 1.55 and c938fbf's 1.553 sat above it: one run in 26 red for nothing, the flake #27 already made twice. Absolute milliseconds are the runner's; the ratio of two interleaved spawns is what the gate reads."
       },
       "history": [
         {
@@ -19,6 +19,13 @@
           "decision": "D-157",
           "measured": 1.512,
           "why": "First ceiling. Replaces B2's `burgee` gate of 1.7 and the claim's <= 1. Measured 1.512 on the newest CI observation (7b694f7)."
+        },
+        {
+          "ceiling": 1.55,
+          "setOn": "2026-10-11",
+          "decision": "D-157",
+          "measured": 1.363,
+          "why": "Lowered after #898 (8d601e7) took the node:util and node:fs namespaces off burgee's start-up path. The 26 CI observations since it merged average 1.424 against 1.490 for the 26 that set 1.6, and none exceeds 1.463. Mean + 3 sd is 1.523, rounded up to 1.55; lowering by 1/1.25 of the 0.066 fall gives 1.547, the same step. Measured 1.363 on the newest CI observation (42b60dc)."
         }
       ]
     },
