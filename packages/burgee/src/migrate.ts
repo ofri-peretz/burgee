@@ -363,6 +363,14 @@ export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
   'closeout/restore-cursor': [
     'default',
   ],
+  'closeout/onetime': [
+    'OnetimeFunction',
+    'Options',
+    'default',
+  ],
+  'closeout/cli-cursor': [
+    'default',
+  ],
   'closeout/signal-exit': [
     'load',
     'onExit',
@@ -733,6 +741,18 @@ export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
     'lilconfig',
     'lilconfigSync',
   ],
+  'seniority/find-up': [
+    'FindDownOptions',
+    'Match',
+    'Options',
+    'findDown',
+    'findDownSync',
+    'findUp',
+    'findUpMultiple',
+    'findUpMultipleSync',
+    'findUpStop',
+    'findUpSync',
+  ],
   'seniority/rc': [
     'RcConfig',
     'RcOptions',
@@ -807,7 +827,7 @@ const SIBLING_STATE: Readonly<Record<string, { sibling: string; fix: string }>> 
  * Node's own `require()` returns for every installed incumbent in `MAPPING`, so a name here
  * is a measurement and an incumbent that is not installed is left out, and refused as before.
  */
-export const REQUIRE_NAMESPACE: readonly string[] = ['ansi-escapes', 'chalk', 'ora', 'log-update', 'boxen', 'string-width', 'strip-ansi', 'wrap-ansi', 'slice-ansi', 'restore-cursor', 'exit-hook', 'terminal-link', 'meow'];
+export const REQUIRE_NAMESPACE: readonly string[] = ['ansi-escapes', 'chalk', 'ora', 'log-update', 'boxen', 'string-width', 'strip-ansi', 'wrap-ansi', 'slice-ansi', 'restore-cursor', 'exit-hook', 'terminal-link', 'meow', 'cli-cursor'];
 
 /** Whether `require(from)` and `require(to)` hand a CommonJS caller different kinds of value. */
 function requireShapesDiffer(from: string, to: string): boolean {

@@ -1,7 +1,7 @@
 {
-  "$comment": "seniority's capability matrix against cosmiconfig, dotenv and rc (compat-oracle's LAYERS) and lilconfig, which the oracle also grades. Rendered by <CapabilityMatrix pkg=\"seniority\" /> from apps/docs-chassis and held by scripts/capabilities-lock.test.ts: every `ours` yes/partial names a test file and a title substring it contains, or a compat-oracle grade. None of the four incumbents is installed here at the version compat-oracle grades (cosmiconfig 9.0.2 is, through @commitlint/load; the grade is 10.0.1), so each cell cites that version's published file on jsDelivr, or its vendored suite. `n/a` means the row does not apply to that package, and says why. A row that could not be proved for every column is not here.",
+  "$comment": "seniority's capability matrix against cosmiconfig, dotenv, rc and find-up (compat-oracle's LAYERS) and lilconfig, which the oracle also grades. Rendered by <CapabilityMatrix pkg=\"seniority\" /> from apps/docs-chassis and held by scripts/capabilities-lock.test.ts: every `ours` yes/partial names a test file and a title substring it contains, or a compat-oracle grade. None of the five incumbents is installed here at the version compat-oracle grades (cosmiconfig 9.0.2 is, through @commitlint/load; the grade is 10.0.1), so each cell cites that version's published file on jsDelivr, or its vendored suite. `n/a` means the row does not apply to that package, and says why. A row that could not be proved for every column is not here.",
   "package": "seniority",
-  "incumbents": ["cosmiconfig", "lilconfig", "dotenv", "rc"],
+  "incumbents": ["cosmiconfig", "lilconfig", "dotenv", "rc", "find-up"],
   "themes": [
     {
       "theme": "Precedence and provenance",
@@ -14,7 +14,8 @@
             "cosmiconfig": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/dist/Explorer.js", "note": "finds and loads one config file or package.json field; merging it with flags and the environment is the caller's"},
             "lilconfig": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "note": "finds and loads one config file or package.json field; merging it with flags and the environment is the caller's"},
             "dotenv": {"status": "no", "source": "https://github.com/motdotla/dotenv/blob/v18.0.5/lib/main.js", "note": "one layer: a `.env` file under the variables already set, or over them with `override`"},
-            "rc": {"status": "yes", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/index.js", "note": "defaults, then rc files, then `<name>_` variables, then argv"}
+            "rc": {"status": "yes", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/index.js", "note": "defaults, then rc files, then `<name>_` variables, then argv"},
+            "find-up": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/find-up@8.0.0/index.js", "note": "returns a path; reading what is there and merging it is the caller's"}
           }
         },
         {
@@ -25,7 +26,8 @@
             "cosmiconfig": {"status": "partial", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/dist/Explorer.js", "missing": "the result names the file (`filepath`); not which key came from where, or what it overrode"},
             "lilconfig": {"status": "partial", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "missing": "the result names the file (`filepath`); not which key came from where, or what it overrode"},
             "dotenv": {"status": "no", "source": "https://github.com/motdotla/dotenv/blob/v18.0.5/lib/main.js", "note": "records nothing about which of `.env` and the environment set a variable"},
-            "rc": {"status": "partial", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/index.js", "missing": "`configs` lists the files read; not which source set each value"}
+            "rc": {"status": "partial", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/index.js", "missing": "`configs` lists the files read; not which source set each value"},
+            "find-up": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/find-up@8.0.0/index.js", "note": "returns a path, not values"}
           }
         },
         {
@@ -36,7 +38,8 @@
             "cosmiconfig": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/dist/Explorer.js", "note": "has no precedence step; it loads files, which is `discover`'s job here too"},
             "lilconfig": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "note": "has no precedence step; it loads files, which is `discover`'s job here too"},
             "dotenv": {"status": "partial", "source": "https://github.com/motdotla/dotenv/blob/v18.0.5/lib/main.js", "missing": "`parse` and `populate` take their input and target as arguments, and `config()` takes `processEnv`; by default it writes `process.env` and resolves paths against `process.cwd()`"},
-            "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/lib/utils.js", "note": "reads `process.env` itself, and `process.argv` when no argv is passed"}
+            "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/lib/utils.js", "note": "reads `process.env` itself, and `process.argv` when no argv is passed"},
+            "find-up": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/find-up@8.0.0/index.js", "note": "has no precedence step; it walks the filesystem, which is `discover`'s job here too"}
           }
         }
       ]
@@ -52,7 +55,8 @@
             "cosmiconfig": {"status": "partial", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/dist/ExplorerBase.js", "missing": "stops at `stopDir` (the home directory by default) and does not walk at all unless asked; no depth limit"},
             "lilconfig": {"status": "partial", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "missing": "stops at `stopDir` (the home directory by default) or the root; no depth limit"},
             "dotenv": {"status": "n/a", "source": "https://github.com/motdotla/dotenv/blob/v18.0.5/lib/main.js", "note": "reads `.env` in the working directory, or the paths it is given; it does not search"},
-            "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/lib/utils.js", "note": "walks from the working directory to the root; nothing stops it sooner"}
+            "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/lib/utils.js", "note": "walks from the working directory to the root; nothing stops it sooner"},
+            "find-up": {"status": "partial", "source": "https://cdn.jsdelivr.net/npm/find-up@8.0.0/index.js", "missing": "stops at `stopAt` or the filesystem root; no depth limit"}
           }
         },
         {
@@ -63,7 +67,8 @@
             "cosmiconfig": {"status": "yes", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/dist/defaults.js", "note": "`loaders`, over its defaults"},
             "lilconfig": {"status": "yes", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "note": "`loaders`, over its defaults"},
             "dotenv": {"status": "n/a", "source": "https://github.com/motdotla/dotenv/blob/v18.0.5/lib/main.js", "note": "reads the `.env` format only"},
-            "rc": {"status": "yes", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/index.js", "note": "a parser in its fourth argument"}
+            "rc": {"status": "yes", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/index.js", "note": "a parser in its fourth argument"},
+            "find-up": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/find-up@8.0.0/index.js", "note": "finds a path and loads nothing"}
           }
         },
         {
@@ -74,7 +79,8 @@
             "cosmiconfig": {"status": "yes", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/package.json", "note": "through its js-yaml dependency"},
             "lilconfig": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "note": "JavaScript and JSON only, unless a loader is given"},
             "dotenv": {"status": "n/a", "source": "https://github.com/motdotla/dotenv/blob/v18.0.5/lib/main.js", "note": "reads the `.env` format only"},
-            "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/lib/utils.js", "note": "JSON with comments, or INI"}
+            "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/lib/utils.js", "note": "JSON with comments, or INI"},
+            "find-up": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/find-up@8.0.0/index.js", "note": "finds a path and loads nothing"}
           }
         }
       ]
@@ -90,7 +96,8 @@
             "cosmiconfig": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/dist/Explorer.js", "note": "reads no configuration from the environment"},
             "lilconfig": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "note": "reads no configuration from the environment"},
             "dotenv": {"status": "n/a", "source": "https://github.com/motdotla/dotenv/blob/v18.0.5/lib/main.js", "note": "loads variables; it maps none of them to options"},
-            "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/lib/utils.js", "note": "every `<name>_` variable becomes a key, nested on `__`, declared or not"}
+            "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/lib/utils.js", "note": "every `<name>_` variable becomes a key, nested on `__`, declared or not"},
+            "find-up": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/find-up@8.0.0/index.js", "note": "reads no environment variables"}
           }
         },
         {
@@ -101,7 +108,8 @@
             "cosmiconfig": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/dist/Explorer.js", "note": "reads no configuration from the environment"},
             "lilconfig": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "note": "reads no configuration from the environment"},
             "dotenv": {"status": "no", "source": "https://github.com/motdotla/dotenv/blob/v18.0.5/lib/main.js", "note": "every value is a string; `FLAG=false` is the truthy string `\"false\"`"},
-            "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/lib/utils.js", "note": "every value is a string; `FLAG=false` is the truthy string `\"false\"`"}
+            "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/lib/utils.js", "note": "every value is a string; `FLAG=false` is the truthy string `\"false\"`"},
+            "find-up": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/find-up@8.0.0/index.js", "note": "reads no environment variables"}
           }
         }
       ]
@@ -117,7 +125,8 @@
             "cosmiconfig": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/dist/Explorer.js", "note": "returns the config as loaded; checking it is the caller's"},
             "lilconfig": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "note": "returns the config as loaded; checking it is the caller's"},
             "dotenv": {"status": "no", "source": "https://github.com/motdotla/dotenv/blob/v18.0.5/lib/main.js", "note": "returns the variables as parsed"},
-            "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/index.js", "note": "returns the merged object"}
+            "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/index.js", "note": "returns the merged object"},
+            "find-up": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/find-up@8.0.0/index.js", "note": "validates nothing"}
           }
         },
         {
@@ -128,7 +137,8 @@
             "cosmiconfig": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/dist/index.js", "note": "loaders parse files; there is no source to add"},
             "lilconfig": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "note": "loaders parse files; there is no source to add"},
             "dotenv": {"status": "no", "source": "https://github.com/motdotla/dotenv/blob/v18.0.5/lib/main.js", "note": "reads `.env` files only"},
-            "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/index.js", "note": "a fixed list of files"}
+            "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/index.js", "note": "a fixed list of files"},
+            "find-up": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/find-up@8.0.0/index.js", "note": "has no sources to rank"}
           }
         },
         {
@@ -139,7 +149,8 @@
             "cosmiconfig": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/package.json", "note": "env-paths and js-yaml"},
             "lilconfig": {"status": "yes", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/package.json"},
             "dotenv": {"status": "yes", "source": "https://cdn.jsdelivr.net/npm/dotenv@18.0.5/package.json"},
-            "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/package.json", "note": "deep-extend, ini, minimist and strip-json-comments"}
+            "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/package.json", "note": "deep-extend, ini, minimist and strip-json-comments"},
+            "find-up": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/find-up@8.0.0/package.json", "note": "locate-path and unicorn-magic, and locate-path brings p-locate"}
           }
         }
       ]
@@ -155,7 +166,8 @@
             "cosmiconfig": {"status": "n/a", "source": "packages/compat-oracle/vendor/cosmiconfig/test/successful-files.test.ts", "quote": "import { cosmiconfig, cosmiconfigSync } from '../shim.mjs';", "note": "a different API"},
             "lilconfig": {"status": "yes", "source": "packages/compat-oracle/vendor/lilconfig/src/spec/index.spec.js", "quote": "const {lilconfig, lilconfigSync} = require('../../shim.mjs');", "note": "its own suite, the control run"},
             "dotenv": {"status": "n/a", "source": "packages/compat-oracle/vendor/dotenv/tests/test-parse-multiline.js", "quote": "const dotenv = require('../shim.mjs')", "note": "a different API"},
-            "rc": {"status": "n/a", "source": "packages/compat-oracle/vendor/rc/test/test.js", "quote": "var config = require('../')(n, {", "note": "a different API"}
+            "rc": {"status": "n/a", "source": "packages/compat-oracle/vendor/rc/test/test.js", "quote": "var config = require('../')(n, {", "note": "a different API"},
+            "find-up": {"status": "n/a", "source": "packages/compat-oracle/vendor/find-up/test/finddown.js", "quote": "import {findUp, findDown, findDownSync} from '../shim.js';", "note": "a different API"}
           }
         },
         {
@@ -166,7 +178,20 @@
             "cosmiconfig": {"status": "n/a", "source": "packages/compat-oracle/vendor/cosmiconfig/test/successful-files.test.ts", "quote": "import { cosmiconfig, cosmiconfigSync } from '../shim.mjs';", "note": "a different API"},
             "lilconfig": {"status": "n/a", "source": "packages/compat-oracle/vendor/lilconfig/src/spec/index.spec.js", "quote": "const {lilconfig, lilconfigSync} = require('../../shim.mjs');", "note": "a different API"},
             "dotenv": {"status": "n/a", "source": "packages/compat-oracle/vendor/dotenv/tests/test-parse-multiline.js", "quote": "const dotenv = require('../shim.mjs')", "note": "a different API"},
-            "rc": {"status": "yes", "source": "packages/compat-oracle/vendor/rc/test/test.js", "quote": "var config = require('../')(n, {", "note": "its own test, the control run"}
+            "rc": {"status": "yes", "source": "packages/compat-oracle/vendor/rc/test/test.js", "quote": "var config = require('../')(n, {", "note": "its own test, the control run"},
+            "find-up": {"status": "n/a", "source": "packages/compat-oracle/vendor/find-up/test/finddown.js", "quote": "import {findUp, findDown, findDownSync} from '../shim.js';", "note": "a different API"}
+          }
+        },
+        {
+          "capability": "Passes find-up's own test suite",
+          "why": "`seniority/find-up` runs find-up 8.0.0's own suite, unmodified: 104 of 104, the same as find-up itself, with the two cases that expect a `.git` at the vendored root subtracted by name from both.",
+          "ours": {"status": "yes", "grade": "packages/compat-oracle/baseline/find-up.json"},
+          "incumbents": {
+            "cosmiconfig": {"status": "n/a", "source": "packages/compat-oracle/vendor/cosmiconfig/test/successful-files.test.ts", "quote": "import { cosmiconfig, cosmiconfigSync } from '../shim.mjs';", "note": "a different API"},
+            "lilconfig": {"status": "n/a", "source": "packages/compat-oracle/vendor/lilconfig/src/spec/index.spec.js", "quote": "const {lilconfig, lilconfigSync} = require('../../shim.mjs');", "note": "a different API"},
+            "dotenv": {"status": "n/a", "source": "packages/compat-oracle/vendor/dotenv/tests/test-parse-multiline.js", "quote": "const dotenv = require('../shim.mjs')", "note": "a different API"},
+            "rc": {"status": "n/a", "source": "packages/compat-oracle/vendor/rc/test/test.js", "quote": "var config = require('../')(n, {", "note": "a different API"},
+            "find-up": {"status": "yes", "source": "packages/compat-oracle/vendor/find-up/test/finddown.js", "quote": "import {findUp, findDown, findDownSync} from '../shim.js';", "note": "its own suite, the control run"}
           }
         },
         {
@@ -177,7 +202,8 @@
             "cosmiconfig": {"status": "yes", "source": "packages/compat-oracle/vendor/cosmiconfig/test/successful-files.test.ts", "quote": "import { cosmiconfig, cosmiconfigSync } from '../shim.mjs';", "note": "its own suite, the control run; the case the harness cannot load fails for it too"},
             "lilconfig": {"status": "n/a", "source": "packages/compat-oracle/vendor/lilconfig/src/spec/index.spec.js", "quote": "const {lilconfig, lilconfigSync} = require('../../shim.mjs');", "note": "a different API"},
             "dotenv": {"status": "n/a", "source": "packages/compat-oracle/vendor/dotenv/tests/test-parse-multiline.js", "quote": "const dotenv = require('../shim.mjs')", "note": "a different API"},
-            "rc": {"status": "n/a", "source": "packages/compat-oracle/vendor/rc/test/test.js", "quote": "var config = require('../')(n, {", "note": "a different API"}
+            "rc": {"status": "n/a", "source": "packages/compat-oracle/vendor/rc/test/test.js", "quote": "var config = require('../')(n, {", "note": "a different API"},
+            "find-up": {"status": "n/a", "source": "packages/compat-oracle/vendor/find-up/test/finddown.js", "quote": "import {findUp, findDown, findDownSync} from '../shim.js';", "note": "a different API"}
           }
         },
         {
@@ -188,7 +214,8 @@
             "cosmiconfig": {"status": "n/a", "source": "packages/compat-oracle/vendor/cosmiconfig/test/successful-files.test.ts", "quote": "import { cosmiconfig, cosmiconfigSync } from '../shim.mjs';", "note": "a different API"},
             "lilconfig": {"status": "n/a", "source": "packages/compat-oracle/vendor/lilconfig/src/spec/index.spec.js", "quote": "const {lilconfig, lilconfigSync} = require('../../shim.mjs');", "note": "a different API"},
             "dotenv": {"status": "yes", "source": "packages/compat-oracle/vendor/dotenv/tests/test-parse-multiline.js", "quote": "const dotenv = require('../shim.mjs')", "note": "its own suite, the control run"},
-            "rc": {"status": "n/a", "source": "packages/compat-oracle/vendor/rc/test/test.js", "quote": "var config = require('../')(n, {", "note": "a different API"}
+            "rc": {"status": "n/a", "source": "packages/compat-oracle/vendor/rc/test/test.js", "quote": "var config = require('../')(n, {", "note": "a different API"},
+            "find-up": {"status": "n/a", "source": "packages/compat-oracle/vendor/find-up/test/finddown.js", "quote": "import {findUp, findDown, findDownSync} from '../shim.js';", "note": "a different API"}
           }
         }
       ]

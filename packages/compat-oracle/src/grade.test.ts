@@ -764,6 +764,18 @@ describe('the files a suite reaches by path (`entries`, dotenv 18)', () => {
     );
   });
 
+  it('re-exports the target as an ES module where the vendored root is `type: module`, and stays CommonJS for a .cjs path', () => {
+    const plain = { at: 'index.js', control: 'index.js', target: '/cli-cursor' };
+    expect(entryBody('t', plain, 'module').split('\n')).toEqual([
+      '// generated per run — COMPAT_TARGET=t',
+      'import * as loaded from "t/cli-cursor";',
+      'export * from "t/cli-cursor";',
+      'export default loaded.default ?? loaded;',
+      '',
+    ]);
+    expect(entryBody('t', entry, 'module')).toBe(entryBody('t', entry));
+  });
+
   it('is a module Node can name the exports of, and runs the CLI only as the main module', () => {
     expect(entryBody('t', entry).split('\n')).toEqual([
       '// generated per run — COMPAT_TARGET=t',

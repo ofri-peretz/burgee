@@ -1,7 +1,7 @@
 {
   "name": "closeout",
   "version": "1.0.4",
-  "description": "Runs every exit handler exactly once on every path out of the process, restores the terminal, and holds shutdown to a deadline so it cannot hang. Zero dependencies. Drop-in paths for signal-exit, exit-hook and restore-cursor.",
+  "description": "Runs every exit handler exactly once on every path out of the process, restores the terminal, and holds shutdown to a deadline so it cannot hang. Zero dependencies. Drop-in paths for signal-exit, exit-hook, restore-cursor, cli-cursor and onetime.",
   "license": "MIT",
   "type": "module",
   "sideEffects": ["./dist/cli.js"],
@@ -20,6 +20,11 @@
       "import": "./dist/once.js",
       "default": "./dist/once.js"
     },
+    "./onetime": {
+      "types": "./dist/onetime.d.ts",
+      "import": "./dist/onetime.js",
+      "default": "./dist/onetime.js"
+    },
     "./cursor": {
       "types": "./dist/cursor.d.ts",
       "import": "./dist/cursor.js",
@@ -34,6 +39,11 @@
       "types": "./dist/restore-cursor.d.ts",
       "import": "./dist/restore-cursor.js",
       "default": "./dist/restore-cursor.js"
+    },
+    "./cli-cursor": {
+      "types": "./dist/cli-cursor.d.ts",
+      "import": "./dist/cli-cursor.js",
+      "default": "./dist/cli-cursor.js"
     },
     "./exit-hook": {
       "types": "./dist/exit-hook.d.ts",

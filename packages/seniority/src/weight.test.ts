@@ -64,7 +64,11 @@ const RULES: Record<string, EntryRule> = {
   './dotenv/cli': { budget: 29_800, denied: [...NEVER, ...others('dotenv.js')] },
   './lilconfig': { budget: 13_500, denied: [...NEVER, ...others('lilconfig.js')] },
   './rc': { budget: 12_000, denied: [...NEVER, ...others('rc.js')] },
-  './find-up': { budget: 2_800, denied: [...NEVER, ...others('find-up.js')] },
+  // Raised 2,800 → 7,100 on 2026-10-11 for `graded-override-targets` R2: find-up 8's whole
+  // surface, graded 104 / 104 by its own suite — matcher functions, `findUpStop`, `findDown`,
+  // locate-path's `type` and `allowSymlinks`, a `URL` cwd. find-up's own tree (find-up,
+  // locate-path, p-locate, p-limit, yocto-queue, unicorn-magic) is 13,860 B of JavaScript. 6,824.
+  './find-up': { budget: 7_100, denied: [...NEVER, ...others('find-up.js')] },
   // Same number as `shape.test.ts`'s YAML_BYTES; here it must also reach nothing else.
   './yaml': { budget: 25_000, denied: ['cli.js', 'check.js', 'index.js', ...FACADES, ...DISK] },
 };

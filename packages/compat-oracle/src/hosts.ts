@@ -1230,6 +1230,38 @@ export const HOSTS: Host[] = [
     note: "**2026-10-11: re-vendored at 18.0.7 (#946) and level — `seniority` 191 / 191 against a control of 191 / 191 (D-20261011-revendor-dotenv-18-0-7).** 18.0.7 drops options given as `undefined` before laying them over the `DOTENV_*` defaults (#1070), and `dotenv run` reads a `DOTENV_QUIET` the loaded `.env` sets when neither the flags nor the starting environment said (#1071). Its three new test titles count ten, eight of them one loop of spawned runs; the re-vendor read `seniority` 188 / 191 until both rules were ported. **2026-10-07: re-vendored at 18.0.6 (#844) and level — `seniority` 181 / 181 against a control of 181 / 181.** 18.0.6 reads `populate`'s `override` and `debug` through `parseBoolean` instead of `Boolean` (#1069), so the string `'false'` is off, and adds the two cases that say so; `seniority/dotenv`'s `populate` now reads both through `truthy`, its port of `parseBoolean`. Nothing else in the package moved. **2026-10-06: level at 18.0.5 — `seniority` 179 / 179 against a control of 179 / 179 (D-20261001-seniority-dotenv-vault).** `seniority/dotenv` follows dotenv 18, and `seniority/dotenv/config` and `seniority/dotenv/cli` are the entries the suite spawns; nothing is excluded. The paragraph below is the re-vendor's, when the target read 128 / 179. **2026-10-06: re-vendored at 18.0.5 — control 179 / 179, `seniority` 128 / 179 (D-20261006-flagstaff-boxen-9 records the harness).** dotenv 18.0.0 (2026-09-17) deleted `.env.vault`, `DOTENV_KEY`, `decrypt` and the log-line tips together with the 31 cases that asserted them, and added 42: the `{ fast: true }` character scanner (`test-parse-fast.js`), `DOTENV_*` defaults and their `DOTENV_CONFIG_*` fallbacks (`test-config-options.js`), the `quiet` rules of `config()` and of `dotenv/config` (`test-config-quiet.js`, `test-config-import.js`), and a `dotenv run` command line with signal forwarding (`test-cli.js`, `test-cli-signals.js`). **The suite tests the build, so the row declares it.** It spawns `node dist/index.cjs run …`, preloads `dist/config.cjs`, and runs programs that name `dotenv` and `dotenv/config` from the repo root; `entries` writes those files per run (a link to the incumbent's own file on the control, upstream's `index.js` pointed at the target otherwise) and `selfExports` gives the vendored root dotenv's name so the spawned programs reach whichever is graded. Without them the control was 141 / 179 against dotenv 18 — and against 17.4.2 before the pin moved, which is what PR #794 read as 52 failing. The 51 the target fails are seniority's: it still speaks 17, and the `seniority/dotenv/config` and `seniority/dotenv/cli` subpaths the entries point at are not built yet; that lane brings them. The informational line is **4 / 10 on the control**: `test-config-options.js` loads the private `lib/config-options`, the published package ships only `dist/`, so its six `optionsFromEnv` cases fail against dotenv itself, and its four spawned cases pass. One case, `Windows resolves executables and batch shims with spaces in their paths`, skips itself off win32 on both sides. dotenv 17.4.2 is graded as `dotenv-17` in `PREVIOUS_MAJORS`. The paragraphs below are the 17.4.2 history. **2026-09-23: 80 → 106 / 141 under D-135.** `config()` now defaults `processEnv` to the process's own and `path` to `./.env` through `seniority/src/runtime.ts`, reads through the `fs` and `os` module objects the suite stubs, takes a `URL` or a `~` path, and returns `{ parsed, error }` together as dotenv 17 does. The 35 left: 27 vault/decrypt (declined), 2 dotenvx tips (declined), and 6 that load dotenv's private `lib/*` modules, which the harness maps to the package root. The history below predates this. Activated 2026-09-16; re-measured 2026-09-20 at **80 / 141, 56.7%**, up from 74. Control **141 / 141, 100%**, unchanged — the first row graded through the `tap` arm, one `node <file>` spawn per file with the outputs concatenated. **Four of the six came from the harness declaration, not from this package.** `test-populate.js` opens with `sinon.stub(dotenv, 'parse')` in a top-level `beforeEach`; an ES module namespace is non-extensible with non-configurable properties, so sinon refused with `ES Modules cannot be stubbed`, the hook threw, and all six of that file's cases failed before their first assertion — twelve entries in the raw TAP against the control's plan of six, none of them having reached a `populate` call. Probed directly 2026-09-20: `require` of a shim that `export *`s from the **CJS** incumbent hands back a mutable object (`parse` writable, enumerable, configurable), and the same shim over an ESM target hands back a sealed namespace. The fix is `reexportDefault: true` on this row plus a default export on `seniority/dotenv` carrying the three functions — the `module.exports` name Node's `require()` of an ES module returns whole, which is the mechanism commander's and yargs' CJS fixtures already run on and which this row simply never declared. The control is 141 / 141 with it and was 141 / 141 without it. The other two came from `populate` itself: it validates **`parsed`** and not `processEnv` upstream (the `OBJECT_REQUIRED` message names the wrong argument, and a case asserts that exact string), returns what it set, and logs through `console.log` under `debug`. **The remaining 61 are a ceiling with two named causes and no third.** 26 in `test-config-vault.js` plus 1 in `test-decrypt.js` are `DOTENV_KEY` / `.env.vault`, which dotenv deprecated in favour of dotenvx and this package declines; 31 of `test-config.js`'s 32 and all 3 of `test-config-cli.js` need `config()` to default `processEnv` to `process.env` and `path` to a cwd-relative `.env`, which R11 forbids — read the case list and every one of them asserts `process.env.BASIC` after a bare `config()`. The single case in that file that hands `config` an object of its own, `can write to a different object rather than process.env`, passes. **One thing to read carefully in this row and in any `tap` row after it:** node-tap's plan counts *assertions*, not cases, so the size of the suite depends on which branches ran — the control plans sum to 141 and the target's to 141 now that the populate hook no longer throws (it was 147). `rate()` divides by `max(reference, registered)`, so a target can never score above its own denominator. Three things had to change together when this row was activated and none of them is about dotenv: the arm in `run.ts`; `control: 'dotenv'` on the import, without which the control's shim re-exported the non-existent `dotenv/dotenv`; and `target` reading the package root rather than the subpath it was already composing. The suite's own `tap`, `sinon` and `decache` are `suiteDeps` — 319 packages and 86 MB installed once into a gitignored `vendor/dotenv/node_modules`, in no manifest and no lockfile.",
   },
   {
+    // `seniority/find-up`'s grader (`graded-override-targets` R2). Its header called it "the
+    // override target for `find-up`" and the README said every path was graded, while no suite
+    // held it. find-up 8 runs `ava test/findup.js test/finddown.js`; `helpers.js` beside them
+    // is a module the two import, not a test, so the glob names the two files.
+    name: 'find-up',
+    repo: 'https://github.com/sindresorhus/find-up',
+    testDir: 'test',
+    testGlob: '{findup,finddown}.js',
+    imports: [{ upstream: '../index.js', subpath: '/find-up', reexportDefault: false, control: 'find-up' }],
+    // The incumbent for the control, and the two packages the suite imports by name, at what
+    // upstream's manifest resolves to at 8.0.0.
+    suiteDeps: ['find-up@8.0.0', 'is-path-inside@4.0.0', 'tempy@3.2.0'],
+    // The tree the suite walks: `helpers.js` resolves every expected path against the
+    // vendored root, and `fixture/` carries the two symlinks the `allowSymlinks` cases read.
+    extraDirs: ['fixture'],
+    // Two cases that grade the checkout, not the walk: each asserts the nearest `.git`
+    // directory is `<repo root>/.git`, which is true in find-up's own clone and in no vendored
+    // copy. Here the walk climbs past the vendored root and finds whichever repository holds
+    // it — this one, or nothing in a worktree, whose `.git` is a file. Measured 2026-10-11:
+    // they fail against find-up 8.0.0 itself with `/…/burgee/.git` against the expected
+    // `/…/vendor/find-up/.git`, and against the target the same way.
+    excludes: [
+      { match: 'findup › async (dot file)', exact: true, why: "Asserts the nearest `.git` directory is the package's own repository root. A vendored copy has none, so the walk finds whatever repository holds the vendored copy: find-up 8.0.0 fails it here, the same way." },
+      { match: 'findup › sync (dot file)', exact: true, why: 'The synchronous twin of `async (dot file)`, with the same expectation of a `.git` at the vendored root, and the same failure against find-up 8.0.0 itself.' },
+    ],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'ava',
+    target: 'seniority',
+    status: 'active',
+    note: "**Graded 2026-10-11 at 8.0.0: `seniority/find-up` 104 / 104 against a control of 104 / 104** — level, with the two `.git` cases subtracted by exact title from both. The first target run failed at link time, `does not provide an export named 'findUpStop'`: the subpath then took a required `cwd`, matched any entry by name and returned every name per directory, which is the resolver's walk and not find-up's. It now follows find-up 8 — a file unless `type` says otherwise, the first name per directory, `cwd` from the process through `runtime.ts` when none is given, matcher functions, `findDown` — and `search.ts` keeps the bounded walk config discovery uses.",
+  },
+  {
     // The first monorepo host. Its key is flat because `@clack/prompts` cannot be a
     // directory name or a baseline filename; `npmName` carries the real one.
     name: 'clack',
@@ -1650,6 +1682,49 @@ export const HOSTS: Host[] = [
     target: 'closeout',
     status: 'active',
     note: "198.9 M/wk and stale since 2023-07-29 — the layer's headline incumbent. Graded against `closeout/signal-exit` (with `closeout/signal-exit/signals` for the suite's second public import): **134 of 135 on ubuntu, the same case the control fails** (126 of 127 on darwin, whose signal list is four shorter — see `conditionalCases`). The façade is the one CommonJS file in the family, and that is measured rather than preferred: `no-process.js` and `signals.js` require the module, swap out the global `process`, evict it from `require.cache` and require it again, and an ES module is evaluated once per process however the cache is edited — measured 2026-09-23, an ESM build of the same façade failed `process missing from the start` and all three `signals.js` snapshots when those files were run directly, and a two-line probe confirmed a second `require()` of an evicted ES module returns the first instance. It exports `export = { onExit, load, unload, signals }`, which Node's CommonJS lexer reads as named exports, so `import { onExit } from 'closeout/signal-exit'` works from ESM too. It shares signal-exit's global emitter (`Symbol.for('signal-exit emitter')`), so a program with this façade and a transitive copy of the real package runs each handler once.",
+  },
+  {
+    // `closeout/onetime`'s grader (`graded-override-targets` R3). `restore-cursor` →
+    // `onetime` → `mimic-function` is the chain `closeout/once`'s header says the drop-in
+    // recipe is incomplete without, and until this row nothing graded the middle of it. The
+    // suite is one file at the repo root beside the implementation — the ora / string-width
+    // shape. It asserts nothing of `mimic-function`'s, so that package gets no row.
+    name: 'onetime',
+    repo: 'https://github.com/sindresorhus/onetime',
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '/onetime', reexportDefault: true, control: 'onetime' }],
+    // The workspace hoists onetime 7 for an unrelated dependency; the control is 8.
+    suiteDeps: ['onetime@8.0.0'],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'ava',
+    target: 'closeout',
+    status: 'active',
+    note: "**Graded 2026-10-11 at 8.0.0: `closeout/onetime` 6 / 6 against a control of 6 / 6** (D-20261011-closeout-onetime-cli-cursor). Before the façade the target run reported `target not built yet: closeout/onetime`. It is not `closeout/once` renamed: `retries if the first call throws` is a case here, and `once` marks a handler called before it runs, so an exit path never runs one twice.",
+  },
+  {
+    // `closeout/cli-cursor`'s grader (`graded-override-targets` R4): `{ show, hide, toggle }`
+    // over closeout's cursor vocabulary, restored on exit through `closeout/restore-cursor`
+    // as cli-cursor restores through restore-cursor.
+    name: 'cli-cursor',
+    repo: 'https://github.com/sindresorhus/cli-cursor',
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '/cli-cursor', reexportDefault: true, control: 'cli-cursor' }],
+    // Upstream's own `ava` block. Each case swaps `process.stderr.write` and calls
+    // `process.stderr.setEncoding`, which a worker thread's stderr does not have: under ava's
+    // default the control read 0 / 8, every case on `setEncoding is not a function`.
+    avaConfig: { workerThreads: false },
+    // `require` spawns `node index.js` from the vendored root and expects no output (it once
+    // threw, sindresorhus/log-update#2). The vendored copy has no `index.js`, so the run
+    // writes one: the incumbent's own file on the control, the target re-exported otherwise.
+    entries: [{ at: 'index.js', control: 'index.js', target: '/cli-cursor' }],
+    suiteDeps: ['cli-cursor@5.0.0'],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'ava',
+    target: 'closeout',
+    status: 'active',
+    note: "**Graded 2026-10-11 at 5.0.0: `closeout/cli-cursor` 8 / 8 against a control of 8 / 8** (D-20261011-closeout-onetime-cli-cursor). The control read 0 / 8 until `avaConfig` carried upstream's `workerThreads: false`, and 7 / 8 until `entries` wrote the `index.js` the `require` case spawns — an ES module re-export under this `type: module` root, which `entryBody` learned for this row. Before the façade the target run reported `target not built yet: closeout/cli-cursor`.",
   },
   // ---------------------------------------------------------------------------------------
   // controlroom's two incumbents (`controlroom/spec.md` R13, R17; phase 1 of its intent).

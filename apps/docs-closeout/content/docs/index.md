@@ -1,6 +1,6 @@
 ---
 title: closeout
-description: "Runs every exit handler exactly once on every path out of the process, restores the terminal, and holds shutdown to a deadline so it cannot hang. Zero dependencies. Drop-in paths for signal-exit, exit-hook and restore-cursor."
+description: "Runs every exit handler exactly once on every path out of the process, restores the terminal, and holds shutdown to a deadline so it cannot hang. Zero dependencies. Drop-in paths for signal-exit, exit-hook, restore-cursor, cli-cursor and onetime."
 ---
 
 **closeout** runs every exit handler exactly once, on every path out of the process, restores
@@ -268,9 +268,19 @@ One import per incumbent:
 + import { onExit } from 'closeout/signal-exit';
 ```
 
+```diff
+- import cliCursor from 'cli-cursor';
++ import cliCursor from 'closeout/cli-cursor';
+```
+
+```diff
+- import onetime from 'onetime';
++ import onetime from 'closeout/onetime';
+```
+
 The swap is an import change, not an `overrides` entry. An override points the incumbent's
 name at closeout's *root*, and the root is closeout's own API — it has one default to give,
-and three incumbents would each need it. An override for a transitive copy has nowhere to
+and five incumbents would each need it. An override for a transitive copy has nowhere to
 land, so this package does not print one.
 
 One thing to know before you swap `exit-hook`: its bound is per hook (`{ wait }`) and the
@@ -288,7 +298,7 @@ What `signal-exit`, `exit-hook`, `restore-cursor`, `cli-cursor`, `onetime` and `
 between them is one problem — leaving cleanly — and this is one package with no dependencies
 rather than six with a tree.
 
-Three of those paths are built and **graded by the incumbent's own test suite**, unedited apart
+Five of those paths are built and **graded by the incumbent's own test suite**, unedited apart
 from the import specifier, through `compat-oracle`. The control column is that suite run
 against the incumbent itself, which is what says the gate works before it grades us:
 
@@ -297,9 +307,14 @@ against the incumbent itself, which is what says the gate works before it grades
 | `closeout/exit-hook` | `exit-hook@5.1.0` (8.8 M/wk) | 21 / 21 | 21 / 21 |
 | `closeout/restore-cursor` | `restore-cursor@5.1.0` (107.5 M/wk) | 6 / 6 | 6 / 6 |
 | `closeout/signal-exit` | `signal-exit@4` (198.9 M/wk) | 134 / 135 | 134 / 135 |
+| `closeout/cli-cursor` | `cli-cursor@5.0.0` (126.7 M/wk) | 8 / 8 | 8 / 8 |
+| `closeout/onetime` | `onetime@8.0.0` (155.0 M/wk) | 6 / 6 | 6 / 6 |
 
 The one `signal-exit` case short fails against `signal-exit` itself as well, which is what the
-control column is for.
+control column is for. `mimic-fn` has no row: onetime's suite asserts nothing of it, and
+`closeout/onetime` keeps the wrapped function's `name` and `length` without exporting its API.
+`closeout/onetime` is not `closeout/once` renamed: onetime retries a first call that throws,
+and `once` never runs a handler twice.
 
 ## Weight
 
@@ -319,11 +334,13 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
+| `cli-cursor` | 8 / 8 |
 | `exit-hook` | 21 / 21 |
+| `onetime` | 6 / 6 |
 | `restore-cursor` | 6 / 6 |
 | `signal-exit` | 134 / 135 |
 
-Weight, installed and tree-inclusive: **122,291 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.6653**.
+Weight, installed and tree-inclusive: **128,845 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.7010**.
 
 ## For agents
 
@@ -425,7 +442,7 @@ keeps both true.
 | [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi and slice-ansi |
 | [paratext](https://paratext.interlace.tools/docs) | Hyperlinks, images, title, clipboard and notifications | ansi-escapes, terminal-link and term-img |
 | [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, lilconfig, dotenv and rc |
-| **closeout** (this package) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook and restore-cursor |
+| **closeout** (this package) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook, restore-cursor, cli-cursor and onetime |
 | [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
 | [controlroom](https://controlroom.interlace.tools/docs) | Keyboard-driven terminal screens, inline or full-screen | ink |
 

@@ -1,0 +1,38 @@
+{
+  "repo": "https://github.com/sindresorhus/onetime",
+  "version": "8.0.0",
+  "tag": "v8.0.0",
+  "commit": "481ec583f8303e98c4d1d16bb316ef8e6b04d72c",
+  "vendored": "2026-10-11",
+  "files": 1,
+  "internalFiles": [],
+  "internals": [],
+  "hashes": {
+    "./index.d.ts": "5c74c1936b85639c2de15a0068fad5d858c0c056286c3e108e50f14939f1641a",
+    "./index.js": "6b711efb524045d3c768b5303cd6f4f15d3cb0f7c860017d9fb2cd7bf455be7a",
+    "./index.test-d.ts": "505f89242135d15db42e6dd0a4226b97f5315934be9a8cdfd759325f5eb89277",
+    "./test.js": "49a744a7ee04a8997c1e48caf6a4255f80d5d089ee38ac1056795cb6ca67b739",
+    "index.d.ts": "5c74c1936b85639c2de15a0068fad5d858c0c056286c3e108e50f14939f1641a",
+    "index.js": "6b711efb524045d3c768b5303cd6f4f15d3cb0f7c860017d9fb2cd7bf455be7a"
+  },
+  "tests": {
+    "./index.d.ts": [],
+    "./index.js": [],
+    "./index.test-d.ts": [],
+    "./test.js": [
+      "call function once",
+      "throw option when called more than once",
+      "`callCount` method",
+      "preserves `this` context",
+      "retries if the first call throws",
+      "`callCount` method - throw on non-onetime-wrapped functions"
+    ]
+  },
+  "surface": {
+    "index.d.ts": [
+      "OnetimeFunction",
+      "Options"
+    ],
+    "index.js": []
+  }
+}

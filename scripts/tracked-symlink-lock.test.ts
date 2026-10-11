@@ -81,6 +81,8 @@ describe("tracked symlinks stay inside the repository", () => {
         "packages/compat-oracle/vendor/commander/tests/fixtures/another-dir/pm",
         "packages/compat-oracle/vendor/commander/tests/fixtures/other-dir/pm",
         "packages/compat-oracle/vendor/commander/tests/fixtures/pmlink",
+        "packages/compat-oracle/vendor/find-up/fixture/directory-link",
+        "packages/compat-oracle/vendor/find-up/fixture/file-link",
       ]
     `);
   });

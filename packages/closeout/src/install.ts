@@ -183,7 +183,7 @@ const raiseAfter = (proc: ProcessLike, signal: string, listener: (...args: never
  * lifecycle, like a runner hosting other programs — needs to install this against
  * something that is not the global process.
  */
-export function install(options: InstallOptions = {}): Closeout {
+function wire(options: InstallOptions = {}): Registry {
   const { process: proc = globalProcess, ...registryOptions } = options;
   if (proc === undefined) {
     throw new TypeError('closeout needs a process to listen on, and this runtime has no global `process`. Pass one: install({ process })');
@@ -273,12 +273,22 @@ export function install(options: InstallOptions = {}): Closeout {
    * The alternate screen and raw mode go in the same phase through {@link restoring}, which
    * is kept off this object so that it tree-shakes (D-163).
    */
+  return registry;
+}
+
+/** The {@link Closeout} view of a wired registry. */
+function over(registry: Registry): Closeout {
   return {
     onExit: (handler, spec) => registry.add(handler, spec),
     hideCursor: (stream) => hide(stream, (handler) => registry.add(handler, { phase: 'restore', label: 'closeout:restore-cursor' })),
     showCursor: show,
     registry,
   };
+}
+
+/** Wire a registry to a process, and return the handle a program registers through. */
+export function install(options: InstallOptions = {}): Closeout {
+  return over(wire(options));
 }
 
 /** A registrar that puts an undo in `restore`, under a label a breach report can name. */
@@ -294,11 +304,19 @@ const restoring =
  * may never need them. A library that imports `closeout` for its types pays nothing.
  */
 let shared: Closeout | undefined;
-const sharedCloseout = (): Closeout => (shared ??= install());
+let sharedRegistry: Registry | undefined;
+/**
+ * The registry and its view are two lazy values over one wiring, so `onExit` reaches the
+ * registry without the view. A program that only registers handlers — `closeout/restore-cursor`,
+ * `closeout/cli-cursor` — then does not bundle the cursor pairing the view carries, which is
+ * what keeps those drop-ins under the incumbents they replace (`graded-override-targets` R4).
+ */
+const processRegistry = (): Registry => (sharedRegistry ??= wire());
+const sharedCloseout = (): Closeout => (shared ??= over(processRegistry()));
 
 /** Register a handler that runs exactly once, on every path out of the program. */
 export function onExit(handler: ExitHandler, spec?: HandlerSpec): () => void {
-  return sharedCloseout().onExit(handler, spec);
+  return processRegistry().add(handler, spec);
 }
 
 /** Hide the cursor and register its restore; the returned function shows it again. */

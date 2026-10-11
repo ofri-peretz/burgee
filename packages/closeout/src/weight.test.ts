@@ -97,6 +97,15 @@ const RULES: Record<string, EntryRule> = {
   './signal-exit': { allow: [], budget: 5_500, denied: ['index.js', 'registry.js', 'install.js', 'exit-hook.js'] },
   // The platform's fatal-signal list, alone. Measured 381 B.
   './signal-exit/signals': { allow: [], budget: 500, denied: ['index.js', 'registry.js', 'signal-exit.cjs'] },
+  // The drop-in for `onetime` 8 (155.0 M/wk), graded 6 / 6 by its own suite
+  // (`graded-override-targets` R3). A leaf, like `./once`. Measured 1,295 B on 2026-10-11,
+  // against onetime 1,033 B + mimic-function 3,038 B.
+  './onetime': { allow: [], budget: 1_400, denied: ['index.js', 'registry.js', 'install.js', 'report.js', 'deadline.js'] },
+  // The drop-in for `cli-cursor` 5 (126.7 M/wk), graded 8 / 8 by its own suite (R4). It hides
+  // through `./restore-cursor`, so it carries that entry's registry and wiring. Measured
+  // 14,544 B on 2026-10-11, against the 15,679 B cli-cursor installs to do the same: cli-cursor
+  // 694, restore-cursor 386, onetime 1,033, mimic-function 3,038 and signal-exit 10,528.
+  './cli-cursor': { allow: [], budget: 15_000, denied: ['plugin.js', 'exit-hook.js'] },
 };
 
 // `require("…")` as well: the `signal-exit` façade is CommonJS, and tsc prints its requires
