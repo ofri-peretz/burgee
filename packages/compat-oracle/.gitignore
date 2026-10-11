@@ -5,6 +5,10 @@
 vendor/*/shim*.js
 vendor/*/shim*.mjs
 vendor/*/shim*.cjs
+# A type suite's (`runner: 'tsd'`): the declaration TypeScript reads for the shim beside it.
+vendor/*/shim*.d.ts
+vendor/*/shim*.d.mts
+vendor/*/shim*.d.cts
 vendor/*/vitest.config.mjs
 vendor/*/vitest.setup.mjs
 # The resolve hook a target run of an aliasing host (`Host.alias`, @inkjs/ui) loads through

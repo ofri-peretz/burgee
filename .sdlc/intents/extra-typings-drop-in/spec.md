@@ -83,8 +83,10 @@ executes.
 
 | R | Status | Where | Check |
 | :-- | :-- | :-- | :-- |
-| R1 | Not built | `compat-oracle/src/run.ts` | `run.test.ts` |
+| R1 | **Built** 2026-10-11 | `compat-oracle/src/run.ts`, `compat-oracle/src/tsd.ts` | `run.test.ts` (the tsd runner): the fixture's true and false assertions grade 1 pass, 1 failure out of 2 cases in 1 file. Red on the unbuilt state (`Cannot find module './tsd.js'`), and red again against a runner that counts files (`tests: 1, passed: 0` received for `tests: 2, passed: 1`). tsd is pinned per suite in `suiteDeps`, not a workspace devDependency (D-20261011-tsd-is-a-suite-dependency) |
 | R2 | Not built | `compat-oracle/vendor/extra-typings`, this file | the control run |
 | R3 | Not built | `burgee/src/commander/extra-typings.*` | `npm run compat -- extra-typings`, `drop-in-type-surface-lock` |
 | R4 | Not built | `burgee/src/compat.ts`, `migrate.ts` | `migrate-drop-ins-lock.test.ts`, `migrate.test.ts` |
 | R5 | Not built | `subpath-weight` table | `subpath-weight-lock.test.ts` |
+
+**Built: 1. Not built: 4.**

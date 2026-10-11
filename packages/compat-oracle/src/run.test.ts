@@ -4,16 +4,17 @@
  * been shown to fail is not a gate.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { type Host, HOSTS } from './hosts.js';
-import { type Baseline, cjsLoad, type Grade, hoistJestMocks, internalShimBody, jestGlobals, mochaCli, internalShimFrom, parseFlatTap, parseNodeTest, regressed, summarize, tsLoaderArgs, unsatisfiedPins } from './run.js';
+import { type Baseline, cjsLoad, type Grade, grade as gradeHost, hoistJestMocks, TSD_SCRIPT, installSuiteDeps, internalShimBody, jestGlobals, mochaCli, internalShimFrom, parseFlatTap, parseNodeTest, regressed, summarize, tsLoaderArgs, unsatisfiedPins } from './run.js';
+import { declarationName, type TsdAssertion, type TsdDiagnostic, tsdTap } from './tsd.js';
 
 const grade = (passed: number): Grade => ({
   host: 'commander',
@@ -561,5 +562,157 @@ describe('a CommonJS shim busts the incumbent only when the suite busted the shi
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+/**
+ * extra-typings-drop-in R1 — a type-only suite, graded by its own `tsd`, one case per assertion.
+ *
+ * The end-to-end half is driven for real: tsd is installed beside a scratch suite the way a host's
+ * `suiteDeps` installs it, and a fixture with one assertion that holds and one that does not must
+ * come out as one pass and one failure. A runner that counted the file instead — "it compiled" or
+ * "it did not" — reads that same fixture as **one** case, and the count below refuses it.
+ */
+describe('the tsd runner (extra-typings-drop-in R1)', () => {
+  const TSD_DEPS = { tsd: '0.33.0', '@tsd/typescript': '5.9.3' };
+  const PKG = resolve(fileURLToPath(new URL('..', import.meta.url)));
+  let vendorDir = '';
+  const typed = (over: Partial<Host> = {}): Host => ({
+    name: 'typed',
+    // The control grades the fixture against commander's own declarations, installed at the root.
+    npmName: 'commander',
+    repo: 'file:///nowhere',
+    testDir: 'test-d',
+    testGlob: '*.test-d.ts',
+    imports: [{ upstream: '../index.js', subpath: '', reexportDefault: false }],
+    runner: 'tsd',
+    suiteDeps: Object.entries(TSD_DEPS).map(([name, version]) => `${name}@${version}`),
+    target: 'burgee/commander',
+    status: 'active',
+    ...over,
+  });
+  const hostDir = (): string => join(vendorDir, 'typed');
+  /** The suite under `test-d/`, replacing whatever the previous case left. */
+  const suite = (files: Record<string, string>): void => {
+    rmSync(join(hostDir(), 'test-d'), { recursive: true, force: true });
+    mkdirSync(join(hostDir(), 'test-d'), { recursive: true });
+    for (const [name, body] of Object.entries(files)) writeFileSync(join(hostDir(), 'test-d', name), body);
+  };
+  const TSCONFIG = JSON.stringify({ compilerOptions: { module: 'nodenext', strict: true, types: [], noEmit: true } });
+
+  beforeAll(() => {
+    // Inside this package, as grade.test.ts's scratch hosts are: the control resolves commander by
+    // walking up to the workspace's node_modules.
+    vendorDir = mkdtempSync(join(PKG, '.grade-tsd-'));
+    mkdirSync(hostDir(), { recursive: true });
+    writeFileSync(join(hostDir(), 'package.json'), JSON.stringify({ name: '@vendored/typed-suite', private: true, type: 'module', main: './shim.js', devDependencies: TSD_DEPS }));
+    writeFileSync(join(hostDir(), 'tsconfig.json'), TSCONFIG);
+    installSuiteDeps(typed(), hostDir());
+  }, 300_000);
+
+  afterAll(() => {
+    rmSync(vendorDir, { recursive: true, force: true });
+  });
+
+  const HEADER = ["import { expectError, expectType } from 'tsd';", "import { Command } from '../shim.js';", 'const program = new Command();'];
+
+  it('grades one true and one false assertion in one file as one pass and one failure — never as one file', () => {
+    suite({ 'name.test-d.ts': [...HEADER, "expectType<Command>(program.name('x'));", 'expectType<number>(program.name());', ''].join('\n') });
+    const graded = gradeHost(typed(), vendorDir, 'commander');
+    expect(graded.error).toBeUndefined();
+    expect(graded).toMatchObject({ files: 1, tests: 2, passed: 1, failed: 1 });
+    // The control writes the declaration the suite's `../shim.js` resolves to, aimed at the incumbent.
+    expect(readFileSync(join(hostDir(), 'shim.d.ts'), 'utf8')).toContain("export * from 'commander';");
+  });
+
+  it('passes an expectError that errs, fails one that does not, and counts an error outside every assertion', () => {
+    suite({
+      'errors.test-d.ts': [
+        ...HEADER,
+        // A ts-expect-error directive is not a tsd assertion: when it finds nothing it is an error no assertion owns.
+        '// @ts-expect-error nothing is wrong on the next line',
+        "program.name('fine');",
+        'expectError(program.name(1));',
+        "expectError(program.name('ok'));",
+        '',
+      ].join('\n'),
+    });
+    expect(gradeHost(typed(), vendorDir, 'commander')).toMatchObject({ tests: 3, passed: 1, failed: 2 });
+  });
+
+  it('refuses a suite with no tsconfig.json of its own, rather than compile it under this repository’s', () => {
+    suite({ 'name.test-d.ts': [...HEADER, "expectType<Command>(program.name('x'));", ''].join('\n') });
+    rmSync(join(hostDir(), 'tsconfig.json'));
+    try {
+      expect(gradeHost(typed(), vendorDir, 'commander').error).toMatch(/no tsconfig\.json at the vendored root/);
+    } finally {
+      writeFileSync(join(hostDir(), 'tsconfig.json'), TSCONFIG);
+    }
+  });
+
+  it('refuses a suite that does not pin its own tsd, which a walk up the tree would otherwise supply', () => {
+    // Measured: unpinned, the child resolved an extraneous tsd at the workspace root and graded with it.
+    suite({ 'name.test-d.ts': [...HEADER, "expectType<Command>(program.name('x'));", ''].join('\n') });
+    const unpinned = typed();
+    delete unpinned.suiteDeps;
+    expect(gradeHost(unpinned, vendorDir, 'commander').error).toMatch(/pins its own tsd in `suiteDeps`/);
+    expect(gradeHost(typed({ suiteDeps: ['@tsd/typescript@5.9.3'] }), vendorDir, 'commander').error).toMatch(/pins its own tsd/);
+  });
+
+  it('reports a run whose tsd dies as an error with its message, never as a score', () => {
+    // A tsd that throws on load, pinned and installed beside its own scratch suite.
+    const broken = join(vendorDir, 'broken');
+    mkdirSync(join(broken, 'node_modules', 'tsd'), { recursive: true });
+    mkdirSync(join(broken, 'test-d'), { recursive: true });
+    writeFileSync(join(broken, 'package.json'), JSON.stringify({ name: '@vendored/broken-suite', private: true, type: 'module', main: './shim.js', devDependencies: { tsd: '0.33.0' } }));
+    writeFileSync(join(broken, 'tsconfig.json'), TSCONFIG);
+    writeFileSync(join(broken, 'node_modules', 'tsd', 'package.json'), JSON.stringify({ name: 'tsd', version: '0.33.0', main: 'index.js' }));
+    writeFileSync(join(broken, 'node_modules', 'tsd', 'index.js'), "throw new Error('tsd exploded on load');\n");
+    writeFileSync(join(broken, 'test-d', 'name.test-d.ts'), [...HEADER, ''].join('\n'));
+    const graded = gradeHost(typed({ name: 'broken', suiteDeps: ['tsd@0.33.0'] }), vendorDir, 'commander');
+    expect(graded.error).toBe('tsd exploded on load');
+    expect(graded.passed).toBe(0);
+  });
+});
+
+describe('the tsd report as TAP', () => {
+  const root = join(tmpdir(), 'suite');
+  const at = (file: string): string => join(root, 'test-d', file);
+  const assertion = (line: number, endLine = line, name = 'expectType'): TsdAssertion => ({ fileName: at('a.test-d.ts'), name, line, endLine });
+  const error = (line: number | undefined, message = 'Parameter type string is not identical to argument type number.'): TsdDiagnostic => ({ fileName: at('a.test-d.ts'), message, severity: 'error', ...(line === undefined ? {} : { line }) });
+
+  it('is one line per assertion, failing the one an error falls inside, titled by file and line', () => {
+    const tap = tsdTap({ assertions: [assertion(9), assertion(3, 5)], diagnostics: [error(4)] }, root);
+    expect(tap).toBe('TAP version 13\nnot ok 1 - test-d/a.test-d.ts:3 expectType\nok 2 - test-d/a.test-d.ts:9 expectType\n1..2\n');
+    expect(parseFlatTap(tap)).toEqual({ tests: 2, passed: 1, failed: 1, skipped: 0 });
+  });
+
+  it('fails a multi-line assertion once, however many errors fall inside it', () => {
+    expect(parseFlatTap(tsdTap({ assertions: [assertion(3, 6)], diagnostics: [error(3), error(5)] }, root))).toEqual({ tests: 1, passed: 0, failed: 1, skipped: 0 });
+  });
+
+  it('adds a failure for each error outside every assertion, with the first line of its message', () => {
+    const tap = tsdTap({ assertions: [assertion(3)], diagnostics: [error(7, `Module '"${root}/shim.js"' has no exported member 'X'.\nmore`), error(undefined, 'no line')] }, root);
+    expect(tap).toContain(`not ok 2 - test-d/a.test-d.ts:7 outside any assertion: Module '"./shim.js"' has no exported member 'X'.\n`);
+    expect(tap).toContain('not ok 3 - test-d/a.test-d.ts:0 outside any assertion: no line\n');
+    expect(parseFlatTap(tap)).toEqual({ tests: 3, passed: 1, failed: 2, skipped: 0 });
+  });
+
+  it('counts neither a warning nor a printType, which can never fail', () => {
+    const tap = tsdTap({ assertions: [assertion(3), assertion(4, 4, 'printType')], diagnostics: [{ ...error(4), severity: 'warning' }] }, root);
+    expect(parseFlatTap(tap)).toEqual({ tests: 1, passed: 1, failed: 0, skipped: 0 });
+  });
+
+  it('prints an empty plan for a suite with no assertion, which reads as zero cases rather than a pass', () => {
+    expect(tsdTap({ assertions: [], diagnostics: [] }, root)).toBe('TAP version 13\n1..0\n');
+  });
+
+  it('names the declaration TypeScript reads for each kind of shim', () => {
+    expect(['shim.js', 'shim-1.mjs', 'shim.cjs'].map(declarationName)).toEqual(['shim.d.ts', 'shim-1.d.mts', 'shim.d.cts']);
+  });
+
+  it('hands the child its anchor and files as arguments, so the script itself names no path', () => {
+    expect(TSD_SCRIPT).toContain('process.argv.slice(1)');
+    expect(TSD_SCRIPT).not.toMatch(/node_modules\/tsd/);
   });
 });
