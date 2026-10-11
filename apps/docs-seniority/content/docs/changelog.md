@@ -3,6 +3,14 @@ title: Changelog
 description: "Every release of seniority, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.0.5
+
+### Patch Changes
+
+- [#1005](https://github.com/ofri-peretz/burgee/pull/1005) [`079250e`](https://github.com/ofri-peretz/burgee/commit/079250ebc3e0cc511df1269060854711f686b5b4) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `seniority/find-up` is now find-up 8's surface, graded by find-up 8.0.0's own suite: 104 of 104, level with find-up itself. It adds a matcher function with `findUpStop`, `findDown` and `findDownSync`, and locate-path's `type` and `allowSymlinks`; `cwd` and `stopAt` take a `URL`. Three behaviours follow find-up rather than seniority's resolver walk: `cwd` is optional and defaults to the process's working directory, a name matches a file unless `type` says otherwise, and `findUpMultiple` returns the first matching name per directory. `burgee migrate` now rewrites `find-up` to `seniority/find-up`.
+
+- [#1001](https://github.com/ofri-peretz/burgee/pull/1001) [`6f74a64`](https://github.com/ofri-peretz/burgee/commit/6f74a647c107307f11e1aef7092cf4e1afc6146d) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The README no longer says every path is graded: `seniority/find-up` has no vendored `find-up` suite yet, so it now says "not graded yet" until it has a number.
+
 ## 1.0.4
 
 ### Patch Changes
