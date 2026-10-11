@@ -46,7 +46,7 @@
  * description rather than "— replaces X.". Read from `homeMetadata` and `llmsIndex`, the code the
  * sites render. Proven red on `d68f63a68d`: all ten titles and the package map, 11 failures.
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -582,7 +582,7 @@ describe('the title lock can fail', () => {
 const ABSOLUTE = /\b(?:enterprise-grade|immun(?:e|ity)|completely|zero[- ]risk|risk-free|bulletproof|military-grade|unhackable|100% secure)\b/iu;
 
 /** The supply-chain page, and every page R1 holds. */
-export const PLAIN_PAGES = ['apps/docs/content/docs/supply-chain.mdx', ...PAGES];
+export const PLAIN_PAGES = ['apps/docs/content/docs/supply-chain.mdx', 'apps/docs/content/docs/why.mdx', ...PAGES];
 
 /** What is wrong with one page or description (R14): each line that uses an absolute. */
 export function absoluteProblems(page: string, text: string): string[] {
@@ -616,5 +616,62 @@ describe('no absolute supply-chain claim (R14)', () => {
       expect.stringMatching(/:4 says "Bulletproof"/u),
     ]);
     expect(absoluteProblems('page', 'Installing any burgee package installs only burgee packages, held by install-graph-lock.')).toEqual([]);
+  });
+});
+
+// ── R15: the reasoning behind the family is short, and every choice shows its proof (owner, 2026-10-11) ──
+//
+// The owner asked for the reasons behind burgee, written to best practice in amount and length,
+// giving real value rather than "use us instead of X". So the page is held to a word budget, each
+// choice says what it gives the reader and links the page that proves it, and it ends by saying
+// what it does not claim, with a link to where burgee is slower.
+
+export const WHY_PAGE = 'apps/docs/content/docs/why.mdx';
+export const WHY_WORD_BUDGET = 600;
+
+/** The page's prose word count: front matter dropped, a link counted by its text alone. */
+export const proseWords = (mdx: string): number =>
+  mdx.replace(/^---\n[\s\S]*?\n---\n/u, '').replace(/\[([^\]]*)\]\([^)]*\)/gu, '$1').split(/\s+/u).filter(Boolean).length;
+
+/** What is wrong with the "Why it's built this way" page (R15). */
+export function whyProblems(mdx: string): string[] {
+  const out: string[] = [];
+  const words = proseWords(mdx);
+  if (words > WHY_WORD_BUDGET) out.push(`${WHY_PAGE} is ${String(words)} words, over its ${String(WHY_WORD_BUDGET)}-word budget — cut, do not add`);
+  const sections = mdx.split(/\n(?=## )/u).slice(1);
+  const last = sections.at(-1) ?? '';
+  if (!/^## What this is not\b/u.test(last)) out.push(`${WHY_PAGE} does not end with "## What this is not"`);
+  else if (!last.includes('(/docs/comparison)')) out.push(`${WHY_PAGE}'s "What this is not" does not link /docs/comparison, where burgee is slower`);
+  for (const section of sections.slice(0, -1)) {
+    const title = section.split('\n', 1)[0]!.replace(/^## /u, '');
+    if (!section.includes('What it gives you:')) out.push(`${WHY_PAGE}: "${title}" does not say what it gives the reader`);
+    if (!/\]\(\/docs\/[^)]+\)/u.test(section) && !/`npx burgee migrate`|vendored/u.test(section)) out.push(`${WHY_PAGE}: "${title}" links no page that proves it`);
+  }
+  return out;
+}
+
+describe('the reasons behind the family are short and proven (R15)', () => {
+  it('holds the page as it stands', () => {
+    expect(existsSync(join(ROOT, WHY_PAGE)), `${WHY_PAGE} is missing`).toBe(true);
+    expect(whyProblems(read(WHY_PAGE))).toEqual([]);
+  });
+
+  it('is linked from the docs landing and the root README', () => {
+    expect(read(DOCS_LANDING)).toContain('(/docs/why)');
+    expect(read('README.md')).toContain('burgee.interlace.tools/docs/why');
+  });
+
+  it('fails a page over budget, a choice with no benefit or proof, and a missing limits section', () => {
+    const long = `---\ntitle: x\n---\n\n${'word '.repeat(WHY_WORD_BUDGET + 1)}\n\n## What this is not\n\n[Comparison](/docs/comparison)\n`;
+    expect(whyProblems(long)).toEqual([expect.stringMatching(/over its 600-word budget/u)]);
+    const bare = '---\ntitle: x\n---\n\nIntro.\n\n## Better than X\n\nIt is better.\n';
+    expect(whyProblems(bare)).toEqual([
+      expect.stringMatching(/does not end with "## What this is not"/u),
+    ]);
+    const noProof = '---\ntitle: x\n---\n\n## A choice\n\nTrust us.\n\n## What this is not\n\n[Comparison](/docs/comparison)\n';
+    expect(whyProblems(noProof)).toEqual([
+      expect.stringMatching(/"A choice" does not say what it gives the reader/u),
+      expect.stringMatching(/"A choice" links no page that proves it/u),
+    ]);
   });
 });

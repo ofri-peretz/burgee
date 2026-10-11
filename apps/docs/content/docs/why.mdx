@@ -1,0 +1,64 @@
+---
+title: Why it's built this way
+description: The five choices behind burgee — proof by public tests, one dependency graph, contracts an agent can act on, continuity that does not depend on us, and a small first step — what each one gives you, and the check that holds it.
+---
+
+Writing code has become cheap: an agent can produce a working package in an afternoon. Knowing
+which code to rely on has not become cheaper. Each choice below answers that question, says what
+it gives you, and links the check that holds it.
+
+## Proven against a public standard, not popularity
+
+A drop-in path is graded by the incumbent's own test suite, run in CI against the drop-in and
+against the incumbent itself as a control. The results are published as measured, including the
+rows where burgee is behind.
+
+What it gives you: a claim you can verify without trusting us.
+[Compatibility](/docs/compatibility) has the grades; [Comparison](/docs/comparison) has the
+measurements, losses included.
+
+## One dependency graph, owned in one place
+
+Every package in the family depends only on other packages in the family, and dependencies point
+one way. No package runs an install script, and every release is published with npm
+provenance and no npm token.
+
+What it gives you: one repository to audit, and an install you can list in full before you run
+it. [Supply chain and continuity](/docs/supply-chain) has each package's install and the check
+behind every statement.
+
+## Contracts an agent can act on
+
+More of the software that calls a CLI is now an agent. burgee gives it contracts rather than
+prose: a versioned `--schema`, a stable `--json` envelope, an exit code that says *rewrite the
+command* rather than *something went wrong*, a `fix:` line it can run as written, and
+`--explain` for where a value came from. The whole family lives in one repository, so an agent
+extending it can read every layer, and a plugin is data checked against one published schema.
+
+What it gives you: fewer turns and fewer misreads when an agent drives or extends your CLI.
+[What an agent sees](/docs/what-an-agent-sees) has recorded sessions, including where the
+measured gain falls short of the target.
+
+## Continuity that does not depend on us
+
+The licence is MIT, the family is one repository, and the incumbents' own test suites are
+vendored beside the code. A team that forks it keeps the tests that tell it whether the fork
+still behaves the same.
+
+What it gives you: a dependency you can take over if you have to.
+
+## A small first step
+
+A working CLI is one file: no build step, no config and no scaffold, and that is a test, not a
+promise. Each package installs on its own, so you can adopt one layer and stop there. Moving an
+existing commander or yargs program over is one command, `npx burgee migrate`.
+
+What it gives you: an evaluation that costs an afternoon, not a migration project.
+[Getting started](/docs/getting-started) is the one file.
+
+## What this is not
+
+burgee is not a copy of the packages it can stand in for. The drop-in paths exist so that
+switching costs nothing; the reason to switch is everything above. It also does not make an
+application safe on its own, and it is not faster on every measure:
+[Comparison](/docs/comparison) shows where it is slower.

@@ -138,6 +138,15 @@ the licence, and that a fork inherits the incumbents' suites.
   not made. That page, the root README, every package README, the docs landing and every npm
   description use none of "enterprise-grade", "immune"/"immunity", "completely", "zero risk",
   "risk-free", "bulletproof", "military-grade", "unhackable" or "100% secure".
+- **R15** **The reasons behind the family, short and proven.** Requested by the owner,
+  2026-10-11: explain what is behind burgee "following best practices in the amount, length and
+  how we explain it", giving real value rather than replacing something that exists.
+  `/docs/why` ("Why it's built this way") states five choices — proof by public tests, one
+  dependency graph, contracts an agent can act on, continuity that does not depend on us, a small
+  first step — each with what it gives the reader and a link to the page that proves it, and ends
+  with "What this is not", linking where burgee is slower. At most 600 words of prose, no volatile
+  numbers (the linked pages hold them), linked from the docs landing's "Where to go next" and the
+  root README, and held by R14's words.
 
 ## Status
 
@@ -156,6 +165,7 @@ the licence, and that a fork inherits the incumbents' suites.
 | R11 | **Built** | controlroom's "What it does" | `positioning-lock` (`sectionProblems`), proven red on `e992fc7619` for controlroom |
 | R13 | **Built** | `HOME_TITLES` in `apps/docs-chassis/src/home-title.ts`, rendered by `homeMetadata` in `package-home.tsx` for all ten home pages (the front door's now included, with `SUMMARY` as its description); `packageRow` in `apps/docs-chassis/src/llms.ts` | `scripts/positioning-lock.test.ts` (`titleProblems`, `placementProblems`, `llmsRowProblems`), reading `homeMetadata` over every row of `.github/vercel-apps.json` and `llmsIndex` over `publicPackages()`; proven red on `d68f63a68d`: all ten titles and the llms.txt map, 11 failures |
 | R14 | **Built** | `apps/docs/content/docs/supply-chain.mdx`, in the navigation after Weight; its install table projected by `scripts/install-graph.ts`; the root README's "Supply chain and continuity" section and one sentence in the docs landing's "One supply chain" | `scripts/positioning-lock.test.ts` (`absoluteProblems`) over the page, every R1 page and every description, proven red by writing "enterprise-grade immunity" into the page; `scripts/install-graph-lock.test.ts` holds the table, the README's `npm i burgee` count, install scripts and the licence |
+| R15 | **Built** | `apps/docs/content/docs/why.mdx`, in the navigation right after Getting started; one item in the docs landing's "Where to go next"; one sentence in the root README's "Supply chain and continuity" | `scripts/positioning-lock.test.ts` (`whyProblems`, and the page in `PLAIN_PAGES`), proven red with the page and both links removed (3 failures) |
 | R12 | **Reported** | the root README, the package READMEs and the docs prose | not gated, by design; the before and after counts are in the PR that made each change |
 
 ## Design

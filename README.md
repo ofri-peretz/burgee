@@ -398,6 +398,8 @@ each incumbent's own test suite is vendored in [`packages/compat-oracle`](./pack
 so a fork keeps the conformance tests that tell it whether it still behaves the same.
 [Supply chain and continuity](https://burgee.interlace.tools/docs/supply-chain) has the install
 graph for each package and the check behind every statement.
+[Why it's built this way](https://burgee.interlace.tools/docs/why) gives the reasoning behind
+the family, and what it does not claim.
 
 ---
 
