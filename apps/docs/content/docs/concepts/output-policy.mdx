@@ -169,7 +169,7 @@ rule), so the policy is read by the three packages that draw, and by nothing bel
 
 | Package | Asks | For |
 | :-- | :-- | :-- |
-| [flagstaff](https://flagstaff.interlace.tools/docs/guides/static-projection) | `outputMode` | once per `hoist()`: `tty` animates, `json` writes NDJSON to stderr, every other mode prints the static projection |
+| [flagstaff](https://flagstaff.interlace.tools/docs/guides/static-projection) | `outputMode` | once per `hoist()`: `tty` animates, `json` writes NDJSON to stderr, every other mode prints the static projection; a runtime that says `quiet` draws nothing |
 | flagstaff | `unicode` | `flagstaff/ora`'s symbols, as is-unicode-supported decides them |
 | [caique](https://caique.interlace.tools/docs/guides/never-hangs) | `interactive` | `caique/decide`: nobody there means refuse and name the flag, never wait |
 | caique | `unicode` | `caique/inquirer`'s glyphs |
@@ -185,6 +185,18 @@ denies roundel by name, reaches none of it. Output-side decisions stay on the ou
 colours by `colorLevel` over stdout, and `ctx.agent` still names the agent. Pinned by
 `one rule for whether a person may be asked (N12)` in
 [`agent.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/agent.test.ts).
+
+**The caller's flags reach the policy through `ctx.runtime`.** Every burgee command takes
+`--no-color`, `--color=always|never|auto` and `-q`/`--quiet` (a command that declares an option
+of the same name keeps it). The engine hands each handler `ctx.runtime`: the environment,
+whether stdout is a terminal, the colour flag as `colorLevel` reads it, and `quiet`. Spread it
+into what you pass flagstaff's `hoist()` and the spinner is uncoloured under `--no-color` and
+draws nothing at all under `--quiet`; stdout's data, the `--json` envelope and every failure
+still print. Pinned by `--no-color under FORCE_COLOR=3 prints no SGR: in help, and in what the
+handler is told` in
+[`color.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/color.test.ts)
+and `stdout and the --json envelope are byte-identical with and without it, and stderr is empty`
+in [`quiet.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/quiet.test.ts).
 
 The leaves take a runtime slice of the same shape and decide their own narrower question
 from it: paratext whether a terminal escape is supported, for instance. They cannot import

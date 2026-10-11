@@ -54,6 +54,15 @@ interface HelpOptions {
      * through. The engine passes every command that runs when they fit (`listed` in `usage.ts`).
      */
     commands?: readonly CommandNode[];
+    /**
+     * More rows for `Global options:`, after `--json`, `--help` and `--schema`: the global flags
+     * the engine parses for this command (`--color`, `--quiet`, `--timeout`; agent-lint-conformance
+     * R1–R3), passed in by the engine like `commands`, so this renderer carries none of their words.
+     */
+    globals?: readonly {
+        term: string;
+        text: string;
+    }[];
 }
 ```
 

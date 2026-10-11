@@ -27,6 +27,13 @@ export interface Runtime {
    * `--color=…` are read in `policy.ts` and nowhere else. A test literal leaves it out.
    */
   argv?: readonly string[];
+  /**
+   * The caller asked for quiet (burgee's `--quiet`, agent-lint-conformance R2): draw no
+   * decoration — no spinner, no progress, no status line. A field and not a mode, because the
+   * mode still answers where output goes; this answers whether decoration goes there at all.
+   * flagstaff's `hoist` reads it. Data and errors are the caller's to print and are never quiet.
+   */
+  quiet?: boolean;
 }
 
 /** The whole of the global this package is willing to read. Written out, so it is a list. */
