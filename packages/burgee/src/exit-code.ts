@@ -26,6 +26,15 @@ export const ExitCode = {
    * documented, not that it matches a particular neighbour.
    */
   AUTH: 5,
+  /**
+   * agent-lint-conformance R3 — the deadline `--timeout` set has passed: retry with more time.
+   *
+   * Its own code because a caller that cancelled and a deadline that passed want different
+   * responses, one a decision and the other a retry. **6, where GNU `timeout` uses 124**: 124 is
+   * inside the 7–125 range `defineError` hands to authors, and 6 is the one number the contract
+   * had reserved and nobody could hold (D-20261011-timeout-exit-code).
+   */
+  TIMEOUT: 6,
   /** SIGINT after the terminal was restored (E5). */
   SIGINT: 130,
 } as const;
@@ -34,7 +43,11 @@ export type ExitCode = (typeof ExitCode)[keyof typeof ExitCode];
 
 const CODES: ReadonlySet<number> = new Set(Object.values(ExitCode));
 
-/** True for the seven codes in the contract and nothing else. */
+/**
+ * True for the eight codes in the contract and nothing else. The set holds numbers only, so it
+ * answers `false` for `'2'` or any other non-number by itself; the `typeof` guard this used to
+ * carry was the 27 bytes that paid for `TIMEOUT` on every entry that reaches this file.
+ */
 export function isExitCode(n: unknown): n is ExitCode {
-  return typeof n === 'number' && CODES.has(n);
+  return CODES.has(n as number);
 }

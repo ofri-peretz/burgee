@@ -167,7 +167,8 @@ describe('the root help carries the exit codes, completion and examples (agent-l
 
   it('R4: lists every ExitCode, by number and name, under "Exit codes:" after the commands', async () => {
     const text = await root();
-    const rows = sectionOf(text, 'Exit codes:');
+    // One row per code; a long line of advice wraps onto a continuation, which starts with spaces.
+    const rows = sectionOf(text, 'Exit codes:').filter((r) => /^ {2}\d/.test(r));
     expect(rows).toHaveLength(Object.keys(ExitCode).length);
     for (const [name, code] of Object.entries(ExitCode)) {
       expect(rows.some((r) => new RegExp(`^ {2}${String(code)}\\s+${name.toLowerCase()}: \\S`).test(r)), `${name} (${String(code)}) has a line`).toBe(true);

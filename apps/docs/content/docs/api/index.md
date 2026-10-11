@@ -663,6 +663,29 @@ interface RunContext {
      * change when that package's does.
      */
     onExit: (handler: () => void | Promise<void>, label?: string) => () => void;
+    /**
+     * agent-lint-conformance R3 — aborts when the `--timeout` the caller set has passed, with the
+     * timeout error as its `reason`. Hand it to `fetch`, a child process or anything else that
+     * takes a signal, so the work stops when the run does. A run without `--timeout` still has one;
+     * it never aborts.
+     */
+    signal: AbortSignal;
+    /** agent-lint-conformance R2 — the caller passed `--quiet`: draw no progress and print no hints. Data and errors still print. */
+    quiet: boolean;
+    /**
+     * The output policy's runtime for this run (`roundel/policy`'s `Runtime`, typed structurally):
+     * the environment, whether stdout is a terminal, the colour flag the caller typed (`--no-color`,
+     * `--color=always`; R1) and `quiet` (R2). Spread it into what you hand flagstaff's `hoist` or
+     * roundel's `colorLevel`, and they decide colour and drawing the way the caller asked.
+     */
+    runtime: {
+        env: Record<string, string | undefined>;
+        argv: readonly string[];
+        isTTY: {
+            stdout: boolean;
+        };
+        quiet: boolean;
+    };
 }
 ```
 

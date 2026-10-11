@@ -12,6 +12,7 @@ import { type Layers, type Provenance, resolve as resolveLayers } from 'seniorit
 import { beforeTerminator, isJsonFlag, mayServe } from './argv.js';
 import { checkCommand } from './definition.js';
 import { ExitCode, isExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
+import { type LazyArgs } from './fields.js';
 import { type ActionRequiredSpec, type ArgumentSpec, type CommandNode, type DeclaredEffects, type Example, type LazyModule, Manifest, type OptionSpec, type Relation, relationsOf, type RunContext } from './manifest.js';
 import { camel, kebab } from './names.js';
 import { owningPackage, type Package } from './pkg.js';
@@ -430,14 +431,19 @@ function exitCodeOf(data: unknown): ExitCodeType {
   return isExitCode(code) ? code : ExitCode.OK;
 }
 
-/** A flag `fields.js` reads off argv: N14's `--json=<fields>` and N15's `--format=agent`. */
-const readsLazily = (arg: string): boolean => arg.startsWith('--json=') || arg === '--format=agent';
+/**
+ * A flag `fields.js` reads off argv: N14's `--json=<fields>`, N15's `--format=agent`, and the
+ * globals of agent-lint-conformance R1–R3 (`--color`, `--no-color`, `--quiet`, `-q`,
+ * `--timeout`), which it hands to `globals.js`. One test and one lazy load for all of them:
+ * the startup bundle had 3 bytes under its ceiling, and a second loader cost 42.
+ */
+const readsLazily = (arg: string): boolean => /^(--json=|--format=agent$|-q$|--(no-color|quiet|color|timeout)(=|$))/.test(arg);
 
 async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolved, io: Io): Promise<Outcome> {
-  // N14's selection and N15's format are imported only when a caller typed `--json=` or
-  // `--format=agent` (M2): every other run pays nothing for either.
+  // N14's selection, N15's format and the R1–R3 globals are imported only when a caller typed
+  // one of them (M2): every other run pays nothing for any.
   const select = typed.some(readsLazily) ? await import('./fields.js') : undefined;
-  const { args: rest, fields, lines } = select?.jsonFields(typed, node) ?? { args: typed };
+  const { args: rest, fields, lines, global } = select?.lazyArgs(typed, node) ?? ({ args: typed } as LazyArgs);
   if (fields?.length === 0) return { json: true, text: `${JSON.stringify(select?.listFields(node))}\n` };
   if (fields !== undefined) select?.checkFields(fields, node);
   const parsed = builtin('node:util').parseArgs({ args: rest, options: toParseConfig(node.options, manifest.config !== undefined), allowPositionals: true, strict: true, tokens: true });
@@ -447,7 +453,7 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   // caller who asked for a machine-readable answer got one they had to parse: the exact
   // failure the `--json` surface exists to avoid, on the flag people type first.
   // Help and the version are surfaces (U5): `surfaces.js` is imported only when one is asked for.
-  if (flags.help === true) return { json, text: await (await import('./surfaces.js')).helpFor(manifest, node, io, json) };
+  if (flags.help === true) return { json, text: await (await import('./surfaces.js')).helpFor(manifest, node, io, { json, color: global?.color }) };
   if (flags.version === true) return { json, text: `${(await import('./surfaces.js')).versionOf(manifest, io)}\n` };
 
   const resolved = await resolveValues(manifest, node.options, flags, io, parsed.tokens);
@@ -463,13 +469,16 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   const values = await coerce(node.options, resolved.values);
   const { positionals, passthrough } = splitPositionals(parsed.tokens);
   requirePositionals(node, positionals);
-  warnDeprecated(node, io);
+  // M5, from its own chunk, loaded only for a deprecated command; `--quiet` silences it (R2).
+  if (node.deprecated) (await import('./deprecation.js')).warnDeprecated(node, io, global?.quiet);
   await manifest.fire('preRun', name, values);
   // S4's check is imported only when a `-` was typed (M2).
   const stdin = positionals.includes('-') ? (await import('./stdin-dash.js')).stdinFor(node, positionals, io.stdin) : {};
-  // `env`, `onExit`, `agent` and `interactive` come from `ctx.js`, a chunk loaded on this path only:
-  // whether a person may be asked is roundel's rule, over stdin (D-20260930-one-interactive-rule).
-  const data = await node.run({ options: values, positionals, passthrough, ...stdin, exit: ctxExit, actionRequired, ...(await import('./ctx.js')).ctxOf(io) });
+  // `env`, `onExit`, `agent`, `interactive`, `signal`, `quiet` and `runtime` come from `ctx.js`, a
+  // chunk loaded on this path only: whether a person may be asked is roundel's rule, over stdin
+  // (D-20260930-one-interactive-rule). `--timeout` races the handler against its deadline (R3).
+  const ran = node.run({ options: values, positionals, passthrough, ...stdin, exit: ctxExit, actionRequired, ...(await import('./ctx.js')).ctxOf(io, global) });
+  const data = await (global?.within(ran) ?? ran);
   await manifest.fire('postRun', name, values);
   const changed = changedOf(node, data);
   const selected = fields === undefined || select === undefined ? data : select.selectFields(data, fields);
@@ -488,19 +497,6 @@ function requirePositionals(node: CommandNode, positionals: string[]): void {
   if (missing !== undefined) {
     throw new UsageError(`missing required argument "${missing.name}"`);
   }
-}
-
-const warned = new Set<string>();
-
-/** M5: a deprecated command says so once per process, on stderr, and still runs — exit OK. */
-function warnDeprecated(node: CommandNode, io: Io): void {
-  if (node.deprecated === undefined || node.deprecated === false) return;
-  const key = node.path.join(' ');
-  if (warned.has(key)) return;
-  warned.add(key);
-  const typed = node.path.slice(1).join(' ') || key;
-  const use = typeof node.deprecated === 'string' ? `, use '${node.deprecated}'` : '';
-  io.err.write(`warning: '${typed}' is deprecated${use}\n`);
 }
 
 /** Success: help, or the data on the requested surface. */

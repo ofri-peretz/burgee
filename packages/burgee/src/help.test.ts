@@ -4,6 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { globalRows } from './globals.js';
 import { renderHelp } from './help-entry.js';
 import { defineCommand, defineProgram } from './index.js';
 import { type CommandNode } from './manifest.js';
@@ -170,19 +171,19 @@ describe('help through the engine', () => {
     const b = await runBurgee(program, { argv: ['help', 'deploy'] });
     expect(a.code).toBe(0);
     expect(a.stdout).toBe(b.stdout);
-    expect(a.stdout).toBe(renderHelp(program, deploy, { width: 100 }));
+    expect(a.stdout).toBe(renderHelp(program, deploy, { width: 100, globals: globalRows(deploy) }));
     const r = await runBurgee(program, { argv: ['help'] });
     // The engine lists the commands that run, then its own `completion` and the exit codes, and
     // shows the root's examples (agent-lint-conformance R4–R6).
     const commands = [...listed(program, root), completionNode(program) as CommandNode, ...exitRows(program.rootPath)];
-    expect(r.stdout).toBe(renderHelp(program, { ...root, examples: rootExamples(program, root) }, { width: 100, commands }));
+    expect(r.stdout).toBe(renderHelp(program, { ...root, examples: rootExamples(program, root) }, { width: 100, commands, globals: globalRows(root) }));
   });
 
   it('takes its width from the injected stdout when it has columns (H3)', async () => {
     const out: string[] = [];
     const { execute } = await import('./index.js');
     await execute(program, { argv: ['deploy', '--help'], stdout: { write: (s: string) => out.push(s), columns: 60 }, stderr: quiet, exit: noExit });
-    expect(out.join('')).toBe(renderHelp(program, deploy, { width: 60 }));
+    expect(out.join('')).toBe(renderHelp(program, deploy, { width: 60, globals: globalRows(deploy) }));
   });
 });
 
@@ -244,8 +245,8 @@ describe('theme seam (R7; roundel used without being imported)', () => {
     // A terminal that names itself: with no `TERM` and nothing asked, roundel's policy is plain.
     const coloured = await runBurgee(program, { argv: ['deploy', '--help'], tty: true, env: { TERM: 'xterm-256color' } });
     expect(coloured.stdout).toMatch(ANSI);
-    expect(coloured.stdout.replace(ANSI, '')).toBe(renderHelp(program, deploy, { width: 100 }));
+    expect(coloured.stdout.replace(ANSI, '')).toBe(renderHelp(program, deploy, { width: 100, globals: globalRows(deploy) }));
     const plain = await runBurgee(program, { argv: ['deploy', '--help'], tty: true, env: { TERM: 'xterm-256color', NO_COLOR: '1' } });
-    expect(plain.stdout).toBe(renderHelp(program, deploy, { width: 100 }));
+    expect(plain.stdout).toBe(renderHelp(program, deploy, { width: 100, globals: globalRows(deploy) }));
   });
 });

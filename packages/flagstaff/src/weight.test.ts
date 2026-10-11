@@ -187,7 +187,9 @@ const RULES: Record<string, EntryRule> = {
   // against the last frame, in-place edits under DECSC/DECRC, and synchronized output. All of
   // it is `projection.js`'s own code; nothing new is reached. Inside the 7,000 and 29,300
   // budgets, which did not move.
-  './loop': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'roundel/policy'], budget: 7_000, measured: 6_746, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
+  // 2026-10-11, agent-lint-conformance R2: a runtime that says `quiet` gets a projection that
+  // draws nothing. Measured 6,910, inside the 7,000 budget, which did not move.
+  './loop': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'roundel/policy'], budget: 7_000, measured: 6_910, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
   // The registry, the validator, the built-ins and the schema they are checked against.
   // The registry, the validator, the built-ins and the schema they are checked against —
   // which now carries `borders` too, so both this and `./spinner` are larger than before.

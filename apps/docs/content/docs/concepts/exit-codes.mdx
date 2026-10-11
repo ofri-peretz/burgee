@@ -1,12 +1,12 @@
 ---
 title: Exit codes and errors
-description: "Seven typed exit codes a caller can branch on, one error envelope under --json, and a fixed rule for which stream a failure goes to."
+description: "Eight typed exit codes a caller can branch on, one error envelope under --json, and a fixed rule for which stream a failure goes to."
 ---
 
 ## What it is
 
 An exit code is the one thing every caller reads — a shell, a CI runner, an agent — before it
-decides what to do next. burgee makes it a contract: seven named codes, each with one meaning,
+decides what to do next. burgee makes it a contract: eight named codes, each with one meaning,
 and nothing else reaches `process.exitCode`.
 
 | Code | Name | Means | The caller should |
@@ -17,6 +17,7 @@ and nothing else reaches `process.exitCode`.
 | 3 | `CONFIG` | a config file or the environment could not be loaded or validated | fix the environment |
 | 4 | `CANCELLED` | the user or caller cancelled, or the command needs a decision (`actionRequired`) | decide, then run a `next` command |
 | 5 | `AUTH` | a credential is missing, expired or refused | log in and run it again |
+| 6 | `TIMEOUT` | the deadline `--timeout` set passed | run it again with more time |
 | 130 | `SIGINT` | interrupted, after the terminal was restored | stop |
 
 `ExitCode` and `isExitCode()` are exported from `burgee`. `--schema` carries the table as
@@ -33,22 +34,33 @@ to do. The split above is by *response*: `USAGE` says fix the command, `CONFIG` 
 environment, `AUTH` says fix the credential, and none of them needs the message parsed. `AUTH`
 is 5 rather than `gh`'s 4 because 4 was already `CANCELLED`, and moving a published code is a
 breaking change for everyone who branches on it (the reasoning is in `exit-code.ts`).
+`TIMEOUT` is 6 rather than GNU `timeout`'s 124 for the same reason: 124 is inside the 7–125
+range `defineError` hands to authors, and 6 was the one number the contract had reserved and
+nobody could hold ([D-20261011-timeout-exit-code](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/decisions/D-20261011-timeout-exit-code.md)).
+A program run under `timeout 5s` still exits 124, because the wrapper sets it.
+
+**A deadline is the caller's.** Every command takes `--timeout <duration>` (`500ms`, `5s`, `2m`,
+or a bare number of milliseconds). When it passes, `ctx.signal` aborts with the timeout as its
+reason, the run's `ctx.onExit` handlers run once, and the process leaves with 6 and
+`error: timed out after … ms` (`a handler awaiting forever under --timeout 50 exits TIMEOUT, its
+cleanup ran once, and ctx.signal aborted` in
+[`timeout.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/timeout.test.ts)).
 
 ## The rules
 
-**Only the seven.** `isExitCode()` accepts exactly these (`recognises only the seven codes` in
+**Only the eight.** `isExitCode()` accepts exactly these (`recognises only the eight codes` in
 [`exit-code.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/exit-code.test.ts)).
 [`exit-code-lock.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/exit-code-lock.test.ts)
 reads them out of `exit-code.ts` and fails on any bare numeric literal passed to an `exit` call
 or assigned to `process.exitCode` (`no bare literal reaches an exit outside the two
 front-ends`), and on any package's named exit constant that is not one of them (`every exit
-constant any package declares is one of the seven`). The two exceptions are the commander and
+constant any package declares is one of the eight`). The two exceptions are the commander and
 yargs front-ends, which reproduce their host's own exit codes because the host's suite grades
 exactly that.
 
 **A thrown error becomes a code in a fixed order** (`describeFailure` in `failure.ts`):
 
-1. `ctx.exit(code)` with one of the seven leaves silently with that code.
+1. `ctx.exit(code)` with one of the eight leaves silently with that code.
 2. `ctx.actionRequired(…)` is 4, with its `next` commands.
 3. `UsageError` is 2, `AuthError` is 5, and seniority's `ConfigError` is 3.
 4. A class made with `defineError({ name, code })` leaves with its own code.
