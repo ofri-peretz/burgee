@@ -512,12 +512,22 @@ export function targetInternalBody(root: string, { file, names }: { file: string
 }
 
 /**
- * The target-run body of one {@link HostEntry}: CommonJS whatever the host is, because every
- * entry is a `.cjs` or `.js` file under a CommonJS package that the suite `require`s, spawns or
- * preloads. It is upstream's `index.js` with the two modules it names pointed at the target.
+ * The target-run body of one {@link HostEntry}: upstream's `index.js` with the two modules it
+ * names pointed at the target.
+ *
+ * In the language the path is parsed as, which is the internal shims' rule: `.cjs` is CommonJS,
+ * anything else follows the vendored root's `type`. dotenv's entries are `.cjs` and `.js` under
+ * a CommonJS root and are `require`d, spawned or preloaded. cli-cursor's suite spawns
+ * `node index.js` under a `type: module` root, where a `require` is not defined — so there the
+ * entry re-exports the target as an ES module, and `names` and `runs`, which describe a CommonJS
+ * main module, do not apply.
  */
-export function entryBody(target: string, entry: HostEntry): string {
-  const lines = [`// generated per run — COMPAT_TARGET=${target}`, `const loaded = require(${JSON.stringify(`${target}${entry.target}`)});`, 'module.exports = loaded?.default ?? loaded;'];
+export function entryBody(target: string, entry: HostEntry, packageType = 'commonjs'): string {
+  const specifier = JSON.stringify(`${target}${entry.target}`);
+  if (!entry.at.endsWith('.cjs') && packageType === 'module') {
+    return [`// generated per run — COMPAT_TARGET=${target}`, `import * as loaded from ${specifier};`, `export * from ${specifier};`, 'export default loaded.default ?? loaded;', ''].join('\n');
+  }
+  const lines = [`// generated per run — COMPAT_TARGET=${target}`, `const loaded = require(${specifier});`, 'module.exports = loaded?.default ?? loaded;'];
   for (const name of entry.names ?? []) lines.push(`module.exports.${name} = module.exports.${name};`);
   if (entry.runs !== undefined) lines.push(`if (require.main === module) require(${JSON.stringify(`${target}${entry.runs}`)}).run(process.argv.slice(2));`);
   return `${lines.join('\n')}\n`;
@@ -529,7 +539,7 @@ export function entryBody(target: string, entry: HostEntry): string {
  * instead of it, and `dist/index.cjs` runs its CLI only when it is `require.main`. Where the
  * platform refuses the link it falls back to a `require`, which serves every entry but that.
  */
-function writeEntries(host: Host, hostDir: string, target: string): void {
+function writeEntries(host: Host, { hostDir, target, packageType }: { hostDir: string; target: string; packageType: string }): void {
   const entries = host.entries ?? [];
   if (entries.length === 0) return;
   const besideSuite = host.suiteDeps === undefined ? undefined : hostDir;
@@ -539,7 +549,7 @@ function writeEntries(host: Host, hostDir: string, target: string): void {
     mkdirSync(dirname(at), { recursive: true });
     rmSync(at, { force: true });
     if (installed === undefined) {
-      writeFileSync(at, entryBody(target, entry));
+      writeFileSync(at, entryBody(target, entry, packageType));
       continue;
     }
     const file = join(installed, entry.control);
@@ -1209,7 +1219,7 @@ export function grade(host: Host, vendorDir: string, target: string, reference =
   writeShims(host, hostDir, target, packageType);
   writeInternalShims(host, { hostDir, target, internals: source.internals ?? [], packageType });
   writeAliasHook(host, hostDir, target);
-  writeEntries(host, hostDir, target);
+  writeEntries(host, { hostDir, target, packageType });
 
   if (host.runner === 'exit-code') {
     const outcome = runExitCodes(host, hostDir, files, target);

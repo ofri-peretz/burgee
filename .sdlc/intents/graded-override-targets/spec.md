@@ -114,8 +114,8 @@ non-zero on failure.
 | :-- | :-- | :-- | :-- |
 | R1 | **Built** 2026-10-11 | `scripts/graded-claims-lock.test.ts` | itself: red on `e04e05e7f3`, naming `seniority/find-up` ("find-up has no GRADED row behind a DROP_INS pair"), green once the README and the header said "not graded yet" |
 | R2 | **Built** 2026-10-11 | `seniority/find-up` | `npm run compat -- find-up`: 104 / 104, control 104 / 104 (D-20261011-seniority-find-up-follows-find-up-8); red before the façade, `does not provide an export named 'findUpStop'` |
-| R3 | Not built | `closeout/onetime` | `npm run compat -- onetime` |
-| R4 | Not built | `closeout/cli-cursor` | `npm run compat -- cli-cursor` |
+| R3 | **Built** 2026-10-11 | `closeout/onetime` | `npm run compat -- onetime`: 6 / 6, control 6 / 6; red before the façade, `target not built yet: closeout/onetime` (D-20261011-closeout-onetime-cli-cursor); `subpath-weight-lock`: bundled 716 B against onetime's 1,527 B. No `mimic-function` row: the suite asserts none of it and the façade exports none of its API |
+| R4 | **Built** 2026-10-11 | `closeout/cli-cursor` | `npm run compat -- cli-cursor`: 8 / 8, control 8 / 8; red before the façade, `target not built yet: closeout/cli-cursor`; `scripts/subpath-weight-lock.test.ts`: bundled 4,568 B against cli-cursor's 4,757 B, red at 4,876 B until `install.ts` split the registry from its view |
 | R5 | Not built | `linegauge/cli-truncate` | `npm run compat -- cli-truncate` |
 | R6 | Not built | `linegauge/widest-line` | `npm run compat -- widest-line` |
 | R7 | Not built | `roundel/picocolors` | `npm run compat -- picocolors`, `subpath-weight-lock` |

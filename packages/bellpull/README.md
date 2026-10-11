@@ -231,7 +231,7 @@ Graded by the incumbent's own test suite:
 | `execa` | 0 / 1179 |
 | `which` | 5 / 5 |
 
-Weight, installed and tree-inclusive: **117,441 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1534**.
+Weight, installed and tree-inclusive: **117,462 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1534**.
 
 ## For agents
 
@@ -287,7 +287,7 @@ keeps both true.
 | [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi and slice-ansi |
 | [paratext](https://paratext.interlace.tools/docs) | Hyperlinks, images, title, clipboard and notifications | ansi-escapes, terminal-link and term-img |
 | [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, lilconfig, dotenv and rc |
-| [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook and restore-cursor |
+| [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook, restore-cursor, cli-cursor and onetime |
 | **bellpull** (this package) | Subprocesses, and which executable actually ran | cross-spawn and which |
 | [controlroom](https://controlroom.interlace.tools/docs) | Keyboard-driven terminal screens, inline or full-screen | ink |
 

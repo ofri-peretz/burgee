@@ -64,6 +64,8 @@ const EXTENSION_POINTS: Record<string, string> = {
   'signal-exit': 'None — it is the hook',
   'exit-hook': 'None — it is the hook',
   'restore-cursor': 'None',
+  onetime: 'None',
+  'cli-cursor': 'None — the stream is an argument, per call',
   'cross-spawn': 'None',
   which: 'None',
   ink: 'Components are the extension: any React component renders (`@inkjs/ui`, `ink-spinner`); no registry, no theme',

@@ -3,9 +3,11 @@
   "pages": [
     "index",
     "once",
+    "onetime",
     "cursor",
     "plugin",
     "restore-cursor",
+    "cli-cursor",
     "exit-hook",
     "signal-exit",
     "signal-exit/signals"

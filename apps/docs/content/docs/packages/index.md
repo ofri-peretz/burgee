@@ -13,7 +13,7 @@ is its README, projected; the family-wide pages — [compatibility](/docs/compat
 | [burgee](https://burgee.interlace.tools/docs/packages/burgee) | commander, yargs and meow | [burgee.interlace.tools](https://burgee.interlace.tools) |
 | [bellpull](https://bellpull.interlace.tools/docs) | cross-spawn and which | [bellpull.interlace.tools](https://bellpull.interlace.tools) |
 | [caique](https://caique.interlace.tools/docs) | @inquirer/core | [caique.interlace.tools](https://caique.interlace.tools) |
-| [closeout](https://closeout.interlace.tools/docs) | signal-exit, exit-hook and restore-cursor | [closeout.interlace.tools](https://closeout.interlace.tools) |
+| [closeout](https://closeout.interlace.tools/docs) | signal-exit, exit-hook, restore-cursor, cli-cursor and onetime | [closeout.interlace.tools](https://closeout.interlace.tools) |
 | [controlroom](https://controlroom.interlace.tools/docs) | ink | [controlroom.interlace.tools](https://controlroom.interlace.tools) |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | ora, log-update, boxen and cli-table3 | [flagstaff.interlace.tools](https://flagstaff.interlace.tools) |
 | [linegauge](https://linegauge.interlace.tools/docs) | string-width, wrap-ansi, strip-ansi and slice-ansi | [linegauge.interlace.tools](https://linegauge.interlace.tools) |

@@ -1683,6 +1683,49 @@ export const HOSTS: Host[] = [
     status: 'active',
     note: "198.9 M/wk and stale since 2023-07-29 — the layer's headline incumbent. Graded against `closeout/signal-exit` (with `closeout/signal-exit/signals` for the suite's second public import): **134 of 135 on ubuntu, the same case the control fails** (126 of 127 on darwin, whose signal list is four shorter — see `conditionalCases`). The façade is the one CommonJS file in the family, and that is measured rather than preferred: `no-process.js` and `signals.js` require the module, swap out the global `process`, evict it from `require.cache` and require it again, and an ES module is evaluated once per process however the cache is edited — measured 2026-09-23, an ESM build of the same façade failed `process missing from the start` and all three `signals.js` snapshots when those files were run directly, and a two-line probe confirmed a second `require()` of an evicted ES module returns the first instance. It exports `export = { onExit, load, unload, signals }`, which Node's CommonJS lexer reads as named exports, so `import { onExit } from 'closeout/signal-exit'` works from ESM too. It shares signal-exit's global emitter (`Symbol.for('signal-exit emitter')`), so a program with this façade and a transitive copy of the real package runs each handler once.",
   },
+  {
+    // `closeout/onetime`'s grader (`graded-override-targets` R3). `restore-cursor` →
+    // `onetime` → `mimic-function` is the chain `closeout/once`'s header says the drop-in
+    // recipe is incomplete without, and until this row nothing graded the middle of it. The
+    // suite is one file at the repo root beside the implementation — the ora / string-width
+    // shape. It asserts nothing of `mimic-function`'s, so that package gets no row.
+    name: 'onetime',
+    repo: 'https://github.com/sindresorhus/onetime',
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '/onetime', reexportDefault: true, control: 'onetime' }],
+    // The workspace hoists onetime 7 for an unrelated dependency; the control is 8.
+    suiteDeps: ['onetime@8.0.0'],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'ava',
+    target: 'closeout',
+    status: 'active',
+    note: "**Graded 2026-10-11 at 8.0.0: `closeout/onetime` 6 / 6 against a control of 6 / 6** (D-20261011-closeout-onetime-cli-cursor). Before the façade the target run reported `target not built yet: closeout/onetime`. It is not `closeout/once` renamed: `retries if the first call throws` is a case here, and `once` marks a handler called before it runs, so an exit path never runs one twice.",
+  },
+  {
+    // `closeout/cli-cursor`'s grader (`graded-override-targets` R4): `{ show, hide, toggle }`
+    // over closeout's cursor vocabulary, restored on exit through `closeout/restore-cursor`
+    // as cli-cursor restores through restore-cursor.
+    name: 'cli-cursor',
+    repo: 'https://github.com/sindresorhus/cli-cursor',
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '/cli-cursor', reexportDefault: true, control: 'cli-cursor' }],
+    // Upstream's own `ava` block. Each case swaps `process.stderr.write` and calls
+    // `process.stderr.setEncoding`, which a worker thread's stderr does not have: under ava's
+    // default the control read 0 / 8, every case on `setEncoding is not a function`.
+    avaConfig: { workerThreads: false },
+    // `require` spawns `node index.js` from the vendored root and expects no output (it once
+    // threw, sindresorhus/log-update#2). The vendored copy has no `index.js`, so the run
+    // writes one: the incumbent's own file on the control, the target re-exported otherwise.
+    entries: [{ at: 'index.js', control: 'index.js', target: '/cli-cursor' }],
+    suiteDeps: ['cli-cursor@5.0.0'],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'ava',
+    target: 'closeout',
+    status: 'active',
+    note: "**Graded 2026-10-11 at 5.0.0: `closeout/cli-cursor` 8 / 8 against a control of 8 / 8** (D-20261011-closeout-onetime-cli-cursor). The control read 0 / 8 until `avaConfig` carried upstream's `workerThreads: false`, and 7 / 8 until `entries` wrote the `index.js` the `require` case spawns — an ES module re-export under this `type: module` root, which `entryBody` learned for this row. Before the façade the target run reported `target not built yet: closeout/cli-cursor`.",
+  },
   // ---------------------------------------------------------------------------------------
   // controlroom's two incumbents (`controlroom/spec.md` R13, R17; phase 1 of its intent).
   // ---------------------------------------------------------------------------------------

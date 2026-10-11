@@ -40,6 +40,8 @@ const PAIRS: readonly (readonly [string, string])[] = [
   ['wrap-ansi', 'linegauge/wrap'],
   ['slice-ansi', 'linegauge/slice'],
   ['restore-cursor', 'closeout/restore-cursor'],
+  // Joined 2026-10-11 with `graded-override-targets` R4; cli-cursor 5.0.0 is hoisted at the root.
+  ['cli-cursor', 'closeout/cli-cursor'],
   ['exit-hook', 'closeout/exit-hook'],
   ['signal-exit', 'closeout/signal-exit'],
   ['signal-exit/signals', 'closeout/signal-exit/signals'],

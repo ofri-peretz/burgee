@@ -73,6 +73,8 @@ export const GRADED: Readonly<Record<string, Row>> = {
   ink: { reference: 1304, passed: 1304, rate: 1, control: 1303 },
   'inkjs-ui': { reference: 102, passed: 102, rate: 1, control: 102 },
   'find-up': { reference: 104, passed: 104, rate: 1, control: 104 },
+  onetime: { reference: 6, passed: 6, rate: 1, control: 6 },
+  'cli-cursor': { reference: 8, passed: 8, rate: 1, control: 8 },
 };
 
 /** One graded path: an incumbent's specifier, and the family specifier that replaces it. */
@@ -126,6 +128,8 @@ export const DROP_INS: readonly DropIn[] = [
   { host: 'signal-exit', from: 'signal-exit/signals', to: 'closeout/signal-exit/signals' },
   { host: 'ink', from: 'ink', to: 'controlroom/ink' },
   { host: 'find-up', from: 'find-up', to: 'seniority/find-up' },
+  { host: 'onetime', from: 'onetime', to: 'closeout/onetime' },
+  { host: 'cli-cursor', from: 'cli-cursor', to: 'closeout/cli-cursor' },
 ];
 
 /**
@@ -141,6 +145,7 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
   'ansi-escapes': '7.3.0',
   boxen: '9.0.0',
   chalk: '6.0.1',
+  'cli-cursor': '5.0.0',
   'cli-table3': '0.6.5',
   commander: '15.0.0',
   cosmiconfig: '10.0.1',
@@ -152,6 +157,7 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
   lilconfig: '3.1.3',
   'log-update': '8.0.0',
   meow: '14.1.0',
+  onetime: '8.0.0',
   ora: '9.4.1',
   rc: '1.2.8',
   'restore-cursor': '5.1.0',
@@ -204,6 +210,7 @@ export const SUPPORTED_MAJORS: Readonly<Record<string, readonly number[]>> = {
   'ansi-escapes': [7],
   boxen: [9],
   chalk: [6],
+  'cli-cursor': [5],
   'cli-table3': [0],
   commander: [15],
   cosmiconfig: [10],
@@ -215,6 +222,7 @@ export const SUPPORTED_MAJORS: Readonly<Record<string, readonly number[]>> = {
   lilconfig: [3],
   'log-update': [8],
   meow: [14],
+  onetime: [8],
   ora: [9],
   rc: [1],
   'restore-cursor': [5],
