@@ -1761,7 +1761,7 @@ const MINUTE_MS = 60_000;
 
 const registryTimes: PublishTimes = async (name) => {
   try {
-    const response = await fetch(`https://registry.npmjs.org/${name.replace('/', '%2f')}`, { signal: AbortSignal.timeout(REGISTRY_TIMEOUT_MS) });
+    const response = await fetch(`https://registry.npmjs.org/${encodeURIComponent(name)}`, { signal: AbortSignal.timeout(REGISTRY_TIMEOUT_MS) });
     return response.ok ? ((await response.json()) as { time?: Record<string, string> }).time : undefined;
   } catch {
     return undefined;
