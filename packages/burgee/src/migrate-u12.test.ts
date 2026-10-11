@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ExitCode } from './exit-code.js';
 import { familyVersions, migrate, type MigrationReport, rewriteSource, scan, textOf, UnknownIncumbentError } from './migrate.js';
@@ -229,6 +229,16 @@ describe('U12-2 — under a release age, next pins the newest family version old
     const report = await migrate({ dir: mcpc('minimumReleaseAge: 4320\n'), status: clean, registry: unreachable, now });
     expect(report.next).toBe(`pnpm add flagstaff@^${versions['flagstaff'] as string} roundel@^${versions['roundel'] as string} && pnpm remove chalk ora`);
     expect(report.releaseAge?.note).toContain('the registry did not say when flagstaff, roundel were published');
+  });
+
+  it.each([
+    ['an npmrc', { '.npmrc': 'minimum-release-age=4320\nminimum-release-age-exclude[]="rou*"\n' }],
+    ['a glob with two stars', { 'pnpm-workspace.yaml': "minimumReleaseAge: 4320\nminimumReleaseAgeExclude: [nope, 'x*y*z', 'ro*xx*l', 'r*und*del', '*a*f', 'r*u*l']\n" }],
+    ['a block list with comments, blanks and a key after it', { 'pnpm-workspace.yaml': 'minimumReleaseAgeExclude:\n  # docs-only patches\n\n  - roundel # ours\n  -\nminimumReleaseAge: 4320\nother:\n  - flagstaff\n' }],
+  ])('reads the exclusions from %s', async (_, files) => {
+    const dir = project({ 'package.json': manifest({ chalk: '^6.0.0', ora: '^9.0.0' }), 'pnpm-lock.yaml': '', 'src/a.ts': "import chalk from 'chalk';\nimport ora from 'ora';\n", ...files });
+    const report = await migrate({ dir, status: clean, registry: registry(), now });
+    expect(report.next).toContain(`roundel@^${versions['roundel'] as string}`);
   });
 
   it('never asks the registry when the project sets no release age', async () => {
@@ -482,6 +492,42 @@ describe('U12-5 — the report says what happened in words', () => {
         'removable: none',
       ].join('\n'),
     );
+  });
+});
+
+/** chalk under an npmrc release age, for the cases that let `migrate` reach the real `fetch`. */
+const npmrcAged = (): string => project({ 'package.json': manifest({ chalk: '^6.0.0' }), '.npmrc': 'minimum-release-age=4320\n', 'src/a.ts': "import chalk from 'chalk';\n" });
+const gradedRoundel = (): string => manifests()['roundel'] as string;
+const refusing = async (): Promise<{ ok: false }> => ({ ok: false });
+const offline = async (): Promise<never> => Promise.reject(new Error('offline'));
+const otherMajor = async (): Promise<{ ok: true; json: () => Promise<unknown> }> => ({ ok: true, json: async () => ({ time: { '0.6.2': '2020-01-01T00:00:00.000Z', modified: 'not a date' } }) });
+
+describe('U12-2 — the public registry, when no registry is injected', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('reads the time field of the package document on registry.npmjs.org', async () => {
+    const urls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      urls.push(url);
+      return { ok: true, json: async () => ({ time: { [gradedRoundel()]: '2020-01-01T00:00:00.000Z' } }) };
+    });
+    const report = await migrate({ dir: npmrcAged(), status: clean });
+    expect(urls).toEqual(['https://registry.npmjs.org/roundel']);
+    expect(report.next).toBe(`npm install roundel@^${gradedRoundel()} && npm uninstall chalk`);
+    expect(report.releaseAge?.note).toContain('every family version in next is older than that');
+  });
+
+  it.each([
+    ['answers with an error status', refusing],
+    ['cannot be reached', offline],
+    ['lists no release of the graded major', otherMajor],
+  ])('keeps the graded pin when the registry %s', async (_, fetch) => {
+    vi.stubGlobal('fetch', fetch);
+    const report = await migrate({ dir: npmrcAged(), status: clean });
+    expect(report.next).toBe(`npm install roundel@^${gradedRoundel()} && npm uninstall chalk`);
+    expect(report.releaseAge?.note).toContain('the registry did not say when roundel was published');
   });
 });
 

@@ -1696,7 +1696,7 @@ async function releaseAgeOf(dir: string): Promise<Setting | null> {
 
 /** One list entry with its comment and quotes taken off: `"roundel@1.0.4" # docs only` is `roundel@1.0.4`. */
 function unquote(entry: string): string {
-  const bare = entry.split('#')[0]?.trim() ?? '';
+  const bare = (entry.split('#')[0] as string).trim();
   return bare.length > 1 && (bare[0] === '"' || bare[0] === "'") && bare.endsWith(bare[0]) ? bare.slice(1, -1) : bare;
 }
 
