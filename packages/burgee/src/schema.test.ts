@@ -63,11 +63,27 @@ describe('--schema', () => {
   it('is served by every program with no config, no network and no handler run (N8)', async () => {
     const r = await runBurgee(program, { argv: ['--schema'], env: {} });
     expect(r.code).toBe(0);
-    // The native surface adds where to ask for a value's source (D-20261009-b1-totals-and-explain).
-    expect(JSON.parse(r.stdout)).toEqual({ ...schemaOf(program), explain: '--explain <option> on a command says where its value came from: default, env, config or flag' });
+    // The native surface adds where to ask for a value's source (D-20261009-b1-totals-and-explain),
+    // and the `completion` command the engine serves (agent-lint-conformance R5), last.
+    const native = JSON.parse(r.stdout) as ReturnType<typeof schemaOf>;
+    expect({ ...native, commands: native.commands.slice(0, -1) }).toEqual({ ...schemaOf(program), explain: '--explain <option> on a command says where its value came from: default, env, config or flag' });
+    expect(native.commands.at(-1)?.name).toBe('completion');
     // Naming a command drills into it (N13): that command's schema alone.
     const later = await runBurgee(program, { argv: ['deploy', '--schema'], env: {} });
     expect(JSON.parse(later.stdout)).toEqual(schemaOf(program).commands[0]);
+  });
+
+  it('lists the completion command the engine serves, read-only, taking a shell (agent-lint-conformance R5)', async () => {
+    const r = await runBurgee(program, { argv: ['--schema'], env: {} });
+    const completion = (JSON.parse(r.stdout) as { commands: { name: string; effects?: string; arguments: { name: string }[] }[] }).commands.find((c) => c.name === 'completion');
+    expect(completion).toMatchObject({ name: 'completion', effects: 'read_only', arguments: [{ name: 'shell', required: true }] });
+    // Drilled into like any other command, to a field too, and absent when the program declares its own.
+    expect(JSON.parse((await runBurgee(program, { argv: ['completion', '--schema'], env: {} })).stdout)).toEqual(completion);
+    expect(JSON.parse((await runBurgee(program, { argv: ['completion', '--schema', '--field', 'effects'], env: {} })).stdout)).toBe('read_only');
+    expect((await runBurgee(program, { argv: ['--schema', '--field', 'effects'], env: {} })).code).toBe(2);
+    const own = defineProgram({ name: 'own', commands: [defineCommand({ name: 'completion', description: 'mine', effects: 'withheld', run: () => 'x' })] });
+    const listed = (JSON.parse((await runBurgee(own, { argv: ['--schema'], env: {} })).stdout) as { commands: { name: string; description?: string }[] }).commands;
+    expect(listed).toEqual([expect.objectContaining({ name: 'completion', description: 'mine' })]);
   });
 
   it('reserves --schema and --mcp like --json and --help (V5)', () => {

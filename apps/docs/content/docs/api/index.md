@@ -619,6 +619,8 @@ interface Program {
     config?: boolean | {
         name: string;
     };
+    /** Shown under `Examples:` in root help; without them, each top-level command's first example is (agent-lint-conformance R6). */
+    examples?: Example[];
     commands: AnyCommand[];
 }
 ```

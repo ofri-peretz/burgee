@@ -18,6 +18,7 @@ import { ExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
 import { type ArgumentSpec, type CommandNode, type Manifest, type OptionSpec } from './manifest.js';
 import { kebab } from './names.js';
 import { type Package } from './pkg.js';
+import { completionNode, exitRows, rootExamples } from './root-help.js';
 import { suggestSimilar } from './suggest.js';
 import { Again, jsonSpelling, shellWord } from './unknown-option.js';
 import { childrenOf, groupUsage, listed, runnableBelow } from './usage.js';
@@ -92,9 +93,18 @@ function rootNode(manifest: Manifest, root: string[]): CommandNode {
 // The commands it lists are the refusal's (`listed`): every one that runs, by its full path, when
 // they fit. The rule is passed in rather than imported by `help.js`: the `./help` door's budget
 // could not carry the whole of `usage.js`, and this module already loads it.
+//
+// At the root, the engine's own rows follow, from `root-help.js` and for the same reason: the
+// `completion` it serves unless the program declares its own (agent-lint-conformance R5), then the
+// exit-code contract under `Exit codes:` (R4); and the root's examples are its own or, failing
+// those, each top-level command's first (R6).
 const renderHelp = async (manifest: Manifest, node: CommandNode, io: SurfaceIo, argv: readonly string[] = []): Promise<string> => {
   const help = await import('./help.js');
-  return help.renderHelp(manifest, node, { width: io.width, color: help.colorFor(io.env, detectAgent(io.env, io.out.isTTY === true).interactive, argv), commands: listed(manifest, node) });
+  const atRoot = node.path.length === manifest.rootPath.length;
+  const completion = atRoot ? completionNode(manifest) : undefined;
+  const commands = [...listed(manifest, node), ...(completion === undefined ? [] : [completion]), ...(atRoot ? exitRows(manifest.rootPath) : [])];
+  const shown = atRoot ? { ...node, examples: rootExamples(manifest, node) } : node;
+  return help.renderHelp(manifest, shown, { width: io.width, color: help.colorFor(io.env, detectAgent(io.env, io.out.isTTY === true).interactive, argv), commands });
 };
 
 /**
@@ -282,10 +292,19 @@ const line = (path: string[], words: string[], json: string | undefined): string
  * command (D2). The templates are loaded only here, on that command (K6): a program pays
  * for them when it prints a completion script, never at startup.
  */
+//
+// Now that root help lists it (R5), it answers the two questions a listed command is asked:
+// `completion --help` prints its help, and `completion --schema` is left to the schema surface,
+// which publishes it. Both used to be refused as an unknown shell.
 async function completion(manifest: Manifest, argv: string[], io: SurfaceIo): Promise<boolean> {
-  if (argv[0] !== 'completion' || manifest.find([...manifest.rootPath, 'completion']) !== undefined) return false;
-  const { renderCompletion, renderFigSpec, SHELLS } = await import('./completions.js');
+  const node = completionNode(manifest);
+  if (argv[0] !== 'completion' || node === undefined || beforeTerminator(argv).includes('--schema')) return false;
   const shell = argv[1] ?? '';
+  if (HELP_FLAGS.has(shell)) {
+    io.out.write(await renderHelp(manifest, node, io, argv));
+    return true;
+  }
+  const { renderCompletion, renderFigSpec, SHELLS } = await import('./completions.js');
   if (shell === 'fig') {
     io.out.write(`${JSON.stringify(renderFigSpec(manifest), null, 2)}\n`);
     return true;

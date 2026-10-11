@@ -139,10 +139,13 @@ describe('--schema under a budget (N13)', () => {
     const r = await runBurgee(program, { argv: ['--schema'] });
     const summary = JSON.parse(r.stdout) as { summarised: boolean; budget: number; commands: { name: string; effects?: string }[]; hint: string };
     expect(summary).toMatchObject({ summarised: true, budget: 200 });
-    expect(summary.commands.map((c) => c.name)).toEqual(['sync', 'silent', 'status', 'deploy']);
+    // The engine's own `completion` is listed last, as in the full document (agent-lint-conformance R5).
+    expect(summary.commands.map((c) => c.name)).toEqual(['sync', 'silent', 'status', 'deploy', 'completion']);
     expect(summary.hint).toBe('run `app <command> --schema` for one command in full');
-    // The native surface adds the pointer to `--explain` (D-20261009-b1-totals-and-explain); the rest is `summaryOf`'s.
-    expect(summary).toEqual({ ...summaryOf(program, 200), explain: '--explain <option> on a command says where its value came from: default, env, config or flag' });
+    // The native surface adds the pointer to `--explain` (D-20261009-b1-totals-and-explain) and
+    // the completion row; the rest is `summaryOf`'s.
+    const own = summaryOf(program, 200);
+    expect(summary).toEqual({ ...own, commands: [...own.commands, { name: 'completion', summary: expect.stringMatching(/^Print a shell completion script/), effects: 'read_only' }], explain: '--explain <option> on a command says where its value came from: default, env, config or flag' });
   });
   it('drills into one command in full', async () => {
     const r = await runBurgee(program, { argv: ['deploy', '--schema'] });
