@@ -64,6 +64,8 @@ function published(): string[] {
 const DROP_IN_CEILINGS: Readonly<Record<string, { incumbent: string; bytes: number }>> = {
   'closeout/onetime': { incumbent: 'onetime@8.0.0', bytes: 1_527 },
   'closeout/cli-cursor': { incumbent: 'cli-cursor@5.0.0', bytes: 4_757 },
+  'linegauge/cli-truncate': { incumbent: 'cli-truncate@6.1.1', bytes: 20_675 },
+  'linegauge/widest-line': { incumbent: 'widest-line@6.0.0', bytes: 6_079 },
 };
 
 /** The "Everything" cell of a subpath's row on the page, or `undefined` when it has no row. */

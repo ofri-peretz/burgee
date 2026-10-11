@@ -76,6 +76,8 @@ export const GRADED: Readonly<Record<string, Row>> = {
   'find-up': { reference: 104, passed: 104, rate: 1, control: 104 },
   onetime: { reference: 6, passed: 6, rate: 1, control: 6 },
   'cli-cursor': { reference: 8, passed: 8, rate: 1, control: 8 },
+  'cli-truncate': { reference: 12, passed: 12, rate: 1, control: 12 },
+  'widest-line': { reference: 1, passed: 1, rate: 1, control: 1 },
 };
 
 /** One graded path: an incumbent's specifier, and the family specifier that replaces it. */
@@ -132,6 +134,8 @@ export const DROP_INS: readonly DropIn[] = [
   { host: 'find-up', from: 'find-up', to: 'seniority/find-up' },
   { host: 'onetime', from: 'onetime', to: 'closeout/onetime' },
   { host: 'cli-cursor', from: 'cli-cursor', to: 'closeout/cli-cursor' },
+  { host: 'cli-truncate', from: 'cli-truncate', to: 'linegauge/cli-truncate' },
+  { host: 'widest-line', from: 'widest-line', to: 'linegauge/widest-line' },
 ];
 
 /**
@@ -150,6 +154,7 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
   chalk: '6.0.1',
   'cli-cursor': '5.0.0',
   'cli-table3': '0.6.5',
+  'cli-truncate': '6.1.1',
   commander: '15.0.0',
   cosmiconfig: '10.0.1',
   'cross-spawn': '7.0.6',
@@ -171,6 +176,7 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
   'term-img': '7.1.0',
   'terminal-link': '5.0.0',
   which: '7.0.0',
+  'widest-line': '6.0.0',
   'wrap-ansi': '10.0.2',
   yargs: '18.2.0',
   'yargs-parser': '22.0.0',
@@ -216,6 +222,7 @@ export const SUPPORTED_MAJORS: Readonly<Record<string, readonly number[]>> = {
   chalk: [6],
   'cli-cursor': [5],
   'cli-table3': [0],
+  'cli-truncate': [6],
   commander: [15],
   cosmiconfig: [10],
   'cross-spawn': [7],
@@ -237,6 +244,7 @@ export const SUPPORTED_MAJORS: Readonly<Record<string, readonly number[]>> = {
   'term-img': [7],
   'terminal-link': [5],
   which: [7],
+  'widest-line': [6],
   'wrap-ansi': [10],
   yargs: [18],
   'yargs-parser': [22],

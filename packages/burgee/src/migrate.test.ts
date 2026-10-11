@@ -109,6 +109,8 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
       'find-up': 'seniority/find-up',
       onetime: 'closeout/onetime',
       'cli-cursor': 'closeout/cli-cursor',
+      'cli-truncate': 'linegauge/cli-truncate',
+      'widest-line': 'linegauge/widest-line',
     });
   });
 

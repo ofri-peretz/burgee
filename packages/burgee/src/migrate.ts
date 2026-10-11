@@ -371,6 +371,13 @@ export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
   'closeout/cli-cursor': [
     'default',
   ],
+  'linegauge/cli-truncate': [
+    'Options',
+    'default',
+  ],
+  'linegauge/widest-line': [
+    'default',
+  ],
   'closeout/signal-exit': [
     'load',
     'onExit',
@@ -827,7 +834,7 @@ const SIBLING_STATE: Readonly<Record<string, { sibling: string; fix: string }>> 
  * Node's own `require()` returns for every installed incumbent in `MAPPING`, so a name here
  * is a measurement and an incumbent that is not installed is left out, and refused as before.
  */
-export const REQUIRE_NAMESPACE: readonly string[] = ['ansi-escapes', 'chalk', 'ora', 'log-update', 'boxen', 'string-width', 'strip-ansi', 'wrap-ansi', 'slice-ansi', 'restore-cursor', 'exit-hook', 'terminal-link', 'meow', 'cli-cursor'];
+export const REQUIRE_NAMESPACE: readonly string[] = ['ansi-escapes', 'chalk', 'ora', 'log-update', 'boxen', 'string-width', 'strip-ansi', 'wrap-ansi', 'slice-ansi', 'restore-cursor', 'exit-hook', 'terminal-link', 'meow', 'cli-cursor', 'cli-truncate', 'widest-line'];
 
 /** Whether `require(from)` and `require(to)` hand a CommonJS caller different kinds of value. */
 function requireShapesDiffer(from: string, to: string): boolean {

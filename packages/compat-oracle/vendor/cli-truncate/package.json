@@ -1,0 +1,14 @@
+{
+  "name": "@vendored/cli-truncate-suite",
+  "private": true,
+  "type": "module",
+  "main": "./shim.js",
+  "version": "6.1.1",
+  "license": "MIT",
+  "description": "Truncate a string to a specific width in the terminal",
+  "repository": "github:sindresorhus/cli-truncate",
+  "devDependencies": {
+    "cli-truncate": "6.1.1",
+    "string-width": "8.3.0"
+  }
+}

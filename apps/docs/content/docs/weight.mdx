@@ -7,7 +7,7 @@ description: What every published entry point costs a consumer's bundle, at both
 
 Generated 2026-10-11 at commit `4494f66e4a`.
 
-Every entry point this repository publishes, and what it costs a consumer's bundle. **98 subpaths across 10 packages**, every export of every one of them bundled on its own.
+Every entry point this repository publishes, and what it costs a consumer's bundle. **100 subpaths across 10 packages**, every export of every one of them bundled on its own.
 
 Three numbers, because tree shaking makes this a range rather than a figure:
 
@@ -125,9 +125,11 @@ same function produces both.
 | `linegauge/strip` | 2 | `strip` 262 | `default` 272 | 275 |
 | `linegauge/plugin` | 7 | `CONTRACT` 31 | `register` 2,998 | 3,112 |
 | `linegauge/widest` | 1 | `widest` 5,704 | `widest` 5,704 | 5,706 |
+| `linegauge/widest-line` | 1 | `default` 5,752 | `default` 5,752 | 5,742 |
 | `linegauge/slice` | 2 | `slice` 11,399 | `default` 11,411 | 11,413 |
 | `linegauge/wrap` | 3 | `visibleWidth` 6,127 | `default` 11,427 | 11,446 |
 | `linegauge/truncate` | 1 | `truncate` 12,462 | `truncate` 12,462 | 12,462 |
+| `linegauge/cli-truncate` | 1 | `default` 14,202 | `default` 14,202 | 14,191 |
 | `linegauge` | 9 | `strip` 262 | `truncate` 12,462 | 16,091 |
 
 ### `paratext`
