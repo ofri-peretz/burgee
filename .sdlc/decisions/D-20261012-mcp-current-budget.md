@@ -22,8 +22,15 @@ landed. This is the same kind of move, recorded once here and once per step in t
 | Requirement | `./mcp` before | after | budget | `.` before → after |
 | :-- | --: | --: | --: | :-- |
 | R1, `structuredContent` | 25,850 | 26,215 | 25,900 → 26,250 | 35,105 → 35,105 |
+| R2, `outputSchema` | 26,215 | 26,695 | 26,250 → 26,700 | 35,105 → 35,105 |
 
 **R1.** `callTool` parses the text it already returns once more and carries the envelope's
 `data` as `structuredContent`, wrapped as `{ result }` when it is not an object, or the
 envelope's `error` on a failure. The first version was 454 B; destructuring the parse and one
 test for a plain object brought it to 365 B.
+
+**R2.** `toolsOf` spreads `outputSchema` from the declared `output.schema` onto each tool, wrapped
+as `{ type: 'object', properties: { result }, required: ['result'] }` when the schema is not an
+object type, and `structuredOf` wraps a declared command's result by its schema's type rather
+than by the value, so a value that is an object under a schema that is not (`anyOf`, say) still
+has the advertised shape. 480 B, 42 of them the guard review asked for on #1047: JSON without a boolean `ok` is not an envelope, so it carries no `structuredContent`. The wrap is the rest, and there is nothing in it to share.
