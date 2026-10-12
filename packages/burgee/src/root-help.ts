@@ -30,10 +30,11 @@ export const EXIT_ADVICE: Readonly<Record<keyof typeof ExitCode, string>> = {
 };
 
 /** R4 — the contract as rows under `Exit codes:`, in `ExitCode`'s order: the code, its name, the advice. */
-export const exitRows = (root: readonly string[]): CommandNode[] =>
+export const exitRows = (root: readonly string[], say: (english: string) => string = String): CommandNode[] =>
   Object.entries(ExitCode).map(([name, code]) => ({
     path: [...root, String(code)],
-    summary: `${name.toLowerCase()}: ${EXIT_ADVICE[name as keyof typeof ExitCode]}`,
+    // The advice in the run's language (`localised-human-surfaces` R1); the name is the contract's word and stays.
+    summary: `${name.toLowerCase()}: ${say(EXIT_ADVICE[name as keyof typeof ExitCode])}`,
     group: 'Exit codes:',
     options: {},
   }));

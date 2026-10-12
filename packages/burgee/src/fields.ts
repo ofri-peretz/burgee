@@ -47,7 +47,9 @@ export function checkFields(fields: readonly string[], node: CommandNode): void 
 
 function refuseUnknown(fields: readonly string[], valid: readonly string[]): void {
   const unknown = fields.filter((f) => !valid.includes(f));
-  if (unknown.length > 0) throw new UsageError(`unknown field${unknown.length === 1 ? '' : 's'} ${unknown.map((f) => `"${f}"`).join(', ')}`, `valid fields: ${valid.join(', ')}`);
+  const named = unknown.map((f) => `"${f}"`).join(', ');
+  // Two sentences, not one with an `s` spliced in: each is a catalog entry a pack translates whole (`messages.ts`).
+  if (unknown.length > 0) throw new UsageError(unknown.length === 1 ? `unknown field ${named}` : `unknown fields ${named}`, `valid fields: ${valid.join(', ')}`);
 }
 
 /** The named fields of a result: of the object, or of each object in a list. */

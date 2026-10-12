@@ -5,5 +5,6 @@
   "setup": [],
   "check": "grep -qiE 'name' \"$BENCH_RESULT\" && grep -qiE 'requir|missing|usage|error' \"$BENCH_RESULT\"",
   "maxTurns": 12,
+  "modalities": ["cli"],
   "exemplar": "`demo greet` exited 2 with a usage error naming the missing required argument: name."
 }

@@ -208,6 +208,28 @@ The census comes first and `ok` last. A refusal exits 1 with a code and the edit
 `sample`, `E_PLUGIN_SCHEMA` for a built-in kind or
 a `sample` that is not `{ running, done }`.
 
+### In the user's language
+
+caique's own chrome (the instruction under a list, a problem with an answer, the giving-up line)
+can speak the user's language. The translations come from a locale pack registered with
+`register()`, under ids that begin `caique.`, so the same object can carry burgee's messages
+too. The locale is your runtime's `locale`, which burgee resolves. caique never reads `LANG`
+itself:
+
+```js
+import { register } from 'caique/plugin';
+import { sayFor } from 'caique/locale';
+
+register({ name: 'de', contract: 1, locales: { de: { 'caique.answerYesNo': 'antworten Sie j oder n' } } });
+await resolvePrompts({ options, values, runtime, io: { ...io, say: sayFor(runtime.locale) } });
+```
+
+A refusal keeps its `message` and `fix` in English, because a host may write them into a
+machine envelope. The translation rides beside them as `localised`. Your question and choices
+are yours and are never translated. `caique/clack` and `caique/inquirer` keep their incumbents'
+English. `npx caique check ./pack.mjs` renders every message, or refuses an unknown id, a stray
+placeholder or a missing plural form.
+
 ## Migrating
 
 From **`@inquirer/core`**, one import — `createPrompt`, the hooks and the keypress helpers:
@@ -303,7 +325,7 @@ Graded by the incumbent's own test suite:
 | `inquirer-core` | 41 / 41 |
 | `inquirer-prompts` | 0 / 213 |
 
-Weight, installed and tree-inclusive: **232,383 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.5973**.
+Weight, installed and tree-inclusive: **246,099 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.6326**.
 
 ## For agents
 
@@ -349,7 +371,7 @@ on its own subpath (see [Weight](#weight)); every export, with its types, is on
 
 ## Where it sits
 
-Plugins register under the `widgets` key, against the one schema the whole family shares.
+Plugins register under the `widgets` and `locales` keys, against the one schema the whole family shares.
 
 `controlroom` builds on it, and it builds on `closeout`, `linegauge`, `paratext`, `roundel`.
 
@@ -375,7 +397,7 @@ keeps both true.
 | Package | What it is | Migrates from |
 | :-- | :-- | :-- |
 | [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander, yargs and meow |
-| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk |
+| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk and picocolors |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
 | **caique** (this package) | Prompts that are flags first, and never hang | @inquirer/core |
 | [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line |

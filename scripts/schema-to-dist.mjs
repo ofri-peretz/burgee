@@ -14,8 +14,9 @@ import process from 'node:process';
 // Copy and handle the failure, rather than checking first: between an existsSync and a
 // copy the file can go, and the check buys nothing the catch does not.
 // `program-schema.json` too: burgee publishes the shape of its own `--schema` document beside
-// the plugin schema (F1, D-123), and nothing imports that file either.
-for (const file of ['schema.json', 'program-schema.json']) {
+// the plugin schema (F1, D-123), and nothing imports that file either; `locale-pack-schema.json`
+// is the shape of a locale pack (`localised-human-surfaces` R4), read by authors and agents only.
+for (const file of ['schema.json', 'program-schema.json', 'locale-pack-schema.json']) {
   try {
     copyFileSync(`src/${file}`, `dist/${file}`);
   } catch (error) {

@@ -175,3 +175,33 @@ describe('the clispec keys (clispec-conformance)', () => {
     expect(doc).not.toHaveProperty('global_args');
   });
 });
+
+/**
+ * `localised-human-surfaces` R5 — `--schema` is a machine document: a localised description is
+ * published in the author's base language, whatever the locale (R3).
+ */
+describe('--schema carries the base language of a localised description (R5)', () => {
+  const tool = defineProgram({
+    name: 'tool',
+    description: { en: 'A tool', de: 'Ein Werkzeug' },
+    commands: [
+      defineCommand({
+        name: 'deploy',
+        description: { en: 'Deploy the site', de: 'Die Seite bereitstellen' },
+        summary: { en: 'deploy it', de: 'bereitstellen' },
+        effects: 'non_idempotent',
+        examples: [{ command: 'tool deploy', description: { en: 'go', de: 'los' } }],
+        options: { dryRun: { type: 'boolean', description: { en: 'change nothing', de: 'nichts ändern' } } },
+        run: () => 'ok',
+      }),
+    ],
+  });
+
+  it('under LANG=de_DE.UTF-8, byte for byte the LANG=C document, with every description in English', async () => {
+    const german = await runCommand(tool, ['--schema'], { env: { LANG: 'de_DE.UTF-8' } });
+    expect(german.stdout).toBe((await runCommand(tool, ['--schema'], { env: { LANG: 'C' } })).stdout);
+    expect(german.stdout).toContain('"Deploy the site"');
+    expect(german.stdout).toContain('"change nothing"');
+    expect(german.stdout).not.toMatch(/Werkzeug|bereitstellen|ändern|"los"/u);
+  });
+});

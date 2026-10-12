@@ -80,6 +80,20 @@ export const CLAIMS: readonly ClaimSpec[] = [
     test: { max: 0.7 },
   },
   /**
+   * `.sdlc/intents/b1-mcp-arm/` R3: the same declaration served as a CLI and as an MCP server, the
+   * same agent, the tasks both can state. Published whichever way it falls (the intent's
+   * constraint), so the bar is the neutral one: `met` says the CLI costs no more tokens than the
+   * MCP server, and `met: false` says the MCP server is cheaper. Its record exists only once four
+   * weekly readings carry the arm, so until then it reads `unmeasured`, never a verdict.
+   */
+  {
+    id: 'cli-vs-mcp-tokens',
+    claim: "for the same capability, declared once, an agent spends no more tokens through burgee's CLI than through its MCP server (median of at least four weekly readings, the tasks both can state)",
+    source: '.sdlc/intents/b1-mcp-arm/intent.md, success criterion 4; .sdlc/research/migration-drivers.md §7',
+    from: { axis: 'agent', variant: 'burgee-mcp ÷ burgee', metric: 'mcp-tokens-total-ratio-readings-median' },
+    test: { min: 1 },
+  },
+  /**
    * This and the two bare weight rows for `burgee` and `burgee/commander` were ≤ 1 and have a
    * measured floor above it (D-102, D-148). Since D-157 each is a **downward-only ratchet**: the
    * claim is the ceiling in `.sdlc/bands/claim-ratchets.json`, set just above the measurement,
