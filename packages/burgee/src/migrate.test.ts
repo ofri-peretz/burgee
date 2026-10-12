@@ -111,6 +111,7 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
       'cli-cursor': 'closeout/cli-cursor',
       'cli-truncate': 'linegauge/cli-truncate',
       'widest-line': 'linegauge/widest-line',
+      picocolors: 'roundel/picocolors',
     });
   });
 
