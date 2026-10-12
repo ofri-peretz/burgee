@@ -92,7 +92,7 @@ const RULES: Record<string, EntryRule> = {
   // `linegauge` joined on 2026-09-28 with the raw renderer's row count (`lineCount`): a frame
   // wider than the terminal occupies more rows than it has lines. Measured 14,472 after main's #680 (+265).
   // `paratext/csi` joined the same day (+70): the raw renderer's repaint is spelled with
-  // ansi-escapes' cursor moves from paratext rather than by hand. Measured 14,542.
+  // `paratext/csi`'s cursor moves rather than by hand. Measured 14,542.
   // `roundel/terminal` joined the same day (+98): whether anybody is there to type is
   // roundel's `interactive()`, which knows an agent from a person. Measured 14,640.
   //
@@ -164,7 +164,7 @@ const RULES: Record<string, EntryRule> = {
   // that carries it.
   './inquirer': {
     // `paratext/csi` on 2026-09-28 (-61): the cursor moves and erases `@inquirer/ansi` supplies
-    // are ansi-escapes' from paratext, with `@inquirer/ansi`'s zero-row guard kept. Measured 20,829 after merging main (20,890 there).
+    // are `paratext/csi`'s, with `@inquirer/ansi`'s zero-row guard kept. Measured 20,829 after merging main (20,890 there).
     // `roundel/terminal` the same day: the tick's unicode test is is-unicode-supported whole,
     // from roundel, rather than a four-condition subset of it here. Measured 20,782 (-47).
     allow: ['closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap', 'paratext/csi', 'roundel/terminal'],

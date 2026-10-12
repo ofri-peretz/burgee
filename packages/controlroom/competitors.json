@@ -1,0 +1,16 @@
+{
+  "$comment": "upstream-watch R1, written by foundation-claims-watched on 2026-10-12. See packages/flagstaff/competitors.json for the field meanings. Every `seen` is null until the daily competitor pass in compat-upstream.yml fingerprints it. `controlroom/ink` is graded by ink's suite and by @inkjs/ui's. The second is declared by its compat-oracle host name, `inkjs-ui`, with `registry` naming the npm package the watch fetches.",
+  "./ink": [
+    {
+      "package": "ink",
+      "claim": "compat",
+      "seen": null
+    },
+    {
+      "package": "inkjs-ui",
+      "claim": "compat",
+      "registry": "@inkjs/ui",
+      "seen": null
+    }
+  ]
+}

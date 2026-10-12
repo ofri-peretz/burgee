@@ -1,0 +1,45 @@
+{
+  "$comment": "upstream-watch R1, written by foundation-claims-watched on 2026-10-12. See packages/flagstaff/competitors.json for the field meanings. Every `seen` is null until the daily competitor pass in compat-upstream.yml fingerprints it. Every subpath is a graded drop-in.",
+  ".": [
+    {
+      "package": "string-width",
+      "claim": "compat",
+      "seen": null
+    }
+  ],
+  "./strip": [
+    {
+      "package": "strip-ansi",
+      "claim": "compat",
+      "seen": null
+    }
+  ],
+  "./wrap": [
+    {
+      "package": "wrap-ansi",
+      "claim": "compat",
+      "seen": null
+    }
+  ],
+  "./slice": [
+    {
+      "package": "slice-ansi",
+      "claim": "compat",
+      "seen": null
+    }
+  ],
+  "./cli-truncate": [
+    {
+      "package": "cli-truncate",
+      "claim": "compat",
+      "seen": null
+    }
+  ],
+  "./widest-line": [
+    {
+      "package": "widest-line",
+      "claim": "compat",
+      "seen": null
+    }
+  ]
+}
