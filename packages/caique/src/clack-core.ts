@@ -28,6 +28,7 @@ import { styleText } from 'node:util';
 import { hideCursor, rawMode } from 'closeout/cursor';
 import exitHook from 'closeout/exit-hook';
 import { wrap } from 'linegauge/wrap';
+import { type Runtime as PolicyRuntime } from 'roundel/policy';
 
 import { edit } from './line-edit.js';
 import { processFacts, processRuntime } from './runtime.js';
@@ -45,6 +46,13 @@ export interface CommonOptions {
   output?: NodeJS.WritableStream & SizedOutput;
   signal?: AbortSignal;
   withGuide?: boolean;
+  /**
+   * The caller's runtime — burgee's `ctx.runtime` — and the one way `--quiet` reaches this port
+   * (`caique-quiet-seam` R1). With `quiet`, the writers that decorate draw nothing; prompts
+   * ignore it. Its `env` is the one `CI` is read from. It carries no streams, so `input` and
+   * `output` still default to the process's. Never read from the environment: a caller passes it.
+   */
+  runtime?: PolicyRuntime;
 }
 
 type Primitive = Readonly<string | boolean | number>;
@@ -142,8 +150,9 @@ export const unicode = unicodeSupported();
  * Whether `CI` is the string `true`, which is the test clack makes. This and the glyph table
  * above stay clack's rules rather than roundel's: `interactive()` asks whether a person can
  * answer, which clack never asks, and clack's table counts `CI` where roundel's `unicode()` does not.
+ * A caller's runtime is read when one is passed (`caique-quiet-seam` R1), the process's otherwise.
  */
-export const isCI = (): boolean => processRuntime().env['CI'] === 'true';
+export const isCI = (runtime: { env: PolicyRuntime['env'] } = processRuntime()): boolean => runtime.env['CI'] === 'true';
 /** Whether a stream is a terminal. */
 export const isTTY = (output: { isTTY?: boolean }): boolean => output.isTTY === true;
 /** The first glyph where the terminal draws unicode, the second where it does not. */
