@@ -82,8 +82,9 @@ took 7 turns.
 
 ## One budget moved
 
-paratext's `./plugin` entry budget goes from 12,200 to 13,000 bytes. It measured 12,927 with the
-change and 12,099 before it. The 828 bytes are the code that collects every capability problem
+paratext's `./plugin` entry budget goes from 12,200 to 12,950 bytes. The entry measured 12,927
+with the change and 12,099 before it; the budget is that measurement rounded up to the next
+50 bytes and no more, because headroom beyond it is how drift slips in. The 828 bytes are the code that collects every capability problem
 into one refusal and the four fixes for a missing field. The strings were cut to their shortest
 before the budget was moved. The value is the one this decision is about: a plugin with several
 mistakes is fixed in one `check` run, not one run per mistake. The reason and the date are
