@@ -1,7 +1,7 @@
 ---
 id: D-20261009-cold-start-bundled-entries
 subject: 'A-20261009-burgee-cold-start: should each package''s published entries be bundled with esbuild (`splitting: true`, family packages and `node:` external) to cut the files on the start-up path'
-taken: Owner
+taken: 'Owner — not adopted (decided 2026-10-12 under the owner''s written delegation: "use your judgement to decide if something is reasonable")'
 date: '2026-10-09'
 superseded_by: —
 ---
@@ -165,3 +165,28 @@ inherits three requirements from this measurement:
 - quote-agnostic weight walkers.
 
 The walker gap is worth fixing on main whatever the owner decides.
+
+## Decided 2026-10-12
+
+**Not adopted. The published entries stay one `tsc` file per source module, and the
+cold-start gap is pursued by other means.** The owner delegated this call in writing on
+2026-10-12 ("You're managing the baselines and you need to use your judgement to decide if
+something is reasonable"; "we need to WIN everybody else in the trade-off of value,
+performance, scale, robustness"), and the default above is what that judgement confirms.
+
+- **Value on offer.** V1 loads 5 to 12 fewer modules per fixture and moves `burgee ÷ cac` from
+  1.355 / 1.346 to 1.308 / 1.320: about 1 ms on `burgee`, 2 ms on `burgee-commander`. Neither
+  band closes.
+- **What it costs.** V1 fails drop-in fidelity: esbuild renamed a colliding class to
+  `_Command`, and commander's own suite drops to 1351 / 1360 because `imports.test.cjs` reads
+  `constructor.name`. V2 (`keepNames`) keeps 1360 / 1360 but fails `side-effects-lock` in all
+  five packages, its top-level `__name` calls give consumers' tree-shaking away, and it costs
+  burgee *more* CPU: `burgee ÷ cac` 1.486 / 1.494 against main's 1.355 / 1.346, +2.66 / +2.87 ms.
+  Both variants grow the bundled figures in the tables above.
+- **What the incumbent pays for the same.** commander 15 ships its `lib/` unbundled, as burgee
+  does, and passes its own suite at 1360 / 1360; bundling would buy burgee about a millisecond
+  at the price of the fidelity that suite measures. The gap is burgee's own module count and
+  start-up work, and that is where it gets closed.
+- **Reversal.** A new decision adopting a bundled build, once a bundler with chunk control
+  meets the three requirements under Recommendation: `keepNames`-equivalent fidelity without
+  top-level `__name` calls, bundling after `strip-comments`, and quote-agnostic weight walkers.
