@@ -1,61 +1,41 @@
 /**
- * A progress bar, as a component (R2, R4).
+ * The progress bar, which reports to an MCP client instead of drawing when it runs inside a
+ * burgee `--mcp` tool call that asked for progress (mcp-current R5).
  *
- * The static projection is the point. A bar drawn with block characters is unreadable off
- * a terminal — a pipe gets a row of `█` per state change, a screen reader gets nothing it
- * can say — so `static()` here is the count and the percentage, which is what an agent
- * parses and a person hears, and `frame()` is the bar. The two agree on the number; only
- * the drawing differs.
+ * A bar drawn into an agent's tool result is noise the agent has to read past; the same count
+ * sent as `notifications/progress` is what the client shows its user while the call runs. burgee's
+ * server publishes the call it is serving under `Symbol.for('burgee.mcp')`, and its `progress` is
+ * the call's `ctx.progress`: it sends with the call's token, and drops a value that does not rise.
+ * So the bar reads the symbol on every render, not once, and imports nothing of burgee's.
+ * Anywhere else — no server, or a call without a `progressToken` — it draws as it always has.
  *
- * There is no spinner in the bar and no elapsed-time estimate: a rate computed from two
- * samples is a guess presented as a fact, and it is the first thing to go wrong in a
- * pipeline that stalls. If a caller wants one, `label` is theirs to write.
+ * Only this subpath carries the bridge. The root `flagstaff` entry's `progress` always draws:
+ * every flagstaff user pays for the root, and only a program served over MCP needs this.
  */
-import { muted, ok } from 'roundel/tokens';
-
 import { type Component } from './plugin.js';
+import { progress as bar, type ProgressOptions, type ProgressState } from './progress-bar.js';
 
-export interface ProgressState {
-  /** Units done so far; clamped into `[0, total]` on the way out. */
-  done: number;
-  total: number;
-  /** What is being counted, e.g. `files`. Read in both projections. */
-  label?: string;
-}
+type Send = (done: number, total?: number, message?: string) => void;
 
-export interface ProgressOptions {
-  /** Cells the bar occupies on a terminal. Default 24. */
-  width?: number;
-  /** The two characters the bar is drawn with. Default `█` and `░`. */
-  glyphs?: { filled: string; empty: string };
-}
+/** The serving call's `ctx.progress`, when there is one and it asked for progress. */
+const sender = (): Send | undefined => (Reflect.get(globalThis, Symbol.for('burgee.mcp')) as (() => { progress?: Send } | undefined) | undefined)?.()?.progress;
 
-const DEFAULT_WIDTH = 24;
-const PERCENT = 100;
-const FILLED = '█';
-const EMPTY = '░';
-
-/** `done` inside `[0, total]`, and a total of zero reads as complete rather than as NaN. */
-function ratio(state: ProgressState): number {
-  if (state.total <= 0) return 1;
-  return Math.min(1, Math.max(0, state.done / state.total));
-}
-
-function suffix(state: ProgressState): string {
-  const label = state.label === undefined || state.label === '' ? '' : ` ${state.label}`;
-  return `${state.done}/${state.total}${label}`;
-}
-
-const percentage = (state: ProgressState): string => `${Math.round(ratio(state) * PERCENT)}%`;
-
-/** A progress bar: `12/30 files · 40%` off a terminal, a drawn bar on one. */
-export function progress({ width = DEFAULT_WIDTH, glyphs = { filled: FILLED, empty: EMPTY } }: ProgressOptions = {}): Component<ProgressState> {
+/** A progress bar: `12/30 files · 40%` off a terminal, a drawn bar on one, and MCP progress inside a call that asked. */
+export function progress(options?: ProgressOptions): Component<ProgressState> {
+  // The bar always draws a frame; its declared type only says a component may.
+  const drawn = bar(options) as Component<ProgressState> & Required<Pick<Component<ProgressState>, 'frame'>>;
+  /** Sends the count with its static text and draws nothing, or answers `undefined` to draw. */
+  const report = (state: ProgressState): '' | undefined => {
+    const send = sender();
+    if (send === undefined) return undefined;
+    send(state.done, state.total, drawn.static(state));
+    return '';
+  };
   return {
-    name: 'progress',
-    static: (state) => `${suffix(state)} · ${percentage(state)}`,
-    frame: (_t, state) => {
-      const filled = Math.round(ratio(state) * width);
-      return `${ok(glyphs.filled.repeat(filled))}${muted(glyphs.empty.repeat(Math.max(0, width - filled)))} ${suffix(state)}`;
-    },
+    name: drawn.name,
+    static: (state) => report(state) ?? drawn.static(state),
+    frame: (t, state) => report(state) ?? drawn.frame(t, state),
   };
 }
+
+export type { ProgressOptions, ProgressState } from './progress-bar.js';

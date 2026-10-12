@@ -174,6 +174,11 @@ import { table, tableComponent } from 'flagstaff/table';
 That table is the package's argument in one place. A bar of `█` in a log file tells an agent
 nothing and tells a screen reader less; the count and the percentage tell both.
 
+Inside a burgee `--mcp` tool call that asked for progress, `flagstaff/progress` goes one step
+further and draws nothing: it sends its count to the client as `notifications/progress`, with
+the static line as the message. That bridge lives on the subpath only; `progress` from the root
+`flagstaff` entry always draws.
+
 `box` and `table` are also plain string functions, because most callers want the string:
 
 ```js

@@ -35,7 +35,7 @@ const ALLOWED: Record<string, string[]> = {
   'loop.js': ['./projection.js'],
   'plugin.js': ['./builtins.js', './conforms.js', './plugin.schema.json'],
   'spinner.js': ['./plugin.js'],
-  'index.js': ['./box.js', './import.js', './loop.js', './plugin.js', './progress.js', './spinner.js', './table.js', './tasks.js'],
+  'index.js': ['./box.js', './import.js', './loop.js', './plugin.js', './progress-bar.js', './spinner.js', './table.js', './tasks.js'],
   // The façade stands apart on purpose: it reads the corpus, the width function and the
   // cursor control, and nothing else in the package, so `flagstaff/ora` and `flagstaff`
   // share no code path and a program on one pays nothing for the other (R6, R10).
@@ -59,12 +59,13 @@ const ALLOWED: Record<string, string[]> = {
   // `strlen`, which `wrap.js` (a wrap-ansi port) does not reproduce — so a shared wrapper
   // would be a divergence dressed up as reuse.
   'cli-table3.js': [],
-  // The built-ins: `progress` is self-contained, `tasks` reads the registry for its glyphs
+  // The built-ins: `progress` is the bar and its MCP bridge, which finds burgee's call through a
+  // global symbol rather than an import (mcp-current R5); `tasks` reads the registry for its glyphs
   // and its spinner style, and `box` and `table` are string functions over the same two
   // modules — never over each other.
   // Types only, all erased: the importer reshapes JSON and reaches nothing to do it.
   'import.js': [],
-  'progress.js': [],
+  'progress.js': ['./progress-bar.js'],
   'tasks.js': ['./plugin.js'],
   // The two controlroom components (R3) read their glyphs from the registry and register
   // their built-in instance through it — the same door a plugin replaces them through.
@@ -100,6 +101,9 @@ const INTERNAL_ALLOWED: Record<string, string[]> = {
   // nothing else in the package — in particular not `plugin.js`, so `flagstaff/table` still
   // costs nothing for the registry it does not read.
   'link.js': ['./runtime.js'],
+  // The bar itself, which the root entry re-exports without `flagstaff/progress`'s MCP bridge:
+  // self-contained, so neither entry pays for the registry it does not read.
+  'progress-bar.js': [],
 };
 
 const RELATIVE = /(?:from|import)\s*'(\.[^']+)'/g;

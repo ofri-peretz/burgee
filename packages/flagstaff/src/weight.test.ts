@@ -160,7 +160,7 @@ interface EntryRule {
 const RULES: Record<string, EntryRule> = {
   // Everything: the loop, the registry, and all five built-ins. `box` and `table` bring the
   // wrapper and the width function with them, which is most of it. A program that wants one component should import its subpath (U5, R10).
-  '.': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'linegauge/truncate', 'linegauge/wrap', 'paratext/link', 'roundel/policy', 'roundel/tokens'], budget: 29_300, measured: 29_266, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
+  '.': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'linegauge/truncate', 'linegauge/wrap', 'paratext/link', 'roundel/policy', 'roundel/tokens'], budget: 29_300, measured: 29_270, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
   // The loop and its four projections; never the registry — a program that hoists its own
   // component pays nothing for the plugin host.
   //
@@ -286,7 +286,12 @@ const RULES: Record<string, EntryRule> = {
   // plugin costs less than one of them. The corpora themselves are the caller's (U5), and
   // the last case in `import.test.ts` asserts neither became a dependency.
   './import': { allow: [], budget: 2_000, measured: 795, denied: ['plugin.js', 'builtins.js', 'schema.json', 'loop.js', 'projection.js', 'box.js', 'spinner.js', 'cli.js', 'index.js'] },
-  './progress': { allow: ['roundel/tokens'], budget: 2_000, measured: 971, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'cli.js', 'index.js'] },
+  // **2026-10-12, `mcp-current` R5.** `flagstaff/progress` reports to an MCP client instead of
+  // drawing when it runs inside a tool call that asked for progress: 971 -> 1,575 B, inside the
+  // budget, which did not move. The bar itself moved to `progress-bar.js`, which the root entry
+  // re-exports without the bridge, so `.` pays 4 B for the longer file name and nothing else
+  // (29,266 -> 29,270): an MCP-only feature stays off the entry every flagstaff user loads.
+  './progress': { allow: ['roundel/tokens'], budget: 2_000, measured: 1_575, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'cli.js', 'index.js'] },
   './tasks': { allow: ['roundel/tokens'], budget: 13_500, measured: 11_727, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
   // The two controlroom components (R3), new on 2026-10-05. Each reads the registry — the
   // `tail`, `step` glyphs for the log tail — and registers its built-in through it, so each
