@@ -78,6 +78,7 @@ export const GRADED: Readonly<Record<string, Row>> = {
   'cli-cursor': { reference: 8, passed: 8, rate: 1, control: 8 },
   'cli-truncate': { reference: 12, passed: 12, rate: 1, control: 12 },
   'widest-line': { reference: 1, passed: 1, rate: 1, control: 1 },
+  picocolors: { reference: 1, passed: 1, rate: 1, control: 1 },
 };
 
 /** One graded path: an incumbent's specifier, and the family specifier that replaces it. */
@@ -136,6 +137,7 @@ export const DROP_INS: readonly DropIn[] = [
   { host: 'cli-cursor', from: 'cli-cursor', to: 'closeout/cli-cursor' },
   { host: 'cli-truncate', from: 'cli-truncate', to: 'linegauge/cli-truncate' },
   { host: 'widest-line', from: 'widest-line', to: 'linegauge/widest-line' },
+  { host: 'picocolors', from: 'picocolors', to: 'roundel/picocolors' },
 ];
 
 /**
@@ -167,6 +169,7 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
   meow: '14.1.0',
   onetime: '8.0.0',
   ora: '9.4.1',
+  picocolors: '1.1.1',
   rc: '1.2.8',
   'restore-cursor': '5.1.0',
   'signal-exit': '4.1.0',
@@ -235,6 +238,7 @@ export const SUPPORTED_MAJORS: Readonly<Record<string, readonly number[]>> = {
   meow: [14],
   onetime: [8],
   ora: [9],
+  picocolors: [1],
   rc: [1],
   'restore-cursor': [5],
   'signal-exit': [4],

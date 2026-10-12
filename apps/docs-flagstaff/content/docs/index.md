@@ -150,6 +150,17 @@ table([['ora', '99'], ['log-update', '99']], { head: ['host', 'tests'] });
 No layout engine, and there will not be one: these measure with `width()`, wrap with
 `wrap()`, and join strings.
 
+A table column can be bounded. `columns` is positional, like `align`: `max` caps a column
+whatever its content, and `min` keeps it open while another column can give way. Both count
+the content's display width, not the padding. When the mins add up past `width`, the mins win
+and the table is wider than asked. A cell wider than its column wraps; `overflow: 'truncate'`
+cuts it to one row ending in `…` instead, by display width, with a link kept around what is
+left. The static projection has no columns to cap, so it prints every cell whole.
+
+```js
+table(rows, { head: ['id', 'status'], columns: [{ max: 12, overflow: 'truncate' }, { min: 10 }] });
+```
+
 ### A log tail and a tab bar
 
 Two output-only components for screens built on flagstaff — controlroom's panes, or a plain
@@ -522,7 +533,7 @@ keeps both true.
 | Package | What it is | Migrates from |
 | :-- | :-- | :-- |
 | [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander, yargs and meow |
-| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk |
+| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk and picocolors |
 | **flagstaff** (this package) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
 | [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | @inquirer/core |
 | [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line |

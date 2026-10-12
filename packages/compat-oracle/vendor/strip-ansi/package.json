@@ -5,5 +5,6 @@
   "main": "./shim.js",
   "version": "7.2.0",
   "license": "MIT",
+  "description": "Strip ANSI escape codes from a string",
   "repository": "chalk/strip-ansi"
 }

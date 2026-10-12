@@ -125,6 +125,9 @@ describe('the pin', () => {
  * holds the two committed facts together, so the floor cannot be raised above the published
  * reading, nor the reading left behind below the floor.
  */
+/** clispec 0.3.0's top score: six principles, 24 points (`src/scorer.rs`). */
+const CLISPEC_MAX = 24;
+
 describe('the published floor reading and the ratchet (agent-lint-conformance R7)', () => {
   const RESULTS = join(dirname(fileURLToPath(import.meta.url)), 'results', 'external-floor');
   const published = readdirSync(RESULTS).filter((f) => /^\d{4}-\d{2}-\d{2}\.json$/.test(f)).toSorted();
@@ -135,8 +138,29 @@ describe('the published floor reading and the ratchet (agent-lint-conformance R7
     expect(BURGEE_FLOOR.agentLint.min).toBeGreaterThanOrEqual(90);
   });
 
+  it('holds clispec at its maximum, 24 of 24, once clispec-conformance R1–R8 built every point (R9)', () => {
+    expect(BURGEE_FLOOR.clispec.min).toBe(CLISPEC_MAX);
+  });
+
   it('the latest published reading clears both ratchets', () => {
     expect(reading('cli-agent-lint-score')).toBeGreaterThanOrEqual(BURGEE_FLOOR.agentLint.min);
     expect(reading('clispec-score')).toBeGreaterThanOrEqual(BURGEE_FLOOR.clispec.min);
+  });
+});
+
+/**
+ * clispec-conformance R9 — the remainder D-151 left "argued with the checker" was built, and one
+ * decision says so. The ledger's own lock reads the file's shape; this holds that it exists and
+ * names what it supersedes, so raising the ratchet without recording why fails here.
+ */
+describe('the decision that supersedes D-151’s remainder (clispec-conformance R9)', () => {
+  const DECISIONS = join(dirname(fileURLToPath(import.meta.url)), '..', '.sdlc', 'decisions');
+  const file = readdirSync(DECISIONS).find((f) => /^D-\d{8}-clispec-remainder-built\.md$/.test(f));
+
+  it('exists, and names D-151 and the score it records', () => {
+    expect(file).toBeDefined();
+    const body = readFileSync(join(DECISIONS, file as string), 'utf8');
+    expect(body).toContain('D-151');
+    expect(body).toContain(`${String(CLISPEC_MAX)} / ${String(CLISPEC_MAX)}`);
   });
 });

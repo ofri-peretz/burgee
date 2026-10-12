@@ -106,6 +106,8 @@ interface Tool {
     description: string;
     inputSchema: JsonSchema;
     annotations: ToolAnnotations;
+    /** The command's declared `output.schema`, as the shape of `structuredContent` (mcp-current R2). Absent when none is declared. */
+    outputSchema?: OutputSchema;
 }
 ```
 

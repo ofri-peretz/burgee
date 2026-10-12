@@ -44,6 +44,12 @@ export interface Writer {
 export interface Io {
   reader: Reader;
   writer: Writer;
+  /**
+   * The run's language for what caique draws itself — the instruction under a list, a problem
+   * with an answer, the giving-up line — never the author's question (`localised-human-surfaces`
+   * R6). `sayFor(runtime.locale)` from `caique/locale` builds it; absent, it is English.
+   */
+  say?: (english: string) => string;
 }
 
 export type Answer = string | boolean | string[];
@@ -102,9 +108,9 @@ function confirmAttempt(spec: PromptSpec, label: string): Attempt {
   };
 }
 
-function selectAttempt(choices: Choice[], label: string): Attempt {
+function selectAttempt(choices: Choice[], label: string, say: (english: string) => string): Attempt {
   return {
-    question: `${label}\n${listChoices(choices)}\n  enter a number (1-${choices.length}): `,
+    question: `${label}\n${listChoices(choices)}\n  ${say(`enter a number (1-${choices.length}):`)} `,
     parse: (line) => {
       const choice = pick(line.trim(), choices);
       return choice === undefined ? { ok: false, problem: `enter a number from 1 to ${choices.length}` } : { ok: true, value: choice.value };
@@ -112,9 +118,9 @@ function selectAttempt(choices: Choice[], label: string): Attempt {
   };
 }
 
-function multiselectAttempt(choices: Choice[], label: string): Attempt {
+function multiselectAttempt(choices: Choice[], label: string, say: (english: string) => string): Attempt {
   return {
-    question: `${label}\n${listChoices(choices)}\n  enter numbers separated by commas, or blank for none: `,
+    question: `${label}\n${listChoices(choices)}\n  ${say('enter numbers separated by commas, or blank for none:')} `,
     parse: (line) => {
       const parts = line
         .split(',')
@@ -123,7 +129,9 @@ function multiselectAttempt(choices: Choice[], label: string): Attempt {
       if (parts.length === 0) return { ok: true, value: [] };
       const picked = parts.map((part) => pick(part, choices));
       const missing = parts.filter((_, index) => picked[index] === undefined);
-      if (missing.length > 0) return { ok: false, problem: `${missing.join(', ')} ${missing.length === 1 ? 'is not a choice' : 'are not choices'}; use numbers from 1 to ${choices.length}` };
+      // Two sentences, not one with its verb spliced in: each is a catalog entry a pack translates whole (R6).
+      const named = missing.join(', ');
+      if (missing.length > 0) return { ok: false, problem: missing.length === 1 ? `${named} is not a choice; use numbers from 1 to ${choices.length}` : `${named} are not choices; use numbers from 1 to ${choices.length}` };
       return { ok: true, value: picked.map((choice) => (choice as Choice).value) };
     },
   };
@@ -145,11 +153,11 @@ function lineAttempt(spec: PromptSpec, label: string): Attempt {
   };
 }
 
-function attemptFor(spec: PromptSpec, label: string): Attempt {
+function attemptFor(spec: PromptSpec, label: string, say: (english: string) => string = String): Attempt {
   const choices = spec.choices ?? [];
   if (spec.kind === 'confirm') return confirmAttempt(spec, label);
-  if (spec.kind === 'select') return selectAttempt(choices, label);
-  if (spec.kind === 'multiselect') return multiselectAttempt(choices, label);
+  if (spec.kind === 'select') return selectAttempt(choices, label, say);
+  if (spec.kind === 'multiselect') return multiselectAttempt(choices, label, say);
   return lineAttempt(spec, label);
 }
 
@@ -164,9 +172,10 @@ function attemptFor(spec: PromptSpec, label: string): Attempt {
  */
 export async function ask(prompt: BoundPrompt | PromptSpec, io: Io): Promise<Asked> {
   const label = prompt.message;
+  const say = io.say ?? String;
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
-    const { question, parse } = attemptFor(prompt, label);
+    const { question, parse } = attemptFor(prompt, label, say);
     io.writer.write(question);
     // A prompt is a conversation: the next question depends on the last answer, which is
     // what sequential means. Promise.all() would ask all five at once and read none.
@@ -176,10 +185,10 @@ export async function ask(prompt: BoundPrompt | PromptSpec, io: Io): Promise<Ask
 
     const result = parse(line);
     if (result.ok) return { ok: true, value: result.value };
-    io.writer.write(`  ${result.problem}\n`);
+    io.writer.write(`  ${say(result.problem)}\n`);
   }
 
-  io.writer.write(`  giving up after ${MAX_ATTEMPTS} attempts\n`);
+  io.writer.write(`  ${say(`giving up after ${MAX_ATTEMPTS} attempts`)}\n`);
   return CANCELLED;
 }
 

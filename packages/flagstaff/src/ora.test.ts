@@ -286,3 +286,34 @@ describe('discardStdin leaves stdin in the mode it found it', () => {
     expect(withStdin(true)).toEqual(['isRaw:true']);
   });
 });
+
+/**
+ * Two spinners on one stream, stopped in the order they started. Found by
+ * `.sdlc/models/save-restore.qnt`: B saved A's wrapper as its "original" and put it back on
+ * stop, so a stopped spinner's hook stayed on `write` for good — every later write ran its
+ * `clear()`. Any stop order must leave `write` exactly as it was found.
+ */
+const tty = (): { write: (s: string) => boolean; isTTY: true; columns: number } => ({ ...pipe(), isTTY: true, columns: 80 });
+const silent = (): void => undefined;
+
+describe('write hooks unwind in any stop order', () => {
+  const quiet = { isEnabled: true, hideCursor: false, discardStdin: false } as const;
+
+  for (const order of [['a', 'b'], ['b', 'a']] as const) {
+    it(`start a, start b, stop ${order.join(', stop ')}`, () => {
+      const stream = tty();
+      const original = stream.write;
+      const warn = console.warn;
+      console.warn = silent;
+      try {
+        const spinners = { a: ora({ ...quiet, stream, text: 'a' }).start(), b: ora({ ...quiet, stream, text: 'b' }).start() };
+        spinners[order[0]].stop();
+        expect(stream.write).not.toBe(original);
+        spinners[order[1]].stop();
+        expect(stream.write).toBe(original);
+      } finally {
+        console.warn = warn;
+      }
+    });
+  }
+});

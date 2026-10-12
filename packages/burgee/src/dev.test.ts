@@ -156,6 +156,38 @@ describe('burgee dev: reload, serve, notify (W1–W3, W5)', () => {
     await handle.done;
   });
 
+  /*
+   * Found by `.sdlc/models/dev-reload.qnt`: two saves that land during one reload both awaited
+   * the same `chain`, then imported at once — and a slower older import swapped in last, so the
+   * server kept serving a stale manifest. Generation 2 sleeps longest to make that order happen.
+   */
+  it('serialises reloads that pile up during one, and serves the newest', async () => {
+    const at = scratch('serial');
+    const entry = join(at, 'cli.mjs');
+    writeFileSync(
+      entry,
+      `import { defineCommand, defineProgram } from ${burgee};
+const g = (globalThis.__devGen = (globalThis.__devGen ?? 0) + 1);
+(globalThis.__devTrace ??= []).push('start ' + g);
+await new Promise((ok) => setTimeout(ok, g === 2 ? 150 : 10));
+globalThis.__devTrace.push('end ' + g);
+export const program = defineProgram({ name: 'devdemo', description: 'the dev-loop demo', commands: [defineCommand({ name: 'g' + g, description: 'generation ' + g, effects: 'read_only', run: () => g })] });
+`,
+    );
+    const global = globalThis as { __devTrace?: string[]; __devGen?: number };
+    const trace = (global.__devTrace = []);
+    global.__devGen = 0;
+    const io = rpc();
+    const handle = dev({ entry, input: io.input, output: io.output, log: { write: () => undefined }, watch: false });
+    await new Promise((ok) => setTimeout(ok, 5));
+    await Promise.all([handle.ready, handle.reload(), handle.reload()]);
+    expect(trace).toEqual(['start 1', 'end 1', 'start 2', 'end 2', 'start 3', 'end 3']);
+    io.send({ id: 1, method: 'tools/list' });
+    expect(toolNames(await io.next((m) => m['id'] === 1))).toEqual(['g3']);
+    io.input.end();
+    await handle.done;
+  });
+
   it('names the diff between two manifests by command path', async () => {
     const at = scratch('diff');
     const entry = join(at, 'cli.ts');

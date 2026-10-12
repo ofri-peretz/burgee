@@ -58,7 +58,7 @@ describe('--mcp keeps a tool call’s stderr apart from its result', () => {
     input.end(`${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'old', arguments: {} } })}\n`);
     await execute(withOld, { argv: ['--mcp'], stdin: input, stdout: { write: (s) => out.push(s) }, stderr: { write: (s) => err.push(s) }, exit: () => undefined });
     const reply = JSON.parse(out.join('').trim()) as { result: { content: { text: string }[]; isError: boolean } };
-    expect(reply.result).toEqual({ content: [{ type: 'text', text: '{"ok":true,"data":"still works","meta":{"provenance":{}}}' }], isError: false });
+    expect(reply.result).toEqual({ content: [{ type: 'text', text: '{"ok":true,"data":"still works","meta":{"provenance":{}}}' }], isError: false, structuredContent: { result: 'still works' } });
     expect(err).toEqual([]);
   });
 });

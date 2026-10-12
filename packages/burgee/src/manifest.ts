@@ -283,6 +283,13 @@ export interface RunContext {
    * it never aborts.
    */
   signal: AbortSignal;
+  /**
+   * mcp-current R5 — report how far the command has got: `done` of `total` units, with an
+   * optional `message`. Inside an `--mcp` tool call whose client sent a `progressToken`, each
+   * call is a `notifications/progress`; everywhere else it does nothing, so call it
+   * unconditionally. `flagstaff/progress` reports through it on its own inside such a call.
+   */
+  progress: (done: number, total?: number, message?: string) => void;
   /** agent-lint-conformance R2 — the caller passed `--quiet`: draw no progress and print no hints. Data and errors still print. */
   quiet: boolean;
   /**
