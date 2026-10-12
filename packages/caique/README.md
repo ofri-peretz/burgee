@@ -28,7 +28,7 @@
 <p align="center">
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/%40clack%2Fprompts%20suite-16%2F16-0a6b47?style=flat-square" alt="caique/clack passes 16 of 16 cases of the @clack/prompts test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/%40inquirer%2Fcore%20suite-41%2F41-0a6b47?style=flat-square" alt="caique/inquirer passes 41 of 41 cases of the @inquirer/core test suite" /></a>
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/%40inquirer%2Fprompts%20suite-0%2F213-b45309?style=flat-square" alt="caique/inquirer passes 0 of 213 cases of the @inquirer/prompts test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/%40inquirer%2Fprompts%20suite-100%2F213-b45309?style=flat-square" alt="caique/inquirer passes 100 of 213 cases of the @inquirer/prompts test suite" /></a>
 </p>
 
 <p align="center">
@@ -276,6 +276,9 @@ From **`@inquirer/core`**, one import — `createPrompt`, the hooks and the keyp
 level with their incumbent — and `npx burgee migrate` makes the change
 ([Migrate](https://burgee.interlace.tools/docs/migrate)).
 
+From **`@inquirer/prompts`**, `select` and `checkbox` are at `caique/inquirer/prompts`, each level
+with its own suite; the other prompts are not built yet, so `burgee migrate` leaves that import alone.
+
 From **`@clack/prompts`** there is no one-import swap: caique takes a prompt as a spec rather
 than clack's call signature and does not draw clack's frames, so a CLI moves one prompt at a
 time. [Coming from clack](https://caique.interlace.tools/docs/coming-from/clack) maps each clack
@@ -356,7 +359,7 @@ Graded by the incumbent's own test suite:
 | :-- | --: |
 | `clack` | 16 / 16 |
 | `inquirer-core` | 41 / 41 |
-| `inquirer-prompts` | 0 / 213 |
+| `inquirer-prompts` | 100 / 213 |
 
 Weight, installed and tree-inclusive: **246,175 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.6328**.
 
@@ -430,10 +433,10 @@ keeps both true.
 | Package | What it is | Migrates from |
 | :-- | :-- | :-- |
 | [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander, yargs and meow |
-| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk and picocolors |
+| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
 | **caique** (this package) | Prompts that are flags first, and never hang | @inquirer/core |
-| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line |
+| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi and slice-ansi |
 | [paratext](https://paratext.interlace.tools/docs) | Hyperlinks, images, title, clipboard and notifications | ansi-escapes, terminal-link and term-img |
 | [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, lilconfig, dotenv and rc |
 | [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook, restore-cursor, cli-cursor and onetime |
