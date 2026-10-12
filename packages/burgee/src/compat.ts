@@ -79,6 +79,7 @@ export const GRADED: Readonly<Record<string, Row>> = {
   'cli-truncate': { reference: 12, passed: 12, rate: 1, control: 12 },
   'widest-line': { reference: 1, passed: 1, rate: 1, control: 1 },
   picocolors: { reference: 1, passed: 1, rate: 1, control: 1 },
+  'extra-typings': { reference: 369, passed: 369, rate: 1, control: 369 },
 };
 
 /** One graded path: an incumbent's specifier, and the family specifier that replaces it. */
@@ -138,6 +139,7 @@ export const DROP_INS: readonly DropIn[] = [
   { host: 'cli-truncate', from: 'cli-truncate', to: 'linegauge/cli-truncate' },
   { host: 'widest-line', from: 'widest-line', to: 'linegauge/widest-line' },
   { host: 'picocolors', from: 'picocolors', to: 'roundel/picocolors' },
+  { host: 'extra-typings', from: '@commander-js/extra-typings', to: 'burgee/commander/extra-typings' },
 ];
 
 /**
@@ -149,6 +151,7 @@ export const DROP_INS: readonly DropIn[] = [
  */
 export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
   '@clack/prompts': '1.8.1',
+  '@commander-js/extra-typings': '15.0.0',
   '@inquirer/core': '12.0.4',
   '@inquirer/prompts': '8.7.3',
   'ansi-escapes': '7.3.0',
@@ -218,6 +221,7 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
 /* eslint-disable conventions/no-magic-numbers -- these are major versions of other packages, data `migrate` reads and a lock holds to the oracle's grades; naming each would be twenty-seven constants that say `15` */
 export const SUPPORTED_MAJORS: Readonly<Record<string, readonly number[]>> = {
   '@clack/prompts': [1],
+  '@commander-js/extra-typings': [15],
   '@inquirer/core': [12],
   '@inquirer/prompts': [8],
   'ansi-escapes': [7],

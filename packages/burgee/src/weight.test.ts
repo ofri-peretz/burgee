@@ -717,6 +717,16 @@ const RULES: Record<string, EntryRule> = {
     budget: 129_400,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
+  // `extra-typings-drop-in` R5: `@commander-js/extra-typings`' door. Its JavaScript is one
+  // line, `export * from '../commander.js'`, as extra-typings' is `export * from 'commander'`;
+  // what it adds is a declaration file, which no runtime walk counts. So the entry weighs what
+  // `./commander` weighs plus that line. Set at the measurement, 115,356 B on 2026-10-12, with
+  // the ~32 B CI has read heavier than a local build elsewhere in this table, and no more.
+  "./commander/extra-typings": {
+    allow: ["bellpull/cross-spawn"],
+    budget: 115_400,
+    denied: ["testing.js", "testing-helpers.js", "dev.js"],
+  },
   // yargs 18 ported method for method, with its whole dependency tree — yargs-parser 22,
   // cliui 9 (wrap-ansi), y18n 5, escalade, get-caller-file — because burgee depends on
   // nothing outside the family (J9).

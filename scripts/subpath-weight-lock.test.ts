@@ -16,7 +16,7 @@
  * true rather than aspirational. This file checks the cheaper, more important property — that
  * nothing is *missing* — because a stale number is visible and an absent row is not.
  */
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -70,6 +70,22 @@ const DROP_IN_CEILINGS: Readonly<Record<string, { incumbent: string; bytes: numb
   'roundel/picocolors': { incumbent: 'picocolors@1.1.1', bytes: 2_739 },
 };
 
+/**
+ * `extra-typings-drop-in` R5: a drop-in that bundles **heavier** than what a user installs today,
+ * priced against it and named rather than left off the comparison. Each is the same method as
+ * {@link DROP_IN_CEILINGS}, over the incumbent's whole install — `@commander-js/extra-typings` is
+ * `export * from 'commander'`, so its 39,329 B are commander's, measured 2026-10-12 from a
+ * scratch install of both at 15.0.0.
+ *
+ * `ours` is a ratchet, not a budget: the measurement the row was opened at, which the façade may
+ * not grow past. The row leaves this table for `DROP_IN_CEILINGS` the day it weighs no more than
+ * the incumbent, and the last case below fails until it does. `gap` is the ledger file that says
+ * why the row is over and what deciding it takes.
+ */
+const OVER_INCUMBENT: Readonly<Record<string, { incumbent: string; bytes: number; ours: number; gap: string }>> = {
+  'burgee/commander/extra-typings': { incumbent: '@commander-js/extra-typings@15.0.0 + commander@15.0.0', bytes: 39_329, ours: 61_207, gap: 'B-20261012-extra-typings-bundles-heavier' },
+};
+
 /** The "Everything" cell of a subpath's row on the page, or `undefined` when it has no row. */
 const everything = (page: string, specifier: string): number | undefined => {
   const cell = new RegExp(String.raw`^\| \`${specifier.replaceAll('/', '\\/')}\` \|.*\| ([\d,]+) \|$`, 'm').exec(page)?.[1];
@@ -83,6 +99,14 @@ describe('a drop-in façade weighs no more than its incumbent (U5)', () => {
     const ours = everything(page, specifier);
     expect(ours, `\`${specifier}\` has no row on /docs/weight`).toBeDefined();
     expect(ours, `\`${specifier}\` bundles ${String(ours)} B, over the incumbent's ${String(bytes)} B`).toBeLessThanOrEqual(bytes);
+  });
+
+  it.each(Object.entries(OVER_INCUMBENT))('%s, over its incumbent, does not grow past %o', (specifier, { bytes, ours, gap }) => {
+    const measured = everything(page, specifier);
+    expect(measured, `\`${specifier}\` has no row on /docs/weight`).toBeDefined();
+    expect(measured, `\`${specifier}\` bundles ${String(measured)} B, over the ${String(ours)} B it was opened at`).toBeLessThanOrEqual(ours);
+    expect(existsSync(join(REPO_ROOT, '.sdlc/gaps', `${gap}.md`)), `${gap} names no file in .sdlc/gaps`).toBe(true);
+    expect(measured, `\`${specifier}\` is at or under the incumbent's ${String(bytes)} B now: move it to DROP_IN_CEILINGS and close ${gap}`).toBeGreaterThan(bytes);
   });
 
   it('reads the Everything column, the last cell of the row', () => {

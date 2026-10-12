@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "module": "nodenext",
+    "lib": ["ESNext"],
+    "types": ["node"],
+    "noImplicitAny": true,
+    "noImplicitThis": true,
+    "strictNullChecks": true,
+    // "exactOptionalPropertyTypes": true,
+    "noEmit": true,
+    "forceConsistentCasingInFileNames": true,
+  },
+  "include": ["**/*.ts"],
+}

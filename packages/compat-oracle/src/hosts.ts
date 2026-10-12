@@ -666,6 +666,27 @@ export const HOSTS: Host[] = [
     status: 'active',
   },
   {
+    // commander's typed variant (`extra-typings-drop-in` R2). Its JavaScript is
+    // `export * from 'commander'`, graded by the row above; what this suite grades is the
+    // declarations, one case per tsd assertion. Upstream's `tsconfig.json` is vendored at the
+    // root because tsd refuses to guess one, and `types: ["node"]` in it is why `@types/node`
+    // is pinned beside tsd at the version upstream's lockfile resolves.
+    name: 'extra-typings',
+    npmName: '@commander-js/extra-typings',
+    repo: 'https://github.com/commander-js/extra-typings',
+    testDir: 'tests',
+    testGlob: '*.test-d.ts',
+    imports: [{ upstream: '../index.js', subpath: '', reexportDefault: false }],
+    extraDirs: ['tsconfig.json'],
+    suiteDeps: ['tsd@0.33.0', '@tsd/typescript@5.9.3', '@types/node@22.19.19', 'commander@15.0.0', '@commander-js/extra-typings@15.0.0'],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    pinnedVersion: '15.0.0',
+    runner: 'tsd',
+    target: 'burgee/commander/extra-typings',
+    status: 'active',
+    note: "**Graded 2026-10-12 at 15.0.0: `burgee/commander/extra-typings` 369 / 369 against a control of 369 / 369**, one case per tsd assertion and none excluded (`extra-typings-drop-in` R2, R3). Before the façade the target run reported `target not built yet`; with only `burgee/commander`'s own declarations behind the subpath it read 205 / 390, 164 assertions failing and 21 errors outside any assertion. The runtime is `burgee/commander`'s, graded by the row above.",
+  },
+  {
     name: 'yargs',
     repo: 'https://github.com/yargs/yargs',
     testDir: 'test',

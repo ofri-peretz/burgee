@@ -59,6 +59,9 @@ const PAIRS: readonly (readonly [string, string])[] = [
   // resolves through the copy `@changesets/cli` hoists to the root. When that copy is gone,
   // the pair is skipped, as any incumbent not installed at the root is.
   ['@clack/prompts', 'caique/clack'],
+  // Joined 2026-10-12 with `extra-typings-drop-in` R3. A root devDependency for this comparison
+  // alone, as meow is: the declarations are the whole of what the drop-in adds.
+  ['@commander-js/extra-typings', 'burgee/commander/extra-typings'],
 ];
 
 /** Names a drop-in does not export yet, each with the reason — the list only shrinks. */
