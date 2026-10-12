@@ -1,5 +1,17 @@
 # flagstaff
 
+## 1.5.0
+
+### Minor Changes
+
+- [#1058](https://github.com/ofri-peretz/burgee/pull/1058) [`31a38e7`](https://github.com/ofri-peretz/burgee/commit/31a38e7ef3cfd5140af7cb9840e591d38cdc0fc5) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A `table()` column can say what happens past its width: `columns: [{ overflow: 'truncate' }]` cuts a cell to one row ending in `…`, by display width through `linegauge/truncate`, with a link kept around the text that survives. `'wrap'`, the default, is the behaviour tables have always had. `tableComponent()`'s static projection prints every cell whole whatever `columns` says.
+
+### Patch Changes
+
+- [#1046](https://github.com/ofri-peretz/burgee/pull/1046) [`1797388`](https://github.com/ofri-peretz/burgee/commit/1797388f27a294803b12839ff4d074226bd40917) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Two `ora` spinners on one stream, stopped in the order they started, leave `write` as they found it. The second used to restore the first's wrapper as its "original", so a stopped spinner stayed hooked into every later write and cleared lines it no longer owned.
+- Updated dependencies [[`1797388`](https://github.com/ofri-peretz/burgee/commit/1797388f27a294803b12839ff4d074226bd40917)]:
+  - closeout@1.1.3
+
 ## 1.4.0
 
 ### Minor Changes
