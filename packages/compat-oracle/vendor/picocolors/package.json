@@ -1,0 +1,13 @@
+{
+  "name": "@vendored/picocolors-suite",
+  "private": true,
+  "type": "commonjs",
+  "main": "./shim.mjs",
+  "version": "1.1.1",
+  "license": "ISC",
+  "description": "The tiniest and the fastest library for terminal output formatting with ANSI colors",
+  "repository": "alexeyraspopov/picocolors",
+  "devDependencies": {
+    "picocolors": "1.1.1"
+  }
+}
