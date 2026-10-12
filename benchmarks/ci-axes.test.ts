@@ -67,3 +67,158 @@ describe('each CI job runs its whole suite', () => {
     for (const axes of selections) expect(new Set(axes.map((a) => suiteOf(a))).size).toBe(1);
   });
 });
+
+/**
+ * `.sdlc/intents/b1-mcp-arm/` R4 — the MCP arm's spend is bounded in the workflow.
+ *
+ * B1 is 50 paid agent runs a reading and lands one on every push to `main`. The arm adds its
+ * runs to each reading it joins, so it joins the weekly schedule and a PR labelled `bench:agent`,
+ * and nothing else: a push to `main`, a manual dispatch and an unlabelled PR run the two existing
+ * variants only. The axis runs the arm only when `BENCH_AGENT_MCP` is `1`
+ * (`variantsFor` in `axes/agent.ts`), so the expression that sets it is the whole of the bound,
+ * and this evaluates that expression for every event rather than matching its text.
+ */
+const agentJob = WORKFLOW.slice(WORKFLOW.indexOf('\n  agent:\n'));
+const runStep = agentJob.slice(agentJob.indexOf('- name: Run B1'), agentJob.indexOf('- name: Did it actually measure anything?'));
+
+interface Event {
+  event_name: string;
+  labels: string[];
+  /** `vars.B1_MCP_ARM`: the owner's approval of the spend. Absent reads as GitHub reads it, `''`. */
+  approval?: string;
+}
+
+/**
+ * The GitHub expression grammar this condition may use: `||`, `&&`, `!`, parentheses, `==`/`!=`,
+ * string literals, `github.event_name` and `contains(github.event.pull_request.labels.*.name, '…')`.
+ * Anything else throws, so a later edit cannot slip a term past the test by being unreadable.
+ */
+function evaluate(expression: string, ev: Event): unknown {
+  const tokens = expression.match(/'[^']*'|\|\||&&|==|!=|!|\(|\)|,|[\w.*:-]+/gu) ?? [];
+  let i = 0;
+  const peek = (): string | undefined => tokens[i];
+  const take = (want?: string): string => {
+    const t = tokens[i++];
+    if (t === undefined || (want !== undefined && t !== want)) throw new Error(`unexpected ${String(t)} in ${expression}`);
+    return t;
+  };
+  const truthy = (v: unknown): boolean => v !== '' && v !== false && v !== null && v !== undefined && v !== 0;
+  const primary = (): unknown => {
+    const t = take();
+    if (t === '(') {
+      const v = or();
+      take(')');
+      return v;
+    }
+    if (t === '!') return !truthy(primary());
+    if (t.startsWith("'")) return t.slice(1, -1);
+    if (t === 'github.event_name') return ev.event_name;
+    if (t === 'vars.B1_MCP_ARM') return ev.approval ?? '';
+    if (t === 'contains') {
+      take('(');
+      const subject = take();
+      take(',');
+      const needle = take();
+      take(')');
+      if (subject !== 'github.event.pull_request.labels.*.name') throw new Error(`contains() over ${subject} is not a term this bound may use`);
+      return ev.labels.includes(needle.slice(1, -1));
+    }
+    throw new Error(`${t} is not a term this bound may use`);
+  };
+  const compare = (): unknown => {
+    const left = primary();
+    const op = peek();
+    if (op !== '==' && op !== '!=') return left;
+    take();
+    const right = primary();
+    return op === '==' ? left === right : left !== right;
+  };
+  const and = (): unknown => {
+    let v = compare();
+    while (peek() === '&&') {
+      take();
+      const r = compare();
+      v = truthy(v) ? r : v;
+    }
+    return v;
+  };
+  const or = (): unknown => {
+    let v = and();
+    while (peek() === '||') {
+      take();
+      const r = and();
+      v = truthy(v) ? v : r;
+    }
+    return v;
+  };
+  const value = or();
+  if (i !== tokens.length) throw new Error(`trailing ${tokens.slice(i).join(' ')} in ${expression}`);
+  return value;
+}
+
+/** The value the `Run B1` step hands the axis as `BENCH_AGENT_MCP`, for one event. */
+function armFor(ev: Event): unknown {
+  const line = /^\s+BENCH_AGENT_MCP: \$\{\{ (.+) \}\}\s*$/mu.exec(runStep)?.[1];
+  if (line === undefined) throw new Error('the `Run B1` step does not set BENCH_AGENT_MCP from an expression');
+  return evaluate(line, ev);
+}
+
+/** Whether the `agent` job runs at all for an event: its own `if:`. */
+function jobRunsFor(ev: Event): boolean {
+  const cond = /^ {4}if: >-\n((?: {6}.+\n)+)/mu.exec(agentJob)?.[1];
+  if (cond === undefined) throw new Error('the agent job has no `if: >-` condition');
+  return evaluate(cond.replaceAll(/\s+/gu, ' ').trim(), ev) === true;
+}
+
+describe('R4 — the MCP arm runs where its cost was accepted, and nowhere else', () => {
+  const label = 'bench:agent';
+  const approval = 'approved';
+
+  it('admits the weekly schedule', () => {
+    expect(armFor({ event_name: 'schedule', labels: [], approval })).toBe('1');
+  });
+
+  it('admits a pull request labelled bench:agent', () => {
+    expect(armFor({ event_name: 'pull_request', labels: [label], approval })).toBe('1');
+  });
+
+  it.each(['', 'yes', 'Approved'])('spends nothing anywhere until the owner approves it (B1_MCP_ARM=%j)', (value) => {
+    for (const event_name of ['schedule', 'push', 'workflow_dispatch', 'pull_request']) {
+      for (const labels of [[], [label]]) expect(armFor({ event_name, labels, approval: value })).not.toBe('1');
+    }
+  });
+
+  it.each([
+    ['push', []],
+    ['workflow_dispatch', []],
+    ['pull_request', []],
+    ['pull_request', ['documentation']],
+    ['push', [label]],
+  ] as const)('refuses %s (labels %j), approved or not', (event_name, labels) => {
+    expect(armFor({ event_name, labels: [...labels], approval })).not.toBe('1');
+  });
+
+  it('is never wider than the job it runs in, which is where the two existing variants spend', () => {
+    for (const event_name of ['schedule', 'push', 'workflow_dispatch', 'pull_request']) {
+      for (const labels of [[], [label]]) {
+        if (armFor({ event_name, labels, approval }) === '1') expect(jobRunsFor({ event_name, labels }), `${event_name} ${labels.join()}`).toBe(true);
+      }
+    }
+  });
+
+  it('fails when the condition is widened to a push — the mutation this lock exists for', () => {
+    const widened = runStep.replace(/github\.event_name == 'schedule' \|\|/u, "github.event_name == 'push' || github.event_name == 'schedule' ||");
+    expect(widened).not.toBe(runStep);
+    const line = /^\s+BENCH_AGENT_MCP: \$\{\{ (.+) \}\}\s*$/mu.exec(widened)?.[1] ?? '';
+    expect(evaluate(line, { event_name: 'push', labels: [], approval })).toBe('1');
+  });
+
+  it('is set in exactly one place, so no other step can turn the arm on', () => {
+    expect(WORKFLOW.match(/BENCH_AGENT_MCP/gu)).toHaveLength(1);
+  });
+
+  it('lands a weekly reading under its own name, so it never collides with a push reading of the same commit', () => {
+    expect(agentJob).toMatch(/if: \(github\.event_name == 'push' \|\| github\.event_name == 'schedule'\) && steps\.status\.outputs\.status == 'measured'/u);
+    expect(agentJob).toContain('-weekly-ci.json');
+  });
+});

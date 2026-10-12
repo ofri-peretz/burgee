@@ -9,13 +9,17 @@
  * What is untested here is the model's behaviour, which is exactly what the credential
  * buys and nothing else can substitute for.
  */
+import { spawnSync } from 'node:child_process';
 import { chmodSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { AGENT_ENV_RULE, agentEnv, type Attempt, blockers, classifyFailure, installTool, ISOLATION, isPosix, nothingCameBack, OUTPUT_FORMAT, parseClaudeJson, perTaskDetail, POSIX_ONLY, redact, resultObject, run, runOne, STORED_LOGIN_OPT_IN, storedLogin, summariseFailures, type Task, totalRecords, type Variant } from './axes/agent.js';
+import { AGENT_ENV_RULE, agentEnv, armRecords, type Attempt, blockers, classifyFailure, installTool, ISOLATION, isPosix, MCP_ARM_OPT_IN, type McpConfig, mcpConfig, MODALITIES, nothingCameBack, OUTPUT_FORMAT, parseClaudeJson, perTaskDetail, POSIX_ONLY, priorReadings, type Reading, READINGS_METRIC, readTasks, redact, resultObject, run, runOne, STORED_LOGIN_OPT_IN, storedLogin, summariseFailures, type Task, tasksFor, totalRecords, type Variant, VARIANTS, variantsFor, writeMcpConfig } from './axes/agent.js';
+import { SUITE } from './bands.js';
+import { CLAIMS } from './claims.js';
+import { buildDocument, type ResultsDoc } from './emit.js';
 import { type BenchRecord } from './record.js';
 
 const EXECUTABLE = 0o755;
@@ -30,7 +34,7 @@ function stubClaude(result: string, extra: Record<string, unknown> = {}): string
   return bin;
 }
 
-const task: Task = { id: 'stub', requirement: 'F1', prompt: 'find user.name with demo', setup: [], check: 'grep -qi ada "$BENCH_RESULT"', maxTurns: 5 };
+const task: Task = { id: 'stub', requirement: 'F1', prompt: 'find user.name with demo', setup: [], check: 'grep -qi ada "$BENCH_RESULT"', maxTurns: 5, modalities: ['cli'] };
 
 function attempt(bin: string, t: Task = task): ReturnType<typeof runOne> {
   const workdir = mkdtempSync(join(tmpdir(), 'bench-work-'));
@@ -503,5 +507,274 @@ describe('the tool is installed under the name the demos print (D-20261008-b1-to
     const installed = readdirSync(installTool('/bin/echo'));
     expect(installed).toEqual([burgeeName]);
     expect(installed).toEqual([commanderName]);
+  });
+});
+
+/**
+ * `.sdlc/intents/b1-mcp-arm/` — the same demo, the same tasks, served over `--mcp`.
+ *
+ * Everything below runs without a credential and without a model. The arm adds paid runs to a
+ * reading (spec R4 bounds where), so its harness is proven here against a stub `claude` and a
+ * stub MCP server, and the one thing left untested is again the model's behaviour.
+ */
+const TASKS_DIR = join(import.meta.dirname, 'tasks');
+const taskFiles = readdirSync(TASKS_DIR).filter((f) => f.endsWith('.json')).toSorted();
+const rawTask = (file: string): Record<string, unknown> => JSON.parse(readFileSync(join(TASKS_DIR, file), 'utf8')) as Record<string, unknown>;
+
+describe('R1 — each task declares the modalities it can be stated in', () => {
+  it.each(taskFiles)('%s declares `modalities`, a set of known surfaces that includes the CLI', (file) => {
+    const modalities = rawTask(file)['modalities'];
+    expect(Array.isArray(modalities), `${file} has no \`modalities\` field`).toBe(true);
+    const list = modalities as unknown[];
+    expect(list).toContain('cli');
+    for (const m of list) expect(MODALITIES).toContain(m);
+    expect(new Set(list).size).toBe(list.length);
+  });
+
+  it.each(taskFiles)('%s, when it is an `mcp` task, has a check that never shells out to `demo`', (file) => {
+    const raw = rawTask(file);
+    if (!(raw['modalities'] as string[] | undefined)?.includes('mcp')) return;
+    // An agent on the MCP arm has no shell: a check that ran `demo` would grade the CLI.
+    expect(String(raw['check'])).not.toMatch(/\bdemo\b/u);
+    // The exemplar is a plausible answer from either arm, so it names no shell command.
+    expect(String(raw['exemplar'])).not.toMatch(/`demo [^`]*`/u);
+  });
+
+  it('excludes `non-tty-required` by name: a terminal behaviour MCP does not have', () => {
+    expect(rawTask('non-tty-required.json')['modalities']).toEqual(['cli']);
+  });
+
+  it('records the reason beside every CLI-only task in tasks/README.md', () => {
+    const readme = readFileSync(join(TASKS_DIR, 'README.md'), 'utf8');
+    const cliOnly = taskFiles.map((f) => rawTask(f)).filter((t) => (t['modalities'] as string[] | undefined)?.join() === 'cli');
+    expect(cliOnly.length).toBeGreaterThan(0);
+    for (const t of cliOnly) {
+      const row = readme.split('\n').find((l) => l.startsWith(`| \`${String(t['id'])}\` |`));
+      expect(row, `tasks/README.md gives no reason for ${String(t['id'])} being CLI-only`).toBeDefined();
+      expect(row).toMatch(/\| `cli` \| .{20,} \|$/u);
+    }
+  });
+
+  it('hands each arm only the tasks it can be stated in', () => {
+    const tasks = readTasks();
+    expect(tasksFor('cli', tasks)).toHaveLength(tasks.length);
+    const mapped = tasksFor('mcp', tasks);
+    expect(mapped.length).toBeGreaterThan(0);
+    expect(mapped.map((t) => t.id)).not.toContain('non-tty-required');
+  });
+});
+
+/**
+ * A built "demo" that is a minimal MCP server when it is passed `--mcp`: it answers
+ * `initialize` with its own argv, so a test can read what the config actually started.
+ */
+function stubMcpBin(): string {
+  const dir = mkdtempSync(join(tmpdir(), 'stub-mcp-bin-'));
+  const bin = join(dir, 'bin.js');
+  writeFileSync(
+    bin,
+    [
+      "if (!process.argv.includes('--mcp')) { process.stdout.write('ada\\n'); process.exit(0); }",
+      "if (process.argv.includes('--print-config')) process.exit(0);",
+      "let buf = '';",
+      "process.stdin.on('data', (c) => { buf += c; let i; while ((i = buf.indexOf('\\n')) >= 0) { const line = buf.slice(0, i); buf = buf.slice(i + 1); if (!line.trim()) continue; const m = JSON.parse(line); if (m.id === undefined) continue;",
+      "  const result = m.method === 'initialize' ? { protocolVersion: '2025-06-18', capabilities: { tools: {} }, serverInfo: { name: 'demo', version: '0.0.0' }, argv: process.argv.slice(2) } : { tools: [{ name: 'config_get', inputSchema: { type: 'object' } }] };",
+      "  process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: m.id, result }) + '\\n'); } });",
+      "process.stdin.on('end', () => process.exit(0));",
+    ].join('\n'),
+  );
+  return bin;
+}
+
+/** `initialize` then `tools/list` against the server a config names, the way a client starts it. */
+function handshake(server: { command: string; args?: string[] }): unknown[] {
+  const input = [
+    { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'b1-test', version: '0' } } },
+    { jsonrpc: '2.0', method: 'notifications/initialized' },
+    { jsonrpc: '2.0', id: 2, method: 'tools/list' },
+  ]
+    .map((m) => JSON.stringify(m))
+    .join('\n');
+  const r = spawnSync(server.command, server.args ?? [], { input: `${input}\n`, encoding: 'utf8', timeout: 30_000 });
+  return r.stdout
+    .split('\n')
+    .filter((l) => l.trim() !== '')
+    .map((l) => JSON.parse(l) as unknown);
+}
+
+/** A `claude` that answers with its argv, and copies the `--mcp-config` file it was handed beside it. */
+function argvClaude(): { bin: string; seen: string } {
+  const dir = mkdtempSync(join(tmpdir(), 'stub-claude-mcp-'));
+  const bin = join(dir, 'claude');
+  const seen = join(dir, 'mcp-config-seen.json');
+  writeFileSync(
+    bin,
+    `#!/bin/sh\nif [ "$1" = --version ]; then echo '9.9.9 (Claude Code)'; exit 0; fi\nprev=''\nfor a in "$@"; do if [ "$prev" = --mcp-config ]; then cp "$a" "${seen}"; fi; prev="$a"; done\nprintf '{"type":"result","is_error":false,"num_turns":2,"usage":{"input_tokens":500,"output_tokens":100},"result":"ada %s"}' "$*"\n`,
+  );
+  chmodSync(bin, EXECUTABLE);
+  return { bin, seen };
+}
+
+const MCP_TASK: Task = { ...task, id: 'mapped', modalities: ['cli', 'mcp'] };
+
+describe.skipIf(!isPosix())('R2 — a `burgee-mcp` variant', () => {
+  it('is declared beside the two existing builds: the burgee demo, on the floor, over MCP', () => {
+    const burgee = VARIANTS.find((v) => v.id === 'burgee');
+    expect(VARIANTS.find((v) => v.id === 'burgee-mcp')).toEqual({ id: 'burgee-mcp', bin: burgee?.bin, floor: true, modality: 'mcp' });
+  });
+
+  it('runs only when the caller opts into it, so a push to main spends nothing on it', () => {
+    expect(variantsFor({}).map((v) => v.id)).toEqual(['burgee', 'commander']);
+    expect(variantsFor({ [MCP_ARM_OPT_IN]: '0' }).map((v) => v.id)).toEqual(['burgee', 'commander']);
+    expect(variantsFor({ [MCP_ARM_OPT_IN]: '1' }).map((v) => v.id)).toEqual(['burgee', 'commander', 'burgee-mcp']);
+  });
+
+  it('writes a config whose one server is the demo, started with `--mcp`, and the server answers', () => {
+    const toolDir = installTool(stubMcpBin());
+    const { config, server } = mcpConfig(toolDir);
+    expect(Object.keys(config.mcpServers)).toEqual([server]);
+    const entry = config.mcpServers[server];
+    expect(entry?.args).toContain('--mcp');
+    const replies = handshake(entry ?? { command: 'false' });
+    expect(replies[0]).toMatchObject({ id: 1, result: { serverInfo: { name: 'demo' }, argv: ['--mcp'] } });
+    expect(replies[1]).toMatchObject({ id: 2, result: { tools: [{ name: 'config_get' }] } });
+  });
+
+  it('takes the config the demo prints itself (`--mcp --print-config`, mcp-current R6) when it prints one', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'stub-printer-'));
+    const bin = join(dir, 'bin.js');
+    writeFileSync(bin, `process.stdout.write(JSON.stringify({ mcpServers: { demo: { command: 'printed-by-the-demo', args: ['--mcp'] } } }));\n`);
+    expect(mcpConfig(installTool(bin))).toEqual({ server: 'demo', config: { mcpServers: { demo: { command: 'printed-by-the-demo', args: ['--mcp'] } } }, source: 'print-config' });
+  });
+
+  it('spawns claude with --mcp-config and --strict-mcp-config, the demo\'s tools allowed and no Bash', () => {
+    const { bin, seen } = argvClaude();
+    const toolDir = installTool(stubMcpBin());
+    const workdir = mkdtempSync(join(tmpdir(), 'bench-work-'));
+    const r = runOne({ claudeBin: bin, task: MCP_TASK, toolDir, workdir, model: 'm', timeoutMs: 30_000, modality: 'mcp', mcp: writeMcpConfig(toolDir) });
+    expect(r.success).toBe(true);
+    expect(r.result).toContain('--mcp-config ');
+    expect(r.result).toContain(ISOLATION.join(' '));
+    expect(r.result).toContain(OUTPUT_FORMAT.join(' '));
+    expect(r.result).toContain('--allowedTools mcp__demo ');
+    expect(r.result).not.toContain('Bash');
+    expect(r.result).toContain(`--max-turns ${String(MCP_TASK.maxTurns)}`);
+    expect(r.result).toContain('--model m');
+    // The file claude was handed starts the demo's server.
+    const handed = JSON.parse(readFileSync(seen, 'utf8')) as McpConfig;
+    expect(handshake(handed.mcpServers['demo'] ?? { command: 'false' })[0]).toMatchObject({ result: { serverInfo: { name: 'demo' } } });
+  });
+
+  it('leaves the CLI arms\' spawn exactly as it was', () => {
+    const { bin } = argvClaude();
+    const r = attempt(bin);
+    expect(r.result).toContain("--allowedTools Bash(demo:*)");
+    expect(r.result).not.toContain('--mcp-config');
+  });
+
+  it('runs the arm on the mapped tasks only, through run(), when it is opted into', () => {
+    const { bin } = argvClaude();
+    const transcriptDir = join(mkdtempSync(join(tmpdir(), 'b1-mcp-transcripts-')), 'out');
+    const cliOnly: Task = { ...task, id: 'cli-only', modalities: ['cli'] };
+    const out = run({
+      variants: [
+        { id: 'burgee', bin: stubMcpBin(), floor: true },
+        { id: 'commander', bin: stubMcpBin(), floor: false },
+        { id: 'burgee-mcp', bin: stubMcpBin(), floor: true, modality: 'mcp' },
+      ],
+      env: { ...process.env, CLAUDE_CODE_OAUTH_TOKEN: 'stub' },
+      runs: 1,
+      model: 'm',
+      timeoutMs: 30_000,
+      tasks: [MCP_TASK, cliOnly],
+      claudeBin: bin,
+      transcriptDir,
+      readings: [],
+    });
+    if (!('records' in out)) throw new Error(`expected records, got: ${out.reason}`);
+    expect(readdirSync(transcriptDir).toSorted()).toEqual(['burgee-cli-only-0.jsonl', 'burgee-mapped-0.jsonl', 'burgee-mcp-mapped-0.jsonl', 'commander-cli-only-0.jsonl', 'commander-mapped-0.jsonl']);
+    expect(readFileSync(join(transcriptDir, 'burgee-mcp-mapped-0.jsonl'), 'utf8')).toContain('--mcp-config');
+  });
+});
+
+/** One reading's `burgee-mcp ÷ burgee` ratio, the shape a landed results file carries. */
+const reading = (ratio: number, i: number): Reading => ({ file: `2026-10-${String(13 + 7 * i).padStart(2, '0')}-abc${String(i)}def-weekly-ci.json`, ratio });
+
+describe('R3 — medians and ranges, never one run', () => {
+  const m = (t: string, turns: number, success = true, extra: Partial<Attempt> = {}): Attempt => a(t, turns, success, extra);
+  // `burgee` ran three tasks; only `p` and `q` map to MCP, so `r` must never enter the ratio.
+  const cli = [m('p', 2), m('p', 4), m('p', 3), m('q', 6), m('q', 8), m('r', 40), m('r', 50)];
+  const mcp = [m('p', 3), m('p', 5), m('p', 1), m('q', 6), m('q', 0, false, { usage: false })];
+  const byVariant = new Map([['burgee', cli], ['burgee-mcp', mcp]]);
+  const records = armRecords(byVariant, ['p', 'q'], {}, []);
+  const rec = (variant: string, metric: string): BenchRecord | undefined => records.find((r) => r.variant === variant && r.metric === metric);
+
+  it('reports, per arm over the mapped tasks, the median, the range and the run count of tokens and turns', () => {
+    // burgee on p and q only: turns 2,4,3,6,8 → median 4, range 2–8; r's 40 and 50 are not in it.
+    expect(rec('burgee', 'mcp-mapped-turns-per-task')).toMatchObject({ median: 4, samples: 5, detail: { min: 2, max: 8, tasks: 'p,q' } });
+    expect(rec('burgee', 'mcp-mapped-tokens-per-task')).toMatchObject({ median: 4000, detail: { min: 2000, max: 8000 } });
+    // burgee-mcp: one run reported no usage, so 4 measured; turns 3,5,1,6 → nearest-rank median 3.
+    expect(rec('burgee-mcp', 'mcp-mapped-turns-per-task')).toMatchObject({ median: 3, samples: 4, detail: { min: 1, max: 6, runs: 5, passed: 4 } });
+  });
+
+  it('reports each mapped task\'s median and range, per arm', () => {
+    expect(rec('burgee', 'mcp-mapped-turns-per-task')?.detail).toMatchObject({ 'p.median': 3, 'p.min': 2, 'p.max': 4, 'q.median': 6, 'q.min': 6, 'q.max': 8 });
+    expect(rec('burgee-mcp', 'mcp-mapped-turns-per-task')?.detail).toMatchObject({ 'p.median': 3, 'q.median': 6, 'q.runs': 2 });
+  });
+
+  it('reports the success rate over the mapped tasks', () => {
+    expect(rec('burgee-mcp', 'mcp-mapped-success-rate')).toMatchObject({ median: 0.8, samples: 5 });
+    expect(rec('burgee', 'mcp-mapped-success-rate')).toMatchObject({ median: 1, samples: 5 });
+  });
+
+  it('divides burgee-mcp by burgee over the same task set only, per measured run', () => {
+    // tokens per measured run: mcp (3+5+1+6)/4 = 3.75k; cli on p,q (2+4+3+6+8)/5 = 4.6k → 0.815.
+    expect(rec('burgee-mcp ÷ burgee', 'mcp-tokens-total-ratio')?.median).toBe(0.815);
+    expect(rec('burgee-mcp ÷ burgee', 'mcp-turns-total-ratio')?.median).toBe(0.815);
+  });
+
+  it('emits no ratio when either arm measured nothing, and nothing at all without the arm', () => {
+    expect(armRecords(new Map([['burgee', cli]]), ['p', 'q'], {}, [])).toEqual([]);
+    expect(armRecords(new Map([['burgee', cli], ['burgee-mcp', [m('p', 0, false, { usage: false })]]]), ['p'], {}, []).filter((r) => r.variant === 'burgee-mcp ÷ burgee')).toEqual([]);
+  });
+
+  it('a fixture with one reading produces no verdict record', () => {
+    expect(rec('burgee-mcp ÷ burgee', READINGS_METRIC)).toBeUndefined();
+  });
+
+  it('produces no verdict record with three readings, and computes one with four', () => {
+    const three = armRecords(byVariant, ['p', 'q'], {}, [reading(0.7, 0), reading(1.3, 1)]);
+    expect(three.find((r) => r.metric === READINGS_METRIC)).toBeUndefined();
+    const four = armRecords(byVariant, ['p', 'q'], {}, [reading(0.6, 0), reading(1.3, 1), reading(0.905, 2)]);
+    // Readings 0.6, 1.3, 0.905 and this one's 0.815. With an even count the median is the
+    // midpoint of the middle two, (0.815 + 0.905) / 2 = 0.86: the nearest-rank rule the rest of
+    // the suite uses would take the lower one, and the lower ratio is always the MCP side's.
+    expect(four.find((r) => r.metric === READINGS_METRIC)).toMatchObject({ variant: 'burgee-mcp ÷ burgee', unit: 'ratio', samples: 4, median: 0.86, detail: { min: 0.6, max: 1.3 } });
+    expect(String(four.find((r) => r.metric === READINGS_METRIC)?.detail?.['readings'])).toContain('abc0def');
+  });
+
+  it('declares the claim `cli-vs-mcp-tokens` against that record, whichever way it falls', () => {
+    const claim = CLAIMS.find((c) => c.id === 'cli-vs-mcp-tokens');
+    expect(claim?.from).toEqual({ axis: 'agent', variant: 'burgee-mcp ÷ burgee', metric: READINGS_METRIC });
+    expect(claim?.test).toEqual({ min: 1 });
+  });
+
+  it('keeps the claim unmeasured with three readings and computes its verdict with four, never typed', () => {
+    // The two records the agent bands read, so the document is one `buildDocument` accepts.
+    const bandRecords: BenchRecord[] = (['tokens-per-task', 'turns-per-task'] as const).map((metric) => ({ axis: 'agent', variant: 'burgee', metric, unit: metric.split('-')[0] ?? '', samples: 1, median: 1, p95: 1 }));
+    const doc = (prior: Reading[]): ResultsDoc =>
+      buildDocument({ suite: SUITE.agent, commit: 'deadbeef', machine: {}, measured: '2026-10-13T05:40:00.000Z', axes: { agent: { status: 'measured', method: 'm' } }, records: [...bandRecords, ...armRecords(byVariant, ['p', 'q'], {}, prior)] });
+    expect(doc([reading(0.7, 0), reading(1.3, 1)]).claims['cli-vs-mcp-tokens']).toMatchObject({ status: 'unmeasured' });
+    expect(doc([reading(0.6, 0), reading(1.3, 1), reading(0.905, 2)]).claims['cli-vs-mcp-tokens']).toMatchObject({ measured: 0.86, met: false });
+    expect(doc([reading(1.7, 0), reading(1.3, 1), reading(1.1, 2)]).claims['cli-vs-mcp-tokens']).toMatchObject({ measured: 1.2, met: true });
+  });
+
+  it('reads earlier readings from landed CI results files, and only those', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'agent-results-'));
+    const file = (ratio: number): string => JSON.stringify({ records: [{ axis: 'agent', variant: 'burgee-mcp ÷ burgee', metric: 'mcp-tokens-total-ratio', median: ratio }] });
+    writeFileSync(join(dir, '2026-10-13-aaaaaaa-weekly-ci.json'), file(0.9));
+    writeFileSync(join(dir, '2026-10-14-bbbbbbb-local.json'), file(0.1));
+    writeFileSync(join(dir, '2026-10-15-ccccccc-ci.json'), JSON.stringify({ records: [] }));
+    expect(priorReadings(dir)).toEqual([{ file: '2026-10-13-aaaaaaa-weekly-ci.json', ratio: 0.9 }]);
   });
 });
