@@ -18,7 +18,8 @@ that touches the paths above:
 run non-interactively with `claude -p`. Reports `skipped` without a credential.
 
 Cases come from real incidents or from a claim somebody made that needs measuring, and
-they are written by whoever owns the claim. Ten, one per plugin host:
+they are written by whoever owns the claim. Eleven: one per plugin host, and one for the locale
+pack a plugin host carries:
 
 | case | the claim it measures |
 | :-- | :-- |
@@ -32,6 +33,7 @@ they are written by whoever owns the claim. Ten, one per plugin host:
 | `paratext-plugin-from-schema` | the same claim for a capability |
 | `roundel-plugin-from-schema` | the same claim for a token |
 | `seniority-plugin-from-schema` | the same claim for a configuration source |
+| `locale-pack-from-schema` | `localised-human-surfaces` R7 — that `burgee/locale-pack-schema.json` plus one example pack is enough for an agent to write a pack for a new language in one turn; French, so the plural message needs the `many` form the German example does not have |
 
 A case earns its place by discriminating. Every one's shell checks were run both ways
 before it was committed. The first, flagstaff's: green against a correct plugin, and red against the same plugin
