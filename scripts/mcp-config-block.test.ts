@@ -12,7 +12,7 @@ import { createInterface } from 'node:readline';
 
 import { describe, expect, it } from 'vitest';
 
-import { PAGE, printed, withBlock, withDemoOnPath } from './mcp-config-block.js';
+import { PAGE, printed, SHELL, withBlock, withDemoOnPath } from './mcp-config-block.js';
 
 interface Server {
   command: string;
@@ -26,9 +26,9 @@ function pastedFrom(page: string): { mcpServers: Record<string, Server> } {
   return JSON.parse(block) as { mcpServers: Record<string, Server> };
 }
 
-/** Start `server` as a client would, send `requests`, and read one reply per request. */
+/** Start `server` as a client would, send `requests`, and read one reply per request. On Windows, through the shell npm's `.cmd` shim needs. */
 async function session(server: Server, env: NodeJS.ProcessEnv, requests: object[]): Promise<Record<string, unknown>[]> {
-  const child = spawn(server.command, server.args, { env, stdio: ['pipe', 'pipe', 'inherit'] });
+  const child = SHELL ? spawn([server.command, ...server.args].join(' '), { env, shell: true, stdio: ['pipe', 'pipe', 'inherit'] }) : spawn(server.command, server.args, { env, stdio: ['pipe', 'pipe', 'inherit'] });
   const replies: Record<string, unknown>[] = [];
   const lines = createInterface({ input: child.stdout });
   for (const r of requests) child.stdin.write(`${JSON.stringify(r)}\n`);
