@@ -1,8 +1,9 @@
 /**
  * `--mcp` — the program served as MCP tools over stdio (N1). Newline-delimited JSON-RPC
  * 2.0 against `node:readline`, three methods, no SDK (N3): `initialize`, `tools/list`,
- * `tools/call`. Tool definitions come from the manifest and nothing else; a tool call is
- * the same run a `--json` caller gets, so both see one envelope (N4).
+ * `tools/call`. `initialize` negotiates the revision ({@link SUPPORTED_REVISIONS}). Tool
+ * definitions come from the manifest and nothing else; a tool call is the same run a `--json`
+ * caller gets, so both see one envelope (N4).
  *
  * A command an author withheld is not a tool (N2, N6): an agent gaining shell-equivalent
  * power over a CLI nobody meant to publish is a security posture, not a convenience. That is
@@ -24,7 +25,15 @@ import { kebab } from './names.js';
 import { host } from './runtime.js';
 import { inputSchemaOf, type JsonSchema, runnable, typedName } from './schema.js';
 
-export const MCP_PROTOCOL_VERSION = '2025-06-18';
+/**
+ * The revisions `initialize` negotiates, oldest first (mcp-current R3). 2025-11-25 changes nothing
+ * a tools-only stdio server sends: every field it adds is optional, for features this server does
+ * not offer. 2026-07-28 has no `initialize`, so it is a different server, not a third entry here.
+ */
+export const SUPPORTED_REVISIONS: readonly string[] = ['2025-06-18', '2025-11-25'];
+
+/** The latest revision this server speaks, and the answer to a client asking for one it does not. */
+export const MCP_PROTOCOL_VERSION = '2025-11-25';
 
 interface Request {
   jsonrpc: '2.0';
@@ -350,8 +359,11 @@ function structuredOf(text: string, schema?: OutputSchema): { structuredContent?
 
 async function handle(session: Session, request: Request, signal: AbortSignal): Promise<unknown> {
   switch (request.method) {
-    case 'initialize':
-      return { result: { protocolVersion: MCP_PROTOCOL_VERSION, capabilities: { tools: {} }, serverInfo: session.serverInfo } };
+    case 'initialize': {
+      // The specification's rule: a revision the server supports is answered with itself, anything else with its latest.
+      const asked = request.params?.['protocolVersion'] as string;
+      return { result: { protocolVersion: SUPPORTED_REVISIONS.includes(asked) ? asked : MCP_PROTOCOL_VERSION, capabilities: { tools: {} }, serverInfo: session.serverInfo } };
+    }
     case 'ping':
       return { result: {} };
     case 'tools/list':
