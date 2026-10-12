@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
 
-import { afterAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { defineCommand, defineProgram, execute } from './execute.js';
 import { Manifest } from './manifest.js';
@@ -49,6 +49,10 @@ async function printed(entry: string, script: string, argv: string[] = ['--mcp',
 }
 
 describe('--mcp --print-config (R6)', () => {
+  // POSIX unless a case says otherwise: on Windows a bin is started through `cmd /c`, below.
+  beforeEach(() => vi.spyOn(host, 'platform', 'get').mockReturnValue('linux'));
+  afterEach(() => vi.restoreAllMocks());
+
   it('names the bin the program was started as, through the symlink npm installs it behind', async () => {
     const dir = packageWith('named', { name: 'tool-pkg', bin: { 'tool-cli': './bin.js', other: './other.js' } });
     symlinkSync(join(dir, 'bin.js'), join(dir, 'node_modules', '.bin', 'tool-cli'));
@@ -59,11 +63,7 @@ describe('--mcp --print-config (R6)', () => {
   it('starts the bin through cmd /c on Windows, where npm installs it as a .cmd shim a client cannot start directly', async () => {
     const dir = packageWith('windows', { name: 'tool-pkg', bin: { 'tool-cli': './bin.js' } });
     vi.spyOn(host, 'platform', 'get').mockReturnValue('win32');
-    try {
-      expect(JSON.parse(await printed(join(dir, 'bin.js'), join(dir, 'bin.js')))).toEqual({ mcpServers: { tool: { command: 'cmd', args: ['/c', 'tool-cli', '--mcp'] } } });
-    } finally {
-      vi.restoreAllMocks();
-    }
+    expect(JSON.parse(await printed(join(dir, 'bin.js'), join(dir, 'bin.js')))).toEqual({ mcpServers: { tool: { command: 'cmd', args: ['/c', 'tool-cli', '--mcp'] } } });
   });
 
   it('reads a bin given as one string as the package’s own name, without its scope', async () => {
