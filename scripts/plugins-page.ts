@@ -39,6 +39,7 @@ const EXAMPLE = 'examples/plugins/acme.mjs';
 const EXTENSION_POINTS: Record<string, string> = {
   commander: 'Lifecycle hooks on one program (`.hook(\'preAction\')`); no plugin shareable across programs — the plugin RFC, [#2505](https://github.com/tj/commander.js/issues/2505), is open',
   yargs: 'Middleware on one program (`.middleware()`), and commands loaded from modules (`.commandDir()`)',
+  'extra-typings': "commander's, unchanged: its JavaScript is commander's, and what it adds is types",
   meow: 'None',
   cac: 'Events on one program (`cli.on()`)',
   citty: '`setup` and `cleanup` on each command',
