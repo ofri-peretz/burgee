@@ -79,14 +79,14 @@ const DROP_IN_CEILINGS: Readonly<Record<string, { incumbent: string; bytes: numb
  * it weighs no more than the incumbent, and the last assertion below fails until it does. `gap` is
  * the ledger file that says why the row is over and what closing it takes.
  *
- * `burgee/commander` (commander-front-end-diet R4): 61,207 at `10edb48`, 56,353 after R1. Every
+ * `burgee/commander` (commander-front-end-diet R4): 61,207 at `10edb48` and 61,272 once #1064 grew `schema.js`; 56,418 after R1. Every
  * byte over commander is named in that spec's residual table.
  */
 const OVER_INCUMBENT: Readonly<Record<string, { incumbent: string; bytes: number; ours: number; gap: string }>> = {
-  'burgee/commander': { incumbent: 'commander@15.0.0', bytes: 39_329, ours: 56_353, gap: 'B-20261012-commander-front-end-bundles-heavier' },
+  'burgee/commander': { incumbent: 'commander@15.0.0', bytes: 39_329, ours: 56_418, gap: 'B-20261012-commander-front-end-bundles-heavier' },
   // `extra-typings-drop-in` R5: `export * from '../commander.js'`, so it bundles to `burgee/commander`
   // byte for byte and its ratchet moves with that row.
-  'burgee/commander/extra-typings': { incumbent: '@commander-js/extra-typings@15.0.0 + commander@15.0.0', bytes: 39_329, ours: 56_353, gap: 'B-20261012-extra-typings-bundles-heavier' },
+  'burgee/commander/extra-typings': { incumbent: '@commander-js/extra-typings@15.0.0 + commander@15.0.0', bytes: 39_329, ours: 56_418, gap: 'B-20261012-extra-typings-bundles-heavier' },
 };
 
 /** The "Everything" cell of a subpath's row on the page, or `undefined` when it has no row. */

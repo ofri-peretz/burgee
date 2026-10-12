@@ -14,7 +14,8 @@ measurement is `/docs/weight`'s "Everything" column (`export * from 'burgee/comm
 | Step | `burgee/commander` | Over commander |
 | :-- | --: | --: |
 | `main` at `10edb48` | 61,207 | 21,878 |
-| R1, the spawn | 56,353 | 17,024 |
+| `main` after #1064 (`schema.js` +65) | 61,272 | 21,943 |
+| R1, the spawn | 56,418 | 17,089 |
 
 [`commander-front-end-diet`](../intents/commander-front-end-diet/spec.md) attributes every byte
 by module. The port of commander itself is at parity. What's left is what burgee adds and a
@@ -22,5 +23,6 @@ synchronous `parse()` has to answer: `--schema`, `use()`'s plugin check, and the
 envelope with the E1 floor. `scripts/commander-front-end-lock.test.ts` holds the module set, and
 the `OVER_INCUMBENT` row holds the number. Neither can go up without a red run.
 
-`burgee/commander/extra-typings` (#1039) re-exports this front-end, so it is the same gap seen
-through another door, and it closes when this one does.
+`burgee/commander/extra-typings` (#1039) re-exports this front-end byte for byte. Its own gap,
+`B-20261012-extra-typings-bundles-heavier`, was closed by deciding that the door inherits this
+one's position, so its `OVER_INCUMBENT` row moves with this one.

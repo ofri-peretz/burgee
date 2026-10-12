@@ -718,7 +718,7 @@ const RULES: Record<string, EntryRule> = {
   // own `node:child_process` on every path commander 15 takes, and `bellpull/cross-spawn` loads
   // through `import()` only for a Windows executable that is not node — the one case above that
   // upstream cannot run. The walk reports that edge as lazy, so the entry imports nothing, and
-  // a bundler splits bellpull off the start-up path (61,207 -> 56,353 B on /docs/weight).
+  // a bundler splits bellpull off the start-up path (61,272 -> 56,418 B on /docs/weight).
   "./commander": {
     allow: [],
     budget: 129_400,
@@ -729,8 +729,9 @@ const RULES: Record<string, EntryRule> = {
   // what it adds is a declaration file, which no runtime walk counts. So the entry weighs what
   // `./commander` weighs plus that line. Set at the measurement, 115,356 B on 2026-10-12, with
   // the ~32 B CI has read heavier than a local build elsewhere in this table, and no more.
+  // `allow: []` with `./commander` (commander-front-end-diet R1): bellpull is a lazy edge now.
   "./commander/extra-typings": {
-    allow: ["bellpull/cross-spawn"],
+    allow: [],
     budget: 115_400,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
