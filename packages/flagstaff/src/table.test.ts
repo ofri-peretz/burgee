@@ -25,6 +25,9 @@ describe('R1 · the `columns` option', () => {
     [{ max: 0 }, /columns\[0\]/],
     [{ min: Number.NaN }, /columns\[0\]/],
     [{ max: Number.NaN }, /columns\[0\]/],
+    [{ min: Number.POSITIVE_INFINITY }, /columns\[0\]/],
+    [{ max: Number.POSITIVE_INFINITY }, /columns\[0\]/],
+    [{ min: -0.5, max: 1.5 }, /columns\[0\]/],
   ])('rejects %o with a TypeError naming the column', (bounds, named) => {
     expect(() => table([['a']], { columns: [bounds] })).toThrow(TypeError);
     expect(() => table([['a']], { columns: [bounds] })).toThrow(named);

@@ -81,6 +81,8 @@ const lay = (cell: Cell | undefined, paint: Painter): string => laid(cellText(ce
  * never offers less than `MIN_COLUMN` per column. So it stopping short means the mins add up
  * past the width, and then they win and the table is wider than asked: a bound the author
  * set is not broken to meet a default width, the choice `MIN_COLUMN` already makes.
+ *
+ * Narrows `widths` in place and returns it: the caller hands over an array nothing else reads.
  */
 function fitWidths(widths: number[], available: number, { columns: bounds = [] }: TableOptions): number[] {
   for (let total = widths.reduce((sum, w) => sum + w, 0); total > available; total--) {
@@ -117,12 +119,14 @@ const rule = (widths: number[], [left, mid, right]: string): string => `${left}$
 /** Draw `rows` as a table, as a string. */
 export function table(rows: Row[], options: TableOptions = {}): string {
   const columns = Math.max(options.head?.length ?? 0, ...rows.map((row) => row.length), 1);
-  // A negative, fractional or NaN width is a typo and `min > max` two wishes that contradict,
-  // so both are refused, naming the column, before anything is measured. Written as what must
-  // hold, because every comparison with NaN is false; `x % 1` is non-zero for a fraction.
+  // A negative, fractional, infinite or NaN width is a typo and `min > max` two wishes that
+  // contradict, so both are refused, naming the column, before anything is measured. `x % 1`
+  // is 0 for a whole number only: a fraction leaves a remainder, and NaN or Infinity gives
+  // NaN, so the sum of the two is 0 exactly when both are whole (a negative fraction that
+  // could cancel a positive one is refused by `min < 0` or `max < 1` anyway).
   options.columns?.forEach((column, i) => {
-    const { min = 0, max = Infinity } = column ?? {};
-    if (!(min >= 0 && max >= Math.max(min, 1)) || min % 1 || max % 1) throw new TypeError(`flagstaff/table: columns[${i}] needs whole widths, 0 <= min <= max, max >= 1`);
+    const { min = 0, max = min || 1 } = column ?? {};
+    if ((min % 1) + (max % 1) !== 0 || min < 0 || max < Math.max(min, 1)) throw new TypeError(`flagstaff/table: columns[${i}] needs whole widths, 0 <= min <= max, max >= 1`);
   });
   const available = Math.max(columns * MIN_COLUMN, (options.width ?? DEFAULT_WIDTH) - columns * CHROME_PER_COLUMN - 1);
 
@@ -130,8 +134,12 @@ export function table(rows: Row[], options: TableOptions = {}): string {
 
   const all = options.head === undefined ? rows : [options.head, ...rows];
   // The natural width of each column: the widest cell in it, header included, held to its `max`.
-  const natural = Array.from({ length: columns }, (_, i) => Math.min(options.columns?.[i]?.max ?? Infinity, Math.max(0, ...all.map((row) => width(lay(row[i], paint))))));
-  const widths = fitWidths(natural, available, options);
+  // `fitWidths` narrows that array in place, so it is never bound to a name of its own.
+  const widths = fitWidths(
+    Array.from({ length: columns }, (_, i) => Math.min(options.columns?.[i]?.max ?? Infinity, Math.max(0, ...all.map((row) => width(lay(row[i], paint)))))),
+    available,
+    options,
+  );
 
   const out = [rule(widths, '┌┬┐')];
   if (options.head !== undefined) {
