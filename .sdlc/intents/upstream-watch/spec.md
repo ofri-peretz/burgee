@@ -1,6 +1,6 @@
 # Design — Every package watches its own competitors, and the issue carries the changeset
 
-Intent: [`intent.md`](./intent.md). **Status:** draft — awaiting the Design→Build gate.
+Intent: [`intent.md`](./intent.md). **Status:** approved — steps 1–4 shipped on 2026-09-08 and 2026-09-09 (corrected from `draft` on 2026-10-12).
 
 > Written 2026-09-08 against `packages/compat-oracle/src/upstream.ts` and
 > `.github/workflows/compat-upstream.yml`, both of which already work. The fingerprint,
