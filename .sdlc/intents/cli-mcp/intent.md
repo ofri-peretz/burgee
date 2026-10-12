@@ -86,6 +86,9 @@ Checked criterion by criterion on `61bd11b9`. **Three of five met.** The status 
   written.** `/docs/agent-surfaces` is live and carries an `mcpServers` block, but it is a
   template naming `mytool`, so it does not work unmodified, and no test in `apps/docs/tests/`
   checks it.
+  **Met 2026-10-12 by [mcp-current](../mcp-current/spec.md) R6:** the block is the demo's own
+  `--mcp --print-config`, written by `scripts/mcp-config-block.ts`, and
+  `scripts/mcp-config-block.test.ts` starts the server from it as pasted and completes a tool call.
 
 ## Open questions
 

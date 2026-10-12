@@ -3,7 +3,7 @@ repo:     https://github.com/sindresorhus/widest-line
 version:  6.0.0
 tag:      v6.0.0
 commit:   d1f04193564d484ca6e24fd8d78d96545ccb0a83
-vendored: 2026-10-11
+vendored: 2026-10-12
 files:    1
 tool:     scripts/vendor-suite.ts
 

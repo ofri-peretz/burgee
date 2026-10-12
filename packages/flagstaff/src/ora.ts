@@ -151,6 +151,17 @@ const TRUNCATION_RESERVE = 1;
 /** Which spinner owns which stream's `write`, so a second one can say so. */
 const activeHooksPerStream = new Map<OraStream, Ora>();
 
+/**
+ * Every installed write hook: what it wrapped, and whether its spinner still runs.
+ *
+ * Spinners stop in any order, and a hook cannot be cut out of the middle of a chain — the one
+ * above holds it as its "original". So a stopped hook becomes a pass-through, and whoever
+ * stops unwinds every stopped hook off the top. Restoring "the write I found" instead put a
+ * stopped spinner's wrapper back for good when A started, B started, A stopped, B stopped
+ * (`.sdlc/models/save-restore.qnt`).
+ */
+const writeHooks = new WeakMap<Write, { wrapped: Write; live: boolean }>();
+
 const validColors = new Set(['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white', 'gray']);
 
 export type Color = 'black' | 'red' | 'green' | 'yellow' | 'blue' | 'magenta' | 'cyan' | 'white' | 'gray';
@@ -638,14 +649,20 @@ export class Ora {
     }
 
     const originalWrite = stream.write;
-    this.#hookedStreams.set(stream, originalWrite);
+    const record = { wrapped: originalWrite, live: true };
+    const hook: Write = (chunk: string, encoding?: unknown, callback?: unknown): boolean =>
+      record.live ? this.#hookedWrite(stream, originalWrite, chunk, encoding, callback) : (originalWrite as (...args: unknown[]) => boolean).call(stream, chunk, encoding, callback);
+    writeHooks.set(hook, record);
+    this.#hookedStreams.set(stream, hook);
     activeHooksPerStream.set(stream, this);
-    stream.write = (chunk: string, encoding?: unknown, callback?: unknown): boolean => this.#hookedWrite(stream, originalWrite, chunk, encoding, callback);
+    stream.write = hook;
   }
 
   #uninstallHook(): void {
-    for (const [stream, originalWrite] of this.#hookedStreams) {
-      stream.write = originalWrite;
+    for (const [stream, hook] of this.#hookedStreams) {
+      const record = writeHooks.get(hook);
+      if (record) record.live = false;
+      for (let top = writeHooks.get(stream.write); top && !top.live; top = writeHooks.get(stream.write)) stream.write = top.wrapped;
       if (activeHooksPerStream.get(stream) === this) activeHooksPerStream.delete(stream);
     }
     this.#hookedStreams.clear();
