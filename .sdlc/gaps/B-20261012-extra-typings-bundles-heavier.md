@@ -1,7 +1,7 @@
 ---
 id: B-20261012-extra-typings-bundles-heavier
 section: B
-status: open
+status: closed
 source: extra-typings-drop-in R5
 recommendation: 'Accept the overage as `burgee/commander`''s, not this door''s: the façade adds one line of JavaScript, so the door weighs exactly what `burgee/commander` weighs, and a smaller door means a smaller commander front-end, which is that intent''s to decide. Keep the row a ratchet in `subpath-weight-lock.test.ts` (`OVER_INCUMBENT`) so it cannot grow, and move it to `DROP_IN_CEILINGS` the day it bundles at or under the incumbent'
 ---
@@ -29,3 +29,9 @@ The decision asked for: whether a drop-in that only re-exports a front-end is he
 its own, or inherits the front-end's position. Closing this without the decision would mean
 either shrinking `burgee/commander` by a fifth (a separate intent) or writing a ceiling the
 row does not meet.
+
+**Closed 2026-10-12** by [D-20261012-extra-typings-inherits-front-end](../decisions/D-20261012-extra-typings-inherits-front-end.md):
+a drop-in that only re-exports a front-end inherits the front-end's U5 position. The row stays an
+`OVER_INCUMBENT` ratchet in `scripts/subpath-weight-lock.test.ts` at 61,207 B and moves to
+`DROP_IN_CEILINGS` the day `burgee/commander` bundles at or under the incumbent pair, which the
+`commander-front-end-diet` intent takes on.

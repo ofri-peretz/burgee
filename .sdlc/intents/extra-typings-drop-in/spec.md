@@ -105,8 +105,10 @@ resolves: `tsd@0.33.0`, `@tsd/typescript@5.9.3`, `@types/node@22.19.19`, `comman
 - **R5.** `burgee/commander/extra-typings` bundles to **61,207 B**, what `burgee/commander`
   bundles to; `@commander-js/extra-typings` plus `commander` bundle to **39,329 B**. U5 does not
   hold, so the row is not a `DROP_IN_CEILINGS` entry: it is an `OVER_INCUMBENT` ratchet in
-  `subpath-weight-lock.test.ts` at 61,207 B, with the gap open as
-  [`B-20261012-extra-typings-bundles-heavier`](../../gaps/B-20261012-extra-typings-bundles-heavier.md).
+  `subpath-weight-lock.test.ts` at 61,207 B, with the gap opened as
+  [`B-20261012-extra-typings-bundles-heavier`](../../gaps/B-20261012-extra-typings-bundles-heavier.md),
+  closed by [`D-20261012-extra-typings-inherits-front-end`](../../decisions/D-20261012-extra-typings-inherits-front-end.md):
+  the door inherits `burgee/commander`'s position, and `commander-front-end-diet` takes the overage.
   Red with no row on the page, and red at a ratchet one byte under the measurement.
 
 ## Rejected alternatives
@@ -133,6 +135,6 @@ resolves: `tsd@0.33.0`, `@tsd/typescript@5.9.3`, `@types/node@22.19.19`, `comman
 | R2 | **Built** 2026-10-12 | `compat-oracle/vendor/extra-typings`, `compat-oracle/src/hosts.ts`, this file | the control run: 369 / 369 over 369 assertions; the target run before R3 reported `target not built yet: burgee/commander/extra-typings` |
 | R3 | **Built** 2026-10-12 | `burgee/src/commander/extra-typings.ts`, `burgee/package.json` | `npm run compat -- extra-typings`: 369 / 369, level with the control (205 / 390 with burgee/commander's own types); `compat-baseline-lock`, `drop-in-type-surface-lock`, `drop-in-require-shape-lock` |
 | R4 | **Built** 2026-10-12 | `burgee/src/compat.ts`, `migrate.ts` | `migrate-drop-ins-lock.test.ts`, `migrate.test.ts`, and the orval fixture in `facade-types.test.ts` compiled against the built `dist` |
-| R5 | **Built** 2026-10-12, over its incumbent | `subpath-weight-lock.test.ts` (`OVER_INCUMBENT`), `/docs/weight` | `subpath-weight-lock.test.ts`: 61,207 B against 39,329 B, a ratchet; B-20261012-extra-typings-bundles-heavier open |
+| R5 | **Built** 2026-10-12, over its incumbent | `subpath-weight-lock.test.ts` (`OVER_INCUMBENT`), `/docs/weight` | `subpath-weight-lock.test.ts`: 61,207 B against 39,329 B, a ratchet; B-20261012-extra-typings-bundles-heavier closed by D-20261012-extra-typings-inherits-front-end |
 
 **Built: 5. Not built: 0.**
