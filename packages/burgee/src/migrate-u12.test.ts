@@ -217,6 +217,17 @@ describe('U12-2 — under a release age, next pins the newest family version old
     expect(report.next).toBe(`pnpm add flagstaff@^${majorOf('flagstaff')}.0.0 roundel@^${versions['roundel'] as string} && pnpm remove chalk ora`);
   });
 
+  it('orders two old-enough releases of one minor by patch, and pins the newer', async () => {
+    // Two patches of one minor, both past the age: the caret floor is the later patch.
+    const patches = async (name: string): Promise<Record<string, string>> => ({
+      [`${majorOf(name)}.0.0`]: daysAgo(10),
+      [`${majorOf(name)}.0.3`]: daysAgo(8),
+      [versions[name] as string]: daysAgo(1),
+    });
+    const report = await migrate({ dir: mcpc('minimumReleaseAge: 4320\n'), status: clean, registry: patches, now });
+    expect(report.next).toBe(`pnpm add flagstaff@^${majorOf('flagstaff')}.0.3 roundel@^${majorOf('roundel')}.0.3 && pnpm remove chalk ora`);
+  });
+
   it('says plainly when no version is old enough yet, and when one will be', async () => {
     const young = async (name: string): Promise<Record<string, string>> => ({ [versions[name] as string]: daysAgo(1), '0.6.2': daysAgo(30) });
     const report = await migrate({ dir: mcpc('minimumReleaseAge: 4320\n'), status: clean, registry: young, now });
