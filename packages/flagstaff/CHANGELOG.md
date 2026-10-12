@@ -1,5 +1,26 @@
 # flagstaff
 
+## 1.3.0
+
+### Minor Changes
+
+- [#1014](https://github.com/ofri-peretz/burgee/pull/1014) [`65afee5`](https://github.com/ofri-peretz/burgee/commit/65afee5c96e4cae62dbb9b0ba28fab98fffdbf01) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A quiet runtime. roundel's `Runtime` gains an optional `quiet` field, and flagstaff draws nothing when it is `true`: no spinner, no progress, no status line, and the frame clock never armed. Data and errors stay the caller's to print and are never quieted. burgee's global `--quiet` sets it.
+
+### Patch Changes
+
+- [#1036](https://github.com/ofri-peretz/burgee/pull/1036) [`1357061`](https://github.com/ofri-peretz/burgee/commit/1357061168d836d87389dc0881b4a52df648cdc3) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The plugin host's JSON Schema walker reads a node's own keywords beside its `anyOf`: a branch that admits the value no longer excuses a sibling `required` or `properties`. flagstaff's own plugin schema uses no `anyOf`, so no plugin is accepted or refused differently.
+
+- [#1031](https://github.com/ofri-peretz/burgee/pull/1031) [`45a70be`](https://github.com/ofri-peretz/burgee/commit/45a70bec5d1ace1345a883afe10a3a081b081711) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The JSON Schema walker the plugin host validates with reads four more keywords: `anyOf`, `enum`, a list of types, and a `$ref` into draft-07 `definitions`. flagstaff's own plugin schema uses none of them, so no plugin is accepted or refused differently. burgee's tests use them to validate every message its `--mcp` server writes against the MCP 2025-06-18 schema.
+
+- [#1011](https://github.com/ofri-peretz/burgee/pull/1011) [`1968eb4`](https://github.com/ofri-peretz/burgee/commit/1968eb46feec57bb047a9c4a4288e0cf4442f4b2) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The README quick start runs as written. On npm it was broken for flagstaff (`rt` undefined) and linegauge (`styled` undefined), controlroom's imported flagstaff without installing it, and paratext's printed nothing. No code changed; `readme-quick-start-lock` now runs every package's quick start.
+
+- [#1022](https://github.com/ofri-peretz/burgee/pull/1022) [`ecb0a00`](https://github.com/ofri-peretz/burgee/commit/ecb0a00ca68e9a3b3584aefabb9dcf97e3ff967a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The tarball no longer carries declaration files that no `exports` entry reaches. TypeScript could never open them, because a deep import is refused by `exports`. Every entry's types are unchanged. The ten packages drop 71 files and 118,312 bytes between them, burgee 35 files and 76,504 bytes, which takes its tarball from 251,814 to 225,278 bytes gzipped.
+- Updated dependencies [[`bfe4ab8`](https://github.com/ofri-peretz/burgee/commit/bfe4ab8b13ff04293345a69007cad9e0cb81c678), [`1968eb4`](https://github.com/ofri-peretz/burgee/commit/1968eb46feec57bb047a9c4a4288e0cf4442f4b2), [`65afee5`](https://github.com/ofri-peretz/burgee/commit/65afee5c96e4cae62dbb9b0ba28fab98fffdbf01), [`bcc438a`](https://github.com/ofri-peretz/burgee/commit/bcc438ac3936ee1cd530931ea090c6a8bdd016b2), [`ecb0a00`](https://github.com/ofri-peretz/burgee/commit/ecb0a00ca68e9a3b3584aefabb9dcf97e3ff967a)]:
+  - linegauge@1.1.0
+  - paratext@1.0.5
+  - roundel@1.1.0
+  - closeout@1.1.1
+
 ## 1.2.5
 
 ### Patch Changes

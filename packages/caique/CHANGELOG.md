@@ -1,5 +1,20 @@
 # caique
 
+## 1.0.5
+
+### Patch Changes
+
+- [#1012](https://github.com/ofri-peretz/burgee/pull/1012) [`49d8e94`](https://github.com/ofri-peretz/burgee/commit/49d8e943ceaf8dcef14d43c0a70c2edec1a67816) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `@inquirer/prompts` is now graded: its ten prompts' own suites (8.7.3) are vendored and run against `caique/inquirer`, with a control of 213 of 213 against the real packages. `caique/inquirer` passes 0 of them today, because it exports `@inquirer/core`'s surface and none of the prompts yet, and `burgee migrate` reports `@inquirer/prompts` as a graded path that is not level, never rewriting it. The eleven `@inquirer/editor` cases are excluded by title: each answers the prompt through a mock of `@inquirer/external-editor`, which caique does not import.
+
+  The oracle gains two host fields for it. `suiteFiles` lists a monorepo suite's files across several packages and vendors only those; `defaultExport` grades a suite that imports its prompt as a default against the named export a program migrates.
+
+- [#1022](https://github.com/ofri-peretz/burgee/pull/1022) [`ecb0a00`](https://github.com/ofri-peretz/burgee/commit/ecb0a00ca68e9a3b3584aefabb9dcf97e3ff967a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The tarball no longer carries declaration files that no `exports` entry reaches. TypeScript could never open them, because a deep import is refused by `exports`. Every entry's types are unchanged. The ten packages drop 71 files and 118,312 bytes between them, burgee 35 files and 76,504 bytes, which takes its tarball from 251,814 to 225,278 bytes gzipped.
+- Updated dependencies [[`bfe4ab8`](https://github.com/ofri-peretz/burgee/commit/bfe4ab8b13ff04293345a69007cad9e0cb81c678), [`1968eb4`](https://github.com/ofri-peretz/burgee/commit/1968eb46feec57bb047a9c4a4288e0cf4442f4b2), [`65afee5`](https://github.com/ofri-peretz/burgee/commit/65afee5c96e4cae62dbb9b0ba28fab98fffdbf01), [`bcc438a`](https://github.com/ofri-peretz/burgee/commit/bcc438ac3936ee1cd530931ea090c6a8bdd016b2), [`ecb0a00`](https://github.com/ofri-peretz/burgee/commit/ecb0a00ca68e9a3b3584aefabb9dcf97e3ff967a)]:
+  - linegauge@1.1.0
+  - paratext@1.0.5
+  - roundel@1.1.0
+  - closeout@1.1.1
+
 ## 1.0.4
 
 ### Patch Changes
