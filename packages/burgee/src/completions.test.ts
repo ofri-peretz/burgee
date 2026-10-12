@@ -114,7 +114,24 @@ const zsh = (line: string): string => execFileSync('zsh', [join(repo, 'scripts/c
 
 const fish = (line: string): string[] => lines(execFileSync('fish', [join(repo, 'scripts/complete-fish.fish'), scriptFor('fish'), line], { encoding: 'utf8' })).map((l) => l.split('\t')[0] ?? '');
 
-const pwsh = (line: string): string[] => lines(execFileSync('pwsh', ['-NoProfile', '-File', join(repo, 'scripts/complete-pwsh.ps1'), '-Script', scriptFor('pwsh'), '-Line', line], { encoding: 'utf8' }));
+/**
+ * Every line completed by one pwsh, against one dot-source of the script: `-Delimited` heads each
+ * line's candidates with `### <line>` and prints each candidate as `<text>\t<tooltip>`. A line
+ * the session never reached has no block, and reads as `undefined` here rather than as `[]`.
+ */
+const pwsh = (...queries: string[]): Map<string, { text: string; tip: string }[]> => {
+  const out = execFileSync('pwsh', ['-NoProfile', '-File', join(repo, 'scripts/complete-pwsh.ps1'), '-Script', scriptFor('pwsh'), '-Delimited', ...queries], { encoding: 'utf8' });
+  const blocks = new Map<string, { text: string; tip: string }[]>();
+  let current: { text: string; tip: string }[] = [];
+  for (const raw of out.split(/\r?\n/)) {
+    if (raw.startsWith('### ')) blocks.set(raw.slice(4), (current = []));
+    else if (raw.trim() !== '') {
+      const [text = '', tip = ''] = raw.split('\t');
+      current.push({ text: text.trim(), tip: tip.trim() });
+    }
+  }
+  return blocks;
+};
 
 describe('each shell exercises its script (D4)', () => {
   // The three shells below carry a 30 s allowance and this one did not, which
@@ -149,11 +166,23 @@ describe('each shell exercises its script (D4)', () => {
     expect(fish('demo greet --greeting ')).toEqual(expect.arrayContaining(['Hello', 'Hi']));
   });
 
-  // pwsh starts cold in about two seconds on a runner, three times here — and a Windows runner
-  // took 33.6 s for the three against the old 30 s (#484, #433), so the ceiling is 120 s.
+  // pwsh starts cold in about two seconds on a runner, and a saturated Windows runner pays that
+  // many times over: one process per line took 33.6 s for three (#484, #433), and timed out at
+  // 120 s on the release PR #1077. So every line is asked of one pwsh — one cold start, however
+  // many lines — and the ceiling is for that one start, not for a count of them.
   it.runIf(has('pwsh'))('PowerShell: subcommands, options and choice values with tooltips', { timeout: 120_000 }, () => {
-    expect(pwsh('demo con')).toEqual(['config']);
-    expect(pwsh('demo greet --')).toEqual(expect.arrayContaining(['--shout', '--greeting', '--json', '--help']));
-    expect(pwsh('demo greet --greeting ')).toEqual(['Hello', 'Hi']);
+    const got = pwsh('demo con', 'demo greet --', 'demo greet --greeting ');
+    const texts = (line: string): string[] | undefined => got.get(line)?.map((c) => c.text);
+    const tip = (line: string, text: string): string | undefined => got.get(line)?.find((c) => c.text === text)?.tip;
+    expect(texts('demo con')).toEqual(['config']);
+    expect(tip('demo con', 'config')).toBe('Read configuration');
+    expect(texts('demo greet --')).toEqual(expect.arrayContaining(['--shout', '--greeting', '--json', '--help']));
+    expect(tip('demo greet --', '--greeting')).toBe('the greeting word');
+    expect(tip('demo greet --', '--shout')).toBe('uppercase');
+    expect(tip('demo greet --', '--json')).toBe('machine-readable output');
+    expect(texts('demo greet --greeting ')).toEqual(['Hello', 'Hi']);
+    // A choice value carries itself as its tooltip; an option or command, its description.
+    expect(got.get('demo greet --greeting ')).toEqual([{ text: 'Hello', tip: 'Hello' }, { text: 'Hi', tip: 'Hi' }]);
+    for (const candidates of got.values()) for (const c of candidates) expect(c.tip, c.text).not.toBe('');
   });
 });
