@@ -463,7 +463,10 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // through E1 and a failing action to the one-line report D-140 already carries, and
   // `--schema` names the reserved surfaces the program shadows. No module is added — the floor
   // is three checks in front of code already on this path. Measured 61,014 (+276).
-  'burgee/commander': 61_100,
+  // 56,200 on 2026-10-12, **down 4,900**, commander-front-end-diet R1: the subcommand spawn is
+  // commander's own `node:child_process` on every path commander takes, and `bellpull/cross-spawn`
+  // loads through `import()` only for a Windows executable that is not node. Measured 56,103.
+  'burgee/commander': 56_200,
 
   // 108,200 on 2026-09-27 for **847 bytes** (107,339 -> 108,186): `unknown-options-as-args`
   // ran five flag regexes over every `-`-prefixed argument and one was cubic (a 4,000-character

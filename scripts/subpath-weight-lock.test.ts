@@ -71,19 +71,22 @@ const DROP_IN_CEILINGS: Readonly<Record<string, { incumbent: string; bytes: numb
 };
 
 /**
- * `extra-typings-drop-in` R5: a drop-in that bundles **heavier** than what a user installs today,
- * priced against it and named rather than left off the comparison. Each is the same method as
- * {@link DROP_IN_CEILINGS}, over the incumbent's whole install — `@commander-js/extra-typings` is
- * `export * from 'commander'`, so its 39,329 B are commander's, measured 2026-10-12 from a
- * scratch install of both at 15.0.0.
+ * A drop-in that bundles **heavier** than what a user installs today, priced against it and named
+ * rather than left off the comparison. The same method as {@link DROP_IN_CEILINGS}.
  *
- * `ours` is a ratchet, not a budget: the measurement the row was opened at, which the façade may
- * not grow past. The row leaves this table for `DROP_IN_CEILINGS` the day it weighs no more than
- * the incumbent, and the last case below fails until it does. `gap` is the ledger file that says
- * why the row is over and what deciding it takes.
+ * `ours` is a ratchet, not a budget: the latest measurement, which the façade may not grow past and
+ * which each change that shrinks it lowers. The row leaves this table for `DROP_IN_CEILINGS` the day
+ * it weighs no more than the incumbent, and the last assertion below fails until it does. `gap` is
+ * the ledger file that says why the row is over and what closing it takes.
+ *
+ * `burgee/commander` (commander-front-end-diet R4): 61,207 at `10edb48`, 56,405 after R1. Every
+ * byte over commander is named in that spec's residual table.
  */
 const OVER_INCUMBENT: Readonly<Record<string, { incumbent: string; bytes: number; ours: number; gap: string }>> = {
-  'burgee/commander/extra-typings': { incumbent: '@commander-js/extra-typings@15.0.0 + commander@15.0.0', bytes: 39_329, ours: 61_207, gap: 'B-20261012-extra-typings-bundles-heavier' },
+  'burgee/commander': { incumbent: 'commander@15.0.0', bytes: 39_329, ours: 56_405, gap: 'B-20261012-commander-front-end-bundles-heavier' },
+  // `extra-typings-drop-in` R5: `export * from '../commander.js'`, so it bundles to `burgee/commander`
+  // byte for byte and its ratchet moves with that row.
+  'burgee/commander/extra-typings': { incumbent: '@commander-js/extra-typings@15.0.0 + commander@15.0.0', bytes: 39_329, ours: 56_405, gap: 'B-20261012-extra-typings-bundles-heavier' },
 };
 
 /** The "Everything" cell of a subpath's row on the page, or `undefined` when it has no row. */
@@ -104,7 +107,7 @@ describe('a drop-in façade weighs no more than its incumbent (U5)', () => {
   it.each(Object.entries(OVER_INCUMBENT))('%s, over its incumbent, does not grow past %o', (specifier, { bytes, ours, gap }) => {
     const measured = everything(page, specifier);
     expect(measured, `\`${specifier}\` has no row on /docs/weight`).toBeDefined();
-    expect(measured, `\`${specifier}\` bundles ${String(measured)} B, over the ${String(ours)} B it was opened at`).toBeLessThanOrEqual(ours);
+    expect(measured, `\`${specifier}\` bundles ${String(measured)} B, over the ${String(ours)} B its ratchet holds`).toBeLessThanOrEqual(ours);
     expect(existsSync(join(REPO_ROOT, '.sdlc/gaps', `${gap}.md`)), `${gap} names no file in .sdlc/gaps`).toBe(true);
     expect(measured, `\`${specifier}\` is at or under the incumbent's ${String(bytes)} B now: move it to DROP_IN_CEILINGS and close ${gap}`).toBeGreaterThan(bytes);
   });

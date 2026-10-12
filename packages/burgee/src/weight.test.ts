@@ -713,8 +713,14 @@ const RULES: Record<string, EntryRule> = {
   // `removeComments`. That is 41× the change above, in a directory whose sibling `dist/*.js`
   // files are stripped. Recorded and not fixed here — it would move several entries at once,
   // which is D-073's shape, and this lane owns none of `scripts/`.
+  //
+  // **`commander-front-end-diet` R1, 2026-10-12: `allow: []` again.** The spawn is commander's
+  // own `node:child_process` on every path commander 15 takes, and `bellpull/cross-spawn` loads
+  // through `import()` only for a Windows executable that is not node — the one case above that
+  // upstream cannot run. The walk reports that edge as lazy, so the entry imports nothing, and
+  // a bundler splits bellpull off the start-up path (61,207 -> 56,405 B on /docs/weight).
   "./commander": {
-    allow: ["bellpull/cross-spawn"],
+    allow: [],
     budget: 129_400,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
