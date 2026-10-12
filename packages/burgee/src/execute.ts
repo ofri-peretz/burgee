@@ -96,6 +96,12 @@ export interface Command<S extends OptionSpecs = OptionSpecs, O extends CommandO
    * describes; without one, anything.
    */
   output?: O;
+  /**
+   * parse-refusals R2 — take positionals past the declared arguments into `ctx.positionals`, as a
+   * command that forwards its tail to a child process does. Without it, a surplus word is a usage
+   * error naming it (R1); `--schema` says `excess: true` for a command that takes them.
+   */
+  allowExcess?: boolean;
   /** Absent on a group that only holds subcommands. `NoInfer`: the spec fixes S, the handler only reads it. */
   run?: (ctx: CommandContext<InferOptions<NoInfer<S>>>) => Returns<NoInfer<O>>;
   /** The handler's module, imported on dispatch only (M2); everything else about the command is declared here. */
@@ -104,7 +110,7 @@ export interface Command<S extends OptionSpecs = OptionSpecs, O extends CommandO
 }
 
 /** The declared keys a node carries as they are: what help renders, and what `--schema` publishes. */
-const NODE_KEYS = ['description', 'summary', 'arguments', 'examples', 'group', 'epilogue', 'hidden', 'deprecated', 'effects', 'relations', 'fields', 'output'] as const;
+const NODE_KEYS = ['description', 'summary', 'arguments', 'examples', 'group', 'epilogue', 'hidden', 'deprecated', 'effects', 'relations', 'fields', 'output', 'allowExcess'] as const;
 
 /**
  * Everything help renders, copied as declared; `undefined` never lands on the node. One loop over
@@ -506,6 +512,11 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   if (flags.help === true) return { json, text: await (await import('./surfaces.js')).helpFor(manifest, node, io, { json, color: global?.color }) };
   if (flags.version === true) return { json, text: `${(await import('./surfaces.js')).versionOf(manifest, io)}\n` };
 
+  // parse-refusals R1/R3 — a surplus positional and a flag given twice were dropped, and the run
+  // reported success with the wrong input. The check is its own chunk (M2), loaded only when argv
+  // holds more positionals than declared or names one option twice; it throws before anything runs.
+  const { positionals, passthrough } = splitPositionals(parsed.tokens);
+  if (mayDrop(node, positionals, parsed.tokens)) (await import('./parse-refusals.js')).refuseDropped(node, positionals, parsed.tokens, rest, typed);
   const resolved = await resolveValues(manifest, node.options, flags, io, parsed.tokens);
   if (resolved.explainText !== undefined) return { json, text: resolved.explainText };
   const { provenance } = resolved;
@@ -517,7 +528,6 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   const relations = relationsOf(node);
   if (relations.length > 0) (await import('./relations.js')).checkRelations(relations, resolved.values, provenance);
   const values = await coerce(node.options, resolved.values);
-  const { positionals, passthrough } = splitPositionals(parsed.tokens);
   requirePositionals(node, positionals);
   // M5, from its own chunk, loaded only for a deprecated command; `--quiet` silences it (R2).
   if (node.deprecated) (await import('./deprecation.js')).warnDeprecated(node, io, global?.quiet);
@@ -533,6 +543,12 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   const changed = changedOf(node, data);
   const selected = fields === undefined || select === undefined ? data : select.selectFields(data, fields);
   return { json, lines, data: selected, provenance, ...(changed === undefined ? {} : { changed }) };
+}
+
+/** parse-refusals R1/R3 — more positionals than declared, or one option named twice: what `parse-refusals.js` reads. */
+function mayDrop(node: CommandNode, positionals: string[], tokens: readonly Token[]): boolean {
+  const named = tokens.map((t) => t.kind === 'option' && t.name);
+  return positionals.length > (node.arguments?.length ?? 0) || named.some((n, i) => n !== false && named.indexOf(n) < i);
 }
 
 /**

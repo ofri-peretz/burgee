@@ -45,6 +45,12 @@ describe('--schema', () => {
     expect(deploy?.examples).toEqual([{ command: 'app deploy prod' }]);
   });
 
+  it('says `excess: true` for a command that takes surplus positionals, and nothing for one that refuses them (parse-refusals R2)', () => {
+    const tail = defineProgram({ name: 'app', commands: [defineCommand({ name: 'exec', effects: 'non_idempotent', arguments: [{ name: 'tool' }], allowExcess: true, run: () => 'ok' })] });
+    expect(schemaOf(tail).commands[0]?.excess).toBe(true);
+    expect(schemaOf(program).commands[0]).not.toHaveProperty('excess');
+  });
+
   it('carries choices, defaults and requiredness as data in a JSON Schema per command (N9)', () => {
     const { inputSchema } = schemaOf(program).commands[0] ?? { inputSchema: undefined };
     expect(inputSchema).toMatchObject({

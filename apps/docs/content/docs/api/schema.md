@@ -142,6 +142,8 @@ interface CommandSchema {
     lazy?: true;
     /** Which plugin contributed it (M3). */
     plugin?: string;
+    /** It takes positionals past its declared arguments, where any other command refuses them (parse-refusals R2). */
+    excess?: true;
     arguments: ArgumentSpec[];
     options: Record<string, OptionSpec>;
     /**

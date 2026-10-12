@@ -60,6 +60,8 @@ export interface CommandSchema {
   lazy?: true;
   /** Which plugin contributed it (M3). */
   plugin?: string;
+  /** It takes positionals past its declared arguments, where any other command refuses them (parse-refusals R2). */
+  excess?: true;
   arguments: ArgumentSpec[];
   options: Record<string, OptionSpec>;
   /**
@@ -194,6 +196,7 @@ export function commandSchemaOf(node: CommandNode, root: string[]): CommandSchem
   for (const key of PASSED_THROUGH) if (node[key] !== undefined) Object.assign(out, { [key]: node[key] });
   if (node.load !== undefined) out.lazy = true;
   if (node.plugin !== undefined) out.plugin = node.plugin;
+  if (node.allowExcess === true) out.excess = true;
   // Both spellings, in one list, through the one function the engine enforces (S2/S6).
   const relations = relationsOf(node);
   if (relations.length > 0) out.relations = relations.map(publishable);
@@ -222,8 +225,7 @@ export interface SchemaSummary {
 /** Above the budget (N13): every command by name and summary, and the drilling command for one in full. */
 export function summaryOf(manifest: Manifest, budget: number): SchemaSummary {
   const root = manifest.rootPath;
-  const program = manifest.find(root);
-  const out: SchemaSummary = {
+  return withProgram<SchemaSummary>(manifest, {
     schemaVersion: 1,
     name: root.join(' '),
     summarised: true,
@@ -236,19 +238,22 @@ export function summaryOf(manifest: Manifest, budget: number): SchemaSummary {
       return { name: typedName(c, root), ...(summary === undefined ? {} : { summary }), ...(c.effects === undefined ? {} : { effects: c.effects }) };
     }),
     hint: `run \`${root.join(' ')} <command> --schema\` for one command in full`,
-  };
-  if (manifest.version !== undefined) out.version = manifest.version;
-  const description = program?.description;
-  if (description !== undefined) out.description = description;
-  return out;
+  });
 }
 
 export function schemaOf(manifest: Manifest): ProgramSchema {
   const root = manifest.rootPath;
-  const program = manifest.find(root);
-  const out: ProgramSchema = { schemaVersion: 1, name: root.join(' '), exitCodes: ExitCode, commands: runnable(manifest).map((c) => commandSchemaOf(c, root)) };
+  return withProgram<ProgramSchema>(manifest, { schemaVersion: 1, name: root.join(' '), exitCodes: ExitCode, commands: runnable(manifest).map((c) => commandSchemaOf(c, root)) });
+}
+
+/**
+ * The program's version and description, after its commands, on the full schema and the summary
+ * alike. One copy: the two were the same three lines, and the bytes `--schema` publishes
+ * `excess` with came from folding them (parse-refusals R2, against the `./mcp` budget).
+ */
+function withProgram<T extends { version?: string; description?: string }>(manifest: Manifest, out: T): T {
   if (manifest.version !== undefined) out.version = manifest.version;
-  const description = program?.description;
+  const description = manifest.find(manifest.rootPath)?.description;
   if (description !== undefined) out.description = description;
   return out;
 }

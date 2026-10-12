@@ -401,6 +401,12 @@ interface Command<S extends OptionSpecs = OptionSpecs, O extends CommandOutput =
      * describes; without one, anything.
      */
     output?: O;
+    /**
+     * parse-refusals R2 — take positionals past the declared arguments into `ctx.positionals`, as a
+     * command that forwards its tail to a child process does. Without it, a surplus word is a usage
+     * error naming it (R1); `--schema` says `excess: true` for a command that takes them.
+     */
+    allowExcess?: boolean;
     /** Absent on a group that only holds subcommands. `NoInfer`: the spec fixes S, the handler only reads it. */
     run?: (ctx: CommandContext<InferOptions<NoInfer<S>>>) => Returns<NoInfer<O>>;
     /** The handler's module, imported on dispatch only (M2); everything else about the command is declared here. */
@@ -446,6 +452,8 @@ interface CommandNode {
     fields?: readonly string[];
     /** What the result is and how much of it (clispec-conformance R5). */
     output?: CommandOutput;
+    /** Positionals past the declared arguments reach the handler rather than a refusal (parse-refusals R2). */
+    allowExcess?: boolean;
     run?: (ctx: RunContext) => unknown;
     /**
      * The handler's module, imported on dispatch only (M2): the manifest — help, schema,

@@ -40,6 +40,17 @@ Order: R1 and R2 in one PR, then R3 and R4.
 | R4 | `json-failure.test.ts`: each `next[]` re-run exits 0 | today no failure, so no `next[]` |
 | façades | `npm run compat -- commander yargs` | unchanged grades |
 
+## Status
+
+| R | Status | Where | Check |
+| :-- | :-- | :-- | :-- |
+| R1 | **Built** 2026-10-12 | `parse-refusals.ts` (`refuseDropped`), a chunk `execute.ts` imports only when argv holds more positionals than the command declares or names one option twice (M2). The check sits after the parse and before precedence and relations, so a refusal never reaches a handler. `.` 35,130 → 35,439 B of its unchanged 35,681; bundled 23,918 → 24,136 | `parse-refusals.test.ts` › `R1 — …`. Red: `expected +0 to be 2` (`greet ada extra` ran, `extra` gone), and `expected '' to contain 'too many arguments: expected 1, got 3…'` |
+| R2 | **Built** 2026-10-12 | `Command.allowExcess` and `CommandNode.allowExcess`, copied by `NODE_KEYS`; `schema.ts` publishes `excess: true`. The bytes came from folding `schemaOf`'s and `summaryOf`'s shared tail into `withProgram`: `./mcp` had 5 B of headroom and is 26,695 → 26,560 B | `parse-refusals.test.ts` › `R2 — …`; `schema.test.ts` › `says excess: true …`; `stdin-dash.test.ts` › `leaves - alone past the declared arguments …`. Red: `TS2353: 'allowExcess' does not exist in type 'Command<…>'`, and `expected undefined to be true` |
+| R3 | **Built** 2026-10-12 | `parse-refusals.ts`, from `parsed.tokens` with no second parse. Flag tokens only, so env and config never conflict with a flag. A `multiple` option and a boolean are never refused | `parse-refusals.test.ts` › `R3 — …`. Red: `expected +0 to be 2` (`level: 'debug'`, `info` gone) |
+| R4 | **Built** 2026-10-12, **as `fix`, not `next[]`** | `failure.ts` (`carried`): the refusal names the words to leave out (`omit`, counted from the line's end) and the failure path writes the line as typed without them, quoted with `shellWord` like every `fix:`. A usage error's runnable correction is `fix` (E3); `next[]` is the `action_required` envelope's (N11), which a usage error does not use, so a second field was not added. The fix is omitted rather than guessed when one word was read as two flags (`-vl x`) or a global flag left the words the parser read | `json-failure.test.ts` › `parse-refusals R4: …` (each refused line's `fix` is run and exits 0); `parse-refusals.test.ts` › `R4 — …`. Red: `expected +0 to be 2`: no failure, so no line to run |
+
+**Built: 4. Not built: 0.**
+
 ## Rejected alternatives
 
 - **Warn on stderr and continue.** An agent reads the exit code and the envelope. A warning

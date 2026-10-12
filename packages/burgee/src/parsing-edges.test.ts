@@ -11,9 +11,10 @@ import { runBurgee } from './testing.js';
 const program = defineProgram({
   name: 'app',
   commands: [
-    defineCommand({ name: 'cat', effects: 'withheld', run: ({ positionals }) => ({ files: positionals }) }),
+    defineCommand({ name: 'cat', effects: 'withheld', arguments: [{ name: 'files', variadic: true, required: false }], run: ({ positionals }) => ({ files: positionals }) }),
     defineCommand({
       name: 'run',
+      arguments: [{ name: 'image' }],
       options: { detach: { type: 'boolean' } },
       effects: 'withheld',
       run: ({ options, positionals, passthrough }) => ({ detach: options['detach'] === true, image: positionals[0], passthrough }),
@@ -21,6 +22,7 @@ const program = defineProgram({
     defineCommand({ name: 'deploy', effects: 'withheld', run: () => 'deployed' }),
     defineCommand({
       name: 'greet',
+      arguments: [{ name: 'words', variadic: true, required: false }],
       options: { name: { type: 'string' } },
       effects: 'withheld',
       run: ({ options, positionals }) => ({ name: options['name'], positionals }),
