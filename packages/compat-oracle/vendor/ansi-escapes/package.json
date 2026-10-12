@@ -5,5 +5,6 @@
   "main": "./shim.js",
   "version": "7.3.0",
   "license": "MIT",
+  "description": "ANSI escape codes for manipulating the terminal",
   "repository": "sindresorhus/ansi-escapes"
 }
