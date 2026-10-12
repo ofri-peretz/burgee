@@ -168,16 +168,13 @@ export function bracketedPaste(stream: OutputStream, onExit: Registrar): () => v
  * (`.sdlc/models/save-restore.qnt`).
  */
 export function rawMode(input: InputStream, onExit: Registrar): () => void {
-  if (input.isTTY !== true || input.setRawMode === undefined) return noop;
-  const held = rawHolders.get(input);
-  if (held === undefined && input.isRaw === true) return noop;
-  if (held === undefined) input.setRawMode(true);
-  rawHolders.set(input, (held ?? 0) + 1);
+  const held = rawHolders.get(input) ?? 0;
+  if (input.isTTY !== true || input.setRawMode === undefined || (!held && input.isRaw === true)) return noop;
+  if (!held) input.setRawMode(true);
+  rawHolders.set(input, held + 1);
   return paired(() => {
-    const left = (rawHolders.get(input) ?? 1) - 1;
-    if (left > 0) return void rawHolders.set(input, left);
-    rawHolders.delete(input);
-    input.setRawMode?.(false);
+    rawHolders.set(input, (rawHolders.get(input) ?? 1) - 1);
+    if (!rawHolders.get(input)) input.setRawMode?.(false);
   }, onExit);
 }
 
