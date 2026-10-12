@@ -33,6 +33,8 @@ export interface SurfaceIo {
   stdin: NodeJS.ReadableStream;
   /** The package.json owning the entry file, read once (V4). */
   pkg: Package | undefined;
+  /** `RunOptions.locale` (`localised-human-surfaces` R2). */
+  locale?: string | undefined;
 }
 
 /** What a surface needs back from the engine: precedence for `config explain`, a run for `--mcp`. */
@@ -40,7 +42,7 @@ export interface Engine {
   resolution: (specs: Record<string, OptionSpec>, flags: Record<string, unknown>) => Promise<Resolution>;
   execute: (
     manifest: Manifest,
-    opts: { argv: string[]; env: Record<string, string | undefined>; stdout: { write: (s: string) => unknown }; stderr: { write: (s: string) => unknown }; exit: (code: number) => void },
+    opts: { argv: string[]; env: Record<string, string | undefined>; stdout: { write: (s: string) => unknown }; stderr: { write: (s: string) => unknown }; exit: (code: number) => void; locale?: string },
   ) => Promise<void>;
 }
 
@@ -104,15 +106,35 @@ function rootNode(manifest: Manifest, root: string[]): CommandNode {
 // those, each top-level command's first (R6).
 const renderHelp = async (manifest: Manifest, node: CommandNode, io: SurfaceIo, argv: readonly string[] = []): Promise<string> => {
   const help = await import('./help.js');
+  const { local, view } = await localised(manifest, node, io);
   const atRoot = node.path.length === manifest.rootPath.length;
   const completion = atRoot ? completionNode(manifest) : undefined;
-  const commands = [...listed(manifest, node), ...(completion === undefined ? [] : [completion]), ...(atRoot ? exitRows(manifest.rootPath) : [])];
-  const shown = atRoot ? { ...node, examples: rootExamples(manifest, node) } : node;
+  const commands = [...listed(manifest, node), ...(completion === undefined ? [] : [completion]), ...(atRoot ? exitRows(manifest.rootPath, local && ((s) => local.say(s, 'exit.'))) : [])].map(view);
+  const shown = view(atRoot ? { ...node, examples: rootExamples(manifest, node) } : node);
   // The globals this command leaves global (R1–R3); none on a node the engine made up, such as
   // `completion`, which parses none of them.
   const globals = manifest.find(node.path) === undefined ? [] : globalRows(node);
-  return help.renderHelp(manifest, shown, { width: io.width, color: help.colorFor(io.env, detectAgent(io.env, io.out.isTTY === true).interactive, argv), commands, globals });
+  const say = local && ((s: string): string => local.say(s, 'help.'));
+  return help.renderHelp(manifest, shown, { width: io.width, color: help.colorFor(io.env, detectAgent(io.env, io.out.isTTY === true).interactive, argv), commands, globals, ...(say === undefined ? {} : { say }) });
 };
+
+/** Whether a declaration was written with a localised text (R5): `execute.ts` marks it so. */
+const marked = (o: object): boolean => Symbol.for('burgee.localised') in o;
+
+/**
+ * `localised-human-surfaces` R2 — help's language: the pack's translator for the engine's words
+ * (R1), and the view of a command in the run's locale for the author's (R5). Only a program that
+ * registered `locales` or wrote a localised text loads `locale.js`; the rest pay two `some()`s
+ * and get the identity. A pack that cannot be rendered is refused here, on the help it would
+ * have translated (R4).
+ */
+async function localised(manifest: Manifest, node: CommandNode, io: SurfaceIo): Promise<{ local?: import('./locale.js').Localiser | undefined; view: (c: CommandNode) => CommandNode }> {
+  const authored = [node, ...manifest.commands].some((c) => marked(c) || Object.values(c.options).some(marked) || (c.examples ?? []).some(marked));
+  if (!authored && !manifest.plugins.some((p) => 'locales' in p)) return { view: (c) => c };
+  const { commandInLocale, localiserOf, resolveLocale } = await import('./locale.js');
+  const locale = resolveLocale(io.locale, io.env);
+  return { local: localiserOf(manifest.plugins, locale), view: (c) => commandInLocale(c, locale) };
+}
 
 /**
  * `schema.ts` on demand, for the same reason help is: nothing in it runs unless a reader asks
@@ -421,6 +443,9 @@ export async function serve(manifest: Manifest, argv: string[], io: SurfaceIo, e
         exit: (c: number) => {
           code = c;
         },
+        // A tool call answers an agent, so it speaks the base language whatever the server's
+        // environment says (`localised-human-surfaces` R3).
+        locale: 'C',
       });
       return { stdout: out.join(''), stderr: err.join(''), code };
     };

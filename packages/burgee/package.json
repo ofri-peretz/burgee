@@ -18,6 +18,7 @@
     },
     "./schema.json": "./dist/schema.json",
     "./program-schema.json": "./dist/program-schema.json",
+    "./locale-pack-schema.json": "./dist/locale-pack-schema.json",
     "./plugin": {
       "types": "./dist/plugin.d.ts",
       "import": "./dist/plugin.js",

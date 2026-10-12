@@ -4,7 +4,7 @@
  * cases here are the report's rows and each way a plugin is refused, read off the returned
  * document rather than off prose.
  */
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -68,7 +68,7 @@ describe('burgee check refuses, as data, with an exit code', () => {
       refused: {
         code: 'E_NO_CONTRIBUTION',
         message: 'empty registers, but contributes nothing burgee reads',
-        fix: 'add `commands` or `hooks` — a key another package in the family reads is allowed in the same object, but `burgee check` cannot show it',
+        fix: 'add `commands`, `hooks` or `locales` — a key another package in the family reads is allowed in the same object, but `burgee check` cannot show it',
       },
       exitCode: ExitCode.RUNTIME,
     });
@@ -90,5 +90,81 @@ describe('burgee check refuses, as data, with an exit code', () => {
   it('rethrows what is not an Error at all, rather than inventing a message for it', async () => {
     const file = plugin("export default { name: 'thrower', contract: 1, get commands() { throw 'not an error'; } };\n");
     await expect(checkPlugin(file)).rejects.toBe('not an error');
+  });
+});
+
+/**
+ * `localised-human-surfaces` R4 — a locale pack is a plugin, and `burgee check <pack>` is how its
+ * author learns whether it renders: every message of every locale, rendered, or the refusal.
+ */
+/** A locale pack named `pack` on disk, carrying `locales` and nothing else. */
+const pack = (locales: unknown): string => plugin(`export default ${JSON.stringify({ name: 'pack', contract: 1, locales })};\n`);
+
+describe('burgee check reads a locale pack (R4)', () => {
+
+  it('renders every message of every locale, each plural form apart, with each placeholder named', async () => {
+    const file = pack({
+      de: { 'usage.unknownOption': 'unbekannte Option {option}', 'usage.stdinOnce': { one: '{count} Datei', other: '{count} Dateien' } },
+      'pt-BR': { 'hint.passOne': 'passe um deles' },
+    });
+    expect(await checkPlugin(file)).toEqual({
+      name: 'pack',
+      commands: [],
+      hooks: [],
+      locales: [
+        {
+          locale: 'de',
+          messages: [
+            { id: 'usage.unknownOption', text: 'unbekannte Option <option>' },
+            { id: 'usage.stdinOnce', form: 'one', text: '1 Datei' },
+            { id: 'usage.stdinOnce', form: 'other', text: '0 Dateien' },
+          ],
+        },
+        { locale: 'pt-BR', messages: [{ id: 'hint.passOne', text: 'passe um deles' }] },
+      ],
+    });
+  });
+
+  it('leaves an id caique owns to caique, so one pack serves both hosts', async () => {
+    const file = pack({ de: { 'hint.passOne': 'eins davon', 'caique.anything': { whatever: 1 } } });
+    expect(await checkPlugin(file)).toMatchObject({ locales: [{ locale: 'de', messages: [{ id: 'hint.passOne', text: 'eins davon' }] }] });
+  });
+
+  it('accepts the test pack the invariance lock registers', async () => {
+    const file = plugin(`export default ${readFileSync(new URL('__fixtures__/locale-pack-de.json', import.meta.url), 'utf8')};\n`);
+    expect(await checkPlugin(file)).toMatchObject({ name: 'test-de', locales: [{ locale: 'de' }] });
+  });
+
+  it.each([
+    ['an id the catalog does not have', { de: { 'usage.nope': 'x' } }, 'plugin "pack": locales.de["usage.nope"] is not a message burgee has'],
+    ['a placeholder the English does not have', { de: { 'usage.unknownOption': 'unbekannte Option {flag}' } }, 'plugin "pack": locales.de["usage.unknownOption"] has {flag}, which the English "unknown option {option}" does not'],
+    ['a placeholder in a message that has none', { de: { 'hint.passOne': 'übergeben Sie {option}' } }, 'plugin "pack": locales.de["hint.passOne"] has {option}, which the English "pass one of them" does not'],
+    ['a plural message missing a form its locale selects', { ru: { 'usage.stdinOnce': { one: '{count}', other: '{count}' } } }, 'plugin "pack": locales.ru["usage.stdinOnce"] is missing the plural forms few, many'],
+    ['a form its locale does not select', { de: { 'usage.stdinOnce': { one: 'a', other: 'b', few: 'c' } } }, 'plugin "pack": locales.de["usage.stdinOnce"].few is not a plural form of de'],
+    ['plural forms for a message with no count', { de: { 'hint.passOne': { one: 'a', other: 'b' } } }, 'plugin "pack": locales.de["hint.passOne"] has plural forms, and the English has no {count}'],
+    ['a translation that is not a string', { de: { 'hint.passOne': 42 } }, 'plugin "pack": locales.de["hint.passOne"] is not a string'],
+    ['a tag Intl.Locale writes another way', { de_DE: { 'hint.passOne': 'x' } }, 'plugin "pack": locales has "de_DE", which is not a language tag as Intl.Locale writes it'],
+    ['a tag that is not one', { 'not a tag': {} }, 'plugin "pack": locales has "not a tag", which is not a language tag as Intl.Locale writes it'],
+    ['a locale that is not an object', { de: 'x' }, 'plugin "pack": locales.de must be an object'],
+    ['locales that are not an object', ['de'], 'plugin "pack": locales must be an object'],
+  ])('refuses %s, under E_PLUGIN_SCHEMA with a fix', async (_, locales, message) => {
+    const report = await checkPlugin(pack(locales));
+    expect(report).toMatchObject({ refused: { code: 'E_PLUGIN_SCHEMA', message, fix: expect.any(String) as string }, exitCode: ExitCode.RUNTIME });
+  });
+
+  it('renders every form of a locale with many, each with a count that selects it', async () => {
+    const forms = { one: '{count} файл', few: '{count} файла', many: '{count} файлов', other: '{count} файла' };
+    expect(await checkPlugin(pack({ ru: { 'usage.stdinOnce': forms } }))).toMatchObject({
+      locales: [{ locale: 'ru', messages: [{ form: 'one', text: '1 файл' }, { form: 'few', text: '2 файла' }, { form: 'many', text: '0 файлов' }, { form: 'other', text: '1.5 файла' }] }],
+    });
+  });
+
+  it('says which placeholders a message takes when a translation adds another', async () => {
+    expect(await checkPlugin(pack({ de: { 'usage.unknownOption': '{flag}' } }))).toMatchObject({ refused: { fix: 'use only {option}' } });
+    expect(await checkPlugin(pack({ de: { 'hint.passOne': '{option}' } }))).toMatchObject({ refused: { fix: 'take the placeholder out: this message has none' } });
+  });
+
+  it('names the tag to write when Intl.Locale reads it another way', async () => {
+    expect(await checkPlugin(pack({ de_DE: {} }))).toMatchObject({ refused: { fix: 'write it as "de-DE"' } });
   });
 });

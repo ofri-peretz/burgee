@@ -10,7 +10,7 @@ import type { parseArgs } from 'node:util';
 import { type Layers, type Provenance, resolve as resolveLayers } from 'seniority/precedence';
 
 import { beforeTerminator, isJsonFlag, mayServe } from './argv.js';
-import { checkCommand } from './definition.js';
+import { checkCommand, type Declared } from './definition.js';
 import { ExitCode, isExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
 import { type LazyArgs } from './fields.js';
 import { type ActionRequiredSpec, type ArgumentSpec, type CommandNode, type CommandOutput, type DeclaredEffects, type Example, type LazyModule, Manifest, type OptionSpec, type OutputOf, type Relation, relationsOf, type RunContext } from './manifest.js';
@@ -24,16 +24,31 @@ export interface CommandContext<O> extends Omit<RunContext, 'options'> {
   options: O;
 }
 
-type Scalar<S extends OptionSpec> = S['type'] extends 'number' ? number : S['type'] extends 'boolean' ? boolean : S extends { choices: readonly (infer C)[] } ? C : string;
-type Many<S extends OptionSpec, V> = S extends { multiple: true } ? V[] : V;
-type Present<S extends OptionSpec> = S extends { required: true } ? true : S extends { default: unknown } ? true : false;
+type Scalar<S extends DeclaredOption> = S['type'] extends 'number' ? number : S['type'] extends 'boolean' ? boolean : S extends { choices: readonly (infer C)[] } ? C : string;
+type Many<S extends DeclaredOption, V> = S extends { multiple: true } ? V[] : V;
+type Present<S extends DeclaredOption> = S extends { required: true } ? true : S extends { default: unknown } ? true : false;
 
 /** The handler's `options`, derived from the declaration (S1): `choices` become a union, `multiple` an array, `number` a number. */
-export type InferOptions<S extends Record<string, OptionSpec>> = {
+export type InferOptions<S extends Record<string, DeclaredOption>> = {
   [K in keyof S]: Present<S[K]> extends true ? Many<S[K], Scalar<S[K]>> : Many<S[K], Scalar<S[K]>> | undefined;
 };
 
-export type OptionSpecs = Record<string, OptionSpec>;
+/**
+ * `localised-human-surfaces` R5 — text an author writes in more than one language: one string, or
+ * locale → text with the author's base language **first**. Help renders the run's locale (the
+ * tag, then its bare language, then the base); `--schema`, `--mcp` and every other machine
+ * surface carry the base language and nothing else, because a command's description there is
+ * data a program reads, not prose (R3).
+ */
+export type Localised = string | Readonly<Record<string, string>>;
+
+/** An option as declared: an {@link OptionSpec} whose description may be {@link Localised} (R5). */
+export type DeclaredOption = Omit<OptionSpec, 'description'> & { description?: Localised };
+
+/** An example as declared: its description may be {@link Localised} (R5). */
+export type DeclaredExample = Omit<Example, 'description'> & { description?: Localised };
+
+export type OptionSpecs = Record<string, DeclaredOption>;
 
 // Children are declared with their own specs; a container holds a heterogeneous list of them.
 export type AnyCommand = Command<any>;
@@ -43,13 +58,13 @@ type Returns<O> = O extends { schema: infer J } ? OutputOf<J> | Promise<OutputOf
 
 export interface Command<S extends OptionSpecs = OptionSpecs, O extends CommandOutput = CommandOutput> {
   name: string;
-  description?: string;
+  description?: Localised;
   /** Shown in command lists instead of the description. */
-  summary?: string;
+  summary?: Localised;
   /** Declared once (S1); the handler's `options` type is derived from it. */
   options?: S;
   arguments?: ArgumentSpec[];
-  examples?: Example[];
+  examples?: DeclaredExample[];
   /** Heading this command is listed under in its parent's help. */
   group?: string;
   epilogue?: string;
@@ -96,16 +111,35 @@ const NODE_KEYS = ['description', 'summary', 'arguments', 'examples', 'group', '
  * the keys, not an `if` per key: the eleven `if`s were more bytes than the loop with clispec's
  * `output` added to it, against a core budget with 71 to spare (clispec-conformance R5).
  */
-function helpFields(c: AnyCommand): Partial<CommandNode> {
+function helpFields(c: AnyCommand): Partial<CommandNode> & Pick<CommandNode, 'options'> {
   const node: Record<string, unknown> = {};
   for (const key of NODE_KEYS) if (c[key] !== undefined) node[key] = c[key];
+  node['examples'] &&= c.examples?.map(based);
+  node['options'] = Object.fromEntries(Object.entries(c.options ?? {}).map(([key, spec]) => [key, based(spec as DeclaredOption)]));
+  return based(node) as Partial<CommandNode> & Pick<CommandNode, 'options'>;
+}
+
+/**
+ * `localised-human-surfaces` R5 — a declaration as the manifest holds it: a {@link Localised}
+ * `description` or `summary` becomes its base language, the first entry, and the declaration as
+ * written rides along under `Symbol.for('burgee.localised')` for help to pick the run's locale
+ * from. Every projection that reads the manifest — `--schema`, `--mcp`, completions, Fig — sees
+ * a string and nothing else, and a symbol is invisible to `JSON.stringify` and `Object.keys`.
+ * A declaration with no `Record` is returned as it came.
+ */
+function based<T extends object>(declared: T): T {
+  let node = declared;
+  for (const key of ['description', 'summary']) {
+    const text = (declared as Record<string, unknown>)[key];
+    if (text instanceof Object) node = { ...node, [key]: Object.values(text as object)[0], [Symbol.for('burgee.localised')]: declared };
+  }
   return node;
 }
 
 export interface Program {
   name: string;
   version?: string;
-  description?: string;
+  description?: Localised;
   /** Options read `PREFIX_OPTION_NAME` from the environment unless they name their own variable (V2). */
   envPrefix?: string;
   /** Characters of `--schema` output above which it is summarised (N13); 48,000 by default. */
@@ -116,7 +150,7 @@ export interface Program {
    */
   config?: boolean | { name: string };
   /** Shown under `Examples:` in root help; without them, each top-level command's first example is (agent-lint-conformance R6). */
-  examples?: Example[];
+  examples?: DeclaredExample[];
   commands: AnyCommand[];
 }
 
@@ -125,7 +159,7 @@ export function defineCommand<const S extends OptionSpecs = OptionSpecs, const O
   // place, because `Manifest.use()` needs exactly these on a plugin's commands and used to
   // run none of them. A node with `load` and no `run` is runnable: its module has not been
   // imported, and what running it does to the world was knowable when it was declared.
-  checkCommand(command.name, command);
+  checkCommand(command.name, command as Declared);
   return command;
 }
 
@@ -135,7 +169,6 @@ function addTree(manifest: Manifest, parent: string[], commands: AnyCommand[]): 
     manifest.add({
       path,
       ...helpFields(c),
-      options: c.options ?? {},
       ...(c.run === undefined ? {} : { run: c.run as (ctx: RunContext) => unknown }),
       ...(c.load === undefined ? {} : { load: c.load }),
     });
@@ -162,7 +195,7 @@ export function defineProgram(program: Program): Manifest {
   if (program.schemaBudget !== undefined) manifest.schemaBudget = program.schemaBudget;
   if (program.config === true) manifest.config = { name: program.name };
   else if (typeof program.config === 'object' && program.config !== null) manifest.config = program.config;
-  manifest.add({ path: [program.name], ...helpFields(program as AnyCommand), options: {} });
+  manifest.add({ path: [program.name], ...helpFields(program as AnyCommand) });
   addTree(manifest, [program.name], program.commands);
   return manifest;
 }
@@ -183,6 +216,13 @@ export interface RunOptions {
   cwd?: string;
   /** The entry file, whose nearest package.json owns the program's version (V4); `process.argv[1]` otherwise. */
   entry?: string;
+  /**
+   * The language help and refusals speak to a person, ahead of `BURGEE_LOCALE`, `LC_ALL`,
+   * `LC_MESSAGES` and `LANG` (`localised-human-surfaces` R2). A BCP 47 tag, or `C` for the
+   * program's own words; a registered plugin's `locales` supplies the translation. Machine
+   * surfaces never read it (R3).
+   */
+  locale?: string;
 }
 
 /** `ctx.actionRequired(spec)` unwinds through this: the caller must act before the command can continue (N11). */
@@ -395,6 +435,8 @@ interface Io {
   pkg: Package | undefined;
   /** Where `ctx.onExit` registers, and what `leave` runs before the exit (E5, O5). */
   teardown: Teardown;
+  /** `RunOptions.locale`, read only by the prose paths (`localised-human-surfaces` R2). */
+  locale?: string | undefined;
 }
 interface Outcome {
   json: boolean;
@@ -547,7 +589,7 @@ async function report(cause: unknown, { manifest, io, argv, json, name }: Failur
   if (failure.again) return failure.again;
   if (failure.silent === true) return await leave(io, failure.code);
   await manifest.fire('onError', name, {});
-  reportFailure(failure, manifest, json, io);
+  await reportFailure(failure, manifest, json, io);
   return await leave(io, failure.code);
 }
 
@@ -571,6 +613,7 @@ function ioOf(opts: RunOptions): Io {
     // the harness, the MCP loop and every façade test pass one, and none of them may have
     // nine listeners attached to the runner's own process on their behalf.
     teardown: opts.exit === undefined ? processTeardown([host.stdout, host.stderr]) : detachedTeardown(),
+    locale: opts.locale,
   };
 }
 
@@ -634,7 +677,7 @@ export interface RunResult {
  * M6: run a command programmatically — the harness's own entry, public. The streams are
  * captured, the exit recorded; env, cwd and the entry can be injected like `execute`'s.
  */
-export async function runCommand(manifest: Manifest, argv: readonly string[], opts: Pick<RunOptions, 'env' | 'cwd' | 'entry' | 'stdin'> = {}): Promise<RunResult> {
+export async function runCommand(manifest: Manifest, argv: readonly string[], opts: Pick<RunOptions, 'env' | 'cwd' | 'entry' | 'stdin' | 'locale'> = {}): Promise<RunResult> {
   const out: string[] = [];
   const err: string[] = [];
   let code: number = ExitCode.OK;
@@ -656,7 +699,6 @@ export async function run<S extends OptionSpecs>(target: Command<S> | Manifest, 
   manifest.add({
     path: [target.name],
     ...helpFields(target as AnyCommand),
-    options: target.options ?? {},
     ...(target.run === undefined ? {} : { run: target.run as (ctx: RunContext) => unknown }),
   });
   return await execute(manifest, opts);
