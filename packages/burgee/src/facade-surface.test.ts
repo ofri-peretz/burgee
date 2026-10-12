@@ -56,7 +56,7 @@ import { Readable } from 'node:stream';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { Command } from './commander.js';
+import { Argument, Command, Option } from './commander.js';
 import { toolsOf } from './mcp.js';
 import yargs, { type Argv } from './yargs.js';
 
@@ -295,5 +295,64 @@ describe('G6 — every argument the schema advertises reaches the program', () =
     // `--trim` then `--no-trim` declared: commander sets no default, so false is only reached by typing it.
     expect(seen[0]).toMatchObject({ color: true });
     expect(seen[0]?.['trim']).not.toBe(true);
+  });
+});
+
+/** The `--schema` document a program prints, parsed; `name` picks one command out of it. */
+async function schemaOf(program: Command, name: string): Promise<Record<string, any>> {
+  const doc = JSON.parse((await run(program, ['--schema'])).out) as { commands: Record<string, any>[] };
+  return doc.commands.find((c) => c['name'] === name) ?? {};
+}
+
+/** A commander program declaring choices, a hidden flag, conflicts and an argument default. */
+function deploy(): Command {
+  const program = new Command('ship');
+  program
+    .command('deploy')
+    .addOption(new Option('--mode <m>', 'how to ship').choices(['fast', 'safe']))
+    .addOption(new Option('--debug-dump', 'internal').hideHelp())
+    .addOption(new Option('--dry', 'print the plan').conflicts('force'))
+    .addOption(new Option('--force', 'skip checks').conflicts(['dry', 'mode']))
+    .addArgument(new Argument('[env]', 'where to ship').choices(['staging', 'prod']).default('staging'))
+    .action(() => 'shipped');
+  return program;
+}
+
+describe('facade-projection-fidelity R1–R3 — what a commander program declares reaches --schema', () => {
+  it('R1 — Option.choices() is the enum, in --schema and in the MCP tool', async () => {
+    const cmd = await schemaOf(deploy(), 'deploy');
+    expect(cmd['options'].mode.choices).toEqual(['fast', 'safe']);
+    expect(cmd['inputSchema'].properties.mode.enum).toEqual(['fast', 'safe']);
+    expect(toolsOf(deploy().manifest)[0]?.inputSchema.properties['mode']).toMatchObject({ enum: ['fast', 'safe'] });
+  });
+
+  it('R1 — a hidden option is marked hidden and left out of the input schema, as on yargs', async () => {
+    const cmd = await schemaOf(deploy(), 'deploy');
+    expect(cmd['options'].debugDump.hidden).toBe(true);
+    expect(Object.keys(cmd['inputSchema'].properties)).not.toContain('debugDump');
+  });
+
+  it('R2 — .conflicts() is exclusive, on the property and in relations', async () => {
+    const cmd = await schemaOf(deploy(), 'deploy');
+    expect(cmd['options'].dry.exclusive).toEqual(['force']);
+    expect(cmd['options'].force.exclusive).toEqual(['dry', 'mode']);
+    expect(cmd['inputSchema'].properties.force.exclusive).toEqual(['--dry', '--mode']);
+    expect(cmd['relations']).toContainEqual({ conflicts: ['dry', 'force'] });
+    expect(cmd['options'].mode.exclusive).toBeUndefined();
+  });
+
+  // R3's choices half is not built: `ArgumentSpec` has no `choices`, and publishing it as an
+  // enum cost `./commander` 32 B over its 61,100 B ceiling (61,132 measured, 2026-10-12).
+  it('R3 — an Argument carries its default', async () => {
+    const cmd = await schemaOf(deploy(), 'deploy');
+    expect(cmd['arguments'][0]).toEqual({ name: 'env', required: false, variadic: false, description: 'where to ship', default: 'staging' });
+    expect(cmd['inputSchema'].properties.env).toMatchObject({ type: 'string', default: 'staging' });
+  });
+
+  it('R3 — a non-string argument default is left out, as on options', async () => {
+    const program = new Command('n');
+    program.command('take').addArgument(new Argument('[count]').default(3)).action(() => undefined);
+    const cmd = await schemaOf(program, 'take');
+    expect(cmd['arguments'][0]).toEqual({ name: 'count', required: false, variadic: false });
   });
 });
