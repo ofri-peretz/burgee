@@ -108,3 +108,13 @@ always-needed contract and a pointer, and `--schema <command>` carries the rest.
 | R6 | **Built** 2026-10-12 | `benchmarks/axes/reliability.ts` (`skill-bytes`, beside `schema-bytes`: the UTF-8 bytes of `--skill`, no record for a variant without one; burgee's gated at `SKILL_BYTES_BUDGET`), `benchmarks/bands.ts` and `.sdlc/bands/control-bands.json` (`agent-skill-bytes`, the cheap suite, banded like `agent-schema-bytes`). **The budget is the first measurement: 1,857 B**, the demo's `SKILL.md` (`npm run bench -- --axis reliability --check`: `skill-bytes 1857 bytes gate <= 1857`, 0 gate failures; `schema-bytes` 4,752 B on the same run). The next CI observation publishes it | `benchmarks/reliability.test.ts` › `skill-bytes, measured and gated (agent-skill R6)`: a skill of 1,921 B fails the ratchet, one inside the budget holds. Red: `TypeError: expected value must be number or bigint, received "undefined"` (no `SKILL_BYTES_BUDGET`, no record) |
 
 **Built: 6. Not built: 0.**
+
+**cli-agent-lint, re-run 2026-10-12** the way agent-lint-conformance R7 (#1013) took its reading
+(`npx tsx benchmarks/floor-tools.ts`, then `npm run bench -- --axis floor`: cli-agent-lint 0.3.5,
+pinned by digest, on the built demo through its shim, PATH and an empty HOME only), on this branch
+at `b4ca931`: **burgee 96.6% (A)**, from the published 91.5% (A). SD-5 passes, on the root help
+naming `AGENTS.md`: the checker runs a shim in a temporary directory, so the line in help is what
+it reads, not the file. The one check still failing is FS-4 (the `auth` exit-code row trips its
+"auth-related content" probe in a program with no auth). commander 71.2%, yargs 70.9%; clispec
+24 / 24. The reading is recorded here and not published: `BURGEE_FLOOR.agentLint` stays 91 until a
+publish moves it.
