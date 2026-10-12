@@ -128,6 +128,8 @@ export type CapabilityErrorCode = 'E_PLUGIN_SCHEMA' | 'E_NO_STATIC_PROJECTION';
 export interface Problem {
   code: CapabilityErrorCode;
   line: string;
+  /** The required field that is absent, when that is the problem — so a host can show it written. */
+  missing?: string;
 }
 
 const NEEDS_A_NAME = 'a capability needs a name';
@@ -169,6 +171,7 @@ export function capabilityProblems(candidate: object, at?: string): Problem[] {
       problems.push({
         code: field === 'fallback' ? 'E_NO_STATIC_PROJECTION' : 'E_PLUGIN_SCHEMA',
         line: field === 'name' && at === undefined ? NEEDS_A_NAME : `${label}: ${WHY[field] ?? `${field} is required`}`,
+        missing: field,
       });
     }
   }

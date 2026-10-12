@@ -90,6 +90,29 @@ describe('the report', () => {
 });
 
 describe('what check does not own', () => {
+  it('names every problem in a plugin at once, each with a fix an author can apply, so one repair clears them all', async () => {
+    const { code, out } = await run([
+      file("export default { name: 'multi', capabilities: { beep: { name: 'beep', when: {}, encode: '\\u0007' }, title: { name: 'title', osc: 2, when: 'tty', encode: '', fallback: '' } } };"),
+    ]);
+    const blocks = out.split(/\n(?=E_)/u);
+    expect(blocks.map((b) => b.slice(0, b.indexOf('\n')))).toEqual([
+      'E_PLUGIN_SCHEMA: plugin "multi": capabilities.beep: osc must name the code, or \'BEL\'',
+      'E_NO_STATIC_PROJECTION: plugin "multi": capabilities.beep: fallback must be a template, even if it is empty — rule 6 has no opt-out',
+      'E_PLUGIN_SCHEMA: plugin "multi": capabilities.title.when: must be an object, not string',
+      'E_PLUGIN_SCHEMA: plugin "multi": capabilities.title.encode: must not be empty',
+    ]);
+    expect(blocks[0]).toContain("  fix: add `osc: 'BEL'`");
+    expect(out.match(/\n {2}fix: /gu)).toHaveLength(4);
+    expect(out).not.toContain(': ok');
+    expect(code).toBe(EXIT_RUNTIME);
+  });
+
+  it('gives a missing field a fix that shows the field written', async () => {
+    const { out } = await run([file("export default { name: 'bare', capabilities: { beep: { name: 'beep', osc: 'BEL', fallback: '' } } };")]);
+    expect(out).toContain('E_PLUGIN_SCHEMA: plugin "bare": capabilities.beep: when must say when the terminal understands this\n  fix: add `when: { tty: true }`');
+    expect(out).toContain('E_PLUGIN_SCHEMA: plugin "bare": capabilities.beep: encode is required\n  fix: add `encode: "…"`');
+  });
+
   it('rethrows an error that is not a plugin refusal, rather than dressing it as one', async () => {
     const missing = join(dir, 'does-not-exist.mjs');
     let out = '';

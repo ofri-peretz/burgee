@@ -62,10 +62,19 @@ export class PluginError extends Error {
     readonly code: PluginErrorCode,
     message: string,
     readonly fix: string,
+    /** Each problem apart, with its own code and fix, where one refusal reports several. */
+    readonly problems?: readonly Refusal[],
   ) {
     super(message);
     this.name = 'PluginError';
   }
+}
+
+/** One thing wrong with a plugin, in the family's vocabulary: the code, the line, the fix. */
+export interface Refusal {
+  code: PluginErrorCode;
+  message: string;
+  fix: string;
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -98,41 +107,55 @@ function validateCapabilities(section: unknown, name: string): void {
   if (!isRecord(section)) {
     throw new PluginError('E_PLUGIN_SCHEMA', `plugin "${name}": capabilities must be an object of capabilities by name`, 'key each capability by its own `name`');
   }
+  /**
+   * Every problem in every capability, and then one refusal: until 2026-10-12 this threw on the
+   * first, so an author — an agent above all — paid one `check` round per mistake.
+   */
+  const problems = Object.entries(section).flatMap(([key, candidate]) => problemsOf(key, candidate, name));
+  const [first] = problems;
+  if (first === undefined) return;
+  if (problems.length === 1) throw new PluginError(first.code, first.message, first.fix);
+  throw new PluginError(first.code, problems.map((p) => p.message).join('; '), problems.map((p, i) => `${String(i + 1)}. ${p.fix}`).join(' '), problems);
+}
 
-  for (const [key, candidate] of Object.entries(section)) {
-    const at = `plugin "${name}": capabilities.${key}`;
-    if (!isRecord(candidate)) throw new PluginError('E_PLUGIN_SCHEMA', `${at} is not an object`, 'a capability is `{ name, osc, when, encode, fallback }` — five fields of plain data');
+/** A required field an author left out, written the way the schema wants it — what `fix` shows instead of "compare against the schema". */
+const MISSING: Record<string, string | undefined> = {
+  name: 'add `name`, the same as its key',
+  osc: "add `osc: 'BEL'`, or the OSC number, e.g. `osc: 8`",
+  when: 'add `when: { tty: true }`; `{}` is always',
+  encode: 'add `encode: "…"`, the bytes as a template; `"\\u0007"` is the bell',
+};
 
-    /**
-     * The key is what a reader edits and the `name` is what the registry files it under, so
-     * a mismatch registers the capability somewhere nobody is looking. Refused rather than
-     * reconciled: guessing which of the two the author meant is how a silent wrong answer
-     * gets built. It is the one rule here that is about the *document* rather than the
-     * capability, which is why it is the one rule written out in this file.
-     */
-    if (candidate['name'] !== key) {
-      throw new PluginError(
-        'E_PLUGIN_SCHEMA',
-        `${at} is filed under "${key}" but names itself ${JSON.stringify(candidate['name'])}`,
-        `key it by its own name — \`"${String(candidate['name'])}": { … }\` — or rename the capability to "${key}"`,
-      );
-    }
+function problemsOf(key: string, candidate: unknown, name: string): Refusal[] {
+  const at = `plugin "${name}": capabilities.${key}`;
+  if (!isRecord(candidate)) return [{ code: 'E_PLUGIN_SCHEMA', message: `${at} is not an object`, fix: 'a capability is `{ name, osc, when, encode, fallback }` — five fields of plain data' }];
 
-    /**
-     * Everything else comes from `capability.ts`, which reads the published schema — the
-     * presence of the five fields and, since the schema walk landed, their declared types,
-     * `oneOf`, `minLength` and `additionalProperties: false`. A second copy of the rules here
-     * is the drift `plugin-schema-lock.test.ts` exists to forbid, one level up; until this
-     * call replaced it, `fallback`'s absence was hand-checked in both files and everything
-     * else in neither.
-     *
-     * The code travels with the line, so `E_NO_STATIC_PROJECTION` still means "no static
-     * projection" here and `FIX` is what to do about each — one message per code, because a
-     * code that needs a different fix in a different file is not one code (R8).
-     */
-    const [first] = capabilityProblems(candidate, at);
-    if (first !== undefined) throw new PluginError(first.code, first.line, FIX[first.code]);
+  /**
+   * The key is what a reader edits and the `name` is what the registry files it under, so
+   * a mismatch registers the capability somewhere nobody is looking. Refused rather than
+   * reconciled: guessing which of the two the author meant is how a silent wrong answer
+   * gets built. It is the one rule here that is about the *document* rather than the
+   * capability, which is why it is the one rule written out in this file.
+   */
+  if (candidate['name'] !== undefined && candidate['name'] !== key) {
+    const named = String(candidate['name']);
+    return [{ code: 'E_PLUGIN_SCHEMA', message: `${at} is filed under "${key}" but names itself ${JSON.stringify(candidate['name'])}`, fix: `key it by its own name — \`"${named}": { … }\` — or rename the capability to "${key}"` }];
   }
+
+  /**
+   * Everything else comes from `capability.ts`, which reads the published schema — the
+   * presence of the five fields and, since the schema walk landed, their declared types,
+   * `oneOf`, `minLength` and `additionalProperties: false`. A second copy of the rules here
+   * is the drift `plugin-schema-lock.test.ts` exists to forbid, one level up; until this
+   * call replaced it, `fallback`'s absence was hand-checked in both files and everything
+   * else in neither.
+   *
+   * The code travels with the line, so `E_NO_STATIC_PROJECTION` still means "no static
+   * projection" here and `FIX` is what to do about each — one message per code, because a
+   * code that needs a different fix in a different file is not one code (R8). A missing
+   * field is the one place the fix is more specific than its code: it shows the field.
+   */
+  return capabilityProblems(candidate, at).map((p) => ({ code: p.code, message: p.line, fix: (p.missing === undefined ? undefined : MISSING[p.missing]) ?? FIX[p.code] }));
 }
 
 /** What to do about each refusal, by code. The family's `fix` half of the vocabulary. */

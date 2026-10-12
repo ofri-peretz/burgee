@@ -288,17 +288,21 @@ const CASE_TIMEOUT_MS = 180_000;
 /** 16 MiB of transcript. */
 const OUTPUT_BUFFER = 16777216;
 
-interface CaseResult extends CaseUsage {
+export interface CaseResult extends CaseUsage {
   id: string;
   status: 'pass' | 'fail' | 'error';
   failed: string[];
+  /** Every tool call the agent made, in `evals/results/<date>.json`; see `transcriptOf`. */
+  calls: ToolCall[];
 }
 
 const NO_USAGE: CaseUsage = { turns: null, tokens: null, model: null };
 
 /**
- * `--output-format json` so the run reports its turns and tokens for the history line.
- * The grade reads the document's `result`, which is exactly what text mode prints.
+ * `--output-format stream-json --verbose` so the run reports its turns and tokens for the
+ * history line — the stream's last event is the document `--output-format json` prints — and
+ * every tool call before it, for `transcriptOf`. The grade reads the document's `result`,
+ * which is exactly what text mode prints.
  */
 /**
  * D-143: "one turn" is one user prompt, not one model step. The authoring prompt asks for four
@@ -311,7 +315,7 @@ const NO_USAGE: CaseUsage = { turns: null, tokens: null, model: null };
 export const DEFAULT_MAX_TURNS = 12;
 
 export function claudeArgs(c: EvalCase, env: NodeJS.ProcessEnv = process.env): string[] {
-  const args = ['-p', c.prompt, '--allowedTools', c.allowedTools ?? 'Read,Grep,Glob', '--max-turns', env.EVAL_MAX_TURNS ?? String(DEFAULT_MAX_TURNS), '--output-format', 'json', ...ISOLATION];
+  const args = ['-p', c.prompt, '--allowedTools', c.allowedTools ?? 'Read,Grep,Glob', '--max-turns', env.EVAL_MAX_TURNS ?? String(DEFAULT_MAX_TURNS), '--output-format', 'stream-json', '--verbose', ...ISOLATION];
   if (env.EVAL_MODEL) args.push('--model', env.EVAL_MODEL);
   return args;
 }
@@ -335,13 +339,115 @@ export function whyFailed(stdout: string, stderr = ''): string {
   }
 }
 
-function runCase(c: EvalCase): CaseResult {
+/** One tool call an agent made: in which turn, what it called, on what, and how that came back. */
+export interface ToolCall {
+  turn: number;
+  tool: string;
+  input: string;
+  /** The start of what the tool returned. */
+  output: string;
+  error: boolean;
+}
+
+/** How much of a tool call's input and output a transcript keeps. */
+const CALL_CHARS = 400;
+
+const clip = (text: string): string => {
+  const flat = text.replaceAll(/\s+/gu, ' ').trim();
+  return flat.length > CALL_CHARS ? `${flat.slice(0, CALL_CHARS)}…` : flat;
+};
+
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/** A tool's input as one line: the command a Bash call ran, the file a Read or a Write touched. */
+function inputOf(input: unknown): string {
+  if (!isRecord(input)) return clip(JSON.stringify(input) ?? '');
+  if (typeof input.command === 'string') return clip(input.command);
+  if (typeof input.file_path === 'string') return typeof input.content === 'string' ? `${input.file_path} (${input.content.length} chars)` : input.file_path;
+  return clip(JSON.stringify(input));
+}
+
+function textOf(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) return content.map((part) => (isRecord(part) && typeof part.text === 'string' ? part.text : '')).join('\n');
+  return '';
+}
+
+/** What `transcriptOf` builds as it reads: the calls so far, by id, and the turns seen. */
+interface Transcript {
+  calls: ToolCall[];
+  byId: Map<string, ToolCall>;
+  turns: Set<unknown>;
+}
+
+/** The content blocks of a stream event's message, or none. */
+function blocksOf(event: Record<string, unknown>, type: string): Record<string, unknown>[] {
+  const message = isRecord(event.message) ? event.message : {};
+  return Array.isArray(message.content) ? (message.content as unknown[]).filter(isRecord).filter((block) => block.type === type) : [];
+}
+
+/** An assistant message is a model turn; each `tool_use` in it is a call. */
+function readAssistant(event: Record<string, unknown>, t: Transcript): void {
+  const message = isRecord(event.message) ? event.message : {};
+  t.turns.add(message.id ?? t.turns.size);
+  // eslint-disable-next-line secure-coding/no-unchecked-loop-condition -- one message's content blocks, from a transcript OUTPUT_BUFFER bounds
+  for (const block of blocksOf(event, 'tool_use')) {
+    const call: ToolCall = { turn: t.turns.size, tool: String(block.name), input: inputOf(block.input), output: '', error: false };
+    t.calls.push(call);
+    t.byId.set(String(block.id), call);
+  }
+}
+
+/** A user message carries the tools' answers, each to the call it names. */
+function readResults(event: Record<string, unknown>, t: Transcript): void {
+  // eslint-disable-next-line secure-coding/no-unchecked-loop-condition -- one message's content blocks, from a transcript OUTPUT_BUFFER bounds
+  for (const block of blocksOf(event, 'tool_result')) {
+    const call = t.byId.get(String(block.tool_use_id));
+    if (call) Object.assign(call, { output: clip(textOf(block.content)), error: block.is_error === true });
+  }
+}
+
+/** One line of the stream as an event, or `undefined` for a line that is not one. */
+function eventOf(line: string): Record<string, unknown> | undefined {
+  try {
+    const parsed: unknown = JSON.parse(line);
+    return isRecord(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * A `stream-json` run split into its result document and its tool calls, numbered by the model
+ * turn that made them. Until 2026-10-12 a case kept only its last 240 characters, so a run that
+ * stopped at the turn cap (#1039, #1078) left nothing to say where its turns went. Output that is
+ * not a stream comes back as the result, untouched, so the grade reads what it always read.
+ */
+export function transcriptOf(stdout: string): { result: string; calls: ToolCall[] } {
+  const t: Transcript = { calls: [], byId: new Map(), turns: new Set() };
+  let result = stdout;
+  for (const line of stdout.split('\n')) {
+    const event = eventOf(line);
+    if (event?.type === 'result') result = line;
+    if (event?.type === 'assistant') readAssistant(event, t);
+    if (event?.type === 'user') readResults(event, t);
+  }
+  return { result, calls: t.calls };
+}
+
+export function runCase(c: EvalCase): CaseResult {
   const args = claudeArgs(c);
   const r = spawnSync('claude', args, { cwd: REPO_ROOT, encoding: 'utf8', env: evalEnv(process.env), timeout: CASE_TIMEOUT_MS, maxBuffer: OUTPUT_BUFFER });
-  if (r.error || typeof r.stdout !== 'string') return { id: c.id, status: 'error', failed: [String(r.error ?? 'no output')], ...NO_USAGE };
-  const { text, usage } = parseClaudeJson(r.stdout);
+  if (r.error || typeof r.stdout !== 'string') return { id: c.id, status: 'error', failed: [String(r.error ?? 'no output')], ...NO_USAGE, calls: [] };
+  const { result, calls } = transcriptOf(r.stdout);
+  const { text, usage } = parseClaudeJson(result);
   const { ok, failed } = grade(text, c.expect);
-  return { id: c.id, status: ok ? 'pass' : 'fail', failed: ok ? failed : [...failed, whyFailed(r.stdout, r.stderr)], ...usage };
+  return { id: c.id, status: ok ? 'pass' : 'fail', failed: ok ? failed : [...failed, whyFailed(result, r.stderr)], ...usage, calls };
+}
+
+/** A failed case's transcript in the log, one line per call — the CI log is all a pull request keeps. */
+export function callLines(calls: readonly ToolCall[]): string[] {
+  return calls.map((c) => `turn ${c.turn} ${c.tool}${c.error ? ' ✗' : ''}: ${c.input}${c.output === '' ? '' : ` → ${c.output}`}`);
 }
 
 function runTaskLayer(cases: EvalCase[], credential: ReturnType<typeof billingFor>): CaseResult[] {
@@ -352,6 +458,7 @@ function runTaskLayer(cases: EvalCase[], credential: ReturnType<typeof billingFo
   for (const r of results) {
     console.warn(`  ${r.status === 'pass' ? '✓' : '✗'} ${r.id}${r.turns === null ? '' : ` — ${r.turns} turn(s)`}`);
     for (const f of r.failed) console.warn(`      ${f}`);
+    if (r.status !== 'pass') for (const line of callLines(r.calls)) console.warn(`        ${line}`);
   }
   const passed = results.filter((r) => r.status === 'pass').length;
   const stamp = new Date().toISOString().slice(0, 'YYYY-MM-DD'.length);

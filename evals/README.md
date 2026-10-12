@@ -72,4 +72,10 @@ npm run evals:config   # layer 1 only — fast, deterministic, no key
 npm run evals          # both layers; layer 2 skips without a key
 ```
 
+Each case runs with `--output-format stream-json`, so every tool call the agent made is kept:
+`evals/results/<date>.json` has them under each case's `calls` (turn, tool, input, the start of
+the output, and whether it was refused), and a case that fails prints them in the log, one line
+per call. Until 2026-10-12 a case kept its last 240 characters and nothing else, so a run that
+stopped at the turn cap could not say where its turns went.
+
 Unit tests for the checkers live in `scripts/run-evals.test.ts` and run under `npm test`.

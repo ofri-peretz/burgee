@@ -10,7 +10,7 @@ import { join } from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
-import { checkPlugin } from './check.js';
+import { type CheckRefusal, checkPlugin } from './check.js';
 import { ExitCode } from './exit-code.js';
 
 const dir = mkdtempSync(join(tmpdir(), 'burgee-check-'));
@@ -150,6 +150,43 @@ describe('burgee check reads a locale pack (R4)', () => {
   ])('refuses %s, under E_PLUGIN_SCHEMA with a fix', async (_, locales, message) => {
     const report = await checkPlugin(pack(locales));
     expect(report).toMatchObject({ refused: { code: 'E_PLUGIN_SCHEMA', message, fix: expect.any(String) as string }, exitCode: ExitCode.RUNTIME });
+  });
+
+  it('refuses every problem in a pack at once, each with its own fix, so one repair clears them all', async () => {
+    const file = pack({
+      fr: { 'usage.nope': 'x', 'usage.unknownOption': 'option inconnue {flag}', 'usage.stdinOnce': { one: '{count} fichier', other: '{count} fichiers' } },
+      de: { 'usage.stdinOnce': { one: 'a', other: 'b', few: 'c' } },
+    });
+    const report = await checkPlugin(file);
+    expect(report).toMatchObject({ refused: { code: 'E_PLUGIN_SCHEMA' }, exitCode: ExitCode.RUNTIME });
+    const { refused } = report as CheckRefusal;
+    const problems = refused.problems ?? [];
+    expect(problems.map((p) => p.message)).toEqual([
+      'plugin "pack": locales.fr["usage.nope"] is not a message burgee has',
+      'plugin "pack": locales.fr["usage.unknownOption"] has {flag}, which the English "unknown option {option}" does not',
+      'plugin "pack": locales.fr["usage.stdinOnce"] is missing the plural form many',
+      'plugin "pack": locales.de["usage.stdinOnce"].few is not a plural form of de',
+    ]);
+    expect(refused.message).toBe(`plugin "pack": 4 problems — ${problems.map((p) => p.message.replace('plugin "pack": ', '')).join('; ')}`);
+    expect(refused.fix).toBe(problems.map((p, i) => `${String(i + 1)}. ${p.fix}`).join(' '));
+    for (const p of problems) expect(p.fix).not.toBe('');
+  });
+
+  it('says which forms a locale selects, with a count for each, when a plural message lacks one', async () => {
+    const report = await checkPlugin(pack({ fr: { 'usage.stdinOnce': { one: '{count} fichier', other: '{count} fichiers' } } }));
+    expect(report).toMatchObject({
+      refused: {
+        message: 'plugin "pack": locales.fr["usage.stdinOnce"] is missing the plural form many',
+        fix: 'add "many" beside the others: Intl.PluralRules selects one (for 0), many (for 1000000), other (for 2) for fr — write { "one": "…", "many": "…", "other": "…" }',
+      },
+    });
+    expect((report as CheckRefusal).refused.problems).toHaveLength(1);
+  });
+
+  it('names the forms to keep when a plural message has one its locale does not select', async () => {
+    expect(await checkPlugin(pack({ de: { 'usage.stdinOnce': { one: 'a', other: 'b', few: 'c' } } }))).toMatchObject({
+      refused: { fix: 'drop "few": Intl.PluralRules selects one (for 1), other (for 0) for de' },
+    });
   });
 
   it('renders every form of a locale with many, each with a count that selects it', async () => {

@@ -87,6 +87,41 @@ the file tomorrow would be. Until 0.3 this was presence-checking only, and `when
 object'` was therefore accepted — a string destructures to four empty clauses, so the support
 guess said *yes* and the sequence went into the pipe. That is now a refusal.
 
+## Writing a plugin
+
+A plugin is one module whose default export is a plain object: a `name`, the family's
+`contract: 1`, and its capabilities under `capabilities`, each filed under its own `name`.
+This one sets the window title (OSC 2, ended by BEL, `\u0007`) and prints nothing where it
+cannot:
+
+```js
+// title-plugin.mjs
+export default {
+  name: 'titler',
+  contract: 1,
+  capabilities: {
+    title: {
+      name: 'title',
+      osc: 2, // the OSC code, or 'BEL' for the bell and for protocols that are not OSC
+      when: { tty: true }, // every clause must hold; {} is always
+      encode: '\u001B]2;{text}\u0007', // the bytes, as a template
+      fallback: '', // what prints where it cannot; '' is an answer, leaving it out is not
+    },
+  },
+};
+```
+
+`paratext check` loads it, validates it against the schema, and prints both projections of each
+capability, then `ok` — or, exit 1, every problem it found at once, each with its code and a
+`fix:` to apply:
+
+```console
+$ npx paratext check title-plugin.mjs
+titler — 1 capabilities
+  title  osc 2  encode "\u001b]2;{text}\u0007"  fallback ""
+titler: ok
+```
+
 ## Migrating
 
 One import per incumbent:
@@ -163,7 +198,7 @@ Graded by the incumbent's own test suite:
 | `term-img` | 18 / 18 |
 | `terminal-link` | 8 / 8 |
 
-Weight, installed and tree-inclusive: **116,698 bytes** against **2,235,987** for the incumbents it replaces — a ratio of **0.0522**.
+Weight, installed and tree-inclusive: **119,333 bytes** against **2,235,987** for the incumbents it replaces — a ratio of **0.0534**.
 
 ## For agents
 
