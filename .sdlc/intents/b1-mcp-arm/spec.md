@@ -94,8 +94,54 @@ what `migration-drivers.md` §6 argues and nobody has measured. Everything else 
 
 | R | Status | Where | Check |
 | :-- | :-- | :-- | :-- |
-| R1 | Not built | `benchmarks/tasks/*.json`, `tasks/README.md` | `benchmarks/agent.test.ts` |
-| R2 | Not built | `benchmarks/axes/agent.ts` | `benchmarks/agent.test.ts` |
-| R3 | Not built | `benchmarks/axes/agent.ts`, `benchmarks/claims.ts` | `benchmarks/agent.test.ts` |
-| R4 | Not built | `.github/workflows/bench.yml` | `benchmarks/ci-axes.test.ts` |
-| R5 | Not built | `what-an-agent-sees.mdx`, `cli-mcp/intent.md` | `scripts/agent-page-lock.test.ts` |
+| R1 | Built | `benchmarks/tasks/*.json`, `tasks/README.md`, `axes/agent.ts` (`tasksFor`) | `benchmarks/agent.test.ts` (R1) |
+| R2 | Built, one part pending `mcp-current` R6 | `benchmarks/axes/agent.ts` (`VARIANTS`, `variantsFor`, `mcpConfig`, `toolArgs`) | `benchmarks/agent.test.ts` (R2) |
+| R3 | Built; the verdict waits on four paid readings | `benchmarks/axes/agent.ts` (`armRecords`, `priorReadings`), `benchmarks/claims.ts` | `benchmarks/agent.test.ts` (R3) |
+| R4 | Built | `.github/workflows/bench.yml` | `benchmarks/ci-axes.test.ts` (R4), `scripts/b1-lands-lock.test.ts` |
+| R5 | Not built: needs four paid weekly readings | `what-an-agent-sees.mdx`, `cli-mcp/intent.md` | `scripts/agent-page-lock.test.ts` |
+
+Built 2026-10-12 without a paid run. Every check above went red on the unbuilt code first and was
+proved against a stub `claude` and a stub MCP server, the same offline path B1's own harness uses.
+
+- **R1.** Three of the five tasks map: `diagnose-provenance`, `discover-subcommand` and
+  `structured-output`. `recover-failure` asks for an exit status and a command line and checks for
+  the flag spelling `--code`; `non-tty-required` tests a terminal behaviour. Both are `["cli"]`, and
+  `tasks/README.md` says why beside each. The two mapped tasks whose exemplar named a shell command
+  have a surface-neutral one; no prompt or check changed.
+- **R2.** The arm runs only with `BENCH_AGENT_MCP=1`, so a missing variable spends nothing. Its
+  config is asked of the demo first (`--mcp --print-config`). `mcp-current` R6 is not built, so today
+  that prints nothing and the config is derived from the shim the CLI arms run, `demo --mcp`. A dry
+  check started the real demo's server from that config and completed `initialize`, `tools/list` and
+  a `config_get` call. When R6 lands the arm takes the printed config with no change here.
+- **R3.** Per-reading medians, ranges, success rate and run count, and the `burgee-mcp ÷ burgee`
+  tokens and turns ratios over the mapped tasks only. The verdict record is the median of the landed
+  readings' ratios. It appears from the fourth reading, so `cli-vs-mcp-tokens` reads `unmeasured`
+  until then. With an even count the median is the midpoint of the middle two: the suite's
+  nearest-rank rule would always take the lower value, and here the lower value always favours MCP.
+- **R4.** `BENCH_AGENT_MCP` is `1` on `schedule` and on a `bench:agent` PR only, and only once
+  the owner has set `B1_MCP_ARM=approved` (see Cost). A push to `main`, a
+  manual dispatch and an unlabelled PR run the two existing variants. The lock evaluates the
+  expression for every event, and widening it to `push` turns it red (proved). The weekly reading
+  now lands too, as `<date>-<sha>-weekly-ci.json`, so it never overwrites a push reading of the same
+  commit.
+
+## Cost — for the owner's approval before the first paid reading
+
+**Nothing paid has run.** No agent session ran and the B1 workflow was not triggered.
+
+- **Per weekly reading, the arm adds 15 paid agent runs** (3 mapped tasks × 5 runs), on top of the
+  50 that the scheduled B1 job already spends: 65 runs a week instead of 50, +30%. That is fewer
+  than the 25 quoted in the intent, because two tasks are excluded by name.
+- Each run is bounded the same way as the CLI arms: the task's `maxTurns` (12 or 15), a 300 s
+  timeout, and the pinned `claude` on `claude-sonnet-4-5`. The run's cost in money or tokens is
+  *unmeasured*. The first reading records it per run, as tokens.
+- A PR labelled `bench:agent` spends the same 15 runs on top of its 50.
+- Wall time: B1's job took 25–31 minutes on recent pushes. The extra 30% fits inside its
+  60-minute `timeout-minutes`.
+- R5 and `cli-mcp`'s fourth criterion need **four weekly readings: 60 extra paid runs over four
+  weeks.**
+- **The owner must approve that spend, and merging the harness does not approve it.** The arm
+  runs only when the repository variable `B1_MCP_ARM` reads `approved` (Settings → Secrets and
+  variables → Actions → Variables). Until it is set, every event runs the two existing variants and
+  spends exactly what it spent before. Setting it starts the arm at the next scheduled run (Tuesday
+  05:40 UTC, `40 5 * * 2`). Deleting it stops the arm.
