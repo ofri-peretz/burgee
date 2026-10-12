@@ -1788,9 +1788,10 @@ const registryTimes: PublishTimes = async (name) => {
   }
 };
 
+/** Newest first within one major: `pinsUnder` only ever compares versions of the graded major. */
 const byVersion = (a: string, b: string): number => {
   const [x, y] = [a, b].map((v) => v.split('.').map(Number)) as [number[], number[]];
-  return (x[0] as number) - (y[0] as number) || (x[1] as number) - (y[1] as number) || (x[2] as number) - (y[2] as number);
+  return (x[1] as number) - (y[1] as number) || (x[2] as number) - (y[2] as number);
 };
 
 /**
