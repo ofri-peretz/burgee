@@ -183,15 +183,14 @@ export interface Localiser {
  */
 export function localiserOf(plugins: readonly Plugin[], locale: string | undefined): Localiser | undefined {
   if (locale === undefined) return undefined;
-  const merged = new Map<string, Message>();
   // Least specific first, so `de-DE`'s own message overrides `de`'s, and a later plugin a former one.
-  for (const tag of candidatesOf(locale).toReversed()) {
-    for (const plugin of plugins as readonly (Plugin & { locales?: Locales })[]) {
-      const messages = plugin.locales?.[tag];
-      if (messages === undefined) continue;
-      checkLocales(plugin);
-      for (const [id, message] of Object.entries(messages)) merged.set(id, message as Message);
-    }
+  const tags = candidatesOf(locale).toReversed();
+  // Each pack that speaks the locale is checked once, before any of its messages is used.
+  const packs = (plugins as readonly (Plugin & { locales?: Locales })[]).filter((plugin) => tags.some((tag) => plugin.locales?.[tag]));
+  for (const plugin of packs) checkLocales(plugin);
+  const merged = new Map<string, Message>();
+  for (const tag of tags) {
+    for (const plugin of packs) for (const [id, message] of Object.entries(plugin.locales?.[tag] ?? {})) merged.set(id, message as Message);
   }
   if (merged.size === 0) return undefined;
   const say = (english: string, prefix = ''): string => {
