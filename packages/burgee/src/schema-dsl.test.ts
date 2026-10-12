@@ -108,7 +108,7 @@ describe('a flag never consumes a value (S7, yargs #1532, #933)', () => {
   it('leaves the next word as a positional and rejects --force=value', async () => {
     // `deploy` declares no argument, so the word `--force` did not take is refused as one (parse-refusals R1).
     const r = await runBurgee(program, { argv: ['deploy', '--json', '--env', 'prod', '--force', 'extra'] });
-    expect(r.json).toMatchObject({ error: { message: 'too many arguments: expected 0, got 1 ("extra")' } });
+    expect(r.json).toMatchObject({ error: { message: 'too many arguments: expected 0, got 1 ("extra")', fix: 'app deploy --json --env prod --force' } });
     expect(await data(['--env', 'prod', '--force'])).toMatchObject({ force: true });
     expect((await failure(['--env', 'prod', '--force=yes'])).code).toBe(2);
   });

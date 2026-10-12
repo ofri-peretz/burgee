@@ -420,7 +420,10 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // Measured 24,131.
   // 24,282 on 2026-09-24 for U5 merged with N15 (#586) and the rest of main: 30,178 -> 24,202,
   // the same 5,976 B the four moves took before the merge. Measured 24,202.
-  burgee: 24_282,
+  // 24,290 on 2026-10-12 for parse-refusals R1–R4 (#1064), by the owner's ruling there
+  // (D-20261012-core-bundle-parse-refusals): the gate that loads the refusal chunk, inline, and
+  // R4's two arguments to it. Measured 24,285 on top of main's 24,277; the next 10 B up, no further.
+  burgee: 24_290,
   // 29,650 on 2026-09-23: D-140 and #521 on top of V8 (#481). Measured 29,634.
   // 29,200 on 2026-09-23 for **56 bytes**, the MCP stdout capture (#521): measured 29,172 on
   // top of D-122's 29,116. The capture lives in the lazily loaded MCP chunk; what reaches the

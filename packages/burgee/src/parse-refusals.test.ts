@@ -99,6 +99,29 @@ describe('R3 — a single-value option given twice with different values is a us
   });
 });
 
+/** The `fix` of a refused line under `--json`, or `undefined` when it carries none. */
+const fixOf = async (...argv: string[]): Promise<unknown> => (JSON.parse((await runCommand(demo, [...argv, '--json'])).stdout) as { error: { fix?: string } }).error.fix;
+
+describe('R4 — the fix line is omitted rather than guessed', () => {
+  it('is the line as typed, less what was dropped', async () => {
+    expect(await fixOf('greet', 'ada', '-lx', '--level', 'y')).toBe('demo greet ada --level y --json');
+  });
+
+  it('leaves out only what was refused: a same-value repeat stays, as accepted (review of #1064)', async () => {
+    expect(await fixOf('greet', 'ada', 'extra', '--level', 'info', '--level', 'info')).toBe('demo greet ada --level info --level info --json');
+    expect(await fixOf('greet', 'ada', '--level', 'a', '--level', 'b', '--level', 'a')).toBe('demo greet ada --level a --level a --json');
+  });
+
+  it('is absent when the parser read one word as two flags, `-vl x` or `-vlx`', async () => {
+    expect(await fixOf('greet', 'ada', '-vl', 'x', '--level', 'y')).toBeUndefined();
+    expect(await fixOf('greet', 'ada', '-vlx', '--level', 'y')).toBeUndefined();
+  });
+
+  it('is absent when a global flag left the words the parser read', async () => {
+    expect(await fixOf('greet', 'ada', 'extra', '--quiet')).toBeUndefined();
+  });
+});
+
 describe('both refusals are catalog lines a locale pack translates (localised-human-surfaces R1)', () => {
   it('prints the pack’s words for each, and the envelope stays English', async () => {
     const translated = defineProgram({ name: 'demo', commands: [defineCommand({ name: 'greet', effects: 'read_only', arguments: [{ name: 'who' }], options: { level: { type: 'string' } }, run: () => 'hi' })] });

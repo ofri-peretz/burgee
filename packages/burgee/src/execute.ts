@@ -527,7 +527,7 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   // positionals, `--` tail and value keys together: parseArgs keeps one value per option it saw and is
   // given no defaults, so an option named twice is one token more than its key (a `--` is one more
   // too, and loads the chunk for nothing). Inline, not a helper: B4's bundle ceiling had no room for one.
-  if (positionals.length !== (node.arguments?.length ?? 0) || parsed.tokens.length > positionals.length + passthrough.length + Object.keys(parsed.values).length) (await import('./parse-refusals.js')).refuse(node, positionals, parsed);
+  if (positionals.length !== (node.arguments?.length ?? 0) || parsed.tokens.length > positionals.length + passthrough.length + Object.keys(parsed.values).length) (await import('./parse-refusals.js')).refuse(node, positionals, parsed, rest, typed);
   // M5, from its own chunk, loaded only for a deprecated command; `--quiet` silences it (R2).
   if (node.deprecated) (await import('./deprecation.js')).warnDeprecated(node, io, global?.quiet);
   await manifest.fire('preRun', name, values);
