@@ -17,7 +17,7 @@ import { type ActionRequiredSpec, type CommandNode, type Manifest } from './mani
 import { kebab } from './names.js';
 import { PluginError } from './plugin.js';
 // The failure path's own vocabulary, in this chunk with it: a run that succeeds loads neither (K6).
-import { Again, shellWord, singleDashHint, unknownOption } from './unknown-option.js';
+import { Again, singleDashHint, unknownOption } from './unknown-option.js';
 import { commandUsage, type Usage, usageText } from './usage.js';
 
 /**
@@ -101,21 +101,13 @@ function messageOf(cause: unknown): string {
   return typeof said === 'string' ? said : String(cause);
 }
 
-/**
- * `hint`, `fix` and `usage` off an error that carries them, and nothing when it does not (E3).
- *
- * parse-refusals R4 — a refusal of dropped input names the words to leave out instead of a line,
- * as `omit`: their places counted from the end of `line`, the whole line as typed. The chunk that
- * threw saw only the command's own words, which are the line's tail; the program and the command
- * in front are here, so the `fix` is that line without them, quoted as every fix line is.
- */
-function carried(cause: unknown, line: readonly string[] = []): { hint?: string; fix?: string; usage?: Usage } {
+/** `hint`, `fix` and `usage` off an error that carries them, and nothing when it does not (E3). */
+function carried(cause: unknown): { hint?: string; fix?: string; usage?: Usage } {
   // Never nullish here: each caller has already matched `cause` by its class or its `code`.
-  const { hint, fix, usage, omit } = cause as { hint?: unknown; fix?: unknown; usage?: unknown; omit?: unknown };
+  const { hint, fix, usage } = cause as { hint?: unknown; fix?: unknown; usage?: unknown };
   return {
     ...(typeof hint === 'string' ? { hint } : {}),
     ...(typeof fix === 'string' ? { fix } : {}),
-    ...(Array.isArray(omit) ? { fix: line.filter((_, i) => !omit.includes(line.length - i)).map(shellWord).join(' ') } : {}),
     ...(typeof (usage as Usage | null | undefined)?.command === 'string' ? { usage: usage as Usage } : {}),
   };
 }
@@ -149,7 +141,7 @@ async function classify(cause: unknown, argv: string[], node: CommandNode | unde
   const message = messageOf(cause);
   if (action !== undefined) return { code: ExitCode.CANCELLED, message, action, ...(action.hint === undefined ? {} : { hint: action.hint }) };
   const named = CLASSIFIED.find(([Class]) => cause instanceof Class);
-  if (named !== undefined) return { code: named[1], message, ...carried(cause, argv) };
+  if (named !== undefined) return { code: named[1], message, ...carried(cause) };
   // E7 — an author's own class, from `defineError`: its declared code, read off
   // `Symbol.for('burgee.exitCode')` on the instance's class (or a parent — statics inherit), and
   // rendered like the built-in ones. By symbol, not by import: the engine never loads

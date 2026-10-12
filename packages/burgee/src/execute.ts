@@ -523,7 +523,7 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   // A missing argument, and parse-refusals R1/R3: a surplus positional and a flag given twice were
   // dropped, and the run reported success with the wrong input. All three are one chunk (M2), loaded
   // only when the count of positionals is not the declared one or an option was named twice.
-  if (mayRefuse(node, positionals, parsed)) (await import('./parse-refusals.js')).refuseDropped(node, positionals, parsed.tokens, rest, typed);
+  if (mayRefuse(node, positionals, parsed)) (await import('./parse-refusals.js')).refuseDropped(node, positionals, parsed.tokens);
   // M5, from its own chunk, loaded only for a deprecated command; `--quiet` silences it (R2).
   if (node.deprecated) (await import('./deprecation.js')).warnDeprecated(node, io, global?.quiet);
   await manifest.fire('preRun', name, values);
