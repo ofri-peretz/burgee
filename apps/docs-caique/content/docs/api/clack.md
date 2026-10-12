@@ -122,7 +122,7 @@ const autocompleteMultiselect: <Value>(opts: AutocompleteMultiSelectOptions<Valu
 
 ### cancel
 
-Closes a session that was cancelled: the end of the guide, and the message in red.
+Closes a session that was cancelled: the end of the guide, and the message in red. Not decoration, so never quiet.
 
 ```ts
 const cancel: (message?: string, opts?: CommonOptions) => void;
@@ -189,9 +189,12 @@ const isCancel: (value: unknown) => value is symbol;
 Whether `CI` is the string `true`, which is the test clack makes. This and the glyph table
 above stay clack's rules rather than roundel's: `interactive()` asks whether a person can
 answer, which clack never asks, and clack's table counts `CI` where roundel's `unicode()` does not.
+A caller's runtime is read when one is passed (`caique-quiet-seam` R1), the process's otherwise.
 
 ```ts
-const isCI: () => boolean;
+const isCI: (runtime?: {
+    env: PolicyRuntime["env"];
+}) => boolean;
 ```
 
 ### isTTY
@@ -206,17 +209,18 @@ const isTTY: (output: {
 
 ### log
 
-clack's `log`: a message on the guide, with a symbol for its kind.
+clack's `log`: a message on the guide, with a symbol for its kind. Every kind but `error` is decoration.
 
 ```ts
 const log: {
-    message: typeof message;
+    message: (text?: string | string[], opts?: LogMessageOptions) => void;
     info: (text: string, opts?: LogMessageOptions) => void;
     success: (text: string, opts?: LogMessageOptions) => void;
     step: (text: string, opts?: LogMessageOptions) => void;
     warn: (text: string, opts?: LogMessageOptions) => void;
     /** An alias for `log.warn()`. */
     warning: (text: string, opts?: LogMessageOptions) => void;
+    /** A failure: written under a quiet runtime too, because `--quiet` never hides one. */
     error: (text: string, opts?: LogMessageOptions) => void;
 };
 ```
@@ -583,6 +587,13 @@ interface CommonOptions {
     output?: NodeJS.WritableStream & SizedOutput;
     signal?: AbortSignal;
     withGuide?: boolean;
+    /**
+     * The caller's runtime — burgee's `ctx.runtime` — and the one way `--quiet` reaches this port
+     * (`caique-quiet-seam` R1). With `quiet`, the writers that decorate draw nothing; prompts
+     * ignore it. Its `env` is the one `CI` is read from. It carries no streams, so `input` and
+     * `output` still default to the process's. Never read from the environment: a caller passes it.
+     */
+    runtime?: PolicyRuntime;
 }
 ```
 

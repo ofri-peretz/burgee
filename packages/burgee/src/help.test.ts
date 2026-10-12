@@ -4,6 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { runCommand } from './execute.js';
 import { globalRows } from './globals.js';
 import { renderHelp } from './help-entry.js';
 import { defineCommand, defineProgram } from './index.js';
@@ -375,5 +376,81 @@ describe('help renders as Markdown, from the same sections (agent-skill R1)', ()
     expect(await renderHelp(bare, ping, { format: 'markdown' })).toBe(
       '# app ping\n\n## Usage\n\n```sh\napp ping [options]\n```\n\n## Global options\n\n| Term | Description |\n| :-- | :-- |\n| `--json` | machine-readable output |\n| `--help` | show this help |\n| `--explain <option>` | where an option\'s value came from |\n',
     );
+  });
+});
+
+/**
+ * `localised-human-surfaces` R5 — an author localises their own text: `description`, `summary`,
+ * an example's description and an option's description take `string | Record<locale, string>`,
+ * the first entry being the author's base language, and help renders the run's locale.
+ */
+describe('a localised description renders in the resolved locale (R5)', () => {
+  const tool = defineProgram({
+    name: 'tool',
+    description: { en: 'A tool', de: 'Ein Werkzeug' },
+    commands: [
+      defineCommand({
+        name: 'deploy',
+        description: { en: 'Deploy the site', de: 'Die Seite bereitstellen', 'de-AT': 'Die Seite ausrollen' },
+        summary: { en: 'deploy it', de: 'bereitstellen' },
+        effects: 'non_idempotent',
+        examples: [{ command: 'tool deploy --dry-run', description: { en: 'look first', de: 'erst schauen' } }],
+        options: { dryRun: { type: 'boolean', description: { en: 'change nothing', de: 'nichts ändern' } }, force: { type: 'boolean', description: 'push anyway' } },
+        run: () => 'ok',
+      }),
+    ],
+  });
+  const help = async (argv: string[], env: Record<string, string>): Promise<string> => (await runCommand(tool, argv, { env })).stdout;
+
+  it('in the base language when no locale is resolved, byte for byte what a string would render', async () => {
+    const plain = defineProgram({
+      name: 'tool',
+      description: 'A tool',
+      commands: [
+        defineCommand({
+          name: 'deploy',
+          description: 'Deploy the site',
+          summary: 'deploy it',
+          effects: 'non_idempotent',
+          examples: [{ command: 'tool deploy --dry-run', description: 'look first' }],
+          options: { dryRun: { type: 'boolean', description: 'change nothing' }, force: { type: 'boolean', description: 'push anyway' } },
+          run: () => 'ok',
+        }),
+      ],
+    });
+    const lines = [['--help'], ['deploy', '--help']];
+    const [localisedHelp, plainHelp] = await Promise.all([Promise.all(lines.map((argv) => help(argv, { LANG: 'C' }))), Promise.all(lines.map(async (argv) => (await runCommand(plain, argv, { env: { LANG: 'C' } })).stdout))]);
+    expect(localisedHelp).toEqual(plainHelp);
+  });
+
+  it('in German under LANG=de_DE.UTF-8: description, summary, option and example', async () => {
+    const root = await help(['--help'], { LANG: 'de_DE.UTF-8' });
+    expect(root).toContain('Ein Werkzeug');
+    expect(root).toMatch(/deploy\s+bereitstellen/u);
+    const deploy = await help(['deploy', '--help'], { LANG: 'de_DE.UTF-8' });
+    expect(deploy).toContain('Die Seite bereitstellen');
+    expect(deploy).toMatch(/--dry-run\s+nichts ändern/u);
+    expect(deploy).toMatch(/--force\s+push anyway/u);
+    expect(deploy).toContain('    erst schauen');
+  });
+
+  it('takes the region’s own text over the language’s, and the base language for one it lacks', async () => {
+    expect(await help(['deploy', '--help'], { LANG: 'de_AT.UTF-8' })).toContain('Die Seite ausrollen');
+    expect(await help(['deploy', '--help'], { LANG: 'fr_FR.UTF-8' })).toContain('Deploy the site');
+  });
+
+  it('--skill renders the author’s text in the run’s locale too, and the base language without one', async () => {
+    const german = await help(['--skill'], { LANG: 'de_DE.UTF-8' });
+    expect(german).toContain('Ein Werkzeug.');
+    expect(german).toContain('`tool deploy`: bereitstellen.');
+    const base = await help(['--skill'], { LANG: 'C' });
+    expect(base).toContain('A tool.');
+    expect(base).toContain('`tool deploy`: deploy it.');
+    expect(base).not.toMatch(/Werkzeug|bereitstellen/u);
+  });
+
+  it('follows the program’s locale option, and ignores LANG for a detected agent', async () => {
+    expect((await runCommand(tool, ['deploy', '--help'], { env: { LANG: 'C' }, locale: 'de' })).stdout).toContain('Die Seite bereitstellen');
+    expect(await help(['deploy', '--help'], { LANG: 'de_DE.UTF-8', CLAUDECODE: '1' })).toContain('Deploy the site');
   });
 });

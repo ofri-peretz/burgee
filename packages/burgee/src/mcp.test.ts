@@ -492,9 +492,9 @@ describe('a tool call that prints', () => {
   });
 
   /**
-   * The transport answers one request at a time — `serve` awaits each before it reads the
-   * next line — so two calls cannot overlap. Pipelined anyway, with the first one printing
-   * only after it has yielded: each result carries its own output and nothing of the other's.
+   * Two calls in flight at once, since the transport stopped awaiting each before reading the
+   * next line (mcp-current R4), with the first one printing only after the second has run: each
+   * result carries its own output and nothing of the other's.
    */
   it('keeps two pipelined calls from reading each other’s output', async () => {
     const program = new Command('two');
@@ -539,6 +539,25 @@ describe('a tool call that prints', () => {
     expect(stream.map((l) => (JSON.parse(l) as { id: number }).id)).toEqual([1, 2]);
     expect(errs.join('')).toContain('late');
     expect(process.stdout.write).toBe(originalOut);
+  });
+
+  it('hands a console.log made after its call settled to the console the server found, not to the call', async () => {
+    const seen: unknown[] = [];
+    const original = console.log;
+    console.log = (...args: unknown[]): void => void seen.push(args[0]);
+    const input = new PassThrough();
+    const written: string[] = [];
+    try {
+      const done = serveMcp(program, { input, output: { write: (s: string) => written.push(s) }, invoke: async () => (setTimeout(() => console.log('after'), 5), { stdout: '{"ok":true}', stderr: '', code: 0 }) });
+      input.write(`${JSON.stringify(callOf(1, 'greet'))}\n`);
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      input.end();
+      await done;
+    } finally {
+      console.log = original;
+    }
+    expect(seen).toEqual(['after']);
+    expect(written.join('')).not.toContain('after');
   });
 
   describe('puts stdout and the console back after the call', () => {

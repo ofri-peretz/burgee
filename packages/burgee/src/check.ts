@@ -21,6 +21,7 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { ExitCode } from './exit-code.js';
+import { checkLocales, isOwnedElsewhere, type Locales, type Message, render } from './locale.js';
 import { Manifest } from './manifest.js';
 import { type Plugin, PluginError, validate } from './plugin.js';
 
@@ -28,6 +29,12 @@ export interface CheckReport {
   name: string;
   commands: { path: string; description: string; effects: string }[];
   hooks: { stage: 'preRun' | 'postRun' | 'onError'; applies: string }[];
+  /**
+   * A locale pack's every message, rendered (`localised-human-surfaces` R4): each placeholder as
+   * `<name>`, and a plural message once per form, with a count that selects it. Present only
+   * for a plugin that carries `locales`.
+   */
+  locales?: { locale: string; messages: { id: string; form?: string; text: string }[] }[];
 }
 
 export interface CheckRefusal {
@@ -46,6 +53,7 @@ export async function checkPlugin(file: string): Promise<CheckReport | CheckRefu
   try {
     validate(plugin, []);
     new Manifest().use(plugin as Plugin);
+    checkLocales(plugin as Plugin);
   } catch (error) {
     if (error instanceof PluginError) return refuse(error.code, error.message, error.fix);
     // `use()` refuses a contributed command through `checkCommand`, which throws a plain
@@ -53,7 +61,7 @@ export async function checkPlugin(file: string): Promise<CheckReport | CheckRefu
     if (error instanceof Error) return refuse('E_PLUGIN_SCHEMA', error.message, 'fix the contributed command the message names; it is checked exactly as one of the program’s own');
     throw error;
   }
-  const { name, commands = [], hooks = {} } = plugin as Plugin;
+  const { name, commands = [], hooks = {}, locales } = plugin as Plugin;
   const report: CheckReport = {
     name,
     commands: commands.map((c) => ({ path: c.path.join(' '), description: c.description ?? '', effects: String(c.effects ?? 'undeclared') })),
@@ -61,13 +69,49 @@ export async function checkPlugin(file: string): Promise<CheckReport | CheckRefu
       stage,
       applies: hooks[stage]?.filter?.command === undefined ? 'every command' : `commands matching ${String(hooks[stage]?.filter?.command)}`,
     })),
+    ...(locales === undefined ? {} : { locales: rendered(locales) }),
   };
-  if (report.commands.length === 0 && report.hooks.length === 0) {
+  if (report.commands.length === 0 && report.hooks.length === 0 && (report.locales ?? []).length === 0) {
     return refuse(
       'E_NO_CONTRIBUTION',
       `${name} registers, but contributes nothing burgee reads`,
-      'add `commands` or `hooks` — a key another package in the family reads is allowed in the same object, but `burgee check` cannot show it',
+      'add `commands`, `hooks` or `locales` — a key another package in the family reads is allowed in the same object, but `burgee check` cannot show it',
     );
   }
   return report;
+}
+
+/** Every value a placeholder can take in a rendering: its own name, so the reader sees where it lands. */
+const named = (count: number): Record<string, string> => new Proxy({ count: String(count) }, { get: (counted, name: string) => (name === 'count' ? counted.count : `<${name}>`) });
+
+/** A count with a fraction, which some locales file under `many` and most under `other`. */
+const FRACTION = 1.5;
+/** The count French and Spanish file under `many`. */
+const MILLION = 1_000_000;
+
+/**
+ * The first count, from 0, that `Intl.PluralRules` files under `form` for `locale`: `1` for
+ * German `one`. The samples reach every category CLDR assigns: the integers to 100 for `zero`
+ * to `few`, `1.5` for the fractional `many` and `other`, a million for French `many`; and the
+ * pack has passed `checkLocales`, so `form` is one the locale selects.
+ */
+function countFor(locale: string, form: string): number {
+  const rules = new Intl.PluralRules(locale);
+  const samples = [...Array.from({ length: 101 }, (_, n) => n), FRACTION, MILLION];
+  return samples.find((n) => rules.select(n) === form) as number;
+}
+
+/** One message as `rendered` lists it: once, or once per plural form; nothing for an id another package owns. */
+function each(locale: string, id: string, message: Message): { id: string; form?: string; text: string }[] {
+  if (isOwnedElsewhere(id)) return [];
+  if (typeof message === 'string') return [{ id, text: render(message, named(0), locale) }];
+  return Object.keys(message).map((form) => ({ id, form, text: render(message, named(countFor(locale, form)), locale) }));
+}
+
+/**
+ * R4 — each of burgee's messages of each locale, rendered as a run would render it. The pack has
+ * passed `checkLocales`. An id another package owns (`caique.…`) is that package's to render.
+ */
+function rendered(locales: Locales): NonNullable<CheckReport['locales']> {
+  return Object.entries(locales).map(([locale, messages]) => ({ locale, messages: Object.entries(messages).flatMap(([id, message]: [string, Message]) => each(locale, id, message)) }));
 }

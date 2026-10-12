@@ -41,7 +41,10 @@ export {
   type AnyCommand,
   type Command,
   type CommandContext,
+  type DeclaredExample,
+  type DeclaredOption,
   type InferOptions,
+  type Localised,
   type OptionSpecs,
   type Program,
   type RunOptions,
@@ -56,6 +59,8 @@ export type { Invoke, ServeOptions, Tool, ToolAnnotations } from './mcp.js';
 export type { Candidate, Layers, Provenance, Resolution, Source } from 'seniority/precedence';
 export type { CommandSchema, JsonSchema, ProgramSchema, SchemaSummary } from './schema.js';
 export type { PluginErrorCode } from './plugin.js';
+export type { LocaleMessages, Locales, Message } from './locale.js';
+export type { MessageId } from './messages.js';
 export type {
   /** The class itself lives at `burgee/schema`; the *type* stays here so `defineProgram`'s return type is nameable. */
   Manifest,

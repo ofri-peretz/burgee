@@ -49,9 +49,9 @@ const scalar = (s: string): string => (/^[\w(][^\n]*$/.test(s) && !/: | #|:$/.te
 const sentence = (s: string): string => (/[.!?]$/.test(s) ? s : `${s}.`);
 
 /** What the program does, then when to use it, from the command summaries; within the specification's limit. */
-function descriptionOf(manifest: Manifest, commands: CommandNode[]): string {
+function descriptionOf(manifest: Manifest, root: CommandNode, commands: CommandNode[]): string {
   const name = manifest.rootPath.join(' ');
-  const what = sentence(manifest.find(manifest.rootPath)?.description ?? `The ${name} command line`);
+  const what = sentence(root.description ?? `The ${name} command line`);
   const uses = commands.map((c) => c.summary ?? c.description).filter((s): s is string => s !== undefined && s !== '').map(verbPhrase);
   const full = uses.length === 0 ? what : `${what} Use it to ${either(uses)}.`;
   if (full.length <= DESCRIPTION_MAX) return full;
@@ -93,25 +93,33 @@ function commandLines(manifest: Manifest, root: CommandNode, commands: CommandNo
   return ['## Commands', '', ...lines, '', `For any command's options, arguments and defaults, run \`${run} --schema <command>\`; nothing here repeats them.`];
 }
 
-/** The skill's body, from its first heading: shared by `SKILL.md` and `AGENTS.md`. */
-function body(manifest: Manifest, heading: string): { description: string; lines: string[] } {
+/**
+ * The skill's body, from its first heading: shared by `SKILL.md` and `AGENTS.md`. `view` is the
+ * run's locale for the author's own text (`localised-human-surfaces` R5): `--skill` hands in the
+ * same view help renders through, and `burgee skill` writes the files in the base language.
+ */
+function body(manifest: Manifest, heading: string, view: (node: CommandNode) => CommandNode): { description: string; lines: string[] } {
   const run = manifest.rootPath.join(' ');
-  const root = manifest.find(manifest.rootPath) ?? { path: manifest.rootPath, options: {} };
-  const commands = [...(root.run === undefined ? [] : [root]), ...runnableBelow(manifest, root)];
-  const description = descriptionOf(manifest, commands);
+  const declared = manifest.find(manifest.rootPath) ?? { path: manifest.rootPath, options: {} };
+  const root = view(declared);
+  const commands = [...(declared.run === undefined ? [] : [root]), ...runnableBelow(manifest, declared).map(view)];
+  const description = descriptionOf(manifest, root, commands);
   return {
     description,
     lines: [heading, '', GENERATED, '', description, '', ...contract(run), '', ...commandLines(manifest, root, commands, run)],
   };
 }
 
+/** A command as declared, in the base language: what `burgee skill` writes to disk. */
+const asDeclared = (node: CommandNode): CommandNode => node;
+
 /** `SKILL.md`: the front matter, then the body. */
-export function renderSkill(manifest: Manifest): string {
-  const { description, lines } = body(manifest, `# ${manifest.rootPath.join(' ')}`);
+export function renderSkill(manifest: Manifest, view: (node: CommandNode) => CommandNode = asDeclared): string {
+  const { description, lines } = body(manifest, `# ${manifest.rootPath.join(' ')}`, view);
   return `${['---', `name: ${skillName(manifest.rootPath.join(' '))}`, `description: ${scalar(description)}`, '---', '', ...lines].join('\n')}\n`;
 }
 
 /** `AGENTS.md`: the same body, without front matter, under the heading coding agents look for. */
 export function renderAgents(manifest: Manifest): string {
-  return `${body(manifest, `# AGENTS.md — ${manifest.rootPath.join(' ')}`).lines.join('\n')}\n`;
+  return `${body(manifest, `# AGENTS.md — ${manifest.rootPath.join(' ')}`, asDeclared).lines.join('\n')}\n`;
 }

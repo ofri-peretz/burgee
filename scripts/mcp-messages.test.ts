@@ -211,6 +211,33 @@ describe('every message the --mcp server writes validates (R7)', () => {
     expect(check(3, tools[1]?.outputSchema as JsonSchema, 'count')).toBe('count: expected object, got integer');
   });
 
+  /** mcp-current R5 — the progress a call sends is a `ServerNotification` too, with and without `total` and `message`. */
+  it('on a call that asked for progress: every notifications/progress validates', async () => {
+    const steps = defineProgram({
+      name: 'steps',
+      commands: [
+        defineCommand({
+          name: 'count',
+          effects: 'read_only',
+          run: ({ progress }) => {
+            progress(1, 3);
+            progress(2, 3, 'halfway');
+            progress(3);
+            return 'done';
+          },
+        }),
+      ],
+    });
+    const run: Invoke = async (argv) => {
+      const out: string[] = [];
+      await execute(steps, { argv, env: {}, stdout: { write: (s: string) => out.push(s) }, stderr: { write: () => true }, exit: () => undefined });
+      return { stdout: out.join(''), stderr: '', code: 0 };
+    };
+    const recording = await record(steps, [init, rpc(2, 'tools/call', { name: 'count', arguments: {}, _meta: { progressToken: 7 } })], run);
+    expect(recording.frames.filter((f) => f['method'] === 'notifications/progress')).toHaveLength(3);
+    expect(problemsOf(recording, MCP_PROTOCOL_VERSION)).toEqual([]);
+  });
+
   /** The suite can fail: the vendored schema refuses a handshake that renamed `protocolVersion`. */
   it('fails a mutation that renames protocolVersion in the initialize reply', async () => {
     const recording = await record(program, [init], invoke);

@@ -445,7 +445,8 @@ const RULES: Record<string, EntryRule> = {
     // 25,900 on 2026-09-24: the MCP session hold on top of P2/P3 (#484). Measured 25,806.
     // 26,250 on 2026-10-12 for mcp-current R1: a tool result carries the envelope's `data` (or its `error`) as `structuredContent`, parsed once from the text it already returns. Measured 25,850 -> 26,215.
     // 26,700 on 2026-10-12 for mcp-current R2: `tools/list` carries a command's declared `output.schema` as `outputSchema`, wrapped as `{ result }` when it is not an object type, and the result is wrapped by that schema so the two agree. Measured 26,215 -> 26,695.
-    budget: 26_700,
+    // 28,000 on 2026-10-12 for mcp-current R4 and R5: requests are dispatched without waiting for the one before, kept by id so `notifications/cancelled` aborts the call's signal and its reply is dropped; the stdout capture follows each call through `AsyncLocalStorage` instead of one global swap, which concurrent calls would have crossed; and a call with a `progressToken` sends `notifications/progress`. Measured 26,695 -> 27,991.
+    budget: 28_000,
     // 24,850 with the MCP stdout capture (#521) on top of D-122's 20,568. Measured 24,835.
     // 24,950 with D-140's MCP error classification on top of #521. Measured 24,900.
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
@@ -939,8 +940,9 @@ describe("the denied list", () => {
  * Listed rather than pattern-matched so that adding one is still a decision somebody made.
  */
 // Data, not code: a file a reader validates against, which no import reaches and no budget can weigh.
-// `program-schema.json` is the shape of `--schema` (F1, D-123).
-const DATA_EXPORTS = ["./schema.json", "./program-schema.json"];
+// `program-schema.json` is the shape of `--schema` (F1, D-123); `locale-pack-schema.json` is the
+// shape of a locale pack (`localised-human-surfaces` R4).
+const DATA_EXPORTS = ["./schema.json", "./program-schema.json", "./locale-pack-schema.json"];
 
 describe("the lock grows with the package", () => {
   it("every published entry point declares a weight rule", () => {

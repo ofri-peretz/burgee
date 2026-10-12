@@ -1,0 +1,24 @@
+{
+  "id": "locale-pack-from-schema",
+  "why": "localised-human-surfaces R7, the PRINCIPLES 7 bar for a locale pack: that `burgee/locale-pack-schema.json` plus one example pack is enough for an agent to write a pack for a new language in one turn, and that `burgee check --json` tells it so as data. The case is French on purpose: its `Intl.PluralRules` select `one`, `many` and `other`, so the plural message cannot pass by copying the German example's two forms, and a pack that does is refused with the forms it lacks named in `refused.message` and `refused.fix`.",
+  "prompt": "Read packages/burgee/src/locale-pack-schema.json and the example pack packages/burgee/src/__fixtures__/locale-pack-de.json. Write a burgee locale pack for French to the file evals/results/locale-pack-fr.mjs: a single ES module whose default export is the pack, named \"fr\", with contract 1 and a `locales.fr` object. Translate at least these ids: usage.unknownOption, usage.unknownCommand, usage.missingArgument, hint.runHelp, hint.didYouMean, help.usage, help.options, help.commands, help.forAgents, and usage.stdinOnce as plural forms. Keep every {placeholder} the English has. Then verify it by running: node packages/burgee/dist/cli.js check evals/results/locale-pack-fr.mjs --json — read the JSON it prints, and if the process exits non-zero, fix the pack using the `fix` it gives you until it exits zero. Do not modify anything under packages/.",
+  "allowedTools": "Read,Write,Edit,Bash",
+  "expect": [
+    {
+      "check": "shell",
+      "value": "test -f evals/results/locale-pack-fr.mjs"
+    },
+    {
+      "check": "shell",
+      "value": "node packages/burgee/dist/cli.js check evals/results/locale-pack-fr.mjs --json"
+    },
+    {
+      "check": "shell",
+      "value": "node packages/burgee/dist/cli.js check evals/results/locale-pack-fr.mjs --json | node -e \"let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const d=JSON.parse(s).data;const fr=(d.locales||[]).find(l=>l.locale==='fr');const ids=new Set(fr?fr.messages.map(m=>m.id):[]);const want=['usage.unknownOption','usage.unknownCommand','usage.missingArgument','hint.runHelp','hint.didYouMean','help.usage','help.options','help.commands','help.forAgents'];const forms=fr?fr.messages.filter(m=>m.id==='usage.stdinOnce').map(m=>m.form).sort().join():'';process.exit(d.name==='fr'&&want.every(i=>ids.has(i))&&forms==='many,one,other'?0:1)})\""
+    },
+    {
+      "check": "output-omits",
+      "value": "E_PLUGIN_SCHEMA"
+    }
+  ]
+}

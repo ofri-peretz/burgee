@@ -1,0 +1,36 @@
+{
+  "name": "test-de",
+  "contract": 1,
+  "locales": {
+    "de": {
+      "usage.unknownOption": "unbekannte Option {option}",
+      "usage.unknownCommand": "unbekannter Befehl \"{command}\"",
+      "usage.missingOption": "die Option --{option} fehlt",
+      "usage.missingArgument": "das Argument \"{argument}\" fehlt",
+      "usage.number": "{option} erwartet eine Zahl, nicht \"{value}\"",
+      "usage.stdinOnce": {
+        "one": "\"-\" steht für {count} Dateiargument, und die Standardeingabe ist nur einmal lesbar",
+        "other": "\"-\" steht für {count} Dateiargumente, und die Standardeingabe ist nur einmal lesbar"
+      },
+      "hint.runHelp": "--help zeigt die verfügbaren Optionen",
+      "hint.runSchema": "--schema listet jeden Befehl und jede Option als JSON, in einem Aufruf; --explain <option> sagt, woher ein Wert kam",
+      "hint.didYouMean": "meinten Sie {suggestion}?",
+      "hint.passOption": "übergeben Sie --{option} <Wert>",
+      "usage.options": "Optionen:",
+      "usage.commands": "Befehle:",
+      "help.usage": "Aufruf:",
+      "help.arguments": "Argumente:",
+      "help.options": "Optionen:",
+      "help.globalOptions": "Globale Optionen:",
+      "help.commands": "Befehle:",
+      "help.examples": "Beispiele:",
+      "help.exitCodes": "Exit-Codes:",
+      "help.json": "maschinenlesbare Ausgabe",
+      "help.help": "diese Hilfe anzeigen",
+      "help.schema": "das Programm als Daten",
+      "help.forAgents": "Für Agenten: --schema gibt jeden Befehl, jede Option, jeden Standardwert und jede Umgebungsvariable als JSON aus, in einem Aufruf. --json gibt einen Umschlag auf stdout aus, und --explain <option> sagt, woher ein Wert kam.",
+      "exit.ok": "der Befehl ist fertig",
+      "exit.usage": "falsche Argumente oder ein unbekannter Befehl; schreiben Sie den Befehl neu"
+    }
+  }
+}

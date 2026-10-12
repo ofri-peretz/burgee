@@ -63,6 +63,7 @@
  * plugin author in another package imports and what a family lock reads.
  */
 import { checkCommand, type Declared } from './definition.js';
+import { type Locales } from './locale.js';
 import { type CommandNode, type Hook, type HookStage, type OptionSpec } from './manifest.js';
 
 /**
@@ -84,6 +85,13 @@ export interface Plugin {
   commands?: CommandNode[];
   hooks?: Partial<Record<HookStage, Hook>>;
   enforce?: 'pre' | 'post';
+  /**
+   * A locale pack (`localised-human-surfaces` R4): language tag → catalog id → translation.
+   * Not read at the door — `validate` lets it through like any other key — but checked where it
+   * is first used, by the help or refusal it translates, and in full by `burgee check`, against
+   * `burgee/locale-pack-schema.json`.
+   */
+  locales?: Locales;
 }
 
 export type PluginErrorCode = 'E_PLUGIN_SCHEMA' | 'E_PLUGIN_CONTRACT' | 'E_NO_CONTRIBUTION';
@@ -225,3 +233,7 @@ export function definePlugin(plugin: Plugin): Plugin {
   validate(stamped);
   return stamped;
 }
+
+// localised-human-surfaces R4 — the pack's types, beside the host that reads it.
+export type { LocaleMessages, Locales, Message } from './locale.js';
+export type { MessageId } from './messages.js';

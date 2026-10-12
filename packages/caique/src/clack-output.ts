@@ -44,7 +44,18 @@ import {
 import { processRuntime } from './runtime.js';
 
 type Output = NonNullable<CommonOptions['output']>;
-const outputOf = (opts?: CommonOptions): Output => opts?.output ?? processRuntime().stdout;
+/** Where a writer writes when nothing may silence it: the caller's stream, or the process's. */
+const loudOf = (opts?: CommonOptions): Output => opts?.output ?? processRuntime().stdout;
+/** A stream that keeps nothing, and is no terminal, so a spinner given it never animates. */
+// eslint-disable-next-line reliability/no-unsafe-type-narrowing -- a writer here calls `write` and reads `isTTY` and `columns`, and nothing else
+const SILENT = { write: () => true } as unknown as Output;
+/**
+ * Whether the caller's runtime asked for quiet (`caique-quiet-seam` R2): burgee's `--quiet`,
+ * handed in as `ctx.runtime`. Read from the call alone — never from argv or the environment.
+ */
+const quietOf = (opts?: CommonOptions): boolean => opts?.runtime?.quiet === true;
+/** Where decoration goes: nowhere under a quiet runtime, the caller's stream otherwise. */
+const outputOf = (opts?: CommonOptions): Output => (quietOf(opts) ? SILENT : loudOf(opts));
 
 /** Opens a session: the top of the guide, and a title beside it. */
 export const intro = (title = '', opts?: CommonOptions): void => {
@@ -56,9 +67,9 @@ export const outro = (message = '', opts?: CommonOptions): void => {
   outputOf(opts).write(`${guided(opts ?? {}) ? `${paint('gray', S_BAR)}\n${paint('gray', S_BAR_END)}  ` : ''}${message}\n\n`);
 };
 
-/** Closes a session that was cancelled: the end of the guide, and the message in red. */
+/** Closes a session that was cancelled: the end of the guide, and the message in red. Not decoration, so never quiet. */
 export const cancel = (message = '', opts?: CommonOptions): void => {
-  outputOf(opts).write(`${guided(opts ?? {}) ? `${paint('gray', S_BAR_END)}  ` : ''}${paint('red', message)}\n\n`);
+  loudOf(opts).write(`${guided(opts ?? {}) ? `${paint('gray', S_BAR_END)}  ` : ''}${paint('red', message)}\n\n`);
 };
 
 export interface LogMessageOptions extends CommonOptions {
@@ -73,23 +84,25 @@ function logLine(line: string, mark: string, guide: boolean): string {
   return line.length > 0 ? `${mark}  ${line}` : mark;
 }
 
-/** A message on the guide: the first line beside `symbol`, the rest beside the bar. */
-function message(text: string | string[] = [], opts: LogMessageOptions = {}): void {
+/** A message on the guide: the first line beside `symbol`, the rest beside the bar — into `output`, which a quiet runtime silences. */
+function message(text: string | string[] = [], opts: LogMessageOptions = {}, output = outputOf(opts)): void {
   const first = opts.symbol ?? paint('gray', S_BAR);
   const rest = opts.secondarySymbol ?? paint('gray', S_BAR);
   const guide = guided(opts);
   const spacing: string[] = Array.from({ length: opts.spacing ?? 1 }, () => (guide ? rest : ''));
   const lines = (Array.isArray(text) ? text : text.split('\n')).map((line, i) => logLine(line, i === 0 ? first : rest, guide));
-  outputOf(opts).write(`${[...spacing, ...lines].join('\n')}\n`);
+  output.write(`${[...spacing, ...lines].join('\n')}\n`);
 }
 
 const warn = (text: string, opts?: LogMessageOptions): void => {
   message(text, { ...opts, symbol: paint('yellow', S_WARN) });
 };
 
-/** clack's `log`: a message on the guide, with a symbol for its kind. */
+/** clack's `log`: a message on the guide, with a symbol for its kind. Every kind but `error` is decoration. */
 export const log = {
-  message,
+  message: (text?: string | string[], opts?: LogMessageOptions): void => {
+    message(text, opts);
+  },
   info: (text: string, opts?: LogMessageOptions): void => {
     message(text, { ...opts, symbol: paint('blue', S_INFO) });
   },
@@ -102,8 +115,9 @@ export const log = {
   warn,
   /** An alias for `log.warn()`. */
   warning: warn,
+  /** A failure: written under a quiet runtime too, because `--quiet` never hides one. */
   error: (text: string, opts?: LogMessageOptions): void => {
-    message(text, { ...opts, symbol: paint('red', S_ERROR) });
+    message(text, { ...opts, symbol: paint('red', S_ERROR) }, loudOf(opts));
   },
 };
 
@@ -229,8 +243,10 @@ class Spinner implements SpinnerResult {
   private readonly style: (frame: string) => string;
 
   constructor(private readonly opts: SpinnerOptions) {
-    this.output = opts.output ?? processRuntime().stdout;
-    this.live = !isCI() && isTTY(this.output);
+    // Quiet draws nothing and, because `SILENT` is no terminal, never arms the interval: a
+    // quiet run cannot hold the event loop open (`caique-quiet-seam` R2). The lifecycle still runs.
+    this.output = outputOf(opts);
+    this.live = !isCI(opts.runtime) && isTTY(this.output);
     this.frames = opts.frames ?? (unicode ? ['◒', '◐', '◓', '◑'] : ['•', 'o', 'O', '0']);
     this.style = opts.styleFrame ?? magenta;
   }

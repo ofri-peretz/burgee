@@ -116,6 +116,7 @@ Nothing here needs keeping in sync, because nothing is written twice.
 | `burgee/testing` | Run a command in-process and assert on its result — no spawning. |
 | `burgee/brand` | One brand declaration → flag, favicon, OG card, cover, lockup. The logo above is its own output. |
 | `burgee/plugin` | `definePlugin()`, `validate()`, `CONTRACT` and `PluginError` — the host, at the subpath every package in the family publishes its host at. |
+| `burgee/locale-pack-schema.json` | The JSON Schema a locale pack is written against: every message id, with its English. |
 
 ## Writing a plugin
 
@@ -168,6 +169,43 @@ it is `false` here, and `data.refused.fix` says what to change:
 
 ```json
 {"ok":false,"data":{"refused":{"code":"E_PLUGIN_CONTRACT","message":"plugin \"acme\" declares no contract; …","fix":"add `contract: 1` — `definePlugin` from `burgee/plugin` stamps it"},"exitCode":1},"meta":{"provenance":{}}}
+```
+
+## Speaking your user's language
+
+Help, usage errors and hints can speak the user's language; `--json`, `--schema`, `--mcp`,
+`--format=agent`, error kinds and exit codes never change with it, and a test in this package
+fails if one does. A language is a plugin carrying `locales`, written against
+[`burgee/locale-pack-schema.json`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/locale-pack-schema.json), which lists every message
+id with its English:
+
+```js
+// fr-pack.mjs
+export default {
+  name: 'fr',
+  contract: 1,
+  locales: {
+    fr: {
+      'usage.unknownOption': 'option inconnue {option}',
+      'help.usage': 'Utilisation :',
+      // A message with {count} takes the plural forms Intl.PluralRules selects for the locale.
+      'usage.stdinOnce': { one: '…{count} argument…', many: '…{count} d’arguments…', other: '…{count} arguments…' },
+    },
+  },
+};
+```
+
+Register it with `program.use(pack)`. The locale is the program's `locale` run option, then
+`BURGEE_LOCALE`, then `LC_ALL`, `LC_MESSAGES` and `LANG`, so `LANG=fr_FR.UTF-8` finds `fr-FR`
+and then `fr`. When an agent is detected, `LANG` is ignored, because an agent inherits it
+without asking for it, and only the option or `BURGEE_LOCALE` applies. An id the pack leaves out
+stays in English. `npx burgee check ./fr-pack.mjs --json` renders every message, or refuses
+an unknown id, a placeholder the English lacks, or a missing plural form. Your own text takes a
+locale map, base language first, and help shows the user's language while `--schema` keeps the
+base language:
+
+```js
+defineCommand({ name: 'deploy', description: { en: 'Deploy the site', fr: 'Déployer le site' }, effects: 'non_idempotent', run })
 ```
 
 ## Migrating
@@ -239,6 +277,15 @@ Every command answers the same declaration four more ways, with nothing written 
 - `--explain <option>` — where a value came from: flag, env, config or default. Every
   command's help lists it, the root help ends with one line for agents, and `--schema` and the
   unknown-command hint name it too.
+- **`-q`/`--quiet` silences decoration, never data or a failure.** Hand `ctx.runtime` to what
+  draws, and a caique spinner, `log.info` or `note` writes nothing; `log.error` still writes,
+  and a prompt still asks:
+
+  ```ts
+  import { spinner } from 'caique/clack';
+
+  const spin = spinner({ runtime: ctx.runtime }); // silent under --quiet
+  ```
 - **A plugin can be checked before it ships.** `npx burgee check ./plugin.mjs --json` returns
   `{ name, commands, hooks }` as `data`, or `data.refused` with a `fix` and exit 1 — the whole
   plugin and both documents are under [Writing a plugin](#writing-a-plugin).
@@ -304,7 +351,7 @@ option and type, is at [burgee.interlace.tools](https://burgee.interlace.tools/d
 
 ## Where it sits
 
-Plugins register under the `commands` and `hooks` keys, against the one schema the whole family shares.
+Plugins register under the `commands`, `hooks`, `locales` keys, against the one schema the whole family shares.
 
 Nothing in this family builds on it yet, and it builds on `bellpull`, `closeout`, `linegauge`, `roundel`, `seniority`.
 

@@ -42,6 +42,17 @@ Order: R1 and R2 in one PR, then R3's test, then R4.
 | R4 | `scripts/sync-package-docs.ts --check`; the weight lock | the README edit fails both until re-run |
 | grade | `npm run compat -- clack` | unchanged |
 
+## Status
+
+| R | Status | Where | Check |
+| :-- | :-- | :-- | :-- |
+| R1 | **Built** 2026-10-12 | `clack-core.ts` (`CommonOptions.runtime`, typed as `roundel/policy`'s `Runtime`, a type-only import; `isCI` takes an optional runtime and the spinner reads `CI` from the caller's). roundel's runtime carries no streams, so `input` and `output` still default to the process's: `run()` and `limitOptions` read `processRuntime()` for a stream only, and are unchanged | `clack-quiet.test.ts` › `R1, R2 — a quiet runtime draws nothing`. Red on main: 14 of 31 cases, e.g. `expected '│\n◒  working...\n▲  failed\n' to be ''` |
+| R2 | **Built** 2026-10-12 | `clack-output.ts` (`quietOf`, `outputOf` returning a sink that keeps nothing and is no terminal, so the spinner never arms its interval; `log.error` and `cancel` write to `loudOf`). `progress` and `taskLog` are not built in the port (D-152), so the row covers the eight writers that exist | the same file: 12 writers write 0 bytes to their output and to `process.stdout`/`stderr`; `vi.getTimerCount()` is 0 on a quiet terminal spinner; `tasks` resolves; `log.error` and `cancel` write. Mutation: `log.error` through `outputOf` fails `log.error writes under quiet` |
+| R3 | **Built** 2026-10-12 | nothing in `run()`: prompts never read `quiet`. The port's prompts are clack's, which draw and wait on any stream; the usage error naming the flag is native `ask`'s (`decide.ts`), which this intent leaves out of scope, so the check is that a prompt is byte-identical with and without a quiet runtime | `clack-quiet.test.ts` › `R3 — a prompt ignores quiet` (a non-TTY `text()` under quiet draws the frames it draws without a runtime and answers `hi`). Mutation: `quiet` reaching `run()`'s output fails it with `expected '' to be '│\n◆  Name?…'` |
+| R4 | **Built** 2026-10-12 | `packages/burgee/README.md` › For agents, a `-q`/`--quiet` bullet with `spinner({ runtime: ctx.runtime })`; `npm run weight:converge` re-measured caique 245,166 → 246,099 (the new `.d.ts` doc comments) | `scripts/sync-package-docs.ts --check`. Red before the re-run: `Out of date: apps/docs/content/docs/packages/burgee.md` |
+
+**Built: 4. Not built: 0.**
+
 ## Rejected alternatives
 
 - **Read `--quiet` from `process.argv` inside caique.** The port would parse argv, which is
