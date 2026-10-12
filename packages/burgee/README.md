@@ -239,6 +239,15 @@ Every command answers the same declaration four more ways, with nothing written 
 - `--explain <option>` — where a value came from: flag, env, config or default. Every
   command's help lists it, the root help ends with one line for agents, and `--schema` and the
   unknown-command hint name it too.
+- **`-q`/`--quiet` silences decoration, never data or a failure.** Hand `ctx.runtime` to what
+  draws, and a caique spinner, `log.info` or `note` writes nothing; `log.error` still writes,
+  and a prompt still asks:
+
+  ```ts
+  import { spinner } from 'caique/clack';
+
+  const spin = spinner({ runtime: ctx.runtime }); // silent under --quiet
+  ```
 - **A plugin can be checked before it ships.** `npx burgee check ./plugin.mjs --json` returns
   `{ name, commands, hooks }` as `data`, or `data.refused` with a `fix` and exit 1 — the whole
   plugin and both documents are under [Writing a plugin](#writing-a-plugin).
