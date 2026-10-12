@@ -70,19 +70,57 @@ const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
 
 const placeholders = (template: string): string[] => [...template.matchAll(/\{(\w+)\}/gu)].map((m) => m[1] as string);
 
+/** Every plural category CLDR names, in CLDR's order — the order a refusal lists them in, whatever order the engine reports. */
+const CATEGORIES: readonly Intl.LDMLPluralRule[] = ['zero', 'one', 'two', 'few', 'many', 'other'];
+
 /** The plural forms `Intl.PluralRules` selects among for `locale`: `one, other` for German, six for Arabic. */
-const formsOf = (locale: string): readonly Intl.LDMLPluralRule[] => new Intl.PluralRules(locale).resolvedOptions().pluralCategories;
+const formsOf = (locale: string): readonly Intl.LDMLPluralRule[] => {
+  const selected = new Intl.PluralRules(locale).resolvedOptions().pluralCategories;
+  return CATEGORIES.filter((form) => selected.includes(form));
+};
+
+/** A count with a fraction, which some locales file under `many` and most under `other`. */
+const FRACTION = 1.5;
+/** The count French and Spanish file under `many`. */
+const MILLION = 1_000_000;
+
+/**
+ * The first count, from 0, that `Intl.PluralRules` files under `form` for `locale`: `1` for
+ * German `one`. The samples reach every category CLDR assigns: the integers to 100 for `zero`
+ * to `few`, `1.5` for the fractional `many` and `other`, a million for French `many`. `form`
+ * is one the locale selects.
+ */
+export function countFor(locale: string, form: string): number {
+  const rules = new Intl.PluralRules(locale);
+  const samples = [...Array.from({ length: 101 }, (_, n) => n), FRACTION, MILLION];
+  return samples.find((n) => rules.select(n) === form) as number;
+}
+
+/** `one (for 1), other (for 0) for de` — each form with a count that selects it, which is what an author writes against. */
+const selects = (locale: string, forms: readonly string[]): string => `Intl.PluralRules selects ${forms.map((form) => `${form} (for ${String(countFor(locale, form))})`).join(', ')} for ${locale}`;
+
+/** One thing wrong with a pack: what a refusal says, and what to do about it. */
+interface Problem {
+  message: string;
+  fix: string;
+}
+
+/** What a pack's refusal carries beside `PluginError`'s own fields: each problem apart, with its own fix. */
+export interface LocaleRefusal {
+  problems: readonly Problem[];
+}
+
+const problem = (name: string, message: string, fix: string): Problem => ({ message: `plugin "${name}": ${message}`, fix });
 
 const refuse = (name: string, message: string, fix: string): PluginError => new PluginError('E_PLUGIN_SCHEMA', `plugin "${name}": ${message}`, fix);
 
 /** One translation against its English: no placeholder the English lacks (R4). */
-function checkText(name: string, at: string, text: unknown, english: string): void {
-  if (typeof text !== 'string') throw refuse(name, `${at} is not a string`, 'write the translation as a string');
+function checkText(name: string, at: string, text: unknown, english: string): Problem | undefined {
+  if (typeof text !== 'string') return problem(name, `${at} is not a string`, 'write the translation as a string');
   const known = placeholders(english);
   const stray = placeholders(text).find((p) => !known.includes(p));
-  if (stray !== undefined) {
-    throw refuse(name, `${at} has {${stray}}, which the English "${english}" does not`, known.length === 0 ? 'take the placeholder out: this message has none' : `use only ${known.map((p) => `{${p}}`).join(', ')}`);
-  }
+  if (stray === undefined) return undefined;
+  return problem(name, `${at} has {${stray}}, which the English "${english}" does not`, known.length === 0 ? 'take the placeholder out: this message has none' : `use only ${known.map((p) => `{${p}}`).join(', ')}`);
 }
 
 /**
@@ -93,26 +131,40 @@ function checkText(name: string, at: string, text: unknown, english: string): vo
 export const isOwnedElsewhere = (id: string): boolean => id.startsWith('caique.');
 
 /** One message: a string, or — only where the English carries `{count}` — every form the locale selects (R4). */
-function checkMessage(name: string, locale: string, id: string, message: unknown): void {
-  if (isOwnedElsewhere(id)) return;
+function checkMessage(name: string, locale: string, id: string, message: unknown): Problem[] {
+  if (isOwnedElsewhere(id)) return [];
   const at = `locales.${locale}["${id}"]`;
   const english = MESSAGES[id as MessageId] as string | undefined;
-  if (english === undefined) throw refuse(name, `${at} is not a message burgee has`, 'use an id from burgee/locale-pack-schema.json; `burgee check` lists the catalog');
-  if (!isRecord(message)) return checkText(name, at, message, english);
-  if (!placeholders(english).includes('count')) throw refuse(name, `${at} has plural forms, and the English has no {count}`, 'write it as one string');
+  if (english === undefined) return [problem(name, `${at} is not a message burgee has`, 'use an id from burgee/locale-pack-schema.json, whose `$defs.messages` lists every one with its English')];
+  if (!isRecord(message)) return [checkText(name, at, message, english)].filter((p) => p !== undefined);
+  if (!placeholders(english).includes('count')) return [problem(name, `${at} has plural forms, and the English has no {count}`, 'write it as one string')];
   const forms = formsOf(locale);
+  const out: Problem[] = [];
   const missing = forms.filter((form) => message[form] === undefined);
-  if (missing.length > 0) throw refuse(name, `${at} is missing the plural form${missing.length === 1 ? '' : 's'} ${missing.join(', ')}`, `give every form Intl.PluralRules selects for ${locale}: ${forms.join(', ')}`);
-  for (const [form, text] of Object.entries(message)) {
-    if (!(forms as readonly string[]).includes(form)) throw refuse(name, `${at}.${form} is not a plural form of ${locale}`, `use ${forms.join(', ')}`);
-    checkText(name, `${at}.${form}`, text, english);
+  if (missing.length > 0) {
+    out.push(
+      problem(
+        name,
+        `${at} is missing the plural form${missing.length === 1 ? '' : 's'} ${missing.join(', ')}`,
+        `add ${missing.map((form) => `"${form}"`).join(', ')} beside the others: ${selects(locale, forms)} — write { ${forms.map((form) => `"${form}": "…"`).join(', ')} }`,
+      ),
+    );
   }
+  for (const [form, text] of Object.entries(message)) {
+    if ((forms as readonly string[]).includes(form)) out.push(...[checkText(name, `${at}.${form}`, text, english)].filter((p) => p !== undefined));
+    else out.push(problem(name, `${at}.${form} is not a plural form of ${locale}`, `drop "${form}": ${selects(locale, forms)}`));
+  }
+  return out;
 }
 
 /**
  * R4 — refuse a pack that cannot be rendered: a tag `Intl.Locale` does not read, an id the
  * catalog does not have, a placeholder the English does not have, a plural message missing a
  * form its locale selects. In the family's one vocabulary, `E_PLUGIN_SCHEMA` with a `fix`.
+ *
+ * **Every problem at once.** Until 2026-10-12 this threw on the first, so an agent writing a
+ * pack paid one `check` round per mistake; now the refusal carries each problem with its own
+ * fix in `problems`, and its `message` and `fix` list them all, numbered.
  *
  * A plugin without `locales` passes untouched: the key is this file's, and every other key is
  * someone else's (`plugin.ts`).
@@ -121,12 +173,23 @@ export function checkLocales(plugin: Pick<Plugin, 'name'> & { locales?: unknown 
   const { name, locales } = plugin;
   if (locales === undefined) return;
   if (!isRecord(locales)) throw refuse(name, 'locales must be an object', 'map a language tag to its messages: `{ de: { "usage.unknownOption": "…" } }`');
+  const problems: Problem[] = [];
   for (const [locale, messages] of Object.entries(locales)) {
     const written = normalise(locale);
-    if (written !== locale) throw refuse(name, `locales has "${locale}", which is not a language tag as Intl.Locale writes it`, `write it ${written === undefined ? 'as a BCP 47 tag, such as de or pt-BR' : `as "${written}"`}`);
-    if (!isRecord(messages)) throw refuse(name, `locales.${locale} must be an object`, 'map a message id to its translation');
-    for (const [id, message] of Object.entries(messages)) checkMessage(name, locale, id, message);
+    if (written !== locale) problems.push(problem(name, `locales has "${locale}", which is not a language tag as Intl.Locale writes it`, `write it ${written === undefined ? 'as a BCP 47 tag, such as de or pt-BR' : `as "${written}"`}`));
+    else if (isRecord(messages)) for (const [id, message] of Object.entries(messages)) problems.push(...checkMessage(name, locale, id, message));
+    else problems.push(problem(name, `locales.${locale} must be an object`, 'map a message id to its translation'));
   }
+  const [only] = problems;
+  if (only === undefined) return;
+  const prefix = `plugin "${name}": `;
+  const error: PluginError & Partial<LocaleRefusal> =
+    problems.length === 1
+      ? new PluginError('E_PLUGIN_SCHEMA', only.message, only.fix)
+      : new PluginError('E_PLUGIN_SCHEMA', `${prefix}${String(problems.length)} problems — ${problems.map((p) => p.message.slice(prefix.length)).join('; ')}`, problems.map((p, i) => `${String(i + 1)}. ${p.fix}`).join(' '));
+  // On the instance, not the class: `PluginError` is in the core entry, and its byte budget is not this file's to spend.
+  error.problems = problems;
+  throw error;
 }
 
 /**

@@ -21,7 +21,7 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { ExitCode } from './exit-code.js';
-import { checkLocales, isOwnedElsewhere, type Locales, type Message, render } from './locale.js';
+import { checkLocales, countFor, isOwnedElsewhere, type LocaleRefusal, type Locales, type Message, render } from './locale.js';
 import { Manifest } from './manifest.js';
 import { type Plugin, PluginError, validate } from './plugin.js';
 
@@ -38,13 +38,17 @@ export interface CheckReport {
 }
 
 export interface CheckRefusal {
-  refused: { code: string; message: string; fix: string };
+  /** `problems`, on a locale pack's refusal: every problem the pack has, each with its own fix, found in one run. */
+  refused: { code: string; message: string; fix: string; problems?: readonly { message: string; fix: string }[] };
   exitCode: ExitCode;
 }
 
 const STAGES = ['preRun', 'postRun', 'onError'] as const;
 
-const refuse = (code: string, message: string, fix: string): CheckRefusal => ({ refused: { code, message, fix }, exitCode: ExitCode.RUNTIME });
+const refuse = (code: string, message: string, fix: string, problems?: CheckRefusal['refused']['problems']): CheckRefusal => ({
+  refused: { code, message, fix, ...(problems === undefined ? {} : { problems }) },
+  exitCode: ExitCode.RUNTIME,
+});
 
 export async function checkPlugin(file: string): Promise<CheckReport | CheckRefusal> {
   // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the file to check is the user's own, named on the command line
@@ -55,7 +59,7 @@ export async function checkPlugin(file: string): Promise<CheckReport | CheckRefu
     new Manifest().use(plugin as Plugin);
     checkLocales(plugin as Plugin);
   } catch (error) {
-    if (error instanceof PluginError) return refuse(error.code, error.message, error.fix);
+    if (error instanceof PluginError) return refuse(error.code, error.message, error.fix, (error as PluginError & Partial<LocaleRefusal>).problems);
     // `use()` refuses a contributed command through `checkCommand`, which throws a plain
     // `Error` naming the problem — the same words a first-party command gets.
     if (error instanceof Error) return refuse('E_PLUGIN_SCHEMA', error.message, 'fix the contributed command the message names; it is checked exactly as one of the program’s own');
@@ -83,23 +87,6 @@ export async function checkPlugin(file: string): Promise<CheckReport | CheckRefu
 
 /** Every value a placeholder can take in a rendering: its own name, so the reader sees where it lands. */
 const named = (count: number): Record<string, string> => new Proxy({ count: String(count) }, { get: (counted, name: string) => (name === 'count' ? counted.count : `<${name}>`) });
-
-/** A count with a fraction, which some locales file under `many` and most under `other`. */
-const FRACTION = 1.5;
-/** The count French and Spanish file under `many`. */
-const MILLION = 1_000_000;
-
-/**
- * The first count, from 0, that `Intl.PluralRules` files under `form` for `locale`: `1` for
- * German `one`. The samples reach every category CLDR assigns: the integers to 100 for `zero`
- * to `few`, `1.5` for the fractional `many` and `other`, a million for French `many`; and the
- * pack has passed `checkLocales`, so `form` is one the locale selects.
- */
-function countFor(locale: string, form: string): number {
-  const rules = new Intl.PluralRules(locale);
-  const samples = [...Array.from({ length: 101 }, (_, n) => n), FRACTION, MILLION];
-  return samples.find((n) => rules.select(n) === form) as number;
-}
 
 /** One message as `rendered` lists it: once, or once per plural form; nothing for an id another package owns. */
 function each(locale: string, id: string, message: Message): { id: string; form?: string; text: string }[] {
