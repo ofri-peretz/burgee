@@ -59,8 +59,11 @@ describe('commander façade: --mcp, loaded on demand', () => {
     vi.spyOn(process, 'stdin', 'get').mockReturnValue(input as unknown as typeof process.stdin);
     const replies: string[] = [];
     p.configureOutput({ writeOut: (s) => void replies.push(s) });
-    await p.parseAsync(['--mcp'], { from: 'user' });
-    vi.restoreAllMocks();
+    try {
+      await p.parseAsync(['--mcp'], { from: 'user' });
+    } finally {
+      vi.restoreAllMocks();
+    }
     const reply = JSON.parse(replies.join('').trim()) as { result: { isError?: boolean; content: { text: string }[] } };
     expect(reply.result.isError).toBe(true);
     expect(reply.result.content.map((c) => c.text).join('')).toContain("missing required argument 'x'");
