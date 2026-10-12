@@ -1,5 +1,11 @@
 # closeout
 
+## 1.1.2
+
+### Patch Changes
+
+- [#1045](https://github.com/ofri-peretz/burgee/pull/1045) [`c4fd9a3`](https://github.com/ofri-peretz/burgee/commit/c4fd9a3cb10bc36bef8c468365addfc6deb572cf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The family plugin schema (`schema.json`, identical in every plugin host) now describes `locales`, burgee's locale-pack key. A plugin carrying `locales` validates against the shared schema as it does against `burgee/locale-pack-schema.json`, which lists every message id. This package reads nothing new, and a plugin carrying `locales` registers here as before.
+
 ## 1.1.1
 
 ### Patch Changes
