@@ -105,7 +105,13 @@ jobs:
           if [ "$SOURCE" = "github-token" ]; then
             echo "::warning title=PR opened with GITHUB_TOKEN::It raises no checks, so it will not auto-merge. Set RELEASE_APP_ID + RELEASE_APP_PRIVATE_KEY, or RELEASE_BOT_PAT — see .sdlc/gaps/C5.md."
           fi
-          [ "$BREACHED" = "true" ] || gh pr merge --auto --squash "$BRANCH" || true
+          # A held PR (hold, do-not-merge, wip) is left alone: on a PR that is already mergeable,
+          # `--auto` merges at once rather than arming, which is how #1049, #1050 and #1055 merged.
+          if gh pr view "$BRANCH" --json labels --jq '[.labels[].name]|any(.=="hold" or .=="do-not-merge" or .=="wip")' | grep -qx true; then
+            echo "::notice::$BRANCH is held (hold, do-not-merge or wip); not arming auto-merge."
+          else
+            [ "$BREACHED" = "true" ] || gh pr merge --auto --squash "$BRANCH" || true
+          fi
 
       - name: Open an issue if the watcher itself broke
         if: failure()

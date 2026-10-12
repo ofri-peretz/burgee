@@ -155,8 +155,14 @@ jobs:
             gh pr review "$PR" --approve --body "Auto-approved by changesets bot — review via the changesets that produced this PR." || \
               echo "::warning::Auto-approve failed (PAT may lack permission). Auto-merge still set."
           fi
-          gh pr merge "$PR" --auto --squash || \
-            echo "::warning::gh pr merge --auto returned non-zero. Is auto-merge enabled in Settings → General?"
+          # A `hold` on the Version PR pauses the release: that is how one is held. `--auto` on a PR
+          # that is already mergeable merges at once rather than arming, so the label is read first.
+          if gh pr view "$PR" --json labels --jq '[.labels[].name]|any(.=="hold" or .=="do-not-merge" or .=="wip")' | grep -qx true; then
+            echo "::notice::Version PR #$PR is held (hold, do-not-merge or wip); not arming auto-merge."
+          else
+            gh pr merge "$PR" --auto --squash || \
+              echo "::warning::gh pr merge --auto returned non-zero. Is auto-merge enabled in Settings → General?"
+          fi
 
   # ── GITHUB_TOKEN fallback, part 1: the required checks ─────────────────────────────
   #
@@ -275,17 +281,22 @@ jobs:
           # An auto-merge a GITHUB_TOKEN run enabled before this job existed can win the race
           # the moment the last status lands. That merge raised no runs either, so it is
           # handled exactly like ours: the post-merge runs below still have to be started.
-          if ! gh pr merge "$PR" --squash; then
-            if [ "$(gh pr view "$PR" --json state --jq .state)" != "MERGED" ]; then
-              echo "::warning::The Version PR did not merge (main moved, or a check went red since). The next push to main refreshes it and retries."
-              exit 0
+          # A `hold` on the Version PR pauses the release: that is how one is held.
+          if gh pr view "$PR" --json labels --jq '[.labels[].name]|any(.=="hold" or .=="do-not-merge" or .=="wip")' | grep -qx true; then
+            echo "::notice::Version PR #$PR is held (hold, do-not-merge or wip); not merging it."
+          else
+            if ! gh pr merge "$PR" --squash; then
+              if [ "$(gh pr view "$PR" --json state --jq .state)" != "MERGED" ]; then
+                echo "::warning::The Version PR did not merge (main moved, or a check went red since). The next push to main refreshes it and retries."
+                exit 0
+              fi
+              echo "#$PR was already merged — starting the post-merge runs it did not raise."
             fi
-            echo "#$PR was already merged — starting the post-merge runs it did not raise."
+            for wf in quality.yml quality-full.yml release.yml; do
+              gh workflow run "$wf" --ref main
+            done
+            echo "Merged #$PR; dispatched quality.yml, quality-full.yml and release.yml on main." >> "$GITHUB_STEP_SUMMARY"
           fi
-          for wf in quality.yml quality-full.yml release.yml; do
-            gh workflow run "$wf" --ref main
-          done
-          echo "Merged #$PR; dispatched quality.yml, quality-full.yml and release.yml on main." >> "$GITHUB_STEP_SUMMARY"
 
   required:
     name: Changeset present

@@ -109,7 +109,14 @@ jobs:
           PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
           set -euo pipefail
-          gh pr merge --auto --squash "$PR_URL"
+          # A held PR (hold, do-not-merge, wip) is left alone: on a PR that is already mergeable,
+          # `--auto` merges at once rather than arming, which is how #1049, #1050 and #1055 merged.
+          if gh pr view "$PR_URL" --json labels --jq '[.labels[].name]|any(.=="hold" or .=="do-not-merge" or .=="wip")' | grep -qx true; then
+            echo "::notice::$PR_URL is held (hold, do-not-merge or wip); not arming auto-merge."
+            exit 0
+          else
+            gh pr merge --auto --squash "$PR_URL"
+          fi
           echo "Auto-merge enabled with the $SOURCE credential; the required checks decide when it lands." >> "$GITHUB_STEP_SUMMARY"
           if [ "$SOURCE" = "github-token" ]; then
             echo "::warning title=Auto-merge enabled with GITHUB_TOKEN::No release credential is configured. The merge will raise no workflow runs on main, so quality.yml and release.yml will not run on it. Set RELEASE_APP_ID (repo variable) + RELEASE_APP_PRIVATE_KEY (repo secret), or RELEASE_BOT_PAT, to fix that for this workflow and the others that share the chain."

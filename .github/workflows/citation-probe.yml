@@ -127,4 +127,10 @@ jobs:
           if [ "$SOURCE" = "github-token" ]; then
             echo "::warning title=Citation probe opened with GITHUB_TOKEN::The pull request raises no checks, so it will not auto-merge; merge it by hand, or set RELEASE_APP_ID + RELEASE_APP_PRIVATE_KEY (or RELEASE_BOT_PAT) — see .sdlc/gaps/C5.md."
           fi
-          gh pr merge --auto --squash "$BRANCH" || echo "::warning::gh pr merge --auto returned non-zero; the pull request is open for a human."
+          # A held PR (hold, do-not-merge, wip) is left alone: on a PR that is already mergeable,
+          # `--auto` merges at once rather than arming, which is how #1049, #1050 and #1055 merged.
+          if gh pr view "$BRANCH" --json labels --jq '[.labels[].name]|any(.=="hold" or .=="do-not-merge" or .=="wip")' | grep -qx true; then
+            echo "::notice::$BRANCH is held (hold, do-not-merge or wip); not arming auto-merge."
+          else
+            gh pr merge --auto --squash "$BRANCH" || echo "::warning::gh pr merge --auto returned non-zero; the pull request is open for a human."
+          fi
