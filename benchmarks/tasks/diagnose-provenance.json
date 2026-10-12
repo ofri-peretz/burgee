@@ -5,5 +5,6 @@
   "setup": [],
   "check": "grep -qiE 'default|DEMO_GREETING' \"$BENCH_RESULT\"",
   "maxTurns": 15,
+  "modalities": ["cli", "mcp"],
   "exemplar": "The greeting word is Hello. It comes from the option's default, and can be overridden by the DEMO_GREETING environment variable or the --greeting flag."
 }
