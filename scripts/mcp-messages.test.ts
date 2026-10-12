@@ -176,6 +176,41 @@ describe('every message the --mcp server writes validates (R7)', () => {
     expect(problemsOf(recording, MCP_PROTOCOL_VERSION)).toEqual([]);
   });
 
+  /**
+   * mcp-current R2 — a tool that lists `outputSchema` returns `structuredContent` of that shape,
+   * and the list carrying it still validates: 2025-06-18 requires `type: "object"` at its root,
+   * which is why a scalar schema is wrapped as `{ result }`.
+   */
+  it('on a program whose commands declare output schemas: the list validates, and each structuredContent validates against its tool’s outputSchema', async () => {
+    const typed = defineProgram({
+      name: 'typed',
+      version: '1.0.0',
+      commands: [
+        defineCommand({ name: 'user', effects: 'read_only', output: { cardinality: 'single', schema: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] } }, run: () => ({ name: 'ada' }) }),
+        defineCommand({ name: 'count', effects: 'read_only', output: { cardinality: 'single', schema: { type: 'integer' } }, run: () => 3 }),
+        defineCommand({ name: 'tags', effects: 'read_only', output: { cardinality: 'bounded', schema: { type: 'array', items: { type: 'string' } } }, run: () => ['a', 'b'] }),
+      ],
+    });
+    const run: Invoke = async (argv) => {
+      const out: string[] = [];
+      await execute(typed, { argv, env: {}, stdout: { write: (s: string) => out.push(s) }, stderr: { write: () => true }, exit: () => undefined });
+      return { stdout: out.join(''), stderr: '', code: 0 };
+    };
+    const names = ['user', 'count', 'tags'];
+    const recording = await record(typed, [init, rpc(2, 'tools/list'), ...names.map((name, at) => rpc(3 + at, 'tools/call', { name, arguments: {} }))], run);
+    expect(problemsOf(recording, MCP_PROTOCOL_VERSION)).toEqual([]);
+    const [, list, ...calls] = recording.frames;
+    const tools = (list?.['result'] as { tools: { name: string; outputSchema?: JsonSchema }[] }).tools;
+    expect(tools.map((t) => t.outputSchema?.type)).toEqual(['object', 'object', 'object']);
+    const problems = calls.map((frame, at) => {
+      const { structuredContent } = frame['result'] as { structuredContent: unknown };
+      return check(structuredContent, tools.find((t) => t.name === names[at])?.outputSchema as JsonSchema, names[at] as string);
+    });
+    expect(problems).toEqual([undefined, undefined, undefined]);
+    // The walker bites: the scalar unwrapped does not match the schema the list advertised.
+    expect(check(3, tools[1]?.outputSchema as JsonSchema, 'count')).toBe('count: expected object, got integer');
+  });
+
   /** The suite can fail: the vendored schema refuses a handshake that renamed `protocolVersion`. */
   it('fails a mutation that renames protocolVersion in the initialize reply', async () => {
     const recording = await record(program, [init], invoke);
