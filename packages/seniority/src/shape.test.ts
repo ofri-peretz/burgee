@@ -121,8 +121,13 @@ describe('nothing reads the process (R11, Y9)', () => {
  * not have. What the lock prevents is the thing weight locks exist to prevent — a dependency
  * or a bundled parser arriving without anyone noticing, which would move this by an order of
  * magnitude rather than by a few hundred bytes.
+ *
+ * Raised 140,000 → 140,600 on 2026-10-12 (D-20261012-seniority-dotenv-spawn-codeql): main stood
+ * at 139,784 and `dotenv run` on Windows now refuses what cmd.exe cannot carry (a line break,
+ * NUL, a variable name ending in a caret) and reports it, 539 B. It closes a live `&` and a
+ * `%name:…%` expansion, which a few hundred bytes are worth.
  */
-const CEILING_BYTES = 140_000;
+const CEILING_BYTES = 140_600;
 
 describe('the weight ceiling (R9, Y8)', () => {
   it('keeps the built package under its declared ceiling', () => {
