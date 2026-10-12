@@ -67,6 +67,12 @@ async function session(requests: object[]): Promise<Map<number | string | null, 
 
 const init = { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: MCP_PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: 'test', version: '0' } } };
 
+/** One `tools/call` after the handshake, and its result. */
+const structured = async (name: string, args: object): Promise<Record<string, unknown>> => {
+  const replies = await session([init, { jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name, arguments: args } }]);
+  return replies.get(9)?.['result'] as Record<string, unknown>;
+};
+
 describe('--mcp', () => {
   it('completes the handshake and names the program (N1)', async () => {
     const replies = await session([init, { jsonrpc: '2.0', method: 'notifications/initialized' }, { jsonrpc: '2.0', id: 2, method: 'ping' }]);
@@ -114,6 +120,39 @@ describe('--mcp', () => {
     const result = replies.get(4)?.['result'] as { content: { text: string }[]; isError: boolean };
     expect(result.isError).toBe(true);
     expect(JSON.parse(result.content[0]?.text ?? '')).toMatchObject({ ok: false, error: { code: 1, message: 'boom' } });
+  });
+
+  /**
+   * mcp-current R1 — the result as data. Red before it was built: the result carried
+   * `content` and `isError` and nothing else, so a client that wanted the data parsed the text.
+   */
+  describe('carries structuredContent beside the text (R1)', () => {
+    it('deep-equals the envelope’s data when the data is an object, with the text first and unchanged', async () => {
+      const result = await structured('config_get', { key: 'user' });
+      const [text] = result['content'] as { text: string }[];
+      expect(result['structuredContent']).toEqual((JSON.parse(text?.text ?? '') as { data: unknown }).data);
+      expect(result['structuredContent']).toEqual({ key: 'user', value: 'ada' });
+      expect(result['isError']).toBe(false);
+    });
+
+    it('wraps a result that is not an object as { result }, because the protocol requires an object', async () => {
+      expect((await structured('greet', { name: 'ada' }))['structuredContent']).toEqual({ result: 'Hello, ada!' });
+    });
+
+    it('carries the envelope’s error object on a failure, with isError', async () => {
+      const result = await structured('fail', {});
+      expect(result['isError']).toBe(true);
+      expect(result['structuredContent']).toMatchObject({ code: 1, message: 'boom' });
+    });
+
+    it('carries none when stdout is not an envelope, and leaves the text as it was', async () => {
+      const input = new PassThrough();
+      const written: string[] = [];
+      const done = serveMcp(program, { input, output: { write: (s: string) => written.push(s) }, invoke: async () => ({ stdout: 'just words\n', stderr: '', code: 0 }) });
+      input.end(`${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'greet', arguments: { name: 'ada' } } })}\n`);
+      await done;
+      expect((JSON.parse(written.join('')) as { result: unknown }).result).toEqual({ content: [{ type: 'text', text: 'just words' }], isError: false });
+    });
   });
 
   it('refuses an unknown or undeclared tool and an unknown method with JSON-RPC errors', async () => {

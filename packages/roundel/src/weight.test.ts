@@ -116,6 +116,10 @@ const RULES: Record<string, EntryRule> = {
   // R12, on 2026-09-28: `interactive(rt)` and the is-unicode-supported probe, which caique
   // and flagstaff each carried by hand. Its own subpath because `./chalk` above has 7 B left
   // and `./policy` 28. Reaches nothing, and the root does not re-export it: `.` has 58 B left. Measured 878.
+  // `graded-override-targets` R7, 2026-10-11: picocolors' surface over the process seam alone.
+  // Measured 2,646 B with `runtime.js`, against picocolors 1.1.1's one file at 2,663 B on disk; the
+  // bar R7 sets is bundled bytes, held in `scripts/subpath-weight-lock.test.ts`.
+  './picocolors': { allow: [], budget: 2_800, denied: ['policy.js', 'tokens.js', 'theme.js', 'contrast.js', 'chalk.js', 'index.js'] },
   './terminal': { allow: [], budget: 1_000, denied: ['policy.js', 'tokens.js', 'theme.js', 'contrast.js', 'chalk.js', 'index.js'] },
   // R11, on 2026-09-30: `fromBase16` and `fromITerm`. It carries the whole theme graph on
   // purpose — `audit()` is how an imported theme is refused exactly when `fly()` would refuse
