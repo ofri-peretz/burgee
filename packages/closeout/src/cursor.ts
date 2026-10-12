@@ -160,9 +160,26 @@ export function bracketedPaste(stream: OutputStream, onExit: Registrar): () => v
  * else owns that state — a prompt library, the program itself — and switching it off at exit
  * would take it from them; the call changes nothing and returns a no-op. The same holds for
  * an input that is not a terminal or has no `setRawMode`: there is no mode to change.
+ *
+ * **Callers through here share the mode it turned on.** A spinner discarding stdin and a prompt
+ * reading keys both ask; the mode goes off when the last of them lets go, in whatever order
+ * they do. Handing the second a no-op — it saw `isRaw` and took it for somebody else's — let a
+ * spinner that stopped first take the keyboard from a prompt still reading it
+ * (`.sdlc/models/save-restore.qnt`).
  */
 export function rawMode(input: InputStream, onExit: Registrar): () => void {
-  if (input.isTTY !== true || input.setRawMode === undefined || input.isRaw === true) return noop;
-  input.setRawMode(true);
-  return paired(() => input.setRawMode?.(false), onExit);
+  if (input.isTTY !== true || input.setRawMode === undefined) return noop;
+  const held = rawHolders.get(input);
+  if (held === undefined && input.isRaw === true) return noop;
+  if (held === undefined) input.setRawMode(true);
+  rawHolders.set(input, (held ?? 0) + 1);
+  return paired(() => {
+    const left = (rawHolders.get(input) ?? 1) - 1;
+    if (left > 0) return void rawHolders.set(input, left);
+    rawHolders.delete(input);
+    input.setRawMode?.(false);
+  }, onExit);
 }
+
+/** How many `rawMode` callers hold each input that `rawMode` itself turned raw. */
+const rawHolders = new WeakMap<InputStream, number>();
