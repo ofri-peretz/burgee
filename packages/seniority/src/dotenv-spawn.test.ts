@@ -33,8 +33,9 @@ describe('quoteWindowsArgument (the C runtime’s rules)', () => {
 });
 
 describe('protectShellToken (cmd’s rules)', () => {
-  it('carets every ASCII character that is not a letter, digit or path character', () => {
-    expect(protectShellToken('aZ09\\/:._-')).toBe('aZ09\\/:._-');
+  it('carets every ASCII character that is not a letter, digit or path character, and the drive colon', () => {
+    expect(protectShellToken('aZ09\\/._-')).toBe('aZ09\\/._-');
+    expect(protectShellToken('C:')).toBe('C^:');
     expect(protectShellToken('a&b|c<d>e%f!g^h(i) "j"')).toBe('a^&b^|c^<d^>e^%f^!g^^h^(i^)^ ^"j^"');
   });
 
@@ -45,7 +46,7 @@ describe('protectShellToken (cmd’s rules)', () => {
   });
 
   it('treats the characters at each range boundary as the ranges say', () => {
-    // '/' and ':' sit either side of the digits, '@' and '[' of the upper case, '`' and '{' of the lower.
+    // '/' and ':' sit either side of the digits, and both are tested above, '@' and '[' of the upper case, '`' and '{' of the lower.
     expect(protectShellToken('@[`{')).toBe('^@^[^`^{');
   });
 });

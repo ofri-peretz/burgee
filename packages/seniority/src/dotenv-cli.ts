@@ -227,7 +227,15 @@ export function run(argv: readonly string[], proc: CliProcess = ambientProcess()
   const start = io.spawn ?? ((file: string, args: readonly string[], opts: SpawnOptions) => spawnCommand(file, args, opts, proc));
   const spawnSync = io.spawnSync ?? spawnSyncDefault;
   const [file, ...args] = parsed.command as [string, ...string[]];
-  const child = start(file, args, { stdio: 'inherit', detached: useProcessGroup });
+  let child: ChildProcess;
+  try {
+    child = start(file, args, { stdio: 'inherit', detached: useProcessGroup });
+  } catch (cause) {
+    // A command cmd.exe cannot carry is refused before anything starts: a usage error, as dotenv reports one.
+    console.error(`dotenv: ${(cause as Error).message}`);
+    proc.exitCode = 1;
+    return;
+  }
   // Windows has no POSIX process-group signals: the shell's whole tree is taken down instead.
   const forward = forwarder(child, proc, useProcessGroup, () => spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' }));
 
