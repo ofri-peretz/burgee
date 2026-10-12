@@ -9,6 +9,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { unalias } from './aliases.js';
 import { renderCompletion, renderFigSpec } from './completions.js';
 import { defineCommand, defineProgram, runCommand } from './index.js';
 import { toolsOf } from './mcp.js';
@@ -38,6 +39,12 @@ describe('R5 — an alias dispatches to its command', () => {
     const result = await runCommand(program(), ['r', 'a', 'origin', '--json']);
     expect(result.code).toBe(0);
     expect(JSON.parse(result.stdout)).toMatchObject({ ok: true, data: { added: 'origin' } });
+  });
+
+  it('rewrites only where a subcommand could stand, and nothing after --', () => {
+    const manifest = program();
+    expect(unalias(manifest, ['r', 'a', 'r'], manifest.rootPath)).toEqual(['remote', 'add', 'r']);
+    expect(unalias(manifest, ['--json', 'r', '--', 'a'], manifest.rootPath)).toEqual(['--json', 'remote', '--', 'a']);
   });
 
   it('a word that is no command and no alias is still an unknown command', async () => {
@@ -76,10 +83,10 @@ describe('R5 — --schema lists an alias on its command, once', () => {
 });
 
 describe('R5 — help prints an alias the way commander does', () => {
-  it('serve|s|up in the root command list, remote|r beside it', async () => {
+  it('serve|s|up in the root command list; a listed subcommand carries its own', async () => {
     const help = (await runCommand(program(), ['--help'])).stdout;
     expect(help).toMatch(/serve\|s\|up\s+serve the site/);
-    expect(help).toMatch(/remote\|r\s+manage remotes/);
+    expect(help).toMatch(/remote add\|a <url>\s+add a remote/);
   });
 
   it('add|a <url> in the group list', async () => {

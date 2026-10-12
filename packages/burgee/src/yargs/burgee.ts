@@ -32,7 +32,7 @@ export interface Snapshot {
   /** yargs' own `help`, `version` and `show-hidden` keys: burgee serves those itself. */
   skip: readonly string[];
   positionals: { demanded: Positional[]; optional: Positional[] };
-  commands: { name: string; description: string | false | undefined; deprecated: boolean | string | undefined; child: Snapshot }[];
+  commands: { name: string; aliases?: string[] | undefined; description: string | false | undefined; deprecated: boolean | string | undefined; child: Snapshot }[];
 }
 
 const DEFER_PREFIX = '__yargsString__:';
@@ -102,20 +102,22 @@ export function projectManifest(manifest: Manifest, root: Snapshot): void {
   manifest.commands.splice(0, manifest.commands.length, ...contributed);
   manifest.rootPath = [root.name];
   if (root.version !== undefined) manifest.version = root.version;
-  const visit = (s: Snapshot, at: string[], description: string | undefined, deprecated: boolean | string | undefined): void => {
+  // The parent's entry for the command, so its description, deprecation and aliases (R6) come along.
+  const visit = (s: Snapshot, at: string[], { description, deprecated, aliases }: Partial<Snapshot['commands'][number]>): void => {
     const args = argumentsOf(s);
     manifest.add({
       path: at,
-      ...(description === undefined ? {} : { description }),
+      ...(aliases?.[0] ? { aliases } : {}),
+      ...(description ? { description } : {}),
       ...(s.effects === undefined ? {} : { effects: s.effects }),
-      ...(deprecated === undefined || deprecated === false ? {} : { deprecated }),
+      ...(deprecated ? { deprecated } : {}),
       options: optionSpecs(s),
       ...(args.length === 0 ? {} : { arguments: args }),
       ...(s.hasHandler ? { run: () => undefined } : {}),
     });
-    for (const c of s.commands) visit(c.child, [...at, c.name], c.description === false ? undefined : c.description, c.deprecated);
+    for (const c of s.commands) visit(c.child, [...at, c.name], c);
   };
-  visit(root, [root.name], root.description, undefined);
+  visit(root, [root.name], { description: root.description });
 }
 
 /** What a run prints for a handler's return value when the streams are injected. */

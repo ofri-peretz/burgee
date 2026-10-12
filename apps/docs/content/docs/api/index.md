@@ -363,6 +363,8 @@ interface ArgumentSpec {
 ```ts
 interface Command<S extends OptionSpecs = OptionSpecs, O extends CommandOutput = CommandOutput> {
     name: string;
+    /** Other words that run this command, `['s']` for `serve`: listed on it in help, `--schema` and completions, never as commands of their own. */
+    aliases?: readonly string[];
     description?: Localised;
     /** Shown in command lists instead of the description. */
     summary?: Localised;
@@ -424,6 +426,13 @@ interface CommandContext<O> extends Omit<RunContext, 'options'> {
 ```ts
 interface CommandNode {
     path: string[];
+    /**
+     * Other words that name this command where its own last path segment would be typed:
+     * commander's `.alias()`, yargs' `['serve', 's']` (facade-projection-fidelity R5). A field on
+     * the command, never a second command, so `--schema` and an MCP tool list do not double.
+     * The engine reads them in `aliases.ts`; a façade dispatches its own.
+     */
+    aliases?: readonly string[];
     description?: string;
     /** Shown in command lists instead of the description (yargs #1265). */
     summary?: string;

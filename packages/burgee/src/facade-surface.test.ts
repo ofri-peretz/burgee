@@ -298,6 +298,14 @@ describe('G6 — every argument the schema advertises reaches the program', () =
   });
 });
 
+/** A yargs program with an array command name and an `aliases` key. */
+function aliasedYargs(): Argv {
+  return yargs([])
+    .scriptName('web')
+    .command(['serve', 's', 'up'], 'serve the site', (b: Argv) => b, () => undefined)
+    .command({ command: 'build', aliases: ['b'], describe: 'build it', handler: () => undefined });
+}
+
 /** The commands of the `--schema` document a commander or yargs program prints. */
 async function schemaCommands(argv: (args: string[]) => Promise<string>): Promise<{ name: string; aliases?: string[] }[]> {
   return (JSON.parse(await argv(['--schema'])) as { commands: { name: string; aliases?: string[] }[] }).commands;
@@ -315,14 +323,9 @@ describe('facade-projection-fidelity R6 — an aliased command is one schema ent
   });
 
   it("yargs: command: ['serve', 's'] fills aliases, and the alias is no entry of its own", async () => {
-    const program = (): Argv =>
-      yargs([])
-        .scriptName('web')
-        .command(['serve', 's', 'up'], 'serve the site', (b: Argv) => b, () => undefined)
-        .command({ command: 'build', aliases: ['b'], describe: 'build it', handler: () => undefined });
     const commands = await schemaCommands(async (argv) => {
       const out: string[] = [];
-      await program().burgee({ stdout: { write: (s: string) => void out.push(s) }, exit: () => undefined }).parseAsync(argv);
+      await aliasedYargs().burgee({ stdout: { write: (s: string) => void out.push(s) }, exit: () => undefined }).parseAsync(argv);
       return out.join('');
     });
     expect(commands.map((c) => c.name)).toEqual(['serve', 'build']);

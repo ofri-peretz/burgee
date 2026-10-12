@@ -47,6 +47,24 @@ declaration only, so a projected relation is never checked twice.
 | R6 | the two façade surface tests: an aliased command is one schema entry with `aliases` | today the alias is absent from `--schema` |
 | all | `npm run compat -- commander yargs` | the grade is the evidence the façades' own help did not move |
 
+## Status
+
+| R | Status | Where | Check |
+| :-- | :-- | :-- | :-- |
+| R1 | In review, #1074 | — | — |
+| R2 | In review, #1074 | — | — |
+| R3 | In review, #1074 (the choices half is gap `B-20261012-commander-argument-choices`) | — | — |
+| R4 | Not built | — | — |
+| R5 | **Built** 2026-10-12 | `CommandNode.aliases` and `Command.aliases` (`manifest.ts`, `execute.ts`). Dispatch is `aliases.ts`, a chunk `execute.ts` loads only for a program that declares an alias: it rewrites each alias typed where a subcommand could stand to that command's name before anything resolves argv, so `help <command>`, `--schema <command>` and `__complete` read it too. It is not in `Manifest.resolve`, as the design had it, because the commander and yargs front-ends carry that class and resolve their own aliases: there it cost each front-end 66 B. `--schema` passes `aliases` through (`schema.ts`, `program-schema.json`), help lists `serve\|s` (`help.ts`), and the four scripts and Fig offer and follow an alias (`completions.ts`). `--mcp` was already one tool per command | `command-aliases.test.ts`, 18 checks. Red on main: 13 of the first 17 failed, e.g. `expected { code: 2, stdout: '', …(1) } to deeply equal { code: +0, …(2) }` (`web s` was an unknown command) and `expected undefined to deeply equal [ 's', 'up' ]` (no `aliases` in `--schema`); the MCP tool count, an unknown word, and the two no-alias guards passed on main as guards |
+| R6 | **Built** 2026-10-12 | commander's `_project()` copies `_aliases`; yargs' handler keeps the aliases it was registered with and `projectManifest` copies them | `facade-surface.test.ts` › `facade-projection-fidelity R6`. Red on main: both failed with `expected undefined to deeply equal [ 's', 'up' ]` |
+
+Bytes (local `esbuild` measure, the same command as B4, against `main` at `3bd9a9e`): the core bundle
+24,285 → 24,281 B, `burgee/commander` 60,970 → 60,964 B, `burgee/yargs` 108,314 → 108,342 B. No
+ceiling moved: the alias gate and `NODE_KEYS` entry were paid for by shorter tests of the same
+values in `execute.ts`, and commander's projection by three in `commander/command.ts`.
+
+**Built: 2 here, 3 in review. Not built: 1.**
+
 ## Rejected alternatives
 
 - **Re-parse the façade's rendered help to recover the data.** That is the help-scraping yargs
