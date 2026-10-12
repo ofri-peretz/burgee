@@ -6,7 +6,7 @@
  * `agentskills/agentskills` at `69ef37e9`, read 2026-10-12): `name` 1–64 characters of `a-z`,
  * `0-9` and `-`, no leading, trailing or doubled `-`; `description` 1–1024 characters.
  */
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -183,7 +183,8 @@ describe('--skill prints an Agent Skill (agent-skill R2)', () => {
 });
 
 const src = dirname(fileURLToPath(import.meta.url));
-const dir = mkdtempSync(join(tmpdir(), 'burgee-skill-'));
+// The real path: on macOS `/tmp` is `/private/tmp`, and the bin's directory is resolved through it.
+const dir = realpathSync(mkdtempSync(join(tmpdir(), 'burgee-skill-')));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
 /** A package with a bin, and an entry exporting the demo-shaped program. */
@@ -229,12 +230,12 @@ describe('burgee skill writes the files an author ships (agent-skill R3)', () =>
 
   it('--out writes where it is told, and --check names it in the fix', async () => {
     const entry = project(undefined);
-    const out = join(dirname(entry), 'docs');
+    const out = join(dirname(entry), 'my docs');
     expect((await runCommand(burgee, ['skill', entry, '--out', out])).code).toBe(ExitCode.OK);
     expect(readFileSync(join(out, 'SKILL.md'), 'utf8')).toContain('# fx\n');
     rmSync(join(out, 'AGENTS.md'));
     const stale = await runCommand(burgee, ['skill', entry, '--out', out, '--check', '--json']);
-    expect(JSON.parse(stale.stdout)).toMatchObject({ data: { stale: ['AGENTS.md'], fix: `burgee skill ${entry} --out ${out}` } });
+    expect(JSON.parse(stale.stdout)).toMatchObject({ data: { stale: ['AGENTS.md'], fix: `burgee skill ${entry} --out '${out}'` } });
   });
 
   it('a package with no bin is refused with the flag that fixes it', () => {

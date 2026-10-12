@@ -16,6 +16,7 @@ import { load } from './dev.js';
 import { ExitCode } from './exit-code.js';
 import { owningPackage } from './pkg.js';
 import { renderAgents, renderSkill } from './skill.js';
+import { shellWord } from './unknown-option.js';
 
 export interface SkillWritten {
   out: string;
@@ -52,7 +53,7 @@ export async function writeSkill(entry: string, opts: { out?: string | undefined
   });
   if (opts.check === true) {
     if (differs.length === 0) return { out, files: Object.keys(files), changed: false };
-    return { out, stale: differs.map(([file]) => file), changed: false, fix: `burgee skill ${entry}${opts.out === undefined ? '' : ` --out ${opts.out}`}`, exitCode: ExitCode.RUNTIME };
+    return { out, stale: differs.map(([file]) => file), changed: false, fix: ['burgee', 'skill', entry, ...(opts.out === undefined ? [] : ['--out', opts.out])].map(shellWord).join(' '), exitCode: ExitCode.RUNTIME };
   }
   mkdirSync(out, { recursive: true });
   for (const [file, text] of differs) writeFileSync(join(out, file), text);
