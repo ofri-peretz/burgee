@@ -106,7 +106,7 @@ Every PR also runs `runtime-ratchets-lock` (core bytes unchanged, since `--mcp` 
 
 | R | Status | Where | Check |
 | :-- | :-- | :-- | :-- |
-| R1 | Not built | `mcp.ts` (`callTool`) | `mcp.test.ts` |
+| R1 | **Built** 2026-10-12 | `mcp.ts` (`structuredOf`, called from `callTool`). The envelope is parsed from the text the result already carries, so a run that printed prose has no `structuredContent` and its text is unchanged. `./mcp` 25,850 → 26,215 B, budget 26,250 ([D-20261012-mcp-current-budget](../../decisions/D-20261012-mcp-current-budget.md)); `.` unchanged at 35,105 | `mcp.test.ts` › `carries structuredContent beside the text (R1)` (object data deep-equals the envelope's `data`; a scalar is `{ result }`; a failure carries `error` with `isError`; prose carries none). Red on main: `expected undefined to deeply equal { key: 'user', value: 'ada' }`, and the same `undefined` for the scalar and the error |
 | R2 | Not built | `mcp.ts` (`toolsOf`) | `mcp.test.ts` |
 | R3 | Not built | `mcp.ts`, `__fixtures__/mcp/` | `mcp.test.ts` |
 | R4 | Not built | `mcp.ts` (`serveMcp`), `ctx.ts` | `mcp-transport.test.ts` |
