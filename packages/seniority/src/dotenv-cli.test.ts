@@ -275,7 +275,7 @@ describe('the child', () => {
   it('reports a command cmd.exe cannot carry, refused before anything starts, and fails', () => {
     const proc = fakeProcess({ platform: 'win32', env: { PATHEXT: '.EXE' } });
     run(['run', '-q', '-f', 'a.env', 'nope', 'a\n&b'], proc);
-    expect(printed('error')).toEqual(['dotenv: cmd.exe cannot carry a line break or NUL in "\\"a\\n&b\\""']);
+    expect(printed('error')).toEqual(['dotenv: cmd.exe cannot carry a line break or NUL in the command or its arguments']);
     expect(proc.exitCode).toBe(1);
     expect([...proc.listeners.values()].every((set) => set.size === 0)).toBe(true);
   });

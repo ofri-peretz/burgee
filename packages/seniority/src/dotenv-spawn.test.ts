@@ -114,6 +114,9 @@ describe('spawnCommand', () => {
     const spawn = vi.spyOn(cp, 'spawn').mockReturnValue(fake);
     spawnCommand('native', ['a b'], { cwd: root }, context('win32'));
     expect(spawn).toHaveBeenCalledWith(join(root, 'native.EXE'), ['a b'], { cwd: root });
+    // No cmd.exe reads that line, so a variable name ending in a caret is no reason to refuse it.
+    spawnCommand('native', ['%x^%'], { cwd: root, env: { 'x^': 'set' } }, context('win32'));
+    expect(spawn).toHaveBeenLastCalledWith(join(root, 'native.EXE'), ['%x^%'], { cwd: root, env: { 'x^': 'set' } });
   });
 
   it('runs anything else through COMSPEC with each token escaped, twice for a batch file', () => {

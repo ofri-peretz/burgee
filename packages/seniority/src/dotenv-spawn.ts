@@ -51,7 +51,7 @@ export const isCmdEscapeSafe = (value: string): boolean => !/[\0\n\r]/.test(valu
  * environment holding such a name, so nothing expands. A token cmd cannot carry throws.
  */
 export function protectShellToken(token: string, passes = 1): string {
-  if (!isCmdEscapeSafe(token)) throw new TypeError(`cmd.exe cannot carry a line break or NUL in ${JSON.stringify(token)}`);
+  if (!isCmdEscapeSafe(token)) throw new TypeError('cmd.exe cannot carry a line break or NUL in the command or its arguments');
   let out = token;
   for (let pass = 0; pass < passes; pass++) {
     const output: string[] = [];
@@ -102,11 +102,12 @@ export interface SpawnContext {
 export function spawnCommand(command: string, args: readonly string[], options: SpawnOptions, context: SpawnContext): ChildProcess {
   if (context.platform !== 'win32') return cp.spawn(command, args, options);
   const env = options.env ?? context.env;
-  const caret = Object.keys(env).find((name) => name.endsWith('^'));
-  if (caret !== undefined) throw new TypeError(`cmd.exe would expand %${caret}%, a name ending in a caret`);
   const file = resolveWindowsCommand(command, env, typeof options.cwd === 'string' ? options.cwd : context.cwd());
   // A native executable gets its arguments quoted by Node, with no cmd.exe in between.
   if (file !== undefined && /\.(?:exe|com)$/i.test(file)) return cp.spawn(file, args, options);
+  // From here cmd.exe reads the line, and its percent pass would expand a name ending in a caret.
+  const caret = Object.keys(env).find((name) => name.endsWith('^'));
+  if (caret !== undefined) throw new TypeError(`cmd.exe would expand %${caret}%, a name ending in a caret`);
   // Batch files and npm's shims reparse what `%*` forwards, so they get a second pass.
   const batchFile = /\.(?:bat|cmd)$/i.test(file ?? command);
   const tokens = [protectShellToken(path.normalize(file ?? command))];
