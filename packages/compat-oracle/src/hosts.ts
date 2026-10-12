@@ -1077,7 +1077,7 @@ export const HOSTS: Host[] = [
     runner: 'ava',
     target: 'linegauge',
     status: 'active',
-    note: "**Graded 2026-10-11 at 6.1.1: `linegauge/cli-truncate` 12 / 12 against a control of 12 / 12.** Before the façade the target run reported `target not built yet: linegauge/cli-truncate`. The façade is cli-truncate's arithmetic over linegauge's `slice` and `width`, and `cli-truncate.test.ts` holds it byte-equal to the installed incumbent over 1,584 inputs. `linegauge/truncate` stays the family's API, with a different rule at the edges.",
+    note: "**Graded 2026-10-11 at 6.1.1: `linegauge/cli-truncate` 12 / 12 against a control of 12 / 12.** Before the façade the target run reported `target not built yet: linegauge/cli-truncate`. The façade is cli-truncate's arithmetic over linegauge's `slice` and `width`, and `cli-truncate.test.ts` holds it byte-equal to the installed incumbent over 1,980 inputs. `linegauge/truncate` stays the family's API, with a different rule at the edges.",
   },
   {
     // `linegauge/widest-line`'s grader (`graded-override-targets` R6): one case, three

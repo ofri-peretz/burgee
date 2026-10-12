@@ -6,7 +6,8 @@
  * each input goes through the incumbent the workspace installs (cli-truncate 6.1.1, widest-line
  * 6.0.0, the graded releases) and through ours, and the two must agree byte for byte. The table
  * reaches every branch — each position with and without `space` and `preferTruncationOnSpace`,
- * a styled text and a styled mark, the one-column and zero-column budgets, and every refusal.
+ * a styled text and a styled mark, a cut that ends on a bare `m` and one that opens on a
+ * sequence that is not SGR, the one-column and zero-column budgets, and every refusal.
  */
 import cliTruncateIncumbent from 'cli-truncate';
 import { describe, expect, it } from 'vitest';
@@ -19,7 +20,7 @@ const RED = '\u001B[31m';
 const RESET = '\u001B[39m';
 const BOLD = '\u001B[1m';
 
-const texts = ['unicorn', 'unicorns rainbow dragons', `${RED}unicorn${RESET}`, `${BOLD}${RED}unicorns rainbow${RESET}\u001B[22m`, '안녕하세요', 'a🈀b🈀c', `\u001B[3xunicorn`, `unicorn\u001B[3`];
+const texts = ['unicorn', 'unicorns rainbow dragons', `${RED}unicorn${RESET}`, `${BOLD}${RED}unicorns rainbow${RESET}\u001B[22m`, '안녕하세요', 'a🈀b🈀c', `\u001B[3xunicorn`, `unicorn\u001B[3`, 'dream mm summer mm', `unicorns \u001B[2Krainbow`];
 const positions = ['start', 'middle', 'end'] as const;
 const shapes: Options[] = [{}, { space: true }, { preferTruncationOnSpace: true }, { truncationCharacter: '...' }, { truncationCharacter: `${RED}~${RESET}` }, { space: true, truncationCharacter: '+' }];
 const budgets = [-1, 0, 1, 2, 3, 4, 5, 8, 12, 20, 40];
