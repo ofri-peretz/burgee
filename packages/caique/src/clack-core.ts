@@ -326,7 +326,7 @@ class Session<T> {
       this.close();
       return;
     }
-    signal?.addEventListener('abort', this.onAbort, { once: true });
+    signal?.addEventListener('abort', this.cancel, { once: true });
     emitKeypressEvents(this.input, DECODER);
     this.input.on('keypress', this.onKeypress);
     this.unraw = rawMode(this.input, exitHook);
@@ -351,7 +351,7 @@ class Session<T> {
   private close(): void {
     this.closed = true;
     this.input.removeListener('keypress', this.onKeypress);
-    this.definition.signal?.removeEventListener('abort', this.onAbort);
+    this.definition.signal?.removeEventListener('abort', this.cancel);
     this.output.write('\n');
     this.unraw();
     this.input.pause();
@@ -365,7 +365,8 @@ class Session<T> {
     this.close();
   }
 
-  private readonly onAbort = (): void => {
+  /** An abort, or a cancel key while the validator is out: cancel, and close. */
+  private readonly cancel = (): void => {
     this.prompt.state = 'cancel';
     this.finish();
   };
@@ -398,7 +399,13 @@ class Session<T> {
 
   private readonly onKeypress = async (char: string | undefined, key: Keypress = {}): Promise<void> => {
     const { definition, prompt } = this;
-    if (prompt.state === 'validating') return;
+    // Keys wait for the verdict, except cancel. In raw mode Ctrl-C is a byte, not a signal, so
+    // dropping it here strands a person behind a validator that never answers. clack drops it
+    // too, but its readline closes and leaves raw mode, so a second Ctrl-C kills the process.
+    if (prompt.state === 'validating') {
+      if (cancels(char, key)) this.cancel();
+      return;
+    }
     this.type(char, key);
     if (prompt.state === 'error') prompt.state = 'active';
     definition.onKey?.(prompt, char, key, actionOf(key, definition.track === true));

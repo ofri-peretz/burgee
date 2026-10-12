@@ -268,6 +268,20 @@ describe('validation', () => {
     expect(await answer).toBe('ok');
   });
 
+  it.each([
+    ['Ctrl-C', '\u0003', { name: 'c', ctrl: true }],
+    ['escape', undefined, { name: 'escape' }],
+  ])('%s while a validator hangs cancels: in raw mode Ctrl-C is a byte, and dropping it leaves no way out', async (_name, char, key) => {
+    const input = new Input();
+    const output = new Output();
+    const answer = text({ message: 'm', input, output, validate: () => new Promise<string | undefined>(noop) });
+    typeLine(input, 'ok');
+    ret(input);
+    press(input, char, key);
+    expect(await state(answer)).toBe(CANCEL_SYMBOL);
+    expect(output.buffer.at(-1)).toBe(SHOW_CURSOR);
+  });
+
   it('an Error from a validator is shown by its message', async () => {
     const input = new Input();
     const output = new Output();
