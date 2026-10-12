@@ -191,7 +191,7 @@ live, what to flush on exit, a prompt of its own, and a command every one of its
 | Package | A plugin adds | Check it |
 | :--- | :--- | :--- |
 | [`bellpull`](./packages/bellpull/) | `resolvers` | `npx bellpull check ./plugin.mjs` |
-| [`burgee`](./packages/burgee/) | `commands`, `hooks` | `npx burgee check ./plugin.mjs` |
+| [`burgee`](./packages/burgee/) | `commands`, `hooks`, `locales` | `npx burgee check ./plugin.mjs` |
 | [`caique`](./packages/caique/) | `widgets` | `npx caique check ./plugin.mjs` |
 | [`closeout`](./packages/closeout/) | `handlers` | `npx closeout check ./plugin.mjs` |
 | [`controlroom`](./packages/controlroom/) | `keymaps`, `panes` | `npx controlroom check ./plugin.mjs` |

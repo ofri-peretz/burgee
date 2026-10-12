@@ -4,7 +4,7 @@
   "method": "benchmarks/axes/weight.ts installedBytes(name, dir), tree-inclusive, one count per realpath — `dir` a fresh `npm i <incumbent>@latest` in an empty directory, one per incumbent, never the workspace install (whose hoisted copies lag the registry)",
   "layers": {
     "linegauge": {
-      "ours": 111165,
+      "ours": 111177,
       "incumbents": {
         "string-width": 36801,
         "wrap-ansi": 80185,
@@ -12,14 +12,14 @@
         "slice-ansi": 66999
       },
       "ceiling": 194329,
-      "ratio": 0.572,
+      "ratio": 0.5721,
       "lightestIncumbent": {
         "name": "strip-ansi",
         "bytes": 10344
       }
     },
     "paratext": {
-      "ours": 116671,
+      "ours": 116683,
       "incumbents": {
         "ansi-escapes": 30912,
         "terminal-link": 61152,
@@ -33,7 +33,7 @@
       }
     },
     "seniority": {
-      "ours": 231210,
+      "ours": 231222,
       "incumbents": {
         "cosmiconfig": 1832269,
         "dotenv": 44951,
@@ -52,7 +52,7 @@
       "$grew": "151,688 B on 2026-09-14, up from 53,475 — PLAN 3.2 built the cosmiconfig-compatible surface plus the `./dotenv` and `./find-up` façades, and the pack grew 182%. The Y8 ratio moved 0.034 to 0.098, so it is still an order of magnitude under what it replaces; the growth is recorded rather than smoothed because a ratio that only ever improves is a ratio nobody is watching."
     },
     "closeout": {
-      "ours": 128917,
+      "ours": 128929,
       "incumbents": {
         "signal-exit": 76966,
         "restore-cursor": 93638,
@@ -70,20 +70,20 @@
       "$note": "A zero-dependency incumbent exists here, so Y8's original wording applies too and beating it is reported separately."
     },
     "caique": {
-      "ours": 233127,
+      "ours": 233139,
       "incumbents": {
         "@clack/prompts": 182472,
         "@inquirer/core": 206577
       },
       "ceiling": 389049,
-      "ratio": 0.5992,
+      "ratio": 0.5993,
       "lightestIncumbent": {
         "name": "@clack/prompts",
         "bytes": 182472
       }
     },
     "bellpull": {
-      "ours": 116425,
+      "ours": 116437,
       "incumbents": {
         "execa": 647091,
         "cross-spawn": 46962,
