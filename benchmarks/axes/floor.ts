@@ -98,8 +98,11 @@ export function agentLintFailures(report: AgentLintReport): string[] {
 // the global `--no-color`, `--quiet`, `--timeout` and root help's completion, exit codes and
 // examples landed (#1002, #1006): 91, so losing even an info check (89.8%) fails, and so does
 // falling out of the top grade.
+// clispec raised 2026-10-12 (clispec-conformance R9, D-20261012-clispec-remainder-built) to 24 of
+// 24, the published reading once R1–R8 built the remainder D-151 had left argued with the checker:
+// at the maximum, losing any one point fails.
 export const BURGEE_FLOOR = {
-  clispec: { min: 14, why: 'N10: a change that loses a point on clispec.dev’s published checklist regresses the floor against someone else’s bar' },
+  clispec: { min: 24, why: 'N10: a change that loses a point on clispec.dev’s published checklist regresses the floor against someone else’s bar' },
   agentLint: { min: 91, why: 'N10: a change that loses a check on cli-agent-lint’s 34 regresses the floor against someone else’s bar' },
 } as const;
 
