@@ -3,6 +3,12 @@ title: Changelog
 description: "Every release of closeout, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.1.3
+
+### Patch Changes
+
+- [#1046](https://github.com/ofri-peretz/burgee/pull/1046) [`1797388`](https://github.com/ofri-peretz/burgee/commit/1797388f27a294803b12839ff4d074226bd40917) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `rawMode` keeps the terminal raw until the last caller that turned it on through `rawMode` lets go, in any order. A second caller — a prompt opened while a spinner discards stdin — used to get a no-op, so the spinner stopping first turned raw mode off under the prompt. A mode turned on by anyone else is still left alone.
+
 ## 1.1.2
 
 ### Patch Changes
