@@ -12,7 +12,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { ask, type Reader, type Writer } from './ask.js';
-import { resolvePrompts, type PromptableOption } from './binding.js';
+import { localise, resolvePrompts, type PromptableOption } from './binding.js';
 import { check } from './check.js';
 import { type Runtime } from './decide.js';
 import { checkLocales, sayFor } from './locale.js';
@@ -89,6 +89,16 @@ describe('the chrome caique draws, in the run’s locale (R6)', () => {
       message: '--force is required when there is no terminal',
       fix: 'pass --force; it would have been asked as "Overwrite?"',
       localised: { message: '--force ist ohne Terminal Pflicht', fix: 'übergeben Sie --force; gefragt worden wäre "Overwrite?"' },
+    });
+  });
+
+  it('translates a refusal that carries no fix without inventing one', () => {
+    register(pack);
+    expect(localise({ option: 'force', code: 'CANCELLED', message: 'cancelled at --force' }, sayFor('de'))).toEqual({
+      option: 'force',
+      code: 'CANCELLED',
+      message: 'cancelled at --force',
+      localised: { message: 'bei --force abgebrochen' },
     });
   });
 

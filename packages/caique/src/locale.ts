@@ -92,15 +92,15 @@ const candidatesOf = (tag: string): string[] => {
  * R6 — the run's translator: an English line of caique's in `locale`, from the registered packs.
  * The identity when there is no locale, no pack speaks it, or the line is not one of caique's.
  */
-/** caique's messages for `locale` from every registered pack, each pack checked first: `de` under `de-DE`, a later pack over an earlier. */
+/** caique's messages for `locale` from every registered pack, each pack checked once first: `de` under `de-DE`, a later pack over an earlier. */
 function messagesFor(locale: string): Map<string, Message> {
+  const tags = candidatesOf(locale).toReversed();
+  const packs = (registered() as readonly { name: string; locales?: Locales }[]).filter((plugin) => tags.some((tag) => plugin.locales?.[tag]));
+  for (const plugin of packs) checkLocales(plugin);
   const merged = new Map<string, Message>();
-  for (const tag of candidatesOf(locale).toReversed()) {
-    for (const plugin of registered() as readonly { name: string; locales?: Locales }[]) {
-      const messages = plugin.locales?.[tag];
-      if (messages === undefined) continue;
-      checkLocales(plugin);
-      for (const [id, message] of Object.entries(messages)) if (id.startsWith('caique.')) merged.set(id, message);
+  for (const tag of tags) {
+    for (const plugin of packs) {
+      for (const [id, message] of Object.entries(plugin.locales?.[tag] ?? {})) if (id.startsWith('caique.')) merged.set(id, message);
     }
   }
   return merged;

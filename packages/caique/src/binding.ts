@@ -91,10 +91,10 @@ const isFailure = (v: Decision | ResolveFailure): v is ResolveFailure => !('acti
  */
 /**
  * A failure with its translation beside it (R6). `say` is the identity unless a pack speaks the
- * run's locale (`sayFor` returns `String` itself then), and every failure here carries a `fix`.
+ * run's locale (`sayFor` returns `String` itself then). A failure without a `fix` gets none.
  */
-const localise = (failure: ResolveFailure, say: (english: string) => string): ResolveFailure =>
-  say === String ? failure : { ...failure, localised: { message: say(failure.message), fix: say(failure.fix as string) } };
+export const localise = (failure: ResolveFailure, say: (english: string) => string): ResolveFailure =>
+  say === String ? failure : { ...failure, localised: { message: say(failure.message), ...(failure.fix === undefined ? {} : { fix: say(failure.fix) }) } };
 
 export async function resolvePrompts<O extends PromptableOption>({ options, values, runtime, flags, io }: ResolveInput<O>): Promise<Resolved> {
   const out: Record<string, unknown> = { ...values };
