@@ -62,6 +62,7 @@ function everything(): ReturnType<typeof defineProgram> {
         relations: [{ atMostOneOf: ['a', 'b'] }],
         examples: [{ command: 'full deploy prod', description: 'to prod' }],
         effects: 'non_idempotent',
+        output: { kind: 'data', cardinality: 'single', schema: { type: 'string' } },
         run: () => 'ok',
       }),
       defineCommand({ name: 'status', effects: 'read_only', load: async () => ({ run: () => 'fine' }) }),
@@ -100,8 +101,19 @@ describe('burgee/program-schema.json describes `--schema` (F1, D-123)', () => {
   it('the fixture really does exercise every command field the file describes', () => {
     const emitted = new Set(doc.commands.flatMap((c) => Object.keys(c)));
     const described = Object.keys(published.$defs['command']?.properties ?? {});
-    // `fields` arrives with N14; everything else must be on the fixture, or this test proves less than it says.
-    expect(described.filter((k) => !emitted.has(k) && k !== 'fields')).toEqual([]);
+    // `fields` arrives with N14, and clispec's command keys (clispec-conformance R4, R5) only on the
+    // native surface, which the next test reads; everything else must be on the fixture, or this test proves less than it says.
+    const nativeOnly = ['fields', 'example', 'output_kind', 'media_type', 'cardinality', 'stdout_schema'];
+    expect(described.filter((k) => !emitted.has(k) && !nativeOnly.includes(k))).toEqual([]);
+  });
+
+  it('describes every clispec key the native surface prints, and the façades print none (clispec-conformance)', async () => {
+    const native = await nativeSchema();
+    const commands = native['commands'] as Record<string, unknown>[];
+    const emitted = new Set(commands.flatMap((c) => Object.keys(c)));
+    for (const key of ['example', 'output_kind', 'media_type', 'cardinality', 'stdout_schema']) expect(emitted, key).toContain(key);
+    for (const key of ['clispec', 'global_args', 'output', 'errors']) expect(native, key).toHaveProperty(key);
+    expect(doc).not.toHaveProperty('clispec');
   });
 });
 

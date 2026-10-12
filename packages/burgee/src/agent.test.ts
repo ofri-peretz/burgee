@@ -146,7 +146,7 @@ describe('--schema under a budget (N13)', () => {
     // the completion row; the rest is `summaryOf`'s.
     const own = summaryOf(program, 200);
     // `errors` too (clispec-conformance R2): a summary still says what can go wrong.
-    expect(summary).toEqual({ ...own, commands: [...own.commands, { name: 'completion', summary: expect.stringMatching(/^Print a shell completion script/), effects: 'read_only' }], explain: '--explain <option> on a command says where its value came from: default, env, config or flag', errors: expect.arrayContaining([{ kind: 'usage', exit_code: 2, retryable: false, description: expect.any(String) as string }]) as unknown });
+    expect(summary).toEqual({ ...own, commands: [...own.commands, { name: 'completion', summary: expect.stringMatching(/^Print a shell completion script/), effects: 'read_only' }], explain: '--explain <option> on a command says where its value came from: default, env, config or flag', version: expect.any(String) as string, errors: expect.arrayContaining([{ kind: 'usage', exit_code: 2, retryable: false, description: expect.any(String) as string }]) as unknown });
   });
   it('drills into one command in full', async () => {
     const r = await runBurgee(program, { argv: ['deploy', '--schema'] });

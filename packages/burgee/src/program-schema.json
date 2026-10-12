@@ -16,6 +16,10 @@
       "const": 1,
       "description": "Bumped only when a field changes meaning."
     },
+    "clispec": {
+      "const": "0.3",
+      "description": "The version of The CLI Spec (https://clispec.dev) the document also conforms to. A native program's `--schema` carries it, and every key clispec defines beside burgee's own; a commander- or yargs-syntax program's, and the summary over budget, do not."
+    },
     "name": {
       "type": "string",
       "description": "The program as typed."
@@ -36,6 +40,37 @@
     "explain": {
       "type": "string",
       "description": "How to ask where an option's value came from: `--explain <option>` on a command. A native program's `--schema` carries it ahead of `commands`; a commander- or yargs-syntax program's does not (D-20261009-b1-totals-and-explain)."
+    },
+    "global_args": {
+      "type": "array",
+      "description": "The flags every command takes, exactly as root help lists them under `Global options:` (clispec v0.3 `global_args`).",
+      "items": {
+        "$ref": "#/$defs/globalArg"
+      }
+    },
+    "output": {
+      "type": "object",
+      "required": [
+        "tty",
+        "piped",
+        "formats"
+      ],
+      "additionalProperties": false,
+      "description": "What a run prints when no format is asked for (clispec v0.3 `output`): text at a terminal and under a pipe; `--json` and `--format` select the others.",
+      "properties": {
+        "tty": {
+          "const": "text"
+        },
+        "piped": {
+          "const": "text"
+        },
+        "formats": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
     },
     "errors": {
       "type": "array",
@@ -62,6 +97,40 @@
     }
   },
   "$defs": {
+    "globalArg": {
+      "type": "object",
+      "required": [
+        "name",
+        "type",
+        "description"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "pattern": "^(boolean|string)$"
+        },
+        "description": {
+          "type": "string"
+        },
+        "short": {
+          "type": "string",
+          "pattern": "^-[A-Za-z0-9]$"
+        },
+        "enum": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "default": {
+          "type": "string"
+        }
+      }
+    },
     "error": {
       "type": "object",
       "required": [
@@ -163,6 +232,40 @@
         },
         "inputSchema": {
           "$ref": "#/$defs/inputSchema"
+        },
+        "example": {
+          "type": "object",
+          "required": [
+            "args"
+          ],
+          "additionalProperties": false,
+          "description": "The first of `examples` as the arguments to run it with, without the program's name (clispec v0.3 `example`). Native programs only.",
+          "properties": {
+            "args": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "output_kind": {
+          "type": "string",
+          "pattern": "^(data|stream|opaque)$",
+          "description": "`output.kind` as declared (clispec v0.3). Native programs only."
+        },
+        "media_type": {
+          "type": "string",
+          "description": "`output.mediaType` of an opaque command (clispec v0.3). Native programs only."
+        },
+        "cardinality": {
+          "type": "string",
+          "pattern": "^(single|bounded|unbounded)$",
+          "description": "`output.cardinality` as declared: how many results come back (clispec v0.3). Native programs only."
+        },
+        "stdout_schema": {
+          "type": "object",
+          "description": "What `--json` prints on success: the envelope, with `output.schema` (or an object of the declared `fields`) as its `data` (clispec v0.3). Native programs only."
         }
       }
     },

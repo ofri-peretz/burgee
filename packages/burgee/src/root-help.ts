@@ -51,6 +51,8 @@ export function completionNode(manifest: Manifest): CommandNode | undefined {
     path,
     description: 'Print a shell completion script: bash, zsh, fish, pwsh or fig',
     effects: 'read_only',
+    // clispec-conformance R5 — a script, not data: `--schema` says so, and names what the bytes are.
+    output: { kind: 'opaque', mediaType: 'text/plain' },
     arguments: [{ name: 'shell', description: 'bash, zsh, fish, pwsh or fig', required: true }],
     examples: [{ command: `${manifest.rootPath.join(' ')} completion bash` }],
     options: {},

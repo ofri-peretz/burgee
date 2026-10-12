@@ -42,11 +42,22 @@ const JSON_SPELLINGS = ['--format', '--output'];
  * B1's agents opened the task that asks for JSON with one of these in 14 of its 20 runs, and each
  * refusal that did not name `--json` cost a turn spent looking for it.
  */
-export function jsonSpelling(words: readonly string[], at: number): number {
+export const jsonSpelling = (words: readonly string[], at: number): number => spelling(words, at, 'json');
+
+/** How many words at `at` ask for `format` in another CLI's spelling: `--format <format>` is two, `--output=<format>` one. */
+function spelling(words: readonly string[], at: number, format: string): number {
   const word = String(words[at]);
-  if (JSON_SPELLINGS.some((flag) => word === `${flag}=json`)) return 1;
-  return JSON_SPELLINGS.includes(word) && words[at + 1] === 'json' ? 2 : 0;
+  if (JSON_SPELLINGS.some((flag) => word === `${flag}=${format}`)) return 1;
+  return JSON_SPELLINGS.includes(word) && words[at + 1] === format ? 2 : 0;
 }
+
+/**
+ * clispec-conformance R7 — how many words at `at` ask for the human format the way other CLIs
+ * spell it (`--format text`, `--output=text`), or 0. Text is what a burgee command prints when no
+ * format is asked for, at a terminal or under a pipe, so the request is honoured by running the
+ * line without it: an explicit format wins, and it never meets a refusal.
+ */
+export const textSpelling = (words: readonly string[], at: number): number => spelling(words, at, 'text');
 
 /**
  * Not a refusal: the line to run in its place, program first (D-20261009-json-asked-is-json). Thrown
@@ -79,6 +90,10 @@ export function unknownOption(
   // to anything real. Candidates go in dashed. `--json` is one of them: every command parses it.
   const dashed = [...declared, 'json'].map((option) => `--${option}`);
   const typed = argv.findIndex((word) => word === flag || word.startsWith(`${flag}=`));
+  // R7 — `--format text` on a command that declares no option near `--format`: the line runs
+  // without it, which is the human rendering. A declared `--formats` beside it keeps it a refusal.
+  const text = textSpelling(argv, typed);
+  if (text > 0 && suggestSimilar(flag, declared.map((option) => `--${option}`)) === '') return { message: `unknown option ${flag}`, hint: 'text is the default', again: argv.toSpliced(typed, text) };
   const spelled = jsonSpelling(argv, typed);
   const near = spelled > 0 ? '--json' : NEAREST.exec(suggestSimilar(flag, dashed))?.[0];
   if (near === undefined) return { message: `unknown option ${flag}`, hint: 'run --help to see the available options' };

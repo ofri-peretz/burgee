@@ -63,7 +63,7 @@ const brandCommand: import("./execute.js").Command<{
         readonly type: "boolean";
         readonly description: "emit anyway when a contrast check fails. Says so in the output";
     };
-}>;
+}, import("./manifest.js").CommandOutput>;
 ```
 
 ### devCommand
@@ -78,7 +78,7 @@ const devCommand: import("./execute.js").Command<{
         readonly type: "boolean";
         readonly description: "load once and serve; do not watch for changes";
     };
-}>;
+}, import("./manifest.js").CommandOutput>;
 ```
 
 ### migrateCommand
@@ -116,7 +116,7 @@ const migrateCommand: import("./execute.js").Command<{
         readonly placeholder: "lib,…";
         readonly description: "leave these incumbents alone, by package name";
     };
-}>;
+}, import("./manifest.js").CommandOutput>;
 ```
 
 ### pluginCheckCommand
@@ -126,7 +126,7 @@ for, and the one burgee did not have. See `check.ts`: this one returns its repor
 `--json` is the form an agent that just wrote a plugin reads.
 
 ```ts
-const pluginCheckCommand: import("./execute.js").Command<import("./execute.js").OptionSpecs>;
+const pluginCheckCommand: import("./execute.js").Command<import("./execute.js").OptionSpecs, import("./manifest.js").CommandOutput>;
 ```
 
 ### program

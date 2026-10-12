@@ -13,7 +13,7 @@ import { beforeTerminator, isJsonFlag, mayServe } from './argv.js';
 import { checkCommand } from './definition.js';
 import { ExitCode, isExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
 import { type LazyArgs } from './fields.js';
-import { type ActionRequiredSpec, type ArgumentSpec, type CommandNode, type DeclaredEffects, type Example, type LazyModule, Manifest, type OptionSpec, type Relation, relationsOf, type RunContext } from './manifest.js';
+import { type ActionRequiredSpec, type ArgumentSpec, type CommandNode, type CommandOutput, type DeclaredEffects, type Example, type LazyModule, Manifest, type OptionSpec, type OutputOf, type Relation, relationsOf, type RunContext } from './manifest.js';
 import { camel, kebab } from './names.js';
 import { owningPackage, type Package } from './pkg.js';
 import { builtin, host } from './runtime.js';
@@ -38,7 +38,10 @@ export type OptionSpecs = Record<string, OptionSpec>;
 // Children are declared with their own specs; a container holds a heterogeneous list of them.
 export type AnyCommand = Command<any>;
 
-export interface Command<S extends OptionSpecs = OptionSpecs> {
+/** What `run` may return: anything, or what `output.schema` describes (clispec-conformance R5). */
+type Returns<O> = O extends { schema: infer J } ? OutputOf<J> | Promise<OutputOf<J>> : unknown;
+
+export interface Command<S extends OptionSpecs = OptionSpecs, O extends CommandOutput = CommandOutput> {
   name: string;
   description?: string;
   /** Shown in command lists instead of the description. */
@@ -72,27 +75,30 @@ export interface Command<S extends OptionSpecs = OptionSpecs> {
    * Without them `--json=a,b` still selects, checked against the result's own keys.
    */
   fields?: readonly string[];
+  /**
+   * clispec-conformance R5 — what the result is and how much of it: `--schema` publishes it as
+   * `output_kind`, `cardinality` and `stdout_schema`. With a `schema`, `run` must return what it
+   * describes; without one, anything.
+   */
+  output?: O;
   /** Absent on a group that only holds subcommands. `NoInfer`: the spec fixes S, the handler only reads it. */
-  run?: (ctx: CommandContext<InferOptions<NoInfer<S>>>) => unknown;
+  run?: (ctx: CommandContext<InferOptions<NoInfer<S>>>) => Returns<NoInfer<O>>;
   /** The handler's module, imported on dispatch only (M2); everything else about the command is declared here. */
   load?: () => Promise<LazyModule>;
   commands?: AnyCommand[];
 }
 
-/** Everything help renders, copied as declared; `undefined` never lands on the node. */
+/** The declared keys a node carries as they are: what help renders, and what `--schema` publishes. */
+const NODE_KEYS = ['description', 'summary', 'arguments', 'examples', 'group', 'epilogue', 'hidden', 'deprecated', 'effects', 'relations', 'fields', 'output'] as const;
+
+/**
+ * Everything help renders, copied as declared; `undefined` never lands on the node. One loop over
+ * the keys, not an `if` per key: the eleven `if`s were more bytes than the loop with clispec's
+ * `output` added to it, against a core budget with 71 to spare (clispec-conformance R5).
+ */
 function helpFields(c: AnyCommand): Partial<CommandNode> {
-  const node: Partial<CommandNode> = {};
-  if (c.description !== undefined) node.description = c.description;
-  if (c.summary !== undefined) node.summary = c.summary;
-  if (c.arguments !== undefined) node.arguments = c.arguments;
-  if (c.examples !== undefined) node.examples = c.examples;
-  if (c.group !== undefined) node.group = c.group;
-  if (c.epilogue !== undefined) node.epilogue = c.epilogue;
-  if (c.hidden !== undefined) node.hidden = c.hidden;
-  if (c.deprecated !== undefined) node.deprecated = c.deprecated;
-  if (c.effects !== undefined) node.effects = c.effects;
-  if (c.relations !== undefined) node.relations = c.relations;
-  if (c.fields !== undefined) node.fields = c.fields;
+  const node: Record<string, unknown> = {};
+  for (const key of NODE_KEYS) if (c[key] !== undefined) node[key] = c[key];
   return node;
 }
 
@@ -114,7 +120,7 @@ export interface Program {
   commands: AnyCommand[];
 }
 
-export function defineCommand<const S extends OptionSpecs = OptionSpecs>(command: Command<S>): Command<S> {
+export function defineCommand<const S extends OptionSpecs = OptionSpecs, const O extends CommandOutput = CommandOutput>(command: Command<S, O>): Command<S, O> {
   // The reserved names of V5, `checkDefinition`'s four and N6's declared effects, in one
   // place, because `Manifest.use()` needs exactly these on a plugin's commands and used to
   // run none of them. A node with `load` and no `run` is runnable: its module has not been

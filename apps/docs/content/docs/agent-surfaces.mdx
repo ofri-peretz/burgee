@@ -31,6 +31,40 @@ that is where [clispec.dev](https://clispec.dev) and the agents that follow it l
 program whose own `schema` command exists, or whose root command takes arguments, keeps the
 word: burgee answers only the flag there. The root `--help` names `--schema`.
 
+### It is also a clispec v0.3 document
+
+The same document is a [The CLI Spec v0.3](https://clispec.dev) document
+([its schema](https://clispec.dev/schema/v0.3.json)): the keys clispec defines sit beside
+burgee's own, and `schemaVersion` stays 1, because none of burgee's keys changed meaning. Each
+is read from what the program already declares.
+
+| Key | What it says | Read from |
+| :-- | :-- | :-- |
+| `clispec` | `"0.3"` | — |
+| `version` | the program's version, always | `defineProgram({ version })`, else the owning `package.json` |
+| `errors` | every kind a run can fail with: `{ kind, exit_code, retryable, description }` | `ExitCode`, and each `defineError` class |
+| `global_args` | the flags every command takes | the rows root help prints under `Global options:` |
+| `output` | `{ "tty": "text", "piped": "text", "formats": [...] }`: text unless asked for, even under a pipe | — |
+| a command's `example` | its first example as `{ "args": [...] }`, the program's name dropped | `examples` |
+| a command's `cardinality`, `output_kind`, `media_type` | how much comes back, and what it is | `output: { cardinality, kind, mediaType }` |
+| a command's `stdout_schema` | what `--json` prints: the envelope, with your result as its `data` | `output.schema`, else `fields` |
+
+```js
+defineCommand({
+  name: 'list',
+  effects: 'read_only',
+  examples: [{ command: 'mytool list --json' }],
+  output: { cardinality: 'bounded', schema: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } } },
+  run: () => [{ id: 'a' }], // TypeScript holds this to output.schema
+});
+```
+
+A runnable command with no `output.cardinality` makes `burgee dev` print a warning, never an
+error: clispec has no safe default for how much comes back. clispec's checker scores the
+reference demo 24 / 24 ([Benchmarks](/docs/benchmarks)). Not carried: the `burgee/commander` and
+`burgee/yargs` documents, whose `--schema` is built where their weight budgets have no room, and
+the summary printed over the budget, which lists commands without what clispec requires of one.
+
 ## `--mcp` — the program as MCP tools
 
 ```bash
