@@ -10,8 +10,8 @@ has not been taken, and deliberately implements nothing.
 | R | Status | Where | Check |
 | :-- | :-- | :-- | :-- |
 | R1 | **Built** | the breach is measured, reproducible and named module by module | `npm run bench -- --axis weight --check` |
-| R2 | **Not built** | the ratio is at or below 1 | the same command; it reads 1.038 |
-| R3 | **Not built** | or the claim is restated in `weight.ts` and on the published page | `docs.test.ts` |
+| R2 | **Built** | the ratio is at or below 1 | the same command; `lighter-than-yargs` reads **0.969** against 1, `met: true`, in all 70 CI readings from `2026-10-06-71c6359-ci.json` to `2026-10-12-d8569f5-ci.json` |
+| R3 | **Moot** | or the claim is restated in `weight.ts` and on the published page | R2 is met, so U5 is true as written and there is nothing to restate |
 
 ## Design
 
@@ -36,6 +36,12 @@ nothing and hides nothing.
 
 `npm run bench -- --axis weight --check` — currently six failures, of which
 `burgee/yargs ÷ yargs bundled-bytes-ratio` is this one. It is *supposed* to be red.
+
+**Corrected 2026-10-12.** The paragraph above is the 2026-09-17 reading. The gate has been green
+since 2026-10-06: every CI reading under `benchmarks/results/cli-benchmarks/` from
+`2026-10-06-71c6359-ci.json` to `2026-10-12-d8569f5-ci.json`, 70 in all, records
+`lighter-than-yargs` at **0.969** against 1 with `met: true`. The gate's ceiling is still 1 in
+`benchmarks/axes/weight.ts`. R2 is met, which makes R3 moot.
 
 ## Rejected alternatives
 

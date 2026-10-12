@@ -5,7 +5,7 @@
 > watch from *the five hosts we vendor a test suite for* to *every competitor a package
 > names* — and makes the issue it opens say what we should do, not only what they did.
 
-**Status:** draft · **Opened:** 2026-09-08 · **Owner:** @ofri-peretz
+**Status:** approved · **Opened:** 2026-09-08 · **Owner:** @ofri-peretz
 
 ---
 
@@ -115,6 +115,19 @@ files are affected, what bump that implies, or what the changeset should read.
 - The dedupe holds: running the job twice on the same day opens no second issue.
 - Proven by a fixture, not by waiting: a recorded "old" fingerprint and a recorded "new" one
   produce a known issue body, asserted byte-for-byte.
+
+## Verified against `main` — 2026-10-12
+
+**`approved`, corrected from `draft`.** The header said `draft` after the work it describes had
+shipped. Steps 1–4 of `spec.md` landed on 2026-09-08 and 2026-09-09 (its two "What shipped"
+sections), and the daily competitor pass in `compat-upstream.yml` has run since: ten scheduled
+runs from 2026-10-02 to 2026-10-11, all green. It is not `shipped`, because the first success
+criterion is not met for the whole family: four packages declare competitors (`burgee`,
+`caique`, `flagstaff`, `roundel`) and six published ones (`seniority`, `bellpull`, `closeout`,
+`linegauge`, `paratext`, `controlroom`) do not. That remainder is
+`foundation-claims-watched` R1–R5, a wave-3 intent.
+
+The 2026-09-09 verification below is kept as it was read on that day.
 
 ## Verified against `main` — 2026-09-09
 
