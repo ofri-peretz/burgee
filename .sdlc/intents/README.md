@@ -458,6 +458,7 @@ half, then 55, then 58's yargs half. Requirement ids are `R1…` in each spec.
 | 59  | [`controlroom-scroll-pane/`](./controlroom-scroll-pane/)             | **a pane scrolls**: reducer state, keymap data, follow-tail, static projection whole. ink #222, open since 2019                                                            | approved |
 | 60  | [`frames-fit-the-screen/`](./frames-fit-the-screen/)                 | **a live frame never outgrows the terminal**: the writer clips to rows and flushes whole on release; native list prompts window. Five trackers, one defect               | approved |
 | 61  | [`facade-projection-fidelity/`](./facade-projection-fidelity/)       | **what a commander or yargs program declares reaches every surface**: choices, conflicts, hidden flags, examples and command aliases                                       | approved |
+| 62  | [`commander-front-end-diet/`](./commander-front-end-diet/)           | **`burgee/commander` in a user's bundle**: 61,207 B against commander's 39,329, attributed by module; the spawn and the async surfaces go lazy (55,633 measured), the synchronous residual named byte for byte, ratcheted down | approved |
 
 ## Owner tasks — outside an agent's reach
 
