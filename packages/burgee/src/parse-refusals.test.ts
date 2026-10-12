@@ -106,6 +106,11 @@ describe('R4 — the fix line is omitted rather than guessed', () => {
     expect(await fixOf('greet', 'ada', '-lx', '--level', 'y')).toBe('demo greet ada --level y --json');
   });
 
+  it('leaves out only what was refused: a same-value repeat stays, as accepted (review of #1064)', async () => {
+    expect(await fixOf('greet', 'ada', 'extra', '--level', 'info', '--level', 'info')).toBe('demo greet ada --level info --level info --json');
+    expect(await fixOf('greet', 'ada', '--level', 'a', '--level', 'b', '--level', 'a')).toBe('demo greet ada --level a --level a --json');
+  });
+
   it('is absent when the parser read one word as two flags, `-vl x` or `-vlx`', async () => {
     expect(await fixOf('greet', 'ada', '-vl', 'x', '--level', 'y')).toBeUndefined();
     expect(await fixOf('greet', 'ada', '-vlx', '--level', 'y')).toBeUndefined();

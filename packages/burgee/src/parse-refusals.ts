@@ -81,7 +81,9 @@ function repeated(node: CommandNode, tokens: readonly Token[], rest: readonly st
       kept.set(flag.name, flag);
       continue;
     }
-    if (!Object.is(later, flag.value)) message ??= `--${flag.name} was given twice: "${flag.value}" and "${later}"`;
+    // A repeat of the kept value was accepted, so the fix leaves it where it was typed.
+    if (Object.is(later, flag.value)) continue;
+    message ??= `--${flag.name} was given twice: "${flag.value}" and "${later}"`;
     edit.runnable &&= spelled(flag, rest[flag.index]);
     edit.words(flag.index, flag.inlineValue === true ? 1 : 2);
   }

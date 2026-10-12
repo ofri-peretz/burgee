@@ -545,10 +545,14 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   return { json, lines, data: selected, provenance, ...(changed === undefined ? {} : { changed }) };
 }
 
-/** parse-refusals R1/R3 — more positionals than declared, or one option named twice: what `parse-refusals.js` reads. */
+/**
+ * parse-refusals R1/R3 — more positionals than declared with no variadic last to take them, or one
+ * option named twice: what `parse-refusals.js` reads. A variadic command's ordinary run loads nothing.
+ */
 function mayDrop(node: CommandNode, positionals: string[], tokens: readonly Token[]): boolean {
   const named = tokens.map((t) => t.kind === 'option' && t.name);
-  return positionals.length > (node.arguments?.length ?? 0) || named.some((n, i) => n !== false && named.indexOf(n) < i);
+  const args = node.arguments ?? [];
+  return (positionals.length > args.length && args.at(-1)?.variadic !== true) || named.some((n, i) => n !== false && named.indexOf(n) < i);
 }
 
 /**
