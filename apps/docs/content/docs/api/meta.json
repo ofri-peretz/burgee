@@ -12,6 +12,7 @@
     "cli",
     "testing",
     "commander",
+    "commander/extra-typings",
     "meow",
     "completions",
     "yargs",

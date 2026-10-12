@@ -224,6 +224,7 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `commander` | 1360 / 1360 |
+| `extra-typings` | 369 / 369 |
 | `meow` | 146 / 148 |
 | `yargs` | 816 / 816 |
 

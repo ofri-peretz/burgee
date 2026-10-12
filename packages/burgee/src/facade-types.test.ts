@@ -26,7 +26,7 @@
  * on 28 missing yargs names and 4 missing commander names, and the migrated demo on
  * `Argv`. The PR records the output.
  */
-import { cpSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -446,7 +446,55 @@ describe('coverage — every name the incumbent exports, the façade exports', (
   });
 });
 
+/**
+ * `extra-typings-drop-in` R4 — the import site `orval` has (`adoption-targets.md` excluded it
+ * for exactly this import): a `Command` and an `Option` from `@commander-js/extra-typings`,
+ * options declared by their flag strings and read back typed in the action. The last line is
+ * the inference itself: the options are not `any`, so assigning one to a `number` is an error.
+ */
+const EXTRA_TYPINGS_ORVAL = `import { Command, Option } from '@commander-js/extra-typings';
+
+const cli = new Command('orval')
+  .description('A swagger client generator for typescript')
+  .version('8.0.0')
+  .option('-o, --output <path>', 'output file destination')
+  .option('-i, --input <path>', 'input file (yaml or json openapi specs)')
+  .option('-c, --config <path>', 'override flags by a config file')
+  .option('-p, --project <name...>', 'focus one or more projects of the config')
+  .option('-w, --watch [path...]', 'watch mode; with no path, the input target')
+  .addOption(new Option('--client <name>', 'default client').choices(['axios', 'fetch', 'swr'] as const))
+  .option('--mock', 'activate the mock')
+  .option('--clean [path...]', 'clean output directory')
+  .action(async (options) => {
+    const output: string | undefined = options.output;
+    const projects: string[] | undefined = options.project;
+    const watch: true | string[] | undefined = options.watch;
+    const client: 'axios' | 'fetch' | 'swr' | undefined = options.client;
+    const mock: true | undefined = options.mock;
+    const clean: true | string[] | undefined = options.clean;
+    await Promise.resolve([output, projects, watch, client, mock, clean, options.input, options.config]);
+    // @ts-expect-error -- inferred from '<path>', not \`any\`: a string is not a number
+    const port: number = options.output;
+    await Promise.resolve(port);
+  });
+
+await cli.parseAsync(process.argv);
+`;
+
 describe('burgee migrate — its output compiles', () => {
+  it("migrates orval's @commander-js/extra-typings import site to one that type-checks, inference intact (extra-typings-drop-in R4)", async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'burgee-extra-typings-'));
+    mkdirSync(join(dir, 'src'));
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'orval-shaped', type: 'module', dependencies: { '@commander-js/extra-typings': '^15.0.0', commander: '^15.0.0' } }));
+    writeFileSync(join(dir, 'src', 'orval.ts'), EXTRA_TYPINGS_ORVAL);
+    const report = await migrate({ dir, status: () => undefined });
+    expect(report).toMatchObject({ refused: [], kept: [] });
+    const migrated = readFileSync(join(dir, 'src', 'orval.ts'), 'utf8');
+    expect(migrated).toContain("from 'burgee/commander/extra-typings'");
+    expect(migrated).not.toContain('@commander-js/extra-typings');
+    expect(typeErrors({ 'orval/orval.ts': migrated })).toEqual([]);
+  });
+
   it('migrates demo-cli-yargs to a program that type-checks', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'burgee-demo-cli-yargs-'));
     cpSync(join(EXAMPLES, 'demo-cli-yargs', 'src'), join(dir, 'src'), { recursive: true });

@@ -27,6 +27,7 @@
 
 <p align="center">
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/commander%20suite-1360%2F1360-0a6b47?style=flat-square" alt="burgee/commander passes 1360 of 1360 cases of the commander test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/%40commander--js%2Fextra--typings%20suite-369%2F369-0a6b47?style=flat-square" alt="burgee/commander/extra-typings passes 369 of 369 cases of the @commander-js/extra-typings test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/meow%20suite-146%2F148-b45309?style=flat-square" alt="burgee/meow passes 146 of 148 cases of the meow test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/yargs%20suite-816%2F816-0a6b47?style=flat-square" alt="burgee/yargs passes 816 of 816 cases of the yargs test suite" /></a>
 </p>
@@ -257,6 +258,7 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `commander` | 1360 / 1360 |
+| `extra-typings` | 369 / 369 |
 | `meow` | 146 / 148 |
 | `yargs` | 816 / 816 |
 
