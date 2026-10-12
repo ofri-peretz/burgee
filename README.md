@@ -293,10 +293,10 @@ settled yet, because its measure changed**:
 | the core entry point is under 52 KB bundled | `core-under-52kb-bundled` | 24,285 bytes | ✅ met |
 | `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 0.970× | ✅ met |
 | `burgee` is lighter than `cac` **plus what a cac user installs to match it** | `lighter-than-cac-at-parity` | 0.249× | ✅ met |
-| `burgee/commander` is lighter than `commander` **plus the same** | `lighter-than-commander-at-parity` | 0.483× | ✅ met |
+| `burgee/commander` is lighter than `commander` **plus the same** | `lighter-than-commander-at-parity` | 0.444× | ✅ met |
 | `burgee/yargs` is lighter than `yargs` **plus the same** | `lighter-than-yargs-at-parity` | 0.545× | ✅ met |
 | `burgee` starts within 1.55× of `cac`, the lightest framework in the landscape (ratchet; lowered as it speeds up) | `cold-start-at-or-below-cac` | 1.443× | ✅ met |
-| `burgee/commander` stays within 1.565× of `commander` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-commander` | 1.560× | ✅ met |
+| `burgee/commander` stays within 1.565× of `commander` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-commander` | 1.436× | ✅ met |
 | `burgee` stays within 2.35× of `cac` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-cac` | 2.323× | ✅ met |
 | an agent spends ≥40% fewer tokens over the benchmark tasks (total over every task-run) | `agent-tokens-40pct` | 0.699× on the newest CI run (`e6cff20`); 0.549–0.699 over the 12 runs since B1 installs the demo under its printed name, met on 5 of them | ❌ **not met** |
 | an agent takes ≥30% fewer turns over the benchmark tasks (total over every task-run) | `agent-turns-30pct` | 0.677× on the newest CI run (`e6cff20`); 0.583–0.703 over the same 12 runs, met on 9 of them | **unmeasured** as a record until the next CI run; the figures are its per-task detail, summed |
@@ -319,7 +319,7 @@ with:
 | | the incumbent alone | + what you add to match burgee | ours |
 | :--- | ---: | ---: | ---: |
 | `cac` | 10,452 B | **97,692 B** | 24,285 B |
-| `commander` | 39,084 B | **126,335 B** | 60,970 B |
+| `commander` | 39,084 B | **126,335 B** | 56,116 B |
 | `yargs` | 111,686 B | **198,784 B** | 108,314 B |
 
 The additions are `cosmiconfig` (find and load a config file), `exit-hook` (run cleanup on

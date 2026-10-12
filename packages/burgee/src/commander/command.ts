@@ -1,3 +1,5 @@
+// The default import, with `spawn` read off it at the call site: commander's suite mocks `childProcess.spawn` in ~23 `executableSubcommand` cases, and a named binding would never see the mock.
+import childProcess, { type ChildProcess } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -18,9 +20,6 @@ import { stripVTControlCharacters } from 'node:util';
  *     then reports through the E1 taxonomy — the harness's seam (T1).
  */
  
-// eslint-disable-next-line import-next/no-namespace -- `spawn` is read off the namespace at the call site and never captured into a local. commander's own suite mocks `childProcess.spawn` in roughly 23 `executableSubcommand` cases, and a binding captured at import never re-syncs; bellpull's `cross-spawn.ts` reads `spawn` off its default import for this exact consumer, so a named import here would undo that and take the row from 1360 / 1360 to ungradeable.
-import * as crossSpawn from 'bellpull/cross-spawn';
-
 import { ExitCode } from '../exit-code.js';
 import { handlerFailure } from '../facade-failure.js';
 import { type DeclaredEffects, Manifest, type OptionSpec, type Plugin } from '../manifest.js';
@@ -154,6 +153,14 @@ function e1(err: { code: string; exitCode: number }): number {
   }
 }
 
+/** An executable subcommand that could not run: exit 1, or commander's error to an overridden exit. */
+function subCommandFailed(exitCallback: ((err: CommanderError) => void) | null, err: unknown): void {
+  if (!exitCallback) return host.exit(1);
+  const wrappedError = new CommanderError(1, 'commander.executeSubCommandAsync', '(error)');
+  wrappedError.nestedError = err;
+  exitCallback(wrappedError);
+}
+
 /** What a run prints for an action's return value when the streams are injected. */
 function render(value: unknown): string {
   if (value === undefined || value === null) return '';
@@ -178,7 +185,7 @@ export class Command extends EventEmitter {
   rawArgs: string[] = [];
   /** like .args but after custom processing and collecting variadic */
   processedArgs: unknown[] = [];
-  runningCommand: crossSpawn.ChildProcess | undefined = undefined;
+  runningCommand: ChildProcess | undefined = undefined;
 
   _allowUnknownOption = false;
   _allowExcessArguments = false;
@@ -830,31 +837,26 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
 
     const launchWithNode = SOURCE_EXT.includes(path.extname(executableFile));
 
-    // Through `bellpull`, not `node:child_process`: it resolves the executable properly on
-    // Windows, where upstream sends every spawn through `node` to dodge `PATHEXT`. The
-    // reasoning, the measurement and the mock constraint are in `weight.test.ts`'s
-    // `./commander` entry — they are prose, and prose in this file ships.
-    let proc: crossSpawn.ChildProcess;
-    if (host.platform !== 'win32') {
-      if (launchWithNode) {
-        args.unshift(executableFile);
-        args = incrementNodeInspectorPort(host.execArgv).concat(args);
-        proc = crossSpawn.spawn(host.argv[0] ?? host.execPath, args, { stdio: 'inherit' });
-      } else {
-        proc = crossSpawn.spawn(executableFile, args, { stdio: 'inherit' });
-      }
+    // commander's own spawn on every path commander takes. `bellpull` resolves the one it cannot,
+    // and loads only for it (commander-front-end-diet R1).
+    const win = host.platform === 'win32';
+    if (win) this._checkForMissingExecutable(executableFile, executableDir, subcommand._name);
+    const watch = (proc: ChildProcess): void => this._watchSubCommand(proc, executableFile, executableDir, subcommand._name);
+    if (launchWithNode) {
+      args = incrementNodeInspectorPort(host.execArgv).concat(executableFile, args);
+      watch(childProcess.spawn(win ? host.execPath : (host.argv[0] ?? host.execPath), args, { stdio: 'inherit' }));
+    } else if (!win) {
+      watch(childProcess.spawn(executableFile, args, { stdio: 'inherit' }));
     } else {
-      this._checkForMissingExecutable(executableFile, executableDir, subcommand._name);
-      if (launchWithNode) {
-        args.unshift(executableFile);
-        args = incrementNodeInspectorPort(host.execArgv).concat(args);
-        proc = crossSpawn.spawn(host.execPath, args, { stdio: 'inherit' });
-      } else {
-        // The case upstream cannot reach: a `.cmd`, a `.bat`, or a shebang that is not node.
-        proc = crossSpawn.spawn(executableFile, args, { stdio: 'inherit' });
-      }
+      // The case upstream cannot reach: a `.cmd`, a `.bat`, or a shebang that is not node. A spawn
+      // that throws here takes the exit the `error` event takes, not an unhandled rejection.
+      void import('bellpull/cross-spawn')
+        .then(({ default: crossSpawn }) => watch(crossSpawn.spawn(executableFile, args, { stdio: 'inherit' })))
+        .catch((err: unknown) => subCommandFailed(this._exitCallback, err));
     }
+  }
 
+  _watchSubCommand(proc: ChildProcess, executableFile: string, executableDir: string, subcommandName: string): void {
     if (!proc.killed) {
       // Testing mainly to avoid leak warnings during unit tests with mocked spawn.
       for (const signal of FORWARDED_SIGNALS) {
@@ -872,17 +874,11 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
     });
     proc.on('error', (err: NodeJS.ErrnoException) => {
       if (err.code === 'ENOENT') {
-        this._checkForMissingExecutable(executableFile, executableDir, subcommand._name);
+        this._checkForMissingExecutable(executableFile, executableDir, subcommandName);
       } else if (err.code === 'EACCES') {
         throw new Error(`'${executableFile}' not executable`);
       }
-      if (!exitCallback) {
-        host.exit(1);
-      } else {
-        const wrappedError = new CommanderError(1, 'commander.executeSubCommandAsync', '(error)');
-        wrappedError.nestedError = err;
-        exitCallback(wrappedError);
-      }
+      subCommandFailed(exitCallback, err);
     });
 
     this.runningCommand = proc;

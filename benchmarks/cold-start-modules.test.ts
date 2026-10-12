@@ -133,19 +133,12 @@ const CORE = [
 ];
 
 /**
- * `fixtures/cold-start/burgee-commander.mjs`. `bellpull/cross-spawn` is nine of these and cannot
- * go lazy: `parse()` is synchronous and commander's own suite mocks the spawn inside it (D-102).
+ * `fixtures/cold-start/burgee-commander.mjs`. 26 -> 17 on 2026-10-12 (commander-front-end-diet
+ * R1): `bellpull/cross-spawn`'s nine modules left the start-up path. The spawn is commander's own
+ * `node:child_process` on every path commander takes, and bellpull loads through `import()` only
+ * for a Windows executable that is not node, which superseded D-102's "cannot go lazy".
  */
 const COMMANDER = [
-  'bellpull/ambient.js',
-  'bellpull/cross-spawn.js',
-  'bellpull/enoent.js',
-  'bellpull/escape.js',
-  'bellpull/executable.js',
-  'bellpull/runtime.js',
-  'bellpull/shebang.js',
-  'bellpull/spawn-args.js',
-  'bellpull/which.js',
   'burgee/commander.js',
   'burgee/commander/argument.js',
   'burgee/commander/command.js',
