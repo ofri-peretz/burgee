@@ -235,6 +235,36 @@ export const PAIRS: readonly EntryPair[] = [
     incumbent: { specifier: 'tinyexec', symbol: 'x' },
     why: "bellpull R8: `run` against tinyexec's `x`, the zero-dependency rival the ceiling names",
   },
+  // foundation-claims-watched R6, 2026-10-12: the last two foundation layers with no B4 row.
+  // Each drop-in against the zero-dependency incumbent it replaces, at the exact version
+  // compat-oracle grades (`suiteDeps` in `hosts.ts`), importing the same symbol on both sides:
+  // the default where the incumbent has one, the one named function where it does not.
+  // cosmiconfig is not paired: its tree is the anchor of seniority's foundation ceiling, and that
+  // comparison is made in `.sdlc/bands/foundation-ceilings.json`.
+  {
+    id: 'seniority/lilconfig',
+    ours: { specifier: 'seniority/lilconfig', symbol: 'lilconfig' },
+    incumbent: { specifier: 'lilconfig', symbol: 'lilconfig' },
+    why: 'the config-search drop-in against lilconfig, the zero-dependency alternative to cosmiconfig',
+  },
+  {
+    id: 'seniority/dotenv',
+    ours: { specifier: 'seniority/dotenv', symbol: DEFAULT_EXPORT },
+    incumbent: { specifier: 'dotenv', symbol: DEFAULT_EXPORT },
+    why: 'the .env drop-in against dotenv, the lightest incumbent in seniority\'s foundation ceiling',
+  },
+  {
+    id: 'closeout/exit-hook',
+    ours: { specifier: 'closeout/exit-hook', symbol: DEFAULT_EXPORT },
+    incumbent: { specifier: 'exit-hook', symbol: DEFAULT_EXPORT },
+    why: 'the exit-hook drop-in against exit-hook',
+  },
+  {
+    id: 'closeout/signal-exit',
+    ours: { specifier: 'closeout/signal-exit', symbol: 'onExit' },
+    incumbent: { specifier: 'signal-exit', symbol: 'onExit' },
+    why: 'the signal-exit drop-in against signal-exit, which has no default export',
+  },
   // controlroom R14, the intent's weight table. The incumbent is ink 8.0.0 on React 19.3.0, the
   // versions compat-oracle grades it at (ink 8's peer is `react >=19.3.0`). It was ink 6.8.0
   // until 2026-10-07, after `controlroom/ink` had already moved to 8 in #839. ink's
