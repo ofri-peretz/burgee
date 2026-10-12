@@ -38,7 +38,7 @@ the quick start into `dist/init-template.mjs`. It adds no new package and no new
 
 ## Rejected alternatives
 
-- **A `create-burgee` package**, for now (see the intent's open question 1). It is an 11th
+- **A `create-burgee` package**, for now (the intent's question 1, decided in D-20261012-first-cli-defaults). It is an 11th
   package to version, grade and keep inside the dependency rules for a one-file template.
 - **A template repository** (`degit`). It needs the network and a second source of the quick
   start that can drift.

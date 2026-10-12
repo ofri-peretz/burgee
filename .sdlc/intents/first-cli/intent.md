@@ -51,12 +51,13 @@ README's "Start here", the docs landing, and `burgee`'s README quick start; `sha
 
 ## Open questions
 
-1. **Which command?** (a) `npx burgee init`: a subcommand of the package people already install,
-   with no new package to publish, version and grade. (b) `npm create burgee`: the convention
-   newcomers type, which needs an 11th published package, `create-burgee`. **Default: (a).** It
-   is the smaller change and keeps the family at ten. (b) can be a thin alias later if the
-   numbers show people typing it.
-2. **Language.** `.mjs` only, or `--ts` for a `.ts` file run with Node's type stripping?
-   Default: `.mjs`, plus `--ts` once Node 24's stripping is the floor.
-3. **Should it also write a test?** Default: no, because Z1 is one file. The README links
-   `burgee/testing`.
+1. **Which command?** **Decided 2026-10-12 → D-20261012-first-cli-defaults:** (a), `npx burgee
+   init`. (a) `npx burgee init`: a subcommand of the package people already install, with no
+   new package to publish, version and grade. (b) `npm create burgee`: the convention newcomers
+   type, which needs an 11th published package, `create-burgee`. (a) is the smaller change and
+   keeps the family at ten. (b) can be a thin alias later if the numbers show people typing it.
+2. **Language.** **Decided 2026-10-12 → D-20261012-first-cli-defaults:** `.mjs` first, and
+   `--ts` (a `.ts` file run with Node's type stripping) later, once Node 24's stripping is the
+   floor.
+3. **Should it also write a test?** **Decided 2026-10-12 → D-20261012-first-cli-defaults:** no,
+   because Z1 is one file. The README links `burgee/testing`.
