@@ -87,22 +87,24 @@ the minified entry by their spans:
 | + R1 (spawn through `node:child_process`; `bellpull` only behind `import()` on the Windows non-node path) | 56,390 | −4,817 |
 | + R2 (`completion` and `--mcp` bodies in a lazily loaded `commander/surfaces.js`) | 55,633 | −757 |
 
-### The residual at 55,633 B, every byte named
+### The residual at 55,661 B, every byte named
 
-16,304 B over commander. Each line is held in the initial load by a synchronous contract:
+16,332 B over commander, as built. The prototype measured 55,633. R1's spawn block came out
+37 B smaller once it was tightened to pay for the review's `.catch()` on #1078, and #1064 added
+65 B to `schema.js` on `main` while this was in review. Each line is held in the initial load by a synchronous contract:
 
 | What | Bytes | Why it can't load on demand |
 | :-- | --: | :-- |
-| `--schema`: `schema.js` 2,112, `manifest.js` 1,513, `names.js` 194, `_project` 804, `_optionSpecs` 624, `_burgeeSchema` 293, `_declares` 88, the `manifest` getter 97 | 5,725 | Answered inside a synchronous `parse()` (`commander/sync.test.ts`, third case). See _Rejected alternatives_ |
+| `--schema`: `schema.js` 2,177 (2,112 before #1064), `manifest.js` 1,513, `names.js` 194, `_project` 804, `_optionSpecs` 624, `_burgeeSchema` 293, `_declares` 88, the `manifest` getter 97 | 5,790 | Answered inside a synchronous `parse()` (`commander/sync.test.ts`, third case). See _Rejected alternatives_ |
 | `use(plugin)`: `plugin.js` 2,365, `definition.js` 1,857, `use` 40 | 4,262 | A refused plugin throws a `PluginError` from `use()`, where it was registered |
 | `--json` envelope, E1 floor, injected streams: `_prepareBurgee`, `_runBurgee`, `_runCommanderWay`, `_runAction`, `_emitResult`, `_provenance`, `_reportJson`, `_reportHandlerFailure`, `_writeFailure`, `burgee`, plus `facade-failure.js`, `errors.js`, `exit-code.js` 586 | 3,176 | A synchronous action's envelope and exit code are settled before `parse()` returns |
 | `host` seam (`runtime.js`) | 747 | Every stream, exit and env read goes through it. It's how `--mcp` captures stdout and how the harness injects |
 | deprecation and effects: `_warnDeprecated` 285, `effects` 39, `deprecate` 48 | 372 | The warning prints before a synchronous action runs |
 | the lazy-surface router: `_burgeeSurface` 275, `_root` 54 | 329 | It is what decides whether to load the lazy chunk |
-| the rest of `command.js`: `e1`, `render`, `useColor`, `isThenable`, the burgee lines inside shared methods, and R1's split | 1,368 | Same path as the rows above |
+| the rest of `command.js`: `e1`, `render`, `useColor`, `isThenable`, the burgee lines inside shared methods, and R1's split | 1,331 | Same path as the rows above |
 | chunk glue over commander's | 335 | Two chunks instead of one |
 | port drift (`help`, `option`, `argument`, `error`, `suggest`) | −10 | |
-| **Total** | **16,304** | 55,633 − 39,329 |
+| **Total** | **16,332** | 55,661 − 39,329 |
 
 ## Requirements
 
@@ -194,11 +196,11 @@ Each PR comes from an up-to-date `origin/main`, and each lowers the number.
 | R | Status | Where | Check |
 | :-- | :-- | :-- | :-- |
 | R1 | **Built** 2026-10-12 | `commander/command.ts` (`_executeSubCommand`, `_watchSubCommand`): `node:child_process` on every path commander takes, and `import('bellpull/cross-spawn')` on the Windows non-node path, where a spawn that throws takes commander's `executeSubCommandAsync` exit (`subCommandFailed`, shared with the `error` event) rather than escaping as an unhandled rejection. 61,207 → **56,418 B** (61,272 → 56,418 against `main` once #1064 added 65 B to `schema.js`; B4's fixture 56,116). Oracle `commander --control`: 1360 / 1360. `./commander`'s static walk now imports nothing (`allow: []`), and B2's fixture loads 17 modules instead of 26 (`benchmarks/cold-start-modules.test.ts`); B2 measured 1.055 against a gate of 1.4 | `commander/spawn.test.ts` (a `.cmd` on `win32` spawns through bellpull after the import settles, with `runningCommand` unset until then; a missing one throws before anything loads; one whose spawn throws reaches the exit callback; a `.js` on `win32` and a POSIX executable spawn synchronously through `child_process`). Red on `main`: `expected { Object (_events, …) } to be undefined` and `expected "spawn" to be called with arguments` ×2 |
-| R2 | Not built | | |
+| R2 | **Built** 2026-10-12 | `commander/command.ts` (`_burgeeSurface` routes; `_burgeeSchema` is the `--schema` branch, renamed from `_burgeeSurfaceRest`) and `commander/surfaces.ts` (completion rendering, the `--mcp` `invoke` and server start). 56,418 → **55,661 B** (B4's fixture 56,116 → 55,359); `command.js`'s share 34,434 → 33,794. Oracle `--control`: commander 1360 / 1360, extra-typings 369 / 369 | `scripts/commander-front-end-lock.test.ts` (`commander/surfaces.js` is its own chunk, behind a dynamic import; `command.js`'s share ≤ 33,850). Red on R1: `no commander/surfaces.js in the bundle: the routers are still in command.js` and `expected 34486 to be less than or equal to 33900`. `commander/surfaces.test.ts` holds the behaviour: bash and Fig scripts, an unknown or missing shell falling through to `--schema` and then the program, a failing `--mcp` tool call |
 | R3 | **Built** 2026-10-12 | `scripts/commander-front-end-lock.test.ts`, with its module table at the post-R1 state | Red on `main`: nine `packages/bellpull/dist/*.js` inputs in the initial load, under both the lazy rule and the unnamed-module rule |
-| R4 | In part: step 1 of 2 | `OVER_INCUMBENT['burgee/commander']` and `['burgee/commander/extra-typings']` at 56,418 with gap `B-20261012-commander-front-end-bundles-heavier`; `BUNDLED_CEILING` 61,100 → 56,150. `lighter-than-commander` (measured 1.435 locally, so the rule gives 1.44) comes down in the first commit after the Benchmarks workflow publishes a CI reading of this build: `claim-table-lock.test.ts` holds a met row to the newest CI document, which still says 1.558 | `subpath-weight-lock.test.ts`, red against the page before regeneration: `bundles 61207 B, over the 56405 B its ratchet holds` |
+| R4 | **Built** 2026-10-12, but for the claim ratchet | Step 2: both `OVER_INCUMBENT` rows 56,418 → 55,661, `BUNDLED_CEILING` 56,150 → 55,400. Step 1: `OVER_INCUMBENT['burgee/commander']` and `['burgee/commander/extra-typings']` at 56,418 with gap `B-20261012-commander-front-end-bundles-heavier`; `BUNDLED_CEILING` 61,100 → 56,150. `lighter-than-commander` (measured 1.435 locally, so the rule gives 1.44) comes down in the first commit after the Benchmarks workflow publishes a CI reading of this build: `claim-table-lock.test.ts` holds a met row to the newest CI document, which still says 1.558 | `subpath-weight-lock.test.ts`, red against the page before regeneration: `bundles 61207 B, over the 56405 B its ratchet holds` |
 
-**Built: 2. Not built: 2.**
+**Built: 4. Not built: 0.** One follow-up: `lighter-than-commander` (B4 measures 1.416, so the rule gives 1.42) comes down once a CI Benchmarks reading of this build exists.
 
 ## Rejected alternatives
 
