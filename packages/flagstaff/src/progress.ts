@@ -28,7 +28,10 @@ export function progress(options?: ProgressOptions): Component<ProgressState> {
   const report = (state: ProgressState): '' | undefined => {
     const send = sender();
     if (send === undefined) return undefined;
-    send(state.done, state.total, drawn.static(state));
+    // Clamped as the drawing is: a client is told no more than the total, and a total of zero or
+    // less is no total at all, so the count goes alone. The message keeps what the caller passed.
+    if (state.total > 0) send(Math.min(Math.max(0, state.done), state.total), state.total, drawn.static(state));
+    else send(state.done, undefined, drawn.static(state));
     return '';
   };
   return {

@@ -37,6 +37,19 @@ describe('flagstaff/progress inside an MCP call (mcp-current R5)', () => {
     ]);
   });
 
+  it('tells the client no more than the total, nothing below zero, and no total when there is none', () => {
+    const sent = serving('token');
+    const p = progress();
+    p.static({ done: 50, total: 30 });
+    p.static({ done: -2, total: 30 });
+    p.static({ done: 4, total: 0 });
+    expect(sent).toEqual([
+      [30, 30, '50/30 · 100%'],
+      [0, 30, '-2/30 · 0%'],
+      [4, undefined, '4/0 · 100%'],
+    ]);
+  });
+
   it('reads the call on every render, so a bar made before the call starts still reports inside it', () => {
     const p = progress();
     expect(p.static({ done: 1, total: 2 })).toBe('1/2 · 50%');
