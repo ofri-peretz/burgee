@@ -18,8 +18,12 @@ import { Manifest, type OptionSpec } from './manifest.js';
 import { program as burgee } from './program.js';
 import { binDirOf } from './skill-files.js';
 import { DESCRIPTION_MAX, NAME_MAX, renderAgents, renderSkill, skillName } from './skill.js';
+import { shellWord } from './unknown-option.js';
 
 const ok = (): string => 'ok';
+
+/** A command line as `--check` prints it: each word quoted for a shell when it needs to be (a Windows path does). */
+const line = (...words: string[]): string => words.map(shellWord).join(' ');
 
 /** The reference demo's shape: a group among leaves, an example per command. */
 const demo = defineProgram({
@@ -223,7 +227,7 @@ describe('burgee skill writes the files an author ships (agent-skill R3)', () =>
     writeFileSync(join(out, 'SKILL.md'), readFileSync(join(out, 'SKILL.md'), 'utf8').replace('Answer', 'Answers'));
     const stale = await runCommand(burgee, ['skill', entry, '--check', '--json']);
     expect(stale.code).toBe(ExitCode.RUNTIME);
-    expect(JSON.parse(stale.stdout)).toMatchObject({ data: { stale: ['SKILL.md'], fix: `burgee skill ${entry}` } });
+    expect(JSON.parse(stale.stdout)).toMatchObject({ data: { stale: ['SKILL.md'], fix: line('burgee', 'skill', entry) } });
     // `--check` wrote nothing.
     expect(readFileSync(join(out, 'SKILL.md'), 'utf8')).toContain('Answers');
   });
@@ -235,7 +239,7 @@ describe('burgee skill writes the files an author ships (agent-skill R3)', () =>
     expect(readFileSync(join(out, 'SKILL.md'), 'utf8')).toContain('# fx\n');
     rmSync(join(out, 'AGENTS.md'));
     const stale = await runCommand(burgee, ['skill', entry, '--out', out, '--check', '--json']);
-    expect(JSON.parse(stale.stdout)).toMatchObject({ data: { stale: ['AGENTS.md'], fix: `burgee skill ${entry} --out '${out}'` } });
+    expect(JSON.parse(stale.stdout)).toMatchObject({ data: { stale: ['AGENTS.md'], fix: line('burgee', 'skill', entry, '--out', out) } });
   });
 
   it('a package with no bin is refused with the flag that fixes it', () => {
