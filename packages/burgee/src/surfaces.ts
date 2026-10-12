@@ -409,6 +409,11 @@ export async function serve(manifest: Manifest, argv: string[], io: SurfaceIo, e
     return true;
   }
   if (head[0] === '--mcp') {
+    // mcp-current R6 — the client configuration that starts this server, printed instead of serving.
+    if (head.includes('--print-config')) {
+      io.out.write((await import('./mcp-config.js')).clientConfig(manifest, io.pkg));
+      return true;
+    }
     const invoke = async (args: string[]): Promise<{ stdout: string; stderr: string; code: number }> => {
       const out: string[] = [];
       const err: string[] = [];

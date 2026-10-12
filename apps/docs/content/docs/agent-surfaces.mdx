@@ -130,18 +130,31 @@ next call.
 ### Client configuration
 
 For Claude Desktop, Claude Code, Cursor or any stdio client, register the program as a
-server — nothing else to write:
+server — nothing else to write. `--mcp --print-config` prints the block for the program you run
+it on: its name, and the command that starts it. A program started as one of its package's bins
+is started by that name, which is how an installed CLI is found on `PATH`; one started as
+`node <file>` is started that way, with the file's full path. For the reference demo, run as its
+bin `demo-burgee`:
+
+{/* mcp-config:start — `demo-burgee --mcp --print-config`, written by scripts/mcp-config-block.ts */}
 
 ```json
 {
   "mcpServers": {
-    "mytool": {
-      "command": "npx",
-      "args": ["mytool", "--mcp"]
+    "demo": {
+      "command": "demo-burgee",
+      "args": [
+        "--mcp"
+      ]
     }
   }
 }
 ```
+
+{/* mcp-config:end */}
+
+Paste it into the client's configuration as it is. The block above is that command's output,
+and a test starts the server from it and completes a tool call.
 
 On `burgee/commander` and `burgee/yargs`, a program that declares its own `--schema` or
 `--mcp` option keeps it, and burgee leaves it alone: the surfaces are additive, never a change
