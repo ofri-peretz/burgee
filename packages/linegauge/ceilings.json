@@ -56,6 +56,18 @@
       "bundledBytes": 6251,
       "replaces": null
     },
+    "cli-truncate.js": {
+      "distBytes": 35239,
+      "bundledBytes": 14202,
+      "replaces": "cli-truncate",
+      "//": "graded-override-targets R5, 2026-10-11: cli-truncate 6.1.1's own suite, 12 / 12. One symbol bundles 14,202 against cli-truncate's 20,669 (cli-truncate, slice-ansi, string-width and their tree); the whole surface is held against the incumbent's by scripts/subpath-weight-lock.test.ts."
+    },
+    "widest-line.js": {
+      "distBytes": 11853,
+      "bundledBytes": 5752,
+      "replaces": "widest-line",
+      "//": "graded-override-targets R6, 2026-10-11: widest-line 6.0.0's own suite, 1 / 1. One symbol bundles 5,752 against widest-line's 6,073 (widest-line and string-width's tree); the whole surface is held against the incumbent's by scripts/subpath-weight-lock.test.ts."
+    },
     "strip.js": {
       "distBytes": 17908,
       "bundledBytes": 966,

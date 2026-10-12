@@ -51,6 +51,8 @@ const EXTENSION_POINTS: Record<string, string> = {
   'strip-ansi': 'None',
   'wrap-ansi': 'Options per call',
   'slice-ansi': 'None',
+  'cli-truncate': 'Options per call',
+  'widest-line': 'None',
   'ansi-escapes': 'None',
   'terminal-link': 'A `fallback` function, per call',
   'term-img': 'A `fallback` function, per call',

@@ -46,7 +46,9 @@ const loadFromCjs = createRequire(import.meta.url);
  * exports `validate`, `register` and `CONTRACT`, never a function called `plugin`. `width` is
  * the root's, because the root is `width` with the rest hung off it.
  */
-const NAMED: Record<string, string> = { '.': 'width', './plugin': 'validate' };
+// The two incumbent-named façades carry the incumbent's shape, which is a default export
+// (`graded-override-targets` R5, R6).
+const NAMED: Record<string, string> = { '.': 'width', './plugin': 'validate', './cli-truncate': 'default', './widest-line': 'default' };
 
 /**
  * Every published *code* entry, with the named export it must carry, from the manifest rather

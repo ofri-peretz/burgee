@@ -1,7 +1,7 @@
 {
   "name": "linegauge",
   "version": "1.0.8",
-  "description": "Measures, wraps, truncates and slices styled terminal text, grapheme-correct over Intl.Segmenter, with the same result on a terminal, a pipe or --json. Zero dependencies. Drop-in paths for string-width, wrap-ansi, strip-ansi and slice-ansi.",
+  "description": "Measures, wraps, truncates and slices styled terminal text, grapheme-correct over Intl.Segmenter, with the same result on a terminal, a pipe or --json. Zero dependencies. Drop-in paths for string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line.",
   "license": "MIT",
   "type": "module",
   "sideEffects": ["./dist/cli.js"],
@@ -29,10 +29,20 @@
       "import": "./dist/truncate.js",
       "default": "./dist/truncate.js"
     },
+    "./cli-truncate": {
+      "types": "./dist/cli-truncate.d.ts",
+      "import": "./dist/cli-truncate.js",
+      "default": "./dist/cli-truncate.js"
+    },
     "./widest": {
       "types": "./dist/widest.d.ts",
       "import": "./dist/widest.js",
       "default": "./dist/widest.js"
+    },
+    "./widest-line": {
+      "types": "./dist/widest-line.d.ts",
+      "import": "./dist/widest-line.js",
+      "default": "./dist/widest-line.js"
     },
     "./strip": {
       "types": "./dist/strip.d.ts",
