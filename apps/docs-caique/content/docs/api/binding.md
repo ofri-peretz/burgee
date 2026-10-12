@@ -26,12 +26,6 @@ import { resolvePrompts } from 'caique/binding';
 
 ### resolvePrompts
 
-Walk the command's options in order, asking only what has to be asked.
-
-Stops at the first refusal: the caller is about to exit, and a person told about six
-missing flags — one of which they would have answered interactively — has been given a
-worse message than one told about the first.
-
 ```ts
 function resolvePrompts<O extends PromptableOption>({ options, values, runtime, flags, io }: ResolveInput<O>): Promise<Resolved>;
 ```
@@ -78,6 +72,15 @@ interface ResolveFailure {
     code: 'USAGE' | 'CANCELLED';
     message: string;
     fix?: string;
+    /**
+     * `message` and `fix` in `runtime.locale`, when a registered pack speaks it
+     * (`localised-human-surfaces` R6). Beside them and not in place of them: a refusal is a value a
+     * host may write into a machine envelope, and those stay in English whatever the locale.
+     */
+    localised?: {
+        message: string;
+        fix?: string;
+    };
 }
 ```
 

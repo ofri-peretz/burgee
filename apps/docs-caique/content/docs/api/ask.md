@@ -72,6 +72,12 @@ function projection(spec: PromptSpec): string;
 interface Io {
     reader: Reader;
     writer: Writer;
+    /**
+     * The run's language for what caique draws itself — the instruction under a list, a problem
+     * with an answer, the giving-up line — never the author's question (`localised-human-surfaces`
+     * R6). `sayFor(runtime.locale)` from `caique/locale` builds it; absent, it is English.
+     */
+    say?: (english: string) => string;
 }
 ```
 

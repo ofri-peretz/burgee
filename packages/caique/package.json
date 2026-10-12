@@ -24,6 +24,11 @@
       "import": "./dist/binding.js",
       "default": "./dist/binding.js"
     },
+    "./locale": {
+      "types": "./dist/locale.d.ts",
+      "import": "./dist/locale.js",
+      "default": "./dist/locale.js"
+    },
     "./clack": {
       "types": "./dist/clack.d.ts",
       "import": "./dist/clack.js",

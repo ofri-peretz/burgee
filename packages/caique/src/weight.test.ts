@@ -206,6 +206,12 @@ const RULES: Record<string, EntryRule> = {
   // `Io`, and which one is the caller's business. Measured 8,123 B; 8,395 B on 2026-09-28,
   // with `decide`'s `roundel/terminal`.
   './binding': { allow: ['roundel/terminal'], budget: 9_500, denied: ['raw.js', 'terminal.js', 'index.js'] },
+  // localised-human-surfaces R6 — the catalog, the pack check and `sayFor`, which a caller with a
+  // locale builds `io.say` from. Its own door so nothing else pays for it: `.`, `./ask` and
+  // `./binding` only apply the `say` they are handed. It reaches `plugin.js` for the registry
+  // (and, through it, `ask.js` and `spec.js`), never the raw renderer or the terminal.
+  // Measured 15,951 B on 2026-10-12.
+  './locale': { allow: [], budget: 16_000, denied: ['decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
   // The only file that touches a stream, and the only one that knows what echo is. It
   // carries `ask.js` for the `Io` shape it implements. Measured 1,947 B; +78 on
   // 2026-09-28 for the writer's `columns`, read through to the output stream.
