@@ -96,6 +96,8 @@ export interface Command<S extends OptionSpecs = OptionSpecs, O extends CommandO
    * describes; without one, anything.
    */
   output?: O;
+  /** Pass positionals past the declared ones to the handler instead of refusing them. */
+  allowExcess?: boolean;
   /** Absent on a group that only holds subcommands. `NoInfer`: the spec fixes S, the handler only reads it. */
   run?: (ctx: CommandContext<InferOptions<NoInfer<S>>>) => Returns<NoInfer<O>>;
   /** The handler's module, imported on dispatch only (M2); everything else about the command is declared here. */
@@ -104,7 +106,7 @@ export interface Command<S extends OptionSpecs = OptionSpecs, O extends CommandO
 }
 
 /** The declared keys a node carries as they are: what help renders, and what `--schema` publishes. */
-const NODE_KEYS = ['description', 'summary', 'arguments', 'examples', 'group', 'epilogue', 'hidden', 'deprecated', 'effects', 'relations', 'fields', 'output'] as const;
+const NODE_KEYS = ['description', 'summary', 'arguments', 'examples', 'group', 'epilogue', 'hidden', 'deprecated', 'effects', 'relations', 'fields', 'output', 'allowExcess'] as const;
 
 /**
  * Everything help renders, copied as declared; `undefined` never lands on the node. One loop over
@@ -489,6 +491,7 @@ function exitCodeOf(data: unknown): ExitCodeType {
  */
 const readsLazily = (arg: string): boolean => /^(--json=|--format=agent$|-q$|--(no-color|quiet|color|timeout)(=|$))/.test(arg);
 
+// eslint-disable-next-line maintainability/cognitive-complexity -- parse-refusals' gate is inline: as a helper it cost B4's core bundle ceiling (24,282 B) the bytes it does not have, and the branch it adds is one `if`.
 async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolved, io: Io): Promise<Outcome> {
   // N14's selection, N15's format and the R1–R3 globals are imported only when a caller typed
   // one of them (M2): every other run pays nothing for any.
@@ -518,7 +521,13 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   if (relations.length > 0) (await import('./relations.js')).checkRelations(relations, resolved.values, provenance);
   const values = await coerce(node.options, resolved.values);
   const { positionals, passthrough } = splitPositionals(parsed.tokens);
-  requirePositionals(node, positionals);
+  // A missing argument, and parse-refusals R1/R3: a surplus positional and a flag given twice were
+  // dropped, and the run reported success with the wrong input. All three are one chunk (M2), loaded
+  // only when the count of positionals is not the declared one, or when there are more tokens than
+  // positionals, `--` tail and value keys together: parseArgs keeps one value per option it saw and is
+  // given no defaults, so an option named twice is one token more than its key (a `--` is one more
+  // too, and loads the chunk for nothing). Inline, not a helper: B4's bundle ceiling had no room for one.
+  if (positionals.length !== (node.arguments?.length ?? 0) || parsed.tokens.length > positionals.length + passthrough.length + Object.keys(parsed.values).length) (await import('./parse-refusals.js')).refuse(node, positionals, parsed, rest, typed);
   // M5, from its own chunk, loaded only for a deprecated command; `--quiet` silences it (R2).
   if (node.deprecated) (await import('./deprecation.js')).warnDeprecated(node, io, global?.quiet);
   await manifest.fire('preRun', name, values);
@@ -533,20 +542,6 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   const changed = changedOf(node, data);
   const selected = fields === undefined || select === undefined ? data : select.selectFields(data, fields);
   return { json, lines, data: selected, provenance, ...(changed === undefined ? {} : { changed }) };
-}
-
-/**
- * A declared, required positional that argv did not supply is a usage error naming it, as on
- * both hosts. No hint: the refusal already prints the command's usage line (`failure.js`), so
- * "run --help to see what it takes" sent the reader for a page it was already holding.
- */
-function requirePositionals(node: CommandNode, positionals: string[]): void {
-  const required = (node.arguments ?? []).filter((a) => a.required !== false && a.variadic !== true);
-  // Defined exactly when fewer positionals were typed than are required: the first one missing.
-  const missing = required[positionals.length];
-  if (missing !== undefined) {
-    throw new UsageError(`missing required argument "${missing.name}"`);
-  }
 }
 
 /** Success: help, or the data on the requested surface. */

@@ -26,6 +26,7 @@ const WRITERS = [
   'fields.ts',
   'globals.ts',
   'help.ts',
+  'parse-refusals.ts',
   'relations.ts',
   'root-help.ts',
   'schema-surface.ts',

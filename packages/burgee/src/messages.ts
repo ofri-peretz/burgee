@@ -49,6 +49,8 @@ export const MESSAGES = {
   'usage.noSchemaField': '{at} has no field "{field}"',
   'usage.fieldOne': '--field drills into one command',
   'usage.stdinOnce': '"-" was given for {count} file arguments, and standard input can be read once',
+  'usage.tooManyArguments': 'too many arguments: expected {expected}, got {given} ({words})',
+  'usage.givenTwice': '--{option} was given twice: "{first}" and "{last}"',
   'config.noVersion': 'no version declared',
   'timeout.passed': 'timed out after {ms} ms',
   // Hints: what to do about it.

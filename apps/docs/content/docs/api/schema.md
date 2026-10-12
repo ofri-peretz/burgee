@@ -142,6 +142,7 @@ interface CommandSchema {
     lazy?: true;
     /** Which plugin contributed it (M3). */
     plugin?: string;
+    excess?: true;
     arguments: ArgumentSpec[];
     options: Record<string, OptionSpec>;
     /**

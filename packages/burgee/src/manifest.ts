@@ -327,6 +327,7 @@ export interface CommandNode {
   fields?: readonly string[];
   /** What the result is and how much of it (clispec-conformance R5). */
   output?: CommandOutput;
+  allowExcess?: boolean;
   run?: (ctx: RunContext) => unknown;
   /**
    * The handler's module, imported on dispatch only (M2): the manifest — help, schema,

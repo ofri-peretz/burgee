@@ -401,6 +401,8 @@ interface Command<S extends OptionSpecs = OptionSpecs, O extends CommandOutput =
      * describes; without one, anything.
      */
     output?: O;
+    /** Pass positionals past the declared ones to the handler instead of refusing them. */
+    allowExcess?: boolean;
     /** Absent on a group that only holds subcommands. `NoInfer`: the spec fixes S, the handler only reads it. */
     run?: (ctx: CommandContext<InferOptions<NoInfer<S>>>) => Returns<NoInfer<O>>;
     /** The handler's module, imported on dispatch only (M2); everything else about the command is declared here. */
@@ -446,6 +448,7 @@ interface CommandNode {
     fields?: readonly string[];
     /** What the result is and how much of it (clispec-conformance R5). */
     output?: CommandOutput;
+    allowExcess?: boolean;
     run?: (ctx: RunContext) => unknown;
     /**
      * The handler's module, imported on dispatch only (M2): the manifest — help, schema,
