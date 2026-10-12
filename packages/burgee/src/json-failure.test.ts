@@ -265,8 +265,9 @@ describe('--mcp: a failing tool call is an MCP error result, and the server keep
   it.each(CASES)('$name: isError with the envelope as the text, then answers the next call', async ({ name, exit, message }) => {
     const r = await runBurgee(nativeProgram, { argv: ['--mcp'], stdin: Readable.from([`${toolCall(1, name)}\n${toolCall(2, 'sync')}\n`]) });
     const replies = r.stdout.split('\n').filter((l) => l !== '').map((l) => JSON.parse(l) as { id: number; result: { isError: boolean; content: { text: string }[] } });
-    expect(replies.map((x) => x.id)).toEqual([1, 2]);
-    const [first] = replies;
+    // Calls are dispatched together (mcp-current R4), so each reply goes out when its call settles.
+    expect(replies.map((x) => x.id).sort()).toEqual([1, 2]);
+    const first = replies.find((x) => x.id === 1);
     expect(first?.result.isError).toBe(true);
     expect(JSON.parse(first?.result.content[0]?.text ?? '')).toMatchObject({ ok: false, error: { code: exit, message } });
   });
