@@ -145,7 +145,7 @@ intents here touch it. Wave 2's compat-oracle work (`graded-override-targets`,
 
 | step | work | depends on | lane | runs beside |
 | --: | :-- | :-- | :-- | :-- |
-| 0 | **Status corrections, one docs PR, no intent.** `u5-weight-claim` R2 is met: `lighter-than-yargs` reads **0.969** against 1 in every CI reading since 2026-10-06, including `2026-10-12-1492ed8-ci.json`, so R3 is moot. `upstream-watch` steps 1–4 shipped on 2026-09-08 and 2026-09-09 and the daily pass runs, while its header still says `draft`. `compat-oracle` C1's majors half is built (`SUPPORTED_MAJORS`, generated page, D-145), and its `peerDependencies` half is rejected below | — | docs | everything |
+| 0 | **Status corrections, one docs PR, no intent.** `u5-weight-claim` R2 is met: `lighter-than-yargs` reads **0.969** against 1 in every CI reading since 2026-10-06, including `2026-10-12-1492ed8-ci.json`, so R3 is moot. `upstream-watch` steps 1–4 shipped on 2026-09-08 and 2026-09-09 and the daily pass runs, while its header still says `draft`. `compat-oracle` C1's majors half is built (`SUPPORTED_MAJORS`, generated page, D-145), and its `peerDependencies` half is rejected below. The roadmap README's "Where this stands — 2026-09-09" snapshot is re-dated rather than edited in place: it says yargs 804 / 804 (816 / 816 in the 2026-10-12 CI reading) and "3 `approved`" (36 `approved`, 24 `review`, 11 `draft`, 2 `dropped`, 1 `shipped` after this wave, counted from each `intent.md`) | — | docs | everything |
 | 1 | `foundation-claims-watched` R1–R5 | — | scripts | 2, 3, 4 |
 | 2 | `parse-refusals` R1–R4 | wave 2's `clispec-conformance` R6 merged (both touch `failure.ts`) | burgee parse | 1, 3, 4 |
 | 3 | `table-column-widths` R1–R4 | — | flagstaff table | 1, 2, 4 |
