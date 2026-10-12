@@ -362,6 +362,13 @@ describe('help renders as Markdown, from the same sections (agent-skill R1)', ()
     expect(md).toContain('| `` --tick `x` `` | odd |');
   });
 
+  it('a description over two lines keeps one table row per option', async () => {
+    const two = defineProgram({ name: 'app', commands: [defineCommand({ name: 'go', effects: 'read_only', options: { far: { type: 'boolean', description: 'first line\nsecond line' }, near: { type: 'boolean', description: 'one' } }, run: ok })] });
+    const md = await renderHelp(two, two.find(['app', 'go']) as CommandNode, { format: 'markdown' });
+    const options = md.slice(md.indexOf('## Options'), md.indexOf('## Global options')).split('\n').filter((l) => l.startsWith('| `'));
+    expect(options).toEqual(['| `--far` | first line<br>second line |', '| `--near` | one |']);
+  });
+
   it('a node with nothing but a name is a heading and a usage block', async () => {
     const bare = defineProgram({ name: 'app', commands: [defineCommand({ name: 'ping', effects: 'read_only', run: ok })] });
     const ping = bare.find(['app', 'ping']) as CommandNode;

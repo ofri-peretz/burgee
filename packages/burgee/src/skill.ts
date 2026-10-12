@@ -59,7 +59,8 @@ function descriptionOf(manifest: Manifest, commands: CommandNode[]): string {
   return full.length <= DESCRIPTION_MAX ? full : `${full.slice(0, DESCRIPTION_MAX - 1).replace(/\s+\S*$/, '')}…`;
 }
 
-const cell = (s: string): string => s.replaceAll('|', '\\|');
+/** A table cell: `|` escaped and line breaks as `<br>`, so neither ends the row early. */
+const cell = (s: string): string => s.replaceAll('|', '\\|').replaceAll(/\r?\n/g, '<br>');
 
 /** The contract an agent relies on on every call, from the same rows `--schema` publishes. */
 function contract(run: string): string[] {

@@ -163,6 +163,8 @@ describe('--skill prints an Agent Skill (agent-skill R2)', () => {
     });
     expect(frontMatter(renderSkill(tools))['description']).toBe('Tools for agents. Use it to MCP over stdio.');
     defineError({ name: 'SkillBareError', code: 78 });
+    defineError({ name: 'SkillTwoLineError', code: 79, description: 'first\nsecond' });
+    expect(renderSkill(tools)).toContain('| `79` | `skill_two_line` | no | first<br>second |\n');
     expect(renderSkill(tools)).toContain('| `78` | `skill_bare` | no |  |\n');
     const bare = new Manifest();
     bare.rootPath = ['bare'];

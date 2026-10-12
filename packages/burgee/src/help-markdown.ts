@@ -13,7 +13,8 @@
 import { type HelpModel, type Row } from './help.js';
 import { type CommandNode } from './manifest.js';
 
-const cell = (s: string): string => s.replaceAll('|', '\\|');
+/** A table cell: `|` escaped and line breaks as `<br>`, so neither ends the row early. */
+const cell = (s: string): string => s.replaceAll('|', '\\|').replaceAll(/\r?\n/g, '<br>');
 
 /** A term as a code span; one that holds a backtick takes the double-backtick form, so it stays one span. */
 const code = (s: string): string => (s.includes('`') ? `\`\` ${s} \`\`` : `\`${s}\``);
