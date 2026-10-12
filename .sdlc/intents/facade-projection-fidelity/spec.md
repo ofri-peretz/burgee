@@ -54,8 +54,8 @@ declaration only, so a projected relation is never checked twice.
 | R1 | **Built** 2026-10-12 | `commander/command.ts` `_optionSpecs()`: `argChoices` → `choices`, `hidden` → `hidden: true` (as yargs already projects it: listed in `options` with the mark, absent from `inputSchema`, help and completions) | `facade-surface.test.ts` › `R1 — Option.choices() is the enum, in --schema and in the MCP tool` and `R1 — a hidden option is marked hidden…`. Red on main: `expected undefined to deeply equal [ 'fast', 'safe' ]`, `expected undefined to be true` |
 | R2 | **Built** 2026-10-12 | the same function: a non-empty `conflictsWith` → `exclusive`, already the attribute names commander compares against | `facade-surface.test.ts` › `R2 — .conflicts() is exclusive, on the property and in relations`. Red on main: `expected undefined to deeply equal [ 'force' ]` |
 | R3 | Not built | the default half is built in `_project()`: a string `Argument.defaultValue` reaches the positional's `default`. The choices half is open as [`B-20261012-commander-argument-choices`](../../gaps/B-20261012-commander-argument-choices.md): `ArgumentSpec` has no `choices`, and the smallest build measured `burgee/commander` at 61,132 B against its 61,100 B ceiling | `facade-surface.test.ts` › `R3 — an Argument carries its default`. Red on main: `expected { name: 'env', required: false, …(2) } to deeply equal { …(3) }` |
-| R4 | Not built | — | — |
-| R5 | Not built | waits for `parse-refusals` (the parse lane) | — |
+| R4 | Not built | stopped on `burgee/yargs`'s bundle ceiling: built and green locally on 2026-10-12, it measured 108,821 B against 108,420 B (main 108,249). The relations and examples halves each exceed the headroom alone, so it waits for the owner to trim or to raise the ceiling | `facade-surface.test.ts`, yargs block. Red on main: `expected undefined to deeply equal [ 'push' ]`, `… [ 'key' ]`, `expected [] to deeply equal [ {…}, … ]` |
+| R5 | Not built | `parse-refusals` (#1064) merged on 2026-10-12, so the parse lane is clear for it | — |
 | R6 | Not built | after R5 | — |
 
 **Built: 2. Not built: 4.**

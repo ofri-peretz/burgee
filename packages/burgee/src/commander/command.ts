@@ -1708,18 +1708,12 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
         path: at,
         ...(cmd._description ? { description: cmd._description } : {}),
         ...(cmd._summary ? { summary: cmd._summary } : {}),
-        ...(cmd._effects === undefined ? {} : { effects: cmd._effects }),
+        ...(cmd._effects ? { effects: cmd._effects } : {}),
         ...(cmd._deprecated === undefined ? {} : { deprecated: cmd._deprecated }),
         ...(cmd._helpGroupHeading ? { group: cmd._helpGroupHeading } : {}),
         ...(cmd._hidden ? { hidden: true } : {}),
         options: cmd._optionSpecs(),
-        arguments: cmd.registeredArguments.map((a) => ({
-          name: a.name(),
-          required: a.required,
-          variadic: a.variadic,
-          ...(a.description ? { description: a.description } : {}),
-          ...(typeof a.defaultValue === 'string' ? { default: a.defaultValue } : {}),
-        })),
+        arguments: cmd.registeredArguments.map((a) => ({ name: a.name(), required: a.required, variadic: a.variadic, ...(a.description ? { description: a.description } : {}), ...(typeof a.defaultValue === 'string' ? { default: a.defaultValue } : {}) })),
         ...(cmd._actionHandler === null ? {} : { run: () => undefined }),
       });
       for (const sub of cmd.commands) visit(sub, [...at, sub._name]);
@@ -1757,7 +1751,7 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
       if (option.hidden) spec.hidden = true;
       if (option.conflictsWith[0]) spec.exclusive = option.conflictsWith;
       if (spec.type === 'boolean') spec.negatable = paired;
-      Object.defineProperty(specs, option.negate ? camel(option.name()) : name, { value: spec, enumerable: true, writable: true, configurable: true });
+      specs[option.negate ? camel(option.name()) : name] = spec;
     }
     return specs;
   }
@@ -1991,9 +1985,8 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
   /** burgee: where every option value came from, from commander's own value sources (V3). */
   _provenance(): Record<string, { source: string }> {
     const out: Record<string, { source: string }> = {};
-    const names: Record<string, string> = { cli: 'flag', env: 'env', config: 'config', default: 'default', implied: 'implied' };
     for (const [key, source] of Object.entries(this._optionValueSources)) {
-      if (source !== undefined && this.getOptionValue(key) !== undefined) out[key] = { source: names[source] ?? source };
+      if (source !== undefined && this.getOptionValue(key) !== undefined) out[key] = { source: source === 'cli' ? 'flag' : source };
     }
     return out;
   }
