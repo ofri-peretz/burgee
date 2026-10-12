@@ -18,7 +18,7 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node ../../packages/burgee/dist/cli.js skill dist/index.js --out .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src"
   },
