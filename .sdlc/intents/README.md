@@ -1144,3 +1144,4 @@ noticed — `roadmap-index-lock.test.ts` is what now refuses an intent the index
 | — | [`control-band-commander-front-end-bundled-bytes/`](./control-band-commander-front-end-bundled-bytes/) | B4 — the same, for the commander front end | 2026-09-14 · draft |
 | — | [`control-band-yargs-front-end-bundled-bytes/`](./control-band-yargs-front-end-bundled-bytes/) | B4 — the same, for the yargs front end | 2026-09-27 · draft |
 | — | [`control-band-cold-start-ratio/`](./control-band-cold-start-ratio/) | B2 — `burgee/commander`'s cold start over commander's | 2026-09-30 · draft |
+| — | [`control-band-agent-schema-bytes/`](./control-band-agent-schema-bytes/) | agent-headroom R7 — bytes of `--schema` on the burgee demo | 2026-10-12 · draft |
