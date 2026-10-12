@@ -41,7 +41,7 @@
     "@inkjs/ui": "2.0.0",
     "ansi-escapes": "7.3.0",
     "boxen": "^9.0.0",
-    "cac": "^7.0.0",
+    "cac": "^7.0.1",
     "chalk": "^6.0.1",
     "cli-table3": "0.6.5",
     "commander": "^15.0.0",
