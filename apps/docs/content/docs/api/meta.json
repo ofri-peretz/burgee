@@ -13,6 +13,7 @@
     "testing",
     "commander",
     "commander/extra-typings",
+    "commander/v14",
     "meow",
     "completions",
     "yargs",

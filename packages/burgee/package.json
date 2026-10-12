@@ -74,6 +74,11 @@
       "import": "./dist/commander/extra-typings.js",
       "default": "./dist/commander/extra-typings.js"
     },
+    "./commander/v14": {
+      "types": "./dist/commander/v14.d.ts",
+      "import": "./dist/commander/v14.js",
+      "default": "./dist/commander/v14.js"
+    },
     "./meow": {
       "types": "./dist/meow.d.ts",
       "import": "./dist/meow.js",
