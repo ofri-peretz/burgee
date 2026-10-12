@@ -718,7 +718,7 @@ const RULES: Record<string, EntryRule> = {
   // own `node:child_process` on every path commander 15 takes, and `bellpull/cross-spawn` loads
   // through `import()` only for a Windows executable that is not node — the one case above that
   // upstream cannot run. The walk reports that edge as lazy, so the entry imports nothing, and
-  // a bundler splits bellpull off the start-up path (61,207 -> 56,405 B on /docs/weight).
+  // a bundler splits bellpull off the start-up path (61,207 -> 56,353 B on /docs/weight).
   "./commander": {
     allow: [],
     budget: 129_400,

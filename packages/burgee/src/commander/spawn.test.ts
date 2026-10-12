@@ -60,6 +60,21 @@ describe('commander façade: the subcommand spawn', () => {
     expect(spawn).not.toHaveBeenCalled();
   });
 
+  it('hands a Windows .cmd spawn that throws to the exit callback, not to an unhandled rejection', async () => {
+    on('win32');
+    writeFileSync(join(dir, 'tool-sub.cmd'), '@echo off\r\n');
+    const boom = new Error('spawn EINVAL');
+    crossSpawn.mockImplementation(() => {
+      throw boom;
+    });
+    const exits: { code: string; nestedError: unknown }[] = [];
+    const p = new Command('tool').exitOverride((err) => void exits.push(err)).executableDir(dir);
+    p.command('sub', 'a subcommand', { executableFile: 'tool-sub.cmd' });
+    p.parse(['sub'], { from: 'user' });
+    await vi.waitFor(() => expect(exits).toHaveLength(1));
+    expect(exits[0]).toMatchObject({ code: 'commander.executeSubCommandAsync', nestedError: boom });
+  });
+
   it('refuses a missing Windows executable before loading anything', () => {
     on('win32');
     expect(() => program('tool-gone.cmd').parse(['sub'], { from: 'user' })).toThrow(/does not exist/);

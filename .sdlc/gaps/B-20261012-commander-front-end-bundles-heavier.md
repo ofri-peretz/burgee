@@ -14,7 +14,7 @@ measurement is `/docs/weight`'s "Everything" column (`export * from 'burgee/comm
 | Step | `burgee/commander` | Over commander |
 | :-- | --: | --: |
 | `main` at `10edb48` | 61,207 | 21,878 |
-| R1, the spawn | 56,405 | 17,076 |
+| R1, the spawn | 56,353 | 17,024 |
 
 [`commander-front-end-diet`](../intents/commander-front-end-diet/spec.md) attributes every byte
 by module. The port of commander itself is at parity. What's left is what burgee adds and a

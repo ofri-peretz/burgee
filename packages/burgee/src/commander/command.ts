@@ -153,6 +153,14 @@ function e1(err: { code: string; exitCode: number }): number {
   }
 }
 
+/** An executable subcommand that could not run: exit 1, or commander's error to an overridden exit. */
+function subCommandFailed(exitCallback: ((err: CommanderError) => void) | null, err: unknown): void {
+  if (!exitCallback) return host.exit(1);
+  const wrappedError = new CommanderError(1, 'commander.executeSubCommandAsync', '(error)');
+  wrappedError.nestedError = err;
+  exitCallback(wrappedError);
+}
+
 /** What a run prints for an action's return value when the streams are injected. */
 function render(value: unknown): string {
   if (value === undefined || value === null) return '';
@@ -831,19 +839,20 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
 
     // commander's own spawn on every path commander takes. `bellpull` resolves the one it cannot,
     // and loads only for it (commander-front-end-diet R1).
-    if (host.platform === 'win32') this._checkForMissingExecutable(executableFile, executableDir, subcommand._name);
+    const win = host.platform === 'win32';
+    if (win) this._checkForMissingExecutable(executableFile, executableDir, subcommand._name);
+    const watch = (proc: ChildProcess): void => this._watchSubCommand(proc, executableFile, executableDir, subcommand._name);
     if (launchWithNode) {
-      args.unshift(executableFile);
-      args = incrementNodeInspectorPort(host.execArgv).concat(args);
-      const node = host.platform === 'win32' ? host.execPath : (host.argv[0] ?? host.execPath);
-      this._watchSubCommand(childProcess.spawn(node, args, { stdio: 'inherit' }), executableFile, executableDir, subcommand._name);
-    } else if (host.platform !== 'win32') {
-      this._watchSubCommand(childProcess.spawn(executableFile, args, { stdio: 'inherit' }), executableFile, executableDir, subcommand._name);
+      args = incrementNodeInspectorPort(host.execArgv).concat(executableFile, args);
+      watch(childProcess.spawn(win ? host.execPath : (host.argv[0] ?? host.execPath), args, { stdio: 'inherit' }));
+    } else if (!win) {
+      watch(childProcess.spawn(executableFile, args, { stdio: 'inherit' }));
     } else {
-      // The case upstream cannot reach: a `.cmd`, a `.bat`, or a shebang that is not node.
-      void import('bellpull/cross-spawn').then(({ default: crossSpawn }) => {
-        this._watchSubCommand(crossSpawn.spawn(executableFile, args, { stdio: 'inherit' }), executableFile, executableDir, subcommand._name);
-      });
+      // The case upstream cannot reach: a `.cmd`, a `.bat`, or a shebang that is not node. A spawn
+      // that throws here takes the exit the `error` event takes, not an unhandled rejection.
+      void import('bellpull/cross-spawn')
+        .then(({ default: crossSpawn }) => watch(crossSpawn.spawn(executableFile, args, { stdio: 'inherit' })))
+        .catch((err: unknown) => subCommandFailed(this._exitCallback, err));
     }
   }
 
@@ -869,13 +878,7 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
       } else if (err.code === 'EACCES') {
         throw new Error(`'${executableFile}' not executable`);
       }
-      if (!exitCallback) {
-        host.exit(1);
-      } else {
-        const wrappedError = new CommanderError(1, 'commander.executeSubCommandAsync', '(error)');
-        wrappedError.nestedError = err;
-        exitCallback(wrappedError);
-      }
+      subCommandFailed(exitCallback, err);
     });
 
     this.runningCommand = proc;
