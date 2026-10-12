@@ -6,9 +6,9 @@
 import { type Metadata } from 'next';
 import Link from 'next/link';
 
+import { homeTitle } from './home-title';
 import { incumbentLink } from './incumbent-link';
 import { JsonLd } from './json-ld';
-import { replacesOf } from './packages';
 import { familyLinks, type Site } from './site';
 import { type DocsPage, type DocsSource } from './source';
 
@@ -16,14 +16,16 @@ import { type DocsPage, type DocsSource } from './source';
 const HERO_MARK_SIZE = 96;
 
 /**
- * The home page's metadata. The title names the incumbents — read out of the npm description
- * by the same rule the family map uses — because "chalk alternative" is what a reader searches
- * for, and a title is the strongest place a page can say it.
+ * A home page's metadata, for every site in the family — the front door passes its `SUMMARY` as
+ * the description. The title says what the package does (`HOME_TITLES`); the incumbents a reader
+ * searches for ("chalk alternative") stay in the description's last sentence, the npm
+ * description's `Drop-in paths for …` clause (`.sdlc/intents/positioning/` R13). `absolute`
+ * skips the `%s | <name>` template, which would say the name twice.
  */
-export function homeMetadata(site: Site): Metadata {
+export function homeMetadata(site: Site, description: string = site.description): Metadata {
   return {
-    title: { absolute: `${site.name} — replaces ${replacesOf(site.name, site.description)}` },
-    description: site.description,
+    title: { absolute: homeTitle(site.name) },
+    description,
     alternates: { canonical: '/' },
   };
 }

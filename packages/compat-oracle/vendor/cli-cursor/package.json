@@ -1,0 +1,16 @@
+{
+  "name": "@vendored/cli-cursor-suite",
+  "private": true,
+  "type": "module",
+  "main": "./shim.js",
+  "version": "5.0.0",
+  "license": "MIT",
+  "description": "Toggle the CLI cursor",
+  "repository": "sindresorhus/cli-cursor",
+  "devDependencies": {
+    "cli-cursor": "5.0.0"
+  },
+  "ava": {
+    "workerThreads": false
+  }
+}

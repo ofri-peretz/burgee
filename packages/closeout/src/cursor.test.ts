@@ -250,6 +250,35 @@ describe('rawMode', () => {
     expect(input.isRaw).toBe(true);
   });
 
+  /*
+   * Found by `.sdlc/models/save-restore.qnt`: a spinner discarding stdin and a prompt reading
+   * keys both call rawMode. The second used to see `isRaw` and take a no-op, so the first
+   * releasing — spinners stop before prompts do — turned raw mode off under the prompt.
+   */
+  it.each(['first', 'second'] as const)('stays raw until the last caller that turned it on through here lets go — %s out last', async (lastOut) => {
+    const input = keyboard();
+    const registry = createRegistry();
+    const first = rawMode(input, (handler) => registry.add(handler));
+    const second = rawMode(input, (handler) => registry.add(handler));
+
+    (lastOut === 'first' ? second : first)();
+    expect(input.isRaw, `${lastOut} still holds it`).toBe(true);
+    (lastOut === 'first' ? first : second)();
+    expect(input.isRaw).toBe(false);
+    expect(input.modes).toEqual([true, false]);
+    await registry.run({ code: 0, signal: null });
+    expect(input.modes, 'nothing left for exit to undo').toEqual([true, false]);
+  });
+
+  it('turns raw mode off at exit while two callers still hold it', async () => {
+    const input = keyboard();
+    const registry = createRegistry();
+    rawMode(input, (handler) => registry.add(handler));
+    rawMode(input, (handler) => registry.add(handler));
+    await registry.run({ code: null, signal: 'SIGINT' });
+    expect(input.isRaw).toBe(false);
+  });
+
   it('does nothing to an input that is not a terminal, or has no raw mode to set', async () => {
     const registry = createRegistry();
     const piped = keyboard({ isTTY: false });

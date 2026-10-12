@@ -1,5 +1,63 @@
 # flagstaff
 
+## 1.4.0
+
+### Minor Changes
+
+- [#1054](https://github.com/ofri-peretz/burgee/pull/1054) [`b45f141`](https://github.com/ofri-peretz/burgee/commit/b45f1413f40bc775329b066af1528250cd5145f3) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `table()` takes `columns`, per-column `min` and `max` content widths, positional like `align`. A column with `max` never grows past it; a column with `min` is not narrowed below it while another column can give way, and when the mins add up past `width` the table is drawn wider rather than break them. Bounds that cannot hold (`min > max`, negative, fractional, `max` below 1) throw a `TypeError` naming the column. A table without `columns` draws exactly as before, and the static projection is unchanged.
+
+### Patch Changes
+
+- [#1045](https://github.com/ofri-peretz/burgee/pull/1045) [`c4fd9a3`](https://github.com/ofri-peretz/burgee/commit/c4fd9a3cb10bc36bef8c468365addfc6deb572cf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The family plugin schema (`schema.json`, identical in every plugin host) now describes `locales`, burgee's locale-pack key. A plugin carrying `locales` validates against the shared schema as it does against `burgee/locale-pack-schema.json`, which lists every message id. This package reads nothing new, and a plugin carrying `locales` registers here as before.
+- Updated dependencies [[`c4fd9a3`](https://github.com/ofri-peretz/burgee/commit/c4fd9a3cb10bc36bef8c468365addfc6deb572cf)]:
+  - closeout@1.1.2
+  - linegauge@1.1.1
+  - paratext@1.0.6
+  - roundel@1.1.1
+
+## 1.3.0
+
+### Minor Changes
+
+- [#1014](https://github.com/ofri-peretz/burgee/pull/1014) [`65afee5`](https://github.com/ofri-peretz/burgee/commit/65afee5c96e4cae62dbb9b0ba28fab98fffdbf01) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A quiet runtime. roundel's `Runtime` gains an optional `quiet` field, and flagstaff draws nothing when it is `true`: no spinner, no progress, no status line, and the frame clock never armed. Data and errors stay the caller's to print and are never quieted. burgee's global `--quiet` sets it.
+
+### Patch Changes
+
+- [#1036](https://github.com/ofri-peretz/burgee/pull/1036) [`1357061`](https://github.com/ofri-peretz/burgee/commit/1357061168d836d87389dc0881b4a52df648cdc3) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The plugin host's JSON Schema walker reads a node's own keywords beside its `anyOf`: a branch that admits the value no longer excuses a sibling `required` or `properties`. flagstaff's own plugin schema uses no `anyOf`, so no plugin is accepted or refused differently.
+
+- [#1031](https://github.com/ofri-peretz/burgee/pull/1031) [`45a70be`](https://github.com/ofri-peretz/burgee/commit/45a70bec5d1ace1345a883afe10a3a081b081711) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The JSON Schema walker the plugin host validates with reads four more keywords: `anyOf`, `enum`, a list of types, and a `$ref` into draft-07 `definitions`. flagstaff's own plugin schema uses none of them, so no plugin is accepted or refused differently. burgee's tests use them to validate every message its `--mcp` server writes against the MCP 2025-06-18 schema.
+
+- [#1011](https://github.com/ofri-peretz/burgee/pull/1011) [`1968eb4`](https://github.com/ofri-peretz/burgee/commit/1968eb46feec57bb047a9c4a4288e0cf4442f4b2) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The README quick start runs as written. On npm it was broken for flagstaff (`rt` undefined) and linegauge (`styled` undefined), controlroom's imported flagstaff without installing it, and paratext's printed nothing. No code changed; `readme-quick-start-lock` now runs every package's quick start.
+
+- [#1022](https://github.com/ofri-peretz/burgee/pull/1022) [`ecb0a00`](https://github.com/ofri-peretz/burgee/commit/ecb0a00ca68e9a3b3584aefabb9dcf97e3ff967a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The tarball no longer carries declaration files that no `exports` entry reaches. TypeScript could never open them, because a deep import is refused by `exports`. Every entry's types are unchanged. The ten packages drop 71 files and 118,312 bytes between them, burgee 35 files and 76,504 bytes, which takes its tarball from 251,814 to 225,278 bytes gzipped.
+- Updated dependencies [[`bfe4ab8`](https://github.com/ofri-peretz/burgee/commit/bfe4ab8b13ff04293345a69007cad9e0cb81c678), [`1968eb4`](https://github.com/ofri-peretz/burgee/commit/1968eb46feec57bb047a9c4a4288e0cf4442f4b2), [`65afee5`](https://github.com/ofri-peretz/burgee/commit/65afee5c96e4cae62dbb9b0ba28fab98fffdbf01), [`bcc438a`](https://github.com/ofri-peretz/burgee/commit/bcc438ac3936ee1cd530931ea090c6a8bdd016b2), [`ecb0a00`](https://github.com/ofri-peretz/burgee/commit/ecb0a00ca68e9a3b3584aefabb9dcf97e3ff967a)]:
+  - linegauge@1.1.0
+  - paratext@1.0.5
+  - roundel@1.1.0
+  - closeout@1.1.1
+
+## 1.2.5
+
+### Patch Changes
+
+- [#938](https://github.com/ofri-peretz/burgee/pull/938) [`9babb6d`](https://github.com/ofri-peretz/burgee/commit/9babb6da1ae7783c7e8367f89e3da9dffc85ffdb) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - npm description and README: the description says what the package does, then its dependency fact in one of two wordings ("Zero dependencies." or "No dependency outside the burgee family."), then its drop-in paths. The README's family section states how the family is built — the leaves, one-way dependencies, nothing from outside the family, trusted publishing with provenance — and its table column is "Migrates from". No API, compatibility grade or benchmark changes.
+- Updated dependencies [[`9babb6d`](https://github.com/ofri-peretz/burgee/commit/9babb6da1ae7783c7e8367f89e3da9dffc85ffdb)]:
+  - closeout@1.0.4
+  - linegauge@1.0.8
+  - paratext@1.0.4
+  - roundel@1.0.4
+
+## 1.2.4
+
+### Patch Changes
+
+- [#917](https://github.com/ofri-peretz/burgee/pull/917) [`735f0f6`](https://github.com/ofri-peretz/burgee/commit/735f0f68048f2d0f5e4effad151ed5132b480bb8) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - README: the opening paragraph says what the package does first. The drop-in path follows it as one line, naming the incumbent and `npx burgee migrate`, and every compatibility row and benchmark is unchanged.
+- Updated dependencies [[`735f0f6`](https://github.com/ofri-peretz/burgee/commit/735f0f68048f2d0f5e4effad151ed5132b480bb8)]:
+  - closeout@1.0.3
+  - linegauge@1.0.7
+  - paratext@1.0.3
+  - roundel@1.0.3
+
 ## 1.2.3
 
 ### Patch Changes
@@ -473,7 +531,7 @@ module.exports.RowSpanCell = …`. A caller who reaches `Cell.RowSpanCell` on th
   `heading`, `ground` — and throws on everything else. So a plugin author doing exactly what
   their own `E_PLUGIN_SCHEMA` error tells them, comparing their object against
   `roundel/schema.json`, got a green from the schema and `"accent" is not a token` from
-  `register()`. Measured 2026-09-16 with `{ accent: '[#336699](https://github.com/ofri-peretz/burgee/issues/336699)' }`.
+  `register()`. Measured 2026-09-16 with `{ accent: '#336699' }`.
 
   The schema now carries `propertyNames.enum`, and `scripts/plugin-contract-lock.test.ts`
   pins the enum and the runtime set to each other from both sides, so neither can grow a

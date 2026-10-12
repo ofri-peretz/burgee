@@ -1,5 +1,59 @@
 # caique
 
+## 1.1.0
+
+### Minor Changes
+
+- [#1045](https://github.com/ofri-peretz/burgee/pull/1045) [`c4fd9a3`](https://github.com/ofri-peretz/burgee/commit/c4fd9a3cb10bc36bef8c468365addfc6deb572cf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - caique's own chrome can speak the user's language. That covers the instruction under a list, a problem with an answer, the giving-up line, and the no-terminal and cancel refusals. A locale pack registered with `register()` carries translations under ids that begin `caique.`, so one object can serve burgee's catalog too. The new `caique/locale` entry turns the runtime's `locale` into the translator: `io.say = sayFor(runtime.locale)`. `ask` and `resolvePrompts` apply it. Neither reads the catalog itself, and caique never reads `LANG`. A refusal keeps its English `message` and `fix`, which a host may put in a machine envelope, and adds `localised` beside them. `caique check` renders a pack's messages, or refuses an unknown id, a stray placeholder or a missing plural form with `E_PLUGIN_SCHEMA`. With no `say` handed in, every byte is unchanged, and `caique/clack` and `caique/inquirer` keep their incumbents' English.
+
+  burgee: the family plugin schema it publishes describes the `locales` key.
+
+### Patch Changes
+
+- [#1045](https://github.com/ofri-peretz/burgee/pull/1045) [`c4fd9a3`](https://github.com/ofri-peretz/burgee/commit/c4fd9a3cb10bc36bef8c468365addfc6deb572cf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The family plugin schema (`schema.json`, identical in every plugin host) now describes `locales`, burgee's locale-pack key. A plugin carrying `locales` validates against the shared schema as it does against `burgee/locale-pack-schema.json`, which lists every message id. This package reads nothing new, and a plugin carrying `locales` registers here as before.
+- Updated dependencies [[`c4fd9a3`](https://github.com/ofri-peretz/burgee/commit/c4fd9a3cb10bc36bef8c468365addfc6deb572cf)]:
+  - closeout@1.1.2
+  - linegauge@1.1.1
+  - paratext@1.0.6
+  - roundel@1.1.1
+
+## 1.0.5
+
+### Patch Changes
+
+- [#1012](https://github.com/ofri-peretz/burgee/pull/1012) [`49d8e94`](https://github.com/ofri-peretz/burgee/commit/49d8e943ceaf8dcef14d43c0a70c2edec1a67816) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `@inquirer/prompts` is now graded: its ten prompts' own suites (8.7.3) are vendored and run against `caique/inquirer`, with a control of 213 of 213 against the real packages. `caique/inquirer` passes 0 of them today, because it exports `@inquirer/core`'s surface and none of the prompts yet, and `burgee migrate` reports `@inquirer/prompts` as a graded path that is not level, never rewriting it. The eleven `@inquirer/editor` cases are excluded by title: each answers the prompt through a mock of `@inquirer/external-editor`, which caique does not import.
+
+  The oracle gains two host fields for it. `suiteFiles` lists a monorepo suite's files across several packages and vendors only those; `defaultExport` grades a suite that imports its prompt as a default against the named export a program migrates.
+
+- [#1022](https://github.com/ofri-peretz/burgee/pull/1022) [`ecb0a00`](https://github.com/ofri-peretz/burgee/commit/ecb0a00ca68e9a3b3584aefabb9dcf97e3ff967a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The tarball no longer carries declaration files that no `exports` entry reaches. TypeScript could never open them, because a deep import is refused by `exports`. Every entry's types are unchanged. The ten packages drop 71 files and 118,312 bytes between them, burgee 35 files and 76,504 bytes, which takes its tarball from 251,814 to 225,278 bytes gzipped.
+- Updated dependencies [[`bfe4ab8`](https://github.com/ofri-peretz/burgee/commit/bfe4ab8b13ff04293345a69007cad9e0cb81c678), [`1968eb4`](https://github.com/ofri-peretz/burgee/commit/1968eb46feec57bb047a9c4a4288e0cf4442f4b2), [`65afee5`](https://github.com/ofri-peretz/burgee/commit/65afee5c96e4cae62dbb9b0ba28fab98fffdbf01), [`bcc438a`](https://github.com/ofri-peretz/burgee/commit/bcc438ac3936ee1cd530931ea090c6a8bdd016b2), [`ecb0a00`](https://github.com/ofri-peretz/burgee/commit/ecb0a00ca68e9a3b3584aefabb9dcf97e3ff967a)]:
+  - linegauge@1.1.0
+  - paratext@1.0.5
+  - roundel@1.1.0
+  - closeout@1.1.1
+
+## 1.0.4
+
+### Patch Changes
+
+- [#938](https://github.com/ofri-peretz/burgee/pull/938) [`9babb6d`](https://github.com/ofri-peretz/burgee/commit/9babb6da1ae7783c7e8367f89e3da9dffc85ffdb) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - npm description and README: the description says what the package does, then its dependency fact in one of two wordings ("Zero dependencies." or "No dependency outside the burgee family."), then its drop-in paths. The README's family section states how the family is built — the leaves, one-way dependencies, nothing from outside the family, trusted publishing with provenance — and its table column is "Migrates from". No API, compatibility grade or benchmark changes.
+- Updated dependencies [[`9babb6d`](https://github.com/ofri-peretz/burgee/commit/9babb6da1ae7783c7e8367f89e3da9dffc85ffdb)]:
+  - closeout@1.0.4
+  - linegauge@1.0.8
+  - paratext@1.0.4
+  - roundel@1.0.4
+
+## 1.0.3
+
+### Patch Changes
+
+- [#917](https://github.com/ofri-peretz/burgee/pull/917) [`735f0f6`](https://github.com/ofri-peretz/burgee/commit/735f0f68048f2d0f5e4effad151ed5132b480bb8) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - README: the opening paragraph says what the package does first. The drop-in path follows it as one line, naming the incumbent and `npx burgee migrate`, and every compatibility row and benchmark is unchanged.
+- Updated dependencies [[`735f0f6`](https://github.com/ofri-peretz/burgee/commit/735f0f68048f2d0f5e4effad151ed5132b480bb8)]:
+  - closeout@1.0.3
+  - linegauge@1.0.7
+  - paratext@1.0.3
+  - roundel@1.0.3
+
 ## 1.0.2
 
 ### Patch Changes
@@ -435,7 +489,7 @@
   `heading`, `ground` — and throws on everything else. So a plugin author doing exactly what
   their own `E_PLUGIN_SCHEMA` error tells them, comparing their object against
   `roundel/schema.json`, got a green from the schema and `"accent" is not a token` from
-  `register()`. Measured 2026-09-16 with `{ accent: '[#336699](https://github.com/ofri-peretz/burgee/issues/336699)' }`.
+  `register()`. Measured 2026-09-16 with `{ accent: '#336699' }`.
 
   The schema now carries `propertyNames.enum`, and `scripts/plugin-contract-lock.test.ts`
   pins the enum and the runtime set to each other from both sides, so neither can grow a

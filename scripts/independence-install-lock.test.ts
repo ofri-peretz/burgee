@@ -29,14 +29,16 @@
  * It reads `dist/`, so it needs the packages built — which the pre-push battery and CI's
  * `npm test` both do before the root suite runs.
  */
-import { execFile, spawn } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import { declaredBy, discard, type Edge, installTarballs, type Manifest, ownerOf, packFamily, publishedManifests, readManifest, undeclaredReaches } from './family-install.js';
 
 const run = promisify(execFile);
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -44,76 +46,6 @@ const PUBLISHED = ['bellpull', 'burgee', 'caique', 'closeout', 'controlroom', 'f
 
 /** One pack of ten packages, then ten installs and their probes side by side. */
 const SETUP_TIMEOUT_MS = 240_000;
-
-/**
- * The nine installs are scaffolding once every assertion has run, so deleting them goes to a
- * detached process instead of holding the suite. A synchronous `rmSync` of nine
- * `node_modules` trees outran SETUP_TIMEOUT_MS on a machine whose endpoint scanner inspects
- * every unlink, which failed the whole file after all 42 assertions had passed.
- * ponytail: the OS temp dir is the backstop if that process dies; nothing here reads it again.
- */
-function discard(dir: string): void {
-  spawn(process.execPath, ['-e', 'require("node:fs").rmSync(process.argv[1], { recursive: true, force: true })', dir], {
-    detached: true,
-    stdio: 'ignore',
-  }).unref();
-}
-
-interface Manifest {
-  name: string;
-  private?: boolean;
-  bin?: string | Record<string, string>;
-  exports?: Record<string, unknown>;
-  dependencies?: Record<string, string>;
-  peerDependencies?: Record<string, string>;
-  optionalDependencies?: Record<string, string>;
-}
-
-const readManifest = (dir: string): Manifest => JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as Manifest;
-
-/** Every name a manifest lets its code import. */
-export const declaredBy = (m: Manifest): string[] => Object.keys({ ...m.dependencies, ...m.peerDependencies, ...m.optionalDependencies });
-
-/** One module resolution Node performed: who asked, for what, and the URL it got. */
-export interface Edge {
-  from: string | null;
-  specifier: string;
-  to: string;
-}
-
-/** The installed package a file URL belongs to, or `undefined` when it is outside `modules`. */
-export function ownerOf(url: string, modules: string): string | undefined {
-  const rel = relative(modules, fileURLToPath(url));
-  if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) return undefined;
-  const parts = rel.split(sep);
-  const rest = parts.slice(parts.lastIndexOf('node_modules') + 1);
-  const [first = '', second = ''] = rest;
-  return first.startsWith('@') ? `${first}/${second}` : first;
-}
-
-/**
- * Every edge that reaches a package its importer does not declare.
- *
- * `entry` is the probe — the adopter — which declares exactly the package under test. A builtin
- * (`node:`) is always allowed; a file outside the install is never allowed, because that is a
- * package found by walking up past the adopter's own `node_modules`.
- */
-export function undeclaredReaches(
-  edges: Edge[],
-  { modules, entry, pkg, declared }: { modules: string; entry: string; pkg: string; declared: (name: string) => string[] },
-): string[] {
-  const found = new Set<string>();
-  for (const { from, specifier, to } of edges) {
-    if (!to.startsWith('file:')) continue;
-    const asker = from === null || from === entry ? undefined : ownerOf(from, modules);
-    const allowed = asker === undefined ? [pkg] : [asker, ...declared(asker)];
-    const target = ownerOf(to, modules);
-    const who = asker ?? 'the adopter';
-    if (target === undefined) found.add(`${who} reaches ${fileURLToPath(to)}, outside the install ('${specifier}')`);
-    else if (!allowed.includes(target)) found.add(`${who} reaches ${target} without declaring it ('${specifier}')`);
-  }
-  return [...found].toSorted();
-}
 
 /** The plain paths an `exports` target or a `bin` names, without `./`. */
 const norm = (p: string): string => p.replace(/^\.\//, '');
@@ -180,19 +112,6 @@ for (const specifier of JSON.parse(process.env.PROBE_SPECIFIERS)) {
 }
 `;
 
-/**
- * npm, without assuming a POSIX shell — the reasoning is `pack-list-lock.test.ts`'s. Only a
- * `npm_execpath` naming `npm-cli.js` is run through this Node; any other value is not npm's own
- * entry, so it falls back to `npm` on the PATH.
- */
-const NPM_CLI = process.env['npm_execpath'];
-const WINDOWS = process.platform === 'win32';
-function npm(args: string[], cwd: string): Promise<{ stdout: string }> {
-  const io = { cwd, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 } as const;
-  if (NPM_CLI?.endsWith('npm-cli.js') === true) return run(process.execPath, [NPM_CLI, ...args], io);
-  return run(WINDOWS ? 'npm.cmd' : 'npm', args, { ...io, shell: WINDOWS });
-}
-
 interface Probe {
   code: number;
   stderr: string;
@@ -247,7 +166,7 @@ async function installAlone(pkg: string, manifests: Map<string, Manifest>, tarba
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: `adopter-of-${pkg}`, private: true, type: 'module' }));
   const files = [pkg, ...siblings].map((n) => tarballs.get(n) ?? '');
-  await npm(['install', '--offline', '--no-package-lock', '--no-audit', '--no-fund', '--silent', ...files], dir);
+  await installTarballs(dir, files);
   writeFileSync(join(dir, 'probe.mjs'), PROBE);
 
   const nodeModules = realpathSync(join(dir, 'node_modules'));
@@ -318,25 +237,14 @@ describe('undeclaredReaches', () => {
 });
 
 describe('U12 — each published package installs and loads alone', () => {
-  const manifests = new Map<string, Manifest>();
-  for (const dir of readdirSync(join(root, 'packages'))) {
-    const at = join(root, 'packages', dir);
-    if (!existsSync(join(at, 'package.json'))) continue;
-    const m = readManifest(at);
-    if (m.private !== true) manifests.set(m.name, m);
-  }
+  const manifests = publishedManifests(root);
 
   let base: string;
   const results = new Map<string, Install>();
 
   beforeAll(async () => {
     base = mkdtempSync(join(tmpdir(), 'burgee-independence-'));
-    const packs = join(base, 'tarballs');
-    const workspaces = [...manifests.keys()].map((name) => `--workspace=packages/${name}`);
-    mkdirSync(packs);
-    const { stdout } = await npm(['pack', '--json', '--pack-destination', packs, ...workspaces], root);
-    // eslint-disable-next-line node-security/no-zip-slip -- `p.filename` is the tarball name `npm pack` reports for our own workspaces, not an entry read from an archive; npm does the extracting. The rule takes archive context from the name `tarballs` (logged as a docs gap in the eslint FP/FN sweep).
-    const tarballs = new Map((JSON.parse(stdout) as { name: string; filename: string }[]).map((p) => [p.name, join(packs, p.filename)]));
+    const tarballs = await packFamily(root, manifests.keys(), join(base, 'tarballs'));
     const done = await Promise.all([...manifests.keys()].map((pkg) => installAlone(pkg, manifests, tarballs, base)));
     for (const r of done) results.set(r.pkg, r);
   }, SETUP_TIMEOUT_MS);

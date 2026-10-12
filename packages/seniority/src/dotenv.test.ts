@@ -401,6 +401,32 @@ describe('config takes its defaults from DOTENV_* (dotenv 18)', () => {
     expect(processEnv['BASIC']).toBe('existing');
     expect(calls('error')).toHaveLength(1);
   });
+
+  it('lets an option given as `undefined` fall through to the environment’s default, as dotenv 18.0.7 does (#1070)', () => {
+    // `{ ...env, ...given }` let a present-but-undefined key erase the default: the path fell
+    // back to `./.env` and the quiet line printed. dotenv 18.0.7 drops undefined keys first.
+    Object.assign(process.env, { DOTENV_CONFIG_PATH: local, DOTENV_CONFIG_QUIET: 'true' });
+    const processEnv: Record<string, string | undefined> = {};
+    // A JS caller's shape (`{ path: process.env.X }`); `exactOptionalPropertyTypes` refuses it in TS.
+    config({ path: undefined, quiet: undefined, processEnv } as unknown as Parameters<typeof config>[0]);
+    expect(processEnv['BASIC']).toBe('local_basic');
+    expect(calls('error')).toEqual([]);
+  });
+
+  it('reads `config(null)` as no options at all, every default from the environment', () => {
+    const held = process.env['BASIC'];
+    Object.assign(process.env, { DOTENV_CONFIG_PATH: local, DOTENV_CONFIG_QUIET: 'true' });
+    try {
+      // dotenv's own suite calls it with `null`; the type says `undefined`, so the cast is the case.
+      const result = config(null as unknown as undefined);
+      expect(result).toEqual({ parsed: { BASIC: 'local_basic' } });
+      expect(process.env['BASIC']).toBe(held ?? 'local_basic');
+      expect(calls('error')).toEqual([]);
+    } finally {
+      if (held === undefined) delete process.env['BASIC'];
+      else process.env['BASIC'] = held;
+    }
+  });
 });
 
 describe('debug output (dotenv’s `_debug`, behind `┆`)', () => {

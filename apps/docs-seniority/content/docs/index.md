@@ -1,6 +1,6 @@
 ---
 title: seniority
-description: "Which source outranks the others. One resolution for flags, environment, project and home config files and defaults — with provenance, so every value can say where it came from. Drop-in paths for cosmiconfig, dotenv and rc. Zero dependencies."
+description: "Resolves flags, environment variables, config files and defaults in one fixed order, with provenance: every value can say where it came from. Zero dependencies. Drop-in paths for cosmiconfig, lilconfig, dotenv and rc."
 ---
 
 **seniority** resolves flags, environment variables, config files, a `package.json` field and
@@ -320,9 +320,15 @@ pass `ini.parse` in rc's own fourth position and you have rc's behaviour, with t
 
 ### `seniority/find-up`
 
-`findUp`, `findUpSync`, `findUpMultiple`, `findUpMultipleSync` over the same bounded walk —
-`stopAt`, a depth limit, and a symlink ring that ends the walk instead of spinning it.
-`find-up` → `locate-path` → `p-locate` → `path-exists` is four packages for that.
+find-up 8's surface — `findUp`, `findUpSync`, `findUpMultiple`, `findUpMultipleSync`, a
+matcher function and `findUpStop`, `findDown` and `findDownSync`, with locate-path's `type` and
+`allowSymlinks` — in one file. `find-up` → `locate-path` → `p-locate` is three packages for
+that.
+
+```diff
+- import { findUp } from "find-up";
++ import { findUp } from "seniority/find-up";
+```
 
 ## Compatibility
 
@@ -330,8 +336,8 @@ What `cosmiconfig`, `dotenv`, `rc` and `find-up` do between them — discovery, 
 loading, precedence, the upward walk — is one problem. This is one package with no
 dependencies rather than four with a tree.
 
-Each path is graded by its incumbent's own suite, run unmodified through `compat-oracle`; the
-current grades are generated under *Benchmarks* below and published on the
+Each path below is graded by its incumbent's own suite, run unmodified through `compat-oracle`;
+the current grades are generated under *Benchmarks* below and published on the
 [compatibility page](https://burgee.interlace.tools/docs/compatibility).
 
 ### `cosmiconfig`
@@ -355,10 +361,18 @@ read 240 of 241.
 
 ### `seniority/dotenv`
 
-**Graded by dotenv 18.0.6's own test suite: 181 of 181, the same as the real `dotenv` gets
+**Graded by dotenv 18.0.7's own test suite: 191 of 191, the same as the real `dotenv` gets
 here.** That includes its `dotenv run` command line and signal forwarding, both parsers, and
 `import 'dotenv/config'`. dotenv 17.4.2's suite is graded too and not claimed: 107 of 141,
 because 17's vault, tips and `console.log` line are what 18 changed.
+
+### `seniority/find-up`
+
+**Graded by find-up 8.0.0's own test suite: 104 of 104 cases, the same as the real `find-up`
+gets here.** Two of the suite's 106 are subtracted by name from both sides, and the
+compatibility page says why: each expects a `.git` directory at the package's own root, which a
+vendored copy does not have. A name matches a file unless `type` says otherwise, and `cwd`
+defaults to the process's working directory, as find-up's do.
 
 ### `seniority/lilconfig`
 
@@ -382,11 +396,12 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `cosmiconfig` | 242 / 243 |
-| `dotenv` | 181 / 181 |
+| `dotenv` | 191 / 191 |
+| `find-up` | 104 / 104 |
 | `lilconfig` | 77 / 77 |
 | `rc` | 1 / 1 |
 
-Weight, installed and tree-inclusive: **223,679 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1134**.
+Weight, installed and tree-inclusive: **231,237 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1172**.
 
 ## For agents
 
@@ -451,22 +466,35 @@ Plugins register under the `sources` key, against the one schema the whole famil
 
 ## The family
 
-Ten packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
-carries its colours, flagstaff flies it and caique answers back; each installs on its own, and none
-takes a dependency from outside the family.
+Ten packages, one repository, one release pipeline. Each installs and works on its own, and each
+owns one job. Six of them — `bellpull`, `closeout`, `linegauge`, `paratext`, `roundel`, `seniority`
+— depend on nothing; the others depend only on packages in this table, and every dependency points
+one way, down the [layers](https://burgee.interlace.tools/docs/concepts/family).
 
-| Package | What it is | Replaces |
+No package declares a dependency from outside the family; `react` and `react-reconciler` are
+optional peers of `controlroom`, which npm does not install.
+[`package-shape-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/package-shape-lock.test.ts)
+holds that for every manifest, and
+[`independence-install-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/independence-install-lock.test.ts)
+installs each package alone and finds nothing but the family packages it declares.
+
+Releases are published by one workflow through npm trusted publishing: no npm token is used, and
+each release carries SLSA provenance, which `npm view <package> dist.attestations` shows.
+[`trusted-publishing-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/trusted-publishing-lock.test.ts)
+keeps both true.
+
+| Package | What it is | Migrates from |
 | :-- | :-- | :-- |
-| [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander and yargs |
-| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk |
+| [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander, yargs and meow |
+| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk and picocolors |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
-| [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | inquirer and clack |
-| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi and slice-ansi |
+| [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | @inquirer/core |
+| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line |
 | [paratext](https://paratext.interlace.tools/docs) | Hyperlinks, images, title, clipboard and notifications | ansi-escapes, terminal-link and term-img |
-| **seniority** (this package) | Configuration precedence and discovery, with provenance | cosmiconfig, dotenv and rc |
-| [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook and restore-cursor |
+| **seniority** (this package) | Configuration precedence and discovery, with provenance | cosmiconfig, lilconfig, dotenv and rc |
+| [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook, restore-cursor, cli-cursor and onetime |
 | [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
-| [controlroom](https://controlroom.interlace.tools/docs) | Full-screen, keyboard-driven terminal screens | ink, graded by ink's own suite |
+| [controlroom](https://controlroom.interlace.tools/docs) | Keyboard-driven terminal screens, inline or full-screen | ink |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

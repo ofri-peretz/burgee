@@ -138,7 +138,7 @@ describe('no snippet reads as working code that controlroom cannot run', () => {
   const exported = controlroomExports();
   const snippets = guides.flatMap(({ host, text }) =>
     fences(text)
-      .map((f) => ({ host, body: f.body, names: [...f.body.matchAll(/import \{([^}]*)\} from 'controlroom(?:\/[\w-]+)?'/gu)].flatMap(([, list]) => list!.split(',').map((n) => n.trim().replace(/^type /u, '')).filter((n) => n !== '')) }))
+      .map((f) => ({ host, body: f.body, names: [...f.body.matchAll(/import \{([^}]*)\} from ['"]controlroom(?:\/[\w-]+)?['"]/gu)].flatMap(([, list]) => list!.split(',').map((n) => n.trim().replace(/^type /u, '')).filter((n) => n !== '')) }))
       .filter((s) => s.names.length > 0),
   );
 

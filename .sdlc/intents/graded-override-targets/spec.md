@@ -1,0 +1,122 @@
+# Design — Every stand-in is graded
+
+Intent: [`intent.md`](./intent.md). **Status:** approved.
+
+**Accepted by the owner, 2026-10-12, by instruction: create and execute.** The instruction is
+recorded verbatim in [`next-wave-2026-10.md`](../../research/next-wave-2026-10.md), with the
+evidence this design rests on.
+
+> Requirement ids are `R1`… so they cannot collide with the floor ids `scripts/run-evals.ts`
+> reads from `burgee/spec.md`.
+
+---
+
+## Requirements
+
+- **R1 — A lock: no README claims a grade the oracle does not hold.**
+  `scripts/graded-claims-lock.test.ts` reads every published package's `README.md`. Under
+  `## Compatibility`, each third-level heading that names a subpath in code (`pkg/subpath`) must map to a `DROP_INS` row whose
+  host has a `GRADED` row, or its section must say "not graded" in those words. The lock
+  also reads every `src/*.ts` header that says "override target for X" or "drop-in for X" and
+  holds it to the same rule. It lands first, red on `3a05dc8aad` for `seniority/find-up`, so it
+  ships with the README corrected to "not graded yet". R2 then removes that sentence.
+- **R2 — `find-up`, graded against `seniority/find-up`.** Vendor `find-up`'s suite at its latest
+  major. `seniority/find-up` already exports `findUp`, `findUpSync`, `findUpMultiple` and
+  `findUpMultipleSync`, so the drop-in is the existing subpath. Add the host to
+  `packages/compat-oracle/src/hosts.ts` and the row to `GRADED`, `GRADED_VERSIONS` and
+  `DROP_INS`.
+- **R3 — `onetime`, graded against a new `closeout/onetime`.** It is a façade with onetime's
+  default export and `callCount`, over `closeout/once`. If onetime's suite imports
+  `mimic-function` behaviour (name and length preserved), that is graded as part of this row,
+  and `mimic-function` gets its own row only if `closeout/onetime` exports its API.
+- **R4 — `cli-cursor`, graded against a new `closeout/cli-cursor`.** It is a façade with
+  cli-cursor's default `{ show, hide, toggle }`, over `closeout/cursor`. It is restored on exit
+  through closeout's registry, as cli-cursor does through restore-cursor.
+- **R5 — `cli-truncate`, graded against a new `linegauge/cli-truncate`.** It is a façade with
+  cli-truncate's default export and options (`position`, `space`, `preferTruncationOnSpace`,
+  `truncationCharacter`), over `linegauge/truncate`. The README's "checked case by case" sentence
+  is replaced by the grade.
+- **R6 — `widest-line`, graded against a new `linegauge/widest-line`.** It is a façade with
+  widest-line's default export, over `linegauge/widest`.
+- **R7 — `picocolors`, graded against a new `roundel/picocolors`, behind a weight gate.** It is
+  a façade with picocolors' `createColors`, `isColorSupported` and the colour functions, over
+  `roundel/tokens` and `roundel/policy`. **Measured before it publishes:** its bundled bytes go
+  into `subpath-weight`'s table against picocolors' own. Over the ceiling, the subpath stays
+  private and this file records the number. It is the only requirement here with a kill
+  criterion, because picocolors' whole pitch is its size.
+- **R8 — Each row is level with its control, or the gap is named.** A case the target fails and
+  the control passes is either fixed or excluded by exact title, with a reason on the
+  compatibility page. Rule 3's ratchet applies from the first published number.
+
+## Design
+
+**One incumbent per PR, in this order:** R1, then R2 (find-up, the false claim), R3 and R4
+(closeout, sharing a registry), R5 and R6 (linegauge), and R7 last (the weight gate decides it).
+Each PR is the same mechanical slice the 28 existing hosts took:
+
+1. `npm run compat -- --vendor <name>` vendors the suite at the version
+   `npm view <name> version` names, recorded in `GRADED_VERSIONS`.
+2. A host entry in `packages/compat-oracle/src/hosts.ts`: `name`, `repo`, `testDir`, `testGlob`,
+   `imports` (upstream specifier → family subpath, with `control: '<name>'`), `runner`,
+   `target`, `status: 'active'`.
+3. `npm run compat -- <name>` and `npm run compat -- --control <name>` write the grade, and `GRADED` takes the row from it, never
+   by hand.
+4. `DROP_INS` gains `{ host, from: '<name>', to: '<pkg>/<subpath>' }`, so `burgee migrate`
+   rewrites it, and `migrate-drop-ins-lock` holds it to the oracle.
+5. The package's `exports`, `subpath-weight`'s table, the README's compatibility table (it is
+   generated) and a patch changeset.
+
+**Façades, not renames.** `closeout/cursor`, `linegauge/truncate` and `linegauge/widest` keep
+their own APIs: they are the family's design, and other packages import them. The incumbent's
+shape lives in a file named for it, as `closeout/exit-hook` and `paratext/terminal-link` already
+do. A user switching gets the incumbent's shape. A user starting fresh gets the family's.
+
+**The lock reads the same tables the generator writes.** R1 imports `GRADED` and `DROP_INS` from
+`packages/burgee/src/compat.ts` rather than keeping a list, so a host added later is covered the
+day it lands.
+
+## Verification
+
+| R | Check | Proven red by |
+| :-- | :-- | :-- |
+| R1 | `scripts/graded-claims-lock.test.ts` | running it on `3a05dc8aad`: names `seniority/find-up` |
+| R2–R7 | `npm run compat -- <name>` and `-- --control <name>`, and `packages/burgee/src/compat-baseline-lock.test.ts` | the control run itself: the suite against the real incumbent must pass, or the row is refused. Before the façade exists, the target run fails to import |
+| R2–R7 | `scripts/migrate-drop-ins-lock.test.ts` | a `DROP_INS` row added without a `GRADED` row fails it |
+| R3–R7 | `scripts/subpath-weight-lock.test.ts` | a façade over its ceiling fails it. R7 is the case this can actually stop |
+| R8 | `scripts/compat-page-subtractions.test.ts` | an exclusion with no reason, or a title that no longer exists upstream, fails it |
+
+The whole loop is `npx vitest run --config vitest.root.config.ts` plus `npm run compat`, both
+non-zero on failure.
+
+## Rejected alternatives
+
+- **Strike the README sentence and stop.** It makes the page true and leaves 953 M downloads a
+  week with code and no number. The fix the principle asks for is the grade.
+- **Grade the existing subpaths directly, changing their APIs to the incumbents'.** It would
+  break every family import of `closeout/cursor` and `linegauge/truncate`, and make the family's
+  own API whatever six upstream authors chose.
+- **Raise `roundel/tokens`' ceiling if picocolors does not fit.** `u5-weight-claim` rejected
+  this ("changing the instrument"). A miss is recorded, not absorbed.
+- **One PR for all six.** Each vendors a suite and moves `GRADED`; six in one diff cannot be
+  reviewed, and one red control would block the other five.
+
+## Out of scope
+
+- `mimic-function` as its own row, unless R3's export list makes it one.
+- `supports-color`, `is-interactive`, `ci-info` and `log-symbols`: `roundel` folds environment
+  detection but no subpath claims any of them as a drop-in. The table records no claim to grade.
+- Re-pointing an `overrides` recipe at a package root (D-133). An override aims at a root, and
+  each of these is a subpath, so they are reached by `burgee migrate`, not by `overrides`.
+
+## Status
+
+| R | Status | Where | Check |
+| :-- | :-- | :-- | :-- |
+| R1 | **Built** 2026-10-11 | `scripts/graded-claims-lock.test.ts` | itself: red on `e04e05e7f3`, naming `seniority/find-up` ("find-up has no GRADED row behind a DROP_INS pair"), green once the README and the header said "not graded yet" |
+| R2 | **Built** 2026-10-11 | `seniority/find-up` | `npm run compat -- find-up`: 104 / 104, control 104 / 104 (D-20261011-seniority-find-up-follows-find-up-8); red before the façade, `does not provide an export named 'findUpStop'` |
+| R3 | **Built** 2026-10-11 | `closeout/onetime` | `npm run compat -- onetime`: 6 / 6, control 6 / 6; red before the façade, `target not built yet: closeout/onetime` (D-20261011-closeout-onetime-cli-cursor); `subpath-weight-lock`: bundled 716 B against onetime's 1,527 B. No `mimic-function` row: the suite asserts none of it and the façade exports none of its API |
+| R4 | **Built** 2026-10-11 | `closeout/cli-cursor` | `npm run compat -- cli-cursor`: 8 / 8, control 8 / 8; red before the façade, `target not built yet: closeout/cli-cursor`; `scripts/subpath-weight-lock.test.ts`: bundled 4,568 B against cli-cursor's 4,757 B, red at 4,876 B until `install.ts` split the registry from its view |
+| R5 | **Built** 2026-10-11 | `linegauge/cli-truncate` | `npm run compat -- cli-truncate`: 12 / 12, control 12 / 12; red before the façade, `target not built yet: linegauge/cli-truncate` (D-20261011-linegauge-cli-truncate-widest-line); `subpath-weight-lock`: bundled 14,191 B against cli-truncate's 20,675 B. linegauge's README sentence "checked case by case against `cli-truncate`" is replaced by the grade |
+| R6 | **Built** 2026-10-11 | `linegauge/widest-line` | `npm run compat -- widest-line`: 1 / 1, control 1 / 1; red before the façade, `target not built yet: linegauge/widest-line`; `subpath-weight-lock`: bundled 5,742 B against widest-line's 6,079 B |
+| R7 | **Built** 2026-10-11 | `roundel/picocolors` | `npm run compat -- picocolors`: 1 / 1, control 1 / 1, by exit code (upstream's `npm test` is `tests/test.js` alone); red before the façade at 0 / 1. `subpath-weight-lock`: bundled 1,607 B against picocolors' 2,739 B, so the kill criterion does not fire — set under 1,607 it reads `over the incumbent's`. D-20261011-roundel-picocolors. Its `roundel` changeset waits for 2026-10-13 04:00 UTC |
+| R8 | **Built** 2026-10-11 | the compatibility page | `scripts/compat-page-subtractions.test.ts`: every row of R2–R7 is level with its control, and the one gap — find-up's two `.git` cases — is subtracted by exact title with its reason on the page; red with those two rows removed (`find-up: its excludes is on the page with its reason`) |

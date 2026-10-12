@@ -19,6 +19,7 @@ import { readFileSync, statSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 const pkgRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -442,7 +443,10 @@ const RULES: Record<string, EntryRule> = {
     // 21,000 with F1 on top of D-122, N14 and E7, after merging main. Measured 20,897.
     // 25,250 on 2026-09-23: D-140 and #521 on top of main (72a810352e). Measured 25,229.
     // 25,900 on 2026-09-24: the MCP session hold on top of P2/P3 (#484). Measured 25,806.
-    budget: 25_900,
+    // 26,250 on 2026-10-12 for mcp-current R1: a tool result carries the envelope's `data` (or its `error`) as `structuredContent`, parsed once from the text it already returns. Measured 25,850 -> 26,215.
+    // 26,700 on 2026-10-12 for mcp-current R2: `tools/list` carries a command's declared `output.schema` as `outputSchema`, wrapped as `{ result }` when it is not an object type, and the result is wrapped by that schema so the two agree. Measured 26,215 -> 26,695.
+    // 28,000 on 2026-10-12 for mcp-current R4 and R5: requests are dispatched without waiting for the one before, kept by id so `notifications/cancelled` aborts the call's signal and its reply is dropped; the stdout capture follows each call through `AsyncLocalStorage` instead of one global swap, which concurrent calls would have crossed; and a call with a `progressToken` sends `notifications/progress`. Measured 26,695 -> 27,991.
+    budget: 28_000,
     // 24,850 with the MCP stdout capture (#521) on top of D-122's 20,568. Measured 24,835.
     // 24,950 with D-140's MCP error classification on top of #521. Measured 24,900.
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
@@ -717,11 +721,11 @@ const RULES: Record<string, EntryRule> = {
   // cliui 9 (wrap-ansi), y18n 5, escalade, get-caller-file — because burgee depends on
   // nothing outside the family (J9).
   //
-  // NOTE: this entry's rule still reads `allow: []`, and that is what the walk observes —
-  // but `dist/yargs.js` -> `yargs/shim.js` -> `yargs/cliui.js` -> `linegauge` is a static
-  // chain in the built artifact, so the edge is real and this lock does not see it. Left as
-  // measured rather than asserted-at, because a rule that disagrees with the walk fails the
-  // suite either way; the gap in the walk is the thing to fix, not the number here.
+  // `allow: ["linegauge"]` since 2026-10-10 (D-20261010-yargs-entry-allows-linegauge, the
+  // owner's call): `dist/yargs.js` -> `yargs/shim.js` -> `yargs/cliui.js` -> `linegauge` is
+  // a static chain in the built artifact, and it read `allow: []` only because the walk
+  // matched `from '…'` and `src/yargs/*.ts` is double-quoted. The walk reads the syntax
+  // tree now. Bytes were unchanged by the fix: 220,888 over 23 files either way.
   //
   // `linegauge` is the exception the layering asks for, and it arrived as a bug fix rather
   // than tidying. cliui's port carried its own `stringWidth` and `stripAnsi`, and the strip
@@ -762,7 +766,7 @@ const RULES: Record<string, EntryRule> = {
   // share), the `--json` catch on the unseamed path, the one-envelope latch, and 65 B of
   // `host.exitCode`'s setter in `runtime.js`. `json-failure.test.ts` holds each case.
   "./yargs": {
-    allow: [],
+    allow: ["linegauge"],
     // 215,300 on 2026-09-23 for N14, through the engine and the schema. Measured 215,252.
     // 215,250 on 2026-09-23: `export { Yargs as 'module.exports' }`, which yargs' own entry has, so `require('burgee/yargs')` hands a CommonJS caller the factory rather than a namespace. Measured 215,221.
     // 215,500 on 2026-09-23 for D-122, through the engine and the manifest. Measured 215,422.
@@ -828,16 +832,26 @@ const RULES: Record<string, EntryRule> = {
  * Static imports are what an entry costs at startup. A dynamic `import('./x.js')` is paid
  * only on the path that runs it (K6), so it is reported as `lazy` and not counted — an
  * entry may defer a rarely used surface without carrying it for every run.
+ *
+ * Read from the syntax tree, not the text. The pattern this replaced matched only
+ * `from '…'`, and tsc keeps the source's quote style, so `src/yargs/*.ts` — written with
+ * double quotes — had its `linegauge` import and every relative import unread: the lock
+ * passed while measuring less than ships.
  */
-const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;
-const LAZY = /import\(\s*'([^']+)'\s*\)/g;
-
-/** One file's imports: static specifiers to follow or count, dynamic ones only to report. */
 function scan(source: string): { specs: string[]; lazy: string[] } {
-  return {
-    specs: [...source.matchAll(SPECIFIER)].map((m) => m[1] ?? ""),
-    lazy: [...source.matchAll(LAZY)].map((m) => m[1] ?? ""),
+  const specs: string[] = [];
+  const lazy: string[] = [];
+  const visit = (node: ts.Node): void => {
+    if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier !== undefined && ts.isStringLiteral(node.moduleSpecifier)) {
+      specs.push(node.moduleSpecifier.text);
+    } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+      const [arg] = node.arguments;
+      if (arg !== undefined && ts.isStringLiteralLike(arg)) lazy.push(arg.text);
+    }
+    ts.forEachChild(node, visit);
   };
+  visit(ts.createSourceFile("entry.js", source, ts.ScriptTarget.Latest, false, ts.ScriptKind.JS));
+  return { specs, lazy };
 }
 
 function walk(entry: string): {
@@ -926,8 +940,9 @@ describe("the denied list", () => {
  * Listed rather than pattern-matched so that adding one is still a decision somebody made.
  */
 // Data, not code: a file a reader validates against, which no import reaches and no budget can weigh.
-// `program-schema.json` is the shape of `--schema` (F1, D-123).
-const DATA_EXPORTS = ["./schema.json", "./program-schema.json"];
+// `program-schema.json` is the shape of `--schema` (F1, D-123); `locale-pack-schema.json` is the
+// shape of a locale pack (`localised-human-surfaces` R4).
+const DATA_EXPORTS = ["./schema.json", "./program-schema.json", "./locale-pack-schema.json"];
 
 describe("the lock grows with the package", () => {
   it("every published entry point declares a weight rule", () => {
@@ -937,5 +952,14 @@ describe("the lock grows with the package", () => {
       (e) => !DATA_EXPORTS.includes(e),
     );
     expect(code.sort()).toEqual(Object.keys(RULES).sort());
+  });
+});
+
+describe("the walker", () => {
+  it("reads either quote style and no string, so neither can hide or invent an import", () => {
+    expect(scan(`import { a } from "x"; export * from './y.js'; const s = "came from", k = 'z'; await import("./z.js");`)).toEqual({
+      specs: ["x", "./y.js"],
+      lazy: ["./z.js"],
+    });
   });
 });

@@ -28,6 +28,7 @@
 <p align="center">
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/%40clack%2Fprompts%20suite-16%2F16-0a6b47?style=flat-square" alt="caique/clack passes 16 of 16 cases of the @clack/prompts test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/%40inquirer%2Fcore%20suite-41%2F41-0a6b47?style=flat-square" alt="caique/inquirer passes 41 of 41 cases of the @inquirer/core test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/%40inquirer%2Fprompts%20suite-0%2F213-b45309?style=flat-square" alt="caique/inquirer passes 0 of 213 cases of the @inquirer/prompts test suite" /></a>
 </p>
 
 <p align="center">
@@ -95,7 +96,7 @@ called out by name: **no terminal and no value is never a prompt.**
 ask" — and when there is nobody, the refusal says so, rather than looking like the flag was
 ignored.
 
-## What ships today
+## What it does
 
 ### Asking, once it is allowed
 
@@ -118,7 +119,8 @@ await ask(
 **Line mode is not the fallback, it is the floor.** No raw mode, no cursor movement, no
 escape sequence, no redraw — so this *is* the accessible rendering rather than a second
 implementation of it, and a screen reader gets the same bytes a terminal does. The raw-mode
-renderer that arrows and highlights will sit on top and answer the same questions.
+renderer, with arrow keys and a highlight, sits on top of it and answers the same questions
+([below](#arrow-keys-where-there-is-a-terminal-to-take-them)).
 
 A stream that ends is a **cancellation**, not an empty answer: `Ctrl-D` and a closed pipe
 both mean nobody is going to type, and reading that as `''` is how a program writes to a
@@ -239,6 +241,28 @@ The census comes first and `ok` last. A refusal exits 1 with a code and the edit
 `sample`, `E_PLUGIN_SCHEMA` for a built-in kind or
 a `sample` that is not `{ running, done }`.
 
+### In the user's language
+
+caique's own chrome (the instruction under a list, a problem with an answer, the giving-up line)
+can speak the user's language. The translations come from a locale pack registered with
+`register()`, under ids that begin `caique.`, so the same object can carry burgee's messages
+too. The locale is your runtime's `locale`, which burgee resolves. caique never reads `LANG`
+itself:
+
+```js
+import { register } from 'caique/plugin';
+import { sayFor } from 'caique/locale';
+
+register({ name: 'de', contract: 1, locales: { de: { 'caique.answerYesNo': 'antworten Sie j oder n' } } });
+await resolvePrompts({ options, values, runtime, io: { ...io, say: sayFor(runtime.locale) } });
+```
+
+A refusal keeps its `message` and `fix` in English, because a host may write them into a
+machine envelope. The translation rides beside them as `localised`. Your question and choices
+are yours and are never translated. `caique/clack` and `caique/inquirer` keep their incumbents'
+English. `npx caique check ./pack.mjs` renders every message, or refuses an unknown id, a stray
+placeholder or a missing plural form.
+
 ## Migrating
 
 From **`@inquirer/core`**, one import — `createPrompt`, the hooks and the keypress helpers:
@@ -332,8 +356,9 @@ Graded by the incumbent's own test suite:
 | :-- | --: |
 | `clack` | 16 / 16 |
 | `inquirer-core` | 41 / 41 |
+| `inquirer-prompts` | 0 / 213 |
 
-Weight, installed and tree-inclusive: **243,705 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.6264**.
+Weight, installed and tree-inclusive: **246,099 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.6326**.
 
 ## For agents
 
@@ -351,27 +376,25 @@ Weight, installed and tree-inclusive: **243,705 bytes** against **389,049** for 
   [caique.interlace.tools/llms.txt](https://caique.interlace.tools/llms.txt) and
   [llms-full.txt](https://caique.interlace.tools/llms-full.txt).
 
-## What it will be
+## Guarantees
 
-- **Every prompt is a flag first.** A caller who passes the flag is never asked. An agent
-  answers before the question, on the command line, in one pass.
-- **Non-TTY never hangs.** No human on deck means an error that names the flag, exit 2, with
-  a fix a machine can apply and retry.
-- **`--interactive`** asks for every missing required option in one pass; **`--yes`** accepts
-  every confirmation; cancellation exits `CANCELLED` and restores the terminal.
-- **Accessible mode** falls back to line input with no live redraw.
-- **A migration path from `@inquirer/prompts` and `@clack/prompts`**, graded by their own
-  suites. The current grade is generated under *Benchmarks*, below.
+- **Every prompt is a flag first.** A caller who passes the flag is never asked, so an agent
+  answers on the command line, in one pass.
+- **Off a terminal, nothing waits.** With nobody to answer, a missing value is a `USAGE`
+  error, exit 2, that names the flag and carries a `fix` a program can apply and retry.
+- **`--interactive`** asks for every missing required option in one pass, and
+  `--interactive=all` for every promptable one; **`--yes`** answers every confirmation; a
+  cancelled prompt exits `CANCELLED` with the terminal restored.
+- **Line mode is the accessible mode:** numbered choices and line input, with no live redraw.
+- **Drop-in paths for `@inquirer/core` and `@clack/prompts`**, each graded by its own suite.
+  The current grades are under *Compatibility* and *Benchmarks*, above.
 
-## Following along
+## Design documents
 
-The intent and design are committed before the code is, so you can read what it will be —
-and argue with it — before it exists:
-
-- [`.sdlc/intents/caique/`](https://github.com/ofri-peretz/burgee/tree/main/.sdlc/intents/caique)
-  — the intent and the design.
-- [Open an issue](https://github.com/ofri-peretz/burgee/issues) if a prompt in your CLI
-  cannot be expressed as a flag. That case is the interesting one.
+The intent and the design are committed beside the code, with the status of every
+requirement: [`.sdlc/intents/caique/`](https://github.com/ofri-peretz/burgee/tree/main/.sdlc/intents/caique).
+If a prompt in your CLI cannot be expressed as a flag,
+[open an issue](https://github.com/ofri-peretz/burgee/issues): that case shapes the design.
 
 ## API
 
@@ -381,28 +404,41 @@ on its own subpath (see [Weight](#weight)); every export, with its types, is on
 
 ## Where it sits
 
-Plugins register under the `widgets` key, against the one schema the whole family shares.
+Plugins register under the `widgets` and `locales` keys, against the one schema the whole family shares.
 
 `controlroom` builds on it, and it builds on `closeout`, `linegauge`, `paratext`, `roundel`.
 
 ## The family
 
-Ten packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
-carries its colours, flagstaff flies it and caique answers back; each installs on its own, and none
-takes a dependency from outside the family.
+Ten packages, one repository, one release pipeline. Each installs and works on its own, and each
+owns one job. Six of them — `bellpull`, `closeout`, `linegauge`, `paratext`, `roundel`, `seniority`
+— depend on nothing; the others depend only on packages in this table, and every dependency points
+one way, down the [layers](https://burgee.interlace.tools/docs/concepts/family).
 
-| Package | What it is | Replaces |
+No package declares a dependency from outside the family; `react` and `react-reconciler` are
+optional peers of `controlroom`, which npm does not install.
+[`package-shape-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/package-shape-lock.test.ts)
+holds that for every manifest, and
+[`independence-install-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/independence-install-lock.test.ts)
+installs each package alone and finds nothing but the family packages it declares.
+
+Releases are published by one workflow through npm trusted publishing: no npm token is used, and
+each release carries SLSA provenance, which `npm view <package> dist.attestations` shows.
+[`trusted-publishing-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/trusted-publishing-lock.test.ts)
+keeps both true.
+
+| Package | What it is | Migrates from |
 | :-- | :-- | :-- |
-| [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander and yargs |
-| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk |
+| [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander, yargs and meow |
+| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk and picocolors |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
-| **caique** (this package) | Prompts that are flags first, and never hang | inquirer and clack |
-| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi and slice-ansi |
+| **caique** (this package) | Prompts that are flags first, and never hang | @inquirer/core |
+| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line |
 | [paratext](https://paratext.interlace.tools/docs) | Hyperlinks, images, title, clipboard and notifications | ansi-escapes, terminal-link and term-img |
-| [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, dotenv and rc |
-| [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook and restore-cursor |
+| [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, lilconfig, dotenv and rc |
+| [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook, restore-cursor, cli-cursor and onetime |
 | [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
-| [controlroom](https://controlroom.interlace.tools/docs) | Full-screen, keyboard-driven terminal screens | ink, graded by ink's own suite |
+| [controlroom](https://controlroom.interlace.tools/docs) | Keyboard-driven terminal screens, inline or full-screen | ink |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

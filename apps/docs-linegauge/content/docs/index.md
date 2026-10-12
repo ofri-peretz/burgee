@@ -1,6 +1,6 @@
 ---
 title: linegauge
-description: "A printer's line gauge — the steel rule marked in picas and points. Measuring, wrapping, truncating and slicing styled terminal text without the edge fraying — grapheme-correct over Intl.Segmenter. Drop-in paths for string-width, wrap-ansi, strip-ansi and slice-ansi. Zero dependencies."
+description: "Measures, wraps, truncates and slices styled terminal text, grapheme-correct over Intl.Segmenter, with the same result on a terminal, a pipe or --json. Zero dependencies. Drop-in paths for string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line."
 ---
 
 **linegauge** measures, wraps, truncates and slices styled terminal text without the edge
@@ -33,7 +33,8 @@ width('👨‍👩‍👧‍👦'); // 2 — one cluster, not four people
 
 wrap('a long sentence that needs folding', 12);
 truncate('the quick brown fox', 10); // 'the quick…'
-slice(styled, 2, 4); // columns 2 and 3, styles intact
+const styled = '\u001B[1mbold\u001B[22m'; // the word, in bold
+slice(styled, 2, 4); // 'ld' still in bold — columns 2 and 3, styles intact
 widest(['a', 'bbb', 'cc']); // 3
 ```
 
@@ -146,6 +147,16 @@ One import per incumbent — each default export is the incumbent's:
 + import sliceAnsi from 'linegauge/slice';
 ```
 
+```diff
+- import cliTruncate from 'cli-truncate';
++ import cliTruncate from 'linegauge/cli-truncate';
+```
+
+```diff
+- import widestLine from 'widest-line';
++ import widestLine from 'linegauge/widest-line';
+```
+
 The default export is `string-width`, byte-for-byte call-compatible, so a transitive copy
 resolves without a code change too:
 
@@ -160,12 +171,16 @@ it ([Migrate](https://burgee.interlace.tools/docs/migrate)).
 ## Compatibility
 
 The incumbent is the specification. `width` runs against `string-width`, `wrap` against
-`wrap-ansi`, `slice` against `slice-ansi` and `truncate` against `cli-truncate`.
+`wrap-ansi`, `slice` against `slice-ansi`, and the `cli-truncate` and `widest-line` paths
+against their namesakes.
 
-The four drop-in paths are graded by each incumbent's own suite, unedited, through
+The six drop-in paths are graded by each incumbent's own suite, unedited, through
 `compat-oracle`; the grades are generated under *Benchmarks* below and published on the
-[compatibility page](https://burgee.interlace.tools/docs/compatibility). `truncate`, which has no
-drop-in path, is checked case by case against `cli-truncate` in `truncate.test.ts`.
+[compatibility page](https://burgee.interlace.tools/docs/compatibility). `linegauge/cli-truncate`
+passes all 12 of cli-truncate 6.1.1's cases and `linegauge/widest-line` widest-line 6.0.0's one,
+level with each incumbent. `truncate` and `widest` stay linegauge's own API: `truncate` counts
+the ellipsis inside the budget and cuts by measured width, and `widest` takes any iterable of
+lines.
 
 ## Benchmarks
 
@@ -175,12 +190,14 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
+| `cli-truncate` | 12 / 12 |
 | `slice-ansi` | 104 / 104 |
 | `string-width` | 233 / 233 |
 | `strip-ansi` | 8 / 8 |
+| `widest-line` | 1 / 1 |
 | `wrap-ansi` | 85 / 85 |
 
-Weight, installed and tree-inclusive: **107,211 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5517**.
+Weight, installed and tree-inclusive: **111,192 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5722**.
 
 ## For agents
 
@@ -222,22 +239,35 @@ Plugins register under the `widths` key, against the one schema the whole family
 
 ## The family
 
-Ten packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
-carries its colours, flagstaff flies it and caique answers back; each installs on its own, and none
-takes a dependency from outside the family.
+Ten packages, one repository, one release pipeline. Each installs and works on its own, and each
+owns one job. Six of them — `bellpull`, `closeout`, `linegauge`, `paratext`, `roundel`, `seniority`
+— depend on nothing; the others depend only on packages in this table, and every dependency points
+one way, down the [layers](https://burgee.interlace.tools/docs/concepts/family).
 
-| Package | What it is | Replaces |
+No package declares a dependency from outside the family; `react` and `react-reconciler` are
+optional peers of `controlroom`, which npm does not install.
+[`package-shape-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/package-shape-lock.test.ts)
+holds that for every manifest, and
+[`independence-install-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/independence-install-lock.test.ts)
+installs each package alone and finds nothing but the family packages it declares.
+
+Releases are published by one workflow through npm trusted publishing: no npm token is used, and
+each release carries SLSA provenance, which `npm view <package> dist.attestations` shows.
+[`trusted-publishing-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/trusted-publishing-lock.test.ts)
+keeps both true.
+
+| Package | What it is | Migrates from |
 | :-- | :-- | :-- |
-| [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander and yargs |
-| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk |
+| [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander, yargs and meow |
+| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk and picocolors |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
-| [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | inquirer and clack |
-| **linegauge** (this package) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi and slice-ansi |
+| [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | @inquirer/core |
+| **linegauge** (this package) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line |
 | [paratext](https://paratext.interlace.tools/docs) | Hyperlinks, images, title, clipboard and notifications | ansi-escapes, terminal-link and term-img |
-| [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, dotenv and rc |
-| [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook and restore-cursor |
+| [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, lilconfig, dotenv and rc |
+| [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook, restore-cursor, cli-cursor and onetime |
 | [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
-| [controlroom](https://controlroom.interlace.tools/docs) | Full-screen, keyboard-driven terminal screens | ink, graded by ink's own suite |
+| [controlroom](https://controlroom.interlace.tools/docs) | Keyboard-driven terminal screens, inline or full-screen | ink |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

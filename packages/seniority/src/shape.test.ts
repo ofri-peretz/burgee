@@ -10,6 +10,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -65,12 +66,11 @@ describe('zero dependencies (constraint 3, Y1)', () => {
   });
 
   /**
-   * Line-anchored, and doc-comment lines removed first. The loose form of this check — any
-   * `from '…'` anywhere in the file — read the words `import` and `'cosmiconfig'` out of this
-   * package's own prose and reported two dependencies that do not exist. A checker that reads
-   * printed source rather than shape is the defect this repository has caught in itself
-   * before, and it fails in the alarming direction here rather than the flattering one, which
-   * is the only reason it was cheap.
+   * Read as tokens, not text. The loose form of this check — any `from '…'` anywhere in the
+   * file — read the words `import` and `'cosmiconfig'` out of this package's own prose and
+   * reported two dependencies that do not exist; the line-anchored form that replaced it
+   * still saw only single quotes, so `from "x"` passed unread. A checker that reads printed
+   * source rather than shape is the defect this repository has caught in itself before.
    */
   it('imports nothing that is not a node builtin or a file in this package', () => {
     const foreign = sources().flatMap((file) => specifiers(readFileSync(file, 'utf8')));
@@ -164,16 +164,9 @@ describe('seniority/yaml stays its own weight', () => {
   });
 });
 
-/** Every module specifier a file actually loads: static `from '…'`, and `import('…')`. */
+/** Every module specifier a file actually loads — `import`, `export … from`, `import('…')` — by TypeScript's pre-processor, so comments, strings and quote style cannot move it. */
 function specifiers(text: string): string[] {
-  const code = text
-    .split('\n')
-    .filter((line) => !/^\s*(\*|\/\/|\/\*)/.test(line))
-    .join('\n');
-  const statics = [...code.matchAll(/^\s*(?:import|export)\b[^'"\n]*from\s*'([^']+)'/gmu)].map((m) => m[1] ?? '');
-  const dynamics = [...code.matchAll(/\bimport\(\s*'([^']+)'/gu)].map((m) => m[1] ?? '');
-  const bare = [...code.matchAll(/^\s*import\s*'([^']+)'/gmu)].map((m) => m[1] ?? '');
-  return [...statics, ...dynamics, ...bare];
+  return ts.preProcessFile(text, true, true).importedFiles.map((f) => f.fileName);
 }
 
 function sources(): string[] {

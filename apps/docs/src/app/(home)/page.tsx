@@ -2,23 +2,19 @@ import { BurgeeMark } from '#/components/burgee-mark';
 import { PITCH } from '#/lib/llms';
 import { site, SUMMARY } from '#/lib/site';
 import { JsonLd } from 'docs-chassis/json-ld';
-import { type Metadata } from 'next';
+import { homeMetadata } from 'docs-chassis/package-home';
 import Link from 'next/link';
 
 /** Hero burgee: 4× the nav size, the same locked geometry. */
 const HERO_MARK_SIZE = 96;
 
 /**
- * The home page's title names the two incumbents, because "commander alternative" and
- * "yargs alternative" are what people and models search for, and a title is the strongest
- * place a page can say it. `absolute` skips the `%s | burgee` template, which would say
- * "burgee" twice.
+ * The home page's metadata, as every site in the family states it: the title says what burgee
+ * does, and `SUMMARY`, the description, names commander and yargs in its closing clause, where a
+ * search for either still finds the page (`.sdlc/intents/positioning/` R13,
+ * D-20261009-positioning-home-title).
  */
-export const metadata: Metadata = {
-  title: { absolute: 'burgee — the CLI framework that replaces commander and yargs' },
-  description: SUMMARY,
-  alternates: { canonical: '/' },
-};
+export const metadata = homeMetadata(site, SUMMARY);
 
 /**
  * The front door. Its JSON-LD is the chassis's, as every site in the family states it, with

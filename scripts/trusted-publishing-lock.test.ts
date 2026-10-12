@@ -31,7 +31,7 @@
  * | drop `id-token: write` from the publish job | holds id-token: write at job level |
  * | drop `--provenance` from the publish command | keeps provenance on |
  * | drop `--logs-dir "$logs"` from the publish command | says OIDC published it; names npm's OIDC failure |
- * | guard step: delete the `npm install -g` branch | upgrades an npm too old for OIDC |
+ * | guard step: let an npm older than 11.5.1 through | refuses an npm too old for OIDC rather than installing an unpinned one |
  */
 import { spawnSync } from "node:child_process";
 import {
@@ -154,6 +154,18 @@ describe("no long-lived npm token", () => {
     expect(run).toMatch(/attach_provenance "\$PKG_NAME" "\$PKG_VER" "\$tag_name"/);
     expect(run).toMatch(/\.intoto\.jsonl/);
     expect(run).toMatch(/\.sigstore\.json/);
+  });
+
+  /**
+   * An SBOM a reviewer can read without installing anything: what `npm i <pkg>` brings in, as
+   * CycloneDX, on the Release. Read from the lockfile, because the publish job runs no `npm ci`,
+   * and without dev, optional or peer dependencies, which a user's install does not bring in.
+   */
+  it("attaches a CycloneDX SBOM of what installing the package brings in to every GitHub Release", () => {
+    const run = String(loopStep().run);
+    expect(run).toMatch(/attach_sbom "\$PKG_NAME" "\$PKG_VER" "\$tag_name"/);
+    expect(run).toMatch(/npm sbom --sbom-format cyclonedx\b[^\n]*--omit dev --omit optional --omit peer --package-lock-only/);
+    expect(run).toMatch(/gh release upload "\$tag" "\$out"/);
   });
 });
 
@@ -310,12 +322,21 @@ describe("the provenance wait, executed", () => {
 });
 
 describe("the npm version guard, executed", () => {
-  executes("upgrades an npm too old for OIDC", () => {
+  /**
+   * It used to `npm install -g npm@11.6.2` here, which OpenSSF Scorecard's Pinned-Dependencies
+   * flags (an npm command not pinned by hash, 9/10 on 2026-10-11) and which never ran: the Node
+   * `.nvmrc` pins ships npm 11.6.2. A runner that ever lacks it now stops the release instead.
+   */
+  executes("refuses an npm too old for OIDC rather than installing an unpinned one", () => {
     const r = runStep(guardStep(), { NPM_VERSION: "11.4.2" });
-    expect(r.status, r.output).toBe(0);
-    expect(readFileSync(join(r.dir, "installs"), "utf8")).toMatch(
-      /^install -g npm@11\.\d+\.\d+$/m,
-    );
+    expect(r.status).toBe(1);
+    expect(r.output).toMatch(/::error::npm 11\.4\.2 predates trusted publishing/);
+    expect(() => readFileSync(join(r.dir, "installs"), "utf8"), "an npm was installed").toThrow();
+  });
+
+  it("installs nothing unpinned in any workflow (Scorecard Pinned-Dependencies)", () => {
+    for (const file of readdirSync(WORKFLOWS).filter((f) => /\.ya?ml$/.test(f)))
+      expect(readFileSync(join(WORKFLOWS, file), "utf8"), file).not.toMatch(/\bnpm (?:install|i) -g\b/);
   });
 
   executes("leaves an npm that already supports OIDC alone", () => {

@@ -28,13 +28,13 @@ never for gating; the machine-independent figure is the ratio on
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
 | Downloads / week | new | 508.2M | 259.3M | 10.9M | 49.4M | 30.5M |
 | Runtime dependencies | **5**, none outside the burgee family | 0 | 6 | **18** | 0 | 0 |
-| Installed size ⚙️ | 1542 KB | 203 KB | 515 KB | 912 KB 📖 | 40 KB | 52 KB 📖 |
+| Installed size ⚙️ | 1598 KB | 203 KB | 515 KB | 912 KB 📖 | 40 KB | 52 KB 📖 |
 | Full CLI run over bare node ⚙️ | +20.3 ms | +14.8 ms | +75.0 ms | +131 ms 📖 | +3.8 ms | +6 ms 📖 |
 
 Three things in that table got worse when they were measured rather than asserted, and
 they stay in it.
 
-**Installed size.** burgee installs at **1542 KB**. It is our largest number, it is our least
+**Installed size.** burgee installs at **1598 KB**. It is our largest number, it is our least
 flattering one, and it has now been wrong on this page twice in opposite directions.
 
 First it said 104 KB, a guess at the tarball rather than a measurement. That was corrected
@@ -62,7 +62,14 @@ argument for the check.
 loads it — no module on burgee's path imports it, and its bundled column did not move — but it
 is on disk.
 
-It buys no dependency outside the burgee family and seven drop-in front ends. It is still 1542 KB, and the
+**About 90 KB left on 2026-10-11.** Every family package published a declaration file for
+every module, and a TypeScript consumer can only open the ones an `exports` entry reaches.
+burgee alone shipped 35 that none does, 76,504 bytes of them (`migrate.d.ts` was the largest).
+The build now prunes them by the closure the TypeScript compiler computes from the entry
+points, and a check fails if any shipped declaration imports one that was not shipped
+([D-20261011](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/decisions/D-20261011-tarball-unreachable-declarations.md)).
+
+It buys no dependency outside the burgee family and seven drop-in front ends. It is still 1598 KB, and the
 bundled column on [Benchmarks](/docs/benchmarks) — what an application actually grows by —
 is the number to judge us on. That one is over its own ceiling too, and says so.
 
@@ -72,7 +79,7 @@ is one row. burgee does **not** land level with cac: it starts at **1.56x** cac'
 start against a published target of at or below cac, and that target is recorded as not
 met. It read 1.32x on 2026-09-09, and every CI run since 2026-10-06 has read 1.47x to 1.56x:
 burgee's start-up got slower in that month, and this page says so rather than keeping the
-older figure. Since D-157 the gate is what is reachable: a downward-only ratchet at 1.6x
+older figure. Since D-157 the gate is what is reachable: a downward-only ratchet at 1.55x
 cac, set from CI's own spread and only ever lowered, which it still meets. The `burgee/yargs`
 drop-in starts at 0.64x yargs (0.82x on 2026-09-09). The `burgee/commander` drop-in starts at
 **1.18x** commander, no longer level (1.08x on 2026-09-09).
@@ -99,7 +106,7 @@ comparison this table exists for. Treat it as the survey's, not as ours.
 
 ## Capabilities, with evidence
 
-burgee against the two frameworks it replaces and meow, the third one compat-oracle grades.
+burgee against commander, yargs and meow, the three frameworks compat-oracle grades its drop-in paths against.
 Every mark links to its evidence — a test in this repository for burgee, and for the others the
 source file at the version the oracle grades, or that framework's own test suite — and
 `scripts/capabilities-lock.test.ts` fails the build when a cited test or quoted source stops

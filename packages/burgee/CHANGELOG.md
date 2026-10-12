@@ -1,5 +1,132 @@
 # burgee
 
+## 1.3.0
+
+### Minor Changes
+
+- [#1043](https://github.com/ofri-peretz/burgee/pull/1043) [`c884177`](https://github.com/ofri-peretz/burgee/commit/c884177824aa6187e7167cdb8029ec8f15572c4c) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Every program prints an Agent Skill. `--skill` writes a `SKILL.md` to stdout, projected from the declaration: front matter with a `name` and `description` within the Agent Skills specification's limits, what the program is for, the contract an agent relies on (`--json` and its envelope, `--explain`, every exit code with its error kind and whether to retry), and one line and the first example per command. A command's options stay behind `--schema <command>`, which the skill names and never inlines. A root that declares its own `skill` option keeps it.
+
+  `burgee skill <entry>` writes `SKILL.md` and `AGENTS.md` (the same body under an `AGENTS.md` heading, no front matter) into the directory of the `bin` the entry's package.json names, or `--out <dir>`. `--check` writes nothing and exits 1 when the files there differ from the projection, naming them and the line that regenerates them, for an author's CI.
+
+  Root help's line for agents names `AGENTS.md` when one sits beside the binary or in the directory above it. Without the file the line is unchanged.
+
+- [#1051](https://github.com/ofri-peretz/burgee/pull/1051) [`7500480`](https://github.com/ofri-peretz/burgee/commit/75004801fd3f6e91069861bd20820bc11523c149) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--mcp` lists `outputSchema` for a command that declares `output.schema`. The schema is listed as declared when it is an object type, and wrapped as `{ "type": "object", "properties": { "result": … }, "required": ["result"] }` otherwise, the same way `structuredContent` wraps a result that is not an object. A declared command's `structuredContent` is wrapped by its schema rather than by the value, so it always has the shape the tool advertised. A command without `output.schema` lists no `outputSchema`. JSON a handler printed without a boolean `ok` is not read as an envelope, so it carries no `structuredContent`. The `Tool` type gains the optional `outputSchema`.
+
+### Patch Changes
+
+- [#1045](https://github.com/ofri-peretz/burgee/pull/1045) [`c4fd9a3`](https://github.com/ofri-peretz/burgee/commit/c4fd9a3cb10bc36bef8c468365addfc6deb572cf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - caique's own chrome can speak the user's language. That covers the instruction under a list, a problem with an answer, the giving-up line, and the no-terminal and cancel refusals. A locale pack registered with `register()` carries translations under ids that begin `caique.`, so one object can serve burgee's catalog too. The new `caique/locale` entry turns the runtime's `locale` into the translator: `io.say = sayFor(runtime.locale)`. `ask` and `resolvePrompts` apply it. Neither reads the catalog itself, and caique never reads `LANG`. A refusal keeps its English `message` and `fix`, which a host may put in a machine envelope, and adds `localised` beside them. `caique check` renders a pack's messages, or refuses an unknown id, a stray placeholder or a missing plural form with `E_PLUGIN_SCHEMA`. With no `say` handed in, every byte is unchanged, and `caique/clack` and `caique/inquirer` keep their incumbents' English.
+
+  burgee: the family plugin schema it publishes describes the `locales` key.
+
+- Updated dependencies [[`c4fd9a3`](https://github.com/ofri-peretz/burgee/commit/c4fd9a3cb10bc36bef8c468365addfc6deb572cf)]:
+  - bellpull@1.0.6
+  - closeout@1.1.2
+  - linegauge@1.1.1
+  - roundel@1.1.1
+  - seniority@1.0.7
+
+## 1.2.0
+
+### Minor Changes
+
+- [#1015](https://github.com/ofri-peretz/burgee/pull/1015) [`e0532b2`](https://github.com/ofri-peretz/burgee/commit/e0532b2cf298c183699621fc6e17e59373f83bad) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Every failure names its kind. The `--json` envelope's `error` carries `kind` beside the numeric `code` (`runtime`, `usage`, `config`, `cancelled`, `auth`, `timeout`, `interrupted`, or your own), and `--schema` lists every kind under a new `errors` key with its `exit_code`, whether it is `retryable`, and a `description`, in clispec v0.3's shape. `schemaVersion` stays 1: the key is new and nothing changes meaning.
+
+  `defineError` takes an optional `kind`, `retryable` and `description`. Without `kind`, a class's kind is its name in snake case less a trailing `Error` (`QuotaError` is `quota`); a declared one must be snake_case and one class's alone. A name whose kind is already held, such as `TimeoutError` beside the contract's `timeout`, is told apart by its code (`timeout_12`), so every class that defined before still defines.
+
+  stderr ends with the failure as one JSON line, `{"error":{"kind","code","message"}}`, whenever it is not a terminal: always under `--json` (stdout's envelope is unchanged), and after the prose when stderr is piped or captured. At a terminal stderr is unchanged. The commander and yargs front-ends are unchanged.
+
+- [#1027](https://github.com/ofri-peretz/burgee/pull/1027) [`a2e4f98`](https://github.com/ofri-peretz/burgee/commit/a2e4f98c5524f59c24c560130a8c9cfbcb961991) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--schema` is a clispec v0.3 document (https://clispec.dev). Beside burgee's own keys, which keep their meaning (`schemaVersion` stays 1), a native program's document now carries `clispec: "0.3"`, a `version` always (the declared one, else the owning `package.json`'s), `global_args` (the rows root help lists under `Global options:`), and `output` (`{ tty: "text", piped: "text", formats }`). Each command carries `example` (its first example as `{ args }`), and from a new `output` declaration `cardinality`, `output_kind`, `media_type` and `stdout_schema`. The commander and yargs front-ends are unchanged.
+
+  `defineCommand` takes `output: { kind?, cardinality?, schema?, mediaType? }`. With a `schema`, TypeScript holds `run`'s return to what it describes; without one, nothing changes. `burgee dev` warns about a runnable command that declares no `output.cardinality`, and refuses nothing.
+
+  `--format text` (also `--format=text`, `--output text`) prints the human rendering, under a pipe or an agent alike: it was `unknown option --format`, exit 2. A command that declares its own `--format` keeps it.
+
+- [#1034](https://github.com/ofri-peretz/burgee/pull/1034) [`d8569f5`](https://github.com/ofri-peretz/burgee/commit/d8569f53c31382a864d5a86b5a3b720b7918476f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Help renders as Markdown. `renderHelp(manifest, node, { format: 'markdown' })` from `burgee/help` returns a promise of the same help as Markdown: a heading for the command, its usage in a code block, each section (arguments, options, global options, commands, exit codes, environment) as a table, and each example as a fenced line. It is a second layout of the same section list `--help` draws, so the two cannot list different things. The Markdown layout loads only when asked for; terminal help is unchanged, byte for byte.
+
+- [#1047](https://github.com/ofri-peretz/burgee/pull/1047) [`206d2a8`](https://github.com/ofri-peretz/burgee/commit/206d2a8da4bbac20f5b6370989f103b3de86c2bf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--mcp` tool results carry `structuredContent`. When a call's stdout is the `--json` envelope, the result carries the envelope's `data` as `structuredContent` (wrapped as `{ "result": data }` when it is not an object, since the protocol requires one), or the envelope's `error` with `isError: true` on a failure. The text content stays first and unchanged, so a client that reads only text sees what it saw before. A run that printed prose rather than an envelope carries no `structuredContent`.
+
+### Patch Changes
+
+- [#1008](https://github.com/ofri-peretz/burgee/pull/1008) [`bcc438a`](https://github.com/ofri-peretz/burgee/commit/bcc438ac3936ee1cd530931ea090c6a8bdd016b2) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` now rewrites `picocolors` to `roundel/picocolors`, which picocolors 1.1.1's own test passes, level with picocolors itself.
+
+- [#1012](https://github.com/ofri-peretz/burgee/pull/1012) [`49d8e94`](https://github.com/ofri-peretz/burgee/commit/49d8e943ceaf8dcef14d43c0a70c2edec1a67816) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `@inquirer/prompts` is now graded: its ten prompts' own suites (8.7.3) are vendored and run against `caique/inquirer`, with a control of 213 of 213 against the real packages. `caique/inquirer` passes 0 of them today, because it exports `@inquirer/core`'s surface and none of the prompts yet, and `burgee migrate` reports `@inquirer/prompts` as a graded path that is not level, never rewriting it. The eleven `@inquirer/editor` cases are excluded by title: each answers the prompt through a mock of `@inquirer/external-editor`, which caique does not import.
+
+  The oracle gains two host fields for it. `suiteFiles` lists a monorepo suite's files across several packages and vendors only those; `defaultExport` grades a suite that imports its prompt as a default against the named export a program migrates.
+
+- [#1007](https://github.com/ofri-peretz/burgee/pull/1007) [`bfe4ab8`](https://github.com/ofri-peretz/burgee/commit/bfe4ab8b13ff04293345a69007cad9e0cb81c678) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Two new drop-in subpaths, each graded by its incumbent's own suite and level with it. `linegauge/cli-truncate` is cli-truncate 6 (12 of 12): its default export and `position`, `space`, `preferTruncationOnSpace` and `truncationCharacter`, over linegauge's own `slice` and `width`. `linegauge/widest-line` is widest-line 6 (1 of 1) over `widest`. `truncate` and `widest` are unchanged. `burgee migrate` now rewrites `cli-truncate` and `widest-line`.
+
+- [#1029](https://github.com/ofri-peretz/burgee/pull/1029) [`35ded07`](https://github.com/ofri-peretz/burgee/commit/35ded075ffcc7175bc5dffb5b8d0210a584571f9) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate`'s release-age version order no longer carries a comparison of major versions it can never make: every candidate is already of the graded major.
+
+- [#1022](https://github.com/ofri-peretz/burgee/pull/1022) [`ecb0a00`](https://github.com/ofri-peretz/burgee/commit/ecb0a00ca68e9a3b3584aefabb9dcf97e3ff967a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The tarball no longer carries declaration files that no `exports` entry reaches. TypeScript could never open them, because a deep import is refused by `exports`. Every entry's types are unchanged. The ten packages drop 71 files and 118,312 bytes between them, burgee 35 files and 76,504 bytes, which takes its tarball from 251,814 to 225,278 bytes gzipped.
+- Updated dependencies [[`bfe4ab8`](https://github.com/ofri-peretz/burgee/commit/bfe4ab8b13ff04293345a69007cad9e0cb81c678), [`1968eb4`](https://github.com/ofri-peretz/burgee/commit/1968eb46feec57bb047a9c4a4288e0cf4442f4b2), [`65afee5`](https://github.com/ofri-peretz/burgee/commit/65afee5c96e4cae62dbb9b0ba28fab98fffdbf01), [`bcc438a`](https://github.com/ofri-peretz/burgee/commit/bcc438ac3936ee1cd530931ea090c6a8bdd016b2), [`ecb0a00`](https://github.com/ofri-peretz/burgee/commit/ecb0a00ca68e9a3b3584aefabb9dcf97e3ff967a)]:
+  - linegauge@1.1.0
+  - roundel@1.1.0
+  - bellpull@1.0.5
+  - closeout@1.1.1
+  - seniority@1.0.6
+
+## 1.1.0
+
+### Minor Changes
+
+- [#1006](https://github.com/ofri-peretz/burgee/pull/1006) [`733e5e0`](https://github.com/ofri-peretz/burgee/commit/733e5e0f1bbca8231275202df47fad2a9fe18944) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Every command takes three global options. `--no-color` and `--color=always|never|auto` reach help and the handler's new `ctx.runtime`, which carries the caller's colour flag and `quiet` to roundel's policy and flagstaff's `hoist`. `-q`/`--quiet` silences progress and framework hints, such as a deprecation warning, and never data or errors. `--timeout <duration>` (`500ms`, `5s`, `2m`) aborts the new `ctx.signal`, runs the exit handlers once and leaves with the new `ExitCode.TIMEOUT`, 6. All three can be typed before the command too. A command that declares an option of the same name keeps it. Root and command help list them under `Global options:`.
+
+- [#1002](https://github.com/ofri-peretz/burgee/pull/1002) [`a049bc2`](https://github.com/ofri-peretz/burgee/commit/a049bc2bee2a461b141d2eb2819cefbc01df7949) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Root help now carries what a caller branches on and what to type. It lists the `completion <shell>` command the engine serves, an `Exit codes:` section generated from `ExitCode`, and an `Examples:` section: the root's own (`defineProgram({ examples })`, new) or each top-level command's first example. `--schema` publishes `completion` beside the program's commands, and `completion --help` prints its help. `burgee dev` warns about a runnable command that declares no examples.
+
+### Patch Changes
+
+- [#1005](https://github.com/ofri-peretz/burgee/pull/1005) [`079250e`](https://github.com/ofri-peretz/burgee/commit/079250ebc3e0cc511df1269060854711f686b5b4) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Two new drop-in subpaths, each graded by its incumbent's own suite and level with it. `closeout/onetime` is onetime 8 (6 of 6): the default export, `callCount` and `{ throw: true }`, and like onetime it retries a first call that throws. `closeout/cli-cursor` is cli-cursor 5 (8 of 8): `{ show, hide, toggle }` on `process.stderr` by default, and a hide arranges the show at exit through `closeout/restore-cursor`. `burgee migrate` now rewrites `onetime` and `cli-cursor`.
+
+  `closeout/restore-cursor` bundles 318 B less (4,648 to 4,330 B on /docs/weight): the process-wide `onExit` reaches the registry without the `Closeout` view, which carried the cursor pairing.
+
+- [#991](https://github.com/ofri-peretz/burgee/pull/991) [`bd1a544`](https://github.com/ofri-peretz/burgee/commit/bd1a5444bcc035aa6f2db24b435dee4d4d8fc5d7) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate`: under a pnpm `minimumReleaseAge`, `next` pins each family package to the newest release of its graded major that is old enough to install (from the registry's `time` field), respects `minimumReleaseAgeExclude`, and says when the install will start working if no version is old enough yet. `releaseAge` gains `exclude` and `pins`.
+
+- [#1005](https://github.com/ofri-peretz/burgee/pull/1005) [`079250e`](https://github.com/ofri-peretz/burgee/commit/079250ebc3e0cc511df1269060854711f686b5b4) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `seniority/find-up` is now find-up 8's surface, graded by find-up 8.0.0's own suite: 104 of 104, level with find-up itself. It adds a matcher function with `findUpStop`, `findDown` and `findDownSync`, and locate-path's `type` and `allowSymlinks`; `cwd` and `stopAt` take a `URL`. Three behaviours follow find-up rather than seniority's resolver walk: `cwd` is optional and defaults to the process's working directory, a name matches a file unless `type` says otherwise, and `findUpMultiple` returns the first matching name per directory. `burgee migrate` now rewrites `find-up` to `seniority/find-up`.
+- Updated dependencies [[`079250e`](https://github.com/ofri-peretz/burgee/commit/079250ebc3e0cc511df1269060854711f686b5b4), [`079250e`](https://github.com/ofri-peretz/burgee/commit/079250ebc3e0cc511df1269060854711f686b5b4), [`6f74a64`](https://github.com/ofri-peretz/burgee/commit/6f74a647c107307f11e1aef7092cf4e1afc6146d)]:
+  - closeout@1.1.0
+  - seniority@1.0.5
+
+## 1.0.1
+
+### Patch Changes
+
+- [#938](https://github.com/ofri-peretz/burgee/pull/938) [`9babb6d`](https://github.com/ofri-peretz/burgee/commit/9babb6da1ae7783c7e8367f89e3da9dffc85ffdb) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - npm description and README: the description says what the package does, then its dependency fact in one of two wordings ("Zero dependencies." or "No dependency outside the burgee family."), then its drop-in paths. The README's family section states how the family is built — the leaves, one-way dependencies, nothing from outside the family, trusted publishing with provenance — and its table column is "Migrates from". No API, compatibility grade or benchmark changes.
+- Updated dependencies [[`9babb6d`](https://github.com/ofri-peretz/burgee/commit/9babb6da1ae7783c7e8367f89e3da9dffc85ffdb)]:
+  - bellpull@1.0.4
+  - closeout@1.0.4
+  - linegauge@1.0.8
+  - roundel@1.0.4
+  - seniority@1.0.3
+
+## 1.0.0
+
+### Major Changes
+
+- [#919](https://github.com/ofri-peretz/burgee/pull/919) [`1ea5801`](https://github.com/ofri-peretz/burgee/commit/1ea5801521c36d235b5eb1156c78f7eaeefcd620) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - burgee 1.0.0. The spec is fully built (U9 and U12 closed 2026-10-09), every drop-in passes its incumbent's own suite at the latest release level with the incumbent itself (commander 15.0.0 1360 / 1360, yargs 18.2.0 816 / 816 against its own 814, meow 14.1.0 146 / 148 against its own 146), and coverage is 100% on all four measures (D-20261009-burgee-1-0-evidence). The published entries, the drop-ins, both schema files, the `burgee` bin and the agent contracts (the `--json` envelope, the versioned `--schema`, exit-code meanings and `fix:` lines) become a semver contract. No API changed in this release.
+
+### Patch Changes
+
+- [#921](https://github.com/ofri-peretz/burgee/pull/921) [`8d6f2e4`](https://github.com/ofri-peretz/burgee/commit/8d6f2e4171055bc4561043c8cda22424ffcae9ed) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--schema` and the unknown-command hint now name `--explain`, for where a value came from.
+
+  A native program's `--schema` document carries one new field just before `commands`:
+  `"explain":"--explain <option> on a command says where its value came from: default, env, config or flag"`.
+  An unknown command that matches nothing now hints `run --schema for every command and option as
+JSON, in one call; --explain <option> says where a value came from`. In B1's transcripts, 56 of
+  60 agents asked where a value came from read `--schema` and then spent three to eight turns
+  probing the env var it named. `burgee/program-schema.json` describes the new field. One
+  command's schema is unchanged. So is `--schema` on `burgee/commander` and `burgee/yargs`, which do
+  not parse `--explain` (D-20261009-b1-totals-and-explain).
+
+- [#917](https://github.com/ofri-peretz/burgee/pull/917) [`735f0f6`](https://github.com/ofri-peretz/burgee/commit/735f0f68048f2d0f5e4effad151ed5132b480bb8) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - README: the opening paragraph says what the package does first. The drop-in path follows it as one line, naming the incumbent and `npx burgee migrate`, and every compatibility row and benchmark is unchanged.
+
+- [#917](https://github.com/ofri-peretz/burgee/pull/917) [`735f0f6`](https://github.com/ofri-peretz/burgee/commit/735f0f68048f2d0f5e4effad151ed5132b480bb8) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - README: the FAQ links the comparison guides by their new titles, "Switching from commander" and "Switching from yargs". The URLs are unchanged.
+- Updated dependencies [[`735f0f6`](https://github.com/ofri-peretz/burgee/commit/735f0f68048f2d0f5e4effad151ed5132b480bb8)]:
+  - bellpull@1.0.3
+  - closeout@1.0.3
+  - linegauge@1.0.7
+  - roundel@1.0.3
+  - seniority@1.0.2
+
 ## 0.23.0
 
 ### Minor Changes
@@ -313,7 +440,7 @@
   - `pkgConf(key)` reads only a key the package.json has. `pkgConf('__proto__')` used to hand `Object.prototype` to the `extends` loader, which deletes `extends` from the object it is given.
   - zsh completions escape `\` as well as `:`. zsh's `_describe` strips one level of backslashes, so a command, option or choice containing one completed without it.
 
-- [#681](https://github.com/ofri-peretz/burgee/pull/681) [`deffcc6`](https://github.com/ofri-peretz/burgee/commit/deffcc679cf3e97e0d2f538bc09c6810e478b80e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/yargs`: resolving a config's `extends` no longer deletes `extends` from the object you passed in. It reads a copy instead, so a config object is never written to while it is being resolved (CodeQL [#27](https://github.com/ofri-peretz/burgee/issues/27)). The resolved result is unchanged, and yargs' own suite still passes 804 of 804.
+- [#681](https://github.com/ofri-peretz/burgee/pull/681) [`deffcc6`](https://github.com/ofri-peretz/burgee/commit/deffcc679cf3e97e0d2f538bc09c6810e478b80e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/yargs`: resolving a config's `extends` no longer deletes `extends` from the object you passed in. It reads a copy instead, so a config object is never written to while it is being resolved (CodeQL [#27](https://github.com/ofri-peretz/burgee/security/code-scanning/27)). The resolved result is unchanged, and yargs' own suite still passes 804 of 804.
 - Updated dependencies [[`3250edf`](https://github.com/ofri-peretz/burgee/commit/3250edf439a45ccfd203213eddec0d9fb091e8cd), [`6d8aadf`](https://github.com/ofri-peretz/burgee/commit/6d8aadff01a4c65ef3be16fe2082b0abd0c00b90), [`ff4159d`](https://github.com/ofri-peretz/burgee/commit/ff4159d25544fd45257f145e40ff0c5f8dfc4b3a), [`5e635b0`](https://github.com/ofri-peretz/burgee/commit/5e635b0a79c16ff2b459a4d00c80d334d5d945d1), [`ff4159d`](https://github.com/ofri-peretz/burgee/commit/ff4159d25544fd45257f145e40ff0c5f8dfc4b3a), [`6ef8227`](https://github.com/ofri-peretz/burgee/commit/6ef822762f5ad19564215945d7e76aa329614585), [`7c77cd2`](https://github.com/ofri-peretz/burgee/commit/7c77cd25c8fbeea4199c38c135e3a8937907f849), [`6ef8227`](https://github.com/ofri-peretz/burgee/commit/6ef822762f5ad19564215945d7e76aa329614585), [`6ef8227`](https://github.com/ofri-peretz/burgee/commit/6ef822762f5ad19564215945d7e76aa329614585), [`e9f45d8`](https://github.com/ofri-peretz/burgee/commit/e9f45d85d9db5b2e3dcaa1e43f292a1281a6952a), [`620fc74`](https://github.com/ofri-peretz/burgee/commit/620fc74af013834ca6b15faa2772aeb94c5013b1), [`088cecc`](https://github.com/ofri-peretz/burgee/commit/088ceccb7dda1cbe878950c631f49f48980dd2e2), [`bc68493`](https://github.com/ofri-peretz/burgee/commit/bc684935589d3f3d8d5d297f292ae4ccdbb48c32), [`ee6780b`](https://github.com/ofri-peretz/burgee/commit/ee6780b4c9558de1143ff7e5983c16a71973b529), [`4319563`](https://github.com/ofri-peretz/burgee/commit/4319563b902c9d968786196f495cf47e7d4d9d39)]:
   - bellpull@0.4.3
   - closeout@0.6.0
@@ -907,7 +1034,7 @@
 
 - [#332](https://github.com/ofri-peretz/burgee/pull/332) [`3ea38c3`](https://github.com/ofri-peretz/burgee/commit/3ea38c363b9f0cee9f1c1c2dae4037b047e98328) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - E5 and O5, which the design has marked `R` since it was written and which nothing implemented.
 
-  `exit-code.ts` has declared `SIGINT: 130` with the comment _"SIGINT after the terminal was restored (E5)"_ from the first day of the contract, and `exit-code-lock.test.ts` grades that no other literal reaches an exit. Neither could see what was actually missing: **no code path produced 130 and nothing restored anything.** `grep -rn SIGINT packages/burgee/src` returned the declaration and nothing else. O5 — _"stdout is flushed before any exit path"_, yargs [#1519](https://github.com/ofri-peretz/burgee/issues/1519) and [#2118](https://github.com/ofri-peretz/burgee/issues/2118), _"No truncated JSON"_ — was the same shape one line down, against `host.exit(code)`, which is `process.exit` and truncates a pipe by definition.
+  `exit-code.ts` has declared `SIGINT: 130` with the comment _"SIGINT after the terminal was restored (E5)"_ from the first day of the contract, and `exit-code-lock.test.ts` grades that no other literal reaches an exit. Neither could see what was actually missing: **no code path produced 130 and nothing restored anything.** `grep -rn SIGINT packages/burgee/src` returned the declaration and nothing else. O5 — _"stdout is flushed before any exit path"_, yargs [#1519](https://github.com/yargs/yargs/issues/1519) and [#2118](https://github.com/yargs/yargs/issues/2118), _"No truncated JSON"_ — was the same shape one line down, against `host.exit(code)`, which is `process.exit` and truncates a pipe by definition.
 
   Both are now `closeout`'s, which is burgee's first dependency on it and the reason it exists: bound every exit path, run the handlers exactly once, hand the terminal back last. Writing the listener in burgee instead would have been the fourth copy of one in this repository.
 
@@ -1369,7 +1496,7 @@ subcommand`. Nine more cases prove it refuses a missing name, a name of the wron
   `heading`, `ground` — and throws on everything else. So a plugin author doing exactly what
   their own `E_PLUGIN_SCHEMA` error tells them, comparing their object against
   `roundel/schema.json`, got a green from the schema and `"accent" is not a token` from
-  `register()`. Measured 2026-09-16 with `{ accent: '[#336699](https://github.com/ofri-peretz/burgee/issues/336699)' }`.
+  `register()`. Measured 2026-09-16 with `{ accent: '#336699' }`.
 
   The schema now carries `propertyNames.enum`, and `scripts/plugin-contract-lock.test.ts`
   pins the enum and the runtime set to each other from both sides, so neither can grow a

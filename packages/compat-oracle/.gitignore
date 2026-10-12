@@ -5,6 +5,10 @@
 vendor/*/shim*.js
 vendor/*/shim*.mjs
 vendor/*/shim*.cjs
+# A type suite's (`runner: 'tsd'`): the declaration TypeScript reads for the shim beside it.
+vendor/*/shim*.d.ts
+vendor/*/shim*.d.mts
+vendor/*/shim*.d.cts
 vendor/*/vitest.config.mjs
 vendor/*/vitest.setup.mjs
 # The resolve hook a target run of an aliasing host (`Host.alias`, @inkjs/ui) loads through
@@ -29,6 +33,8 @@ vendor/*/build/
 # A host's `entries` (`hosts.ts`): files its suite spawns or preloads by path, written per run.
 # dotenv 18's are `dist/index.cjs` and `dist/config.cjs`; its `lib/main.js` is covered above.
 vendor/*/dist/
+# cli-cursor's is `index.js` at the vendored root: its `require` case spawns `node index.js`.
+vendor/cli-cursor/index.js
 # Written by a *suite* rather than by the oracle, and upstream ignores both in its own
 # repository (`node-cross-spawn/.gitignore`: `test/fixtures/(*` and `test/tmp/`). Its
 # "special shell chars" case copies a fixture to a name made of them and never removes it,

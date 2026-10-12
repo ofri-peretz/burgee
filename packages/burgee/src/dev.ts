@@ -13,6 +13,7 @@ import { watch, type FSWatcher } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+import { missingCardinality, missingExamples } from './examples-check.js';
 import { execute } from './execute.js';
 import { renderHelp } from './help.js';
 import { Manifest } from './manifest.js';
@@ -148,6 +149,13 @@ export function report(before: Manifest | undefined, loaded: Loaded): string {
   for (const p of diff.added) lines.push(`  + ${p}`);
   for (const p of diff.removed) lines.push(`  - ${p}`);
   for (const p of diff.changed) lines.push(`  ~ ${p}`);
+  // R6 — what the door would only warn about, said where the author is looking, on every load.
+  // burgee's own declarations only: commander and yargs have no `examples` to declare.
+  // clispec-conformance R5 — and the cardinality `--schema` cannot publish without.
+  for (const c of loaded.kind === 'burgee' ? manifest.commands : []) {
+    const name = c.path.slice(manifest.rootPath.length).join(' ') || c.path.join(' ');
+    for (const warning of [missingExamples(name, c), missingCardinality(name, c)]) if (warning !== undefined) lines.push(`warning: ${warning}`);
+  }
   const root = manifest.find(manifest.rootPath);
   if (root !== undefined) lines.push('', renderHelp(manifest, root).trimEnd());
   return `${lines.join('\n')}\n`;
@@ -172,14 +180,17 @@ export function dev(opts: DevOptions): DevHandle {
     return loaded;
   };
   // Reloads are serialised: a save during a reload queues the next one instead of racing it.
-  const reload = async (): Promise<Loaded> => {
+  // The chain is re-pointed in the same turn as the call, before anything is awaited. When it
+  // was re-pointed only once the previous link had settled, every save that landed during one
+  // reload queued on that same link and then imported at once, and a slower older import
+  // swapped in last (see .sdlc/models/dev-reload.qnt).
+  const reload = (): Promise<Loaded> => {
+    const next = chain.then(reloadNow);
     // `chain` never rejects: each link carries its own catch, which reports the failure.
-    await chain;
-    const next = reloadNow();
     chain = next.catch((err: unknown) => {
       opts.log.write(`reload failed: ${err instanceof Error ? err.message : String(err)}\n`);
     });
-    return await next;
+    return next;
   };
 
   const ready = reload();

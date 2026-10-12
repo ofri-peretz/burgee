@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { observations, publishedResults } from './published.js';
-import { resultsName } from './run.js';
+import { resultsName, selected } from './run.js';
 
 const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const tsxCli = createRequire(import.meta.url).resolve('tsx/cli');
@@ -162,6 +162,18 @@ describe('a document names itself', () => {
     const complete = doc({ perf: { status: 'measured' }, weight: { status: 'measured' } });
     expect(resultsName(complete)).toBe('2026-09-16-abcdef1-local.json');
     expect(resultsName(complete, false)).toBe('2026-09-16-abcdef1-local.json');
+  });
+
+  /**
+   * A suite none of whose axes were selected is not an observation at all. Until 2026-10-10
+   * `main` wrote one anyway: the cheap-axes job in `bench.yml` landed an `agent-cli-bench`
+   * document with zero records under `<date>-<sha>-ci.json`, the exact name the B1 job lands
+   * its real result under, so the two collided and the empty one reached main first (#943).
+   */
+  it('is not written when none of its axes was selected', () => {
+    expect(selected(doc({ agent: { status: 'not-run' } }))).toBe(false);
+    expect(selected(doc({ perf: { status: 'not-run' }, weight: { status: 'measured' } }))).toBe(true);
+    expect(selected(doc({ agent: { status: 'skipped' } })), 'tried and could not is still a record of the attempt').toBe(true);
   });
 
   it('and the observation name is one `publishedResults` refuses', () => {

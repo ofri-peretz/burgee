@@ -49,6 +49,48 @@ function published(): string[] {
   return out;
 }
 
+/**
+ * `graded-override-targets` R3–R7 (U5): a drop-in façade weighs no more than the incumbent it
+ * replaces, read from the page's own "Everything" column.
+ *
+ * The incumbent's side is a recorded measurement, not a live one: the graded release is not what
+ * the workspace hoists for `onetime` (7 here, 8 graded), and installing six incumbents to measure
+ * them would put six packages in a lockfile for a number. Each is the page's own method applied
+ * to the incumbent at its graded version — `export * from X`, plus `export { default } from X`
+ * when X has one, through `esbuild --bundle --minify --format=esm --platform=node` — taken
+ * 2026-10-11 from a scratch install of exactly that version. A re-vendor moves the version in
+ * `GRADED_VERSIONS`, and the row below must be re-measured with it.
+ */
+const DROP_IN_CEILINGS: Readonly<Record<string, { incumbent: string; bytes: number }>> = {
+  'closeout/onetime': { incumbent: 'onetime@8.0.0', bytes: 1_527 },
+  'closeout/cli-cursor': { incumbent: 'cli-cursor@5.0.0', bytes: 4_757 },
+  'linegauge/cli-truncate': { incumbent: 'cli-truncate@6.1.1', bytes: 20_675 },
+  'linegauge/widest-line': { incumbent: 'widest-line@6.0.0', bytes: 6_079 },
+  // R7's kill criterion: over this, `roundel/picocolors` does not publish.
+  'roundel/picocolors': { incumbent: 'picocolors@1.1.1', bytes: 2_739 },
+};
+
+/** The "Everything" cell of a subpath's row on the page, or `undefined` when it has no row. */
+const everything = (page: string, specifier: string): number | undefined => {
+  const cell = new RegExp(String.raw`^\| \`${specifier.replaceAll('/', '\\/')}\` \|.*\| ([\d,]+) \|$`, 'm').exec(page)?.[1];
+  return cell === undefined ? undefined : Number(cell.replaceAll(',', ''));
+};
+
+describe('a drop-in façade weighs no more than its incumbent (U5)', () => {
+  const page = readFileSync(PAGE, 'utf8');
+
+  it.each(Object.entries(DROP_IN_CEILINGS))('%s, against %o', (specifier, { bytes }) => {
+    const ours = everything(page, specifier);
+    expect(ours, `\`${specifier}\` has no row on /docs/weight`).toBeDefined();
+    expect(ours, `\`${specifier}\` bundles ${String(ours)} B, over the incumbent's ${String(bytes)} B`).toBeLessThanOrEqual(bytes);
+  });
+
+  it('reads the Everything column, the last cell of the row', () => {
+    expect(everything('| `a/b` | 1 | `default` 724 | `default` 724 | 1,716 |\n', 'a/b')).toBe(1716);
+    expect(everything('| `a/b` | 1 | x | y | 9 |\n', 'a/c')).toBeUndefined();
+  });
+});
+
 describe('the per-subpath weight page', () => {
   const page = readFileSync(PAGE, 'utf8');
   const specifiers = published();

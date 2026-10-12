@@ -43,6 +43,9 @@ const ALLOWED: Record<string, string[]> = {
   // Interactivity and the unicode probe (R12). Environment reads over a runtime passed in;
   // it reaches nothing, so a caller asking "is anybody there" pays for nothing else.
   'terminal.js': [],
+  // picocolors' surface (`graded-override-targets` R7): its own formatter and picocolors'
+  // detection, over the process seam alone, so it carries none of the token or policy graph.
+  'picocolors.js': ['./runtime.js'],
   // Theme import (R11). It reaches the theme for `audit()` — the one contrast judgement, so
   // an imported theme is refused exactly when `fly()` would refuse it — and the contrast
   // module for the floor it names. Never the tokens: importing a palette paints nothing.

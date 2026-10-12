@@ -263,6 +263,7 @@ const result = (host: string, over: Partial<VendorResult> = {}): VendorResult =>
   internalFiles: ['i.js'],
   internals: ['lib/a.js', 'lib/b.js'],
   missingExtras: [],
+  omitted: [],
   record: record('5.6.2', {}),
   ...over,
 });
@@ -316,7 +317,7 @@ describe('--upstream', () => {
       const fresh = JSON.parse(readFileSync(join(paths.vendor, h.name, '.source.json'), 'utf8')) as CompatRecord;
       // chalk's release moved a test; clack's is a re-tag of what is vendored.
       const record = h.name === 'chalk' ? { ...fresh, version: version as string, tests: { 'test/a.js': ['a', 'b'] } } : { ...fresh, version: version as string };
-      return { host: h.name, commit: 'c', version: version as string, tag: null, files: 1, internalFiles: [], internals: [], missingExtras: h.name === 'chalk' ? ['fixture.jpg'] : [], record };
+      return { host: h.name, commit: 'c', version: version as string, tag: null, files: 1, internalFiles: [], internals: [], missingExtras: h.name === 'chalk' ? ['fixture.jpg'] : [], omitted: [], record };
     });
     expect(await main(['--upstream'], write, paths)).toBe(0);
     // Only the npm name reaches the registry: clack's key names no package.

@@ -11,6 +11,7 @@
  * (M2) — N15's flag is read off argv here too, so the startup path carries one test for both.
  */
 import { agentLines } from './agent-format.js';
+import { type Globals, globalsOf, isGlobal } from './globals.js';
 import { type CommandNode } from './manifest.js';
 import { UsageError } from './validate.js';
 
@@ -46,7 +47,9 @@ export function checkFields(fields: readonly string[], node: CommandNode): void 
 
 function refuseUnknown(fields: readonly string[], valid: readonly string[]): void {
   const unknown = fields.filter((f) => !valid.includes(f));
-  if (unknown.length > 0) throw new UsageError(`unknown field${unknown.length === 1 ? '' : 's'} ${unknown.map((f) => `"${f}"`).join(', ')}`, `valid fields: ${valid.join(', ')}`);
+  const named = unknown.map((f) => `"${f}"`).join(', ');
+  // Two sentences, not one with an `s` spliced in: each is a catalog entry a pack translates whole (`messages.ts`).
+  if (unknown.length > 0) throw new UsageError(unknown.length === 1 ? `unknown field ${named}` : `unknown fields ${named}`, `valid fields: ${valid.join(', ')}`);
 }
 
 /** The named fields of a result: of the object, or of each object in a list. */
@@ -69,6 +72,24 @@ const AGENT = '--format=agent';
  * A command that declares its own `format` option keeps the flag, because the program wins;
  * and after `--` it is the command's, like everything else there.
  */
+/** What `fields.js` reads off argv before the command's own parse. */
+export interface LazyArgs {
+  args: string[];
+  fields?: string[];
+  lines?: (data: unknown) => string;
+  /** agent-lint-conformance R1–R3: the globals typed, when any were. */
+  global?: Globals;
+}
+
+/**
+ * Everything the engine reads lazily off argv, in one call: the R1–R3 globals first
+ * (`globals.js`), then `--json=<fields>` and `--format=agent` from what is left.
+ */
+export function lazyArgs(typed: readonly string[], node: CommandNode): LazyArgs {
+  const global = typed.some(isGlobal) ? globalsOf(typed, node) : undefined;
+  return { ...jsonFields(global?.args ?? typed, node), ...(global === undefined ? {} : { global }) };
+}
+
 export function jsonFields(args: readonly string[], node: CommandNode): { args: string[]; fields?: string[]; lines?: (data: unknown) => string } {
   const end = args.indexOf('--');
   const all = end === -1 ? args : args.slice(0, end);

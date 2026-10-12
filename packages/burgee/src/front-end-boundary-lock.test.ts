@@ -43,7 +43,7 @@ function specifiers(file: string): string[] {
     .split(/\r?\n/)
     .map((line) => (/^\s*(\*|\/\*)/.test(line) ? '' : line.replace(/\/\/.*$/, '')))
     .join('\n');
-  return [...text.matchAll(/from\s+'(\.[^']*)'/g)].map((m) => m[1] as string);
+  return [...text.matchAll(/from\s+['"](\.[^'"]*)['"]/g)].map((m) => m[1] as string);
 }
 
 const sources = (dir: string): string[] =>

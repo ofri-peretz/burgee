@@ -54,7 +54,9 @@ describe('M1 · groups, M3 · attribution, M4 · shared options', () => {
     const commands = (JSON.parse(stdout) as Schema).commands;
     expect(commands.filter((c) => c.plugin === 'audit').map((c) => c.name)).toEqual(['audit', 'audit-fix']);
     expect(commands.find((c) => c.name === 'inspect')?.group).toBe('Reports:');
-    expect(commands).toHaveLength(33);
+    // 33 declared, and the `completion` the engine serves, listed last (agent-lint-conformance R5).
+    expect(commands).toHaveLength(34);
+    expect(commands.at(-1)?.name).toBe('completion');
   });
 
   it('copies shared options per command and says where each came from', async () => {

@@ -27,6 +27,7 @@
 
 <p align="center">
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/chalk%20suite-59%2F59-0a6b47?style=flat-square" alt="roundel/chalk passes 59 of 59 cases of the chalk test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/picocolors%20suite-1%2F1-0a6b47?style=flat-square" alt="roundel passes 1 of 1 cases of the picocolors test suite" /></a>
 </p>
 
 <p align="center">
@@ -201,6 +202,19 @@ validated), `new Chalk({ level })`, `chalkStderr`, `supportsColor` / `supportsCo
   kitty, ghostty, wezterm, TeamCity, the Windows build number) is not reproduced; a program
   on one of those terminals that wants colour asks for it with `FORCE_COLOR` or `--color`.
 
+```diff
+- import pc from 'picocolors';
++ import pc from 'roundel/picocolors';
+```
+
+**Identical.** `createColors(enabled)`, `isColorSupported`, and all forty-one styles, with
+picocolors' bytes: each closes on its own code, a nested close re-opens the outer style
+(`bold` and `dim` re-open each other), and the input is stringified as `"" + input` is.
+Colour is decided by picocolors' own rule — not `NO_COLOR` or `--no-color`, and one of
+`FORCE_COLOR`, `--color`, Windows, a stdout TTY whose `TERM` is not `dumb`, or `CI` — not by
+[the policy](#the-policy), because the drop-in answers what picocolors answers.
+`require('roundel/picocolors')` returns the same object, as `require('picocolors')` does.
+
 Or let the codemod make the change: `npx burgee migrate --dry-run` lists every import it would
 rewrite — only drop-ins graded level with their incumbent — and `npx burgee migrate` makes it.
 See [Migrate](https://burgee.interlace.tools/docs/migrate).
@@ -210,6 +224,16 @@ See [Migrate](https://burgee.interlace.tools/docs/migrate).
 **Graded by chalk's own suite**, vendored at 6.0.1 into `compat-oracle` and run unedited
 through a generated shim: **59 of 59 tests (100.0%) on 2026-09-30**, alongside the same
 suite scoring 59 / 59 against real chalk in the same run.
+
+**Graded by picocolors' own test**, vendored at 1.1.1: `roundel/picocolors` passes
+`tests/test.js`, the one file picocolors' `npm test` runs. That file is a script of bare
+assertions that stops at the first failure, so the grade is one bit, as rc's is: 1 of 1, the
+same as picocolors itself. Its other file, `tests/environments.js`, evaluates picocolors'
+*source text* in a `vm` with a fake `process`. Upstream does not run it, and only a single
+self-contained script could pass it. Its nine environments are held instead by
+`picocolors.test.ts`, which runs picocolors' own source and this façade under the same fake
+process and requires the same answer. Bundled, the façade's whole surface is 1,607 bytes against
+picocolors' 2,739; `scripts/subpath-weight-lock.test.ts` holds it there.
 
 The grade is re-run on every change to `roundel/chalk`; the current figure is generated under
 *Benchmarks* below and published with every other drop-in on the
@@ -238,6 +262,7 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `chalk` | 59 / 59 |
+| `picocolors` | 1 / 1 |
 
 ## For agents
 
@@ -267,22 +292,35 @@ Plugins register under the `tokens` key, against the one schema the whole family
 
 ## The family
 
-Ten packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
-carries its colours, flagstaff flies it and caique answers back; each installs on its own, and none
-takes a dependency from outside the family.
+Ten packages, one repository, one release pipeline. Each installs and works on its own, and each
+owns one job. Six of them — `bellpull`, `closeout`, `linegauge`, `paratext`, `roundel`, `seniority`
+— depend on nothing; the others depend only on packages in this table, and every dependency points
+one way, down the [layers](https://burgee.interlace.tools/docs/concepts/family).
 
-| Package | What it is | Replaces |
+No package declares a dependency from outside the family; `react` and `react-reconciler` are
+optional peers of `controlroom`, which npm does not install.
+[`package-shape-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/package-shape-lock.test.ts)
+holds that for every manifest, and
+[`independence-install-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/independence-install-lock.test.ts)
+installs each package alone and finds nothing but the family packages it declares.
+
+Releases are published by one workflow through npm trusted publishing: no npm token is used, and
+each release carries SLSA provenance, which `npm view <package> dist.attestations` shows.
+[`trusted-publishing-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/trusted-publishing-lock.test.ts)
+keeps both true.
+
+| Package | What it is | Migrates from |
 | :-- | :-- | :-- |
-| [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander and yargs |
-| **roundel** (this package) | Colour: one output policy, semantic tokens, a theme | chalk |
+| [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander, yargs and meow |
+| **roundel** (this package) | Colour: one output policy, semantic tokens, a theme | chalk and picocolors |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
-| [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | inquirer and clack |
-| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi and slice-ansi |
+| [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | @inquirer/core |
+| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line |
 | [paratext](https://paratext.interlace.tools/docs) | Hyperlinks, images, title, clipboard and notifications | ansi-escapes, terminal-link and term-img |
-| [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, dotenv and rc |
-| [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook and restore-cursor |
+| [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, lilconfig, dotenv and rc |
+| [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook, restore-cursor, cli-cursor and onetime |
 | [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
-| [controlroom](https://controlroom.interlace.tools/docs) | Full-screen, keyboard-driven terminal screens | ink, graded by ink's own suite |
+| [controlroom](https://controlroom.interlace.tools/docs) | Keyboard-driven terminal screens, inline or full-screen | ink |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

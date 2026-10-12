@@ -13,8 +13,9 @@ import { dirname, isAbsolute, join, relative, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { testFiles } from './discover.js';
-import { type Exclusion, type Host, type HostEntry, type HostImport } from './hosts.js';
-import { readSuiteDeps, shimName } from './vendor.js';
+import { type Exclusion, exclusionsHere, type Host, type HostEntry, type HostImport } from './hosts.js';
+import { declarationName, type TsdFailure, type TsdReport, tsdTap } from './tsd.js';
+import { readSuiteDeps, shimName, splitSpec } from './vendor.js';
 
 export interface Grade {
   /**
@@ -368,7 +369,10 @@ function shimSource(entry: HostImport, host: Host, target: string): string {
   // handing a real caller a namespace was never graded (2026-09-23). yargs' entry exports the
   // name, and so does each family drop-in whose incumbent's `require()` returns its default;
   // `scripts/drop-in-require-shape-lock.test.ts` checks that from outside the oracle.
-  const withDefault = entry.reexportDefault ? `export { default } from '${from}';\n` : '';
+  let withDefault = entry.reexportDefault ? `export { default } from '${from}';\n` : '';
+  // A named export standing as the default (`HostImport.defaultExport`): the same name on
+  // both runs, read off whichever module this run grades.
+  if (entry.defaultExport !== undefined) withDefault = `export { ${entry.defaultExport} as default } from '${from}';\n`;
   return `${header}\nexport * from '${from}';\n${withDefault}`;
 }
 
@@ -407,7 +411,14 @@ export function cjsLoad(from: string): string {
 function writeShims(host: Host, hostDir: string, target: string, packageType: string): void {
   // The vendored package's own type decides the extension, and the vendor step wrote the
   // rewritten specifiers against the same rule — so the two always name one file.
-  host.imports.forEach((entry, i) => writeFileSync(join(hostDir, shimName(i, packageType, host.shim)), shimSource(entry, host, target)));
+  host.imports.forEach((entry, i) => {
+    const shim = shimName(i, packageType, host.shim);
+    writeFileSync(join(hostDir, shim), shimSource(entry, host, target));
+    // A type suite imports the shim and reads its *declarations*: TypeScript resolves
+    // `../shim.js` to `shim.d.ts` beside it, so the same `export *` is written there too and the
+    // assertions are checked against whichever package this run grades.
+    if (host.runner === 'tsd') writeFileSync(join(hostDir, declarationName(shim)), shimSource(entry, host, target));
+  });
 }
 
 /**
@@ -512,12 +523,22 @@ export function targetInternalBody(root: string, { file, names }: { file: string
 }
 
 /**
- * The target-run body of one {@link HostEntry}: CommonJS whatever the host is, because every
- * entry is a `.cjs` or `.js` file under a CommonJS package that the suite `require`s, spawns or
- * preloads. It is upstream's `index.js` with the two modules it names pointed at the target.
+ * The target-run body of one {@link HostEntry}: upstream's `index.js` with the two modules it
+ * names pointed at the target.
+ *
+ * In the language the path is parsed as, which is the internal shims' rule: `.cjs` is CommonJS,
+ * anything else follows the vendored root's `type`. dotenv's entries are `.cjs` and `.js` under
+ * a CommonJS root and are `require`d, spawned or preloaded. cli-cursor's suite spawns
+ * `node index.js` under a `type: module` root, where a `require` is not defined — so there the
+ * entry re-exports the target as an ES module, and `names` and `runs`, which describe a CommonJS
+ * main module, do not apply.
  */
-export function entryBody(target: string, entry: HostEntry): string {
-  const lines = [`// generated per run — COMPAT_TARGET=${target}`, `const loaded = require(${JSON.stringify(`${target}${entry.target}`)});`, 'module.exports = loaded?.default ?? loaded;'];
+export function entryBody(target: string, entry: HostEntry, packageType = 'commonjs'): string {
+  const specifier = JSON.stringify(`${target}${entry.target}`);
+  if (!entry.at.endsWith('.cjs') && packageType === 'module') {
+    return [`// generated per run — COMPAT_TARGET=${target}`, `import * as loaded from ${specifier};`, `export * from ${specifier};`, 'export default loaded.default ?? loaded;', ''].join('\n');
+  }
+  const lines = [`// generated per run — COMPAT_TARGET=${target}`, `const loaded = require(${specifier});`, 'module.exports = loaded?.default ?? loaded;'];
   for (const name of entry.names ?? []) lines.push(`module.exports.${name} = module.exports.${name};`);
   if (entry.runs !== undefined) lines.push(`if (require.main === module) require(${JSON.stringify(`${target}${entry.runs}`)}).run(process.argv.slice(2));`);
   return `${lines.join('\n')}\n`;
@@ -529,7 +550,7 @@ export function entryBody(target: string, entry: HostEntry): string {
  * instead of it, and `dist/index.cjs` runs its CLI only when it is `require.main`. Where the
  * platform refuses the link it falls back to a `require`, which serves every entry but that.
  */
-function writeEntries(host: Host, hostDir: string, target: string): void {
+function writeEntries(host: Host, { hostDir, target, packageType }: { hostDir: string; target: string; packageType: string }): void {
   const entries = host.entries ?? [];
   if (entries.length === 0) return;
   const besideSuite = host.suiteDeps === undefined ? undefined : hostDir;
@@ -539,7 +560,7 @@ function writeEntries(host: Host, hostDir: string, target: string): void {
     mkdirSync(dirname(at), { recursive: true });
     rmSync(at, { force: true });
     if (installed === undefined) {
-      writeFileSync(at, entryBody(target, entry));
+      writeFileSync(at, entryBody(target, entry, packageType));
       continue;
     }
     const file = join(installed, entry.control);
@@ -614,6 +635,53 @@ function vitestBin(): string {
   return join(dirname(require.resolve('vitest/package.json')), 'vitest.mjs');
 }
 
+/**
+ * The child, run as `node -e TSD_SCRIPT <anchor> <file>…` with the vendored root as its cwd.
+ *
+ * `<anchor>` is where `tsd` resolves from — the vendored root, whose pinned `suiteDeps` put it in
+ * `node_modules` there. Its `exports` map admits only the entry, so the two internals it needs
+ * (`lib/parser.js` for tsd's own definition of an assertion, `lib/config.js` for the compiler
+ * options tsd builds its program with) are reached by path beside that entry. `@tsd/typescript`
+ * is resolved from tsd itself, so the assertions are found by the same compiler that checks them.
+ *
+ * It lives here rather than in `tsd.ts` because it is a program this file spawns, and naming the
+ * process is the job of the file that owns the spawn (`process-reference-lock`). CommonJS, because tsd is; written as source here and handed over with `-e`, so a run leaves no
+ * generated file behind to ignore. A tsd that throws is reported on stdout as `{ error }`, which
+ * the parent turns into a graded error rather than a score — the child sets no exit code of its
+ * own (E1: a literal exit code says nothing about which half of the contract it means).
+ */
+export const TSD_SCRIPT = `
+const { createRequire } = require('node:module');
+const { dirname, join, resolve } = require('node:path');
+const { readFileSync } = require('node:fs');
+const [anchor, ...files] = process.argv.slice(1);
+const cwd = process.cwd();
+(async () => {
+  const main = createRequire(join(anchor, 'node_modules', 'resolve.cjs')).resolve('tsd');
+  const lib = join(dirname(main), 'lib');
+  const tsd = require(main).default;
+  const ts = createRequire(main)('@tsd/typescript');
+  const { extractAssertions } = require(join(lib, 'parser.js'));
+  const config = require(join(lib, 'config.js')).default;
+  const diagnostics = await tsd({ cwd, testFiles: files });
+  const options = config(JSON.parse(readFileSync(join(cwd, 'package.json'), 'utf8')), cwd).compilerOptions;
+  const graded = new Set(files.map((f) => resolve(cwd, f)));
+  const program = ts.createProgram([...graded], options);
+  const assertions = [];
+  for (const [name, nodes] of extractAssertions(program)) {
+    for (const node of nodes) {
+      const file = node.getSourceFile();
+      if (!graded.has(resolve(file.fileName))) continue;
+      const at = (pos) => file.getLineAndCharacterOfPosition(pos).line + 1;
+      assertions.push({ fileName: resolve(file.fileName), name, line: at(node.getStart()), endLine: at(node.getEnd()) });
+    }
+  }
+  process.stdout.write(JSON.stringify({ assertions, diagnostics: diagnostics.map((d) => ({ ...d, fileName: resolve(d.fileName) })) }));
+})().catch((error) => {
+  process.stdout.write(JSON.stringify({ error: String(error.message) }));
+});
+`;
+
 /** The runner invocation. mocha and ava resolve through the module system: workspaces hoist .bin. */
 function command(host: Host, hostDir: string, dir: string, paths: string[]): { bin: string; args: string[] } {
   if (host.runner === 'vitest') {
@@ -629,6 +697,13 @@ function command(host: Host, hostDir: string, dir: string, paths: string[]): { b
     // one-level `testDir` and `vendor/<host>/packages` for a monorepo: a root above nothing,
     // with no config in it, and not where vitest looks for a `__mocks__` directory.
     return { bin: process.execPath, args: [vitestBin(), 'run', '--root', packageDirOf(host, hostDir), '--reporter=tap-flat'] };
+  }
+  if (host.runner === 'tsd') {
+    // tsd has no reporter to ask for, so the child prints the assertions and diagnostics as JSON
+    // and `runSuite` turns them into TAP (`tsd.ts`). The files go relative to the vendored root,
+    // posix, because tsd hands them to a glob with that root as its cwd.
+    const files = paths.map((p) => relative(hostDir, p).split(sep).join('/'));
+    return { bin: process.execPath, args: ['-e', TSD_SCRIPT, hostDir, ...files] };
   }
   if (host.runner === 'node:test') {
     // The loader goes ahead of `--test`, where upstream's own `npm test` puts it (ink 8:
@@ -1040,9 +1115,30 @@ function runTapFiles(host: Host, hostDir: string, files: string[], target: strin
   return { output: parts.join('\n') };
 }
 
+/**
+ * Why a type suite is refused before it runs, or `undefined` when it may run.
+ *
+ * **Its own `tsconfig.json`.** tsd finds one with `findConfigFile`, which walks *up* from the
+ * vendored root — into this package's `tsconfig.json`, whose options are not the suite's.
+ * Upstream's is vendored through `extraDirs`.
+ *
+ * **Its own tsd, pinned in `suiteDeps`.** Resolving tsd any other way walks up too, and measured
+ * 2026-10-11 it found an extraneous copy no manifest declares, at the workspace root — the
+ * stray-store hole `unsatisfiedPins` closes for every other suite dependency. A pin is
+ * installed beside the suite at that exact version, so the child resolves it from the vendored
+ * root and nowhere else.
+ */
+function tsdRefusal(host: Host, hostDir: string): string | undefined {
+  if (!(host.suiteDeps ?? []).some((spec) => splitSpec(spec)[0] === 'tsd')) return 'a tsd suite pins its own tsd in `suiteDeps`; without the pin it would run whichever tsd a walk up the directory tree finds';
+  if (!existsSync(join(hostDir, 'tsconfig.json'))) return "no tsconfig.json at the vendored root: tsd would search upward and compile the suite under this repository's options — vendor upstream's through `extraDirs`";
+  return undefined;
+}
+
 /** Runs the suite from its vendored root; a failing suite still prints its summary. */
 function runSuite(host: Host, hostDir: string, files: string[], target: string): { output: string } | { error: string } {
   if (host.runner === 'tap') return runTapFiles(host, hostDir, files, target);
+  const refused = host.runner === 'tsd' ? tsdRefusal(host, hostDir) : undefined;
+  if (refused !== undefined) return { error: refused };
   const dir = join(hostDir, host.testDir);
   if (host.runner === 'vitest') writeVitestConfig(host, hostDir, files);
   const { bin, args } = command(host, hostDir, dir, files.map((f) => join(dir, f)));
@@ -1058,7 +1154,11 @@ function runSuite(host: Host, hostDir: string, files: string[], target: string):
       // the overflow drops the summary lines the count lives in. Seen at 1.16 MB.
       maxBuffer: MAX_OUTPUT_BYTES,
     });
-    return { output };
+    // The child prints JSON whether tsd reported or threw (`TsdFailure`); a child that never
+    // got that far leaves stdout empty, which is the error below.
+    if (host.runner !== 'tsd') return { output };
+    const report = JSON.parse(output) as TsdReport | TsdFailure;
+    return 'error' in report ? { error: report.error.slice(0, ERROR_EXCERPT) } : { output: tsdTap(report, hostDir) };
   } catch (cause) {
     const failure = cause as { stdout?: string; stderr?: string; message: string };
     if (failure.stdout !== undefined && failure.stdout !== '') return { output: failure.stdout };
@@ -1209,7 +1309,7 @@ export function grade(host: Host, vendorDir: string, target: string, reference =
   writeShims(host, hostDir, target, packageType);
   writeInternalShims(host, { hostDir, target, internals: source.internals ?? [], packageType });
   writeAliasHook(host, hostDir, target);
-  writeEntries(host, hostDir, target);
+  writeEntries(host, { hostDir, target, packageType });
 
   if (host.runner === 'exit-code') {
     const outcome = runExitCodes(host, hostDir, files, target);
@@ -1220,7 +1320,9 @@ export function grade(host: Host, vendorDir: string, target: string, reference =
   const run = runSuite(host, hostDir, files, target);
   keepTap(host, target, 'public', run);
   if ('error' in run) return { ...base, files: files.length, error: run.error };
-  const graded: Grade = { ...base, ...summarize(run.output, files.length, reference, { excludes: host.excludes ?? [], requireMatch: target === controlName(host) }) };
+  // Less any exclusion whose case this machine never registers (`Exclusion.registers`): there it
+  // subtracts nothing, and the control must not be asked to find a case the suite never wrote.
+  const graded: Grade = { ...base, ...summarize(run.output, files.length, reference, { excludes: exclusionsHere(host.excludes ?? []), requireMatch: target === controlName(host) }) };
 
   if (internal.length > 0) {
     const extra = runSuite(host, hostDir, internal, target);

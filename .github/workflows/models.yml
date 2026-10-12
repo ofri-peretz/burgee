@@ -1,0 +1,60 @@
+# Quint models — every `.qnt` beside a spec.md is checked against its `safety` invariant by
+# random simulation (20k traces × 30 steps). A model is the spec's state machine stated so a
+# checker can walk the interleavings a hand-written matrix cannot enumerate.
+#
+# Convention: a model declares `val safety` (the conjunction of its guarantees). A model
+# without one fails here, so a model cannot land unchecked. See .sdlc/JEV-AND-QUINT.md.
+#
+# Ceiling: simulation, not proof. `quint verify` (Apalache, exhaustive to a bound) needs a JDK
+# and minutes; add it here when a model's bug would cost more than that.
+name: Models · Quint
+
+on:
+  push:
+    branches: [main]
+    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', '.github/workflows/release.yml', '.github/workflows/models.yml']
+  pull_request:
+    branches: [main]
+    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', '.github/workflows/release.yml', '.github/workflows/models.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: models-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  QUINT: npx -y @informalsystems/quint@0.33.0
+
+jobs:
+  simulate:
+    name: every model holds its safety invariant
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: safety holds
+        run: |
+          set -euo pipefail
+          mapfile -t models < <(git ls-files '*.qnt')
+          [ "${#models[@]}" -gt 0 ] || { echo "no .qnt files tracked"; exit 1; }
+          for m in "${models[@]}"; do
+            echo "::group::$m"
+            $QUINT typecheck "$m"
+            $QUINT run "$m" --invariant=safety --max-steps=30 --max-samples=20000
+            echo "::endgroup::"
+          done
+      # An open question, pinned: closeout's late add() is silently dropped today. When the
+      # code changes and this starts holding, the step fails and the question gets answered.
+      - name: closeout late add() is still dropped (open question, see spec.md)
+        run: |
+          if $QUINT run .sdlc/intents/closeout/registry.qnt --invariant=lateAddRuns --max-steps=30 --max-samples=20000; then
+            echo "lateAddRuns now holds — answer the open question in .sdlc/intents/closeout/spec.md and drop this step"
+            exit 1
+          fi

@@ -98,11 +98,21 @@ agent page can show recorded sessions rather than describe them.
 6. Re-running `scripts/positioning-audit.ts` shows no incumbent in any first paragraph, and the
    before and after lead sentences are recorded in `positioning-audit.md`.
 
+## Follow-up: a neutral voice (owner, 2026-10-09)
+
+The owner reviewed the result the same day and widened the brief: every marketing statement,
+the documentation and the READMEs read as professional and unbiased, never as "we copy the
+other thing, use us instead", and lead with the features and the approach, such as owning the
+whole dependency graph. The npm descriptions, the family section, the section titles and the
+"replaces" framing are in scope; every number, claim verdict and benchmark table is not.
+`spec.md` records it as R7–R12, each with its check.
+
 ## Open questions
 
 - Whether the home page `<title>` keeps naming commander and yargs. **Decided 2026-10-09 →
   [D-20261009-positioning-home-title](../../decisions/D-20261009-positioning-home-title.md)**,
-  as an owner decision with a default: the title stays and the body changes.
+  as an owner decision with a default: the title stays and the body changes. **Decided again
+  2026-10-10**: the owner chose capability-first titles for every site; `spec.md` R13.
 - Whether mentions per 100 words is gated. **Decided 2026-10-09 →
   [D-20261009-positioning-density-reported](../../decisions/D-20261009-positioning-density-reported.md)**:
   it is reported, not gated. The opening is what is held.

@@ -363,6 +363,29 @@ export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
   'closeout/restore-cursor': [
     'default',
   ],
+  'closeout/onetime': [
+    'OnetimeFunction',
+    'Options',
+    'default',
+  ],
+  'closeout/cli-cursor': [
+    'default',
+  ],
+  'linegauge/cli-truncate': [
+    'Options',
+    'default',
+  ],
+  'linegauge/widest-line': [
+    'default',
+  ],
+  'roundel/picocolors': [
+    'Colors',
+    'Formatter',
+    'createColors',
+    'default',
+    'isColorSupported',
+    'module.exports',
+  ],
   'closeout/signal-exit': [
     'load',
     'onExit',
@@ -733,6 +756,18 @@ export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
     'lilconfig',
     'lilconfigSync',
   ],
+  'seniority/find-up': [
+    'FindDownOptions',
+    'Match',
+    'Options',
+    'findDown',
+    'findDownSync',
+    'findUp',
+    'findUpMultiple',
+    'findUpMultipleSync',
+    'findUpStop',
+    'findUpSync',
+  ],
   'seniority/rc': [
     'RcConfig',
     'RcOptions',
@@ -807,7 +842,7 @@ const SIBLING_STATE: Readonly<Record<string, { sibling: string; fix: string }>> 
  * Node's own `require()` returns for every installed incumbent in `MAPPING`, so a name here
  * is a measurement and an incumbent that is not installed is left out, and refused as before.
  */
-export const REQUIRE_NAMESPACE: readonly string[] = ['ansi-escapes', 'chalk', 'ora', 'log-update', 'boxen', 'string-width', 'strip-ansi', 'wrap-ansi', 'slice-ansi', 'restore-cursor', 'exit-hook', 'terminal-link', 'meow'];
+export const REQUIRE_NAMESPACE: readonly string[] = ['ansi-escapes', 'chalk', 'ora', 'log-update', 'boxen', 'string-width', 'strip-ansi', 'wrap-ansi', 'slice-ansi', 'restore-cursor', 'exit-hook', 'terminal-link', 'meow', 'cli-cursor', 'cli-truncate', 'widest-line'];
 
 /** Whether `require(from)` and `require(to)` hand a CommonJS caller different kinds of value. */
 function requireShapesDiffer(from: string, to: string): boolean {
@@ -921,7 +956,22 @@ export interface Transitive {
 export interface ReleaseAge {
   file: string;
   minutes: number;
+  /** `minimumReleaseAgeExclude` as written: names, globs (`@scope/*`) and `name@1.2.3 || 1.2.4`. */
+  exclude: string[];
+  /** Each family package `next` pins below its graded version, because the graded one is too young. */
+  pins: ReleaseAgePin[];
   note: string;
+}
+
+/** A family package pinned to the newest version the release age lets install, or to the first one it will. */
+export interface ReleaseAgePin {
+  name: string;
+  /** The caret floor `next` prints. */
+  version: string;
+  /** The version this burgee was graded beside. */
+  graded: string;
+  /** When `version` is old enough to install, ISO 8601: already past, or the date the install starts working. */
+  installable: string;
 }
 
 export interface MigrationReport {
@@ -1647,38 +1697,173 @@ function nextStep(dir: string, add: string[], remove: string[], versions: Readon
 }
 
 /** The settings that refuse a version younger than a number of minutes, by file, and how each is spelled there. */
-const RELEASE_AGE: readonly { file: string; key: string; separator: ':' | '=' }[] = [
-  { file: 'pnpm-workspace.yaml', key: 'minimumReleaseAge', separator: ':' },
-  { file: '.npmrc', key: 'minimum-release-age', separator: '=' },
-  { file: 'npmrc', key: 'minimum-release-age', separator: '=' },
+const RELEASE_AGE: readonly { file: string; key: string; exclude: string; separator: ':' | '=' }[] = [
+  { file: 'pnpm-workspace.yaml', key: 'minimumReleaseAge', exclude: 'minimumReleaseAgeExclude', separator: ':' },
+  { file: '.npmrc', key: 'minimum-release-age', exclude: 'minimum-release-age-exclude[]', separator: '=' },
+  { file: 'npmrc', key: 'minimum-release-age', exclude: 'minimum-release-age-exclude[]', separator: '=' },
 ];
 
+type Setting = Omit<ReleaseAge, 'pins' | 'note'> & { key: string };
+
 /**
- * U12-2 — the project's minimum release age, when it sets one.
+ * U12-2 — the project's minimum release age, when it sets one, and what it exempts.
  *
  * Read as lines, not parsed: the key is a top-level scalar in both formats, so a line that
  * starts with it is the setting and anything indented or commented out is not. A setting is
  * the reason a pinned install can still fail, so the report names the file it came from.
  */
-async function releaseAgeOf(dir: string): Promise<ReleaseAge | null> {
-  for (const { file, key, separator } of RELEASE_AGE) {
+async function releaseAgeOf(dir: string): Promise<Setting | null> {
+  for (const { file, key, exclude, separator } of RELEASE_AGE) {
     // eslint-disable-next-line reliability/no-await-in-loop -- three small files, in the order a reader would look, and the first one that answers wins
     const text = await readFile(join(dir, file), 'utf8').catch(() => '');
-    for (const line of text.split('\n')) {
+    const lines = text.split('\n');
+    for (const line of lines) {
       if (!line.startsWith(key)) continue;
       const [name, value = ''] = line.split(separator);
       // A comment after a YAML value (`1440 # a day`) is not part of it.
       const digits = /^\d+/.exec(value.trim())?.[0];
       if (name?.trim() !== key || digits === undefined) continue;
-      const minutes = Number(digits);
-      return {
-        file,
-        minutes,
-        note: `${file} sets ${key} to ${minutes} minutes, and a family version in next may be younger than that: the install then fails, or resolves an older version without the drop-in. Check what was installed, or exempt the family packages from the rule`,
-      };
+      return { file, key, minutes: Number(digits), exclude: excludeOf(lines, exclude, separator) };
     }
   }
   return null;
+}
+
+/** One list entry with its comment and quotes taken off: `"roundel@1.0.4" # docs only` is `roundel@1.0.4`. */
+function unquote(entry: string): string {
+  const bare = (entry.split('#')[0] as string).trim();
+  return bare.length > 1 && (bare[0] === '"' || bare[0] === "'") && bare.endsWith(bare[0]) ? bare.slice(1, -1) : bare;
+}
+
+/**
+ * The release-age exemptions, as written: a YAML block list or flow list under the key, or
+ * `key[]=name` lines in an npmrc. An entry is a package name, a glob, or `name@1.0.0 || 1.0.1`.
+ */
+function excludeOf(lines: readonly string[], key: string, separator: ':' | '='): string[] {
+  if (separator === '=') return lines.filter((l) => l.startsWith(`${key}=`)).map((l) => unquote(l.slice(key.length + 1)));
+  const at = lines.findIndex((l) => l.startsWith(`${key}:`));
+  if (at === -1) return [];
+  const flow = /\[(.*)\]/.exec(lines[at] as string)?.[1];
+  if (flow !== undefined) return flow.split(',').map(unquote).filter((e) => e !== '');
+  const out: string[] = [];
+  for (const line of lines.slice(at + 1)) {
+    const item = /^\s+-(.*)$/.exec(line)?.[1];
+    if (item !== undefined && unquote(item) !== '') out.push(unquote(item));
+    else if (line.trim() !== '' && !line.trimStart().startsWith('#')) break;
+  }
+  return out;
+}
+
+/** pnpm's exclude glob: `*` is any run of characters, everything else is literal. Matched by hand, so no pattern is built at runtime. */
+function globMatches(pattern: string, name: string): boolean {
+  const parts = pattern.split('*');
+  const first = parts[0] as string;
+  const last = parts.at(-1) as string;
+  if (parts.length === 1) return pattern === name;
+  if (!name.startsWith(first) || !name.endsWith(last) || name.length < first.length + last.length) return false;
+  let at = first.length;
+  for (const part of parts.slice(1, -1)) {
+    at = name.indexOf(part, at);
+    if (at === -1 || at + part.length > name.length - last.length) return false;
+    at += part.length;
+  }
+  return true;
+}
+
+/** The versions of `name` an exemption covers: every one (`'*'`), the listed ones, or none. */
+function exempted(name: string, exclude: readonly string[]): '*' | Set<string> {
+  const versions = new Set<string>();
+  for (const entry of exclude) {
+    const at = entry.lastIndexOf('@');
+    const pattern = at > 0 ? entry.slice(0, at) : entry;
+    if (!globMatches(pattern, name)) continue;
+    if (at <= 0) return '*';
+    for (const v of entry.slice(at + 1).split('||')) versions.add(v.trim());
+  }
+  return versions;
+}
+
+/** The publish time of every version of `name`, from the registry's packument; `undefined` when it cannot be read. */
+export type PublishTimes = (name: string) => Promise<Record<string, string> | undefined>;
+
+/**
+ * The public registry's `time` field. Five seconds and no retry: an unreachable registry only
+ * costs the floor, and `next` falls back to the graded pins with the note that says why.
+ */
+// ponytail: npmjs.org only; read `registry=` from the project's npmrc when a mirror user needs it.
+const REGISTRY_TIMEOUT_MS = 5000;
+const MINUTE_MS = 60_000;
+
+const registryTimes: PublishTimes = async (name) => {
+  try {
+    const response = await fetch(`https://registry.npmjs.org/${encodeURIComponent(name)}`, { signal: AbortSignal.timeout(REGISTRY_TIMEOUT_MS) });
+    return response.ok ? ((await response.json()) as { time?: Record<string, string> }).time : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+/** Newest first within one major: `pinsUnder` only ever compares versions of the graded major. */
+const byVersion = (a: string, b: string): number => {
+  const [x, y] = [a, b].map((v) => v.split('.').map(Number)) as [number[], number[]];
+  return (x[1] as number) - (y[1] as number) || (x[2] as number) - (y[2] as number);
+};
+
+/**
+ * U12-2 — under a release age, the version each family package can actually install.
+ *
+ * mcpc sets `minimumReleaseAge: 4320`. roundel 1.0.3 and 1.0.4 and flagstaff 1.2.4 and 1.2.5
+ * were docs-only patches, and each restarted the three-day clock, so `roundel@^1.0.4` never
+ * installed while the family kept shipping. The floor is the newest release of the graded
+ * major whose publish time is that old: pnpm resolves a caret to the newest version old
+ * enough, which is then that one. Never a lower major — `^0.6.2` is the release without the
+ * drop-in that the unpinned command saved on mac-cleaner. No version old enough yet: the one
+ * that becomes old enough first, with the date it does. Exempt by `minimumReleaseAgeExclude`,
+ * or a registry that does not answer: the graded pin, unchanged.
+ */
+async function pinsUnder(age: Setting, add: readonly string[], graded: Readonly<Record<string, string>>, clock: { times: PublishTimes; now: Date }): Promise<{ pins: ReleaseAgePin[]; unread: string[] }> {
+  const { times, now } = clock;
+  const wanted = add.filter((name) => graded[name] !== undefined && exempted(name, age.exclude) !== '*');
+  const found = await Promise.all(
+    wanted.map(async (name) => {
+      const version = graded[name] as string;
+      const listed = await times(name);
+      if (listed === undefined) return { name, version, pin: undefined };
+      const exempt = exempted(name, age.exclude) as Set<string>;
+      const major = version.split('.')[0];
+      const candidates = Object.entries(listed)
+        .filter(([v]) => /^\d+\.\d+\.\d+$/.test(v) && v.split('.')[0] === major)
+        .map(([v, at]) => ({ version: v, installable: exempt.has(v) ? Date.parse(at) : Date.parse(at) + age.minutes * MINUTE_MS }))
+        .filter((c) => !Number.isNaN(c.installable));
+      const ready = candidates.filter((c) => c.installable <= now.getTime()).sort((a, b) => byVersion(b.version, a.version))[0];
+      const soonest = candidates.sort((a, b) => a.installable - b.installable)[0];
+      const chosen = ready ?? soonest;
+      return { name, version, pin: chosen === undefined ? undefined : { name, version: chosen.version, graded: version, installable: new Date(chosen.installable).toISOString() } };
+    }),
+  );
+  return {
+    pins: found.flatMap(({ pin }) => (pin === undefined || (pin.version === pin.graded && Date.parse(pin.installable) <= now.getTime()) ? [] : [pin])),
+    unread: found.filter(({ pin }) => pin === undefined).map(({ name }) => name),
+  };
+}
+
+/** The `releaseAge` the report carries: the setting, the pins it forced, and one note that says what `next` will do. */
+function releaseAgeNote(age: Setting, pins: readonly ReleaseAgePin[], unread: readonly string[], now: Date): ReleaseAge {
+  const lines = pins.map((p) =>
+    Date.parse(p.installable) <= now.getTime()
+      ? `${p.name} ${p.graded} is younger than that, so next pins ^${p.version}, the newest ${p.name} ${p.version.split('.')[0]}.x old enough; run your tests on it`
+      : `no ${p.name} ${p.version.split('.')[0]}.x is old enough until ${p.installable.replace('T', ' ').replace(/:\d\d\.\d+Z$/, '')} UTC, when ${p.version} is: the install fails before then, or exempt ${p.name} from the rule`,
+  );
+  if (lines.length === 0 && unread.length === 0) lines.push('every family version in next is older than that');
+  if (unread.length > 0) lines.push(`the registry did not say when ${unread.join(', ')} ${unread.length === 1 ? 'was' : 'were'} published, so next pins the graded version, which may be younger than that`);
+  const { file, key, minutes, exclude } = age;
+  return {
+    file,
+    minutes,
+    exclude,
+    pins: [...pins],
+    note: [`${file} sets ${key} to ${minutes} minutes`, ...lines].join('; '),
+  };
 }
 
 /**
@@ -1744,6 +1929,10 @@ export interface MigrateOptions {
   skip?: readonly string[];
   /** Injected by the tests; the real `git status --porcelain` otherwise. */
   status?: (dir: string) => string[] | undefined | Promise<string[] | undefined>;
+  /** Injected by the tests; the public registry otherwise. Read only when the project sets a release age. */
+  registry?: PublishTimes;
+  /** Injected by the tests; the clock otherwise. */
+  now?: Date;
 }
 
 /** Each name in `only` and `skip` that is not an incumbent, refused before anything is read. */
@@ -1985,6 +2174,11 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
   const refusedFiles = new Set(refused.map((r) => r.file)).size;
   const undeclared = imported.filter((host) => !dependencies.has(host) && only?.has(host) !== true);
 
+  const graded = await familyVersions();
+  const age = await releaseAgeOf(dir);
+  const now = options.now ?? new Date();
+  const under = age === null ? { pins: [], unread: [] } : await pinsUnder(age, add, graded, { times: options.registry ?? registryTimes, now });
+
   const report: MigrationReport = {
     summary: summaryOf(changed.length, refusedFiles, dryRun),
     files: changed.length,
@@ -2002,8 +2196,8 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
     undeclared,
     held,
     transitive: [...through.entries()].map(([from, by]) => ({ from, through: by, exports: identityOf(from) })),
-    releaseAge: await releaseAgeOf(dir),
-    next: nextStep(dir, add, removable, await familyVersions()),
+    releaseAge: age === null ? null : releaseAgeNote(age, under.pins, under.unread, now),
+    next: nextStep(dir, add, removable, { ...graded, ...Object.fromEntries(under.pins.map((p) => [p.name, p.version])) }),
     dryRun,
     changed: !dryRun && changed.length > 0,
     exitCode: refused.length > 0 ? ExitCode.RUNTIME : ExitCode.OK,

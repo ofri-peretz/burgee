@@ -8,10 +8,13 @@
  * reading a missing field as zero.
  */
 import { createHash } from 'node:crypto';
+import { readdirSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { agentLintFailures, agentLintRecord, clispecFailures, clispecRecord, parseAgentLint, parseClispec } from './axes/floor.js';
+import { agentLintFailures, agentLintRecord, BURGEE_FLOOR, clispecFailures, clispecRecord, parseAgentLint, parseClispec } from './axes/floor.js';
 import { platform, TOOLS, verify } from './floor-tools.js';
 
 const tool = (id: string) => TOOLS.find((t) => t.id === id) as (typeof TOOLS)[number];
@@ -36,7 +39,7 @@ const AGENT_LINT_REPORT = JSON.stringify({
   summary: { total: 34, pass: 26, warn: 3, fail: 1, skip: 4, error: 0 },
   checks: [
     { id: 'FS-1', name: 'Stderr vs stdout discipline', status: 'pass' },
-    { id: 'TE-5', name: 'Pagination support', status: 'warn' },
+    { id: 'TE-5', name: 'Pagination support', status: 'warn', detail: 'no pagination flags found' },
     { id: 'SA-2', name: 'Rejects path traversal', status: 'fail' },
     { id: 'PV-6', name: 'Long-running operation support', status: 'skip' },
     { id: 'SD-5', name: 'Skill / context files', status: 'info' },
@@ -54,7 +57,8 @@ describe('parsing what the checkers print', () => {
   it('reads cli-agent-lint’s percentage, and counts warn and info as not passed — only pass and skip are', () => {
     const report = parseAgentLint(AGENT_LINT_REPORT);
     expect(report.score.percentage).toBe(81.25);
-    expect(agentLintFailures(report)).toEqual(['TE-5 Pagination support (warn)', 'SA-2 Rejects path traversal (fail)', 'SD-5 Skill / context files (info)']);
+    // With the probe's own words where it gave some (R7: a check still failing is named with its output).
+    expect(agentLintFailures(report)).toEqual(['TE-5 Pagination support (warn): no pagination flags found', 'SA-2 Rejects path traversal (fail)', 'SD-5 Skill / context files (info)']);
   });
 
   it('refuses output that is not JSON, rather than scoring it as zero', () => {
@@ -112,5 +116,51 @@ describe('the pin', () => {
     expect(platform('linux', 'x64')).toBe('linux-x64');
     expect(platform('darwin', 'arm64')).toBe('darwin-arm64');
     expect(platform('win32', 'x64')).toBeUndefined();
+  });
+});
+
+/**
+ * agent-lint-conformance R7 — the ratchet sits at cli-agent-lint's top grade, and the reading the
+ * benchmarks page publishes clears it. `--check` gates each new run against `BURGEE_FLOOR`; this
+ * holds the two committed facts together, so the floor cannot be raised above the published
+ * reading, nor the reading left behind below the floor.
+ */
+/** clispec 0.3.0's top score: six principles, 24 points (`src/scorer.rs`). */
+const CLISPEC_MAX = 24;
+
+describe('the published floor reading and the ratchet (agent-lint-conformance R7)', () => {
+  const RESULTS = join(dirname(fileURLToPath(import.meta.url)), 'results', 'external-floor');
+  const published = readdirSync(RESULTS).filter((f) => /^\d{4}-\d{2}-\d{2}\.json$/.test(f)).toSorted();
+  const latest = JSON.parse(readFileSync(join(RESULTS, published.at(-1) as string), 'utf8')) as { records: { variant: string; metric: string; median: number }[] };
+  const reading = (metric: string): number | undefined => latest.records.find((r) => r.variant === 'burgee' && r.metric === metric)?.median;
+
+  it('holds cli-agent-lint at its top grade, A, which starts at 90%', () => {
+    expect(BURGEE_FLOOR.agentLint.min).toBeGreaterThanOrEqual(90);
+  });
+
+  it('holds clispec at its maximum, 24 of 24, once clispec-conformance R1–R8 built every point (R9)', () => {
+    expect(BURGEE_FLOOR.clispec.min).toBe(CLISPEC_MAX);
+  });
+
+  it('the latest published reading clears both ratchets', () => {
+    expect(reading('cli-agent-lint-score')).toBeGreaterThanOrEqual(BURGEE_FLOOR.agentLint.min);
+    expect(reading('clispec-score')).toBeGreaterThanOrEqual(BURGEE_FLOOR.clispec.min);
+  });
+});
+
+/**
+ * clispec-conformance R9 — the remainder D-151 left "argued with the checker" was built, and one
+ * decision says so. The ledger's own lock reads the file's shape; this holds that it exists and
+ * names what it supersedes, so raising the ratchet without recording why fails here.
+ */
+describe('the decision that supersedes D-151’s remainder (clispec-conformance R9)', () => {
+  const DECISIONS = join(dirname(fileURLToPath(import.meta.url)), '..', '.sdlc', 'decisions');
+  const file = readdirSync(DECISIONS).find((f) => /^D-\d{8}-clispec-remainder-built\.md$/.test(f));
+
+  it('exists, and names D-151 and the score it records', () => {
+    expect(file).toBeDefined();
+    const body = readFileSync(join(DECISIONS, file as string), 'utf8');
+    expect(body).toContain('D-151');
+    expect(body).toContain(`${String(CLISPEC_MAX)} / ${String(CLISPEC_MAX)}`);
   });
 });

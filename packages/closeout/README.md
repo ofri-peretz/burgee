@@ -26,7 +26,9 @@
 </p>
 
 <p align="center">
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/cli--cursor%20suite-8%2F8-0a6b47?style=flat-square" alt="closeout passes 8 of 8 cases of the cli-cursor test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/exit--hook%20suite-21%2F21-0a6b47?style=flat-square" alt="closeout passes 21 of 21 cases of the exit-hook test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/onetime%20suite-6%2F6-0a6b47?style=flat-square" alt="closeout passes 6 of 6 cases of the onetime test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/restore--cursor%20suite-6%2F6-0a6b47?style=flat-square" alt="closeout passes 6 of 6 cases of the restore-cursor test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/signal--exit%20suite-134%2F135-b45309?style=flat-square" alt="closeout passes 134 of 135 cases of the signal-exit test suite" /></a>
 </p>
@@ -301,9 +303,19 @@ One import per incumbent:
 + import { onExit } from 'closeout/signal-exit';
 ```
 
+```diff
+- import cliCursor from 'cli-cursor';
++ import cliCursor from 'closeout/cli-cursor';
+```
+
+```diff
+- import onetime from 'onetime';
++ import onetime from 'closeout/onetime';
+```
+
 The swap is an import change, not an `overrides` entry. An override points the incumbent's
 name at closeout's *root*, and the root is closeout's own API — it has one default to give,
-and three incumbents would each need it. An override for a transitive copy has nowhere to
+and five incumbents would each need it. An override for a transitive copy has nowhere to
 land, so this package does not print one.
 
 One thing to know before you swap `exit-hook`: its bound is per hook (`{ wait }`) and the
@@ -321,18 +333,23 @@ What `signal-exit`, `exit-hook`, `restore-cursor`, `cli-cursor`, `onetime` and `
 between them is one problem — leaving cleanly — and this is one package with no dependencies
 rather than six with a tree.
 
-Three of those paths are built and **graded by the incumbent's own test suite**, unedited apart
+Five of those paths are built and **graded by the incumbent's own test suite**, unedited apart
 from the import specifier, through `compat-oracle`. The control column is that suite run
 against the incumbent itself, which is what says the gate works before it grades us:
 
-| subpath | replaces | control | closeout |
+| subpath | incumbent | control | closeout |
 | :-- | :-- | --: | --: |
 | `closeout/exit-hook` | `exit-hook@5.1.0` (8.8 M/wk) | 21 / 21 | 21 / 21 |
 | `closeout/restore-cursor` | `restore-cursor@5.1.0` (107.5 M/wk) | 6 / 6 | 6 / 6 |
 | `closeout/signal-exit` | `signal-exit@4` (198.9 M/wk) | 134 / 135 | 134 / 135 |
+| `closeout/cli-cursor` | `cli-cursor@5.0.0` (126.7 M/wk) | 8 / 8 | 8 / 8 |
+| `closeout/onetime` | `onetime@8.0.0` (155.0 M/wk) | 6 / 6 | 6 / 6 |
 
 The one `signal-exit` case short fails against `signal-exit` itself as well, which is what the
-control column is for.
+control column is for. `mimic-fn` has no row: onetime's suite asserts nothing of it, and
+`closeout/onetime` keeps the wrapped function's `name` and `length` without exporting its API.
+`closeout/onetime` is not `closeout/once` renamed: onetime retries a first call that throws,
+and `once` never runs a handler twice.
 
 ## Weight
 
@@ -352,11 +369,13 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
+| `cli-cursor` | 8 / 8 |
 | `exit-hook` | 21 / 21 |
+| `onetime` | 6 / 6 |
 | `restore-cursor` | 6 / 6 |
 | `signal-exit` | 134 / 135 |
 
-Weight, installed and tree-inclusive: **121,319 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.6600**.
+Weight, installed and tree-inclusive: **129,622 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.7052**.
 
 ## For agents
 
@@ -432,22 +451,35 @@ Plugins register under the `handlers` key, against the one schema the whole fami
 
 ## The family
 
-Ten packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
-carries its colours, flagstaff flies it and caique answers back; each installs on its own, and none
-takes a dependency from outside the family.
+Ten packages, one repository, one release pipeline. Each installs and works on its own, and each
+owns one job. Six of them — `bellpull`, `closeout`, `linegauge`, `paratext`, `roundel`, `seniority`
+— depend on nothing; the others depend only on packages in this table, and every dependency points
+one way, down the [layers](https://burgee.interlace.tools/docs/concepts/family).
 
-| Package | What it is | Replaces |
+No package declares a dependency from outside the family; `react` and `react-reconciler` are
+optional peers of `controlroom`, which npm does not install.
+[`package-shape-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/package-shape-lock.test.ts)
+holds that for every manifest, and
+[`independence-install-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/independence-install-lock.test.ts)
+installs each package alone and finds nothing but the family packages it declares.
+
+Releases are published by one workflow through npm trusted publishing: no npm token is used, and
+each release carries SLSA provenance, which `npm view <package> dist.attestations` shows.
+[`trusted-publishing-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/trusted-publishing-lock.test.ts)
+keeps both true.
+
+| Package | What it is | Migrates from |
 | :-- | :-- | :-- |
-| [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander and yargs |
-| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk |
+| [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander, yargs and meow |
+| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk and picocolors |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
-| [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | inquirer and clack |
-| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi and slice-ansi |
+| [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | @inquirer/core |
+| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line |
 | [paratext](https://paratext.interlace.tools/docs) | Hyperlinks, images, title, clipboard and notifications | ansi-escapes, terminal-link and term-img |
-| [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, dotenv and rc |
-| **closeout** (this package) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook and restore-cursor |
+| [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, lilconfig, dotenv and rc |
+| **closeout** (this package) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook, restore-cursor, cli-cursor and onetime |
 | [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
-| [controlroom](https://controlroom.interlace.tools/docs) | Full-screen, keyboard-driven terminal screens | ink, graded by ink's own suite |
+| [controlroom](https://controlroom.interlace.tools/docs) | Keyboard-driven terminal screens, inline or full-screen | ink |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

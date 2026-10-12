@@ -31,6 +31,40 @@ that is where [clispec.dev](https://clispec.dev) and the agents that follow it l
 program whose own `schema` command exists, or whose root command takes arguments, keeps the
 word: burgee answers only the flag there. The root `--help` names `--schema`.
 
+### It is also a clispec v0.3 document
+
+The same document is a [The CLI Spec v0.3](https://clispec.dev) document
+([its schema](https://clispec.dev/schema/v0.3.json)): the keys clispec defines sit beside
+burgee's own, and `schemaVersion` stays 1, because none of burgee's keys changed meaning. Each
+is read from what the program already declares.
+
+| Key | What it says | Read from |
+| :-- | :-- | :-- |
+| `clispec` | `"0.3"` | — |
+| `version` | the program's version, always | `defineProgram({ version })`, else the owning `package.json` |
+| `errors` | every kind a run can fail with: `{ kind, exit_code, retryable, description }` | `ExitCode`, and each `defineError` class |
+| `global_args` | the flags every command takes | the rows root help prints under `Global options:` |
+| `output` | `{ "tty": "text", "piped": "text", "formats": [...] }`: text unless asked for, even under a pipe | — |
+| a command's `example` | its first example as `{ "args": [...] }`, the program's name dropped | `examples` |
+| a command's `cardinality`, `output_kind`, `media_type` | how much comes back, and what it is | `output: { cardinality, kind, mediaType }` |
+| a command's `stdout_schema` | what `--json` prints: the envelope, with your result as its `data` | `output.schema`, else `fields` |
+
+```js
+defineCommand({
+  name: 'list',
+  effects: 'read_only',
+  examples: [{ command: 'mytool list --json' }],
+  output: { cardinality: 'bounded', schema: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } } },
+  run: () => [{ id: 'a' }], // TypeScript holds this to output.schema
+});
+```
+
+A runnable command with no `output.cardinality` makes `burgee dev` print a warning, never an
+error: clispec has no safe default for how much comes back. clispec's checker scores the
+reference demo 24 / 24 ([Benchmarks](/docs/benchmarks)). Not carried: the `burgee/commander` and
+`burgee/yargs` documents, whose `--schema` is built where their weight budgets have no room, and
+the summary printed over the budget, which lists commands without what clispec requires of one.
+
 ## `--mcp` — the program as MCP tools
 
 ```bash
@@ -87,32 +121,96 @@ Printed output becomes the tool result: whatever a handler writes to stdout duri
 text item, never a stray line on the JSON-RPC stream, and what it writes to stderr stays on
 stderr.
 
+The data comes back as data too. The result carries the envelope's `data` as
+`structuredContent` beside the text, or its `error` on a failure, and wraps anything that is not
+an object as `{ "result": … }`, because the protocol requires an object. A command that declares
+`output.schema` lists it as the tool's `outputSchema`, wrapped the same way, so a client can
+check the result against it; a command that declares none lists none, rather than a schema
+guessed from one run. Text a handler printed instead of an envelope carries no
+`structuredContent`, and the text is unchanged either way.
+
 A handler that throws, rejects or throws something that is not an `Error` is an error
 result, not a crashed server: `isError: true`, and the text is the `{ "ok": false, "error":
 … }` envelope a `--json` caller gets on stdout. An `AuthError` carries `code` 5 (`"auth"` on
 the commander and yargs front ends) with its `hint` and `fix`, and the server answers the
 next call.
 
+### Cancellation and progress
+
+Calls are served concurrently, so a client can stop one while it runs. `notifications/cancelled`
+aborts that call's `ctx.signal` with the reason `cancelled`, the same signal `--timeout` aborts:
+hand it to `fetch`, a child process or anything else that takes a signal, and the work stops.
+Its `ctx.onExit` handlers run once, and no response is sent for it. The server goes on serving.
+
+`ctx.progress(done, total?, message?)` reports how far a command has got. When the client sent a
+`progressToken` with the call, each report is a `notifications/progress` carrying it; a value that
+does not rise above the last one is dropped, because the protocol requires progress to increase.
+Anywhere else `ctx.progress` does nothing, so call it unconditionally:
+
+```ts
+run: async ({ signal, progress }) => {
+  for (const [at, file] of files.entries()) {
+    await upload(file, { signal });
+    progress(at + 1, files.length, file);
+  }
+}
+```
+
 ### Client configuration
 
 For Claude Desktop, Claude Code, Cursor or any stdio client, register the program as a
-server — nothing else to write:
+server — nothing else to write. `--mcp --print-config` prints the block for the program you run
+it on: its name, and the command that starts it. A program started as one of its package's bins
+is started by that name, which is how an installed CLI is found on `PATH`; one started as
+`node <file>` is started that way, with the file's full path. On Windows, where npm installs a
+bin as a `.cmd` shim that a client cannot start directly, the bin is started through
+`"command": "cmd", "args": ["/c", "demo-burgee", "--mcp"]`. For the reference demo, run as its
+bin `demo-burgee` on Linux or macOS:
+
+{/* mcp-config:start — `demo-burgee --mcp --print-config`, written by scripts/mcp-config-block.ts */}
 
 ```json
 {
   "mcpServers": {
-    "mytool": {
-      "command": "npx",
-      "args": ["mytool", "--mcp"]
+    "demo": {
+      "command": "demo-burgee",
+      "args": [
+        "--mcp"
+      ]
     }
   }
 }
 ```
 
+{/* mcp-config:end */}
+
+Paste it into the client's configuration as it is. The block above is that command's output,
+and a test starts the server from it and completes a tool call.
+
 On `burgee/commander` and `burgee/yargs`, a program that declares its own `--schema` or
 `--mcp` option keeps it, and burgee leaves it alone: the surfaces are additive, never a change
 to a program that already exists. On burgee's own API the names are reserved, and
 `defineCommand` refuses an option that redefines one.
+
+## `--skill` — the program as an Agent Skill
+
+```bash
+mytool --skill                        # SKILL.md on stdout
+npx burgee skill dist/index.js        # SKILL.md and AGENTS.md, beside the bin
+npx burgee skill dist/index.js --check  # in CI: exit 1 when the committed files are stale
+```
+
+An [Agent Skill](https://agentskills.io/specification), projected from the same declaration:
+front matter with a `name` and a `description` within the specification's limits, then what the
+program is for, the contract an agent relies on (`--json` and its envelope, `--explain`, every
+exit code with its error kind), and one line and the first example per command. It is small on
+purpose: a command's options are behind `mytool --schema <command>`, which the skill names and
+never inlines, so an agent pays for one command's contract when it uses that command.
+
+`burgee skill` writes `SKILL.md` and `AGENTS.md` (the same body, no front matter) into the
+directory of the `bin` your package.json names, unless `--out` says where. When an `AGENTS.md`
+sits beside the binary or in the directory above it, the root help's line for agents names it;
+without one, the line is unchanged. A root that declares its own `--skill` option keeps it.
 
 ## `completion <shell>` — static unless you ask
 

@@ -8,8 +8,9 @@
 import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, matchesGlob, relative, resolve, sep } from 'node:path';
+import { dirname, join, matchesGlob, relative, resolve, sep } from 'node:path';
 
+import { type OmittedFile, stripExecutables } from './binaries.js';
 import { testFiles } from './discover.js';
 import { type Host } from './hosts.js';
 import { fieldsFromRecord, PROVENANCE_FILE, renderProvenance } from './provenance.js';
@@ -36,6 +37,8 @@ export interface VendorResult {
    * version and the upstream check vendors a newer one.
    */
   missingExtras: string[];
+  /** Compiled executables upstream ships beside its tests, not copied (`binaries.ts`). */
+  omitted: OmittedFile[];
   /** The record written, and how it differs from the one it replaced. */
   record: CompatRecord;
   previous?: CompatRecord;
@@ -327,6 +330,7 @@ const copiesDir = (host: Host, name: string): boolean => !name.startsWith('.') &
  * themselves.
  */
 function copyTests(host: Host, { from, dest, hostDir }: Paths, packageType: string): Copied {
+  if (host.suiteFiles !== undefined) return copySuiteFiles(host, host.suiteFiles, { from, dest, hostDir }, packageType);
   const internalFiles: string[] = [];
   const internals = new Set<string>();
   const siblings = new Set<string>();
@@ -357,6 +361,33 @@ function copyTests(host: Host, { from, dest, hostDir }: Paths, packageType: stri
 
   const nested = countNested(host, from, dest, { internalFiles, internals });
   return { files: files + nested, internalFiles, internals };
+}
+
+/**
+ * The suite as a written list (`Host.suiteFiles`): each file at its own path under the test
+ * dir, rewritten from its own directory, with the helpers it imports from beside itself — and
+ * nothing else, so no package's implementation and no other package's tests come along.
+ *
+ * A listed file the release does not ship is an error rather than a smaller suite: the list
+ * is the denominator, and a denominator that shrinks when upstream moves a file is how a row
+ * comes to read 100% of less.
+ */
+function copySuiteFiles(host: Host, listed: string[], { from, dest, hostDir }: Paths, packageType: string): Copied {
+  const internalFiles: string[] = [];
+  const internals = new Set<string>();
+  for (const rel of listed) {
+    const at = join(from, rel);
+    if (!existsSync(at)) throw new Error(`vendor: ${host.name} lists ${rel} in suiteFiles and the release does not ship it`);
+    const source = readFileSync(at, 'utf8');
+    if (classify(source, host) === 'internal') internalFiles.push(rel);
+    for (const p of internalsOnly(source, host)) internals.add(p);
+    const fileDir = join(dest, dirname(rel));
+    mkdirSync(fileDir, { recursive: true });
+    const rewritten = rewriteAt(source, host, { fileDir, hostDir, packageType });
+    writeFileSync(join(dest, rel), rewritten);
+    copySiblings(new Set(siblingImports(rewritten)), host, { from: join(from, dirname(rel)), dest: fileDir, hostDir }, packageType);
+  }
+  return { files: listed.length, internalFiles, internals };
 }
 
 /**
@@ -494,6 +525,12 @@ export function vendor(host: Host, into: string, version = host.pinnedVersion ??
       rewriteTree(join(staging, tree), host, staging, packageType);
     }
     const { files, internalFiles, internals } = copyTests(host, { from, dest, hostDir: staging }, packageType);
+    // **Never a compiled executable**, whatever upstream ships beside its tests. Swept after
+    // every copy above, so no route into the directory — a fixture tree, an `extraDirs` entry,
+    // a rewritten program — is exempt; recorded, so the omission is visible in `.source.json`
+    // and `PROVENANCE` rather than silent. A case that needed one is excluded by name in
+    // `hosts.ts`, for both sides (execa's `write to fast-exit subprocess`).
+    const omitted = stripExecutables(staging);
 
     const record = snapshot(clone, host, {
       version,
@@ -503,6 +540,7 @@ export function vendor(host: Host, into: string, version = host.pinnedVersion ??
       files,
       internalFiles,
       internals: [...internals].sort(),
+      ...(omitted.length > 0 ? { omitted } : {}),
     });
     writeFileSync(join(staging, '.source.json'), `${JSON.stringify(record, null, 2)}\n`);
     // **Beside the record, not instead of it.** `scripts/vendor-suite.ts` used to be the only
@@ -529,7 +567,7 @@ export function vendor(host: Host, into: string, version = host.pinnedVersion ??
     rmSync(live, { recursive: true, force: true });
     renameSync(staging, live);
 
-    const result: VendorResult = { host: host.name, commit, version, tag, files, internalFiles, internals: [...internals].sort(), missingExtras, record };
+    const result: VendorResult = { host: host.name, commit, version, tag, files, internalFiles, internals: [...internals].sort(), missingExtras, omitted, record };
     if (previous !== undefined) {
       result.previous = previous;
       result.diff = diffRecords(previous, record);

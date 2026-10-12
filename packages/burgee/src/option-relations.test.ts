@@ -116,6 +116,8 @@ describe('the failure is a usage error in this CLI’s established shape', () =>
         '  --force        overwrite what is there',
         '  --csv          comma separated (conflicts with --table)',
         '  --table        a drawn table',
+        // clispec-conformance R6 — last, the structured line a reader of a piped stderr parses.
+        JSON.stringify({ error: { kind: 'usage', code: 2, message: '--out requires --force' } }),
         '',
       ].join('\n'),
     );
@@ -126,10 +128,10 @@ describe('the failure is a usage error in this CLI’s established shape', () =>
   it('--json carries it in the same envelope every other usage error uses', async () => {
     const r = await run(['export', '--json', '--csv', '--table']);
     expect(r.code).toBe(ExitCode.USAGE);
-    expect(r.stderr).toBe('');
+    expect(JSON.parse(r.stderr)).toMatchObject({ error: { kind: 'usage', code: ExitCode.USAGE } });
     expect(JSON.parse(r.stdout)).toEqual({
       ok: false,
-      error: { code: ExitCode.USAGE, message: '--csv, --table cannot be used together', hint: 'drop one of them', usage: expect.objectContaining({ command: 'app export [options]' }) },
+      error: { kind: 'usage', code: ExitCode.USAGE, message: '--csv, --table cannot be used together', hint: 'drop one of them', usage: expect.objectContaining({ command: 'app export [options]' }) },
     });
   });
 });

@@ -1,7 +1,7 @@
 {
   "name": "caique",
-  "version": "1.0.2",
-  "description": "The parrot that always answers back, and the boat that goes between ship and shore. Prompts that are flags first, so agents answer before they are asked and non-TTY callers get an error naming the flag, never a hang. Drop-in path for inquirer and clack.",
+  "version": "1.1.0",
+  "description": "Prompts that are flags first: an agent passes the answer up front, and a non-TTY caller gets an error naming the flag, never a prompt that waits. No dependency outside the burgee family. Drop-in path for @inquirer/core.",
   "license": "MIT",
   "type": "module",
   "sideEffects": ["./dist/cli.js"],
@@ -23,6 +23,11 @@
       "types": "./dist/binding.d.ts",
       "import": "./dist/binding.js",
       "default": "./dist/binding.js"
+    },
+    "./locale": {
+      "types": "./dist/locale.d.ts",
+      "import": "./dist/locale.js",
+      "default": "./dist/locale.js"
     },
     "./clack": {
       "types": "./dist/clack.d.ts",
@@ -77,7 +82,7 @@
     "!dist/**/*.test.*"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && node ../../scripts/schema-to-dist.mjs && node ../../scripts/strip-comments.mjs dist",
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/schema-to-dist.mjs && node ../../scripts/strip-comments.mjs dist && node ../../scripts/declaration-reach.mts --prune",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
     "coverage": "vitest run --coverage.enabled",
@@ -108,10 +113,10 @@
     "ai-agent"
   ],
   "dependencies": {
-    "closeout": "^1.0.2",
-    "linegauge": "^1.0.6",
-    "paratext": "^1.0.2",
-    "roundel": "^1.0.2"
+    "closeout": "^1.1.2",
+    "linegauge": "^1.1.1",
+    "paratext": "^1.0.6",
+    "roundel": "^1.1.1"
   },
   "devDependencies": {
     "vitest": "^5.0.1"

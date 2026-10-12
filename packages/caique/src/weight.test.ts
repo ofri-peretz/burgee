@@ -31,6 +31,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 const pkgRoot = fileURLToPath(new URL('..', import.meta.url));
@@ -91,7 +92,7 @@ const RULES: Record<string, EntryRule> = {
   // `linegauge` joined on 2026-09-28 with the raw renderer's row count (`lineCount`): a frame
   // wider than the terminal occupies more rows than it has lines. Measured 14,472 after main's #680 (+265).
   // `paratext/csi` joined the same day (+70): the raw renderer's repaint is spelled with
-  // ansi-escapes' cursor moves from paratext rather than by hand. Measured 14,542.
+  // `paratext/csi`'s cursor moves rather than by hand. Measured 14,542.
   // `roundel/terminal` joined the same day (+98): whether anybody is there to type is
   // roundel's `interactive()`, which knows an agent from a person. Measured 14,640.
   //
@@ -163,7 +164,7 @@ const RULES: Record<string, EntryRule> = {
   // that carries it.
   './inquirer': {
     // `paratext/csi` on 2026-09-28 (-61): the cursor moves and erases `@inquirer/ansi` supplies
-    // are ansi-escapes' from paratext, with `@inquirer/ansi`'s zero-row guard kept. Measured 20,829 after merging main (20,890 there).
+    // are `paratext/csi`'s, with `@inquirer/ansi`'s zero-row guard kept. Measured 20,829 after merging main (20,890 there).
     // `roundel/terminal` the same day: the tick's unicode test is is-unicode-supported whole,
     // from roundel, rather than a four-condition subset of it here. Measured 20,782 (-47).
     allow: ['closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap', 'paratext/csi', 'roundel/terminal'],
@@ -205,13 +206,24 @@ const RULES: Record<string, EntryRule> = {
   // `Io`, and which one is the caller's business. Measured 8,123 B; 8,395 B on 2026-09-28,
   // with `decide`'s `roundel/terminal`.
   './binding': { allow: ['roundel/terminal'], budget: 9_500, denied: ['raw.js', 'terminal.js', 'index.js'] },
+  // localised-human-surfaces R6 — the catalog, the pack check and `sayFor`, which a caller with a
+  // locale builds `io.say` from. Its own door so nothing else pays for it: `.`, `./ask` and
+  // `./binding` only apply the `say` they are handed. It reaches `plugin.js` for the registry
+  // (and, through it, `ask.js` and `spec.js`), never the raw renderer or the terminal.
+  // Measured 15,951 B on 2026-10-12.
+  './locale': { allow: [], budget: 16_000, denied: ['decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
   // The only file that touches a stream, and the only one that knows what echo is. It
   // carries `ask.js` for the `Io` shape it implements. Measured 1,947 B; +78 on
   // 2026-09-28 for the writer's `columns`, read through to the output stream.
   './terminal': { allow: [], budget: 2_500, denied: ['decide.js', 'raw.js', 'binding.js', 'index.js'] },
 };
 
-const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;
+/**
+ * Every module a file loads — `import`, `export … from`, and `import('…')` — read as tokens
+ * by TypeScript's own pre-processor. A pattern over printed text missed `from "x"` entirely
+ * (tsc keeps the source's quote style) and read `came from", kind: '` out of a string.
+ */
+const specifiers = (source: string): string[] => ts.preProcessFile(source, true, true).importedFiles.map((f) => f.fileName);
 
 function walk(entry: string): { reached: string[]; external: string[]; bytes: number } {
   const files = new Set<string>();
@@ -224,7 +236,7 @@ function walk(entry: string): { reached: string[]; external: string[]; bytes: nu
     if (file === undefined || files.has(file)) continue;
     files.add(file);
     bytes += statSync(file).size;
-    for (const [, spec = ''] of readFileSync(file, 'utf8').matchAll(SPECIFIER)) {
+    for (const spec of specifiers(readFileSync(file, 'utf8'))) {
       if (spec.startsWith('.')) queue.push(resolve(dirname(file), spec));
       else if (spec !== '' && !spec.startsWith('node:')) external.add(spec);
     }

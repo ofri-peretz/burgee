@@ -12,7 +12,7 @@ Every number this repository states in public, checked against the record that s
 **"Not met" and "unmeasured" are different outcomes** and never collapse into each other:
 one says we measured and it is not true, the other says we have not measured.
 
-| Claim | Target | Measured | |
+| Claim | Target | Measured | Outcome |
 | :--- | :--- | ---: | :--- |
 | the engine's cold start stays within 1.6× of cac's, the lightest framework in the landscape (a downward-only ratchet; the ≤ 1 bar is not reachable, D-102) | `<= 1.6` | 1.559 ratio | ✅ met |
 | the core entry point is under 52 KB bundled | `<= 53248` | 24,101 bytes | ✅ met |
@@ -128,37 +128,22 @@ graded A–F). Both are pinned by version and archive digest in `benchmarks/floo
 run offline, and are never re-scored here — a check they fail is listed as failed, even where
 we would argue with it.
 
-Measured at commit `4b8ef1c` on 2026-09-27.
+Measured at commit `35ded07` on 2026-10-12.
 
 | Variant | clispec | cli-agent-lint |
 | :--- | ---: | ---: |
-| `burgee` | 14 / 24 (Fair) | 81.4% (B) |
+| `burgee` | 24 / 24 (Excellent) | 94.9% (A) |
 | `commander` | 2 / 24 (Needs Work) | 71.2% (B) |
-| `yargs` | 2 / 24 (Needs Work) | 71.9% (B) |
+| `yargs` | 2 / 24 (Needs Work) | 70.9% (B) |
 
 What clispec 0.3.0 failed on burgee's demo:
 
-- Valid JSON output [structured-output]
-- Structured or declared piped output [structured-output]
-- Structured errors [error-envelope]
-- Explicit format wins [structured-output]
-- Validates against clispec v0.3 [schema-validates]
-- Error kinds documented [schema-validates]
-- Output fields declared [schema-validates]
-- Global args declared [schema-validates]
-- Exit codes on error kinds [schema-validates]
-- Cardinality declarations [bounded-lists]
+- none
 
 What cli-agent-lint 0.3.5 did not pass on burgee's demo (`warn` and `info` included; `skip` is not):
 
-- TE-3 --no-color flag (warn)
-- TE-4 --quiet / --silent flag (info)
-- SD-1 Error format is structured (warn)
-- SD-3 Shell completions available (info)
-- SD-5 Skill / context files (info)
-- SD-6 Help text with usage examples (warn)
-- PV-1 Timeout flag (info)
-- PV-4 Distinct exit codes for error classes (info)
+- FS-4 Env var auth support (warn): auth-related content found but no env var or token flag for non-interactive auth
+- SD-5 Skill / context files (info): no skill/context files found near the binary
 
 ## B5 — runtime against the incumbent
 

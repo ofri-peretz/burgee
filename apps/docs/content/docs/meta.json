@@ -3,6 +3,7 @@
   "pages": [
     "index",
     "getting-started",
+    "why",
     "what-an-agent-sees",
     "agent-surfaces",
     "concepts",
@@ -13,6 +14,7 @@
     "compatibility",
     "benchmarks",
     "weight",
+    "supply-chain",
     "comparison",
     "gallery",
     "contrast",

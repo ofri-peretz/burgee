@@ -156,6 +156,31 @@ describe('loading the files', () => {
     expect(loud.env['A']).toBe('from-a');
   });
 
+  it('reads DOTENV_QUIET from the .env it just loaded when nothing before it said, as dotenv 18.0.7 does (#1071)', () => {
+    writeFileSync(join(dir, 'quiet.env'), 'DOTENV_QUIET=true\nQ=1\n');
+    writeFileSync(join(dir, 'legacy-quiet.env'), 'DOTENV_CONFIG_QUIET=1\nQ=1\n');
+    writeFileSync(join(dir, 'loud.env'), 'DOTENV_QUIET=false\nQ=1\n');
+    for (const file of ['quiet.env', 'legacy-quiet.env']) run(['run', '-f', file, 'node'], fakeProcess(), { spawn: () => fakeChild() });
+    expect(printed('error')).toEqual([]);
+
+    run(['run', '-f', 'loud.env', 'node'], fakeProcess(), { spawn: () => fakeChild() });
+    expect(printed('error')).toEqual(['◇ injected env (2) from loud.env']);
+  });
+
+  it('lets the starting environment’s false outrank the file’s true, --override included, and the flag outrank both', () => {
+    writeFileSync(join(dir, 'quiet.env'), 'DOTENV_QUIET=true\nQ=1\n');
+    run(['run', '-f', 'quiet.env', 'node'], fakeProcess({ env: { DOTENV_QUIET: 'false' } }), { spawn: () => fakeChild() });
+    run(['run', '-f', 'quiet.env', 'node'], fakeProcess({ env: { DOTENV_CONFIG_QUIET: 'false' } }), { spawn: () => fakeChild() });
+    run(['run', '--override', '-f', 'quiet.env', 'node'], fakeProcess({ env: { DOTENV_QUIET: 'false' } }), { spawn: () => fakeChild() });
+    // The first holds `DOTENV_QUIET` already, so the file's is not injected; the legacy name does
+    // not hold it, so the file's is, and still does not silence a run the shell said was loud.
+    expect(printed('error')).toEqual(['◇ injected env (1) from quiet.env', '◇ injected env (2) from quiet.env', '◇ injected env (2) from quiet.env']);
+
+    vi.mocked(console.error).mockClear();
+    run(['run', '--quiet', '-f', 'quiet.env', 'node'], fakeProcess({ env: { DOTENV_QUIET: 'false' } }), { spawn: () => fakeChild() });
+    expect(printed('error')).toEqual([]);
+  });
+
   it('reads with the encoding and parser the environment names', () => {
     writeFileSync(join(dir, 'latin.env'), Buffer.from('L=café\n', 'latin1'));
     const proc = fakeProcess({ env: { DOTENV_ENCODING: 'latin1', DOTENV_FAST: 'true', DOTENV_DEBUG: 'false' } });

@@ -55,7 +55,7 @@ same test fails when the committed tables drift from the package.
 `width(text, { ambiguousIsNarrow, countAnsiEscapeCodes })` takes string-width's two options,
 under string-width's names and with its defaults:
 
-| option | default | |
+| option | default | meaning |
 | :-- | :-- | :-- |
 | `ambiguousIsNarrow` | `true` | Ambiguous-width characters (`±`, `×`, Greek, Cyrillic, box drawing) count one column. Pass `false` for a terminal drawing with a CJK font, where they are two. |
 | `countAnsiEscapeCodes` | `false` | Count escape sequences as characters instead of removing them, less the escape byte itself. |

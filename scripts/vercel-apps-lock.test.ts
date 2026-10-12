@@ -54,6 +54,16 @@
  * | controlroom's `excluded` reason deleted | keeps its package's excluded reason |
  * | controlroom copied into `apps` with a placeholder `prj_` id, `pending` left as is | is not also a deployable row |
  * | `pending` emptied, `apps/docs-controlroom` left on disk | has no Next app under apps/ that the table does not name |
+ *
+ * **Links a live crawl found.** A crawl of all ten sites (314 pages, 10,774 links,
+ * 2026-10-11) found every page and every anchor resolving; the dead links were GitHub issue
+ * links the release's changelog generator had written into this repo from a bare `#N` in a
+ * changeset. Both classes are held here, offline. Proven red (2026-10-11):
+ *
+ * | mutation | fails |
+ * | :-- | :-- |
+ * | `packages/burgee/src/exit-code.test.ts` renamed, the page linking it unchanged | every link in every app's content lands on a page › burgee |
+ * | the two original changesets restored (`yargs #1519, #2118`, `accent: '#336699'`) | no pending changeset writes an issue link its author did not |
  */
 import { spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -61,6 +71,7 @@ import { tmpdir } from 'node:os';
 import { delimiter, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import changelogGithub from '@changesets/changelog-github';
 import { load as loadYaml } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
 
@@ -478,14 +489,24 @@ function links(file: string): string[] {
 const routed = (row: PendingRow, path: string): boolean => path !== '' && existsSync(join(REPO_ROOT, row.dir, 'src', 'app', ...path.split('/').filter(Boolean), 'route.ts'));
 
 /**
+ * A link to a file or directory of this repo on `main`. Generated pages (the API reference,
+ * the benchmark and compatibility pages, every README copy) write these by the hundred, and
+ * a file that moves leaves each one a GitHub 404 that no build notices.
+ */
+const REPO_PATH = /^https:\/\/github\.com\/ofri-peretz\/burgee\/(?:blob|tree)\/main\/(.+)$/u;
+
+/**
  * Whether `href`, written in `row`'s content, lands on a page: a root-relative `/docs` link
  * against the app it is in, an absolute link to any row's host against that row's app — its
- * content pages, or a route handler. Links anywhere else — GitHub, npm, a site's home page —
- * are not this lock's to judge.
+ * content pages, or a route handler — and a blob or tree link into this repo against the
+ * checkout. Links anywhere else — npm, another repo, a site's home page — are not this
+ * lock's to judge.
  */
 function lands(row: PendingRow, href: string): boolean {
   const target = href.replace(/[#?].*$/u, '').replace(/\/$/u, '');
   if (target.startsWith('/docs')) return pagesOf(row).has(target.replace(/\.md$/u, ''));
+  const inRepo = REPO_PATH.exec(target);
+  if (inRepo) return existsSync(join(REPO_ROOT, decodeURIComponent(inRepo[1] ?? '')));
   if (!target.startsWith('https://')) return true;
   const url = new URL(target);
   const owner = BY_HOST.get(url.host);
@@ -501,10 +522,60 @@ describe('every link in every app’s content lands on a page', () => {
     expect(lands(row, `${host}/llms-nowhere.txt`)).toBe(false);
   });
 
+  it('counts a blob or tree link into this repo as landing only on a path that exists', () => {
+    const [, row] = ROWS[0]!;
+    const repo = 'https://github.com/ofri-peretz/burgee';
+    expect(lands(row, `${repo}/blob/main/scripts/vercel-apps-lock.test.ts#L1`)).toBe(true);
+    expect(lands(row, `${repo}/tree/main/apps/docs-chassis/`)).toBe(true);
+    expect(lands(row, `${repo}/blob/main/scripts/vercel-apps-lock.test.mts`)).toBe(false);
+    expect(lands(row, `${repo}/tree/main/apps/docs-nowhere`)).toBe(false);
+  });
+
   it.each(SITES)('%s', (_key, row) => {
     const broken = walk(join(REPO_ROOT, row.dir, 'content'))
       .filter((f) => /\.mdx?$/u.test(f))
       .flatMap((file) => links(file).filter((href) => !lands(row, href)).map((href) => `${relative(REPO_ROOT, file)} → ${href}`));
     expect(broken, 'a link to a page its host does not serve — relative links resolve against the app they are in').toEqual([]);
+  });
+});
+
+// ─── A changeset's bare `#N` is a link to this repo ───────────────────────────────────
+
+/**
+ * Every issue link the release's own changelog generator writes into this repo, for one
+ * changeset summary. `@changesets/changelog-github` turns every bare `#N` outside a markdown
+ * link into `[#N](…/ofri-peretz/burgee/issues/N)` — inside a code span too. So "yargs #1519"
+ * shipped as a 404 (this repo has no issue 1519), "CodeQL #27" as a link to an unrelated
+ * issue, and `'#336699'`, a colour, as markdown printed inside a code span in nine CHANGELOGs
+ * and their changelog pages. The generator is run rather than its pattern copied, so the
+ * lock moves when it does; with no `pr:` or `commit:` line it calls no API.
+ */
+async function linkedIssues(summary: string): Promise<string[]> {
+  const line = await changelogGithub.getReleaseLine({ id: 'lock', summary, releases: [] }, 'patch', { repo: 'ofri-peretz/burgee' });
+  return [...line.matchAll(/\[#(\d+)\]\(https:\/\/github\.com\/ofri-peretz\/burgee\/issues\/\d+\)/gu)].map((m) => `#${m[1] ?? ''}`);
+}
+
+describe('no pending changeset writes an issue link its author did not', () => {
+  it('reads the generator: a bare #N links this repo, an explicit link stays as written', async () => {
+    expect(await linkedIssues('flushes stdout before exit (yargs #1519, #2118)')).toEqual(['#1519', '#2118']);
+    expect(await linkedIssues("with `{ accent: '#336699' }`")).toEqual(['#336699']);
+    expect(await linkedIssues('yargs [#1519](https://github.com/yargs/yargs/issues/1519)')).toEqual([]);
+    expect(await linkedIssues('[#848](https://github.com/ofri-peretz/burgee/pull/848)')).toEqual([]);
+  });
+
+  it('every .changeset/*.md', async () => {
+    const dir = join(REPO_ROOT, '.changeset');
+    const names = readdirSync(dir).filter((f) => f.endsWith('.md') && f !== 'README.md');
+    const perFile = await Promise.all(
+      names.map(async (name) => {
+        const summary = readFileSync(join(dir, name), 'utf8').replace(/^---\n[\s\S]*?\n---\n/u, '').trim();
+        return (await linkedIssues(summary)).map((ref) => `.changeset/${name} → ${ref}`);
+      }),
+    );
+    const offenders = perFile.flat();
+    expect(
+      offenders,
+      'a bare #N becomes a link to this repo’s issue N. Write the link yourself — [yargs#1519](https://github.com/yargs/yargs/issues/1519), [#848](https://github.com/ofri-peretz/burgee/pull/848) — and keep a colour like #336699 out of a changeset, or give it a letter (#3366aa)',
+    ).toEqual([]);
   });
 });

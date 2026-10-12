@@ -185,6 +185,16 @@ jobs:
               exit 0
             fi
             if [ -n "$failed" ]; then
+              # A gate job reports `failure` when the jobs it waits on were cancelled, and a newer
+              # push to main cancels them. On a superseded commit that is a skip, not a failure:
+              # the newer commit's release run gates and publishes (release-verify-lock).
+              head=$(gh api "repos/$GH_REPO/commits/main" --jq .sha)
+              if [ "$head" != "$SHA" ] && [ "$(gh api "repos/$GH_REPO/commits/$SHA/check-runs?per_page=100" \
+                  --jq '[.check_runs[] | select(.app.slug == "github-actions" and .conclusion == "cancelled")] | length')" -gt 0 ]; then
+                echo "ok=false" >> "$GITHUB_OUTPUT"
+                echo "::notice::$SHA was superseded by $head, and its gate failed only after jobs it waits on were cancelled ($failed). The release run for the newer commit publishes."
+                exit 0
+              fi
               echo "::error::Refusing to publish $SHA — a required check did not pass: $failed"
               exit 1
             fi
@@ -247,10 +257,9 @@ jobs:
           meets() { [ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -n 1)" = "$2" ]; }
           node_v=$(node -p 'process.versions.node')
           meets "$node_v" 22.14.0 || { echo "::error::Node $node_v is older than 22.14.0, which npm trusted publishing requires. Raise .nvmrc."; exit 1; }
-          if ! meets "$(npm -v)" 11.5.1; then
-            echo "npm $(npm -v) predates trusted publishing — installing npm@11.6.2."
-            npm install -g npm@11.6.2
-          fi
+          # No fallback: a global npm upgrade there is an unpinned install, which Scorecard's Pinned-Dependencies
+          # flags, and the Node .nvmrc pins already ships a new enough npm (Node 24.13 → npm 11.6.2).
+          meets "$(npm -v)" 11.5.1 || { echo "::error::npm $(npm -v) predates trusted publishing (11.5.1). Raise .nvmrc to a Node that ships it."; exit 1; }
           echo "Publishing with Node $node_v and npm $(npm -v)."
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
@@ -322,6 +331,9 @@ jobs:
               echo "🔐 $PKG_NAME@$PKG_VER published with npm trusted publishing (OIDC) — this job holds no npm token. npm: $(oidc_said "$logs")."
             fi
             git rev-parse -q --verify "refs/tags/$tag_name" >/dev/null || git tag -a "$tag_name" -m "Release $tag_name" || return 1
+            # A push lost here is not fatal: `gh release create` makes the tag — from `--target`,
+            # the commit that was built, not main's head, which can have moved on since
+            # (.sdlc/models/release-tag.qnt).
             git push origin "$tag_name" || echo "(tag already on remote)"
             # This version's section only — the whole CHANGELOG.md made every release page
             # repeat every release before it. Empty when the version has no section.
@@ -331,11 +343,24 @@ jobs:
             if gh release view "$tag_name" >/dev/null 2>&1; then
               echo "↻ Release $tag_name exists."
             elif [ -s "$notes" ]; then
-              gh release create "$tag_name" --title "$PKG_NAME@$PKG_VER" --notes-file "$notes" --latest=false ${extra[@]+"${extra[@]}"} || return 1
+              gh release create "$tag_name" --title "$PKG_NAME@$PKG_VER" --notes-file "$notes" --latest=false --target "$(git rev-parse HEAD)" ${extra[@]+"${extra[@]}"} || return 1
             else
-              gh release create "$tag_name" --title "$PKG_NAME@$PKG_VER" --generate-notes --latest=false ${extra[@]+"${extra[@]}"} || return 1
+              gh release create "$tag_name" --title "$PKG_NAME@$PKG_VER" --generate-notes --latest=false --target "$(git rev-parse HEAD)" ${extra[@]+"${extra[@]}"} || return 1
             fi
             attach_provenance "$PKG_NAME" "$PKG_VER" "$tag_name" || echo "::warning::$tag_name: provenance not attached to the GitHub Release (the npm publish itself is unaffected)."
+            attach_sbom "$PKG_NAME" "$PKG_VER" "$tag_name" || echo "::warning::$tag_name: SBOM not attached to the GitHub Release (the npm publish itself is unaffected)."
+          }
+
+          # attach_sbom NAME VERSION TAG: a CycloneDX SBOM of what installing NAME brings in,
+          # from the lockfile alone (this job runs no `npm ci`). Development, optional and
+          # peer dependencies are left out, so it lists what `npm i NAME` installs. npm names
+          # the monorepo root as the document's subject, so the subject is set to NAME@VERSION.
+          attach_sbom() {
+            local name="$1" ver="$2" tag="$3" out="$RUNNER_TEMP/${1##*/}-${2}.cdx.json"
+            npm sbom --sbom-format cyclonedx --sbom-type library -w "$name" --omit dev --omit optional --omit peer --package-lock-only > "$out.raw" || return 1
+            jq --arg n "$name" --arg v "$ver" '.metadata.component = ((.components[] | select(.name == $n)) // .metadata.component) | .metadata.component.version = $v' "$out.raw" > "$out" || return 1
+            gh release upload "$tag" "$out" --clobber || return 1
+            echo "📋 $tag: CycloneDX SBOM attached."
           }
 
           # attach_provenance NAME VERSION TAG — the tarball npm serves, and the SLSA provenance npm

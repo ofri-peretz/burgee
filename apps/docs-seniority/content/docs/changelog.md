@@ -3,6 +3,44 @@ title: Changelog
 description: "Every release of seniority, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.0.7
+
+### Patch Changes
+
+- [#1045](https://github.com/ofri-peretz/burgee/pull/1045) [`c4fd9a3`](https://github.com/ofri-peretz/burgee/commit/c4fd9a3cb10bc36bef8c468365addfc6deb572cf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The family plugin schema (`schema.json`, identical in every plugin host) now describes `locales`, burgee's locale-pack key. A plugin carrying `locales` validates against the shared schema as it does against `burgee/locale-pack-schema.json`, which lists every message id. This package reads nothing new, and a plugin carrying `locales` registers here as before.
+
+## 1.0.6
+
+### Patch Changes
+
+- [#1022](https://github.com/ofri-peretz/burgee/pull/1022) [`ecb0a00`](https://github.com/ofri-peretz/burgee/commit/ecb0a00ca68e9a3b3584aefabb9dcf97e3ff967a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The tarball no longer carries declaration files that no `exports` entry reaches. TypeScript could never open them, because a deep import is refused by `exports`. Every entry's types are unchanged. The ten packages drop 71 files and 118,312 bytes between them, burgee 35 files and 76,504 bytes, which takes its tarball from 251,814 to 225,278 bytes gzipped.
+
+## 1.0.5
+
+### Patch Changes
+
+- [#1005](https://github.com/ofri-peretz/burgee/pull/1005) [`079250e`](https://github.com/ofri-peretz/burgee/commit/079250ebc3e0cc511df1269060854711f686b5b4) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `seniority/find-up` is now find-up 8's surface, graded by find-up 8.0.0's own suite: 104 of 104, level with find-up itself. It adds a matcher function with `findUpStop`, `findDown` and `findDownSync`, and locate-path's `type` and `allowSymlinks`; `cwd` and `stopAt` take a `URL`. Three behaviours follow find-up rather than seniority's resolver walk: `cwd` is optional and defaults to the process's working directory, a name matches a file unless `type` says otherwise, and `findUpMultiple` returns the first matching name per directory. `burgee migrate` now rewrites `find-up` to `seniority/find-up`.
+
+- [#1001](https://github.com/ofri-peretz/burgee/pull/1001) [`6f74a64`](https://github.com/ofri-peretz/burgee/commit/6f74a647c107307f11e1aef7092cf4e1afc6146d) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The README no longer says every path is graded: `seniority/find-up` has no vendored `find-up` suite yet, so it now says "not graded yet" until it has a number.
+
+## 1.0.4
+
+### Patch Changes
+
+- [#977](https://github.com/ofri-peretz/burgee/pull/977) [`2e2030e`](https://github.com/ofri-peretz/burgee/commit/2e2030e4ae6f7151e1dba876b1b63d49a37afa19) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `seniority/dotenv` follows dotenv 18.0.7: `config()` treats an option passed as `undefined` as not passed, so `{ path: undefined, quiet: undefined }` keeps the `DOTENV_PATH` / `DOTENV_QUIET` (and `DOTENV_CONFIG_*`) defaults instead of overriding them, and `dotenv run` (`seniority/dotenv/cli`) honours a `DOTENV_QUIET` set in the `.env` it loads when neither a flag nor the starting environment said otherwise. dotenv 18.0.7's own suite grades it 191 / 191, level with dotenv itself.
+
+## 1.0.3
+
+### Patch Changes
+
+- [#938](https://github.com/ofri-peretz/burgee/pull/938) [`9babb6d`](https://github.com/ofri-peretz/burgee/commit/9babb6da1ae7783c7e8367f89e3da9dffc85ffdb) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - npm description and README: the description says what the package does, then its dependency fact in one of two wordings ("Zero dependencies." or "No dependency outside the burgee family."), then its drop-in paths. The README's family section states how the family is built — the leaves, one-way dependencies, nothing from outside the family, trusted publishing with provenance — and its table column is "Migrates from". No API, compatibility grade or benchmark changes.
+
+## 1.0.2
+
+### Patch Changes
+
+- [#917](https://github.com/ofri-peretz/burgee/pull/917) [`735f0f6`](https://github.com/ofri-peretz/burgee/commit/735f0f68048f2d0f5e4effad151ed5132b480bb8) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - README: the opening paragraph says what the package does first. The drop-in path follows it as one line, naming the incumbent and `npx burgee migrate`, and every compatibility row and benchmark is unchanged.
+
 ## 1.0.1
 
 ### Patch Changes
@@ -368,7 +406,7 @@ string; `./mytool.config.js:3` set it to `4` ``.
   `heading`, `ground` — and throws on everything else. So a plugin author doing exactly what
   their own `E_PLUGIN_SCHEMA` error tells them, comparing their object against
   `roundel/schema.json`, got a green from the schema and `"accent" is not a token` from
-  `register()`. Measured 2026-09-16 with `{ accent: '[#336699](https://github.com/ofri-peretz/burgee/issues/336699)' }`.
+  `register()`. Measured 2026-09-16 with `{ accent: '#336699' }`.
 
   The schema now carries `propertyNames.enum`, and `scripts/plugin-contract-lock.test.ts`
   pins the enum and the runtime set to each other from both sides, so neither can grow a

@@ -3,7 +3,7 @@ repo:     https://github.com/sindresorhus/boxen
 version:  9.0.0
 tag:      v9.0.0
 commit:   a80972912972e74e6536a66a8dc4d5243efd4150
-vendored: 2026-10-06
+vendored: 2026-10-12
 files:    14
 tool:     scripts/vendor-suite.ts
 

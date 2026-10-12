@@ -8,7 +8,7 @@
  * it just is not in the number, silently. Discovery is recursive here, and a directory that
  * is deliberately *not* graded has to be named in `ungradedDirs` with a reason.
  */
-import { readdirSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { join, matchesGlob, sep } from 'node:path';
 
 import { type Host } from './hosts.js';
@@ -53,5 +53,9 @@ export function walkFiles(dir: string, host: Host, keep: (name: string) => boole
  * loaded by the runner, never graded as a file of its own.
  */
 export function testFiles(dir: string, host: Host): string[] {
+  // A suite spread over several packages is a written list (`Host.suiteFiles`), and the walk
+  // would find every other package's tests too. Those present under `dir`, sorted, so the
+  // clone, the vendored copy and the runner read the same list the walk would have given.
+  if (host.suiteFiles !== undefined) return host.suiteFiles.filter((rel) => existsSync(join(dir, rel))).sort();
   return walkFiles(dir, host, (name) => matchesGlob(name, host.testGlob)).filter((rel) => rel !== host.preamble);
 }

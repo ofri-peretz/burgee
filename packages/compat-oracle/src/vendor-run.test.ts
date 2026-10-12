@@ -9,6 +9,7 @@
  * The upstream is a throwaway local repo cloned over `file://`, and `npm view` is faked.
  */
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -151,6 +152,28 @@ describe('vendoring a whole suite', () => {
     const dir = into();
     vendor(hostAt(upstream()), dir);
     expect(JSON.parse(read(dir, 'fakehost', 'package.json'))).toEqual({ name: '@vendored/fakehost-suite', private: true, type: 'commonjs', main: './shim.mjs', version: '1.0.0', license: 'MIT', description: 'a host' });
+  });
+
+  it('never copies a compiled executable, and records each one it left behind', () => {
+    // execa's shape: an extension-less ELF beside the fixtures, which `TEXT` even reads as text.
+    const elf = '\u007fELF\u0002\u0001\u0001\u0000';
+    const dir = into();
+    const result = vendor(hostAt(upstream({ ...SUITE, 'test/fixtures/fast-exit-linux': elf })), dir);
+    const live = join(dir, 'fakehost');
+    const expected = [{ path: 'test/fixtures/fast-exit-linux', format: 'ELF', sha256: createHash('sha256').update(elf).digest('hex') }];
+    expect(existsSync(join(live, 'test', 'fixtures', 'fast-exit-linux'))).toBe(false);
+    expect(result.omitted).toEqual(expected);
+    expect(JSON.parse(read(live, '.source.json')).omitted).toEqual(expected);
+    expect(read(live, 'PROVENANCE')).toContain('test/fixtures/fast-exit-linux  ELF executable');
+    // The rest of the fixture tree is untouched.
+    expect(read(live, 'test', 'fixtures', 'load.js')).toBe("module.exports = require('../../shim.mjs');\n");
+  });
+
+  it('writes no `omitted` key at all for a suite with nothing to omit', () => {
+    const dir = into();
+    expect(vendor(hostAt(upstream()), dir).omitted).toEqual([]);
+    expect(JSON.parse(read(dir, 'fakehost', '.source.json'))).not.toHaveProperty('omitted');
+    expect(read(dir, 'fakehost', 'PROVENANCE')).not.toContain('Not vendored');
   });
 
   it('diffs against the record it replaces', () => {

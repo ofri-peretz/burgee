@@ -416,6 +416,18 @@ describe('the shims a run writes', () => {
     expect(read(hostDir, 'shim-1.js')).toBe("// generated per run — COMPAT_TARGET=fake\nexport * from 'fake/lib/x.js';\n");
   });
 
+  it('stands a named export as the default on both runs, for a suite that imports one prompt of a package of ten', () => {
+    // `import select from '../src/index.ts'` in `@inquirer/select`'s suite, graded as the
+    // `select` that `@inquirer/prompts` and `caique/inquirer` both export by name.
+    const h = host({ imports: [{ upstream: '../index.js', subpath: '', reexportDefault: false, defaultExport: 'select' }] });
+    const hostDir = vendored(h, { 'a.test.js': '' });
+    seam.exec = tap;
+    grade(h, vendorDir, 'fake');
+    expect(read(hostDir, 'shim.js')).toBe("// generated per run — COMPAT_TARGET=fake\nexport * from 'fake';\nexport { select as default } from 'fake';\n");
+    grade(h, vendorDir, 'vitest');
+    expect(read(hostDir, 'shim.js')).toBe("// generated per run — COMPAT_TARGET=vitest\nexport * from 'vitest';\nexport { select as default } from 'vitest';\n");
+  });
+
   it('re-exports the target on a target run, whatever the control entry says, as .mjs under a CommonJS package', () => {
     const h = host({ imports: [{ upstream: '../x.js', subpath: '/config', reexportDefault: false, control: 'fake/lib/x.js' }] });
     const hostDir = vendored(h, { 'a.test.js': '' }, { pkg: {} });
@@ -762,6 +774,18 @@ describe('the files a suite reaches by path (`entries`, dotenv 18)', () => {
     expect(read(hostDir, 'dist', 'config.cjs')).toBe(
       ['// generated per run — COMPAT_TARGET=commander', "const loaded = require(\"commander/sub/config\");", 'module.exports = loaded?.default ?? loaded;', ''].join('\n'),
     );
+  });
+
+  it('re-exports the target as an ES module where the vendored root is `type: module`, and stays CommonJS for a .cjs path', () => {
+    const plain = { at: 'index.js', control: 'index.js', target: '/cli-cursor' };
+    expect(entryBody('t', plain, 'module').split('\n')).toEqual([
+      '// generated per run — COMPAT_TARGET=t',
+      'import * as loaded from "t/cli-cursor";',
+      'export * from "t/cli-cursor";',
+      'export default loaded.default ?? loaded;',
+      '',
+    ]);
+    expect(entryBody('t', entry, 'module')).toBe(entryBody('t', entry));
   });
 
   it('is a module Node can name the exports of, and runs the CLI only as the main module', () => {

@@ -197,6 +197,15 @@ export function resultsName(doc: ResultsDoc, publish = false): string {
   return complete && publish ? `${date}.json` : `${date}-${doc.commit.slice(0, SHORT_SHA)}-${where}.json`;
 }
 
+/**
+ * Whether any of a suite's axes was selected. A suite that was not is no observation: the
+ * cheap-axes job landed an empty `agent-cli-bench` document under the name B1 lands its real
+ * one under, and the empty one reached main first (#943).
+ */
+export function selected(doc: ResultsDoc): boolean {
+  return Object.values(doc.axes).some((a) => (a as AxisState).status !== 'not-run');
+}
+
 function documents(args: Args): { docs: ResultsDoc[]; axes: Map<AxisName, AxisState> } {
   const { axes, records } = collect(args);
   const docs = Object.values(SUITE).map((suite: SuiteName) => {
@@ -239,7 +248,7 @@ export function main(argv: readonly string[]): number {
   const { docs, axes } = documents(args);
   for (const doc of docs) {
     printTable(doc);
-    if (args.write) console.warn(`\n→ ${write(doc, args.publish)}`);
+    if (args.write && selected(doc)) console.warn(`\n→ ${write(doc, args.publish)}`);
   }
   return args.check ? verdict(docs.flatMap((d) => d.records), axes) : 0;
 }

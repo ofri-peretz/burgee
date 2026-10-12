@@ -94,11 +94,7 @@ function hideCursor(stream: OutputStream): () => void;
 
 ### install
 
-Wire a registry to a process.
-
-Exposed rather than kept internal because a test — or a program that owns its own
-lifecycle, like a runner hosting other programs — needs to install this against
-something that is not the global process.
+Wire a registry to a process, and return the handle a program registers through.
 
 ```ts
 function install(options?: InstallOptions): Closeout;

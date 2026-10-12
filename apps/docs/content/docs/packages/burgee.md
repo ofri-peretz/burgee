@@ -1,6 +1,6 @@
 ---
 title: burgee
-description: "An agent-native CLI framework, drop-in compatible with commander and yargs. One declaration; help, --json, --schema, --mcp and completions all projected from it."
+description: "A CLI framework built on one declaration: help, --json, --schema, MCP, completions and types are projected from it, with exit codes and fix: lines an agent can act on. No dependency outside the burgee family. Drop-in paths for commander, yargs and meow."
 ---
 
 **burgee** is a CLI framework built on one declaration. A command declares itself once, and
@@ -83,6 +83,7 @@ Nothing here needs keeping in sync, because nothing is written twice.
 | `burgee/testing` | Run a command in-process and assert on its result — no spawning. |
 | `burgee/brand` | One brand declaration → flag, favicon, OG card, cover, lockup. The logo above is its own output. |
 | `burgee/plugin` | `definePlugin()`, `validate()`, `CONTRACT` and `PluginError` — the host, at the subpath every package in the family publishes its host at. |
+| `burgee/locale-pack-schema.json` | The JSON Schema a locale pack is written against: every message id, with its English. |
 
 ## Writing a plugin
 
@@ -137,6 +138,43 @@ it is `false` here, and `data.refused.fix` says what to change:
 {"ok":false,"data":{"refused":{"code":"E_PLUGIN_CONTRACT","message":"plugin \"acme\" declares no contract; …","fix":"add `contract: 1` — `definePlugin` from `burgee/plugin` stamps it"},"exitCode":1},"meta":{"provenance":{}}}
 ```
 
+## Speaking your user's language
+
+Help, usage errors and hints can speak the user's language; `--json`, `--schema`, `--mcp`,
+`--format=agent`, error kinds and exit codes never change with it, and a test in this package
+fails if one does. A language is a plugin carrying `locales`, written against
+[`burgee/locale-pack-schema.json`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/locale-pack-schema.json), which lists every message
+id with its English:
+
+```js
+// fr-pack.mjs
+export default {
+  name: 'fr',
+  contract: 1,
+  locales: {
+    fr: {
+      'usage.unknownOption': 'option inconnue {option}',
+      'help.usage': 'Utilisation :',
+      // A message with {count} takes the plural forms Intl.PluralRules selects for the locale.
+      'usage.stdinOnce': { one: '…{count} argument…', many: '…{count} d’arguments…', other: '…{count} arguments…' },
+    },
+  },
+};
+```
+
+Register it with `program.use(pack)`. The locale is the program's `locale` run option, then
+`BURGEE_LOCALE`, then `LC_ALL`, `LC_MESSAGES` and `LANG`, so `LANG=fr_FR.UTF-8` finds `fr-FR`
+and then `fr`. When an agent is detected, `LANG` is ignored, because an agent inherits it
+without asking for it, and only the option or `BURGEE_LOCALE` applies. An id the pack leaves out
+stays in English. `npx burgee check ./fr-pack.mjs --json` renders every message, or refuses
+an unknown id, a placeholder the English lacks, or a missing plural form. Your own text takes a
+locale map, base language first, and help shows the user's language while `--schema` keeps the
+base language:
+
+```js
+defineCommand({ name: 'deploy', description: { en: 'Deploy the site', fr: 'Déployer le site' }, effects: 'non_idempotent', run })
+```
+
 ## Migrating
 
 Already on commander or yargs? Change one import:
@@ -154,7 +192,7 @@ Already on commander or yargs? Change one import:
 Your code and your tests are unchanged.
 
 Or let the codemod make that change, and the same one for chalk, ora, string-width,
-cross-spawn, signal-exit and every other incumbent the family replaces at full grade:
+cross-spawn, signal-exit and every other import the family has a graded drop-in path for:
 
 ```bash
 npx burgee migrate --dry-run
@@ -206,6 +244,15 @@ Every command answers the same declaration four more ways, with nothing written 
 - `--explain <option>` — where a value came from: flag, env, config or default. Every
   command's help lists it, the root help ends with one line for agents, and `--schema` and the
   unknown-command hint name it too.
+- **`-q`/`--quiet` silences decoration, never data or a failure.** Hand `ctx.runtime` to what
+  draws, and a caique spinner, `log.info` or `note` writes nothing; `log.error` still writes,
+  and a prompt still asks:
+
+  ```ts
+  import { spinner } from 'caique/clack';
+
+  const spin = spinner({ runtime: ctx.runtime }); // silent under --quiet
+  ```
 - **A plugin can be checked before it ships.** `npx burgee check ./plugin.mjs --json` returns
   `{ name, commands, hooks }` as `data`, or `data.refused` with a `fix` and exit 1 — the whole
   plugin and both documents are under [Writing a plugin](#writing-a-plugin).
@@ -271,28 +318,41 @@ option and type, is at [burgee.interlace.tools](https://burgee.interlace.tools/d
 
 ## Where it sits
 
-Plugins register under the `commands` and `hooks` keys, against the one schema the whole family shares.
+Plugins register under the `commands`, `hooks`, `locales` keys, against the one schema the whole family shares.
 
 Nothing in this family builds on it yet, and it builds on `bellpull`, `closeout`, `linegauge`, `roundel`, `seniority`.
 
 ## The family
 
-Ten packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
-carries its colours, flagstaff flies it and caique answers back; each installs on its own, and none
-takes a dependency from outside the family.
+Ten packages, one repository, one release pipeline. Each installs and works on its own, and each
+owns one job. Six of them — `bellpull`, `closeout`, `linegauge`, `paratext`, `roundel`, `seniority`
+— depend on nothing; the others depend only on packages in this table, and every dependency points
+one way, down the [layers](https://burgee.interlace.tools/docs/concepts/family).
 
-| Package | What it is | Replaces |
+No package declares a dependency from outside the family; `react` and `react-reconciler` are
+optional peers of `controlroom`, which npm does not install.
+[`package-shape-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/package-shape-lock.test.ts)
+holds that for every manifest, and
+[`independence-install-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/independence-install-lock.test.ts)
+installs each package alone and finds nothing but the family packages it declares.
+
+Releases are published by one workflow through npm trusted publishing: no npm token is used, and
+each release carries SLSA provenance, which `npm view <package> dist.attestations` shows.
+[`trusted-publishing-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/trusted-publishing-lock.test.ts)
+keeps both true.
+
+| Package | What it is | Migrates from |
 | :-- | :-- | :-- |
-| **burgee** (this package) | The CLI framework: one declaration, every surface | commander and yargs |
-| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk |
+| **burgee** (this package) | The CLI framework: one declaration, every surface | commander, yargs and meow |
+| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk and picocolors |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
-| [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | inquirer and clack |
-| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi and slice-ansi |
+| [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | @inquirer/core |
+| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line |
 | [paratext](https://paratext.interlace.tools/docs) | Hyperlinks, images, title, clipboard and notifications | ansi-escapes, terminal-link and term-img |
-| [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, dotenv and rc |
-| [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook and restore-cursor |
+| [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, lilconfig, dotenv and rc |
+| [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook, restore-cursor, cli-cursor and onetime |
 | [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
-| [controlroom](https://controlroom.interlace.tools/docs) | Full-screen, keyboard-driven terminal screens | ink, graded by ink's own suite |
+| [controlroom](https://controlroom.interlace.tools/docs) | Keyboard-driven terminal screens, inline or full-screen | ink |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

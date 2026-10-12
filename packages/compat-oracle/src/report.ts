@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { active, gradable, type Host, hostNamed, HOSTS, PREVIOUS_MAJORS } from './hosts.js';
+import { active, gradable, type Host, hostNamed, HOSTS, PREVIOUS_MAJORS, registersOn } from './hosts.js';
 import { type Baseline, controlName, type Grade, grade, readBaseline, regressed } from './run.js';
 import { diffRecords, isEmptyDiff, latestVersion, readRecord, renderDiff, renderMissingExtras } from './upstream.js';
 import { vendor } from './vendor.js';
@@ -225,10 +225,7 @@ const allowedFailures = (host: string): number => hostNamed(host)?.controlFailur
 export function absentHere(host: string, platform: NodeJS.Platform = process.platform, cpu: NodeJS.Architecture = process.arch): number {
   const declared = hostNamed(host)?.conditionalCases;
   if (declared === undefined) return 0;
-  const offPlatform = declared.only === undefined ? declared.notOn.includes(platform) : !declared.only.includes(platform);
-  // An architecture guard only narrows: execa's case sits under `!isWindows` *and* `x64`.
-  const offCpu = declared.arch !== undefined && !declared.arch.includes(cpu);
-  return offPlatform || offCpu ? declared.count : 0;
+  return registersOn(declared, platform, cpu) ? 0 : declared.count;
 }
 
 /**

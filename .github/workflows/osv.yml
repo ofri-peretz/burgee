@@ -1,0 +1,73 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: OSV · lockfile vulnerabilities
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Asks OSV about every package in package-lock.json — the question OpenSSF Scorecard's
+# Vulnerabilities check asks, so a red run here is a point off the public badge. `npm audit`
+# is not the measure: it reads a different database and missed most of what OSV reports.
+#
+# Two triggers, two jobs to do:
+#   - a PR or push that changes the lockfile, the manifests or the waivers: did this change
+#     add a vulnerable package?
+#   - daily: did an advisory published since the last change land on something we already
+#     lock? Nothing in the repo moves for that, so only a schedule sees it.
+#
+# Not a required check, deliberately. The answer depends on a network service and on
+# advisories published after the PR was written, so a required gate would red unrelated PRs
+# the morning an advisory lands. The scheduled run is where that shows up.
+#
+# No install: the script reads the lockfile and calls the OSV API with Node's own fetch,
+# and Node 24 runs the TypeScript directly.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - package-lock.json
+      - "**/package.json"
+      - osv-scanner.toml
+      - scripts/osv-check.ts
+      - .github/workflows/osv.yml
+  push:
+    branches: [main]
+    paths:
+      - package-lock.json
+      - "**/package.json"
+      - osv-scanner.toml
+      - scripts/osv-check.ts
+      - .github/workflows/osv.yml
+  schedule:
+    # Daily 05:41 UTC — off the hour, and clear of scorecard's Tuesday 04:23.
+    - cron: "41 5 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: osv-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  osv:
+    name: OSV vulnerabilities (package-lock.json)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Query OSV for every locked package
+        shell: bash
+        run: |
+          set -o pipefail
+          node --no-warnings scripts/osv-check.ts 2>&1 | tee osv.log
+      - name: Summary
+        if: ${{ !cancelled() }}
+        run: |
+          { echo '## OSV · package-lock.json'; echo; echo '```'; cat osv.log || echo '(no output)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"

@@ -27,7 +27,7 @@
 
 <p align="center">
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/cross--spawn%20suite-68%2F68-0a6b47?style=flat-square" alt="bellpull/cross-spawn passes 68 of 68 cases of the cross-spawn test suite" /></a>
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/execa%20suite-0%2F1180-b45309?style=flat-square" alt="bellpull passes 0 of 1180 cases of the execa test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/execa%20suite-0%2F1179-b45309?style=flat-square" alt="bellpull passes 0 of 1179 cases of the execa test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/which%20suite-5%2F5-0a6b47?style=flat-square" alt="bellpull passes 5 of 5 cases of the which test suite" /></a>
 </p>
 
@@ -75,7 +75,7 @@ result.executable; // { path: '/opt/homebrew/bin/git', from: '/opt/homebrew/bin'
 rebuilds the same fields out of the error. Here a non-zero exit is a value. The promise rejects
 only when **no process ran**: the executable did not resolve, or the spawn failed.
 
-## What it does that the alternatives do not
+## What it does
 
 - **Tells you which binary ran.** `whichSync` returns the path *and* the `PATH` entry it came
   from. "Which `node` was that" is the first question of every build-differs-between-machines
@@ -96,13 +96,13 @@ shape, not bytes.
 
 ## Entry points
 
-| Import | What it gives you | Replaces |
+| Import | What it gives you | In place of |
 | :-- | :-- | :-- |
 | `bellpull` | `run()` and the `Result`, plus resolution and the three projections | `execa`, `tinyexec`, `nano-spawn` |
 | `bellpull/which` | bellpull's own resolver, not a drop-in: resolution alone, and the `PATH` entry that answered | `isexe`, `path-key`, `npm-run-path` |
 | `bellpull/node-which` | the drop-in for npm's `which` — same `which()` and `.sync`, same options; graded 5 / 5 by node-which's own suite | `which` |
 | `bellpull/cross-spawn` | the drop-in — same callable default, same `.sync` | `cross-spawn` |
-| `bellpull/plugin` | the `resolvers` plugin host | *nothing in the ecosystem* |
+| `bellpull/plugin` | the `resolvers` plugin host | — |
 
 `bellpull/which` is a leaf: it loads two files and nothing that has ever heard of `process`.
 A program that only needs to find a binary does not pay for a spawner.
@@ -228,10 +228,10 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `cross-spawn` | 68 / 68 |
-| `execa` | 0 / 1180 |
+| `execa` | 0 / 1179 |
 | `which` | 5 / 5 |
 
-Weight, installed and tree-inclusive: **116,607 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1523**.
+Weight, installed and tree-inclusive: **116,452 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1521**.
 
 ## For agents
 
@@ -261,22 +261,35 @@ Plugins register under the `resolvers` key, against the one schema the whole fam
 
 ## The family
 
-Ten packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
-carries its colours, flagstaff flies it and caique answers back; each installs on its own, and none
-takes a dependency from outside the family.
+Ten packages, one repository, one release pipeline. Each installs and works on its own, and each
+owns one job. Six of them — `bellpull`, `closeout`, `linegauge`, `paratext`, `roundel`, `seniority`
+— depend on nothing; the others depend only on packages in this table, and every dependency points
+one way, down the [layers](https://burgee.interlace.tools/docs/concepts/family).
 
-| Package | What it is | Replaces |
+No package declares a dependency from outside the family; `react` and `react-reconciler` are
+optional peers of `controlroom`, which npm does not install.
+[`package-shape-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/package-shape-lock.test.ts)
+holds that for every manifest, and
+[`independence-install-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/independence-install-lock.test.ts)
+installs each package alone and finds nothing but the family packages it declares.
+
+Releases are published by one workflow through npm trusted publishing: no npm token is used, and
+each release carries SLSA provenance, which `npm view <package> dist.attestations` shows.
+[`trusted-publishing-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/trusted-publishing-lock.test.ts)
+keeps both true.
+
+| Package | What it is | Migrates from |
 | :-- | :-- | :-- |
-| [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander and yargs |
-| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk |
+| [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander, yargs and meow |
+| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk and picocolors |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
-| [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | inquirer and clack |
-| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi and slice-ansi |
+| [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | @inquirer/core |
+| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line |
 | [paratext](https://paratext.interlace.tools/docs) | Hyperlinks, images, title, clipboard and notifications | ansi-escapes, terminal-link and term-img |
-| [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, dotenv and rc |
-| [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook and restore-cursor |
+| [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, lilconfig, dotenv and rc |
+| [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook, restore-cursor, cli-cursor and onetime |
 | **bellpull** (this package) | Subprocesses, and which executable actually ran | cross-spawn and which |
-| [controlroom](https://controlroom.interlace.tools/docs) | Full-screen, keyboard-driven terminal screens | ink, graded by ink's own suite |
+| [controlroom](https://controlroom.interlace.tools/docs) | Keyboard-driven terminal screens, inline or full-screen | ink |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

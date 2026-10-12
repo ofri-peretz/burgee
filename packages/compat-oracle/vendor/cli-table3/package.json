@@ -5,6 +5,7 @@
   "main": "./shim.mjs",
   "version": "0.6.5",
   "license": "MIT",
+  "description": "Pretty unicode tables for the command line. Based on the original cli-table.",
   "repository": {
     "type": "git",
     "url": "https://github.com/cli-table/cli-table3.git"

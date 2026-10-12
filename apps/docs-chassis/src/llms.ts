@@ -26,12 +26,14 @@ function row(site: Site, page: DocsPage): string {
 }
 
 /**
- * One package's row in the map: what it replaces first, because "what is the alternative to
- * commander?" is the question the map is there to answer, then its npm description.
+ * One package's row in the map: its npm description, whole — what it does first, the dependency
+ * fact, and the drop-in paths last, so "what is the alternative to commander?" is still answered,
+ * after the row says what the package is (`.sdlc/intents/positioning/` R13). Its migration guides
+ * follow, one line each.
  */
 function packageRow(pkg: PublicPackage): string {
   const guides = pkg.guides.map((g) => `  - [${g.title}](${g.url})${g.description === '' ? '' : `: ${g.description}`}`);
-  return [`- [${pkg.name}](${pkg.url}) — replaces ${pkg.replaces}. ${pkg.description}`, ...guides].join('\n');
+  return [`- [${pkg.name}](${pkg.url}): ${pkg.description}`, ...guides].join('\n');
 }
 
 export interface LlmsIndexOptions {

@@ -8,9 +8,22 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { runCommand } from './execute.js';
+import { runCommand as runEngine } from './execute.js';
 import { AuthError, defineCommand, defineProgram, ExitCode, UsageError } from './index.js';
 import { runBurgee } from './testing.js';
+
+/**
+ * What these cases read is the prose a person reads. A captured stderr is not a terminal, so a
+ * failure ends with the one structured line clispec-conformance R6 adds (held by
+ * `json-failure.test.ts`); it is checked to be there and then set aside, so each case still pins
+ * its words exactly.
+ */
+async function runCommand(...args: Parameters<typeof runEngine>): ReturnType<typeof runEngine> {
+  const r = await runEngine(...args);
+  const line = /\{"error":\{"kind":"[a-z_]+","code":\d+,"message":.*\}\}\n$/u;
+  if (r.stderr.startsWith('error:')) expect(r.stderr).toMatch(line);
+  return { ...r, stderr: r.stderr.replace(line, '') };
+}
 
 const many = Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`opt${String(i)}`, { type: 'boolean' as const, description: `option ${String(i)}` }]));
 
@@ -80,7 +93,7 @@ describe('a failure with nothing to run next says what the command takes', () =>
     expect(r.stderr).toBe('');
     expect(JSON.parse(r.stdout)).toEqual({
       ok: false,
-      error: { code: 1, message: 'boom', usage: { command: 'tool fail [options]', options: [{ name: '--code <value>', description: 'exit with this code instead' }] } },
+      error: { kind: 'runtime', code: 1, message: 'boom', usage: { command: 'tool fail [options]', options: [{ name: '--code <value>', description: 'exit with this code instead' }] } },
     });
   });
 
@@ -167,7 +180,7 @@ describe('an unknown command names what exists, and the nearest one', () => {
   it('gives the caller’s own line back, corrected, as the fix — quoted where a shell needs it', async () => {
     expect(await run('confg', 'get', "it's here", '--json')).toEqual({
       code: ExitCode.USAGE,
-      stdout: `${JSON.stringify({ ok: false, error: { code: 2, message: 'unknown command "confg"', hint: 'did you mean config?', fix: "tool config get 'it'\\''s here' --json" } })}\n`,
+      stdout: `${JSON.stringify({ ok: false, error: { kind: 'usage', code: 2, message: 'unknown command "confg"', hint: 'did you mean config?', fix: "tool config get 'it'\\''s here' --json" } })}\n`,
       stderr: '',
     });
   });
@@ -191,7 +204,7 @@ describe('help names the agent surfaces', () => {
   });
 
   it('lists --explain among the global options of a command that runs, and not of a group', async () => {
-    expect((await run('fail', '--help')).stdout).toContain("  --explain <option>  where an option's value came from\n");
+    expect((await run('fail', '--help')).stdout).toContain("  --explain <option>    where an option's value came from\n");
     expect((await run('config', '--help')).stdout).not.toContain('--explain');
     expect((await run('fail', '--help')).stdout).not.toContain('For agents');
   });
@@ -274,8 +287,8 @@ describe('a refusal carries the line to run', () => {
 
 describe('help says what each command takes', () => {
   it('lists a command with its arguments, the way commander does', async () => {
-    expect((await demo('config', '--help')).stdout).toContain('Commands:\n  get <key>  Print one value\n');
-    expect((await demo('--help')).stdout).toContain('  greet <name>      Greet someone\n');
+    expect((await demo('config', '--help')).stdout).toContain('Commands:\n  get <key>             Print one value\n');
+    expect((await demo('--help')).stdout).toContain('  greet <name>          Greet someone\n');
   });
 });
 
@@ -287,7 +300,9 @@ describe('help says what each command takes', () => {
  */
 describe('the line to run is on the first screen, and whole', () => {
   it('lists root help by the commands that run, each by its full path with what it takes, when they fit', async () => {
-    const commands = 'Commands:\n  greet <name>      Greet someone\n  config get <key>  Print one value\n  fail              Fail on purpose\n\n';
+    // The engine's own `completion` closes the list (agent-lint-conformance R5).
+    const commands =
+      'Commands:\n  greet <name>          Greet someone\n  config get <key>      Print one value\n  fail                  Fail on purpose\n  completion <shell>    Print a shell completion script: bash, zsh, fish, pwsh or fig\n\n';
     expect((await demo('--help')).stdout).toContain(commands);
     // A bare invocation prints the same screen, as the usage error it is.
     expect((await demo()).stderr).toContain(commands);
@@ -299,7 +314,7 @@ describe('the line to run is on the first screen, and whole', () => {
     const leaves = Array.from({ length: 9 }, (_, i) => defineCommand({ name: `k${String(i)}`, effects: 'read_only', run: () => i }));
     const big = defineProgram({ name: 'big', commands: [defineCommand({ name: 'keys', description: 'Nine of them', commands: leaves })] });
     const help = (await runCommand(big, ['--help'])).stdout;
-    expect(help).toMatch(/Commands:\n {2}keys +Nine of them\n\n/);
+    expect(help).toMatch(/Commands:\n {2}keys +Nine of them\n {2}completion <shell> /);
     expect(help).not.toContain('keys k0');
   });
 

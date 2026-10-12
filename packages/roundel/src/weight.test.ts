@@ -12,6 +12,7 @@ import { readFileSync, statSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 const pkgRoot = fileURLToPath(new URL('..', import.meta.url));
@@ -115,6 +116,10 @@ const RULES: Record<string, EntryRule> = {
   // R12, on 2026-09-28: `interactive(rt)` and the is-unicode-supported probe, which caique
   // and flagstaff each carried by hand. Its own subpath because `./chalk` above has 7 B left
   // and `./policy` 28. Reaches nothing, and the root does not re-export it: `.` has 58 B left. Measured 878.
+  // `graded-override-targets` R7, 2026-10-11: picocolors' surface over the process seam alone.
+  // Measured 2,646 B with `runtime.js`, against picocolors 1.1.1's one file at 2,663 B on disk; the
+  // bar R7 sets is bundled bytes, held in `scripts/subpath-weight-lock.test.ts`.
+  './picocolors': { allow: [], budget: 2_800, denied: ['policy.js', 'tokens.js', 'theme.js', 'contrast.js', 'chalk.js', 'index.js'] },
   './terminal': { allow: [], budget: 1_000, denied: ['policy.js', 'tokens.js', 'theme.js', 'contrast.js', 'chalk.js', 'index.js'] },
   // R11, on 2026-09-30: `fromBase16` and `fromITerm`. It carries the whole theme graph on
   // purpose — `audit()` is how an imported theme is refused exactly when `fly()` would refuse
@@ -126,7 +131,12 @@ const RULES: Record<string, EntryRule> = {
   './import': { allow: [], budget: 16_600, denied: ['tokens.js', 'chalk.js', 'plugin.js', 'terminal.js', 'index.js'] },
 };
 
-const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;
+/**
+ * Every module a file loads — `import`, `export … from`, and `import('…')` — read as tokens
+ * by TypeScript's own pre-processor. A pattern over printed text missed `from "x"` entirely
+ * (tsc keeps the source's quote style) and read `came from", kind: '` out of a string.
+ */
+const specifiers = (source: string): string[] => ts.preProcessFile(source, true, true).importedFiles.map((f) => f.fileName);
 
 function walk(entry: string): { reached: string[]; external: string[]; bytes: number } {
   const files = new Set<string>();
@@ -139,7 +149,7 @@ function walk(entry: string): { reached: string[]; external: string[]; bytes: nu
     if (file === undefined || files.has(file)) continue;
     files.add(file);
     bytes += statSync(file).size;
-    for (const [, spec = ''] of readFileSync(file, 'utf8').matchAll(SPECIFIER)) {
+    for (const spec of specifiers(readFileSync(file, 'utf8'))) {
       if (spec.startsWith('.')) queue.push(resolve(dirname(file), spec));
       else if (spec !== '' && !spec.startsWith('node:')) external.add(spec);
     }

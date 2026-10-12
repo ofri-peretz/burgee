@@ -19,7 +19,7 @@
  * `excluded`, get `content/docs/packages/<name>.md` on the family app. A package whose app is
  * built but `pending` its Vercel project gets both: its app's index, and the front door's
  * section every link still points at until the host is live. The family app also
- * gets `packages/index.md`, the family map — every package, what it replaces, where it lives.
+ * gets `packages/index.md`, the family map — every package, what it migrates from, where it lives.
  * Regrouping a package is a table edit; this script follows it.
  *
  * A package whose site carries the standard page set (`STANDARD_SITES` in
@@ -83,7 +83,7 @@ export function renderChangelog(manifest: Manifest, changelog: string): string {
   return `---\ntitle: Changelog\ndescription: ${JSON.stringify(description)}\n---\n\n${body.trimEnd()}\n`;
 }
 
-/** The family map: every public package, what it replaces, and the site its docs are on. */
+/** The family map: every public package, what it migrates from, and the site its docs are on. */
 export function familyIndex(): string {
   const all = publicPackages(PACKAGES);
   const host = (url: string): string => new URL(url).host;
@@ -91,7 +91,7 @@ export function familyIndex(): string {
   return [
     "---",
     "title: Packages",
-    `description: ${JSON.stringify(`burgee and the ${all.length - 1} packages it is built from: what each replaces, and the site its docs live on.`)}`,
+    `description: ${JSON.stringify(`burgee and the ${all.length - 1} packages it is built from: what each migrates from, and the site its docs live on.`)}`,
     "---",
     "",
     "Every package in the family is published on its own, depends on nothing outside this",
@@ -99,7 +99,7 @@ export function familyIndex(): string {
     "is its README, projected; the family-wide pages — [compatibility](/docs/compatibility),",
     "[comparison](/docs/comparison) and [gallery](/docs/gallery) — stay here, one copy each.",
     "",
-    "| Package | Replaces | Site |",
+    "| Package | Migrates from | Site |",
     "| :-- | :-- | :-- |",
     ...rows,
     "",

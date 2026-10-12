@@ -158,7 +158,11 @@ describe('Z1 — one file, npm i, no build step', () => {
 
     it.each(transcript.map((t) => [t.argv.join(' '), t] as const))('$ node cli.mjs %s', (_argv, session) => {
       const r = cliIn(at, session.argv);
-      expect(`${r.stdout}${r.stderr}`.trimEnd()).toBe(session.output);
+      // The README shows a terminal, where a failure is prose alone. This run's stderr is a pipe,
+      // so a failure ends with its structured line (clispec-conformance R6): there, and set aside.
+      const line = /\n\{"error":\{"kind":"[a-z_]+".*\}\}\n$/u;
+      if (r.code !== 0) expect(r.stderr).toMatch(line);
+      expect(`${r.stdout}${r.stderr.replace(line, '\n')}`.trimEnd()).toBe(session.output);
       expect(r.code).toBe(session.code);
     });
   });

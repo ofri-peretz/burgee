@@ -40,13 +40,13 @@ const where = (name: string): string => {
 };
 
 describe('the front door maps the family', () => {
-  it('maps every public package to what it replaces and the page it lives on', () => {
+  it('maps every public package to its description and the page it lives on', () => {
     // The package map is the most quotable line on the site for "what is the alternative to
     // commander?", so a package missing from it is a question the site cannot answer — and a
     // package pointed at the front door when it has a host of its own is a stale answer.
     expect(publicPackages.length).toBeGreaterThan(0);
     const map = section(app.built('llms.txt.body'), 'Packages');
-    const missing = publicPackages.filter(({ name }) => !map.includes(`- [${name}](${where(name)}) — replaces `));
+    const missing = publicPackages.filter(({ name }) => !map.includes(`- [${name}](${where(name)}): `));
     expect(missing.map(({ name }) => name), `llms.txt's package map is missing or misplaces ${missing.length} public package(s)`).toEqual([]);
     expect(map).not.toMatch(/compat-oracle/u);
   });

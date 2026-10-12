@@ -10,10 +10,11 @@
  * package pages themselves.
  *
  * "What it replaces" is not a separate field either. Every description names its incumbents
- * in one of three phrasings, and {@link replacesOf} reads them out. A description that names
- * none fails the build rather than producing a row with a blank — the map exists to answer
- * "what is the burgee alternative to X?", and a row that cannot answer it is the stale row
- * this module exists to prevent.
+ * in one of three phrasings, and {@link replacesOf} reads them out for the family map's
+ * "Migrates from" column. A description that names none fails the build rather than producing
+ * a row with a blank — the map answers "what is the burgee alternative to X?", and a row that
+ * cannot is the stale row this module exists to prevent. No title or llms.txt row leads with
+ * it: those say what the package does (`.sdlc/intents/positioning/` R13).
  *
  * `apps/docs/turbo.json` lists `packages/*\/package.json` as a build input, so a changed
  * description is never served from turbo's cache.

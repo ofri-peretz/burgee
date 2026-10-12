@@ -1,0 +1,13 @@
+{
+  "name": "@vendored/onetime-suite",
+  "private": true,
+  "type": "module",
+  "main": "./shim.js",
+  "version": "8.0.0",
+  "license": "MIT",
+  "description": "Ensure a function is only called once",
+  "repository": "sindresorhus/onetime",
+  "devDependencies": {
+    "onetime": "8.0.0"
+  }
+}

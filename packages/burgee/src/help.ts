@@ -58,12 +58,30 @@ export interface HelpOptions {
    * through. The engine passes every command that runs when they fit (`listed` in `usage.ts`).
    */
   commands?: readonly CommandNode[];
+  /**
+   * More rows for `Global options:`, after `--json`, `--help` and `--schema`: the global flags
+   * the engine parses for this command (`--color`, `--quiet`, `--timeout`; agent-lint-conformance
+   * R1–R3), passed in by the engine like `commands`, so this renderer carries none of their words.
+   */
+  globals?: readonly { term: string; text: string }[];
+  /**
+   * The run's language (`localised-human-surfaces` R1): every heading, row text and the root's
+   * line for agents are passed through it once laid out in English (the node's own description
+   * arrives already in the run's language, R5). The engine hands in a pack's translator; absent,
+   * it is the identity, and help is byte-for-byte what it was.
+   */
+  say?: (english: string) => string;
+  /**
+   * Words the engine adds to the root's line for agents: `AGENTS.md`, when one sits beside the
+   * binary (agent-skill R4). Passed in like `commands`, so this renderer looks for no file.
+   */
+  forAgents?: string;
 }
 
 /** What a term is, so the theme can style it; the term itself stays plain text. */
 type Kind = 'command' | 'flag' | 'value';
 
-interface Row {
+export interface Row {
   term: string;
   text: string;
   kind: Kind;
@@ -99,11 +117,6 @@ const DEFAULTS: Paint = {
   value: (s) => styleText('dim', s, { validateStream: false }),
 };
 
-function painterFor(paint: Paint, kind: Kind): (s: string) => string {
-  if (kind === 'command') return paint.command;
-  return kind === 'flag' ? paint.flag : paint.value;
-}
-
 function paintOf(opts: HelpOptions): Paint {
   if (opts.color !== true) return PLAIN;
   const theme = opts.theme ?? {};
@@ -115,7 +128,7 @@ function paintOf(opts: HelpOptions): Paint {
   };
 }
 
-interface Section {
+export interface Section {
   title: string;
   rows: Row[];
 }
@@ -137,7 +150,7 @@ const GLOBAL: Row[] = [
  * program as data (clispec.dev's `help-mentions-schema`). The root only: a command's own help
  * is one command, and `--schema` there drills into it without needing to be advertised.
  */
-const ROOT_GLOBAL: Row[] = [...GLOBAL, { term: '--schema', text: 'the program as data', kind: 'flag' }];
+export const ROOT_GLOBAL: Row[] = [...GLOBAL, { term: '--schema', text: 'the program as data', kind: 'flag' }];
 
 /** Every command that runs parses `--explain` (V3), so its help says so (D-20260930). */
 const EXPLAIN: Row = { term: '--explain <option>', text: "where an option's value came from", kind: 'flag' };
@@ -207,14 +220,17 @@ function argumentRows(args: ArgumentSpec[]): Row[] {
  * or the `listed` ones by their path from `node`. Each is listed with what it takes — `get <key>`,
  * as commander lists `get [options] <key>` — so the line to run is on the screen: B1's agents read
  * a bare `get` and spent a turn on `config get --help` to learn it takes a key, in 5 of 20 runs of
- * the task that asks for one. A listed command sits under its top-level ancestor's heading.
+ * the task that asks for one. A listed command sits under its top-level ancestor's heading; a row
+ * the engine adds that the manifest does not hold sits under its own `group` — that is how root help
+ * gets `completion <shell>` and its `Exit codes:` (agent-lint-conformance R4, R5), passed in like
+ * the rest so this door carries none of their words.
  */
 function commandSections(manifest: Manifest, node: CommandNode, listed?: readonly CommandNode[]): Section[] {
   const children =
     listed ?? manifest.commands.filter((c) => c.hidden !== true && c.path.length === node.path.length + 1 && node.path.every((seg, i) => c.path[i] === seg));
   const groups = new Map<string, Row[]>();
   for (const c of children) {
-    const heading = manifest.find(c.path.slice(0, node.path.length + 1))?.group ?? 'Commands:';
+    const heading = (manifest.find(c.path.slice(0, node.path.length + 1)) ?? c).group ?? 'Commands:';
     const rows = groups.get(heading) ?? [];
     rows.push({ term: [...c.path.slice(node.path.length), ...(c.arguments ?? []).map(argumentTerm)].join(' '), text: `${c.summary ?? c.description ?? ''}${deprecation(c.deprecated)}`.trim(), kind: 'command' });
     groups.set(heading, rows);
@@ -226,15 +242,6 @@ function environmentRows(options: Record<string, OptionSpec>): Row[] {
   return Object.entries(options)
     .filter(([, spec]) => spec.env !== undefined && spec.hidden !== true)
     .map(([name, spec]) => ({ term: spec.env as string, text: `--${kebab(name)}`, kind: 'value' as const }));
-}
-
-function usageLine(node: CommandNode, root: string[], hasChildren: boolean, paint: Paint): string {
-  const shown = node.path.slice(root.length).join(' ') || node.path.join(' ');
-  const parts = [shown];
-  if (hasChildren) parts.push('<command>');
-  parts.push('[options]');
-  for (const a of node.arguments ?? []) parts.push(argumentTerm(a));
-  return `${paint.heading('Usage:')} ${parts.join(' ')}`;
 }
 
 /**
@@ -270,16 +277,24 @@ function termColumn(rows: Row[], width: number): number {
  * the finished cell: the term is measured and padded plain, and the name in the manifest
  * is never touched, which is what yargs #1699 got wrong.
  */
+/** The run's `HelpOptions.say`, set by `helpModel` for the call: one renderer at a time, and synchronous. */
+let say: (english: string) => string = String;
+
 function layout(rows: Row[], width: number, column: number, paint: Paint): string[] {
   const textWidth = Math.max(1, width - INDENT.length - column - GUTTER);
   const lines: string[] = [];
   for (const { term, text, kind } of rows) {
-    const cell = painterFor(paint, kind)(term);
+    // `Paint` is keyed by the three kinds, so the painter is a lookup. It replaced a three-branch
+    // `painterFor` to pay for the global rows (agent-lint-conformance R1–R3) inside this door's
+    // budget: 162 bytes. `kind` is the closed union `Kind`, typed on every row, never input.
+    // eslint-disable-next-line secure-coding/detect-object-injection -- a key of a closed literal union, see above
+    const cell = paint[kind](term);
     if (text === '') {
       lines.push(`${INDENT}${cell}`);
       continue;
     }
-    const wrapped = wrap(text, textWidth);
+    // Translated once laid out in English: `say('')` is `''`, so the empty check above holds either way.
+    const wrapped = wrap(say(text), textWidth);
     const continuation = INDENT + ' '.repeat(column + GUTTER);
     const termWidth = displayWidth(term);
     if (termWidth > column) {
@@ -293,45 +308,67 @@ function layout(rows: Row[], width: number, column: number, paint: Paint): strin
 }
 
 /** `$ command` on one line, the description indented below; never two columns (R5, H2). */
-function exampleLines(examples: Example[], width: number): string[] {
+function exampleLines(examples: Row[], width: number): string[] {
   const lines: string[] = [];
   for (const e of examples) {
-    lines.push(`${INDENT}$ ${e.command}`);
-    if (e.description !== undefined) lines.push(...wrap(e.description, width - INDENT.length * 2).map((l) => `${INDENT}${INDENT}${l}`));
+    lines.push(`${INDENT}$ ${e.term}`);
+    if (e.text !== '') lines.push(...wrap(e.text, width - INDENT.length * 2).map((l) => `${INDENT}${INDENT}${l}`));
   }
   return lines;
 }
 
-function section(title: string, body: string[], paint: Paint): string[] {
-  return body.length === 0 ? [] : [paint.heading(title), ...body, ''];
+/**
+ * agent-skill R1 — the section list, before any layout: what both targets render, in R2's order,
+ * empty sections already gone. `Examples:` is a section whose rows are `{ term: command, text:
+ * description }`. The terminal layout is `renderHelp`'s; the Markdown one is `help-markdown.ts`.
+ */
+export interface HelpModel {
+  usage: string;
+  description: string | undefined;
+  sections: Section[];
+  /** Paragraphs after the sections: the root's line for agents, then the epilogue. */
+  trailer: string[];
+}
+
+export function helpModel(manifest: Manifest, node: CommandNode, opts: HelpOptions = {}): HelpModel {
+  say = opts.say ?? String;
+  const commands = commandSections(manifest, node, opts.commands);
+  const atRoot = node.path.length === manifest.rootPath.length;
+  const global = [...(atRoot ? ROOT_GLOBAL : GLOBAL), ...(opts.globals ?? []).map((r) => ({ ...r, kind: 'flag' as const })), ...(node.run === undefined ? [] : [EXPLAIN])];
+  const sections = [
+    { title: 'Arguments:', rows: argumentRows(node.arguments ?? []) },
+    { title: 'Options:', rows: optionRows(node.options, opts.verbose === true) },
+    { title: 'Global options:', rows: global },
+    ...commands,
+    { title: 'Examples:', rows: (node.examples ?? []).map((e: Example) => ({ term: e.command, text: e.description ?? '', kind: 'value' as const })) },
+    { title: 'Environment:', rows: environmentRows(node.options) },
+  ].filter((s) => s.rows.length > 0);
+  const trailer = [...(atRoot ? [say(FOR_AGENTS) + say(opts.forAgents ?? '')] : []), ...(node.epilogue === undefined ? [] : [node.epilogue])];
+  // `usage` is what follows the command's name on its usage line.
+  const usage = [...(commands.length > 0 ? ['<command>'] : []), '[options]', ...(node.arguments ?? []).map(argumentTerm)].join(' ');
+  return { usage, description: node.description === undefined ? undefined : `${node.description}${deprecation(node.deprecated)}`, sections, trailer };
 }
 
 /**
  * Render help for one node — a runnable command, a group, or both — as text.
  * Deterministic for a given node and width; a snapshot suite pins it. With `color`
  * off — the default — a theme changes nothing; with it on, only ANSI is added.
+ *
+ * With `format: 'markdown'` it is the same sections as Markdown (agent-skill R1), and a
+ * promise: that layout is loaded when asked for, so this door carries none of it.
  */
-export function renderHelp(manifest: Manifest, node: CommandNode, opts: HelpOptions = {}): string {
+export function renderHelp(manifest: Manifest, node: CommandNode, opts?: HelpOptions & { format?: 'text' }): string;
+export function renderHelp(manifest: Manifest, node: CommandNode, opts: HelpOptions & { format: 'markdown' }): Promise<string>;
+export function renderHelp(manifest: Manifest, node: CommandNode, opts: HelpOptions & { format?: 'text' | 'markdown' } = {}): string | Promise<string> {
+  const model = helpModel(manifest, node, opts);
+  if (opts.format === 'markdown') return import('./help-markdown.js').then((m) => m.markdownHelp(model, node));
   const width = opts.width ?? DEFAULT_WIDTH;
-  const verbose = opts.verbose === true;
   const paint = paintOf(opts);
-  const root = manifest.rootPath;
-  const commands = commandSections(manifest, node, opts.commands);
-  const args = argumentRows(node.arguments ?? []);
-  const options = optionRows(node.options, verbose);
-  const env = environmentRows(node.options);
-  const atRoot = node.path.length === root.length;
-  const global = [...(atRoot ? ROOT_GLOBAL : GLOBAL), ...(node.run === undefined ? [] : [EXPLAIN])];
-  const column = termColumn([...args, ...options, ...global, ...commands.flatMap((s) => s.rows), ...env], width);
-  const lines: string[] = [usageLine(node, root, commands.length > 0, paint), ''];
-  if (node.description !== undefined) lines.push(...wrap(`${node.description}${deprecation(node.deprecated)}`, width), '');
-  lines.push(...section('Arguments:', layout(args, width, column, paint), paint));
-  lines.push(...section('Options:', layout(options, width, column, paint), paint));
-  lines.push(...section('Global options:', layout(global, width, column, paint), paint));
-  for (const s of commands) lines.push(...section(s.title, layout(s.rows, width, column, paint), paint));
-  lines.push(...section('Examples:', exampleLines(node.examples ?? [], width), paint));
-  lines.push(...section('Environment:', layout(env, width, column, paint), paint));
-  if (atRoot) lines.push(...wrap(FOR_AGENTS, width), '');
-  if (node.epilogue !== undefined) lines.push(...wrap(node.epilogue, width), '');
+  const shown = node.path.slice(manifest.rootPath.length).join(' ') || node.path.join(' ');
+  const column = termColumn(model.sections.filter((s) => s.title !== 'Examples:').flatMap((s) => s.rows), width);
+  const lines: string[] = [`${paint.heading(say('Usage:'))} ${shown} ${model.usage}`, ''];
+  if (model.description !== undefined) lines.push(...wrap(model.description, width), '');
+  for (const s of model.sections) lines.push(paint.heading(say(s.title)), ...(s.title === 'Examples:' ? exampleLines(s.rows, width) : layout(s.rows, width, column, paint)), '');
+  for (const t of model.trailer) lines.push(...wrap(t, width), '');
   return `${lines.join('\n').trimEnd()}\n`;
 }

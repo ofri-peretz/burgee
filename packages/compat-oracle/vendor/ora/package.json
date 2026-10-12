@@ -5,5 +5,6 @@
   "main": "./shim.js",
   "version": "9.4.1",
   "license": "MIT",
+  "description": "Elegant terminal spinner",
   "repository": "sindresorhus/ora"
 }

@@ -5,6 +5,7 @@
   "main": "./shim.js",
   "version": "15.0.0",
   "license": "MIT",
+  "description": "the complete solution for node.js command-line programs",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/tj/commander.js.git"
