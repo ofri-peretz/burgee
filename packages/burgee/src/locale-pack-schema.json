@@ -429,6 +429,11 @@
           "type": "string",
           "pattern": "^(?:[^{]|\\{(?!\\w+\\}))*$"
         },
+        "help.agentsMd": {
+          "description": " AGENTS.md beside this program says how to drive it.",
+          "type": "string",
+          "pattern": "^(?:[^{]|\\{(?!\\w+\\}))*$"
+        },
         "help.forAgents": {
           "description": "For agents: --schema prints every command, option, default and env var as JSON, in one call. --json prints one envelope on stdout, and --explain <option> says where a value came from.",
           "type": "string",

@@ -3,6 +3,46 @@ title: Changelog
 description: "Every release of burgee, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.2.0
+
+### Minor Changes
+
+- [#1015](https://github.com/ofri-peretz/burgee/pull/1015) [`e0532b2`](https://github.com/ofri-peretz/burgee/commit/e0532b2cf298c183699621fc6e17e59373f83bad) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Every failure names its kind. The `--json` envelope's `error` carries `kind` beside the numeric `code` (`runtime`, `usage`, `config`, `cancelled`, `auth`, `timeout`, `interrupted`, or your own), and `--schema` lists every kind under a new `errors` key with its `exit_code`, whether it is `retryable`, and a `description`, in clispec v0.3's shape. `schemaVersion` stays 1: the key is new and nothing changes meaning.
+
+  `defineError` takes an optional `kind`, `retryable` and `description`. Without `kind`, a class's kind is its name in snake case less a trailing `Error` (`QuotaError` is `quota`); a declared one must be snake_case and one class's alone. A name whose kind is already held, such as `TimeoutError` beside the contract's `timeout`, is told apart by its code (`timeout_12`), so every class that defined before still defines.
+
+  stderr ends with the failure as one JSON line, `{"error":{"kind","code","message"}}`, whenever it is not a terminal: always under `--json` (stdout's envelope is unchanged), and after the prose when stderr is piped or captured. At a terminal stderr is unchanged. The commander and yargs front-ends are unchanged.
+
+- [#1027](https://github.com/ofri-peretz/burgee/pull/1027) [`a2e4f98`](https://github.com/ofri-peretz/burgee/commit/a2e4f98c5524f59c24c560130a8c9cfbcb961991) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--schema` is a clispec v0.3 document (https://clispec.dev). Beside burgee's own keys, which keep their meaning (`schemaVersion` stays 1), a native program's document now carries `clispec: "0.3"`, a `version` always (the declared one, else the owning `package.json`'s), `global_args` (the rows root help lists under `Global options:`), and `output` (`{ tty: "text", piped: "text", formats }`). Each command carries `example` (its first example as `{ args }`), and from a new `output` declaration `cardinality`, `output_kind`, `media_type` and `stdout_schema`. The commander and yargs front-ends are unchanged.
+
+  `defineCommand` takes `output: { kind?, cardinality?, schema?, mediaType? }`. With a `schema`, TypeScript holds `run`'s return to what it describes; without one, nothing changes. `burgee dev` warns about a runnable command that declares no `output.cardinality`, and refuses nothing.
+
+  `--format text` (also `--format=text`, `--output text`) prints the human rendering, under a pipe or an agent alike: it was `unknown option --format`, exit 2. A command that declares its own `--format` keeps it.
+
+- [#1034](https://github.com/ofri-peretz/burgee/pull/1034) [`d8569f5`](https://github.com/ofri-peretz/burgee/commit/d8569f53c31382a864d5a86b5a3b720b7918476f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Help renders as Markdown. `renderHelp(manifest, node, { format: 'markdown' })` from `burgee/help` returns a promise of the same help as Markdown: a heading for the command, its usage in a code block, each section (arguments, options, global options, commands, exit codes, environment) as a table, and each example as a fenced line. It is a second layout of the same section list `--help` draws, so the two cannot list different things. The Markdown layout loads only when asked for; terminal help is unchanged, byte for byte.
+
+- [#1047](https://github.com/ofri-peretz/burgee/pull/1047) [`206d2a8`](https://github.com/ofri-peretz/burgee/commit/206d2a8da4bbac20f5b6370989f103b3de86c2bf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--mcp` tool results carry `structuredContent`. When a call's stdout is the `--json` envelope, the result carries the envelope's `data` as `structuredContent` (wrapped as `{ "result": data }` when it is not an object, since the protocol requires one), or the envelope's `error` with `isError: true` on a failure. The text content stays first and unchanged, so a client that reads only text sees what it saw before. A run that printed prose rather than an envelope carries no `structuredContent`.
+
+### Patch Changes
+
+- [#1008](https://github.com/ofri-peretz/burgee/pull/1008) [`bcc438a`](https://github.com/ofri-peretz/burgee/commit/bcc438ac3936ee1cd530931ea090c6a8bdd016b2) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` now rewrites `picocolors` to `roundel/picocolors`, which picocolors 1.1.1's own test passes, level with picocolors itself.
+
+- [#1012](https://github.com/ofri-peretz/burgee/pull/1012) [`49d8e94`](https://github.com/ofri-peretz/burgee/commit/49d8e943ceaf8dcef14d43c0a70c2edec1a67816) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `@inquirer/prompts` is now graded: its ten prompts' own suites (8.7.3) are vendored and run against `caique/inquirer`, with a control of 213 of 213 against the real packages. `caique/inquirer` passes 0 of them today, because it exports `@inquirer/core`'s surface and none of the prompts yet, and `burgee migrate` reports `@inquirer/prompts` as a graded path that is not level, never rewriting it. The eleven `@inquirer/editor` cases are excluded by title: each answers the prompt through a mock of `@inquirer/external-editor`, which caique does not import.
+
+  The oracle gains two host fields for it. `suiteFiles` lists a monorepo suite's files across several packages and vendors only those; `defaultExport` grades a suite that imports its prompt as a default against the named export a program migrates.
+
+- [#1007](https://github.com/ofri-peretz/burgee/pull/1007) [`bfe4ab8`](https://github.com/ofri-peretz/burgee/commit/bfe4ab8b13ff04293345a69007cad9e0cb81c678) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Two new drop-in subpaths, each graded by its incumbent's own suite and level with it. `linegauge/cli-truncate` is cli-truncate 6 (12 of 12): its default export and `position`, `space`, `preferTruncationOnSpace` and `truncationCharacter`, over linegauge's own `slice` and `width`. `linegauge/widest-line` is widest-line 6 (1 of 1) over `widest`. `truncate` and `widest` are unchanged. `burgee migrate` now rewrites `cli-truncate` and `widest-line`.
+
+- [#1029](https://github.com/ofri-peretz/burgee/pull/1029) [`35ded07`](https://github.com/ofri-peretz/burgee/commit/35ded075ffcc7175bc5dffb5b8d0210a584571f9) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate`'s release-age version order no longer carries a comparison of major versions it can never make: every candidate is already of the graded major.
+
+- [#1022](https://github.com/ofri-peretz/burgee/pull/1022) [`ecb0a00`](https://github.com/ofri-peretz/burgee/commit/ecb0a00ca68e9a3b3584aefabb9dcf97e3ff967a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The tarball no longer carries declaration files that no `exports` entry reaches. TypeScript could never open them, because a deep import is refused by `exports`. Every entry's types are unchanged. The ten packages drop 71 files and 118,312 bytes between them, burgee 35 files and 76,504 bytes, which takes its tarball from 251,814 to 225,278 bytes gzipped.
+- Updated dependencies [[`bfe4ab8`](https://github.com/ofri-peretz/burgee/commit/bfe4ab8b13ff04293345a69007cad9e0cb81c678), [`1968eb4`](https://github.com/ofri-peretz/burgee/commit/1968eb46feec57bb047a9c4a4288e0cf4442f4b2), [`65afee5`](https://github.com/ofri-peretz/burgee/commit/65afee5c96e4cae62dbb9b0ba28fab98fffdbf01), [`bcc438a`](https://github.com/ofri-peretz/burgee/commit/bcc438ac3936ee1cd530931ea090c6a8bdd016b2), [`ecb0a00`](https://github.com/ofri-peretz/burgee/commit/ecb0a00ca68e9a3b3584aefabb9dcf97e3ff967a)]:
+  - linegauge@1.1.0
+  - roundel@1.1.0
+  - bellpull@1.0.5
+  - closeout@1.1.1
+  - seniority@1.0.6
+
 ## 1.1.0
 
 ### Minor Changes

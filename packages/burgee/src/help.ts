@@ -71,6 +71,11 @@ export interface HelpOptions {
    * it is the identity, and help is byte-for-byte what it was.
    */
   say?: (english: string) => string;
+  /**
+   * Words the engine adds to the root's line for agents: `AGENTS.md`, when one sits beside the
+   * binary (agent-skill R4). Passed in like `commands`, so this renderer looks for no file.
+   */
+  forAgents?: string;
 }
 
 /** What a term is, so the theme can style it; the term itself stays plain text. */
@@ -272,7 +277,7 @@ function termColumn(rows: Row[], width: number): number {
  * the finished cell: the term is measured and padded plain, and the name in the manifest
  * is never touched, which is what yargs #1699 got wrong.
  */
-/** The run's `HelpOptions.say`, set by `renderHelp` for the call: one renderer at a time, and synchronous. */
+/** The run's `HelpOptions.say`, set by `helpModel` for the call: one renderer at a time, and synchronous. */
 let say: (english: string) => string = String;
 
 function layout(rows: Row[], width: number, column: number, paint: Paint): string[] {
@@ -326,6 +331,7 @@ export interface HelpModel {
 }
 
 export function helpModel(manifest: Manifest, node: CommandNode, opts: HelpOptions = {}): HelpModel {
+  say = opts.say ?? String;
   const commands = commandSections(manifest, node, opts.commands);
   const atRoot = node.path.length === manifest.rootPath.length;
   const global = [...(atRoot ? ROOT_GLOBAL : GLOBAL), ...(opts.globals ?? []).map((r) => ({ ...r, kind: 'flag' as const })), ...(node.run === undefined ? [] : [EXPLAIN])];
@@ -337,7 +343,7 @@ export function helpModel(manifest: Manifest, node: CommandNode, opts: HelpOptio
     { title: 'Examples:', rows: (node.examples ?? []).map((e: Example) => ({ term: e.command, text: e.description ?? '', kind: 'value' as const })) },
     { title: 'Environment:', rows: environmentRows(node.options) },
   ].filter((s) => s.rows.length > 0);
-  const trailer = [...(atRoot ? [FOR_AGENTS] : []), ...(node.epilogue === undefined ? [] : [node.epilogue])];
+  const trailer = [...(atRoot ? [say(FOR_AGENTS) + say(opts.forAgents ?? '')] : []), ...(node.epilogue === undefined ? [] : [node.epilogue])];
   // `usage` is what follows the command's name on its usage line.
   const usage = [...(commands.length > 0 ? ['<command>'] : []), '[options]', ...(node.arguments ?? []).map(argumentTerm)].join(' ');
   return { usage, description: node.description === undefined ? undefined : `${node.description}${deprecation(node.deprecated)}`, sections, trailer };
@@ -358,12 +364,11 @@ export function renderHelp(manifest: Manifest, node: CommandNode, opts: HelpOpti
   if (opts.format === 'markdown') return import('./help-markdown.js').then((m) => m.markdownHelp(model, node));
   const width = opts.width ?? DEFAULT_WIDTH;
   const paint = paintOf(opts);
-  say = opts.say ?? String;
   const shown = node.path.slice(manifest.rootPath.length).join(' ') || node.path.join(' ');
   const column = termColumn(model.sections.filter((s) => s.title !== 'Examples:').flatMap((s) => s.rows), width);
   const lines: string[] = [`${paint.heading(say('Usage:'))} ${shown} ${model.usage}`, ''];
   if (model.description !== undefined) lines.push(...wrap(model.description, width), '');
   for (const s of model.sections) lines.push(paint.heading(say(s.title)), ...(s.title === 'Examples:' ? exampleLines(s.rows, width) : layout(s.rows, width, column, paint)), '');
-  for (const t of model.trailer) lines.push(...wrap(say(t), width), '');
+  for (const t of model.trailer) lines.push(...wrap(t, width), '');
   return `${lines.join('\n').trimEnd()}\n`;
 }

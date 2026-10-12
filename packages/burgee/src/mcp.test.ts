@@ -100,6 +100,52 @@ describe('--mcp', () => {
     expect(toolsOf(program).find((t) => t.name === 'greet')?.description).toBe('Greet someone\nExample: app greet ada --shout — loudly');
   });
 
+  /**
+   * mcp-current R2 — `outputSchema` from the command's own `output.schema`, never invented.
+   * Red before it was built: no tool carried an `outputSchema` key at all.
+   */
+  describe('lists outputSchema for a command that declares one (R2)', () => {
+    const declared = defineProgram({
+      name: 'typed',
+      commands: [
+        defineCommand({ name: 'user', effects: 'read_only', output: { cardinality: 'single', schema: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] } }, run: () => ({ name: 'ada' }) }),
+        defineCommand({ name: 'count', effects: 'read_only', output: { cardinality: 'single', schema: { type: 'integer' } }, run: () => 3 }),
+        // An object, under a schema that is not `type: 'object'`: wrapped by the schema, not the value.
+        defineCommand({ name: 'either', effects: 'read_only', output: { cardinality: 'single', schema: { anyOf: [{ type: 'object' }, { type: 'string' }] } }, run: () => ({ name: 'ada' }) }),
+        defineCommand({ name: 'plain', effects: 'read_only', output: { cardinality: 'single' }, run: () => 'words' }),
+      ],
+    });
+    const byName = new Map(toolsOf(declared).map((t) => [t.name, t]));
+
+    it('as declared, when the schema is an object type', () => {
+      expect(byName.get('user')?.outputSchema).toEqual({ type: 'object', properties: { name: { type: 'string' } }, required: ['name'] });
+    });
+
+    it('wrapped as { result } otherwise, the same way the result is', () => {
+      expect(byName.get('count')?.outputSchema).toEqual({ type: 'object', properties: { result: { type: 'integer' } }, required: ['result'] });
+    });
+
+    it('and the result has the shape the schema advertised, whatever the value is', async () => {
+      const input = new PassThrough();
+      const written: string[] = [];
+      const run = async (argv: string[]): Promise<{ stdout: string; stderr: string; code: number }> => {
+        const out: string[] = [];
+        await execute(declared, { argv, env: {}, stdout: { write: (s: string) => out.push(s) }, stderr: { write: () => true }, exit: () => undefined });
+        return { stdout: out.join(''), stderr: '', code: 0 };
+      };
+      const done = serveMcp(declared, { input, output: { write: (s: string) => written.push(s) }, invoke: run });
+      input.end(['user', 'count', 'either'].map((name, at) => JSON.stringify({ jsonrpc: '2.0', id: at, method: 'tools/call', params: { name, arguments: {} } })).join('\n'));
+      await done;
+      const results = written.join('').trim().split('\n').map((l) => (JSON.parse(l) as { result: { structuredContent: unknown } }).result.structuredContent);
+      expect(results).toEqual([{ name: 'ada' }, { result: 3 }, { result: { name: 'ada' } }]);
+    });
+
+    it('not at all for a command that declares none: an absent schema is honest, an invented one is not', () => {
+      expect(byName.get('plain')).not.toHaveProperty('outputSchema');
+      expect(toolsOf(program).some((t) => 'outputSchema' in t)).toBe(false);
+    });
+  });
+
   it('maps effects to the hints an agent reads, never defaulting destructive to silence (N6)', () => {
     expect(annotationsOf('read_only')).toEqual({ readOnlyHint: true, idempotentHint: true, destructiveHint: false });
     expect(annotationsOf('idempotent')).toEqual({ readOnlyHint: false, idempotentHint: true, destructiveHint: false });
@@ -143,6 +189,15 @@ describe('--mcp', () => {
       const result = await structured('fail', {});
       expect(result['isError']).toBe(true);
       expect(result['structuredContent']).toMatchObject({ code: 1, message: 'boom' });
+    });
+
+    it('carries none for JSON that is not an envelope, an error key without ok included', async () => {
+      const input = new PassThrough();
+      const written: string[] = [];
+      const done = serveMcp(program, { input, output: { write: (s: string) => written.push(s) }, invoke: async () => ({ stdout: '{"error":{"code":1}}\n', stderr: '', code: 1 }) });
+      input.end(`${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'greet', arguments: { name: 'ada' } } })}\n`);
+      await done;
+      expect((JSON.parse(written.join('')) as { result: unknown }).result).not.toHaveProperty('structuredContent');
     });
 
     it('carries none when stdout is not an envelope, and leaves the text as it was', async () => {

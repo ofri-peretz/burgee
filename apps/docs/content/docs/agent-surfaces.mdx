@@ -121,6 +121,14 @@ Printed output becomes the tool result: whatever a handler writes to stdout duri
 text item, never a stray line on the JSON-RPC stream, and what it writes to stderr stays on
 stderr.
 
+The data comes back as data too. The result carries the envelope's `data` as
+`structuredContent` beside the text, or its `error` on a failure, and wraps anything that is not
+an object as `{ "result": … }`, because the protocol requires an object. A command that declares
+`output.schema` lists it as the tool's `outputSchema`, wrapped the same way, so a client can
+check the result against it; a command that declares none lists none, rather than a schema
+guessed from one run. Text a handler printed instead of an envelope carries no
+`structuredContent`, and the text is unchanged either way.
+
 A handler that throws, rejects or throws something that is not an `Error` is an error
 result, not a crashed server: `isError: true`, and the text is the `{ "ok": false, "error":
 … }` envelope a `--json` caller gets on stdout. An `AuthError` carries `code` 5 (`"auth"` on
@@ -147,6 +155,26 @@ On `burgee/commander` and `burgee/yargs`, a program that declares its own `--sch
 `--mcp` option keeps it, and burgee leaves it alone: the surfaces are additive, never a change
 to a program that already exists. On burgee's own API the names are reserved, and
 `defineCommand` refuses an option that redefines one.
+
+## `--skill` — the program as an Agent Skill
+
+```bash
+mytool --skill                        # SKILL.md on stdout
+npx burgee skill dist/index.js        # SKILL.md and AGENTS.md, beside the bin
+npx burgee skill dist/index.js --check  # in CI: exit 1 when the committed files are stale
+```
+
+An [Agent Skill](https://agentskills.io/specification), projected from the same declaration:
+front matter with a `name` and a `description` within the specification's limits, then what the
+program is for, the contract an agent relies on (`--json` and its envelope, `--explain`, every
+exit code with its error kind), and one line and the first example per command. It is small on
+purpose: a command's options are behind `mytool --schema <command>`, which the skill names and
+never inlines, so an agent pays for one command's contract when it uses that command.
+
+`burgee skill` writes `SKILL.md` and `AGENTS.md` (the same body, no front matter) into the
+directory of the `bin` your package.json names, unless `--out` says where. When an `AGENTS.md`
+sits beside the binary or in the directory above it, the root help's line for agents names it;
+without one, the line is unchanged. A root that declares its own `--skill` option keeps it.
 
 ## `completion <shell>` — static unless you ask
 

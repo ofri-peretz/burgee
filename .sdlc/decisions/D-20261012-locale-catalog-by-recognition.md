@@ -62,5 +62,6 @@ the catalog: `locale-invariance.test.ts` is the lock that holds this.
 - **A `Record` text's base language is its first entry.** No other declaration carries a base
   language, and requiring an `en` key would rule out authors who write in another language.
 - **An MCP tool call runs with `locale: 'C'`,** because it answers an agent.
-- **`--skill`** is not on `main` yet (`agent-skill` is being built in parallel). R5's skill half
-  lands with it.
+- **`--skill` renders through the same view as help:** `renderSkill(manifest, view)` gets the
+  run's localised commands. `burgee skill` writes `SKILL.md` and `AGENTS.md` in the base language,
+  because a file on disk has no run locale.

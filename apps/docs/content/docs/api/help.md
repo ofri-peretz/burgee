@@ -79,6 +79,11 @@ interface HelpOptions {
      * it is the identity, and help is byte-for-byte what it was.
      */
     say?: (english: string) => string;
+    /**
+     * Words the engine adds to the root's line for agents: `AGENTS.md`, when one sits beside the
+     * binary (agent-skill R4). Passed in like `commands`, so this renderer looks for no file.
+     */
+    forAgents?: string;
 }
 ```
 

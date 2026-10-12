@@ -1,0 +1,44 @@
+{
+  "$comment": "upstream-watch R1, written by foundation-claims-watched on 2026-10-12. See packages/flagstaff/competitors.json for the field meanings. Every `seen` is null until the daily competitor pass in compat-upstream.yml fingerprints it. Every subpath is a graded drop-in. mimic-function is itemised inside onetime's resolved tree, which is the figure closeout's weight lock cites, so it is read `via` onetime.",
+  "./signal-exit": [
+    {
+      "package": "signal-exit",
+      "claim": "compat",
+      "seen": null
+    }
+  ],
+  "./exit-hook": [
+    {
+      "package": "exit-hook",
+      "claim": "compat",
+      "seen": null
+    }
+  ],
+  "./restore-cursor": [
+    {
+      "package": "restore-cursor",
+      "claim": "compat",
+      "seen": null
+    }
+  ],
+  "./onetime": [
+    {
+      "package": "onetime",
+      "claim": "compat",
+      "seen": null
+    },
+    {
+      "package": "mimic-function",
+      "claim": "weight",
+      "via": "onetime",
+      "seen": null
+    }
+  ],
+  "./cli-cursor": [
+    {
+      "package": "cli-cursor",
+      "claim": "compat",
+      "seen": null
+    }
+  ]
+}

@@ -98,7 +98,8 @@ export function readDeclarations(packagesDir: string): Declaration[] {
       const raw = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
       const subpaths: Record<string, Entry[]> = {};
       for (const [key, value] of Object.entries(raw)) {
-        if (!key.startsWith('./') || !Array.isArray(value)) continue;
+        // The root is a subpath too: bellpull's execa and tinyexec figures are `.`'s.
+        if (!(key === '.' || key.startsWith('./')) || !Array.isArray(value)) continue;
         subpaths[key] = value.filter(isEntry);
       }
       return { owner: e.name, dir, file, subpaths };

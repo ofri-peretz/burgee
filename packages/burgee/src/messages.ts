@@ -100,6 +100,7 @@ export const MESSAGES = {
   'help.timeout': 'end the run after this long, exit {code}: 500ms, 5s, 2m',
   'help.completion': 'Print a shell completion script: bash, zsh, fish, pwsh or fig',
   'help.completionShell': 'bash, zsh, fish, pwsh or fig',
+  'help.agentsMd': ' AGENTS.md beside this program says how to drive it.',
   'help.forAgents': 'For agents: --schema prints every command, option, default and env var as JSON, in one call. --json prints one envelope on stdout, and --explain <option> says where a value came from.',
   // What each exit code asks of the caller, in root help's `Exit codes:` (never in `--schema`).
   'exit.ok': 'the command completed',

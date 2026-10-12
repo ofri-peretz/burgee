@@ -602,6 +602,9 @@ async function report(cause: unknown, { manifest, io, argv, json, name }: Failur
 function ioOf(opts: RunOptions): Io {
   const out = opts.stdout ?? host.stdout;
   return {
+    // What the run was given, under every field below that resolves it: so `locale`
+    // (`localised-human-surfaces` R2) reaches the prose paths without a line of its own.
+    ...opts,
     out,
     err: opts.stderr ?? host.stderr,
     env: opts.env ?? host.env,
@@ -614,7 +617,6 @@ function ioOf(opts: RunOptions): Io {
     // the harness, the MCP loop and every façade test pass one, and none of them may have
     // nine listeners attached to the runner's own process on their behalf.
     teardown: opts.exit === undefined ? processTeardown([host.stdout, host.stderr]) : detachedTeardown(),
-    locale: opts.locale,
   };
 }
 

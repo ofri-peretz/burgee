@@ -1,5 +1,13 @@
 # paratext
 
+## 1.0.5
+
+### Patch Changes
+
+- [#1011](https://github.com/ofri-peretz/burgee/pull/1011) [`1968eb4`](https://github.com/ofri-peretz/burgee/commit/1968eb46feec57bb047a9c4a4288e0cf4442f4b2) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The README quick start runs as written. On npm it was broken for flagstaff (`rt` undefined) and linegauge (`styled` undefined), controlroom's imported flagstaff without installing it, and paratext's printed nothing. No code changed; `readme-quick-start-lock` now runs every package's quick start.
+
+- [#1022](https://github.com/ofri-peretz/burgee/pull/1022) [`ecb0a00`](https://github.com/ofri-peretz/burgee/commit/ecb0a00ca68e9a3b3584aefabb9dcf97e3ff967a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The tarball no longer carries declaration files that no `exports` entry reaches. TypeScript could never open them, because a deep import is refused by `exports`. Every entry's types are unchanged. The ten packages drop 71 files and 118,312 bytes between them, burgee 35 files and 76,504 bytes, which takes its tarball from 251,814 to 225,278 bytes gzipped.
+
 ## 1.0.4
 
 ### Patch Changes

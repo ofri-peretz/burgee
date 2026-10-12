@@ -122,7 +122,8 @@ export function checkLocales(plugin: Pick<Plugin, 'name'> & { locales?: unknown 
   if (locales === undefined) return;
   if (!isRecord(locales)) throw refuse(name, 'locales must be an object', 'map a language tag to its messages: `{ de: { "usage.unknownOption": "…" } }`');
   for (const [locale, messages] of Object.entries(locales)) {
-    if (normalise(locale) !== locale) throw refuse(name, `locales has "${locale}", which is not a language tag as Intl.Locale writes it`, `write it ${normalise(locale) === undefined ? 'as a BCP 47 tag, such as de or pt-BR' : `as "${String(normalise(locale))}"`}`);
+    const written = normalise(locale);
+    if (written !== locale) throw refuse(name, `locales has "${locale}", which is not a language tag as Intl.Locale writes it`, `write it ${written === undefined ? 'as a BCP 47 tag, such as de or pt-BR' : `as "${written}"`}`);
     if (!isRecord(messages)) throw refuse(name, `locales.${locale} must be an object`, 'map a message id to its translation');
     for (const [id, message] of Object.entries(messages)) checkMessage(name, locale, id, message);
   }
