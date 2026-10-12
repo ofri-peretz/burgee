@@ -163,7 +163,7 @@ Graded by the incumbent's own test suite:
 | `term-img` | 18 / 18 |
 | `terminal-link` | 8 / 8 |
 
-Weight, installed and tree-inclusive: **116,671 bytes** against **2,235,987** for the incumbents it replaces — a ratio of **0.0522**.
+Weight, installed and tree-inclusive: **116,683 bytes** against **2,235,987** for the incumbents it replaces — a ratio of **0.0522**.
 
 ## For agents
 

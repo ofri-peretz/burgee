@@ -141,7 +141,7 @@
     },
     "locales": {
       "type": "object",
-      "description": "burgee locale packs (localised-human-surfaces R4): a BCP 47 language tag, as Intl.Locale writes it, mapped to catalog ids and their translations. A message is a string, or for a message whose English carries {count}, one string per plural form Intl.PluralRules selects for the locale. burgee/locale-pack-schema.json lists every id with its English; `burgee check` renders a pack or refuses it.",
+      "description": "burgee locale packs (localised-human-surfaces R4): a BCP 47 language tag, as Intl.Locale writes it, mapped to catalog ids and their translations. A message is a string, or for a message whose English carries a count placeholder, one string per plural form Intl.PluralRules selects for the locale. burgee/locale-pack-schema.json lists every id with its English; `burgee check` renders a pack or refuses it.",
       "propertyNames": {
         "pattern": "^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
       },
