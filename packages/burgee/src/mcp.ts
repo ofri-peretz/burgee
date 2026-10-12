@@ -266,7 +266,25 @@ async function callTool(session: Session, params: Record<string, unknown> | unde
   // rather than returns, it is the whole answer — so it follows the envelope as text.
   const content = [{ type: 'text', text }];
   if (printed.trim() !== '') content.push({ type: 'text', text: printed.trimEnd() });
-  return { result: { content, isError } };
+  return { result: { content, isError, ...structuredOf(text) } };
+}
+
+/**
+ * mcp-current R1 — the envelope's `data` as `structuredContent`, or its `error` on a failure.
+ * The protocol requires an object, so anything else is `{ result: data }`. Text that is not an
+ * envelope — a commander action that printed prose — has none, which is the protocol's own
+ * fallback: the text beside it is unchanged either way.
+ */
+function structuredOf(text: string): { structuredContent?: unknown } {
+  try {
+    // `null` and the scalars throw or read nothing here, which is the same "no envelope".
+    const { ok, data, error } = JSON.parse(text) as { ok?: boolean; data?: unknown; error?: unknown };
+    const value = ok === true ? data : error;
+    if (value === undefined) return {};
+    return { structuredContent: value?.constructor === Object ? value : { result: value } };
+  } catch {
+    return {};
+  }
 }
 
 async function handle(session: Session, request: Request): Promise<unknown> {
