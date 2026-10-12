@@ -1,4 +1,5 @@
 import { width } from 'linegauge';
+import { truncate } from 'linegauge/truncate';
 import { wrap } from 'linegauge/wrap';
 /**
  * A table (R7) — cli-table3's job, as a string function, and again with no layout engine.
@@ -54,6 +55,12 @@ export interface ColumnOptions {
   min?: number;
   /** A cap no content pushes the column past. A whole number from 1, and at least `min`. */
   max?: number;
+  /**
+   * What a cell wider than its column does (R3): `'wrap'` onto more physical rows, the
+   * default and the only behaviour before this option, or `'truncate'` to one row ending in
+   * `…`. A person's view only: the static projection carries the full cell either way (R4).
+   */
+  overflow?: 'wrap' | 'truncate';
 }
 
 const DEFAULT_WIDTH = 80;
@@ -94,14 +101,20 @@ function fitWidths(widths: number[], available: number, { columns: bounds = [] }
 }
 
 /**
- * One logical row as the physical rows it occupies once its cells have wrapped.
+ * One logical row as the physical rows it occupies once its cells have wrapped, or, in a
+ * `truncate` column, been cut to one line ending in `…` (R3). Cut by display width, through
+ * `linegauge/truncate`, so a wide character or a styled run is never split; a line break in
+ * the cell reads as a space, since the cell has one line to give it.
  *
- * The destination goes on **after** wrapping, around whatever text survived — the lesson
- * cli-table3 learned the hard way in its issue #338, where a link applied first was cut
- * through the middle of its own url and left a sequence that never closed.
+ * The destination goes on **after** wrapping or cutting, around whatever text survived — the
+ * lesson cli-table3 learned the hard way in its issue #338, where a link applied first was
+ * cut through the middle of its own url and left a sequence that never closed.
  */
 function layoutRow(row: Row, widths: number[], options: TableOptions, paint: Painter): string[] {
-  const cells = widths.map((w, i) => wrap(lay(row[i], paint), w, { hard: true, trim: false }).split('\n'));
+  const cells = widths.map((w, i) => {
+    const text = lay(row[i], paint);
+    return options.columns?.[i]?.overflow === 'truncate' ? [truncate(text.replace(/\r?\n/g, ' '), w)] : wrap(text, w, { hard: true, trim: false }).split('\n');
+  });
   // Pad to the column, then hand the text its destination. The gap is measured from the plain
   // line, before any sequence is added — `width()` strips OSC 8, so the two orders agree, and
   // measuring first means the alignment cannot depend on that staying true.

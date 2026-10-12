@@ -153,11 +153,12 @@ No layout engine, and there will not be one: these measure with `width()`, wrap 
 A table column can be bounded. `columns` is positional, like `align`: `max` caps a column
 whatever its content, and `min` keeps it open while another column can give way. Both count
 the content's display width, not the padding. When the mins add up past `width`, the mins win
-and the table is wider than asked. The static projection has no columns to cap, so it is
-unchanged.
+and the table is wider than asked. A cell wider than its column wraps; `overflow: 'truncate'`
+cuts it to one row ending in `…` instead, by display width, with a link kept around what is
+left. The static projection has no columns to cap, so it prints every cell whole.
 
 ```js
-table(rows, { head: ['url', 'status'], columns: [{ max: 40 }, { min: 10 }] });
+table(rows, { head: ['id', 'status'], columns: [{ max: 12, overflow: 'truncate' }, { min: 10 }] });
 ```
 
 ### A log tail and a tab bar
