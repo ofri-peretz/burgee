@@ -1,0 +1,29 @@
+{
+  "$comment": "upstream-watch R1, written by foundation-claims-watched on 2026-10-12. See packages/flagstaff/competitors.json for the field meanings. Every `seen` is null until the daily competitor pass in compat-upstream.yml fingerprints it. execa and tinyexec are `weight`: no drop-in replaces either (bellpull spec R7, D-160), and the published claim is the byte figure. tinyexec is the one with the least headroom in the family, `lighter-than-tinyexec` at 0.986 against 1 on 2026-10-12. `which` is graded through `./node-which`, the subpath the oracle imports.",
+  ".": [
+    {
+      "package": "execa",
+      "claim": "weight",
+      "seen": null
+    },
+    {
+      "package": "tinyexec",
+      "claim": "weight",
+      "seen": null
+    }
+  ],
+  "./cross-spawn": [
+    {
+      "package": "cross-spawn",
+      "claim": "compat",
+      "seen": null
+    }
+  ],
+  "./node-which": [
+    {
+      "package": "which",
+      "claim": "compat",
+      "seen": null
+    }
+  ]
+}

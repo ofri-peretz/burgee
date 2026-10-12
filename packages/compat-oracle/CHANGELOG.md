@@ -1,5 +1,22 @@
 # compat-oracle
 
+## 0.3.4
+
+### Patch Changes
+
+- [#1021](https://github.com/ofri-peretz/burgee/pull/1021) [`dfc49be`](https://github.com/ofri-peretz/burgee/commit/dfc49be7c701959675f4808fd99cd0d5be9c38b1) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The oracle runs type-only suites. A host may declare `runner: 'tsd'`: its suite's own pinned `tsd` compiles the vendored files against the shim's declarations, and each assertion it recognises (`expectType`, `expectAssignable`, `expectError`, …) is one case, failing when an error falls inside it. An error outside every assertion — an `@ts-expect-error` that found nothing, an import the target lacks — is one more failure, never dropped. A file is never one case. The run is refused when the suite does not pin tsd in `suiteDeps` or has no `tsconfig.json` of its own, because tsd would otherwise resolve both by walking up the directory tree.
+
+- [#1024](https://github.com/ofri-peretz/burgee/pull/1024) [`5d13c9f`](https://github.com/ofri-peretz/burgee/commit/5d13c9f428132689b9bc7846ca1b76d405b0854d) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The tsd runner's end-to-end cases skip on Windows, where `installSuiteDeps` cannot start `npm` (`npm.cmd` needs a shell). No `suiteDeps` host is graded on Windows — the oracle's ratchet runs on ubuntu — and the grade's arithmetic (`tsdTap`) is still tested on every platform.
+
+- [#1012](https://github.com/ofri-peretz/burgee/pull/1012) [`49d8e94`](https://github.com/ofri-peretz/burgee/commit/49d8e943ceaf8dcef14d43c0a70c2edec1a67816) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `@inquirer/prompts` is now graded: its ten prompts' own suites (8.7.3) are vendored and run against `caique/inquirer`, with a control of 213 of 213 against the real packages. `caique/inquirer` passes 0 of them today, because it exports `@inquirer/core`'s surface and none of the prompts yet, and `burgee migrate` reports `@inquirer/prompts` as a graded path that is not level, never rewriting it. The eleven `@inquirer/editor` cases are excluded by title: each answers the prompt through a mock of `@inquirer/external-editor`, which caique does not import.
+
+  The oracle gains two host fields for it. `suiteFiles` lists a monorepo suite's files across several packages and vendors only those; `defaultExport` grades a suite that imports its prompt as a default against the named export a program migrates.
+
+- Updated dependencies [[`bcc438a`](https://github.com/ofri-peretz/burgee/commit/bcc438ac3936ee1cd530931ea090c6a8bdd016b2), [`e0532b2`](https://github.com/ofri-peretz/burgee/commit/e0532b2cf298c183699621fc6e17e59373f83bad), [`a2e4f98`](https://github.com/ofri-peretz/burgee/commit/a2e4f98c5524f59c24c560130a8c9cfbcb961991), [`1357061`](https://github.com/ofri-peretz/burgee/commit/1357061168d836d87389dc0881b4a52df648cdc3), [`49d8e94`](https://github.com/ofri-peretz/burgee/commit/49d8e943ceaf8dcef14d43c0a70c2edec1a67816), [`bfe4ab8`](https://github.com/ofri-peretz/burgee/commit/bfe4ab8b13ff04293345a69007cad9e0cb81c678), [`d8569f5`](https://github.com/ofri-peretz/burgee/commit/d8569f53c31382a864d5a86b5a3b720b7918476f), [`45a70be`](https://github.com/ofri-peretz/burgee/commit/45a70bec5d1ace1345a883afe10a3a081b081711), [`206d2a8`](https://github.com/ofri-peretz/burgee/commit/206d2a8da4bbac20f5b6370989f103b3de86c2bf), [`35ded07`](https://github.com/ofri-peretz/burgee/commit/35ded075ffcc7175bc5dffb5b8d0210a584571f9), [`1968eb4`](https://github.com/ofri-peretz/burgee/commit/1968eb46feec57bb047a9c4a4288e0cf4442f4b2), [`65afee5`](https://github.com/ofri-peretz/burgee/commit/65afee5c96e4cae62dbb9b0ba28fab98fffdbf01), [`bcc438a`](https://github.com/ofri-peretz/burgee/commit/bcc438ac3936ee1cd530931ea090c6a8bdd016b2), [`ecb0a00`](https://github.com/ofri-peretz/burgee/commit/ecb0a00ca68e9a3b3584aefabb9dcf97e3ff967a)]:
+  - burgee@1.2.0
+  - flagstaff@1.3.0
+  - roundel@1.1.0
+
 ## 0.3.3
 
 ### Patch Changes

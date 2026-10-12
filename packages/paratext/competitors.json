@@ -1,0 +1,24 @@
+{
+  "$comment": "upstream-watch R1, written by foundation-claims-watched on 2026-10-12. See packages/flagstaff/competitors.json for the field meanings. Every `seen` is null until the daily competitor pass in compat-upstream.yml fingerprints it. Every subpath is a graded drop-in; the root carries the ansi-escapes surface.",
+  ".": [
+    {
+      "package": "ansi-escapes",
+      "claim": "compat",
+      "seen": null
+    }
+  ],
+  "./terminal-link": [
+    {
+      "package": "terminal-link",
+      "claim": "compat",
+      "seen": null
+    }
+  ],
+  "./term-img": [
+    {
+      "package": "term-img",
+      "claim": "compat",
+      "seen": null
+    }
+  ]
+}
