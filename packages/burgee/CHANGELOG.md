@@ -1,5 +1,31 @@
 # burgee
 
+## 1.4.0
+
+### Minor Changes
+
+- [#1044](https://github.com/ofri-peretz/burgee/pull/1044) [`4c85515`](https://github.com/ofri-peretz/burgee/commit/4c8551599933c995e42060a60a1dc791eb1cd719) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Help, usage errors and hints can speak the user's language. A locale pack is a plugin that carries `locales`: a language tag mapped to catalog ids and their translations. You register it with `program.use(pack)`. It is written against the new `burgee/locale-pack-schema.json`, which lists every message id with its English. The locale comes from the new `locale` run option, then `BURGEE_LOCALE`, then `LC_ALL`, `LC_MESSAGES` and `LANG` (`C` and `POSIX` mean the program's own words). When an agent is detected, `LANG` is ignored. A message with `{count}` takes the plural forms `Intl.PluralRules` selects for the locale. `burgee check <pack>` renders every message, or refuses an unknown id, a placeholder the English lacks, or a missing plural form, with `E_PLUGIN_SCHEMA` and a fix. A pack that cannot be rendered fails the help it would translate as a CONFIG error.
+
+  `description`, `summary`, an example's description and an option's description accept `{ en: '…', fr: '…' }`, base language first. Help and `--skill` show the run's locale, and `--schema`, `--mcp`, completions and the files `burgee skill` writes keep the base language.
+
+  `--json`, `--schema`, `--mcp`, `--format=agent`, error kinds and exit codes never change with the locale, and the `error:`, `hint:` and `fix:` labels stay English. With no pack registered and no localised text, every byte of output is unchanged. The commander, yargs and meow front-ends are unchanged.
+
+- [#1061](https://github.com/ofri-peretz/burgee/pull/1061) [`eca6e58`](https://github.com/ofri-peretz/burgee/commit/eca6e585095486c1b584dc69c4dd0753b501fd91) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--mcp` serves calls concurrently, honours `notifications/cancelled`, and sends progress. A request no longer waits for the one before it, so a client can cancel a call while it runs: the call's `ctx.signal` aborts with the reason `cancelled`, its `ctx.onExit` handlers run once as they do after a timeout, and no response is sent for it, as the protocol requires. A cancellation for an unknown or finished request is ignored. Replies go out in the order calls settle.
+
+  `ctx.progress(done, total?, message?)` is new on every handler's context. Inside an `--mcp` call whose client sent `_meta.progressToken`, each call sends `notifications/progress` with that token, once the value rises above the last one sent. Everywhere else it does nothing, so a handler calls it unconditionally.
+
+- [#1048](https://github.com/ofri-peretz/burgee/pull/1048) [`10edb48`](https://github.com/ofri-peretz/burgee/commit/10edb489060fa73a54a094be5129e8cdc52e4a09) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--mcp --print-config` prints the `mcpServers` block that starts this program as an MCP server, ready to paste into a client's configuration. A program started as one of its package's bins, through the symlink npm installs or by its own path, is started by that bin's name, through `cmd /c` on Windows, where npm installs it as a `.cmd` shim a client cannot start directly; anything else is started as `node` with the script's full path. The server is keyed by the program's name. It is read on burgee's own API; the commander and yargs front ends do not read it yet.
+
+### Patch Changes
+
+- [#1060](https://github.com/ofri-peretz/burgee/pull/1060) [`52f6c71`](https://github.com/ofri-peretz/burgee/commit/52f6c71d2db4bc3fd9cbfd9e83fedb5f3ea359dc) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--quiet` reaches `caique/clack`'s decoration. Every clack call's options take an optional `runtime` (roundel's policy `Runtime`, which is burgee's `ctx.runtime`). When it says `quiet`, `spinner`, `tasks`, `intro`, `outro`, `note` and `log.message`, `info`, `step`, `success` and `warn` write nothing, and the spinner arms no interval; their lifecycle methods still run. `log.error` and `cancel` still write, and prompts ignore `quiet`. A call without a `runtime` behaves exactly as before, and quiet is never read from argv or the environment. `isCI()` takes an optional runtime to read `CI` from.
+
+  burgee's README shows the call under For agents: `spinner({ runtime: ctx.runtime })`.
+
+- [#1046](https://github.com/ofri-peretz/burgee/pull/1046) [`1797388`](https://github.com/ofri-peretz/burgee/commit/1797388f27a294803b12839ff4d074226bd40917) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee dev` serialises reloads that pile up during one. Two saves landing while a reload was in flight both waited on the same link, then imported at once — and when the older import finished last, the server kept serving its stale commands. Each save now queues behind the one before it, so the newest save is the one served.
+- Updated dependencies [[`1797388`](https://github.com/ofri-peretz/burgee/commit/1797388f27a294803b12839ff4d074226bd40917)]:
+  - closeout@1.1.3
+
 ## 1.3.0
 
 ### Minor Changes

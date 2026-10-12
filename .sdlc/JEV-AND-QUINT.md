@@ -1,5 +1,10 @@
 # Jev and Quint in the roadmap loop
 
+> **2026-10-12: Quint adopted, Jev deferred.** Jev has no free tier (\$0.042 per million input
+> tokens, keys behind a waitlist), and its one large payoff here — labelling eslint's Wild
+> findings — runs as a one-off on Claude instead. Revisit when a Jev judgement would run in CI
+> every week. The Stage 1 section below stays as the design for that day.
+
 Two tools, two stages, one handoff between them:
 
 | Stage | Tool | Job | Artifact |
@@ -61,6 +66,19 @@ Run one locally:
 ```bash
 npx @informalsystems/quint run .sdlc/intents/closeout/registry.qnt --invariant=safety --max-steps=30 --max-samples=20000
 ```
+
+### Models in the tree
+
+| Model | What it holds | Found before it held |
+| :-- | :-- | :-- |
+| `intents/closeout/registry.qnt` | exactly-once, phase order, restore always runs, honest report | `add()` mid-run silently dropped (D-20261011-closeout-late-add) |
+| `models/save-restore.qnt` | ora's `write` hooks and `rawMode` unwind in any stop order | a stopped spinner left hooked for good; raw mode turned off under a prompt |
+| `models/dev-reload.qnt` | `burgee dev` reloads are serial and serve the newest | two saves in one reload imported at once; the stale one served |
+| `models/release-tag.qnt` | a release's tag is the commit that built it | a lost tag push let `gh release create` tag main's head |
+| `models/prompt-session.qnt` | a caique clack prompt settles once, and a cancel key cancels even while a validator is out | Ctrl-C and Escape ignored during an async validator — no way out of a prompt whose validator hangs |
+
+Each was first written against the code as it was, failed, was confirmed against the real code,
+fixed with a test that fails on the old code, and then rewritten to describe the fix.
 
 ### Pilot: `closeout/registry.qnt`
 

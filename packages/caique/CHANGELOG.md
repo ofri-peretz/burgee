@@ -1,5 +1,18 @@
 # caique
 
+## 1.2.0
+
+### Minor Changes
+
+- [#1060](https://github.com/ofri-peretz/burgee/pull/1060) [`52f6c71`](https://github.com/ofri-peretz/burgee/commit/52f6c71d2db4bc3fd9cbfd9e83fedb5f3ea359dc) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--quiet` reaches `caique/clack`'s decoration. Every clack call's options take an optional `runtime` (roundel's policy `Runtime`, which is burgee's `ctx.runtime`). When it says `quiet`, `spinner`, `tasks`, `intro`, `outro`, `note` and `log.message`, `info`, `step`, `success` and `warn` write nothing, and the spinner arms no interval; their lifecycle methods still run. `log.error` and `cancel` still write, and prompts ignore `quiet`. A call without a `runtime` behaves exactly as before, and quiet is never read from argv or the environment. `isCI()` takes an optional runtime to read `CI` from.
+
+  burgee's README shows the call under For agents: `spinner({ runtime: ctx.runtime })`.
+
+### Patch Changes
+
+- Updated dependencies [[`1797388`](https://github.com/ofri-peretz/burgee/commit/1797388f27a294803b12839ff4d074226bd40917)]:
+  - closeout@1.1.3
+
 ## 1.1.0
 
 ### Minor Changes

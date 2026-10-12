@@ -3,7 +3,7 @@ repo:     https://github.com/sindresorhus/cli-cursor
 version:  5.0.0
 tag:      v5.0.0
 commit:   b97e13ef5de9b735fe7cb84eb5550a47f2296664
-vendored: 2026-10-11
+vendored: 2026-10-12
 files:    1
 tool:     scripts/vendor-suite.ts
 

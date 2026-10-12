@@ -180,14 +180,17 @@ export function dev(opts: DevOptions): DevHandle {
     return loaded;
   };
   // Reloads are serialised: a save during a reload queues the next one instead of racing it.
-  const reload = async (): Promise<Loaded> => {
+  // The chain is re-pointed in the same turn as the call, before anything is awaited. When it
+  // was re-pointed only once the previous link had settled, every save that landed during one
+  // reload queued on that same link and then imported at once, and a slower older import
+  // swapped in last (see .sdlc/models/dev-reload.qnt).
+  const reload = (): Promise<Loaded> => {
+    const next = chain.then(reloadNow);
     // `chain` never rejects: each link carries its own catch, which reports the failure.
-    await chain;
-    const next = reloadNow();
     chain = next.catch((err: unknown) => {
       opts.log.write(`reload failed: ${err instanceof Error ? err.message : String(err)}\n`);
     });
-    return await next;
+    return next;
   };
 
   const ready = reload();

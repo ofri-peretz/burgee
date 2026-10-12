@@ -331,6 +331,9 @@ jobs:
               echo "🔐 $PKG_NAME@$PKG_VER published with npm trusted publishing (OIDC) — this job holds no npm token. npm: $(oidc_said "$logs")."
             fi
             git rev-parse -q --verify "refs/tags/$tag_name" >/dev/null || git tag -a "$tag_name" -m "Release $tag_name" || return 1
+            # A push lost here is not fatal: `gh release create` makes the tag — from `--target`,
+            # the commit that was built, not main's head, which can have moved on since
+            # (.sdlc/models/release-tag.qnt).
             git push origin "$tag_name" || echo "(tag already on remote)"
             # This version's section only — the whole CHANGELOG.md made every release page
             # repeat every release before it. Empty when the version has no section.
@@ -340,9 +343,9 @@ jobs:
             if gh release view "$tag_name" >/dev/null 2>&1; then
               echo "↻ Release $tag_name exists."
             elif [ -s "$notes" ]; then
-              gh release create "$tag_name" --title "$PKG_NAME@$PKG_VER" --notes-file "$notes" --latest=false ${extra[@]+"${extra[@]}"} || return 1
+              gh release create "$tag_name" --title "$PKG_NAME@$PKG_VER" --notes-file "$notes" --latest=false --target "$(git rev-parse HEAD)" ${extra[@]+"${extra[@]}"} || return 1
             else
-              gh release create "$tag_name" --title "$PKG_NAME@$PKG_VER" --generate-notes --latest=false ${extra[@]+"${extra[@]}"} || return 1
+              gh release create "$tag_name" --title "$PKG_NAME@$PKG_VER" --generate-notes --latest=false --target "$(git rev-parse HEAD)" ${extra[@]+"${extra[@]}"} || return 1
             fi
             attach_provenance "$PKG_NAME" "$PKG_VER" "$tag_name" || echo "::warning::$tag_name: provenance not attached to the GitHub Release (the npm publish itself is unaffected)."
             attach_sbom "$PKG_NAME" "$PKG_VER" "$tag_name" || echo "::warning::$tag_name: SBOM not attached to the GitHub Release (the npm publish itself is unaffected)."
