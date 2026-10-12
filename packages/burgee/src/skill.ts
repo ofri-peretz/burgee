@@ -30,12 +30,10 @@ const GENERATED = '<!-- Generated from the program\'s declaration by `burgee ski
 
 /** The program's name under the specification's character rules: `@acme/Deploy_CLI` is `acme-deploy-cli`. */
 export function skillName(name: string): string {
-  const normal = name
-    .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/g, '-')
-    .replaceAll(/^-+|-+$/g, '')
-    .slice(0, NAME_MAX)
-    .replace(/-+$/, '');
+  // Split, not trimmed with `^-+|-+$`: a pattern anchored at both ends backtracks on a long run of
+  // `-` (CodeQL js/polynomial-redos), and joining the words leaves no leading, trailing or doubled `-`.
+  const joined = name.toLowerCase().split(/[^a-z0-9]+/u).filter((w) => w !== '').join('-').slice(0, NAME_MAX);
+  const normal = joined.endsWith('-') ? joined.slice(0, -1) : joined;
   return normal === '' ? 'cli' : normal;
 }
 
@@ -56,7 +54,11 @@ function descriptionOf(manifest: Manifest, commands: CommandNode[]): string {
   const what = sentence(manifest.find(manifest.rootPath)?.description ?? `The ${name} command line`);
   const uses = commands.map((c) => c.summary ?? c.description).filter((s): s is string => s !== undefined && s !== '').map(verbPhrase);
   const full = uses.length === 0 ? what : `${what} Use it to ${either(uses)}.`;
-  return full.length <= DESCRIPTION_MAX ? full : `${full.slice(0, DESCRIPTION_MAX - 1).replace(/\s+\S*$/, '')}…`;
+  if (full.length <= DESCRIPTION_MAX) return full;
+  // Cut at the last space that fits, found by index rather than a `\s+\S*$` pattern (CodeQL js/polynomial-redos).
+  const cut = full.slice(0, DESCRIPTION_MAX - 1);
+  const at = cut.lastIndexOf(' ');
+  return `${at === -1 ? cut : cut.slice(0, at)}…`;
 }
 
 /** A table cell: `|` escaped and line breaks as `<br>`, so neither ends the row early. */

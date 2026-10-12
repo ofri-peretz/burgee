@@ -157,6 +157,10 @@ describe('--skill prints an Agent Skill (agent-skill R2)', () => {
     expect((meta['description'] as string).length).toBeLessThanOrEqual(DESCRIPTION_MAX);
     expect(meta['description']).toMatch(/…$/);
     expect(skill).toMatch(/^---\nname: many\ndescription: "Many things: a list\./);
+    const word = renderSkill(defineProgram({ name: 'word', description: 'a'.repeat(1100), commands: [] }));
+    expect(frontMatter(word)['description']).toBe(`${'a'.repeat(DESCRIPTION_MAX - 1)}…`);
+    // A long run of `-` is linear work, not a regex that backtracks on it.
+    expect(skillName(`a${'-'.repeat(50_000)}b`)).toBe('a-b');
   });
 
   it('keeps an acronym, a sentence already ended, and an error with no description, and needs no root node', () => {
