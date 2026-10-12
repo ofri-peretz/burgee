@@ -66,6 +66,8 @@ const DROP_IN_CEILINGS: Readonly<Record<string, { incumbent: string; bytes: numb
   'closeout/cli-cursor': { incumbent: 'cli-cursor@5.0.0', bytes: 4_757 },
   'linegauge/cli-truncate': { incumbent: 'cli-truncate@6.1.1', bytes: 20_675 },
   'linegauge/widest-line': { incumbent: 'widest-line@6.0.0', bytes: 6_079 },
+  // R7's kill criterion: over this, `roundel/picocolors` does not publish.
+  'roundel/picocolors': { incumbent: 'picocolors@1.1.1', bytes: 2_739 },
 };
 
 /** The "Everything" cell of a subpath's row on the page, or `undefined` when it has no row. */

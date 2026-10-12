@@ -303,7 +303,7 @@ Graded by the incumbent's own test suite:
 | `inquirer-core` | 41 / 41 |
 | `inquirer-prompts` | 0 / 213 |
 
-Weight, installed and tree-inclusive: **233,139 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.5993**.
+Weight, installed and tree-inclusive: **233,154 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.5993**.
 
 ## For agents
 
@@ -375,7 +375,7 @@ keeps both true.
 | Package | What it is | Migrates from |
 | :-- | :-- | :-- |
 | [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander, yargs and meow |
-| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk |
+| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk and picocolors |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
 | **caique** (this package) | Prompts that are flags first, and never hang | @inquirer/core |
 | [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line |
