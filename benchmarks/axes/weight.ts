@@ -466,7 +466,9 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // 56,150 on 2026-10-12, **down 4,950**, commander-front-end-diet R1: the subcommand spawn is
   // commander's own `node:child_process` on every path commander takes, and `bellpull/cross-spawn`
   // loads through `import()` only for a Windows executable that is not node. Measured 56,116, of which 65 B are #1064's `schema.js`.
-  'burgee/commander': 56_150,
+  // 55,400 on 2026-10-12, **down 750**, commander-front-end-diet R2: the `completion` and `--mcp`
+  // routers moved into `commander/surfaces.js`, loaded with the surface they serve. Measured 55,359.
+  'burgee/commander': 55_400,
 
   // 108,200 on 2026-09-27 for **847 bytes** (107,339 -> 108,186): `unknown-options-as-args`
   // ran five flag regexes over every `-`-prefixed argument and one was cubic (a 4,000-character
@@ -562,6 +564,22 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // the 80 B CI reads over local, rounded up to the next fifty. It sits above tinyexec on
   // purpose — the ratio is the bar, and it is the tighter of the two.
   bellpull: 6_000,
+  // foundation-claims-watched R6, first measured 2026-10-12: the last two layers' B4 rows. Each
+  // was added at a ceiling of 0 and failed (`npm run bench -- --axis weight --check`, 6 gate
+  // failures) before it was set here: the measurement plus the 80 B CI margin, rounded up to the
+  // next fifty. Incumbents at the versions compat-oracle grades: lilconfig 3.1.3, dotenv 18.0.7,
+  // exit-hook 5.1.0, signal-exit 4.1.0.
+  // `seniority/lilconfig` 3,263 against lilconfig's 5,343 (0.611) and `seniority/dotenv` 5,913
+  // against dotenv's 11,481 (0.515): both lighter, so the ratio gate is U5's 1.
+  'seniority/lilconfig': 3_350,
+
+  'seniority/dotenv': 6_000,
+  // **Both closeout rows are heavier than the incumbent, and the gates say so** (see
+  // `RATIO_CEILING`). `closeout/exit-hook` 4,819 against exit-hook's 1,645 (2.929) and
+  // `closeout/signal-exit` 3,634 against signal-exit's 2,856 (1.272).
+  'closeout/exit-hook': 4_900,
+
+  'closeout/signal-exit': 3_750,
 };
 
 /**
@@ -721,6 +739,14 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // OSC half degrade on a pipe. Measured 1.937.
   // 1.65 on 2026-09-30 with the byte ceiling above: (7,086 + 80) / 4,351 = 1.647.
   paratext: 1.65,
+  // foundation-claims-watched R6, 2026-10-12. `seniority/lilconfig` (0.611) and
+  // `seniority/dotenv` (0.515) are lighter and take the default 1. These two are not, and are
+  // ratchets at the measurement, as `paratext` is: **the claim is not met**, the gate stops it
+  // growing, and each is a gap in `.sdlc/gaps/`. Each is (measured + 80) / incumbent, rounded up.
+  // `closeout/exit-hook`: (4,819 + 80) / 1,645 = 2.978.
+  'closeout/exit-hook': 2.98,
+  // `closeout/signal-exit`: (3,634 + 80) / 2,856 = 1.300.
+  'closeout/signal-exit': 1.31,
 };
 
 /** Why a pair's ratio gate sits where it does: the claim's own ratchet, U5 at 1, or a B4 ratchet. */
