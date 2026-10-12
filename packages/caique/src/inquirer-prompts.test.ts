@@ -15,6 +15,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { type PromptReadline, useState, withHooks } from './inquirer-hooks.js';
 import { usePagination } from './inquirer-pagination.js';
 import { checkbox, select, Separator } from './inquirer-prompts.js';
+import { TICK } from './inquirer-theme.js';
 import { ValidationError } from './inquirer.js';
 
 const noop = (): void => undefined;
@@ -165,7 +166,7 @@ describe('select', () => {
     expect(lastFrame(io.output.text())).toContain('the b');
     await io.press(DOWN, DOWN, UP, UP, ENTER);
     await expect(answer).resolves.toBe('b');
-    expect(io.output.text()).toContain('✔ Pick b');
+    expect(io.output.text()).toContain(`${TICK} Pick b`);
   });
 
   it('refuses a disabled choice with the theme error, and clears it on the next key', async () => {
@@ -262,7 +263,7 @@ describe('checkbox', () => {
     expect(lastFrame(io.output.text())).toContain('A!');
     await io.press(DOWN, ' ', UP, UP, ' ', ENTER);
     await expect(answer).resolves.toEqual(['a']);
-    expect(io.output.text()).toContain('✔ Pick A!'.replace('A!', 'a'));
+    expect(io.output.text()).toContain(`${TICK} Pick a`);
   });
 
   it('refuses to toggle a disabled choice, and draws it checked or not', async () => {
@@ -321,5 +322,38 @@ describe('checkbox', () => {
     const answer = checkbox({ message: '', choices: ['a'], theme: { prefix: '' } }, io);
     await io.press(ENTER);
     await expect(answer).resolves.toEqual([]);
+  });
+});
+
+describe('the done frame', () => {
+  /**
+   * `@inquirer/core` writes the done frame, then resolves; it does not wait for the stream to
+   * flush. So the line must be handed to `output.write` before the answer settles, whenever the
+   * stream's own callback fires.
+   */
+  it.each([
+    ['select', select, []],
+    ['checkbox', checkbox, [' ']],
+  ] as const)('%s hands its done line to the output before the answer settles', async (_name, prompt, keys) => {
+    const issued: string[] = [];
+    const output = new Writable({
+      write(_chunk, _encoding, callback) {
+        setTimeout(callback, 20);
+      },
+    });
+    const write = output.write.bind(output);
+    output.write = ((chunk: string, ...rest: never[]) => {
+      issued.push(chunk);
+      return write(chunk, ...rest);
+    }) as typeof output.write;
+    const input = new PassThrough();
+    const answer = (prompt as typeof select)({ message: 'Pick', choices: ['a', 'b'] }, { input, output });
+    await [DOWN, ...keys, ENTER].reduce(async (previous, key) => {
+      await previous;
+      await turn();
+      input.write(key);
+    }, Promise.resolve());
+    const seen = await answer.then(() => stripVTControlCharacters(issued.join('')));
+    expect(seen).toContain(`${TICK} Pick b`);
   });
 });
