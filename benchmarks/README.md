@@ -44,6 +44,10 @@ Then three warm-up rounds and eleven interleaved rounds, each timing ours and th
 to back, alternating which goes first, with a full GC before each block. The gated number is the
 **median of the per-round ratio**, ours ÷ incumbent: a round's load lands on both halves of it,
 for the reason B2 gates a ratio and not milliseconds (#27).
+A first reading over its ceiling is not yet red: two more fresh processes run, and the verdict is
+the median of every paired ratio from all three, so load that lands on one whole process is
+outvoted and a regression, which is in every process, still fails
+(D-20261012-runtime-ratio-gate-median).
 
 **The target is ≤ 1.0 for every pair**; each record says `met` beside it. The gate is a
 **downward-only ratchet** per pair in
