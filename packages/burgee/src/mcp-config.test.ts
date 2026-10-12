@@ -11,11 +11,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
 
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import { defineCommand, defineProgram, execute } from './execute.js';
 import { Manifest } from './manifest.js';
 import { clientConfig } from './mcp-config.js';
+import { host } from './runtime.js';
 
 const program = defineProgram({ name: 'tool', commands: [defineCommand({ name: 'hi', effects: 'read_only', run: () => 'hi' })] });
 
@@ -53,6 +54,16 @@ describe('--mcp --print-config (R6)', () => {
     symlinkSync(join(dir, 'bin.js'), join(dir, 'node_modules', '.bin', 'tool-cli'));
     const text = await printed(join(dir, 'bin.js'), join(dir, 'node_modules', '.bin', 'tool-cli'));
     expect(text).toBe(`${JSON.stringify({ mcpServers: { tool: { command: 'tool-cli', args: ['--mcp'] } } }, null, 2)}\n`);
+  });
+
+  it('starts the bin through cmd /c on Windows, where npm installs it as a .cmd shim a client cannot start directly', async () => {
+    const dir = packageWith('windows', { name: 'tool-pkg', bin: { 'tool-cli': './bin.js' } });
+    vi.spyOn(host, 'platform', 'get').mockReturnValue('win32');
+    try {
+      expect(JSON.parse(await printed(join(dir, 'bin.js'), join(dir, 'bin.js')))).toEqual({ mcpServers: { tool: { command: 'cmd', args: ['/c', 'tool-cli', '--mcp'] } } });
+    } finally {
+      vi.restoreAllMocks();
+    }
   });
 
   it('reads a bin given as one string as the package’s own name, without its scope', async () => {

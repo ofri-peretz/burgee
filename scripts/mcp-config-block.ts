@@ -46,6 +46,29 @@ export async function withDemoOnPath<T>(use: (env: NodeJS.ProcessEnv) => T | Pro
 /** What the demo prints, started as its bin. */
 export const printed = async (): Promise<string> => await withDemoOnPath((env) => execSync('demo-burgee --mcp --print-config', { encoding: 'utf8', env }));
 
+interface Server {
+  command: string;
+  args: string[];
+}
+
+/**
+ * The block as Windows prints it: the bin through `cmd /c`, because a client starts `command`
+ * with no shell and npm's `.cmd` shim needs one. The page carries the POSIX form; the Windows
+ * lane checks this one against what it prints.
+ */
+export function onWindows(config: string): string {
+  const { mcpServers } = JSON.parse(config) as { mcpServers: Record<string, Server> };
+  const servers = Object.fromEntries(Object.entries(mcpServers).map(([name, s]) => [name, s.command === 'node' ? s : { command: 'cmd', args: ['/c', s.command, ...s.args] }]));
+  return `${JSON.stringify({ mcpServers: servers }, null, 2)}\n`;
+}
+
+/** The `json` block between the page's markers. */
+export function blockOf(page: string): string {
+  const block = /mcp-config:start[^\n]*\n\n```json\n([\s\S]*?)```/u.exec(page)?.[1];
+  if (block === undefined) throw new Error(`${PAGE} has no mcp-config block`);
+  return block;
+}
+
 /** The page with the block between the markers replaced by `config`. */
 export function withBlock(page: string, config: string): string {
   const from = page.indexOf(START);
@@ -56,6 +79,8 @@ export function withBlock(page: string, config: string): string {
 
 /** Write the page, or with `--check` say whether it is current. */
 async function main(): Promise<void> {
+  // The page carries the POSIX form, which a Windows run does not print.
+  if (SHELL) throw new Error('write the page on Linux or macOS: Windows prints the cmd /c form (see onWindows)');
   const page = readFileSync(PAGE, 'utf8');
   const next = withBlock(page, await printed());
   if (!process.argv.includes('--check')) return writeFileSync(PAGE, next);
