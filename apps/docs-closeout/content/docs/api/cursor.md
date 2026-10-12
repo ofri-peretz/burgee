@@ -72,6 +72,12 @@ else owns that state — a prompt library, the program itself — and switching 
 would take it from them; the call changes nothing and returns a no-op. The same holds for
 an input that is not a terminal or has no `setRawMode`: there is no mode to change.
 
+**Callers through here share the mode it turned on.** A spinner discarding stdin and a prompt
+reading keys both ask; the mode goes off when the last of them lets go, in whatever order
+they do. Handing the second a no-op — it saw `isRaw` and took it for somebody else's — let a
+spinner that stopped first take the keyboard from a prompt still reading it
+(`.sdlc/models/save-restore.qnt`).
+
 ```ts
 function rawMode(input: InputStream, onExit: Registrar): () => void;
 ```
