@@ -135,6 +135,27 @@ result, not a crashed server: `isError: true`, and the text is the `{ "ok": fals
 the commander and yargs front ends) with its `hint` and `fix`, and the server answers the
 next call.
 
+### Cancellation and progress
+
+Calls are served concurrently, so a client can stop one while it runs. `notifications/cancelled`
+aborts that call's `ctx.signal` with the reason `cancelled`, the same signal `--timeout` aborts:
+hand it to `fetch`, a child process or anything else that takes a signal, and the work stops.
+Its `ctx.onExit` handlers run once, and no response is sent for it. The server goes on serving.
+
+`ctx.progress(done, total?, message?)` reports how far a command has got. When the client sent a
+`progressToken` with the call, each report is a `notifications/progress` carrying it; a value that
+does not rise above the last one is dropped, because the protocol requires progress to increase.
+Anywhere else `ctx.progress` does nothing, so call it unconditionally:
+
+```ts
+run: async ({ signal, progress }) => {
+  for (const [at, file] of files.entries()) {
+    await upload(file, { signal });
+    progress(at + 1, files.length, file);
+  }
+}
+```
+
 ### Client configuration
 
 For Claude Desktop, Claude Code, Cursor or any stdio client, register the program as a

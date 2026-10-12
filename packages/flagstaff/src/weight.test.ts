@@ -160,7 +160,7 @@ interface EntryRule {
 const RULES: Record<string, EntryRule> = {
   // Everything: the loop, the registry, and all five built-ins. `box` and `table` bring the
   // wrapper and the width function with them, which is most of it. A program that wants one component should import its subpath (U5, R10).
-  '.': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'linegauge/wrap', 'paratext/link', 'roundel/policy', 'roundel/tokens'], budget: 29_300, measured: 29_075, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
+  '.': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'linegauge/truncate', 'linegauge/wrap', 'paratext/link', 'roundel/policy', 'roundel/tokens'], budget: 29_300, measured: 29_266, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
   // The loop and its four projections; never the registry — a program that hoists its own
   // component pays nothing for the plugin host.
   //
@@ -311,7 +311,11 @@ const RULES: Record<string, EntryRule> = {
   // budget moved and the file smaller: `table.ts` was tightened in the same change (the
   // corners as three strings, one cell-text helper, padding and painting in one step), so `dist/table.js` is 3,321 B against 3,493 before. The room is for R3, which
   // brings `linegauge/truncate`, inside the root entry's 53 B of headroom.
-  './table': { allow: ['linegauge', 'linegauge/wrap', 'paratext/link', 'roundel/tokens'], budget: 6_000, measured: 4_477, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'box.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
+  // **R3-R4** add `overflow: 'truncate'`: `dist/table.js` 3,321 -> 3,512 B, and `.` 29,266 of
+  // its 29,300. The new edge is `linegauge/truncate`, whose bytes are linegauge's and not
+  // counted here. Bundled it reaches linegauge's `slice`: `flagstaff/table` measured
+  // 15,024 -> 19,169 B locally with esbuild --bundle --minify, under cli-table3, the bar.
+  './table': { allow: ['linegauge', 'linegauge/truncate', 'linegauge/wrap', 'paratext/link', 'roundel/tokens'], budget: 6_000, measured: 4_668, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'box.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
 };
 
 /**

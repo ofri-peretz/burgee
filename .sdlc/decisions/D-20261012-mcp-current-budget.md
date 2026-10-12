@@ -23,6 +23,7 @@ landed. This is the same kind of move, recorded once here and once per step in t
 | :-- | --: | --: | --: | :-- |
 | R1, `structuredContent` | 25,850 | 26,215 | 25,900 → 26,250 | 35,105 → 35,105 |
 | R2, `outputSchema` | 26,215 | 26,695 | 26,250 → 26,700 | 35,105 → 35,105 |
+| R4 and R5, cancellation and progress | 26,695 | 27,991 | 26,700 → 28,000 | 35,130 → 35,130 |
 
 **R1.** `callTool` parses the text it already returns once more and carries the envelope's
 `data` as `structuredContent`, wrapped as `{ result }` when it is not an object, or the
@@ -34,3 +35,19 @@ as `{ type: 'object', properties: { result }, required: ['result'] }` when the s
 object type, and `structuredOf` wraps a declared command's result by its schema's type rather
 than by the value, so a value that is an object under a schema that is not (`anyOf`, say) still
 has the advertised shape. 480 B, 42 of them the guard review asked for on #1047: JSON without a boolean `ok` is not an envelope, so it carries no `structuredContent`. The wrap is the rest, and there is nothing in it to share.
+
+**R4 and R5.** 1,296 B, all in `mcp.js` (`.` reads 35,130 on main since #1043, and this does not move it). `serve` dispatches each request without awaiting the one
+before and keeps the calls in flight by id, so `notifications/cancelled` aborts that call's
+signal and its reply is not sent. Concurrent calls could not share the old capture, which swapped
+`process.stdout.write` and the console per call and put them back when the call settled: two
+overlapping calls would each restore what the other had swapped in. The capture now follows each
+call through `AsyncLocalStorage`, installed once per session, which is also how `ctx.js` finds
+the call's signal and progress sender (by `Symbol.for('burgee.mcp')`, with no import edge). A
+call with a `progressToken` sends `notifications/progress`, dropping a value that does not rise,
+which the protocol forbids. `ctx.js` is a lazy chunk on the command-run path, outside every
+static entry graph, and `.` does not move.
+
+**Not moved: flagstaff's `.`.** R5 also asks that `flagstaff/progress` report through
+`ctx.progress` inside such a call. Built, it measured 282 B on `progress.js`, which flagstaff's
+root entry reaches: 29,529 B against that entry's 29,300 budget. This decision covers `./mcp`
+only, so that half is not built and waits on the owner.

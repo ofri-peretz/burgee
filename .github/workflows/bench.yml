@@ -207,7 +207,15 @@ jobs:
           # With the App token or RELEASE_BOT_PAT this PR gets its required checks and `--auto`
           # merges it. With only `github.token` it sits at BLOCKED with zero failures forever;
           # 65 of them were landed by hand as #570.
-          gh pr merge --auto --squash "$BRANCH" || true
+          # A held PR (hold, do-not-merge, wip) is left alone: on a PR that is already mergeable,
+          # `--auto` merges at once rather than arming, which is how #1049, #1050 and #1055 merged.
+          # Fail closed: labels that cannot be read count as held.
+          HELD=$(gh pr view "$BRANCH" --json labels --jq '[.labels[].name]|any(.=="hold" or .=="do-not-merge" or .=="wip")') || HELD=true
+          if [ "$HELD" = true ]; then
+            echo "::notice::$BRANCH is held (hold, do-not-merge or wip, or its labels could not be read); not arming auto-merge."
+          else
+            gh pr merge --auto --squash "$BRANCH" || true
+          fi
 
   # N10 — the floor, graded by two published checklists we did not write: clispec.dev v0.3
   # and cli-agent-lint's 34 checks. Its own job and its own suite (`external-floor`),
@@ -403,7 +411,15 @@ jobs:
             git push --force "$REMOTE" "HEAD:refs/heads/$BRANCH"
             gh pr create --base main --head "$BRANCH" --label skip-changeset --title "$TITLE" --body "$BODY"
           fi
-          gh pr merge --auto --squash "$BRANCH" || true
+          # A held PR (hold, do-not-merge, wip) is left alone: on a PR that is already mergeable,
+          # `--auto` merges at once rather than arming, which is how #1049, #1050 and #1055 merged.
+          # Fail closed: labels that cannot be read count as held.
+          HELD=$(gh pr view "$BRANCH" --json labels --jq '[.labels[].name]|any(.=="hold" or .=="do-not-merge" or .=="wip")') || HELD=true
+          if [ "$HELD" = true ]; then
+            echo "::notice::$BRANCH is held (hold, do-not-merge or wip, or its labels could not be read); not arming auto-merge."
+          else
+            gh pr merge --auto --squash "$BRANCH" || true
+          fi
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()

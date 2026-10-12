@@ -55,6 +55,12 @@ interface ColumnOptions {
     min?: number;
     /** A cap no content pushes the column past. A whole number from 1, and at least `min`. */
     max?: number;
+    /**
+     * What a cell wider than its column does (R3): `'wrap'` onto more physical rows, the
+     * default and the only behaviour before this option, or `'truncate'` to one row ending in
+     * `…`. A person's view only: the static projection carries the full cell either way (R4).
+     */
+    overflow?: 'wrap' | 'truncate';
 }
 ```
 
