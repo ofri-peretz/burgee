@@ -23,6 +23,29 @@ evidence are recorded in [`next-wave-3-2026-10.md`](../../research/next-wave-3-2
 - **R5 — The static projection is untouched.** A test holds the piped output of a 50-line frame
   byte-identical before and after.
 
+## Build status — 2026-10-12
+
+**Not built: R1–R5 do not fit the per-entry weight budgets**, which only the owner raises. Every
+check below was written and shown failing on main, and passed once built; the build stopped at
+the weight locks. The numbers and the recommended ruling are in
+[`B-20261012-frames-fit-the-screen-budgets`](../../gaps/B-20261012-frames-fit-the-screen-budgets.md).
+
+| R | Status | Blocked by | Check, shown failing on main |
+| :-- | :-- | :-- | :-- |
+| R1 | Not built | `flagstaff` `.` and `./loop` budgets (+777 B in `projection.js`, with R2 and R3) | `projection.test.ts`: a 50-line frame on 20 rows climbs 49 rows |
+| R2 | Not built | the same | `projection.test.ts`: all 50 lines painted, no `… 31 more` |
+| R3 | Not built | the same | `projection.test.ts`: after 20 -> 60 rows the screen still holds the clipped view |
+| R4 | Not built | `caique` `.` and `./raw` budgets (+836 B in `raw.js` and `terminal.js`) | `raw.test.ts`: `renderList` returns 41 lines; the repaint climbs 40 rows on 10 |
+| R5 | Not built | held with R2, whose clip it guards | passes on main by design: it is the static path's lock |
+
+Tally: 0 of 5 built.
+
+R2's arithmetic disagrees with intent criterion 1 and this file's Verification row. R2 clips
+above `rows - 1` and keeps `rows - 2` lines; criterion 1 and Verification keep 19 lines plus the
+summary on 20 rows. The build followed the latter (clip above `rows`, keep `rows - 1` under the
+summary), because controlroom's alternate screen paints exactly `rows` lines through
+`frameWriter`, and clipping at `rows - 1` would clip every full-screen frame.
+
 ## Design
 
 The clip lives in the writer (`projection.ts`), not in each component, so every live thing
