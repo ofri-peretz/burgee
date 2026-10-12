@@ -7,9 +7,15 @@
  * stream, a bare scalar counted as an envelope, bytes counted on one stream, and a hang
  * scored as a correct exit.
  */
-import { describe, expect, it } from 'vitest';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-import { judge, type RunOutcome, type Task } from './axes/reliability.js';
+import { afterAll, describe, expect, it } from 'vitest';
+
+import { judge, measure, type RunOutcome, SKILL_BYTES_BUDGET, type Task } from './axes/reliability.js';
+import { gateFailures } from './record.js';
 
 const run = (over: Partial<RunOutcome> = {}): RunOutcome => ({ hung: false, status: 0, stdout: '', stderr: '', ...over });
 const task = (over: Partial<Task> = {}): Task => ({ id: 't', args: [], expect: 'ok', json: false, ...over });
@@ -89,5 +95,49 @@ describe('structured output', () => {
 describe('recovery bytes', () => {
   it('counts both streams, because an agent reads both', () => {
     expect(judge(task(), run({ stdout: 'abc', stderr: 'de' })).bytes).toBe(5);
+  });
+});
+
+/** The `skill-bytes` record among a variant's, if it has one. */
+const skillOf = (records: ReturnType<typeof measure>): (typeof records)[number] | undefined => records.find((r) => r.metric === 'skill-bytes');
+
+/**
+ * agent-skill R6 — `skill-bytes`, beside `schema-bytes`: the bytes of `--skill`, the summary an
+ * agent loads whole before it calls anything. Gated on burgee at its committed budget, the demo's
+ * first measurement, so a skill that starts inlining options grows past it and fails the ratchet.
+ */
+describe('skill-bytes, measured and gated (agent-skill R6)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'bench-skill-'));
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+  /** A program that answers `--skill` with `bytes` bytes of skill, and nothing else. */
+  const bin = (name: string, bytes: number | undefined): string => {
+    const file = join(dir, `${name}.mjs`);
+    const body = bytes === undefined ? 'process.exit(2);' : `if (process.argv.includes('--skill')) process.stdout.write('---\\nname: x\\n---\\n' + 'é'.repeat(${String(Math.max(0, Math.floor((bytes - 18) / 2)))}));`;
+    writeFileSync(file, body);
+    return file;
+  };
+
+  it('the budget is the demo’s committed SKILL.md, measured in bytes', () => {
+    const committed = readFileSync(join(fileURLToPath(new URL('..', import.meta.url)), 'examples/demo-cli-burgee/SKILL.md'));
+    expect(committed.byteLength).toBeLessThanOrEqual(SKILL_BYTES_BUDGET);
+  });
+
+  it('burgee’s skill is measured in bytes and gated at the budget; inside it, the ratchet holds', () => {
+    const record = skillOf(measure({ id: 'burgee', bin: bin('inside', SKILL_BYTES_BUDGET) }, [task()]));
+    expect(record?.unit).toBe('bytes');
+    expect(record?.median).toBeLessThanOrEqual(SKILL_BYTES_BUDGET);
+    expect(record?.gate?.max).toBe(SKILL_BYTES_BUDGET);
+    expect(gateFailures(record === undefined ? [] : [record])).toEqual([]);
+  });
+
+  it('a skill grown past its budget fails the ratchet', () => {
+    const record = skillOf(measure({ id: 'burgee', bin: bin('grown', SKILL_BYTES_BUDGET + 64) }, [task()]));
+    expect(record?.median).toBeGreaterThan(SKILL_BYTES_BUDGET);
+    expect(gateFailures(record === undefined ? [] : [record]).map((f) => f.record.metric)).toEqual(['skill-bytes']);
+  });
+
+  it('a variant with no --skill gets no record, never a zero; another variant’s is reported ungated', () => {
+    expect(skillOf(measure({ id: 'commander', bin: bin('none', undefined) }, [task()]))).toBeUndefined();
+    expect(skillOf(measure({ id: 'other', bin: bin('other', 100) }, [task()]))?.gate).toBeUndefined();
   });
 });

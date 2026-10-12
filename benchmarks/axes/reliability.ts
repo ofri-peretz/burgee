@@ -166,6 +166,25 @@ function schemaBytes(bin: string): number | undefined {
   return parses(run.stdout) ? run.stdout.length : undefined;
 }
 
+/**
+ * agent-skill R6 — the bytes of `--skill`, the Agent Skill an agent loads whole before it calls
+ * anything, beside `schema-bytes`, which it reads to discover the CLI. Bytes, not characters: the
+ * skill is a file an agent's context pays for. `undefined` for a variant with no `--skill`, which
+ * is both incumbents, for the reason `schemaBytes` gives.
+ */
+function skillBytes(bin: string): number | undefined {
+  const run = runOnce(bin, ['--skill']);
+  if (run.hung || run.status !== 0 || !run.stdout.startsWith('---\nname: ')) return undefined;
+  return Buffer.byteLength(run.stdout, 'utf8');
+}
+
+/**
+ * The demo's committed budget for `skill-bytes`: its first measurement, 2026-10-12, the byte
+ * length of `examples/demo-cli-burgee/SKILL.md`. A ratchet: lowering it is free, raising it is a
+ * decision. A skill that starts inlining each command's options is the growth it exists to catch.
+ */
+export const SKILL_BYTES_BUDGET = 1_857;
+
 /** Four places: a rate over ten tasks is exact well inside that, and rounding hides drift. */
 const RATE_PLACES = 4;
 const rate = (hits: number, of: number): number => (of === 0 ? 1 : round(hits / of, RATE_PLACES));
@@ -173,6 +192,7 @@ const rate = (hits: number, of: number): number => (of === 0 ? 1 : round(hits / 
 export function measure(variant: Variant, tasks: readonly Task[] = TASKS): BenchRecord[] {
   const verdicts = tasks.map((task) => judge(task, runOnce(variant.bin, task.args)));
   const schema = schemaBytes(variant.bin);
+  const skill = skillBytes(variant.bin);
   const asked = verdicts.filter((v) => v.jsonParsed !== null);
   const shared = { axis: 'reliability', variant: variant.id, samples: tasks.length } as const;
   const one = ({ metric, unit, value, note, gate }: { metric: string; unit: string; value: number; note: string; gate?: BenchRecord['gate'] }): BenchRecord => ({
@@ -203,11 +223,22 @@ export function measure(variant: Variant, tasks: readonly Task[] = TASKS): Bench
     // Emitted only where there is a schema to measure. A variant without one contributes no
     // record rather than a zero: see `schemaBytes`.
     ...(schema === undefined ? [] : [one({ metric: 'schema-bytes', unit: 'bytes', value: schema, note: 'bytes of `--schema`, the whole surface an agent reads to discover the CLI; compact by default since agent-headroom R1, `--format=json-pretty` for a person' })]),
+    ...(skill === undefined
+      ? []
+      : [
+          one({
+            metric: 'skill-bytes',
+            unit: 'bytes',
+            value: skill,
+            note: 'bytes of `--skill`, the Agent Skill an agent loads whole; one line per command, and `--schema <command>` for the rest (agent-skill R6)',
+            ...(variant.id === 'burgee' ? { gate: { max: SKILL_BYTES_BUDGET, why: 'agent-skill R6: the skill is small by construction; a command’s contract lives behind --schema <command>, never inlined' } } : {}),
+          }),
+        ]),
   ];
 }
 
 export const method =
-  'Ten tasks per variant, one spawn each, non-TTY with stdin closed. The same demo program built on burgee, commander and yargs. Exit codes are judged by class (0 ok, 2 usage, other runtime), not by value; `--json` is judged by whether an addressable envelope parses off whichever stream carried it. This is not B1: it measures what an agent can act on, never what it spends. `schema-bytes` is emitted only for a variant that answers `--schema` with a parseable document — neither incumbent has one, and no record is written rather than a zero.';
+  'Ten tasks per variant, one spawn each, non-TTY with stdin closed. The same demo program built on burgee, commander and yargs. Exit codes are judged by class (0 ok, 2 usage, other runtime), not by value; `--json` is judged by whether an addressable envelope parses off whichever stream carried it. This is not B1: it measures what an agent can act on, never what it spends. `schema-bytes` is emitted only for a variant that answers `--schema` with a parseable document, and `skill-bytes` only for one that answers `--skill` with an Agent Skill — neither incumbent has either, and no record is written rather than a zero. burgee’s `skill-bytes` is gated at the demo’s committed budget.';
 
 export function run(): { records: BenchRecord[] } | { reason: string } {
   const missing = VARIANTS.filter((v) => !existsSync(resolve(REPO_ROOT, v.bin)));

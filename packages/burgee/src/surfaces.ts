@@ -9,6 +9,8 @@
  * its own body (`help.js`, `schema.js`, `completions.js`, `mcp.js` …) behind an `await
  * import()`; what moved here is the routing and the glue that used to sit in the entry chunk.
  */
+import { dirname, join, resolve } from 'node:path';
+
 import { ConfigError, type Resolution } from 'seniority/precedence';
 
 import { detectAgent } from './agent.js';
@@ -20,6 +22,7 @@ import { type ArgumentSpec, type CommandNode, type Manifest, type OptionSpec } f
 import { kebab } from './names.js';
 import { type Package } from './pkg.js';
 import { completionNode, exitRows, rootExamples } from './root-help.js';
+import { builtin } from './runtime.js';
 import { suggestSimilar } from './suggest.js';
 import { Again, jsonSpelling, shellWord, textSpelling } from './unknown-option.js';
 import { childrenOf, groupUsage, listed, runnableBelow } from './usage.js';
@@ -102,6 +105,25 @@ function rootNode(manifest: Manifest, root: string[]): CommandNode {
 // `completion` it serves unless the program declares its own (agent-lint-conformance R5), then the
 // exit-code contract under `Exit codes:` (R4); and the root's examples are its own or, failing
 // those, each top-level command's first (R6).
+/** What the root's line for agents adds when `AGENTS.md` is there (agent-skill R4). */
+const AGENTS_LINE = ' AGENTS.md beside this program says how to drive it.';
+
+/**
+ * agent-skill R4 — whether an `AGENTS.md` sits beside the program's binary or in the directory
+ * above it: the `bin` its owning package.json names, which is where `burgee skill` writes it, and
+ * the two places cli-agent-lint's SD-5 looks. Help never names a file that is not there.
+ */
+function agentsBeside(pkg: Package | undefined): boolean {
+  const bin = pkg?.data['bin'];
+  if (pkg === undefined || bin === undefined || bin === null) return false;
+  const { existsSync } = builtin('node:fs');
+  const bins = typeof bin === 'string' ? [bin] : Object.values(bin as Record<string, unknown>).filter((b): b is string => typeof b === 'string');
+  return bins.some((b) => {
+    const dir = dirname(resolve(dirname(pkg.path), b));
+    return existsSync(join(dir, 'AGENTS.md')) || existsSync(join(dirname(dir), 'AGENTS.md'));
+  });
+}
+
 const renderHelp = async (manifest: Manifest, node: CommandNode, io: SurfaceIo, argv: readonly string[] = []): Promise<string> => {
   const help = await import('./help.js');
   const atRoot = node.path.length === manifest.rootPath.length;
@@ -111,7 +133,9 @@ const renderHelp = async (manifest: Manifest, node: CommandNode, io: SurfaceIo, 
   // The globals this command leaves global (R1–R3); none on a node the engine made up, such as
   // `completion`, which parses none of them.
   const globals = manifest.find(node.path) === undefined ? [] : globalRows(node);
-  return help.renderHelp(manifest, shown, { width: io.width, color: help.colorFor(io.env, detectAgent(io.env, io.out.isTTY === true).interactive, argv), commands, globals });
+  // agent-skill R4 — the root's line for agents names `AGENTS.md` when one is there to read.
+  const agents = atRoot && agentsBeside(io.pkg) ? AGENTS_LINE : '';
+  return help.renderHelp(manifest, shown, { width: io.width, color: help.colorFor(io.env, detectAgent(io.env, io.out.isTTY === true).interactive, argv), commands, globals, forAgents: agents });
 };
 
 /**
@@ -406,6 +430,11 @@ export async function serve(manifest: Manifest, argv: string[], io: SurfaceIo, e
     const { schemaSurface } = await import('./schema-surface.js');
     // clispec-conformance R1 — the document always carries a version: the declared one, else the owning package.json's.
     io.out.write(`${await machineJson(await schemaSurface(manifest, asked, declaredVersion(manifest, io)), askedHead)}\n`);
+    return true;
+  }
+  // agent-skill R2 — the program as an Agent Skill, unless the root declares a `--skill` of its own.
+  if (head[0] === '--skill' && manifest.find(manifest.rootPath)?.options['skill'] === undefined) {
+    io.out.write((await import('./skill.js')).renderSkill(manifest));
     return true;
   }
   if (head[0] === '--mcp') {
