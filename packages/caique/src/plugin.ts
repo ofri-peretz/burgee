@@ -25,6 +25,7 @@
  * package exists to prevent, wearing a hat.
  */
 import { projection } from './ask.js';
+import { type Locales } from './locale.js';
 import { BUILT_IN_KINDS, type PromptSpec } from './spec.js';
 
 /**
@@ -65,6 +66,14 @@ export interface Plugin {
   name: string;
   contract?: number;
   widgets?: Record<string, Widget>;
+  /**
+   * A locale pack (`localised-human-surfaces` R6): language tag → message id → translation. caique
+   * reads the ids that begin `caique.` and leaves the rest to the package that owns them, so the
+   * one object burgee registers for its own messages carries these too. Checked where it is
+   * first used — the run whose locale it speaks — and by `caique check`, not here: this door is
+   * on every entry's startup path, and the check is the catalog's weight.
+   */
+  locales?: Locales;
 }
 
 export type PluginErrorCode = 'E_PLUGIN_SCHEMA' | 'E_PLUGIN_CONTRACT' | 'E_NO_STATIC_PROJECTION' | 'E_UNKNOWN_KIND' | 'E_NO_CONTRIBUTION';

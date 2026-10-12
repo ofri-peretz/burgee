@@ -20,7 +20,11 @@
  * When one of these changes, the question is "did I mean to redraw the screen", and the
  * answer is a reviewed diff, never `-u` on the way past.
  */
-import { describe, expect, it } from 'vitest';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { afterAll, describe, expect, it } from 'vitest';
 
 import { SHELLS } from './completions.js';
 import { renderHelp } from './help-entry.js';
@@ -233,5 +237,52 @@ describe('the root help carries the exit codes, completion and examples (agent-l
       commands: [defineCommand({ name: 'greet', effects: 'read_only', examples: [{ command: 'demo greet grace' }], run: ok })],
     });
     expect(sectionOf((await runCommand(declared, ['--help'])).stdout, 'Examples:')).toEqual(['  $ demo greet ada', '    the one line to try first']);
+  });
+});
+
+/**
+ * agent-skill R4 — the root help names `AGENTS.md` only when one is there: beside the binary the
+ * owning package.json's `bin` names, or in the directory above it (cli-agent-lint's SD-5 looks in
+ * both). Without the file the line is byte for byte what it was.
+ */
+describe('the root help names AGENTS.md when it sits beside the bin (agent-skill R4)', () => {
+  const project = mkdtempSync(join(tmpdir(), 'burgee-agents-'));
+  afterAll(() => rmSync(project, { recursive: true, force: true }));
+  mkdirSync(join(project, 'dist'));
+  const entry = join(project, 'dist', 'cli.js');
+  writeFileSync(entry, '');
+  writeFileSync(join(project, 'package.json'), JSON.stringify({ name: 'demo', bin: { demo: './dist/cli.js' } }));
+  const forAgents = async (): Promise<string> => {
+    const { stdout } = await runCommand(nested, ['--help'], { entry });
+    // One line, however the width wrapped it.
+    return stdout.slice(stdout.indexOf('For agents:')).replaceAll(/\s+/g, ' ');
+  };
+
+  it('without the file, the line does not change', async () => {
+    const before = await root();
+    expect(await forAgents()).toBe(before.slice(before.indexOf('For agents:')).replaceAll(/\s+/g, ' '));
+    expect(await forAgents()).not.toContain('AGENTS.md');
+  });
+
+  it('with AGENTS.md beside the bin, or in the directory above it, the line names it', async () => {
+    writeFileSync(join(project, 'AGENTS.md'), '# AGENTS.md\n');
+    expect(await forAgents()).toContain('AGENTS.md beside this program says how to drive it.');
+    rmSync(join(project, 'AGENTS.md'));
+    writeFileSync(join(project, 'dist', 'AGENTS.md'), '# AGENTS.md\n');
+    expect(await forAgents()).toContain('AGENTS.md beside this program says how to drive it.');
+    // A command's own help is one command; the root's line is the root's.
+    expect((await runCommand(nested, ['greet', '--help'], { entry })).stdout).not.toContain('AGENTS.md');
+  });
+
+  it('a package with no bin, or a bin that is not a path, names nothing', async () => {
+    writeFileSync(join(project, 'dist', 'AGENTS.md'), '# AGENTS.md\n');
+    const named = async (bin: unknown): Promise<boolean> => {
+      writeFileSync(join(project, 'package.json'), JSON.stringify({ name: 'demo', ...(bin === undefined ? {} : { bin }) }));
+      return (await forAgents()).includes('AGENTS.md');
+    };
+    expect(await named(undefined)).toBe(false);
+    expect(await named(null)).toBe(false);
+    expect(await named({ demo: 3 })).toBe(false);
+    expect(await named('./dist/cli.js')).toBe(true);
   });
 });

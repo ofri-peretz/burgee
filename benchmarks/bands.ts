@@ -137,6 +137,15 @@ export const BANDS: readonly BandSpec[] = [
     jsonPath: at('agent-schema-bytes'),
     from: { variant: 'burgee', metric: 'schema-bytes' },
   },
+  // agent-skill R6. The Agent Skill is loaded whole, so its size is a cost on every task; the gate
+  // holds the committed budget, and the band watches the series under it.
+  {
+    id: 'agent-skill-bytes',
+    axis: 'reliability',
+    suite: SUITE.cheap,
+    jsonPath: at('agent-skill-bytes'),
+    from: { variant: 'burgee', metric: 'skill-bytes' },
+  },
   // B4. Bytes, not KB: a 400-byte regression is invisible in a number rounded to KB, and
   // the ratchet exists to catch exactly the accidental kind of growth.
   {

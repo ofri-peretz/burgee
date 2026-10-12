@@ -1,5 +1,30 @@
 # burgee
 
+## 1.3.0
+
+### Minor Changes
+
+- [#1043](https://github.com/ofri-peretz/burgee/pull/1043) [`c884177`](https://github.com/ofri-peretz/burgee/commit/c884177824aa6187e7167cdb8029ec8f15572c4c) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Every program prints an Agent Skill. `--skill` writes a `SKILL.md` to stdout, projected from the declaration: front matter with a `name` and `description` within the Agent Skills specification's limits, what the program is for, the contract an agent relies on (`--json` and its envelope, `--explain`, every exit code with its error kind and whether to retry), and one line and the first example per command. A command's options stay behind `--schema <command>`, which the skill names and never inlines. A root that declares its own `skill` option keeps it.
+
+  `burgee skill <entry>` writes `SKILL.md` and `AGENTS.md` (the same body under an `AGENTS.md` heading, no front matter) into the directory of the `bin` the entry's package.json names, or `--out <dir>`. `--check` writes nothing and exits 1 when the files there differ from the projection, naming them and the line that regenerates them, for an author's CI.
+
+  Root help's line for agents names `AGENTS.md` when one sits beside the binary or in the directory above it. Without the file the line is unchanged.
+
+- [#1051](https://github.com/ofri-peretz/burgee/pull/1051) [`7500480`](https://github.com/ofri-peretz/burgee/commit/75004801fd3f6e91069861bd20820bc11523c149) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--mcp` lists `outputSchema` for a command that declares `output.schema`. The schema is listed as declared when it is an object type, and wrapped as `{ "type": "object", "properties": { "result": … }, "required": ["result"] }` otherwise, the same way `structuredContent` wraps a result that is not an object. A declared command's `structuredContent` is wrapped by its schema rather than by the value, so it always has the shape the tool advertised. A command without `output.schema` lists no `outputSchema`. JSON a handler printed without a boolean `ok` is not read as an envelope, so it carries no `structuredContent`. The `Tool` type gains the optional `outputSchema`.
+
+### Patch Changes
+
+- [#1045](https://github.com/ofri-peretz/burgee/pull/1045) [`c4fd9a3`](https://github.com/ofri-peretz/burgee/commit/c4fd9a3cb10bc36bef8c468365addfc6deb572cf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - caique's own chrome can speak the user's language. That covers the instruction under a list, a problem with an answer, the giving-up line, and the no-terminal and cancel refusals. A locale pack registered with `register()` carries translations under ids that begin `caique.`, so one object can serve burgee's catalog too. The new `caique/locale` entry turns the runtime's `locale` into the translator: `io.say = sayFor(runtime.locale)`. `ask` and `resolvePrompts` apply it. Neither reads the catalog itself, and caique never reads `LANG`. A refusal keeps its English `message` and `fix`, which a host may put in a machine envelope, and adds `localised` beside them. `caique check` renders a pack's messages, or refuses an unknown id, a stray placeholder or a missing plural form with `E_PLUGIN_SCHEMA`. With no `say` handed in, every byte is unchanged, and `caique/clack` and `caique/inquirer` keep their incumbents' English.
+
+  burgee: the family plugin schema it publishes describes the `locales` key.
+
+- Updated dependencies [[`c4fd9a3`](https://github.com/ofri-peretz/burgee/commit/c4fd9a3cb10bc36bef8c468365addfc6deb572cf)]:
+  - bellpull@1.0.6
+  - closeout@1.1.2
+  - linegauge@1.1.1
+  - roundel@1.1.1
+  - seniority@1.0.7
+
 ## 1.2.0
 
 ### Minor Changes

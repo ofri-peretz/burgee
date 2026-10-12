@@ -33,11 +33,27 @@ export interface TableOptions {
   /** Alignment per column; `left` for any column not named. */
   align?: ('left' | 'right')[];
   /**
+   * Bounds per column, positional like `align`; a hole or a missing entry is unbounded. Both
+   * are content widths, as `width()` measures them, padding not counted.
+   */
+  columns?: (ColumnOptions | undefined)[];
+  /**
    * The terminal a linked cell is rendered for. Omitted, the real process is read through
    * this package's seam. Supply one and the whole path is pure — which is how `link.test.ts`
    * grades both branches without a terminal in sight.
    */
   terminal?: Terminal;
+}
+
+/** One column's bounds (`table-column-widths` R1). */
+export interface ColumnOptions {
+  /**
+   * How far the fit may narrow the column while another can still give way. A whole number
+   * from 0. It bounds the shrink and is not a width: a column narrower than it stays so.
+   */
+  min?: number;
+  /** A cap no content pushes the column past. A whole number from 1, and at least `min`. */
+  max?: number;
 }
 
 const DEFAULT_WIDTH = 80;
@@ -47,44 +63,32 @@ const DEFAULT_WIDTH = 80;
  * `2 + Σ(w + 2) + (n - 1)` = `Σw + 3n + 1`. So the columns get `total - 3n - 1`.
  */
 const CHROME_PER_COLUMN = 3;
-const CHROME_FIXED = 1;
+/** No column is narrowed below this unless its own `min` says it may be. */
 const MIN_COLUMN = 3;
 
 const V = '│';
-const H = '─';
-const CORNERS = { topLeft: '┌', topRight: '┐', bottomLeft: '└', bottomRight: '┘', top: '┬', bottom: '┴', left: '├', right: '┤', cross: '┼' };
 
-/**
- * Pad to the column, then hand the text its destination. The gap is measured from the plain
- * line, before any sequence is added — `width()` strips OSC 8, so the two orders agree, and
- * measuring first means the alignment cannot depend on that staying true.
- */
-const padTo = (line: string, cells: number, align: 'left' | 'right', measured = line): string => {
-  const gap = ' '.repeat(Math.max(0, cells - width(measured)));
-  return align === 'right' ? gap + line : line + gap;
-};
-
-/** The natural width of each column: the widest cell in it, header included. */
-function naturalWidths(rows: Row[], columns: number, paint: Painter): number[] {
-  return Array.from({ length: columns }, (_, index) => Math.max(0, ...rows.map((row) => width(laid(cellText(row[index]), cellHref(row[index]), paint)))));
-}
+/** A cell's text as the drawing measures it, by `laid`'s rule for the runtime `paint` is bound to. */
+const lay = (cell: Cell | undefined, paint: Painter): string => laid(cellText(cell), cellHref(cell), paint);
 
 /**
  * Shrink the widest column, one cell at a time, until the table fits. Simple on purpose —
  * proportional shrinking looks cleverer and reads worse, because it narrows the columns
  * that were already narrow.
  *
- * No column is narrowed below `MIN_COLUMN`, and that needs no check here: `table()` never
- * offers less than `MIN_COLUMN` per column, so while the total is over what is available the
- * widest column is over `MIN_COLUMN` too. Ties go to the leftmost column.
+ * Only a column still above its floor gives way: its own `min`, else `MIN_COLUMN`. Ties go to
+ * the leftmost column. With no `min` the loop cannot run out of columns, because `table()`
+ * never offers less than `MIN_COLUMN` per column. So it stopping short means the mins add up
+ * past the width, and then they win and the table is wider than asked: a bound the author
+ * set is not broken to meet a default width, the choice `MIN_COLUMN` already makes.
+ *
+ * Narrows `widths` in place and returns it: the caller hands over an array nothing else reads.
  */
-function fitWidths(natural: number[], available: number): number[] {
-  const widths = [...natural];
-  let total = widths.reduce((sum, w) => sum + w, 0);
-  while (total > available) {
-    const widest = Math.max(...widths);
-    widths[widths.indexOf(widest)] = widest - 1;
-    total -= 1;
+function fitWidths(widths: number[], available: number, { columns: bounds = [] }: TableOptions): number[] {
+  for (let total = widths.reduce((sum, w) => sum + w, 0); total > available; total--) {
+    const pick = widths.reduce((best, w, i) => (w > (bounds[i]?.min ?? MIN_COLUMN) && (best < 0 || w > (widths[best] as number)) ? i : best), -1);
+    if (pick < 0) break;
+    widths.splice(pick, 1, (widths[pick] as number) - 1);
   }
   return widths;
 }
@@ -96,39 +100,53 @@ function fitWidths(natural: number[], available: number): number[] {
  * cli-table3 learned the hard way in its issue #338, where a link applied first was cut
  * through the middle of its own url and left a sequence that never closed.
  */
-function layoutRow(row: Row, widths: number[], align: ('left' | 'right')[], paint: Painter): string[] {
-  const cells = widths.map((w, index) => wrap(laid(cellText(row[index]), cellHref(row[index]), paint), w, { hard: true, trim: false }).split('\n'));
-  const height = Math.max(1, ...cells.map((lines) => lines.length));
-  return Array.from({ length: height }, (_, line) =>
-    `${V} ${widths
-      .map((w, index) => {
-        const plain = cells[index]?.[line] ?? '';
-        return padTo(painted(plain, cellHref(row[index]), paint), w, align[index] ?? 'left', plain);
-      })
-      .join(` ${V} `)} ${V}`,
-  );
+function layoutRow(row: Row, widths: number[], options: TableOptions, paint: Painter): string[] {
+  const cells = widths.map((w, i) => wrap(lay(row[i], paint), w, { hard: true, trim: false }).split('\n'));
+  // Pad to the column, then hand the text its destination. The gap is measured from the plain
+  // line, before any sequence is added — `width()` strips OSC 8, so the two orders agree, and
+  // measuring first means the alignment cannot depend on that staying true.
+  const pad = (plain: string, room: number, i: number): string => {
+    const gap = ' '.repeat(Math.max(0, room - width(plain)));
+    const line = painted(plain, cellHref(row[i]), paint);
+    return options.align?.[i] === 'right' ? gap + line : line + gap;
+  };
+  return Array.from({ length: Math.max(1, ...cells.map((lines) => lines.length)) }, (_, line) => `${V} ${widths.map((w, i) => pad(cells[i]?.[line] ?? '', w, i)).join(` ${V} `)} ${V}`);
 }
 
-const rule = (widths: number[], left: string, mid: string, right: string): string => left + widths.map((w) => H.repeat(w + 2)).join(mid) + right;
+/** A horizontal rule; its three joints are the left end, the one between columns and the right end. */
+const rule = (widths: number[], [left, mid, right]: string): string => `${left}${widths.map((w) => '─'.repeat(w + 2)).join(mid)}${right}`;
 
 /** Draw `rows` as a table, as a string. */
 export function table(rows: Row[], options: TableOptions = {}): string {
   const columns = Math.max(options.head?.length ?? 0, ...rows.map((row) => row.length), 1);
-  const total = options.width ?? DEFAULT_WIDTH;
-  const align = options.align ?? [];
-  const available = Math.max(columns * MIN_COLUMN, total - columns * CHROME_PER_COLUMN - CHROME_FIXED);
+  // A negative, fractional, infinite or NaN width is a typo and `min > max` two wishes that
+  // contradict, so both are refused, naming the column, before anything is measured. `x % 1`
+  // is 0 for a whole number only: a fraction leaves a remainder, and NaN or Infinity gives
+  // NaN, so the sum of the two is 0 exactly when both are whole (a negative fraction that
+  // could cancel a positive one is refused by `min < 0` or `max < 1` anyway).
+  options.columns?.forEach((column, i) => {
+    const { min = 0, max = min || 1 } = column ?? {};
+    if ((min % 1) + (max % 1) !== 0 || min < 0 || max < Math.max(min, 1)) throw new TypeError(`flagstaff/table: columns[${i}] needs whole widths, 0 <= min <= max, max >= 1`);
+  });
+  const available = Math.max(columns * MIN_COLUMN, (options.width ?? DEFAULT_WIDTH) - columns * CHROME_PER_COLUMN - 1);
 
   const paint = painter(options.terminal);
 
   const all = options.head === undefined ? rows : [options.head, ...rows];
-  const widths = fitWidths(naturalWidths(all, columns, paint), available);
+  // The natural width of each column: the widest cell in it, header included, held to its `max`.
+  // `fitWidths` narrows that array in place, so it is never bound to a name of its own.
+  const widths = fitWidths(
+    Array.from({ length: columns }, (_, i) => Math.min(options.columns?.[i]?.max ?? Infinity, Math.max(0, ...all.map((row) => width(lay(row[i], paint)))))),
+    available,
+    options,
+  );
 
-  const out = [rule(widths, CORNERS.topLeft, CORNERS.top, CORNERS.topRight)];
+  const out = [rule(widths, '┌┬┐')];
   if (options.head !== undefined) {
-    out.push(...layoutRow(options.head.map((cell) => heading(cell)), widths, align, paint), rule(widths, CORNERS.left, CORNERS.cross, CORNERS.right));
+    out.push(...layoutRow(options.head.map((cell) => heading(cell)), widths, options, paint), rule(widths, '├┼┤'));
   }
-  for (const row of rows) out.push(...layoutRow(row, widths, align, paint));
-  out.push(rule(widths, CORNERS.bottomLeft, CORNERS.bottom, CORNERS.bottomRight));
+  for (const row of rows) out.push(...layoutRow(row, widths, options, paint));
+  out.push(rule(widths, '└┴┘'));
   return out.join('\n');
 }
 
@@ -148,9 +166,8 @@ export function tableComponent(options: TableOptions = {}): Component<TableState
     // A drawn grid is unreadable in a log and to a screen reader. Pairs are not.
     static: (state) => {
       const head = state.head ?? options.head;
-      const show = (cell: Cell | undefined): string => laid(cellText(cell), cellHref(cell), plain);
       return state.rows
-        .map((row) => (head === undefined ? row.map((cell) => show(cell)).join('\t') : row.map((cell, index) => `${head[index] ?? index}: ${show(cell)}`).join(', ')))
+        .map((row) => row.map((cell, i) => (head === undefined ? '' : `${head[i] ?? i}: `) + lay(cell, plain)).join(head === undefined ? '\t' : ', '))
         .join('\n');
     },
     frame: (_t, state) => muted(table(state.rows, state.head === undefined ? options : { ...options, head: state.head })),

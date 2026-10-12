@@ -18,7 +18,7 @@ import { createInterface } from 'node:readline';
 import { Writable } from 'node:stream';
 
 import { WITHHELD } from './definition.js';
-import { type CommandNode, type Effects, type Manifest } from './manifest.js';
+import { type CommandNode, type Effects, type Manifest, type OutputSchema } from './manifest.js';
 import { kebab } from './names.js';
 import { host } from './runtime.js';
 import { inputSchemaOf, type JsonSchema, runnable, typedName } from './schema.js';
@@ -49,6 +49,8 @@ export interface Tool {
   description: string;
   inputSchema: JsonSchema;
   annotations: ToolAnnotations;
+  /** The command's declared `output.schema`, as the shape of `structuredContent` (mcp-current R2). Absent when none is declared. */
+  outputSchema?: OutputSchema;
 }
 
 /** What a tool call runs: the same execute a `--json` caller reaches, with the streams captured. */
@@ -109,8 +111,21 @@ function describe(node: CommandNode): string {
 export function toolsOf(manifest: Manifest): Tool[] {
   return runnable(manifest)
     .filter((c) => c.effects !== WITHHELD)
-    .map((c) => ({ name: toolName(c, manifest.rootPath), description: describe(c), inputSchema: inputSchemaOf(c), annotations: annotationsOf(c.effects as Effects | undefined) }));
+    .map((c) => ({ name: toolName(c, manifest.rootPath), description: describe(c), inputSchema: inputSchemaOf(c), annotations: annotationsOf(c.effects as Effects | undefined), ...outputSchemaOf(c.output?.schema) }));
 }
+
+/**
+ * mcp-current R2 — `outputSchema` is the declared `output.schema`, wrapped as `{ result }` when it
+ * is not an object type, the same way {@link structuredOf} wraps the result. A command that
+ * declares none lists none: an absent schema is honest, and one inferred from a sample is a
+ * claim nobody made.
+ */
+function outputSchemaOf(schema: OutputSchema | undefined): { outputSchema?: OutputSchema } {
+  if (schema === undefined) return {};
+  return { outputSchema: isObjectType(schema) ? schema : { type: 'object', properties: { result: schema }, required: ['result'] } };
+}
+
+const isObjectType = (schema: OutputSchema): boolean => schema['type'] === 'object';
 
 /**
  * Each argument as the flag `inputSchemaOf` advertises for it — `flag: '--dry-run'` for the
@@ -266,22 +281,27 @@ async function callTool(session: Session, params: Record<string, unknown> | unde
   // rather than returns, it is the whole answer — so it follows the envelope as text.
   const content = [{ type: 'text', text }];
   if (printed.trim() !== '') content.push({ type: 'text', text: printed.trimEnd() });
-  return { result: { content, isError, ...structuredOf(text) } };
+  return { result: { content, isError, ...structuredOf(text, node.output?.schema) } };
 }
 
 /**
  * mcp-current R1 — the envelope's `data` as `structuredContent`, or its `error` on a failure.
- * The protocol requires an object, so anything else is `{ result: data }`. Text that is not an
+ * The protocol requires an object, so anything else is `{ result: data }`. A command that
+ * declares `output.schema` is wrapped by that schema's type rather than by the value, so the
+ * result always has the shape `outputSchema` advertised (R2). Text that is not an
  * envelope — a commander action that printed prose — has none, which is the protocol's own
  * fallback: the text beside it is unchanged either way.
  */
-function structuredOf(text: string): { structuredContent?: unknown } {
+function structuredOf(text: string, schema?: OutputSchema): { structuredContent?: unknown } {
   try {
     // `null` and the scalars throw or read nothing here, which is the same "no envelope".
     const { ok, data, error } = JSON.parse(text) as { ok?: boolean; data?: unknown; error?: unknown };
-    const value = ok === true ? data : error;
+    // An envelope says `ok`; JSON a handler printed without it is not one, whatever keys it has.
+    if (typeof ok !== 'boolean') return {};
+    const value = ok ? data : error;
     if (value === undefined) return {};
-    return { structuredContent: value?.constructor === Object ? value : { result: value } };
+    const plain = ok && schema !== undefined ? isObjectType(schema) : value?.constructor === Object;
+    return { structuredContent: plain ? value : { result: value } };
   } catch {
     return {};
   }

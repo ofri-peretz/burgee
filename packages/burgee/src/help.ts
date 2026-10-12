@@ -64,6 +64,11 @@ export interface HelpOptions {
    * R1–R3), passed in by the engine like `commands`, so this renderer carries none of their words.
    */
   globals?: readonly { term: string; text: string }[];
+  /**
+   * Words the engine adds to the root's line for agents: `AGENTS.md`, when one sits beside the
+   * binary (agent-skill R4). Passed in like `commands`, so this renderer looks for no file.
+   */
+  forAgents?: string;
 }
 
 /** What a term is, so the theme can style it; the term itself stays plain text. */
@@ -326,7 +331,7 @@ export function helpModel(manifest: Manifest, node: CommandNode, opts: HelpOptio
     { title: 'Examples:', rows: (node.examples ?? []).map((e: Example) => ({ term: e.command, text: e.description ?? '', kind: 'value' as const })) },
     { title: 'Environment:', rows: environmentRows(node.options) },
   ].filter((s) => s.rows.length > 0);
-  const trailer = [...(atRoot ? [FOR_AGENTS] : []), ...(node.epilogue === undefined ? [] : [node.epilogue])];
+  const trailer = [...(atRoot ? [FOR_AGENTS + (opts.forAgents ?? '')] : []), ...(node.epilogue === undefined ? [] : [node.epilogue])];
   // `usage` is what follows the command's name on its usage line.
   const usage = [...(commands.length > 0 ? ['<command>'] : []), '[options]', ...(node.arguments ?? []).map(argumentTerm)].join(' ');
   return { usage, description: node.description === undefined ? undefined : `${node.description}${deprecation(node.deprecated)}`, sections, trailer };

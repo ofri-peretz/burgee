@@ -4,6 +4,7 @@
     "index",
     "ask",
     "binding",
+    "locale",
     "clack",
     "decide",
     "editor",

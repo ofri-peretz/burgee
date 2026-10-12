@@ -131,6 +131,16 @@
       "window": 20,
       "minPoints": 8,
       "worse": "higher"
+    },
+    {
+      "id": "agent-skill-bytes",
+      "description": "agent-skill R6 — bytes of `--skill` on the burgee demo, the Agent Skill an agent loads whole before it calls anything. Small by construction: one line and one example per command, and `--schema <command>` for the rest. The reliability axis gates it at the committed budget (1,857 B, the first measurement); this band watches the series under that ceiling.",
+      "collector": "benchmark-json",
+      "suite": "cli-benchmarks",
+      "jsonPath": "bands.agent-skill-bytes.value",
+      "window": 20,
+      "minPoints": 8,
+      "worse": "higher"
     }
   ]
 }

@@ -108,7 +108,7 @@ describe('a refusal is the code, the message and the fix, exit 1 (R8)', () => {
     const file = pluginFile(`export default { name: 'typo', widget: { 'typo-kind': { static: () => '' } } };`);
     const { code, out } = await run([file]);
     expect(code).toBe(EXIT_RUNTIME);
-    expect(out).toMatch(/^typo — 0 widgets\nE_NO_CONTRIBUTION: typo registers, but contributes nothing caique reads\n {2}fix: add a `widgets` section/);
+    expect(out).toMatch(/^typo — 0 widgets\nE_NO_CONTRIBUTION: typo registers, but contributes nothing caique reads\n {2}fix: add a `widgets` or a `locales` section/);
     expect(out).not.toContain('typo: ok');
   });
 
