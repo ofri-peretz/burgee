@@ -40,15 +40,6 @@ export const TICK = UNICODE ? '✔' : '√';
 /** `figures.pointer`, the cursor beside the active choice of a list. */
 export const POINTER = UNICODE ? '❯' : '>';
 
-/** `figures.circle`, an unchecked checkbox. */
-export const CIRCLE = UNICODE ? '◯' : '( )';
-
-/** `figures.circleFilled`, a checked checkbox. */
-export const CIRCLE_FILLED = UNICODE ? '◉' : '(*)';
-
-/** `figures.circleDouble`, a checked checkbox that cannot be unchecked. */
-export const CIRCLE_DOUBLE = UNICODE ? '◎' : '( )';
-
 /**
  * `figures.line`, the box-drawing dash a `Separator` is made of.
  *

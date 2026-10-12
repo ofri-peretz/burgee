@@ -58,9 +58,6 @@ export function normalizeChoices<Value>(choices: readonly (Value | Choice<Value>
   });
 }
 
-/** The validator a prompt uses when the caller gives none: every answer passes. */
-export const alwaysValid = (): true => true;
-
 /**
  * Whether the cursor may move from `at` towards `up`'s end: always in a looping list, and
  * otherwise only while it is not already on the first (or last) navigable item.

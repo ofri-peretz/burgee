@@ -167,13 +167,13 @@ const RULES: Record<string, EntryRule> = {
     // are ansi-escapes' from paratext, with `@inquirer/ansi`'s zero-row guard kept. Measured 20,829 after merging main (20,890 there).
     // `roundel/terminal` the same day: the tick's unicode test is is-unicode-supported whole,
     // from roundel, rather than a four-condition subset of it here. Measured 20,782 (-47).
-    // 2026-10-11, `inquirer-prompts-drop-in` R1 and R3's first slice: `select`, `checkbox` and
-    // `usePagination`, graded by `@inquirer/select`'s and `@inquirer/checkbox`'s own suites, on
-    // the engine split out of `inquirer.ts` into `inquirer-core.ts`. Measured 38,121 B. The
-    // other eight prompts are held out of the package until the tarball has room for them
+    // 2026-10-11, `inquirer-prompts-drop-in` R1 and R3's first prompt: `select` and
+    // `usePagination`, graded by `@inquirer/select`'s own suites, on the engine split out of
+    // `inquirer.ts` into `inquirer-core.ts`. Measured 30,998 B. The other nine prompts are
+    // held out of the package until the tarball has room for them
     // (`.sdlc/intents/inquirer-prompts-drop-in/spec.md`, § Status).
     allow: ['closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap', 'paratext/csi', 'roundel/terminal'],
-    budget: 39_000,
+    budget: 32_000,
     denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js', 'spec.js', 'plugin.js', 'clack.js'],
   },
   // The six widgets in line mode (R5), which is the floor and the accessible rendering.

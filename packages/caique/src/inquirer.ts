@@ -5,9 +5,9 @@
  * ## What this is, and what it is not
  *
  * It is the **drop-in subpath** for a CLI that renders its own prompts with `@inquirer/core`,
- * and for one that asks with `@inquirer/prompts`' `select` and `checkbox`: change one import
+ * and for one that asks with `@inquirer/prompts`' `select`: change one import
  * and the same prompts, the same render functions, the same hooks and the same error classes
- * keep working. The other eight prompts of `@inquirer/prompts` are not here yet (see
+ * keep working. The other nine prompts of `@inquirer/prompts` are not here yet (see
  * `.sdlc/intents/inquirer-prompts-drop-in/spec.md`), so `burgee migrate` does not rewrite
  * that package. D-006 is the rule
  * it exists to satisfy — a compatibility claim is made at a dedicated subpath, never at a
@@ -29,7 +29,6 @@
  * incumbent's to the character. `@clack/prompts`' suite, by contrast, is 289 snapshots of its
  * own drawing, and caique declines to reproduce those on purpose (D-001).
  */
-export { checkbox, type CheckboxChoice, type CheckboxConfig, type CheckboxNormalizedChoice, type CheckboxTheme } from './inquirer-checkbox.js';
 export { type Choice, type NormalizedChoice } from './inquirer-choices.js';
 export { type CancelablePromise, type Context, createPrompt, type Prompt, Separator, useKeypress, usePrefix, type ViewFunction } from './inquirer-core.js';
 export { AbortPromptError, CancelPromptError, ExitPromptError, HookError, ValidationError } from './inquirer-errors.js';

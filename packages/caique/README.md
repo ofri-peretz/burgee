@@ -250,8 +250,8 @@ From **`@inquirer/core`**, one import — `createPrompt`, the hooks and the keyp
 + import { createPrompt, useState, useKeypress, isEnterKey } from 'caique/inquirer';
 ```
 
-From **`@inquirer/prompts`**, `select`, `checkbox` and `Separator` move by the same import, and
-`usePagination` with them. The other eight prompts are not here yet, so `burgee migrate` leaves
+From **`@inquirer/prompts`**, `select` and `Separator` move by the same import, and
+`usePagination` with them. The other nine prompts are not here yet, so `burgee migrate` leaves
 that package alone.
 
 `npx burgee migrate --dry-run` lists the imports the codemod would rewrite — only drop-ins graded
@@ -305,7 +305,7 @@ measured. **The ceiling is clack**: `@clack/prompts`
 | `caique/terminal` | 1,947 | the one file that touches a stream |
 | `caique/plugin` | 9,788 | the widgets, and the family schema |
 | `caique/clack` | 62,097 | `closeout/cursor`, `closeout/exit-hook` and `linegauge/wrap` |
-| `caique/inquirer` | 38,121 | `closeout/cursor`, `closeout/exit-hook`, `linegauge/wrap`, `paratext/csi` and `roundel/terminal` |
+| `caique/inquirer` | 30,998 | `closeout/cursor`, `closeout/exit-hook`, `linegauge/wrap`, `paratext/csi` and `roundel/terminal` |
 
 The root entry is **under a fifth of the lightest incumbent**, and nothing reaches outside this
 repository: every `allow` list in `weight.test.ts` names only `closeout` and `linegauge`

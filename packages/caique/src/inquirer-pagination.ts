@@ -1,10 +1,10 @@
 /**
  * `usePagination` — the window a list prompt draws of a list longer than its page.
  *
- * `@inquirer/core` publishes it, and `select`, `checkbox` and `search` draw through it. It is
- * graded by `@inquirer/select`'s `test/pagination.test.ts` — the pagination suite upstream
- * moved out of core when it rewrote this hook for multi-line choices — and by every `select`,
- * `checkbox` and `search` case that scrolls (D-20261011-inquirer-pagination-suite-is-selects).
+ * `@inquirer/core` publishes it, and `select` draws through it (`checkbox` and `search` do
+ * upstream). It is graded by `@inquirer/select`'s `test/pagination.test.ts` — the pagination
+ * suite upstream moved out of core when it rewrote this hook for multi-line choices — and by
+ * every `select` case that scrolls (D-20261011-inquirer-pagination-suite-is-selects).
  *
  * ## The one number it keeps
  *

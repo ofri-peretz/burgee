@@ -62,7 +62,7 @@ export const GRADED: Readonly<Record<string, Row>> = {
   lilconfig: { reference: 77, passed: 77, rate: 1, control: 77 },
   dotenv: { reference: 191, passed: 191, rate: 1, control: 191 },
   clack: { reference: 16, passed: 16, rate: 1, control: 16 },
-  'inquirer-prompts': { reference: 213, passed: 100, rate: 0.4694835680751174, control: 213 },
+  'inquirer-prompts': { reference: 213, passed: 52, rate: 0.24413145539906103, control: 213 },
   'inquirer-core': { reference: 41, passed: 41, rate: 1, control: 41 },
   meow: { reference: 148, passed: 146, rate: 0.9864864864864865, control: 146 },
   'ansi-escapes': { reference: 4, passed: 4, rate: 1, control: 4 },

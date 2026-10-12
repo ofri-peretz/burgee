@@ -16,8 +16,8 @@ drop-in path, `caique/inquirer`, carries `@inquirer/core`'s surface — the laye
 
 The same render functions, hooks (`useState`, `useEffect`, `useRef`, `useMemo`,
 `useKeypress`, `usePrefix`, `usePagination`), `Separator`, theme helpers and error classes keep
-working. From `@inquirer/prompts`, `select` and `checkbox` move by the same import; the other
-eight prompts are not here yet, so `burgee migrate` leaves that package alone.
+working. From `@inquirer/prompts`, `select` moves by the same import; the other nine prompts
+are not here yet, so `burgee migrate` leaves that package alone.
 
 **What is not covered.** The legacy `inquirer.prompt([...])` object API — the `inquirer`
 package itself — is out of scope: its own maintainer moved off it, and its npm tarball ships
@@ -29,13 +29,13 @@ Graded against `@inquirer/core`, where the prompt loop — the keypress state ma
 inquirer façades sit on — is actually tested. Its suite, vendored at 12.0.4 and unmodified
 apart from the import specifier, runs against `caique/inquirer` beside a control that runs it
 against the real package. `@inquirer/prompts`' ten suites, vendored at 8.7.3, are graded the
-same way; `caique/inquirer` carries `select` and `checkbox` of its prompts so far:
+same way; `caique/inquirer` carries `select` of its prompts so far:
 
 | | passing | rate |
 | :-- | --: | --: |
 | `caique/inquirer` | 41 / 41 | 100.0% |
 | `@inquirer/core` itself (control) | 41 / 41 | 100.0% |
-| `caique/inquirer`, `@inquirer/prompts`' suites | 100 / 213 | 46.9% |
+| `caique/inquirer`, `@inquirer/prompts`' suites | 52 / 213 | 24.4% |
 | `@inquirer/prompts` itself (control) | 213 / 213 | 100.0% |
 
 From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `npm run compat:page` generates from the
