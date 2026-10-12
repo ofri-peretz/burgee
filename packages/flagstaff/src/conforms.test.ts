@@ -46,4 +46,28 @@ describe('check · the keywords the family schema uses beyond flagstaff’s own'
     expect(check('3', { type: 'number' }, 'n')).toBe('n: expected number, got string');
     expect(check(3.5, { type: 'integer' }, 'n')).toBe('n: expected integer, got number');
   });
+
+  it('enum: one of the values it lists, and a refusal that names them', () => {
+    expect(check('b', { enum: ['a', 'b'] }, 'e')).toBeUndefined();
+    expect(check('c', { enum: ['a', 'b'] }, 'e')).toBe('e: not one of ["a","b"]');
+  });
+
+  it('a type list admits any type it names, and names them all when refusing', () => {
+    expect(check('x', { type: ['string', 'integer'] }, 'id')).toBeUndefined();
+    expect(check(7, { type: ['string', 'integer'] }, 'id')).toBeUndefined();
+    expect(check(null, { type: ['string', 'integer'] }, 'id')).toBe('id: expected string or integer, got null');
+  });
+
+  it('anyOf: one branch is enough, and none is a refusal naming each', () => {
+    const either = { anyOf: [{ type: 'string' }, { type: 'object', required: ['k'] }] };
+    expect(check('x', either, 'u')).toBeUndefined();
+    expect(check({ k: 1 }, either, 'u')).toBeUndefined();
+    expect(check({}, either, 'u')).toBe('u: matches no anyOf branch');
+  });
+
+  it('a $ref into draft-07 `definitions` resolves as one into `$defs` does', () => {
+    const root: Root = { definitions: { id: { type: 'integer' } }, $ref: '#/definitions/id' };
+    expect(check(1, root, 'r')).toBeUndefined();
+    expect(check('1', root, 'r')).toBe('r: expected integer, got string');
+  });
 });

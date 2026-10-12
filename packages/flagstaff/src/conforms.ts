@@ -5,8 +5,10 @@
  * Not a published subpath: nothing outside this package imports it.
  */
 export interface JsonSchema {
-  type?: string;
+  type?: string | string[];
   const?: unknown;
+  enum?: unknown[];
+  anyOf?: JsonSchema[];
   required?: string[];
   properties?: Record<string, JsonSchema>;
   additionalProperties?: JsonSchema | boolean;
@@ -19,8 +21,6 @@ export interface JsonSchema {
   $ref?: string;
 }
 
-const DEFS_PREFIX = '#/$defs/';
-
 function typeOf(value: unknown): string {
   if (Array.isArray(value)) return 'array';
   if (value === null) return 'null';
@@ -30,11 +30,15 @@ function typeOf(value: unknown): string {
 
 export type Problem = string | undefined;
 
-/** A schema document: the node the walk starts at, carrying the `$defs` its `$ref`s name. */
-export type Root = JsonSchema & { $defs?: Record<string, JsonSchema> };
+/**
+ * A schema document: the node the walk starts at, carrying the `$defs` its `$ref`s name — or
+ * `definitions`, draft-07's name for the same thing, which MCP's 2025-06-18 schema uses.
+ */
+export type Root = JsonSchema & { $defs?: Record<string, JsonSchema>; definitions?: Record<string, JsonSchema> };
 
 function checkScalar(value: unknown, node: JsonSchema, path: string): Problem {
   if (node.const !== undefined && value !== node.const) return `${path}: expected ${JSON.stringify(node.const)}, got ${JSON.stringify(value)}`;
+  if (node.enum !== undefined && !node.enum.includes(value)) return `${path}: not one of ${JSON.stringify(node.enum)}`;
   if (typeof value === 'string') {
     if (node.minLength !== undefined && value.length < node.minLength) return `${path}: must not be empty`;
     // The pattern is schema.json's own, shipped with the package; nothing here compiles an input.
@@ -75,20 +79,25 @@ function checkObject(record: Record<string, unknown>, node: JsonSchema, path: st
   return undefined;
 }
 
+/** `anyOf`: one branch admitting the value is enough. */
+const checkAnyOf = (value: unknown, branches: JsonSchema[], path: string, root: Root): Problem => (branches.some((b) => check(value, b, path, root) === undefined) ? undefined : `${path}: matches no anyOf branch`);
+
 /**
  * The subset of JSON Schema the family schema uses, walked by hand: a validator is a dependency
  * the package will not carry. `root` is the document `$ref`s resolve against — flagstaff's own
  * fragment at run time, the whole family schema when a lock asks whether it describes a plugin.
  */
 export function check(value: unknown, node: JsonSchema, path: string, root: Root = node as Root): Problem {
-  if (node.$ref !== undefined) {
-    const def = root.$defs?.[node.$ref.slice(DEFS_PREFIX.length)];
-    return def === undefined ? `${path}: unknown $ref ${node.$ref}` : check(value, def, path, root);
+  const { $ref } = node;
+  if ($ref !== undefined) {
+    // `#/$defs/<name>`, or draft-07's `#/definitions/<name>`, which MCP's 2025-06-18 schema uses.
+    const def = (root.$defs ?? root.definitions)?.[$ref.slice($ref.lastIndexOf('/') + 1)];
+    return def === undefined ? `${path}: unknown $ref ${$ref}` : check(value, def, path, root);
   }
   const actual = typeOf(value);
-  if (node.type !== undefined && actual !== node.type && !(node.type === 'number' && actual === 'integer')) {
-    return `${path}: expected ${node.type}, got ${actual}`;
-  }
+  const types = [node.type ?? actual].flat();
+  if (!types.includes(actual) && !(actual === 'integer' && types.includes('number'))) return `${path}: expected ${types.join(' or ')}, got ${actual}`;
+  if (node.anyOf !== undefined) return checkAnyOf(value, node.anyOf, path, root);
   if (Array.isArray(value)) return checkArray(value, node, path, root);
   if (actual === 'object') return checkObject(value as Record<string, unknown>, node, path, root);
   return checkScalar(value, node, path);
