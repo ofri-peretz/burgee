@@ -27,6 +27,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+import { checkLocales, type Locales, type Message, render } from './locale.js';
 import { PluginError, type PluginErrorCode, register, reset, validate, type Widget } from './plugin.js';
 
 /**
@@ -103,6 +104,7 @@ async function inspect(argv: readonly string[], write: (s: string) => void): Pro
   reset();
   validate(plugin);
   register(plugin);
+  checkLocales(plugin as { name: string; locales?: unknown });
   const name = (plugin as { name: string }).name;
   const threw: string[] = [];
   const rows = Object.entries((plugin as { widgets?: Record<string, Widget> }).widgets ?? {}).map(([kind, w]) => {
@@ -121,11 +123,13 @@ async function inspect(argv: readonly string[], write: (s: string) => void): Pro
     }
   });
   write(`${name} — ${String(rows.length)} widgets\n`);
-  if (rows.length === 0) {
+  const messages = localeRows((plugin as { locales?: Locales }).locales ?? {});
+  for (const row of messages) write(`  ${row}\n`);
+  if (rows.length === 0 && messages.length === 0) {
     return refuse(
       'E_NO_CONTRIBUTION',
       `${name} registers, but contributes nothing caique reads`,
-      'add a `widgets` section — a key another package in the family reads is allowed in the same object, but `caique check` cannot show it',
+      'add a `widgets` or a `locales` section — a key another package in the family reads is allowed in the same object, but `caique check` cannot show it',
       write,
     );
   }
@@ -138,4 +142,36 @@ async function inspect(argv: readonly string[], write: (s: string) => void): Pro
   }
   write(`${name}: ok\n`);
   return EXIT_OK;
+}
+
+/** Every placeholder rendered as its own name, so the reader sees where each value lands. */
+const named = (count: number): Record<string, string> => new Proxy({ count: String(count) }, { get: (counted, name: string) => (name === 'count' ? counted.count : `<${name}>`) });
+
+/** A count with a fraction, which some locales file under `many` and most under `other`. */
+const FRACTION = 1.5;
+/** The count French and Spanish file under `many`. */
+const MILLION = 1_000_000;
+
+/** The first count, from 0, that `Intl.PluralRules` files under `form`: `1` for German `one`. The pack has passed `register()`. */
+function countFor(locale: string, form: string): number {
+  const rules = new Intl.PluralRules(locale);
+  return [...Array.from({ length: 101 }, (_, n) => n), FRACTION, MILLION].find((n) => rules.select(n) === form) as number;
+}
+
+/** One message of caique's as `localeRows` lists it: once, or once per plural form. */
+function rowsOf(locale: string, id: string, message: Message): string[] {
+  if (typeof message === 'string') return [`${locale}  ${id}  ${render(message, named(0), locale)}`];
+  return Object.keys(message).map((form) => `${locale}  ${id}.${form}  ${render(message, named(countFor(locale, form)), locale)}`);
+}
+
+/**
+ * `localised-human-surfaces` R6 — each of caique's messages in a pack, rendered: an id that
+ * does not begin `caique.` is another package's, and its own `check` renders it.
+ */
+function localeRows(locales: Locales): string[] {
+  return Object.entries(locales).flatMap(([locale, messages]) =>
+    Object.entries(messages)
+      .filter(([id]) => id.startsWith('caique.'))
+      .flatMap(([id, message]) => rowsOf(locale, id, message)),
+  );
 }

@@ -37,6 +37,12 @@ export interface ResolveFailure {
   code: 'USAGE' | 'CANCELLED';
   message: string;
   fix?: string;
+  /**
+   * `message` and `fix` in `runtime.locale`, when a registered pack speaks it
+   * (`localised-human-surfaces` R6). Beside them and not in place of them: a refusal is a value a
+   * host may write into a machine envelope, and those stay in English whatever the locale.
+   */
+  localised?: { message: string; fix?: string };
 }
 
 export interface Resolved {
@@ -83,15 +89,25 @@ const isFailure = (v: Decision | ResolveFailure): v is ResolveFailure => !('acti
  * missing flags — one of which they would have answered interactively — has been given a
  * worse message than one told about the first.
  */
+/**
+ * A failure with its translation beside it (R6). `say` is the identity unless a pack speaks the
+ * run's locale (`sayFor` returns `String` itself then). A failure without a `fix` gets none.
+ */
+export const localise = (failure: ResolveFailure, say: (english: string) => string): ResolveFailure =>
+  say === String ? failure : { ...failure, localised: { message: say(failure.message), ...(failure.fix === undefined ? {} : { fix: say(failure.fix) }) } };
+
 export async function resolvePrompts<O extends PromptableOption>({ options, values, runtime, flags, io }: ResolveInput<O>): Promise<Resolved> {
   const out: Record<string, unknown> = { ...values };
+  // R6 — the run's language, as the caller built it: `sayFor(runtime.locale)` from `caique/locale`.
+  // Handed in rather than loaded here, so resolving prompts never carries the catalog.
+  const say = io.say ?? String;
 
   for (const [option, spec] of Object.entries(options)) {
     const prompt = spec.prompt;
     if (prompt === undefined) continue;
 
     const verdict = verdictFor({ option, prompt, required: spec.required === true, value: out[option], runtime, flags });
-    if (isFailure(verdict)) return { values: out, failure: verdict };
+    if (isFailure(verdict)) return { values: out, failure: localise(verdict, say) };
     if (verdict.action === 'skip') continue;
     if (verdict.action === 'answer') {
       // `defineProperty` rather than `out[option] =`: the key is chosen by whoever declared
@@ -106,7 +122,7 @@ export async function resolvePrompts<O extends PromptableOption>({ options, valu
     // eslint-disable-next-line reliability/no-await-in-loop -- see above
     const answer: Asked = await ask(prompt, io);
     if (!answer.ok) {
-      return { values: out, failure: { option, code: 'CANCELLED', message: `cancelled at --${option}`, fix: `pass --${option} to skip the question` } };
+      return { values: out, failure: localise({ option, code: 'CANCELLED', message: `cancelled at --${option}`, fix: `pass --${option} to skip the question` }, say) };
     }
     Object.defineProperty(out, option, { value: answer.value, writable: true, enumerable: true, configurable: true });
   }

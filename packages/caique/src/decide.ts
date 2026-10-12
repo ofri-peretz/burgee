@@ -19,6 +19,11 @@ import { flagOf, type PromptSpec } from './spec.js';
 export interface Runtime {
   env: Record<string, string | undefined>;
   isTTY: { stdin: boolean };
+  /**
+   * The language a person is spoken to in, resolved by the host (`localised-human-surfaces` R6),
+   * or a program's own: what `sayFor` from `caique/locale` is given. caique never reads `LANG`.
+   */
+  locale?: string | undefined;
 }
 
 /** What the run was asked for, as the engine knows it — never sniffed from the process. */
