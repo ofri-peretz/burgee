@@ -57,7 +57,7 @@
         "source": "bundle",
         "headroomBytes": 80,
         "step": 0.05,
-        "rule": "Bundle ratios are deterministic, so this is the build's own measurement on main after #631: burgee 24,216 B over cac's 10,452 B = 2.317. CI measures about 32 B heavier than a local build, so 80 B go on our side before rounding: 24,296 / 10,452 = 2.324, rounded up to the next 0.05 is 2.35, which holds 24,562 B. B4's byte ceiling (24,282) still binds first; this is the ceiling on the published ratio."
+        "rule": "Bundle ratios are deterministic, so this is the build's own measurement on main after #631: burgee 24,216 B over cac's 10,452 B = 2.317. CI measures about 32 B heavier than a local build, so 80 B go on our side before rounding: 24,296 / 10,452 = 2.324, rounded up to the next 0.05 is 2.35, which holds 24,562 B. B4's byte ceiling (24,290 since D-20261012-core-bundle-parse-refusals) still binds first; this is the ceiling on the published ratio."
       },
       "history": [
         {
