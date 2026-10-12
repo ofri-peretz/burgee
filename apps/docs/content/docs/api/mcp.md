@@ -80,8 +80,10 @@ function toolsOf(manifest: Manifest): Tool[];
 
 ### MCP_PROTOCOL_VERSION
 
+The latest revision this server speaks, and the answer to a client asking for one it does not.
+
 ```ts
-const MCP_PROTOCOL_VERSION = "2025-06-18";
+const MCP_PROTOCOL_VERSION = "2025-11-25";
 ```
 
 ## Interfaces
