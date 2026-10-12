@@ -24,6 +24,7 @@ landed. This is the same kind of move, recorded once here and once per step in t
 | R1, `structuredContent` | 25,850 | 26,215 | 25,900 → 26,250 | 35,105 → 35,105 |
 | R2, `outputSchema` | 26,215 | 26,695 | 26,250 → 26,700 | 35,105 → 35,105 |
 | R4 and R5, cancellation and progress | 26,695 | 27,991 | 26,700 → 28,000 | 35,130 → 35,130 |
+| R3, revision negotiation | 27,991 | 28,177 | 28,000 → 28,200 | 35,538 → 35,538 |
 
 **R1.** `callTool` parses the text it already returns once more and carries the envelope's
 `data` as `structuredContent`, wrapped as `{ result }` when it is not an object, or the
@@ -46,6 +47,13 @@ the call's signal and progress sender (by `Symbol.for('burgee.mcp')`, with no im
 call with a `progressToken` sends `notifications/progress`, dropping a value that does not rise,
 which the protocol forbids. `ctx.js` is a lazy chunk on the command-run path, outside every
 static entry graph, and `.` does not move.
+
+**R3.** The owner extended the same rule to R3 on 2026-10-12. 186 B, all in `mcp.js`. `initialize` answers the client's `protocolVersion` when it is
+in `SUPPORTED_REVISIONS` (`2025-06-18`, `2025-11-25`), and `MCP_PROTOCOL_VERSION`, now
+`2025-11-25`, otherwise ([D-20261012-mcp-version-negotiation](./D-20261012-mcp-version-negotiation.md)).
+The first version, a `find` with a `??`, was 224 B; `includes` brought it to 186. The vendored
+`2025-11-25` schema is a test fixture and does not ship. `.` reads 35,538 on main at `10edb48`,
+and this does not move it.
 
 **Not moved: flagstaff's `.`.** R5 also asks that `flagstaff/progress` report through
 `ctx.progress` inside such a call. Built, it measured 282 B on `progress.js`, which flagstaff's

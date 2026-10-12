@@ -12,6 +12,7 @@ import { Command } from './commander.js';
 import { renderCompletion, renderFigSpec } from './completions.js';
 import { defineCommand, defineProgram, execute, run } from './index.js';
 import { annotationsOf, MCP_PROTOCOL_VERSION, serveMcp, toolsOf } from './mcp-entry.js';
+import { SUPPORTED_REVISIONS } from './mcp.js';
 import { inputSchemaOf, Manifest, schemaOf } from './schema-entry.js';
 import { runBurgee } from './testing.js';
 
@@ -73,12 +74,47 @@ const structured = async (name: string, args: object): Promise<Record<string, un
   return replies.get(9)?.['result'] as Record<string, unknown>;
 };
 
+/** The revision `initialize` answers when the client asks for `protocolVersion` (R3). */
+const negotiated = async (protocolVersion: unknown): Promise<unknown> => {
+  const replies = await session([{ ...init, params: { ...init.params, protocolVersion } }]);
+  return (replies.get(1)?.['result'] as { protocolVersion?: unknown } | undefined)?.protocolVersion;
+};
+
 describe('--mcp', () => {
   it('completes the handshake and names the program (N1)', async () => {
     const replies = await session([init, { jsonrpc: '2.0', method: 'notifications/initialized' }, { jsonrpc: '2.0', id: 2, method: 'ping' }]);
     expect(replies.get(1)?.['result']).toMatchObject({ protocolVersion: MCP_PROTOCOL_VERSION, capabilities: { tools: {} }, serverInfo: { name: 'app', version: '0.3.0' } });
     expect(replies.get(2)?.['result']).toEqual({});
     expect(replies.size).toBe(2); // the notification got no reply
+  });
+
+  /**
+   * mcp-current R3 — the specification's own rule: a revision the server supports is answered
+   * with itself, anything else with the latest the server supports. 2026-07-28 has no
+   * `initialize`, so a client that sends one for it is answered with the latest handshake
+   * revision. Each answer's messages validate against that revision's schema in
+   * `scripts/mcp-messages.test.ts`.
+   */
+  describe('negotiates the protocol revision (R3)', () => {
+    it('answers 2025-06-18 with 2025-06-18', async () => {
+      expect(await negotiated('2025-06-18')).toBe('2025-06-18');
+    });
+
+    it('answers 2025-11-25 with 2025-11-25', async () => {
+      expect(await negotiated('2025-11-25')).toBe('2025-11-25');
+    });
+
+    it('answers 2026-07-28, an unknown string, a non-string and no version at all with 2025-11-25', async () => {
+      expect(await negotiated('2026-07-28')).toBe('2025-11-25');
+      expect(await negotiated('1999-01-01')).toBe('2025-11-25');
+      expect(await negotiated(20_250_618)).toBe('2025-11-25');
+      expect(await negotiated(undefined)).toBe('2025-11-25');
+    });
+
+    it('lists exactly the two handshake revisions, latest last, and exports the latest', () => {
+      expect(SUPPORTED_REVISIONS).toEqual(['2025-06-18', '2025-11-25']);
+      expect(MCP_PROTOCOL_VERSION).toBe('2025-11-25');
+    });
   });
 
   /**

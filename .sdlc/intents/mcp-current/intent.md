@@ -85,6 +85,8 @@ Read on `3a05dc8aad`:
 
 - Which revisions to support. **Answered 2026-10-12 in `spec.md`**: `2025-06-18` and the newest
   published revision on the day R3 is built, read from the specification repository's schema
-  files, never from memory.
+  files, never from memory. **Amended 2026-10-12**
+  ([D-20261012-mcp-version-negotiation](../../decisions/D-20261012-mcp-version-negotiation.md)):
+  the newest, `2026-07-28`, has no `initialize`, so the second is `2025-11-25`.
 - Whether progress needs a new API. **Answered 2026-10-12 in `spec.md`**: one method,
   `ctx.progress(done, total?, message?)`, a no-op outside an MCP call that asked for progress.
