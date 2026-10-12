@@ -36,6 +36,10 @@ export type Problem = string | undefined;
  */
 export type Root = JsonSchema & { $defs?: Record<string, JsonSchema>; definitions?: Record<string, JsonSchema> };
 
+/**
+ * A scalar's keywords. `enum` is read here only, by identity: an array or object listed in an
+ * `enum` would never equal a parsed value anyway, and no schema this walker reads lists one.
+ */
 function checkScalar(value: unknown, node: JsonSchema, path: string): Problem {
   if (node.const !== undefined && value !== node.const) return `${path}: expected ${JSON.stringify(node.const)}, got ${JSON.stringify(value)}`;
   if (node.enum !== undefined && !node.enum.includes(value)) return `${path}: not one of ${JSON.stringify(node.enum)}`;
@@ -97,7 +101,9 @@ export function check(value: unknown, node: JsonSchema, path: string, root: Root
   const actual = typeOf(value);
   const types = [node.type ?? actual].flat();
   if (!types.includes(actual) && !(actual === 'integer' && types.includes('number'))) return `${path}: expected ${types.join(' or ')}, got ${actual}`;
-  if (node.anyOf !== undefined) return checkAnyOf(value, node.anyOf, path, root);
+  // `anyOf` and the node's own keywords both hold: a branch admitting the value does not excuse a sibling `required`.
+  const branch = node.anyOf && checkAnyOf(value, node.anyOf, path, root);
+  if (branch !== undefined) return branch;
   if (Array.isArray(value)) return checkArray(value, node, path, root);
   if (actual === 'object') return checkObject(value as Record<string, unknown>, node, path, root);
   return checkScalar(value, node, path);

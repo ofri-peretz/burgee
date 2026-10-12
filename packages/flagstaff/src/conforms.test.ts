@@ -63,6 +63,8 @@ describe('check · the keywords the family schema uses beyond flagstaff’s own'
     expect(check('x', either, 'u')).toBeUndefined();
     expect(check({ k: 1 }, either, 'u')).toBeUndefined();
     expect(check({}, either, 'u')).toBe('u: matches no anyOf branch');
+    // A sibling keyword still binds: the branch that admits `{ k }` does not excuse `required`.
+    expect(check({ k: 1 }, { ...either, required: ['id'] }, 'u')).toBe('u.id: required');
   });
 
   it('a $ref into draft-07 `definitions` resolves as one into `$defs` does', () => {
