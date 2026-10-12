@@ -429,6 +429,29 @@ parallel lanes, and 51 last. Requirement ids are `R1…` in each spec.
 | 50  | [`extra-typings-drop-in/`](./extra-typings-drop-in/)                 | **`@commander-js/extra-typings` graded** (5.1 M/wk) — a `tsd` runner in the oracle, ported inferred types over `burgee/commander`, mapped by `burgee migrate`                                                                    | U11       | approved |
 | 51  | [`localised-human-surfaces/`](./localised-human-surfaces/)           | **localised for people, invariant for programs** — a message catalog, locale packs as plugins, and a lock that every machine surface is byte-identical under any locale; commander #1801 declined it after 31 comments          | U4, U9    | approved |
 
+### Wave 3 — ranked from measured evidence, 2026-10-12
+
+Opened on the same instruction of 2026-10-12 and accepted at the Design → Build gate by it.
+Every row was ranked by demand × fit ÷ cost, on a scale written down in
+[`next-wave-3-2026-10.md`](../research/next-wave-3-2026-10.md). That file also holds the
+candidates left out with their reasons, the Jev answers (author-scored, since no key was
+available), and the execution order: a docs-only status correction first, rows 52–54 and 56 in
+parallel lanes, and the compat-oracle work last, behind wave 2's graded hosts: 58's commander
+half, then 55, then 58's yargs half. Requirement ids are `R1…` in each spec.
+
+| #   | Intent                                                               | Delivers                                                                                                                                                                  | Status   |
+| :-- | :------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------- |
+| 52  | [`parse-refusals/`](./parse-refusals/)                               | **a native command refuses input it would drop**: surplus positionals and a conflicting repeat of a single-value flag are exit 2 with a runnable `next[]`. yargs #1318, #1076 | approved |
+| 53  | [`foundation-claims-watched/`](./foundation-claims-watched/)         | **all ten packages watched**: `competitors.json` for the six that lack one, a lock that every published package declares, B4 pairs for seniority and closeout. tinyexec claim at 0.986 | approved |
+| 54  | [`table-column-widths/`](./table-column-widths/)                     | **per-column `min`, `max` and `overflow`** on flagstaff's native table, static projection whole. cli-table3 #57, its most-reacted issue                                      | approved |
+| 55  | [`supports-color-drop-in/`](./supports-color-drop-in/)               | **`roundel/supports-color`**, graded by supports-color's own suite (441.6 M/wk), with `roundel/policy`'s safer precedence kept apart                                         | approved |
+| 56  | [`caique-quiet-seam/`](./caique-quiet-seam/)                         | **`--quiet` reaches caique**: the clack port takes the caller's runtime and draws no decoration; closes gap `B-20261011-caique-quiet`                                       | approved |
+| 57  | [`completion-context/`](./completion-context/)                       | **completers see the rest of the line**, parsed leniently, and positionals complete. yargs #793, 27 comments                                                               | approved |
+| 58  | [`previous-majors/`](./previous-majors/)                             | **commander 14 and yargs 17 claimed** through `/v14` and `/v17` subpaths that `migrate` writes; most top dependents are on them                                             | approved |
+| 59  | [`controlroom-scroll-pane/`](./controlroom-scroll-pane/)             | **a pane scrolls**: reducer state, keymap data, follow-tail, static projection whole. ink #222, open since 2019                                                            | approved |
+| 60  | [`frames-fit-the-screen/`](./frames-fit-the-screen/)                 | **a live frame never outgrows the terminal**: the writer clips to rows and flushes whole on release; native list prompts window. Five trackers, one defect               | approved |
+| 61  | [`facade-projection-fidelity/`](./facade-projection-fidelity/)       | **what a commander or yargs program declares reaches every surface**: choices, conflicts, hidden flags, examples and command aliases                                       | approved |
+
 ## Owner tasks — outside an agent's reach
 
 Recorded here so the roadmap is honest about what a spawned agent cannot do. Each needs the
