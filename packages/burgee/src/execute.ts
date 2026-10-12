@@ -666,7 +666,12 @@ export async function execute(manifest: Manifest, opts: RunOptions & { root?: st
   while (next) next = await pass(next);
 }
 
-/** M6: which command argv names, or null — the same longest-prefix match `execute` uses. */
+/**
+ * M6: which command argv names, or null — the same longest-prefix match `execute` uses, over the
+ * declared names. An alias is not read here: `execute` rewrites one to its command's name before it
+ * resolves (`aliases.ts`, facade-projection-fidelity R5), and that chunk is loaded only on a run, so
+ * this function stays synchronous and off the startup path. Pass the canonical words.
+ */
 export function resolveCommand(manifest: Manifest, argv: readonly string[]): CommandNode | null {
   const { node } = manifest.resolve(beforeTerminator(argv) as string[], manifest.rootPath);
   return node ?? null;

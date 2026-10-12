@@ -22,6 +22,7 @@ import { type Manifest } from './manifest.js';
  * stand, which is where `resolve` would read it as one. Nothing after `--` is a command.
  */
 export function unalias(manifest: Manifest, argv: readonly string[], root: readonly string[]): string[] {
+  // Order is significant: `at` is the deepest command matched so far, and each word reads the one before it.
   let at = root;
   const end = argv.indexOf('--');
   return argv.map((word, i) => {
