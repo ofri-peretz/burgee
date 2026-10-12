@@ -116,7 +116,7 @@ non-zero on failure.
 | R2 | **Built** 2026-10-11 | `seniority/find-up` | `npm run compat -- find-up`: 104 / 104, control 104 / 104 (D-20261011-seniority-find-up-follows-find-up-8); red before the façade, `does not provide an export named 'findUpStop'` |
 | R3 | **Built** 2026-10-11 | `closeout/onetime` | `npm run compat -- onetime`: 6 / 6, control 6 / 6; red before the façade, `target not built yet: closeout/onetime` (D-20261011-closeout-onetime-cli-cursor); `subpath-weight-lock`: bundled 716 B against onetime's 1,527 B. No `mimic-function` row: the suite asserts none of it and the façade exports none of its API |
 | R4 | **Built** 2026-10-11 | `closeout/cli-cursor` | `npm run compat -- cli-cursor`: 8 / 8, control 8 / 8; red before the façade, `target not built yet: closeout/cli-cursor`; `scripts/subpath-weight-lock.test.ts`: bundled 4,568 B against cli-cursor's 4,757 B, red at 4,876 B until `install.ts` split the registry from its view |
-| R5 | Not built | `linegauge/cli-truncate` | `npm run compat -- cli-truncate` |
-| R6 | Not built | `linegauge/widest-line` | `npm run compat -- widest-line` |
+| R5 | **Built** 2026-10-11 | `linegauge/cli-truncate` | `npm run compat -- cli-truncate`: 12 / 12, control 12 / 12; red before the façade, `target not built yet: linegauge/cli-truncate` (D-20261011-linegauge-cli-truncate-widest-line); `subpath-weight-lock`: bundled 14,191 B against cli-truncate's 20,675 B. linegauge's README sentence "checked case by case against `cli-truncate`" is replaced by the grade |
+| R6 | **Built** 2026-10-11 | `linegauge/widest-line` | `npm run compat -- widest-line`: 1 / 1, control 1 / 1; red before the façade, `target not built yet: linegauge/widest-line`; `subpath-weight-lock`: bundled 5,742 B against widest-line's 6,079 B |
 | R7 | Not built | `roundel/picocolors` | `npm run compat -- picocolors`, `subpath-weight-lock` |
 | R8 | Not built | the compatibility page | `scripts/compat-page-subtractions.test.ts` |

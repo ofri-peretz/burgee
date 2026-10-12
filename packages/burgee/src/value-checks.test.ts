@@ -44,7 +44,7 @@ describe('atLeastOneOf (S2)', () => {
   });
   it('refuses a run that sets none, naming them all', async () => {
     const r = await runCommand(program, ['notify']);
-    expect(r).toEqual({ code: ExitCode.USAGE, stdout: '', stderr: 'error: at least one of --email, --sms is required\nhint: pass one of them\nusage: app notify [options]\noptions:\n  --email <value>\n  --sms <value>\n' });
+    expect(r).toEqual({ code: ExitCode.USAGE, stdout: '', stderr: `error: at least one of --email, --sms is required\nhint: pass one of them\nusage: app notify [options]\noptions:\n  --email <value>\n  --sms <value>\n${JSON.stringify({ error: { kind: 'usage', code: 2, message: 'at least one of --email, --sms is required' } })}\n` });
   });
   it('runs with one, or with both', async () => {
     expect((await runCommand(program, ['notify', '--sms', '1'])).stdout).toBe('sms\n');

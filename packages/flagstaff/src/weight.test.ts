@@ -160,7 +160,7 @@ interface EntryRule {
 const RULES: Record<string, EntryRule> = {
   // Everything: the loop, the registry, and all five built-ins. `box` and `table` bring the
   // wrapper and the width function with them, which is most of it. A program that wants one component should import its subpath (U5, R10).
-  '.': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'linegauge/wrap', 'paratext/link', 'roundel/policy', 'roundel/tokens'], budget: 29_300, measured: 28_656, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
+  '.': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'linegauge/wrap', 'paratext/link', 'roundel/policy', 'roundel/tokens'], budget: 29_300, measured: 29_247, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
   // The loop and its four projections; never the registry — a program that hoists its own
   // component pays nothing for the plugin host.
   //
@@ -187,7 +187,9 @@ const RULES: Record<string, EntryRule> = {
   // against the last frame, in-place edits under DECSC/DECRC, and synchronized output. All of
   // it is `projection.js`'s own code; nothing new is reached. Inside the 7,000 and 29,300
   // budgets, which did not move.
-  './loop': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'roundel/policy'], budget: 7_000, measured: 6_746, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
+  // 2026-10-11, agent-lint-conformance R2: a runtime that says `quiet` gets a projection that
+  // draws nothing. Measured 6,910, inside the 7,000 budget, which did not move.
+  './loop': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'roundel/policy'], budget: 7_000, measured: 6_910, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
   // The registry, the validator, the built-ins and the schema they are checked against.
   // The registry, the validator, the built-ins and the schema they are checked against —
   // which now carries `borders` too, so both this and `./spinner` are larger than before.
@@ -196,10 +198,12 @@ const RULES: Record<string, EntryRule> = {
   // host validates against `plugin.schema.json`, its own slice of the family schema, instead of
   // importing the whole file — which had just grown to describe all nine hosts (D-108's answer,
   // applied to flagstaff). Budgets followed the measurements down.
-  './plugin': { allow: [], budget: 12_100, measured: 9_974, denied: ['loop.js', 'projection.js', 'spinner.js', 'cli.js', 'index.js'] },
+  // Measured 10,400 on 2026-10-12, and every entry reaching `plugin.js` by the same 426 B: the walker
+  // reads `anyOf`, `enum`, a type list and draft-07 `definitions`, for mcp-current R7. No budget moved.
+  './plugin': { allow: [], budget: 12_100, measured: 10_400, denied: ['loop.js', 'projection.js', 'spinner.js', 'cli.js', 'index.js'] },
   // The ceiling is ora (R10). The spinner plus the registry it reads its style from;
   // ora 9.4.1's own index.js is 17,891 B before any of its sixteen dependencies.
-  './spinner': { allow: ['roundel/tokens'], budget: 13_000, measured: 10_902, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
+  './spinner': { allow: ['roundel/tokens'], budget: 13_000, measured: 11_328, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
   // The ora façade: the port, the width function and the spinner corpus it re-exports. The
   // cursor control is no longer counted here — it is `closeout`'s since 2026-09-15, and a bare
   // specifier leaves this measurement while staying in the program.
@@ -283,14 +287,14 @@ const RULES: Record<string, EntryRule> = {
   // the last case in `import.test.ts` asserts neither became a dependency.
   './import': { allow: [], budget: 2_000, measured: 795, denied: ['plugin.js', 'builtins.js', 'schema.json', 'loop.js', 'projection.js', 'box.js', 'spinner.js', 'cli.js', 'index.js'] },
   './progress': { allow: ['roundel/tokens'], budget: 2_000, measured: 971, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'cli.js', 'index.js'] },
-  './tasks': { allow: ['roundel/tokens'], budget: 13_500, measured: 11_301, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
+  './tasks': { allow: ['roundel/tokens'], budget: 13_500, measured: 11_727, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
   // The two controlroom components (R3), new on 2026-10-05. Each reads the registry — the
   // `tail`, `step` glyphs for the log tail — and registers its built-in through it, so each
   // carries the plugin host as `./tasks` does; the component itself is 1,905 B and 919 B.
   // Budgets at the same headroom `./tasks` has. Neither reaches the loop: drawing a frame is
   // the caller's, through `hoist` or `frameWriter`.
-  './log-tail': { allow: ['roundel/tokens'], budget: 13_500, measured: 11_879, denied: ['loop.js', 'projection.js', 'tasks.js', 'tab-bar.js', 'cli.js', 'index.js'] },
-  './tab-bar': { allow: ['roundel/tokens'], budget: 12_500, measured: 10_893, denied: ['loop.js', 'projection.js', 'tasks.js', 'log-tail.js', 'cli.js', 'index.js'] },
+  './log-tail': { allow: ['roundel/tokens'], budget: 13_500, measured: 12_305, denied: ['loop.js', 'projection.js', 'tasks.js', 'tab-bar.js', 'cli.js', 'index.js'] },
+  './tab-bar': { allow: ['roundel/tokens'], budget: 12_500, measured: 11_319, denied: ['loop.js', 'projection.js', 'tasks.js', 'log-tail.js', 'cli.js', 'index.js'] },
   // The chat widgets (controlroom R21), new on 2026-10-05. Self-contained like `./progress`:
   // tokens and string work, no registry, no loop. `./markdown` is the block splitter (the
   // part a byte-offset property holds stable) and an inline pass for code, strong and
@@ -302,7 +306,7 @@ const RULES: Record<string, EntryRule> = {
   // That is the price of R11 — a corpus imported with `fromCliBoxes()` is a registered
   // plugin, and `box('…', { border: 'arrow' })` then draws with it without knowing it
   // exists. A caller who wants neither passes a style object and a bundler drops the rest.
-  './box': { allow: ['linegauge', 'linegauge/wrap', 'paratext/link', 'roundel/tokens'], budget: 16_300, measured: 14_135, denied: ['loop.js', 'projection.js', 'table.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
+  './box': { allow: ['linegauge', 'linegauge/wrap', 'paratext/link', 'roundel/tokens'], budget: 16_300, measured: 14_561, denied: ['loop.js', 'projection.js', 'table.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
   './table': { allow: ['linegauge', 'linegauge/wrap', 'paratext/link', 'roundel/tokens'], budget: 6_000, measured: 4_649, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'box.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
 };
 

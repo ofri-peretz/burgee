@@ -1,7 +1,13 @@
 /** F1 / N8 / N9 — the program as data, from the manifest alone. */
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
+import { runCommand } from './execute.js';
 import { defineCommand, defineProgram } from './index.js';
+import { Manifest } from './manifest.js';
 import { schemaOf } from './schema-entry.js';
 import { runBurgee } from './testing.js';
 
@@ -64,13 +70,18 @@ describe('--schema', () => {
     const r = await runBurgee(program, { argv: ['--schema'], env: {} });
     expect(r.code).toBe(0);
     // The native surface adds where to ask for a value's source (D-20261009-b1-totals-and-explain),
-    // and the `completion` command the engine serves (agent-lint-conformance R5), last.
-    const native = JSON.parse(r.stdout) as ReturnType<typeof schemaOf>;
-    expect({ ...native, commands: native.commands.slice(0, -1) }).toEqual({ ...schemaOf(program), explain: '--explain <option> on a command says where its value came from: default, env, config or flag' });
+    // the `completion` command the engine serves (agent-lint-conformance R5), last, and the error
+    // kinds (clispec-conformance R2), which `define-error.test.ts` reads row by row.
+    // And the clispec keys (clispec-conformance R1–R5), which this file's `the clispec keys` block reads.
+    const { clispec, global_args: globalArgs, output, ...native } = JSON.parse(r.stdout) as ReturnType<typeof schemaOf> & { errors: unknown[]; clispec: string; global_args: unknown[]; output: unknown };
+    expect([clispec, globalArgs.length > 0, output]).toEqual(['0.3', true, expect.objectContaining({ piped: 'text' })]);
+    expect(native.errors.length).toBeGreaterThan(0);
+    const commands = (native.commands.slice(0, -1) as (ReturnType<typeof schemaOf>['commands'][number] & { example?: unknown })[]).map(({ example: _e, ...rest }) => rest);
+    expect({ ...native, commands }).toEqual({ ...schemaOf(program), explain: '--explain <option> on a command says where its value came from: default, env, config or flag', errors: native.errors });
     expect(native.commands.at(-1)?.name).toBe('completion');
     // Naming a command drills into it (N13): that command's schema alone.
     const later = await runBurgee(program, { argv: ['deploy', '--schema'], env: {} });
-    expect(JSON.parse(later.stdout)).toEqual(schemaOf(program).commands[0]);
+    expect(JSON.parse(later.stdout)).toEqual({ ...schemaOf(program).commands[0], example: { args: ['deploy', 'prod'] } });
   });
 
   it('lists the completion command the engine serves, read-only, taking a shell (agent-lint-conformance R5)', async () => {
@@ -89,5 +100,78 @@ describe('--schema', () => {
   it('reserves --schema and --mcp like --json and --help (V5)', () => {
     expect(() => defineCommand({ name: 'x', options: { schema: { type: 'boolean' } } })).toThrow(/reserved/);
     expect(() => defineCommand({ name: 'x', options: { mcp: { type: 'boolean' } } })).toThrow(/reserved/);
+  });
+});
+
+/** The program's `--schema`, as `run()` prints it. */
+async function native(manifest: Manifest, argv: string[] = ['--schema']): Promise<Record<string, unknown> & { commands: Record<string, unknown>[] }> {
+  return JSON.parse((await runBurgee(manifest, { argv, env: {} })).stdout) as Record<string, unknown> & { commands: Record<string, unknown>[] };
+}
+
+describe('the clispec keys (clispec-conformance)', () => {
+  it('R1 — says it is clispec 0.3, right after the version burgee keys on', async () => {
+    const doc = await native(program);
+    expect(Object.keys(doc).slice(0, 2)).toEqual(['schemaVersion', 'clispec']);
+    expect(doc['clispec']).toBe('0.3');
+    expect(doc['version']).toBe('1.2.3');
+  });
+
+  it('R1 — always carries a version: the owning package.json’s when the program declares none', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'burgee-clispec-version-'));
+    try {
+      writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'owned', version: '9.8.7' }));
+      const bare = defineProgram({ name: 'owned', commands: [defineCommand({ name: 'go', effects: 'read_only', run: () => 'ok' })] });
+      const doc = JSON.parse((await runCommand(bare, ['--schema'], { entry: join(dir, 'cli.mjs') })).stdout) as Record<string, unknown>;
+      expect(doc['version']).toBe('9.8.7');
+      // With no version anywhere there is none to publish, and none is invented.
+      expect(JSON.parse((await runCommand(bare, ['--schema'], { entry: '/' })).stdout)).not.toHaveProperty('version');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('R3 — global_args are root help’s `Global options:` rows, name for name', async () => {
+    const help = (await runBurgee(program, { argv: ['--help'], env: {} })).stdout;
+    const section = help.slice(help.indexOf('Global options:'), help.indexOf('\n\n', help.indexOf('Global options:')));
+    // The row's own flag, first on its line: a description may name another (`the same as --color=never`).
+    const shown = [...section.matchAll(/^ {2}(?:-\w, )?--([\w-]+)/gmu)].map((m) => m[1]);
+    const globals = (await native(program))['global_args'] as { name: string }[];
+    expect(globals.map((g) => g.name)).toEqual(shown);
+    expect(globals).toContainEqual({ name: 'color', type: 'string', description: expect.any(String) as string, enum: ['always', 'never', 'auto'], default: 'auto' });
+    expect(globals).toContainEqual({ name: 'quiet', type: 'boolean', short: '-q', description: expect.any(String) as string });
+    expect(globals).toContainEqual({ name: 'timeout', type: 'string', description: expect.stringMatching(/^end the run after this long/) as string });
+  });
+
+  it('R3 — a program with no root node lists what its root help does: the three it always has', async () => {
+    const bare = new Manifest();
+    bare.rootPath = ['bare'];
+    bare.add({ path: ['bare', 'x'], options: {}, effects: 'read_only', run: () => 'x' });
+    expect(((await native(bare))['global_args'] as { name: string }[]).map((g) => g.name)).toEqual(['json', 'help', 'schema']);
+  });
+
+  it('R4 — each command carries its first example as the arguments clispec’s probe runs', async () => {
+    const quoted = defineProgram({
+      name: 'app',
+      commands: [
+        defineCommand({ name: 'say', effects: 'read_only', examples: [{ command: `app say "two words" 'and more' --loud` }, { command: 'app say later' }], run: () => 'x' }),
+        defineCommand({ name: 'bare', effects: 'read_only', examples: [{ command: 'bare --flag' }], run: () => 'x' }),
+        defineCommand({ name: 'plain', effects: 'read_only', run: () => 'x' }),
+      ],
+    });
+    const [say, bare, plain] = (await native(quoted)).commands;
+    expect(say?.['example']).toEqual({ args: ['say', 'two words', 'and more', '--loud'] });
+    // A line that does not start with the program's name is taken whole.
+    expect(bare?.['example']).toEqual({ args: ['bare', '--flag'] });
+    expect(plain).not.toHaveProperty('example');
+    // Drilled into, the command carries it too.
+    expect((await native(quoted, ['say', '--schema']))['example']).toEqual({ args: ['say', 'two words', 'and more', '--loud'] });
+  });
+
+  it('over its budget, the summary keeps errors and the version and claims no clispec conformance', async () => {
+    const tight = defineProgram({ name: 'app', version: '1.0.0', schemaBudget: 10, commands: [defineCommand({ name: 'go', effects: 'read_only', run: () => 'ok' })] });
+    const doc = await native(tight);
+    expect(doc).toMatchObject({ summarised: true, version: '1.0.0', errors: expect.any(Array) as unknown[] });
+    expect(doc).not.toHaveProperty('clispec');
+    expect(doc).not.toHaveProperty('global_args');
   });
 });

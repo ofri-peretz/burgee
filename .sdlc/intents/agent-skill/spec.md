@@ -100,9 +100,11 @@ always-needed contract and a pointer, and `--schema <command>` carries the rest.
 
 | R | Status | Where | Check |
 | :-- | :-- | :-- | :-- |
-| R1 | Not built | `help.ts` | `help.test.ts` |
+| R1 | **Built** 2026-10-12 | `help.ts` (`helpModel`: the section list, in R2's order, empty sections gone; `renderHelp` lays it out for a terminal), `help-markdown.ts` (`markdownHelp`: a `#` heading, a usage code block, a table per section, each example's description over a fenced line, the trailer as paragraphs). **One departure:** with `format: 'markdown'`, `renderHelp` returns a `Promise<string>`. The Markdown layout is loaded behind an `await import()`, because `./help` had 112 B of its 9,130 to spare and a static layout does not fit; the door measures 9,019 B (+1). The terminal output is unchanged: every help snapshot passes as it stood. `cli-help-renderer` R6 is marked built | `help.test.ts` › `help renders as Markdown, from the same sections (agent-skill R1)`: per node of the demo's shape, the Markdown's headings, terms and examples equal the screen's; a dropped section on either side fails. Red: `expected { sections: [], examples: [] } to deeply equal { sections: [ [ …(2) ], …(2) ], …(1) }` (no `format`: the terminal text came back) |
 | R2 | Not built | a new `skill.ts`, `surfaces.ts` | `skill.test.ts` |
 | R3 | Not built | `program.ts` (`burgee skill`) | `skill.test.ts` |
 | R4 | Not built | `help.ts`, `examples/demo-cli-burgee` | `help-snapshot.test.ts` |
 | R5 | Not built | `scripts/skill-lock.test.ts` | itself |
 | R6 | Not built | `benchmarks/axes/reliability.ts` | `benchmarks/reliability.test.ts` |
+
+**Built: 1. Not built: 5.**

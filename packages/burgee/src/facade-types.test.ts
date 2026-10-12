@@ -458,3 +458,42 @@ describe('burgee migrate — its output compiles', () => {
     expect(typeErrors(files)).toEqual([]);
   });
 });
+
+/**
+ * clispec-conformance R5 — with `output.schema`, `run` must return what the schema describes.
+ * Compiled against the built package the way a user's project compiles, like every fixture
+ * above. Red before R5: `output` was not a key of `Command`, so the good program failed too.
+ */
+describe('burgee — a declared output schema types the handler (clispec-conformance R5)', () => {
+  const head = `import { defineCommand } from 'burgee';\n`;
+
+  it('accepts a handler returning what the schema describes, and one with no schema at all', () => {
+    expect(
+      typeErrors({
+        'output-good.ts': `${head}
+defineCommand({ name: 'one', effects: 'read_only', output: { cardinality: 'single', schema: { type: 'string' } }, run: () => 'hi' });
+defineCommand({ name: 'async', effects: 'read_only', output: { cardinality: 'single', schema: { type: 'integer' } }, run: async () => 3 });
+defineCommand({
+  name: 'rows',
+  effects: 'read_only',
+  output: { cardinality: 'bounded', schema: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, size: { type: 'number' }, tag: { enum: ['a', 'b'] } }, required: ['id'] } } },
+  run: () => [{ id: 'x', size: 1 }, { id: 'y', tag: 'a' as const }],
+});
+defineCommand({ name: 'free', effects: 'read_only', output: { cardinality: 'single' }, run: () => ({ anything: true }) });
+defineCommand({ name: 'none', effects: 'read_only', run: () => 42 });
+defineCommand({ name: 'never', effects: 'read_only', output: { cardinality: 'single', schema: { not: {} } }, run: () => { throw new Error('no'); } });
+`,
+      }),
+    ).toEqual([]);
+  });
+
+  it('refuses a handler that returns the wrong shape', () => {
+    const errors = typeErrors({
+      'output-bad.ts': `${head}
+defineCommand({ name: 'one', effects: 'read_only', output: { cardinality: 'single', schema: { type: 'string' } }, run: () => 3 });
+defineCommand({ name: 'rows', effects: 'read_only', output: { cardinality: 'bounded', schema: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } } }, run: () => [{ name: 'x' }] });
+`,
+    });
+    expect(errors).toEqual([expect.stringMatching(/^output-bad\.ts:3 TS2322 /), expect.stringMatching(/^output-bad\.ts:4 TS2322 /)]);
+  });
+});

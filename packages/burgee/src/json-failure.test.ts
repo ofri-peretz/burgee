@@ -80,32 +80,63 @@ function onlyEnvelope(stdout: string): Record<string, unknown> {
 
 const nativeProgram = defineProgram({ name: 'app', commands: CASES.map(({ name, run }) => defineCommand({ name, effects: 'read_only', run })) });
 
+/**
+ * clispec-conformance R6 — the one line stderr carries on a failure, `{"error":{"kind","code","message"}}`:
+ * what clispec's "Structured errors" and cli-agent-lint's SD-1 read off stderr.
+ */
+function errorLine(stderr: string): Record<string, unknown> {
+  const last = stderr.split('\n').findLast((l) => l.trim() !== '') ?? '';
+  return JSON.parse(last) as Record<string, unknown>;
+}
+
 describe('the engine: a failing handler under --json', () => {
-  it.each(CASES)('$name: the envelope is on stdout, alone, and stderr is empty', async ({ name, exit, message }) => {
+  it.each(CASES)('$name: the envelope is on stdout, alone, and stderr is the one structured line (R6)', async ({ name, exit, message, facade }) => {
     const r = await runBurgee(nativeProgram, { argv: [name, '--json'] });
     expect(r.code).toBe(exit);
     const { error } = onlyEnvelope(r.stdout) as { error: Record<string, unknown> };
-    expect(error).toMatchObject({ code: exit, message });
-    expect(r.stderr).toBe('');
+    expect(error).toMatchObject({ kind: facade, code: exit, message });
+    // Exactly one line, and it parses whole: `JSON.parse(stderr)`.
+    expect(r.stderr.split('\n').filter((l) => l !== '')).toHaveLength(1);
+    expect(JSON.parse(r.stderr)).toEqual({ error: { kind: facade, code: exit, message } });
     expect(r.stdout).not.toContain('    at ');
   });
 
-  it('carries hint and fix from a classified error (E3, E6)', async () => {
+  it('carries hint and fix from a classified error (E3, E6), and the kind beside the code (R2)', async () => {
     const r = await runBurgee(nativeProgram, { argv: ['auth', '--json'] });
-    expect(r.json).toEqual({ ok: false, error: { code: ExitCode.AUTH, message: 'token expired', hint: 'the session ended', fix: 'app login' } });
+    expect(r.json).toEqual({ ok: false, error: { kind: 'auth', code: ExitCode.AUTH, message: 'token expired', hint: 'the session ended', fix: 'app login' } });
   });
 
-  it.each(CASES)('$name: plain mode is unchanged — prose on stderr, nothing on stdout', async ({ name, exit, message }) => {
+  it.each(CASES)('$name: plain mode keeps its prose on stderr, nothing on stdout, and the structured line last when stderr is piped (R6)', async ({ name, exit, message, facade }) => {
     const r = await runBurgee(nativeProgram, { argv: [name] });
     expect(r.code).toBe(exit);
     expect(r.stdout).toBe('');
     expect(r.stderr.startsWith(`error: ${message}\n`)).toBe(true);
+    expect(errorLine(r.stderr)).toEqual({ error: { kind: facade, code: exit, message } });
+  });
+
+  it.each(CASES)('$name: at a terminal, stderr is the prose alone — no JSON (R6)', async ({ name, message }) => {
+    const r = await runBurgee(nativeProgram, { argv: [name], tty: { stderr: true } });
+    expect(r.stderr.startsWith(`error: ${message}\n`)).toBe(true);
+    expect(r.stderr).not.toContain('{"error"');
   });
 
   it('puts a usage failure on stdout too, so one rule covers every --json failure', async () => {
     const r = await runBurgee(nativeProgram, { argv: ['sync', '--json', '--nope'] });
     expect(r.code).toBe(ExitCode.USAGE);
-    expect(onlyEnvelope(r.stdout)).toMatchObject({ error: { code: ExitCode.USAGE } });
+    expect(onlyEnvelope(r.stdout)).toMatchObject({ error: { kind: 'usage', code: ExitCode.USAGE } });
+    expect(JSON.parse(r.stderr)).toMatchObject({ error: { kind: 'usage', code: ExitCode.USAGE } });
+  });
+
+  it('an unknown command is structured on stderr too: what both checkers probe (R6)', async () => {
+    const r = await runBurgee(nativeProgram, { argv: ['__nonexistent_command__'] });
+    expect(r.code).toBe(ExitCode.USAGE);
+    expect(errorLine(r.stderr)).toMatchObject({ error: { kind: 'usage', code: ExitCode.USAGE } });
+  });
+
+  it('an exit signal stays silent: nothing failed, so nothing is structured', async () => {
+    const quiet = defineProgram({ name: 'app', commands: [defineCommand({ name: 'leave', effects: 'read_only', run: ({ exit }) => exit(ExitCode.CONFIG) })] });
+    const r = await runBurgee(quiet, { argv: ['leave'] });
+    expect(r.code).toBe(ExitCode.CONFIG);
     expect(r.stderr).toBe('');
   });
 });
@@ -291,6 +322,9 @@ await run(defineProgram({ name: 'app', commands: Object.entries(h).map(([name, f
     const r = spawnRun(fronts[front], [name, '--json']);
     expect(r.code).toBe(exit);
     expect(onlyEnvelope(r.stdout)).toMatchObject({ error: { message } });
-    expect(r.stderr).toBe('');
+    // The commander façade's errors are its incumbent's (clispec-conformance, out of scope); the
+    // engine's add the one structured line on stderr (R6).
+    if (front === 'native') expect(JSON.parse(r.stderr)).toMatchObject({ error: { code: exit, message } });
+    else expect(r.stderr).toBe('');
   });
 });

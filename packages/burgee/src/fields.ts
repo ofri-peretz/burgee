@@ -11,6 +11,7 @@
  * (M2) — N15's flag is read off argv here too, so the startup path carries one test for both.
  */
 import { agentLines } from './agent-format.js';
+import { type Globals, globalsOf, isGlobal } from './globals.js';
 import { type CommandNode } from './manifest.js';
 import { UsageError } from './validate.js';
 
@@ -69,6 +70,24 @@ const AGENT = '--format=agent';
  * A command that declares its own `format` option keeps the flag, because the program wins;
  * and after `--` it is the command's, like everything else there.
  */
+/** What `fields.js` reads off argv before the command's own parse. */
+export interface LazyArgs {
+  args: string[];
+  fields?: string[];
+  lines?: (data: unknown) => string;
+  /** agent-lint-conformance R1–R3: the globals typed, when any were. */
+  global?: Globals;
+}
+
+/**
+ * Everything the engine reads lazily off argv, in one call: the R1–R3 globals first
+ * (`globals.js`), then `--json=<fields>` and `--format=agent` from what is left.
+ */
+export function lazyArgs(typed: readonly string[], node: CommandNode): LazyArgs {
+  const global = typed.some(isGlobal) ? globalsOf(typed, node) : undefined;
+  return { ...jsonFields(global?.args ?? typed, node), ...(global === undefined ? {} : { global }) };
+}
+
 export function jsonFields(args: readonly string[], node: CommandNode): { args: string[]; fields?: string[]; lines?: (data: unknown) => string } {
   const end = args.indexOf('--');
   const all = end === -1 ? args : args.slice(0, end);

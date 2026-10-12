@@ -25,6 +25,7 @@ export const EXIT_ADVICE: Readonly<Record<keyof typeof ExitCode, string>> = {
   CONFIG: 'the config or environment did not load; fix it, not the command',
   CANCELLED: 'cancelled, or a decision is needed; decide, then run a next command',
   AUTH: 'a credential is missing or refused; log in and run it again',
+  TIMEOUT: 'the --timeout deadline passed; run it again with more time',
   SIGINT: 'interrupted; stop',
 };
 
@@ -50,6 +51,8 @@ export function completionNode(manifest: Manifest): CommandNode | undefined {
     path,
     description: 'Print a shell completion script: bash, zsh, fish, pwsh or fig',
     effects: 'read_only',
+    // clispec-conformance R5 — a script, not data: `--schema` says so, and names what the bytes are.
+    output: { kind: 'opaque', mediaType: 'text/plain' },
     arguments: [{ name: 'shell', description: 'bash, zsh, fish, pwsh or fig', required: true }],
     examples: [{ command: `${manifest.rootPath.join(' ')} completion bash` }],
     options: {},

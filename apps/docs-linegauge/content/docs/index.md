@@ -1,6 +1,6 @@
 ---
 title: linegauge
-description: "Measures, wraps, truncates and slices styled terminal text, grapheme-correct over Intl.Segmenter, with the same result on a terminal, a pipe or --json. Zero dependencies. Drop-in paths for string-width, wrap-ansi, strip-ansi and slice-ansi."
+description: "Measures, wraps, truncates and slices styled terminal text, grapheme-correct over Intl.Segmenter, with the same result on a terminal, a pipe or --json. Zero dependencies. Drop-in paths for string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line."
 ---
 
 **linegauge** measures, wraps, truncates and slices styled terminal text without the edge
@@ -147,6 +147,16 @@ One import per incumbent — each default export is the incumbent's:
 + import sliceAnsi from 'linegauge/slice';
 ```
 
+```diff
+- import cliTruncate from 'cli-truncate';
++ import cliTruncate from 'linegauge/cli-truncate';
+```
+
+```diff
+- import widestLine from 'widest-line';
++ import widestLine from 'linegauge/widest-line';
+```
+
 The default export is `string-width`, byte-for-byte call-compatible, so a transitive copy
 resolves without a code change too:
 
@@ -161,12 +171,16 @@ it ([Migrate](https://burgee.interlace.tools/docs/migrate)).
 ## Compatibility
 
 The incumbent is the specification. `width` runs against `string-width`, `wrap` against
-`wrap-ansi`, `slice` against `slice-ansi` and `truncate` against `cli-truncate`.
+`wrap-ansi`, `slice` against `slice-ansi`, and the `cli-truncate` and `widest-line` paths
+against their namesakes.
 
-The four drop-in paths are graded by each incumbent's own suite, unedited, through
+The six drop-in paths are graded by each incumbent's own suite, unedited, through
 `compat-oracle`; the grades are generated under *Benchmarks* below and published on the
-[compatibility page](https://burgee.interlace.tools/docs/compatibility). `truncate`, which has no
-drop-in path, is checked case by case against `cli-truncate` in `truncate.test.ts`.
+[compatibility page](https://burgee.interlace.tools/docs/compatibility). `linegauge/cli-truncate`
+passes all 12 of cli-truncate 6.1.1's cases and `linegauge/widest-line` widest-line 6.0.0's one,
+level with each incumbent. `truncate` and `widest` stay linegauge's own API: `truncate` counts
+the ellipsis inside the budget and cuts by measured width, and `widest` takes any iterable of
+lines.
 
 ## Benchmarks
 
@@ -176,12 +190,14 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
+| `cli-truncate` | 12 / 12 |
 | `slice-ansi` | 104 / 104 |
 | `string-width` | 233 / 233 |
 | `strip-ansi` | 8 / 8 |
+| `widest-line` | 1 / 1 |
 | `wrap-ansi` | 85 / 85 |
 
-Weight, installed and tree-inclusive: **108,226 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5569**.
+Weight, installed and tree-inclusive: **110,421 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5682**.
 
 ## For agents
 
@@ -246,7 +262,7 @@ keeps both true.
 | [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
 | [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | @inquirer/core |
-| **linegauge** (this package) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi and slice-ansi |
+| **linegauge** (this package) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line |
 | [paratext](https://paratext.interlace.tools/docs) | Hyperlinks, images, title, clipboard and notifications | ansi-escapes, terminal-link and term-img |
 | [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, lilconfig, dotenv and rc |
 | [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook, restore-cursor, cli-cursor and onetime |

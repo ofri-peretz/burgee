@@ -1,0 +1,13 @@
+{
+  "name": "@vendored/widest-line-suite",
+  "private": true,
+  "type": "module",
+  "main": "./shim.js",
+  "version": "6.0.0",
+  "license": "MIT",
+  "description": "Get the visual width of the widest line in a string - the number of columns required to display it",
+  "repository": "sindresorhus/widest-line",
+  "devDependencies": {
+    "widest-line": "6.0.0"
+  }
+}

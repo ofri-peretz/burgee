@@ -53,7 +53,7 @@ describe('required input is refused before the handler runs', () => {
 
   it('names a missing required option, and how to pass it (resolveValues)', async () => {
     const r = await runCommand(program(need), ['need', 'here']);
-    expect(r).toEqual({ code: ExitCode.USAGE, stdout: '', stderr: 'error: missing required option --token\nhint: pass --token <value>\nusage: app need [options] <target>\noptions:\n  --token <value>  (required)\n' });
+    expect(r).toEqual({ code: ExitCode.USAGE, stdout: '', stderr: `error: missing required option --token\nhint: pass --token <value>\nusage: app need [options] <target>\noptions:\n  --token <value>  (required)\n${JSON.stringify({ error: { kind: 'usage', code: 2, message: 'missing required option --token' } })}\n` });
     expect(handler).not.toHaveBeenCalled();
   });
   it('does not refuse it when --explain asked where the value would come from', async () => {
@@ -64,7 +64,7 @@ describe('required input is refused before the handler runs', () => {
   });
   it('names a missing required argument, and prints what the command takes rather than pointing at --help (requirePositionals)', async () => {
     const r = await runCommand(program(need), ['need', '--token', 't']);
-    expect(r).toEqual({ code: ExitCode.USAGE, stdout: '', stderr: 'error: missing required argument "target"\nusage: app need [options] <target>\noptions:\n  --token <value>  (required)\n' });
+    expect(r).toEqual({ code: ExitCode.USAGE, stdout: '', stderr: `error: missing required argument "target"\nusage: app need [options] <target>\noptions:\n  --token <value>  (required)\n${JSON.stringify({ error: { kind: 'usage', code: 2, message: 'missing required argument "target"' } })}\n` });
     expect(handler).not.toHaveBeenCalled();
   });
   it('runs once both are there', async () => {
@@ -145,7 +145,7 @@ describe('a manifest with no root node', () => {
   });
   it('still reports an unknown command as a usage error', async () => {
     const r = await runCommand(rootless(), ['nope']);
-    expect(r).toEqual({ code: ExitCode.USAGE, stdout: '', stderr: 'error: unknown command "nope"\nhint: run --schema for every command and option as JSON, in one call; --explain <option> says where a value came from\nusage: app <command>\ncommands:\n  only\n' });
+    expect(r).toEqual({ code: ExitCode.USAGE, stdout: '', stderr: `error: unknown command "nope"\nhint: run --schema for every command and option as JSON, in one call; --explain <option> says where a value came from\nusage: app <command>\ncommands:\n  only\n${JSON.stringify({ error: { kind: 'usage', code: 2, message: 'unknown command "nope"' } })}\n` });
   });
 });
 

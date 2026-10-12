@@ -15,12 +15,13 @@ import { detectAgent } from './agent.js';
 import { beforeTerminator, isJsonFlag } from './argv.js';
 import { UsageError } from './errors.js';
 import { ExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
+import { globalRows, globalsOf, leadingGlobals } from './globals.js';
 import { type ArgumentSpec, type CommandNode, type Manifest, type OptionSpec } from './manifest.js';
 import { kebab } from './names.js';
 import { type Package } from './pkg.js';
 import { completionNode, exitRows, rootExamples } from './root-help.js';
 import { suggestSimilar } from './suggest.js';
-import { Again, jsonSpelling, shellWord } from './unknown-option.js';
+import { Again, jsonSpelling, shellWord, textSpelling } from './unknown-option.js';
 import { childrenOf, groupUsage, listed, runnableBelow } from './usage.js';
 
 /** The slice of the engine's `Io` a surface reads. */
@@ -66,9 +67,12 @@ async function helpDocumentOf(manifest: Manifest, node: CommandNode): Promise<Re
   const children = manifest.commands
     .filter((c) => c.path.length === node.path.length + 1 && c.path.slice(0, node.path.length).join(' ') === node.path.join(' '))
     .map((c) => typedName(c, root));
+  // clispec-conformance R4, R5 — with the clispec keys `--schema` gives the same command, so the shape stays one.
+  const { commandKeysOf } = await import('./clispec.js');
   return {
     schemaVersion: 1,
     ...commandSchemaOf(node, root),
+    ...commandKeysOf(node, root),
     ...(children.length === 0 ? {} : { commands: children }),
   };
 }
@@ -104,7 +108,10 @@ const renderHelp = async (manifest: Manifest, node: CommandNode, io: SurfaceIo, 
   const completion = atRoot ? completionNode(manifest) : undefined;
   const commands = [...listed(manifest, node), ...(completion === undefined ? [] : [completion]), ...(atRoot ? exitRows(manifest.rootPath) : [])];
   const shown = atRoot ? { ...node, examples: rootExamples(manifest, node) } : node;
-  return help.renderHelp(manifest, shown, { width: io.width, color: help.colorFor(io.env, detectAgent(io.env, io.out.isTTY === true).interactive, argv), commands });
+  // The globals this command leaves global (R1–R3); none on a node the engine made up, such as
+  // `completion`, which parses none of them.
+  const globals = manifest.find(node.path) === undefined ? [] : globalRows(node);
+  return help.renderHelp(manifest, shown, { width: io.width, color: help.colorFor(io.env, detectAgent(io.env, io.out.isTTY === true).interactive, argv), commands, globals });
 };
 
 /**
@@ -126,14 +133,20 @@ const machineJson = async (...args: Parameters<(typeof import('./schema.js'))['m
  * machine-readable answer got one they had to parse: the exact failure the `--json` surface
  * exists to avoid, on the flag people type first.
  */
-export async function helpFor(manifest: Manifest, node: CommandNode, io: SurfaceIo, json: boolean): Promise<string> {
+//
+// `color` is the caller's `--no-color` / `--color=<when>`, read by `globals.js` before the parse
+// (agent-lint-conformance R1), so `--help` on a command that runs is coloured as asked.
+export async function helpFor(manifest: Manifest, node: CommandNode, io: SurfaceIo, { json, color = [] }: { json: boolean; color?: readonly string[] | undefined }): Promise<string> {
   if (json) return `${await machineJson(await helpDocumentOf(manifest, node), ['--json'])}\n`;
-  return await renderHelp(manifest, node, io);
+  return await renderHelp(manifest, node, io, color);
 }
 
 /** `--version`: the declared version, else the owning package.json's (V4). */
+/** The program's version: declared to `defineProgram`, else the owning package.json's (V4), else none. */
+const declaredVersion = (manifest: Manifest, io: Pick<SurfaceIo, 'pkg'>): string | undefined => manifest.version ?? (typeof io.pkg?.data['version'] === 'string' ? io.pkg.data['version'] : undefined);
+
 export function versionOf(manifest: Manifest, io: Pick<SurfaceIo, 'pkg'>): string {
-  const declared = manifest.version ?? (typeof io.pkg?.data['version'] === 'string' ? io.pkg.data['version'] : undefined);
+  const declared = declaredVersion(manifest, io);
   if (declared === undefined) throw new ConfigError('no version declared', 'pass version to defineProgram, or set "version" in the owning package.json');
   return declared;
 }
@@ -154,7 +167,17 @@ export function versionOf(manifest: Manifest, io: Pick<SurfaceIo, 'pkg'>): strin
  */
 export async function unresolved({ manifest, root, io }: Resolving, argv: string[], at: CommandNode | undefined): Promise<{ text: string; code: ExitCodeType }> {
   const node = at ?? rootNode(manifest, root);
-  const typed = argv.slice(node.path.length - root.length);
+  const before = argv.slice(0, node.path.length - root.length);
+  // agent-lint-conformance R1–R3 — globals typed ahead of the command (`demo --quiet greet ada`)
+  // resolved nothing, because the command is the next word. When the words after them name a
+  // command that runs, the same line runs with the globals behind it, where the parse takes them
+  // (`Again`, as a `--json` typed first does); otherwise they are read here, for help's colour.
+  const { globals, words: typed } = leadingGlobals(argv.slice(before.length));
+  if (globals.length > 0) {
+    const reached = manifest.resolve([...before, ...typed], root);
+    if (reached.node?.run !== undefined) throw new Again(lineWords(reached.node.path, reached.rest, undefined, globals));
+    argv = [...argv, ...globalsOf(globals, node).color];
+  }
   const first = typed[0] ?? '';
   if (typed.length > 0 && HELP_FLAGS.has(first)) {
     // F2 — `--help --json` is help *as data*. Before this it printed the same prose as
@@ -167,7 +190,7 @@ export async function unresolved({ manifest, root, io }: Resolving, argv: string
   }
   if (first === '--version' || first === '-V') return { text: `${versionOf(manifest, io)}\n`, code: ExitCode.OK };
   if (typed.length === 0) return { text: await renderHelp(manifest, node, io, argv), code: ExitCode.USAGE };
-  const refusal = unknownCommand({ manifest, root, io }, node, argv.slice(0, argv.length - typed.length), typed);
+  const refusal = unknownCommand({ manifest, root, io }, node, before, typed);
   throw refusal;
 }
 
@@ -185,7 +208,19 @@ export async function unresolved({ manifest, root, io }: Resolving, argv: string
  * carries the caller's request for JSON in burgee's spelling, wherever it was typed — so
  * `get user.name --format json` is one line to run, not two refusals in a row.
  */
+/**
+ * clispec-conformance R7 — `--format text` typed before a command that runs is a request for what
+ * that command prints anyway: the line runs without it.
+ */
+function textAsked(manifest: Manifest, root: string[], before: string[], typed: string[]): Again | undefined {
+  const text = textSpelling(typed, 0);
+  const plain = manifest.resolve([...before, ...typed.slice(text)], root);
+  return text > 0 && plain.node?.run !== undefined ? new Again(lineWords(plain.node.path, plain.rest, undefined)) : undefined;
+}
+
 function unknownCommand({ manifest, root }: Resolving, from: CommandNode, before: string[], typed: string[]): UsageError | Again {
+  const text = textAsked(manifest, root, before, typed);
+  if (text !== undefined) return text;
   const { words: all, json } = jsonAsked(typed);
   const lead = typed[0] as string;
   // A request for JSON typed before the command — `--json config get key`, `--format json …` — is
@@ -279,9 +314,11 @@ function jsonAsked(typed: string[]): { words: string[]; json?: string } {
 }
 
 /** A command line's words: the path, the caller's own words, and `--json` before any `--`. */
-function lineWords(path: string[], words: string[], json: string | undefined): string[] {
+//
+// The globals typed ahead of a command (R1–R3) go in the same place `--json` does.
+function lineWords(path: string[], words: string[], json: string | undefined, globals: readonly string[] = []): string[] {
   const end = words.includes('--') ? words.indexOf('--') : words.length;
-  return json === undefined ? [...path, ...words] : [...path, ...words.slice(0, end), json, ...words.slice(end)];
+  return [...path, ...words.slice(0, end), ...(json === undefined ? [] : [json]), ...globals, ...words.slice(end)];
 }
 
 /** A command line to run, quoted for a shell. */
@@ -367,7 +404,8 @@ export async function serve(manifest: Manifest, argv: string[], io: SurfaceIo, e
   if (askedHead.includes('--schema')) {
     // The whole surface is its own chunk (M2): only `--schema` loads it, or the schema it serves.
     const { schemaSurface } = await import('./schema-surface.js');
-    io.out.write(`${await machineJson(await schemaSurface(manifest, asked), askedHead)}\n`);
+    // clispec-conformance R1 — the document always carries a version: the declared one, else the owning package.json's.
+    io.out.write(`${await machineJson(await schemaSurface(manifest, asked, declaredVersion(manifest, io)), askedHead)}\n`);
     return true;
   }
   if (head[0] === '--mcp') {

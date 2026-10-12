@@ -5,7 +5,9 @@
     "wrap",
     "slice",
     "truncate",
+    "cli-truncate",
     "widest",
+    "widest-line",
     "strip",
     "plugin"
   ]

@@ -118,13 +118,14 @@ describe('E1 — exit codes are a contract', () => {
   const codes = contractCodes();
 
   /**
-   * Seven since 2026-09-22: `AUTH` joined the contract (E6). The list is written out rather
+   * Seven since 2026-09-22, when `AUTH` joined the contract (E6); eight since 2026-10-11, when
+   * `TIMEOUT` did (agent-lint-conformance R3, D-20261011-timeout-exit-code). The list is written out rather
    * than derived so that adding a code is a decision somebody makes in this file too — a lock
    * that read the contract and then asserted the contract equals itself would pass whatever
    * anyone put there, which is the one thing it must not do.
    */
-  it('reads the seven codes out of the contract itself', () => {
-    expect([...codes].toSorted((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5, 130]);
+  it('reads the eight codes out of the contract itself', () => {
+    expect([...codes].toSorted((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5, 6, 130]);
   });
 
   it('finds the layer sources it is supposed to be reading', () => {
@@ -144,7 +145,7 @@ describe('E1 — exit codes are a contract', () => {
     expect(offenders, 'name the code: an exit literal says nothing about which half of E1 it means').toEqual([]);
   });
 
-  it('every exit constant any package declares is one of the seven', () => {
+  it('every exit constant any package declares is one of the eight', () => {
     const wrong: string[] = [];
     for (const { rel, lines } of sources) {
       lines.forEach((code, i) => {
@@ -152,7 +153,7 @@ describe('E1 — exit codes are a contract', () => {
         if (m && !codes.has(Number(m[2]))) wrong.push(`${rel}:${i + 1} — ${m[1]} = ${m[2]}`);
       });
     }
-    expect(wrong, 'E1 has seven codes; an eighth means something in one package and nothing in the rest').toEqual([]);
+    expect(wrong, 'E1 has eight codes; a ninth means something in one package and nothing in the rest').toEqual([]);
   });
 
   // The lock is only as good as its patterns, so each gets its rows. Every `caught` line is

@@ -12,7 +12,8 @@ import { type Layers, type Provenance, resolve as resolveLayers } from 'seniorit
 import { beforeTerminator, isJsonFlag, mayServe } from './argv.js';
 import { checkCommand } from './definition.js';
 import { ExitCode, isExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
-import { type ActionRequiredSpec, type ArgumentSpec, type CommandNode, type DeclaredEffects, type Example, type LazyModule, Manifest, type OptionSpec, type Relation, relationsOf, type RunContext } from './manifest.js';
+import { type LazyArgs } from './fields.js';
+import { type ActionRequiredSpec, type ArgumentSpec, type CommandNode, type CommandOutput, type DeclaredEffects, type Example, type LazyModule, Manifest, type OptionSpec, type OutputOf, type Relation, relationsOf, type RunContext } from './manifest.js';
 import { camel, kebab } from './names.js';
 import { owningPackage, type Package } from './pkg.js';
 import { builtin, host } from './runtime.js';
@@ -37,7 +38,10 @@ export type OptionSpecs = Record<string, OptionSpec>;
 // Children are declared with their own specs; a container holds a heterogeneous list of them.
 export type AnyCommand = Command<any>;
 
-export interface Command<S extends OptionSpecs = OptionSpecs> {
+/** What `run` may return: anything, or what `output.schema` describes (clispec-conformance R5). */
+type Returns<O> = O extends { schema: infer J } ? OutputOf<J> | Promise<OutputOf<J>> : unknown;
+
+export interface Command<S extends OptionSpecs = OptionSpecs, O extends CommandOutput = CommandOutput> {
   name: string;
   description?: string;
   /** Shown in command lists instead of the description. */
@@ -71,27 +75,30 @@ export interface Command<S extends OptionSpecs = OptionSpecs> {
    * Without them `--json=a,b` still selects, checked against the result's own keys.
    */
   fields?: readonly string[];
+  /**
+   * clispec-conformance R5 — what the result is and how much of it: `--schema` publishes it as
+   * `output_kind`, `cardinality` and `stdout_schema`. With a `schema`, `run` must return what it
+   * describes; without one, anything.
+   */
+  output?: O;
   /** Absent on a group that only holds subcommands. `NoInfer`: the spec fixes S, the handler only reads it. */
-  run?: (ctx: CommandContext<InferOptions<NoInfer<S>>>) => unknown;
+  run?: (ctx: CommandContext<InferOptions<NoInfer<S>>>) => Returns<NoInfer<O>>;
   /** The handler's module, imported on dispatch only (M2); everything else about the command is declared here. */
   load?: () => Promise<LazyModule>;
   commands?: AnyCommand[];
 }
 
-/** Everything help renders, copied as declared; `undefined` never lands on the node. */
+/** The declared keys a node carries as they are: what help renders, and what `--schema` publishes. */
+const NODE_KEYS = ['description', 'summary', 'arguments', 'examples', 'group', 'epilogue', 'hidden', 'deprecated', 'effects', 'relations', 'fields', 'output'] as const;
+
+/**
+ * Everything help renders, copied as declared; `undefined` never lands on the node. One loop over
+ * the keys, not an `if` per key: the eleven `if`s were more bytes than the loop with clispec's
+ * `output` added to it, against a core budget with 71 to spare (clispec-conformance R5).
+ */
 function helpFields(c: AnyCommand): Partial<CommandNode> {
-  const node: Partial<CommandNode> = {};
-  if (c.description !== undefined) node.description = c.description;
-  if (c.summary !== undefined) node.summary = c.summary;
-  if (c.arguments !== undefined) node.arguments = c.arguments;
-  if (c.examples !== undefined) node.examples = c.examples;
-  if (c.group !== undefined) node.group = c.group;
-  if (c.epilogue !== undefined) node.epilogue = c.epilogue;
-  if (c.hidden !== undefined) node.hidden = c.hidden;
-  if (c.deprecated !== undefined) node.deprecated = c.deprecated;
-  if (c.effects !== undefined) node.effects = c.effects;
-  if (c.relations !== undefined) node.relations = c.relations;
-  if (c.fields !== undefined) node.fields = c.fields;
+  const node: Record<string, unknown> = {};
+  for (const key of NODE_KEYS) if (c[key] !== undefined) node[key] = c[key];
   return node;
 }
 
@@ -113,7 +120,7 @@ export interface Program {
   commands: AnyCommand[];
 }
 
-export function defineCommand<const S extends OptionSpecs = OptionSpecs>(command: Command<S>): Command<S> {
+export function defineCommand<const S extends OptionSpecs = OptionSpecs, const O extends CommandOutput = CommandOutput>(command: Command<S, O>): Command<S, O> {
   // The reserved names of V5, `checkDefinition`'s four and N6's declared effects, in one
   // place, because `Manifest.use()` needs exactly these on a plugin's commands and used to
   // run none of them. A node with `load` and no `run` is runnable: its module has not been
@@ -168,7 +175,8 @@ export interface RunOptions {
   env?: Record<string, string | undefined>;
   /** `columns` is read when present, so help wraps to the terminal (H3); `isTTY` decides whether help is coloured (O2). */
   stdout?: { write: (s: string) => unknown; columns?: number; isTTY?: boolean };
-  stderr?: { write: (s: string) => unknown };
+  /** `isTTY` decides whether a failure adds its structured line (clispec-conformance R6): absent is a pipe. */
+  stderr?: { write: (s: string) => unknown; isTTY?: boolean };
   /** Receives the E1 code. The default calls process.exit; an injected one may simply record it. */
   exit?: (code: number) => void;
   /** Where config discovery starts; the process's own otherwise. */
@@ -377,7 +385,7 @@ interface Resolved {
 interface Io {
   /** `isTTY` is read by help's colour only (O2), in `surfaces.ts`: an output decision, never whether to ask. */
   out: { write: (s: string) => unknown; isTTY?: boolean };
-  err: { write: (s: string) => unknown };
+  err: { write: (s: string) => unknown; isTTY?: boolean };
   env: Record<string, string | undefined>;
   exit: (code: number) => void;
   width: number;
@@ -430,14 +438,19 @@ function exitCodeOf(data: unknown): ExitCodeType {
   return isExitCode(code) ? code : ExitCode.OK;
 }
 
-/** A flag `fields.js` reads off argv: N14's `--json=<fields>` and N15's `--format=agent`. */
-const readsLazily = (arg: string): boolean => arg.startsWith('--json=') || arg === '--format=agent';
+/**
+ * A flag `fields.js` reads off argv: N14's `--json=<fields>`, N15's `--format=agent`, and the
+ * globals of agent-lint-conformance R1–R3 (`--color`, `--no-color`, `--quiet`, `-q`,
+ * `--timeout`), which it hands to `globals.js`. One test and one lazy load for all of them:
+ * the startup bundle had 3 bytes under its ceiling, and a second loader cost 42.
+ */
+const readsLazily = (arg: string): boolean => /^(--json=|--format=agent$|-q$|--(no-color|quiet|color|timeout)(=|$))/.test(arg);
 
 async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolved, io: Io): Promise<Outcome> {
-  // N14's selection and N15's format are imported only when a caller typed `--json=` or
-  // `--format=agent` (M2): every other run pays nothing for either.
+  // N14's selection, N15's format and the R1–R3 globals are imported only when a caller typed
+  // one of them (M2): every other run pays nothing for any.
   const select = typed.some(readsLazily) ? await import('./fields.js') : undefined;
-  const { args: rest, fields, lines } = select?.jsonFields(typed, node) ?? { args: typed };
+  const { args: rest, fields, lines, global } = select?.lazyArgs(typed, node) ?? ({ args: typed } as LazyArgs);
   if (fields?.length === 0) return { json: true, text: `${JSON.stringify(select?.listFields(node))}\n` };
   if (fields !== undefined) select?.checkFields(fields, node);
   const parsed = builtin('node:util').parseArgs({ args: rest, options: toParseConfig(node.options, manifest.config !== undefined), allowPositionals: true, strict: true, tokens: true });
@@ -447,7 +460,7 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   // caller who asked for a machine-readable answer got one they had to parse: the exact
   // failure the `--json` surface exists to avoid, on the flag people type first.
   // Help and the version are surfaces (U5): `surfaces.js` is imported only when one is asked for.
-  if (flags.help === true) return { json, text: await (await import('./surfaces.js')).helpFor(manifest, node, io, json) };
+  if (flags.help === true) return { json, text: await (await import('./surfaces.js')).helpFor(manifest, node, io, { json, color: global?.color }) };
   if (flags.version === true) return { json, text: `${(await import('./surfaces.js')).versionOf(manifest, io)}\n` };
 
   const resolved = await resolveValues(manifest, node.options, flags, io, parsed.tokens);
@@ -463,13 +476,16 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   const values = await coerce(node.options, resolved.values);
   const { positionals, passthrough } = splitPositionals(parsed.tokens);
   requirePositionals(node, positionals);
-  warnDeprecated(node, io);
+  // M5, from its own chunk, loaded only for a deprecated command; `--quiet` silences it (R2).
+  if (node.deprecated) (await import('./deprecation.js')).warnDeprecated(node, io, global?.quiet);
   await manifest.fire('preRun', name, values);
   // S4's check is imported only when a `-` was typed (M2).
   const stdin = positionals.includes('-') ? (await import('./stdin-dash.js')).stdinFor(node, positionals, io.stdin) : {};
-  // `env`, `onExit`, `agent` and `interactive` come from `ctx.js`, a chunk loaded on this path only:
-  // whether a person may be asked is roundel's rule, over stdin (D-20260930-one-interactive-rule).
-  const data = await node.run({ options: values, positionals, passthrough, ...stdin, exit: ctxExit, actionRequired, ...(await import('./ctx.js')).ctxOf(io) });
+  // `env`, `onExit`, `agent`, `interactive`, `signal`, `quiet` and `runtime` come from `ctx.js`, a
+  // chunk loaded on this path only: whether a person may be asked is roundel's rule, over stdin
+  // (D-20260930-one-interactive-rule). `--timeout` races the handler against its deadline (R3).
+  const ran = node.run({ options: values, positionals, passthrough, ...stdin, exit: ctxExit, actionRequired, ...(await import('./ctx.js')).ctxOf(io, global) });
+  const data = await (global?.within(ran) ?? ran);
   await manifest.fire('postRun', name, values);
   const changed = changedOf(node, data);
   const selected = fields === undefined || select === undefined ? data : select.selectFields(data, fields);
@@ -488,19 +504,6 @@ function requirePositionals(node: CommandNode, positionals: string[]): void {
   if (missing !== undefined) {
     throw new UsageError(`missing required argument "${missing.name}"`);
   }
-}
-
-const warned = new Set<string>();
-
-/** M5: a deprecated command says so once per process, on stderr, and still runs — exit OK. */
-function warnDeprecated(node: CommandNode, io: Io): void {
-  if (node.deprecated === undefined || node.deprecated === false) return;
-  const key = node.path.join(' ');
-  if (warned.has(key)) return;
-  warned.add(key);
-  const typed = node.path.slice(1).join(' ') || key;
-  const use = typeof node.deprecated === 'string' ? `, use '${node.deprecated}'` : '';
-  io.err.write(`warning: '${typed}' is deprecated${use}\n`);
 }
 
 /** Success: help, or the data on the requested surface. */
@@ -538,13 +541,13 @@ interface FailureContext {
  */
 async function report(cause: unknown, { manifest, io, argv, json, name }: FailureContext): Promise<string[] | void> {
   // U5 — the whole failure vocabulary is its own chunk: a run that succeeds never loads it.
-  const { describeFailure, failureText } = await import('./failure.js');
+  const { describeFailure, reportFailure } = await import('./failure.js');
   const failure = await describeFailure(cause, { root: manifest.rootPath, argv }, resolveCommand(manifest, argv) ?? undefined, cause instanceof ActionRequired ? cause.spec : undefined);
   // Nothing is reported and nothing has run: the caller runs this line instead (`execute`).
   if (failure.again) return failure.again;
   if (failure.silent === true) return await leave(io, failure.code);
   await manifest.fire('onError', name, {});
-  (json ? io.out : io.err).write(failureText(failure, manifest, json));
+  reportFailure(failure, manifest, json, io);
   return await leave(io, failure.code);
 }
 

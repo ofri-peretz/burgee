@@ -197,9 +197,18 @@ const frontEnds: [string, (argv: string[]) => string | Promise<string>][] = [
 //
 // The same holds for the last command row, `completion` (agent-lint-conformance R5): the engine
 // publishes the command it synthesises, and the façades' documents stay the bytes they were.
+/**
+ * The engine's document less what only the native surface adds: `explain`, the `completion` it
+ * serves, and the clispec keys (clispec-conformance), which ride the lazy `--schema` chunk the
+ * façades do not load.
+ */
 const withoutExplain = (out: string, pretty: boolean): string => {
-  const { explain, ...rest } = JSON.parse(out) as Record<string, unknown> & { commands: { name: string }[] };
+  const { explain, errors, clispec, global_args: globalArgs, output, ...rest } = JSON.parse(out) as Record<string, unknown> & { commands: Record<string, unknown>[] };
   expect(explain).toMatch(/^--explain <option>/);
+  expect(errors).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'usage' })]));
+  expect([clispec, globalArgs, output]).toEqual(['0.3', expect.any(Array), expect.objectContaining({ piped: 'text' })]);
+  // A command's own clispec keys (R4, R5) are the native surface's too.
+  rest.commands = rest.commands.map(({ example: _e, output_kind: _k, media_type: _m, cardinality: _c, stdout_schema: _s, ...command }) => command);
   expect(rest.commands.pop()?.name).toBe('completion');
   return `${JSON.stringify(rest, null, pretty ? 2 : 0)}\n`;
 };
@@ -235,5 +244,54 @@ describe('the three front ends emit the same document', () => {
     expect(pretty).toContain('\n  ');
     expect(JSON.parse(compact)).toEqual(JSON.parse(pretty));
     expect(compact.length).toBeLessThan(pretty.length);
+  });
+});
+
+/**
+ * clispec-conformance R7 — an explicit human format wins whatever the TTY or an agent's
+ * environment says: `--format text` (and `--format=text`, `--output text`) runs the command as
+ * typed without it, and prints what it prints by default, which is text. `--schema` says so in
+ * `output`. Red before R7: `unknown option --format`, exit 2.
+ */
+describe('--format text is the human rendering, asked for (R7)', () => {
+  const program = defineProgram({
+    name: 'app',
+    commands: [
+      defineCommand({ name: 'greet', effects: 'read_only', arguments: [{ name: 'who', required: true }], run: ({ positionals }) => ({ hello: positionals[0] }) }),
+      defineCommand({ name: 'own', effects: 'read_only', options: { format: { type: 'string' } }, run: ({ options }) => `own ${String(options['format'])}` }),
+      defineCommand({ name: 'near', effects: 'read_only', options: { formats: { type: 'string' } }, run: () => 'near' }),
+    ],
+  });
+  const text = 'hello: ada\n';
+
+  it.each([
+    [['greet', 'ada', '--format', 'text']],
+    [['greet', 'ada', '--format=text']],
+    [['greet', 'ada', '--output', 'text']],
+    [['--format', 'text', 'greet', 'ada']],
+  ])('%j prints the human rendering under a pipe, exit 0', async (argv) => {
+    const plain = await runBurgee(program, { argv: ['greet', 'ada'] });
+    const r = await runBurgee(program, { argv });
+    expect(r.code).toBe(0);
+    expect(r.stdout).toBe(plain.stdout);
+    expect(r.stdout).toBe(text);
+  });
+
+  it('wins over an agent’s environment too', async () => {
+    const r = await runBurgee(program, { argv: ['greet', 'ada', '--format', 'text'], env: { CLAUDECODE: '1' } });
+    expect(r.code).toBe(0);
+    expect(r.stdout).toBe(text);
+  });
+
+  it('leaves a command’s own --format to it, and refuses one that is a guess', async () => {
+    expect((await runBurgee(program, { argv: ['own', '--format', 'text'] })).stdout).toBe('own text\n');
+    const near = await runBurgee(program, { argv: ['near', '--format', 'text'] });
+    expect(near.code).toBe(2);
+    expect(near.stderr).toMatch(/^error: unknown option --format\nhint: did you mean --formats\?/u);
+  });
+
+  it('is declared in --schema: text at a terminal and under a pipe, and the formats there are', async () => {
+    const doc = JSON.parse((await runBurgee(program, { argv: ['--schema'] })).stdout) as Record<string, unknown>;
+    expect(doc['output']).toEqual({ tty: 'text', piped: 'text', formats: ['text', 'json', 'agent'] });
   });
 });

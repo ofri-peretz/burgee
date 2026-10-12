@@ -26,9 +26,11 @@
 </p>
 
 <p align="center">
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/cli--truncate%20suite-12%2F12-0a6b47?style=flat-square" alt="linegauge passes 12 of 12 cases of the cli-truncate test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/slice--ansi%20suite-104%2F104-0a6b47?style=flat-square" alt="linegauge/slice passes 104 of 104 cases of the slice-ansi test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/string--width%20suite-233%2F233-0a6b47?style=flat-square" alt="linegauge passes 233 of 233 cases of the string-width test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/strip--ansi%20suite-8%2F8-0a6b47?style=flat-square" alt="linegauge/strip passes 8 of 8 cases of the strip-ansi test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/widest--line%20suite-1%2F1-0a6b47?style=flat-square" alt="linegauge passes 1 of 1 cases of the widest-line test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/wrap--ansi%20suite-85%2F85-0a6b47?style=flat-square" alt="linegauge/wrap passes 85 of 85 cases of the wrap-ansi test suite" /></a>
 </p>
 
@@ -181,6 +183,16 @@ One import per incumbent — each default export is the incumbent's:
 + import sliceAnsi from 'linegauge/slice';
 ```
 
+```diff
+- import cliTruncate from 'cli-truncate';
++ import cliTruncate from 'linegauge/cli-truncate';
+```
+
+```diff
+- import widestLine from 'widest-line';
++ import widestLine from 'linegauge/widest-line';
+```
+
 The default export is `string-width`, byte-for-byte call-compatible, so a transitive copy
 resolves without a code change too:
 
@@ -195,12 +207,16 @@ it ([Migrate](https://burgee.interlace.tools/docs/migrate)).
 ## Compatibility
 
 The incumbent is the specification. `width` runs against `string-width`, `wrap` against
-`wrap-ansi`, `slice` against `slice-ansi` and `truncate` against `cli-truncate`.
+`wrap-ansi`, `slice` against `slice-ansi`, and the `cli-truncate` and `widest-line` paths
+against their namesakes.
 
-The four drop-in paths are graded by each incumbent's own suite, unedited, through
+The six drop-in paths are graded by each incumbent's own suite, unedited, through
 `compat-oracle`; the grades are generated under *Benchmarks* below and published on the
-[compatibility page](https://burgee.interlace.tools/docs/compatibility). `truncate`, which has no
-drop-in path, is checked case by case against `cli-truncate` in `truncate.test.ts`.
+[compatibility page](https://burgee.interlace.tools/docs/compatibility). `linegauge/cli-truncate`
+passes all 12 of cli-truncate 6.1.1's cases and `linegauge/widest-line` widest-line 6.0.0's one,
+level with each incumbent. `truncate` and `widest` stay linegauge's own API: `truncate` counts
+the ellipsis inside the budget and cuts by measured width, and `widest` takes any iterable of
+lines.
 
 ## Benchmarks
 
@@ -210,12 +226,14 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
+| `cli-truncate` | 12 / 12 |
 | `slice-ansi` | 104 / 104 |
 | `string-width` | 233 / 233 |
 | `strip-ansi` | 8 / 8 |
+| `widest-line` | 1 / 1 |
 | `wrap-ansi` | 85 / 85 |
 
-Weight, installed and tree-inclusive: **108,226 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5569**.
+Weight, installed and tree-inclusive: **110,421 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5682**.
 
 ## For agents
 
@@ -280,7 +298,7 @@ keeps both true.
 | [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
 | [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | @inquirer/core |
-| **linegauge** (this package) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi and slice-ansi |
+| **linegauge** (this package) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line |
 | [paratext](https://paratext.interlace.tools/docs) | Hyperlinks, images, title, clipboard and notifications | ansi-escapes, terminal-link and term-img |
 | [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, lilconfig, dotenv and rc |
 | [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook, restore-cursor, cli-cursor and onetime |

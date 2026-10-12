@@ -1,5 +1,13 @@
 # compat-oracle
 
+## 0.3.3
+
+### Patch Changes
+
+- [#999](https://github.com/ofri-peretz/burgee/pull/999) [`a039b16`](https://github.com/ofri-peretz/burgee/commit/a039b16fd3c471816cf9a6aa1d106f8af0c4b98f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The vendor step never copies a compiled executable. A file whose content is ELF, Mach-O or PE (magic bytes, never the name) is removed from the vendored suite and recorded under `omitted` in `.source.json` and in `PROVENANCE`; a lock fails if one appears under `vendor/`. execa 10.1.0's `test/fixtures/fast-exit-darwin` and `fast-exit-linux` leave the tree, and `write to fast-exit subprocess`, the one case that runs them, is excluded for ours and the control alike. An exclusion can now declare where the suite `registers` its case, so a machine that never registers it is not refused. execa reads control 1179 / 1179 and `bellpull` 0 / 1179 on every machine (was 1180 on ubuntu).
+- Updated dependencies [[`079250e`](https://github.com/ofri-peretz/burgee/commit/079250ebc3e0cc511df1269060854711f686b5b4), [`733e5e0`](https://github.com/ofri-peretz/burgee/commit/733e5e0f1bbca8231275202df47fad2a9fe18944), [`bd1a544`](https://github.com/ofri-peretz/burgee/commit/bd1a5444bcc035aa6f2db24b435dee4d4d8fc5d7), [`a049bc2`](https://github.com/ofri-peretz/burgee/commit/a049bc2bee2a461b141d2eb2819cefbc01df7949), [`079250e`](https://github.com/ofri-peretz/burgee/commit/079250ebc3e0cc511df1269060854711f686b5b4)]:
+  - burgee@1.1.0
+
 ## 0.3.2
 
 ### Patch Changes

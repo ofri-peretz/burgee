@@ -1,0 +1,28 @@
+{
+  "repo": "https://github.com/sindresorhus/widest-line",
+  "version": "6.0.0",
+  "tag": "v6.0.0",
+  "commit": "d1f04193564d484ca6e24fd8d78d96545ccb0a83",
+  "vendored": "2026-10-11",
+  "files": 1,
+  "internalFiles": [],
+  "internals": [],
+  "hashes": {
+    "./index.d.ts": "7f84608411c5db35db3a6817e7f886ecd65a0446049439a62a90c1d6e6d99e96",
+    "./index.js": "c56c70d00610e14d157c1ed4fc3a2b83d96f7e595b1842ba12f3a84217796eb1",
+    "./test.js": "9966c9471bc9511fa675913a8acf8a4da1a055af37f1231eb84c8b175cc055a0",
+    "index.d.ts": "7f84608411c5db35db3a6817e7f886ecd65a0446049439a62a90c1d6e6d99e96",
+    "index.js": "c56c70d00610e14d157c1ed4fc3a2b83d96f7e595b1842ba12f3a84217796eb1"
+  },
+  "tests": {
+    "./index.d.ts": [],
+    "./index.js": [],
+    "./test.js": [
+      "main"
+    ]
+  },
+  "surface": {
+    "index.d.ts": [],
+    "index.js": []
+  }
+}

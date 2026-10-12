@@ -19,15 +19,24 @@ Render help for one node — a runnable command, a group, or both — as text.
 Deterministic for a given node and width; a snapshot suite pins it. With `color`
 off — the default — a theme changes nothing; with it on, only ANSI is added.
 
+With `format: 'markdown'` it is the same sections as Markdown (agent-skill R1), and a
+promise: that layout is loaded when asked for, so this door carries none of it.
+
 ```ts
-function renderHelp(manifest: Manifest, node: CommandNode, opts?: HelpOptions): string;
+function renderHelp(manifest: Manifest, node: CommandNode, opts?: HelpOptions & {
+    format?: 'text';
+}): string;
+
+function renderHelp(manifest: Manifest, node: CommandNode, opts: HelpOptions & {
+    format: 'markdown';
+}): Promise<string>;
 ```
 
 | Parameter | Type |
 | :-- | :-- |
 | `manifest` | `Manifest` |
 | `node` | `CommandNode` |
-| `opts` (optional) | `HelpOptions` |
+| `opts` (optional) | `HelpOptions & { format?: 'text'; }` |
 
 **Returns** `string`
 
@@ -54,6 +63,15 @@ interface HelpOptions {
      * through. The engine passes every command that runs when they fit (`listed` in `usage.ts`).
      */
     commands?: readonly CommandNode[];
+    /**
+     * More rows for `Global options:`, after `--json`, `--help` and `--schema`: the global flags
+     * the engine parses for this command (`--color`, `--quiet`, `--timeout`; agent-lint-conformance
+     * R1–R3), passed in by the engine like `commands`, so this renderer carries none of their words.
+     */
+    globals?: readonly {
+        term: string;
+        text: string;
+    }[];
 }
 ```
 

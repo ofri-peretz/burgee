@@ -1,6 +1,6 @@
 {
   "name": "burgee",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "A CLI framework built on one declaration: help, --json, --schema, MCP, completions and types are projected from it, with exit codes and fix: lines an agent can act on. No dependency outside the burgee family. Drop-in paths for commander, yargs and meow.",
   "license": "MIT",
   "type": "module",
@@ -101,7 +101,7 @@
     "locales"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && node ../../scripts/schema-to-dist.mjs && node ../../scripts/family-versions.mjs && node ../../scripts/strip-comments.mjs dist",
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/schema-to-dist.mjs && node ../../scripts/family-versions.mjs && node ../../scripts/strip-comments.mjs dist && node ../../scripts/declaration-reach.mts --prune",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
     "coverage": "vitest run --coverage.enabled",
@@ -148,10 +148,10 @@
   },
   "dependencies": {
     "bellpull": "^1.0.4",
-    "closeout": "^1.0.4",
+    "closeout": "^1.1.0",
     "linegauge": "^1.0.8",
     "roundel": "^1.0.4",
-    "seniority": "^1.0.3"
+    "seniority": "^1.0.5"
   },
   "devDependencies": {
     "vitest": "^5.0.1"

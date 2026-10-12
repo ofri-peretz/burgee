@@ -130,7 +130,7 @@ describe('the action-required envelope (N11)', () => {
   it('as text: the reason, the message, the next commands and the hint', async () => {
     const r = await runBurgee(program, { argv: ['deploy', '--target', 'prod'] });
     expect(r.code).toBe(4);
-    expect(r.stderr).toBe('action required (confirm): deploying to prod needs confirmation\nnext:\n  app deploy --target prod --yes    once you have reviewed the plan\nhint: pass --yes to skip the prompt\n');
+    expect(r.stderr).toBe(`action required (confirm): deploying to prod needs confirmation\nnext:\n  app deploy --target prod --yes    once you have reviewed the plan\nhint: pass --yes to skip the prompt\n${JSON.stringify({ error: { kind: 'cancelled', code: 4, message: 'deploying to prod needs confirmation' } })}\n`);
   });
 });
 
@@ -145,7 +145,8 @@ describe('--schema under a budget (N13)', () => {
     // The native surface adds the pointer to `--explain` (D-20261009-b1-totals-and-explain) and
     // the completion row; the rest is `summaryOf`'s.
     const own = summaryOf(program, 200);
-    expect(summary).toEqual({ ...own, commands: [...own.commands, { name: 'completion', summary: expect.stringMatching(/^Print a shell completion script/), effects: 'read_only' }], explain: '--explain <option> on a command says where its value came from: default, env, config or flag' });
+    // `errors` too (clispec-conformance R2): a summary still says what can go wrong.
+    expect(summary).toEqual({ ...own, commands: [...own.commands, { name: 'completion', summary: expect.stringMatching(/^Print a shell completion script/), effects: 'read_only' }], explain: '--explain <option> on a command says where its value came from: default, env, config or flag', version: expect.any(String) as string, errors: expect.arrayContaining([{ kind: 'usage', exit_code: 2, retryable: false, description: expect.any(String) as string }]) as unknown });
   });
   it('drills into one command in full', async () => {
     const r = await runBurgee(program, { argv: ['deploy', '--schema'] });

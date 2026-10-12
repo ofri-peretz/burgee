@@ -26,7 +26,7 @@ a consumer needed it. This is the consumer.
   files") looks for `AGENTS.md`, `CONTEXT.md`, `CLAUDE.md`, `llms.txt`, `.claude` or `.mcp.json`
   beside the binary or in its parent directory, or named in root help
   (`checks/self_describing.go` at v0.3.5). burgee, commander and yargs all fail it
-  (`benchmarks/results/external-floor/2026-09-27.json`).
+  (`benchmarks/results/external-floor/2026-09-27-4b8ef1c-local.json`).
 - **Progressive disclosure is the requirement the research names as missing.**
   `migration-drivers.md` §6: *"An agent should pay for one command's contract, not the whole
   tree. `--schema` dumping every command is the MCP mistake in CLI clothing."* A skill is

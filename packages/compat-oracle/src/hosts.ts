@@ -34,6 +34,19 @@ export interface HostImport {
    * and failed three of its fifteen cases against execa itself (measured 2026-09-27).
    */
   namedOnly?: boolean;
+  /**
+   * The **named** export that stands as the module's default, on both runs.
+   *
+   * `@inquirer/prompts` is ten prompts in ten packages, and each package's suite imports its
+   * prompt as a default: `import select from '../src/index.ts'`. The package a program
+   * installs is `@inquirer/prompts`, which re-exports the same function as `select`, and the
+   * drop-in is that package's: `caique/inquirer` exports `select`, never a default. So the
+   * shim for the select suite is `export * from '<module>'` plus
+   * `export { select as default } from '<module>'`, where `<module>` is `@inquirer/prompts`
+   * on the control and `caique/inquirer` on a target run. What is graded is exactly the pair
+   * a program migrates: the same named import, from one module or the other.
+   */
+  defaultExport?: string;
 }
 
 /** One file a suite reaches by path; see {@link Host.entries}. */
@@ -237,6 +250,20 @@ export interface Host {
    * implementation and then run it as a test.
    */
   testGlob: string;
+  /**
+   * The graded files, by path under `testDir`, for a host whose suite is spread over several
+   * packages of one monorepo — and then they are the **only** files the vendor step copies.
+   *
+   * Every other host's suite is one directory, copied whole with its fixtures. `@inquirer/prompts`'
+   * is ten: `packages/input/input.test.ts` sits beside `packages/input/src/`, and
+   * `packages/select/test/` holds two files. A `testDir` of `packages` copied whole would vendor
+   * every prompt's implementation and every other package's tests (`i18n`, `demo`, `core`)
+   * into this repository, and a glob cannot say "these ten and nothing else" across sibling
+   * directories. So the list is written out, and discovery, the vendor step and the
+   * fingerprint all read it, which keeps the three in agreement the way `discover.ts` exists
+   * to. A file listed here that the release does not ship fails the vendor run.
+   */
+  suiteFiles?: string[];
   /**
    * The directory holding the host's own modules — the ones a test may reach into but we
    * never promise. `lib` unless a host files them elsewhere; cli-table3 uses `src`.
@@ -503,8 +530,18 @@ export interface Host {
    * so the denominator moves with the branches that ran. dotenv 17.4.2's control plans summed to 141 and
    * its target's to 147. `rate()` divides by the larger, so nothing can score above its own
    * denominator, and the row is coarser than a per-case one without being dishonest.
+   *
+   * **`tsd` grades a type-only suite, one case per assertion** (`extra-typings-drop-in` R1).
+   * `@commander-js/extra-typings`' `npm test` is `tsd`: its files are `expectType` and
+   * `expectAssignable` calls that compile or do not, and tsd prints diagnostics, not cases.
+   * The arm runs the suite's own pinned tsd (`suiteDeps`) and reports every assertion call site
+   * tsd itself recognises, failing those an error diagnostic falls inside, plus one failure per
+   * error no assertion owns (`tsd.ts`). It never reports a file as one case: a 182-assertion
+   * file that does not compile is 182 failures, not one. The vendored root needs upstream's
+   * `tsconfig.json` (`extraDirs`), or the run is refused — tsd would otherwise find this
+   * repository's own by searching upward.
    */
-  runner: 'node:test' | 'mocha' | 'ava' | 'vitest' | 'tap' | 'exit-code';
+  runner: 'node:test' | 'mocha' | 'ava' | 'vitest' | 'tap' | 'exit-code' | 'tsd';
   /**
    * The shim's module system. Unset, every shim is ESM and Node resolves the implementation
    * through its `import` condition. `'cjs'` writes `module.exports = require(…)` instead, for a
@@ -1026,6 +1063,38 @@ export const HOSTS: Host[] = [
     note: "**Moved to 9.0.1 on 2026-09-27 (burgee#317): 104 / 104 against a control of 104 / 104, level.** The suite grew from 15 cases to 104, and `linegauge/slice` first graded **53 / 104** against it. `slice.ts` was rewritten over slice-ansi 9's own token grammar and walk — `tokenize-ansi.js` is in the vendored suite, and its rules are what the suite grades — keeping `linegauge`'s style stack and `measure` for the columns. What moved the 49: (1) **escapes it did not read** — `OSC 8` ended by `ESC \\` or `U+009C`, the C1 `OSC` introducer, `DCS`/`SOS`/`PM`/`APC` strings, a lone `ST`, a truncated or malformed `CSI` (which now ends at the first byte no `CSI` can hold, so `ESC[31ĀA` keeps its `ĀA`), and a private `ESC[?25m` that is not an SGR; (2) **a cluster interrupted by an escape** — `ESC[31me ESC[39m U+0301` is one `é`, so the visible text is segmented with the escapes set aside; (3) **hyperlinks** — no nesting (a second open replaces the first, closed with its own introducer and terminator), an empty link removed rather than emitted, the open code kept with its parameters; (4) **SGR at the edges** — a close just after `end` kept as written rather than synthesised, an opener with no text after it dropped, a C1 `CSI` opener reopened as C1; and (5) **rounding inward at a wide character**, where `linegauge` used to round outward. That last one was a documented divergence and it was wrong: `truncate` is a slice plus an ellipsis and returned `あい…`, five columns, for a budget of four. **The last two were a position rule, and they moved too.** `treats CRLF as a single grapheme cluster` wants `\\r\\n` to take one position, and `counts emoji-style graphemes as fullwidth` wants a lone regional indicator `🇦` to take two. `string-width`, graded 229 / 229 in the row above, measures those as 0 and 1, and so do `measure` and `width`. At 102 / 104 the row was not level, which took slice-ansi out of `burgee migrate`'s `MAPPING` (only level drop-ins are rewritten, D-137). So `slice` counts **positions** for a cut, not rendered columns: every cluster is at least one, and a lone indicator is two (`positions()` in `slice.ts`). `width` is unchanged. The two differ only on clusters that draw nothing, and the difference can only shorten a `truncate`, never widen it. `slice.test.ts` states both cases, and the `truncate` bound, against the real slice-ansi. The suite imports `random-item` and, through `tokenize-ansi.js`, `ansi-styles` and `is-fullwidth-code-point` — all three in `suiteDeps`, the committed `node_modules/random-item` having been deleted by this re-vendor exactly as wrap-ansi's `has-ansi` was. `slice links`, the case 7 marked `test.failing()` and `linegauge` passed, is an ordinary passing case in 9: the incumbent learned to round-trip `OSC 8`.",
   },
   {
+    // `linegauge/cli-truncate`'s grader (`graded-override-targets` R5). linegauge's README said
+    // its truncation was "checked case by case against `cli-truncate` in `truncate.test.ts`":
+    // honest, and no number. The suite is one file beside the implementation, and it imports
+    // `string-width` by name to measure what it asserts.
+    name: 'cli-truncate',
+    repo: 'https://github.com/sindresorhus/cli-truncate',
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '/cli-truncate', reexportDefault: true, control: 'cli-truncate' }],
+    suiteDeps: ['cli-truncate@6.1.1', 'string-width@8.3.0'],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'ava',
+    target: 'linegauge',
+    status: 'active',
+    note: "**Graded 2026-10-11 at 6.1.1: `linegauge/cli-truncate` 12 / 12 against a control of 12 / 12.** Before the façade the target run reported `target not built yet: linegauge/cli-truncate`. The façade is cli-truncate's arithmetic over linegauge's `slice` and `width`, and `cli-truncate.test.ts` holds it byte-equal to the installed incumbent over 1,980 inputs. `linegauge/truncate` stays the family's API, with a different rule at the edges.",
+  },
+  {
+    // `linegauge/widest-line`'s grader (`graded-override-targets` R6): one case, three
+    // assertions, and ava counts the case.
+    name: 'widest-line',
+    repo: 'https://github.com/sindresorhus/widest-line',
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '/widest-line', reexportDefault: true, control: 'widest-line' }],
+    suiteDeps: ['widest-line@6.0.0'],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'ava',
+    target: 'linegauge',
+    status: 'active',
+    note: "**Graded 2026-10-11 at 6.0.0: `linegauge/widest-line` 1 / 1 against a control of 1 / 1.** The suite is one case of three assertions, and ava counts the case. Before the façade the target run reported `target not built yet: linegauge/widest-line`.",
+  },
+  {
     // seniority's two incumbents (PLAN 2.2–2.13, `seniority/spec.md` R10).
     //
     // `cosmiconfig` is the one the root export is graded against: R8 says the default export
@@ -1347,6 +1416,105 @@ export const HOSTS: Host[] = [
     target: 'caique/clack',
     status: 'active',
     note: "**2026-09-30: 16 / 17 -> 16 / 16, level with a control of 16 / 16 (D-20260930-caique-clack-core-exclusion).** The pass count did not move. The denominator did: the one case that imports `updateSettings` from `@clack/core` is now excluded by its exact title. It grades the module state of a sibling package, not `@clack/prompts`' contract. The history below predates this. **Read the denominator before the number: this row publishes 16, not 606, and every subtraction is declared above.** Measured 2026-09-08 at 1.8.0 and re-counted 2026-09-20: 289 of the suite's 444 assertions are `toMatchSnapshot()`, in 17 of its 19 files. Those seventeen grade clack's exact drawing, and a façade matching them frame for frame would *be* clack — which caique's design rejects for a stated reason, that clack \"has no static projection to give\" (U3). D-001 chose the `cli-table3` shape over publishing 0 / 606: subtract the drawings as a declared subset with the reason written in. **A named subtraction was possible here and is not possible everywhere** — vitest's `tap-flat` prints one named line per case, so `summarize()` can name what it removes and `requireMatch` makes the control red if a file is renamed upstream; ava's TAP prints counts and no names, which is why `ansi-escapes`' ceiling is prose instead. Control **17 / 17** after the subtraction (576 / 606 before it, the 30 being `path.test.ts`, now excluded as a drawing rather than allowed as a control failure). Target `caique/clack` **16 / 17, 94.1%** since D-152 (2026-09-27; 14 / 17 before it). The two `guide.test.ts` cases that render all twelve of clack's prompts were written off here as \"the drawing\" while `caique/clack` exported only `limitOptions`; they grade that the twelve prompts exist, take clack's options and streams, cancel on escape and draw clack's layout with and without `withGuide`, which is the drop-in, and they pass now that the twelve are built on caique's own keypress loop. **The one case left was a ceiling, not a shortfall, and it is the one excluded since 2026-09-30:** `no prompt renders a guide when withGuide is globally false` calls `updateSettings({ withGuide: false })` **imported from `@clack/core`** and asserts our prompts obey it — module-level state inside a package caique does not depend on and cannot read, so no implementation of ours passes it without taking the dependency U6 forbids. `caique/clack` exports its own `updateSettings`, which its prompts do obey. The row named `caique`, the package root, and measured 0 / 606 until `caique/clack` was built on 2026-09-20; it moved the same day, which is D-007 (never name a façade before it exists) and D-006 (a root can never match an incumbent) in one edit.",
+  },
+  {
+    // `@inquirer/prompts` — the ten prompts a program imports by name, each graded by its own
+    // package's suite (`.sdlc/intents/inquirer-prompts-drop-in/`). Before `inquirer-core` on
+    // purpose: both rows rewrite `@inquirer/core` to `caique/inquirer`, and the drop-in pair
+    // is that row's, so it is the one `migrate-drop-ins-lock.test.ts` keeps when it de-duplicates.
+    name: 'inquirer-prompts',
+    npmName: '@inquirer/prompts',
+    repo: 'https://github.com/SBoudrias/Inquirer.js',
+    tagPrefix: '@inquirer/prompts@',
+    testDir: 'packages',
+    testGlob: '*.test.ts',
+    // Ten packages, eleven files: `select` keeps its pagination suite beside its own. That
+    // file is the pagination suite the intent's R1 asked for under `@inquirer/core` — upstream
+    // moved it to `select` with the 2025-05-25 rewrite of `usePagination` (5985e79), and core
+    // 12.0.4 ships none (D-20261011-inquirer-pagination-suite-is-selects).
+    suiteFiles: [
+      'checkbox/checkbox.test.ts',
+      'confirm/confirm.test.ts',
+      'editor/editor.test.ts',
+      'expand/expand.test.ts',
+      'input/input.test.ts',
+      'number/number.test.ts',
+      'password/password.test.ts',
+      'rawlist/rawlist.test.ts',
+      'search/search.test.ts',
+      'select/test/pagination.test.ts',
+      'select/test/select.test.ts',
+    ],
+    // Each suite imports its prompt as its package's default; the program imports it by name
+    // from `@inquirer/prompts`. `defaultExport` grades that name, read off `@inquirer/prompts`
+    // on the control and off `caique/inquirer` on a target run. checkbox's suite also imports
+    // `ValidationError` from `@inquirer/core` and asserts the prompt rejects with that class,
+    // so the core import moves with it, as it does in a migrated program.
+    imports: [
+      { upstream: './input/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'input' },
+      { upstream: './select/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'select' },
+      { upstream: './checkbox/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'checkbox' },
+      { upstream: './confirm/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'confirm' },
+      { upstream: './password/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'password' },
+      { upstream: './number/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'number' },
+      { upstream: './expand/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'expand' },
+      { upstream: './rawlist/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'rawlist' },
+      { upstream: './search/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'search' },
+      { upstream: './editor/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'editor' },
+      { upstream: '@inquirer/core', subpath: '', reexportDefault: false, control: '@inquirer/core' },
+    ],
+    surfaceFiles: ['packages/prompts/src/index.ts'],
+    suiteDeps: [
+      '@inquirer/prompts@8.7.3',
+      '@inquirer/core@12.0.4',
+      // The harness every file renders through: a headless xterm that asserts the screen.
+      '@inquirer/testing@3.3.14',
+      // `withResolver`, a promise helper `search.test.ts` imports for itself.
+      '@inquirer/type@4.2.0',
+      // `editor.test.ts` imports `editAsync` from it to mock it.
+      '@inquirer/external-editor@3.0.6',
+    ],
+    // Upstream runs this suite against its own source, where `@inquirer/editor` is a module of
+    // the repository and `vi.mock('@inquirer/external-editor')` reaches its import. Vendored,
+    // the control loads the published package from `node_modules`, which vitest externalizes
+    // and the mock never reaches: all eleven editor cases opened a real `vi` and the run hung
+    // to the oracle's cap (measured 2026-10-11, 213 / 224). Inlining the two packages that
+    // stand between the suite and the mocked module gives the control upstream's conditions
+    // back, 224 / 224. Harness,
+    // not leniency: no assertion is touched, and a target run inlines nothing of ours.
+    vitestConfig: { server: { deps: { inline: ['@inquirer/prompts', '@inquirer/editor'] } } },
+    // The editor cases are excluded below, and on a target run they still execute: a prompt
+    // that launches `$EDITOR` there must not open a real one on the grading machine and wait
+    // for it. `true` exits at once on every runner the oracle uses, so those cases fail fast.
+    env: { EDITOR: 'true', VISUAL: 'true' },
+    // Every case in `editor.test.ts` asserts on `editAsync`, the mock of `@inquirer/external-editor`
+    // the suite installs — what it was called with and how often — and answers the prompt only
+    // through that mock. That is a module caique does not import and may not (U6, zero runtime
+    // dependencies), so no implementation of ours can be seen by these assertions: the
+    // D-20260930-caique-clack-core-exclusion class, excluded by exact title, never by file.
+    excludes: [
+      ...[
+        'open editor after pressing enter',
+        'accepts explicit undefined as default',
+        'open editor immediately',
+        'allow setting a default value & postfix',
+        'allow setting temp file options',
+        'handles validation',
+        'clear value on failed validation',
+        'goes back to default value on failed validation',
+        'surfaces external-editor errors',
+        'displays custom waitingMessage',
+        'displays custom loadingMessage',
+      ].map((title) => ({
+        match: `packages/editor/editor.test.ts > editor prompt > ${title}`,
+        exact: true,
+        why: "Asserts on, and answers through, `vi.mock('@inquirer/external-editor')`'s `editAsync` — a module of the incumbent's tree that `caique/inquirer` does not import (caique takes no dependency outside the burgee family, U6), so the mock can neither observe nor drive any implementation of ours. Excluded for both sides by exact title (D-20261011-inquirer-prompts-editor-mock).",
+      })),
+    ],
+    runner: 'vitest',
+    target: 'caique/inquirer',
+    status: 'active',
+    note: "**Vendored 2026-10-11 at 8.7.3 (R2 of inquirer-prompts-drop-in): control 213 / 213, target `caique/inquirer` 0 / 213.** Eleven files, 224 cases, of which `editor.test.ts`'s eleven are excluded above. Every target case fails with `prompt is not a function`: `caique/inquirer` exports `@inquirer/core`'s surface and none of the ten prompts yet. The table of imports and counts this design is read from is in `.sdlc/intents/inquirer-prompts-drop-in/spec.md`.",
   },
   {
     // 2.16: the testable unit of the inquirer monorepo, and the decision that came with it.

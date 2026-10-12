@@ -30,7 +30,7 @@ construction.
 ## Why now
 
 **Measured.** The `external-floor` reading on `main`
-(`benchmarks/results/external-floor/2026-09-27.json`) scores the demo **14 / 24 (Fair)** on
+(`benchmarks/results/external-floor/2026-09-27-4b8ef1c-local.json`) scores the demo **14 / 24 (Fair)** on
 clispec 0.3.0; commander and yargs score 2. Ten checks fail. Each was read in clispec-cli's own
 source at `v0.3.0` (`src/checks/schema.rs`, `output.rs`, `bounded.rs`, and
 `schemas/v0.3.json`, through `gh api repos/rvben/clispec-cli/contents/<path>?ref=v0.3.0`):

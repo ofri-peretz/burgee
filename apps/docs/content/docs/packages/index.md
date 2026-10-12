@@ -16,7 +16,7 @@ is its README, projected; the family-wide pages — [compatibility](/docs/compat
 | [closeout](https://closeout.interlace.tools/docs) | signal-exit, exit-hook, restore-cursor, cli-cursor and onetime | [closeout.interlace.tools](https://closeout.interlace.tools) |
 | [controlroom](https://controlroom.interlace.tools/docs) | ink | [controlroom.interlace.tools](https://controlroom.interlace.tools) |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | ora, log-update, boxen and cli-table3 | [flagstaff.interlace.tools](https://flagstaff.interlace.tools) |
-| [linegauge](https://linegauge.interlace.tools/docs) | string-width, wrap-ansi, strip-ansi and slice-ansi | [linegauge.interlace.tools](https://linegauge.interlace.tools) |
+| [linegauge](https://linegauge.interlace.tools/docs) | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line | [linegauge.interlace.tools](https://linegauge.interlace.tools) |
 | [paratext](https://paratext.interlace.tools/docs) | ansi-escapes, terminal-link and term-img | [paratext.interlace.tools](https://paratext.interlace.tools) |
 | [roundel](https://roundel.interlace.tools/docs) | chalk | [roundel.interlace.tools](https://roundel.interlace.tools) |
 | [seniority](https://seniority.interlace.tools/docs) | cosmiconfig, lilconfig, dotenv and rc | [seniority.interlace.tools](https://seniority.interlace.tools) |

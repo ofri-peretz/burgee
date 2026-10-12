@@ -180,6 +180,56 @@ export interface Example {
   description?: string;
 }
 
+/**
+ * clispec-conformance R5 — what a command's result is, declared, so `--schema` can say what
+ * comes back and how much of it before the first call (clispec v0.3's `output_kind`,
+ * `cardinality`, `stdout_schema` and `media_type`).
+ *
+ * - `kind`: `data` (the default) is a result an agent parses; `stream` is records one per line
+ *   (declared only: burgee has no `--format=ndjson` yet); `opaque` is bytes that are not data,
+ *   such as a shell script, and names its `mediaType`.
+ * - `cardinality`: `single` is one value, `bounded` a list with a known ceiling, `unbounded` a
+ *   list that grows with the world. clispec has no safe default, so neither does this.
+ * - `schema`: a JSON Schema for what `run` returns (the envelope's `data`). TypeScript checks
+ *   the handler against it (`OutputOf`).
+ */
+export interface CommandOutput {
+  kind?: 'data' | 'stream' | 'opaque';
+  cardinality?: 'single' | 'bounded' | 'unbounded';
+  schema?: OutputSchema;
+  /** `opaque` only: what the bytes are, such as `text/plain`. */
+  mediaType?: string;
+}
+
+/** A JSON Schema, as far as `OutputOf` reads one: the shape is checked by the type below, and anything else is passed through. */
+export type OutputSchema = Readonly<Record<string, unknown>>;
+
+/**
+ * The TypeScript type a JSON Schema describes, for `run`'s return under `output.schema`: `const`,
+ * `enum`, the scalar types, arrays by `items`, and objects by `properties`, with the keys in
+ * `required` required and the rest optional. Anything it does not read is `unknown`, so a schema
+ * it cannot follow never refuses a handler.
+ */
+export type OutputOf<J> = J extends { const: infer C }
+  ? C
+  : J extends { enum: readonly (infer E)[] }
+    ? E
+    : J extends { type: 'string' }
+      ? string
+      : J extends { type: 'number' | 'integer' }
+        ? number
+        : J extends { type: 'boolean' }
+          ? boolean
+          : J extends { type: 'null' }
+            ? null
+            : J extends { type: 'array'; items: infer I }
+              ? OutputOf<I>[]
+              : J extends { type: 'object'; properties: infer P }
+                ? ObjectOf<P, J extends { required: readonly (infer R)[] } ? R : never>
+                : unknown;
+
+type ObjectOf<P, R> = { [K in keyof P as K extends R ? K : never]: OutputOf<P[K]> } & { [K in keyof P as K extends R ? never : K]?: OutputOf<P[K]> };
+
 /** What a handler receives. `passthrough` is everything after `--`, verbatim (G5). */
 /** What a caller must do before the command can continue (N11): synthesised into the envelope. */
 export interface ActionRequiredSpec {
@@ -226,6 +276,22 @@ export interface RunContext {
    * change when that package's does.
    */
   onExit: (handler: () => void | Promise<void>, label?: string) => () => void;
+  /**
+   * agent-lint-conformance R3 — aborts when the `--timeout` the caller set has passed, with the
+   * timeout error as its `reason`. Hand it to `fetch`, a child process or anything else that
+   * takes a signal, so the work stops when the run does. A run without `--timeout` still has one;
+   * it never aborts.
+   */
+  signal: AbortSignal;
+  /** agent-lint-conformance R2 — the caller passed `--quiet`: draw no progress and print no hints. Data and errors still print. */
+  quiet: boolean;
+  /**
+   * The output policy's runtime for this run (`roundel/policy`'s `Runtime`, typed structurally):
+   * the environment, whether stdout is a terminal, the colour flag the caller typed (`--no-color`,
+   * `--color=always`; R1) and `quiet` (R2). Spread it into what you hand flagstaff's `hoist` or
+   * roundel's `colorLevel`, and they decide colour and drawing the way the caller asked.
+   */
+  runtime: { env: Record<string, string | undefined>; argv: readonly string[]; isTTY: { stdout: boolean }; quiet: boolean };
 }
 
 export interface CommandNode {
@@ -252,6 +318,8 @@ export interface CommandNode {
   effects?: DeclaredEffects;
   /** The result's top-level fields, as declared (N14); what `--json=` lists. */
   fields?: readonly string[];
+  /** What the result is and how much of it (clispec-conformance R5). */
+  output?: CommandOutput;
   run?: (ctx: RunContext) => unknown;
   /**
    * The handler's module, imported on dispatch only (M2): the manifest — help, schema,

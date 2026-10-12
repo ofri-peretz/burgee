@@ -128,13 +128,13 @@ graded A–F). Both are pinned by version and archive digest in `benchmarks/floo
 run offline, and are never re-scored here — a check they fail is listed as failed, even where
 we would argue with it.
 
-Measured at commit `4b8ef1c` on 2026-09-27.
+Measured at commit `986c3a1` on 2026-10-11.
 
 | Variant | clispec | cli-agent-lint |
 | :--- | ---: | ---: |
-| `burgee` | 14 / 24 (Fair) | 81.4% (B) |
+| `burgee` | 14 / 24 (Fair) | 91.5% (A) |
 | `commander` | 2 / 24 (Needs Work) | 71.2% (B) |
-| `yargs` | 2 / 24 (Needs Work) | 71.9% (B) |
+| `yargs` | 2 / 24 (Needs Work) | 70.9% (B) |
 
 What clispec 0.3.0 failed on burgee's demo:
 
@@ -151,14 +151,9 @@ What clispec 0.3.0 failed on burgee's demo:
 
 What cli-agent-lint 0.3.5 did not pass on burgee's demo (`warn` and `info` included; `skip` is not):
 
-- TE-3 --no-color flag (warn)
-- TE-4 --quiet / --silent flag (info)
-- SD-1 Error format is structured (warn)
-- SD-3 Shell completions available (info)
-- SD-5 Skill / context files (info)
-- SD-6 Help text with usage examples (warn)
-- PV-1 Timeout flag (info)
-- PV-4 Distinct exit codes for error classes (info)
+- FS-4 Env var auth support (warn): auth-related content found but no env var or token flag for non-interactive auth
+- SD-1 Error format is structured (warn): no stderr output when running with JSON flag and invalid subcommand
+- SD-5 Skill / context files (info): no skill/context files found near the binary
 
 ## B5 — runtime against the incumbent
 

@@ -1,5 +1,26 @@
 # burgee
 
+## 1.1.0
+
+### Minor Changes
+
+- [#1006](https://github.com/ofri-peretz/burgee/pull/1006) [`733e5e0`](https://github.com/ofri-peretz/burgee/commit/733e5e0f1bbca8231275202df47fad2a9fe18944) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Every command takes three global options. `--no-color` and `--color=always|never|auto` reach help and the handler's new `ctx.runtime`, which carries the caller's colour flag and `quiet` to roundel's policy and flagstaff's `hoist`. `-q`/`--quiet` silences progress and framework hints, such as a deprecation warning, and never data or errors. `--timeout <duration>` (`500ms`, `5s`, `2m`) aborts the new `ctx.signal`, runs the exit handlers once and leaves with the new `ExitCode.TIMEOUT`, 6. All three can be typed before the command too. A command that declares an option of the same name keeps it. Root and command help list them under `Global options:`.
+
+- [#1002](https://github.com/ofri-peretz/burgee/pull/1002) [`a049bc2`](https://github.com/ofri-peretz/burgee/commit/a049bc2bee2a461b141d2eb2819cefbc01df7949) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Root help now carries what a caller branches on and what to type. It lists the `completion <shell>` command the engine serves, an `Exit codes:` section generated from `ExitCode`, and an `Examples:` section: the root's own (`defineProgram({ examples })`, new) or each top-level command's first example. `--schema` publishes `completion` beside the program's commands, and `completion --help` prints its help. `burgee dev` warns about a runnable command that declares no examples.
+
+### Patch Changes
+
+- [#1005](https://github.com/ofri-peretz/burgee/pull/1005) [`079250e`](https://github.com/ofri-peretz/burgee/commit/079250ebc3e0cc511df1269060854711f686b5b4) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Two new drop-in subpaths, each graded by its incumbent's own suite and level with it. `closeout/onetime` is onetime 8 (6 of 6): the default export, `callCount` and `{ throw: true }`, and like onetime it retries a first call that throws. `closeout/cli-cursor` is cli-cursor 5 (8 of 8): `{ show, hide, toggle }` on `process.stderr` by default, and a hide arranges the show at exit through `closeout/restore-cursor`. `burgee migrate` now rewrites `onetime` and `cli-cursor`.
+
+  `closeout/restore-cursor` bundles 318 B less (4,648 to 4,330 B on /docs/weight): the process-wide `onExit` reaches the registry without the `Closeout` view, which carried the cursor pairing.
+
+- [#991](https://github.com/ofri-peretz/burgee/pull/991) [`bd1a544`](https://github.com/ofri-peretz/burgee/commit/bd1a5444bcc035aa6f2db24b435dee4d4d8fc5d7) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate`: under a pnpm `minimumReleaseAge`, `next` pins each family package to the newest release of its graded major that is old enough to install (from the registry's `time` field), respects `minimumReleaseAgeExclude`, and says when the install will start working if no version is old enough yet. `releaseAge` gains `exclude` and `pins`.
+
+- [#1005](https://github.com/ofri-peretz/burgee/pull/1005) [`079250e`](https://github.com/ofri-peretz/burgee/commit/079250ebc3e0cc511df1269060854711f686b5b4) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `seniority/find-up` is now find-up 8's surface, graded by find-up 8.0.0's own suite: 104 of 104, level with find-up itself. It adds a matcher function with `findUpStop`, `findDown` and `findDownSync`, and locate-path's `type` and `allowSymlinks`; `cwd` and `stopAt` take a `URL`. Three behaviours follow find-up rather than seniority's resolver walk: `cwd` is optional and defaults to the process's working directory, a name matches a file unless `type` says otherwise, and `findUpMultiple` returns the first matching name per directory. `burgee migrate` now rewrites `find-up` to `seniority/find-up`.
+- Updated dependencies [[`079250e`](https://github.com/ofri-peretz/burgee/commit/079250ebc3e0cc511df1269060854711f686b5b4), [`079250e`](https://github.com/ofri-peretz/burgee/commit/079250ebc3e0cc511df1269060854711f686b5b4), [`6f74a64`](https://github.com/ofri-peretz/burgee/commit/6f74a647c107307f11e1aef7092cf4e1afc6146d)]:
+  - closeout@1.1.0
+  - seniority@1.0.5
+
 ## 1.0.1
 
 ### Patch Changes

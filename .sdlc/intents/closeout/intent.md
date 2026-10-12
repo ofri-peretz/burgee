@@ -104,3 +104,9 @@ Six incumbents, **685 M weekly downloads**, and none of them can promise the las
 - **Worker threads and `beforeExit`.** **Decided 2026-09-20 → D-020.** Whether the exactly-once guarantee extends across
   worker boundaries, or is documented as per-thread. Being wrong here is worse than being
   narrow.
+- **What does `add()` mean while a shutdown is running?** **Decided 2026-10-11 → D-20261011-closeout-late-add** (owner; default stands). Found by
+  the Quint model (`registry.qnt`, `lateAddRuns`). Today a handler added mid-run runs if its
+  phase has not been reached and is silently dropped if it has: counted in `size`, never
+  invoked, absent from the report. Throwing, invoking it at once, or naming it in
+  `unfinished` are the three honest answers; silence is the one that is not. `models.yml`
+  pins the current behaviour as an expected violation until this is decided.

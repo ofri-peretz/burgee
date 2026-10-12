@@ -109,6 +109,9 @@ sentence is the product.
 
 ## Verification
 
+- **The state machine above, as a model.** [`registry.qnt`](./registry.qnt) — R1, R3, R4 and
+  phase order as `safety`, simulated by `models.yml` on every change to `packages/closeout/src`.
+  See [`JEV-AND-QUINT.md`](../../JEV-AND-QUINT.md).
 - `npm test -w closeout` — the matrix, R5's `name`/`length`/`this` preservation, R8's
   ceiling, R7's single-file exemption (a test that greps `src/` for `process.` and asserts
   exactly one file matches).

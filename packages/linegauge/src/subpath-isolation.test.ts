@@ -40,6 +40,11 @@ const ALLOWED: Record<string, string[]> = {
   // Over `slice`, never over `wrap` — the ellipsis-fits arithmetic needs a cut, not a fold.
   'truncate.js': ['./slice.js', './width.js'],
   'widest.js': ['./width.js'],
+  // The two incumbent-named façades (`graded-override-targets` R5, R6): cli-truncate's
+  // arithmetic over linegauge's own cut and measure, and widest-line's one string over
+  // `widest`. Each is the incumbent's shape over a family entry, by design.
+  'cli-truncate.js': ['./slice.js', './width.js'],
+  'widest-line.js': ['./widest.js'],
   // The lowest entry there is, and `width` reaches *it* — which is why `style.js` no longer
   // reaches `width.js`. A strip that needed a measurement would be a cycle, and there is nothing
   // to measure in removing bytes. Since 2026-09-30 it reaches nothing at all: one regex, the
@@ -107,13 +112,16 @@ describe('the rule covers what is published', () => {
    * only thing standing between us and a fat subpath: cutting one string must not load the
    * wrapper, and wrapping must not load the truncator.
    */
+  const COMPOSED: Record<string, string[]> = { 'truncate.js': ['./slice.js'], 'cli-truncate.js': ['./slice.js'], 'widest-line.js': ['./widest.js'] };
+
   it('no entry reaches a sibling entry', () => {
     const entries = new Set(published.filter((f) => f !== 'index.js'));
     for (const [file, allowed] of Object.entries(ALLOWED)) {
       if (file === 'index.js') continue;
       const siblings = allowed.filter((spec) => entries.has(spec.replace('./', '')));
-      // `truncate -> slice` is the one composition the design asks for (R6 is built over R4).
-      expect(siblings, `${file} reaches a sibling entry`).toEqual(file === 'truncate.js' ? ['./slice.js'] : []);
+      // `truncate -> slice` is the composition the design asks for (R6 is built over R4), and
+      // each incumbent-named façade composes the entry it is the incumbent's shape over.
+      expect(siblings, `${file} reaches a sibling entry`).toEqual(COMPOSED[file] ?? []);
     }
   });
 });

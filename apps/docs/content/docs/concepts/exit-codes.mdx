@@ -1,12 +1,12 @@
 ---
 title: Exit codes and errors
-description: "Seven typed exit codes a caller can branch on, one error envelope under --json, and a fixed rule for which stream a failure goes to."
+description: "Eight typed exit codes a caller can branch on, one error envelope under --json, and a fixed rule for which stream a failure goes to."
 ---
 
 ## What it is
 
 An exit code is the one thing every caller reads — a shell, a CI runner, an agent — before it
-decides what to do next. burgee makes it a contract: seven named codes, each with one meaning,
+decides what to do next. burgee makes it a contract: eight named codes, each with one meaning,
 and nothing else reaches `process.exitCode`.
 
 | Code | Name | Means | The caller should |
@@ -17,6 +17,7 @@ and nothing else reaches `process.exitCode`.
 | 3 | `CONFIG` | a config file or the environment could not be loaded or validated | fix the environment |
 | 4 | `CANCELLED` | the user or caller cancelled, or the command needs a decision (`actionRequired`) | decide, then run a `next` command |
 | 5 | `AUTH` | a credential is missing, expired or refused | log in and run it again |
+| 6 | `TIMEOUT` | the deadline `--timeout` set passed | run it again with more time |
 | 130 | `SIGINT` | interrupted, after the terminal was restored | stop |
 
 `ExitCode` and `isExitCode()` are exported from `burgee`. `--schema` carries the table as
@@ -33,22 +34,33 @@ to do. The split above is by *response*: `USAGE` says fix the command, `CONFIG` 
 environment, `AUTH` says fix the credential, and none of them needs the message parsed. `AUTH`
 is 5 rather than `gh`'s 4 because 4 was already `CANCELLED`, and moving a published code is a
 breaking change for everyone who branches on it (the reasoning is in `exit-code.ts`).
+`TIMEOUT` is 6 rather than GNU `timeout`'s 124 for the same reason: 124 is inside the 7–125
+range `defineError` hands to authors, and 6 was the one number the contract had reserved and
+nobody could hold ([D-20261011-timeout-exit-code](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/decisions/D-20261011-timeout-exit-code.md)).
+A program run under `timeout 5s` still exits 124, because the wrapper sets it.
+
+**A deadline is the caller's.** Every command takes `--timeout <duration>` (`500ms`, `5s`, `2m`,
+or a bare number of milliseconds). When it passes, `ctx.signal` aborts with the timeout as its
+reason, the run's `ctx.onExit` handlers run once, and the process leaves with 6 and
+`error: timed out after … ms` (`a handler awaiting forever under --timeout 50 exits TIMEOUT, its
+cleanup ran once, and ctx.signal aborted` in
+[`timeout.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/timeout.test.ts)).
 
 ## The rules
 
-**Only the seven.** `isExitCode()` accepts exactly these (`recognises only the seven codes` in
+**Only the eight.** `isExitCode()` accepts exactly these (`recognises only the eight codes` in
 [`exit-code.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/exit-code.test.ts)).
 [`exit-code-lock.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/exit-code-lock.test.ts)
 reads them out of `exit-code.ts` and fails on any bare numeric literal passed to an `exit` call
 or assigned to `process.exitCode` (`no bare literal reaches an exit outside the two
 front-ends`), and on any package's named exit constant that is not one of them (`every exit
-constant any package declares is one of the seven`). The two exceptions are the commander and
+constant any package declares is one of the eight`). The two exceptions are the commander and
 yargs front-ends, which reproduce their host's own exit codes because the host's suite grades
 exactly that.
 
 **A thrown error becomes a code in a fixed order** (`describeFailure` in `failure.ts`):
 
-1. `ctx.exit(code)` with one of the seven leaves silently with that code.
+1. `ctx.exit(code)` with one of the eight leaves silently with that code.
 2. `ctx.actionRequired(…)` is 4, with its `next` commands.
 3. `UsageError` is 2, `AuthError` is 5, and seniority's `ConfigError` is 3.
 4. A class made with `defineError({ name, code })` leaves with its own code.
@@ -77,17 +89,26 @@ which is what 130 actually means` in `pty-signal.test.ts`).
 | success | the result as text | warnings, such as a deprecation |
 | success, `--json` | `{"ok":true,"data":…,"meta":{"provenance":…}}` | warnings |
 | a result naming a non-zero `exitCode`, `--json` | `{"ok":false,"data":…,"meta":{"provenance":…}}` | warnings |
-| failure | nothing | `error: <message>`, then `hint:` and `fix:` when the error carries them, then `usage:` when there is no `fix` |
-| failure, `--json` | `{"ok":false,"error":{"code":…,"message":…,"hint"?:…,"fix"?:…,"usage"?:…}}` | nothing |
-| needs a decision, `--json` | `{"ok":false,"status":"action_required","reason":…,"message":…,"next":[…],"error":{"code":4,…}}` | nothing |
+| failure | nothing | `error: <message>`, then `hint:` and `fix:` when the error carries them, then `usage:` when there is no `fix`; then, unless stderr is a terminal, `{"error":{"kind":…,"code":…,"message":…}}` |
+| failure, `--json` | `{"ok":false,"error":{"kind":…,"code":…,"message":…,"hint"?:…,"fix"?:…,"usage"?:…}}` | `{"error":{"kind":…,"code":…,"message":…}}` |
+| needs a decision, `--json` | `{"ok":false,"status":"action_required","reason":…,"message":…,"next":[…],"error":{"kind":"cancelled","code":4,…}}` | `{"error":{"kind":"cancelled","code":4,…}}` |
 
 Under `--json` a failure goes to **stdout**, alone, so a caller that parses stdout gets exactly
-one JSON document whether the command succeeded or not; `error.code` is the numeric exit code.
-`hint` is for a person and `fix` is a command a caller can run. Pinned by `$name: the envelope is
-on stdout, alone, and stderr is empty`, `$name: plain mode is unchanged — prose on stderr,
-nothing on stdout` and `puts a usage failure on stdout too, so one rule covers every --json
-failure` in
+one JSON document whether the command succeeded or not; `error.code` is the numeric exit code and
+`error.kind` the word for it. `hint` is for a person and `fix` is a command a caller can run.
+Pinned by `$name: the envelope is on stdout, alone, and stderr is the one structured line (R6)`
+and `puts a usage failure on stdout too, so one rule covers every --json failure` in
 [`json-failure.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/json-failure.test.ts).
+
+**Every failure names its kind**, so a consumer branches on a word rather than parsing prose:
+`runtime`, `usage`, `config`, `cancelled`, `auth`, `timeout` and `interrupted`, one per code
+above, or the kind your own class declares. `--schema` lists them all under `errors`, each with
+its exit code and whether a retry may succeed. And **stderr ends with the same failure as one JSON
+line** whenever it is not a terminal a person reads: always under `--json`, and after the prose
+when stderr is piped or captured. At a terminal nothing changes. That last line is what
+[clispec](https://clispec.dev)'s "Structured errors" and cli-agent-lint's SD-1 read, and it
+means a caller that only keeps stderr still gets the kind and the code. The examples below are
+run with stderr piped, so they show it.
 
 `ok` is the exit code's verdict. A command that finishes and names a non-zero `exitCode` in its
 result, like `burgee check` refusing a plugin or `burgee migrate` with refusals, keeps its report
@@ -122,7 +143,13 @@ with `commands` in place of `options` for an unknown command. Pinned by
 
 On `burgee/commander` and `burgee/yargs`, `error.code` is a string (`'usage'`, `'auth'`,
 `'runtime'`), and a parse error keeps the host's own code, such as `commander.unknownOption`:
-the front-ends reproduce their host.
+the front-ends reproduce their host, and add neither `kind` nor the stderr line.
+
+Your own class's kind is its name in snake case, less a trailing `Error` (`QuotaError` is
+`quota`), or the one it declares: `defineError({ name: 'QuotaError', code: 7, kind: 'quota',
+retryable: false, description: 'the target is out of quota' })`. A declared kind is snake_case
+and one class's alone, or `defineError` throws. A kind someone already holds, such as a class
+named `TimeoutError` beside the contract's `timeout`, is told apart by its code (`timeout_12`).
 
 ## Run it
 
@@ -164,17 +191,20 @@ A missing credential is 5, as prose on stderr or as the envelope on stdout:
 error: no access token
 hint: pass --token
 fix: run `deploy login` first
+{"error":{"kind":"auth","code":5,"message":"no access token"}}
 ```
 
 ```text title="node deploy.mjs push --target prod --json" exit="5"
-{"ok":false,"error":{"code":5,"message":"no access token","hint":"pass --token","fix":"run `deploy login` first"}}
+{"ok":false,"error":{"kind":"auth","code":5,"message":"no access token","hint":"pass --token","fix":"run `deploy login` first"}}
+{"error":{"kind":"auth","code":5,"message":"no access token"}}
 ```
 
 A missing option and a mistyped command are both 2. With no `fix` to run, the missing option
 carries what `push` takes:
 
 ```text title="node deploy.mjs push --token t --json" exit="2"
-{"ok":false,"error":{"code":2,"message":"missing required option --target","hint":"pass --target <value>","usage":{"command":"deploy push [options]","options":[{"name":"--target <value>","description":"where to push (required)"},{"name":"--token <value>","description":"an access token"}]}}}
+{"ok":false,"error":{"kind":"usage","code":2,"message":"missing required option --target","hint":"pass --target <value>","usage":{"command":"deploy push [options]","options":[{"name":"--target <value>","description":"where to push (required)"},{"name":"--token <value>","description":"an access token"}]}}}
+{"error":{"kind":"usage","code":2,"message":"missing required option --target"}}
 ```
 
 A mistyped command is corrected, and the fix is the caller's own line with the word replaced:
@@ -183,12 +213,14 @@ A mistyped command is corrected, and the fix is the caller's own line with the w
 error: unknown command "psuh"
 hint: did you mean push?
 fix: deploy push --target prod
+{"error":{"kind":"usage","code":2,"message":"unknown command \"psuh\""}}
 ```
 
 An author's own class leaves with its own code:
 
 ```text title="node deploy.mjs push --target moon --token t --json" exit="7"
-{"ok":false,"error":{"code":7,"message":"the moon is out of quota","hint":"try --target mars"}}
+{"ok":false,"error":{"kind":"quota","code":7,"message":"the moon is out of quota","hint":"try --target mars"}}
+{"error":{"kind":"quota","code":7,"message":"the moon is out of quota"}}
 ```
 
 ## Where the rules live

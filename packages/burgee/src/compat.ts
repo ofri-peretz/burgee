@@ -62,6 +62,7 @@ export const GRADED: Readonly<Record<string, Row>> = {
   lilconfig: { reference: 77, passed: 77, rate: 1, control: 77 },
   dotenv: { reference: 191, passed: 191, rate: 1, control: 191 },
   clack: { reference: 16, passed: 16, rate: 1, control: 16 },
+  'inquirer-prompts': { reference: 213, passed: 0, rate: 0, control: 213 },
   'inquirer-core': { reference: 41, passed: 41, rate: 1, control: 41 },
   meow: { reference: 148, passed: 146, rate: 0.9864864864864865, control: 146 },
   'ansi-escapes': { reference: 4, passed: 4, rate: 1, control: 4 },
@@ -75,6 +76,8 @@ export const GRADED: Readonly<Record<string, Row>> = {
   'find-up': { reference: 104, passed: 104, rate: 1, control: 104 },
   onetime: { reference: 6, passed: 6, rate: 1, control: 6 },
   'cli-cursor': { reference: 8, passed: 8, rate: 1, control: 8 },
+  'cli-truncate': { reference: 12, passed: 12, rate: 1, control: 12 },
+  'widest-line': { reference: 1, passed: 1, rate: 1, control: 1 },
 };
 
 /** One graded path: an incumbent's specifier, and the family specifier that replaces it. */
@@ -117,6 +120,7 @@ export const DROP_INS: readonly DropIn[] = [
   { host: 'dotenv', from: 'dotenv/config', to: 'seniority/dotenv/config' },
   { host: 'dotenv', from: 'dotenv/config.js', to: 'seniority/dotenv/config' },
   { host: 'clack', from: '@clack/prompts', to: 'caique/clack' },
+  { host: 'inquirer-prompts', from: '@inquirer/prompts', to: 'caique/inquirer' },
   { host: 'inquirer-core', from: '@inquirer/core', to: 'caique/inquirer' },
   { host: 'meow', from: 'meow', to: 'burgee/meow' },
   { host: 'ansi-escapes', from: 'ansi-escapes', to: 'paratext' },
@@ -130,6 +134,8 @@ export const DROP_INS: readonly DropIn[] = [
   { host: 'find-up', from: 'find-up', to: 'seniority/find-up' },
   { host: 'onetime', from: 'onetime', to: 'closeout/onetime' },
   { host: 'cli-cursor', from: 'cli-cursor', to: 'closeout/cli-cursor' },
+  { host: 'cli-truncate', from: 'cli-truncate', to: 'linegauge/cli-truncate' },
+  { host: 'widest-line', from: 'widest-line', to: 'linegauge/widest-line' },
 ];
 
 /**
@@ -142,11 +148,13 @@ export const DROP_INS: readonly DropIn[] = [
 export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
   '@clack/prompts': '1.8.1',
   '@inquirer/core': '12.0.4',
+  '@inquirer/prompts': '8.7.3',
   'ansi-escapes': '7.3.0',
   boxen: '9.0.0',
   chalk: '6.0.1',
   'cli-cursor': '5.0.0',
   'cli-table3': '0.6.5',
+  'cli-truncate': '6.1.1',
   commander: '15.0.0',
   cosmiconfig: '10.0.1',
   'cross-spawn': '7.0.6',
@@ -168,6 +176,7 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
   'term-img': '7.1.0',
   'terminal-link': '5.0.0',
   which: '7.0.0',
+  'widest-line': '6.0.0',
   'wrap-ansi': '10.0.2',
   yargs: '18.2.0',
   'yargs-parser': '22.0.0',
@@ -207,11 +216,13 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
 export const SUPPORTED_MAJORS: Readonly<Record<string, readonly number[]>> = {
   '@clack/prompts': [1],
   '@inquirer/core': [12],
+  '@inquirer/prompts': [8],
   'ansi-escapes': [7],
   boxen: [9],
   chalk: [6],
   'cli-cursor': [5],
   'cli-table3': [0],
+  'cli-truncate': [6],
   commander: [15],
   cosmiconfig: [10],
   'cross-spawn': [7],
@@ -233,6 +244,7 @@ export const SUPPORTED_MAJORS: Readonly<Record<string, readonly number[]>> = {
   'term-img': [7],
   'terminal-link': [5],
   which: [7],
+  'widest-line': [6],
   'wrap-ansi': [10],
   yargs: [18],
   'yargs-parser': [22],

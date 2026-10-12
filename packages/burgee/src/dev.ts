@@ -13,7 +13,7 @@ import { watch, type FSWatcher } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { missingExamples } from './examples-check.js';
+import { missingCardinality, missingExamples } from './examples-check.js';
 import { execute } from './execute.js';
 import { renderHelp } from './help.js';
 import { Manifest } from './manifest.js';
@@ -151,9 +151,10 @@ export function report(before: Manifest | undefined, loaded: Loaded): string {
   for (const p of diff.changed) lines.push(`  ~ ${p}`);
   // R6 — what the door would only warn about, said where the author is looking, on every load.
   // burgee's own declarations only: commander and yargs have no `examples` to declare.
+  // clispec-conformance R5 — and the cardinality `--schema` cannot publish without.
   for (const c of loaded.kind === 'burgee' ? manifest.commands : []) {
-    const warning = missingExamples(c.path.slice(manifest.rootPath.length).join(' ') || c.path.join(' '), c);
-    if (warning !== undefined) lines.push(`warning: ${warning}`);
+    const name = c.path.slice(manifest.rootPath.length).join(' ') || c.path.join(' ');
+    for (const warning of [missingExamples(name, c), missingCardinality(name, c)]) if (warning !== undefined) lines.push(`warning: ${warning}`);
   }
   const root = manifest.find(manifest.rootPath);
   if (root !== undefined) lines.push('', renderHelp(manifest, root).trimEnd());
