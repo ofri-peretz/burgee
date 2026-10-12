@@ -684,7 +684,7 @@ export function totalRecords(byVariant: ReadonlyMap<VariantId, readonly Attempt[
 /** The MCP arm against the CLI arm of the same build: the variant its ratio records carry. */
 export const MCP_RATIO = 'burgee-mcp ÷ burgee';
 /** The per-reading ratio the claim `cli-vs-mcp-tokens` is settled on, over the readings that carry it. */
-const MCP_TOKENS_RATIO = 'mcp-tokens-total-ratio';
+const MCP_COST_RATIO = 'mcp-tokens-total-ratio';
 /** The record `cli-vs-mcp-tokens` reads: the median of every reading's tokens ratio, once there are enough. */
 export const READINGS_METRIC = 'mcp-tokens-total-ratio-readings-median';
 /**
@@ -715,7 +715,7 @@ export function priorReadings(dir: string = RESULTS_DIR): Reading[] {
     .flatMap((file) => {
       const doc = tryParse(readFileSync(join(dir, file), 'utf8'));
       const records = Array.isArray(doc?.['records']) ? (doc['records'] as BenchRecord[]) : [];
-      const found = records.find((r) => r.axis === 'agent' && r.variant === MCP_RATIO && r.metric === MCP_TOKENS_RATIO);
+      const found = records.find((r) => r.axis === 'agent' && r.variant === MCP_RATIO && r.metric === MCP_COST_RATIO);
       return found === undefined ? [] : [{ file, ratio: found.median }];
     });
 }
@@ -733,7 +733,15 @@ function midpoint(xs: readonly number[]): number {
 }
 
 /** One arm over the mapped tasks: tokens or turns, pooled, with the range and each task's median and range. */
-function spread(variant: VariantId, runs: readonly Attempt[], mapped: readonly string[], detail: Detail, what: 'tokens' | 'turns'): BenchRecord | undefined {
+interface Spread {
+  variant: VariantId;
+  runs: readonly Attempt[];
+  mapped: readonly string[];
+  detail: Detail;
+  what: 'tokens' | 'turns';
+}
+
+function spread({ variant, runs, mapped, detail, what }: Spread): BenchRecord | undefined {
   const pick = what === 'tokens' ? tokensOf : turnsOf;
   const values = measured(runs).map(pick);
   if (values.length === 0) return undefined;
@@ -780,7 +788,7 @@ export function armRecords(byVariant: ReadonlyMap<VariantId, readonly Attempt[]>
   for (const [variant, runs] of [['burgee', cli], ['burgee-mcp', mcp]] as const) {
     if (runs.length === 0) continue;
     for (const what of ['tokens', 'turns'] as const) {
-      const r = spread(variant, runs, mapped, detail, what);
+      const r = spread({ variant, runs, mapped, detail, what });
       if (r !== undefined) records.push(r);
     }
     const rate = round(runs.filter((a) => a.success).length / runs.length, RATIO_PLACES);
@@ -793,7 +801,7 @@ export function armRecords(byVariant: ReadonlyMap<VariantId, readonly Attempt[]>
   const common = { axis: 'agent', variant: MCP_RATIO, unit: 'ratio', samples: Math.min(ours.length, theirs.length), detail: { ...detail, tasks: mapped.join(',') } } as const;
   const tokens = ratio(tokensOf);
   records.push(
-    { ...common, metric: MCP_TOKENS_RATIO, median: tokens, p95: tokens, note: 'tokens per task-run on the MCP server over the same on the CLI, one build, the mapped tasks only' },
+    { ...common, metric: MCP_COST_RATIO, median: tokens, p95: tokens, note: 'tokens per task-run on the MCP server over the same on the CLI, one build, the mapped tasks only' },
     { ...common, metric: 'mcp-turns-total-ratio', median: ratio(turnsOf), p95: ratio(turnsOf), note: 'turns per task-run on the MCP server over the same on the CLI, one build, the mapped tasks only' },
   );
   const readings = [...prior, { file: 'this reading', ratio: tokens }];
@@ -806,7 +814,7 @@ export function armRecords(byVariant: ReadonlyMap<VariantId, readonly Attempt[]>
     samples: readings.length,
     median: settled,
     p95: p95(ratios),
-    note: `the median of ${String(readings.length)} readings of ${MCP_TOKENS_RATIO}, this one included; never one run`,
+    note: `the median of ${String(readings.length)} readings of ${MCP_COST_RATIO}, this one included; never one run`,
     detail: { ...common.detail, min: Math.min(...ratios), max: Math.max(...ratios), readings: readings.map((r) => `${r.file}=${String(r.ratio)}`).join(', ') },
   });
   return records;

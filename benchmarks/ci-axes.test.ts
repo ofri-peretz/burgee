@@ -93,16 +93,18 @@ interface Event {
  * string literals, `github.event_name` and `contains(github.event.pull_request.labels.*.name, '…')`.
  * Anything else throws, so a later edit cannot slip a term past the test by being unreadable.
  */
+/** GitHub's truthiness: `''`, `false`, `null` and `0` are false. */
+const truthy = (v: unknown): boolean => v !== '' && v !== false && v !== null && v !== undefined && v !== 0;
+
 function evaluate(expression: string, ev: Event): unknown {
-  const tokens = expression.match(/'[^']*'|\|\||&&|==|!=|!|\(|\)|,|[\w.*:-]+/gu) ?? [];
+  const parts = expression.match(/'[^']*'|\|\||&&|==|!=|!|\(|\)|,|[\w.*:-]+/gu) ?? [];
   let i = 0;
-  const peek = (): string | undefined => tokens[i];
+  const peek = (): string | undefined => parts[i];
   const take = (want?: string): string => {
-    const t = tokens[i++];
-    if (t === undefined || (want !== undefined && t !== want)) throw new Error(`unexpected ${String(t)} in ${expression}`);
+    const t = parts[i++];
+    if (t === undefined || (want !== undefined && t.localeCompare(want) !== 0)) throw new Error(`unexpected ${String(t)} in ${expression}`);
     return t;
   };
-  const truthy = (v: unknown): boolean => v !== '' && v !== false && v !== null && v !== undefined && v !== 0;
   const primary = (): unknown => {
     const t = take();
     if (t === '(') {
@@ -152,7 +154,7 @@ function evaluate(expression: string, ev: Event): unknown {
     return v;
   };
   const value = or();
-  if (i !== tokens.length) throw new Error(`trailing ${tokens.slice(i).join(' ')} in ${expression}`);
+  if (i !== parts.length) throw new Error(`trailing ${parts.slice(i).join(' ')} in ${expression}`);
   return value;
 }
 

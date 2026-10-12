@@ -701,10 +701,9 @@ describe.skipIf(!isPosix())('R2 — a `burgee-mcp` variant', () => {
 const reading = (ratio: number, i: number): Reading => ({ file: `2026-10-${String(13 + 7 * i).padStart(2, '0')}-abc${String(i)}def-weekly-ci.json`, ratio });
 
 describe('R3 — medians and ranges, never one run', () => {
-  const m = (t: string, turns: number, success = true, extra: Partial<Attempt> = {}): Attempt => a(t, turns, success, extra);
   // `burgee` ran three tasks; only `p` and `q` map to MCP, so `r` must never enter the ratio.
-  const cli = [m('p', 2), m('p', 4), m('p', 3), m('q', 6), m('q', 8), m('r', 40), m('r', 50)];
-  const mcp = [m('p', 3), m('p', 5), m('p', 1), m('q', 6), m('q', 0, false, { usage: false })];
+  const cli = [a('p', 2, true), a('p', 4, true), a('p', 3, true), a('q', 6, true), a('q', 8, true), a('r', 40, true), a('r', 50, true)];
+  const mcp = [a('p', 3, true), a('p', 5, true), a('p', 1, true), a('q', 6, true), a('q', 0, false, { usage: false })];
   const byVariant = new Map([['burgee', cli], ['burgee-mcp', mcp]]);
   const records = armRecords(byVariant, ['p', 'q'], {}, []);
   const rec = (variant: string, metric: string): BenchRecord | undefined => records.find((r) => r.variant === variant && r.metric === metric);
@@ -735,7 +734,7 @@ describe('R3 — medians and ranges, never one run', () => {
 
   it('emits no ratio when either arm measured nothing, and nothing at all without the arm', () => {
     expect(armRecords(new Map([['burgee', cli]]), ['p', 'q'], {}, [])).toEqual([]);
-    expect(armRecords(new Map([['burgee', cli], ['burgee-mcp', [m('p', 0, false, { usage: false })]]]), ['p'], {}, []).filter((r) => r.variant === 'burgee-mcp ÷ burgee')).toEqual([]);
+    expect(armRecords(new Map([['burgee', cli], ['burgee-mcp', [a('p', 0, false, { usage: false })]]]), ['p'], {}, []).filter((r) => r.variant === 'burgee-mcp ÷ burgee')).toEqual([]);
   });
 
   it('a fixture with one reading produces no verdict record', () => {
