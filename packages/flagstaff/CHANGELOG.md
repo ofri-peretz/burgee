@@ -1,5 +1,20 @@
 # flagstaff
 
+## 1.4.0
+
+### Minor Changes
+
+- [#1054](https://github.com/ofri-peretz/burgee/pull/1054) [`b45f141`](https://github.com/ofri-peretz/burgee/commit/b45f1413f40bc775329b066af1528250cd5145f3) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `table()` takes `columns`, per-column `min` and `max` content widths, positional like `align`. A column with `max` never grows past it; a column with `min` is not narrowed below it while another column can give way, and when the mins add up past `width` the table is drawn wider rather than break them. Bounds that cannot hold (`min > max`, negative, fractional, `max` below 1) throw a `TypeError` naming the column. A table without `columns` draws exactly as before, and the static projection is unchanged.
+
+### Patch Changes
+
+- [#1045](https://github.com/ofri-peretz/burgee/pull/1045) [`c4fd9a3`](https://github.com/ofri-peretz/burgee/commit/c4fd9a3cb10bc36bef8c468365addfc6deb572cf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The family plugin schema (`schema.json`, identical in every plugin host) now describes `locales`, burgee's locale-pack key. A plugin carrying `locales` validates against the shared schema as it does against `burgee/locale-pack-schema.json`, which lists every message id. This package reads nothing new, and a plugin carrying `locales` registers here as before.
+- Updated dependencies [[`c4fd9a3`](https://github.com/ofri-peretz/burgee/commit/c4fd9a3cb10bc36bef8c468365addfc6deb572cf)]:
+  - closeout@1.1.2
+  - linegauge@1.1.1
+  - paratext@1.0.6
+  - roundel@1.1.1
+
 ## 1.3.0
 
 ### Minor Changes
