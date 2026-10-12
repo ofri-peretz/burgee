@@ -10,7 +10,7 @@ import { join } from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
-import { checkPlugin } from './check.js';
+import { type CheckRefusal, checkPlugin } from './check.js';
 import { ExitCode } from './exit-code.js';
 
 const dir = mkdtempSync(join(tmpdir(), 'burgee-check-'));
@@ -159,16 +159,17 @@ describe('burgee check reads a locale pack (R4)', () => {
     });
     const report = await checkPlugin(file);
     expect(report).toMatchObject({ refused: { code: 'E_PLUGIN_SCHEMA' }, exitCode: ExitCode.RUNTIME });
-    const { refused } = report as { refused: { message: string; fix: string; problems: { message: string; fix: string }[] } };
-    expect(refused.problems.map((p) => p.message)).toEqual([
+    const { refused } = report as CheckRefusal;
+    const problems = refused.problems ?? [];
+    expect(problems.map((p) => p.message)).toEqual([
       'plugin "pack": locales.fr["usage.nope"] is not a message burgee has',
       'plugin "pack": locales.fr["usage.unknownOption"] has {flag}, which the English "unknown option {option}" does not',
       'plugin "pack": locales.fr["usage.stdinOnce"] is missing the plural form many',
       'plugin "pack": locales.de["usage.stdinOnce"].few is not a plural form of de',
     ]);
-    expect(refused.message).toBe(`plugin "pack": 4 problems — ${refused.problems.map((p) => p.message.replace('plugin "pack": ', '')).join('; ')}`);
-    expect(refused.fix).toBe(refused.problems.map((p, i) => `${String(i + 1)}. ${p.fix}`).join(' '));
-    for (const p of refused.problems) expect(p.fix).not.toBe('');
+    expect(refused.message).toBe(`plugin "pack": 4 problems — ${problems.map((p) => p.message.replace('plugin "pack": ', '')).join('; ')}`);
+    expect(refused.fix).toBe(problems.map((p, i) => `${String(i + 1)}. ${p.fix}`).join(' '));
+    for (const p of problems) expect(p.fix).not.toBe('');
   });
 
   it('says which forms a locale selects, with a count for each, when a plural message lacks one', async () => {
@@ -179,7 +180,7 @@ describe('burgee check reads a locale pack (R4)', () => {
         fix: 'add "many" beside the others: Intl.PluralRules selects one (for 0), many (for 1000000), other (for 2) for fr — write { "one": "…", "many": "…", "other": "…" }',
       },
     });
-    expect((report as { refused: { problems?: unknown } }).refused.problems).toHaveLength(1);
+    expect((report as CheckRefusal).refused.problems).toHaveLength(1);
   });
 
   it('names the forms to keep when a plural message has one its locale does not select', async () => {
