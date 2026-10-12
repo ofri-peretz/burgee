@@ -491,6 +491,7 @@ function exitCodeOf(data: unknown): ExitCodeType {
  */
 const readsLazily = (arg: string): boolean => /^(--json=|--format=agent$|-q$|--(no-color|quiet|color|timeout)(=|$))/.test(arg);
 
+// eslint-disable-next-line maintainability/cognitive-complexity -- parse-refusals' gate is inline: as a helper it cost B4's core bundle ceiling (24,282 B) the bytes it does not have, and the branch it adds is one `if`.
 async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolved, io: Io): Promise<Outcome> {
   // N14's selection, N15's format and the R1–R3 globals are imported only when a caller typed
   // one of them (M2): every other run pays nothing for any.
@@ -522,8 +523,11 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   const { positionals, passthrough } = splitPositionals(parsed.tokens);
   // A missing argument, and parse-refusals R1/R3: a surplus positional and a flag given twice were
   // dropped, and the run reported success with the wrong input. All three are one chunk (M2), loaded
-  // only when the count of positionals is not the declared one or an option was named twice.
-  if (mayRefuse(node, positionals, parsed)) (await import('./parse-refusals.js')).refuseDropped(node, positionals, parsed.tokens);
+  // only when the count of positionals is not the declared one, or when there are more tokens than
+  // positionals, `--` tail and value keys together: parseArgs keeps one value per option it saw and is
+  // given no defaults, so an option named twice is one token more than its key (a `--` is one more
+  // too, and loads the chunk for nothing). Inline, not a helper: B4's bundle ceiling had no room for one.
+  if (positionals.length !== (node.arguments?.length ?? 0) || parsed.tokens.length > positionals.length + passthrough.length + Object.keys(parsed.values).length) (await import('./parse-refusals.js')).refuse(node, positionals, parsed);
   // M5, from its own chunk, loaded only for a deprecated command; `--quiet` silences it (R2).
   if (node.deprecated) (await import('./deprecation.js')).warnDeprecated(node, io, global?.quiet);
   await manifest.fire('preRun', name, values);
@@ -538,15 +542,6 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   const changed = changedOf(node, data);
   const selected = fields === undefined || select === undefined ? data : select.selectFields(data, fields);
   return { json, lines, data: selected, provenance, ...(changed === undefined ? {} : { changed }) };
-}
-
-/**
- * Whether `parse-refusals.js` has anything to read: fewer or more positionals than declared, or an
- * option token more than once. parseArgs keeps one value per option it saw and is given no
- * defaults, so a repeat is exactly more option tokens than value keys: no scan for one.
- */
-function mayRefuse(node: CommandNode, positionals: string[], parsed: { tokens: readonly Token[]; values: object }): boolean {
-  return positionals.length !== (node.arguments?.length ?? 0) || parsed.tokens.filter((t) => t.kind === 'option').length > Object.keys(parsed.values).length;
 }
 
 /** Success: help, or the data on the requested surface. */

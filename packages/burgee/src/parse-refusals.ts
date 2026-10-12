@@ -24,7 +24,7 @@ import { UsageError } from './validate.js';
  * config never conflicts with one: precedence decides that. Last first: the value the line ends
  * on is the one kept, and each earlier one that differs is named against it.
  */
-export function refuseDropped(node: CommandNode, positionals: readonly string[], tokens: readonly Token[]): void {
+export function refuse(node: CommandNode, positionals: readonly string[], { tokens }: { tokens: readonly Token[] }): void {
   const declared = node.arguments ?? [];
   // Defined exactly when fewer positionals were typed than are required: the first one missing.
   const missing = declared.filter((a) => a.required !== false && a.variadic !== true)[positionals.length];
