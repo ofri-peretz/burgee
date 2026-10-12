@@ -157,8 +157,10 @@ jobs:
           fi
           # A `hold` on the Version PR pauses the release: that is how one is held. `--auto` on a PR
           # that is already mergeable merges at once rather than arming, so the label is read first.
-          if gh pr view "$PR" --json labels --jq '[.labels[].name]|any(.=="hold" or .=="do-not-merge" or .=="wip")' | grep -qx true; then
-            echo "::notice::Version PR #$PR is held (hold, do-not-merge or wip); not arming auto-merge."
+          # Fail closed: labels that cannot be read count as held.
+          HELD=$(gh pr view "$PR" --json labels --jq '[.labels[].name]|any(.=="hold" or .=="do-not-merge" or .=="wip")') || HELD=true
+          if [ "$HELD" = true ]; then
+            echo "::notice::Version PR #$PR is held (hold, do-not-merge or wip, or its labels could not be read); not arming auto-merge."
           else
             gh pr merge "$PR" --auto --squash || \
               echo "::warning::gh pr merge --auto returned non-zero. Is auto-merge enabled in Settings → General?"
@@ -282,8 +284,10 @@ jobs:
           # the moment the last status lands. That merge raised no runs either, so it is
           # handled exactly like ours: the post-merge runs below still have to be started.
           # A `hold` on the Version PR pauses the release: that is how one is held.
-          if gh pr view "$PR" --json labels --jq '[.labels[].name]|any(.=="hold" or .=="do-not-merge" or .=="wip")' | grep -qx true; then
-            echo "::notice::Version PR #$PR is held (hold, do-not-merge or wip); not merging it."
+          # Fail closed: labels that cannot be read count as held.
+          HELD=$(gh pr view "$PR" --json labels --jq '[.labels[].name]|any(.=="hold" or .=="do-not-merge" or .=="wip")') || HELD=true
+          if [ "$HELD" = true ]; then
+            echo "::notice::Version PR #$PR is held (hold, do-not-merge or wip, or its labels could not be read); not merging it."
           else
             if ! gh pr merge "$PR" --squash; then
               if [ "$(gh pr view "$PR" --json state --jq .state)" != "MERGED" ]; then

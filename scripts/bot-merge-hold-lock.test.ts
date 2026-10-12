@@ -15,7 +15,7 @@
  * instead of arming auto-merge, so the label never got a say.
  *
  * Every `gh pr merge` in `.github/workflows` must sit in the `else` of one shared guard that reads
- * the PR's labels first. Each guarded block is lifted out of the parsed workflow and run under
+ * the PR's labels first, and holds when it cannot read them. Each guarded block is lifted out of the parsed workflow and run under
  * `bash` with `gh` stubbed: held, it must make no `pr merge` call; not held, it must make one, which
  * proves the block lifted out is the one that merges. `gh pr merge --disable-auto` is not a merge.
  */
@@ -32,9 +32,13 @@ import { describe, expect, it } from 'vitest';
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const WORKFLOWS = join(REPO_ROOT, '.github/workflows');
 
-/** The shared guard: the PR's labels, true when any of them says "do not merge". */
+/**
+ * The shared guard: the PR's labels, true when any of them says "do not merge". It fails closed: when
+ * `gh` cannot read the labels, `HELD` is `true`, so a transient API error holds rather than merges.
+ */
 const GUARD =
-  /^\s*if gh pr view "\$(\w+)" --json labels --jq '\[\.labels\[\]\.name\]\|any\(\.=="hold" or \.=="do-not-merge" or \.=="wip"\)' \| grep -qx true; then$/;
+  /^\s*HELD=\$\(gh pr view "\$(\w+)" --json labels --jq '\[\.labels\[\]\.name\]\|any\(\.=="hold" or \.=="do-not-merge" or \.=="wip"\)'\) \|\| HELD=true$/;
+const GUARD_IF = /^\s*if \[ "\$HELD" = true \]; then$/;
 
 interface Step {
   name?: string;
@@ -83,6 +87,7 @@ function guardedBlock(site: MergeSite): { block: string; variable: string } | st
   while (at >= 0 && !GUARD.test(lines[at]!)) at--;
   if (at < 0) return 'no label guard before it';
   const indent = /^\s*/.exec(lines[at]!)![0];
+  if (!GUARD_IF.test(lines[at + 1] ?? '') || !lines[at + 1]!.startsWith(`${indent}if`)) return 'the label guard is not followed by `if [ "$HELD" = true ]`';
   const elseAt = lines.findIndex((l, i) => i > at && l === `${indent}else`);
   const fiAt = lines.findIndex((l, i) => i > at && l === `${indent}fi`);
   if (fiAt < site.line) return 'the nearest label guard closes before it';
@@ -90,7 +95,7 @@ function guardedBlock(site: MergeSite): { block: string; variable: string } | st
   return { block: lines.slice(at, fiAt + 1).join('\n'), variable: GUARD.exec(lines[at]!)![1]! };
 }
 
-function runBlock(block: string, variable: string, labels: string[]): { calls: string[]; status: number; output: string } {
+function runBlock(block: string, variable: string, labels: string[] | 'error'): { calls: string[]; status: number; output: string } {
   const dir = mkdtempSync(join(tmpdir(), 'bot-merge-hold-'));
   const bin = join(dir, 'bin');
   mkdirSync(bin);
@@ -102,6 +107,7 @@ function runBlock(block: string, variable: string, labels: string[]): { calls: s
       '#!/usr/bin/env bash',
       'printf "%s\\n" "$*" >> "$GH_LOG"',
       'if [ "$1 $2" = "pr view" ]; then',
+      '  if [ "$LABELS" = ERROR ]; then echo "HTTP 502: Bad Gateway" >&2; exit 1; fi',
       '  for ((i = 1; i <= $#; i++)); do if [ "${!i}" = "--jq" ]; then j=$((i + 1)); expr="${!j}"; fi; done',
       '  printf "%s" "$LABELS" | jq -r "$expr"; exit 0',
       'fi',
@@ -120,7 +126,7 @@ function runBlock(block: string, variable: string, labels: string[]): { calls: s
       HOME: dir,
       GH_LOG: log,
       GITHUB_STEP_SUMMARY: join(dir, 'summary'),
-      LABELS: JSON.stringify({ labels: labels.map((name) => ({ name })) }),
+      LABELS: labels === 'error' ? 'ERROR' : JSON.stringify({ labels: labels.map((name) => ({ name })) }),
       BREACHED: 'false',
       SOURCE: 'pat',
       [variable]: variable === 'PR' ? '1049' : 'chore/rolling',
@@ -156,6 +162,14 @@ describe('every `gh pr merge` in .github/workflows', () => {
         expect(r.calls.filter((c) => c.startsWith('pr merge')), r.output).toEqual([]);
       });
     }
+
+    executes('makes no merge call when the labels cannot be read', () => {
+      const g = guardedBlock(site);
+      if (typeof g === 'string') throw new Error(`unguarded: ${g}`);
+      const r = runBlock(g.block, g.variable, 'error');
+      expect(r.status, r.output).toBe(0);
+      expect(r.calls.filter((c) => c.startsWith('pr merge')), r.output).toEqual([]);
+    });
 
     executes('still merges a PR that is not held', () => {
       const g = guardedBlock(site);

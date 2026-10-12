@@ -107,8 +107,10 @@ jobs:
           fi
           # A held PR (hold, do-not-merge, wip) is left alone: on a PR that is already mergeable,
           # `--auto` merges at once rather than arming, which is how #1049, #1050 and #1055 merged.
-          if gh pr view "$BRANCH" --json labels --jq '[.labels[].name]|any(.=="hold" or .=="do-not-merge" or .=="wip")' | grep -qx true; then
-            echo "::notice::$BRANCH is held (hold, do-not-merge or wip); not arming auto-merge."
+          # Fail closed: labels that cannot be read count as held.
+          HELD=$(gh pr view "$BRANCH" --json labels --jq '[.labels[].name]|any(.=="hold" or .=="do-not-merge" or .=="wip")') || HELD=true
+          if [ "$HELD" = true ]; then
+            echo "::notice::$BRANCH is held (hold, do-not-merge or wip, or its labels could not be read); not arming auto-merge."
           else
             [ "$BREACHED" = "true" ] || gh pr merge --auto --squash "$BRANCH" || true
           fi
