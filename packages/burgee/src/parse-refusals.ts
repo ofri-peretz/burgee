@@ -5,10 +5,11 @@
  */
 
 /**
- * parse-refusals R1–R4 — input a native command would otherwise drop, refused.
+ * parse-refusals R1–R4 — input a native command would otherwise drop, refused, and the missing
+ * argument check that was always beside them.
  *
- * Imported by `execute.ts` only when argv holds more positionals than the command declares or
- * names one option twice (M2), so a line that can be neither pays nothing for this. Both drops
+ * Imported by `execute.ts` only when argv holds a different count of positionals than the command
+ * declares or names one option twice (M2), so a line that can be none of these pays nothing. Both drops
  * reached an agent as exit 0 with the wrong input, and nothing in a success triggers a retry.
  */
 import { type Token } from './execute.js';
@@ -47,23 +48,23 @@ interface Edit {
  */
 // eslint-disable-next-line maintainability/max-parameters -- `typed` beside `rest` is how this chunk knows its offsets are the line's; an options object would cost the startup path that calls it.
 export function refuseDropped(node: CommandNode, positionals: readonly string[], tokens: readonly Token[], rest: readonly string[], typed: readonly string[]): void {
+  requirePositionals(node, positionals);
   const omit: number[] = [];
   const edit: Edit = { omit, runnable: rest.length === typed.length, words: (index, count) => void omit.push(...[rest.length - index, rest.length - index - 1].slice(0, count)) };
   // Both read, whichever is named: the `fix` has to leave out every word either would drop.
   const extra = surplus(node, positionals, tokens, edit);
-  const message = repeated(node, tokens, rest, edit);
-  if (extra !== undefined) throw new Dropped(extra, edit.runnable ? omit : undefined);
-  if (message !== undefined) throw new Dropped(message, edit.runnable ? omit : undefined);
+  const message = repeated(node, tokens, rest, edit) ?? extra;
+  if (message !== undefined) throw new Dropped(extra ?? message, edit.runnable ? omit : undefined);
 }
 
 /** R1 — the positionals past the declared arguments, named, unless the last is variadic or the command takes the excess (R2). */
 function surplus(node: CommandNode, positionals: readonly string[], tokens: readonly Token[], edit: Edit): string | undefined {
   const declared = node.arguments ?? [];
   const extra = node.allowExcess === true || declared.at(-1)?.variadic === true ? [] : positionals.slice(declared.length);
+  if (extra.length === 0) return undefined;
   // Positionals before `--` are the ones counted; the surplus is their tail, so it is the last of them.
-  const counted = tokens.filter((word) => word.kind === 'positional').slice(declared.length, positionals.length);
-  for (const word of extra.length === 0 ? [] : counted) edit.words(word.index, 1);
-  return extra.length === 0 ? undefined : `too many arguments: expected ${String(declared.length)}, got ${String(positionals.length)} (${extra.map((w) => `"${w}"`).join(', ')})`;
+  for (const word of tokens.filter((t) => t.kind === 'positional').slice(declared.length, positionals.length)) edit.words(word.index, 1);
+  return `too many arguments: expected ${String(declared.length)}, got ${String(positionals.length)} (${extra.map((w) => `"${w}"`).join(', ')})`;
 }
 
 /**
@@ -94,4 +95,17 @@ function repeated(node: CommandNode, tokens: readonly Token[], rest: readonly st
 function spelled(flag: OptionToken, word: string | undefined): boolean {
   if (flag.inlineValue !== true) return Object.is(word, flag.rawName);
   return word?.startsWith(flag.rawName) === true && word.endsWith(String(flag.value));
+}
+
+/**
+ * A declared, required positional that argv did not supply is a usage error naming it, as on
+ * both hosts. No hint: the refusal already prints the command's usage line (`failure.js`), so
+ * "run --help to see what it takes" sent the reader for a page it was already holding. Here, off
+ * the startup path, since parse-refusals: `execute.ts` loads this chunk whenever the count is off.
+ */
+function requirePositionals(node: CommandNode, positionals: readonly string[]): void {
+  const required = (node.arguments ?? []).filter((a) => a.required !== false && a.variadic !== true);
+  // Defined exactly when fewer positionals were typed than are required: the first one missing.
+  const missing = required[positionals.length];
+  if (missing !== undefined) throw new UsageError(`missing required argument "${missing.name}"`);
 }

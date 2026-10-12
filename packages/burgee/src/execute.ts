@@ -96,11 +96,7 @@ export interface Command<S extends OptionSpecs = OptionSpecs, O extends CommandO
    * describes; without one, anything.
    */
   output?: O;
-  /**
-   * parse-refusals R2 — take positionals past the declared arguments into `ctx.positionals`, as a
-   * command that forwards its tail to a child process does. Without it, a surplus word is a usage
-   * error naming it (R1); `--schema` says `excess: true` for a command that takes them.
-   */
+  /** Pass positionals past the declared ones to the handler instead of refusing them. */
   allowExcess?: boolean;
   /** Absent on a group that only holds subcommands. `NoInfer`: the spec fixes S, the handler only reads it. */
   run?: (ctx: CommandContext<InferOptions<NoInfer<S>>>) => Returns<NoInfer<O>>;
@@ -512,11 +508,6 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   if (flags.help === true) return { json, text: await (await import('./surfaces.js')).helpFor(manifest, node, io, { json, color: global?.color }) };
   if (flags.version === true) return { json, text: `${(await import('./surfaces.js')).versionOf(manifest, io)}\n` };
 
-  // parse-refusals R1/R3 — a surplus positional and a flag given twice were dropped, and the run
-  // reported success with the wrong input. The check is its own chunk (M2), loaded only when argv
-  // holds more positionals than declared or names one option twice; it throws before anything runs.
-  const { positionals, passthrough } = splitPositionals(parsed.tokens);
-  if (mayDrop(node, positionals, parsed.tokens)) (await import('./parse-refusals.js')).refuseDropped(node, positionals, parsed.tokens, rest, typed);
   const resolved = await resolveValues(manifest, node.options, flags, io, parsed.tokens);
   if (resolved.explainText !== undefined) return { json, text: resolved.explainText };
   const { provenance } = resolved;
@@ -528,7 +519,11 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   const relations = relationsOf(node);
   if (relations.length > 0) (await import('./relations.js')).checkRelations(relations, resolved.values, provenance);
   const values = await coerce(node.options, resolved.values);
-  requirePositionals(node, positionals);
+  const { positionals, passthrough } = splitPositionals(parsed.tokens);
+  // A missing argument, and parse-refusals R1/R3: a surplus positional and a flag given twice were
+  // dropped, and the run reported success with the wrong input. All three are one chunk (M2), loaded
+  // only when the count of positionals is not the declared one or an option was named twice.
+  if (mayRefuse(node, positionals, parsed)) (await import('./parse-refusals.js')).refuseDropped(node, positionals, parsed.tokens, rest, typed);
   // M5, from its own chunk, loaded only for a deprecated command; `--quiet` silences it (R2).
   if (node.deprecated) (await import('./deprecation.js')).warnDeprecated(node, io, global?.quiet);
   await manifest.fire('preRun', name, values);
@@ -546,27 +541,12 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
 }
 
 /**
- * parse-refusals R1/R3 — more positionals than declared with no variadic last to take them, or one
- * option named twice: what `parse-refusals.js` reads. A variadic command's ordinary run loads nothing.
+ * Whether `parse-refusals.js` has anything to read: fewer or more positionals than declared, or an
+ * option token more than once. parseArgs keeps one value per option it saw and is given no
+ * defaults, so a repeat is exactly more option tokens than value keys: no scan for one.
  */
-function mayDrop(node: CommandNode, positionals: string[], tokens: readonly Token[]): boolean {
-  const named = tokens.map((t) => t.kind === 'option' && t.name);
-  const args = node.arguments ?? [];
-  return (positionals.length > args.length && args.at(-1)?.variadic !== true) || named.some((n, i) => n !== false && named.indexOf(n) < i);
-}
-
-/**
- * A declared, required positional that argv did not supply is a usage error naming it, as on
- * both hosts. No hint: the refusal already prints the command's usage line (`failure.js`), so
- * "run --help to see what it takes" sent the reader for a page it was already holding.
- */
-function requirePositionals(node: CommandNode, positionals: string[]): void {
-  const required = (node.arguments ?? []).filter((a) => a.required !== false && a.variadic !== true);
-  // Defined exactly when fewer positionals were typed than are required: the first one missing.
-  const missing = required[positionals.length];
-  if (missing !== undefined) {
-    throw new UsageError(`missing required argument "${missing.name}"`);
-  }
+function mayRefuse(node: CommandNode, positionals: string[], parsed: { tokens: readonly Token[]; values: object }): boolean {
+  return positionals.length !== (node.arguments?.length ?? 0) || parsed.tokens.filter((t) => t.kind === 'option').length > Object.keys(parsed.values).length;
 }
 
 /** Success: help, or the data on the requested surface. */

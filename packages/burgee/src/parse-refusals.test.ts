@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 
 import { runCommand } from './execute.js';
 import { defineCommand, defineProgram, ExitCode } from './index.js';
+import { type Plugin } from './plugin.js';
 
 const seen: unknown[] = [];
 
@@ -118,5 +119,20 @@ describe('R4 — the fix line is omitted rather than guessed', () => {
 
   it('is absent when a global flag left the words the parser read', async () => {
     expect(await fixOf('greet', 'ada', 'extra', '--quiet')).toBeUndefined();
+  });
+});
+
+describe('both refusals are catalog lines a locale pack translates (localised-human-surfaces R1)', () => {
+  it('prints the pack’s words for each, and the envelope stays English', async () => {
+    const translated = defineProgram({ name: 'demo', commands: [defineCommand({ name: 'greet', effects: 'read_only', arguments: [{ name: 'who' }], options: { level: { type: 'string' } }, run: () => 'hi' })] });
+    translated.use({
+      name: 'pack',
+      contract: 1,
+      locales: { de: { 'usage.tooManyArguments': 'zu viele Argumente: erwartet {expected}, erhalten {given} ({words})', 'usage.givenTwice': '--{option} wurde zweimal angegeben: "{first}" und "{last}"' } },
+    } as Plugin);
+    const env = { BURGEE_LOCALE: 'de' };
+    expect((await runCommand(translated, ['greet', 'ada', 'extra'], { env })).stderr).toContain('zu viele Argumente: erwartet 1, erhalten 2 ("extra")');
+    expect((await runCommand(translated, ['greet', 'ada', '--level', 'a', '--level', 'b'], { env })).stderr).toContain('--level wurde zweimal angegeben: "a" und "b"');
+    expect(JSON.parse((await runCommand(translated, ['greet', 'ada', 'extra', '--json'], { env })).stdout)).toMatchObject({ error: { message: 'too many arguments: expected 1, got 2 ("extra")' } });
   });
 });

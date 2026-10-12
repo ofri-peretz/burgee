@@ -189,6 +189,16 @@
             }
           ]
         },
+        "usage.tooManyArguments": {
+          "description": "too many arguments: expected {expected}, got {given} ({words})",
+          "type": "string",
+          "pattern": "^(?:[^{]|\\{(?:expected|given|words)\\}|\\{(?!\\w+\\}))*$"
+        },
+        "usage.givenTwice": {
+          "description": "--{option} was given twice: \"{first}\" and \"{last}\"",
+          "type": "string",
+          "pattern": "^(?:[^{]|\\{(?:option|first|last)\\}|\\{(?!\\w+\\}))*$"
+        },
         "config.noVersion": {
           "description": "no version declared",
           "type": "string",
