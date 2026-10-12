@@ -16,10 +16,11 @@ import { fileURLToPath } from 'node:url';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { failureText, PAIRS, resolvePairs, ROUNDS, runtimeRecord, type Sample, sample, workloadEnv } from './axes/runtime.js';
+import { CONFIRM_PROCESSES, failureText, measurePair, PAIRS, resolvePairs, ROUNDS, runtimeRecord, type Sample, sample, workloadEnv } from './axes/runtime.js';
 import manifest from './package.json' with { type: 'json' };
 import { verdict } from './run.js';
 import { readRuntimeRatchets } from './runtime-ratchets.js';
+import { round } from './stats.js';
 
 const declared: Record<string, string> = { ...manifest.dependencies, ...manifest.devDependencies };
 const FIXTURES = fileURLToPath(new URL('fixtures/runtime/', import.meta.url));
@@ -166,5 +167,75 @@ describe('bellpull R8: spawn time at or under tinyexec', () => {
   it('goes red the moment bellpull spawns slower than tinyexec', () => {
     expect(verdict([runtimeRecord(pair, at(1.01))])).toBe(1);
     expect(runtimeRecord(pair, at(1.01)).detail?.['met']).toBe(false);
+  });
+});
+
+/** A fake process whose rounds read these ratios, in order. */
+const proc = (...ratios: number[]): Sample => ({ ours: ratios.map((r) => r * 1000), theirs: ratios.map(() => 1000), n: 1 });
+/** A sampler that hands out these processes one per call, and counts the calls. */
+const series = (...procs: Sample[]) => {
+  let i = 0;
+  const take = (): Sample => {
+    const s = procs[i++];
+    if (s === undefined) throw new Error(`the series has ${String(procs.length)} process(es); a call asked for one more`);
+    return s;
+  };
+  return { take, calls: () => i };
+};
+
+/**
+ * The verdict on a series, not on a reading (D-20261012-runtime-ratio-gate-median). On
+ * 2026-10-12 two PRs that could not have moved their pair went red: `bellpull ÷ tinyexec` 1.002
+ * on #1043 and `roundel/chalk ÷ chalk` 1.399 on #1070, a docs-only PR, both on a saturated
+ * runner. One process's median was the verdict, and load that lands on a whole process lands on
+ * every round in it. Now a reading over the ceiling buys a confirm round of `CONFIRM_PROCESSES`
+ * more fresh processes, and the verdict is the median of every paired ratio from all of them.
+ * These drive that logic on synthetic series, one fake process per array.
+ */
+describe('the verdict, on a series of processes', () => {
+  const chalk = PAIRS.find((p) => p.id === 'roundel/chalk') as (typeof PAIRS)[number];
+  const ceiling = readRuntimeRatchets().ratchets['roundel/chalk']?.ceiling as number;
+  const under = ceiling * 0.95;
+  const over = ceiling * 1.04;
+
+  beforeEach(() => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('noise only: one process spikes over the ceiling, the rest of the series sits under it, and the gate passes', () => {
+    const s = series(proc(over, over, over), proc(under, under, under), proc(under, under, under));
+    const r = measurePair(chalk, 3, s.take);
+    expect(verdict([r])).toBe(0);
+    expect(r.median).toBeLessThanOrEqual(ceiling);
+    expect(r.detail).toMatchObject({ confirmFirst: round(over, 3), confirmProcesses: 1 + CONFIRM_PROCESSES });
+  });
+
+  it('a genuine 10% regression: every pair over the ceiling, in every process, and the gate fails', () => {
+    const regressed = ceiling * 1.1;
+    const s = series(...Array.from({ length: 1 + CONFIRM_PROCESSES }, () => proc(regressed, regressed, regressed)));
+    const r = measurePair(chalk, 3, s.take);
+    expect(verdict([r])).toBe(1);
+    expect(r.median).toBeCloseTo(regressed, 2);
+  });
+
+  it('borderline: the median of the pooled pairs decides, whichever way it falls', () => {
+    // Nine pairs: five over and four under fails; four over and five under passes.
+    const fails = series(proc(over, over, under), proc(over, under, over), proc(under, over, under));
+    expect(verdict([measurePair(chalk, 3, fails.take)])).toBe(1);
+    const passes = series(proc(over, over, under), proc(over, under, under), proc(under, over, under));
+    expect(verdict([measurePair(chalk, 3, passes.take)])).toBe(0);
+  });
+
+  it('pays for a confirm round only when the first reading is over, and then a bounded one', () => {
+    const quiet = series(proc(under, under, under));
+    expect(measurePair(chalk, 3, quiet.take).detail?.['confirmFirst']).toBeUndefined();
+    expect(quiet.calls()).toBe(1);
+    const spiked = series(proc(over, over, over), proc(under, under, under), proc(under, under, under));
+    measurePair(chalk, 3, spiked.take);
+    expect(spiked.calls()).toBe(1 + CONFIRM_PROCESSES);
   });
 });
