@@ -5,5 +5,6 @@
   "setup": [],
   "check": "grep -qi 'ada' \"$BENCH_RESULT\" && grep -q '{' \"$BENCH_RESULT\"",
   "maxTurns": 12,
-  "exemplar": "I ran `demo config get user.name --json`, which printed {\"ok\":true,\"data\":\"ada\"}, so the value is ada."
+  "modalities": ["cli", "mcp"],
+  "exemplar": "The value is ada. The JSON was {\"ok\":true,\"data\":\"ada\"}."
 }
