@@ -697,6 +697,48 @@ describe.skipIf(!isPosix())('R2 — a `burgee-mcp` variant', () => {
   });
 });
 
+/**
+ * A `claude` that passes on the CLI arms and fails every MCP run: the MCP arm has failure modes
+ * the CLI arms do not (a config, a stdio server, two flags `claude` must accept together).
+ */
+function mcpOnlyFailingClaude(): string {
+  const dir = mkdtempSync(join(tmpdir(), 'stub-claude-mcpfail-'));
+  const bin = join(dir, 'claude');
+  writeFileSync(
+    bin,
+    `#!/bin/sh\nif [ "$1" = --version ]; then echo '9.9.9 (Claude Code)'; exit 0; fi\ncase "$*" in *--mcp-config*) printf '{"type":"result","is_error":true,"num_turns":1,"usage":{},"result":"MCP server failed to start"}'; exit 1;; esac\nprintf '{"type":"result","is_error":false,"num_turns":2,"usage":{"input_tokens":500,"output_tokens":100},"result":"ada"}'\n`,
+  );
+  chmodSync(bin, EXECUTABLE);
+  return bin;
+}
+
+describe.skipIf(!isPosix())('an MCP arm that fails every run', () => {
+  it('keeps the week\'s CLI readings, and records the arm\'s failure without a ratio', () => {
+    const out = run({
+      variants: [
+        { id: 'burgee', bin: stubMcpBin(), floor: true },
+        { id: 'commander', bin: stubMcpBin(), floor: false },
+        { id: 'burgee-mcp', bin: stubMcpBin(), floor: true, modality: 'mcp' },
+      ],
+      env: { ...process.env, CLAUDE_CODE_OAUTH_TOKEN: 'stub' },
+      runs: 1,
+      model: 'm',
+      timeoutMs: 30_000,
+      tasks: [MCP_TASK],
+      claudeBin: mcpOnlyFailingClaude(),
+      readings: [],
+    });
+    if (!('records' in out)) throw new Error(`the CLI readings were discarded: ${out.reason}`);
+    expect(out.records.find((r) => r.variant === 'burgee ÷ commander' && r.metric === 'tokens-total-ratio')?.median).toBe(1);
+    const arm = out.records.find((r) => r.variant === 'burgee-mcp' && r.metric === 'success-rate');
+    expect(arm).toMatchObject({ median: 0, samples: 1 });
+    // Ungated, so `--check` stays green and the CLI reading lands; the reason is on the record.
+    expect(arm?.gate).toBeUndefined();
+    expect(arm?.note).toContain('every one of the 1 burgee-mcp task-runs failed');
+    expect(out.records.some((r) => r.variant === 'burgee-mcp ÷ burgee')).toBe(false);
+  });
+});
+
 /** One reading's `burgee-mcp ÷ burgee` ratio, the shape a landed results file carries. */
 const reading = (ratio: number, i: number): Reading => ({ file: `2026-10-${String(13 + 7 * i).padStart(2, '0')}-abc${String(i)}def-weekly-ci.json`, ratio });
 

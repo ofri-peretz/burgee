@@ -980,6 +980,34 @@ function invocationDetail(model: string, claudeBin: string): Detail {
   return { model, claude: version, claudePinned: pinned !== '' && version.includes(pinned), env: AGENT_ENV_RULE };
 }
 
+/** A success rate of 0 with the reason, ungated: `--check` stays green so the CLI arms' reading lands. */
+function armFailed(variant: Variant, attempts: readonly Attempt[], detail: Detail): BenchRecord {
+  const reason = nothingCameBack(variant, attempts, String(detail['claude']));
+  console.error(`\n⚠ ${reason}`);
+  return { axis: 'agent', variant: variant.id, metric: 'success-rate', unit: 'ratio', samples: attempts.length, median: 0, p95: 0, note: reason, detail: { ...detail, failed: attempts.length, ...perTaskDetail(attempts) } };
+}
+
+/** Every build in turn: its records, or the reason the axis measured nothing. */
+function sweepAll(variants: readonly Variant[], common: Omit<Sweep, 'variant'>, detail: Detail): { records: BenchRecord[]; byVariant: Map<VariantId, Attempt[]> } | { reason: string } {
+  const records: BenchRecord[] = [];
+  const byVariant = new Map<VariantId, Attempt[]>();
+  for (const variant of variants) {
+    const attempts = sweep({ variant, ...common });
+    if (!attempts.some((a) => a.success)) {
+      // The MCP arm has failure modes the CLI arms do not (its config, a stdio server, two flags
+      // `claude` must accept together). Its failing every run is a broken arm, not a reading of
+      // nothing, so the week's CLI readings still land: the arm leaves an ungated record saying
+      // why, and no ratio, so a lost week never counts toward the verdict.
+      if (variant.modality !== 'mcp') return { reason: nothingCameBack(variant, attempts, String(detail['claude'])) };
+      records.push(armFailed(variant, attempts, detail));
+      continue;
+    }
+    byVariant.set(variant.id, attempts);
+    records.push(...variantRecords(variant.id, attempts, detail));
+  }
+  return { records, byVariant };
+}
+
 export function run(options: AgentOptions = {}): { records: BenchRecord[] } | { reason: string } {
   const variants = options.variants ?? variantsFor(options.env ?? process.env);
   const claudeBin = options.claudeBin ?? defaultClaudeBin();
@@ -990,14 +1018,9 @@ export function run(options: AgentOptions = {}): { records: BenchRecord[] } | { 
   const transcriptDir = options.transcriptDir ?? (env['BENCH_AGENT_TRANSCRIPTS'] || undefined);
   const common = { tasks: options.tasks ?? readTasks(), runs: options.runs ?? RUNS_PER_TASK, claudeBin, model, timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS, env, transcriptDir };
   const detail = invocationDetail(model, claudeBin);
-  const records: BenchRecord[] = [];
-  const byVariant = new Map<VariantId, Attempt[]>();
-  for (const variant of variants) {
-    const attempts = sweep({ variant, ...common });
-    if (!attempts.some((a) => a.success)) return { reason: nothingCameBack(variant, attempts, String(detail['claude'])) };
-    byVariant.set(variant.id, attempts);
-    records.push(...variantRecords(variant.id, attempts, detail));
-  }
+  const swept = sweepAll(variants, common, detail);
+  if ('reason' in swept) return swept;
+  const { records, byVariant } = swept;
   records.push(...ratioRecords(byVariant, detail), ...totalRecords(byVariant, detail));
   const mapped = tasksFor('mcp', common.tasks).map((t) => t.id);
   records.push(...armRecords(byVariant, mapped, detail, options.readings ?? priorReadings()));
