@@ -250,3 +250,112 @@ describe('theme seam (R7; roundel used without being imported)', () => {
     expect(plain.stdout).toBe(renderHelp(program, deploy, { width: 100, globals: globalRows(deploy) }));
   });
 });
+
+interface Inventory {
+  sections: [string, string[]][];
+  examples: string[];
+}
+/** The terminal screen read back: each heading, the terms under it, and every `$ example`. */
+const fromText = (text: string): Inventory => {
+  const out: Inventory = { sections: [], examples: [] };
+  for (const l of text.split('\n')) {
+    if (/^[A-Z][^:]*:$/.test(l)) out.sections.push([l, []]);
+    else if (l.startsWith('  $ ')) out.examples.push(l.slice(4));
+    else if (/^ {2}\S/.test(l)) out.sections.at(-1)?.[1].push(l.trim().split(/ {2,}/)[0] as string);
+  }
+  return { ...out, sections: out.sections.filter(([t]) => t !== 'Examples:') };
+};
+/** The Markdown read back the same way: `## Heading`, a table row's first cell, a fenced line. */
+const fromMarkdown = (md: string): Inventory => {
+  const out: Inventory = { sections: [], examples: [] };
+  let fenced = false;
+  let heading = '';
+  for (const l of md.split('\n')) {
+    if (l.startsWith('```')) fenced = !fenced;
+    else if (fenced && heading === 'Examples:') out.examples.push(l);
+    else if (l.startsWith('## ')) out.sections.push([(heading = `${l.slice(3)}:`), []]);
+    else if (l.startsWith('| `')) out.sections.at(-1)?.[1].push((/^\| `([^`]*)`/u.exec(l) as RegExpExecArray)[1] as string);
+  }
+  return { ...out, sections: out.sections.filter(([t]) => t !== 'Examples:' && t !== 'Usage:') };
+};
+
+/**
+ * agent-skill R1 — help as Markdown is a second layout of the same section list, so the two
+ * targets cannot list different things. Held on the demo's shape, at the root as the engine hands
+ * it over (its `completion`, the exit codes, the commands' first examples) and at every command.
+ */
+describe('help renders as Markdown, from the same sections (agent-skill R1)', () => {
+  const demo = defineProgram({
+    name: 'demo',
+    description: 'The burgee reference demo',
+    commands: [
+      defineCommand({
+        name: 'greet',
+        description: 'Greet someone',
+        effects: 'read_only',
+        arguments: [{ name: 'name', description: 'who to greet', required: true }],
+        examples: [{ command: 'demo greet ada --shout', description: 'greet ada, loudly' }],
+        options: {
+          shout: { type: 'boolean', description: 'uppercase the greeting' },
+          greeting: { type: 'string', description: 'the greeting word', env: 'DEMO_GREETING', default: 'Hello' },
+        },
+        run: ok,
+      }),
+      defineCommand({
+        name: 'config',
+        description: 'Read configuration',
+        commands: [defineCommand({ name: 'get', description: 'Print one configuration value', effects: 'read_only', arguments: [{ name: 'key', description: 'dotted key', required: true }], examples: [{ command: 'demo config get user.name --json', description: 'one value, as the --json envelope' }], run: ok })],
+      }),
+      defineCommand({ name: 'fail', description: 'Fail on purpose | on cue', effects: 'idempotent', options: { code: { type: 'string', description: 'exit with this E1 code' } }, examples: [{ command: 'demo fail --code 3' }], run: ok }),
+    ],
+  });
+  const at = (path: string[]): CommandNode => demo.find(path) as CommandNode;
+  const top = at(['demo']);
+  /** What `surfaces.ts` hands the renderer at the root, and at a command. */
+  const engine = (n: CommandNode): { node: CommandNode; opts: { commands: CommandNode[]; globals: { term: string; text: string }[] } } => {
+    const atRoot = n.path.length === 1;
+    const commands = [...listed(demo, n), ...(atRoot ? [completionNode(demo) as CommandNode, ...exitRows(demo.rootPath)] : [])];
+    return { node: atRoot ? { ...n, examples: rootExamples(demo, n) } : n, opts: { commands, globals: globalRows(n) } };
+  };
+
+  for (const path of [['demo'], ['demo', 'greet'], ['demo', 'config'], ['demo', 'config', 'get'], ['demo', 'fail']]) {
+    it(`${path.join(' ')}: the Markdown lists the commands, options and examples the screen does`, async () => {
+      const { node, opts } = engine(at(path));
+      const text = renderHelp(demo, node, { width: 100, ...opts });
+      const md = await renderHelp(demo, node, { ...opts, format: 'markdown' });
+      expect(fromMarkdown(md)).toEqual(fromText(text));
+      expect(fromText(text).sections.length).toBeGreaterThan(0);
+      expect(md.startsWith(`# ${path.join(' ')}\n`)).toBe(true);
+    });
+  }
+
+  it('lays out a heading, a usage block, tables and fenced examples, with the exit-code table at the root', async () => {
+    const { node, opts } = engine(top);
+    const md = await renderHelp(demo, node, { ...opts, format: 'markdown' });
+    expect(md).toContain('## Usage\n\n```sh\ndemo <command> [options]\n```\n');
+    expect(md).toContain('## Exit codes\n\n| Term | Description |\n| :-- | :-- |\n| `0` | ok: the command completed |\n');
+    expect(md).toContain('| `fail` | Fail on purpose \\| on cue |');
+    expect(md).toContain('greet ada, loudly\n\n```sh\ndemo greet ada --shout\n```\n');
+    expect(md).toContain('\nFor agents: --schema');
+    expect(md.endsWith('\n') && !md.endsWith('\n\n')).toBe(true);
+  });
+
+  it('a mutation that drops a section from one target is caught', async () => {
+    const { node, opts } = engine(at(['demo', 'greet']));
+    const text = renderHelp(demo, node, { width: 100, ...opts });
+    const md = await renderHelp(demo, node, { ...opts, format: 'markdown' });
+    const dropped = md.replace(/## Options\n[\s\S]*?\n\n(?=## )/u, '');
+    expect(dropped).not.toBe(md);
+    expect(fromMarkdown(dropped)).not.toEqual(fromText(text));
+    const droppedText = text.replace(/Global options:\n[\s\S]*?\n\n/u, '');
+    expect(fromMarkdown(md)).not.toEqual(fromText(droppedText));
+  });
+
+  it('a node with nothing but a name is a heading and a usage block', async () => {
+    const bare = defineProgram({ name: 'app', commands: [defineCommand({ name: 'ping', effects: 'read_only', run: ok })] });
+    const ping = bare.find(['app', 'ping']) as CommandNode;
+    expect(await renderHelp(bare, ping, { format: 'markdown' })).toBe(
+      '# app ping\n\n## Usage\n\n```sh\napp ping [options]\n```\n\n## Global options\n\n| Term | Description |\n| :-- | :-- |\n| `--json` | machine-readable output |\n| `--help` | show this help |\n| `--explain <option>` | where an option\'s value came from |\n',
+    );
+  });
+});

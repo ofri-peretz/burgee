@@ -50,7 +50,7 @@ target node.
 | R3 | one term column for the whole help (≤ 40% of width), two-space gutter, wrapped descriptions, terms never wrapped | "fits N columns" at 60/80/100/120 |
 | R4 | `(required) (default: x) (one of: a, b) [env: X] [type]` then `(deprecated: use y)`; type only with `verbose` (H6) | "annotates …", "type hints off" |
 | R5 | `$ command` on one line, description below | "copy-pasteable line" |
-| R6 | Markdown output — **deferred to `docs-deploy` (wave 4)**: its consumer is the docs site, and shipping it in core spends the core byte budget on a dev-time surface; it lands as its own entry when the site needs it | — |
+| R6 | Markdown output — deferred on 2026-09-07 (its consumer was the docs site, and shipping it in core spends the core byte budget on a dev-time surface). **Built 2026-10-12 by [`agent-skill`](../agent-skill/spec.md) R1**, its consumer: `renderHelp(manifest, node, { format: 'markdown' })` resolves to the same `helpModel` sections laid out as Markdown, from `help-markdown.ts` behind an `await import()`, so the `./help` door pays for the branch only (9,018 → 9,019 B of 9,130) | `packages/burgee/src/help.ts`, `help-markdown.ts`; `help.test.ts` › `help renders as Markdown, from the same sections (agent-skill R1)` |
 | R7 | colour — not yet; names are never coloured in the manifest, so it is purely additive | — |
 | H3 | width from the injected stdout's `columns`, else 100 | "takes its width from the injected stdout" |
 | `help <cmd>` | synthesised in the engine for every program (yargs #1020) | "help through the engine" |
