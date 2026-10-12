@@ -72,5 +72,5 @@ it deliberately.
 
 ## Open questions
 
-- Is this a real regression, a change in what we measure, or a change in the corpus?
-- Which commit is the first one outside the band?
+- Decided 2026-10-12 → D-20261012-agent-schema-bytes-step-change: no regression and no change in the measurement or the corpus; four accepted conformance requirements (#1002, #1006, #1015, #1027) made the document carry more. Is this a real regression, a change in what we measure, or a change in the corpus?
+- Decided 2026-10-12 → D-20261012-agent-schema-bytes-step-change: `a2e4f98` (#1027), `--schema` as a clispec v0.3 document, 3,235 → 4,752 B; nothing after it moved the value. Which commit is the first one outside the band?
