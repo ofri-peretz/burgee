@@ -39,6 +39,17 @@ Order: R1 and R2 in one PR, then R3 and R4.
 | R4 | the same file, component block: the static lines hold the full value | a mutation that truncates before the static branch fails it |
 | graded | `npm run compat -- cli-table3` | unchanged |
 
+## Status
+
+| R | Status | Where | Check |
+| :-- | :-- | :-- | :-- |
+| R1 | **Built** 2026-10-12 | `table.ts` (`TableOptions.columns`, `ColumnOptions`, checked at the top of `table()`). `min` and `max` only: `overflow` arrives with R3, so no release carries an option that does nothing. A `max` below 1 is refused too, since a zero-width column cannot draw a cell | `table.test.ts` › `R1 · the columns option` (`min > max`, negative, fractional, NaN, infinite and `max: 0` each throw a `TypeError` naming `columns[0]`; a hole names `columns[1]`; `[]` and `[{}, undefined]` draw byte-for-byte as no `columns`). Red on main: `expected function to throw an error, but it didn't` |
+| R2 | **Built** 2026-10-12 | `table.ts` (`fitWidths`, and the natural widths in `table()`, held to `max`). `dist/table.js` 3,493 → 3,321 B: the file was tightened in the same change, so the root entry, which had 53 B of headroom, has more; no budget moved | `table.test.ts` › `R2 · bounds in the fit` (the 60-cell URL column with `max: 12` is 12; a `min: 10` column keeps 10 while the URL column goes to 5; mins past `width` win). Red on main: `expected [ 60, 2 ] to deeply equal [ 12, 2 ]`, `expected [ 7, 8 ] to deeply equal [ 5, 10 ]`, `expected [ 6, 7 ] to deeply equal [ 12, 12 ]` |
+| R3 | Not built | `table.ts` (`layoutRow`) | `table.test.ts` |
+| R4 | Not built | `table.ts` (`tableComponent`) | `table.test.ts` |
+
+**Built: 2. Not built: 2.**
+
 ## Rejected alternatives
 
 - **Add it to `flagstaff/cli-table3`.** cli-table3 has no cap, so a façade feature would be an
