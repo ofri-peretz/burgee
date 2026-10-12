@@ -119,7 +119,7 @@ const renderHelp = async (manifest: Manifest, node: CommandNode, io: SurfaceIo, 
 };
 
 /** Whether a declaration was written with a localised text (R5): `execute.ts` marks it so. */
-const marked = (o: object): boolean => Symbol.for('burgee.localised') in o;
+const marked = (o: object): boolean => Symbol.for('burgee.l10n') in o;
 
 /**
  * `localised-human-surfaces` R2 — help's language: the pack's translator for the engine's words

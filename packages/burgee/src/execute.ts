@@ -114,7 +114,7 @@ const NODE_KEYS = ['description', 'summary', 'arguments', 'examples', 'group', '
 function helpFields(c: AnyCommand): Partial<CommandNode> & Pick<CommandNode, 'options'> {
   const node: Record<string, unknown> = {};
   for (const key of NODE_KEYS) if (c[key] !== undefined) node[key] = c[key];
-  node['examples'] &&= c.examples?.map(based);
+  node['examples'] &&= (node['examples'] as DeclaredExample[]).map(based);
   node['options'] = Object.fromEntries(Object.entries(c.options ?? {}).map(([key, spec]) => [key, based(spec as DeclaredOption)]));
   return based(node) as Partial<CommandNode> & Pick<CommandNode, 'options'>;
 }
@@ -122,16 +122,17 @@ function helpFields(c: AnyCommand): Partial<CommandNode> & Pick<CommandNode, 'op
 /**
  * `localised-human-surfaces` R5 — a declaration as the manifest holds it: a {@link Localised}
  * `description` or `summary` becomes its base language, the first entry, and the declaration as
- * written rides along under `Symbol.for('burgee.localised')` for help to pick the run's locale
+ * written rides along under `Symbol.for('burgee.l10n')` for help to pick the run's locale
  * from. Every projection that reads the manifest — `--schema`, `--mcp`, completions, Fig — sees
  * a string and nothing else, and a symbol is invisible to `JSON.stringify` and `Object.keys`.
  * A declaration with no `Record` is returned as it came.
  */
 function based<T extends object>(declared: T): T {
   let node = declared;
-  for (const key of ['description', 'summary']) {
+  // `description` and `summary`, the first two of the keys a node carries: named once, in `NODE_KEYS`.
+  for (const key of NODE_KEYS.slice(0, 2)) {
     const text = (declared as Record<string, unknown>)[key];
-    if (text instanceof Object) node = { ...node, [key]: Object.values(text as object)[0], [Symbol.for('burgee.localised')]: declared };
+    if (text instanceof Object) node = { ...node, [key]: Object.values(text as object)[0], [Symbol.for('burgee.l10n')]: declared };
   }
   return node;
 }

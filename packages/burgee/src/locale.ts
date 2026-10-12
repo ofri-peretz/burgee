@@ -212,7 +212,7 @@ export const localiserFor = (manifest: Pick<Manifest, 'plugins'>, io: { env: Rec
   localiserOf(manifest.plugins, resolveLocale(io.locale, io.env));
 
 /** Where `execute.ts` keeps a declaration written with a {@link Localised} text (R5). */
-const LOCALISED = Symbol.for('burgee.localised');
+const LOCALISED = Symbol.for('burgee.l10n');
 
 /**
  * R5 — a declaration in the run's locale: each `description` and `summary` the author wrote as
