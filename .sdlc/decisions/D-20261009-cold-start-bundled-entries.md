@@ -190,3 +190,7 @@ performance, scale, robustness"), and the default above is what that judgement c
 - **Reversal.** A new decision adopting a bundled build, once a bundler with chunk control
   meets the three requirements under Recommendation: `keepNames`-equivalent fidelity without
   top-level `__name` calls, bundling after `strip-comments`, and quote-agnostic weight walkers.
+- **Since measured.** The walker blind spot under "What was built" is closed on main: #937
+  (2026-10-10) made every `dist` import walker read the syntax tree, and `./yargs` now
+  allows `linegauge` by D-20261010-yargs-entry-allows-linegauge. The other two requirements
+  for a future bundler stand.
