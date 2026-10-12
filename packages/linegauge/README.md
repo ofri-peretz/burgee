@@ -233,7 +233,7 @@ Graded by the incumbent's own test suite:
 | `widest-line` | 1 / 1 |
 | `wrap-ansi` | 85 / 85 |
 
-Weight, installed and tree-inclusive: **110,421 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5682**.
+Weight, installed and tree-inclusive: **110,436 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5683**.
 
 ## For agents
 
