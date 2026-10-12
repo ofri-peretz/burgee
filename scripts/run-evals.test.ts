@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { brokenLinks, claudeArgs, DEFAULT_MAX_TURNS, grade, missingScripts, billingFor, STORED_LOGIN_OPT_IN, storedLogin, unknownFloorIds, whyFailed } from './run-evals';
+import { brokenLinks, callLines, claudeArgs, DEFAULT_MAX_TURNS, grade, missingScripts, billingFor, STORED_LOGIN_OPT_IN, storedLogin, transcriptOf, unknownFloorIds, whyFailed } from './run-evals';
 
 /** A throwaway repo root with one doc, so each checker is exercised on a known tree. */
 function repo(files: Record<string, string>): string {
@@ -133,6 +133,59 @@ describe('whyFailed — a failed case says how the agent stopped', () => {
     expect(whyFailed('not json', 'Error: Invalid API key\n')).toBe('agent produced no result document; stderr: Error: Invalid API key');
     expect(whyFailed('', '')).toBe('agent produced no result document; stderr: (empty)');
     expect(whyFailed(JSON.stringify({}))).toBe('agent stopped: unknown after ? turn(s) — ""');
+  });
+});
+
+/** One `stream-json` event, as `claude` prints it: a line of JSON. */
+const event = (e: unknown) => JSON.stringify(e);
+const assistant = (id: string, ...content: unknown[]) => event({ type: 'assistant', message: { id, content } });
+const toolResult = (id: string, content: unknown, isError = false) => event({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: id, content, is_error: isError }] } });
+
+describe('transcriptOf — a case keeps where its turns went', () => {
+  const doc = event({ type: 'result', subtype: 'error_max_turns', num_turns: 13, result: 'out of turns' });
+
+  it('streams, so the document is the last event and every tool call comes before it', () => {
+    const args = claudeArgs({ id: 'x', why: '', prompt: 'p', expect: [] }, {});
+    expect(args.slice(args.indexOf('--output-format'), args.indexOf('--output-format') + 3)).toEqual(['--output-format', 'stream-json', '--verbose']);
+  });
+
+  it('numbers each call by its model turn and keeps what came back, refusals marked', () => {
+    const stream = [
+      event({ type: 'system', subtype: 'init' }),
+      assistant('m1', { type: 'text', text: 'reading' }, { type: 'tool_use', id: 't1', name: 'Read', input: { file_path: 'schema.json' } }),
+      assistant('m1', { type: 'tool_use', id: 't2', name: 'Write', input: { file_path: 'a.mjs', content: 'export default {}' } }),
+      toolResult('t1', [{ type: 'text', text: '{ "title":\n "x" }' }, { type: 'image' }]),
+      toolResult('t2', 'File created'),
+      'not json',
+      '42',
+      assistant('m2', { type: 'tool_use', id: 't3', name: 'Bash', input: { command: 'node cli.js check a.mjs' } }, { type: 'tool_use', id: 't4', name: 'Glob', input: { pattern: '**' } }, { type: 'tool_use', id: 't5', name: 'Odd', input: 'raw' }),
+      toolResult('t3', 'E_PLUGIN_SCHEMA missing', true),
+      toolResult('t9', 'an answer to nothing'),
+      event({ type: 'user', message: { content: { not: 'an array' } } }),
+      toolResult('t4', { neither: 'string nor array' }),
+      doc,
+    ].join('\n');
+    const { result, calls } = transcriptOf(stream);
+    expect(result).toBe(doc);
+    expect(calls).toEqual([
+      { turn: 1, tool: 'Read', input: 'schema.json', output: '{ "title": "x" }', error: false },
+      { turn: 1, tool: 'Write', input: 'a.mjs (17 chars)', output: 'File created', error: false },
+      { turn: 2, tool: 'Bash', input: 'node cli.js check a.mjs', output: 'E_PLUGIN_SCHEMA missing', error: true },
+      { turn: 2, tool: 'Glob', input: '{"pattern":"**"}', output: '', error: false },
+      { turn: 2, tool: 'Odd', input: '"raw"', output: '', error: false },
+    ]);
+    expect(callLines(calls.slice(1, 4))).toEqual(['turn 1 Write: a.mjs (17 chars) → File created', 'turn 2 Bash ✗: node cli.js check a.mjs → E_PLUGIN_SCHEMA missing', 'turn 2 Glob: {"pattern":"**"}']);
+  });
+
+  it('counts a message without an id as a turn of its own, and clips a long output', () => {
+    const { calls } = transcriptOf([event({ type: 'assistant', message: { content: [{ type: 'tool_use', id: 'a', name: 'Bash', input: { command: 'x' } }] } }), toolResult('a', 'y'.repeat(1000)), event({ type: 'assistant' })].join('\n'));
+    expect(calls[0]?.turn).toBe(1);
+    expect(calls[0]?.output).toBe(`${'y'.repeat(400)}…`);
+    expect(transcriptOf(event({ type: 'assistant', message: { content: [{ type: 'tool_use', id: 'b', name: 'X' }] } })).calls[0]?.input).toBe('');
+  });
+
+  it('hands output that is not a stream back as the result, so the grade reads what it always read', () => {
+    expect(transcriptOf('plain text answer')).toEqual({ result: 'plain text answer', calls: [] });
   });
 });
 
