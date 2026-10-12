@@ -18,7 +18,24 @@ holds the two equal, and loop-first keeps them equal.
 import { hoist, manualClock, frameWriter, … } from 'flagstaff';
 ```
 
-## Exports
+## Functions
+
+### progress
+
+A progress bar: `12/30 files · 40%` off a terminal, a drawn bar on one. This is the root entry's,
+which always draws; `flagstaff/progress` reports to an MCP client instead, inside a call that asked.
+
+```ts
+function progress({ width, glyphs }?: ProgressOptions): Component<ProgressState>;
+```
+
+| Parameter | Type |
+| :-- | :-- |
+| `{ width, glyphs }` (optional) | `ProgressOptions` |
+
+**Returns** `Component<ProgressState>`
+
+## Re-exported
 
 Documented on the page of the entry point that declares them.
 
@@ -34,7 +51,6 @@ Documented on the page of the entry point that declares them.
 | `lookupBorder` | function | [`flagstaff/plugin`](/docs/api/plugin#lookupborder) |
 | `lookupSpinner` | function | [`flagstaff/plugin`](/docs/api/plugin#lookupspinner) |
 | `manualClock` | function | [`flagstaff/loop`](/docs/api/loop#manualclock) |
-| `progress` | function | [`flagstaff/progress`](/docs/api/progress#progress) |
 | `register` | function | [`flagstaff/plugin`](/docs/api/plugin#register) |
 | `registered` | function | [`flagstaff/plugin`](/docs/api/plugin#registered) |
 | `spinner` | function | [`flagstaff/spinner`](/docs/api/spinner#spinner) |

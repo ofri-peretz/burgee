@@ -32,6 +32,8 @@ import { type Manifest } from '../packages/burgee/src/manifest.js';
 import { type Invoke, startMcp, SUPPORTED_REVISIONS } from '../packages/burgee/src/mcp.js';
 // eslint-disable-next-line import-next/no-relative-packages -- see above
 import { check, type JsonSchema, type Problem, type Root } from '../packages/flagstaff/src/conforms.js';
+// eslint-disable-next-line import-next/no-relative-packages -- see above
+import { progress as flagstaffProgress } from '../packages/flagstaff/src/progress.js';
 
 const schemaOf = (revision: string): Root => JSON.parse(readFileSync(new URL(`../packages/burgee/src/__fixtures__/mcp/${revision}/schema.json`, import.meta.url), 'utf8')) as Root;
 
@@ -278,6 +280,42 @@ describe('every message the --mcp server writes validates (R7)', () => {
       };
       const recording = await record(steps, [initAsking(revision), rpc(2, 'tools/call', { name: 'count', arguments: {}, _meta: { progressToken: 7 } })], run);
       expect(recording.frames.filter((f) => f['method'] === 'notifications/progress')).toHaveLength(3);
+      expect(problemsOf(recording, revision)).toEqual([]);
+    });
+
+    /**
+     * mcp-current R5, the flagstaff half — a `flagstaff/progress` bar drawn inside a call that asked
+     * for progress reports through `notifications/progress` and draws nothing; the same bar in a call
+     * that did not ask draws as it always has.
+     */
+    it('on a call that asked for progress: a flagstaff/progress bar reports through it instead of drawing', async () => {
+      const files = flagstaffProgress({ width: 4 });
+      const steps = defineProgram({
+        name: 'steps',
+        commands: [
+          defineCommand({
+            name: 'copy',
+            effects: 'read_only',
+            run: () => [1, 2, 3].map((done) => files.static({ done, total: 3, label: 'files' })).join('|'),
+          }),
+        ],
+      });
+      const run: Invoke = async (argv) => {
+        const out: string[] = [];
+        await execute(steps, { argv, env: {}, stdout: { write: (s: string) => out.push(s) }, stderr: { write: () => true }, exit: () => undefined });
+        return { stdout: out.join(''), stderr: '', code: 0 };
+      };
+      const asked = rpc(2, 'tools/call', { name: 'copy', arguments: {}, _meta: { progressToken: 'cp' } });
+      const recording = await record(steps, [initAsking(revision), asked, rpc(3, 'tools/call', { name: 'copy', arguments: {} })], run);
+      const notes = recording.frames.filter((f) => f['method'] === 'notifications/progress').map((f) => f['params']);
+      expect(notes).toEqual([
+        { progressToken: 'cp', progress: 1, total: 3, message: '1/3 files · 33%' },
+        { progressToken: 'cp', progress: 2, total: 3, message: '2/3 files · 67%' },
+        { progressToken: 'cp', progress: 3, total: 3, message: '3/3 files · 100%' },
+      ]);
+      const text = (id: number): string => JSON.stringify(recording.frames.find((f) => f['id'] === id)?.['result']);
+      expect(text(2)).not.toContain('files');
+      expect(text(3)).toContain('1/3 files · 33%|2/3 files · 67%|3/3 files · 100%');
       expect(problemsOf(recording, revision)).toEqual([]);
     });
 

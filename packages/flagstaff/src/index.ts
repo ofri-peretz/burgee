@@ -12,7 +12,7 @@ export * from './loop.js';
 export * from './box.js';
 export * from './import.js';
 export * from './plugin.js';
-export * from './progress.js';
+export * from './progress-bar.js';
 export * from './spinner.js';
 export * from './table.js';
 export * from './tasks.js';

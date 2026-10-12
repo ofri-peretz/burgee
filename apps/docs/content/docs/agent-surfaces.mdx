@@ -156,6 +156,11 @@ run: async ({ signal, progress }) => {
 }
 ```
 
+A bar from `flagstaff/progress` does the same on its own: inside a call that asked for progress, it
+sends its count, with its static line (`12/30 files · 40%`) as the message, and draws nothing into
+the result. Outside one it draws as it always has. The root `flagstaff` entry's `progress` always
+draws, so the bridge costs nothing to a program that never serves MCP.
+
 ### Client configuration
 
 For Claude Desktop, Claude Code, Cursor or any stdio client, register the program as a
