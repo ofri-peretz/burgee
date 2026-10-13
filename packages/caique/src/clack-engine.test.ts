@@ -10,7 +10,7 @@
 import { Readable, Writable } from 'node:stream';
 
 import { SHOW_CURSOR } from 'closeout/cursor';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, onTestFinished } from 'vitest';
 
 import { CANCEL_SYMBOL, isTTY, run, runValidation, S_BAR, S_BAR_END, settings, symbolBar, updateSettings } from './clack-core.js';
 import { select, text } from './clack-prompts.js';
@@ -58,6 +58,30 @@ async function state<T>(promise: Promise<T>): Promise<T | 'pending'> {
 }
 
 const noop = (): void => undefined;
+
+/**
+ * Collect every unhandledRejection until the test ends. An async keypress listener's promise
+ * is nobody's, so a rejection from it reaches only this — and, outside a test, kills the process.
+ */
+function escapes(): () => unknown[] {
+  const seen: unknown[] = [];
+  const listener = (reason: unknown): void => {
+    seen.push(reason);
+  };
+  process.on('unhandledRejection', listener);
+  onTestFinished(() => {
+    process.off('unhandledRejection', listener);
+  });
+  return () => seen;
+}
+
+/** Validators that fail the way a network check does: by throwing, not by naming a problem. */
+const rejects = (): Promise<undefined> => Promise.reject(new Error('network down'));
+const rejectsBare = (): Promise<undefined> => Promise.reject();
+function throws(): undefined {
+  throw new Error('network down');
+}
+const passes = (): undefined => undefined;
 
 /** A Standard Schema that finds `issues`, synchronously or not. */
 const schema = (issues: { message: string }[] | undefined, async: boolean) => ({
@@ -291,6 +315,43 @@ describe('validation', () => {
     expect(output.buffer.at(-1)).toContain('not like that');
     press(input, 'escape', { name: 'escape' });
     await answer;
+  });
+
+  it.each([
+    ['rejects', rejects, 'network down'],
+    ['throws', throws, 'network down'],
+    ['rejects with nothing', rejectsBare, settings.messages.error],
+  ])('a validator that %s is a failed check, shown and retryable, never an unhandledRejection that kills the process', async (_name, fails, shown) => {
+    const escaped = escapes();
+    let validate: () => Promise<undefined> | undefined = fails;
+    const input = new Input();
+    const output = new Output();
+    const answer = text({ message: 'm', input, output, validate: () => validate() });
+    typeLine(input, 'ok');
+    ret(input);
+    expect(await state(answer)).toBe('pending');
+    expect(output.buffer.at(-1)).toContain(shown);
+    validate = passes;
+    ret(input);
+    expect(await answer).toBe('ok');
+    expect(escaped()).toEqual([]);
+  });
+
+  it('a validator that rejects after an abort cancelled the prompt is still answered, not left to escape', async () => {
+    const escaped = escapes();
+    let fail: (reason: Error) => void = noop;
+    const controller = new AbortController();
+    const input = new Input();
+    const output = new Output();
+    const answer = text({ message: 'm', input, output, signal: controller.signal, validate: () => new Promise<undefined>((_resolve, reject) => (fail = reject)) });
+    ret(input);
+    controller.abort();
+    expect(await answer).toBe(CANCEL_SYMBOL);
+    const written = output.buffer.length;
+    fail(new Error('network down'));
+    await tick();
+    expect(escaped()).toEqual([]);
+    expect(output.buffer).toHaveLength(written);
   });
 
   it('without the guide, the problem is drawn with no closing bar in front of it', async () => {

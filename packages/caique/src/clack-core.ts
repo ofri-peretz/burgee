@@ -217,6 +217,9 @@ export function runValidation<T>(validate: Validate<T>, value: T | undefined): M
   return result instanceof Promise ? result.then(firstIssue) : firstIssue(result);
 }
 
+/** What a validator threw, as the problem to show: its message, or the setting when it has none. */
+const thrown = (reason: unknown): string => (reason instanceof Error && reason.message !== '' ? reason.message : settings.messages.error);
+
 /** A Standard Schema result's first problem, which is the one a prompt has room to show. */
 function firstIssue(result: { issues?: readonly { message: string }[] | undefined }): string | undefined {
   return result.issues?.[0]?.message;
@@ -371,15 +374,24 @@ class Session<T> {
     this.finish();
   };
 
-  /** Validate, then submit — or stay open with the problem shown. */
+  /**
+   * Validate, then submit — or stay open with the problem shown. A validator that throws or
+   * rejects failed the check: nothing awaits this listener, so a rejection out of it is an
+   * unhandledRejection, which kills the process. clack lets it out; this shows it instead.
+   */
   private async submit(): Promise<void> {
     const { validate } = this.definition;
     if (validate !== undefined) {
-      let problem = runValidation(validate, this.prompt.value);
+      let problem: MaybePromise<string | Error | undefined>;
+      try {
+        problem = runValidation(validate, this.prompt.value);
+      } catch (reason) {
+        problem = thrown(reason);
+      }
       if (problem instanceof Promise) {
         this.prompt.state = 'validating';
         this.draw();
-        problem = await problem;
+        problem = await problem.catch(thrown);
       }
       if (problem !== undefined && problem !== '') {
         this.prompt.error = problem instanceof Error ? problem.message : problem;

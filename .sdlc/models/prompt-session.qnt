@@ -14,6 +14,16 @@
  * left no way out. This version describes the fix: a cancel key while validating cancels.
  * Re-check by making `press`'s Validating branch ignore `CtrlC` too.
  *
+ * The second version added a validator that throws, synchronously or by rejecting, as a third
+ * verdict, and described the code as it was: the throw left `submit()`, then `onKeypress`, and
+ * nothing awaits a keypress listener, so it was an unhandledRejection — which kills a Node
+ * process by default. `rejectionsHandled` failed in three steps (open, enter, a rejecting
+ * verdict), with the prompt left showing "validating" and no validator out; a fourth step, an
+ * abort before the verdict, showed it escaping from a prompt that had already answered. This
+ * version describes the fix: a throw takes the problem's path, the error state with its message.
+ * Re-check with three mutants, each caught by `safety`: the throw escapes (`unhandled + 1`), a
+ * throw submits, and a throw is caught but leaves the prompt in Validating.
+ *
  * Checked and left alone: after an abort or a cancel key mid-validation, the late verdict
  * still writes `state = 'submit'` or `'error'` on the closed prompt (open, enter, abort,
  * verdict). Nothing reads it: `settle` already ran once, `onKeypress` returns on `closed`
@@ -31,10 +41,12 @@ module promptSession {
   var pending: bool           // an async validator is out
   var drawsAfterClose: int    // frames written after close() gave the cursor back
   var lastKey: str            // the last key delivered
+  var lastVerdict: str        // how the last validator answered: "ok", "problem" or "rejects"
+  var unhandled: int          // rejections that escaped `onKeypress`, which nothing awaits
 
   action init = all {
     state' = Initial, closed' = false, settles' = 0, pending' = false,
-    drawsAfterClose' = 0, lastKey' = "",
+    drawsAfterClose' = 0, lastKey' = "", lastVerdict' = "", unhandled' = 0,
   }
 
   /** finish(): finalize, the last frame, then close(): listeners off, raw mode off, cursor back, settle. */
@@ -50,12 +62,14 @@ module promptSession {
   action open = all {
     state == Initial, not(closed),
     stay(Active), pending' = pending, lastKey' = lastKey,
+    lastVerdict' = lastVerdict, unhandled' = unhandled,
   }
 
   /** onKeypress, up to the await (or to the end, when nothing awaits). */
   action press(k: Key): bool = all {
     not(closed), state != Initial,
     lastKey' = match k { | CtrlC => "ctrlc" | Return => "return" | Char => "char" },
+    lastVerdict' = lastVerdict, unhandled' = unhandled,
     pending' = (pending or (state != Validating and k == Return)),
     if (state == Validating) match k {
       // Keys wait for the verdict, except cancel: `if (cancels(char, key)) this.cancel()`.
@@ -68,24 +82,32 @@ module promptSession {
     },
   }
 
-  /** The validator answered: the rest of submit(), then the rest of onKeypress. */
+  /**
+   * The validator answered — or threw, synchronously or by rejecting: the rest of submit(),
+   * then the rest of onKeypress. A throw is a problem the validator could not name, so it
+   * takes the problem's path: the error state, its message shown, the prompt still open.
+   */
   action verdict = all {
     pending,
     pending' = false, lastKey' = lastKey,
-    nondet ok = Set(true, false).oneOf()
-    if (closed) all {
-      // submit() writes the state whatever happened meanwhile ...
-      state' = if (ok) Submit else Error,
-      closed' = closed, settles' = settles,
-      // ... and onKeypress's `if (this.closed) return` draws nothing and does not finish().
-      drawsAfterClose' = drawsAfterClose,
-    } else if (ok) finish(Submit) else stay(Error),
+    nondet outcome = Set("ok", "problem", "rejects").oneOf()
+    all {
+      lastVerdict' = outcome, unhandled' = unhandled,
+      if (closed) all {
+        // submit() writes the state whatever happened meanwhile ...
+        state' = if (outcome == "ok") Submit else Error,
+        closed' = closed, settles' = settles,
+        // ... and onKeypress's `if (this.closed) return` draws nothing and does not finish().
+        drawsAfterClose' = drawsAfterClose,
+      } else if (outcome == "ok") finish(Submit) else stay(Error),
+    },
   }
 
   /** The signal's abort listener, which close() removes. */
   action abort = all {
     not(closed), state != Initial,
     finish(Cancel), pending' = pending, lastKey' = lastKey,
+    lastVerdict' = lastVerdict, unhandled' = unhandled,
   }
 
   action step = any {
@@ -102,5 +124,13 @@ module promptSession {
   /** A cancel key on an open prompt ends it, in every state: a person can always leave. */
   val cancelHonoured = lastKey == "ctrlc" implies closed
 
+  /** A validator that throws is answered, never left to escape the keypress listener as an unhandledRejection. */
+  val rejectionsHandled = unhandled == 0
+  /** Only a validator that passed lets the answer through: a throw is never a pass. */
+  val submitsOnlyWhenValid = state == Submit implies lastVerdict == "ok"
+  /** An open prompt shows "validating" only while a validator is out: a throw never strands it there. */
+  val validatingMeansPending = (not(closed) and state == Validating) implies pending
+
   val safety = settledOnce and closedIffSettled and quietAfterClose and cancelHonoured
+    and rejectionsHandled and submitsOnlyWhenValid and validatingMeansPending
 }
