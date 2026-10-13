@@ -16,8 +16,14 @@ kept: PowerShell completions, `changeset-check-lock`, and the cases that run `np
 
 ## Why now
 
-- **PowerShell completions.** A fresh `pwsh` per completion line; on a saturated runner three cold
-  starts ran past the 120 s ceiling, twice on #1077 (#1085's message, open).
+- **PowerShell completions: a hang, not slow starts** (the owner's evidence on #1090,
+  2026-10-13). #1085 merged (`0b63425`) and asks every line of one `pwsh`, about 2 s of cold
+  start, yet `completions.test.ts` › *PowerShell: subcommands, options and choice values with
+  tooltips* still hit its 120,000 ms timeout on Node 26 · windows-latest in #1094 (job
+  115091657590, 122,208 ms) and in #1092. The same lane passed on #1077 at the same time, so the
+  hang is intermittent and not a regression on `main`. The call on `main` (line 123) is
+  `execFileSync('pwsh', ['-NoProfile', '-File', …], { encoding: 'utf8' })`: stdin left as a pipe,
+  no `-NonInteractive`, no `timeout`.
 - **The matrix comment.** `compat.yml`: at turbo's default concurrency, Windows' Node 26 cell
   failed 2 of 10 runs on timing alone, each time a different test (vendor-run, ink-alias,
   completions); concurrency was cut to two there.
@@ -31,7 +37,7 @@ kept: PowerShell completions, `changeset-check-lock`, and the cases that run `np
 
 ## Affected users and systems
 
-- `scripts/complete-pwsh.ps1` and burgee's completion tests (after #1085),
+- `scripts/complete-pwsh.ps1` and `packages/burgee/src/completions.test.ts`'s `pwsh` call,
   `scripts/changeset-check-lock.test.ts`, the root-suite files that spawn `npm`, and a timing
   reporter for the compat `matrix` cells.
 

@@ -27,7 +27,8 @@ that they do not get today.
    (20:03Z to 23:29Z): 6 succeeded, 24 cancelled. The six successes, all pull requests, took 43 to
    79 minutes from start to last update. Each PR runs 13 compat jobs (ratchet, six `matrix`, six
    `floor`). The Windows timeouts come from `compat.yml`'s own comments, #1077's two failures
-   named in #1085, and `scripts/changeset-check-lock.test.ts`'s 120 s describe timeout.
+   named in #1085, the owner's evidence on #1090 (2026-10-13) that the PowerShell case still hangs
+   after #1085 (#1092, #1094), and `scripts/changeset-check-lock.test.ts`'s 120 s describe timeout.
 5. **The trackers.** Every issue in [`issues/`](./issues/) at 9 or more reactions or comments was
    ranked by count and checked against the tree and the earlier waves. None is new ground: each
    is built (yargs #684 groups and #1964 in `help.ts`, #873 in `burgee/spec.md` V1, #1532 S7),
@@ -98,7 +99,7 @@ Twelve candidates, ranked. Ten are taken.
 | 6 | [`colour-facades`](../intents/colour-facades/intent.md) | roundel, compat-oracle | kleur 70.9 M + colorette 52.9 M + yoctocolors 34.5 M = 158,336,748 /wk, ungraded | 5 | 5 | 3 | 8.3 | yes |
 | 7 | [`ci-affected-lanes`](../intents/ci-affected-lanes/intent.md) | workflows, scripts | 24 of 30 compat runs cancelled; 13 jobs per PR; data-only PRs (#1062, #1081) run all of them | 3 | 5 | 2 | 7.5 | yes |
 | 8 | [`default-command`](../intents/default-command/intent.md) | burgee | yargs #1331: 4 reactions, 16 comments; #2292: 5 and 6 | 3 | 5 | 2 | 7.5 | yes |
-| 9 | [`windows-lane-holds`](../intents/windows-lane-holds/intent.md) | scripts, burgee tests | three recurring Windows timeouts: PowerShell completions (#1077 twice), `changeset-check-lock`, install cases | 3 | 5 | 2 | 7.5 | yes |
+| 9 | [`windows-lane-holds`](../intents/windows-lane-holds/intent.md) | scripts, burgee tests | three recurring Windows timeouts: PowerShell completions (#1077 twice; and after #1085's one-process fix, an intermittent `pwsh` hang in #1092 and #1094), `changeset-check-lock`, install cases | 3 | 5 | 2 | 7.5 | yes |
 | 10 | `caique/prompts` façade, graded | caique, compat-oracle | `prompts` 53,898,410 /wk, last published 2021 | 4 | 5 | 3 | 6.7 | no |
 | 11 | [`typed-positionals`](../intents/typed-positionals/intent.md) | burgee | yargs #1649: 10 reactions, 7 comments; citty #115, #138, #80; gap `B-20261012-commander-argument-choices` | 3 | 5 | 3 | 5 | yes |
 | 12 | MCP `2026-07-28` stateless revision | burgee | gap `B-20261012-mcp-2026-07-28-stateless`; no client measured that speaks only that revision | 2 | 5 | 2 | 5 | no |
@@ -170,7 +171,7 @@ two parallel lanes on one laptop. "Runs beside" names pairs that touch no common
 | 2 | `schema-bytes-gated` R1–R3 | #1074 and #1083 merged, so the budget is measured with their keys | benchmarks reliability | 1, 3, 4 |
 | 3 | `closeout-at-incumbent-weight` R1, R4 (model first), then R2, R3, R5 | — | closeout + weight ratchets | 1, 2, 4 |
 | 4 | `locale-pack-in-five` R1–R3 | — | burgee check | 1, 2, 3 |
-| 5 | `windows-lane-holds` R1–R2, then R3–R5 | step 1 (workflows lane); R3 is #1085 if it merges | workflows, then test files | 6, 7 |
+| 5 | `windows-lane-holds` R3 first (the `pwsh` hang, on `main` now), then R1–R2, then R4–R5 | R3: none (#1085 merged, one process; the hang remains, owner's evidence on #1090); R1–R2: step 1 (workflows lane) | test files, then workflows | 6, 7 |
 | 6 | `declaration-summaries` R1, then R2–R3, R4 after the next release | #1087 merged (the baseline file) | published artifacts | 5, 7 |
 | 7 | `fix-lines-every-shell` R1–R4 | `facade-projection-fidelity` R5–R6 (#1083) merged, which edits `surfaces.ts` | `failure.ts` lane | 5, 6 |
 | 8 | `default-command` R1–R5 | wave 3's `completion-context` R1–R4 (dispatch resolution and root completions) and #1083 (aliases) | parse + `failure.ts`/`schema.ts` | 6 |
