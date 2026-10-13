@@ -55,10 +55,15 @@ declaration only, so a projected relation is never checked twice.
 | R2 | **Built** 2026-10-12 | the same function: a non-empty `conflictsWith` → `exclusive`, already the attribute names commander compares against | `facade-surface.test.ts` › `R2 — .conflicts() is exclusive, on the property and in relations`. Red on main: `expected undefined to deeply equal [ 'force' ]` |
 | R3 | Not built | the default half is built in `_project()`: a string `Argument.defaultValue` reaches the positional's `default`. The choices half is open as [`B-20261012-commander-argument-choices`](../../gaps/B-20261012-commander-argument-choices.md): `ArgumentSpec` has no `choices`, and the smallest build measured `burgee/commander` at 61,132 B against its 61,100 B ceiling | `facade-surface.test.ts` › `R3 — an Argument carries its default`. Red on main: `expected { name: 'env', required: false, …(2) } to deeply equal { …(3) }` |
 | R4 | Not built | stopped on `burgee/yargs`'s bundle ceiling: built and green locally on 2026-10-12, it measured 108,821 B against 108,420 B (main 108,249). The relations and examples halves each exceed the headroom alone, so it waits for the owner to trim or to raise the ceiling | `facade-surface.test.ts`, yargs block. Red on main: `expected undefined to deeply equal [ 'push' ]`, `… [ 'key' ]`, `expected [] to deeply equal [ {…}, … ]` |
-| R5 | Not built | `parse-refusals` (#1064) merged on 2026-10-12, so the parse lane is clear for it | — |
-| R6 | Not built | after R5 | — |
+| R5 | **Built** 2026-10-12 | `CommandNode.aliases` and `Command.aliases` (`manifest.ts`, `execute.ts`). Dispatch is `aliases.ts`, a chunk `execute.ts` loads only for a program that declares an alias: it rewrites each alias typed where a subcommand could stand to that command's name before anything resolves argv, so `help <command>`, `--schema <command>` and `__complete` read it too. It is not in `Manifest.resolve`, as the design had it, because the commander and yargs front-ends carry that class and resolve their own aliases: there it cost each front-end 66 B. `--schema` passes `aliases` through (`schema.ts`, `program-schema.json`), help lists `serve\|s` (`help.ts`), and the four scripts and Fig offer and follow an alias (`completions.ts`). `--mcp` was already one tool per command | `command-aliases.test.ts`, 18 checks. Red on main: 13 of the first 17 failed, e.g. `expected { code: 2, stdout: '', …(1) } to deeply equal { code: +0, …(2) }` (`web s` was an unknown command) and `expected undefined to deeply equal [ 's', 'up' ]` (no `aliases` in `--schema`); the MCP tool count, an unknown word, and the two no-alias guards passed on main as guards |
+| R6 | **Built** 2026-10-12 | commander's `_project()` copies `_aliases`; yargs' handler keeps the aliases it was registered with and `projectManifest` copies them | `facade-surface.test.ts` › `facade-projection-fidelity R6`. Red on main: both failed with `expected undefined to deeply equal [ 's', 'up' ]` |
 
-**Built: 2. Not built: 4.**
+Bytes (local `esbuild` measure, the same command as B4, against `main` at `91a67e9`, after #1078): the
+core bundle 24,285 → 24,281 B, `burgee/commander` 56,116 → 56,110 B, `burgee/yargs` 108,314 → 108,342 B. No
+ceiling moved: the alias gate and `NODE_KEYS` entry were paid for by shorter tests of the same
+values in `execute.ts`, and commander's projection by three in `commander/command.ts`.
+
+**Built: 4. Not built: 2.**
 
 ## Rejected alternatives
 
