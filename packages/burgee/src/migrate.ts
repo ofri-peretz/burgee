@@ -33,7 +33,7 @@ import { fileURLToPath } from 'node:url';
 
 import { ambientRuntime, run } from 'bellpull';
 
-import { DROP_INS, GRADED, GRADED_VERSIONS, isLevel, type Row, SUPPORTED_MAJORS } from './compat.js';
+import { DROP_INS, GRADED, GRADED_VERSIONS, isLevel, PREVIOUS_MAJOR_ENTRIES, type Row, SUPPORTED_MAJORS } from './compat.js';
 import { ExitCode } from './exit-code.js';
 import { guidedSites, mentionsAGuided, type GuidedSite, type Token } from './migrate-guided.js';
 import { TEXT } from './render.js';
@@ -1549,6 +1549,9 @@ const NONE: ReadonlySet<string> = new Set();
 /** No incumbent that another dependency still installs. */
 const ALONE: ReadonlyMap<string, readonly string[]> = new Map();
 
+/** No specifier written to an older major's own entry: every one goes where `MAPPING` says. */
+const CURRENT: ReadonlyMap<string, string> = new Map();
+
 /**
  * A2/A5 — map every host specifier in one file, or map none of them.
  *
@@ -1560,11 +1563,15 @@ const ALONE: ReadonlyMap<string, readonly string[]> = new Map();
  * project's dependencies still installs, with those dependencies (U12-4).
  */
 export function rewriteSource(source: string, skip: ReadonlySet<string> = NONE, transitive: ReadonlyMap<string, readonly string[]> = ALONE): Rewrite {
-  return rewriteFile(source, skip, transitive).rewrite;
+  return rewriteFile(source, skip, transitive, CURRENT).rewrite;
 }
 
-/** {@link rewriteSource}, and every incumbent the file names in a specifier position, skipped or not — what `detected.imported` and `undeclared` read. */
-function rewriteFile(source: string, skip: ReadonlySet<string>, transitive: ReadonlyMap<string, readonly string[]>): { rewrite: Rewrite; seen: string[] } {
+/**
+ * {@link rewriteSource}, and every incumbent the file names in a specifier position, skipped or
+ * not — what `detected.imported` and `undeclared` read. `entries` names the specifiers that move
+ * to an older major's own entry instead of `MAPPING`'s (`previous-majors` R6).
+ */
+function rewriteFile(source: string, skip: ReadonlySet<string>, transitive: ReadonlyMap<string, readonly string[]>, entries: ReadonlyMap<string, string>): { rewrite: Rewrite; seen: string[] } {
   if (!mentionsAHost(source)) return { rewrite: { source, mapped: [], refused: [], kept: [], relevant: false }, seen: [] };
   const { sites, nonLiteral } = scan(source);
   const named = sites.filter((s) => MAPPING[s.specifier] !== undefined || isDeep(s.specifier));
@@ -1597,7 +1604,7 @@ function rewriteFile(source: string, skip: ReadonlySet<string>, transitive: Read
   let out = source;
   const mapped: { from: string; to: string }[] = [];
   for (const site of moving.sort((a, b) => b.start - a.start)) {
-    const to = MAPPING[site.specifier] as string;
+    const to = entries.get(site.specifier) ?? (MAPPING[site.specifier] as string);
     out = `${out.slice(0, site.start)}${to}${out.slice(site.end)}`;
     mapped.push({ from: site.specifier, to });
   }
@@ -1654,16 +1661,28 @@ async function installedVersion(dir: string, name: string): Promise<string | und
  * Incumbents this project has on a major its drop-in does not claim (A12, C1). The claim is
  * `SUPPORTED_MAJORS` — every major graded level by that major's own suite — so an older major
  * that reaches level is served here without another edit.
+ *
+ * `entries` is the other half (`previous-majors` R6): each specifier of an incumbent on a
+ * claimed older major that has its own entry, with that entry — `commander` on 14 is
+ * `burgee/commander/v14`. The major is read from the project, never from the drop-in at runtime.
  */
-async function offMajorOf(dir: string, dependencies: Map<string, string>): Promise<OffMajor[]> {
+async function majorsOf(dir: string, dependencies: Map<string, string>): Promise<{ offMajor: OffMajor[]; entries: Map<string, string> }> {
   const found = await Promise.all(HOSTS.map(async (from) => ({ from, found: (await installedVersion(dir, from)) ?? dependencies.get(from) })));
-  return found.flatMap(({ from, found: version }) => {
+  const entries = new Map<string, string>();
+  const offMajor = found.flatMap(({ from, found: version }) => {
     const graded = GRADED_VERSIONS[from];
     if (version === undefined || graded === undefined) return [];
     const major = majorOf(version);
+    if (major === undefined) return [];
     // A graded host always has its majors: `supported-majors-lock.test.ts` holds one list per graded host.
-    return major === undefined || (SUPPORTED_MAJORS[from] as readonly number[]).includes(major) ? [] : [{ from, found: version, graded }];
+    if (!(SUPPORTED_MAJORS[from] as readonly number[]).includes(major)) return [{ from, found: version, graded }];
+    for (const specifier of Object.keys(MAPPING).filter((s) => packageOf(s) === from)) {
+      const entry = PREVIOUS_MAJOR_ENTRIES[specifier]?.[major];
+      if (entry !== undefined) entries.set(specifier, entry);
+    }
+    return [];
   });
+  return { offMajor, entries };
 }
 
 /**
@@ -1993,6 +2012,13 @@ interface Scanned {
   text?: string;
 }
 
+/** What every file of one run is rewritten under: the incumbents left alone, those another dependency installs, and the older majors' own entries. */
+interface Plan {
+  skip: ReadonlySet<string>;
+  transitive: ReadonlyMap<string, readonly string[]>;
+  entries: ReadonlyMap<string, string>;
+}
+
 /**
  * One batch: read them all, then scan them all — two phases, not one pipeline per file.
  *
@@ -2006,26 +2032,25 @@ interface Scanned {
  * Nothing is written here any more (U12-4): a refusal in the last file can hold an incumbent
  * the first file imports, so every file is scanned before any is written.
  */
-async function scanBatch(dir: string, batch: string[], skip: ReadonlySet<string>, transitive: ReadonlyMap<string, readonly string[]>): Promise<Scanned[]> {
+async function scanBatch(dir: string, batch: string[], { skip, transitive, entries }: Plan): Promise<Scanned[]> {
   // Read as bytes and decode only what the pre-filter admits: on the bench tree a third of
   // the files never become a string at all, which is 405 ms against 427 for the same work.
   const sources = await Promise.all(batch.map(async (file) => await readFile(join(dir, file))));
   return sources.map((bytes, i) => {
     const text = mentionsAHost(bytes) ? bytes.toString('utf8') : undefined;
-    const { rewrite, seen } = text === undefined ? { rewrite: EMPTY, seen: [] } : rewriteFile(text, skip, transitive);
+    const { rewrite, seen } = text === undefined ? { rewrite: EMPTY, seen: [] } : rewriteFile(text, skip, transitive, entries);
     const guided = mentionsAGuided(bytes) ? guidedSites(tokensOf(bytes.toString('utf8'))) : [];
     return { file: batch[i] as string, result: rewrite, seen, guided, ...(rewrite.relevant && text !== undefined ? { text } : {}) };
   });
 }
 
-/** The per-mapping rollup, in the order `MAPPING` declares — so two runs print the same table. */
+/** The per-mapping rollup, in the order `MAPPING` declares — so two runs print the same table. Its `to` is what was written, an older major's entry included. */
 function rollup(all: { from: string; to: string; file: string }[]): Mapped[] {
-  return Object.entries(MAPPING)
-    .map(([from, to]) => {
-      const hits = all.filter((m) => m.from === from);
-      return { from, to, imports: hits.length, files: new Set(hits.map((m) => m.file)).size };
-    })
-    .filter((row) => row.imports > 0);
+  return Object.keys(MAPPING).flatMap((from) => {
+    const hits = all.filter((m) => m.from === from);
+    const [first] = hits;
+    return first === undefined ? [] : [{ from, to: first.to, imports: hits.length, files: new Set(hits.map((m) => m.file)).size }];
+  });
 }
 
 /**
@@ -2169,7 +2194,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
   if (!dryRun && !force && entries !== undefined && entries.length > 0) throw new DirtyTreeError(entries);
 
   const dependencies = await declaredDependencies(dir);
-  const offMajor = await offMajorOf(dir, dependencies);
+  const { offMajor, entries: ownEntries } = await majorsOf(dir, dependencies);
   const only = options.only === undefined ? undefined : new Set(options.only);
   const skipped = new Set(options.skip);
   // U12-3: an incumbent moves when the project chose it — `--only`, or else its manifest — and nothing excludes it.
@@ -2181,7 +2206,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
   const scanned: Scanned[] = [];
   for (let i = 0; i < files.length; i += BATCH) {
     // eslint-disable-next-line reliability/no-await-in-loop -- the await IS the bound (A10). Each batch is 256 files in flight at once; awaiting one before opening the next is what keeps the command inside the open-file limit on a repository of any size, and `Promise.all` over every file in a monorepo is EMFILE.
-    scanned.push(...(await scanBatch(dir, files.slice(i, i + BATCH), skip, through)));
+    scanned.push(...(await scanBatch(dir, files.slice(i, i + BATCH), { skip, transitive: through, entries: ownEntries })));
   }
 
   // U12-4: what the first pass refused or kept is held everywhere, and a second pass over the
@@ -2191,7 +2216,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
   const rewrites =
     held.length === 0
       ? scanned.map(({ file, result }) => ({ file, result }))
-      : scanned.map(({ file, result, text }) => ({ file, result: text === undefined ? result : rewriteFile(text, new Set([...skip, ...held.map((h) => h.from)]), through).rewrite }));
+      : scanned.map(({ file, result, text }) => ({ file, result: text === undefined ? result : rewriteFile(text, new Set([...skip, ...held.map((h) => h.from)]), through, ownEntries).rewrite }));
   const changed = rewrites.filter(({ result }) => result.mapped.length > 0).map(({ file, result }) => ({ file, source: result.source }));
   if (!dryRun) await writeAll(dir, changed);
 

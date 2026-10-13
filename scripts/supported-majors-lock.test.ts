@@ -98,7 +98,9 @@ describe('C1 — each older major graded is that major', () => {
     const pkg = host.npmName ?? host.name;
     expect(current?.status, `${host.name}: majorOf must name an active host`).toBe('active');
     expect(current?.npmName ?? current?.name).toBe(pkg);
-    expect(host.target).toBe(current?.target);
+    // The same front-end, or its entry for that major (`previous-majors`): `burgee/commander/v14`
+    // is `burgee/commander` with 14's behaviour where 15 changed it, and is what `migrate` writes.
+    expect([current?.target, `${current?.target ?? '?'}/v${String(majorOf(host.pinnedVersion ?? ''))}`]).toContain(host.target);
     expect(majorOf(host.pinnedVersion ?? '')).toBeLessThan(majorOf(GRADED_VERSIONS[pkg] ?? ''));
   });
 
