@@ -189,7 +189,10 @@ function kebab(name: string): string;
 
 ### resolveCommand
 
-M6: which command argv names, or null — the same longest-prefix match `execute` uses.
+M6: which command argv names, or null — the same longest-prefix match `execute` uses, over the
+declared names. An alias is not read here: `execute` rewrites one to its command's name before it
+resolves (`aliases.ts`, facade-projection-fidelity R5), and that chunk is loaded only on a run, so
+this function stays synchronous and off the startup path. Pass the canonical words.
 
 ```ts
 function resolveCommand(manifest: Manifest, argv: readonly string[]): CommandNode | null;
@@ -353,6 +356,14 @@ interface ArgumentSpec {
     required?: boolean;
     variadic?: boolean;
     default?: string;
+    /**
+     * The values the positional accepts, published as `enum` the way an option's `choices` are
+     * (facade-projection-fidelity R3). The commander façade fills it from `Argument.choices()`
+     * and enforces it while parsing. A native `defineCommand` cannot declare it yet: its parser
+     * does not check positionals' values, so its definition type leaves the field out
+     * (B-20261012-commander-argument-choices).
+     */
+    choices?: readonly string[];
     /** `'file'`: a path, where `-` means standard input — handed to the handler as `ctx.stdin` (S4). */
     type?: 'file';
 }
@@ -363,12 +374,15 @@ interface ArgumentSpec {
 ```ts
 interface Command<S extends OptionSpecs = OptionSpecs, O extends CommandOutput = CommandOutput> {
     name: string;
+    /** Other words that run this command, `['s']` for `serve`: listed on it in help, `--schema` and completions, never as commands of their own. */
+    aliases?: readonly string[];
     description?: Localised;
     /** Shown in command lists instead of the description. */
     summary?: Localised;
     /** Declared once (S1); the handler's `options` type is derived from it. */
     options?: S;
-    arguments?: ArgumentSpec[];
+    /** `choices` is the commander façade's: the native parser does not check a positional's value. */
+    arguments?: Omit<ArgumentSpec, 'choices'>[];
     examples?: DeclaredExample[];
     /** Heading this command is listed under in its parent's help. */
     group?: string;
@@ -424,6 +438,13 @@ interface CommandContext<O> extends Omit<RunContext, 'options'> {
 ```ts
 interface CommandNode {
     path: string[];
+    /**
+     * Other words that name this command where its own last path segment would be typed:
+     * commander's `.alias()`, yargs' `['serve', 's']` (facade-projection-fidelity R5). A field on
+     * the command, never a second command, so `--schema` and an MCP tool list do not double.
+     * The engine reads them in `aliases.ts`; a façade dispatches its own.
+     */
+    aliases?: readonly string[];
     description?: string;
     /** Shown in command lists instead of the description (yargs #1265). */
     summary?: string;

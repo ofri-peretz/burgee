@@ -243,6 +243,9 @@ From **`@inquirer/core`**, one import — `createPrompt`, the hooks and the keyp
 level with their incumbent — and `npx burgee migrate` makes the change
 ([Migrate](https://burgee.interlace.tools/docs/migrate)).
 
+From **`@inquirer/prompts`**, `select` and `checkbox` are at `caique/inquirer/prompts`, each level
+with its own suite; the other prompts are not built yet, so `burgee migrate` leaves that import alone.
+
 From **`@clack/prompts`** there is no one-import swap: caique takes a prompt as a spec rather
 than clack's call signature and does not draw clack's frames, so a CLI moves one prompt at a
 time. [Coming from clack](https://caique.interlace.tools/docs/coming-from/clack) maps each clack
@@ -323,9 +326,9 @@ Graded by the incumbent's own test suite:
 | :-- | --: |
 | `clack` | 16 / 16 |
 | `inquirer-core` | 41 / 41 |
-| `inquirer-prompts` | 0 / 213 |
+| `inquirer-prompts` | 100 / 213 |
 
-Weight, installed and tree-inclusive: **247,790 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.6369**.
+Weight, installed and tree-inclusive: **268,377 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.6898**.
 
 ## For agents
 

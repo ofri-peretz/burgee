@@ -3,6 +3,12 @@ title: Changelog
 description: "Every release of paratext, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.0.7
+
+### Patch Changes
+
+- [#1082](https://github.com/ofri-peretz/burgee/pull/1082) [`4a62884`](https://github.com/ofri-peretz/burgee/commit/4a6288481a77dce34c496af5a5ffbaed900483c6) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `paratext check` and `register()` refuse a plugin with every capability problem at once, each with its own code and `fix:`, where they used to stop at the first. A missing `osc`, `when`, `encode` or `name` now gets a fix that shows the field written (``add `when: { tty: true }` ``), not "compare against the schema". The README has a "Writing a plugin" section: a whole plugin module and what `paratext check` prints for it.
+
 ## 1.0.6
 
 ### Patch Changes

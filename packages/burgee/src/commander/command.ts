@@ -22,7 +22,7 @@ import { stripVTControlCharacters } from 'node:util';
  
 import { ExitCode } from '../exit-code.js';
 import { handlerFailure } from '../facade-failure.js';
-import { type DeclaredEffects, Manifest, type OptionSpec, type Plugin } from '../manifest.js';
+import { type ArgumentSpec, type DeclaredEffects, Manifest, type OptionSpec, type Plugin } from '../manifest.js';
 import { camel } from '../names.js';
 import { host } from '../runtime.js';
 import { machineJson, schemaOf } from '../schema.js';
@@ -159,6 +159,17 @@ function subCommandFailed(exitCallback: ((err: CommanderError) => void) | null, 
   const wrappedError = new CommanderError(1, 'commander.executeSubCommandAsync', '(error)');
   wrappedError.nestedError = err;
   exitCallback(wrappedError);
+}
+
+/**
+ * What an `Option` and an `Argument` both declare, copied onto the manifest's entry by one path:
+ * the description, and `choices`, which every surface publishes as `enum`
+ * (facade-projection-fidelity R1, R3).
+ */
+function declared<T extends OptionSpec | ArgumentSpec>(spec: T, from: Option | Argument): T {
+  if (from.description) spec.description = from.description;
+  if (from.argChoices) spec.choices = from.argChoices;
+  return spec;
 }
 
 /** What a run prints for an action's return value when the streams are injected. */
@@ -1277,7 +1288,7 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
   /** The failure envelope on stdout, once per run however many paths see the same failure (G5). */
   _writeFailure(error: Record<string, unknown>): void {
     const burgee = this._root()._burgee;
-    if (burgee === undefined || !burgee.json || burgee.reported) return;
+    if (!burgee?.json || burgee.reported) return;
     burgee.reported = true;
     this._outputConfiguration.writeOut(`${JSON.stringify({ ok: false, error })}\n`);
   }
@@ -1706,14 +1717,16 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
     const visit = (cmd: Command, at: string[]): void => {
       manifest.add({
         path: at,
+        // facade-projection-fidelity R6 — listed on the command, as commander lists them in help.
+        ...(cmd._aliases[0] ? { aliases: cmd._aliases } : {}),
         ...(cmd._description ? { description: cmd._description } : {}),
         ...(cmd._summary ? { summary: cmd._summary } : {}),
-        ...(cmd._effects === undefined ? {} : { effects: cmd._effects }),
+        ...(cmd._effects ? { effects: cmd._effects } : {}),
         ...(cmd._deprecated === undefined ? {} : { deprecated: cmd._deprecated }),
-        ...(cmd._helpGroupHeading === undefined || cmd._helpGroupHeading === '' ? {} : { group: cmd._helpGroupHeading }),
+        ...(cmd._helpGroupHeading ? { group: cmd._helpGroupHeading } : {}),
         ...(cmd._hidden ? { hidden: true } : {}),
         options: cmd._optionSpecs(),
-        arguments: cmd.registeredArguments.map((a) => ({ name: a.name(), required: a.required, variadic: a.variadic, ...(a.description ? { description: a.description } : {}) })),
+        arguments: cmd.registeredArguments.map((a) => declared({ name: a.name(), required: a.required, variadic: a.variadic, ...(typeof a.defaultValue === 'string' ? { default: a.defaultValue } : {}) }, a)),
         ...(cmd._actionHandler === null ? {} : { run: () => undefined }),
       });
       for (const sub of cmd.commands) visit(sub, [...at, sub._name]);
@@ -1739,14 +1752,17 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
       // `--x` with `--no-x`, in either order: the one pair commander negates.
       const paired = this.options.some((o) => o.negate !== option.negate && o.attributeName() === name);
       if (option.negate && paired) continue;
-      const spec: OptionSpec = { type: option.required || option.optional ? 'string' : 'boolean' };
-      if (option.description) spec.description = option.description;
+      const spec = declared<OptionSpec>({ type: option.required || option.optional ? 'string' : 'boolean' }, option);
       if (option.mandatory) spec.required = true;
       if (option.short && option.long) spec.short = option.short.slice(1);
       if (typeof option.defaultValue === 'string' || typeof option.defaultValue === 'boolean') spec.default = option.defaultValue;
       if (option.envVar) spec.env = option.envVar;
+      // facade-projection-fidelity R1/R2: declared on the option, so every surface reads it.
+      // Relations are declaration only here — commander enforces its own while parsing.
+      if (option.hidden) spec.hidden = true;
+      if (option.conflictsWith[0]) spec.exclusive = option.conflictsWith;
       if (spec.type === 'boolean') spec.negatable = paired;
-      Object.defineProperty(specs, option.negate ? camel(option.name()) : name, { value: spec, enumerable: true, writable: true, configurable: true });
+      specs[option.negate ? camel(option.name()) : name] = spec;
     }
     return specs;
   }
@@ -1919,7 +1935,7 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
     const root = this._root();
     const manifest = root._manifest;
     const settle = (value: unknown): void => this._emitResult(value);
-    if (manifest === undefined || manifest.plugins.length === 0) {
+    if (!manifest?.plugins.length) {
       const result = handler(this.processedArgs);
       return isThenable(result) ? Promise.resolve(result).then(settle) : settle(result);
     }
@@ -1947,7 +1963,8 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
 
   /** burgee (M5): once per process, on stderr; only for a command that asked, so commander's own output is untouched. */
   _warnDeprecated(): void {
-    if (this._deprecated === undefined || this._deprecated === false || this._deprecationWarned) return;
+    // `deprecate()` is the one writer, and it never writes `false`.
+    if (this._deprecated === undefined || this._deprecationWarned) return;
     this._deprecationWarned = true;
     const use = typeof this._deprecated === 'string' ? `, use '${this._deprecated}'` : '';
     this._outputConfiguration.writeErr(`warning: '${this.name()}' is deprecated${use}\n`);
@@ -1956,9 +1973,8 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
   /** burgee: where every option value came from, from commander's own value sources (V3). */
   _provenance(): Record<string, { source: string }> {
     const out: Record<string, { source: string }> = {};
-    const names: Record<string, string> = { cli: 'flag', env: 'env', config: 'config', default: 'default', implied: 'implied' };
     for (const [key, source] of Object.entries(this._optionValueSources)) {
-      if (source !== undefined && this.getOptionValue(key) !== undefined) out[key] = { source: names[source] ?? source };
+      if (source !== undefined && this.getOptionValue(key) !== undefined) out[key] = { source: source === 'cli' ? 'flag' : source };
     }
     return out;
   }

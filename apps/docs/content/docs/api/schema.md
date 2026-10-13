@@ -127,6 +127,8 @@ interface CommandSchema {
     name: string;
     description?: string;
     summary?: string;
+    /** Other words that run it (R5): on the command, so a list of commands is one entry per command. */
+    aliases?: readonly string[];
     /**
      * What running it does, or `'withheld'` — published either way, because an agent reading
      * the program as data is better served by *this exists and is not for you* than by a gap

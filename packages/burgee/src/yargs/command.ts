@@ -14,6 +14,8 @@ const DEFAULT_MARKER = /(^\*)|(^\$0)/;
 
 export interface CommandHandler {
   original: string;
+  /** burgee: the other names it was registered under, which `--schema` lists on it. */
+  aliases?: string[];
   description?: string | false | undefined;
   handler: (argv: any) => any;
   builder: any;
@@ -153,6 +155,8 @@ export class CommandInstance {
       if (description !== false) this.usage.command(cmd, description as string, isDefault, aliases, deprecated);
       this.handlers[parsedCommand.cmd] = {
         original: cmd,
+        // burgee: what `--schema` lists on the command (facade-projection-fidelity R6).
+        aliases,
         description,
         handler,
         builder: builder || {},

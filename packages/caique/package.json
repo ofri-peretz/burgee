@@ -1,10 +1,12 @@
 {
   "name": "caique",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Prompts that are flags first: an agent passes the answer up front, and a non-TTY caller gets an error naming the flag, never a prompt that waits. No dependency outside the burgee family. Drop-in path for @inquirer/core.",
   "license": "MIT",
   "type": "module",
-  "sideEffects": ["./dist/cli.js"],
+  "sideEffects": [
+    "./dist/cli.js"
+  ],
   "engines": {
     "node": "^20.19.0 || >=22.13.0"
   },
@@ -48,6 +50,11 @@
       "types": "./dist/inquirer.d.ts",
       "import": "./dist/inquirer.js",
       "default": "./dist/inquirer.js"
+    },
+    "./inquirer/prompts": {
+      "types": "./dist/inquirer-prompts.d.ts",
+      "import": "./dist/inquirer-prompts.js",
+      "default": "./dist/inquirer-prompts.js"
     },
     "./keys": {
       "types": "./dist/keys.d.ts",
@@ -115,7 +122,7 @@
   "dependencies": {
     "closeout": "^1.1.3",
     "linegauge": "^1.1.1",
-    "paratext": "^1.0.6",
+    "paratext": "^1.0.7",
     "roundel": "^1.1.1"
   },
   "devDependencies": {

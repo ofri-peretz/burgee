@@ -174,12 +174,12 @@ function deprecation(d: boolean | string | undefined): string {
  */
 function annotate(text: string, spec: OptionSpec, verbose: boolean): string {
   const parts = [text];
-  if (spec.required === true) parts.push('(required)');
+  if (spec.required) parts.push('(required)');
   if (spec.default !== undefined) parts.push(`(default: ${String(spec.default)})`);
   if (spec.choices !== undefined) parts.push(`(one of: ${spec.choices.join(', ')})`);
-  if (spec.multiple === true) parts.push('(repeatable)');
-  if (spec.dependsOn !== undefined && spec.dependsOn.length > 0) parts.push(`(requires ${flagsOf(spec.dependsOn).join(', ')})`);
-  if (spec.exclusive !== undefined && spec.exclusive.length > 0) parts.push(`(conflicts with ${flagsOf(spec.exclusive).join(', ')})`);
+  if (spec.multiple) parts.push('(repeatable)');
+  if (spec.dependsOn?.length) parts.push(`(requires ${flagsOf(spec.dependsOn).join(', ')})`);
+  if (spec.exclusive?.length) parts.push(`(conflicts with ${flagsOf(spec.exclusive).join(', ')})`);
   if (spec.env !== undefined) parts.push(`[env: ${spec.env}]`);
   if (verbose) parts.push(`[${spec.type}]`);
   return `${parts.filter((p) => p !== '').join(' ')}${deprecation(spec.deprecated)}`.trim();
@@ -232,7 +232,8 @@ function commandSections(manifest: Manifest, node: CommandNode, listed?: readonl
   for (const c of children) {
     const heading = (manifest.find(c.path.slice(0, node.path.length + 1)) ?? c).group ?? 'Commands:';
     const rows = groups.get(heading) ?? [];
-    rows.push({ term: [...c.path.slice(node.path.length), ...(c.arguments ?? []).map(argumentTerm)].join(' '), text: `${c.summary ?? c.description ?? ''}${deprecation(c.deprecated)}`.trim(), kind: 'command' });
+    // R5 — a command's aliases beside its own name, as commander lists them: `serve|s`.
+    rows.push({ term: [...c.path.slice(node.path.length, -1), [c.path.at(-1), ...(c.aliases ?? [])].join('|'), ...(c.arguments ?? []).map(argumentTerm)].join(' '), text: `${c.summary ?? c.description ?? ''}${deprecation(c.deprecated)}`.trim(), kind: 'command' });
     groups.set(heading, rows);
   }
   return [...groups].map(([title, rows]) => ({ title, rows }));

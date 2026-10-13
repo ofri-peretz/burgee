@@ -3,6 +3,17 @@ title: Changelog
 description: "Every release of flagstaff, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.6.0
+
+### Minor Changes
+
+- [#1072](https://github.com/ofri-peretz/burgee/pull/1072) [`582bc15`](https://github.com/ofri-peretz/burgee/commit/582bc15ec32466190f19db6f24c934e59cfb4012) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `flagstaff/progress` reports to an MCP client instead of drawing. Inside a burgee `--mcp` tool call whose client sent `_meta.progressToken`, the bar sends each count as `notifications/progress`, with its static line (`12/30 files · 40%`) as the message, and draws nothing into the tool result. Anywhere else it draws as before. The bridge is on the `flagstaff/progress` subpath only: `progress` from the root `flagstaff` entry always draws, so a program that never serves MCP does not pay for it.
+
+### Patch Changes
+
+- Updated dependencies [[`4a62884`](https://github.com/ofri-peretz/burgee/commit/4a6288481a77dce34c496af5a5ffbaed900483c6)]:
+  - paratext@1.0.7
+
 ## 1.5.0
 
 ### Minor Changes
