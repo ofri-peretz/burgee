@@ -25,7 +25,7 @@ evidence are recorded in [`next-wave-3-2026-10.md`](../../research/next-wave-3-2
 
 ## Build status — 2026-10-13
 
-**R1–R3 and R5 built in flagstaff; R4 next, in caique.** The weight budgets that stopped the
+**R1–R3 and R5 built in flagstaff, R4 in caique.** The weight budgets that stopped the
 2026-10-12 build were raised under the owner's delegation, after a trim, to the measurement
 rounded up to the next 50 B:
 [`D-20261013-frames-fit-the-screen-budgets`](../../decisions/D-20261013-frames-fit-the-screen-budgets.md),
@@ -36,10 +36,10 @@ which closes [`B-20261012-frames-fit-the-screen-budgets`](../../gaps/B-20261012-
 | R1 | Built | `flagstaff` `.` 29,300 -> 30,100, `./loop` 7,000 -> 7,750 (+796 B in `projection.js`, with R2 and R3) | `projection.test.ts`: a 50-line frame on 20 rows paints all 50, and a repaint climbs 49 rows |
 | R2 | Built | the same | `projection.test.ts`: no `… 31 more`; `release` writes nothing |
 | R3 | Built | the same | `projection.test.ts`: the 20 -> 60 resize repaints nothing, so a clipped view would stay |
-| R4 | Not built | `caique` `.` and `./raw`, in its own PR under the same decision | `raw.test.ts`: `renderList` returns 41 lines; the repaint climbs 40 rows on 10 |
+| R4 | Built | `caique` `.` 20,000 -> 20,700, `./raw` 9,000 -> 9,550 (+652 B in `raw.js`, +72 B in `terminal.js`) | `raw.test.ts`: `renderList` returns 41 lines; the repaint climbs 40 rows on 10 |
 | R5 | Built | none (a test) | passes on main by design: a mutation that clips the static path fails it |
 
-Tally: 4 of 5 built.
+Tally: 5 of 5 built.
 
 R2's arithmetic disagrees with intent criterion 1 and this file's Verification row. R2 clips
 above `rows - 1` and keeps `rows - 2` lines; criterion 1 and Verification keep 19 lines plus the

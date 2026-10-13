@@ -99,10 +99,14 @@ export function canRender(keys: KeyStream): boolean {
 interface ListState {
   cursor: number;
   selected: Set<number>;
+  /** The first choice in the window, kept between frames so the window moves only at its edges. */
+  top?: number;
 }
 
 const MARK = { on: '◉', off: '◯' } as const;
 const POINTER = '❯';
+/** The rows a windowed list takes besides its choices: the question, `↑ N more` and `↓ N more`. */
+const CHROME_ROWS = 3;
 const CANCELLED: Asked = { ok: false, reason: 'cancelled' };
 
 /** The `◉`/`◯` column, which only a multiselect has. Empty for a single select. */
@@ -111,13 +115,28 @@ function markFor(state: ListState, index: number, multi: boolean): string {
   return `${state.selected.has(index) ? MARK.on : MARK.off} `;
 }
 
-/** One frame of the list. Exported so a test asserts the drawing rather than a screenshot. */
+/**
+ * One frame of the list. Exported so a test asserts the drawing rather than a screenshot.
+ *
+ * A list longer than the spec's `maxItems` is drawn as a window that holds the cursor, with `↑ N more`
+ * and `↓ N more` rows for what is outside it (frames-fit-the-screen R4). The window moves only
+ * when the cursor crosses an edge, so a person moving through it does not see the list jump.
+ */
 export function renderList(spec: PromptSpec, choices: Choice[], state: ListState, multi: boolean): string {
-  const rows = choices.map((choice, index) => {
+  const size = Math.max(1, spec.maxItems ?? Number.POSITIVE_INFINITY);
+  // Where the window was, moved just enough to hold the cursor, and no further down than a
+  // full window allows — a screen that grew shows more above rather than space below.
+  const top = Math.max(0, Math.min(Math.max(state.top ?? 0, state.cursor - size + 1), state.cursor, choices.length - size));
+  state.top = top;
+  const end = Math.min(top + size, choices.length);
+  const rows = choices.slice(top, end).map((choice, at) => {
+    const index = top + at;
     const pointer = index === state.cursor ? POINTER : ' ';
     const hint = choice.hint === undefined ? '' : ` — ${choice.hint}`;
     return `${pointer} ${markFor(state, index, multi)}${choice.label ?? choice.value}${hint}`;
   });
+  if (top > 0) rows.unshift(`  ↑ ${top} more`);
+  if (end < choices.length) rows.push(`  ↓ ${choices.length - end} more`);
   return [spec.message, ...rows].join('\n');
 }
 
@@ -181,8 +200,13 @@ export async function askList(spec: PromptSpec, io: RawIo, multi = false): Promi
   const state: ListState = { cursor: 0, selected: new Set() };
   let painted = 0;
 
+  // The window: `maxItems`, and never more than the screen less the question and the two
+  // `more` rows, so a repaint never climbs above the top row. Read at every paint, as the
+  // width is, so a resize is honoured.
+  const fit = (): PromptSpec => ({ ...spec, maxItems: Math.min(spec.maxItems ?? Number.POSITIVE_INFINITY, (io.writer.rows ?? Number.POSITIVE_INFINITY) - CHROME_ROWS) });
+
   const paint = (): void => {
-    const frame = renderList(spec, choices, state, multi);
+    const frame = renderList(fit(), choices, state, multi);
     io.writer.write((painted === 0 ? '' : erase(painted)) + frame);
     painted = rowsOf(frame, io.writer);
   };
@@ -217,7 +241,7 @@ export async function askList(spec: PromptSpec, io: RawIo, multi = false): Promi
         io.keys.off('data', onData);
         // Leave the answered question on screen; the `finally` puts the cursor and the
         // terminal back, because a prompt that exits in raw mode leaves the shell unusable.
-        io.writer.write(`${erase(painted)}${renderList(spec, choices, state, multi)}\n`);
+        io.writer.write(`${erase(painted)}${renderList(fit(), choices, state, multi)}\n`);
         resolve(answer);
       };
 
