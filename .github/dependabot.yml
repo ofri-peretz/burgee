@@ -28,6 +28,12 @@ updates:
       # (#5, #31). Drop this entry when typescript-eslint ships a TS 7 peer range.
       - dependency-name: "typescript"
         versions: [">=6"]
+      # next 16.4.0's Turbopack production build grows past 14 GB RSS on every docs app and is
+      # OOM-killed ("Creating an optimized production build ..."), locally and on CI's Build
+      # lane (#1088); 16.3.8 builds the same app in 18 s under 3 GB. Only this release is
+      # skipped, so the first patch after it is proposed again.
+      - dependency-name: "next"
+        versions: ["16.4.0"]
       - dependency-name: "commander"
       - dependency-name: "yargs"
       - dependency-name: "yargs-parser"
