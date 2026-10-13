@@ -297,3 +297,39 @@ describe('G6 — every argument the schema advertises reaches the program', () =
     expect(seen[0]?.['trim']).not.toBe(true);
   });
 });
+
+/** A yargs program with an array command name and an `aliases` key. */
+function aliasedYargs(): Argv {
+  return yargs([])
+    .scriptName('web')
+    .command(['serve', 's', 'up'], 'serve the site', (b: Argv) => b, () => undefined)
+    .command({ command: 'build', aliases: ['b'], describe: 'build it', handler: () => undefined });
+}
+
+/** The commands of the `--schema` document a commander or yargs program prints. */
+async function schemaCommands(argv: (args: string[]) => Promise<string>): Promise<{ name: string; aliases?: string[] }[]> {
+  return (JSON.parse(await argv(['--schema'])) as { commands: { name: string; aliases?: string[] }[] }).commands;
+}
+
+describe('facade-projection-fidelity R6 — an aliased command is one schema entry with aliases', () => {
+  it('commander: .alias() and .aliases() fill aliases, and the alias is no entry of its own', async () => {
+    const program = new Command('web');
+    program.command('serve').alias('s').aliases(['up']).description('serve the site').action(() => 'serving');
+    program.command('build').action(() => 'built');
+    const commands = await schemaCommands(async (argv) => (await run(program, argv)).out);
+    expect(commands.map((c) => c.name)).toEqual(['serve', 'build']);
+    expect(commands[0]?.aliases).toEqual(['s', 'up']);
+    expect(commands[1]).not.toHaveProperty('aliases');
+  });
+
+  it("yargs: command: ['serve', 's'] fills aliases, and the alias is no entry of its own", async () => {
+    const commands = await schemaCommands(async (argv) => {
+      const out: string[] = [];
+      await aliasedYargs().burgee({ stdout: { write: (s: string) => void out.push(s) }, exit: () => undefined }).parseAsync(argv);
+      return out.join('');
+    });
+    expect(commands.map((c) => c.name)).toEqual(['serve', 'build']);
+    expect(commands[0]?.aliases).toEqual(['s', 'up']);
+    expect(commands[1]?.aliases).toEqual(['b']);
+  });
+});
