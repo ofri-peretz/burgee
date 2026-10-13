@@ -72,6 +72,12 @@ updates:
       # against its `x`. No suite of its is graded, so the pin is the release the ceiling was
       # measured against, and it moves only when somebody re-measures the pair on purpose.
       - dependency-name: "tinyexec"
+      # cac 7.0.0 is the published weight and cold-start target (`lighter-than-cac`,
+      # `cold-start-at-or-below-cac`, docs/vs/cac). No suite of its is graded, so, like tinyexec,
+      # the pin is the release the claims were measured against. #1088 proposed 7.0.1, which
+      # moved cac's bundle 10,452 → 10,542 B and the published 2.323× with it, a ratio change
+      # nobody decided. It moves only when somebody re-measures the claims on purpose.
+      - dependency-name: "cac"
       # @clack/prompts 1.8.1 is the release compat-oracle vendors and grades (vendor/clack), and
       # B5 times caique/clack against it (D-20260929-b5-runtime-ratchets): a runtime ratio against
       # a release whose suite we do not pass would compare two different contracts.
