@@ -53,10 +53,27 @@ const ALLOWED: Readonly<Record<string, string>> = {
 };
 
 /** Modules that must stay behind a `dynamic-import` edge, matched against the input path. */
-const LAZY: readonly RegExp[] = [/packages\/bellpull\//, /burgee\/dist\/completions\.js$/, /burgee\/dist\/mcp\.js$/, /burgee\/dist\/parse-hooks\.js$/];
+const LAZY: readonly RegExp[] = [
+  /packages\/bellpull\//,
+  /burgee\/dist\/completions\.js$/,
+  /burgee\/dist\/mcp\.js$/,
+  /burgee\/dist\/parse-hooks\.js$/,
+  /burgee\/dist\/commander\/surfaces\.js$/,
+];
 
-/** The initial load's input modules: the entry chunk and every chunk it statically imports. */
-function initialInputs(meta: Metafile): string[] {
+/**
+ * `commander/command.js`'s bytes in the initial load, a ratchet (R2): 34,296 at `10edb48`, 34,434
+ * after R1 split the spawn, and this after R2 moved the `completion` and `--mcp` routers out.
+ */
+const COMMAND_SHARE = 33_850;
+
+/** One input's bytes across the chunks the initial load counts. */
+function shareOf(meta: Metafile, key: string): number {
+  return initialOutputs(meta).reduce((sum, path) => sum + Object.entries(meta.outputs[path]?.inputs ?? {}).filter(([input]) => keyOf(input) === key).reduce((n, [, v]) => n + v.bytesInOutput, 0), 0);
+}
+
+/** The entry chunk and every chunk it statically imports. */
+function initialOutputs(meta: Metafile): string[] {
   const entry = Object.keys(meta.outputs).find((out) => meta.outputs[out]?.entryPoint !== undefined);
   if (entry === undefined) throw new Error('the metafile names no entry chunk');
   const seen = new Set<string>();
@@ -67,7 +84,12 @@ function initialInputs(meta: Metafile): string[] {
     for (const edge of output.imports) if (edge.kind === 'import-statement') walk(edge.path);
   };
   walk(entry);
-  return [...seen].flatMap((path) => Object.keys(meta.outputs[path]?.inputs ?? {})).filter((input) => !input.startsWith('fixture:'));
+  return [...seen];
+}
+
+/** The initial load's input modules. */
+function initialInputs(meta: Metafile): string[] {
+  return initialOutputs(meta).flatMap((path) => Object.keys(meta.outputs[path]?.inputs ?? {})).filter((input) => !input.startsWith('fixture:'));
 }
 
 /** An input path as a row key of {@link ALLOWED}, or the path itself when it is not burgee's. */
@@ -102,7 +124,8 @@ async function metafile(specifier: string): Promise<Metafile> {
 }
 
 describe('burgee/commander: the start-up path, by module (commander-front-end-diet R3)', async () => {
-  const inputs = initialInputs(await metafile('burgee/commander'));
+  const meta = await metafile('burgee/commander');
+  const inputs = initialInputs(meta);
 
   it('finds the façade in the initial load, so an empty walk cannot pass', () => {
     expect(inputs.map(keyOf)).toContain('commander/command.js');
@@ -110,6 +133,15 @@ describe('burgee/commander: the start-up path, by module (commander-front-end-di
 
   it.each(LAZY.map((re) => [re.source, re] as const))('keeps %s behind a dynamic import', (_, re) => {
     expect(inputs.filter((input) => re.test(input))).toEqual([]);
+  });
+
+  it('loads the completion and --mcp routers from a chunk of their own (R2)', () => {
+    const everywhere = Object.values(meta.outputs).flatMap((o) => Object.keys(o.inputs)).map(keyOf);
+    expect(everywhere, 'no commander/surfaces.js in the bundle: the routers are still in command.js').toContain('commander/surfaces.js');
+  });
+
+  it(`keeps commander/command.js's share of the initial load at or under ${String(COMMAND_SHARE)} B`, () => {
+    expect(shareOf(meta, 'commander/command.js')).toBeLessThanOrEqual(COMMAND_SHARE);
   });
 
   it('carries only modules the spec names, each for a stated reason', () => {

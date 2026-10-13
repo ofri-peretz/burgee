@@ -82,6 +82,12 @@ updates:
       # and both sides of every W row load the same copy.
       - dependency-name: "ink"
       - dependency-name: "@inkjs/ui"
+      # foundation-claims-watched R6: B4 weighs `seniority/lilconfig`, `seniority/dotenv` and
+      # `closeout/signal-exit` against the releases compat-oracle grades them by (`suiteDeps` in
+      # compat-oracle's hosts.ts), so each moves with its re-vendor, not on its own.
+      - dependency-name: "lilconfig"
+      - dependency-name: "dotenv"
+      - dependency-name: "signal-exit"
   # The `claude` binary bench.yml (B1) and evals.yml install with `npm ci`. It was
   # `npm install --global` with no version, which Scorecard flags as unpinned (#34, #81);
   # the lockfile pins it, and this entry is what keeps the pin from going stale.
