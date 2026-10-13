@@ -44,7 +44,7 @@ symbol is unchanged in its first paragraph.
 
 1. A lock reads every packed `.d.ts` and finds no JSDoc block with more than one prose paragraph.
 2. burgee's packed size falls; the measured figure is written into the baseline by decision.
-3. `npm run compat -- extra-typings` stays 369 / 369.
+3. `npm run compat -- extra-typings` stays 369 / 369 (holds on `main` since #1039; must keep holding).
 
 ## Jev triage
 

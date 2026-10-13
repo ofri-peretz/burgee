@@ -30,7 +30,8 @@ default reads `process.platform` once.
 
 | R | Check | Red on main |
 | :-- | :-- | :-- |
-| R1, R2 | `shell-word.test.ts` | POSIX form on `win32` |
+| R1 | `shell-word.test.ts` | POSIX form on `win32` |
+| R2 | `shell-word.test.ts` | — (holds today; must keep holding) |
 | R3 | `fix-line-runs.test.ts` on `windows-latest` | `pwsh` parse error |
 | R4 | B4 weight axis, `weight.test.ts` | — |
 

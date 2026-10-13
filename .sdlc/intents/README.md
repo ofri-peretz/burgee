@@ -469,7 +469,8 @@ every row is at `review`, with a `spec.md` and the decisions its open questions 
 ranking uses wave 3's demand × fit ÷ cost scale, so the two waves compare;
 [`next-wave-4-2026-10.md`](../research/next-wave-4-2026-10.md) holds the candidate table, the
 Jev answers, the lanes with their file-overlap rules, the order (CI lanes first, the
-compat-oracle host group last), and what was left out. The selection is
+compat-oracle host group last), and what was left out. Rows are in rank order, not
+execution order. The selection is
 [`D-20261012-wave-4-selection`](../decisions/D-20261012-wave-4-selection.md).
 
 | #   | Intent                                                                     | Delivers                                                                                                                                                       | Status |
@@ -479,11 +480,11 @@ compat-oracle host group last), and what was left out. The selection is
 | 65  | [`schema-bytes-gated/`](./schema-bytes-gated/)                             | **`--schema` has a byte budget**: growth is a decision in the PR, not a band breach after it                                                                   | review |
 | 66  | [`fix-lines-every-shell/`](./fix-lines-every-shell/)                       | **a `fix:` line runs where it was printed**: POSIX off Windows, PowerShell on it                                                                              | review |
 | 67  | [`locale-pack-in-five/`](./locale-pack-in-five/)                           | **a locale pack in five turns**: `check` reports coverage and plural forms on success; eval median 7 → under 6                                                 | review |
-| 68  | [`ci-affected-lanes/`](./ci-affected-lanes/)                               | **a PR runs what it changed; `main` runs everything**: 13 compat jobs per PR, 24 of 30 runs cancelled                                                          | review |
-| 69  | [`windows-lane-holds/`](./windows-lane-holds/)                             | **Windows cells pass on a busy runner**: measured per case, cheaper cases, no timeout raised                                                                   | review |
+| 68  | [`colour-facades/`](./colour-facades/)                                     | **`roundel/kleur`, `roundel/colorette`, `roundel/yoctocolors`**, each graded by its own suite (158.3 M/wk together)                                           | review |
+| 69  | [`ci-affected-lanes/`](./ci-affected-lanes/)                               | **a PR runs what it changed; `main` runs everything**: 13 compat jobs per PR, 24 of 30 runs cancelled                                                          | review |
 | 70  | [`default-command/`](./default-command/)                                   | **`default: true` on a native command**: runs with no command name, its own help and examples. yargs #1331, #2292                                             | review |
-| 71  | [`typed-positionals/`](./typed-positionals/)                               | **positionals typed, named and projected**: `ctx.args`, `type`, `choices` into `--schema`, MCP and completions. yargs #1649; closes the commander choices gap | review |
-| 72  | [`colour-facades/`](./colour-facades/)                                     | **`roundel/kleur`, `roundel/colorette`, `roundel/yoctocolors`**, each graded by its own suite (158.3 M/wk together)                                           | review |
+| 71  | [`windows-lane-holds/`](./windows-lane-holds/)                             | **Windows cells pass on a busy runner**: measured per case, cheaper cases, no timeout raised                                                                   | review |
+| 72  | [`typed-positionals/`](./typed-positionals/)                               | **positionals typed, named and projected**: `ctx.args`, `type`, `choices` into `--schema`, MCP and completions. yargs #1649; closes the commander choices gap | review |
 
 ## Owner tasks — outside an agent's reach
 
