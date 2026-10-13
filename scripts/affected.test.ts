@@ -154,6 +154,7 @@ describe('scripts/affected.mts — the one affected set', () => {
   it('what a package reads outside its directory selects that package and its dependents', () => {
     expect(prTouching(['examples/demo/demo.js']).packages).toEqual(['burgee', 'compat-oracle']);
     expect(prTouching(['.sdlc/intents/x/intent.md']).packages).toEqual(['compat-oracle']);
+    expect(prTouching(['apps/docs/content/docs/compatibility.mdx']).packages).toEqual(['burgee', 'compat-oracle']);
   });
 
   for (const event of ['push', 'merge_group', 'schedule', 'workflow_dispatch']) {
