@@ -23,22 +23,23 @@ evidence are recorded in [`next-wave-3-2026-10.md`](../../research/next-wave-3-2
 - **R5 — The static projection is untouched.** A test holds the piped output of a 50-line frame
   byte-identical before and after.
 
-## Build status — 2026-10-12
+## Build status — 2026-10-13
 
-**Not built: R1–R5 do not fit the per-entry weight budgets**, which only the owner raises. Every
-check below was written and shown failing on main, and passed once built; the build stopped at
-the weight locks. The numbers and the recommended ruling are in
-[`B-20261012-frames-fit-the-screen-budgets`](../../gaps/B-20261012-frames-fit-the-screen-budgets.md).
+**R1–R3 and R5 built in flagstaff; R4 next, in caique.** The weight budgets that stopped the
+2026-10-12 build were raised under the owner's delegation, after a trim, to the measurement
+rounded up to the next 50 B:
+[`D-20261013-frames-fit-the-screen-budgets`](../../decisions/D-20261013-frames-fit-the-screen-budgets.md),
+which closes [`B-20261012-frames-fit-the-screen-budgets`](../../gaps/B-20261012-frames-fit-the-screen-budgets.md).
 
-| R | Status | Blocked by | Check, shown failing on main |
+| R | Status | Budget | Check, shown failing on main |
 | :-- | :-- | :-- | :-- |
-| R1 | Not built | `flagstaff` `.` and `./loop` budgets (+777 B in `projection.js`, with R2 and R3) | `projection.test.ts`: a 50-line frame on 20 rows climbs 49 rows |
-| R2 | Not built | the same | `projection.test.ts`: all 50 lines painted, no `… 31 more` |
-| R3 | Not built | the same | `projection.test.ts`: after 20 -> 60 rows the screen still holds the clipped view |
-| R4 | Not built | `caique` `.` and `./raw` budgets (+836 B in `raw.js` and `terminal.js`) | `raw.test.ts`: `renderList` returns 41 lines; the repaint climbs 40 rows on 10 |
-| R5 | Not built | held with R2, whose clip it guards | passes on main by design: it is the static path's lock |
+| R1 | Built | `flagstaff` `.` 29,300 -> 30,100, `./loop` 7,000 -> 7,750 (+796 B in `projection.js`, with R2 and R3) | `projection.test.ts`: a 50-line frame on 20 rows paints all 50, and a repaint climbs 49 rows |
+| R2 | Built | the same | `projection.test.ts`: no `… 31 more`; `release` writes nothing |
+| R3 | Built | the same | `projection.test.ts`: the 20 -> 60 resize repaints nothing, so a clipped view would stay |
+| R4 | Not built | `caique` `.` and `./raw`, in its own PR under the same decision | `raw.test.ts`: `renderList` returns 41 lines; the repaint climbs 40 rows on 10 |
+| R5 | Built | none (a test) | passes on main by design: a mutation that clips the static path fails it |
 
-Tally: 0 of 5 built.
+Tally: 4 of 5 built.
 
 R2's arithmetic disagrees with intent criterion 1 and this file's Verification row. R2 clips
 above `rows - 1` and keeps `rows - 2` lines; criterion 1 and Verification keep 19 lines plus the

@@ -160,7 +160,10 @@ interface EntryRule {
 const RULES: Record<string, EntryRule> = {
   // Everything: the loop, the registry, and all five built-ins. `box` and `table` bring the
   // wrapper and the width function with them, which is most of it. A program that wants one component should import its subpath (U5, R10).
-  '.': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'linegauge/truncate', 'linegauge/wrap', 'paratext/link', 'roundel/policy', 'roundel/tokens'], budget: 29_300, measured: 29_270, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
+  //
+  // 29,300 -> 30,100 on 2026-10-13 with `./loop` below, for the same 795 B of `projection.js`
+  // (D-20261013-frames-fit-the-screen-budgets).
+  '.': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'linegauge/truncate', 'linegauge/wrap', 'paratext/link', 'roundel/policy', 'roundel/tokens'], budget: 30_100, measured: 30_065, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
   // The loop and its four projections; never the registry — a program that hoists its own
   // component pays nothing for the plugin host.
   //
@@ -189,7 +192,16 @@ const RULES: Record<string, EntryRule> = {
   // budgets, which did not move.
   // 2026-10-11, agent-lint-conformance R2: a runtime that says `quiet` gets a projection that
   // draws nothing. Measured 6,910, inside the 7,000 budget, which did not move.
-  './loop': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'roundel/policy'], budget: 7_000, measured: 6_910, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
+  //
+  // **7,000 -> 7,750 on 2026-10-13, deliberately** (D-20261013-frames-fit-the-screen-budgets,
+  // under the owner's delegation of budgets that day). `frameWriter` reads the writer's `rows`
+  // at every paint and clips a frame taller than the screen to its tail under one
+  // `muted('… N more')` line, writes the clipped frame whole on `release`, and repaints from
+  // the top when the height changes (frames-fit-the-screen R1–R3): a repaint can no longer
+  // climb above the top row and leave lines it can never erase. +796 B, all `projection.js`,
+  // and `roundel/tokens` joins the allow list for the dim. The budget is the measurement
+  // rounded up to the next 50.
+  './loop': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'roundel/policy', 'roundel/tokens'], budget: 7_750, measured: 7_706, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
   // The registry, the validator, the built-ins and the schema they are checked against.
   // The registry, the validator, the built-ins and the schema they are checked against —
   // which now carries `borders` too, so both this and `./spinner` are larger than before.

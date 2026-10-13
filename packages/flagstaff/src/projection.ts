@@ -14,6 +14,7 @@
 import { onExit } from 'closeout';
 import { HIDE_CURSOR, SHOW_CURSOR } from 'closeout/cursor';
 import { lineCount } from 'linegauge';
+import { muted } from 'roundel/tokens';
 
 import { type Component } from './plugin.js';
 
@@ -25,6 +26,11 @@ export interface Writer {
    * TTY stream carries it, and a writer without it is taken to be `DEFAULT_COLUMNS` wide.
    */
   readonly columns?: number | undefined;
+  /**
+   * How tall the terminal is, read at every paint like the width (frames-fit-the-screen R1).
+   * A writer without it — a pipe — is unbounded, and no frame is clipped.
+   */
+  readonly rows?: number | undefined;
 }
 
 /** Time as the loop sees it: burgee's `Runtime.clock` satisfies it, so does `manualClock()`. */
@@ -65,7 +71,9 @@ const RESTORE = '\u001B8';
  *
  * Between paints the cursor rests at the end of the frame's last row, which is where the
  * hoisted projection has always left it. A frame taller than the terminal cannot be reached
- * above its top row; that is the terminal's limit, and a caller lays out within its height.
+ * above its top row, so one is clipped (frames-fit-the-screen R2): its tail, the lines that
+ * change, under one dim `… N more` line. `release` then writes the whole frame once, because
+ * a final write needs no repaint, so nothing the frame held is lost to the clip.
  */
 export interface FrameWriter {
   paint(lines: readonly string[]): void;
@@ -120,23 +128,44 @@ function diff(was: Painted, now: Painted, sameWidth: boolean): string {
 /** The family's one frame writer over `out` — see `FrameWriter`. */
 export function frameWriter(out: Writer): FrameWriter {
   let shown: Painted | undefined;
-  let width = 0;
+  // The frame as given, when the clip painted less of it; `release` writes it whole.
+  let whole: string[] | undefined;
+  // The width and height the last frame was painted at: a change in either repaints from the top.
+  let size = '';
+  const write = (bytes: string): void => {
+    if (bytes !== '') out.write(`${BEGIN_SYNC}${bytes}${END_SYNC}`);
+  };
   return {
     paint(lines) {
       // No lines is one empty line: the frame still has a row for the cursor to rest on.
-      const frame = lines.length === 0 ? [''] : [...lines];
+      let frame = lines.length === 0 ? [''] : [...lines];
       const columns = columnsOf(out);
+      // A pipe, or a terminal that does not say, is unbounded (R1).
+      const tall = (out.rows ?? 0) > 0 ? (out.rows as number) : Number.POSITIVE_INFINITY;
       // Rows *painted*, not lines written: a line wider than the terminal wraps, and counting
       // it once left the rows it wrapped onto on screen after the next erase. `lineCount` is
       // the same measurement `flagstaff/ora` clears by.
-      const now: Painted = { lines: frame, rows: frame.map((line) => lineCount(line, columns)) };
-      const bytes = shown === undefined ? frame.join('\n') : diff(shown, now, columns === width);
+      const heights = (): number[] => frame.map((line) => lineCount(line, columns));
+      let rows = heights();
+      whole = undefined;
+      if (rows.reduce((sum, n) => sum + n, 0) > tall) {
+        // Keep the tail that fits under the summary line, which takes one row (R2).
+        let cut = frame.length;
+        for (let used = 1; cut > 0 && (used += rows[cut - 1] as number) <= tall; ) cut -= 1;
+        whole = frame;
+        frame = [muted(`… ${cut} more`), ...frame.slice(cut)];
+        rows = heights();
+      }
+      const now: Painted = { lines: frame, rows };
+      const at = `${columns} ${tall}`;
+      write(shown === undefined ? frame.join('\n') : diff(shown, now, at === size));
+      size = at;
       shown = now;
-      width = columns;
-      if (bytes !== '') out.write(`${BEGIN_SYNC}${bytes}${END_SYNC}`);
     },
     release() {
-      shown = undefined;
+      // A final write needs no repaint: from the top of what was shown, the whole frame.
+      if (shown !== undefined && whole !== undefined) write(diff(shown, { lines: whole, rows: [] }, false));
+      shown = whole = undefined;
     },
   };
 }
