@@ -36,51 +36,18 @@
  * does. Removing `node_modules/@emnapi/core` from this repo's lockfile makes it report
  * `node_modules/@tailwindcss/oxide-wasm32-wasi -> @emnapi/core`, which is the error above.
  */
-import { execFileSync } from 'node:child_process';
-import { dirname, resolve } from 'node:path';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { load as loadYaml } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
 
+import { type Lock, unresolved } from './lockfile-resolves.js';
+
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-
-interface Entry {
-  link?: boolean;
-  dependencies?: Record<string, string>;
-  optionalDependencies?: Record<string, string>;
-}
-
-interface Lock {
-  packages: Record<string, Entry>;
-}
-
-/**
- * Every declared dependency that no entry satisfies, as `<declarer> -> <name>`.
- *
- * Resolution is node's own: from the declaring path, try `<dir>/node_modules/<name>`, then
- * strip one `/node_modules/<segment>` and try again, ending at the root. `optionalDependencies`
- * count — the `@emnapi` pair are optional, and npm demanded them anyway. A `link: true` entry
- * is a workspace pointer whose real dependencies are listed at the target.
- */
-/** Both kinds count: the `@emnapi` pair are `optionalDependencies`, and npm demanded them anyway. */
-const declared = (entry: Entry): string[] => [...Object.keys(entry.dependencies ?? {}), ...Object.keys(entry.optionalDependencies ?? {})];
-
-export function unresolved(lock: Lock): string[] {
-  const paths = new Set(Object.keys(lock.packages));
-  return Object.entries(lock.packages)
-    .filter(([, entry]) => entry.link !== true)
-    .flatMap(([from, entry]) => declared(entry).filter((name) => !resolves(paths, from, name)).map((name) => `${from === '' ? '<root>' : from} -> ${name}`));
-}
-
-/** Node's own lookup: try `<dir>/node_modules/<name>`, strip one `/node_modules/<segment>`, repeat to the root. */
-function resolves(paths: ReadonlySet<string>, from: string, name: string): boolean {
-  for (let dir = from; ; ) {
-    if (paths.has(dir === '' ? `node_modules/${name}` : `${dir}/node_modules/${name}`)) return true;
-    if (dir === '') return false;
-    const cut = dir.lastIndexOf('/node_modules/');
-    dir = cut === -1 ? '' : dir.slice(0, cut);
-  }
-}
 
 const committed = (): Lock => JSON.parse(execFileSync('git', ['show', 'HEAD:package-lock.json'], { cwd: REPO_ROOT, encoding: 'utf8' })) as Lock;
 
@@ -101,5 +68,48 @@ describe('the committed lockfile resolves', () => {
     // under oxide-wasm32-wasi, which would still resolve if only the root entry went.
     for (const p of Object.keys(lock.packages)) if (p === 'node_modules/@emnapi/core' || p.endsWith('/node_modules/@emnapi/core')) delete lock.packages[p];
     expect(unresolved(lock)).toContain('node_modules/@tailwindcss/oxide-wasm32-wasi -> @emnapi/core');
+  });
+});
+
+/**
+ * #1088 is why this lock also runs outside vitest. Its lock lacked both `@emnapi` entries, and
+ * the test above was red on it, but the Unit Tests lane had not started when `Node 26 ·
+ * windows-latest` failed `npm ci` 28 seconds in. The Fast checks lane's own `Lockfile Sync`
+ * passed: its `npm ci --dry-run` is Node 24's npm 11.6.2, which never looks for the entries.
+ * So the same question is asked by `scripts/lockfile-resolves.ts`, with plain `node` and before
+ * anything is installed, in that step.
+ */
+describe('the fast lane asks it before anything installs', () => {
+  const SCRIPT = 'scripts/lockfile-resolves.ts';
+
+  it('Lockfile Sync runs the script', () => {
+    const quality = loadYaml(readFileSync(join(REPO_ROOT, '.github/workflows/quality.yml'), 'utf8')) as {
+      jobs: Record<string, { steps?: { id?: string; run?: string }[] }>;
+    };
+    const step = Object.values(quality.jobs)
+      .flatMap((job) => job.steps ?? [])
+      .find((s) => s.id === 'lockfile');
+    expect(step?.run, 'quality.yml has no `id: lockfile` step, or it no longer runs the resolver').toContain(`node --no-warnings ${SCRIPT}`);
+  });
+
+  it("refuses #1088's lock the way npm on Windows did, and passes the committed one", () => {
+    const run = (lock: string): { status: number; out: string } => {
+      const r = spawnSync(process.execPath, ['--no-warnings', SCRIPT, lock], { cwd: REPO_ROOT, encoding: 'utf8' });
+      return { status: r.status ?? -1, out: `${r.stdout}${r.stderr}` };
+    };
+    const dir = mkdtempSync(join(tmpdir(), 'lockfile-resolves-'));
+    try {
+      const pruned = committed();
+      for (const p of Object.keys(pruned.packages)) if (p === 'node_modules/@emnapi/core' || p === 'node_modules/@emnapi/runtime') delete pruned.packages[p];
+      writeFileSync(join(dir, 'pruned.json'), JSON.stringify(pruned));
+      writeFileSync(join(dir, 'committed.json'), JSON.stringify(committed()));
+
+      const refused = run(join(dir, 'pruned.json'));
+      expect(refused.status).toBe(1);
+      expect(refused.out).toContain('node_modules/@tailwindcss/oxide-wasm32-wasi -> @emnapi/core');
+      expect(run(join(dir, 'committed.json'))).toEqual({ status: 0, out: expect.any(String) as string });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
