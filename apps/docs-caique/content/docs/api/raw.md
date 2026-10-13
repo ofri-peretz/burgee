@@ -72,6 +72,10 @@ function keyOf(data: string): Key;
 
 One frame of the list. Exported so a test asserts the drawing rather than a screenshot.
 
+A list longer than the spec's `maxItems` is drawn as a window that holds the cursor, with `↑ N more`
+and `↓ N more` rows for what is outside it (frames-fit-the-screen R4). The window moves only
+when the cursor crosses an edge, so a person moving through it does not see the list jump.
+
 ```ts
 function renderList(spec: PromptSpec, choices: Choice[], state: ListState, multi: boolean): string;
 ```

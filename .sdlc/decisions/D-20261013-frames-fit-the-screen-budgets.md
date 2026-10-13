@@ -7,8 +7,8 @@ superseded_by: —
 ---
 
 **Raised, at the post-trim measurement rounded up to the next 50 B.** `flagstaff` `.` 29,300 ->
-30,100 and `./loop` 7,000 -> 7,750 (R1–R3, R5); `caique` `.` and `./raw` move with R4 in the PR
-that builds it, and their figures are added to this file there. Budgets are ratchets the owner
+30,100 and `./loop` 7,000 -> 7,750 (R1–R3, R5); `caique` `.` 20,000 -> 20,700 and `./raw`
+9,000 -> 9,550 (R4), each in the PR that builds it. Budgets are ratchets the owner
 raises; the owner delegated that call, and this is the delegation used.
 
 **Value gained.** A live frame taller than the terminal no longer corrupts the screen. Before
@@ -45,8 +45,16 @@ older majors; the measured rows above are the current ones.
 | :-- | --: | --: | --: | --: | --: |
 | `flagstaff` `.` | 29,270 | 29,300 | 30,065 | +795 | 30,100 |
 | `flagstaff/loop` | 6,910 | 7,000 | 7,706 | +796 | 7,750 |
+| `caique` `.` | 19,952 | 20,000 | 20,676 | +724 | 20,700 |
+| `caique/raw` | 8,896 | 9,000 | 9,548 | +652 | 9,550 |
 
-All of it is `projection.js`. The trim before measuring took the first build's 857 B to 796:
+flagstaff's is all `projection.js`. caique's is `raw.js` (the window, `↑ N more` and `↓ N more`
+rows, and the `maxItems` / `rows - 3` fit) and 72 B of `terminal.js`, the writer's live `rows`
+getter, without which a real terminal never windows; `./raw` does not reach `terminal.js`, so it
+pays 652 of the 724. The 2026-10-12 build of R4 cost 836 B; this one keeps the window's position in the list
+state and folds its edge rules into one clamp, for 724. The rows are not dimmed: `./raw` reaches
+no roundel subpath, and adding one for a style would cost more than the rows. Its `main` figures
+are the gap's, measured 2026-10-12. The trim before measuring took the first build's 857 B to 796:
 the width and height kept as one key, the release reusing `diff`'s full-repaint path with no
 second measurement, and the row walk folded into one loop. The `… N more` summary is not shared
 with caique: caique does not depend on flagstaff, and adding that edge to save bytes is ruled
@@ -56,9 +64,13 @@ out. `check:artifacts` passes, so no tarball baseline moves for flagstaff.
 `fitToTerminalHeight` are 1,147 B of shipped source (comments removed), and they call
 `slice-ansi` and `string-width`, which are not counted; ora 9.4.1's head-clip is 354 B. flagstaff
 pays 796 B for the clip, the summary, the release flush and the height-change repaint, over
-`linegauge`'s `lineCount`, which the seam already reached.
+`linegauge`'s `lineCount`, which the seam already reached. For the prompt window, clack 1.8.1
+draws through `limitOptions`, whose port in this repo (`caique/src/clack-limit.ts`, kept
+byte-for-byte to clack's behaviour) builds to 4,354 B; caique's native window is 652 B, because
+it counts choices against `maxItems` rather than wrapped lines against the screen.
 
 **Reversal.** Revert the R1–R3 change to `packages/flagstaff/src/projection.ts` and lower the two
-budgets back to 29,300 and 7,000 (lowering needs no permission). The tests in
+budgets back to 29,300 and 7,000 (lowering needs no permission). For R4, revert `raw.ts`, `terminal.ts`, `ask.ts` and
+`spec.ts` and lower caique's two budgets to 20,000 and 9,000. The tests in
 `projection.test.ts`'s `a live frame never outgrows the terminal` block go with it, except R5,
 which holds today's static bytes and should stay.
