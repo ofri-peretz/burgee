@@ -15,16 +15,18 @@ ratchet (D-157's rule). No surface is deleted to make the number fit.
 **What goes lazy** ([`commander-front-end-diet`](../intents/commander-front-end-diet/spec.md)
 R1, R2), measured by `/docs/weight`'s method:
 
-- `bellpull/cross-spawn` (4,817 B). commander's own spawn, through `node:child_process`, runs on
+- `bellpull/cross-spawn` and its eight modules: 4,981 B static, of which R1 takes 4,817 B off the
+  initial load (the split adds the rest back to `command.js`). commander's own spawn, through `node:child_process`, runs on
   every path commander 15 spawns. `bellpull` loads through `import()` only for a Windows
   executable that isn't launched through node, which commander can't run at all. This supersedes
   D-102's "the spawn cannot go lazy". That was true of the whole spawn and is false of the one
-  path that needs `bellpull`.
+  path that needs `bellpull`. D-102's `superseded_by` already names D-157, which answered its
+  option (c) and not the spawn; this file is where the spawn claim is answered.
 - The `completion` and `--mcp` routers (757 B), which already returned a Promise.
 
-That takes it from 61,207 to a prototyped 55,633 B, or 1.415×.
+That takes it from 61,207 to a prototyped 55,633 B, or 1.415× (built: 55,661, with 65 B of #1064's `schema.js` that landed on `main` meanwhile).
 
-**What stays, and why.** The residual is 16,304 B, and `spec.md` names every byte of it:
+**What stays, and why.** The residual is 16,304 B as prototyped (16,332 as built), and `spec.md` names every byte of it:
 
 - `--schema`: 5,725 B. `parse()` returns after `--schema` and the program's own code runs next.
   A lazy document would lose to an early `help()` or `process.exit()`.

@@ -1775,27 +1775,15 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
     const root = this._root();
     const terminator = userArgs.indexOf('--');
     const head = terminator === -1 ? userArgs : userArgs.slice(0, terminator);
-    if (head[0] === 'completion' && root._findCommand('completion') === undefined) {
-      // Loaded on this command only (K6), exactly as the engine does.
-      return import('../completions.js').then(({ renderCompletion, renderFigSpec, SHELLS }) => {
-        const shell = head[1] ?? '';
-        if (shell === 'fig') {
-          root._outputConfiguration.writeOut(`${JSON.stringify(renderFigSpec(this.manifest), null, 2)}\n`);
-          return true;
-        }
-        const known = SHELLS.find((s) => s === shell);
-        if (known !== undefined) {
-          root._outputConfiguration.writeOut(renderCompletion(this.manifest, known));
-          return true;
-        }
-        return this._burgeeSurfaceRest(head);
-      });
+    // `completion` and `--mcp` answer with a Promise anyway, so they load on demand (K6, commander-front-end-diet R2).
+    if ((head[0] === 'completion' && root._findCommand('completion') === undefined) || (head[0] === '--mcp' && !root._declares('--mcp'))) {
+      return import('./surfaces.js').then(({ serveSurface }) => serveSurface(this, head));
     }
-    return this._burgeeSurfaceRest(head);
+    return this._burgeeSchema(head);
   }
 
-  /** The surfaces after `completion`: `--schema` is synchronous, `--mcp` serves until stdin closes. */
-  _burgeeSurfaceRest(head: string[]): boolean | Promise<boolean> {
+  /** `--schema`, synchronous: see below. A `completion` with an unknown shell falls through to it too. */
+  _burgeeSchema(head: string[]): boolean {
     const root = this._root();
     if (head.includes('--schema') && !root._declares('--schema')) {
       // R1, and the same escape hatch the engine has: `--schema` is burgee's surface, not
@@ -1804,25 +1792,13 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
       // **Static, and it has to be.** `commander/sync.test.ts` holds `parse()` synchronous —
       // that is commander's contract, not a preference — and `--schema` answers inside it.
       // Making this an `await import()` saved 2.2 KB and returned a Promise nobody awaited,
-      // so the document never printed. The MCP branch below is different: `--mcp` already
-      // returns a Promise, so loading its server on demand costs no contract.
+      // so the document never printed. `--mcp` and `completion` are different: they already
+      // return a Promise, so they load on demand from `surfaces.js`.
       // J4: the reserved surfaces this program declares for itself — withheld, and named here
       // rather than silently missing. Absent when it shadows none.
       const shadows = ['--json', '--mcp', 'completion'].filter((name) => root._declares(name) || root._findCommand(name) !== undefined);
       root._outputConfiguration.writeOut(`${machineJson({ ...schemaOf(this.manifest), ...(shadows.length > 0 && { shadows }) }, head)}\n`);
       return true;
-    }
-    if (head[0] === '--mcp' && !root._declares('--mcp')) {
-      // G3: held before the first tool call; `invoke` replaces `_outputConfiguration`.
-      const writeOut = root._outputConfiguration.writeOut;
-      const invoke = async (args: string[]): Promise<{ stdout: string; stderr: string; code: number }> => {
-        const out: string[] = [];
-        const err: string[] = [];
-        let code = 0;
-        await root.parseAsync(args, { from: 'user', stdout: { write: (s) => out.push(s) }, stderr: { write: (s) => err.push(s) }, exit: (c) => void (code = c) });
-        return { stdout: out.join(''), stderr: err.join(''), code };
-      };
-      return import('../mcp.js').then(async ({ serveMcp }) => serveMcp(this.manifest, { input: host.stdin, output: { write: writeOut }, invoke })).then(() => true);
     }
     return false;
   }

@@ -737,12 +737,13 @@ const RULES: Record<string, EntryRule> = {
   },
   // `previous-majors` R1, 2026-10-12: commander 14's door, which `burgee migrate` writes for a
   // program on 14. `./commander` plus one subclass carrying 14's excess-arguments message, 687 B
-  // over `./commander`. Set at the measurement, 113,893 B, plus the ~32 B CI reads heavier than
-  // a local build (as `./commander/extra-typings` records), rounded up to the next 50 B
-  // (D-20261012-commander-14-budget). `./commander`'s budget does not move: 15 bundles none of it.
+  // over `./commander`. Set at the measurement, 112,645 B after commander-front-end-diet R2, plus
+  // the ~32 B CI reads heavier than a local build (as `./commander/extra-typings` records),
+  // rounded up to the next 50 B (D-20261012-commander-14-budget). `./commander`'s budget does not
+  // move: 15 bundles none of it.
   "./commander/v14": {
     allow: [],
-    budget: 113_950,
+    budget: 112_700,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   // yargs 18 ported method for method, with its whole dependency tree — yargs-parser 22,
