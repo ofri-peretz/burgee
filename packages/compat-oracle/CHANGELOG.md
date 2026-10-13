@@ -1,5 +1,17 @@
 # compat-oracle
 
+## 0.3.5
+
+### Patch Changes
+
+- [#1039](https://github.com/ofri-peretz/burgee/pull/1039) [`3bd9a9e`](https://github.com/ofri-peretz/burgee/commit/3bd9a9eaba812776c87dbea1def87e850599219d) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/commander/extra-typings` is a new entry point: a drop-in for `@commander-js/extra-typings`, graded 369 of 369 by its own tsd suite, level with the control. Its JavaScript re-exports `burgee/commander`, as extra-typings re-exports commander; its declarations are extra-typings 15.0.0's, ported with their MIT notice, so options and arguments are inferred from the strings that declare them and `.opts()` and an action's parameters are typed without a cast. `burgee migrate` now rewrites `@commander-js/extra-typings`.
+
+  It bundles to 61,207 B, what `burgee/commander` bundles to, against 39,329 B for `@commander-js/extra-typings` plus `commander`: a re-exporting door takes `burgee/commander`'s position (D-20261012-extra-typings-inherits-front-end), and the overage is `commander-front-end-diet`'s to close.
+
+- Updated dependencies [[`3bd9a9e`](https://github.com/ofri-peretz/burgee/commit/3bd9a9eaba812776c87dbea1def87e850599219d), [`c736740`](https://github.com/ofri-peretz/burgee/commit/c7367408fbed1b66e13172e71a39bf050afa2cdd), [`91a67e9`](https://github.com/ofri-peretz/burgee/commit/91a67e9f50bbad08d2335a66df0635fd31f6359f), [`264a413`](https://github.com/ofri-peretz/burgee/commit/264a413388d846178cea4176743cd65aa2b5d65a), [`582bc15`](https://github.com/ofri-peretz/burgee/commit/582bc15ec32466190f19db6f24c934e59cfb4012), [`4a62884`](https://github.com/ofri-peretz/burgee/commit/4a6288481a77dce34c496af5a5ffbaed900483c6), [`2fcd04e`](https://github.com/ofri-peretz/burgee/commit/2fcd04e7f5703f57b9698c2accc7e7c8ba80f097), [`e8e02fa`](https://github.com/ofri-peretz/burgee/commit/e8e02faec8df56dcd730407e570cb48a22454303)]:
+  - burgee@1.5.0
+  - flagstaff@1.6.0
+
 ## 0.3.4
 
 ### Patch Changes

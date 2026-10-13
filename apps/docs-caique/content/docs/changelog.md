@@ -3,6 +3,14 @@ title: Changelog
 description: "Every release of caique, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.2.1
+
+### Patch Changes
+
+- [#1068](https://github.com/ofri-peretz/burgee/pull/1068) [`566b7d7`](https://github.com/ofri-peretz/burgee/commit/566b7d7a35431f384518e9705620441c5ab4b9b9) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `caique/clack`: Ctrl-C or escape while an async validator is still out now cancels the prompt (it answers `CANCEL_SYMBOL`), where it used to be dropped. In raw mode Ctrl-C reaches the prompt as a byte, not a signal, so a validator that never answered left no way out. `@clack/core` drops the key too, but its readline interface then leaves raw mode, so a second Ctrl-C kills the process. Other keys still wait for the verdict.
+- Updated dependencies [[`4a62884`](https://github.com/ofri-peretz/burgee/commit/4a6288481a77dce34c496af5a5ffbaed900483c6)]:
+  - paratext@1.0.7
+
 ## 1.2.0
 
 ### Minor Changes
