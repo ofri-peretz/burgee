@@ -45,6 +45,8 @@ export interface CommandSchema {
   name: string;
   description?: string;
   summary?: string;
+  /** Other words that run it (R5): on the command, so a list of commands is one entry per command. */
+  aliases?: readonly string[];
   /**
    * What running it does, or `'withheld'` — published either way, because an agent reading
    * the program as data is better served by *this exists and is not for you* than by a gap
@@ -183,7 +185,7 @@ export function typedName(node: CommandNode, root: string[]): string {
 }
 
 /** Keys a command's schema publishes exactly as the node holds them, in the order they appear. */
-const PASSED_THROUGH = ['description', 'summary', 'effects', 'fields', 'deprecated', 'group'] as const;
+const PASSED_THROUGH = ['description', 'summary', 'aliases', 'effects', 'fields', 'deprecated', 'group'] as const;
 
 export function commandSchemaOf(node: CommandNode, root: string[]): CommandSchema {
   const out: CommandSchema = {

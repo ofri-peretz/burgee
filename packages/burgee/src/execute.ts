@@ -58,6 +58,8 @@ type Returns<O> = O extends { schema: infer J } ? OutputOf<J> | Promise<OutputOf
 
 export interface Command<S extends OptionSpecs = OptionSpecs, O extends CommandOutput = CommandOutput> {
   name: string;
+  /** Other words that run this command, `['s']` for `serve`: listed on it in help, `--schema` and completions, never as commands of their own. */
+  aliases?: readonly string[];
   description?: Localised;
   /** Shown in command lists instead of the description. */
   summary?: Localised;
@@ -107,7 +109,7 @@ export interface Command<S extends OptionSpecs = OptionSpecs, O extends CommandO
 }
 
 /** The declared keys a node carries as they are: what help renders, and what `--schema` publishes. */
-const NODE_KEYS = ['description', 'summary', 'arguments', 'examples', 'group', 'epilogue', 'hidden', 'deprecated', 'effects', 'relations', 'fields', 'output', 'allowExcess'] as const;
+const NODE_KEYS = ['description', 'summary', 'aliases', 'arguments', 'examples', 'group', 'epilogue', 'hidden', 'deprecated', 'effects', 'relations', 'fields', 'output', 'allowExcess'] as const;
 
 /**
  * Everything help renders, copied as declared; `undefined` never lands on the node. One loop over
@@ -290,8 +292,8 @@ function toParseConfig(specs: Record<string, OptionSpec>, withConfig: boolean): 
   for (const [name, spec] of Object.entries(specs)) {
     config[kebab(name)] = {
       type: spec.type === 'boolean' ? 'boolean' : 'string',
-      ...(spec.short === undefined ? {} : { short: spec.short }),
-      ...(spec.multiple === true ? { multiple: true } : {}),
+      ...(spec.short && { short: spec.short }),
+      ...(spec.multiple && { multiple: true }),
     };
     // Every boolean is negatable, and it is the precedence order that requires it rather
     // than a convention borrowed from yargs. `flag > env > config > package.json > default`
@@ -329,11 +331,11 @@ function canonical(values: Values, specs: Record<string, OptionSpec>, tokens: re
     const bare = camel(key.startsWith(NO) ? key.slice(NO.length) : key);
     return specs[bare]?.type === 'boolean' ? bare : '';
   };
-  for (const [k, v] of Object.entries(values)) if (!k.startsWith(NO) || negatable(k) === '') out[camel(k)] = v;
+  for (const [k, v] of Object.entries(values)) if (!k.startsWith(NO) || !negatable(k)) out[camel(k)] = v;
   for (const token of tokens) {
     if (token.kind !== 'option') continue;
     const bare = negatable(token.name);
-    if (bare !== '') out[bare] = !token.name.startsWith(NO);
+    if (bare) out[bare] = !token.name.startsWith(NO);
   }
   return out;
 }
@@ -371,7 +373,7 @@ async function resolveValues(manifest: Manifest, specs: Record<string, OptionSpe
   // it was typed before either reads it (see that file).
   if (values.json === true || asked !== undefined) out.explainText = (await import('./as-typed.js')).asTyped(resolved, specs, tokens, asked);
   for (const [name, spec] of Object.entries(specs)) {
-    if (out.values[name] === undefined && spec.required === true && out.explainText === undefined) {
+    if (out.values[name] === undefined && spec.required && out.explainText === undefined) {
       throw new UsageError(`missing required option --${kebab(name)}`, `pass --${kebab(name)} <value>`);
     }
   }
@@ -451,7 +453,7 @@ interface Outcome {
   text?: string;
   provenance?: Record<string, Provenance>;
   /** What an idempotent command reports (N7); read from the data's own `changed`. */
-  changed?: boolean;
+  changed?: boolean | undefined;
 }
 
 /** N7: an idempotent command must say whether it changed anything; silence is what an agent misreads as success. */
@@ -499,7 +501,7 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   const select = typed.some(readsLazily) ? await import('./fields.js') : undefined;
   const { args: rest, fields, lines, global } = select?.lazyArgs(typed, node) ?? ({ args: typed } as LazyArgs);
   if (fields?.length === 0) return { json: true, text: `${JSON.stringify(select?.listFields(node))}\n` };
-  if (fields !== undefined) select?.checkFields(fields, node);
+  if (fields) select?.checkFields(fields, node);
   const parsed = builtin('node:util').parseArgs({ args: rest, options: toParseConfig(node.options, manifest.config !== undefined), allowPositionals: true, strict: true, tokens: true });
   const flags = canonical(parsed.values as Values, node.options, parsed.tokens);
   const json = flags.json === true;
@@ -507,8 +509,8 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   // caller who asked for a machine-readable answer got one they had to parse: the exact
   // failure the `--json` surface exists to avoid, on the flag people type first.
   // Help and the version are surfaces (U5): `surfaces.js` is imported only when one is asked for.
-  if (flags.help === true) return { json, text: await (await import('./surfaces.js')).helpFor(manifest, node, io, { json, color: global?.color }) };
-  if (flags.version === true) return { json, text: `${(await import('./surfaces.js')).versionOf(manifest, io)}\n` };
+  if (flags.help) return { json, text: await (await import('./surfaces.js')).helpFor(manifest, node, io, { json, color: global?.color }) };
+  if (flags.version) return { json, text: `${(await import('./surfaces.js')).versionOf(manifest, io)}\n` };
 
   const resolved = await resolveValues(manifest, node.options, flags, io, parsed.tokens);
   if (resolved.explainText !== undefined) return { json, text: resolved.explainText };
@@ -541,8 +543,9 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   const data = await (global?.within(ran) ?? ran);
   await manifest.fire('postRun', name, values);
   const changed = changedOf(node, data);
-  const selected = fields === undefined || select === undefined ? data : select.selectFields(data, fields);
-  return { json, lines, data: selected, provenance, ...(changed === undefined ? {} : { changed }) };
+  const selected = fields && select ? select.selectFields(data, fields) : data;
+  // `emit` leaves an undefined `changed` out of `meta`, so it is handed on as it is.
+  return { json, lines, data: selected, provenance, changed };
 }
 
 /** Success: help, or the data on the requested surface. */
@@ -584,7 +587,7 @@ async function report(cause: unknown, { manifest, io, argv, json, name }: Failur
   const failure = await describeFailure(cause, { root: manifest.rootPath, argv }, resolveCommand(manifest, argv) ?? undefined, cause instanceof ActionRequired ? cause.spec : undefined);
   // Nothing is reported and nothing has run: the caller runs this line instead (`execute`).
   if (failure.again) return failure.again;
-  if (failure.silent === true) return await leave(io, failure.code);
+  if (failure.silent) return await leave(io, failure.code);
   await manifest.fire('onError', name, {});
   await reportFailure(failure, manifest, json, io);
   return await leave(io, failure.code);
@@ -637,6 +640,10 @@ export async function execute(manifest: Manifest, opts: RunOptions & { root?: st
   const pass = async (next: string[] | Promise<string[]>): Promise<string[] | void> => {
     try {
       argv = await next;
+      // facade-projection-fidelity R5 — each alias typed in a command's place becomes that command's
+      // name, so dispatch, help, `--schema` and `__complete` all read one spelling. Its own chunk (M2),
+      // loaded only for a program that declares an alias.
+      if (manifest.commands.some((c) => c.aliases)) argv = (await import('./aliases.js')).unalias(manifest, argv, root);
       json = beforeTerminator(argv).some(isJsonFlag);
       // U5 — every surface lives in `surfaces.js`, imported only when argv could be asking for one.
       if (mayServe(argv) && (await (await import('./surfaces.js')).serve(manifest, argv, io, { resolution: (specs, flags) => resolution(manifest, specs, flags, io), execute }))) return await leave(io, ExitCode.OK);
@@ -660,7 +667,12 @@ export async function execute(manifest: Manifest, opts: RunOptions & { root?: st
   while (next) next = await pass(next);
 }
 
-/** M6: which command argv names, or null — the same longest-prefix match `execute` uses. */
+/**
+ * M6: which command argv names, or null — the same longest-prefix match `execute` uses, over the
+ * declared names. An alias is not read here: `execute` rewrites one to its command's name before it
+ * resolves (`aliases.ts`, facade-projection-fidelity R5), and that chunk is loaded only on a run, so
+ * this function stays synchronous and off the startup path. Pass the canonical words.
+ */
 export function resolveCommand(manifest: Manifest, argv: readonly string[]): CommandNode | null {
   const { node } = manifest.resolve(beforeTerminator(argv) as string[], manifest.rootPath);
   return node ?? null;
@@ -698,7 +710,7 @@ export async function run<S extends OptionSpecs>(target: Command<S> | Manifest, 
   manifest.add({
     path: [target.name],
     ...helpFields(target as AnyCommand),
-    ...(target.run === undefined ? {} : { run: target.run as (ctx: RunContext) => unknown }),
+    ...(target.run && { run: target.run as (ctx: RunContext) => unknown }),
   });
   return await execute(manifest, opts);
 }

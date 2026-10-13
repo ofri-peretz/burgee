@@ -10,8 +10,8 @@ recommendation: 'land it with wave 4''s typed positionals, which adds `choices` 
 [`D-20261013-commander-argument-choices-budget`](../decisions/D-20261013-commander-argument-choices-budget.md):
 `ArgumentSpec.choices` is published as `enum` on the positional in `--schema` and in `--mcp`'s
 `inputSchema`, through the one path options already take (`declared()` in the façade,
-`withChoices()` in `schema.ts`). `burgee/commander` bundles 55,343 B against 55,353 B before
-(ratchet 55,400, unchanged); the core entry is 24,285 B either way. Native `defineCommand` cannot
+`withChoices()` in `schema.ts`). `burgee/commander` bundles 55,346 B against main's 55,353 B
+(ratchet 55,400, unchanged); the core entry is unchanged by it. Native `defineCommand` cannot
 declare the field until its parser checks it (wave 4's typed positionals). The record as opened:
 
 Commander's `new Argument('[env]').choices(['staging', 'prod'])` is enforced by the façade while

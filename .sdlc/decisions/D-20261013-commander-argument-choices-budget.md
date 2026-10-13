@@ -20,7 +20,9 @@ touched either way.
 | `main` at 264a413 (#1079) | 55,359 | 55,400 |
 | before: `main` with #1074's R1–R3, the base of this change | 55,353 | 55,400 |
 | R3's choices built the plain way (a third conditional spread in the `arguments` map) | 55,398 | 55,400 |
-| **after: the shared path, as merged** | **55,343** | 55,400 |
+| **after: the shared path** | **55,343** | 55,400 |
+| `main` at c736740 (#1083, command aliases), merged in | 55,353 | 55,400 |
+| **after, on that `main`** | **55,346** | 55,400 |
 
 The plain build left 2 B of local headroom, and CI reads about 32 B over a local build (the
 note on the 60,850 entry in `benchmarks/axes/weight.ts`), so it would have failed CI. The shared
@@ -29,7 +31,7 @@ path is one helper in `commander/command.ts`, `declared()`, that copies `descrip
 `arguments` map both call it, so the two copies of the description and the new choices copy are
 one function. In `schema.ts`, `withChoices()` is the one place `choices` becomes `enum`, on the
 value or on each item of a list, for options and positionals alike. The core entry `.` measures
-24,285 B before and after.
+24,285 B before and after (24,281 B on the newer `main`, unchanged by this).
 
 **Value gained.** An agent reads the allowed values of a positional from `--schema` and from the
 MCP tool's `inputSchema`. Commander's own types expose them, and no machine surface did before.

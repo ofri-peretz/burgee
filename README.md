@@ -290,7 +290,7 @@ settled yet, because its measure changed**:
 
 | Claim | Gate | Measured | |
 | :--- | :--- | ---: | :--- |
-| the core entry point is under 52 KB bundled | `core-under-52kb-bundled` | 24,285 bytes | ✅ met |
+| the core entry point is under 52 KB bundled | `core-under-52kb-bundled` | 24,281 bytes | ✅ met |
 | `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 0.970× | ✅ met |
 | `burgee` is lighter than `cac` **plus what a cac user installs to match it** | `lighter-than-cac-at-parity` | 0.249× | ✅ met |
 | `burgee/commander` is lighter than `commander` **plus the same** | `lighter-than-commander-at-parity` | 0.438× | ✅ met |
@@ -310,7 +310,7 @@ On the old measure the newest run read 0.492 tokens and 0.5 turns, both met.
 
 ### The two ways to ask the bundle question, and why both are here
 
-`burgee` is 24,285 bundled bytes and `cac` is 10,452, so the bare row reads **2.323× and it
+`burgee` is 24,281 bundled bytes and `cac` is 10,452, so the bare row reads **2.323× and it
 stays on this page**. It is also not the choice anyone makes. A program that picks `cac` and
 then wants its config file read, its shutdown bounded on every path out, and its cursor handed
 back on Ctrl-C installs three more packages — and *that* is what one `import` of burgee competes
@@ -318,9 +318,9 @@ with:
 
 | | the incumbent alone | + what you add to match burgee | ours |
 | :--- | ---: | ---: | ---: |
-| `cac` | 10,452 B | **97,692 B** | 24,285 B |
-| `commander` | 39,084 B | **126,335 B** | 55,343 B |
-| `yargs` | 111,686 B | **198,784 B** | 108,317 B |
+| `cac` | 10,452 B | **97,692 B** | 24,281 B |
+| `commander` | 39,084 B | **126,335 B** | 55,346 B |
+| `yargs` | 111,686 B | **198,784 B** | 108,345 B |
 
 The additions are `cosmiconfig` (find and load a config file), `exit-hook` (run cleanup on
 every path out, including a signal) and `restore-cursor` (hand the terminal back), bundled
@@ -343,7 +343,7 @@ more than finding a package to charge for them.
 
 `cold-start-at-or-below-cac` and the two bare weight rows began as **≤ 1** and have a
 measured floor above it, and it is worth saying plainly rather than leaving as a to-do.
-`cac` is 10,452 bytes of parser and help renderer; burgee's 24,285 is that plus coercion,
+`cac` is 10,452 bytes of parser and help renderer; burgee's 24,281 is that plus coercion,
 choices, relations, Standard Schema, configuration precedence, signal-bound shutdown, terminal
 restore and agent detection.
 Our `commander/command.js` is 33,487 bundled against commander's 27,226, and the front-end also
