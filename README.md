@@ -77,11 +77,14 @@
 ## 👋 Start here
 
 ```bash
-npm install burgee
+npx burgee init my-cli && cd my-cli && npm install
 ```
 
+`init` writes this file as `cli.mjs`, and a `package.json` that runs it. Nothing else.
+
 ```js
-// cli.mjs — the whole CLI. No build step, no config, no scaffold.
+#!/usr/bin/env node
+// cli.mjs — the whole CLI
 import { defineCommand, run } from 'burgee';
 
 run(defineCommand({
