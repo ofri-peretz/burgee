@@ -73,7 +73,7 @@ function repo(): string {
   write(root, 'README.md', '# root\n');
   write(root, '.github/workflows/compat.yml', 'name: Compatibility\n');
   write(root, 'scripts/build-helper.ts', 'export {};\n');
-  write(root, '.sdlc/decisions/D-1.md', 'decided\n');
+  write(root, '.sdlc/research/notes.md', 'decided\n');
   write(root, '.sdlc/intents/x/intent.md', 'intent\n');
   write(root, '.sdlc/bands/foundation-ceilings.json', '{}\n');
   write(root, 'examples/demo/demo.js', '\n');
@@ -115,8 +115,8 @@ function run(root: string, args: string[]): Affected {
 }
 
 describe('scripts/affected.mts — the one affected set', () => {
-  it('a docs-only pull request selects no package', () => {
-    const got = prTouching(['.sdlc/decisions/D-2.md']);
+  it('a docs-only pull request (.sdlc/research) selects no package', () => {
+    const got = prTouching(['.sdlc/research/wave-4.md']);
     expect(got).toEqual({ full: false, packages: [], workspaces: [] });
   });
 
@@ -148,7 +148,7 @@ describe('scripts/affected.mts — the one affected set', () => {
   }
 
   it('a root change wins over a docs change in the same pull request', () => {
-    expect(prTouching(['.sdlc/decisions/D-2.md', 'package-lock.json']).full).toBe(true);
+    expect(prTouching(['.sdlc/research/wave-4.md', 'package-lock.json']).full).toBe(true);
   });
 
   it('what a package reads outside its directory selects that package and its dependents', () => {
@@ -164,11 +164,11 @@ describe('scripts/affected.mts — the one affected set', () => {
   }
 
   it('the run-full-ci label (--full) selects everything on a pull request', () => {
-    expect(prTouching(['.sdlc/decisions/D-2.md'], ['--full'])).toMatchObject({ full: true, packages: ALL });
+    expect(prTouching(['.sdlc/research/wave-4.md'], ['--full'])).toMatchObject({ full: true, packages: ALL });
   });
 
   it('a pull request whose base cannot be diffed selects everything rather than nothing', () => {
-    expect(prTouching(['.sdlc/decisions/D-2.md'], ['--base', 'no-such-ref'])).toMatchObject({ full: true, packages: ALL });
+    expect(prTouching(['.sdlc/research/wave-4.md'], ['--base', 'no-such-ref'])).toMatchObject({ full: true, packages: ALL });
     expect(run(repo(), ['--event', 'pull_request', '--base', ''])).toMatchObject({ full: true, packages: ALL });
   });
 
