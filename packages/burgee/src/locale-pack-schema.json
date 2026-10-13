@@ -206,6 +206,16 @@
           "type": "string",
           "pattern": "^(?:[^{]|\\{(?:option|first|last)\\}|\\{(?!\\w+\\}))*$"
         },
+        "usage.exists": {
+          "description": "{path} already exists",
+          "type": "string",
+          "pattern": "^(?:[^{]|\\{(?:path)\\}|\\{(?!\\w+\\}))*$"
+        },
+        "init.installFailed": {
+          "description": "{command} exited {code}",
+          "type": "string",
+          "pattern": "^(?:[^{]|\\{(?:command|code)\\}|\\{(?!\\w+\\}))*$"
+        },
         "config.noVersion": {
           "description": "no version declared",
           "type": "string",
@@ -333,6 +343,11 @@
         },
         "hint.largerTimeout": {
           "description": "run it again with a larger --timeout",
+          "type": "string",
+          "pattern": "^(?:[^{]|\\{(?!\\w+\\}))*$"
+        },
+        "hint.overwrite": {
+          "description": "pass --force to overwrite it",
           "type": "string",
           "pattern": "^(?:[^{]|\\{(?!\\w+\\}))*$"
         },

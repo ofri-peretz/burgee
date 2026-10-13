@@ -4,7 +4,7 @@
 > marketing and docs websites better", and the plan of that day: there is no command that
 > starts a burgee CLI, and `create-burgee` is free on npm.
 
-**Status:** draft · **Opened:** 2026-10-10 · **Owner:** @ofri-peretz
+**Status:** approved · **Opened:** 2026-10-10 · **Owner:** @ofri-peretz
 
 ---
 
