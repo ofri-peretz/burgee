@@ -59,7 +59,8 @@ function fakeManager(name: string, exit = 0): { env: Record<string, string>; cal
   const bin = scratch('burgee-pm-');
   const log = join(bin, 'called');
   if (WINDOWS) {
-    writeFileSync(join(bin, `${name}.cmd`), `@echo ${name} %*> "${log}"\r\n@exit /b ${exit}\r\n`);
+    // bellpull quotes each argument for cmd.exe, so `%~1` reads it back without the quotes.
+    writeFileSync(join(bin, `${name}.cmd`), `@echo ${name} %~1> "${log}"\r\n@exit /b ${exit}\r\n`);
   } else {
     writeFileSync(join(bin, name), `#!/bin/sh\necho "${name} $*" > '${log}'\nexit ${exit}\n`);
     chmodSync(join(bin, name), 0o755);
