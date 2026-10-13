@@ -170,6 +170,14 @@ export interface ArgumentSpec {
   required?: boolean;
   variadic?: boolean;
   default?: string;
+  /**
+   * The values the positional accepts, published as `enum` the way an option's `choices` are
+   * (facade-projection-fidelity R3). The commander façade fills it from `Argument.choices()`
+   * and enforces it while parsing. A native `defineCommand` cannot declare it yet: its parser
+   * does not check positionals' values, so its definition type leaves the field out
+   * (B-20261012-commander-argument-choices).
+   */
+  choices?: readonly string[];
   /** `'file'`: a path, where `-` means standard input — handed to the handler as `ctx.stdin` (S4). */
   type?: 'file';
 }

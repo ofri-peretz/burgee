@@ -341,12 +341,28 @@ describe('facade-projection-fidelity R1–R3 — what a commander program declar
     expect(cmd['options'].mode.exclusive).toBeUndefined();
   });
 
-  // R3's choices half is not built: `ArgumentSpec` has no `choices`, and publishing it as an
-  // enum cost `./commander` 32 B over its 61,100 B ceiling (61,132 measured, 2026-10-12).
   it('R3 — an Argument carries its default', async () => {
     const cmd = await schemaOf(deploy(), 'deploy');
-    expect(cmd['arguments'][0]).toEqual({ name: 'env', required: false, variadic: false, description: 'where to ship', default: 'staging' });
+    expect(cmd['arguments'][0]).toMatchObject({ name: 'env', required: false, variadic: false, description: 'where to ship', default: 'staging' });
     expect(cmd['inputSchema'].properties.env).toMatchObject({ type: 'string', default: 'staging' });
+  });
+
+  // B-20261012-commander-argument-choices: the choices half, deferred until the diet freed room.
+  it("R3 — an Argument's .choices() is the enum, in --schema and in the MCP tool", async () => {
+    const program = new Command('pick');
+    program.command('one').addArgument(new Argument('<x>').choices(['a', 'b'])).action(() => undefined);
+    const cmd = await schemaOf(program, 'one');
+    expect(cmd['arguments'][0]).toEqual({ name: 'x', required: true, variadic: false, choices: ['a', 'b'] });
+    expect(cmd['inputSchema'].properties.x).toEqual({ type: 'string', enum: ['a', 'b'] });
+    expect(toolsOf(program.manifest)[0]?.inputSchema.properties['x']).toMatchObject({ enum: ['a', 'b'] });
+    expect((await schemaOf(deploy(), 'deploy'))['inputSchema'].properties.env).toMatchObject({ enum: ['staging', 'prod'], default: 'staging' });
+  });
+
+  it('R3 — a variadic Argument puts its choices on the items, as a multiple option does', async () => {
+    const program = new Command('pick');
+    program.command('many').addArgument(new Argument('<xs...>').choices(['a', 'b'])).action(() => undefined);
+    const cmd = await schemaOf(program, 'many');
+    expect(cmd['inputSchema'].properties.xs).toEqual({ type: 'array', items: { type: 'string', enum: ['a', 'b'] } });
   });
 
   it('R3 — a non-string argument default is left out, as on options', async () => {

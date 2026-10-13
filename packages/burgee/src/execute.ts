@@ -63,7 +63,8 @@ export interface Command<S extends OptionSpecs = OptionSpecs, O extends CommandO
   summary?: Localised;
   /** Declared once (S1); the handler's `options` type is derived from it. */
   options?: S;
-  arguments?: ArgumentSpec[];
+  /** `choices` is the commander façade's: the native parser does not check a positional's value. */
+  arguments?: Omit<ArgumentSpec, 'choices'>[];
   examples?: DeclaredExample[];
   /** Heading this command is listed under in its parent's help. */
   group?: string;

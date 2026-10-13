@@ -1,10 +1,18 @@
 ---
 id: B-20261012-commander-argument-choices
 section: B
-status: open
+status: closed
 source: facade-projection-fidelity R3
 recommendation: 'land it with wave 4''s typed positionals, which adds `choices` to `ArgumentSpec` and its `enum` to the input schema for every front-end at once; until then the façade publishes an argument''s default and not its choices'
 ---
+
+~~Commander's `Argument.choices()` reaches no projected surface~~ — **closed** by PR #PRNUM and
+[`D-20261013-commander-argument-choices-budget`](../decisions/D-20261013-commander-argument-choices-budget.md):
+`ArgumentSpec.choices` is published as `enum` on the positional in `--schema` and in `--mcp`'s
+`inputSchema`, through the one path options already take (`declared()` in the façade,
+`withChoices()` in `schema.ts`). `burgee/commander` bundles 55,343 B against 55,353 B before
+(ratchet 55,400, unchanged); the core entry is 24,285 B either way. Native `defineCommand` cannot
+declare the field until its parser checks it (wave 4's typed positionals). The record as opened:
 
 Commander's `new Argument('[env]').choices(['staging', 'prod'])` is enforced by the façade while
 parsing and reaches no projected surface: `--schema`, `--mcp`'s `inputSchema` and completions see
