@@ -1,5 +1,11 @@
 # caique
 
+## 1.3.0
+
+### Minor Changes
+
+- [#1037](https://github.com/ofri-peretz/burgee/pull/1037) [`50cc502`](https://github.com/ofri-peretz/burgee/commit/50cc5024df7a99ecd2dff33570eea21730b87b99) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - New entry point `caique/inquirer/prompts`: `@inquirer/prompts`' `select` and `checkbox`, with `Separator` and their config, theme and choice types, over `caique/inquirer`'s prompt loop. Both are graded by their own suites in `@inquirer/prompts` 8.7.3, `select`'s pagination suite included: 100 of those 100 cases pass, level with the real packages. Paging follows `@inquirer/core`'s `usePagination`, multi-line choices and `loop: false` included. The other eight prompts are not built yet, so `burgee migrate` does not rewrite `@inquirer/prompts` imports. `caique/inquirer` is unchanged, and a program that imports it loads none of this.
+
 ## 1.2.1
 
 ### Patch Changes

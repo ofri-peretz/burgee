@@ -1,5 +1,25 @@
 # burgee
 
+## 1.6.0
+
+### Minor Changes
+
+- [#1091](https://github.com/ofri-peretz/burgee/pull/1091) [`dc1d1d1`](https://github.com/ofri-peretz/burgee/commit/dc1d1d196bafa63df5580135a8c42b324480fc9e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/commander` publishes an `Argument`'s `.choices()` as `enum` on the positional, in
+  `--schema` and in `--mcp`'s `inputSchema`, the way an option's choices already are (a variadic
+  argument's go on its items). `ArgumentSpec` gains `choices`; native `defineCommand` does not
+  accept it yet, because its parser does not check a positional's value. Commander's own help and
+  parsing are unchanged.
+
+- [#1091](https://github.com/ofri-peretz/burgee/pull/1091) [`dc1d1d1`](https://github.com/ofri-peretz/burgee/commit/dc1d1d196bafa63df5580135a8c42b324480fc9e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/commander` projects what a program already declares: `Option.choices()` becomes `enum` in
+  `--schema` and in `--mcp`'s `inputSchema` (and the values completions offer), `.hideHelp()` keeps
+  an option out of the input schema, help and completions, `.conflicts()` is published as `exclusive`
+  and in the command's `relations`, and an `Argument`'s string default reaches the positional's
+  `default`. Commander's own help and parsing are unchanged.
+
+### Patch Changes
+
+- [#1037](https://github.com/ofri-peretz/burgee/pull/1037) [`50cc502`](https://github.com/ofri-peretz/burgee/commit/50cc5024df7a99ecd2dff33570eea21730b87b99) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `@inquirer/prompts`' graded drop-in is `caique/inquirer/prompts`, now 100 / 213. `burgee migrate` still reports it rather than rewriting it, because it is not level yet.
+
 ## 1.5.0
 
 ### Minor Changes
