@@ -161,7 +161,6 @@ function subCommandFailed(exitCallback: ((err: CommanderError) => void) | null, 
   exitCallback(wrappedError);
 }
 
-/** What a run prints for an action's return value when the streams are injected. */
 /**
  * What an `Option` and an `Argument` both declare, copied onto the manifest's entry by one path:
  * the description, and `choices`, which every surface publishes as `enum`
@@ -173,6 +172,7 @@ function declared<T extends OptionSpec | ArgumentSpec>(spec: T, from: Option | A
   return spec;
 }
 
+/** What a run prints for an action's return value when the streams are injected. */
 function render(value: unknown): string {
   if (value === undefined || value === null) return '';
   if (typeof value === 'string') return `${value}\n`;
