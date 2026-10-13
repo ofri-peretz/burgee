@@ -12,7 +12,7 @@ still over its ratchet after that, raise the `burgee/commander` bundled ratchet 
 ceiling by exactly the measured excess, rounded up to the next 10 B. The core entry `.` is not
 touched either way.
 
-**The first step was enough, so nothing was raised.** `burgee/commander` bundled
+**The first step was enough, so nothing was raised** ([#1091](https://github.com/ofri-peretz/burgee/pull/1091)). `burgee/commander` bundled
 (`npm run bench -- --axis weight --check`, local):
 
 | Tree | Bytes | Gate |

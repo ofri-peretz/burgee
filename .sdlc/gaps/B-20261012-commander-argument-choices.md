@@ -6,7 +6,7 @@ source: facade-projection-fidelity R3
 recommendation: 'land it with wave 4''s typed positionals, which adds `choices` to `ArgumentSpec` and its `enum` to the input schema for every front-end at once; until then the façade publishes an argument''s default and not its choices'
 ---
 
-~~Commander's `Argument.choices()` reaches no projected surface~~ — **closed** by PR #PRNUM and
+~~Commander's `Argument.choices()` reaches no projected surface~~ — **closed** by [#1091](https://github.com/ofri-peretz/burgee/pull/1091) and
 [`D-20261013-commander-argument-choices-budget`](../decisions/D-20261013-commander-argument-choices-budget.md):
 `ArgumentSpec.choices` is published as `enum` on the positional in `--schema` and in `--mcp`'s
 `inputSchema`, through the one path options already take (`declared()` in the façade,
