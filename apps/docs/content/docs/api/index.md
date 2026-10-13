@@ -189,7 +189,10 @@ function kebab(name: string): string;
 
 ### resolveCommand
 
-M6: which command argv names, or null — the same longest-prefix match `execute` uses.
+M6: which command argv names, or null — the same longest-prefix match `execute` uses, over the
+declared names. An alias is not read here: `execute` rewrites one to its command's name before it
+resolves (`aliases.ts`, facade-projection-fidelity R5), and that chunk is loaded only on a run, so
+this function stays synchronous and off the startup path. Pass the canonical words.
 
 ```ts
 function resolveCommand(manifest: Manifest, argv: readonly string[]): CommandNode | null;
@@ -371,6 +374,8 @@ interface ArgumentSpec {
 ```ts
 interface Command<S extends OptionSpecs = OptionSpecs, O extends CommandOutput = CommandOutput> {
     name: string;
+    /** Other words that run this command, `['s']` for `serve`: listed on it in help, `--schema` and completions, never as commands of their own. */
+    aliases?: readonly string[];
     description?: Localised;
     /** Shown in command lists instead of the description. */
     summary?: Localised;
@@ -433,6 +438,13 @@ interface CommandContext<O> extends Omit<RunContext, 'options'> {
 ```ts
 interface CommandNode {
     path: string[];
+    /**
+     * Other words that name this command where its own last path segment would be typed:
+     * commander's `.alias()`, yargs' `['serve', 's']` (facade-projection-fidelity R5). A field on
+     * the command, never a second command, so `--schema` and an MCP tool list do not double.
+     * The engine reads them in `aliases.ts`; a façade dispatches its own.
+     */
+    aliases?: readonly string[];
     description?: string;
     /** Shown in command lists instead of the description (yargs #1265). */
     summary?: string;

@@ -1288,7 +1288,7 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
   /** The failure envelope on stdout, once per run however many paths see the same failure (G5). */
   _writeFailure(error: Record<string, unknown>): void {
     const burgee = this._root()._burgee;
-    if (burgee === undefined || !burgee.json || burgee.reported) return;
+    if (!burgee?.json || burgee.reported) return;
     burgee.reported = true;
     this._outputConfiguration.writeOut(`${JSON.stringify({ ok: false, error })}\n`);
   }
@@ -1717,6 +1717,8 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
     const visit = (cmd: Command, at: string[]): void => {
       manifest.add({
         path: at,
+        // facade-projection-fidelity R6 — listed on the command, as commander lists them in help.
+        ...(cmd._aliases[0] ? { aliases: cmd._aliases } : {}),
         ...(cmd._description ? { description: cmd._description } : {}),
         ...(cmd._summary ? { summary: cmd._summary } : {}),
         ...(cmd._effects ? { effects: cmd._effects } : {}),
@@ -1933,7 +1935,7 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
     const root = this._root();
     const manifest = root._manifest;
     const settle = (value: unknown): void => this._emitResult(value);
-    if (manifest === undefined || manifest.plugins.length === 0) {
+    if (!manifest?.plugins.length) {
       const result = handler(this.processedArgs);
       return isThenable(result) ? Promise.resolve(result).then(settle) : settle(result);
     }
@@ -1961,7 +1963,8 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
 
   /** burgee (M5): once per process, on stderr; only for a command that asked, so commander's own output is untouched. */
   _warnDeprecated(): void {
-    if (this._deprecated === undefined || this._deprecated === false || this._deprecationWarned) return;
+    // `deprecate()` is the one writer, and it never writes `false`.
+    if (this._deprecated === undefined || this._deprecationWarned) return;
     this._deprecationWarned = true;
     const use = typeof this._deprecated === 'string' ? `, use '${this._deprecated}'` : '';
     this._outputConfiguration.writeErr(`warning: '${this.name()}' is deprecated${use}\n`);
