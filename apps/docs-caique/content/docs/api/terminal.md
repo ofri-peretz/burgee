@@ -60,6 +60,7 @@ interface Streams {
     output: NodeJS.WritableStream & {
         isTTY?: boolean;
         columns?: number;
+        rows?: number;
     };
 }
 ```

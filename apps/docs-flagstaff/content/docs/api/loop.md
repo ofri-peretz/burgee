@@ -83,7 +83,9 @@ erasing it: what is on screen becomes scrollback, and the next paint starts at t
 
 Between paints the cursor rests at the end of the frame's last row, which is where the
 hoisted projection has always left it. A frame taller than the terminal cannot be reached
-above its top row; that is the terminal's limit, and a caller lays out within its height.
+above its top row, so one is clipped (frames-fit-the-screen R2): its tail, the lines that
+change, under one dim `… N more` line. `release` then writes the whole frame once, because
+a final write needs no repaint, so nothing the frame held is lost to the clip.
 
 ```ts
 interface FrameWriter {
@@ -135,5 +137,10 @@ interface Writer {
      * TTY stream carries it, and a writer without it is taken to be `DEFAULT_COLUMNS` wide.
      */
     readonly columns?: number | undefined;
+    /**
+     * How tall the terminal is, read at every paint like the width (frames-fit-the-screen R1).
+     * A writer without it — a pipe — is unbounded, and no frame is clipped.
+     */
+    readonly rows?: number | undefined;
 }
 ```
