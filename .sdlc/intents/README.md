@@ -461,6 +461,31 @@ half, then 55, then 58's yargs half. Requirement ids are `R1…` in each spec.
 | 61  | [`facade-projection-fidelity/`](./facade-projection-fidelity/)       | **what a commander or yargs program declares reaches every surface**: choices, conflicts, hidden flags, examples and command aliases                                       | approved |
 | 62  | [`commander-front-end-diet/`](./commander-front-end-diet/)           | **`burgee/commander` in a user's bundle**: 61,207 B against commander's 39,329, attributed by module; the spawn and the async surfaces go lazy (55,633 measured), the synchronous residual named byte for byte, ratcheted down | approved |
 
+### Wave 4 — ranked from measured evidence, 2026-10-12
+
+Opened on the owner's direction of 2026-10-12 ("the best framework ever existed, with a package
+family that is state of the art") with budgets and trade-offs delegated. Stages 1 and 2 only:
+every row is at `review`, with a `spec.md` and the decisions its open questions closed on. The
+ranking uses wave 3's demand × fit ÷ cost scale, so the two waves compare;
+[`next-wave-4-2026-10.md`](../research/next-wave-4-2026-10.md) holds the candidate table, the
+Jev answers, the lanes with their file-overlap rules, the order (CI lanes first, the
+compat-oracle host group last), and what was left out. Rows are in rank order, not
+execution order. The selection is
+[`D-20261012-wave-4-selection`](../decisions/D-20261012-wave-4-selection.md).
+
+| #   | Intent                                                                     | Delivers                                                                                                                                                       | Status |
+| :-- | :------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----- |
+| 63  | [`closeout-at-incumbent-weight/`](./closeout-at-incumbent-weight/)         | **closeout's drop-ins bundle at or under signal-exit and exit-hook**: 1.272× and 2.929× today; a lean core sharing one hook list, modelled in Quint            | review |
+| 64  | [`declaration-summaries/`](./declaration-summaries/)                       | **declarations keep the hover summary and drop the essays**: burgee's 240,393 B of `.d.ts`, measured first, then a lock and a lower tarball baseline           | review |
+| 65  | [`schema-bytes-gated/`](./schema-bytes-gated/)                             | **`--schema` has a byte budget**: growth is a decision in the PR, not a band breach after it                                                                   | review |
+| 66  | [`fix-lines-every-shell/`](./fix-lines-every-shell/)                       | **a `fix:` line runs where it was printed**: POSIX off Windows, PowerShell on it                                                                              | review |
+| 67  | [`locale-pack-in-five/`](./locale-pack-in-five/)                           | **a locale pack in five turns**: `check` reports coverage and plural forms on success; eval median 7 → under 6                                                 | review |
+| 68  | [`colour-facades/`](./colour-facades/)                                     | **`roundel/kleur`, `roundel/colorette`, `roundel/yoctocolors`**, each graded by its own suite (158.3 M/wk together)                                           | review |
+| 69  | [`ci-affected-lanes/`](./ci-affected-lanes/)                               | **a PR runs what it changed; `main` runs everything**: 13 compat jobs per PR, 24 of 30 runs cancelled                                                          | review |
+| 70  | [`default-command/`](./default-command/)                                   | **`default: true` on a native command**: runs with no command name, its own help and examples. yargs #1331, #2292                                             | review |
+| 71  | [`windows-lane-holds/`](./windows-lane-holds/)                             | **Windows cells pass on a busy runner**: measured per case, cheaper cases, no timeout raised                                                                   | review |
+| 72  | [`typed-positionals/`](./typed-positionals/)                               | **positionals typed, named and projected**: `ctx.args`, `type`, `choices` into `--schema`, MCP and completions. yargs #1649; closes the commander choices gap | review |
+
 ## Owner tasks — outside an agent's reach
 
 Recorded here so the roadmap is honest about what a spawned agent cannot do. Each needs the
