@@ -1,0 +1,2900 @@
+{
+ "generated": "2026-10-18",
+ "rows": [
+  {
+   "package": "burgee",
+   "family": true,
+   "latest": "1.6.0",
+   "license": "MIT",
+   "npm_maintainers": 1,
+   "first_publish": "2026-09-07",
+   "age_years": 0.1,
+   "weekly_downloads": 941,
+   "monthly_downloads": 5845,
+   "npm_dependents": 0,
+   "releases_30d": 38,
+   "releases_90d": 46,
+   "releases_365d": 46,
+   "releases_90d_incl_prerelease": 46,
+   "releases_365d_incl_prerelease": 46,
+   "majors_365d": [
+    "1.0.0"
+   ],
+   "minors_365d": 26,
+   "median_days_between_releases_365d": 0.32,
+   "types": "bundled",
+   "engines_node": "^20.19.0 || >=22.13.0",
+   "module_type": "module",
+   "latest_provenance_attestation": true,
+   "latest_trusted_publisher": true,
+   "docs_site": "https://burgee.interlace.tools (plus per-package subdomains)",
+   "homepage": "https://burgee.interlace.tools/docs/packages/burgee",
+   "git_repo_key": "ofri-peretz_burgee",
+   "git_commits_12m": 847,
+   "git_authors_12m": 3,
+   "git_human_authors_12m": 1,
+   "git_top_author": [
+    "Ofri Peretz",
+    742
+   ],
+   "git_top_author_share": 0.876,
+   "git_top_human_share_of_human_commits": 1.0,
+   "bus_factor_50pct_all": 1,
+   "bus_factor_50pct_humans": 1,
+   "repo_security_md": true,
+   "repo_workflows": 22,
+   "repo_action_uses": 77,
+   "repo_sha_pinned_action_uses": 76,
+   "repo_scorecard_workflow": true,
+   "repo_last_commit": "2026-10-18",
+   "release_age_gate": {
+    "1d": {
+     "gated_version_now": "1.5.0",
+     "latest_now": "1.6.0",
+     "releases_behind_now": 1,
+     "mean_releases_behind_30d": 1.25,
+     "max_releases_behind_30d": 6
+    },
+    "3d": {
+     "gated_version_now": "1.5.0",
+     "latest_now": "1.6.0",
+     "releases_behind_now": 1,
+     "mean_releases_behind_30d": 3.78,
+     "max_releases_behind_30d": 10
+    },
+    "7d": {
+     "gated_version_now": "1.1.0",
+     "latest_now": "1.6.0",
+     "releases_behind_now": 5,
+     "mean_releases_behind_30d": 9.0,
+     "max_releases_behind_30d": 16
+    }
+   },
+   "days_in_last30_where_latest_was_at_least": {
+    "1d": 13.8,
+    "3d": 3.9,
+    "7d": 0.0
+   }
+  },
+  {
+   "package": "roundel",
+   "family": true,
+   "latest": "1.1.1",
+   "license": "MIT",
+   "npm_maintainers": 1,
+   "first_publish": "2026-09-08",
+   "age_years": 0.1,
+   "weekly_downloads": 1272,
+   "monthly_downloads": 5380,
+   "npm_dependents": "4",
+   "releases_30d": 21,
+   "releases_90d": 26,
+   "releases_365d": 26,
+   "releases_90d_incl_prerelease": 26,
+   "releases_365d_incl_prerelease": 26,
+   "majors_365d": [
+    "1.0.0"
+   ],
+   "minors_365d": 7,
+   "median_days_between_releases_365d": 0.79,
+   "types": "bundled",
+   "engines_node": "^20.19.0 || >=22.13.0",
+   "module_type": "module",
+   "latest_provenance_attestation": true,
+   "latest_trusted_publisher": true,
+   "docs_site": "https://roundel.interlace.tools",
+   "homepage": "https://roundel.interlace.tools",
+   "git_repo_key": "ofri-peretz_burgee",
+   "git_commits_12m": 847,
+   "git_authors_12m": 3,
+   "git_human_authors_12m": 1,
+   "git_top_author": [
+    "Ofri Peretz",
+    742
+   ],
+   "git_top_author_share": 0.876,
+   "git_top_human_share_of_human_commits": 1.0,
+   "bus_factor_50pct_all": 1,
+   "bus_factor_50pct_humans": 1,
+   "repo_security_md": true,
+   "repo_workflows": 22,
+   "repo_action_uses": 77,
+   "repo_sha_pinned_action_uses": 76,
+   "repo_scorecard_workflow": true,
+   "repo_last_commit": "2026-10-18",
+   "release_age_gate": {
+    "1d": {
+     "gated_version_now": "1.1.1",
+     "latest_now": "1.1.1",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0.71,
+     "max_releases_behind_30d": 6
+    },
+    "3d": {
+     "gated_version_now": "1.1.1",
+     "latest_now": "1.1.1",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 2.18,
+     "max_releases_behind_30d": 8
+    },
+    "7d": {
+     "gated_version_now": "1.0.4",
+     "latest_now": "1.1.1",
+     "releases_behind_now": 2,
+     "mean_releases_behind_30d": 5.18,
+     "max_releases_behind_30d": 9
+    }
+   },
+   "days_in_last30_where_latest_was_at_least": {
+    "1d": 16.9,
+    "3d": 6.2,
+    "7d": 0.0
+   }
+  },
+  {
+   "package": "flagstaff",
+   "family": true,
+   "latest": "1.7.0",
+   "license": "MIT",
+   "npm_maintainers": 1,
+   "first_publish": "2026-09-08",
+   "age_years": 0.1,
+   "weekly_downloads": 722,
+   "monthly_downloads": 4266,
+   "npm_dependents": "1",
+   "releases_30d": 28,
+   "releases_90d": 33,
+   "releases_365d": 33,
+   "releases_90d_incl_prerelease": 33,
+   "releases_365d_incl_prerelease": 33,
+   "majors_365d": [
+    "1.0.0"
+   ],
+   "minors_365d": 10,
+   "median_days_between_releases_365d": 0.64,
+   "types": "bundled",
+   "engines_node": "^20.19.0 || >=22.13.0",
+   "module_type": "module",
+   "latest_provenance_attestation": true,
+   "latest_trusted_publisher": true,
+   "docs_site": "https://flagstaff.interlace.tools",
+   "homepage": "https://flagstaff.interlace.tools",
+   "git_repo_key": "ofri-peretz_burgee",
+   "git_commits_12m": 847,
+   "git_authors_12m": 3,
+   "git_human_authors_12m": 1,
+   "git_top_author": [
+    "Ofri Peretz",
+    742
+   ],
+   "git_top_author_share": 0.876,
+   "git_top_human_share_of_human_commits": 1.0,
+   "bus_factor_50pct_all": 1,
+   "bus_factor_50pct_humans": 1,
+   "repo_security_md": true,
+   "repo_workflows": 22,
+   "repo_action_uses": 77,
+   "repo_sha_pinned_action_uses": 76,
+   "repo_scorecard_workflow": true,
+   "repo_last_commit": "2026-10-18",
+   "release_age_gate": {
+    "1d": {
+     "gated_version_now": "1.6.0",
+     "latest_now": "1.7.0",
+     "releases_behind_now": 1,
+     "mean_releases_behind_30d": 0.91,
+     "max_releases_behind_30d": 6
+    },
+    "3d": {
+     "gated_version_now": "1.6.0",
+     "latest_now": "1.7.0",
+     "releases_behind_now": 1,
+     "mean_releases_behind_30d": 2.78,
+     "max_releases_behind_30d": 9
+    },
+    "7d": {
+     "gated_version_now": "1.2.5",
+     "latest_now": "1.7.0",
+     "releases_behind_now": 5,
+     "mean_releases_behind_30d": 6.5,
+     "max_releases_behind_30d": 12
+    }
+   },
+   "days_in_last30_where_latest_was_at_least": {
+    "1d": 15.7,
+    "3d": 5.2,
+    "7d": 0.0
+   }
+  },
+  {
+   "package": "caique",
+   "family": true,
+   "latest": "1.4.0",
+   "license": "MIT",
+   "npm_maintainers": 1,
+   "first_publish": "2026-09-08",
+   "age_years": 0.1,
+   "weekly_downloads": 827,
+   "monthly_downloads": 4286,
+   "npm_dependents": "1",
+   "releases_30d": 28,
+   "releases_90d": 32,
+   "releases_365d": 32,
+   "releases_90d_incl_prerelease": 32,
+   "releases_365d_incl_prerelease": 32,
+   "majors_365d": [
+    "1.0.0"
+   ],
+   "minors_365d": 10,
+   "median_days_between_releases_365d": 0.68,
+   "types": "bundled",
+   "engines_node": "^20.19.0 || >=22.13.0",
+   "module_type": "module",
+   "latest_provenance_attestation": true,
+   "latest_trusted_publisher": true,
+   "docs_site": "https://caique.interlace.tools",
+   "homepage": "https://caique.interlace.tools",
+   "git_repo_key": "ofri-peretz_burgee",
+   "git_commits_12m": 847,
+   "git_authors_12m": 3,
+   "git_human_authors_12m": 1,
+   "git_top_author": [
+    "Ofri Peretz",
+    742
+   ],
+   "git_top_author_share": 0.876,
+   "git_top_human_share_of_human_commits": 1.0,
+   "bus_factor_50pct_all": 1,
+   "bus_factor_50pct_humans": 1,
+   "repo_security_md": true,
+   "repo_workflows": 22,
+   "repo_action_uses": 77,
+   "repo_sha_pinned_action_uses": 76,
+   "repo_scorecard_workflow": true,
+   "repo_last_commit": "2026-10-18",
+   "release_age_gate": {
+    "1d": {
+     "gated_version_now": "1.2.1",
+     "latest_now": "1.4.0",
+     "releases_behind_now": 2,
+     "mean_releases_behind_30d": 0.88,
+     "max_releases_behind_30d": 6
+    },
+    "3d": {
+     "gated_version_now": "1.2.1",
+     "latest_now": "1.4.0",
+     "releases_behind_now": 2,
+     "mean_releases_behind_30d": 2.68,
+     "max_releases_behind_30d": 8
+    },
+    "7d": {
+     "gated_version_now": "1.0.4",
+     "latest_now": "1.4.0",
+     "releases_behind_now": 6,
+     "mean_releases_behind_30d": 6.2,
+     "max_releases_behind_30d": 11
+    }
+   },
+   "days_in_last30_where_latest_was_at_least": {
+    "1d": 15.5,
+    "3d": 5.1,
+    "7d": 0.0
+   }
+  },
+  {
+   "package": "closeout",
+   "family": true,
+   "latest": "1.1.3",
+   "license": "MIT",
+   "npm_maintainers": 1,
+   "first_publish": "2026-09-09",
+   "age_years": 0.1,
+   "weekly_downloads": 1268,
+   "monthly_downloads": 4592,
+   "npm_dependents": "4",
+   "releases_30d": 24,
+   "releases_90d": 27,
+   "releases_365d": 27,
+   "releases_90d_incl_prerelease": 27,
+   "releases_365d_incl_prerelease": 27,
+   "majors_365d": [
+    "1.0.0"
+   ],
+   "minors_365d": 8,
+   "median_days_between_releases_365d": 0.77,
+   "types": "bundled",
+   "engines_node": "^20.19.0 || >=22.13.0",
+   "module_type": "module",
+   "latest_provenance_attestation": true,
+   "latest_trusted_publisher": true,
+   "docs_site": "https://closeout.interlace.tools",
+   "homepage": "https://closeout.interlace.tools",
+   "git_repo_key": "ofri-peretz_burgee",
+   "git_commits_12m": 847,
+   "git_authors_12m": 3,
+   "git_human_authors_12m": 1,
+   "git_top_author": [
+    "Ofri Peretz",
+    742
+   ],
+   "git_top_author_share": 0.876,
+   "git_top_human_share_of_human_commits": 1.0,
+   "bus_factor_50pct_all": 1,
+   "bus_factor_50pct_humans": 1,
+   "repo_security_md": true,
+   "repo_workflows": 22,
+   "repo_action_uses": 77,
+   "repo_sha_pinned_action_uses": 76,
+   "repo_scorecard_workflow": true,
+   "repo_last_commit": "2026-10-18",
+   "release_age_gate": {
+    "1d": {
+     "gated_version_now": "1.1.3",
+     "latest_now": "1.1.3",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0.81,
+     "max_releases_behind_30d": 8
+    },
+    "3d": {
+     "gated_version_now": "1.1.3",
+     "latest_now": "1.1.3",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 2.48,
+     "max_releases_behind_30d": 10
+    },
+    "7d": {
+     "gated_version_now": "1.1.0",
+     "latest_now": "1.1.3",
+     "releases_behind_now": 3,
+     "mean_releases_behind_30d": 5.8,
+     "max_releases_behind_30d": 12
+    }
+   },
+   "days_in_last30_where_latest_was_at_least": {
+    "1d": 16.1,
+    "3d": 5.8,
+    "7d": 0.0
+   }
+  },
+  {
+   "package": "linegauge",
+   "family": true,
+   "latest": "1.1.1",
+   "license": "MIT",
+   "npm_maintainers": 1,
+   "first_publish": "2026-09-09",
+   "age_years": 0.1,
+   "weekly_downloads": 1479,
+   "monthly_downloads": 5150,
+   "npm_dependents": "4",
+   "releases_30d": 24,
+   "releases_90d": 28,
+   "releases_365d": 28,
+   "releases_90d_incl_prerelease": 28,
+   "releases_365d_incl_prerelease": 28,
+   "majors_365d": [
+    "1.0.0"
+   ],
+   "minors_365d": 6,
+   "median_days_between_releases_365d": 0.69,
+   "types": "bundled",
+   "engines_node": "^20.19.0 || >=22.13.0",
+   "module_type": "module",
+   "latest_provenance_attestation": true,
+   "latest_trusted_publisher": true,
+   "docs_site": "https://linegauge.interlace.tools",
+   "homepage": "https://linegauge.interlace.tools",
+   "git_repo_key": "ofri-peretz_burgee",
+   "git_commits_12m": 847,
+   "git_authors_12m": 3,
+   "git_human_authors_12m": 1,
+   "git_top_author": [
+    "Ofri Peretz",
+    742
+   ],
+   "git_top_author_share": 0.876,
+   "git_top_human_share_of_human_commits": 1.0,
+   "bus_factor_50pct_all": 1,
+   "bus_factor_50pct_humans": 1,
+   "repo_security_md": true,
+   "repo_workflows": 22,
+   "repo_action_uses": 77,
+   "repo_sha_pinned_action_uses": 76,
+   "repo_scorecard_workflow": true,
+   "repo_last_commit": "2026-10-18",
+   "release_age_gate": {
+    "1d": {
+     "gated_version_now": "1.1.1",
+     "latest_now": "1.1.1",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0.81,
+     "max_releases_behind_30d": 7
+    },
+    "3d": {
+     "gated_version_now": "1.1.1",
+     "latest_now": "1.1.1",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 2.48,
+     "max_releases_behind_30d": 10
+    },
+    "7d": {
+     "gated_version_now": "1.0.8",
+     "latest_now": "1.1.1",
+     "releases_behind_now": 2,
+     "mean_releases_behind_30d": 5.88,
+     "max_releases_behind_30d": 13
+    }
+   },
+   "days_in_last30_where_latest_was_at_least": {
+    "1d": 17.1,
+    "3d": 6.5,
+    "7d": 0.0
+   }
+  },
+  {
+   "package": "paratext",
+   "family": true,
+   "latest": "1.0.7",
+   "license": "MIT",
+   "npm_maintainers": 1,
+   "first_publish": "2026-09-13",
+   "age_years": 0.1,
+   "weekly_downloads": 1012,
+   "monthly_downloads": 4238,
+   "npm_dependents": "3",
+   "releases_30d": 24,
+   "releases_90d": 27,
+   "releases_365d": 27,
+   "releases_90d_incl_prerelease": 27,
+   "releases_365d_incl_prerelease": 27,
+   "majors_365d": [
+    "1.0.0"
+   ],
+   "minors_365d": 8,
+   "median_days_between_releases_365d": 0.57,
+   "types": "bundled",
+   "engines_node": "^20.19.0 || >=22.13.0",
+   "module_type": "module",
+   "latest_provenance_attestation": true,
+   "latest_trusted_publisher": true,
+   "docs_site": "https://paratext.interlace.tools",
+   "homepage": "https://paratext.interlace.tools",
+   "git_repo_key": "ofri-peretz_burgee",
+   "git_commits_12m": 847,
+   "git_authors_12m": 3,
+   "git_human_authors_12m": 1,
+   "git_top_author": [
+    "Ofri Peretz",
+    742
+   ],
+   "git_top_author_share": 0.876,
+   "git_top_human_share_of_human_commits": 1.0,
+   "bus_factor_50pct_all": 1,
+   "bus_factor_50pct_humans": 1,
+   "repo_security_md": true,
+   "repo_workflows": 22,
+   "repo_action_uses": 77,
+   "repo_sha_pinned_action_uses": 76,
+   "repo_scorecard_workflow": true,
+   "repo_last_commit": "2026-10-18",
+   "release_age_gate": {
+    "1d": {
+     "gated_version_now": "1.0.7",
+     "latest_now": "1.0.7",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0.81,
+     "max_releases_behind_30d": 7
+    },
+    "3d": {
+     "gated_version_now": "1.0.7",
+     "latest_now": "1.0.7",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 2.48,
+     "max_releases_behind_30d": 10
+    },
+    "7d": {
+     "gated_version_now": "1.0.4",
+     "latest_now": "1.0.7",
+     "releases_behind_now": 3,
+     "mean_releases_behind_30d": 5.85,
+     "max_releases_behind_30d": 11
+    }
+   },
+   "days_in_last30_where_latest_was_at_least": {
+    "1d": 17.3,
+    "3d": 7.0,
+    "7d": 0.0
+   }
+  },
+  {
+   "package": "seniority",
+   "family": true,
+   "latest": "1.0.8",
+   "license": "MIT",
+   "npm_maintainers": 1,
+   "first_publish": "2026-09-09",
+   "age_years": 0.1,
+   "weekly_downloads": 1213,
+   "monthly_downloads": 4423,
+   "npm_dependents": "1",
+   "releases_30d": 27,
+   "releases_90d": 30,
+   "releases_365d": 30,
+   "releases_90d_incl_prerelease": 30,
+   "releases_365d_incl_prerelease": 30,
+   "majors_365d": [
+    "1.0.0"
+   ],
+   "minors_365d": 8,
+   "median_days_between_releases_365d": 0.74,
+   "types": "bundled",
+   "engines_node": "^20.19.0 || >=22.13.0",
+   "module_type": "module",
+   "latest_provenance_attestation": true,
+   "latest_trusted_publisher": true,
+   "docs_site": "https://seniority.interlace.tools",
+   "homepage": "https://seniority.interlace.tools",
+   "git_repo_key": "ofri-peretz_burgee",
+   "git_commits_12m": 847,
+   "git_authors_12m": 3,
+   "git_human_authors_12m": 1,
+   "git_top_author": [
+    "Ofri Peretz",
+    742
+   ],
+   "git_top_author_share": 0.876,
+   "git_top_human_share_of_human_commits": 1.0,
+   "bus_factor_50pct_all": 1,
+   "bus_factor_50pct_humans": 1,
+   "repo_security_md": true,
+   "repo_workflows": 22,
+   "repo_action_uses": 77,
+   "repo_sha_pinned_action_uses": 76,
+   "repo_scorecard_workflow": true,
+   "repo_last_commit": "2026-10-18",
+   "release_age_gate": {
+    "1d": {
+     "gated_version_now": "1.0.8",
+     "latest_now": "1.0.8",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0.91,
+     "max_releases_behind_30d": 6
+    },
+    "3d": {
+     "gated_version_now": "1.0.8",
+     "latest_now": "1.0.8",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 2.78,
+     "max_releases_behind_30d": 9
+    },
+    "7d": {
+     "gated_version_now": "1.0.5",
+     "latest_now": "1.0.8",
+     "releases_behind_now": 3,
+     "mean_releases_behind_30d": 6.48,
+     "max_releases_behind_30d": 12
+    }
+   },
+   "days_in_last30_where_latest_was_at_least": {
+    "1d": 13.8,
+    "3d": 4.1,
+    "7d": 0.0
+   }
+  },
+  {
+   "package": "bellpull",
+   "family": true,
+   "latest": "1.0.6",
+   "license": "MIT",
+   "npm_maintainers": 1,
+   "first_publish": "2026-09-09",
+   "age_years": 0.1,
+   "weekly_downloads": 1198,
+   "monthly_downloads": 3973,
+   "npm_dependents": "1",
+   "releases_30d": 23,
+   "releases_90d": 25,
+   "releases_365d": 25,
+   "releases_90d_incl_prerelease": 25,
+   "releases_365d_incl_prerelease": 25,
+   "majors_365d": [
+    "1.0.0"
+   ],
+   "minors_365d": 5,
+   "median_days_between_releases_365d": 0.68,
+   "types": "bundled",
+   "engines_node": "^20.19.0 || >=22.13.0",
+   "module_type": "module",
+   "latest_provenance_attestation": true,
+   "latest_trusted_publisher": true,
+   "docs_site": "https://bellpull.interlace.tools",
+   "homepage": "https://bellpull.interlace.tools",
+   "git_repo_key": "ofri-peretz_burgee",
+   "git_commits_12m": 847,
+   "git_authors_12m": 3,
+   "git_human_authors_12m": 1,
+   "git_top_author": [
+    "Ofri Peretz",
+    742
+   ],
+   "git_top_author_share": 0.876,
+   "git_top_human_share_of_human_commits": 1.0,
+   "bus_factor_50pct_all": 1,
+   "bus_factor_50pct_humans": 1,
+   "repo_security_md": true,
+   "repo_workflows": 22,
+   "repo_action_uses": 77,
+   "repo_sha_pinned_action_uses": 76,
+   "repo_scorecard_workflow": true,
+   "repo_last_commit": "2026-10-18",
+   "release_age_gate": {
+    "1d": {
+     "gated_version_now": "1.0.6",
+     "latest_now": "1.0.6",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0.78,
+     "max_releases_behind_30d": 6
+    },
+    "3d": {
+     "gated_version_now": "1.0.6",
+     "latest_now": "1.0.6",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 2.38,
+     "max_releases_behind_30d": 9
+    },
+    "7d": {
+     "gated_version_now": "1.0.4",
+     "latest_now": "1.0.6",
+     "releases_behind_now": 2,
+     "mean_releases_behind_30d": 5.52,
+     "max_releases_behind_30d": 10
+    }
+   },
+   "days_in_last30_where_latest_was_at_least": {
+    "1d": 16.9,
+    "3d": 6.5,
+    "7d": 0.0
+   }
+  },
+  {
+   "package": "controlroom",
+   "family": true,
+   "latest": "1.0.2",
+   "license": "MIT",
+   "npm_maintainers": 1,
+   "first_publish": "2026-09-28",
+   "age_years": 0.1,
+   "weekly_downloads": 1064,
+   "monthly_downloads": 1241,
+   "npm_dependents": 0,
+   "releases_30d": 11,
+   "releases_90d": 11,
+   "releases_365d": 11,
+   "releases_90d_incl_prerelease": 11,
+   "releases_365d_incl_prerelease": 11,
+   "majors_365d": [
+    "1.0.0"
+   ],
+   "minors_365d": 2,
+   "median_days_between_releases_365d": 0.66,
+   "types": "bundled",
+   "engines_node": "^20.19.0 || >=22.13.0",
+   "module_type": "module",
+   "latest_provenance_attestation": true,
+   "latest_trusted_publisher": true,
+   "docs_site": "https://controlroom.interlace.tools",
+   "homepage": "https://controlroom.interlace.tools",
+   "git_repo_key": "ofri-peretz_burgee",
+   "git_commits_12m": 847,
+   "git_authors_12m": 3,
+   "git_human_authors_12m": 1,
+   "git_top_author": [
+    "Ofri Peretz",
+    742
+   ],
+   "git_top_author_share": 0.876,
+   "git_top_human_share_of_human_commits": 1.0,
+   "bus_factor_50pct_all": 1,
+   "bus_factor_50pct_humans": 1,
+   "repo_security_md": true,
+   "repo_workflows": 22,
+   "repo_action_uses": 77,
+   "repo_sha_pinned_action_uses": 76,
+   "repo_scorecard_workflow": true,
+   "repo_last_commit": "2026-10-18",
+   "release_age_gate": {
+    "1d": {
+     "gated_version_now": "1.0.2",
+     "latest_now": "1.0.2",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0.53,
+     "max_releases_behind_30d": 4
+    },
+    "3d": {
+     "gated_version_now": "1.0.2",
+     "latest_now": "1.0.2",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 1.6,
+     "max_releases_behind_30d": 6
+    },
+    "7d": {
+     "gated_version_now": "1.0.0",
+     "latest_now": "1.0.2",
+     "releases_behind_now": 2,
+     "mean_releases_behind_30d": 3.65,
+     "max_releases_behind_30d": 10
+    }
+   },
+   "days_in_last30_where_latest_was_at_least": {
+    "1d": 13.5,
+    "3d": 8.3,
+    "7d": 1.2
+   }
+  },
+  {
+   "package": "commander",
+   "family": false,
+   "latest": "15.0.0",
+   "license": "MIT",
+   "npm_maintainers": 2,
+   "first_publish": "2011-08-14",
+   "age_years": 15.2,
+   "weekly_downloads": 314159449,
+   "monthly_downloads": 2245731221,
+   "npm_dependents": "150896",
+   "releases_30d": 0,
+   "releases_90d": 0,
+   "releases_365d": 3,
+   "releases_90d_incl_prerelease": 0,
+   "releases_365d_incl_prerelease": 4,
+   "majors_365d": [
+    "15.0.0"
+   ],
+   "minors_365d": 0,
+   "median_days_between_releases_365d": 107.94,
+   "types": "bundled",
+   "engines_node": ">=22.12.0",
+   "module_type": "module",
+   "latest_provenance_attestation": false,
+   "latest_trusted_publisher": false,
+   "docs_site": "README only",
+   "homepage": "https://github.com/tj/commander.js#readme",
+   "git_repo_key": "tj_commander.js",
+   "git_commits_12m": 86,
+   "git_authors_12m": 16,
+   "git_human_authors_12m": 15,
+   "git_top_author": [
+    "John Gee",
+    40
+   ],
+   "git_top_author_share": 0.465,
+   "git_top_human_share_of_human_commits": 0.727,
+   "bus_factor_50pct_all": 2,
+   "bus_factor_50pct_humans": 1,
+   "repo_security_md": true,
+   "repo_workflows": 2,
+   "repo_action_uses": 6,
+   "repo_sha_pinned_action_uses": 6,
+   "repo_scorecard_workflow": false,
+   "repo_last_commit": "2026-05-29",
+   "release_age_gate": {
+    "1d": {
+     "gated_version_now": "15.0.0",
+     "latest_now": "15.0.0",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0,
+     "max_releases_behind_30d": 0
+    },
+    "3d": {
+     "gated_version_now": "15.0.0",
+     "latest_now": "15.0.0",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0,
+     "max_releases_behind_30d": 0
+    },
+    "7d": {
+     "gated_version_now": "15.0.0",
+     "latest_now": "15.0.0",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0,
+     "max_releases_behind_30d": 0
+    }
+   },
+   "days_in_last30_where_latest_was_at_least": {
+    "1d": 30.0,
+    "3d": 30.0,
+    "7d": 30.0
+   }
+  },
+  {
+   "package": "yargs",
+   "family": false,
+   "latest": "18.2.0",
+   "license": "MIT",
+   "npm_maintainers": 3,
+   "first_publish": "2013-11-23",
+   "age_years": 12.9,
+   "weekly_downloads": 159447871,
+   "monthly_downloads": 1145233736,
+   "npm_dependents": "42448",
+   "releases_30d": 1,
+   "releases_90d": 2,
+   "releases_365d": 4,
+   "releases_90d_incl_prerelease": 2,
+   "releases_365d_incl_prerelease": 6,
+   "majors_365d": [],
+   "minors_365d": 2,
+   "median_days_between_releases_365d": 37.08,
+   "types": "bundled",
+   "engines_node": "^20.19.0 || ^22.12.0 || >=23",
+   "module_type": "module",
+   "latest_provenance_attestation": true,
+   "latest_trusted_publisher": true,
+   "docs_site": "https://yargs.js.org/",
+   "homepage": "https://yargs.js.org/",
+   "git_repo_key": "yargs_yargs",
+   "git_commits_12m": 30,
+   "git_authors_12m": 15,
+   "git_human_authors_12m": 13,
+   "git_top_author": [
+    "John Gee",
+    14
+   ],
+   "git_top_author_share": 0.467,
+   "git_top_human_share_of_human_commits": 0.519,
+   "bus_factor_50pct_all": 2,
+   "bus_factor_50pct_humans": 1,
+   "repo_security_md": true,
+   "repo_workflows": 2,
+   "repo_action_uses": 14,
+   "repo_sha_pinned_action_uses": 14,
+   "repo_scorecard_workflow": false,
+   "repo_last_commit": "2026-10-14",
+   "release_age_gate": {
+    "1d": {
+     "gated_version_now": "18.2.0",
+     "latest_now": "18.2.0",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0.03,
+     "max_releases_behind_30d": 1
+    },
+    "3d": {
+     "gated_version_now": "18.2.0",
+     "latest_now": "18.2.0",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0.1,
+     "max_releases_behind_30d": 1
+    },
+    "7d": {
+     "gated_version_now": "18.2.0",
+     "latest_now": "18.2.0",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0.23,
+     "max_releases_behind_30d": 1
+    }
+   },
+   "days_in_last30_where_latest_was_at_least": {
+    "1d": 29.0,
+    "3d": 27.0,
+    "7d": 23.0
+   }
+  },
+  {
+   "package": "citty",
+   "family": false,
+   "latest": "0.2.2",
+   "license": "MIT",
+   "npm_maintainers": 2,
+   "first_publish": "2022-04-23",
+   "age_years": 4.5,
+   "weekly_downloads": 21361427,
+   "monthly_downloads": 143778327,
+   "npm_dependents": "2203",
+   "releases_30d": 0,
+   "releases_90d": 0,
+   "releases_365d": 3,
+   "releases_90d_incl_prerelease": 0,
+   "releases_365d_incl_prerelease": 3,
+   "majors_365d": [],
+   "minors_365d": 1,
+   "median_days_between_releases_365d": 35.64,
+   "types": "bundled",
+   "engines_node": null,
+   "module_type": "module",
+   "latest_provenance_attestation": false,
+   "latest_trusted_publisher": false,
+   "docs_site": "README only",
+   "homepage": "https://github.com/unjs/citty#readme",
+   "git_repo_key": "unjs_citty",
+   "git_commits_12m": 41,
+   "git_authors_12m": 12,
+   "git_human_authors_12m": 10,
+   "git_top_author": [
+    "Pooya Parsa",
+    21
+   ],
+   "git_top_author_share": 0.512,
+   "git_top_human_share_of_human_commits": 0.677,
+   "bus_factor_50pct_all": 1,
+   "bus_factor_50pct_humans": 1,
+   "repo_security_md": false,
+   "repo_workflows": 2,
+   "repo_action_uses": 6,
+   "repo_sha_pinned_action_uses": 6,
+   "repo_scorecard_workflow": false,
+   "repo_last_commit": "2026-08-20",
+   "release_age_gate": {
+    "1d": {
+     "gated_version_now": "0.2.2",
+     "latest_now": "0.2.2",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0,
+     "max_releases_behind_30d": 0
+    },
+    "3d": {
+     "gated_version_now": "0.2.2",
+     "latest_now": "0.2.2",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0,
+     "max_releases_behind_30d": 0
+    },
+    "7d": {
+     "gated_version_now": "0.2.2",
+     "latest_now": "0.2.2",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0,
+     "max_releases_behind_30d": 0
+    }
+   },
+   "days_in_last30_where_latest_was_at_least": {
+    "1d": 30.0,
+    "3d": 30.0,
+    "7d": 30.0
+   }
+  },
+  {
+   "package": "cac",
+   "family": false,
+   "latest": "7.1.0",
+   "license": "MIT",
+   "npm_maintainers": 2,
+   "first_publish": "2016-01-14",
+   "age_years": 10.8,
+   "weekly_downloads": 30269169,
+   "monthly_downloads": 214446502,
+   "npm_dependents": "3710",
+   "releases_30d": 2,
+   "releases_90d": 2,
+   "releases_365d": 3,
+   "releases_90d_incl_prerelease": 2,
+   "releases_365d_incl_prerelease": 4,
+   "majors_365d": [
+    "7.0.0"
+   ],
+   "minors_365d": 1,
+   "median_days_between_releases_365d": 113.1,
+   "types": "bundled (dist/index.d.ts next to main, no types field)",
+   "engines_node": ">=20.19.0",
+   "module_type": "module",
+   "latest_provenance_attestation": true,
+   "latest_trusted_publisher": true,
+   "docs_site": "npmx.dev/package-docs/cac (generated API docs only)",
+   "homepage": "https://github.com/cacjs/cac#readme",
+   "git_repo_key": "cacjs_cac",
+   "git_commits_12m": 49,
+   "git_authors_12m": 8,
+   "git_human_authors_12m": 7,
+   "git_top_author": [
+    "Kevin Deng",
+    42
+   ],
+   "git_top_author_share": 0.857,
+   "git_top_human_share_of_human_commits": 0.875,
+   "bus_factor_50pct_all": 1,
+   "bus_factor_50pct_humans": 1,
+   "repo_security_md": false,
+   "repo_workflows": 3,
+   "repo_action_uses": 5,
+   "repo_sha_pinned_action_uses": 0,
+   "repo_scorecard_workflow": false,
+   "repo_last_commit": "2026-10-12",
+   "release_age_gate": {
+    "1d": {
+     "gated_version_now": "7.1.0",
+     "latest_now": "7.1.0",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0.07,
+     "max_releases_behind_30d": 1
+    },
+    "3d": {
+     "gated_version_now": "7.1.0",
+     "latest_now": "7.1.0",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0.2,
+     "max_releases_behind_30d": 1
+    },
+    "7d": {
+     "gated_version_now": "7.0.1",
+     "latest_now": "7.1.0",
+     "releases_behind_now": 1,
+     "mean_releases_behind_30d": 0.46,
+     "max_releases_behind_30d": 2
+    }
+   },
+   "days_in_last30_where_latest_was_at_least": {
+    "1d": 28.0,
+    "3d": 24.0,
+    "7d": 19.6
+   }
+  },
+  {
+   "package": "@oclif/core",
+   "family": false,
+   "latest": "5.1.8",
+   "license": "MIT",
+   "npm_maintainers": 2,
+   "first_publish": "2020-09-02",
+   "age_years": 6.1,
+   "weekly_downloads": 6687060,
+   "monthly_downloads": 51887185,
+   "npm_dependents": "3682",
+   "releases_30d": 10,
+   "releases_90d": 19,
+   "releases_365d": 51,
+   "releases_90d_incl_prerelease": 19,
+   "releases_365d_incl_prerelease": 51,
+   "majors_365d": [
+    "5.0.0"
+   ],
+   "minors_365d": 10,
+   "median_days_between_releases_365d": 2.76,
+   "types": "bundled",
+   "engines_node": ">=22.0.0",
+   "module_type": null,
+   "latest_provenance_attestation": true,
+   "latest_trusted_publisher": true,
+   "docs_site": "https://oclif.io/",
+   "homepage": "https://github.com/oclif/core",
+   "git_repo_key": "oclif_core",
+   "git_commits_12m": 331,
+   "git_authors_12m": 17,
+   "git_human_authors_12m": 15,
+   "git_top_author": [
+    "svc-cli-bot",
+    139
+   ],
+   "git_top_author_share": 0.42,
+   "git_top_human_share_of_human_commits": 0.394,
+   "bus_factor_50pct_all": 2,
+   "bus_factor_50pct_humans": 2,
+   "repo_security_md": false,
+   "repo_workflows": 8,
+   "repo_action_uses": 27,
+   "repo_sha_pinned_action_uses": 0,
+   "repo_scorecard_workflow": false,
+   "repo_last_commit": "2026-10-13",
+   "release_age_gate": {
+    "1d": {
+     "gated_version_now": "5.1.8",
+     "latest_now": "5.1.8",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0.33,
+     "max_releases_behind_30d": 4
+    },
+    "3d": {
+     "gated_version_now": "5.1.8",
+     "latest_now": "5.1.8",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 1,
+     "max_releases_behind_30d": 5
+    },
+    "7d": {
+     "gated_version_now": "5.1.7",
+     "latest_now": "5.1.8",
+     "releases_behind_now": 1,
+     "mean_releases_behind_30d": 2.27,
+     "max_releases_behind_30d": 6
+    }
+   },
+   "days_in_last30_where_latest_was_at_least": {
+    "1d": 24.0,
+    "3d": 18.0,
+    "7d": 11.3
+   }
+  },
+  {
+   "package": "clipanion",
+   "family": false,
+   "latest": "4.0.0-rc.4",
+   "license": "MIT",
+   "npm_maintainers": 1,
+   "first_publish": "2019-03-28",
+   "age_years": 7.6,
+   "weekly_downloads": 2626903,
+   "monthly_downloads": 21335913,
+   "npm_dependents": "543",
+   "releases_30d": 0,
+   "releases_90d": 0,
+   "releases_365d": 0,
+   "releases_90d_incl_prerelease": 0,
+   "releases_365d_incl_prerelease": 0,
+   "majors_365d": [],
+   "minors_365d": 0,
+   "median_days_between_releases_365d": null,
+   "types": "bundled",
+   "engines_node": null,
+   "module_type": null,
+   "latest_provenance_attestation": false,
+   "latest_trusted_publisher": false,
+   "docs_site": "https://mael.dev/clipanion/",
+   "homepage": "https://mael.dev/clipanion/",
+   "git_repo_key": "arcanis_clipanion",
+   "git_commits_12m": 0,
+   "git_authors_12m": 0,
+   "git_human_authors_12m": 0,
+   "git_top_author": null,
+   "git_top_author_share": null,
+   "git_top_human_share_of_human_commits": null,
+   "bus_factor_50pct_all": 0,
+   "bus_factor_50pct_humans": 0,
+   "repo_security_md": false,
+   "repo_workflows": 2,
+   "repo_action_uses": 5,
+   "repo_sha_pinned_action_uses": 0,
+   "repo_scorecard_workflow": false,
+   "repo_last_commit": "2024-09-06",
+   "release_age_gate": {
+    "1d": {
+     "gated_version_now": "3.2.1",
+     "latest_now": "3.2.1",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0,
+     "max_releases_behind_30d": 0
+    },
+    "3d": {
+     "gated_version_now": "3.2.1",
+     "latest_now": "3.2.1",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0,
+     "max_releases_behind_30d": 0
+    },
+    "7d": {
+     "gated_version_now": "3.2.1",
+     "latest_now": "3.2.1",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0,
+     "max_releases_behind_30d": 0
+    }
+   },
+   "days_in_last30_where_latest_was_at_least": {
+    "1d": 30.0,
+    "3d": 30.0,
+    "7d": 30.0
+   }
+  },
+  {
+   "package": "meow",
+   "family": false,
+   "latest": "14.1.0",
+   "license": "MIT",
+   "npm_maintainers": 1,
+   "first_publish": "2013-01-24",
+   "age_years": 13.7,
+   "weekly_downloads": 22786964,
+   "monthly_downloads": 166413787,
+   "npm_dependents": "7625",
+   "releases_30d": 0,
+   "releases_90d": 0,
+   "releases_365d": 1,
+   "releases_90d_incl_prerelease": 0,
+   "releases_365d_incl_prerelease": 1,
+   "majors_365d": [],
+   "minors_365d": 1,
+   "median_days_between_releases_365d": null,
+   "types": "bundled",
+   "engines_node": ">=20",
+   "module_type": "module",
+   "latest_provenance_attestation": false,
+   "latest_trusted_publisher": false,
+   "docs_site": "README only",
+   "homepage": "https://github.com/sindresorhus/meow#readme",
+   "git_repo_key": "sindresorhus_meow",
+   "git_commits_12m": 8,
+   "git_authors_12m": 1,
+   "git_human_authors_12m": 1,
+   "git_top_author": [
+    "Sindre Sorhus",
+    8
+   ],
+   "git_top_author_share": 1.0,
+   "git_top_human_share_of_human_commits": 1.0,
+   "bus_factor_50pct_all": 1,
+   "bus_factor_50pct_humans": 1,
+   "repo_security_md": true,
+   "repo_workflows": 1,
+   "repo_action_uses": 2,
+   "repo_sha_pinned_action_uses": 0,
+   "repo_scorecard_workflow": false,
+   "repo_last_commit": "2026-07-21",
+   "release_age_gate": {
+    "1d": {
+     "gated_version_now": "14.1.0",
+     "latest_now": "14.1.0",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0,
+     "max_releases_behind_30d": 0
+    },
+    "3d": {
+     "gated_version_now": "14.1.0",
+     "latest_now": "14.1.0",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0,
+     "max_releases_behind_30d": 0
+    },
+    "7d": {
+     "gated_version_now": "14.1.0",
+     "latest_now": "14.1.0",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0,
+     "max_releases_behind_30d": 0
+    }
+   },
+   "days_in_last30_where_latest_was_at_least": {
+    "1d": 30.0,
+    "3d": 30.0,
+    "7d": 30.0
+   }
+  },
+  {
+   "package": "chalk",
+   "family": false,
+   "latest": "6.0.1",
+   "license": "MIT",
+   "npm_maintainers": 1,
+   "first_publish": "2013-08-03",
+   "age_years": 13.2,
+   "weekly_downloads": 292185022,
+   "monthly_downloads": 2195666109,
+   "npm_dependents": "160691",
+   "releases_30d": 1,
+   "releases_90d": 2,
+   "releases_365d": 2,
+   "releases_90d_incl_prerelease": 2,
+   "releases_365d_incl_prerelease": 2,
+   "majors_365d": [
+    "6.0.0"
+   ],
+   "minors_365d": 0,
+   "median_days_between_releases_365d": 62.53,
+   "types": "bundled",
+   "engines_node": ">=22",
+   "module_type": "module",
+   "latest_provenance_attestation": false,
+   "latest_trusted_publisher": false,
+   "docs_site": "README only",
+   "homepage": "https://github.com/chalk/chalk#readme",
+   "git_repo_key": "chalk_chalk",
+   "git_commits_12m": 12,
+   "git_authors_12m": 2,
+   "git_human_authors_12m": 2,
+   "git_top_author": [
+    "Sindre Sorhus",
+    10
+   ],
+   "git_top_author_share": 0.833,
+   "git_top_human_share_of_human_commits": 0.833,
+   "bus_factor_50pct_all": 1,
+   "bus_factor_50pct_humans": 1,
+   "repo_security_md": true,
+   "repo_workflows": 1,
+   "repo_action_uses": 2,
+   "repo_sha_pinned_action_uses": 0,
+   "repo_scorecard_workflow": false,
+   "repo_last_commit": "2026-09-27",
+   "release_age_gate": {
+    "1d": {
+     "gated_version_now": "6.0.1",
+     "latest_now": "6.0.1",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0.03,
+     "max_releases_behind_30d": 1
+    },
+    "3d": {
+     "gated_version_now": "6.0.1",
+     "latest_now": "6.0.1",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0.1,
+     "max_releases_behind_30d": 1
+    },
+    "7d": {
+     "gated_version_now": "6.0.1",
+     "latest_now": "6.0.1",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0.23,
+     "max_releases_behind_30d": 1
+    }
+   },
+   "days_in_last30_where_latest_was_at_least": {
+    "1d": 29.0,
+    "3d": 27.0,
+    "7d": 23.0
+   }
+  },
+  {
+   "package": "ora",
+   "family": false,
+   "latest": "9.4.1",
+   "license": "MIT",
+   "npm_maintainers": 1,
+   "first_publish": "2016-03-03",
+   "age_years": 10.6,
+   "weekly_downloads": 55104649,
+   "monthly_downloads": 399681130,
+   "npm_dependents": "47175",
+   "releases_30d": 0,
+   "releases_90d": 0,
+   "releases_365d": 5,
+   "releases_90d_incl_prerelease": 0,
+   "releases_365d_incl_prerelease": 5,
+   "majors_365d": [],
+   "minors_365d": 4,
+   "median_days_between_releases_365d": 37.68,
+   "types": "bundled",
+   "engines_node": ">=20",
+   "module_type": "module",
+   "latest_provenance_attestation": false,
+   "latest_trusted_publisher": false,
+   "docs_site": "README only",
+   "homepage": "https://github.com/sindresorhus/ora#readme",
+   "git_repo_key": "sindresorhus_ora",
+   "git_commits_12m": 19,
+   "git_authors_12m": 5,
+   "git_human_authors_12m": 5,
+   "git_top_author": [
+    "Sindre Sorhus",
+    15
+   ],
+   "git_top_author_share": 0.789,
+   "git_top_human_share_of_human_commits": 0.789,
+   "bus_factor_50pct_all": 1,
+   "bus_factor_50pct_humans": 1,
+   "repo_security_md": true,
+   "repo_workflows": 1,
+   "repo_action_uses": 2,
+   "repo_sha_pinned_action_uses": 0,
+   "repo_scorecard_workflow": false,
+   "repo_last_commit": "2026-09-19",
+   "release_age_gate": {
+    "1d": {
+     "gated_version_now": "9.4.1",
+     "latest_now": "9.4.1",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0,
+     "max_releases_behind_30d": 0
+    },
+    "3d": {
+     "gated_version_now": "9.4.1",
+     "latest_now": "9.4.1",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0,
+     "max_releases_behind_30d": 0
+    },
+    "7d": {
+     "gated_version_now": "9.4.1",
+     "latest_now": "9.4.1",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0,
+     "max_releases_behind_30d": 0
+    }
+   },
+   "days_in_last30_where_latest_was_at_least": {
+    "1d": 30.0,
+    "3d": 30.0,
+    "7d": 30.0
+   }
+  },
+  {
+   "package": "inquirer",
+   "family": false,
+   "latest": "14.2.3",
+   "license": "MIT",
+   "npm_maintainers": 3,
+   "first_publish": "2013-05-19",
+   "age_years": 13.4,
+   "weekly_downloads": 26558991,
+   "monthly_downloads": 207060432,
+   "npm_dependents": "104120",
+   "releases_30d": 1,
+   "releases_90d": 5,
+   "releases_365d": 27,
+   "releases_90d_incl_prerelease": 5,
+   "releases_365d_incl_prerelease": 27,
+   "majors_365d": [
+    "13.0.0",
+    "14.0.0"
+   ],
+   "minors_365d": 7,
+   "median_days_between_releases_365d": 7.62,
+   "types": "bundled (also stale @types/inquirer exists)",
+   "engines_node": ">=23.5.0 || ^22.13.0 || ^20.17.0",
+   "module_type": "module",
+   "latest_provenance_attestation": true,
+   "latest_trusted_publisher": true,
+   "docs_site": "README only",
+   "homepage": "https://github.com/SBoudrias/Inquirer.js/blob/main/packages/inquirer/README.md",
+   "git_repo_key": "SBoudrias_Inquirer.js:packages/inquirer",
+   "git_commits_12m": 66,
+   "git_authors_12m": 6,
+   "git_human_authors_12m": 5,
+   "git_top_author": [
+    "Simon Boudrias",
+    53
+   ],
+   "git_top_author_share": 0.803,
+   "git_top_human_share_of_human_commits": 0.93,
+   "bus_factor_50pct_all": 1,
+   "bus_factor_50pct_humans": 1,
+   "repo_security_md": true,
+   "repo_workflows": 5,
+   "repo_action_uses": 32,
+   "repo_sha_pinned_action_uses": 32,
+   "repo_scorecard_workflow": false,
+   "repo_last_commit": "2026-10-15",
+   "release_age_gate": {
+    "1d": {
+     "gated_version_now": "14.2.3",
+     "latest_now": "14.2.3",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0.03,
+     "max_releases_behind_30d": 1
+    },
+    "3d": {
+     "gated_version_now": "14.2.3",
+     "latest_now": "14.2.3",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0.1,
+     "max_releases_behind_30d": 1
+    },
+    "7d": {
+     "gated_version_now": "14.2.3",
+     "latest_now": "14.2.3",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0.23,
+     "max_releases_behind_30d": 1
+    }
+   },
+   "days_in_last30_where_latest_was_at_least": {
+    "1d": 29.0,
+    "3d": 27.0,
+    "7d": 23.0
+   }
+  },
+  {
+   "package": "@inquirer/prompts",
+   "family": false,
+   "latest": "8.7.3",
+   "license": "MIT",
+   "npm_maintainers": 2,
+   "first_publish": "2023-04-24",
+   "age_years": 3.5,
+   "weekly_downloads": 24633866,
+   "monthly_downloads": 178576142,
+   "npm_dependents": "8907",
+   "releases_30d": 1,
+   "releases_90d": 5,
+   "releases_365d": 23,
+   "releases_90d_incl_prerelease": 5,
+   "releases_365d_incl_prerelease": 23,
+   "majors_365d": [
+    "8.0.0"
+   ],
+   "minors_365d": 8,
+   "median_days_between_releases_365d": 9.5,
+   "types": "bundled",
+   "engines_node": ">=23.5.0 || ^22.13.0 || ^20.17.0",
+   "module_type": "module",
+   "latest_provenance_attestation": true,
+   "latest_trusted_publisher": true,
+   "docs_site": "README only",
+   "homepage": "https://github.com/SBoudrias/Inquirer.js/blob/main/packages/prompts/README.md",
+   "git_repo_key": "SBoudrias_Inquirer.js:packages/prompts",
+   "git_commits_12m": 44,
+   "git_authors_12m": 7,
+   "git_human_authors_12m": 6,
+   "git_top_author": [
+    "Simon Boudrias",
+    37
+   ],
+   "git_top_author_share": 0.841,
+   "git_top_human_share_of_human_commits": 0.881,
+   "bus_factor_50pct_all": 1,
+   "bus_factor_50pct_humans": 1,
+   "repo_security_md": true,
+   "repo_workflows": 5,
+   "repo_action_uses": 32,
+   "repo_sha_pinned_action_uses": 32,
+   "repo_scorecard_workflow": false,
+   "repo_last_commit": "2026-10-15",
+   "release_age_gate": {
+    "1d": {
+     "gated_version_now": "8.7.3",
+     "latest_now": "8.7.3",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0.03,
+     "max_releases_behind_30d": 1
+    },
+    "3d": {
+     "gated_version_now": "8.7.3",
+     "latest_now": "8.7.3",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0.1,
+     "max_releases_behind_30d": 1
+    },
+    "7d": {
+     "gated_version_now": "8.7.3",
+     "latest_now": "8.7.3",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0.23,
+     "max_releases_behind_30d": 1
+    }
+   },
+   "days_in_last30_where_latest_was_at_least": {
+    "1d": 29.0,
+    "3d": 27.0,
+    "7d": 23.0
+   }
+  },
+  {
+   "package": "prompts",
+   "family": false,
+   "latest": "2.4.2",
+   "license": "MIT",
+   "npm_maintainers": 1,
+   "first_publish": "2018-02-18",
+   "age_years": 8.7,
+   "weekly_downloads": 39068829,
+   "monthly_downloads": 273344458,
+   "npm_dependents": "14162",
+   "releases_30d": 0,
+   "releases_90d": 0,
+   "releases_365d": 0,
+   "releases_90d_incl_prerelease": 0,
+   "releases_365d_incl_prerelease": 0,
+   "majors_365d": [],
+   "minors_365d": 0,
+   "median_days_between_releases_365d": null,
+   "types": "none; @types/prompts",
+   "engines_node": ">= 6",
+   "module_type": null,
+   "latest_provenance_attestation": false,
+   "latest_trusted_publisher": false,
+   "docs_site": "README only",
+   "homepage": "https://github.com/terkelg/prompts#readme",
+   "git_repo_key": "terkelg_prompts",
+   "git_commits_12m": 0,
+   "git_authors_12m": 0,
+   "git_human_authors_12m": 0,
+   "git_top_author": null,
+   "git_top_author_share": null,
+   "git_top_human_share_of_human_commits": null,
+   "bus_factor_50pct_all": 0,
+   "bus_factor_50pct_humans": 0,
+   "repo_security_md": false,
+   "repo_workflows": 2,
+   "repo_action_uses": 4,
+   "repo_sha_pinned_action_uses": 0,
+   "repo_scorecard_workflow": false,
+   "repo_last_commit": "2025-05-14",
+   "release_age_gate": {
+    "1d": {
+     "gated_version_now": "2.4.2",
+     "latest_now": "2.4.2",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0,
+     "max_releases_behind_30d": 0
+    },
+    "3d": {
+     "gated_version_now": "2.4.2",
+     "latest_now": "2.4.2",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0,
+     "max_releases_behind_30d": 0
+    },
+    "7d": {
+     "gated_version_now": "2.4.2",
+     "latest_now": "2.4.2",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0,
+     "max_releases_behind_30d": 0
+    }
+   },
+   "days_in_last30_where_latest_was_at_least": {
+    "1d": 30.0,
+    "3d": 30.0,
+    "7d": 30.0
+   }
+  },
+  {
+   "package": "@clack/prompts",
+   "family": false,
+   "latest": "1.8.1",
+   "license": "MIT",
+   "npm_maintainers": 7,
+   "first_publish": "2023-02-13",
+   "age_years": 3.7,
+   "weekly_downloads": 18206216,
+   "monthly_downloads": 117123112,
+   "npm_dependents": "12437",
+   "releases_30d": 0,
+   "releases_90d": 2,
+   "releases_365d": 12,
+   "releases_90d_incl_prerelease": 2,
+   "releases_365d_incl_prerelease": 16,
+   "majors_365d": [
+    "1.0.0"
+   ],
+   "minors_365d": 8,
+   "median_days_between_releases_365d": 16.1,
+   "types": "bundled",
+   "engines_node": ">= 20.12.0",
+   "module_type": "module",
+   "latest_provenance_attestation": true,
+   "latest_trusted_publisher": true,
+   "docs_site": "https://bomb.sh/docs/clack/",
+   "homepage": "https://github.com/bombshell-dev/clack/tree/main/packages/prompts#readme",
+   "git_repo_key": "bombshell-dev_clack:packages/prompts",
+   "git_commits_12m": 93,
+   "git_authors_12m": 22,
+   "git_human_authors_12m": 21,
+   "git_top_author": [
+    "James Garbutt",
+    28
+   ],
+   "git_top_author_share": 0.301,
+   "git_top_human_share_of_human_commits": 0.359,
+   "bus_factor_50pct_all": 3,
+   "bus_factor_50pct_humans": 2,
+   "repo_security_md": false,
+   "repo_workflows": 7,
+   "repo_action_uses": 9,
+   "repo_sha_pinned_action_uses": 9,
+   "repo_scorecard_workflow": false,
+   "repo_last_commit": "2026-10-15",
+   "release_age_gate": {
+    "1d": {
+     "gated_version_now": "1.8.1",
+     "latest_now": "1.8.1",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0,
+     "max_releases_behind_30d": 0
+    },
+    "3d": {
+     "gated_version_now": "1.8.1",
+     "latest_now": "1.8.1",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0,
+     "max_releases_behind_30d": 0
+    },
+    "7d": {
+     "gated_version_now": "1.8.1",
+     "latest_now": "1.8.1",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0.07,
+     "max_releases_behind_30d": 1
+    }
+   },
+   "days_in_last30_where_latest_was_at_least": {
+    "1d": 30.0,
+    "3d": 30.0,
+    "7d": 28.0
+   }
+  },
+  {
+   "package": "cli-table3",
+   "family": false,
+   "latest": "0.6.5",
+   "license": "MIT",
+   "npm_maintainers": 2,
+   "first_publish": "2018-06-10",
+   "age_years": 8.4,
+   "weekly_downloads": 19872298,
+   "monthly_downloads": 145493979,
+   "npm_dependents": "6579",
+   "releases_30d": 0,
+   "releases_90d": 0,
+   "releases_365d": 0,
+   "releases_90d_incl_prerelease": 0,
+   "releases_365d_incl_prerelease": 0,
+   "majors_365d": [],
+   "minors_365d": 0,
+   "median_days_between_releases_365d": null,
+   "types": "bundled",
+   "engines_node": "10.* || >= 12.*",
+   "module_type": null,
+   "latest_provenance_attestation": false,
+   "latest_trusted_publisher": false,
+   "docs_site": "README only",
+   "homepage": "https://github.com/cli-table/cli-table3",
+   "git_repo_key": "cli-table_cli-table3",
+   "git_commits_12m": 1,
+   "git_authors_12m": 1,
+   "git_human_authors_12m": 1,
+   "git_top_author": [
+    "webdiscus",
+    1
+   ],
+   "git_top_author_share": 1.0,
+   "git_top_human_share_of_human_commits": 1.0,
+   "bus_factor_50pct_all": 1,
+   "bus_factor_50pct_humans": 1,
+   "repo_security_md": false,
+   "repo_workflows": 1,
+   "repo_action_uses": 2,
+   "repo_sha_pinned_action_uses": 0,
+   "repo_scorecard_workflow": false,
+   "repo_last_commit": "2026-04-19",
+   "release_age_gate": {
+    "1d": {
+     "gated_version_now": "0.6.5",
+     "latest_now": "0.6.5",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0,
+     "max_releases_behind_30d": 0
+    },
+    "3d": {
+     "gated_version_now": "0.6.5",
+     "latest_now": "0.6.5",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0,
+     "max_releases_behind_30d": 0
+    },
+    "7d": {
+     "gated_version_now": "0.6.5",
+     "latest_now": "0.6.5",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0,
+     "max_releases_behind_30d": 0
+    }
+   },
+   "days_in_last30_where_latest_was_at_least": {
+    "1d": 30.0,
+    "3d": 30.0,
+    "7d": 30.0
+   }
+  },
+  {
+   "package": "boxen",
+   "family": false,
+   "latest": "9.0.0",
+   "license": "MIT",
+   "npm_maintainers": 1,
+   "first_publish": "2015-12-21",
+   "age_years": 10.8,
+   "weekly_downloads": 17267286,
+   "monthly_downloads": 125658266,
+   "npm_dependents": "8508",
+   "releases_30d": 1,
+   "releases_90d": 1,
+   "releases_365d": 1,
+   "releases_90d_incl_prerelease": 1,
+   "releases_365d_incl_prerelease": 1,
+   "majors_365d": [
+    "9.0.0"
+   ],
+   "minors_365d": 0,
+   "median_days_between_releases_365d": null,
+   "types": "bundled",
+   "engines_node": ">=22",
+   "module_type": "module",
+   "latest_provenance_attestation": false,
+   "latest_trusted_publisher": false,
+   "docs_site": "README only",
+   "homepage": "https://github.com/sindresorhus/boxen#readme",
+   "git_repo_key": "sindresorhus_boxen",
+   "git_commits_12m": 48,
+   "git_authors_12m": 2,
+   "git_human_authors_12m": 2,
+   "git_top_author": [
+    "Sindre Sorhus",
+    47
+   ],
+   "git_top_author_share": 0.979,
+   "git_top_human_share_of_human_commits": 0.979,
+   "bus_factor_50pct_all": 1,
+   "bus_factor_50pct_humans": 1,
+   "repo_security_md": true,
+   "repo_workflows": 1,
+   "repo_action_uses": 2,
+   "repo_sha_pinned_action_uses": 0,
+   "repo_scorecard_workflow": false,
+   "repo_last_commit": "2026-09-22",
+   "release_age_gate": {
+    "1d": {
+     "gated_version_now": "9.0.0",
+     "latest_now": "9.0.0",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0.03,
+     "max_releases_behind_30d": 1
+    },
+    "3d": {
+     "gated_version_now": "9.0.0",
+     "latest_now": "9.0.0",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0.1,
+     "max_releases_behind_30d": 1
+    },
+    "7d": {
+     "gated_version_now": "9.0.0",
+     "latest_now": "9.0.0",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0.23,
+     "max_releases_behind_30d": 1
+    }
+   },
+   "days_in_last30_where_latest_was_at_least": {
+    "1d": 29.0,
+    "3d": 27.0,
+    "7d": 23.0
+   }
+  },
+  {
+   "package": "picocolors",
+   "family": false,
+   "latest": "1.1.1",
+   "license": "ISC",
+   "npm_maintainers": 1,
+   "first_publish": "2021-09-27",
+   "age_years": 5.1,
+   "weekly_downloads": 150413466,
+   "monthly_downloads": 1046257604,
+   "npm_dependents": "15295",
+   "releases_30d": 0,
+   "releases_90d": 0,
+   "releases_365d": 0,
+   "releases_90d_incl_prerelease": 0,
+   "releases_365d_incl_prerelease": 0,
+   "majors_365d": [],
+   "minors_365d": 0,
+   "median_days_between_releases_365d": null,
+   "types": "bundled",
+   "engines_node": null,
+   "module_type": null,
+   "latest_provenance_attestation": false,
+   "latest_trusted_publisher": false,
+   "docs_site": "README only",
+   "homepage": "https://github.com/alexeyraspopov/picocolors#readme",
+   "git_repo_key": "alexeyraspopov_picocolors",
+   "git_commits_12m": 0,
+   "git_authors_12m": 0,
+   "git_human_authors_12m": 0,
+   "git_top_author": null,
+   "git_top_author_share": null,
+   "git_top_human_share_of_human_commits": null,
+   "bus_factor_50pct_all": 0,
+   "bus_factor_50pct_humans": 0,
+   "repo_security_md": false,
+   "repo_workflows": 2,
+   "repo_action_uses": 6,
+   "repo_sha_pinned_action_uses": 0,
+   "repo_scorecard_workflow": false,
+   "repo_last_commit": "2024-11-18",
+   "release_age_gate": {
+    "1d": {
+     "gated_version_now": "1.1.1",
+     "latest_now": "1.1.1",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0,
+     "max_releases_behind_30d": 0
+    },
+    "3d": {
+     "gated_version_now": "1.1.1",
+     "latest_now": "1.1.1",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0,
+     "max_releases_behind_30d": 0
+    },
+    "7d": {
+     "gated_version_now": "1.1.1",
+     "latest_now": "1.1.1",
+     "releases_behind_now": 0,
+     "mean_releases_behind_30d": 0,
+     "max_releases_behind_30d": 0
+    }
+   },
+   "days_in_last30_where_latest_was_at_least": {
+    "1d": 30.0,
+    "3d": 30.0,
+    "7d": 30.0
+   }
+  }
+ ],
+ "burgee": {
+  "one_x_dates": {
+   "1.0.0": "2026-10-09T22:04:39.844Z",
+   "1.1.0": "2026-10-11T14:05:55.975Z",
+   "1.2.0": "2026-10-12T11:13:00.420Z",
+   "1.3.0": "2026-10-12T15:13:24.004Z",
+   "1.4.0": "2026-10-12T16:47:39.919Z",
+   "1.5.0": "2026-10-13T04:00:53.974Z",
+   "1.6.0": "2026-10-18T14:25:17.164Z"
+  },
+  "first_publish": "2026-09-07T05:34:22.724Z",
+  "versions_total": 46,
+  "family_last30d_window": "2026-09-18T17:00Z..2026-10-18T17:00Z",
+  "family_last30d": {
+   "burgee": {
+    "releases": 38,
+    "majors": [
+     "1.0.0"
+    ],
+    "minors_total": 20,
+    "minors_pre1": 14,
+    "minors_post1": 6,
+    "patches": 17
+   },
+   "roundel": {
+    "releases": 21,
+    "majors": [
+     "1.0.0"
+    ],
+    "minors_total": 4,
+    "minors_pre1": 3,
+    "minors_post1": 1,
+    "patches": 16
+   },
+   "flagstaff": {
+    "releases": 28,
+    "majors": [
+     "1.0.0"
+    ],
+    "minors_total": 7,
+    "minors_pre1": 1,
+    "minors_post1": 6,
+    "patches": 20
+   },
+   "caique": {
+    "releases": 28,
+    "majors": [
+     "1.0.0"
+    ],
+    "minors_total": 8,
+    "minors_pre1": 4,
+    "minors_post1": 4,
+    "patches": 19
+   },
+   "closeout": {
+    "releases": 24,
+    "majors": [
+     "1.0.0"
+    ],
+    "minors_total": 6,
+    "minors_pre1": 5,
+    "minors_post1": 1,
+    "patches": 17
+   },
+   "linegauge": {
+    "releases": 24,
+    "majors": [
+     "1.0.0"
+    ],
+    "minors_total": 3,
+    "minors_pre1": 2,
+    "minors_post1": 1,
+    "patches": 20
+   },
+   "paratext": {
+    "releases": 24,
+    "majors": [
+     "1.0.0"
+    ],
+    "minors_total": 6,
+    "minors_pre1": 6,
+    "minors_post1": 0,
+    "patches": 17
+   },
+   "seniority": {
+    "releases": 27,
+    "majors": [
+     "1.0.0"
+    ],
+    "minors_total": 6,
+    "minors_pre1": 6,
+    "minors_post1": 0,
+    "patches": 20
+   },
+   "bellpull": {
+    "releases": 23,
+    "majors": [
+     "1.0.0"
+    ],
+    "minors_total": 4,
+    "minors_pre1": 4,
+    "minors_post1": 0,
+    "patches": 18
+   },
+   "controlroom": {
+    "releases": 11,
+    "majors": [
+     "1.0.0"
+    ],
+    "minors_total": 2,
+    "minors_pre1": 2,
+    "minors_post1": 0,
+    "patches": 8
+   }
+  },
+  "family_last30d_totals": {
+   "releases": 248,
+   "majors": 10,
+   "minors": 66,
+   "minors_post1": 19,
+   "minors_pre1": 47,
+   "patches": 172
+  },
+  "breaking_in_minor_post_1_0": [
+   {
+    "pkg": "burgee",
+    "version": "1.5.0",
+    "pr": 1064,
+    "what": "native defineCommand/defineProgram now refuse excess positionals and a single-value option repeated with different values (usage error, exit 2); before, silently dropped and exit 0. Opt-out allowExcess: true",
+    "source": "packages/burgee/CHANGELOG.md ## 1.5.0"
+   },
+   {
+    "pkg": "burgee",
+    "version": "1.2.0",
+    "what": "--format text now accepted where it was \"unknown option --format\", exit 2 (additive, loosening; not breaking)",
+    "source": "packages/burgee/CHANGELOG.md ## 1.2.0"
+   },
+   {
+    "pkg": "flagstaff",
+    "version": "1.2.0",
+    "pr": 827,
+    "what": "flagstaff/boxen moved from boxen 8 to boxen 9 API in a minor: \"#GGG now throws\", vertical/horizontal become fallbacks not overrides (mirrors boxen 9.0.0, a MAJOR upstream)",
+    "source": "packages/flagstaff/CHANGELOG.md ## 1.2.0"
+   },
+   {
+    "pkg": "seniority",
+    "version": "1.0.8",
+    "pr": 1075,
+    "what": "patch: dotenv run on Windows now refuses args with line break/NUL and exits 1 (hardening, arguably breaking for those inputs)",
+    "source": "packages/seniority/CHANGELOG.md ## 1.0.8"
+   }
+  ],
+  "explicit_BREAKING_labels_in_changelogs": "burgee 0.7.0 (3: effects required, definePlugin, published extension point), 0.8.0 (1: checkDefinition refuses key), 0.9.0 (3: deprecated: true, moved values subpaths, code renumbering); closeout 0.2.0 (ProcessLike); caique 0.2.0 (PromptKind open union, preventive). None labelled BREAKING in any >=1.0.0 section.",
+  "behaviour_changes_in_1_0_0_majors": "flagstaff 1.0.0 (#678): NO_COLOR beats FORCE_COLOR; caique/decide refuses rather than prompts under an agent with a TTY; Linux console glyph change",
+  "authorship": {
+   "total_commits": 847,
+   "human_authored": 742,
+   "bot_authored": 105,
+   "bots": {
+    "github-actions[bot]": 84,
+    "dependabot[bot]": 21
+   },
+   "human_commits_with_claude_coauthor_trailer": 606,
+   "human_commits_without_ai_trailer": 136,
+   "bot_commits_with_claude_trailer": 8,
+   "distinct_human_authors": 1,
+   "co_author_trailer_counts": {
+    "Claude Opus 5.5": 335,
+    "Claude Opus 5": 198,
+    "Claude": 45,
+    "Claude Fable 5.1": 34,
+    "Claude Opus 5.5 (1M context)": 2,
+    "github-actions[bot]": 184,
+    "Ofri Peretz": 65,
+    "dependabot[bot]": 22
+   },
+   "share_ai_coauthored_of_all": 0.725,
+   "share_human_only_no_ai_marker": 0.161,
+   "active_days": 31,
+   "commits_per_active_day": 27.3,
+   "first_commit": "2026-09-05",
+   "note": "Commit authorship is the single maintainer; 72.5% of all commits carry a Claude Co-Authored-By trailer. Trailer absence does not prove no AI involvement."
+  },
+  "scorecard": "not measurable here: api.scorecard.dev, img.shields.io and the Actions artifact blob host are blocked (proxy 403). Scorecard workflow exists and last 3 runs on main concluded success (2026-10-18). Proxies: SECURITY.md yes, 22 workflows, 76/77 action uses SHA-pinned, 45/46 burgee versions with npm provenance attestations, latest published via npm trusted publishing (GitHub OIDC)."
+ },
+ "incumbent_breaking_changes": {
+  "commander": [
+   [
+    "15.0.0",
+    "2026-05-29",
+    "ESM only; requires Node >=22.12.0 (require(esm)); removed commander/esm.mjs; lone --no-* default change. 14.x security support to May 2027"
+   ],
+   [
+    "14.0.0",
+    "2025-05-18",
+    "requires Node >=20; help output: removed bogus leading space; Help refactor"
+   ],
+   [
+    "13.0.0",
+    "2024-12-30",
+    "excess command-arguments now error by default; throw on unsupported option flags; Help.wrap() removed (refactored into formatItem/boxWrap)"
+   ],
+   [
+    "12.0.0",
+    "2024-02-03",
+    "requires Node >=18; throw on duplicate option flags/command names; removed default export of global Command from CJS"
+   ],
+   [
+    "11.0.0",
+    "2023-06-16",
+    "requires Node >=16"
+   ],
+   [
+    "10.0.0",
+    "2023-01-13",
+    "requires Node >=14"
+   ]
+  ],
+  "yargs": [
+   [
+    "18.0.0",
+    "2025-05-26",
+    "ESM first; Node ^20.19.0 || ^22.12.0 || >=23; singleton yargs.foo / yargs().argv removed; command names no longer derived from modules"
+   ],
+   [
+    "17.0.0",
+    "2021-05-02",
+    "drop Node 10; yargs.js removed (yargs #1948 \"How to migrate from yargs@16\")"
+   ],
+   [
+    "16.0.0",
+    "2020-09-09",
+    "drop Node 8; exports map added (limits importable files)"
+   ],
+   [
+    "17.7.3 / 16.2.2",
+    "2026-06-19",
+    "backport patches to old majors (still maintained lines)"
+   ]
+  ],
+  "esm_only_majors_from_npm": {
+   "chalk": "5.0.0 2021-11-26 (6.0.0 2026-07-26 Node>=22)",
+   "ora": "6.0.0 2021-08-23 (9.0.0 2025-09-16 Node>=20)",
+   "boxen": "6.0.0 2021-09-30 (9.0.0 2026-09-21 Node>=22)",
+   "meow": "10.0.0 2021-05-05 (14.0.0 2025-09-15 Node>=20)",
+   "inquirer": "9.0.0 2022-06-18 (13.0.0 2025-11-16 Node>=20.12)",
+   "cac": "7.0.0 2026-02-27 Node>=20.19",
+   "@oclif/core": "5.0.0 2026-08-31 Node>=22"
+  }
+ },
+ "release_age_gates": {
+  "pnpm": "minimumReleaseAge default 1440 min (1 day) since pnpm v11; non-strict by default (falls back to a too-young version); if set explicitly, minimumReleaseAgeStrict defaults true and resolution FAILS when no version in range is old enough (source: pnpm.io docs/settings/dependency-resolution.md, raw.githubusercontent.com/pnpm/pnpm.io/main). pnpm latest dist-tag 12.14.0.",
+  "renovate": "security:minimumReleaseAgeNpm = \"3 days\"; included in config:best-practices (source: renovatebot/renovate lib/config/presets/internal/{security,config}.preset.ts)"
+ },
+ "issue_themes_curated": {
+  "module_system_esm_cjs": {
+   "count": 21,
+   "reactions": 51,
+   "comments": 71,
+   "items": [
+    {
+     "repo": "chalk_chalk",
+     "n": 613,
+     "title": "chalk 5.x fails with typescript",
+     "state": "closed",
+     "created": "2023-09-16",
+     "reactions": 0,
+     "comments": 3
+    },
+    {
+     "repo": "chalk_chalk",
+     "n": 620,
+     "title": "is support require('chalk')?",
+     "state": "closed",
+     "created": "2023-11-04",
+     "reactions": 0,
+     "comments": 3
+    },
+    {
+     "repo": "chalk_chalk",
+     "n": 627,
+     "title": "\u3010suggestion\u3011support commonjs version",
+     "state": "closed",
+     "created": "2024-03-17",
+     "reactions": 0,
+     "comments": 1
+    },
+    {
+     "repo": "chalk_chalk",
+     "n": 628,
+     "title": "add support for commonjs.",
+     "state": "closed",
+     "created": "2024-06-07",
+     "reactions": 0,
+     "comments": 1
+    },
+    {
+     "repo": "chalk_chalk",
+     "n": 632,
+     "title": "commonjs",
+     "state": "closed",
+     "created": "2024-09-20",
+     "reactions": 0,
+     "comments": 1
+    },
+    {
+     "repo": "chalk_chalk",
+     "n": 633,
+     "title": "should we support both esm and commonjs specifications?",
+     "state": "closed",
+     "created": "2024-09-26",
+     "reactions": 0,
+     "comments": 1
+    },
+    {
+     "repo": "chalk_chalk",
+     "n": 641,
+     "title": "commonjs",
+     "state": "closed",
+     "created": "2024-12-20",
+     "reactions": 0,
+     "comments": 1
+    },
+    {
+     "repo": "chalk_chalk",
+     "n": 646,
+     "title": "`chalk` v5 is ESM only, why the `engines.node` is still targeting Node 12 and 14?",
+     "state": "closed",
+     "created": "2025-04-05",
+     "reactions": 0,
+     "comments": 2
+    },
+    {
+     "repo": "chalk_chalk",
+     "n": 661,
+     "title": "ansi-styles",
+     "state": "closed",
+     "created": "2025-10-22",
+     "reactions": 0,
+     "comments": 1
+    },
+    {
+     "repo": "sindresorhus_ora",
+     "n": 239,
+     "title": "Can't be use with ES Modules",
+     "state": "closed",
+     "created": "2024-06-20",
+     "reactions": 0,
+     "comments": 5
+    },
+    {
+     "repo": "listr2_listr2",
+     "n": 755,
+     "title": "[Feature]: Switch to ESM-only package",
+     "state": "closed",
+     "created": "2026-01-24",
+     "reactions": 0,
+     "comments": 2
+    },
+    {
+     "repo": "listr2_listr2",
+     "n": 745,
+     "title": "[Bug]: no error with runtime ListrTaskWrapper import with `verbatimModuleSyntax: true` in `tsconfig.json`",
+     "state": "closed",
+     "created": "2025-08-05",
+     "reactions": 0,
+     "comments": 20
+    },
+    {
+     "repo": "alexeyraspopov_picocolors",
+     "n": 70,
+     "title": "Publishing ESM",
+     "state": "open",
+     "created": "2024-06-18",
+     "reactions": 35,
+     "comments": 7
+    },
+    {
+     "repo": "alexeyraspopov_picocolors",
+     "n": 50,
+     "title": "Avoid forcing allowSyntheticDefaultImports flag",
+     "state": "open",
+     "created": "2023-02-04",
+     "reactions": 0,
+     "comments": 1
+    },
+    {
+     "repo": "yargs_yargs",
+     "n": 1948,
+     "title": "How to migrate from yargs@16",
+     "state": "open",
+     "created": "2021-05-20",
+     "reactions": 0,
+     "comments": 2
+    },
+    {
+     "repo": "yargs_yargs",
+     "n": 2479,
+     "title": "commandDir() is ESM incompatible",
+     "state": "open",
+     "created": "2025-07-23",
+     "reactions": 4,
+     "comments": 2
+    },
+    {
+     "repo": "yargs_yargs",
+     "n": 1934,
+     "title": "[v17, ESM] version command not working when project installed globally",
+     "state": "open",
+     "created": "2021-05-03",
+     "reactions": 4,
+     "comments": 0
+    },
+    {
+     "repo": "yargs_yargs",
+     "n": 2068,
+     "title": "ts-jest says `The requested module 'yargs/helpers' does not provide an export named 'hideBin'`",
+     "state": "open",
+     "created": "2021-11-22",
+     "reactions": 3,
+     "comments": 5
+    },
+    {
+     "repo": "yargs_yargs",
+     "n": 2234,
+     "title": "Async config parsing function",
+     "state": "open",
+     "created": "2022-09-09",
+     "reactions": 4,
+     "comments": 5
+    },
+    {
+     "repo": "oclif_core",
+     "n": 1450,
+     "title": "outdated CJS-only dependencies",
+     "state": "open",
+     "created": "2025-08-18",
+     "reactions": 1,
+     "comments": 2
+    },
+    {
+     "repo": "oclif_oclif",
+     "n": 1985,
+     "title": "Allow explicit esm/cjs flag with \"explicit\" loader",
+     "state": "open",
+     "created": "2026-02-26",
+     "reactions": 0,
+     "comments": 6
+    }
+   ]
+  },
+  "node_engine_floor": {
+   "count": 6,
+   "reactions": 2,
+   "comments": 7,
+   "items": [
+    {
+     "repo": "oclif_core",
+     "n": 1627,
+     "title": "Deprecate legacy Node.js versions and replace third-party dependencies with native Node.js alternatives",
+     "state": "open",
+     "created": "2026-07-18",
+     "reactions": 1,
+     "comments": 2
+    },
+    {
+     "repo": "oclif_core",
+     "n": 1396,
+     "title": "[Question] Should `engines.node` be bumped to 20+?",
+     "state": "open",
+     "created": "2025-06-08",
+     "reactions": 0,
+     "comments": 2
+    },
+    {
+     "repo": "chalk_chalk",
+     "n": 646,
+     "title": "`chalk` v5 is ESM only, why the `engines.node` is still targeting Node 12 and 14?",
+     "state": "closed",
+     "created": "2025-04-05",
+     "reactions": 0,
+     "comments": 2
+    },
+    {
+     "repo": "vadimdemedes_ink",
+     "n": 976,
+     "title": "Drop the `ws` dependency now that the Node.js floor is 22 (native WebSocket)",
+     "state": "open",
+     "created": "2026-07-14",
+     "reactions": 1,
+     "comments": 0
+    },
+    {
+     "repo": "sindresorhus_log-update",
+     "n": 65,
+     "title": "Upgrade wrap-ansi to v10?",
+     "state": "closed",
+     "created": "2026-02-26",
+     "reactions": 0,
+     "comments": 0
+    },
+    {
+     "repo": "listr2_listr2",
+     "n": 752,
+     "title": "[Feature]: Support earlier versions of Node?",
+     "state": "closed",
+     "created": "2025-10-06",
+     "reactions": 0,
+     "comments": 1
+    }
+   ]
+  },
+  "typings_broke_on_upgrade": {
+   "count": 8,
+   "reactions": 9,
+   "comments": 48,
+   "items": [
+    {
+     "repo": "bombshell-dev_clack",
+     "n": 600,
+     "title": "[Bug] isCancel no longer narrows prompt results after 1.5.0",
+     "state": "open",
+     "created": "2026-09-07",
+     "reactions": 0,
+     "comments": 0
+    },
+    {
+     "repo": "sindresorhus_ora",
+     "n": 260,
+     "title": "There was a breaking change on v9.4.1 patch",
+     "state": "closed",
+     "created": "2026-06-29",
+     "reactions": 1,
+     "comments": 3
+    },
+    {
+     "repo": "chalk_chalk",
+     "n": 613,
+     "title": "chalk 5.x fails with typescript",
+     "state": "closed",
+     "created": "2023-09-16",
+     "reactions": 0,
+     "comments": 3
+    },
+    {
+     "repo": "listr2_listr2",
+     "n": 745,
+     "title": "[Bug]: no error with runtime ListrTaskWrapper import with `verbatimModuleSyntax: true` in `tsconfig.json`",
+     "state": "closed",
+     "created": "2025-08-05",
+     "reactions": 0,
+     "comments": 20
+    },
+    {
+     "repo": "listr2_listr2",
+     "n": 707,
+     "title": "[Bug]: `rxjs` is imported in the exported typescript definition but is declared as a dev dependency",
+     "state": "closed",
+     "created": "2024-02-16",
+     "reactions": 0,
+     "comments": 10
+    },
+    {
+     "repo": "yargs_yargs",
+     "n": 2098,
+     "title": "getOptions missing from @types/yargs",
+     "state": "open",
+     "created": "2021-12-19",
+     "reactions": 2,
+     "comments": 1
+    },
+    {
+     "repo": "yargs_yargs",
+     "n": 2360,
+     "title": "Middleware type definitions don\u2019t match actual API",
+     "state": "open",
+     "created": "2023-09-16",
+     "reactions": 1,
+     "comments": 1
+    },
+    {
+     "repo": "yargs_yargs",
+     "n": 1751,
+     "title": "make yargs' simple types available to community",
+     "state": "open",
+     "created": "2020-09-10",
+     "reactions": 5,
+     "comments": 10
+    }
+   ]
+  },
+  "switching_libraries": {
+   "count": 8,
+   "reactions": 18,
+   "comments": 14,
+   "items": [
+    {
+     "repo": "bombshell-dev_clack",
+     "n": 551,
+     "title": "Add footer option to select-like prompts",
+     "state": "open",
+     "created": "2026-06-03",
+     "reactions": 1,
+     "comments": 0
+    },
+    {
+     "repo": "bombshell-dev_clack",
+     "n": 553,
+     "title": "Custom validation messages for select-like prompts",
+     "state": "open",
+     "created": "2026-06-03",
+     "reactions": 0,
+     "comments": 0
+    },
+    {
+     "repo": "bombshell-dev_clack",
+     "n": 555,
+     "title": "Separators in select, multiselect, groupMultiselect, and autocomplete",
+     "state": "open",
+     "created": "2026-06-03",
+     "reactions": 2,
+     "comments": 5
+    },
+    {
+     "repo": "bombshell-dev_clack",
+     "n": 556,
+     "title": "Label wrapping issues in prompts that do not handle long labels",
+     "state": "open",
+     "created": "2026-06-03",
+     "reactions": 0,
+     "comments": 1
+    },
+    {
+     "repo": "bombshell-dev_clack",
+     "n": 557,
+     "title": "Add select-all and invert-selection to all select-like prompts",
+     "state": "open",
+     "created": "2026-06-03",
+     "reactions": 1,
+     "comments": 0
+    },
+    {
+     "repo": "alexeyraspopov_picocolors",
+     "n": 92,
+     "title": "Support boolean and array types",
+     "state": "open",
+     "created": "2025-01-02",
+     "reactions": 2,
+     "comments": 1
+    },
+    {
+     "repo": "alexeyraspopov_picocolors",
+     "n": 100,
+     "title": "FORCE_COLOR=0 enables colors instead of disabling them",
+     "state": "open",
+     "created": "2026-02-19",
+     "reactions": 2,
+     "comments": 0
+    },
+    {
+     "repo": "yargs_yargs",
+     "n": 1649,
+     "title": "Single positional (required) arg with Typescript support: I failed at building this",
+     "state": "open",
+     "created": "2020-05-04",
+     "reactions": 10,
+     "comments": 7
+    }
+   ]
+  },
+  "behaviour_regression_on_upgrade": {
+   "count": 6,
+   "reactions": 14,
+   "comments": 14,
+   "items": [
+    {
+     "repo": "sindresorhus_ora",
+     "n": 234,
+     "title": "ora v8 breaks prompts",
+     "state": "closed",
+     "created": "2024-01-06",
+     "reactions": 0,
+     "comments": 2
+    },
+    {
+     "repo": "sindresorhus_ora",
+     "n": 260,
+     "title": "There was a breaking change on v9.4.1 patch",
+     "state": "closed",
+     "created": "2026-06-29",
+     "reactions": 1,
+     "comments": 3
+    },
+    {
+     "repo": "sindresorhus_ora",
+     "n": 156,
+     "title": "ctrl + c not working",
+     "state": "closed",
+     "created": "2020-09-04",
+     "reactions": 13,
+     "comments": 6
+    },
+    {
+     "repo": "chalk_chalk",
+     "n": 686,
+     "title": "ansi256()/bgAnsi256() skip ANSI-16 downsampling at level 1, unlike rgb()/hex() (patch and regression test ready)",
+     "state": "closed",
+     "created": "2026-07-23",
+     "reactions": 0,
+     "comments": 2
+    },
+    {
+     "repo": "bombshell-dev_clack",
+     "n": 598,
+     "title": "[Bug] text: submitted value line is indented 2 spaces while active input is flush-left under withGuide: false (content shifts right on submit)",
+     "state": "open",
+     "created": "2026-09-05",
+     "reactions": 0,
+     "comments": 0
+    },
+    {
+     "repo": "oclif_oclif",
+     "n": 2024,
+     "title": "Tool is incompatible with PNPM v11",
+     "state": "open",
+     "created": "2026-05-14",
+     "reactions": 0,
+     "comments": 1
+    }
+   ]
+  },
+  "help_or_usage_output_change": {
+   "count": 2,
+   "reactions": 4,
+   "comments": 7,
+   "items": [
+    {
+     "repo": "yargs_yargs",
+     "n": 2120,
+     "title": "`.usage()` removes leading spaces from lines (including non-breaking)",
+     "state": "open",
+     "created": "2022-01-18",
+     "reactions": 2,
+     "comments": 6
+    },
+    {
+     "repo": "yargs_yargs",
+     "n": 2000,
+     "title": "Wrap causes leading whitespaces to be removed from `yargs.usage()`",
+     "state": "open",
+     "created": "2021-08-06",
+     "reactions": 2,
+     "comments": 1
+    }
+   ]
+  }
+ },
+ "issue_themes_regex_prefilter": {
+  "switch_framework": {
+   "count": 10,
+   "reactions": 18,
+   "per_repo": {
+    "bombshell-dev_clack": {
+     "count": 5,
+     "reactions": 4
+    },
+    "alexeyraspopov_picocolors": {
+     "count": 2,
+     "reactions": 4
+    },
+    "listr2_listr2": {
+     "count": 2,
+     "reactions": 0
+    },
+    "yargs_yargs": {
+     "count": 1,
+     "reactions": 10
+    }
+   }
+  },
+  "esm_cjs": {
+   "count": 24,
+   "reactions": 52,
+   "per_repo": {
+    "oclif_core": {
+     "count": 3,
+     "reactions": 2
+    },
+    "oclif_oclif": {
+     "count": 2,
+     "reactions": 0
+    },
+    "alexeyraspopov_picocolors": {
+     "count": 2,
+     "reactions": 35
+    },
+    "chalk_chalk": {
+     "count": 8,
+     "reactions": 0
+    },
+    "cli-table_cli-table3": {
+     "count": 1,
+     "reactions": 0
+    },
+    "listr2_listr2": {
+     "count": 1,
+     "reactions": 0
+    },
+    "sindresorhus_ora": {
+     "count": 1,
+     "reactions": 0
+    },
+    "unjs_citty": {
+     "count": 1,
+     "reactions": 0
+    },
+    "yargs_yargs": {
+     "count": 5,
+     "reactions": 15
+    }
+   }
+  },
+  "typings": {
+   "count": 62,
+   "reactions": 110,
+   "per_repo": {
+    "bombshell-dev_clack": {
+     "count": 8,
+     "reactions": 4
+    },
+    "oclif_core": {
+     "count": 3,
+     "reactions": 14
+    },
+    "SBoudrias_Inquirer.js": {
+     "count": 1,
+     "reactions": 0
+    },
+    "alexeyraspopov_picocolors": {
+     "count": 3,
+     "reactions": 2
+    },
+    "chalk_chalk": {
+     "count": 3,
+     "reactions": 0
+    },
+    "cli-table_cli-table3": {
+     "count": 2,
+     "reactions": 0
+    },
+    "listr2_listr2": {
+     "count": 7,
+     "reactions": 0
+    },
+    "sindresorhus_ora": {
+     "count": 3,
+     "reactions": 7
+    },
+    "vadimdemedes_ink": {
+     "count": 2,
+     "reactions": 10
+    },
+    "tj_commander.js": {
+     "count": 1,
+     "reactions": 0
+    },
+    "unjs_citty": {
+     "count": 1,
+     "reactions": 0
+    },
+    "yargs_yargs": {
+     "count": 28,
+     "reactions": 73
+    }
+   }
+  },
+  "help_output_change": {
+   "count": 2,
+   "reactions": 2,
+   "per_repo": {
+    "unjs_citty": {
+     "count": 1,
+     "reactions": 0
+    },
+    "yargs_yargs": {
+     "count": 1,
+     "reactions": 2
+    }
+   }
+  },
+  "node_engine": {
+   "count": 6,
+   "reactions": 2,
+   "per_repo": {
+    "oclif_core": {
+     "count": 2,
+     "reactions": 1
+    },
+    "chalk_chalk": {
+     "count": 1,
+     "reactions": 0
+    },
+    "listr2_listr2": {
+     "count": 1,
+     "reactions": 0
+    },
+    "sindresorhus_log-update": {
+     "count": 1,
+     "reactions": 0
+    },
+    "vadimdemedes_ink": {
+     "count": 1,
+     "reactions": 1
+    }
+   }
+  },
+  "upgrade_regression": {
+   "count": 7,
+   "reactions": 15,
+   "per_repo": {
+    "bombshell-dev_clack": {
+     "count": 1,
+     "reactions": 0
+    },
+    "oclif_core": {
+     "count": 1,
+     "reactions": 1
+    },
+    "chalk_chalk": {
+     "count": 2,
+     "reactions": 0
+    },
+    "sindresorhus_ora": {
+     "count": 3,
+     "reactions": 14
+    }
+   }
+  }
+ },
+ "issue_snapshot_totals": {
+  "bombshell-dev_clack": 61,
+  "oclif_core": 14,
+  "oclif_oclif": 10,
+  "SBoudrias_Inquirer.js": 8,
+  "alexeyraspopov_picocolors": 8,
+  "chalk_chalk": 32,
+  "cli-table_cli-table3": 13,
+  "listr2_listr2": 45,
+  "sindresorhus_boxen": 5,
+  "sindresorhus_log-update": 11,
+  "sindresorhus_ora": 34,
+  "vadimdemedes_ink": 14,
+  "tj_commander.js": 6,
+  "unjs_citty": 40,
+  "yargs_yargs": 199
+ },
+ "unmeasurable": [
+  "OpenSSF Scorecard scores (api.scorecard.dev, img.shields.io blocked; burgee SARIF artifact host blocked)",
+  "per-version download split (api.npmjs.org blocked) so yargs 18 / commander 15 adoption cannot be measured",
+  "docs site reachability (all docs hosts blocked; presence taken from npm homepage + README links)",
+  "reaction totals are only for the issues in the snapshots (open issues for frameworks; closed/declined for some output-stack repos)"
+ ],
+ "sources": {
+  "npm": "registry.npmjs.org/<pkg> full packument (time, maintainers, dist-tags, versions[].dist.attestations, _npmUser.trustedPublisher, engines, types/exports); registry.npmjs.org/-/v1/search?text=<pkg>&size=5 (downloads.weekly/monthly, dependents) fetched 2026-10-18",
+  "git": "git clone --filter=blob:none --no-checkout https://github.com/<repo>; git log HEAD --since=2025-10-18 (commander: origin/develop, its active branch); bots = author name matching bot|[bot]|renovate|dependabot|github-actions",
+  "issues": "/home/user/burgee/.sdlc/research/issues/*.json and issues/output-stack/*.json (500 distinct issues), regex pre-filter then hand-curated",
+  "scripts": "scratchpad trustC/scripts/{npm,git,lag,issues,curate,assemble}.py",
+  "now": "2026-10-18T17:00Z"
+ }
+}

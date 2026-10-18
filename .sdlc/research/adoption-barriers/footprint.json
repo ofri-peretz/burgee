@@ -1,0 +1,186 @@
+{
+ "date": "2026-10-18",
+ "node": "v22.22.0",
+ "install": {
+  "method": "empty dir, npm i <spec> --omit=dev --ignore-scripts; packages = npm ls --all --parseable rows; bytes = du -sb node_modules",
+  "rows": [
+   {
+    "spec": "commander@15",
+    "packages": 1,
+    "bytes": 207795
+   },
+   {
+    "spec": "commander@14",
+    "packages": 1,
+    "bytes": 209076
+   },
+   {
+    "spec": "commander@9",
+    "packages": 1,
+    "bytes": 173684
+   },
+   {
+    "spec": "yargs@18",
+    "packages": 15,
+    "bytes": 543418
+   },
+   {
+    "spec": "yargs@17",
+    "packages": 16,
+    "bytes": 666937
+   },
+   {
+    "spec": "chalk@5",
+    "packages": 1,
+    "bytes": 44862
+   },
+   {
+    "spec": "chalk@4",
+    "packages": 6,
+    "bytes": 99908
+   },
+   {
+    "spec": "picocolors",
+    "packages": 1,
+    "bytes": 6745
+   },
+   {
+    "spec": "ora@9",
+    "packages": 17,
+    "bytes": 293338
+   },
+   {
+    "spec": "ora@5",
+    "packages": 30,
+    "bytes": 588616
+   },
+   {
+    "spec": "cli-table3",
+    "packages": 7,
+    "bytes": 156584
+   },
+   {
+    "spec": "@inquirer/prompts@8",
+    "packages": 25,
+    "bytes": 982731
+   },
+   {
+    "spec": "burgee@1.6.0",
+    "packages": 6,
+    "bytes": 1706711
+   },
+   {
+    "spec": "roundel@1.1.1",
+    "packages": 1,
+    "bytes": 114013
+   },
+   {
+    "spec": "flagstaff@1.7.0",
+    "packages": 5,
+    "bytes": 717107
+   },
+   {
+    "spec": "caique@1.4.0",
+    "packages": 5,
+    "bytes": 744412
+   },
+   {
+    "spec": "commander@15 chalk@5 ora@9 cli-table3 @inquirer/prompts@8",
+    "packages": 49,
+    "bytes": 1562860
+   },
+   {
+    "spec": "burgee@1.6.0 roundel@1.1.1 flagstaff@1.7.0 caique@1.4.0",
+    "packages": 9,
+    "bytes": 2337073
+   }
+  ]
+ },
+ "bundled": {
+  "method": "one-file program per entry (parse argv / print one coloured string / start+succeed a spinner), esbuild --bundle --minify --platform=node --format=esm; gzip -9",
+  "rows": [
+   {
+    "entry": "commander",
+    "minified": 39177,
+    "gzip": 11200
+   },
+   {
+    "entry": "burgee/commander",
+    "minified": 76373,
+    "gzip": 24804
+   },
+   {
+    "entry": "yargs",
+    "minified": 112405,
+    "gzip": 34302
+   },
+   {
+    "entry": "burgee/yargs",
+    "minified": 123672,
+    "gzip": 42519
+   },
+   {
+    "entry": "chalk",
+    "minified": 6745,
+    "gzip": 2987
+   },
+   {
+    "entry": "roundel/chalk",
+    "minified": 4783,
+    "gzip": 2615
+   },
+   {
+    "entry": "picocolors",
+    "minified": 2556,
+    "gzip": 996
+   },
+   {
+    "entry": "roundel/picocolors",
+    "minified": 1549,
+    "gzip": 833
+   },
+   {
+    "entry": "ora",
+    "minified": 59454,
+    "gzip": 15317
+   },
+   {
+    "entry": "flagstaff/ora",
+    "minified": 55754,
+    "gzip": 14734
+   }
+  ]
+ },
+ "node18": {
+  "node": "v18.20.4",
+  "results": {
+   "burgee/commander import": "ok",
+   "burgee/yargs import": "ok",
+   "roundel/picocolors import": "ok",
+   "roundel/chalk import": "SyntaxError: node:util does not provide an export named styleText",
+   "flagstaff/ora import": "SyntaxError: node:util does not provide an export named styleText",
+   "require(burgee/commander)": "ERR_REQUIRE_ESM",
+   "npm install": "EBADENGINE warning only, install succeeds"
+  }
+ },
+ "node21": {
+  "node": "v21.7.3",
+  "results": {
+   "require(burgee/commander)": "ERR_REQUIRE_ESM",
+   "import": "ok"
+  }
+ },
+ "node20": {
+  "node": "v20.20.0",
+  "results": {
+   "require(burgee/commander)": "ok",
+   "import": "ok"
+  }
+ },
+ "requireShape": {
+  "require(\"burgee/yargs\")": "function (same as yargs)",
+  "require(\"burgee/commander\")": "namespace; .program and .Command present; not itself a Command (commander <=11 CJS returned the program)",
+  "require(\"roundel/chalk\")": "namespace; .red undefined, .default is chalk (chalk 4 CJS returned chalk)",
+  "require(\"flagstaff/ora\")": "namespace; not callable (ora 5 CJS returned the function)"
+ }
+}
