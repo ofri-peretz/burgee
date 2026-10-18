@@ -7,10 +7,20 @@
 #             hard gate everywhere; the controls are informational off Linux, because the
 #             hosts' suites are themselves OS-sensitive and a baseline recorded on one OS
 #             is not a contract for another.
+#   floor   — C3 for the two `engines` floors, the published suites only.
+#
+# On a pull request `matrix` and `floor` run only the affected packages: each one the PR changed
+# and each one that depends on one, from `scripts/affected.mts` (D-20261012-ci-affected-pr-lanes).
+# A PR that changes no package still starts every cell, and each says so in one step and passes.
+# A push to main, the merge queue, a dispatch and the `run-full-ci` label run everything, as do
+# root changes (workflows, the lockfile, root configs, `scripts/`). The ratchet is never
+# filtered: it grades every host, and the scoreboard is the product.
 name: Compatibility
 
 on:
   pull_request:
+    # `labeled`, so adding `run-full-ci` re-runs the cells with everything selected.
+    types: [opened, reopened, synchronize, labeled]
   push:
     branches: [main]
   # `ratchet` is a REQUIRED context as of this change. A merge queue builds
@@ -109,10 +119,47 @@ jobs:
             echo "already open as #$EXISTING"
           fi
 
+  # The packages `matrix` and `floor` run, computed once for both (`scripts/affected.mts`). The
+  # script reads the event itself: anything but a pull request, or the `run-full-ci` label,
+  # selects everything. `packages` is a JSON array of names under `packages/`; `full` is true
+  # when everything was selected, and the cells then run exactly what they ran before.
+  affected:
+    name: Affected packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      full: ${{ steps.set.outputs.full }}
+      packages: ${{ steps.set.outputs.packages }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+        with:
+          turbo-cache: "false"
+      - name: The affected set
+        id: set
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
+          FULL: ${{ contains(github.event.pull_request.labels.*.name, 'run-full-ci') }}
+        run: |
+          set -euo pipefail
+          args=(--event "$EVENT" --base "$BASE")
+          if [ "$FULL" = true ]; then args+=(--full); fi
+          set_json=$(node scripts/affected.mts "${args[@]}")
+          echo "$set_json"
+          echo "full=$(jq -c .full <<<"$set_json")" >> "$GITHUB_OUTPUT"
+          echo "packages=$(jq -c .packages <<<"$set_json")" >> "$GITHUB_OUTPUT"
+
   matrix:
     name: Node ${{ matrix.node }} · ${{ matrix.os }}
+    needs: affected
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    env:
+      FULL: ${{ needs.affected.outputs.full }}
+      PACKAGES: ${{ needs.affected.outputs.packages }}
     strategy:
       fail-fast: false
       matrix:
@@ -123,14 +170,21 @@ jobs:
         # LTS promotion in late October — graded now so it is not first graded as an LTS.
         node: [24, 26]
     steps:
+      # Every cell starts and reports, so a PR that changes no package is green here, not absent.
+      - name: No package affected — nothing to run on this cell
+        if: env.PACKAGES == '[]'
+        run: echo "This pull request changes no package and no file every package consumes; the ratchet and the locks still run."
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: env.PACKAGES != '[]'
       # The shared setup action pins Node from .nvmrc; a matrix needs the version varied,
       # so this job installs Node directly.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        if: env.PACKAGES != '[]'
         with:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci --ignore-scripts
+        if: env.PACKAGES != '[]'
       # Same `turbo run build`, the same 24 tasks with the same hashes, on every cell. On
       # macOS it runs two tasks at a time instead of turbo's default ten. macos-latest has
       # three cores, and ten concurrent `next build`s (every docs app) oversubscribe them:
@@ -143,12 +197,31 @@ jobs:
       # Quality (Full) runs, 2026-10-06), the shape of ten `next build`s running out of memory.
       # `scripts/turbo-concurrency-lock.test.ts` holds every unfiltered build to a cap.
       - run: npm run build -- --concurrency=${{ matrix.os == 'macos-latest' && '2' || '4' }}
+        if: env.FULL == 'true'
       # npm appends the flag to the script's last command, `turbo run test`. Linux runs four;
       # Windows and macOS run two. At the default ten, Windows' Node 26 cell failed 2 of 10 runs
       # on timing alone, each time a different test: vendor-run, ink-alias, completions.
       - name: Our suite (hard gate on every cell)
+        if: env.FULL == 'true'
         run: npm test -- --concurrency=${{ matrix.os == 'ubuntu-latest' && '4' || '2' }}
+      # A pull request's subset. Every package is built, not only the affected ones, and no docs
+      # app: a suite may import a package it does not declare (the `coverage` job's rule in
+      # quality-full.yml, from #827). Then the repository's locks and each affected suite.
+      - name: Build every package (affected subset)
+        if: env.FULL != 'true' && env.PACKAGES != '[]'
+        run: npx turbo run build --filter='./packages/*' --concurrency=${{ matrix.os == 'macos-latest' && '2' || '4' }}
+      - name: Our suite, affected packages only (hard gate on every cell)
+        if: env.FULL != 'true' && env.PACKAGES != '[]'
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Affected: $PACKAGES"
+          npx vitest run --config vitest.root.config.ts
+          mapfile -t filters < <(node -p "JSON.parse(process.env.PACKAGES).map((n) => '--filter=' + n).join('\\n')")
+          npx turbo run test "${filters[@]}" --concurrency=${{ matrix.os == 'ubuntu-latest' && '4' || '2' }}
+      # The controls grade the real packages through compat-oracle, so only it can move them.
       - name: Controls (informational off Linux)
+        if: env.FULL == 'true' || contains(fromJSON(env.PACKAGES), 'compat-oracle')
         continue-on-error: ${{ matrix.os != 'ubuntu-latest' }}
         run: node packages/compat-oracle/dist/bin.js --control
 
@@ -161,25 +234,38 @@ jobs:
   # dist npm ships is what a Node 20 or 22 user runs. The workspace tooling (root tests,
   # compat-oracle, docs) stays on 24 — its `engines` says so — so only the published
   # suites run here. Hard gate on every cell, the same policy as `matrix`.
+  #
+  # On a pull request, only the affected published packages (every package is still built).
   floor:
     name: Node ${{ matrix.node }} · ${{ matrix.os }} · published suites
+    needs: affected
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    env:
+      PACKAGES: ${{ needs.affected.outputs.packages }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         node: ['20.19.0', '22.13.0']
     steps:
+      - name: No package affected — nothing to run on this cell
+        if: env.PACKAGES == '[]'
+        run: echo "This pull request changes no package and no file every package consumes; the ratchet and the locks still run."
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: env.PACKAGES != '[]'
       - uses: ./.github/actions/setup
+        if: env.PACKAGES != '[]'
       - name: Build on the .nvmrc Node — the dist npm ships
+        if: env.PACKAGES != '[]'
         run: npx turbo run build --filter='./packages/*'
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        if: env.PACKAGES != '[]'
         with:
           node-version: ${{ matrix.node }}
           cache: npm
-      - name: Every published package's suite (hard gate on every cell)
+      - name: Every affected published package's suite (hard gate on every cell)
+        if: env.PACKAGES != '[]'
         shell: bash
         run: |
           set -uo pipefail
@@ -188,6 +274,7 @@ jobs:
           for dir in packages/*/; do
             name=$(basename "$dir")
             [ "$(node -p "require('./${dir}package.json').private === true")" = true ] && continue
+            [ "$(node -p "process.env.PACKAGES.includes(JSON.stringify(require('./${dir}package.json').name))")" = true ] || continue
             echo "::group::$name"
             (cd "$dir" && npx vitest run) || failed+=("$name")
             echo "::endgroup::"

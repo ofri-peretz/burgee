@@ -3,6 +3,22 @@ title: Changelog
 description: "Every release of caique, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.4.0
+
+### Minor Changes
+
+- [#1095](https://github.com/ofri-peretz/burgee/pull/1095) [`98a0004`](https://github.com/ofri-peretz/burgee/commit/98a00049a453aac7a5b4b69451ab51e0abc4618f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A list prompt never outgrows the terminal. The raw `select` and `multiselect` draw a list longer
+  than the screen as a window that follows the cursor, with `↑ N more` and `↓ N more` rows for
+  what is outside it, so a repaint never climbs above the top row. The window is the new
+  `maxItems` on a prompt spec, clack's name for it, and never more than the terminal's rows less
+  three. `renderList` takes `maxItems`, and the terminal `Writer` reports `rows`, read live.
+
+## 1.3.0
+
+### Minor Changes
+
+- [#1037](https://github.com/ofri-peretz/burgee/pull/1037) [`50cc502`](https://github.com/ofri-peretz/burgee/commit/50cc5024df7a99ecd2dff33570eea21730b87b99) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - New entry point `caique/inquirer/prompts`: `@inquirer/prompts`' `select` and `checkbox`, with `Separator` and their config, theme and choice types, over `caique/inquirer`'s prompt loop. Both are graded by their own suites in `@inquirer/prompts` 8.7.3, `select`'s pagination suite included: 100 of those 100 cases pass, level with the real packages. Paging follows `@inquirer/core`'s `usePagination`, multi-line choices and `loop: false` included. The other eight prompts are not built yet, so `burgee migrate` does not rewrite `@inquirer/prompts` imports. `caique/inquirer` is unchanged, and a program that imports it loads none of this.
+
 ## 1.2.1
 
 ### Patch Changes
