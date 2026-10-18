@@ -73,8 +73,8 @@ project's own `packageManager` pnpm where one is pinned.
   offsets 0 to 5,000. The API caps the offset at 5,000, so `keywords:cli` is its top 5,250 by
   search score and `keywords:command-line` is complete.
 - **Packages.** 9,198 names. Each one's latest manifest was read, and the 2,215 that list
-  `commander` or `yargs` under `dependencies` were kept: 1,876 commander, 347 yargs (some list
-  both). This is the **random** stratum.
+  `commander` or `yargs` under `dependencies` were kept. 1,876 list commander and 347 list yargs;
+  8 list both, so per-host rows total 2,223. This is the **random** stratum.
 - **Popular stratum.** The 100 packages in `dependents.json`, kept separate.
 - **What was measured where.**
   - Manifest measures cover every package.
@@ -191,7 +191,9 @@ A one-file commander program on its own is 77.8 ms with commander and 108.1 ms w
 
 ## Part B — population shares
 
-The random frame is n = 2,215 (1,876 commander, 347 yargs). The popular stratum is the 98 live
+The random frame is n = 2,215 unique packages: 1,876 list commander and 347 list yargs. 8 list
+both, which gives 2,223 per-host observations. The majors rows use 2,223 as their denominator;
+every other row counts packages, out of 2,215. The popular stratum is the 98 live
 packages of `dependents.json`. Intervals are Wilson 95%.
 
 | Barrier | Random frame | commander | yargs | Popular |
