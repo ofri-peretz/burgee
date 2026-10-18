@@ -6,5 +6,5 @@ import { timeouts } from './vitest-timeouts.config.js';
 export default defineConfig({
   // Same pinning as every package: a root lock that renders colour must not depend on the
   // shell it was run from either.
-  test: { ...timeouts, include: ['scripts/**/*.test.ts'], setupFiles: ['./vitest-colour-setup.ts'] },
+  test: { ...timeouts, include: ['scripts/**/*.test.ts'], setupFiles: ['./vitest-git-env-setup.ts', './vitest-colour-setup.ts'] },
 });
