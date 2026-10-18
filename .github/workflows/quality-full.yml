@@ -58,6 +58,8 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup
       # Build first, then test. Every docs app's `test` depends on its own `build`, so a bare
       # `turbo run test` runs ten Next builds alongside the package suites, and the
@@ -74,7 +76,25 @@ jobs:
       # Here it runs on the merge ref and feeds the required Quality (Full) Gate.
       - name: The repository's own locks
         run: npx vitest run --config vitest.root.config.ts
-      - run: npx turbo run test --concurrency=4
+      # Every workspace's suite on a push, the merge queue, the weekly scan, a dispatch, the
+      # `run-full-ci` label or a root change; on any other pull request, each workspace it
+      # changed and each that depends on one, docs apps included (`scripts/affected.mts`,
+      # D-20261012-ci-affected-pr-lanes). The locks above always run in full.
+      - name: Each affected workspace's suite
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
+          FULL: ${{ contains(github.event.pull_request.labels.*.name, 'run-full-ci') }}
+        run: |
+          set -euo pipefail
+          args=(--event "$EVENT" --base "$BASE")
+          if [ "$FULL" = true ]; then args+=(--full); fi
+          set_json=$(node scripts/affected.mts "${args[@]}")
+          echo "$set_json"
+          if [ "$(jq -r .full <<<"$set_json")" = true ]; then npx turbo run test --concurrency=4; exit 0; fi
+          mapfile -t filters < <(jq -r '.workspaces[] | "--filter=" + .' <<<"$set_json")
+          if [ "${#filters[@]}" -eq 0 ]; then echo "No workspace changed against $BASE; the locks above are the suite."; exit 0; fi
+          npx turbo run test "${filters[@]}" --concurrency=4
 
   build:
     name: Build (Turbo)
@@ -111,9 +131,9 @@ jobs:
   # one fail those suites instead of skipping them.
   #
   # Only the packages a PR can have changed: each one that changed against the base, and each
-  # package that depends on one (turbo's `...[base]`), limited to `packages/*` so no docs app
-  # is built. A push to main, the merge queue's base aside, the weekly scan and a dispatch run
-  # them all.
+  # package that depends on one, limited to `packages/*` so no docs app is built — the same set
+  # every affected lane reads, from `scripts/affected.mts`. A push to main, the merge queue, the
+  # weekly scan, a dispatch, the `run-full-ci` label and a root change run them all.
   coverage:
     name: Coverage (changed packages)
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false || contains(github.event.pull_request.labels.*.name, 'run-full-ci')
@@ -143,13 +163,15 @@ jobs:
         run: npx turbo run build --filter='./packages/*'
       - name: Each affected package's suite, against its coverage thresholds
         env:
-          BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.merge_group.base_sha || '' }}
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
+          FULL: ${{ contains(github.event.pull_request.labels.*.name, 'run-full-ci') }}
           REQUIRE_SHELLS: "1"
         run: |
           set -euo pipefail
-          if [ -n "$BASE" ]; then scope="...[$BASE]"; else scope="./packages/*"; fi
-          mapfile -t pkgs < <(npx turbo ls --filter="$scope" --output=json \
-            | jq -r '.packages.items[] | select(.path | startswith("packages/")) | .name')
+          args=(--event "$EVENT" --base "$BASE")
+          if [ "$FULL" = true ]; then args+=(--full); fi
+          mapfile -t pkgs < <(node scripts/affected.mts "${args[@]}" | jq -r '.packages[]')
           if [ "${#pkgs[@]}" -eq 0 ]; then echo "No package changed against $BASE; nothing to cover."; exit 0; fi
           echo "Coverage for: ${pkgs[*]}"
           filters=()

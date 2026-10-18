@@ -1,8 +1,33 @@
 # Design — a pull request runs what it can have changed; `main` runs everything
 
-Intent: [`intent.md`](./intent.md). **Status:** review.
+Intent: [`intent.md`](./intent.md). **Status:** approved.
 
 ---
+
+## Build status — 2026-10-13
+
+**R1–R3 built in one PR; R4 waits for twenty pull requests on the new lanes.** Each check was
+written first and shown failing on main.
+
+| R | Status | Check, shown failing on main |
+| :-- | :-- | :-- |
+| R1 | Built | `scripts/affected.test.ts`: 25 cases red with no `scripts/affected.mts` (`Cannot find module`) |
+| R2 | Built | `npm run lint:workflows`: `compat.yml → matrix` and `→ floor` do not take their set from `scripts/affected.mts` |
+| R3 | Built | `npm run lint:workflows`: `quality-full.yml → test` reads no set; `→ coverage` runs `turbo ls` itself |
+| R4 | Not built | needs the 20 PRs after this one merges |
+
+Three choices made while building, each erring toward running more:
+
+- **Any root-level file selects everything**, not only the listed configs: burgee's
+  `shape.test.ts` reads the root README, and telling the rest apart buys little. So do a
+  package's own `package.json`, `.github/` (actions too) and `.sdlc/bands/`, which every
+  `weight.test.ts` reads.
+- **Paths a suite reads outside its package** select that package and its dependents
+  (`UNDECLARED_READS`: `examples/` and the compatibility page for burgee, `.sdlc/intents/` for
+  compat-oracle), because turbo's change detection stops at the package directory.
+- **The merge queue runs everything** in `coverage` too; it used to diff against the queue's
+  base. `quality-full.yml`'s `test` filters on every affected workspace, docs apps included, so
+  a docs-app change still runs that app's suite.
 
 ## Requirements
 
