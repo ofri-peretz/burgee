@@ -93,6 +93,9 @@ describe('A9 — the surfaces are the framework’s, not this feature’s', () =
   });
 });
 
+/** `[major, minor, patch]` of a plain version. */
+const parts = (v: string): number[] => v.split('.').map(Number);
+
 describe('U12-2 — the versions next pins to ship with the binary', () => {
   it('wrote family-versions.json beside migrate.js, equal to every published manifest in this repository', () => {
     const packages = resolve(fileURLToPath(new URL('../..', import.meta.url)));
@@ -103,8 +106,29 @@ describe('U12-2 — the versions next pins to ship with the binary', () => {
         .filter((pkg) => pkg.private !== true)
         .map((pkg) => [pkg.name, pkg.version]),
     );
-    const built = JSON.parse(readFileSync(resolve(dirname(CLI), 'family-versions.json'), 'utf8')) as Record<string, string>;
-    expect(built).toEqual(expected);
+    const built = JSON.parse(readFileSync(resolve(dirname(CLI), 'family-versions.json'), 'utf8')) as { versions: Record<string, string> };
+    expect(built.versions).toEqual(expected);
+  });
+
+  it('wrote, for every subpath each package exports, a floor in its current major no newer than its version', () => {
+    // migrate-pins-carry-the-drop-in. The floors come from the release tags; a checkout without
+    // them floors every subpath at the current version, which is never too low.
+    const packages = resolve(fileURLToPath(new URL('../..', import.meta.url)));
+    const built = JSON.parse(readFileSync(resolve(dirname(CLI), 'family-versions.json'), 'utf8')) as { since: Record<string, Record<string, string>> };
+    for (const dir of readdirSync(packages, { withFileTypes: true }).filter((e) => e.isDirectory() && existsSync(join(packages, e.name, 'package.json')))) {
+      const pkg = JSON.parse(readFileSync(join(packages, dir.name, 'package.json'), 'utf8')) as { name: string; version: string; private?: boolean; exports?: Record<string, unknown> };
+      if (pkg.private === true) continue;
+      const floors = built.since[pkg.name] as Record<string, string>;
+      expect(Object.keys(floors), pkg.name).toEqual(Object.keys(pkg.exports ?? { '.': '' }).filter((k) => k === '.' || k.startsWith('./')));
+      for (const [subpath, floor] of Object.entries(floors)) {
+        const [f, v] = [parts(floor), parts(pkg.version)] as [number[], number[]];
+        expect(f[0], `${pkg.name}${subpath.slice(1)} floors in another major`).toBe(v[0]);
+        expect((f[1] as number) * 1e6 + (f[2] as number) <= (v[1] as number) * 1e6 + (v[2] as number), `${pkg.name}${subpath.slice(1)} floors at ${floor}, above ${pkg.version}`).toBe(true);
+      }
+    }
+    // The defect itself, wherever this checkout carries roundel's tags: ./picocolors first shipped in 1.1.0.
+    const tagged = execFileSync('git', ['-C', packages, 'tag', '--list', 'roundel@1.1.0'], { encoding: 'utf8' }).trim() !== '';
+    if (tagged && built.since['roundel']?.['./picocolors']?.startsWith('1.') === true) expect(built.since['roundel']['./picocolors']).toBe('1.1.0');
   });
 });
 

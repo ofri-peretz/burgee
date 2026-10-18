@@ -1010,6 +1010,11 @@ export interface ReleaseAgePin {
   graded: string;
   /** When `version` is old enough to install, ISO 8601: already past, or the date the install starts working. */
   installable: string;
+  /**
+   * migrate-pins-carry-the-drop-in — present when a release of the major older than `since` was
+   * passed over because it does not export every specifier the rewrite imports.
+   */
+  requires?: { specifiers: string[]; since: string };
 }
 
 export interface MigrationReport {
@@ -1707,7 +1712,9 @@ const FAMILY: readonly string[] = [...new Set(Object.values(MAPPING).map(package
  */
 export async function familyVersions(here: string = dirname(fileURLToPath(import.meta.url))): Promise<Record<string, string>> {
   try {
-    return JSON.parse(await readFile(join(here, 'family-versions.json'), 'utf8')) as Record<string, string>;
+    const built = JSON.parse(await readFile(join(here, 'family-versions.json'), 'utf8')) as { versions?: Record<string, string> } & Record<string, string>;
+    // `{ versions, since }` since migrate-pins-carry-the-drop-in; a flat map before it.
+    return built.versions ?? built;
   } catch {
     const found = await Promise.all(FAMILY.map(async (name) => [name, (await readFile(join(here, '..', '..', name, 'package.json'), 'utf8').catch(() => '{}')) as string] as const));
     return Object.fromEntries(found.flatMap(([name, raw]) => {
@@ -1715,6 +1722,48 @@ export async function familyVersions(here: string = dirname(fileURLToPath(import
       return version === undefined ? [] : [[name, version]];
     }));
   }
+}
+
+/** For each family package, the version from which every release of its graded major exports each subpath: `{ roundel: { './picocolors': '1.1.0' } }`. */
+export type SubpathFloors = Readonly<Record<string, Readonly<Record<string, string>>>>;
+
+/**
+ * migrate-pins-carry-the-drop-in — the `since` half of `family-versions.json`.
+ *
+ * The build reads it from this repository's release tags (`scripts/family-versions.mjs`): for
+ * each subpath, the oldest version of the current major from which every tagged release exports
+ * it. Run from source there is no such file and no history to read at run time, so there are no
+ * floors, which is what this printed before; the published package always carries the file.
+ */
+export async function subpathFloors(here: string = dirname(fileURLToPath(import.meta.url))): Promise<SubpathFloors> {
+  try {
+    return (JSON.parse(await readFile(join(here, 'family-versions.json'), 'utf8')) as { since?: SubpathFloors }).since ?? {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * The lowest version of each package that exports every subpath the rewrite imports, and the
+ * specifiers that set it: `roundel/picocolors` → `{ roundel: { version: '1.1.0', specifiers: [...] } }`.
+ *
+ * A package the table names but whose subpath it does not — a pattern export, or a subpath newer
+ * than the table — floors at the graded version: nothing older is known to carry it. A package
+ * the table does not name at all has no floor.
+ */
+function floorsOf(specifiers: readonly string[], since: SubpathFloors, graded: Readonly<Record<string, string>>): Map<string, { version: string; specifiers: string[] }> {
+  const floors = new Map<string, { version: string; specifiers: string[] }>();
+  for (const specifier of specifiers) {
+    const name = packageOf(specifier);
+    const table = since[name];
+    const at = graded[name];
+    if (table === undefined || at === undefined) continue;
+    const version = table[`.${specifier.slice(name.length)}`] ?? at;
+    const floor = floors.get(name);
+    if (floor === undefined || byVersion(version, floor.version) > 0) floors.set(name, { version, specifiers: [specifier] });
+    else if (byVersion(version, floor.version) === 0) floor.specifiers.push(specifier);
+  }
+  return floors;
 }
 
 /**
@@ -1859,8 +1908,13 @@ const byVersion = (a: string, b: string): number => {
  * that becomes old enough first, with the date it does. Exempt by `minimumReleaseAgeExclude`,
  * or a registry that does not answer: the graded pin, unchanged.
  */
-async function pinsUnder(age: Setting, add: readonly string[], graded: Readonly<Record<string, string>>, clock: { times: PublishTimes; now: Date }): Promise<{ pins: ReleaseAgePin[]; unread: string[] }> {
-  const { times, now } = clock;
+async function pinsUnder(
+  age: Setting,
+  add: readonly string[],
+  graded: Readonly<Record<string, string>>,
+  clock: { times: PublishTimes; now: Date; floors: ReadonlyMap<string, { version: string; specifiers: string[] }> },
+): Promise<{ pins: ReleaseAgePin[]; unread: string[] }> {
+  const { times, now, floors } = clock;
   const wanted = add.filter((name) => graded[name] !== undefined && exempted(name, age.exclude) !== '*');
   const found = await Promise.all(
     wanted.map(async (name) => {
@@ -1869,14 +1923,19 @@ async function pinsUnder(age: Setting, add: readonly string[], graded: Readonly<
       if (listed === undefined) return { name, version, pin: undefined };
       const exempt = exempted(name, age.exclude) as Set<string>;
       const major = version.split('.')[0];
-      const candidates = Object.entries(listed)
+      const ofMajor = Object.entries(listed)
         .filter(([v]) => /^\d+\.\d+\.\d+$/.test(v) && v.split('.')[0] === major)
         .map(([v, at]) => ({ version: v, installable: exempt.has(v) ? Date.parse(at) : Date.parse(at) + age.minutes * MINUTE_MS }))
         .filter((c) => !Number.isNaN(c.installable));
+      // migrate-pins-carry-the-drop-in: a release older than the first one that exports every
+      // subpath the rewrite imports cannot be the floor, however old it is (svgo, roundel 1.0.4).
+      const floor = floors.get(name);
+      const candidates = floor === undefined ? ofMajor : ofMajor.filter((c) => byVersion(c.version, floor.version) >= 0);
       const ready = candidates.filter((c) => c.installable <= now.getTime()).sort((a, b) => byVersion(b.version, a.version))[0];
       const soonest = candidates.sort((a, b) => a.installable - b.installable)[0];
       const chosen = ready ?? soonest;
-      return { name, version, pin: chosen === undefined ? undefined : { name, version: chosen.version, graded: version, installable: new Date(chosen.installable).toISOString() } };
+      const requires = floor !== undefined && candidates.length < ofMajor.length ? { requires: { specifiers: floor.specifiers, since: floor.version } } : {};
+      return { name, version, pin: chosen === undefined ? undefined : { name, version: chosen.version, graded: version, installable: new Date(chosen.installable).toISOString(), ...requires } };
     }),
   );
   return {
@@ -1887,11 +1946,13 @@ async function pinsUnder(age: Setting, add: readonly string[], graded: Readonly<
 
 /** The `releaseAge` the report carries: the setting, the pins it forced, and one note that says what `next` will do. */
 function releaseAgeNote(age: Setting, pins: readonly ReleaseAgePin[], unread: readonly string[], now: Date): ReleaseAge {
-  const lines = pins.map((p) =>
-    Date.parse(p.installable) <= now.getTime()
-      ? `${p.name} ${p.graded} is younger than that, so next pins ^${p.version}, the newest ${p.name} ${p.version.split('.')[0]}.x old enough; run your tests on it`
-      : `no ${p.name} ${p.version.split('.')[0]}.x is old enough until ${p.installable.replace('T', ' ').replace(/:\d\d\.\d+Z$/, '')} UTC, when ${p.version} is: the install fails before then, or exempt ${p.name} from the rule`,
-  );
+  const lines = pins.map((p) => {
+    // migrate-pins-carry-the-drop-in: when an older release was old enough but lacks a subpath, the note says which one.
+    const carrying = p.requires === undefined ? '' : ` that exports ${p.requires.specifiers.join(', ')} (first in ${p.requires.since})`;
+    return Date.parse(p.installable) <= now.getTime()
+      ? `${p.name} ${p.graded} is younger than that, so next pins ^${p.version}, the newest ${p.name} ${p.version.split('.')[0]}.x${carrying} old enough; run your tests on it`
+      : `no ${p.name} ${p.version.split('.')[0]}.x${carrying} is old enough until ${p.installable.replace('T', ' ').replace(/:\d\d\.\d+Z$/, '')} UTC, when ${p.version} is: the install fails before then, or exempt ${p.name} from the rule`;
+  });
   if (lines.length === 0 && unread.length === 0) lines.push('every family version in next is older than that');
   if (unread.length > 0) lines.push(`the registry did not say when ${unread.join(', ')} ${unread.length === 1 ? 'was' : 'were'} published, so next pins the graded version, which may be younger than that`);
   const { file, key, minutes, exclude } = age;
@@ -1971,6 +2032,8 @@ export interface MigrateOptions {
   registry?: PublishTimes;
   /** Injected by the tests; the clock otherwise. */
   now?: Date;
+  /** Injected by the tests; the `since` table the build wrote beside this module otherwise. */
+  since?: SubpathFloors;
 }
 
 /** Each name in `only` and `skip` that is not an incumbent, refused before anything is read. */
@@ -2215,7 +2278,10 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
   const graded = await familyVersions();
   const age = await releaseAgeOf(dir);
   const now = options.now ?? new Date();
-  const under = age === null ? { pins: [], unread: [] } : await pinsUnder(age, add, graded, { times: options.registry ?? registryTimes, now });
+  const under =
+    age === null
+      ? { pins: [], unread: [] }
+      : await pinsUnder(age, add, graded, { times: options.registry ?? registryTimes, now, floors: floorsOf([...new Set(all.map((m) => m.to))].sort(), options.since ?? (await subpathFloors()), graded) });
 
   const report: MigrationReport = {
     summary: summaryOf(changed.length, refusedFiles, dryRun),

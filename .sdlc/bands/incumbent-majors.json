@@ -1,0 +1,77 @@
+{
+  "$comment": "The changeset lock's table (release-cadence; `node scripts/release-window.mts lock`). Each row is a behaviour an incumbent's own changelog lists under a major. A changeset whose summary matches a row cannot be `minor` or `patch` for a package in `packages` (`*`: every family package, because every incumbent here ships that kind of change as a major). `match` holds phrases, compared in lower case with backticks removed: a string matches anywhere in the summary, and a list matches when one sentence holds every phrase in it. Built 2026-10-18 from `.sdlc/research/adoption-barriers/trust.json` (`incumbent_breaking_changes`, `breaking_in_minor_post_1_0`), the two minors that broke behaviour (burgee 1.5.0, flagstaff 1.2.0), and the incumbents' changelogs those cite. Over all 375 changesets ever added to this repository it flags exactly those two. Gap, stated: rows exist for commander, yargs and boxen, plus the Node-floor and ESM-only majors every incumbent shipped. The other graded incumbents (chalk's colour-level changes, ora, log-update, cli-table3, picocolors, the prompt libraries, ink, the config loaders, the process utilities) have no behaviour rows yet, because no curated list of their majors is in this repository. Add a row when a drop-in follows one of their majors; `scripts/release-window.test.ts` proves every row against a summary it must match and one it must not.",
+  "rows": [
+    {
+      "incumbent": "commander",
+      "version": "13.0.0",
+      "behaviour": "excess command-arguments are an error by default",
+      "match": ["too many arguments", "excess arguments", "excess command-arguments", "excess command arguments", "surplus positional", "excess positional", "extra positional", "more positionals than"],
+      "packages": ["burgee"],
+      "source": "commander CHANGELOG 13.0.0; trust.json incumbent_breaking_changes.commander; burgee 1.5.0 (#1064) shipped it as a minor"
+    },
+    {
+      "incumbent": "commander",
+      "version": "13.0.0",
+      "behaviour": "an unsupported option flag throws",
+      "match": ["unsupported option flag", "multi-character short flag", "multi-character short option"],
+      "packages": ["burgee"],
+      "source": "commander CHANGELOG 13.0.0; trust.json incumbent_breaking_changes.commander"
+    },
+    {
+      "incumbent": "commander",
+      "version": "12.0.0",
+      "behaviour": "a duplicate option flag or command name throws",
+      "match": ["duplicate option flag", "duplicate flag", "duplicate command name"],
+      "packages": ["burgee"],
+      "source": "commander CHANGELOG 12.0.0; trust.json incumbent_breaking_changes.commander"
+    },
+    {
+      "incumbent": "commander",
+      "version": "15.0.0",
+      "behaviour": "a lone --no-* option changes its default",
+      "match": [["lone --no-", "default"]],
+      "packages": ["burgee"],
+      "source": "commander CHANGELOG 15.0.0; trust.json incumbent_breaking_changes.commander"
+    },
+    {
+      "incumbent": "yargs",
+      "version": "18.0.0",
+      "behaviour": "the singleton (`yargs.foo`, `yargs().argv`) is removed, and command names are no longer derived from modules",
+      "match": ["yargs singleton", ["singleton", "removed"], ["command name", "no longer derived from"]],
+      "packages": ["burgee"],
+      "source": "yargs CHANGELOG 18.0.0; trust.json incumbent_breaking_changes.yargs"
+    },
+    {
+      "incumbent": "boxen",
+      "version": "9.0.0",
+      "behaviour": "a colour that is not real hex throws (`#GGG`)",
+      "match": ["#ggg", ["hex colour", "throw"], ["hex color", "throw"], ["invalid colour", "throw"], ["invalid color", "throw"]],
+      "packages": ["flagstaff"],
+      "source": "boxen 9.0.0 release notes; flagstaff 1.2.0 (#827) shipped it as a minor"
+    },
+    {
+      "incumbent": "boxen",
+      "version": "9.0.0",
+      "behaviour": "`vertical` / `horizontal` are fallbacks for the sides, not overrides",
+      "match": [["vertical", "horizontal", "fallback"], ["vertical", "horizontal", "override"]],
+      "packages": ["flagstaff"],
+      "source": "boxen 9.0.0 release notes; flagstaff 1.2.0 (#827)"
+    },
+    {
+      "incumbent": "*",
+      "version": "major",
+      "behaviour": "the minimum Node version is raised",
+      "match": ["requires node >=", "requires node ≥", "requires node.js >=", "now requires node", "raises the minimum node", "raises the node floor", "drops support for node", "drops node 1", "drops node 2"],
+      "packages": "*",
+      "source": "commander 10, 11, 12, 14, 15; yargs 16, 17, 18; chalk 6, ora 9, boxen 9, meow 14, inquirer 13 (trust.json incumbent_breaking_changes)"
+    },
+    {
+      "incumbent": "*",
+      "version": "major",
+      "behaviour": "CommonJS `require()` is no longer supported (ESM only)",
+      "match": ["is esm only", "is esm-only", "is now esm only", "is now esm-only", "becomes esm only", "becomes esm-only", "drops commonjs", "drops cjs", "drops require()", "no longer supports commonjs", "no longer supports cjs", "no longer supports require()"],
+      "packages": "*",
+      "source": "chalk 5, ora 6, boxen 6, meow 10, inquirer 9, commander 15, yargs 18 (trust.json incumbent_breaking_changes.esm_only_majors_from_npm)"
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 # Intent — a release pace a cautious adopter can follow, and semver that matches the incumbent's
 
-**Status:** draft · **Opened:** `2026-10-18` · **Owner:** `@ofri-peretz`
+**Status:** approved · **Opened:** `2026-10-18` · **Owner:** `@ofri-peretz` · approved by the owner
+2026-10-18; built 2026-10-18; the 30-day measurement completes 30 days after the merge (see below)
 
 ---
 
@@ -64,6 +65,27 @@ in `adoption-barriers/trust.json`), barrier 5:
   waited long enough already.
 - **Lock, not review rule.** The semver criterion is a changeset lock, because a review rule is
   what let burgee 1.5.0 and flagstaff 1.2.0 ship as minors.
+
+## Where the criteria stand — 2026-10-18
+
+**Status raised from `draft` to `approved`, not `shipped`:** the mechanism is built, and one
+criterion of the two can only be measured over the 30 days after it lands.
+
+- **The changeset lock** — **met.** `node scripts/release-window.mts lock`, run on every PR that
+  adds a changeset (`changesets-pr.yml` → `required`), refuses a `minor` or `patch` whose summary
+  matches a row of `.sdlc/bands/incumbent-majors.json`. `scripts/release-window.test.ts` refuses
+  burgee 1.5.0's and flagstaff 1.2.0's changesets, verbatim, at `minor` and `patch` and accepts
+  them at `major`; across all 375 changesets ever added it flags those two and no other. The table
+  is minimal and its gap is stated in it and in [`spec.md`](./spec.md).
+- **`latest` at least 7 days old on at least 50% of days, per package, over 30 days** — **not yet
+  measurable.** The window (no non-fix release within 7 days of the previous one; fixes and
+  `Security:` changes immediate) runs in `changesets-pr.yml` and `release.yml`, modelled in
+  [`release-window.qnt`](./release-window.qnt). Measure with `node scripts/release-window.mts
+  measure --from <merge time> --to <merge time + 30 days>`: the window closes on the 30th day after
+  this merges (2026-11-18 if it merges 2026-10-19). The spec records the prediction: the window
+  alone would not have moved the last 30 days' share off 0, because fixes reset `latest`. Raise to
+  `shipped` only if the measured share meets 50% for every package; otherwise the Maintain stage
+  writes the shortfall back as a new intent.
 
 ## Open questions
 
