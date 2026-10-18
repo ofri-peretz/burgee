@@ -4,7 +4,7 @@
 > ([`next-wave-4-2026-10.md`](../../research/next-wave-4-2026-10.md)). The account runs about six
 > GitHub Actions jobs at a time, and every pull request asks for the full matrix.
 
-**Status:** review · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
+**Status:** approved · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
 
 ---
 

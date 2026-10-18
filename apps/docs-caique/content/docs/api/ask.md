@@ -115,6 +115,11 @@ interface Writer {
      * than one row of screen and the repaint has to climb all of them.
      */
     readonly columns?: number | undefined;
+    /**
+     * How many rows the terminal is, when it knows. The raw renderer windows a list to it, so a
+     * list longer than the screen never climbs above the top row on a repaint.
+     */
+    readonly rows?: number | undefined;
 }
 ```
 
