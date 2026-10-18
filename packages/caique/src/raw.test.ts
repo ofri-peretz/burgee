@@ -432,3 +432,66 @@ describe.skipIf(process.platform === 'win32')('a cursor hidden mid-prompt comes 
     expect(observed.rawOff).toBe(1);
   });
 });
+
+const forty: PromptSpec = { kind: 'select', message: 'Which?', choices: Array.from({ length: 40 }, (_, i) => ({ value: `c${i + 1}` })) };
+
+/** The largest climb in one write. */
+const climb = (bytes: string): number => Math.max(0, ...[...bytes.matchAll(/\u001B\[(\d+)A/g)].map((m) => Number(m[1])));
+
+/** A keyboard whose writer reports `rows`, recording each frame written. */
+function tallScreen(script: string[], rows: number | undefined) {
+  const k = keyboard(script);
+  // Each write with its escapes stripped, and the raw bytes beside it for the climb.
+  const frames: string[] = [];
+  const bytes: string[] = [];
+  const write = (t: string): void => {
+    bytes.push(t);
+    // Only the frames, trailing newline dropped: the cursor's hide and show are not drawings.
+    const text = t.replaceAll(/\u001B\[[\d;?]*[A-Za-z]/g, '').trimEnd();
+    if (text.includes('Which?')) frames.push(text);
+  };
+  k.io.writer = { write, rows };
+  return { ...k, frames, bytes };
+}
+
+/**
+ * frames-fit-the-screen R4 — a list longer than the screen is drawn as a window that holds the
+ * cursor, with `↑ N more` and `↓ N more` rows, so a repaint never climbs above the top row.
+ */
+describe('a list prompt never outgrows the terminal', () => {
+  it('renderList draws a window of maxItems with the cursor in it, and counts what is below', () => {
+    expect(renderList({ ...forty, maxItems: 7 }, forty.choices ?? [], { cursor: 0, selected: new Set() }, false).split('\n')).toEqual(['Which?', '❯ c1', '  c2', '  c3', '  c4', '  c5', '  c6', '  c7', '  ↓ 33 more']);
+  });
+
+  it('renderList with no maxItems draws every choice, as it always has', () => {
+    expect(renderList(forty, forty.choices ?? [], { cursor: 0, selected: new Set() }, false).split('\n')).toHaveLength(41);
+  });
+
+  it('a 40-choice select on 10 rows paints a window, and moving past its edge moves it', async () => {
+    const s = tallScreen([...Array.from({ length: 10 }, () => DOWN), ENTER], 10);
+    const answer = askList(forty, s.io);
+    s.play();
+    await expect(answer).resolves.toEqual({ ok: true, value: 'c11' });
+    const shown = s.frames;
+    for (const frame of shown) expect(frame.split('\n').length).toBeLessThanOrEqual(10);
+    for (const frame of s.bytes) expect(climb(frame)).toBeLessThan(10);
+    expect(shown[0]?.split('\n')).toEqual(['Which?', '❯ c1', '  c2', '  c3', '  c4', '  c5', '  c6', '  c7', '  ↓ 33 more']);
+    expect(shown.at(-1)?.split('\n')).toEqual(['Which?', '  ↑ 4 more', '  c5', '  c6', '  c7', '  c8', '  c9', '  c10', '❯ c11', '  ↓ 29 more']);
+  });
+
+  it('up from the first choice wraps to the last, and the window goes with it', async () => {
+    const s = tallScreen([UP, ENTER], 10);
+    const answer = askList(forty, s.io);
+    s.play();
+    await expect(answer).resolves.toEqual({ ok: true, value: 'c40' });
+    expect(s.frames.at(-1)?.split('\n').slice(1)).toEqual(['  ↑ 33 more', '  c34', '  c35', '  c36', '  c37', '  c38', '  c39', '❯ c40']);
+  });
+
+  it('maxItems caps the window below the screen, and a multiselect windows the same way', async () => {
+    const s = tallScreen([DOWN, DOWN, DOWN, SPACE, ENTER], 30);
+    const answer = askList({ ...forty, kind: 'multiselect', maxItems: 3 }, s.io, true);
+    s.play();
+    await expect(answer).resolves.toEqual({ ok: true, value: ['c4'] });
+    expect(s.frames.at(-1)?.split('\n')).toEqual(['Which?', '  ↑ 1 more', '  ◯ c2', '  ◯ c3', '❯ ◉ c4', '  ↓ 36 more']);
+  });
+});

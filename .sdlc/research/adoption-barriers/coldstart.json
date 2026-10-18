@@ -1,0 +1,29 @@
+{
+ "method": "node <bin> --version, 1 warm-up then 10 runs interleaved base/after, median; Node v22.22.0; sequential, no other trial running",
+ "results": {
+  "concurrently": {
+   "base": 328,
+   "mig": 291.4
+  },
+  "postcss-cli": {
+   "base": 225,
+   "mig": 181.3
+  },
+  "nest-cli": {
+   "base": 942.7,
+   "mig-skip": 985.3
+  },
+  "svgo": {
+   "base": 369.8,
+   "manual": 347.6
+  },
+  "wait-port": {
+   "base": 66.8,
+   "manual": 90.9
+  },
+  "tsc-alias": {
+   "base": 139.8,
+   "manual": 148.8
+  }
+ }
+}
