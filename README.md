@@ -319,8 +319,8 @@ with:
 | | the incumbent alone | + what you add to match burgee | ours |
 | :--- | ---: | ---: | ---: |
 | `cac` | 10,452 B | **97,692 B** | 24,281 B |
-| `commander` | 39,084 B | **126,335 B** | 55,353 B |
-| `yargs` | 111,686 B | **198,784 B** | 108,342 B |
+| `commander` | 39,084 B | **126,335 B** | 55,346 B |
+| `yargs` | 111,686 B | **198,784 B** | 108,345 B |
 
 The additions are `cosmiconfig` (find and load a config file), `exit-hook` (run cleanup on
 every path out, including a signal) and `restore-cursor` (hand the terminal back), bundled
@@ -456,10 +456,10 @@ codebase is the number of things a user has to trust, not convenience.
 
 | | Layer | Package | What the layer owns | Migrates from | Status |
 | :-- | :-- | :-- | :-- | :-- | :-- |
-| **Engine** | argv, dispatch, manifest | [`burgee`](./packages/burgee/) | one declaration projected to help, `--json`, `--schema`, MCP, completions, types | commander · yargs · meow | released — `burgee@1.5.0` |
+| **Engine** | argv, dispatch, manifest | [`burgee`](./packages/burgee/) | one declaration projected to help, `--json`, `--schema`, MCP, completions, types | commander · yargs · meow | released — `burgee@1.6.0` |
 | **Output stack** | colour | [`roundel`](./packages/roundel/) | one output policy, nine semantic tokens, a contrast-checked theme, and chalk's API over them | chalk · picocolors | released — `roundel@1.1.1` |
 | | render | [`flagstaff`](./packages/flagstaff/) | frame loop with a static projection; plugin host for spinners, progress, boxes, tables | ora · log-update · boxen · cli-table3 | released — `flagstaff@1.6.0` |
-| | prompt | [`caique`](./packages/caique/) | prompts that are flags first, and never hang | inquirer · clack · prompts | released — `caique@1.2.1` |
+| | prompt | [`caique`](./packages/caique/) | prompts that are flags first, and never hang | inquirer · clack · prompts | released — `caique@1.3.0` |
 | | screen | [`controlroom`](./packages/controlroom/) | keyboard-driven screens, inline or full-screen, over flagstaff's loop, each with a static projection | ink · @inkjs/ui | released — `controlroom@1.0.2` |
 | **Foundation** | text | [`linegauge`](./packages/linegauge/) | measure, wrap, truncate and slice styled text without the edge fraying | string-width · wrap-ansi · strip-ansi · slice-ansi | released — `linegauge@1.1.1` |
 | | config | [`seniority`](./packages/seniority/) | precedence across flag, env, project file, home file and default — with provenance | cosmiconfig · lilconfig · dotenv · rc | released — `seniority@1.0.8` |

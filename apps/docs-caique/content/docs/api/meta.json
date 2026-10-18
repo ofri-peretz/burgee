@@ -9,6 +9,7 @@
     "decide",
     "editor",
     "inquirer",
+    "inquirer/prompts",
     "keys",
     "plugin",
     "raw",

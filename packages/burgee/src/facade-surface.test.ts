@@ -56,7 +56,7 @@ import { Readable } from 'node:stream';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { Command } from './commander.js';
+import { Argument, Command, Option } from './commander.js';
 import { toolsOf } from './mcp.js';
 import yargs, { type Argv } from './yargs.js';
 
@@ -295,6 +295,81 @@ describe('G6 — every argument the schema advertises reaches the program', () =
     // `--trim` then `--no-trim` declared: commander sets no default, so false is only reached by typing it.
     expect(seen[0]).toMatchObject({ color: true });
     expect(seen[0]?.['trim']).not.toBe(true);
+  });
+});
+
+/** The `--schema` document a program prints, parsed; `name` picks one command out of it. */
+async function schemaOf(program: Command, name: string): Promise<Record<string, any>> {
+  const doc = JSON.parse((await run(program, ['--schema'])).out) as { commands: Record<string, any>[] };
+  return doc.commands.find((c) => c['name'] === name) ?? {};
+}
+
+/** A commander program declaring choices, a hidden flag, conflicts and an argument default. */
+function deploy(): Command {
+  const program = new Command('ship');
+  program
+    .command('deploy')
+    .addOption(new Option('--mode <m>', 'how to ship').choices(['fast', 'safe']))
+    .addOption(new Option('--debug-dump', 'internal').hideHelp())
+    .addOption(new Option('--dry', 'print the plan').conflicts('force'))
+    .addOption(new Option('--force', 'skip checks').conflicts(['dry', 'mode']))
+    .addArgument(new Argument('[env]', 'where to ship').choices(['staging', 'prod']).default('staging'))
+    .action(() => 'shipped');
+  return program;
+}
+
+describe('facade-projection-fidelity R1–R3 — what a commander program declares reaches --schema', () => {
+  it('R1 — Option.choices() is the enum, in --schema and in the MCP tool', async () => {
+    const cmd = await schemaOf(deploy(), 'deploy');
+    expect(cmd['options'].mode.choices).toEqual(['fast', 'safe']);
+    expect(cmd['inputSchema'].properties.mode.enum).toEqual(['fast', 'safe']);
+    expect(toolsOf(deploy().manifest)[0]?.inputSchema.properties['mode']).toMatchObject({ enum: ['fast', 'safe'] });
+  });
+
+  it('R1 — a hidden option is marked hidden and left out of the input schema, as on yargs', async () => {
+    const cmd = await schemaOf(deploy(), 'deploy');
+    expect(cmd['options'].debugDump.hidden).toBe(true);
+    expect(Object.keys(cmd['inputSchema'].properties)).not.toContain('debugDump');
+  });
+
+  it('R2 — .conflicts() is exclusive, on the property and in relations', async () => {
+    const cmd = await schemaOf(deploy(), 'deploy');
+    expect(cmd['options'].dry.exclusive).toEqual(['force']);
+    expect(cmd['options'].force.exclusive).toEqual(['dry', 'mode']);
+    expect(cmd['inputSchema'].properties.force.exclusive).toEqual(['--dry', '--mode']);
+    expect(cmd['relations']).toContainEqual({ conflicts: ['dry', 'force'] });
+    expect(cmd['options'].mode.exclusive).toBeUndefined();
+  });
+
+  it('R3 — an Argument carries its default', async () => {
+    const cmd = await schemaOf(deploy(), 'deploy');
+    expect(cmd['arguments'][0]).toMatchObject({ name: 'env', required: false, variadic: false, description: 'where to ship', default: 'staging' });
+    expect(cmd['inputSchema'].properties.env).toMatchObject({ type: 'string', default: 'staging' });
+  });
+
+  // B-20261012-commander-argument-choices: the choices half, deferred until the diet freed room.
+  it("R3 — an Argument's .choices() is the enum, in --schema and in the MCP tool", async () => {
+    const program = new Command('pick');
+    program.command('one').addArgument(new Argument('<x>').choices(['a', 'b'])).action(() => undefined);
+    const cmd = await schemaOf(program, 'one');
+    expect(cmd['arguments'][0]).toEqual({ name: 'x', required: true, variadic: false, choices: ['a', 'b'] });
+    expect(cmd['inputSchema'].properties.x).toEqual({ type: 'string', enum: ['a', 'b'] });
+    expect(toolsOf(program.manifest)[0]?.inputSchema.properties['x']).toMatchObject({ enum: ['a', 'b'] });
+    expect((await schemaOf(deploy(), 'deploy'))['inputSchema'].properties.env).toMatchObject({ enum: ['staging', 'prod'], default: 'staging' });
+  });
+
+  it('R3 — a variadic Argument puts its choices on the items, as a multiple option does', async () => {
+    const program = new Command('pick');
+    program.command('many').addArgument(new Argument('<xs...>').choices(['a', 'b'])).action(() => undefined);
+    const cmd = await schemaOf(program, 'many');
+    expect(cmd['inputSchema'].properties.xs).toEqual({ type: 'array', items: { type: 'string', enum: ['a', 'b'] } });
+  });
+
+  it('R3 — a non-string argument default is left out, as on options', async () => {
+    const program = new Command('n');
+    program.command('take').addArgument(new Argument('[count]').default(3)).action(() => undefined);
+    const cmd = await schemaOf(program, 'take');
+    expect(cmd['arguments'][0]).toEqual({ name: 'count', required: false, variadic: false });
   });
 });
 
