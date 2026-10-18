@@ -106,7 +106,8 @@ describe('the fast lane asks it before anything installs', () => {
 
       const refused = run(join(dir, 'pruned.json'));
       expect(refused.status).toBe(1);
-      expect(refused.out).toContain('node_modules/@tailwindcss/oxide-wasm32-wasi -> @emnapi/core');
+      // Not which dependent trips it: a dependency bump moves which package depends on the top-level @emnapi entries; #1088 did.
+      expect(refused.out).toMatch(/node_modules\/\S+ -> @emnapi\/(core|runtime) has no entry to resolve to/);
       expect(run(join(dir, 'committed.json'))).toEqual({ status: 0, out: expect.any(String) as string });
     } finally {
       rmSync(dir, { recursive: true, force: true });
