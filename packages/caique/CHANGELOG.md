@@ -1,5 +1,11 @@
 # caique
 
+## 1.4.1
+
+### Patch Changes
+
+- [#1097](https://github.com/ofri-peretz/burgee/pull/1097) [`3f96896`](https://github.com/ofri-peretz/burgee/commit/3f96896fe01484cf597590d4bcd896b15d58a05e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `caique/clack`: a validator that throws, or returns a promise that rejects — a network check that fails, say — is now a failed check: the prompt shows the error's message (or the `messages.error` setting when it has none) and stays open, so the person can retry or cancel. It used to escape the keypress listener as an unhandledRejection, which kills a Node process by default; after an abort it escaped from a prompt that had already answered. `@clack/core` 1.5.1 lets it escape the same way.
+
 ## 1.4.0
 
 ### Minor Changes
