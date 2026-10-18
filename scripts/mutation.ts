@@ -539,7 +539,8 @@ export function changedReport(specs: ReadonlyMap<string, readonly string[]>, run
     lines.push(`| ${r.pkg} | ${String(specs.get(r.pkg)?.length ?? 0)} | ${cell(s?.score, '%')} | ${cell(s?.killed)} | ${cell(s?.timeout)} | ${cell(s?.survived)} | ${cell(s?.noCoverage)} | ${String(r.minutes)} |`);
   }
   lines.push('', ...runs.filter((r) => !r.ok).map((r) => `- ❌ **${r.pkg}**: ${r.error ?? ''}`));
-  const undetected = runs.flatMap((r) => r.summary?.undetected ?? []);
+  // A run refused as measuring nothing lists no gaps: its "survivors" ran no test.
+  const undetected = runs.filter((r) => r.ok).flatMap((r) => r.summary?.undetected ?? []);
   if (undetected.length > 0) {
     lines.push(
       `❌ **${String(undetected.length)} mutant(s) on lines this pull request changed are not detected by any test.** Each is a change to the code that every test still passes on. Add the assertion that fails on it; when the mutant is truly equivalent (no behaviour can tell it apart), put \`// Stryker disable next-line <Mutator>: <why it is equivalent>\` above the line.`,

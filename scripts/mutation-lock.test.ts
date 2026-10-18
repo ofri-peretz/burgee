@@ -25,6 +25,7 @@ import { describe, expect, it } from 'vitest';
 import { readDecisions } from './ledgers.js';
 import { widenTestNamePattern } from './mutation-vitest-setup.js';
 import {
+  changedReport,
   disableProblems,
   floorOf,
   type FullResult,
@@ -264,5 +265,27 @@ describe('recording a weekly run (R6)', () => {
     const out = record(base, [{ ...res('a', null, false), error: 'dry run failed' }, { ...res('b', null, false), error: 'dry run failed' }], '2026-10-24');
     expect(out.breaches).toEqual([expect.stringContaining('a: ')]);
     expect(out.doc.ratchets.b).toMatchObject({ status: 'unmeasured', reason: expect.stringContaining('dry run failed') });
+  });
+});
+
+describe('the lane report', () => {
+  const gap = { file: 'packages/roundel/src/contrast.ts', line: 95, column: 21, mutator: 'MethodExpression', replacement: 'Math.min(a, b)', status: 'Survived' as const };
+  const summary = { killed: 2, timeout: 0, survived: 1, noCoverage: 0, invalid: 0, ignored: 0, score: 66.67, undetected: [gap], silentSurvivors: [] };
+  const specs = new Map([['roundel', ['src/contrast.ts:93-96']]]);
+
+  it('names each undetected mutant on a changed line', () => {
+    const text = changedReport(specs, [{ pkg: 'roundel', ok: true, summary, minutes: 0.1 }]).join('\n');
+    expect(text).toContain('`packages/roundel/src/contrast.ts:95:21` | MethodExpression | Survived');
+    expect(text).not.toContain('✅');
+  });
+
+  it('lists no gaps for a run refused as measuring nothing, and says why it was refused', () => {
+    const text = changedReport(specs, [{ pkg: 'roundel', ok: false, error: 'ran no test', summary: { ...summary, silentSurvivors: [gap] }, minutes: 0.1 }]).join('\n');
+    expect(text).toContain('❌ **roundel**: ran no test');
+    expect(text).not.toContain('MethodExpression');
+  });
+
+  it('passes when every mutant is detected', () => {
+    expect(changedReport(specs, [{ pkg: 'roundel', ok: true, summary: { ...summary, survived: 0, undetected: [] }, minutes: 0.1 }]).at(-1)).toMatch(/^✅/u);
   });
 });
