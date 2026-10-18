@@ -100,7 +100,10 @@ const RULES: Record<string, EntryRule> = {
   // `keyOf` is decoded by `caique/keys` rather than by comparing bytes, and the root re-exports
   // the decoder and keymaps. Still under a fifth of clack's 101,684 B; the budget moved from
   // 15,000 because the surface did.
-  '.': { allow: [...CLOSEOUT, 'linegauge', 'paratext/csi', 'roundel/terminal'], budget: 20_000, denied: ['clack.js', 'inquirer.js'] },
+  //
+  // **20,000 -> 20,700 on 2026-10-13, deliberately** (D-20261013-frames-fit-the-screen-budgets,
+  // under the owner's delegation of budgets that day): measured 20,676, with `./raw` below.
+  '.': { allow: [...CLOSEOUT, 'linegauge', 'paratext/csi', 'roundel/terminal'], budget: 20_700, denied: ['clack.js', 'inquirer.js'] },
   // The shape and its validator. The floor every other subpath stands on, and a leaf: a
   // program that only declares prompts pays 739 B and never loads a widget.
   './spec': { allow: [], budget: 1_000, denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
@@ -200,7 +203,12 @@ const RULES: Record<string, EntryRule> = {
   // 8,896 B (+4,980) on 2026-10-05: `keyOf` is rebuilt on `caique/keys`' decoder (controlroom
   // R2), so a list prompt and a screen read the same keys the same way. The budget moved from
   // 4,500 with it — one decoder in the package, paid by the renderer that reads keys.
-  './raw': { allow: [...CLOSEOUT, 'linegauge', 'paratext/csi'], budget: 9_000, denied: ['decide.js', 'binding.js', 'terminal.js', 'index.js'] },
+  // 9,548 B (+652) on 2026-10-13, and the budget 9,000 -> 9,550 with it (frames-fit-the-screen
+  // R4, D-20261013-frames-fit-the-screen-budgets): a list longer than the screen is drawn as a
+  // window that holds the cursor, with `↑ N more` and `↓ N more` rows, sized by `maxItems` and
+  // the writer's `rows`, so a repaint never climbs above the top row. The measurement rounded
+  // up to the next 50.
+  './raw': { allow: [...CLOSEOUT, 'linegauge', 'paratext/csi'], budget: 9_550, denied: ['decide.js', 'binding.js', 'terminal.js', 'index.js'] },
   // Key presses through `node:readline`'s decoder, keymaps as data, and a reader that takes raw
   // mode once through `closeout/cursor` (controlroom R2). A leaf: a screen that reads keys pays
   // for no prompt, and the two closeout subpaths are the raw-mode restore it owes on every exit
