@@ -43,7 +43,7 @@ const SCRIPT_DIR = path.dirname(url.fileURLToPath(import.meta.url));
 export const REPO_ROOT = path.resolve(SCRIPT_DIR, '..');
 export const RATCHETS_FILE = '.sdlc/bands/mutation-ratchets.json';
 const STRYKER_BIN = path.join(REPO_ROOT, 'node_modules', '@stryker-mutator', 'core', 'bin', 'stryker.js');
-const VITEST_CONFIG = path.join(SCRIPT_DIR, 'mutation-vitest.config.ts');
+const VITEST_CONFIG = path.join(SCRIPT_DIR, 'mutation-vitest.config.mts');
 
 /**
  * The PR lane's budget (R3). The job's own `timeout-minutes` is 15; the build before this step

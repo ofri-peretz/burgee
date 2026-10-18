@@ -22,7 +22,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { configDefaults, defineConfig, mergeConfig, type ViteUserConfig } from 'vitest/config';
 
 const packageDir = process.env.MUTATION_PACKAGE_DIR;
-if (!packageDir) throw new Error('mutation-vitest.config.ts: MUTATION_PACKAGE_DIR is not set — run it through `npx tsx scripts/mutation.ts`');
+if (!packageDir) throw new Error('mutation-vitest.config.mts: MUTATION_PACKAGE_DIR is not set — run it through `npx tsx scripts/mutation.ts`');
 const skipped = JSON.parse(process.env.MUTATION_SKIP ?? '[]') as string[];
 
 // eslint-disable-next-line node-security/no-unsafe-dynamic-require, node-security/no-dynamic-dependency-loading -- the package's own committed vitest.config.ts, under the directory scripts/mutation.ts set from a name it checked against packages/

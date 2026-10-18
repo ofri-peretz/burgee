@@ -39,3 +39,5 @@ packages/compat-oracle/.grade-*/
 # Stryker (scripts/mutation.ts) mutates package sources in place and keeps its backups and
 # per-run files here, under the package it is running in; it removes them itself.
 .stryker-tmp/
+# Stryker's vitest runner writes its setup file into the package it runs in.
+stryker-setup-*.js
