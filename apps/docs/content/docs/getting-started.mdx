@@ -3,7 +3,18 @@ title: Getting started
 description: One file, one command, and your agent connected to it while you write it.
 ---
 
-## 1. Write the CLI
+## 1. Start it
+
+```bash
+npx burgee init my-cli && cd my-cli && npm install
+node cli.mjs --name ada                # greeting: hello, ada
+```
+
+`init` writes two files: `cli.mjs`, the quick start from burgee's README, and a `package.json`
+that runs it. `--install` runs the install too, with the package manager you ran `init` under.
+Nothing it writes refers back to `init`.
+
+## 2. Write the CLI
 
 One file. No build step, no directory layout.
 
@@ -34,7 +45,7 @@ if (import.meta.main) await run(program);
 Already on commander or yargs? Swap the import for `burgee/commander` or `burgee/yargs` and
 export the `Command` or the yargs instance as `program`. Nothing else changes.
 
-## 2. Keep your agent connected while you write it
+## 3. Keep your agent connected while you write it
 
 ```bash
 npx burgee dev ./cli.ts
@@ -49,7 +60,7 @@ and it sees a command the moment it is written — no rebuild, no restart.
 It is a developer tool and nothing more: a CLI built without ever running it is byte for
 byte the same, and nothing a shipped CLI imports can reach it.
 
-## 3. Everything else is already there
+## 4. Everything else is already there
 
 ```bash
 node cli.ts greet ada --shout          # HELLO, ADA
