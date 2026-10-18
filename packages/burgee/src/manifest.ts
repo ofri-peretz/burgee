@@ -170,6 +170,14 @@ export interface ArgumentSpec {
   required?: boolean;
   variadic?: boolean;
   default?: string;
+  /**
+   * The values the positional accepts, published as `enum` the way an option's `choices` are
+   * (facade-projection-fidelity R3). The commander façade fills it from `Argument.choices()`
+   * and enforces it while parsing. A native `defineCommand` cannot declare it yet: its parser
+   * does not check positionals' values, so its definition type leaves the field out
+   * (B-20261012-commander-argument-choices).
+   */
+  choices?: readonly string[];
   /** `'file'`: a path, where `-` means standard input — handed to the handler as `ctx.stdin` (S4). */
   type?: 'file';
 }
@@ -303,6 +311,13 @@ export interface RunContext {
 
 export interface CommandNode {
   path: string[];
+  /**
+   * Other words that name this command where its own last path segment would be typed:
+   * commander's `.alias()`, yargs' `['serve', 's']` (facade-projection-fidelity R5). A field on
+   * the command, never a second command, so `--schema` and an MCP tool list do not double.
+   * The engine reads them in `aliases.ts`; a façade dispatches its own.
+   */
+  aliases?: readonly string[];
   description?: string;
   /** Shown in command lists instead of the description (yargs #1265). */
   summary?: string;

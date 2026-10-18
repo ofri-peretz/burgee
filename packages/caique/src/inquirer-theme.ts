@@ -32,7 +32,7 @@ import { processRuntime } from './runtime.js';
  */
 const env = processRuntime().env;
 
-const UNICODE = unicode({ env, platform: process.platform });
+export const UNICODE = unicode({ env, platform: process.platform });
 
 /** `figures.tick`. */
 export const TICK = UNICODE ? '✔' : '√';

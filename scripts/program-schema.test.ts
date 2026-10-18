@@ -45,6 +45,7 @@ function everything(): ReturnType<typeof defineProgram> {
         name: 'deploy',
         description: 'Ship a build',
         summary: 'ship',
+        aliases: ['ship'],
         group: 'Release',
         deprecated: 'release',
         arguments: [

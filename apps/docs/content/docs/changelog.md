@@ -3,6 +3,63 @@ title: Changelog
 description: "Every release of burgee, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.6.0
+
+### Minor Changes
+
+- [#1091](https://github.com/ofri-peretz/burgee/pull/1091) [`dc1d1d1`](https://github.com/ofri-peretz/burgee/commit/dc1d1d196bafa63df5580135a8c42b324480fc9e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/commander` publishes an `Argument`'s `.choices()` as `enum` on the positional, in
+  `--schema` and in `--mcp`'s `inputSchema`, the way an option's choices already are (a variadic
+  argument's go on its items). `ArgumentSpec` gains `choices`; native `defineCommand` does not
+  accept it yet, because its parser does not check a positional's value. Commander's own help and
+  parsing are unchanged.
+
+- [#1091](https://github.com/ofri-peretz/burgee/pull/1091) [`dc1d1d1`](https://github.com/ofri-peretz/burgee/commit/dc1d1d196bafa63df5580135a8c42b324480fc9e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/commander` projects what a program already declares: `Option.choices()` becomes `enum` in
+  `--schema` and in `--mcp`'s `inputSchema` (and the values completions offer), `.hideHelp()` keeps
+  an option out of the input schema, help and completions, `.conflicts()` is published as `exclusive`
+  and in the command's `relations`, and an `Argument`'s string default reaches the positional's
+  `default`. Commander's own help and parsing are unchanged.
+
+### Patch Changes
+
+- [#1037](https://github.com/ofri-peretz/burgee/pull/1037) [`50cc502`](https://github.com/ofri-peretz/burgee/commit/50cc5024df7a99ecd2dff33570eea21730b87b99) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `@inquirer/prompts`' graded drop-in is `caique/inquirer/prompts`, now 100 / 213. `burgee migrate` still reports it rather than rewriting it, because it is not level yet.
+
+## 1.5.0
+
+### Minor Changes
+
+- [#1039](https://github.com/ofri-peretz/burgee/pull/1039) [`3bd9a9e`](https://github.com/ofri-peretz/burgee/commit/3bd9a9eaba812776c87dbea1def87e850599219d) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/commander/extra-typings` is a new entry point: a drop-in for `@commander-js/extra-typings`, graded 369 of 369 by its own tsd suite, level with the control. Its JavaScript re-exports `burgee/commander`, as extra-typings re-exports commander; its declarations are extra-typings 15.0.0's, ported with their MIT notice, so options and arguments are inferred from the strings that declare them and `.opts()` and an action's parameters are typed without a cast. `burgee migrate` now rewrites `@commander-js/extra-typings`.
+
+  It bundles to 61,207 B, what `burgee/commander` bundles to, against 39,329 B for `@commander-js/extra-typings` plus `commander`: a re-exporting door takes `burgee/commander`'s position (D-20261012-extra-typings-inherits-front-end), and the overage is `commander-front-end-diet`'s to close.
+
+- [#1083](https://github.com/ofri-peretz/burgee/pull/1083) [`c736740`](https://github.com/ofri-peretz/burgee/commit/c7367408fbed1b66e13172e71a39bf050afa2cdd) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Command aliases, on every surface. A native command declares `aliases: ['s']`, and `prog s` runs it,
+  at any depth (`prog r a` is `prog remote add`). `--schema` lists the aliases on the command and never
+  as a command of their own, help prints them the way commander does (`serve|s`), the bash, zsh, fish
+  and PowerShell scripts and the Fig spec offer and follow them, `__complete`, `help <command>` and
+  `--schema <command>` read them, and `--mcp` names one tool per command by its canonical path.
+  `burgee/commander`'s `.alias()` / `.aliases()` and `burgee/yargs`' `['serve', 's']` or `aliases:` now
+  reach `--schema` the same way; both façades' own help and parsing are unchanged.
+
+- [#1073](https://github.com/ofri-peretz/burgee/pull/1073) [`2fcd04e`](https://github.com/ofri-peretz/burgee/commit/2fcd04e7f5703f57b9698c2accc7e7c8ba80f097) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--mcp` negotiates the protocol revision. `initialize` answers the client's `protocolVersion` when it is one the server supports, `2025-06-18` or `2025-11-25`, and the latest it supports, `2025-11-25`, otherwise, as the specification's negotiation rule asks. A client on `2025-06-18` gets exactly what it got before. `MCP_PROTOCOL_VERSION` (from `burgee/mcp`) is now `2025-11-25`, the latest revision served. `2026-07-28`, which has no `initialize`, is not served: a client asking for it in an `initialize` gets `2025-11-25`, and a dual-era client that probes `server/discover` first gets `method not found` and falls back to `initialize`.
+
+- [#1064](https://github.com/ofri-peretz/burgee/pull/1064) [`e8e02fa`](https://github.com/ofri-peretz/burgee/commit/e8e02faec8df56dcd730407e570cb48a22454303) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A native command (`defineCommand`, `defineProgram`) refuses input it used to drop. Both are usage errors, exit 2, before anything runs:
+
+  - **More positionals than the command declares.** `demo greet ada extra` against a command that takes one argument now says `too many arguments: expected 1, got 2 ("extra")`. Before, `extra` was silently dropped and the run exited 0. A variadic last argument still takes the rest, and words after `--` are still `passthrough`.
+  - **A single-value option given twice with different values.** `--level info --level debug` now says `--level was given twice: "info" and "debug"`. Before, `info` was silently dropped. The same value twice is still accepted, as are `multiple` options and booleans, and a value from the environment or config never conflicts with a flag.
+
+  Each refusal carries a `fix`: the line as typed with the surplus words removed, or with only the last value of the repeated flag kept, ready to run. Both messages are in the locale catalog, so a locale pack translates them; `--json` stays English.
+
+  A command that forwards its tail to a child process declares `allowExcess: true` to keep today's behaviour: the surplus reaches `ctx.positionals`, and `--schema` publishes `excess: true` for it. The commander and yargs drop-ins are unchanged.
+
+### Patch Changes
+
+- [#1078](https://github.com/ofri-peretz/burgee/pull/1078) [`91a67e9`](https://github.com/ofri-peretz/burgee/commit/91a67e9f50bbad08d2335a66df0635fd31f6359f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/commander` is 4.9 KB lighter in a bundle: 61,272 → 56,418 B on `/docs/weight`. An executable subcommand spawns through commander's own `child_process.spawn` on every path commander 15 takes. `bellpull/cross-spawn` now loads only for the one path commander can't run, a Windows executable that isn't launched through node (a `.cmd`, a `.bat`, a non-node shebang), and that spawn happens once the import settles. Nothing else changes: commander's suite still grades 1360 / 1360.
+
+- [#1079](https://github.com/ofri-peretz/burgee/pull/1079) [`264a413`](https://github.com/ofri-peretz/burgee/commit/264a413388d846178cea4176743cd65aa2b5d65a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/commander` loads the code that serves `completion <shell>` and `--mcp` only when one of them is asked for, which takes 757 B off its start-up bundle (56,418 → 55,661 B on `/docs/weight`). Both surfaces behave as before. `--schema` still answers inside a synchronous `parse()`.
+
+- [#1082](https://github.com/ofri-peretz/burgee/pull/1082) [`4a62884`](https://github.com/ofri-peretz/burgee/commit/4a6288481a77dce34c496af5a5ffbaed900483c6) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee check` refuses a locale pack with every problem at once: `refused.problems` lists each one with its own `fix`, and `refused.message` and `refused.fix` list them all, numbered. Before, it stopped at the first, so a pack with three mistakes took three runs. A missing plural form's fix now gives each form the locale selects with a count for it, e.g. `one (for 0), many (for 1000000), other (for 2) for fr`. `burgee/locale-pack-schema.json` names the plural forms of the common languages in the plural message's description and gives a French example, since French needs `many` and the German example does not show it.
+- Updated dependencies [[`48ccbaf`](https://github.com/ofri-peretz/burgee/commit/48ccbaf47b5363978e080acbfd5f63add7655d46)]:
+  - seniority@1.0.8
+
 ## 1.4.0
 
 ### Minor Changes

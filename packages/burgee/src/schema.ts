@@ -45,6 +45,8 @@ export interface CommandSchema {
   name: string;
   description?: string;
   summary?: string;
+  /** Other words that run it (R5): on the command, so a list of commands is one entry per command. */
+  aliases?: readonly string[];
   /**
    * What running it does, or `'withheld'` — published either way, because an agent reading
    * the program as data is better served by *this exists and is not for you* than by a gap
@@ -128,9 +130,15 @@ export interface ProgramSchema {
   shadows?: ('--json' | '--mcp' | 'completion')[];
 }
 
+/** `choices` as `enum`, on each item of a list: one path for options and positionals (R3). */
+function withChoices(p: JsonSchemaProperty, choices: readonly string[] | undefined): JsonSchemaProperty {
+  if (choices !== undefined) (p.items ?? p).enum = [...choices];
+  return p;
+}
+
 /** Positionals go under their own names; a variadic one is an array. */
 function argumentProperty(a: ArgumentSpec): JsonSchemaProperty {
-  const p: JsonSchemaProperty = a.variadic === true ? { type: 'array', items: { type: 'string' } } : { type: 'string' };
+  const p = withChoices(a.variadic === true ? { type: 'array', items: { type: 'string' } } : { type: 'string' }, a.choices);
   if (a.description !== undefined) p.description = a.description;
   if (a.default !== undefined) p.default = a.default;
   return p;
@@ -146,10 +154,7 @@ function optionProperty(name: string, spec: OptionSpec): JsonSchemaProperty {
   const p: JsonSchemaProperty = spec.multiple === true ? { type: 'array', items: { type: scalar } } : { type: scalar };
   p.flag = `--${kebab(name)}`;
   if (spec.description !== undefined) p.description = spec.description;
-  if (spec.choices !== undefined) {
-    if (p.items !== undefined) p.items.enum = [...spec.choices];
-    else p.enum = [...spec.choices];
-  }
+  withChoices(p, spec.choices);
   if (spec.default !== undefined) p.default = spec.default;
   if (spec.minimum !== undefined) p.minimum = spec.minimum;
   if (spec.maximum !== undefined) p.maximum = spec.maximum;
@@ -180,7 +185,7 @@ export function typedName(node: CommandNode, root: string[]): string {
 }
 
 /** Keys a command's schema publishes exactly as the node holds them, in the order they appear. */
-const PASSED_THROUGH = ['description', 'summary', 'effects', 'fields', 'deprecated', 'group'] as const;
+const PASSED_THROUGH = ['description', 'summary', 'aliases', 'effects', 'fields', 'deprecated', 'group'] as const;
 
 export function commandSchemaOf(node: CommandNode, root: string[]): CommandSchema {
   const out: CommandSchema = {

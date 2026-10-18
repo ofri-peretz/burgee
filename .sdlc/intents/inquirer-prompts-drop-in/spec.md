@@ -32,7 +32,8 @@ evidence are recorded in [`next-wave-2026-10.md`](../../research/next-wave-2026-
   the target cannot meet without the incumbent's own module state is excluded by exact title
   with the reason, the D-20260930 mechanism, and never by file.
 - **R4 — Mapped and fingerprinted.** `DROP_INS` gains
-  `{ host: 'inquirer-prompts', from: '@inquirer/prompts', to: 'caique/inquirer' }`. `burgee migrate`
+  `{ host: 'inquirer-prompts', from: '@inquirer/prompts', to: 'caique/inquirer/prompts' }`
+  (the subpath, not `caique/inquirer`: D-20261012-caique-inquirer-prompts-subpath). `burgee migrate`
   refuses a file importing a name `caique/inquirer` does not export, as it does for clack
   (D-20260930-migrate-refuses-clack-core). `npm run compat -- --fingerprint` re-points
   `packages/caique/competitors.json` from `inquirer` to `@inquirer/prompts`.
@@ -148,8 +149,8 @@ used prompts. The rest share the text-input path.
 
 | R | Status | Where | Check |
 | :-- | :-- | :-- | :-- |
-| R1 | Not built — **re-scoped**: the pagination suite is `select`'s (D-20261011-inquirer-pagination-suite-is-selects), so `usePagination` is graded in `inquirer-prompts` with `select` | `caique/src/inquirer*.ts`, `compat-oracle/vendor/inquirer-prompts/packages/select/test/pagination.test.ts` | `npm run compat -- inquirer-prompts` |
+| R1 | **Built** 2026-10-12 — `usePagination` in `caique/src/inquirer-pagination.ts`, graded with `select` (D-20261011-inquirer-pagination-suite-is-selects): `pagination.test.ts` 10 / 10, level with the control. Not exported from `caique/inquirer` yet: its 23,000 B budget does not hold it (D-20261012-caique-inquirer-prompts-subpath) | `caique/src/inquirer-pagination.ts`, `compat-oracle/vendor/inquirer-prompts/packages/select/test/pagination.test.ts` | `npm run compat -- inquirer-prompts` |
 | R2 | **Built** 2026-10-11 — vendored at 8.7.3, control 213 / 213, target 0 / 213 | `compat-oracle/vendor/inquirer-prompts`, this file (§ R2 — the measurement) | `npm run compat -- inquirer-prompts --control` |
-| R3 | Not built | `caique/src/inquirer*.ts` | `npm run compat -- inquirer-prompts` |
+| R3 | **Partly built** 2026-10-12 — `select` (42 / 42) and `checkbox` (48 / 48) at the new subpath `caique/inquirer/prompts` (D-20261012-caique-inquirer-prompts-subpath); row 100 / 213, control 213 / 213. `input`, `confirm`, `password`, `number`, `expand`, `rawlist`, `search` not built | `caique/src/inquirer-{select,checkbox,choices,choice,prompts}.ts` | `npm run compat -- inquirer-prompts` |
 | R4 | Not built | `burgee/src/compat.ts`, `caique/competitors.json` | `migrate-drop-ins-lock.test.ts`, `competitors.test.ts` |
 | R5 | Not built | `subpath-weight` table | `subpath-weight-lock.test.ts` |

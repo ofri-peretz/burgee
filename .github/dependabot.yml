@@ -28,6 +28,12 @@ updates:
       # (#5, #31). Drop this entry when typescript-eslint ships a TS 7 peer range.
       - dependency-name: "typescript"
         versions: [">=6"]
+      # next 16.4.0's Turbopack production build grows past 14 GB RSS on every docs app and is
+      # OOM-killed ("Creating an optimized production build ..."), locally and on CI's Build
+      # lane (#1088); 16.3.8 builds the same app in 18 s under 3 GB. Only this release is
+      # skipped, so the first patch after it is proposed again.
+      - dependency-name: "next"
+        versions: ["16.4.0"]
       - dependency-name: "commander"
       - dependency-name: "yargs"
       - dependency-name: "yargs-parser"
@@ -72,6 +78,12 @@ updates:
       # against its `x`. No suite of its is graded, so the pin is the release the ceiling was
       # measured against, and it moves only when somebody re-measures the pair on purpose.
       - dependency-name: "tinyexec"
+      # cac 7.0.0 is the published weight and cold-start target (`lighter-than-cac`,
+      # `cold-start-at-or-below-cac`, docs/vs/cac). No suite of its is graded, so, like tinyexec,
+      # the pin is the release the claims were measured against. #1088 proposed 7.0.1, which
+      # moved cac's bundle 10,452 → 10,542 B and the published 2.323× with it, a ratio change
+      # nobody decided. It moves only when somebody re-measures the claims on purpose.
+      - dependency-name: "cac"
       # @clack/prompts 1.8.1 is the release compat-oracle vendors and grades (vendor/clack), and
       # B5 times caique/clack against it (D-20260929-b5-runtime-ratchets): a runtime ratio against
       # a release whose suite we do not pass would compare two different contracts.
