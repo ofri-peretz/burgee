@@ -103,7 +103,7 @@ export async function init(opts: { dir: string; typed: string | undefined; force
   if (opts.install) {
     // The manager's stdout is its own report and would break `--json`'s one envelope; its stderr,
     // where progress and errors go, is the user's to see.
-    const ran = await run(manager, ['install'], { runtime: { ...ambientRuntime(), env: opts.env, cwd: dir }, cwd: dir, stdio: ['ignore', 'pipe', 'inherit'], timeout: INSTALL_TIMEOUT });
+    const ran = await run(manager, ['install'], { runtime: { ...ambientRuntime(), env: opts.env, cwd: dir }, stdio: ['ignore', 'pipe', 'inherit'], timeout: INSTALL_TIMEOUT });
     if (!ran.ok) throw new InstallError(install, ran.code, `cd ${shellWord(dir)} && ${install}`);
   }
   return { dir, files: [...FILES], install, installed: opts.install };
