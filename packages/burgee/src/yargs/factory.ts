@@ -1367,7 +1367,7 @@ export class YargsInstance {
     for (const [name, handler] of Object.entries(handlers)) {
       if (isDefault(handler)) continue;
       const child = this.#childOf(handler);
-      commands.push({ name, description: handler.description, deprecated: handler.deprecated, child: child.#snapshotOf(handler, name) });
+      commands.push({ name, aliases: handler.aliases, description: handler.description, deprecated: handler.deprecated, child: child.#snapshotOf(handler, name) });
     }
     const root = Object.values(handlers).find(isDefault);
     if (root !== undefined) {

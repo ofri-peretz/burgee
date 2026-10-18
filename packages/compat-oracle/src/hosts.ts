@@ -1489,20 +1489,22 @@ export const HOSTS: Host[] = [
     ],
     // Each suite imports its prompt as its package's default; the program imports it by name
     // from `@inquirer/prompts`. `defaultExport` grades that name, read off `@inquirer/prompts`
-    // on the control and off `caique/inquirer` on a target run. checkbox's suite also imports
+    // on the control and off `caique/inquirer/prompts` on a target run: the prompts are a
+    // subpath of their own, so `caique/inquirer` (`@inquirer/core`'s drop-in) keeps its byte
+    // budget (D-20261012-caique-inquirer-prompts-subpath). checkbox's suite also imports
     // `ValidationError` from `@inquirer/core` and asserts the prompt rejects with that class,
     // so the core import moves with it, as it does in a migrated program.
     imports: [
-      { upstream: './input/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'input' },
-      { upstream: './select/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'select' },
-      { upstream: './checkbox/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'checkbox' },
-      { upstream: './confirm/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'confirm' },
-      { upstream: './password/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'password' },
-      { upstream: './number/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'number' },
-      { upstream: './expand/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'expand' },
-      { upstream: './rawlist/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'rawlist' },
-      { upstream: './search/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'search' },
-      { upstream: './editor/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'editor' },
+      { upstream: './input/src/index.ts', subpath: '/prompts', reexportDefault: false, control: '@inquirer/prompts', defaultExport: 'input' },
+      { upstream: './select/src/index.ts', subpath: '/prompts', reexportDefault: false, control: '@inquirer/prompts', defaultExport: 'select' },
+      { upstream: './checkbox/src/index.ts', subpath: '/prompts', reexportDefault: false, control: '@inquirer/prompts', defaultExport: 'checkbox' },
+      { upstream: './confirm/src/index.ts', subpath: '/prompts', reexportDefault: false, control: '@inquirer/prompts', defaultExport: 'confirm' },
+      { upstream: './password/src/index.ts', subpath: '/prompts', reexportDefault: false, control: '@inquirer/prompts', defaultExport: 'password' },
+      { upstream: './number/src/index.ts', subpath: '/prompts', reexportDefault: false, control: '@inquirer/prompts', defaultExport: 'number' },
+      { upstream: './expand/src/index.ts', subpath: '/prompts', reexportDefault: false, control: '@inquirer/prompts', defaultExport: 'expand' },
+      { upstream: './rawlist/src/index.ts', subpath: '/prompts', reexportDefault: false, control: '@inquirer/prompts', defaultExport: 'rawlist' },
+      { upstream: './search/src/index.ts', subpath: '/prompts', reexportDefault: false, control: '@inquirer/prompts', defaultExport: 'search' },
+      { upstream: './editor/src/index.ts', subpath: '/prompts', reexportDefault: false, control: '@inquirer/prompts', defaultExport: 'editor' },
       { upstream: '@inquirer/core', subpath: '', reexportDefault: false, control: '@inquirer/core' },
     ],
     surfaceFiles: ['packages/prompts/src/index.ts'],
@@ -1556,7 +1558,7 @@ export const HOSTS: Host[] = [
     runner: 'vitest',
     target: 'caique/inquirer',
     status: 'active',
-    note: "**Vendored 2026-10-11 at 8.7.3 (R2 of inquirer-prompts-drop-in): control 213 / 213, target `caique/inquirer` 0 / 213.** Eleven files, 224 cases, of which `editor.test.ts`'s eleven are excluded above. Every target case fails with `prompt is not a function`: `caique/inquirer` exports `@inquirer/core`'s surface and none of the ten prompts yet. The table of imports and counts this design is read from is in `.sdlc/intents/inquirer-prompts-drop-in/spec.md`.",
+    note: "**2026-10-12 (R1, R3 of inquirer-prompts-drop-in): `caique/inquirer/prompts` 100 / 213, control 213 / 213** — `select` (its own 42 cases and its pagination suite's 10) and `checkbox` (48) level over `usePagination`; `input`, `confirm`, `password`, `number`, `expand`, `rawlist` and `search` are not built yet, and fail with `prompt is not a function`. **Vendored 2026-10-11 at 8.7.3 (R2 of inquirer-prompts-drop-in): control 213 / 213, target `caique/inquirer` 0 / 213.** Eleven files, 224 cases, of which `editor.test.ts`'s eleven are excluded above. Every target case fails with `prompt is not a function`: `caique/inquirer` exports `@inquirer/core`'s surface and none of the ten prompts yet. The table of imports and counts this design is read from is in `.sdlc/intents/inquirer-prompts-drop-in/spec.md`.",
   },
   {
     // 2.16: the testable unit of the inquirer monorepo, and the decision that came with it.

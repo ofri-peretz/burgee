@@ -1,5 +1,19 @@
 # caique
 
+## 1.3.0
+
+### Minor Changes
+
+- [#1037](https://github.com/ofri-peretz/burgee/pull/1037) [`50cc502`](https://github.com/ofri-peretz/burgee/commit/50cc5024df7a99ecd2dff33570eea21730b87b99) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - New entry point `caique/inquirer/prompts`: `@inquirer/prompts`' `select` and `checkbox`, with `Separator` and their config, theme and choice types, over `caique/inquirer`'s prompt loop. Both are graded by their own suites in `@inquirer/prompts` 8.7.3, `select`'s pagination suite included: 100 of those 100 cases pass, level with the real packages. Paging follows `@inquirer/core`'s `usePagination`, multi-line choices and `loop: false` included. The other eight prompts are not built yet, so `burgee migrate` does not rewrite `@inquirer/prompts` imports. `caique/inquirer` is unchanged, and a program that imports it loads none of this.
+
+## 1.2.1
+
+### Patch Changes
+
+- [#1068](https://github.com/ofri-peretz/burgee/pull/1068) [`566b7d7`](https://github.com/ofri-peretz/burgee/commit/566b7d7a35431f384518e9705620441c5ab4b9b9) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `caique/clack`: Ctrl-C or escape while an async validator is still out now cancels the prompt (it answers `CANCEL_SYMBOL`), where it used to be dropped. In raw mode Ctrl-C reaches the prompt as a byte, not a signal, so a validator that never answered left no way out. `@clack/core` drops the key too, but its readline interface then leaves raw mode, so a second Ctrl-C kills the process. Other keys still wait for the verdict.
+- Updated dependencies [[`4a62884`](https://github.com/ofri-peretz/burgee/commit/4a6288481a77dce34c496af5a5ffbaed900483c6)]:
+  - paratext@1.0.7
+
 ## 1.2.0
 
 ### Minor Changes

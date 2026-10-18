@@ -103,6 +103,10 @@ jobs:
             exit 1
           fi
           echo "✅ Lockfile is in sync."
+          # The dry-run above is Node 24's npm, which passes a lock missing the platform-only
+          # @emnapi entries that npm >= 11.16 (Node 26) refuses (#1088). Ask
+          # the question that npm asks, from the lockfile alone, before anything is installed.
+          node --no-warnings scripts/lockfile-resolves.ts
       - id: setup
         if: ${{ !cancelled() }}
         uses: ./.github/actions/setup

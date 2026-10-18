@@ -90,7 +90,7 @@ const OVER_INCUMBENT: Readonly<Record<string, { incumbent: string; bytes: number
   // `previous-majors` R1: `burgee/commander` plus one subclass with commander 14's excess-arguments
   // message, so it bundles `burgee/commander`'s bytes plus 349, and its ratchet moves with that row.
   // commander 14.0.3 measured 2026-10-12 by the same method: 40,970 B (D-20261012-commander-14-budget).
-  'burgee/commander/v14': { incumbent: 'commander@14.0.3', bytes: 40_970, ours: 56_010, gap: 'B-20261012-commander-front-end-bundles-heavier' },
+  'burgee/commander/v14': { incumbent: 'commander@14.0.3', bytes: 40_970, ours: 55_997, gap: 'B-20261012-commander-front-end-bundles-heavier' },
 };
 
 /** The "Everything" cell of a subpath's row on the page, or `undefined` when it has no row. */

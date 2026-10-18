@@ -26,6 +26,10 @@ interface Node {
   description: string;
   options: Record<string, OptionSpec>;
   children: Node[];
+  /** The other words for this node's last segment (R5), offered beside it and read as it. */
+  aliases: readonly string[];
+  /** Each typed segment with its aliases, space-separated: what fish has seen when it is on the line. */
+  spelled: string[];
 }
 
 function children(manifest: Manifest, at: string[]): Node[] {
@@ -52,9 +56,12 @@ function nodeOf(manifest: Manifest, c: CommandNode): Node {
       .filter(([, spec]) => spec.hidden !== true)
       .map(([name, spec]) => [name, { ...spec, negatable: spec.type === 'boolean' && spec.negatable !== false }]),
   );
-  const isRoot = c.path.length === manifest.rootPath.length;
+  const depth = manifest.rootPath.length;
+  const isRoot = c.path.length === depth;
   return {
-    path: c.path.slice(manifest.rootPath.length),
+    path: c.path.slice(depth),
+    aliases: c.aliases ?? [],
+    spelled: c.path.slice(depth).map((seg, i) => [seg, ...(manifest.find(c.path.slice(0, depth + i + 1))?.aliases ?? [])].join(' ')),
     description: c.summary ?? c.description ?? '',
     options: { ...visible, ...GLOBAL, ...(isRoot ? ROOT_ONLY : {}) },
     children: children(manifest, c.path),
@@ -81,6 +88,10 @@ function walk(root: Node): Node[] {
 
 /** The word a user types for a child: the last of its path, which a child always has. */
 const word = (child: Node): string => child.path.at(-1) as string;
+/** Every word that names a child: its own, then its aliases (R5). */
+const words = (child: Node): string[] => [word(child), ...child.aliases];
+/** The typed paths an alias stands for, each beside the canonical path it is read as (R5). */
+const aliased = (nodes: Node[]): [string, string][] => nodes.flatMap((n) => n.aliases.map((a): [string, string] => [[...n.path.slice(0, -1), a].join(' '), n.path.join(' ')]));
 
 const sq = (s: string): string => `'${s.replaceAll("'", "'\\''")}'`;
 const flags = (name: string, spec: OptionSpec): string[] => {
@@ -101,7 +112,7 @@ const fname = (program: string, path: string[]): string => `_${[program, ...path
 
 function bashCase(program: string, node: Node): string {
   const opts = Object.entries(node.options).flatMap(([n, s]) => flags(n, s));
-  const subs = node.children.map(word);
+  const subs = node.children.flatMap(words);
   const valued = Object.entries(node.options)
     .filter(([, s]) => takesValue(s))
     .map(([n, s]) =>
@@ -139,6 +150,7 @@ ${nodes.map((n) => bashCase(program, n)).join('\n')}
 ${nodes
   .filter((n) => n.path.length > 0)
   .map((n) => `      ${sq(n.path.join(' '))}) path="\${path:+$path }\${words[i]}" ;;`)
+  .concat(aliased(nodes).map(([typed, path]) => `      ${sq(typed)}) path=${sq(path)} ;;`))
   .join('\n')}
     esac
   done
@@ -168,8 +180,8 @@ function zshFunction(program: string, node: Node): string {
   if (node.children.length === 0) {
     return `${fname(program, node.path)}() {\n  _arguments -s ${options.join(' ')} '*: :_files'\n}`;
   }
-  const subs = node.children.map((c) => sq(`${word(c)}[${c.description.replaceAll(/[[\]:]/g, ' ')}]`)).join(' ');
-  const dispatch = node.children.map((c) => `      ${word(c)}) ${fname(program, c.path)} ;;`).join('\n');
+  const subs = node.children.flatMap((c) => words(c).map((w) => sq(`${w}[${c.description.replaceAll(/[[\]:]/g, ' ')}]`))).join(' ');
+  const dispatch = node.children.map((c) => `      ${words(c).join('|')}) ${fname(program, c.path)} ;;`).join('\n');
   return `${fname(program, node.path)}() {
   local context state state_descr line
   typeset -A opt_args
@@ -196,7 +208,7 @@ if [[ $zsh_eval_context[-1] == loadautofunc ]]; then ${fname(program, [])} "$@";
 
 function fishCondition(node: Node): string {
   if (node.path.length === 0) return '__fish_use_subcommand';
-  return node.path.map((seg) => `__fish_seen_subcommand_from ${seg}`).join('; and ');
+  return node.spelled.map((seg) => `__fish_seen_subcommand_from ${seg}`).join('; and ');
 }
 
 /** Where a fish `complete` line is written: the program, the condition, and the command node for a callback. */
@@ -218,7 +230,7 @@ function fish(program: string, root: Node): string {
   const lines: string[] = [];
   for (const node of walk(root)) {
     const cond = sq(fishCondition(node));
-    for (const c of node.children) lines.push(`complete -c ${program} -n ${cond} -f -a ${word(c)} -d ${sq(c.description)}`);
+    for (const c of node.children) for (const w of words(c)) lines.push(`complete -c ${program} -n ${cond} -f -a ${w} -d ${sq(c.description)}`);
     for (const [name, spec] of Object.entries(node.options)) {
       // `kebab`, which fish alone was missing: it emitted `-l dryRun` where the CLI form is
       // `--dry-run`, so every camelCase option was completed as a flag the parser refuses.
@@ -240,7 +252,7 @@ ${lines.join('\n')}
 // ───── PowerShell ───────────────────────────────────────────────────────────────────────
 
 function pwshEntry(node: Node): string {
-  const subs = node.children.map((c) => `@('${word(c)}', 'Command', '${c.description.replaceAll("'", "''")}')`);
+  const subs = node.children.flatMap((c) => words(c).map((w) => `@('${w}', 'Command', '${c.description.replaceAll("'", "''")}')`));
   const opts = Object.entries(node.options).flatMap(([n, s]) =>
     flags(n, s).map((f) => `@('${f}', 'ParameterName', '${(s.description ?? '').replaceAll("'", "''")}')`),
   );
@@ -255,19 +267,23 @@ function pwshEntry(node: Node): string {
 }
 
 function pwsh(program: string, root: Node): string {
+  // R5 — an alias typed in a command's place is read as that command; only a program with one carries the table.
+  const aliases = aliased(walk(root)).map(([typed, path]) => `'${typed}' = '${path}'`);
+  const alias = aliases.length === 0 ? '' : `\n  $alias = @{ ${aliases.join('; ')} }`;
+  const unalias = aliases.length === 0 ? '' : `\n    if ($alias.ContainsKey($candidate)) { $candidate = $alias[$candidate] }`;
   return `# ${program} completion for PowerShell, generated by burgee — ${promise(program, root)}.
 # Install: ${program} completion pwsh > ${program}-completion.ps1, then dot-source it from $PROFILE
 Register-ArgumentCompleter -Native -CommandName '${program}' -ScriptBlock {
   param($wordToComplete, $commandAst, $cursorPosition)
   $table = @{
 ${walk(root).map(pwshEntry).join('\n')}
-  }
+  }${alias}
   $words = @($commandAst.CommandElements | ForEach-Object { $_.Extent.Text } | Select-Object -Skip 1)
   if ($wordToComplete -ne '' -and $words.Count -gt 0) { $words = $words[0..($words.Count - 2)] }
   $path = ''
   foreach ($w in $words) {
     if ($w -like '-*') { continue }
-    $candidate = if ($path -eq '') { $w } else { "$path $w" }
+    $candidate = if ($path -eq '') { $w } else { "$path $w" }${unalias}
     if ($table.ContainsKey($candidate)) { $path = $candidate }
   }
   $entry = $table[$path]
@@ -306,7 +322,8 @@ interface FigOption {
   exclusiveOn?: string[];
 }
 interface FigSubcommand {
-  name: string;
+  /** Every spelling when the command has aliases (R5), as Fig declares `Subcommand.name`. */
+  name: string | string[];
   description?: string;
   subcommands?: FigSubcommand[];
   options?: FigOption[];
@@ -323,12 +340,15 @@ function figOptions(node: Node): FigOption[] {
   });
 }
 
+/** A subcommand's Fig name: its word, or every spelling when it has aliases (R5). */
+const figName = (node: Node): string | string[] => (node.aliases.length === 0 ? word(node) : words(node));
+
 /** A Fig spec (`Fig.Spec`) from the same walk (D5): one entry per node, children attached by path. */
 export function renderFigSpec(manifest: Manifest): FigSubcommand {
   const { program, root } = completionTree(manifest);
   const entries = new Map<string, FigSubcommand>();
   for (const node of walk(root)) {
-    const entry: FigSubcommand = { name: node.path.at(-1) ?? program, options: figOptions(node) };
+    const entry: FigSubcommand = { name: node.path.length === 0 ? program : figName(node), options: figOptions(node) };
     if (node.description !== '') entry.description = node.description;
     entries.set(node.path.join(' '), entry);
     if (node.path.length === 0) continue;

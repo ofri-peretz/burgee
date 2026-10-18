@@ -171,6 +171,15 @@ const RULES: Record<string, EntryRule> = {
     budget: 23_000,
     denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js', 'spec.js', 'plugin.js', 'clack.js'],
   },
+  // `@inquirer/prompts`' prompts over `./inquirer`'s loop (inquirer-prompts-drop-in): a subpath
+  // of its own, so `./inquirer` keeps its budget and a program on `@inquirer/core`'s hooks pays
+  // for no prompt. It reaches `./inquirer`'s whole graph and adds `usePagination`, the shared
+  // list helpers, `select` and `checkbox`. Measured 36,586 B on 2026-10-12.
+  './inquirer/prompts': {
+    allow: ['closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap', 'paratext/csi', 'roundel/terminal'],
+    budget: 38_000,
+    denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js', 'spec.js', 'plugin.js', 'clack.js'],
+  },
   // The six widgets in line mode (R5), which is the floor and the accessible rendering.
   // Measured 4,234 B — the whole prompt surface, with no terminal and no raw mode.
   './ask': { allow: [], budget: 5_000, denied: ['decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
