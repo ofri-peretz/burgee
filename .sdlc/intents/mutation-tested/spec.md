@@ -61,7 +61,7 @@ package's own in-process suite, so mutating them would measure the wrong suite.
 | `disableTypeChecks` | `false` | vitest does not type-check, and in place it writes `// @ts-nocheck` into every file under `src/` — `roundel`'s `shape.test.ts` reads `index.ts` as text and failed the dry run |
 | `coverageAnalysis` | `perTest` | each mutant runs only the tests that reach it; `all` and `off` were tried and are no help (below) |
 | `vitest.related` | `true` | the dry run runs only suites that import the mutated files |
-| `vitest.configFile` | `scripts/mutation-vitest.config.mts` | the package's own config plus the name-filter shim and the per-package `SKIPPED_TESTS` |
+| `vitest.configFile` | `<package>/.mutation/vitest.config.ts`, written per run (`wrapperConfig`) | the package's own config, imported statically so vite resolves its `../../vitest-*.config.js` imports, plus the name-filter shim and the per-package `SKIPPED_TESTS` |
 | `timeoutMS` | `10000` | added to a mutant's measured time before it counts as an infinite loop; this machine and a shared runner both run loaded |
 | `concurrency` | 4 in CI, 2 locally | four vCPUs on `ubuntu-latest` |
 

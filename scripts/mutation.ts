@@ -29,7 +29,7 @@
  * in-process mutant can reach). One list, imported, so the two denominators cannot drift.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -43,7 +43,9 @@ const SCRIPT_DIR = path.dirname(url.fileURLToPath(import.meta.url));
 export const REPO_ROOT = path.resolve(SCRIPT_DIR, '..');
 export const RATCHETS_FILE = '.sdlc/bands/mutation-ratchets.json';
 const STRYKER_BIN = path.join(REPO_ROOT, 'node_modules', '@stryker-mutator', 'core', 'bin', 'stryker.js');
-const VITEST_CONFIG = path.join(SCRIPT_DIR, 'mutation-vitest.config.mts');
+const SETUP_FILE = path.join(SCRIPT_DIR, 'mutation-vitest-setup.ts');
+/** Where a run writes its vitest config, inside the package so vite bundles the package's own (gitignored). */
+const WRAPPER_DIR = '.mutation';
 
 /**
  * The PR lane's budget (R3). The job's own `timeout-minutes` is 15; the build before this step
@@ -243,7 +245,32 @@ export function disableProblems(file: string, source: string): string[] {
 
 // ── Running Stryker ───────────────────────────────────────────────────────────────────────
 
+/**
+ * The vitest config a Stryker run uses: the package's own config, unchanged, plus two things.
+ *
+ *   1. `mutation-vitest-setup.ts`, which makes vitest 5 honour the test filter Stryker sends
+ *      (without it every mutant a `describe` block covers "survives" having run no test).
+ *   2. The package's `SKIPPED_TESTS`, which cannot pass against instrumented source.
+ *
+ * Written into `<package>/.mutation/` and imported statically, because the package's config
+ * imports `../../vitest-*.config.js` by the name vite resolves to a `.ts` — a native
+ * `import()` of it from elsewhere cannot.
+ */
+export function wrapperConfig(packageDir: string, skipped: readonly string[]): string {
+  return [
+    "import { configDefaults, defineConfig, mergeConfig } from 'vitest/config';",
+    "import base from '../vitest.config.ts';",
+    '',
+    'export default mergeConfig(base, defineConfig({',
+    `  root: ${JSON.stringify(packageDir)},`,
+    `  test: { setupFiles: [${JSON.stringify(SETUP_FILE)}], exclude: [...configDefaults.exclude, ...${JSON.stringify(skipped)}] },`,
+    '}));',
+    '',
+  ].join('\n');
+}
+
 export interface RunOptions {
+  vitestConfig: string;
   mutate: readonly string[];
   concurrency: number;
   timeoutMS: number;
@@ -255,7 +282,7 @@ export interface RunOptions {
 export function strykerConfig(o: RunOptions): Record<string, unknown> {
   return {
     testRunner: 'vitest',
-    vitest: { configFile: VITEST_CONFIG, related: true },
+    vitest: { configFile: o.vitestConfig, related: true },
     coverageAnalysis: 'perTest',
     mutate: [...o.mutate],
     // In place: the package's vitest config imports `../../vitest-*.config.ts` and its tests
@@ -296,19 +323,18 @@ export function runPackage(pkg: string, mutate: readonly string[], o: { concurre
   const work = mkdtempSync(path.join(tmpdir(), `mutation-${pkg}-`));
   const reportFile = path.join(work, 'report.json');
   const configFile = path.join(work, 'stryker.config.json');
-  writeFileSync(configFile, JSON.stringify(strykerConfig({ ...o, mutate, reportFile }), null, 2));
+  const wrapperDir = path.join(packageDir, WRAPPER_DIR);
+  const vitestConfig = path.join(wrapperDir, 'vitest.config.ts');
+  mkdirSync(wrapperDir, { recursive: true });
+  writeFileSync(vitestConfig, wrapperConfig(packageDir, Object.keys(SKIPPED_TESTS[pkg] ?? {})));
+  writeFileSync(configFile, JSON.stringify(strykerConfig({ ...o, vitestConfig, mutate, reportFile }), null, 2));
   const started = Date.now();
   const r = spawnSync(process.execPath, [STRYKER_BIN, 'run', configFile], {
     cwd: packageDir,
     stdio: 'inherit',
     timeout: o.budgetMs,
     killSignal: 'SIGINT',
-    env: {
-      ...process.env,
-      MUTATION_PACKAGE_DIR: packageDir,
-      MUTATION_SKIP: JSON.stringify(Object.keys(SKIPPED_TESTS[pkg] ?? {})),
-      FORCE_COLOR: '0',
-    },
+    env: { ...process.env, FORCE_COLOR: '0' },
   });
   const minutes = round((Date.now() - started) / MS_PER_MINUTE);
   const result = (error: string | undefined, summary?: Summary): PackageRun => ({ pkg, ok: error === undefined, error, summary, minutes });
@@ -326,6 +352,7 @@ export function runPackage(pkg: string, mutate: readonly string[], o: { concurre
     return result(undefined, summary);
   } finally {
     rmSync(work, { recursive: true, force: true });
+    rmSync(wrapperDir, { recursive: true, force: true });
   }
 }
 

@@ -41,3 +41,5 @@ packages/compat-oracle/.grade-*/
 .stryker-tmp/
 # Stryker's vitest runner writes its setup file into the package it runs in.
 stryker-setup-*.js
+# scripts/mutation.ts writes each run's vitest config here, inside the package, and removes it.
+.mutation/
