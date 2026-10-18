@@ -1,5 +1,13 @@
 # compat-oracle
 
+## 0.3.6
+
+### Patch Changes
+
+- [#1037](https://github.com/ofri-peretz/burgee/pull/1037) [`50cc502`](https://github.com/ofri-peretz/burgee/commit/50cc5024df7a99ecd2dff33570eea21730b87b99) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `@inquirer/prompts`' graded drop-in is `caique/inquirer/prompts`, now 100 / 213. `burgee migrate` still reports it rather than rewriting it, because it is not level yet.
+- Updated dependencies [[`50cc502`](https://github.com/ofri-peretz/burgee/commit/50cc5024df7a99ecd2dff33570eea21730b87b99), [`dc1d1d1`](https://github.com/ofri-peretz/burgee/commit/dc1d1d196bafa63df5580135a8c42b324480fc9e), [`dc1d1d1`](https://github.com/ofri-peretz/burgee/commit/dc1d1d196bafa63df5580135a8c42b324480fc9e)]:
+  - burgee@1.6.0
+
 ## 0.3.5
 
 ### Patch Changes
