@@ -20,6 +20,7 @@
 export interface Writer {
   write(chunk: string): unknown;
   readonly columns?: number | undefined;
+  readonly rows?: number | undefined;
 }
 
 /** Time as the loop sees it. */

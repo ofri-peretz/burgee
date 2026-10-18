@@ -1,7 +1,7 @@
 ---
 id: B-20261012-frames-fit-the-screen-budgets
 section: B
-status: open
+status: closed
 source: frames-fit-the-screen R1–R5
 recommendation: 'raise four per-entry budgets by what the clip and the window measured: flagstaff `.` 29,300 -> 30,100 and `./loop` 7,000 -> 7,700; caique `.` 20,000 -> 20,800 and `./raw` 9,000 -> 9,700. The B4 bundled claims do not move: no entry in `benchmarks/fixtures/entry-points.ts` reaches `projection.js` or `raw.js`'
 ---
@@ -33,3 +33,8 @@ climbs 49 rows; a resize 20 -> 60 leaves the clipped view) and `packages/caique/
 screen).
 
 Closes when the owner rules on the four budgets, and R1–R5 merge under them.
+
+**Closed 2026-10-13 by D-20261013-frames-fit-the-screen-budgets**, the owner's delegated ruling:
+trim, then raise each budget to the post-trim measurement rounded up to the next 50 B. flagstaff
+R1–R3 and R5 merge with `.` 29,300 -> 30,100 (30,065 measured) and `./loop` 7,000 -> 7,750
+(7,706). caique R4 follows in its own PR under the same decision.
