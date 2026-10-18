@@ -75,7 +75,7 @@ npx @informalsystems/quint run .sdlc/intents/closeout/registry.qnt --invariant=s
 | `models/save-restore.qnt` | ora's `write` hooks and `rawMode` unwind in any stop order | a stopped spinner left hooked for good; raw mode turned off under a prompt |
 | `models/dev-reload.qnt` | `burgee dev` reloads are serial and serve the newest | two saves in one reload imported at once; the stale one served |
 | `models/release-tag.qnt` | a release's tag is the commit that built it | a lost tag push let `gh release create` tag main's head |
-| `models/prompt-session.qnt` | a caique clack prompt settles once, and a cancel key cancels even while a validator is out | Ctrl-C and Escape ignored during an async validator — no way out of a prompt whose validator hangs |
+| `models/prompt-session.qnt` | a caique clack prompt settles once, a cancel key cancels even while a validator is out, and a validator that throws is a failed check | Ctrl-C and Escape ignored during an async validator — no way out of a prompt whose validator hangs; a validator that threw escaped the keypress listener as an unhandledRejection and killed the process |
 
 Each was first written against the code as it was, failed, was confirmed against the real code,
 fixed with a test that fails on the old code, and then rewritten to describe the fix.
