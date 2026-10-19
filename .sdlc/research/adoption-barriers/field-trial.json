@@ -1,0 +1,1704 @@
+{
+ "concurrently": {
+  "repo": "open-cli-tools/concurrently",
+  "sha": "3ec91b284dfb3a59844cf05f9028b840dcbb29f0",
+  "arms": {
+   "base": {
+    "steps": {
+     "install": {
+      "exit": 0,
+      "ms": 6590,
+      "cmd": "pnpm install --frozen-lockfile"
+     },
+     "build": {
+      "exit": 0,
+      "ms": 6275,
+      "cmd": "pnpm build"
+     },
+     "typecheck": {
+      "exit": 0,
+      "ms": 4949,
+      "cmd": "pnpm typecheck"
+     },
+     "test": {
+      "exit": 0,
+      "ms": 29468,
+      "cmd": "npx vitest run --project unit",
+      "counts": {
+       "runner": "vitest",
+       "failed": 0,
+       "passed": 643,
+       "total": 643,
+       "filesFailed": 0
+      }
+     }
+    },
+    "help": {
+     "exit": 0,
+     "lines": 106
+    },
+    "version": {
+     "out": "10.0.6",
+     "exit": 0
+    }
+   },
+   "mig": {
+    "steps": {
+     "install": {
+      "exit": 0,
+      "ms": 3893,
+      "cmd": "pnpm install --frozen-lockfile"
+     },
+     "next": {
+      "exit": 0,
+      "ms": 27463,
+      "cmd": "pnpm add burgee@^1.6.0 && pnpm remove yargs"
+     },
+     "build": {
+      "exit": 0,
+      "ms": 23154,
+      "cmd": "pnpm build"
+     },
+     "typecheck": {
+      "exit": 0,
+      "ms": 15107,
+      "cmd": "pnpm typecheck"
+     },
+     "test": {
+      "exit": 0,
+      "ms": 67064,
+      "cmd": "npx vitest run --project unit",
+      "counts": {
+       "runner": "vitest",
+       "failed": 0,
+       "passed": 643,
+       "total": 643,
+       "filesFailed": 0
+      }
+     }
+    },
+    "migrate": {
+     "exit": 0,
+     "summary": "complete: 1 file rewritten",
+     "mapped": [
+      "yargs -> burgee/yargs",
+      "yargs/helpers -> burgee/yargs/helpers"
+     ],
+     "refused": [],
+     "held": [],
+     "offMajor": [
+      {
+       "from": "chalk",
+       "found": "5.6.2",
+       "graded": "6.0.1"
+      }
+     ],
+     "transitive": [
+      {
+       "from": "yargs",
+       "through": [
+        "safe-publish-latest"
+       ],
+       "exports": [
+        "YError"
+       ]
+      }
+     ],
+     "partial": [],
+     "next": "pnpm add burgee@^1.6.0 && pnpm remove yargs"
+    },
+    "next": "pnpm add burgee@^1.6.0 && pnpm remove yargs",
+    "help": {
+     "exit": 0,
+     "baseLines": 106,
+     "changedLines": 0,
+     "identical": true,
+     "firstLine": "index.js [options] <command ...>"
+    },
+    "version": {
+     "out": "10.0.6",
+     "exit": 0
+    }
+   }
+  }
+ },
+ "madge": {
+  "repo": "pahen/madge",
+  "sha": "456057b85c2d063dad9c10147d7686ded4fc5ce5",
+  "arms": {
+   "base": {
+    "steps": {
+     "install": {
+      "exit": 0,
+      "ms": 11771,
+      "cmd": "npm ci --no-audit --no-fund"
+     },
+     "test": {
+      "exit": 4,
+      "ms": 3872,
+      "cmd": "npx mocha test/*.js",
+      "counts": {
+       "runner": "mocha",
+       "passed": 54,
+       "failed": 4,
+       "pending": 0
+      }
+     }
+    },
+    "help": {
+     "exit": 0,
+     "lines": 30
+    },
+    "version": {
+     "out": "8.0.0",
+     "exit": 0
+    }
+   },
+   "manual": {
+    "steps": {
+     "install": {
+      "exit": 0,
+      "ms": 6230,
+      "cmd": "npm ci --no-audit --no-fund"
+     },
+     "rewrite": {
+      "exit": 0,
+      "ms": 28,
+      "cmd": "git ls-files '*.js' '*.ts' '*.mjs' '*.cjs' | grep -v '^dist/' | xargs sed -i -E \"s/(['\\\"])commander\\\\1/\\\\1burgee\\\\/commander\\\\1/g\""
+     },
+     "next": {
+      "exit": 0,
+      "ms": 5769,
+      "cmd": "npm install burgee@^1.6.0 --no-audit --no-fund && npm uninstall commander"
+     },
+     "test": {
+      "exit": 4,
+      "ms": 3843,
+      "cmd": "npx mocha test/*.js",
+      "counts": {
+       "runner": "mocha",
+       "passed": 54,
+       "failed": 4,
+       "pending": 0
+      }
+     }
+    },
+    "help": {
+     "exit": 1,
+     "baseLines": 30,
+     "changedLines": 30,
+     "identical": false,
+     "firstLine": "<work>/madge.manual/bin/cli.js:14"
+    },
+    "version": {
+     "out": "<work>/madge.manual/bin/cli.js:14",
+     "exit": 1
+    }
+   },
+   "mig": {
+    "steps": {
+     "install": {
+      "exit": 0,
+      "ms": 13537,
+      "cmd": "npm ci --no-audit --no-fund"
+     },
+     "test": {
+      "exit": 4,
+      "ms": 5119,
+      "cmd": "npx mocha test/*.js",
+      "counts": {
+       "runner": "mocha",
+       "passed": 54,
+       "failed": 4,
+       "pending": 0
+      }
+     }
+    },
+    "migrate": {
+     "exit": 1,
+     "summary": "partial: 0 files rewritten, 1 refused",
+     "mapped": [],
+     "refused": [
+      "bin/cli.js:63  non-literal-specifier"
+     ],
+     "held": [
+      {
+       "from": "rc",
+       "files": [
+        "bin/cli.js"
+       ],
+       "because": "refused"
+      }
+     ],
+     "offMajor": [
+      {
+       "from": "commander",
+       "found": "7.2.0",
+       "graded": "15.0.0"
+      },
+      {
+       "from": "yargs",
+       "found": "16.2.0",
+       "graded": "18.2.0"
+      },
+      {
+       "from": "yargs-parser",
+       "found": "20.2.4",
+       "graded": "22.0.0"
+      },
+      {
+       "from": "chalk",
+       "found": "4.1.2",
+       "graded": "6.0.1"
+      },
+      {
+       "from": "ora",
+       "found": "5.4.1",
+       "graded": "9.4.1"
+      },
+      {
+       "from": "boxen",
+       "found": "7.1.1",
+       "graded": "9.0.0"
+      },
+      {
+       "from": "string-width",
+       "found": "4.2.3",
+       "graded": "8.3.0"
+      },
+      {
+       "from": "strip-ansi",
+       "found": "6.0.1",
+       "graded": "7.2.0"
+      },
+      {
+       "from": "which",
+       "found": "2.0.2",
+       "graded": "7.0.0"
+      },
+      {
+       "from": "wrap-ansi",
+       "found": "6.2.0",
+       "graded": "10.0.2"
+      },
+      {
+       "from": "slice-ansi",
+       "found": "4.0.0",
+       "graded": "9.0.1"
+      },
+      {
+       "from": "cosmiconfig",
+       "found": "8.3.6",
+       "graded": "10.0.1"
+      },
+      {
+       "from": "ansi-escapes",
+       "found": "4.3.2",
+       "graded": "7.3.0"
+      },
+      {
+       "from": "restore-cursor",
+       "found": "3.1.0",
+       "graded": "5.1.0"
+      },
+      {
+       "from": "signal-exit",
+       "found": "3.0.7",
+       "graded": "4.1.0"
+      },
+      {
+       "from": "find-up",
+       "found": "5.0.0",
+       "graded": "8.0.0"
+      },
+      {
+       "from": "onetime",
+       "found": "6.0.0",
+       "graded": "8.0.0"
+      },
+      {
+       "from": "cli-cursor",
+       "found": "3.1.0",
+       "graded": "5.0.0"
+      },
+      {
+       "from": "widest-line",
+       "found": "4.0.1",
+       "graded": "6.0.0"
+      }
+     ],
+     "transitive": [],
+     "partial": [],
+     "next": ""
+    },
+    "help": {
+     "exit": 0,
+     "baseLines": 30,
+     "changedLines": 0,
+     "identical": true,
+     "firstLine": "Usage: cli [options] <src...>"
+    },
+    "version": {
+     "out": "8.0.0",
+     "exit": 0
+    }
+   }
+  }
+ },
+ "nest-cli": {
+  "repo": "nestjs/nest-cli",
+  "sha": "08d8f3c9fdef389a4623ac5c4c9e353a8fddcf04",
+  "arms": {
+   "base": {
+    "steps": {
+     "install": {
+      "exit": 0,
+      "ms": 20328,
+      "cmd": "npm ci --no-audit --no-fund"
+     },
+     "build": {
+      "exit": 0,
+      "ms": 6395,
+      "cmd": "npm run build"
+     },
+     "typecheck": {
+      "exit": 0,
+      "ms": 6126,
+      "cmd": "npx tsc --noEmit -p tsconfig.json"
+     },
+     "test": {
+      "exit": 0,
+      "ms": 47077,
+      "cmd": "npx vitest run",
+      "counts": {
+       "runner": "vitest",
+       "failed": 0,
+       "passed": 1096,
+       "total": 1097,
+       "filesFailed": 0
+      }
+     }
+    },
+    "help": {
+     "exit": 0,
+     "lines": 40
+    },
+    "version": {
+     "out": "12.0.8",
+     "exit": 0
+    }
+   },
+   "mig-skip": {
+    "extra": "--skip=cli-table3",
+    "steps": {
+     "install": {
+      "exit": 0,
+      "ms": 13522,
+      "cmd": "npm ci --no-audit --no-fund"
+     },
+     "next": {
+      "exit": 0,
+      "ms": 5849,
+      "cmd": "npm install flagstaff@^1.6.0 && npm uninstall ora"
+     },
+     "build": {
+      "exit": 0,
+      "ms": 4745,
+      "cmd": "npm run build"
+     },
+     "typecheck": {
+      "exit": 0,
+      "ms": 4376,
+      "cmd": "npx tsc --noEmit -p tsconfig.json"
+     },
+     "test": {
+      "exit": 0,
+      "ms": 115168,
+      "cmd": "npx vitest run",
+      "counts": {
+       "runner": "vitest",
+       "failed": 0,
+       "passed": 1096,
+       "total": 1097,
+       "filesFailed": 0
+      }
+     }
+    },
+    "migrate": {
+     "exit": 0,
+     "summary": "complete: 4 files rewritten",
+     "mapped": [
+      "ora -> flagstaff/ora"
+     ],
+     "refused": [],
+     "held": [
+      {
+       "from": "commander",
+       "files": [
+        "test/commands/info.command.spec.ts"
+       ],
+       "because": "kept"
+      }
+     ],
+     "offMajor": [
+      {
+       "from": "yargs-parser",
+       "found": "20.2.9",
+       "graded": "22.0.0"
+      },
+      {
+       "from": "chalk",
+       "found": "4.1.2",
+       "graded": "6.0.1"
+      },
+      {
+       "from": "string-width",
+       "found": "4.2.3",
+       "graded": "8.3.0"
+      },
+      {
+       "from": "strip-ansi",
+       "found": "6.0.1",
+       "graded": "7.2.0"
+      },
+      {
+       "from": "which",
+       "found": "1.3.1",
+       "graded": "7.0.0"
+      },
+      {
+       "from": "cosmiconfig",
+       "found": "8.3.6",
+       "graded": "10.0.1"
+      },
+      {
+       "from": "dotenv",
+       "found": "17.4.2",
+       "graded": "18.0.7"
+      },
+      {
+       "from": "onetime",
+       "found": "6.0.0",
+       "graded": "8.0.0"
+      }
+     ],
+     "transitive": [
+      {
+       "from": "commander",
+       "through": [
+        "@swc/cli"
+       ],
+       "exports": [
+        "CommanderError",
+        "InvalidArgumentError",
+        "InvalidOptionArgumentError"
+       ]
+      },
+      {
+       "from": "ora",
+       "through": [
+        "@angular-devkit/schematics",
+        "release-it"
+       ],
+       "exports": []
+      }
+     ],
+     "partial": [
+      {
+       "from": "@inquirer/prompts",
+       "to": "caique/inquirer/prompts",
+       "reference": 213,
+       "passed": 100,
+       "rate": 0.4694835680751174,
+       "control": 213
+      }
+     ],
+     "next": "npm install flagstaff@^1.6.0 && npm uninstall ora"
+    },
+    "next": "npm install flagstaff@^1.6.0 && npm uninstall ora",
+    "help": {
+     "exit": 0,
+     "baseLines": 40,
+     "changedLines": 0,
+     "identical": true,
+     "firstLine": "Usage: nest <command> [options]"
+    },
+    "version": {
+     "out": "12.0.8",
+     "exit": 0
+    }
+   },
+   "mig": {
+    "steps": {
+     "install": {
+      "exit": 0,
+      "ms": 10965,
+      "cmd": "npm ci --no-audit --no-fund"
+     },
+     "next": {
+      "exit": 0,
+      "ms": 9264,
+      "cmd": "npm install flagstaff@^1.6.0 && npm uninstall ora"
+     },
+     "build": {
+      "exit": 0,
+      "ms": 7234,
+      "cmd": "npm run build"
+     },
+     "typecheck": {
+      "exit": 0,
+      "ms": 5312,
+      "cmd": "npx tsc --noEmit -p tsconfig.json"
+     },
+     "test": {
+      "exit": 0,
+      "ms": 45870,
+      "cmd": "npx vitest run",
+      "counts": {
+       "runner": "vitest",
+       "failed": 0,
+       "passed": 1096,
+       "total": 1097,
+       "filesFailed": 0
+      }
+     }
+    },
+    "migrate": {
+     "exit": 1,
+     "summary": "partial: 4 files rewritten, 1 refused",
+     "mapped": [
+      "ora -> flagstaff/ora"
+     ],
+     "refused": [
+      "commands/generate.command.ts:2 cli-table3 unknown-export"
+     ],
+     "held": [
+      {
+       "from": "cli-table3",
+       "files": [
+        "commands/generate.command.ts"
+       ],
+       "because": "refused"
+      },
+      {
+       "from": "commander",
+       "files": [
+        "commands/generate.command.ts",
+        "test/commands/info.command.spec.ts"
+       ],
+       "because": "refused"
+      }
+     ],
+     "offMajor": [
+      {
+       "from": "yargs-parser",
+       "found": "20.2.9",
+       "graded": "22.0.0"
+      },
+      {
+       "from": "chalk",
+       "found": "4.1.2",
+       "graded": "6.0.1"
+      },
+      {
+       "from": "string-width",
+       "found": "4.2.3",
+       "graded": "8.3.0"
+      },
+      {
+       "from": "strip-ansi",
+       "found": "6.0.1",
+       "graded": "7.2.0"
+      },
+      {
+       "from": "which",
+       "found": "1.3.1",
+       "graded": "7.0.0"
+      },
+      {
+       "from": "cosmiconfig",
+       "found": "8.3.6",
+       "graded": "10.0.1"
+      },
+      {
+       "from": "dotenv",
+       "found": "17.4.2",
+       "graded": "18.0.7"
+      },
+      {
+       "from": "onetime",
+       "found": "6.0.0",
+       "graded": "8.0.0"
+      }
+     ],
+     "transitive": [
+      {
+       "from": "commander",
+       "through": [
+        "@swc/cli"
+       ],
+       "exports": [
+        "CommanderError",
+        "InvalidArgumentError",
+        "InvalidOptionArgumentError"
+       ]
+      },
+      {
+       "from": "ora",
+       "through": [
+        "@angular-devkit/schematics",
+        "release-it"
+       ],
+       "exports": []
+      }
+     ],
+     "partial": [
+      {
+       "from": "@inquirer/prompts",
+       "to": "caique/inquirer/prompts",
+       "reference": 213,
+       "passed": 100,
+       "rate": 0.4694835680751174,
+       "control": 213
+      }
+     ],
+     "next": "npm install flagstaff@^1.6.0 && npm uninstall ora"
+    },
+    "next": "npm install flagstaff@^1.6.0 && npm uninstall ora",
+    "help": {
+     "exit": 0,
+     "baseLines": 40,
+     "changedLines": 0,
+     "identical": true,
+     "firstLine": "Usage: nest <command> [options]"
+    },
+    "version": {
+     "out": "12.0.8",
+     "exit": 0
+    }
+   }
+  }
+ },
+ "postcss-cli": {
+  "repo": "postcss/postcss-cli",
+  "sha": "03e8cee382105c6abb182fea4b3fa9fec5f947a9",
+  "arms": {
+   "base": {
+    "steps": {
+     "install": {
+      "exit": 0,
+      "ms": 21525,
+      "cmd": "npm install --no-audit --no-fund"
+     },
+     "test": {
+      "exit": 0,
+      "ms": 27486,
+      "cmd": "npx c8 ava -v",
+      "counts": {
+       "runner": "ava",
+       "passed": 46,
+       "failed": 0
+      }
+     }
+    },
+    "help": {
+     "exit": 0,
+     "lines": 58
+    },
+    "version": {
+     "out": "unknown",
+     "exit": 0
+    }
+   },
+   "mig": {
+    "steps": {
+     "install": {
+      "exit": 0,
+      "ms": 5729,
+      "cmd": "npm install --no-audit --no-fund"
+     },
+     "next": {
+      "exit": 0,
+      "ms": 3107,
+      "cmd": "npm install burgee@^1.6.0 && npm uninstall yargs"
+     },
+     "test": {
+      "exit": 0,
+      "ms": 21858,
+      "cmd": "npx c8 ava -v",
+      "counts": {
+       "runner": "ava",
+       "passed": 46,
+       "failed": 0
+      }
+     }
+    },
+    "migrate": {
+     "exit": 1,
+     "summary": "partial: 1 file rewritten, 1 refused",
+     "mapped": [
+      "yargs -> burgee/yargs"
+     ],
+     "refused": [
+      "index.js:69  non-literal-specifier",
+      "index.js:70  non-literal-specifier",
+      "index.js:71  non-literal-specifier",
+      "index.js:77  non-literal-specifier"
+     ],
+     "held": [
+      {
+       "from": "picocolors",
+       "files": [
+        "index.js"
+       ],
+       "because": "refused"
+      }
+     ],
+     "offMajor": [
+      {
+       "from": "yargs-parser",
+       "found": "21.1.1",
+       "graded": "22.0.0"
+      },
+      {
+       "from": "which",
+       "found": "2.0.2",
+       "graded": "7.0.0"
+      },
+      {
+       "from": "wrap-ansi",
+       "found": "9.0.2",
+       "graded": "10.0.2"
+      },
+      {
+       "from": "find-up",
+       "found": "5.0.0",
+       "graded": "8.0.0"
+      }
+     ],
+     "transitive": [
+      {
+       "from": "yargs",
+       "through": [
+        "ava",
+        "c8"
+       ],
+       "exports": [
+        "YError"
+       ]
+      },
+      {
+       "from": "picocolors",
+       "through": [
+        "postcss",
+        "postcss-reporter"
+       ],
+       "exports": []
+      }
+     ],
+     "partial": [],
+     "next": "npm install burgee@^1.6.0 && npm uninstall yargs"
+    },
+    "next": "npm install burgee@^1.6.0 && npm uninstall yargs",
+    "help": {
+     "exit": 0,
+     "baseLines": 58,
+     "changedLines": 0,
+     "identical": true,
+     "firstLine": "Usage:"
+    },
+    "version": {
+     "out": "unknown",
+     "exit": 0
+    }
+   }
+  }
+ },
+ "qrcode": {
+  "repo": "soldair/node-qrcode",
+  "sha": "3848ed2c17de5bcdead487417dbf14c5dd017f8d",
+  "arms": {
+   "base": {
+    "steps": {
+     "install": {
+      "exit": 0,
+      "ms": 11032,
+      "cmd": "npm ci --no-audit --no-fund --ignore-scripts"
+     },
+     "build": {
+      "exit": 0,
+      "ms": 3450,
+      "cmd": "npm run build"
+     },
+     "test": {
+      "exit": 0,
+      "ms": 11012,
+      "cmd": "node --throw-deprecation test.js"
+     }
+    },
+    "help": {
+     "exit": 0,
+     "lines": 27
+    },
+    "version": {
+     "out": "1.5.4",
+     "exit": 0
+    }
+   },
+   "manual": {
+    "steps": {
+     "install": {
+      "exit": 0,
+      "ms": 10785,
+      "cmd": "npm ci --no-audit --no-fund --ignore-scripts"
+     },
+     "rewrite": {
+      "exit": 0,
+      "ms": 30,
+      "cmd": "git ls-files '*.js' '*.ts' '*.mjs' '*.cjs' 'bin/*' | xargs sed -i -E \"s/(['\\\"])yargs\\\\1/\\\\1burgee\\\\/yargs\\\\1/g\""
+     },
+     "next": {
+      "exit": 0,
+      "ms": 11507,
+      "cmd": "npm install burgee@^1.6.0 --no-audit --no-fund && npm uninstall yargs"
+     },
+     "build": {
+      "exit": 0,
+      "ms": 5511,
+      "cmd": "npm run build"
+     },
+     "test": {
+      "exit": 0,
+      "ms": 16896,
+      "cmd": "node --throw-deprecation test.js"
+     }
+    },
+    "help": {
+     "exit": 1,
+     "baseLines": 27,
+     "changedLines": 26,
+     "identical": false,
+     "firstLine": "<work>/qrcode.manual/bin/qrcode:60"
+    },
+    "version": {
+     "out": "<work>/qrcode.manual/bin/qrcode:60",
+     "exit": 1
+    }
+   },
+   "mig": {
+    "steps": {
+     "install": {
+      "exit": 0,
+      "ms": 17554,
+      "cmd": "npm ci --no-audit --no-fund --ignore-scripts"
+     },
+     "build": {
+      "exit": 0,
+      "ms": 2588,
+      "cmd": "npm run build"
+     },
+     "test": {
+      "exit": 0,
+      "ms": 7734,
+      "cmd": "node --throw-deprecation test.js"
+     }
+    },
+    "migrate": {
+     "exit": 0,
+     "summary": "nothing to rewrite",
+     "mapped": [],
+     "refused": [],
+     "held": [],
+     "offMajor": [
+      {
+       "from": "commander",
+       "found": "2.20.3",
+       "graded": "15.0.0"
+      },
+      {
+       "from": "yargs",
+       "found": "15.4.1",
+       "graded": "18.2.0"
+      },
+      {
+       "from": "yargs-parser",
+       "found": "18.1.3",
+       "graded": "22.0.0"
+      },
+      {
+       "from": "chalk",
+       "found": "2.4.2",
+       "graded": "6.0.1"
+      },
+      {
+       "from": "string-width",
+       "found": "4.2.3",
+       "graded": "8.3.0"
+      },
+      {
+       "from": "strip-ansi",
+       "found": "6.0.1",
+       "graded": "7.2.0"
+      },
+      {
+       "from": "which",
+       "found": "2.0.2",
+       "graded": "7.0.0"
+      },
+      {
+       "from": "wrap-ansi",
+       "found": "6.2.0",
+       "graded": "10.0.2"
+      },
+      {
+       "from": "slice-ansi",
+       "found": "4.0.0",
+       "graded": "9.0.1"
+      },
+      {
+       "from": "signal-exit",
+       "found": "3.0.6",
+       "graded": "4.1.0"
+      },
+      {
+       "from": "find-up",
+       "found": "4.1.0",
+       "graded": "8.0.0"
+      }
+     ],
+     "transitive": [],
+     "partial": [],
+     "next": ""
+    },
+    "help": {
+     "exit": 0,
+     "baseLines": 27,
+     "changedLines": 0,
+     "identical": true,
+     "firstLine": "Usage: qrcode [options] <input string>"
+    },
+    "version": {
+     "out": "1.5.4",
+     "exit": 0
+    }
+   }
+  }
+ },
+ "svgo": {
+  "repo": "svg/svgo",
+  "sha": "e4cb29bebcc9820ac979dfc05106b512cc5de986",
+  "arms": {
+   "base": {
+    "steps": {
+     "install": {
+      "exit": 0,
+      "ms": 6604,
+      "cmd": "pnpm install --frozen-lockfile"
+     },
+     "build": {
+      "exit": 0,
+      "ms": 14792,
+      "cmd": "pnpm build"
+     },
+     "typecheck": {
+      "exit": 0,
+      "ms": 2351,
+      "cmd": "pnpm typecheck"
+     },
+     "test": {
+      "exit": 0,
+      "ms": 11035,
+      "cmd": "pnpm test",
+      "counts": {
+       "runner": "vitest",
+       "failed": 0,
+       "passed": 520,
+       "total": 523,
+       "filesFailed": 0
+      }
+     }
+    },
+    "help": {
+     "exit": 0,
+     "lines": 38
+    },
+    "version": {
+     "out": "4.1.0",
+     "exit": 0
+    }
+   },
+   "manual": {
+    "steps": {
+     "install": {
+      "exit": 0,
+      "ms": 2070,
+      "cmd": "pnpm install --frozen-lockfile"
+     },
+     "rewrite": {
+      "exit": 0,
+      "ms": 35,
+      "cmd": "git ls-files '*.js' '*.ts' '*.mjs' '*.cjs' | grep -v '^dist/' | xargs sed -i -E \"s/(['\\\"])commander\\\\1/\\\\1burgee\\\\/commander\\\\1/g\""
+     },
+     "next": {
+      "exit": 0,
+      "ms": 4596,
+      "cmd": "pnpm add burgee@~1.1.0 && pnpm remove commander"
+     },
+     "build": {
+      "exit": 0,
+      "ms": 10839,
+      "cmd": "pnpm build"
+     },
+     "typecheck": {
+      "exit": 0,
+      "ms": 1714,
+      "cmd": "pnpm typecheck"
+     },
+     "test": {
+      "exit": 0,
+      "ms": 9312,
+      "cmd": "pnpm test",
+      "counts": {
+       "runner": "vitest",
+       "failed": 0,
+       "passed": 520,
+       "total": 523,
+       "filesFailed": 0
+      }
+     }
+    },
+    "help": {
+     "exit": 0,
+     "baseLines": 38,
+     "changedLines": 4,
+     "identical": false,
+     "firstLine": "Usage: svgo [options] [INPUT...]"
+    },
+    "version": {
+     "out": "4.1.0",
+     "exit": 0
+    }
+   },
+   "mig": {
+    "steps": {
+     "install": {
+      "exit": 0,
+      "ms": 3616,
+      "cmd": "pnpm install --frozen-lockfile"
+     },
+     "next": {
+      "exit": 0,
+      "ms": 22256,
+      "cmd": "pnpm add roundel@^1.0.4 && pnpm remove picocolors"
+     },
+     "build": {
+      "exit": 0,
+      "ms": 12439,
+      "cmd": "pnpm build"
+     },
+     "typecheck": {
+      "exit": 1,
+      "ms": 1817,
+      "cmd": "pnpm typecheck"
+     },
+     "test": {
+      "exit": 1,
+      "ms": 26498,
+      "cmd": "pnpm test",
+      "counts": {
+       "runner": "vitest",
+       "failed": 6,
+       "passed": 497,
+       "total": 506,
+       "filesFailed": 3
+      }
+     }
+    },
+    "migrate": {
+     "exit": 0,
+     "summary": "complete: 3 files rewritten",
+     "mapped": [
+      "picocolors -> roundel/picocolors"
+     ],
+     "refused": [],
+     "held": [],
+     "offMajor": [
+      {
+       "from": "commander",
+       "found": "11.1.0",
+       "graded": "15.0.0"
+      }
+     ],
+     "transitive": [
+      {
+       "from": "picocolors",
+       "through": [
+        "rollup"
+       ],
+       "exports": []
+      }
+     ],
+     "partial": [],
+     "releaseAge": {
+      "file": "pnpm-workspace.yaml",
+      "minutes": 10080,
+      "exclude": [
+       "@types/node@26.2.0",
+       "eslint@10.8.1"
+      ],
+      "pins": [
+       {
+        "name": "roundel",
+        "version": "1.0.4",
+        "graded": "1.1.1",
+        "installable": "2026-10-17T03:18:15.293Z"
+       }
+      ],
+      "note": "pnpm-workspace.yaml sets minimumReleaseAge to 10080 minutes; roundel 1.1.1 is younger than that, so next pins ^1.0.4, the newest roundel 1.x old enough; run your tests on it"
+     },
+     "next": "pnpm add roundel@^1.0.4 && pnpm remove picocolors"
+    },
+    "next": "pnpm add roundel@^1.0.4 && pnpm remove picocolors",
+    "help": {
+     "exit": 1,
+     "baseLines": 38,
+     "changedLines": 38,
+     "identical": false,
+     "firstLine": "node:internal/modules/esm/resolve:313"
+    },
+    "version": {
+     "out": "node:internal/modules/esm/resolve:313",
+     "exit": 1
+    }
+   }
+  }
+ },
+ "swc-cli": {
+  "repo": "swc-project/pkgs",
+  "sha": "2cbd4700aaa6c28da488aad098b150c22ba56ff1",
+  "arms": {
+   "base": {
+    "steps": {
+     "install": {
+      "exit": 0,
+      "ms": 6138,
+      "cmd": "pnpm install --frozen-lockfile"
+     },
+     "build": {
+      "exit": 0,
+      "ms": 2334,
+      "cmd": "pnpm -F @swc/cli build"
+     },
+     "typecheck": {
+      "exit": 0,
+      "ms": 1818,
+      "cmd": "cd packages/cli && npx tsc --noEmit"
+     },
+     "test": {
+      "exit": 0,
+      "ms": 3898,
+      "cmd": "pnpm -F @swc/jest build >/dev/null 2>&1; cd packages/cli && npx jest",
+      "counts": {
+       "runner": "jest",
+       "failed": 0,
+       "passed": 37,
+       "total": 37,
+       "suitesFailed": 0
+      }
+     }
+    },
+    "help": {
+     "exit": 0,
+     "lines": 39
+    },
+    "version": {
+     "out": "@swc/cli: 0.8.1",
+     "exit": 0
+    }
+   },
+   "manual": {
+    "steps": {
+     "install": {
+      "exit": 0,
+      "ms": 5918,
+      "cmd": "pnpm install --frozen-lockfile"
+     },
+     "rewrite": {
+      "exit": 0,
+      "ms": 15,
+      "cmd": "cd packages/cli && git ls-files '*.js' '*.ts' '*.mjs' '*.cjs' | grep -v '^dist/' | xargs sed -i -E \"s/(['\\\"])commander\\\\1/\\\\1burgee\\\\/commander\\\\1/g\""
+     },
+     "next": {
+      "exit": 2,
+      "ms": 10423,
+      "cmd": "pnpm add burgee@^1.6.0 && pnpm remove commander"
+     },
+     "build": {
+      "exit": 2,
+      "ms": 2602,
+      "cmd": "pnpm -F @swc/cli build"
+     },
+     "typecheck": {
+      "exit": 2,
+      "ms": 1697,
+      "cmd": "cd packages/cli && npx tsc --noEmit"
+     },
+     "test": {
+      "exit": 1,
+      "ms": 3724,
+      "cmd": "pnpm -F @swc/jest build >/dev/null 2>&1; cd packages/cli && npx jest",
+      "counts": {
+       "runner": "jest",
+       "failed": 0,
+       "passed": 17,
+       "total": 17,
+       "suitesFailed": 1
+      }
+     }
+    },
+    "help": {
+     "exit": 0,
+     "baseLines": 39,
+     "changedLines": 0,
+     "identical": true,
+     "firstLine": ""
+    },
+    "version": {
+     "out": "@swc/cli: 0.8.1",
+     "exit": 0
+    }
+   },
+   "mig-force": {
+    "extra": "--force",
+    "steps": {
+     "install": {
+      "exit": 0,
+      "ms": 5864,
+      "cmd": "pnpm install --frozen-lockfile"
+     },
+     "build": {
+      "exit": 0,
+      "ms": 2585,
+      "cmd": "pnpm -F @swc/cli build"
+     },
+     "typecheck": {
+      "exit": 0,
+      "ms": 1930,
+      "cmd": "cd packages/cli && npx tsc --noEmit"
+     },
+     "test": {
+      "exit": 0,
+      "ms": 3927,
+      "cmd": "pnpm -F @swc/jest build >/dev/null 2>&1; cd packages/cli && npx jest",
+      "counts": {
+       "runner": "jest",
+       "failed": 0,
+       "passed": 37,
+       "total": 37,
+       "suitesFailed": 0
+      }
+     }
+    },
+    "migrate": {
+     "exit": 0,
+     "summary": "nothing to rewrite",
+     "mapped": [],
+     "refused": [],
+     "held": [],
+     "offMajor": [
+      {
+       "from": "commander",
+       "found": "8.3.0",
+       "graded": "15.0.0"
+      }
+     ],
+     "transitive": [],
+     "partial": [],
+     "next": ""
+    },
+    "help": {
+     "exit": 0,
+     "baseLines": 39,
+     "changedLines": 0,
+     "identical": true,
+     "firstLine": ""
+    },
+    "version": {
+     "out": "@swc/cli: 0.8.1",
+     "exit": 0
+    }
+   },
+   "mig": {
+    "steps": {
+     "install": {
+      "exit": 0,
+      "ms": 5709,
+      "cmd": "pnpm install --frozen-lockfile"
+     },
+     "build": {
+      "exit": 0,
+      "ms": 2331,
+      "cmd": "pnpm -F @swc/cli build"
+     },
+     "typecheck": {
+      "exit": 0,
+      "ms": 1810,
+      "cmd": "cd packages/cli && npx tsc --noEmit"
+     },
+     "test": {
+      "exit": 0,
+      "ms": 3792,
+      "cmd": "pnpm -F @swc/jest build >/dev/null 2>&1; cd packages/cli && npx jest",
+      "counts": {
+       "runner": "jest",
+       "failed": 0,
+       "passed": 37,
+       "total": 37,
+       "suitesFailed": 0
+      }
+     }
+    },
+    "migrate": {
+     "exit": 1,
+     "summary": null,
+     "error": "{\"ok\":false,\"error\":{\"kind\":\"runtime\",\"code\":1,\"message\":\"the git tree has 1 uncommitted change\",\"fix\":\"commit or stash your changes, or pass --force\"}}\n{\"error\":{\"kind\":\"runtime\",\"code\":1,\"message\":\"the git tree has 1 uncommitted change\"}}\n"
+    },
+    "help": {
+     "exit": 0,
+     "baseLines": 39,
+     "changedLines": 0,
+     "identical": true,
+     "firstLine": ""
+    },
+    "version": {
+     "out": "@swc/cli: 0.8.1",
+     "exit": 0
+    }
+   }
+  }
+ },
+ "tsc-alias": {
+  "repo": "justkey007/tsc-alias",
+  "sha": "1077308b1a1d16592356f8495173d8aca4847704",
+  "arms": {
+   "base": {
+    "steps": {
+     "install": {
+      "exit": 0,
+      "ms": 2610,
+      "cmd": "pnpm install --frozen-lockfile"
+     },
+     "build": {
+      "exit": 0,
+      "ms": 3058,
+      "cmd": "npx tsc"
+     },
+     "typecheck": {
+      "exit": 0,
+      "ms": 2725,
+      "cmd": "npx tsc --noEmit"
+     },
+     "test": {
+      "exit": 0,
+      "ms": 114427,
+      "cmd": "mkdir -p .tbin && chmod +x dist/bin/index.js && ln -sf $PWD/dist/bin/index.js .tbin/tsc-alias && PATH=$PWD/.tbin:$PATH npx jest",
+      "counts": {
+       "runner": "jest",
+       "failed": 0,
+       "passed": 75,
+       "total": 75,
+       "suitesFailed": 0
+      }
+     }
+    },
+    "help": {
+     "exit": 0,
+     "lines": 30
+    },
+    "version": {
+     "out": "1.9.8",
+     "exit": 0
+    }
+   },
+   "manual": {
+    "steps": {
+     "install": {
+      "exit": 0,
+      "ms": 10548,
+      "cmd": "pnpm install --frozen-lockfile"
+     },
+     "rewrite": {
+      "exit": 0,
+      "ms": 107,
+      "cmd": "git ls-files '*.js' '*.ts' '*.mjs' '*.cjs' | grep -v '^dist/' | xargs sed -i -E \"s/(['\\\"])commander\\\\1/\\\\1burgee\\\\/commander\\\\1/g\""
+     },
+     "next": {
+      "exit": 0,
+      "ms": 13506,
+      "cmd": "pnpm add burgee@^1.6.0 && pnpm remove commander"
+     },
+     "build": {
+      "exit": 2,
+      "ms": 7898,
+      "cmd": "npx tsc"
+     },
+     "typecheck": {
+      "exit": 2,
+      "ms": 6137,
+      "cmd": "npx tsc --noEmit"
+     },
+     "test": {
+      "exit": 1,
+      "ms": 177522,
+      "cmd": "mkdir -p .tbin && chmod +x dist/bin/index.js && ln -sf $PWD/dist/bin/index.js .tbin/tsc-alias && PATH=$PWD/.tbin:$PATH npx jest",
+      "counts": {
+       "runner": "jest",
+       "failed": 34,
+       "passed": 41,
+       "total": 75,
+       "suitesFailed": 1
+      }
+     }
+    },
+    "help": {
+     "exit": 1,
+     "baseLines": 30,
+     "changedLines": 30,
+     "identical": false,
+     "firstLine": "file://<work>/tsc-alias.manual/node_modules/.pnpm/burgee@1.6.0/node_modules"
+    },
+    "version": {
+     "out": "file://<work>/tsc-alias.manual/node_modules/.pnpm/burgee@1.6.0/node_modules",
+     "exit": 1
+    }
+   },
+   "mig": {
+    "steps": {
+     "install": {
+      "exit": 0,
+      "ms": 1687,
+      "cmd": "pnpm install --frozen-lockfile"
+     },
+     "build": {
+      "exit": 0,
+      "ms": 2330,
+      "cmd": "npx tsc"
+     },
+     "typecheck": {
+      "exit": 0,
+      "ms": 2054,
+      "cmd": "npx tsc --noEmit"
+     },
+     "test": {
+      "exit": 0,
+      "ms": 91785,
+      "cmd": "mkdir -p .tbin && chmod +x dist/bin/index.js && ln -sf $PWD/dist/bin/index.js .tbin/tsc-alias && PATH=$PWD/.tbin:$PATH npx jest",
+      "counts": {
+       "runner": "jest",
+       "failed": 0,
+       "passed": 75,
+       "total": 75,
+       "suitesFailed": 0
+      }
+     }
+    },
+    "migrate": {
+     "exit": 0,
+     "summary": "nothing to rewrite",
+     "mapped": [],
+     "refused": [],
+     "held": [],
+     "offMajor": [
+      {
+       "from": "commander",
+       "found": "9.5.0",
+       "graded": "15.0.0"
+      }
+     ],
+     "transitive": [],
+     "partial": [],
+     "next": ""
+    },
+    "help": {
+     "exit": 0,
+     "baseLines": 30,
+     "changedLines": 0,
+     "identical": true,
+     "firstLine": "Usage: tsc-alias [options]"
+    },
+    "version": {
+     "out": "1.9.8",
+     "exit": 0
+    }
+   }
+  }
+ },
+ "wait-port": {
+  "repo": "dwmkerr/wait-port",
+  "sha": "16083537f8411f1c1c91615de09b811f213ad401",
+  "arms": {
+   "base": {
+    "steps": {
+     "install": {
+      "exit": 0,
+      "ms": 4976,
+      "cmd": "npm ci --no-audit --no-fund"
+     },
+     "test": {
+      "exit": 4,
+      "ms": 13881,
+      "cmd": "npx mocha --recursive -t 10000 'lib/**/*.spec.js'",
+      "counts": {
+       "runner": "mocha",
+       "passed": 36,
+       "failed": 4,
+       "pending": 0
+      }
+     }
+    },
+    "help": {
+     "exit": 0,
+     "lines": 20
+    },
+    "version": {
+     "out": "1.1.0",
+     "exit": 0
+    }
+   },
+   "manual": {
+    "steps": {
+     "install": {
+      "exit": 0,
+      "ms": 8579,
+      "cmd": "npm ci --no-audit --no-fund"
+     },
+     "rewrite": {
+      "exit": 0,
+      "ms": 28,
+      "cmd": "git ls-files '*.js' '*.ts' '*.mjs' '*.cjs' | grep -v '^dist/' | xargs sed -i -E \"s/(['\\\"])commander\\\\1/\\\\1burgee\\\\/commander\\\\1/g\""
+     },
+     "next": {
+      "exit": 0,
+      "ms": 7161,
+      "cmd": "npm install burgee@^1.6.0 --no-audit --no-fund && npm uninstall commander"
+     },
+     "test": {
+      "exit": 4,
+      "ms": 14208,
+      "cmd": "npx mocha --recursive -t 10000 'lib/**/*.spec.js'",
+      "counts": {
+       "runner": "mocha",
+       "passed": 36,
+       "failed": 4,
+       "pending": 0
+      }
+     }
+    },
+    "help": {
+     "exit": 1,
+     "baseLines": 20,
+     "changedLines": 19,
+     "identical": false,
+     "firstLine": "<work>/wait-port.manual/bin/wait-port.js:13"
+    },
+    "version": {
+     "out": "<work>/wait-port.manual/bin/wait-port.js:13",
+     "exit": 1
+    }
+   },
+   "mig": {
+    "steps": {
+     "install": {
+      "exit": 0,
+      "ms": 6148,
+      "cmd": "npm ci --no-audit --no-fund"
+     },
+     "test": {
+      "exit": 4,
+      "ms": 14322,
+      "cmd": "npx mocha --recursive -t 10000 'lib/**/*.spec.js'",
+      "counts": {
+       "runner": "mocha",
+       "passed": 36,
+       "failed": 4,
+       "pending": 0
+      }
+     }
+    },
+    "migrate": {
+     "exit": 0,
+     "summary": "nothing to rewrite",
+     "mapped": [],
+     "refused": [],
+     "held": [],
+     "offMajor": [
+      {
+       "from": "commander",
+       "found": "9.4.0",
+       "graded": "15.0.0"
+      },
+      {
+       "from": "yargs",
+       "found": "16.2.0",
+       "graded": "18.2.0"
+      },
+      {
+       "from": "yargs-parser",
+       "found": "20.2.4",
+       "graded": "22.0.0"
+      },
+      {
+       "from": "chalk",
+       "found": "4.1.2",
+       "graded": "6.0.1"
+      },
+      {
+       "from": "string-width",
+       "found": "4.2.3",
+       "graded": "8.3.0"
+      },
+      {
+       "from": "strip-ansi",
+       "found": "6.0.1",
+       "graded": "7.2.0"
+      },
+      {
+       "from": "which",
+       "found": "2.0.2",
+       "graded": "7.0.0"
+      },
+      {
+       "from": "wrap-ansi",
+       "found": "7.0.0",
+       "graded": "10.0.2"
+      },
+      {
+       "from": "signal-exit",
+       "found": "3.0.7",
+       "graded": "4.1.0"
+      },
+      {
+       "from": "find-up",
+       "found": "5.0.0",
+       "graded": "8.0.0"
+      }
+     ],
+     "transitive": [],
+     "partial": [],
+     "next": ""
+    },
+    "help": {
+     "exit": 0,
+     "baseLines": 20,
+     "changedLines": 0,
+     "identical": true,
+     "firstLine": "Usage: wait-port [options] <target>"
+    },
+    "version": {
+     "out": "1.1.0",
+     "exit": 0
+    }
+   }
+  }
+ }
+}
