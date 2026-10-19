@@ -65,7 +65,9 @@ describe('a test run leaves dist/ as the build left it', () => {
     expect(refusal(join(process.cwd(), 'packages/burgee/dist'), ['+ a.js'])).toBe(
       'the test run changed packages/burgee/dist (1 file) — a test wrote into the build output. Point it at a scratch directory (scripts/scratch-dir.ts):\n  + a.js',
     );
-    expect(refusal(process.cwd(), ['+ a.js', '- b.js'])).toContain(`${process.cwd()} (2 files)`);
+    expect(refusal(process.cwd(), ['+ a.js', '- b.js'])).toContain(`${process.cwd().replaceAll('\\', '/')} (2 files)`);
+    // A Windows path prints with `/`, as the weight lock's walk does since #1152.
+    expect(refusal('packages\\burgee\\dist', ['+ a.js'])).toContain('changed packages/burgee/dist (1 file)');
   });
 
   it('as a globalSetup, passes a run that wrote nothing and fails one that wrote a stray, naming it', () => {
