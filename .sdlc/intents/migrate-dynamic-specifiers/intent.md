@@ -1,6 +1,6 @@
 # Intent — a non-literal specifier holds only what it could load
 
-**Status:** approved (2026-10-19, under the owner's delegation, [`D-20261019-migrate-dynamic-specifiers-design-accepted`](../../decisions/D-20261019-migrate-dynamic-specifiers-design-accepted.md)) · **Opened:** `2026-10-18` · **Owner:** `@ofri-peretz` · **Design:** [`spec.md`](./spec.md)
+**Status:** approved (2026-10-19, under the owner's delegation, [`D-20261019-dynamic-specifiers-design-accepted`](../../decisions/D-20261019-dynamic-specifiers-design-accepted.md)) · **Opened:** `2026-10-18` · **Owner:** `@ofri-peretz` · **Design:** [`spec.md`](./spec.md)
 
 ---
 

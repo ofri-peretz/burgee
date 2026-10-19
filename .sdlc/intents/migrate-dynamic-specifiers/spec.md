@@ -2,7 +2,7 @@
 
 Intent: [`intent.md`](./intent.md). **Status:** approved — accepted by the coordinator under the
 owner's 2026-10-12 delegation,
-[`D-20261019-migrate-dynamic-specifiers-design-accepted`](../../decisions/D-20261019-migrate-dynamic-specifiers-design-accepted.md).
+[`D-20261019-dynamic-specifiers-design-accepted`](../../decisions/D-20261019-dynamic-specifiers-design-accepted.md).
 
 Staged on 2026-10-18 against `main` at `1013b65db5`; **re-grounded on 2026-10-19 against `main`
 at `1dcf064a03`**, after `migrate-preflight` (#1168) changed `migrate.ts`. What moved, and what

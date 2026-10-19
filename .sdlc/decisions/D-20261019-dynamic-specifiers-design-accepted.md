@@ -1,5 +1,5 @@
 ---
-id: D-20261019-migrate-dynamic-specifiers-design-accepted
+id: D-20261019-dynamic-specifiers-design-accepted
 subject: 'migrate-dynamic-specifiers: is the Stage 2 design accepted for Build?'
 taken: 'Accepted — by the coordinator under the owner''s delegation (burgee-owner-delegates-tradeoffs), 2026-10-19'
 date: '2026-10-19'
