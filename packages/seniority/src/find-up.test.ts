@@ -3,16 +3,18 @@
  * `compat-oracle` (`graded-override-targets` R2). These cases hold the branches that suite does
  * not reach from this process, so a line added here without a test still fails coverage.
  */
-import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { findDown, findDownSync, findUp, findUpMultiple, findUpMultipleSync, findUpStop, findUpSync } from './find-up.js';
 
-const root = mkdtempSync(join(tmpdir(), 'seniority-findup-'));
+const scratch = scratchDirs();
+
+const root = scratch('seniority-findup-');
 const at = (...parts: string[]): string => join(root, ...parts);
 mkdirSync(at('a', 'b', 'c'), { recursive: true });
 mkdirSync(at('a', 'deep', 'deeper'), { recursive: true });

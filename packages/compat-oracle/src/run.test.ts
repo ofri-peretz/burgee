@@ -12,9 +12,12 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { type Host, HOSTS } from './hosts.js';
 import { type Baseline, cjsLoad, type Grade, grade as gradeHost, hoistJestMocks, TSD_SCRIPT, installSuiteDeps, internalShimBody, jestGlobals, mochaCli, internalShimFrom, parseFlatTap, parseNodeTest, regressed, summarize, tsLoaderArgs, unsatisfiedPins } from './run.js';
 import { declarationName, type TsdAssertion, type TsdDiagnostic, tsdTap } from './tsd.js';
+
+const scratch = scratchDirs();
 
 const grade = (passed: number): Grade => ({
   host: 'commander',
@@ -190,7 +193,7 @@ describe('a control run’s internal shim', () => {
   const cliTable3 = HOSTS.find((h) => h.name === 'cli-table3') as Host;
   const clack = HOSTS.find((h) => h.name === 'clack') as Host;
 
-  const installed = mkdtempSync(join(tmpdir(), 'internal-shim-'));
+  const installed = scratch('internal-shim-');
   mkdirSync(join(installed, 'src'), { recursive: true });
   writeFileSync(join(installed, 'package.json'), '{"name":"fake","version":"0.0.0"}\n');
   writeFileSync(join(installed, 'src', 'cell.js'), 'module.exports = {};\n');
@@ -248,7 +251,7 @@ describe('a control run’s internal shim', () => {
  * The fake target ships `Cell` in both of the shapes the body has to handle.
  */
 const shimFor = (named: string | undefined, shape: 'default' | 'flat'): unknown => {
-  const dir = mkdtempSync(join(tmpdir(), 'named-shim-'));
+  const dir = scratch('named-shim-');
   const pkg = join(dir, 'node_modules', 'faketarget');
   mkdirSync(pkg, { recursive: true });
   writeFileSync(join(pkg, 'package.json'), '{"name":"faketarget","version":"0.0.0","main":"index.cjs"}\n');
@@ -418,8 +421,8 @@ describe('concatenated node-tap output', () => {
  * answered "satisfied" for all four.
  */
 describe('a pinned suite dependency is satisfied only beside the suite', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'suite-deps-'));
-  const outside = mkdtempSync(join(tmpdir(), 'elsewhere-'));
+  const dir = scratch('suite-deps-');
+  const outside = scratch('elsewhere-');
 
   // `dir` sits inside `outside`, so resolution from `dir` reaches `outside`'s node_modules
   // the way a vendored directory reaches the workspace's — and the way anything in this

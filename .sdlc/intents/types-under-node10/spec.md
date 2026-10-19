@@ -240,7 +240,16 @@ None. The intent fixed where the lock lives and what may not change.
 | R5 | Built 2026-10-19 | `exports` unchanged; `controlroom/src/ink/react.ts` | › node16, nodenext, bundler; `package-shape-lock.test.ts`; `pack-list-lock.test.ts` |
 | R6 | Built 2026-10-19 | `.changeset/types-under-node10.md` (ten `patch`) | `npm run check:artifacts` green, no baseline moved |
 
-**Built: 6. Not built: 0.** Intent criterion 3 (tsc-alias at `1077308b`) waits for the release.
+**Built: 6. Not built: 0.**
+
+**Intent criterion 3, met 2026-10-19 (~11:05Z)** — the field row of the verification table, run by
+the coordinating agent against the release and recorded here as reported. tsc-alias at
+`1077308b`, TypeScript 4.9.5, tsconfig `module: commonjs`, `moduleResolution: node`. Baseline
+`tsc --noEmit` exited 0. With `src/bin/index.ts` changed from `from 'commander'` to
+`from 'burgee/commander'` and `pnpm add burgee@1.6.2`, `tsc --noEmit` exited 0, and
+`--traceResolution` shows `'burgee/commander' was successfully resolved to
+…/burgee@1.6.2/node_modules/burgee/dist/commander.d.ts`. The adoption-barriers trial got TS2307 at
+this step before the fix.
 
 What the build measured, against what the design expected:
 

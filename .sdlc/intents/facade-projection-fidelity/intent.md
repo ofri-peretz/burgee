@@ -5,7 +5,7 @@
 > choices, conflicts, hidden flags and command aliases at parse time and then drop them before
 > `--schema`, `--mcp`, completions and help see the manifest.
 
-**Status:** approved · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-19 by `fix/facade-fidelity-and-weight`, verified against `main` at `6b90ffe` plus that branch — R1–R6 each locked by `facade-surface.test.ts` or `command-aliases.test.ts` (the evidence table is `spec.md` § Status), and criterion 4 by `npm run compat -- commander yargs`, 1360 / 1360 and 816 / 816
 
 ---
 

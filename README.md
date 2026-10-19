@@ -294,12 +294,12 @@ settled yet, because its measure changed**:
 | Claim | Gate | Measured | |
 | :--- | :--- | ---: | :--- |
 | the core entry point is under 52 KB bundled | `core-under-52kb-bundled` | 24,281 bytes | ✅ met |
-| `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 0.970× | ✅ met |
+| `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 0.974× | ✅ met |
 | `burgee` is lighter than `cac` **plus what a cac user installs to match it** | `lighter-than-cac-at-parity` | 0.249× | ✅ met |
 | `burgee/commander` is lighter than `commander` **plus the same** | `lighter-than-commander-at-parity` | 0.438× | ✅ met |
-| `burgee/yargs` is lighter than `yargs` **plus the same** | `lighter-than-yargs-at-parity` | 0.545× | ✅ met |
+| `burgee/yargs` is lighter than `yargs` **plus the same** | `lighter-than-yargs-at-parity` | 0.547× | ✅ met |
 | `burgee` starts within 1.55× of `cac`, the lightest framework in the landscape (ratchet; lowered as it speeds up) | `cold-start-at-or-below-cac` | 1.443× | ✅ met |
-| `burgee/commander` stays within 1.565× of `commander` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-commander` | 1.416× | ✅ met |
+| `burgee/commander` stays within 1.42× of `commander` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-commander` | 1.416× | ✅ met |
 | `burgee` stays within 2.35× of `cac` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-cac` | 2.323× | ✅ met |
 | an agent spends ≥40% fewer tokens over the benchmark tasks (total over every task-run) | `agent-tokens-40pct` | 0.699× on the newest CI run (`e6cff20`); 0.549–0.699 over the 12 runs since B1 installs the demo under its printed name, met on 5 of them | ❌ **not met** |
 | an agent takes ≥30% fewer turns over the benchmark tasks (total over every task-run) | `agent-turns-30pct` | 0.677× on the newest CI run (`e6cff20`); 0.583–0.703 over the same 12 runs, met on 9 of them | **unmeasured** as a record until the next CI run; the figures are its per-task detail, summed |
@@ -323,7 +323,7 @@ with:
 | :--- | ---: | ---: | ---: |
 | `cac` | 10,452 B | **97,692 B** | 24,281 B |
 | `commander` | 39,084 B | **126,335 B** | 55,351 B |
-| `yargs` | 111,686 B | **198,784 B** | 108,350 B |
+| `yargs` | 111,686 B | **198,784 B** | 108,774 B |
 
 The additions are `cosmiconfig` (find and load a config file), `exit-hook` (run cleanup on
 every path out, including a signal) and `restore-cursor` (hand the terminal back), bundled
@@ -364,7 +364,7 @@ a new decision.
 | Gate | Was | Ceiling | Set from, on 2026-09-27 |
 | :--- | :--- | ---: | :--- |
 | `cold-start-at-or-below-cac` | ≤ 1 | 1.55× | lowered 2026-10-11 after #898: the 26 CI runs since, mean 1.424, max 1.463; mean + 3 sd, rounded up to 0.05 |
-| `lighter-than-commander` | ≤ 1 | 1.565× | measured 1.560, plus 80 B for CI's heavier build, rounded up to 0.005: the gate it already had |
+| `lighter-than-commander` | ≤ 1 | 1.42× | lowered 2026-10-19 after commander-front-end-diet: measured 1.416 in CI and locally, plus 80 B for CI's heavier build, rounded up to 0.005 (first set at 1.565) |
 | `lighter-than-cac` | ≤ 1 | 2.35× | measured 2.317, plus 80 B for CI's heavier build, rounded up to 0.05 |
 
 The ceilings live in [`claim-ratchets.json`](./.sdlc/bands/claim-ratchets.json) with their
@@ -459,13 +459,13 @@ codebase is the number of things a user has to trust, not convenience.
 
 | | Layer | Package | What the layer owns | Migrates from | Status |
 | :-- | :-- | :-- | :-- | :-- | :-- |
-| **Engine** | argv, dispatch, manifest | [`burgee`](./packages/burgee/) | one declaration projected to help, `--json`, `--schema`, MCP, completions, types | commander · yargs · meow | released — `burgee@1.6.2` |
+| **Engine** | argv, dispatch, manifest | [`burgee`](./packages/burgee/) | one declaration projected to help, `--json`, `--schema`, MCP, completions, types | commander · yargs · meow | released — `burgee@1.6.3` |
 | **Output stack** | colour | [`roundel`](./packages/roundel/) | one output policy, nine semantic tokens, a contrast-checked theme, and chalk's API over them | chalk · picocolors | released — `roundel@1.1.2` |
 | | render | [`flagstaff`](./packages/flagstaff/) | frame loop with a static projection; plugin host for spinners, progress, boxes, tables | ora · log-update · boxen · cli-table3 | released — `flagstaff@1.7.1` |
-| | prompt | [`caique`](./packages/caique/) | prompts that are flags first, and never hang | inquirer · clack · prompts | released — `caique@1.4.2` |
+| | prompt | [`caique`](./packages/caique/) | prompts that are flags first, and never hang | inquirer · clack · prompts | released — `caique@1.4.3` |
 | | screen | [`controlroom`](./packages/controlroom/) | keyboard-driven screens, inline or full-screen, over flagstaff's loop, each with a static projection | ink · @inkjs/ui | released — `controlroom@1.0.3` |
 | **Foundation** | text | [`linegauge`](./packages/linegauge/) | measure, wrap, truncate and slice styled text without the edge fraying | string-width · wrap-ansi · strip-ansi · slice-ansi | released — `linegauge@1.1.2` |
-| | config | [`seniority`](./packages/seniority/) | precedence across flag, env, project file, home file and default — with provenance | cosmiconfig · lilconfig · dotenv · rc | released — `seniority@1.0.9` |
+| | config | [`seniority`](./packages/seniority/) | precedence across flag, env, project file, home file and default — with provenance | cosmiconfig · lilconfig · dotenv · rc | released — `seniority@1.0.10` |
 | | process | [`bellpull`](./packages/bellpull/) | run a subprocess; resolve the executable; return a result every caller can read | execa · cross-spawn · which | released — `bellpull@1.0.7` |
 | | lifecycle | [`closeout`](./packages/closeout/) | exit handlers that run once on every path, terminal restore, bounded deadline | signal-exit · exit-hook · restore-cursor | released — `closeout@1.1.4` |
 | | terminal | [`paratext`](./packages/paratext/) | hyperlinks, images, window title, clipboard, notifications, bell — each with a static fallback | ansi-escapes (OSC half) · terminal-link · term-img | released — `paratext@1.0.8` |

@@ -479,7 +479,11 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // 108,420 on 2026-09-28 for the two linegauge fixes it bundles: `width()` no longer
   // backtracks exponentially on a run of combining joiners, and `wrap()` no longer normalizes
   // an escape sequence into its neighbour. Measured 108,334 locally, with 80 B for CI.
-  'burgee/yargs': 108_420,
+  // 108,850 on 2026-10-19 for `facade-projection-fidelity` R4 (D-20261019-yargs-facade-relations-bytes):
+  // a yargs program's `.conflicts()`, `.implies()` and `.example()` reach `--schema` and `--mcp`.
+  // Main at `6b90ffe` measured 108,345 and this reads 108,769 (+424), on a clean build. Plus the
+  // ~32 B CI reads heavier, rounded up to the next 50. Still 2,917 B under yargs' own 111,686.
+  'burgee/yargs': 108_850,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
   // bundle grows by, set where the number actually is, so the next byte is a decision.

@@ -10,13 +10,15 @@
  */
 import childProcess from 'node:child_process';
 import { EventEmitter } from 'node:events';
-import { mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { scratchDirs } from '../__fixtures__/scratch-dir.js';
 import { Command } from '../commander.js';
+
+const scratch = scratchDirs();
 
 const crossSpawn = vi.hoisted(() => vi.fn());
 vi.mock('bellpull/cross-spawn', () => ({ default: { spawn: crossSpawn }, spawn: crossSpawn }));
@@ -31,7 +33,7 @@ let dir: string;
 let spawn: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'burgee-spawn-'));
+  dir = scratch('burgee-spawn-');
   spawn = vi.spyOn(childProcess, 'spawn').mockImplementation(child);
   crossSpawn.mockReset().mockImplementation(child);
 });

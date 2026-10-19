@@ -20,7 +20,7 @@ import { frameWriter, type FrameWriter, hoist, type Hoisted } from 'flagstaff/lo
 import { type Component, registered as flagstaffRegistered } from 'flagstaff/plugin';
 import { outputMode, type OutputMode } from 'roundel/policy';
 
-import { collapse, compose, type Pane, type Panes } from './compose.js';
+import { collapse, compose, extents, type Frame, type Pane, type Panes } from './compose.js';
 import { type Layout } from './layout.js';
 import { registered } from './plugin.js';
 import { type Runtime } from './runtime.js';
@@ -248,9 +248,13 @@ function live(rt: Runtime, options: Resolved): Screen {
   if (options.input !== undefined) undo.push(bracketedPaste(rt.stdout, restore));
   let writer = frameWriter(rt.stdout);
 
+  const sizeOf = (animated: boolean): Frame => ({ columns: rt.stdout.columns ?? DEFAULT_COLUMNS, rows: rt.stdout.rows ?? DEFAULT_ROWS, t: rt.clock.now() - started, live: animated });
+  /** controlroom-scroll-pane R2 — what the reducer needs to scroll: each pane's height as drawn now. */
+  const step = (action: string): void => {
+    state = reduce(state, action, extents(treeOf(options, state), Object.fromEntries(panes), sizeOf(true)));
+  };
   const frame = (animated: boolean): string[] => {
-    const size = { columns: rt.stdout.columns ?? DEFAULT_COLUMNS, rows: rt.stdout.rows ?? DEFAULT_ROWS, t: rt.clock.now() - started, live: animated };
-    const lines = compose(treeOf(options, state), Object.fromEntries(panes), size);
+    const lines = compose(treeOf(options, state), Object.fromEntries(panes), sizeOf(animated), state);
     if (alternate) return lines;
     // Inline, the live region is as tall as what it shows: blank rows under the last drawn
     // one would push the committed text up for nothing.
@@ -269,7 +273,12 @@ function live(rt: Runtime, options: Resolved): Screen {
   };
   if (Number.isFinite(interval)) cancelTick = rt.clock.schedule(tick, interval);
 
-  rt.stdout.on?.('resize', paint);
+  // R5 — a size change re-clamps every scrolled pane before the frame is laid out again.
+  const resized = (): void => {
+    step('resize');
+    paint();
+  };
+  rt.stdout.on?.('resize', resized);
   let closed = false;
   const stopKeys = readKeys(
     rt.stdin,
@@ -316,7 +325,7 @@ function live(rt: Runtime, options: Resolved): Screen {
     },
     dispatch(action) {
       if (closed) return;
-      state = reduce(state, action);
+      step(action);
       if (action === 'quit') screen.close();
       else paint();
       options.onAction?.(action, screen);
@@ -325,7 +334,7 @@ function live(rt: Runtime, options: Resolved): Screen {
       if (closed) return;
       closed = true;
       cancelTick();
-      rt.stdout.off?.('resize', paint);
+      rt.stdout.off?.('resize', resized);
       stopKeys();
       if (alternate) {
         for (const leave of undo) leave();

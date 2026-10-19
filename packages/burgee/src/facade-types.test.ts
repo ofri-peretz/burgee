@@ -26,16 +26,18 @@
  * on 28 missing yargs names and 4 missing commander names, and the migrated demo on
  * `Argv`. The PR records the output.
  */
-import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { cpSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { FACADE_EXPORTS, migrate } from './migrate.js';
 import yargs from './yargs.js';
+
+const scratch = scratchDirs();
 
 const PKG = fileURLToPath(new URL('..', import.meta.url));
 const EXAMPLES = resolve(PKG, '../../examples');
@@ -483,7 +485,7 @@ await cli.parseAsync(process.argv);
 
 describe('burgee migrate — its output compiles', () => {
   it("migrates orval's @commander-js/extra-typings import site to one that type-checks, inference intact (extra-typings-drop-in R4)", async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'burgee-extra-typings-'));
+    const dir = scratch('burgee-extra-typings-');
     mkdirSync(join(dir, 'src'));
     writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'orval-shaped', type: 'module', dependencies: { '@commander-js/extra-typings': '^15.0.0', commander: '^15.0.0' } }));
     writeFileSync(join(dir, 'src', 'orval.ts'), EXTRA_TYPINGS_ORVAL);
@@ -496,7 +498,7 @@ describe('burgee migrate — its output compiles', () => {
   });
 
   it('migrates demo-cli-yargs to a program that type-checks', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'burgee-demo-cli-yargs-'));
+    const dir = scratch('burgee-demo-cli-yargs-');
     cpSync(join(EXAMPLES, 'demo-cli-yargs', 'src'), join(dir, 'src'), { recursive: true });
     cpSync(join(EXAMPLES, 'demo-cli-yargs', 'package.json'), join(dir, 'package.json'));
     const report = await migrate({ dir, status: () => undefined });

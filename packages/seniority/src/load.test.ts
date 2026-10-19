@@ -1,13 +1,15 @@
 /** R6 — four builtin loaders, everything else injected, and a named extension is never a silent miss. */
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { defaultLoaders, loaderFor, LoaderError, loadPath, NOT_BUNDLED } from './load.js';
 
-const dir = mkdtempSync(join(tmpdir(), 'seniority-load-'));
+const scratch = scratchDirs();
+
+const dir = scratch('seniority-load-');
 const write = (rel: string, body: string): string => {
   const at = join(dir, rel);
   mkdirSync(join(at, '..'), { recursive: true });

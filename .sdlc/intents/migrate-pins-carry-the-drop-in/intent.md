@@ -1,7 +1,9 @@
 # Intent — under a release age, `next` never pins a version that predates the drop-in
 
-**Status:** approved · **Opened:** `2026-10-18` · **Owner:** `@ofri-peretz` · built 2026-10-18;
-criterion 1 met, criterion 2 measurable from 2026-10-19 11:07 UTC (see below)
+**Status:** shipped · **Opened:** `2026-10-18` · **Owner:** `@ofri-peretz` · **Shipped:** 2026-10-19 on
+[`db0ad9b6`](https://github.com/ofri-peretz/burgee/commit/db0ad9b6) (#1124), released in burgee 1.6.2, verified against `main` at
+[`add9c3fd`](https://github.com/ofri-peretz/burgee/commit/add9c3fd) — criterion 1 locked by `migrate-pins.test.ts`, criterion 2 by the svgo field trial re-run on
+2026-10-19 (below)
 
 ---
 
@@ -70,7 +72,12 @@ two criteria is met by a check run green. The other cannot be run before a date.
   roundel@^1.1.0`, not `^1.0.4`, and the note names 2026-10-19 12:00 UTC (the fixture's clock) as
   the date 1.1.0 installs. Run against `migrate.ts` from `main` it printed `roundel@^1.0.4` and
   failed.
-- **The field trial re-run on svgo with a 7-day age** — **not yet runnable.** roundel 1.1.0, the
+- **The field trial re-run on svgo with a 7-day age** — **met, 2026-10-19T11:08:13Z** (run by the
+  coordinating agent; the evidence is recorded in `spec.md` › Field trial). `npx -y burgee@1.6.2
+  migrate` on svgo `e4cb29be` under `minimumReleaseAge: 10080` printed `pnpm add roundel@^1.1.0 &&
+  pnpm remove picocolors`; that line, run as printed, exited 0, and `node bin/svgo --help` exited 0.
+  The control run at 10:59:58Z, before roundel 1.1.0 aged in, was refused by pnpm's release age as
+  the note predicted. What 2026-10-18 recorded: roundel 1.1.0, the
   first release with `./picocolors`, was published 2026-10-12 11:07 UTC, so no roundel that carries
   the subpath passes a 7-day age before **2026-10-19 11:07 UTC**. The built CLI, run on 2026-10-18
   against the real registry on an svgo-shaped project, prints `pnpm add roundel@^1.1.0` and says

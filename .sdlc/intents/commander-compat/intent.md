@@ -3,7 +3,7 @@
 > Stage 1 artifact. Child of [`burgee`](../burgee/intent.md),
 > and the reason [`replacement-parser`](../replacement-parser/intent.md) is worth building.
 
-**Status:** review · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`
+**Status:** shipped · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz` · **Shipped:** 2026-10-19 by `fix/facade-fidelity-and-weight`, under the owner's delegation of 2026-10-12, verified against `main` at `6b90ffe` plus that branch — X1–X8 each hold a passing check (`spec.md` § Status). Of the four criteria below: 1 is met, with the pass rate in CI's step summary and `results.json`, on `/docs/compatibility`, and in the `compat-commander-pass-rate` band (`benchmarks/bands.ts`); 2 is restated by X4, because the oracle keeps no `excluded.json` and allows no exclusion for a divergence; 3 is met by `commander-parity.test.ts`; 4 is met by X6, where `./commander` reads 112,024 B against the 232 KB ceiling and a 112,100 budget
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Evidence:** `packages/burgee/src/commander-*.ts`; **1,361 / 1,361** on commander’s own suite, level with real commander in the same run.
 

@@ -23,14 +23,16 @@
  * signal, so none of this is observable in-process.
  */
 import { execFileSync } from 'node:child_process';
-import { closeSync, mkdtempSync, openSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { closeSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import process from 'node:process';
 
 import { describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { HIDE_CURSOR, SHOW_CURSOR } from './projection.js';
+
+const scratch = scratchDirs();
 
 const distLoop = new URL('../dist/loop.js', import.meta.url).href;
 const distOra = new URL('../dist/ora.js', import.meta.url).href;
@@ -91,7 +93,7 @@ setTimeout(() => process.exit(0), 5000);
 `;
 
 function twoSurfacesThenSignal(split: 'apart' | 'together', signal: string): Outcome {
-  const dir = mkdtempSync(join(tmpdir(), 'flagstaff-cursor-net-'));
+  const dir = scratch('flagstaff-cursor-net-');
   const outLog = join(dir, 'fd1');
   const errLog = join(dir, 'fd2');
   const child = join(dir, 'child.mjs');

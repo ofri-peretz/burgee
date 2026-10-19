@@ -27,6 +27,11 @@ export interface Snapshot {
   demanded: Record<string, string | undefined>;
   deprecated: Record<string, string | boolean | undefined>;
   choices: Record<string, any[]>;
+  /** `.conflicts()` and `.implies()` as yargs' validation keeps them: a key to what it names (facade-projection-fidelity R4). */
+  conflicts: Record<string, unknown[]>;
+  implies: Record<string, unknown[]>;
+  /** `.example()` pairs, `[command, description]`, `$0` unexpanded. */
+  examples: [string, string][];
   defaults: Record<string, any>;
   descriptions: Record<string, string | undefined>;
   /** yargs' own `help`, `version` and `show-hidden` keys: burgee serves those itself. */
@@ -53,15 +58,30 @@ function typeOf(s: Snapshot, key: string): OptionSpec['type'] {
 /** Options as the manifest describes them, on a null-prototype record keyed by the canonical camelCase name. */
 export function optionSpecs(s: Snapshot): Record<string, OptionSpec> {
   const specs = Object.create(null) as Record<string, OptionSpec>;
-  const aliasOf = new Set<string>();
+  // Each alias to the key it names, so a relation written against `-f` lands on `force` (R4).
+  const aliasOf = new Map<string, string>();
   for (const [key, list] of Object.entries(s.aliases)) {
-    if (s.keys.includes(key)) for (const a of list) aliasOf.add(a);
+    if (s.keys.includes(key)) for (const a of list) aliasOf.set(a, key);
   }
   const positional = new Set([...s.positionals.demanded, ...s.positionals.optional].flatMap((p) => p.cmd));
+  const skipped = (key: string): boolean => s.skip.includes(key) || aliasOf.has(key) || positional.has(key) || key.includes('.');
   for (const key of s.keys) {
-    if (s.skip.includes(key) || aliasOf.has(key) || positional.has(key) || key.includes('.')) continue;
+    if (skipped(key)) continue;
     const spec: OptionSpec = { type: typeOf(s, key) };
     const aliases = s.aliases[key] ?? [];
+    // R4: what the key (or one of its aliases) conflicts with or implies, kept only where it names
+    // an option projected here. A positional count and a `--no-x` are yargs' own forms, not options,
+    // and a name with no relation contributes `undefined`, which the same filter drops.
+    const related = (on: Record<string, unknown[]>): string[] =>
+      [key, ...aliases]
+        .flatMap((k) => on[k])
+        .map((v) => aliasOf.get(v as string) ?? (v as string))
+        .filter((v) => s.keys.includes(v) && !skipped(v))
+        .map(camelCase);
+    const exclusive = related(s.conflicts);
+    if (exclusive[0]) spec.exclusive = exclusive;
+    const dependsOn = related(s.implies);
+    if (dependsOn[0]) spec.dependsOn = dependsOn;
     const short = aliases.find((a) => a.length === 1 && !/^[0-9]$/.test(a));
     if (short !== undefined) spec.short = short;
     const desc = describe(s.descriptions, key) ?? aliases.map((a) => describe(s.descriptions, a)).find((d) => d !== undefined);
@@ -109,6 +129,8 @@ export function projectManifest(manifest: Manifest, root: Snapshot): void {
       path: at,
       ...(aliases?.[0] ? { aliases } : {}),
       ...(description ? { description } : {}),
+      // R4: `$0` is the program's name, as yargs' help prints it; an empty description is no description.
+      ...(s.examples[0] ? { examples: s.examples.map(([c, d]) => ({ command: c.replace(/\$0/g, root.name), ...(d ? { description: d } : {}) })) } : {}),
       ...(s.effects === undefined ? {} : { effects: s.effects }),
       ...(deprecated ? { deprecated } : {}),
       options: optionSpecs(s),
