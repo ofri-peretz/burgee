@@ -39,7 +39,10 @@
   it turned two killed mutants into survivors. A mutation gate built without noticing that
   would have failed honest pull requests on mutants their own tests kill — the exact class of
   checker defect `checkers-commit-the-fault-they-police` records, here in the unflattering
-  direction for once.
+  direction for once. **A second one surfaced on the first full run**: the runner's "related
+  files" narrowing found no suite for some unfiltered mutant runs, and 84 mutants in
+  `roundel/src/import.ts` "survived" having run nothing. The refusal built for the first defect
+  caught the second — the run was rejected, not reported — which is the case for building it.
 
 ## Affected users and systems
 
@@ -50,8 +53,11 @@
   like `bench.yml` and `control-bands.yml` do.
 - The root `package.json`: `@stryker-mutator/core` and `@stryker-mutator/vitest-runner`, both
   `10.0.0` (published 2026-08-14), as devDependencies. No package gains a dependency.
-- Package sources: none change. A `// Stryker disable` comment is the only thing this can ask a
-  package to carry.
+- Package sources: one comment pair. `roundel/src/picocolors.ts` exports
+  `picocolors as 'module.exports'`, a string export name Stryker 10 cannot place a mutant in
+  (it aborts the whole run), so that one line carries
+  `// Stryker disable StringLiteral: <reason>` … `// Stryker restore StringLiteral`. A
+  `// Stryker disable` comment is the only thing this can ask a package to carry.
 
 ## Constraints
 

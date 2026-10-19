@@ -70,6 +70,11 @@ export const SKIPPED_TESTS: Readonly<Record<string, Readonly<Record<string, stri
   roundel: {
     'src/weight.test.ts': 'bundles src and holds it to a byte ceiling; instrumented source is larger by construction',
   },
+  burgee: {
+    'src/migrate-bench.test.ts': 'A10 times a 1,000-file scan against a CPU yardstick (40); instrumented code ran it at 3,644 on 2026-10-18',
+    'src/messages.test.ts': 'scans the source text of src/ for every message the engine writes; instrumented source carries each literal behind a mutant switch',
+    'src/testing-helpers.test.ts': "compares JSON.stringify(process.env) byte for byte; Stryker's runner forces the threads pool, where restoring the env reorders its keys",
+  },
 };
 
 // ── What is a mutation source ─────────────────────────────────────────────────────────────
@@ -282,7 +287,7 @@ export interface RunOptions {
 export function strykerConfig(o: RunOptions): Record<string, unknown> {
   return {
     testRunner: 'vitest',
-    vitest: { configFile: o.vitestConfig, related: true },
+    vitest: { configFile: o.vitestConfig, related: false },
     coverageAnalysis: 'perTest',
     mutate: [...o.mutate],
     // In place: the package's vitest config imports `../../vitest-*.config.ts` and its tests
@@ -312,9 +317,21 @@ export interface PackageRun {
   minutes: number;
 }
 
-function gitClean(paths: string[]): boolean {
-  const r = spawnSync('git', ['status', '--porcelain', '--', ...paths], { cwd: REPO_ROOT, encoding: 'utf8' });
-  return r.status === 0 && r.stdout.trim() === '';
+/** The files a `mutate` list names (`src/x.ts:10-12` → `src/x.ts`), with their text now. */
+function snapshot(packageDir: string, mutate: readonly string[]): Map<string, string> {
+  const files = new Set(mutate.map((m) => m.replace(/:\d+(?::\d+)?-\d+(?::\d+)?$/u, '')));
+  return new Map([...files].map((f) => [f, readFileSync(path.join(packageDir, f), 'utf8')]));
+}
+
+/**
+ * Put back any file Stryker left instrumented, and name them. In-place mode restores the
+ * originals itself; a killed run may not have. Compared with the text before the run, not with
+ * git, so uncommitted work in the package is neither flagged nor lost.
+ */
+function restore(packageDir: string, before: ReadonlyMap<string, string>): string[] {
+  const changed = [...before].filter(([f, text]) => readFileSync(path.join(packageDir, f), 'utf8') !== text);
+  for (const [f, text] of changed) writeFileSync(path.join(packageDir, f), text);
+  return changed.map(([f]) => f);
 }
 
 /** Stryker over `mutate` in one package. `budgetMs` kills it, and the run reports why. */
@@ -328,6 +345,7 @@ export function runPackage(pkg: string, mutate: readonly string[], o: { concurre
   mkdirSync(wrapperDir, { recursive: true });
   writeFileSync(vitestConfig, wrapperConfig(packageDir, Object.keys(SKIPPED_TESTS[pkg] ?? {})));
   writeFileSync(configFile, JSON.stringify(strykerConfig({ ...o, vitestConfig, mutate, reportFile }), null, 2));
+  const before = snapshot(packageDir, mutate);
   const started = Date.now();
   const r = spawnSync(process.execPath, [STRYKER_BIN, 'run', configFile], {
     cwd: packageDir,
@@ -339,8 +357,8 @@ export function runPackage(pkg: string, mutate: readonly string[], o: { concurre
   const minutes = round((Date.now() - started) / MS_PER_MINUTE);
   const result = (error: string | undefined, summary?: Summary): PackageRun => ({ pkg, ok: error === undefined, error, summary, minutes });
   try {
-    // In-place mode restores the originals itself; a killed run may not have.
-    if (!gitClean([path.join('packages', pkg, 'src')])) return result(`Stryker left packages/${pkg}/src modified — restore it with \`git checkout -- packages/${pkg}/src\``);
+    const left = restore(packageDir, before);
+    if (left.length > 0) return result(`Stryker left ${String(left.length)} file(s) instrumented (${left.join(', ')}); restored from before the run, and this run's report is not trusted`);
     if (r.error && (r.error as NodeJS.ErrnoException).code === 'ETIMEDOUT') {
       return result(`over the lane's budget: stopped after ${String(minutes)} minutes. Split the pull request, or kill the mutants in a smaller one first`);
     }

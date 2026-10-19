@@ -60,7 +60,7 @@ package's own in-process suite, so mutating them would measure the wrong suite.
 | `inPlace` | `true` | each package's `vitest.config.ts` imports `../../vitest-*.config.ts` and its tests resolve siblings through the workspace; a sandbox copy breaks both. `runPackage` checks `git status` of `src/` afterwards |
 | `disableTypeChecks` | `false` | vitest does not type-check, and in place it writes `// @ts-nocheck` into every file under `src/` — `roundel`'s `shape.test.ts` reads `index.ts` as text and failed the dry run |
 | `coverageAnalysis` | `perTest` | each mutant runs only the tests that reach it; `all` and `off` were tried and are no help (below) |
-| `vitest.related` | `true` | the dry run runs only suites that import the mutated files |
+| `vitest.related` | `false` | the second false-survivor defect. A mutant the runner sends without a test filter is narrowed to the suites "related" to the mutated file, and under vitest 5 that came back empty: on `roundel/src/import.ts:104-114`, 5 of 20 mutant runs found no test file and ran nothing, and the first full `roundel` run was refused with 84 such survivors, all in `import.ts`. Off, those runs take every suite; the dry run is slower, the score is real |
 | `vitest.configFile` | `<package>/.mutation/vitest.config.ts`, written per run (`wrapperConfig`) | the package's own config, imported statically so vite resolves its `../../vitest-*.config.js` imports, plus the name-filter shim and the per-package `SKIPPED_TESTS` |
 | `timeoutMS` | `10000` | added to a mutant's measured time before it counts as an infinite loop; this machine and a shared runner both run loaded |
 | `concurrency` | 4 in CI, 2 locally | four vCPUs on `ubuntu-latest` |
@@ -84,6 +84,29 @@ reason, skipped by the mutation run only:
 
 - `roundel/src/weight.test.ts` — bundles `src` and holds it to a byte ceiling (14,600 B);
   instrumented source is larger by construction (14,646 B in the dry run).
+- `burgee/src/migrate-bench.test.ts` — A10 times a 1,000-file scan against a CPU yardstick
+  (budget 40); instrumented code ran it at 3,644.
+- `burgee/src/messages.test.ts` — scans the text of `src/` for every message the engine
+  writes; instrumented source holds each literal behind a mutant switch.
+- `burgee/src/testing-helpers.test.ts` — compares `JSON.stringify(process.env)` byte for byte;
+  Stryker's runner forces vitest's `threads` pool, where restoring the env reorders its keys.
+
+Each was found by a dry run failing (`disableBail` and `dryRunOnly` on burgee list them all at
+once). Skipping a file costs the kills its tests would have made; the four above are a lock on
+text, a timing budget and an env-ordering assertion, none of them the suite that exercises the
+logic.
+
+Not skipped, and so not yet measured: `linegauge/src/width.test.ts` compares the text of
+`src/width.ts` with the tables its generator writes, which instrumented source never matches.
+It is also the suite that kills `width.ts`'s mutants, so skipping the file would measure a
+package with its main suite removed. linegauge stays `unmeasured` until that check moves to its
+own file.
+
+**A run never leaves a package instrumented.** `runPackage` keeps the text of every file it
+mutates and writes back any file that differs after Stryker exits (in place, a killed run may
+not restore), and such a run's report is refused. Compared with the text before the run, not
+with git, so uncommitted work is neither flagged nor lost — the first seed run of `roundel`
+was refused by a `git status` check for exactly that.
 
 **The PR lane** (`quality-full.yml` → `mutation`): a `--plan` step decides whether any source
 line changed; only then are packages built and Stryker run. A PR that changes no package source,
