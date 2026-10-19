@@ -229,9 +229,12 @@ jobs:
       # A pull request's subset. Every package is built, not only the affected ones, and no docs
       # app: a suite may import a package it does not declare (the `coverage` job's rule in
       # quality-full.yml, from #827). Then the repository's locks and each affected suite.
-      - name: Build every package (affected subset)
+      # The root suite runs whole and starts the built demo (`clispec-document`, `mcp-config-block`),
+      # so the demo is built too: without it every PR that moved no package's source went red here
+      # (#1143, #1145, #1155). `scripts/root-suite-build-scope-lock.test.ts` holds the two together.
+      - name: Build every package and the demo the root suite runs (affected subset)
         if: env.FULL != 'true' && env.PACKAGES != '[]'
-        run: npx turbo run build --filter='./packages/*' --concurrency=${{ matrix.os == 'macos-latest' && '2' || '4' }}
+        run: npx turbo run build --filter='./packages/*' --filter=demo-cli-burgee --concurrency=${{ matrix.os == 'macos-latest' && '2' || '4' }}
       - name: Our suite, affected packages only (hard gate on every cell)
         if: env.FULL != 'true' && env.PACKAGES != '[]'
         shell: bash
