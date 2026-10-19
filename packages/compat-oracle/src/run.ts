@@ -1192,12 +1192,27 @@ function keepTap(host: Host, target: string, kind: 'public' | 'internal', run: {
  * whole point is that resolution can succeed and still hand the suite the wrong thing.
  */
 function installedCopy(name: string, dir: string): { at: string; version: string | undefined } | undefined {
-  try {
-    const at = resolverAt(dir).resolve(`${name}/package.json`);
-    return { at, version: (JSON.parse(readFileSync(at, 'utf8')) as { version?: string }).version };
-  } catch {
-    return undefined;
+  // Found by walking Node's own lookup path, not by resolving `<name>/package.json`: a package
+  // whose `exports` leaves its manifest out refuses that specifier. tsd's `exports` is the one
+  // string "./dist/index.js", so every tsd pin read as missing and `installSuiteDeps` ran npm on
+  // every call, however many times the pin had been installed.
+  const lookup = resolverAt(dir).resolve.paths(name);
+  // A builtin's name: Node never looks for it in node_modules, so there is no copy to read.
+  if (lookup === null) return undefined;
+  for (const modules of lookup) {
+    const manifest = join(modules, name, 'package.json');
+    if (!existsSync(manifest)) continue;
+    // The nearest manifest is the one Node loads, so an unreadable one ends the walk: a valid
+    // copy further out would only describe a package this suite never gets.
+    try {
+      // A real path, as `require.resolve` would have answered: `unsatisfiedPins` compares it to one.
+      const at = realpathSync(manifest);
+      return { at, version: (JSON.parse(readFileSync(at, 'utf8')) as { version?: string }).version };
+    } catch {
+      return undefined;
+    }
   }
+  return undefined;
 }
 
 /**
