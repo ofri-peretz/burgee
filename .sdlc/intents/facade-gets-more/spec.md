@@ -1,6 +1,12 @@
 # Design — the façade user gets the agent surfaces too
 
-Intent: [`intent.md`](./intent.md). **Status:** review.
+Intent: [`intent.md`](./intent.md). **Status:** see the intent's header.
+
+> Filed as `design.md` until 2026-10-18, when it was renamed `spec.md` so the intent could be
+> approved: `scripts/intent-artifacts-lock.test.ts` requires a `spec.md` beside an `approved` or
+> `shipped` intent. Nothing in it was rewritten. yargs' suite has since grown from 804 to 816 tests
+> (the 18.2.0 re-grade, [`D-20260930-burgee-yargs-1820-regrade`](../../decisions/D-20260930-burgee-yargs-1820-regrade.md)), so G6 is restated in the
+> new count; the 804s below in the Verification block and the history are that day's reading.
 
 ---
 
@@ -13,7 +19,7 @@ Intent: [`intent.md`](./intent.md). **Status:** review.
 | `G3` | `tools/call` on the commander façade replies, and keeps replying after an invoke has injected its own streams. |
 | `G4` | On the commander façade a `--json` that no command in the program declares is burgee's envelope flag at any position before `--`: it is consumed where it stands, takes no value, does not make the rest of argv unknown, and is never reported as an unknown option. |
 | `G5` | A commander-façade failure raised while that flag is set is reported as `{"ok":false,"error":{…}}` on **stdout** and nothing on stderr, carrying `fix` when exactly one suggestion was offered. |
-| `G6` | commander stays 1360 / 1360 and yargs stays 804 / 804. |
+| `G6` | commander stays 1360 / 1360 and yargs stays at 100% of its suite: 804 / 804 when written, **816 / 816** since the 18.2.0 re-grade. |
 
 ## Design
 

@@ -14,10 +14,12 @@ that lands R2 closes the gap file.
 - **R1 — The seam.** `CommonOptions` in the clack port gains `runtime?: Runtime` (roundel's
   type). Where a function reads `processRuntime()` today, it reads `opts.runtime ??
   processRuntime()`.
-- **R2 — Quiet draws nothing.** With `runtime.quiet === true`, `spinner`, `progress`, `tasks`,
-  `taskLog`, `intro`, `outro`, `note` and `log.{info,step,success,message,warn}` write nothing.
-  Their lifecycle methods (`start`, `stop`, `advance`, `message`) still run and resolve.
-  `log.error` writes.
+- **R2 — Quiet draws nothing.** With `runtime.quiet === true`, every decorating writer the
+  clack port exports — `spinner`, `tasks`, `intro`, `outro`, `note` and
+  `log.{info,step,success,message,warn}` — writes nothing. Their lifecycle methods (`start`,
+  `stop`, `message`) still run and resolve. `log.error` writes. *(Restated 2026-10-18 to what
+  shipped: the first text also named `progress` and `taskLog`, which the port does not export,
+  per D-152. When either is ported it falls under this row, and `clack-quiet.test.ts` gains it.)*
 - **R3 — Prompts are unchanged.** `text`, `select`, `confirm` and the rest ignore `quiet`. A
   non-TTY prompt is still the usage error naming the flag.
 - **R4 — burgee's docs show the call.** The `--quiet` section of the burgee README shows

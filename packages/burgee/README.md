@@ -63,7 +63,14 @@ bun add burgee
 
 ## Quick start
 
+```bash
+npx burgee init my-cli && cd my-cli && npm install
+```
+
+`init` writes this file as `cli.mjs`, and a `package.json` that runs it. Nothing else.
+
 ```js
+#!/usr/bin/env node
 // cli.mjs — the whole CLI
 import { defineCommand, run } from 'burgee';
 

@@ -198,10 +198,13 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
  * tag and graded in CI by `compat.yml`'s ratchet job — whose baseline passes as many cases as
  * its control does.
  *
- * The older majors graded today are **not claimed**, because none is level: commander 14
- * grades 1329 / 1331 (15 names the surplus argument in the excess-arguments message, 14 does
- * not), yargs 17 grades 191 / 794 (17's `require('yargs')` is a singleton, which 18 removed),
- * dotenv 17 grades 107 / 141 (18 moved `config()`'s log line to `console.error` and
+ * Commander 14 is claimed: its suite grades `burgee/commander/v14` 1331 / 1331, level with
+ * commander 14.0.3 itself. That subpath is the front-end with 14's excess-arguments message,
+ * which omits the surplus argument 15 names, and `migrate` writes it for a project on 14
+ * (`previous-majors` R1, R2, R6).
+ *
+ * The other older majors graded today are **not claimed**, because none is level: yargs 17
+ * grades 191 / 794 (17's `require('yargs')` is a singleton, which 18 removed), dotenv 17 grades 107 / 141 (18 moved `config()`'s log line to `console.error` and
  * deleted `.env.vault`, `DOTENV_KEY` and the tips, and the façade speaks 18), and ink 6 grades
  * 540 / 584 (`controlroom/ink` follows ink 8 where the two majors disagree — Delete is
  * backspace, a kitty Ctrl+letter is its own code point, the cursor and frame protocol moved;
@@ -215,7 +218,8 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
  *
  * `migrate` reads this, and not `GRADED_VERSIONS`, to decide a project is on a major it may
  * rewrite — so a major that becomes level here is a major `migrate` serves, with no second
- * edit. `scripts/supported-majors-lock.test.ts` holds every entry to `GRADED_VERSIONS` and to
+ * edit, except that a major whose behaviour differs has its own entry, which `migrate` writes
+ * from {@link PREVIOUS_MAJOR_ENTRIES}. `scripts/supported-majors-lock.test.ts` holds every entry to `GRADED_VERSIONS` and to
  * the oracle's graded rows.
  */
 /* eslint-disable conventions/no-magic-numbers -- these are major versions of other packages, data `migrate` reads and a lock holds to the oracle's grades; naming each would be twenty-seven constants that say `15` */
@@ -230,7 +234,7 @@ export const SUPPORTED_MAJORS: Readonly<Record<string, readonly number[]>> = {
   'cli-cursor': [5],
   'cli-table3': [0],
   'cli-truncate': [6],
-  commander: [15],
+  commander: [14, 15],
   cosmiconfig: [10],
   'cross-spawn': [7],
   dotenv: [18],
@@ -256,6 +260,16 @@ export const SUPPORTED_MAJORS: Readonly<Record<string, readonly number[]>> = {
   'wrap-ansi': [10],
   yargs: [18],
   'yargs-parser': [22],
+};
+
+/**
+ * `previous-majors` R6 — the entry `migrate` writes for a specifier whose project is on a
+ * claimed older major that behaves differently from the current one, per specifier and major.
+ * A claimed older major missing here behaves as the current one does, and is rewritten to
+ * `MAPPING`'s target. Each entry is graded: its `PREVIOUS_MAJORS` row's `target` is this value.
+ */
+export const PREVIOUS_MAJOR_ENTRIES: Readonly<Record<string, Readonly<Record<number, string>>>> = {
+  commander: { 14: 'burgee/commander/v14' },
 };
 /* eslint-enable conventions/no-magic-numbers */
 

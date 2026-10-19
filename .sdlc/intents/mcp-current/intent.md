@@ -4,7 +4,7 @@
 > ([`next-wave-2026-10.md`](../../research/next-wave-2026-10.md)), from reading
 > `packages/burgee/src/mcp.ts` against the protocol revision `agent-requirements.md` researched.
 
-**Status:** approved · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-18 on [`1013b65db5`](https://github.com/ofri-peretz/burgee/commit/1013b65db5), verified against `main` at `1013b65db5` — all 4 criteria locked by `mcp.test.ts`, `mcp-transport.test.ts`, `mcp-config.test.ts` and `scripts/mcp-messages.test.ts`
 
 ---
 
@@ -80,6 +80,24 @@ Read on `3a05dc8aad`:
    of the revision it negotiated.
 4. `cli-mcp`'s copy-pasteable-configuration criterion is met: the docs block is generated from
    the demo, and a test starts the server from it and completes a `tools/call`.
+
+## Shipped — 2026-10-18
+
+**Status raised to `shipped`.** Every criterion was checked against `main` at `1013b65db5` in the
+roadmap-to-shipped Batch 0 pass (`.sdlc/research/roadmap-to-shipped-2026-10.md`).
+
+| criterion | check | result |
+| :-- | :-- | :-- |
+| 1. `structuredContent` equals `data`; `outputSchema` listed where declared | `mcp.test.ts -t "R1\|R2\|R3"` | 13 passed, 27 skipped |
+| 2. a cancelled in-flight call aborts `ctx.signal`, exit handlers run once, no reply | `mcp-transport.test.ts -t "a call in flight"` | 3 passed, 11 skipped |
+| 3. every message validates against its negotiated revision's schema | `scripts/mcp-messages.test.ts`, `scripts/mcp-config-block.test.ts` | 23 passed |
+| 4. the config block is generated, and a test starts the server from it | `mcp-config.test.ts` | 8 passed; progress (R5) through `flagstaff/progress.test.ts` 6 passed |
+
+**A model is queued, not written.** The in-flight map has three properties a Quint model should
+hold: cancel versus settle, exactly-once exit handlers, and no reply for a cancelled id. The tests
+above check sampled interleavings. `.sdlc/models/mcp-inflight.qnt` is queued in the roadmap
+tracker (`.sdlc/research/roadmap-to-shipped-2026-10.md`), with its sources added to
+`models.yml`'s `paths:`. It is not part of this stamp.
 
 ## Open questions
 

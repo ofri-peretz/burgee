@@ -11,8 +11,11 @@ evidence are recorded in [`next-wave-3-2026-10.md`](../../research/next-wave-3-2
 
 - **R1 — The writer knows the height.** The frame writer reads `rows` from its stream at every
   paint, as it already reads the width. A stream with no `rows` (a pipe) means unbounded.
-- **R2 — The live frame is clipped.** A frame with more lines than `rows - 1` is painted as its
-  last `rows - 2` lines under one summary line, `… N more`, dimmed through roundel's tokens.
+- **R2 — The live frame is clipped.** A frame with more lines than `rows` is painted as its
+  last `rows - 1` lines under one summary line, `… N more`, dimmed through roundel's tokens.
+  *(Restated 2026-10-18 to what was built and what intent criterion 1 always said: 19 lines plus
+  the summary on 20 rows. The first text clipped above `rows - 1` and kept `rows - 2`, which would
+  clip every full-screen controlroom frame; see the note under the build table.)*
   On `release`, the full frame is written to scrollback once, so nothing the user was shown is
   lost.
 - **R3 — A resize repaints.** On `resize`, the next paint uses the new height and erases what
@@ -41,9 +44,9 @@ which closes [`B-20261012-frames-fit-the-screen-budgets`](../../gaps/B-20261012-
 
 Tally: 5 of 5 built.
 
-R2's arithmetic disagrees with intent criterion 1 and this file's Verification row. R2 clips
-above `rows - 1` and keeps `rows - 2` lines; criterion 1 and Verification keep 19 lines plus the
-summary on 20 rows. The build followed the latter (clip above `rows`, keep `rows - 1` under the
+R2's first text disagreed with intent criterion 1 and this file's Verification row. It clipped
+above `rows - 1` and kept `rows - 2` lines; criterion 1 and Verification keep 19 lines plus the
+summary on 20 rows. The build followed the latter, and R2 above was restated to match on 2026-10-18 (clip above `rows`, keep `rows - 1` under the
 summary), because controlroom's alternate screen paints exactly `rows` lines through
 `frameWriter`, and clipping at `rows - 1` would clip every full-screen frame.
 

@@ -1,6 +1,6 @@
 {
   "name": "burgee",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "A CLI framework built on one declaration: help, --json, --schema, MCP, completions and types are projected from it, with exit codes and fix: lines an agent can act on. No dependency outside the burgee family. Drop-in paths for commander, yargs and meow.",
   "license": "MIT",
   "type": "module",
@@ -73,6 +73,11 @@
       "types": "./dist/commander/extra-typings.d.ts",
       "import": "./dist/commander/extra-typings.js",
       "default": "./dist/commander/extra-typings.js"
+    },
+    "./commander/v14": {
+      "types": "./dist/commander/v14.d.ts",
+      "import": "./dist/commander/v14.js",
+      "default": "./dist/commander/v14.js"
     },
     "./meow": {
       "types": "./dist/meow.d.ts",

@@ -1,6 +1,8 @@
 # Intent — the compatibility grader is a layer, not a private package
 
-**Status:** draft · **Opened:** `2026-09-14` · **Owner:** `@ofri-peretz`
+**Status:** dropped (2026-10-18) · **Opened:** `2026-09-14` · **Owner:** `@ofri-peretz`
+
+> **Dropped 2026-10-18** → [`D-20261018-drop-compat-grader-layer`](../../decisions/D-20261018-drop-compat-grader-layer.md): its trigger is fixed by `changeset-reachable-lock` and `privatePackages.version`, and publishing contradicts compat-oracle's "internal, never published".
 
 Triggered 2026-09-14 while draining the PR queue to zero. `chore(release): version
 packages` kept reopening empty (`+0/-0`) and unmergeable. The cause is four changesets on

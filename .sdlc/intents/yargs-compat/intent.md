@@ -3,7 +3,7 @@
 > Stage 1 artifact. Child of [`burgee`](../burgee/intent.md),
 > and the reason [`replacement-parser`](../replacement-parser/intent.md) is worth building.
 
-**Status:** review · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`
+**Status:** shipped · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz` · **Shipped:** 2026-10-18 on [`1013b65db5`](https://github.com/ofri-peretz/burgee/commit/1013b65db5), verified against `main` at `1013b65db5` — all 4 criteria locked by the compat baseline, `yargs-parity.test.ts` and `weight.test.ts` · approved and shipped 2026-10-18, accepted under the owner's 2026-10-12 delegation
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Evidence:** `packages/burgee/src/yargs-*.ts` and the `./yargs`, `./yargs/helpers`, `./yargs/parser` exports; **804 / 804**, where real yargs scores 802.
 
@@ -51,6 +51,24 @@ The bill for this host, counted rather than estimated: **108 public methods**,
 3. `examples/demo-cli-yargs` runs unmodified against both real yargs and this front-end,
    producing byte-identical stdout for every conformance case.
 4. B4 shows the ceiling in constraint 2 met.
+
+## Shipped — 2026-10-18
+
+**Status raised to `shipped`.** Every criterion was checked against `main` at `1013b65db5` in the
+roadmap-to-shipped Batch 0 pass (`.sdlc/research/roadmap-to-shipped-2026-10.md`).
+
+Accepted at Design→Build and stamped in one pass, under the owner's 2026-10-12 delegation. Every
+criterion was already met on the 2026-09-09 reading below, apart from the band, which landed the
+same day. The stamped numbers are now **816 / 816**, against yargs 18.2.0
+([`D-20260930-burgee-yargs-1820-regrade`](../../decisions/D-20260930-burgee-yargs-1820-regrade.md)).
+The 804 / 804 in the history below is that day's suite.
+
+| criterion | check | result |
+| :-- | :-- | :-- |
+| 1. a pass rate in CI, on the docs site, in the bands | `npm run compat -- yargs`; the `compat-yargs-pass-rate` band (derived from the baseline by `control-bands.ts`); `/docs/compatibility` | commander 1360 / 1360, yargs 816 / 816; the band reads inside over 308 points |
+| 2. every divergence a recorded failing test | `npm run compat -- yargs` beside its control, `--control` | `burgee/yargs` fails none of 816, so there is no divergence to record. The control, real yargs 18.2.0 in the same run, scores yargs 814 / 816 |
+| 3. `demo-cli-yargs` byte-identical against both | `examples/conformance` `yargs-parity.test.ts` | 26 passed |
+| 4. B4 shows the constraint-2 ceiling met | `weight.test.ts` (`./yargs`), `yargs/burgee.test.ts` | 66 passed |
 
 ## Verified against `main` — 2026-09-09
 
