@@ -250,7 +250,10 @@ jobs:
           set -euo pipefail
           echo "Affected: $PACKAGES"
           npx vitest run --config vitest.root.config.ts
-          mapfile -t filters < <(node -p "JSON.parse(process.env.PACKAGES).map((n) => '--filter=' + n).join('\\n')")
+          # A read loop: macOS runs bash 3.2, which has no bash-4 builtins (bash3-workflow-lock).
+          # The step only runs with PACKAGES non-empty, so the array is never empty under set -u.
+          filters=()
+          while IFS= read -r f; do filters+=("$f"); done < <(node -p "JSON.parse(process.env.PACKAGES).map((n) => '--filter=' + n).join('\\n')")
           npx turbo run test "${filters[@]}" --concurrency=${{ matrix.os == 'ubuntu-latest' && '4' || '2' }}
       # The controls grade the real packages through compat-oracle, so only it can move them.
       - name: Controls (informational off Linux)
