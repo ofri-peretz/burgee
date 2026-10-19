@@ -1423,15 +1423,15 @@ function capture(tokens: Tokens, text: string, line: number): void {
   else tokens.dynamic.push({ line: open.line, shape });
 }
 
-/** R3 — follow `argv . x . map (` to its callback's first parameter, and bind it. */
-function bind(tokens: Tokens, text: string): void {
-  const state = tokens.callback;
-  // Stryker disable next-line ConditionalExpression: A10 — without it every token builds a key that matches nothing; the outcome is the same
-  if (state !== undefined) {
-    tokens.callback = CALLBACK.get(`${state} ${text}`);
-    if (tokens.callback === undefined && BINDS.includes(state) && WORD.test(text.charAt(0))) tokens.elements.add(text);
-  }
-  if (text === '(' && ELEMENT_METHODS.includes(tokens.previous) && tokens.before === '.' && tokens.fourth === '.' && ARGV.includes(tokens.fifth)) tokens.callback = 'open';
+/** R3 — one step of the walk from `argv . x . map (` to its callback's first parameter, binding it when it is reached. */
+function walk(tokens: Tokens, state: Callback, text: string): void {
+  tokens.callback = CALLBACK.get(`${state} ${text}`);
+  if (tokens.callback === undefined && BINDS.includes(state) && WORD.test(text)) tokens.elements.add(text);
+}
+
+/** R3 — the `(` just arriving opens `argv . x . map (`, so a callback may follow. */
+function opensACallback(tokens: Tokens): boolean {
+  return ELEMENT_METHODS.includes(tokens.previous) && tokens.before === '.' && tokens.fourth === '.' && ARGV.includes(tokens.fifth);
 }
 
 /**
@@ -1442,10 +1442,11 @@ function bind(tokens: Tokens, text: string): void {
  * the file it is in will be left alone.
  */
 function push(tokens: Tokens, text: string, line: number): void {
-  // Stryker disable next-line ConditionalExpression,LogicalOperator: A10 — the calls are the per-token cost; each makes the same no-op decision itself
+  // Stryker disable next-line ConditionalExpression: A10 — the call is the per-token cost; `capture` makes the same no-op decision itself
   if (tokens.pending || tokens.computed !== undefined) capture(tokens, text, line);
-  // Stryker disable next-line ConditionalExpression,LogicalOperator,EqualityOperator,StringLiteral: as above
-  if (tokens.callback !== undefined || text === '(') bind(tokens, text);
+  // Stryker disable next-line ConditionalExpression: A10 — with no walk in progress, a step matches no key and binds nothing; the test is the per-token cost
+  if (tokens.callback !== undefined) walk(tokens, tokens.callback, text);
+  if (text === '(' && opensACallback(tokens)) tokens.callback = 'open';
   tokens.pending = text === '(' && (tokens.previous === 'import' || tokens.previous === 'require');
   trackCall(tokens, text);
   if (text === 'import' || text === 'export') tokens.clause = [];
@@ -1531,24 +1532,8 @@ export function scan(source: string): Scan {
 /** One pass of {@link scan}. `literal`, when given, is handed the bounds of every string and template that is not a specifier. */
 function pass(source: string, literal?: (start: number, end: number) => void): { sites: Site[]; tokens: Tokens } {
   const sites: Site[] = [];
-  const tokens: Tokens = {
-    previous: '',
-    before: '',
-    third: '',
-    fourth: '',
-    fifth: '',
-    ready: undefined,
-    opened: undefined,
-    angle: 0,
-    generic: undefined,
-    pending: false,
-    nonLiteral: [],
-    computed: undefined,
-    callback: undefined,
-    elements: new Set(),
-    dynamic: [],
-    clause: undefined,
-  };
+  // Stryker disable next-line StringLiteral: the five slots start empty; no check matches '' or any other non-token, so the first tokens read the same from any start
+  const tokens: Tokens = { previous: '', before: '', third: '', fourth: '', fifth: '', ready: undefined, opened: undefined, angle: 0, generic: undefined, pending: false, nonLiteral: [], computed: undefined, callback: undefined, elements: new Set(), dynamic: [], clause: undefined };
   lex(source, (text, line, start, end) => {
     if (text === QUOTED && isSpecifier(tokens)) sites.push(siteOf(source, { open: start, close: end, line }, tokens));
     else if (text === QUOTED || text === 'lit') literal?.(start, end);
@@ -1659,7 +1644,7 @@ export function bindingsOf(clause: readonly string[]): { typeOnly: boolean; name
     // `type x` / `type x as y`: the modifier. `type` alone, or `type as y`, is a binding named `type`.
     const modifier = element[0] === 'type' && element.length > 1 && element[1] !== 'as';
     const name = modifier ? element[1] : element[0];
-    if (name !== undefined && name !== 'default' && WORD.test(name.charAt(0))) names.push(name);
+    if (name !== undefined && name !== 'default' && WORD.test(name)) names.push(name);
     element = [];
   }
   return { typeOnly, names };

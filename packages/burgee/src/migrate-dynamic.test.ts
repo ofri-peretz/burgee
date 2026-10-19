@@ -152,8 +152,9 @@ describe('migrate-dynamic-specifiers R1–R3 — the three shapes pass', () => {
     'argv[use].map((p) => import(p))',
     'argv.use(map((p) => import(p)))',
     'argv+use.map((p) => import(p))',
+    'argv.use.map.call(list, (call) => 1);\nimport(call)',
   ])('a P bound by %s does not pass', (line) => {
-    expect(verdict(`import pc from 'picocolors';\n${line};\n`)).toEqual({ refused: [2], dynamic: [] });
+    expect(verdict(`import pc from 'picocolors';\n${line};\n`)).toEqual({ refused: [line.includes('\n') ? 3 : 2], dynamic: [] });
   });
 });
 
@@ -273,11 +274,17 @@ describe('migrate-dynamic-specifiers R5 — every other computed specifier is re
     "require(path.join(process.argv(), 'x'))",
     "require(path.join(__dirname, 'x',))",
     'require(path.join(__dirname, require(x)))',
+    'require(path.join(__dirname, require(argv.x)))',
+    "require(lib.path.join(__dirname, 'x'))",
   ])('%s is refused', (line) => {
     const result = rewriteSource(`import pc from 'picocolors';\n${line};\n`);
     expect(result.refused.map((r) => r.line)).toContain(2);
     expect(result.refused.every((r) => r.reason === 'non-literal-specifier' && r.specifier === '')).toBe(true);
     expect(result.dynamic).toEqual([]);
+  });
+
+  it('a computed call inside another is refused on its own line, and so is the one around it', () => {
+    expect(verdict("import pc from 'picocolors';\nrequire(fn(\n  require(name)));\n")).toEqual({ refused: [2, 3], dynamic: [] });
   });
 
   it('a computed import the file never closes is refused at its line', () => {
@@ -288,5 +295,26 @@ describe('migrate-dynamic-specifiers R5 — every other computed specifier is re
     const result = rewriteSource("import pc from 'picocolors';\nrequire('x');\nimport();\n");
     expect(result.refused).toEqual([]);
     expect(result.dynamic).toEqual([]);
+  });
+});
+
+/**
+ * Lines this change touched that were already there: each case kills a mutant the PR lane now
+ * reaches on them, so these pass on `main` too, by construction.
+ */
+describe('migrate-dynamic-specifiers — the lines it touched', () => {
+  it.each([
+    ['a ]', 'const n = a[0] / 2; const c = require(\'commander\'); const m = n / 2;'],
+    ['a }', 'const n = f() || {} / 2; const c = require(\'commander\'); const m = n / 2;'],
+    ['a string', "const n = 'a' / 2; const c = require('commander'); const m = n / 2;"],
+  ])('a / after %s divides, so the require after it is still read', (_after, line) => {
+    expect(rewriteSource(`${line}\n`).mapped).toEqual([{ from: 'commander', to: 'burgee/commander' }]);
+  });
+
+  it('a rewrite lists what it moved in source order', () => {
+    expect(rewriteSource("import pc from 'picocolors';\nimport { Command } from 'commander';\n").mapped).toEqual([
+      { from: 'picocolors', to: 'roundel/picocolors' },
+      { from: 'commander', to: 'burgee/commander' },
+    ]);
   });
 });
