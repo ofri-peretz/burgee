@@ -5,7 +5,45 @@ Intent: [`intent.md`](./intent.md). **Status:** draft.
 Children: [`linegauge`](../linegauge/spec.md) · [`seniority`](../seniority/spec.md) ·
 [`bellpull`](../bellpull/spec.md) · [`closeout`](../closeout/spec.md).
 
+**Restated:** 2026-10-18 — see § Restated 2026-10-18
+
 ---
+
+## Restated 2026-10-18
+
+**Nine of twelve floor rows are held on main (most through a child), Y8 moves to the children, and three rows keep an unowned piece. REMAINING: Y2 incumbent-count and weekly-downloads half unlocked, Y4 platform-absorption check per Node LTS unbuilt, Y12 no-burgee README opening unlocked (S3 and S5, success criteria, are the other two; see `intent.md`).**
+
+Read on `main` at `1013b65db5` (2026-10-18); no test was run, and every check below was
+located on that commit by file and test name. The requirement text below is kept as written.
+Each child cites the Y row it implements by ID in its own requirement (`closeout` R6 is `(Y3)`);
+a child's success criterion is cited by position (`closeout-at-incumbent-weight` S1 is item 1 of
+its `## Success criteria`).
+
+| ID | promised | on main | check | disposition |
+| :-- | :-- | :-- | :-- | :-- |
+| Y1 | a foundation package imports nothing but Node; `burgee` never depends on one; shared logic kept as two copies with a test-vector file | the floor half holds and is locked for the six-package tier (`paratext` and `roundel` joined). The `burgee` half was reversed: `burgee` depends on `bellpull`, `closeout`, `linegauge`, `seniority`, and `precedence.ts` moved into `seniority` | `scripts/package-shape-lock.test.ts` › "the foundation tier (Y1)" › "%s depends on nothing: it is the floor" and › "%s reaches nothing in the family: the arrow points one way"; › "a leaf depends on nothing in the repo" › "%s has no edge to a sibling, in any dependency field" | restated (PR #219, `ac7b9e5c30`; `burgee/spec.md` U1, D-130), held |
+| Y2 | each README and benchmark page states incumbents replaced, their combined weekly downloads, and the installed bytes removed, by `npm i` + `du` on the day | the bytes half is built and generated: each README prints "Weight, installed and tree-inclusive: N bytes against M for the incumbents it replaces", from `foundation-ceilings.json` (PLAN D1, `installedBytes` in `benchmarks/axes/weight.ts`). The incumbents and their weekly downloads appear in hand-written Compatibility tables; no combined figure is printed and nothing locks them | `scripts/readme-benchmarks-lock.test.ts` › "matches what was measured, so a hand edit goes red"; `scripts/foundation-ceilings-lock.test.ts` › "agrees with itself: the ceiling is the sum, and the ratio is ours over it" | restated (PLAN D1 method), bytes half held; incumbent-count and weekly-downloads half remaining (no child requirement owns it) |
+| Y3 | each root default export matches its incumbent so `overrides` aliasing works; a documented recipe per package, gated on Y7; a fixture runs the incumbent's suite through the override | restated by D-133: an override can aim only at a package root, so the drop-ins are named subpaths (`closeout/signal-exit`, `seniority/find-up`, `bellpull/cross-spawn`…) swapped by import and by `burgee migrate`; only `linegauge`'s root (`width` = `string-width`'s default) is an override target. Each subpath is graded by its incumbent's suite through the oracle, and every printed recipe must resolve | `scripts/override-recipe-lock.test.ts` › "an overrides recipe resolves against our root"; `packages/linegauge/src/shape.test.ts` › "the root default is `width` under require, which is what the string-width override resolves" | restated (D-133), held via `linegauge` R8, `seniority` R8, `bellpull` R7 (restated 2026-09-16), `closeout` R6 (D-133) |
+| Y4 | each README names the builtin it composes; a platform-absorption test re-runs at each Node LTS; an absorbed layer is deprecated on purpose | no platform-absorption test exists, and no child requirement owns one | none | remaining: needs an owner (a new intent, or a requirement in each child) |
+| Y5 | every structured result has one value and three renderings | built in all three layers that return a record | `packages/seniority/src/explain.test.ts` › "the human text `explain` prints IS the record rendered — same function, same bytes"; `packages/bellpull/src/matrix.test.ts` › "one result, three renderings (R5, Y5)"; `packages/closeout/src/report.test.ts` › "the --json projection" and › "the agent projection" | held via `seniority` R4, `bellpull` R5, `closeout` R2 |
+| Y6 | provenance where a value has a source | built | `packages/seniority/src/discovery.test.ts` › "is on the layer `discover` hands back, so `--explain` and R12 can cite a line"; `packages/bellpull/src/which.test.ts` › "reports the PATH entry that answered"; `packages/closeout/src/registry.test.ts` › "tells a handler which door the program left by" | held via `seniority` R3, `bellpull` R3, `closeout` R2 |
+| Y7 | thirteen suites vendored, `--control` first, ratcheting; the pass rate is a safety interlock | all thirteen graded (figures in `intent.md` S2); execa reads 0 / 1179 as a declared `ceiling`, which is the interlock working: no recipe or migration may name `bellpull` for execa (D-160) | `.github/workflows/compat.yml` job "Ratchet · each host's suite against burgee"; `packages/compat-oracle/src/gate.test.ts` › "fails a known-good implementation that is one case short of its own suite" | held via `linegauge` R10, `closeout` R9, `seniority` R10, `bellpull` R9 |
+| Y8 | each package at or under the lightest zero-dependency incumbent on bundled bytes and spawn delta, baselines in `.sdlc/bands/` | restated by PLAN D1: the ceiling is the incumbents' installed bytes including their trees, recorded in `.sdlc/bands/foundation-ceilings.json`; every layer is under it there. The bundled and spawn halves are per child, and two are open: `closeout`'s drop-ins bundle heavier than `signal-exit` and `exit-hook` (B4 ratchets 1.31 and 2.98), and `seniority`'s spawn delta is unmeasured | `scripts/foundation-ceilings-lock.test.ts` › "holds every layer’s `ours` with a test in that package, since this file does not re-measure" | restated (PLAN D1); moved → `linegauge` R9 (held), `seniority` R9, `bellpull` R8, `closeout` R8 with `closeout-at-incumbent-weight` S1 |
+| Y9 | nothing reads `process.*`; the env-reference grep extends to the four | built: `linegauge` names the process nowhere; `seniority` (D-135), `bellpull` and `closeout` each have one seam file | `packages/burgee/src/process-reference-lock.test.ts` › "no layer source reads process.* outside the three files that own it" | held via `linegauge` R11, `seniority` R11, `bellpull` R10, `closeout` R7 |
+| Y10 | cleanup, spawn and the upward walk each have a finite, overridable deadline reported as an outcome | built | `packages/closeout/src/registry.test.ts` › "stops waiting for a handler that never settles"; `packages/bellpull/src/matrix.test.ts` › "the deadline, end to end (R2, Y10)"; `packages/seniority/src/search.test.ts` › "visits at most WALK_LIMIT directories, so a pathological depth cannot hang a start-up" | held via `closeout` R3, `bellpull` R2, `seniority` R5 |
+| Y11 | every fast path locked by a differential test against the slow path | built where a fast path exists (`linegauge`'s ASCII scan) | `packages/linegauge/src/differential.test.ts` › "R2 — the ASCII fast path answers what the Segmenter path answers" | held via `linegauge` R2 |
+| Y12 | own README, competitors, benchmark page, useful alone; burgee not above the fold (mirrors U12) | each package installs and loads alone, has its own docs site and README header, and its README opens with its incumbent and links its benchmark page. The adopter half of U12 left the gate under D-20261009-burgee-u12-1-0 (see `intent.md` S5). No lock asserts the opening never names burgee (true on `1013b65db5` by reading) | `scripts/independence-install-lock.test.ts` › "installs nothing but itself and the in-family packages it declares"; `scripts/readme-opening-lock.test.ts` › "every published README opens with the incumbent it replaces, then its agent surface"; `scripts/package-readme-header-lock.test.ts` › "every published README has the family header and shape"; `scripts/readme-benchmarks-lock.test.ts` › "every package README links the published page" | restated (D-20261009-burgee-u12-1-0), held except the no-burgee clause → remaining |
+
+**Design text the tree contradicts**, kept below as written:
+
+- *§ Where the shared `Runtime` type lives* promised "a test in this umbrella's directory that
+  reads all four `dist/` outputs and asserts the declared shapes are structurally identical".
+  No such test exists; the shared rule that holds instead is the one-seam-file process lock (Y9).
+  Recorded here as an unbuilt design detail, not a requirement row.
+- *§ Out of scope*, "A CLI in any of the four packages" — each ships a `bin` that is its plugin
+  `check` command (PRINCIPLES 7); see `intent.md` § Restated 2026-10-18.
+- *§ The roadmap* F1–F4 ran: all four packages are published. The `tinyexec` re-check was
+  decided by D-048 and `bellpull` shipped.
 
 ## Requirements
 

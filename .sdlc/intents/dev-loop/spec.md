@@ -2,7 +2,27 @@
 
 Intent: [`intent.md`](./intent.md). **Status:** review — built, W1–W6 verified.
 
+**Restated:** 2026-10-18 — see § Restated 2026-10-18
+
 ---
+
+## Restated 2026-10-18
+
+**W1, W2, W3 and W5 held (W2 and W3 restated); W4 and the save segment of W6 have no check — REMAINING: W4 byte-identical-after-removal test, W6 save-to-reload segment untimed.**
+
+The header's "W1–W6 verified" predates the 2026-09-09 pass in the intent, which found W2's
+conformance case, W3's full manifest and W4's byte-identity unbuilt.
+
+| ID | promised | on main | check | disposition |
+| :-- | :-- | :-- | :-- | :-- |
+| W1 | watch, reload, fresh `Runtime` each time | yes; reloads serialised, newest served | `packages/burgee/src/dev.test.ts` › "serves the entry over MCP, and after an edit the new command is listed, announced, and called on its new handler"; `packages/burgee/src/dev.test.ts` › "serialises reloads that pile up during one, and serves the newest"; `.sdlc/models/dev-reload.qnt` (`safety`, run by `models.yml`) | held |
+| W2 | MCP on stdio via `cli-mcp`'s server; `tools/list_changed` on every reload | yes (`startMcp()` in `mcp.ts`) | `packages/burgee/src/dev.test.ts` › "reloads on its own when the watched entry changes" | restated (dev suite, not conformance) |
+| W3 | each reload prints the manifest and the rendered help | a summary, a diff by command path, the rendered help | `packages/burgee/src/dev-load.test.ts` › "names a removed command with a minus", › "prints no help for a program with no root node, rather than a blank one" | restated |
+| W4 | dev-time only, removable; a project that never runs it is byte-identical | `dev.js` denied on every shipped entry | `packages/burgee/src/weight.test.ts` › "reaches nothing on its denied list" | non-inclusion held; byte-identity remaining |
+| W5 | no directory convention; watches the entry it is given | yes; source files only, `node_modules` ignored | `packages/burgee/src/dev-watch-filter.test.ts` › "ignores a file that is not source, and anything under node_modules", › "reloads when the platform does not name the file, since it may be the entry" | held |
+| W6 | save-to-callable under 500 ms on 30 commands | reload-to-callable under max(500 ms, 5 imports) (A30) | `packages/burgee/src/dev.test.ts` › "reloads thirty commands within the budget" | budget restated and held; save-to-reload segment remaining |
+
+See the intent's § Restated 2026-10-18 for the reasoning on each row.
 
 ## Requirements
 
@@ -73,6 +93,8 @@ graph (`'one 29'` where `'two 29'` was expected). With the query, green.
 W4 is a lock in `weight.test.ts`: `dev.js` is on the denied list of `.`, `./testing`,
 `./commander` and `./yargs`, so nothing a shipped CLI imports can reach the dev loop; the
 package's own CLI reaches it through a dynamic import, paid only on `burgee dev`.
+*(2026-10-18: this holds non-inclusion; W4's "byte-identical" half has no test and is
+remaining.)*
 
 **Shipped 2026-09-08.** `burgee dev <entry>`: the entry exports `program` (or default) as
 a burgee manifest, a commander `Command` or a yargs instance — all three are served, each

@@ -75,6 +75,16 @@ describe.each(Object.entries(HOSTS) as [HostName, (typeof HOSTS)[HostName]][])('
     expect(r.stdout).toMatch(/config/);
   });
 
+  it('writes no ANSI escape when no stream is a terminal — help, output, a failure and a usage error', async () => {
+    // cli-testing-harness S1: a deliberate ANSI-in-non-TTY regression in a demo turns this red.
+    // The harness's default is "no stream is a TTY", so colour here is colour piped into a file.
+    for (const argv of [['--help'], ['greet', 'ada'], ['fail'], ['confg']]) {
+      // eslint-disable-next-line reliability/no-await-in-loop -- one run at a time: each swaps process state
+      const r = await run({ argv });
+      expect(`${r.stdout}${r.stderr}`, `${host} ${argv.join(' ')}`).not.toContain('\u001b');
+    }
+  });
+
   it('leaves process.env byte-identical after a run that injected env and failed', async () => {
     const before = JSON.stringify(process.env);
     await run({ argv: ['fail'], env: { DEMO_GREETING: 'x' } });

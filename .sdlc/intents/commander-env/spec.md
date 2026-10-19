@@ -4,6 +4,34 @@ Intent: [`intent.md`](./intent.md). **Status:** review.
 
 ---
 
+## Restated 2026-10-18
+
+**R1, R2, R4, R5 and R7 are held on main through `seniority` and the native engine. R6's `--explain` chain and `node_modules` case move to `seniority` R7. R3's façade half is unbuilt — REMAINING: R3 (`--explain` and a checked `meta.provenance` on the façades).**
+
+Verified against burgee `main` at `1013b65db5` with `git grep`; no test was run. The § Design
+tree below (`packages/cli-core/src/precedence/`, `packages/commander-env/src/`, `withEnv`)
+was never built. The resolver is `packages/seniority/src/precedence.ts`, `explain.ts` and
+`config.ts`. The native engine (`packages/burgee/src/execute.ts`, `config-layers.ts`,
+`pkg.ts`) calls it on every run. The commander-syntax `withEnv` is not built; on
+`burgee/commander` a program keeps commander's own `Option#env()`, graded by the compat
+oracle. The intent-level criteria (C1–C4, V2, K3) are in
+[`intent.md` § Restated 2026-10-18](./intent.md#restated-2026-10-18).
+
+| ID | promised | on main | check | disposition |
+| :-- | :-- | :-- | :-- | :-- |
+| R1 | `withEnv` `preAction` hook resolving flag > env > config > package.json > default, for the running command only | yes, as the engine's resolution step, not a hook | `packages/seniority/src/precedence.test.ts` › "flag > env > config > package.json > default (V1)" (five cases); `packages/burgee/src/env.test.ts` › "env beats config, a flag beats env"; › "env never leaks into a command that does not declare the option (V1, yargs #873)" | restated |
+| R2 | env names from the option's `env`, or `PREFIX_OPTION_NAME` in SCREAMING_SNAKE, never camel-cased back | yes (`envPrefix` on `defineProgram`, `OptionSpec.env`) | `packages/seniority/src/precedence.test.ts` › "names come from the prefix in SCREAMING_SNAKE, never camel-cased back (yargs #2005)"; › "an explicit env name wins over the prefix (yargs #1655), and without a prefix there is none" | held |
+| R3 | `--explain <option>` prints the winner and all candidates; `meta.provenance` under `--json` | native engine: yes. `burgee/yargs`: provenance yes, `--explain` no. `burgee/commander`: `_provenance()` exists but no test asserts a non-empty record; `--explain` no | `packages/burgee/src/env.test.ts` › "--explain <option> prints the winner and the candidates it beat, and runs nothing"; `packages/seniority/src/explain.test.ts` › "names the winner and every candidate, in ORDER, whether it was set or not"; `packages/burgee/src/yargs/burgee.test.ts` › "wraps the handler return value with provenance" | native held; façade half remaining |
+| R4 | `name`/`version` from the `package.json` nearest the entry file, not `process.cwd()` | yes | `packages/burgee/src/env.test.ts` › "--version reads the package.json that owns the entry file (V4), unless the program declares one"; `packages/burgee/src/owning-package.test.ts` › "finds the CLI's own package.json, not the installing project's" | held |
+| R5 | fixed discovery; `--no-config` disables all; explicit missing is `CONFIG`, discovered missing is silent | yes | `packages/seniority/src/config.test.ts` › "lists explicit env, the cwd files by extension, then the user directory"; › "--config names a file explicitly; a missing one is a CONFIG error, not silence (yargs #1676)"; › "--no-config disables discovery entirely, explicit env included"; `packages/burgee/src/env.test.ts` › "--no-config drops the file and the package.json field; --config names one; a missing one exits CONFIG (3)" | held |
+| R6 | `extends` relative or through `node_modules`, deep-merged left to right, cycles rejected | relative, left-to-right, deep merge and cycles: yes. A `node_modules` target is tested only in the negative ("names an unresolvable extends target"). The chain is recorded (`loaded.chain`) but not shown by `--explain`, whatever the 2026-09-08 status row says | `packages/seniority/src/config.test.ts` › "deep-merges nested keys, the extending file winning (yargs #1305, #1627)"; › "resolves relative to the extending file, left to right, and records the chain"; › "rejects a cycle by name (yargs #1363)" | held; chain-in-`--explain` and the positive `node_modules` case moved → `seniority` R7 |
+| R7 | env booleans `1/0/true/false/yes/no`; `PREFIX_NO_X` rejected naming `PREFIX_X=false` | yes | `packages/seniority/src/precedence.test.ts` › "booleans from env: one spelling each way (R7)" (six `%s → %s` cases); › "anything else is a CONFIG error naming the fix"; › "PREFIX_NO_X is rejected with the one spelling named (yargs #2501)"; `packages/burgee/src/env.test.ts` › "a bad env boolean is CONFIG (3) with the fix, not a runtime failure" | held |
+
+The `seniority` move is checked: `.sdlc/intents/seniority/spec.md` R7 reads "`extends` …
+resolves relative to the extending file or through `node_modules`, … and the chain appears
+in `explain`". Its § What is built marks R7 built on `config.test.ts`, which holds neither
+half, so the move lands on an open item and does not close one.
+
 ## Requirements
 
 - **R1 (V1)** `withEnv(program, { prefix?: string, config?: ConfigSpec })` installs a
@@ -58,7 +86,7 @@ discovered, keeping the core zero-dep.
 | R7 | env booleans accept `1/0/true/false/yes/no`; anything else is CONFIG (3) with the fix; `PREFIX_NO_X` is rejected naming `PREFIX_X=false` (yargs #2501) | "booleans from env" |
 | YAML | not supported — a parser is a dependency (K1); JSON and JavaScript configs cover the cases | — |
 | async loaders | JavaScript configs may export a function, awaited (yargs #2234) | "loads a JavaScript config" |
-| commander front-end config/`--explain` | not yet — provenance only; `withEnv` for commander syntax is the next slice | — |
+| commander front-end config/`--explain` | not yet — provenance only; `withEnv` for commander syntax is the next slice (2026-10-18: still not built; R3 façade half remaining, § Restated 2026-10-18) | — |
 
 ## Verification
 

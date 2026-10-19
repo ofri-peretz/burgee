@@ -2,7 +2,31 @@
 
 Intent: [`intent.md`](./intent.md). **Status:** review — corrected from `shipped` 2026-09-09; the locks shipped, the bands did not.
 
+**Restated:** 2026-10-18 — see [§ Restated 2026-10-18](#restated-2026-10-18)
+
 ---
+
+## Restated 2026-10-18
+
+**R1, R4 and R5 hold as shipped; R2, R3 and R6 are restated, each with a remaining piece — REMAINING: R2/R3, R6.**
+
+The full table, with the check for each row, is in the intent's
+[§ Restated 2026-10-18](./intent.md#restated-2026-10-18). In short:
+
+- **R1** shipped as `scripts/intent-artifacts-lock.test.ts`. A `spec.md` needs one rejection
+  or non-goal heading (`Rejected…`, `Explicit non-goals`, `Non-goals`, `Out of scope`,
+  `Risks and rejected`), not one of each.
+- **R2** shipped as layer 1 of `scripts/run-evals.ts`, tested by `scripts/run-evals.test.ts`.
+  Its set excludes `.sdlc/intents/` (**remaining**), and its stale
+  `PLANNED_DOCS = /^docs\/intents\//` must move with it. Floor ids are `[FOEVSPDTHMK]`.
+- **R3** `evals.yml` fires on a narrower list than written: no `**/*.md` and no
+  `.sdlc/intents/**` (**remaining**). It is still not a required check.
+- **R4** held. The reserved `benchmark-json` collector is live, and
+  `benchmarks/bands.test.ts` › "agrees with .sdlc/bands/control-bands.json, band for band"
+  holds the pairing.
+- **R5** held. The watcher has written five `control-band-*` intents on `main`.
+- **R6** rules 1 and 4 and the generated intent are tested. Rules 2 and 3 are not
+  (**remaining**).
 
 ## Requirements
 
@@ -12,13 +36,18 @@ Intent: [`intent.md`](./intent.md). **Status:** review — corrected from `shipp
   `## Why now`, `## Constraints`, `## Success criteria`; `spec.md`, when present, has
   `## Rejected alternatives` (or `## Explicit non-goals`) and `## Out of scope` (or
   `## Non-goals`); `approved`/`shipped` require `spec.md`; no `intent.md` exists
-  outside `.sdlc/intents/`.
+  outside `.sdlc/intents/`. **Restated 2026-10-18:** at `scripts/intent-artifacts-lock.test.ts`,
+  with one rejection-or-non-goal heading required rather than both — held.
 - **R2** `evals/layer1/links.test.ts`: every `[text](relative)` in the agent-facing set
   resolves to a file (anchors ignored); every `scripts/<name>` or `npm run <script>`
   mentioned exists in `scripts/` or root `package.json`; every `\b[FOEVSPDT]\d{1,2}\b`
   cited in `.sdlc/intents/*/` (excluding the umbrella) appears in the umbrella design.
+  **Restated 2026-10-18:** layer 1 of `scripts/run-evals.ts`, tested in
+  `scripts/run-evals.test.ts`; `.sdlc/intents/` is outside its link and script set — remaining.
 - **R3** `.github/workflows/evals.yml` runs R2 on PRs touching `**/*.md`, `docs/**`,
   `.github/**`, `eslint.config.mjs`, `CLAUDE.md`; it is not a required check yet.
+  **Restated 2026-10-18:** the `paths:` list has no `**/*.md` and no `.sdlc/intents/**` —
+  remaining.
 - **R4** `.sdlc/bands/control-bands.json` with collectors: `command-duration` (`npm test`),
   `eslint-config-stats` (`{ rulesOn, documentedFalsePositives }` from importing
   `eslint.config.mjs`), and a reserved `benchmark-json` for intent 5. `window: 20`,
@@ -28,7 +57,8 @@ Intent: [`intent.md`](./intent.md). **Status:** review — corrected from `shipp
   rules; on a 2σ+ breach it writes `.sdlc/intents/control-band-<id>/intent.md` from the
   template and opens a PR via `gh`.
 - **R6** Unit tests for the watcher: the WE rules on synthetic series; the generated
-  intent passes R1.
+  intent passes R1. **Restated 2026-10-18:** rules 1 and 4 and the generated intent are
+  tested in `scripts/control-bands.test.ts`; rules 2 and 3 have no test — remaining.
 
 ## Design
 

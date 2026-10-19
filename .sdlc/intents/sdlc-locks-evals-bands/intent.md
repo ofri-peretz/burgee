@@ -7,10 +7,93 @@
 **Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz · **Corrected from
 `shipped` 2026-09-09** — the locks shipped, the bands did not; see [Verified against `main`](#verified-against-main--2026-09-09)
 
+**Restated:** 2026-10-18 — see [§ Restated 2026-10-18](#restated-2026-10-18)
+
 > Approved 2026-09-06 by @ofri-peretz in session ("You have everything on eslint repo,
 > why can't you copy it") — the copy-from-eslint intent, built the same day.
 
 ---
+
+## Restated 2026-10-18
+
+**The locks and the watcher hold; three things do not, so this intent stays open — REMAINING: S2/R2/R3, S3, R6.**
+
+Audited read-only against `main` at `1013b65db5` (2026-10-18). No test was run; "held" means
+the named check exists on `main` and asserts the criterion. IDs: S1–S4 are the four
+[Success criteria](#success-criteria) bullets in order; R1–R6 are [`spec.md`](./spec.md)'s
+requirements. Nothing below is deleted; the original text stands and carries a marker.
+
+| ID | promised | on main | check | disposition |
+| :-- | :-- | :-- | :-- | :-- |
+| S1 | renaming `## Why now`, or `approved` with no `spec.md`, turns `npm test` red | yes | `scripts/intent-artifacts-lock.test.ts` › ".sdlc/intents/%s is well-formed" | held |
+| S2 | a broken relative link in `.sdlc/intents/README.md` fails the evals job | no: `.sdlc/intents/` is not scanned | none | remaining |
+| S3 | the weekly job records four observations per run; after eight runs the 2σ evaluation is real | partly: two of the four bands compute, one is fed by another workflow, one has stalled | the series in `.sdlc/bands/control-bands.history.json` (no test) | restated; `test-duration-ms` remaining |
+| S4 | a simulated breach writes an `intent.md` that passes the intent lock | yes | `scripts/control-bands.test.ts` › "satisfies the schema the intent lock enforces" | held |
+| R1 | `scripts/__tests__/intent-artifacts.lock.test.ts` with the sections, statuses, spec rule and stray rule | yes, at another path, with one rule relaxed | `scripts/intent-artifacts-lock.test.ts` › ".sdlc/intents/%s is well-formed", › "every intent lives under .sdlc/intents — one convention, not two" | restated |
+| R2 | `evals/layer1/links.test.ts`: links, scripts and floor ids across the agent-facing set | yes, as `scripts/run-evals.ts` layer 1, minus `.sdlc/intents/` | `scripts/run-evals.test.ts` › "reports a relative link to nothing, and one that escapes the repo", › "reports script files and npm scripts that do not exist", › "reports an id a child cites that the umbrella does not define" | restated; `.sdlc/intents/` remaining |
+| R3 | `evals.yml` runs on `**/*.md`, `docs/**`, `.github/**`, `eslint.config.mjs`, `CLAUDE.md` | yes, on a narrower `paths:` list | `.github/workflows/evals.yml` `on.pull_request.paths` | restated; `.sdlc/intents/**` remaining |
+| R4 | `control-bands.json` with `command-duration`, `eslint-config-stats` and a reserved `benchmark-json` | yes, and the reserved collector is live | `benchmarks/bands.test.ts` › "agrees with .sdlc/bands/control-bands.json, band for band" | held |
+| R5 | `--record`, `--evaluate` with the Western Electric rules, a breach writes `control-band-<id>/intent.md` and opens a PR | yes | `scripts/control-bands.test.ts` › "reports the breach with the numbers a reader needs to argue with it"; `scripts/band-series.test.ts` › "is still idempotent against what is already recorded"; the PR step in `.github/workflows/control-bands.yml` | held |
+| R6 | watcher unit tests: the WE rules on synthetic series; the generated intent passes R1 | rules 1 and 4 and the generated intent only | `scripts/control-bands.test.ts` › "rule 1 — a single point beyond 3σ", › "rule 4 — eight consecutive on one side is drift, even with no unusual point", › "satisfies the schema the intent lock enforces" | restated; rules 2 and 3 remaining |
+
+What changed, one row at a time:
+
+- **S1, R1.** The lock shipped as `scripts/intent-artifacts-lock.test.ts`, not under
+  `scripts/__tests__/`. It asserts `# Intent —`, a status in
+  `draft|review|approved|shipped|dropped`, the three sections plus either success heading, and
+  `spec.md` for `approved`/`shipped`. One rule is weaker than R1 wrote: a `spec.md` needs
+  **one** heading matching `Rejected…`, `Explicit non-goals`, `Non-goals`, `Out of scope` or
+  `Risks and rejected`, not both a rejection heading and an out-of-scope heading. The lock's
+  own comment gives the reason: a rejected option and a declared non-goal are the same
+  artifact. R1 is restated to that rule.
+- **S2, R2, R3: the one real gap.** The link checker is layer 1 of `scripts/run-evals.ts`, not
+  `evals/layer1/links.test.ts`. It scans `README.md`, `CLAUDE.md`, `AGENTS.md`, `docs/`,
+  `.github/`, `.sdlc/bands/` and every docs app's `content/` taken from
+  `.github/vercel-apps.json` (`CONFIG_DIRS`). It does not scan `.sdlc/intents/`. Only the
+  floor-id check reads that directory, and its id class is now `[FOEVSPDTHMK]`, wider than
+  R2's `[FOEVSPDT]`. `evals.yml` fires on `README.md`, `CLAUDE.md`, `docs/**`, `.github/**`,
+  `.sdlc/bands/**`, `apps/*/content/**`, `eslint.config.mjs`, `evals/**` (not
+  `evals/history/**`) and `scripts/run-evals.ts`. That list has no `**/*.md` and no
+  `.sdlc/intents/**`. Measured for this restatement: the same link rule run over the 191
+  Markdown files under `.sdlc/intents/` at `1013b65db5` finds **0** broken links. Adding the
+  directory is therefore cheap for links, but not for scripts. `missingScripts` exempts
+  planned work with `PLANNED_DOCS = /^docs\/intents\//`, a path from before intents moved, so
+  it would report **12** planned-script mentions (for example
+  `.sdlc/intents/windows-lane-holds/spec.md → scripts/slow-cases.test.ts`). The remaining work
+  is to add `.sdlc/intents` to `CONFIG_DIRS` and `.sdlc/intents/**` to `evals.yml`'s `paths:`,
+  move `PLANNED_DOCS` to `^\.sdlc\/intents\/`, and add a case to `scripts/run-evals.test.ts`
+  proving a broken link in `.sdlc/intents/README.md` is reported. The evals job is still not a
+  required check, which is what R3 wanted.
+- **S3: the 2026-09-09 finding "has never run" no longer holds.** `control-bands.yml` has
+  recorded weekly, and its observations land through pull requests (the latest is #1066). The
+  series dates run weekly from 2026-09-14 to 2026-10-12. Here is where each of the four
+  observations S3 counted stands:
+  - `lint-rules-on` and `lint-documented-false-positives` have 10 points each, above
+    `minPoints: 8`, so their 2σ evaluation is real.
+  - `agent-tokens-per-task` has 56 points. The weekly job does not produce them: `npm run
+    bench` does, through the `benchmark-json` collector, and `benchmarks/bands.test.ts` holds
+    that pairing.
+  - `test-duration-ms` has **7** points, the last on 2026-09-28. That is below `minPoints`, so
+    it still reports "band not computed yet". The weekly runs of 2026-10-05 and 2026-10-12
+    recorded the lint bands but not the duration. `collectCommandDuration` in
+    `scripts/control-bands.ts` returns no observation when `npm test` exits non-zero or
+    exceeds 900,000 ms, and it does not log why. The duration band is starved silently, and
+    the cause is not recorded anywhere.
+
+  S3 is restated to: *every band in `control-bands.json` gains a point per scheduled run, and
+  each band at `minPoints` or more evaluates.* The duration band is the remaining part. It
+  needs points again, plus a log line or test for a dropped observation.
+- **S4, R5.** Held, and exercised on `main`. The watcher has written five
+  `.sdlc/intents/control-band-*/intent.md` drafts, every one passing the intent lock.
+- **R4.** Held. The reserved `benchmark-json` collector feeds the B1 and B2/B4 bands
+  (`agent-tokens-per-task`, `agent-turns-per-task`, `cold-start-ratio`, the bundled-bytes
+  bands). Compat bands are derived per `packages/compat-oracle/baseline/` file and are not
+  listed in the JSON. The `command-duration` and `eslint-config-stats` collectors have no unit
+  test of their own. Their evidence is the recorded series.
+- **R6.** Restated to what is tested. Rules 1 and 4, direction, quiet variation and the
+  three-point floor have tests. **Rule 2 (two of three beyond 2σ) and rule 3 (four of five
+  beyond 1σ) have none.** Rule 2 matters most: it is the 2σ tier that `--check` fails on and
+  that writes an intent. A test per rule is remaining.
 
 ## What is wanted
 
@@ -63,12 +146,19 @@ The three mechanisms `eslint/` has and this repo only promises:
 ## Success criteria
 
 - Renaming `## Why now` in any intent turns `npm test` red; setting an intent to
-  `approved` with no `spec.md` turns it red.
+  `approved` with no `spec.md` turns it red. **2026-10-18: held** by
+  `scripts/intent-artifacts-lock.test.ts` › ".sdlc/intents/%s is well-formed".
 - A deliberately broken relative link in `.sdlc/intents/README.md` fails the evals job.
-- `control-bands.yml` runs weekly and records four observations per run; after eight
-  runs the first 2σ evaluation is real, not "insufficient points".
+  **2026-10-18: remaining** — `scripts/run-evals.ts` does not scan `.sdlc/intents/`, and
+  `evals.yml`'s `paths:` does not name it; see [§ Restated 2026-10-18](#restated-2026-10-18).
+- ~~`control-bands.yml` runs weekly and records four observations per run; after eight
+  runs the first 2σ evaluation is real, not "insufficient points".~~ **Restated 2026-10-18:**
+  every band in `control-bands.json` gains a point per scheduled run, and each band at
+  `minPoints` or more evaluates. The two lint bands (10 points) and the B1 bands (56) evaluate;
+  `test-duration-ms` has stalled at 7 points since 2026-09-28 and is **remaining**.
 - A simulated breach in a unit test produces an `intent.md` that itself passes the
-  intent lock.
+  intent lock. **2026-10-18: held** by `scripts/control-bands.test.ts` › "satisfies the schema
+  the intent lock enforces".
 
 ## Verified against `main` — 2026-09-09
 

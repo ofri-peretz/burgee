@@ -4,7 +4,46 @@
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Evidence:** `dev.ts` + `dev.test.ts`; fresh module graph per reload, MCP on stdio (W1–W6).
 
+**Restated:** 2026-10-18 — see § Restated 2026-10-18
+
 ---
+
+## Restated 2026-10-18
+
+**Criteria 1–3 and 5 restated to what `burgee dev` ships and held, except the save-detection segment of 5; criterion 4 has no test — REMAINING: W4 byte-identical-after-removal test, W6 save-to-reload segment untimed.**
+
+| ID | promised | on main | check | disposition |
+| :-- | :-- | :-- | :-- | :-- |
+| 1 (W1) | `burgee dev ./cli.ts` serves MCP on stdio; an edit is visible on the next `tools/list` | yes, for a burgee manifest, a commander `Command` or a yargs instance | `packages/burgee/src/dev.test.ts` › "serves the entry over MCP, and after an edit the new command is listed, announced, and called on its new handler"; `packages/burgee/src/dev-load.test.ts` › "a commander Command, invoked with argv from the user", › "a yargs instance, invoked through its own seam" | held |
+| 2 (W2) | `tools/list_changed` on reload, asserted by a conformance case | emitted on every reload by the swappable `startMcp()` server | `packages/burgee/src/dev.test.ts` › "reloads on its own when the watched entry changes" (waits for `notifications/tools/list_changed`) | restated: the check is the dev suite, not `examples/conformance` |
+| 3 (W3) | the manifest and the rendered help printed on each save | one `report()` per load: a summary line, a `+` / `-` / `~` diff by command path, and the rendered help | `packages/burgee/src/dev.test.ts` › "serves the entry over MCP, and after an edit the new command is listed, announced, and called on its new handler" (asserts `Usage:` and `+ devdemo ping`); `packages/burgee/src/dev-load.test.ts` › "names a removed command with a minus" | restated |
+| 4 (W4) | removing `burgee dev` leaves the CLI byte-identical, asserted by a test | non-inclusion is locked; byte-identity is not tested | `packages/burgee/src/weight.test.ts` › "reaches nothing on its denied list" (`dev.js` denied on `.`, `./testing` and the façade entries) | remaining |
+| 5 (W6) | save-to-callable under 500 ms on the 30-command demo | reload-to-callable timed under max(500 ms, five imports of the entry) (gap A30); the save-detection segment is not timed | `packages/burgee/src/dev.test.ts` › "reloads thirty commands within the budget"; `packages/burgee/src/dev-watch-filter.test.ts` › "coalesces saves inside the default 50 ms window into one reload" | budget restated and held; save segment remaining |
+
+- **Constraint 4 (state isolation) is model-held as well as test-held.**
+  `.sdlc/models/dev-reload.qnt` models `reload()`'s chain and checks `safety = serialised and
+  newestServed`; `.github/workflows/models.yml` runs every tracked `.qnt` with
+  `quint run --invariant=safety --max-steps=30 --max-samples=20000`, and its `paths:` trigger
+  includes `packages/burgee/src/dev.ts`. It is simulation, not proof. The model found a real
+  defect (two saves during one reload imported at once and a stale manifest won), pinned by
+  `packages/burgee/src/dev.test.ts` › "serialises reloads that pile up during one, and serves the newest".
+- **Criterion 2 (restated).** The emission is a property of the server swap, not of a host, and
+  `examples/conformance` drives demos through the host drivers, which do not reload. The
+  check that holds the behaviour is the dev suite. It runs on a burgee-shaped entry; the
+  commander and yargs entries are loaded and served through the same `swap()`
+  (`packages/burgee/src/dev-load.test.ts`) but no case waits for their notification.
+- **Criterion 3 (restated).** "The manifest" shipped as a diff of it by command path, beside the
+  rendered help; the full manifest is what `--schema` prints, so printing it on every save
+  would repeat a surface the author can already ask for.
+- **Criterion 4 (remaining).** `dev.ts` contains no file-writing call on FETCH_HEAD, so byte-identity
+  plausibly holds, but nothing asserts it. A test that runs `dev()` over a temp project and
+  asserts the tree is unchanged afterwards would close it, proven red by a deliberate write.
+- **Criterion 5 (remaining in part).** The 500 ms budget is restated by gap A30
+  (`.sdlc/gaps/A30.md`, closed): 500 ms or five imports of the same entry on the same machine,
+  whichever is larger, because the absolute number graded the host (1,035 ms on a Windows
+  runner). The case times from `handle.reload()`, so `fs.watch` detection and the 50 ms
+  debounce are outside the clock. The 2026-09-09 pass measured the full path at 89.4 ms and
+  66.4 ms by hand; no test does.
 
 ## What is wanted
 
@@ -57,12 +96,20 @@ lets a CLI be loaded in-process exists (T1). This intent is the loop around them
 
 1. `burgee dev ./cli.ts` serves MCP on stdio; editing a command's description is
    visible to a connected client on its next `tools/list` without any client action.
-2. `tools/list_changed` is emitted on reload, and a conformance case asserts it.
-3. On each save, the manifest and the rendered help are printed — one save, every surface.
+2. `tools/list_changed` is emitted on reload, ~~and a conformance case asserts it~~.
+   **Restated 2026-10-18:** asserted by `packages/burgee/src/dev.test.ts` › "reloads on its own when the watched
+   entry changes".
+3. On each save, ~~the manifest~~ and the rendered help are printed — one save, every surface.
+   **Restated 2026-10-18:** a diff of the manifest by command path and the rendered help;
+   held by `packages/burgee/src/dev.test.ts` and `packages/burgee/src/dev-load.test.ts` › "names a removed command
+   with a minus".
 4. Removing every trace of `burgee dev` from a project leaves its CLI byte-identical
-   (Z2), asserted by a test.
+   (Z2), asserted by a test. **Remaining 2026-10-18:** non-inclusion is locked by
+   `packages/burgee/src/weight.test.ts`; byte-identity has no test.
 5. Time from saving a file to an agent being able to call the changed command is under
-   500ms on the 30-command demo.
+   500ms on the 30-command demo. **Restated 2026-10-18:** under max(500 ms, five imports
+   of the entry) (gap A30), held from `reload()` by `packages/burgee/src/dev.test.ts` › "reloads thirty commands
+   within the budget"; the save-detection segment is still untimed (remaining).
 
 ## Verified against `main` — 2026-09-09
 

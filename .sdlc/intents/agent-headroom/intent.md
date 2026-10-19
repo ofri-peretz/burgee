@@ -7,7 +7,100 @@
 
 **Status:** review · **Opened:** 2026-09-09 · **Owner:** @ofri-peretz
 
+**Restated:** 2026-10-18 — see [§ Restated 2026-10-18](#restated-2026-10-18)
+
 ---
+
+## Restated 2026-10-18
+
+**Compact JSON, field selection, the schema budget and the agent format shipped (the last three as `burgee` N13–N15); the budget for results, NDJSON, registered formats and three smaller pieces did not — REMAINING: R2, R3, R5, R6, RF, C1.**
+
+Audited read-only against `main` at `1013b65db5` (2026-10-18). No test was run; "held" means
+the named check exists on `main` and asserts the criterion. IDs: R1–R7 are
+[`spec.md`](./spec.md)'s requirements. RF is the "Registered formats" step the spec says must
+become a numbered requirement. C1–C5 are the five [Success criteria](#success-criteria)
+bullets in order. Three of the findings this intent gathered shipped under the umbrella
+[`burgee`](../burgee/spec.md) instead. Its status table marks N13, N14 and N15 **Built**,
+and this intent now points there rather than restating them.
+
+| ID | promised | on main | check | disposition |
+| :-- | :-- | :-- | :-- | :-- |
+| R1 | `--schema` and `--json` compact by default; `--format=json-pretty` indents | yes (D-061) | `packages/burgee/src/machine-json.test.ts` › "emits no insignificant whitespace by default", › "indents when a person asks", › "writes no newline but the trailing one, and no indentation" | held |
+| R2 | `--fields a,b.c` projects before serialising; no argument lists paths; an invalid path prints the valid set | as `--json=<a,b>`: top-level fields of the result, element-wise over a list (D-114) | `packages/burgee/src/json-fields.test.ts` › "selects the named fields of an object result", › "selects from each row of a list result, checked against the rows it returned" | moved → burgee N14 (held); dotted result paths remaining |
+| R3 | `--max-bytes N` on any machine format; a truncated response parses and says so | no; `--max-bytes` does not exist | none | remaining |
+| R4 | `--schema` summarised above a budget; `--schema --at <path>` drills | yes, drilling as `--schema <command> --field <path>` (D-116) | `packages/burgee/src/agent.test.ts` › "summarises above the budget, names every command, and says how to drill"; `packages/burgee/src/schema-field.test.ts` › "returns the one field, not the command around it", › "refuses a step that does not exist, naming the steps that do" | moved → burgee N13 (held) |
+| R5 | `--format=ndjson` for a result set | no | none | remaining |
+| R6 | no hint removed to save a byte; compaction never touches error content | partly: each compaction is shown not to touch failures, but no check asserts a hint survives | `packages/burgee/src/machine-json.test.ts` › "the two parse to the same value — which is why bytes, not shape, is the assertion"; `packages/burgee/src/agent-format.test.ts` › "a failure without --json is still prose on stderr, stdout empty" | restated; hint-survival lock remaining |
+| R7 | `schema-bytes` beside `recovery-bytes` in the reliability axis, both published, both banded | `schema-bytes` published and banded; `recovery-bytes` published, deliberately unbanded | `benchmarks/bands.test.ts` › "agrees with .sdlc/bands/control-bands.json, band for band", › "goes red for a band nothing produces" | restated |
+| RF | `formats` as an open key on the plugin object; `--format=tsv` as the first registered format | no | none | remaining |
+| C1 | `--schema` on the large demo drops at least 40%, no information lost, published beside the pretty figure | value-identical and more than 30% smaller on the test fixture; compact figure published | `packages/burgee/src/machine-json.test.ts` › "is smaller by the margin the design measured", › "is smaller than the pretty form, and the two parse alike" | restated to 30% (held); large-demo 40% and the pretty figure remaining |
+| C2 | `--fields a,b` projects at the source | as `--json=<a,b>` | as R2 | moved → burgee N14 (held) |
+| C3 | a declared budget truncates legibly, and a test proves an agent can tell partial from complete | for `--schema` only: `summarised: true` plus the way to drill | `packages/burgee/src/agent.test.ts` › "summarises above the budget, names every command, and says how to drill"; `packages/burgee/src/schema.test.ts` › "over its budget, the summary keeps errors and the version and claims no clispec conformance" | restated (held for `--schema`); results go with R3 |
+| C4 | `recovery-bytes` below commander's with no hint removed, or a report that it could not and why | could not: burgee 164 B, commander 31 B, yargs 458 B (medians) | `benchmarks/results/cli-benchmarks/2026-10-18-cafa069-ci.json`, records `recovery-bytes` | held (reported, below) |
+| C5 | `--json` with no argument lists valid fields; an invalid one prints the valid set | as `--json=` (bare `--json` stays a boolean, D-114) | `packages/burgee/src/json-fields.test.ts` › "`--json=` lists the declared fields without running the handler", › "refuses an unknown declared field before running, naming the valid set" | moved → burgee N14 (held) |
+
+What changed, and why:
+
+- **R1, held.** D-061 made compact the default. The test file's header names this intent:
+  the property defended is the size of the string, so the test measures the string.
+- **R2, C2, C5 → `burgee` N14.** D-114 chose `--json=<a,b>` over a separate `--fields`
+  flag. Only the `=` form takes fields, so `cmd --json name` keeps `name` a positional.
+  Constraint 3's "`--fields` projects it" is therefore one flag, `--json=`. Projection still
+  happens before serialisation: `selectFields` in `packages/burgee/src/fields.ts` runs on the
+  result before the envelope is written. Two pieces of R2 did not ship:
+  - Dotted paths into a result (`a.b.c`) are **remaining**. Dotted paths exist only for the
+    schema, through `--field`.
+  - D-063's "`--fields` drops `meta.provenance`" is not how it landed. Selection touches
+    `data` only. A caller who wants no `meta` uses `--format=agent`, which has no envelope
+    (`agent-format.test.ts` › "is not JSON: no envelope, no meta, no braces").
+- **R4, C3 → `burgee` N13.** `Manifest.schemaBudget`, `SCHEMA_BUDGET = 48_000` and
+  `summaryOf` carry `summarised: true` and say how to drill. Drilling is
+  `--schema <command>`, then `--field <path>` below it (D-116), not `--at <path>`. C3 holds
+  for `--schema`. A budget on results is R3's.
+- **N15 → `burgee` N15.** D-146 built `--format=agent`, superseding D-115's deferral. It
+  measured 1,294 B against `--json`'s 1,882 B on six representative results (31.2% smaller).
+  `agent-format.test.ts` › "is smaller over the whole set by a margin, not a rounding error"
+  holds it.
+- **R3 remaining.** D-062 put the budget on any machine format, and nothing built it.
+  `clispec-conformance`'s spec records that `--max-bytes` does not exist, and that intent does
+  not build it.
+- **R5 remaining.** `packages/burgee/src/manifest.ts` declares an NDJSON output kind only.
+  `clispec-conformance` says "R5's `--format=ndjson`, which is not built, and this intent does
+  not build it."
+- **RF remaining.** No `formats` key is read anywhere in `packages/burgee/src`.
+- **R6 restated, and partly remaining.** The two compactions that shipped are shown not to
+  touch error content:
+  - Compact JSON is whitespace only: the compact and pretty documents parse to equal values.
+  - `--format=agent` never renders a failure. A failure without `--json` stays prose on
+    stderr, and with `--json` it is still one envelope.
+
+  The Verification table's check was a reliability-axis case asserting every error still
+  carries its `hint`. It was not built, and no test asserts that a failing command's `hint`
+  survives `--json=<fields>` or `--format=agent`. That lock is **remaining**.
+- **R7 restated.** `schema-bytes` is emitted by `benchmarks/axes/reliability.ts`. It is
+  banded as `agent-schema-bytes`, which has 282 points in
+  `.sdlc/bands/control-bands.history.json`, and it read 4,752 B in
+  `2026-10-18-cafa069-ci.json`. That band breached and the watcher opened
+  [`control-band-agent-schema-bytes`](../control-band-agent-schema-bytes/intent.md) as a draft
+  on 2026-10-12. `recovery-bytes` is published but, by its own note, "reported, never gated —
+  a hint costs bytes and may save turns". R7 is restated to that.
+- **C1 restated to what is asserted, and the rest kept as remaining.** The tests assert that
+  compact and pretty are value-identical, and that compact is more than 30% smaller on a
+  fixture document. The test's own comment says the 42% figure belongs to the large demo and
+  that the benchmark measures the real document. The benchmark measures the burgee demo, not
+  `examples/demo-cli-large`, and it publishes the compact figure only. Two things are
+  **remaining**: the 40% on the large demo has no check, and constraint 5's pretty "before"
+  figure beside the compact one is not published. The 2026-09-09 hand measurement above
+  (39,512 B → 22,964 B, 42%) is still the only record of either.
+- **C4, reported.** `recovery-bytes` is the median an agent reads per task across the
+  reliability axis's ten tasks on the three demos. burgee reads 164 B against commander's
+  31 B and yargs' 458 B (`2026-10-18-cafa069-ci.json`). It did not move below commander's.
+  The reason is the one constraint 1 gives and the axis's own note repeats: burgee's failures
+  carry a `hint`, a `fix` and, after a runtime failure, the command's usage
+  (`packages/burgee/src/failure-teaches.test.ts`). Those cost bytes, and they may save turns.
+  Removing them to win this number is the trade constraint 1 refuses. The criterion allows
+  exactly this outcome ("or the intent reports that it could not and why"), and this
+  paragraph is that report.
 
 ## What is wanted
 
@@ -85,14 +178,23 @@ a better product than one that tolerates one.
 ## Success criteria
 
 - `--schema` on the large demo drops by ≥40% with no information lost, and the figure is
-  published beside the pretty-printed one.
-- `--fields a,b` projects at the source: the bytes never leave the process.
+  published beside the pretty-printed one. **Restated 2026-10-18 (C1):** compact and pretty
+  are value-identical and compact is more than 30% smaller, held by `machine-json.test.ts`;
+  the compact figure is published as `schema-bytes`. The large-demo 40% and the published
+  pretty figure are **remaining**.
+- ~~`--fields a,b` projects at the source: the bytes never leave the process.~~
+  **Restated 2026-10-18 (C2):** `--json=<a,b>` selects at the source (D-114) — moved to
+  `burgee` N14, held by `json-fields.test.ts`.
 - A declared budget truncates legibly — the response says it is partial and how to continue —
   and a test proves an agent can tell a truncated response from a complete one.
+  **Restated 2026-10-18 (C3):** held for `--schema` (`burgee` N13, `summarised: true`);
+  for results it is R3, **remaining**.
 - `recovery-bytes` for burgee moves below commander's without any `hint` being removed, or
-  the intent reports that it could not and why.
+  the intent reports that it could not and why. **2026-10-18 (C4): reported** — it could
+  not (164 B against 31 B); see [§ Restated 2026-10-18](#restated-2026-10-18).
 - N14's field listing works: `--json` with no argument lists valid fields; an invalid one
-  prints the valid set.
+  prints the valid set. **Restated 2026-10-18 (C5):** `--json=` lists them; bare `--json`
+  stays a boolean (D-114) — moved to `burgee` N14, held by `json-fields.test.ts`.
 
 ## The limitation of our own metric, stated up front
 
