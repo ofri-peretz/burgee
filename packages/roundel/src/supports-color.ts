@@ -53,13 +53,13 @@ export interface Options {
   readonly streamIsTTY?: boolean | undefined;
 }
 
-const argv = (): readonly string[] => proc?.argv ?? [];
-
-/** has-flag: `--<flag>`, before any `--` terminator. */
+/** has-flag: `--<flag>`, before any `--` terminator, in `argv` as it is when asked. */
 function hasFlag(flag: string): boolean {
-  const args = argv();
+  // Stryker disable next-line ArrayDeclaration: with no process there is no argv, and a fallback holding one word that is no flag answers as an empty one
+  const args: readonly string[] = proc?.argv ?? [];
   const position = args.indexOf(`--${flag}`);
   const terminator = args.indexOf('--');
+  // Stryker disable next-line EqualityOperator: two different strings never share an index, so `<` and `<=` agree whenever both are found
   return position !== -1 && (terminator === -1 || position < terminator);
 }
 
@@ -79,10 +79,9 @@ const env = proc?.env ?? {};
 
 /** `FORCE_COLOR`: `true` and empty on, `false` off, a decimal an exact level up to 3, anything else unset. */
 function envForceColor(value: string | undefined): ColorSupportLevel | undefined {
-  if (value === undefined) return undefined;
   if (value === 'true' || value === '') return 1;
   if (value === 'false') return 0;
-  return DIGITS.test(value) ? (Math.min(Number(value), 3) as ColorSupportLevel) : undefined;
+  return DIGITS.test(String(value)) ? (Math.min(Number(value), 3) as ColorSupportLevel) : undefined;
 }
 
 const has = (keys: string[]): boolean => keys.some((key) => key in env);
@@ -96,8 +95,9 @@ function level(haveStream: boolean, streamIsTTY: boolean | undefined, sniffFlags
     if (any(['color=16m', 'color=full', 'color=truecolor'])) return 3;
     if (hasFlag('color=256')) return 2;
   }
-  // A numeric `FORCE_COLOR` is an exact level; `true` and empty only turn detection on.
-  if (forceColor !== undefined && DIGITS.test(env['FORCE_COLOR'] ?? '')) return forceColor;
+  // A numeric `FORCE_COLOR` is an exact level; `true` and empty only turn detection on. It is
+  // then the answer whether or not the flags are sniffed: a set one was just written over them.
+  if (DIGITS.test(String(env['FORCE_COLOR']))) return noFlagForceColor as ColorSupportLevel;
   // Azure Pipelines, the one runner read above the non-TTY check.
   if ('TF_BUILD' in env && 'AGENT_NAME' in env) return 1;
   if (haveStream && !streamIsTTY && forceColor === undefined) return 0;
@@ -113,7 +113,7 @@ function level(haveStream: boolean, streamIsTTY: boolean | undefined, sniffFlags
   if ('CI' in env) return has(['GITHUB_ACTIONS', 'GITEA_ACTIONS', 'CIRCLECI']) ? 3 : has(['TRAVIS', 'APPVEYOR', 'GITLAB_CI', 'BUILDKITE', 'DRONE']) || env['CI_NAME'] === 'codeship' ? 1 : min;
   if ('TEAMCITY_VERSION' in env) return /^(?:9\.0*[1-9]\d*\.|\d{2,}\.)/.test(String(env['TEAMCITY_VERSION'])) ? 1 : 0;
   if (env['COLORTERM'] === 'truecolor' || ['xterm-kitty', 'xterm-ghostty', 'wezterm'].includes(term)) return 3;
-  if (env['TERM_PROGRAM'] === 'iTerm.app') return Number((env['TERM_PROGRAM_VERSION'] ?? '').split('.', 1)[0]) >= 3 ? 3 : 2;
+  if (env['TERM_PROGRAM'] === 'iTerm.app') return Number(String(env['TERM_PROGRAM_VERSION']).split('.', 1)[0]) >= 3 ? 3 : 2;
   if (env['TERM_PROGRAM'] === 'Apple_Terminal' || /-256(?:color)?$/i.test(term)) return 2;
   if (/^screen|^xterm|^vt100|^vt220|^rxvt|color|ansi|cygwin|linux/i.test(term) || 'COLORTERM' in env) return 1;
   return min;

@@ -445,8 +445,8 @@ describe('the shims a run writes', () => {
     seam.exec = tap;
     grade(h, vendorDir, 'fake');
     expect(read(hostDir, 'shim.js')).toBe(`// generated per run — COMPAT_TARGET=fake\n${freshLoad('fake')}export default loaded.default;\nexport const make = loaded.make;\nexport const other = loaded.other;\n`);
-    grade({ ...h, imports: [{ upstream: '../index.js', subpath: '/x', reexportDefault: false, fresh: [] }] }, vendorDir, 'vitest');
-    expect(read(hostDir, 'shim.js')).toBe(`// generated per run — COMPAT_TARGET=vitest\n${freshLoad('vitest/x')}`);
+    grade({ ...h, imports: [{ upstream: '../index.js', subpath: '/config', reexportDefault: false, fresh: [] }] }, vendorDir, 'vitest');
+    expect(read(hostDir, 'shim.js')).toBe(`// generated per run — COMPAT_TARGET=vitest\n${freshLoad('vitest/config')}`);
   });
 
   it('re-exports the target on a target run, whatever the control entry says, as .mjs under a CommonJS package', () => {

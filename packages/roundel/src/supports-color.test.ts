@@ -21,7 +21,9 @@ import fc from 'fast-check';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { colorLevel } from './policy.js';
-import { type ColorInfo, type Options } from './supports-color.js';
+// Imported at the top as well as fresh per world: the module's import-time code then runs while
+// the test file loads, which is when a mutation tool activates a mutant in it.
+import supportsColor, { type ColorInfo, createSupportsColor, type Options } from './supports-color.js';
 
 const require = createRequire(import.meta.url);
 const SOURCE_PATH = require.resolve('supports-color');
@@ -97,7 +99,9 @@ afterEach(() => {
 });
 
 const FORCE = ['true', 'false', '', '0', '1', '2', '3', '4', '10', '007', 'unicorn', '1abc', ' 2', '1.0'];
-const TERMS = ['dumb', 'xterm', 'xterm-256color', 'XTERM-256COLOR', 'screen-256', 'putty-256color', 'screen', 'rxvt', 'vt100', 'vt220', 'linux', 'cygwin', 'ansi', 'my-color', 'xterm-kitty', 'xterm-ghostty', 'wezterm', 'tmux', ''];
+// Each anchored name also appears unanchored (`my-screen`), and a `-256color` not at the end, so
+// the generator tells a pattern from the same pattern loosened.
+const TERMS = ['dumb', 'xterm', 'xterm-256color', 'XTERM-256COLOR', 'screen-256', 'putty-256color', 'xterm-256color-italic', 'screen', 'rxvt', 'vt100', 'vt220', 'my-screen', 'my-xterm', 'my-vt100', 'my-vt220', 'my-rxvt', 'linux', 'cygwin', 'ansi', 'my-color', 'xterm-kitty', 'xterm-ghostty', 'wezterm', 'tmux', ''];
 
 /** Each variable either detector reads, with the values that sit on either side of a rule. */
 const VALUES: Readonly<Record<string, readonly string[]>> = {
@@ -116,7 +120,7 @@ const VALUES: Readonly<Record<string, readonly string[]>> = {
   CI_NAME: ['codeship', 'other'],
   TF_BUILD: ['True'],
   AGENT_NAME: ['agent'],
-  TEAMCITY_VERSION: ['9.0.5 (build 32523)', '9.1.0 (build 32523)', '9.01.0', '10.0', '8.0', '2017.1', '9'],
+  TEAMCITY_VERSION: ['9.0.5 (build 32523)', '9.1.0 (build 32523)', '9.10.0', '9.01.0', '10.0', '8.0', '2017.1', '9', 'v9.1.0'],
   TERM_PROGRAM: ['iTerm.app', 'Apple_Terminal', 'vscode'],
   TERM_PROGRAM_VERSION: ['3.0.10', '2.9.3', '', '10', 'x'],
   NO_COLOR: ['1'],
@@ -164,11 +168,28 @@ describe('roundel/supports-color answers as supports-color 11 does', () => {
     ['an own streamIsTTY beats the stream, even undefined', { env: { TERM: 'xterm' }, calls: [{ stream: { isTTY: true }, options: { streamIsTTY: undefined } }, { stream: { isTTY: false }, options: { streamIsTTY: true } }] }, { calls: [false, { level: 1, hasBasic: true, has256: false, has16m: false }] }],
     ['Windows 10 before build 10586 is 16 colours, from it 256, from 14931 truecolor', { platform: 'win32', release: '10.0.10240' }, { stdout: { level: 1, hasBasic: true, has256: false, has16m: false } }],
     ['an iTerm without a version is 256 colours', { env: { TERM_PROGRAM: 'iTerm.app' } }, { stdout: { level: 2, hasBasic: true, has256: true, has16m: false } }],
+    ['iTerm 3 is truecolor', { env: { TERM_PROGRAM: 'iTerm.app', TERM_PROGRAM_VERSION: '3.0.10' } }, { stdout: { level: 3, hasBasic: true, has256: true, has16m: true } }],
+    ['TeamCity 9.10 is 16 colours: the minor is read past its first digit', { env: { TEAMCITY_VERSION: '9.10.0' }, calls: [{ options: {} }] }, { stdout: { level: 1, hasBasic: true, has256: false, has16m: false } }],
   ])('%s', async (_, partial, expected) => {
     const world: World = { env: {}, argv: [], platform: 'linux', release: '10.0.0', ttys: { 1: true, 2: true }, later: {}, calls: [], ...partial };
     const answers = await ours(world);
     expect(answers).toEqual(incumbent(world));
     expect(answers).toMatchObject(expected);
+  });
+
+  // `TERM` is read with two patterns, one anchored at the end and five alternatives at the start.
+  it.each([
+    ['xterm-256color-italic', { level: 1, hasBasic: true, has256: false, has16m: false }],
+    ['my-screen', false],
+    ['my-xterm', false],
+    ['my-vt100', false],
+    ['my-vt220', false],
+    ['my-rxvt', false],
+  ] as const)('TERM=%s is read where supports-color anchors it', async (term, stdout) => {
+    const world: World = { env: { TERM: term }, argv: [], platform: 'linux', release: '', ttys: { 1: true, 2: true }, later: {}, calls: [] };
+    const answers = await ours(world);
+    expect(answers.stdout).toEqual(stdout);
+    expect(answers).toEqual(incumbent(world));
   });
 
   it('answers from an empty environment and no flags where there is no process, rather than throwing', async () => {
@@ -180,9 +201,7 @@ describe('roundel/supports-color answers as supports-color 11 does', () => {
     expect(createSupportsColor(undefined, { sniffFlags: false })).toBe(false);
   });
 
-  it('reads the real process when nothing is mocked: an object or false for each stream', async () => {
-    vi.resetModules();
-    const { default: supportsColor, createSupportsColor } = await import('./supports-color.js');
+  it('reads the real process when nothing is mocked: an object or false for each stream', () => {
     for (const info of [supportsColor.stdout, supportsColor.stderr, createSupportsColor()]) {
       expect(info === false || [1, 2, 3].includes(info.level)).toBe(true);
     }
