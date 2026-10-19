@@ -36,6 +36,7 @@ import { ambientRuntime, run } from 'bellpull';
 import { DROP_INS, GRADED, GRADED_VERSIONS, isLevel, PREVIOUS_MAJOR_ENTRIES, type Row, SUPPORTED_MAJORS } from './compat.js';
 import { ExitCode } from './exit-code.js';
 import { guidedSites, mentionsAGuided, type GuidedSite, type Token } from './migrate-guided.js';
+import { isUntracked, listed, pathsOf, preflightOf, type PreflightRow, type ProjectManifest } from './migrate-preflight.js';
 import { TEXT } from './render.js';
 
 /** The npm package a specifier names: `@scope/name/x` → `@scope/name`, `name/x` → `name`. */
@@ -1018,8 +1019,14 @@ export interface ReleaseAgePin {
 }
 
 export interface MigrationReport {
-  /** U12-5 — the outcome in words: `partial: 3 files rewritten, 1 refused`, `complete: …` or `nothing to rewrite`. */
+  /** U12-5 — the outcome in words: `partial: 3 files rewritten, 1 refused`, `complete: …`, `blocked: …` or `nothing to rewrite`. */
   summary: string;
+  /**
+   * migrate-preflight R1 — what adopting the drop-ins costs this project, read before anything is
+   * written: a Node its `engines` allows that cannot load them, jest that cannot, what `--force`
+   * let through. A `blocking` row on a run that would rewrite a file writes nothing (R6).
+   */
+  preflight: PreflightRow[];
   files: number;
   imports: number;
   mapped: Mapped[];
@@ -1636,21 +1643,34 @@ export function sourceFiles(dir: string, at = '', found: string[] = []): string[
 /** The four fields a manifest declares a dependency in. U12-3 counts every one: a peer or an optional dependency is as much the project's choice as a dependency is. */
 const DECLARING = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'] as const;
 
-type Manifest = Partial<Record<(typeof DECLARING)[number], Record<string, string>>>;
+type Manifest = ProjectManifest & Partial<Record<(typeof DECLARING)[number], Record<string, string>>>;
 
-/** Every dependency the manifest at `path` declares, with its range; empty when there is none to read. */
-async function declaredIn(path: string): Promise<Map<string, string>> {
+/** The manifest at `path`, or an empty one when there is none to read. */
+async function manifestAt(path: string): Promise<Manifest> {
   try {
-    const raw = JSON.parse(await readFile(path, 'utf8')) as Manifest;
-    return new Map(DECLARING.flatMap((field) => Object.entries(raw[field] ?? {})));
+    return (JSON.parse(await readFile(path, 'utf8')) as Manifest | null) ?? {};
   } catch {
-    return new Map();
+    return {};
   }
 }
 
-/** Every dependency the project's `package.json` declares, with its range — one of A1's two independent sources. */
-async function declaredDependencies(dir: string): Promise<Map<string, string>> {
-  return await declaredIn(join(dir, 'package.json'));
+/** Every dependency a manifest declares, with its range — for the project, one of A1's two independent sources. */
+function declaredBy(raw: Manifest): Map<string, string> {
+  return new Map(DECLARING.flatMap((field) => Object.entries(raw[field] ?? {})));
+}
+
+/** Every dependency the manifest at `path` declares, with its range; empty when there is none to read. */
+async function declaredIn(path: string): Promise<Map<string, string>> {
+  return declaredBy(await manifestAt(path));
+}
+
+/** migrate-preflight R5 — the root jest configs jest itself looks for, by name. */
+const JEST_CONFIGS = ['js', 'cjs', 'mjs', 'ts', 'json'].map((ext) => `jest.config.${ext}`);
+
+/** The text of each root jest config that exists. */
+async function jestConfigsIn(dir: string): Promise<string[]> {
+  const texts = await Promise.all(JEST_CONFIGS.map(async (file) => await readFile(join(dir, file), 'utf8').catch(() => undefined)));
+  return texts.filter((text) => text !== undefined);
 }
 
 /** The version installed at `dir/node_modules/<name>`, when there is one. */
@@ -2017,12 +2037,21 @@ const EXIT_CODE = Symbol.for('burgee.exitCode');
  */
 export class DirtyTreeError extends Error {
   static readonly [EXIT_CODE] = ExitCode.RUNTIME;
-  readonly fix = 'commit or stash your changes, or pass --force';
+  /**
+   * migrate-preflight R7 — the entries, as `git status --porcelain` prints them. @swc/cli's install
+   * wrote an untracked `node-compile-cache/`, and the refusal said only how many changes there were.
+   */
+  readonly hint: string;
+  /** An untracked-only tree is ignored or committed; anything tracked, committed or stashed. */
+  readonly fix: string;
   constructor(readonly entries: string[]) {
-    super(`the git tree has ${entries.length} uncommitted change${entries.length === 1 ? '' : 's'}`);
+    super(`the git tree has ${counted(entries.length, 'uncommitted change')}`);
     this.name = 'DirtyTreeError';
+    this.hint = listed(entries);
+    this.fix = entries.every(isUntracked) ? `add ${pathsOf(entries)} to .gitignore or commit them, or pass --force` : 'commit or stash your changes, or pass --force';
   }
 }
+
 
 /** Every incumbent package `--only` and `--skip` may name: each one a graded drop-in replaces, level or not. */
 export const INCUMBENTS: readonly string[] = [...new Set(DROP_INS.map((d) => packageOf(d.from)))].sort();
@@ -2053,6 +2082,17 @@ export interface MigrateOptions {
   now?: Date;
   /** Injected by the tests; the `since` table the build wrote beside this module otherwise. */
   since?: SubpathFloors;
+}
+
+/**
+ * A6 — the tree is clean, or `--force` or `--dry-run` says to go on anyway, or this throws. What it
+ * returns is the untracked entries `--force` let through, for the record (migrate-preflight R7).
+ */
+async function checkTree(options: MigrateOptions): Promise<string[]> {
+  const { dir, dryRun = false, force = false } = options;
+  const entries = (await (options.status ?? workingTree)(dir)) ?? [];
+  if (!dryRun && !force && entries.length > 0) throw new DirtyTreeError(entries);
+  return force ? entries.filter(isUntracked) : [];
 }
 
 /** Each name in `only` and `skip` that is not an incumbent, refused before anything is read. */
@@ -2150,10 +2190,14 @@ function heldBy(scanned: readonly Scanned[]): Held[] {
 }
 
 /** `1 file`, `2 files`. */
-const fileCount = (n: number): string => `${n} file${n === 1 ? '' : 's'}`;
+function counted(n: number, noun: string): string {
+  return `${n} ${noun}${n === 1 ? '' : 's'}`;
+}
+const fileCount = (n: number): string => counted(n, 'file');
 
-/** U12-5 — the outcome in words, so a partial run never reads as a finished one. */
-function summaryOf(touched: number, refusedFiles: number, dryRun: boolean): string {
+/** U12-5 — the outcome in words, so a partial run never reads as a finished one. migrate-preflight R6: a blocked one says so first. */
+function summaryOf(touched: number, refusedFiles: number, dryRun: boolean, blocking: number): string {
+  if (blocking > 0) return `blocked: ${counted(blocking, 'preflight check')}; nothing written (${fileCount(touched)} would be rewritten)`;
   const done = `${fileCount(touched)} ${dryRun ? 'would be rewritten' : 'rewritten'}`;
   if (refusedFiles > 0) return `partial: ${done}, ${refusedFiles} refused`;
   return touched > 0 ? `complete: ${done}` : 'nothing to rewrite';
@@ -2171,6 +2215,27 @@ function summaryOf(touched: number, refusedFiles: number, dryRun: boolean): stri
  * which is exactly what "no AST" bought.
  */
 const BATCH = 256;
+
+/**
+ * migrate-preflight — the rows for one run, and how many of them block it: none when it would
+ * write nothing (R6). An off-major incumbent is considered (R1): adopting costs the same either way.
+ */
+async function gate(
+  dir: string,
+  run: { manifest: Manifest; dependencies: Map<string, string>; considered: readonly string[]; untracked: string[] },
+  planned: number,
+): Promise<{ preflight: PreflightRow[]; blocking: number }> {
+  const preflight = preflightOf({
+    manifest: run.manifest,
+    declared: run.dependencies,
+    jestConfigs: await jestConfigsIn(dir),
+    // Every incumbent is its own key in MAPPING; `migrate-preflight.test.ts` holds that.
+    targets: run.considered.map((host) => MAPPING[host] as string),
+    family: FAMILY,
+    untracked: run.untracked,
+  });
+  return { preflight, blocking: planned === 0 ? 0 : preflight.filter((row) => row.blocking).length };
+}
 
 /** Write every rewritten file, {@link BATCH} at a time. */
 async function writeAll(dir: string, changed: readonly { file: string; source: string }[]): Promise<void> {
@@ -2210,6 +2275,7 @@ function refusalLine(r: Refusal): string {
 export function textOf(r: MigrationReport): string {
   const lines = [
     r.summary,
+    ...section('before the move', r.preflight.map((p) => `${p.blocking ? 'block' : 'warn'}  ${p.check}  ${p.message}; fix: ${p.fix}`)),
     ...section(
       r.dryRun ? 'would rewrite' : 'rewrote',
       r.mapped.map((m) => `${m.from} -> ${m.to}  ${m.imports} import${m.imports === 1 ? '' : 's'} in ${fileCount(m.files)}`),
@@ -2251,17 +2317,19 @@ export function textOf(r: MigrationReport): string {
  * refused file or a kept import still names is held, and only then is anything written.
  */
 export async function migrate(options: MigrateOptions): Promise<MigrationReport> {
-  const { dir, dryRun = false, force = false } = options;
+  const { dir, dryRun = false } = options;
   checkNames(options);
-  const entries = await (options.status ?? workingTree)(dir);
-  if (!dryRun && !force && entries !== undefined && entries.length > 0) throw new DirtyTreeError(entries);
+  const untracked = await checkTree(options);
 
-  const dependencies = await declaredDependencies(dir);
+  const manifest = await manifestAt(join(dir, 'package.json'));
+  const dependencies = declaredBy(manifest);
   const { offMajor, entries: ownEntries } = await majorsOf(dir, dependencies);
   const only = options.only === undefined ? undefined : new Set(options.only);
   const skipped = new Set(options.skip);
-  // U12-3: an incumbent moves when the project chose it — `--only`, or else its manifest — and nothing excludes it.
-  const chosen = HOSTS.filter((host) => (only === undefined ? dependencies.has(host) : only.has(host)) && !skipped.has(host) && !offMajor.some((o) => o.from === host));
+  // U12-3: an incumbent is considered when the project chose it — `--only`, or else its manifest — and nothing excludes it.
+  const considered = HOSTS.filter((host) => (only === undefined ? dependencies.has(host) : only.has(host)) && !skipped.has(host));
+  // It moves when it is also on a claimed major.
+  const chosen = considered.filter((host) => !offMajor.some((o) => o.from === host));
   const skip = new Set(HOSTS.filter((host) => !chosen.includes(host)));
   const through = await transitiveOf(dir, dependencies, chosen);
 
@@ -2281,7 +2349,12 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
       ? scanned.map(({ file, result }) => ({ file, result }))
       : scanned.map(({ file, result, text }) => ({ file, result: text === undefined ? result : rewriteFile(text, new Set([...skip, ...held.map((h) => h.from)]), through, ownEntries).rewrite }));
   const changed = rewrites.filter(({ result }) => result.mapped.length > 0).map(({ file, result }) => ({ file, source: result.source }));
-  if (!dryRun) await writeAll(dir, changed);
+
+  // migrate-preflight R6: decided after the scan, because only a run that would write is blocked,
+  // and before the one writer.
+  const { preflight, blocking } = await gate(dir, { manifest, dependencies, considered, untracked }, changed.length);
+  const writes = !dryRun && blocking === 0;
+  if (writes) await writeAll(dir, changed);
 
   const all = rewrites.flatMap(({ file, result }) => result.mapped.map((m) => ({ ...m, file })));
   const refused: Refusal[] = scanned.flatMap(({ file, result }) => result.refused.map((r) => ({ file, ...r })));
@@ -2309,7 +2382,8 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
       : await pinsUnder(age, add, graded, { times: options.registry ?? registryTimes, now, floors: floorsOf([...new Set(all.map((m) => m.to))].sort(), options.since ?? (await subpathFloors()), graded) });
 
   const report: MigrationReport = {
-    summary: summaryOf(changed.length, refusedFiles, dryRun),
+    summary: summaryOf(changed.length, refusedFiles, dryRun, blocking),
+    preflight,
     files: changed.length,
     imports: all.length,
     mapped: rollup(all),
@@ -2328,8 +2402,8 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
     releaseAge: age === null ? null : releaseAgeNote(age, under.pins, under.unread, now),
     next: nextStep(dir, add, removable, { ...graded, ...Object.fromEntries(under.pins.map((p) => [p.name, p.version])) }),
     dryRun,
-    changed: !dryRun && changed.length > 0,
-    exitCode: refused.length > 0 ? ExitCode.RUNTIME : ExitCode.OK,
+    changed: writes && changed.length > 0,
+    exitCode: refused.length > 0 || blocking > 0 ? ExitCode.RUNTIME : ExitCode.OK,
   };
   // U12-5: the text surface, under a symbol so `--json` never carries it (`render.ts`).
   Object.defineProperty(report, TEXT, { value: () => textOf(report), enumerable: false });

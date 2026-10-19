@@ -462,6 +462,10 @@ describe('U12-5 — the report says what happened in words', () => {
   it('renders every section a report can carry', () => {
     const report: MigrationReport = {
       summary: 'partial: 1 file rewritten, 2 refused',
+      preflight: [
+        { check: 'jest-cjs', blocking: true, found: 'jest', message: 'jest cannot load it', fix: 'set transformIgnorePatterns' },
+        { check: 'floor', blocking: false, found: 'engines', message: 'the floor rises', fix: 'npm pkg set' },
+      ],
       files: 1,
       imports: 2,
       mapped: [{ from: 'chalk', to: 'roundel/chalk', imports: 2, files: 1 }],
@@ -492,6 +496,9 @@ describe('U12-5 — the report says what happened in words', () => {
     expect(textOf(report)).toBe(
       [
         'partial: 1 file rewritten, 2 refused',
+        'before the move:',
+        '  block  jest-cjs  jest cannot load it; fix: set transformIgnorePatterns',
+        '  warn  floor  the floor rises; fix: npm pkg set',
         'rewrote:',
         '  chalk -> roundel/chalk  2 imports in 1 file',
         'refused, and left exactly as it was:',
