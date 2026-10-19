@@ -1,6 +1,6 @@
 # Intent — `compat-oracle`
 
-**Status:** approved (2026-09-23, under the owner's delegation, D-129) · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`
+**Status:** shipped · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz` · **Approved:** 2026-09-23, under the owner's delegation (D-129) · **Shipped:** 2026-10-19 — C1–C6 and R1–R7 Built in `spec.md` § What is built; R1 restated with no wall-clock budget, which had been false since ink 8 and never gated
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Evidence:** both suites vendored in full and both gates proven; commander 1,361/1,361 and yargs 804/804 in the same run. Publishing the page is `docs-deploy`’s remainder, not this intent’s.
 
