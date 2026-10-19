@@ -4,9 +4,7 @@
 > ([`next-wave-2026-10.md`](../../research/next-wave-2026-10.md)): a check that all three
 > variants fail, a deferred requirement, and a production precedent.
 
-**Status:** approved · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
-
-**Remaining (2026-10-19):** criterion 4 is held by the N10 gate on SD-5 (`BURGEE_HELD_CHECKS`, spec). Shipped once a CI N10 run passes under that gate.
+**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-19 on [`28843a53`](https://github.com/ofri-peretz/burgee/commit/28843a53) (#1139), verified on the PR head `a04bdfb9`'s CI — criteria 1–3 and 5 as built on 2026-10-12; criterion 4 by the N10 job under `BURGEE_HELD_CHECKS`: `cli-agent-lint-held-checks-failing 0 checks gate <= 0`, burgee 100% (job 117966706883)
 
 ---
 
