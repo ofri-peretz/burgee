@@ -72,6 +72,23 @@ describe('Western Electric rules', () => {
     expect(hit?.direction).toBe('below');
   });
 
+  it('rule 2 — two of the last three beyond 2σ on one side, with no point beyond 3σ', () => {
+    // z of the last three: 2.25, -0.21, 2.25. Neither is a rule 1 point; together they are.
+    const hit = detect([...flatish(20, 100), 101.6, 100, 101.6], 'higher');
+    expect(hit).toEqual({ tier: '2σ', rule: '2 of 3 beyond 2σ', direction: 'above' });
+    // One of three beyond 2σ (z 2.69) is an ordinary high point, not a rule 2 breach.
+    expect(detect([...flatish(20, 100), 100, 100, 101.6], 'higher')).toBeNull();
+  });
+
+  it('rule 3 — four of the last five beyond 1σ on one side, with a point between that breaks the run', () => {
+    // z of the last five: 1.26, 1.26, -0.24, 1.26, 1.26. The -0.24 keeps rule 4 out of it.
+    const hit = detect([...flatish(20, 100), 100.8, 100.8, 100, 100.8, 100.8], 'higher');
+    expect(hit).toEqual({ tier: '1σ', rule: '4 of 5 beyond 1σ', direction: 'above' });
+    expect(detect([...flatish(20, 100), 100.8, 100.8, 100, 100.8, 100.8], 'lower')).toBeNull();
+    // Three of five is not four.
+    expect(detect([...flatish(20, 100), 100.8, 100.8, 100, 100, 100.8], 'higher')).toBeNull();
+  });
+
   it('rule 4 — eight consecutive on one side is drift, even with no unusual point', () => {
     // The case a threshold cannot see: every value is ordinary, the run is not.
     const series = [...flatish(10, 100), ...Array.from({ length: 8 }, () => 100.4)];

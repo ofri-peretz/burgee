@@ -635,7 +635,8 @@ export function blockers(env: NodeJS.ProcessEnv = process.env, claudeBin = defau
   return reasons;
 }
 
-const RUNS_PER_TASK = 5;
+/** B1: runs per task and per build; the median is over at least five (cli-benchmarks B1). */
+export const RUNS_PER_TASK = 5;
 const DEFAULT_TIMEOUT_MS = 300_000;
 /**
  * Pinned by id in every results file, and a change starts a new band history: the same

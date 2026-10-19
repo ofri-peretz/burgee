@@ -2,7 +2,49 @@
 
 Intent: [`intent.md`](./intent.md). **Status:** review.
 
+**Restated:** 2026-10-18 — see § Restated 2026-10-18
+
 ---
+
+## Restated 2026-10-18
+
+**B1–B7 and R1–R8 checked against FETCH_HEAD: twelve held or restated, three open — REMAINING: B7 public-number link lock, R6 ≥30-spawn floor untested, B1 N≥5 runs untested.** *2026-10-19: both floors locked by `benchmarks/sample-floor.test.ts` (red with `ROUNDS = 20` and `RUNS_PER_TASK = 3`); B7 remains.*
+
+The § Built 2026-09-09 table below already records the five design deviations; this
+section adds the check for each requirement as it stands on FETCH_HEAD.
+
+| ID | promised | on main | check | disposition |
+| :-- | :-- | :-- | :-- | :-- |
+| B1 | agent cost: tokens, turns, success per task, layer on vs off, median of N≥5 | burgee demo vs commander demo, 5 runs per task (`RUNS_PER_TASK`), claims settled on totals (D-20261009-b1-totals-and-explain) with medians beside them | `benchmarks/agent.test.ts` › "emits medians that are the stub's reported usage, not a table someone wrote down"; `benchmarks/agent.test.ts` › "sums each variant's turns and tokens over its task-runs, and divides the sums" | restated; the N≥5 floor held since 2026-10-19 by `benchmarks/sample-floor.test.ts` › "the agent axis runs every task at least 5 times per build (B1)" |
+| B2 | cold start p50/p95 over ≥30 spawns, bare node, hosts, front-ends | 52 interleaved rounds, paired ratio banded | `benchmarks/fixtures.test.ts` › "includes the bare-node floor row, which intent constraint 5 makes mandatory"; `benchmarks/ratchet.test.ts` › "gates the median, not the p95 — an absolute or tail-driven gate is what red-lit two innocent PRs in #27" | held; ≥30 with R6 |
+| B3 | per-host pass rate read from `compat-oracle`, never recomputed | `axes/compat.ts` re-emits `grade.rate` and `grade.passed` | `benchmarks/ratchet.test.ts` › "exits non-zero when one case out of 1,360 stops passing", › "exits zero at the baseline" | held |
+| B4 | bundled size of a one-import fixture per entry, against its target | bytes, per pair in `fixtures/entry-points.ts` | `benchmarks/ratchet.test.ts` › "exits non-zero one byte over"; `benchmarks/fixtures.test.ts` › "re-export the symbol they import, so the bundler cannot shake away the subject" | held |
+| B5 | one record shape; one collector reads every axis | `BenchRecord` in `benchmarks/record.ts` | `benchmarks/bands.test.ts` › "declares a suite and a jsonPath for every band, in the one shape the collector reads"; `benchmarks/emit.test.ts` › "a record with no samples behind it" | held |
+| B6 | `npm run bench` runs every axis, `--axis` one; B2–B4 per PR, B1 weekly | yes; two suites on two cadences in `bench.yml` | `benchmarks/ci-axes.test.ts` › "never mixes the two suites in one command — they run on different cadences"; `benchmarks/ratchet.test.ts` › "leaves an axis nobody asked for alone — `--axis weight` must not fail on the other four" | held |
+| B7 | every public number links to the generated `/benchmarks` page | the page is generated; links are not checked | none | remaining |
+| R1 | `tasks/<id>.json` `{ id, prompt, setup, check, maxTurns }` | plus `requirement`, `modalities`, `exemplar` | `benchmarks/tasks.test.ts` › "$id names the floor requirement it is there to move", › "$id fails on a confident wrong answer, not just on silence" | restated |
+| R2 | `axes/agent.ts` spawns `claude -p … --allowedTools 'Bash(mytool:*)'` | the tool is `demo` (D-20261008-b1-tool-name), `stream-json`, strict MCP config | `benchmarks/agent.test.ts` › "is what claude is actually spawned with"; › "matches the name each demo CLI declares" | restated |
+| R3 | `results/<date>-<model>-<layer>.json` | `results/<suite>/YYYY-MM-DD.json` published, `YYYY-MM-DD-<sha>-<ci\|local>.json` observed (D-142) | `benchmarks/published.test.ts` › "skips an observation taken after the last published measurement", › "a CI observation and a local one of the same commit on the same day never share a name" | restated |
+| R4 | `summary.ts` before/after table, Markdown and JSON | `scripts/bench-page.ts` writes `apps/docs/content/docs/benchmarks.mdx` from the published JSON | `benchmarks/page.test.ts` › "every axis the document reports as not measured is named as such on the page"; `quality.yml` runs `npm run bench:page -- --check` | restated |
+| R5 | the `benchmark-json` collector reads every axis's `median` | yes | `benchmarks/bands.test.ts` › "agrees with .sdlc/bands/control-bands.json, band for band", › "goes red for a producer no band reads — the other direction, so an axis cannot emit into the void" | held |
+| R6 | `axes/perf.ts` ≥30 spawns per variant, warm-up discarded, bare node floor row | `ROUNDS = 52`, one discarded warm-up round, floor row present | floor row: `benchmarks/fixtures.test.ts` › "includes the bare-node floor row, which intent constraint 5 makes mandatory"; ≥30 since 2026-10-19: `benchmarks/sample-floor.test.ts` › "perf spawns every variant at least 30 times per run (R6)", › "the newest CI reading carries those samples on every perf record"; warm-up: the discarded round in `run()`, stated in `method`, no test | held (the count, 2026-10-19); the warm-up by code reading only |
+| R7 | `axes/weight.ts` esbuild, minified, one-import fixture | yes | `benchmarks/fixtures.test.ts` › "pair each entry point with exactly one incumbent, and name every pair and claim once"; `benchmarks/ratchet.test.ts` › "exits zero exactly at the ceiling" | held |
+| R8 | `axes/compat.ts` re-emits the oracle's JSON, no logic of its own | yes; rate is `grade.rate`, the gate is the oracle's baseline | `benchmarks/ratchet.test.ts` › "catches a lost case even when the rounded rate still looks like 100%"; › "grades the hosts it has, when an ungraded one is declared planned" | held |
+
+- **R6 / B1 (remaining).** `benchmarks/perf.test.ts` › "is a whole number of rounds per
+  variant, so no variant goes first more often than another" pins only
+  `ROUNDS % VARIANTS.length === 0`; nothing fails if `ROUNDS` drops below 30, if the warm-up
+  round is removed, or if `RUNS_PER_TASK` drops below 5. The tracker's "B3/R8 compat-axis test
+  missing" did not hold on FETCH_HEAD: `hostRecords` and `gradeRecords` from
+  `benchmarks/axes/compat.ts` are exercised by five cases in `benchmarks/ratchet.test.ts`.
+- **B7 (remaining).** `benchmarks/docs.test.ts` › "comparison.mdx states the numbers the suite
+  measured" holds that `comparison.mdx` and the suite agree; no check holds that a number in
+  the README, `comparison.mdx` or a package README links to `/docs/benchmarks`.
+- **Verification section.** All four items exist: `benchmarks/ratchet.test.ts` (proven red per
+  axis); the stubbed-`claude` run (`benchmarks/agent.test.ts` › "emits medians that are the
+  stub's reported usage, not a table someone wrote down"); the un-run lock
+  (`benchmarks/tasks.test.ts` › "$id fails on the un-run state"); and `bench.yml` landing
+  observations by PR.
 
 ## Requirements
 
@@ -187,7 +229,9 @@ Twelve published claims are met. **Three are not**, and none of the three was kn
    one is met at 34,841 bytes.
 
 And one thing to hand to whoever owns the oracle: `results.json` reports yargs as
-`tests: 803, passed: 804`, because the host's own TAP summary counts a case it skipped on
+`tests: 803, passed: 804` *(2026-09-09 reading; 816 / 816 against yargs 18.2.0 on
+`benchmarks/results/cli-benchmarks/2026-10-12-d8569f5-ci.json`, with the skipped case now
+inside both counts)*, because the host's own TAP summary counts a case it skipped on
 this OS as a pass. The rate is computed against `max(reference, tests)` so the arithmetic
 is sound, but the 100% for commander and for yargs each contain one case that could not
 have failed. This axis re-emits the oracle's own number, per constraint 8, and carries

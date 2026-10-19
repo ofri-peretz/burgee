@@ -98,6 +98,15 @@ describe('numbers (S3, yargs #1079)', () => {
     expect((await failure(['--env', 'dev', '--replicas', '0'])).message).toMatch(/at least 1/);
     expect((await failure(['--env', 'dev', '--replicas', '99'])).hint).toBe('pass --replicas 20');
   });
+  it('publishes minimum and maximum in --schema, on the option and on its inputSchema property (commander-schema C3)', async () => {
+    const r = await runBurgee(program, { argv: ['deploy', '--schema'] });
+    const doc = JSON.parse(r.stdout) as { options: Record<string, unknown>; inputSchema: { properties: Record<string, unknown> } };
+    expect(doc.options['replicas']).toMatchObject({ minimum: 1, maximum: 20 });
+    // The JSON Schema an agent or an MCP client validates against carries the bounds too, so a
+    // value outside them is refused before the call rather than reported as exit 2 after it.
+    expect(doc.inputSchema.properties['replicas']).toMatchObject({ type: 'integer', minimum: 1, maximum: 20 });
+    expect(doc.inputSchema.properties['ratio']).not.toHaveProperty('minimum');
+  });
   it('never lets NaN or Infinity through from env or the default path', async () => {
     expect((await failure(['--env', 'dev'], { APP_RATIO: 'Infinity' })).code).toBe(2);
     expect(await data(['--env', 'dev'], { APP_RATIO: '0.5' })).toMatchObject({ ratio: 0.5 });

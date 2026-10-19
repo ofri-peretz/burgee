@@ -1,9 +1,54 @@
 # Design — An agent-native layer on top of commander and yargs
 
 Intent: [`intent.md`](./intent.md). **Status:** draft.
+**Restated:** 2026-10-18 — see § Restated 2026-10-18.
 
 > Stage 2 artifact. Requirements are the floor; the design is how the runtime and the
 > lint plugin each hold it; verification is the one command that goes red.
+
+---
+
+## Restated 2026-10-18
+
+**Six of the 114 rows restated on `main` (`1013b65db5`): three moved to the eslint repo, U12's adopter half moved to `first-adopter`, and two kept open — class REMAINING: Z4 (15-line README ceiling unlocked), Z5 (250-command bench absent).** *2026-10-19: Z4's ceiling is held by `scripts/readme-first-example-lock.test.ts` › "burgee’s first example is 15 lines or fewer (Z4)"; Z5 remains.*
+
+The roadmap tracker ([`roadmap-to-shipped-2026-10.md`](../../research/roadmap-to-shipped-2026-10.md), audited at `c51e25efe1`) found **108 of these
+114 rows holding a check on main** (110 of 119 once the intent's five criteria are counted).
+Those 108 are unchanged and are not re-listed; *What is built, requirement by requirement*
+below carries each with its check. No status cell changes here — every row stays **Built**, so
+the tally `spec-tally-lock.test.ts` derives is untouched — and no original text is deleted:
+superseded wording is struck or annotated in place and points back to this section.
+
+| # | promised | on main | check | disposition |
+| :-- | :-- | :-- | :-- | :-- |
+| Z4 | the README's first example is 15 lines or fewer, no build step; `Holds: lock` | 11 lines in both `packages/burgee/README.md` and the root `README.md` (re-counted 2026-10-19), and no build step | no-build half: `packages/burgee/src/shape.test.ts` › "the user authored exactly one file, and never ran a build", with the quick start read from the README. The line ceiling: none — `scripts/readme-opening-lock.test.ts` reads the first 25 lines for an incumbent and an agent surface, `scripts/readme-quick-start-lock.test.ts` runs the other packages' quick starts, and neither counts lines. Since 2026-10-19: `scripts/readme-first-example-lock.test.ts` › "burgee’s first example is 15 lines or fewer (Z4)" | held (2026-10-19) |
+| Z5 | manifest in memory at startup by default; precompute an opt-in for large CLIs, with a bench for the 250-command case (yargs #1005) | in memory, always; no precompute path exists; the largest fixture is `examples/demo-cli-large`, 30 commands | in-memory half: `examples/conformance/src/modularity.test.ts` › "serves --help and --schema without importing a single lazy handler". Bench half: none in `benchmarks/` or `examples/` | in-memory half held; the 250-command bench **remaining** |
+| F3 | every command declares a description and ≥1 single-line example; `Holds: L` | `require-command-description`, `require-command-example` in the Interlace ESLint repo | ofri-peretz/eslint `packages/eslint-plugin-cli-floor`, merged as eslint#1137 (`464385ff7`) | moved → eslint repo `docs/intents/cli-floor-rules` (D-124; `eslint-plugin-cli-floor` dropped here by the coordinator's ruling, 2026-10-18) |
+| O3 | command code writes through the output layer, never `console.*`; `Holds: L` | `no-console-in-command`, same plugin; the runtime half (O1, O2) is held here | as F3 | moved → eslint repo `cli-floor-rules`, as F3 |
+| P1 | every prompt is backed by a flag; `Holds: L` | `no-prompt-without-flag`, same plugin, `strict` only; the runtime half (P2, P3) is held here by `scripts/prompt-exit-codes.test.ts` | as F3 | moved → eslint repo `cli-floor-rules`, as F3 |
+| U12 | each layer an independent product; locks when the independence install test passes **and** the first adopter installs a layer alone | engineering half built (D-20261009-burgee-u12-1-0); the adopter half open as gap `.sdlc/gaps/C3.md`, one candidate (apify/mcpc#447) unmerged | `scripts/independence-install-lock.test.ts` › "installs nothing but itself and the in-family packages it declares", › "reaches no package it does not declare" | engineering half held; adopter half moved → `first-adopter` A6, added there 2026-10-19 ("one CLI we did not write installs a single layer alone, without burgee"); its A1 no longer names the dropped `commander-agent` |
+
+**The other `L` cells.** Sixteen more rows name lint in their `Holds` column — O1, O2, O4, E1,
+E2, E6, V2, V5, D1, H2, M5, K3, J4, N2, N6 and U2. The audit below judged every one of them on
+its runtime half or its lock (V5 is restated to `R`), and that is unchanged. Of the rules they
+name, only `no-console-in-command` (O2) and `require-command-example` (H2) exist, in the eslint
+repo's `eslint-plugin-cli-floor`. `require-json-output`, `exit-code-constant`,
+`no-process-exit-in-handler`, `no-help-on-runtime-error`, `env-option-documented`,
+`no-reserved-option-names`, `deprecated-requires-replacement` and `prefer-native-style-text`
+exist in no plugin on the eslint repo's `main` (`71bc7a52f`, 2026-10-18), and `cli-floor-rules`
+does not own them. They are not requirements of their own, so they are recorded here and not
+counted as remaining.
+
+**Two contradictions with shipped code, recorded rather than deleted.**
+
+| text | what shipped | reversed by |
+| :-- | :-- | :-- |
+| *Rejected alternatives*: "A new parser competing with commander/yargs"; *Out of scope*: "Argv parsing semantics of any kind"; the intent's constraint 1, "no argv parsing of our own" | the engine parses argv over `node:util`'s `parseArgs` (`packages/burgee/src/execute.ts`); `burgee/commander` and `burgee/yargs` implement the incumbents' APIs in our source and reach neither package (J9) | the 2026-09-06 decision in `.sdlc/intents/README.md` § *The roadmap in one paragraph*: "we are building a competitor to commander and yargs, not a layer on top of them". Held by `packages/burgee/src/weight.test.ts` › "imports only what its rule allows" (`./commander` allows nothing; `./yargs` only the in-family `linegauge`, D-20261010-yargs-entry-allows-linegauge) |
+| the intent's recorded decision "No process or `CLAUDECODE` sniffing" | N12: `packages/burgee/src/agent.ts` probes five agent variables, `CLAUDECODE` among them (#12, `cd9b88a864`, 2026-09-07) | N12 itself, D-181 and D-20260930-one-interactive-rule (the owner's answer of 2026-09-30: one rule, five variables). Held by `packages/burgee/src/agent.test.ts` › "probes the same five variables roundel does, in the same order, and never CURSOR_TRACE_ID" |
+
+Also struck below, for the same reasons: the rejected alternative *"The lint plugin in the eslint
+monorepo"* (reversed by D-124) and *"One umbrella package"* (`burgee` with host subpaths is what
+shipped; `commander-agent` and `yargs-agent` are dropped).
 
 ---
 
@@ -24,8 +69,8 @@ other requirement:
 | Z1 | A working CLI is **one file**: `npm i`, write it, run it. No build step, no config file, no directory convention, no codegen, no scaffold | lock |
 | Z2 | Every capability beyond Z1 is **additive and removable**: precomputed manifests, lazy loading, plugins, the dev loop, scaffolding. Deleting any of them leaves a working CLI | lock |
 | Z3 | No runtime dependency outside the family (K1, restated by the owner 2026-09-23, D-111). oclif ships 18 | lock |
-| Z4 | The first example in the README is **15 lines or fewer** and has no build step | lock |
-| Z5 | The manifest is computed **in memory at startup by default**. Precomputing it is an opt-in optimisation for large CLIs, never a prerequisite | R + bench |
+| Z4 | The first example in the README is **15 lines or fewer** and has no build step | ~~lock~~ the no-build half by `shape.test.ts`; the 15-line ceiling has no lock — remaining (2026-10-18); held 2026-10-19 by `scripts/readme-first-example-lock.test.ts` |
+| Z5 | The manifest is computed **in memory at startup by default**. Precomputing it is an opt-in optimisation for large CLIs, never a prerequisite | R + ~~bench~~ no 250-command bench exists — remaining (2026-10-18) |
 
 **Z1 is a real test, not a principle.** `packages/cli-core/src/shape.test.ts` creates a
 temporary directory, installs the built tarball, writes exactly one file, runs it, and
@@ -35,7 +80,8 @@ pass, the project has become oclif and the test fails.
 **Z5 is the design consequence.** The build-time manifest earns its place only for the
 250-command case (yargs #1005), so it is an optimisation with a benchmark attached, not
 the way commands are declared. A five-command CLI computes its manifest in microseconds
-at startup and never knows the build step exists.
+at startup and never knows the build step exists. **2026-10-18:** no precompute path was
+built and no 250-command fixture or bench exists; see § Restated 2026-10-18.
 
 The reference point to keep in view: a commander user's first line is
 `new Command()`. Ours must be equally short, in one file, with nothing installed but us.
@@ -63,7 +109,7 @@ requirement](#what-is-built-requirement-by-requirement-2026-09-16).
 | :-- | :-- | :-- | :-- | :-- |
 | F1 | `--schema` prints the full command tree (commands, options, types, defaults, env bindings, examples, deprecations, exit codes) as JSON, carrying a `schemaVersion` and validating against a JSON Schema published with the package | yargs #1005, #2121; citty #117, #94; clack #525 | R | One call replaces a `--help` walk per subcommand |
 | F2 | `--help --json` prints help as data; text help is rendered *from* that data | yargs cluster 2 (20+ issues) | R | No prose parsing; renderer bugs become template fixes |
-| F3 | Every command declares a description and ≥1 example; examples are single-line copy-pasteable | yargs #877, #1640, #1047 | L | Agent can act on the example directly |
+| F3 | Every command declares a description and ≥1 example; examples are single-line copy-pasteable | yargs #877, #1640, #1047 | L — moved to the eslint repo (D-124, eslint#1137), 2026-10-18 | Agent can act on the example directly |
 | F4 | Commands may be grouped and hidden; help groups are stable in the schema | yargs #684 (top issue), citty #93 | R | Agent filters by group instead of reading all |
 
 ### Output
@@ -72,7 +118,7 @@ requirement](#what-is-built-requirement-by-requirement-2026-09-16).
 | :-- | :-- | :-- | :-- | :-- |
 | O1 | `--json` on every command; one envelope `{ ok, data, error?, meta }` | citty #187; yargs #1605 | R + L (`require-json-output`) | Zero parsing, zero ANSI tokens |
 | O2 | No ANSI, spinners, progress redraws or prompts when `stdout` is not a TTY or `NO_COLOR` is set; `FORCE_COLOR` overrides | clack #286, #510, #585 | R + L (`no-console-in-command`) | Captured logs stay one line per event |
-| O3 | Command code writes through the output layer, never `console.*`, so O1 and O2 are honoured | oclif/core #1644 shows the drift when this is not enforced | L | |
+| O3 | Command code writes through the output layer, never `console.*`, so O1 and O2 are honoured | oclif/core #1644 shows the drift when this is not enforced | L — moved to the eslint repo (D-124, eslint#1137), 2026-10-18 | |
 | O4 | Colour via `util.styleText`; no chalk dependency in the layer | oclif/core #1627 | R + L (`prefer-native-style-text`, in modernization) | |
 | O5 | stdout is flushed before any exit path | yargs #1519, #2118 | R | No truncated JSON |
 
@@ -111,7 +157,7 @@ requirement](#what-is-built-requirement-by-requirement-2026-09-16).
 
 | # | Requirement | Evidence | Holds |
 | :-- | :-- | :-- | :-- |
-| P1 | Every prompt is backed by a flag; a flag value skips the prompt | clack #167; oclif/oclif #1492 | L (`no-prompt-without-flag`) |
+| P1 | Every prompt is backed by a flag; a flag value skips the prompt | clack #167; oclif/oclif #1492 | L (`no-prompt-without-flag`) — moved to the eslint repo (D-124, eslint#1137), 2026-10-18 |
 | P2 | In a non-TTY the prompt becomes an E3-style error naming the flag, exit 2 | clack #533 | R |
 
 ### Deprecation and evolution
@@ -302,7 +348,7 @@ Issue ids are from [what 230 issues say about the output stack](../../research/o
 2026-10-01 and 2026-10-15 weeks are `not-run`, not misses; restated 2026-10-18,
 `evals-record-not-run` R4); **U12** locks when the independence
 install test passes for every layer and the first adopter installs a layer alone, without
-burgee.
+burgee. **2026-10-18:** the adopter half moved to `first-adopter`; see § Restated 2026-10-18.
 
 ## Design
 
@@ -631,8 +677,8 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | Z1 | **Built** | `src/shape.test.ts` installs the packed tarball into a temp dir, writes one `.mjs`, runs it | `shape.test.ts`: *"the user authored exactly one file, and never ran a build"* |
 | Z2 | **Built** | every capability is its own `exports` subpath, and the core entry is proven not to reach `dev.js`, `testing.js` or the output stack | `src/weight.test.ts`, the `denied` list per entry |
 | Z3 | **Built** | burgee depends on `bellpull`, `closeout`, `linegauge`, `roundel` and `seniority` — all in-family — and on nothing else, as a dependency, peer or optional dependency. The requirement said *zero*; the owner restated it to *in-family only* (D-111), which is what the family was designed to be | `scripts/package-shape-lock.test.ts`: *"installs nothing from outside this repository — dependencies, peers or optional (D-111)"* |
-| Z4 | **Built** | the README's first example is 9 lines and installs nothing but `burgee` | none. `Holds` says `lock`; no test pins the 15-line ceiling |
-| Z5 | **Built** | `defineProgram` builds the `Manifest` in memory at call time, and there is no precompute path at all, so it can never be a prerequisite | none for the bench half: `examples/demo-cli-large` is 30 commands, not the 250 of yargs #1005 |
+| Z4 | **Built** | the README's first example is 9 lines and installs nothing but `burgee`. **2026-10-18:** 10 lines, in both READMEs | none. `Holds` says `lock`; no test pins the 15-line ceiling — remaining (§ Restated 2026-10-18). **2026-10-19:** pinned by `scripts/readme-first-example-lock.test.ts` |
+| Z5 | **Built** | `defineProgram` builds the `Manifest` in memory at call time, and there is no precompute path at all, so it can never be a prerequisite | none for the bench half: `examples/demo-cli-large` is 30 commands, not the 250 of yargs #1005 — remaining (§ Restated 2026-10-18) |
 
 ### Discoverability
 
@@ -640,7 +686,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | :-- | :-- | :-- | :-- |
 | F1 | **Built** | `--schema` prints the tree with `schemaVersion: 1`, and now the exit-code table (`exitCodes`, the contract's seven) so a caller branches on the number without prose. It validates against `burgee/program-schema.json`, published with the package; `scripts/program-schema.test.ts` validates real output against it on every run with the family's one walker, and no runtime validator ships (D-123) | `schema.test.ts`, `scripts/program-schema.test.ts` |
 | F2 | **Built** | `--help --json` prints the help *document*: `{ schemaVersion, name, arguments, options, examples, inputSchema, commands }`, which is `commandSchemaOf` for the node plus its immediate children — the same shape `--schema` publishes, scoped to one command, so there is one document shape in the package rather than a second one invented for help. This row read `Not built` until 2026-09-22 and was stale, not wrong when written: `dispatch` and `unresolved` both grew the branch afterwards and nothing moved the audit | `help-json.test.ts`, and the three call sites carry `// F2 — help as data` in `execute.ts` |
-| F3 | **Built** | **The lint half is `eslint-plugin-cli-floor` in the Interlace ESLint monorepo (D-124), merged in ofri-peretz/eslint#1137 (464385ff73) on 2026-09-24**: `require-command-description` and `require-command-example` (an example spanning more than one line is flagged for yargs and burgee; commander has no structured examples, so any `.addHelpText()` counts). Hosts are recognised by import, never by name; a command declared in another file is not read. Not yet on npm — the new name needs its first manual publish | ofri-peretz/eslint `packages/eslint-plugin-cli-floor` — 226 tests, 100% coverage, each check shown to fail its tests when removed |
+| F3 | **Built** | **The lint half is `eslint-plugin-cli-floor` in the Interlace ESLint monorepo (D-124), merged in ofri-peretz/eslint#1137 (464385ff73) on 2026-09-24**: `require-command-description` and `require-command-example` (an example spanning more than one line is flagged for yargs and burgee; commander has no structured examples, so any `.addHelpText()` counts). Hosts are recognised by import, never by name; a command declared in another file is not read. Not yet on npm — the new name needs its first manual publish | ofri-peretz/eslint `packages/eslint-plugin-cli-floor` — 226 tests, 100% coverage, each check shown to fail its tests when removed. **Moved 2026-10-18:** owned by the eslint repo's `docs/intents/cli-floor-rules` |
 | F4 | **Built** | `help.ts`'s `commandSections` groups children by `group`; `hidden` is filtered by `runnable()`; `commandSchemaOf` carries `group` into `--schema` | `help.test.ts`, `schema.test.ts` |
 
 ### Output
@@ -649,7 +695,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | :-- | :-- | :-- | :-- |
 | O1 | **Built** | `emit()` writes `{ ok: true, data, meta }`; `report()` writes `{ ok: false, error: { code, message, hint } }` | `machine-json.test.ts`, `shape.test.ts` |
 | O2 | **Built** | `execute.ts`'s `lookOf` is the one decision every help path takes: `FORCE_COLOR` decides when set (`0`/`false` off, anything else on, over a pipe and over `NO_COLOR`, as Node's `getColorDepth` does); otherwise colour needs an interactive terminal — a detected agent is not one (N12) — no non-empty `NO_COLOR`, and `TERM` not `dumb`. Spinners, redraws and prompts are not the engine's to draw; the row holds for what it draws | `color.test.ts`: *"FORCE_COLOR overrides a pipe and NO_COLOR, and FORCE_COLOR=0 overrides a terminal"* — three of its four cases red on the engine before `lookOf` |
-| O3 | **Built** | **The lint half is `eslint-plugin-cli-floor/no-console-in-command` (D-124, ofri-peretz/eslint#1137, 464385ff73)**: `console.*` inside a commander `.action`, a yargs handler or a burgee `run`, traced from the host import. A helper called from the handler is not followed. The runtime half (O1/O2) stays burgee's | ofri-peretz/eslint `packages/eslint-plugin-cli-floor` |
+| O3 | **Built** | **The lint half is `eslint-plugin-cli-floor/no-console-in-command` (D-124, ofri-peretz/eslint#1137, 464385ff73)**: `console.*` inside a commander `.action`, a yargs handler or a burgee `run`, traced from the host import. A helper called from the handler is not followed. The runtime half (O1/O2) stays burgee's | ofri-peretz/eslint `packages/eslint-plugin-cli-floor`. **Moved 2026-10-18** (§ Restated 2026-10-18) |
 | O4 | **Built** | `help.ts` imports `styleText` from `node:util`; no colour package anywhere in the family | `scripts/layer-boundaries-lock.test.ts`: *"holds zero external runtime dependencies across the family"* |
 | O5 | **Built** 2026-09-16 | `shutdown.ts` registers `flushStreams` in closeout's `flush` phase over `[host.stdout, host.stderr]`, which runs before `release` and before `restore`; every `io.exit` in `execute.ts` goes through `leave()` | `shutdown.test.ts`, and `pty-signal.test.ts` on the signal path. Caveat: `detachedTeardown()` is built with **no** streams, so an injected `stdout` is still never drained — it is a synchronous `{ write }` with nothing buffered |
 
@@ -695,7 +741,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 
 | # | Status | Evidence | The check |
 | :-- | :-- | :-- | :-- |
-| P1 | **Built** | **The lint half is `eslint-plugin-cli-floor/no-prompt-without-flag` (D-124, ofri-peretz/eslint#1137, 464385ff73), in the plugin's `strict` config only**: a prompt call (clack, inquirer, prompts, enquirer, caique) inside a handler with no read of the command's own options before it. It checks that the options are read first, not that the specific flag answering that prompt is; it has not yet been measured on real code that prompts. The runtime half (P2, P3) is burgee's and is built | ofri-peretz/eslint `packages/eslint-plugin-cli-floor` |
+| P1 | **Built** | **The lint half is `eslint-plugin-cli-floor/no-prompt-without-flag` (D-124, ofri-peretz/eslint#1137, 464385ff73), in the plugin's `strict` config only**: a prompt call (clack, inquirer, prompts, enquirer, caique) inside a handler with no read of the command's own options before it. It checks that the options are read first, not that the specific flag answering that prompt is; it has not yet been measured on real code that prompts. The runtime half (P2, P3) is burgee's and is built | ofri-peretz/eslint `packages/eslint-plugin-cli-floor`. **Moved 2026-10-18** (§ Restated 2026-10-18) |
 | P2 | **Built** | a thrown refusal carrying `code: 'USAGE'` leaves with exit 2, its message and `fix` rendered as E3 (D-120) — which is how caique's non-TTY verdict, `{ code: 'USAGE', message, fix }` naming the flag, reaches an exit status. burgee does not import caique: the contract is the shape, and `scripts/prompt-exit-codes.test.ts` proves it with each package's real code | `scripts/prompt-exit-codes.test.ts` |
 | P3 | **Built** | caique's cancelled prompt, `{ code: 'CANCELLED', message, fix }`, thrown from a handler exits 4 — never `RUNTIME` — with the fix line saying how to skip the question (D-120). The same rule maps `CONFIG` and `AUTH` by name; any other string code (`ENOENT`) is not a claim and stays `RUNTIME` | `scripts/prompt-exit-codes.test.ts` |
 
@@ -760,7 +806,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | J6 | **Built** | the strict path is graded by the host's own vendored suite (C2); the enhanced path by `examples/conformance`, a separate suite with its own parity, MCP, harness and modularity files | `npm run compat`, and `examples/conformance` under `npm test` |
 | J7 | **Built** | `Manifest` does not record which façade filled it, and `plugin.ts` validates the same object whichever did | `adoption-ladder.test.ts`: *"accepts a plugin and records what it contributed"*, on a commander-syntax program |
 | J8 | **Built** | `Manifest.fire()` is called from `dispatch()`, which every rung reaches | `adoption-ladder.test.ts`: *"fires the plugin hook on a command declared in commander syntax"* |
-| J9 | **Built** | `./commander` and `./yargs` declare `allow: []` — no bare import at all, commander and yargs included. The real packages exist only under `packages/compat-oracle/vendor/` | `src/weight.test.ts`, `src/front-end-boundary-lock.test.ts` |
+| J9 | **Built** | `./commander` and `./yargs` declare `allow: []` — no bare import at all, commander and yargs included. The real packages exist only under `packages/compat-oracle/vendor/`. **2026-10-18:** `./yargs` allows `linegauge`, in-family, since D-20261010-yargs-entry-allows-linegauge; neither entry reaches commander or yargs | `src/weight.test.ts`, `src/front-end-boundary-lock.test.ts` |
 
 ### Compatibility
 
@@ -820,7 +866,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | U9 | **Built** | **Built 2026-10-09 (D-20261009-burgee-1-0-evidence): three consecutive recorded runs at 10 of 10, the scheduled run of 2026-10-08 and runs 37959323649 and 37960474558. The second and third were dispatched by hand, not a week apart, as that record says plainly.**  the design itself states the condition — *"locks when the weekly one-turn authoring eval reaches the pass rate it states"* (proposed 9 of 10, three consecutive weeks). **It has now run once, and passed 1 of 9** (2026-09-24, `2a51440`, claude-opus-5 on the owner's subscription login, D-147; `evals/history/2026-09-24-2a51440.json`). The eight failures are not wrong plugins: each ended `error_max_turns` with no file written — the evals' default `EVAL_MAX_TURNS=3` is fewer turns than the prompt's own steps (read the schema, read the README, write, run `check`), and a re-run of the flagstaff case read `terminal_reason: max_turns`. So the eval as configured could not measure the claim; one week of three, and that week missed. **D-143 (2026-09-27)** fixes what "one turn" means — one user prompt, a tool loop capped at 8 — so the next weekly run measures the schema rather than the cap. **D-20261006-eval-turn-budget** raised that cap to 12 after four of ten PR-run failures stopped at 8 with `error_max_turns` and none was refused by `check`; each case line now prints its turns. **Week one of three met (2026-10-08, `c5843e3`): 10 of 10**, every case at 6–11 turns under the 12 cap, after #848 made the four slow packages' READMEs self-describing and D-20261007-eval-builds-first built the packages before the cases run. The 2026-10-01 run (0 of 9, one turn each) counts as a miss, so the three consecutive weeks start here; U9 stays Not built until two more weekly runs read 9 of 10 or better. The schema and `llms.txt` halves exist | `evals/history/2026-09-24-2a51440.json`, `evals/history/2026-10-08-c5843e3.json` |
 | U10 | **Built** | Restated by D-130. All nine packages declare `sideEffects` truthfully — each `bin`, plus paratext's two modules that register built-ins at load — and a root named import bundles to its subpath's bytes: 32 pairs, equal to the byte | `scripts/side-effects-lock.test.ts`; `scripts/tree-shake-fixture.test.ts` |
 | U11 | **Built** | twenty-one incumbents graded by their own suites with the rate published and ratcheting, zeroes included and labelled (`clack 0 / 606`, `lilconfig 0 / 77`, `rc` *target not built yet*) | `npm run compat`; `scripts/compat-page.test.ts` |
-| U12 | **Built** | **Restated by D-20261009-burgee-u12-1-0 to its engineering half; the outside adopter is gap C3, not a release gate.** The design stated the condition — *"locks when the independence install test passes for every layer and the first adopter installs a layer alone"*. **The first half is built and passing (2026-09-24):** for each of the nine published packages, `scripts/independence-install-lock.test.ts` packs the tree, installs that tarball alone — plus the tarballs of the in-family packages it declares, `--offline`, `--no-package-lock` — into an empty directory, imports every entry in its `exports` map under Node, and records every resolution with a `module.registerHooks` hook: each cross-package edge must land on a package the importer declares, so a sibling present only because another package hoisted it fails too. Proven red by removing `roundel` from burgee's `dependencies` (`ERR_MODULE_NOT_FOUND` from `burgee/contrast`) and by a `linegauge` that imports `paratext` (flagstaff's install still loads; the edge check names it). The second half, a CLI we did not write installing one layer alone, is not ours to build. It stays open as GAPS C3, an adoption measure tracked after 1.0. A C3 candidate was opened on 2026-10-11, https://github.com/apify/mcpc/pull/447 (mcpc's chalk and ora moved to `roundel/chalk` and `flagstaff/ora`), and is open and unreviewed; C3 closes only if it merges | `scripts/independence-install-lock.test.ts`: *"installs nothing but itself and the in-family packages it declares"*, *"loads every module entry in its `exports` map"*, *"reaches no package it does not declare"* |
+| U12 | **Built** | **Restated by D-20261009-burgee-u12-1-0 to its engineering half; the outside adopter is gap C3, not a release gate.** The design stated the condition — *"locks when the independence install test passes for every layer and the first adopter installs a layer alone"*. **The first half is built and passing (2026-09-24):** for each of the nine published packages, `scripts/independence-install-lock.test.ts` packs the tree, installs that tarball alone — plus the tarballs of the in-family packages it declares, `--offline`, `--no-package-lock` — into an empty directory, imports every entry in its `exports` map under Node, and records every resolution with a `module.registerHooks` hook: each cross-package edge must land on a package the importer declares, so a sibling present only because another package hoisted it fails too. Proven red by removing `roundel` from burgee's `dependencies` (`ERR_MODULE_NOT_FOUND` from `burgee/contrast`) and by a `linegauge` that imports `paratext` (flagstaff's install still loads; the edge check names it). The second half, a CLI we did not write installing one layer alone, is not ours to build. It stays open as GAPS C3, an adoption measure tracked after 1.0. A C3 candidate was opened on 2026-10-11, https://github.com/apify/mcpc/pull/447 (mcpc's chalk and ora moved to `roundel/chalk` and `flagstaff/ora`), and is open and unreviewed; C3 closes only if it merges. **2026-10-18:** the adopter half moved to `first-adopter` (§ Restated 2026-10-18) | `scripts/independence-install-lock.test.ts`: *"installs nothing but itself and the in-family packages it declares"*, *"loads every module entry in its `exports` map"*, *"reaches no package it does not declare"* |
 | U13 | **Built** | restated by D-136 — measured: `import 'burgee'` statically reaches two family specifiers, `closeout` (shutdown) and `seniority/precedence` (the resolver), both declared in-family dependencies (D-111), and nothing else in the family; the output stack — `roundel`, `flagstaff`, `caique` — and every optional surface (`help`, `schema`, `mcp`, completions, `--json=`, `config explain`) arrive by dynamic `import()`. The original text, *"`import 'burgee'` never resolves a family specifier"*, was false for the two the engine cannot run without | `src/weight.test.ts` — the `.` rule's `allow` is exactly `closeout` and `seniority/precedence`, and its `denied` names the output stack |
 
 ### Requirements restated
@@ -837,7 +883,7 @@ holds instead, and the row above stays as it is until someone decides.
 | U1 | *"`burgee` → ∅, `roundel` → ∅, `flagstaff` → `roundel`, `caique` → `roundel`, `flagstaff`"* | `burgee → closeout, linegauge, roundel, seniority` · `roundel → ∅` · `flagstaff → closeout, linegauge, paratext, roundel` · `caique → closeout`. The *direction* rule holds and is locked; the enumeration was written before `closeout`, `linegauge`, `paratext` and `seniority` existed |
 | U10 | *"`sideEffects: false`"* | `sideEffects: ["./dist/cli.js"]` for burgee, because `burgee/cli` **is** an executable and runs `run(program)` at module load. Declaring it `false` would be a false statement a bundler acts on. What the requirement wants is "no incidental side effects", which is what the array says precisely — and what the six packages declaring nothing at all do not say |
 | N12 | *"`AI_AGENT` and the 13 vendor variables"* (corrected 2026-09-30) | The 13 was never a count of variables: `@vercel/detect-agent`, which N12 cites, covers 13 *agents*, and the requirement never listed any. The list is **five** variables — `AI_AGENT`, `CLAUDECODE`, `CURSOR_AGENT`, `CODEX_THREAD_ID`, `GEMINI_CLI` — and grows by one only for a variable that uniquely identifies an agent. `CURSOR_TRACE_ID` is excluded by name: Cursor sets it in every integrated terminal. The requirement now says this |
-| Z4 | `Holds: lock` | There is no lock. The example is 9 lines today and nothing would notice if it became 40 |
+| Z4 | `Holds: lock` | There is no lock. The example is 9 lines today and nothing would notice if it became 40. **2026-10-18:** 10 lines, still no lock — remaining. **2026-10-19:** 11 lines, locked by `scripts/readme-first-example-lock.test.ts` |
 
 ### What this reading found that the tree contradicts
 
@@ -987,21 +1033,26 @@ does not do.
 
 ## Rejected alternatives
 
-- **A new parser competing with commander/yargs.** Downloads are transitive; every
+- ~~**A new parser competing with commander/yargs.** Downloads are transitive; every
   new entrant with distribution (citty, brocli, stricli, clipanion, cac) is flat.
   commander is stable, zero-dep and maintained. Nothing to win, everything to
-  maintain. See intent, "Why now".
+  maintain. See intent, "Why now".~~ **Reversed 2026-09-06** (`.sdlc/intents/README.md`,
+  "a competitor to commander and yargs, not a layer"): the engine owns argv, and the
+  façades are drop-in rather than new APIs (J9). See § Restated 2026-10-18.
 - **Forking or vendoring commander to fix parsing edge cases.** Every parsing issue
   we found is either fixed upstream or minor. A fork forfeits the transitive
   ecosystem the layer exists to ride.
-- **One umbrella package** (`@interlace/cli` or `interlace-cli` with subpaths). A
+- ~~**One umbrella package** (`@interlace/cli` or `interlace-cli` with subpaths). A
   commander user searches npm for `commander-*`; a yargs user for `yargs-*`. An
   umbrella hides the extensions from the people they are for, and a scoped name says
   "ours" where the whole point is "theirs, extended". Same reason the plugins are
-  `eslint-plugin-*`, not `@interlace/eslint`.
-- **The lint plugin in the eslint monorepo.** It would sit next to the devkit and the
+  `eslint-plugin-*`, not `@interlace/eslint`.~~ **Superseded:** the package that shipped
+  is the unscoped `burgee`, with `burgee/commander` and `burgee/yargs`; the host-branded
+  `commander-agent` and `yargs-agent` intents are dropped.
+- ~~**The lint plugin in the eslint monorepo.** It would sit next to the devkit and the
   publish gates, but its fixtures are this repo's demo CLIs and its rules change with
-  the runtime. One repo, one `npm test`, one PR per floor change.
+  the runtime. One repo, one `npm test`, one PR per floor change.~~ **Reversed** by D-124
+  (2026-09-23): the plugin is built and published there (eslint#1137).
 - **Supporting only commander.** yargs has the larger backlog of layer-shaped
   requests and a comparable install base; an adapter is cheap once the core is
   parser-agnostic, and two adapters prove the core actually is.
@@ -1020,7 +1071,8 @@ does not do.
 
 ## Out of scope
 
-- Argv parsing semantics of any kind.
+- ~~Argv parsing semantics of any kind.~~ **Reversed 2026-09-06**: the engine owns argv
+  (`replacement-parser`, `parse-refusals`); see § Restated 2026-10-18.
 - Terminal UI frameworks (ink-style rendering), TUIs, dashboards.
 - Packaging and distribution of CLIs (tarballs, installers, brew formulae).
 - Deno and Bun support beyond "does not break"; Node 24 is the target.
