@@ -1,6 +1,6 @@
 # Intent — `burgee migrate` gives an off-major project a work list, not `nothing to rewrite`
 
-**Status:** draft · **Opened:** `2026-10-18` · **Owner:** `@ofri-peretz`
+**Status:** approved (2026-10-19, under the owner's delegation, [`D-20261019-migrate-older-majors-design-accepted`](../../decisions/D-20261019-migrate-older-majors-design-accepted.md)) · **Opened:** `2026-10-18` · **Owner:** `@ofri-peretz` · **Design:** [`spec.md`](./spec.md)
 
 ---
 
@@ -31,7 +31,8 @@ a factor of two:
   - With the specifier moved by hand, 4 of those 5 crashed on start-up, each on an API its own
     incumbent later removed:
     - wait-port: `require('commander')` used as the program;
-    - madge: `program.storeOptionsAsProperties()`;
+    - madge: `require('commander')` used as the program, first called for
+      `program.storeOptionsAsProperties()`, which commander 15 still has on a Command;
     - tsc-alias: the multi-character short flag `-fe`;
     - qrcode: the yargs ≤17 singleton.
   - 3 of those 4 kept a green test suite, because their suites never start the binary. Nothing
