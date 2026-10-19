@@ -35,3 +35,11 @@ benchmarks/.tools/
 # grade.test.ts makes its fixtures under the package (mkdtempSync(.grade-)); a run killed
 # before afterAll leaves one behind, and `git add -A` once committed three of them.
 packages/compat-oracle/.grade-*/
+
+# Stryker (scripts/mutation.ts) mutates package sources in place and keeps its backups and
+# per-run files here, under the package it is running in; it removes them itself.
+.stryker-tmp/
+# Stryker's vitest runner writes its setup file into the package it runs in.
+stryker-setup-*.js
+# scripts/mutation.ts writes each run's vitest config here, inside the package, and removes it.
+.mutation/

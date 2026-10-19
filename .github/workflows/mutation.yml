@@ -1,0 +1,174 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Mutation (weekly)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Every package's full mutation score, measured on main once a week, held by a
+# floor that only moves up (.sdlc/intents/mutation-tested/, R5–R7).
+#
+#   full   — one cell per package: Stryker over every mutation source
+#            (`scripts/mutation.ts full`). The matrix lists exactly the packages
+#            in .sdlc/bands/mutation-ratchets.json; mutation-lock.test.ts holds it.
+#   record — folds the results into the ratchets (`scripts/mutation.ts record`):
+#            appends the observation, raises a floor the run beat, sets a first
+#            floor for a package measured for the first time, and lands that as a
+#            PR the way bench.yml and control-bands.yml land theirs. A measured
+#            package below its floor still lands its observation, and then fails
+#            the run: a band that only records good news is not a band.
+#
+# The PR lane is a different job — `Mutation (changed lines)` in quality-full.yml
+# mutates only what a pull request changed. This is the run that sees the rest.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  schedule:
+    - cron: "30 2 * * 6"
+  workflow_dispatch:
+    inputs:
+      package:
+        description: "Only this package (a directory under packages/); empty measures every one"
+        required: false
+        type: string
+        default: ""
+
+concurrency:
+  group: mutation-weekly
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: "1"
+
+jobs:
+  full:
+    name: Mutate ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    # burgee is the long pole. Its first full run is what sets this; see the spec's Verification.
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      # Three at a time: the account runs about six jobs at once, shared with every PR.
+      max-parallel: 3
+      matrix:
+        package: [bellpull, burgee, caique, closeout, compat-oracle, controlroom, flagstaff, linegauge, paratext, roundel, seniority]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      # A suite may read a sibling's dist (see quality-full.yml's coverage job), so all of them.
+      - name: Build every package
+        run: npx turbo run build --filter='./packages/*' --concurrency=4
+      - name: Mutate every source line
+        env:
+          PKG: ${{ matrix.package }}
+          ONLY: ${{ inputs.package }}
+        run: |
+          set -euo pipefail
+          if [ -n "$ONLY" ] && [ "$ONLY" != "$PKG" ]; then echo "Dispatched for $ONLY only; $PKG not measured."; exit 0; fi
+          mkdir -p mutation-results
+          npx tsx scripts/mutation.ts full --package "$PKG" --concurrency 4 --out "mutation-results/$PKG.json"
+      - name: Keep the result for the record job
+        if: always() && hashFiles('mutation-results/*.json') != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: mutation-${{ matrix.package }}
+          path: mutation-results/
+          retention-days: 30
+
+  record:
+    name: Record the mutation ratchets
+    needs: full
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      # `secrets` cannot be read in a step's `if:`; a job-level env of the boolean can.
+      HAS_APP_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY != '' }}
+      HAS_PAT: ${{ secrets.RELEASE_BOT_PAT != '' }}
+    steps:
+      # No persisted credentials — the landing step pushes with its own token (see control-bands.yml, #858).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          turbo-cache: "false"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: mutation-*
+          path: mutation-results
+          merge-multiple: true
+
+      - name: Fold the results into the ratchets
+        id: record
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          mkdir -p mutation-results
+          npx tsx scripts/mutation.ts record --results mutation-results 2>&1 | tee record.log
+          exit "${PIPESTATUS[0]}"
+
+      - name: Summary
+        if: always()
+        run: |
+          { echo '## Mutation ratchets'; echo; echo '```'; cat record.log || echo '(no output)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      # A PR opened with `github.token` raises no workflow runs, so it never gets its required
+      # checks and `--auto` never fires. Same credential chain as control-bands.yml.
+      - name: Mint the release App's token
+        id: app
+        if: vars.RELEASE_APP_ID != '' && env.HAS_APP_KEY == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Land the observations, so the ratchet has a series
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || secrets.RELEASE_BOT_PAT || github.token }}
+          SOURCE: ${{ steps.app.outputs.token != '' && 'app' || (env.HAS_PAT == 'true' && 'pat' || 'github-token') }}
+          BREACHED: ${{ steps.record.outcome == 'failure' }}
+        run: |
+          set -euo pipefail
+          if [ -z "$(git status --porcelain .sdlc/bands/mutation-ratchets.json)" ]; then
+            echo "Nothing new to record."; exit 0
+          fi
+          STAMP=$(date -u +%Y%m%d)
+          BRANCH="chore/mutation-ratchets-$STAMP"
+          if [ "$BREACHED" = "true" ]; then
+            TITLE="chore(workspace): record mutation scores — a floor was breached"
+            BODY='A measured package scored below its mutation floor. The observation is recorded here; the floor is not lowered. Kill the new survivors, or record a decision in `.sdlc/decisions/` and cite it in a new history step.'
+          else
+            TITLE="chore(workspace): record mutation scores"
+            BODY='Weekly full mutation run (`mutation.yml`). Observations appended; any floor the run beat moves up with it. A series that stops updating looks perfectly healthy, which is why these landing is what keeps the ratchet honest.'
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add .sdlc/bands/mutation-ratchets.json
+          git commit -m "$TITLE"
+          git config --unset-all http.https://github.com/.extraheader || true
+          git push -u "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$BRANCH"
+          gh pr create --base main --head "$BRANCH" --label skip-changeset --title "$TITLE" --body "$(printf '%s\n\n```\n%s\n```\n' "$BODY" "$(cat record.log)")"
+          if [ "$SOURCE" = "github-token" ]; then
+            echo "::warning title=PR opened with GITHUB_TOKEN::It raises no checks, so it will not auto-merge. Set RELEASE_APP_ID + RELEASE_APP_PRIVATE_KEY, or RELEASE_BOT_PAT — see .sdlc/gaps/C5.md."
+          fi
+          # A held PR (hold, do-not-merge, wip) is left alone; labels that cannot be read count as held.
+          HELD=$(gh pr view "$BRANCH" --json labels --jq '[.labels[].name]|any(.=="hold" or .=="do-not-merge" or .=="wip")') || HELD=true
+          if [ "$HELD" = true ]; then
+            echo "::notice::$BRANCH is held (hold, do-not-merge or wip, or its labels could not be read); not arming auto-merge."
+          else
+            gh pr merge --auto --squash "$BRANCH" || true
+          fi
+
+      - name: Fail on a breached floor
+        if: steps.record.outcome == 'failure'
+        run: |
+          echo "::error::A measured package fell below its mutation floor, or produced no score. See the summary."
+          exit 1

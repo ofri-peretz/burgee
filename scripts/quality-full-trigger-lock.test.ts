@@ -34,7 +34,7 @@ const WORKFLOW = join(REPO_ROOT, '.github/workflows/quality-full.yml');
 type Job = { name?: string; needs?: string | string[]; if?: string };
 const jobs = (loadYaml(readFileSync(WORKFLOW, 'utf8')) as { jobs: Record<string, Job> }).jobs;
 
-const HEAVY = ['test', 'build', 'typecheck', 'coverage'] as const;
+const HEAVY = ['test', 'build', 'typecheck', 'coverage', 'mutation'] as const;
 const AGGREGATE = 'quality-full-gate';
 
 interface Event {
