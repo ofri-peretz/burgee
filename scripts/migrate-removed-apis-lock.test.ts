@@ -43,8 +43,7 @@ describe('migrate-older-majors — the removed-API table', () => {
   it('each api is named on the migrate docs page, with its source', () => {
     const page = readFileSync(join(ROOT, 'apps/docs/content/docs/migrate.mdx'), 'utf8');
     for (const row of REMOVED_APIS) {
-      expect(page, `${row.api} is not on the migrate page`).toContain(`| \`${row.api}\` | ${row.host} ${row.removedIn} |`);
-      expect(page, `${row.api}'s source is not on the migrate page`).toContain(row.source);
+      expect(page, `${row.api} is not on the migrate page with its release and source`).toContain(`| \`${row.api}\` | [${row.host} ${row.removedIn}](${row.source}) |`);
     }
   });
 });

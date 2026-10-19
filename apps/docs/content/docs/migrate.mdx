@@ -214,15 +214,15 @@ removed (see offMajor)`. The move is checked against these seven APIs and nothin
 graded at `nearest`, not at your major, so the rest of the incumbent's own changelog between
 the two still applies.
 
-| `api` | Removed in | Use instead | Source |
-| :-- | :-- | :-- | :-- |
-| `module-as-program` | commander 12.0.0 | `const { program } = require('commander')` | [changelog](https://github.com/tj/commander.js/blob/v15.0.0/CHANGELOG.md#1200-2024-02-03) |
-| `multi-char-short-flag` | commander 13.0.0 | a one-character short flag, or the long flag alone | [changelog](https://github.com/tj/commander.js/blob/v15.0.0/CHANGELOG.md#1300-2024-12-30) |
-| `esm-mjs` | commander 15.0.0 | `import { program } from 'commander'` | [changelog](https://github.com/tj/commander.js/blob/v15.0.0/CHANGELOG.md#1500-2026-05-29) |
-| `rebase` | yargs 16.0.0 | `path.relative()` | [changelog](https://github.com/yargs/yargs/blob/v18.0.0/CHANGELOG.md#1600-2020-09-09) |
-| `reset` | yargs 17.0.0 | a fresh `yargs()` instance | [changelog](https://github.com/yargs/yargs/blob/v18.0.0/CHANGELOG.md#1700-2021-05-02) |
-| `on-finish-command` | yargs 17.0.0 | await the promise the command's handler returns | [changelog](https://github.com/yargs/yargs/blob/v18.0.0/CHANGELOG.md#1700-2021-05-02) |
-| `singleton` | yargs 18.0.0 | `require('yargs/yargs')(process.argv.slice(2))` | [changelog](https://github.com/yargs/yargs/blob/v18.0.0/CHANGELOG.md#1800-2025-05-26) |
+| API | Removed in | Use instead |
+| :-- | :-- | :-- |
+| `module-as-program` | [commander 12.0.0](https://github.com/tj/commander.js/blob/v15.0.0/CHANGELOG.md#1200-2024-02-03) | `const { program } = require('commander')` |
+| `multi-char-short-flag` | [commander 13.0.0](https://github.com/tj/commander.js/blob/v15.0.0/CHANGELOG.md#1300-2024-12-30) | a one-character short flag, or the long flag alone |
+| `esm-mjs` | [commander 15.0.0](https://github.com/tj/commander.js/blob/v15.0.0/CHANGELOG.md#1500-2026-05-29) | `import { program } from 'commander'` |
+| `rebase` | [yargs 16.0.0](https://github.com/yargs/yargs/blob/v18.0.0/CHANGELOG.md#1600-2020-09-09) | `path.relative()` |
+| `reset` | [yargs 17.0.0](https://github.com/yargs/yargs/blob/v18.0.0/CHANGELOG.md#1700-2021-05-02) | a fresh `yargs()` instance |
+| `on-finish-command` | [yargs 17.0.0](https://github.com/yargs/yargs/blob/v18.0.0/CHANGELOG.md#1700-2021-05-02) | await the promise the command's handler returns |
+| `singleton` | [yargs 18.0.0](https://github.com/yargs/yargs/blob/v18.0.0/CHANGELOG.md#1800-2025-05-26) | `require('yargs/yargs')(process.argv.slice(2))` |
 
 The command also reads each file your `package.json` `bin` names, so an extensionless
 `bin/cli` is checked, and moved on a claimed major, like any other source file.
