@@ -21,7 +21,7 @@ describe('fix-lines-every-shell R1', () => {
     expect(shellWord('--%', 'win32')).toBe("'--%'");
     expect(shellWord('C:\\Users\\RUNNER~1\\x', 'win32')).toBe("'C:\\Users\\RUNNER~1\\x'");
     // A word POSIX leaves bare and PowerShell reads as written stays bare: no bytes change for it.
-    for (const word of ['greet', '--code=0', 'a@b', 'user.name', './x/y', '50%', '--%x']) expect(shellWord(word, 'win32')).toBe(word);
+    for (const word of ['greet', '--code=0', 'a@b', 'user.name', './x/y', '50%', '--%x', 'a--%']) expect(shellWord(word, 'win32')).toBe(word);
   });
 
   it('R1 — POSIX form is unchanged', () => {

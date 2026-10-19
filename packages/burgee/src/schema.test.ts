@@ -195,6 +195,21 @@ describe('the clispec keys (clispec-conformance)', () => {
     expect(((await native(program))['errors'] as { kind: string }[]).map((e) => e.kind)).not.toContain('auth');
   });
 
+  it('the clispec keys sit just ahead of `commands`, and every other key keeps its place', async () => {
+    const keys = Object.keys(await native(program));
+    const at = keys.indexOf('commands');
+    expect(keys.slice(at - 4, at + 1)).toEqual(['explain', 'errors', 'global_args', 'output', 'commands']);
+    expect(keys.slice(0, 2)).toEqual(['schemaVersion', 'clispec']);
+    expect(keys.filter((k) => !['clispec', 'explain', 'errors', 'global_args', 'output'].includes(k))).toEqual(Object.keys(schemaOf(program)));
+  });
+
+  it('a document exactly at its budget is printed whole; one character over, it is summarised', async () => {
+    const go = defineCommand({ name: 'go', effects: 'read_only', run: () => 'ok' });
+    const length = JSON.stringify(await native(defineProgram({ name: 'app', version: '1.0.0', commands: [go] }))).length;
+    expect(await native(defineProgram({ name: 'app', version: '1.0.0', schemaBudget: length, commands: [go] }))).not.toHaveProperty('summarised');
+    expect(await native(defineProgram({ name: 'app', version: '1.0.0', schemaBudget: length - 1, commands: [go] }))).toMatchObject({ summarised: true });
+  });
+
   it('over its budget, the summary keeps errors and the version and claims no clispec conformance', async () => {
     const tight = defineProgram({ name: 'app', version: '1.0.0', schemaBudget: 10, commands: [defineCommand({ name: 'go', effects: 'read_only', run: () => 'ok' })] });
     const doc = await native(tight);

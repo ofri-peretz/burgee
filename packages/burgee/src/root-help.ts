@@ -33,8 +33,11 @@ export const EXIT_ADVICE: Readonly<Record<keyof typeof ExitCode, string>> = {
   SIGINT: 'interrupted; stop',
 };
 
-/** A code's advice for this program: `AUTH`'s names the variable a non-interactive caller sets (R8). */
-export const adviceOf = (name: keyof typeof ExitCode, manifest: Pick<Manifest, 'auth'>): string => (name === 'AUTH' ? authAdvice(manifest.auth?.env ?? '') : EXIT_ADVICE[name]);
+/**
+ * A code's advice for this program: `AUTH`'s names the variable a non-interactive caller sets (R8).
+ * A program that declares no `auth` never lists the code; asked anyway, the advice is the template.
+ */
+export const adviceOf = (name: keyof typeof ExitCode, manifest: Pick<Manifest, 'auth'>): string => (name === 'AUTH' && manifest.auth !== undefined ? authAdvice(manifest.auth.env) : EXIT_ADVICE[name]);
 
 /**
  * R8 — the codes this program can exit with, in `ExitCode`'s order. Every code is the engine's

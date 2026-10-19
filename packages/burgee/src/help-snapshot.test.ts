@@ -30,7 +30,7 @@ import { SHELLS } from './completions.js';
 import { renderHelp } from './help-entry.js';
 import { defineCommand, defineProgram, ExitCode, runCommand } from './index.js';
 import { type CommandNode, type Manifest } from './manifest.js';
-import { completionNode, EXIT_ADVICE, exitRows, producibleExits } from './root-help.js';
+import { adviceOf, completionNode, EXIT_ADVICE, exitRows, producibleExits } from './root-help.js';
 import { listed } from './usage.js';
 
 const ok = (): string => 'ok';
@@ -206,6 +206,21 @@ describe('the root help carries the exit codes, completion and examples (agent-l
     const rows = sectionOf(help, 'Exit codes:').join(' ').replaceAll(/\s+/g, ' ');
     expect(rows).toContain('5 auth: a credential is missing or refused; set DEMO_TOKEN and run it again');
     expect(help).not.toContain('log in');
+  });
+
+  it('R8: the advice names the declared variable; undeclared, it is the template, and no row prints it', () => {
+    expect(adviceOf('AUTH', { auth: { env: 'DEMO_TOKEN' } })).toBe('a credential is missing or refused; set DEMO_TOKEN and run it again');
+    expect(adviceOf('AUTH', {})).toBe(EXIT_ADVICE.AUTH);
+    expect(EXIT_ADVICE.AUTH).toBe('a credential is missing or refused; set {env} and run it again');
+    expect(adviceOf('USAGE', { auth: { env: 'DEMO_TOKEN' } })).toBe(EXIT_ADVICE.USAGE);
+  });
+
+  it('R8: the rows speak the run’s locale, the variable placed where the pack puts it', async () => {
+    const declared = defineProgram({ name: 'demo', auth: { env: 'DEMO_TOKEN' }, commands: [defineCommand({ name: 'pull', description: 'Fetch', effects: 'read_only', examples: [{ command: 'demo pull' }], run: ok })] });
+    declared.use({ name: 'pack', contract: 1, locales: { de: { 'exit.usage': 'falsche Argumente', 'exit.auth': 'Zugang fehlt; {env} setzen' } } } as Parameters<typeof declared.use>[0]);
+    const rows = sectionOf((await runCommand(declared, ['--help'], { locale: 'de' })).stdout, 'Exit codes:').join(' ').replaceAll(/\s+/g, ' ');
+    expect(rows).toContain('2 usage: falsche Argumente');
+    expect(rows).toContain('5 auth: Zugang fehlt; DEMO_TOKEN setzen');
   });
 
   it('R8: the global --timeout steps aside for a command that declares its own, and so does its exit code', async () => {

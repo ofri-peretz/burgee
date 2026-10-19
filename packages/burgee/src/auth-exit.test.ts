@@ -53,6 +53,13 @@ describe('a declared credential is named in the refusal (agent-lint-conformance 
     expect(JSON.parse(r.stdout)).toMatchObject({ error: { kind: 'auth', hint: 'a credential is missing or refused; set R8_TOKEN and run it again' } });
   });
 
+  it('only an auth failure gets it: a plain failure in the same program has no hint', async () => {
+    const program = defineProgram({ name: 'r8', auth: { env: 'R8_TOKEN' }, commands: [defineCommand({ name: 'boom', effects: 'read_only', run: () => { throw new Error('came apart'); } })] });
+    const r = await runBurgee(program, { argv: ['boom', '--json'] });
+    expect(r.code).toBe(ExitCode.RUNTIME);
+    expect(JSON.parse(r.stdout).error).not.toHaveProperty('hint');
+  });
+
   it('a hint the handler gave is kept, and a program that declares no auth adds none', async () => {
     expect(JSON.parse((await runBurgee(declared('renew it at the portal'), { argv: ['pull', '--json'] })).stdout)).toMatchObject({ error: { hint: 'renew it at the portal' } });
     const undeclared = defineProgram({ name: 'r8', commands: [defineCommand({ name: 'pull', effects: 'read_only', run: refuse() })] });

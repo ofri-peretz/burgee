@@ -116,6 +116,17 @@ describe('--skill prints an Agent Skill (agent-skill R2)', () => {
     expect(rows(renderSkill(demo)).at(-1)).toEqual(['77', 'skill_quota', 'yes', 'the quota \\| ran out |']);
   });
 
+  it('sets heading, generated note, description, contract and commands apart by one blank line each', () => {
+    const body = renderSkill(demo).split('\n---\n\n')[1] as string;
+    const blocks = body.split('\n\n');
+    expect(blocks[0]).toBe('# demo');
+    expect(blocks[1]).toMatch(/^<!-- Generated from the program's declaration by `burgee skill`\./);
+    expect(blocks[2]).toBe(renderSkill(demo).match(/^description: (.*)$/mu)?.[1]);
+    expect(blocks[3]).toBe('## The contract');
+    expect(blocks).toContain('## Commands');
+    expect(body).not.toMatch(/\n\n\n/);
+  });
+
   it('inlines no option table: the options are behind --schema <command>, which it names', () => {
     const skill = renderSkill(demo);
     expect(skill).not.toContain('| `--shout`');
@@ -234,7 +245,7 @@ describe('burgee skill writes the files an author ships (agent-skill R3)', () =>
     writeFileSync(join(out, 'SKILL.md'), readFileSync(join(out, 'SKILL.md'), 'utf8').replace('Answer', 'Answers'));
     const stale = await runCommand(burgee, ['skill', entry, '--check', '--json']);
     expect(stale.code).toBe(ExitCode.RUNTIME);
-    expect(JSON.parse(stale.stdout)).toMatchObject({ data: { stale: ['SKILL.md'], fix: line('burgee', 'skill', entry) } });
+    expect(JSON.parse(stale.stdout)).toMatchObject({ data: { stale: ['SKILL.md'], changed: false, fix: line('burgee', 'skill', entry) } });
     // `--check` wrote nothing.
     expect(readFileSync(join(out, 'SKILL.md'), 'utf8')).toContain('Answers');
   });
