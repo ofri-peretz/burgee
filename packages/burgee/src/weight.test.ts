@@ -289,7 +289,10 @@ const RULES: Record<string, EntryRule> = {
     // 39,150 -> 38,143, because neither takes the barrel and `agent.js` left the engine's graph.
     // 2026-10-08: a missing argument no longer adds "run --help to see what it takes" beside the
     // usage line it already prints: 35,540 -> 35,474 (-66), bundled 24,270 -> 24,208 (-62).
-    budget: 35_681,
+    // 35,850 on 2026-10-19 for typed-positionals R2 (D-20261019-typed-schema-surface-weight): `ctx.args`
+    // names each declared positional on every run, and one test loads R3's `typed-args.js` for a
+    // command whose arguments declare a type or choices; S4's stdin gate folded into that load. Measured 35,617 -> 35,822.
+    budget: 35_850,
     // 45,400 with D-140 and #521 on top of S4. Measured 45,361.
     // 45,250 with D-140 (the `--json` failure classification) on top of D-122 and #521. Measured 45,227.
     // 43,500 on 2026-09-23 for P2/P3: a thrown refusal names its exit code by string (`USAGE`, `CANCELLED`, …), which is how caique's prompt verdicts reach an exit status with no dependency edge — the four-row table and its lookup sit in `describeFailure`, where every failure is read. Measured 43,450.
@@ -426,7 +429,8 @@ const RULES: Record<string, EntryRule> = {
   // importing it would have put that whole file on this door. Measured 9,112 (+105), inside.
   "./help": {
     allow: ["linegauge", "roundel/policy"],
-    budget: 9_130,
+    // 9,250 on 2026-10-19 for cli-help-renderer S1 (D-20261019-typed-schema-surface-weight): `(minimum: n)` and `(maximum: n)` on a number option's row. Measured 9,087 -> 9,228.
+    budget: 9_250,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel/tokens", "roundel/theme", "roundel/chalk", "flagstaff", "caique"],
   },
   // The MCP server. It reaches the schema and the manifest, because a tool list *is* the
@@ -452,7 +456,8 @@ const RULES: Record<string, EntryRule> = {
     // 26,700 on 2026-10-12 for mcp-current R2: `tools/list` carries a command's declared `output.schema` as `outputSchema`, wrapped as `{ result }` when it is not an object type, and the result is wrapped by that schema so the two agree. Measured 26,215 -> 26,695.
     // 28,000 on 2026-10-12 for mcp-current R4 and R5: requests are dispatched without waiting for the one before, kept by id so `notifications/cancelled` aborts the call's signal and its reply is dropped; the stdout capture follows each call through `AsyncLocalStorage` instead of one global swap, which concurrent calls would have crossed; and a call with a `progressToken` sends `notifications/progress`. Measured 26,695 -> 27,991.
     // 28,200 on 2026-10-12 for mcp-current R3: `initialize` answers the revision the client asked for when it is one of `SUPPORTED_REVISIONS` (2025-06-18, 2025-11-25), and the latest otherwise, instead of 2025-06-18 to everyone. Measured 27,991 -> 28,177.
-    budget: 28_200,
+    // 28,400 on 2026-10-19 (D-20261019-typed-schema-surface-weight): a tool call that skips an optional positional fills it with its default, or is refused, instead of shifting every later value one place left. Measured 28,069 -> 28,364.
+    budget: 28_400,
     // 24,850 with the MCP stdout capture (#521) on top of D-122's 20,568. Measured 24,835.
     // 24,950 with D-140's MCP error classification on top of #521. Measured 24,900.
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],

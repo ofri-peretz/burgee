@@ -156,6 +156,24 @@ describe('relations, validated before choices and the handler (S2, S6)', () => {
   it('checks relations before choices (yargs #1186): a bad choice with a conflict reports the conflict', async () => {
     expect((await failure(['--env', 'nope', '--dry-run', '--force'])).message).toMatch(/cannot be used together/);
   });
+  /**
+   * commander-schema R3 — `--no-x` is honoured (yargs #898). yargs 8 printed "Implications
+   * failed: flag1 -> flag2" for `--flag1 --no-flag2`: the negation was not seen as the consequent
+   * being given. Here a typed `--no-b` is the caller deciding `b`, so it satisfies `implies` and
+   * the option-level `dependsOn` alike, and only a value from nowhere — absent, or a default —
+   * fails it. Held, not built: it passes on main, and it fails with `isSet` in `relations.ts`
+   * reading a `false` as unset, which is the yargs 8 behaviour.
+   */
+  it('counts a typed --no-x as given to implies and dependsOn, and a default as not given (yargs #898)', async () => {
+    const p = defineProgram({
+      name: 'p',
+      commands: [defineCommand({ name: 'x', options: { a: { type: 'boolean' }, b: { type: 'boolean', default: true }, c: { type: 'boolean', dependsOn: ['b'] } }, relations: [{ implies: ['a', 'b'] }], effects: 'withheld', run: ({ options }) => options })],
+    });
+    expect((await runBurgee(p, { argv: ['x', '--a', '--no-b', '--json'] })).json).toMatchObject({ ok: true, data: { a: true, b: false } });
+    expect((await runBurgee(p, { argv: ['x', '--c', '--no-b', '--json'] })).json).toMatchObject({ ok: true, data: { c: true, b: false } });
+    expect((await runBurgee(p, { argv: ['x', '--a'] })).stderr).toMatch(/--a requires --b/);
+    expect((await runBurgee(p, { argv: ['x', '--c'] })).stderr).toMatch(/--c requires --b/);
+  });
   it('exactlyOneOf and atLeastOneOf', async () => {
     const p = defineProgram({
       name: 'p',

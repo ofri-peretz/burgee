@@ -63,7 +63,7 @@ const brandCommand: import("./execute.js").Command<{
         readonly type: "boolean";
         readonly description: "emit anyway when a contrast check fails. Says so in the output";
     };
-}, import("./manifest.js").CommandOutput>;
+}, import("./manifest.js").CommandOutput, readonly []>;
 ```
 
 ### devCommand
@@ -78,7 +78,11 @@ const devCommand: import("./execute.js").Command<{
         readonly type: "boolean";
         readonly description: "load once and serve; do not watch for changes";
     };
-}, import("./manifest.js").CommandOutput>;
+}, import("./manifest.js").CommandOutput, readonly [{
+    readonly name: "entry";
+    readonly description: "the module that exports the program, as program or as its default export";
+    readonly required: true;
+}]>;
 ```
 
 ### initCommand
@@ -100,7 +104,11 @@ const initCommand: import("./execute.js").Command<{
         readonly type: "boolean";
         readonly description: "overwrite cli.mjs and package.json when they are already there";
     };
-}, import("./manifest.js").CommandOutput>;
+}, import("./manifest.js").CommandOutput, readonly [{
+    readonly name: "dir";
+    readonly description: "the directory to write into. Defaults to the current directory";
+    readonly required: false;
+}]>;
 ```
 
 ### migrateCommand
@@ -138,7 +146,11 @@ const migrateCommand: import("./execute.js").Command<{
         readonly placeholder: "lib,…";
         readonly description: "leave these incumbents alone, by package name";
     };
-}, import("./manifest.js").CommandOutput>;
+}, import("./manifest.js").CommandOutput, readonly [{
+    readonly name: "dir";
+    readonly description: "the project to migrate. Defaults to the current directory";
+    readonly required: false;
+}]>;
 ```
 
 ### pluginCheckCommand
@@ -148,7 +160,10 @@ for, and the one burgee did not have. See `check.ts`: this one returns its repor
 `--json` is the form an agent that just wrote a plugin reads.
 
 ```ts
-const pluginCheckCommand: import("./execute.js").Command<import("./execute.js").OptionSpecs, import("./manifest.js").CommandOutput>;
+const pluginCheckCommand: import("./execute.js").Command<import("./execute.js").OptionSpecs, import("./manifest.js").CommandOutput, readonly [{
+    readonly name: "file";
+    readonly description: "the plugin module to check";
+}]>;
 ```
 
 ### program
@@ -178,5 +193,9 @@ const skillCommand: import("./execute.js").Command<{
         readonly type: "boolean";
         readonly description: "write nothing; exit 1 when the files there differ from the projection";
     };
-}, import("./manifest.js").CommandOutput>;
+}, import("./manifest.js").CommandOutput, readonly [{
+    readonly name: "entry";
+    readonly description: "the module that exports the program, as program or as its default export";
+    readonly required: true;
+}]>;
 ```

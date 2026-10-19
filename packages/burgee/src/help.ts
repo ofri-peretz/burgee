@@ -164,7 +164,8 @@ function deprecation(d: boolean | string | undefined): string {
 }
 
 /**
- * Trailing annotations in a stable order (R4).
+ * Trailing annotations in a stable order (R4): required, default, minimum, maximum, one of, repeatable,
+ * requires, conflicts with, env, type, deprecated.
  *
  * `dependsOn` and `exclusive` sit between the value-shaped notes and the environment one
  * because that is where they are read: a caller who has decided what to pass then finds out
@@ -176,6 +177,8 @@ function annotate(text: string, spec: OptionSpec, verbose: boolean): string {
   const parts = [text];
   if (spec.required) parts.push('(required)');
   if (spec.default !== undefined) parts.push(`(default: ${String(spec.default)})`);
+  // cli-help-renderer S1 (oclif #1001) — the bounds `--schema` publishes and the parser enforces, in the same words.
+  for (const bound of ['minimum', 'maximum'] as const) if (spec[bound] !== undefined) parts.push(`(${bound}: ${spec[bound]})`);
   if (spec.choices !== undefined) parts.push(`(one of: ${spec.choices.join(', ')})`);
   if (spec.multiple) parts.push('(repeatable)');
   if (spec.dependsOn?.length) parts.push(`(requires ${flagsOf(spec.dependsOn).join(', ')})`);

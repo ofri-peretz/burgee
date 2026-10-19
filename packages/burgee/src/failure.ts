@@ -112,11 +112,13 @@ function messageOf(cause: unknown): string {
  */
 function carried(cause: unknown, line: readonly string[] = []): { hint?: string; fix?: string; usage?: Usage } {
   // Never nullish here: each caller has already matched `cause` by its class or its `code`.
-  const { hint, fix, usage, omit } = cause as { hint?: unknown; fix?: unknown; usage?: unknown; omit?: unknown };
+  const { hint, fix, usage, omit, swap } = cause as { hint?: unknown; fix?: unknown; usage?: unknown; omit?: unknown; swap?: [number, string] };
   return {
     ...(typeof hint === 'string' ? { hint } : {}),
     ...(typeof fix === 'string' ? { fix } : {}),
     ...(Array.isArray(omit) ? { fix: shellLine(line.filter((_, i) => !omit.includes(line.length - i))) } : {}),
+    // typed-positionals R3 — one word replaced, at its place from the end: the closest choice, the rounded integer.
+    ...(swap ? { fix: shellLine(line.map((word, i) => (line.length - i === swap[0] ? swap[1] : word))) } : {}),
     ...(typeof (usage as Usage | null | undefined)?.command === 'string' ? { usage: usage as Usage } : {}),
   };
 }

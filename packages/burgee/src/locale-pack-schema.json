@@ -95,6 +95,26 @@
           "type": "string",
           "pattern": "^(?:[^{]|\\{(?:option|issues)\\}|\\{(?!\\w+\\}))*$"
         },
+        "usage.argumentChoice": {
+          "description": "argument \"{argument}\" must be one of {choices}, got \"{value}\"",
+          "type": "string",
+          "pattern": "^(?:[^{]|\\{(?:argument|choices|value)\\}|\\{(?!\\w+\\}))*$"
+        },
+        "usage.argumentNumber": {
+          "description": "argument \"{argument}\" expects a number, got \"{value}\"",
+          "type": "string",
+          "pattern": "^(?:[^{]|\\{(?:argument|value)\\}|\\{(?!\\w+\\}))*$"
+        },
+        "usage.argumentInteger": {
+          "description": "argument \"{argument}\" expects an integer, got \"{value}\"",
+          "type": "string",
+          "pattern": "^(?:[^{]|\\{(?:argument|value)\\}|\\{(?!\\w+\\}))*$"
+        },
+        "usage.argumentBoolean": {
+          "description": "argument \"{argument}\" expects true or false, got \"{value}\"",
+          "type": "string",
+          "pattern": "^(?:[^{]|\\{(?:argument|value)\\}|\\{(?!\\w+\\}))*$"
+        },
         "usage.exactlyOne": {
           "description": "exactly one of {options} is required",
           "type": "string",

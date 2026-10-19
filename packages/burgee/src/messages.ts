@@ -35,6 +35,11 @@ export const MESSAGES = {
   'usage.maximum': '{option} must be at most {maximum}, got {value}',
   'usage.choice': '--{option} must be one of {choices}, got "{value}"',
   'usage.schema': '--{option}: {issues}',
+  // typed-positionals R3: a positional's value, refused as an option's is.
+  'usage.argumentChoice': 'argument "{argument}" must be one of {choices}, got "{value}"',
+  'usage.argumentNumber': 'argument "{argument}" expects a number, got "{value}"',
+  'usage.argumentInteger': 'argument "{argument}" expects an integer, got "{value}"',
+  'usage.argumentBoolean': 'argument "{argument}" expects true or false, got "{value}"',
   'usage.exactlyOne': 'exactly one of {options} is required',
   'usage.atLeastOne': 'at least one of {options} is required',
   'usage.atMostOne': 'at most one of {options} may be given',

@@ -4,7 +4,11 @@
 > Research §2, the largest cluster (roughly a fifth of yargs' tracker). F2 makes help
 > data; this makes the text good. Proposes floor additions H1–H6.
 
-**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-19 by
+`feat/typed-schema-surface`, verified on a branch from `main` at `1dcf064a` — S1–S3 each held by the check named in § Restated 2026-10-18; the last one, S1's `min` / `max` row, by `packages/burgee/src/help-annotations.test.ts` › "shows minimum and maximum, after the default, each on its own"
+
+> Accepted 2026-10-19 by the coordinator under the owner's delegation
+> ([`D-20261019-typed-schema-surface-design-accepted`](../../decisions/D-20261019-typed-schema-surface-design-accepted.md)).
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Evidence:** `help.ts` + `help.test.ts`, rendered from the manifest (H1–H6).
 
@@ -14,7 +18,7 @@
 
 ## Restated 2026-10-18
 
-**Criteria restated to the shipped `burgee` help renderer (`packages/burgee/src/help.ts`); S2 held, S3 restated to the incumbent-parity contract, S1 held row by row except one half-row — REMAINING: S1 min/max annotations in help.**
+**Criteria restated to the shipped `burgee` help renderer (`packages/burgee/src/help.ts`); S2 held, S3 restated to the incumbent-parity contract, S1 held row by row except one half-row — REMAINING: S1 min/max annotations in help.** *Closed 2026-10-19: `(minimum: n)` and `(maximum: n)` render after `(default: …)`; all three criteria held.*
 
 The renderer is `renderHelp(manifest, node, opts)` in `packages/burgee/src/help.ts`, not
 `@interlace/cli-core/src/help/`, and it is installed by burgee's own engine, not by
@@ -25,7 +29,7 @@ The success-criteria bullets are numbered S1–S3 here in their order.
 
 | ID | promised | on main | check | disposition |
 | :-- | :-- | :-- | :-- | :-- |
-| S1 | every table row has a snapshot case on the demo | 18 of 19 rows have a named assertion, and six fixture shapes (one of them the demo's commands) are drawn at 33, 80 and 120 columns and pinned | `packages/burgee/src/help-snapshot.test.ts` › "help is a drawing, and the drawing is pinned (PLAN 2.5.1)", plus the per-row table below | restated; the min/max half of one row remaining |
+| S1 | every table row has a snapshot case on the demo | 18 of 19 rows have a named assertion, and six fixture shapes (one of them the demo's commands) are drawn at 33, 80 and 120 columns and pinned | `packages/burgee/src/help-snapshot.test.ts` › "help is a drawing, and the drawing is pinned (PLAN 2.5.1)", plus the per-row table below | restated; held (min/max row 2026-10-19) |
 | S2 | demo help fits 100 columns, no line wrapped mid-command | yes | `packages/burgee/src/help.test.ts` › "fits %d columns with no term wrapped and one aligned description column (R3, H3, yargs #2204)"; `packages/burgee/src/help-width.test.ts` › "never draws a line wider than the width it was given, at every width" | held |
 | S3 | `commander-agent` and `yargs-agent` render byte-identical help for the two demos | no — reversed: each front-end is byte-identical to its own incumbent | `examples/conformance/src/commander-parity.test.ts` › "X7 · burgee/commander is byte-identical to commander on the demo" (cases "--help", "greet --help", "help greet"); `examples/conformance/src/yargs-parity.test.ts` › "X7 · burgee/yargs is byte-identical to yargs on the demo" (cases "--help", "greet --help") | reversed by the competitor decision (`commander-agent/intent.md`, superseded 2026-09-06) |
 
@@ -48,7 +52,7 @@ Per-row evidence for S1 (the table under § What is wanted, in its order):
 | positional defaults (#2012) | `packages/burgee/src/help.test.ts` › "documents positionals with their defaults in the same column (yargs #2012)" | held |
 | epilogue per node (#1680) | `packages/burgee/src/help.test.ts` › "lists every section in the fixed order, empty ones omitted (R2)" | held |
 | `dependsOn` and `exclusive` in help (oclif #1001, #1002) | `packages/burgee/src/option-relations.test.ts` › "help says it on the option’s own line" (`(requires --force)`, `(conflicts with --table)`) | held |
-| `min` / `max` in help (oclif #1001) | none: `minimum` and `maximum` are declared (`definition.ts`) and published in `--schema` (burgee N9), but `annotate()` in `help.ts` renders neither | remaining |
+| `min` / `max` in help (oclif #1001) | `packages/burgee/src/help-annotations.test.ts` › "shows minimum and maximum, after the default, each on its own" — `annotate()` renders `(minimum: n)` and `(maximum: n)`, the words `--schema` publishes; native help only, so no incumbent-graded screen moves (S3) | held (2026-10-19) |
 | env vars, `[env: X]` and an `Environment` section (#1935) | `packages/burgee/src/help.test.ts` › "annotates defaults, choices, env and placeholder in a stable order (R4, yargs #1408, #833, #1935)" | held |
 
 - **S1 (restated).** "A snapshot case on the demo" is restated to what shipped: a named
@@ -120,7 +124,7 @@ through their `configureHelp` / `getHelp` seams. It fixes, by construction:
 - Every row above has a snapshot case on the demo showing the behaviour.
   **Restated 2026-10-18 (S1):** every row has a named assertion and the help drawing is
   snapshot-pinned at 33, 80 and 120 columns (`packages/burgee/src/help-snapshot.test.ts`);
-  `min` / `max` in help is **remaining**. Per-row evidence in § Restated 2026-10-18.
+  `min` / `max` in help is held since 2026-10-19. Per-row evidence in § Restated 2026-10-18.
 - Rendered help for the demo fits 100 columns with no line wrapped mid-command.
   **Held (S2)** by `packages/burgee/src/help.test.ts` › "fits %d columns with no term
   wrapped and one aligned description column (R3, H3, yargs #2204)".

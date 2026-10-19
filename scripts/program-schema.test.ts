@@ -49,8 +49,8 @@ function everything(): ReturnType<typeof defineProgram> {
         group: 'Release',
         deprecated: 'release',
         arguments: [
-          { name: 'target', description: 'where', required: true },
-          { name: 'extra', variadic: true, required: false },
+          { name: 'target', description: 'where', required: true, choices: ['prod', 'staging'] },
+          { name: 'extra', variadic: true, required: false, type: 'integer' },
         ],
         options: {
           region: { type: 'string', description: 'where to', choices: ['eu', 'us'], default: 'eu', env: 'FULL_REGION', short: 'r', placeholder: 'name' },

@@ -423,7 +423,11 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // 24,290 on 2026-10-12 for parse-refusals R1–R4 (#1064), by the owner's ruling there
   // (D-20261012-core-bundle-parse-refusals): the gate that loads the refusal chunk, inline, and
   // R4's two arguments to it. Measured 24,285 on top of main's 24,277; the next 10 B up, no further.
-  burgee: 24_290,
+  // 24,500 on 2026-10-19 for typed-positionals R2 (D-20261019-typed-schema-surface-weight): the
+  // naming of `ctx.args` and the gate that loads `typed-args.js`, with S4's stdin gate folded into
+  // that chunk. Measured 24,431 locally on top of main's 24,285; the ceiling covers CI's ~32 B.
+  // `burgee ÷ cac` reads 2.337 against its 2.35 claim ratchet, which is not raised.
+  burgee: 24_500,
   // 29,650 on 2026-09-23: D-140 and #521 on top of V8 (#481). Measured 29,634.
   // 29,200 on 2026-09-23 for **56 bytes**, the MCP stdout capture (#521): measured 29,172 on
   // top of D-122's 29,116. The capture lives in the lazily loaded MCP chunk; what reaches the
