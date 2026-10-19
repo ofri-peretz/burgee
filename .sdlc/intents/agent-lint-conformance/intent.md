@@ -7,7 +7,7 @@
 
 **Status:** approved · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
 
-**Remaining (2026-10-19):** R8 is built. R9 is not: no committed `external-floor` reading is a CI one, so the ratchet has no CI reading to stand on until a `floor-results` artifact from `main` is promoted (spec, R9).
+**Remaining (2026-10-19):** R8 is built, and #1139's N10 job read burgee at **100%** on CI with FS-4 held (job 117966706883). R9 is not: no committed `external-floor` reading is a CI one, so the ratchet stands on none until a `floor-results` artifact from `main` is promoted (spec, R9).
 
 ---
 

@@ -5,9 +5,7 @@
 > `B-20261012-fix-lines-quote-for-posix-only`. Refreshed 2026-10-18 against `main` at
 > `1013b65db5`.
 
-**Status:** approved · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
-
-**Remaining (2026-10-19):** all five requirements are built. Criterion 1's second half and criterion 2 are a `pwsh` run, which only CI has: `completions-shells.test.ts` › *fix-lines-every-shell R3* on `completions.yml` (Linux `pwsh`, `REQUIRE_SHELLS=1`) and on the Windows cells of `compat.yml`. Shipped once those run it green.
+**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-19 on [`28843a53`](https://github.com/ofri-peretz/burgee/commit/28843a53) (#1139), verified on the PR head `a04bdfb9`'s CI — criterion 1 by `shell-word.test.ts` and `completions-shells.test.ts` › *fix-lines-every-shell R3* in `pwsh` (completions.yml, `REQUIRE_SHELLS=1`); criterion 2 by the same case on every Windows cell of `compat.yml` (Node 24 and 26, and the 20.19 and 22.13 published suites); criterion 3, the gap closed. One word stays open: `--%`, gap B-20261019-fix-lines-stop-parsing-word
 
 ---
 
