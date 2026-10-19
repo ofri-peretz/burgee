@@ -1,6 +1,6 @@
 # Intent — the façade user gets the agent surfaces too
 
-**Status:** review · **Opened:** `2026-09-21` · **Owner:** `@ofri-peretz`
+**Status:** shipped · **Opened:** `2026-09-21` · **Owner:** `@ofri-peretz` · **Shipped:** 2026-10-18 on [`1013b65db5`](https://github.com/ofri-peretz/burgee/commit/1013b65db5), verified against `main` at `1013b65db5` — all 6 criteria locked by `facade-surface.test.ts`, `mcp.test.ts` and the compat baseline · approved and shipped 2026-10-18, accepted under the owner's 2026-10-12 delegation
 
 ---
 
@@ -73,7 +73,25 @@ weight entry is 27 bytes under its ceiling and has to move; `.` must not get hea
 5. A commander-façade failure under `--json` prints `{"ok":false,…}` on stdout and
    nothing on stderr, and carries `fix` when the suggestion is unambiguous.
 6. `npm run compat -- commander` reports 1360 / 1360 and `npm run compat -- yargs`
-   reports 804 / 804.
+   reports 804 / 804. *(Restated 2026-10-18: yargs' suite is 816 tests since the 18.2.0
+   re-grade, so the bar is 816 / 816, 100% as before.)*
+
+## Shipped — 2026-10-18
+
+**Status raised to `shipped`.** Every criterion was checked against `main` at `1013b65db5` in the
+roadmap-to-shipped Batch 0 pass (`.sdlc/research/roadmap-to-shipped-2026-10.md`).
+
+`design.md` was renamed `spec.md` in this PR so the intent could be approved. Its content is
+unchanged apart from G6's count. Accepted and stamped under the owner's 2026-10-12 delegation.
+
+| criterion | check | result |
+| :-- | :-- | :-- |
+| 1. an undeclared façade command is a tool, `undeclared`, no hints | `facade-surface.test.ts` (G1/G2) | 71 passed (with `mcp.test.ts`) |
+| 2. `tools/call` returns the `--json` envelope, first call and every call after | `facade-surface.test.ts` (G3) | the same run |
+| 3. `effects: 'withheld'` stays absent on both façades | `facade-surface.test.ts` (G2), `mcp.test.ts` | the same run |
+| 4. `--json` anywhere on the commander façade, consuming nothing | `facade-surface.test.ts` (G4) | the same run |
+| 5. a commander-façade failure under `--json` is `{"ok":false,…}` on stdout with `fix` | `facade-surface.test.ts` (G5) | the same run |
+| 6. commander 1360 / 1360, yargs at 100% (816 / 816 since the 18.2.0 re-grade) | `npm run compat -- commander yargs` | commander 1360 / 1360, yargs 816 / 816 |
 
 ## Open questions
 

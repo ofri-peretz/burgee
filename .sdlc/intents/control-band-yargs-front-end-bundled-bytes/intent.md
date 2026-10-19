@@ -3,7 +3,9 @@
 > Stage 1 artifact, written automatically by `scripts/control-bands.ts`. Stage 6
 > detected this; a human decides what it means.
 
-**Status:** draft · **Opened:** 2026-09-27-7b694f7-ci · **Owner:** control-bands watcher
+**Status:** dropped (2026-10-18) · **Opened:** 2026-09-27-7b694f7-ci · **Owner:** control-bands watcher
+
+> **Dropped 2026-10-18** → [`D-20261018-drop-band-yargs-front-end-bytes`](../../decisions/D-20261018-drop-band-yargs-front-end-bytes.md): the breach it was opened for is attributed (D-161) and has left the window; the +31 B 1σ drift that remains never gates.
 
 ---
 
