@@ -511,7 +511,7 @@ execution order. The selection is
 | 75  | [`types-under-node10/`](./types-under-node10/)                             | **adoption barrier 4**: `typesVersions` so drop-in subpaths type-check under `node10`. 38.8% of TS dependents; TS2307 in 2 of 2 TS CommonJS trial projects | shipped |
 | 76  | [`release-cadence/`](./release-cadence/)                                   | **adoption barrier 5**: an incumbent's major is our major, and `latest` passes a 7-day release age on most days (0 of 30 today) | approved |
 | 77  | [`migrate-pins-carry-the-drop-in/`](./migrate-pins-carry-the-drop-in/)     | **adoption barrier 7**: a release-age pin never predates the subpath it installs. svgo got a roundel 1.x older than its `./picocolors` subpath and stopped starting | shipped |
-| 78  | [`migrate-dynamic-specifiers/`](./migrate-dynamic-specifiers/)             | **adoption barrier 9**: a plugin loader's `import(name)` holds only what it could load. 3 of 9 trial CLIs ran partial | draft |
+| 78  | [`migrate-dynamic-specifiers/`](./migrate-dynamic-specifiers/)             | **adoption barrier 9**: a plugin loader's `import(name)` holds only what it could load. 3 of 9 trial CLIs ran partial | approved |
 | 79  | [`mutation-tested/`](./mutation-tested/)                                   | **a PR cannot add a line no test can tell is broken**: Stryker on the changed lines; a weekly per-package floor that only rises | approved |
 | 80  | [`evals-record-not-run/`](./evals-record-not-run/)                         | **an agent that never ran is recorded `not-run`, never a score**: eval history v2, readers skip it, and a B1 sweep the limit cut short is no reading | approved |
 

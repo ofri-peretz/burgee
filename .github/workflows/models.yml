@@ -76,6 +76,21 @@ jobs:
             echo "::error::preflight.qnt: writesHappen now holds — no run writes, so safety holds vacuously"
             exit 1
           fi
+      # migrate's computed specifiers (migrate-dynamic-specifiers spec.md): each rejected design
+      # still fails `safety`, and some run still moves a file whose computed specifier passed.
+      - name: migrate dynamic specifiers — the rejected designs still fail, and literals still move
+        run: |
+          m=.sdlc/intents/migrate-dynamic-specifiers/dynamic.qnt
+          for s in stepNoGuard stepWide stepImportsOnly stepEager; do
+            if $QUINT run "$m" --step="$s" --invariant=safety --max-steps=30 --max-samples=20000 >/dev/null; then
+              echo "::error::dynamic.qnt: safety holds under $s — the model no longer distinguishes the shipped design from the one it rejects"
+              exit 1
+            fi
+          done
+          if $QUINT run "$m" --invariant=passedNeverMoves --max-steps=30 --max-samples=20000 >/dev/null; then
+            echo "::error::dynamic.qnt: passedNeverMoves now holds — no run moves a file with a passed computed specifier, so safety holds vacuously"
+            exit 1
+          fi
       # An open question, pinned: closeout's late add() is silently dropped today. When the
       # code changes and this starts holding, the step fails and the question gets answered.
       - name: closeout late add() is still dropped (open question, see spec.md)

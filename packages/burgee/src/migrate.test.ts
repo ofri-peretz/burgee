@@ -386,8 +386,8 @@ describe('A8 — the exit code says whether anything was left undone', () => {
     const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { commander: '^15.0.0' } }), 'src/a.ts': "import 'commander';\n" });
     expect(Object.keys(await migrate({ dir, status: clean })).sort()).toEqual(
       // `partial`, `offMajor` and `next` joined with A12: what was left alone and why, and the command to run.
-      // `summary`, `undeclared`, `held`, `transitive` and `releaseAge` joined with U12; `preflight` with migrate-preflight R1.
-      ['changed', 'dependencies', 'detected', 'dryRun', 'exitCode', 'files', 'graded', 'guided', 'held', 'imports', 'kept', 'mapped', 'next', 'offMajor', 'partial', 'preflight', 'refused', 'releaseAge', 'summary', 'transitive', 'undeclared'].sort(),
+      // `summary`, `undeclared`, `held`, `transitive` and `releaseAge` joined with U12; `preflight` with migrate-preflight R1; `dynamic` with migrate-dynamic-specifiers R6.
+      ['changed', 'dependencies', 'detected', 'dryRun', 'dynamic', 'exitCode', 'files', 'graded', 'guided', 'held', 'imports', 'kept', 'mapped', 'next', 'offMajor', 'partial', 'preflight', 'refused', 'releaseAge', 'summary', 'transitive', 'undeclared'].sort(),
     );
   });
 });
@@ -665,6 +665,7 @@ describe('A11 — a rewrite moves only names the target exports', () => {
       refused: [{ line: 2, specifier: 'commander', reason: 'unknown-export', names: ['NotACommanderExport'] }],
       kept: [],
       relevant: true,
+      dynamic: [],
       retained: ['commander'],
     });
   });
@@ -754,6 +755,7 @@ describe('A4 — a sibling whose state the incumbent reads refuses the file (D-2
       refused: [{ line: 2, specifier: '@clack/core', reason: 'sibling-state', fix }],
       kept: [],
       relevant: true,
+      dynamic: [],
       retained: ['@clack/prompts'],
     });
   });

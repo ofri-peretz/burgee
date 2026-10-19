@@ -167,6 +167,21 @@ grades the drop-in 540 of 584, because it follows ink 8 where the two majors dis
   file is rewritten whole or not at all — and its incumbents are held. A mock or a
   `require.resolve` whose argument is not a literal is not refused: it loads nothing into
   the program.
+
+  Three computed shapes load your own file or your user's module, never an incumbent, so they
+  are not refused, and are listed under `dynamic` (`read as not an incumbent`) instead:
+
+  - a path from the working directory: `require(path.join(process.cwd(), 'package.json'))`, or
+    `path.resolve`, or from `__dirname`, followed by string literals only;
+  - a member of a parsed argv object: `import(argv.parser)`, and `args`, `options`, `opts` or
+    `flags`;
+  - an element of an argv array: `argv.use.map(async (plugin) => import(plugin))`, and `forEach`,
+    `flatMap` or `filter`.
+
+  A string anywhere in the file that names an incumbent being moved (`'chalk'`,
+  `'node_modules/chalk'`, `` `${dir}/chalk` ``) could be what a computed name is built from. Every
+  computed specifier in that file is then refused, and the file holds that incumbent too, even if
+  it does not import it.
 - **A dirty git tree**, unless you pass `--force`, so the rewrite is one reviewable diff. The
   command exits 1 and writes nothing, and its `hint` lists the paths `git status` printed, so an
   install that left an untracked cache behind is named. When every one of them is untracked, the
