@@ -55,6 +55,7 @@
       "import": "./dist/plugin.js",
       "default": "./dist/plugin.js"
     },
+    "./package.json": "./package.json",
     "./schema.json": "./dist/schema.json"
   },
   "typesVersions": {

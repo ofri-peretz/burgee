@@ -80,7 +80,10 @@
       "jsonPath": "bands.commander-front-end-bundled-bytes.value",
       "window": 20,
       "minPoints": 8,
-      "worse": "higher"
+      "worse": "higher",
+      "rebase": [
+        { "from": "2026-10-19-28843a5-ci", "decision": "D-20261019-front-end-byte-steps-rebase-bands" }
+      ]
     },
     {
       "id": "yargs-front-end-bundled-bytes",
@@ -90,7 +93,11 @@
       "jsonPath": "bands.yargs-front-end-bundled-bytes.value",
       "window": 20,
       "minPoints": 8,
-      "worse": "higher"
+      "worse": "higher",
+      "rebase": [
+        { "from": "2026-10-19-28843a5-ci", "decision": "D-20261019-front-end-byte-steps-rebase-bands" },
+        { "from": "2026-10-19-a34a8ee-ci", "decision": "D-20261019-front-end-byte-steps-rebase-bands" }
+      ]
     },
     {
       "id": "agent-exit-code-accuracy",

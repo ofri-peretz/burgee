@@ -127,7 +127,7 @@ Criterion 1 named `packages/burgee/src/clispec-document.test.ts`. The test was b
 Supporting rows: output declarations (R7/R8) through `schema-fields.test.ts` (2 passed, 7 skipped),
 `facade-types.test.ts` (2 passed, 15 skipped), `definition.test.ts -t R5` (2 passed, 6 skipped),
 `machine-json.test.ts` (7 passed, 20 skipped), and the docs examples (`apps/docs` `tests/examples.test.ts`,
-42 passed). The published 24 / 24 reading (`external-floor/2026-10-12.json`) is a local run. CI
+42 passed). The published 24 / 24 reading (`external-floor/2026-10-12.json`, renamed `2026-10-12-35ded07-local.json` when agent-lint-conformance R9 published the CI reading of 2026-10-19) is a local run. CI
 gates at ≥ 24 on every PR rather than publishing its own reading.
 
 ## Open questions

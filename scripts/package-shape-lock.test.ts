@@ -142,7 +142,7 @@ function checkCodeExports(exports: Record<string, unknown>): void {
  * points at a `.json` inside `dist/`, so what a caller reads is what was published.
  */
 function checkDataExports(exports: Record<string, unknown>): void {
-  for (const [entry, target] of Object.entries(exports).filter(([k]) => isDataExport(k))) {
+  for (const [entry, target] of Object.entries(exports).filter(([k]) => k !== './package.json' && isDataExport(k))) {
     expect(typeof target, `${entry} is data; it takes a path, not a conditions object`).toBe('string');
     expect(String(target), entry).toMatch(/^\.\/dist\/.+\.json$/);
   }
@@ -198,6 +198,14 @@ describe.each(published)('published package $pkg.name', ({ dir, pkg }) => {
 
   it('publishes any data export as a plain path into dist (K2)', () => {
     checkDataExports(pkg.exports ?? {});
+  });
+
+  // `require('<pkg>/package.json')` is how a bundler, a license scanner or a version check reads
+  // a dependency's manifest. Under an `exports` map that does not name it, Node throws
+  // ERR_PACKAGE_PATH_NOT_EXPORTED, and every family package did. Node's own convention: the
+  // manifest itself, exported as itself, beside the code entries.
+  it('exports its own package.json, so a tool can read the manifest of a dependency', () => {
+    expect(pkg.exports?.['./package.json'], `${pkg.name} does not export ./package.json`).toBe('./package.json');
   });
 
   it('imports none of the packages Node ships natively (K3)', () => {
