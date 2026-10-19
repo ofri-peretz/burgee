@@ -149,7 +149,9 @@ const pwsh = (queries: readonly string[], runs: readonly string[] = []): Map<str
  * included, which no refusal can carry as an argument.
  */
 const ECHO = join(dir, 'echo.mjs');
-writeFileSync(ECHO, 'process.stdout.write(JSON.stringify(process.argv.slice(2)))\n');
+// A line of its own: a native command's output reaches stdout as written, so without the newline
+// the `exit:<code>` line after it would join it.
+writeFileSync(ECHO, 'console.log(JSON.stringify(process.argv.slice(2)))\n');
 const TYPED = ['echo', '--nmae', "it's", '~/x', '@a', 'a,b', '--json'];
 const MEANT = ['echo', '--name', "it's", '~/x', '@a', 'a,b', '--json'];
 const WORDS = ["it's", '@a', 'a,b', '--%', '~', '$HOME', '`x', 'C:\\Users\\RUNNER~1\\x', 'a b', 'plain'];

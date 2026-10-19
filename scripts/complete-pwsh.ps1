@@ -17,6 +17,8 @@
 # also runs each line of -Run in the same session, after the completions (fix-lines-every-shell R3):
 # a `fix:` line is parsed by PowerShell as typed, its output printed under `### run:<n>` and its
 # exit code as `exit:<code>`, or the parse error as `error:<message>`. One cold start answers both.
+# Binding is by name only: -Run must never take a positional line, which -Line collects.
+[CmdletBinding(PositionalBinding = $false)]
 param([Parameter(Mandatory)][string]$Script, [string]$Run = '', [Parameter(Mandatory, ValueFromRemainingArguments)][string[]]$Line, [switch]$Delimited)
 $clock = [Diagnostics.Stopwatch]::StartNew()
 $booted = [int]([DateTime]::Now - [Diagnostics.Process]::GetCurrentProcess().StartTime).TotalMilliseconds
