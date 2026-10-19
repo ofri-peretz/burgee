@@ -2,8 +2,8 @@
 
 Intent: [`intent.md`](./intent.md). **Status:** approved (2026-09-27, by the owner, D-158;
 amended the same day by D-168: R15–R18, compatibility and migration from the leading
-competitors; and by D-167: R19–R22, Claude-Code-class apps and boilerplates). **Skeleton:** `packages/controlroom` exists at `0.0.1`, with no API yet.
-The package is named `controlroom`, reserved as `controlroom@0.0.1`. The earlier picks were
+competitors; and by D-167: R19–R22, Claude-Code-class apps and boilerplates). **Published:** `controlroom@1.0.3` (read 2026-10-19); it was a `0.0.1` skeleton with no API until 2026-10-05.
+The package is named `controlroom`, first reserved as `controlroom@0.0.1`. The earlier picks were
 `chartroom`, which clashes with `chart-room`, and `conning`, which npm refused as too similar
 to `config` (see the intent's Naming section).
 This design is the first cut. Each phase refines its own requirements before it builds, and
@@ -114,7 +114,7 @@ it records every change here.
   `node-pty`'s prebuilds, none excluded; control 593 / 593 on darwin, Ubuntu's reference is
   CI's), @inkjs/ui@2.0.0 (13 files, 103 cases, control 103 / 103, graded through the `'ink'`
   alias as R17 asks). Both target the root `controlroom` at 0 until R11 builds
-  `controlroom/ink` (D-006, D-007). PR #PR_NUMBER, D-20261005-controlroom-ink-suite.
+  `controlroom/ink` (D-006, D-007). PR #804, D-20261005-controlroom-ink-suite.
   **Both rows moved to `controlroom/ink` on 2026-10-05** with R11, graded with the target's
   peers resolved from the suite's tree (`Host.peers`) and ink's two internal imports served by
   the drop-in's own modules (`Host.targetInternals`).
@@ -210,7 +210,7 @@ be compatible and allow easy migration to it from the leading competitors."_
   existing coming-from guides have. The docs gain a **"Which one do I need?"** section:
   flagstaff for inline output in a scrolling terminal, controlroom for a full screen.
 
-  **Built 2026-10-05** (PR #PR_NUMBER): guides `coming-from/blessed`, `coming-from/neo-blessed`
+  **Built 2026-10-05** (PR #803): guides `coming-from/blessed`, `coming-from/neo-blessed`
   and `coming-from/terminal-kit` under `apps/docs/content/docs/`, on the front door until
   controlroom has a docs host (`familyRedirects()` moves them with a 301 when it does); the
   **"Which one do I need?"** section on the package map, written by
