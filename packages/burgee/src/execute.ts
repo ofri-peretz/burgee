@@ -157,6 +157,12 @@ export interface Program {
   config?: boolean | { name: string };
   /** Shown under `Examples:` in root help; without them, each top-level command's first example is (agent-lint-conformance R6). */
   examples?: DeclaredExample[];
+  /**
+   * The credential a non-interactive caller supplies, by the environment variable it sets (agent-lint-conformance
+   * R8). Declared, the program's exit-code contract lists `auth` and names the variable in its advice
+   * and in an `AuthError`'s default hint; undeclared, the program claims no auth failure at all.
+   */
+  auth?: { env: string };
   commands: AnyCommand[];
 }
 
@@ -199,6 +205,10 @@ export function defineProgram(program: Program): Manifest {
   if (program.version !== undefined) manifest.version = program.version;
   if (program.envPrefix !== undefined) manifest.envPrefix = program.envPrefix;
   if (program.schemaBudget !== undefined) manifest.schemaBudget = program.schemaBudget;
+  // agent-lint-conformance R8 — help and `--schema` print the variable as the way to recover from
+  // `auth`, so it has to be one a shell can set. Checked here, not in `definition.ts`: every
+  // front-end loads that file, and only a native program declares `auth`.
+  if (program.auth !== undefined && !/^[A-Z][A-Z\d_]*$/.test((manifest.auth = program.auth).env)) throw new Error('burgee: auth.env must name an environment variable, such as DEMO_TOKEN');
   if (program.config === true) manifest.config = { name: program.name };
   else if (typeof program.config === 'object' && program.config !== null) manifest.config = program.config;
   manifest.add({ path: [program.name], ...helpFields(program as AnyCommand) });
@@ -584,7 +594,7 @@ interface FailureContext {
 async function report(cause: unknown, { manifest, io, argv, json, name }: FailureContext): Promise<string[] | void> {
   // U5 — the whole failure vocabulary is its own chunk: a run that succeeds never loads it.
   const { describeFailure, reportFailure } = await import('./failure.js');
-  const failure = await describeFailure(cause, { root: manifest.rootPath, argv }, resolveCommand(manifest, argv) ?? undefined, cause instanceof ActionRequired ? cause.spec : undefined);
+  const failure = await describeFailure(cause, { manifest, argv }, resolveCommand(manifest, argv) ?? undefined, cause instanceof ActionRequired ? cause.spec : undefined);
   // Nothing is reported and nothing has run: the caller runs this line instead (`execute`).
   if (failure.again) return failure.again;
   if (failure.silent) return await leave(io, failure.code);

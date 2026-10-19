@@ -337,7 +337,7 @@ await run(defineProgram({ name: 'app', commands: Object.entries(h).map(([name, f
  * runnable correction the spec's `next[]` names. Red first: before R1 and R3 these lines exited 0,
  * so there was no failure and no line to run.
  */
-/** A fix line's words, as a shell splits them: `shellWord` quotes with single quotes only. */
+/** A fix line's words, as a shell splits them: `shellWord` quotes with single quotes only. These cases carry no quote inside a word, so neither form's escape (POSIX or PowerShell) is parsed here. */
 const words = (line: string): string[] => [...line.matchAll(/'([^']*)'|(\S+)/gu)].map((m) => (m[1] ?? m[2]) as string);
 
 describe('parse-refusals R4: the fix of a refused line runs', () => {

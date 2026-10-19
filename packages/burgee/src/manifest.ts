@@ -408,6 +408,8 @@ export class Manifest {
   config?: { name: string };
   /** Characters of `--schema` output above which it is summarised (N13). */
   schemaBudget?: number;
+  /** The variable a non-interactive caller sets for the credential, when the program declares one (agent-lint-conformance R8). */
+  auth?: { env: string };
 
   add(node: CommandNode): void {
     // A lazy node is runnable from the descriptor alone; its module loads on dispatch (M2).

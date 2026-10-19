@@ -16,7 +16,7 @@ import { ambientRuntime, run } from 'bellpull';
 
 import { UsageError } from './errors.js';
 import { ExitCode } from './exit-code.js';
-import { shellWord } from './unknown-option.js';
+import { shellLine, shellWord } from './unknown-option.js';
 
 /** The two files, in the order they are written and reported. */
 const FILES = ['cli.mjs', 'package.json'] as const;
@@ -78,7 +78,7 @@ export async function init(opts: { dir: string; typed: string | undefined; force
     const line = ['npx', 'burgee', 'init', ...(opts.typed === undefined ? [] : [opts.typed]), ...(opts.install ? ['--install'] : []), '--force'];
     const refused = new UsageError(`${taken} already exists`, 'pass --force to overwrite it');
     // `fix` beside `hint`, as `failure.ts` carries it off any error (E3): the line to run instead.
-    Object.assign(refused, { fix: line.map(shellWord).join(' ') });
+    Object.assign(refused, { fix: shellLine(line) });
     throw refused;
   }
 

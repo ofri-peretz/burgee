@@ -173,6 +173,28 @@ describe('the clispec keys (clispec-conformance)', () => {
     expect((await native(quoted, ['say', '--schema']))['example']).toEqual({ args: ['say', 'two words', 'and more', '--loud'] });
   });
 
+  /**
+   * agent-lint-conformance R8 — `errors` lists the codes the program can produce, from the list
+   * root help prints under `Exit codes:` (`producibleExits`): help and schema cannot disagree.
+   */
+  it('R8: --schema errors match the help rows', async () => {
+    const declared = defineProgram({ name: 'app', auth: { env: 'APP_TOKEN' }, commands: [defineCommand({ name: 'go', effects: 'read_only', run: () => 'ok' })] });
+    const compared = await Promise.all(
+      [program, declared].map(async (p) => {
+        const help = (await runBurgee(p, { argv: ['--help'], env: {} })).stdout;
+        const section = help.slice(help.indexOf('Exit codes:'), help.indexOf('\n\n', help.indexOf('Exit codes:')));
+        const rows = [...section.matchAll(/^ {2}(\d+)\s/gmu)].map((m) => Number(m[1])).filter((code) => code !== 0);
+        const errors = (await native(p))['errors'] as { exit_code: number }[];
+        // The contract's rows, by code; a defined error's row would follow them.
+        return { rows, codes: errors.map((e) => e.exit_code).slice(0, rows.length) };
+      }),
+    );
+    for (const { rows, codes } of compared) expect(codes).toEqual(rows);
+    const errors = (await native(declared))['errors'] as { kind: string; description?: string }[];
+    expect(errors.find((e) => e.kind === 'auth')?.description).toBe('a credential is missing or refused; set APP_TOKEN and run it again');
+    expect(((await native(program))['errors'] as { kind: string }[]).map((e) => e.kind)).not.toContain('auth');
+  });
+
   it('over its budget, the summary keeps errors and the version and claims no clispec conformance', async () => {
     const tight = defineProgram({ name: 'app', version: '1.0.0', schemaBudget: 10, commands: [defineCommand({ name: 'go', effects: 'read_only', run: () => 'ok' })] });
     const doc = await native(tight);

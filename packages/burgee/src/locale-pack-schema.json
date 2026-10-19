@@ -497,9 +497,9 @@
           "pattern": "^(?:[^{]|\\{(?!\\w+\\}))*$"
         },
         "exit.auth": {
-          "description": "a credential is missing or refused; log in and run it again",
+          "description": "a credential is missing or refused; set {env} and run it again",
           "type": "string",
-          "pattern": "^(?:[^{]|\\{(?!\\w+\\}))*$"
+          "pattern": "^(?:[^{]|\\{(?:env)\\}|\\{(?!\\w+\\}))*$"
         },
         "exit.timeout": {
           "description": "the --timeout deadline passed; run it again with more time",

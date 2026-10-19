@@ -8,6 +8,7 @@
  * takes it — and the entry got smaller, not larger, because the single-dash hint moved
  * here too.
  */
+import { host } from './runtime.js';
 import { suggestSimilar } from './suggest.js';
 
 const UNKNOWN_OPTION = /^Unknown option '(?<flag>[^']+)'/u;
@@ -69,8 +70,21 @@ export class Again extends Error {
   }
 }
 
-/** A word safe to paste into a shell as it is; anything else goes in single quotes. */
-export const shellWord = (word: string): string => (/^[\w@%+=:,./-]+$/u.test(word) ? word : `'${word.replaceAll("'", `'\\''`)}'`);
+/**
+ * A word safe to paste into the platform's default shell as it is; anything else goes in single
+ * quotes (fix-lines-every-shell R1, D-20261012-fix-lines-shell-target). POSIX `sh` reads a quote
+ * inside a word closed, escaped and reopened; PowerShell reads it doubled, and on Windows it also
+ * takes a leading `@` as splatting, a `,` as an array and `--%` as stop-parsing, so those words
+ * are quoted there too.
+ */
+export const shellWord = (word: string, platform: string = host.platform): string => {
+  const win = platform === 'win32';
+  if (/^[\w@%+=:,./-]+$/u.test(word) && !(win && /^@|,|^--%$/u.test(word))) return word;
+  return `'${word.replaceAll("'", win ? "''" : `'\\''`)}'`;
+};
+
+/** A `fix` line: each word quoted for the platform's shell, as `shellWord` quotes it. */
+export const shellLine = (words: readonly string[]): string => words.map((word) => shellWord(word)).join(' ');
 
 /**
  * `argv` is the whole line as typed, program first, so the fix can be that line with the flag
@@ -112,7 +126,7 @@ export function unknownOption(
   return {
     message: `unknown option ${flag}`,
     hint: `did you mean ${near}?`,
-    ...(line === undefined ? {} : { fix: line.map(shellWord).join(' ') }),
+    ...(line === undefined ? {} : { fix: shellLine(line) }),
     ...(again === undefined ? {} : { again }),
   };
 }

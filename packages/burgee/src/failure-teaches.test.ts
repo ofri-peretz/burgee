@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { runCommand as runEngine } from './execute.js';
 import { AuthError, defineCommand, defineProgram, ExitCode, UsageError } from './index.js';
 import { runBurgee } from './testing.js';
+import { shellWord } from './unknown-option.js';
 
 /**
  * What these cases read is the prose a person reads. A captured stderr is not a terminal, so a
@@ -180,7 +181,7 @@ describe('an unknown command names what exists, and the nearest one', () => {
   it('gives the caller’s own line back, corrected, as the fix — quoted where a shell needs it', async () => {
     expect(await run('confg', 'get', "it's here", '--json')).toEqual({
       code: ExitCode.USAGE,
-      stdout: `${JSON.stringify({ ok: false, error: { kind: 'usage', code: 2, message: 'unknown command "confg"', hint: 'did you mean config?', fix: "tool config get 'it'\\''s here' --json" } })}\n`,
+      stdout: `${JSON.stringify({ ok: false, error: { kind: 'usage', code: 2, message: 'unknown command "confg"', hint: 'did you mean config?', fix: `tool config get ${shellWord("it's here")} --json` } })}\n`,
       stderr: '',
     });
   });
@@ -365,7 +366,10 @@ describe('the line to run is on the first screen, and whole', () => {
 
   it('names the whole corrected line as the fix for an unknown option, quoted where a shell needs it', async () => {
     expect((await run('fail', '--cod=0')).stderr).toContain('fix: tool fail --code=0\n');
-    expect((await run('fail', '--cod=0', "it's")).stderr).toContain(`fix: tool fail --code=0 'it'\\''s'\n`);
+    // fix-lines-every-shell R5: quoted for the shell of the platform the run is on, which is
+    // this process's own: POSIX off Windows, PowerShell on it. Both forms are pinned in
+    // `shell-word.test.ts` with the platform passed in.
+    expect((await run('fail', '--cod=0', "it's")).stderr).toContain(`fix: tool fail --code=0 ${shellWord("it's")}\n`);
   });
 });
 
