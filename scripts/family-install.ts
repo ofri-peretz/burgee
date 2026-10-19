@@ -12,11 +12,14 @@
  * imports every entry, `readme-quick-start-lock.test.ts` runs each README's quick start — and
  * they need the same three things: one pack of the published packages, an offline install of
  * some of those tarballs, and a way to tell which package a resolved file belongs to. They live
- * here so that a second lock does not grow a second packer.
+ * here so that a second lock does not grow a second packer. Both also share `installStamp`, which
+ * skips an install whose exact tarballs already passed on this machine.
  */
 import { execFile, spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
-import { isAbsolute, join, relative, sep } from 'node:path';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { basename, isAbsolute, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
@@ -97,6 +100,51 @@ export function discard(dir: string): void {
     detached: true,
     stdio: 'ignore',
   }).unref();
+}
+
+/** The part of a vitest suite `record` reads: each test's state, however deeply nested. */
+export interface Outcome {
+  readonly result?: { readonly state?: string } | undefined;
+  readonly tasks?: readonly Outcome[];
+}
+const passed = (task: Outcome): boolean => (task.tasks === undefined ? task.result?.state === 'pass' : task.tasks.every(passed));
+
+/** What a lock does with its install this run. */
+export interface InstallStamp {
+  /** Why this run skips the install and what it decides, or `undefined` when it runs them. */
+  readonly skip: string | undefined;
+  /** Remember this run, when every test under `suite` passed. */
+  record(suite: Outcome): void;
+}
+
+/**
+ * A lock's install, remembered across runs and across worktrees. The installs write thousands of
+ * files, and on a machine whose endpoint scanner inspects every new file one root-suite run pushed
+ * the load average past 100 — on every push, from every worktree, for bytes nothing had changed.
+ *
+ * The key is everything the outcome can depend on: the lock's name and source, this file's source,
+ * the Node and platform it ran under, and the bytes of every tarball (`npm pack` is reproducible,
+ * so an unchanged package packs to the same bytes). A stamp under that key means those exact
+ * inputs passed here before, so the lock's install and the tests that read it are skipped, each
+ * naming the stamp. CI (`CI` set) never reads or writes one, and `BURGEE_LOCKS_FULL=1` runs it all.
+ * ponytail: stamps are never pruned; each is one short line under `burgee-locks/`.
+ */
+export function installStamp(testFile: string, tarballs: Iterable<string>, env: NodeJS.ProcessEnv = process.env): InstallStamp {
+  if (env['CI'] !== undefined || env['BURGEE_LOCKS_FULL'] === '1') return { skip: undefined, record: () => undefined };
+  const lock = basename(testFile).replace(/\.test\.ts$/u, '');
+  const hash = createHash('sha256').update(`${lock}\0${process.version}\0${process.platform}\0`);
+  hash.update(readFileSync(testFile)).update(readFileSync(new URL(import.meta.url)));
+  for (const file of [...tarballs].toSorted((a, b) => basename(a).localeCompare(basename(b)))) hash.update(`\0${basename(file)}\0`).update(readFileSync(file));
+  const dir = join(env['XDG_CACHE_HOME'] ?? join(homedir(), '.cache'), 'burgee-locks');
+  const stamp = join(dir, `${lock}-${hash.digest('hex')}`);
+  return {
+    skip: existsSync(stamp) ? `these tarballs passed ${lock} before (${stamp}); BURGEE_LOCKS_FULL=1 runs it again` : undefined,
+    record(suite) {
+      if (!passed(suite)) return;
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(stamp, `${new Date().toISOString()}\n`);
+    },
+  };
 }
 
 /** One module resolution Node performed: who asked, for what, and the URL it got. */
