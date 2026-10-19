@@ -66,8 +66,7 @@
  * | the two original changesets restored (`yargs #1519, #2118`, `accent: '#336699'`) | no pending changeset writes an issue link its author did not |
  */
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { delimiter, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -77,6 +76,10 @@ import { describe, expect, it } from 'vitest';
 
 import { OUT as COMPAT_OUT } from './compat-page.js';
 import { OUT as GALLERY_OUT } from './gallery-page.js';
+import { scratchDirs } from './scratch-dir.js';
+
+/** Every scratch directory this file makes, removed after its last test (`scripts/scratch-dir.ts`). */
+const scratchDir = scratchDirs();
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TABLE_PATH = join(REPO_ROOT, '.github', 'vercel-apps.json');
@@ -180,7 +183,7 @@ function runBlock(job: string, file: string, id: string): string {
 
 /** Run a `run:` block under bash at the repo root, with stub binaries first on PATH. */
 function runStep(body: string, env: Record<string, string>, stubs: Record<string, string> = {}): { status: number; output: string; githubOutput: string } {
-  const dir = mkdtempSync(join(tmpdir(), 'vercel-apps-lock-'));
+  const dir = scratchDir('vercel-apps-lock-');
   const bin = join(dir, 'bin');
   mkdirSync(bin);
   for (const [name, script] of Object.entries(stubs)) {
@@ -211,7 +214,7 @@ describe('criterion 1: every published package has a site, or a written reason',
   });
 
   it('can fail: a fifth published package with neither', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'packages-'));
+    const dir = scratchDir('packages-');
     for (const name of [...ROWS.map(([, row]) => row.package), 'topsail']) {
       mkdirSync(join(dir, name));
       writeFileSync(join(dir, name, 'package.json'), JSON.stringify({ name }));

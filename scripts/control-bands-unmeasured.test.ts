@@ -17,19 +17,22 @@
  * "latest" reads as "now" — which is how an afternoon went into diagnosing a dead loop that
  * was alive and on schedule.
  */
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { type BandConfig, unmeasured } from './control-bands.js';
+import { scratchDirs } from './scratch-dir.js';
+
+/** Every scratch directory this file makes, removed after its last test (`scripts/scratch-dir.ts`). */
+const scratchDir = scratchDirs();
 
 const SUITE = 'cli-benchmarks';
 
 /** A results directory holding one partial document, the shape a pull request writes. */
 function withPartialRun(): string {
-  const root = mkdtempSync(join(tmpdir(), 'bands-'));
+  const root = scratchDir('bands-');
   const dir = join(root, 'benchmarks/results', SUITE);
   mkdirSync(dir, { recursive: true });
   writeFileSync(
@@ -72,7 +75,7 @@ describe('a band the newest results document did not measure', () => {
   it('means newest by when it was measured, not by which hash sorts last', () => {
     // Two CI runs on one day. The later one has the hash that sorts first and skipped the band;
     // by name the earlier, complete run looked newest and the gap went unreported (#636).
-    const r = mkdtempSync(join(tmpdir(), 'bands-'));
+    const r = scratchDir('bands-');
     const d = join(r, 'benchmarks/results', SUITE);
     mkdirSync(d, { recursive: true });
     writeFileSync(join(d, '2026-09-24-fffffff-ci.json'), JSON.stringify({ measured: '2026-09-24T01:00:00.000Z', machine: { ci: true }, bands: { 'core-bundled-bytes': { value: 58027 } } }));
@@ -88,7 +91,7 @@ describe('a band the newest results document did not measure', () => {
   });
 
   it('says nothing when there are no results at all, rather than inventing a gap', () => {
-    expect(unmeasured(band('core-bundled-bytes'), mkdtempSync(join(tmpdir(), 'bands-empty-')))).toBeUndefined();
+    expect(unmeasured(band('core-bundled-bytes'), scratchDir('bands-empty-'))).toBeUndefined();
   });
 
   it('is not a gate: only a 2σ breach fails --check', () => {

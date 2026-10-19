@@ -20,8 +20,7 @@
  * error. So B2 now goes through the same `resolvePackage` guard, and this file proves the
  * guard fires — by putting a shadowing package on disk, never by editing the check.
  */
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -29,6 +28,10 @@ import { describe, expect, it } from 'vitest';
 import { msRecord, proveFixtures, ratioRecord, resolveVariants, ROUNDS, type Variant, VARIANTS } from './axes/perf.js';
 import manifest from './package.json' with { type: 'json' };
 import { packageDir, resolvePackage } from './resolve.js';
+import { scratchDirs } from './scratch-dir.js';
+
+/** Every scratch directory this file makes, removed after its last test (`scratch-dir.ts`). */
+const scratchDir = scratchDirs();
 
 /** Spawning is slow on a Windows runner; this asserts correctness, never speed (see fixtures.test.ts). */
 const SPAWN_TIMEOUT_MS = 120_000;
@@ -37,7 +40,7 @@ const declared: Record<string, string> = { ...manifest.dependencies, ...manifest
 
 /** A tree with one package in it, at whatever version the caller wants to shadow with. */
 function treeWith(name: string, version: string): string {
-  const root = mkdtempSync(join(tmpdir(), 'shadow-'));
+  const root = scratchDir('shadow-');
   const dir = join(root, 'node_modules', name);
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ name, version }));

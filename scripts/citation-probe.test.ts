@@ -10,7 +10,7 @@
  * always the roadmap's five questions. `claude` is a stub shell script in every test;
  * nothing here reaches a model.
  */
-import { chmodSync, existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,6 +19,10 @@ import { describe, expect, it } from 'vitest';
 
 import { PROBE_DIR, probeProblems, QUESTIONS, runProbe, writeProbe } from './citation-probe';
 import { answeringModel, claudeArgs, MAX_TURNS, MODEL, parseClaudeOutput } from './citation-probe-claude';
+import { scratchDirs } from './scratch-dir.js';
+
+/** Every scratch directory this file makes, removed after its last test (`scripts/scratch-dir.ts`). */
+const scratchDir = scratchDirs();
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SHA = '0a1b2c3d4e5f60718293a4b5c6d7e8f901234567';
@@ -37,7 +41,7 @@ interface Stub {
  * argv and whether the child saw `ANTHROPIC_API_KEY`, which it must not.
  */
 function stubClaude(body: string): Stub {
-  const dir = mkdtempSync(join(tmpdir(), 'stub-claude-'));
+  const dir = scratchDir('stub-claude-');
   const bin = join(dir, 'claude');
   const log = join(dir, 'calls.log');
   writeFileSync(bin, `#!/bin/sh\nprintf '%s|key=%s\\n' "$*" "\${ANTHROPIC_API_KEY:-}" >> '${log}'\n${body}\n`);
@@ -90,7 +94,7 @@ describe.skipIf(!POSIX)('runProbe without a credential', () => {
     expect(run.observations.every((o) => o.status === 'skipped' && !o.named && o.model === null && o.exitCode === null)).toBe(true);
     expect(probeProblems(run)).toEqual([]);
 
-    const root = mkdtempSync(join(tmpdir(), 'citation-probe-'));
+    const root = scratchDir('citation-probe-');
     const rel = writeProbe(run, root);
     expect(rel).toBe(`${PROBE_DIR}/${DATE}.json`);
     expect(probeProblems(JSON.parse(readFileSync(join(root, rel), 'utf8')))).toEqual([]);

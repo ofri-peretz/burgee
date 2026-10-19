@@ -38,7 +38,6 @@ import {
   chmodSync,
   copyFileSync,
   mkdirSync,
-  mkdtempSync,
   readdirSync,
   readFileSync,
   writeFileSync,
@@ -49,6 +48,11 @@ import { fileURLToPath } from "node:url";
 
 import { load as loadYaml } from "js-yaml";
 import { describe, expect, it } from "vitest";
+
+import { scratchDirs } from "./scratch-dir.js";
+
+/** Every scratch directory this file makes, removed after its last test (`scripts/scratch-dir.ts`). */
+const scratchDir = scratchDirs();
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WORKFLOWS = join(REPO_ROOT, ".github", "workflows");
@@ -185,7 +189,7 @@ describe("OIDC is available to the publish", () => {
 
 /** Stub `npm` in a scratch dir: NPM_VERSION for `-v`, INSTALLS records `install`, `view` misses, `publish` writes OIDC_LOG to its debug log and exits PUBLISH_EXIT. */
 function sandbox(): { dir: string; bin: string } {
-  const dir = mkdtempSync(join(tmpdir(), "trusted-publishing-"));
+  const dir = scratchDir("trusted-publishing-");
   const bin = join(dir, "bin");
   mkdirSync(bin);
   const shim = (name: string, body: string[]) => {

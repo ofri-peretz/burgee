@@ -21,12 +21,16 @@
  * script touches git, which is what makes it runnable outside a PR.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { beforeAll, describe, expect, it } from 'vitest';
+
+import { scratchDirs } from './scratch-dir.js';
+
+/** Every scratch directory this file makes, removed after its last test (`scripts/scratch-dir.ts`). */
+const scratchDir = scratchDirs();
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const WORKFLOW = join(REPO_ROOT, '.github/workflows/changesets-pr.yml');
@@ -75,8 +79,8 @@ interface Answer {
  * an empty result to `missing`. The trace shows each argument after expansion, so an empty
  * `git show` is visible in it.
  */
-function statusFor(env: Record<string, string>, cwd = mkdtempSync(join(tmpdir(), 'changeset-check-'))): Answer {
-  const scratch = mkdtempSync(join(tmpdir(), 'changeset-check-'));
+function statusFor(env: Record<string, string>, cwd = scratchDir('changeset-check-')): Answer {
+  const scratch = scratchDir('changeset-check-');
   const script = join(scratch, 'check.sh');
   const out = join(scratch, 'output');
   writeFileSync(script, checkScript());
@@ -155,8 +159,8 @@ const commit = ({ ref, mark, message, files, from }: FastImportCommit): string =
  * moved out of the cases.
  */
 function buildRepository(): { cwd: string; shas: Record<'base' | Head, string> } {
-  const cwd = mkdtempSync(join(tmpdir(), 'changeset-check-repo-'));
-  const marks = join(mkdtempSync(join(tmpdir(), 'changeset-check-marks-')), 'marks');
+  const cwd = scratchDir('changeset-check-repo-');
+  const marks = join(scratchDir('changeset-check-marks-'), 'marks');
   const names = Object.keys(HEADS) as Head[];
   const stream = [
     commit({ ref: 'base', mark: 1, message: 'base', files: file(MANIFEST_PATH, json(MANIFEST)) }),

@@ -7,13 +7,16 @@
  * check of `true` passes the second test, and a check of `false` passes the first.
  */
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { isPosix, POSIX_ONLY, readTasks, type Task } from './axes/agent.js';
+import { scratchDirs } from './scratch-dir.js';
+
+/** Every scratch directory this file makes, removed after its last test (`scratch-dir.ts`). */
+const scratchDir = scratchDirs();
 
 interface TaskWithExemplar extends Task {
   exemplar: string;
@@ -23,7 +26,7 @@ const tasks = readTasks() as TaskWithExemplar[];
 
 /** Run one task's check against a given final answer, the way `runOne` does. */
 function check(task: Task, result: string): number {
-  const dir = mkdtempSync(join(tmpdir(), 'bench-check-'));
+  const dir = scratchDir('bench-check-');
   const file = join(dir, '.bench-result');
   writeFileSync(file, result);
   return spawnSync('/bin/sh', ['-c', task.check], { cwd: dir, env: { ...process.env, BENCH_RESULT: file, BENCH_EXIT: '0' }, stdio: 'ignore' }).status ?? 1;

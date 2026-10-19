@@ -12,18 +12,22 @@
  * `## <version>` section; this runs it, and checks the workflow still calls it.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './scratch-dir.js';
+
+/** Every scratch directory this file makes, removed after its last test (`scripts/scratch-dir.ts`). */
+const scratchDir = scratchDirs();
+
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SCRIPT = join(REPO_ROOT, 'scripts/changelog-section.sh');
 
 function section(changelog: string, version: string): string {
-  const dir = mkdtempSync(join(tmpdir(), 'changelog-section-'));
+  const dir = scratchDir('changelog-section-');
   const file = join(dir, 'CHANGELOG.md');
   writeFileSync(file, changelog);
   return execFileSync('bash', [SCRIPT, file, version], { encoding: 'utf8' });

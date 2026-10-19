@@ -16,8 +16,7 @@
  */
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { deflateSync } from 'node:zlib';
@@ -25,6 +24,7 @@ import { deflateSync } from 'node:zlib';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { compare, familyTable, historyOf, parts, published, sinceOf, subpathsOf } from './family-versions.mjs';
+import { scratchDirs } from './scratch-dir.js';
 
 const SCRIPT = resolve(dirname(fileURLToPath(import.meta.url)), 'family-versions.mjs');
 
@@ -132,11 +132,12 @@ const ALIASES: Readonly<Record<string, string>> = { 'x@next': 'x@1.0.0' };
 let fixture: string | undefined;
 
 /**
- * A fresh scratch directory under the system's temporary directory, left for the OS to clear.
- * Removing them in `afterAll` was tried: under the load below, unlinking these few dozen files
- * from Node took 152 s and failed the file on the 60 s hook timeout.
+ * A fresh scratch directory under the system's temporary directory. Removing them from Node in
+ * `afterAll` was tried: under the load below, unlinking these few dozen files took 152 s and failed
+ * the file on the 60 s hook timeout. Left for the OS, they piled up by the thousand a day, so they
+ * go to a detached `rm` the hook does not wait for (`scripts/scratch-dir.ts`).
  */
-const scratchDir = (prefix: string): string => mkdtempSync(join(tmpdir(), prefix));
+const scratchDir = scratchDirs();
 
 /**
  * The one repository whose tags every case reads, written once and never again — and written by

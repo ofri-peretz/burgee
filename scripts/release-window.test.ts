@@ -22,8 +22,7 @@
  * steps did not exist.
  */
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -58,6 +57,10 @@ import {
   WINDOW_DAYS,
   type WindowPlan,
 } from './release-window.mjs';
+import { scratchDirs } from './scratch-dir.js';
+
+/** Every scratch directory this file makes, removed after its last test (`scripts/scratch-dir.ts`). */
+const scratchDir = scratchDirs();
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DAY = 86_400_000;
@@ -99,7 +102,7 @@ describe('parseChangeset — the file changesets writes', () => {
   });
 
   it('reads every changeset in a directory but its README, in name order, and nothing from a missing one', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'release-window-dir-'));
+    const dir = scratchDir('release-window-dir-');
     writeFileSync(join(dir, 'README.md'), '# not a changeset');
     writeFileSync(join(dir, 'config.json'), '{}');
     writeFileSync(join(dir, 'b.md'), '---\n"burgee": patch\n---\n\nb\n');
@@ -246,7 +249,7 @@ describe('planWindow — what the next Version PR carries', () => {
 
 /** A `.changeset/` with one wholly held changeset, one split and one that releases, and its plan. */
 function workdir(): { dir: string; changesets: Changeset[]; plan: WindowPlan } {
-  const dir = mkdtempSync(join(tmpdir(), 'release-window-version-'));
+  const dir = scratchDir('release-window-version-');
   const files = {
     'held.md': '---\n"burgee": minor\n---\n\nHeld whole.\n',
     'split.md': '---\n"roundel": patch\n"burgee": minor\n---\n\nSplit.\n',
@@ -304,7 +307,7 @@ describe('version — changeset version with the held changesets set aside', () 
   });
 
   it('touches nothing when nothing is held, and skips a planned file that is gone', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'release-window-none-'));
+    const dir = scratchDir('release-window-none-');
     writeFileSync(join(dir, 'a.md'), '---\n"burgee": patch\n---\n\na\n');
     const changesets = readChangesets(dir);
     let seen: string[] = [];
@@ -412,7 +415,7 @@ function io(over: Partial<Io> = {}): Io {
 
 /** A scratch repository root: `.changeset/`, the lock's table, and packages. */
 function scratch(changesets: Record<string, string>, packages: Record<string, { version: string; private?: boolean }> = {}): string {
-  const root = mkdtempSync(join(tmpdir(), 'release-window-root-'));
+  const root = scratchDir('release-window-root-');
   mkdirSync(join(root, '.changeset'));
   mkdirSync(join(root, '.sdlc/bands'), { recursive: true });
   writeFileSync(join(root, '.sdlc/bands/incumbent-majors.json'), JSON.stringify({ rows: ROWS }));
@@ -835,7 +838,7 @@ describe('the registry, and the version run, as the real process reaches them', 
     const usage = cli(['nope']);
     expect(usage.status).toBe(2);
     expect(usage.stdout).toMatch(/^usage: release-window\.mts/);
-    const out = join(mkdtempSync(join(tmpdir(), 'release-window-cli-')), 'p.json');
+    const out = join(scratchDir('release-window-cli-'), 'p.json');
     const fixes = cli(['publishable', '--out', out], JSON.stringify([row('roundel', '1.1.2')]));
     expect(fixes.status).toBe(0);
     expect(JSON.parse(readFileSync(out, 'utf8'))).toEqual([row('roundel', '1.1.2')]);
