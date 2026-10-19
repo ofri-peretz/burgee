@@ -472,3 +472,56 @@ describe('processRuntime', () => {
     expect(fn).not.toHaveBeenCalled();
   });
 });
+
+describe('controlroom-scroll-pane — the focused pane scrolls', () => {
+  const tall = Array.from({ length: 200 }, (_, i) => `line ${i + 1}`);
+  const scrolling = (extra: Partial<ScreenOptions> = {}): ScreenOptions => ({ layout: 'log', panes: { log: { component: text, state: tall.join('\n') } }, focus: ['log'], ...extra });
+
+  it('opens at its bottom, and the default keys move it: Home, PgDn with its `↓ N` hint, End', async () => {
+    const f = fake();
+    const screen = open(f.rt, scrolling());
+    expect(f.out.join('')).toContain('line 200');
+    press(f, `${ESC}[H`);
+    await flush();
+    expect(screen.state.scroll.get('log')).toBe(0);
+    f.out.length = 0;
+    press(f, `${ESC}[6~`);
+    await flush();
+    expect(screen.state.scroll.get('log')).toBe(6);
+    expect(f.out.join('')).toContain('↓ 188');
+    press(f, `${ESC}[F`);
+    await flush();
+    expect(screen.state.scroll.get('log')).toBe('end');
+    screen.close();
+  });
+
+  it('R5 — a resize re-clamps the offset, and an offset the new size reaches follows the tail again', () => {
+    const f = fake();
+    const screen = open(f.rt, scrolling());
+    screen.dispatch('scroll.up');
+    expect(screen.state.scroll.get('log')).toBe(193);
+    (f.rt.stdout as { rows: number }).rows = 4;
+    f.resize();
+    expect(screen.state.scroll.get('log')).toBe(193);
+    (f.rt.stdout as { rows: number }).rows = 10;
+    f.resize();
+    expect(screen.state.scroll.get('log')).toBe('end');
+    screen.close();
+  });
+
+  it('S3 — piped, the same screen prints all 200 lines, scrolled or not', () => {
+    const f = fake({ tty: false });
+    const screen = open(f.rt, scrolling());
+    screen.dispatch('scroll.top');
+    screen.close();
+    expect(f.out.join('').trimEnd().split('\n')).toEqual(tall);
+  });
+
+  it('R6 — closing inline settles every line of the pane into scrollback, not the page it was on', () => {
+    const f = fake();
+    const screen = open(f.rt, scrolling());
+    screen.dispatch('scroll.top');
+    screen.close();
+    expect(replay(f.out.join('')).filter((line) => line.startsWith('line '))).toEqual(tall);
+  });
+});
