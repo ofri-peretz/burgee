@@ -3,6 +3,17 @@ title: Changelog
 description: "Every release of flagstaff, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.7.2
+
+### Patch Changes
+
+- [#1160](https://github.com/ofri-peretz/burgee/pull/1160) [`0b381a0`](https://github.com/ofri-peretz/burgee/commit/0b381a0d394092edf2ea21a9143a10111aa72fe4) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Export `./package.json`. `require('<package>/package.json')` threw `ERR_PACKAGE_PATH_NOT_EXPORTED`, which broke tools that read a dependency's manifest that way: bundlers, license scanners and version checks.
+- Updated dependencies [[`0b381a0`](https://github.com/ofri-peretz/burgee/commit/0b381a0d394092edf2ea21a9143a10111aa72fe4)]:
+  - closeout@1.1.5
+  - linegauge@1.1.3
+  - paratext@1.0.9
+  - roundel@1.1.3
+
 ## 1.7.1
 
 ### Patch Changes
