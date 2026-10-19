@@ -46,10 +46,9 @@ export function compare(a, b) {
 
 /** The subpaths a manifest exports: the `./…` keys of `exports`, or `.` alone when it has none or a bare string. */
 export function subpathsOf(manifest) {
-  const { exports } = manifest;
-  if (exports === undefined || exports === null || typeof exports !== 'object' || Array.isArray(exports)) return ['.'];
-  const keys = Object.keys(exports).filter((key) => key === '.' || key.startsWith('./'));
-  // An exports object of conditions only (`{ import, require }`) is the root entry.
+  // A string or an array has no `./` keys either, and an exports object of conditions only
+  // (`{ import, require }`) is the root entry: each of them is `.` alone.
+  const keys = Object.keys(manifest.exports ?? {}).filter((key) => key === '.' || key.startsWith('./'));
   return keys.length === 0 ? ['.'] : keys;
 }
 
@@ -61,12 +60,16 @@ export function subpathsOf(manifest) {
  * leave the floor at the later one: the floor is a run of releases, not a first appearance.
  */
 export function sinceOf(current, history) {
-  const major = parts(current.version)?.[0];
+  const subpaths = subpathsOf(current.manifest);
+  const at = parts(current.version);
+  // A version that is not a plain `x.y.z` has no major to read tags in: every floor is that version.
+  if (at === undefined) return Object.fromEntries(subpaths.map((subpath) => [subpath, current.version]));
+  const [major] = at;
   const releases = history
     .filter((r) => parts(r.version)?.[0] === major && compare(r.version, current.version) < 0)
     .sort((a, b) => compare(b.version, a.version));
   const since = {};
-  for (const subpath of subpathsOf(current.manifest)) {
+  for (const subpath of subpaths) {
     let floor = current.version;
     for (const release of releases) {
       if (!subpathsOf(release.manifest).includes(subpath)) break;
@@ -117,14 +120,13 @@ export function historyOf(root, pkg) {
   const tags = git(root, ['tag', '--list', `${unscoped}@*`])
     .toString('utf8')
     .split('\n')
-    .filter((tag) => tag !== '' && parts(tag.slice(unscoped.length + 1)) !== undefined);
-  if (tags.length === 0) return [];
+    .filter((tag) => parts(tag.slice(unscoped.length + 1)) !== undefined);
   const batch = git(root, ['cat-file', '--batch'], `${tags.map((tag) => `${tag}:packages/${pkg.dir}/package.json`).join('\n')}\n`);
   const out = [];
   let at = 0;
   for (const tag of tags) {
+    // `--batch` answers every input line with one header line, so there is always one to read.
     const end = batch.indexOf(NEWLINE, at);
-    if (end === -1) break;
     const header = batch.subarray(at, end).toString('utf8').split(' ');
     at = end + 1;
     if (header[1] !== 'blob') continue;
@@ -152,7 +154,7 @@ export function familyTable(root) {
   return { table: { versions, since }, tags };
 }
 
-const isMain = process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const isMain = resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url);
 if (isMain) {
   const root = resolve(process.cwd(), '..', '..');
   const { table, tags } = familyTable(root);

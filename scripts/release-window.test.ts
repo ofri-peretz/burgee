@@ -21,17 +21,19 @@
  * Every case here fails on `main` before this change: the script, the table and the workflow
  * steps did not exist.
  */
+import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   changelogSection,
   type Changeset,
   daysOldEnough,
+  describes,
   formatChangeset,
   type IncumbentMajorRow,
   type Io,
@@ -47,7 +49,10 @@ import {
   previousNonFix,
   publishable,
   readChangesets,
+  registryTimes,
+  runVersion,
   securityTagged,
+  sentences,
   type Times,
   version,
   WINDOW_DAYS,
@@ -653,5 +658,215 @@ describe('the workflows run the window and the lock', () => {
     expect(text).toContain('.sdlc/intents/release-cadence/release-window.qnt');
     const model = readFileSync(join(ROOT, '.sdlc/intents/release-cadence/release-window.qnt'), 'utf8');
     for (const name of ['safety', 'unsplitHolds', 'npmOnlyHolds', 'shippedNeverReleasesAFeature']) expect(model).toContain(`val ${name} =`);
+  });
+});
+
+/*
+ * The cases below were written against the survivors of a Stryker run over
+ * `release-window.mts` (2026-10-18): each holds a line a mutant changed without a test noticing.
+ */
+
+const SCRIPT = join(ROOT, 'scripts/release-window.mts');
+/** The script as the workflows run it: a separate process, its own argv and stdout. */
+const cli = (args: string[], input = '') => spawnSync(process.execPath, [SCRIPT, ...args], { cwd: ROOT, input, encoding: 'utf8' });
+
+describe('parseChangeset — the edges of a release line', () => {
+  it('keeps mismatched or lone quotes as written, and refuses a line that is all bump', () => {
+    expect(parseChangeset('q.md', '---\n"x\': patch\n---\n').releases).toEqual([{ name: '"x\'', type: 'patch' }]);
+    expect(parseChangeset('q.md', '---\n": patch\n---\n').releases).toEqual([{ name: '"', type: 'patch' }]);
+    expect(() => parseChangeset('c.md', '---\n: minor\n---\n')).toThrow('c.md: cannot read the release line ": minor"');
+  });
+
+  it('reads an indented release line, skips a whitespace-only one, and keeps a carriage return inside a summary line', () => {
+    expect(parseChangeset('i.md', '---\n   "burgee": minor\n   \n---\n\na\rb\n').releases).toEqual([{ name: 'burgee', type: 'minor' }]);
+    expect(parseChangeset('i.md', '---\n"burgee": minor\n---\n\na\rb\n').summary).toBe('a\rb');
+  });
+
+  it('refuses an unclosed front matter, and one that does not open the file', () => {
+    expect(() => parseChangeset('u.md', '---\n"burgee": minor\n\nsummary\n')).toThrow('u.md: no front matter');
+    expect(() => parseChangeset('l.md', 'intro\n---\n"burgee": minor\n---\n')).toThrow('l.md: no front matter');
+  });
+});
+
+describe('versions — the comparisons a mutant can flip', () => {
+  it('reads nothing that does not start with the version', () => {
+    expect(parts('v1.2.3')).toBeUndefined();
+    expect(parts('1.2.3.4')).toBeUndefined();
+  });
+
+  it('compares patches: 1.1.0 is older than 1.1.1', () => {
+    expect(previousNonFix({ '1.0.0': ago(30), '1.1.0': ago(9) }, undefined, '1.1.1')).toBe(Date.parse(ago(9)));
+  });
+
+  it('is in flight only when the manifest’s x.y is newer than npm’s newest non-fix release', () => {
+    expect(previousNonFix({ '1.1.0': ago(9) }, '0.5.3'), 'an older line is not in flight').toBe(Date.parse(ago(9)));
+    expect(previousNonFix({ '1.0.0': ago(20), '1.1.0': 'garbage' }, '1.1.0'), 'a release npm lists with no readable date is not known to be out').toBe(Number.POSITIVE_INFINITY);
+  });
+});
+
+describe('sentences and describes — a list of phrases must share one sentence', () => {
+  it('splits after . ! or ? that end a word, and at a blank line, trimming each and dropping empties', () => {
+    expect(sentences('One. Two! Three? Four\n\nFive.\nSix v1.2 seven')).toEqual(['One.', 'Two!', 'Three?', 'Four', 'Five.', 'Six v1.2 seven']);
+    expect(sentences('Ends here.')).toEqual(['Ends here.']);
+    expect(sentences('  ')).toEqual([]);
+    expect(sentences('a.b. c')).toEqual(['a.b.', 'c']);
+    expect(sentences('x\ny')).toEqual(['x\ny']);
+  });
+
+  it('matches a list only inside one sentence', () => {
+    const row = ROWS.find((r) => r.incumbent === 'commander' && r.version === '15.0.0') as IncumbentMajorRow;
+    expect(describes('A lone `--no-color` now defaults to off.', row)).toBe(true);
+    expect(describes('A lone `--no-color` is advertised. Its default is untouched.', row)).toBe(false);
+    expect(describes('A lone `--no-color` is advertised!\nDefaults follow.', row)).toBe(false);
+    expect(describes('A lone `--no-color` is advertised?\n\nDefaults follow.', row)).toBe(false);
+  });
+});
+
+/** How many rows publish when burgee 1.7.0, a day inside its window, has this changelog section. */
+const security = (section: string): number => publishable([row('burgee', '1.7.0')], new Map([['burgee', { '1.6.0': ago(1) }]]), () => section, NOW).rows.length;
+
+describe('planWindow and publishable — the boundaries', () => {
+  it('publishes a non-fix version exactly 7 days after the previous one', () => {
+    expect(publishable([row('burgee', '1.7.0')], new Map([['burgee', { '1.6.0': ago(7) }]]), none, NOW).rows).toHaveLength(1);
+  });
+
+  it('holds a dependent on the deferred package at that version only, and says it is the dependency', () => {
+    const result = publishable(
+      [row('roundel', '1.2.0'), row('linegauge', '1.2.0'), row('a', '1.0.1', [{ name: 'linegauge', version: '1.2.0' }]), row('b', '2.0.0', [{ name: 'roundel', version: '1.2.0' }])],
+      new Map([
+        ['roundel', { '1.1.0': ago(3) }],
+        ['linegauge', { '1.1.0': ago(30) }],
+        ['b', { '1.0.0': ago(30) }],
+      ]),
+      none,
+      NOW,
+    );
+    expect(result.rows.map((r) => r.name)).toEqual(['linegauge', 'a']);
+    expect(result.deferred.map((d) => [d.name, d.why])).toEqual([
+      ['roundel', expect.stringContaining('the window opens') as string],
+      ['b', 'it depends on roundel@1.2.0, which waits'],
+    ]);
+  });
+
+  it('reads a changelog heading with trailing space, an indented Security: entry, and no other entry as one', () => {
+    expect(changelogSection('## 1.7.0 \n\nseven\n## 1.6.0\n', '1.7.0')).toBe('\nseven');
+    expect(security('  - abc Thanks! - Security: refuse it.')).toBe(1);
+    expect(security('- a plain entry\nSecurity: in prose after it')).toBe(0);
+  });
+});
+
+describe('main — the registry and the outputs', () => {
+  it('plan holds a minor whose registry did not answer', async () => {
+    const root = scratch({ 'm.md': '---\n"burgee": minor\n---\n\nm\n' });
+    const written: string[] = [];
+    expect(await main(['plan'], io({ root, times: async () => undefined, write: (t) => written.push(t) }))).toBe(0);
+    expect((JSON.parse(written.join('')) as WindowPlan).held[0]?.opens).toBe('unknown: the registry did not answer');
+  });
+
+  it('plan writes the whole summary', async () => {
+    const root = scratch({ 'm.md': '---\n"burgee": minor\n---\n\nm\n' });
+    const stepSummary = join(root, 'summary');
+    await main(['plan'], io({ root, times: async () => ({ '1.6.0': ago(2) }), env: { GITHUB_STEP_SUMMARY: stepSummary } }));
+    expect(readFileSync(stepSummary, 'utf8')).toBe(
+      `### Release window (7 days between non-fix releases of a package)\n\nHeld on \`main\` until the window opens; a fix in the same changeset releases now:\n- \`burgee\` minor from \`.changeset/m.md\`: opens ${new Date(NOW + 5 * DAY).toISOString()}\n`,
+    );
+  });
+
+  it('lock prints its all-clear only when there is nothing to refuse', async () => {
+    const out: string[] = [];
+    expect(await main(['lock'], io({ root: scratch({ 'ok.md': '---\n"burgee": minor\n---\n\nAdds a flag.\n' }), write: (t) => out.push(t) }))).toBe(0);
+    expect(out.join('')).toBe('changeset lock: 1 changeset(s), none below major for a behaviour an incumbent shipped as a major\n');
+    const bad: string[] = [];
+    await main(['lock'], io({ root: scratch({ 'bad.md': formatChangeset(PARSE_REFUSALS) }), write: (t) => bad.push(t) }));
+    expect(bad.join('')).not.toContain('changeset lock:');
+  });
+
+  it('measure reads --from, --to and --age', async () => {
+    const root = scratch({}, { burgee: { version: '1.6.0' } });
+    const written: string[] = [];
+    await main(['measure', '--from', ago(20), '--to', ago(2), '--age', '3'], io({ root, times: async () => ({ '1.0.0': ago(10) }), write: (t) => written.push(t) }));
+    expect(JSON.parse(written.join(''))).toEqual({ from: ago(20), to: ago(2), age: 3, span: 18, packages: [{ name: 'burgee', days: 5, share: 0.278 }] });
+  });
+
+  it('measure orders publishes by time whatever order the registry lists them in', () => {
+    const from = NOW - 20 * DAY;
+    expect(daysOldEnough({ '1.1.0': ago(5), '1.0.0': ago(30) }, from, NOW, 7)).toBe(15);
+    expect(daysOldEnough({ created: ago(30), modified: ago(1), '1.0.0': ago(30) }, from, NOW, 7), 'created and modified are not releases').toBe(20);
+    expect(daysOldEnough({ '1.0.0': ago(30), '1.0.1': 'garbage' }, from, NOW, 7), 'an unreadable date is not a publish').toBe(20);
+  });
+});
+
+describe('the registry, and the version run, as the real process reaches them', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('reads npm’s time field, a 404 as never published, anything else unreadable as no answer', async () => {
+    const calls: { url: string; signal: unknown }[] = [];
+    const reply = (status: number, body: unknown) => async (url: string, init: { signal: unknown }) => (calls.push({ url, signal: init.signal }), { status, ok: status === 200, json: async () => body });
+    vi.stubGlobal('fetch', reply(200, { time: { '1.0.0': ago(3) } }));
+    expect(await registryTimes('@scope/pkg')).toEqual({ '1.0.0': ago(3) });
+    expect(calls[0]?.url).toBe('https://registry.npmjs.org/@scope%2Fpkg');
+    expect(calls[0]?.signal).toBeInstanceOf(AbortSignal);
+    vi.stubGlobal('fetch', reply(200, {}));
+    expect(await registryTimes('x')).toEqual({});
+    vi.stubGlobal('fetch', reply(404, {}));
+    expect(await registryTimes('x')).toEqual({});
+    vi.stubGlobal('fetch', reply(500, { time: { '1.0.0': ago(3) } }));
+    expect(await registryTimes('x')).toBeUndefined();
+    vi.stubGlobal('fetch', async () => {
+      throw new Error('offline');
+    });
+    expect(await registryTimes('x')).toBeUndefined();
+  });
+
+  it('runs npm run changeset:version at the root, and a signal is a failure', () => {
+    const seen: unknown[] = [];
+    expect(runVersion((command, args, options) => (seen.push([command, args, options]), { status: 0 }))).toBe(0);
+    expect(seen).toEqual([['npm', ['run', 'changeset:version'], { cwd: ROOT, stdio: 'inherit' }]]);
+    expect(runVersion(() => ({ status: 4 }))).toBe(4);
+    expect(runVersion(() => ({ status: null }))).toBe(1);
+  });
+
+  it('runs as a script: the lock over this branch, a usage error, and publishable from stdin', () => {
+    const lock = cli(['lock']);
+    expect(lock.status).toBe(0);
+    expect(lock.stdout).toMatch(/^changeset lock: \d+ changeset\(s\)/);
+    const usage = cli(['nope']);
+    expect(usage.status).toBe(2);
+    expect(usage.stdout).toMatch(/^usage: release-window\.mts/);
+    const out = join(mkdtempSync(join(tmpdir(), 'release-window-cli-')), 'p.json');
+    const fixes = cli(['publishable', '--out', out], JSON.stringify([row('roundel', '1.1.2')]));
+    expect(fixes.status).toBe(0);
+    expect(JSON.parse(readFileSync(out, 'utf8'))).toEqual([row('roundel', '1.1.2')]);
+  });
+});
+
+describe('the last edges Stryker found', () => {
+  it('leaves out a workspace manifest with a name and no version', () => {
+    const root = scratch({}, { burgee: { version: '1.6.0' } });
+    mkdirSync(join(root, 'packages', 'unversioned'));
+    writeFileSync(join(root, 'packages', 'unversioned', 'package.json'), '{"name":"unversioned"}');
+    expect([...manifests(root).keys()]).toEqual(['burgee']);
+  });
+
+  it('holds a dependent of either of two deferred packages', () => {
+    const result = publishable(
+      [row('roundel', '1.2.0'), row('linegauge', '1.2.0'), row('flagstaff', '1.7.1', [{ name: 'linegauge', version: '1.2.0' }])],
+      new Map([
+        ['roundel', { '1.1.0': ago(3) }],
+        ['linegauge', { '1.1.0': ago(3) }],
+      ]),
+      none,
+      NOW,
+    );
+    expect(result.rows).toEqual([]);
+    expect(result.deferred.map((d) => d.name)).toEqual(['roundel', 'linegauge', 'flagstaff']);
+  });
+
+  it('does nothing when imported rather than run', () => {
+    const imported = spawnSync(process.execPath, ['--input-type=module', '-e', `await import(${JSON.stringify(SCRIPT)});`], { cwd: ROOT, encoding: 'utf8' });
+    expect(imported.status).toBe(0);
+    expect(imported.stdout).toBe('');
   });
 });

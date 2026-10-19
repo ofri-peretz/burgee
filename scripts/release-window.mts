@@ -40,7 +40,6 @@
 
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import url from 'node:url';
@@ -133,12 +132,11 @@ export function previousNonFix(times: Times, manifest?: string, before?: string)
     .filter(([v, at]) => isNonFixVersion(v) && !Number.isNaN(Date.parse(at)) && (before === undefined || compare(v, before) < 0))
     .sort(([a], [b]) => compare(b, a));
   const newest = released[0];
-  if (manifest !== undefined && parts(manifest) !== undefined) {
-    const [major, minor] = parts(manifest) as [number, number, number];
-    const floor = `${major}.${minor}.0`;
-    if (times[floor] === undefined && released.length > 0 && compare(floor, (newest as [string, string])[0]) > 0) return Number.POSITIVE_INFINITY;
-  }
-  return newest === undefined ? undefined : Date.parse(newest[1]);
+  if (newest === undefined) return undefined;
+  // A manifest on an `x.y` newer than the newest non-fix release npm has is that release in flight.
+  const local = parts(manifest ?? '');
+  if (local !== undefined && compare(`${local[0]}.${local[1]}.0`, newest[0]) > 0) return Number.POSITIVE_INFINITY;
+  return Date.parse(newest[1]);
 }
 
 /** The moment a non-fix release of the package may go out: now, if it never had one. */
@@ -184,8 +182,9 @@ function shut(known: PackageState | undefined, now: number): string | undefined 
 }
 
 export function planWindow(changesets: readonly Changeset[], state: ReadonlyMap<string, PackageState | undefined>, now: number): WindowPlan {
-  const features = new Set(changesets.flatMap((cs) => cs.releases.filter((r) => !isFix(cs, r)).map((r) => r.name)));
-  const closed = new Map([...features].flatMap((name) => {
+  // Every named package's window, though only a non-fix entry ever reads it.
+  const names = new Set(changesets.flatMap((cs) => cs.releases.map((r) => r.name)));
+  const closed = new Map([...names].flatMap((name) => {
     const why = shut(state.get(name), now);
     return why === undefined ? [] : [[name, why] as const];
   }));
@@ -319,7 +318,7 @@ export function manifests(root: string): Map<string, { dir: string; version: str
 const REGISTRY_TIMEOUT_MS = 15_000;
 const NOT_FOUND = 404;
 
-async function registryTimes(name: string): Promise<Times | undefined> {
+export async function registryTimes(name: string): Promise<Times | undefined> {
   try {
     const response = await fetch(`https://registry.npmjs.org/${name.replace('/', '%2F')}`, { signal: AbortSignal.timeout(REGISTRY_TIMEOUT_MS) });
     if (response.status === NOT_FOUND) return {};
@@ -436,8 +435,8 @@ function lockCommand(io: Io): number {
 }
 
 /** The plan the `plan` step wrote, when `version` runs beside it; otherwise one made now. */
-async function planFor(changesets: readonly Changeset[], io: Io, fromFile?: string): Promise<WindowPlan> {
-  if (fromFile !== undefined && fs.existsSync(fromFile)) return JSON.parse(fs.readFileSync(fromFile, 'utf8')) as WindowPlan;
+async function planFor(changesets: readonly Changeset[], io: Io, fromFile = ''): Promise<WindowPlan> {
+  if (fs.existsSync(fromFile)) return JSON.parse(fs.readFileSync(fromFile, 'utf8')) as WindowPlan;
   return planWindow(changesets, await stateFor([...new Set(changesets.flatMap((c) => c.releases.map((r) => r.name)))], io), io.now);
 }
 
@@ -526,18 +525,16 @@ export async function main(args: readonly string[], io: Io = realIo()): Promise<
  * the held entries stay on `main` for the next run.
  */
 export function version(dir: string, changesets: readonly Changeset[], plan: WindowPlan, run: () => number = runVersion): number {
-  const aside = fs.mkdtempSync(path.join(os.tmpdir(), 'release-window-'));
   const restore: (() => void)[] = [];
   try {
     for (const entry of plan.changesets) {
-      if (entry.hold.length === 0) continue;
       const cs = changesets.find((c) => c.file === entry.file);
-      if (cs === undefined) continue;
+      if (entry.hold.length === 0 || cs === undefined) continue;
       const file = path.join(dir, entry.file);
       const original = fs.readFileSync(file, 'utf8');
       const heldHalf = formatChangeset({ ...cs, releases: entry.hold });
       if (entry.release.length === 0) {
-        fs.renameSync(file, path.join(aside, entry.file));
+        fs.rmSync(file);
         restore.push(() => fs.writeFileSync(file, original));
       } else {
         fs.writeFileSync(file, formatChangeset({ ...cs, releases: entry.release }));
@@ -547,14 +544,15 @@ export function version(dir: string, changesets: readonly Changeset[], plan: Win
     return run();
   } finally {
     for (const put of restore) put();
-    fs.rmSync(aside, { recursive: true, force: true });
   }
 }
 
-function runVersion(): number {
-  const result = spawnSync('npm', ['run', 'changeset:version'], { cwd: ROOT, stdio: 'inherit' });
-  return result.status ?? 1;
+type Spawn = (command: string, args: string[], options: { cwd: string; stdio: 'inherit' }) => { status: number | null };
+
+/** `npm run changeset:version` at the repository root; a run killed by a signal is a failure. */
+export function runVersion(spawn: Spawn = spawnSync): number {
+  return spawn('npm', ['run', 'changeset:version'], { cwd: ROOT, stdio: 'inherit' }).status ?? 1;
 }
 
-const isMain = process.argv[1] !== undefined && path.resolve(process.argv[1]) === url.fileURLToPath(import.meta.url);
+const isMain = path.resolve(process.argv[1] ?? '') === url.fileURLToPath(import.meta.url);
 if (isMain) process.exitCode = await main(process.argv.slice(2));

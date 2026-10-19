@@ -77,6 +77,8 @@ const registry =
 
 /** Every release a week or more old: the graded one too. */
 const allOld = async (): Promise<Record<string, string>> => ({ [older]: daysAgo(30), [first]: daysAgo(20), [graded]: daysAgo(10) });
+/** The graded release listed before the first that carries the subpath, neither old enough. */
+const gradedListedFirst = async (): Promise<Record<string, string>> => ({ [graded]: daysAgo(1), [first]: daysAgo(6), [older]: daysAgo(30) });
 /** No release below the first that carries the subpath. */
 const firstOnward = async (): Promise<Record<string, string>> => ({ [first]: daysAgo(30), [graded]: daysAgo(1) });
 
@@ -144,6 +146,38 @@ describe('migrate-pins-carry-the-drop-in — the floor exports every subpath the
     });
     const report = await migrate({ dir, status: clean, registry: registry(8), now, since: { roundel: { './chalk': first, './picocolors': first } } });
     expect(report.releaseAge?.pins[0]?.requires).toEqual({ specifiers: ['roundel/chalk', 'roundel/picocolors'], since: first });
+    expect(report.releaseAge?.note).toContain(`that exports roundel/chalk, roundel/picocolors (first in ${first})`);
+  });
+
+  it('names only the specifier that sets the floor when a lower one follows it', async () => {
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { picocolors: '^1.0.0', chalk: '^6.0.0' } }),
+      'pnpm-lock.yaml': '',
+      'pnpm-workspace.yaml': 'minimumReleaseAge: 10080\n',
+      'src/a.ts': "import colors from 'picocolors';\nimport chalk from 'chalk';\n",
+    });
+    // `roundel/chalk` sorts first and sets the higher floor; `roundel/picocolors` floors lower.
+    const report = await migrate({ dir, status: clean, registry: registry(8), now, since: { roundel: { './chalk': first, './picocolors': `${major}.0.0` } } });
+    expect(report.releaseAge?.pins[0]?.requires).toEqual({ specifiers: ['roundel/chalk'], since: first });
+  });
+
+  it('counts a release exactly the age old as installable now', async () => {
+    const report = await migrate({ dir: svgo(), status: clean, registry: registry(7), now, since });
+    expect(report.next).toBe(`pnpm add roundel@^${first} && pnpm remove picocolors`);
+    expect(report.releaseAge?.note).toContain(`so next pins ^${first}, the newest roundel ${major}.x that exports roundel/picocolors (first in ${first}) old enough`);
+  });
+
+  it('with nothing old enough, waits for the release that becomes installable first, whatever order the registry lists them in', async () => {
+    const report = await migrate({ dir: svgo(), status: clean, registry: gradedListedFirst, now, since });
+    expect(report.releaseAge?.pins[0]).toMatchObject({ version: first, installable: '2026-10-19T12:00:00.000Z' });
+  });
+
+  it('leaves a peer that is not a family package out of the release-age pins', async () => {
+    const asked: string[] = [];
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { ink: '^8.0.0' } }), 'pnpm-lock.yaml': '', 'pnpm-workspace.yaml': 'minimumReleaseAge: 10080\n', 'src/a.tsx': "import { render } from 'ink';\n" });
+    const report = await migrate({ dir, status: clean, registry: async (name) => (asked.push(name), undefined), now, since: {} });
+    expect(asked).toEqual(['controlroom']);
+    expect(report.next).toContain(' react-reconciler ');
   });
 
   it('reads no table and asks no registry when the project sets no release age', async () => {

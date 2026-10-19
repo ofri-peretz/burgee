@@ -54,6 +54,14 @@ describe('sinceOf — the oldest version from which every tagged release exports
   it('reads only plain releases of the current major older than the current version, in any order', () => {
     const history = [release('1.0.5', keys('.')), release('0.9.0', keys('.')), release('2.0.0', keys('.')), release('1.0.0-rc.1', keys('.')), release('1.0.0', keys('.')), release('1.0.9', keys('.'))];
     expect(sinceOf(release('1.0.9', keys('.')), history)).toEqual({ '.': '1.0.0' });
+    // A newer tag in the same major (a release after this checkout) is not this version's history.
+    expect(sinceOf(release('1.0.9', keys('.', './z')), [release('1.0.10', keys('.', './z'))])).toEqual({ '.': '1.0.9', './z': '1.0.9' });
+    // Nor is a tag at the current version itself: the working tree's manifest is what this build ships.
+    expect(sinceOf(release('1.2.0', keys('.', './x')), [release('1.1.0', keys('.', './x')), release('1.2.0', keys('.'))])).toEqual({ '.': '1.1.0', './x': '1.1.0' });
+  });
+
+  it('floors every subpath at a current version that is not a plain x.y.z', () => {
+    expect(sinceOf(release('0.0.0-dev', keys('.', './a')), [release('0.0.0', keys('.', './a'))])).toEqual({ '.': '0.0.0-dev', './a': '0.0.0-dev' });
   });
 
   it('orders by minor before patch: 1.10.0 is newer than 1.9.9', () => {
@@ -66,6 +74,7 @@ describe('sinceOf — the oldest version from which every tagged release exports
 
   it('reads no version from a range or a prerelease', () => {
     expect(parts('1.2.3')).toEqual([1, 2, 3]);
+    expect(parts('10.20.30')).toEqual([10, 20, 30]);
     expect(parts('^1.2.3')).toBeUndefined();
     expect(parts('1.2.3-rc.0')).toBeUndefined();
     expect(parts('1.2')).toBeUndefined();
@@ -172,13 +181,22 @@ describe('the script — the file the build writes, and the release that refuses
     });
     expect(published(join(root, 'packages')).map((p) => p.name)).toEqual(['burgee', 'roundel']);
     expect(familyTable(root).tags).toBe(2);
+    // Minified, packages in name order, and a second build over an existing dist/ succeeds.
+    expect(readFileSync(join(root, 'packages/burgee/dist/family-versions.json'), 'utf8')).toMatch(/^\{"versions":\{"burgee":"1\.6\.0","roundel":"1\.1\.1"\},"since":\{"burgee"/);
+    expect(run(root).status).toBe(0);
   });
 
-  it('floors at the current version without tags, and says so', () => {
+  it('lists packages in name order whatever order the directory reads in', () => {
+    const root = mkdtempSync(join(tmpdir(), 'family-versions-order-'));
+    for (const name of ['zeta', 'mid', 'alpha']) writeManifest(root, name, { name, version: '1.0.0' });
+    expect(published(join(root, 'packages')).map((p) => p.name)).toEqual(['alpha', 'mid', 'zeta']);
+  });
+
+  it('floors at the current version without tags, and says so, and nothing else (git’s own complaint stays out)', () => {
     const root = workspace(false);
     const result = run(root);
     expect(result.status).toBe(0);
-    expect(result.stderr).toContain('no release tags in this checkout');
+    expect(result.stderr).toBe('family-versions: no release tags in this checkout; each subpath floor is the current version.\n');
     expect(JSON.parse(readFileSync(join(root, 'packages/burgee/dist/family-versions.json'), 'utf8')).since.roundel).toEqual({ '.': '1.1.1', './picocolors': '1.1.1' });
   });
 
