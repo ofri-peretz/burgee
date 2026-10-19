@@ -99,7 +99,7 @@ export async function schemaSurface(manifest: Manifest, argv: string[], version?
     full.commands.push(commandOf(completion));
     summary.commands.push({ name: 'completion', summary: completion.description as string, effects: 'read_only' });
   }
-  const whole = clispec.documentOf(full, manifest, EXPLAIN);
+  const whole = clispec.documentOf(full, manifest, EXPLAIN, manifest);
   // The budget is measured on what would be printed, clispec's keys included.
-  return JSON.stringify(whole).length <= budget ? whole : clispec.documentOf(summary, undefined, EXPLAIN);
+  return JSON.stringify(whole).length <= budget ? whole : clispec.documentOf(summary, undefined, EXPLAIN, manifest);
 }

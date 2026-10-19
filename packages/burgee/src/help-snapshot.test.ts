@@ -30,7 +30,7 @@ import { SHELLS } from './completions.js';
 import { renderHelp } from './help-entry.js';
 import { defineCommand, defineProgram, ExitCode, runCommand } from './index.js';
 import { type CommandNode, type Manifest } from './manifest.js';
-import { completionNode, EXIT_ADVICE, exitRows } from './root-help.js';
+import { adviceOf, completionNode, EXIT_ADVICE, exitRows, producibleExits } from './root-help.js';
 import { listed } from './usage.js';
 
 const ok = (): string => 'ok';
@@ -135,7 +135,7 @@ const shapes: { name: string; manifest: Manifest; node: CommandNode; verbose: bo
     manifest: nested,
     node: { ...node(nested, ['demo']), examples: [{ command: 'demo greet ada' }, { command: 'demo config get user.name', description: 'one value' }] },
     verbose: false,
-    commands: [...listed(nested, node(nested, ['demo'])), completionNode(nested) as CommandNode, ...exitRows(nested.rootPath)],
+    commands: [...listed(nested, node(nested, ['demo'])), completionNode(nested) as CommandNode, ...exitRows(nested)],
   },
 ];
 
@@ -164,22 +164,75 @@ function sectionOf(text: string, title: string): string[] {
   return lines.slice(at + 1, end === -1 ? undefined : end);
 }
 
+/** A program that declares `auth` with this variable, not yet defined (agent-lint-conformance R8). */
+const declaring = (env: string) => () => defineProgram({ name: 'x', auth: { env }, commands: [] });
+
 /** The engine's root help for the demo-shaped fixture. */
 const root = async (): Promise<string> => (await runCommand(nested, ['--help'])).stdout;
 
 describe('the root help carries the exit codes, completion and examples (agent-lint-conformance R4–R6)', () => {
 
-  it('R4: lists every ExitCode, by number and name, under "Exit codes:" after the commands', async () => {
+  it('R4: lists every producible ExitCode, by number and name, under "Exit codes:" after the commands', async () => {
     const text = await root();
     // One row per code; a long line of advice wraps onto a continuation, which starts with spaces.
     const rows = sectionOf(text, 'Exit codes:').filter((r) => /^ {2}\d/.test(r));
-    expect(rows).toHaveLength(Object.keys(ExitCode).length);
-    for (const [name, code] of Object.entries(ExitCode)) {
+    expect(rows).toHaveLength(producibleExits(nested).length);
+    for (const name of producibleExits(nested)) {
+      const code = ExitCode[name];
       expect(rows.some((r) => new RegExp(`^ {2}${String(code)}\\s+${name.toLowerCase()}: \\S`).test(r)), `${name} (${String(code)}) has a line`).toBe(true);
     }
     expect(text.indexOf('Exit codes:')).toBeGreaterThan(text.indexOf('Commands:'));
     // A bare invocation prints the same screen, as the usage error it is.
     expect((await runCommand(nested, [])).stderr).toBe(text);
+  });
+
+  /**
+   * R8 — cli-agent-lint's FS-4 fails a program whose help mentions `auth`, `login`, `token` or
+   * `credential` without naming an env var or token flag (`checks/flow_safety.go` at v0.3.5). R4's
+   * `auth` row did exactly that on every program, credential or not. Now the row is printed only
+   * for a program that declares `auth`, and its advice names the variable to set.
+   */
+  it('R8: lists only the exit codes the program can produce; auth only when declared', async () => {
+    const text = await root();
+    const names = sectionOf(text, 'Exit codes:')
+      .filter((r) => /^ {2}\d/.test(r))
+      .map((r) => r.trim().split(/\s+/)[1]);
+    expect(names).toEqual(['ok:', 'runtime:', 'usage:', 'config:', 'cancelled:', 'timeout:', 'sigint:']);
+    // FS-4's step 2: no auth-related word anywhere on the screen of a program with no credential.
+    for (const term of ['auth', 'login', 'token', 'credential']) expect(text.toLowerCase()).not.toContain(term);
+
+    const declared = defineProgram({ name: 'demo', auth: { env: 'DEMO_TOKEN' }, commands: [defineCommand({ name: 'pull', description: 'Fetch', effects: 'read_only', examples: [{ command: 'demo pull' }], run: ok })] });
+    const help = (await runCommand(declared, ['--help'])).stdout;
+    const rows = sectionOf(help, 'Exit codes:').join(' ').replaceAll(/\s+/g, ' ');
+    expect(rows).toContain('5 auth: a credential is missing or refused; set DEMO_TOKEN and run it again');
+    expect(help).not.toContain('log in');
+  });
+
+  it('R8: the advice names the declared variable; undeclared, it is the template, and no row prints it', () => {
+    expect(adviceOf('AUTH', { auth: { env: 'DEMO_TOKEN' } })).toBe('a credential is missing or refused; set DEMO_TOKEN and run it again');
+    expect(adviceOf('AUTH', {})).toBe(EXIT_ADVICE.AUTH);
+    expect(EXIT_ADVICE.AUTH).toBe('a credential is missing or refused; set {env} and run it again');
+    expect(adviceOf('USAGE', { auth: { env: 'DEMO_TOKEN' } })).toBe(EXIT_ADVICE.USAGE);
+  });
+
+  it('R8: the rows speak the run’s locale, the variable placed where the pack puts it', async () => {
+    const declared = defineProgram({ name: 'demo', auth: { env: 'DEMO_TOKEN' }, commands: [defineCommand({ name: 'pull', description: 'Fetch', effects: 'read_only', examples: [{ command: 'demo pull' }], run: ok })] });
+    declared.use({ name: 'pack', contract: 1, locales: { de: { 'exit.usage': 'falsche Argumente', 'exit.auth': 'Zugang fehlt; {env} setzen' } } } as Parameters<typeof declared.use>[0]);
+    const rows = sectionOf((await runCommand(declared, ['--help'], { locale: 'de' })).stdout, 'Exit codes:').join(' ').replaceAll(/\s+/g, ' ');
+    expect(rows).toContain('2 usage: falsche Argumente');
+    expect(rows).toContain('5 auth: Zugang fehlt; DEMO_TOKEN setzen');
+  });
+
+  it('R8: the global --timeout steps aside for a command that declares its own, and so does its exit code', async () => {
+    const own = defineProgram({ name: 'own', commands: [defineCommand({ name: 'wait', effects: 'read_only', options: { timeout: { type: 'string' } }, run: ok })] });
+    expect(producibleExits(own)).not.toContain('TIMEOUT');
+    expect((await runCommand(own, ['--help'])).stdout).not.toMatch(/^ {2}6 /m);
+    expect(producibleExits(nested)).toContain('TIMEOUT');
+  });
+
+  it('R8: auth names a variable a shell can set, or the program does not define', () => {
+    for (const bad of ['', 'demo_token', 'DEMO TOKEN', '1TOKEN', '$TOKEN']) expect(declaring(bad), bad).toThrow(/auth\.env must name an environment variable/);
+    expect(declaring('DEMO_TOKEN')).not.toThrow();
   });
 
   it('R4: the advice is keyed by the contract, so a code without a line cannot be added', () => {

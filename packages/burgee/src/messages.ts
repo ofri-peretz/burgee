@@ -114,7 +114,7 @@ export const MESSAGES = {
   'exit.usage': 'bad arguments or an unknown command; rewrite the command',
   'exit.config': 'the config or environment did not load; fix it, not the command',
   'exit.cancelled': 'cancelled, or a decision is needed; decide, then run a next command',
-  'exit.auth': 'a credential is missing or refused; log in and run it again',
+  'exit.auth': 'a credential is missing or refused; set {env} and run it again',
   'exit.timeout': 'the --timeout deadline passed; run it again with more time',
   'exit.sigint': 'interrupted; stop',
 } as const satisfies Readonly<Record<string, string>>;

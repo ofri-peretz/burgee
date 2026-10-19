@@ -687,6 +687,14 @@ interface Program {
     };
     /** Shown under `Examples:` in root help; without them, each top-level command's first example is (agent-lint-conformance R6). */
     examples?: DeclaredExample[];
+    /**
+     * The credential a non-interactive caller supplies, by the environment variable it sets (agent-lint-conformance
+     * R8). Declared, the program's exit-code contract lists `auth` and names the variable in its advice
+     * and in an `AuthError`'s default hint; undeclared, the program claims no auth failure at all.
+     */
+    auth?: {
+        env: string;
+    };
     commands: AnyCommand[];
 }
 ```

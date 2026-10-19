@@ -85,6 +85,10 @@ class Manifest {
     };
     /** Characters of `--schema` output above which it is summarised (N13). */
     schemaBudget?: number;
+    /** The variable a non-interactive caller sets for the credential, when the program declares one (agent-lint-conformance R8). */
+    auth?: {
+        env: string;
+    };
     add(node: CommandNode): void;
     /**
      * Register a plugin, after the plugin host has read it (`plugin.ts`).

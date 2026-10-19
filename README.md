@@ -322,8 +322,8 @@ with:
 | | the incumbent alone | + what you add to match burgee | ours |
 | :--- | ---: | ---: | ---: |
 | `cac` | 10,452 B | **97,692 B** | 24,281 B |
-| `commander` | 39,084 B | **126,335 B** | 55,346 B |
-| `yargs` | 111,686 B | **198,784 B** | 108,345 B |
+| `commander` | 39,084 B | **126,335 B** | 55,351 B |
+| `yargs` | 111,686 B | **198,784 B** | 108,350 B |
 
 The additions are `cosmiconfig` (find and load a config file), `exit-hook` (run cleanup on
 every path out, including a signal) and `restore-cursor` (hand the terminal back), bundled

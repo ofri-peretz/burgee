@@ -19,21 +19,22 @@ import { ExitCode } from './exit-code.js';
 import { globalRows, WHEN } from './globals.js';
 import { ROOT_GLOBAL } from './help.js';
 import { type CommandNode, type Manifest, type OutputSchema } from './manifest.js';
-import { EXIT_ADVICE } from './root-help.js';
+import { adviceOf, producibleExits } from './root-help.js';
 
 /** The version of The CLI Spec this document conforms to (R1). */
 export const CLISPEC = '0.3';
 
 /**
  * R2 — `errors`: every kind the program can fail with and the exit code it leaves with. The
- * contract's rows come from `ExitCode` (all but `OK`), described by the advice root help prints
- * under `Exit codes:`; the program's own follow, from the classes `defineError` registered.
- * `retryable` is true for `timeout` (run it again with more time) and for a class that says so.
+ * contract's rows are the codes this program can produce (`producibleExits`, agent-lint-conformance
+ * R8: the list root help prints under `Exit codes:`), all but `OK`, described by the same advice;
+ * the program's own follow, from the classes `defineError` registered. `retryable` is true for
+ * `timeout` (run it again with more time) and for a class that says so.
  */
-export function errorsOf(): ErrorRow[] {
-  const contract = Object.entries(ExitCode)
-    .filter(([name]) => name !== 'OK')
-    .map(([name, code]) => ({ kind: kindOf(code) as string, exit_code: code, retryable: code === ExitCode.TIMEOUT, description: EXIT_ADVICE[name as keyof typeof ExitCode] }));
+export function errorsOf(manifest: Manifest): ErrorRow[] {
+  const contract = producibleExits(manifest)
+    .filter((name) => name !== 'OK')
+    .map((name) => ({ kind: kindOf(ExitCode[name]) as string, exit_code: ExitCode[name], retryable: name === 'TIMEOUT', description: adviceOf(name, manifest) }));
   return [...contract, ...definedErrors()];
 }
 
@@ -82,14 +83,14 @@ export const OUTPUT = { tty: 'text', piped: 'text', formats: ['text', 'json', 'a
  * the bytes are the façades', `machine-json.test`). clispec's keys go beside it: `errors` (R2),
  * and for the whole document `global_args` (R3) and `output` (R7) ahead of `commands`, and
  * `clispec` (R1) after `schemaVersion`. The summary over budget (`manifest` undefined) gets
- * `errors` and no claim of conformance.
+ * `errors` and no claim of conformance; `program` is the manifest either way, which `errors` reads.
  */
-export function documentOf(doc: object, manifest: Manifest | undefined, explain: string): Record<string, unknown> {
+export function documentOf(doc: object, manifest: Manifest | undefined, explain: string, program: Manifest): Record<string, unknown> {
   const whole = manifest === undefined ? [] : [['global_args', globalArgsOf(manifest)], ['output', OUTPUT]];
   return Object.fromEntries(
     Object.entries(doc).flatMap((entry) => {
       if (entry[0] === 'schemaVersion' && manifest !== undefined) return [entry, ['clispec', CLISPEC]];
-      return entry[0] === 'commands' ? [['explain', explain], ['errors', errorsOf()], ...whole, entry] : [entry];
+      return entry[0] === 'commands' ? [['explain', explain], ['errors', errorsOf(program)], ...whole, entry] : [entry];
     }),
   );
 }

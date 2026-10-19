@@ -13,7 +13,13 @@
 # Each phase writes `pwsh-phase <start|lookup|dot-source|complete:<n>> <ms>` to stderr
 # (windows-lane-holds R3a): `start` is process start to the first line of this script, and each
 # later one is the time since the phase before it. stdout carries only the candidates.
-param([Parameter(Mandatory)][string]$Script, [Parameter(Mandatory, ValueFromRemainingArguments)][string[]]$Line, [switch]$Delimited)
+#   scripts/complete-pwsh.ps1 -Script <completion-script> -Run "<command line>`n<command line>" -Delimited '<line>' ...
+# also runs each line of -Run in the same session, after the completions (fix-lines-every-shell R3):
+# a `fix:` line is parsed by PowerShell as typed, its output printed under `### run:<n>` and its
+# exit code as `exit:<code>`, or the parse error as `error:<message>`. One cold start answers both.
+# Binding is by name only: -Run must never take a positional line, which -Line collects.
+[CmdletBinding(PositionalBinding = $false)]
+param([Parameter(Mandatory)][string]$Script, [string]$Run = '', [Parameter(Mandatory, ValueFromRemainingArguments)][string[]]$Line, [switch]$Delimited)
 $clock = [Diagnostics.Stopwatch]::StartNew()
 $booted = [int]([DateTime]::Now - [Diagnostics.Process]::GetCurrentProcess().StartTime).TotalMilliseconds
 [Console]::Error.WriteLine("pwsh-phase start $booted")
@@ -52,6 +58,18 @@ try {
       $found | ForEach-Object CompletionText
     }
     Write-Phase "complete:$n"
+  }
+  $runs = @($Run -split "`n" | Where-Object { $_ -ne '' })
+  for ($i = 0; $i -lt $runs.Count; $i++) {
+    "### run:$i"
+    try {
+      $global:LASTEXITCODE = 0
+      Invoke-Expression $runs[$i]
+      "exit:$LASTEXITCODE"
+    } catch {
+      "error:$($_.Exception.Message)"
+    }
+    Write-Phase "run:$i"
   }
 } finally {
   if ($dir) { Remove-Item -Recurse -Force $dir }

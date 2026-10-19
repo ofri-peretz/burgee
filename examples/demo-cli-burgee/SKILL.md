@@ -22,7 +22,6 @@ The burgee reference demo. Use it to greet someone, print one configuration valu
 | `2` | `usage` | no | bad arguments or an unknown command; rewrite the command |
 | `3` | `config` | no | the config or environment did not load; fix it, not the command |
 | `4` | `cancelled` | no | cancelled, or a decision is needed; decide, then run a next command |
-| `5` | `auth` | no | a credential is missing or refused; log in and run it again |
 | `6` | `timeout` | yes | the --timeout deadline passed; run it again with more time |
 | `130` | `interrupted` | no | interrupted; stop |
 

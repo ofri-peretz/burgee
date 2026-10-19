@@ -22,7 +22,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { ExitCode, runCommand } from './index.js';
 import { quickstart } from './init.js';
 import { program as burgee } from './program.js';
-import { shellWord } from './unknown-option.js';
+import { shellLine, shellWord } from './unknown-option.js';
 
 const WINDOWS = process.platform === 'win32';
 const pkgRoot = fileURLToPath(new URL('..', import.meta.url));
@@ -100,7 +100,7 @@ describe('first-cli — burgee init, in-process', () => {
     const refused = await runCommand(burgee, ['init', dir]);
     expect(refused.code).toBe(ExitCode.USAGE);
     expect(refused.stderr).toContain(`error: ${join(dir, 'package.json')} already exists\n`);
-    expect(refused.stderr).toContain(`fix: ${['npx', 'burgee', 'init', dir, '--force'].map(shellWord).join(' ')}\n`);
+    expect(refused.stderr).toContain(`fix: ${shellLine(['npx', 'burgee', 'init', dir, '--force'])}\n`);
     expect(readdirSync(dir)).toEqual(['package.json']);
     expect(readFileSync(join(dir, 'package.json'), 'utf8')).toBe('{"name":"mine"}\n');
 
@@ -114,7 +114,7 @@ describe('first-cli — burgee init, in-process', () => {
     expect((await runCommand(burgee, ['init', dir])).code).toBe(ExitCode.OK);
     const again = await runCommand(burgee, ['init', dir, '--install', '--json']);
     expect(again.code).toBe(ExitCode.USAGE);
-    expect(JSON.parse(again.stdout)).toMatchObject({ ok: false, error: { message: `${join(dir, 'cli.mjs')} already exists`, hint: 'pass --force to overwrite it', fix: ['npx', 'burgee', 'init', dir, '--install', '--force'].map(shellWord).join(' ') } });
+    expect(JSON.parse(again.stdout)).toMatchObject({ ok: false, error: { message: `${join(dir, 'cli.mjs')} already exists`, hint: 'pass --force to overwrite it', fix: shellLine(['npx', 'burgee', 'init', dir, '--install', '--force']) } });
   });
 
   it('R2 — cli.mjs is the README quick start, byte for byte', async () => {

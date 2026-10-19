@@ -24,7 +24,7 @@ import { type Package } from './pkg.js';
 import { completionNode, exitRows, rootExamples } from './root-help.js';
 import { builtin } from './runtime.js';
 import { suggestSimilar } from './suggest.js';
-import { Again, jsonSpelling, shellWord, textSpelling } from './unknown-option.js';
+import { Again, jsonSpelling, shellLine, textSpelling } from './unknown-option.js';
 import { childrenOf, groupUsage, listed, runnableBelow } from './usage.js';
 
 /** The slice of the engine's `Io` a surface reads. */
@@ -131,7 +131,8 @@ const renderHelp = async (manifest: Manifest, node: CommandNode, io: SurfaceIo, 
   const { local, view } = await localised(manifest, node, io);
   const atRoot = node.path.length === manifest.rootPath.length;
   const completion = atRoot ? completionNode(manifest) : undefined;
-  const commands = [...listed(manifest, node), ...(completion === undefined ? [] : [completion]), ...(atRoot ? exitRows(manifest.rootPath, local && ((s) => local.say(s, 'exit.'))) : [])].map(view);
+  // Stryker disable next-line StringLiteral: the prefix only narrows which catalog entries are tried; no other entry's template matches an exit advice line, so '' finds the same one
+  const commands = [...listed(manifest, node), ...(completion === undefined ? [] : [completion]), ...(atRoot ? exitRows(manifest, local && ((s) => local.say(s, 'exit.'))) : [])].map(view);
   const shown = view(atRoot ? { ...node, examples: rootExamples(manifest, node) } : node);
   // The globals this command leaves global (R1–R3); none on a node the engine made up, such as
   // `completion`, which parses none of them.
@@ -367,8 +368,14 @@ function lineWords(path: string[], words: string[], json: string | undefined, gl
   return [...path, ...words.slice(0, end), ...(json === undefined ? [] : [json]), ...globals, ...words.slice(end)];
 }
 
-/** A command line to run, quoted for a shell. */
-const line = (path: string[], words: string[], json: string | undefined): string => lineWords(path, words, json).map(shellWord).join(' ');
+/**
+ * A command line to run, quoted for a shell. A declaration rather than a `const` arrow: Stryker
+ * places a top-level arrow's mutant at module load, where a run that keeps the module cached never
+ * switches it, and it read as surviving the tests that kill it (#1139's mutation lane).
+ */
+function line(path: string[], words: string[], json: string | undefined): string {
+  return shellLine(lineWords(path, words, json));
+}
 
 /**
  * `completion <shell>` is synthesised unless the program defines its own `completion`
