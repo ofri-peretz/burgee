@@ -143,7 +143,8 @@ grades the drop-in 540 of 584, because it follows ink 8 where the two majors dis
   `signal-exit` 3 exports a function where 4 exports `onExit`, and `chalk` 4 is CommonJS where
   6 is not. A project whose installed version — or, with nothing installed, whose declared
   range — is on another major is listed under `offMajor` with both versions, and not
-  rewritten. Upgrade it first, and run the command again.
+  rewritten. For commander and yargs the row also says what stands between it and a move:
+  see [When your incumbent is on an older major](#when-your-incumbent-is-on-an-older-major).
 - **A `require()` whose two sides return different kinds of value.** `require()` of an ES
   module returns its namespace. The incumbents that ship ESM only (chalk 6, ora 9, boxen 9 and
   ten more) already hand `require()` a namespace, and so do their replacements, so
@@ -187,6 +188,44 @@ grades the drop-in 540 of 584, because it follows ink 8 where the two majors dis
   install that left an untracked cache behind is named. When every one of them is untracked, the
   `fix` says to add them to `.gitignore` or commit them. `--dry-run` writes nothing either way, so
   it skips the check, and a directory that is not a git repository has nothing to be dirty.
+
+## When your incumbent is on an older major
+
+Most commander and yargs CLIs are not on the major the drop-in claims, and moving one by hand
+is how four of them crashed in our field trial: each used an API its own incumbent removed in a
+later major. So for commander and yargs, an `offMajor` row carries three more fields:
+
+- `sites`: every line that uses an API the incumbent removed after your major, up to the
+  highest major the drop-in claims. Each has its `file`, `line`, `api`, the release that removed
+  it (`removedIn`), the line to write instead (`replacement`), and the incumbent's own changelog
+  entry (`source`). A binding such as `const program = require('commander')` is one site, at the
+  line that makes it, with `firstUse`, the first line that uses it as what is gone.
+- `nearest`: the smallest major the drop-in claims above yours: 14 for commander 13 and older, and
+  17 for yargs 16 and older.
+- `move`: each specifier you import, with the entry it moves to at `nearest`
+  (`{ "yargs": "burgee/yargs/v17" }`), when no site's API was gone by that major and every
+  specifier you import has an entry there. Otherwise it is `null`, and the lines in the way are
+  the sites removed at or before `nearest`. A deep import, or `commander/esm.mjs`, has no entry,
+  so it stops the move too.
+
+Nothing is rewritten: the major you are on was not graded, so this is a work list, not a
+rewrite. The first line says so: `nothing to rewrite; 1 line uses an API a claimed major
+removed (see offMajor)`. The move is checked against these seven APIs and nothing else. It is
+graded at `nearest`, not at your major, so the rest of the incumbent's own changelog between
+the two still applies.
+
+| `api` | Removed in | Use instead | Source |
+| :-- | :-- | :-- | :-- |
+| `module-as-program` | commander 12.0.0 | `const { program } = require('commander')` | [changelog](https://github.com/tj/commander.js/blob/v15.0.0/CHANGELOG.md#1200-2024-02-03) |
+| `multi-char-short-flag` | commander 13.0.0 | a one-character short flag, or the long flag alone | [changelog](https://github.com/tj/commander.js/blob/v15.0.0/CHANGELOG.md#1300-2024-12-30) |
+| `esm-mjs` | commander 15.0.0 | `import { program } from 'commander'` | [changelog](https://github.com/tj/commander.js/blob/v15.0.0/CHANGELOG.md#1500-2026-05-29) |
+| `rebase` | yargs 16.0.0 | `path.relative()` | [changelog](https://github.com/yargs/yargs/blob/v18.0.0/CHANGELOG.md#1600-2020-09-09) |
+| `reset` | yargs 17.0.0 | a fresh `yargs()` instance | [changelog](https://github.com/yargs/yargs/blob/v18.0.0/CHANGELOG.md#1700-2021-05-02) |
+| `on-finish-command` | yargs 17.0.0 | await the promise the command's handler returns | [changelog](https://github.com/yargs/yargs/blob/v18.0.0/CHANGELOG.md#1700-2021-05-02) |
+| `singleton` | yargs 18.0.0 | `require('yargs/yargs')(process.argv.slice(2))` | [changelog](https://github.com/yargs/yargs/blob/v18.0.0/CHANGELOG.md#1800-2025-05-26) |
+
+The command also reads each file your `package.json` `bin` names, so an extensionless
+`bin/cli` is checked, and moved on a claimed major, like any other source file.
 
 ## What it checks before it writes
 
