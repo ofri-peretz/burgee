@@ -28,7 +28,21 @@ on:
   # THAT event; without this trigger the check never reports and the entry sits in the
   # queue forever with no error. `scripts/lint-workflows.ts` enforces the pairing.
   merge_group:
+  # `os` and `node` pick one cell (windows-lane-holds R1): measuring one Windows cell ten times
+  # should not cost ten full matrices. Left at `all`, a dispatch runs everything, as before —
+  # the Version PR's fallback (changesets-pr.yml) dispatches with no inputs and gets the ratchet.
   workflow_dispatch:
+    inputs:
+      os:
+        description: Run only this OS's cells (the ratchet is skipped when a cell is picked)
+        type: choice
+        default: all
+        options: [all, ubuntu-latest, macos-latest, windows-latest]
+      node:
+        description: Run only this Node's cells (24 and 26 are `matrix`, 20.19.0 and 22.13.0 are `floor`)
+        type: choice
+        default: all
+        options: [all, '24', '26', '20.19.0', '22.13.0']
 
 concurrency:
   group: compat-${{ github.ref }}
@@ -40,6 +54,8 @@ permissions:
 jobs:
   ratchet:
     name: Ratchet · each host's suite against burgee
+    # A dispatch that picks a cell is a measurement of that cell, not a grade.
+    if: ${{ (!inputs.os || inputs.os == 'all') && (!inputs.node || inputs.node == 'all') }}
     runs-on: ubuntu-latest
     # 30, not 20: ink 8's suite is 1,309 cases run one file at a time with 78 of them in a
     # PTY, measured at 268 s for the control and 115 s for the drop-in on darwin, and ink 6.8
@@ -155,20 +171,26 @@ jobs:
   matrix:
     name: Node ${{ matrix.node }} · ${{ matrix.os }}
     needs: affected
+    # Skipped only by a dispatch that picked a `floor` Node; never on a push or a pull request.
+    if: ${{ !inputs.node || inputs.node == 'all' || inputs.node == '24' || inputs.node == '26' }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     env:
       FULL: ${{ needs.affected.outputs.full }}
       PACKAGES: ${{ needs.affected.outputs.packages }}
+      # Every suite that spreads `timeouts` writes each case's duration and timeout here
+      # (windows-lane-holds R1); the last two steps upload it and name the cases past half.
+      VITEST_DURATIONS_DIR: ${{ github.workspace }}/vitest-durations
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: ${{ fromJSON((inputs.os && inputs.os != 'all') && format('["{0}"]', inputs.os) || '["ubuntu-latest","macos-latest","windows-latest"]') }}
         # Every even major `engines` admits (C3). 26 was narrowed out on 2026-09-08 (#64) to
         # halve the matrix while the output stack landed; it landed, and 26 came back on
         # 2026-09-23 after the whole suite passed on v26.10.0 locally. 26 is Current until its
         # LTS promotion in late October — graded now so it is not first graded as an LTS.
         node: [24, 26]
+        exclude: ${{ fromJSON(inputs.node == '24' && '[{"node":26}]' || inputs.node == '26' && '[{"node":24}]' || '[]') }}
     steps:
       # Every cell starts and reports, so a PR that changes no package is green here, not absent.
       - name: No package affected — nothing to run on this cell
@@ -224,6 +246,23 @@ jobs:
         if: env.FULL == 'true' || contains(fromJSON(env.PACKAGES), 'compat-oracle')
         continue-on-error: ${{ matrix.os != 'ubuntu-latest' }}
         run: node packages/compat-oracle/dist/bin.js --control
+      # windows-lane-holds R1, R2: the per-case durations, kept whatever the cell's verdict, and the
+      # cases above half their timeout named in the summary. Informational until the cases
+      # intent names are fixed; then the half-budget check becomes a gate.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: vitest-durations-${{ github.job }}-${{ matrix.os }}-node${{ matrix.node }}
+          path: vitest-durations
+          if-no-files-found: ignore
+          retention-days: 30
+      - name: Cases above half their timeout (informational)
+        if: always() && hashFiles('vitest-durations/*.json') != ''
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          { echo '## Cases above half their timeout'; echo; echo '```'; node scripts/slow-cases.mts vitest-durations; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
 
   # C3 for the lower half of `engines` (D-132). The nine published packages declare
   # `^20.19.0 || >=22.13.0`; the job above covers 24 and 26, this one the two floors,
@@ -239,15 +278,19 @@ jobs:
   floor:
     name: Node ${{ matrix.node }} · ${{ matrix.os }} · published suites
     needs: affected
+    # Skipped only by a dispatch that picked a `matrix` Node; never on a push or a pull request.
+    if: ${{ !inputs.node || inputs.node == 'all' || inputs.node == '20.19.0' || inputs.node == '22.13.0' }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     env:
       PACKAGES: ${{ needs.affected.outputs.packages }}
+      VITEST_DURATIONS_DIR: ${{ github.workspace }}/vitest-durations
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: ${{ fromJSON((inputs.os && inputs.os != 'all') && format('["{0}"]', inputs.os) || '["ubuntu-latest","macos-latest","windows-latest"]') }}
         node: ['20.19.0', '22.13.0']
+        exclude: ${{ fromJSON(inputs.node == '20.19.0' && '[{"node":"22.13.0"}]' || inputs.node == '22.13.0' && '[{"node":"20.19.0"}]' || '[]') }}
     steps:
       - name: No package affected — nothing to run on this cell
         if: env.PACKAGES == '[]'
@@ -280,3 +323,21 @@ jobs:
             echo "::endgroup::"
           done
           if [ ${#failed[@]} -gt 0 ]; then echo "::error::red on Node $(node --version): ${failed[*]}"; exit 1; fi
+      # windows-lane-holds R1, R2: the per-case durations, kept whatever the cell's verdict, and the
+      # cases above half their timeout named in the summary. Informational until the cases
+      # intent names are fixed; then the half-budget check becomes a gate.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: vitest-durations-${{ github.job }}-${{ matrix.os }}-node${{ matrix.node }}
+          path: vitest-durations
+          if-no-files-found: ignore
+          retention-days: 30
+      - name: Cases above half their timeout (informational)
+        if: always() && hashFiles('vitest-durations/*.json') != ''
+        continue-on-error: true
+        # This cell's Node is a floor (20.19, 22.13), which does not strip types; tsx does.
+        shell: bash
+        run: |
+          set -o pipefail
+          { echo '## Cases above half their timeout'; echo; echo '```'; npx --no tsx scripts/slow-cases.mts vitest-durations; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"

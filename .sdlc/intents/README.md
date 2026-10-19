@@ -496,7 +496,7 @@ execution order. The selection is
 | 68  | [`colour-facades/`](./colour-facades/)                                     | **`roundel/kleur`, `roundel/colorette`, `roundel/yoctocolors`**, each graded by its own suite (158.3 M/wk together)                                           | review |
 | 69  | [`ci-affected-lanes/`](./ci-affected-lanes/)                               | **a PR runs what it changed; `main` runs everything**: 13 compat jobs per PR, 24 of 30 runs cancelled                                                          | approved |
 | 70  | [`default-command/`](./default-command/)                                   | **`default: true` on a native command**: runs with no command name, its own help and examples. yargs #1331, #2292                                             | review |
-| 71  | [`windows-lane-holds/`](./windows-lane-holds/)                             | **Windows cells pass on a busy runner**: measured per case, cheaper cases, no timeout raised                                                                   | review |
+| 71  | [`windows-lane-holds/`](./windows-lane-holds/)                             | **Windows cells pass on a busy runner**: measured per case, cheaper cases, no timeout raised                                                                   | approved |
 | 72  | [`typed-positionals/`](./typed-positionals/)                               | **positionals typed, named and projected**: `ctx.args`, `type`, `choices` into `--schema`, MCP and completions. yargs #1649; closes the commander choices gap | review |
 | 73  | [`migrate-older-majors/`](./migrate-older-majors/)                         | **adoption barrier 1**: an off-major project gets the lines its incumbent's own later majors removed, not `nothing to rewrite`. 56.7% of dependents remain off-major after commander 14 and yargs 17 are claimed | draft |
 | 74  | [`migrate-preflight/`](./migrate-preflight/)                               | **adoption barriers 2, 3 and 8**: migrate reports the Node floor it raises, CommonJS without `require(esm)`, and jest from CommonJS, before writing. 32.4% are CommonJS on an older Node | draft |
@@ -505,6 +505,7 @@ execution order. The selection is
 | 77  | [`migrate-pins-carry-the-drop-in/`](./migrate-pins-carry-the-drop-in/)     | **adoption barrier 7**: a release-age pin never predates the subpath it installs. svgo got a roundel 1.x older than its `./picocolors` subpath and stopped starting | approved |
 | 78  | [`migrate-dynamic-specifiers/`](./migrate-dynamic-specifiers/)             | **adoption barrier 9**: a plugin loader's `import(name)` holds only what it could load. 3 of 9 trial CLIs ran partial | draft |
 | 79  | [`mutation-tested/`](./mutation-tested/)                                   | **a PR cannot add a line no test can tell is broken**: Stryker on the changed lines; a weekly per-package floor that only rises | approved |
+| 80  | [`evals-record-not-run/`](./evals-record-not-run/)                         | **an agent that never ran is recorded `not-run`, never a score**: eval history v2, readers skip it, and a B1 sweep the limit cut short is no reading | approved |
 
 Rows 73–78 come from [`adoption-barriers-2026-10.md`](../research/adoption-barriers-2026-10.md),
 a field trial of the published `burgee migrate` on 9 CLIs we did not write, plus population

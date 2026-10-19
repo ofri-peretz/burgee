@@ -26,7 +26,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const WORKFLOW = join(REPO_ROOT, '.github/workflows/changesets-pr.yml');
@@ -104,42 +104,73 @@ function gitFacts(cwd: string, { BASE_SHA, HEAD_SHA }: { BASE_SHA: string; HEAD_
 }
 
 const MANIFEST = { name: 'flagstaff', version: '1.0.0', dependencies: { roundel: '^0.5.2' }, devDependencies: { 'fast-check': '^4.10.1' } };
-
-/**
- * A throwaway repository with two commits: `base` holds {@link MANIFEST}, and `head` applies
- * `change` to it. Returns the SHAs the step reads, so the script runs its real `git diff`.
- */
-function pullRequest(change: (manifest: typeof MANIFEST) => object, extra: Record<string, string> = {}): { BASE_SHA: string; HEAD_SHA: string; cwd: string } {
-  const cwd = mkdtempSync(join(tmpdir(), 'changeset-check-repo-'));
-  const git = (...args: string[]): string =>
-    execFileSync('git', ['-c', 'user.name=lock', '-c', 'user.email=lock@example.com', '-c', 'commit.gpgsign=false', ...args], { cwd, env: withoutGit(), stdio: 'pipe' })
-      .toString()
-      .trim();
-  const manifest = join(cwd, 'packages/flagstaff/package.json');
-  git('init', '--quiet');
-  mkdirSync(dirname(manifest), { recursive: true });
-  writeFileSync(manifest, `${JSON.stringify(MANIFEST, undefined, 2)}\n`);
-  git('add', '.');
-  git('commit', '--quiet', '-m', 'base');
-  const BASE_SHA = git('rev-parse', 'HEAD');
-  writeFileSync(manifest, `${JSON.stringify(change(structuredClone(MANIFEST)), undefined, 2)}\n`);
-  for (const [path, text] of Object.entries(extra)) {
-    mkdirSync(dirname(join(cwd, path)), { recursive: true });
-    writeFileSync(join(cwd, path), text);
-  }
-  git('add', '.');
-  git('commit', '--quiet', '-m', 'head');
-  return { BASE_SHA, HEAD_SHA: git('rev-parse', 'HEAD'), cwd };
-}
-
-/** Assert the step's answer for a pull request opened by `author` that makes `change`. */
-function expectStatusOf(expected: string, author: string, change: (manifest: typeof MANIFEST) => object, extra?: Record<string, string>): void {
-  const { cwd, ...shas } = pullRequest(change, extra);
-  const { status, trace } = statusFor({ ...shas, HEAD_REF: 'dependabot/npm_and_yarn/all-packages-0', LABELS: 'dependencies,npm', PR_AUTHOR: author }, cwd);
-  expect(status, status === expected ? undefined : `${trace}\n${gitFacts(cwd, shas)}`).toBe(expected);
-}
+const MANIFEST_PATH = 'packages/flagstaff/package.json';
 
 const bumpDev = (m: typeof MANIFEST): object => ({ ...m, devDependencies: { 'fast-check': '^4.10.2' } });
+
+/**
+ * The pull requests the Dependabot cases ask about, each one commit on top of `base` (which holds
+ * {@link MANIFEST}): a manifest change, and any other files the head adds.
+ */
+const HEADS = {
+  dev: { manifest: bumpDev(MANIFEST), extra: {} },
+  runtime: { manifest: { ...MANIFEST, dependencies: { roundel: '^0.6.0' } }, extra: {} },
+  src: { manifest: bumpDev(MANIFEST), extra: { 'packages/flagstaff/src/index.ts': 'export {};\n' } },
+} satisfies Record<string, { manifest: object; extra: Record<string, string> }>;
+type Head = keyof typeof HEADS;
+
+/** Every git run that builds the repository, counted, so the budget below is a fact and not a hope. */
+let builderRuns = 0;
+function git(cwd: string, args: string[], input?: string): string {
+  builderRuns += 1;
+  return execFileSync('git', ['-c', 'user.name=lock', '-c', 'user.email=lock@example.com', '-c', 'commit.gpgsign=false', ...args], { cwd, env: withoutGit(), input, stdio: 'pipe' })
+    .toString()
+    .trim();
+}
+
+/** One `M` line of a fast-import commit, with its content inline. */
+const file = (path: string, text: string): string => `M 100644 inline ${path}\ndata ${String(Buffer.byteLength(text))}\n${text}\n`;
+const json = (value: object): string => `${JSON.stringify(value, undefined, 2)}\n`;
+
+/** One `git fast-import` commit record: a ref, its mark, a message, the files, and its parent mark. */
+interface FastImportCommit {
+  ref: string;
+  mark: number;
+  message: string;
+  files: string;
+  from?: number;
+}
+const commit = ({ ref, mark, message, files, from }: FastImportCommit): string =>
+  `commit refs/heads/${ref}\nmark :${String(mark)}\ncommitter lock <lock@example.com> 1700000000 +0000\ndata ${String(message.length)}\n${message}\n${from === undefined ? '' : `from :${String(from)}\n`}${files}\n`;
+
+/**
+ * windows-lane-holds R4 — one repository per file, built in two git runs: `git init` and one
+ * `git fast-import` that writes `base` and every head as a branch on it. The step only reads
+ * (`git diff`, `git merge-base`, `git show`), so every case can ask the same repository.
+ *
+ * It was seven git runs per case (`init`, then `add`, `commit` and `rev-parse` twice). On
+ * 2026-09-27, under a load average of 54–72 on 14 cores with endpoint security scanning every
+ * exec, a single `git init` took 5.0 s and a single `git commit` 15.8 s, and one case took 52 s.
+ * The step itself stayed under 0.7 s every time. The time was in building, so building is what
+ * moved out of the cases.
+ */
+function buildRepository(): { cwd: string; shas: Record<'base' | Head, string> } {
+  const cwd = mkdtempSync(join(tmpdir(), 'changeset-check-repo-'));
+  const marks = join(mkdtempSync(join(tmpdir(), 'changeset-check-marks-')), 'marks');
+  const names = Object.keys(HEADS) as Head[];
+  const stream = [
+    commit({ ref: 'base', mark: 1, message: 'base', files: file(MANIFEST_PATH, json(MANIFEST)) }),
+    ...names.map((name, i) => {
+      const { manifest, extra } = HEADS[name];
+      return commit({ ref: name, mark: i + 2, message: 'head', files: [file(MANIFEST_PATH, json(manifest)), ...Object.entries(extra).map(([path, text]) => file(path, text))].join(''), from: 1 });
+    }),
+  ].join('');
+  git(cwd, ['init', '--quiet']);
+  git(cwd, ['fast-import', '--quiet', `--export-marks=${marks}`], stream);
+  const byMark = new Map(readFileSync(marks, 'utf8').trim().split('\n').map((line) => line.split(' ') as [string, string]));
+  const sha = (mark: number): string => byMark.get(`:${String(mark)}`) ?? '';
+  return { cwd, shas: { base: sha(1), ...Object.fromEntries(names.map((name, i) => [name, sha(i + 2)])) } as Record<'base' | Head, string> };
+}
 
 describe('the changeset check and the Version PR', () => {
   it('answers `release` for the branch changesets pushes, before it looks at any diff', () => {
@@ -170,27 +201,46 @@ describe('the changeset check and the Version PR', () => {
  * the package's users, and so does anything under `src/`.
  */
 //
-// Each case builds a repository (seven `git` runs) and then runs the step (five more
-// processes). Idle, that takes about 20 ms per process. In the root suite on 2026-09-27, with
-// a load average of 54–72 on 14 cores and endpoint security scanning every exec, a single
-// `git init` took 5.0 s and a single `git commit` took 15.8 s. One case took 52 s. At the
-// 30 s default, two cases timed out in one pre-push run and one timed out in a run by hand.
-// That matches the flake of 2026-09-24. The step itself stayed under 0.7 s every time, and
-// every answer was right. The time went into building the repositories, so the budget covers that.
+// Each case runs the step (five processes) against the one repository `beforeAll` built. The
+// 120 s budget predates that, when each case built its own; it stays until the R2 report shows
+// these cases under half of 30 s on every cell, and is then removed rather than kept as slack.
 describe('the changeset check and Dependabot', { timeout: 120_000 }, () => {
+  let repository: ReturnType<typeof buildRepository>;
+  beforeAll(() => {
+    repository = buildRepository();
+  }, 120_000);
+
+  /** Assert the step's answer for a pull request opened by `author` whose head is `head`. */
+  function expectStatusOf(expected: string, author: string, head: Head): void {
+    const { cwd } = repository;
+    const shas = { BASE_SHA: repository.shas.base, HEAD_SHA: repository.shas[head] };
+    const { status, trace } = statusFor({ ...shas, HEAD_REF: 'dependabot/npm_and_yarn/all-packages-0', LABELS: 'dependencies,npm', PR_AUTHOR: author }, cwd);
+    expect(status, status === expected ? undefined : `${trace}\n${gitFacts(cwd, shas)}`).toBe(expected);
+  }
+
+  it('R4 — builds its repository once per file, in at most three git runs', () => {
+    expect(Object.values(repository.shas).every((sha) => /^[0-9a-f]{40}$/u.test(sha)), JSON.stringify(repository.shas)).toBe(true);
+    expect(new Set(Object.values(repository.shas)).size).toBe(Object.keys(HEADS).length + 1);
+    expect(builderRuns).toBeLessThanOrEqual(3);
+  });
+
   it('answers `dev-dependencies` when Dependabot moves only devDependencies', () => {
-    expectStatusOf('dev-dependencies', 'dependabot[bot]', bumpDev);
+    expectStatusOf('dev-dependencies', 'dependabot[bot]', 'dev');
   });
 
   it('still answers `missing` when Dependabot moves a runtime dependency', () => {
-    expectStatusOf('missing', 'dependabot[bot]', (m) => ({ ...m, dependencies: { roundel: '^0.6.0' } }));
+    expectStatusOf('missing', 'dependabot[bot]', 'runtime');
   });
 
   it('still answers `missing` when a src/ change rides on a Dependabot branch', () => {
-    expectStatusOf('missing', 'dependabot[bot]', bumpDev, { 'packages/flagstaff/src/index.ts': 'export {};\n' });
+    expectStatusOf('missing', 'dependabot[bot]', 'src');
   });
 
   it('does not extend the exemption to a person — the label is their signed decision', () => {
-    expectStatusOf('missing', 'ofri-peretz', bumpDev);
+    expectStatusOf('missing', 'ofri-peretz', 'dev');
+  });
+
+  it('a case builds nothing: every git run above happened before the first case', () => {
+    expect(builderRuns).toBeLessThanOrEqual(3);
   });
 });

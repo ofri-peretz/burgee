@@ -45,6 +45,9 @@
         "build",
         "^build"
       ],
+      "passThroughEnv": [
+        "VITEST_DURATIONS_DIR"
+      ],
       "outputs": []
     },
     "coverage": {
