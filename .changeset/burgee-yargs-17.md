@@ -1,0 +1,6 @@
+---
+"burgee": minor
+"compat-oracle": patch
+---
+
+Yargs 17 is supported. Two new entry points serve programs written for yargs 17. yargs 17.7.3's own suite grades them 793 of 794, level with yargs 17 itself, whose one miss is the test harness's own manifest. `burgee/yargs/v17` is 17's `yargs`: `require()` returns 17's global instance, bound to `process.argv` and callable as the factory, and `import` returns the factory. `burgee/yargs/v17/yargs` is 17's `yargs/yargs`, the factory with `applyExtends`, `hideBin` and `Parser` on it. Both follow 17 where 18 differs: a locale stays as the program set it rather than being reset per instance, `commandDir()` walks depth first and hands `visit` the module itself, and from `require()` a command module without a `command` takes its file's name. `burgee migrate` now rewrites a project pinned to yargs 17 (`~17.7.2`, `^17`, or installed at 17.x) to these entries instead of leaving it alone as off-major. A program on 18 still imports `burgee/yargs` and bundles none of it: that entry grows by 20 B.

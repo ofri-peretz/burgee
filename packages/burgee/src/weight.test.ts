@@ -840,6 +840,15 @@ const RULES: Record<string, EntryRule> = {
     // 217,150 with A29's CommonJS export on top. Measured 217,123.
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
+  // `previous-majors` R3, 2026-10-19 (D-20261019-yargs-17-budget): yargs 17's `import` door, which
+  // `burgee migrate` writes for a program on 17. `./yargs` plus `yargs/v17-factory.js` (17's string
+  // table and `commandDir()` walk) and the entry itself, 3,062 B over `./yargs` in this walk: 224,715
+  // measured, plus the ~32 B CI reads heavier, rounded up to the next 50 B. Its `require()` door,
+  // `yargs/v17.cjs`, is not on this walk, which follows `import`. `./yargs` gained 36 B for the
+  // seam the factory plugs into (`shim.CommandInstance`) and its budget does not move.
+  "./yargs/v17": { allow: ["linegauge"], budget: 224_750, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
+  // 17's `yargs/yargs`: `./yargs/v17` and one function carrying three statics. 224,939 measured.
+  "./yargs/v17/yargs": { allow: ["linegauge"], budget: 225_000, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
   "./yargs/helpers": {
     allow: [],
     budget: 64_000,

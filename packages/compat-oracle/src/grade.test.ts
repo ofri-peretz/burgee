@@ -19,6 +19,7 @@
  */
 import { type ExecFileSyncOptions, spawn } from 'node:child_process';
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -449,6 +450,24 @@ describe('the shims a run writes', () => {
     expect(read(hostDir, 'shim.cjs')).toBe(`// generated per run — COMPAT_TARGET=fake\n${cjsLoad('fake')}\nmodule.exports = loaded?.default ?? loaded;\n`);
     expect(read(hostDir, 'shim-1.cjs')).toBe(`// generated per run — COMPAT_TARGET=fake\n${cjsLoad('fake/x')}\nmodule.exports = loaded;\n`);
   });
+
+  // `previous-majors` R3: a previous major's row grades the major's entry, and an import that has
+  // no such entry beside it names the module a target run reads instead.
+  it("re-exports an import's own `target` on a target run, and the control's module on a control run", () => {
+    const h = incumbent({ imports: [{ upstream: '../index.js', subpath: '', reexportDefault: false }, { upstream: 'parser', subpath: '/parser', reexportDefault: false, control: 'semver', target: 'vitest/config' }] });
+    const hostDir = vendored(h, { 'a.test.js': '' });
+    seam.exec = tap;
+    grade(h, vendorDir, 'vitest');
+    expect(read(hostDir, 'shim-1.js')).toBe("// generated per run — COMPAT_TARGET=vitest\nexport * from 'vitest/config';\n");
+    grade(h, vendorDir, 'commander');
+    expect(read(hostDir, 'shim-1.js')).toBe("// generated per run — COMPAT_TARGET=commander\nexport * from 'semver';\n");
+  });
+
+  it("names an import's own `target` as the entry that is missing, when it is", () => {
+    const h = host({ imports: [{ upstream: '../index.js', subpath: '', reexportDefault: false }, { upstream: 'parser', subpath: '/parser', reexportDefault: false, target: 'vitest/no-such-entry' }] });
+    vendored(h, { 'a.test.js': '' });
+    expect(grade(h, vendorDir, 'vitest')).toMatchObject({ passed: 0, note: 'target not built yet: vitest/no-such-entry' });
+  });
 });
 
 /**
@@ -625,6 +644,21 @@ describe('a host whose target brings optional peers', () => {
 describe('the target’s own module behind an internal path', () => {
   it('re-exports each name the suite imports from the target package’s file, by absolute URL', () => {
     expect(targetInternalBody('/pkg', { file: 'dist/a.js', names: { default: 'parse', bsu: 'bsu' } })).toBe(`export { parse as default, bsu } from '${pathToFileURL('/pkg/dist/a.js').href}';\n`);
+  });
+
+  it('is CommonJS at a path parsed as CommonJS: an object of the names, off a require of the file', () => {
+    expect(targetInternalBody('/pkg', { file: 'dist/a.js', names: { Parser: 'Parser', Err: 'YError' } }, 'commonjs')).toBe(
+      `const loaded = require(${JSON.stringify(join('/pkg', 'dist/a.js'))});\nmodule.exports = { Parser: loaded.Parser, Err: loaded.YError };\n`,
+    );
+  });
+
+  it('writes the CommonJS form at a `.cjs` internal of a module package, as yargs 17 requires `build/index.cjs`', () => {
+    const h = incumbent({ targetInternals: { 'build/index.cjs': { file: 'package.json', names: { name: 'name' } } } });
+    const hostDir = vendored(h, { 'a.test.js': '' }, { source: { internals: ['build/index.cjs'] } });
+    seam.exec = prints(SUMMARY(1, 1));
+    grade(h, vendorDir, 'vitest');
+    expect(read(hostDir, 'build', 'index.cjs')).toBe(`// generated per run — COMPAT_TARGET=vitest\n${targetInternalBody(installed('vitest'), { file: 'package.json', names: { name: 'name' } }, 'commonjs')}`);
+    expect(createRequire(import.meta.url)(join(hostDir, 'build', 'index.cjs'))).toEqual({ name: 'vitest' });
   });
 
   it('is written on a target run only; the control still gets the host’s own file', () => {

@@ -104,6 +104,17 @@
       "types": "./dist/yargs-parser.d.ts",
       "import": "./dist/yargs-parser.js",
       "default": "./dist/yargs-parser.js"
+    },
+    "./yargs/v17": {
+      "types": "./dist/yargs/v17.d.ts",
+      "require": "./dist/yargs/v17.cjs",
+      "import": "./dist/yargs/v17.js",
+      "default": "./dist/yargs/v17.js"
+    },
+    "./yargs/v17/yargs": {
+      "types": "./dist/yargs/v17-yargs.d.ts",
+      "import": "./dist/yargs/v17-yargs.js",
+      "default": "./dist/yargs/v17-yargs.js"
     }
   },
   "typesVersions": {
@@ -124,7 +135,9 @@
       "completions": ["./dist/completions.d.ts"],
       "yargs": ["./dist/yargs.d.ts"],
       "yargs/helpers": ["./dist/yargs-helpers.d.ts"],
-      "yargs/parser": ["./dist/yargs-parser.d.ts"]
+      "yargs/parser": ["./dist/yargs-parser.d.ts"],
+      "yargs/v17": ["./dist/yargs/v17.d.ts"],
+      "yargs/v17/yargs": ["./dist/yargs/v17-yargs.d.ts"]
     }
   },
   "files": [

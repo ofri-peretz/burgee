@@ -203,8 +203,12 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
  * which omits the surplus argument 15 names, and `migrate` writes it for a project on 14
  * (`previous-majors` R1, R2, R6).
  *
- * The other older majors graded today are **not claimed**, because none is level: yargs 17
- * grades 191 / 794 (17's `require('yargs')` is a singleton, which 18 removed), dotenv 17 grades 107 / 141 (18 moved `config()`'s log line to `console.error` and
+ * Yargs 17 is claimed: its suite grades `burgee/yargs/v17` 793 / 794, level with yargs 17.7.3
+ * itself, whose one miss is the vendored root's own manifest. That entry is the front-end with
+ * 17's `require()` singleton, its string table, and its `commandDir()` walk, and `burgee/yargs/v17/yargs`
+ * is 17's `yargs/yargs`; `migrate` writes them for a project on 17 (`previous-majors` R3–R6).
+ *
+ * The other older majors graded today are **not claimed**, because none is level: dotenv 17 grades 107 / 141 (18 moved `config()`'s log line to `console.error` and
  * deleted `.env.vault`, `DOTENV_KEY` and the tips, and the façade speaks 18), and ink 6 grades
  * 540 / 584 (`controlroom/ink` follows ink 8 where the two majors disagree — Delete is
  * backspace, a kitty Ctrl+letter is its own code point, the cursor and frame protocol moved;
@@ -258,7 +262,7 @@ export const SUPPORTED_MAJORS: Readonly<Record<string, readonly number[]>> = {
   which: [7],
   'widest-line': [6],
   'wrap-ansi': [10],
-  yargs: [18],
+  yargs: [17, 18],
   'yargs-parser': [22],
 };
 
@@ -270,6 +274,9 @@ export const SUPPORTED_MAJORS: Readonly<Record<string, readonly number[]>> = {
  */
 export const PREVIOUS_MAJOR_ENTRIES: Readonly<Record<string, Readonly<Record<number, string>>>> = {
   commander: { 14: 'burgee/commander/v14' },
+  yargs: { 17: 'burgee/yargs/v17' },
+  // 17's `yargs/yargs` is the factory, never the singleton `require('yargs')` returns in 17.
+  'yargs/yargs': { 17: 'burgee/yargs/v17/yargs' },
 };
 /* eslint-enable conventions/no-magic-numbers */
 

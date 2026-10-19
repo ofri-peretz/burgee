@@ -68,6 +68,9 @@ const DROP_IN_CEILINGS: Readonly<Record<string, { incumbent: string; bytes: numb
   'linegauge/widest-line': { incumbent: 'widest-line@6.0.0', bytes: 6_079 },
   // R7's kill criterion: over this, `roundel/picocolors` does not publish.
   'roundel/picocolors': { incumbent: 'picocolors@1.1.1', bytes: 2_739 },
+  // `previous-majors` R3: 17's `yargs/yargs` — `yargs.mjs` over its CommonJS build — measured
+  // 2026-10-19 from yargs 17.7.3 as `compat-oracle` installs it (D-20261019-yargs-17-budget).
+  'burgee/yargs/v17/yargs': { incumbent: 'yargs@17.7.3 (yargs/yargs)', bytes: 114_656 },
 };
 
 /**
@@ -93,6 +96,10 @@ const OVER_INCUMBENT: Readonly<Record<string, { incumbent: string; bytes: number
   // message, so it bundles `burgee/commander`'s bytes plus 349, and its ratchet moves with that row.
   // commander 14.0.3 measured 2026-10-12 by the same method: 40,970 B (D-20261012-commander-14-budget).
   'burgee/commander/v14': { incumbent: 'commander@14.0.3', bytes: 40_970, ours: 56_002, gap: 'B-20261012-commander-front-end-bundles-heavier' },
+  // `previous-majors` R3: `burgee/yargs` plus 17's string table and `commandDir()` walk. yargs
+  // 17.7.3's `index.mjs` bundles to 84,475 B by the same method, measured 2026-10-19, and yargs
+  // 18.2.0's to 111,698 B, which `burgee/yargs` is under (D-20261019-yargs-17-budget).
+  'burgee/yargs/v17': { incumbent: 'yargs@17.7.3', bytes: 84_475, ours: 110_327, gap: 'B-20261019-yargs-17-entry-bundles-heavier' },
 };
 
 /** The "Everything" cell of a subpath's row on the page, or `undefined` when it has no row. */
