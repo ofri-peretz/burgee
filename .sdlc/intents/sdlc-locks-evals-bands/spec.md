@@ -8,7 +8,7 @@ Intent: [`intent.md`](./intent.md). **Status:** review — corrected from `shipp
 
 ## Restated 2026-10-18
 
-**R1, R4 and R5 hold as shipped; R2, R3 and R6 are restated, each with a remaining piece — REMAINING: R2/R3, R6.**
+**R1, R4 and R5 hold as shipped; R2, R3 and R6 are restated, each with a remaining piece — REMAINING: R2/R3, R6.** *2026-10-19: R6 held; R2/R3 remain.*
 
 The full table, with the check for each row, is in the intent's
 [§ Restated 2026-10-18](./intent.md#restated-2026-10-18). In short:
@@ -26,7 +26,7 @@ The full table, with the check for each row, is in the intent's
   holds the pairing.
 - **R5** held. The watcher has written five `control-band-*` intents on `main`.
 - **R6** rules 1 and 4 and the generated intent are tested. Rules 2 and 3 are not
-  (**remaining**).
+  (**remaining**). **Held 2026-10-19:** `scripts/control-bands.test.ts` › "rule 2 — two of the last three beyond 2σ on one side, with no point beyond 3σ", › "rule 3 — four of the last five beyond 1σ on one side, with a point between that breaks the run".
 
 ## Requirements
 

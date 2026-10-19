@@ -4,8 +4,10 @@
 > requirement T1. First in the order of work because every other requirement is
 > verified through it.
 
-**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz · **Corrected from
-`shipped` 2026-09-09** — two of four criteria met, one superseded, one unbuilt; see [Verified against `main`](#verified-against-main--2026-09-09)
+**Status:** shipped · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-19 by
+`docs/restate-superseded-intents`, verified on a branch from `main` at `51fec1ba` — S1–S4 each held by the check named in § Restated 2026-10-18; the last one, S1's ANSI half, by `examples/conformance/src/harness.test.ts` › "writes no ANSI escape when no stream is a terminal — help, output, a failure and a usage error"
+
+**Corrected from `shipped` 2026-09-09** — two of four criteria met, one superseded, one unbuilt; see [Verified against `main`](#verified-against-main--2026-09-09)
 
 **Restated:** 2026-10-18 — see § Restated 2026-10-18
 
@@ -15,7 +17,7 @@
 
 ## Restated 2026-10-18
 
-**Criteria restated to the shipped `burgee/testing` harness and the compat-oracle drivers; S2 and S4 restated and held, S3 held, the ANSI half of S1 has no check on main — REMAINING: S1 ANSI-in-non-TTY conformance case.**
+**Criteria restated to the shipped `burgee/testing` harness and the compat-oracle drivers; S2 and S4 restated and held, S3 held, the ANSI half of S1 has no check on main — REMAINING: S1 ANSI-in-non-TTY conformance case.** *Closed 2026-10-19 by a conformance case on all five hosts; all four criteria held.*
 
 What shipped differs from the 2026-09-06 design in vocabulary, not in behaviour.
 `@interlace/cli-core` became the `burgee` package: `Runtime` and `processRuntime` live in
@@ -31,12 +33,17 @@ numbered S1–S4 here in their order; the text of each is kept below with an ann
 | ID | promised | on main | check | disposition |
 | :-- | :-- | :-- | :-- | :-- |
 | S1a | the conformance suite passes on both demos; a wrong exit code turns it red | yes, on five hosts | `examples/conformance/src/harness.test.ts` › "an unknown command is USAGE", › "a runtime failure is RUNTIME with the message on stderr and no help text", › "runtime.exit unwinds with its E1 code" | held |
-| S1b | a deliberate ANSI-in-non-TTY regression in a demo turns the suite red | no | none: `examples/conformance/src/*.test.ts` has no `isTTY`, `NO_COLOR` or escape-byte assertion on FETCH_HEAD, and the incumbent demos emit no colour | remaining |
+| S1b | a deliberate ANSI-in-non-TTY regression in a demo turns the suite red | yes since 2026-10-19, on five hosts: `--help`, a command's output, a runtime failure and a usage error, with no stream a TTY (the harness default) | `examples/conformance/src/harness.test.ts` › "writes no ANSI escape when no stream is a terminal — help, output, a failure and a usage error" | held (2026-10-19) |
 | S2 | `runCommander` under 20 ms warm, pinned with a generous ceiling | yes, as a relative bound | `examples/conformance/src/harness.test.ts` › "is fast: a warm in-process run beats half a spawned run of the same CLI, measured in the same run" | restated |
 | S3 | `process.env` byte-identical after an injected-env run | yes, on five hosts, after a failing run | `examples/conformance/src/harness.test.ts` › "leaves process.env byte-identical after a run that injected env and failed"; `packages/burgee/src/testing-helpers.test.ts` › "leaves process.env byte-identical after a run, even one that throws" | held |
 | S4 | no `process.` in `packages/*/src/**` outside `processRuntime`, grep lock | yes, one seam per package | `packages/burgee/src/process-reference-lock.test.ts` › "no layer source reads process.* outside the three files that own it" | restated |
 
-- **S1b (remaining).** Plain text off a terminal is held for burgee's own help by
+- **S1b (held, 2026-10-19).** The case runs `--help`, `greet ada`, `fail` and `confg` on every
+  host and fails on any `\u001b` in stdout or stderr. Proven red against a deliberately coloured
+  demo: wrapping the greeting in `examples/demo-cli-burgee/dist/index.js` with `\u001b[1m` …
+  `\u001b[22m` reads `burgee greet ada: expected '\u001b[1mHello\u001b[22m, ada!\n' not to
+  contain '\u001b'`, and the case is green again once the file is restored. What follows is the
+  2026-10-18 reading that found the gap. Plain text off a terminal is held for burgee's own help by
   `packages/burgee/src/color.test.ts` › "is styled on a terminal, and only there". That is the
   engine's O2 check, called through `execute` directly; it is not a conformance case, does not
   run on the commander or yargs hosts, and would not see colour emitted by a demo handler. The

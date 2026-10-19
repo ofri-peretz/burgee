@@ -43,7 +43,7 @@ Per-row evidence for S1 (the table under § What is wanted, in its order):
 | choices and `(repeatable)` (#1408, #1349) | `packages/burgee/src/help.test.ts` › "annotates defaults, choices, env and placeholder in a stable order (R4, yargs #1408, #833, #1935)"; `packages/burgee/src/help-annotations.test.ts` › "marks a repeatable option" | held |
 | value placeholder (#833) | `packages/burgee/src/help.test.ts` › "annotates defaults, choices, env and placeholder in a stable order (R4, yargs #1408, #833, #1935)" | held |
 | colour never in names (#1699) | `packages/burgee/src/help.test.ts` › "never colours a name in the manifest: colour wraps the rendered cell after it is measured (yargs #1699)" | held |
-| subcommand help and `help <sub>` (#1500, #1020) | `packages/burgee/src/help.test.ts` › "--help on a command, help <command>, and the root all render from the same renderer" | held |
+| subcommand help and `help <sub>` (#1500, #1020) | `packages/burgee/src/help.test.ts` › "--help on a command, help \<command>, and the root all render from the same renderer" | held |
 | deprecated inline (#2248) | `packages/burgee/src/help.test.ts` › "hides hidden commands and options, and marks deprecated ones inline (yargs #2248)" | held |
 | positional defaults (#2012) | `packages/burgee/src/help.test.ts` › "documents positionals with their defaults in the same column (yargs #2012)" | held |
 | epilogue per node (#1680) | `packages/burgee/src/help.test.ts` › "lists every section in the fixed order, empty ones omitted (R2)" | held |

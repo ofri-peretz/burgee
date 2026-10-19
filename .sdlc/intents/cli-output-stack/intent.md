@@ -13,7 +13,7 @@
 
 ## Restated 2026-10-18
 
-**This umbrella closes through its children: every row is held on main with a check or moved to the child that owns it, except three unowned rows. REMAINING: R2 env-name single-file lock unbuilt, R12 no-burgee README opening unlocked, S2 complete-CLI dependency-bill row unbuilt.**
+**This umbrella closes through its children: every row is held on main with a check or moved to the child that owns it, except three unowned rows. REMAINING: R2 env-name single-file lock unbuilt, R12 no-burgee README opening unlocked, S2 complete-CLI dependency-bill row unbuilt.** *2026-10-19: R2 held by `scripts/output-env-lock.test.ts` (D-20261019-output-env-lock-scope); R12 and S2 remain, so the status stays `approved`.*
 
 Read on `main` at `1013b65db5` (2026-10-18). No test was run; every check below was located on
 that commit by file and test name. The requirement rows R1–R15 are mapped in

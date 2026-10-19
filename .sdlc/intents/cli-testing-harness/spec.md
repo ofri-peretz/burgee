@@ -1,6 +1,6 @@
 # Design — Run any CLI in-process, with everything injected
 
-Intent: [`intent.md`](./intent.md). **Status:** review — corrected from `shipped` 2026-09-09; see the intent's verification section.
+Intent: [`intent.md`](./intent.md). **Status:** shipped (2026-10-19) — corrected from `shipped` to `review` on 2026-09-09, and closed by the S1 ANSI case; see the intent's § Restated 2026-10-18.
 
 **Restated:** 2026-10-18 — see § Restated 2026-10-18
 
@@ -8,7 +8,7 @@ Intent: [`intent.md`](./intent.md). **Status:** review — corrected from `shipp
 
 ## Restated 2026-10-18
 
-**R1–R7 restated to the shipped names and all held; the design's perf lock is restated to the relative bound — the intent stays REMAINING only on its S1 ANSI-in-non-TTY case.**
+**R1–R7 restated to the shipped names and all held; the design's perf lock is restated to the relative bound — the intent stays REMAINING only on its S1 ANSI-in-non-TTY case.** *That case landed 2026-10-19; nothing remains.*
 
 The requirements below name packages that were never built under those names. The behaviour
 each one specifies is on main; only the location moved. `@interlace/cli-core` is `burgee`;

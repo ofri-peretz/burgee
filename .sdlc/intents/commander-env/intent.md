@@ -38,7 +38,7 @@ standalone product. One unbuilt piece of this intent moves there (spec R6, below
 | ID | promised | on main | check | disposition |
 | :-- | :-- | :-- | :-- | :-- |
 | C1 | a conformance case per listed issue, each failing on plain commander | 9 of 25 cited issues have a test (yargs #873, #1655, #2501, #2005, #1305, #1627, #1363, #1676; oclif/core #1639); no test runs any of them against plain commander | `packages/seniority/src/precedence.test.ts`, `packages/seniority/src/config.test.ts`, `packages/burgee/src/env.test.ts`, `packages/burgee/src/option-relations.test.ts` › "a default does not satisfy it (oclif/core #1639)" | remaining |
-| C2 | `--explain <option>` prints the source and every overridden candidate | yes | `packages/burgee/src/env.test.ts` › "--explain <option> prints the winner and the candidates it beat, and runs nothing"; `packages/seniority/src/precedence.test.ts` › "names the winner and every candidate it beat, unset ones included" | held |
+| C2 | `--explain <option>` prints the source and every overridden candidate | yes | `packages/burgee/src/env.test.ts` › "--explain \<option> prints the winner and the candidates it beat, and runs nothing"; `packages/seniority/src/precedence.test.ts` › "names the winner and every candidate it beat, unset ones included" | held |
 | C3a | `meta.provenance` under `--json` | yes (native engine and `burgee/yargs`) | `packages/burgee/src/env.test.ts` › "config beats the package.json field beats the default, and --json says so (V3)"; › "--dry-run, --no-color and --target-env, not the camelCase keys"; `packages/burgee/src/yargs/burgee.test.ts` › "wraps the handler return value with provenance" | held |
 | C3b | provenance task median turns drop vs the ~~`LAYER=off` build~~ commander variant | the `LAYER=off` build is gone with the `-agent` layers; B1 now compares the `burgee` variant with `commander` (`benchmarks/axes/agent.ts`) and does not gate per-task turns | none located | restated, remaining |
 | C4 | `--version` inside `examples/` prints the demo's version, not the root's | the `examples/` tree cannot tell them apart: the root and every demo are `0.0.0`. Restated to the same discrimination on synthetic nested packages | `packages/burgee/src/owning-package.test.ts` › "finds the CLI's own package.json, not the installing project's"; `packages/burgee/src/bin-link-version.test.ts` › "prints burgee's own version, not the installing project's"; `packages/burgee/src/env.test.ts` › "--version reads the package.json that owns the entry file (V4), unless the program declares one" | restated |
@@ -47,7 +47,7 @@ standalone product. One unbuilt piece of this intent moves there (spec R6, below
 
 The spec's R1–R7 are restated in [`spec.md` § Restated 2026-10-18](./spec.md#restated-2026-10-18).
 R3's façade half (`--explain` on `burgee/commander` and `burgee/yargs`) is remaining here.
-`facade-gets-more/design.md` § Out of scope declines it ("`--help --json` (F2) and
+`facade-gets-more/spec.md` (renamed from `design.md` when it shipped) § Out of scope declines it ("`--help --json` (F2) and
 `--explain` (V3) on the façades"), so no other intent owns it.
 
 **Stale finding corrected.** § Verified against `main` — 2026-09-09 says

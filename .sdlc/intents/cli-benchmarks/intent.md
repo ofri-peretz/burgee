@@ -16,7 +16,7 @@
 
 ## Restated 2026-10-18
 
-**Criteria restated to the shipped `benchmarks/` suite (seven axes, `npm run bench`, `bench.yml`, a generated `/docs/benchmarks`); six of nine success criteria held, three open — REMAINING: S4 token-claim confirm-or-rewrite (owner call), S9/B7 public-number link lock, S5/R6 sample-count floors untested.**
+**Criteria restated to the shipped `benchmarks/` suite (seven axes, `npm run bench`, `bench.yml`, a generated `/docs/benchmarks`); six of nine success criteria held, three open — REMAINING: S4 token-claim confirm-or-rewrite (owner call), `S9`/B7 public-number link lock, S5/R6 sample-count floors untested.** *2026-10-19: the floors are locked by `benchmarks/sample-floor.test.ts`; S4 and `S9`/B7 remain, so the status stays `review`.*
 
 The 2026-09-09 verification below ("zero of nine met, nothing is built") was true on
 `61bd11b9` and is not true on FETCH_HEAD. The suite landed in #95 the same day and has grown:
@@ -27,7 +27,7 @@ The 2026-09-09 verification below ("zero of nine met, nothing is built") was tru
 design-level substitutions are recorded in [`spec.md`](./spec.md) § Built 2026-09-09: "the
 layer" (`LAYER=off`) became the burgee demo against the commander demo, because the layer
 stopped existing on 2026-09-06; and the absolute `cold-start-p95-ms` band became the paired
-`cold-start-ratio`. The success-criteria bullets are numbered S1–S9 here in their order.
+`cold-start-ratio`. The success-criteria bullets are numbered S1–`S9` here in their order (local labels, not the umbrella's floor ids; `S9` is written as code so the floor-id check does not read it as one).
 
 | ID | promised | on main | check | disposition |
 | :-- | :-- | :-- | :-- | :-- |
@@ -35,11 +35,11 @@ stopped existing on 2026-09-06; and the absolute `cold-start-p95-ms` band became
 | S2 | results JSON `{ model, layer, task, runs, median }`, rendered on the docs site | the common record shape plus per-task runs and transcripts in `detail`; the page is generated and checked | `benchmarks/agent.test.ts` › "records the agent, its environment and every task's runs, and keeps each run's transcript"; `benchmarks/page.test.ts` › "every axis the document reports as not measured is named as such on the page"; `.github/workflows/quality.yml` runs `npm run bench:page -- --check` | restated |
 | S3 | band after eight runs; a 2σ regression writes an intent | `agent-tokens-per-task` / `agent-turns-per-task` at `minPoints` 8; `scripts/control-bands.ts` writes the intent | `scripts/control-bands.test.ts` › "refuses to compute a band below minPoints — an unsupported band must not gate", › "only renders because the series actually breached" | held |
 | S4 | the ≥40% / ≥30% claim confirmed or rewritten with the measured number | measured and settled on every B1 run; the public statement is stale | `benchmarks/emit.test.ts` › "settles the agent claims on the ratio of totals, and no longer on the pooled medians (D-20261009-b1-totals-and-explain)" | remaining |
-| S5 | B2 cold start for bare node, hosts, front-ends; p50/p95 over ≥30 spawns; overhead banded | yes, 52 interleaved rounds after a discarded warm-up; `cold-start-ratio` banded and gated | `benchmarks/fixtures.test.ts` › "includes the bare-node floor row, which intent constraint 5 makes mandatory"; `benchmarks/ratchet.test.ts` › "exits non-zero when the front-end drifts past its ceiling over its host" | held, except the ≥30 floor: remaining |
+| S5 | B2 cold start for bare node, hosts, front-ends; p50/p95 over ≥30 spawns; overhead banded | yes, 52 interleaved rounds after a discarded warm-up; `cold-start-ratio` banded and gated | `benchmarks/fixtures.test.ts` › "includes the bare-node floor row, which intent constraint 5 makes mandatory"; `benchmarks/ratchet.test.ts` › "exits non-zero when the front-end drifts past its ceiling over its host" | held; the ≥30 floor since 2026-10-19 by `benchmarks/sample-floor.test.ts` › "perf spawns every variant at least 30 times per run (R6)", › "the newest CI reading carries those samples on every perf record" |
 | S6 | B3 per-host pass rate from `compat-oracle`, as a ratchet | yes; one band per `compat-oracle/baseline/` file, derived by `scripts/control-bands.ts` | `benchmarks/ratchet.test.ts` › "exits non-zero when one case out of 1,360 stops passing", › "catches a lost case even when the rounded rate still looks like 100%" | held |
 | S7 | B4 bundled bytes per entry against the published targets | yes, bytes not KB, plus a ratio gate against each incumbent (D-157) | `benchmarks/ratchet.test.ts` › "exits non-zero one byte over", › "exits non-zero when the façade grows past the package it replaces" | held |
 | S8 | one `npm run bench` for all axes; `--axis perf` for one | yes | `benchmarks/ci-axes.test.ts` › "names an axis the suite knows — a typo would silently select nothing"; `benchmarks/ratchet.test.ts` › "leaves an axis nobody asked for alone — `--axis weight` must not fail on the other four" | held |
-| S9 | a generated `/benchmarks` page that every public number links to | generated and drift-checked; the links are not checked | `.github/workflows/quality.yml` `npm run bench:page -- --check`; `benchmarks/published.test.ts` › "ignores an observation landing beside the published measurement" | generated half held; link half remaining (spec B7) |
+| `S9` | a generated `/benchmarks` page that every public number links to | generated and drift-checked; the links are not checked | `.github/workflows/quality.yml` `npm run bench:page -- --check`; `benchmarks/published.test.ts` › "ignores an observation landing beside the published measurement" | generated half held; link half remaining (spec B7) |
 
 - **S4 (remaining, owner call).** The claim is no longer "without a number": `benchmarks/claims.ts`
   settles `agent-tokens-40pct` and `agent-turns-30pct` on every run, on totals over every
@@ -57,8 +57,11 @@ stopped existing on 2026-09-06; and the absolute `cold-start-p95-ms` band became
   rounds per variant, so no variant goes first more often than another" asserts
   `ROUNDS % VARIANTS.length === 0`, which `ROUNDS = 7` would pass. The same gap holds for
   constraint 1's "N≥5 runs per task": `RUNS_PER_TASK = 5` in `benchmarks/axes/agent.ts` is
-  untested. One lock closes both.
-- **S9 / B7 (remaining).** No check finds a public number (README, `comparison.mdx`, package
+  untested. One lock closes both. **Closed 2026-10-19** by `benchmarks/sample-floor.test.ts`,
+  which also reads the newest committed CI reading's perf `samples`; proven red with
+  `ROUNDS = 20` (`expected 20 to be greater than or equal to 30`) and `RUNS_PER_TASK = 3`.
+  The discarded warm-up round is still held by reading the code only.
+- **`S9` / B7 (remaining).** No check finds a public number (README, `comparison.mdx`, package
   READMEs) that does not link to `/docs/benchmarks`. `benchmarks/docs.test.ts` › "comparison.mdx
   states the numbers the suite measured" checks that the numbers agree, not that they link.
 - **Stale numbers.** The § "What the first run found" note that yargs reports `tests: 803,
@@ -174,7 +177,7 @@ with no scheduled measurement between them.
 - One `npm run bench` produces all four; `npm run bench -- --axis perf` produces one.
 - The docs site has a `/benchmarks` page that is generated, never hand-edited, and every
   public number we cite elsewhere links to it.
-  **Restated 2026-10-18 (S9):** generated and drift-checked (`npm run bench:page -- --check`
+  **Restated 2026-10-18 (`S9`):** generated and drift-checked (`npm run bench:page -- --check`
   in `quality.yml`); the "every public number links to it" half has no check and is
   **remaining** (spec B7).
 

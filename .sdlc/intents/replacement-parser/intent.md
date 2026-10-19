@@ -3,9 +3,10 @@
 > Stage 1 artifact. Child of [`burgee`](../burgee/intent.md).
 > The point at which the layer stops renting distribution and owns its own host.
 
-**Status:** review · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`
+**Status:** shipped · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz` · **Shipped:** 2026-10-19 by
+`docs/restate-superseded-intents`, verified on a branch from `main` at `51fec1ba` — #1–#5 and G1–G7 held or restated with the check named in § Restated 2026-10-18; G3 dropped by `yargs-compat` § Rejected alternatives
 
-**State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why still `review`:** the engine, lifecycle, exit contract, manifest and four locks are in the repo — but **`burgee/quirks/*` (G3) has no export**, so the intent is not complete.
+**State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why still `review`:** the engine, lifecycle, exit contract, manifest and four locks are in the repo — but **`burgee/quirks/*` (G3) has no export**, so the intent is not complete. *Closed 2026-10-19: G3 is dropped, not owed; see § Restated 2026-10-18.*
 
 **Restated:** 2026-10-18 — see § Restated 2026-10-18
 
@@ -57,9 +58,16 @@ What changed, and why:
   the front-end is the `burgee/commander` subpath, and the engine lives in
   `packages/burgee/src`.
 
+**Re-verified 2026-10-19 on `main` at `51fec1ba`, and accepted.** Every cited test file and test
+name exists. The nineteen CI readings of 2026-10-19 (`benchmarks/results/cli-benchmarks/2026-10-19-*-ci.json`)
+put `burgee ÷ cac` cold start at 1.380 to 1.483 against the 1.55 ceiling, and the core entry at
+24,281 B bundled against 52 KB. The #1 reading (a declared envelope difference is not a weakened
+assertion) is accepted under the owner's 2026-10-12 delegation of Design→Build accepts, the same
+delegation Batch 0 used for `facade-gets-more`.
+
 | ID | promised | on main | check | disposition |
 | :-- | :-- | :-- | :-- | :-- |
-| 1 | every conformance case passes on all three hosts, unchanged | yes, five host entries; one declared envelope difference | `examples/conformance/src/harness.test.ts` › "%s · T1 harness" (all eleven cases per host, `burgee` included) | restated |
+| 1 | every conformance case passes on all three hosts, unchanged | yes, five host entries; one declared envelope difference | `examples/conformance/src/harness.test.ts` › "%s · T1 harness" (all twelve cases per host since 2026-10-19, `burgee` included) | restated |
 | 2 | B2: burgee at or below cac's cold start | ≤ 1 not met; ≤ 1.55 met (1.369–1.472 on 2026-10-18 CI) | `benchmarks/ratchet.test.ts` › "D-157 claim ratchets — the gate is the claim" › "cold-start-at-or-below-cac: the claim and the B2 gate read the same ceiling, and it fires over it"; `scripts/claim-ratchets-lock.test.ts` › "the claim ratchets" › "%s only goes down, or cites a newer decision to go up"; `scripts/claim-table-lock.test.ts` › "never marks a claim met that the newest CI measurement of it does not satisfy" | restated by D-157 |
 | 3 | B4: core entry under 52 KB bundled | yes: entry `.` budget 35,681 B (graph); 23,905 B bundled at the 2026-10-12 CI reading | `packages/burgee/src/weight.test.ts` › "entry %s" › "stays inside its byte budget"; `scripts/claim-table-lock.test.ts` › "never marks a claim met that the newest CI measurement of it does not satisfy" (claim `core-under-52kb-bundled`) | held |
 | 4 | ≥ 6 §10 issues fixed, each test citing the issue | yes, seven | `packages/burgee/src/parsing-edges.test.ts` › "§10 parsing edges, by upstream issue" (seven `it`s, from "yargs #1312 — a lone dash is a positional (stdin by convention), never an error" to "citty #201 — an unknown option is USAGE (2), never RUNTIME (1)") | held |

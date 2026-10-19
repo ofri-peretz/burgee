@@ -14,7 +14,7 @@
 
 ## Restated 2026-10-18
 
-**The option half of "declare once" is in the native engine with checks. The positional half moves to `typed-positionals` R1–R3. `schemaVersion: 2` is dropped by `clispec-conformance`. Five pieces stay here — REMAINING: C1 (per-issue cases failing on commander), C3 (`minimum`/`maximum` asserted in `--schema`), R2 (option `file`/`path`/`object` types), R3 (`--no-x` honoured by relations, yargs #898), R4 (`file` existence check).**
+**The option half of "declare once" is in the native engine with checks. The positional half moves to `typed-positionals` R1–R3. `schemaVersion: 2` is dropped by `clispec-conformance`. Five pieces stay here — REMAINING: C1 (per-issue cases failing on commander), C3 (`minimum`/`maximum` asserted in `--schema`), R2 (option `file`/`path`/`object` types), R3 (`--no-x` honoured by relations, yargs #898), R4 (`file` existence check).** *2026-10-19: C3's min/max half is held by `packages/burgee/src/schema-dsl.test.ts` › "publishes minimum and maximum in --schema, on the option and on its inputSchema property (commander-schema C3)"; four remain, and the status stays `review`.*
 
 Verified against burgee `main` at `1013b65db5` with `git grep`; no test was run. Nothing is
 renumbered. This intent is a **supersede candidate**. Once the five remaining items are
@@ -35,7 +35,7 @@ Standard Schema interface is declared locally with no dependency.
 | :-- | :-- | :-- | :-- | :-- |
 | C1 | every named issue has a case that fails on plain commander and passes with the schema | 10 of the 23 named issues are cited in a passing test: yargs #1532, #1079, #846, #1093, #439, #1322, #1679, #1186, #887, #933. No test runs any of them against plain commander | `packages/burgee/src/schema-dsl.test.ts` (every `describe` cites its issues) | remaining. yargs #1649 and #1392 (typed and variadic positionals) move → `typed-positionals` R1–R2, whose intent cites #1649 |
 | C2 | `options.replicas` infers `number`, `args.env` `'dev' \| 'prod'`, a variadic positional `string[]`, pinned with `expectTypeOf` | options: yes. Positionals are untyped `ctx.positionals: string[]` | `packages/burgee/src/schema-dsl.test.ts` › "infers choices as a union, number as number, multiple as an array, and presence from required/default"; › "reaches the handler typed, without a generic" | options held; positional half moved → `typed-positionals` R1 (type and `choices` on `ArgumentSpec`), R2 (`ctx.args`, variadic as array, `expectTypeOf`) |
-| C3 | `--schema` gains `min`, `max`, `relations` and validates against `schemaVersion: 2` | `relations`: yes. `minimum`/`maximum`: emitted (`schema.ts`) with no test asserting them. Validation: yes, against `burgee/program-schema.json` at `schemaVersion: 1` | `packages/burgee/src/relations-schema.test.ts` › "publishes what validate enforces"; › "survives the round trip an agent actually makes"; `scripts/program-schema.test.ts` › "accepts the document a program with every optional field prints" | relations held; min/max remaining; `schemaVersion: 2` dropped by `.sdlc/intents/clispec-conformance/spec.md` R1 ("`schemaVersion` stays 1 … bumped only when a field changes meaning") |
+| C3 | `--schema` gains `min`, `max`, `relations` and validates against `schemaVersion: 2` | `relations`: yes. `minimum`/`maximum`: emitted (`schema.ts`), asserted since 2026-10-19 by `packages/burgee/src/schema-dsl.test.ts` › "publishes minimum and maximum in --schema, on the option and on its inputSchema property (commander-schema C3)" (red with the emission removed). Validation: yes, against `burgee/program-schema.json` at `schemaVersion: 1` | `packages/burgee/src/relations-schema.test.ts` › "publishes what validate enforces"; › "survives the round trip an agent actually makes"; `scripts/program-schema.test.ts` › "accepts the document a program with every optional field prints" | relations and min/max held (min/max 2026-10-19); `schemaVersion: 2` dropped by `.sdlc/intents/clispec-conformance/spec.md` R1 ("`schemaVersion` stays 1 … bumped only when a field changes meaning") |
 
 The spec's R1–R7 are restated in [`spec.md` § Restated 2026-10-18](./spec.md#restated-2026-10-18).
 
@@ -126,7 +126,7 @@ Any Standard Schema implementation (zod, valibot, arktype) is accepted where a
   held; positionals moved to `typed-positionals` R1–R2.)**
 - `--schema` output for the demo gains `min`, `max`, `relations` and validates against
   ~~`schemaVersion: 2`~~ `schemaVersion: 1` (additive). **(C3, 2026-10-18: relations and
-  validation held; min/max remaining; the version stays 1 per `clispec-conformance` R1.)**
+  validation held; min/max held 2026-10-19; the version stays 1 per `clispec-conformance` R1.)**
 
 ## Verified against `main` — 2026-09-09
 

@@ -1,6 +1,6 @@
 # Design — `replacement-parser`
 
-Intent: [`intent.md`](./intent.md). **Status:** review.
+Intent: [`intent.md`](./intent.md). **Status:** shipped (2026-10-19).
 
 ---
 

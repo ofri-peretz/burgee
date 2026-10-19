@@ -16,7 +16,7 @@
 
 ## Restated 2026-10-18
 
-**The locks and the watcher hold; three things do not, so this intent stays open — REMAINING: S2/R2/R3, S3, R6.**
+**The locks and the watcher hold; three things do not, so this intent stays open — REMAINING: S2/R2/R3, S3, R6.** *2026-10-19: R6 is held (rules 2 and 3 tested); S2/R2/R3 and S3 remain, so the status stays `review`.*
 
 Audited read-only against `main` at `1013b65db5` (2026-10-18). No test was run; "held" means
 the named check exists on `main` and asserts the criterion. IDs: S1–S4 are the four
@@ -34,7 +34,7 @@ requirements. Nothing below is deleted; the original text stands and carries a m
 | R3 | `evals.yml` runs on `**/*.md`, `docs/**`, `.github/**`, `eslint.config.mjs`, `CLAUDE.md` | yes, on a narrower `paths:` list | `.github/workflows/evals.yml` `on.pull_request.paths` | restated; `.sdlc/intents/**` remaining |
 | R4 | `control-bands.json` with `command-duration`, `eslint-config-stats` and a reserved `benchmark-json` | yes, and the reserved collector is live | `benchmarks/bands.test.ts` › "agrees with .sdlc/bands/control-bands.json, band for band" | held |
 | R5 | `--record`, `--evaluate` with the Western Electric rules, a breach writes `control-band-<id>/intent.md` and opens a PR | yes | `scripts/control-bands.test.ts` › "reports the breach with the numbers a reader needs to argue with it"; `scripts/band-series.test.ts` › "is still idempotent against what is already recorded"; the PR step in `.github/workflows/control-bands.yml` | held |
-| R6 | watcher unit tests: the WE rules on synthetic series; the generated intent passes R1 | rules 1 and 4 and the generated intent only | `scripts/control-bands.test.ts` › "rule 1 — a single point beyond 3σ", › "rule 4 — eight consecutive on one side is drift, even with no unusual point", › "satisfies the schema the intent lock enforces" | restated; rules 2 and 3 remaining |
+| R6 | watcher unit tests: the WE rules on synthetic series; the generated intent passes R1 | all four rules and the generated intent (rules 2 and 3 since 2026-10-19) | `scripts/control-bands.test.ts` › "rule 1 — a single point beyond 3σ", › "rule 4 — eight consecutive on one side is drift, even with no unusual point", › "satisfies the schema the intent lock enforces"; `scripts/control-bands.test.ts` › "rule 2 — two of the last three beyond 2σ on one side, with no point beyond 3σ", › "rule 3 — four of the last five beyond 1σ on one side, with a point between that breaks the run" | held (2026-10-19) |
 
 What changed, one row at a time:
 
@@ -63,7 +63,12 @@ What changed, one row at a time:
   is to add `.sdlc/intents` to `CONFIG_DIRS` and `.sdlc/intents/**` to `evals.yml`'s `paths:`,
   move `PLANNED_DOCS` to `^\.sdlc\/intents\/`, and add a case to `scripts/run-evals.test.ts`
   proving a broken link in `.sdlc/intents/README.md` is reported. The evals job is still not a
-  required check, which is what R3 wanted.
+  required check, which is what R3 wanted. **Re-measured 2026-10-19 at `51fec1ba`:** the same
+  rule over the 198 Markdown files under `.sdlc/intents/` finds **2** broken links, both in
+  `types-under-node10/spec.md` → `../migrate-preflight/spec.md`, a spec that arrives with the
+  open #1168. Adding `.sdlc/intents/**` to `evals.yml`'s `paths:` also makes every intent edit
+  run the task evals, which spend the Claude quota; that cost is part of the remaining work, not
+  a reason to skip it.
 - **S3: the 2026-09-09 finding "has never run" no longer holds.** `control-bands.yml` has
   recorded weekly, and its observations land through pull requests (the latest is #1066). The
   series dates run weekly from 2026-09-14 to 2026-10-12. Here is where each of the four
@@ -93,7 +98,10 @@ What changed, one row at a time:
 - **R6.** Restated to what is tested. Rules 1 and 4, direction, quiet variation and the
   three-point floor have tests. **Rule 2 (two of three beyond 2σ) and rule 3 (four of five
   beyond 1σ) have none.** Rule 2 matters most: it is the 2σ tier that `--check` fails on and
-  that writes an intent. A test per rule is remaining.
+  that writes an intent. A test per rule is remaining. **Held 2026-10-19:** `scripts/control-bands.test.ts` › "rule 2 — two of the last three beyond 2σ on one side, with no point beyond 3σ", › "rule 3 — four of the last five beyond 1σ on one side, with a point between that breaks the run".
+  Each pairs a firing series with one a point short of it. Proven red by mutating the
+  thresholds in `scripts/control-bands.ts` (`RULE2_HITS` 2 → 3, `RULE3_HITS` 4 → 3): both
+  cases fail, and the other twenty stay green.
 
 ## What is wanted
 
