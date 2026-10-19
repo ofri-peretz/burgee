@@ -13,7 +13,7 @@ import dotenv, { config, configDotenv, parse, populate } from './dotenv.js';
 // The scanner, watched: `{ fast }` must route to it and nothing else may.
 vi.mock('./dotenv-scan.js', async (original) => {
   const real = await original<typeof import('./dotenv-scan.js')>();
-  return { parseFast: vi.fn(real.parseFast) };
+  return { ...real, parseFast: vi.fn(real.parseFast) };
 });
 
 const dir = mkdtempSync(join(tmpdir(), 'seniority-dotenv-'));

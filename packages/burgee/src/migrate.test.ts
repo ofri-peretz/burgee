@@ -423,6 +423,16 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     expect(report.offMajor).toEqual([{ from: 'dotenv', found: '^17.0.0', graded: '18.0.8' }]);
   });
 
+  it('leaves lilconfig 2 alone, and names 3.1.4 as the release its own suite grades level', async () => {
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { lilconfig: '^2.1.0' } }),
+      'src/a.ts': "import { lilconfig } from 'lilconfig';\n",
+    });
+    const report = await migrate({ dir, status: clean });
+    expect(read(dir, 'src/a.ts')).toBe("import { lilconfig } from 'lilconfig';\n");
+    expect(report.offMajor).toEqual([{ from: 'lilconfig', found: '^2.1.0', graded: '3.1.4' }]);
+  });
+
   // `previous-majors` R6: commander 14 is claimed (its own suite grades `burgee/commander/v14`
   // level), so a program pinned to it moves, onto 14's entry and not 15's.
   it.each([

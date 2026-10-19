@@ -26,7 +26,7 @@ import path from 'node:path';
 import url from 'node:url';
 
 import { optionsFromEnv, truthy } from './dotenv-options.js';
-import { parseFast } from './dotenv-scan.js';
+import { parseFast, unquoteLines } from './dotenv-scan.js';
 import { LoaderError } from './load.js';
 import { ambientCwd, ambientEnv } from './runtime.js';
 
@@ -74,7 +74,7 @@ export function parse(src: string | Buffer, options?: ParseOptions): Record<stri
  */
 function unwrap(raw: string): string {
   const value = raw.trim();
-  const unquoted = value.replace(/^(['"`])([\s\S]*)\1$/gm, '$2');
+  const unquoted = unquoteLines(value);
   // A single-quoted or backticked value is literal, which is the distinction half of dotenv's
   // multi-line issues turn on.
   return value.startsWith(DOUBLE_QUOTE) ? unquoted.replaceAll('\\n', '\n').replaceAll('\\r', '\r') : unquoted;

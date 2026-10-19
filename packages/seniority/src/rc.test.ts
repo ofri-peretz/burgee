@@ -12,6 +12,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { isMainThread } from 'node:worker_threads';
 
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -143,7 +144,10 @@ describe('the places rc reads, and the ones it may not', () => {
     expect(config).toMatchObject({ who: 'argv file', envOnly: 1, configs: [fromEnv, fromArgv], config: fromArgv });
   });
 
-  it('skips the four home places when there is no home directory', () => {
+  // `process.chdir()` throws inside a worker thread. `npm test` runs this package in forks, where
+  // the case always runs; Stryker's vitest runner forces the threads pool, and there it is the one
+  // case that cannot run, so it is skipped there rather than failing the mutation lane's dry run.
+  it.runIf(isMainThread)('skips the four home places when there is no home directory', () => {
     const home = join(dir, 'home-skipped');
     mkdirSync(home, { recursive: true });
     writeFileSync(join(home, `.${NAME}rc`), '{"fromHome": true}');

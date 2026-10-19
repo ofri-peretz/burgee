@@ -35,6 +35,13 @@ const EXPORT_LENGTH = 6;
  */
 const SHORT_SOURCE = 4096;
 
+/**
+ * dotenv's quote strip, `m`-flagged as upstream writes it: `$` matches before a U+2028 or
+ * U+2029, so each segment ending at one is unquoted on its own. The regex parser in `dotenv.ts`
+ * runs it on every value; the scanner, since 18.0.8, on a value that holds such a boundary.
+ */
+export const unquoteLines = (value: string): string => value.replace(/^(['"`])([\s\S]*)\1$/gm, '$2');
+
 /** `[A-Za-z0-9_.-]`, as a lookup table — upstream's `KEY_CHAR`. */
 const KEY_CHAR = new Uint8Array(256);
 for (let c = 48; c <= 57; c++) KEY_CHAR[c] = 1;
@@ -120,11 +127,10 @@ function unquotedValue(str: string, rawStart: number, len: number): { value: str
   while (end > start && isWhitespace(str.charCodeAt(end - 1))) end--;
   const first = str.charCodeAt(start);
   let value = str.slice(start, end);
-  if (value.includes('\u2028') || value.includes('\u2029')) {
-    // dotenv 18.0.8 (#1073): the regex parser's `m`-flagged strip also unquotes segments that
-    // end at a Unicode line boundary inside an otherwise unquoted value, and the scanner now
-    // applies the same pattern there rather than comparing only the first and last characters.
-    value = value.replaceAll(/^(['"`])([\s\S]*)\1$/gm, '$2');
+  // dotenv 18.0.8 (#1073): a value holding a Unicode line boundary is unquoted segment by
+  // segment, as the regex parser does, rather than by its first and last characters alone.
+  if (/[\u2028\u2029]/u.test(value)) {
+    value = unquoteLines(value);
   } else if (end - start >= 2 && isQuote(first) && str.charCodeAt(end - 1) === first) {
     value = str.slice(start + 1, end - 1);
   }
