@@ -3,7 +3,7 @@ repo:     https://github.com/sindresorhus/restore-cursor
 version:  5.1.0
 tag:      v5.1.0
 commit:   58261091deb9769fe6a4b02feb4e857de9cb924c
-vendored: 2026-10-12
+vendored: 2026-10-19
 files:    1
 tool:     scripts/vendor-suite.ts
 

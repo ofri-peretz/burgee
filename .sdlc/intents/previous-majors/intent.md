@@ -5,7 +5,7 @@
 > graded already and claimed by neither drop-in. `burgee migrate` therefore declines most of the
 > programs it was built for.
 
-**Status:** approved · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-19 — every requirement Built with its check in `spec.md` § Status: commander 14 at 1,331 / 1,331 and yargs 17 at 793 / 794, each level with its control
 
 ---
 

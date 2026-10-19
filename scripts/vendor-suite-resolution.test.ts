@@ -1,66 +1,79 @@
 /**
- * R6 — a vendor run reads the checkout it is writing into.
+ * R6 — a vendor run reads the checkout it is writing into (`vendor-resolves-its-own-tree`).
  *
- * `scripts/vendor-suite.ts` imports its host registry by bare specifier, so Node walks upward
- * from the module's directory until it finds a `node_modules/compat-oracle`. From a worktree
- * with none of its own, that walk **leaves the worktree** and lands in the parent checkout —
- * and the run then writes into its own `vendor/` while reading another tree's definition of
- * what to vendor. The output looks entirely normal.
+ * `scripts/vendor-suite.ts` once imported its host registry by bare specifier, so Node walked
+ * upward until it found a `node_modules/compat-oracle`. From a worktree with none of its own,
+ * that walk **left the worktree** and landed in the parent checkout — and the run wrote into its
+ * own `vendor/` while reading another tree's definition of what to vendor. It bit two lane agents
+ * on 2026-09-17, independently, in one session. The registry is now imported by path
+ * (`oracle-import-lock.test.ts` refuses a bare one).
  *
- * It bit two lane agents on 2026-09-17, independently, in one session; one had written two
- * wrong manifests before noticing. Both found it by accident.
+ * **Every case runs the real script from a directory with no `node_modules`**, because that is
+ * the only place the bug is visible: a copy of the script and the oracle's sources, in a temp
+ * tree, run through `tsx` reached by absolute path. A test that only runs in an installed
+ * checkout cannot see this bug — which is exactly how it survived.
  *
- * **The case that matters runs from a directory with no `node_modules`.** A test that only
- * runs in a fully installed checkout cannot see this bug — which is exactly how it survived.
+ * The usage message lists every host the registry the run loaded declares, so which registry
+ * was read is in the output.
  */
-import { mkdtempSync, rmSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { cpSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { describe, expect, it } from 'vitest';
-
-import { checkResolvedTree } from './vendor-suite.js';
+import { afterAll, describe, expect, it } from 'vitest';
 
 const REPO_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
+const TSX = pathToFileURL(createRequire(import.meta.url).resolve('tsx')).href;
+const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'vendor-resolution-')));
+afterAll(() => {
+  rmSync(scratch, { recursive: true, force: true });
+});
 
-describe('vendor-suite refuses to read one tree and write another', () => {
-  it('accepts a registry resolved inside its own repository', () => {
-    expect(() => checkResolvedTree(join(REPO_ROOT, 'packages/compat-oracle/dist/hosts.js'), REPO_ROOT)).not.toThrow();
+/** A checkout with the script and the oracle's sources and nothing installed, at `<parent>/worktree`. */
+function worktree(parent: string): string {
+  const tree = join(parent, 'worktree');
+  mkdirSync(join(tree, 'scripts'), { recursive: true });
+  cpSync(join(REPO_ROOT, 'package.json'), join(tree, 'package.json'));
+  cpSync(join(REPO_ROOT, 'scripts', 'vendor-suite.ts'), join(tree, 'scripts', 'vendor-suite.ts'));
+  cpSync(join(REPO_ROOT, 'packages', 'compat-oracle', 'package.json'), join(tree, 'packages', 'compat-oracle', 'package.json'));
+  cpSync(join(REPO_ROOT, 'packages', 'compat-oracle', 'src'), join(tree, 'packages', 'compat-oracle', 'src'), { recursive: true, filter: (from) => !from.endsWith('.test.ts') && !from.includes('__fixtures__') });
+  return tree;
+}
+
+/** The parent checkout's installed `compat-oracle`, declaring one host the real registry does not. */
+function decoy(parent: string): void {
+  const at = join(parent, 'node_modules', 'compat-oracle');
+  mkdirSync(at, { recursive: true });
+  writeFileSync(join(at, 'package.json'), JSON.stringify({ name: 'compat-oracle', type: 'module', exports: { './hosts': './hosts.js' } }));
+  writeFileSync(join(at, 'hosts.js'), "export const HOSTS = [{ name: 'decoy-host' }];\nexport const PREVIOUS_MAJORS = [];\nexport const hostNamed = () => undefined;\n");
+}
+
+/** `vendor-suite.ts` with no arguments, from inside the worktree: its usage message, and how it exited. */
+function usage(tree: string): { status: number | null; stderr: string } {
+  const env = { ...process.env, NODE_PATH: '' };
+  const run = spawnSync(process.execPath, ['--import', TSX, join(tree, 'scripts', 'vendor-suite.ts')], { cwd: tree, encoding: 'utf8', env });
+  return { status: run.status, stderr: run.stderr };
+}
+
+describe('vendor-suite reads the registry of the tree it writes to', () => {
+  it('from a worktree with no node_modules inside a checkout that has a different compat-oracle installed', () => {
+    const parent = mkdtempSync(join(scratch, 'parent-'));
+    decoy(parent);
+    const { status, stderr } = usage(worktree(parent));
+    // The usage exit, with this tree's hosts listed: not a refusal, and not the parent's registry.
+    expect(status).toBe(1);
+    expect(stderr).toMatch(/^hosts: commander, /m);
+    expect(stderr).toContain('yargs-17');
+    expect(stderr).not.toContain('decoy-host');
   });
 
-  it('accepts a `file:` URL, which is what a resolver returns', () => {
-    expect(() => checkResolvedTree(`file://${join(REPO_ROOT, 'packages/compat-oracle/dist/hosts.js')}`, REPO_ROOT)).not.toThrow();
-  });
-
-  /**
-   * The reproduction. A worktree lives *inside* the parent checkout, so the wrong resolution
-   * is not some unrelated path — it is a sibling that differs only in prefix, which is why it
-   * is invisible in a log. Both absolute paths must appear in the message for the reader to
-   * see which two trees disagreed.
-   */
-  it('refuses a registry resolved out of a different checkout, and names both trees', () => {
-    const worktree = join(REPO_ROOT, '.claude/worktrees/agent-example');
-    let message = '';
-    try {
-      checkResolvedTree(join(REPO_ROOT, 'packages/compat-oracle/dist/hosts.js'), worktree);
-    } catch (error) {
-      message = error instanceof Error ? error.message : String(error);
-    }
-    expect(message, 'names the tree it would write into').toContain(worktree);
-    expect(message, 'and the tree it read from').toContain(REPO_ROOT);
-    expect(message, 'and the remedy').toMatch(/npm ci/);
-  });
-
-  it('is not fooled by a sibling whose path merely starts with the same characters', () => {
-    const root = mkdtempSync(join(tmpdir(), 'vendor-root-'));
-    try {
-      // `<root>-other` shares a prefix with `<root>` and is a different directory. A naive
-      // `startsWith(root)` accepts it; the separator is what makes the check a path check.
-      expect(() => checkResolvedTree(join(`${root}-other`, 'hosts.js'), root)).toThrow(/different checkout/);
-      expect(() => checkResolvedTree(join(root, 'hosts.js'), root)).not.toThrow();
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
+  it('from a tree with no node_modules anywhere above it', () => {
+    const { status, stderr } = usage(worktree(mkdtempSync(join(scratch, 'bare-'))));
+    expect(stderr).not.toMatch(/Cannot find (module|package)/);
+    expect(status).toBe(1);
+    expect(stderr).toMatch(/^hosts: commander, /m);
   });
 });

@@ -465,6 +465,31 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     expect(report.dependencies.removable).toEqual(['commander']);
   });
 
+  // `previous-majors` R6, yargs half: 17 is claimed (its own suite grades `burgee/yargs/v17`
+  // level). `yargs` and `yargs/yargs` are two entries in 17 — the singleton and the factory — so
+  // each moves to its own, and `yargs/helpers` to the one helpers entry both majors share.
+  it.each([
+    ['declared on ~17.7.2', { 'package.json': JSON.stringify({ name: 'x', dependencies: { yargs: '~17.7.2' } }) }],
+    [
+      'installed at 17.7.3',
+      {
+        'package.json': JSON.stringify({ name: 'x', dependencies: { yargs: '^17.0.0' } }),
+        'node_modules/yargs/package.json': JSON.stringify({ name: 'yargs', version: '17.7.3' }),
+      },
+    ],
+  ])('rewrites a program pinned to yargs 17 (%s) to burgee/yargs/v17', async (_pin, files) => {
+    const dir = project({
+      ...files,
+      'src/a.cjs': "const yargs = require('yargs');\n",
+      'src/b.cjs': "const yargs = require('yargs/yargs');\nconst { hideBin } = require('yargs/helpers');\n",
+    });
+    const report = await migrate({ dir, status: clean });
+    expect(report.offMajor).toEqual([]);
+    expect(read(dir, 'src/a.cjs')).toBe("const yargs = require('burgee/yargs/v17');\n");
+    expect(read(dir, 'src/b.cjs')).toBe("const yargs = require('burgee/yargs/v17/yargs');\nconst { hideBin } = require('burgee/yargs/helpers');\n");
+    expect(report.dependencies.removable).toEqual(['yargs']);
+  });
+
   it('rewrites to the current entry when the declared range names no major', async () => {
     const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { commander: 'latest' } }), 'src/a.ts': "import { Command } from 'commander';\n" });
     const report = await migrate({ dir, status: clean });

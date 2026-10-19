@@ -280,7 +280,7 @@ published figure taken on another machine, not reproduced here.
 | :--- | ---: | ---: | ---: | ---: | ---: |
 | Runtime dependencies | **5**, none outside the burgee family | 0 | 6 | **18** | 0 |
 | Full CLI run over bare node | +20.3 ms | +14.8 ms | +75.0 ms | +131 ms † | +3.8 ms |
-| Installed size | 1650 KB | 203 KB | 515 KB | 912 KB † | 40 KB |
+| Installed size | 1690 KB | 203 KB | 515 KB | 912 KB † | 40 KB |
 
 The speed comes from `node:util.parseArgs` being in the standard library, not from a faster
 language: burgee is TypeScript, like both incumbents.
@@ -323,7 +323,7 @@ with:
 | :--- | ---: | ---: | ---: |
 | `cac` | 10,452 B | **97,692 B** | 24,281 B |
 | `commander` | 39,084 B | **126,335 B** | 55,351 B |
-| `yargs` | 111,686 B | **198,784 B** | 108,774 B |
+| `yargs` | 111,686 B | **198,784 B** | 108,794 B |
 
 The additions are `cosmiconfig` (find and load a config file), `exit-hook` (run cleanup on
 every path out, including a signal) and `restore-cursor` (hand the terminal back), bundled
