@@ -126,9 +126,10 @@ describe('U12-2 — the versions next pins to ship with the binary', () => {
         expect((f[1] as number) * 1e6 + (f[2] as number) <= (v[1] as number) * 1e6 + (v[2] as number), `${pkg.name}${subpath.slice(1)} floors at ${floor}, above ${pkg.version}`).toBe(true);
       }
     }
-    // The defect itself, wherever this checkout carries roundel's tags: ./picocolors first shipped in 1.1.0.
-    const tagged = execFileSync('git', ['-C', packages, 'tag', '--list', 'roundel@1.1.0'], { encoding: 'utf8' }).trim() !== '';
-    if (tagged && built.since['roundel']?.['./picocolors']?.startsWith('1.') === true) expect(built.since['roundel']['./picocolors']).toBe('1.1.0');
+    // Which floors the file holds depends on whether the build that wrote it saw the release tags
+    // (turbo can restore a dist/ from a tagless CI build), so no specific floor is asserted here.
+    // `scripts/family-versions.test.ts` holds the reading of history against a scratch repository,
+    // and `release.yml` rewrites the shipped table with `--require-tags`.
   });
 });
 

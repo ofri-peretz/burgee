@@ -25,7 +25,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -806,7 +806,7 @@ describe('the registry, and the version run, as the real process reaches them', 
     const reply = (status: number, body: unknown) => async (url: string, init: { signal: unknown }) => (calls.push({ url, signal: init.signal }), { status, ok: status === 200, json: async () => body });
     vi.stubGlobal('fetch', reply(200, { time: { '1.0.0': ago(3) } }));
     expect(await registryTimes('@scope/pkg')).toEqual({ '1.0.0': ago(3) });
-    expect(calls[0]?.url).toBe('https://registry.npmjs.org/@scope%2Fpkg');
+    expect(calls[0]?.url).toBe('https://registry.npmjs.org/%40scope%2Fpkg');
     expect(calls[0]?.signal).toBeInstanceOf(AbortSignal);
     vi.stubGlobal('fetch', reply(200, {}));
     expect(await registryTimes('x')).toEqual({});
@@ -865,8 +865,9 @@ describe('the last edges Stryker found', () => {
   });
 
   it('does nothing when imported rather than run', () => {
-    const imported = spawnSync(process.execPath, ['--input-type=module', '-e', `await import(${JSON.stringify(SCRIPT)});`], { cwd: ROOT, encoding: 'utf8' });
-    expect(imported.status).toBe(0);
+    // A file URL, not a path: on Windows `import('C:\\…')` reads `C:` as a URL scheme and fails.
+    const imported = spawnSync(process.execPath, ['--input-type=module', '-e', `await import(${JSON.stringify(pathToFileURL(SCRIPT).href)});`], { cwd: ROOT, encoding: 'utf8' });
+    expect(imported.status, imported.stderr).toBe(0);
     expect(imported.stdout).toBe('');
   });
 });

@@ -320,7 +320,8 @@ const NOT_FOUND = 404;
 
 export async function registryTimes(name: string): Promise<Times | undefined> {
   try {
-    const response = await fetch(`https://registry.npmjs.org/${name.replace('/', '%2F')}`, { signal: AbortSignal.timeout(REGISTRY_TIMEOUT_MS) });
+    // The whole name, encoded: `@scope/pkg` is `%40scope%2Fpkg`, as `migrate.ts` asks for it.
+    const response = await fetch(`https://registry.npmjs.org/${encodeURIComponent(name)}`, { signal: AbortSignal.timeout(REGISTRY_TIMEOUT_MS) });
     if (response.status === NOT_FOUND) return {};
     if (!response.ok) return undefined;
     return ((await response.json()) as { time?: Times }).time ?? {};
