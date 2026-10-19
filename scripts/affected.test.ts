@@ -1,5 +1,5 @@
-import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -43,7 +43,10 @@ const ALL = ['burgee', 'compat-oracle', 'linegauge', 'seniority'];
 
 let fixture: string | undefined;
 afterAll(() => {
-  if (fixture) rmSync(fixture, { recursive: true, force: true });
+  // Removed by an `rm` of its own that this hook does not wait for: under the pre-push load,
+  // unlinking a scratch directory this size from Node took 152 s (2026-10-19), past the hook's
+  // 60 s. A run killed first leaves an `affected-*` directory under the OS's temporary directory.
+  if (fixture) spawn('rm', ['-rf', fixture], { detached: true, stdio: 'ignore' }).unref();
 });
 
 function git(cwd: string, args: string[], input?: string): void {
