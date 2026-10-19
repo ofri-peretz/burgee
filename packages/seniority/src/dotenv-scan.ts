@@ -127,13 +127,14 @@ function unquotedValue(str: string, rawStart: number, len: number): { value: str
   while (end > start && isWhitespace(str.charCodeAt(end - 1))) end--;
   const first = str.charCodeAt(start);
   let value = str.slice(start, end);
+  // Stryker disable next-line EqualityOperator: equivalent. A value that is exactly one matching pair of quotes never reaches this function: `quotedValue` takes it first, because its closing quote is followed by the line end, a comment or whitespace and then one of those. Fuzzed with the branch above, 0 differences.
+  const pair = end - start >= 2 && isQuote(first) && str.charCodeAt(end - 1) === first;
   // dotenv 18.0.8 (#1073): a value holding a Unicode line boundary is unquoted segment by
   // segment, as the regex parser does, rather than by its first and last characters alone.
   // Stryker disable next-line ConditionalExpression,Regex: equivalent. Without a U+2028 or U+2029 the value is one line (CR is normalised, LF ends it), and on one line the m-flagged strip and the first/last-character check below unquote exactly the same pair, so which branch runs changes no output; the check is upstream's fast path, a speed choice. Fuzzed 2026-10-19: 0 differences over 300,000 random values and every value of up to four characters.
   if (/[\u2028\u2029]/u.test(value)) {
     value = unquoteLines(value);
-    // Stryker disable next-line EqualityOperator: equivalent. A value that is exactly one matching pair of quotes never reaches this function: `quotedValue` takes it first, because its closing quote is followed by the line end, a comment or whitespace and then one of those. Fuzzed with the branch above, 0 differences.
-  } else if (end - start >= 2 && isQuote(first) && str.charCodeAt(end - 1) === first) {
+  } else if (pair) {
     value = str.slice(start + 1, end - 1);
   }
   // Unquoted values include Unicode separators, but comments do not.
