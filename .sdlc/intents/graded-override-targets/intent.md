@@ -4,7 +4,7 @@
 > ([`next-wave-2026-10.md`](../../research/next-wave-2026-10.md)), where it ranks first because
 > one of its findings is a published sentence that is false today.
 
-**Status:** approved · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-19, verified against `main` at `326907eca6` — all 4 criteria checked; SC3's fixture landed with `migrate-older-majors`
 
 ---
 
@@ -79,6 +79,21 @@ against `GRADED` (`packages/burgee/src/compat.ts`, 28 rows on `3a05dc8aad`). Wee
    `burgee migrate` rewrites a fixture importing all six.
 4. Each new subpath is at or under its incumbent's bundled bytes, held by
    `scripts/subpath-weight-lock.test.ts`, or it is not published and `spec.md` says why.
+
+## Shipped — 2026-10-19
+
+**Status raised to `shipped`.** Every requirement was built on 2026-10-11 (`spec.md` › Status) and
+`roundel/picocolors` is published (`roundel@1.1.3`). The roadmap-to-shipped reconciliation found one
+gap: criterion 3's "`burgee migrate` rewrites a fixture importing all six" had no fixture. It is
+added in the `migrate-older-majors` PR. It passes on `main`, because the rows were there; it was
+shown red with the six `DROP_INS` rows taken out of `MAPPING`, the state before this intent.
+
+| criterion | check | result |
+| :-- | :-- | :-- |
+| 1. `graded-claims-lock` passes, red on the unfixed tree naming `seniority/find-up` | `scripts/graded-claims-lock.test.ts` | passes; red on `e04e05e7f3` (`spec.md` R1) |
+| 2. `GRADED` rows for the six, each level | `packages/burgee/src/compat.ts`, held by `compat-baseline-lock.test.ts` | find-up 104 / 104, onetime 6 / 6, cli-cursor 8 / 8, cli-truncate 12 / 12, widest-line 1 / 1, picocolors 1 / 1, each equal to its control |
+| 3. `DROP_INS` maps each, `migrate-drop-ins-lock` passes, and migrate rewrites a fixture importing all six | `scripts/migrate-drop-ins-lock.test.ts`; `migrate.test.ts` › `A12 — rewrites a project importing find-up, onetime, cli-cursor, cli-truncate, widest-line and picocolors, each to its graded stand-in` | passes; the fixture moves all six, refuses nothing, and names all six removable |
+| 4. each subpath at or under its incumbent's bundled bytes | `scripts/subpath-weight-lock.test.ts` | passes |
 
 ## Open questions
 

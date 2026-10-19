@@ -1,6 +1,6 @@
 # Design — Every stand-in is graded
 
-Intent: [`intent.md`](./intent.md). **Status:** approved.
+Intent: [`intent.md`](./intent.md). **Status:** shipped (2026-10-19).
 
 **Accepted by the owner, 2026-10-12, by instruction: create and execute.** The instruction is
 recorded verbatim in [`next-wave-2026-10.md`](../../research/next-wave-2026-10.md), with the
@@ -120,3 +120,4 @@ non-zero on failure.
 | R6 | **Built** 2026-10-11 | `linegauge/widest-line` | `npm run compat -- widest-line`: 1 / 1, control 1 / 1; red before the façade, `target not built yet: linegauge/widest-line`; `subpath-weight-lock`: bundled 5,742 B against widest-line's 6,079 B |
 | R7 | **Built** 2026-10-11 | `roundel/picocolors` | `npm run compat -- picocolors`: 1 / 1, control 1 / 1, by exit code (upstream's `npm test` is `tests/test.js` alone); red before the façade at 0 / 1. `subpath-weight-lock`: bundled 1,607 B against picocolors' 2,739 B, so the kill criterion does not fire — set under 1,607 it reads `over the incumbent's`. D-20261011-roundel-picocolors. Its `roundel` changeset waits for 2026-10-13 04:00 UTC |
 | R8 | **Built** 2026-10-11 | the compatibility page | `scripts/compat-page-subtractions.test.ts`: every row of R2–R7 is level with its control, and the one gap — find-up's two `.git` cases — is subtracted by exact title with its reason on the page; red with those two rows removed (`find-up: its excludes is on the page with its reason`) |
+| SC3 | **Checked** 2026-10-19 | `burgee migrate` over all six | `migrate.test.ts` › `A12 — rewrites a project importing find-up, onetime, cli-cursor, cli-truncate, widest-line and picocolors, each to its graded stand-in`; red with the six `DROP_INS` rows taken out of `MAPPING` |

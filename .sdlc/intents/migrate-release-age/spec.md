@@ -1,6 +1,6 @@
 # Design — `burgee migrate` prints an install that a release age lets through
 
-Intent: [`intent.md`](./intent.md). **Status:** approved. The design is the owner's request of
+Intent: [`intent.md`](./intent.md). **Status:** shipped (2026-10-19). The design is the owner's request of
 2026-10-11.
 
 ---
@@ -9,7 +9,9 @@ Intent: [`intent.md`](./intent.md). **Status:** approved. The design is the owne
 
 - **R1.** With a release age set, each family package in `next` is pinned with a caret at the
   newest `x.y.z` release of its graded major whose publish time (the registry's `time`) is at
-  least `minutes` old.
+  least `minutes` old. Within the major, never below the first release that exports every subpath
+  the rewrite imports: that floor is [`migrate-pins-carry-the-drop-in`](../migrate-pins-carry-the-drop-in/spec.md)'s,
+  and it is the one gap R1 as first written left open (svgo, roundel 1.0.4).
 - **R2.** Prereleases and other majors are never chosen.
 - **R3.** A package that `minimumReleaseAgeExclude` names, or matches by glob, keeps its graded
   pin. A `name@a || b` entry makes those versions installable at once.
@@ -33,6 +35,17 @@ and `options.registry` are the test seams, as `options.status` already is.
 `npx vitest run src/migrate-u12.test.ts` in `packages/burgee`, the `U12-2 — under a release
 age` block. Its six registry cases fail on the code before this change. That was checked by
 setting `migrate.ts` aside and running them: 6 failed, 57 passed.
+
+### Checks, per requirement
+
+| R | Check: `migrate-u12.test.ts` › |
+| :-- | :-- |
+| R1 | `pins the caret floor to the newest release of the graded major that is old enough`; `orders two old-enough releases of one minor by patch, and pins the newer` |
+| R2 | the first case's `never a lower major, never a prerelease` |
+| R3 | `keeps the graded pin for a package minimumReleaseAgeExclude exempts, as %s` (block list, flow-list glob, exact version, and `name@a \|\| b`, added 2026-10-19 and shown red against an entry read whole and one split untrimmed); `reads the exclusions from %s` |
+| R4 | `says plainly when no version is old enough yet, and when one will be` |
+| R5 | `falls back to the graded pins, and says why, when the registry does not answer`; `U12-2 — the public registry, when no registry is injected` |
+| R6 | `never asks the registry when the project sets no release age` |
 
 ## Rejected alternatives
 
