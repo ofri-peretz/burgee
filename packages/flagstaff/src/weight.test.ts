@@ -419,7 +419,8 @@ it('every entry records a measurement — otherwise the check above asserts noth
  * that host bundles. That is a change in `scripts/`, written down as PLAN 1.8 rather than
  * made here — it is not paratext's to make and not this PR's shape.
  */
-const DATA_EXPORTS = ['./schema.json'];
+// `./package.json` is the manifest itself, exported so a tool can `require()` it.
+const DATA_EXPORTS = ['./package.json', './schema.json'];
 
 describe('the lock grows with the package', () => {
   it('every published entry point declares a weight rule', () => {

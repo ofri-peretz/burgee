@@ -1012,7 +1012,8 @@ describe("the denied list", () => {
 // Data, not code: a file a reader validates against, which no import reaches and no budget can weigh.
 // `program-schema.json` is the shape of `--schema` (F1, D-123); `locale-pack-schema.json` is the
 // shape of a locale pack (`localised-human-surfaces` R4).
-const DATA_EXPORTS = ["./schema.json", "./program-schema.json", "./locale-pack-schema.json"];
+// `./package.json` is the manifest itself, exported so a tool can `require()` it.
+const DATA_EXPORTS = ["./package.json", "./schema.json", "./program-schema.json", "./locale-pack-schema.json"];
 
 describe("the lock grows with the package", () => {
   it("every published entry point declares a weight rule", () => {

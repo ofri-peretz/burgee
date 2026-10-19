@@ -70,6 +70,7 @@
       "import": "./dist/yaml.js",
       "default": "./dist/yaml.js"
     },
+    "./package.json": "./package.json",
     "./schema.json": "./dist/schema.json",
     "./config": {
       "types": "./dist/config.d.ts",

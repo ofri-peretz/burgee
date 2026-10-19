@@ -25,6 +25,7 @@
       "import": "./dist/tokens.js",
       "default": "./dist/tokens.js"
     },
+    "./package.json": "./package.json",
     "./schema.json": "./dist/schema.json",
     "./plugin": {
       "types": "./dist/plugin.d.ts",

@@ -15,6 +15,7 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./package.json": "./package.json",
     "./schema.json": "./dist/schema.json",
     "./which": {
       "types": "./dist/which.d.ts",

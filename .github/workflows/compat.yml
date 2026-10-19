@@ -69,6 +69,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
       - name: Build
+        id: build
         run: npx turbo run build --filter='./packages/*'
       - name: Grade burgee (fails below baseline)
         shell: bash
@@ -97,6 +98,13 @@ jobs:
       # was written; this is the same check on the other generated page.
       - name: The published page is the one these results generate
         run: npm run compat:page -- --check
+      # The same check on /docs/weight, which is measured from this build's `dist/`. Its own
+      # lock only asked that every subpath have a row, so #1139 added 5 B to every commander
+      # entry and the page, and the `OVER_INCUMBENT` ratchet read from it, kept the old number.
+      # It compares every line but the generation stamp. About 40 s of esbuild.
+      - name: The published weight page is the one this build generates
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npm run weight:page -- --check
       - name: Summary
         if: always()
         run: |
@@ -229,9 +237,12 @@ jobs:
       # A pull request's subset. Every package is built, not only the affected ones, and no docs
       # app: a suite may import a package it does not declare (the `coverage` job's rule in
       # quality-full.yml, from #827). Then the repository's locks and each affected suite.
-      - name: Build every package (affected subset)
+      # The root suite runs whole and starts the built demo (`clispec-document`, `mcp-config-block`),
+      # so the demo is built too: without it every PR that moved no package's source went red here
+      # (#1143, #1145, #1155). `scripts/root-suite-build-scope-lock.test.ts` holds the two together.
+      - name: Build every package and the demo the root suite runs (affected subset)
         if: env.FULL != 'true' && env.PACKAGES != '[]'
-        run: npx turbo run build --filter='./packages/*' --concurrency=${{ matrix.os == 'macos-latest' && '2' || '4' }}
+        run: npx turbo run build --filter='./packages/*' --filter=demo-cli-burgee --concurrency=${{ matrix.os == 'macos-latest' && '2' || '4' }}
       - name: Our suite, affected packages only (hard gate on every cell)
         if: env.FULL != 'true' && env.PACKAGES != '[]'
         shell: bash
@@ -239,7 +250,10 @@ jobs:
           set -euo pipefail
           echo "Affected: $PACKAGES"
           npx vitest run --config vitest.root.config.ts
-          mapfile -t filters < <(node -p "JSON.parse(process.env.PACKAGES).map((n) => '--filter=' + n).join('\\n')")
+          # A read loop: macOS runs bash 3.2, which has no bash-4 builtins (bash3-workflow-lock).
+          # The step only runs with PACKAGES non-empty, so the array is never empty under set -u.
+          filters=()
+          while IFS= read -r f; do filters+=("$f"); done < <(node -p "JSON.parse(process.env.PACKAGES).map((n) => '--filter=' + n).join('\\n')")
           npx turbo run test "${filters[@]}" --concurrency=${{ matrix.os == 'ubuntu-latest' && '4' || '2' }}
       # The controls grade the real packages through compat-oracle, so only it can move them.
       - name: Controls (informational off Linux)

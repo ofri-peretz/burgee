@@ -97,6 +97,19 @@ export interface BandConfig {
   command?: string[];
   /** eslint-config-stats: which statistic. */
   stat?: 'rulesOn' | 'documentedFalsePositives';
+  /**
+   * Deliberate steps, each named by the first observation at its new level (`from`, the
+   * observation's `date`) and the decision file that took it. The band is computed from the
+   * newest step whose first point is in the series, so a decided change is a new baseline,
+   * not a breach, and gates nothing until it has `minPoints` at the new level.
+   * `control-bands-rebase-lock.test.ts` holds each decision to existing and naming the band.
+   */
+  rebase?: readonly Rebase[];
+}
+
+export interface Rebase {
+  from: string;
+  decision: string;
 }
 
 export interface Breach {
@@ -221,7 +234,28 @@ export function detect(values: number[], worse: BandConfig['worse']): Hit | null
   );
 }
 
-export function evaluate(cfg: BandConfig, series: Observation[]): Breach | null {
+/** The newest step of `cfg.rebase` whose first point is in the series, if any. */
+function activeRebase(cfg: BandConfig, series: readonly Observation[]): { step: Rebase; at: number } | undefined {
+  let found: { step: Rebase; at: number } | undefined;
+  for (const step of cfg.rebase ?? []) {
+    const at = series.findIndex((o) => o.date === step.from);
+    if (at !== -1 && (found === undefined || at > found.at)) found = { step, at };
+  }
+  return found;
+}
+
+/**
+ * The part of a series a band is computed over: from the newest recorded step on, or all of it.
+ * A step whose first point has not been recorded yet changes nothing, so a decision can land
+ * before the observation it names.
+ */
+export function rebased(cfg: BandConfig, series: Observation[]): Observation[] {
+  const active = activeRebase(cfg, series);
+  return active === undefined ? series : series.slice(active.at);
+}
+
+export function evaluate(cfg: BandConfig, all: Observation[]): Breach | null {
+  const series = rebased(cfg, all);
   const minPoints = cfg.minPoints ?? DEFAULT_MIN_POINTS;
   const window = series.slice(-cfg.window);
   if (window.length < minPoints) return null;
@@ -583,7 +617,9 @@ const DECIMALS = 4;
 export function renderIntent(breach: Breach, cfg: BandConfig, series: Observation[]): string {
   // The observation date, not wall-clock: re-running the watcher cannot change what it says.
   const opened = series.at(-1)?.date ?? 'unknown';
-  const recent = series
+  const active = activeRebase(cfg, series);
+  const rebaseLine = active === undefined ? '' : `\nThe series was re-based at \`${active.step.from}\` by ${active.step.decision}; the band is computed from there.\n`;
+  const recent = rebased(cfg, series)
     .slice(-cfg.window)
     .map((o) => `| ${o.date} | ${o.value} |`)
     .join('\n');
@@ -612,6 +648,7 @@ its control band.
 
 ${cfg.description}
 
+${rebaseLine}
 Observations in the window:
 
 | Date | Value |
@@ -664,10 +701,12 @@ function writeIntent(breach: Breach, cfg: BandConfig, series: Observation[]): st
 // ---------------------------------------------------------------------------
 
 /** Print one band's state; return its breach (as a one-element list) when it has one. */
-function reportBand(cfg: BandConfig, obs: Observation[]): { breach: Breach; cfg: BandConfig }[] {
+function reportBand(cfg: BandConfig, all: Observation[]): { breach: Breach; cfg: BandConfig }[] {
   const minPoints = cfg.minPoints ?? DEFAULT_MIN_POINTS;
+  const obs = rebased(cfg, all);
+  const since = obs.length === all.length ? '' : ` since the step at ${obs[0]?.date ?? ''}`;
   if (obs.length < minPoints) {
-    console.warn(`  · ${cfg.id}: ${obs.length}/${minPoints} points — band not computed yet`);
+    console.warn(`  · ${cfg.id}: ${obs.length}/${minPoints} points${since} — band not computed yet`);
     return [];
   }
   const breach = evaluate(cfg, obs);

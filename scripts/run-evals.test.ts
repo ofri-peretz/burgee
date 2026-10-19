@@ -73,6 +73,66 @@ describe('layer 1 — floor ids', () => {
     expect(unknownFloorIds(root)).toEqual(['.sdlc/intents/child/intent.md → F99']);
   });
 
+  /**
+   * A push was refused on `M0` read out of quoted svgo output. Markdown lets a code span open
+   * with any run of backticks, so a span that holds a backtick or starts with `<` is written
+   * with two, and a fence may be `~~~` or longer than three. Each of those was read as prose.
+   */
+  it('reads no floor id out of a code span or fence, however it is delimited', () => {
+    const root = repo({
+      '.sdlc/intents/burgee/spec.md': '| F1 | x | R |',
+      '.sdlc/intents/child/intent.md': [
+        'svgo writes `` <path d="M0 0h10v10H0z"/> `` for the square,',
+        'and ``T1` inside`` stays code, as does `a span',
+        'over two lines with K7 in it`.',
+        '',
+        '~~~svg',
+        '<path d="M0 0h10v10H0z"/> E3',
+        '~~~',
+        '',
+        '````md',
+        '```',
+        'H4',
+        '```',
+        '````',
+        '',
+        '> ```',
+        '> D5',
+        '> ```',
+        '',
+        'F1 is defined.',
+      ].join('\n'),
+    });
+    expect(unknownFloorIds(root)).toEqual([]);
+  });
+
+  it('still reads a floor id written in prose beside code, and after an unpaired backtick', () => {
+    const root = repo({
+      '.sdlc/intents/burgee/spec.md': '| F1 | x | R |',
+      '.sdlc/intents/child/intent.md': [
+        'svgo writes `` <path d="M0"/> `` and the floor needs M0 here.',
+        '',
+        '~~~',
+        'code',
+        '~~~',
+        'and O2 after a fence.',
+        '',
+        'A lone ` backtick in one paragraph',
+        '',
+        'does not hide V3 in the next one.',
+      ].join('\n'),
+    });
+    expect(unknownFloorIds(root)).toEqual(['.sdlc/intents/child/intent.md → M0', '.sdlc/intents/child/intent.md → O2', '.sdlc/intents/child/intent.md → V3']);
+  });
+
+  it('treats a fence nobody closed as code to the end of the file, as Markdown does', () => {
+    const root = repo({
+      '.sdlc/intents/burgee/spec.md': '| F1 | x | R |',
+      '.sdlc/intents/child/intent.md': 'S9 is prose.\n\n```\nP8 is code, and the fence never closes\n',
+    });
+    expect(unknownFloorIds(root)).toEqual(['.sdlc/intents/child/intent.md → S9']);
+  });
+
   it('is clean on this repository', () => {
     expect(unknownFloorIds()).toEqual([]);
   });

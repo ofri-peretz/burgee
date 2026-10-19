@@ -72,6 +72,7 @@
       "import": "./dist/raw.js",
       "default": "./dist/raw.js"
     },
+    "./package.json": "./package.json",
     "./schema.json": "./dist/schema.json",
     "./spec": {
       "types": "./dist/spec.d.ts",

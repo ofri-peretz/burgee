@@ -64,3 +64,42 @@ describe('every exactly-pinned benchmark incumbent is ignored by dependabot', ()
     ).toEqual([]);
   });
 });
+
+/**
+ * The `name@version` specs every host in compat-oracle's `hosts.ts` installs for its suite, by
+ * name. Read as text, so this lock needs no build of compat-oracle.
+ */
+function gradedVersions(): Map<string, Set<string>> {
+  const src = readFileSync(join(ROOT, 'packages/compat-oracle/src/hosts.ts'), 'utf8');
+  const out = new Map<string, Set<string>>();
+  for (const list of src.matchAll(/suiteDeps:\s*\[([^\]]*)\]/g)) {
+    for (const [, name, version] of (list[1] ?? '').matchAll(/'((?:@[^@'/]+\/)?[^@']+)@([^']+)'/g)) {
+      out.set(name as string, (out.get(name as string) ?? new Set()).add(version as string));
+    }
+  }
+  return out;
+}
+
+/**
+ * A pin is there so B4 weighs the release compat-oracle grades. The re-vendor of #1138 moved
+ * dotenv to 18.0.8 and lilconfig to 3.1.4 and left the benchmark on 18.0.7 and 3.1.3, so
+ * `seniority/dotenv` and `seniority/lilconfig` were graded against one release and weighed
+ * against another, and nothing said so.
+ */
+describe('every exact pin an oracle suite also installs is a release that suite grades', () => {
+  const pkg = JSON.parse(readFileSync(join(ROOT, 'benchmarks/package.json'), 'utf8')) as { dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
+  const pinned = Object.entries({ ...pkg.dependencies, ...pkg.devDependencies }).filter(([, range]) => EXACT.test(range));
+  const graded = gradedVersions();
+
+  it('reads the oracle, so a broken reader cannot pass this', () => {
+    expect(graded.get('dotenv')?.size ?? 0, 'no suiteDeps entry for dotenv was read out of hosts.ts').toBeGreaterThan(0);
+  });
+
+  it('pins each to a version the oracle grades', () => {
+    const behind = pinned
+      .filter(([name]) => graded.has(name))
+      .filter(([name, version]) => !(graded.get(name)?.has(version) ?? false))
+      .map(([name, version]) => `${name} ${version}, graded at ${[...(graded.get(name) ?? [])].join(' or ')}`);
+    expect(behind, 'benchmarks/package.json weighs a release compat-oracle no longer grades: bump the pin and re-measure the pair').toEqual([]);
+  });
+});

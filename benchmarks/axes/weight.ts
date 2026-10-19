@@ -571,10 +571,14 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // foundation-claims-watched R6, first measured 2026-10-12: the last two layers' B4 rows. Each
   // was added at a ceiling of 0 and failed (`npm run bench -- --axis weight --check`, 6 gate
   // failures) before it was set here: the measurement plus the 80 B CI margin, rounded up to the
-  // next fifty. Incumbents at the versions compat-oracle grades: lilconfig 3.1.3, dotenv 18.0.7,
+  // next fifty. Incumbents at the versions compat-oracle grades (then): lilconfig 3.1.3, dotenv 18.0.7,
   // exit-hook 5.1.0, signal-exit 4.1.0.
   // `seniority/lilconfig` 3,263 against lilconfig's 5,343 (0.611) and `seniority/dotenv` 5,913
   // against dotenv's 11,481 (0.515): both lighter, so the ratio gate is U5's 1.
+  // Re-pinned 2026-10-19 to the releases the oracle grades since #1138, dotenv 18.0.8 and
+  // lilconfig 3.1.4 (D-20261019-benchmark-pins-dotenv-lilconfig-graded): 3,286 against 5,365
+  // (0.612) and 5,966 against 11,570 (0.516), ours read the same on CI. `seniority/dotenv` has
+  // 34 B left under its ceiling.
   'seniority/lilconfig': 3_350,
 
   'seniority/dotenv': 6_000,
