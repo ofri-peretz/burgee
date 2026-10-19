@@ -53,3 +53,20 @@ holds it under `DROP_IN_CEILINGS`. `burgee/yargs/v17` is heavier than 17's ESM e
 held as an `OVER_INCUMBENT` ratchet under `B-20261019-yargs-17-entry-bundles-heavier`. The same
 method reads yargs 18.2.0 at 111,698 B, and `burgee/yargs` at 109,147 B is under it, so the
 overage is against 17's lighter ESM bundle and not something the v17 code adds.
+
+## Installed size
+
+The two entries add seven files to burgee's tarball, **6,956 B** in all (`npm pack --dry-run`).
+The maps are not published, and `declaration-reach --prune` drops `v17-factory.d.ts`. Unpacked,
+the tarball is 1,024,705 B. CI's installed-size walk (`benchmarks/docs.test.ts`) read **1690 KB**
+on this branch's merge ref, against the 1650 KB the comparison page stated. That moved it past
+the 2% band. The walk covers the family packages burgee installs and the merge ref carries
+main, so the 40 KB also holds what main grew since the cell was last restated (#1039). This
+change's own share is the 7 KB above. The cell and every page that quotes it (`README.md`,
+`comparison.mdx`, the five `vs/` pages) now say 1690 KB. There is no generator for them.
+
+D-20261008-install-bytes still holds, and this decision is taken under it. Nothing here claims
+a lighter install. The pages state burgee's installed size as its largest and least flattering
+number, and the bundled column stays the number to judge it by. Previous-major support costs
+install bytes for every user, and that is accepted: it is 7 KB, and the alternative was a
+separate package.
