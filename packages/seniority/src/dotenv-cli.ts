@@ -16,7 +16,7 @@ import path from 'node:path';
 
 import { optionsFromEnv } from './dotenv-options.js';
 import { type ChildProcess, onChildEnd, spawnCommand, type SpawnOptions, spawnSync as spawnSyncDefault } from './dotenv-spawn.js';
-import dotenv from './dotenv.js';
+import dotenv, { type DotenvPopulateOutput } from './dotenv.js';
 import { ambientProcess, type CliProcess } from './runtime.js';
 
 /** dotenv's help text, to the line. */
@@ -136,7 +136,7 @@ const resolveHome = (envPath: string): string => (envPath.startsWith('~') ? path
  * dotenv's `loadEnvFiles`. A missing default `.env` is fine; any other failure — a named file
  * that is not there, one that cannot be read — stops the run before the command starts.
  */
-function loadEnvFiles(options: RunOptions, proc: CliProcess): { injected: Record<string, string>; loadedPaths: string[] } {
+function loadEnvFiles(options: RunOptions, proc: CliProcess): { injected: DotenvPopulateOutput; loadedPaths: string[] } {
   const parsedAll: Record<string, string> = {};
   const loadedPaths: string[] = [];
   const populateOptions = { override: options.override, debug: options.debug };

@@ -125,7 +125,12 @@ function currentDir(): string {
 
 const requireFrom = createRequire(import.meta.url);
 
-const jsonLoader: LoaderSync = (_filepath, content) => JSON.parse(content) as unknown;
+/**
+ * `JSON.parse`, less one leading byte-order mark — lilconfig 3.1.4's own loader. `require`
+ * already drops a BOM from a `.json` file, so without this the sync `.json` path read a file
+ * the async one and every extensionless rc file threw on.
+ */
+const jsonLoader: LoaderSync = (_filepath, content) => JSON.parse(content.replace(/^\uFEFF/u, '')) as unknown;
 
 /**
  * `require`, and nothing around it. lilconfig passes the bare function as its `.js`, `.json`

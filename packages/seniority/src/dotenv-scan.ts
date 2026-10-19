@@ -1,7 +1,7 @@
 /**
  * dotenv 18's `{ fast: true }` parser — the hand-written character scanner from upstream
  * #1010 and the six releases of fixes after it — ported line for line from `lib/main.js`
- * (18.0.5, `parseFast`).
+ * (18.0.5, `parseFast`; 18.0.8 for the unquoting at a Unicode line boundary).
  *
  * It is a second grammar, not an optimisation of the first: dotenv's own suite grades it
  * separately (`test-parse-fast.js`) and pins exactly where it differs from the regex parser,
@@ -119,7 +119,15 @@ function unquotedValue(str: string, rawStart: number, len: number): { value: str
   while (start < end && isWhitespace(str.charCodeAt(start))) start++;
   while (end > start && isWhitespace(str.charCodeAt(end - 1))) end--;
   const first = str.charCodeAt(start);
-  const value = end - start >= 2 && isQuote(first) && str.charCodeAt(end - 1) === first ? str.slice(start + 1, end - 1) : str.slice(start, end);
+  let value = str.slice(start, end);
+  if (value.includes('\u2028') || value.includes('\u2029')) {
+    // dotenv 18.0.8 (#1073): the regex parser's `m`-flagged strip also unquotes segments that
+    // end at a Unicode line boundary inside an otherwise unquoted value, and the scanner now
+    // applies the same pattern there rather than comparing only the first and last characters.
+    value = value.replaceAll(/^(['"`])([\s\S]*)\1$/gm, '$2');
+  } else if (end - start >= 2 && isQuote(first) && str.charCodeAt(end - 1) === first) {
+    value = str.slice(start + 1, end - 1);
+  }
   // Unquoted values include Unicode separators, but comments do not.
   return { value, end: hash < nl ? lineEnd(str, hash, len) : hash };
 }

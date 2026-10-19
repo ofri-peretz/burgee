@@ -143,17 +143,39 @@ describe('the scanner agrees with the regular expression', () => {
   });
 
   /**
-   * Where dotenv 18.0.5's two parsers do **not** agree, and so neither do ours. Separate quoted
-   * segments followed by a U+2028. Both read the whole line as one unquoted value, since neither
-   * closing quote is followed by a line end. The regex parser then strips quotes with an
-   * `m`-flagged pattern, and JavaScript's `$` matches before a U+2028, so it pairs the first `"`
-   * with the one before the separator; the scanner compares the value's first and last
-   * characters and strips nothing. Both answers were read off dotenv itself.
+   * Where dotenv 18.0.5–18.0.7's two parsers did **not** agree, and 18.0.8 (#1073) made them.
+   * Separate quoted segments followed by a U+2028: both read the whole line as one unquoted
+   * value, since neither closing quote is followed by a line end. The regex parser strips quotes
+   * with an `m`-flagged pattern, and JavaScript's `$` matches before a U+2028, so it pairs the
+   * first `"` with the one before the separator. Until 18.0.8 the scanner compared only the
+   * value's first and last characters and stripped nothing; it now runs the same pattern
+   * whenever the value holds a U+2028 or U+2029. Both answers were read off dotenv itself.
    */
-  it('except where dotenv’s own two parsers differ, which is pinned rather than smoothed', () => {
+  it('where dotenv’s own two parsers used to differ, at a Unicode line boundary', () => {
     const src = 'A="a" "b" B=ok';
     expect(parse(src)).toEqual({ A: 'a" "b B=ok' });
-    expect(parseFast(src)).toEqual({ A: '"a" "b" B=ok' });
+    expect(parseFast(src)).toEqual({ A: 'a" "b B=ok' });
+  });
+
+  // Upstream's own grid for #1073 (`fast parse matches classic unquoting at Unicode line
+  // boundaries`), every case checked against the regex parser and against the answer.
+  it.each([' ', ' '])('unquotes a segment that ends at a Unicode line boundary (%j)', (separator) => {
+    for (const quote of ['"', "'", '`']) {
+      const cases: [string, string][] = [
+        [`prefix${separator}${quote}${quote}`, `prefix${separator}`],
+        [`prefix${separator}${quote}suffix${quote}`, `prefix${separator}suffix`],
+        [`prefix${separator}${quote}suffix${quote}${separator}tail`, `prefix${separator}suffix${separator}tail`],
+        [`${quote}prefix${separator}suffix${quote}`, `prefix${separator}suffix`],
+        [`prefix${separator}${quote}unterminated`, `prefix${separator}${quote}unterminated`],
+      ];
+      for (const [value, expected] of cases) {
+        const src = `BEFORE=one\nA=${value}\nAFTER=two\n`;
+        const want = { BEFORE: 'one', A: expected, AFTER: 'two' };
+        expect(parse(src)).toEqual(want);
+        expect(parseFast(src)).toEqual(want);
+        expect(parseFast(Buffer.from(src))).toEqual(want);
+      }
+    }
   });
 
   it.each(['"', "'", '`'])('with backslash runs before a %s on a later line', (quote) => {

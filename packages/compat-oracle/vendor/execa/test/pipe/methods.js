@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {setTimeout} from 'node:timers/promises';
-import {Readable} from 'node:stream';
+import {Readable, Writable} from 'node:stream';
 import {text} from 'node:stream/consumers';
 import test from 'node:test';
 import {assertThrows, assertRejects} from '../helpers/assert.js';
@@ -190,6 +190,7 @@ test('The .pipe() return value .getEachMessage() waits for pipe cancellation', a
 	const readerPromise = assertRejects(iterator.next(), {message: /Pipe canceled/});
 	abortController.abort();
 	await assertSettles(readerPromise);
+	assert.equal(destination.nodeChildProcess.connected, true);
 });
 
 test('The .pipe() return value .getEachMessage() cancels every pending reader', async t => {
@@ -240,6 +241,11 @@ const assertCanceledPipeMessageReader = async (t, getReader, shouldAbortBeforePi
 
 	await assertSettles(readerPromise);
 	await assertRejects(piped, {message: /Pipe canceled/});
+
+	// The destination keeps running after the pipe is canceled, so it must still be able to use IPC
+	assert.equal(destination.nodeChildProcess.connected, true);
+	await destination.sendMessage(foobarString);
+	await destination;
 };
 
 test('The .pipe() return value .getEachMessage() waits for pipe cancellation before IPC messages', async t => {
@@ -376,6 +382,28 @@ test('The .pipe() return value .all waits for source failure', async () => {
 	const piped = execa('fail.js').pipe('stdin.js', {all: true});
 
 	await assertRejects(text(piped.all), {message: /Command failed with exit code 2/});
+});
+
+// Like `subprocess.all`, `.all` does not need an `error` listener, as long as the pipe is awaited
+test('The .pipe() return value .all does not need an error listener on source failure', async () => {
+	const piped = execa('fail.js').pipe('stdin.js', {all: true});
+	piped.all.resume();
+	await assertRejects(piped, {message: /Command failed with exit code 2/});
+	await setTimeout(0);
+});
+
+test('The .pipe() return value .all does not need an error listener when piped', async () => {
+	const piped = execa('fail.js').pipe('stdin.js', {all: true});
+	const chunks = [];
+	piped.all.pipe(new Writable({
+		write(chunk, encoding, done) {
+			chunks.push(chunk);
+			done();
+		},
+	}));
+	await assertRejects(piped, {message: /Command failed with exit code 2/});
+	await setTimeout(0);
+	assert.deepEqual(chunks, []);
 });
 
 const assertCanceledPipeReader = async (t, getReader, shouldAbortBeforePipe = false) => {

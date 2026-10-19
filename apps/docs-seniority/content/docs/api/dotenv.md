@@ -65,16 +65,16 @@ target already holds is left alone — the same rule seniority's own `ORDER` sta
 that is not an object is `OBJECT_REQUIRED`, as dotenv 18 checks both before it reads either.
 
 ```ts
-function populate(target: Record<string, string | undefined>, parsed: Record<string, string>, options?: PopulateOptions): Record<string, string>;
+function populate(target: DotenvPopulateInput, parsed: DotenvPopulateInput, options?: PopulateOptions): DotenvPopulateOutput;
 ```
 
 | Parameter | Type |
 | :-- | :-- |
-| `target` | `Record<string, string \| undefined>` |
-| `parsed` | `Record<string, string>` |
+| `target` | `DotenvPopulateInput` |
+| `parsed` | `DotenvPopulateInput` |
 | `options` (optional) | `PopulateOptions` |
 
-**Returns** `Record<string, string>`
+**Returns** `DotenvPopulateOutput`
 
 ## Constants
 
@@ -220,5 +220,5 @@ type DotenvPopulateOptions = PopulateOptions;
 ### DotenvPopulateOutput
 
 ```ts
-type DotenvPopulateOutput = Record<string, string>;
+type DotenvPopulateOutput = Record<string, string | undefined>;
 ```

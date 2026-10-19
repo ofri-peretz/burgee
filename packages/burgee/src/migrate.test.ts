@@ -398,7 +398,7 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
   });
 
   it('rewrites dotenv and its side-effect entry now that the drop-in is level at 18', async () => {
-    // dotenv 18.0.7's own suite passes 191 / 191 against seniority/dotenv, as it does against
+    // dotenv 18.0.8's own suite passes 193 / 193 against seniority/dotenv, as it does against
     // dotenv. `dotenv/config` is graded too — the suite spawns `import 'dotenv/config'` — so it
     // moves rather than being reported as a deep import.
     const dir = project({
@@ -420,7 +420,7 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     });
     const report = await migrate({ dir, status: clean });
     expect(read(dir, 'src/a.ts')).toBe("import 'dotenv/config';\n");
-    expect(report.offMajor).toEqual([{ from: 'dotenv', found: '^17.0.0', graded: '18.0.7' }]);
+    expect(report.offMajor).toEqual([{ from: 'dotenv', found: '^17.0.0', graded: '18.0.8' }]);
   });
 
   // `previous-majors` R6: commander 14 is claimed (its own suite grades `burgee/commander/v14`
