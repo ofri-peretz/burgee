@@ -70,10 +70,11 @@ export function optionSpecs(s: Snapshot): Record<string, OptionSpec> {
     const spec: OptionSpec = { type: typeOf(s, key) };
     const aliases = s.aliases[key] ?? [];
     // R4: what the key (or one of its aliases) conflicts with or implies, kept only where it names
-    // an option projected here. A positional count and a `--no-x` are yargs' own forms, not options.
+    // an option projected here. A positional count and a `--no-x` are yargs' own forms, not options,
+    // and a name with no relation contributes `undefined`, which the same filter drops.
     const related = (on: Record<string, unknown[]>): string[] =>
       [key, ...aliases]
-        .flatMap((k) => on[k] ?? [])
+        .flatMap((k) => on[k])
         .map((v) => aliasOf.get(v as string) ?? (v as string))
         .filter((v) => s.keys.includes(v) && !skipped(v))
         .map(camelCase);
