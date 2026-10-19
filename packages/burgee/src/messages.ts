@@ -51,6 +51,9 @@ export const MESSAGES = {
   'usage.stdinOnce': '"-" was given for {count} file arguments, and standard input can be read once',
   'usage.tooManyArguments': 'too many arguments: expected {expected}, got {given} ({words})',
   'usage.givenTwice': '--{option} was given twice: "{first}" and "{last}"',
+  // `burgee init` (first-cli R1, R4): a file it would overwrite, and an install that failed.
+  'usage.exists': '{path} already exists',
+  'init.installFailed': '{command} exited {code}',
   'config.noVersion': 'no version declared',
   'timeout.passed': 'timed out after {ms} ms',
   // Hints: what to do about it.
@@ -78,6 +81,7 @@ export const MESSAGES = {
   'hint.nameCommand': 'name the command first: --schema <command> --field <path>',
   'hint.stdinOnce': 'pass a path for all but one of them',
   'hint.largerTimeout': 'run it again with a larger --timeout',
+  'hint.overwrite': 'pass --force to overwrite it',
   'hint.declareVersion': 'pass version to defineProgram, or set "version" in the owning package.json',
   // The usage block a failure teaches with (D-20260930-failures-teach-recovery).
   'usage.options': 'options:',

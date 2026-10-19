@@ -66,3 +66,16 @@ graded hosts have cleared it.
   only once its suite is vendored as a `PREVIOUS_MAJORS` row.
 - dotenv 17 (107 / 141) and ink 6 (540 / 584). Each belongs to its own package's lane.
 - Types for the older majors. `extra-typings-drop-in` (wave 2) owns the `tsd` runner.
+
+## Status
+
+| R | Status | Where | Check |
+| :-- | :-- | :-- | :-- |
+| R1 | **Built** 2026-10-12 | `burgee/src/commander/v14.ts`, `burgee/package.json` | `npm run compat -- commander-14` against `burgee/commander/v14`: 1331 / 1331, control 1331 / 1331. Red first on `burgee/commander`: 1329 / 1331, the two `.exitOverride` excess-argument cases. The switch is a subclass in its own entry, so `command.ts` is untouched and a 15 program bundles none of it (D-20261012-commander-14-budget) |
+| R2 | **Built** 2026-10-12 | `burgee/src/compat.ts`, `compat-oracle/src/hosts.ts`, `baseline/majors/commander-14.json` | `scripts/supported-majors-lock.test.ts` with `commander: [14, 15]`. Red first: `commander 14 is claimed below level: 1329 against a control of 1331`, and the row's target was held to `burgee/commander`. The lock now admits the front-end or its `/v<major>` entry |
+| R3 | Not built | — | step 12 of `next-wave-3-2026-10.md` |
+| R4 | Not built | — | step 12 |
+| R5 | Not built | — | step 12 |
+| R6 | **Built** 2026-10-12, commander half | `burgee/src/migrate.ts`, `PREVIOUS_MAJOR_ENTRIES` in `compat.ts` | `migrate.test.ts`: `rewrites a program pinned to commander 14 (declared on ^14 / installed at 14.0.3)`. Red first: both reported in `offMajor` as `^14.0.0` and `14.0.3` against 15.0.0, and left alone. The entry per major is data, so yargs 17 is one row there |
+
+**Built: 3 (R6 for commander only). Not built: 3.**

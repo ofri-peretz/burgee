@@ -33,7 +33,7 @@ import { fileURLToPath } from 'node:url';
 
 import { ambientRuntime, run } from 'bellpull';
 
-import { DROP_INS, GRADED, GRADED_VERSIONS, isLevel, type Row, SUPPORTED_MAJORS } from './compat.js';
+import { DROP_INS, GRADED, GRADED_VERSIONS, isLevel, PREVIOUS_MAJOR_ENTRIES, type Row, SUPPORTED_MAJORS } from './compat.js';
 import { ExitCode } from './exit-code.js';
 import { guidedSites, mentionsAGuided, type GuidedSite, type Token } from './migrate-guided.js';
 import { TEXT } from './render.js';
@@ -1010,6 +1010,11 @@ export interface ReleaseAgePin {
   graded: string;
   /** When `version` is old enough to install, ISO 8601: already past, or the date the install starts working. */
   installable: string;
+  /**
+   * migrate-pins-carry-the-drop-in — present when a release of the major older than `since` was
+   * passed over because it does not export every specifier the rewrite imports.
+   */
+  requires?: { specifiers: string[]; since: string };
 }
 
 export interface MigrationReport {
@@ -1549,6 +1554,9 @@ const NONE: ReadonlySet<string> = new Set();
 /** No incumbent that another dependency still installs. */
 const ALONE: ReadonlyMap<string, readonly string[]> = new Map();
 
+/** No specifier written to an older major's own entry: every one goes where `MAPPING` says. */
+const CURRENT: ReadonlyMap<string, string> = new Map();
+
 /**
  * A2/A5 — map every host specifier in one file, or map none of them.
  *
@@ -1560,11 +1568,15 @@ const ALONE: ReadonlyMap<string, readonly string[]> = new Map();
  * project's dependencies still installs, with those dependencies (U12-4).
  */
 export function rewriteSource(source: string, skip: ReadonlySet<string> = NONE, transitive: ReadonlyMap<string, readonly string[]> = ALONE): Rewrite {
-  return rewriteFile(source, skip, transitive).rewrite;
+  return rewriteFile(source, skip, transitive, CURRENT).rewrite;
 }
 
-/** {@link rewriteSource}, and every incumbent the file names in a specifier position, skipped or not — what `detected.imported` and `undeclared` read. */
-function rewriteFile(source: string, skip: ReadonlySet<string>, transitive: ReadonlyMap<string, readonly string[]>): { rewrite: Rewrite; seen: string[] } {
+/**
+ * {@link rewriteSource}, and every incumbent the file names in a specifier position, skipped or
+ * not — what `detected.imported` and `undeclared` read. `entries` names the specifiers that move
+ * to an older major's own entry instead of `MAPPING`'s (`previous-majors` R6).
+ */
+function rewriteFile(source: string, skip: ReadonlySet<string>, transitive: ReadonlyMap<string, readonly string[]>, entries: ReadonlyMap<string, string>): { rewrite: Rewrite; seen: string[] } {
   if (!mentionsAHost(source)) return { rewrite: { source, mapped: [], refused: [], kept: [], relevant: false }, seen: [] };
   const { sites, nonLiteral } = scan(source);
   const named = sites.filter((s) => MAPPING[s.specifier] !== undefined || isDeep(s.specifier));
@@ -1597,7 +1609,7 @@ function rewriteFile(source: string, skip: ReadonlySet<string>, transitive: Read
   let out = source;
   const mapped: { from: string; to: string }[] = [];
   for (const site of moving.sort((a, b) => b.start - a.start)) {
-    const to = MAPPING[site.specifier] as string;
+    const to = entries.get(site.specifier) ?? (MAPPING[site.specifier] as string);
     out = `${out.slice(0, site.start)}${to}${out.slice(site.end)}`;
     mapped.push({ from: site.specifier, to });
   }
@@ -1654,16 +1666,28 @@ async function installedVersion(dir: string, name: string): Promise<string | und
  * Incumbents this project has on a major its drop-in does not claim (A12, C1). The claim is
  * `SUPPORTED_MAJORS` — every major graded level by that major's own suite — so an older major
  * that reaches level is served here without another edit.
+ *
+ * `entries` is the other half (`previous-majors` R6): each specifier of an incumbent on a
+ * claimed older major that has its own entry, with that entry — `commander` on 14 is
+ * `burgee/commander/v14`. The major is read from the project, never from the drop-in at runtime.
  */
-async function offMajorOf(dir: string, dependencies: Map<string, string>): Promise<OffMajor[]> {
+async function majorsOf(dir: string, dependencies: Map<string, string>): Promise<{ offMajor: OffMajor[]; entries: Map<string, string> }> {
   const found = await Promise.all(HOSTS.map(async (from) => ({ from, found: (await installedVersion(dir, from)) ?? dependencies.get(from) })));
-  return found.flatMap(({ from, found: version }) => {
+  const entries = new Map<string, string>();
+  const offMajor = found.flatMap(({ from, found: version }) => {
     const graded = GRADED_VERSIONS[from];
     if (version === undefined || graded === undefined) return [];
     const major = majorOf(version);
+    if (major === undefined) return [];
     // A graded host always has its majors: `supported-majors-lock.test.ts` holds one list per graded host.
-    return major === undefined || (SUPPORTED_MAJORS[from] as readonly number[]).includes(major) ? [] : [{ from, found: version, graded }];
+    if (!(SUPPORTED_MAJORS[from] as readonly number[]).includes(major)) return [{ from, found: version, graded }];
+    for (const specifier of Object.keys(MAPPING).filter((s) => packageOf(s) === from)) {
+      const entry = PREVIOUS_MAJOR_ENTRIES[specifier]?.[major];
+      if (entry !== undefined) entries.set(specifier, entry);
+    }
+    return [];
   });
+  return { offMajor, entries };
 }
 
 /**
@@ -1707,7 +1731,9 @@ const FAMILY: readonly string[] = [...new Set(Object.values(MAPPING).map(package
  */
 export async function familyVersions(here: string = dirname(fileURLToPath(import.meta.url))): Promise<Record<string, string>> {
   try {
-    return JSON.parse(await readFile(join(here, 'family-versions.json'), 'utf8')) as Record<string, string>;
+    const built = JSON.parse(await readFile(join(here, 'family-versions.json'), 'utf8')) as { versions?: Record<string, string> } & Record<string, string>;
+    // `{ versions, since }` since migrate-pins-carry-the-drop-in; a flat map before it.
+    return built.versions ?? built;
   } catch {
     const found = await Promise.all(FAMILY.map(async (name) => [name, (await readFile(join(here, '..', '..', name, 'package.json'), 'utf8').catch(() => '{}')) as string] as const));
     return Object.fromEntries(found.flatMap(([name, raw]) => {
@@ -1715,6 +1741,48 @@ export async function familyVersions(here: string = dirname(fileURLToPath(import
       return version === undefined ? [] : [[name, version]];
     }));
   }
+}
+
+/** For each family package, the version from which every release of its graded major exports each subpath: `{ roundel: { './picocolors': '1.1.0' } }`. */
+export type SubpathFloors = Readonly<Record<string, Readonly<Record<string, string>>>>;
+
+/**
+ * migrate-pins-carry-the-drop-in — the `since` half of `family-versions.json`.
+ *
+ * The build reads it from this repository's release tags (`scripts/family-versions.mjs`): for
+ * each subpath, the oldest version of the current major from which every tagged release exports
+ * it. Run from source there is no such file and no history to read at run time, so there are no
+ * floors, which is what this printed before; the published package always carries the file.
+ */
+export async function subpathFloors(here: string = dirname(fileURLToPath(import.meta.url))): Promise<SubpathFloors> {
+  try {
+    return (JSON.parse(await readFile(join(here, 'family-versions.json'), 'utf8')) as { since?: SubpathFloors }).since ?? {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * The lowest version of each package that exports every subpath the rewrite imports, and the
+ * specifiers that set it: `roundel/picocolors` → `{ roundel: { version: '1.1.0', specifiers: [...] } }`.
+ *
+ * A package the table names but whose subpath it does not — a pattern export, or a subpath newer
+ * than the table — floors at the graded version: nothing older is known to carry it. A package
+ * the table does not name at all has no floor.
+ */
+function floorsOf(specifiers: readonly string[], since: SubpathFloors, graded: Readonly<Record<string, string>>): Map<string, { version: string; specifiers: string[] }> {
+  const floors = new Map<string, { version: string; specifiers: string[] }>();
+  for (const specifier of specifiers) {
+    const name = packageOf(specifier);
+    const table = since[name];
+    const at = graded[name];
+    if (table === undefined || at === undefined) continue;
+    const version = table[`.${specifier.slice(name.length)}`] ?? at;
+    const floor = floors.get(name);
+    if (floor === undefined || byVersion(version, floor.version) > 0) floors.set(name, { version, specifiers: [specifier] });
+    else if (byVersion(version, floor.version) === 0) floor.specifiers.push(specifier);
+  }
+  return floors;
 }
 
 /**
@@ -1859,8 +1927,13 @@ const byVersion = (a: string, b: string): number => {
  * that becomes old enough first, with the date it does. Exempt by `minimumReleaseAgeExclude`,
  * or a registry that does not answer: the graded pin, unchanged.
  */
-async function pinsUnder(age: Setting, add: readonly string[], graded: Readonly<Record<string, string>>, clock: { times: PublishTimes; now: Date }): Promise<{ pins: ReleaseAgePin[]; unread: string[] }> {
-  const { times, now } = clock;
+async function pinsUnder(
+  age: Setting,
+  add: readonly string[],
+  graded: Readonly<Record<string, string>>,
+  clock: { times: PublishTimes; now: Date; floors: ReadonlyMap<string, { version: string; specifiers: string[] }> },
+): Promise<{ pins: ReleaseAgePin[]; unread: string[] }> {
+  const { times, now, floors } = clock;
   const wanted = add.filter((name) => graded[name] !== undefined && exempted(name, age.exclude) !== '*');
   const found = await Promise.all(
     wanted.map(async (name) => {
@@ -1869,14 +1942,19 @@ async function pinsUnder(age: Setting, add: readonly string[], graded: Readonly<
       if (listed === undefined) return { name, version, pin: undefined };
       const exempt = exempted(name, age.exclude) as Set<string>;
       const major = version.split('.')[0];
-      const candidates = Object.entries(listed)
+      const ofMajor = Object.entries(listed)
         .filter(([v]) => /^\d+\.\d+\.\d+$/.test(v) && v.split('.')[0] === major)
         .map(([v, at]) => ({ version: v, installable: exempt.has(v) ? Date.parse(at) : Date.parse(at) + age.minutes * MINUTE_MS }))
         .filter((c) => !Number.isNaN(c.installable));
+      // migrate-pins-carry-the-drop-in: a release older than the first one that exports every
+      // subpath the rewrite imports cannot be the floor, however old it is (svgo, roundel 1.0.4).
+      const floor = floors.get(name);
+      const candidates = floor === undefined ? ofMajor : ofMajor.filter((c) => byVersion(c.version, floor.version) >= 0);
       const ready = candidates.filter((c) => c.installable <= now.getTime()).sort((a, b) => byVersion(b.version, a.version))[0];
       const soonest = candidates.sort((a, b) => a.installable - b.installable)[0];
       const chosen = ready ?? soonest;
-      return { name, version, pin: chosen === undefined ? undefined : { name, version: chosen.version, graded: version, installable: new Date(chosen.installable).toISOString() } };
+      const requires = floor !== undefined && candidates.length < ofMajor.length ? { requires: { specifiers: floor.specifiers, since: floor.version } } : {};
+      return { name, version, pin: chosen === undefined ? undefined : { name, version: chosen.version, graded: version, installable: new Date(chosen.installable).toISOString(), ...requires } };
     }),
   );
   return {
@@ -1887,11 +1965,13 @@ async function pinsUnder(age: Setting, add: readonly string[], graded: Readonly<
 
 /** The `releaseAge` the report carries: the setting, the pins it forced, and one note that says what `next` will do. */
 function releaseAgeNote(age: Setting, pins: readonly ReleaseAgePin[], unread: readonly string[], now: Date): ReleaseAge {
-  const lines = pins.map((p) =>
-    Date.parse(p.installable) <= now.getTime()
-      ? `${p.name} ${p.graded} is younger than that, so next pins ^${p.version}, the newest ${p.name} ${p.version.split('.')[0]}.x old enough; run your tests on it`
-      : `no ${p.name} ${p.version.split('.')[0]}.x is old enough until ${p.installable.replace('T', ' ').replace(/:\d\d\.\d+Z$/, '')} UTC, when ${p.version} is: the install fails before then, or exempt ${p.name} from the rule`,
-  );
+  const lines = pins.map((p) => {
+    // migrate-pins-carry-the-drop-in: when an older release was old enough but lacks a subpath, the note says which one.
+    const carrying = p.requires === undefined ? '' : ` that exports ${p.requires.specifiers.join(', ')} (first in ${p.requires.since})`;
+    return Date.parse(p.installable) <= now.getTime()
+      ? `${p.name} ${p.graded} is younger than that, so next pins ^${p.version}, the newest ${p.name} ${p.version.split('.')[0]}.x${carrying} old enough; run your tests on it`
+      : `no ${p.name} ${p.version.split('.')[0]}.x${carrying} is old enough until ${p.installable.replace('T', ' ').replace(/:\d\d\.\d+Z$/, '')} UTC, when ${p.version} is: the install fails before then, or exempt ${p.name} from the rule`;
+  });
   if (lines.length === 0 && unread.length === 0) lines.push('every family version in next is older than that');
   if (unread.length > 0) lines.push(`the registry did not say when ${unread.join(', ')} ${unread.length === 1 ? 'was' : 'were'} published, so next pins the graded version, which may be younger than that`);
   const { file, key, minutes, exclude } = age;
@@ -1971,6 +2051,8 @@ export interface MigrateOptions {
   registry?: PublishTimes;
   /** Injected by the tests; the clock otherwise. */
   now?: Date;
+  /** Injected by the tests; the `since` table the build wrote beside this module otherwise. */
+  since?: SubpathFloors;
 }
 
 /** Each name in `only` and `skip` that is not an incumbent, refused before anything is read. */
@@ -1993,6 +2075,13 @@ interface Scanned {
   text?: string;
 }
 
+/** What every file of one run is rewritten under: the incumbents left alone, those another dependency installs, and the older majors' own entries. */
+interface Plan {
+  skip: ReadonlySet<string>;
+  transitive: ReadonlyMap<string, readonly string[]>;
+  entries: ReadonlyMap<string, string>;
+}
+
 /**
  * One batch: read them all, then scan them all — two phases, not one pipeline per file.
  *
@@ -2006,26 +2095,25 @@ interface Scanned {
  * Nothing is written here any more (U12-4): a refusal in the last file can hold an incumbent
  * the first file imports, so every file is scanned before any is written.
  */
-async function scanBatch(dir: string, batch: string[], skip: ReadonlySet<string>, transitive: ReadonlyMap<string, readonly string[]>): Promise<Scanned[]> {
+async function scanBatch(dir: string, batch: string[], { skip, transitive, entries }: Plan): Promise<Scanned[]> {
   // Read as bytes and decode only what the pre-filter admits: on the bench tree a third of
   // the files never become a string at all, which is 405 ms against 427 for the same work.
   const sources = await Promise.all(batch.map(async (file) => await readFile(join(dir, file))));
   return sources.map((bytes, i) => {
     const text = mentionsAHost(bytes) ? bytes.toString('utf8') : undefined;
-    const { rewrite, seen } = text === undefined ? { rewrite: EMPTY, seen: [] } : rewriteFile(text, skip, transitive);
+    const { rewrite, seen } = text === undefined ? { rewrite: EMPTY, seen: [] } : rewriteFile(text, skip, transitive, entries);
     const guided = mentionsAGuided(bytes) ? guidedSites(tokensOf(bytes.toString('utf8'))) : [];
     return { file: batch[i] as string, result: rewrite, seen, guided, ...(rewrite.relevant && text !== undefined ? { text } : {}) };
   });
 }
 
-/** The per-mapping rollup, in the order `MAPPING` declares — so two runs print the same table. */
+/** The per-mapping rollup, in the order `MAPPING` declares — so two runs print the same table. Its `to` is what was written, an older major's entry included. */
 function rollup(all: { from: string; to: string; file: string }[]): Mapped[] {
-  return Object.entries(MAPPING)
-    .map(([from, to]) => {
-      const hits = all.filter((m) => m.from === from);
-      return { from, to, imports: hits.length, files: new Set(hits.map((m) => m.file)).size };
-    })
-    .filter((row) => row.imports > 0);
+  return Object.keys(MAPPING).flatMap((from) => {
+    const hits = all.filter((m) => m.from === from);
+    const [first] = hits;
+    return first === undefined ? [] : [{ from, to: first.to, imports: hits.length, files: new Set(hits.map((m) => m.file)).size }];
+  });
 }
 
 /**
@@ -2169,7 +2257,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
   if (!dryRun && !force && entries !== undefined && entries.length > 0) throw new DirtyTreeError(entries);
 
   const dependencies = await declaredDependencies(dir);
-  const offMajor = await offMajorOf(dir, dependencies);
+  const { offMajor, entries: ownEntries } = await majorsOf(dir, dependencies);
   const only = options.only === undefined ? undefined : new Set(options.only);
   const skipped = new Set(options.skip);
   // U12-3: an incumbent moves when the project chose it — `--only`, or else its manifest — and nothing excludes it.
@@ -2181,7 +2269,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
   const scanned: Scanned[] = [];
   for (let i = 0; i < files.length; i += BATCH) {
     // eslint-disable-next-line reliability/no-await-in-loop -- the await IS the bound (A10). Each batch is 256 files in flight at once; awaiting one before opening the next is what keeps the command inside the open-file limit on a repository of any size, and `Promise.all` over every file in a monorepo is EMFILE.
-    scanned.push(...(await scanBatch(dir, files.slice(i, i + BATCH), skip, through)));
+    scanned.push(...(await scanBatch(dir, files.slice(i, i + BATCH), { skip, transitive: through, entries: ownEntries })));
   }
 
   // U12-4: what the first pass refused or kept is held everywhere, and a second pass over the
@@ -2191,7 +2279,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
   const rewrites =
     held.length === 0
       ? scanned.map(({ file, result }) => ({ file, result }))
-      : scanned.map(({ file, result, text }) => ({ file, result: text === undefined ? result : rewriteFile(text, new Set([...skip, ...held.map((h) => h.from)]), through).rewrite }));
+      : scanned.map(({ file, result, text }) => ({ file, result: text === undefined ? result : rewriteFile(text, new Set([...skip, ...held.map((h) => h.from)]), through, ownEntries).rewrite }));
   const changed = rewrites.filter(({ result }) => result.mapped.length > 0).map(({ file, result }) => ({ file, source: result.source }));
   if (!dryRun) await writeAll(dir, changed);
 
@@ -2215,7 +2303,10 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
   const graded = await familyVersions();
   const age = await releaseAgeOf(dir);
   const now = options.now ?? new Date();
-  const under = age === null ? { pins: [], unread: [] } : await pinsUnder(age, add, graded, { times: options.registry ?? registryTimes, now });
+  const under =
+    age === null
+      ? { pins: [], unread: [] }
+      : await pinsUnder(age, add, graded, { times: options.registry ?? registryTimes, now, floors: floorsOf([...new Set(all.map((m) => m.to))].sort(), options.since ?? (await subpathFloors()), graded) });
 
   const report: MigrationReport = {
     summary: summaryOf(changed.length, refusedFiles, dryRun),

@@ -1,6 +1,7 @@
 # Intent — under a release age, `next` never pins a version that predates the drop-in
 
-**Status:** draft · **Opened:** `2026-10-18` · **Owner:** `@ofri-peretz`
+**Status:** approved · **Opened:** `2026-10-18` · **Owner:** `@ofri-peretz` · built 2026-10-18;
+criterion 1 met, criterion 2 measurable from 2026-10-19 11:07 UTC (see below)
 
 ---
 
@@ -58,6 +59,24 @@ The 2026-10-18 field trial, barrier 7 in
   tag, the `exports` keys of that tag's `package.json` are read at build time into
   `dist/family-versions.json`, beside the versions `scripts/family-versions.mjs` already writes.
   Rejected: reading the registry at run time, which `migrate-release-age` already rules out.
+
+## Where the criteria stand — 2026-10-18
+
+**Status raised from `draft` to `approved`, not `shipped`:** the mechanism is built and one of the
+two criteria is met by a check run green. The other cannot be run before a date.
+
+- **The svgo shape, stubbed registry** — **met.** `packages/burgee/src/migrate-pins.test.ts`, first
+  case: roundel 1.0.4 a month old, 1.1.0 six days old, a 7-day age. `next` is `pnpm add
+  roundel@^1.1.0`, not `^1.0.4`, and the note names 2026-10-19 12:00 UTC (the fixture's clock) as
+  the date 1.1.0 installs. Run against `migrate.ts` from `main` it printed `roundel@^1.0.4` and
+  failed.
+- **The field trial re-run on svgo with a 7-day age** — **not yet runnable.** roundel 1.1.0, the
+  first release with `./picocolors`, was published 2026-10-12 11:07 UTC, so no roundel that carries
+  the subpath passes a 7-day age before **2026-10-19 11:07 UTC**. The built CLI, run on 2026-10-18
+  against the real registry on an svgo-shaped project, prints `pnpm add roundel@^1.1.0` and says
+  exactly that date; today pnpm refuses that install, which is the intended answer, not a
+  started-but-broken program. Re-run the trial (`adoption-barriers-2026-10.md` → Reproduce) on or
+  after that date, with this change released; when `svgo --help` works, raise this to `shipped`.
 
 ## Open questions
 

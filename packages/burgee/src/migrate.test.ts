@@ -423,6 +423,34 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     expect(report.offMajor).toEqual([{ from: 'dotenv', found: '^17.0.0', graded: '18.0.7' }]);
   });
 
+  // `previous-majors` R6: commander 14 is claimed (its own suite grades `burgee/commander/v14`
+  // level), so a program pinned to it moves, onto 14's entry and not 15's.
+  it.each([
+    ['declared on ^14', { 'package.json': JSON.stringify({ name: 'x', dependencies: { commander: '^14.0.0' } }) }],
+    [
+      'installed at 14.0.3',
+      {
+        'package.json': JSON.stringify({ name: 'x', dependencies: { commander: '~14.0.0' } }),
+        'node_modules/commander/package.json': JSON.stringify({ name: 'commander', version: '14.0.3' }),
+      },
+    ],
+  ])('rewrites a program pinned to commander 14 (%s) to burgee/commander/v14', async (_pin, files) => {
+    const dir = project({ ...files, 'src/a.ts': "import { Command } from 'commander';\n", 'src/b.cjs': "const { program } = require('commander');\n" });
+    const report = await migrate({ dir, status: clean });
+    expect(report.offMajor).toEqual([]);
+    expect(read(dir, 'src/a.ts')).toBe("import { Command } from 'burgee/commander/v14';\n");
+    expect(read(dir, 'src/b.cjs')).toBe("const { program } = require('burgee/commander/v14');\n");
+    expect(report.mapped).toEqual([{ from: 'commander', to: 'burgee/commander/v14', imports: 2, files: 2 }]);
+    expect(report.dependencies.removable).toEqual(['commander']);
+  });
+
+  it('rewrites to the current entry when the declared range names no major', async () => {
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { commander: 'latest' } }), 'src/a.ts': "import { Command } from 'commander';\n" });
+    const report = await migrate({ dir, status: clean });
+    expect(report.offMajor).toEqual([]);
+    expect(read(dir, 'src/a.ts')).toBe("import { Command } from 'burgee/commander';\n");
+  });
+
   it('leaves a drop-in that is not level yet alone, and says so with its grade', async () => {
     // No graded drop-in is short of its control today, so the case is built: dotenv's row read
     // as it stood at 17.4.2, 106 of the 141 cases dotenv itself passed. Rewriting it would be a
