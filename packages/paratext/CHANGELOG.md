@@ -1,5 +1,17 @@
 # paratext
 
+## 1.0.8
+
+### Patch Changes
+
+- [#1130](https://github.com/ofri-peretz/burgee/pull/1130) [`c05c86e`](https://github.com/ofri-peretz/burgee/commit/c05c86e2caa0fc3a89f97f7fe9c37bd7b876bfaf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Every drop-in subpath now type-checks under `moduleResolution: node10`, and under `module: commonjs`
+  with no resolution set, which is TypeScript's default there. `import … from 'burgee/commander'`
+  used to fail with TS2307 in such a project, although `require()` of the same specifier worked.
+  Each package now declares `types` and a `typesVersions` map, derived from `exports`, with one key per
+  typed subpath pointing at the file `exports` already names. `exports` is unchanged, so `node16`,
+  `nodenext` and `bundler` read exactly what they read before. `controlroom/ink`'s declarations no
+  longer name the untyped `react-reconciler`, which was TS7016 for consumers with `skipLibCheck: false`.
+
 ## 1.0.7
 
 ### Patch Changes
