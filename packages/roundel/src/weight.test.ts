@@ -185,7 +185,8 @@ describe.each(Object.keys(RULES))('entry %s', (subpath) => {
  * graph and no budget — the file *is* the payload — so a byte rule would measure nothing.
  * Listed rather than pattern-matched so that adding one is still a decision somebody made.
  */
-const DATA_EXPORTS = ['./schema.json'];
+// `./package.json` is the manifest itself, exported so a tool can `require()` it.
+const DATA_EXPORTS = ['./package.json', './schema.json'];
 
 describe('the lock grows with the package', () => {
   it('every published entry point declares a weight rule', () => {
