@@ -176,26 +176,27 @@ in `packages/burgee`, plus `npx vitest run --config vitest.root.config.ts script
 at the root. Each new case is shown red on `main` first.
 
 The fixtures are the trial's four crashes, cut down, with every line at its number at the pinned
-SHA. Each has a `package.json` with the declared range and a `node_modules/<host>/package.json`
-with the installed version from the trial's `offMajor.found`.
+SHA. Each line keeps its indentation, shown here without it. Each has a `package.json` with the
+declared range and a `node_modules/<host>/package.json` with the installed version from the
+trial's `offMajor.found`.
 
 | Fixture | Shape |
 | :-- | :-- |
-| wait-port `16083537` | commander `^9.3.0`, installed 9.4.0, `bin: { 'wait-port': './bin/wait-port.js' }`. `bin/wait-port.js`: line 4 `const program = require('commander');`, line 12 `program`, line 13 `  .version(pkg.version)` |
+| wait-port `16083537` | commander `^9.3.0`, installed 9.4.0, `bin: { 'wait-port': './bin/wait-port.js' }`. `bin/wait-port.js`: line 4 `const program = require('commander');`, line 12 `program`, line 13 `.version(pkg.version)` |
 | madge `456057b8` | commander `^7.2.0`, installed 7.2.0. `bin/cli.js`: line 6 `const program = require('commander');`, line 14 `program.storeOptionsAsProperties();` |
-| tsc-alias `1077308b` | commander `^9.0.0`, installed 9.5.0. `src/bin/index.ts`: line 2 `import { Option, program } from 'commander';`, line 21 `  .addOption(`, line 22 `    new Option(`, line 23 `      '-fe, --resolve-full-extension [ext]',` |
-| node-qrcode `3848ed2c` | yargs `^15.3.1`, installed 15.4.1, `bin: { qrcode: './bin/qrcode' }`. `bin/qrcode` (no extension): line 2 `var yargs = require('yargs')`, line 48 `    yargs.showHelp()`, line 59 `var argv = yargs`, line 60 `  .detectLocale(false)` |
+| tsc-alias `1077308b` | commander `^9.0.0`, installed 9.5.0. `src/bin/index.ts`: line 2 `import { Option, program } from 'commander';`, line 21 `.addOption(`, line 22 `new Option(`, line 23 `'-fe, --resolve-full-extension [ext]',` |
+| node-qrcode `3848ed2c` | yargs `^15.3.1`, installed 15.4.1, `bin: { qrcode: './bin/qrcode' }`. `bin/qrcode` (no extension): line 2 `var yargs = require('yargs')`, line 48 `yargs.showHelp()`, line 59 `var argv = yargs`, line 60 `.detectLocale(false)` |
 
 | R | Check: file › test name | Shown failing first by |
 | :-- | :-- | :-- |
 | R1 | `migrate.test.ts` › `A1 — scans an extensionless bin that package.json names, and rewrites it on a claimed major` | the bin is unread: unchanged, `imported` is `[]` |
-| R1 | `migrate.test.ts` › `A1 — reads a bin given as a string, …`; `A1 — counts a bin the walk already found once, …` | the bin is unread |
+| R1 | `migrate.test.ts` › `A1 — reads a bin given as a string, …` (a string, a backslash path, a bin under `dist/`); `A1 — counts a bin the walk already found once, …` | the bin is unread |
 | R1 | `migrate.test.ts` › `A1 — ignores a bin path that is %s` (7 cases) | written first; each names a file that would import chalk if read |
 | R2, R6a, R7 | `scripts/migrate-removed-apis-lock.test.ts` (9 cases) | the module does not exist |
 | R6b | `migrate-majors.test.ts` › `%s on %s %i: served is %s` (14 cases) | the module does not exist |
 | R3, R4, R8 | `migrate-majors.test.ts` › `wait-port: names line 4, …`, `madge: …`, `tsc-alias: …`, `qrcode: …` | `sites`, `nearest` and `move` absent; qrcode's bin unread |
-| R3 | `… does not report %s` (14 cases); `… reports %s` (8 cases); `… only in a file that imports it`; `… after the found major and at or before the highest claimed one` | the module does not exist |
-| R4, R8 | `… the move` (7 cases: 17's two entries and helpers, commander 13 to v14, `esm.mjs` and a deep import, no table, above the highest, `nearestOf`, `moveOf`) | `nearest` and `move` absent |
+| R3 | `… does not report %s` (21 cases); `… reports %s` (11 cases); `… does not throw on a file cut off mid-statement` (4); `… only in a file that imports it`; `… after the found major and at or before the highest claimed one` | the module does not exist |
+| R4, R8 | `… the move` (11 cases: 17's two entries and helpers, their order, commander 9 and 13 to v14, each incumbent's sites on its own row, `esm.mjs` and a deep import, no table, above the highest, `nearestOf`, `moveOf`) | `nearest` and `move` absent |
 | R5 | `… changes no file and no exit code` | written first: the "no rewrite without a grade" mutation |
 | R4 | `… a project on a claimed major gets no off-major row` | written first: intent criterion 2 |
 | R5 | `migrate-majors.test.ts` › `prints each site under its incumbent, …`; `migrate-u12.test.ts` › `renders every section a report can carry` (extended with four rows) | the summary is `nothing to rewrite`; no site line |
@@ -346,12 +347,87 @@ above with their reasons.
 | :-- | :-- | :-- | :-- |
 | R1 | Built | `migrate.ts` (`binsOf`, `migrate()`) | `migrate.test.ts` › A1 (10 cases) |
 | R2 | Built | `migrate-majors.ts` (`REMOVED_APIS`) | `scripts/migrate-removed-apis-lock.test.ts` |
-| R3 | Built | `migrate-majors.ts` (`removedSites`) | `migrate-majors.test.ts` (four fixtures, 24 detection cases) |
+| R3 | Built | `migrate-majors.ts` (`removedSites`) | `migrate-majors.test.ts` (four fixtures, 38 detection cases) |
 | R4 | Built | `migrate.ts` (`OffMajor`, `majorsOf`, `olderOf`, `withSites`, `scanBatch`, `rewriteFile`) | `migrate-majors.test.ts`; `migrate.test.ts` |
-| R5 | Built | `migrate.ts` (`summaryOf`, `offMajorLines`, `textOf`) | `migrate-majors.test.ts`; `migrate-u12.test.ts` |
+| R5 | Built | `migrate.ts` (`workListed`, `offMajorLines`, `textOf`) | `migrate-majors.test.ts`; `migrate-u12.test.ts` |
 | R6 | Built | the lock and the probes | `scripts/migrate-removed-apis-lock.test.ts`; `migrate-majors.test.ts` |
 | R7 | Built | `apps/docs/content/docs/migrate.mdx` | the R6a lock |
 | R8 | Built | `migrate-majors.ts` (`moveOf`, `nearestOf`); `migrate.ts` (`withSites`) | `migrate-majors.test.ts` › the move; `majors.qnt` |
 
-**Built: 8. Not built: 0.** The evidence for each, red-first, mutation, A10, weight and the field
-re-run, is below once measured.
+**Built: 8. Not built: 0.** Built on `feat/migrate-older-majors` against `main` at `326907eca6`.
+
+### Evidence
+
+**Red first.** With `main`'s `migrate.ts` and the new `migrate-majors.ts` beside it, 17 cases fail:
+the four fixtures, the five `the move` cases that read a migrate run, the text case, the three
+`A1` bin cases, and the four existing `offMajor` assertions now carrying `nearest`, `sites` and
+`move`. Each failure is `sites`, `nearest` or `move` absent, or the bin unread
+(`const chalk = require('chalk')` left as it was). Without `migrate-majors.ts`, which `main` does
+not have, `migrate-majors.test.ts` and the lock fail to load. The cases marked *written first* in
+Verification guard the change and pass on `main` by construction.
+
+**Mutation** (`scripts/mutation.ts`'s `runPackage` over the changed lines, the lane's own
+config): the first run went past the PR lane's eleven minutes, because 80 static mutants (the
+table and three run-level maxima, read at load) each reran all 1,945 tests. The lookups moved
+into functions and the table is annotated as data, held by its lock and its probes. The next run
+left 73 survivors and the one after it 8. Every one was killed by a case or deleted as a check
+nothing could tell apart:
+
+- `found.has(…)` per host, which the major filter already makes;
+- the sort, because sites are reported in token order;
+- the `nearest === undefined` branch of the gate;
+- a guard in `withSites`;
+- the `from` token test of a default import.
+
+The last run: **590 mutants, 518 killed, 0 survived, 72 ignored, 100%**, in 2.3 minutes. The
+ignored ones are the annotated table and six annotated lines. Each annotation states why its
+mutants cannot change a result:
+
+- two scan bounds whose token is never the one compared;
+- the identifier regex's anchors on one-word tokens;
+- `rewriteFile`'s early return, which only `rewriteSource` reaches;
+- the text kept for a second pass;
+- the batch loop, which only `migrate-bench.test.ts` exceeds.
+
+**Coverage**: 100% lines, branches, functions and statements on `migrate.ts` and `migrate-majors.ts`.
+
+**A10**: `migrate-bench.test.ts` passes on the branch. The second token pass runs only on a file
+that names an off-major commander or yargs.
+
+**Model**: `majors.qnt` `safety` holds over 20,000 traces of 30 steps. `stepUnchecked`,
+`stepOffByOne`, `stepLatest`, `stepEager` and `stepNoDeep` each violate it, and `neverMoves` is
+violated.
+
+**Weight**: the burgee tarball is 278,402 B gzipped and 1,054,876 B unpacked, against `main`'s
+275,575 and 1,044,435 (+2,827 B and +10,441 B). `dist/migrate-majors.js` is 6,745 B and
+`dist/migrate.js` grows 60,599 → 64,295 B. That is inside `check:artifacts`' allowance of the
+recorded 267,600 / 1,016,900, so no ceiling moves and no decision is recorded. Entry budgets are
+unchanged.
+
+**Field re-run, 2026-10-19.** `main`'s built `dist/cli.js` and the branch's were each run with
+`migrate --dry-run --json` on clones at the trial SHAs, installed with
+`npm_config_ignore_scripts=true`:
+
+| Project | `main` | Branch | The trial's `manual` crash |
+| :-- | :-- | :-- | :-- |
+| wait-port `16083537` | `nothing to rewrite`; commander `^9.3.0` off-major, nothing else | `nothing to rewrite; 1 line uses an API a claimed major removed`; `bin/wait-port.js:4 module-as-program`, first use 13; nearest 14, **no move** | `bin/wait-port.js:13`, `program.version is not a function`: the site's first use |
+| madge `456057b8` | `blocked: 1 preflight check` (`require-esm`) | the same block, and `bin/cli.js:6 module-as-program`, first use 14; nearest 14, **no move** | `bin/cli.js:14`, `program.storeOptionsAsProperties is not a function`: the site's first use |
+| tsc-alias `1077308b` | `nothing to rewrite`, off-major | `src/bin/index.ts:22 multi-char-short-flag`; nearest 14, **no move** | the `-fe` short flag refused at construction: line 22 |
+| node-qrcode `3848ed2c` | `nothing to rewrite`; `imported: []`, the bin unread | `bin/qrcode:2 singleton`, first use 48; nearest 17, **move `yargs -> burgee/yargs/v17`** | `bin/qrcode:60`, `yargs.detectLocale is not a function` under 18, on the binding at line 2 |
+
+The one printed move was applied to `bin/qrcode`, with `burgee` linked from this branch:
+
+- `--help` exits 0. It differs from yargs 15's only by yargs 16's own change: single-character
+  aliases first, so the padding moved.
+- `qrcode hello` draws a QR code byte-identical to yargs 15's.
+- `-o /dev/null -t svg hello` saves.
+- With no input, the line-48 `yargs.showHelp()` prints help and exits 1, as on 15.
+
+The three refused moves were checked the other way, by moving each to `burgee/commander/v14` by
+hand. wait-port crashes with `program.version is not a function` and madge with
+`program.storeOptionsAsProperties is not a function`, each exit 1. Every `manual`-arm crash is
+named in the branch's report before anything moves (intent criterion 3).
+
+**Not yet `shipped`**: every criterion has evidence on the branch. The intent moves to `shipped`
+once this is on `main` and released. The change is a `minor`, which the release window holds until
+about 2026-10-25.
