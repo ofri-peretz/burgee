@@ -1907,7 +1907,10 @@ async function installedVersion(dir: string, name: string): Promise<string | und
  * claimed older major that has its own entry, with that entry — `commander` on 14 is
  * `burgee/commander/v14`. The major is read from the project, never from the drop-in at runtime.
  */
-async function majorsOf(dir: string, dependencies: Map<string, string>): Promise<{ offMajor: OffMajor[]; entries: Map<string, string> }> {
+/** An off-major row before the scan: `withSites` adds what the files say. */
+type Found = Omit<OffMajor, 'sites' | 'move'>;
+
+async function majorsOf(dir: string, dependencies: Map<string, string>): Promise<{ offMajor: Found[]; entries: Map<string, string> }> {
   const found = await Promise.all(HOSTS.map(async (from) => ({ from, found: (await installedVersion(dir, from)) ?? dependencies.get(from) })));
   const entries = new Map<string, string>();
   const offMajor = found.flatMap(({ from, found: version }) => {
@@ -1917,7 +1920,7 @@ async function majorsOf(dir: string, dependencies: Map<string, string>): Promise
     if (major === undefined) return [];
     // A graded host always has its majors: `supported-majors-lock.test.ts` holds one list per graded host.
     const claimed = SUPPORTED_MAJORS[from] as readonly number[];
-    if (!claimed.includes(major)) return [{ from, found: version, graded, nearest: nearestOf(major, claimed) ?? null, sites: [], move: null }];
+    if (!claimed.includes(major)) return [{ from, found: version, graded, nearest: nearestOf(major, claimed) ?? null }];
     for (const specifier of Object.keys(MAPPING).filter((s) => packageOf(s) === from)) {
       const entry = PREVIOUS_MAJOR_ENTRIES[specifier]?.[major];
       if (entry !== undefined) entries.set(specifier, entry);
@@ -1942,7 +1945,7 @@ function perHost<T>(of: (host: MajorHost) => T): Record<MajorHost, T> {
   return { commander: of('commander'), yargs: of('yargs') };
 }
 
-function olderOf(offMajor: readonly OffMajor[]): Older {
+function olderOf(offMajor: readonly Found[]): Older {
   const found = new Map<MajorHost, number>();
   for (const o of offMajor) if (isMajorHost(o.from)) found.set(o.from, majorOf(o.found) as number);
   return {
@@ -1957,7 +1960,7 @@ function olderOf(offMajor: readonly OffMajor[]): Older {
  * when {@link moveOf} lets one through: each specifier the project imports, with the entry it
  * takes at that major (`previous-majors` R6's, or `MAPPING`'s). A deep import has no entry.
  */
-function withSites(row: OffMajor, older: Older, scanned: readonly Scanned[]): OffMajor {
+function withSites(row: Found, older: Older, scanned: readonly Scanned[]): OffMajor {
   // An incumbent with no table has no found major here, so no nearest major above it and no move.
   const found = older.found.get(row.from as MajorHost) as number;
   const sites = scanned.flatMap(({ file, removed }) => removed.filter((site) => hostOfApi(site.api) === row.from).map((site) => ({ file, ...site })));

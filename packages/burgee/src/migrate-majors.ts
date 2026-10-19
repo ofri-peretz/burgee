@@ -166,20 +166,21 @@ function defaultImportOf(w: Walk, i: number, host: string): string | undefined {
   // `import B, { a } from`: past the named imports. A namespace or a bare `import {` never reaches `from` here.
   // Stryker disable next-line EqualityOperator: the token at `comma` is `,`, which is not `}`
   const from = text(w, i + 2) === ',' ? w.tokens.findIndex((t, k) => k > i + 2 && t.text === '}') + 1 : i + 2;
-  return text(w, from) === 'from' && w.tokens[from + 1]?.value === host ? text(w, i + 1) : undefined;
+  // `from` is the only token valid JavaScript can put there.
+  return w.tokens[from + 1]?.value === host ? text(w, i + 1) : undefined;
 }
 
 /**
  * The first `name.<member>` in the file whose member the façade does not export, as that member's
  * line. Anywhere in the file: a function declared above the binding runs after it.
  */
-function firstUse(w: Walk, host: MajorHost, name: string): number | undefined {
+function firstUse(w: Walk, host: MajorHost, name: string | undefined): number | undefined {
   const k = w.tokens.findIndex((t, at) => t.text === name && text(w, at - 1) !== '.' && text(w, at + 1) === '.' && !w.exports[host].has(text(w, at + 2) as string));
   return k === -1 ? undefined : lineAt(w, k + 2);
 }
 
 /** A binding `name` of the whole module, made on `line`: a site there when it is ever used as what the claimed major removed. */
-function bound(w: Walk, host: MajorHost, name: string, line: number): void {
+function bound(w: Walk, host: MajorHost, name: string | undefined, line: number): void {
   const use = firstUse(w, host, name);
   if (use !== undefined) report(w, line, moduleApi(host), use);
 }
@@ -230,8 +231,7 @@ function visit(w: Walk, found: ReadonlyMap<MajorHost, number>, i: number): void 
   for (const host of found.keys()) {
     const end = requireOf(w, i, host);
     if (end !== -1) wholeRequire(w, host, i, end);
-    const name = defaultImportOf(w, i, host);
-    if (name !== undefined) bound(w, host, name, lineAt(w, i));
+    bound(w, host, defaultImportOf(w, i, host), lineAt(w, i));
   }
   // A commander pattern in a file that imports only yargs, or the reverse, is dropped by `removedSites`' filter: its host has no major here.
   flagsAt(w, i);

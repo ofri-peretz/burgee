@@ -287,7 +287,7 @@ describe('migrate-older-majors — what is a site', () => {
     ['a computed require', "const p = require('commander' + suffix);\np.version('1');\n"],
     ['a renamed destructured export', "const { program: version, Command: argv } = require('commander');\n"],
     ['a require bound to an element', "list[0] = require('commander');\nlist[0].version('1');\n"],
-    ['a flags-like string in any other call', "import { Option } from 'commander';\nconsole.log('-ab');\nOption('-ab');\n"],
+    ['a flags-like string in any other call', "import { Option } from 'commander';\nconsole.log('-ab');\nOption('-ab');\nnew Error('-ab');\nnew Wrapper(Option('-ab'));\ncfg.option = '-ab';\n"],
     ['a namespace import, and a named import after a default one that is not yargs', "import * as y from 'yargs';\ny.argv;\nimport z, { a } from 'yargs/yargs';\nz.argv;\n"],
   ])('does not report %s', (_, source) => {
     expect(sitesIn(source)).toEqual([]);
@@ -298,6 +298,7 @@ describe('migrate-older-majors — what is a site', () => {
     ['a whole require bound by plain assignment', "let program;\nprogram = require('commander');\nprogram.parse();\n", [[2, 'module-as-program', 3]]],
     ['a use above the binding, in a function that runs after it', "function run() {\n  program.parse();\n}\nconst program = require('commander');\n", [[4, 'module-as-program', 2]]],
     ['a default import, alone or with named ones', "import program, { Option } from 'commander';\nprogram.version('1');\nimport y from 'yargs';\ny.argv;\n", [[1, 'module-as-program', 2], [3, 'singleton', 4]]],
+    ['a default import with named ones after a block', "if (x) {}\nimport y, { Argv } from 'yargs';\ny.argv;\n", [[2, 'singleton', 3]]],
     ['a member straight off the module', "require('commander').version('1');\nrequire('yargs')\n  .argv;\n", [[1, 'module-as-program', undefined], [2, 'singleton', undefined]]],
     ['a destructured member the module no longer has', "const { argv } = require('yargs');\nconst { Command, version: v } = require('commander');\n", [[1, 'singleton', undefined], [2, 'module-as-program', undefined]]],
     ['each flag string with a two-letter short flag', "const { program, Option } = require('commander');\nprogram.option('-ab, --all');\nprogram.requiredOption('-n|-xy <n>');\nnew Option('-fe');\nnew commander.Option(\n  '-gh');\n", [[2, 'multi-char-short-flag', undefined], [3, 'multi-char-short-flag', undefined], [4, 'multi-char-short-flag', undefined], [6, 'multi-char-short-flag', undefined]]],
