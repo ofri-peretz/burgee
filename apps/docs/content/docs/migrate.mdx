@@ -24,7 +24,11 @@ manifest at build time; [Run it](/docs/concepts/drop-ins#run-it) shows a real ru
 predates the drop-in; under pnpm's `minimumReleaseAge` one did exactly that. When your
 project sets a minimum release age (`minimumReleaseAge` in `pnpm-workspace.yaml`, or
 `minimum-release-age` in `.npmrc`), the report says so under `releaseAge`: a graded version
-younger than the rule allows will not install.
+younger than the rule allows will not install. `next` then pins the newest release old enough,
+but never one older than the first release that exports every subpath the rewrite imports:
+`roundel/picocolors` first shipped in roundel 1.1.0, so a project moved onto it is never pinned
+to `roundel@^1.0.4`. When no release is both old enough and carrying the subpath, the note says
+which subpath and the date the first one that does becomes installable.
 
 The first line of the report says how it went — `complete: 3 files rewritten`,
 `partial: 2 files rewritten, 1 refused`, or `nothing to rewrite` — and the rest is the detail,

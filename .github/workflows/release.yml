@@ -37,6 +37,10 @@ run-name: >-
 on:
   push:
     branches: [main]
+  schedule:
+    # Daily: a version the release window deferred publishes once its window opens. Every
+    # other day `detect` finds npm level with main and nothing runs past it.
+    - cron: "47 6 * * *"
   workflow_dispatch:
     inputs:
       dry-run:
@@ -97,6 +101,14 @@ jobs:
             fi
             publish=$(jq -c --argjson row "$row" '. + [$row]' <<<"$publish")
           done < <(jq -c '.[]' <<<"$order")
+          # The release window (release-cadence), the backstop behind changesets-pr.yml: a
+          # minor or major whose package shipped a non-fix release under 7 days ago waits,
+          # unless its changelog section carries a `Security:` entry, and so does a package
+          # that depends on it at that version. The Version PR never carries such a release;
+          # this catches one merged by hand. A later run (any push, or the daily schedule)
+          # publishes it once the window opens.
+          node scripts/release-window.mts publishable --out "$RUNNER_TEMP/publishable.json" <<<"$publish"
+          publish=$(cat "$RUNNER_TEMP/publishable.json")
           echo "plan=$publish" >> "$GITHUB_OUTPUT"
           echo "count=$(jq length <<<"$publish")" >> "$GITHUB_OUTPUT"
 
@@ -107,9 +119,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      # Full history and the tags: burgee's `family-versions.json` floors each subpath at the
+      # oldest release tag that exports it (migrate-pins-carry-the-drop-in).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
       - uses: ./.github/actions/setup
       - run: npx turbo run build --filter='./packages/*'
+      # Turbo may have restored burgee's dist from a build that ran in a shallow, tagless
+      # checkout, where every floor is the current version. Rewrite the table from this one,
+      # and fail rather than ship a tagless table.
+      - name: Subpath floors read from the release tags
+        working-directory: packages/burgee
+        run: node ../../scripts/family-versions.mjs --require-tags
       - name: Artifact gate (K4/K5) — exports exist, no maps or tests shipped, size ratchet
         run: npm run check:artifacts
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
