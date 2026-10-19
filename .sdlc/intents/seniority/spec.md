@@ -6,7 +6,7 @@ Intent: [`intent.md`](./intent.md). Umbrella:
 **Build state, 2026-10-06 (PLAN 3.2 — done).** Every requirement in
 [§ What is built](#what-is-built) reads **Built**, R11 the last of them. All four drop-ins are
 level with their incumbents' controls at the latest release: cosmiconfig 242 / 243 (the
-control's own count), lilconfig 77 / 77, rc 1 / 1, and dotenv **191 / 191 at 18.0.7** (D-170; 179 / 179 at 18.0.5 until 2026-10-07, when 18.0.6's `parseBoolean` in `populate` was ported, #844; 181 / 181 at 18.0.6 until 2026-10-11, when 18.0.7's undefined-option and `.env` `DOTENV_QUIET` rules were ported, #946, D-20261011-revendor-dotenv-18-0-7).
+control's own count), lilconfig 77 / 77, rc 1 / 1, and dotenv **193 / 193 at 18.0.8** (D-170, D-20261019-revendor-execa-dotenv-lilconfig; 191 / 191 at 18.0.7 until 2026-10-19; 179 / 179 at 18.0.5 until 2026-10-07, when 18.0.6's `parseBoolean` in `populate` was ported, #844; 181 / 181 at 18.0.6 until 2026-10-11, when 18.0.7's undefined-option and `.env` `DOTENV_QUIET` rules were ported, #946, D-20261011-revendor-dotenv-18-0-7).
 The paragraph below is the 2026-09-15 state, kept as the record.
 
 **Build state, 2026-09-15 (PLAN 3.2).** Every requirement's status is in

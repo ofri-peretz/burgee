@@ -4,7 +4,7 @@ import os, { tmpdir } from 'node:os';
 import path, { join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 
 import { optionsFromEnv, truthy } from './dotenv-options.js';
 import { parseFast } from './dotenv-scan.js';
@@ -13,7 +13,7 @@ import dotenv, { config, configDotenv, parse, populate } from './dotenv.js';
 // The scanner, watched: `{ fast }` must route to it and nothing else may.
 vi.mock('./dotenv-scan.js', async (original) => {
   const real = await original<typeof import('./dotenv-scan.js')>();
-  return { parseFast: vi.fn(real.parseFast) };
+  return { ...real, parseFast: vi.fn(real.parseFast) };
 });
 
 const dir = mkdtempSync(join(tmpdir(), 'seniority-dotenv-'));
@@ -164,6 +164,19 @@ describe('populate (dotenv 18.0.6)', () => {
   it('returns what it set, and nothing it left alone', () => {
     expect(populate({ A: 'already' }, { A: 'from-file', B: 'from-file' })).toEqual({ B: 'from-file' });
     expect(populate({ A: 'already' }, { A: 'from-file' }, { override: true })).toEqual({ A: 'from-file' });
+  });
+
+  // dotenv 18.0.8 (#1074) types the result `string | undefined`, because an `undefined` input
+  // value is copied as given — kept as an own key on the target and in what is returned.
+  it.each([{}, { OPTIONAL: 'existing' }])('keeps an undefined input value as an own key, target %j', (start) => {
+    const target: Record<string, string | undefined> = { ...start };
+    const populated = populate(target, { OPTIONAL: undefined }, { override: true });
+    expect(target).toEqual({ OPTIONAL: undefined });
+    expect(populated).toEqual({ OPTIONAL: undefined });
+    // `toEqual` treats an undefined property as absent, so the own key is asserted by name.
+    expect(Object.keys(target)).toEqual(['OPTIONAL']);
+    expect(Object.keys(populated)).toEqual(['OPTIONAL']);
+    expectTypeOf(populated.OPTIONAL).toEqualTypeOf<string | undefined>();
   });
 
   it('treats a key that is only inherited as absent, so `toString` can be set', () => {

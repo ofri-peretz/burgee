@@ -203,6 +203,14 @@ test('The "nodeOptions" option can be used - execaNode()', () => testNodeOptions
 test('The "nodeOptions" option can be used - "node" option', () => testNodeOptions(runWithNodeOption));
 test('The "nodeOptions" option can be used - "node" option sync', () => testNodeOptions(runWithNodeOptionSync));
 
+test('The "nodeOptions" option must be an array of strings', () => {
+	assertThrows(() => execaNode('empty.js', {nodeOptions: '--version'}), {instanceOf: TypeError, message: /The "nodeOptions" option must be an array of strings/});
+});
+
+test('The "nodeOptions" option items must be strings', () => {
+	assertThrows(() => execaNode('empty.js', {nodeOptions: ['--version', 5]}), {instanceOf: TypeError, message: /The "nodeOptions" option must be an array of strings/});
+});
+
 const spawnNestedExecaNode = (realExecArgv, fakeExecArgv, execaMethod, nodeOptions) => execa(
 	'node',
 	[...realExecArgv, 'nested-node.js', fakeExecArgv, execaMethod, nodeOptions, 'noop.js', foobarString],
@@ -223,6 +231,80 @@ test('The "nodeOptions" option removes --inspect-brk without a port when defined
 test('The "nodeOptions" option removes --inspect-brk without a port when defined by current process - "node" option', () => testInspectRemoval('--inspect-brk', 'nodeOption'));
 test('The "nodeOptions" option removes --inspect-brk with a port when defined by current process - execaNode()', () => testInspectRemoval('--inspect-brk=9223', 'execaNode'));
 test('The "nodeOptions" option removes --inspect-brk with a port when defined by current process - "node" option', () => testInspectRemoval('--inspect-brk=9223', 'nodeOption'));
+
+// When the current process runs `node --eval` or `node --print`, `process.execArgv` contains that code, which must not be run by the subprocess instead of its file.
+// The environment variable prevents a fork bomb, if that code is run.
+const indexUrl = pathToFileURL(path.resolve(FIXTURES_DIRECTORY, '../../shim.js')).href;
+const getEvalCode = (execaMethod = 'execaNode') => `if (process.env.EXECA_TEST_EVAL) {
+	console.log('eval code was run by the subprocess');
+} else {
+	import(${JSON.stringify(indexUrl)}).then(async execaModule => {
+		const {stdout} = await execaModule.${execaMethod}('noop.js', [${JSON.stringify(foobarString)}], {node: true, env: {EXECA_TEST_EVAL: '1'}});
+		console.log(stdout);
+	});
+}`;
+const evalCode = getEvalCode();
+
+const testEvalRemoval = async nodeArguments => {
+	const {stdout} = await execa('node', nodeArguments, {cwd: FIXTURES_DIRECTORY});
+	// With `--print`, the value of the code is printed too
+	assert.ok(stdout.split('\n').includes(foobarString));
+	assert.ok(!stdout.includes('eval code was run'));
+};
+
+test('The "nodeOptions" option removes -e when defined by current process', () => testEvalRemoval(['-e', evalCode]));
+test('The "nodeOptions" option removes --eval when defined by current process', () => testEvalRemoval(['--eval', evalCode]));
+test('The "nodeOptions" option removes --eval= when defined by current process', () => testEvalRemoval([`--eval=${evalCode}`]));
+test('The "nodeOptions" option removes -p when defined by current process', () => testEvalRemoval(['-p', evalCode]));
+test('The "nodeOptions" option removes --print when defined by current process', () => testEvalRemoval(['--print', evalCode]));
+test('The "nodeOptions" option removes -pe when defined by current process', () => testEvalRemoval(['-pe', evalCode]));
+test('The "nodeOptions" option removes -p -e when defined by current process', () => testEvalRemoval(['-p', '-e', evalCode]));
+test('The "nodeOptions" option removes --print --eval when defined by current process', () => testEvalRemoval(['--print', '--eval', evalCode]));
+test('The "nodeOptions" option removes --print= when defined by current process', () => testEvalRemoval(['--print=true', '--eval', evalCode]));
+test('The "nodeOptions" option removes --print= when defined by current process - "node" option', () => testEvalRemoval(['--print=true', '--eval', getEvalCode('execa')]));
+test('The "nodeOptions" option removes --print= when defined by current process - "node" option sync', () => testEvalRemoval(['--print=true', '--eval', getEvalCode('execaSync')]));
+test('The "nodeOptions" option removes --print= with an empty value when defined by current process', () => testEvalRemoval(['--print=', '--eval', evalCode]));
+test('The "nodeOptions" option removes --print=false when defined by current process', () => testEvalRemoval(['--print=false', '--eval', evalCode]));
+test('The "nodeOptions" option removes -e -p when defined by current process', () => testEvalRemoval(['-e', evalCode, '-p']));
+test('The "nodeOptions" option removes --input-type= when defined by current process', () => testEvalRemoval(['--input-type=commonjs', '-e', evalCode]));
+test('The "nodeOptions" option removes --input-type when defined by current process', () => testEvalRemoval(['--input-type', 'commonjs', '-e', evalCode]));
+// `--inspect-port` does not start the inspector by itself, so this does not need a free port
+test('The "nodeOptions" option removes --inspect-port with a separate value when defined by current process', () => testEvalRemoval(['--inspect-port', '9339', '-e', evalCode]));
+test('The "nodeOptions" option removes --inspect-port= when defined by current process', () => testEvalRemoval(['--inspect-port=9339', '-e', evalCode]));
+
+const testKeptFlags = async (keptFlags, removedFlags = []) => {
+	const {stdout} = await execa('node', [...keptFlags, ...removedFlags, '-e', `import(${JSON.stringify(indexUrl)}).then(async execaModule => {
+		const {stdout} = await execaModule.execaNode('-p', ['process.execArgv.join(" ")']);
+		console.log(stdout);
+	});`], {cwd: FIXTURES_DIRECTORY});
+	assert.equal(stdout, [...keptFlags, '-p', 'process.execArgv.join(" ")'].join(' '));
+};
+
+test('The "nodeOptions" option keeps other flags when -e is defined by current process', () => testKeptFlags(['--no-warnings']));
+test('The "nodeOptions" option keeps the value of other flags when -e is defined by current process', () => testKeptFlags(['-r', './empty.js'], ['--input-type', 'commonjs']));
+
+test('The "nodeOptions" option is not filtered when passed explicitly', async () => {
+	const {stdout} = await execaNode('-p', ['process.execArgv.join(" ")'], {nodeOptions: ['--input-type=commonjs', '--inspect-port=9339']});
+	assert.equal(stdout, '--input-type=commonjs --inspect-port=9339 -p process.execArgv.join(" ")');
+});
+
+test('The "nodeOptions" option keeps unrelated flags when --print= is defined by current process', async () => {
+	const keptFlags = ['--no-warnings', '-r', './empty.js'];
+	const {stdout} = await execa('node', [...keptFlags, '--print=true', '--eval', `void import(${JSON.stringify(indexUrl)}).then(async execaModule => {
+		const {stdout} = await execaModule.execaNode('-p', ['JSON.stringify(process.execArgv)']);
+		console.log(stdout);
+	});`], {cwd: FIXTURES_DIRECTORY});
+	assert.ok(stdout.split('\n').includes(JSON.stringify([...keptFlags, '-p', 'JSON.stringify(process.execArgv)'])));
+});
+
+const testExplicitPrintOptions = async execaMethod => {
+	const {stdout} = await execaMethod('--eval', ['40 + 2'], {nodeOptions: ['--print=true']});
+	assert.equal(stdout, '42');
+};
+
+test('The "nodeOptions" option keeps an explicitly passed --print= - execaNode()', () => testExplicitPrintOptions(execaNode));
+test('The "nodeOptions" option keeps an explicitly passed --print= - "node" option', () => testExplicitPrintOptions(runWithNodeOption));
+test('The "nodeOptions" option keeps an explicitly passed --print= - "node" option sync', () => testExplicitPrintOptions(runWithNodeOptionSync));
 
 const testInspectDifferentPort = async execaMethod => {
 	const {stdout, stdio} = await spawnNestedExecaNode(['--inspect=9225'], '', execaMethod, '--inspect=9224');
@@ -255,6 +337,9 @@ const testIpc = async (execaMethod, options) => {
 
 test('execaNode() adds an ipc channel', () => testIpc(execaNode, {}));
 test('The "node" option adds an ipc channel', () => testIpc(runWithNodeOption, {}));
+// Like other options, `undefined` uses the default value
+test('execaNode() adds an ipc channel, with "ipc: undefined"', () => testIpc(execaNode, {ipc: undefined}));
+test('The "node" option adds an ipc channel, with "ipc: undefined"', () => testIpc(runWithNodeOption, {ipc: undefined}));
 test('The "ipc" option adds an ipc channel', () => testIpc(runWithIpc, {}));
 test('The "ipc" option works with "stdio: \'pipe\'"', () => testIpc(runWithIpc, {stdio: 'pipe'}));
 test('The "ipc" option works with "stdio: [\'pipe\', \'pipe\', \'pipe\']"', () => testIpc(runWithIpc, {stdio: ['pipe', 'pipe', 'pipe']}));

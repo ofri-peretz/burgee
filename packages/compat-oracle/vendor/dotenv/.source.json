@@ -1,9 +1,9 @@
 {
   "repo": "https://github.com/motdotla/dotenv",
-  "version": "18.0.7",
-  "tag": "v18.0.7",
-  "commit": "295320751866efa323236c719cdc1b5306fa3de7",
-  "vendored": "2026-10-12",
+  "version": "18.0.8",
+  "tag": "v18.0.8",
+  "commit": "e2fe95e8e952e881787d8207b654c80326f821d8",
+  "vendored": "2026-10-19",
   "files": 10,
   "internalFiles": [
     "test-config-options.js"
@@ -18,12 +18,12 @@
     "tests/test-config-options.js": "0f9a313d50a923d435b02c71eca792aa32081bfb24b5ad50a5df1b18611669bf",
     "tests/test-config-quiet.js": "3b047074adc445ae7f4818517abbb14a6c7c1e12b549ea66ff4fdbaf7e90db2a",
     "tests/test-config.js": "8b7f8d3754ffd7af438d58229e53594161913e81a627499a0d7cec5383b0dac5",
-    "tests/test-parse-fast.js": "ff2ea39873f365fe52f96d8644ba5c5030b2ae2d0cfa23a25815106a1243026c",
+    "tests/test-parse-fast.js": "55021d397874dc1eb3e42962246d91fab60441d3f165c587caf841a03591c953",
     "tests/test-parse-multiline.js": "f6281c83730796680f2362d3d8c123e3342ac210813652aa66937b6aadb1503b",
     "tests/test-parse.js": "62aa22388fb0f766fbe530b919cede7798e46d0117bd61c1ebd49d7ce046841d",
-    "tests/test-populate.js": "8e7878ba3ec5a4fd98eb839569344bf9f3563fa6702ad9d22232deaa9adbb9f2",
-    "lib/main.d.ts": "e68bc9948d54c842e0fdaf6fc11138a8825768f87459066971e26d7433487f00",
-    "lib/main.js": "9b0acf417f9ff820f6b97ef2051f242c5973e62b46bb7075dd402ca0af5991dd"
+    "tests/test-populate.js": "92176f13bf7b969c710d171a2b26a445de09d725aed8e6d8c1700f3fe20d756d",
+    "lib/main.d.ts": "f40c997a341c68b8e85c22329a29a32fd907d94e3488c52fd5d1e60486baf850",
+    "lib/main.js": "07df1bac667a23ffa5aae60fde7ce9980e173e2b3df109dd2db5266224ae5180"
   },
   "tests": {
     "tests/test-cli-signals.js": [
@@ -109,12 +109,14 @@
       "fast parse handles backslashes before quotes on a later line",
       "fast parse matches classic across quoted value combinations",
       "config({ fast: true }) reads a .env written with a BOM",
-      "config({ fast: true }) loads with fast parser"
+      "config({ fast: true }) loads with fast parser",
+      "fast parse matches classic unquoting at Unicode line boundaries"
     ],
     "tests/test-parse-multiline.js": [],
     "tests/test-parse.js": [],
     "tests/test-populate.js": [
       "takes processEnv and check if all keys applied to processEnv",
+      "preserves undefined input values in the target and returned object",
       "does not write over keys already in processEnv",
       "does write over keys already in processEnv if override turned on",
       "does not write over keys already in processEnv if override is the string false",

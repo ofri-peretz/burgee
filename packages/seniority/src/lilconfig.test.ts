@@ -50,6 +50,47 @@ describe('the export shape is the compatibility claim', () => {
   });
 });
 
+/** A directory of its own per case, so `require`'s cache never answers for another case's file. */
+const fresh = (): string => mkdtempSync(join(root, 'bom-'));
+
+/**
+ * lilconfig 3.1.4's `utf8-bom-*` suites, case for case: its JSON loader drops one leading BOM.
+ * They live in upstream's `old-node-tests.uvu.js`, which the oracle's `*.spec.js` glob does not
+ * grade, so this is where the behaviour is held. Only the *leading* mark goes — the one inside
+ * the value is data and survives.
+ */
+describe('a leading byte-order mark (lilconfig 3.1.4)', () => {
+  const config = { message: '\uFEFFvalue' };
+  const explorers = [
+    ['async', lilconfig],
+    ['sync', lilconfigSync],
+  ] as const;
+  const files = [
+    ['package.json', { 'test-app': config }],
+    ['.test-apprc.json', config],
+    ['.test-apprc', config],
+  ] as const;
+
+  for (const [mode, create] of explorers) {
+    for (const [filename, contents] of files) {
+      it.each(['load', 'search'] as const)(`${mode}: %s ${filename} with a leading BOM`, async (method) => {
+        const dir = fresh();
+        const filepath = join(dir, filename);
+        writeFileSync(filepath, `\uFEFF${JSON.stringify(contents)}`);
+        const explorer = create('test-app', { searchPlaces: [filename], stopDir: dir });
+        const result = await explorer[method](method === 'load' ? filepath : dir);
+        expect(result).toEqual({ config, filepath });
+      });
+    }
+
+    it(`${mode}: ignores a package.json with a BOM and without the requested property`, async () => {
+      const dir = fresh();
+      writeFileSync(join(dir, 'package.json'), '\uFEFF{"name":"test-app"}');
+      expect(await create('test-app', { stopDir: dir }).search(dir)).toBeNull();
+    });
+  }
+});
+
 describe('the walk and its bounds', () => {
   it('finds the nearest config above the starting directory and stops at `stopDir`', () => {
     writeFileSync(join(root, 'a', 'walk.config.js'), 'module.exports = { found: "near" };');

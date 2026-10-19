@@ -398,7 +398,7 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
   });
 
   it('rewrites dotenv and its side-effect entry now that the drop-in is level at 18', async () => {
-    // dotenv 18.0.7's own suite passes 191 / 191 against seniority/dotenv, as it does against
+    // dotenv 18.0.8's own suite passes 193 / 193 against seniority/dotenv, as it does against
     // dotenv. `dotenv/config` is graded too — the suite spawns `import 'dotenv/config'` — so it
     // moves rather than being reported as a deep import.
     const dir = project({
@@ -420,7 +420,17 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     });
     const report = await migrate({ dir, status: clean });
     expect(read(dir, 'src/a.ts')).toBe("import 'dotenv/config';\n");
-    expect(report.offMajor).toEqual([{ from: 'dotenv', found: '^17.0.0', graded: '18.0.7' }]);
+    expect(report.offMajor).toEqual([{ from: 'dotenv', found: '^17.0.0', graded: '18.0.8' }]);
+  });
+
+  it('leaves lilconfig 2 alone, and names 3.1.4 as the release its own suite grades level', async () => {
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { lilconfig: '^2.1.0' } }),
+      'src/a.ts': "import { lilconfig } from 'lilconfig';\n",
+    });
+    const report = await migrate({ dir, status: clean });
+    expect(read(dir, 'src/a.ts')).toBe("import { lilconfig } from 'lilconfig';\n");
+    expect(report.offMajor).toEqual([{ from: 'lilconfig', found: '^2.1.0', graded: '3.1.4' }]);
   });
 
   // `previous-majors` R6: commander 14 is claimed (its own suite grades `burgee/commander/v14`

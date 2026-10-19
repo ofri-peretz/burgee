@@ -18,7 +18,7 @@ import { describe, expect, it } from 'vitest';
 import { testFiles } from './discover.js';
 import { active, type Host, HOSTS, PREVIOUS_MAJORS } from './hosts.js';
 import { ALIAS_HOOK, readBaseline } from './run.js';
-import { shimName } from './vendor.js';
+import { rootPackage, shimName, splitSpec } from './vendor.js';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const VENDOR = join(root, 'vendor');
@@ -412,3 +412,33 @@ function readInternals(host: Host): string[] | undefined {
   if (!existsSync(at)) return undefined;
   return (JSON.parse(readFileSync(at, 'utf8')) as { internals?: string[] }).internals ?? [];
 }
+
+/**
+ * `hosts.ts` and the committed `vendor/<host>/package.json` say the same thing twice: the vendor
+ * step writes the manifest's `devDependencies` from the host's `suiteDeps` and `vendorDeps`, and
+ * the grade installs from the manifest. A re-vendor that moves one by hand and not the other
+ * leaves the control installing a release the row no longer names.
+ */
+const withManifest = onDisk.filter((h) => existsSync(join(VENDOR, h.name, 'package.json')));
+
+describe('the vendored manifest pins what hosts.ts declares', () => {
+  it('finds vendored manifests at all — otherwise the cases below assert nothing', () => {
+    expect(withManifest.length).toBeGreaterThan(0);
+  });
+
+  it.each(withManifest.map((h) => [h.name, h] as const))('%s', (_name, host) => {
+    const committed = (JSON.parse(readFileSync(join(VENDOR, host.name, 'package.json'), 'utf8')) as { devDependencies?: Record<string, string> }).devDependencies;
+    expect(committed, `vendor/${host.name}/package.json and hosts.ts disagree — re-vendor, or move both`).toEqual(rootPackage(host, {}).devDependencies);
+  });
+
+  it('pins the incumbent itself at the release its suite was vendored at, where it pins it', () => {
+    const drift = onDisk.flatMap((host) => {
+      const provenance = join(VENDOR, host.name, 'PROVENANCE');
+      if (!existsSync(provenance)) return [];
+      const version = /^version:\s+(\S+)/mu.exec(readFileSync(provenance, 'utf8'))?.[1];
+      const pin = (host.suiteDeps ?? []).map(splitSpec).find(([name]) => name === (host.npmName ?? host.name));
+      return pin === undefined || pin[1] === version ? [] : [`${host.name}: suiteDeps pins ${pin[0]}@${pin[1]}, the suite is ${version ?? 'unversioned'}`];
+    });
+    expect(drift).toEqual([]);
+  });
+});
