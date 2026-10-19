@@ -7,7 +7,7 @@
 > and D-158 records the answers: a new package, named `controlroom`, with an Ink drop-in in
 > v1, and the nine-package ceiling restated. The design is [`spec.md`](./spec.md).
 
-**Status:** approved · **Opened:** 2026-09-27 · **Owner:** @ofri-peretz · **Approved:** 2026-09-27 by the owner, in session (D-158: a new package named `controlroom`, `controlroom/ink` in v1, the ceiling restated) · **Amended:** 2026-09-27 (D-168: compatibility with, and migration from, the leading competitors; `spec.md` R15–R18) · **Skeleton:** `packages/controlroom` at `0.0.1`, with no API yet
+**Status:** approved · **Opened:** 2026-09-27 · **Owner:** @ofri-peretz · **Approved:** 2026-09-27 by the owner, in session (D-158: a new package named `controlroom`, `controlroom/ink` in v1, the ceiling restated) · **Amended:** 2026-09-27 (D-168: compatibility with, and migration from, the leading competitors; `spec.md` R15–R18) · **Published:** `controlroom@1.0.3` on npm (read 2026-10-19), with the native API, `controlroom/plugin` and `controlroom/ink`. The `0.0.1` skeleton below is history
 
 ---
 
@@ -392,7 +392,7 @@ per screen feature.
 
 ## Naming
 
-**`controlroom` is the package's name, and it is reserved.** The owner published
+**`controlroom` is the package's name, and it is published.** It was reserved first: the owner published
 `controlroom@0.0.1` on 2026-09-27; the registry records it as `2026-09-28T01:59:41Z` UTC.
 A control room is where a system is watched and run from, which is what an interactive
 screen is for. Its punctuation twins `control-room` and `control_room` are both free.
@@ -420,6 +420,11 @@ as a skeleton at `0.0.1`, the published version, with no changeset, so nothing n
 Its root export is only `status = 'reserved'`. The family registration listed in `spec.md`
 landed with it, except the docs site, whose Vercel project and DNS are the owner's to create;
 until then it is under `excluded` in `.github/vercel-apps.json` (GAPS).
+
+**That paragraph is the state on 2026-09-27.** Since 2026-10-05 the package has had its API:
+`open()`, layout, the tab, focus, collapse and scroll reducer, the compositor, plugins and
+`controlroom/ink`, released under changesets and at `1.0.3` on 2026-10-19. `status = 'reserved'`
+is still exported, so a program that read it still loads; it no longer describes the package.
 
 ## Open questions
 

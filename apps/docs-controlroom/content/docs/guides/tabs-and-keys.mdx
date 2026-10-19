@@ -1,6 +1,6 @@
 ---
 title: Tabs, focus and keys
-description: "A keymap is data: key to action name. A pure reducer moves tabs, focus and collapse, and the hint line is generated from the keymap, so it can never name a key that does nothing."
+description: "A keymap is data: key to action name. A pure reducer moves tabs, focus, collapse and scrolling, and the hint line is generated from the keymap, so it can never name a key that does nothing."
 ---
 
 controlroom never binds a key to a function. A **keymap** maps a key to an **action name**,
@@ -15,13 +15,16 @@ const keymap = { left: 'tab.prev', right: 'tab.next', s: 'toggle:status', q: 'qu
 ```
 
 Keys are spelled as caique's key decoder spells them: a character (`s`, `q`), a named key
-(`left`, `right`, `up`, `down`, `enter`, `escape`, `tab`), and modifiers joined with `+`
+(`left`, `right`, `up`, `down`, `pageup`, `pagedown`, `home`, `end`, `enter`, `escape`, `tab`), and modifiers joined with `+`
 (`ctrl+c`, `shift+tab`). A screen given no `keymap` uses the registered `default`:
 
 | key | action |
 | :-- | :-- |
 | `left`, `right` | `tab.prev`, `tab.next` |
 | `tab`, `shift+tab` | `focus.next`, `focus.prev` |
+| `up`, `down` | `scroll.up`, `scroll.down` |
+| `pageup`, `pagedown` | `scroll.pageUp`, `scroll.pageDown` |
+| `home`, `end` | `scroll.top`, `scroll.bottom` |
 | `ctrl+c` | `quit` |
 
 `ctrl+c` is `quit` in every keymap that does not bind it to something else, so a screen can
@@ -36,6 +39,10 @@ its own `default`.
 | `tab:<title>` | the active tab, by title; an unknown title changes nothing |
 | `focus.next`, `focus.prev` | the focused pane, among the screen's `focus` list, wrapping |
 | `toggle:<pane>` | collapses the pane, or expands it again |
+| `scroll.up`, `scroll.down` | the focused pane's first row, by one line |
+| `scroll.pageUp`, `scroll.pageDown` | the focused pane's first row, by its height |
+| `scroll.top`, `scroll.bottom` | the focused pane, to its first row or pinned to its last |
+| `resize` | every scrolled pane, re-clamped to the new size; the screen sends it on a resize |
 
 Anything else, such as `quit` or `refresh`, leaves the state alone and is your program's to
 handle in `onAction`. The reducer is exported as `initial(tabs, focus)` and
@@ -63,6 +70,40 @@ focus.next    active=1 focused=tasks collapsed=[]
 toggle:status active=1 focused=tasks collapsed=[status]
 quit          active=1 focused=tasks collapsed=[status]
 ```
+
+## Scrolling
+
+A pane taller than its rectangle scrolls. Its position is reducer state, `state.scroll`: a
+pane with no entry, or with `'end'`, is pinned to its bottom and shows new lines as they
+arrive, like a log tail. Scrolled up, it stays where it was put, and its last row says how
+many lines are below (`↓ 180`). Reaching the last page pins it again.
+
+The scroll actions move the **focused** pane, so list the pane in the screen's `focus`. The
+reducer needs each pane's height to clamp, which a screen measures for you; outside a screen,
+`extents(layout, panes, size)` is the same measurement:
+
+```js title="scroll.mjs"
+import { compose, extents, initial, reduce } from 'controlroom';
+
+const log = { component: { name: 'log', static: (s) => s }, state: Array.from({ length: 200 }, (_, i) => `line ${i + 1}`).join('\n') };
+const size = { columns: 20, rows: 5, t: 0, live: true };
+let state = initial([], ['log']);
+state = reduce(state, 'scroll.top', extents('log', { log }, size));
+// Every row is padded to the frame's width; trimmed here to print.
+console.log(compose('log', { log }, size, state).map((row) => row.trimEnd()).join('\n'));
+```
+
+```text title="node scroll.mjs"
+line 1
+line 2
+line 3
+line 4
+↓ 195
+```
+
+Off a terminal nothing scrolls: a pipe, CI, a screen reader or an agent cannot press a key, so
+each pane prints every line, whatever the state. A screen that closes inline settles every line
+of every pane into the scrollback, for the same reason.
 
 ## The hint line
 
