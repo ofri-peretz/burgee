@@ -96,10 +96,10 @@ Abbreviations used below:
 | closeout | approved | y | P | closeout | 17 | 15 | R8 spawn delta unbenchmarked, S3 (2.98× / 1.31×) | **y** | **registry.qnt** | S3 closes with closeout-at-incumbent-weight. The "disagree" section is stale |
 | closeout-at-incumbent-weight | review | y | NS | closeout + weight ratchets | 8 | 2 | R1–R4, S1, S3 | **y** (two doors, one hook set) | **none** (`lean.qnt` required by R4) | Wave-4 #1. Needs the Design→Build accept |
 | colour-facades | review | y | NS | roundel + compat-oracle | 8 | 0 | R1–R5, S1–S3 | n | – | Waits on inquirer and supports-color in the compat-oracle lane |
-| commander-compat | review | y | P (one row) | burgee/commander-facade | 8 | 7 | X6 (`./commander` budget 129,400 > 126,365) | n | – | Re-measure: strip-comments now recurses. Ratchet below 126,365 or record a decision |
+| commander-compat | **shipped** (batch 3) | y | SHIPPED | burgee/commander-facade | 8 | 8 | – | n | – | Batch 3: X6 ratcheted 129,400 → 112,100 on a clean-build reading of 112,024 (D-20261019-commander-walk-budget-ratchet). X5 had no real check (`.`'s denied list never named the front-end), so one was added and proven red |
 | commander-completions | **shipped** (batch 0) | y | SHIPPED | burgee/completions | 8 | 8 | – | n | – | Human accepts two restatements: Fig is structural, `complete` replaces `--dynamic`. CI's `completions.yml` is authoritative |
 | commander-env | review | y | P | burgee/parse + seniority | 11 | 8 | intent C1 (per-issue case), C3 (`LAYER=off` gone), C4 (synthetic only), R3 façade `--explain` | n | – | Mostly restate; the `withEnv` design is superseded |
-| commander-front-end-diet | approved | y | P | burgee/commander-facade + weight | 4 | 4 | R4 (claim ratchet `lighter-than-commander` still 1.565; CI reads 1.416) | n | – | One ratchet edit |
+| commander-front-end-diet | **shipped** (batch 3) | y | SHIPPED | burgee/commander-facade + weight | 4 | 4 | – | n | – | Batch 3: `lighter-than-commander` 1.565 → 1.42 (D-20261019-lighter-than-commander-ratchet); `OVER_INCUMBENT` 55,661 → 55,648 |
 | commander-schema | review | y | P | burgee/types + parse | 10 | 3 (+5 partial) | R1, R2, R3, R4, intent C1–C3 | n | – | **SUPERSEDED-CANDIDATE** for its positional half → typed-positionals; restate the rest |
 | compat-grader-layer | **dropped** (batch 0, `D-20261018-drop-compat-grader-layer`) | n | DROPPED | compat-oracle | 6 | 1 | – | n | – | Ruling: trigger fixed; conflicts with compat-oracle being internal |
 | compat-oracle | approved | y | P | compat-oracle | 13 | 12 | R1 (60 s warm budget, not gated) | n | – | Restate R1 or add a timing check. The README compat rows are hand-written |
@@ -119,7 +119,7 @@ Abbreviations used below:
 | eslint-plugin-cli-floor | **dropped** (batch 0, `D-20261018-drop-eslint-plugin-cli-floor`) | y | DROPPED | eslint repo | 9 | 0 | – | n | – | Ruling: lives in eslint#1137 |
 | extra-typings-drop-in | **shipped** (batch 0) | y | SHIPPED | burgee/types | 5 | 5 | – | n | – | U5 fails (55,661 vs 39,329 B), accepted by decision |
 | facade-gets-more | **shipped** (batch 0) | **design.md** | SHIPPED | burgee/commander-facade | 6 | 6 | – | n | – | Rename `design.md` to `spec.md` so it can be approved. Its yargs numbers are stale (804, not 816) |
-| facade-projection-fidelity | approved | y | P | burgee/yargs-facade | 6 | 5 | R4 (yargs `.conflicts()`, `.implies()`, `.example()` not projected) | n | – | **LIVE DEFECT** for yargs users; stopped on the bundle ceiling. The owner delegated the byte call, so decide and record it |
+| facade-projection-fidelity | **shipped** (batch 3) | y | SHIPPED | burgee/yargs-facade | 6 | 6 | – | n | – | Batch 3: R4 built; `burgee/yargs` +428 B bundled (108,850 ceiling) and +858 B walked (221,700), recorded in D-20261019-yargs-facade-relations-bytes; still 0.974× yargs |
 | first-adopter | review | y | NS | adoption/outreach | 5 | 0 | A1–A5 | n | – | The spec still names `commander-agent` and needs a rewrite. Barrier 5 (trust) |
 | first-cli | approved (#1092, beside batch 0) | y | NS (on main) | burgee/init | 5 | 0 | R1–R5 (in #1092) | n | – | Rebase #1092; needs the Design→Build accept |
 | fix-lines-every-shell | review | y | NS | burgee core (failure.ts) | 7 | 0 | R1–R4, S1–S3 | n | – | **LIVE DEFECT:** `fix:` lines are POSIX-quoted on Windows. Exclude `completions.ts` from R2's grep |

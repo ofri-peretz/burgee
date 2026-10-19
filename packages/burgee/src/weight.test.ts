@@ -307,6 +307,11 @@ const RULES: Record<string, EntryRule> = {
       "roundel",
       "flagstaff",
       "caique",
+      // `commander-compat` X5: `import 'burgee'` pulls zero bytes of the commander front-end.
+      // The spec named this entry as the check, but nothing here said so until 2026-10-19.
+      // "the denied list" below proves these names match the front-end's own files.
+      "commander.js",
+      "commander",
     ],
   },
   //
@@ -561,7 +566,7 @@ const RULES: Record<string, EntryRule> = {
    * looks lighter only because it *depends* on yargs-parser instead of carrying it; a caller
    * installing meow installs both, and this number is what they would have paid either way.
    * Set at the measurement, which is why it is not a round figure. Sits between
-   * `./commander` (129,400) and nothing — the two other front ends are larger still.
+   * `./commander` (112,100) and nothing — the two other front ends are larger still.
    *
    * It denies the engine outright: a caller who wanted `execute` would have imported burgee
    * itself rather than its meow-shaped door.
@@ -719,9 +724,18 @@ const RULES: Record<string, EntryRule> = {
   // through `import()` only for a Windows executable that is not node — the one case above that
   // upstream cannot run. The walk reports that edge as lazy, so the entry imports nothing, and
   // a bundler splits bellpull off the start-up path (61,272 -> 56,418 B on /docs/weight).
+  //
+  // **`commander-compat` X6, 2026-10-19: 129,400 -> 112,100, down 17,300, and the parity bar
+  // holds again.** `scripts/strip-comments.mjs` recurses now, so `dist/commander/` loses the
+  // 14,312 B of doc comments recorded above, and the diet took bellpull off the static walk.
+  // Measured 112,024 on a clean build (`rm -rf dist`, then build) of main at `6b90ffe`, the
+  // same reading D-20261018-commander-14-budget took. Plus the ~32 B CI reads heavier, rounded
+  // up to the next 50 B: 112,100. That is 14,265 B under commander's own `lib/` (126,365) and
+  // 15,900 under the 128,000 the spec states, so this entry is a parity bar again rather than
+  // a round number above the reading (D-20261019-commander-walk-budget-ratchet).
   "./commander": {
     allow: [],
-    budget: 129_400,
+    budget: 112_100,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   // `extra-typings-drop-in` R5: `@commander-js/extra-typings`' door. Its JavaScript is one
@@ -817,7 +831,11 @@ const RULES: Record<string, EntryRule> = {
     // (`yargs/flag-shapes.js`, 1,880 B, for five regexes one of which was cubic), and an async
     // builder's rejection under `showHelp()` reaches `fail` instead of going unhandled.
     // Measured 220,848.
-    budget: 220_900,
+    // 221,700 on 2026-10-19 for `facade-projection-fidelity` R4 (D-20261019-yargs-facade-relations-bytes):
+    // `.conflicts()`, `.implies()` and `.example()` reach `--schema` and `--mcp` as `exclusive`,
+    // `dependsOn` and `examples`. Main at `6b90ffe` measured 220,765 and this reads 221,623 (+858),
+    // on a clean build. Plus the ~32 B CI reads heavier, rounded up to the next 50.
+    budget: 221_700,
     // 217,100 with D-140 on top of D-122, N14 and E7, after merging #521. Measured 217,090.
     // 217,150 with A29's CommonJS export on top. Measured 217,123.
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
@@ -965,6 +983,13 @@ describe("the denied list", () => {
     expect(isDenied("roundel", roundel)).toBe(true);
     expect(isDenied("roundelle", roundel)).toBe(false);
     expect(isDenied("testing-helpers.js", "testing.js")).toBe(false);
+  });
+
+  it("denies entry `.` every file the commander front-end is made of (commander-compat X5)", () => {
+    const denied = (RULES["."] as EntryRule).denied;
+    const own = walk(entryFile("./commander")).reached.filter((name) => name === "commander.js" || name.startsWith("commander/"));
+    expect(own.length, "the ./commander walk reached none of its own files, so this proves nothing").toBeGreaterThan(1);
+    expect(own.filter((name) => !denied.some((d) => isDenied(name, d)))).toEqual([]);
   });
 });
 
