@@ -32,12 +32,16 @@
  * recorder `scripts/independence-install-lock.test.ts` uses — not a clock.
  */
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
+
+import { scratchDirs } from './scratch-dir.js';
+
+/** Every scratch directory this file makes, removed after its last test (`scratch-dir.ts`). */
+const scratchDir = scratchDirs();
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const FIXTURES = join(HERE, 'fixtures', 'cold-start');
@@ -70,7 +74,7 @@ interface Startup {
   internals: string[];
 }
 
-const dir = mkdtempSync(join(tmpdir(), 'startup-'));
+const dir = scratchDir('startup-');
 const recorder = join(dir, 'recorder.mjs');
 writeFileSync(recorder, RECORDER);
 

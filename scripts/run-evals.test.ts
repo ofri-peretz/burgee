@@ -1,5 +1,4 @@
-import { chmodSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -24,10 +23,14 @@ import {
   verdict,
   whyFailed,
 } from './run-evals';
+import { scratchDirs } from './scratch-dir.js';
+
+/** Every scratch directory this file makes, removed after its last test (`scripts/scratch-dir.ts`). */
+const scratchDir = scratchDirs();
 
 /** A throwaway repo root with one doc, so each checker is exercised on a known tree. */
 function repo(files: Record<string, string>): string {
-  const root = mkdtempSync(join(tmpdir(), 'evals-'));
+  const root = scratchDir('evals-');
   for (const [rel, body] of Object.entries(files)) {
     mkdirSync(join(root, rel, '..'), { recursive: true });
     writeFileSync(join(root, rel), body);
@@ -96,7 +99,7 @@ describe('layer 2 — grading and billing', () => {
 
 /** A `claude` whose `auth status` answers with `doc` and exits `code`. */
 function stubAuth(doc: string, code: number): string {
-  const bin = join(mkdtempSync(join(tmpdir(), 'stub-claude-auth-')), 'claude');
+  const bin = join(scratchDir('stub-claude-auth-'), 'claude');
   writeFileSync(bin, `#!/bin/sh\ncat <<'JSON'\n${doc}\nJSON\nexit ${String(code)}\n`);
   chmodSync(bin, 0o755);
   return bin;
