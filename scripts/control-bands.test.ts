@@ -16,7 +16,7 @@
 
 import { describe, it, expect } from 'vitest';
 
-import { mean, stdev, detect, evaluate, renderIntent, type BandConfig, type Observation } from './control-bands';
+import { mean, stdev, detect, evaluate, rebased, renderIntent, type BandConfig, type Observation } from './control-bands';
 
 
 /** n points at `base`, so σ is well defined and the mean sits where we expect. */
@@ -170,5 +170,58 @@ describe('the intent a breach writes', () => {
 
   it('dates the intent by the observation, not by when the watcher happened to run', () => {
     expect(body).toContain('**Opened:** 2026-08-11');
+  });
+});
+
+/** CI-shaped observations, one a day in October from day `first + 1`. */
+const dated = (vs: number[], first = 0): Observation[] => vs.map((value, i) => ({ date: `2026-10-${String(first + i + 1).padStart(2, '0')}-ci`, value }));
+
+/**
+ * A recorded decision that names a deliberate step re-bases the series it moved.
+ *
+ * #1139 fixed shell quoting on purpose and added 5 B to `burgee/commander` and `burgee/yargs`.
+ * Both series had sat on one value for weeks, so σ was about 1.8 and three points at the new
+ * level read as 2 of 3 beyond 2σ: #1154 opened two breach intents for a change that was decided
+ * and measured. Widening the band would have hidden the next real step too. Re-basing does not:
+ * the band is computed from the step's first point on, so it says nothing until it has
+ * `minPoints` at the new level, and from then on gates around it.
+ */
+describe('a decided step re-bases the band', () => {
+  const base = { id: 'commander-front-end-bundled-bytes', description: 'B4', collector: 'benchmark-json' as const, window: 20, minPoints: 8, worse: 'higher' as const };
+  // #1154's window: seventeen points at 55,346, then #1139's three at 55,351.
+  const stepped = dated([...Array.from({ length: 17 }, () => 55_346), 55_351, 55_351, 55_351]);
+  const step = { from: '2026-10-18-ci', decision: 'D-20261019-front-end-byte-steps-rebase-bands' };
+
+  it('breaches without the decision, which is #1154', () => {
+    expect(evaluate(base, stepped)?.tier).toBe('2σ');
+  });
+
+  it('does not breach with it: three points at the new level are not yet a band', () => {
+    expect(evaluate({ ...base, rebase: [step] }, stepped)).toBeNull();
+    expect(rebased({ ...base, rebase: [step] }, stepped).map((o) => o.value)).toEqual([55_351, 55_351, 55_351]);
+  });
+
+  it('still gates a real move after the step, once the new level has its points', () => {
+    const after = [...stepped, ...dated([55_351, 55_351, 55_351, 55_351, 55_352, 55_351, 55_351, 55_351, 55_351, 55_351, 55_900], 20)];
+    expect(evaluate({ ...base, rebase: [step] }, after)?.latest).toBe(55_900);
+  });
+
+  it('re-bases at the newest step whose first point has been recorded, and ignores one not yet recorded', () => {
+    const later = { from: '2026-10-20-ci', decision: 'D-later' };
+    const unrecorded = { from: '2026-11-30-ci', decision: 'D-not-yet' };
+    expect(rebased({ ...base, rebase: [step, later, unrecorded] }, stepped).map((o) => o.date)).toEqual(['2026-10-20-ci']);
+    expect(rebased({ ...base, rebase: [unrecorded] }, stepped)).toEqual(stepped);
+    expect(rebased(base, stepped)).toEqual(stepped);
+  });
+
+  it('writes an intent from the re-based series only', () => {
+    const cfg = { ...base, window: 20, minPoints: 3, rebase: [step] };
+    const series2 = [...stepped, ...dated([...Array.from({ length: 8 }, () => 55_351), 56_000], 20)];
+    const breach = evaluate(cfg, series2);
+    expect(breach).not.toBeNull();
+    const body = renderIntent(breach!, cfg, series2);
+    expect(body).not.toContain('| 2026-10-17-ci | 55346 |');
+    expect(body).toContain('| 2026-10-18-ci | 55351 |');
+    expect(body).toContain('re-based at `2026-10-18-ci` by D-20261019-front-end-byte-steps-rebase-bands');
   });
 });
