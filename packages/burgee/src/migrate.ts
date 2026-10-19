@@ -909,6 +909,21 @@ export interface Refusal {
 }
 
 /**
+ * migrate-dynamic-specifiers R1–R3 — the three computed-specifier shapes read as loading no
+ * incumbent: a path built from the working directory (`require(path.join(process.cwd(),
+ * 'package.json'))`), a member of a parsed argv object (`import(argv.parser)`), and an element of
+ * an argv array (`argv.use.map((plugin) => import(plugin))`).
+ */
+export type DynamicShape = 'cwd-path' | 'argv-member' | 'argv-element';
+
+/** A computed specifier that was not refused, because its shape says it loads the user's file or module, never an incumbent (R6). */
+export interface Dynamic {
+  file: string;
+  line: number;
+  shape: DynamicShape;
+}
+
+/**
  * A type-only import left on the incumbent because the façade does not export every name in
  * it. Types are erased, so the file's values still move to burgee and the program runs on it;
  * the types keep compiling against the incumbent's declarations, which is why the incumbent
@@ -1031,6 +1046,11 @@ export interface MigrationReport {
   imports: number;
   mapped: Mapped[];
   refused: Refusal[];
+  /**
+   * migrate-dynamic-specifiers R6 — computed specifiers read as loading no incumbent, by file and
+   * line. Never a refusal, never a hold, and never the exit code.
+   */
+  dynamic: Dynamic[];
   /** Type-only imports left pointing at the incumbent, each with the note that says why. */
   kept: Kept[];
   detected: Detection;
@@ -1090,12 +1110,26 @@ interface Scan {
   sites: Site[];
   /** `import(x)` / `require(x)` where `x` is not a string literal — refused, never guessed. */
   nonLiteral: number[];
+  /** migrate-dynamic-specifiers R1–R3 — the computed specifiers read as one of the three shapes. */
+  dynamic: Omit<Dynamic, 'file'>[];
+  /**
+   * R4 — every incumbent a string or template outside a specifier names, read only in a file with a
+   * computed specifier: what that specifier could be built from.
+   */
+  named: string[];
 }
 
 const WORD = /[A-Za-z0-9_$]/;
 
+/**
+ * What a quoted literal is recorded as; anything else quoted is `lit`, which is never a specifier.
+ * A quote character, because no word or punctuation token can be one: until 2026-10-19 it was
+ * `str`, so `import(str)` read as a literal and was not refused (migrate-dynamic-specifiers).
+ */
+const QUOTED = "'";
+
 /** After these, a `/` divides; after anything else it opens a regular expression. */
-const DIVIDES = new Set([')', ']', '}']);
+const DIVIDES = new Set([')', ']', '}', QUOTED]);
 
 function startsRegex(previous: string): boolean {
   if (previous === '') return true;
@@ -1277,15 +1311,15 @@ function endOfLiteral(source: string, at: number, previous: string): number {
   return -1;
 }
 
+/** A run of {@link WORD} characters from `lastIndex`: one match per word rather than one test per character (A10). */
+const WORD_RUN = /[A-Za-z0-9_$]*/y;
+
 /** Index just past the identifier or number starting at `at`, or `at` when neither starts there. */
 function endOfWord(source: string, at: number): number {
-  let i = at;
-  while (i < source.length && WORD.test(source.charAt(i))) i += 1;
-  return i;
+  WORD_RUN.lastIndex = at;
+  WORD_RUN.test(source);
+  return WORD_RUN.lastIndex;
 }
-
-/** What a quoted literal is recorded as; anything else quoted is `lit`, which is never a specifier. */
-const QUOTED = 'str';
 
 /** The code tokens behind the cursor, plus A4's open-call state and U12-1's call state. */
 interface Tokens {
@@ -1294,6 +1328,8 @@ interface Tokens {
   /** The two before `before`: a {@link CALLS} call is `vi . mock (`, and `x . vi . mock (` is not one. */
   third: string;
   fourth: string;
+  /** The one before `fourth`: R3's `argv . use . map (` is five tokens. */
+  fifth: string;
   /** A {@link CALLS} name is behind the cursor, so a `(` next opens it. */
   ready: Call | undefined;
   /** The token just pushed is the `(` of a {@link CALLS} call, so a quoted literal next is its specifier. */
@@ -1303,8 +1339,15 @@ interface Tokens {
   generic: Call | undefined;
   /** The two behind us were `import (` or `require (`, and what follows decides A4. */
   pending: boolean;
-  /** Lines where a call was opened and what followed was not a string literal. */
+  /** Lines where a call was opened and what followed was not a string literal, nor one of R1–R3's shapes. */
   nonLiteral: number[];
+  /** The tokens inside an `import (` or `require (` whose argument is not a literal, up to its own `)`. */
+  computed: { line: number; depth: number; seq: string[] } | undefined;
+  /** R3 — where the cursor is in a callback passed to `argv . x . map (`, before its first parameter. */
+  callback: Callback | undefined;
+  /** R3 — every name bound as the first parameter of such a callback, file-wide. */
+  elements: Set<string>;
+  dynamic: Omit<Dynamic, 'file'>[];
   /**
    * The tokens since the last `import` or `export` keyword — the clause of the statement in
    * progress — or `undefined` once there is none. A clause never holds `(` or `=`, and the
@@ -1312,6 +1355,83 @@ interface Tokens {
    * does not drag its body along.
    */
   clause: string[] | undefined;
+}
+
+/** migrate-dynamic-specifiers R2, R3 — the names a parsed argv object goes by. A new one joins when a measured project needs it. */
+const ARGV = ['argv', 'args', 'options', 'opts', 'flags'];
+
+/**
+ * R1 — `path.join(` or `path.resolve(`, from `process.cwd()` or `__dirname`, then quoted literals
+ * only: a file under the working directory or the module's own, never a package. Matched against
+ * the call's tokens joined by a space; `'` is {@link QUOTED}.
+ */
+const CWD_PATH = /^path \. (?:join|resolve) \( (?:process \. cwd \( \)|__dirname)(?: , ')* \)$/;
+
+/** R2 — the whole argument is `argv . x`: the user's own module, named on the command line. */
+const ARGV_MEMBER = new RegExp(`^(?:${ARGV.join('|')}) \\. [\\w$]+$`);
+
+/** R3 — the array methods whose callback receives an argv array's elements. */
+const ELEMENT_METHODS = ['map', 'forEach', 'flatMap', 'filter'];
+
+/**
+ * R3 — where the cursor is between `argv . x . map (` and the callback's first parameter:
+ * `p =>`, `(p) =>`, `async (p) =>`, `function (p)` and `async function (p)`. Keyed by state and
+ * token. `fn` binds nothing until its `(`, because `function name (p)` names the function.
+ */
+type Callback = 'open' | 'async' | 'fn' | 'paren';
+const CALLBACK = new Map<string, Callback>([
+  ['open async', 'async'],
+  ['open (', 'paren'],
+  ['open function', 'fn'],
+  ['async (', 'paren'],
+  ['async function', 'fn'],
+  ['fn (', 'paren'],
+]);
+/** The states a name binds in: not `fn`, whose next name is the function's own. */
+const BINDS: readonly string[] = ['open', 'async', 'paren'];
+
+/** The shape of a computed specifier's tokens, or `undefined` for one that could name anything (R5). */
+function shapeOf(seq: readonly string[], elements: ReadonlySet<string>): DynamicShape | undefined {
+  const text = seq.join(' ');
+  if (CWD_PATH.test(text)) return 'cwd-path';
+  if (ARGV_MEMBER.test(text)) return 'argv-member';
+  // A single name is its own text; any longer sequence has a space in it, which no name has.
+  return elements.has(text) ? 'argv-element' : undefined;
+}
+
+/**
+ * A4, and R1–R3 — a call opened as `import (` or `require (` whose next token is not a literal
+ * is captured to its own `)`, then read as one of the three shapes or refused. A second one opened
+ * inside it is refused outright, and so is the outer one, since a call is no shape's argument.
+ */
+function capture(tokens: Tokens, text: string, line: number): void {
+  if (tokens.pending && text !== QUOTED && text !== ')') {
+    if (tokens.computed === undefined) tokens.computed = { line, depth: 1, seq: [] };
+    else tokens.nonLiteral.push(line);
+  }
+  const open = tokens.computed;
+  if (open === undefined) return;
+  if (text === '(') open.depth += 1;
+  if (text === ')') open.depth -= 1;
+  if (open.depth > 0) {
+    open.seq.push(text);
+    return;
+  }
+  tokens.computed = undefined;
+  const shape = shapeOf(open.seq, tokens.elements);
+  if (shape === undefined) tokens.nonLiteral.push(open.line);
+  else tokens.dynamic.push({ line: open.line, shape });
+}
+
+/** R3 — follow `argv . x . map (` to its callback's first parameter, and bind it. */
+function bind(tokens: Tokens, text: string): void {
+  const state = tokens.callback;
+  // Stryker disable next-line ConditionalExpression: A10 — without it every token builds a key that matches nothing; the outcome is the same
+  if (state !== undefined) {
+    tokens.callback = CALLBACK.get(`${state} ${text}`);
+    if (tokens.callback === undefined && BINDS.includes(state) && WORD.test(text.charAt(0))) tokens.elements.add(text);
+  }
+  if (text === '(' && ELEMENT_METHODS.includes(tokens.previous) && tokens.before === '.' && tokens.fourth === '.' && ARGV.includes(tokens.fifth)) tokens.callback = 'open';
 }
 
 /**
@@ -1322,12 +1442,16 @@ interface Tokens {
  * the file it is in will be left alone.
  */
 function push(tokens: Tokens, text: string, line: number): void {
-  if (tokens.pending && text !== QUOTED && text !== ')') tokens.nonLiteral.push(line);
+  // Stryker disable next-line ConditionalExpression,LogicalOperator: A10 — the calls are the per-token cost; each makes the same no-op decision itself
+  if (tokens.pending || tokens.computed !== undefined) capture(tokens, text, line);
+  // Stryker disable next-line ConditionalExpression,LogicalOperator,EqualityOperator,StringLiteral: as above
+  if (tokens.callback !== undefined || text === '(') bind(tokens, text);
   tokens.pending = text === '(' && (tokens.previous === 'import' || tokens.previous === 'require');
   trackCall(tokens, text);
   if (text === 'import' || text === 'export') tokens.clause = [];
   else if (text === '(' || text === '=' || tokens.previous === 'from') tokens.clause = undefined;
   else tokens.clause?.push(text);
+  tokens.fifth = tokens.fourth;
   tokens.fourth = tokens.third;
   tokens.third = tokens.before;
   tokens.before = tokens.previous;
@@ -1395,13 +1519,64 @@ function lex(source: string, emit: (text: string, line: number, start: number, e
  * nothing else in the grammar looks like that.
  */
 export function scan(source: string): Scan {
+  const { sites, tokens } = pass(source);
+  // A call the file never closes could hold anything.
+  if (tokens.computed !== undefined) tokens.nonLiteral.push(tokens.computed.line);
+  const { nonLiteral, dynamic } = tokens;
+  // Stryker disable next-line ConditionalExpression,EqualityOperator,ArithmeticOperator: A10 — the second pass over a file with no computed specifier reads names nothing uses
+  const named = nonLiteral.length + dynamic.length === 0 ? [] : namedOutsideASpecifier(source);
+  return { sites, nonLiteral, dynamic, named };
+}
+
+/** One pass of {@link scan}. `literal`, when given, is handed the bounds of every string and template that is not a specifier. */
+function pass(source: string, literal?: (start: number, end: number) => void): { sites: Site[]; tokens: Tokens } {
   const sites: Site[] = [];
-  const tokens: Tokens = { previous: '', before: '', third: '', fourth: '', ready: undefined, opened: undefined, angle: 0, generic: undefined, pending: false, nonLiteral: [], clause: undefined };
+  const tokens: Tokens = {
+    previous: '',
+    before: '',
+    third: '',
+    fourth: '',
+    fifth: '',
+    ready: undefined,
+    opened: undefined,
+    angle: 0,
+    generic: undefined,
+    pending: false,
+    nonLiteral: [],
+    computed: undefined,
+    callback: undefined,
+    elements: new Set(),
+    dynamic: [],
+    clause: undefined,
+  };
   lex(source, (text, line, start, end) => {
     if (text === QUOTED && isSpecifier(tokens)) sites.push(siteOf(source, { open: start, close: end, line }, tokens));
+    else if (text === QUOTED || text === 'lit') literal?.(start, end);
     push(tokens, text, line);
   });
-  return { sites, nonLiteral: tokens.nonLiteral };
+  return { sites, tokens };
+}
+
+/** R4 — the incumbents named outside a specifier, in a second pass, run only over a file with a computed specifier (A10). */
+function namedOutsideASpecifier(source: string): string[] {
+  const named = new Set<string>();
+  pass(source, (start, end) => {
+    for (const host of hostsIn(source.slice(start, end))) named.add(host);
+  });
+  return [...named];
+}
+
+const HOST_NAMES = new Set(HOSTS);
+
+/**
+ * R4 — the incumbents a literal's text, quotes included, names: a piece of it that equals one, or
+ * two consecutive pieces that equal a scoped one. It is cut at path separators, quotes and a
+ * template's `$` and `}`, so `node_modules/chalk`, `C:\\deps\\chalk` and `` `${dir}/chalk` ``
+ * name chalk, and `chalk-template` names nothing.
+ */
+function hostsIn(raw: string): string[] {
+  const parts = raw.split(/[\\/'"`$}]/);
+  return parts.flatMap((part, i) => [part, `${part}/${parts[i + 1]}`]).filter((name) => HOST_NAMES.has(name));
 }
 
 /** Every code token of `source`, with a quoted literal's contents as `value` — what {@link guidedSites} reads. */
@@ -1424,6 +1599,8 @@ export interface Rewrite {
   kept: Omit<Kept, 'file'>[];
   /** Whether this file references a host at all. A file that does not is not "untouched", it is unrelated. */
   relevant: boolean;
+  /** On a relevant file: its computed specifiers read as loading no incumbent (migrate-dynamic-specifiers R6). */
+  dynamic?: Omit<Dynamic, 'file'>[];
   /**
    * On a refused file only: every host it still imports. The file is left exactly as it was,
    * so `chalk` beside a refused `commander/lib/help.js` is still imported, although only the
@@ -1482,7 +1659,7 @@ export function bindingsOf(clause: readonly string[]): { typeOnly: boolean; name
     // `type x` / `type x as y`: the modifier. `type` alone, or `type as y`, is a binding named `type`.
     const modifier = element[0] === 'type' && element.length > 1 && element[1] !== 'as';
     const name = modifier ? element[1] : element[0];
-    if (name !== undefined && name !== 'default' && name !== QUOTED && WORD.test(name.charAt(0))) names.push(name);
+    if (name !== undefined && name !== 'default' && WORD.test(name.charAt(0))) names.push(name);
     element = [];
   }
   return { typeOnly, names };
@@ -1585,11 +1762,19 @@ export function rewriteSource(source: string, skip: ReadonlySet<string> = NONE, 
  */
 function rewriteFile(source: string, skip: ReadonlySet<string>, transitive: ReadonlyMap<string, readonly string[]>, entries: ReadonlyMap<string, string>): { rewrite: Rewrite; seen: string[] } {
   if (!mentionsAHost(source)) return { rewrite: { source, mapped: [], refused: [], kept: [], relevant: false }, seen: [] };
-  const { sites, nonLiteral } = scan(source);
+  const scanned = scan(source);
+  const { sites } = scanned;
+  // R4 — an incumbent this run moves, named in a string beside a computed specifier, could be what
+  // it loads: every computed specifier in the file is refused, and the file holds that incumbent
+  // too, whether or not it imports it. One the run does not move cannot split, so it guards nothing.
+  const loadable = scanned.named.filter((host) => !skip.has(host));
+  const guarded = loadable.length > 0;
+  const nonLiteral = guarded ? [...scanned.nonLiteral, ...scanned.dynamic.map((d) => d.line)] : scanned.nonLiteral;
+  const dynamic = guarded ? [] : scanned.dynamic;
   const named = sites.filter((s) => MAPPING[s.specifier] !== undefined || isDeep(s.specifier));
   const seen = [...new Set(named.map((s) => packageOf(s.specifier)))];
   const hits = named.filter((s) => !skip.has(packageOf(s.specifier)));
-  if (hits.length === 0) return { rewrite: { source, mapped: [], refused: [], kept: [], relevant: false }, seen };
+  if (hits.length === 0 && !guarded) return { rewrite: { source, mapped: [], refused: [], kept: [], relevant: false }, seen };
 
   // A name the façade lacks: a type-only statement stays on the incumbent (types are
   // erased, so the rest of the file can still move); anything else is refused, because
@@ -1611,7 +1796,7 @@ function rewriteFile(source: string, skip: ReadonlySet<string>, transitive: Read
     ...unknown,
     ...siblingState(sites, hits),
   ].sort((a, b) => a.line - b.line);
-  if (refused.length > 0) return { rewrite: { source, mapped: [], refused, kept: [], relevant: true, retained: [...new Set(hits.map((s) => packageOf(s.specifier)))] }, seen };
+  if (refused.length > 0) return { rewrite: { source, mapped: [], refused, kept: [], relevant: true, dynamic, retained: [...new Set([...hits.map((s) => packageOf(s.specifier)), ...loadable])] }, seen };
 
   let out = source;
   const mapped: { from: string; to: string }[] = [];
@@ -1620,7 +1805,7 @@ function rewriteFile(source: string, skip: ReadonlySet<string>, transitive: Read
     out = `${out.slice(0, site.start)}${to}${out.slice(site.end)}`;
     mapped.push({ from: site.specifier, to });
   }
-  return { rewrite: { source: out, mapped: mapped.reverse(), refused: [], kept, relevant: true }, seen };
+  return { rewrite: { source: out, mapped: mapped.reverse(), refused: [], kept, relevant: true, dynamic }, seen };
 }
 
 /* ------------------------------------------------------------------ the project */
@@ -2281,6 +2466,7 @@ export function textOf(r: MigrationReport): string {
       r.mapped.map((m) => `${m.from} -> ${m.to}  ${m.imports} import${m.imports === 1 ? '' : 's'} in ${fileCount(m.files)}`),
     ),
     ...section('refused, and left exactly as it was', r.refused.map(refusalLine)),
+    ...section('read as not an incumbent (a computed specifier)', r.dynamic.map((d) => `${d.file}:${d.line}  ${d.shape}`)),
     ...section('kept on the incumbent', r.kept.map((k) => `${k.file}:${k.line}  ${k.specifier}  ${k.note}`)),
     ...section(
       'held, rewritten in no file',
@@ -2358,6 +2544,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
 
   const all = rewrites.flatMap(({ file, result }) => result.mapped.map((m) => ({ ...m, file })));
   const refused: Refusal[] = scanned.flatMap(({ file, result }) => result.refused.map((r) => ({ file, ...r })));
+  const dynamic: Dynamic[] = scanned.flatMap(({ file, result }) => (result.dynamic ?? []).map((d) => ({ file, ...d })));
   const kept: Kept[] = scanned.flatMap(({ file, result }) => result.kept.map((k) => ({ file, ...k })));
   const guided: Guided[] = scanned.flatMap(({ file, guided: sites }) => sites.map((site) => ({ file, ...site })));
   const imported = [...new Set(scanned.flatMap(({ seen }) => seen))].sort();
@@ -2388,6 +2575,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
     imports: all.length,
     mapped: rollup(all),
     refused,
+    dynamic,
     kept,
     detected: { declared, imported },
     dependencies: { before: declared, removable, after: declared.length - removable.length, add },
