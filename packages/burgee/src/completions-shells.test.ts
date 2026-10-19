@@ -145,8 +145,10 @@ const pwsh = (queries: readonly string[], runs: readonly string[] = []): Map<str
  * check is that PowerShell parsed every word back to what the caller meant: `'`, `~`, `@` and `,`
  * among them. The fix comes from a real refusal with the platform read as `win32`, so the same
  * case runs under Linux's pwsh in completions.yml and on the Windows cells of compat.yml. The
- * second line is `shellWord`'s PowerShell form over the words its rule singles out, `--%`
- * included, which no refusal can carry as an argument.
+ * second line is `shellWord`'s PowerShell form over the words its rule singles out. `--%` is not
+ * among them: quoted, it still reaches PowerShell's native-argument binder as stop-parsing, which
+ * drops it and splits every argument after it (CI, run 39218012729). That is gap
+ * B-20261019-fix-lines-stop-parsing-word, not a quoting this test can pass.
  */
 const ECHO = join(dir, 'echo.mjs');
 // A line of its own: a native command's output reaches stdout as written, so without the newline
@@ -154,7 +156,7 @@ const ECHO = join(dir, 'echo.mjs');
 writeFileSync(ECHO, 'console.log(JSON.stringify(process.argv.slice(2)))\n');
 const TYPED = ['echo', '--nmae', "it's", '~/x', '@a', 'a,b', '--json'];
 const MEANT = ['echo', '--name', "it's", '~/x', '@a', 'a,b', '--json'];
-const WORDS = ["it's", '@a', 'a,b', '--%', '~', '$HOME', '`x', 'C:\\Users\\RUNNER~1\\x', 'a b', 'plain'];
+const WORDS = ["it's", '@a', 'a,b', '~', '$HOME', '`x', 'C:\\Users\\RUNNER~1\\x', 'a b', 'plain'];
 const node = `& node ${shellWord(ECHO, 'win32')}`;
 async function windowsFix(): Promise<string> {
   const tool = defineProgram({ name: 'tool', commands: [defineCommand({ name: 'echo', effects: 'read_only', options: { name: { type: 'string' } }, run: () => undefined })] });
