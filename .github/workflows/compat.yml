@@ -69,6 +69,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
       - name: Build
+        id: build
         run: npx turbo run build --filter='./packages/*'
       - name: Grade burgee (fails below baseline)
         shell: bash
@@ -97,6 +98,13 @@ jobs:
       # was written; this is the same check on the other generated page.
       - name: The published page is the one these results generate
         run: npm run compat:page -- --check
+      # The same check on /docs/weight, which is measured from this build's `dist/`. Its own
+      # lock only asked that every subpath have a row, so #1139 added 5 B to every commander
+      # entry and the page, and the `OVER_INCUMBENT` ratchet read from it, kept the old number.
+      # It compares every line but the generation stamp. About 40 s of esbuild.
+      - name: The published weight page is the one this build generates
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npm run weight:page -- --check
       - name: Summary
         if: always()
         run: |
