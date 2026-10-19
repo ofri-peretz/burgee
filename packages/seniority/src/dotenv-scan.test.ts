@@ -157,6 +157,16 @@ describe('the scanner agrees with the regular expression', () => {
     expect(parseFast(src)).toEqual({ A: 'a" "b B=ok' });
   });
 
+  // A lone quote is not a pair: the unquoted fallback keeps it, as the regex parser does. The
+  // length check is what tells the two apart — without it the first and last character are the
+  // same quote, and the value would come back empty.
+  it.each(['"', "'", '`'])('keeps a value that is a single %s', (quote) => {
+    for (const src of [`A=${quote}`, `A=${quote}\nB=ok`, `A= ${quote} # c`]) {
+      expect(parseFast(src).A).toBe(quote);
+      expect(parseFast(src)).toEqual(parse(src));
+    }
+  });
+
   // Upstream's own grid for #1073 (`fast parse matches classic unquoting at Unicode line
   // boundaries`), every case checked against the regex parser and against the answer.
   it.each([' ', ' '])('unquotes a segment that ends at a Unicode line boundary (%j)', (separator) => {
