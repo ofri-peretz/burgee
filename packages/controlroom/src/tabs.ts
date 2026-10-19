@@ -55,7 +55,7 @@ export const offset = (at: number | 'end' | undefined, max: number): number => (
 /** A row clamped into `[0, max]`, and the last page is `'end'`, so the pane follows its tail again. */
 function settle(row: number, max: number): number | 'end' {
   const first = Math.max(0, row);
-  return first < max ? first : 'end';
+  return first >= max ? 'end' : first;
 }
 
 const lastPage = ({ content, rows }: Extent): number => Math.max(0, content - rows);
@@ -73,21 +73,24 @@ const SCROLL = new Map<string, readonly [number, number]>([
   ['scroll.bottom', [Infinity, 0]],
 ]);
 
+/** A scroll entry moved `by` inside a pane of `extent`, and settled into it. */
+function move(at: number | 'end' | undefined, extent: Extent, [lines, pages]: readonly [number, number]): number | 'end' {
+  const max = lastPage(extent);
+  return settle(offset(at, max) + lines + pages * extent.rows, max);
+}
+
 /** R2 and R5 — a scroll action on the focused pane, or a resize on every pane; `undefined` for any other action. */
 function scroll(state: ScreenState, action: string, extents: ReadonlyMap<string, Extent>): ScreenState | undefined {
   const by = SCROLL.get(action);
   const pane = state.panes[state.focused]!;
   const extent = extents.get(pane);
-  if (by !== undefined && extent !== undefined) {
-    const max = lastPage(extent);
-    return { ...state, scroll: new Map(state.scroll).set(pane, settle(offset(state.scroll.get(pane), max) + by[0] + by[1] * extent.rows, max)) };
-  }
+  if (by !== undefined && extent !== undefined) return { ...state, scroll: new Map(state.scroll).set(pane, move(state.scroll.get(pane), extent, by)) };
   if (action !== 'resize') return undefined;
-  // R5 — a size change re-clamps every numeric offset; one the new size reaches is `'end'`.
+  // R5 — a size change re-clamps every offset, moved by nothing; one the new size reaches is `'end'`.
   const next = new Map(state.scroll);
   for (const [name, at] of next) {
     const of = extents.get(name);
-    if (typeof at === 'number' && of !== undefined) next.set(name, settle(at, lastPage(of)));
+    if (of !== undefined) next.set(name, move(at, of, [0, 0]));
   }
   return { ...state, scroll: next };
 }

@@ -41,7 +41,7 @@ export function render(pane: Pane, t: number, live: boolean): string[] {
 export function fit(lines: readonly string[], rect: Pick<Rect, 'width' | 'height'>, at: number | 'end' = 0): string[] {
   const from = offset(at, Math.max(0, lines.length - rect.height));
   return Array.from({ length: rect.height }, (_, y) => {
-    const line = truncate(lines[from + y] ?? '', rect.width, { position: 'end' });
+    const line = truncate(lines[from + y] ?? '', rect.width);
     return line + ' '.repeat(Math.max(0, rect.width - width(line)));
   });
 }
@@ -119,10 +119,11 @@ export function compose(tree: Layout, panes: Panes, size: Frame, state?: Pick<Sc
   }
   const rects = place(tree, text, size)
     .map(({ name, rect, text }) => {
-      const at = size.live ? (state?.scroll.get(name) ?? 'end') : 0;
-      const lines = fit(text, rect, at);
-      const below = text.length - offset(at, Math.max(0, text.length - rect.height)) - rect.height;
-      if (below > 0 && name === state?.panes[state.focused]) lines[rect.height - 1] = fit([`↓ ${below}`], { width: rect.width, height: 1 })[0]!;
+      const from = size.live ? offset(state?.scroll.get(name), Math.max(0, text.length - rect.height)) : 0;
+      const lines = fit(text, rect, from);
+      const below = text.length - from - rect.height;
+      // Lines are below only when a scroll entry put them there, so `state` is given.
+      if (below > 0 && name === state!.panes[state!.focused]) lines[rect.height - 1] = fit([`↓ ${below}`], { width: rect.width, height: 1 })[0]!;
       return { rect, lines };
     })
     .sort((a, b) => a.rect.x - b.rect.x);
