@@ -14,8 +14,9 @@ not that it passes today.
 
 **Status on main:** 39 approved · 33 review · 17 draft, before Batch 0.
 
-**After Batch 0:** 18 shipped · 27 approved · 26 review · 10 draft · 11 dropped, counting
-`cli-modularity` and the two earlier drops. 17 intents were stamped `shipped`. 9 were dropped,
+**After Batch 0:** 18 shipped · 30 approved · 26 review · 7 draft · 11 dropped, counting
+`cli-modularity` and the two earlier drops. Three of those approvals landed beside Batch 0:
+`first-cli` (#1092), and `migrate-pins-carry-the-drop-in` and `release-cadence` (#1124). 17 intents were stamped `shipped`. 9 were dropped,
 each with a `D-20261018-drop-<slug>` decision. `localised-human-surfaces` stays `approved`: its
 criterion 4 needs an executed eval run.
 
@@ -120,7 +121,7 @@ Abbreviations used below:
 | facade-gets-more | **shipped** (batch 0) | **design.md** | SHIPPED | burgee/commander-facade | 6 | 6 | – | n | – | Rename `design.md` to `spec.md` so it can be approved. Its yargs numbers are stale (804, not 816) |
 | facade-projection-fidelity | approved | y | P | burgee/yargs-facade | 6 | 5 | R4 (yargs `.conflicts()`, `.implies()`, `.example()` not projected) | n | – | **LIVE DEFECT** for yargs users; stopped on the bundle ceiling. The owner delegated the byte call, so decide and record it |
 | first-adopter | review | y | NS | adoption/outreach | 5 | 0 | A1–A5 | n | – | The spec still names `commander-agent` and needs a rewrite. Barrier 5 (trust) |
-| first-cli | draft | y | NS (on main) | burgee/init | 5 | 0 | R1–R5 (in #1092) | n | – | Rebase #1092; needs the Design→Build accept |
+| first-cli | approved (#1092, beside batch 0) | y | NS (on main) | burgee/init | 5 | 0 | R1–R5 (in #1092) | n | – | Rebase #1092; needs the Design→Build accept |
 | fix-lines-every-shell | review | y | NS | burgee core (failure.ts) | 7 | 0 | R1–R4, S1–S3 | n | – | **LIVE DEFECT:** `fix:` lines are POSIX-quoted on Windows. Exclude `completions.ts` from R2's grep |
 | flagstaff | approved | y | P | flagstaff | 23 | 19 | S1–S3 (restate where they live), S8 per-surface plugin case | **y** | **save-restore.qnt** | The `·` in loop/frame test names is stored as `Â·`, so `-t` misses |
 | foundation-claims-watched | approved | y | P | benchmarks + CI | 10 | 9 | S3 (every `seen: null`; needs a fingerprint PR) | n | – | Nothing to build. Run compat-upstream, then a fingerprint PR |
@@ -133,7 +134,7 @@ Abbreviations used below:
 | mcp-current | **shipped** (batch 0) | y | SHIPPED | burgee/mcp | 7 | 7 | – | **y** (in-flight map, cancel vs settle, exactly-once exit) | **none** | Recommend `.sdlc/models/mcp-inflight.qnt` before stamping |
 | migrate-dynamic-specifiers | draft | **n** | SPEC | burgee/migrate | 3 | 0 | S1–S3 | n | – | Barrier 9 |
 | migrate-older-majors | draft | **n** | SPEC | burgee/migrate | 3 | 0 | S1–S3 (S2 partial) | n | – | **Barrier 1** (83.7% get "nothing to rewrite"). Depends on previous-majors |
-| migrate-pins-carry-the-drop-in | draft | **n** | SPEC — **IN-PROGRESS** | burgee/migrate | 2 | 0 | S1, S2 | n | – | **LIVE DEFECT** (svgo: `ERR_PACKAGE_PATH_NOT_EXPORTED`). Batch 1, local agent |
+| migrate-pins-carry-the-drop-in | approved (#1124, beside batch 0) | **n** | SPEC — **IN-PROGRESS** | burgee/migrate | 2 | 0 | S1, S2 | n | – | **LIVE DEFECT** (svgo: `ERR_PACKAGE_PATH_NOT_EXPORTED`). Batch 1, local agent |
 | migrate-preflight | draft | **n** | SPEC | burgee/migrate | 3 | 0 | S1–S3 | n | – | Barriers 2, 3 and 8 |
 | migrate-release-age | approved | y | P | burgee/migrate | 6 | 5 | R3 (no `a \|\| b` exclude case) | n | – | One test. Cite pins-carry-the-drop-in as R1's within-major gap |
 | output-stack-compat | review | y | P | compat-oracle | 8 | 4 (+3 partial) | R1/R5 drawing bucket, R4 drawing count, S1 inquirer/clack | n | – | The spec was never accepted. Decide on the drawing bucket |
@@ -143,7 +144,7 @@ Abbreviations used below:
 | plugin-contract | review | y | P | burgee check / plugins | 12 | 8 | R7 "data first" (restate; R5a hosts functions), C2 five modes, C3 check covers burgee only, C4 eval | n | – | The spec needs a full status table |
 | positioning | **shipped** (batch 0) | y | SHIPPED | docs-only | 16 | 15 | – (R12 reported by decision) | n | – | |
 | previous-majors | approved | y | NS (on main) | compat-oracle + façades + migrate | 6 | 0 (2 partial) | R1–R6 | n | – | **Barrier 1.** Rebase #1086 (R1, R2, R6); yargs 17 (R3–R5) remains |
-| release-cadence | draft | **n** | SPEC — **IN-PROGRESS** | release | 3 | 0 | S1, S2, BATCH | **y** (7-day window with a fix exemption) | none | Barrier 5. Batch 1, local agent |
+| release-cadence | approved (#1124, beside batch 0) | **n** | SPEC — **IN-PROGRESS** | release | 3 | 0 | S1, S2, BATCH | **y** (7-day window with a fix exemption) | none | Barrier 5. Batch 1, local agent |
 | replacement-parser | review | y | P | burgee/parse | 10 | 7 | G3 (quirks subpath; contradicts yargs-compat), G7, SC2 (1.55× ratchet, not ≤1×) | n | – | Restate to D-157 and drop G3 |
 | roundel | **shipped** (batch 0) | y | SHIPPED | roundel | 17 | 17 | – | n | – | Rewrite the stale 2026-09-09 verified section |
 | schema-bytes-gated | review | y | NS | benchmarks reliability | 3 | 0 | R1–R3 | n | – | Wave-4 #3. Copy the `SKILL_BYTES_BUDGET` gate |

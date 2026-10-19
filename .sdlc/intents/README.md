@@ -44,7 +44,9 @@ each intent's own header and the newest CI reading, not this table.
 
 **Recounted 2026-10-18 after Batch 0 of the roadmap-to-shipped program**
 ([`roadmap-to-shipped-2026-10.md`](../research/roadmap-to-shipped-2026-10.md)): 18 `shipped` ·
-27 `approved` · 26 `review` · 10 `draft` · 11 `dropped`, over 92 intents. Seventeen were stamped
+30 `approved` · 26 `review` · 7 `draft` · 11 `dropped`, over 92 intents. Three of the approvals,
+`first-cli`, `migrate-pins-carry-the-drop-in` and `release-cadence`, landed beside Batch 0 in #1092
+and #1124. Seventeen were stamped
 `shipped` against `main` at `1013b65db5`, each with an evidence table in its own `intent.md`.
 Nine were dropped, each with a `D-20261018-drop-<slug>` decision. The owner's 2026-10-12
 delegation covered the Design→Build accepts this needed for `burgee-migrate` (from `draft`),
