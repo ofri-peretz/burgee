@@ -3,7 +3,7 @@ repo:     https://github.com/alexeyraspopov/picocolors
 version:  1.1.1
 tag:      v1.1.1
 commit:   7249f8c5d4825550f70bc1ea98652639933d3bbd
-vendored: 2026-10-12
+vendored: 2026-10-19
 files:    1
 tool:     scripts/vendor-suite.ts
 
