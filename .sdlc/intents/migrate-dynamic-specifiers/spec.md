@@ -304,14 +304,79 @@ reasons: the R4 hold, the guard's scope, and the R3 walk.
 
 ## Build status
 
+Built on `feat/migrate-dynamic-specifiers` against `main` at `1dcf064a03`. Every case in
+`migrate-dynamic.test.ts` was red on `main` first (79 cases, the failure line of each is in the PR),
+except the four under *the lines it touched*. Those kill mutants on lines this change edited that
+were already there, so they pass on `main` by construction. All are green on the branch.
+
 | R | Status | Where | Check |
 | :-- | :-- | :-- | :-- |
-| R1 | Not built | `migrate.ts` (`capture`, `shapeOf`, `CWD_PATH`) | `migrate-dynamic.test.ts` › madge; R1–R3 |
-| R2 | Not built | `migrate.ts` (`ARGV_MEMBER`) | `migrate-dynamic.test.ts` › postcss-cli; R1–R3 |
-| R3 | Not built | `migrate.ts` (`bind`, `CALLBACK`, `Tokens.fifth`, `elements`) | `migrate-dynamic.test.ts` › postcss-cli; R3 cases |
-| R4 | Not built | `migrate.ts` (`scan`'s `named`, `hostsIn`, `rewriteFile`'s `loadable`) | `migrate-dynamic.test.ts` › R4 |
-| R5 | Not built | `migrate.ts` (`QUOTED`, `capture`) | `migrate-dynamic.test.ts` › R5; `migrate.test.ts` › A4 |
-| R6 | Not built | `migrate.ts` (`MigrationReport.dynamic`, `migrate()`, `textOf`) | `migrate-dynamic.test.ts`; `migrate-u12.test.ts`; `migrate.test.ts` key list |
-| model | Not built | `dynamic.qnt`; `models.yml` | `safety`; four rejected steps; `passedNeverMoves` |
+| R1 | Built | `migrate.ts` (`capture`, `shapeOf`, `CWD_PATH`) | `migrate-dynamic.test.ts` › madge; R1–R3 |
+| R2 | Built | `migrate.ts` (`ARGV_MEMBER`) | `migrate-dynamic.test.ts` › postcss-cli; R1–R3 |
+| R3 | Built | `migrate.ts` (`walk`, `opensACallback`, `CALLBACK`, `Tokens.fifth`, `elements`) | `migrate-dynamic.test.ts` › postcss-cli; R3 cases |
+| R4 | Built | `migrate.ts` (`scan`'s `named`, `namedOutsideASpecifier`, `hostsIn`, `rewriteFile`'s `loadable`) | `migrate-dynamic.test.ts` › R4 |
+| R5 | Built | `migrate.ts` (`QUOTED`, `capture`) | `migrate-dynamic.test.ts` › R5; `migrate.test.ts` › A4 |
+| R6 | Built | `migrate.ts` (`MigrationReport.dynamic`, `migrate()`, `textOf`); `apps/docs/content/docs/migrate.mdx` | `migrate-dynamic.test.ts`; `migrate-u12.test.ts`; `migrate.test.ts` key list |
+| model | Built | `dynamic.qnt`; `models.yml` (the four rejected steps, `passedNeverMoves`) | `safety` holds over 20,000 traces; each rejected step violates it |
 
-**Built: 0. Not built: 7.**
+**Built: 7. Not built: 0.**
+
+### Evidence against the intent's success criteria
+
+| Criterion | Evidence |
+| :-- | :-- |
+| postcss-cli shape: picocolors moves and the run is `complete`, red before | `the postcss-cli shape …`; red on `1dcf064a03` with `refused` at lines 69, 70, 71 and 77 |
+| madge shape: the file moves, red before | `the madge shape …`; red with `refused` at `bin/cli.js:63` |
+| `import(name)` built from a string naming an incumbent still holds it | `the incumbent the string names is held in every file …` and `a file that imports no incumbent …`; both red on `main`, where chalk moved in `b.js` |
+| field: the trial projects at their pinned SHAs | below |
+
+**Field check, 2026-10-19.** The branch's built `dist/cli.js` and `main`'s were each run with
+`migrate --dry-run --json` against clones at the trial SHAs. Nothing was installed: neither
+decision reads `node_modules`.
+
+- postcss-cli `03e8cee3`.
+  - `main`: `partial: 1 file would be rewritten, 1 refused`, with `index.js` 69, 70, 71 and 77
+    refused, picocolors held, and exit 1.
+  - Branch: `complete: 2 files would be rewritten`. picocolors moves to `roundel/picocolors` beside
+    yargs. `dynamic` lists 69, 70 and 71 as `argv-member` and 77 as `argv-element`. Nothing is held,
+    and the exit is 0. The line-79 template naming `${plugin}` guards nothing.
+- madge `456057b8`.
+  - `main`: `bin/cli.js:63` is refused, rc is held, and the exit is 1.
+  - Branch: nothing is refused or held, rc would move to `seniority/rc`, and `dynamic` lists
+    `bin/cli.js:63` as `cwd-path`. The run is then `blocked: 1 preflight check`. That is
+    `require-esm`, because madge is CommonJS on `engines.node >=18` (migrate-preflight R3), so it
+    still exits 1 and writes nothing. That block is correct, and it is a different barrier
+    (barrier 2).
+
+**Mutation** (`scripts/mutation.ts changed`): 224 mutants on the changed lines, 223 killed and 1
+timed out, so 100% are detected. The first run left 14:
+
+- Two were in `DIVIDES`, one in `CWD_PATH`'s anchor, two in the nested capture, one in the R3 arm,
+  and one in `mapped.reverse()`. Each got the case that tells it apart.
+- Two were `WORD.test(x.charAt(0))` against `WORD.test(x)`. They were equivalent, because every
+  token is a word or one character, so the `charAt` was deleted.
+- Five were the slot initialisers, which were equivalent. One annotation covers them.
+
+Three more lines carry an annotation. Each is an A10 guard that skips work whose result is
+discarded: the `capture` call, the R3 walk, and the R4 second pass.
+
+**Coverage**: 100% lines, branches, functions and statements on `migrate.ts`.
+
+**A10.** On the 1,000-file bench tree, the best of 15 scans took about 30.4 ms on `main` and 23.5 ms
+on the branch, on the same machine, under the same load:
+
+- the capture, the walk and the fifth slot cost about 3%;
+- `endOfWord`, which now matches each word with one sticky regular expression instead of one
+  `RegExp.test` per character, returned about 25%.
+
+`migrate-bench.test.ts` read 29–30 yardsticks against `main`'s 35–38 on this machine, with a budget
+of 40.
+
+**Weight**: against `main` at `1dcf064a03`, the burgee tarball grows by +1,004 B gzipped
+(272,644 → 273,648) and +3,651 B unpacked (1,032,556 → 1,036,207). Only `dist/migrate.js` changes
+(56,948 → 60,599 B). That is inside `check:artifacts`'s allowance of the recorded 267,600 /
+1,016,900, so the ceiling is not raised and no decision is recorded. Entry budgets are unchanged.
+
+**Not yet `shipped`**: every criterion has evidence on the branch. The intent moves to `shipped` once
+this is on `main` and released. The change is a `minor`, which the release window holds until about
+2026-10-25.
