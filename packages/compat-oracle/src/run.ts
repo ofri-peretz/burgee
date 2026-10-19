@@ -1196,9 +1196,14 @@ function installedCopy(name: string, dir: string): { at: string; version: string
   // whose `exports` leaves its manifest out refuses that specifier. tsd's `exports` is the one
   // string "./dist/index.js", so every tsd pin read as missing and `installSuiteDeps` ran npm on
   // every call, however many times the pin had been installed.
-  for (const modules of resolverAt(dir).resolve.paths(name) ?? []) {
+  const lookup = resolverAt(dir).resolve.paths(name);
+  // A builtin's name: Node never looks for it in node_modules, so there is no copy to read.
+  if (lookup === null) return undefined;
+  for (const modules of lookup) {
     const manifest = join(modules, name, 'package.json');
     if (!existsSync(manifest)) continue;
+    // The nearest manifest is the one Node loads, so an unreadable one ends the walk: a valid
+    // copy further out would only describe a package this suite never gets.
     try {
       // A real path, as `require.resolve` would have answered: `unsatisfiedPins` compares it to one.
       const at = realpathSync(manifest);

@@ -447,6 +447,14 @@ describe('a pinned suite dependency is satisfied only beside the suite', () => {
     expect(unsatisfiedPins({ garbled: '1.0.0', fs: '1.0.0' }, dir)).toEqual(['garbled@1.0.0', 'fs@1.0.0']);
   });
 
+  it('refuses a pin whose nearest manifest is unreadable, even with a good copy further out', () => {
+    install(outside, 'cracked', '0.5.6');
+    mkdirSync(join(nested, 'node_modules', 'cracked'), { recursive: true });
+    writeFileSync(join(nested, 'node_modules', 'cracked', 'package.json'), '{ nope');
+    // A range accepts a copy from anywhere, so only stopping at the broken one refuses it.
+    expect(unsatisfiedPins({ cracked: '^0.5.1' }, nested)).toEqual(['cracked@^0.5.1']);
+  });
+
   it('refuses a pin that is absent', () => {
     expect(unsatisfiedPins({ missing: '1.0.0' }, dir)).toEqual(['missing@1.0.0']);
   });
