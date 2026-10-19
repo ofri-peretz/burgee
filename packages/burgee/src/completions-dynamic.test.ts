@@ -117,7 +117,18 @@ const zsh = (line: string): string => execFileSync('zsh', [join(repo, 'scripts/c
 
 const fish = (line: string): string[] => lines(execFileSync('fish', [join(repo, 'scripts/complete-fish.fish'), scriptFor('fish'), line], { encoding: 'utf8', env })).map((l) => l.split('\t')[0] ?? '');
 
-const pwsh = (line: string): string[] => lines(execFileSync('pwsh', ['-NoProfile', '-File', join(repo, 'scripts/complete-pwsh.ps1'), '-Script', scriptFor('pwsh'), '-Line', line], { encoding: 'utf8', env }));
+// The same call `completions-shells.test.ts` makes (windows-lane-holds R3b): stdin closed,
+// non-interactive, no first-run checks, a timeout under the case's, and the script's
+// `pwsh-phase` lines kept off the test's output.
+const pwsh = (line: string): string[] =>
+  lines(
+    execFileSync('pwsh', ['-NoProfile', '-NonInteractive', '-File', join(repo, 'scripts/complete-pwsh.ps1'), '-Script', scriptFor('pwsh'), '-Line', line], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 100_000,
+      env: { ...env, POWERSHELL_UPDATECHECK: 'Off', POWERSHELL_TELEMETRY_OPTOUT: '1' },
+    }),
+  );
 
 describe('the script side: only a declared completer calls back (D3)', () => {
   it.each(SHELLS)('%s: says so in its header, and calls back for --region alone', (shell) => {

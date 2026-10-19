@@ -48,8 +48,24 @@
  * two things that fail identically for two different reasons, and a rule like that leaves a
  * gate red for a week before anyone reads it.
  */
+import { fileURLToPath } from 'node:url';
+
+/**
+ * ## Measured on the cell, not guessed from it (windows-lane-holds R1)
+ *
+ * A timeout is only judged against what the case takes where it runs. When
+ * `VITEST_DURATIONS_DIR` is set — `compat.yml`'s `matrix` and `floor` cells set it — every suite
+ * that spreads `timeouts` also writes each case's duration and effective timeout there, through
+ * `scripts/vitest-durations-reporter.ts`, and `scripts/slow-cases.mts` names any case above half
+ * of it. Unset, nothing changes: the reporter list is vitest's own default.
+ */
+const DURATIONS = process.env['VITEST_DURATIONS_DIR'];
+const durations: { reporters?: string[] } =
+  DURATIONS === undefined || DURATIONS === '' ? {} : { reporters: ['default', fileURLToPath(new URL('./scripts/vitest-durations-reporter.ts', import.meta.url))] };
+
 export const timeouts = {
   testTimeout: 30_000,
   /** Setup and teardown spawn and remove whole directory trees; `bellpull` already used 60 s by hand. */
   hookTimeout: 60_000,
-} as const;
+  ...durations,
+};

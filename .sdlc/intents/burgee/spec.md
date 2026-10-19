@@ -297,7 +297,10 @@ and evidence in [`cli-output-stack/intent.md`](../cli-output-stack/intent.md).
 
 Issue ids are from [what 230 issues say about the output stack](../../research/output-stack-open-issues.md).
 **U9** locks when the weekly one-turn authoring eval reaches the pass rate it states
-(proposed: 9 of 10 runs, three consecutive weeks); **U12** locks when the independence
+(proposed: 9 of 10 runs, three consecutive weeks, counted by `streak` over `readHistory` in
+`scripts/eval-history.ts`, so a `not-run` or `skipped` week neither extends nor breaks it — the
+2026-10-01 and 2026-10-15 weeks are `not-run`, not misses; restated 2026-10-18,
+`evals-record-not-run` R4); **U12** locks when the independence
 install test passes for every layer and the first adopter installs a layer alone, without
 burgee.
 
