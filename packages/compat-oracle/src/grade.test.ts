@@ -17,7 +17,7 @@
  * control run resolves the incumbent the way the vendored tree does — by walking up to the
  * workspace's `node_modules`.
  */
-import { type ExecFileSyncOptions } from 'node:child_process';
+import { type ExecFileSyncOptions, spawn } from 'node:child_process';
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -90,7 +90,12 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  rmSync(vendorDir, { recursive: true, force: true });
+  // Removed by an `rm` of its own that this hook does not wait for, as run.test.ts's tsd runner
+  // removes its own: under the pre-push load, unlinking a scratch directory of a handful of files
+  // took 64.9 s (2026-10-19), past the hook's timeout. `spawn` is the real one; the seam only
+  // replaces `execFileSync`. A run killed first leaves a `.grade-*` directory, which `.gitignore`
+  // already covers.
+  spawn('rm', ['-rf', vendorDir], { detached: true, stdio: 'ignore' }).unref();
   vi.unstubAllEnvs();
 });
 
