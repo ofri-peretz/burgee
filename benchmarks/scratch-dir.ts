@@ -28,7 +28,7 @@ import { afterAll } from 'vitest';
 export function scratchDirs(): (prefix: string) => string {
   const made: string[] = [];
   afterAll(() => {
-    if (made.length > 0) spawn('rm', ['-rf', ...made], { detached: true, stdio: 'ignore' }).unref();
+    if (made.length > 0 && process.platform !== 'win32') spawn('rm', ['-rf', ...made], { detached: true, stdio: 'ignore' }).unref();
   });
   return (prefix) => {
     const dir = mkdtempSync(join(tmpdir(), prefix));

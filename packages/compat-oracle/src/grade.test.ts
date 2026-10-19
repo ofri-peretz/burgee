@@ -95,7 +95,7 @@ afterEach(() => {
   // took 64.9 s (2026-10-19), past the hook's timeout. `spawn` is the real one; the seam only
   // replaces `execFileSync`. A run killed first leaves a `.grade-*` directory, which `.gitignore`
   // already covers.
-  spawn('rm', ['-rf', vendorDir], { detached: true, stdio: 'ignore' }).unref();
+  if (process.platform !== 'win32') spawn('rm', ['-rf', vendorDir], { detached: true, stdio: 'ignore' }).unref();
   vi.unstubAllEnvs();
 });
 

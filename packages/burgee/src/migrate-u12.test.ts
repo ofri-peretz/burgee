@@ -25,7 +25,7 @@ import { familyVersions, migrate, type MigrationReport, rewriteSource, scan, tex
  */
 const scratch: string[] = [];
 afterAll(() => {
-  if (scratch.length > 0) spawn('rm', ['-rf', ...scratch], { detached: true, stdio: 'ignore' }).unref();
+  if (scratch.length > 0 && process.platform !== 'win32') spawn('rm', ['-rf', ...scratch], { detached: true, stdio: 'ignore' }).unref();
 });
 
 function project(files: Record<string, string>): string {

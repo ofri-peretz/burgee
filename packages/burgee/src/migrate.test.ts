@@ -39,7 +39,7 @@ import { bindingsOf, DirtyTreeError, FACADE_EXPORTS, MAPPING, migrate, packageOf
  */
 const scratch: string[] = [];
 afterAll(() => {
-  if (scratch.length > 0) spawn('rm', ['-rf', ...scratch], { detached: true, stdio: 'ignore' }).unref();
+  if (scratch.length > 0 && process.platform !== 'win32') spawn('rm', ['-rf', ...scratch], { detached: true, stdio: 'ignore' }).unref();
 });
 
 /** A project on disk, under a fresh temporary directory each time. */

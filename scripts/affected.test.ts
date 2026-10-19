@@ -46,7 +46,7 @@ afterAll(() => {
   // Removed by an `rm` of its own that this hook does not wait for: under the pre-push load,
   // unlinking a scratch directory this size from Node took 152 s (2026-10-19), past the hook's
   // 60 s. A run killed first leaves an `affected-*` directory under the OS's temporary directory.
-  if (fixture) spawn('rm', ['-rf', fixture], { detached: true, stdio: 'ignore' }).unref();
+  if (fixture && process.platform !== 'win32') spawn('rm', ['-rf', fixture], { detached: true, stdio: 'ignore' }).unref();
 });
 
 function git(cwd: string, args: string[], input?: string): void {
