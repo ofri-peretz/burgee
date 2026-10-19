@@ -6,6 +6,8 @@
 
 **Status:** approved · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
 
+**Remaining (2026-10-19):** criterion 4 is held by the N10 gate on SD-5 (`BURGEE_HELD_CHECKS`, spec). Shipped once a CI N10 run passes under that gate.
+
 ---
 
 ## What is wanted

@@ -14,8 +14,9 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { agentLintFailures, agentLintRecord, BURGEE_FLOOR, clispecFailures, clispecRecord, parseAgentLint, parseClispec } from './axes/floor.js';
+import { agentLintFailures, agentLintRecord, BURGEE_FLOOR, BURGEE_HELD_CHECKS, clispecFailures, clispecRecord, heldChecksRecord, parseAgentLint, parseClispec } from './axes/floor.js';
 import { platform, TOOLS, verify } from './floor-tools.js';
+import { gateFailures } from './record.js';
 
 const tool = (id: string) => TOOLS.find((t) => t.id === id) as (typeof TOOLS)[number];
 
@@ -87,6 +88,41 @@ describe('records', () => {
 
   it('keeps cli-agent-lint’s percentage to one place, as its own report rounds it', () => {
     expect(agentLintRecord('burgee', parseAgentLint(AGENT_LINT_REPORT), tool('cli-agent-lint')).median).toBe(81.3);
+  });
+});
+
+/**
+ * agent-skill C4 and agent-lint-conformance R8 — two checks held by name on every CI reading, so
+ * the N10 job's `--check` fails a run that loses either, whatever the percentage does.
+ */
+/** A report carrying exactly these checks, each the status given; any but `pass` with the probe's words. */
+const report = (statuses: Record<string, string>): ReturnType<typeof parseAgentLint> =>
+  parseAgentLint(JSON.stringify({ score: { percentage: 100, grade: 'A' }, summary: { total: 34, pass: 34, warn: 0, fail: 0, skip: 0, error: 0 }, checks: Object.entries(statuses).map(([id, status]) => ({ id, name: id, status, detail: status === 'pass' ? '' : 'probe said no' })) }));
+
+describe('the held checks (agent-skill C4, agent-lint-conformance R8)', () => {
+  const lint = tool('cli-agent-lint');
+
+  it('holds SD-5 and FS-4', () => {
+    expect([...BURGEE_HELD_CHECKS]).toEqual(['SD-5', 'FS-4']);
+  });
+
+  it('a reading where both pass is gated green, as burgee’s own record', () => {
+    const record = heldChecksRecord(report({ 'SD-5': 'pass', 'FS-4': 'pass', 'TE-5': 'warn' }), lint);
+    expect(record).toMatchObject({ axis: 'floor', variant: 'burgee', metric: 'cli-agent-lint-held-checks-failing', median: 0, gate: { max: 0 } });
+    expect(gateFailures([record])).toEqual([]);
+  });
+
+  it('SD-5 at info (2026-10-12’s published reading) or FS-4 at warn fails the gate, named with the probe’s words', () => {
+    const record = heldChecksRecord(report({ 'SD-5': 'info', 'FS-4': 'warn' }), lint);
+    expect(record.median).toBe(2);
+    expect(record.detail?.['failed']).toBe('SD-5 SD-5 (info): probe said no; FS-4 FS-4 (warn): probe said no');
+    expect(gateFailures([record])).toHaveLength(1);
+  });
+
+  it('a held check the report does not carry fails too: a pin bump that renames it must be looked at', () => {
+    const record = heldChecksRecord(report({ 'FS-4': 'pass' }), lint);
+    expect(record.median).toBe(1);
+    expect(record.detail?.['failed']).toBe('SD-5 (not reported)');
   });
 });
 
