@@ -520,7 +520,7 @@ function writeInternalShims(host: Host, { hostDir, target, internals, packageTyp
  * (`Host.targetInternals`): each name the suite imports, re-exported from the file by absolute
  * URL — an exports map blocks a deep import by name, as it does the control's.
  */
-export function targetInternalBody(root: string, { file, names }: { file: string; names: Record<string, string> }, language = 'module'): string {
+export function targetInternalBody(root: string, { file, names }: { file: string; names: Record<string, string> }, language?: string): string {
   if (language === 'commonjs') {
     const list = Object.entries(names).map(([as, name]) => `${as}: loaded.${name}`);
     return `const loaded = require(${JSON.stringify(join(root, file))});\nmodule.exports = { ${list.join(', ')} };\n`;

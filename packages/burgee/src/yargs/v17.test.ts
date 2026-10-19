@@ -10,7 +10,7 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import Current from '../yargs.js';
 
@@ -76,6 +76,17 @@ describe('the string table is 17\'s: never reset by building an instance', () =>
     expect(make([]).detectLocale(false).locale()).toBe('pirate');
   });
 
+  it("reads the package's own locales, wherever the program runs from", async () => {
+    // A cwd with no `locales/` in it: a table resolved against the cwd would find no strings.
+    const cwd = vi.spyOn(process, 'cwd').mockReturnValue(root);
+    try {
+      const pirate = make17()(['--help']).locale('pirate') as unknown as { getHelp: () => Promise<string> };
+      expect(await pirate.getHelp()).toMatch(/Parlay this here code of conduct/);
+    } finally {
+      cwd.mockRestore();
+    }
+  });
+
   it('is its own per factory, so one load of the entry never sees another\'s', () => {
     make17()([]).locale('fr');
     expect(make17()([]).detectLocale(false).locale()).toBe('en');
@@ -98,7 +109,12 @@ describe("commandDir() walks as 17's require-directory does", () => {
   });
 
   it('reads `.js` when no extensions are given', () => {
-    expect(registered(Y17([]).commandDir(commands(tree), { recurse: true }))).toEqual([]);
+    expect(registered(Y17([]).commandDir(commands({ ...tree, 'plain.js': 'plain' }), { recurse: true }))).toEqual(['plain']);
+  });
+
+  it('matches any extension it is given, in any case', () => {
+    const dir = commands({ 'a.cjs': 'a', 'b.js': 'b', 'C.CJS': 'c', 'd.cjs.bak': 'd' });
+    expect(registered(Y17([]).commandDir(dir, { extensions: ['cjs', 'js'] })).sort()).toEqual(['a', 'b', 'c']);
   });
 
   it('hands `visit` the module itself, its path and its file name, and drops what it refuses', () => {
@@ -175,8 +191,19 @@ describe('a command module named by its file, through the CommonJS module cache'
   it('leaves a module that names its command, or several, as it is', () => {
     const named = { ...module, command: 'serve' };
     const listed = { ...module, command: ['run', 'go'] };
-    const both = { ...cache, '/x/serve.cjs': { exports: named, filename: '/x/serve.cjs' }, '/x/run.cjs': { exports: listed, filename: '/x/run.cjs' } } as unknown as NodeJS.Dict<NodeJS.Module>;
+    // Filed under other names, so a module wrongly taken for nameless would be renamed and show it.
+    const both = { ...cache, '/x/other.cjs': { exports: named, filename: '/x/other.cjs' }, '/x/elsewhere.cjs': { exports: listed, filename: '/x/elsewhere.cjs' } } as unknown as NodeJS.Dict<NodeJS.Module>;
     expect(registered(make17(both)([]).command(named).command(listed))).toEqual(['serve', 'run', 'go']);
+  });
+
+  it('skips a cache entry that is gone, as `require.cache` can hold one', () => {
+    const holed = { '/x/gone.cjs': undefined, ...cache } as unknown as NodeJS.Dict<NodeJS.Module>;
+    expect(registered(make17(holed)([]).command(module))).toEqual(['nameless']);
+  });
+
+  it('never looks a string command up in the cache, even one a module exports', () => {
+    const strings = { '/x/greet.cjs': { exports: 'greet', filename: '/x/greet.cjs' } } as unknown as NodeJS.Dict<NodeJS.Module>;
+    expect(registered(make17(strings)([]).command('greet', 'say hello'))).toEqual(['greet']);
   });
 
   it('passes every other form of `.command()` through', () => {

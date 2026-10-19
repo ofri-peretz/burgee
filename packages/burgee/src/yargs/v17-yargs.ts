@@ -10,5 +10,6 @@ import Yargs, { applyExtends, hideBin, Parser } from './v17.js';
 
 const factory = Object.assign((...args: Parameters<typeof Yargs>) => Yargs(...args), { applyExtends, hideBin, Parser });
 
+// Stryker disable next-line StringLiteral: an export name, which no mutant can stand in for — Stryker cannot place one in an export specifier and fails the whole run trying
 export { factory as 'module.exports' };
 export default factory;

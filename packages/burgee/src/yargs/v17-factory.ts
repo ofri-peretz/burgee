@@ -81,7 +81,7 @@ export function yargs17(modules?: NodeJS.Dict<NodeJS.Module>): ReturnType<typeof
       super.addHandler(file === undefined ? cmd : named(cmd as CommandHandlerDefinition, file), ...rest);
     }
   }
-  const strings = y18n({ directory: LOCALES, updateFiles: false });
+  const strings = y18n({ directory: LOCALES });
   const make = YargsFactory({ ...shim, y18n: strings, CommandInstance: Command17 });
   return (processArgs, cwd, parentRequire) => {
     const locale = strings.getLocale();

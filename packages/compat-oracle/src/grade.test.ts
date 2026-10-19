@@ -480,6 +480,15 @@ const lib = (over: Partial<Host> = {}): Host => host({ alias: 'the-incumbent', i
 const hook = (hostDir: string): string => join(hostDir, ALIAS_HOOK);
 
 describe('a host that grades a library built on the incumbent', () => {
+  it('looks for the target itself, never for an import of the library it grades', () => {
+    // The import names the library, which is not the target's: `semver/no-such-entry` does not
+    // exist and must not make a built target read as unbuilt.
+    const h = lib({ imports: [{ upstream: '../index.js', subpath: '/no-such-entry', reexportDefault: false, control: 'node:path' }] });
+    vendored(h, { 'a.test.js': '' });
+    seam.exec = prints(SUMMARY(1, 1));
+    expect(grade(h, vendorDir, 'semver').note).toBeUndefined();
+    expect(grade(h, vendorDir, 'no-such-target').note).toBe('target not built yet: no-such-target');
+  });
 
   it('hands the suite the library itself on both runs', () => {
     const hostDir = vendored(lib(), { 'a.test.js': '' });
