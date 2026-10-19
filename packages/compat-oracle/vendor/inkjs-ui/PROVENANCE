@@ -3,7 +3,7 @@ repo:     https://github.com/vadimdemedes/ink-ui
 version:  2.0.0
 tag:      v2.0.0
 commit:   14b1145da0123a48cfc2f0ec9ff33dff0633f464
-vendored: 2026-10-12
+vendored: 2026-10-19
 files:    13
 tool:     scripts/vendor-suite.ts
 

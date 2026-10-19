@@ -3,7 +3,7 @@ repo:     https://github.com/tj/commander.js
 version:  15.0.0
 tag:      v15.0.0
 commit:   ba6d13ddb4243e5913367734f8c159089ffe7834
-vendored: 2026-10-12
+vendored: 2026-10-19
 files:    109
 tool:     scripts/vendor-suite.ts
 
