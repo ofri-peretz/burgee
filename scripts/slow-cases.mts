@@ -81,9 +81,11 @@ export function readReports(paths: readonly string[]): DurationReport[] {
   });
 }
 
+const PERCENT = 100;
+
 /** One line per slow case, the way the CLI prints it. */
 export function describeSlow(c: SlowCase): string {
-  return `${String(Math.round(c.share * 100))}% — ${String(c.duration)} of ${String(c.timeout)} ms · ${c.platform} ${c.node} · ${c.file} › ${c.name}`;
+  return `${String(Math.round(c.share * PERCENT))}% — ${String(c.duration)} of ${String(c.timeout)} ms · ${c.platform} ${c.node} · ${c.file} › ${c.name}`;
 }
 
 interface WorkflowStep {

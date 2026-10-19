@@ -233,42 +233,72 @@ function caseProblems(id: string, c: unknown, v: 1 | 2): string[] {
   return [...out, ...tokensProblems(c.tokens, where)];
 }
 
-function tasksProblems(t: unknown, v: 1 | 2): string[] {
-  if (!isObject(t)) return ['tasks is not an object'];
+/** The run's own fields: status, and the counts it reports. */
+function tasksHeaderProblems(t: Record<string, unknown>, v: 1 | 2): string[] {
   const out: string[] = [];
   const statuses = v === 1 ? ['ran', 'skipped'] : ['ran', 'skipped', 'not-run'];
   if (!statuses.includes(t.status as string)) out.push(`tasks.status is not ${statuses.join(' | ')}`);
   if (!isCount(t.passed) || !isCount(t.total)) out.push('tasks.passed / tasks.total are not counts');
   if (v === 2 && !isCount(t.notRun)) out.push('tasks.notRun is not a count');
-  if (!isObject(t.cases)) return [...out, 'tasks.cases is not an object'];
-  const cases = Object.entries(t.cases);
+  return out;
+}
+
+/** The reported counts agree with the cases recorded. */
+function tasksCountProblems(t: Record<string, unknown>, cases: [string, unknown][], v: 1 | 2): string[] {
+  const out: string[] = [];
   const recorded = Number(t.total) + (v === 2 ? Number(t.notRun) : 0);
   if (cases.length !== recorded) {
     out.push(v === 1 ? `tasks.total is ${String(t.total)} but ${cases.length} case(s) are recorded` : `tasks.total + tasks.notRun is ${String(recorded)} but ${cases.length} case(s) are recorded`);
   }
-  if (cases.filter(([, c]) => isObject(c) && c.status === 'pass').length !== t.passed) out.push('tasks.passed does not match the cases that passed');
-  if (v === 2 && cases.filter(([, c]) => isObject(c) && c.status === 'not-run').length !== t.notRun) out.push('tasks.notRun does not match the cases that did not run');
+  const counted = (status: string): number => cases.filter(([, c]) => isObject(c) && c.status === status).length;
+  if (counted('pass') !== t.passed) out.push('tasks.passed does not match the cases that passed');
+  if (v === 2 && counted('not-run') !== t.notRun) out.push('tasks.notRun does not match the cases that did not run');
+  return out;
+}
+
+/** A skipped run records nothing; a not-run run ran nothing and says why. */
+function tasksStatusProblems(t: Record<string, unknown>, cases: [string, unknown][], v: 1 | 2): string[] {
+  const out: string[] = [];
   if (t.status === 'skipped' && cases.length > 0) out.push('a skipped run records no cases');
   if (v === 2 && t.status === 'not-run') {
     if (t.total !== 0) out.push('a not-run run has total 0: no case ran');
     if (!isReason(t.reason) && t.reason !== 'mixed') out.push(`tasks.reason is not ${NOT_RUN_REASONS.join(' | ')} | mixed`);
   }
-  return [...out, ...cases.flatMap(([id, c]) => caseProblems(id, c, v))];
+  return out;
+}
+
+function tasksProblems(t: unknown, v: 1 | 2): string[] {
+  if (!isObject(t)) return ['tasks is not an object'];
+  const out = tasksHeaderProblems(t, v);
+  if (!isObject(t.cases)) return [...out, 'tasks.cases is not an object'];
+  const cases = Object.entries(t.cases);
+  return [...out, ...tasksCountProblems(t, cases, v), ...tasksStatusProblems(t, cases, v), ...cases.flatMap(([id, c]) => caseProblems(id, c, v))];
+}
+
+/** Which line this is: its version, date, commit and run. */
+function identityProblems(doc: Record<string, unknown>): string[] {
+  const out: string[] = [];
+  if (doc.v !== 1 && doc.v !== HISTORY_VERSION) out.push(`v is not 1 or ${HISTORY_VERSION}`);
+  if (typeof doc.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(doc.date)) out.push('date is not YYYY-MM-DD');
+  if (typeof doc.commit !== 'string' || !/^[0-9a-f]{40}$/.test(doc.commit)) out.push('commit is not a full 40-character sha');
+  if (doc.run !== undefined && !(Number.isInteger(doc.run) && (doc.run as number) > 0)) out.push('run is not a positive integer');
+  return out;
+}
+
+/** How it ran: the model, the billing, and the config layer's counts. */
+function runProblems(doc: Record<string, unknown>): string[] {
+  const out: string[] = [];
+  if (doc.model !== null && typeof doc.model !== 'string') out.push('model is not a string or null');
+  if (!['none', 'subscription', 'console'].includes(doc.billing as string)) out.push('billing is not none | subscription | console');
+  if (!isObject(doc.config) || !isCount(doc.config.passed) || !isCount(doc.config.total)) out.push('config is not { passed, total } counts');
+  return out;
 }
 
 /** Every way `doc` is not a v1 or v2 history line. Empty means it is one. */
 export function historyProblems(doc: unknown): string[] {
   if (!isObject(doc)) return ['not a JSON object'];
-  const out: string[] = [];
   const v = doc.v === 1 ? 1 : 2;
-  if (doc.v !== 1 && doc.v !== HISTORY_VERSION) out.push(`v is not 1 or ${HISTORY_VERSION}`);
-  if (typeof doc.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(doc.date)) out.push('date is not YYYY-MM-DD');
-  if (typeof doc.commit !== 'string' || !/^[0-9a-f]{40}$/.test(doc.commit)) out.push('commit is not a full 40-character sha');
-  if (doc.run !== undefined && !(Number.isInteger(doc.run) && (doc.run as number) > 0)) out.push('run is not a positive integer');
-  if (doc.model !== null && typeof doc.model !== 'string') out.push('model is not a string or null');
-  if (!['none', 'subscription', 'console'].includes(doc.billing as string)) out.push('billing is not none | subscription | console');
-  if (!isObject(doc.config) || !isCount(doc.config.passed) || !isCount(doc.config.total)) out.push('config is not { passed, total } counts');
-  return [...out, ...tasksProblems(doc.tasks, v)];
+  return [...identityProblems(doc), ...runProblems(doc), ...tasksProblems(doc.tasks, v)];
 }
 
 const zeroTokens = (t: unknown): boolean => isObject(t) && (['input', 'output', 'cacheRead', 'cacheWrite'] as const).every((k) => t[k] === 0);

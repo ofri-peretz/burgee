@@ -12,17 +12,21 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import type { Reporter, TestModule } from 'vitest/node';
+import { type Reporter, type TestModule } from 'vitest/node';
 
-import type { DurationCase, DurationReport } from './slow-cases.mjs';
+import { type DurationCase, type DurationReport } from './slow-cases.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
+
+/** vitest's own default `testTimeout`, until `onInit` reads the configured one. */
+const VITEST_DEFAULT_TIMEOUT_MS = 5_000;
 
 /** POSIX separators on every OS, so a Windows report names a file the way a Linux one does. */
 const posix = (path: string): string => path.split('\\').join('/');
 
+// eslint-disable-next-line import-next/no-default-export -- vitest loads a reporter given by path from its default export
 export default class DurationsReporter implements Reporter {
-  private testTimeout = 5_000;
+  private testTimeout = VITEST_DEFAULT_TIMEOUT_MS;
 
   onInit(vitest: { config: { testTimeout: number } }): void {
     this.testTimeout = vitest.config.testTimeout;

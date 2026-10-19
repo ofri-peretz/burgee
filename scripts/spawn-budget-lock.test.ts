@@ -45,7 +45,11 @@ function rootName(node: ts.Expression): string | undefined {
   return undefined;
 }
 
-const literal = (node: ts.Node): string | undefined => (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) ? node.text : ts.isTemplateExpression(node) ? node.head.text : undefined);
+function literal(node: ts.Node): string | undefined {
+  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return node.text;
+  if (ts.isTemplateExpression(node)) return node.head.text;
+  return undefined;
+}
 const namesNpm = (node: ts.Node): boolean => (literal(node) ?? (ts.isIdentifier(node) ? node.text : '')).toLowerCase().includes('npm');
 
 /** A call that runs an install itself. */
@@ -57,9 +61,18 @@ function runsInstall(call: ts.CallExpression): boolean {
   return call.arguments.some((arg) => ts.isArrayLiteralExpression(arg) && INSTALL_VERBS.has(literal(arg.elements[0] ?? arg) ?? ''));
 }
 
-function visit(node: ts.Node, each: (node: ts.Node) => void): void {
-  each(node);
-  ts.forEachChild(node, (child) => visit(child, each));
+/** Every node under `root`, each once; a stack, not recursion, so a deep file cannot overflow it. */
+function visit(root: ts.Node, each: (node: ts.Node) => void): void {
+  const stack: ts.Node[] = [root];
+  for (let node = stack.pop(); node !== undefined; node = stack.pop()) {
+    each(node);
+    const children: ts.Node[] = [];
+    ts.forEachChild(node, (child) => {
+      children.push(child);
+    });
+    // Reversed onto the stack, so nodes come off in source order, as the recursive walk did.
+    for (let i = children.length - 1; i >= 0; i -= 1) stack.push(children[i] as ts.Node);
+  }
 }
 
 /** The name a function is declared under: `function f`, `const f = () =>`, `const f = function`. */

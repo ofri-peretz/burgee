@@ -96,6 +96,7 @@ billed. The message text only names the reason.
 
 - Whether to rewrite the 2026-10-15 line or delete it. **Answered 2026-10-18 in `spec.md`**:
   rewrite it. The run happened and layer 1 measured 4 of 4. Only layer 2's verdict was false.
-- Why the subscription was exhausted by Tuesday. *Unknown.* Ten B1 push readings landed on
-  2026-10-12 and 10-13, at 50 paid runs each, on the same subscription. That is the likely
-  drain, but it is not measured. It is recorded in `NOTES.md` and is out of scope here.
+- Why the subscription was exhausted by Tuesday. **Answered 2026-10-19** by
+  D-20261019-b1-weekly-not-per-push: the B1 `agent` job ran on every push to main, about 25 paid
+  runs a merge on the same subscription. About 250 landed in the hours after the 2026-10-18
+  reset. B1 now runs on the weekly schedule, a manual dispatch or a `bench:agent` PR only.

@@ -355,10 +355,13 @@ export interface ToolCall {
 /** How much of a tool call's input and output a transcript keeps. */
 const CALL_CHARS = 400;
 
-const clip = (text: string): string => {
+/** `text` on one line, cut to `max` characters with an ellipsis. */
+const clipTo = (text: string, max: number): string => {
   const flat = text.replaceAll(/\s+/gu, ' ').trim();
-  return flat.length > CALL_CHARS ? `${flat.slice(0, CALL_CHARS)}…` : flat;
+  return flat.length > max ? `${flat.slice(0, max)}…` : flat;
 };
+
+const clip = (text: string): string => clipTo(text, CALL_CHARS);
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
@@ -464,10 +467,7 @@ export function redact(text: string, env: NodeJS.ProcessEnv = process.env): stri
 }
 
 const EXCERPT_CHARS = 200;
-const excerptOf = (text: string): string => {
-  const flat = text.replaceAll(/\s+/gu, ' ').trim();
-  return flat.length > EXCERPT_CHARS ? `${flat.slice(0, EXCERPT_CHARS)}…` : flat;
-};
+const excerptOf = (text: string): string => clipTo(text, EXCERPT_CHARS);
 
 /**
  * The wording `claude` uses for a stop before the model works. It only names the reason; it never
@@ -516,7 +516,8 @@ export function caseOutcome(c: EvalCase, r: Spawned): Omit<CaseResult, 'id'> {
   const doc = eventOf(result);
   const resultDoc = doc?.type === 'result' ? doc : undefined;
   if (neverRan(resultDoc, r.stdout)) {
-    const said = typeof resultDoc?.result === 'string' && resultDoc.result !== '' ? resultDoc.result : r.stderr;
+    const answer = resultDoc?.result;
+    const said = typeof answer === 'string' && answer !== '' ? answer : r.stderr;
     return { status: 'not-run', reason: notRunReason(resultDoc, said), excerpt: redact(excerptOf(said)), failed: [], ...NO_USAGE, calls };
   }
   const { text, usage } = parseClaudeJson(result);
@@ -557,14 +558,20 @@ export interface Verdict {
  * axis that measured nothing, but it is named for what it is: the run did not run, which is not
  * the same news as an eval that stopped passing. A real failure, or a layer-1 one, outranks it.
  */
+/** The one reason every not-run case shares, or `mixed`. */
+function oneReason(reasons: ReadonlySet<string>): string {
+  return reasons.size === 1 ? [...reasons][0] ?? 'mixed' : 'mixed';
+}
+
 export function verdict(results: readonly CaseResult[] | null, configFailures: number): Verdict {
   const all = results ?? [];
   const notRun = all.filter((r) => r.status === 'not-run');
   const ran = all.filter((r) => r.status !== 'not-run');
   const failures = configFailures + ran.filter((r) => r.status !== 'pass').length;
   const reasons = new Set(notRun.map((r) => r.reason ?? 'did-not-start'));
-  const reason = notRun.length === 0 ? undefined : reasons.size === 1 ? [...reasons][0] : 'mixed';
-  const rate = results === null ? '' : `pass rate: ${ran.length - ran.filter((r) => r.status !== 'pass').length}/${ran.length}${notRun.length === 0 ? '' : ` (${notRun.length} not run: ${String(reason)})`}`;
+  const reason = notRun.length === 0 ? undefined : oneReason(reasons);
+  const notRunNote = notRun.length === 0 ? '' : ` (${notRun.length} not run: ${String(reason)})`;
+  const rate = results === null ? '' : `pass rate: ${ran.length - ran.filter((r) => r.status !== 'pass').length}/${ran.length}${notRunNote}`;
   const skippedNote = notRun.length === 0 ? '' : `; ${notRun.length} case(s) not run`;
   if (failures > 0) return { outcome: 'failed', ...(reason === undefined ? {} : { reason }), exitCode: 1, rate, last: `💥 ${failures} eval failure(s)${skippedNote}` };
   if (notRun.length > 0) return { outcome: 'not-run', ...(reason === undefined ? {} : { reason }), exitCode: 1, rate, last: `⏭ ${notRun.length} case(s) not run — not an eval failure` };

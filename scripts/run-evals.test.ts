@@ -230,6 +230,8 @@ const contains = (value: string): EvalCase => ({ id: 'x', why: '', prompt: 'p', 
 const spent = (over: Record<string, unknown>) =>
   JSON.stringify({ type: 'result', subtype: 'success', is_error: false, num_turns: 3, result: 'I wrote it.', usage: { input_tokens: 10, output_tokens: 200, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }, modelUsage: { 'claude-sonnet-4-5': {} }, ...over });
 
+const doc = (over: Record<string, unknown>) => JSON.stringify({ ...(JSON.parse(LIMIT_DOC) as object), ...over });
+
 describe('evals-record-not-run R1 — an agent that never ran is not scored', () => {
   it('R1 — a usage-limit stop is not-run, with its reason, never a failure', () => {
     const stream = [event({ type: 'system', subtype: 'init' }), LIMIT_DOC].join('\n');
@@ -259,7 +261,6 @@ describe('evals-record-not-run R1 — an agent that never ran is not scored', ()
   });
 
   it('names the reason: the status first, then the wording, then did-not-start', () => {
-    const doc = (over: Record<string, unknown>) => JSON.stringify({ ...(JSON.parse(LIMIT_DOC) as object), ...over });
     const reason = (stdout: string, stderr = '') => caseOutcome(contains('x'), { stdout, stderr }).reason;
     expect(reason(doc({ api_error_status: 401, result: 'nope' }))).toBe('auth');
     expect(reason(doc({ api_error_status: 403, result: 'nope' }))).toBe('auth');
@@ -291,8 +292,9 @@ describe('evals-record-not-run R1 — an agent that never ran is not scored', ()
   });
 });
 
+const result = (id: string, status: CaseResult['status'], reason?: CaseResult['reason']): CaseResult => ({ id, status, failed: [], turns: null, tokens: null, model: null, calls: [], ...(reason ? { reason, excerpt: LIMIT_TEXT } : {}) });
+
 describe('evals-record-not-run R5 — a run that did not run says so, and is never called failing', () => {
-  const result = (id: string, status: CaseResult['status'], reason?: CaseResult['reason']): CaseResult => ({ id, status, failed: [], turns: null, tokens: null, model: null, calls: [], ...(reason ? { reason, excerpt: LIMIT_TEXT } : {}) });
 
   it('R5 — a run with not-run cases names them and is not called a failure', () => {
     const v = verdict([result('a', 'not-run', 'usage-limit'), result('b', 'not-run', 'usage-limit')], 0);

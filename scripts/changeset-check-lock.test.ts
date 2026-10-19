@@ -132,6 +132,17 @@ function git(cwd: string, args: string[], input?: string): string {
 const file = (path: string, text: string): string => `M 100644 inline ${path}\ndata ${String(Buffer.byteLength(text))}\n${text}\n`;
 const json = (value: object): string => `${JSON.stringify(value, undefined, 2)}\n`;
 
+/** One `git fast-import` commit record: a ref, its mark, a message, the files, and its parent mark. */
+interface FastImportCommit {
+  ref: string;
+  mark: number;
+  message: string;
+  files: string;
+  from?: number;
+}
+const commit = ({ ref, mark, message, files, from }: FastImportCommit): string =>
+  `commit refs/heads/${ref}\nmark :${String(mark)}\ncommitter lock <lock@example.com> 1700000000 +0000\ndata ${String(message.length)}\n${message}\n${from === undefined ? '' : `from :${String(from)}\n`}${files}\n`;
+
 /**
  * windows-lane-holds R4 — one repository per file, built in two git runs: `git init` and one
  * `git fast-import` that writes `base` and every head as a branch on it. The step only reads
@@ -146,14 +157,12 @@ const json = (value: object): string => `${JSON.stringify(value, undefined, 2)}\
 function buildRepository(): { cwd: string; shas: Record<'base' | Head, string> } {
   const cwd = mkdtempSync(join(tmpdir(), 'changeset-check-repo-'));
   const marks = join(mkdtempSync(join(tmpdir(), 'changeset-check-marks-')), 'marks');
-  const commit = (ref: string, mark: number, message: string, files: string, from?: number): string =>
-    `commit refs/heads/${ref}\nmark :${String(mark)}\ncommitter lock <lock@example.com> 1700000000 +0000\ndata ${String(message.length)}\n${message}\n${from === undefined ? '' : `from :${String(from)}\n`}${files}\n`;
   const names = Object.keys(HEADS) as Head[];
   const stream = [
-    commit('base', 1, 'base', file(MANIFEST_PATH, json(MANIFEST))),
+    commit({ ref: 'base', mark: 1, message: 'base', files: file(MANIFEST_PATH, json(MANIFEST)) }),
     ...names.map((name, i) => {
       const { manifest, extra } = HEADS[name];
-      return commit(name, i + 2, 'head', [file(MANIFEST_PATH, json(manifest)), ...Object.entries(extra).map(([path, text]) => file(path, text))].join(''), 1);
+      return commit({ ref: name, mark: i + 2, message: 'head', files: [file(MANIFEST_PATH, json(manifest)), ...Object.entries(extra).map(([path, text]) => file(path, text))].join(''), from: 1 });
     }),
   ].join('');
   git(cwd, ['init', '--quiet']);

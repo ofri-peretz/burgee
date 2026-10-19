@@ -196,11 +196,12 @@ describe('evals-record-not-run R2 — a case whose agent never ran has no score'
   });
 });
 
+const at = (date: string, cases: Parameters<typeof historyLine>[0]['cases']): HistoryLine => historyLine({ date, commit: SHA, billing: 'subscription', config: { passed: 4, total: 4 }, cases });
+const ran = (id: string, status: 'pass' | 'fail', turns: number) => ({ id, status, turns, tokens: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0 }, model: 'm' });
+const tenOfTen = (date: string, turns = 7): HistoryLine => at(date, Array.from({ length: 10 }, (_, i) => ran(i === 0 ? 'locale-pack-from-schema' : `case-${String(i)}`, 'pass', turns)));
+const notRunWeek = (date: string): HistoryLine => at(date, ['locale-pack-from-schema', ...Array.from({ length: 10 }, (_, i) => `case-${String(i + 1)}`)].map(notRunCase));
+
 describe('evals-record-not-run R4 — readers skip a week that measured nothing', () => {
-  const at = (date: string, cases: Parameters<typeof historyLine>[0]['cases']): HistoryLine => historyLine({ date, commit: SHA, billing: 'subscription', config: { passed: 4, total: 4 }, cases });
-  const ran = (id: string, status: 'pass' | 'fail', turns: number) => ({ id, status, turns, tokens: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0 }, model: 'm' });
-  const tenOfTen = (date: string, turns = 7): HistoryLine => at(date, Array.from({ length: 10 }, (_, i) => ran(i === 0 ? 'locale-pack-from-schema' : `case-${String(i)}`, 'pass', turns)));
-  const notRunWeek = (date: string): HistoryLine => at(date, ['locale-pack-from-schema', ...Array.from({ length: 10 }, (_, i) => `case-${String(i + 1)}`)].map(notRunCase));
 
   it('R4 — a not-run week neither breaks nor counts toward a series', () => {
     const series = [tenOfTen('2026-10-08', 7), notRunWeek('2026-10-15'), tenOfTen('2026-10-22', 5)];

@@ -89,6 +89,14 @@ describe('windows-lane-holds R2 — a case above half its timeout is named', () 
   });
 });
 
+/** A vitest TestCase shaped just enough for the reporter: a name, a timeout, a duration. */
+const fakeTest = (name: string, timeout: number | undefined, duration: number | undefined) => ({
+  fullName: name,
+  options: { timeout },
+  result: () => ({ state: 'passed' }),
+  diagnostic: () => (duration === undefined ? undefined : { duration }),
+});
+
 describe('windows-lane-holds R1 — durations come from the cell', () => {
   it('the reporter writes each case’s duration and effective timeout into $VITEST_DURATIONS_DIR', () => {
     const at = dir();
@@ -97,16 +105,10 @@ describe('windows-lane-holds R1 — durations come from the cell', () => {
     try {
       const reporter = new DurationsReporter();
       reporter.onInit({ config: { testTimeout: 30_000 } });
-      const test = (name: string, timeout: number | undefined, duration: number | undefined) => ({
-        fullName: name,
-        options: { timeout },
-        result: () => ({ state: 'passed' }),
-        diagnostic: () => (duration === undefined ? undefined : { duration }),
-      });
       const module = {
         moduleId: join(ROOT, 'packages', 'burgee', 'src', 'x.test.ts'),
         project: { config: { testTimeout: undefined } },
-        children: { allTests: () => [test('own', 120_000, 61_000.4), test('inherited', undefined, 12), test('skipped', undefined, undefined)] },
+        children: { allTests: () => [fakeTest('own', 120_000, 61_000.4), fakeTest('inherited', undefined, 12), fakeTest('skipped', undefined, undefined)] },
       };
       reporter.onTestRunEnd([module] as unknown as Parameters<DurationsReporter['onTestRunEnd']>[0]);
       const files = readdirSync(at);
