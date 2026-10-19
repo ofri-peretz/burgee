@@ -400,6 +400,82 @@ describe('ending', () => {
   });
 });
 
+/** A terminal's input: raw mode is a flag the test can read back. */
+class Terminal extends Input {
+  isTTY = true;
+  isRaw = false;
+  setRawMode(raw: boolean): this {
+    this.isRaw = raw;
+    return this;
+  }
+}
+
+/** A prompt whose own code — the hook named `hook` — throws once `armed` says so. */
+function breaking(hook: 'render' | 'onKey' | 'finalize' | 'abort', armed: () => boolean) {
+  const input = new Terminal();
+  const output = new Output();
+  const controller = new AbortController();
+  const boom = new Error(`${hook} broke`);
+  const fail = (): void => {
+    if (armed()) throw boom;
+  };
+  const answer = run<string>({
+    input,
+    output,
+    track: true,
+    signal: controller.signal,
+    render: (prompt) => {
+      if (hook === 'render') fail();
+      return `> ${prompt.userInput}`;
+    },
+    onKey: () => {
+      if (hook === 'onKey') fail();
+    },
+    finalize: () => {
+      if (hook === 'finalize' || hook === 'abort') fail();
+    },
+  });
+  return { input, output, controller, boom, answer };
+}
+
+/** What a prompt rejected with, or what it settled to — `pending` when it has not. */
+const outcome = async (answer: Promise<unknown>): Promise<unknown> => state(answer).catch((reason: unknown) => reason);
+
+describe("a throw from the prompt's own code", () => {
+  it.each(['render', 'onKey', 'finalize'] as const)('a %s that throws on a key rejects the prompt with that error, and gives the terminal back', async (hook) => {
+    const escaped = escapes();
+    let armed = false;
+    const { input, output, boom, answer } = breaking(hook, () => armed);
+    expect(input.isRaw).toBe(true);
+    armed = true;
+    typeLine(input, 'x');
+    ret(input);
+    const settled = await outcome(answer);
+    // Nothing awaits a keypress listener: a throw left in it reaches only this.
+    expect(escaped()).toEqual([]);
+    expect(settled).toBe(boom);
+    expect(input.isRaw).toBe(false);
+    expect(input.listenerCount('keypress')).toBe(0);
+    // Two queued keys threw for render and onKey; the first closed the prompt, once.
+    expect(output.buffer.at(-1)).toBe(SHOW_CURSOR);
+  });
+
+  it('a render that throws on the first frame rejects the prompt and leaves no key listener or raw mode behind', async () => {
+    const { input, boom, answer } = breaking('render', () => true);
+    expect(await outcome(answer)).toBe(boom);
+    expect(input.isRaw).toBe(false);
+    expect(input.listenerCount('keypress')).toBe(0);
+  });
+
+  it('a finalize that throws while an abort cancels rejects the prompt, and gives the terminal back', async () => {
+    const { input, output, controller, boom, answer } = breaking('abort', () => true);
+    controller.abort();
+    expect(await outcome(answer)).toBe(boom);
+    expect(input.isRaw).toBe(false);
+    expect(output.buffer.at(-1)).toBe(SHOW_CURSOR);
+  });
+});
+
 describe('the frame', () => {
   it('wraps at 80 columns when the stream does not say how wide it is', async () => {
     for (const columns of [undefined, 0]) {

@@ -311,7 +311,8 @@ class Session<T> {
     private readonly definition: Definition<T>,
     private readonly input: Raw,
     private readonly output: Output,
-    private readonly settle: (answer: T | symbol) => void,
+    /** The prompt's promise: answered on close, or rejected with a throw from the prompt's own code. */
+    private readonly answer: { resolve: (answer: T | symbol) => void; reject: (reason: unknown) => void },
   ) {
     this.prompt = { state: 'initial', value: definition.initialValue, error: '', userInput: '', cursor: 0 };
     if (definition.initialUserInput !== undefined) {
@@ -334,7 +335,9 @@ class Session<T> {
     this.input.on('keypress', this.onKeypress);
     this.unraw = rawMode(this.input, exitHook);
     this.input.resume();
-    this.draw();
+    this.guarded(() => {
+      this.draw();
+    });
   }
 
   /** Draw the current frame, if it changed. The first draw hides the cursor and registers its return. */
@@ -351,7 +354,8 @@ class Session<T> {
     this.previous = frame;
   }
 
-  private close(): void {
+  /** Listeners off, raw mode off, the cursor back: the terminal as the prompt found it. */
+  private release(): void {
     this.closed = true;
     this.input.removeListener('keypress', this.onKeypress);
     this.definition.signal?.removeEventListener('abort', this.cancel);
@@ -359,7 +363,11 @@ class Session<T> {
     this.unraw();
     this.input.pause();
     this.restore();
-    this.settle(this.prompt.state === 'submit' ? (this.prompt.value as T) : CANCEL_SYMBOL);
+  }
+
+  private close(): void {
+    this.release();
+    this.answer.resolve(this.prompt.state === 'submit' ? (this.prompt.value as T) : CANCEL_SYMBOL);
   }
 
   private finish(): void {
@@ -368,10 +376,31 @@ class Session<T> {
     this.close();
   }
 
+  /**
+   * A throw from the prompt's own code — a render, a hook, `finalize` — rejects the prompt with
+   * it, after giving the terminal back. Nothing awaits the keypress listener and nothing catches
+   * for the abort listener, so left alone it would kill the process and leave raw mode on.
+   * Keys already queued may throw again before this runs; the first one closed the prompt.
+   */
+  private readonly crash = (reason: unknown): void => {
+    if (!this.closed) this.release();
+    this.answer.reject(reason);
+  };
+
+  private guarded(step: () => void): void {
+    try {
+      step();
+    } catch (reason) {
+      this.crash(reason);
+    }
+  }
+
   /** An abort, or a cancel key while the validator is out: cancel, and close. */
   private readonly cancel = (): void => {
     this.prompt.state = 'cancel';
-    this.finish();
+    this.guarded(() => {
+      this.finish();
+    });
   };
 
   /**
@@ -409,7 +438,11 @@ class Session<T> {
     if (edit(prompt, char, key)) definition.onInput?.(prompt);
   }
 
-  private readonly onKeypress = async (char: string | undefined, key: Keypress = {}): Promise<void> => {
+  private readonly onKeypress = (char: string | undefined, key: Keypress = {}): void => {
+    this.react(char, key).catch(this.crash);
+  };
+
+  private async react(char: string | undefined, key: Keypress): Promise<void> {
     const { definition, prompt } = this;
     // Keys wait for the verdict, except cancel. In raw mode Ctrl-C is a byte, not a signal, so
     // dropping it here strands a person behind a validator that never answers. clack drops it
@@ -429,7 +462,7 @@ class Session<T> {
     if (cancels(char, key)) prompt.state = 'cancel';
     if (prompt.state === 'submit' || prompt.state === 'cancel') this.finish();
     else this.draw();
-  };
+  }
 }
 
 /**
@@ -443,8 +476,8 @@ export function run<T>(definition: Definition<T>): Promise<T | symbol> {
   const runtime = processRuntime();
   const input: Raw = definition.input ?? runtime.stdin;
   const output = definition.output ?? runtime.stdout;
-  return new Promise((resolve) => {
-    new Session(definition, input, output, resolve).open();
+  return new Promise((resolve, reject) => {
+    new Session(definition, input, output, { resolve, reject }).open();
   });
 }
 
