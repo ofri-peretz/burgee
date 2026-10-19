@@ -264,8 +264,35 @@ export const skillCommand = defineCommand({
   run: async ({ positionals, options }) => (await import('./skill-files.js')).writeSkill(positionals[0] as string, { out: options.out, check: options.check }),
 });
 
+/**
+ * `burgee init [dir]` — a first CLI in one command (first-cli R1–R5): the README quick start as
+ * `cli.mjs` and the `package.json` that runs it, and nothing else. Loaded on this path only, like
+ * `migrate` and `skill`, so neither `import 'burgee'` nor a user's bundle carries it.
+ *
+ * `non_idempotent`, as `brand` is: a second run is refused rather than repeated, and `--force`
+ * overwrites the two files the caller already has.
+ */
+export const initCommand = defineCommand({
+  name: 'init',
+  description: 'Start a CLI: write the quick start as cli.mjs and the package.json that runs it',
+  arguments: [{ name: 'dir', description: 'the directory to write into. Defaults to the current directory', required: false }],
+  options: {
+    install: { type: 'boolean', description: 'run the install with the package manager this ran under' },
+    force: { type: 'boolean', description: 'overwrite cli.mjs and package.json when they are already there' },
+  },
+  effects: 'non_idempotent',
+  examples: [
+    { command: 'npx burgee init my-cli', description: 'two files; then cd my-cli, npm install, node cli.mjs --help' },
+    { command: 'npx burgee init my-cli --install', description: 'the same, and the install too' },
+  ],
+  run: async ({ positionals, options, env }) => {
+    const [{ init }, { host }] = await Promise.all([import('./init.js'), import('./runtime.js')]);
+    return await init({ dir: positionals[0] ?? host.cwd(), typed: positionals[0], force: options.force === true, install: options.install === true, env });
+  },
+});
+
 export const program = defineProgram({
   name: 'burgee',
   description: 'The agent-native CLI framework, and the tools that come with it',
-  commands: [brandCommand, devCommand, migrateCommand, pluginCheckCommand, skillCommand],
+  commands: [brandCommand, devCommand, initCommand, migrateCommand, pluginCheckCommand, skillCommand],
 });
