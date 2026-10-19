@@ -101,9 +101,12 @@ export function agentLintFailures(report: AgentLintReport): string[] {
 // clispec raised 2026-10-12 (clispec-conformance R9, D-20261012-clispec-remainder-built) to 24 of
 // 24, the published reading once R1–R8 built the remainder D-151 had left argued with the checker:
 // at the maximum, losing any one point fails.
+// cli-agent-lint raised 2026-10-19 (agent-lint-conformance R9) to 100, the published CI reading:
+// the `floor-results` artifact of the first green N10 run on main after R8 (run 39228945490 at
+// `28843a5`, promoted as `results/external-floor/2026-10-19.json`), 100% (A), nothing failing.
 export const BURGEE_FLOOR = {
   clispec: { min: 24, why: 'N10: a change that loses a point on clispec.dev’s published checklist regresses the floor against someone else’s bar' },
-  agentLint: { min: 91, why: 'N10: a change that loses a check on cli-agent-lint’s 34 regresses the floor against someone else’s bar' },
+  agentLint: { min: 100, why: 'N10: a change that loses a check on cli-agent-lint’s 34 regresses the floor against someone else’s bar' },
 } as const;
 
 export function clispecRecord(variant: string, report: ClispecScore, tool: Tool): BenchRecord {

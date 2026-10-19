@@ -30,6 +30,7 @@
       "import": "./dist/plugin.js",
       "default": "./dist/plugin.js"
     },
+    "./package.json": "./package.json",
     "./schema.json": "./dist/schema.json",
     "./term-img": {
       "types": "./dist/term-img.d.ts",

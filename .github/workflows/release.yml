@@ -221,6 +221,24 @@ jobs:
               echo "::error::Refusing to publish $SHA — a required check did not pass: $failed"
               exit 1
             fi
+            # Superseded while a gate is still missing or pending. A later merge can cancel a
+            # commit's Quality (Full) workflow before its Gate job exists, and then that check run
+            # is missing, not cancelled: run 39247745837 on 1b0ea782 waited out all 45 minutes
+            # holding the release concurrency group, then went red. Off the head of main, a
+            # cancelled gate or any cancelled workflow run on the commit settles it: the newer
+            # commit's release run gates and publishes. On the head of main nothing changes.
+            if [ -n "$pending" ]; then
+              head=$(gh api "repos/$GH_REPO/commits/main" --jq .sha)
+              if [ "$head" != "$SHA" ]; then
+                runs=$(gh api "repos/$GH_REPO/actions/runs?head_sha=$SHA&per_page=100" \
+                  --jq '[.workflow_runs[] | select(.conclusion == "cancelled")] | length')
+                if [ -n "$cancelled" ] || [ "$runs" -gt 0 ]; then
+                  echo "ok=false" >> "$GITHUB_OUTPUT"
+                  echo "::notice::$SHA was superseded by $head while its gates were unsettled (cancelled: ${cancelled:-none}; still missing or pending: $pending; $runs workflow run(s) cancelled). The release run for the newer commit publishes."
+                  exit 0
+                fi
+              fi
+            fi
             if [ -n "$cancelled" ] && [ -z "$pending" ]; then
               head=$(gh api "repos/$GH_REPO/commits/main" --jq .sha)
               if [ "$head" != "$SHA" ]; then

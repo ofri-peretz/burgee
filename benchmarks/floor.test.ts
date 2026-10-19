@@ -167,7 +167,10 @@ const CLISPEC_MAX = 24;
 describe('the published floor reading and the ratchet (agent-lint-conformance R7)', () => {
   const RESULTS = join(dirname(fileURLToPath(import.meta.url)), 'results', 'external-floor');
   const published = readdirSync(RESULTS).filter((f) => /^\d{4}-\d{2}-\d{2}\.json$/.test(f)).toSorted();
-  const latest = JSON.parse(readFileSync(join(RESULTS, published.at(-1) as string), 'utf8')) as { records: { variant: string; metric: string; median: number }[] };
+  const latest = JSON.parse(readFileSync(join(RESULTS, published.at(-1) as string), 'utf8')) as {
+    machine: { ci: boolean };
+    records: { variant: string; metric: string; median: number }[];
+  };
   const reading = (metric: string): number | undefined => latest.records.find((r) => r.variant === 'burgee' && r.metric === metric)?.median;
 
   it('holds cli-agent-lint at its top grade, A, which starts at 90%', () => {
@@ -181,6 +184,16 @@ describe('the published floor reading and the ratchet (agent-lint-conformance R7
   it('the latest published reading clears both ratchets', () => {
     expect(reading('cli-agent-lint-score')).toBeGreaterThanOrEqual(BURGEE_FLOOR.agentLint.min);
     expect(reading('clispec-score')).toBeGreaterThanOrEqual(BURGEE_FLOOR.clispec.min);
+  });
+
+  // R9: a laptop's reading is not the one the ratchet stands on. The runner's is, promoted from
+  // the `floor-results` artifact of the first green N10 run on main after R8.
+  it('R9 — the published reading was measured on CI', () => {
+    expect(latest.machine.ci, `${String(published.at(-1))} was not measured on a CI runner`).toBe(true);
+  });
+
+  it('R9 — the ratchet sits at the published reading', () => {
+    expect(BURGEE_FLOOR.agentLint.min).toBe(Math.floor(reading('cli-agent-lint-score') ?? 0));
   });
 });
 

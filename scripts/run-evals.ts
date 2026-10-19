@@ -93,9 +93,43 @@ export function agentDocs(root = REPO_ROOT): string[] {
   return out.sort();
 }
 
-/** Strip fenced code blocks and inline code: example markdown is not a reference. */
+/** A line that opens or closes a fence: three or more backticks or tildes, in a blockquote or not. */
+const FENCE_MARK = /^[ \t>]*(`{3,}|~{3,})/;
+/** A closing line holds its marker and nothing else. */
+const FENCE_ONLY = /^[ \t>]*[`~]+[ \t]*$/;
+
+/**
+ * Drop fenced blocks as Markdown reads them: opened by three or more backticks or tildes, closed by
+ * a run of the same character at least as long, or by the end of the file when nothing closes it.
+ * A line scan, not one pattern over the file, so there is nothing for a crafted document to make
+ * backtrack.
+ */
+function stripFences(text: string): string {
+  const out: string[] = [];
+  let open: string | undefined;
+  for (const line of text.split('\n')) {
+    const mark = FENCE_MARK.exec(line)?.[1];
+    if (open === undefined) {
+      if (mark === undefined) out.push(line);
+      else open = mark;
+    } else if (mark !== undefined && mark[0] === open[0] && mark.length >= open.length && FENCE_ONLY.test(line)) {
+      open = undefined;
+    }
+  }
+  return out.join('\n');
+}
+
+/**
+ * A code span: a run of N backticks closed by a run of exactly N, inside one paragraph. Two
+ * backticks are how a span holding a backtick or a leading `<` is written, and the old one-run
+ * pattern read `` `` <path d="M0 0h10v10H0z"/> `` `` as two empty spans around prose — so the
+ * `M0` in quoted svgo output was a floor id, and a push was refused on it.
+ */
+const SPAN = /(?<!`)(`+)(?!`)(?:(?!\n[ \t]*\n)[\s\S])*?(?<!`)\1(?!`)/g;
+
+/** Strip fenced code blocks and code spans: example markdown is not a reference. */
 function stripCode(text: string): string {
-  return text.replace(/```[\s\S]*?```/g, '').replace(/`[^`\n]*`/g, '');
+  return stripFences(text).replace(SPAN, '');
 }
 
 const LINK = /\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
