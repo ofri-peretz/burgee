@@ -132,6 +132,7 @@ describe('R2 — the range reader', () => {
     expect(lowestIn('~20', from('21.0.0'))).toBeUndefined();
     expect(lowestIn('~1.2.3', from('1.2.2'))).toBe('1.2.3');
     expect(lowestIn('~1.2.3', from('1.3.0'))).toBeUndefined();
+    expect(lowestIn('~1.2.3', from('1.2.9')), 'a full version under ~ holds the minor, not the patch').toBe('1.2.9');
     // x-ranges, in every spelling, and the empty range.
     expect(lowestIn('20.X', from('21.0.0'))).toBeUndefined();
     expect(lowestIn('20.*', from('20.5.0'))).toBe('20.5.0');
@@ -145,6 +146,8 @@ describe('R2 — the range reader', () => {
     expect(lowestIn('18 - 22', from('23.0.0'))).toBeUndefined();
     expect(lowestIn('18 - 22.1.0', from('22.1.0'))).toBe('22.1.0');
     expect(lowestIn('18 - 22.1.0', from('22.1.1'))).toBeUndefined();
+    expect(lowestIn('18  -  22', from('0.0.0')), 'any run of spaces around the hyphen').toBe('18.0.0');
+    expect(lowestIn('>=1.2.34', from('0.0.0')), 'a part of more than one digit').toBe('1.2.34');
   });
 
   it('intersects a set, unions the branches, and drops prereleases', async () => {
@@ -155,6 +158,8 @@ describe('R2 — the range reader', () => {
     expect(lowestIn('>=22 <20', [between('0.0.0')]), 'a contradiction admits nothing').toBeUndefined();
     expect(lowestIn('>=22 || >=18', [between('0.0.0')]), 'the lowest of every branch').toBe('18.0.0');
     expect(lowestIn('  >=  10  ', [between('0.0.0')])).toBe('10.0.0');
+    expect(lowestIn('>=  10', [between('11.0.0')]), 'the operator binds across every space after it').toBe('11.0.0');
+    expect(lowestIn('>=10 ||', [between('3.0.0')]), 'an empty branch admits every version').toBe('3.0.0');
     expect(lowestIn('>=20.19.0 <21', NO_REQUIRE_ESM), 'inside the floor has require(esm)').toBeUndefined();
     expect(lowestIn('>=20.19.0-rc.1', [between('0.0.0')])).toBe('20.19.0');
     expect(lowestIn('>=20.19.0+build.5', [between('0.0.0')])).toBe('20.19.0');
@@ -163,11 +168,12 @@ describe('R2 — the range reader', () => {
 
   it('reads nothing it cannot parse, and says so instead of guessing', async () => {
     const { admitted, between, lowestIn } = await preflight();
-    for (const range of ['not-a-range', '>=1.2.3.4', '~>1', '>=18 || lts', '18 - ', '>=1.a', 'v', '>=18 <x1']) {
+    for (const range of ['not-a-range', '>=1.2.3.4', '~>1', '>=18 || lts', '18 - ', '>=1.a', 'v', '>=18 <x1', '>=', '>=1 18 - 22', '18 - 22 <30']) {
       expect(admitted(range), range).toBeUndefined();
       expect(lowestIn(range, [between('0.0.0')]), range).toBeUndefined();
     }
     expect(admitted('>=22 <20')).toEqual([]);
+    expect(admitted('<0.0.0'), 'a span that ends where it starts admits nothing').toEqual([]);
     expect(admitted('*')).toEqual([between('0.0.0')]);
     expect(between('20.19.0', '21.0.0').lo).toBeLessThan(between('21.0.0').lo);
   });
@@ -315,6 +321,7 @@ describe('R6 — a blocking row stops the write, and --force does not lift it', 
     for (const report of reports) {
       expect(report.exitCode).toBe(ExitCode.OK);
       expect(report.summary).toBe('nothing to rewrite');
+      expect(report.changed).toBe(false);
       expect(report.preflight.length).toBeGreaterThan(0);
     }
   });

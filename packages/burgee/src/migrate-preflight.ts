@@ -61,10 +61,11 @@ const key = (major: number, minor: number, patch: number): number => (major * PL
 /** `[major, minor, patch]` up to the first wildcard or missing part: `20.x` is `[20]`, `*` is `[]`. `undefined`: not a version. */
 function partsOf(text: string): number[] | undefined {
   const match = /^v?(\d+|[xX*])(?:\.(\d+|[xX*])(?:\.(\d+|[xX*]))?)?(?:[-+][\w.-]*)?$/.exec(text);
-  if (match === null) return text === '' ? [] : undefined;
-  const parts = match.slice(1).map((p) => (p === undefined || !/^\d+$/.test(p) ? undefined : Number(p)));
-  const wild = parts.indexOf(undefined);
-  return (wild === -1 ? parts : parts.slice(0, wild)) as number[];
+  if (match === null) return undefined;
+  // A wildcard and a missing part are both NaN, and everything from the first of them is dropped.
+  const parts = match.slice(1).map(Number);
+  const wild = parts.findIndex(Number.isNaN);
+  return wild === -1 ? parts : parts.slice(0, wild);
 }
 
 /** The first version a partial names: `16.20` is 16.20.0. */
@@ -78,8 +79,8 @@ function nextOf(parts: readonly number[]): number {
 
 /** One comparator: `>=16`, `^20.19.0`, `~20.18`, `20.x`. */
 function comparator(text: string): Interval | undefined {
-  const [, op = '', rest = ''] = /^(<=|>=|<|>|=|\^|~)?(.*)$/.exec(text) as RegExpExecArray;
-  const parts = partsOf(rest);
+  const [, op, rest] = /^(<=|>=|<|>|=|\^|~)?(.*)$/.exec(text) as RegExpExecArray;
+  const parts = partsOf(rest as string);
   if (parts === undefined) return undefined;
   const low = lowOf(parts);
   if (op === '>=') return { lo: low, hi: Infinity };
@@ -107,7 +108,8 @@ function comparatorSet(text: string): Interval | undefined {
  * range this cannot read, which the caller reports as unread rather than guesses at.
  */
 export function admitted(range: string): Interval[] | undefined {
-  const sets = range.split('||').map((set) => comparatorSet(set.trim()));
+  // An empty branch is every version, as npm reads it.
+  const sets = range.split('||').map((set) => comparatorSet(set.trim() || '*'));
   if (sets.includes(undefined)) return undefined;
   return (sets as Interval[]).filter((s) => s.lo < s.hi);
 }
@@ -119,9 +121,9 @@ export function between(from: string, to?: string): Interval {
 
 /** The lowest version `range` admits inside any of `gaps`, as `x.y.z`; `undefined` when there is none or the range is unread. */
 export function lowestIn(range: string, gaps: readonly Interval[]): string | undefined {
-  const lowest = Math.min(
-    ...(admitted(range) ?? []).flatMap((span) => gaps.map((gap) => ({ lo: Math.max(span.lo, gap.lo), hi: Math.min(span.hi, gap.hi) }))).map((s) => (s.lo < s.hi ? s.lo : Infinity)),
-  );
+  const spans = admitted(range);
+  if (spans === undefined) return undefined;
+  const lowest = Math.min(...spans.flatMap((span) => gaps.map((gap) => ({ lo: Math.max(span.lo, gap.lo), hi: Math.min(span.hi, gap.hi) }))).map((s) => (s.lo < s.hi ? s.lo : Infinity)));
   return lowest === Infinity ? undefined : `${Math.floor(lowest / PLACE / PLACE)}.${Math.floor(lowest / PLACE) % PLACE}.${lowest % PLACE}`;
 }
 
@@ -185,7 +187,7 @@ function adopting({ manifest, declared, jestConfigs, targets, family }: Prefligh
     if (found !== undefined) rows.push({ check: 'floor', blocking: false, found, message: `the family needs Node ${FLOOR}; adopting raises this package's floor, a semver-major for it`, fix: RAISE });
   }
   const jest = declared.has('jest') || manifest.jest !== undefined || jestConfigs.length > 0;
-  const loadsEsm = [JSON.stringify(manifest.jest) ?? '', ...jestConfigs].some((text) => text.includes('transformIgnorePatterns')) || String(manifest.scripts?.test).includes('--experimental-vm-modules');
+  const loadsEsm = JSON.stringify([manifest.jest, jestConfigs]).includes('transformIgnorePatterns') || String(manifest.scripts?.test).includes('--experimental-vm-modules');
   if (commonjs && jest && !loadsEsm) {
     rows.push({
       check: 'jest-cjs',
