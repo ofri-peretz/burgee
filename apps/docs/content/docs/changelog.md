@@ -3,6 +3,25 @@ title: Changelog
 description: "Every release of burgee, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.6.3
+
+### Patch Changes
+
+- [#1139](https://github.com/ofri-peretz/burgee/pull/1139) [`28843a5`](https://github.com/ofri-peretz/burgee/commit/28843a536a3ec3bcd4b201a47436c4c672a16b65) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A `fix:` line is quoted for the shell that will run it: POSIX `sh` off Windows, as before, and
+  PowerShell on Windows, where a quote inside a word is doubled (`'it''s'`) and a word that starts
+  with `@`, contains `,` or is `--%` is quoted too. A fix line printed on Windows used to be a
+  PowerShell syntax error for any word with a `'` in it.
+
+  Root help's `Exit codes:` section, `--schema`'s `errors` and the skill's contract table now list
+  only the codes the program can produce. `auth` is listed when the program declares the credential
+  it reads, `defineProgram({ auth: { env: 'DEMO_TOKEN' } })`, and its advice then names the variable:
+  `set DEMO_TOKEN and run it again`. That sentence is also an `AuthError`'s hint when the handler
+  gives none. `timeout` is left out when every command declares its own `timeout` option.
+
+- [#1138](https://github.com/ofri-peretz/burgee/pull/1138) [`6b90ffe`](https://github.com/ofri-peretz/burgee/commit/6b90ffed8cd883b26f94fc3b690c1e2beb41ec83) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` reads dotenv 18.0.8 and lilconfig 3.1.4 as the graded releases of `seniority/dotenv` (193 / 193, control 193 / 193) and `seniority/lilconfig` (77 / 77, control 77 / 77).
+- Updated dependencies [[`6b90ffe`](https://github.com/ofri-peretz/burgee/commit/6b90ffed8cd883b26f94fc3b690c1e2beb41ec83)]:
+  - seniority@1.0.10
+
 ## 1.6.2
 
 ### Patch Changes

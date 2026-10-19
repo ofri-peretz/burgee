@@ -1,5 +1,13 @@
 # compat-oracle
 
+## 0.3.8
+
+### Patch Changes
+
+- [#1138](https://github.com/ofri-peretz/burgee/pull/1138) [`6b90ffe`](https://github.com/ofri-peretz/burgee/commit/6b90ffed8cd883b26f94fc3b690c1e2beb41ec83) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - execa re-vendored at 10.2.0: control 1360 / 1360, `bellpull` 0 / 1360, still a ceiling. dotenv re-vendored at 18.0.8: control 193 / 193. lilconfig re-vendored at 3.1.4, with `typescript` 5.9.3 as upstream now declares: control 77 / 77.
+- Updated dependencies [[`28843a5`](https://github.com/ofri-peretz/burgee/commit/28843a536a3ec3bcd4b201a47436c4c672a16b65), [`6b90ffe`](https://github.com/ofri-peretz/burgee/commit/6b90ffed8cd883b26f94fc3b690c1e2beb41ec83)]:
+  - burgee@1.6.3
+
 ## 0.3.7
 
 ### Patch Changes
