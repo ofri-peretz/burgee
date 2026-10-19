@@ -119,7 +119,8 @@ export function compose(tree: Layout, panes: Panes, size: Frame, state?: Pick<Sc
   }
   const rects = place(tree, text, size)
     .map(({ name, rect, text }) => {
-      const from = size.live ? offset(state?.scroll.get(name), Math.max(0, text.length - rect.height)) : 0;
+      // `fit` stops the row at the last page, so `'end'` reads as any row past it, and nothing is below one.
+      const from = size.live ? offset(state?.scroll.get(name), Infinity) : 0;
       const lines = fit(text, rect, from);
       const below = text.length - from - rect.height;
       // Lines are below only when a scroll entry put them there, so `state` is given.
