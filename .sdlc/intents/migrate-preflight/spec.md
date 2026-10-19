@@ -368,10 +368,14 @@ that produced them, and the rest got the assertion that tells them apart.
 **Coverage**: 100% lines, branches, functions and statements on `migrate.ts` and
 `migrate-preflight.ts`.
 
-**Weight**: the burgee tarball is 270,087 B packed and 1,024,713 B unpacked against `main`'s
-267,573 / 1,016,862 on the same machine: +2,514 B packed, +7,851 B unpacked, above the estimate
-of +1.5 KB / +4–6 KB. `migrate-preflight.js` is 6,030 B. `npm run check:artifacts` passes, so no
-baseline moves and no decision is recorded. Entry budgets are unchanged.
+**Weight**: against `main` at `51fec1ba`, #1168 adds +2,512 B gzipped and +7,851 B unpacked
+(`migrate-preflight.js` is 6,030 B, and `migrate.js` grows by 1,821 B; no other packed file
+changes). That is above the estimate of +1.5 KB / +4–6 KB. `main` was already at +9.6% of the
+allowance against a figure unmoved since 1.3.0, so the merge reached +10.6%. Trimming 1.5 KB
+gzipped was not available. The burgee figure was re-recorded at the published 1.6.5 pack,
+rounded up to 50 B (267,600 / 1,016,900), in
+[`D-20261019-burgee-tarball-preflight`](../../decisions/D-20261019-burgee-tarball-preflight.md).
+Entry budgets are unchanged.
 
 **Not yet `shipped`**: every criterion has evidence on the branch, and the intent moves to
 `shipped` once this is on `main` and released. The change is a `minor`, which the release window
