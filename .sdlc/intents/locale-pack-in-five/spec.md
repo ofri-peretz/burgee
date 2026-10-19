@@ -18,7 +18,11 @@ Intent: [`intent.md`](./intent.md). **Status:** review.
   module.
 - **R3 — Measured.** Five local runs of the case with the CI runner's pinned `claude`, before and
   after, recorded in a decision file with each run's turns and cost; then the PR's `Agent Evals`
-  run. *Check:* the eval history (`evals/history/`) median under 6; on main it is 7.
+  run. *Check:* the eval history (`evals/history/`) median under 6; on main it is 7. The median is
+  `median(caseSeries(readHistory(root), 'locale-pack-from-schema').map((c) => c.turns))` from
+  `scripts/eval-history.ts`, so a week no agent ran (2026-10-01, 2026-10-15: `not-run`, one
+  recorded turn each before the correction) is never in it (restated 2026-10-18,
+  `evals-record-not-run` R4).
 
 ## Design
 

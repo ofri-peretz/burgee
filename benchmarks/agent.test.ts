@@ -176,8 +176,9 @@ describe.skipIf(!isPosix())('isolation from the machine it runs on', () => {
   it('spawns claude with only the configuration this repository controls', () => {
     const dir = mkdtempSync(join(tmpdir(), 'stub-claude-argv-'));
     const bin = join(dir, 'claude');
-    // Answers with its own argv, so the assertion reads what was actually spawned.
-    writeFileSync(bin, `#!/bin/sh\nprintf '{"type":"result","is_error":false,"num_turns":1,"usage":{},"result":"%s"}' "$*"\n`);
+    // Answers with its own argv, so the assertion reads what was actually spawned. It reports
+    // tokens, as a run a model answered does: zero usage and no model is a run that never ran.
+    writeFileSync(bin, `#!/bin/sh\nprintf '{"type":"result","is_error":false,"num_turns":1,"usage":{"input_tokens":10,"output_tokens":5},"result":"%s"}' "$*"\n`);
     chmodSync(bin, EXECUTABLE);
     const argv = attempt(bin).result;
     expect(argv).toContain(ISOLATION.join(' '));
@@ -208,8 +209,9 @@ describe.skipIf(!isPosix())('the environment the measured tool runs in', () => {
   it('is what claude is actually spawned with', () => {
     const dir = mkdtempSync(join(tmpdir(), 'stub-claude-env-'));
     const bin = join(dir, 'claude');
-    // Answers with the variables it was given, so the assertion reads the real spawn.
-    writeFileSync(bin, `#!/bin/sh\nprintf '{"type":"result","is_error":false,"num_turns":1,"usage":{},"result":"CI=%s GHA=%s tool=%s"}' "$CI" "$GITHUB_ACTIONS" "$(command -v demo)"\n`);
+    // Answers with the variables it was given, so the assertion reads the real spawn (with
+    // tokens, as a run a model answered reports; see `neverRan`).
+    writeFileSync(bin, `#!/bin/sh\nprintf '{"type":"result","is_error":false,"num_turns":1,"usage":{"input_tokens":10,"output_tokens":5},"result":"CI=%s GHA=%s tool=%s"}' "$CI" "$GITHUB_ACTIONS" "$(command -v demo)"\n`);
     chmodSync(bin, EXECUTABLE);
     const workdir = mkdtempSync(join(tmpdir(), 'bench-work-'));
     const r = runOne({ claudeBin: bin, task, toolDir: installTool('/bin/echo'), workdir, model: 'm', timeoutMs: 30_000, env: { ...process.env, CI: 'true', GITHUB_ACTIONS: 'true' } });
@@ -817,5 +819,88 @@ describe('R3 — medians and ranges, never one run', () => {
     writeFileSync(join(dir, '2026-10-14-bbbbbbb-local.json'), file(0.1));
     writeFileSync(join(dir, '2026-10-15-ccccccc-ci.json'), JSON.stringify({ records: [] }));
     expect(priorReadings(dir)).toEqual([{ file: '2026-10-13-aaaaaaa-weekly-ci.json', ratio: 0.9 }]);
+  });
+});
+
+/**
+ * evals-record-not-run R6 — a sweep the usage limit cut short is not a reading.
+ *
+ * The document is the one the eval runner's lock reads (`evals/fixtures/claude-usage-limit.json`):
+ * what `claude` printed on 2026-10-13 and 2026-10-15 once the subscription's weekly limit was hit.
+ * Zero tokens and no model billed, so no model ran. A sweep that stops part-way compares two
+ * different task mixes, and a zero-token run inside a median or a ratio flatters whoever it lands on.
+ */
+const LIMIT_DOC = readFileSync(join(import.meta.dirname, '..', 'evals', 'fixtures', 'claude-usage-limit.json'), 'utf8').trim();
+
+/** A `claude` that answers like `stubClaude` until its `limitFrom`th run, then prints the limit document and exits 1. */
+function limitedClaude(limitFrom: number): string {
+  const dir = mkdtempSync(join(tmpdir(), 'stub-claude-limit-'));
+  const bin = join(dir, 'claude');
+  const count = join(dir, 'count');
+  const limit = join(dir, 'limit.json');
+  writeFileSync(limit, `${LIMIT_DOC}\n`);
+  const ok = JSON.stringify({ type: 'result', is_error: false, num_turns: 3, usage: { input_tokens: 900, cache_read_input_tokens: 300, output_tokens: 120 }, modelUsage: { 'test-model': {} }, result: 'the value is ada' });
+  writeFileSync(
+    bin,
+    `#!/bin/sh\nif [ "$1" = --version ]; then echo '9.9.9 (Claude Code)'; exit 0; fi\nn=$(cat "${count}" 2>/dev/null || echo 0)\nn=$((n + 1))\necho "$n" > "${count}"\nif [ "$n" -ge ${String(limitFrom)} ]; then cat "${limit}"; exit 1; fi\ncat <<'JSON'\n${ok}\nJSON\n`,
+  );
+  chmodSync(bin, EXECUTABLE);
+  return bin;
+}
+
+describe.skipIf(!isPosix())('evals-record-not-run R6 — a sweep the usage limit cut short', () => {
+  it('marks a run that spent nothing as not-run, with no usage, and keeps its failure kind', () => {
+    const r = attempt(limitedClaude(1));
+    expect(r).toMatchObject({ success: false, usage: false, notRun: true, tokensIn: 0, tokensOut: 0, turns: 0 });
+    expect(r.failure).toMatchObject({ kind: 'rate-limit', apiErrorStatus: 429 });
+    expect(attempt(limitedClaude(2))).toMatchObject({ success: true, usage: true });
+    expect(attempt(limitedClaude(2)).notRun).toBeUndefined();
+  });
+
+  it('R6 — a sweep the usage limit cut short is not a reading', () => {
+    // burgee's 5 runs pass; commander's first 2 run, and the limit cuts the last 3.
+    const out = run({
+      variants: [
+        { id: 'burgee', bin: stubBin(), floor: true },
+        { id: 'commander', bin: stubBin(), floor: false },
+      ],
+      env: { ...process.env, CLAUDE_CODE_OAUTH_TOKEN: 'stub' },
+      runs: 5,
+      model: 'test-model',
+      timeoutMs: 30_000,
+      tasks: [task],
+      claudeBin: limitedClaude(8),
+    });
+    if (!('reason' in out)) throw new Error(`a cut-short sweep landed ${String(out.records.length)} records`);
+    expect(out.reason).toMatch(/^3 of 5 commander task-runs did not run \(usage-limit\): "You've hit your weekly limit · resets Oct 18, 5am \(UTC\)"/u);
+    expect(out.reason).toContain('measured nothing');
+    expect(out.reason).not.toMatch(/\n/);
+  });
+
+  it('R6 — an MCP arm cut short leaves no ratio', () => {
+    // burgee 2, commander 2, then the arm: its first run measures, the limit cuts its second.
+    const out = run({
+      variants: [
+        { id: 'burgee', bin: stubMcpBin(), floor: true },
+        { id: 'commander', bin: stubMcpBin(), floor: false },
+        { id: 'burgee-mcp', bin: stubMcpBin(), floor: true, modality: 'mcp' },
+      ],
+      env: { ...process.env, CLAUDE_CODE_OAUTH_TOKEN: 'stub' },
+      runs: 2,
+      model: 'test-model',
+      timeoutMs: 30_000,
+      tasks: [MCP_TASK],
+      claudeBin: limitedClaude(6),
+      readings: [],
+    });
+    if (!('records' in out)) throw new Error(`the CLI readings were discarded: ${out.reason}`);
+    expect(out.records.find((r) => r.variant === 'burgee ÷ commander' && r.metric === 'tokens-total-ratio')?.median).toBe(1);
+    expect(out.records.some((r) => r.variant === 'burgee-mcp ÷ burgee')).toBe(false);
+    const arm = out.records.find((r) => r.variant === 'burgee-mcp' && r.metric === 'success-rate');
+    // Ungated, over the one run that ran: a not-run attempt is never in the denominator.
+    expect(arm).toMatchObject({ samples: 1, median: 1 });
+    expect(arm?.gate).toBeUndefined();
+    expect(arm?.note).toContain('1 of 2 burgee-mcp task-runs did not run (usage-limit)');
+    expect(arm?.detail).toMatchObject({ notRun: 1 });
   });
 });

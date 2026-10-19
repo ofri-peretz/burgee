@@ -256,6 +256,11 @@ export interface Attempt extends ClaudeUsage {
   success: boolean;
   /** Whether `claude` reported usage at all. A run that did not is excluded from the medians. */
   usage: boolean;
+  /**
+   * The agent never ran: zero tokens and no model billed (evals-record-not-run R6). Such a run
+   * has `usage: false`, so it is in no median or total, and a sweep holding one is not a reading.
+   */
+  notRun?: true;
   transcript: string;
   /** Why a failed run failed, in a shape a skip reason can carry. Absent on success. */
   failure?: Failure;
@@ -368,6 +373,31 @@ const isAuth = (f: ClaudeFields, result: string): boolean =>
   f.apiErrorStatus === HTTP_UNAUTHORIZED || f.apiErrorStatus === HTTP_FORBIDDEN || (f.isError === true && AUTH_TEXT.test(result));
 const isRateLimit = (f: ClaudeFields, result: string): boolean => f.apiErrorStatus === HTTP_TOO_MANY || (f.isError === true && RATE_TEXT.test(result));
 const isApiError = (f: ClaudeFields): boolean => f.apiErrorStatus !== undefined || f.terminalReason === 'api_error';
+
+/**
+ * evals-record-not-run R6 — the agent never ran: its result's four usage counts all read 0 (an
+ * absent count reads 0, as `parseClaudeJson` reads it) and it bills no model. The same rule as
+ * `neverRan` in `scripts/run-evals.ts`; `scripts/` and `benchmarks/` share no module, so both
+ * copies are held by one fixture, `evals/fixtures/claude-usage-limit.json`. The message never
+ * decides it: the weekly limit's wording is not in `RATE_TEXT`, and the counts were 0 either way.
+ */
+const USAGE_COUNTS = ['input_tokens', 'output_tokens', 'cache_read_input_tokens', 'cache_creation_input_tokens'] as const;
+export function neverRan(raw: Record<string, unknown>): boolean {
+  const usage = raw['usage'];
+  const models = raw['modelUsage'];
+  const zero = typeof usage === 'object' && usage !== null && USAGE_COUNTS.every((k) => num((usage as Record<string, unknown>)[k]) === 0);
+  return zero && !(typeof models === 'object' && models !== null && Object.keys(models).length > 0);
+}
+
+/** Why a run never ran, in the eval history's vocabulary: the status first, then the wording. */
+const LIMIT_TEXT = /rate.?limit|usage limit|quota|overloaded|hit your .*limit/i;
+export function notRunReason(f: Failure | undefined): 'usage-limit' | 'auth' | 'did-not-start' {
+  if (f?.apiErrorStatus === HTTP_TOO_MANY) return 'usage-limit';
+  if (f?.apiErrorStatus === HTTP_UNAUTHORIZED || f?.apiErrorStatus === HTTP_FORBIDDEN) return 'auth';
+  if (LIMIT_TEXT.test(f?.excerpt ?? '')) return 'usage-limit';
+  if (AUTH_TEXT.test(f?.excerpt ?? '')) return 'auth';
+  return 'did-not-start';
+}
 
 /** Most specific first: a 401 is an auth failure before it is an API error or an `is_error`. */
 function kindOf(f: ClaudeFields, result: string, status: number | null): FailureKind {
@@ -497,6 +527,9 @@ export function runOne(opts: RunOne): Attempt {
   const raw = outcome.timedOut ? undefined : resultObject(transcript);
   if (raw === undefined) {
     return { task: task.id, tokensIn: 0, tokensOut: 0, turns: 0, denials: 0, isError: true, result: '', success: false, usage: false, transcript, failure: classifyFailure(outcome) };
+  }
+  if (neverRan(raw)) {
+    return { task: task.id, tokensIn: 0, tokensOut: 0, turns: 0, denials: 0, isError: true, result: '', success: false, usage: false, notRun: true, transcript, failure: classifyFailure(outcome) };
   }
   const usage = parseClaudeJson(transcript);
   const resultFile = join(workdir, '.bench-result');
@@ -980,6 +1013,27 @@ function invocationDetail(model: string, claudeBin: string): Detail {
   return { model, claude: version, claudePinned: pinned !== '' && version.includes(pinned), env: AGENT_ENV_RULE };
 }
 
+/**
+ * evals-record-not-run R6 — what a sweep the limit cut short says: how many runs did not run, why,
+ * and the first one's words. One line, because it becomes `reason=…` in `$GITHUB_OUTPUT`.
+ */
+export function cutShort(variant: Variant, attempts: readonly Attempt[], claudeVersion = ''): string {
+  const cut = attempts.filter((a) => a.notRun === true);
+  const reasons = new Set(cut.map((a) => notRunReason(a.failure)));
+  const reason = reasons.size === 1 ? [...reasons][0] : 'mixed';
+  const version = claudeVersion === '' ? '' : ` — ${claudeVersion}`;
+  return `${String(cut.length)} of ${String(attempts.length)} ${variant.id} task-runs did not run (${String(reason)}): "${cut[0]?.failure?.excerpt ?? ''}"; no model ran in them, and a sweep cut short compares a different task mix, so this axis measured nothing${version}`;
+}
+
+/** The arm's success rate over the runs that ran, ungated, with why the arm left no ratio. */
+function armCutShort(variant: Variant, attempts: readonly Attempt[], detail: Detail): BenchRecord {
+  const reason = cutShort(variant, attempts, String(detail['claude']));
+  console.error(`\n⚠ ${reason}`);
+  const ran = attempts.filter((a) => a.notRun !== true);
+  const rate = ran.length === 0 ? 0 : round(ran.filter((a) => a.success).length / ran.length, RATIO_PLACES);
+  return { axis: 'agent', variant: variant.id, metric: 'success-rate', unit: 'ratio', samples: ran.length, median: rate, p95: rate, note: reason, detail: { ...detail, notRun: attempts.length - ran.length, ...perTaskDetail(ran) } };
+}
+
 /** A success rate of 0 with the reason, ungated: `--check` stays green so the CLI arms' reading lands. */
 function armFailed(variant: Variant, attempts: readonly Attempt[], detail: Detail): BenchRecord {
   const reason = nothingCameBack(variant, attempts, String(detail['claude']));
@@ -1000,6 +1054,14 @@ function sweepAll(variants: readonly Variant[], common: Omit<Sweep, 'variant'>, 
       // why, and no ratio, so a lost week never counts toward the verdict.
       if (variant.modality !== 'mcp') return { reason: nothingCameBack(variant, attempts, String(detail['claude'])) };
       records.push(armFailed(variant, attempts, detail));
+      continue;
+    }
+    // Some runs measured and the limit stopped the rest (evals-record-not-run R6). A CLI sweep
+    // with a hole in it compares two task mixes, so it is no reading at all. The MCP arm leaves
+    // its ungated record and no ratio, as above, and the week's CLI readings stand.
+    if (attempts.some((a) => a.notRun === true)) {
+      if (variant.modality !== 'mcp') return { reason: cutShort(variant, attempts, String(detail['claude'])) };
+      records.push(armCutShort(variant, attempts, detail));
       continue;
     }
     byVariant.set(variant.id, attempts);

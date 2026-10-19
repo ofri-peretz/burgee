@@ -74,6 +74,7 @@ jobs:
         if: env.HAS_CREDENTIAL == 'true'
         run: npx turbo run build --filter='./packages/*' --concurrency=4
       - name: Run evals
+        id: run
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -98,16 +99,26 @@ jobs:
           name: evals-history
           path: evals/history/*.json
           retention-days: 7
+      # `outcome` comes from run-evals.ts (evals-record-not-run R5). A week in which no agent ran
+      # (the subscription's weekly limit on 2026-10-15) is "did not run", with its reason, and
+      # never "failing": the two need different fixes, and one title hid the other.
       - name: Open an issue on a scheduled failure
         if: failure() && github.event_name == 'schedule'
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          OUTCOME: ${{ steps.run.outputs.outcome }}
+          REASON: ${{ steps.run.outputs.reason }}
         run: |
           set -euo pipefail
-          TITLE="Agent evals are failing"
+          if [ "$OUTCOME" = not-run ]; then
+            TITLE="Agent evals did not run"
+            BODY=$(printf 'The weekly agent evals did not run: no agent started (`%s`). Nothing was measured, so nothing failed; the history line records every case `not-run`. The next run with quota left measures again.\n\n[Run](%s)\n' "$REASON" "$RUN_URL")
+          else
+            TITLE="Agent evals are failing"
+            BODY=$(printf '%s\n\n[Run](%s)\n' 'The weekly agent-configuration evals failed: a config document drifted, or a task eval stopped passing.' "$RUN_URL")
+          fi
           EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty')
-          BODY=$(printf '%s\n\n[Run](%s)\n' 'The weekly agent-configuration evals failed: a config document drifted, or a task eval stopped passing.' "$RUN_URL")
           if [ -n "$EXISTING" ]; then gh issue comment "$EXISTING" --body "$BODY"; else gh issue create --title "$TITLE" --body "$BODY"; fi
 
   # ── Land the run's line on main ────────────────────────────────────────────────────

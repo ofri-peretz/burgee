@@ -1,0 +1,1 @@
+{"type":"result","subtype":"success","is_error":true,"api_error_status":429,"terminal_reason":"api_error","num_turns":1,"result":"You've hit your weekly limit · resets Oct 18, 5am (UTC)","usage":{"input_tokens":0,"output_tokens":0,"cache_read_input_tokens":0,"cache_creation_input_tokens":0},"modelUsage":{}}
