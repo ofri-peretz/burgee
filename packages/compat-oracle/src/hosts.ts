@@ -55,6 +55,20 @@ export interface HostImport {
    * `burgee/yargs/parser`, the same module a program on 18 gets, so that is what is graded.
    */
   target?: string;
+  /**
+   * The named exports, for a suite that **re-imports** the module with a query string to
+   * evaluate it again, on both runs.
+   *
+   * supports-color 11's `test.js` sets `process.env`, `process.argv` and `process.platform`,
+   * then `import(\`./index.js?${randomInt(…)}\`)`, because the module decides its answer at
+   * import. Rewritten, that busts the *shim*, and a shim of `export * from 'supports-color'`
+   * hands back the incumbent it already evaluated: the control would grade the first case's
+   * environment fifty-five times. With this set the shim imports the module by URL with its
+   * own query appended, so each fresh shim is a fresh module beneath it, as the suite meant.
+   * A dynamic import cannot be `export *`'d, so the names are written out; `default` is the
+   * `reexportDefault` flag's, as everywhere else.
+   */
+  fresh?: string[];
 }
 
 /** One file a suite reaches by path; see {@link Host.entries}. */
@@ -770,6 +784,27 @@ export const HOSTS: Host[] = [
     target: 'roundel',
     status: 'active',
     note: "**Graded 2026-10-11 at 1.1.1: `roundel/picocolors` 1 / 1 against a control of 1 / 1, by exit code** (D-20261011-roundel-picocolors). Before the façade the target run read 0 / 1. `tests/environments.js` is not graded: upstream's `npm test` does not run it, and it evaluates picocolors' source text in a `vm` with a fake `process`, which only one self-contained script can pass. Its nine environments are held by `roundel/src/picocolors.test.ts` against picocolors' own source instead. The façade bundles 1,607 B against picocolors' 2,739 B, which is R7's kill criterion, held in `scripts/subpath-weight-lock.test.ts`.",
+  },
+  {
+    // `roundel/supports-color`'s grader (`supports-color-drop-in` R1). Upstream's `npm test` is
+    // `xo && ava && tsd`; the ava half is graded, as chalk's is, and the declarations are held by
+    // `scripts/drop-in-type-surface-lock.test.ts`. Every case re-imports `./index.js` with a query
+    // string after setting the process up, so the import is declared `fresh`.
+    name: 'supports-color',
+    repo: 'https://github.com/chalk/supports-color',
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '/supports-color', reexportDefault: true, control: 'supports-color', fresh: ['createSupportsColor'] }],
+    // The root hoists supports-color 8 through other packages; the suite grades 11.
+    suiteDeps: ['supports-color@11.0.0'],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'ava',
+    // Upstream's own `ava` block. Every case rewrites `process.env`, `process.argv` and
+    // `process.platform` and then imports: run concurrently, they read each other's process.
+    avaConfig: { serial: true, workerThreads: false },
+    target: 'roundel',
+    status: 'active',
+    note: 'Graded against roundel, as chalk and picocolors are: `roundel/supports-color` answers in supports-color 11\'s order, where `roundel/policy` keeps its own (a `--no-color` beats `FORCE_COLOR=3` there, and `NO_COLOR` is honoured).',
   },
   {
     name: 'ora',

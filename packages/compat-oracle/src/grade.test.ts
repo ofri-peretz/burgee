@@ -410,6 +410,9 @@ describe('declared exclusions, on the control and on a target', () => {
   });
 });
 
+/** The load line of a `fresh` shim: the module beneath, by URL, with the shim's own query. */
+const freshLoad = (from: string): string => `const loaded = await import(import.meta.resolve('${from}') + new URL(import.meta.url).search);\n`;
+
 describe('the shims a run writes', () => {
   const tap = prints(SUMMARY(1, 1));
 
@@ -432,6 +435,18 @@ describe('the shims a run writes', () => {
     expect(read(hostDir, 'shim.js')).toBe("// generated per run — COMPAT_TARGET=fake\nexport * from 'fake';\nexport { select as default } from 'fake';\n");
     grade(h, vendorDir, 'vitest');
     expect(read(hostDir, 'shim.js')).toBe("// generated per run — COMPAT_TARGET=vitest\nexport * from 'vitest';\nexport { select as default } from 'vitest';\n");
+  });
+
+  // `supports-color-drop-in` R1: the suite busts the shim with `?<n>` before every case, and the
+  // shim passes the query to the module beneath, which a static `export *` cannot.
+  it('imports the module by URL with its own query for a `fresh` import, on both runs', () => {
+    const h = host({ imports: [{ upstream: '../index.js', subpath: '/x', reexportDefault: true, control: 'fake', fresh: ['make', 'other'] }] });
+    const hostDir = vendored(h, { 'a.test.js': '' });
+    seam.exec = tap;
+    grade(h, vendorDir, 'fake');
+    expect(read(hostDir, 'shim.js')).toBe(`// generated per run — COMPAT_TARGET=fake\n${freshLoad('fake')}export default loaded.default;\nexport const make = loaded.make;\nexport const other = loaded.other;\n`);
+    grade({ ...h, imports: [{ upstream: '../index.js', subpath: '/x', reexportDefault: false, fresh: [] }] }, vendorDir, 'vitest');
+    expect(read(hostDir, 'shim.js')).toBe(`// generated per run — COMPAT_TARGET=vitest\n${freshLoad('vitest/x')}`);
   });
 
   it('re-exports the target on a target run, whatever the control entry says, as .mjs under a CommonJS package', () => {

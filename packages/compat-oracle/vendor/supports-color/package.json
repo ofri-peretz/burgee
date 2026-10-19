@@ -1,0 +1,17 @@
+{
+  "name": "@vendored/supports-color-suite",
+  "private": true,
+  "type": "module",
+  "main": "./shim.js",
+  "version": "11.0.0",
+  "license": "MIT",
+  "description": "Detect whether a terminal supports color",
+  "repository": "chalk/supports-color",
+  "devDependencies": {
+    "supports-color": "11.0.0"
+  },
+  "ava": {
+    "serial": true,
+    "workerThreads": false
+  }
+}
