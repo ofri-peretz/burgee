@@ -54,7 +54,7 @@
     "log-update": "8.0.0",
     "ora": "9.4.1",
     "picocolors": "^1.1.1",
-    "react": "^19.3.1",
+    "react": "^19.3.0",
     "react-reconciler": "^0.34.0",
     "restore-cursor": "^5.1.0",
     "signal-exit": "4.1.0",
