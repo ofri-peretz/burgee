@@ -8,16 +8,18 @@
  * R9 — `bellpull/node-which` answers node-which 7's calls. node-which's own suite
  * grades it in `compat-oracle`; this is the package-local check that the entry carries it.
  */
-import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { chmodSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import which from './node-which.js';
 
+const scratch = scratchDirs();
+
 const POSIX = process.platform !== 'win32';
-const dir = mkdtempSync(join(tmpdir(), 'bellpull-which-'));
+const dir = scratch('bellpull-which-');
 const tool = join(dir, 'tool');
 writeFileSync(tool, '#!/bin/sh\necho tool\n');
 chmodSync(tool, 0o755);

@@ -11,16 +11,18 @@
  * yargs #1965 and #1684 are about.
  */
 import { execFileSync } from 'node:child_process';
-import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { chmodSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { renderCompletion, SHELLS } from './completions.js';
 import { defineCommand, defineProgram } from './index.js';
 import { runBurgee } from './testing.js';
+
+const scratch = scratchDirs();
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, '../../..');
@@ -63,7 +65,7 @@ const program = defineProgram({
   ],
 });
 
-const dir = mkdtempSync(join(tmpdir(), 'burgee-dynamic-'));
+const dir = scratch('burgee-dynamic-');
 writeFileSync(join(dir, 'prog.mjs'), PROGRAM);
 writeFileSync(join(dir, 'dyn'), `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} ${JSON.stringify(join(dir, 'prog.mjs'))} "$@"\n`);
 chmodSync(join(dir, 'dyn'), 0o755);

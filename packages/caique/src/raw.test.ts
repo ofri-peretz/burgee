@@ -11,16 +11,18 @@
  * person who pressed Ctrl-C is exactly the person who will not think to run `reset`.
  */
 import { execFileSync } from 'node:child_process';
-import { closeSync, mkdtempSync, openSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { closeSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { HIDE_CURSOR, SHOW_CURSOR } from 'closeout/cursor';
 import { describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { ask, type Reader, type Writer } from './ask.js';
 import { askList, canRender, keyOf, type KeyStream, renderList } from './raw.js';
 import { type PromptSpec } from './spec.js';
+
+const scratch = scratchDirs();
 
 const ESC = '\u001B';
 const UP = `${ESC}[A`;
@@ -353,7 +355,7 @@ interface SignalOutcome {
  * a handler which only ever adds would get wrong.
  */
 function promptThenSignal(signal: string, answerFirst = false): SignalOutcome {
-  const dir = mkdtempSync(join(tmpdir(), 'caique-raw-signal-'));
+  const dir = scratch('caique-raw-signal-');
   const log = join(dir, 'fd2');
   const child = join(dir, 'child.mjs');
   // **Nothing is interpolated into this source.** It was built by template — the dist path, the

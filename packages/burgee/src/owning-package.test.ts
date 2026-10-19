@@ -3,23 +3,24 @@
  * the walk is unusual: a package.json that does not parse, a tree deeper than the walk goes,
  * and an entry with no package.json above it at all.
  */
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { configLayers } from './config-layers.js';
 import { nearestPackage, owningPackage } from './pkg.js';
 
+const scratch = scratchDirs();
+
 let dir = '';
-afterEach(() => rmSync(dir, { recursive: true, force: true }));
 /** `depth` directories below the fixture's root. */
 const at = (depth: number): string => join(dir, ...Array.from({ length: depth }, () => 'd'));
 
 describe('nearestPackage', () => {
   it('gives up on a package.json that does not parse, rather than walking past it', () => {
-    dir = mkdtempSync(join(tmpdir(), 'burgee-pkg-'));
+    dir = scratch('burgee-pkg-');
     writeFileSync(join(dir, 'package.json'), '{ "name": "outer" }');
     mkdirSync(join(dir, 'inner'));
     writeFileSync(join(dir, 'inner', 'package.json'), '{ not json');
@@ -28,7 +29,7 @@ describe('nearestPackage', () => {
   });
 
   it('walks at most 64 directories up', () => {
-    dir = mkdtempSync(join(tmpdir(), 'burgee-pkg-deep-'));
+    dir = scratch('burgee-pkg-deep-');
     writeFileSync(join(dir, 'package.json'), '{ "name": "top" }');
     mkdirSync(at(64), { recursive: true });
     // 63 levels below: the 64th directory looked at is `dir` itself.
@@ -39,7 +40,7 @@ describe('nearestPackage', () => {
 
 describe('owningPackage — the package that owns a CLI reached through its bin link', () => {
   it('finds the CLI\'s own package.json, not the installing project\'s', () => {
-    dir = mkdtempSync(join(tmpdir(), 'burgee-bin-'));
+    dir = scratch('burgee-bin-');
     const tool = join(dir, 'project', 'node_modules', 'tool');
     mkdirSync(join(tool, 'dist'), { recursive: true });
     mkdirSync(join(dir, 'project', 'node_modules', '.bin'), { recursive: true });
@@ -58,7 +59,7 @@ describe('owningPackage — the package that owns a CLI reached through its bin 
   });
 
   it('walks from a path that does not resolve as given', () => {
-    dir = mkdtempSync(join(tmpdir(), 'burgee-bin-missing-'));
+    dir = scratch('burgee-bin-missing-');
     writeFileSync(join(dir, 'package.json'), '{ "name": "here" }');
     expect(owningPackage(join(dir, 'no-such-cli.js'))?.data).toEqual({ name: 'here' });
   });
@@ -66,12 +67,12 @@ describe('owningPackage — the package that owns a CLI reached through its bin 
 
 describe('configLayers', () => {
   it('has no package.json layer when no package.json owns the entry', async () => {
-    dir = mkdtempSync(join(tmpdir(), 'burgee-layers-'));
+    dir = scratch('burgee-layers-');
     const layers = await configLayers('app', {}, { cwd: dir, env: { HOME: dir, XDG_CONFIG_HOME: dir }, pkg: undefined });
     expect(layers).toEqual({});
   });
   it('reads the field named after the program when one does', async () => {
-    dir = mkdtempSync(join(tmpdir(), 'burgee-layers-'));
+    dir = scratch('burgee-layers-');
     const pkg = { path: join(dir, 'package.json'), data: { app: { region: 'eu' } } };
     const layers = await configLayers('app', {}, { cwd: dir, env: { HOME: dir, XDG_CONFIG_HOME: dir }, pkg });
     expect(layers).toEqual({ pkg: { path: pkg.path, data: { region: 'eu' } } });

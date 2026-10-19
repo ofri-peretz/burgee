@@ -27,14 +27,16 @@
  *      does.** That is what "one pass, no AST" bought, stated so that the machine appears on
  *      both sides of the comparison and cancels.
  */
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { migrate, rewriteSource, sourceFiles } from './migrate.js';
+
+const scratch = scratchDirs();
 
 /** The budget, in one place, in the units the design states it in. */
 const FILES = 1000;
@@ -58,7 +60,7 @@ function module_(n: number): string {
 
 /** A fresh tree per timed run, so no run is measured against another's page cache. */
 function tree(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'burgee-migrate-bench-'));
+  const dir = scratch('burgee-migrate-bench-');
   // Since U12-3 an incumbent moves only when the project declares it, as a real one does.
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'bench', dependencies: { commander: '^15.0.0', yargs: '^18.0.0' } }));
   for (let n = 0; n < FILES; n += 1) {

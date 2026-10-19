@@ -12,14 +12,16 @@
  * passes every in-process case and tells an unattended agent the migration is complete.
  */
 import { execFileSync, type ExecFileSyncOptions } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { ExitCode } from './exit-code.js';
+
+const scratch = scratchDirs();
 
 const CLI = resolve(fileURLToPath(new URL('..', import.meta.url)), 'dist/cli.js');
 
@@ -40,7 +42,7 @@ function burgee(args: string[]): Ran {
 }
 
 function project(files: Record<string, string>): string {
-  const dir = mkdtempSync(join(tmpdir(), 'burgee-migrate-cli-'));
+  const dir = scratch('burgee-migrate-cli-');
   for (const [path, body] of Object.entries(files)) {
     mkdirSync(dirname(join(dir, path)), { recursive: true });
     writeFileSync(join(dir, path), body);
