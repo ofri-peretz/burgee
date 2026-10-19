@@ -131,7 +131,13 @@ function checkCodeExports(exports: Record<string, unknown>): void {
   for (const [entry, target] of entries) {
     expect(typeof target, `${entry} must be a conditions object`).toBe('object');
     const conditions = target as Record<string, string>;
-    expect(Object.keys(conditions).sort(), entry).toEqual(['default', 'import', 'types']);
+    // A `require` condition only where `require()` must return something an ES module cannot be:
+    // a CommonJS file, re-evaluated after a cache bust. `burgee/yargs/v17` is yargs 17, whose
+    // `require('yargs')` is a singleton over the `process.argv` of the moment and whose `import`
+    // is the factory (`previous-majors` R4). Every other entry still requires the ESM file itself.
+    const keys = Object.keys(conditions).sort();
+    expect([['default', 'import', 'types'], ['default', 'import', 'require', 'types']], entry).toContainEqual(keys);
+    if (keys.includes('require')) expect(conditions['require'], `${entry}: a require condition names a CommonJS file in dist`).toMatch(/^\.\/dist\/.+\.cjs$/);
     expect(conditions['default'], `${entry}: default must be the same ESM file as import`).toBe(conditions['import']);
   }
 }
