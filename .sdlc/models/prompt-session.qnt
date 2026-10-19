@@ -24,6 +24,14 @@
  * Re-check with three mutants, each caught by `safety`: the throw escapes (`unhandled + 1`), a
  * throw submits, and a throw is caught but leaves the prompt in Validating.
  *
+ * The third version added `fault`, a throw from the prompt's own code (a render, onKey,
+ * finalize) in any turn, and described the code as it was: from a key it escaped the listener
+ * (`unhandled + 1`, the prompt open and raw mode on for good), from an abort it escaped the
+ * abort listener, and from open's first frame the promise rejected with raw mode still on.
+ * `rejectionsHandled` failed in one step. This version describes the fix: `crash` releases the
+ * terminal and rejects with the throw. Re-check with two mutants, each caught by `safety`: the
+ * throw escapes (`unhandled + 1`), and a reject that leaves the terminal held (`closed' = closed`).
+ *
  * Checked and left alone: after an abort or a cancel key mid-validation, the late verdict
  * still writes `state = 'submit'` or `'error'` on the closed prompt (open, enter, abort,
  * verdict). Nothing reads it: `settle` already ran once, `onKeypress` returns on `closed`
@@ -37,7 +45,7 @@ module promptSession {
 
   var state: State
   var closed: bool
-  var settles: int            // calls to `settle`, the promise's resolve
+  var settles: int            // settles of the promise: `resolve` on close, `reject` on a crash
   var pending: bool           // an async validator is out
   var drawsAfterClose: int    // frames written after close() gave the cursor back
   var lastKey: str            // the last key delivered
@@ -103,6 +111,17 @@ module promptSession {
     },
   }
 
+  /**
+   * The prompt's own code threw — a render, onKey, finalize — in whichever turn ran it: open's
+   * first frame, a key, a verdict, an abort. `crash` releases the terminal and rejects the
+   * promise with the throw, which settles it: the caller sees the error, and nothing escapes.
+   */
+  action fault = all {
+    not(closed),
+    state' = state, closed' = true, settles' = settles + 1, drawsAfterClose' = drawsAfterClose,
+    pending' = pending, lastKey' = lastKey, lastVerdict' = lastVerdict, unhandled' = unhandled,
+  }
+
   /** The signal's abort listener, which close() removes. */
   action abort = all {
     not(closed), state != Initial,
@@ -111,7 +130,7 @@ module promptSession {
   }
 
   action step = any {
-    open, verdict, abort,
+    open, verdict, abort, fault,
     nondet k = Set(Char, Return, CtrlC).oneOf() press(k),
   }
 
