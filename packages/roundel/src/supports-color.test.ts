@@ -169,6 +169,7 @@ describe('roundel/supports-color answers as supports-color 11 does', () => {
     ['Windows 10 before build 10586 is 16 colours, from it 256, from 14931 truecolor', { platform: 'win32', release: '10.0.10240' }, { stdout: { level: 1, hasBasic: true, has256: false, has16m: false } }],
     ['an iTerm without a version is 256 colours', { env: { TERM_PROGRAM: 'iTerm.app' } }, { stdout: { level: 2, hasBasic: true, has256: true, has16m: false } }],
     ['iTerm 3 is truecolor', { env: { TERM_PROGRAM: 'iTerm.app', TERM_PROGRAM_VERSION: '3.0.10' } }, { stdout: { level: 3, hasBasic: true, has256: true, has16m: true } }],
+    ['iTerm 10 is truecolor: the major is the whole number before the first dot', { env: { TERM_PROGRAM: 'iTerm.app', TERM_PROGRAM_VERSION: '10.1' } }, { stdout: { level: 3, hasBasic: true, has256: true, has16m: true } }],
     ['TeamCity 9.10 is 16 colours: the minor is read past its first digit', { env: { TEAMCITY_VERSION: '9.10.0' }, calls: [{ options: {} }] }, { stdout: { level: 1, hasBasic: true, has256: false, has16m: false } }],
   ])('%s', async (_, partial, expected) => {
     const world: World = { env: {}, argv: [], platform: 'linux', release: '10.0.0', ttys: { 1: true, 2: true }, later: {}, calls: [], ...partial };

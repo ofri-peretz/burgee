@@ -82,8 +82,8 @@ Order: R1–R5 in one PR, which is how it was built.
    stream and options, and an environment written after import), plus the R3 pair. It is what
    killed the mutants the 55 cases leave alive. supports-color 11.0.0 is a root devDependency for it
    and for the type-surface lock, as meow is.
-6. **R4's B4 pair and the weight page disagree by method, and both are under.** B4 reads 1,790 B
-   against 2,128 (0.841); the per-subpath page, `export *` plus the default, 1,807 against 2,145.
+6. **R4's B4 pair and the weight page disagree by method, and both are under.** B4 reads 1,764 B
+   against 2,128 (0.829); the per-subpath page, `export *` plus the default, 1,781 against 2,145.
 
 ## Build status
 
@@ -94,7 +94,7 @@ Built on `feat/colour-drop-ins` against `main` at `326907ec`. Every check below 
 | R1 | Built | `compat-oracle`: the `supports-color` host, `vendor/supports-color/` at `e2a4cd3c`, `HostImport.fresh` in `run.ts`, `baseline/supports-color.json` | control 55 / 55; target 0 before the subpath (`target not built yet`); `grade.test.ts` › a `fresh` import |
 | R2 | Built | `roundel/src/supports-color.ts`, `./supports-color` in `exports` and `typesVersions`; `GRADED`, `DROP_INS`, `GRADED_VERSIONS`, `SUPPORTED_MAJORS` | `npm run compat -- supports-color` 55 / 55; `supports-color.test.ts` (differential); `drop-in-type-surface-lock`, `drop-in-require-shape-lock` |
 | R3 | Built | the same module, and `policy.ts` unchanged | `supports-color.test.ts` › R3 — 3 on the drop-in, 0 on `roundel/policy`, side by side |
-| R4 | Built | `benchmarks/fixtures/entry-points.ts`, `BUNDLED_CEILING` 1,900; `competitors.json` `./supports-color`; `KNOWN` | `npm run bench -- --axis weight --check` (red at a ceiling of 0, then 0.841 against ≤ 1); `competitors-lock` |
+| R4 | Built | `benchmarks/fixtures/entry-points.ts`, `BUNDLED_CEILING` 1,850; `competitors.json` `./supports-color`; `KNOWN` | `npm run bench -- --axis weight --check` (red at a ceiling of 0, then 0.829 against ≤ 1); `competitors-lock` |
 | R5 | Built | `migrate.ts` `FACADE_EXPORTS`; the Migrate page | `migrate.test.ts` › rewrites a supports-color default import |
 
 **Built: 5. Not built: 0.**

@@ -121,9 +121,9 @@ const RULES: Record<string, EntryRule> = {
   // bar R7 sets is bundled bytes, held in `scripts/subpath-weight-lock.test.ts`.
   './picocolors': { allow: [], budget: 2_800, denied: ['policy.js', 'tokens.js', 'theme.js', 'contrast.js', 'chalk.js', 'index.js'] },
   // `supports-color-drop-in` R2, 2026-10-19: supports-color 11's decision table over the process
-  // seam alone. Measured 3,528 B with `runtime.js`, against supports-color 11.0.0's `index.js` at
+  // seam alone. Measured 3,434 B with `runtime.js`, against supports-color 11.0.0's `index.js` at
   // 4,474 B on disk; the bar R4 sets is bundled bytes, held in `scripts/subpath-weight-lock.test.ts`.
-  './supports-color': { allow: [], budget: 3_550, denied: ['policy.js', 'tokens.js', 'theme.js', 'contrast.js', 'chalk.js', 'picocolors.js', 'index.js'] },
+  './supports-color': { allow: [], budget: 3_450, denied: ['policy.js', 'tokens.js', 'theme.js', 'contrast.js', 'chalk.js', 'picocolors.js', 'index.js'] },
   './terminal': { allow: [], budget: 1_000, denied: ['policy.js', 'tokens.js', 'theme.js', 'contrast.js', 'chalk.js', 'index.js'] },
   // R11, on 2026-09-30: `fromBase16` and `fromITerm`. It carries the whole theme graph on
   // purpose — `audit()` is how an imported theme is refused exactly when `fly()` would refuse

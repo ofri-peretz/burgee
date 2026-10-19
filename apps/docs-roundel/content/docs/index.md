@@ -221,7 +221,7 @@ picocolors' 2,739; `scripts/subpath-weight-lock.test.ts` holds it there.
 and re-imports the module with a query string, so `compat-oracle` passes the query through its
 shim. The rest of the decision table is held by `supports-color.test.ts`, which evaluates
 supports-color's own source and this module in thousands of generated environments and
-requires the same answers. Bundled, the whole surface is 1,807 bytes against supports-color's 2,145.
+requires the same answers. Bundled, the whole surface is 1,781 bytes against supports-color's 2,145.
 
 The grade is re-run on every change to `roundel/chalk`; the current figure is generated under
 *Benchmarks* below and published with every other drop-in on the

@@ -790,12 +790,13 @@ export const HOSTS: Host[] = [
     // `xo && ava && tsd`; the ava half is graded, as chalk's is, and the declarations are held by
     // `scripts/drop-in-type-surface-lock.test.ts`. Every case re-imports `./index.js` with a query
     // string after setting the process up, so the import is declared `fresh`.
+    // Stryker disable all: graded in another process: the compat ratchet's run and its `--control` run read this row against `baseline/supports-color.json` (55 of 55), and a mutant here moves one of those counts — except `repo` and `surfaceFiles`, which only a re-vendor and the upstream watch read, and `note`, which nothing renders for an active row
     name: 'supports-color',
     repo: 'https://github.com/chalk/supports-color',
     testDir: '.',
     testGlob: 'test.js',
     imports: [{ upstream: './index.js', subpath: '/supports-color', reexportDefault: true, control: 'supports-color', fresh: ['createSupportsColor'] }],
-    // The root hoists supports-color 8 through other packages; the suite grades 11.
+    // Installed beside the suite at the graded release, never whatever the root hoists.
     suiteDeps: ['supports-color@11.0.0'],
     surfaceFiles: ['index.d.ts', 'index.js'],
     runner: 'ava',
@@ -805,6 +806,7 @@ export const HOSTS: Host[] = [
     target: 'roundel',
     status: 'active',
     note: 'Graded against roundel, as chalk and picocolors are: `roundel/supports-color` answers in supports-color 11\'s order, where `roundel/policy` keeps its own (a `--no-color` beats `FORCE_COLOR=3` there, and `NO_COLOR` is honoured).',
+    // Stryker restore all
   },
   {
     name: 'ora',

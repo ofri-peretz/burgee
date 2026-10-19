@@ -453,6 +453,28 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     expect(report.offMajor).toEqual([{ from: 'lilconfig', found: '^2.1.0', graded: '3.1.4' }]);
   });
 
+  // `supports-color-drop-in` criterion 4, end to end: 11 is the one major claimed, so a program on
+  // it moves, `require()` included (both sides hand back their namespace), and one on 10 stays.
+  it('moves a program on supports-color 11 to roundel/supports-color, and leaves 10 alone naming 11.0.0', async () => {
+    const on11 = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { 'supports-color': '^11.0.0' } }),
+      'src/a.ts': "import supportsColor, { createSupportsColor } from 'supports-color';\n",
+      'src/b.cjs': "const { createSupportsColor } = require('supports-color');\n",
+    });
+    const moved = await migrate({ dir: on11, status: clean });
+    expect(moved.offMajor).toEqual([]);
+    expect(read(on11, 'src/a.ts')).toBe("import supportsColor, { createSupportsColor } from 'roundel/supports-color';\n");
+    expect(read(on11, 'src/b.cjs')).toBe("const { createSupportsColor } = require('roundel/supports-color');\n");
+    expect(moved.refused).toEqual([]);
+    const on10 = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { 'supports-color': '^10.2.2' } }),
+      'src/a.ts': "import supportsColor from 'supports-color';\n",
+    });
+    const left = await migrate({ dir: on10, status: clean });
+    expect(read(on10, 'src/a.ts')).toBe("import supportsColor from 'supports-color';\n");
+    expect(left.offMajor).toEqual([{ from: 'supports-color', found: '^10.2.2', graded: '11.0.0' }]);
+  });
+
   // `previous-majors` R6: commander 14 is claimed (its own suite grades `burgee/commander/v14`
   // level), so a program pinned to it moves, onto 14's entry and not 15's.
   it.each([
