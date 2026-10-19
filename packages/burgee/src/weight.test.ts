@@ -16,7 +16,7 @@
  * It reads `dist/`, so it measures what is published rather than what is written.
  */
 import { readFileSync, statSync } from "node:fs";
-import { dirname, relative, resolve } from "node:path";
+import { dirname, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import ts from "typescript";
@@ -931,7 +931,9 @@ function walk(entry: string): {
     }
   }
   return {
-    reached: [...files].map((f) => relative(dist, f)),
+    // `/` on every platform: a denied bare specifier covers its subpaths by `${denied}/`, so a
+    // Windows `commander\help.js` would slip past `commander` and the lock would pass blind.
+    reached: [...files].map((f) => relative(dist, f).split(sep).join("/")),
     external: [...external],
     bytes,
     lazy: [...lazy],
