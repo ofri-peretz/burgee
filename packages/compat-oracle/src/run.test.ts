@@ -663,7 +663,7 @@ describe.skipIf(process.platform === 'win32')('the tsd runner (extra-typings-dro
     // directory is a handful of files, and under that same load unlinking them still took 64.9 s,
     // past the hook's 60 s. `rm -rf` does not follow the link into the cache; a run killed first
     // leaves a `.grade-*` directory, which `.gitignore` already covers.
-    spawn('rm', ['-rf', vendorDir], { detached: true, stdio: 'ignore' }).unref();
+    if (process.platform !== 'win32') spawn('rm', ['-rf', vendorDir], { detached: true, stdio: 'ignore' }).unref();
   });
 
   const HEADER = ["import { expectError, expectType } from 'tsd';", "import { Command } from '../shim.js';", 'const program = new Command();'];
