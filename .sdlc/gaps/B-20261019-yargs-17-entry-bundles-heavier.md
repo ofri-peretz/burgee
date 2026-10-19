@@ -13,16 +13,16 @@ what it replaces for an ES module program on 17. The measurement is `/docs/weigh
 
 | | bundled | over yargs 17.7.3 |
 | :-- | --: | --: |
-| `burgee/yargs/v17`, 2026-10-19 | 110,327 | 25,852 |
+| `burgee/yargs/v17`, 2026-10-19 | 110,312 | 25,837 |
 | `burgee/yargs` (18's), for comparison | 109,147 | 24,672 |
 
 Almost all of the overage is the 18 front-end the entry is built on. yargs 18.2.0 itself
 bundles to 111,698 B by the same method, so 17's ESM bundle is the light one here. What the
-v17 code adds over `burgee/yargs` is 1,180 B bundled: 17's string table, its `commandDir()`
+v17 code adds over `burgee/yargs` is 1,165 B bundled: 17's string table, its `commandDir()`
 walk and its module-cache naming (`yargs/v17-factory.ts`). The 17 → 18 growth and the bytes
 burgee adds (`--json`, `--schema`, `--mcp`, the plugin check) are both shared with
 `burgee/yargs`, so shrinking that front-end is the way to close this. Nothing specific to 17
 would close it.
 
 17's other CommonJS entry, `yargs/yargs`, bundles to 114,656 B, and `burgee/yargs/v17/yargs`
-is under it at 110,134 B.
+is under it at 110,119 B.

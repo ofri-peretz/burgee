@@ -22,14 +22,14 @@ optional and type-only, and 18 never sets it. That line is the 36 B.
 
 ## The numbers
 
-- `./yargs/v17` reaches **224,715 B** in the walk on a local build on 2026-10-19. That is
-  3,062 B over `./yargs`, and nearly all of it is `dist/yargs/v17-factory.js` (2,766 B with
+- `./yargs/v17` reaches **224,695 B** in the walk on a local build on 2026-10-19. That is
+  3,042 B over `./yargs`, and nearly all of it is `dist/yargs/v17-factory.js` (2,746 B with
   comments stripped). A first cut was 3,483 B over. It built the subclass with its own
   constructor and a second wrapper class, and folding both into one class inside `yargs17()`
-  took 421 B off. Measured + the ~32 B CI margin = 224,747, rounded up to the next 50 B:
+  took 421 B off, and dropping an option the string table never read took 20 more. Measured + the ~32 B CI margin = 224,727, rounded up to the next 50 B:
   **224,750**.
-- `./yargs/v17/yargs` reaches **224,939 B**: the entry above plus one function carrying three
-  statics. Its budget is 224,971, rounded up to **225,000**.
+- `./yargs/v17/yargs` reaches **224,919 B**: the entry above plus one function carrying three
+  statics. Its budget is 224,951, rounded up to **225,000**.
 - `./yargs` reads 221,653 B against its 221,700 budget. With the CI margin that is 221,685, so it
   fits, and the budget does not move.
 
@@ -45,8 +45,8 @@ On `/docs/weight`, by the page's own method (`export * from X` plus its default,
 
 | Specifier | yargs 17.7.3 | ours |
 | :-- | --: | --: |
-| `yargs` → `burgee/yargs/v17` | 84,475 | 110,327 |
-| `yargs/yargs` → `burgee/yargs/v17/yargs` | 114,656 | 110,134 |
+| `yargs` → `burgee/yargs/v17` | 84,475 | 110,312 |
+| `yargs/yargs` → `burgee/yargs/v17/yargs` | 114,656 | 110,119 |
 
 `burgee/yargs/v17/yargs` is lighter than what it replaces, and `subpath-weight-lock.test.ts`
 holds it under `DROP_IN_CEILINGS`. `burgee/yargs/v17` is heavier than 17's ESM entry, and it is
