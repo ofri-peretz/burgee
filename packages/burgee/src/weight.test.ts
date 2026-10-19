@@ -833,7 +833,7 @@ const RULES: Record<string, EntryRule> = {
     // Measured 220,848.
     // 221,700 on 2026-10-19 for `facade-projection-fidelity` R4 (D-20261019-yargs-facade-relations-bytes):
     // `.conflicts()`, `.implies()` and `.example()` reach `--schema` and `--mcp` as `exclusive`,
-    // `dependsOn` and `examples`. Main at `6b90ffe` measured 220,765 and this reads 221,623 (+858),
+    // `dependsOn` and `examples`. Main at `6b90ffe` measured 220,765 and this reads 221,617 (+852),
     // on a clean build. Plus the ~32 B CI reads heavier, rounded up to the next 50.
     budget: 221_700,
     // 217,100 with D-140 on top of D-122, N14 and E7, after merging #521. Measured 217,090.

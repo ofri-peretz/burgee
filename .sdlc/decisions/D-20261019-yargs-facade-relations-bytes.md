@@ -1,6 +1,6 @@
 ---
 id: D-20261019-yargs-facade-relations-bytes
-subject: '`burgee/yargs` pays 428 bundled bytes so a yargs program''s conflicts, implies and examples reach `--schema` and `--mcp`'
+subject: '`burgee/yargs` pays 424 bundled bytes so a yargs program''s conflicts, implies and examples reach `--schema` and `--mcp`'
 taken: 'Taken — on the owner''s delegation of 2026-10-12 over budgets and trade-offs'
 date: '2026-10-19'
 superseded_by: —
@@ -30,8 +30,8 @@ left out. `facade-surface.test.ts` holds each case.
 
 | | main at `6b90ffe` | this change | delta |
 | :-- | --: | --: | --: |
-| `burgee/yargs` bundled (B4) | 108,345 | 108,773 | +428 |
-| `./yargs` walk | 220,765 | 221,623 | +858 |
+| `burgee/yargs` bundled (B4) | 108,345 | 108,769 | +424 |
+| `./yargs` walk | 220,765 | 221,617 | +852 |
 
 Each ceiling is the measurement plus the ~32 B CI reads heavier than a local build, rounded up to
 the next 50 B. That is the rule D-20261018-commander-14-budget used. The walk grows more than the
@@ -50,13 +50,13 @@ as the 2026-10-12 attempt found. Half the fix would still need a raise.
 
 ## What yargs weighs
 
-yargs 18 bundles at **111,686 B** by the same method. `burgee/yargs` stays **2,913 B lighter**
+yargs 18 bundles at **111,686 B** by the same method. `burgee/yargs` stays **2,917 B lighter**
 (ratio 0.974, against the `lighter-than-yargs` bar of ≤ 1), and against yargs plus cosmiconfig,
 exit-hook and restore-cursor (198,784 B) it is 0.547. The claim keeps its margin.
 
 ## The control band
 
-`yargs-front-end-bundled-bytes` will read a step of +428 B. Its breach intent,
+`yargs-front-end-bundled-bytes` will read a step of +424 B. Its breach intent,
 `control-band-yargs-front-end-bundled-bytes`, is `dropped`
 (D-20261018-drop-band-yargs-front-end-bytes), so the watcher writes nothing new while that
 directory exists (gap A-20261018-dropped-band-intent-masks-breach). This file is the attribution

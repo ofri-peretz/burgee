@@ -119,7 +119,7 @@ Abbreviations used below:
 | eslint-plugin-cli-floor | **dropped** (batch 0, `D-20261018-drop-eslint-plugin-cli-floor`) | y | DROPPED | eslint repo | 9 | 0 | – | n | – | Ruling: lives in eslint#1137 |
 | extra-typings-drop-in | **shipped** (batch 0) | y | SHIPPED | burgee/types | 5 | 5 | – | n | – | U5 fails (55,661 vs 39,329 B), accepted by decision |
 | facade-gets-more | **shipped** (batch 0) | **design.md** | SHIPPED | burgee/commander-facade | 6 | 6 | – | n | – | Rename `design.md` to `spec.md` so it can be approved. Its yargs numbers are stale (804, not 816) |
-| facade-projection-fidelity | **shipped** (batch 3) | y | SHIPPED | burgee/yargs-facade | 6 | 6 | – | n | – | Batch 3: R4 built; `burgee/yargs` +428 B bundled (108,850 ceiling) and +858 B walked (221,700), recorded in D-20261019-yargs-facade-relations-bytes; still 0.974× yargs |
+| facade-projection-fidelity | **shipped** (batch 3) | y | SHIPPED | burgee/yargs-facade | 6 | 6 | – | n | – | Batch 3: R4 built; `burgee/yargs` +424 B bundled (108,850 ceiling) and +852 B walked (221,700), recorded in D-20261019-yargs-facade-relations-bytes; still 0.974× yargs |
 | first-adopter | review | y | NS | adoption/outreach | 5 | 0 | A1–A5 | n | – | The spec still names `commander-agent` and needs a rewrite. Barrier 5 (trust) |
 | first-cli | approved (#1092, beside batch 0) | y | NS (on main) | burgee/init | 5 | 0 | R1–R5 (in #1092) | n | – | Rebase #1092; needs the Design→Build accept |
 | fix-lines-every-shell | review | y | NS | burgee core (failure.ts) | 7 | 0 | R1–R4, S1–S3 | n | – | **LIVE DEFECT:** `fix:` lines are POSIX-quoted on Windows. Exclude `completions.ts` from R2's grep |

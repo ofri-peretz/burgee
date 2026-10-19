@@ -481,8 +481,8 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // an escape sequence into its neighbour. Measured 108,334 locally, with 80 B for CI.
   // 108,850 on 2026-10-19 for `facade-projection-fidelity` R4 (D-20261019-yargs-facade-relations-bytes):
   // a yargs program's `.conflicts()`, `.implies()` and `.example()` reach `--schema` and `--mcp`.
-  // Main at `6b90ffe` measured 108,345 and this reads 108,773 (+428), on a clean build. Plus the
-  // ~32 B CI reads heavier, rounded up to the next 50. Still 2,836 B under yargs' own 111,686.
+  // Main at `6b90ffe` measured 108,345 and this reads 108,769 (+424), on a clean build. Plus the
+  // ~32 B CI reads heavier, rounded up to the next 50. Still 2,917 B under yargs' own 111,686.
   'burgee/yargs': 108_850,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
