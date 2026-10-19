@@ -20,6 +20,9 @@ const program = defineProgram({
         retries: { type: 'number', description: 'how many times' },
         port: { type: 'number', placeholder: 'port' },
         quiet: { type: 'boolean', default: false },
+        replicas: { type: 'number', minimum: 1, maximum: 20, default: 2, description: 'how many' },
+        floor: { type: 'number', minimum: 0 },
+        ceiling: { type: 'number', maximum: 9.5, integer: false },
       },
       run: () => undefined,
     }),
@@ -30,6 +33,17 @@ const help = renderHelp(program, program.find(['app', 'send']) as never, { width
 const row = (flag: string): string => help.split('\n').find((l) => l.includes(flag)) ?? '';
 
 describe('help annotations (R4)', () => {
+  /**
+   * cli-help-renderer S1, the `min` / `max` row (oclif #1001): the bounds `--schema` publishes
+   * and the parser enforces are on the option's own line, after the default, in the schema's
+   * words. Red first: `annotate()` rendered neither, so the rows ended at `(default: 2)`, at the
+   * placeholder, and at the placeholder.
+   */
+  it('shows minimum and maximum, after the default, each on its own', () => {
+    expect(row('--replicas')).toMatch(/--replicas <n> +how many \(default: 2\) \(minimum: 1\) \(maximum: 20\)$/);
+    expect(row('--floor')).toMatch(/--floor <n> +\(minimum: 0\)$/);
+    expect(row('--ceiling')).toMatch(/--ceiling <n> +\(maximum: 9\.5\)$/);
+  });
   it('marks a required option', () => {
     expect(row('--to')).toMatch(/--to <value> +recipient \(required\)$/);
   });

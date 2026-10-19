@@ -4,8 +4,8 @@
  * MIT license that can be found in the LICENSE file.
  */
 
-/** S4 — imported by `execute.ts` only when a positional is `-` (M2). */
-import { type CommandNode } from './manifest.js';
+/** S4 — imported by `typed-args.ts`, which `execute.ts` loads only for a command with a typed argument (M2), and called only when a positional is `-`. */
+import { type ArgumentSpec } from './manifest.js';
 import { UsageError } from './validate.js';
 
 /**
@@ -13,8 +13,7 @@ import { UsageError } from './validate.js';
  * variadic file argument covers every position from its own. Standard input can be read once,
  * so `-` for two file arguments is refused rather than handed to both.
  */
-export function stdinFor(node: CommandNode, positionals: readonly string[], stdin: NodeJS.ReadableStream): { stdin?: NodeJS.ReadableStream } {
-  const args = node.arguments ?? [];
+export function stdinFor(args: readonly ArgumentSpec[], positionals: readonly string[], stdin: NodeJS.ReadableStream): { stdin?: NodeJS.ReadableStream } {
   const last = args.at(-1);
   const isFile = (i: number): boolean => (args[i] ?? (last?.variadic === true ? last : undefined))?.type === 'file';
   const dashes = positionals.filter((p, i) => p === '-' && isFile(i)).length;

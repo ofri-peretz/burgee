@@ -300,8 +300,15 @@
         },
         "type": {
           "type": "string",
-          "pattern": "^file$",
-          "description": "`file`: `-` means standard input (S4)."
+          "pattern": "^(string|number|integer|boolean|file)$",
+          "description": "What the word is, as the handler reads it (typed-positionals R1); absent is `string`. `file`: `-` means standard input (S4)."
+        },
+        "choices": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The values it accepts (typed-positionals R1)."
         }
       }
     },

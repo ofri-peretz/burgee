@@ -33,6 +33,7 @@ const WRITERS = [
   'schema-surface.ts',
   'stdin-dash.ts',
   'surfaces.ts',
+  'typed-args.ts',
   'unknown-option.ts',
   'usage.ts',
   'validate.ts',

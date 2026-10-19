@@ -172,14 +172,16 @@ export interface ArgumentSpec {
   default?: string;
   /**
    * The values the positional accepts, published as `enum` the way an option's `choices` are
-   * (facade-projection-fidelity R3). The commander façade fills it from `Argument.choices()`
-   * and enforces it while parsing. A native `defineCommand` cannot declare it yet: its parser
-   * does not check positionals' values, so its definition type leaves the field out
-   * (B-20261012-commander-argument-choices).
+   * (facade-projection-fidelity R3), and enforced: the commander façade while parsing, the
+   * engine before the handler (typed-positionals R3). A string type's alone, as on an option.
    */
   choices?: readonly string[];
-  /** `'file'`: a path, where `-` means standard input — handed to the handler as `ctx.stdin` (S4). */
-  type?: 'file';
+  /**
+   * What the word is (typed-positionals R1, D-20261012-typed-positionals-shape): `ctx.args`
+   * carries it as that type, and a word that is not one is a usage error. Absent is `string`.
+   * `'file'` is a path, where `-` means standard input — handed to the handler as `ctx.stdin` (S4).
+   */
+  type?: 'string' | 'number' | 'integer' | 'boolean' | 'file';
 }
 
 /** One example: a single copy-pasteable command line, the description below it (H2). */
@@ -251,6 +253,11 @@ export interface ActionRequiredSpec {
 
 export interface RunContext {
   options: Record<string, unknown>;
+  /**
+   * The declared positionals by name, typed (typed-positionals R2): a variadic one as an array,
+   * an absent optional one as its `default`. `positionals` beside it is the words as typed.
+   */
+  args: Record<string, unknown>;
   positionals: string[];
   passthrough: string[];
   /**

@@ -20,7 +20,7 @@ import { createInterface } from 'node:readline';
 import { Writable } from 'node:stream';
 
 import { WITHHELD } from './definition.js';
-import { type CommandNode, type Effects, type Manifest, type OutputSchema } from './manifest.js';
+import { type ArgumentSpec, type CommandNode, type Effects, type Manifest, type OutputSchema } from './manifest.js';
 import { kebab } from './names.js';
 import { host } from './runtime.js';
 import { inputSchemaOf, type JsonSchema, runnable, typedName } from './schema.js';
@@ -160,11 +160,25 @@ function optionArgs(node: CommandNode, args: Record<string, unknown>): string[] 
   return out;
 }
 
+/**
+ * The positionals, in declared order, up to the last one the call gave. A skipped optional one
+ * before it takes its `default`: positionals are read by place, and skipping it moved every later
+ * value one place left — `{ env, replicas, dry: false }` handed `false` to `ratio`. With no default
+ * there is no word to put there, so the call is refused rather than read into the wrong argument.
+ */
 function positionalArgs(node: CommandNode, args: Record<string, unknown>): string[] {
   const out: string[] = [];
+  const skipped: ArgumentSpec[] = [];
   for (const a of node.arguments ?? []) {
     const value = args[a.name];
-    if (value === undefined || value === null) continue;
+    if (value === undefined || value === null) {
+      skipped.push(a);
+      continue;
+    }
+    for (const s of skipped.splice(0)) {
+      if (s.default === undefined) throw new Error(`"${s.name}" has no default and comes before an argument the call gave: pass it too`);
+      out.push(s.default);
+    }
     out.push(...(Array.isArray(value) ? value.map(String) : [String(value)]));
   }
   return out;

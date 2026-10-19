@@ -1,6 +1,6 @@
 # Design — positionals are typed, named and projected like options
 
-Intent: [`intent.md`](./intent.md). **Status:** review.
+Intent: [`intent.md`](./intent.md). **Status:** approved.
 
 ---
 
@@ -43,7 +43,17 @@ Order: R1–R3 (one PR in the parse lane), R4, then R5–R6 with the `./commande
 | R5 | `commander/facade-schema.test.ts`; `npm run compat -- commander` | no `enum` |
 | R6 | `gaps-lock.test.ts` | gap open |
 
-No state machine; no model.
+No state machine; no model. Assignment is positional and one pass: each declared argument takes one word, a variadic last one the rest, an absent optional one its `default` — no ordering rule with more than one reachable state to check.
+
+## Status (2026-10-19)
+
+| R | State | Where |
+| :-- | :-- | :-- |
+| R1 | built. The declaration check runs in `typed-args.ts` on the command's first run, before any word is read, and in TypeScript (`DeclaredArgument`) where it is written, not in `definition.ts`: there it cost 382 B in every front-end and broke two claim ratchets (D-20261019-typed-schema-surface-weight) | `typed-positionals.test.ts` › "R1 — the declaration" |
+| R2 | built: `RunContext.args`, `InferArgs` | `typed-positionals.test.ts` › "R2 — ctx.args, typed and by name" (with `expectTypeOf`) |
+| R3 | built: `typed-args.ts`; the `fix` swaps one word (`swap` in `failure.ts`) | `typed-positionals.test.ts` › "R3 — a value that fails its type or choices is a usage error" |
+| R4 | `enum` held for native programs, read from the manifest. **Remaining:** the argument's `type` on its `inputSchema` property (78 B in `schema.js`, which every front-end reaches, against `./commander` and `./yargs` ceilings with 12 and 31 B to spare), and completions | `typed-positionals.test.ts` › "R4 — the projections carry the choices" |
+| R5, R6 | held since #1091 | `facade-surface.test.ts` › "R3 — an Argument's .choices() is the enum, in --schema and in the MCP tool" |
 
 ## Rejected alternatives
 

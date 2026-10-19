@@ -20,13 +20,35 @@ import { builtin, host } from './runtime.js';
 import { detachedTeardown, processTeardown, type Teardown } from './shutdown.js';
 import { coerce, UsageError } from './validate.js';
 
-export interface CommandContext<O> extends Omit<RunContext, 'options'> {
+export interface CommandContext<O, A = Record<string, unknown>> extends Omit<RunContext, 'options' | 'args'> {
   options: O;
+  /** The declared positionals by name, typed from the declaration (typed-positionals R2). */
+  args: A;
 }
 
 type Scalar<S extends DeclaredOption> = S['type'] extends 'number' ? number : S['type'] extends 'boolean' ? boolean : S extends { choices: readonly (infer C)[] } ? C : string;
 type Many<S extends DeclaredOption, V> = S extends { multiple: true } ? V[] : V;
 type Present<S extends DeclaredOption> = S extends { required: true } ? true : S extends { default: unknown } ? true : false;
+
+/**
+ * A positional as declared (typed-positionals R1): `choices` on a string type only, as on an
+ * option, so `{ type: 'number', choices: [...] }` is a type error here and a definition-time
+ * error for a caller TypeScript does not check.
+ */
+export type DeclaredArgument = Omit<ArgumentSpec, 'type' | 'choices'> & ({ type?: 'string'; choices?: readonly string[] } | { type: 'number' | 'integer' | 'boolean' | 'file'; choices?: never });
+
+type ArgValue<A> = A extends { type: 'number' | 'integer' } ? number : A extends { type: 'boolean' } ? boolean : A extends { choices: readonly (infer C)[] } ? C : string;
+type ArgPresent<A> = A extends { variadic: true } | { default: string } ? true : A extends { required: false } ? false : true;
+
+/**
+ * The handler's `args`, derived from the declaration (typed-positionals R2): keyed by name, a
+ * variadic one an array, `number` and `integer` a number, `boolean` a boolean, `choices` a union,
+ * and `| undefined` only on an optional one with no default. `any` stays `any`, so a list of
+ * commands of different shapes (`AnyCommand`) still holds each of them.
+ */
+export type InferArgs<A extends readonly DeclaredArgument[]> = 0 extends 1 & A
+  ? any
+  : { [K in A[number] as K['name']]: K extends { variadic: true } ? ArgValue<K>[] : ArgPresent<K> extends true ? ArgValue<K> : ArgValue<K> | undefined };
 
 /** The handler's `options`, derived from the declaration (S1): `choices` become a union, `multiple` an array, `number` a number. */
 export type InferOptions<S extends Record<string, DeclaredOption>> = {
@@ -51,12 +73,12 @@ export type DeclaredExample = Omit<Example, 'description'> & { description?: Loc
 export type OptionSpecs = Record<string, DeclaredOption>;
 
 // Children are declared with their own specs; a container holds a heterogeneous list of them.
-export type AnyCommand = Command<any>;
+export type AnyCommand = Command<any, any, any>;
 
 /** What `run` may return: anything, or what `output.schema` describes (clispec-conformance R5). */
 type Returns<O> = O extends { schema: infer J } ? OutputOf<J> | Promise<OutputOf<J>> : unknown;
 
-export interface Command<S extends OptionSpecs = OptionSpecs, O extends CommandOutput = CommandOutput> {
+export interface Command<S extends OptionSpecs = OptionSpecs, O extends CommandOutput = CommandOutput, A extends readonly DeclaredArgument[] = readonly []> {
   name: string;
   /** Other words that run this command, `['s']` for `serve`: listed on it in help, `--schema` and completions, never as commands of their own. */
   aliases?: readonly string[];
@@ -65,8 +87,8 @@ export interface Command<S extends OptionSpecs = OptionSpecs, O extends CommandO
   summary?: Localised;
   /** Declared once (S1); the handler's `options` type is derived from it. */
   options?: S;
-  /** `choices` is the commander façade's: the native parser does not check a positional's value. */
-  arguments?: Omit<ArgumentSpec, 'choices'>[];
+  /** Positionals in order, each with its `type` and `choices` (typed-positionals R1); the handler reads them as `args`. */
+  arguments?: A;
   examples?: DeclaredExample[];
   /** Heading this command is listed under in its parent's help. */
   group?: string;
@@ -102,7 +124,7 @@ export interface Command<S extends OptionSpecs = OptionSpecs, O extends CommandO
   /** Pass positionals past the declared ones to the handler instead of refusing them. */
   allowExcess?: boolean;
   /** Absent on a group that only holds subcommands. `NoInfer`: the spec fixes S, the handler only reads it. */
-  run?: (ctx: CommandContext<InferOptions<NoInfer<S>>>) => Returns<NoInfer<O>>;
+  run?: (ctx: CommandContext<InferOptions<NoInfer<S>>, InferArgs<NoInfer<A>>>) => Returns<NoInfer<O>>;
   /** The handler's module, imported on dispatch only (M2); everything else about the command is declared here. */
   load?: () => Promise<LazyModule>;
   commands?: AnyCommand[];
@@ -166,7 +188,7 @@ export interface Program {
   commands: AnyCommand[];
 }
 
-export function defineCommand<const S extends OptionSpecs = OptionSpecs, const O extends CommandOutput = CommandOutput>(command: Command<S, O>): Command<S, O> {
+export function defineCommand<const S extends OptionSpecs = OptionSpecs, const O extends CommandOutput = CommandOutput, const A extends readonly DeclaredArgument[] = readonly []>(command: Command<S, O, A>): Command<S, O, A> {
   // The reserved names of V5, `checkDefinition`'s four and N6's declared effects, in one
   // place, because `Manifest.use()` needs exactly these on a plugin's commands and used to
   // run none of them. A node with `load` and no `run` is runnable: its module has not been
@@ -541,15 +563,20 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   // given no defaults, so an option named twice is one token more than its key (a `--` is one more
   // too, and loads the chunk for nothing). Inline, not a helper: B4's bundle ceiling had no room for one.
   if (positionals.length !== (node.arguments?.length ?? 0) || parsed.tokens.length > positionals.length + passthrough.length + Object.keys(parsed.values).length) (await import('./parse-refusals.js')).refuse(node, positionals, parsed, rest, typed);
+  // typed-positionals R2 — each declared positional by name: a variadic one takes the rest, an absent
+  // one its default. R3's types and choices are their own chunk (M2), loaded only for a command whose
+  // arguments declare one, so a program of plain words carries the naming and nothing else. S4's `-`
+  // rides the same load: standard input is only ever a `type: 'file'` argument's.
+  let given: Pick<RunContext, 'args' | 'stdin'> = { args: Object.fromEntries((node.arguments ?? []).map((a, i) => [a.name, a.variadic ? positionals.slice(i) : (positionals[i] ?? a.default)])) };
+  // Stryker disable next-line ConditionalExpression: loading the chunk for a command of plain words changes no result, only what start-up loads, which benchmarks/cold-start-modules.test.ts locks by name
+  if (node.arguments?.some((a) => a.type ?? a.choices)) given = (await import('./typed-args.js')).typedArgs(node, given.args, parsed, rest, typed, io.stdin);
   // M5, from its own chunk, loaded only for a deprecated command; `--quiet` silences it (R2).
   if (node.deprecated) (await import('./deprecation.js')).warnDeprecated(node, io, global?.quiet);
   await manifest.fire('preRun', name, values);
-  // S4's check is imported only when a `-` was typed (M2).
-  const stdin = positionals.includes('-') ? (await import('./stdin-dash.js')).stdinFor(node, positionals, io.stdin) : {};
   // `env`, `onExit`, `agent`, `interactive`, `signal`, `quiet` and `runtime` come from `ctx.js`, a
   // chunk loaded on this path only: whether a person may be asked is roundel's rule, over stdin
   // (D-20260930-one-interactive-rule). `--timeout` races the handler against its deadline (R3).
-  const ran = node.run({ options: values, positionals, passthrough, ...stdin, exit: ctxExit, actionRequired, ...(await import('./ctx.js')).ctxOf(io, global) });
+  const ran = node.run({ options: values, ...given, positionals, passthrough, exit: ctxExit, actionRequired, ...(await import('./ctx.js')).ctxOf(io, global) });
   const data = await (global?.within(ran) ?? ran);
   await manifest.fire('postRun', name, values);
   const changed = changedOf(node, data);
@@ -710,7 +737,7 @@ export async function runCommand(manifest: Manifest, argv: readonly string[], op
  * The one-file entry: a single command, or a program from `defineProgram`. Both go
  * through `execute`, so there is exactly one code path from argv to exit.
  */
-export async function run<S extends OptionSpecs>(target: Command<S> | Manifest, opts: RunOptions = {}): Promise<void> {
+export async function run<S extends OptionSpecs, A extends readonly DeclaredArgument[] = readonly []>(target: Command<S, CommandOutput, A> | Manifest, opts: RunOptions = {}): Promise<void> {
   if (target instanceof Manifest) return await execute(target, opts);
   const manifest = new Manifest();
   manifest.rootPath = [target.name];

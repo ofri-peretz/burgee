@@ -1,6 +1,6 @@
 # Design — Help renderer
 
-Intent: [`intent.md`](./intent.md). **Status:** review.
+Intent: [`intent.md`](./intent.md). **Status:** shipped.
 
 **Restated:** 2026-10-18 — see § Restated 2026-10-18
 
@@ -8,14 +8,14 @@ Intent: [`intent.md`](./intent.md). **Status:** review.
 
 ## Restated 2026-10-18
 
-**R1–R7 restated to `packages/burgee/src/help.ts` and all held; the two cross-host Verification items are restated — the intent stays REMAINING only on its S1 min/max annotations.**
+**R1–R7 restated to `packages/burgee/src/help.ts` and all held; the two cross-host Verification items are restated — the intent stays REMAINING only on its S1 min/max annotations.** *Closed 2026-10-19: R4's order is now `(required) (default) (minimum) (maximum) (one of) (repeatable) (requires) (conflicts with) [env] [type] (deprecated)`.*
 
 | ID | promised | on main | check | disposition |
 | :-- | :-- | :-- | :-- | :-- |
 | R1 | `renderHelp(node, { width, color, verbose, locale })`, pure | `renderHelp(manifest, node, { width, verbose, color, theme, commands, format })`; the locale is resolved by the engine, not passed | `packages/burgee/src/help.test.ts` › "is byte-identical with and without a theme when colour is off, which is the default"; `packages/burgee/src/help.test.ts` › "in German under LANG=de_DE.UTF-8: description, summary, option and example" | restated |
 | R2 | fixed section order, empty ones omitted | yes | `packages/burgee/src/help.test.ts` › "lists every section in the fixed order, empty ones omitted (R2)" | held |
 | R3 | term column up to 40% of width, two-space gutter, terms never wrapped | yes, measured in display width | `packages/burgee/src/help.test.ts` › "fits %d columns with no term wrapped and one aligned description column (R3, H3, yargs #2204)"; `packages/burgee/src/help-width.test.ts` › "starts every description at the same terminal column, whatever the term is made of" | held |
-| R4 | trailing annotations in a stable order, type only with `verbose` | `(required) (default) (one of) (repeatable) (requires) (conflicts with) [env] [type] (deprecated)` | `packages/burgee/src/help.test.ts` › "annotates defaults, choices, env and placeholder in a stable order (R4, yargs #1408, #833, #1935)"; `packages/burgee/src/help-annotations.test.ts` › "marks a required option" | restated |
+| R4 | trailing annotations in a stable order, type only with `verbose` | `(required) (default) (minimum) (maximum) (one of) (repeatable) (requires) (conflicts with) [env] [type] (deprecated)` | `packages/burgee/src/help.test.ts` › "annotates defaults, choices, env and placeholder in a stable order (R4, yargs #1408, #833, #1935)"; `packages/burgee/src/help-annotations.test.ts` › "marks a required option"; › "shows minimum and maximum, after the default, each on its own" | restated |
 | R5 | `$ <command line>` on its own line, description below | yes | `packages/burgee/src/help.test.ts` › "puts each example on one copy-pasteable line, description below (H2, R5, yargs #877)" | held |
 | R6 | `renderMarkdown(node)` sharing the section model | `renderHelp(…, { format: 'markdown' })`, built by `agent-skill` R1 | `packages/burgee/src/help.test.ts` › "lays out a heading, a usage block, tables and fenced examples, with the exit-code table at the root"; › "a mutation that drops a section from one target is caught" | restated |
 | R7 | colour only when `opts.color`, never in manifest names | yes, as `color` plus a `theme` seam shaped like roundel's tokens (roundel is not imported), and the engine decides `color` by O2 | `packages/burgee/src/help.test.ts` › "never colours a name in the manifest: colour wraps the rendered cell after it is measured (yargs #1699)"; `packages/burgee/src/help.test.ts` › "the engine colours help by O2 alone: ANSI is all it adds, and NO_COLOR removes it" | restated |

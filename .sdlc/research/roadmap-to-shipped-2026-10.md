@@ -87,7 +87,7 @@ Abbreviations used below:
 | ci-affected-lanes | approved | y | P | workflows/CI | 7 | 5 | R4 / S3 (ci-minutes reading after 20 PRs since #1101) | n | – | Blocked only on time |
 | cli-benchmarks | review | y | P | benchmarks | 16 | 11 | B7 link lock, B3/R8 compat-axis test, R6 ≥30 spawns, CLAIM 0.699× | n | – | Header stale ("no bench script"). Owner call on the token claim |
 | cli-foundation-stack | draft | y | P | umbrella (foundation) | 17 | 9 | Y2, Y3, Y4, Y8, Y12, S1, S3, S5 | n | – | Drifted: Node floor, and every package ships a bin. Close via children, move S3/S5 to a new intent |
-| cli-help-renderer | review | y | P | burgee/help | 10 | 8 | S1 (min/max annotations), S3 restate | n | – | |
+| cli-help-renderer | **shipped** (typed-schema-surface) | y | SHIPPED | burgee/help | 10 | 10 | – | n | – | S1's min/max row held 2026-10-19 |
 | cli-mcp | review | y | P | burgee/mcp | 16 | 14 | lint rule (eslint repo, now dropped here; restate), C4 (waits on b1-mcp-arm) | n | – | K1 "deps {}" → restate as "nothing outside the family" |
 | cli-output-stack | approved | y | P | umbrella (output stack) | 23 | 17 | R2 env-name lock, R3 examples case, R11 inquirer 100/213, S2 dependency-count row, S5 spinner cases | n | – | Close by mapping each row to roundel, flagstaff or caique |
 | cli-packaging | review | y | P | release/packaging | 10 | 8 | R4 / S3 (`.map` negative fixture; `forbiddenInPack` untested) | n | – (release-tag.qnt is tags only) | One test closes it |
@@ -100,7 +100,7 @@ Abbreviations used below:
 | commander-completions | **shipped** (batch 0) | y | SHIPPED | burgee/completions | 8 | 8 | – | n | – | Human accepts two restatements: Fig is structural, `complete` replaces `--dynamic`. CI's `completions.yml` is authoritative |
 | commander-env | review | y | P | burgee/parse + seniority | 11 | 8 | intent C1 (per-issue case), C3 (`LAYER=off` gone), C4 (synthetic only), R3 façade `--explain` | n | – | Mostly restate; the `withEnv` design is superseded |
 | commander-front-end-diet | **shipped** (batch 3) | y | SHIPPED | burgee/commander-facade + weight | 4 | 4 | – | n | – | Batch 3: `lighter-than-commander` 1.565 → 1.42 (D-20261019-lighter-than-commander-ratchet); `OVER_INCUMBENT` 55,661 → 55,653 (v14 55,997 → 56,002 for #1139's unrecorded +5 B) |
-| commander-schema | review | y | P | burgee/types + parse | 10 | 3 (+5 partial) | R1, R2, R3, R4, intent C1–C3 | n | – | **SUPERSEDED-CANDIDATE** for its positional half → typed-positionals; restate the rest |
+| commander-schema | approved (typed-schema-surface) | y | P | burgee/types + parse | 10 | 3 (+5 partial) | C1, R2, R4 (B-20261019-commander-schema-remaining) | n | – | **SUPERSEDED-CANDIDATE** for its positional half → typed-positionals; restate the rest |
 | compat-grader-layer | **dropped** (batch 0, `D-20261018-drop-compat-grader-layer`) | n | DROPPED | compat-oracle | 6 | 1 | – | n | – | Ruling: trigger fixed; conflicts with compat-oracle being internal |
 | compat-oracle | approved | y | P | compat-oracle | 13 | 12 | R1 (60 s warm budget, not gated) | n | – | Restate R1 or add a timing check. The README compat rows are hand-written |
 | completion-context | approved | y | NS | burgee/completions (execute lane) | 5 | 1 | R1–R4 | n | – | Ahead of default-command and typed-positionals |
@@ -154,7 +154,7 @@ Abbreviations used below:
 | seniority | approved | y | P | seniority | 21 | 13 | R1/S2 truth-table page, R2/S5 shared precedence vectors, R7 extends chain in explain, R9 spawn delta, S3, S4 | n | – | The truth table is the product and is unproduced |
 | supports-color-drop-in | approved | y | NS | roundel + compat-oracle | 9 | 0 | R1–R5, S1–S4 | n | – | 441.6 M/wk with no override target |
 | table-column-widths | **shipped** (batch 0) | y | SHIPPED | flagstaff | 7 | 7 | – | n | – | |
-| typed-positionals | review | y | P | burgee/parse + types | 6 | 2 (R4 partial) | R1–R3, R4 native and completions | n | – | R5 and R6 already met (#1091). Budget constraint stale |
+| typed-positionals | approved (typed-schema-surface) | y | P | burgee/parse + types | 6 | 5 (R4 partial) | R4 `type` on `inputSchema`, completions | n | – | R1–R3 built 2026-10-19; R5 and R6 met (#1091) |
 | types-under-node10 | draft | **n** | SPEC | published artifacts (`typesVersions`) | 3 | 0 | SC1–SC3 | n | – | **LIVE DEFECT / barrier 4:** TS2307 on node10 (38.8% of TS dependents) |
 | u5-weight-claim | **shipped** (batch 0) | y | SHIPPED | benchmarks (weight) | 3 | 3 | – | n | – | Reads 0.97 in CI; trim the stale Verification paragraph |
 | upstream-watch | **shipped** (batch 0) | y | SHIPPED | compat-oracle + CI | 8 | 8 | – | n | – | R5 and R7 are held by workflow config; cite those lines. Dedupe only searches open issues |

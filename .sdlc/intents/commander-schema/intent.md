@@ -4,7 +4,10 @@
 > requirements S1–S4, plus the TypeScript cluster (research §5) and the validation
 > cluster (§4). Proposes floor additions S5–S8.
 
-**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** approved · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+
+> Accepted 2026-10-19 by the coordinator under the owner's delegation
+> ([`D-20261019-typed-schema-surface-design-accepted`](../../decisions/D-20261019-typed-schema-surface-design-accepted.md)).
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Evidence:** `schema.ts`, `schema-dsl.test.ts`, `validate.ts` (S1–S8).
 
@@ -14,7 +17,7 @@
 
 ## Restated 2026-10-18
 
-**The option half of "declare once" is in the native engine with checks. The positional half moves to `typed-positionals` R1–R3. `schemaVersion: 2` is dropped by `clispec-conformance`. Five pieces stay here — REMAINING: C1 (per-issue cases failing on commander), C3 (`minimum`/`maximum` asserted in `--schema`), R2 (option `file`/`path`/`object` types), R3 (`--no-x` honoured by relations, yargs #898), R4 (`file` existence check).** *2026-10-19: C3's min/max half is held by `packages/burgee/src/schema-dsl.test.ts` › "publishes minimum and maximum in --schema, on the option and on its inputSchema property (commander-schema C3)"; four remain, and the status stays `review`.*
+**The option half of "declare once" is in the native engine with checks. The positional half moves to `typed-positionals` R1–R3. `schemaVersion: 2` is dropped by `clispec-conformance`. Five pieces stay here — REMAINING: C1 (per-issue cases failing on commander), C3 (`minimum`/`maximum` asserted in `--schema`), R2 (option `file`/`path`/`object` types), R3 (`--no-x` honoured by relations, yargs #898), R4 (`file` existence check).** *2026-10-19: C3's min/max half is held by `packages/burgee/src/schema-dsl.test.ts` › "publishes minimum and maximum in --schema, on the option and on its inputSchema property (commander-schema C3)"; four remain, and the status stays `review`.* *2026-10-19: R3's `--no-x` half is held by `packages/burgee/src/schema-dsl.test.ts` › "counts a typed --no-x as given to implies and dependsOn, and a default as not given (yargs #898)", and the positional half by `typed-positionals` R1–R3; the status is `approved`. **REMAINING: C1, R2, R4**, each larger than one batch and written up as [`B-20261019-commander-schema-remaining`](../../gaps/B-20261019-commander-schema-remaining.md).*
 
 Verified against burgee `main` at `1013b65db5` with `git grep`; no test was run. Nothing is
 renumbered. This intent is a **supersede candidate**. Once the five remaining items are
