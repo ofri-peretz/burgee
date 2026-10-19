@@ -47,6 +47,14 @@ export interface HostImport {
    * a program migrates: the same named import, from one module or the other.
    */
   defaultExport?: string;
+  /**
+   * What a **target** run re-exports for this import, when it is not `<target><subpath>`.
+   *
+   * A previous major's row grades the major's own entry — `burgee/yargs/v17` — and that entry
+   * has no `/parser` beside it: a program on yargs 17 that imports `yargs-parser` is migrated to
+   * `burgee/yargs/parser`, the same module a program on 18 gets, so that is what is graded.
+   */
+  target?: string;
 }
 
 /** One file a suite reaches by path; see {@link Host.entries}. */
@@ -612,6 +620,9 @@ export interface Host {
    * the target's own module of the same job, by absolute path (an exports map blocks a deep
    * import by name): the drop-in's write protocol and key decoder, graded by the same cases
    * that grade ink's. `file` is relative to the target package's root.
+   *
+   * At a `.cjs` path the shim is CommonJS, as the path is parsed: it `require()`s the file and
+   * hands over an object of the names. yargs 17's suite requires `../build/index.cjs`.
    */
   targetInternals?: Record<string, { file: string; names: Record<string, string> }>;
   /** Our entry point graded against it. */
@@ -2154,14 +2165,29 @@ export const PREVIOUS_MAJORS: Host[] = [
       // `require()` of the façade already returns the callable (its `'module.exports'` export).
       { upstream: '../index.cjs', subpath: '', reexportDefault: false },
       // `yargs/yargs`, 17's non-singleton factory and the form its README teaches for
-      // CommonJS. yargs 18's own exports map points `./yargs` at its main entry, so the
-      // façade's main is what the name means one major on, and it is graded as that.
-      { upstream: '../yargs.cjs', subpath: '', reexportDefault: true, control: 'yargs/yargs' },
-      { upstream: 'yargs-parser', subpath: '/parser', reexportDefault: true, control: 'yargs-parser' },
+      // CommonJS, with its three statics. Not the singleton: `helpers.cjs` counts its keys. A
+      // program on 17 that names it is migrated to `burgee/yargs/v17/yargs`, so that is graded.
+      // Stryker disable next-line all: graded in another process: the compat ratchet's `--majors` and `--majors --control` runs read this row against `baseline/majors/yargs-17.json` (793 of 794), and a mutant here moves one of those counts — except `upstream`, which only a re-vendor reads, and `reexportDefault`, which is equivalent because neither module has a `default` to unwrap
+      { upstream: '../yargs.cjs', subpath: '', reexportDefault: true, control: 'yargs/yargs', target: 'burgee/yargs/v17/yargs' },
+      // `burgee/yargs/parser` on 17 as on 18: `migrate` writes it for `yargs-parser` on either.
+      // Stryker disable next-line all: graded in another process: the compat ratchet's `--majors` and `--majors --control` runs read this row against `baseline/majors/yargs-17.json` (793 of 794), and a mutant here moves one of those counts — except `upstream`, which only a re-vendor reads
+      { upstream: 'yargs-parser', subpath: '/parser', reexportDefault: true, control: 'yargs-parser', target: 'burgee/yargs/parser' },
     ],
     // `../build/index.cjs`, the compiled bundle 17 exports its helpers from (`argsert`,
     // `YError`, `parseCommand`). 18 reaches the same classes through `build/lib/`.
+    // Stryker disable next-line StringLiteral: read when the suite is re-vendored (`vendor.ts` finds `../build/` imports by it) and when an internal shim is written, which the compat ratchet's `--majors` runs grade
     internalDir: 'build',
+    // The helpers the suite reads off 17's bundle, from the entry's own namespace on a target run.
+    // Without it the shim re-exported what `require('burgee/yargs/v17')` returns, the singleton,
+    // so `parser.cjs` read `Parser` and `usage.cjs` read `YError` off an instance.
+    // Stryker disable all: graded in another process: the compat ratchet's `--majors` and `--majors --control` runs read this row against `baseline/majors/yargs-17.json` (793 of 794), and a mutant here moves one of those counts, or the informational internals line (23 / 23)
+    targetInternals: {
+      'build/index.cjs': {
+        file: 'dist/yargs/v17.js',
+        names: { argsert: 'argsert', isPromise: 'isPromise', objFilter: 'objFilter', Parser: 'Parser', parseCommand: 'parseCommand', YError: 'YError' },
+      },
+    },
+    // Stryker restore all
     runner: 'mocha',
     // `fixtures/`, `esm/` and `deno/` are copied too and hold no `*.cjs`, so the walk grades
     // nothing in them and there is nothing to declare: 17's ESM suite (`test:esm` upstream)
@@ -2199,11 +2225,14 @@ export const PREVIOUS_MAJORS: Host[] = [
     ],
     controlFailures: {
       count: 1,
+      // Stryker disable next-line StringLiteral: a subtraction's written reason, which the compatibility page publishes and `scripts/compat-page-subtractions.test.ts` holds the page to, outside this package's suite
       why: "`helpers > applyExtends > exposes applyExtends helper` extends `./package.json` from the cwd and asserts its `name` is `yargs`. The cwd is the vendored root, whose manifest is deliberately `@vendored/yargs-17-suite` (`rootPackage()` — upstream's name would let Node's self-reference resolve `yargs` to a file that is not here). The current-major row's two allowed failures are the same lookup reading the same file.",
     },
-    target: 'burgee/yargs',
+    // Stryker disable next-line StringLiteral: graded in another process: the compat ratchet's `--majors` and `--majors --control` runs read this row against `baseline/majors/yargs-17.json` (793 of 794), and a mutant here moves one of those counts
+    target: 'burgee/yargs/v17',
     status: 'active',
-    note: "**Measured 2026-09-24: 191 / 794, 24.1%, against a control of 793 / 794 — 17 is graded and not claimed** (`SUPPORTED_MAJORS.yargs` is `[18]`). It is one decision of 18's, not 603 gaps: **17's `require('yargs')` is a singleton** — an instance already bound to `process.argv`, with every method on the required object — and 18 removed it, so the façade, which speaks 18, hands a `require()` caller the factory. Every file but three opens with `yargs.getInternalMethods().reset()` or `require('../../').help(…)` on that object, so the `beforeEach` of `Command`, `Completion`, `usage tests` and `validation tests` throws `yargs.getInternalMethods is not a function` and mocha abandons the rest of each block: **274 of the 794 register at all**, and the 520 that never run are counted against the row, not dropped. Of the 83 that register and fail, the named groups are the same cause seen from the inside: the 14 `integration tests` spawn fixtures that call `require('../../').help('help')`; `helpers` wants 17's `yargs/yargs` statics (`applyExtends`, `Parser`, `hideBin`) on the factory, where 18 moved them to `yargs/helpers`; `should expose yargs-parser as Parser` reads `Parser` off 17's build bundle; and the `yargs dsl tests` failures (`$0` from the bin name, electron argv, `locale`, `env`, `terminalWidth`, the minimum-Node check) each drive the singleton or its module-scope state. Three harness fixes were needed before the control read 793 and none moved an assertion: the mocha 9 CLI path (`mochaCli`), a top-level `yargs-parser@21.1.1` in `suiteDeps`, and a CommonJS shim that evicts the incumbent only when the suite busted the shim (`cjsLoad`) with the internal `build/index.cjs` a link to the incumbent's own on a control run (`linksInternal`).",
+    // Stryker disable next-line StringLiteral: an active row's note is its maintainers' log and nothing reads it — `Host.note` is rendered only for a row that is not active (compat-page), so emptying it changes no grade, page or output.
+    note: "**2026-10-19: level and claimed — `burgee/yargs/v17` 793 / 794 against a control of 793 / 794 (`previous-majors` R3–R5), so `SUPPORTED_MAJORS.yargs` is `[17, 18]`.** The one miss is the control's own, above. Four things, each found by the suite and none by reading the changelog. **The singleton (R4):** `require('burgee/yargs/v17')` reaches `dist/yargs/v17.cjs`, CommonJS on purpose: every `beforeEach` busts the require cache and requires the entry again to get an instance over the `process.argv` it has just set, and an ES module is evaluated once per process whatever the cache says — an ESM singleton kept the first `process.argv` and the last instance a test built, and read 772. **`yargs/yargs` is not the singleton:** `helpers.cjs` counts the keys of `require('yargs/yargs')` and wants three, so 17's factory-with-statics is its own entry, `burgee/yargs/v17/yargs`, and the second import names it (`HostImport.target`); `yargs-parser` names `burgee/yargs/parser`, which a program on either major is migrated to. **The string table (R3):** 18's constructor sets `en_US` on every instance and 17's leaves the table alone, and 17's table is made per load of its build, so a locale one test updated (`OPTIONS!`) is not the next file's, and the constructor's `en_US` is not 17's `en`; fourteen cases. **`commandDir()` (R3):** 17 walks with `require-directory` — depth first, `include` and `exclude` against the path, `visit` handed the module itself (18's prototype-less copy has no `.should`) — and names a command module that names no command by finding it in `require.cache` (`whichModule`). Plus `YARGS_MIN_NODE_VERSION`, which 17's CommonJS entry reads at load. All of it is in `burgee/yargs/v17`'s own modules (`yargs/v17-factory.ts`, `yargs/v17.cts`); `burgee/yargs` gains one optional `CommandInstance` on its platform shim, and `burgee/yargs` still grades 816 / 816. `targetInternals` serves `../build/index.cjs` from `dist/yargs/v17.js`'s namespace, in CommonJS at that path, so `parser.cjs` reads `Parser` and `usage.cjs` reads `YError` from the entry rather than off an instance; the internals line is 23 / 23 with it. The paragraph below is the row before the entry. **Measured 2026-09-24: 191 / 794, 24.1%, against a control of 793 / 794 — 17 is graded and not claimed** (`SUPPORTED_MAJORS.yargs` is `[18]`). It is one decision of 18's, not 603 gaps: **17's `require('yargs')` is a singleton** — an instance already bound to `process.argv`, with every method on the required object — and 18 removed it, so the façade, which speaks 18, hands a `require()` caller the factory. Every file but three opens with `yargs.getInternalMethods().reset()` or `require('../../').help(…)` on that object, so the `beforeEach` of `Command`, `Completion`, `usage tests` and `validation tests` throws `yargs.getInternalMethods is not a function` and mocha abandons the rest of each block: **274 of the 794 register at all**, and the 520 that never run are counted against the row, not dropped. Of the 83 that register and fail, the named groups are the same cause seen from the inside: the 14 `integration tests` spawn fixtures that call `require('../../').help('help')`; `helpers` wants 17's `yargs/yargs` statics (`applyExtends`, `Parser`, `hideBin`) on the factory, where 18 moved them to `yargs/helpers`; `should expose yargs-parser as Parser` reads `Parser` off 17's build bundle; and the `yargs dsl tests` failures (`$0` from the bin name, electron argv, `locale`, `env`, `terminalWidth`, the minimum-Node check) each drive the singleton or its module-scope state. Three harness fixes were needed before the control read 793 and none moved an assertion: the mocha 9 CLI path (`mochaCli`), a top-level `yargs-parser@21.1.1` in `suiteDeps`, and a CommonJS shim that evicts the incumbent only when the suite busted the shim (`cjsLoad`) with the internal `build/index.cjs` a link to the incumbent's own on a control run (`linksInternal`).",
   },
   {
     // slice-ansi 7, kept graded when the current row moved to 9 (burgee#317), because 7 is

@@ -306,7 +306,10 @@ export default [
     // it under a changed `process`, which an ES module cannot be (closeout spec, 2026-09-23).
     // `import x = require()` and `export =` are therefore the syntax, not a lapse, and the one
     // export object is what Node's lexer turns into named exports.
-    files: ["packages/closeout/src/*.cts"],
+    // burgee's `yargs/v17.cts` is CommonJS for the same reason: yargs 17's suite busts the require
+    // cache and requires the entry again for a singleton over a new `process.argv`
+    // (`previous-majors` R4), and `export =` is what `require()` of yargs 17 returns.
+    files: ["packages/closeout/src/*.cts", "packages/burgee/src/yargs/v17.cts"],
     rules: {
       "import-next/no-commonjs": "off",
       "import-next/unambiguous": "off",
@@ -853,6 +856,9 @@ export default [
       "packages/burgee/src/yargs-helpers.ts",
       "packages/burgee/src/yargs-parser.ts",
       "packages/burgee/src/yargs/**/*.ts",
+      // yargs 17's `index.cjs`, the singleton, as written: it copies each instance member onto
+      // the exported function by name (`previous-majors` R4).
+      "packages/burgee/src/yargs/v17.cts",
       "packages/flagstaff/src/ora.ts",
       "packages/flagstaff/src/log-update.ts",
       // Moved to `linegauge` with the port itself (F1). It is still wrap-ansi 10 line for
@@ -930,6 +936,10 @@ export default [
     files: [
       "packages/burgee/src/yargs.ts",
       "packages/burgee/src/yargs-parser.ts",
+      // yargs 17's two entries (`previous-majors` R3): `import yargs from 'yargs'` and
+      // `import yargs from 'yargs/yargs'` are default imports in a program on 17.
+      "packages/burgee/src/yargs/v17.ts",
+      "packages/burgee/src/yargs/v17-yargs.ts",
       // `import meow from 'burgee/meow'` is the drop-in for the same reason: meow's entire
       // API is one default-exported function, and every program written for it imports it
       // that way.

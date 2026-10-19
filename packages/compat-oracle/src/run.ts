@@ -328,7 +328,7 @@ function missingTarget(host: Host, target: string): string | undefined {
   if (target === controlName(host)) return undefined;
   // An aliasing host's imports name the library it grades, which is the same on both runs;
   // what the target replaces is the alias, so the target itself is the one entry to find.
-  const wanted = host.alias === undefined ? host.imports.map((e) => `${target}${e.subpath}`) : [target];
+  const wanted = host.alias === undefined ? host.imports.map((e) => targetOf(e, target)) : [target];
   return wanted.find((spec) => {
     try {
       import.meta.resolve(spec);
@@ -339,13 +339,16 @@ function missingTarget(host: Host, target: string): string | undefined {
   });
 }
 
+/** What a target run re-exports for one import: its own `target`, or `<target><subpath>`. */
+export const targetOf = (entry: HostImport, target: string): string => entry.target ?? `${target}${entry.subpath}`;
+
 /** The source of one generated public shim. */
 function shimSource(entry: HostImport, host: Host, target: string): string {
   const header = `// generated per run — COMPAT_TARGET=${target}`;
   // An aliasing host grades a library built on the incumbent, so the shim hands the suite that
   // library on both runs; the target arrives underneath it, through `aliasHook`.
   const own = target === controlName(host) || host.alias !== undefined;
-  const from = own ? (entry.control ?? `${controlName(host)}${entry.subpath}`) : `${target}${entry.subpath}`;
+  const from = own ? (entry.control ?? `${controlName(host)}${entry.subpath}`) : targetOf(entry, target);
   // A CommonJS shim hands the suite whatever `require()` of the implementation returns — the
   // `require` condition, where an ESM shim takes `import`. For a dual package that is a
   // different build: signal-exit's suite is written against `dist/cjs`, whose behaviour
@@ -507,7 +510,7 @@ function writeInternalShims(host: Host, { hostDir, target, internals, packageTyp
     if (linksInternal(host, { from, at })) continue;
     // A target run of a host that names the target's own module for this path (`targetInternals`).
     const own = from === target ? host.targetInternals?.[rel] : undefined;
-    const body = own === undefined ? internalShimBody(from, language, named) : targetInternalBody(packageRoot(target), own);
+    const body = own === undefined ? internalShimBody(from, language, named) : targetInternalBody(packageRoot(target), own, language);
     writeFileSync(at, `// generated per run — COMPAT_TARGET=${target}\n${body}`);
   }
 }
@@ -517,7 +520,11 @@ function writeInternalShims(host: Host, { hostDir, target, internals, packageTyp
  * (`Host.targetInternals`): each name the suite imports, re-exported from the file by absolute
  * URL — an exports map blocks a deep import by name, as it does the control's.
  */
-export function targetInternalBody(root: string, { file, names }: { file: string; names: Record<string, string> }): string {
+export function targetInternalBody(root: string, { file, names }: { file: string; names: Record<string, string> }, language?: string): string {
+  if (language === 'commonjs') {
+    const list = Object.entries(names).map(([as, name]) => `${as}: loaded.${name}`);
+    return `const loaded = require(${JSON.stringify(join(root, file))});\nmodule.exports = { ${list.join(', ')} };\n`;
+  }
   const list = Object.entries(names).map(([as, name]) => (as === name ? name : `${name} as ${as}`));
   return `export { ${list.join(', ')} } from '${pathToFileURL(join(root, file)).href}';\n`;
 }

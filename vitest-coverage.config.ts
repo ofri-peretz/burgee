@@ -57,6 +57,10 @@ export const TESTED_IN_ANOTHER_PROCESS = [
   'src/yargs/utils.ts',
   'src/yargs/validation.ts',
   'src/yargs/y18n.ts',
+  // yargs 17's `require()` door (`previous-majors` R4): CommonJS, reached only through the built
+  // `dist/yargs/v17.cjs` — by `v17-require.test.ts`, a child process per case, and by yargs 17's
+  // own suite (793 / 794). A cache bust is the behaviour, and no in-process import can make one.
+  'src/yargs/v17.cts',
   // flagstaff — ora 99, log-update 99, boxen 213, cli-table3 33.
   'src/ora.ts',
   'src/log-update.ts',
