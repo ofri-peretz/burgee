@@ -146,9 +146,11 @@ describe('windows-lane-holds R3 — pwsh cannot hang the case', () => {
   });
 
   it.runIf(has('pwsh'))('R3 — the PowerShell script reports its phases on stderr', { timeout: 120_000 }, () => {
-    const got = phases(runPwsh(['-Line', 'demo con', 'demo greet --']).stderr).map((l) => l.split(' ')[1]);
+    // Lines go positionally, as `pwsh()` passes them: naming `-Line` binds only its first value,
+    // and PowerShell then refuses the second as a stray positional.
+    const got = phases(runPwsh(['demo con', 'demo greet --']).stderr).map((l) => l.split(' ')[1]);
     expect(got).toEqual(['start', 'lookup', 'dot-source', 'complete:1', 'complete:2']);
-    for (const line of phases(runPwsh(['-Line', 'demo con']).stderr)) expect(line).toMatch(/^pwsh-phase \S+ \d+$/);
+    for (const line of phases(runPwsh(['demo con']).stderr)) expect(line).toMatch(/^pwsh-phase \S+ \d+$/);
   });
 });
 
