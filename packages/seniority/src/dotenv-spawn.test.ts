@@ -5,13 +5,16 @@
  * Windows runner.
  */
 import cp from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, normalize } from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { envValue, protectShellToken, quoteWindowsArgument, resolveWindowsCommand, spawnCommand } from './dotenv-spawn.js';
+
+const scratch = scratchDirs();
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -60,7 +63,7 @@ describe('envValue (Windows names are case-insensitive)', () => {
 });
 
 describe('resolveWindowsCommand', () => {
-  const root = mkdtempSync(join(tmpdir(), 'seniority-dotenv-win-'));
+  const root = scratch('seniority-dotenv-win-');
   const bin = join(root, 'bin');
   mkdirSync(bin);
   writeFileSync(join(bin, 'probe.CMD'), '');
@@ -106,7 +109,7 @@ describe('spawnCommand', () => {
     expect(spawn).toHaveBeenCalledWith('node', ['-e', 'a&b'], { stdio: 'inherit' });
   });
 
-  const root = mkdtempSync(join(tmpdir(), 'seniority-dotenv-spawn-'));
+  const root = scratch('seniority-dotenv-spawn-');
   writeFileSync(join(root, 'native.EXE'), '');
   writeFileSync(join(root, 'script.BAT'), '');
 

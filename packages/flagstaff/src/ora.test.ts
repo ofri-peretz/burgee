@@ -11,14 +11,16 @@
  * force the animation on; so it is asserted here, on the default a real program gets.
  */
 import { execFileSync } from 'node:child_process';
-import { closeSync, mkdtempSync, openSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { closeSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import process from 'node:process';
 
 import { describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import ora, { oraPromise, spinners } from './ora.js';
+
+const scratch = scratchDirs();
 
 /**
  * The complaint R5 exists for (clack #510): frames separated by carriage returns, captured
@@ -159,7 +161,7 @@ interface SignalOutcome {
 }
 
 function spinThenSignal(signal: string, ownHandler = false): SignalOutcome {
-  const dir = mkdtempSync(join(tmpdir(), 'flagstaff-ora-signal-'));
+  const dir = scratch('flagstaff-ora-signal-');
   const log = join(dir, 'fd2');
   const child = join(dir, 'child.mjs');
   writeFileSync(

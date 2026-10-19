@@ -10,18 +10,20 @@
  * cases stay in `completions.test.ts`. Every assertion below moved from there verbatim.
  */
 import { execFileSync, spawnSync, type SpawnSyncOptionsWithStringEncoding } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it, vi } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { renderCompletion } from './completions.js';
 import { defineCommand, defineProgram } from './index.js';
 import { host } from './runtime.js';
 import { runBurgee } from './testing.js';
 import { shellWord } from './unknown-option.js';
+
+const scratch = scratchDirs();
 
 const SENTINEL = 'HANDLER-RAN';
 // The same program `completions.test.ts` pins by snapshot.
@@ -64,7 +66,7 @@ const has = (shell: string): boolean => {
     return false;
   }
 };
-const dir = mkdtempSync(join(tmpdir(), 'burgee-completions-'));
+const dir = scratch('burgee-completions-');
 // PowerShell dot-sources only a `.ps1` file; any other extension is a file to open.
 const EXT = { bash: 'bash', zsh: 'zsh', fish: 'fish', pwsh: 'ps1' } as const;
 const scriptFor = (shell: 'bash' | 'zsh' | 'fish' | 'pwsh'): string => {

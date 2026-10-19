@@ -21,20 +21,22 @@
  * **value** import, which is the one a migration is about; the type-only line is asserted
  * separately, as a difference that exists and is understood.
  */
-import { cpSync, mkdtempSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { cpSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { migrate } from './migrate.js';
+
+const scratch = scratchDirs();
 
 const EXAMPLES = resolve(fileURLToPath(new URL('..', import.meta.url)), '../../examples');
 
 /** A copy of one demo's `src/`, so the gate never writes into the repository it is grading. */
 function copyOf(demo: string): string {
-  const dir = mkdtempSync(join(tmpdir(), `burgee-${demo}-`));
+  const dir = scratch(`burgee-${demo}-`);
   cpSync(join(EXAMPLES, demo, 'src'), join(dir, 'src'), { recursive: true });
   cpSync(join(EXAMPLES, demo, 'package.json'), join(dir, 'package.json'));
   return dir;

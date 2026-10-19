@@ -19,13 +19,15 @@
  * an npm shim, with a canary that a live `&` would create.
  */
 import cp, { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { afterAll, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { isCmdEscapeSafe, protectShellToken, quoteWindowsArgument, spawnCommand } from './dotenv-spawn.js';
+
+const scratch = scratchDirs();
 
 // ---------------------------------------------------------------------------------------------
 // The readers.
@@ -200,9 +202,8 @@ function random(seed: number): () => number {
 }
 const ALPHABET = [...' \t"\\^&|<>()%!:=;,*?[]`\'@~#$+{}./_-aZ09é😀＂'];
 
-const root = mkdtempSync(join(tmpdir(), 'seniority dotenv cmd '));
+const root = scratch('seniority dotenv cmd ');
 writeFileSync(join(root, 'plain.CMD'), '');
-afterAll(() => rmSync(root, { recursive: true, force: true }));
 
 describe('the command line, read back through cmd.exe and the C runtime', () => {
   it.each([
@@ -307,7 +308,7 @@ describe('against bellpull’s cross-spawn (cross-spawn’s escape.js)', () => {
 });
 
 describe.skipIf(process.platform !== 'win32')('through the real cmd.exe', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'dotenv windows '));
+  const dir = scratch('dotenv windows ');
   const bin = join(dir, 'node_modules', '.bin');
   mkdirSync(bin, { recursive: true });
   const script = join(dir, 'print args.cjs');
@@ -320,7 +321,6 @@ describe.skipIf(process.platform !== 'win32')('through the real cmd.exe', () => 
   const canary = join(dir, 'canary');
   // A live `&` anywhere runs this, and the file appears.
   const vectors = [...ALL, `a&echo x>"${canary}"`, `"&echo x>"${canary}"&"`, `%COMSPEC:\\=&echo x>${canary}&%`];
-  afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
   it.each(['probe', join(bin, 'probe.cmd'), join(dir, 'probe.bat'), join(dir, 'plain.cmd')])('%s gets every vector back exactly', (command) => {
     const env: Record<string, string | undefined> = { ...process.env };

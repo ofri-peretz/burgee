@@ -14,14 +14,16 @@
  * than asserted away: see the R5 block below.
  */
 import { execFileSync } from 'node:child_process';
-import { closeSync, mkdtempSync, openSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { closeSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import process from 'node:process';
 
 import { describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { createLogUpdate, type LogUpdateStream } from './log-update.js';
+
+const scratch = scratchDirs();
 
 const ESC = '\u001B';
 
@@ -126,7 +128,7 @@ describe('a wrapped frame keeps each row self-contained', () => {
 const distLogUpdate = new URL('../dist/log-update.js', import.meta.url).href;
 
 function runChild(body: string[]): { out: string; err: string } {
-  const dir = mkdtempSync(join(tmpdir(), 'flagstaff-log-update-'));
+  const dir = scratch('flagstaff-log-update-');
   const child = join(dir, 'child.mjs');
   const outPath = join(dir, 'fd1');
   const errPath = join(dir, 'fd2');
@@ -191,7 +193,7 @@ interface SignalOutcome {
 }
 
 function renderThenSignal(signal: string, ownHandler = false): SignalOutcome {
-  const dir = mkdtempSync(join(tmpdir(), 'flagstaff-log-update-signal-'));
+  const dir = scratch('flagstaff-log-update-signal-');
   const log = join(dir, 'fd2');
   const child = join(dir, 'child.mjs');
   writeFileSync(

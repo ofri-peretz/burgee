@@ -11,12 +11,15 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { ask, type Reader, type Writer } from './ask.js';
 import { localise, resolvePrompts, type PromptableOption } from './binding.js';
 import { check } from './check.js';
 import { type Runtime } from './decide.js';
 import { checkLocales, sayFor } from './locale.js';
 import { register, reset } from './plugin.js';
+
+const scratch = scratchDirs();
 
 afterEach(() => reset());
 
@@ -165,7 +168,7 @@ describe('a caique locale pack is checked (R6)', () => {
     const { mkdtempSync, writeFileSync } = await import('node:fs');
     const { tmpdir } = await import('node:os');
     const { join } = await import('node:path');
-    const file = join(mkdtempSync(join(tmpdir(), 'caique-locale-')), 'bad.mjs');
+    const file = join(scratch('caique-locale-'), 'bad.mjs');
     writeFileSync(file, `export default ${JSON.stringify({ name: 'bad', locales: { de: { 'caique.nope': 'x' } } })};\n`);
     const out: string[] = [];
     expect(await check([file], (s) => out.push(s))).not.toBe(0);
@@ -178,7 +181,7 @@ describe('caique check renders a pack (R6)', () => {
     const { mkdtempSync, writeFileSync } = await import('node:fs');
     const { tmpdir } = await import('node:os');
     const { join } = await import('node:path');
-    const file = join(mkdtempSync(join(tmpdir(), 'caique-locale-')), 'pack.mjs');
+    const file = join(scratch('caique-locale-'), 'pack.mjs');
     writeFileSync(file, `export default ${JSON.stringify(pack)};\n`);
     const out: string[] = [];
     expect(await check([file], (s) => out.push(s))).toBe(0);

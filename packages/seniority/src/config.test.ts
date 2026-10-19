@@ -1,14 +1,16 @@
 /** commander-env V6, V7 — discovery order, --no-config, explicit misses, extends with deep merge and cycles, on real temp files. */
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { candidates, deepMerge, discover, loadWithExtends } from './config.js';
 import { ConfigError } from './precedence.js';
 
-const dir = mkdtempSync(join(tmpdir(), 'seniority-config-'));
+const scratch = scratchDirs();
+
+const dir = scratch('seniority-config-');
 const write = (rel: string, data: unknown): string => {
   const at = join(dir, rel);
   mkdirSync(join(at, '..'), { recursive: true });

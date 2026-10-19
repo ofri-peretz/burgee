@@ -1,14 +1,17 @@
 /** R8 — `seniority/dotenv`: dotenv 18's parse, populate and config, byte for byte. */
-import fs, { mkdtempSync, writeFileSync } from 'node:fs';
-import os, { tmpdir } from 'node:os';
+import fs, { writeFileSync } from 'node:fs';
+import os from 'node:os';
 import path, { join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { optionsFromEnv, truthy } from './dotenv-options.js';
 import { parseFast } from './dotenv-scan.js';
 import dotenv, { config, configDotenv, parse, populate } from './dotenv.js';
+
+const scratch = scratchDirs();
 
 // The scanner, watched: `{ fast }` must route to it and nothing else may.
 vi.mock('./dotenv-scan.js', async (original) => {
@@ -16,7 +19,7 @@ vi.mock('./dotenv-scan.js', async (original) => {
   return { ...real, parseFast: vi.fn(real.parseFast) };
 });
 
-const dir = mkdtempSync(join(tmpdir(), 'seniority-dotenv-'));
+const dir = scratch('seniority-dotenv-');
 
 /** Every `DOTENV_*` / `DOTENV_CONFIG_*` name, cleared around each case so the shell running the tests cannot steer one. */
 const ENV_NAMES = ['ENCODING', 'PATH', 'QUIET', 'DEBUG', 'OVERRIDE', 'FAST'].flatMap((n) => [`DOTENV_${n}`, `DOTENV_CONFIG_${n}`]);
@@ -255,7 +258,7 @@ describe('config', () => {
   });
 
   it('expands a leading `~` to the home directory, and reads a URL as a path', () => {
-    const home = mkdtempSync(join(tmpdir(), 'seniority-dotenv-home-'));
+    const home = scratch('seniority-dotenv-home-');
     writeFileSync(join(home, '.env.home'), 'H=home\n');
     vi.spyOn(os, 'homedir').mockReturnValue(home);
     expect(config({ path: '~/.env.home', processEnv: {} }).parsed).toEqual({ H: 'home' });
@@ -264,7 +267,7 @@ describe('config', () => {
   });
 
   it('reads `.env` in the working directory when given no path, or an empty one', () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'seniority-dotenv-cwd-'));
+    const cwd = scratch('seniority-dotenv-cwd-');
     writeFileSync(join(cwd, '.env'), 'W=cwd\n');
     vi.spyOn(process, 'cwd').mockReturnValue(cwd);
     expect(config({ processEnv: {} }).parsed).toEqual({ W: 'cwd' });

@@ -7,7 +7,7 @@
  * intention.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import ts from 'typescript';
@@ -174,8 +174,9 @@ function specifiers(text: string): string[] {
   return ts.preProcessFile(text, true, true).importedFiles.map((f) => f.fileName);
 }
 
+/** What ships: `__fixtures__` is test scaffolding, outside the build like the tests themselves. */
 function sources(): string[] {
-  return walk(join(PKG_ROOT, 'src')).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'));
+  return walk(join(PKG_ROOT, 'src')).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts') && !f.split(sep).includes('__fixtures__'));
 }
 
 function walk(dir: string, out: string[] = []): string[] {

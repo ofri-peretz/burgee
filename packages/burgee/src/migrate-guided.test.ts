@@ -16,21 +16,23 @@
  *        `str` bound to blessed then matched every string literal.
  *        → "binds by source text, so a variable named str is not every string"
  */
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { ExitCode } from './exit-code.js';
 import { BLESSED_FACTORIES, GUIDE_BASE, guideFor, guidedSites, hostOf, mentionsAGuided, METHODS, SECTIONS, TERMKIT_MEMBERS } from './migrate-guided.js';
 import { migrate, tokensOf } from './migrate.js';
+
+const scratch = scratchDirs();
 
 /** `[line, incumbent, pattern]` for every site in `source`. */
 const sites = (source: string): [number, string, string][] => guidedSites(tokensOf(source)).map((s) => [s.line, s.from, s.pattern]);
 
 function project(files: Record<string, string>): string {
-  const dir = mkdtempSync(join(tmpdir(), 'burgee-migrate-guided-'));
+  const dir = scratch('burgee-migrate-guided-');
   for (const [path, body] of Object.entries(files)) {
     mkdirSync(dirname(join(dir, path)), { recursive: true });
     writeFileSync(join(dir, path), body);

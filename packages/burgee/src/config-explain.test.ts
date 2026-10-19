@@ -8,16 +8,18 @@
  * V8 / D-117 — `config explain`: synthesised for a program that reads config, generated from
  * the resolver's own precedence and provenance.
  */
-import { mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { width } from 'linegauge';
 import { ORDER } from 'seniority/precedence';
 import { describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { defineCommand, defineProgram } from './index.js';
 import { runBurgee } from './testing.js';
+
+const scratch = scratchDirs();
 
 const deploy = defineCommand({
   name: 'deploy',
@@ -33,7 +35,7 @@ const deploy = defineCommand({
 
 const program = defineProgram({ name: 'app', version: '1.0.0', config: true, envPrefix: 'APP', commands: [deploy] });
 
-const cwd = mkdtempSync(join(tmpdir(), 'burgee-config-explain-'));
+const cwd = scratch('burgee-config-explain-');
 writeFileSync(join(cwd, 'app.config.json'), `${JSON.stringify({ region: 'eu-west', replicas: 3 })}\n`);
 // Everything the resolver reads comes from here: no user config directory, no ambient APP_*.
 const env = { XDG_CONFIG_HOME: join(cwd, 'none'), HOME: join(cwd, 'none'), APP_TIER: 'pro' };

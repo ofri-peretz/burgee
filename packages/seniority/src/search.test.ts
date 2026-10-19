@@ -1,13 +1,15 @@
 /** R5, Y10 — the bounded upward walk: it stops, it says where it stopped, and a symlink cycle cannot spin it. */
-import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { search, searchAll, WALK_LIMIT } from './search.js';
 
-const root = mkdtempSync(join(tmpdir(), 'seniority-search-'));
+const scratch = scratchDirs();
+
+const root = scratch('seniority-search-');
 const at = (...parts: string[]): string => join(root, ...parts);
 mkdirSync(at('a', 'b', 'c'), { recursive: true });
 writeFileSync(at('a', 'app.config.json'), '{}');
@@ -81,7 +83,7 @@ describe('the walk is bounded (Y10)', () => {
 
 describe('symlinks (R5)', () => {
   it('follows a link once and refuses to follow a cycle twice', () => {
-    const ring = mkdtempSync(join(tmpdir(), 'seniority-ring-'));
+    const ring = scratch('seniority-ring-');
     mkdirSync(join(ring, 'inner'));
     // `inner/up` points back at `ring`, so a walk that did not compare real paths would
     // revisit `ring/inner` for as long as the limit allowed.

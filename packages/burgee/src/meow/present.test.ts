@@ -3,17 +3,20 @@
  * parses. The walk is `seniority/find-up`'s since 2026-09-28; what these pin is meow's reading
  * of it, which the move had to keep.
  */
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
+import { scratchDirs } from '../__fixtures__/scratch-dir.js';
+
 import { readPackageUp } from './present.js';
 
+const scratch = scratchDirs();
+
 function tree(files: Record<string, string>): string {
-  const root = mkdtempSync(join(tmpdir(), 'burgee-meow-pkg-'));
+  const root = scratch('burgee-meow-pkg-');
   for (const [path, body] of Object.entries(files)) {
     const at = join(root, path);
     mkdirSync(join(at, '..'), { recursive: true });

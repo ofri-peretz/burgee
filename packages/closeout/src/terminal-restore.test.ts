@@ -27,12 +27,15 @@
  * rather than a real signal delivery.
  */
 import { execFileSync } from 'node:child_process';
-import { closeSync, mkdtempSync, openSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { closeSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import process from 'node:process';
 
 import { describe, expect, it } from 'vitest';
+
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
+
+const scratch = scratchDirs();
 
 /** The built entry, because what is under test is what ships. turbo builds before test. */
 const distIndex = new URL('../dist/index.js', import.meta.url).href;
@@ -83,7 +86,7 @@ const prelude = ({ deadline = 2_000, held = false }: { deadline?: number; held?:
 ];
 
 function runChild(lines: string[]): Outcome {
-  const dir = mkdtempSync(join(tmpdir(), 'closeout-restore-'));
+  const dir = scratch('closeout-restore-');
   const log = join(dir, 'fd2');
   const child = join(dir, 'child.mjs');
   writeFileSync(child, lines.join('\n'));

@@ -1,18 +1,20 @@
 /** R3, R5, R6 wired into discovery: lines recorded, loaders injected, the walk bounded. */
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { discover, lineOf } from './config.js';
 import { LoaderError } from './load.js';
 import { parse } from './yaml.js';
 
+const scratch = scratchDirs();
+
 /** The README's YAML loader, word for word. */
 const yaml = (_path: string, text: string): unknown => parse(text);
 
-const dir = mkdtempSync(join(tmpdir(), 'seniority-discovery-'));
+const dir = scratch('seniority-discovery-');
 const write = (rel: string, body: string): string => {
   const at = join(dir, rel);
   mkdirSync(join(at, '..'), { recursive: true });
