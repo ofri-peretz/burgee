@@ -146,12 +146,12 @@ The loop is `npx vitest run src/migrate-dynamic.test.ts src/migrate.test.ts src/
 in `packages/burgee`. Each new case is red on `main` first. The postcss-cli and madge shapes come
 back `partial` with exit 1. The R4 holds come back with chalk moved. `report.dynamic` is `undefined`.
 
-The fixtures are the trial's lines, cut down. Line numbers are preserved by padding with blank lines.
+The fixtures are the trial's lines, cut down. Line numbers are preserved by padding with blank lines, and each line keeps its indentation, shown here without it.
 
 | Fixture | Shape |
 | :-- | :-- |
-| postcss-cli `03e8cee3` | `{ type: 'module', dependencies: { picocolors: '^1.1.1', yargs: '^18.0.0' } }`. `index.js`: line 7 `import pc from 'picocolors'`; line 16 `import argv from './lib/args.js'`; lines 69–71 `    parser: argv.parser ? await import(argv.parser) : undefined,` and the `syntax` and `stringifier` twins; line 75 `        argv.use.map(async (plugin) => {`; line 77 `            return (await import(plugin)).default()`; line 79, its template naming `${plugin}` |
-| madge `456057b8` | `{ dependencies: { commander: '^7.2.0', rc: '^1.2.8' } }` with `node_modules/commander/package.json` at 7.2.0. `bin/cli.js`: line 4 `const path = require('path');`; line 6 `const program = require('commander');`; line 7 `const rc = require('rc')('madge');`; line 63 `	packageConfig = require(path.join(process.cwd(), 'package.json')).madge;` |
+| postcss-cli `03e8cee3` | `{ type: 'module', dependencies: { picocolors: '^1.1.1', yargs: '^18.0.0' } }`. `index.js`: line 7 `import pc from 'picocolors'`; line 16 `import argv from './lib/args.js'`; lines 69–71 `parser: argv.parser ? await import(argv.parser) : undefined,` and the `syntax` and `stringifier` twins; line 75 `argv.use.map(async (plugin) => {`; line 77 `return (await import(plugin)).default()`; line 79, its template naming `${plugin}` |
+| madge `456057b8` | `{ dependencies: { commander: '^7.2.0', rc: '^1.2.8' } }` with `node_modules/commander/package.json` at 7.2.0. `bin/cli.js`: line 4 `const path = require('path');`; line 6 `const program = require('commander');`; line 7 `const rc = require('rc')('madge');`; line 63 `packageConfig = require(path.join(process.cwd(), 'package.json')).madge;` |
 
 | R | Check: `packages/burgee/src/migrate-dynamic.test.ts` (new) › test name | Shown failing first by |
 | :-- | :-- | :-- |
