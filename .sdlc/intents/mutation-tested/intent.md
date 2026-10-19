@@ -86,11 +86,35 @@
   SHA, and `quality-full-trigger-lock.test.ts` holds the new job to the same trigger as the
   other heavy jobs.
 
+## Build status — 2026-10-18
+
+**Built, not shipped: three of the four criteria are met by checks run green; the burgee floor
+is not.** Status stays `approved` until it is.
+
+- **Lock passes** — met. `npx vitest run --config vitest.root.config.ts
+  scripts/mutation-lock.test.ts scripts/quality-full-trigger-lock.test.ts`: 44 passed.
+- **Red then green** — met. On a scratch branch over `667ac99f6c`, `roundel/src/contrast.ts`
+  gained `bestContrast`, tested inside a `describe` with `toBeGreaterThan(1)`: `npx tsx
+  scripts/mutation.ts changed --event pull_request --base 667ac99f6c` exited 1, 2 of 4 mutants
+  survived (`contrast.ts:95:10` ArithmeticOperator `* 100`, `contrast.ts:95:21`
+  MethodExpression `Math.min`). With `toBe(21)` in both argument orders it exited 0, 4 of 4
+  killed. With the vitest-5 shim disabled, the same green branch exited 1 and the run was
+  refused: 4 covered mutants, 0 tests run.
+- **Floors from real runs** — **not met.** `roundel`: 79.41% (864 of 1,088 detected; 223
+  survived, 1 uncovered), a full run at `667ac99f6c`, floor 79.4. `burgee`: its full run was
+  stopped at 5,078 of 11,825 mutants, so it is `unmeasured` with that reason and no score is
+  claimed; its first weekly run sets the floor. Every other package is `unmeasured` with its
+  reason (linegauge's is a suite that cannot pass instrumented).
+- **Workflows** — met. `npx tsx scripts/lint-workflows.ts`: 23 workflow files pass; every
+  action is SHA-pinned; `mutation` is not in `REQUIRED_CHECKS`.
+
 ## Open questions
 
 None open. Decided while writing it (D-20261018-mutation-tested):
 
-- Decided: **burgee's weekly cell gets 300 minutes**, from the local seed run's duration. If
+- Decided: **burgee's weekly cell gets 300 minutes.** The local seed run tested 5,078 of its
+  11,825 mutants in 37 minutes at concurrency 2 (about 86 minutes for all of them); 300 is
+  more than three times that, for a shared runner. If
   a scheduled run overruns, the cell produces no score, which for a measured package is a
   breach — the overrun is reported, not hidden.
 - Decided: **the runner defect is not reported upstream by an agent.** A public issue is filed
