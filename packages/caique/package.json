@@ -10,6 +10,7 @@
   "engines": {
     "node": "^20.19.0 || >=22.13.0"
   },
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -81,6 +82,23 @@
       "types": "./dist/terminal.d.ts",
       "import": "./dist/terminal.js",
       "default": "./dist/terminal.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "ask": ["./dist/ask.d.ts"],
+      "binding": ["./dist/binding.d.ts"],
+      "locale": ["./dist/locale.d.ts"],
+      "clack": ["./dist/clack.d.ts"],
+      "decide": ["./dist/decide.d.ts"],
+      "editor": ["./dist/editor.d.ts"],
+      "inquirer": ["./dist/inquirer.d.ts"],
+      "inquirer/prompts": ["./dist/inquirer-prompts.d.ts"],
+      "keys": ["./dist/keys.d.ts"],
+      "plugin": ["./dist/plugin.d.ts"],
+      "raw": ["./dist/raw.d.ts"],
+      "spec": ["./dist/spec.d.ts"],
+      "terminal": ["./dist/terminal.d.ts"]
     }
   },
   "files": [

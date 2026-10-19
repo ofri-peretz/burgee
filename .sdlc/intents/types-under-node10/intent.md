@@ -1,6 +1,8 @@
 # Intent — every drop-in subpath type-checks under `moduleResolution: node10`
 
-**Status:** draft · **Opened:** `2026-10-18` · **Owner:** `@ofri-peretz`
+**Status:** approved · **Opened:** `2026-10-18` · **Owner:** `@ofri-peretz` · **Approved:** 2026-10-19,
+under the owner's 2026-10-12 delegation — design in [`spec.md`](./spec.md). Criteria 1 and 2 are locked by
+`scripts/declaration-reach.test.ts`; criterion 3 (tsc-alias) needs the release, so the status stays `approved`.
 
 ---
 
