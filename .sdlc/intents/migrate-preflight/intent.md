@@ -1,6 +1,6 @@
 # Intent — `burgee migrate` says what the move costs the project before it writes anything
 
-**Status:** draft · **Opened:** `2026-10-18` · **Owner:** `@ofri-peretz`
+**Status:** approved (2026-10-19, under the owner's delegation, [`D-20261019-migrate-preflight-design-accepted`](../../decisions/D-20261019-migrate-preflight-design-accepted.md)) · **Opened:** `2026-10-18` · **Owner:** `@ofri-peretz` · **Design:** [`spec.md`](./spec.md)
 
 ---
 

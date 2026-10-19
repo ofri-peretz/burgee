@@ -113,6 +113,21 @@ describe('the report', () => {
     expect(new DirtyTreeError([' M a.js', '?? b.js']).message).toBe('the git tree has 2 uncommitted changes');
   });
 
+  it('names the untracked paths in the hint, and offers .gitignore when nothing tracked changed', () => {
+    // R7 (migrate-preflight): @swc/cli's install wrote an untracked node-compile-cache/, and the
+    // refusal said only "1 uncommitted change". The message stays as it was; the hint names it.
+    const untracked = new DirtyTreeError(['?? node-compile-cache/', '?? .env.local']);
+    expect(untracked.message).toBe('the git tree has 2 uncommitted changes');
+    expect(untracked.hint).toBe('?? node-compile-cache/, ?? .env.local');
+    expect(untracked.fix).toBe('add node-compile-cache/ .env.local to .gitignore or commit them, or pass --force');
+    const mixed = new DirtyTreeError([' M a.js', '?? b/']);
+    expect(mixed.hint).toBe(' M a.js, ?? b/');
+    expect(mixed.fix, 'a tracked change is still committed or stashed').toBe('commit or stash your changes, or pass --force');
+    const many = Array.from({ length: 11 }, (_, i) => ` M f${i}.js`);
+    expect(new DirtyTreeError(many).hint).toBe(`${many.slice(0, 10).join(', ')} … and 1 more`);
+    expect(new DirtyTreeError(many.slice(0, 10)).hint).toBe(many.slice(0, 10).join(', '));
+  });
+
   it('reads no major from a range with no number in it', () => {
     expect(majorOf('*')).toBeUndefined();
     expect(majorOf('latest')).toBeUndefined();

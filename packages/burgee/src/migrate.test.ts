@@ -386,8 +386,8 @@ describe('A8 — the exit code says whether anything was left undone', () => {
     const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { commander: '^15.0.0' } }), 'src/a.ts': "import 'commander';\n" });
     expect(Object.keys(await migrate({ dir, status: clean })).sort()).toEqual(
       // `partial`, `offMajor` and `next` joined with A12: what was left alone and why, and the command to run.
-      // `summary`, `undeclared`, `held`, `transitive` and `releaseAge` joined with U12.
-      ['changed', 'dependencies', 'detected', 'dryRun', 'exitCode', 'files', 'graded', 'guided', 'held', 'imports', 'kept', 'mapped', 'next', 'offMajor', 'partial', 'refused', 'releaseAge', 'summary', 'transitive', 'undeclared'].sort(),
+      // `summary`, `undeclared`, `held`, `transitive` and `releaseAge` joined with U12; `preflight` with migrate-preflight R1.
+      ['changed', 'dependencies', 'detected', 'dryRun', 'exitCode', 'files', 'graded', 'guided', 'held', 'imports', 'kept', 'mapped', 'next', 'offMajor', 'partial', 'preflight', 'refused', 'releaseAge', 'summary', 'transitive', 'undeclared'].sort(),
     );
   });
 });

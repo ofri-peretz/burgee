@@ -214,11 +214,55 @@ describe('A6 — it refuses a dirty tree through the binary, with the fix on std
   it('names the count and exits RUNTIME', () => {
     const dir = project({ 'src/a.ts': "import { Command } from 'commander';\n" });
     execFileSync('git', ['-C', dir, 'init', '-q'], { stdio: 'ignore' });
+    // Staged, so the change is tracked: an untracked-only tree gets the fix the next case holds (R7).
+    execFileSync('git', ['-C', dir, 'add', '-A'], { stdio: 'ignore' });
     const { code, stderr } = burgee(['migrate', dir]);
     expect(code).toBe(ExitCode.RUNTIME);
     expect(stderr).toContain('uncommitted change');
     // The fix was on the error and never printed, until 2026-09-30.
     expect(stderr).toContain('fix: commit or stash your changes, or pass --force');
     expect(readFileSync(join(dir, 'src/a.ts'), 'utf8')).toBe("import { Command } from 'commander';\n");
+  });
+
+  it('names the untracked paths on stderr, and offers .gitignore when nothing tracked changed', () => {
+    // R7 (migrate-preflight): @swc/cli's install wrote an untracked node-compile-cache/, and the
+    // refusal said only how many changes there were.
+    const dir = project({ 'package.json': DECLARES_COMMANDER, 'src/a.ts': "import { Command } from 'commander';\n" });
+    const git = (...args: string[]): void => void execFileSync('git', ['-C', dir, '-c', 'user.name=burgee', '-c', 'user.email=burgee@example.invalid', '-c', 'commit.gpgsign=false', ...args], { stdio: 'ignore' });
+    git('init', '-q');
+    git('add', '-A');
+    git('commit', '-q', '-m', 'init');
+    mkdirSync(join(dir, 'node-compile-cache'));
+    writeFileSync(join(dir, 'node-compile-cache/x'), '');
+    const { code, stderr } = burgee(['migrate', dir]);
+    expect(code).toBe(ExitCode.RUNTIME);
+    expect(stderr).toContain('the git tree has 1 uncommitted change');
+    expect(stderr).toContain('hint: ?? node-compile-cache/');
+    expect(stderr).toContain('fix: add node-compile-cache/ to .gitignore or commit them, or pass --force');
+    expect(readFileSync(join(dir, 'src/a.ts'), 'utf8')).toBe("import { Command } from 'commander';\n");
+  });
+});
+
+describe('R6, R8 — a blocking preflight, through the binary', () => {
+  it('A8 — a blocking preflight exits RUNTIME with the rows in --json', () => {
+    // migrate-preflight: wait-port's shape on a claimed major. CommonJS, and engines.node allows a
+    // Node on which require('burgee/commander') throws, so the rewrite would not load there.
+    const files = { 'package.json': JSON.stringify({ name: 'x', engines: { node: '>=10' }, dependencies: { commander: '^15.0.0' } }), 'bin/x.js': "const program = require('commander');\n" };
+    const dir = project(files);
+    const { code, stdout } = burgee(['migrate', dir, '--json']);
+    const { ok, data } = envelope(stdout);
+    expect(code).toBe(ExitCode.RUNTIME);
+    expect(ok).toBe(false);
+    expect(data).toMatchObject({ summary: 'blocked: 1 preflight check; nothing written (1 file would be rewritten)', changed: false, exitCode: ExitCode.RUNTIME });
+    expect(data['preflight']).toMatchObject([{ check: 'require-esm', blocking: true, found: 'engines.node ">=10" admits 10.0.0' }]);
+    expect(readFileSync(join(dir, 'bin/x.js'), 'utf8')).toBe(files['bin/x.js']);
+
+    const text = burgee(['migrate', dir]);
+    expect(text.code).toBe(ExitCode.RUNTIME);
+    expect(text.stdout.split('\n').slice(0, 3)).toEqual([
+      'blocked: 1 preflight check; nothing written (1 file would be rewritten)',
+      'before the move:',
+      "  block  require-esm  this package is CommonJS, and require('burgee/commander') throws ERR_REQUIRE_ESM on Node 10.0.0, which engines.node allows; raising the floor is a semver-major for this package; fix: npm pkg set \"engines.node=^20.19.0 || >=22.13.0\"",
+    ]);
   });
 });
