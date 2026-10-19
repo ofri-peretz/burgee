@@ -18,7 +18,7 @@
  * `require()` or a default import of the package, and only a member the façade does not export is
  * a use. Nothing here imports `migrate.ts`: it lexes and calls in, as it does `migrate-guided.ts`.
  */
-import { IDENTIFIER, type Token } from './migrate-guided.js';
+import { type Token } from './migrate-guided.js';
 
 /** The two incumbents with a table: the only ones whose moves this can check. */
 export type MajorHost = 'commander' | 'yargs';
@@ -111,8 +111,8 @@ export interface RemovedSite {
   removedIn: string;
   replacement: string;
   source: string;
-  /** For a binding: the line of its first use the claimed major lacks. */
-  firstUse?: number;
+  /** For a binding: the line of its first use the claimed major lacks. Absent from `--json` otherwise. */
+  firstUse: number | undefined;
 }
 
 /** The major a `removedIn` names. */
@@ -120,6 +120,9 @@ export const removedMajor = (api: Pick<RemovedApi, 'removedIn'>): number => Numb
 
 /** The row of `api`. */
 const rowOf = (api: RemovedApiId): RemovedApi => REMOVED_APIS.find((row) => row.api === api) as RemovedApi;
+
+/** The incumbent that removed `api`. */
+export const hostOfApi = (api: RemovedApiId): MajorHost => rowOf(api).host;
 
 /** Whether the table has rows for `host`: only those hosts' moves can be checked. */
 export const isMajorHost = (host: string): host is MajorHost => REMOVED_APIS.some((row) => row.host === host);
@@ -142,7 +145,7 @@ const lineAt = (w: Walk, i: number): number => (w.tokens[i] as Token).line;
 
 function report(w: Walk, line: number, api: RemovedApiId, firstUse?: number): void {
   const { removedIn, replacement, source } = rowOf(api);
-  w.out.push({ line, api, removedIn, replacement, source, ...(firstUse === undefined ? {} : { firstUse }) });
+  w.out.push({ line, api, removedIn, replacement, source, firstUse });
 }
 
 /** The api a whole module misuses: the program in commander ≤ 11, the singleton in yargs ≤ 17. */
@@ -157,26 +160,35 @@ function requireOf(w: Walk, i: number, host: string): number {
   return whole ? i + LOAD.close : -1;
 }
 
-/** `import B from '<host>'` or `import B, { … } from '<host>'` at `i`: the index of its specifier, or `-1`. */
-function defaultImportOf(w: Walk, i: number, host: string): number {
-  // A trailing `import` reads as the name `undefined`, and then finds no `from`.
-  if (text(w, i) !== 'import' || !IDENTIFIER.test(text(w, i + 1) as string) || text(w, i + 1) === 'type') return -1;
-  const from = w.tokens.findIndex((t, k) => k > i && (t.text === 'from' || t.value !== undefined));
-  return text(w, from) === 'from' && w.tokens[from + 1]?.value === host ? from + 1 : -1;
+/** `import B from '<host>'` or `import B, { … } from '<host>'` at `i`: the name `B`, or `undefined`. */
+function defaultImportOf(w: Walk, i: number, host: string): string | undefined {
+  if (text(w, i) !== 'import') return undefined;
+  // `import B, { a } from`: past the named imports. A namespace or a bare `import {` never reaches `from` here.
+  // Stryker disable next-line EqualityOperator: the token at `comma` is `,`, which is not `}`
+  const from = text(w, i + 2) === ',' ? w.tokens.findIndex((t, k) => k > i + 2 && t.text === '}') + 1 : i + 2;
+  return text(w, from) === 'from' && w.tokens[from + 1]?.value === host ? text(w, i + 1) : undefined;
 }
 
-/** The first `name.<member>` from `from` on whose member the façade does not export, as that member's line. */
-function firstUse(w: Walk, host: MajorHost, name: string, from: number): number | undefined {
-  for (let k = from; k < w.tokens.length; k += 1) {
-    if (text(w, k) === name && text(w, k - 1) !== '.' && text(w, k + 1) === '.' && !w.exports[host].has(text(w, k + 2) as string)) return lineAt(w, k + 2);
-  }
-  return undefined;
+/**
+ * The first `name.<member>` in the file whose member the façade does not export, as that member's
+ * line. Anywhere in the file: a function declared above the binding runs after it.
+ */
+function firstUse(w: Walk, host: MajorHost, name: string): number | undefined {
+  const k = w.tokens.findIndex((t, at) => t.text === name && text(w, at - 1) !== '.' && text(w, at + 1) === '.' && !w.exports[host].has(text(w, at + 2) as string));
+  return k === -1 ? undefined : lineAt(w, k + 2);
 }
 
-/** A binding of the whole module: a site at its line when it is ever used, from `from` on, as what the claimed major removed. */
-function bound(w: Walk, host: MajorHost, binding: { line: number; name: string; from: number }): void {
-  const use = firstUse(w, host, binding.name, binding.from);
-  if (use !== undefined) report(w, binding.line, moduleApi(host), use);
+/** A binding `name` of the whole module, made on `line`: a site there when it is ever used as what the claimed major removed. */
+function bound(w: Walk, host: MajorHost, name: string, line: number): void {
+  const use = firstUse(w, host, name);
+  if (use !== undefined) report(w, line, moduleApi(host), use);
+}
+
+/** The property names a `{ … }` pattern ending at `close` reads: each name after `{` or `,`, never a renamed local after `:`. */
+function destructured(w: Walk, close: number): string[] {
+  // Stryker disable next-line EqualityOperator: the token at `close` is `}`, which is not `{`
+  const open = w.tokens.findLastIndex((t, k) => k < close && t.text === '{');
+  return w.tokens.slice(open + 1, close).flatMap((t, k, all) => (k === 0 || (all[k - 1] as Token).text === ',' ? [t.text] : []));
 }
 
 /**
@@ -194,12 +206,12 @@ function wholeRequire(w: Walk, host: MajorHost, at: number, end: number): void {
   if (text(w, at - 1) !== '=') return;
   const target = at - 2;
   if (text(w, target) === '}') {
-    const open = w.tokens.findLastIndex((t, k) => k < target && t.text === '{');
-    const names = w.tokens.slice(open + 1, target).filter((t, k, all) => IDENTIFIER.test(t.text) && all[k - 1]?.text !== ':');
-    if (names.some((t) => !exported.has(t.text))) report(w, line, moduleApi(host));
+    if (destructured(w, target).some((name) => !exported.has(name))) report(w, line, moduleApi(host));
     return;
   }
-  if (IDENTIFIER.test(text(w, target) as string) && text(w, target - 1) !== '.') bound(w, host, { line, name: text(w, target) as string, from: end + 1 });
+  // A name, not `]` or `)`: `list[0] = require(…)` binds nothing a member can be read from by name.
+  // Stryker disable next-line Regex: a token is one word or one character, so the anchors match the same tokens
+  if (/^[A-Za-z_$][\w$]*$/.test(text(w, target) as string)) bound(w, host, text(w, target) as string, line);
 }
 
 /** commander's flags string, the first argument of `.option(`, `.requiredOption(` or `new [B.]Option(`: a site when a short flag is two characters or more. */
@@ -210,7 +222,7 @@ function flagsAt(w: Walk, i: number): void {
   const flags = w.tokens[i + 2];
   if (!call || text(w, i + 1) !== '(' || flags?.value === undefined) return;
   // A short flag of two characters or more: `-fe`.
-  if (flags.value.split(/[ ,|]+/).some((flag) => /^-[^-]{2,}/.test(flag))) report(w, flags.line, 'multi-char-short-flag');
+  if (flags.value.split(/[ ,|]/).some((flag) => /^-[^-]{2,}/.test(flag))) report(w, flags.line, 'multi-char-short-flag');
 }
 
 /** Every pattern that can start at token `i`, for the hosts this file imports. */
@@ -218,15 +230,14 @@ function visit(w: Walk, found: ReadonlyMap<MajorHost, number>, i: number): void 
   for (const host of found.keys()) {
     const end = requireOf(w, i, host);
     if (end !== -1) wholeRequire(w, host, i, end);
-    const specifier = defaultImportOf(w, i, host);
-    if (specifier !== -1) bound(w, host, { line: lineAt(w, i), name: text(w, i + 1) as string, from: specifier + 1 });
+    const name = defaultImportOf(w, i, host);
+    if (name !== undefined) bound(w, host, name, lineAt(w, i));
   }
-  if (found.has('commander')) {
-    flagsAt(w, i);
-    if (w.tokens[i]?.value === 'commander/esm.mjs') report(w, lineAt(w, i), 'esm-mjs');
-  }
+  // A commander pattern in a file that imports only yargs, or the reverse, is dropped by `removedSites`' filter: its host has no major here.
+  flagsAt(w, i);
+  if ((w.tokens[i] as Token).value === 'commander/esm.mjs') report(w, lineAt(w, i), 'esm-mjs');
   const method = yargsMethod(text(w, i));
-  if (found.has('yargs') && method !== undefined && text(w, i - 1) === '.' && text(w, i + 1) === '(') report(w, lineAt(w, i), method);
+  if (method !== undefined && text(w, i - 1) === '.' && text(w, i + 1) === '(') report(w, lineAt(w, i), method);
 }
 
 /**
@@ -245,14 +256,13 @@ export function removedSites(
   exports: Readonly<Record<MajorHost, readonly string[]>>,
 ): RemovedSite[] {
   const w: Walk = { tokens, exports: { commander: new Set(exports.commander), yargs: new Set(exports.yargs) }, out: [] };
-  for (let i = 0; i < tokens.length; i += 1) visit(w, found, i);
-  return w.out
-    .filter((site) => {
-      const host = rowOf(site.api).host;
-      const major = removedMajor(site);
-      return major > (found.get(host) as number) && major <= claimed[host];
-    })
-    .sort((a, b) => a.line - b.line);
+  for (const [i] of tokens.entries()) visit(w, found, i);
+  // In token order, which is line order: every site is reported at its own token or the next two.
+  return w.out.filter((site) => {
+    const host = hostOfApi(site.api);
+    const major = removedMajor(site);
+    return major > (found.get(host) as number) && major <= claimed[host];
+  });
 }
 
 /**
@@ -265,8 +275,8 @@ export function removedSites(
  */
 export function moveOf(found: number, claimed: readonly number[], sites: readonly Pick<RemovedSite, 'removedIn'>[], unserved: boolean): number | undefined {
   const nearest = nearestOf(found, claimed);
-  if (nearest === undefined || unserved || sites.some((site) => removedMajor(site) <= nearest)) return undefined;
-  return nearest;
+  // With no claimed major above, `nearest` is undefined and no comparison holds, so it is what is returned.
+  return unserved || sites.some((site) => removedMajor(site) <= (nearest as number)) ? undefined : nearest;
 }
 
 /** The smallest claimed major above `found`. */

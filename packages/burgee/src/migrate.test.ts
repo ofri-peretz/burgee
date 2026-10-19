@@ -350,6 +350,9 @@ describe('A1 — two independent sources, and they are allowed to disagree', () 
     const one = project({ 'package.json': JSON.stringify({ name: 'x', bin: 'cli', dependencies: { chalk: '^6.0.0' } }), cli: "require('chalk');\n" });
     await migrate({ dir: one, status: clean });
     expect(read(one, 'cli')).toBe("require('roundel/chalk');\n");
+    const windows = project({ 'package.json': JSON.stringify({ name: 'x', bin: { x: 'bin\\run' }, dependencies: { chalk: '^6.0.0' } }), 'bin/run': "require('chalk');\n" });
+    await migrate({ dir: windows, status: clean });
+    expect(read(windows, 'bin/run')).toBe("require('roundel/chalk');\n");
     const built = project({ 'package.json': JSON.stringify({ name: 'x', bin: './dist/cli.js', dependencies: { chalk: '^6.0.0' } }), 'dist/cli.js': "require('chalk');\n" });
     expect((await migrate({ dir: built, status: clean })).detected.imported).toEqual([]);
   });

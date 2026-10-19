@@ -101,6 +101,7 @@ const TSC_ALIAS = {
 const QRCODE = {
   'package.json': manifest({ yargs: '^15.3.1' }, { bin: { qrcode: './bin/qrcode' } }),
   ...installed('yargs', '15.4.1'),
+  'lib/index.js': 'module.exports = {};\n',
   'bin/qrcode': lined({
     1: '#!/usr/bin/env node',
     2: "var yargs = require('yargs')",
@@ -184,6 +185,36 @@ describe('migrate-older-majors — the move', () => {
     expect(report.offMajor[0]?.sites.map((s) => [s.line, s.api])).toEqual([[1, 'singleton']]);
   });
 
+  it('lists the move in the order the specifiers sort, whichever file names each first', async () => {
+    const report = await run(project({ 'package.json': manifest({ yargs: '^16.0.0' }), 'a.js': "require('yargs/yargs');\n", 'b.js': "require('yargs/helpers');\nrequire('yargs')(process.argv);\n" }));
+    expect(Object.keys(report.offMajor[0]?.move ?? {})).toEqual(['yargs', 'yargs/helpers', 'yargs/yargs']);
+  });
+
+  it('moves a commander 9 program that reads only what 14 exports to burgee/commander/v14', async () => {
+    const report = await run(project({ 'package.json': manifest({ commander: '^9.0.0' }), 'cli.js': "const commander = require('commander');\nconst { program, Option } = require('commander');\nprogram.addOption(new commander.Option('-a, --all')).parse();\n" }));
+    expect(report.offMajor[0]).toMatchObject({ nearest: 14, sites: [], move: { commander: 'burgee/commander/v14' } });
+  });
+
+  it("keeps each incumbent's sites on its own row, and reads a pattern only in a file that imports its incumbent", async () => {
+    const report = await run(
+      project({
+        'package.json': manifest({ commander: '^9.0.0', yargs: '^15.0.0' }),
+        'a.js': "const y = require('yargs/yargs')();\ny.option('-ab, --all').reset();\n",
+        'b.js': "const program = require('commander');\nprogram.version('1');\n",
+      }),
+    );
+    expect(report.offMajor.map((o) => [o.from, o.sites.map((s) => `${s.file}:${s.line} ${s.api}`)])).toEqual([
+      ['commander', ['b.js:1 module-as-program']],
+      ['yargs', ['a.js:2 reset']],
+    ]);
+  });
+
+  it('says only what it rewrote when files moved, beside an off-major work list', async () => {
+    const report = await run(project({ 'package.json': manifest({ chalk: '^6.0.0', commander: '^9.0.0' }), 'a.js': "const chalk = require('chalk');\nconst program = require('commander');\nprogram.version('1');\n" }));
+    expect(report.summary).toBe('complete: 1 file rewritten');
+    expect(report.offMajor[0]?.sites).toHaveLength(1);
+  });
+
   it('moves a commander 13 program that uses nothing 14 removed to burgee/commander/v14', async () => {
     const report = await run(project({ 'package.json': manifest({ commander: '~13.1.0' }), 'cli.js': "const { program } = require('commander');\nprogram.option('-a, --all').parse();\n" }));
     expect(report.offMajor[0]).toMatchObject({ nearest: 14, sites: [], move: { commander: 'burgee/commander/v14' } });
@@ -251,6 +282,13 @@ describe('migrate-older-majors — what is a site', () => {
     ['a type-only default import', "import type yargs from 'yargs';\nyargs.argv;\n"],
     ['rebase, reset and onFinishCommand that are not calls on something', "import yargs from 'yargs/yargs';\nrebase(a, b);\nx.reset;\nconst onFinishCommand = 1;\n"],
     ['an import of another module', "import program from './program.js';\nprogram.version('1');\n"],
+    ['a call that is not require', "fake('commander').version('1');\n"],
+    ['require passed as an argument', "fn(require, 'commander').version('1');\nwrap(require('commander'));\nwrap.version('1');\n"],
+    ['a computed require', "const p = require('commander' + suffix);\np.version('1');\n"],
+    ['a renamed destructured export', "const { program: version, Command: argv } = require('commander');\n"],
+    ['a require bound to an element', "list[0] = require('commander');\nlist[0].version('1');\n"],
+    ['a flags-like string in any other call', "import { Option } from 'commander';\nconsole.log('-ab');\nOption('-ab');\n"],
+    ['a namespace import, and a named import after a default one that is not yargs', "import * as y from 'yargs';\ny.argv;\nimport z, { a } from 'yargs/yargs';\nz.argv;\n"],
   ])('does not report %s', (_, source) => {
     expect(sitesIn(source)).toEqual([]);
   });
@@ -258,6 +296,7 @@ describe('migrate-older-majors — what is a site', () => {
   it.each([
     ['a whole require bound by const', "const program = require('commander');\nprogram\n  .version('1');\n", [[1, 'module-as-program', 3]]],
     ['a whole require bound by plain assignment', "let program;\nprogram = require('commander');\nprogram.parse();\n", [[2, 'module-as-program', 3]]],
+    ['a use above the binding, in a function that runs after it', "function run() {\n  program.parse();\n}\nconst program = require('commander');\n", [[4, 'module-as-program', 2]]],
     ['a default import, alone or with named ones', "import program, { Option } from 'commander';\nprogram.version('1');\nimport y from 'yargs';\ny.argv;\n", [[1, 'module-as-program', 2], [3, 'singleton', 4]]],
     ['a member straight off the module', "require('commander').version('1');\nrequire('yargs')\n  .argv;\n", [[1, 'module-as-program', undefined], [2, 'singleton', undefined]]],
     ['a destructured member the module no longer has', "const { argv } = require('yargs');\nconst { Command, version: v } = require('commander');\n", [[1, 'singleton', undefined], [2, 'module-as-program', undefined]]],
@@ -265,6 +304,15 @@ describe('migrate-older-majors — what is a site', () => {
     ['commander/esm.mjs in an import and a require', "import { program } from 'commander/esm.mjs';\nconst c = require('commander/esm.mjs');\n", [[1, 'esm-mjs', undefined], [2, 'esm-mjs', undefined]]],
     ["yargs' removed instance methods", "const y = require('yargs/yargs')();\ny.rebase(a, b);\ny.reset();\ny.onFinishCommand(done);\n", [[2, 'rebase', undefined], [3, 'reset', undefined], [4, 'on-finish-command', undefined]]],
   ])('reports %s', (_, source, sites) => {
+    expect(sitesIn(source)).toEqual(sites);
+  });
+
+  it.each([
+    ["const program = require('commander');\nprogram.option(", [[1, 'module-as-program', 2]]],
+    ['import x from', []],
+    ['require(', []],
+    ['import y,', []],
+  ])('does not throw on a file cut off mid-statement: %s', (source, sites) => {
     expect(sitesIn(source)).toEqual(sites);
   });
 

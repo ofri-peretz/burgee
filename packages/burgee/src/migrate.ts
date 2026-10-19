@@ -36,7 +36,7 @@ import { ambientRuntime, run } from 'bellpull';
 import { DROP_INS, GRADED, GRADED_VERSIONS, isLevel, PREVIOUS_MAJOR_ENTRIES, type Row, SUPPORTED_MAJORS } from './compat.js';
 import { ExitCode } from './exit-code.js';
 import { guidedSites, mentionsAGuided, type GuidedSite, type Token } from './migrate-guided.js';
-import { isMajorHost, type MajorHost, moveOf, nearestOf, removedMajor, type RemovedSite, removedSites, REMOVED_APIS } from './migrate-majors.js';
+import { hostOfApi, isMajorHost, type MajorHost, moveOf, nearestOf, removedMajor, type RemovedSite, removedSites } from './migrate-majors.js';
 import { isUntracked, listed, pathsOf, preflightOf, type PreflightRow, type ProjectManifest } from './migrate-preflight.js';
 import { TEXT } from './render.js';
 
@@ -1765,8 +1765,9 @@ export function rewriteSource(source: string, skip: ReadonlySet<string> = NONE, 
  * not — what `detected.imported` and `undeclared` read. `entries` names the specifiers that move
  * to an older major's own entry instead of `MAPPING`'s (`previous-majors` R6).
  */
-function rewriteFile(source: string, skip: ReadonlySet<string>, transitive: ReadonlyMap<string, readonly string[]>, entries: ReadonlyMap<string, string>): { rewrite: Rewrite; seen: string[]; specifiers: string[] } {
-  if (!mentionsAHost(source)) return { rewrite: { source, mapped: [], refused: [], kept: [], relevant: false }, seen: [], specifiers: [] };
+function rewriteFile(source: string, skip: ReadonlySet<string>, transitive: ReadonlyMap<string, readonly string[]>, entries: ReadonlyMap<string, string>): { rewrite: Rewrite; specifiers: string[] } {
+  // Stryker disable next-line ConditionalExpression,ArrayDeclaration: A10 — `migrate()` reads only files the pre-filter admitted, so this returns early only for `rewriteSource`, which reads no `specifiers`
+  if (!mentionsAHost(source)) return { rewrite: { source, mapped: [], refused: [], kept: [], relevant: false }, specifiers: [] };
   const scanned = scan(source);
   const { sites } = scanned;
   // R4 — an incumbent this run moves, named in a string beside a computed specifier, could be what
@@ -1778,9 +1779,8 @@ function rewriteFile(source: string, skip: ReadonlySet<string>, transitive: Read
   const dynamic = guarded ? [] : scanned.dynamic;
   const named = sites.filter((s) => MAPPING[s.specifier] !== undefined || isDeep(s.specifier));
   const specifiers = [...new Set(named.map((s) => s.specifier))];
-  const seen = [...new Set(specifiers.map(packageOf))];
   const hits = named.filter((s) => !skip.has(packageOf(s.specifier)));
-  if (hits.length === 0 && !guarded) return { rewrite: { source, mapped: [], refused: [], kept: [], relevant: false }, seen, specifiers };
+  if (hits.length === 0 && !guarded) return { rewrite: { source, mapped: [], refused: [], kept: [], relevant: false }, specifiers };
 
   // A name the façade lacks: a type-only statement stays on the incumbent (types are
   // erased, so the rest of the file can still move); anything else is refused, because
@@ -1802,7 +1802,7 @@ function rewriteFile(source: string, skip: ReadonlySet<string>, transitive: Read
     ...unknown,
     ...siblingState(sites, hits),
   ].sort((a, b) => a.line - b.line);
-  if (refused.length > 0) return { rewrite: { source, mapped: [], refused, kept: [], relevant: true, dynamic, retained: [...new Set([...hits.map((s) => packageOf(s.specifier)), ...loadable])] }, seen, specifiers };
+  if (refused.length > 0) return { rewrite: { source, mapped: [], refused, kept: [], relevant: true, dynamic, retained: [...new Set([...hits.map((s) => packageOf(s.specifier)), ...loadable])] }, specifiers };
 
   let out = source;
   const mapped: { from: string; to: string }[] = [];
@@ -1811,7 +1811,7 @@ function rewriteFile(source: string, skip: ReadonlySet<string>, transitive: Read
     out = `${out.slice(0, site.start)}${to}${out.slice(site.end)}`;
     mapped.push({ from: site.specifier, to });
   }
-  return { rewrite: { source: out, mapped: mapped.reverse(), refused: [], kept, relevant: true, dynamic }, seen, specifiers };
+  return { rewrite: { source: out, mapped: mapped.reverse(), refused: [], kept, relevant: true, dynamic }, specifiers };
 }
 
 /* ------------------------------------------------------------------ the project */
@@ -1842,13 +1842,12 @@ function binsOf(dir: string, bin: unknown, found: readonly string[]): string[] {
   return [
     ...new Set(
       paths.filter((path) => {
-        const base = path.slice(path.lastIndexOf('/') + 1);
-        const dot = base.lastIndexOf('.');
+        const extension = posix.extname(path);
         return (
           !path.startsWith('/') &&
           !path.startsWith('../') &&
           !path.split('/').some((part) => SKIP.has(part)) &&
-          (dot === -1 || SOURCE_EXTENSIONS.has(base.slice(dot))) &&
+          (extension === '' || SOURCE_EXTENSIONS.has(extension)) &&
           !found.includes(path) &&
           statSync(join(dir, path), { throwIfNoEntry: false })?.isFile() === true
         );
@@ -1959,9 +1958,9 @@ function olderOf(offMajor: readonly OffMajor[]): Older {
  * takes at that major (`previous-majors` R6's, or `MAPPING`'s). A deep import has no entry.
  */
 function withSites(row: OffMajor, older: Older, scanned: readonly Scanned[]): OffMajor {
-  const found = older.found.get(row.from as MajorHost);
-  if (found === undefined) return row;
-  const sites = scanned.flatMap(({ file, removed }) => removed.filter((site) => REMOVED_APIS.some((r) => r.api === site.api && r.host === row.from)).map((site) => ({ file, ...site })));
+  // An incumbent with no table has no found major here, so no nearest major above it and no move.
+  const found = older.found.get(row.from as MajorHost) as number;
+  const sites = scanned.flatMap(({ file, removed }) => removed.filter((site) => hostOfApi(site.api) === row.from).map((site) => ({ file, ...site })));
   const imports = [...new Set(scanned.flatMap(({ specifiers }) => specifiers.filter((specifier) => packageOf(specifier) === row.from)))].sort();
   const to = moveOf(found, SUPPORTED_MAJORS[row.from] as readonly number[], sites, imports.some((specifier) => MAPPING[specifier] === undefined));
   const move = to === undefined || imports.length === 0 ? null : Object.fromEntries(imports.map((specifier) => [specifier, PREVIOUS_MAJOR_ENTRIES[specifier]?.[to] ?? (MAPPING[specifier] as string)]));
@@ -2405,12 +2404,14 @@ async function scanBatch(dir: string, batch: string[], { skip, transitive, entri
   const sources = await Promise.all(batch.map(async (file) => await readFile(join(dir, file))));
   return sources.map((bytes, i) => {
     const text = mentionsAHost(bytes) ? bytes.toString('utf8') : undefined;
-    const { rewrite, seen, specifiers } = text === undefined ? { rewrite: EMPTY, seen: [], specifiers: [] } : rewriteFile(text, skip, transitive, entries);
+    const { rewrite, specifiers } = text === undefined ? { rewrite: EMPTY, specifiers: [] } : rewriteFile(text, skip, transitive, entries);
+    const seen = [...new Set(specifiers.map(packageOf))];
     const guided = mentionsAGuided(bytes) ? guidedSites(tokensOf(bytes.toString('utf8'))) : [];
     // A10: the second token pass runs only over a file that imports an off-major incumbent with a table.
     const found = new Map([...older.found].filter(([host]) => seen.includes(host)));
     const removed = found.size === 0 ? [] : removedSites(tokensOf(text as string), found, older.claimed, older.exports);
-    return { file: batch[i] as string, result: rewrite, seen, specifiers, guided, removed, ...(rewrite.relevant && text !== undefined ? { text } : {}) };
+    // Stryker disable next-line ConditionalExpression: keeping an unrelated file's text changes no result, only memory (A10); a relevant file always has its text
+    return { file: batch[i] as string, result: rewrite, seen, specifiers, guided, removed, ...(rewrite.relevant ? { text: text as string } : {}) };
   });
 }
 
@@ -2548,7 +2549,8 @@ function refusalLine(r: Refusal): string {
  */
 function offMajorLines(o: OffMajor): string[] {
   const nearest = o.nearest === null ? '' : `; nearest claimed ${o.nearest}`;
-  const blocked = o.sites.filter((site) => o.nearest !== null && removedMajor(site) <= o.nearest).length;
+  // With no nearest major there are no sites: each is removed above the found major and at or below a claimed one.
+  const blocked = o.sites.filter((site) => removedMajor(site) <= (o.nearest as number)).length;
   let move = '';
   if (o.move !== null) move = `, move ${Object.entries(o.move).map(([from, to]) => `${from} -> ${to}`).join(', ')}`;
   else if (blocked > 0) move = `, no move: ${counted(blocked, 'line')} below ${blocked === 1 ? 'uses' : 'use'} an API ${o.nearest} removed`;
@@ -2629,10 +2631,12 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
   const files = [...sources, ...binsOf(dir, manifest.bin, sources)];
   const older = olderOf(offMajor);
   const scanned: Scanned[] = [];
+  // Stryker disable MethodExpression: a project of more than one batch is migrate-bench.test.ts's 1,000 files, which the mutation lane skips (SKIPPED_TESTS)
   for (let i = 0; i < files.length; i += BATCH) {
     // eslint-disable-next-line reliability/no-await-in-loop -- the await IS the bound (A10). Each batch is 256 files in flight at once; awaiting one before opening the next is what keeps the command inside the open-file limit on a repository of any size, and `Promise.all` over every file in a monorepo is EMFILE.
     scanned.push(...(await scanBatch(dir, files.slice(i, i + BATCH), { skip, transitive: through, entries: ownEntries, older })));
   }
+  // Stryker restore MethodExpression
 
   // U12-4: what the first pass refused or kept is held everywhere, and a second pass over the
   // files that named an incumbent rewrites without it. Refusing never adds a refusal — it only
