@@ -1,4 +1,4 @@
-// B1 measures on every push to main; its reading must reach the tree, or nothing that reads
+// B1 measures weekly (on every push to main until 2026-10-18, D-20261019-b1-weekly-not-per-push); its reading must reach the tree, or nothing that reads
 // results (the claim table, the agent bands, C1) can see it. Until 2026-10-08 the `agent` job
 // only uploaded transcripts, and four CI readings lived only in job logs.
 import { readFileSync } from 'node:fs';

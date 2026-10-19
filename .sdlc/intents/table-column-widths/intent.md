@@ -5,7 +5,7 @@
 > issue in cli-table3 asks for a per-column maximum. flagstaff's native table offers a width
 > for the whole table and nothing per column.
 
-**Status:** approved · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-18 on [`1013b65db5`](https://github.com/ofri-peretz/burgee/commit/1013b65db5), verified against `main` at `1013b65db5` — all 3 criteria locked by flagstaff's `table.test.ts` and the cli-table3 baseline
 
 ---
 
@@ -53,6 +53,17 @@ the `header: value` lines an agent or a pipe gets, is unchanged: it has no colum
    12 cells wide, ending long values in `…`, and the static projection prints them whole.
 2. `min` holds while another column can shrink, and the table still fits `width`.
 3. The existing table and cli-table3 tests pass unchanged.
+
+## Shipped — 2026-10-18
+
+**Status raised to `shipped`.** Every criterion was checked against `main` at `1013b65db5` in the
+roadmap-to-shipped Batch 0 pass (`.sdlc/research/roadmap-to-shipped-2026-10.md`).
+
+| criterion | check | result |
+| :-- | :-- | :-- |
+| 1. `max: 12, overflow: 'truncate'` caps the column, ends in `…`, the static projection whole | `table.test.ts` (R2, R3, R4) | 98 passed (with `weight.test.ts`) |
+| 2. `min` holds while another column shrinks, and the table fits `width` | `table.test.ts` (R2) | the same run |
+| 3. the existing table and cli-table3 tests pass unchanged | `npm run compat -- cli-table3` |  |
 
 ## Open questions
 

@@ -1,6 +1,8 @@
 # Intent — `security-profile`: the compliance market's rules, which are harder
 
-**Status:** review · **Opened:** `2026-09-07` · **Owner:** `@ofri-peretz`
+**Status:** dropped (2026-10-18) · **Opened:** `2026-09-07` · **Owner:** `@ofri-peretz`
+
+> **Dropped 2026-10-18** → [`D-20261018-drop-security-profile`](../../decisions/D-20261018-drop-security-profile.md): no adopter, and its Q1 exit codes 2, 4 and 5 collide with burgee's `ExitCode` contract held by `exit-code-lock`.
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why still `review`:** deliberately unscheduled — opens when an adopter needs it.
 

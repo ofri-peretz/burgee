@@ -4,7 +4,7 @@
 > 2026-10-09, and measured in [`positioning-audit.md`](../../research/positioning-audit.md)
 > before anything was changed.
 
-**Status:** approved · **Opened:** 2026-10-09 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-10-09 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-18 on [`1013b65db5`](https://github.com/ofri-peretz/burgee/commit/1013b65db5), verified against `main` at `1013b65db5` — all 6 criteria locked by `positioning-lock.test.ts` and five more workspace locks
 
 ---
 
@@ -97,6 +97,22 @@ agent page can show recorded sessions rather than describe them.
    honest table is kept, and every old URL resolves.
 6. Re-running `scripts/positioning-audit.ts` shows no incumbent in any first paragraph, and the
    before and after lead sentences are recorded in `positioning-audit.md`.
+
+## Shipped — 2026-10-18
+
+**Status raised to `shipped`.** Every criterion was checked against `main` at `1013b65db5` in the
+roadmap-to-shipped Batch 0 pass (`.sdlc/research/roadmap-to-shipped-2026-10.md`).
+
+| criterion | check | result |
+| :-- | :-- | :-- |
+| 1. no incumbent in any first paragraph; the lock proven red | `positioning-lock.test.ts` | 520 passed (all six locks) |
+| 2. hero order and "Switch in one command" | `positioning-lock.test.ts`, `readme-opening-lock.test.ts` | the same run |
+| 3. `/docs/what-an-agent-sees`, numbers from landed CI results | `agent-page-lock.test.ts` | the same run |
+| 4. ten package READMEs open with capability, then adoption | `positioning-lock.test.ts` | the same run |
+| 5. "Switching from X", every old URL resolves | `vercel-apps-lock.test.ts`, `api-reference-lock.test.ts`, `install-graph-lock.test.ts` | the same run |
+| 6. the audit shows no incumbent in a first paragraph | `npx tsx scripts/positioning-audit.ts` | 12 of 24 pages name no incumbent in their first paragraph |
+
+R12, the prose density, is **reported, not gated**, by D-20261009-positioning-density-reported.
 
 ## Follow-up: a neutral voice (owner, 2026-10-09)
 

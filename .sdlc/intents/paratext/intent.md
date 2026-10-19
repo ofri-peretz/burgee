@@ -5,7 +5,7 @@ the window title, the clipboard, desktop notifications, the working directory, t
 as one zero-dependency package that **never emits a sequence it cannot prove the terminal
 understands**, and falls back to a static projection when it cannot.
 
-**Status:** approved (2026-09-23, under the owner's delegation, D-129) · **Opened:** 2026-09-13 · **Owner:** @ofri-peretz · **Name published:** `paratext@0.2.0`
+**Status:** shipped · **Opened:** 2026-09-13 · **Owner:** @ofri-peretz · **Name published:** `paratext@0.2.0` · **Shipped:** 2026-10-18 on [`1013b65db5`](https://github.com/ofri-peretz/burgee/commit/1013b65db5), verified against `main` at `1013b65db5` — all 6 criteria locked by paratext's own suites, flagstaff's `link`/`table` tests, the plugin-schema and ceilings locks, and the graded suites
 
 > Written after the package shipped. `paratext` reached npm at 0.2.0 with 5 source files
 > and 40 tests and no Stage 1 or Stage 2 artifact — the same failure as `brand-burgee`,
@@ -96,6 +96,27 @@ Concretely:
 5. A B4 row and a `/docs/benchmarks` entry exist; the README links it.
 6. `flagstaff/table` renders a clickable path through `paratext` on a supporting terminal
    and a plain path elsewhere — the first same-repo consumer, proving the arrow.
+
+## Shipped — 2026-10-18
+
+**Status raised to `shipped`.** Every criterion was checked against `main` at `1013b65db5` in the
+roadmap-to-shipped Batch 0 pass (`.sdlc/research/roadmap-to-shipped-2026-10.md`).
+
+| criterion | check | result |
+| :-- | :-- | :-- |
+| 1. no terminal information: all seven built-ins fall back, with no `ESC ]` | `vitest --root packages/paratext` | 286 passed |
+| 2. `ansi-escapes` graded with `--control`, CSI scoped in the baseline | `npm run compat -- ansi-escapes … --control`, then the target | control ansi-escapes 4 / 4, terminal-link 8 / 8, term-img 18 / 18; target ansi-escapes 4 / 4, terminal-link 8 / 8, term-img 18 / 18 |
+| 3. `terminal-link` and `term-img` graded the same way | the same two runs | as above |
+| 4. one plugin schema for all three | `plugin-schema-lock.test.ts`, `plugin-schema-agreement.test.ts` | 166 passed (with `foundation-ceilings-lock`, `package-shape-lock`) |
+| 5. a B4 row and a `/docs/benchmarks` entry, linked from the README | `npm run bench -- --axis weight --check`; `npm run bench:page -- --check` | 0 gate failures; the page matches the committed results |
+| 6. `flagstaff/table` links through paratext, plain elsewhere | flagstaff `link.test.ts`, `table.test.ts` | 42 passed |
+
+**R11, the 1.65× ratio over `ansi-escapes`, is accepted as a held ratchet**, the way closeout's two
+drop-in ratios are held:
+[`D-20261018-paratext-ratio-held-ratchet`](../../decisions/D-20261018-paratext-ratio-held-ratchet.md).
+The layer is at **0.0534** of its D1 ceiling in `foundation-ceilings.json`. The bundled row against
+`ansi-escapes` alone read 1.632 in this run (1.647 when the ratchet was set), ratcheted at 1.65 under D-157. The bytes over the incumbent are the
+capability registry that makes every sequence degrade on a pipe, and the gate stops them growing.
 
 ## Open questions
 

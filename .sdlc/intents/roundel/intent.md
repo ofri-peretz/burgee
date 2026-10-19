@@ -4,7 +4,7 @@
 > U2, U5, U6, U7, U12. **A standalone product**: its competitors are chalk and picocolors, its
 > README never mentions burgee above the fold, and it is useful with nothing else installed.
 
-**Status:** approved · **Opened:** 2026-09-07 · **Owner:** @ofri-peretz · **Approved:** 2026-09-08 by the owner, in session ("remove all blockers")
+**Status:** shipped · **Opened:** 2026-09-07 · **Owner:** @ofri-peretz · **Approved:** 2026-09-08 by the owner, in session ("remove all blockers") · **Shipped:** 2026-10-18 on [`1013b65db5`](https://github.com/ofri-peretz/burgee/commit/1013b65db5), verified against `main` at `1013b65db5` — all 5 criteria locked by roundel's own suites, the chalk baseline, `subpath-isolation.test.ts` and `help.test.ts`
 
 ---
 
@@ -81,33 +81,22 @@ exposes a theme seam this package can fill (U1).
 - `cli-help-renderer` renders byte-identical help with and without a theme installed in
   non-TTY mode.
 
-## Verified against `main` — 2026-09-09
+## Shipped — 2026-10-18
 
-Checked criterion by criterion on `61bd11b9`. **Three of five met.** The status stays
-`approved` — the owner's Design→Build gate, passed 2026-09-08 — because the two open criteria
-are both external artifacts, not code.
+**Status raised to `shipped`.** Every criterion was checked against `main` at `1013b65db5` in the
+roadmap-to-shipped Batch 0 pass (`.sdlc/research/roadmap-to-shipped-2026-10.md`).
 
-- **Four subpaths installing from the tarball in one file (U7)** — met, with drift.
-  `src/shape.test.ts` packs and installs into a temp dir and exercises `./theme`, `./tokens`,
-  `./policy` (CJS) and `./chalk`. The package now publishes **eight** subpaths; `./contrast`,
-  `./plugin` and `./schema.json` are not exercised from the tarball.
-- **chalk's suite vendored and graded, the rate published and ratcheting** — met.
-  `packages/compat-oracle/vendor/chalk/` is pinned to chalk 6.0.0; **58 / 58** with a 58 / 58
-  control in the same run (`npm run compat`, 2026-09-09); baselined; serving at
-  <https://burgee.interlace.tools/docs/compatibility>.
-- **Per-subpath rows on `/benchmarks` with the picocolors and chalk ceilings drawn** —
-  **not met.** `/benchmarks` returns 404. The ceilings exist only as budget comments inside
-  `src/weight.test.ts`; nothing is published.
-- **The subpath-isolation test fails when a cross-import is added, proven by adding one** —
-  met. `src/subpath-isolation.test.ts` walks `dist/` per entry against an `ALLOWED` edge table
-  and records the proof in its own header. 249 tests pass across 9 files.
-- **`cli-help-renderer` renders byte-identical help with and without a theme in non-TTY** —
-  met, at `packages/burgee/src/help.test.ts:167`.
+The 2026-09-09 reading held this at three of five. The other two were an unpublished
+`/benchmarks` and a 0.0.1 on npm, and both are gone: the benchmarks page is generated and
+checked, and roundel publishes with provenance (1.1.1 at the time of writing).
 
-**Bet 2 of "the minimum that proves the play" is not closed.** It reads *roundel ships at 0.1
-under picocolors' weight*; roundel is finished at 0.1.0 in the tree and stuck at **0.0.1 on
-npm**, because every `release.yml` run since fails `npm publish` with `ENEEDAUTH` (most
-recently run `34309347964`). The weight is measured; the ship is not.
+| criterion | check | result |
+| :-- | :-- | :-- |
+| 1. every subpath installs and imports from the tarball (U7) | `shape.test.ts`, `import.test.ts` | 348 passed, 2 skipped (ten roundel suites) |
+| 2. chalk's suite vendored, graded, published, ratcheting | `npm run compat -- chalk`; `chalk.test.ts` | chalk 59 / 59 |
+| 3. per-subpath rows on `/benchmarks` with both ceilings | `npm run bench:page -- --check`; `weight.test.ts`; `scripts/roundel-gallery.test.ts`, `tree-shake-fixture.test.ts` | the page matches the committed results; 38 passed |
+| 4. subpath isolation fails on a cross-import | `subpath-isolation.test.ts` (derives its subjects from `exports`) | the roundel run |
+| 5. help byte-identical with and without a theme, non-TTY | `help.test.ts -t "theme seam"`, `process-reference-lock.test.ts` | 5 passed, 56 skipped; B2 cold start `ratchet.test.ts` 9 passed, 26 skipped |
 
 ## Open questions
 

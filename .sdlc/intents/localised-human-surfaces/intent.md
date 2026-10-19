@@ -72,7 +72,9 @@ language is a registration.
 
 ## Success criteria
 
-1. `npx vitest run --config vitest.root.config.ts packages/burgee/src/locale-invariance.test.ts`
+1. `npx vitest run --root packages/burgee src/locale-invariance.test.ts` *(command corrected
+   2026-10-18: the root config includes only `scripts/**/*.test.ts`, so the command as first
+   written ran no test)*
    runs the demo's surfaces (`--json` success and failure, `--schema`, `--mcp` `tools/list`,
    `--format=agent`, exit codes) under `LANG=de_DE.UTF-8` with the test pack registered. It
    asserts each is byte-identical to `LANG=C`, and asserts that human help and errors differ.
@@ -81,6 +83,22 @@ language is a registration.
    placeholders that do not match, missing plural forms. It renders every message.
 4. An eval case: an agent given the pack schema and one example writes a passing pack for a new
    language in one turn. It runs weekly beside the plugin eval.
+
+## Held at `approved` — 2026-10-18
+
+**Criteria 1–3 are met. Criterion 4 needs a real eval reading before this can be stamped
+`shipped`, and Batch 0 runs no paid evals.** The status stays `approved`.
+
+| criterion | check | result |
+| :-- | :-- | :-- |
+| 1. every machine surface byte-identical under `de_DE`; help and errors differ | `locale-invariance.test.ts` (command corrected above) | 89 passed (with `locale.test.ts`, `messages.test.ts`, `check.test.ts`, `plugin.test.ts`) |
+| 2. every help and failure snapshot unchanged | `help.test.ts -t "a localised description renders in the resolved locale"`, `schema.test.ts -t "carries the base language…"`; caique `locale.test.ts`, `messages.test.ts`; `npm run compat -- clack inquirer-core` | 5 passed, 31 skipped; 1 passed, 13 skipped; 24 passed; clack clack 16 / 16, inquirer-core 41 / 41 |
+| 3. `burgee check <pack>` validates and renders a pack | `check.test.ts`; `scripts/locale-pack-schema-lock.test.ts` | the first run; 4 passed |
+| 4. an agent writes a passing pack in one turn, weekly | `evals/cases/locale-pack-from-schema.json` on `evals.yml` | **no current weekly reading.** The 2026-10-15 run (`evals/history/2026-10-15-29362dc-38717342918.json`, 0 / 11, `model: null`) never executed: it hit the Claude usage limit. The PR-level `Agent Evals` job did pass the case on 2026-10-18, run 39160595966, in **6 turns**. "One turn" as written is not met (D-20261012-agent-eval-turn-budget measured a median of 7) |
+
+**To ship:** first, Batch 1's fix, so a run that never executed is recorded as `not-run` and not
+as a failure. Then one weekly run that executes and passes the case. Then restate criterion 4's
+"one turn" to the bar D-20261012-agent-eval-turn-budget set, or meet it.
 
 ## Open questions
 

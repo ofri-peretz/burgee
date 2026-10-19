@@ -3,7 +3,9 @@
 > Stage 1 artifact, written automatically by `scripts/control-bands.ts`. Stage 6
 > detected this; a human decides what it means.
 
-**Status:** draft · **Opened:** 2026-09-14-fac0f48 · **Owner:** control-bands watcher
+**Status:** dropped (2026-10-18) · **Opened:** 2026-09-14-fac0f48 · **Owner:** control-bands watcher
+
+> **Dropped 2026-10-18** → [`D-20261018-drop-control-band-core-bundled-bytes`](../../decisions/D-20261018-drop-control-band-core-bundled-bytes.md): back inside its band, 24,281 B since 2026-10-13 against the 37,540 B that opened it (D-064).
 
 ---
 

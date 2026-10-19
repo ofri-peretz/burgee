@@ -3,7 +3,9 @@
 > Stage 1 artifact, written automatically by `scripts/control-bands.ts`. Stage 6
 > detected this; a human decides what it means.
 
-**Status:** draft · **Opened:** 2026-10-12-b45f141-ci · **Owner:** control-bands watcher
+**Status:** dropped (2026-10-18) · **Opened:** 2026-10-12-b45f141-ci · **Owner:** control-bands watcher
+
+> **Dropped 2026-10-18** → [`D-20261018-drop-control-band-agent-schema-bytes`](../../decisions/D-20261018-drop-control-band-agent-schema-bytes.md): the step was four accepted conformance requirements (D-20261012-agent-schema-bytes-step-change) and the band has re-centred on 4,752 B.
 
 ---
 

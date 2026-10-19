@@ -1,6 +1,6 @@
 # Intent — `burgee migrate`
 
-**Status:** draft
+**Status:** shipped · **Owner:** @ofri-peretz · **Shipped:** 2026-10-18 on [`1013b65db5`](https://github.com/ofri-peretz/burgee/commit/1013b65db5), verified against `main` at `1013b65db5` — all 5 criteria locked by the `migrate*.test.ts` suites, `migrate-drop-ins-lock` and `exit-code-lock` · approved and shipped 2026-10-18, accepted under the owner's 2026-10-12 delegation
 
 ## What is wanted
 
@@ -70,6 +70,28 @@ whether anything was left undone.
    refused, so an agent can branch on it.
 5. The dependency and compat numbers in the report are read from the tree and the oracle
    baseline, never typed into a template.
+
+## Shipped — 2026-10-18
+
+**Status raised to `shipped`.** Every criterion was checked against `main` at `1013b65db5` in the
+roadmap-to-shipped Batch 0 pass (`.sdlc/research/roadmap-to-shipped-2026-10.md`).
+
+Moved `draft` → `approved` → `shipped` in one pass, under the owner's 2026-10-12 delegation. The
+header said `draft` after the command had shipped, and `spec.md` carries its own amendments
+section. Every requirement A1–A11 has a check (tracker audit of 2026-10-18).
+
+| criterion | check | result |
+| :-- | :-- | :-- |
+| 1. commander demo: byte-identical value imports, and its tests still pass | `migrate-demo.test.ts`; `examples/conformance` `harness.test.ts` | 204 passed (with `migrate.test.ts`, `migrate-cli.test.ts`, `migrate-bench.test.ts`, `compat-baseline-lock.test.ts`, `facade-types.test.ts`); conformance 55 passed |
+| 2. the same for `demo-cli-yargs` | `migrate-demo.test.ts` | the same run |
+| 3. a deep import refused by name and line | `migrate.test.ts` | the same run |
+| 4. `--json` report, non-zero exit on any refusal | `migrate-cli.test.ts`; `exit-code-lock.test.ts` (the code is `RUNTIME`, per the spec's amendment) | 69 passed |
+| 5. numbers read from the tree and the baseline | `migrate.test.ts`, `migrate-drop-ins-lock.test.ts` | the same runs |
+
+Criterion 1's "variant's tests still pass" is held indirectly. The conformance harness runs the
+burgee variant of each demo, and `migrate-demo.test.ts` asserts the codemod produces that
+variant's value imports. The type-only commander import in `demo-cli-commander` differs on
+purpose (spec, amendments).
 
 ## Open questions
 
