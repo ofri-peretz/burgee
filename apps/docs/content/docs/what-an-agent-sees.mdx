@@ -6,7 +6,7 @@ description: Recorded sessions from B1, the agent benchmark — the same five ta
 B1 gives a model five tasks against one demo program, built twice: once on burgee
 (`examples/demo-cli-burgee`) and once on commander (`examples/demo-cli-commander`). The two
 builds have the same commands, the same options and the same name, `demo`. Each task runs
-five times per build on every push to `main`, through `claude -p` on `claude-sonnet-4-5`,
+five times per build on the weekly schedule (on every push to `main` until 2026-10-18), through `claude -p` on `claude-sonnet-4-5`,
 non-interactively, with `demo` the only command the agent is allowed to run. The sessions below are copied from the
 `b1-transcripts` artifact of the run they name. Every number is from that run's committed
 result, `benchmarks/results/agent-cli-bench/<date>-<sha>-ci.json`. Where output is shortened,
