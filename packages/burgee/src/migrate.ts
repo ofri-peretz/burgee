@@ -424,6 +424,14 @@ export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
     'isColorSupported',
     'module.exports',
   ],
+  'roundel/supports-color': [
+    'ColorInfo',
+    'ColorSupport',
+    'ColorSupportLevel',
+    'Options',
+    'createSupportsColor',
+    'default',
+  ],
   'closeout/signal-exit': [
     'load',
     'onExit',

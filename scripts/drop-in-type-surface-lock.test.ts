@@ -47,6 +47,9 @@ const PAIRS: readonly (readonly [string, string])[] = [
   ['widest-line', 'linegauge/widest-line'],
   // Joined 2026-10-11 with R7; picocolors 1.1.1 is hoisted at the root.
   ['picocolors', 'roundel/picocolors'],
+  // Joined 2026-10-19 with `supports-color-drop-in` R2; supports-color 11.0.0 is a root devDependency
+  // for this comparison and the differential test, as meow is.
+  ['supports-color', 'roundel/supports-color'],
   ['exit-hook', 'closeout/exit-hook'],
   ['signal-exit', 'closeout/signal-exit'],
   ['signal-exit/signals', 'closeout/signal-exit/signals'],

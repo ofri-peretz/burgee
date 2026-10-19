@@ -40,11 +40,19 @@ export interface Runtime {
 interface Proc {
   env: Runtime['env'];
   argv?: string[];
+  /** Read by `./supports-color` alone, whose incumbent consults the platform and whose suite sets it. */
+  platform?: string;
   stdout?: { isTTY?: boolean };
   stderr?: { isTTY?: boolean };
 }
 
-const proc = (globalThis as { process?: Proc }).process;
+/**
+ * The global itself, for a drop-in whose incumbent reads it live: `./supports-color` reads
+ * `env`, `argv` and `platform` when it is called, as supports-color does, and its suite rewrites
+ * all three before every case. Exported rather than wrapped, because a wrapper would cost bytes
+ * in `./chalk`'s graph, which reaches this file with 9 B to spare; `export ` costs 7.
+ */
+export const proc = (globalThis as { process?: Proc }).process;
 
 /**
  * The real process. `stream` names the stream this output is going to — `chalkStderr` and

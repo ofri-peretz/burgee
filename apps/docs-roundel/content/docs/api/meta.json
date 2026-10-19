@@ -9,6 +9,7 @@
     "contrast",
     "chalk",
     "picocolors",
+    "supports-color",
     "terminal",
     "import"
   ]
