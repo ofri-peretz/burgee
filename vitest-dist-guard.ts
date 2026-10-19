@@ -54,7 +54,9 @@ export function changes(before: Listing, after: Listing): string[] {
 
 /** The refusal, naming the directory and every file, so the test that wrote it can be found. */
 export function refusal(dir: string, lines: readonly string[]): string {
-  return `the test run changed ${relative(process.cwd(), dir) || dir} (${String(lines.length)} file${lines.length === 1 ? '' : 's'}) — a test wrote into the build output. Point it at a scratch directory (scripts/scratch-dir.ts):\n  ${lines.join('\n  ')}`;
+  // `/` on every platform, so the refusal reads the same on a Windows cell as anywhere else.
+  const where = (relative(process.cwd(), dir) || dir).replaceAll('\\', '/');
+  return `the test run changed ${where} (${String(lines.length)} file${lines.length === 1 ? '' : 's'}) — a test wrote into the build output. Point it at a scratch directory (scripts/scratch-dir.ts):\n  ${lines.join('\n  ')}`;
 }
 
 /** vitest's `globalSetup`: list the project's `dist/` now, and return the teardown that compares. */
