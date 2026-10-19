@@ -140,7 +140,8 @@ function eventPattern(event: string): GuidedPattern | undefined {
   return MOUSE_EVENTS.includes(event) ? 'mouse' : undefined;
 }
 
-const IDENTIFIER = /^[A-Za-z_$][\w$]*$/u;
+/** A JavaScript identifier, as a token. `migrate-majors.ts` reads bindings with it too. */
+export const IDENTIFIER = /^[A-Za-z_$][\w$]*$/u;
 
 /** A token an import clause can hold. A quoted specifier is not one: it ends the clause. */
 const CLAUSE = /^(?:[A-Za-z_$][\w$]*|[{},*])$/u;

@@ -18,7 +18,7 @@
  * `require()` or a default import of the package, and only a member the façade does not export is
  * a use. Nothing here imports `migrate.ts`: it lexes and calls in, as it does `migrate-guided.ts`.
  */
-import { type Token } from './migrate-guided.js';
+import { IDENTIFIER, type Token } from './migrate-guided.js';
 
 /** The two incumbents with a table: the only ones whose moves this can check. */
 export type MajorHost = 'commander' | 'yargs';
@@ -39,6 +39,7 @@ export interface RemovedApi {
   quote: string;
 }
 
+// Stryker disable all: the table is data, read at load, so each mutant would rerun every test in the package. Each row is held by scripts/migrate-removed-apis-lock.test.ts (citation shape, the docs page) and by migrate-majors.test.ts (the four fixtures, and every row probed against the drop-in at every claimed major)
 const COMMANDER = 'https://github.com/tj/commander.js/blob/v15.0.0/CHANGELOG.md';
 const YARGS = 'https://github.com/yargs/yargs/blob/v18.0.0/CHANGELOG.md';
 
@@ -101,6 +102,7 @@ export const REMOVED_APIS: readonly RemovedApi[] = [
     quote: 'singleton usage of yargs yargs.foo, yargs().argv, has been removed.',
   },
 ];
+// Stryker restore all
 
 /** A line that uses a removed API, without its file. */
 export interface RemovedSite {
@@ -116,18 +118,17 @@ export interface RemovedSite {
 /** The major a `removedIn` names. */
 export const removedMajor = (api: Pick<RemovedApi, 'removedIn'>): number => Number(api.removedIn.split('.')[0]);
 
-const ROW = new Map(REMOVED_APIS.map((row) => [row.api, row]));
+/** The row of `api`. */
+const rowOf = (api: RemovedApiId): RemovedApi => REMOVED_APIS.find((row) => row.api === api) as RemovedApi;
 
-/** The yargs instance methods that are gone, by the name a call spells. */
-const YARGS_METHODS: Readonly<Record<string, RemovedApiId>> = { rebase: 'rebase', reset: 'reset', onFinishCommand: 'on-finish-command' };
+/** Whether the table has rows for `host`: only those hosts' moves can be checked. */
+export const isMajorHost = (host: string): host is MajorHost => REMOVED_APIS.some((row) => row.host === host);
 
-/** The calls whose first argument is commander's flags string. */
-const OPTION_CALLS = new Set(['option', 'requiredOption']);
-
-/** A short flag of two characters or more: `-fe`. */
-const MULTI_CHAR_SHORT = /^-[^-]{2,}/;
-
-const IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
+/** The yargs instance method a call spells, when it is one 16 or 17 removed. */
+function yargsMethod(name: string | undefined): RemovedApiId | undefined {
+  if (name === 'onFinishCommand') return 'on-finish-command';
+  return name === 'rebase' || name === 'reset' ? name : undefined;
+}
 
 interface Walk {
   tokens: readonly Token[];
@@ -140,12 +141,12 @@ const text = (w: Walk, i: number): string | undefined => w.tokens[i]?.text;
 const lineAt = (w: Walk, i: number): number => (w.tokens[i] as Token).line;
 
 function report(w: Walk, line: number, api: RemovedApiId, firstUse?: number): void {
-  const { removedIn, replacement, source } = ROW.get(api) as RemovedApi;
+  const { removedIn, replacement, source } = rowOf(api);
   w.out.push({ line, api, removedIn, replacement, source, ...(firstUse === undefined ? {} : { firstUse }) });
 }
 
 /** The api a whole module misuses: the program in commander ≤ 11, the singleton in yargs ≤ 17. */
-const MODULE_API: Readonly<Record<MajorHost, RemovedApiId>> = { commander: 'module-as-program', yargs: 'singleton' };
+const moduleApi = (host: MajorHost): RemovedApiId => (host === 'commander' ? 'module-as-program' : 'singleton');
 
 /** Where each token of `require('x')` sits, counted from the keyword. */
 const LOAD = { open: 1, specifier: 2, close: 3 } as const;
@@ -175,7 +176,7 @@ function firstUse(w: Walk, host: MajorHost, name: string, from: number): number 
 /** A binding of the whole module: a site at its line when it is ever used, from `from` on, as what the claimed major removed. */
 function bound(w: Walk, host: MajorHost, binding: { line: number; name: string; from: number }): void {
   const use = firstUse(w, host, binding.name, binding.from);
-  if (use !== undefined) report(w, binding.line, MODULE_API[host], use);
+  if (use !== undefined) report(w, binding.line, moduleApi(host), use);
 }
 
 /**
@@ -187,7 +188,7 @@ function wholeRequire(w: Walk, host: MajorHost, at: number, end: number): void {
   const line = lineAt(w, at);
   const exported = w.exports[host];
   if (text(w, end + 1) === '.') {
-    if (!exported.has(text(w, end + 2) as string)) report(w, line, MODULE_API[host]);
+    if (!exported.has(text(w, end + 2) as string)) report(w, line, moduleApi(host));
     return;
   }
   if (text(w, at - 1) !== '=') return;
@@ -195,7 +196,7 @@ function wholeRequire(w: Walk, host: MajorHost, at: number, end: number): void {
   if (text(w, target) === '}') {
     const open = w.tokens.findLastIndex((t, k) => k < target && t.text === '{');
     const names = w.tokens.slice(open + 1, target).filter((t, k, all) => IDENTIFIER.test(t.text) && all[k - 1]?.text !== ':');
-    if (names.some((t) => !exported.has(t.text))) report(w, line, MODULE_API[host]);
+    if (names.some((t) => !exported.has(t.text))) report(w, line, moduleApi(host));
     return;
   }
   if (IDENTIFIER.test(text(w, target) as string) && text(w, target - 1) !== '.') bound(w, host, { line, name: text(w, target) as string, from: end + 1 });
@@ -205,10 +206,11 @@ function wholeRequire(w: Walk, host: MajorHost, at: number, end: number): void {
 function flagsAt(w: Walk, i: number): void {
   const t = text(w, i);
   const receiver = i - 2;
-  const call = (OPTION_CALLS.has(t as string) && text(w, i - 1) === '.') || (t === 'Option' && (text(w, i - 1) === 'new' || (text(w, i - 1) === '.' && text(w, receiver - 1) === 'new')));
+  const call = ((t === 'option' || t === 'requiredOption') && text(w, i - 1) === '.') || (t === 'Option' && (text(w, i - 1) === 'new' || (text(w, i - 1) === '.' && text(w, receiver - 1) === 'new')));
   const flags = w.tokens[i + 2];
   if (!call || text(w, i + 1) !== '(' || flags?.value === undefined) return;
-  if (flags.value.split(/[ ,|]+/).some((flag) => MULTI_CHAR_SHORT.test(flag))) report(w, flags.line, 'multi-char-short-flag');
+  // A short flag of two characters or more: `-fe`.
+  if (flags.value.split(/[ ,|]+/).some((flag) => /^-[^-]{2,}/.test(flag))) report(w, flags.line, 'multi-char-short-flag');
 }
 
 /** Every pattern that can start at token `i`, for the hosts this file imports. */
@@ -223,7 +225,7 @@ function visit(w: Walk, found: ReadonlyMap<MajorHost, number>, i: number): void 
     flagsAt(w, i);
     if (w.tokens[i]?.value === 'commander/esm.mjs') report(w, lineAt(w, i), 'esm-mjs');
   }
-  const method = YARGS_METHODS[text(w, i) as string];
+  const method = yargsMethod(text(w, i));
   if (found.has('yargs') && method !== undefined && text(w, i - 1) === '.' && text(w, i + 1) === '(') report(w, lineAt(w, i), method);
 }
 
@@ -246,7 +248,7 @@ export function removedSites(
   for (let i = 0; i < tokens.length; i += 1) visit(w, found, i);
   return w.out
     .filter((site) => {
-      const host = (ROW.get(site.api) as RemovedApi).host;
+      const host = rowOf(site.api).host;
       const major = removedMajor(site);
       return major > (found.get(host) as number) && major <= claimed[host];
     })

@@ -36,7 +36,7 @@ import { ambientRuntime, run } from 'bellpull';
 import { DROP_INS, GRADED, GRADED_VERSIONS, isLevel, PREVIOUS_MAJOR_ENTRIES, type Row, SUPPORTED_MAJORS } from './compat.js';
 import { ExitCode } from './exit-code.js';
 import { guidedSites, mentionsAGuided, type GuidedSite, type Token } from './migrate-guided.js';
-import { type MajorHost, moveOf, nearestOf, removedMajor, type RemovedSite, removedSites, REMOVED_APIS } from './migrate-majors.js';
+import { isMajorHost, type MajorHost, moveOf, nearestOf, removedMajor, type RemovedSite, removedSites, REMOVED_APIS } from './migrate-majors.js';
 import { isUntracked, listed, pathsOf, preflightOf, type PreflightRow, type ProjectManifest } from './migrate-preflight.js';
 import { TEXT } from './render.js';
 
@@ -1928,18 +1928,29 @@ async function majorsOf(dir: string, dependencies: Map<string, string>): Promise
   return { offMajor, entries };
 }
 
-/** migrate-older-majors — the incumbents `REMOVED_APIS` has rows for: the only ones whose moves can be checked. */
-const MAJOR_HOSTS: readonly MajorHost[] = [...new Set(REMOVED_APIS.map((row) => row.host))];
+/** migrate-older-majors — what `removedSites` reads, once per run. */
+interface Older {
+  /** Each off-major incumbent with a table (`REMOVED_APIS`), and the major found. */
+  found: Map<MajorHost, number>;
+  /** The highest major claimed: a removal after it is no claimed major's concern. */
+  claimed: Record<MajorHost, number>;
+  /** What the façade exports: a member it exports is valid on every claimed major. */
+  exports: Record<MajorHost, readonly string[]>;
+}
 
-/** The highest major claimed per incumbent with a table: a removal after it is no claimed major's concern. */
-const CLAIMED = Object.fromEntries(MAJOR_HOSTS.map((host) => [host, Math.max(...(SUPPORTED_MAJORS[host] as readonly number[]))])) as Record<MajorHost, number>;
+/** One value per incumbent with a table. */
+function perHost<T>(of: (host: MajorHost) => T): Record<MajorHost, T> {
+  return { commander: of('commander'), yargs: of('yargs') };
+}
 
-/** What the façade exports per incumbent with a table: a member it exports is valid on every claimed major. */
-const OLDER_EXPORTS = Object.fromEntries(MAJOR_HOSTS.map((host) => [host, FACADE_EXPORTS[MAPPING[host] as string] as readonly string[]])) as Record<MajorHost, readonly string[]>;
-
-/** Each off-major incumbent with a table, and the major found: what `removedSites` reads. */
-function olderOf(offMajor: readonly OffMajor[]): Map<MajorHost, number> {
-  return new Map(offMajor.flatMap((o) => (MAJOR_HOSTS.includes(o.from as MajorHost) ? [[o.from as MajorHost, majorOf(o.found) as number] as const] : [])));
+function olderOf(offMajor: readonly OffMajor[]): Older {
+  const found = new Map<MajorHost, number>();
+  for (const o of offMajor) if (isMajorHost(o.from)) found.set(o.from, majorOf(o.found) as number);
+  return {
+    found,
+    claimed: perHost((host) => Math.max(...(SUPPORTED_MAJORS[host] as readonly number[]))),
+    exports: perHost((host) => FACADE_EXPORTS[MAPPING[host] as string] as readonly string[]),
+  };
 }
 
 /**
@@ -1947,8 +1958,8 @@ function olderOf(offMajor: readonly OffMajor[]): Map<MajorHost, number> {
  * when {@link moveOf} lets one through: each specifier the project imports, with the entry it
  * takes at that major (`previous-majors` R6's, or `MAPPING`'s). A deep import has no entry.
  */
-function withSites(row: OffMajor, older: ReadonlyMap<MajorHost, number>, scanned: readonly Scanned[]): OffMajor {
-  const found = older.get(row.from as MajorHost);
+function withSites(row: OffMajor, older: Older, scanned: readonly Scanned[]): OffMajor {
+  const found = older.found.get(row.from as MajorHost);
   if (found === undefined) return row;
   const sites = scanned.flatMap(({ file, removed }) => removed.filter((site) => REMOVED_APIS.some((r) => r.api === site.api && r.host === row.from)).map((site) => ({ file, ...site })));
   const imports = [...new Set(scanned.flatMap(({ specifiers }) => specifiers.filter((specifier) => packageOf(specifier) === row.from)))].sort();
@@ -2371,8 +2382,8 @@ interface Plan {
   skip: ReadonlySet<string>;
   transitive: ReadonlyMap<string, readonly string[]>;
   entries: ReadonlyMap<string, string>;
-  /** migrate-older-majors — each off-major incumbent with a table, and the major found. */
-  older: ReadonlyMap<MajorHost, number>;
+  /** migrate-older-majors — the off-major incumbents with a table, and what their sites are read against. */
+  older: Older;
 }
 
 /**
@@ -2397,8 +2408,8 @@ async function scanBatch(dir: string, batch: string[], { skip, transitive, entri
     const { rewrite, seen, specifiers } = text === undefined ? { rewrite: EMPTY, seen: [], specifiers: [] } : rewriteFile(text, skip, transitive, entries);
     const guided = mentionsAGuided(bytes) ? guidedSites(tokensOf(bytes.toString('utf8'))) : [];
     // A10: the second token pass runs only over a file that imports an off-major incumbent with a table.
-    const found = new Map([...older].filter(([host]) => seen.includes(host)));
-    const removed = found.size === 0 ? [] : removedSites(tokensOf(text as string), found, CLAIMED, OLDER_EXPORTS);
+    const found = new Map([...older.found].filter(([host]) => seen.includes(host)));
+    const removed = found.size === 0 ? [] : removedSites(tokensOf(text as string), found, older.claimed, older.exports);
     return { file: batch[i] as string, result: rewrite, seen, specifiers, guided, removed, ...(rewrite.relevant && text !== undefined ? { text } : {}) };
   });
 }
