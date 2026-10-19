@@ -61,10 +61,11 @@ component, and the layout is rows and columns of them.
 - **Layout as arithmetic.** Rows and columns of panes, sized in fixed cells, fractions with a
   minimum, or to fit their content, measured with linegauge. A terminal too small for the
   minimums clips the later panes, never the earlier ones.
-- **Keyboard-driven, with keymaps as data.** Tabs, focus and collapse are a pure reducer over
+- **Keyboard-driven, with keymaps as data.** Tabs, focus, collapse and scrolling are a pure reducer over
   a keymap that maps a key to an action name, and the hint line is generated from that keymap,
-  so it cannot name a key that is not bound. An input line, caique's editor, can sit in any
-  pane.
+  so it cannot name a key that is not bound. A pane taller than its rectangle scrolls (↑↓,
+  PgUp/PgDn, Home/End on the focused pane), follows new lines while it is at its bottom, and
+  says `↓ N` when it is not. An input line, caique's editor, can sit in any pane.
 - **A static projection for every other caller.** Off a terminal, each pane prints its own
   static projection under its label: stable lines for a pipe, CI and a screen reader, and
   NDJSON events on stderr under `--json`. Nothing waits for a key, so nothing hangs.
@@ -178,9 +179,13 @@ The family's machine-readable docs are at
 - `layout(tree, area, contents?)` — a rectangle per pane. A part's size is a number of cells,
   `{ fr, min }`, or `'fit'` (measured by linegauge). A terminal too small for the minimums clips
   the later parts and never the first.
-- `initial`, `reduce(state, action)` — tabs, focus and collapse; `hints(keymap, labels)` — the
-  hint line, generated from the keymap so it cannot name an unbound key.
-- `compose`, `fit`, `render`, `collapse`, `distribute` — the compositor's arithmetic.
+- `initial`, `reduce(state, action, extents?)` — tabs, focus, collapse and scrolling (`scroll.up`,
+  `scroll.down`, `scroll.pageUp`, `scroll.pageDown`, `scroll.top`, `scroll.bottom`, `resize`);
+  `hints(keymap, labels)` — the hint line, generated from the keymap so it cannot name an
+  unbound key.
+- `compose`, `extents`, `fit`, `render`, `collapse`, `distribute` — the compositor's arithmetic.
+  `extents()` measures what `reduce` needs to scroll; `compose` with `live: false` prints every
+  line of every pane, whatever was scrolled.
 - `controlroom/ink` — ink 8's API: `render`, `renderToString`, `Box`, `Text`, `Static`,
   `Transform`, `Newline`, `Spacer`, every hook (`useAnimation`, `usePaste`, `useBoxMetrics` and
   `useWindowSize` among them) and `measureElement`.
