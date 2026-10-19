@@ -1,6 +1,6 @@
 # Design — A controlroom pane scrolls
 
-Intent: [`intent.md`](./intent.md). **Status:** shipped (2026-10-19, PR #PR).
+Intent: [`intent.md`](./intent.md). **Status:** shipped (2026-10-19, PR #1156).
 
 **Accepted by the owner, 2026-10-12, by instruction: create and execute.** The instruction and the
 evidence are recorded in [`next-wave-3-2026-10.md`](../../research/next-wave-3-2026-10.md).
@@ -51,7 +51,7 @@ Order: R1–R3 in one PR, then R4, then R5 and R6.
 
 ## Status
 
-Built 2026-10-19 on `fix/controlroom-scroll-pane` (PR #PR), against `main` at `add9c3fd`. Every
+Built 2026-10-19 on `fix/controlroom-scroll-pane` (PR #1156), against `main` at `add9c3fd`. Every
 check below was run on unchanged `main` first and failed there (21 of the new cases; the rest
 are guards that already held), and the changed-lines mutation lane ends at **100%, 180 of 180
 mutants killed** (from 94.27% and 99.45% on the first two runs; the survivors became the tests

@@ -5,7 +5,7 @@
 > longest-running open request on Ink, the incumbent controlroom replaces. controlroom's own
 > intent lists a scrollable pane as needed and unbuilt.
 
-**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-19 in PR #PR — R1–R6 built and S1–S4 met, each with its check in [`spec.md`](./spec.md#status); S1 read from Home, since R1 opens a pane at its tail ([D-20261019-controlroom-scroll-pane-opens-at-tail](../../decisions/D-20261019-controlroom-scroll-pane-opens-at-tail.md))
+**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-19 in PR #1156 — R1–R6 built and S1–S4 met, each with its check in [`spec.md`](./spec.md#status); S1 read from Home, since R1 opens a pane at its tail ([D-20261019-controlroom-scroll-pane-opens-at-tail](../../decisions/D-20261019-controlroom-scroll-pane-opens-at-tail.md))
 
 ---
 
