@@ -408,3 +408,70 @@ describe('facade-projection-fidelity R6 — an aliased command is one schema ent
     expect(commands[1]?.aliases).toEqual(['b']);
   });
 });
+
+/** A yargs program declaring conflicts, implies and examples, on a command and on the root. */
+function relatedYargs(): Argv {
+  return yargs([])
+    .scriptName('git')
+    .option('quiet', { type: 'boolean' })
+    .option('verbose', { type: 'boolean' })
+    .conflicts('quiet', 'verbose')
+    .command(
+      'push',
+      'push it',
+      (b: Argv) =>
+        b
+          .option('force', { type: 'boolean', alias: 'f' })
+          .option('dry-run', { type: 'boolean' })
+          .option('sign', { type: 'boolean' })
+          .option('key', { type: 'string' })
+          .option('cfg.path', { type: 'string' })
+          .conflicts('f', ['dry-run', 'nowhere'])
+          .conflicts('key', 'f')
+          .implies('sign', ['key', '--no-force', 'cfg.path'])
+          // A positional count: yargs' runtime takes one (`argv._.length >= 1`), its types do not.
+          .implies('key', 1 as unknown as string)
+          .example('$0 push --sign --key k', 'a signed push')
+          .example([['$0 push -f']]),
+      () => undefined,
+    );
+}
+
+/** The `--schema` document a yargs program prints, parsed; `name` picks one command out of it. */
+async function yargsSchemaOf(program: Argv, name: string): Promise<Record<string, any>> {
+  const out: string[] = [];
+  await program.burgee({ stdout: { write: (s: string) => void out.push(s) }, exit: () => undefined }).parseAsync(['--schema']);
+  const doc = JSON.parse(out.join('')) as { commands: Record<string, any>[] };
+  return doc.commands.find((c) => c['name'] === name) ?? {};
+}
+
+describe('facade-projection-fidelity R4 — what a yargs program declares reaches --schema', () => {
+  it('R4 — .conflicts() is exclusive under the canonical name, even when declared on an alias', async () => {
+    const cmd = await yargsSchemaOf(relatedYargs(), 'push');
+    expect(cmd['options'].force.exclusive).toEqual(['dryRun']);
+    expect(cmd['inputSchema'].properties.force.exclusive).toEqual(['--dry-run']);
+    expect(cmd['relations']).toContainEqual({ conflicts: ['force', 'dryRun'] });
+    expect(cmd['options'].dryRun.exclusive).toBeUndefined();
+    expect(cmd['options'].key.exclusive, 'a relation naming an alias lands on the key it names').toEqual(['force']);
+  });
+
+  it('R4 — .implies() is dependsOn; a positional count, a --no- negation and a dotted key are not options, so they are left out', async () => {
+    const cmd = await yargsSchemaOf(relatedYargs(), 'push');
+    expect(cmd['options'].sign.dependsOn).toEqual(['key']);
+    expect(cmd['options'].key.dependsOn).toBeUndefined();
+    expect(cmd['relations']).toContainEqual({ implies: ['sign', 'key'] });
+    expect(toolsOf(relatedYargs().manifest).find((t) => t.name.endsWith('push'))?.inputSchema.properties['sign']).toMatchObject({ dependsOn: ['--key'] });
+  });
+
+  it("R4 — the root's own relations project on the root, and a root without examples carries none", () => {
+    const root = relatedYargs().manifest.find(['git']);
+    expect(root?.options['quiet']?.exclusive).toEqual(['verbose']);
+    expect(root?.options['verbose']?.exclusive).toBeUndefined();
+    expect(root).not.toHaveProperty('examples');
+  });
+
+  it("R4 — .example() pairs are the command's examples, $0 spelt as the program and an empty description left out", async () => {
+    const cmd = await yargsSchemaOf(relatedYargs(), 'push');
+    expect(cmd['examples']).toEqual([{ command: 'git push --sign --key k', description: 'a signed push' }, { command: 'git push -f' }]);
+  });
+});

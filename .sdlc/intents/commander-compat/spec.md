@@ -1,6 +1,6 @@
 # Design — `commander-compat`
 
-Intent: [`intent.md`](./intent.md). **Status:** review.
+Intent: [`intent.md`](./intent.md). **Status:** shipped.
 
 ---
 
@@ -13,7 +13,7 @@ Intent: [`intent.md`](./intent.md). **Status:** review.
 | X3 | The pass rate is published per release and ratchets (C5) |
 | X4 | Every divergence is a failing upstream test with a recorded reason; none may be excluded (compat-oracle R3) |
 | X5 | `import 'burgee'` pulls zero bytes of this front-end (K6, `weight.test.ts` entry `.`) |
-| X6 | The front-end's reachable bytes stay under commander's own `lib/` (126,365 B): budget **128,000** in `weight.test.ts` entry `./commander` |
+| X6 | The front-end's reachable bytes stay under commander's own `lib/` (126,365 B): budget **112,100** in `weight.test.ts` entry `./commander` (was 128,000 here, and 129,400 in the file from 2026-09-21 to 2026-10-19) |
 | X7 | `examples/demo-cli-commander` produces byte-identical output on real commander and on this front-end |
 | X8 | A program in commander syntax gains burgee's plugins and surfaces without a line changing (J2, J7, J8), and **nothing about its default behaviour changes** |
 
@@ -84,6 +84,21 @@ front-end as a fourth host through the same driver and `commander-parity.test.ts
 identical `{ code, stdout, stderr }` on 29 argv cases — happy paths, every error class,
 help at every level, version, `--`. The demo declares its own `--json`, so it prints the raw
 record on both hosts: the guard on burgee's envelope, proven.
+
+## Status
+
+**Shipped 2026-10-19**, under the owner's delegation of 2026-10-12. Each requirement has a check that passes on `main` at `6b90ffe` plus `fix/facade-fidelity-and-weight`.
+
+| X | Check | Reading, 2026-10-19 |
+| :-- | :-- | :-- |
+| X1 | the vendored suite imports every name through the shim (`npm run compat -- commander`), and `facade-types.test.ts` types them | 1360 / 1360; internals 12 / 12 |
+| X2 | `npm run compat -- commander --control`, the `compat` workflow on every PR | 1360 / 1360, level with real commander's 1360 / 1360 (1 skipped off Windows) |
+| X3 | `packages/compat-oracle/baseline/commander.json` (`reference` 1360, `rate` 1), held by the oracle's ratchet (`gate.test.ts` › `the control verdict`); published to `$GITHUB_STEP_SUMMARY`, `results.json` and the `compat-commander-pass-rate` band | ▲ 0 against the baseline |
+| X4 | the oracle has no exclusion list for a divergence: a case is left out of both sides only when the control cannot run it either (`gate.test.ts` › `subtracts an excluded skip from nothing, and holds only the control to matching every exclusion`) | 0 failed |
+| X5 | `weight.test.ts`: entry `.` denies `commander.js` and `commander/`, and `the denied list` › `denies entry \`.\` every file the commander front-end is made of` | added 2026-10-19: the spec named this entry, but its denied list never mentioned the front-end. Red with the two names removed: `expected [ 'commander.js', …(5) ] to deeply equal []` |
+| X6 | `weight.test.ts` entry `./commander`, budget 112,100 ([`D-20261019-commander-walk-budget-ratchet`](../../decisions/D-20261019-commander-walk-budget-ratchet.md)) | 112,024 B on a clean build, 14,341 B under commander's `lib/` |
+| X7 | `examples/conformance/src/commander-parity.test.ts`, 29 argv cases on both hosts | identical `{ code, stdout, stderr }` |
+| X8 | `facade-surface.test.ts` (G1–G6, facade-projection-fidelity R1–R6) and `plugin-lifecycle.test.ts` for the plugins and surfaces; the 1360 / 1360 grade for "nothing about its default behaviour changes" | pass |
 
 ## Rejected alternatives
 
