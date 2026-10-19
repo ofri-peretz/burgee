@@ -3,7 +3,9 @@
 > Stage 1 artifact. Child of [`burgee`](../burgee/intent.md).
 > Stage 5 for `apps/docs`, which today builds green and is served nowhere.
 
-**Status:** review · **Opened:** 2026-09-06 · **Built:** 2026-09-08 · **Owner:** @ofri-peretz
+**Status:** dropped (2026-10-18) · **Opened:** 2026-09-06 · **Built:** 2026-09-08 · **Owner:** @ofri-peretz
+
+**Dropped 2026-10-18** → [`D-20261018-drop-docs-deploy`](../../decisions/D-20261018-drop-docs-deploy.md): folded into [`docs-per-package`](../docs-per-package/intent.md), which generalises its R1–R6 from one app to N.
 
 > Everything that does not need a credential is built and merged; see
 > [What is built](#what-is-built-2026-09-08). The status stays `review` on purpose:

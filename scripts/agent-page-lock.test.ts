@@ -8,8 +8,8 @@
  * Lock — every number on "What an agent sees" is in a landed B1 result, and no run is left out.
  *
  * `.sdlc/intents/positioning/` R3. The page quotes recorded B1 sessions and tabulates the runs
- * they came from. B1 lands a result on every push to `main`, so a sentence about "the newest
- * run" is false within the hour. The page names each run by commit, and this lock reads that
+ * they came from. B1 lands a result on every reading (each push to `main` until 2026-10-18, weekly since), so a sentence about "the newest
+ * run" is false by the next reading. The page names each run by commit, and this lock reads that
  * run's committed `benchmarks/results/agent-cli-bench/<date>-<sha>-ci.json`:
  *
  *   - **every run row** equals that run's result: the time it was measured, the tokens and turns

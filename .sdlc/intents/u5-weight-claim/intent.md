@@ -1,6 +1,6 @@
 # Intent — U5 is a published claim and it is false
 
-**Status:** review · **Opened:** `2026-09-17` · **Owner:** `@ofri-peretz`
+**Status:** shipped · **Opened:** `2026-09-17` · **Owner:** `@ofri-peretz` · **Shipped:** 2026-10-18 on [`1013b65db5`](https://github.com/ofri-peretz/burgee/commit/1013b65db5), verified against `main` at `1013b65db5` — all 1 criteria locked by `npm run bench -- --axis weight --check` and `claim-table-lock.test.ts` · approved and shipped 2026-10-18, accepted under the owner's 2026-10-12 delegation
 
 ---
 
@@ -50,6 +50,22 @@ who takes U5 at face value.
 
 Either the ratio reads ≤ 1 on CI, or `benchmarks/axes/weight.ts` and the published page state
 the restated claim, with the measurement beside it and the date it changed.
+
+## Shipped — 2026-10-18
+
+**Status raised to `shipped`.** Every criterion was checked against `main` at `1013b65db5` in the
+roadmap-to-shipped Batch 0 pass (`.sdlc/research/roadmap-to-shipped-2026-10.md`).
+
+Accepted at Design→Build and stamped in one pass, under the owner's 2026-10-12 delegation. The
+criterion takes its first branch: the ratio reads ≤ 1 on CI. The open question, whether to drop
+`completion <shell>` from `burgee/yargs`, is moot, since nothing needs dropping.
+
+| criterion | check | result |
+| :-- | :-- | :-- |
+| the ratio ≤ 1 on CI | `burgee/yargs ÷ yargs bundled-bytes-ratio` in every CI reading since `2026-10-06-71c6359-ci.json`, **0.97** on `2026-10-18-56b9262-ci.json`; `npm run bench -- --axis weight --check` | 0 gate failures |
+| the gate holds it | `benchmarks/ratchet.test.ts -t "ratio gate"`, `subpath-weight-lock.test.ts -t U5`, `claim-table-lock.test.ts` | 5 passed, 30 skipped; 8 passed, 108 skipped; 4 passed |
+
+The stale 2026-09-17 Verification paragraph in `spec.md` is trimmed in this PR.
 
 ## Open questions
 

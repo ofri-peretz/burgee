@@ -5,7 +5,7 @@
 > burgee command accepts and silently loses: a positional nobody declared, and the first value
 > of a single-value flag given twice.
 
-**Status:** approved · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-18 on [`1013b65db5`](https://github.com/ofri-peretz/burgee/commit/1013b65db5), verified against `main` at `1013b65db5` — all 4 criteria locked by `parse-refusals.test.ts` and `json-failure.test.ts`
 
 ---
 
@@ -64,6 +64,23 @@ agent's retry is one turn.
 2. `--level a --level b` exits 2 and names both values. `--level a --level a` exits 0.
 3. A command with `allowExcess: true` behaves as today.
 4. `npm run compat -- commander yargs` is unchanged.
+
+## Shipped — 2026-10-18
+
+**Status raised to `shipped`.** Every criterion was checked against `main` at `1013b65db5` in the
+roadmap-to-shipped Batch 0 pass (`.sdlc/research/roadmap-to-shipped-2026-10.md`).
+
+| criterion | check | result |
+| :-- | :-- | :-- |
+| 1. surplus positional exits 2 and names it | `parse-refusals.test.ts` (R1) | 35 passed (with `schema.test.ts`, `stdin-dash.test.ts`) |
+| 2. a conflicting repeat exits 2 naming both; a same-value repeat exits 0 | `parse-refusals.test.ts` (R3) | the same run |
+| 3. `allowExcess: true` behaves as before | `parse-refusals.test.ts` (R2), `schema.test.ts` (`excess`) | the same run |
+| 4. compat unchanged | `npm run compat -- commander yargs` | commander 1360 / 1360, yargs 816 / 816 |
+
+The retry line is a `fix`, not the `next[]` that "What is wanted" names. R4 shipped that way
+(spec, R4 row): the words to leave out are dropped from the line as typed, quoted like every
+`fix:`. `json-failure.test.ts -t "parse-refusals R4"`, which re-runs the fix and expects exit 0:
+7 passed, 48 skipped.
 
 ## Open questions
 

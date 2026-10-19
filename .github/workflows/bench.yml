@@ -9,8 +9,11 @@ name: Benchmarks
 #            and the ones a refactor regresses silently, so they gate every PR.
 #   agent  — B1 agent cost. Costs money and is noisy over short intervals, so it
 #            does not run on a pull request unless one asks by name with the
-#            `bench:agent` label: weekly on the schedule, on every push to main,
-#            on demand, and on a labelled PR. (An earlier draft of this comment
+#            `bench:agent` label: weekly on the schedule, on demand, and on a
+#            labelled PR. **Not on a push to main** since 2026-10-18
+#            (D-20261019-b1-weekly-not-per-push): about 25 paid runs per merge
+#            drew on the same Claude weekly quota as the required `review` check
+#            and froze the repository for five days. (An earlier draft of this comment
 #            claimed a `packages/**` paths filter; there is none, and the `if:`
 #            on the job is the whole of the rule.) It needs
 #            CLAUDE_CODE_OAUTH_TOKEN (preferred; no per-token charge) or
@@ -260,9 +263,13 @@ jobs:
     # intervals, and a fork PR cannot read the credential anyway. A PR that
     # moves the manifest, the help renderer or the MCP surface is exactly where
     # agent cost changes, so `bench:agent` asks for it explicitly.
+    # Not on a push to main (D-20261019-b1-weekly-not-per-push): one weekly reading plus the PRs
+    # that ask by label bounds the spend. `ci-axes.test.ts` evaluates this condition per event.
     if: >-
-      github.event_name != 'pull_request' ||
-      contains(github.event.pull_request.labels.*.name, 'bench:agent')
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+      contains(github.event.pull_request.labels.*.name, 'bench:agent'))
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:

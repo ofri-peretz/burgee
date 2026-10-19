@@ -1,6 +1,6 @@
 # Intent — a command's agent surface is declared, never forgotten
 
-**Status:** approved · **Opened:** `2026-09-17` · **Owner:** `@ofri-peretz`
+**Status:** shipped · **Opened:** `2026-09-17` · **Owner:** `@ofri-peretz` · **Shipped:** 2026-10-18 on [`1013b65db5`](https://github.com/ofri-peretz/burgee/commit/1013b65db5), verified against `main` at `1013b65db5` — all 4 criteria locked by `mcp.test.ts`, `facade-surface.test.ts` and `yargs/burgee.test.ts`
 
 ---
 
@@ -60,6 +60,21 @@ breaking change** and the changeset says so in those words.
 3. `npm run compat` — every row `▲ 0`.
 4. burgee's design records N6 as built, and the claim is checked by a test that fails on the
    unfixed tree.
+
+## Shipped — 2026-10-18
+
+**Status raised to `shipped`.** Every criterion was checked against `main` at `1013b65db5` in the
+roadmap-to-shipped Batch 0 pass (`.sdlc/research/roadmap-to-shipped-2026-10.md`).
+
+`spec.md`'s R1 cited `effects.test.ts`, which does not exist. The refusal is in `mcp.test.ts`,
+and the citation is corrected in this PR.
+
+| criterion | check | result |
+| :-- | :-- | :-- |
+| 1. a runnable command with neither `effects` nor the opt-out throws, naming it and every fix | `mcp.test.ts` › `a runnable command declares its effects, or declines out loud (N6)` | 9 passed, 31 skipped |
+| 2. `effects: 'withheld'` is absent from `tools/list` and published in `--schema` | `mcp.test.ts` › `lists exactly the commands the author did not withhold…` | 1 passed, 39 skipped |
+| 3. `npm run compat`, every row ▲ 0 | `npm run compat -- commander yargs` | commander 1360 / 1360, yargs 816 / 816 |
+| 4. N6 recorded as built, with a check red on the unfixed tree | burgee `spec.md` N6; R6 for the façades: `facade-surface.test.ts -t G1/G2` | 5 passed, 26 skipped |
 
 ## Open questions
 

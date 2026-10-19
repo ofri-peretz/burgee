@@ -3,7 +3,7 @@
 > Stage 1 artifact. Child of [`burgee`](../burgee/intent.md),
 > requirement D2; research §6. Proposes D3–D5.
 
-**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-18 on [`1013b65db5`](https://github.com/ofri-peretz/burgee/commit/1013b65db5), verified against `main` at `1013b65db5` — all 3 criteria locked by the completions suites and `completions.yml` · approved and shipped 2026-10-18, accepted under the owner's 2026-10-12 delegation
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Evidence:** `completions.ts` + the `./completions` export + `completions.yml`; four shells and a Fig spec (D2–D5).
 
@@ -52,6 +52,34 @@ spec export (yargs #2131, #2126, citty #59) comes from the same node.
 - TAB never executes a command (yargs #1965): a CI case asserts the demo's handler
   sentinel is not written during completion.
 - `mytool completion fig` validates against Fig's spec schema.
+
+## Shipped — 2026-10-18
+
+**Status raised to `shipped`.** Every criterion was checked against `main` at `1013b65db5` in the
+roadmap-to-shipped Batch 0 pass (`.sdlc/research/roadmap-to-shipped-2026-10.md`).
+
+Accepted at Design→Build under the owner's 2026-10-12 delegation, with two criteria **restated to
+what was built**. The 2026-09-09 reading below found them unmet as written. Both restatements are
+named here and not quietly reinterpreted.
+
+- **Restated: `--dynamic` is a per-option `complete`.** D-119 replaced the escape hatch with a
+  `complete` function on the option that needs live values. The script calls the program back, as
+  `prog __complete <option> <partial>`, only for that option. Every other option stays static.
+  D3 still holds for everything not declared.
+- **Restated: "validates against Fig's spec schema" is a structural check against Fig's own
+  vocabulary.** Fig publishes no JSON Schema. `@withfig/autocomplete-types` 1.31.0 ships only an
+  `index.d.ts`, as `fig-schema.test.ts` records. The check is that every key is one Fig declares,
+  on the node type that declares it (`fig-schema.test.ts`), and that the spec and the parser
+  describe the same program (`fig-spec.test.ts`).
+
+| criterion | check | result |
+| :-- | :-- | :-- |
+| 1. four shells: `con<TAB>` → `config`, options with descriptions, `--no-<TAB>` negations | `completions.test.ts` (bash through `COMP_WORDS`, zsh through a real PTY, fish `complete -C`, pwsh `TabExpansion2`); `completion-flags.test.ts` (each shell's script offers `--no-dry-run` and `--no-quiet` and nothing the parser refuses) | 97 passed, 2 skipped locally; `completions.yml` on `main`: the last three runs green (39163516178, 39163131101, 39162295634), which run pwsh, zsh and fish |
+| 2. TAB never executes a command | `completions.test.ts` (D3 sentinel), `completions-dynamic.test.ts` (only a declared completer calls back) | the same run |
+| 3. Fig spec, restated as above | `fig-schema.test.ts`, `fig-spec.test.ts`, `commander/surfaces.test.ts` | the same run |
+
+The live-shell negation assertion runs in bash. zsh, fish and pwsh are held to the same set at the
+script level by `completion-flags.test.ts`, which runs the parser on every flag each script offers.
 
 ## Verified against `main` — 2026-09-09
 

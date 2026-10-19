@@ -5,7 +5,7 @@
 > output stack rediscovers the same defect: a live region taller than the screen cannot be
 > repainted. flagstaff's seam leaves it to the caller, and caique draws every choice.
 
-**Status:** approved · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-18 on [`1013b65db5`](https://github.com/ofri-peretz/burgee/commit/1013b65db5), verified against `main` at `1013b65db5` — all 3 criteria locked by `projection.test.ts`, caique's `raw.test.ts` and the graded suites
 
 ---
 
@@ -56,6 +56,23 @@
 2. A 40-choice `select` on a 10-row terminal paints a window with the cursor in it, and moving
    past the edge scrolls the window.
 3. The graded suites are unchanged.
+
+## Shipped — 2026-10-18
+
+**Status raised to `shipped`.** Every criterion was checked against `main` at `1013b65db5` in the
+roadmap-to-shipped Batch 0 pass (`.sdlc/research/roadmap-to-shipped-2026-10.md`).
+
+R2's text in `spec.md` is corrected in this PR to the arithmetic that was built and that criterion
+1 states: clip above `rows`, and keep `rows - 1` lines under the summary.
+
+| criterion | check | result |
+| :-- | :-- | :-- |
+| 1. 50 lines on 20 rows paints 19 plus a summary; a resize to 60 repaints all 50 | `projection.test.ts -t "a live frame never outgrows the terminal"` | 9 passed, 2 skipped |
+| 2. a 40-choice select on 10 rows windows around the cursor and scrolls | caique `raw.test.ts -t "a list prompt never outgrows the terminal"` | 5 passed, 40 skipped |
+| 3. the graded suites unchanged | `npm run compat -- ora log-update` and `-- clack` | ora 99 / 99, log-update 99 / 99; clack clack 16 / 16 |
+
+Weight budgets (D-20261013-frames-fit-the-screen-budgets): flagstaff `weight.test.ts` in
+98 passed; caique `weight.test.ts` 45 passed.
 
 ## Open questions
 

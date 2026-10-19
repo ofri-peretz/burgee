@@ -71,10 +71,11 @@ describe('each CI job runs its whole suite', () => {
 /**
  * `.sdlc/intents/b1-mcp-arm/` R4 — the MCP arm's spend is bounded in the workflow.
  *
- * B1 is 50 paid agent runs a reading and lands one on every push to `main`. The arm adds its
- * runs to each reading it joins, so it joins the weekly schedule and a PR labelled `bench:agent`,
- * and nothing else: a push to `main`, a manual dispatch and an unlabelled PR run the two existing
- * variants only. The axis runs the arm only when `BENCH_AGENT_MCP` is `1`
+ * B1 is paid agent runs on every reading. Until 2026-10-18 it landed one on every push to `main`;
+ * since D-20261019-b1-weekly-not-per-push the job itself runs only on the weekly schedule, a manual
+ * dispatch and a PR labelled `bench:agent` (the describe block at the end holds that). The arm adds
+ * its runs to each reading it joins, so it joins the weekly schedule and a labelled PR, and nothing
+ * else: a manual dispatch and an unlabelled PR run the two existing variants only. The axis runs the arm only when `BENCH_AGENT_MCP` is `1`
  * (`variantsFor` in `axes/agent.ts`), so the expression that sets it is the whole of the bound,
  * and this evaluates that expression for every event rather than matching its text.
  */
@@ -222,5 +223,37 @@ describe('R4 — the MCP arm runs where its cost was accepted, and nowhere else'
   it('lands a weekly reading under its own name, so it never collides with a push reading of the same commit', () => {
     expect(agentJob).toMatch(/if: \(github\.event_name == 'push' \|\| github\.event_name == 'schedule'\) && steps\.status\.outputs\.status == 'measured'/u);
     expect(agentJob).toContain('-weekly-ci.json');
+  });
+});
+
+/**
+ * D-20261019-b1-weekly-not-per-push — the B1 job no longer runs on a push to `main`.
+ *
+ * On a push it spent about 25 paid agent runs per merge, from the same Claude weekly quota as the
+ * required `review` check. About 250 runs landed between the 05:00 reset and the evening of
+ * 2026-10-18, and the 2026-10-13 weekly reading and the 2026-10-15 evals both died on the limit.
+ * The bound is now one weekly reading, a manual dispatch, and the PRs that ask by label.
+ */
+describe('B1 runs weekly and on request, never per push (D-20261019-b1-weekly-not-per-push)', () => {
+  const label = 'bench:agent';
+  /** The condition this replaced, kept verbatim so the proof below runs against it. */
+  const BEFORE = "github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'bench:agent')";
+
+  it.each([[[]], [[label]]] as const)('does not run on a push to main (labels %j)', (labels) => {
+    expect(jobRunsFor({ event_name: 'push', labels: [...labels] })).toBe(false);
+  });
+
+  it.each(['schedule', 'workflow_dispatch'])('runs on %s', (event_name) => {
+    expect(jobRunsFor({ event_name, labels: [] })).toBe(true);
+  });
+
+  it('runs on a pull request labelled bench:agent, and not on one without the label', () => {
+    expect(jobRunsFor({ event_name: 'pull_request', labels: [label] })).toBe(true);
+    expect(jobRunsFor({ event_name: 'pull_request', labels: [] })).toBe(false);
+    expect(jobRunsFor({ event_name: 'pull_request', labels: ['documentation'] })).toBe(false);
+  });
+
+  it('would fail against the condition it replaced — the old `if:` runs on every push', () => {
+    expect(evaluate(BEFORE, { event_name: 'push', labels: [] })).toBe(true);
   });
 });
