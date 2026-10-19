@@ -82,6 +82,21 @@ The date the install starts working is already the deadline `migrate-release-age
   in 1.5.0 and `closeout/onetime` / `closeout/cli-cursor` in 1.1.0. Each would have been pinned
   below its subpath under a release age.
 
+### Field trial, 2026-10-19 (intent criterion 2) — met
+
+Run by the coordinating agent and recorded here as reported.
+- **Setup:** svgo `e4cb29be` (pnpm 10.34.5; `pnpm-workspace.yaml` `minimumReleaseAge: 10080`),
+  Node v24.13.0, macOS, `npm_config_ignore_scripts=true`.
+- **2026-10-19T11:08:13Z:** `npx -y burgee@1.6.2 migrate` printed `complete: 3 files rewritten`,
+  and a release-age note: roundel 1.1.2 is younger than the age, so `next` pins `^1.1.0`, the
+  newest roundel 1.x old enough that exports `roundel/picocolors` (first in 1.1.0).
+- `next: pnpm add roundel@^1.1.0 && pnpm remove picocolors`, run as printed, exited 0 and installed
+  roundel 1.1.0.
+- `node bin/svgo --help` exited 0 (`Usage: svgo [options] [INPUT...]`). `<svg …><rect width="10"
+  height="10"/></svg>` piped through `svgo -i - -o -` gave the square back as one optimised `<path>` element, exit 0.
+- **Control, 10:59:58Z**, before roundel 1.1.0 aged in: the same install was refused by pnpm's
+  release age, as the note predicted.
+
 ## Rejected alternatives
 
 - **Read the registry at run time** (the packument's `versions[v].exports`). `migrate-release-age`

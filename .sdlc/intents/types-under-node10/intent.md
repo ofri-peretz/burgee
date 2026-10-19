@@ -1,8 +1,9 @@
 # Intent — every drop-in subpath type-checks under `moduleResolution: node10`
 
-**Status:** approved · **Opened:** `2026-10-18` · **Owner:** `@ofri-peretz` · **Approved:** 2026-10-19,
-under the owner's 2026-10-12 delegation — design in [`spec.md`](./spec.md). Criteria 1 and 2 are locked by
-`scripts/declaration-reach.test.ts`; criterion 3 (tsc-alias) needs the release, so the status stays `approved`.
+**Status:** shipped · **Opened:** `2026-10-18` · **Owner:** `@ofri-peretz` · **Shipped:** 2026-10-19 on
+[`c05c86e2`](https://github.com/ofri-peretz/burgee/commit/c05c86e2) (#1130), released in burgee 1.6.2, verified against `main` at
+[`add9c3fd`](https://github.com/ofri-peretz/burgee/commit/add9c3fd) — criteria 1 and 2 locked by `scripts/declaration-reach.test.ts`; criterion 3 by tsc-alias at
+`1077308b` against burgee 1.6.2 (`spec.md` › Build status)
 
 ---
 
