@@ -105,7 +105,8 @@ function bandEntry(spec: BandSpec, axes: ResultsDoc['axes'], records: readonly B
   return { value: record.median, from: bandRef(spec) };
 }
 
-const renderTarget = (test: ClaimSpec['test']): string => (test.max === undefined ? `>= ${String(test.min)}` : `<= ${String(test.max)}`);
+/** A claim's threshold as the page and the results document print it. */
+export const renderTarget = (test: ClaimSpec['test']): string => (test.max === undefined ? `>= ${String(test.min)}` : `<= ${String(test.max)}`);
 
 function claimEntry(spec: ClaimSpec, axes: ResultsDoc['axes'], records: readonly BenchRecord[]): ClaimEntry {
   const base = { claim: spec.claim, source: spec.source, target: renderTarget(spec.test) };
