@@ -13,6 +13,7 @@
   "bin": {
     "controlroom": "./dist/cli.js"
   },
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -30,6 +31,12 @@
       "default": "./dist/plugin.js"
     },
     "./schema.json": "./dist/schema.json"
+  },
+  "typesVersions": {
+    "*": {
+      "ink": ["./dist/ink/index.d.ts"],
+      "plugin": ["./dist/plugin.d.ts"]
+    }
   },
   "files": [
     "dist",

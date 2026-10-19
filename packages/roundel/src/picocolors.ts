@@ -103,5 +103,7 @@ const picocolors: Colors & { createColors: typeof createColors } = { ...createCo
 
 // `import pc from 'roundel/picocolors'` is the drop-in, so the entry is a default, and a
 // CommonJS `require('roundel/picocolors')` gets the same object, as `require('picocolors')` does.
+// Stryker disable StringLiteral: a string export name is syntax, not a value; Stryker 10 cannot place a mutant in it and aborts the whole run
 // eslint-disable-next-line import-next/no-default-export -- the incumbent's entry is its module object, and it is the whole point of this file
 export { picocolors as default, picocolors as 'module.exports' };
+// Stryker restore StringLiteral

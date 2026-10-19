@@ -5,7 +5,7 @@ run-name: >-
   Quality (Full) · ${{ github.event_name == 'pull_request' && format('PR #{0} · {1}', github.event.pull_request.number, github.event.pull_request.title) || (github.event_name == 'schedule' && 'Weekly drift scan' || github.event_name) }}
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Heavy half of the gate — Tests, Build, Typecheck, Coverage. Ported from
+# Heavy half of the gate — Tests, Build, Typecheck, Coverage, Mutation. Ported from
 # ofri-peretz/eslint/quality-full.yml.
 #
 # Runs on: push to main (post-merge verification), non-draft PRs, PRs labelled
@@ -50,7 +50,7 @@ jobs:
   #   run  ⇔  event is not a pull request  ∨  the PR is not a draft  ∨  it carries `run-full-ci`
   #
   # Draft PRs without the label still skip every heavy job and the gate below, exactly as
-  # before. Keep the five copies of the condition identical.
+  # before. Keep the six copies of the condition identical.
   test:
     name: Unit Tests (Turbo)
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false || contains(github.event.pull_request.labels.*.name, 'run-full-ci')
@@ -192,11 +192,51 @@ jobs:
             ' "$report"
           done
 
+  # A surviving mutant is a test suite that passes on broken code (.sdlc/intents/mutation-tested/).
+  # Stryker mutates only the lines this pull request added or changed, in the packages
+  # `scripts/affected.mts` names, and the job fails when one of those mutants is not detected —
+  # unless its line carries `// Stryker disable next-line <Mutator>: <reason>`. A PR that changes
+  # no package source, and every event that is not a pull request, reports success from a step;
+  # the weekly `mutation.yml` measures main in full.
+  #
+  # Budget (R3): 15 minutes for the job, 11 of them for Stryker (`PR_BUDGET` in the script). A
+  # pull request whose changed lines need longer fails saying so rather than passing unmeasured.
+  mutation:
+    name: Mutation (changed lines)
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false || contains(github.event.pull_request.labels.*.name, 'run-full-ci')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - name: Which lines to mutate
+        id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || (github.event_name == 'merge_group' && github.event.merge_group.base_sha || '') }}
+        run: |
+          set -euo pipefail
+          plan=$(npx tsx scripts/mutation.ts changed --event "$EVENT" --base "$BASE" --plan)
+          echo "$plan"
+          if jq -e 'type == "object" and length > 0' <<<"$(tail -n 1 <<<"$plan")" >/dev/null 2>&1; then echo "run=true" >> "$GITHUB_OUTPUT"; else echo "run=false" >> "$GITHUB_OUTPUT"; fi
+      # Every package, for the reason the coverage job gives: a suite may read a sibling's dist.
+      - name: Build every package
+        if: steps.plan.outputs.run == 'true'
+        run: npx turbo run build --filter='./packages/*' --concurrency=4
+      - name: Mutate the changed lines
+        if: steps.plan.outputs.run == 'true'
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || (github.event_name == 'merge_group' && github.event.merge_group.base_sha || '') }}
+        run: npx tsx scripts/mutation.ts changed --event "$EVENT" --base "$BASE" --concurrency 4 --summary "$GITHUB_STEP_SUMMARY"
+
   quality-full-gate:
     name: Quality (Full) Gate
     runs-on: ubuntu-latest
     timeout-minutes: 2
-    needs: [test, build, typecheck, coverage]
+    needs: [test, build, typecheck, coverage, mutation]
     if: always() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false || contains(github.event.pull_request.labels.*.name, 'run-full-ci'))
     steps:
       - name: Render gate report
@@ -205,11 +245,12 @@ jobs:
           R_BUILD: ${{ needs.build.result }}
           R_TYPECHECK: ${{ needs.typecheck.result }}
           R_COVERAGE: ${{ needs.coverage.result }}
+          R_MUTATION: ${{ needs.mutation.result }}
         run: |
           set -euo pipefail
           icon() { case "$1" in success) echo "✅";; failure) echo "❌";; cancelled) echo "⏹";; skipped) echo "⏭";; *) echo "⚠️";; esac; }
           all_pass=true
-          for r in "$R_TEST" "$R_BUILD" "$R_TYPECHECK" "$R_COVERAGE"; do [ "$r" = "success" ] || all_pass=false; done
+          for r in "$R_TEST" "$R_BUILD" "$R_TYPECHECK" "$R_COVERAGE" "$R_MUTATION"; do [ "$r" = "success" ] || all_pass=false; done
           {
             if $all_pass; then echo "# ✅ All heavy quality gates passed"; else echo "# ❌ One or more heavy quality gates failed"; fi
             echo ""
@@ -219,6 +260,7 @@ jobs:
             echo "| Build | $(icon "$R_BUILD") $R_BUILD |"
             echo "| Typecheck | $(icon "$R_TYPECHECK") $R_TYPECHECK |"
             echo "| Coverage thresholds (changed packages) | $(icon "$R_COVERAGE") $R_COVERAGE |"
+            echo "| Mutation (changed lines) | $(icon "$R_MUTATION") $R_MUTATION |"
             echo ""
             echo "_Run \`npm run ci:local\` to mirror these gates locally._"
           } >> "$GITHUB_STEP_SUMMARY"

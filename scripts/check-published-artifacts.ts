@@ -58,8 +58,11 @@ function missingExportTargets(dir: string, pkg: Pkg): string[] {
   return problems;
 }
 
-/** Nothing in the pack list may be a source map, a test, or agent instructions. */
-function forbiddenInPack(pkg: Pkg, pack: PackEntry): string[] {
+/**
+ * Nothing in the pack list may be a source map, a test, or agent instructions.
+ * Exported so `forbidden-in-pack-lock.test.ts` drives it with a pack list that has each.
+ */
+export function forbiddenInPack(pkg: Pkg, pack: PackEntry): string[] {
   return pack.files
     .filter(({ path }) => FORBIDDEN.some((re) => re.test(path)))
     .map(({ path }) => `${pkg.name}: would publish ${path}`);

@@ -8,6 +8,7 @@
   "engines": {
     "node": "^20.19.0 || >=22.13.0"
   },
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -59,6 +60,19 @@
       "types": "./dist/signal-exit-signals.d.cts",
       "import": "./dist/signal-exit-signals.cjs",
       "default": "./dist/signal-exit-signals.cjs"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "once": ["./dist/once.d.ts"],
+      "onetime": ["./dist/onetime.d.ts"],
+      "cursor": ["./dist/cursor.d.ts"],
+      "plugin": ["./dist/plugin.d.ts"],
+      "restore-cursor": ["./dist/restore-cursor.d.ts"],
+      "cli-cursor": ["./dist/cli-cursor.d.ts"],
+      "exit-hook": ["./dist/exit-hook.d.ts"],
+      "signal-exit": ["./dist/signal-exit.d.cts"],
+      "signal-exit/signals": ["./dist/signal-exit-signals.d.cts"]
     }
   },
   "files": [

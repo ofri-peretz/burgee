@@ -8,6 +8,7 @@
   "engines": {
     "node": "^20.19.0 || >=22.13.0"
   },
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -94,6 +95,26 @@
       "types": "./dist/table.d.ts",
       "import": "./dist/table.js",
       "default": "./dist/table.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "ora": ["./dist/ora.d.ts"],
+      "boxen": ["./dist/boxen.d.ts"],
+      "cli-table3": ["./dist/cli-table3.d.ts"],
+      "log-update": ["./dist/log-update.d.ts"],
+      "loop": ["./dist/loop.d.ts"],
+      "plugin": ["./dist/plugin.d.ts"],
+      "import": ["./dist/import.d.ts"],
+      "spinner": ["./dist/spinner.d.ts"],
+      "progress": ["./dist/progress.d.ts"],
+      "tasks": ["./dist/tasks.d.ts"],
+      "log-tail": ["./dist/log-tail.d.ts"],
+      "tab-bar": ["./dist/tab-bar.d.ts"],
+      "markdown": ["./dist/markdown.d.ts"],
+      "diff": ["./dist/diff.d.ts"],
+      "box": ["./dist/box.d.ts"],
+      "table": ["./dist/table.d.ts"]
     }
   },
   "bin": {

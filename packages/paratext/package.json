@@ -8,6 +8,7 @@
   "engines": {
     "node": "^20.19.0 || >=22.13.0"
   },
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -39,6 +40,15 @@
       "types": "./dist/terminal-link.d.ts",
       "import": "./dist/terminal-link.js",
       "default": "./dist/terminal-link.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "csi": ["./dist/csi.d.ts"],
+      "link": ["./dist/link.d.ts"],
+      "plugin": ["./dist/plugin.d.ts"],
+      "term-img": ["./dist/term-img.d.ts"],
+      "terminal-link": ["./dist/terminal-link.d.ts"]
     }
   },
   "files": [

@@ -1,0 +1,68 @@
+{
+  "$comment": "Mutation score per package (.sdlc/intents/mutation-tested/, D-20261018-mutation-tested): detected (killed + timeout) / (detected + survived + no coverage), Stryker over every mutation source, which is what coverage measures (src/**/*.ts minus tests, __fixtures__ and TESTED_IN_ANOTHER_PROCESS). `floor` only rises: `mutation.yml` measures main weekly, appends each observation, raises a floor the run beat (rounded down to one decimal) and fails on a run below it. Lowering one takes a newer decision in .sdlc/decisions/, cited in a new history step; scripts/mutation-lock.test.ts holds all of it. An `unmeasured` package says why, and its first weekly score becomes its first floor — no floor here is a number nobody measured.",
+  "ratchets": {
+    "bellpull": {
+      "status": "unmeasured",
+      "reason": "No full run yet: this PR seeded roundel on a loaded laptop (load 40-130 most of 2026-10-18, runs gated below 22). Its first weekly mutation.yml run measures it and sets its first floor."
+    },
+    "burgee": {
+      "status": "unmeasured",
+      "reason": "Full run started 2026-10-18 at 667ac99f6c and not finished: 11,825 mutants; it had tested 5,078 (684 survived, 70 timed out) in 37 minutes at concurrency 2 on a loaded laptop when the session was stopped, so no score is claimed. Its first weekly mutation.yml run (300-minute cell) sets its floor."
+    },
+    "caique": {
+      "status": "unmeasured",
+      "reason": "No full run yet: this PR seeded roundel on a loaded laptop (load 40-130 most of 2026-10-18, runs gated below 22). Its first weekly mutation.yml run measures it and sets its first floor."
+    },
+    "closeout": {
+      "status": "unmeasured",
+      "reason": "No full run yet: this PR seeded roundel on a loaded laptop (load 40-130 most of 2026-10-18, runs gated below 22). Its first weekly mutation.yml run measures it and sets its first floor."
+    },
+    "compat-oracle": {
+      "status": "unmeasured",
+      "reason": "No full run yet: this PR seeded roundel on a loaded laptop (load 40-130 most of 2026-10-18, runs gated below 22). Its first weekly mutation.yml run measures it and sets its first floor."
+    },
+    "controlroom": {
+      "status": "unmeasured",
+      "reason": "No full run yet: this PR seeded roundel on a loaded laptop (load 40-130 most of 2026-10-18, runs gated below 22). Its first weekly mutation.yml run measures it and sets its first floor."
+    },
+    "flagstaff": {
+      "status": "unmeasured",
+      "reason": "No full run yet: this PR seeded roundel on a loaded laptop (load 40-130 most of 2026-10-18, runs gated below 22). Its first weekly mutation.yml run measures it and sets its first floor."
+    },
+    "linegauge": {
+      "status": "unmeasured",
+      "reason": "src/width.test.ts compares the text of src/width.ts with the tables its generator writes, which instrumented source never matches, and it is also the suite that kills width.ts's mutants; skipping it would measure the package without its main suite. Measured once that check moves to its own file."
+    },
+    "paratext": {
+      "status": "unmeasured",
+      "reason": "No full run yet: this PR seeded roundel on a loaded laptop (load 40-130 most of 2026-10-18, runs gated below 22). Its first weekly mutation.yml run measures it and sets its first floor."
+    },
+    "roundel": {
+      "status": "measured",
+      "floor": 79.4,
+      "history": [
+        {
+          "floor": 79.4,
+          "setOn": "2026-10-18",
+          "why": "First full run, at 667ac99f6c: 79.41% (864 detected of 1088), rounded down to one decimal."
+        }
+      ],
+      "observations": [
+        {
+          "date": "2026-10-18",
+          "commit": "667ac99f6c",
+          "score": 79.41,
+          "killed": 860,
+          "timeout": 4,
+          "survived": 223,
+          "noCoverage": 1,
+          "minutes": 6.62
+        }
+      ]
+    },
+    "seniority": {
+      "status": "unmeasured",
+      "reason": "No full run yet: this PR seeded roundel on a loaded laptop (load 40-130 most of 2026-10-18, runs gated below 22). Its first weekly mutation.yml run measures it and sets its first floor."
+    }
+  }
+}
