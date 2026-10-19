@@ -14,13 +14,15 @@
  * major exports it. These cases hold the parts a wrong answer would hide in: the run that a
  * dropped subpath breaks, the bytes `git cat-file --batch` counts, and the tagless checkout.
  */
-import { execFileSync, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { deflateSync } from 'node:zlib';
 
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { compare, familyTable, historyOf, parts, published, sinceOf, subpathsOf } from './family-versions.mjs';
 
@@ -94,32 +96,103 @@ describe('subpathsOf — what a manifest exports', () => {
   });
 });
 
-/** A scratch repository with `packages/<dir>/package.json` committed and tagged at each version. */
-function repository(dir: string, name: string, versions: { version: string; exports?: Record<string, string>; description?: string; missing?: boolean }[]): string {
-  const root = mkdtempSync(join(tmpdir(), 'family-versions-'));
-  const git = (...args: string[]): string =>
-    execFileSync('git', ['-c', 'user.name=lock', '-c', 'user.email=lock@example.com', '-c', 'commit.gpgsign=false', '-c', 'tag.gpgsign=false', ...args], { cwd: root, env: withoutGit(), stdio: 'pipe' }).toString();
-  git('init', '--quiet');
-  const file = join(root, 'packages', dir, 'package.json');
-  mkdirSync(dirname(file), { recursive: true });
-  for (const v of versions) {
-    if (v.missing === true) writeFileSync(join(root, 'README.md'), v.version);
-    else writeFileSync(file, `${JSON.stringify({ name, version: v.version, description: v.description, exports: v.exports }, null, 2)}\n`);
-    git('add', '-A');
-    git('commit', '--quiet', '--allow-empty', '-m', v.version);
-    git('tag', `${name.split('/').at(-1) as string}@${v.version}`);
+/** A release tag the fixture carries: `packages/<dir>/package.json` in its tree, or, with no `manifest`, a tree without one. */
+interface Tagged {
+  tag: string;
+  dir: string;
+  manifest?: { name: string; version: string; description?: string; exports?: Record<string, string> };
+}
+
+/** The release of `name@version` at `packages/<dir>/package.json`, tagged by its unscoped name as `release.yml` tags. */
+const tagged = (dir: string, { name, version, description, exports }: NonNullable<Tagged['manifest']>): Tagged => ({
+  tag: `${name.split('/').at(-1) as string}@${version}`,
+  dir,
+  manifest: { name, version, description, exports },
+});
+
+/**
+ * Every release tag a case reads, one package per scenario so no case sees another's: `pennant`
+ * for the bytes `cat-file --batch` counts, `@scope/pkg` for a tag whose tree has no manifest,
+ * `x` for a tag that is not a version, and `roundel` (1.0.4, then 1.1.0 with `./picocolors`) for
+ * the workspace the script runs in. Each tag is its own root commit holding only what it lists.
+ */
+const TAGS: readonly Tagged[] = [
+  tagged('pennant', { name: 'pennant', version: '1.0.0', description: 'Ünïcödé — colours, “quoted”', exports: keys('.') }),
+  tagged('pennant', { name: 'pennant', version: '1.0.4', description: '— é ü —', exports: keys('.') }),
+  tagged('pennant', { name: 'pennant', version: '1.1.0', exports: keys('.', './picocolors') }),
+  { tag: 'pkg@1.0.0', dir: 'pkg' },
+  tagged('pkg', { name: '@scope/pkg', version: '1.0.1', exports: keys('.') }),
+  tagged('x', { name: 'x', version: '1.0.0', exports: keys('.') }),
+  tagged('roundel', { name: 'roundel', version: '1.0.4', exports: keys('.') }),
+  tagged('roundel', { name: 'roundel', version: '1.1.0', exports: keys('.', './picocolors') }),
+];
+/** Tags that name another tag's commit rather than a release of their own. */
+const ALIASES: Readonly<Record<string, string>> = { 'x@next': 'x@1.0.0' };
+
+let fixture: string | undefined;
+
+/**
+ * A fresh scratch directory under the system's temporary directory, left for the OS to clear.
+ * Removing them in `afterAll` was tried: under the load below, unlinking these few dozen files
+ * from Node took 152 s and failed the file on the 60 s hook timeout.
+ */
+const scratchDir = (prefix: string): string => mkdtempSync(join(tmpdir(), prefix));
+
+/**
+ * The one repository whose tags every case reads, written once and never again — and written by
+ * Node, not by git: each object is a new file under `.git/objects`, each tag a new file under
+ * `.git/refs/tags`, all of it git's documented on-disk format (`git fsck --strict` passes).
+ *
+ * Why. Each case used to build its own repository: `git init`, then `add`, `commit` and `tag`
+ * for every version. On this machine, while the pre-push root suite runs, a process that renames
+ * or unlinks a file — every lock file git commits through — can stall for many seconds, where a
+ * spawn, a file Node creates and a read-only git command stay fast (scripts/affected.test.ts).
+ * Measured 2026-10-19 with three root suites side by side: "ignores a tag that is not a plain
+ * version" 94 s and "writes { versions, since }" 76 s against the 30 s timeout. One fixture in
+ * `beforeAll` from `git init` and one `git fast-import` took 4 s in one such run and over the
+ * 60 s hook timeout in the next. Creating files only, it has nothing to wait on; the cases only
+ * read: `historyOf` here, or the script in a workspace whose `.git` file points at this one.
+ */
+function repository(): string {
+  if (fixture) return fixture;
+  const root = scratchDir('family-versions-');
+  const gitDir = join(root, '.git');
+  for (const dir of ['objects', 'refs/heads', 'refs/tags']) mkdirSync(join(gitDir, dir), { recursive: true });
+  writeFileSync(join(gitDir, 'HEAD'), 'ref: refs/heads/main\n');
+  /** A loose object: `<type> <size>\0<body>`, deflated, at the path its SHA-1 names. */
+  const object = (type: 'blob' | 'tree' | 'commit', body: Buffer): string => {
+    const raw = Buffer.concat([Buffer.from(`${type} ${String(body.length)}\0`), body]);
+    const sha = createHash('sha1').update(raw).digest('hex');
+    mkdirSync(join(gitDir, 'objects', sha.slice(0, 2)), { recursive: true });
+    writeFileSync(join(gitDir, 'objects', sha.slice(0, 2), sha.slice(2)), deflateSync(raw));
+    return sha;
+  };
+  /** A tree of one entry; `path` nests one tree per directory. */
+  const tree = (path: string, blob: string): string =>
+    path
+      .split('/')
+      .toReversed()
+      .reduce((sha, name, i) => object('tree', Buffer.concat([Buffer.from(`${i === 0 ? '100644' : '40000'} ${name}\0`), Buffer.from(sha, 'hex')])), blob);
+  const commits = new Map<string, string>();
+  for (const { tag, dir, manifest } of TAGS) {
+    const [path, text] = manifest ? [`packages/${dir}/package.json`, `${JSON.stringify(manifest, null, 2)}\n`] : ['README.md', `${tag}\n`];
+    const who = 'lock <lock@example.com> 0 +0000';
+    const commit = object('commit', Buffer.from(`tree ${tree(path, object('blob', Buffer.from(text)))}\nauthor ${who}\ncommitter ${who}\n\n${tag}\n`));
+    commits.set(tag, commit);
   }
+  for (const [alias, tag] of Object.entries(ALIASES)) commits.set(alias, commits.get(tag) as string);
+  for (const [tag, commit] of commits) writeFileSync(join(gitDir, 'refs', 'tags', tag), `${commit}\n`);
+  fixture = root;
   return root;
 }
 
 describe('historyOf — every release tag, read in one batch', () => {
+  beforeAll(() => {
+    repository();
+  });
+
   it('reads each tag’s manifest, cutting each body by bytes so a non-ASCII description does not shift the next', () => {
-    const root = repository('roundel', 'roundel', [
-      { version: '1.0.0', exports: keys('.'), description: 'Ünïcödé — colours, “quoted”' },
-      { version: '1.0.4', exports: keys('.'), description: '— é ü —' },
-      { version: '1.1.0', exports: keys('.', './picocolors') },
-    ]);
-    const history = historyOf(root, { name: 'roundel', dir: 'roundel' });
+    const history = historyOf(repository(), { name: 'pennant', dir: 'pennant' });
     expect(history.map((h) => [h.version, subpathsOf(h.manifest)])).toEqual([
       ['1.0.0', ['.']],
       ['1.0.4', ['.']],
@@ -129,19 +202,18 @@ describe('historyOf — every release tag, read in one batch', () => {
 
   it('reads a scoped package by its unscoped tag, and skips a tag whose tree has no manifest', () => {
     // The first tag's tree predates the manifest: no evidence either way, so it is left out.
-    const root = repository('pkg', '@scope/pkg', [{ version: '1.0.0', missing: true }, { version: '1.0.1', exports: keys('.') }]);
+    const root = repository();
     expect(historyOf(root, { name: '@scope/pkg', dir: 'pkg' }).map((h) => h.version)).toEqual(['1.0.1']);
     expect(historyOf(root, { name: '@scope/pkg', dir: 'elsewhere' }), 'no manifest at that path in any tag').toEqual([]);
   });
 
   it('ignores a tag that is not a plain version', () => {
-    const root = repository('x', 'x', [{ version: '1.0.0', exports: keys('.') }]);
-    execFileSync('git', ['tag', 'x@next'], { cwd: root, env: withoutGit() });
-    expect(historyOf(root, { name: 'x', dir: 'x' }).map((h) => h.version)).toEqual(['1.0.0']);
+    // `x@next` names the same commit as `x@1.0.0`, so only the name tells them apart.
+    expect(historyOf(repository(), { name: 'x', dir: 'x' }).map((h) => h.version)).toEqual(['1.0.0']);
   });
 
   it('is empty where there is no repository at all', () => {
-    expect(historyOf(mkdtempSync(join(tmpdir(), 'family-versions-none-')), { name: 'x', dir: 'x' })).toEqual([]);
+    expect(historyOf(scratchDir('family-versions-none-'), { name: 'x', dir: 'x' })).toEqual([]);
   });
 });
 
@@ -151,14 +223,15 @@ function writeManifest(root: string, dir: string, manifest: object): void {
   writeFileSync(join(root, 'packages', dir, 'package.json'), JSON.stringify(manifest));
 }
 
-/** A workspace of roundel (tagged at 1.0.4 and 1.1.0, or not), burgee, a private package, a directory without a manifest and a stray file. */
-function workspace(tagged: boolean): string {
-  const root = tagged
-    ? repository('roundel', 'roundel', [
-        { version: '1.0.4', exports: keys('.') },
-        { version: '1.1.0', exports: keys('.', './picocolors') },
-      ])
-    : mkdtempSync(join(tmpdir(), 'family-versions-tagless-'));
+/**
+ * A workspace of roundel (tagged at 1.0.4 and 1.1.0, or not), burgee, a private package, a
+ * directory without a manifest and a stray file. Tagged, its `.git` is a file naming the
+ * fixture's repository, as a linked worktree's is: the working tree is this case's own, the
+ * tags are the fixture's, and making one writes no git at all.
+ */
+function workspace(withTags: boolean): string {
+  const root = scratchDir(withTags ? 'family-versions-tagged-' : 'family-versions-tagless-');
+  if (withTags) writeFileSync(join(root, '.git'), `gitdir: ${join(repository(), '.git')}\n`);
   writeManifest(root, 'roundel', { name: 'roundel', version: '1.1.1', exports: keys('.', './picocolors') });
   writeManifest(root, 'burgee', { name: 'burgee', version: '1.6.0' });
   writeManifest(root, 'docs', { name: 'docs', version: '0.0.0', private: true });
@@ -171,6 +244,10 @@ function workspace(tagged: boolean): string {
 const run = (root: string, ...args: string[]) => spawnSync(process.execPath, [SCRIPT, ...args], { cwd: join(root, 'packages', 'burgee'), env: withoutGit(), encoding: 'utf8' });
 
 describe('the script — the file the build writes, and the release that refuses a tagless one', () => {
+  beforeAll(() => {
+    repository();
+  });
+
   it('writes { versions, since } from the tags, public packages only', () => {
     const root = workspace(true);
     const result = run(root);
@@ -187,7 +264,7 @@ describe('the script — the file the build writes, and the release that refuses
   });
 
   it('lists packages in name order whatever order the directory reads in', () => {
-    const root = mkdtempSync(join(tmpdir(), 'family-versions-order-'));
+    const root = scratchDir('family-versions-order-');
     for (const name of ['zeta', 'mid', 'alpha']) writeManifest(root, name, { name, version: '1.0.0' });
     expect(published(join(root, 'packages')).map((p) => p.name)).toEqual(['alpha', 'mid', 'zeta']);
   });
