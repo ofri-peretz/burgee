@@ -13,10 +13,14 @@
 import { ExitCode } from './exit-code.js';
 import { type CommandNode, type Example, type Manifest } from './manifest.js';
 
+/** R8 — `AUTH`'s advice: the one recovery an agent can perform without a person is to set the variable. */
+const authAdvice = (env: string): string => `a credential is missing or refused; set ${env} and run it again`;
+
 /**
  * R4 — what each code asks of the caller. Keyed by `ExitCode`'s own names and typed as a
  * `Record` over them, so a code added to the contract without a line here is a compile error,
- * and the section is generated from the contract rather than typed beside it.
+ * and the section is generated from the contract rather than typed beside it. `AUTH`'s line names
+ * the variable the program declares in `auth` (R8): `{env}` here, the variable in `adviceOf`.
  */
 export const EXIT_ADVICE: Readonly<Record<keyof typeof ExitCode, string>> = {
   OK: 'the command completed',
@@ -24,17 +28,37 @@ export const EXIT_ADVICE: Readonly<Record<keyof typeof ExitCode, string>> = {
   USAGE: 'bad arguments or an unknown command; rewrite the command',
   CONFIG: 'the config or environment did not load; fix it, not the command',
   CANCELLED: 'cancelled, or a decision is needed; decide, then run a next command',
-  AUTH: 'a credential is missing or refused; log in and run it again',
+  AUTH: authAdvice('{env}'),
   TIMEOUT: 'the --timeout deadline passed; run it again with more time',
   SIGINT: 'interrupted; stop',
 };
 
+/**
+ * A code's advice for this program: `AUTH`'s names the variable a non-interactive caller sets (R8).
+ * A program that declares no `auth` never lists the code; asked anyway, the advice is the template.
+ */
+export const adviceOf = (name: keyof typeof ExitCode, manifest: Pick<Manifest, 'auth'>): string => (name === 'AUTH' && manifest.auth !== undefined ? authAdvice(manifest.auth.env) : EXIT_ADVICE[name]);
+
+/**
+ * R8 — the codes this program can exit with, in `ExitCode`'s order. Every code is the engine's
+ * own, for any program, except two. `AUTH` comes only from a handler's `AuthError`, which nothing
+ * in the manifest predicts, so it is listed only when the program declares `auth`: a program with
+ * no credential no longer claims a failure it cannot produce. `TIMEOUT` comes from the global
+ * `--timeout`, which steps aside for a command that declares its own `timeout` (R3), so it is
+ * listed only while some runnable command leaves the global in place. Root help's rows,
+ * `--schema`'s `errors` and the skill's contract all read this one list.
+ */
+export function producibleExits(manifest: Manifest): (keyof typeof ExitCode)[] {
+  const timed = manifest.commands.some((c) => c.run !== undefined && c.options['timeout'] === undefined);
+  return (Object.keys(ExitCode) as (keyof typeof ExitCode)[]).filter((name) => (name !== 'AUTH' || manifest.auth !== undefined) && (name !== 'TIMEOUT' || timed));
+}
+
 /** R4 — the contract as rows under `Exit codes:`, in `ExitCode`'s order: the code, its name, the advice. */
-export const exitRows = (root: readonly string[], say: (english: string) => string = String): CommandNode[] =>
-  Object.entries(ExitCode).map(([name, code]) => ({
-    path: [...root, String(code)],
+export const exitRows = (manifest: Manifest, say: (english: string) => string = String): CommandNode[] =>
+  producibleExits(manifest).map((name) => ({
+    path: [...manifest.rootPath, String(ExitCode[name])],
     // The advice in the run's language (`localised-human-surfaces` R1); the name is the contract's word and stays.
-    summary: `${name.toLowerCase()}: ${say(EXIT_ADVICE[name as keyof typeof ExitCode])}`,
+    summary: `${name.toLowerCase()}: ${say(adviceOf(name, manifest))}`,
     group: 'Exit codes:',
     options: {},
   }));

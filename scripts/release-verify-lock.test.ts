@@ -20,13 +20,17 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { load as loadYaml } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
+
+import { scratchDirs } from './scratch-dir.js';
+
+/** Every scratch directory this file makes, removed after its last test (`scripts/scratch-dir.ts`). */
+const scratchDir = scratchDirs();
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -58,7 +62,7 @@ interface Gates {
 const SHA = 'a'.repeat(40);
 
 function verify(gates: Gates): { status: number; output: string; outputs: string } {
-  const dir = mkdtempSync(join(tmpdir(), 'release-verify-'));
+  const dir = scratchDir('release-verify-');
   const bin = join(dir, 'bin');
   mkdirSync(bin);
   writeFileSync(

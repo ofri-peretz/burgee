@@ -29,8 +29,8 @@
  * non-interactive run does not stall on a permission prompt.
  */
 
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync } from 'node:fs';
+import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -132,7 +132,14 @@ export interface AskOptions {
 export function askClaude(question: string, { claudeBin, env, timeoutMs = QUESTION_TIMEOUT_MS }: AskOptions): AskResult {
   const cwd = mkdtempSync(join(tmpdir(), 'citation-probe-claude-'));
   const childEnv: Env = Object.fromEntries(Object.entries(env).filter(([k]) => k !== 'ANTHROPIC_API_KEY'));
-  const r = spawnSync(claudeBin, claudeArgs(question), { cwd, encoding: 'utf8', timeout: timeoutMs, env: childEnv });
+  // An empty directory to run in, removed once the run is over: left behind, one per question
+  // per run piled up in the OS's temporary directory. Removing one empty directory is one rmdir.
+  let r: SpawnSyncReturns<string>;
+  try {
+    r = spawnSync(claudeBin, claudeArgs(question), { cwd, encoding: 'utf8', timeout: timeoutMs, env: childEnv });
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
   if (r.error) return { ok: false, exitCode: r.status, model: null, turns: null, costUsd: null, error: `${r.error.name}: ${r.error.message}` };
   const stdout = r.stdout ?? '';
   if (r.status !== 0) {

@@ -21,13 +21,17 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { chmodSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { load as loadYaml } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
+
+import { scratchDirs } from './scratch-dir.js';
+
+/** Every scratch directory this file makes, removed after its last test (`scripts/scratch-dir.ts`). */
+const scratchDir = scratchDirs();
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const WORKFLOWS = join(REPO_ROOT, '.github/workflows');
@@ -96,7 +100,7 @@ function guardedBlock(site: MergeSite): { block: string; variable: string } | st
 }
 
 function runBlock(block: string, variable: string, labels: string[] | 'error'): { calls: string[]; status: number; output: string } {
-  const dir = mkdtempSync(join(tmpdir(), 'bot-merge-hold-'));
+  const dir = scratchDir('bot-merge-hold-');
   const bin = join(dir, 'bin');
   mkdirSync(bin);
   const log = join(dir, 'gh.log');

@@ -4,7 +4,7 @@
 > of value, performance, scale and robustness, and own the size-versus-value judgement._ The
 > product's flagship front-end does not meet U5 in a user's bundle.
 
-**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-19 by `fix/facade-fidelity-and-weight`, verified against `main` at `6b90ffe` plus that branch — criterion 1 by the residual table in `spec.md` (55,346 B, every byte over 39,329 named); 2 by `scripts/subpath-weight-lock.test.ts` (`OVER_INCUMBENT` at 55,648), B4's `BUNDLED_CEILING` (55,400) and `scripts/claim-ratchets-lock.test.ts` (1.42); 3 by `scripts/commander-front-end-lock.test.ts`; 4 by `npm run compat -- commander` (1360 / 1360) and CI's B2 (1.078 on the last 30 runs against 1.2)
+**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-19 by `fix/facade-fidelity-and-weight`, verified against `main` at `6b90ffe` plus that branch — criterion 1 by the residual table in `spec.md` (55,351 B after #1139, every byte over 39,329 named); 2 by `scripts/subpath-weight-lock.test.ts` (`OVER_INCUMBENT` at 55,653), B4's `BUNDLED_CEILING` (55,400) and `scripts/claim-ratchets-lock.test.ts` (1.42); 3 by `scripts/commander-front-end-lock.test.ts`; 4 by `npm run compat -- commander` (1360 / 1360) and CI's B2 (1.078 on the last 30 runs against 1.2)
 
 ---
 

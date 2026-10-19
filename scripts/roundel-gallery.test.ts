@@ -4,16 +4,19 @@
  * The page is compared with a fresh render, so a hand edit, a scheme file added without
  * regenerating, or an importer change that moves a colour or a verdict all fail here.
  */
-import { copyFileSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { copyFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { PAGE, render, SCHEMES } from './roundel-gallery.js';
+import { scratchDirs } from './scratch-dir.js';
+
+/** Every scratch directory this file makes, removed after its last test (`scripts/scratch-dir.ts`). */
+const scratchDir = scratchDirs();
 
 const scratch = (...files: string[]): string => {
-  const dir = mkdtempSync(join(tmpdir(), 'gallery-'));
+  const dir = scratchDir('gallery-');
   for (const f of files) copyFileSync(join(SCHEMES, f), join(dir, f));
   return dir;
 };

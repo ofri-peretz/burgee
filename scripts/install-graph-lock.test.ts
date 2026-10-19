@@ -29,8 +29,7 @@
  * It reads `dist/`, so the packages must be built, as the pre-push battery and CI's `npm test` do
  * before the root suite runs.
  */
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -38,6 +37,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { discard, type Manifest, npm } from './family-install.js';
 import { GRAPH_FILE, type Installed, installAlone, installScripts, licenceProblems, measureFamily, outsiders, PAGE_FILE, project, render, table, withTable } from './install-graph.js';
+import { scratchDirs } from './scratch-dir.js';
+
+/** Every scratch directory this file makes, removed after its last test (`scripts/scratch-dir.ts`). */
+const scratchDir = scratchDirs();
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 
@@ -53,7 +56,7 @@ describe('installing a published package installs only the family, and runs noth
   let installs: Installed[] = [];
 
   beforeAll(async () => {
-    base = mkdtempSync(join(tmpdir(), 'burgee-install-graph-'));
+    base = scratchDir('burgee-install-graph-');
     ({ family, installs } = await measureFamily(ROOT, base));
   }, SETUP_TIMEOUT_MS);
 
@@ -116,7 +119,7 @@ describe('the lock can fail', () => {
   const family = new Set(['with-postinstall', 'with-outsider']);
 
   beforeAll(async () => {
-    base = mkdtempSync(join(tmpdir(), 'burgee-install-graph-fixtures-'));
+    base = scratchDir('burgee-install-graph-fixtures-');
     const dirs = [
       fixture(base, { name: 'with-postinstall', version: '1.0.0', scripts: { postinstall: 'node -e "process.exit(0)"' } }),
       fixture(base, { name: 'with-outsider', version: '1.0.0', dependencies: { 'not-in-the-family': '1.0.0' } }),

@@ -15,10 +15,13 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { renderCompletion } from './completions.js';
 import { defineCommand, defineProgram } from './index.js';
+import { host } from './runtime.js';
+import { runBurgee } from './testing.js';
+import { shellWord } from './unknown-option.js';
 
 const SENTINEL = 'HANDLER-RAN';
 // The same program `completions.test.ts` pins by snapshot.
@@ -119,9 +122,11 @@ const runPwsh = (args: readonly string[]): { stdout: string; stderr: string } =>
  * Every line completed by one pwsh, against one dot-source of the script: `-Delimited` heads each
  * line's candidates with `### <line>` and prints each candidate as `<text>\t<tooltip>`. A line
  * the session never reached has no block, and reads as `undefined` here rather than as `[]`.
+ * `runs` are command lines the same session runs afterwards (fix-lines-every-shell R3), each
+ * under `### run:<n>`: its output, then `exit:<code>`.
  */
-const pwsh = (...queries: string[]): Map<string, { text: string; tip: string }[]> => {
-  const out = runPwsh(['-Delimited', ...queries]).stdout;
+const pwsh = (queries: readonly string[], runs: readonly string[] = []): Map<string, { text: string; tip: string }[]> => {
+  const out = runPwsh(['-Run', runs.join('\n'), '-Delimited', ...queries]).stdout;
   const blocks = new Map<string, { text: string; tip: string }[]>();
   let current: { text: string; tip: string }[] = [];
   for (const raw of out.split(/\r?\n/)) {
@@ -133,6 +138,52 @@ const pwsh = (...queries: string[]): Map<string, { text: string; tip: string }[]
   }
   return blocks;
 };
+
+/**
+ * fix-lines-every-shell R3 — the `fix` a refusal prints on Windows, run in PowerShell as printed.
+ * The program word is swapped for `& node <echo>`, which prints the argv it received, so the
+ * check is that PowerShell parsed every word back to what the caller meant: `'`, `~`, `@` and `,`
+ * among them. The fix comes from a real refusal with the platform read as `win32`, so the same
+ * case runs under Linux's pwsh in completions.yml and on the Windows cells of compat.yml. The
+ * second line is `shellWord`'s PowerShell form over the words its rule singles out. `--%` is not
+ * among them: quoted, it still reaches PowerShell's native-argument binder as stop-parsing, which
+ * drops it and splits every argument after it (CI, run 39218012729). That is gap
+ * B-20261019-fix-lines-stop-parsing-word, not a quoting this test can pass.
+ */
+const ECHO = join(dir, 'echo.mjs');
+// A line of its own: a native command's output reaches stdout as written, so without the newline
+// the `exit:<code>` line after it would join it.
+writeFileSync(ECHO, 'console.log(JSON.stringify(process.argv.slice(2)))\n');
+const TYPED = ['echo', '--nmae', "it's", '~/x', '@a', 'a,b', '--json'];
+const MEANT = ['echo', '--name', "it's", '~/x', '@a', 'a,b', '--json'];
+const WORDS = ["it's", '@a', 'a,b', '~', '$HOME', '`x', 'C:\\Users\\RUNNER~1\\x', 'a b', 'plain'];
+const node = `& node ${shellWord(ECHO, 'win32')}`;
+async function windowsFix(): Promise<string> {
+  const tool = defineProgram({ name: 'tool', commands: [defineCommand({ name: 'echo', effects: 'read_only', options: { name: { type: 'string' } }, run: () => undefined })] });
+  const platform = vi.spyOn(host, 'platform', 'get').mockReturnValue('win32');
+  try {
+    return (JSON.parse((await runBurgee(tool, { argv: TYPED })).stdout) as { error: { fix: string } }).error.fix;
+  } finally {
+    platform.mockRestore();
+  }
+}
+
+type Session = Map<string, { text: string; tip: string }[]>;
+/**
+ * One pwsh answers the completion case and R3's alike: a cold start costs 14–60 s on a busy
+ * Windows cell (windows-lane-holds), so the fix lines ride the session that already starts.
+ */
+let session: Promise<Session> | undefined;
+const pwshSession = async (): Promise<Session> => {
+  session ??= windowsFix().then((fix) => pwsh(['demo con', 'demo greet --', 'demo greet --greeting '], [`${node}${fix.slice(fix.indexOf(' '))}`, `${node} ${WORDS.map((w) => shellWord(w, 'win32')).join(' ')}`]));
+  return session;
+};
+
+describe('fix-lines-every-shell R1 — the refusal R3 runs', () => {
+  it('a refusal on Windows prints its fix in PowerShell quoting: the line R3 hands to pwsh', async () => {
+    expect(await windowsFix()).toBe("tool echo --name 'it''s' '~/x' '@a' 'a,b' --json");
+  });
+});
 
 describe('windows-lane-holds R3 — pwsh cannot hang the case', () => {
   it('R3 — pwsh runs non-interactive, without first-run checks, under an inner timeout', () => {
@@ -191,8 +242,8 @@ describe('each shell exercises its script (D4)', () => {
   // many times over: one process per line took 33.6 s for three (#484, #433), and timed out at
   // 120 s on the release PR #1077. So every line is asked of one pwsh — one cold start, however
   // many lines — and the ceiling is for that one start, not for a count of them.
-  it.runIf(has('pwsh'))('PowerShell: subcommands, options and choice values with tooltips', { timeout: 120_000 }, () => {
-    const got = pwsh('demo con', 'demo greet --', 'demo greet --greeting ');
+  it.runIf(has('pwsh'))('PowerShell: subcommands, options and choice values with tooltips', { timeout: 120_000 }, async () => {
+    const got = await pwshSession();
     const texts = (line: string): string[] | undefined => got.get(line)?.map((c) => c.text);
     const tip = (line: string, text: string): string | undefined => got.get(line)?.find((c) => c.text === text)?.tip;
     expect(texts('demo con')).toEqual(['config']);
@@ -204,6 +255,14 @@ describe('each shell exercises its script (D4)', () => {
     expect(texts('demo greet --greeting ')).toEqual(['Hello', 'Hi']);
     // A choice value carries itself as its tooltip; an option or command, its description.
     expect(got.get('demo greet --greeting ')).toEqual([{ text: 'Hello', tip: 'Hello' }, { text: 'Hi', tip: 'Hi' }]);
-    for (const candidates of got.values()) for (const c of candidates) expect(c.tip, c.text).not.toBe('');
+    for (const [line, candidates] of got) if (!line.startsWith('run:')) for (const c of candidates) expect(c.tip, c.text).not.toBe('');
+  });
+
+  // fix-lines-every-shell R3, in the same pwsh session as the case above: no second cold start.
+  it.runIf(has('pwsh'))('fix-lines-every-shell R3 — a fix line printed for Windows runs in PowerShell as printed', { timeout: 120_000 }, async () => {
+    const got = await pwshSession();
+    const ran = (n: number): string[] | undefined => got.get(`run:${String(n)}`)?.map((c) => c.text);
+    expect(ran(0)).toEqual([JSON.stringify(MEANT), 'exit:0']);
+    expect(ran(1)).toEqual([JSON.stringify(WORDS), 'exit:0']);
   });
 });

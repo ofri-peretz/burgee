@@ -16,14 +16,15 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { defineCommand, defineError, defineProgram, ExitCode, type RunContext, runCommand } from './index.js';
 import { Manifest, type OptionSpec } from './manifest.js';
 import { program as burgee } from './program.js';
+import { producibleExits } from './root-help.js';
 import { binDirOf } from './skill-files.js';
 import { DESCRIPTION_MAX, NAME_MAX, renderAgents, renderSkill, skillName } from './skill.js';
-import { shellWord } from './unknown-option.js';
+import { shellLine } from './unknown-option.js';
 
 const ok = (): string => 'ok';
 
 /** A command line as `--check` prints it: each word quoted for a shell when it needs to be (a Windows path does). */
-const line = (...words: string[]): string => words.map(shellWord).join(' ');
+const line = (...words: string[]): string => shellLine(words);
 
 /** The reference demo's shape: a group among leaves, an example per command. */
 const demo = defineProgram({
@@ -105,13 +106,25 @@ describe('--skill prints an Agent Skill (agent-skill R2)', () => {
     expect(skill).not.toContain('hush');
   });
 
-  it('the exit-code table is ExitCode, with each kind, and a defined error follows the contract', () => {
+  it('the exit-code table is the codes the program can produce, with each kind, and a defined error follows the contract', () => {
     const contract = rows(renderSkill(demo));
-    expect(contract.map(([code]) => Number(code))).toEqual(Object.values(ExitCode));
-    expect(contract.map(([, kind]) => kind)).toEqual(['ok', 'runtime', 'usage', 'config', 'cancelled', 'auth', 'timeout', 'interrupted']);
+    // agent-lint-conformance R8 — the list root help and `--schema` read: the demo declares no `auth`.
+    expect(contract.map(([code]) => Number(code))).toEqual(producibleExits(demo).map((name) => ExitCode[name]));
+    expect(contract.map(([, kind]) => kind)).toEqual(['ok', 'runtime', 'usage', 'config', 'cancelled', 'timeout', 'interrupted']);
     expect(contract.find(([, kind]) => kind === 'timeout')?.[2]).toBe('yes');
     defineError({ name: 'SkillQuotaError', code: 77, retryable: true, description: 'the quota | ran out' });
     expect(rows(renderSkill(demo)).at(-1)).toEqual(['77', 'skill_quota', 'yes', 'the quota \\| ran out |']);
+  });
+
+  it('sets heading, generated note, description, contract and commands apart by one blank line each', () => {
+    const body = renderSkill(demo).split('\n---\n\n')[1] as string;
+    const blocks = body.split('\n\n');
+    expect(blocks[0]).toBe('# demo');
+    expect(blocks[1]).toMatch(/^<!-- Generated from the program's declaration by `burgee skill`\./);
+    expect(blocks[2]).toBe(renderSkill(demo).match(/^description: (.*)$/mu)?.[1]);
+    expect(blocks[3]).toBe('## The contract');
+    expect(blocks).toContain('## Commands');
+    expect(body).not.toMatch(/\n\n\n/);
   });
 
   it('inlines no option table: the options are behind --schema <command>, which it names', () => {
@@ -232,7 +245,7 @@ describe('burgee skill writes the files an author ships (agent-skill R3)', () =>
     writeFileSync(join(out, 'SKILL.md'), readFileSync(join(out, 'SKILL.md'), 'utf8').replace('Answer', 'Answers'));
     const stale = await runCommand(burgee, ['skill', entry, '--check', '--json']);
     expect(stale.code).toBe(ExitCode.RUNTIME);
-    expect(JSON.parse(stale.stdout)).toMatchObject({ data: { stale: ['SKILL.md'], fix: line('burgee', 'skill', entry) } });
+    expect(JSON.parse(stale.stdout)).toMatchObject({ data: { stale: ['SKILL.md'], changed: false, fix: line('burgee', 'skill', entry) } });
     // `--check` wrote nothing.
     expect(readFileSync(join(out, 'SKILL.md'), 'utf8')).toContain('Answers');
   });

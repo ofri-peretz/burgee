@@ -109,6 +109,14 @@ describe('defineError (E7)', () => {
     expect(errors.find((e) => e.kind === 'quota')).toEqual({ kind: 'quota', exit_code: 10, retryable: false });
     expect(errors.find((e) => e.kind === 'rate_limit')).toEqual({ kind: 'rate_limit', exit_code: 11, retryable: true, description: 'the upstream refused for rate-limiting reasons' });
     expect(errors.find((e) => e.kind === 'timeout')).toMatchObject({ exit_code: ExitCode.TIMEOUT, retryable: true });
+    // agent-lint-conformance R8 — six built-in kinds: `auth` is not producible without a declaration.
+    expect(errors.map((e) => e.kind).slice(0, 6)).toEqual(['runtime', 'usage', 'config', 'cancelled', 'timeout', 'interrupted']);
+    expect(errors.map((e) => e.kind)).not.toContain('auth');
+  });
+
+  it('lists auth among the contract’s kinds once the program declares it, seven in all (agent-lint-conformance R8)', async () => {
+    const declared = defineProgram({ name: 'app', auth: { env: 'APP_TOKEN' }, commands: [defineCommand({ name: 'call', effects: 'read_only', run: () => 'ok' })] });
+    const { errors } = JSON.parse((await runBurgee(declared, { argv: ['--schema'] })).stdout) as { errors: { kind: string }[] };
     expect(errors.map((e) => e.kind).slice(0, 7)).toEqual(['runtime', 'usage', 'config', 'cancelled', 'auth', 'timeout', 'interrupted']);
   });
 

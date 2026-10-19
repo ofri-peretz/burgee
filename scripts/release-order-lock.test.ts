@@ -1,6 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -44,6 +43,10 @@ import { load as loadYaml } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
 
 import { orderProblems, plan, publishOrder, publishOrderProblems, readWorkspace, type PlanRow, type WorkflowShape, type WorkspacePackage } from './release-order.mjs';
+import { scratchDirs } from './scratch-dir.js';
+
+/** Every scratch directory this file makes, removed after its last test (`scripts/scratch-dir.ts`). */
+const scratchDir = scratchDirs();
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const RELEASE = join(REPO_ROOT, '.github', 'workflows', 'release.yml');
@@ -91,7 +94,7 @@ describe('the order is a topological sort of the workspace graph', () => {
   });
 
   it('counts peerDependencies as edges, and ignores packages outside the family', () => {
-    const root = mkdtempSync(join(tmpdir(), 'release-order-'));
+    const root = scratchDir('release-order-');
     const write = (dir: string, manifest: object) => {
       mkdirSync(join(root, 'packages', dir), { recursive: true });
       writeFileSync(join(root, 'packages', dir, 'package.json'), JSON.stringify(manifest));
@@ -160,7 +163,7 @@ interface Run {
  * `npm view` calls a fresh publish misses before the registry serves it.
  */
 function runLoop(rows: PlanRow[], opts: { onNpm?: string[]; failPublish?: string[]; lag?: number } = {}): Run {
-  const dir = mkdtempSync(join(tmpdir(), 'release-loop-'));
+  const dir = scratchDir('release-loop-');
   const bin = join(dir, 'bin');
   mkdirSync(bin);
   mkdirSync(join(dir, 'scripts'));

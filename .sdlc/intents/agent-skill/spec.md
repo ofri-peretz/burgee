@@ -118,3 +118,13 @@ it reads, not the file. The one check still failing is FS-4 (the `auth` exit-cod
 "auth-related content" probe in a program with no auth). commander 71.2%, yargs 70.9%; clispec
 24 / 24. The reading is recorded here and not published: `BURGEE_FLOOR.agentLint` stays 91 until a
 publish moves it.
+
+**Criterion 4, held 2026-10-19.** Every CI reading of N10 now passes SD-5 or the job fails:
+`BURGEE_HELD_CHECKS` in `benchmarks/axes/floor.ts` gates burgee's `cli-agent-lint-held-checks-failing`
+at 0 (SD-5, and FS-4 for agent-lint-conformance R8), so `npm run bench -- --axis floor --check`
+fails a run that loses either check, whatever the percentage does. A held check missing from the
+report counts as failing. Checked by `benchmarks/floor.test.ts` › `the held checks`: SD-5 at `info`
+(the published 2026-10-12 reading) fails the gate. The first CI reading under the gate is the N10
+job of the PR that added it. CI's earlier reading, run 39166723369 on 2026-10-18, scored 96.6%,
+the score of the 2026-10-12 reading above, where only FS-4 failed; that run's failing list is in its
+`floor-results` artifact and was not read here.

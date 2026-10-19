@@ -17,7 +17,8 @@ import { type ActionRequiredSpec, type CommandNode, type Manifest } from './mani
 import { kebab } from './names.js';
 import { PluginError } from './plugin.js';
 // The failure path's own vocabulary, in this chunk with it: a run that succeeds loads neither (K6).
-import { Again, shellWord, singleDashHint, unknownOption } from './unknown-option.js';
+import { adviceOf } from './root-help.js';
+import { Again, shellLine, singleDashHint, unknownOption } from './unknown-option.js';
 import { commandUsage, type Usage, usageText } from './usage.js';
 
 /**
@@ -115,7 +116,7 @@ function carried(cause: unknown, line: readonly string[] = []): { hint?: string;
   return {
     ...(typeof hint === 'string' ? { hint } : {}),
     ...(typeof fix === 'string' ? { fix } : {}),
-    ...(Array.isArray(omit) ? { fix: line.filter((_, i) => !omit.includes(line.length - i)).map(shellWord).join(' ') } : {}),
+    ...(Array.isArray(omit) ? { fix: shellLine(line.filter((_, i) => !omit.includes(line.length - i))) } : {}),
     ...(typeof (usage as Usage | null | undefined)?.command === 'string' ? { usage: usage as Usage } : {}),
   };
 }
@@ -127,11 +128,15 @@ function carried(cause: unknown, line: readonly string[] = []): { hint?: string;
  * own class and hands over; the class stays in `execute.ts` because a handler throws it on the
  * startup path.
  */
-export async function describeFailure(cause: unknown, { root, argv }: { root: readonly string[]; argv: readonly string[] }, node: CommandNode | undefined, action: ActionRequiredSpec | undefined): Promise<Failure> {
+export async function describeFailure(cause: unknown, { manifest, argv }: { manifest: Pick<Manifest, 'rootPath' | 'auth'>; argv: readonly string[] }, node: CommandNode | undefined, action: ActionRequiredSpec | undefined): Promise<Failure> {
+  const { rootPath: root, auth } = manifest;
   // The line as typed, program first: a fix that corrects an option names the whole line.
   const failure = await classify(cause, [...root, ...argv], node, action);
   // R2 — every failure has a kind: a defined error's own, else the contract's word for its code.
   failure.kind ??= kindOf(failure.code) as string;
+  // agent-lint-conformance R8 — a credential refused with no hint of its own is told the variable
+  // the program declared in `auth`: the recovery an agent can perform without a person.
+  if (failure.code === ExitCode.AUTH && auth !== undefined) failure.hint ??= adviceOf('AUTH', { auth });
   // A line to run instead is argv, without the program in front (D-20261009-json-asked-is-json).
   if (failure.again) failure.again = failure.again.slice(root.length);
   // D-20260930 — a failure with nothing to run next says what the command takes: its usage

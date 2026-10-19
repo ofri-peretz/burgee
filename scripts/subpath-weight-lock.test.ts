@@ -80,18 +80,19 @@ const DROP_IN_CEILINGS: Readonly<Record<string, { incumbent: string; bytes: numb
  * the ledger file that says why the row is over and what closing it takes.
  *
  * `burgee/commander` (commander-front-end-diet R4): 61,207 at `10edb48` and 61,272 once #1064 grew `schema.js`; 56,418 after R1, 55,661 after R2,
- * 55,648 on 2026-10-19 (the page's reading since #1083 and #1091 moved `schema.js`; D-20261019-lighter-than-commander-ratchet). Every
+ * 55,653 on 2026-10-19 (D-20261019-lighter-than-commander-ratchet): the page read 55,648 after #1083 and #1091, and #1139 added
+ * 5 B to all three commander entries without regenerating the page, so v14 moves with them, 55,997 -> 56,002. Every
  * byte over commander is named in that spec's residual table.
  */
 const OVER_INCUMBENT: Readonly<Record<string, { incumbent: string; bytes: number; ours: number; gap: string }>> = {
-  'burgee/commander': { incumbent: 'commander@15.0.0', bytes: 39_329, ours: 55_648, gap: 'B-20261012-commander-front-end-bundles-heavier' },
+  'burgee/commander': { incumbent: 'commander@15.0.0', bytes: 39_329, ours: 55_653, gap: 'B-20261012-commander-front-end-bundles-heavier' },
   // `extra-typings-drop-in` R5: `export * from '../commander.js'`, so it bundles to `burgee/commander`
   // byte for byte and its ratchet moves with that row.
-  'burgee/commander/extra-typings': { incumbent: '@commander-js/extra-typings@15.0.0 + commander@15.0.0', bytes: 39_329, ours: 55_648, gap: 'B-20261012-extra-typings-bundles-heavier' },
+  'burgee/commander/extra-typings': { incumbent: '@commander-js/extra-typings@15.0.0 + commander@15.0.0', bytes: 39_329, ours: 55_653, gap: 'B-20261012-extra-typings-bundles-heavier' },
   // `previous-majors` R1: `burgee/commander` plus one subclass with commander 14's excess-arguments
   // message, so it bundles `burgee/commander`'s bytes plus 349, and its ratchet moves with that row.
   // commander 14.0.3 measured 2026-10-12 by the same method: 40,970 B (D-20261012-commander-14-budget).
-  'burgee/commander/v14': { incumbent: 'commander@14.0.3', bytes: 40_970, ours: 55_997, gap: 'B-20261012-commander-front-end-bundles-heavier' },
+  'burgee/commander/v14': { incumbent: 'commander@14.0.3', bytes: 40_970, ours: 56_002, gap: 'B-20261012-commander-front-end-bundles-heavier' },
 };
 
 /** The "Everything" cell of a subpath's row on the page, or `undefined` when it has no row. */

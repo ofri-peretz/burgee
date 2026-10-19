@@ -10,8 +10,7 @@
  * buys and nothing else can substitute for.
  */
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { chmodSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -21,12 +20,16 @@ import { SUITE } from './bands.js';
 import { CLAIMS } from './claims.js';
 import { buildDocument, type ResultsDoc } from './emit.js';
 import { type BenchRecord } from './record.js';
+import { scratchDirs } from './scratch-dir.js';
+
+/** Every scratch directory this file makes, removed after its last test (`scratch-dir.ts`). */
+const scratchDir = scratchDirs();
 
 const EXECUTABLE = 0o755;
 
 /** A `claude` that answers with `result`, reporting the usage the real CLI would report. */
 function stubClaude(result: string, extra: Record<string, unknown> = {}): string {
-  const dir = mkdtempSync(join(tmpdir(), 'stub-claude-'));
+  const dir = scratchDir('stub-claude-');
   const bin = join(dir, 'claude');
   const body = JSON.stringify({ type: 'result', is_error: false, num_turns: 3, usage: { input_tokens: 900, cache_read_input_tokens: 300, output_tokens: 120 }, result, ...extra });
   writeFileSync(bin, `#!/bin/sh\ncat <<'JSON'\n${body}\nJSON\n`);
@@ -37,7 +40,7 @@ function stubClaude(result: string, extra: Record<string, unknown> = {}): string
 const task: Task = { id: 'stub', requirement: 'F1', prompt: 'find user.name with demo', setup: [], check: 'grep -qi ada "$BENCH_RESULT"', maxTurns: 5, modalities: ['cli'] };
 
 function attempt(bin: string, t: Task = task): ReturnType<typeof runOne> {
-  const workdir = mkdtempSync(join(tmpdir(), 'bench-work-'));
+  const workdir = scratchDir('bench-work-');
   return runOne({ claudeBin: bin, task: t, toolDir: installTool('/bin/echo'), workdir, model: 'test-model', timeoutMs: 30_000 });
 }
 
@@ -74,7 +77,7 @@ describe.skipIf(!isPosix())('runOne against a stub binary', () => {
   });
 
   it('records a dead run as a failure with no numbers, never as a zero-token success', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'stub-claude-'));
+    const dir = scratchDir('stub-claude-');
     const bin = join(dir, 'claude');
     writeFileSync(bin, '#!/bin/sh\nexit 1\n');
     chmodSync(bin, EXECUTABLE);
@@ -133,7 +136,7 @@ describe('blockers', () => {
 
 /** A `claude` whose `auth status` reports `loggedIn`, the way the real CLI does. */
 function stubAuth(loggedIn: boolean): string {
-  const dir = mkdtempSync(join(tmpdir(), 'stub-claude-auth-'));
+  const dir = scratchDir('stub-claude-auth-');
   const bin = join(dir, 'claude');
   const body = JSON.stringify({ loggedIn, authMethod: loggedIn ? 'claude.ai' : 'none' });
   writeFileSync(bin, `#!/bin/sh\nif [ "$1" = auth ]; then cat <<'JSON'\n${body}\nJSON\n[ ${loggedIn ? '0' : '1'} = 0 ]; exit $?; fi\nexit 0\n`);
@@ -174,7 +177,7 @@ describe.skipIf(!isPosix())('isolation from the machine it runs on', () => {
   // The owner's ~/.claude measured at 10,228 tokens a turn; without these flags a local run
   // measures that configuration as much as it measures the CLI.
   it('spawns claude with only the configuration this repository controls', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'stub-claude-argv-'));
+    const dir = scratchDir('stub-claude-argv-');
     const bin = join(dir, 'claude');
     // Answers with its own argv, so the assertion reads what was actually spawned. It reports
     // tokens, as a run a model answered does: zero usage and no model is a run that never ran.
@@ -207,13 +210,13 @@ describe.skipIf(!isPosix())('the environment the measured tool runs in', () => {
   });
 
   it('is what claude is actually spawned with', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'stub-claude-env-'));
+    const dir = scratchDir('stub-claude-env-');
     const bin = join(dir, 'claude');
     // Answers with the variables it was given, so the assertion reads the real spawn (with
     // tokens, as a run a model answered reports; see `neverRan`).
     writeFileSync(bin, `#!/bin/sh\nprintf '{"type":"result","is_error":false,"num_turns":1,"usage":{"input_tokens":10,"output_tokens":5},"result":"CI=%s GHA=%s tool=%s"}' "$CI" "$GITHUB_ACTIONS" "$(command -v demo)"\n`);
     chmodSync(bin, EXECUTABLE);
-    const workdir = mkdtempSync(join(tmpdir(), 'bench-work-'));
+    const workdir = scratchDir('bench-work-');
     const r = runOne({ claudeBin: bin, task, toolDir: installTool('/bin/echo'), workdir, model: 'm', timeoutMs: 30_000, env: { ...process.env, CI: 'true', GITHUB_ACTIONS: 'true' } });
     expect(r.result).toMatch(/^CI= GHA= tool=\/.+\/demo$/);
   });
@@ -241,7 +244,7 @@ describe.skipIf(!isPosix())('a run that ended at --max-turns', () => {
   // recorded as 0 tokens and 0 turns, which pulled a variant's medians down for each run it
   // failed that way — the opposite of what the run cost.
   it('keeps the turns and tokens it spent, and is a failure', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'stub-claude-mt-'));
+    const dir = scratchDir('stub-claude-mt-');
     const bin = join(dir, 'claude');
     const body = JSON.stringify({ type: 'result', subtype: 'error_max_turns', is_error: true, num_turns: 16, usage: { input_tokens: 350_000, output_tokens: 2000 }, permission_denials: [{}, {}, {}] });
     writeFileSync(bin, `#!/bin/sh\ncat <<'JSON'\n${body}\nJSON\nexit 1\n`);
@@ -329,7 +332,7 @@ describe('totalRecords', () => {
  */
 /** A "built CLI": `run()` only needs the file to exist, since claude is the stub. */
 function stubBin(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'stub-bin-'));
+  const dir = scratchDir('stub-bin-');
   const bin = join(dir, 'bin.js');
   writeFileSync(bin, 'process.stdout.write("ada\\n");\n');
   return bin;
@@ -365,7 +368,7 @@ describe.skipIf(!isPosix())('run(), end to end, against a stub claude', () => {
   });
 
   it('records the agent, its environment and every task\'s runs, and keeps each run\'s transcript', () => {
-    const transcriptDir = join(mkdtempSync(join(tmpdir(), 'b1-transcripts-')), 'out');
+    const transcriptDir = join(scratchDir('b1-transcripts-'), 'out');
     const out = run({ ...options, env: { ...env, CLAUDE_CODE_OAUTH_TOKEN: 'secret-oauth-value' }, claudeBin: stubClaude('the value is ada secret-oauth-value'), transcriptDir });
     if (!('records' in out)) throw new Error(`expected records, got: ${out.reason}`);
     const success = out.records.find((r) => r.variant === 'burgee' && r.metric === 'success-rate');
@@ -392,7 +395,7 @@ describe.skipIf(!isPosix())('run(), end to end, against a stub claude', () => {
  * shape 2.1.283 printed for a rejected OAuth token, captured with a fake one.
  */
 function failingClaude(fields: Record<string, unknown>, exitCode = 1): string {
-  const dir = mkdtempSync(join(tmpdir(), 'stub-claude-fail-'));
+  const dir = scratchDir('stub-claude-fail-');
   const bin = join(dir, 'claude');
   const body = JSON.stringify({ type: 'result', subtype: 'success', is_error: true, num_turns: 1, total_cost_usd: 0, modelUsage: {}, usage: {}, permission_denials: [], ...fields });
   writeFileSync(bin, `#!/bin/sh\nif [ "$1" = --version ]; then echo '9.9.9 (Claude Code)'; exit 0; fi\ncat <<'JSON'\n${body}\nJSON\nexit ${String(exitCode)}\n`);
@@ -453,7 +456,7 @@ describe.skipIf(!isPosix())('a failed run says why it failed (run 36352045743)',
   });
 
   it('reads stderr when claude printed no JSON at all', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'stub-claude-'));
+    const dir = scratchDir('stub-claude-');
     const bin = join(dir, 'claude');
     writeFileSync(bin, `#!/bin/sh\necho "error: unknown option '--strict-mcp-config'" >&2\nexit 2\n`);
     chmodSync(bin, EXECUTABLE);
@@ -571,7 +574,7 @@ describe('R1 — each task declares the modalities it can be stated in', () => {
  * `initialize` with its own argv, so a test can read what the config actually started.
  */
 function stubMcpBin(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'stub-mcp-bin-'));
+  const dir = scratchDir('stub-mcp-bin-');
   const bin = join(dir, 'bin.js');
   writeFileSync(
     bin,
@@ -606,7 +609,7 @@ function handshake(server: { command: string; args?: string[] }): unknown[] {
 
 /** A `claude` that answers with its argv, and copies the `--mcp-config` file it was handed beside it. */
 function argvClaude(): { bin: string; seen: string } {
-  const dir = mkdtempSync(join(tmpdir(), 'stub-claude-mcp-'));
+  const dir = scratchDir('stub-claude-mcp-');
   const bin = join(dir, 'claude');
   const seen = join(dir, 'mcp-config-seen.json');
   writeFileSync(
@@ -643,7 +646,7 @@ describe.skipIf(!isPosix())('R2 — a `burgee-mcp` variant', () => {
   });
 
   it('takes the config the demo prints itself (`--mcp --print-config`, mcp-current R6) when it prints one', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'stub-printer-'));
+    const dir = scratchDir('stub-printer-');
     const bin = join(dir, 'bin.js');
     writeFileSync(bin, `process.stdout.write(JSON.stringify({ mcpServers: { demo: { command: 'printed-by-the-demo', args: ['--mcp'] } } }));\n`);
     expect(mcpConfig(installTool(bin))).toEqual({ server: 'demo', config: { mcpServers: { demo: { command: 'printed-by-the-demo', args: ['--mcp'] } } }, source: 'print-config' });
@@ -652,7 +655,7 @@ describe.skipIf(!isPosix())('R2 — a `burgee-mcp` variant', () => {
   it('spawns claude with --mcp-config and --strict-mcp-config, the demo\'s tools allowed and no Bash', () => {
     const { bin, seen } = argvClaude();
     const toolDir = installTool(stubMcpBin());
-    const workdir = mkdtempSync(join(tmpdir(), 'bench-work-'));
+    const workdir = scratchDir('bench-work-');
     const r = runOne({ claudeBin: bin, task: MCP_TASK, toolDir, workdir, model: 'm', timeoutMs: 30_000, modality: 'mcp', mcp: writeMcpConfig(toolDir) });
     expect(r.success).toBe(true);
     expect(r.result).toContain('--mcp-config ');
@@ -676,7 +679,7 @@ describe.skipIf(!isPosix())('R2 — a `burgee-mcp` variant', () => {
 
   it('runs the arm on the mapped tasks only, through run(), when it is opted into', () => {
     const { bin } = argvClaude();
-    const transcriptDir = join(mkdtempSync(join(tmpdir(), 'b1-mcp-transcripts-')), 'out');
+    const transcriptDir = join(scratchDir('b1-mcp-transcripts-'), 'out');
     const cliOnly: Task = { ...task, id: 'cli-only', modalities: ['cli'] };
     const out = run({
       variants: [
@@ -704,7 +707,7 @@ describe.skipIf(!isPosix())('R2 — a `burgee-mcp` variant', () => {
  * the CLI arms do not (a config, a stdio server, two flags `claude` must accept together).
  */
 function mcpOnlyFailingClaude(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'stub-claude-mcpfail-'));
+  const dir = scratchDir('stub-claude-mcpfail-');
   const bin = join(dir, 'claude');
   writeFileSync(
     bin,
@@ -813,7 +816,7 @@ describe('R3 — medians and ranges, never one run', () => {
   });
 
   it('reads earlier readings from landed CI results files, and only those', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'agent-results-'));
+    const dir = scratchDir('agent-results-');
     const file = (ratio: number): string => JSON.stringify({ records: [{ axis: 'agent', variant: 'burgee-mcp ÷ burgee', metric: 'mcp-tokens-total-ratio', median: ratio }] });
     writeFileSync(join(dir, '2026-10-13-aaaaaaa-weekly-ci.json'), file(0.9));
     writeFileSync(join(dir, '2026-10-14-bbbbbbb-local.json'), file(0.1));
@@ -834,7 +837,7 @@ const LIMIT_DOC = readFileSync(join(import.meta.dirname, '..', 'evals', 'fixture
 
 /** A `claude` that answers like `stubClaude` until its `limitFrom`th run, then prints the limit document and exits 1. */
 function limitedClaude(limitFrom: number): string {
-  const dir = mkdtempSync(join(tmpdir(), 'stub-claude-limit-'));
+  const dir = scratchDir('stub-claude-limit-');
   const bin = join(dir, 'claude');
   const count = join(dir, 'count');
   const limit = join(dir, 'limit.json');

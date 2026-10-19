@@ -40,8 +40,7 @@
  * report skipped, naming the stamp (`installStamp` in `family-install.ts`).
  */
 import { execFile } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
@@ -49,6 +48,10 @@ import { promisify } from 'node:util';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { declaredBy, discard, type Edge, type InstallStamp, installStamp, installTarballs, packFamily, publishedManifests, readManifest, undeclaredReaches } from './family-install.js';
+import { scratchDirs } from './scratch-dir.js';
+
+/** Every scratch directory this file makes, removed after its last test (`scripts/scratch-dir.ts`). */
+const scratchDir = scratchDirs();
 
 const run = promisify(execFile);
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -237,7 +240,7 @@ describe('every package README’s quick start runs as written', () => {
   let stamp: InstallStamp | undefined;
 
   beforeAll(async () => {
-    base = mkdtempSync(join(tmpdir(), 'burgee-quick-start-'));
+    base = scratchDir('burgee-quick-start-');
     const tarballs = await packFamily(root, manifests.keys(), join(base, 'tarballs'));
     stamp = installStamp(fileURLToPath(import.meta.url), tarballs.values());
     if (stamp.skip !== undefined) return;

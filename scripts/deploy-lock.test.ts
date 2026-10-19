@@ -1,6 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -67,6 +66,11 @@ import { fileURLToPath } from 'node:url';
 
 import { load as loadYaml } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
+
+import { scratchDirs } from './scratch-dir.js';
+
+/** Every scratch directory this file makes, removed after its last test (`scripts/scratch-dir.ts`). */
+const scratchDir = scratchDirs();
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const WORKFLOWS = join(REPO_ROOT, '.github', 'workflows');
@@ -160,7 +164,7 @@ interface Result {
  * the retry path costs nothing.
  */
 function runStep(body: string, env: Record<string, string>): Result {
-  const dir = mkdtempSync(join(tmpdir(), 'deploy-lock-'));
+  const dir = scratchDir('deploy-lock-');
   const bin = join(dir, 'bin');
   mkdirSync(bin);
   writeFileSync(

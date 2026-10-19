@@ -18,8 +18,7 @@
  *      same token fallback `changesets-pr.yml` uses — a recorder that is never invoked
  *      looks exactly like a quiet week.
  */
-import { existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -42,6 +41,10 @@ import {
   writeHistory,
   zeroTokenProblems,
 } from './eval-history';
+import { scratchDirs } from './scratch-dir.js';
+
+/** Every scratch directory this file makes, removed after its last test (`scripts/scratch-dir.ts`). */
+const scratchDir = scratchDirs();
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SHA = '0a1b2c3d4e5f60718293a4b5c6d7e8f901234567';
@@ -109,7 +112,7 @@ describe('historyLine', () => {
   });
 
   it('writes one line, named for its date and commit', () => {
-    const root = mkdtempSync(join(tmpdir(), 'eval-history-'));
+    const root = scratchDir('eval-history-');
     const line = historyLine({ ...base, cases: null });
     const rel = writeHistory(line, root);
     expect(rel).toBe(`${HISTORY_DIR}/2026-09-24-0a1b2c3.json`);
@@ -229,7 +232,7 @@ describe('evals-record-not-run R4 — readers skip a week that measured nothing'
     expect(lines.map((l) => l.date)).toEqual([...lines.map((l) => l.date)].sort());
     expect(lines.find((l) => l.date === '2026-10-15')?.tasks.status).toBe('not-run');
     expect(measured(lines).some((l) => l.date === '2026-10-15')).toBe(false);
-    expect(readHistory(mkdtempSync(join(tmpdir(), 'no-history-')))).toEqual([]);
+    expect(readHistory(scratchDir('no-history-'))).toEqual([]);
   });
 });
 

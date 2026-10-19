@@ -176,7 +176,7 @@ describe('help through the engine', () => {
     const r = await runBurgee(program, { argv: ['help'] });
     // The engine lists the commands that run, then its own `completion` and the exit codes, and
     // shows the root's examples (agent-lint-conformance R4–R6).
-    const commands = [...listed(program, root), completionNode(program) as CommandNode, ...exitRows(program.rootPath)];
+    const commands = [...listed(program, root), completionNode(program) as CommandNode, ...exitRows(program)];
     expect(r.stdout).toBe(renderHelp(program, { ...root, examples: rootExamples(program, root) }, { width: 100, commands, globals: globalRows(root) }));
   });
 
@@ -319,7 +319,7 @@ describe('help renders as Markdown, from the same sections (agent-skill R1)', ()
   /** What `surfaces.ts` hands the renderer at the root, and at a command. */
   const engine = (n: CommandNode): { node: CommandNode; opts: { commands: CommandNode[]; globals: { term: string; text: string }[] } } => {
     const atRoot = n.path.length === 1;
-    const commands = [...listed(demo, n), ...(atRoot ? [completionNode(demo) as CommandNode, ...exitRows(demo.rootPath)] : [])];
+    const commands = [...listed(demo, n), ...(atRoot ? [completionNode(demo) as CommandNode, ...exitRows(demo)] : [])];
     return { node: atRoot ? { ...n, examples: rootExamples(demo, n) } : n, opts: { commands, globals: globalRows(n) } };
   };
 

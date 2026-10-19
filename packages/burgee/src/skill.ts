@@ -65,10 +65,10 @@ function descriptionOf(manifest: Manifest, root: CommandNode, commands: CommandN
 const cell = (s: string): string => s.replaceAll('|', '\\|').replaceAll(/\r?\n/g, '<br>');
 
 /** The contract an agent relies on on every call, from the same rows `--schema` publishes. */
-function contract(run: string): string[] {
+function contract(manifest: Manifest, run: string): string[] {
   const rows = [
     `| \`${String(ExitCode.OK)}\` | \`ok\` | no | ${cell(EXIT_ADVICE.OK)} |`,
-    ...errorsOf().map((e) => `| \`${String(e.exit_code)}\` | \`${e.kind}\` | ${e.retryable ? 'yes' : 'no'} | ${cell(e.description ?? '')} |`),
+    ...errorsOf(manifest).map((e) => `| \`${String(e.exit_code)}\` | \`${e.kind}\` | ${e.retryable ? 'yes' : 'no'} | ${cell(e.description ?? '')} |`),
   ];
   return [
     '## The contract',
@@ -106,7 +106,7 @@ function body(manifest: Manifest, heading: string, view: (node: CommandNode) => 
   const description = descriptionOf(manifest, root, commands);
   return {
     description,
-    lines: [heading, '', GENERATED, '', description, '', ...contract(run), '', ...commandLines(manifest, root, commands, run)],
+    lines: [heading, '', GENERATED, '', description, '', ...contract(manifest, run), '', ...commandLines(manifest, root, commands, run)],
   };
 }
 

@@ -33,6 +33,10 @@ left out. `facade-surface.test.ts` holds each case.
 | `burgee/yargs` bundled (B4) | 108,345 | 108,769 | +424 |
 | `./yargs` walk | 220,765 | 221,617 | +852 |
 
+After merging main at `66e4611` (#1139 added 5 B of shared core to every front-end), this branch
+reads **108,774 B** bundled against main's 108,350 and **221,627 B** walked. The deltas are the
+same: +424 and +852.
+
 Each ceiling is the measurement plus the ~32 B CI reads heavier than a local build, rounded up to
 the next 50 B. That is the rule D-20261018-commander-14-budget used. The walk grows more than the
 bundle because it counts unminified `dist/` bytes.
