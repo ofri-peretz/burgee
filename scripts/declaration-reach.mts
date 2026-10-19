@@ -30,6 +30,12 @@
  *
  *   node ../../scripts/declaration-reach.mts --prune     # delete the unreachable ones
  *   node ../../scripts/declaration-reach.mts             # list them, delete nothing
+ *   node ../../scripts/declaration-reach.mts --write-types   # derive types + typesVersions from exports
+ *
+ * `--write-types` is run by hand when `exports` changes, never by a build: the two fields it
+ * writes are what a `node10` resolver reads instead of `exports`, and
+ * `declaration-reach.test.ts` fails, with this command in its message, until they match
+ * {@link expectedTypes} again. The decision is spec `types-under-node10`.
  */
 
 import fs from 'node:fs';
@@ -147,6 +153,71 @@ export function unreachableDeclarations(dir: string, pkg: TypedPackage, out = 'd
     .toSorted();
 }
 
+/** The two `package.json` fields a `node10` resolver reads instead of `exports`. */
+export interface LegacyTypes {
+  types: string;
+  typesVersions: Record<string, Record<string, string[]>>;
+}
+
+/** The `types` condition of one `exports` value, when it is a conditions object that has one. */
+function typesCondition(value: unknown): string | undefined {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const types = (value as Record<string, unknown>)['types'];
+  return typeof types === 'string' ? types : undefined;
+}
+
+/**
+ * The `types` and `typesVersions` a package must declare so a `node10` resolver reaches exactly
+ * the typed subpaths `exports` publishes (spec `types-under-node10` R1–R3).
+ *
+ * `node10` — TypeScript's default under `module: commonjs` — ignores `exports`. Without these two
+ * fields, `import … from 'burgee/commander'` is TS2307 there, although `require()` of the same
+ * specifier works. The map is derived, never written by hand: `types` is the root's `types`
+ * target, and each non-root entry with a `types` condition becomes one key, in `exports` order,
+ * pointing at that same file. A data entry (`./schema.json`) has no `types` condition and gets no
+ * key. A wildcard map would be shorter, but it would type `burgee/execute` wherever its `.d.ts`
+ * survives the prune while Node's `exports` refuses it at run time.
+ */
+export function expectedTypes(pkg: TypedPackage): LegacyTypes {
+  const entries = pkg.exports !== null && typeof pkg.exports === 'object' && !Array.isArray(pkg.exports) ? Object.entries(pkg.exports as Record<string, unknown>) : [];
+  let types: string | undefined;
+  const map: Record<string, string[]> = {};
+  for (const [key, value] of entries) {
+    const target = typesCondition(value);
+    if (target === undefined) continue;
+    if (key === '.') types = target;
+    else map[key.replace(/^\.\//, '')] = [target];
+  }
+  if (types === undefined) throw new Error(`${pkg.name ?? 'package'}: exports['.'] has no types condition, so there is nothing for node10 to read`);
+  return { types, typesVersions: { '*': map } };
+}
+
+/**
+ * `package.json` text with {@link expectedTypes} written in: `types` just above `exports`, and
+ * `typesVersions` just below it. Edits lines rather than re-serialising, so every other line keeps
+ * its hand formatting (inline arrays and all); an earlier copy of either field is replaced, so a
+ * second run is a no-op. Expects the 2-space layout every `package.json` here has, with
+ * `exports` not the last field.
+ */
+export function withLegacyTypes(text: string, pkg: TypedPackage): string {
+  const { types, typesVersions } = expectedTypes(pkg);
+  const lines = text.split('\n');
+  const closing = (from: number): number => lines.findIndex((line, i) => i > from && /^ {2}[\]}],?$/.test(line));
+  for (const key of ['types', 'typesVersions']) {
+    const at = lines.findIndex((line) => line.startsWith(`  "${key}": `));
+    if (at === -1) continue;
+    const last = lines[at]!.endsWith('{') ? closing(at) : at;
+    lines.splice(at, last - at + 1);
+  }
+  const open = lines.indexOf('  "exports": {');
+  const close = open === -1 ? -1 : closing(open);
+  if (close === -1 || lines[close] !== '  },') throw new Error(`${pkg.name ?? 'package'}: no top-level "exports" object followed by another field`);
+  const map = `  "typesVersions": ${JSON.stringify(typesVersions, null, 2).replaceAll(/\[\n\s+("[^"\n]*")\n\s+\]/g, '[$1]').replaceAll('\n', '\n  ')},`;
+  lines.splice(close + 1, 0, map);
+  lines.splice(open, 0, `  "types": ${JSON.stringify(types)},`);
+  return lines.join('\n');
+}
+
 /** Delete the unreachable declarations and their declaration maps. Returns what went, and its bytes. */
 export function pruneDeclarations(dir: string, pkg: TypedPackage, out = 'dist'): { files: string[]; bytes: number } {
   const files = unreachableDeclarations(dir, pkg, out);
@@ -165,8 +236,13 @@ export function pruneDeclarations(dir: string, pkg: TypedPackage, out = 'dist'):
 const isMain = process.argv[1] !== undefined && path.resolve(process.argv[1]) === url.fileURLToPath(import.meta.url);
 if (isMain) {
   const dir = process.cwd();
-  const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8')) as TypedPackage;
-  if (process.argv.includes('--prune')) {
+  const manifest = path.join(dir, 'package.json');
+  const text = fs.readFileSync(manifest, 'utf8');
+  const pkg = JSON.parse(text) as TypedPackage;
+  if (process.argv.includes('--write-types')) {
+    fs.writeFileSync(manifest, withLegacyTypes(text, pkg));
+    process.stdout.write(`wrote types and typesVersions (${Object.keys(expectedTypes(pkg).typesVersions['*']!).length} subpaths) from exports\n`);
+  } else if (process.argv.includes('--prune')) {
     const { files, bytes } = pruneDeclarations(dir, pkg);
     process.stdout.write(`pruned ${files.length} unreachable declaration file(s), ${bytes} B, from dist\n`);
   } else {

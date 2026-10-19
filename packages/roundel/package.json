@@ -8,6 +8,7 @@
   "engines": {
     "node": "^20.19.0 || >=22.13.0"
   },
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -59,6 +60,19 @@
       "types": "./dist/import.d.ts",
       "import": "./dist/import.js",
       "default": "./dist/import.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "policy": ["./dist/policy.d.ts"],
+      "tokens": ["./dist/tokens.d.ts"],
+      "plugin": ["./dist/plugin.d.ts"],
+      "theme": ["./dist/theme.d.ts"],
+      "contrast": ["./dist/contrast.d.ts"],
+      "chalk": ["./dist/chalk.d.ts"],
+      "picocolors": ["./dist/picocolors.d.ts"],
+      "terminal": ["./dist/terminal.d.ts"],
+      "import": ["./dist/import.d.ts"]
     }
   },
   "files": [

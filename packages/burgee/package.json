@@ -10,6 +10,7 @@
   "engines": {
     "node": "^20.19.0 || >=22.13.0"
   },
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -103,6 +104,27 @@
       "types": "./dist/yargs-parser.d.ts",
       "import": "./dist/yargs-parser.js",
       "default": "./dist/yargs-parser.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "plugin": ["./dist/plugin.d.ts"],
+      "help": ["./dist/help-entry.d.ts"],
+      "mcp": ["./dist/mcp-entry.d.ts"],
+      "schema": ["./dist/schema-entry.d.ts"],
+      "config": ["./dist/config.d.ts"],
+      "brand": ["./dist/brand.d.ts"],
+      "contrast": ["./dist/contrast.d.ts"],
+      "cli": ["./dist/cli.d.ts"],
+      "testing": ["./dist/testing.d.ts"],
+      "commander": ["./dist/commander.d.ts"],
+      "commander/extra-typings": ["./dist/commander/extra-typings.d.ts"],
+      "commander/v14": ["./dist/commander/v14.d.ts"],
+      "meow": ["./dist/meow.d.ts"],
+      "completions": ["./dist/completions.d.ts"],
+      "yargs": ["./dist/yargs.d.ts"],
+      "yargs/helpers": ["./dist/yargs-helpers.d.ts"],
+      "yargs/parser": ["./dist/yargs-parser.d.ts"]
     }
   },
   "files": [

@@ -8,6 +8,7 @@
   "engines": {
     "node": "^20.19.0 || >=22.13.0"
   },
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -74,6 +75,22 @@
       "types": "./dist/config.d.ts",
       "import": "./dist/config.js",
       "default": "./dist/config.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "precedence": ["./dist/precedence.d.ts"],
+      "explain": ["./dist/explain-entry.d.ts"],
+      "plugin": ["./dist/plugin.d.ts"],
+      "cosmiconfig": ["./dist/cosmiconfig.d.ts"],
+      "dotenv": ["./dist/dotenv.d.ts"],
+      "dotenv/config": ["./dist/dotenv-config.d.ts"],
+      "dotenv/cli": ["./dist/dotenv-cli.d.ts"],
+      "lilconfig": ["./dist/lilconfig.d.ts"],
+      "rc": ["./dist/rc.d.ts"],
+      "find-up": ["./dist/find-up.d.ts"],
+      "yaml": ["./dist/yaml.d.ts"],
+      "config": ["./dist/config.d.ts"]
     }
   },
   "files": [

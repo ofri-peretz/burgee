@@ -8,6 +8,7 @@
   "engines": {
     "node": "^20.19.0 || >=22.13.0"
   },
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -55,6 +56,18 @@
       "default": "./dist/plugin.js"
     },
     "./schema.json": "./dist/schema.json"
+  },
+  "typesVersions": {
+    "*": {
+      "wrap": ["./dist/wrap.d.ts"],
+      "slice": ["./dist/slice.d.ts"],
+      "truncate": ["./dist/truncate.d.ts"],
+      "cli-truncate": ["./dist/cli-truncate.d.ts"],
+      "widest": ["./dist/widest.d.ts"],
+      "widest-line": ["./dist/widest-line.d.ts"],
+      "strip": ["./dist/strip.d.ts"],
+      "plugin": ["./dist/plugin.d.ts"]
+    }
   },
   "files": [
     "dist",

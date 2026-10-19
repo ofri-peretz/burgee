@@ -5,8 +5,6 @@
  * with update priorities and `commitUpdate(instance, type, …)`). Each member only one line
  * reads is harmless to the other.
  */
-import { type Reconciler } from 'react-reconciler';
-
 import {
   appendChildNode,
   applyStyles,
@@ -29,7 +27,7 @@ import {
   type Transformer,
 } from './dom.js';
 import { replayConsole } from './process.js';
-import { constants, createReconciler, React } from './react.js';
+import { constants, createReconciler, React, type Reconciler } from './react.js';
 
 interface HostContext {
   isInsideText: boolean;
