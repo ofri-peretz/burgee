@@ -321,17 +321,58 @@ jest pattern and the R7 wording, are stated above with their reasons.
 
 ## Build status
 
+Built on `feat/migrate-preflight` against `main` at `e91f842423`. Every check below was red on
+`main` first (28 cases; the failure line of each is in the PR), and is green on the branch.
+
 | R | Status | Where | Check |
 | :-- | :-- | :-- | :-- |
-| R1 | Not built | `migrate.ts` (`MigrationReport.preflight`, `migrate()`) | `migrate-preflight.test.ts` › R3 |
-| R2 | Not built | `migrate-preflight.ts` (`admitted`, `lowestIn`) | `migrate-preflight.test.ts` › R2 |
-| R3 | Not built | `migrate-preflight.ts` (`preflightOf`) | `migrate-preflight.test.ts` › R3 |
-| R4 | Not built | `migrate-preflight.ts` | `migrate-preflight.test.ts` › R4 (×2) |
-| R5 | Not built | `migrate-preflight.ts`; root file probe in `migrate.ts` | `migrate-preflight.test.ts` › R5 (×2) |
-| R6 | Not built | `migrate.ts` (`migrate()`, `summaryOf`) | `migrate-preflight.test.ts` › R6 (×2) |
-| R7 | Not built | `migrate.ts` (`DirtyTreeError`) | `migrate-lexer.test.ts`; `migrate-cli.test.ts` |
-| R8 | Not built | `migrate.ts` (`textOf`); `apps/docs/content/docs/migrate.mdx` | `migrate-u12.test.ts`; `migrate-cli.test.ts` |
-| R-N10 | Not built | none (a lock) | `migrate-preflight.test.ts` › node10 |
-| model | Not built | `preflight.qnt` | `models.yml` |
+| R1 | Built | `migrate.ts` (`MigrationReport.preflight`, `migrate()`, `gate`) | `migrate-preflight.test.ts` › R3; `migrate.test.ts` › the report's key list |
+| R2 | Built | `migrate-preflight.ts` (`admitted`, `lowestIn`, `between`) | `migrate-preflight.test.ts` › R2 (5 cases) |
+| R3 | Built | `migrate-preflight.ts` (`preflightOf`) | `migrate-preflight.test.ts` › R1, R3 (5 cases) |
+| R4 | Built | `migrate-preflight.ts` (`belowFloor`) | `migrate-preflight.test.ts` › R4 (4 cases) |
+| R5 | Built | `migrate-preflight.ts`; `jestConfigsIn` in `migrate.ts` | `migrate-preflight.test.ts` › R5 (3 cases) |
+| R6 | Built | `migrate.ts` (`gate`, `summaryOf`, the write guard) | `migrate-preflight.test.ts` › R6 (5 cases); `migrate-cli.test.ts` › A8 blocking |
+| R7 | Built | `migrate.ts` (`DirtyTreeError`, `checkTree`); `listed`, `pathsOf` | `migrate-lexer.test.ts`; `migrate-cli.test.ts` › A6 untracked; `migrate-preflight.test.ts` › R7 |
+| R8 | Built | `migrate.ts` (`textOf`); `apps/docs/content/docs/migrate.mdx` | `migrate-u12.test.ts` › renders every section; `migrate-cli.test.ts` › A8 blocking |
+| R-N10 | Built | none (a lock) | `migrate-preflight.test.ts` › node10 |
+| model | Built | `preflight.qnt`; `models.yml` (paths, `writesHappen` witness) | `safety` holds over 20,000 traces; the four mutants each violate it |
 
-**Built: 0. Not built: 10.**
+**Built: 10. Not built: 0.**
+
+### Evidence against the intent's success criteria
+
+| Criterion | Evidence |
+| :-- | :-- |
+| wait-port, svgo, tsc-alias and @swc/cli fixtures each produce the matching row, red before | `migrate-preflight.test.ts` R3, R4, R-N10 and R5 cases; red on `e91f842423` with `report.preflight` `undefined` |
+| an ES-module project on `engines.node >=22` gets no rows | `R4 — an ES-module project on engines.node >=22 gets no rows` |
+| `--json` carries the rows; the text report prints them before the rewrite list | `A8 — a blocking preflight exits RUNTIME with the rows in --json`; `renders every section a report can carry` |
+| field: the trial projects at their pinned SHAs | below |
+
+**Field check, 2026-10-19**, the branch's built `dist/cli.js` run against clones at the trial SHAs:
+
+- wait-port `16083537`, installed with `npm ci --ignore-scripts`: `nothing to rewrite`, then
+  `block  require-esm  … require('burgee/commander') throws ERR_REQUIRE_ESM on Node 10.0.0 …`, exit 0.
+  The trial's "floor: ≥10 not reported" is now reported.
+- tsc-alias `1077308b`, not installed (`--dry-run`): `require-esm` on Node 16.20.2 and `jest-cjs`,
+  exit 0; no `node10` row.
+- @swc/cli `2cbd4700` (`packages/cli`), not installed, with an untracked
+  `node-compile-cache/` created by hand to stand in for the one the trial's `pnpm install` wrote:
+  refused with `hint: ?? packages/cli/node-compile-cache/` and
+  `fix: add packages/cli/node-compile-cache/ to .gitignore or commit them, or pass --force`, exit 1;
+  under `--force`, `require-esm` on Node 21.0.0, `jest-cjs`, and `untracked`, exit 0.
+
+**Mutation** (`scripts/mutation.ts changed`): 394 / 394 mutants on the changed lines killed, 100%,
+none annotated. The first run left 23; the equivalent ones were removed by deleting the fallbacks
+that produced them, and the rest got the assertion that tells them apart.
+
+**Coverage**: 100% lines, branches, functions and statements on `migrate.ts` and
+`migrate-preflight.ts`.
+
+**Weight**: the burgee tarball is 270,087 B packed and 1,024,713 B unpacked against `main`'s
+267,573 / 1,016,862 on the same machine: +2,514 B packed, +7,851 B unpacked, above the estimate
+of +1.5 KB / +4–6 KB. `migrate-preflight.js` is 6,030 B. `npm run check:artifacts` passes, so no
+baseline moves and no decision is recorded. Entry budgets are unchanged.
+
+**Not yet `shipped`**: every criterion has evidence on the branch, and the intent moves to
+`shipped` once this is on `main` and released. The change is a `minor`, which the release window
+holds until about 2026-10-25.
