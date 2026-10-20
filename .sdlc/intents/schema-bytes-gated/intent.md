@@ -4,7 +4,7 @@
 > ([`next-wave-4-2026-10.md`](../../research/next-wave-4-2026-10.md)) to close gap
 > `B-20261012-agent-schema-bytes-no-gate`.
 
-**Status:** review · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Design:** [`spec.md`](./spec.md), accepted in [`D-20261020-schema-group-design-accepted`](../../decisions/D-20261020-schema-group-design-accepted.md) · **Shipped:** 2026-10-20 in the `feat/schema-group` PR
 
 ---
 
@@ -51,3 +51,13 @@ raising the budget is a decision written in the same PR.
 ## Open questions
 
 - Which budget. **Decided 2026-10-12**, D-20261012-schema-bytes-budget.
+
+## Verified — 2026-10-20
+
+| Criterion | State | Evidence |
+| :-- | :-- | :-- |
+| 1. the axis fails when the demo's `--schema` exceeds `SCHEMA_BYTES_BUDGET` | met | burgee's record carries `gate: { max: 4650 }`; `bench.yml` runs `--axis reliability --check` on every PR |
+| 2. a test runs the gate against a reading one byte over | met | `benchmarks/reliability.test.ts` › *a reading one byte over the budget fails the gate* |
+| 3. the gap is closed, citing the PR | met | `B-20261012-agent-schema-bytes-no-gate`, `status: closed` |
+
+Nothing ships to npm (the benchmarks are private), so nothing waits on a release.
