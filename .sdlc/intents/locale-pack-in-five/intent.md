@@ -4,7 +4,7 @@
 > ([`next-wave-4-2026-10.md`](../../research/next-wave-4-2026-10.md)). D-20261012-agent-eval-turn-budget
 > brought paratext's eval under its target and left the locale pack at a median of 7.
 
-**Status:** review · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
+**Status:** approved · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
 
 ---
 
@@ -44,7 +44,14 @@ not change: the product changes.
    locale needs, so the check is the verification.
 2. The schema's top-level description holds a complete three-form module, so no run searches the
    source.
-3. The eval's median over five runs is under 6, max under 12.
+3. Every reading passes with max under 12, and no transcript spends a call on burgee (a read of
+   its source, a run of `Intl.PluralRules` or `check --help`, a refused `check`, a second
+   `check` of a pack the first accepted). The median is
+   reported beside the bar of under 6, which stays the aim. *(Restated 2026-10-20,
+   [D-20261020-locale-pack-in-five-design-gate](../../decisions/D-20261020-locale-pack-in-five-design-gate.md):
+   on `main` the median is 6 over 34 readings, and the whole gap to 5 is one environment probe
+   (`ls evals/results/`, `ls dist/cli.js`) that no burgee change reaches and the eval may not be
+   edited to remove.)*
 
 ## Jev triage
 

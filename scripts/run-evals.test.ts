@@ -7,6 +7,7 @@ import {
   billingFor,
   brokenLinks,
   callLines,
+  caseLines,
   type CaseResult,
   caseOutcome,
   claudeArgs,
@@ -264,6 +265,22 @@ describe('transcriptOf — a case keeps where its turns went', () => {
     expect(calls[0]?.turn).toBe(1);
     expect(calls[0]?.output).toBe(`${'y'.repeat(400)}…`);
     expect(transcriptOf(event({ type: 'assistant', message: { content: [{ type: 'tool_use', id: 'b', name: 'X' }] } })).calls[0]?.input).toBe('');
+  });
+
+  it('a passing case says where its turns went too, one line per call, without the outputs (locale-pack-in-five R3)', () => {
+    const calls = [
+      { turn: 1, tool: 'Read', input: 'schema.json', output: '{ "title": "x" }', error: false },
+      { turn: 2, tool: 'Bash', input: 'node cli.js check a.mjs --json', output: '{"ok":true}', error: false },
+    ];
+    const base = { id: 'locale-pack-from-schema', turns: 3, tokens: null, model: null, calls };
+    expect(caseLines({ ...base, status: 'pass', failed: [] })).toEqual(['  ✓ locale-pack-from-schema — 3 turn(s)', '        turn 1 Read: schema.json', '        turn 2 Bash: node cli.js check a.mjs --json']);
+    expect(caseLines({ ...base, status: 'fail', failed: ['exit 1'] })).toEqual([
+      '  ✗ locale-pack-from-schema — 3 turn(s)',
+      '      exit 1',
+      '        turn 1 Read: schema.json → { "title": "x" }',
+      '        turn 2 Bash: node cli.js check a.mjs --json → {"ok":true}',
+    ]);
+    expect(caseLines({ ...base, turns: null, calls: [], status: 'error', failed: ['no output'] })).toEqual(['  ✗ locale-pack-from-schema', '      no output']);
   });
 
   it('hands output that is not a stream back as the result, so the grade reads what it always read', () => {
