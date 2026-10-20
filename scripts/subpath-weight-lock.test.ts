@@ -71,6 +71,9 @@ const DROP_IN_CEILINGS: Readonly<Record<string, { incumbent: string; bytes: numb
   'roundel/picocolors': { incumbent: 'picocolors@1.1.1', bytes: 2_739 },
   // `supports-color-drop-in` R4: supports-color 11.0.0 by the same method, measured 2026-10-19.
   'roundel/supports-color': { incumbent: 'supports-color@11.0.0', bytes: 2_145 },
+  // `colour-facades` R4: yoctocolors 2.2.0 by the same method, measured 2026-10-20. Over this,
+  // `roundel/yoctocolors` does not ship (the spec's kill criterion).
+  'roundel/yoctocolors': { incumbent: 'yoctocolors@2.2.0', bytes: 3_395 },
   // `inquirer-prompts-drop-in` R5: `@inquirer/prompts` 8.7.3 with the ten prompt releases it
   // shipped with and `@inquirer/core` 12.0.4 (the graded tree, D-20261019-inquirer-prompts-pins-its-prompts),
   // by the same method, measured 2026-10-20. iconv-lite's tables, through `@inquirer/editor`, are most of it.

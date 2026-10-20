@@ -1,7 +1,7 @@
 {
   "name": "roundel",
   "version": "1.2.0",
-  "description": "Colour for a CLI: one output policy decided from the runtime, nine semantic tokens over util.styleText, and a theme that changes them together, contrast-checked. Zero dependencies. Drop-in paths for chalk, picocolors and supports-color.",
+  "description": "Colour for a CLI: one output policy decided from the runtime, nine semantic tokens over util.styleText, and a theme that changes them together, contrast-checked. Zero dependencies. Drop-in paths for chalk, picocolors, supports-color and yoctocolors.",
   "license": "MIT",
   "type": "module",
   "sideEffects": ["./dist/cli.js"],
@@ -57,6 +57,11 @@
       "import": "./dist/supports-color.js",
       "default": "./dist/supports-color.js"
     },
+    "./yoctocolors": {
+      "types": "./dist/yoctocolors.d.ts",
+      "import": "./dist/yoctocolors.js",
+      "default": "./dist/yoctocolors.js"
+    },
     "./terminal": {
       "types": "./dist/terminal.d.ts",
       "import": "./dist/terminal.js",
@@ -78,6 +83,7 @@
       "chalk": ["./dist/chalk.d.ts"],
       "picocolors": ["./dist/picocolors.d.ts"],
       "supports-color": ["./dist/supports-color.d.ts"],
+      "yoctocolors": ["./dist/yoctocolors.d.ts"],
       "terminal": ["./dist/terminal.d.ts"],
       "import": ["./dist/import.d.ts"]
     }
@@ -114,6 +120,7 @@
     "chalk",
     "picocolors",
     "supports-color",
+    "yoctocolors",
     "styleText",
     "plugin",
     "plugins",
