@@ -101,6 +101,7 @@
     "cli-table": "0.3.11",
     "cli-table3": "^0.6.5",
     "cli-truncate": "^6.1.1",
+    "colorette": "2.0.20",
     "commander": "^15.0.0",
     "compat-oracle": "*",
     "cpr": "^3.0.1",

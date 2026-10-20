@@ -136,6 +136,14 @@ export const PAIRS: readonly EntryPair[] = [
     why: "the roadmap's second bet: colour under picocolors' weight",
   },
   {
+    // `colour-facades` R4: the drop-in against the release compat-oracle grades it by. colorette has
+    // no default export, so each side is entered by one of the styles both export.
+    id: 'roundel/colorette',
+    ours: { specifier: 'roundel/colorette', symbol: 'red' },
+    incumbent: { specifier: 'colorette', symbol: 'red' },
+    why: 'colour under colorette 2, the functions picocolors was forked from',
+  },
+  {
     // `supports-color-drop-in` R4: the drop-in against the release compat-oracle grades it by.
     id: 'roundel/supports-color',
     ours: { specifier: 'roundel/supports-color', symbol: DEFAULT_EXPORT },

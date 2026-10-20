@@ -103,6 +103,33 @@
       }
     }
   ],
+  "./colorette": [
+    {
+      "package": "colorette",
+      "claim": "compat",
+      "seen": {
+        "registry": "colorette",
+        "version": "2.0.20",
+        "shasum": "9eb793e6833067f7235902fcd3b09917a000a95a",
+        "weight": 8663,
+        "self": 8663,
+        "packages": 1,
+        "files": {
+          "index.cjs": "aa0dc92a70685eefeefd5c2e3825ce4ed54e94c12fd0cf530e4c3f42ea8f6716",
+          "index.d.ts": "c8adda9f45d2f7ec9fb28c59859db32da6c2835f1fec96433e2729e5805fa46f",
+          "index.js": "26402a4fa7ca930c4eed499a06f486371c368f639ae9f8a138e5eafb20b66f35",
+          "LICENSE.md": "f101c761d255d0dddc77dd8a9327733b03d381798ec54a1bb718367207b48a8e",
+          "package.json": "cbf90c104dc2b1273b63341c98869d414d7f926d76e3cccbfb25fce517edad9e",
+          "README.md": "b56c56e7982f8111dd63d391bfc4fec2b20f52d856498bc726a22beedf12f8e7"
+        },
+        "exports": [
+          "createColors",
+          "isColorSupported"
+        ],
+        "measured": "2026-10-20"
+      }
+    }
+  ],
   "./supports-color": [
     {
       "package": "supports-color",
