@@ -103,7 +103,7 @@ Abbreviations used below:
 | commander-schema | approved (typed-schema-surface) | y | P | burgee/types + parse | 10 | 3 (+5 partial) | C1, R2, R4 (B-20261019-commander-schema-remaining) | n | – | **SUPERSEDED-CANDIDATE** for its positional half → typed-positionals; restate the rest |
 | compat-grader-layer | **dropped** (batch 0, `D-20261018-drop-compat-grader-layer`) | n | DROPPED | compat-oracle | 6 | 1 | – | n | – | Ruling: trigger fixed; conflicts with compat-oracle being internal |
 | compat-oracle | approved | y | P | compat-oracle | 13 | 12 | R1 (60 s warm budget, not gated) | n | – | Restate R1 or add a timing check. The README compat rows are hand-written |
-| completion-context | approved | y | NS | burgee/completions (execute lane) | 5 | 1 | R1–R4 | n | – | Ahead of default-command and typed-positionals |
+| completion-context | approved (built 2026-10-20; a burgee minor) | y | LS | burgee/completions (execute lane) | 5 | 5 | – (waits on the release of its `minor`) | n | **context.qnt** | Ahead of default-command and typed-positionals. Re-grounded on `24d8d8b5`; 229 / 229 mutants detected |
 | control-band-agent-schema-bytes | **dropped** (batch 0, `D-20261018-drop-control-band-agent-schema-bytes`) | n | DROPPED | benchmarks/bands | 2 | 2 | – | n | – | Recovered (flat 4,752 B). Cite D-20261012 step-change |
 | control-band-cold-start-ratio | **dropped** (batch 0, `D-20261018-drop-control-band-cold-start-ratio`) | n | DROPPED | benchmarks/bands | 2 | 1 | – | n | – | Recovered (1.08), never attributed |
 | control-band-commander-front-end-bundled-bytes | **dropped** (batch 0, `D-20261018-drop-band-commander-front-end-bytes`) | n | DROPPED | benchmarks/bands | 2 | 2 | – | n | – | Recovered (55,346) |
@@ -178,6 +178,7 @@ These intents need a model:
 | mcp-current | missing (in-flight cancel) |
 | bellpull | missing (kill ladder) |
 | closeout-at-incumbent-weight | `lean.qnt`, built 2026-10-20 |
+| completion-context | `context.qnt`, built 2026-10-20 |
 | release-cadence | missing (release window) |
 
 `release-tag.qnt` exists but is not an intent's model of record; it covers tag placement.

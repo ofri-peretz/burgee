@@ -28,16 +28,41 @@ export type StandardResult<Output> = { readonly value: Output; readonly issues?:
  * One option, declared once (S1). The key is the canonical camelCase name the handler
  * reads; the CLI form is derived as kebab-case (S5): `dryRun` is typed `--dry-run`.
  */
+/**
+ * completion-context R1 — what a completer is told about the line, beside the partial word.
+ * Only what was typed before the cursor: no env, config or default is read on TAB.
+ */
+export interface CompletionContext {
+  /** The command's path as declared, without the program's own name: `['deploy']`. */
+  readonly path: readonly string[];
+  /**
+   * The options typed before the cursor, coerced the way a run coerces them (numbers, choices,
+   * Standard Schema) and keyed camelCase. The line is unfinished, so nothing is required and no
+   * relation is checked, and the option whose value is being completed is not here.
+   */
+  readonly options: Readonly<Record<string, unknown>>;
+  /** The positionals typed before the cursor, as typed. */
+  readonly positionals: readonly string[];
+  /** An option whose value failed coercion, as typed, and not in `options` (R2). */
+  readonly raw: Readonly<Record<string, string>>;
+}
+
+/**
+ * D3 / D-119 — values computed when a person presses TAB. A completer that takes one parameter
+ * is called as it always was; the second is the rest of the line (completion-context R1).
+ */
+export type Completer = (partial: string, context: CompletionContext) => Iterable<string> | Promise<Iterable<string>>;
+
 export interface OptionSpec {
   /** `boolean` never consumes a value (S7); `number` rejects NaN and Infinity (S3). */
   type: 'string' | 'boolean' | 'number';
   /**
    * D3 / D-119 — values computed when a person presses TAB: the generated script calls the
-   * program back (`<program> __complete <command> --<option> <partial>`) for this option and
-   * no other. Declaring it is the opt-in; an option without one completes from `choices`, or
+   * program back (`<program> __complete <words before the cursor> <partial>`) for this option
+   * and no other. Declaring it is the opt-in; an option without one completes from `choices`, or
    * not at all, and never runs the program.
    */
-  complete?: (partial: string) => Iterable<string> | Promise<Iterable<string>>;
+  complete?: Completer;
   description?: string;
   required?: boolean;
   short?: string;
@@ -182,6 +207,11 @@ export interface ArgumentSpec {
    * `'file'` is a path, where `-` means standard input — handed to the handler as `ctx.stdin` (S4).
    */
   type?: 'string' | 'number' | 'integer' | 'boolean' | 'file';
+  /**
+   * completion-context R3 — values computed when TAB lands on this positional, called as an
+   * option's completer is. zsh still offers files for a `type: 'file'` argument.
+   */
+  complete?: Completer;
 }
 
 /** One example: a single copy-pasteable command line, the description below it (H2). */

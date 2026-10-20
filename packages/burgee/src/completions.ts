@@ -4,7 +4,7 @@
  * (D5). Every script is deterministic for a manifest, so a snapshot pins it and the shell
  * itself exercises it in CI (D4).
  */
-import { type CommandNode, type Manifest, type OptionSpec } from './manifest.js';
+import { type ArgumentSpec, type CommandNode, type Manifest, type OptionSpec } from './manifest.js';
 import { flagsOf, kebab } from './names.js';
 
 export type Shell = 'bash' | 'zsh' | 'fish' | 'pwsh';
@@ -30,6 +30,8 @@ interface Node {
   aliases: readonly string[];
   /** Each typed segment with its aliases, space-separated: what fish has seen when it is on the line. */
   spelled: string[];
+  /** The declared positionals, in order (completion-context R3). */
+  arguments: readonly ArgumentSpec[];
 }
 
 function children(manifest: Manifest, at: string[]): Node[] {
@@ -65,6 +67,8 @@ function nodeOf(manifest: Manifest, c: CommandNode): Node {
     description: c.summary ?? c.description ?? '',
     options: { ...visible, ...GLOBAL, ...(isRoot ? ROOT_ONLY : {}) },
     children: children(manifest, c.path),
+    // Stryker disable next-line ArrayDeclaration: equivalent — a placeholder element has no `complete`, so no positional of it is dynamic, as with none
+    arguments: c.arguments ?? [],
   };
 }
 
@@ -100,24 +104,38 @@ const flags = (name: string, spec: OptionSpec): string[] => {
   return spec.negatable === true ? [...spellings, `--no-${kebab(name)}`] : spellings;
 };
 const takesValue = (spec: OptionSpec): boolean => spec.type !== 'boolean';
-/** D3 — the callback a dynamic option's value completes through; every other option never runs the program. */
-const callback = (program: string, node: Node, name: string, partial: string): string => [program, '__complete', ...node.path, `--${kebab(name)}`, partial].join(' ');
-const isDynamic = (spec: OptionSpec): boolean => spec.complete !== undefined;
+/**
+ * D3 — the callback a declared completer is reached through; nothing else runs the program.
+ * completion-context R4: each shell passes the words before the cursor, then the partial, in the
+ * same shape, so a completer is handed the same context whichever shell asked. `words` is the
+ * shell's own expression for the words before the cursor, without the program's name.
+ */
+const callback = (program: string, words: string, partial: string): string => `${program} __complete ${words} ${partial}`;
+const isDynamic = (spec: OptionSpec | ArgumentSpec): boolean => spec.complete !== undefined;
+/** Whether a positional of this command completes through its declared completer (R3). */
+const dynamicArgs = (node: Node): boolean => node.arguments.some(isDynamic);
 /** What the header promises, true of the script beneath it. */
-const promise = (program: string, root: Node): string =>
-  walk(root).some((n) => Object.values(n.options).some(isDynamic)) ? `runs ${program} on TAB only for options that declare a completer` : `never runs ${program} on TAB`;
+const promise = (program: string, root: Node): string => {
+  const nodes = walk(root);
+  if (nodes.some(dynamicArgs)) return `runs ${program} on TAB only for the options and arguments that declare a completer`;
+  return nodes.some((n) => Object.values(n.options).some(isDynamic)) ? `runs ${program} on TAB only for options that declare a completer` : `never runs ${program} on TAB`;
+};
 const fname = (program: string, path: string[]): string => `_${[program, ...path].join('_').replaceAll(/[^A-Za-z0-9_]/g, '_')}`;
 
 // ───── bash ─────────────────────────────────────────────────────────────────────────────
 
+/** bash's words before the cursor: `words` from `_get_comp_words_by_ref`, or `COMP_WORDS`, without the program. */
+const BASH_WORDS = '"${words[@]:1:cword-1}"';
+
 function bashCase(program: string, node: Node): string {
   const opts = Object.entries(node.options).flatMap(([n, s]) => flags(n, s));
   const subs = node.children.flatMap(words);
+  const ask = `$(${callback(program, BASH_WORDS, '"$cur"')} 2>/dev/null)`;
   const valued = Object.entries(node.options)
     .filter(([, s]) => takesValue(s))
     .map(([n, s]) =>
       isDynamic(s)
-        ? `      ${flags(n, s).join('|')}) COMPREPLY=($(compgen -W "$(${callback(program, node, n, '"$cur"')} 2>/dev/null)" -- "$cur")); return ;;`
+        ? `      ${flags(n, s).join('|')}) COMPREPLY=($(compgen -W "${ask}" -- "$cur")); return ;;`
         : `      ${flags(n, s).join('|')}) COMPREPLY=($(compgen -W ${sq((s.choices ?? []).join(' '))} -- "$cur")); return ;;`,
     )
     .join('\n');
@@ -126,7 +144,7 @@ function bashCase(program: string, node: Node): string {
 ${valued === '' ? '      *) ;;' : `${valued}\n      *) ;;`}
     esac
     if [[ "$cur" == -* ]]; then COMPREPLY=($(compgen -W ${sq(opts.join(' '))} -- "$cur")); return; fi
-    COMPREPLY=($(compgen -W ${sq(subs.join(' '))} -- "$cur"))
+    COMPREPLY=($(compgen -W ${sq(subs.join(' '))}${dynamicArgs(node) ? `" ${ask}"` : ''} -- "$cur"))
   }`;
 }
 
@@ -165,10 +183,19 @@ complete -F _${program}_main ${program}
 
 // ───── zsh ──────────────────────────────────────────────────────────────────────────────
 
+/**
+ * zsh's words before the cursor. A command's function runs after its parent's `*::` state, which
+ * leaves `words[1]` as the command's own word, so the path above it is spelled out; the root's
+ * `words[1]` is the program.
+ */
+const zshWords = (node: Node): string => [...node.path.slice(0, -1), node.path.length === 0 ? '"${(@Q)words[2,CURRENT-1]}"' : '"${(@Q)words[1,CURRENT-1]}"'].join(' ');
+/** The `_arguments` action that lists what the program's completer returned. */
+const zshAsk = (program: string, node: Node): string => `{compadd -- \${(f)"$(${callback(program, zshWords(node), '"$PREFIX"')} 2>/dev/null)"}}`;
+
 function zshOptionSpec(program: string, node: Node, name: string, spec: OptionSpec): string {
   const desc = (spec.description ?? '').replaceAll(/[[\]:]/g, ' ');
   const listed = spec.choices === undefined ? ' ' : `(${spec.choices.join(' ')})`;
-  const action = isDynamic(spec) ? `{compadd -- \${(f)"$(${callback(program, node, name, '"$PREFIX"')} 2>/dev/null)"}}` : listed;
+  const action = isDynamic(spec) ? zshAsk(program, node) : listed;
   const value = takesValue(spec) ? `:${name}:${action}` : '';
   return flags(name, spec)
     .map((f) => sq(`${f}[${desc}]${value}`))
@@ -178,7 +205,12 @@ function zshOptionSpec(program: string, node: Node, name: string, spec: OptionSp
 function zshFunction(program: string, node: Node): string {
   const options = Object.entries(node.options).map(([n, s]) => zshOptionSpec(program, node, n, s));
   if (node.children.length === 0) {
-    return `${fname(program, node.path)}() {\n  _arguments -s ${options.join(' ')} '*: :_files'\n}`;
+    // R3 — a positional with a completer asks the program, slot by slot; a file argument and one
+    // with no completer keep `_files`, which is all any positional had before.
+    const slots = dynamicArgs(node)
+      ? node.arguments.map((a, i) => sq(`${a.variadic === true ? '*' : i + 1}: :${isDynamic(a) && a.type !== 'file' ? zshAsk(program, node) : '_files'}`)).join(' ')
+      : "'*: :_files'";
+    return `${fname(program, node.path)}() {\n  _arguments -s ${options.join(' ')} ${slots}\n}`;
   }
   const subs = node.children.flatMap((c) => words(c).map((w) => sq(`${w}[${c.description.replaceAll(/[[\]:]/g, ' ')}]`))).join(' ');
   const dispatch = node.children.map((c) => `      ${words(c).join('|')}) ${fname(program, c.path)} ;;`).join('\n');
@@ -211,17 +243,20 @@ function fishCondition(node: Node): string {
   return node.spelled.map((seg) => `__fish_seen_subcommand_from ${seg}`).join('; and ');
 }
 
-/** Where a fish `complete` line is written: the program, the condition, and the command node for a callback. */
+/** Where a fish `complete` line is written: the program and the condition. */
 interface FishSite {
   program: string;
   cond: string;
-  node?: Node;
 }
 
-function fishOption({ program, cond, node }: FishSite, name: string, spec: OptionSpec): string {
+/** fish's words before the cursor: the tokens `commandline -opc` lists, less the program's own. */
+const FISH_WORDS = '(set -l w (commandline -opc); set -e w[1]; string join \\n -- $w)';
+const fishAsk = (program: string): string => sq(`(${callback(program, FISH_WORDS, '(commandline -ct)')} 2>/dev/null)`);
+
+function fishOption({ program, cond }: FishSite, name: string, spec: OptionSpec): string {
   const short = spec.short === undefined ? '' : ` -s ${spec.short}`;
   const listed = spec.choices === undefined ? '' : ` -f -a ${sq(spec.choices.join(' '))}`;
-  const choices = isDynamic(spec) && node !== undefined ? ` -f -a ${sq(`(${callback(program, node, name, '(commandline -ct)')} 2>/dev/null)`)}` : listed;
+  const choices = isDynamic(spec) ? ` -f -a ${fishAsk(program)}` : listed;
   const value = takesValue(spec) ? ` -r${choices}` : '';
   return `complete -c ${program} -n ${cond}${short} -l ${name}${value} -d ${sq(spec.description ?? '')}`;
 }
@@ -231,10 +266,11 @@ function fish(program: string, root: Node): string {
   for (const node of walk(root)) {
     const cond = sq(fishCondition(node));
     for (const c of node.children) for (const w of words(c)) lines.push(`complete -c ${program} -n ${cond} -f -a ${w} -d ${sq(c.description)}`);
+    if (dynamicArgs(node)) lines.push(`complete -c ${program} -n ${cond} -f -a ${fishAsk(program)}`);
     for (const [name, spec] of Object.entries(node.options)) {
       // `kebab`, which fish alone was missing: it emitted `-l dryRun` where the CLI form is
       // `--dry-run`, so every camelCase option was completed as a flag the parser refuses.
-      lines.push(fishOption({ program, cond, node }, kebab(name), spec));
+      lines.push(fishOption({ program, cond }, kebab(name), spec));
       // The negation carries no short form — `-s q` belongs to the positive spelling only.
       // Omitted rather than set to `undefined`, which `exactOptionalPropertyTypes` refuses.
       if (spec.negatable === true) {
@@ -263,7 +299,8 @@ function pwshEntry(node: Node): string {
     .filter(([, s]) => isDynamic(s))
     .map(([n]) => `'--${kebab(n)}' = $true`);
   const callbacks = dynamic.length === 0 ? '' : `; Dynamic = @{ ${dynamic.join('; ')} }`;
-  return `    '${node.path.join(' ')}' = @{ Items = @(${[...subs, ...opts].join(', ')}); Values = @{ ${values.join('; ')} }${callbacks} }`;
+  const positional = dynamicArgs(node) ? '; Positional = $true' : '';
+  return `    '${node.path.join(' ')}' = @{ Items = @(${[...subs, ...opts].join(', ')}); Values = @{ ${values.join('; ')} }${callbacks}${positional} }`;
 }
 
 function pwsh(program: string, root: Node): string {
@@ -279,7 +316,7 @@ Register-ArgumentCompleter -Native -CommandName '${program}' -ScriptBlock {
 ${walk(root).map(pwshEntry).join('\n')}
   }${alias}
   $words = @($commandAst.CommandElements | ForEach-Object { $_.Extent.Text } | Select-Object -Skip 1)
-  if ($wordToComplete -ne '' -and $words.Count -gt 0) { $words = $words[0..($words.Count - 2)] }
+  if ($wordToComplete -ne '' -and $words.Count -gt 0) { $words = @($words | Select-Object -First ($words.Count - 1)) }
   $path = ''
   foreach ($w in $words) {
     if ($w -like '-*') { continue }
@@ -291,8 +328,7 @@ ${walk(root).map(pwshEntry).join('\n')}
 ${
   walk(root).some((n) => Object.values(n.options).some(isDynamic))
     ? `  if ($entry.Dynamic -and $entry.Dynamic.ContainsKey($prev)) {
-    $steps = @($path -split ' ' | Where-Object { $_ -ne '' })
-    & '${program}' __complete @steps $prev $wordToComplete 2>$null | ForEach-Object { [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }
+    & '${program}' __complete @words $wordToComplete 2>$null | ForEach-Object { [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }
     return
   }
 `
@@ -301,7 +337,15 @@ ${
     $entry.Values[$prev] | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object { [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }
     return
   }
-  $entry.Items | Where-Object { $_[0] -like "$wordToComplete*" } | ForEach-Object { [System.Management.Automation.CompletionResult]::new($_[0], $_[0], $_[1], $(if ($_[2] -eq '') { $_[0] } else { $_[2] })) }
+${
+  walk(root).some(dynamicArgs)
+    ? `  if ($entry.Positional -and $wordToComplete -notlike '-*') {
+    $found = @(& '${program}' __complete @words $wordToComplete 2>$null)
+    if ($found.Count -gt 0) { $found | ForEach-Object { [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }; return }
+  }
+`
+    : ''
+}  $entry.Items | Where-Object { $_[0] -like "$wordToComplete*" } | ForEach-Object { [System.Management.Automation.CompletionResult]::new($_[0], $_[0], $_[1], $(if ($_[2] -eq '') { $_[0] } else { $_[2] })) }
 }
 `;
 }

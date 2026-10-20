@@ -69,6 +69,8 @@ export type {
   ArgumentSpec,
   CommandNode,
   CommandOutput,
+  Completer,
+  CompletionContext,
   Effects,
   Example,
   Hook,

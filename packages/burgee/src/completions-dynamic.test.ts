@@ -136,11 +136,20 @@ describe('the script side: only a declared completer calls back (D3)', () => {
   it.each(SHELLS)('%s: says so in its header, and calls back for --region alone', (shell) => {
     const script = renderCompletion(program, shell);
     expect(script).toContain('runs dyn on TAB only for options that declare a completer');
-    // PowerShell builds the command path at run time from the words typed; the rest spell it out.
-    const region = shell === 'pwsh' ? "Dynamic = @{ '--region' = $true" : '__complete deploy --region';
-    const tier = shell === 'pwsh' ? "'--tier' = $true" : '__complete deploy --tier';
-    expect(script).toContain(region);
-    expect(script).not.toContain(tier);
+    // PowerShell keeps a table of the options that call back; the rest call back on the option's
+    // own line, with the words before the cursor (completion-context R4).
+    if (shell === 'pwsh') {
+      expect(script).toContain("Dynamic = @{ '--region' = $true");
+      expect(script).not.toContain("'--tier' = $true");
+      return;
+    }
+    // bash and fish write a line per option; zsh writes one quoted `_arguments` spec per option.
+    const OPTION_LINE = { bash: (o: string) => `--${o})`, fish: (o: string) => `-l ${o} ` } as const;
+    const lineOf = (option: string): string =>
+      shell === 'zsh' ? (new RegExp(String.raw`'--${option}\[[^']*'`, 'u').exec(script)?.[0] ?? '') : (script.split('\n').find((l) => l.includes(OPTION_LINE[shell](option))) ?? '');
+    expect(lineOf('region')).toContain('dyn __complete');
+    expect(lineOf('tier')).not.toBe('');
+    expect(lineOf('tier')).not.toContain('__complete');
   });
 
   it.runIf(POSIX && has('bash'))('bash: TAB after --region asks the program', { timeout: 30_000 }, () => {

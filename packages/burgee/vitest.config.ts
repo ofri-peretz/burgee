@@ -11,7 +11,7 @@ import { timeouts } from '../../vitest-timeouts.config.js';
  * 0.9–2.3 s on a lighter one, so these run after the pool, one file at a time.
  * `scripts/vitest-pool-lock.test.ts` fails when a test file here spawns a shell and is not listed.
  */
-export const SHELL_DRIVING = ['src/completions-shells.test.ts', 'src/completions-dynamic.test.ts'];
+export const SHELL_DRIVING = ['src/completions-shells.test.ts', 'src/completions-dynamic.test.ts', 'src/completion-context.test.ts'];
 
 /**
  * The shared policy decides what is measured; this package gates the result. Every line in the
