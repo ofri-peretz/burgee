@@ -10,6 +10,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { render } from './__fixtures__/inquirer-render.js';
 import { expand, rawlist, Separator } from './inquirer-prompts.js';
+import { TICK } from './inquirer-theme.js';
 import { ValidationError } from './inquirer.js';
 
 const frame = (...lines: string[]): string => lines.join('\n');
@@ -29,7 +30,7 @@ describe('expand', () => {
     expect(getScreen()).toBe(frame('? Overwrite? (yaxH) a', '>> All'));
     events.keypress('enter');
     await expect(answer).resolves.toBe('all');
-    expect(getScreen()).toBe('✔ Overwrite? All');
+    expect(getScreen()).toBe(`${TICK} Overwrite? All`);
   });
 
   it('expands on h, or Enter with h the default, and highlights the typed key in the list', async () => {
@@ -80,7 +81,7 @@ describe('expand', () => {
     const { answer, events, getScreen } = await render(expand, { message: 'Overwrite?', choices: overwrite, default: 'y' });
     events.keypress('enter');
     await expect(answer).resolves.toBe('overwrite');
-    expect(getScreen()).toBe('✔ Overwrite? Overwrite');
+    expect(getScreen()).toBe(`${TICK} Overwrite? Overwrite`);
   });
 
   it('names a choice by its value when it has no name, and answers with the name when it has no value', async () => {
@@ -93,7 +94,7 @@ describe('expand', () => {
     byName.events.type('n');
     byName.events.keypress('enter');
     await expect(byName.answer).resolves.toBe('named');
-    expect(byName.getScreen()).toBe('✔ Pick named');
+    expect(byName.getScreen()).toBe(`${TICK} Pick named`);
   });
 });
 
@@ -107,7 +108,7 @@ describe('rawlist', () => {
     expect(getScreen()).toBe(frame('? Fruit 2', '  1) apple', '  2) banana', '  3) cherry'));
     events.keypress('enter');
     await expect(answer).resolves.toBe('banana');
-    expect(getScreen()).toBe('✔ Fruit banana');
+    expect(getScreen()).toBe(`${TICK} Fruit banana`);
   });
 
   it('matches a key of the choice’s own first, trimmed, and answers with its short name', async () => {
@@ -197,7 +198,7 @@ describe('rawlist', () => {
     events.type('1');
     events.keypress('enter');
     await expect(answer).resolves.toBe('a');
-    expect(getScreen()).toBe('✔ Fruit A');
+    expect(getScreen()).toBe(`${TICK} Fruit A`);
   });
 
   it('falls back to a position among the choices only for a number no key matches', async () => {

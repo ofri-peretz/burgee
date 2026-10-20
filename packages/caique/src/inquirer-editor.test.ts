@@ -17,6 +17,7 @@ import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from './__fixtures__/inquirer-render.js';
 import { editAsync, editorCommand } from './inquirer-editor.js';
 import { editor } from './inquirer-prompts.js';
+import { TICK } from './inquirer-theme.js';
 
 const scratch = mkdtempSync(join(tmpdir(), 'caique-editor-test-'));
 
@@ -105,7 +106,8 @@ describe('editAsync', () => {
     await expect(editAsync('x')).rejects.toThrow(/exited with 3/u);
     vi.stubEnv('EDIT_EXIT', '');
     vi.stubEnv('EDIT_KILL', '1');
-    await expect(editAsync('x')).rejects.toThrow(/exited with SIGTERM/u);
+    // Windows has no signals: a process that kills itself exits with 1, which is what the message names there.
+    await expect(editAsync('x')).rejects.toThrow(process.platform === 'win32' ? /exited with 1$/u : /exited with SIGTERM$/u);
     vi.stubEnv('EDITOR', join(scratch, 'no-such-editor'));
     await expect(editAsync('x')).rejects.toThrow(/ENOENT/u);
   });
@@ -194,7 +196,7 @@ describe('editor', () => {
     });
     events.keypress('enter');
     await expect(answer).resolves.toBe('zz');
-    expect(getScreen()).toBe('✔ Notes');
+    expect(getScreen()).toBe(`${TICK} Notes`);
   });
 
   it('draws no empty part: with no prefix the line starts at the message', async () => {
@@ -211,7 +213,7 @@ describe('editor', () => {
     expect(getScreen()).toBe('? Notes Press <enter> to launch your preferred editor.');
     events.keypress('enter');
     await expect(answer).resolves.toBe('hi!');
-    expect(getScreen()).toBe('✔ Notes');
+    expect(getScreen()).toBe(`${TICK} Notes`);
   });
 
   it('opens at once without waiting, and ignores keys while the editor is open', async () => {

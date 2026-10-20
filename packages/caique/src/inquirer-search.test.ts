@@ -12,7 +12,9 @@ import { stripVTControlCharacters } from 'node:util';
 import { describe, expect, it, vi } from 'vitest';
 
 import { render } from './__fixtures__/inquirer-render.js';
+import { POINTER } from './inquirer-choices.js';
 import { search, Separator } from './inquirer-prompts.js';
+import { TICK } from './inquirer-theme.js';
 
 const frame = (...lines: string[]): string => lines.join('\n');
 
@@ -31,26 +33,26 @@ describe('search', () => {
     const source = vi.fn(filtered);
     const { answer, events, getScreen, nextRender } = await render(search, { message: 'Fruit', source });
     await nextRender();
-    expect(getScreen()).toBe(frame('? Fruit', '❯ apple', '  banana', ' ──────────────', '- cherry (disabled)', '- damson out', '', HELP));
+    expect(getScreen()).toBe(frame('? Fruit', `${POINTER} apple`, '  banana', ' ──────────────', '- cherry (disabled)', '- damson out', '', HELP));
     events.type('an');
     await nextRender();
-    expect(getScreen()).toBe(frame('? Fruit an', '❯ banana', ' ──────────────', '', 'yellow', HELP));
+    expect(getScreen()).toBe(frame('? Fruit an', `${POINTER} banana`, ' ──────────────', '', 'yellow', HELP));
     expect(source).toHaveBeenLastCalledWith('an', { signal: expect.any(AbortSignal) as AbortSignal });
     events.keypress('enter');
     await expect(answer).resolves.toBe('banana');
-    expect(getScreen()).toBe('✔ Fruit banana');
+    expect(getScreen()).toBe(`${TICK} Fruit banana`);
   });
 
   it('moves between answerable results only, and stops at either end', async () => {
     const { events, getScreen, nextRender } = await render(search, { message: 'Fruit', source: filtered });
     await nextRender();
     events.keypress('up');
-    expect(getScreen()).toContain('❯ apple');
+    expect(getScreen()).toContain(`${POINTER} apple`);
     events.keypress('down');
     events.keypress('down');
-    expect(getScreen()).toContain('❯ banana');
+    expect(getScreen()).toContain(`${POINTER} banana`);
     events.keypress('up');
-    expect(getScreen()).toContain('❯ apple');
+    expect(getScreen()).toContain(`${POINTER} apple`);
   });
 
   it('holds the arrows still while a search is in flight', async () => {
@@ -64,7 +66,7 @@ describe('search', () => {
     events.keypress('down');
     release(['x1', 'x2']);
     await nextRender();
-    expect(getScreen()).toContain('❯ x1');
+    expect(getScreen()).toContain(`${POINTER} x1`);
   });
 
   it('says so when a term finds nothing, and shows the error a source throws', async () => {
@@ -140,14 +142,14 @@ describe('search', () => {
     const source = vi.fn(filtered);
     const { events, getScreen, nextRender } = await render(search, { message: 'Fruit', source, default: 'banana', initialValue: 'a' });
     await nextRender();
-    expect(getScreen()).toContain('❯ banana');
+    expect(getScreen()).toContain(`${POINTER} banana`);
     expect(source).toHaveBeenCalledWith('a', expect.anything());
     events.keypress('backspace');
     await nextRender();
-    expect(getScreen()).toContain('❯ apple');
+    expect(getScreen()).toContain(`${POINTER} apple`);
     const missing = await render(search, { message: 'Fruit', source: filtered, default: 'kiwi' });
     await missing.nextRender();
-    expect(missing.getScreen()).toContain('❯ apple');
+    expect(missing.getScreen()).toContain(`${POINTER} apple`);
   });
 
   it('puts the term back on an Enter with nothing to answer', async () => {
@@ -191,7 +193,7 @@ describe('search', () => {
   it('draws no help line when the theme returns none', async () => {
     const { getScreen, nextRender } = await render(search, { message: 'Fruit', source: () => ['a'], theme: { style: { keysHelpTip: () => undefined } } });
     await nextRender();
-    expect(getScreen()).toBe(frame('? Fruit', '❯ a'));
+    expect(getScreen()).toBe(frame('? Fruit', `${POINTER} a`));
   });
 
   /** The status each frame was drawn in, read through the message style the theme is handed. */
@@ -233,10 +235,10 @@ describe('search', () => {
     events.type('y');
     events.keypress('enter');
     events.keypress('down');
-    expect(getScreen()).toContain('❯ a');
+    expect(getScreen()).toContain(`${POINTER} a`);
     release(['xy1', 'xy2']);
     await nextRender();
-    expect(getScreen()).toContain('❯ xy1');
+    expect(getScreen()).toContain(`${POINTER} xy1`);
     events.keypress('enter');
     await expect(answer).resolves.toBe('xy1');
   });
@@ -284,11 +286,11 @@ describe('search', () => {
     three.events.keypress('down');
     three.events.keypress('down');
     three.events.keypress('up');
-    expect(three.getScreen()).toContain('❯ b');
+    expect(three.getScreen()).toContain(`${POINTER} b`);
     const six = await render(search, { message: 'Fruit', source: () => ['i0', 'i1', 'i2', 'i3', 'i4', 'i5'], pageSize: 3 });
     await six.nextRender();
     for (let i = 0; i < 5; i++) six.events.keypress('down');
-    expect(six.getScreen()).toBe(frame('? Fruit', '  i3', '  i4', '❯ i5', '', HELP));
+    expect(six.getScreen()).toBe(frame('? Fruit', '  i3', '  i4', `${POINTER} i5`, '', HELP));
   });
 
   it('reports no results only for a term, and only once its search is in', async () => {
@@ -328,7 +330,7 @@ describe('search', () => {
     const plain = { prefix: '', style: { answer: (text: string) => text, searchTerm: (text: string) => text, keysHelpTip: () => undefined } };
     const open = await render(search, { message: 'Fruit', source: () => ['a'], theme: plain });
     await open.nextRender();
-    expect(stripVTControlCharacters(open.getScreen({ raw: true }))).toMatch(/^Fruit\n❯ a(?:\n|$)/u);
+    expect(stripVTControlCharacters(open.getScreen({ raw: true }))).toMatch(new RegExp(`^Fruit\\n${POINTER} a(?:\\n|$)`, 'u'));
     const spaced = await render(search, { message: 'Fruit', source: () => ['a'], theme: plain });
     await spaced.nextRender();
     spaced.events.type(' ');

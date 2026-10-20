@@ -13,6 +13,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from './__fixtures__/inquirer-render.js';
 import { isStepOf } from './inquirer-input.js';
 import { confirm, input, number, password } from './inquirer-prompts.js';
+import { TICK } from './inquirer-theme.js';
 
 const frame = (...lines: string[]): string => lines.join('\n');
 
@@ -27,7 +28,7 @@ describe('input', () => {
     expect(getScreen()).toBe('? Name Ada');
     events.keypress('enter');
     await expect(answer).resolves.toBe('Ada');
-    expect(getScreen()).toBe('✔ Name Ada');
+    expect(getScreen()).toBe(`${TICK} Name Ada`);
   });
 
   it('shows a default dimmed, answers with it on Enter, and takes a number as one', async () => {
@@ -120,7 +121,7 @@ describe('input', () => {
     expect(getScreen()).toBe('? Name ADA');
     events.keypress('enter');
     await expect(answer).resolves.toBe('ada');
-    expect(getScreen()).toBe('✔ Name [ada]');
+    expect(getScreen()).toBe(`${TICK} Name [ada]`);
   });
 });
 
@@ -130,7 +131,7 @@ describe('number', () => {
     typed.events.type('42');
     typed.events.keypress('enter');
     await expect(typed.answer).resolves.toBe(42);
-    expect(typed.getScreen()).toBe('✔ Age 42');
+    expect(typed.getScreen()).toBe(`${TICK} Age 42`);
     const empty = await render(number, { message: 'Age' });
     empty.events.keypress('enter');
     await expect(empty.answer).resolves.toBeUndefined();
@@ -230,7 +231,7 @@ describe('password', () => {
     events.type('hunter2');
     events.keypress('enter');
     await expect(answer).resolves.toBe('hunter2');
-    expect(getScreen()).toBe('✔ Secret');
+    expect(getScreen()).toBe(`${TICK} Secret`);
   });
 
   it('draws a mask character per typed one, the default star or one of its own', async () => {
@@ -239,7 +240,7 @@ describe('password', () => {
     expect(star.getScreen()).toBe(frame('? Secret ***', 'ctrl+t toggle visibility'));
     star.events.keypress('enter');
     await expect(star.answer).resolves.toBe('abc');
-    expect(star.getScreen()).toBe('✔ Secret ***');
+    expect(star.getScreen()).toBe(`${TICK} Secret ***`);
     const own = await render(password, { message: 'Secret', mask: '#' });
     own.events.type('ab');
     expect(own.getScreen()).toContain('? Secret ##');
@@ -291,7 +292,7 @@ describe('confirm', () => {
     expect(yes.getScreen()).toBe('? Go? (Y/n)');
     yes.events.keypress('enter');
     await expect(yes.answer).resolves.toBe(true);
-    expect(yes.getScreen()).toBe('✔ Go? Yes');
+    expect(yes.getScreen()).toBe(`${TICK} Go? Yes`);
     const no = await render(confirm, { message: 'Go?', default: false });
     expect(no.getScreen()).toBe('? Go? (y/N)');
     no.events.keypress('enter');
@@ -348,7 +349,7 @@ describe('confirm', () => {
     const { answer, events, getScreen } = await render(confirm, { message: 'Go?', transformer: (value: boolean) => (value ? 'sure' : 'nope') });
     events.keypress('enter');
     await expect(answer).resolves.toBe(true);
-    expect(getScreen()).toBe('✔ Go? sure');
+    expect(getScreen()).toBe(`${TICK} Go? sure`);
     const chinese = await render(confirm, { message: '继续?', theme: { keywords: { yes: '是', no: '否' } } });
     expect(chinese.getScreen()).toBe('? 继续? (是/否)');
     const empty = await render(confirm, { message: 'Go?', theme: { keywords: { yes: '', no: '' } } });
@@ -360,7 +361,7 @@ describe('confirm', () => {
     events.keypress('enter');
     events.type('n');
     await expect(answer).resolves.toBe(true);
-    expect(getScreen()).toBe('✔ Go? Yes');
+    expect(getScreen()).toBe(`${TICK} Go? Yes`);
   });
 });
 
@@ -404,7 +405,7 @@ describe('the line prompts, frame by frame', () => {
     check.release(true);
     await expect(answer).resolves.toBe('Ada');
     expect(check.calls()).toBe(1);
-    expect(getScreen()).toBe('✔ Name:done <Ada>');
+    expect(getScreen()).toBe(`${TICK} Name:done <Ada>`);
   });
 
   it('input: draws the default it answered with, styled, and only while the line is empty', async () => {
@@ -414,7 +415,7 @@ describe('the line prompts, frame by frame', () => {
     events.keypress('backspace');
     events.keypress('enter');
     await expect(answer).resolves.toBe('8080');
-    expect(getScreen()).toBe('✔ Port:done <8080>');
+    expect(getScreen()).toBe(`${TICK} Port:done <8080>`);
   });
 
   it('input: keeps the refused text in the line, and clears the refusal on the next key', async () => {
@@ -455,7 +456,7 @@ describe('the line prompts, frame by frame', () => {
     check.release(true);
     await expect(answer).resolves.toBe(42);
     expect(check.calls()).toBe(1);
-    expect(getScreen()).toBe('✔ Age:done <42>');
+    expect(getScreen()).toBe(`${TICK} Age:done <42>`);
   });
 
   it('number: an empty answer skips validate and draws nothing', async () => {
@@ -464,7 +465,7 @@ describe('the line prompts, frame by frame', () => {
     events.keypress('enter');
     await expect(answer).resolves.toBeUndefined();
     expect(validate).not.toHaveBeenCalled();
-    expect(getScreen()).toBe('✔ Age:done <>');
+    expect(getScreen()).toBe(`${TICK} Age:done <>`);
   });
 
   it('number: holds the bounds inclusive, names them, and keeps the refused number in the line', async () => {
@@ -535,7 +536,7 @@ describe('the line prompts, frame by frame', () => {
     check.release(true);
     await expect(answer).resolves.toBe('ab');
     expect(check.calls()).toBe(1);
-    expect(getScreen()).toBe('✔ Secret:done <**>');
+    expect(getScreen()).toBe(`${TICK} Secret:done <**>`);
   });
 
   it('password: answers an empty line, toggles on ctrl+t only, and never reveals the answer once done', async () => {
@@ -552,7 +553,7 @@ describe('the line prompts, frame by frame', () => {
     expect(getScreen()).toContain('? Secret:idle t');
     events.keypress('enter');
     await expect(answer).resolves.toBe('t');
-    expect(getScreen()).toBe('✔ Secret:done <>');
+    expect(getScreen()).toBe(`${TICK} Secret:done <>`);
   });
 
   it('password: clears a refusal on the next key, hides the cursor only without a mask, and draws no empty part', async () => {
@@ -621,6 +622,6 @@ describe('the line prompts, frame by frame', () => {
     const { answer, events, getScreen } = await render(confirm, { message: 'Go?', theme: seen });
     events.keypress('enter');
     await expect(answer).resolves.toBe(true);
-    expect(getScreen()).toBe('✔ Go?:done <Yes>');
+    expect(getScreen()).toBe(`${TICK} Go?:done <Yes>`);
   });
 });
