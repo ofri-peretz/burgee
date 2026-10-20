@@ -1,6 +1,6 @@
 # Design — `roundel/supports-color`, graded by supports-color's own suite
 
-Intent: [`intent.md`](./intent.md). **Status:** approved.
+Intent: [`intent.md`](./intent.md). **Status:** approved — built 2026-10-19; `shipped` when roundel's minor publishes.
 
 **Accepted by the owner, 2026-10-12, by instruction: create and execute.** The instruction and the
 evidence are recorded in [`next-wave-3-2026-10.md`](../../research/next-wave-3-2026-10.md).
@@ -32,14 +32,20 @@ evidence are recorded in [`next-wave-3-2026-10.md`](../../research/next-wave-3-2
 
 ## Design
 
-`policy.ts` already decides a level from `(argv, env, isTTY)`. The drop-in is a thin module,
-`src/supports-color.ts`, that calls the same internal level function with an `order:
-'supports-color'` switch. That switch changes exactly one branch: whether `FORCE_COLOR` can
-override a negative flag. Everything else, including the CI table and the `TERM` rules, is the
-table that exists today. Nothing in `policy.ts`'s public API changes.
+*Re-grounded 2026-10-19; the design as first written is kept below the line for the record.*
 
-Order: R1, then R2 and R3 in one PR (a grade with no divergence test is a grade that can drift
-silently), then R4 and R5.
+`src/supports-color.ts` is its own module: supports-color 11's decision table, in its order,
+reaching only `runtime.ts` (the process seam) and `node:os` / `node:tty`. It never imports
+`policy.ts`. It keeps supports-color's module state too: `--color` and `--no-color` read from
+`argv` once, at import, and a call that sees `FORCE_COLOR` set writing it over that answer for
+every later call. `runtime.ts` exports the guarded global as `proc` (7 B in `./chalk`'s graph,
+which had 9 B to spare) so the drop-in reads `env`, `argv` and `platform` as supports-color does.
+Nothing in `policy.ts` changes.
+
+> *As first written:* a thin module calling `policy.ts`'s level function with an
+> `order: 'supports-color'` switch that changes one branch.
+
+Order: R1–R5 in one PR, which is how it was built.
 
 ## Verification
 
@@ -50,6 +56,48 @@ silently), then R4 and R5.
 | R3 | `packages/roundel/src/supports-color.test.ts` (new): the two answers side by side | written before the switch: the drop-in answers 0 and the case fails |
 | R4 | `npm run bench -- --axis weight --check`; `scripts/competitors-lock.test.ts` | the pair is added before the subpath is trimmed; the lock fails while `KNOWN` lacks the name |
 | R5 | `packages/burgee/src/migrate.test.ts` | the case is added first and fails with "no mapping" |
+
+## Re-grounded on `main` at `326907ec`, 2026-10-19
+
+1. **The switch in `policy.ts` is dropped.** It changes more than one branch. supports-color's
+   suite asserts the platform and Windows build (three cases), TeamCity (two), iTerm (two), and the
+   level-3 terminals, all of which `colorLevel` refuses to read by design (its `ponytail:` note),
+   and `colorLevel` honours `NO_COLOR` and `CLI_ACCESSIBLE`, which supports-color does not read.
+   `./chalk` reaches `policy.ts` with 9 B to spare, so a switch there would also break R8 of
+   `roundel`. The drop-in is a standalone table instead (Design above).
+2. **The graded major is 11.** `dist-tags.latest` was 11.0.0 when R1 landed (published
+   2026-07-26): a numeric `FORCE_COLOR` is an exact level and Node 22 is the floor.
+   `SUPPORTED_MAJORS` claims `[11]`; no older major (D-145's rule).
+3. **R1 needed an oracle change.** Every case sets the process and then re-imports `./index.js`
+   with a query string. A shim of `export * from 'supports-color'` hands back the module it already
+   evaluated, so the control would have graded the first case's environment 55 times.
+   `HostImport.fresh` makes the shim import the module beneath it by URL with its own query.
+4. **R5's deep import does not exist.** supports-color 11's `exports` is one entry: `node` →
+   `index.js`, `default` → `browser.js`. `supports-color/browser` is not importable, so `migrate`
+   maps the bare specifier only. `roundel/supports-color` has no browser condition, which is in
+   *Out of scope* already.
+5. **The verification for R2 adds a differential property test.** The suite pins 55 environments;
+   `supports-color.test.ts` evaluates supports-color's own installed source in a `vm` against this
+   module over 3,000 generated environments (variables, flags, platform, Windows build, TTYs, a
+   stream and options, and an environment written after import), plus the R3 pair. It is what
+   killed the mutants the 55 cases leave alive. supports-color 11.0.0 is a root devDependency for it
+   and for the type-surface lock, as meow is.
+6. **R4's B4 pair and the weight page disagree by method, and both are under.** B4 reads 1,764 B
+   against 2,128 (0.829); the per-subpath page, `export *` plus the default, 1,781 against 2,145.
+
+## Build status
+
+Built on `feat/colour-drop-ins` against `main` at `326907ec`. Every check below was red first.
+
+| R | Status | Where | Check |
+| :-- | :-- | :-- | :-- |
+| R1 | Built | `compat-oracle`: the `supports-color` host, `vendor/supports-color/` at `e2a4cd3c`, `HostImport.fresh` in `run.ts`, `baseline/supports-color.json` | control 55 / 55; target 0 before the subpath (`target not built yet`); `grade.test.ts` › a `fresh` import |
+| R2 | Built | `roundel/src/supports-color.ts`, `./supports-color` in `exports` and `typesVersions`; `GRADED`, `DROP_INS`, `GRADED_VERSIONS`, `SUPPORTED_MAJORS` | `npm run compat -- supports-color` 55 / 55; `supports-color.test.ts` (differential); `drop-in-type-surface-lock`, `drop-in-require-shape-lock` |
+| R3 | Built | the same module, and `policy.ts` unchanged | `supports-color.test.ts` › R3 — 3 on the drop-in, 0 on `roundel/policy`, side by side |
+| R4 | Built | `benchmarks/fixtures/entry-points.ts`, `BUNDLED_CEILING` 1,850; `competitors.json` `./supports-color`; `KNOWN` | `npm run bench -- --axis weight --check` (red at a ceiling of 0, then 0.829 against ≤ 1); `competitors-lock` |
+| R5 | Built | `migrate.ts` `FACADE_EXPORTS`; the Migrate page | `migrate.test.ts` › rewrites a supports-color default import |
+
+**Built: 5. Not built: 0.**
 
 ## Rejected alternatives
 

@@ -136,6 +136,13 @@ export const PAIRS: readonly EntryPair[] = [
     why: "the roadmap's second bet: colour under picocolors' weight",
   },
   {
+    // `supports-color-drop-in` R4: the drop-in against the release compat-oracle grades it by.
+    id: 'roundel/supports-color',
+    ours: { specifier: 'roundel/supports-color', symbol: DEFAULT_EXPORT },
+    incumbent: { specifier: 'supports-color', symbol: DEFAULT_EXPORT },
+    why: 'the colour-detection drop-in against supports-color 11',
+  },
+  {
     id: 'flagstaff/ora',
     ours: { specifier: 'flagstaff/ora', symbol: DEFAULT_EXPORT },
     incumbent: { specifier: 'ora', symbol: DEFAULT_EXPORT },
