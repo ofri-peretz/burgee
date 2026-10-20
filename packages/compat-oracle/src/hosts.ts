@@ -809,6 +809,33 @@ export const HOSTS: Host[] = [
     // Stryker restore all
   },
   {
+    // `roundel/yoctocolors`' grader (`colour-facades` R3). Upstream's `npm test` is
+    // `xo && ava && tsd`; the ava half is graded, as supports-color's is, and the declarations are
+    // held by `scripts/drop-in-type-surface-lock.test.ts`. One case spawns `node fixture.js` from
+    // the repository root with `FORCE_COLOR=0` and expects plain `foo`: `fixture.js` is vendored
+    // byte for byte (`extraDirs`), and the `./index.js` it imports is written per run (`entries`),
+    // as cli-cursor's is — yoctocolors' own file on the control, the target re-exported otherwise.
+    // Stryker disable all: graded in another process: the compat ratchet's run and its `--control` run read this row against `baseline/yoctocolors.json` (78 of 78), and a mutant here moves one of those counts — except `repo` and `surfaceFiles`, which only a re-vendor and the upstream watch read, and `note`, which nothing renders for an active row
+    name: 'yoctocolors',
+    repo: 'https://github.com/sindresorhus/yoctocolors',
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '/yoctocolors', reexportDefault: true, control: 'yoctocolors' }],
+    extraDirs: ['fixture.js'],
+    entries: [{ at: 'index.js', control: 'index.js', target: '/yoctocolors' }],
+    // Installed beside the suite at the graded release, never whatever the root hoists.
+    suiteDeps: ['yoctocolors@2.2.0'],
+    surfaceFiles: ['base.d.ts', 'base.js'],
+    runner: 'ava',
+    // Upstream's own `ava` block. yoctocolors decides colour once, at import, from
+    // `tty.WriteStream.prototype.hasColors()`; a piped runner has none, so every byte case needs it.
+    avaConfig: { environmentVariables: { FORCE_COLOR: '1' } },
+    target: 'roundel',
+    status: 'active',
+    note: "Graded against roundel, as chalk, picocolors and supports-color are. `roundel/yoctocolors` decides colour by yoctocolors' own rule — Node's `hasColors()`, once at import — not by `roundel/policy`'s.",
+    // Stryker restore all
+  },
+  {
     name: 'ora',
     repo: 'https://github.com/sindresorhus/ora',
     // Its suite is one file at the repo root, beside the implementation it tests.
