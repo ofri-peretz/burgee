@@ -19,7 +19,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { type Host } from './hosts.js';
 import { latestVersion } from './upstream.js';
-import { classify, internalImports, keptPath, readSuiteDeps, registryTime, rewriteAt, rootPackage, siblingImports, splitSpec, vendor } from './vendor.js';
+import { classify, internalImports, keptPath, npmCommand, readSuiteDeps, registryTime, rewriteAt, rootPackage, siblingImports, splitSpec, vendor } from './vendor.js';
 
 // Every git call still runs for real; the spy only records what `vendor()` asked for.
 vi.mock('node:child_process', async (importOriginal) => {
@@ -191,9 +191,20 @@ describe('vendoring a whole suite', () => {
   it("reads a release's publish time from the registry's `time`, and refuses a release it does not list", () => {
     vi.mocked(execFileSync).mockReturnValueOnce('{"created":"2020-01-01T00:00:00.000Z","8.7.3":"2026-10-04T17:41:40.731Z"}');
     expect(registryTime('@inquirer/prompts', '8.7.3')).toBe('2026-10-04T17:41:40.731Z');
-    expect(vi.mocked(execFileSync)).toHaveBeenLastCalledWith('npm', ['view', '@inquirer/prompts', 'time', '--json'], { encoding: 'utf8' });
+    const npm = npmCommand(['view', '@inquirer/prompts', 'time', '--json']);
+    expect(vi.mocked(execFileSync)).toHaveBeenLastCalledWith(npm.file, npm.args, { encoding: 'utf8', shell: npm.shell });
     vi.mocked(execFileSync).mockReturnValueOnce('{"8.7.3":"2026-10-04T17:41:40.731Z"}');
     expect(() => registryTime('@inquirer/prompts', '9.9.9')).toThrow('the registry lists no publish time for @inquirer/prompts@9.9.9');
+  });
+
+  // #1180: `npm view` spawned as bare `npm` with no shell was `spawnSync npm ENOENT` on Windows.
+  it.each([
+    ['npm\'s own CLI through this Node, under npm run', 'linux', '/usr/lib/node_modules/npm/bin/npm-cli.js', { file: process.execPath, args: ['/usr/lib/node_modules/npm/bin/npm-cli.js', 'view', 'x'], shell: false }],
+    ['npm.cmd through a shell on Windows', 'win32', '', { file: 'npm.cmd', args: ['view', 'x'], shell: true }],
+    ['npm.cmd on Windows when npm_execpath is not npm-cli.js', 'win32', 'C:\\yarn\\yarn.js', { file: 'npm.cmd', args: ['view', 'x'], shell: true }],
+    ['npm on the PATH, with no shell, elsewhere', 'darwin', '', { file: 'npm', args: ['view', 'x'], shell: false }],
+  ])('runs npm as %s', (_, platform, cli, expected) => {
+    expect(npmCommand(['view', 'x'], platform, cli)).toEqual(expected);
   });
 
   it('writes no `omitted` key at all for a suite with nothing to omit', () => {

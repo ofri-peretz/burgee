@@ -239,6 +239,13 @@ describe('a host whose repository is a monorepo', () => {
  * network did (run 35962708764, `git clone` exit 128 after ~40 s). `host.repo` is the URL the
  * clone reads, so a `file://` one exercises the same `git clone --depth 1 --branch` path.
  */
+/**
+ * `vendor()` with the registry answered here: slice-ansi pins suite dependencies, so the record
+ * reads their publish times, and a unit test reaches no registry (Windows has no bare `npm` to
+ * spawn either, which is how this was found on #1180).
+ */
+const vendorOffline = (h: Host, into: string): ReturnType<typeof vendor> => vendor(h, into, h.pinnedVersion as string, () => '2025-09-08T15:52:15.705Z');
+
 function localSliceAnsi(files: Record<string, string> = {}): Host {
   const host = HOSTS.find((h) => h.name === 'slice-ansi');
   if (host === undefined) throw new Error('slice-ansi is not a host');
@@ -285,7 +292,7 @@ describe('a vendor run that cannot finish', () => {
     // fixture the refusal case below makes, for the same reason: this is the function under test.
     const into = mkdtempSync(join(tmpdir(), 'vendor-provenance-'));
     const host = localSliceAnsi();
-    vendor(host, into);
+    vendorOffline(host, into);
     const live = join(into, host.name);
     expect(existsSync(join(live, '.source.json'))).toBe(true);
     expect(existsSync(join(live, 'PROVENANCE')), 'vendor() wrote the record and not the provenance').toBe(true);
@@ -304,7 +311,7 @@ describe('a vendor run that cannot finish', () => {
 
     // A glob that matches nothing — the shape `dotenv` hit, where the clone succeeds and
     // the copy yields no graded file. The question is what survives.
-    expect(() => vendor({ ...host, testGlob: 'no-such-file-*.js' }, into)).toThrow(/produced no test files/u);
+    expect(() => vendorOffline({ ...host, testGlob: 'no-such-file-*.js' }, into)).toThrow(/produced no test files/u);
     expect(existsSync(join(live, '.source.json')), 'the previous record was deleted by a failed run').toBe(true);
     expect(readFileSync(join(live, 'test.js'), 'utf8')).toContain('already here');
     rmSync(into, { recursive: true, force: true });
@@ -318,7 +325,7 @@ describe('a vendor run that cannot finish', () => {
     // whole daily job down with it (run 36317870604), before a single issue was opened.
     const into = mkdtempSync(join(tmpdir(), 'vendor-missing-extra-'));
     const host = localSliceAnsi({ 'tests/.env': 'BASIC=basic\n' });
-    const result = vendor({ ...host, extraDirs: ['tests/.env', 'tests/.env.vault'] }, into);
+    const result = vendorOffline({ ...host, extraDirs: ['tests/.env', 'tests/.env.vault'] }, into);
     const live = join(into, host.name);
     // Windows runners check out with core.autocrlf, so the clone may carry CRLF; presence is the point.
     expect(readFileSync(join(live, 'tests', '.env'), 'utf8').replaceAll('\r\n', '\n'), 'the fixture that is still shipped was dropped too').toBe('BASIC=basic\n');
@@ -331,7 +338,7 @@ describe('a vendor run that cannot finish', () => {
   it('reports no missing fixture when every `extraDirs` entry is shipped', () => {
     const into = mkdtempSync(join(tmpdir(), 'vendor-all-extras-'));
     const host = localSliceAnsi({ 'fixture.jpg': 'jpeg' });
-    const result = vendor({ ...host, extraDirs: ['fixture.jpg'] }, into);
+    const result = vendorOffline({ ...host, extraDirs: ['fixture.jpg'] }, into);
     expect(result.missingExtras).toEqual([]);
     expect(existsSync(join(into, host.name, 'fixture.jpg'))).toBe(true);
     rmSync(into, { recursive: true, force: true });
@@ -352,7 +359,7 @@ describe('a vendor run that cannot finish', () => {
       'packages/b/src/index.ts': 'export default 2;\n',
       'packages/c/c.test.ts': "test('not listed', () => {});\n",
     });
-    const result = vendor(
+    const result = vendorOffline(
       {
         ...host,
         testDir: 'packages',
@@ -383,7 +390,7 @@ describe('a vendor run that cannot finish', () => {
   it('refuses a `suiteFiles` entry the release does not ship, rather than grading a smaller suite', () => {
     const into = mkdtempSync(join(tmpdir(), 'vendor-suite-files-missing-'));
     const host = localSliceAnsi({ 'packages/a/a.test.ts': '' });
-    expect(() => vendor({ ...host, testDir: 'packages', testGlob: '*.test.ts', suiteFiles: ['a/a.test.ts', 'gone/gone.test.ts'] }, into)).toThrow(/lists gone\/gone\.test\.ts in suiteFiles/u);
+    expect(() => vendorOffline({ ...host, testDir: 'packages', testGlob: '*.test.ts', suiteFiles: ['a/a.test.ts', 'gone/gone.test.ts'] }, into)).toThrow(/lists gone\/gone\.test\.ts in suiteFiles/u);
     rmSync(into, { recursive: true, force: true });
     rmSync(fileURLToPath(host.repo), { recursive: true, force: true });
   });
@@ -394,7 +401,7 @@ describe('a vendor run that cannot finish', () => {
     // tree, which no published package has, for the control and the target alike.
     const into = mkdtempSync(join(tmpdir(), 'vendor-rewritten-'));
     const host = localSliceAnsi({ 'examples/demo/demo.js': "import sliceAnsi from '../../index.js';\nconsole.log(sliceAnsi('abc', 1));\n" });
-    const result = vendor({ ...host, rewrittenDirs: ['examples', 'gone'] }, into);
+    const result = vendorOffline({ ...host, rewrittenDirs: ['examples', 'gone'] }, into);
     const demo = readFileSync(join(into, host.name, 'examples', 'demo', 'demo.js'), 'utf8');
     expect(demo).toContain("from '../../shim.js'");
     expect(demo).not.toContain('index.js');

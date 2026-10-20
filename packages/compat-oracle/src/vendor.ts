@@ -296,9 +296,23 @@ export function splitSpec(spec: string): [string, string] {
 /** When `name@version` was published, as the registry's `time` field records it (ISO 8601). */
 export type ReleaseTime = (name: string, version: string) => string;
 
+/**
+ * How to run npm here, without assuming a POSIX shell, as `scripts/family-install.ts` does. Under
+ * `npm run` it is npm's own `npm-cli.js` through this Node. Otherwise it is `npm` on the PATH,
+ * which on Windows is `npm.cmd`, a batch file only `cmd.exe` runs: so a shell there, for
+ * arguments that are a literal and a package name from `hosts.ts`. Bare `npm` without one is
+ * `spawnSync npm ENOENT` on Windows (#1180).
+ */
+export function npmCommand(args: readonly string[], platform: string = process.platform, cli: string | undefined = process.env['npm_execpath']): { file: string; args: string[]; shell: boolean } {
+  if (cli?.endsWith('npm-cli.js') === true) return { file: process.execPath, args: [cli, ...args], shell: false };
+  const windows = platform === 'win32';
+  return { file: windows ? 'npm.cmd' : 'npm', args: [...args], shell: windows };
+}
+
 /** The registry's `time` for `name@version`; a release it does not list is an error, never a guess. */
 export const registryTime: ReleaseTime = (name, version) => {
-  const time = JSON.parse(execFileSync('npm', ['view', name, 'time', '--json'], { encoding: 'utf8' })) as Record<string, string | undefined>;
+  const npm = npmCommand(['view', name, 'time', '--json']);
+  const time = JSON.parse(execFileSync(npm.file, npm.args, { encoding: 'utf8', shell: npm.shell })) as Record<string, string | undefined>;
   const at = time[version];
   if (at === undefined) throw new Error(`the registry lists no publish time for ${name}@${version}`);
   return at;
