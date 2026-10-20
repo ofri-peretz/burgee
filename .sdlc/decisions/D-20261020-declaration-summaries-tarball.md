@@ -32,6 +32,10 @@ record the same figure later.
 burgee saves 5.7% gzipped, above the intent's 5% kill switch, so R2–R4 proceed. In total the ten
 packs fall by 60,103 B gzipped (−7.9%) and 166,726 B unpacked (−6.1%).
 
+**What an install pays.** burgee's installed tree, the family packages it depends on included
+(`installedBytes`, the walk `benchmarks/docs.test.ts` holds `comparison.mdx` to), falls from
+1,768,523 to 1,645,338 B: **1727 -> 1607 KB, −7.0%**. `comparison.mdx` states the new figure.
+
 **The figures written.** Where the new pack is below the recorded figure, the figure becomes the
 pack, read after `weight:converge` rewrote the foundation READMEs' weight lines (which moved
 bellpull's unpacked, paratext's and seniority's gzipped by a byte or two from the table):
