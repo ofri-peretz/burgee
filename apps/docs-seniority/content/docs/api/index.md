@@ -182,7 +182,7 @@ function searchAll(names: string | readonly string[], options: SearchOptions): F
 
 Every combination of `order`, grouped by winner, highest first: each source, then every
 subset of the sources below it in increasing binary order, and last the row with nothing
-set. 2ⁿ rows for n sources.
+set. 2ⁿ rows for n sources, each row and its `set` frozen.
 
 ```ts
 function truthTable<S extends string>(order: readonly S[]): TruthRow<S>[];
@@ -288,7 +288,7 @@ const NOT_BUNDLED: readonly string[];
 
 ### TRUTH_TABLE
 
-The table for the five built-in sources: 32 rows, frozen.
+The table for the five built-in sources: 32 rows, frozen to the last array.
 
 ```ts
 const TRUTH_TABLE: readonly TruthRow[];
