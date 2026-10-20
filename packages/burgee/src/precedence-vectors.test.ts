@@ -20,6 +20,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { scratchDirs } from './__fixtures__/scratch-dir.js';
+import { configLayers } from './config-layers.js';
 import { defineCommand, defineProgram, execute } from './index.js';
 
 type Source = 'flag' | 'env' | 'config' | 'package' | 'default';
@@ -110,5 +111,16 @@ describe('provenance names the file and the line (seniority R3, criterion 3)', (
     expect(r.stdout).toContain(`config file ${join(r.dir, 'app.config.json')}:3 "config"`);
     expect(r.stdout).toContain(`package.json field in ${join(r.dir, 'package.json')} "package"`);
     expect(r.stdout).toContain('default "default"');
+  });
+});
+
+describe('configLayers hands seniority the layer it loaded', () => {
+  it('whole, with its lines, and no config key at all when there is no file', async () => {
+    const dir = scratch('burgee-layers-');
+    const none = { cwd: dir, env: { HOME: join(dir, 'none'), XDG_CONFIG_HOME: join(dir, 'none') }, pkg: undefined };
+    // Strict: `{ config: undefined }` is a different layer set from `{}` to anything that spreads it.
+    expect(await configLayers('app', {}, none)).toStrictEqual({});
+    writeFileSync(join(dir, 'app.config.json'), '{\n  "region": "eu"\n}\n');
+    expect((await configLayers('app', {}, none)).config).toMatchObject({ path: join(dir, 'app.config.json'), data: { region: 'eu' }, lines: { region: 2 } });
   });
 });
