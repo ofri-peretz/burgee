@@ -1,5 +1,15 @@
 # roundel
 
+## 1.2.0
+
+### Minor Changes
+
+- [#1177](https://github.com/ofri-peretz/burgee/pull/1177) [`122635d`](https://github.com/ofri-peretz/burgee/commit/122635dce20998d1cba0eaa3c9df9c38bfd47c8b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - New entry point `roundel/supports-color`: supports-color 11's default `{ stdout, stderr }` and its `createSupportsColor(stream, options)`, graded 55 / 55 by supports-color 11.0.0's own `test.js`, level with supports-color itself, and bundled at 1,781 B against supports-color's 2,145. It answers in supports-color's order, which differs from `roundel/policy` in two places on purpose: a set `FORCE_COLOR` outranks `--no-color` there, and `NO_COLOR` is not read. `roundel/policy` does not change.
+
+### Patch Changes
+
+- [#1186](https://github.com/ofri-peretz/burgee/pull/1186) [`af24328`](https://github.com/ofri-peretz/burgee/commit/af243288e27cbffbcffac18af7112172e46a003b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Published declarations now keep each doc comment's first paragraph, its code examples and its `@param`, `@returns`, `@throws`, `@example`, `@deprecated`, `@default` and `@see` tags, and drop the longer design notes below them, so the tarballs are smaller (burgee by 5.7% gzipped, bellpull and closeout by about a fifth). Types are unchanged, and hover text in an editor keeps its summary. `burgee`'s README also names `burgee/program-schema.json`, the JSON Schema every `--schema` document validates against.
+
 ## 1.1.3
 
 ### Patch Changes

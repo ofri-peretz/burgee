@@ -463,16 +463,16 @@ codebase is the number of things a user has to trust, not convenience.
 
 | | Layer | Package | What the layer owns | Migrates from | Status |
 | :-- | :-- | :-- | :-- | :-- | :-- |
-| **Engine** | argv, dispatch, manifest | [`burgee`](./packages/burgee/) | one declaration projected to help, `--json`, `--schema`, MCP, completions, types | commander · yargs · meow | released — `burgee@1.6.5` |
-| **Output stack** | colour | [`roundel`](./packages/roundel/) | one output policy, nine semantic tokens, a contrast-checked theme, and chalk's API over them | chalk · picocolors | released — `roundel@1.1.3` |
-| | render | [`flagstaff`](./packages/flagstaff/) | frame loop with a static projection; plugin host for spinners, progress, boxes, tables | ora · log-update · boxen · cli-table3 | released — `flagstaff@1.7.2` |
-| | prompt | [`caique`](./packages/caique/) | prompts that are flags first, and never hang | inquirer · clack · prompts | released — `caique@1.4.4` |
-| | screen | [`controlroom`](./packages/controlroom/) | keyboard-driven screens, inline or full-screen, over flagstaff's loop, each with a static projection | ink · @inkjs/ui | released — `controlroom@1.0.5` |
-| **Foundation** | text | [`linegauge`](./packages/linegauge/) | measure, wrap, truncate and slice styled text without the edge fraying | string-width · wrap-ansi · strip-ansi · slice-ansi | released — `linegauge@1.1.3` |
-| | config | [`seniority`](./packages/seniority/) | precedence across flag, env, project file, home file and default — with provenance | cosmiconfig · lilconfig · dotenv · rc | released — `seniority@1.0.11` |
-| | process | [`bellpull`](./packages/bellpull/) | run a subprocess; resolve the executable; return a result every caller can read | execa · cross-spawn · which | released — `bellpull@1.0.8` |
-| | lifecycle | [`closeout`](./packages/closeout/) | exit handlers that run once on every path, terminal restore, bounded deadline | signal-exit · exit-hook · restore-cursor | released — `closeout@1.1.5` |
-| | terminal | [`paratext`](./packages/paratext/) | hyperlinks, images, window title, clipboard, notifications, bell — each with a static fallback | ansi-escapes (OSC half) · terminal-link · term-img | released — `paratext@1.0.9` |
+| **Engine** | argv, dispatch, manifest | [`burgee`](./packages/burgee/) | one declaration projected to help, `--json`, `--schema`, MCP, completions, types | commander · yargs · meow | released — `burgee@1.6.6` |
+| **Output stack** | colour | [`roundel`](./packages/roundel/) | one output policy, nine semantic tokens, a contrast-checked theme, and chalk's API over them | chalk · picocolors | released — `roundel@1.2.0` |
+| | render | [`flagstaff`](./packages/flagstaff/) | frame loop with a static projection; plugin host for spinners, progress, boxes, tables | ora · log-update · boxen · cli-table3 | released — `flagstaff@1.7.3` |
+| | prompt | [`caique`](./packages/caique/) | prompts that are flags first, and never hang | inquirer · clack · prompts | released — `caique@1.4.5` |
+| | screen | [`controlroom`](./packages/controlroom/) | keyboard-driven screens, inline or full-screen, over flagstaff's loop, each with a static projection | ink · @inkjs/ui | released — `controlroom@1.0.6` |
+| **Foundation** | text | [`linegauge`](./packages/linegauge/) | measure, wrap, truncate and slice styled text without the edge fraying | string-width · wrap-ansi · strip-ansi · slice-ansi | released — `linegauge@1.1.4` |
+| | config | [`seniority`](./packages/seniority/) | precedence across flag, env, project file, home file and default — with provenance | cosmiconfig · lilconfig · dotenv · rc | released — `seniority@1.0.12` |
+| | process | [`bellpull`](./packages/bellpull/) | run a subprocess; resolve the executable; return a result every caller can read | execa · cross-spawn · which | released — `bellpull@1.0.9` |
+| | lifecycle | [`closeout`](./packages/closeout/) | exit handlers that run once on every path, terminal restore, bounded deadline | signal-exit · exit-hook · restore-cursor | released — `closeout@1.1.6` |
+| | terminal | [`paratext`](./packages/paratext/) | hyperlinks, images, window title, clipboard, notifications, bell — each with a static fallback | ansi-escapes (OSC half) · terminal-link · term-img | released — `paratext@1.0.10` |
 
 All ten are released on npm at 1.x, with their public API under semver
 ([`SECURITY.md`](./SECURITY.md) says which releases are supported). Where an incumbent's own test suite has been vendored, the
