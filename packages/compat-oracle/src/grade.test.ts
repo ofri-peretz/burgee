@@ -959,6 +959,15 @@ describe('installing what a vendored suite declares', () => {
     expect(read(hostDir, 'node_modules', DEPS_MARKER)).toBe(CUTOFF);
   });
 
+  it('re-dates the tree of a suite that pins one package beside a range, as it does one that pins only', () => {
+    const hostDir = vendored(host(), { 'a.test.js': '' }, { pkg: { devDependencies: { 'pinned-dep': '1.2.3', 'hoisted-dep': '^1.0.0' } }, source: RECORD });
+    pinned(hostDir);
+    pinned(hostDir, 'hoisted-dep', '1.4.0');
+    seam.exec = prints('');
+    installSuiteDeps(host(), hostDir);
+    expect(only().args, 'one exact pin is a tree beside the suite, whatever else the manifest declares').toContain(`--before=${CUTOFF}`);
+  });
+
   it('leaves a suite that declares only ranges to the hoist when it resolves, and installs a missing one as of the cutoff', () => {
     const hostDir = vendored(host(), { 'a.test.js': '' }, { pkg: { devDependencies: { 'hoisted-dep': '^1.0.0' } }, source: RECORD });
     pinned(hostDir, 'hoisted-dep', '1.4.0');

@@ -51,7 +51,9 @@ const ALLOWED = new Set([
   // one: `bin.ts` is a CLI entry, `run.ts` spawns the host suites and needs `execPath`, and
   // `shim.ts` is *copied into the vendored package's own module graph*, where an import of
   // anything in this repository would not resolve. The last of those cannot go behind a seam
-  // at all, which is why the step counts published packages.
+  // at all, which is why the step counts published packages. `npm.ts` spawns npm, which needs
+  // `execPath`, the platform and `npm_execpath` for the same reason `run.ts` does (#1180).
+  'compat-oracle/src/npm.ts',
   'compat-oracle/src/shim.ts',
   'compat-oracle/src/bin.ts',
   'compat-oracle/src/run.ts',

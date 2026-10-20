@@ -1330,7 +1330,7 @@ export function installSuiteDeps(host: Host, hostDir: string, write: Write = sil
   // Only an exact pin is installed beside the suite. A range (`vendorDeps`) is the workspace
   // hoist's to supply, so a suite that declares only ranges has no tree of its own to re-date;
   // nor does one whose tree is committed (`keep`), which is fixed already and is tracked files.
-  const ownsATree = Object.values(declared).some((want) => EXACT_PIN.test(want)) && !(host.keep ?? []).includes('node_modules');
+  const ownsATree = Object.values(declared).some((want) => EXACT_PIN.test(want)) && host.keep?.includes('node_modules') !== true;
   const stale = ownsATree && (existsSync(marker) ? readFileSync(marker, 'utf8') : undefined) !== before;
   const wrong = unsatisfiedPins(declared, hostDir);
   if (wrong.length === 0 && !stale) return;

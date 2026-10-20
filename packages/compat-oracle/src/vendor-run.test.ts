@@ -18,8 +18,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { type Host } from './hosts.js';
+import { npmCommand, registryTime } from './npm.js';
 import { latestVersion } from './upstream.js';
-import { classify, internalImports, keptPath, npmCommand, readSuiteDeps, registryTime, rewriteAt, rootPackage, siblingImports, splitSpec, vendor } from './vendor.js';
+import { classify, internalImports, keptPath, readSuiteDeps, rewriteAt, rootPackage, siblingImports, splitSpec, vendor } from './vendor.js';
 
 // Every git call still runs for real; the spy only records what `vendor()` asked for.
 vi.mock('node:child_process', async (importOriginal) => {
