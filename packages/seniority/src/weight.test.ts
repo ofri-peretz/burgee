@@ -60,8 +60,11 @@ const RULES: Record<string, EntryRule> = {
   './dotenv': { budget: 18_200, denied: [...NEVER, ...others('dotenv.js')] },
   // `import 'dotenv/config'`: the façade and one call. 17,713.
   './dotenv/config': { budget: 18_500, denied: [...NEVER, ...others('dotenv.js')] },
-  // `dotenv run`: the façade, argv and the spawn that forwards signals. 28,682.
-  './dotenv/cli': { budget: 29_800, denied: [...NEVER, ...others('dotenv.js')] },
+  // `dotenv run`: the façade, argv and the spawn that forwards signals. 28,682. Raised 29,800 →
+  // 30,000 on 2026-10-20 (D-20261020-seniority-truth-table-weight): it stood at 29,799, and
+  // `load.js` reaches `precedence.js`, whose `fromLayer` now reads a layer's `origins` (+57 B).
+  // 29,856.
+  './dotenv/cli': { budget: 30_000, denied: [...NEVER, ...others('dotenv.js')] },
   './lilconfig': { budget: 13_500, denied: [...NEVER, ...others('lilconfig.js')] },
   './rc': { budget: 12_000, denied: [...NEVER, ...others('rc.js')] },
   // Raised 2,800 → 7,100 on 2026-10-11 for `graded-override-targets` R2: find-up 8's whole

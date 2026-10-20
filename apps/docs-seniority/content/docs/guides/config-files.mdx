@@ -52,6 +52,11 @@ file that is missing is silence.
 the extending file wins. A cycle is refused, naming the chain that formed it. `chain` lists the
 files merged, outermost first.
 
+Provenance follows the chain. `origins` on the loaded layer records, for each top-level key,
+the nearest file that set it and that file's line, and `resolve` cites it. In the example
+above, `retries` comes from `shared/base.config.json` at line 3, not from `mytool.config.json`,
+which never mentions it.
+
 ## Walking upward, bounded
 
 `discover` does not walk up the tree unless you pass `upward: true`, because a surprise parent

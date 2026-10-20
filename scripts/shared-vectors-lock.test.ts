@@ -45,6 +45,11 @@ const SHARED: { vectors: string; readers: string[]; what: string }[] = [
     readers: ['roundel/src/contrast.test.ts', 'burgee/src/contrast.test.ts'],
     what: 'the WCAG 2.2 relative-luminance contrast values (roundel R5; one implementation since #194)',
   },
+  {
+    vectors: 'seniority/src/precedence-vectors.json',
+    readers: ['seniority/src/truth-table.test.ts', 'burgee/src/precedence-vectors.test.ts'],
+    what: 'the precedence truth table, one row per combination of the five sources (seniority R1, R2; burgee resolves through seniority since #265)',
+  },
 ];
 
 describe.each(SHARED)('$what', ({ vectors, readers }) => {

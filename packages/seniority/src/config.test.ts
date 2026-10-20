@@ -1,12 +1,13 @@
 /** commander-env V6, V7 — discovery order, --no-config, explicit misses, extends with deep merge and cycles, on real temp files. */
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { scratchDirs } from './__fixtures__/scratch-dir.js';
-import { candidates, deepMerge, discover, loadWithExtends } from './config.js';
-import { ConfigError } from './precedence.js';
+import { candidates, deepMerge, discover, loadWithExtends, type Loaded } from './config.js';
+import { explain } from './explain-entry.js';
+import { ConfigError, resolve as resolveLayers } from './precedence.js';
 
 const scratch = scratchDirs();
 
@@ -78,9 +79,65 @@ describe('extends (V7)', () => {
     await expect(loadWithExtends(a)).rejects.toThrow(/extends itself/);
   });
 
+  it('resolves a bare target through node_modules, from the extending file (R7)', async () => {
+    write('nm/node_modules/acme-base/package.json', { name: 'acme-base', main: 'config.json' });
+    write('nm/node_modules/acme-base/config.json', { region: 'shared' });
+    const top = write('nm/app.config.json', { extends: 'acme-base', tier: 'pro' });
+    const loaded = await loadWithExtends(top);
+    expect(loaded.data).toEqual({ region: 'shared', tier: 'pro' });
+    // `require.resolve` answers with the real path, which on macOS is under /private.
+    expect(loaded.chain).toEqual([realpathSync(join(dir, 'nm/node_modules/acme-base/config.json')), top]);
+  });
+
   it('names an unresolvable extends target', async () => {
     const f = write('u/app.config.json', { extends: 'no-such-package-xyz' });
     await expect(loadWithExtends(f)).rejects.toThrow(/cannot be resolved/);
+  });
+});
+
+/**
+ * R3 and R7 together: a value set in a parent is cited at the parent, and at the parent's line.
+ * The layer `loadWithExtends` hands back is one path; without `origins`, every key a chain set
+ * was attributed to the outermost file, which is a file that did not set it.
+ */
+async function chainOf(): Promise<{ loaded: Loaded; base: string; team: string; top: string }> {
+  const base = write('o/base.json', '{\n  "region": "base",\n  "log": { "level": "info" },\n  "tier": "free"\n}');
+  const team = write('o/team.json', '{\n  "extends": "./base.json",\n  "tier": "team"\n}');
+  const top = write('o/app.config.json', '{\n  "extends": "./team.json",\n\n  "log": { "level": "debug" }\n}');
+  return { loaded: await loadWithExtends(top), base, team, top };
+}
+
+describe('which file in an extends chain set each key (R3, R7)', () => {
+
+  it('records the nearest file that set each top-level key, with that file’s own line', async () => {
+    const { loaded, base, team, top } = await chainOf();
+    expect(loaded.origins).toStrictEqual({
+      region: { path: base, line: 2 },
+      tier: { path: team, line: 3 },
+      log: { path: top, line: 4 },
+    });
+  });
+
+  it('is what resolve cites, so provenance and --explain name the parent that set the value', async () => {
+    const { loaded, base, team } = await chainOf();
+    const r = resolveLayers({ region: {}, tier: {}, log: {}, unset: {} }, { flags: {}, env: {}, config: loaded });
+    expect(r.provenance['region']).toEqual({ source: 'config', location: base, line: 2 });
+    expect(r.provenance['tier']).toEqual({ source: 'config', location: team, line: 3 });
+    // Strict: a candidate with no line carries no `line` key at all, not one set to undefined.
+    expect(r.candidates['unset']?.find((c) => c.source === 'config')).toStrictEqual({ source: 'config', location: loaded.path, value: undefined });
+    expect(explain('region', r)).toContain(`from config file ${base}:2`);
+  });
+
+  it('cites a parent without a line when the parent is not JSON', async () => {
+    const base = write('oj/base.mjs', 'export default { region: "js" };');
+    const top = write('oj/app.config.json', { extends: './base.mjs', tier: 'pro' });
+    expect((await loadWithExtends(top)).origins).toStrictEqual({ region: { path: base }, tier: { path: top, line: 1 } });
+  });
+
+  it('adds nothing to a file that extends nothing: its one path is already the answer', async () => {
+    const solo = write('os/app.config.json', { region: 'eu' });
+    // eslint-disable-next-line conventions/consistent-existence-index-check -- The claim is that the key is absent, not merely undefined.
+    expect(Object.hasOwn(await loadWithExtends(solo), 'origins')).toBe(false);
   });
 });
 

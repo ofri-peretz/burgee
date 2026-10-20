@@ -1,4 +1,4 @@
 {
   "title": "Guides",
-  "pages": ["precedence", "config-files", "environment", "validation", "plugins"]
+  "pages": ["precedence", "truth-table", "config-files", "environment", "validation", "plugins"]
 }

@@ -90,6 +90,10 @@ import { ORDER, RANK } from 'seniority';
 //     0       10       20        30         40
 ```
 
+`TRUTH_TABLE` is the same order as one row per combination of sources: 32 rows, each the
+sources that set a value and the one that wins. It is generated from `ORDER`, so it cannot
+disagree with a run.
+
 ## `resolve` is pure
 
 Layers in, values and provenance out. No filesystem, no `process.env`, no globals — pass
@@ -401,7 +405,7 @@ Graded by the incumbent's own test suite:
 | `lilconfig` | 77 / 77 |
 | `rc` | 1 / 1 |
 
-Weight, installed and tree-inclusive: **218,298 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1107**.
+Weight, installed and tree-inclusive: **221,452 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1123**.
 
 ## For agents
 
@@ -435,6 +439,7 @@ Weight, installed and tree-inclusive: **218,298 bytes** against **1,972,507** fo
 | `screaming(name)`             | `dryRun` → `DRY_RUN`                                                         |
 | `ConfigError`                 | a value that cannot be used as configured; carries an optional `hint`        |
 | `ORDER`, `RANK`               | the precedence as data, and each built-in's rank                             |
+| `TRUTH_TABLE`, `truthTable`   | every combination of sources and the one that wins, generated from `ORDER`   |
 | `explanation(name, res)`      | `--explain` as a **record**; `explain` is its text rendering                 |
 | `explanationJson(e)`          | the same record as `--json` data, with `set` spelled out                     |
 | `explanationEvent(e)`         | the same record as an agent event                                            |

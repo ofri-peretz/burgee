@@ -14,7 +14,7 @@ import { createRequire } from 'node:module';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 
 import { loadPath, type Loader } from './load.js';
-import { ConfigError, type Layer } from './precedence.js';
+import { ConfigError, type KeyOrigin, type Layer } from './precedence.js';
 import { search } from './search.js';
 
 export interface Discovery {
@@ -115,12 +115,20 @@ function extendsList(value: unknown): string[] {
   return Array.isArray(value) ? value.map(String) : [];
 }
 
+/** Where `layer` set `key`: its own path, and its line when it recorded one. */
+function originIn(layer: Loaded, key: string): KeyOrigin {
+  const line = layer.lines?.[key];
+  return layer.origins?.[key] ?? { path: layer.path, ...(line === undefined ? {} : { line }) };
+}
+
 /**
  * Load a file and everything it extends, outermost first, the file's own keys winning.
  *
- * The lines reported are the **extending file's own** (R3). A value a parent set and the
- * child did not override is cited through `chain` at the parent's path; a line number
- * borrowed across files would point confidently at the wrong text.
+ * `lines` are the **extending file's own** (R3). When there is a chain, `origins` says which
+ * file in it set each top-level key — the nearest one, the one whose value or whose half of a
+ * merged object is on top — and that file's own line, so `resolve` cites the parent for a value
+ * only the parent set. A line number borrowed across files would point confidently at the wrong
+ * text; one carried with its own file points at the right one.
  */
 export async function loadWithExtends(path: string, options: LoadConfigOptions = {}, seen: string[] = []): Promise<Loaded> {
   if (seen.includes(path)) throw new ConfigError(`config extends itself: ${[...seen, path].join(' → ')}`);
@@ -129,15 +137,20 @@ export async function loadWithExtends(path: string, options: LoadConfigOptions =
   const specs = extendsList(parents);
   let data: Record<string, unknown> = {};
   const chain: string[] = [];
+  const origins = new Map<string, KeyOrigin>();
   for (const spec of specs) {
     // Left to right: a later parent overrides an earlier one; the file itself overrides all.
     const parent = await loadWithExtends(resolveExtends(spec, path), options, [...seen, path]);
     data = deepMerge(data, parent.data);
     chain.push(...parent.chain);
+    for (const key of Object.keys(parent.data)) origins.set(key, originIn(parent, key));
   }
   const { extends: _ignored, ...rest } = own;
   const lines = linesFor(path, rest);
-  return { path, data: deepMerge(data, rest), chain: [...chain, path], ...(lines === undefined ? {} : { lines }) };
+  const loaded: Loaded = { path, data: deepMerge(data, rest), chain: [...chain, path], ...(lines === undefined ? {} : { lines }) };
+  if (chain.length === 0) return loaded;
+  for (const key of Object.keys(rest)) origins.set(key, originIn(loaded, key));
+  return { ...loaded, origins: Object.fromEntries(origins) };
 }
 
 const userConfigDir = (env: Record<string, string | undefined>): string | undefined => {
