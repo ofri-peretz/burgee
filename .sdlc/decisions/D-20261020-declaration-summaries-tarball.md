@@ -37,7 +37,7 @@ pack, read after `weight:converge` rewrote the foundation READMEs' weight lines 
 bellpull's unpacked, paratext's and seniority's gzipped by a byte or two from the table):
 bellpull 29,647 / 96,157; burgee 260,048 / 1,000,016; caique 71,767 gzipped (its unpacked
 252,671 is above the recorded 246,099, so that one stays); closeout 33,189 / 107,826; linegauge
-31,747 gzipped (unpacked stays 103,186); paratext 32,192 / 102,845; roundel 34,129 / 99,734;
+31,747 gzipped (unpacked stays 103,186); paratext 32,192 / 102,845; roundel 36,074 / 106,490 (written after merging #1177, whose supports-color drop-in had raised roundel's figure to 41,319 / 120,744 on `main`; the table's roundel row predates it);
 seniority 59,935 / 218,282. controlroom and flagstaff still pack above their recorded figures,
 from growth under the 10% allowance, so theirs stay where they are.
 
