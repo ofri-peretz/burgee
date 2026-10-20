@@ -13,11 +13,11 @@ measurement plus the 80 B CI margin, rounded up to the next fifty, as everywhere
 
 | gate | was | now | measured |
 | :-- | --: | --: | --: |
-| `BUNDLED_CEILING['closeout/exit-hook']` | 4,900 | 1,700 | 1,593 |
+| `BUNDLED_CEILING['closeout/exit-hook']` | 4,900 | 1,700 | 1,579 |
 | `BUNDLED_CEILING['closeout/signal-exit']` | 3,750 | 2,800 | 2,671 |
-| `RATIO_CEILING['closeout/exit-hook']` | 2.98 | 1 | 0.968 |
+| `RATIO_CEILING['closeout/exit-hook']` | 2.98 | 1 | 0.960 |
 | `RATIO_CEILING['closeout/signal-exit']` | 1.31 | 1 | 0.935 |
-| `weight.test.ts` `./exit-hook` budget | 13,000 | 3,800 | 3,748 |
+| `weight.test.ts` `./exit-hook` budget | 13,000 | 3,800 | 3,717 |
 | `weight.test.ts` `./signal-exit` budget (now the `import` door) | 5,500 | 4,900 | 4,792 |
 | `weight.test.ts` `./signal-exit` `require` door (new) | — | 5,500 | 5,083 |
 | `weight.test.ts` `./signal-exit/signals` budget | 500 | **550** | 521 |
@@ -28,8 +28,8 @@ now `require()`s it. The other option was two copies of the list and a lock to k
 which saves 140 B of unminified, never-bundled bytes on an entry with no B4 row and adds a way
 for the copies to drift. One copy is worth 50 B of budget.
 
-**The band.** `.sdlc/bands/foundation-ceilings.json` closeout `ours` 107,842 → 108,882 B
-installed (ratio 0.5867 → 0.5924, ceiling unchanged), from `npm run weight:converge`. The package
+**The band.** `.sdlc/bands/foundation-ceilings.json` closeout `ours` 107,842 → 108,851 B
+installed (ratio 0.5867 → 0.5922, ceiling unchanged), from `npm run weight:converge`. The package
 ships two more modules (`signal-exit-core.js`, `signal-list.js`), the ES door and their
 declarations. `exit-hook.js` is smaller. The installed tarball is not what a user's bundle grows
 by, and that number fell on both drop-ins.

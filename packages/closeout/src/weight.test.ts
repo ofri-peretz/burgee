@@ -93,7 +93,7 @@ const RULES: Record<string, EntryRule> = {
   // The drop-in for `exit-hook` (8.8 M/wk), graded 21 / 21 by its own suite. Measured
   // 11,841 B against the incumbent's 4,458 B in one file, when it ran through the registry.
   // Lowered 13,000 -> 3,800 on 2026-10-20 (closeout-at-incumbent-weight): it runs exit-hook's
-  // own small machine (`lean.qnt`) and reaches the process door alone. Measured 3,748 B. The
+  // own small machine (`lean.qnt`) and reaches the process door alone. Measured 3,717 B. The
   // registry, the deadline and the report are denied, so the phases cannot creep back in.
   './exit-hook': { allow: [], budget: 3_800, denied: ['plugin.js', 'restore-cursor.js', 'cursor.js', 'registry.js', 'deadline.js', 'report.js', 'install.js'] },
   // The drop-in for `signal-exit` (198.9 M/wk), graded 134 / 135 by its own suite — the case

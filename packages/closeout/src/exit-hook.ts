@@ -179,9 +179,10 @@ async function shutdown(manual: boolean, isSynchronous: boolean, signal: number)
     leave(manual, code);
     return;
   }
-  // `max(wait)`, and no timer at all with no async hook: `gracefulExit()` with nothing
-  // registered drains and leaves.
-  const timer = asyncHooks.size > 0 ? setTimeout(() => leave(true, code), Math.max(...asyncHooks.values())) : undefined;
+  // `max(wait)`. The 0 is for a shutdown with no async hook: `Math.max()` alone is -Infinity,
+  // which Node answers with a TimeoutNegativeWarning. A 0 ms timer is cleared on the next line
+  // but one, in a microtask, before any timer can fire.
+  const timer = setTimeout(() => leave(true, code), Math.max(0, ...asyncHooks.values()));
   await Promise.all([...asyncHooks.keys()].map(async (hook) => hook(code)));
   clearTimeout(timer);
   // Both standard streams drained, or one second, whichever comes first. The catch is for a

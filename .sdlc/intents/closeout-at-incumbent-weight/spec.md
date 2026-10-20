@@ -100,7 +100,7 @@ measurement that directed the cut, not a standing test, since the B4 gates and c
 
 - **`closeout/exit-hook`** stops importing the registry and runs exit-hook's own machine:
   `called`, sync hooks, a `max(wait)` timer, the async hooks on the awaiting paths only, the
-  drain, `exit`. It reaches `ambient.js` alone. 1,593 B against 1,645 B (**0.968**).
+  drain, `exit`. It reaches `ambient.js` alone. 1,579 B against 1,645 B (**0.960**).
 - **`closeout/signal-exit`** keeps its machine, moved to `signal-exit-core.ts`, with two doors:
   `require` → `signal-exit.cjs`, which the suite re-evaluates under a changed `process`, and
   `import` → `signal-exit.js`, an ES file over the same core, the same emitter and the same list

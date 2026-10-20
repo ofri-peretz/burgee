@@ -321,7 +321,7 @@ and `once` never runs a handler twice.
 Measured rather than claimed, and the package reaches no other package. Each drop-in weighs
 no more in a user's bundle than the package it replaces (esbuild, minified, a fixture
 importing one name, as the [benchmarks](https://burgee.interlace.tools/docs/benchmarks)
-measure every drop-in): `closeout/exit-hook` is **1,593 B** against `exit-hook@5.1.0`'s
+measure every drop-in): `closeout/exit-hook` is **1,579 B** against `exit-hook@5.1.0`'s
 1,645 B, and `closeout/signal-exit` **2,671 B** against `signal-exit@4.1.0`'s 2,856 B. The
 drop-ins carry the incumbent's behaviour and nothing else; the phase ordering, the bounded
 runner and the report are the product, on closeout's own `onExit`.
@@ -340,7 +340,7 @@ Graded by the incumbent's own test suite:
 | `restore-cursor` | 6 / 6 |
 | `signal-exit` | 134 / 135 |
 
-Weight, installed and tree-inclusive: **108,882 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.5924**.
+Weight, installed and tree-inclusive: **108,851 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.5922**.
 
 ## For agents
 

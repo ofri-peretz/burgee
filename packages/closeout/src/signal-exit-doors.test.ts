@@ -100,17 +100,32 @@ describe('the two doors of closeout/signal-exit', () => {
 });
 
 describe('signalsOn, the one copy of the list', () => {
+  const EVERYWHERE = ['SIGHUP', 'SIGINT', 'SIGTERM'];
+  const POSIX = [...EVERYWHERE, 'SIGALRM', 'SIGABRT', 'SIGVTALRM', 'SIGXCPU', 'SIGXFSZ', 'SIGUSR2', 'SIGTRAP', 'SIGSYS', 'SIGQUIT', 'SIGIOT'];
+
+  // Whole arrays, in order: signal-exit's suite snapshots the list, so a renamed or reordered
+  // entry is a failed case there.
   it.each([
-    ['win32', 3],
-    ['darwin', 13],
-    ['linux', 17],
-  ])('lists %s’s fatal signals in signal-exit’s order', (platform, length) => {
-    const list = signalsOn(platform);
-    expect(list).toHaveLength(length);
-    expect(list.slice(0, 3)).toEqual(['SIGHUP', 'SIGINT', 'SIGTERM']);
+    ['win32', EVERYWHERE],
+    ['darwin', POSIX],
+    ['linux', [...POSIX, 'SIGIO', 'SIGPOLL', 'SIGPWR', 'SIGSTKFLT']],
+  ])('lists %s’s fatal signals in signal-exit’s order', (platform, expected) => {
+    expect(signalsOn(platform)).toEqual(expected);
   });
 
   it('reads the ambient platform when it is not told one', () => {
     expect(signalsOn()).toEqual(signalsOn(process.platform));
+  });
+
+  it('answers with the POSIX list on a runtime with no process at all', () => {
+    const real: unknown = Reflect.get(globalThis, 'process');
+    Reflect.set(globalThis, 'process', undefined);
+    let list: string[];
+    try {
+      list = signalsOn();
+    } finally {
+      Reflect.set(globalThis, 'process', real);
+    }
+    expect(list).toEqual(POSIX);
   });
 });

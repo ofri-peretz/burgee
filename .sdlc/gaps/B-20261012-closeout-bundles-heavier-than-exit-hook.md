@@ -19,6 +19,6 @@ rounded up, so it cannot grow unremarked. How the 3,174 B divide inside closeout
 here.
 
 **Closed 2026-10-20** by [`closeout-at-incumbent-weight`](../intents/closeout-at-incumbent-weight/intent.md):
-`closeout/exit-hook` reads **1,593 B** against exit-hook's 1,645 B (**0.968**), and the `RATIO_CEILING` row is U5's 1
+`closeout/exit-hook` reads **1,579 B** against exit-hook's 1,645 B (**0.960**), and the `RATIO_CEILING` row is U5's 1
 (D-20261020-closeout-drop-in-budgets). The decision this gap asked for is
 D-20261012-closeout-drop-ins-held-to-u5: held to U5 on its own.

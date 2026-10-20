@@ -253,6 +253,20 @@ describe('a signal', () => {
     expect(seen).toEqual([143]);
   });
 
+  it('SIGTERM is a path that can await: its async hooks run, and no notice is printed', async () => {
+    const proc = fakeProcess();
+    const { default: exitHook, asyncExitHook } = await load(proc);
+    const notice = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const seen: string[] = [];
+    exitHook(() => void seen.push('sync'));
+    asyncExitHook(async () => void seen.push('async'), { wait: 100 });
+
+    proc.emit('SIGTERM');
+    await vi.waitFor(() => expect(proc.exits).toEqual([143]));
+    expect(seen).toEqual(['sync', 'async']);
+    expect(notice).not.toHaveBeenCalled();
+  });
+
   it('runs once and leaves once, whatever arrives after the first trigger', async () => {
     const proc = fakeProcess();
     const { default: exitHook, asyncExitHook } = await load(proc);
@@ -370,11 +384,11 @@ describe('gracefulExit', () => {
     await vi.waitFor(() => expect(proc.exits).toEqual([7]));
   });
 
-  it('with no hooks registered at all still leaves — no async hook, so no timer to wait on', async () => {
+  it('with no hooks registered at all still leaves — no async hook, nothing to wait on', async () => {
     const proc = fakeProcess();
     const { gracefulExit } = await load(proc);
-    // max() over no waits is -Infinity, which a timer would read as "now": with no async hook
-    // there is no timer at all, and the shutdown drains and leaves.
+    // max() over no waits is -Infinity; the bound is max(0, …), a timer cleared before it fires,
+    // and the shutdown drains and leaves.
     expect(() => gracefulExit()).not.toThrow();
     await vi.waitFor(() => expect(proc.exits).toEqual([0]));
   });

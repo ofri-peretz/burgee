@@ -73,6 +73,6 @@ that remain are on [Compatibility](/docs/drop-ins#known-differences).
 
 ## Is `closeout/exit-hook` heavier than exit-hook?
 
-No. In a bundle it is 1,593 B against exit-hook 5.1.0's 1,645 B, measured the way the
+No. In a bundle it is 1,579 B against exit-hook 5.1.0's 1,645 B, measured the way the
 benchmarks page measures every drop-in. It runs exit-hook's own machine; the phase ordering
 and the bounded runner stay on closeout's own `onExit`.
