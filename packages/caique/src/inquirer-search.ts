@@ -160,7 +160,8 @@ export const search = createPrompt(<Value>(config: SearchConfig<Value>, done: (v
     loop: false,
   });
 
-  if (status === 'done' && chosen) return [prefix, message, theme.style.answer(chosen.short)].filter(Boolean).join(' ').trimEnd();
+  // No `trimEnd()`: the screen manager right-trims every row it draws.
+  if (status === 'done' && chosen) return [prefix, message, theme.style.answer(chosen.short)].filter(Boolean).join(' ');
 
   let error: string | undefined;
   if (searchError) error = theme.style.error(searchError);
@@ -170,7 +171,7 @@ export const search = createPrompt(<Value>(config: SearchConfig<Value>, done: (v
     ['↑↓', 'navigate'],
     ['⏎', 'select'],
   ]);
-  const header = [prefix, message, theme.style.searchTerm(term)].filter(Boolean).join(' ').trimEnd();
+  const header = [prefix, message, theme.style.searchTerm(term)].filter(Boolean).join(' ');
   const body = [error ?? page, ' ', chosen?.description ? theme.style.description(chosen.description) : '', helpLine].filter(Boolean).join('\n').trimEnd();
   return [header, body];
 });

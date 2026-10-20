@@ -70,13 +70,13 @@
       "$note": "A zero-dependency incumbent exists here, so Y8's original wording applies too and beating it is reported separately."
     },
     "caique": {
-      "ours": 289156,
+      "ours": 289025,
       "incumbents": {
         "@clack/prompts": 182472,
         "@inquirer/core": 206577
       },
       "ceiling": 389049,
-      "ratio": 0.7432,
+      "ratio": 0.7429,
       "lightestIncumbent": {
         "name": "@clack/prompts",
         "bytes": 182472

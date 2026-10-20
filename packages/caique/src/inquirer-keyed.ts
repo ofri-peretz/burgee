@@ -14,7 +14,7 @@ import { styleText } from 'node:util';
 import { canMove, step } from './inquirer-choices.js';
 import { createPrompt, Separator, useKeypress, usePrefix } from './inquirer.js';
 import { ValidationError } from './inquirer-errors.js';
-import { useMemo, useState } from './inquirer-hooks.js';
+import { useState } from './inquirer-hooks.js';
 import { isDownKey, isEnterKey, isUpKey } from './inquirer-keys.js';
 import { makeTheme, type PartialDeep, type Status, type Theme } from './inquirer-theme.js';
 
@@ -45,21 +45,19 @@ interface Keyed<Value> {
   key: string;
 }
 
-/** The help row `expand` adds while collapsed. */
-const HELP: Keyed<undefined> = { key: 'h', name: 'Help, list all options', value: undefined };
-
-/** One row of an expanded list: `  y) Overwrite`, or the separator indented by one. */
-const listRow = (row: Separator | Keyed<unknown>, highlighted: boolean, highlight: (text: string) => string): string => {
+/** One row of a list: `  y) Overwrite`, highlighted when its key is `current`, or the separator indented by one. */
+const listRow = (row: Separator | Keyed<unknown>, current: string | undefined, highlight: (text: string) => string): string => {
   if (Separator.isSeparator(row)) return ` ${row.separator}`;
   const line = `  ${row.key}) ${row.name}`;
-  return highlighted ? highlight(line) : line;
+  return row.key === current ? highlight(line) : line;
 };
 
-/** The collapsed hint's letter for a row: nothing for a separator, the default's in capitals. */
-const letterOf = (row: Separator | Keyed<unknown>, defaultKey: string): string => {
-  if (Separator.isSeparator(row)) return '';
-  return row.key === defaultKey ? row.key.toUpperCase() : row.key;
-};
+/**
+ * The collapsed hint's letters, `h` for help last, the default's in capitals: `(yAdh)`. A
+ * separator has no key, and `join` draws a missing one as nothing.
+ */
+const lettersOf = (rows: readonly (Separator | Keyed<unknown>)[], defaultKey: string): string =>
+  [...rows.map((row) => (row as Partial<Keyed<unknown>>).key), 'h'].map((key) => (key === defaultKey ? key.toUpperCase() : key)).join('');
 
 /** The choice a key names, if any. */
 const keyed = <Value>(choices: readonly (Separator | Keyed<Value>)[], key: string): Keyed<Value> | undefined =>
@@ -67,15 +65,11 @@ const keyed = <Value>(choices: readonly (Separator | Keyed<Value>)[], key: strin
 
 export const expand = createPrompt(<Value>(config: ExpandConfig<Value>, done: (value: Value) => void) => {
   const { default: defaultKey = 'h' } = config;
-  const choices = useMemo(
-    () =>
-      config.choices.map((choice): Separator | Keyed<Value> => {
-        if (Separator.isSeparator(choice)) return choice;
-        const name: string = 'name' in choice ? choice.name : String(choice.value);
-        return { value: ('value' in choice ? choice.value : name) as Value, name, key: choice.key };
-      }),
-    [config.choices],
-  );
+  const choices = config.choices.map((choice): Separator | Keyed<Value> => {
+    if (Separator.isSeparator(choice)) return choice;
+    const name: string = 'name' in choice ? choice.name : String(choice.value);
+    return { value: ('value' in choice ? choice.value : name) as Value, name, key: choice.key };
+  });
   const [status, setStatus] = useState<Status>('idle');
   const [value, setValue] = useState<string>('');
   const [expanded, setExpanded] = useState<boolean>(config.expanded ?? false);
@@ -108,9 +102,8 @@ export const expand = createPrompt(<Value>(config: ExpandConfig<Value>, done: (v
   if (status === 'done') return `${prefix} ${message} ${theme.style.answer((keyed(choices, value.toLowerCase()) as Keyed<Value>).name)}`;
 
   const typed = value.trim().toLowerCase();
-  const rows: readonly (Separator | Keyed<Value | undefined>)[] = expanded ? choices : [...choices, HELP];
-  const letters = expanded ? '' : ` ${theme.style.defaultAnswer(rows.map((row) => letterOf(row, defaultKey)).join(''))}`;
-  const list = expanded ? rows.map((row) => listRow(row, !Separator.isSeparator(row) && row.key === typed, theme.style.highlight)).join('\n') : '';
+  const letters = expanded ? '' : ` ${theme.style.defaultAnswer(lettersOf(choices, defaultKey))}`;
+  const list = expanded ? choices.map((row) => listRow(row, typed, theme.style.highlight)).join('\n') : '';
   const current = keyed(choices, typed);
   const tip = current ? `${styleText('cyan', '>>')} ${current.name}` : '';
   return [`${prefix} ${message}${letters} ${value}`, [list, tip, errorMsg ? theme.style.error(errorMsg) : ''].filter(Boolean).join('\n')];
@@ -147,7 +140,7 @@ export interface RawlistConfig<Value> {
 /** Whether `choice` was written as an object with a `value`, rather than as the value itself. */
 const isChoiceObject = (choice: unknown): choice is { value: unknown } => typeof choice === 'object' && choice !== null && 'value' in choice;
 
-const isRow = <Value>(row: Separator | RawlistRow<Value> | undefined): row is RawlistRow<Value> => row !== undefined && !Separator.isSeparator(row);
+const isRow = <Value>(row: Separator | RawlistRow<Value> | undefined): row is RawlistRow<Value> => !Separator.isSeparator(row);
 
 /**
  * The choice `typed` picks and where it is: a choice's own key first (as typed, then trimmed),
@@ -156,26 +149,24 @@ const isRow = <Value>(row: Separator | RawlistRow<Value> | undefined): row is Ra
 function picked<Value>(typed: string, rows: readonly (Separator | RawlistRow<Value>)[]): RawlistRow<Value> | undefined {
   const choices = rows.filter(isRow);
   const trimmed = typed.trim();
-  const byKey = choices.find((row) => row.key === typed || row.key === trimmed);
+  const byKey = choices.find((row) => row.key === trimmed);
   if (byKey !== undefined || !/\d/u.test(typed)) return byKey;
   return choices[Number.parseInt(typed, DECIMAL) - 1];
 }
 
 export const rawlist = createPrompt(<Value>(config: RawlistConfig<Value>, done: (value: Value) => void) => {
   const { loop = true } = config;
-  const rows = useMemo(() => {
-    let position = 0;
-    return config.choices.map((choice): Separator | RawlistRow<Value> => {
-      if (Separator.isSeparator(choice)) return choice;
-      position += 1;
-      if (!isChoiceObject(choice)) {
-        const name = String(choice);
-        return { value: choice as Value, name, short: name, key: String(position) };
-      }
-      const { name = String(choice.value), short, key, description } = choice as RawlistChoice<Value>;
-      return { value: choice.value, name, short: short ?? name, key: key ?? String(position), description };
-    });
-  }, [config.choices]);
+  let position = 0;
+  const rows = config.choices.map((choice): Separator | RawlistRow<Value> => {
+    if (Separator.isSeparator(choice)) return choice;
+    position += 1;
+    if (!isChoiceObject(choice)) {
+      const name = String(choice);
+      return { value: choice as Value, name, short: name, key: String(position) };
+    }
+    const { name = String(choice.value), short, key, description } = choice as RawlistChoice<Value>;
+    return { value: choice.value, name, short: short ?? name, key: key ?? String(position), description };
+  });
   const [status, setStatus] = useState<Status>('idle');
   const [value, setValue] = useState<string>(() => (config.default == null ? '' : (rows.find((row): row is RawlistRow<Value> => isRow(row) && row.value === config.default)?.key ?? '')));
   const [errorMsg, setError] = useState<string>();
@@ -183,12 +174,10 @@ export const rawlist = createPrompt(<Value>(config: RawlistConfig<Value>, done: 
   const { keybindings } = theme;
   const prefix = usePrefix({ status, theme });
 
-  const bounds = useMemo(() => {
-    const first = rows.findIndex(isRow);
-    // `[select prompt]`, and not `[rawlist prompt]`: the incumbent's message, copied from select's.
-    if (first === -1) throw new ValidationError('[select prompt] No selectable choices. All choices are disabled.');
-    return { first, last: rows.findLastIndex(isRow) };
-  }, [rows]);
+  const first = rows.findIndex(isRow);
+  // `[select prompt]`, and not `[rawlist prompt]`: the incumbent's message, copied from select's.
+  if (first === -1) throw new ValidationError('[select prompt] No selectable choices. All choices are disabled.');
+  const bounds = { first, last: rows.findLastIndex(isRow) };
 
   const submit = (): void => {
     const chosen = picked(value, rows);
@@ -229,7 +218,7 @@ export const rawlist = createPrompt(<Value>(config: RawlistConfig<Value>, done: 
   if (status === 'done') return `${prefix} ${message} ${theme.style.answer(value)}`;
 
   const chosen = picked(value, rows);
-  const list = rows.map((row) => listRow(row, chosen !== undefined && !Separator.isSeparator(row) && row.key === chosen.key, theme.style.highlight)).join('\n');
+  const list = rows.map((row) => listRow(row, chosen?.key, theme.style.highlight)).join('\n');
   const description = !errorMsg && chosen?.description ? theme.style.description(chosen.description) : '';
   return [`${prefix} ${message} ${value}`, [list, errorMsg ? theme.style.error(errorMsg) : '', description].filter(Boolean).join('\n')];
 });

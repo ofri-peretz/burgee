@@ -18,6 +18,9 @@ const yes = { key: 'y' as const, name: 'Overwrite', value: 'overwrite' };
 const abort = { key: 'x' as const, name: 'Abort', value: 'abort' };
 const overwrite = [yes, { key: 'a' as const, name: 'All', value: 'all' }, abort];
 
+/** The status each frame was drawn in, and the highlight drawn as brackets so a test can see it. */
+const seenTheme = { style: { message: (text: string, status: string) => `${text}:${status}`, highlight: (text: string) => `[${text}]` } };
+
 describe('expand', () => {
   it('collapses to the keys, names the typed one, and answers with its value', async () => {
     const { answer, events, getScreen } = await render(expand, { message: 'Overwrite?', choices: overwrite });
@@ -60,6 +63,24 @@ describe('expand', () => {
     expect(getScreen()).toContain('> "q" isn\'t an available option');
     events.type('y');
     expect(getScreen()).not.toContain('available option');
+  });
+
+  it('opens idle, highlights the key typed with spaces around it, and skips a separator in the letters', async () => {
+    const { answer, events, getScreen, frames } = await render(expand, { message: 'Overwrite?', choices: [yes, new Separator(), abort], theme: seenTheme });
+    expect(frames()[0]).toBe('? Overwrite?:idle (yxH)');
+    events.keypress('h');
+    events.keypress('enter');
+    events.type(' x ');
+    expect(getScreen()).toBe(frame('? Overwrite?:idle  x', '  y) Overwrite', ' ──────────────', '[  x) Abort]', '>> Abort'));
+    events.keypress('enter');
+    await expect(answer).resolves.toBe('abort');
+  });
+
+  it('draws the default it answered with on the last frame', async () => {
+    const { answer, events, getScreen } = await render(expand, { message: 'Overwrite?', choices: overwrite, default: 'y' });
+    events.keypress('enter');
+    await expect(answer).resolves.toBe('overwrite');
+    expect(getScreen()).toBe('✔ Overwrite? Overwrite');
   });
 
   it('names a choice by its value when it has no name, and answers with the name when it has no value', async () => {
@@ -155,5 +176,50 @@ describe('rawlist', () => {
   it('rejects a list of separators only', async () => {
     const { answer } = await render(rawlist, { message: 'Fruit', choices: [new Separator()] });
     await expect(answer).rejects.toBeInstanceOf(ValidationError);
+    await expect(answer).rejects.toThrow('[select prompt] No selectable choices. All choices are disabled.');
+  });
+
+  it('opens idle, counts positions past a separator, and highlights the choice picked', async () => {
+    const { answer, events, getScreen, frames } = await render(rawlist, { message: 'Fruit', choices: [new Separator('--'), ...fruits], theme: seenTheme });
+    expect(frames()[0]).toBe(frame('? Fruit:idle', ' --', '  1) apple', '  2) banana', '  3) cherry'));
+    events.type('3');
+    expect(getScreen()).toBe(frame('? Fruit:idle 3', ' --', '  1) apple', '  2) banana', '[  3) cherry]'));
+    events.keypress('enter');
+    await expect(answer).resolves.toBe('cherry');
+  });
+
+  it('takes a number only as a position, never a word, and answers with a choice’s short name', async () => {
+    const { answer, events, getScreen } = await render(rawlist, { message: 'Fruit', choices: [{ value: 'a', name: 'Apple', short: 'A' }, { value: 'b' }, { value: 'c' }] });
+    events.type('b');
+    events.keypress('enter');
+    expect(getScreen()).toContain('> "b" isn\'t an available option');
+    events.keypress('backspace');
+    events.type('1');
+    events.keypress('enter');
+    await expect(answer).resolves.toBe('a');
+    expect(getScreen()).toBe('✔ Fruit A');
+  });
+
+  it('reads an object without a value as a bare value, and preselects nothing without a default', async () => {
+    const { getScreen } = await render(rawlist, { message: 'Fruit', choices: [{ name: 'odd' } as unknown as string, { value: undefined, name: 'none' }] });
+    expect(getScreen()).toBe(frame('? Fruit', '  1) [object Object]', '  2) none'));
+  });
+
+  it('clears the line on an arrow, so the next key starts a new answer, and clears an error on a key', async () => {
+    const { events, getScreen } = await render(rawlist, { message: 'Fruit', choices: fruits });
+    events.keypress('enter');
+    expect(getScreen()).toContain('> Please input a value');
+    events.type('2');
+    expect(getScreen()).not.toContain('Please input a value');
+    events.keypress('down');
+    expect(getScreen()).toContain('? Fruit 3');
+    events.type('1');
+    expect(getScreen()).toContain('? Fruit 1');
+  });
+
+  it('starts from the bottom on Up when nothing is picked, even without a separator', async () => {
+    const { events, getScreen } = await render(rawlist, { message: 'Fruit', choices: fruits });
+    events.keypress('up');
+    expect(getScreen()).toContain('? Fruit 3');
   });
 });

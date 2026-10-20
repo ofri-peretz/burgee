@@ -230,6 +230,7 @@ describe('search', () => {
     events.type('y');
     events.keypress('enter');
     events.keypress('down');
+    expect(getScreen()).toContain('❯ a');
     release(['xy1', 'xy2']);
     await nextRender();
     expect(getScreen()).toContain('❯ xy1');
@@ -326,7 +327,12 @@ describe('search', () => {
     const open = await render(search, { message: 'Fruit', source: () => ['a'], theme: plain });
     await open.nextRender();
     expect(stripVTControlCharacters(open.getScreen({ raw: true }))).toMatch(/^Fruit\n❯ a(?:\n|$)/u);
-    const done = await render(search, { message: 'Fruit', source: () => [{ value: 'a', short: '' }], theme: plain });
+    const spaced = await render(search, { message: 'Fruit', source: () => ['a'], theme: plain });
+    await spaced.nextRender();
+    spaced.events.type(' ');
+    await spaced.nextRender();
+    expect(firstLine(spaced.getScreen({ raw: true }))).toBe('Fruit');
+    const done = await render(search, { message: 'Fruit', source: () => [{ value: 'a', short: ' ' }], theme: plain });
     await done.nextRender();
     done.events.keypress('enter');
     await done.answer;
