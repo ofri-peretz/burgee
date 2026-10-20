@@ -1,6 +1,6 @@
 # Intent — `burgee migrate` prints an install that a release age lets through
 
-**Status:** approved · **Opened:** `2026-10-11` · **Owner:** `@ofri-peretz`
+**Status:** shipped · **Opened:** `2026-10-11` · **Owner:** `@ofri-peretz` · **Shipped:** 2026-10-19, verified against `main` at `326907eca6` — every requirement has a check; R3's `name@a || b` case landed with `migrate-older-majors`
 
 ---
 
@@ -43,6 +43,27 @@ installed while the family kept shipping (`npm view roundel time`: 1.0.1 on 10-0
 - An exempt package keeps its graded pin: a block list, a flow-list glob and an exact version.
 - With no version old enough, the note names the date and time one will be.
 - `npx vitest run src/migrate-u12.test.ts` in `packages/burgee` is green.
+
+## Shipped — 2026-10-19
+
+**Status raised to `shipped`.** The behaviour shipped in burgee before the roadmap-to-shipped
+program; the program's reconciliation (`.sdlc/research/roadmap-to-shipped-2026-10.md`) found five of
+the spec's six requirements checked and R3's `name@a || b` entry unchecked. That case is added in
+the `migrate-older-majors` PR. It passes on `main`, because the code was there; it was shown red
+against the two ways the code could lose it: reading the entry whole (`versions.add(entry.slice(at + 1))`)
+and splitting without trimming (`versions.add(v)`). Each printed `roundel@^1.0.0` where the case
+expects the graded version, and the three existing exclusion cases passed under both, so both were
+surviving mutants until now.
+
+| criterion | check | result |
+| :-- | :-- | :-- |
+| 1. the mcpc shape pins `flagstaff@^1.0.0 roundel@^1.0.0` against a stubbed registry | `migrate-u12.test.ts` › `pins the caret floor to the newest release of the graded major that is old enough` | passes |
+| 2. an exempt package keeps its graded pin: a block list, a flow-list glob, an exact version | `… keeps the graded pin for a package minimumReleaseAgeExclude exempts, as %s` (now 4 cases, with `name@a \|\| b`) | passes |
+| 3. with no version old enough, the note names the date and time | `… says plainly when no version is old enough yet, and when one will be` | passes |
+| 4. `npx vitest run src/migrate-u12.test.ts` is green | the file | 72 passed |
+
+R1's floor has one refinement since it was written: `migrate-pins-carry-the-drop-in` never pins
+below the first release that exports every subpath the rewrite imports. `spec.md` R1 says so.
 
 ## Open questions
 

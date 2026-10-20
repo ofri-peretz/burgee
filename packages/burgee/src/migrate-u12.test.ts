@@ -224,6 +224,10 @@ describe('U12-2 — under a release age, next pins the newest family version old
     ['a block list', 'minimumReleaseAgeExclude:\n  - roundel\nminimumReleaseAge: 4320\n'],
     ['a flow list with a glob', "minimumReleaseAge: 4320\nminimumReleaseAgeExclude: ['round*']\n"],
     ['an exact version', `minimumReleaseAge: 4320\nminimumReleaseAgeExclude:\n  - "roundel@${versions['roundel'] as string}"\n`],
+    // migrate-release-age R3: `name@a || b` makes each listed version installable at once. The graded
+    // one is listed second, so it is exempt only when the entry is split on `||` and each side trimmed;
+    // read whole, nothing matches and the floor drops to the ten-day-old `M.0.0`.
+    ['a version list, name@a || b', `minimumReleaseAge: 4320\nminimumReleaseAgeExclude:\n  - "roundel@${majorOf('roundel')}.0.0 || ${versions['roundel'] as string}"\n`],
   ])('keeps the graded pin for a package minimumReleaseAgeExclude exempts, as %s', async (_, workspace) => {
     const report = await migrate({ dir: mcpc(workspace), status: clean, registry: registry(), now });
     expect(report.next).toBe(`pnpm add flagstaff@^${majorOf('flagstaff')}.0.0 roundel@^${versions['roundel'] as string} && pnpm remove chalk ora`);
@@ -480,7 +484,42 @@ describe('U12-5 — the report says what happened in words', () => {
       dependencies: { before: [], removable: [], after: 0, add: [] },
       graded: [],
       partial: [{ from: 'dotenv', to: 'seniority/dotenv', reference: 141, passed: 106, rate: 0.75, control: 141 }],
-      offMajor: [{ from: 'chalk', found: '4.1.2', graded: '6.0.1' }],
+      offMajor: [
+        { from: 'boxen', found: '10.0.0', graded: '9.0.0', nearest: null, sites: [], move: null },
+        { from: 'chalk', found: '4.1.2', graded: '6.0.1', nearest: 6, sites: [], move: null },
+        {
+          from: 'commander',
+          found: '9.4.0',
+          graded: '15.0.0',
+          nearest: 14,
+          sites: [{ file: 'bin/wait-port.js', line: 4, api: 'module-as-program', removedIn: '12.0.0', replacement: "const { program } = require('commander')", source: 'https://x', firstUse: 13 }],
+          move: null,
+        },
+        {
+          from: 'yargs',
+          found: '15.4.1',
+          graded: '18.2.0',
+          nearest: 17,
+          sites: [{ file: 'bin/qrcode', line: 2, api: 'singleton', removedIn: '18.0.0', replacement: 'the factory', source: 'https://y', firstUse: undefined }],
+          move: { yargs: 'burgee/yargs/v17', 'yargs/yargs': 'burgee/yargs/v17/yargs' },
+        },
+        {
+          from: 'commander',
+          found: '13.1.0',
+          graded: '15.0.0',
+          nearest: 14,
+          sites: [{ file: 'cli.mjs', line: 1, api: 'esm-mjs', removedIn: '15.0.0', replacement: 'the root', source: 'https://z', firstUse: undefined }],
+          move: null,
+        },
+        {
+          from: 'yargs',
+          found: '16.2.0',
+          graded: '18.2.0',
+          nearest: 17,
+          sites: [{ file: 'cli.js', line: 3, api: 'reset', removedIn: '17.0.0', replacement: 'a fresh instance', source: 'https://r', firstUse: undefined }],
+          move: null,
+        },
+      ],
       guided: [{ file: 'ui.js', line: 5, from: 'blessed', pattern: 'screen', guide: 'Screen' }],
       undeclared: [],
       held: [],
@@ -516,7 +555,16 @@ describe('U12-5 — the report says what happened in words', () => {
         'not level yet, left alone:',
         '  dotenv -> seniority/dotenv  106 / 141 (the incumbent passes 141)',
         'on a major that was not graded, left alone:',
-        '  chalk 4.1.2 (graded 6.0.1)',
+        '  boxen 10.0.0 (graded 9.0.0)',
+        '  chalk 4.1.2 (graded 6.0.1); nearest claimed 6',
+        '  commander 9.4.0 (graded 15.0.0); nearest claimed 14, no move: 1 line below uses an API 14 removed',
+        "    bin/wait-port.js:4  module-as-program  removed in 12.0.0; use: const { program } = require('commander') (first use line 13)",
+        '  yargs 15.4.1 (graded 18.2.0); nearest claimed 17, move yargs -> burgee/yargs/v17, yargs/yargs -> burgee/yargs/v17/yargs',
+        '    bin/qrcode:2  singleton  removed in 18.0.0; use: the factory',
+        '  commander 13.1.0 (graded 15.0.0); nearest claimed 14',
+        '    cli.mjs:1  esm-mjs  removed in 15.0.0; use: the root',
+        '  yargs 16.2.0 (graded 18.2.0); nearest claimed 17, no move: 1 line below uses an API 17 removed',
+        '    cli.js:3  reset  removed in 17.0.0; use: a fresh instance',
         'no drop-in; see the guide:',
         '  ui.js:5  blessed  screen  Screen',
         'declared: none',
