@@ -370,6 +370,9 @@ describe('confirm', () => {
  */
 const seen = { style: { message: (text: string, status: string) => `${text}:${status}`, answer: (text: string) => `<${text}>` } };
 
+/** Tab as a terminal sends it: readline puts the `\t` in its line, which the prompt must take out again. */
+const TAB = { name: 'tab', sequence: '\t' };
+
 /** A validator that answers when the test says so, counting its calls. */
 function pending<T>(): { validate: (value: T) => Promise<boolean | string>; release: (verdict: boolean | string) => void; calls: () => number } {
   let release: (verdict: boolean | string) => void = () => undefined;
@@ -429,7 +432,7 @@ describe('the line prompts, frame by frame', () => {
 
   it('input: Tab and prefill put the default in readline’s line, so the next key edits it', async () => {
     const tab = await render(input, { message: 'Name', default: 'Ada' });
-    tab.events.keypress('tab');
+    tab.events.keypress(TAB);
     tab.events.type('m');
     expect(tab.getScreen()).toBe('? Name Adam');
     for (let i = 0; i < 4; i++) tab.events.keypress('backspace');
@@ -496,7 +499,7 @@ describe('the line prompts, frame by frame', () => {
 
   it('number: Tab copies the default into readline’s line, and Backspace on an empty line drops it', async () => {
     const tab = await render(number, { message: 'Age', default: 30 });
-    tab.events.keypress('tab');
+    tab.events.keypress(TAB);
     tab.events.type('1');
     expect(tab.getScreen()).toBe('? Age 301');
     tab.events.keypress('backspace');
@@ -539,10 +542,12 @@ describe('the line prompts, frame by frame', () => {
     const empty = await render(password, { message: 'Secret' });
     empty.events.keypress('enter');
     await expect(empty.answer).resolves.toBe('');
+    const other = await render(password, { message: 'Secret' });
+    other.events.type('a');
+    other.events.keypress({ name: 'a', ctrl: true });
+    expect(other.getScreen()).toContain('[input is masked]');
     const { answer, events, getScreen } = await render(password, { message: 'Secret', theme: seen });
     events.type('t');
-    events.keypress({ name: 'a', ctrl: true });
-    expect(getScreen()).toContain('[input is masked]');
     events.keypress({ name: 't', ctrl: true });
     expect(getScreen()).toContain('? Secret:idle t');
     events.keypress('enter');
@@ -594,7 +599,7 @@ describe('the line prompts, frame by frame', () => {
     unreadable.events.keypress('tab');
     expect(unreadable.getScreen()).toBe('? Go? (Y/n) No');
     const edited = await render(confirm, { message: 'Go?', default: false });
-    edited.events.keypress('tab');
+    edited.events.keypress(TAB);
     edited.events.keypress('backspace');
     expect(edited.getScreen()).toBe('? Go? (y/N) Ye');
     edited.events.keypress('enter');
@@ -608,5 +613,12 @@ describe('the line prompts, frame by frame', () => {
     const latin = await render(confirm, { message: 'Go?' });
     expect(latin.getScreen({ raw: true })).not.toContain('\u001B[36mY');
     vi.unstubAllEnvs();
+  });
+
+  it('confirm: draws its answer styled once done', async () => {
+    const { answer, events, getScreen } = await render(confirm, { message: 'Go?', theme: seen });
+    events.keypress('enter');
+    await expect(answer).resolves.toBe(true);
+    expect(getScreen()).toBe('✔ Go?:done <Yes>');
   });
 });

@@ -18,7 +18,7 @@ import { stripVTControlCharacters } from 'node:util';
 import { type CancelablePromise, type Context, type Prompt } from '../inquirer.js';
 
 /** The keypress a test sends: a key name, or the fields readline would decode. */
-export type Key = string | { name?: string; ctrl?: boolean; meta?: boolean; shift?: boolean };
+export type Key = string | { name?: string; ctrl?: boolean; meta?: boolean; shift?: boolean; sequence?: string };
 
 /**
  * How long a test waits for a frame or an answer before it fails, in real time.
@@ -143,7 +143,8 @@ export async function render<Value, const Config>(prompt: Prompt<Value, Config>,
     isPaused: () => input.paused,
     events: {
       keypress: (key) => {
-        input.emit('keypress', null, typeof key === 'string' ? { name: key } : key);
+        // A `sequence` is the text a terminal sends for the key, which readline also inserts into its line (a Tab's `\t`).
+        input.emit('keypress', typeof key === 'string' ? null : (key.sequence ?? null), typeof key === 'string' ? { name: key } : key);
       },
       type: (text) => {
         input.write(text);
