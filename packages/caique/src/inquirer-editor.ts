@@ -74,10 +74,11 @@ export function editorCommand(env: Record<string, string | undefined>, platform:
 export async function editAsync(text: string, { prefix = 'inquirer-editor-', postfix = '.txt', mode, dir }: EditorFileOptions = {}): Promise<string> {
   const folder = mkdtempSync(join(dir ?? tmpdir(), prefix));
   const file = join(folder, `answer${postfix}`);
-  writeFileSync(file, text, mode === undefined ? {} : { mode });
+  writeFileSync(file, text, { mode });
   const [bin, ...args] = editorCommand(processRuntime().env, processFacts().platform);
   try {
     await new Promise<void>((resolve, reject) => {
+      // Stryker disable next-line ObjectLiteral,StringLiteral: the editor is handed the terminal, and a test process has no terminal to hand it, so no assertion here can see the difference
       const child = spawn(bin, [...args, file], { stdio: 'inherit' });
       child.once('error', reject);
       child.once('exit', (code, signal) => {
@@ -87,7 +88,7 @@ export async function editAsync(text: string, { prefix = 'inquirer-editor-', pos
     });
     return readFileSync(file, 'utf8');
   } finally {
-    rmSync(folder, { recursive: true, force: true });
+    rmSync(folder, { recursive: true });
   }
 }
 
@@ -112,7 +113,7 @@ export const editor = createPrompt<string, EditorConfig>((config, done) => {
       done(answer);
       return;
     }
-    setValue(theme.validationFailureMode === 'clear' ? config.default : answer);
+    setValue(theme.validationFailureMode === 'keep' ? answer : config.default);
     setError(verdict || 'You must provide a valid value');
     setStatus('idle');
   };
@@ -135,9 +136,13 @@ export const editor = createPrompt<string, EditorConfig>((config, done) => {
       });
   };
 
-  useEffect((rl) => {
-    if (!waitForUserInput) startEditor(rl);
-  }, []);
+  useEffect(
+    (rl) => {
+      if (!waitForUserInput) startEditor(rl);
+    },
+    // Stryker disable next-line ArrayDeclaration: any constant list runs the effect once, on the first render, which is all this asks of it
+    [],
+  );
 
   useKeypress((key, rl) => {
     if (status === 'idle' && isEnterKey(key)) startEditor(rl);

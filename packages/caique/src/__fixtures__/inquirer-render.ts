@@ -20,15 +20,61 @@ import { type CancelablePromise, type Context, type Prompt } from '../inquirer.j
 /** The keypress a test sends: a key name, or the fields readline would decode. */
 export type Key = string | { name?: string; ctrl?: boolean; meta?: boolean; shift?: boolean };
 
+/**
+ * How long a test waits for a frame or an answer before it fails, in real time.
+ *
+ * A prompt that is broken so that it never draws again, or never answers, would otherwise hang
+ * the test to vitest's 30 s limit, and a mutation run to Stryker's timeout, per mutant. The
+ * timers are the real ones, taken at import, so a test on fake timers is still bounded.
+ */
+const DEADLINE_MS = 3_000;
+const realSetTimeout = globalThis.setTimeout;
+const realClearTimeout = globalThis.clearTimeout;
+
+/** `promise`, or a rejection naming `what` when it has not settled within the deadline. */
+async function withinDeadline<T>(promise: PromiseLike<T>, what: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<never>((_resolve, reject) => {
+    timer = realSetTimeout(() => {
+      reject(new Error(`${what} within ${String(DEADLINE_MS)} ms`));
+    }, DEADLINE_MS);
+  });
+  try {
+    return await Promise.race([promise, late]);
+  } finally {
+    realClearTimeout(timer);
+  }
+}
+
+/**
+ * The prompt's promise, bounded only when it is awaited: a test that leaves a prompt open and
+ * never reads its answer gets no deadline, so no rejection nobody handles.
+ */
+function bounded<Value>(answer: CancelablePromise<Value>): CancelablePromise<Value> {
+  const settled = async (): Promise<Value> => withinDeadline(answer, 'the prompt did not answer');
+  return Object.assign(Object.create(answer) as CancelablePromise<Value>, {
+    then: <A = Value, B = never>(onFulfilled?: ((value: Value) => A | PromiseLike<A>) | null, onRejected?: ((reason: unknown) => B | PromiseLike<B>) | null) => settled().then(onFulfilled, onRejected),
+    catch: <B = never>(onRejected?: ((reason: unknown) => B | PromiseLike<B>) | null) => settled().catch(onRejected),
+    finally: (onFinally?: (() => void) | null) => settled().finally(onFinally),
+    cancel: () => {
+      answer.cancel();
+    },
+  });
+}
+
 class KeyInput extends Stream {
   readable = true;
   writable = true;
+  /** Whether readline has paused its input, as a prompt does while another program owns the terminal. */
+  paused = false;
 
   pause(): this {
+    this.paused = true;
     return this;
   }
 
   resume(): this {
+    this.paused = false;
     return this;
   }
 
@@ -67,6 +113,8 @@ class Screen extends Writable {
 /** What a rendered prompt hands its test. */
 export interface Rendered<Value> {
   answer: CancelablePromise<Value>;
+  /** Whether the prompt has paused its input. */
+  isPaused: () => boolean;
   events: { keypress: (key: Key) => void; type: (text: string) => void };
   getScreen: (options?: { raw?: boolean }) => string;
   /** Wait for the next frame, then for the event loop to settle behind it. */
@@ -90,7 +138,8 @@ export async function render<Value, const Config>(prompt: Prompt<Value, Config>,
 
   let seen = output.frames.length;
   return {
-    answer,
+    answer: bounded(answer),
+    isPaused: () => input.paused,
     events: {
       keypress: (key) => {
         input.emit('keypress', null, typeof key === 'string' ? { name: key } : key);
@@ -105,7 +154,7 @@ export async function render<Value, const Config>(prompt: Prompt<Value, Config>,
       return raw ? last : stripVTControlCharacters(last).trim();
     },
     nextRender: async () => {
-      if (output.frames.length <= seen) await new Promise((resolve) => output.once('render', resolve));
+      if (output.frames.length <= seen) await withinDeadline(new Promise((resolve) => output.once('render', resolve)), 'no frame was drawn');
       await settle();
       seen = output.frames.length;
     },

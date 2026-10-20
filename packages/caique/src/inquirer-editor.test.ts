@@ -7,9 +7,10 @@
  * small node program that edits the file it is handed, so the whole round trip — temporary
  * file, spawn, read back, validate — runs as it does for a person.
  */
-import { mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
+import { stripVTControlCharacters } from 'node:util';
 
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -26,6 +27,7 @@ writeFileSync(
   [
     "import { appendFileSync } from 'node:fs';",
     'const file = process.argv.at(-1);',
+    "if (process.env.EDIT_RECORD) appendFileSync(process.env.EDIT_RECORD, `${file}\\n`);",
     "if (process.env.EDIT_EXIT) process.exit(Number(process.env.EDIT_EXIT));",
     "if (process.env.EDIT_KILL) process.kill(process.pid, 'SIGTERM');",
     "appendFileSync(file, process.env.EDIT_APPEND ?? '');",
@@ -42,6 +44,19 @@ afterAll(() => {
 });
 
 const frame = (...lines: string[]): string => lines.join('\n');
+
+/** Point the editor at the test program, recording each file it is handed; returns the files read so far. */
+function recording(append: string): () => string[] {
+  const record = join(mkdtempSync(join(scratch, 'record-')), 'files.txt');
+  vi.stubEnv('VISUAL', '');
+  vi.stubEnv('EDITOR', EDITOR);
+  vi.stubEnv('EDIT_APPEND', append);
+  vi.stubEnv('EDIT_RECORD', record);
+  return () => (existsSync(record) ? readFileSync(record, 'utf8').split('\n').filter(Boolean) : []);
+}
+
+/** The folder a file was written in, and its own name: what `prefix` and `postfix` decide. */
+const named = (file: string): { folder: string; name: string } => ({ folder: basename(dirname(file)), name: basename(file) });
 
 describe('editorCommand', () => {
   it('prefers VISUAL to EDITOR, and falls back to the platform editor', () => {
@@ -68,6 +83,14 @@ describe('editAsync', () => {
     await expect(editAsync('plain')).resolves.toBe('plain world');
   });
 
+  it('names the folder inquirer-editor-… and the file answer.txt when no option says otherwise', async () => {
+    const files = recording('');
+    await expect(editAsync('a')).resolves.toBe('a');
+    const [file = ''] = files();
+    expect(named(file).folder).toMatch(/^inquirer-editor-.+/u);
+    expect(named(file).name).toBe('answer.txt');
+  });
+
   it('rejects when the editor fails, by its exit code or its signal, or cannot start', async () => {
     vi.stubEnv('VISUAL', '');
     vi.stubEnv('EDITOR', EDITOR);
@@ -90,6 +113,71 @@ describe('editAsync', () => {
 });
 
 describe('editor', () => {
+  it('names the file by `postfix` or `file.postfix`, `.txt` by default, and passes the other file options on', async () => {
+    const files = recording('');
+    for (const config of [{ message: 'A' }, { message: 'B', postfix: '.md' }, { message: 'C', postfix: '.md', file: { postfix: '.yaml', prefix: 'mine-' } }]) {
+      const { answer, events } = await render(editor, config);
+      events.keypress('enter');
+      await answer;
+    }
+    expect(files().map((file) => named(file))).toEqual([
+      { folder: expect.stringMatching(/^inquirer-editor-/u), name: 'answer.txt' },
+      { folder: expect.stringMatching(/^inquirer-editor-/u), name: 'answer.md' },
+      { folder: expect.stringMatching(/^mine-/u), name: 'answer.yaml' },
+    ]);
+  });
+
+  it('gives the editor the keyboard while it is open, takes it back after, and opens it on Enter only', async () => {
+    const files = recording('!');
+    // Read when the answer is validated: after the editor exits, before the prompt closes (which pauses it for good).
+    let pausedWhileValidating: boolean | undefined;
+    let paused = (): boolean => false;
+    const validate = (): true => {
+      pausedWhileValidating = paused();
+      return true;
+    };
+    const { answer, events, isPaused } = await render(editor, { message: 'Notes', validate });
+    paused = isPaused;
+    events.keypress('a');
+    expect(isPaused()).toBe(false);
+    expect(files()).toEqual([]);
+    events.keypress('enter');
+    expect(isPaused()).toBe(true);
+    await expect(answer).resolves.toBe('!');
+    expect(pausedWhileValidating).toBe(false);
+  });
+
+  it('takes the keyboard back when the editor fails, too', async () => {
+    recording('');
+    vi.stubEnv('EDIT_EXIT', '4');
+    const { events, getScreen, isPaused } = await render(editor, { message: 'Notes' });
+    events.keypress('enter');
+    expect(isPaused()).toBe(true);
+    await vi.waitFor(() => {
+      expect(getScreen()).toContain('exited with 4');
+    });
+    expect(isPaused()).toBe(false);
+  });
+
+  it('clears a refusal from the last frame once an answer is accepted', async () => {
+    recording('z');
+    const validate = vi.fn((value: string) => value === 'zz' || 'once more');
+    const { answer, events, getScreen } = await render(editor, { message: 'Notes', validate });
+    events.keypress('enter');
+    await vi.waitFor(() => {
+      expect(getScreen()).toContain('> once more');
+    });
+    events.keypress('enter');
+    await expect(answer).resolves.toBe('zz');
+    expect(getScreen()).toBe('✔ Notes');
+  });
+
+  it('draws no empty part: with no prefix the line starts at the message', async () => {
+    recording('');
+    const { getScreen } = await render(editor, { message: 'Notes', theme: { prefix: '' } });
+    expect(stripVTControlCharacters(getScreen({ raw: true })).split('\n')[0]).toBe('Notes Press <enter> to launch your preferred editor.');
+  });
+
   it('waits for Enter, opens the editor on the default, and answers with what it wrote', async () => {
     vi.stubEnv('VISUAL', '');
     vi.stubEnv('EDITOR', EDITOR);
