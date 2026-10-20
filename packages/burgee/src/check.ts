@@ -21,7 +21,8 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { ExitCode } from './exit-code.js';
-import { checkLocales, countFor, isOwnedElsewhere, type LocaleRefusal, type Locales, type Message, render } from './locale.js';
+import { checkLocales, countFor, formsOf, isOwnedElsewhere, type LocaleMessages, type LocaleRefusal, type Locales, type Message, render } from './locale.js';
+import { MESSAGES } from './messages.js';
 import { Manifest } from './manifest.js';
 import { type Plugin, PluginError, validate } from './plugin.js';
 
@@ -34,7 +35,20 @@ export interface CheckReport {
    * `<name>`, and a plural message once per form, with a count that selects it. Present only
    * for a plugin that carries `locales`.
    */
-  locales?: { locale: string; messages: { id: string; form?: string; text: string }[] }[];
+  locales?: { locale: string; messages: { id: string; form?: string; text: string }[]; coverage: Coverage }[];
+}
+
+/**
+ * What a passing pack covers of burgee's catalog, per locale (`locale-pack-in-five` R1), so the
+ * check that accepts a pack is also the verification an author would otherwise run by hand:
+ * which ids are translated, which are left in English, and, for each message that takes a
+ * `{count}`, the plural forms written against the forms `Intl.PluralRules` selects there. A
+ * single string serves every count, so it has every form; an id left out has none.
+ */
+export interface Coverage {
+  translated: string[];
+  missing: string[];
+  plural: Record<string, { have: string[]; need: string[] }>;
 }
 
 export interface CheckRefusal {
@@ -100,5 +114,27 @@ function each(locale: string, id: string, message: Message): { id: string; form?
  * passed `checkLocales`. An id another package owns (`caique.…`) is that package's to render.
  */
 function rendered(locales: Locales): NonNullable<CheckReport['locales']> {
-  return Object.entries(locales).map(([locale, messages]) => ({ locale, messages: Object.entries(messages).flatMap(([id, message]: [string, Message]) => each(locale, id, message)) }));
+  return Object.entries(locales).map(([locale, messages]) => ({
+    locale,
+    messages: Object.entries(messages).flatMap(([id, message]: [string, Message]) => each(locale, id, message)),
+    coverage: coverageOf(locale, messages),
+  }));
+}
+
+/** R1 of `locale-pack-in-five`: the catalog against one locale's messages, in the catalog's order. */
+function coverageOf(locale: string, messages: LocaleMessages): Coverage {
+  const ids = Object.keys(MESSAGES) as (keyof typeof MESSAGES)[];
+  const need = formsOf(locale);
+  const plural = ids
+    .filter((id) => MESSAGES[id].includes('{count}'))
+    .map((id): [string, Coverage['plural'][string]] => {
+      const message = messages[id];
+      const have = message === undefined ? [] : typeof message === 'string' ? need : need.filter((form) => message[form] !== undefined);
+      return [id, { have: [...have], need: [...need] }];
+    });
+  return {
+    translated: ids.filter((id) => messages[id] !== undefined),
+    missing: ids.filter((id) => messages[id] === undefined),
+    plural: Object.fromEntries(plural),
+  };
 }
