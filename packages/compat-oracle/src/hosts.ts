@@ -562,8 +562,15 @@ export interface Host {
    * file that does not compile is 182 failures, not one. The vendored root needs upstream's
    * `tsconfig.json` (`extraDirs`), or the run is refused — tsd would otherwise find this
    * repository's own by searching upward.
+   *
+   * **`twist` reads the counts twist prints, never its exit code** (`colour-facades` R2).
+   * colorette's `npm test` is `twist tests/*.js`, and twist exits 0 for a run of failures — 58 of
+   * 67 failing against colorette itself, off a terminal, exited 0. The arm runs the suite's own
+   * pinned twist once per file and reads its `Tests:` line (`twist.ts`); a file twist cannot load
+   * is one failure, and a run with no summary is an error. twist names only failing cases, so
+   * there is nothing to exclude by, and an exclusion on a twist host is refused.
    */
-  runner: 'node:test' | 'mocha' | 'ava' | 'vitest' | 'tap' | 'exit-code' | 'tsd';
+  runner: 'node:test' | 'mocha' | 'ava' | 'vitest' | 'tap' | 'exit-code' | 'tsd' | 'twist';
   /**
    * The shim's module system. Unset, every shim is ESM and Node resolves the implementation
    * through its `import` condition. `'cjs'` writes `module.exports = require(…)` instead, for a
@@ -763,6 +770,37 @@ export const HOSTS: Host[] = [
     target: 'roundel/chalk',
     status: 'active',
     note: 'Graded against roundel, not burgee: the colour layer has its own façade.',
+  },
+  {
+    // `roundel/colorette`'s grader (`colour-facades` R2). Upstream's `npm test` is `c8 twist` over
+    // every `.js` file directly in `tests`: the three `*.test.js` files. The `index.test.cjs` beside them is not
+    // vendored: it is the legacy workflow's tape copy of `index.test.js` for Node 10, and reads a
+    // build (`index.cjs`) the repository does not commit. twist exits 0 on failure, so the `twist` arm
+    // reads its counts (`twist.ts`). `tests/scripts/bin.js` is vendored with the suite and spawned
+    // by `environment.test.js` as `<path> --color`, through its shebang; its `../../index.js`
+    // reaches the library, so the vendor step rewrites it to the shim like any test's import.
+    // Stryker disable all: graded in another process: the compat ratchet's run and its `--control` run read this row against `baseline/colorette.json` (67 of 67), and a mutant here moves one of those counts — except `repo`, `surfaceFiles` and `tagPrefix`, which only a re-vendor and the upstream watch read, and `note`, which nothing renders for an active row
+    name: 'colorette',
+    repo: 'https://github.com/jorgebucaran/colorette',
+    // colorette tags its releases bare: `2.0.20`.
+    tagPrefix: '',
+    testDir: 'tests',
+    testGlob: '*.test.js',
+    imports: [{ upstream: '../index.js', subpath: '/colorette', reexportDefault: false, control: 'colorette' }],
+    // Installed beside the suite at the graded release, never whatever the root hoists; twist is
+    // upstream's runner, `*` in its manifest and 0.0.5 since 2020.
+    suiteDeps: ['colorette@2.0.20', 'twist@0.0.5'],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'twist',
+    // Upstream CI's environment (`.github/workflows/ci.yml`): `NODE_ENV=development` on the job,
+    // `FORCE_COLOR=` on the test step — present and empty, which colorette reads as forced — and
+    // the `CI` GitHub Actions sets, under which twist draws its view once, at the end. Off a
+    // terminal and without `FORCE_COLOR`, 58 of colorette's own 67 cases fail.
+    env: { NODE_ENV: 'development', FORCE_COLOR: '', CI: 'true' },
+    target: 'roundel',
+    status: 'active',
+    note: "Graded against roundel, as chalk, picocolors and supports-color are. `roundel/colorette` decides colour by colorette's own rule — a *present* `NO_COLOR` or `FORCE_COLOR`, the flags, Windows, a terminal with a `TERM`, three CI vendors — not by `roundel/policy`'s.",
+    // Stryker restore all
   },
   {
     // `roundel/picocolors`' grader (`graded-override-targets` R7). picocolors' own `npm test` is
