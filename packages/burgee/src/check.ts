@@ -22,8 +22,8 @@ import { pathToFileURL } from 'node:url';
 
 import { ExitCode } from './exit-code.js';
 import { checkLocales, countFor, formsOf, isOwnedElsewhere, type LocaleMessages, type LocaleRefusal, type Locales, type Message, render } from './locale.js';
-import { MESSAGES } from './messages.js';
 import { Manifest } from './manifest.js';
+import { MESSAGES } from './messages.js';
 import { type Plugin, PluginError, validate } from './plugin.js';
 
 export interface CheckReport {
@@ -43,7 +43,8 @@ export interface CheckReport {
  * check that accepts a pack is also the verification an author would otherwise run by hand:
  * which ids are translated, which are left in English, and, for each message that takes a
  * `{count}`, the plural forms written against the forms `Intl.PluralRules` selects there. A
- * single string serves every count, so it has every form; an id left out has none.
+ * passing pack writes every form or none: a single string serves every count, and a pack missing
+ * a form is refused before this is built.
  */
 export interface Coverage {
   translated: string[];
@@ -127,11 +128,9 @@ function coverageOf(locale: string, messages: LocaleMessages): Coverage {
   const need = formsOf(locale);
   const plural = ids
     .filter((id) => MESSAGES[id].includes('{count}'))
-    .map((id): [string, Coverage['plural'][string]] => {
-      const message = messages[id];
-      const have = message === undefined ? [] : typeof message === 'string' ? need : need.filter((form) => message[form] !== undefined);
-      return [id, { have: [...have], need: [...need] }];
-    });
+    // The pack has passed `checkLocales`, so a plural message it writes has exactly the forms the
+    // locale selects, and one string serves every count: written is every form, left out is none.
+    .map((id): [string, Coverage['plural'][string]] => [id, { have: messages[id] === undefined ? [] : [...need], need: [...need] }]);
   return {
     translated: ids.filter((id) => messages[id] !== undefined),
     missing: ids.filter((id) => messages[id] === undefined),
