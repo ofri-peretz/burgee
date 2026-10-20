@@ -32,11 +32,13 @@ updates:
       # OOM-killed ("Creating an optimized production build ..."), locally and on CI's Build
       # lane (#1088); 16.3.8 builds the same app in 18 s under 3 GB. 16.4.2's docs builds took
       # the runner down the same way, twice in #1148 and again in #1181. Only these releases
-      # are skipped, so the first patch after them is proposed again.
+      # were skipped one by one at first; 16.4.1 then took the runner down the same way in #1210,
+      # so the whole 16.4 line is skipped (D-20261020-dependabot-ignore-ranges). 16.5.0 is
+      # proposed again.
       - dependency-name: "next"
-        versions: ["16.4.0", "16.4.2"]
+        versions: [">=16.4.0 <16.5.0"]
       # Declined twice with evidence (#1148, #1181) and re-proposed as the whole of #1205
-      # (D-20261020-dependabot-rejected-bumps). Exact releases only, like `next` above: the
+      # (D-20261020-dependabot-rejected-bumps). react and js-yaml skip exact releases only: the
       # next release of each is proposed again.
       # react 19.3.1: controlroom's W1–W4 weigh and time against ink + react on both sides,
       # so react moves only in a PR that re-records them.
@@ -48,12 +50,14 @@ updates:
       # seniority's `yaml.test.ts` pins js-yaml's own error text, `(1:5)`.
       - dependency-name: "js-yaml"
         versions: ["5.5.0"]
-      # fumadocs 16.17.5: fumadocs-mdx's peer keeps 16.17.1 at the root, the lock carries two
-      # copies, and the front-door docs app fails prerendering `/` ("FrameworkProvider").
+      # fumadocs 16.17.x after .1: fumadocs-mdx's peer keeps 16.17.1 at the root, the lock carries
+      # two copies, and the front-door docs app fails prerendering `/` ("FrameworkProvider").
+      # 16.17.5 failed in #1148/#1181; 16.17.4 was re-proposed in #1210. The cause is the peer,
+      # not one release, so the line after .1 is skipped until fumadocs-mdx widens it.
       - dependency-name: "fumadocs-core"
-        versions: ["16.17.5"]
+        versions: [">16.17.1 <16.18.0"]
       - dependency-name: "fumadocs-ui"
-        versions: ["16.17.5"]
+        versions: [">16.17.1 <16.18.0"]
       - dependency-name: "commander"
       - dependency-name: "yargs"
       - dependency-name: "yargs-parser"
