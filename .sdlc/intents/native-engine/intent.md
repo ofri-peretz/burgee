@@ -80,11 +80,13 @@ That points at these layers. Each must be measured before it is designed.
 
 ## Open questions
 
-- Which layer to measure first. The table's guess is `migrate`, then the CI type-check lane
-  on tsrs. A decision closes this after measuring.
-- Whether tsrs is stable enough to grade our types in CI. Today it targets TypeScript's
-  main branch, aims at 7.1 conformance, and marks its Node API unstable.
-- Whether single-binary distribution needs Rust, or whether a Node single-executable or
-  bun/deno compile already covers it. That is measured, not assumed.
-- How much CI time and money a Rust cross-compile matrix costs, against the CI minutes it
-  saves.
+- ~~Which layer to measure first.~~ Decided (D-20261020-native-engine-order): `migrate`, then
+  the CI type-check lane on tsrs, with the argv core last.
+- ~~Whether tsrs is stable enough to grade our types in CI.~~ Decided
+  (D-20261020-native-engine-order): not before its stable 7.1 release, then 10 green runs
+  beside `tsc` with identical diagnostics.
+- ~~Whether single-binary distribution needs Rust.~~ Decided (D-20261020-native-engine-order):
+  measured against Node single-executable applications and bun/deno compile first.
+- ~~What the Rust cross-compile matrix costs in CI.~~ Decided (D-20261020-native-engine-order):
+  no Rust toolchain in CI until a port is accepted, then a CI-minutes ceiling set from the
+  first spike.
