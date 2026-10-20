@@ -427,7 +427,12 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // naming of `ctx.args` and the gate that loads `typed-args.js`, with S4's stdin gate folded into
   // that chunk. Measured 24,431 locally on top of main's 24,285; the ceiling covers CI's ~32 B.
   // `burgee ÷ cac` reads 2.337 against its 2.35 claim ratchet, which is not raised.
-  burgee: 24_500,
+  // 24,560 on 2026-10-20 for seniority R3/R7 (D-20261020-seniority-truth-table-weight): the
+  // resolver's `fromLayer` reads a layer's `origins`, so a value set in an `extends` parent is
+  // cited at the parent and burgee's `--explain` carries the line. 43 B on the startup path,
+  // where `resolve` runs. Measured 24,474 locally on top of main's 24,431; CI reads ~32 B more,
+  // which 24,500 would not have covered. `burgee ÷ cac` reads 2.342, the 2.35 ratchet not raised.
+  burgee: 24_560,
   // 29,650 on 2026-09-23: D-140 and #521 on top of V8 (#481). Measured 29,634.
   // 29,200 on 2026-09-23 for **56 bytes**, the MCP stdout capture (#521): measured 29,172 on
   // top of D-122's 29,116. The capture lives in the lazily loaded MCP chunk; what reaches the

@@ -13,7 +13,8 @@ every option it returns three things:
 | `candidates[key]` | every source in `ORDER`, set or not, with its value |
 
 The first source in `ORDER` that sets an option wins: `flag`, `env`, `config`, `package`,
-`default`. `flags` must hold only what the user typed. A parser's defaults belong in the spec;
+`default`. [The truth table](./truth-table) spells that out for all 32 combinations, generated
+from the exported `TRUTH_TABLE`. `flags` must hold only what the user typed. A parser's defaults belong in the spec;
 if they were passed as flags, they would outrank the environment.
 
 ## The record behind `--explain`
@@ -79,6 +80,10 @@ console.log(values, provenance.region.source, provenance.verbose.source);
   - flag > env > config > package.json > default, each pair;
   - the default is last and has no location;
   - `ORDER` is the declaration, and the candidates follow it exactly.
+- [`truth-table.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/seniority/src/truth-table.test.ts):
+  - `TRUTH_TABLE` equals `precedence-vectors.json`, row for row;
+  - `resolve` gives every row's winner. burgee's `precedence-vectors.test.ts` runs the same
+    rows through a real program, so a change to the order fails both suites.
 - [`explain.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/seniority/src/explain.test.ts):
   - the winner and every candidate, in `ORDER`;
   - lost and unset are told apart;

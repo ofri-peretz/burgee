@@ -126,8 +126,13 @@ describe('nothing reads the process (R11, Y9)', () => {
  * at 139,784 and `dotenv run` on Windows now refuses what cmd.exe cannot carry (a line break,
  * NUL, a variable name ending in a caret) and reports it, 539 B. It closes a live `&` and a
  * `%name:…%` expansion, which a few hundred bytes are worth.
+ *
+ * Raised 140,600 → 142,000 on 2026-10-20 (D-20261020-seniority-truth-table-weight): main stood
+ * at 140,541 and this change adds 1,217 B — `truth-table.js` (582 B), which builds the table the
+ * docs page is generated from, and the per-key `origins` that cite the file in an `extends`
+ * chain that set a value (`config.js` +518 B, `precedence.js` +57 B, `index.js` +60 B).
  */
-const CEILING_BYTES = 140_600;
+const CEILING_BYTES = 142_000;
 
 describe('the weight ceiling (R9, Y8)', () => {
   it('keeps the built package under its declared ceiling', () => {

@@ -3,6 +3,20 @@
 Intent: [`intent.md`](./intent.md). Umbrella:
 [`cli-foundation-stack`](../cli-foundation-stack/spec.md). **Status:** approved (2026-09-23, under the owner's delegation, D-129).
 
+**Re-grounded on main, 2026-10-20 (roadmap batch 20, `feat/seniority-truth-table`).** Every
+claim below was read against the code on `origin/main` (`de2209f813`) before anything was
+built, and each one that had drifted is restated in place, dated. What main already had: R1's
+`ORDER` with `RANK` derived from it, R3's provenance with a line for a JSON layer, R4's record,
+and criterion 1's four suites. What it did not, and this change builds: **the truth table as
+exported data and a generated page** (R1, criterion 2); **the shared vectors** — which this
+spec named `__fixtures__/precedence-vectors.json` and which never existed — read by both suites
+(R2, criterion 5); **provenance through an `extends` chain** (R3, R7: a value a parent set was
+cited at the child); **the line in burgee's `--explain`**, which `config-layers.ts` dropped
+(R3, criterion 3); a positive test for an `extends` target resolved through `node_modules`
+(R7); and **a Quint model** of precedence and provenance ([§ The model](#the-model)). What is
+still open is listed in the intent's Status table: criterion 4's spawn-delta and
+discovery-chain rows, and a line for the `package.json` field.
+
 **Build state, 2026-10-06 (PLAN 3.2 — done).** Every requirement in
 [§ What is built](#what-is-built) reads **Built**, R11 the last of them. All four drop-ins are
 level with their incumbents' controls at the latest release: cosmiconfig 242 / 243 (the
@@ -28,13 +42,50 @@ them the absent YAML parser, one of them the harness.
   written, against no code). It is **data**: the resolver
   iterates it, the truth-table page is generated from it, and the conformance test
   enumerates every subset of sources against it. Changing precedence is editing one array.
+
+  **Re-grounded 2026-10-20.** Two of those three clauses were not true on main: no page was
+  generated from `ORDER`, and `precedence.test.ts` checks one case per *pair*, not every subset.
+  Both are now true. `src/truth-table.ts` exports `truthTable(order)` and `TRUTH_TABLE =
+  truthTable(ORDER)`, 32 frozen rows of `{ set, winner }`, grouped by winner. `npm run
+  truth-table:page` writes `apps/docs-seniority/content/docs/guides/truth-table.md` from it, and
+  `scripts/truth-table-page.test.ts` fails when the committed page is not what the table
+  generates. `truth-table.test.ts` runs every row through `resolve`. The table is a projection,
+  not a second declaration: `ORDER` is still the one thing edited, and the table, the page and
+  `RANK` follow it. It is exported from the root only, not from `seniority/precedence`, so
+  burgee's start-up path, which imports `./precedence`, carries none of it.
 - **R2** `resolve(spec, layers) → { values, provenance, explain }` is **pure** over
   `{ flags, env, files, pkg, defaults }`. Purity is what makes `explain` trustworthy; it is
   also what `packages/burgee/src/precedence.ts` already is, and the two share
   `precedence-vectors.json`.
+
+  **Re-grounded 2026-10-20.** `packages/burgee/src/precedence.ts` no longer exists: #265
+  ("precedence comes from seniority, not a second copy") deleted it, and burgee imports
+  `seniority/precedence`. There is one resolver, so the vectors are no longer a guard between
+  two copies; they are the **reviewed answer** both suites are held to, which is what makes
+  the intent's property hold — *a divergence in the truth table fails both suites at once*.
+  `packages/seniority/src/precedence-vectors.json` holds the 32 rows. seniority's
+  `truth-table.test.ts` asserts `TRUTH_TABLE` equals it and `resolve` agrees with each row;
+  burgee's `precedence-vectors.test.ts` runs each row through a real program — a flag typed, a
+  variable exported, a config file and a `package.json` field on disk, a declared default —
+  and reads `meta.provenance`. Proven both ways on 2026-10-20: swapping `env` and `config` in
+  `ORDER` failed 5 seniority cases, 4 burgee cases and the page lock; editing one vector row
+  failed 2 and 1. `scripts/shared-vectors-lock.test.ts` names both readers.
 - **R3 (Y6)** `provenance: Record<key, { source, location?, line? }>` for **every** resolved
   key, always — not behind a flag. `location` is the absolute file path for file sources,
   the variable name for `env`, the flag token for `flag`.
+
+  **Re-grounded 2026-10-20: two places named the wrong file or no line.** (1) A config that
+  `extends` another loads as one layer with one `path`, so a value only the parent set was
+  cited at the child — a file that does not contain it. `Layer` gains `origins`, key → `{ path,
+  line? }`, which `loadWithExtends` records when there is a chain: for each top-level key, the
+  nearest file that set it and that file's own line. `resolve` cites it. A key two files set as
+  objects (deep-merged) is cited at the nearer one, which set the half on top. A file that
+  extends nothing gets no `origins`; its one `path` is already the answer. (2) burgee's
+  `config-layers.ts` passed `{ path: chain.join(' ← '), data }`, dropping `lines`, so
+  burgee's `--explain` and `meta.provenance` never had a line for a config file. It now passes
+  the loaded layer whole. D-20261020-seniority-provenance-per-chain-file. **Still open:** the
+  `package.json` field has no line. burgee builds that layer from the parsed manifest, and
+  `lineOf` reads top-level keys only, so a nested field's line would need a depth-aware scan.
 - **R4 (Y5)** `explain(key)` returns `{ winner, candidates[] }` — the winning source and
   every source that set the key and lost, in `ORDER`. One record; human text, `--json` and
   an agent event are three renderings of it.
@@ -87,6 +138,13 @@ them the absent YAML parser, one of them the harness.
 - **R7** `extends: string | string[]` resolves relative to the extending file or through
   `node_modules`, deep-merges left to right, rejects cycles, and the chain appears in
   `explain` — the same semantics `commander-env` V7 already ships, so the vectors are shared.
+
+  **Restated 2026-10-20 (D-20261020-seniority-provenance-per-chain-file).** "The chain appears
+  in `explain`" is met as *each value names the file in the chain that set it*, with its line,
+  rather than as the whole chain printed beside every value. The chain is still on
+  `loaded.chain`. Printing all of it for every key would name files that did not set the value,
+  which is the failure this package exists to remove. A bare target resolved through
+  `node_modules` now has a positive test; until today only the negative case was tested.
 - **R8 (Y3)** Root default export matches `cosmiconfig`'s; `./dotenv`, `./rc` and `./find-up`
   are separately graded compatibility subpaths, each its own override target. Subpath
   isolation locked as in `roundel`.
@@ -149,6 +207,9 @@ them the absent YAML parser, one of them the harness.
   itself before.
 - **R9 (Y8)** Ceilings: bytes and spawn delta at or under `lilconfig` (0 deps, 71 M/wk, the
   lightest in the layer) — not under `cosmiconfig`, which would be a free pass.
+
+  **Ceiling 142,000 B since 2026-10-20** (D-20261020-seniority-truth-table-weight; 140,600
+  before): main measured 140,541 B, and the truth table plus chain provenance add 1,217 B.
 
   **Built 2026-09-15** as a lock in `src/shape.test.ts`, against the **built** `dist` and not
   against the source: 95,907 B today, ceiling 140,000 B, plus a floor so a build that produced
@@ -321,15 +382,15 @@ are.
 
 | R | Status | Where | The check |
 | :-- | :-- | :-- | :-- |
-| R1 | **Built** | `src/precedence.ts` — `ORDER`, and `RANK` derived from its positions | `precedence.test.ts`: the resolved candidate order **equals** `ORDER` |
-| R2 | **Built** | `src/precedence.ts` — `resolve(specs, layers)`, no I/O | `precedence.test.ts`, 20 cases over pure layers |
-| R3 | **Built** | `src/precedence.ts` — `provenance`, now with `line`; recorded by `config.ts`'s `lineOf` for JSON layers | `discovery.test.ts`: `discover` returns `lines: { region: 2, out: 3 }` |
+| R1 | **Built** | `src/precedence.ts` — `ORDER`, and `RANK` derived from its positions; `src/truth-table.ts` — `TRUTH_TABLE = truthTable(ORDER)` (2026-10-20); the page `apps/docs-seniority/content/docs/guides/truth-table.md`, written by `npm run truth-table:page` | `precedence.test.ts`: the resolved candidate order **equals** `ORDER`; `truth-table.test.ts`: `TRUTH_TABLE` equals `precedence-vectors.json` and `resolve` agrees with all 32 rows; `scripts/truth-table-page.test.ts`: the committed page is the generated one |
+| R2 | **Built** | `src/precedence.ts` — `resolve(specs, layers)`, no I/O; burgee resolves through it (#265); `src/precedence-vectors.json` read by both suites (2026-10-20) | `precedence.test.ts`, 20 cases over pure layers; `packages/burgee/src/precedence-vectors.test.ts` › "every row of the truth table, through a real program" |
+| R3 | **Built**, one clause open | `src/precedence.ts` — `provenance`, now with `line`; recorded by `config.ts`'s `lineOf` for JSON layers; `Layer.origins` for an `extends` chain (2026-10-20); burgee passes the line through. Open: no line for the `package.json` field | `discovery.test.ts`: `discover` returns `lines: { region: 2, out: 3 }`, and › "with all four sources set at once…"; `config.test.ts` › "which file in an extends chain set each key"; `packages/burgee/src/precedence-vectors.test.ts` › "provenance names the file and the line" |
 | R4 | **Built** | `src/explain.ts` — `explanation()` is the record; `renderExplanation`, `explanationJson`, `explanationEvent` are its three renderings | `explain.test.ts`: `explain(…) === renderExplanation(explanation(…))`, byte for byte |
 | R5 | **Built** | `src/search.ts` — 120 lines, bounded by `stopAt`, `WALK_LIMIT` and the root; real paths compared so a symlink ring ends the walk | `search.test.ts`, 10 cases incl. a link pointing back at its own ancestor |
 | R6 | **Built** | `src/load.ts` — four builtin loaders, injected loaders for everything else, `LoaderError` (`exitCode: 2`) naming the extension and the option | `load.test.ts`, 11 cases; `NOT_BUNDLED` is asserted absent from `defaultLoaders` |
-| R7 | **Built**, two clauses open | shipped 0.1.0. `src/config.ts` — `loadWithExtends`, deep merge, cycle rejection. **2026-10-19:** two clauses of R7's own text have no check, and `commander-env` R6 moved them here: an `extends` target resolved *through `node_modules`* is tested only in the negative ("names an unresolvable extends target"), and the chain (`loaded.chain`) is recorded but not shown by `explain` | `packages/seniority/src/config.test.ts` › "resolves relative to the extending file, left to right, and records the chain"; the two open clauses: none |
+| R7 | **Built** | shipped 0.1.0. `src/config.ts` — `loadWithExtends`, deep merge, cycle rejection. **2026-10-19:** two clauses of R7's own text had no check (moved here by `commander-env` R6). **2026-10-20:** both have one. The chain clause is restated: `explain` names the chain member that set the value (`origins`), D-20261020-seniority-provenance-per-chain-file | `packages/seniority/src/config.test.ts` › "resolves relative to the extending file, left to right, and records the chain"; › "resolves a bare target through node_modules, from the extending file (R7)"; › "is what resolve cites, so provenance and --explain name the parent that set the value" |
 | R8 | **Built** | `src/cosmiconfig.ts` + `-defaults` + `-util` re-exported from the root; `./cosmiconfig`, `./dotenv` (with `./dotenv/config` and `./dotenv/cli` since 2026-10-06), `./lilconfig`, `./rc`, `./find-up` as separate entry points | the incumbents' own suites: cosmiconfig **242 / 243** on ubuntu (level with its control since 2026-09-30, R16; the XDG pair since D-20260930-seniority-xdg-config-home), dotenv **179 / 179** at 18.0.5 (level with its control since 2026-10-06, D-20261001-seniority-dotenv-vault; 17.4.2 graded and not claimed at 107 / 141), lilconfig **67 / 77**, rc **0 / 1**. `shape.test.ts` locks the export map and subpath isolation |
-| R9 | **Built** | `src/shape.test.ts` — a ceiling on the **built** `dist`, not on the source | `shape.test.ts`: 95,907 B against a 140,000 B ceiling, and a floor so an empty build cannot pass |
+| R9 | **Built**, spawn delta open | `src/shape.test.ts` — a ceiling on the **built** `dist`, not on the source. The spawn-delta half is the benchmark lane's and has no row | `shape.test.ts`: 141,758 B against a 142,000 B ceiling (2026-10-20), and a floor so an empty build cannot pass |
 | R10 | **Built** | all four vendored and graded control-first, re-measured 2026-09-20: `cosmiconfig` **186 / 243, 76.5%** (**240 / 243, 98.8%** since 2026-09-30, R16; **242 / 243, 99.6%** on ubuntu once the global search read `XDG_CONFIG_HOME`, D-20260930-seniority-xdg-config-home), `dotenv` **80 / 141, 56.7%** (**106 / 141** since D-135; **179 / 179, 100%** at 18.0.5 since 2026-10-06, level with its control), `lilconfig` **67 / 77, 87.0%**, `rc` **0 / 1** (measured, not a placeholder) | `npm run compat -- cosmiconfig --control`, and the same for the other three; see [§ The four suites, measured](#the-four-suites-measured) |
 | R11 | **Built** | restated by D-135, and recorded as built 2026-10-06 once dotenv was level: the resolver names `process` nowhere; the one file that does is `src/runtime.ts`, the family's Y9 seam, which only the dotenv, rc and cosmiconfig drop-ins open and only as a default when the caller passed no world (cosmiconfig's global directory since D-20260930-seniority-xdg-config-home). `seniority/dotenv/cli` is the one drop-in that is a program — dotenv 18's `dotenv run` — and it takes the process whole through the same seam (`ambientProcess`), never by naming the global. Before 2026-09-23 the claim was *no source names `process` at all*, and it cost 34 dotenv cases and rc's one: their incumbents read the process by default and their suites assert it | `shape.test.ts` locally; `packages/burgee/src/process-reference-lock.test.ts` repo-wide, where `seniority/src/runtime.ts` is now the one allow-listed entry |
 | R12 | **Built** | `src/validate.ts` — `validate` returns every violation, `check` throws one `ConfigError` | `validate.test.ts`: ``` `out` must be a string; `./mytool.config.js:3` set it to `4` ``` |
@@ -383,6 +444,8 @@ is strict JSON, and a `noExt` loader that refused everything would have cost the
 ```text
 packages/seniority/src/
   precedence.ts   ORDER, RANK, the pure resolver, values + provenance   (R1, R2, R3, R13, R14)
+  truth-table.ts  truthTable(order), TRUTH_TABLE — ORDER as 32 rows    (R1)
+  precedence-vectors.json  the reviewed rows both suites read           (R2)
   explain.ts      the record and its three renderings; imports nothing  (R4)
   search.ts       the bounded upward walk, cycle-safe                   (R5, Y10)
   load.ts         four builtin loaders; injected loaders; USAGE refusal (R6)
@@ -429,9 +492,44 @@ suites read `__fixtures__/precedence-vectors.json`. A divergence in the order fa
 which is a stronger guarantee than a shared import would give, because it also catches the
 case where one side is *changed on purpose* and the other is forgotten.
 
+**Superseded (re-grounded 2026-10-20).** burgee does import this: #265 replaced its copy with
+`seniority/precedence` and `seniority/config`, and `packages/burgee/src/weight.test.ts`
+admits `seniority` by name, with the reason. The vectors survived the change in a different
+role — the reviewed answer both suites are held to, not a guard between copies — and they live
+at `src/precedence-vectors.json`, beside the table they describe, not under `__fixtures__`:
+`scripts/shared-vectors-lock.test.ts` finds a `*-vectors.json` at the top of a package's
+`src/`, as it finds roundel's.
+
 **Provenance costs one field.** The resolver already walks sources in order to pick a
 winner; recording which one won is a write, not a second pass. That it is free is exactly
 why its absence across sixteen packages is a pace finding rather than a capability one.
+
+## The model
+
+[`precedence.qnt`](./precedence.qnt) is the precedence and provenance of one key as a state
+machine: the five built-ins at `RANK`, two plugin sources that register with a rank, and any
+source setting or withdrawing the key in any order, each change resolved again — `resolve` is
+pure, so one action is one call over the layers as they stand. `safety` is the intent's two
+questions as nine invariants: the winner set the key and provenance names it; unset exactly
+when nothing set it; no set source outranks the winner; a built-in wins a tie with a plugin,
+and the later plugin a tie with an earlier one; plugin ranks stay strictly inside
+(`RANK.flag`, `RANK.default`); a set flag wins; the default wins only alone; and with no plugin
+the winner is the truth table's row.
+
+Five rejected designs are steps that `models.yml` requires to **fail** `safety`, each on the
+invariant it was written to break (measured 2026-10-20, 20,000 traces of 30 steps):
+
+| step | the design | breaks |
+| :-- | :-- | :-- |
+| `stepLastWriter` | the source that set the key most recently wins — a merge in discovery order | `rankRespected`, `flagWins`, `matchesTruthTable` |
+| `stepStaleProvenance` | the value is re-resolved, provenance kept from the first answer | `provenanceIsTheSetter` |
+| `stepUnbounded` | `register` takes any rank instead of refusing | `flagWins`, `pluginRanksInBounds` |
+| `stepPluginTie` | a plugin at a built-in's rank beats the built-in | `builtinWinsTie` |
+| `stepOldestFirst` | the earlier plugin wins a tie — seniority before 2026-09-30 | `laterPluginWinsTie` |
+
+Two witnesses must also stay violated, so `safety` is not holding because nothing happens:
+`neverOutranked` (some run has two sources set at once) and `pluginNeverWins` (some run is won
+by a plugin).
 
 ## The four suites, measured
 

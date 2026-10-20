@@ -29,7 +29,10 @@ export async function configLayers(
   const disabled = values['noConfig'] === true;
   const loaded = await discover({ name, cwd: io.cwd, env: io.env, ...(typeof explicit === 'string' ? { explicit } : {}), disabled });
   const out: Pick<Layers, 'config' | 'pkg'> = {};
-  if (loaded !== undefined) out.config = { path: loaded.chain.join(' ← '), data: loaded.data };
+  // The layer as seniority loaded it: each key cited at the file in the chain that set it, with
+  // that file's line (seniority R3, R7). Joining the chain into one path cited every key at all
+  // of them and at no line, so `--explain` could not say where a value was written.
+  if (loaded !== undefined) out.config = loaded;
   // --no-config turns off every discovered source, the package.json field included.
   const pkg = disabled ? undefined : packageLayer(io.pkg, name);
   if (pkg !== undefined) out.pkg = pkg;

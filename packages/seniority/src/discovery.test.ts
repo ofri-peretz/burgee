@@ -6,7 +6,9 @@ import { describe, expect, it } from 'vitest';
 
 import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { discover, lineOf } from './config.js';
+import { explain } from './explain-entry.js';
 import { LoaderError } from './load.js';
+import { resolve } from './precedence.js';
 import { parse } from './yaml.js';
 
 const scratch = scratchDirs();
@@ -36,6 +38,16 @@ describe('a JSON layer records the line each key is set on (R3, R12)', () => {
     write('lines/app.config.json', '{\n  "region": "eu",\n  "out": "lib"\n}');
     const found = await discover({ name: 'app', cwd, env: {} });
     expect(found?.lines).toEqual({ region: 2, out: 3 });
+  });
+
+  it('with all four sources set at once, `explain` names the winner and each loser by variable, file and line (criterion 3)', async () => {
+    const cwd = join(dir, 'four');
+    const config = write('four/app.config.json', '{\n  "tier": "pro",\n  "out": "build"\n}');
+    const pkg = { path: join(cwd, 'package.json'), data: { out: 'pkg' } };
+    const found = await discover({ name: 'app', cwd, env: {} });
+    const r = resolve({ out: { default: 'dist' } }, { flags: { out: 'lib' }, env: { APP_OUT: 'tmp' }, envPrefix: 'APP', ...(found === undefined ? {} : { config: found }), pkg });
+    expect(r.provenance['out']).toEqual({ source: 'flag', location: '--out' });
+    expect(explain('out', r)).toBe(`out = "lib"   from flag --out\n         candidates: env APP_OUT "tmp", config file ${config}:3 "build", package.json field in ${pkg.path} "pkg", default "dist"\n`);
   });
 
   it('has no lines for a JavaScript config, because there is no parser to ask', async () => {
