@@ -30,7 +30,7 @@ compatibility does not require it. The native API does.
 
 What the startup path pays is one key in `NODE_KEYS` (+10 B bundled), and `defineProgram` pays
 the check for two defaults at one level. The measured cost and the two ceilings it moves are in
-D-20261020-default-command-weight. No claim ratchet moves: `burgee ÷ cac` reads 2.338 against
+D-20261020-default-command-weight. No claim ratchet moves: `burgee ÷ cac` reads 2.343 against
 2.35, and `burgee/commander ÷ commander` 1.415 against 1.42.
 
 **What the re-grounding changed.** Every change is in the spec's *Re-grounded 2026-10-20*

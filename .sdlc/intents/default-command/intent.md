@@ -81,7 +81,7 @@ dispatch is a pure function, and the spec gives the argument that the `Again` lo
 | 3. `--schema` carries `default: true`; root completions offer the default's options | **Met.** `--schema` has `default: true` on `serve` and on `remote list` and no key elsewhere, and `program-schema.json` declares it. `completionTree` offers `port` at the root and `verbose` at `remote`, and so does the Fig spec. `toolsOf` lists `serve` and `remote_list` once each, as before. `__complete` for a default's own completer at its parent is gap A-20261020-default-completer-at-parent, held for the `completion-context` lane. |
 
 Weight (D-20261020-default-command-weight): `.` 35,822 → 36,069 B dist (ceiling 35,850 → 36,100);
-`./help` 9,228 → 9,602 (ceiling 9,250 → 9,650). Bundled `burgee` 24,431 → 24,441 under its
-24,500 ceiling, and `burgee ÷ cac` 2.338 under the 2.35 ratchet, which is unchanged. Every
+`./help` 9,228 → 9,602 (ceiling 9,250 → 9,650). Bundled `burgee` 24,474 → 24,484 (on `main` after #1203) under its
+24,500 ceiling, and `burgee ÷ cac` 2.343 under the 2.35 ratchet, which is unchanged. Every
 façade entry is lighter than on `main` (−95 B dist, −58 B bundled), because `--schema`'s option
 copy became one loop, and the four over-incumbent ratchets are lowered to match.
