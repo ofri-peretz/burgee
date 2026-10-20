@@ -23,19 +23,19 @@ export interface TruthRow<S extends string = BuiltinSource> {
 /**
  * Every combination of `order`, grouped by winner, highest first: each source, then every
  * subset of the sources below it in increasing binary order, and last the row with nothing
- * set. 2ⁿ rows for n sources.
+ * set. 2ⁿ rows for n sources, each row and its `set` frozen.
  */
 export function truthTable<S extends string>(order: readonly S[]): TruthRow<S>[] {
   const rows: TruthRow<S>[] = [];
   for (const [i, winner] of order.entries()) {
     const below = order.slice(i + 1);
     for (let mask = 0; mask < 2 ** below.length; mask++) {
-      rows.push({ set: [winner, ...below.filter((_, bit) => (mask & (1 << bit)) !== 0)], winner });
+      rows.push(Object.freeze({ set: Object.freeze([winner, ...below.filter((_, bit) => (mask & (1 << bit)) !== 0)]), winner }));
     }
   }
-  rows.push({ set: [], winner: null });
+  rows.push(Object.freeze({ set: Object.freeze([]), winner: null }));
   return rows;
 }
 
-/** The table for the five built-in sources: 32 rows, frozen. */
-export const TRUTH_TABLE: readonly TruthRow[] = Object.freeze(truthTable(ORDER).map((row) => Object.freeze({ set: Object.freeze([...row.set]), winner: row.winner })));
+/** The table for the five built-in sources: 32 rows, frozen to the last array. */
+export const TRUTH_TABLE: readonly TruthRow[] = Object.freeze(truthTable(ORDER));

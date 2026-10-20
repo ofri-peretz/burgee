@@ -32,6 +32,7 @@ describe('TRUTH_TABLE is the shared vectors, row for row', () => {
   it('is generated from ORDER, so it is the same object whoever asks', () => {
     expect(truthTable(ORDER)).toEqual(TRUTH_TABLE);
     expect(Object.isFrozen(TRUTH_TABLE)).toBe(true);
+    expect(TRUTH_TABLE.every((row) => Object.isFrozen(row) && Object.isFrozen(row.set))).toBe(true);
   });
 });
 

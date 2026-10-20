@@ -111,7 +111,7 @@ describe('which file in an extends chain set each key (R3, R7)', () => {
 
   it('records the nearest file that set each top-level key, with that file’s own line', async () => {
     const { loaded, base, team, top } = await chainOf();
-    expect(loaded.origins).toEqual({
+    expect(loaded.origins).toStrictEqual({
       region: { path: base, line: 2 },
       tier: { path: team, line: 3 },
       log: { path: top, line: 4 },
@@ -123,14 +123,15 @@ describe('which file in an extends chain set each key (R3, R7)', () => {
     const r = resolveLayers({ region: {}, tier: {}, log: {}, unset: {} }, { flags: {}, env: {}, config: loaded });
     expect(r.provenance['region']).toEqual({ source: 'config', location: base, line: 2 });
     expect(r.provenance['tier']).toEqual({ source: 'config', location: team, line: 3 });
-    expect(r.candidates['unset']?.find((c) => c.source === 'config')).toEqual({ source: 'config', location: loaded.path, value: undefined });
+    // Strict: a candidate with no line carries no `line` key at all, not one set to undefined.
+    expect(r.candidates['unset']?.find((c) => c.source === 'config')).toStrictEqual({ source: 'config', location: loaded.path, value: undefined });
     expect(explain('region', r)).toContain(`from config file ${base}:2`);
   });
 
   it('cites a parent without a line when the parent is not JSON', async () => {
     const base = write('oj/base.mjs', 'export default { region: "js" };');
     const top = write('oj/app.config.json', { extends: './base.mjs', tier: 'pro' });
-    expect((await loadWithExtends(top)).origins).toEqual({ region: { path: base }, tier: { path: top, line: 1 } });
+    expect((await loadWithExtends(top)).origins).toStrictEqual({ region: { path: base }, tier: { path: top, line: 1 } });
   });
 
   it('adds nothing to a file that extends nothing: its one path is already the answer', async () => {

@@ -1,6 +1,6 @@
 ---
 id: D-20261020-seniority-truth-table-weight
-subject: 'seniority''s truth table (R1, criterion 2) and per-key provenance through an `extends` chain (R3, R7) add 1,217 B to the built package, which puts `shape.test.ts`''s R9 ceiling (140,600 B) and `./dotenv/cli`''s entry budget (29,800 B) over by 1,158 B and 56 B. Where does the table live, and do the budgets move?'
+subject: 'seniority''s truth table (R1, criterion 2) and per-key provenance through an `extends` chain (R3, R7) add 1,191 B to the built package, which puts `shape.test.ts`''s R9 ceiling (140,600 B) and `./dotenv/cli`''s entry budget (29,800 B) over by 1,132 B and 56 B. Where does the table live, and do the budgets move?'
 taken: Taken
 date: '2026-10-20'
 superseded_by: —
@@ -14,11 +14,11 @@ superseded_by: —
 
 | file | main | branch | delta | what for |
 | :-- | --: | --: | --: | :-- |
-| `truth-table.js` | — | 582 | +582 | `truthTable(order)` and the frozen `TRUTH_TABLE` |
+| `truth-table.js` | — | 556 | +556 | `truthTable(order)` and the frozen `TRUTH_TABLE` |
 | `config.js` | 4,500 | 5,018 | +518 | `origins`: the file in an `extends` chain that set each key, and its line |
 | `index.js` | 929 | 989 | +60 | the root re-export |
 | `precedence.js` | 3,790 | 3,847 | +57 | `fromLayer` reads `origins` |
-| **dist** | **140,541** | **141,758** | **+1,217** | |
+| **dist** | **140,541** | **141,732** | **+1,191** | |
 
 **burgee's core bundle** is the one burgee number that moves: 24,431 → 24,474 B locally (+43 B, minified). That is `fromLayer` reading `origins`, and it is on the start-up path because `resolve` runs on every invocation. CI's runners read about 32 B more than a local build (see the ceiling's own history), so 24,500 would not cover ~24,506. The new 24,560 does, with room for that 32 B. `burgee ÷ cac` reads 2.342 locally and about 2.345 on CI, under its 2.35 claim ratchet, which is not raised. burgee's own `weight.test.ts` budgets all pass unchanged. The table lives at the root so that this 43 B is the only part of the change on that path.
 
@@ -26,4 +26,4 @@ superseded_by: —
 
 **Why it is worth it.** The table is criterion 2 of the intent, and its own text says the table is the product. The 518 B fix a provenance record that named the wrong file. Before it, a value set only in a parent config was cited at the child, which does not contain the value. Answering *which source set this value* correctly is the reason the package exists. The ceiling's own comment says what it is for: catching a dependency or a bundled parser, which would move the number by an order of magnitude. 1.2 KB of the package's own code does not look like that, and the table above accounts for every byte of it.
 
-**The band.** `npm run weight:converge` re-measured `layers.seniority.ours` in `.sdlc/bands/foundation-ceilings.json` (218,298 → 221,429 B installed, ratio 0.1107 → 0.1123), because the package carries the new code and the README now lists the table too.
+**The band.** `npm run weight:converge` re-measured `layers.seniority.ours` in `.sdlc/bands/foundation-ceilings.json` (218,298 → 221,452 B installed, ratio 0.1107 → 0.1123), because the package carries the new code and the README now lists the table too.

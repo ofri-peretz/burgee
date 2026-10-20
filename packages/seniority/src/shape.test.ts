@@ -128,7 +128,7 @@ describe('nothing reads the process (R11, Y9)', () => {
  * `%name:…%` expansion, which a few hundred bytes are worth.
  *
  * Raised 140,600 → 142,000 on 2026-10-20 (D-20261020-seniority-truth-table-weight): main stood
- * at 140,541 and this change adds 1,217 B — `truth-table.js` (582 B), which builds the table the
+ * at 140,541 and this change adds 1,191 B — `truth-table.js` (556 B), which builds the table the
  * docs page is generated from, and the per-key `origins` that cite the file in an `extends`
  * chain that set a value (`config.js` +518 B, `precedence.js` +57 B, `index.js` +60 B).
  */
