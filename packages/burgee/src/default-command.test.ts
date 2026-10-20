@@ -158,6 +158,21 @@ describe('R2 — argv that names no command runs the default', () => {
     expect(result.stderr).toContain('Usage: remote <command> [options]');
   });
 
+  it('still refuses a word equally near two commands, naming both', async () => {
+    const tie = defineProgram({
+      name: 'demo',
+      commands: [
+        defineCommand({ name: 'open', default: true, effects: 'read_only', arguments: [{ name: 'file' }], run: ({ positionals }) => `opened ${String(positionals[0])}` }),
+        defineCommand({ name: 'push', effects: 'read_only', run: () => 'pushed' }),
+        defineCommand({ name: 'pull', effects: 'read_only', run: () => 'pulled' }),
+      ],
+    });
+    const result = await runCommand(tie, ['pusl']);
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain('did you mean one of pull, push');
+    expect(await runCommand(tie, ['notes.txt'])).toEqual({ code: 0, stdout: 'opened notes.txt\n', stderr: '' });
+  });
+
   it('does not take a word as the positional when it is exactly a command deeper down', async () => {
     const result = await runCommand(program(), ['add']);
     expect(result.code).toBe(2);
@@ -203,6 +218,13 @@ describe('R3 — root help names the default and shows what it takes (yargs #133
     const group = (await runCommand(program(), ['remote', '--help'])).stdout;
     expect(group).toContain('Usage: remote [command] [options]');
     expect(group).toMatch(/^ {2}list +\(default\)$/mu);
+    // The mark starts in the description column like any other row's text: the row is trimmed.
+    const lines = group.split('\n');
+    const column = (start: string, text: string): number => (lines.find((l) => l.startsWith(start)) ?? '').indexOf(text);
+    expect(column('  list ', '(default)')).toBe(column('  --json ', 'machine-readable'));
+    // Neither the group nor its default declares an argument or an example, so neither section appears.
+    expect(group).not.toContain('Arguments:');
+    expect(group).not.toContain('Examples:');
     const own = (await runCommand(program(), ['serve', '--help'])).stdout;
     expect(own).toContain('Usage: serve [options] [dir]');
     expect(own).not.toContain('(default)');
