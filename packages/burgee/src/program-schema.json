@@ -186,6 +186,10 @@
           },
           "description": "Other words that run the command (R5); never a command of their own."
         },
+        "default": {
+          "type": "boolean",
+          "description": "It runs when argv names no command at its parent's level (default-command R4); at most one per level."
+        },
         "effects": {
           "type": "string",
           "pattern": "^(read_only|idempotent|non_idempotent|withheld)$",
