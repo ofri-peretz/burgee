@@ -124,6 +124,22 @@ jobs:
               exit 1
             fi
           done
+      # closeout/exit-hook without the registry (closeout-at-incumbent-weight spec.md, R4): each
+      # rejected design still fails `safety`, and some run still calls an async hook, so the
+      # async half of `safety` is not holding because nothing reaches it.
+      - name: closeout lean exit-hook — the rejected designs still fail, and some run still awaits
+        run: |
+          m=.sdlc/intents/closeout-at-incumbent-weight/lean.qnt
+          for s in stepNoGuard stepAsyncOnSync stepNoTimer stepClearFirst; do
+            if $QUINT run "$m" --step="$s" --invariant=safety --max-steps=30 --max-samples=20000 >/dev/null; then
+              echo "::error::lean.qnt: safety holds under $s — the model no longer distinguishes the shipped design from the one it rejects"
+              exit 1
+            fi
+          done
+          if $QUINT run "$m" --invariant=asyncNeverRuns --max-steps=30 --max-samples=20000 >/dev/null; then
+            echo "::error::lean.qnt: asyncNeverRuns now holds — no run calls an async hook, so safety holds vacuously"
+            exit 1
+          fi
       # An open question, pinned: closeout's late add() is silently dropped today. When the
       # code changes and this starts holding, the step fails and the question gets answered.
       - name: closeout late add() is still dropped (open question, see spec.md)

@@ -318,13 +318,13 @@ and `once` never runs a handler twice.
 
 ## Weight
 
-Measured rather than claimed. The whole package is 20,417 B of published
-JavaScript and reaches no other package. `closeout/exit-hook` is 11,841 B of that, against
-`exit-hook@5.1.0`'s 4,458 B in one file — *over*, because the drop-in shares the phase
-ordering, the bounded runner and the report with the rest of the package, and those are the
-product. Startup cost is the half that matches: p50 over 21 spawns, importing
-`closeout/exit-hook` costs **4.5 ms** over a bare `node`, and importing `exit-hook` itself
-costs **4.6 ms**.
+Measured rather than claimed, and the package reaches no other package. Each drop-in weighs
+no more in a user's bundle than the package it replaces (esbuild, minified, a fixture
+importing one name, as the [benchmarks](https://burgee.interlace.tools/docs/benchmarks)
+measure every drop-in): `closeout/exit-hook` is **1,579 B** against `exit-hook@5.1.0`'s
+1,645 B, and `closeout/signal-exit` **2,657 B** against `signal-exit@4.1.0`'s 2,856 B. The
+drop-ins carry the incumbent's behaviour and nothing else; the phase ordering, the bounded
+runner and the report are the product, on closeout's own `onExit`.
 
 ## Benchmarks
 
@@ -340,7 +340,7 @@ Graded by the incumbent's own test suite:
 | `restore-cursor` | 6 / 6 |
 | `signal-exit` | 134 / 135 |
 
-Weight, installed and tree-inclusive: **107,842 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.5867**.
+Weight, installed and tree-inclusive: **108,866 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.5923**.
 
 ## For agents
 

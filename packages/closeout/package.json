@@ -1,6 +1,6 @@
 {
   "name": "closeout",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "description": "Runs every exit handler exactly once on every path out of the process, restores the terminal, and holds shutdown to a deadline so it cannot hang. Zero dependencies. Drop-in paths for signal-exit, exit-hook, restore-cursor, cli-cursor and onetime.",
   "license": "MIT",
   "type": "module",
@@ -54,8 +54,9 @@
     },
     "./signal-exit": {
       "types": "./dist/signal-exit.d.cts",
-      "import": "./dist/signal-exit.cjs",
-      "default": "./dist/signal-exit.cjs"
+      "require": "./dist/signal-exit.cjs",
+      "import": "./dist/signal-exit.js",
+      "default": "./dist/signal-exit.js"
     },
     "./signal-exit/signals": {
       "types": "./dist/signal-exit-signals.d.cts",

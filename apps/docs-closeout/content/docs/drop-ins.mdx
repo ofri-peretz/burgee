@@ -55,13 +55,14 @@ These are deliberate, and each is written down where the code is:
   exit-hook does both and its suite grades them. `signal.test.ts` pins both so nobody closes
   the gap by accident. closeout's own `onExit` is where SIGHUP and the re-raise live.
 - **`closeout/exit-hook` keeps exit-hook's bound.** The per-hook `wait` is honoured and
-  closeout's 2000 ms deadline is not imposed. Hooks run in closeout's phases — synchronous
-  hooks in `flush`, asynchronous ones in `release` — so a cursor hidden with `hideCursor()`
-  comes back after all of them.
-- **`closeout/signal-exit` is CommonJS**, the one CommonJS file in the family. signal-exit's
-  suite swaps the global `process` and re-requires the module, and an ES module is evaluated
-  once per process however the cache is edited. `import { onExit } from 'closeout/signal-exit'`
-  works from ESM too. It is graded against signal-exit 4: version 3's callable default,
+  closeout's 2000 ms deadline is not imposed. It runs exit-hook's own machine, not closeout's
+  phases, so it bundles at exit-hook's weight; closeout's `onExit` is where the phases, the
+  deadline report and a cursor restored after every handler live.
+- **`closeout/signal-exit` has two builds, as signal-exit does.** `require()` reaches a
+  CommonJS file, because signal-exit's suite swaps the global `process` and re-requires the
+  module, and an ES module is evaluated once per process however the cache is edited.
+  `import` reaches an ES file over the same code, so a bundle carries no CommonJS interop.
+  Both share one emitter. It is graded against signal-exit 4: version 3's callable default,
   `require('signal-exit')(handler)`, is not reproduced.
 - **`closeout/signal-exit` shares signal-exit's emitter**, under the global key signal-exit
   itself uses, so a program with the drop-in and a transitive copy of real signal-exit runs

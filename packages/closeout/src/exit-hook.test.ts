@@ -14,7 +14,7 @@
  *
  * The façade resolves its process once, at import, through `ambientProcess()`. Each case
  * mocks that one function and imports a fresh copy of the module, so every case gets its own
- * hook sets, its own wiring and its own registry — the module-level state a real process has
+ * hook sets, its own wiring and its own `called` flag — the module-level state a real process has
  * exactly one of.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -253,6 +253,20 @@ describe('a signal', () => {
     expect(seen).toEqual([143]);
   });
 
+  it('SIGTERM is a path that can await: its async hooks run, and no notice is printed', async () => {
+    const proc = fakeProcess();
+    const { default: exitHook, asyncExitHook } = await load(proc);
+    const notice = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const seen: string[] = [];
+    exitHook(() => void seen.push('sync'));
+    asyncExitHook(async () => void seen.push('async'), { wait: 100 });
+
+    proc.emit('SIGTERM');
+    await vi.waitFor(() => expect(proc.exits).toEqual([143]));
+    expect(seen).toEqual(['sync', 'async']);
+    expect(notice).not.toHaveBeenCalled();
+  });
+
   it('runs once and leaves once, whatever arrives after the first trigger', async () => {
     const proc = fakeProcess();
     const { default: exitHook, asyncExitHook } = await load(proc);
@@ -288,7 +302,10 @@ describe('a signal', () => {
 
     await vi.advanceTimersByTimeAsync(1);
     expect(proc.exits).toEqual([130]);
-    expect(report).toHaveBeenCalledWith('closeout: shutdown deadline of 300ms expired; exiting anyway. Handlers that had not returned: (anonymous)');
+    // exit-hook leaves at `max(wait)` without a word, and so does its drop-in. Until 2026-10-20
+    // this path ran through closeout's registry and printed its deadline report here; the
+    // report is closeout's product on its own entry (D-20261012-closeout-drop-ins-held-to-u5).
+    expect(report).not.toHaveBeenCalled();
   });
 });
 
@@ -367,11 +384,11 @@ describe('gracefulExit', () => {
     await vi.waitFor(() => expect(proc.exits).toEqual([7]));
   });
 
-  it('with no hooks registered at all still leaves — the bound falls back to closeout’s own', async () => {
+  it('with no hooks registered at all still leaves — no async hook, nothing to wait on', async () => {
     const proc = fakeProcess();
     const { gracefulExit } = await load(proc);
-    // max() over no waits is -Infinity, which the registry refuses: the fallback is what
-    // keeps this call from throwing instead of leaving.
+    // max() over no waits is -Infinity; the bound is max(0, …), a timer cleared before it fires,
+    // and the shutdown drains and leaves.
     expect(() => gracefulExit()).not.toThrow();
     await vi.waitFor(() => expect(proc.exits).toEqual([0]));
   });

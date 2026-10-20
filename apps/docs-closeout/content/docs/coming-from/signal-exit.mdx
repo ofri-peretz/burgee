@@ -27,7 +27,8 @@ its semantics:
   this façade and a transitive copy of real signal-exit runs every handler once and
   re-raises once.
 
-The façade is CommonJS, as signal-exit is, so `require('closeout/signal-exit')` works too.
+Like signal-exit, the façade ships twice: `require('closeout/signal-exit')` loads a CommonJS
+file and `import` an ES one over the same code and the same emitter.
 It is graded against signal-exit 4: version 3's callable default,
 `require('signal-exit')(handler)`, is not reproduced.
 

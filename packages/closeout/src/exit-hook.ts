@@ -14,36 +14,33 @@
  * on every path") and R3 (a bounded shutdown) graded by somebody else's assertions, which is
  * worth more than either of our own.
  *
- * ## What this file reuses, and the one thing it deliberately does not
+ * ## Why this file does not use the registry
  *
- * The run-exactly-once state machine, the phase ordering and the bounded wait are
- * `registry.ts`'s — not reimplemented here. `exit-hook`'s two classes of hook map onto two
- * phases exactly: **sync hooks are `flush`, async hooks are `release`**, and because phases
- * are *sequenced* rather than merely sorted, "every synchronous hook has run before the first
- * asynchronous one starts" comes out of `PHASES` instead of out of two `Set`s and a comment.
- * `restore` stays empty and stays last, so a program that also uses `closeout.hideCursor()`
- * gets its terminal back after every hook registered through this façade — which is more than
- * `exit-hook` can offer, and costs nothing.
+ * Until 2026-10-20 the shutdown below ran through `registry.ts`: sync hooks were its `flush`
+ * phase, async hooks its `release` phase, and the bound was a registry deadline. That carried
+ * the phase machine, the deadline and the report into every bundle that imported this path,
+ * 4,819 B against exit-hook's own 1,645 B (`benchmarks/axes/weight.ts`, B4). A drop-in is
+ * installed by somebody who wants the incumbent's behaviour and nothing else, so it is held to
+ * the incumbent's weight (D-20261012-closeout-drop-ins-held-to-u5,
+ * `.sdlc/intents/closeout-at-incumbent-weight/`). The phases, the deadline and the report
+ * stay closeout's product, on `closeout` itself.
  *
- * **The deadline is the exception, and it is the interesting one.** closeout's own default is
- * 2 000 ms for the whole shutdown (`DEFAULT_DEADLINE`), and imposing it here would fail the
- * incumbent's own `asyncExitHook(fn, { wait: 2000 })` case — a 2 s hook under a 2 s budget is
- * a coin toss. `exit-hook`'s bound is per hook and the effective one is `max(wait)`, so that
- * is what the registry is built with at shutdown, when every `wait` is finally known. It is
- * still finite, still refuses `Infinity`, and still names the failure it exists to prevent;
- * it is simply the incumbent's number rather than ours, because a drop-in that silently
- * tightens a caller's timeout is not a drop-in. A program that wants closeout's bound calls
- * closeout's own API, and the README says so.
+ * What replaced the registry is the small machine `exit-hook` itself runs, and it is modelled
+ * in `.sdlc/intents/closeout-at-incumbent-weight/lean.qnt`: one `called` flag that the first
+ * trigger of any kind sets, the synchronous hooks first, the asynchronous ones only on a path
+ * that can still await, and a timer at `max(wait)` that leaves whether they settled or not.
  *
- * The stdio flush sits *outside* the registry for the same reason it sits outside
- * `forceAfter` upstream: it is not a caller's handler, it is the write-out that has to happen
- * after the last one, and it carries its own one-second bound. It is also load-bearing rather
- * than tidy: deleting it — replacing the `flushStdio().then(leave, leave)` below with a bare
- * `leave()` — scores 18 / 21 and 15 / 21 on two consecutive runs (measured 2026-09-14), because
+ * **The bound is the incumbent's.** closeout's own default is 2 000 ms for the whole shutdown,
+ * and imposing it here would fail the incumbent's own `asyncExitHook(fn, { wait: 2000 })` case.
+ * `exit-hook`'s bound is per hook and the effective one is `max(wait)`, read when the shutdown
+ * starts, when every `wait` is known. A drop-in that silently tightens a caller's timeout is
+ * not a drop-in; a program that wants closeout's bound calls closeout's own API.
+ *
+ * The stdio flush is load-bearing rather than tidy: replacing the drain below with a bare exit
+ * scores 18 / 21 and 15 / 21 on two consecutive runs (measured 2026-09-14), because
  * `process.exit()` truncates 20,000 queued lines that the suite counts.
  */
 import { ambientProcess, type ProcessLike } from './ambient.js';
-import { createRegistry, DEFAULT_DEADLINE, type Registry } from './registry.js';
 
 /** A hook takes the code the process is about to leave with. */
 export type ExitHookCallback = (exitCode: number | string) => unknown;
@@ -54,6 +51,22 @@ export interface AsyncExitHookOptions {
    * on a missing or non-numeric value and its `type enforcing` case asserts both.
    */
   wait: number;
+}
+
+/**
+ * The real streams, seen wide enough to drain.
+ *
+ * `OutputStream` is two members because that is all the cursor layer needs. Flushing needs
+ * the writability flags and the two-argument `write`, so the façade declares the shape it
+ * needs rather than widening a type the rest of the package is happy with.
+ */
+interface DrainableStream {
+  writable?: boolean;
+  writableEnded?: boolean;
+  destroyed?: boolean;
+  once?(event: string, listener: (...args: never[]) => void): unknown;
+  off?(event: string, listener: (...args: never[]) => void): unknown;
+  write(chunk: string, callback?: () => void): unknown;
 }
 
 /** POSIX: a signal's exit code is 128 plus its number. */
@@ -72,27 +85,12 @@ const NO_SIGNAL = -SIGNAL_BASE;
  */
 const FLUSH_TIMEOUT_MS = 1000;
 
-/**
- * The real streams, seen wide enough to drain.
- *
- * `OutputStream` is two members because that is all the cursor layer needs. Flushing needs
- * the writability flags and the two-argument `write`, so the façade declares the shape it
- * needs rather than widening a type the rest of the package is happy with.
- */
-interface DrainableStream {
-  writable?: boolean;
-  writableEnded?: boolean;
-  destroyed?: boolean;
-  once?(event: string, listener: (...args: never[]) => void): unknown;
-  off?(event: string, listener: (...args: never[]) => void): unknown;
-  write(chunk: string, callback?: () => void): unknown;
-}
-
 const syncHooks = new Set<ExitHookCallback>();
 const asyncHooks = new Map<ExitHookCallback, number>();
 
 let listening = false;
-let registry: Registry | undefined;
+/** `exit-hook`'s `isCalled`: set by the first trigger of any kind, so nothing after it runs. */
+let called = false;
 
 /**
  * The process this façade is wired to, resolved once.
@@ -113,7 +111,7 @@ const proc: ProcessLike | undefined = ambientProcess();
  */
 async function drain(stream: DrainableStream | undefined): Promise<void> {
   return new Promise<void>((resolve) => {
-    if (stream === undefined || stream.writable !== true || stream.writableEnded === true || stream.destroyed === true) {
+    if (stream?.writable !== true || stream.writableEnded === true || stream.destroyed === true) {
       resolve();
       return;
     }
@@ -135,148 +133,107 @@ async function drain(stream: DrainableStream | undefined): Promise<void> {
   });
 }
 
-/** Both standard streams drained, or one second, whichever comes first. */
-async function flushStdio(): Promise<void> {
-  const timeout = new Promise<void>((resolve) => {
-    setTimeout(resolve, FLUSH_TIMEOUT_MS).unref?.();
-  });
-  await Promise.race([Promise.all([drain(proc?.stdout as DrainableStream | undefined), drain(proc?.stderr as DrainableStream | undefined)]).then(() => undefined), timeout]);
-}
-
-/**
- * The code the process will leave with.
- *
- * A signal overrules `process.exitCode` — that is the whole of `SIGINT causes
- * process.exitCode to be ignored`, which sets it to 1 and still expects 130.
- */
-function codeFor(signal: number): number | string {
-  if (signal > 0) return SIGNAL_BASE + signal;
-  const set = proc?.exitCode;
-  return typeof set === 'number' || typeof set === 'string' ? set : 0;
-}
-
-/**
- * The registry that runs this shutdown, built at the first trigger.
- *
- * Built then rather than at import because its deadline is `max(wait)` over the registered
- * async hooks, and the last of those may be registered long after this module loaded. One
- * registry per process, so `Registry.settled` *is* upstream's `isCalled` guard: a second
- * trigger of any kind runs nothing and is not an error.
- *
- * **A synchronous first trigger gets no `release` phase at all.** `runSync` invokes every
- * phase and abandons the promises, which would still *call* every async hook and run it up to
- * its first `await` — after printing a notice that says they "will not run". `exit-hook` does
- * not call them on that path, and neither may its drop-in: a hook that writes a file before
- * its first `await` wrote it under closeout and did not under the incumbent.
- */
-function shutdownRegistry(code: number | string, isSynchronous: boolean): Registry {
-  if (registry !== undefined) return registry;
-  const waits = [...asyncHooks.values()];
-  const built = createRegistry({ deadline: waits.length === 0 ? DEFAULT_DEADLINE : Math.max(...waits) });
-  built.add(() => {
-    for (const hook of syncHooks) hook(code);
-  }, 'flush');
-  if (!isSynchronous) {
-    built.add(async () => {
-      await Promise.all([...asyncHooks.keys()].map(async (hook) => hook(code)));
-    }, 'release');
-  }
-  registry = built;
-  return built;
-}
-
 /**
  * The notice upstream prints when a synchronous termination throws away asynchronous work.
  *
  * Word for word, because `main-async-notice` matches `/SYNCHRONOUS TERMINATION NOTICE/` and
  * because the sentence is the only warning a caller gets that `process.exit()` has just
- * discarded their flush.
+ * discarded their flush. One literal rather than upstream's `[…].join(' ')`: the same string,
+ * without the array in the bundle.
  */
-const SYNC_NOTICE = [
-  'SYNCHRONOUS TERMINATION NOTICE:',
-  'When explicitly exiting the process via process.exit or via a parent process,',
-  'asynchronous tasks in your exitHooks will not run. Either remove these tasks,',
-  'use gracefulExit() instead of process.exit(), or ensure your parent process',
-  'sends a SIGINT to the process running this code.',
-].join(' ');
+const SYNC_NOTICE =
+  'SYNCHRONOUS TERMINATION NOTICE: When explicitly exiting the process via process.exit or via a parent process, asynchronous tasks in your exitHooks will not run. Either remove these tasks, use gracefulExit() instead of process.exit(), or ensure your parent process sends a SIGINT to the process running this code.';
 
 /**
- * Leave, once.
+ * Leave with `code`, unless the process is already leaving.
  *
- * `shouldManuallyExit` is false only on the `'exit'` event, where the process is already on
- * its way out and calling `exit()` again would be re-entrant.
+ * `manual` is false only on the `'exit'` event, where calling `exit()` again would be
+ * re-entrant. A string code (Node accepts one in `process.exitCode`) is coerced for `exit()`.
  */
-function leave(shouldManuallyExit: boolean, code: number | string): void {
-  if (!shouldManuallyExit) return;
-  proc?.exit(typeof code === 'number' ? code : Number(code));
+function leave(manual: boolean, code: number | string): void {
+  if (manual) proc?.exit(Number(code));
 }
 
 /**
- * One shutdown. Synchronous paths never start the async hooks; every other path awaits them
- * and then drains stdio before leaving.
+ * One shutdown, run by the first trigger and by nothing after it.
+ *
+ * `signal` is the signal's number, or {@link NO_SIGNAL} for "use `process.exitCode`".
+ *
+ * **A synchronous trigger never calls an async hook.** Calling one would still run it up to
+ * its first `await`, after printing a notice that says it "will not run": a hook that writes a
+ * file before its first `await` would write it here and not under the incumbent.
  */
-function shutdown(shouldManuallyExit: boolean, isSynchronous: boolean, signal: number): void {
-  const code = codeFor(signal);
-  const runner = shutdownRegistry(code, isSynchronous);
-  if (runner.settled) return;
-
+async function shutdown(manual: boolean, isSynchronous: boolean, signal: number): Promise<void> {
+  if (called) return;
+  called = true;
+  if (isSynchronous && asyncHooks.size > 0) console.error(SYNC_NOTICE);
+  // The code the process will leave with. A signal overrules `process.exitCode` — that is the
+  // whole of `SIGINT causes process.exitCode to be ignored`, which sets it to 1 and still
+  // expects 130. Written inline, as upstream writes it: a helper is bytes in every bundle.
+  let code: number | string = 0;
+  const set = proc?.exitCode;
+  if (signal > 0) code = SIGNAL_BASE + signal;
+  else if (typeof set === 'number' || typeof set === 'string') code = set;
+  for (const hook of syncHooks) hook(code);
   if (isSynchronous) {
-    if (asyncHooks.size > 0) console.error(SYNC_NOTICE);
-    // The registry was built without the async phase (see `shutdownRegistry`), so `runSync`
-    // runs the synchronous hooks and nothing else — which is exactly what `'exit'` can offer,
-    // since Node is already tearing down and no microtask queued here will ever be drained.
-    runner.runSync({ code: null, signal: null });
-    leave(shouldManuallyExit, code);
+    leave(manual, code);
     return;
   }
-
-  const finish = (): void => {
-    flushStdio().then(
-      () => leave(shouldManuallyExit, code),
-      () => leave(shouldManuallyExit, code),
-    );
-  };
-  // Both arms leave. `run` is written not to reject; if that ever changes, a shutdown that
-  // hangs because its own error handling threw is the failure this package exists to prevent.
-  // The record handed to `run` is `{ code: null, signal: null }` on every path: the registry's
-  // handlers are this file's own and read `code` from the closure, and the record is not
-  // visible anywhere else — a hook is handed the code, never the record.
-  runner.run({ code: null, signal: null }).then(finish, finish);
+  // `max(wait)`. The 0 is for a shutdown with no async hook: `Math.max()` alone is -Infinity,
+  // which Node answers with a TimeoutNegativeWarning. A 0 ms timer is cleared on the next line
+  // but one, in a microtask, before any timer can fire.
+  const timer = setTimeout(() => leave(true, code), Math.max(0, ...asyncHooks.values()));
+  await Promise.all([...asyncHooks.keys()].map(async (hook) => hook(code)));
+  clearTimeout(timer);
+  // Both standard streams drained, or one second, whichever comes first. The catch is for a
+  // drain that throws before it can resolve: leaving is still owed. The timer is not unref'd,
+  // as upstream's is not: the exit right after the race ends the process either way.
+  const second = new Promise<void>((resolve) => {
+    setTimeout(resolve, FLUSH_TIMEOUT_MS);
+  });
+  await Promise.race([Promise.all([drain(proc?.stdout as DrainableStream | undefined), drain(proc?.stderr as DrainableStream | undefined)]), second]).catch(() => undefined);
+  leave(manual, code);
 }
-
-/** PM2's cluster shutdown message, which `listen` wires to the same path as a signal. */
-const onPm2Message = (message: unknown): void => {
-  if (message === 'shutdown') shutdown(true, true, NO_SIGNAL);
-};
 
 /**
  * Attach the process listeners, once, on the first registration.
  *
  * They are never detached. `exit-hook`'s `listener count` case asserts exactly that: one
  * `'exit'` listener after the first hook, and still one after every hook has unsubscribed.
- * Unsubscribing removes a *hook*, not the wiring — tearing the wiring down and putting it
- * back would change which listener runs in what order relative to everyone else's.
+ * Unsubscribing removes a *hook*, not the wiring. No per-event once-guard either: `called`
+ * flips at the first trigger of any kind, so a second SIGINT, a re-fired `'beforeExit'` or an
+ * `'exit'` behind a signal all run nothing.
  */
+/*
+ * Every trigger below starts `shutdown` and does not wait for it, and none catches it. That is
+ * the incumbent's choice, kept: `exit-hook` binds its own `async exit()` the same way, so a hook
+ * that throws reaches the process as the unhandled rejection it is, rather than being swallowed
+ * by the drop-in that was asked to run it.
+ */
+
+/** PM2's cluster shutdown message, which `listen` wires to the same path as a signal. */
+const onPm2Message = (message: unknown): void => {
+  // eslint-disable-next-line maintainability/no-unhandled-promise, reliability/no-unhandled-promise -- the incumbent's unhandled rejection, kept (see above)
+  if (message === 'shutdown') void shutdown(true, true, NO_SIGNAL);
+};
+
 function listen(): void {
   if (listening || proc === undefined) return;
   listening = true;
-  /*
-   * No per-event once-guard: `shutdown` already returns at `runner.settled`, which flips the
-   * moment the first trigger of *any* kind starts, so a second SIGINT, a re-fired
-   * `'beforeExit'` or an `'exit'` behind a signal all run nothing.
-   */
   // Paths that can await: there is still an event loop to come back to.
-  proc.on('beforeExit', () => shutdown(true, false, NO_SIGNAL));
-  proc.on('SIGINT', () => shutdown(true, false, SIGINT_NUMBER));
-  proc.on('SIGTERM', () => shutdown(true, false, SIGTERM_NUMBER));
+  proc.on('beforeExit', () => void shutdown(true, false, NO_SIGNAL));
+  proc.on('SIGINT', () => void shutdown(true, false, SIGINT_NUMBER));
+  proc.on('SIGTERM', () => void shutdown(true, false, SIGTERM_NUMBER));
   // The explicit exit. Synchronous hooks only, and no manual exit: we are already leaving.
-  proc.on('exit', () => shutdown(false, true, 0));
-  /*
-   * PM2's cluster shutdown message. `process.exit()` does not fire `beforeExit`, so without
-   * this a pm2-managed process would skip every hook; upstream carries it for that reason and
-   * a drop-in that dropped it would break exactly the deployments that need it most.
-   */
+  proc.on('exit', () => void shutdown(false, true, 0));
+  // PM2's cluster shutdown message. `process.exit()` does not fire `beforeExit`, so without
+  // this a pm2-managed process would skip every hook.
   proc.on('message', onPm2Message as (...args: never[]) => void);
+}
+
+/** `exit-hook`'s own refusal, on both kinds of hook. */
+function mustBeFunction(onExit: unknown): void {
+  if (typeof onExit !== 'function') throw new TypeError('onExit must be a function');
 }
 
 /**
@@ -287,14 +244,11 @@ function listen(): void {
  * default too, and this repository's lint wants every export last and grouped.
  */
 function exitHook(onExit: ExitHookCallback): () => void {
-  if (typeof onExit !== 'function') throw new TypeError('onExit must be a function');
+  mustBeFunction(onExit);
   syncHooks.add(onExit);
   listen();
-  return () => {
-    syncHooks.delete(onExit);
-  };
+  return () => void syncHooks.delete(onExit);
 }
-
 
 // exit-hook's own type names, so a typed program migrates by its import alone — `burgee migrate`
 // checks every imported name against this module and would otherwise leave the import on exit-hook.
@@ -307,7 +261,7 @@ export type Options = AsyncExitHookOptions;
  * `asyncExitHook(fn, { wait: 'abc' })` both throw, and both are graded.
  */
 export function asyncExitHook(onExit: ExitHookCallback, options: Partial<AsyncExitHookOptions> = {}): () => void {
-  if (typeof onExit !== 'function') throw new TypeError('onExit must be a function');
+  mustBeFunction(onExit);
   const { wait } = options;
   if (!(typeof wait === 'number' && wait > 0)) throw new TypeError('wait must be set to a positive numeric value');
   asyncHooks.set(onExit, wait);
@@ -325,7 +279,8 @@ export function asyncExitHook(onExit: ExitHookCallback, options: Partial<AsyncEx
  */
 export function gracefulExit(signal?: number): void {
   if (signal !== undefined && proc !== undefined) proc.exitCode = signal;
-  shutdown(true, false, NO_SIGNAL);
+  // eslint-disable-next-line maintainability/no-unhandled-promise, reliability/no-unhandled-promise -- the incumbent's unhandled rejection, kept (see listen)
+  void shutdown(true, false, NO_SIGNAL);
 }
 
 // `import exitHook from 'closeout/exit-hook'` is the drop-in, so the entry has to be a

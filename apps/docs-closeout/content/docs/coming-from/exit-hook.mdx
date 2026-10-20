@@ -49,13 +49,12 @@ against closeout, so a run that reads 17 / 21 is upstream's clock, not a regress
 
 ## What you gain over exit-hook
 
-The façade is exit-hook's behaviour; what it runs on is closeout's registry, and that is the
-gain:
+The façade is exit-hook's behaviour and nothing else, at exit-hook's weight. The gain is one
+import away, on closeout itself:
 
-- **The terminal comes back last.** Synchronous hooks run in closeout's `flush` phase and
-  asynchronous ones in `release`, so every sync hook finishes before the first async one
-  starts, by sequence rather than by bookkeeping. `restore` runs after both, so a program
-  that also calls `hideCursor(stream)` gets its cursor back after every hook.
+- **The terminal comes back last.** closeout's `onExit` runs handlers in phases, so a program
+  that also calls `hideCursor(stream)` gets its cursor back after every handler. The façade
+  does not order its hooks against closeout's own.
 - **`onExit` when you want every door.** closeout's own API reaches `SIGHUP`, `SIGQUIT`, an
   uncaught throw and an unhandled rejection too, under one deadline for the whole shutdown
   that names the handlers that had not returned — and, when no other listener owns the
@@ -71,10 +70,8 @@ gain:
 + onExit(() => releaseTheLock());
 ```
 
-What it does not gain you is size. exit-hook has no dependencies and is 4,458 B in one file;
-`closeout/exit-hook` is 11,841 B, because it carries the phase ordering and the bounded
-runner. Startup is level: p50 over 21 spawns, importing it costs 4.5 ms over a bare `node`
-against exit-hook's 4.6 ms, as measured in closeout's README.
+It costs nothing in size. In a bundle `closeout/exit-hook` is 1,579 B against exit-hook
+5.1.0's 1,645 B, measured the way the benchmarks page measures every drop-in.
 
 ## When to switch from exit-hook
 
