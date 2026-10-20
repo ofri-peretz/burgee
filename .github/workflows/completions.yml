@@ -52,5 +52,7 @@ jobs:
       - name: Every shell exercises its script
         env:
           REQUIRE_SHELLS: "1"
-        # The shell-driving cases live in completions-shells.test.ts (windows-lane-holds R3c).
-        run: cd packages/burgee && npx vitest run src/completions.test.ts src/completions-shells.test.ts --reporter=verbose
+        # The shell-driving cases live in completions-shells.test.ts (windows-lane-holds R3c), and
+        # the dynamic ones, which call the program back, in the two files after it (D3,
+        # completion-context R4).
+        run: cd packages/burgee && npx vitest run src/completions.test.ts src/completions-shells.test.ts src/completions-dynamic.test.ts src/completion-context.test.ts --reporter=verbose

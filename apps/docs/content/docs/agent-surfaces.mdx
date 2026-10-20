@@ -225,10 +225,32 @@ mytool completion zsh > "${fpath[1]}/_mytool"   # also: bash, fish, pwsh, fig
 
 Commands, subcommands, options and choice values, with descriptions where the shell shows
 them — generated from the same manifest, as plain shell. Pressing TAB does not execute the
-program, with one exception you opt into: an option that declares `complete` has its values
-asked for at TAB time, through `mytool __complete`. Each script is pinned by a snapshot and
-exercised by its real shell in CI. The templates live in `burgee/completions` and load only
-on that command, so a program pays for them when it prints a script, never at startup.
+program, with one exception you opt into: an option or a positional that declares `complete`
+has its values asked for at TAB time, through `mytool __complete`. Each script is pinned by a
+snapshot and exercised by its real shell in CI. The templates live in `burgee/completions` and
+load only on that command, so a program pays for them when it prints a script, never at startup.
+
+A completer is called as `complete(partial, context)`, and `context` is the rest of the line
+before the cursor. It carries the command `path`, the `options` already typed (coerced the way a
+run coerces them), the `positionals`, and `raw` for any value that failed coercion. So one value
+can depend on another (yargs #793):
+
+```ts
+defineCommand({
+  name: 'deploy',
+  options: {
+    remote: { type: 'string' },
+    branch: { type: 'string', complete: (partial, { options }) => branchesOf(String(options.remote ?? 'origin')) },
+  },
+  arguments: [{ name: 'service', complete: () => services() }],
+  effects: 'non_idempotent',
+  run: ({ options, args }) => deploy(args.service, options),
+});
+```
+
+The line is unfinished, so nothing is required, no relation is checked, and no env, config or
+default is read on TAB. A completer that takes one parameter is called as it always was, and a
+completer that throws offers nothing.
 
 ## `--explain <option>` — where a value came from
 

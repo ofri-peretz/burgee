@@ -210,7 +210,7 @@ Register-ArgumentCompleter -Native -CommandName 'demo' -ScriptBlock {
     'config get' = @{ Items = @(@('--raw', 'ParameterName', ''), @('--no-raw', 'ParameterName', ''), @('--json', 'ParameterName', 'machine-readable output'), @('--help', 'ParameterName', 'show this help')); Values = @{  } }
   }
   $words = @($commandAst.CommandElements | ForEach-Object { $_.Extent.Text } | Select-Object -Skip 1)
-  if ($wordToComplete -ne '' -and $words.Count -gt 0) { $words = $words[0..($words.Count - 2)] }
+  if ($wordToComplete -ne '' -and $words.Count -gt 0) { $words = @($words | Select-Object -First ($words.Count - 1)) }
   $path = ''
   foreach ($w in $words) {
     if ($w -like '-*') { continue }
