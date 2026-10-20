@@ -1,5 +1,5 @@
 {
-  "$comment": "upstream-watch R1. See packages/flagstaff/competitors.json for the field meanings. Both façades are blocked on the render-grading decision recorded in .sdlc/intents/output-stack-compat/spec.md, so both claims are `surface` until their suites are vendored.",
+  "$comment": "upstream-watch R1. See packages/flagstaff/competitors.json for the field meanings. `./ask` is caique's own API, and claims only its surface against clack and inquirer. `./inquirer/prompts` is graded by @inquirer/prompts' own suites through compat-oracle (the `inquirer-prompts` host, inquirer-prompts-drop-in R4), so its claim is `compat`, and its fingerprint is @inquirer/prompts 8.7.3, the release graded, rather than the legacy `inquirer` package.",
   "./ask": [
     {
       "package": "clack",
@@ -163,6 +163,42 @@
       "claim": "compat",
       "registry": "@inquirer/core",
       "seen": null
+    }
+  ],
+  "./inquirer/prompts": [
+    {
+      "package": "inquirer-prompts",
+      "claim": "compat",
+      "registry": "@inquirer/prompts",
+      "seen": {
+        "registry": "@inquirer/prompts",
+        "version": "8.7.3",
+        "shasum": "6ce4983574b86000558555d78fd475efd1546d66",
+        "weight": 547175,
+        "self": 561,
+        "packages": 25,
+        "files": {
+          "dist/index.d.ts": "736a3485c9e96b87b11fe6e55b5455e9f85ef59edc09bff1eb2f114ef661d1e5",
+          "dist/index.js": "736a3485c9e96b87b11fe6e55b5455e9f85ef59edc09bff1eb2f114ef661d1e5",
+          "LICENSE": "85aca0b12ce5ade4ff76e9cbbe7e0d5a4cdde979e3930727c272e1fa04b8cc23",
+          "package.json": "279d381dcc07897ef5902d97eff449248e64306dcdd75dcd9270d60313f90dc1",
+          "README.md": "e8793d3ce668616bf5bff1fa95585885cf68d40e6420409ef742cb02fb04c990"
+        },
+        "exports": [
+          "Separator",
+          "checkbox",
+          "confirm",
+          "editor",
+          "expand",
+          "input",
+          "number",
+          "password",
+          "rawlist",
+          "search",
+          "select"
+        ],
+        "measured": "2026-10-11"
+      }
     }
   ]
 }

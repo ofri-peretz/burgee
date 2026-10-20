@@ -62,6 +62,9 @@ const PAIRS: readonly (readonly [string, string])[] = [
   // resolves through the copy `@changesets/cli` hoists to the root. When that copy is gone,
   // the pair is skipped, as any incumbent not installed at the root is.
   ['@clack/prompts', 'caique/clack'],
+  // Joined 2026-10-20, when inquirer-prompts went level (213 / 213, inquirer-prompts-drop-in R3).
+  // `@inquirer/prompts` 8.7.3, the graded release, is a root devDependency for this comparison.
+  ['@inquirer/prompts', 'caique/inquirer/prompts'],
   // Joined 2026-10-12 with `extra-typings-drop-in` R3. A root devDependency for this comparison
   // alone, as meow is: the declarations are the whole of what the drop-in adds.
   ['@commander-js/extra-typings', 'burgee/commander/extra-typings'],

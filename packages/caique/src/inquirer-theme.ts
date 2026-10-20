@@ -57,6 +57,13 @@ export interface ThemeSpinner {
   frames: string[];
 }
 
+/**
+ * Any subset of `T`, at every depth, as `@inquirer/type`'s `PartialDeep` is: a prompt's
+ * `theme` option may override one style function without restating the rest. Functions and
+ * arrays are leaves, replaced whole, which is also how `makeTheme` merges them.
+ */
+export type PartialDeep<T> = T extends (...args: never[]) => unknown ? T : T extends readonly unknown[] ? T : T extends object ? { [K in keyof T]?: PartialDeep<T[K]> } : T;
+
 /** The style functions a prompt reaches for. Named exactly as the incumbent names them. */
 export interface ThemeStyle {
   answer: (text: string) => string;
@@ -149,7 +156,7 @@ function deepMerge(...objects: Record<string, unknown>[]): Record<string, unknow
  * `null` and `undefined` entries are dropped rather than merged, because a prompt passes
  * `config.theme` straight through and a caller who set no theme passes `undefined`.
  */
-export function makeTheme<Extension = object>(...themes: readonly (PartialTheme<Extension> | undefined)[]): Theme & Extension {
+export function makeTheme<Extension = object>(...themes: readonly (PartialTheme<Extension> | PartialDeep<Theme & Extension> | undefined)[]): Theme & Extension {
   const toMerge = [getDefaultTheme(), ...themes.filter((theme) => theme != null)] as Record<string, unknown>[];
   return deepMerge(...toMerge) as Theme & Extension;
 }

@@ -139,6 +139,7 @@
     "ai-agent"
   ],
   "dependencies": {
+    "bellpull": "^1.0.9",
     "closeout": "^1.1.6",
     "linegauge": "^1.1.4",
     "paratext": "^1.0.10",

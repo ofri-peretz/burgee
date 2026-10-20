@@ -51,12 +51,12 @@ function getDefaultTheme(): Theme;
 Merge any number of partial themes over the defaults, last one winning per leaf.
 
 ```ts
-function makeTheme<Extension = object>(...themes: readonly (PartialTheme<Extension> | undefined)[]): Theme & Extension;
+function makeTheme<Extension = object>(...themes: readonly (PartialTheme<Extension> | PartialDeep<Theme & Extension> | undefined)[]): Theme & Extension;
 ```
 
 | Parameter | Type |
 | :-- | :-- |
-| `themes` | `readonly (PartialTheme<Extension> \| undefined)[]` |
+| `themes` | `readonly (PartialTheme<Extension> \| PartialDeep<Theme & Extension> \| undefined)[]` |
 
 **Returns** `Theme & Extension`
 

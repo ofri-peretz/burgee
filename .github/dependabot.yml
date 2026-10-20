@@ -104,6 +104,11 @@ updates:
       # 11.0.0, the release compat-oracle grades (`suiteDeps`), and the root pins the same one
       # for the type-surface and differential tests.
       - dependency-name: "supports-color"
+      # inquirer-prompts-drop-in: compat-oracle grades `caique/inquirer/prompts` against
+      # `@inquirer/prompts` 8.7.3 (`suiteDeps`, its ten prompts pinned by
+      # D-20261019-inquirer-prompts-pins-its-prompts), and the root pins the same release for the
+      # type-surface and require-shape locks. It moves with a re-vendor, never by a bump here.
+      - dependency-name: "@inquirer/prompts"
   # The `claude` binary bench.yml (B1) and evals.yml install with `npm ci`. It was
   # `npm install --global` with no version, which Scorecard flags as unpinned (#34, #81);
   # the lockfile pins it, and this entry is what keeps the pin from going stale.
