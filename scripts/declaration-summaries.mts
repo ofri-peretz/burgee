@@ -65,11 +65,10 @@ function bodyLines(block: string): string[] {
     .map((line) => line.replace(/^\s*\* ?/, '').trimEnd());
 }
 
-/** Drops blank lines from both ends. */
+/** Drops the blank lines a tag's section ends with; it always starts with the tag's own line. */
 function trimBlank(lines: readonly string[]): string[] {
   const out = [...lines];
-  while (out.length > 0 && out[0]!.trim() === '') out.shift();
-  while (out.length > 0 && out.at(-1)!.trim() === '') out.pop();
+  while (out.at(-1) === '') out.pop();
   return out;
 }
 
@@ -87,27 +86,31 @@ interface Sections {
 }
 
 /**
- * A JSDoc block, read into its lead and its tags. A paragraph ends at a blank line, a tag starts
- * at a line beginning `@`, and a fenced block is a unit of its own; neither of the first two
- * applies inside a fence, whose blank lines and decorators belong to the code.
+ * One line before the first tag, added to the lead; returns the unit the next line continues.
+ * Lines are already trimmed at the end, so a blank line is `''`.
  */
-/** One line before the first tag, added to the lead; returns the unit the next line continues. */
 function leadLine(lead: Unit[], unit: Unit | undefined, line: string, fenced: boolean): Unit | undefined {
   if (fenced) {
+    // Stryker disable next-line OptionalChaining: a fence in the lead always opened a code unit first; the chain only satisfies the type
     unit?.lines.push(line);
     return unit;
   }
+  if (line === '') return undefined;
   if (FENCE.test(line) || unit === undefined || unit.code) {
-    if (line.trim() === '') return undefined;
     const next = { code: FENCE.test(line), lines: [line] };
     lead.push(next);
     return next;
   }
-  if (line.trim() === '') return undefined;
   unit.lines.push(line);
   return unit;
 }
 
+/**
+ * A JSDoc block, read into its lead and its tags. A paragraph ends at a blank line, a tag starts
+ * at a line beginning `@`, and a fenced block is a unit of its own; neither of the first two
+ * applies inside a fence, whose blank lines and decorators belong to the code. A line after a
+ * closing fence starts a new unit, because the unit it would continue is code.
+ */
 function sections(block: string): Sections {
   const out: Sections = { lead: [], tags: [] };
   let fenced = false;
@@ -119,7 +122,6 @@ function sections(block: string): Sections {
     else if (out.tags.length > 0) out.tags.at(-1)!.lines.push(line);
     else unit = leadLine(out.lead, unit, line, fenced);
     if (fence) fenced = !fenced;
-    if (fence && !fenced) unit = undefined;
   }
   return out;
 }
@@ -147,12 +149,15 @@ export function summariseBlock(block: string, indent = ''): string | undefined {
   return ['/**', ...lines.map((line) => (line === '' ? ' *' : ` * ${line}`)), ' */'].join(`\n${indent}`);
 }
 
-/** Every comment in a declaration file, located by the scanner at each token, in source order. */
-function commentRanges(source: ts.SourceFile): ts.CommentRange[] {
-  const text = source.text;
+/**
+ * Every comment in a declaration file, located by the scanner at each token, in source order.
+ * The name only picks the script kind, and a declaration parses the same as any TypeScript.
+ */
+function commentRanges(text: string): ts.CommentRange[] {
+  // Stryker disable next-line StringLiteral: see above — the file name changes nothing a declaration parses to
+  const source = ts.createSourceFile('x.d.ts', text, ts.ScriptTarget.Latest);
   const found = new Map<number, ts.CommentRange>();
   const visit = (node: ts.Node): void => {
-    if (node.kind >= ts.SyntaxKind.FirstJSDocNode && node.kind <= ts.SyntaxKind.LastJSDocNode) return;
     for (const range of [...(ts.getLeadingCommentRanges(text, node.pos) ?? []), ...(ts.getTrailingCommentRanges(text, node.end) ?? [])]) found.set(range.pos, range);
     for (const child of node.getChildren(source)) visit(child);
   };
@@ -165,23 +170,21 @@ function commentRanges(source: ts.SourceFile): ts.CommentRange[] {
  * A comment alone on its line takes its line with it; one after code takes the spaces before it.
  */
 export function summariseDeclaration(text: string): string {
-  const source = ts.createSourceFile('x.d.ts', text, ts.ScriptTarget.Latest, true);
   let out = '';
   let at = 0;
-  for (const { pos, end } of commentRanges(source)) {
+  for (const { pos, end } of commentRanges(text)) {
     const comment = text.slice(pos, end);
     if (KEEP_WHOLE.test(comment)) continue;
-    const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
+    const lineStart = text.lastIndexOf('\n', pos) + 1;
     const indent = text.slice(lineStart, pos);
     const alone = indent.trim() === '';
     const summary = comment.startsWith('/**') ? summariseBlock(comment, indent) : undefined;
-    if (summary === comment) continue;
     if (summary !== undefined) {
       out += text.slice(at, pos) + summary;
       at = end;
       continue;
     }
-    const after = /^[ \t]*(?:\r?\n|$)/.exec(text.slice(end))?.[0];
+    const after = /^[ \t]*\r?\n/.exec(text.slice(end))?.[0];
     if (alone && after !== undefined) {
       out += text.slice(at, lineStart);
       at = end + after.length;
@@ -195,8 +198,7 @@ export function summariseDeclaration(text: string): string {
 
 /** Every JSDoc block in a declaration file that carries more than one paragraph of prose. */
 export function multiParagraphBlocks(text: string): string[] {
-  const source = ts.createSourceFile('x.d.ts', text, ts.ScriptTarget.Latest, true);
-  return commentRanges(source)
+  return commentRanges(text)
     .map(({ pos, end }) => text.slice(pos, end))
     .filter((comment) => comment.startsWith('/**') && !KEEP_WHOLE.test(comment) && proseParagraphs(comment) > 1);
 }
@@ -209,9 +211,11 @@ export interface PackSize {
 
 /** `npm pack --dry-run --json` in a directory, without assuming a POSIX shell (see `pack-list-lock.test.ts`). */
 function packOf(dir: string): PackSize & { files: string[] } {
+  // Stryker disable next-line StringLiteral: without the launcher's npm the bare `npm` below runs instead, and the pack is the same
   const cli = process.env['npm_execpath'];
   const args = ['pack', '--dry-run', '--json', '--ignore-scripts'];
   const io = { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] } as const;
+  // Stryker disable next-line ConditionalExpression,MethodExpression,BooleanLiteral,EqualityOperator,StringLiteral,ArrayDeclaration: which npm binary runs is per platform and per launcher; either way the pack is the same, and one run reaches one branch
   const out = cli?.endsWith('.js') === true ? execFileSync(process.execPath, [cli, ...args], io) : execFileSync('npm', args, { ...io, shell: process.platform === 'win32' });
   const [pack] = JSON.parse(out) as { size: number; unpackedSize: number; files: { path: string }[] }[];
   return { size: pack!.size, unpackedSize: pack!.unpackedSize, files: pack!.files.map((f) => f.path) };
@@ -224,6 +228,7 @@ function packOf(dir: string): PackSize & { files: string[] } {
  */
 export function measurePackage(dir: string): { before: PackSize; after: PackSize } {
   const before = packOf(dir);
+  // Stryker disable next-line StringLiteral: the prefix names the directory for a person; nothing reads it
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'declaration-summaries-'));
   try {
     for (const file of before.files) {

@@ -165,7 +165,7 @@ function schemaBytes(bin: string): number | undefined {
   if (run.hung || run.status !== 0) return undefined;
   // Bytes, as the record's unit says: an agent's context pays per byte, and `.length` counts
   // UTF-16 units, which reads a non-ASCII description low.
-  return parses(run.stdout) ? Buffer.byteLength(run.stdout, 'utf8') : undefined;
+  return parses(run.stdout) ? Buffer.byteLength(run.stdout) : undefined;
 }
 
 /**

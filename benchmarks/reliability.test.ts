@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
-import { judge, measure, type RunOutcome, SCHEMA_BYTES_BUDGET, SKILL_BYTES_BUDGET, type Task } from './axes/reliability.js';
+import { judge, measure, method, type RunOutcome, SCHEMA_BYTES_BUDGET, SKILL_BYTES_BUDGET, type Task } from './axes/reliability.js';
 import { gateFailures } from './record.js';
 
 const run = (over: Partial<RunOutcome> = {}): RunOutcome => ({ hung: false, status: 0, stdout: '', stderr: '', ...over });
@@ -166,6 +166,10 @@ describe('schema-bytes, measured in bytes and gated (schema-bytes-gated)', () =>
     return file;
   };
 
+  it('the method says both bytes records are gated', () => {
+    expect(method).toMatch(/`schema-bytes` and `skill-bytes` are each gated at the demo’s committed budget\.$/);
+  });
+
   it('the budget is the measurement it was set at, rounded up to 50 B (D-20261012-schema-bytes-budget)', () => {
     expect(SCHEMA_BYTES_BUDGET % 50).toBe(0);
     expect(SCHEMA_BYTES_BUDGET).toBe(4_650);
@@ -177,6 +181,7 @@ describe('schema-bytes, measured in bytes and gated (schema-bytes-gated)', () =>
     expect(record?.median).toBe(SCHEMA_BYTES_BUDGET);
     expect(record?.gate?.max).toBe(SCHEMA_BYTES_BUDGET);
     expect(record?.gate?.why).toMatch(/schema-bytes-gated/);
+    expect(record?.note).toMatch(/^bytes of `--schema`/);
     expect(gateFailures(record === undefined ? [] : [record])).toEqual([]);
   });
 
@@ -184,6 +189,12 @@ describe('schema-bytes, measured in bytes and gated (schema-bytes-gated)', () =>
     const record = schemaOf(measure({ id: 'burgee', bin: bin('over', SCHEMA_BYTES_BUDGET + 1) }, [task()]));
     expect(record?.median).toBe(SCHEMA_BYTES_BUDGET + 1);
     expect(gateFailures(record === undefined ? [] : [record]).map((f) => f.record.metric)).toEqual(['schema-bytes']);
+  });
+
+  it('a variant with no --schema gets no record, never a zero', () => {
+    const none = join(dir, 'none.mjs');
+    writeFileSync(none, 'process.exit(2);');
+    expect(measure({ id: 'commander', bin: none }, [task()]).map((r) => r.metric)).toEqual(['hangs-per-100', 'exit-code-accuracy', 'structured-output-rate', 'recovery-bytes']);
   });
 
   it('another variant’s schema is reported ungated', () => {

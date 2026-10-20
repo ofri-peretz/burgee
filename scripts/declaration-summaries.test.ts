@@ -6,7 +6,7 @@
  * `strip-comments.mjs`.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,11 +15,14 @@ import fc from 'fast-check';
 import ts from 'typescript';
 import { afterAll, describe, expect, it } from 'vitest';
 
-import { KEPT_TAGS, measureLine, measurePackage, multiParagraphBlocks, proseParagraphs, summariseBlock, summariseDeclaration } from './declaration-summaries.mts';
+import { DECLARATION, KEPT_TAGS, measureLine, measurePackage, multiParagraphBlocks, proseParagraphs, summariseBlock, summariseDeclaration } from './declaration-summaries.mts';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const scratch = mkdtempSync(join(tmpdir(), 'declaration-summaries-test-'));
+const scratch = mkdtempSync(join(tmpdir(), 'decl-summaries-test-'));
 afterAll(() => rmSync(scratch, { recursive: true, force: true }));
+
+/** The scratch copies `measurePackage` makes, by their prefix. */
+const ours = (): string[] => readdirSync(tmpdir()).filter((name) => name.startsWith('declaration-summaries-'));
 
 /** `npm pack` twice over a small tree. */
 const PACK_TIMEOUT_MS = 60_000;
@@ -57,8 +60,21 @@ describe('R2 — the rule: the first paragraph and the rendered tags stay', () =
     expect(summariseBlock(block)).toBe(`/**\n * One.\n${KEPT_TAGS.map((tag) => ` * @${tag} x`).join('\n')}\n */`);
   });
 
-  it('returns a block that is already a summary byte for byte, single-line or not', () => {
-    for (const block of ['/** One line. */', '/**\n *   Indented,\n *   over two lines.\n * @returns it\n */']) expect(summariseBlock(block)).toBe(block);
+  it('returns a block that is already a summary byte for byte, single-line or not, examples and all', () => {
+    for (const block of ['/** One line. */', '/**\n *   Indented,\n *   over two lines.\n * @returns it\n */', '/**\n * Runs.\n *\n * ```js\n * run();\n * ```\n */']) expect(summariseBlock(block)).toBe(block);
+  });
+
+  it('keeps every line of a first paragraph that wraps, and trims what each line ends with', () => {
+    expect(summariseBlock('/**\n * One,   \n * wrapped.\n *  \n * Two.\n */')).toBe('/**\n * One,\n * wrapped.\n */');
+  });
+
+  it('reads a block whose lines carry no `*`, and never strips a `*` from inside a line', () => {
+    expect(summariseBlock('/**\n   Twice 2 * 3.\n\n   More.\n */')).toBe('/**\n *    Twice 2 * 3.\n */');
+  });
+
+  it('an `@` inside a line, or backticks inside a line, start neither a tag nor a fence', () => {
+    expect(summariseBlock('/**\n * One, see a@example.com.\n *\n * Two.\n */')).toBe('/**\n * One, see a@example.com.\n */');
+    expect(proseParagraphs('/**\n * Write ```x``` inline.\n *\n * Then this.\n */')).toBe(2);
   });
 
   it('keeps a tag whole, blank lines and all, and reads a fenced example as code', () => {
@@ -68,6 +84,7 @@ describe('R2 — the rule: the first paragraph and the rendered tags stay', () =
 
   it('a fenced block in the lead is code, not prose: it is kept, and a blank line inside it starts nothing', () => {
     expect(proseParagraphs('/**\n * Use it:\n * ```\n * a\n *\n * b\n * ```\n */')).toBe(1);
+    expect(summariseBlock('/**\n * One.\n *\n * Two.\n *   ```\n *   a\n *\n *   ```\n */')).toBe('/**\n * One.\n *   ```\n *   a\n *\n *   ```\n */');
     const block = ['/**', ' * Builds a brand.', ' *', ' * Why a brand is a declaration.', ' *', ' * ```js', ' * const brand = defineBurgee({', ' *', ' * });', ' * ```', ' * After the example.', ' */'].join('\n');
     expect(proseParagraphs(block)).toBe(3);
     expect(summariseBlock(block)).toBe(['/**', ' * Builds a brand.', ' * ```js', ' * const brand = defineBurgee({', ' *', ' * });', ' * ```', ' */'].join('\n'));
@@ -87,6 +104,7 @@ describe('R2 — the rule: the first paragraph and the rendered tags stay', () =
     expect(summariseDeclaration('  // a note\nexport declare const a: 1; /* why */\nexport declare const b: 2;  // trailing\n')).toBe('export declare const a: 1;\nexport declare const b: 2;\n');
     expect(summariseDeclaration('export declare const a: 1;\n// last')).toBe('export declare const a: 1;\n');
     expect(summariseDeclaration('/* lead */ export declare const a: 1;\n')).toBe(' export declare const a: 1;\n');
+    expect(summariseDeclaration('/* why */  \nexport declare const a: 1;\n  // last')).toBe('export declare const a: 1;\n');
   });
 
   it('a `\\r\\n` file loses the whole line, carriage return included', () => {
@@ -108,11 +126,30 @@ describe('R2 — the rule: the first paragraph and the rendered tags stay', () =
       ' * Second.',
       ' */',
       '// @ts-ignore',
+      '//@ts-nocheck',
       '/* @ts-expect-error */',
+      '/*@ts-expect-error*/',
       'export declare const a: 1;',
       '',
     ].join('\n');
     expect(summariseDeclaration(text)).toBe(text);
+  });
+
+  it('a comment that only mentions a directive, a pragma or a notice marker is still prose', () => {
+    const block = '/**\n * One.\n *\n * Not a /// directive, /* @ts-ignore pragma, //@ts-x or /*! notice.\n */';
+    expect(summariseBlock(block)).toBe('/**\n * One.\n */');
+    expect(summariseDeclaration(`${block}\nexport declare const a: 1; // see //@ts-ignore\n`)).toBe('/**\n * One.\n */\nexport declare const a: 1;\n');
+    expect(multiParagraphBlocks(`${block}\nexport declare const a: 1;\n`)).toHaveLength(1);
+  });
+
+  it('the lock reads only JSDoc, and never a licence notice', () => {
+    expect(multiParagraphBlocks('/**\n * Copyright (c) 2026 Someone\n *\n * Licensed under MIT.\n */\nexport declare const a: 1;\n')).toEqual([]);
+    expect(multiParagraphBlocks('/*\n * a\n *\n * b\n */\nexport declare const a: 1;\n')).toEqual([]);
+  });
+
+  it('names the three declaration extensions, and nothing else', () => {
+    expect(['a.d.ts', 'a.d.mts', 'a.d.cts'].filter((f) => DECLARATION.test(f))).toHaveLength(3);
+    expect(['a.d.ts.map', 'a.d.xts', 'a.ts', 'a.js'].filter((f) => DECLARATION.test(f))).toEqual([]);
   });
 
   it('never reads `*/` or `/*` inside a string literal type as a comment', () => {
@@ -173,7 +210,10 @@ describe('R1 — measured before cut, from a copy of the built tree', () => {
       writeFileSync(join(pkg, 'dist/index.d.ts'), THREE_PARAGRAPHS);
       writeFileSync(join(pkg, 'dist/index.js'), 'export const greet = (name) => name;\n');
 
+      const before = ours();
       const measured = measurePackage(pkg);
+      // The copy it packs is gone afterwards.
+      expect(ours()).toEqual(before);
       expect(measured.before.unpackedSize - measured.after.unpackedSize).toBe(Buffer.byteLength(THREE_PARAGRAPHS) - Buffer.byteLength(SUMMARISED));
       expect(measured.after.size).toBeLessThan(measured.before.size);
       // The built tree is read, never written.
