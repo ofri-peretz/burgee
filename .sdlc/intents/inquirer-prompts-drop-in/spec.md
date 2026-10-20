@@ -180,7 +180,7 @@ rather than rewritten above, so the 2026-10-12 acceptance stays readable.
   supports-color is, so `drop-in-type-surface-lock` and `drop-in-require-shape-lock` compare the
   pair. Every name `@inquirer/prompts` exports is exported, types included.
 - **R5's ceiling is measured, not copied**: 582,754 B bundled for `@inquirer/prompts` 8.7.3 with
-  its ten pinned prompts and `@inquirer/core` 12.0.4, by `/docs/weight`'s method; ours is 47,960 B.
+  its ten pinned prompts and `@inquirer/core` 12.0.4, by `/docs/weight`'s method; ours is 44,683 B.
 - **What the mutation lane changed.** Code it showed dead or equivalent was removed rather than
   excused: `trimEnd()` on rows the screen manager already right-trims, `useMemo` over a prompt's
   own config (it never changes in a prompt's life), a second `setSearchError` after the effect's
@@ -231,7 +231,7 @@ it, and the property it gives up is pinned as an open question below.
 | R2 | **Built** 2026-10-11 — vendored at 8.7.3, control 213 / 213, target 0 / 213 | `compat-oracle/vendor/inquirer-prompts`, this file (§ R2 — the measurement) | `npm run compat -- inquirer-prompts --control` |
 | R3 | **Built** 2026-10-20 — all ten prompts at `caique/inquirer/prompts`, **213 / 213**, level with the control of 213 / 213; the eleven `editor` cases excluded for both sides (D-20261011-inquirer-prompts-editor-mock) | `caique/src/inquirer-{select,checkbox,input,keyed,search,editor,choices,choice,prompts}.ts`; [`search.qnt`](./search.qnt) | `npm run compat -- inquirer-prompts`; `compat-baseline-lock.test.ts`; `models.yml` |
 | R4 | **Built** 2026-10-20 — `migrate` rewrites `@inquirer/prompts` and refuses a name the subpath lacks; `FACADE_EXPORTS`, the type and `require()` locks; `competitors.json` fingerprints 8.7.3 under `./inquirer/prompts` | `burgee/src/compat.ts`, `burgee/src/migrate.ts`, `caique/competitors.json` | `migrate.test.ts`, `migrate-drop-ins-lock.test.ts`, `facade-types.test.ts`, `drop-in-type-surface-lock.test.ts`, `drop-in-require-shape-lock.test.ts`, `competitors-lock.test.ts` |
-| R5 | **Built** 2026-10-20 — 47,960 B bundled against `@inquirer/prompts` 8.7.3's 582,754 B (0.082) | `subpath-weight` table, `apps/docs/content/docs/weight.mdx` | `subpath-weight-lock.test.ts`, `caique/src/weight.test.ts` |
+| R5 | **Built** 2026-10-20 — 44,683 B bundled against `@inquirer/prompts` 8.7.3's 582,754 B (0.077) | `subpath-weight` table, `apps/docs/content/docs/weight.mdx` | `subpath-weight-lock.test.ts`, `caique/src/weight.test.ts` |
 
 The intent stays `approved` until caique's minor (`.changeset/caique-inquirer-prompts.md`) and
 burgee's (`.changeset/burgee-migrate-inquirer-prompts.md`) publish; then it is `shipped`.

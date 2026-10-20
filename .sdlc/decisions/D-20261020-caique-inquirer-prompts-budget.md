@@ -17,7 +17,7 @@ row from 100 / 213 to 213 / 213, level with `@inquirer/prompts` 8.7.3 on its own
 ceiling it is held under is the incumbent: `@inquirer/prompts` 8.7.3 with the ten prompt releases
 it shipped with and `@inquirer/core` 12.0.4 bundles to **582,754 B** by `/docs/weight`'s method
 (`esbuild --bundle --minify --format=esm --platform=node` over `export * from`), measured
-2026-10-20 from a scratch install of exactly that tree; ours bundles to **47,960 B** (0.082), and
+2026-10-20 from a scratch install of exactly that tree; ours bundles to **44,683 B** (0.077), and
 `scripts/subpath-weight-lock.test.ts` now holds that row at or under the incumbent. For scale,
 `./clack`'s twelve prompts have a 64,000 B budget in the same file. A program on
 `@inquirer/core`'s hooks (`caique/inquirer`) and a program on caique's own API load none of it:
