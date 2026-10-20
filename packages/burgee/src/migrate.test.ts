@@ -546,7 +546,7 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     });
     const left = await migrate({ dir: on10, status: clean });
     expect(read(on10, 'src/a.ts')).toBe("import supportsColor from 'supports-color';\n");
-    expect(left.offMajor).toEqual([{ from: 'supports-color', found: '^10.2.2', graded: '11.0.0' }]);
+    expect(left.offMajor).toEqual([{ from: 'supports-color', found: '^10.2.2', graded: '11.0.0', nearest: 11, sites: [], move: null }]);
   });
 
   // `previous-majors` R6: commander 14 is claimed (its own suite grades `burgee/commander/v14`
