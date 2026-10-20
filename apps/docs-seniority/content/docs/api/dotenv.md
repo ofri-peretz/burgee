@@ -84,17 +84,6 @@ The default export, declared as `dotenv`.
 
 **The default export, and why a drop-in subpath needs one.**
 
-dotenv is CJS: `require('dotenv')` hands back a plain, mutable `module.exports`, and its
-own suite depends on that — `test-populate.js` opens with `sinon.stub(dotenv, 'parse')` in
-a top-level `beforeEach`. An ES module namespace cannot be stubbed: every property is
-non-configurable and the object is not extensible, so sinon refuses with
-`ES Modules cannot be stubbed`, the `beforeEach` throws, and **every** case in the file
-fails before its first assertion.
-
-So the subpath publishes the same shape its incumbent does — one mutable object carrying
-the four functions — under the `'module.exports'` name Node's `require()` of an ES module
-returns whole. Every internal call goes through it, as dotenv's go through `DotenvModule`.
-
 ```ts
 const dotenv: {
     config: typeof config;
@@ -107,17 +96,6 @@ const dotenv: {
 ### module.exports
 
 **The default export, and why a drop-in subpath needs one.**
-
-dotenv is CJS: `require('dotenv')` hands back a plain, mutable `module.exports`, and its
-own suite depends on that — `test-populate.js` opens with `sinon.stub(dotenv, 'parse')` in
-a top-level `beforeEach`. An ES module namespace cannot be stubbed: every property is
-non-configurable and the object is not extensible, so sinon refuses with
-`ES Modules cannot be stubbed`, the `beforeEach` throws, and **every** case in the file
-fails before its first assertion.
-
-So the subpath publishes the same shape its incumbent does — one mutable object carrying
-the four functions — under the `'module.exports'` name Node's `require()` of an ES module
-returns whole. Every internal call goes through it, as dotenv's go through `DotenvModule`.
 
 ```ts
 const dotenv: {

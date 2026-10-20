@@ -8,32 +8,6 @@ description: "Every export of paratext/plugin, with its signature and doc commen
 The plugin host for paratext's half of the contract
 (`plugin-contract` R1, R5a, R6, R7, R8).
 
-A plugin is one plain object shared by the whole family. This file keeps the key paratext
-understands — **`capabilities`** (R5a), OSC records by name — and **ignores every other
-key without complaining**, which is what makes the same object work on any subset of the
-family that is installed. A plugin written for flagstaff registers here and contributes
-nothing; its `tokens`, `spinners` and `components` are not paratext's business and are not
-an error.
-
-**Why paratext needed this file more than the other hosts did.** Until it existed, paratext
-was the one published package with no `src/plugin.ts` — and that file is the *marker*
-`scripts/plugin-schema-lock.test.ts` and `scripts/schema-sync.mjs` both look for. So
-paratext's copy of the family schema was outside the lock that keeps the copies
-byte-identical: it happened to match flagstaff's, and nothing in the repository would have
-said so if it stopped.
-
-**Nothing here imports another layer, and the plugin shape is declared rather than
-imported** (R3). It imports `./capability.js` because that is this package's own module:
-the capability shape, the registry and `check()` have to have exactly one home, or
-"fallback is required" means one thing to a plugin and another to a built-in.
-
-**R7, and why this host is the easy case.** R7 asks that no key require a function. Here
-none does: a capability is `{ name, osc, when, encode, fallback }`, five fields of plain
-data with two template strings, so a plugin can arrive as JSON, be diffed, and be printed
-by a `plugin check` without anybody running its author's code. closeout's `handlers` owes
-R7 an exemption; `capabilities` owes it nothing, which is the argument the design makes
-for holding capabilities as data in the first place.
-
 ```ts
 import { validate, register, reset, … } from 'paratext/plugin';
 ```
@@ -43,11 +17,6 @@ import { validate, register, reset, … } from 'paratext/plugin';
 ### attach
 
 Hand every contributed capability to a registry.
-
-Defaults to paratext's own, which is what a program wants: `attach()` after importing the
-plugins, and `emit()` can then reach them by name exactly as it reaches the built-ins.
-Passing a host is for a caller keeping its own registry, and for a test that wants to see
-the order without touching the global one.
 
 ```ts
 function attach(host?: CapabilityHost): void;
@@ -63,10 +32,6 @@ function attach(host?: CapabilityHost): void;
 
 Every capability every registered plugin contributed, with who won each name.
 
-This is the static projection of the plugin set (R7): a caller — or `burgee plugin check`
-— reads what *would* be registered, and who lost, without registering anything and without
-a terminal being involved.
-
 ```ts
 function contributions(): Contribution[];
 ```
@@ -79,10 +44,6 @@ Register a plugin. Later wins, like ESLint flat config: the array is ordered, a 
 reads it top to bottom, and the last word on a capability name is the one nearest the
 program — which is also the registry's own rule, since `register()` in `capability.ts`
 replaces by name so a caller can correct a guess we got wrong.
-
-**Registering does not emit, and does not even reach the capability registry.** It records
-the contribution; {@link attach} is what hands it over. That separation is what makes
-{@link contributions} a static projection rather than a side effect.
 
 ```ts
 function register(plugin: unknown): void;
@@ -117,10 +78,6 @@ function reset(): void;
 ### validate
 
 Refuse a plugin that cannot contribute a capability, at the door.
-
-Every refusal is a refusal rather than a silent drop. A capability quietly ignored looks
-like it worked right up until the day somebody runs the program on the terminal it was
-written for, and then the thing they debug is the terminal.
 
 ```ts
 function validate(plugin: unknown): asserts plugin is Plugin;

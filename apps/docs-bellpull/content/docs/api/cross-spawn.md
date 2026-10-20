@@ -7,39 +7,6 @@ description: "Every export of bellpull/cross-spawn, with its signature and doc c
 
 `bellpull/cross-spawn` — the drop-in path for `cross-spawn` (design R7, Y3).
 
-Graded by `cross-spawn`'s own 68-case suite in `compat-oracle` (`hosts.ts`,
-`target: 'bellpull/cross-spawn'`). The suite runs every case four times — `spawn`,
-`spawn-force-shell`, `sync`, `sync-force-shell` — so a divergence in one path cannot hide
-behind the other three.
-
-## What a drop-in means here, and the one thing it means most
-
-**On POSIX this is a pass-through, and that is the correct implementation.**
-`cross-spawn`'s own `parseNonShell` returns immediately off Windows; its `hookChildProcess`
-does too. Everything it is famous for — `npm.cmd`, `PATHEXT`, shebangs, caret escaping —
-is Windows-only, because on POSIX the kernel already does all of it. A façade that
-"improved" on that by resolving the command itself would change the error a caller sees
-(`err.path` would be a resolved path, not the name they wrote), change the process tree,
-and break the incumbent's suite in four places. Being identical is the product.
-
-So what this file adds over `node:child_process` is exactly what `cross-spawn` adds:
-argument normalisation and cloning, the Windows parse in `spawn-args.ts`, and the ENOENT
-reconstruction in `enoent.ts`.
-
-## It reads the ambient process, on purpose
-
-The core (`run.ts`, `which.ts`) takes a `Runtime` argument and reads no global — Y9. A
-drop-in cannot: `cross-spawn`'s callers pass a command and some arguments, and the package
-reads `process.env` and `process.platform` itself. Requiring a runtime here would mean
-every migrating caller edits every call site, which is the definition of not a drop-in.
-`ambient.ts` is where that read lives, once.
-
-## Default export
-
-`module.exports = spawn` with `spawn`, `sync`, `_parse` and `_enoent` hung off it, because
-that is what `require('cross-spawn')` gives today and a migration must not have to change
-how the value is called.
-
 ```ts
 import crossSpawn from 'bellpull/cross-spawn';
 import { _enoent, crossSpawn, module.exports, … } from 'bellpull/cross-spawn';
@@ -83,10 +50,6 @@ function spawn(command: string, args?: ArgsOrOptions, options?: SpawnOptions | n
 ### sync
 
 `cross-spawn.sync(command, args?, options?)`.
-
-The missing-command case is put back onto `result.error` rather than thrown: `spawnSync`
-reports a failure to start that way and a drop-in that threw would turn a value the caller
-inspects into control flow they did not write.
 
 ```ts
 function sync(command: string, args?: ArgsOrOptions, options?: SpawnOptions | null): SpawnSyncReturns<Buffer | string>;
@@ -570,11 +533,6 @@ The default export, declared as `crossSpawn`.
 
 The callable default, with the named exports hung off it.
 
-`compat-oracle` re-exports `default` under the name `'module.exports'`, which is what a
-CommonJS `require()` of this module returns whole — so the vendored suite's
-`const spawn = require('../../shim.mjs')` gets this function and `spawn.sync` finds the
-property below, exactly as it does from `cross-spawn` itself.
-
 ```ts
 const crossSpawn: typeof spawn & {
     spawn: typeof spawn;
@@ -605,11 +563,6 @@ const _enoent: {
 
 The callable default, with the named exports hung off it.
 
-`compat-oracle` re-exports `default` under the name `'module.exports'`, which is what a
-CommonJS `require()` of this module returns whole — so the vendored suite's
-`const spawn = require('../../shim.mjs')` gets this function and `spawn.sync` finds the
-property below, exactly as it does from `cross-spawn` itself.
-
 ```ts
 const crossSpawn: typeof spawn & {
     spawn: typeof spawn;
@@ -627,11 +580,6 @@ const crossSpawn: typeof spawn & {
 ### module.exports
 
 The callable default, with the named exports hung off it.
-
-`compat-oracle` re-exports `default` under the name `'module.exports'`, which is what a
-CommonJS `require()` of this module returns whole — so the vendored suite's
-`const spawn = require('../../shim.mjs')` gets this function and `spawn.sync` finds the
-property below, exactly as it does from `cross-spawn` itself.
 
 ```ts
 const crossSpawn: typeof spawn & {

@@ -15,9 +15,6 @@ import { editor, submissions, EDITOR_KEYS } from 'caique/editor';
 
 Build an editor.
 
-`onKey` never reads a stream and never waits: it is called with a key, returns a state, and
-says when the entry was submitted or cancelled. `render` is the frame for a state.
-
 ```ts
 function editor(options?: EditorOptions): Editor;
 ```

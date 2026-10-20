@@ -436,7 +436,7 @@ Graded by the incumbent's own test suite:
 | `lilconfig` | 77 / 77 |
 | `rc` | 1 / 1 |
 
-Weight, installed and tree-inclusive: **233,555 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1184**.
+Weight, installed and tree-inclusive: **218,282 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1107**.
 
 ## For agents
 

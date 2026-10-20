@@ -7,19 +7,6 @@ description: "Every export of closeout/onetime, with its signature and doc comme
 
 `closeout/onetime` — the drop-in path for `onetime` 8 (`graded-override-targets` R3).
 
-`restore-cursor` → `onetime` → `mimic-function` is the chain `closeout/once`'s header says
-the drop-in recipe is incomplete without, and this is its middle: onetime's default export,
-its `callCount` and its `{ throw: true }`, graded by onetime's own suite in `compat-oracle`.
-
-**It is not `once()` renamed, and the difference is a case in that suite.** `once` marks the
-function called before it runs, so a first call that throws leaves a wrapper that returns
-`undefined` for ever — the right contract on an exit path, where a handler must never run
-twice. onetime 8 drops the function only after it *returns*, so a first call that throws is
-retried (`retries if the first call throws`). The two contracts serve different callers, so
-`closeout/once` keeps its own and this file follows onetime's. What they share is the
-wrapper's identity: `name` and `length` are the wrapped function's, as `mimic-function`
-gives onetime's.
-
 ```ts
 import onetime from 'closeout/onetime';
 import type { Options, OnetimeFunction } from 'closeout/onetime';

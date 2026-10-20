@@ -7,12 +7,6 @@ description: "Every export of seniority/precedence, with its signature and doc c
 
 One precedence order, fixed and not configurable (commander-env V1–V3, V5):
 
-    flag > env > config file > package.json field > default
-
-`resolve` is pure — it takes the layers and returns the values with their provenance —
-which is what makes `--explain` trustworthy and `meta.provenance` cheap. Env applies
-only to the options the running command declares (yargs #873), never to a sibling's.
-
 ```ts
 import { screaming, envName, envBoolean, … } from 'seniority/precedence';
 ```
@@ -95,16 +89,6 @@ class ConfigError extends Error {
 
 The precedence, highest first — **the one declaration** (R1, R14).
 
-The design's R1 wrote this array as `['flag','env','project','home','pkg','default']` and
-the shipped union said `'flag'|'env'|'config'|'package'|'default'`. Those are two
-spellings of one fact, and a plugin cannot register against two. The shipped five win:
-they are what `provenance.source` already prints for every user of 0.1.0, and the
-project/home split the design wanted is carried more precisely by `location` — which
-names the actual file — than a second source kind ever could.
-
-`Source` is generated from this array rather than written beside it, so the drift cannot
-come back: adding a kind means adding it here.
-
 ```ts
 const ORDER: readonly ["flag", "env", "config", "package", "default"];
 ```
@@ -165,12 +149,6 @@ interface Layers {
 ### OptionSpec
 
 What resolution needs to know about an option, and no more.
-
-burgee's `OptionSpec` carries eighteen fields — choices, schema, placeholder,
-deprecation, the lot. Resolving a value reads three of them. Declaring those
-three here is what lets any program use seniority with its OWN option type:
-TypeScript's structural typing accepts a richer spec with no adapter, no
-import, and no dependency pointing back up the stack.
 
 ```ts
 interface OptionSpec {

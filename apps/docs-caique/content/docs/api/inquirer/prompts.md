@@ -7,10 +7,6 @@ description: "Every export of caique/inquirer/prompts, with its signature and do
 
 `caique/inquirer/prompts` — `@inquirer/prompts`' prompts, over `caique/inquirer`'s loop.
 
-A subpath of its own rather than more of `caique/inquirer`, so a program that renders its
-own prompts with `@inquirer/core`'s hooks pays for none of these. Graded prompt by prompt
-against `@inquirer/prompts`' own suites (`.sdlc/intents/inquirer-prompts-drop-in/`).
-
 ```ts
 import { Separator, checkbox, select } from 'caique/inquirer/prompts';
 ```

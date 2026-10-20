@@ -7,23 +7,6 @@ description: "Every export of roundel/plugin, with its signature and doc comment
 
 The plugin host for roundel's half of the contract (`plugin-contract` R1, R4, R6, R8).
 
-A plugin is one plain object shared by the whole family. This file keeps the key roundel
-understands — `tokens`, a theme — and **ignores every other key without complaining**,
-which is what makes the same object work on any subset of the family that is installed.
-A plugin written for flagstaff registers here and contributes its theme; its `spinners`
-and `components` are not roundel's business and are not an error.
-
-**Nothing here imports flagstaff, and the shape is declared rather than imported.** Types
-erase, so an import would cost nothing at run time — and it would still put flagstaff in
-roundel's dependency story, which is the one thing the family promises it does not do.
-Four keys declared structurally is three lines, and keeps "none requires the others"
-literally true instead of true-modulo-types.
-
-**A plugin cannot smuggle an unreadable colour in.** This file collects tokens; `fly()`
-contrast-checks them against the ground exactly as it checks a hand-written theme, and
-throws below 4.5:1. That is deliberately not re-implemented here: one contrast gate, in
-the place that already had it (roundel R5).
-
 ```ts
 import { validate, register, reset, … } from 'roundel/plugin';
 ```
@@ -79,10 +62,6 @@ function reset(): void;
 
 The theme every registered plugin adds up to, ready for `fly()`.
 
-It is *not* flown here. A plugin contributing colour must not decide when colour is
-decided — `fly()` is called once by the program, and calling it from a `register()` would
-mean the last plugin imported quietly re-flew the theme.
-
 ```ts
 function theme(): Theme;
 ```
@@ -92,9 +71,6 @@ function theme(): Theme;
 ### validate
 
 Refuse a plugin that cannot contribute a theme, at the door.
-
-A misspelt token name is refused rather than ignored: a plugin whose `errror` key is
-silently dropped looks like it worked, and the author debugs the wrong thing.
 
 ```ts
 function validate(plugin: unknown): asserts plugin is Plugin;

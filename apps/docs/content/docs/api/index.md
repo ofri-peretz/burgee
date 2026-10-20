@@ -8,32 +8,6 @@ description: "Every export of burgee, with its signature and doc comment: define
 burgee — a command declares itself once; every surface is that declaration
 read by a different reader.
 
-The public entry, and only that. The execution core lives in execute.ts so a
-façade can import it without pulling this barrel.
-
-## What is not here, and why (D-093, reversed on a measurement)
-
-This barrel used to re-export the value half of `help.ts`, `mcp.ts`, `schema.ts`,
-`plugin.ts`, `manifest.ts` and `seniority/precedence` as a convenience. A re-export is
-not free: it makes those modules live for every consumer of `burgee`, whether or not
-anything reads them. `execute.ts` loads each one behind an `await import()`, so the only
-thing keeping them on the startup path was this file.
-
-Measured 2026-09-21 with `--splitting --outdir` over the transitive closure of `import`
-statements — the initial load a consumer actually pays:
-
-- `import { run } from 'burgee'` — **44,663 bytes**
-- the same program against `execute.ts` directly — **31,047 bytes**
-- cold start, `burgee ÷ cac` — **2.113 → 1.717**
-
-D-093 declined this split on a cold-start argument it did not have the number for. The
-number says 13,616 bytes and 19% of startup, so the split lands: every value moved here
-has a subpath of its own (`burgee/help`, `burgee/mcp`, `burgee/schema`, `burgee/plugin`,
-`burgee/config`), which is where a program that wants it should say so.
-
-**Every `type` stays.** A type re-export is erased and costs a consumer nothing, so the
-whole type surface is still importable from `burgee` and no typed program has to move.
-
 ```ts
 import { defineError, ExitCode, isExitCode, … } from 'burgee';
 ```
@@ -59,17 +33,6 @@ function camel(flag: string): string;
 The whole door: {@link checkDefinition} — which carries V5's reserved names — and
 {@link checkEffects }.
 
-This exists as one function because it was two. `defineCommand` ran both; `Manifest.use()`
-ran neither, so a plugin's command was admitted unread — and a plugin option named `json`
-did not clash with the envelope flag, it replaced it in the parse config. The fix is not a
-second copy of the guard beside `use()`; it is that there is one guard and both callers
-reach it, which is the only arrangement a reader can check by looking.
-
-It takes the declaration whole, for exactly that reason. It took `effects` and `runs` as
-required arguments so a caller could not decline a check by writing nothing; D1 would have
-made that five, and a sixth field would make it six. Reading the object means a field the
-door checks is one no caller has to remember to forward — including whether it runs.
-
 ```ts
 function checkCommand(name: string, declared: Declared): void;
 ```
@@ -86,13 +49,6 @@ function checkCommand(name: string, declared: Declared): void;
 What must be true of a declaration before anything runs (yargs #1198, #887, #1679):
 a known type, one short alias per command, no two keys that meet on the command line, and
 none of V5's reserved surfaces.
-
-The reserved names used to be a second loop over the same keys in {@link checkCommand},
-and the numeric bound used to be a fourth branch in this one. Both moved to pay for the
-canonical-key check below without raising a weight ceiling — `./plugin` had 5 bytes of
-headroom — and both are better where they are now: `flag` is computed once here and
-`kebab` is the identity on every reserved name, and a numeric bound is a fact about a
-spec rather than about a name. The file is 51 bytes smaller than before the check existed.
 
 ```ts
 function checkDefinition(name: string, options: Record<string, OptionSpec>): void;
@@ -262,13 +218,6 @@ function sharedOptions<const T extends OptionSpecs>(name: string, specs: T): T;
 
 E6 — the far side said no. Throw this and the run leaves with `ExitCode.AUTH`.
 
-The one error class whose *response* is unambiguous: not "read the message and decide" but
-"get a credential and run it again". A handler that throws a bare `Error` for a 401 gets
-`RUNTIME`, which is the code for everything, and a caller retrying on it retries forever.
-
-`fix` is the exact command that gets the credential, where the program knows it — `hint` is
-prose a person reads and `fix` is a line a caller runs, which is the turn the field saves.
-
 ```ts
 class AuthError extends Error {
     readonly hint?: string | undefined;
@@ -321,21 +270,6 @@ interface ActionRequiredSpec {
 Agent detection, not just `isTTY` (N12). An agent may well have a terminal; what it
 does not have is a person. `FORCE_TTY=1` overrides. `AI_AGENT` is the generic escape
 hatch any agent can set.
-
-The list is the five variables `roundel/terminal`'s `AGENTS` holds, in the same order,
-and it grows by one only for a variable that **uniquely** identifies an agent: set by the
-agent, and never in a terminal a person types in. `CURSOR_TRACE_ID` fails that test — Cursor
-sets it in every integrated terminal — so it is not here and must not be
-(D-20260930-one-interactive-rule).
-
-Two answers come from here, and they are about different streams:
-
-- `agent` is `ctx.agent`: which agent, if any, the environment names.
-- `interactive` is the **output** side: stdout is a terminal a person is reading, not an
-  agent's capture. Help's colour reads it (O2, `colorFor`).
-
-Whether a person may be **asked** is not this function's answer. `ctx.interactive` is
-roundel's `interactive()` — a terminal on stdin, no `CI`, no agent — computed in `ctx.ts`.
 
 ```ts
 interface AgentProbe {
@@ -395,12 +329,6 @@ interface Command<S extends OptionSpecs = OptionSpecs, O extends CommandOutput =
     /**
      * What running it does to the world (N6). Declaring one of the three is what exposes the
      * command as an MCP tool (N2); `'withheld'` declares that it is not offered to agents.
-     *
-     * Optional on the type and **required at definition time** on a command that runs:
-     * `defineCommand` refuses one that omits it. It stays optional here because a group that
-     * only holds subcommands declares none, and TypeScript cannot make a field's presence
-     * depend on a sibling's without splitting `Command` into a union that would cost the
-     * option-spec inference every caller of this type relies on.
      */
     effects?: DeclaredEffects;
     /** Relationships between options, validated before choices and the handler (S2, S6). */
@@ -491,14 +419,6 @@ interface CommandNode {
 clispec-conformance R5 — what a command's result is, declared, so `--schema` can say what
 comes back and how much of it before the first call (clispec v0.3's `output_kind`,
 `cardinality`, `stdout_schema` and `media_type`).
-
-- `kind`: `data` (the default) is a result an agent parses; `stream` is records one per line
-  (declared only: burgee has no `--format=ndjson` yet); `opaque` is bytes that are not data,
-  such as a shell script, and names its `mediaType`.
-- `cardinality`: `single` is one value, `bounded` a list with a known ceiling, `unbounded` a
-  list that grows with the world. clispec has no safe default, so neither does this.
-- `schema`: a JSON Schema for what `run` returns (the envelope's `data`). TypeScript checks
-  the handler against it (`OutputOf`).
 
 ```ts
 interface CommandOutput {
@@ -632,20 +552,11 @@ interface OptionSpec {
      * The other options this one requires: `--out --dependsOn force` is a usage error without
      * `--force` (S2). Sugar for a `{ implies: [this, other] }` relation per name, and nothing
      * else — one engine, one order, one error vocabulary.
-     *
-     * It exists as a second spelling because the first states the constraint away from the
-     * option it constrains: a reader looking at `out` learns nothing from a `relations` entry
-     * three keys down, and neither does the help line for `--out`. Both incumbents spell it on
-     * the option (commander `.implies()`, yargs `.implies()`), and so does Fig, whose `Option`
-     * declares this exact key.
      */
     dependsOn?: readonly string[];
     /**
      * The other options this one may not be given with (S2): `{ conflicts: [this, other] }` per
      * name. Commander's `.conflicts()`, yargs' `.conflicts()`, Fig's `exclusiveOn`.
-     *
-     * One-sided is enough — the relation it compiles to holds whichever of the two argv names
-     * first — so declare it once, on whichever option the constraint belongs to.
      */
     exclusive?: readonly string[];
     /** `number` only. */
@@ -736,14 +647,6 @@ interface RunContext {
      * Cleanup that runs on **every** path out of the run (E5): a normal return, `ctx.exit`,
      * Ctrl-C, SIGTERM, a terminal closing, an uncaught throw. Returns the function that
      * unregisters it, for a command that cleaned up on its own.
-     *
-     * The handler runs after stdout has been drained (O5) and before the terminal is handed
-     * back, and it runs exactly once however many of those arrive together. `label` is what a
-     * breached shutdown deadline calls it; without one an arrow is reported as `(anonymous)`,
-     * and the anonymous arrow is the shape that hangs.
-     *
-     * Typed here rather than re-exported from `closeout`, so a command's signature does not
-     * change when that package's does.
      */
     onExit: (handler: () => void | Promise<void>, label?: string) => () => void;
     /**
