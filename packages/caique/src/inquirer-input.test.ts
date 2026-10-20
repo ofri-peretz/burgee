@@ -375,7 +375,7 @@ const TAB = { name: 'tab', sequence: '\t' };
 
 /** A validator that answers when the test says so, counting its calls. */
 function pending<T>(): { validate: (value: T) => Promise<boolean | string>; release: (verdict: boolean | string) => void; calls: () => number } {
-  let release: (verdict: boolean | string) => void = () => undefined;
+  let release: ((verdict: boolean | string) => void) | undefined;
   let calls = 0;
   return {
     validate: async () => {
@@ -385,7 +385,7 @@ function pending<T>(): { validate: (value: T) => Promise<boolean | string>; rele
       });
     },
     release: (verdict) => {
-      release(verdict);
+      release?.(verdict);
     },
     calls: () => calls,
   };
@@ -576,13 +576,15 @@ describe('the line prompts, frame by frame', () => {
     expect(opening.frames()[0]).toBe('? Go?:idle (Y/n)');
     const words = { keywords: { yes: 'Oui', no: 'Aucun', error: () => 'oui ou aucun' } };
     const cases: [string, boolean | 'refused'][] = [[' o ', true], ['a', false], ['s', 'refused'], ['o', true]];
-    for (const [typed, expected] of cases) {
-      const { answer, events, getScreen } = await render(confirm, { message: 'Go?', theme: words });
-      events.type(typed);
-      events.keypress('enter');
-      if (expected === 'refused') expect(getScreen()).toContain('> oui ou aucun');
-      else await expect(answer).resolves.toBe(expected);
-    }
+    await Promise.all(
+      cases.map(async ([typed, expected]) => {
+        const { answer, events, getScreen } = await render(confirm, { message: 'Go?', theme: words });
+        events.type(typed);
+        events.keypress('enter');
+        if (expected === 'refused') expect(getScreen()).toContain('> oui ou aucun');
+        else await expect(answer).resolves.toBe(expected);
+      }),
+    );
     const plain = await render(confirm, { message: 'Go?' });
     plain.events.type('o');
     plain.events.keypress('enter');

@@ -128,8 +128,8 @@ used prompts. The rest share the text-input path.
 | R3 | [`search.qnt`](./search.qnt) `safety` under `step`, each rejected design (§ Quint model) violating it, and `answersFromTermOnScreen` still violated, in `models.yml` | written with the build: `stepNoAbort` and `stepEnterLoading` each fail `safety`; `someAnswer` is violated |
 | R4 | `packages/burgee/src/migrate.test.ts` › `moves an @inquirer/prompts program to caique/inquirer/prompts, and refuses a name the subpath does not export`, and › `maps every row, subpaths included`; `scripts/migrate-drop-ins-lock.test.ts`; `packages/burgee/src/facade-types.test.ts` (`FACADE_EXPORTS` equal to the built declarations); `scripts/competitors-lock.test.ts` | with main's `GRADED` row (100 / 213, not level) the fixture is not rewritten and the case fails |
 | R4 | `scripts/drop-in-type-surface-lock.test.ts` and `scripts/drop-in-require-shape-lock.test.ts` (`@inquirer/prompts` 8.7.3 against `caique/inquirer/prompts`) | main's subpath exports two of the ten prompts, so eight value names are missing |
-| R5 | `scripts/subpath-weight-lock.test.ts` (`DROP_IN_CEILINGS`: 582,754 B); `packages/caique/src/weight.test.ts` (`./inquirer/prompts` at 65,000 B) | a façade over the ceiling fails it; the budget refused 63,929 B at 38,000 before D-20261020-caique-inquirer-prompts-budget |
-| all | `npx tsx scripts/mutation.ts changed --base origin/main` — every mutant on the changed lines detected | MUTATION_RESULT |
+| R5 | `scripts/subpath-weight-lock.test.ts` (`DROP_IN_CEILINGS`: 582,754 B); `packages/caique/src/weight.test.ts` (`./inquirer/prompts` at 65,000 B) | a façade over the ceiling fails it; the budget refused 63,105 B at 38,000 before D-20261020-caique-inquirer-prompts-budget |
+| all | `npx tsx scripts/mutation.ts changed --event pull_request --base origin/main` — every mutant on the changed lines detected: caique 989 killed and 1 timed out of 990, burgee 38 of 38 | the first run on the ported tests left 165 survivors and 197 timeouts in caique, over the lane's 11-minute budget; tests were added and code a mutant showed to be dead or equivalent was removed (§ Re-grounded) |
 
 ## Rejected alternatives
 
@@ -180,9 +180,18 @@ rather than rewritten above, so the 2026-10-12 acceptance stays readable.
   supports-color is, so `drop-in-type-surface-lock` and `drop-in-require-shape-lock` compare the
   pair. Every name `@inquirer/prompts` exports is exported, types included.
 - **R5's ceiling is measured, not copied**: 582,754 B bundled for `@inquirer/prompts` 8.7.3 with
-  its ten pinned prompts and `@inquirer/core` 12.0.4, by `/docs/weight`'s method; ours is 48,339 B.
+  its ten pinned prompts and `@inquirer/core` 12.0.4, by `/docs/weight`'s method; ours is 47,960 B.
+- **What the mutation lane changed.** Code it showed dead or equivalent was removed rather than
+  excused: `trimEnd()` on rows the screen manager already right-trims, `useMemo` over a prompt's
+  own config (it never changes in a prompt's life), a second `setSearchError` after the effect's
+  own, `password`'s `setValue(value)` to itself, `expand`'s never-drawn help row, the `done`
+  guards on hints `!value` already rules out, and `decimal()`'s unused defaults. Four
+  `// Stryker disable` lines remain, each a constant dependency list or the `stdio: 'inherit'`
+  a test process has no terminal to observe. The test fixture now bounds each wait on a frame
+  or an answer to 3 s of real time, so a mutant that never draws fails at once instead of
+  timing out, and it can send a key with the text a terminal sends (Tab's `\t`).
 - **Budgets moved** (D-20261020-caique-inquirer-prompts-budget): `./inquirer/prompts` 38,000 →
-  65,000 B on disk (measured 63,929), and caique's tarball figure to 79,560 / 289,156 B.
+  65,000 B on disk (measured 63,105), and caique's tarball figure to 79,416 / 288,332 B.
 
 ## Quint model: needed? Yes, for `search`
 
@@ -222,7 +231,7 @@ it, and the property it gives up is pinned as an open question below.
 | R2 | **Built** 2026-10-11 — vendored at 8.7.3, control 213 / 213, target 0 / 213 | `compat-oracle/vendor/inquirer-prompts`, this file (§ R2 — the measurement) | `npm run compat -- inquirer-prompts --control` |
 | R3 | **Built** 2026-10-20 — all ten prompts at `caique/inquirer/prompts`, **213 / 213**, level with the control of 213 / 213; the eleven `editor` cases excluded for both sides (D-20261011-inquirer-prompts-editor-mock) | `caique/src/inquirer-{select,checkbox,input,keyed,search,editor,choices,choice,prompts}.ts`; [`search.qnt`](./search.qnt) | `npm run compat -- inquirer-prompts`; `compat-baseline-lock.test.ts`; `models.yml` |
 | R4 | **Built** 2026-10-20 — `migrate` rewrites `@inquirer/prompts` and refuses a name the subpath lacks; `FACADE_EXPORTS`, the type and `require()` locks; `competitors.json` fingerprints 8.7.3 under `./inquirer/prompts` | `burgee/src/compat.ts`, `burgee/src/migrate.ts`, `caique/competitors.json` | `migrate.test.ts`, `migrate-drop-ins-lock.test.ts`, `facade-types.test.ts`, `drop-in-type-surface-lock.test.ts`, `drop-in-require-shape-lock.test.ts`, `competitors-lock.test.ts` |
-| R5 | **Built** 2026-10-20 — 48,339 B bundled against `@inquirer/prompts` 8.7.3's 582,754 B (0.083) | `subpath-weight` table, `apps/docs/content/docs/weight.mdx` | `subpath-weight-lock.test.ts`, `caique/src/weight.test.ts` |
+| R5 | **Built** 2026-10-20 — 47,960 B bundled against `@inquirer/prompts` 8.7.3's 582,754 B (0.082) | `subpath-weight` table, `apps/docs/content/docs/weight.mdx` | `subpath-weight-lock.test.ts`, `caique/src/weight.test.ts` |
 
 The intent stays `approved` until caique's minor (`.changeset/caique-inquirer-prompts.md`) and
 burgee's (`.changeset/burgee-migrate-inquirer-prompts.md`) publish; then it is `shipped`.

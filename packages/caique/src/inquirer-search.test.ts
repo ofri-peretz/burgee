@@ -18,6 +18,9 @@ const frame = (...lines: string[]): string => lines.join('\n');
 
 const HELP = '↑↓ navigate • ⏎ select';
 
+/** The first row of a frame with its escapes stripped and nothing trimmed, so a stray space shows. */
+const firstLine = (raw: string): string => stripVTControlCharacters(raw).split('\n')[0] ?? '';
+
 const fruits = [{ value: 'apple' }, { value: 'banana', description: 'yellow' }, new Separator(), { value: 'cherry', disabled: true }, { value: 'damson', disabled: 'out' }];
 
 /** A source that filters `fruits` by the term. */
@@ -323,7 +326,6 @@ describe('search', () => {
 
   it('draws no empty part: no prefix, no answer, no help line, nothing trailing', async () => {
     const plain = { prefix: '', style: { answer: (text: string) => text, searchTerm: (text: string) => text, keysHelpTip: () => undefined } };
-    const firstLine = (raw: string): string => stripVTControlCharacters(raw).split('\n')[0] ?? '';
     const open = await render(search, { message: 'Fruit', source: () => ['a'], theme: plain });
     await open.nextRender();
     expect(stripVTControlCharacters(open.getScreen({ raw: true }))).toMatch(/^Fruit\n❯ a(?:\n|$)/u);

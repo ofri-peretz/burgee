@@ -12,11 +12,11 @@
 import { styleText } from 'node:util';
 
 import { canMove, step } from './inquirer-choices.js';
-import { createPrompt, Separator, useKeypress, usePrefix } from './inquirer.js';
 import { ValidationError } from './inquirer-errors.js';
 import { useState } from './inquirer-hooks.js';
 import { isDownKey, isEnterKey, isUpKey } from './inquirer-keys.js';
 import { makeTheme, type PartialDeep, type Status, type Theme } from './inquirer-theme.js';
+import { createPrompt, Separator, useKeypress, usePrefix } from './inquirer.js';
 
 /** `parseInt`'s radix. */
 const DECIMAL = 10;

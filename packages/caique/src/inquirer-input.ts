@@ -18,10 +18,10 @@ import { styleText } from 'node:util';
 import { HIDE_CURSOR } from 'closeout/cursor';
 
 import { alwaysValid, keysHelpTip } from './inquirer-choices.js';
-import { createPrompt, useKeypress, usePrefix } from './inquirer.js';
 import { type PromptReadline, useEffect, useState } from './inquirer-hooks.js';
 import { isBackspaceKey, isEnterKey, isTabKey } from './inquirer-keys.js';
 import { makeTheme, type PartialDeep, type Status, type Theme } from './inquirer-theme.js';
+import { createPrompt, useKeypress, usePrefix } from './inquirer.js';
 
 /** What a validator may answer: valid, invalid with the message to show, or a promise of either. */
 type Verdict = boolean | string | Promise<string | boolean>;

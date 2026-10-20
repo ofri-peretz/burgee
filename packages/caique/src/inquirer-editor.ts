@@ -23,10 +23,10 @@ import { join } from 'node:path';
 import { spawn } from 'bellpull/cross-spawn';
 
 import { alwaysValid } from './inquirer-choices.js';
-import { createPrompt, useKeypress, usePrefix } from './inquirer.js';
 import { useEffect, useState, type PromptReadline } from './inquirer-hooks.js';
 import { isEnterKey } from './inquirer-keys.js';
 import { makeTheme, type PartialDeep, type Status, type Theme } from './inquirer-theme.js';
+import { createPrompt, useKeypress, usePrefix } from './inquirer.js';
 import { processFacts, processRuntime } from './runtime.js';
 
 /** Where the temporary file goes and what it is called, as `@inquirer/external-editor` takes it. */

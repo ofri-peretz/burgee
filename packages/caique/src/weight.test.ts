@@ -180,7 +180,7 @@ const RULES: Record<string, EntryRule> = {
   // list helpers, `select` and `checkbox`. Measured 36,586 B on 2026-10-12.
   // 2026-10-20, R3's other eight prompts (`input`, `confirm`, `password`, `number`, `expand`,
   // `rawlist`, `search`, `editor`), which took the row from 100 / 213 to 213 / 213, and
-  // `bellpull/cross-spawn` for the one process `editor` starts. Measured 63,929 B; the budget
+  // `bellpull/cross-spawn` for the one process `editor` starts. Measured 63,105 B; the budget
   // moved from 38,000 by D-20261020-caique-inquirer-prompts-budget, where `@inquirer/prompts`
   // 8.7.3 and its tree are the ceiling it is weighed against.
   './inquirer/prompts': {

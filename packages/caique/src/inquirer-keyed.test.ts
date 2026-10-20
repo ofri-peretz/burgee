@@ -9,8 +9,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { render } from './__fixtures__/inquirer-render.js';
-import { ValidationError } from './inquirer.js';
 import { expand, rawlist, Separator } from './inquirer-prompts.js';
+import { ValidationError } from './inquirer.js';
 
 const frame = (...lines: string[]): string => lines.join('\n');
 

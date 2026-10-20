@@ -16,11 +16,11 @@ import { styleText } from 'node:util';
 
 import { type Choice, type Item, type NormalizedChoice } from './inquirer-choice.js';
 import { alwaysValid, canMove, isSelectable, keysHelpTip, normalizeChoices, POINTER, step } from './inquirer-choices.js';
-import { createPrompt, Separator, useKeypress, usePrefix } from './inquirer.js';
 import { type PromptReadline, useEffect, useMemo, useRef, useState } from './inquirer-hooks.js';
 import { isDownKey, isEnterKey, isTabKey, isUpKey } from './inquirer-keys.js';
 import { usePagination } from './inquirer-pagination.js';
 import { makeTheme, type PartialDeep, type Status, type Theme } from './inquirer-theme.js';
+import { createPrompt, Separator, useKeypress, usePrefix } from './inquirer.js';
 
 const DEFAULT_PAGE_SIZE = 7;
 

@@ -55,6 +55,13 @@ function recording(append: string): () => string[] {
   return () => (existsSync(record) ? readFileSync(record, 'utf8').split('\n').filter(Boolean) : []);
 }
 
+/** Open the editor once, on Enter, and wait for its answer. */
+async function answerOnce(config: Parameters<typeof editor>[0]): Promise<void> {
+  const { answer, events } = await render(editor, config);
+  events.keypress('enter');
+  await answer;
+}
+
 /** The folder a file was written in, and its own name: what `prefix` and `postfix` decide. */
 const named = (file: string): { folder: string; name: string } => ({ folder: basename(dirname(file)), name: basename(file) });
 
@@ -115,11 +122,10 @@ describe('editAsync', () => {
 describe('editor', () => {
   it('names the file by `postfix` or `file.postfix`, `.txt` by default, and passes the other file options on', async () => {
     const files = recording('');
-    for (const config of [{ message: 'A' }, { message: 'B', postfix: '.md' }, { message: 'C', postfix: '.md', file: { postfix: '.yaml', prefix: 'mine-' } }]) {
-      const { answer, events } = await render(editor, config);
-      events.keypress('enter');
-      await answer;
-    }
+    // One at a time: the record lists the files in the order the editors ran.
+    await answerOnce({ message: 'A' });
+    await answerOnce({ message: 'B', postfix: '.md' });
+    await answerOnce({ message: 'C', postfix: '.md', file: { postfix: '.yaml', prefix: 'mine-' } });
     expect(files().map((file) => named(file))).toEqual([
       { folder: expect.stringMatching(/^inquirer-editor-/u), name: 'answer.txt' },
       { folder: expect.stringMatching(/^inquirer-editor-/u), name: 'answer.md' },
@@ -131,9 +137,9 @@ describe('editor', () => {
     const files = recording('!');
     // Read when the answer is validated: after the editor exits, before the prompt closes (which pauses it for good).
     let pausedWhileValidating: boolean | undefined;
-    let paused = (): boolean => false;
+    let paused: (() => boolean) | undefined;
     const validate = (): true => {
-      pausedWhileValidating = paused();
+      pausedWhileValidating = paused?.();
       return true;
     };
     const { answer, events, isPaused } = await render(editor, { message: 'Notes', validate });
