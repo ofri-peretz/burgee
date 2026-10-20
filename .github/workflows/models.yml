@@ -12,10 +12,10 @@ name: Models · Quint
 on:
   push:
     branches: [main]
-    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/migrate.ts', 'packages/burgee/src/migrate-majors.ts', '.github/workflows/release.yml', '.github/workflows/changesets-pr.yml', 'scripts/release-window.mts', 'packages/caique/src/clack-core.ts', 'packages/caique/src/inquirer-search.ts', 'packages/seniority/src/precedence.ts', 'packages/seniority/src/plugin.ts', 'packages/seniority/src/truth-table.ts', '.github/workflows/models.yml']
+    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/migrate.ts', 'packages/burgee/src/migrate-majors.ts', '.github/workflows/release.yml', '.github/workflows/changesets-pr.yml', 'scripts/release-window.mts', 'packages/caique/src/clack-core.ts', 'packages/caique/src/inquirer-search.ts', 'packages/seniority/src/precedence.ts', 'packages/seniority/src/plugin.ts', 'packages/seniority/src/truth-table.ts', 'packages/burgee/src/complete-dynamic.ts', '.github/workflows/models.yml']
   pull_request:
     branches: [main]
-    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/migrate.ts', 'packages/burgee/src/migrate-majors.ts', '.github/workflows/release.yml', '.github/workflows/changesets-pr.yml', 'scripts/release-window.mts', 'packages/caique/src/clack-core.ts', 'packages/caique/src/inquirer-search.ts', 'packages/seniority/src/precedence.ts', 'packages/seniority/src/plugin.ts', 'packages/seniority/src/truth-table.ts', '.github/workflows/models.yml']
+    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/migrate.ts', 'packages/burgee/src/migrate-majors.ts', '.github/workflows/release.yml', '.github/workflows/changesets-pr.yml', 'scripts/release-window.mts', 'packages/caique/src/clack-core.ts', 'packages/caique/src/inquirer-search.ts', 'packages/seniority/src/precedence.ts', 'packages/seniority/src/plugin.ts', 'packages/seniority/src/truth-table.ts', 'packages/burgee/src/complete-dynamic.ts', '.github/workflows/models.yml']
   workflow_dispatch:
 
 concurrency:
@@ -159,6 +159,22 @@ jobs:
           done
           if $QUINT run "$m" --invariant=asyncNeverRuns --max-steps=30 --max-samples=20000 >/dev/null; then
             echo "::error::lean.qnt: asyncNeverRuns now holds — no run calls an async hook, so safety holds vacuously"
+            exit 1
+          fi
+      # What a completer is told about the line (completion-context spec.md, R1–R3): each rejected
+      # reading of the words before the cursor still fails `safety`, and some line still puts a
+      # failed value in `raw`, so `sameRaw` is not holding because nothing reaches it.
+      - name: completion context — the rejected designs still fail, and some line still has a raw value
+        run: |
+          m=.sdlc/intents/completion-context/context.qnt
+          for s in stepCountValues stepFoldTrailing stepFirstWins stepKeepStale stepFlagsAfterEnd; do
+            if $QUINT run "$m" --step="$s" --invariant=safety --max-steps=30 --max-samples=20000 >/dev/null; then
+              echo "::error::context.qnt: safety holds under $s — the model no longer distinguishes the shipped design from the one it rejects"
+              exit 1
+            fi
+          done
+          if $QUINT run "$m" --invariant=rawNeverHolds --max-steps=30 --max-samples=20000 >/dev/null; then
+            echo "::error::context.qnt: rawNeverHolds now holds — no line puts a value in raw, so sameRaw holds vacuously"
             exit 1
           fi
       # An open question, pinned: closeout's late add() is silently dropped today. When the
