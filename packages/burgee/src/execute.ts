@@ -82,6 +82,12 @@ export interface Command<S extends OptionSpecs = OptionSpecs, O extends CommandO
   name: string;
   /** Other words that run this command, `['s']` for `serve`: listed on it in help, `--schema` and completions, never as commands of their own. */
   aliases?: readonly string[];
+  /**
+   * Runs when argv names no command at this level (default-command R2): `tool`, or `tool --port 1`
+   * with only this command's options, and a word as its positional when it declares one and the
+   * word is near no command's name. One per level; two siblings that both say so are refused.
+   */
+  default?: boolean;
   description?: Localised;
   /** Shown in command lists instead of the description. */
   summary?: Localised;
@@ -131,7 +137,7 @@ export interface Command<S extends OptionSpecs = OptionSpecs, O extends CommandO
 }
 
 /** The declared keys a node carries as they are: what help renders, and what `--schema` publishes. */
-const NODE_KEYS = ['description', 'summary', 'aliases', 'arguments', 'examples', 'group', 'epilogue', 'hidden', 'deprecated', 'effects', 'relations', 'fields', 'output', 'allowExcess'] as const;
+const NODE_KEYS = ['description', 'summary', 'aliases', 'default', 'arguments', 'examples', 'group', 'epilogue', 'hidden', 'deprecated', 'effects', 'relations', 'fields', 'output', 'allowExcess'] as const;
 
 /**
  * Everything help renders, copied as declared; `undefined` never lands on the node. One loop over
@@ -198,6 +204,9 @@ export function defineCommand<const S extends OptionSpecs = OptionSpecs, const O
 }
 
 function addTree(manifest: Manifest, parent: string[], commands: AnyCommand[]): void {
+  // default-command R1 — one default per level: with two, which one `tool` runs would be declaration order.
+  const defaults = commands.filter((c) => c.default).map((c) => c.name);
+  if (defaults[1]) throw new Error(`burgee: commands ${defaults.join(' and ')} of "${parent.join(' ')}" are both default; keep default: true on one`);
   for (const c of commands) {
     const path = [...parent, c.name];
     manifest.add({
