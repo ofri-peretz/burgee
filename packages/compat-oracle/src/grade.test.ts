@@ -965,8 +965,10 @@ describe('installing what a vendored suite declares', () => {
     installSuiteDeps(host(), hostDir);
     expect(seam.calls, 'a range has no tree beside the suite to re-date').toEqual([]);
     rmSync(join(hostDir, 'node_modules'), { recursive: true });
+    const said: string[] = [];
     seam.exec = prints('');
-    installSuiteDeps(host(), hostDir);
+    installSuiteDeps(host(), hostDir, (s) => said.push(s));
+    expect(said).toEqual([`  installing fake's suite dependencies into vendor/fake/node_modules as of ${CUTOFF}: hoisted-dep@^1.0.0\n`]);
     expect(only().args).toContain(`--before=${CUTOFF}`);
   });
 
@@ -976,10 +978,12 @@ describe('installing what a vendored suite declares', () => {
     pinned(hostDir);
     installSuiteDeps(keeper, hostDir);
     expect(seam.calls, 'a committed tree is fixed already: re-dating it would rewrite tracked files').toEqual([]);
+    pinned(hostDir, 'committed-dep', '2.0.0');
     rmSync(join(hostDir, 'node_modules', 'pinned-dep'), { recursive: true });
     seam.exec = prints('');
     installSuiteDeps(keeper, hostDir);
     expect(only().args).toContain(`--before=${CUTOFF}`);
+    expect(existsSync(join(hostDir, 'node_modules', 'committed-dep', 'package.json')), 'nothing committed is removed').toBe(true);
   });
 
   it('refuses to install a tree with no recorded cutoff, which would resolve as of today', () => {

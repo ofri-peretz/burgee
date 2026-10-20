@@ -19,7 +19,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { type Host } from './hosts.js';
 import { latestVersion } from './upstream.js';
-import { classify, internalImports, keptPath, readSuiteDeps, rewriteAt, rootPackage, siblingImports, splitSpec, vendor } from './vendor.js';
+import { classify, internalImports, keptPath, readSuiteDeps, registryTime, rewriteAt, rootPackage, siblingImports, splitSpec, vendor } from './vendor.js';
 
 // Every git call still runs for real; the spy only records what `vendor()` asked for.
 vi.mock('node:child_process', async (importOriginal) => {
@@ -186,6 +186,14 @@ describe('vendoring a whole suite', () => {
       throw new Error('a suite with no dependencies asks the registry nothing');
     });
     expect(JSON.parse(read(none, 'fakehost', '.source.json'))).not.toHaveProperty('depsBefore');
+  });
+
+  it("reads a release's publish time from the registry's `time`, and refuses a release it does not list", () => {
+    vi.mocked(execFileSync).mockReturnValueOnce('{"created":"2020-01-01T00:00:00.000Z","8.7.3":"2026-10-04T17:41:40.731Z"}');
+    expect(registryTime('@inquirer/prompts', '8.7.3')).toBe('2026-10-04T17:41:40.731Z');
+    expect(vi.mocked(execFileSync)).toHaveBeenLastCalledWith('npm', ['view', '@inquirer/prompts', 'time', '--json'], { encoding: 'utf8' });
+    vi.mocked(execFileSync).mockReturnValueOnce('{"8.7.3":"2026-10-04T17:41:40.731Z"}');
+    expect(() => registryTime('@inquirer/prompts', '9.9.9')).toThrow('the registry lists no publish time for @inquirer/prompts@9.9.9');
   });
 
   it('writes no `omitted` key at all for a suite with nothing to omit', () => {
