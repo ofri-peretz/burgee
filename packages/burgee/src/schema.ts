@@ -151,16 +151,18 @@ function scalarType(spec: OptionSpec): 'string' | 'boolean' | 'number' | 'intege
   return spec.type;
 }
 
+/** An option's keys its property carries unchanged, after `description` and `enum`. */
+const COPIED = ['default', 'minimum', 'maximum', 'sharedFrom'] as const;
+
 function optionProperty(name: string, spec: OptionSpec): JsonSchemaProperty {
   const scalar = scalarType(spec);
   const p: JsonSchemaProperty = spec.multiple === true ? { type: 'array', items: { type: scalar } } : { type: scalar };
   p.flag = `--${kebab(name)}`;
   if (spec.description !== undefined) p.description = spec.description;
   withChoices(p, spec.choices);
-  if (spec.default !== undefined) p.default = spec.default;
-  if (spec.minimum !== undefined) p.minimum = spec.minimum;
-  if (spec.maximum !== undefined) p.maximum = spec.maximum;
-  if (spec.sharedFrom !== undefined) p.sharedFrom = spec.sharedFrom;
+  // The keys published as declared, in published order: one loop, not four `if`s, paid for
+  // default-command's `default` in `PASSED_THROUGH` (D-20261020-default-command-weight).
+  for (const key of COPIED) if (spec[key] !== undefined) Object.assign(p, { [key]: spec[key] });
   if (spec.dependsOn !== undefined && spec.dependsOn.length > 0) p.dependsOn = flagsOf(spec.dependsOn);
   if (spec.exclusive !== undefined && spec.exclusive.length > 0) p.exclusive = flagsOf(spec.exclusive);
   return p;
