@@ -154,6 +154,10 @@ $ node cli.mjs --schema     # trimmed; arguments and examples also come back
 $ node cli.mjs --mcp        # the same command, served as an MCP server over stdio
 ```
 
+Every `--schema` document validates against `burgee/program-schema.json`, the JSON Schema the
+package publishes, so a project can pin its CLI's surface in CI without writing its own idea of
+the shape.
+
 Six issues across nine years of the commander and yargs trackers ask for machine-readable
 command structure, and the state of the art today is a regex over `--help`
 ([tracker-gap-analysis.md](./.sdlc/research/tracker-gap-analysis.md)). A manifest is not a

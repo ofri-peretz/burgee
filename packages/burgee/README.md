@@ -124,6 +124,7 @@ Nothing here needs keeping in sync, because nothing is written twice.
 | `burgee/testing` | Run a command in-process and assert on its result — no spawning. |
 | `burgee/brand` | One brand declaration → flag, favicon, OG card, cover, lockup. The logo above is its own output. |
 | `burgee/plugin` | `definePlugin()`, `validate()`, `CONTRACT` and `PluginError` — the host, at the subpath every package in the family publishes its host at. |
+| `burgee/program-schema.json` | The JSON Schema every `--schema` document validates against. |
 | `burgee/locale-pack-schema.json` | The JSON Schema a locale pack is written against: every message id, with its English. |
 
 ## Writing a plugin
@@ -274,7 +275,9 @@ Graded by the incumbent's own test suite:
 Every command answers the same declaration four more ways, with nothing written by hand:
 
 - `--json` — one stable envelope, `{ ok, data, meta }`, with the provenance of every option.
-- `--schema` — the whole command tree as data, versioned, one document per surface.
+- `--schema` — the whole command tree as data, versioned, one document per surface. It validates
+  against `burgee/program-schema.json`, the JSON Schema the package publishes, so a CI job can pin
+  a program's surface without writing its own idea of the shape.
 - `--mcp` — the same manifest served as MCP tools over stdio; each tool's `effects` becomes its
   MCP hints, and `withheld` keeps a command out of the list.
 - **Exit `2`** when the *command* was wrong, with a `hint:` — so an agent rewrites the command
