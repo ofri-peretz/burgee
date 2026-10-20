@@ -4,7 +4,9 @@
 > ([`next-wave-4-2026-10.md`](../../research/next-wave-4-2026-10.md)). D-20261012-burgee-tarball-rebaseline
 > measured burgee's 240,393 B of `.d.ts` and named a trim it did not take.
 
-**Status:** approved (2026-10-20, under the owner's delegation, [`D-20261020-schema-group-design-accepted`](../../decisions/D-20261020-schema-group-design-accepted.md)) · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Design:** [`spec.md`](./spec.md)
+**Status:** shipped · **Shipped:** 2026-10-20 on
+[`af243288`](https://github.com/ofri-peretz/burgee/commit/af243288e2) (#1186), released as a patch to all ten packages (burgee 1.6.6, Version PR #1184), verified against `main` at
+[`a7d8fb73`](https://github.com/ofri-peretz/burgee/commit/a7d8fb7386) — every criterion re-read against the published tarballs (below) · design accepted 2026-10-20 under the owner's delegation, [`D-20261020-schema-group-design-accepted`](../../decisions/D-20261020-schema-group-design-accepted.md) · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Design:** [`spec.md`](./spec.md)
 
 ---
 
@@ -69,3 +71,14 @@ symbol is unchanged in its first paragraph.
 
 Every criterion is met in the PR that builds it. The intent stays `approved` until the smaller
 tarballs are on npm (a `patch` changeset, so the next Version PR), then moves to `shipped`.
+
+## Shipped — 2026-10-20
+
+The patch is on npm in all ten packages (Version PR #1184). Each criterion was re-read against
+the tarballs npm serves, not the local build:
+
+| Criterion | Evidence on release |
+| :-- | :-- |
+| 1. no packed JSDoc block has a second paragraph | `multiParagraphBlocks` from `scripts/declaration-summaries.mts` (the function the lock uses) over every `.d.ts` in the published tarballs: **0** in burgee@1.6.6 (57 files), bellpull@1.0.9, caique@1.4.5, closeout@1.1.6, controlroom@1.0.6, flagstaff@1.7.3, linegauge@1.1.4, paratext@1.0.10, roundel@1.2.0 and seniority@1.0.12. burgee@1.6.5, the release before, has **118**. |
+| 2. burgee's packed size falls | The registry tarballs: burgee **267,573 → 262,994 B** (1.6.5 → 1.6.6, −1.7%), bellpull 36,931 → 29,658 B, closeout 40,962 → 33,199 B. burgee's net fall is smaller than the 5.7% measured on the branch because 1.6.6 also carries the `burgee migrate` code merged since 1.6.5 (its `dist/` grew from 1,272 to 1,296 KiB on disk). The baseline was written by D-20261020-declaration-summaries-tarball. |
+| 3. extra-typings stays 369 / 369 | `npm run compat -- extra-typings` on `main` at `a7d8fb73`, 2026-10-20: **369 / 369**, ▲ 0. |

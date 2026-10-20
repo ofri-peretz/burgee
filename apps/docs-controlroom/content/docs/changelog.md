@@ -3,6 +3,19 @@ title: Changelog
 description: "Every release of controlroom, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.0.6
+
+### Patch Changes
+
+- [#1186](https://github.com/ofri-peretz/burgee/pull/1186) [`af24328`](https://github.com/ofri-peretz/burgee/commit/af243288e27cbffbcffac18af7112172e46a003b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Published declarations now keep each doc comment's first paragraph, its code examples and its `@param`, `@returns`, `@throws`, `@example`, `@deprecated`, `@default` and `@see` tags, and drop the longer design notes below them, so the tarballs are smaller (burgee by 5.7% gzipped, bellpull and closeout by about a fifth). Types are unchanged, and hover text in an editor keeps its summary. `burgee`'s README also names `burgee/program-schema.json`, the JSON Schema every `--schema` document validates against.
+- Updated dependencies [[`af24328`](https://github.com/ofri-peretz/burgee/commit/af243288e27cbffbcffac18af7112172e46a003b), [`122635d`](https://github.com/ofri-peretz/burgee/commit/122635dce20998d1cba0eaa3c9df9c38bfd47c8b)]:
+  - caique@1.4.5
+  - closeout@1.1.6
+  - flagstaff@1.7.3
+  - linegauge@1.1.4
+  - paratext@1.0.10
+  - roundel@1.2.0
+
 ## 1.0.5
 
 ### Patch Changes

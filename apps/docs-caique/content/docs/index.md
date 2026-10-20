@@ -326,9 +326,9 @@ Graded by the incumbent's own test suite:
 | :-- | --: |
 | `clack` | 16 / 16 |
 | `inquirer-core` | 41 / 41 |
-| `inquirer-prompts` | 213 / 213 |
+| `inquirer-prompts` | 100 / 213 |
 
-Weight, installed and tree-inclusive: **288,332 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.7411**.
+Weight, installed and tree-inclusive: **252,688 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.6495**.
 
 ## For agents
 
@@ -376,7 +376,7 @@ on its own subpath (see [Weight](#weight)); every export, with its types, is on
 
 Plugins register under the `widgets` and `locales` keys, against the one schema the whole family shares.
 
-`controlroom` builds on it, and it builds on `bellpull`, `closeout`, `linegauge`, `paratext`, `roundel`.
+`controlroom` builds on it, and it builds on `closeout`, `linegauge`, `paratext`, `roundel`.
 
 ## The family
 

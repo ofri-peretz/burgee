@@ -93,8 +93,8 @@ Abbreviations used below:
 | cli-packaging | review | y | P | release/packaging | 10 | 8 | R4 / S3 (`.map` negative fixture; `forbiddenInPack` untested) | n | – (release-tag.qnt is tags only) | One test closes it |
 | cli-testing-harness | review | y | P | burgee/testing | 11 | 8 | S1 ANSI-in-non-TTY case, S2 and S4 restate | n | – | |
 | clispec-conformance | **shipped** (batch 0) | y | SHIPPED | burgee/schema | 10 | 10 | – | n | – | Fix the C1 path (it is `scripts/clispec-document.test.ts`); the 24/24 reading is local, but bench.yml enforces ≥24 |
-| closeout | approved | y | P | closeout | 17 | 15 | R8 spawn delta unbenchmarked, S3 (2.98× / 1.31×) | **y** | **registry.qnt** | S3 closes with closeout-at-incumbent-weight. The "disagree" section is stale |
-| closeout-at-incumbent-weight | review | y | NS | closeout + weight ratchets | 8 | 2 | R1–R4, S1, S3 | **y** (two doors, one hook set) | **none** (`lean.qnt` required by R4) | Wave-4 #1. Needs the Design→Build accept |
+| closeout | approved | y | P | closeout | 17 | 15 | R8 spawn delta unbenchmarked, S3 (spawn delta; the bytes half reads 0.960× / 0.930×) | **y** | **registry.qnt** | S3's bytes half met by closeout-at-incumbent-weight (0.960 / 0.930, 2026-10-20). The "disagree" section is stale |
+| closeout-at-incumbent-weight | approved (built 2026-10-20; a closeout patch) | y | LS | closeout + weight ratchets | 8 | 8 | – (waits on the release of its `patch`) | **y** (each door its own once-guard; restated) | **lean.qnt** | Wave-4 #1. Design accepted D-20261020-closeout-weight-design-accepted; B4 0.960 / 0.930 |
 | colour-facades | review | y | NS | roundel + compat-oracle | 8 | 0 | R1–R5, S1–S3 | n | – | Waits on inquirer and supports-color in the compat-oracle lane |
 | commander-compat | **shipped** (batch 3) | y | SHIPPED | burgee/commander-facade | 8 | 8 | – | n | – | Batch 3: X6 ratcheted 129,400 → 112,100 on a clean-build reading of 112,024 (D-20261019-commander-walk-budget-ratchet). X5 had no real check (`.`'s denied list never named the front-end), so one was added and proven red |
 | commander-completions | **shipped** (batch 0) | y | SHIPPED | burgee/completions | 8 | 8 | – | n | – | Human accepts two restatements: Fig is structural, `complete` replaces `--dynamic`. CI's `completions.yml` is authoritative |
@@ -111,7 +111,7 @@ Abbreviations used below:
 | control-band-yargs-front-end-bundled-bytes | **dropped** (batch 0, `D-20261018-drop-band-yargs-front-end-bytes`) | n | DROPPED | benchmarks/bands | 2 | 2 | – | n | – | Original breach gone; new +31 B 1σ drift does not gate |
 | controlroom | approved | y | P | controlroom | 31 | 22 | R1/S4 PTY, R14/S7 W3 demo half, R16 controlroom-side lock, R22 per-boilerplate PTY job, S1 gallery, S3 100-run, S6 Ink fixture | **y** | save-restore, registry (parts) | Stale text fixed 2026-10-19 (batch 4): the intent, spec, `composition.json` and the README row say published at 1.0.3, and the two `#PR_NUMBER`s are #804 and #803 |
 | controlroom-scroll-pane | **shipped** (batch 4, PR #1156) | y | NS | controlroom | 10 | 0 | R1–R6, S1–S4 | n (property test) | – | Fixed: a pane scrolls, follows its tail, and the static frame prints every line. Mutation 180 / 180 on the changed lines |
-| declaration-summaries | approved (schema-group) | y | P | published artifacts / build scripts | 4 | 4 | – (waits on the release of its `patch`) | n | – (property test) | R1 measured burgee −5.7% gzipped, past the 5% kill switch; R2–R4 built 2026-10-20 |
+| declaration-summaries | **shipped** (patch, Version PR #1184, 2026-10-20) | y | SHIPPED | published artifacts / build scripts | 4 | 4 | – | n | – (property test) | R1 measured burgee −5.7% gzipped, past the 5% kill switch; R2–R4 built 2026-10-20 |
 | default-command | review | y | NS | burgee/parse | 5 | 1 | R1–R4 | n | – | Adoption barrier (commander `isDefault`, yargs `$0`) |
 | dev-loop | review | y | P | burgee/dev | 6 | 2 | W2 (`list_changed` in conformance), W3 (diff, not manifest), W4 byte-identical, W6 budget | **y** | **dev-reload.qnt** | Add three tests or restate |
 | docs-deploy | **dropped** (batch 0, `D-20261018-drop-docs-deploy`) | y | DROPPED | docs-site | 10 | 7 | – | n | – | Ruling: folded into docs-per-package |
@@ -152,7 +152,7 @@ Abbreviations used below:
 | sdlc-locks-evals-bands | review | y | P | sdlc locks | 10 | 7 | S2, R2/R3 (`.sdlc/intents` outside the link checker and evals paths) | n | – | Expect it to surface broken links |
 | security-profile | **dropped** (batch 0, `D-20261018-drop-security-profile`) | y | DROPPED | burgee/security | 11 | 0 | – | n | – | Ruling: no adopter; exit-code clash |
 | seniority | approved | y | P | seniority | 21 | 13 | R1/S2 truth-table page, R2/S5 shared precedence vectors, R7 extends chain in explain, R9 spawn delta, S3, S4 | n | – | The truth table is the product and is unproduced |
-| supports-color-drop-in | approved | y | NS | roundel + compat-oracle | 9 | 0 | R1–R5, S1–S4 | n | – | 441.6 M/wk with no override target |
+| supports-color-drop-in | **shipped** (roundel 1.2.0, 2026-10-20) | y | SHIPPED | roundel + compat-oracle | 9 | 9 | – | n | – | 441.6 M/wk with no override target |
 | table-column-widths | **shipped** (batch 0) | y | SHIPPED | flagstaff | 7 | 7 | – | n | – | |
 | typed-positionals | approved (typed-schema-surface) | y | P | burgee/parse + types | 6 | 5 (R4 partial) | R4 `type` on `inputSchema`, completions | n | – | R1–R3 built 2026-10-19; R5 and R6 met (#1091) |
 | types-under-node10 | draft | **n** | SPEC | published artifacts (`typesVersions`) | 3 | 0 | SC1–SC3 | n | – | **LIVE DEFECT / barrier 4:** TS2307 on node10 (38.8% of TS dependents) |
@@ -177,7 +177,7 @@ These intents need a model:
 | controlroom | partial: no controlroom model of its own |
 | mcp-current | missing (in-flight cancel) |
 | bellpull | missing (kill ladder) |
-| closeout-at-incumbent-weight | missing: `lean.qnt` is required by its own R4 |
+| closeout-at-incumbent-weight | `lean.qnt`, built 2026-10-20 |
 | release-cadence | missing (release window) |
 
 `release-tag.qnt` exists but is not an intent's model of record; it covers tag placement.

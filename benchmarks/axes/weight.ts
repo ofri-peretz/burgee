@@ -586,12 +586,16 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   'seniority/lilconfig': 3_350,
 
   'seniority/dotenv': 6_000,
-  // **Both closeout rows are heavier than the incumbent, and the gates say so** (see
-  // `RATIO_CEILING`). `closeout/exit-hook` 4,819 against exit-hook's 1,645 (2.929) and
-  // `closeout/signal-exit` 3,634 against signal-exit's 2,856 (1.272).
-  'closeout/exit-hook': 4_900,
+  // Both closeout rows were heavier than the incumbent when first measured: `closeout/exit-hook`
+  // 4,819 against exit-hook's 1,645 (2.929) and `closeout/signal-exit` 3,634 against
+  // signal-exit's 2,856 (1.272). Lowered 2026-10-20 (closeout-at-incumbent-weight,
+  // D-20261012-closeout-drop-ins-held-to-u5): exit-hook's path stopped importing the registry
+  // and signal-exit's gained an ES door, so a bundle carries no CommonJS interop. Measured
+  // 1,579 (0.960) and 2,657 (0.930); each ceiling is the measurement plus the 80 B CI margin,
+  // rounded up to the next fifty. The ratio gate below is U5's 1, the tighter bar of the two.
+  'closeout/exit-hook': 1_700,
 
-  'closeout/signal-exit': 3_750,
+  'closeout/signal-exit': 2_800,
 
   // `supports-color-drop-in` R4, first measured 2026-10-19 against supports-color 11.0.0, the
   // release compat-oracle grades. Added at a ceiling of 0, which failed, then set at the
@@ -758,13 +762,13 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // 1.65 on 2026-09-30 with the byte ceiling above: (7,086 + 80) / 4,351 = 1.647.
   paratext: 1.65,
   // foundation-claims-watched R6, 2026-10-12. `seniority/lilconfig` (0.611) and
-  // `seniority/dotenv` (0.515) are lighter and take the default 1. These two are not, and are
-  // ratchets at the measurement, as `paratext` is: **the claim is not met**, the gate stops it
-  // growing, and each is a gap in `.sdlc/gaps/`. Each is (measured + 80) / incumbent, rounded up.
-  // `closeout/exit-hook`: (4,819 + 80) / 1,645 = 2.978.
-  'closeout/exit-hook': 2.98,
-  // `closeout/signal-exit`: (3,634 + 80) / 2,856 = 1.300.
-  'closeout/signal-exit': 1.31,
+  // `seniority/dotenv` (0.515) are lighter and take the default 1. The two closeout rows were
+  // ratchets at 2.98 and 1.31 until 2026-10-20, when closeout-at-incumbent-weight brought them
+  // to 0.960 and 0.930 (see the byte ceilings above): U5's 1, stated as a check, and the two
+  // B-20261012 gaps close.
+  'closeout/exit-hook': 1,
+
+  'closeout/signal-exit': 1,
 };
 
 /** Why a pair's ratio gate sits where it does: the claim's own ratchet, U5 at 1, or a B4 ratchet. */

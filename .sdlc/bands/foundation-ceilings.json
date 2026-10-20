@@ -19,7 +19,7 @@
       }
     },
     "paratext": {
-      "ours": 102861,
+      "ours": 102862,
       "incumbents": {
         "ansi-escapes": 30912,
         "terminal-link": 61152,
@@ -52,14 +52,14 @@
       "$grew": "151,688 B on 2026-09-14, up from 53,475 — PLAN 3.2 built the cosmiconfig-compatible surface plus the `./dotenv` and `./find-up` façades, and the pack grew 182%. The Y8 ratio moved 0.034 to 0.098, so it is still an order of magnitude under what it replaces; the growth is recorded rather than smoothed because a ratio that only ever improves is a ratio nobody is watching."
     },
     "closeout": {
-      "ours": 107842,
+      "ours": 108866,
       "incumbents": {
         "signal-exit": 76966,
         "restore-cursor": 93638,
         "exit-hook": 13200
       },
       "ceiling": 183804,
-      "ratio": 0.5867,
+      "ratio": 0.5923,
       "lightestIncumbent": {
         "name": "signal-exit",
         "bytes": 76966
@@ -70,20 +70,20 @@
       "$note": "A zero-dependency incumbent exists here, so Y8's original wording applies too and beating it is reported separately."
     },
     "caique": {
-      "ours": 288332,
+      "ours": 252688,
       "incumbents": {
         "@clack/prompts": 182472,
         "@inquirer/core": 206577
       },
       "ceiling": 389049,
-      "ratio": 0.7411,
+      "ratio": 0.6495,
       "lightestIncumbent": {
         "name": "@clack/prompts",
         "bytes": 182472
       }
     },
     "bellpull": {
-      "ours": 96185,
+      "ours": 96173,
       "incumbents": {
         "execa": 647091,
         "cross-spawn": 46962,
