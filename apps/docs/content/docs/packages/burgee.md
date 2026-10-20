@@ -174,8 +174,10 @@ Register it with `program.use(pack)`. The locale is the program's `locale` run o
 `BURGEE_LOCALE`, then `LC_ALL`, `LC_MESSAGES` and `LANG`, so `LANG=fr_FR.UTF-8` finds `fr-FR`
 and then `fr`. When an agent is detected, `LANG` is ignored, because an agent inherits it
 without asking for it, and only the option or `BURGEE_LOCALE` applies. An id the pack leaves out
-stays in English. `npx burgee check ./fr-pack.mjs --json` renders every message, or refuses
-an unknown id, a placeholder the English lacks, or a missing plural form. Your own text takes a
+stays in English. `npx burgee check ./fr-pack.mjs --json` renders every message and gives each
+locale's `coverage` (the ids translated, the ids left in English, and each plural message's forms
+against the forms the locale selects), or refuses an unknown id, a placeholder the English lacks,
+or a missing plural form. Your own text takes a
 locale map, base language first, and help shows the user's language while `--schema` keeps the
 base language:
 
