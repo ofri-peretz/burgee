@@ -43,4 +43,11 @@ describe('the locale pack schema shows a whole module (locale-pack-in-five R2)',
     expect(schema.description).toMatch(/burgee check <pack> --json/u);
     expect(schema.description).toMatch(/`coverage`/u);
   });
+
+  // The second reading after R1 (run 39481745234) ran `check` twice on a pack the first run
+  // accepted, the second time only to read the exit code. `ok` already is it (program.test.ts:
+  // "says ok: false in its --json envelope on a refusal, because it exits 1").
+  it('says the --json envelope’s `ok` is the exit status, so one check run answers both', () => {
+    expect(schema.description).toMatch(/`ok` is the exit status/u);
+  });
 });

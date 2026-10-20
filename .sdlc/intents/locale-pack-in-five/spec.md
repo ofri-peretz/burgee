@@ -22,7 +22,8 @@ R1 and R2 are accepted as written. R3 is restated below on a measurement taken b
   module.
 - **R3 — Measured** *(restated 2026-10-20; the text below the restatement is the original)*.
   **Now:** every reading passes and the max stays under 12. No transcript spends a call on burgee:
-  no read of its source, no `Intl.PluralRules` or `check --help` run, and no refused `check`. The
+  no read of its source, no `Intl.PluralRules` or `check --help` run, no refused `check`, and no
+  second `check` of a pack the first accepted. The
   runner prints each call under a passing case (`caseLines`), so the pull request's own log is the
   check. The median is reported beside the aim of under 6. "Before" is the 2026-10-20 CI series (34
   readings, median 6, max 8), not five local paid runs. **Original:** Five local runs of the case with the CI runner's pinned `claude`, before and
@@ -67,8 +68,8 @@ re-grounding.
 | R | Status | Where | Check |
 | :-- | :-- | :-- | :-- |
 | R1 | **Built** 2026-10-20 | `check.ts` (`Coverage`; `coverageOf` beside `rendered`, in the catalog's order, every form or none on a passing pack), `locale.ts` (`formsOf` exported) | `check.test.ts` › `says what a passing pack covers of the catalog, per locale` (3 cases) and the R4 rendering case, now with `coverage`. Red on `main`: 4 failed, `expected undefined to deeply equal { …(3) }`. Stryker on the changed lines: 26 killed, 0 survived |
-| R2 | **Built** 2026-10-20 | `scripts/locale-pack-schema.ts` (`FRENCH_MODULE`, built from the same `FRENCH_COUNT` the plural example uses), `locale-pack-schema.json` regenerated | `src/locale-pack-schema.test.ts` (3 cases: a module under 600 B; `burgee check` accepts it with `one, many, other`; the description names `coverage`). Red on `main`: 3 failed, `expected undefined to be defined` |
-| R3 | **Measured, restated** | `scripts/run-evals.ts` (`caseLines`: a passing case lists its calls) | Before: 34 readings on 2026-10-20, all passed, median 6, max 8 (5 ×7, 6 ×22, 7 ×4, 8 ×1). The dispatch on this branch (39475810887, product as on `main`) puts the sixth call at turn 2's environment probe. After: this pull request's `Agent Evals` run 39479245102 passed in 5 turns (read, read, write, `check`), with no call on burgee and no probe. One reading; see the decision |
+| R2 | **Built** 2026-10-20 | `scripts/locale-pack-schema.ts` (`FRENCH_MODULE`, built from the same `FRENCH_COUNT` the plural example uses; the envelope's `ok` named as the exit status), `locale-pack-schema.json` regenerated | `src/locale-pack-schema.test.ts` (4 cases: a module under 600 B; `burgee check` accepts it with `one, many, other`; the description names `coverage`; it says `ok` is the exit status). Red on `main`: the first three failed, `expected undefined to be defined`; the fourth was red against the description before its sentence |
+| R3 | **Measured, restated** | `scripts/run-evals.ts` (`caseLines`: a passing case lists its calls) | Before: 34 readings on 2026-10-20, all passed, median 6, max 8 (5 ×7, 6 ×22, 7 ×4, 8 ×1). The dispatch on this branch (39475810887, product as on `main`) puts the sixth call at turn 2's environment probe. After, this pull request's `Agent Evals` runs. Run 39479245102 passed in 5 turns (read, read, write, `check`). Run 39481745234 passed in 7: a `mkdir -p` and a second `check` run only to read the exit code. That second run is the product's, and the schema now says `ok` is the exit status. `locale-pack-schema.test.ts` holds it; it was red without the sentence. See the decision |
 
 **Text output.** R1's "one line per locale" in text is not built. `burgee check` without `--json`
 renders its result through the engine's generic renderer, and a line format for one command would

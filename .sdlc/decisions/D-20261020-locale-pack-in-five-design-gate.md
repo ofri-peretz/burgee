@@ -79,8 +79,8 @@ R1 and R2 do not move the median. They are still worth their bytes.
 - **Now:**
   - Every reading passes, and the max stays under 12.
   - No transcript spends a call on burgee: no read of burgee's source, no run of `Intl.PluralRules`
-    or `check --help`, and no refused `check`. `caseLines` makes this checkable on every pull
-    request's log.
+    or `check --help`, no refused `check`, and no second `check` of a pack the first accepted.
+    `caseLines` makes this checkable on every pull request's log.
   - The median is reported beside the bar and stays the aim. On 2026-10-20 its whole gap to 5 is
     the environment probe above.
 - **The spec's rejected alternative, "raise the target to 7", stays rejected.** Nothing is raised.
@@ -91,8 +91,32 @@ R1 and R2 do not move the median. They are still worth their bytes.
 - **"After" is this pull request's own `Agent Evals` runs, and every pull request's after it.**
   Their transcripts are now in the log. The first, run 39479245102 on `c3a7ba52`, passed in
   **5 turns**: it read the schema and the example, wrote the pack, and ran `check` once. It made
-  no probe and spent no call on burgee. One reading claims nothing about the median. Before this
-  change, 7 of the 34 readings were also 5.
+  no probe and spent no call on burgee. The second, run 39481745234 on `9dbefd2c`, passed in
+  **7 turns**:
+
+  ```
+  turn 2 Bash: mkdir -p evals/results
+  turn 3 Write: evals/results/locale-pack-fr.mjs (1186 chars)
+  turn 4 Bash: node packages/burgee/dist/cli.js check evals/results/locale-pack-fr.mjs --json
+  turn 5 Bash: node packages/burgee/dist/cli.js check evals/results/locale-pack-fr.mjs --json >/dev/null; echo "exit=$?"
+  ```
+
+  - **Turn 2** is the environment again, in another form.
+  - **Turn 5 belongs to the product.** It re-runs a `check` that had already accepted the pack, only
+    to read the exit code, although the envelope's `ok` *is* the exit verdict (`program.test.ts`:
+    "says ok: false in its --json envelope on a refusal, because it exits 1"). The schema's
+    description now says so: `ok` is the exit status, so one run answers both. The test is in
+    `locale-pack-schema.test.ts`, red against the description without the sentence.
+
+  That re-run is the kind of call the restated R3 counts. It is the first one this measurement
+  found, and it was fixed in the same pull request.
+
+  Two readings say nothing about the median. Before this change, 7 of the 34 readings were also 5
+  turns.
+
+  **Not done:** the job could create `evals/results/` before the agents run, as it builds `dist/`
+  first (D-20261007-eval-builds-first). That would move all eleven cases' series, not this one, so
+  it belongs to the harness and not to this intent.
 
 ## Spend
 
