@@ -362,6 +362,7 @@ const SAMPLES: Record<string, string> = {
   'the singleton (`yargs.foo`, `yargs().argv`) is removed, and command names are no longer derived from modules': 'The yargs singleton is gone from burgee/yargs.',
   'a colour that is not real hex throws (`#GGG`)': 'A hex colour that is not valid now throws.',
   '`vertical` / `horizontal` are fallbacks for the sides, not overrides': '`vertical` / `horizontal` are now a fallback.',
+  'a numeric FORCE_COLOR is an exact level, not a minimum': 'A numeric `FORCE_COLOR` is now an exact level.',
   'the minimum Node version is raised': 'burgee now requires Node >= 22.',
   'CommonJS `require()` is no longer supported (ESM only)': 'roundel is ESM only now.',
 };

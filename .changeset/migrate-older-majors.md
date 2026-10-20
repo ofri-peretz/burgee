@@ -1,0 +1,5 @@
+---
+"burgee": minor
+---
+
+`burgee migrate` now tells a commander or yargs project on an older major what stands between it and the drop-in. Each `offMajor` row gains `sites`, every line that uses an API the incumbent removed after the project's major (`require('commander')` used as the program, a two-letter short flag such as `-fe`, `commander/esm.mjs`, `require('yargs').option(…)` on yargs 17 and older, `.reset()`, `.rebase()`, `.onFinishCommand()`), each with the release that removed it, the line to write instead and the incumbent's changelog entry. It also gains `nearest`, the smallest claimed major above the project's, and `move`, the entry each imported specifier takes there (`yargs -> burgee/yargs/v17`), printed only when no site's API is gone by that major and every specifier has an entry. Nothing is rewritten for an off-major project, and the summary reads `nothing to rewrite; 1 line uses an API a claimed major removed (see offMajor)`. migrate also reads each file `package.json` `bin` names, so an extensionless `bin/cli` is checked, and on a claimed major it is now rewritten like any other source file.

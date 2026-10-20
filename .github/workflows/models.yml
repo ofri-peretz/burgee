@@ -12,10 +12,10 @@ name: Models · Quint
 on:
   push:
     branches: [main]
-    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/migrate.ts', '.github/workflows/release.yml', '.github/workflows/changesets-pr.yml', 'scripts/release-window.mts', 'packages/caique/src/clack-core.ts', '.github/workflows/models.yml']
+    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/migrate.ts', 'packages/burgee/src/migrate-majors.ts', '.github/workflows/release.yml', '.github/workflows/changesets-pr.yml', 'scripts/release-window.mts', 'packages/caique/src/clack-core.ts', '.github/workflows/models.yml']
   pull_request:
     branches: [main]
-    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/migrate.ts', '.github/workflows/release.yml', '.github/workflows/changesets-pr.yml', 'scripts/release-window.mts', 'packages/caique/src/clack-core.ts', '.github/workflows/models.yml']
+    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/migrate.ts', 'packages/burgee/src/migrate-majors.ts', '.github/workflows/release.yml', '.github/workflows/changesets-pr.yml', 'scripts/release-window.mts', 'packages/caique/src/clack-core.ts', '.github/workflows/models.yml']
   workflow_dispatch:
 
 concurrency:
@@ -89,6 +89,21 @@ jobs:
           done
           if $QUINT run "$m" --invariant=passedNeverMoves --max-steps=30 --max-samples=20000 >/dev/null; then
             echo "::error::dynamic.qnt: passedNeverMoves now holds — no run moves a file with a passed computed specifier, so safety holds vacuously"
+            exit 1
+          fi
+      # migrate's older-majors gate (migrate-older-majors spec.md): each rejected design still
+      # fails `safety`, and some run still prints a move, so `safety` is not holding because none is.
+      - name: migrate older majors — the rejected designs still fail, and some run still moves
+        run: |
+          m=.sdlc/intents/migrate-older-majors/majors.qnt
+          for s in stepUnchecked stepOffByOne stepLatest stepEager stepNoDeep; do
+            if $QUINT run "$m" --step="$s" --invariant=safety --max-steps=30 --max-samples=20000 >/dev/null; then
+              echo "::error::majors.qnt: safety holds under $s — the model no longer distinguishes the shipped design from the one it rejects"
+              exit 1
+            fi
+          done
+          if $QUINT run "$m" --invariant=neverMoves --max-steps=30 --max-samples=20000 >/dev/null; then
+            echo "::error::majors.qnt: neverMoves now holds — no run prints a move, so safety holds vacuously"
             exit 1
           fi
       # An open question, pinned: closeout's late add() is silently dropped today. When the

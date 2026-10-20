@@ -363,6 +363,13 @@ function shimSource(entry: HostImport, host: Host, target: string): string {
     const exported = entry.reexportDefault ? 'loaded?.default ?? loaded' : 'loaded';
     return `${header}\n${cjsLoad(from)}\nmodule.exports = ${exported};\n`;
   }
+  // A suite that re-imports with a query string (`HostImport.fresh`): the module beneath is
+  // imported by URL with this shim's own query, so a fresh shim is a fresh implementation.
+  if (entry.fresh !== undefined) {
+    const named = entry.fresh.map((name) => `export const ${name} = loaded.${name};\n`).join('');
+    const own = entry.reexportDefault ? 'export default loaded.default;\n' : '';
+    return `${header}\nconst loaded = await import(import.meta.resolve('${from}') + new URL(import.meta.url).search);\n${own}${named}`;
+  }
   // `export *` never carries a default; yargs' entry has one and its tests use it.
   //
   // It does carry `'module.exports'` — the name `require()` of an ES module returns whole —

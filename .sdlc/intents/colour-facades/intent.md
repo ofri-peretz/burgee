@@ -4,7 +4,7 @@
 > ([`next-wave-4-2026-10.md`](../../research/next-wave-4-2026-10.md)). Wave 3 scored each host at
 > 6.7 and left all three for the compat-oracle lane.
 
-**Status:** review · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
+**Status:** approved (2026-10-19, under the owner's delegation, [`D-20261019-colour-facades-design-accepted`](../../decisions/D-20261019-colour-facades-design-accepted.md)) · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Design:** [`spec.md`](./spec.md)
 
 ---
 
@@ -53,3 +53,15 @@ from a user's tree.
 ## Open questions
 
 - One intent or three. **Decided 2026-10-12**, D-20261012-colour-facades-one-intent.
+
+## Status — 2026-10-19
+
+Design accepted; nothing built yet. The three hosts are open as
+[`A-20261019-colour-facades-hosts-not-built`](../../gaps/A-20261019-colour-facades-hosts-not-built.md),
+which names what compat-oracle needs first for each.
+
+| Criterion | Evidence |
+| :-- | :-- |
+| 1. `npm run compat -- kleur colorette yoctocolors` level with each control | **Not met.** No host is vendored. |
+| 2. Three B4 rows at ratio ≤ 1 | **Not met.** No pair is declared. |
+| 3. `burgee migrate` rewrites each import in a fixture program that then passes its own tests | **Not met.** No `DROP_INS` row. |
