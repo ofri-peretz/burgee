@@ -18,8 +18,12 @@
  * SIGKILL and SIGSTOP are absent because they cannot be caught. SIGUSR1 is absent because Node
  * uses it to start the inspector. SIGPROF, SIGVTALRM's cousin, is absent because profilers
  * send it to living processes.
+ *
+ * The ambient platform is read through `ambient.ts`, the package's one door to the process (R7).
  */
-export function signalsOn(platform: string | undefined = (globalThis as { process?: { platform?: string } }).process?.platform): string[] {
+import { ambientProcess } from './ambient.js';
+
+export function signalsOn(platform: string | undefined = (ambientProcess() as { platform?: string } | undefined)?.platform): string[] {
   const signals = ['SIGHUP', 'SIGINT', 'SIGTERM'];
   if (platform !== 'win32') signals.push('SIGALRM', 'SIGABRT', 'SIGVTALRM', 'SIGXCPU', 'SIGXFSZ', 'SIGUSR2', 'SIGTRAP', 'SIGSYS', 'SIGQUIT', 'SIGIOT');
   if (platform === 'linux') signals.push('SIGIO', 'SIGPOLL', 'SIGPWR', 'SIGSTKFLT');

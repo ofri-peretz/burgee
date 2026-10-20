@@ -591,7 +591,7 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // signal-exit's 2,856 (1.272). Lowered 2026-10-20 (closeout-at-incumbent-weight,
   // D-20261012-closeout-drop-ins-held-to-u5): exit-hook's path stopped importing the registry
   // and signal-exit's gained an ES door, so a bundle carries no CommonJS interop. Measured
-  // 1,579 (0.960) and 2,671 (0.935); each ceiling is the measurement plus the 80 B CI margin,
+  // 1,579 (0.960) and 2,656 (0.930); each ceiling is the measurement plus the 80 B CI margin,
   // rounded up to the next fifty. The ratio gate below is U5's 1, the tighter bar of the two.
   'closeout/exit-hook': 1_700,
 
@@ -764,7 +764,7 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // foundation-claims-watched R6, 2026-10-12. `seniority/lilconfig` (0.611) and
   // `seniority/dotenv` (0.515) are lighter and take the default 1. The two closeout rows were
   // ratchets at 2.98 and 1.31 until 2026-10-20, when closeout-at-incumbent-weight brought them
-  // to 0.960 and 0.935 (see the byte ceilings above): U5's 1, stated as a check, and the two
+  // to 0.960 and 0.930 (see the byte ceilings above): U5's 1, stated as a check, and the two
   // B-20261012 gaps close.
   'closeout/exit-hook': 1,
 

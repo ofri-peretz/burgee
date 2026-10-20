@@ -18,6 +18,6 @@ measured, and it is gated: the ceiling is the measurement plus the 80 B CI margi
 so it cannot grow unremarked. Where the 778 B come from is *unmeasured* here.
 
 **Closed 2026-10-20** by [`closeout-at-incumbent-weight`](../intents/closeout-at-incumbent-weight/intent.md):
-`closeout/signal-exit` reads **2,671 B** against signal-exit's 2,856 B (**0.935**), and the `RATIO_CEILING` row is U5's 1
+`closeout/signal-exit` reads **2,656 B** against signal-exit's 2,856 B (**0.930**), and the `RATIO_CEILING` row is U5's 1
 (D-20261020-closeout-drop-in-budgets). The decision this gap asked for is
 D-20261012-closeout-drop-ins-held-to-u5: held to U5 on its own.

@@ -105,8 +105,8 @@ measurement that directed the cut, not a standing test, since the B4 gates and c
   `require` → `signal-exit.cjs`, which the suite re-evaluates under a changed `process`, and
   `import` → `signal-exit.js`, an ES file over the same core, the same emitter and the same list
   (`signal-list.ts`). signal-exit ships the same pair. Its suite grades its CommonJS build and B4
-  bundles its ES build, so ours is measured the same way on both sides. 2,671 B against 2,856 B
-  (**0.935**).
+  bundles its ES build, so ours is measured the same way on both sides. 2,656 B against 2,856 B
+  (**0.930**).
 - The registry, deadline and report stay on `closeout`'s own entry. The drop-in no longer prints
   the deadline report at `max(wait)`, orders its hooks before closeout's `restore` phase, or
   catches a throwing hook. exit-hook does none of the three, and the 21 / 21 grade is measured
