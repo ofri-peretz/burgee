@@ -6,6 +6,8 @@
  * assert: the dimmed default and what Tab and Backspace do to it, a failed validation putting
  * the typed text back into the line, the mask, and the words `confirm` reads.
  */
+import { stripVTControlCharacters } from 'node:util';
+
 import { describe, expect, it, vi } from 'vitest';
 
 import { render } from './__fixtures__/inquirer-render.js';
@@ -359,5 +361,252 @@ describe('confirm', () => {
     events.type('n');
     await expect(answer).resolves.toBe(true);
     expect(getScreen()).toBe('✔ Go? Yes');
+  });
+});
+
+/**
+ * What the default styles hide once escapes are stripped, made visible: the status each frame
+ * was drawn in, and the answer in angle brackets.
+ */
+const seen = { style: { message: (text: string, status: string) => `${text}:${status}`, answer: (text: string) => `<${text}>` } };
+
+/** A validator that answers when the test says so, counting its calls. */
+function pending<T>(): { validate: (value: T) => Promise<boolean | string>; release: (verdict: boolean | string) => void; calls: () => number } {
+  let release: (verdict: boolean | string) => void = () => undefined;
+  let calls = 0;
+  return {
+    validate: async () => {
+      calls++;
+      return new Promise((resolve) => {
+        release = resolve;
+      });
+    },
+    release: (verdict) => {
+      release(verdict);
+    },
+    calls: () => calls,
+  };
+}
+
+describe('the line prompts, frame by frame', () => {
+  it('input: loading while it validates, one validation per answer, the answer styled once done', async () => {
+    const check = pending<string>();
+    const { answer, events, getScreen } = await render(input, { message: 'Name', validate: check.validate, theme: seen });
+    expect(getScreen()).toBe('? Name:idle');
+    events.type('Ada');
+    events.keypress('enter');
+    expect(getScreen()).toBe('? Name:loading Ada');
+    events.keypress('enter');
+    events.type('x');
+    check.release(true);
+    await expect(answer).resolves.toBe('Ada');
+    expect(check.calls()).toBe(1);
+    expect(getScreen()).toBe('✔ Name:done <Ada>');
+  });
+
+  it('input: draws the default it answered with, styled, and only while the line is empty', async () => {
+    const { answer, events, getScreen } = await render(input, { message: 'Port', default: '8080', theme: seen });
+    events.type('1');
+    expect(getScreen()).toBe('? Name:idle 1'.replace('Name', 'Port'));
+    events.keypress('backspace');
+    events.keypress('enter');
+    await expect(answer).resolves.toBe('8080');
+    expect(getScreen()).toBe('✔ Port:done <8080>');
+  });
+
+  it('input: keeps the refused text in the line, and clears the refusal on the next key', async () => {
+    const { answer, events, getScreen } = await render(input, { message: 'Name', validate: (value: string) => value.length > 2 || 'longer' });
+    events.type('ab');
+    events.keypress('enter');
+    await vi.waitFor(() => {
+      expect(getScreen()).toBe(frame('? Name ab', '> longer'));
+    });
+    events.type('c');
+    expect(getScreen()).toBe('? Name abc');
+    events.keypress('enter');
+    await expect(answer).resolves.toBe('abc');
+  });
+
+  it('input: Tab and prefill put the default in readline’s line, so the next key edits it', async () => {
+    const tab = await render(input, { message: 'Name', default: 'Ada' });
+    tab.events.keypress('tab');
+    tab.events.type('m');
+    expect(tab.getScreen()).toBe('? Name Adam');
+    for (let i = 0; i < 4; i++) tab.events.keypress('backspace');
+    expect(tab.getScreen()).toBe('? Name');
+    const prefilled = await render(input, { message: 'Name', default: 'Ada', prefill: 'editable' });
+    await vi.waitFor(() => {
+      expect(prefilled.getScreen()).toBe('? Name Ada');
+    });
+    prefilled.events.type('m');
+    expect(prefilled.getScreen()).toBe('? Name Adam');
+  });
+
+  it('number: loading while it validates, one validation per answer, the answer styled once done', async () => {
+    const check = pending<number | undefined>();
+    const { answer, events, getScreen } = await render(number, { message: 'Age', validate: check.validate, theme: seen });
+    events.type('42');
+    events.keypress('enter');
+    expect(getScreen()).toBe('? Age:loading 42');
+    events.keypress('enter');
+    check.release(true);
+    await expect(answer).resolves.toBe(42);
+    expect(check.calls()).toBe(1);
+    expect(getScreen()).toBe('✔ Age:done <42>');
+  });
+
+  it('number: an empty answer skips validate and draws nothing', async () => {
+    const validate = vi.fn(() => true);
+    const { answer, events, getScreen } = await render(number, { message: 'Age', validate, theme: seen });
+    events.keypress('enter');
+    await expect(answer).resolves.toBeUndefined();
+    expect(validate).not.toHaveBeenCalled();
+    expect(getScreen()).toBe('✔ Age:done <>');
+  });
+
+  it('number: holds the bounds inclusive, names them, and keeps the refused number in the line', async () => {
+    const { answer, events, getScreen } = await render(number, { message: 'Age', min: 5, max: 10 });
+    events.type('4');
+    events.keypress('enter');
+    expect(getScreen()).toBe(frame('? Age 4', '> Value must be between 5 and 10'));
+    events.keypress('backspace');
+    events.type('11');
+    events.keypress('enter');
+    expect(getScreen()).toBe(frame('? Age 11', '> Value must be between 5 and 10'));
+    events.keypress('backspace');
+    events.keypress('backspace');
+    events.type('1');
+    events.keypress('enter');
+    expect(getScreen()).toContain('? Age 1');
+    events.type('0');
+    events.keypress('enter');
+    await expect(answer).resolves.toBe(10);
+    const low = await render(number, { message: 'Age', min: 5, max: 10 });
+    low.events.type('5');
+    low.events.keypress('enter');
+    await expect(low.answer).resolves.toBe(5);
+  });
+
+  it('number: names the step alone when there is no lower bound', async () => {
+    const { events, getScreen } = await render(number, { message: 'Even', step: 2 });
+    events.type('3');
+    events.keypress('enter');
+    expect(getScreen()).toBe(frame('? Even 3', '> Value must be a multiple of 2'));
+  });
+
+  it('number: Tab copies the default into readline’s line, and Backspace on an empty line drops it', async () => {
+    const tab = await render(number, { message: 'Age', default: 30 });
+    tab.events.keypress('tab');
+    tab.events.type('1');
+    expect(tab.getScreen()).toBe('? Age 301');
+    tab.events.keypress('backspace');
+    tab.events.keypress('backspace');
+    tab.events.keypress('backspace');
+    expect(tab.getScreen()).toBe('? Age');
+    const dropped = await render(number, { message: 'Age', default: 30 });
+    dropped.events.keypress('backspace');
+    expect(dropped.getScreen()).toBe('? Age');
+    dropped.events.keypress('enter');
+    await expect(dropped.answer).resolves.toBeUndefined();
+  });
+
+  it('isStepOf: decimal steps, an exponent, and a lower bound that is not zero', () => {
+    expect(isStepOf(0.3, 0.1, 0)).toBe(true);
+    expect(isStepOf(0.25, 0.1, 0)).toBe(false);
+    expect(isStepOf(1.5, 0.5, 0.5)).toBe(true);
+    expect(isStepOf(4, 3, 1)).toBe(true);
+    expect(isStepOf(5, 3, 1)).toBe(false);
+    expect(isStepOf(3e-7, 1e-7, 0)).toBe(true);
+    expect(isStepOf(2.5e-7, 1e-7, 0)).toBe(false);
+    expect(isStepOf(1e21, 1e20, 0)).toBe(true);
+    expect(isStepOf(12, 4, -Infinity)).toBe(true);
+  });
+
+  it('password: loading while it validates, one validation per answer, the mask styled once done', async () => {
+    const check = pending<string>();
+    const { answer, events, getScreen } = await render(password, { message: 'Secret', mask: '*', validate: check.validate, theme: seen });
+    events.type('ab');
+    events.keypress('enter');
+    expect(getScreen()).toBe('? Secret:loading **');
+    events.keypress('enter');
+    check.release(true);
+    await expect(answer).resolves.toBe('ab');
+    expect(check.calls()).toBe(1);
+    expect(getScreen()).toBe('✔ Secret:done <**>');
+  });
+
+  it('password: answers an empty line, toggles on ctrl+t only, and never reveals the answer once done', async () => {
+    const empty = await render(password, { message: 'Secret' });
+    empty.events.keypress('enter');
+    await expect(empty.answer).resolves.toBe('');
+    const { answer, events, getScreen } = await render(password, { message: 'Secret', theme: seen });
+    events.type('t');
+    events.keypress({ name: 'a', ctrl: true });
+    expect(getScreen()).toContain('[input is masked]');
+    events.keypress({ name: 't', ctrl: true });
+    expect(getScreen()).toContain('? Secret:idle t');
+    events.keypress('enter');
+    await expect(answer).resolves.toBe('t');
+    expect(getScreen()).toBe('✔ Secret:done <>');
+  });
+
+  it('password: clears a refusal on the next key, hides the cursor only without a mask, and draws no empty part', async () => {
+    const { events, getScreen } = await render(password, { message: 'Secret', validate: () => 'no' });
+    events.keypress('enter');
+    await vi.waitFor(() => {
+      expect(getScreen()).toContain('> no');
+    });
+    events.type('a');
+    expect(getScreen()).not.toContain('> no');
+    expect(getScreen({ raw: true })).toContain('\u001B[?25l');
+    const masked = await render(password, { message: 'Secret', mask: true });
+    masked.events.type('a');
+    expect(stripVTControlCharacters(masked.getScreen({ raw: true }).replaceAll('\u001B[?25l', 'HIDDEN'))).not.toContain('HIDDEN');
+    const bare = await render(password, { message: 'Secret', mask: true, theme: { prefix: '' } });
+    expect(stripVTControlCharacters(bare.getScreen({ raw: true })).split('\n')[0]).toBe('Secret');
+  });
+
+  it('confirm: opens idle, trims what was typed, and reads its own words before yes and no', async () => {
+    const opening = await render(confirm, { message: 'Go?', theme: seen });
+    expect(opening.frames()[0]).toBe('? Go?:idle (Y/n)');
+    const words = { keywords: { yes: 'Oui', no: 'Aucun', error: () => 'oui ou aucun' } };
+    const cases: [string, boolean | 'refused'][] = [[' o ', true], ['a', false], ['s', 'refused'], ['o', true]];
+    for (const [typed, expected] of cases) {
+      const { answer, events, getScreen } = await render(confirm, { message: 'Go?', theme: words });
+      events.type(typed);
+      events.keypress('enter');
+      if (expected === 'refused') expect(getScreen()).toContain('> oui ou aucun');
+      else await expect(answer).resolves.toBe(expected);
+    }
+    const plain = await render(confirm, { message: 'Go?' });
+    plain.events.type('o');
+    plain.events.keypress('enter');
+    expect(plain.getScreen()).toContain('> You must answer with "Yes" or "No"');
+  });
+
+  it('confirm: Tab flips what is typed, or the default when nothing readable is, and writes it into the line', async () => {
+    const typedYes = await render(confirm, { message: 'Go?', default: false });
+    typedYes.events.type('y');
+    typedYes.events.keypress('tab');
+    expect(typedYes.getScreen()).toBe('? Go? (y/N) No');
+    const unreadable = await render(confirm, { message: 'Go?' });
+    unreadable.events.type('x');
+    unreadable.events.keypress('tab');
+    expect(unreadable.getScreen()).toBe('? Go? (Y/n) No');
+    const edited = await render(confirm, { message: 'Go?', default: false });
+    edited.events.keypress('tab');
+    edited.events.keypress('backspace');
+    expect(edited.getScreen()).toBe('? Go? (y/N) Ye');
+    edited.events.keypress('enter');
+    await expect(edited.answer).resolves.toBe(true);
+  });
+
+  it('confirm: colours the default letter of a script with no case, and capitalises one with case', async () => {
+    vi.stubEnv('FORCE_COLOR', '1');
+    const cjk = await render(confirm, { message: '继续?', theme: { keywords: { yes: '是', no: '否' } } });
+    expect(cjk.getScreen({ raw: true })).toContain('\u001B[36m是\u001B[39m');
+    const latin = await render(confirm, { message: 'Go?' });
+    expect(latin.getScreen({ raw: true })).not.toContain('\u001B[36mY');
+    vi.unstubAllEnvs();
   });
 });

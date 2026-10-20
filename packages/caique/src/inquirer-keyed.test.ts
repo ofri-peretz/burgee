@@ -200,6 +200,22 @@ describe('rawlist', () => {
     expect(getScreen()).toBe('✔ Fruit A');
   });
 
+  it('falls back to a position among the choices only for a number no key matches', async () => {
+    const lettered = await render(rawlist, { message: 'Fruit', choices: [new Separator(), { value: 'x', key: 'p' }, { value: 'y', key: 'q' }] });
+    lettered.events.type('2');
+    lettered.events.keypress('enter');
+    await expect(lettered.answer).resolves.toBe('y');
+    const numbered = await render(rawlist, { message: 'Fruit', choices: [{ value: 'x', key: '7' }, 'y'] });
+    numbered.events.type('7');
+    numbered.events.keypress('enter');
+    await expect(numbered.answer).resolves.toBe('x');
+  });
+
+  it('draws a null choice as its own name', async () => {
+    const { getScreen } = await render(rawlist, { message: 'Fruit', choices: [null, 'b'] });
+    expect(getScreen()).toBe(frame('? Fruit', '  1) null', '  2) b'));
+  });
+
   it('reads an object without a value as a bare value, and preselects nothing without a default', async () => {
     const { getScreen } = await render(rawlist, { message: 'Fruit', choices: [{ name: 'odd' } as unknown as string, { value: undefined, name: 'none' }] });
     expect(getScreen()).toBe(frame('? Fruit', '  1) [object Object]', '  2) none'));

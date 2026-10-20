@@ -48,7 +48,6 @@ export interface InputConfig {
 const line = (parts: readonly (string | undefined)[]): string => parts.filter((part) => part !== undefined).join(' ');
 
 export const input = createPrompt<string, InputConfig>((config, done) => {
-  const { prefill = 'tab' } = config;
   const theme = makeTheme<InputTheme>({ validationFailureMode: 'keep' }, config.theme);
   const [status, setStatus] = useState<Status>('idle');
   // `String()`, because a caller without types passes a number and the incumbent shows it.
@@ -78,8 +77,8 @@ export const input = createPrompt<string, InputConfig>((config, done) => {
         done(answer);
         return;
       }
-      if (theme.validationFailureMode === 'clear') setValue('');
-      else rl.write(value);
+      if (theme.validationFailureMode === 'keep') rl.write(value);
+      else setValue('');
       setError(verdict);
       setStatus('idle');
     } else if (isBackspaceKey(key) && !value) {
@@ -96,18 +95,24 @@ export const input = createPrompt<string, InputConfig>((config, done) => {
     }
   });
 
-  useEffect((rl) => {
-    if (prefill === 'editable' && defaultValue) {
-      rl.write(defaultValue);
-      setValue(defaultValue);
-    }
-  }, []);
+  useEffect(
+    (rl) => {
+      // `prefill: 'tab'`, the default, leaves the line empty; an empty default writes nothing either way.
+      if (config.prefill === 'editable') {
+        rl.write(defaultValue);
+        setValue(defaultValue);
+      }
+    },
+    // Stryker disable next-line ArrayDeclaration: any constant list runs the effect once, on the first render, which is all this asks of it
+    [],
+  );
 
   const message = theme.style.message(config.message, status);
   let shown = value;
   if (typeof config.transformer === 'function') shown = config.transformer(value, { isFinal: status === 'done' });
   else if (status === 'done') shown = theme.style.answer(value);
-  const hint = defaultValue && status !== 'done' && !value ? theme.style.defaultAnswer(defaultValue) : undefined;
+  // Never at `done`: the answer is the value then, so `!value` already rules it out.
+  const hint = defaultValue && !value ? theme.style.defaultAnswer(defaultValue) : undefined;
   return [line([prefix, message, hint, shown]), errorMsg ? theme.style.error(errorMsg) : ''];
 });
 
@@ -125,9 +130,10 @@ export interface NumberConfig<Required extends boolean = boolean> {
 
 /** A finite number as an integer significand and a power of ten, so steps compare exactly. */
 function decimal(value: number): { significand: bigint; exponent: number } {
-  const [coefficient = '', exponent = '0'] = value.toString().toLowerCase().split('e');
-  const [whole = '', fraction = ''] = coefficient.split('.');
-  return { significand: BigInt(`${whole}${fraction}`), exponent: Number(exponent) - fraction.length };
+  // `Number#toString` writes a lowercase `e`, and only for an exponent; a finite number always has a whole part.
+  const [coefficient, exponent] = value.toString().split('e') as [string, string?];
+  const [whole, fraction = ''] = coefficient.split('.') as [string, string?];
+  return { significand: BigInt(`${whole}${fraction}`), exponent: Number(exponent ?? 0) - fraction.length };
 }
 
 /**
@@ -199,7 +205,8 @@ export const number = createPrompt(<Required extends boolean>(config: NumberConf
 
   const message = theme.style.message(config.message, status);
   const shown = status === 'done' ? theme.style.answer(value) : value;
-  const hint = defaultValue && status !== 'done' && !value ? theme.style.defaultAnswer(defaultValue) : undefined;
+  // Never at `done`: an answer from the default is the value then, and an empty one has no default.
+  const hint = defaultValue && !value ? theme.style.defaultAnswer(defaultValue) : undefined;
   return [line([prefix, message, hint, shown]), errorMsg ? theme.style.error(errorMsg) : ''];
 });
 
@@ -235,7 +242,6 @@ export const password = createPrompt<string, PasswordConfig>((config, done) => {
       setStatus('loading');
       const verdict = await validate(value);
       if (verdict === true) {
-        setValue(value);
         setStatus('done');
         done(value);
         return;
