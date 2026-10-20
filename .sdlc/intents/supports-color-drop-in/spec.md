@@ -1,6 +1,6 @@
 # Design — `roundel/supports-color`, graded by supports-color's own suite
 
-Intent: [`intent.md`](./intent.md). **Status:** approved — built 2026-10-19; `shipped` when roundel's minor publishes.
+Intent: [`intent.md`](./intent.md). **Status:** shipped 2026-10-20 in roundel 1.2.0 (Version PR #1184) — built 2026-10-19.
 
 **Accepted by the owner, 2026-10-12, by instruction: create and execute.** The instruction and the
 evidence are recorded in [`next-wave-3-2026-10.md`](../../research/next-wave-3-2026-10.md).

@@ -5,7 +5,9 @@
 > number of any candidate in that table: 441.6 M weekly downloads for a decision roundel
 > already makes, with no subpath and no grade behind it.
 
-**Status:** approved — built 2026-10-19, every criterion evidenced below; it moves to `shipped` when the `roundel` minor that carries `./supports-color` publishes (held by the release window to about 2026-10-25), as `migrate-preflight` did · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Design:** [`spec.md`](./spec.md)
+**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-20 on
+[`122635dc`](https://github.com/ofri-peretz/burgee/commit/122635dce2) (#1177), released in roundel 1.2.0 (npm, 2026-10-20T05:27Z, Version PR #1184), verified against `main` at
+[`a7d8fb73`](https://github.com/ofri-peretz/burgee/commit/a7d8fb7386) — criterion 1 re-graded 55 / 55 on 2026-10-20, criterion 3 read 0.829 on CI at the release commit, criterion 4 published in burgee 1.6.6 (below) · **Design:** [`spec.md`](./spec.md)
 
 ---
 
@@ -86,3 +88,16 @@ records what changed from the design as written.
 | 2. The compatibility page lists it, generated, with the major claimed in `SUPPORTED_MAJORS` | **Met.** `apps/docs/content/docs/compatibility.mdx` rows `supports-color · roundel · 55 / 55` and `supports-color · 11 · 11.0.0`, from `npm run compat:page`; `SUPPORTED_MAJORS['supports-color']` is `[11]`. |
 | 3. `benchmarks/fixtures/entry-points.ts` has the pair, and its ratio reads at or below 1 on CI | **Met locally**, 1,764 B against 2,128 B, 0.829, under `BUNDLED_CEILING` 1,850 and the U5 ratio gate of 1; the CI reading is in the PR's `bench` job. |
 | 4. `burgee migrate` rewrites `import supportsColor from 'supports-color'` to the subpath, and `migrate.test.ts` holds it | **Met.** `migrate.test.ts` › "rewrites a supports-color default import and its `createSupportsColor` to `roundel/supports-color`", red on `main`. |
+
+## Shipped — 2026-10-20
+
+`roundel@1.2.0` is on npm (`npm view roundel time.1.2.0`: `2026-10-20T05:27:55.567Z`) and its
+`exports` carry `./supports-color`. Every criterion was re-read against released code or `main`
+at `a7d8fb73`:
+
+| Criterion | Evidence on release |
+| :-- | :-- |
+| 1. graded level with the control, `GRADED` carries the row | `npm run compat -- supports-color` on `main` at `a7d8fb73`: **55 / 55**, 100.0%, ▲ 0. The published `burgee@1.6.6` `dist/compat.js` carries `'supports-color': { reference: 55, passed: 55, rate: 1, control: 55 }`. |
+| 2. the compatibility page lists it, major in `SUPPORTED_MAJORS` | Unchanged since #1177; `burgee@1.6.6` `dist/compat.js` has `'supports-color': [11]` and `'supports-color': '11.0.0'`. |
+| 3. the B4 pair reads at or below 1 on CI | `benchmarks/results/cli-benchmarks/2026-10-20-f0421b7-ci.json` (the CI run on the release commit): `roundel/supports-color` 1,764 B against supports-color's 2,128 B, **0.829**, gate 1. |
+| 4. `burgee migrate` rewrites the import | `burgee@1.6.6` on npm already ships it: its `dist/migrate.js` maps `roundel/supports-color` and its `DROP_INS` row is in `dist/compat.js`. The changeset that announces it, `.changeset/burgee-migrate-supports-color.md` (a `burgee` minor), is still pending, so the changelog names it with the next burgee minor. |
