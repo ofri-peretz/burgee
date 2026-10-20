@@ -70,13 +70,13 @@ Author-scored, no `TYPESAFE_API_KEY` (skipped, never failed). `?` is confidence 
 
 Built on `feat/closeout-at-incumbent-weight` against `main` at `a7d8fb7386`. The constraints
 hold: grades did not fall, exactly-once across doors is checked, and no ratchet was raised on
-either B4 row. The one budget raise, `./signal-exit/signals` +300 B unminified, is recorded in
+either B4 row. The one budget raise, `./signal-exit/signals` +50 B unminified, is recorded in
 D-20261020-closeout-drop-in-budgets. `scripts/mutation.ts changed` on
 the changed lines: **120 of 120 mutants killed**, 0 survivors. The signal-exit doors are graded in
 child processes and listed in `TESTED_IN_ANOTHER_PROCESS`, as the CommonJS file always was.
 
 | Criterion | Evidence |
 | :-- | :-- |
-| 1. Both B4 rows read a ratio ≤ 1.0 in `npm run bench -- --axis weight` | **Met.** `closeout/exit-hook` 1,579 B against exit-hook 5.1.0's 1,645 B, **0.960**. `closeout/signal-exit` 2,656 B against signal-exit 4.1.0's 2,856 B, **0.930**. Both `RATIO_CEILING` rows are 1, and on `main` they read 2.929 and 1.272. `lighter-than-exit-hook` and `lighter-than-signal-exit` read *met* once CI records the branch's bench run. |
+| 1. Both B4 rows read a ratio ≤ 1.0 in `npm run bench -- --axis weight` | **Met.** `closeout/exit-hook` 1,579 B against exit-hook 5.1.0's 1,645 B, **0.960**. `closeout/signal-exit` 2,657 B against signal-exit 4.1.0's 2,856 B, **0.930**. Both `RATIO_CEILING` rows are 1, and on `main` they read 2.929 and 1.272. `lighter-than-exit-hook` and `lighter-than-signal-exit` read *met* once CI records the branch's bench run. |
 | 2. `npm run compat -- closeout` is unchanged | **Met.** exit-hook **21 / 21**. signal-exit 126 of the 127 cases the suite registers on darwin, the miss being the control's own (`controlFailures`); the reference 135 counts 8 Linux-only cases. restore-cursor 6 / 6, cli-cursor 8 / 8, onetime 6 / 6. The suite still grades the CommonJS door through `require()`, as it grades signal-exit's own CommonJS build. |
 | 3. `registry.qnt` and the new model both hold their `safety` in `models.yml` | **Met.** `lean.qnt` `safety` holds over 20,000 traces × 30 steps. Its four rejected designs and its witness are violated, and `models.yml` checks all of them. `registry.qnt` is unchanged. |

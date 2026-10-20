@@ -17,6 +17,9 @@
  */
 import list = require('./signal-list.js');
 
-const signals: string[] = list.signalsOn();
+// Off the global itself, not `ambientProcess()`: the suite fakes the platform with
+// `global.process = { ...process, platform }`, a copy without the inherited `on` that
+// `ambientProcess()` tests for. A read of `platform` only, which `shape.test.ts`'s R7 lock admits.
+const signals: string[] = list.signalsOn((globalThis as { process?: { platform?: string } }).process?.platform);
 
 export = { signals };

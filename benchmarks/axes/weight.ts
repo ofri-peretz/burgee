@@ -591,7 +591,7 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // signal-exit's 2,856 (1.272). Lowered 2026-10-20 (closeout-at-incumbent-weight,
   // D-20261012-closeout-drop-ins-held-to-u5): exit-hook's path stopped importing the registry
   // and signal-exit's gained an ES door, so a bundle carries no CommonJS interop. Measured
-  // 1,579 (0.960) and 2,656 (0.930); each ceiling is the measurement plus the 80 B CI margin,
+  // 1,579 (0.960) and 2,657 (0.930); each ceiling is the measurement plus the 80 B CI margin,
   // rounded up to the next fifty. The ratio gate below is U5's 1, the tighter bar of the two.
   'closeout/exit-hook': 1_700,
 

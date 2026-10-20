@@ -113,19 +113,7 @@ describe('signalsOn, the one copy of the list', () => {
     expect(signalsOn(platform)).toEqual(expected);
   });
 
-  it('reads the ambient platform when it is not told one', () => {
-    expect(signalsOn()).toEqual(signalsOn(process.platform));
-  });
-
-  it('answers with the POSIX list on a runtime with no process at all', () => {
-    const real: unknown = Reflect.get(globalThis, 'process');
-    Reflect.set(globalThis, 'process', undefined);
-    let list: string[];
-    try {
-      list = signalsOn();
-    } finally {
-      Reflect.set(globalThis, 'process', real);
-    }
-    expect(list).toEqual(POSIX);
+  it('answers with the POSIX list when there is no platform to read', () => {
+    expect(signalsOn(undefined)).toEqual(POSIX);
   });
 });

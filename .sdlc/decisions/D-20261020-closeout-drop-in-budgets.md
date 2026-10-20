@@ -7,31 +7,30 @@ superseded_by: —
 ---
 
 **Every bundled-weight gate on the two drop-ins moves down, and one unminified budget moves up
-by 300 B.** All measured on the branch of closeout-at-incumbent-weight, and each ceiling is the
+by 50 B.** All measured on the branch of closeout-at-incumbent-weight, and each ceiling is the
 measurement plus the 80 B CI margin, rounded up to the next fifty, as everywhere in
 `benchmarks/axes/weight.ts`.
 
 | gate | was | now | measured |
 | :-- | --: | --: | --: |
 | `BUNDLED_CEILING['closeout/exit-hook']` | 4,900 | 1,700 | 1,579 |
-| `BUNDLED_CEILING['closeout/signal-exit']` | 3,750 | 2,800 | 2,656 |
+| `BUNDLED_CEILING['closeout/signal-exit']` | 3,750 | 2,800 | 2,657 |
 | `RATIO_CEILING['closeout/exit-hook']` | 2.98 | 1 | 0.960 |
 | `RATIO_CEILING['closeout/signal-exit']` | 1.31 | 1 | 0.930 |
 | `weight.test.ts` `./exit-hook` budget | 13,000 | 3,800 | 3,717 |
-| `weight.test.ts` `./signal-exit` budget (now the `import` door) | 5,500 | 4,900 | 4,837 |
-| `weight.test.ts` `./signal-exit` `require` door (new) | — | 5,500 | 5,128 |
-| `weight.test.ts` `./signal-exit/signals` budget | 500 | **800** | 770 |
+| `weight.test.ts` `./signal-exit` budget (now the `import` door) | 5,500 | 4,900 | 4,797 |
+| `weight.test.ts` `./signal-exit` `require` door (new) | — | 5,500 | 5,080 |
+| `weight.test.ts` `./signal-exit/signals` budget | 500 | **550** | 518 |
 
-**The one raise.** `./signal-exit/signals` reads 770 B (was 381) because the platform list moved to
+**The one raise.** `./signal-exit/signals` reads 518 B (was 381) because the platform list moved to
 `signal-list.ts`, so both doors of `./signal-exit` and this entry read one copy. The CommonJS file
-now `require()`s it, and the list reads the platform through `ambient.js`, closeout's one door to
-the process (R7). The old `.cts` read `globalThis.process` itself, which
-`process-reference-lock.test.ts` refuses in a `.ts` file. The other option was two copies of the list and a lock to keep them equal,
-which saves about 390 B of unminified, never-bundled bytes on an entry with no B4 row and adds a
-way for the copies to drift. One copy is worth 300 B of budget.
+now `require()`s it and passes the platform it reads off the global, as before. The other option
+was two copies of the list and a lock to keep them equal. That saves about 140 B of unminified,
+never-bundled bytes on an entry with no B4 row, and adds a way for the copies to drift. One copy is
+worth 50 B of budget.
 
-**The band.** `.sdlc/bands/foundation-ceilings.json` closeout `ours` 107,842 → 108,896 B
-installed (ratio 0.5867 → 0.5925, ceiling unchanged), from `npm run weight:converge`. The package
+**The band.** `.sdlc/bands/foundation-ceilings.json` closeout `ours` 107,842 → 108,866 B
+installed (ratio 0.5867 → 0.5923, ceiling unchanged), from `npm run weight:converge`. The package
 ships two more modules (`signal-exit-core.js`, `signal-list.js`), the ES door and their
 declarations. `exit-hook.js` is smaller. The installed tarball is not what a user's bundle grows
 by, and that number fell on both drop-ins.

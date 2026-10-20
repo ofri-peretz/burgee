@@ -20,8 +20,10 @@ import { ambientProcess } from './ambient.js';
 import { signalExit } from './signal-exit-core.js';
 import { signalsOn } from './signal-list.js';
 
-/** The fatal signals for this platform, read at load as the CommonJS door reads them. */
-export const signals: string[] = signalsOn();
+const found = ambientProcess();
+
+/** The fatal signals for the platform of the process found at load. */
+export const signals: string[] = signalsOn((found as { platform?: string } | undefined)?.platform);
 
 /** `onExit(handler, options?)`, `load()` and `unload()`, wired to the process found at load. */
-export const { onExit, load, unload } = signalExit(ambientProcess(), signals);
+export const { onExit, load, unload } = signalExit(found, signals);

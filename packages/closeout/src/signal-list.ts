@@ -19,11 +19,10 @@
  * uses it to start the inspector. SIGPROF, SIGVTALRM's cousin, is absent because profilers
  * send it to living processes.
  *
- * The ambient platform is read through `ambient.ts`, the package's one door to the process (R7).
+ * The platform is the caller's to read: each door reads it at its own load, the CommonJS one off
+ * the global as signal-exit's own `signals.js` does, the ES one off the process it wired.
  */
-import { ambientProcess } from './ambient.js';
-
-export function signalsOn(platform: string | undefined = (ambientProcess() as { platform?: string } | undefined)?.platform): string[] {
+export function signalsOn(platform: string | undefined): string[] {
   const signals = ['SIGHUP', 'SIGINT', 'SIGTERM'];
   if (platform !== 'win32') signals.push('SIGALRM', 'SIGABRT', 'SIGVTALRM', 'SIGXCPU', 'SIGXFSZ', 'SIGUSR2', 'SIGTRAP', 'SIGSYS', 'SIGQUIT', 'SIGIOT');
   if (platform === 'linux') signals.push('SIGIO', 'SIGPOLL', 'SIGPWR', 'SIGSTKFLT');

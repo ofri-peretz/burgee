@@ -102,14 +102,13 @@ const RULES: Record<string, EntryRule> = {
   // `signals.js`). It never reaches the registry.
   // Since 2026-10-20 this is the ES door, what `import` reaches (closeout-at-incumbent-weight):
   // the machine, the list and the process door, and no CommonJS file, because a bundler wraps
-  // a CommonJS file in interop that cost more than signal-exit's own ES build. Measured 4,837 B.
+  // a CommonJS file in interop that cost more than signal-exit's own ES build. Measured 4,797 B.
   // `REQUIRE_RULES` below weighs the CommonJS door.
   './signal-exit': { allow: [], budget: 4_900, denied: ['index.js', 'registry.js', 'install.js', 'exit-hook.js', 'signal-exit.cjs', 'signal-exit-signals.cjs'] },
-  // The platform's fatal-signal list, alone. Measured 381 B. Raised 500 -> 800 on 2026-10-20
+  // The platform's fatal-signal list, alone. Measured 381 B. Raised 500 -> 550 on 2026-10-20
   // (D-20261020-closeout-drop-in-budgets): the list moved to `signal-list.js`, one copy for both
-  // doors of `./signal-exit`, which reads the platform through `ambient.js` (R7) where this file
-  // used to read the global itself; this entry is now a CommonJS file that calls it. Measured 770 B.
-  './signal-exit/signals': { allow: [], budget: 800, denied: ['index.js', 'registry.js', 'signal-exit.cjs'] },
+  // doors of `./signal-exit`, and this entry is now a CommonJS file that calls it. Measured 518 B.
+  './signal-exit/signals': { allow: [], budget: 550, denied: ['index.js', 'registry.js', 'signal-exit.cjs'] },
   // The drop-in for `onetime` 8 (155.0 M/wk), graded 6 / 6 by its own suite
   // (`graded-override-targets` R3). A leaf, like `./once`. Measured 1,295 B on 2026-10-11,
   // against onetime 1,033 B + mimic-function 3,038 B.
@@ -127,8 +126,8 @@ const RULES: Record<string, EntryRule> = {
  */
 const REQUIRE_RULES: Record<string, EntryRule> = {
   // The CommonJS door of `./signal-exit`, the file the suite re-evaluates. Measured 4,797 B on
-  // 2026-09-23 when it was the only door, and 5,128 B on 2026-10-20 once the machine moved to
-  // `signal-exit-core.js` for the ES door to share (+331 B of module seams, inside the budget).
+  // 2026-09-23 when it was the only door, and 5,080 B on 2026-10-20 once the machine moved to
+  // `signal-exit-core.js` for the ES door to share (+283 B of module seams, inside the budget).
   './signal-exit': { allow: [], budget: 5_500, denied: ['index.js', 'registry.js', 'install.js', 'exit-hook.js', 'signal-exit.js'] },
 };
 
