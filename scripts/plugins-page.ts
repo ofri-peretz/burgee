@@ -44,6 +44,7 @@ const EXTENSION_POINTS: Record<string, string> = {
   cac: 'Events on one program (`cli.on()`)',
   citty: '`setup` and `cleanup` on each command',
   chalk: 'None — styles are code; there is no theme to register',
+  colorette: 'None — `createColors({ useColor })` per instance, and nothing to register',
   picocolors: 'None — `createColors(enabled)` per instance, and nothing to register',
   'supports-color': 'Options per call (`createSupportsColor(stream, { sniffFlags })`); nothing to register',
   ora: 'A custom spinner object, per instance (`spinner: { frames, interval }`)',

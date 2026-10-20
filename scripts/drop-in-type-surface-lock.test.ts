@@ -45,6 +45,10 @@ const PAIRS: readonly (readonly [string, string])[] = [
   // Joined 2026-10-11 with R5 and R6; both are hoisted at the root at the graded release.
   ['cli-truncate', 'linegauge/cli-truncate'],
   ['widest-line', 'linegauge/widest-line'],
+  // Joined 2026-10-20 with `colour-facades` R2; colorette 2.0.20 is a root devDependency for this
+  // comparison and the differential test, as supports-color is. Its declarations are one ambient
+  // `declare module`, whose types `Color` and `Colorette` are exports too.
+  ['colorette', 'roundel/colorette'],
   // Joined 2026-10-11 with R7; picocolors 1.1.1 is hoisted at the root.
   ['picocolors', 'roundel/picocolors'],
   // Joined 2026-10-19 with `supports-color-drop-in` R2; supports-color 11.0.0 is a root devDependency

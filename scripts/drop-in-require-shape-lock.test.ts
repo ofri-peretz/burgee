@@ -47,6 +47,9 @@ const PAIRS: readonly (readonly [string, string])[] = [
   ['terminal-link', 'paratext/terminal-link'],
   ['yargs-parser', 'burgee/yargs/parser'],
   ['@commander-js/extra-typings', 'burgee/commander/extra-typings'],
+  // colorette's `require()` is its CommonJS build, an object of its names and no `default`; ours is
+  // the ES namespace of the same names, which has no `default` either.
+  ['colorette', 'roundel/colorette'],
   // ES modules on both sides: `require()` returns each one's namespace, `default` and `createSupportsColor`.
   ['supports-color', 'roundel/supports-color'],
   // ES modules on both sides too: the ten prompts and `Separator`, by name (inquirer-prompts-drop-in).

@@ -124,6 +124,10 @@ updates:
       - dependency-name: "lilconfig"
       - dependency-name: "dotenv"
       - dependency-name: "signal-exit"
+      # colour-facades R4: B4 weighs `roundel/colorette` against colorette 2.0.20, the release
+      # compat-oracle grades (`suiteDeps`), and the root pins the same one for the type-surface
+      # and differential tests.
+      - dependency-name: "colorette"
       # supports-color-drop-in R4: B4 weighs `roundel/supports-color` against supports-color
       # 11.0.0, the release compat-oracle grades (`suiteDeps`), and the root pins the same one
       # for the type-surface and differential tests.
