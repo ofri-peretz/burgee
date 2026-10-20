@@ -101,6 +101,19 @@ export interface Layer {
    * missing line is reported as a missing line rather than as line zero.
    */
   lines?: Record<string, number>;
+  /**
+   * Key → the file, and its line, that set it, for a layer merged from several files (R3, R7).
+   * A config that `extends` another is one layer with one `path`; without this, a value only
+   * the parent set is cited at the child, a file that does not contain it. A key absent here is
+   * cited at `path` and `lines`.
+   */
+  origins?: Readonly<Record<string, KeyOrigin>>;
+}
+
+/** Where one key of a layer was set: the file, and the line when the loader could tell. */
+export interface KeyOrigin {
+  path: string;
+  line?: number;
 }
 
 export interface Layers {
@@ -175,10 +188,10 @@ function fromEnv(name: string, spec: OptionSpec, layers: Layers): Candidate | un
   return { source: 'env', location: variable, value: parsed };
 }
 
-/** A file layer's candidate, carrying the line when the loader recorded one (R3). */
+/** A file layer's candidate, at the file that set it and the line when the loader recorded one (R3, R7). */
 function fromLayer(source: BuiltinSource, name: string, layer: Layer): Candidate {
-  const line = layer.lines?.[name];
-  return { source, location: layer.path, value: layer.data[name], ...(line === undefined ? {} : { line }) };
+  const { path, line } = layer.origins?.[name] ?? { path: layer.path, line: layer.lines?.[name] };
+  return { source, location: path, value: layer.data[name], ...(line === undefined ? {} : { line }) };
 }
 
 function candidatesFor(name: string, spec: OptionSpec, layers: Layers): Candidate[] {

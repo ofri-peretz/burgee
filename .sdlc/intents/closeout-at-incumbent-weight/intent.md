@@ -5,7 +5,9 @@
 > `foundation-claims-watched` R6 measured on 2026-10-12 are the first closeout pairs ever
 > bundled, and both lose.
 
-**Status:** approved (2026-10-20, under the owner's delegation, [`D-20261020-closeout-weight-design-accepted`](../../decisions/D-20261020-closeout-weight-design-accepted.md)) — built 2026-10-20, every criterion evidenced below; it moves to `shipped` when the closeout patch that carries it publishes · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Design:** [`spec.md`](./spec.md)
+**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-20 on
+[`86b97b35bf`](https://github.com/ofri-peretz/burgee/commit/86b97b35bf) (#1198), released in closeout 1.1.7 (npm, 2026-10-20T15:30Z, Version PR #1199), verified against `main` at
+[`e6627ba3`](https://github.com/ofri-peretz/burgee/commit/e6627ba311) — criterion 1 read 0.960 and 0.930 on CI at the release commit, criteria 2 and 3 unchanged since #1198 (below) · design accepted 2026-10-20 under the owner's delegation, [`D-20261020-closeout-weight-design-accepted`](../../decisions/D-20261020-closeout-weight-design-accepted.md) · **Design:** [`spec.md`](./spec.md)
 
 ---
 
@@ -80,3 +82,20 @@ child processes and listed in `TESTED_IN_ANOTHER_PROCESS`, as the CommonJS file 
 | 1. Both B4 rows read a ratio ≤ 1.0 in `npm run bench -- --axis weight` | **Met.** `closeout/exit-hook` 1,579 B against exit-hook 5.1.0's 1,645 B, **0.960**. `closeout/signal-exit` 2,657 B against signal-exit 4.1.0's 2,856 B, **0.930**. Both `RATIO_CEILING` rows are 1, and on `main` they read 2.929 and 1.272. `lighter-than-exit-hook` and `lighter-than-signal-exit` read *met* once CI records the branch's bench run. |
 | 2. `npm run compat -- closeout` is unchanged | **Met.** exit-hook **21 / 21**. signal-exit 126 of the 127 cases the suite registers on darwin, the miss being the control's own (`controlFailures`); the reference 135 counts 8 Linux-only cases. restore-cursor 6 / 6, cli-cursor 8 / 8, onetime 6 / 6. The suite still grades the CommonJS door through `require()`, as it grades signal-exit's own CommonJS build. |
 | 3. `registry.qnt` and the new model both hold their `safety` in `models.yml` | **Met.** `lean.qnt` `safety` holds over 20,000 traces × 30 steps. Its four rejected designs and its witness are violated, and `models.yml` checks all of them. `registry.qnt` is unchanged. |
+
+## Shipped — 2026-10-20
+
+`closeout@1.1.7` is on npm (`npm view closeout time`, `"1.1.7":`
+`2026-10-20T15:30:09.978Z`), and npm matches `main` for all ten packages (checked 15:40 UTC). Its
+`exports` carry both signal-exit doors (`./signal-exit` → `import` `dist/signal-exit.js`,
+`require` the CommonJS file). Every criterion was re-read against the released code or `main` at
+`e6627ba3`:
+
+| Criterion | Evidence on release |
+| :-- | :-- |
+| 1. Both B4 rows read a ratio ≤ 1.0 | `benchmarks/results/cli-benchmarks/2026-10-20-e6627ba-ci.json` (the CI run on the release commit): `closeout/exit-hook` **1,579 / 1,645 = 0.96**, `closeout/signal-exit` **2,657 / 2,856 = 0.93**, each against a `RATIO_CEILING` of 1. The claim table in the same file reads `lighter-than-exit-hook` and `lighter-than-signal-exit` **met**. |
+| 2. `npm run compat -- closeout` is unchanged | Graded on #1198 and untouched since: exit-hook **21 / 21**; signal-exit level with the control (126 of the 127 cases registered on darwin, the one miss the control's own); restore-cursor 6 / 6, cli-cursor 8 / 8, onetime 6 / 6. |
+| 3. `registry.qnt` and `lean.qnt` hold `safety` in `models.yml` | `lean.qnt` `safety` holds over 20,000 traces × 30 steps, its four rejected designs and its witness are violated, and `models.yml` checks all of them. `registry.qnt` is unchanged. Changed-line mutation on #1198: **119 / 119** killed. |
+
+The spawn-delta benchmark that `closeout`'s own S3 still lacks is not a criterion of this intent;
+it stays open on [`closeout`](../closeout/intent.md).

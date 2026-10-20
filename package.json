@@ -61,6 +61,7 @@
     "weight:converge": "node scripts/weight-converge.mjs",
     "plugins:page": "tsx scripts/plugins-page.ts",
     "layers:page": "tsx scripts/layers-page.ts",
+    "truth-table:page": "tsx scripts/truth-table-page.ts",
     "check:osv": "tsx scripts/osv-check.ts",
     "install-graph": "tsx scripts/install-graph.ts"
   },
@@ -69,6 +70,7 @@
       "argparse": "^2.0.1"
     },
     "katex": "^0.18.2",
+    "markdown-it": "^15.0.2",
     "smol-toml": "^1.9.0",
     "qs": "6.16.1"
   },

@@ -28,6 +28,7 @@ export {
   screaming,
   type BuiltinSource,
   type Candidate,
+  type KeyOrigin,
   type Layer,
   type Layers,
   type OptionSpec,
@@ -36,6 +37,8 @@ export {
   type Source,
   type SourceLayer,
 } from './precedence.js';
+
+export { TRUTH_TABLE, truthTable, type TruthRow } from './truth-table.js';
 
 export { candidates, deepMerge, discover, lineOf, loadWithExtends, type Discovery, type Loaded, type LoadConfigOptions } from './config.js';
 
