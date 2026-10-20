@@ -39,10 +39,10 @@ on:
         default: all
         options: [all, ubuntu-latest, macos-latest, windows-latest]
       node:
-        description: Run only this Node's cells (24 and 26 are `matrix`, 20.19.0 and 22.13.0 are `floor`)
+        description: Run only this Node's cells (24 is `matrix`, 20.19.0 and 22.13.0 are `floor`)
         type: choice
         default: all
-        options: [all, '24', '26', '20.19.0', '22.13.0']
+        options: [all, '24', '20.19.0', '22.13.0']
 
 concurrency:
   group: compat-${{ github.ref }}
@@ -180,7 +180,7 @@ jobs:
     name: Node ${{ matrix.node }} · ${{ matrix.os }}
     needs: affected
     # Skipped only by a dispatch that picked a `floor` Node; never on a push or a pull request.
-    if: ${{ !inputs.node || inputs.node == 'all' || inputs.node == '24' || inputs.node == '26' }}
+    if: ${{ !inputs.node || inputs.node == 'all' || inputs.node == '24' }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     env:
@@ -193,12 +193,9 @@ jobs:
       fail-fast: false
       matrix:
         os: ${{ fromJSON((inputs.os && inputs.os != 'all') && format('["{0}"]', inputs.os) || '["ubuntu-latest","macos-latest","windows-latest"]') }}
-        # Every even major `engines` admits (C3). 26 was narrowed out on 2026-09-08 (#64) to
-        # halve the matrix while the output stack landed; it landed, and 26 came back on
-        # 2026-09-23 after the whole suite passed on v26.10.0 locally. 26 is Current until its
-        # LTS promotion in late October — graded now so it is not first graded as an LTS.
-        node: [24, 26]
-        exclude: ${{ fromJSON(inputs.node == '24' && '[{"node":26}]' || inputs.node == '26' && '[{"node":24}]' || '[]') }}
+        # The active LTS only (D-20261020-node-26-waits-for-lts). 26 is Current until its LTS
+        # promotion; it rejoins as `[24, 26]` the day it becomes Active LTS, not before.
+        node: [24]
     steps:
       # Every cell starts and reports, so a PR that changes no package is green here, not absent.
       - name: No package affected — nothing to run on this cell
@@ -279,7 +276,7 @@ jobs:
           { echo '## Cases above half their timeout'; echo; echo '```'; node scripts/slow-cases.mts vitest-durations; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
 
   # C3 for the lower half of `engines` (D-132). The nine published packages declare
-  # `^20.19.0 || >=22.13.0`; the job above covers 24 and 26, this one the two floors,
+  # `^20.19.0 || >=22.13.0`; the job above covers 24, this one the two floors,
   # exact — a floor is only a claim if the floor itself is what runs. 20.19 and 22.13 are
   # where `require(esm)` loads without a warning, which is what K2's CommonJS promise needs.
   #
