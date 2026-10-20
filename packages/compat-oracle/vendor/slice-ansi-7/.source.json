@@ -4,6 +4,7 @@
   "tag": "v7.1.2",
   "commit": "70f0071c9fe137a62505e3290226f904073aed6e",
   "vendored": "2026-09-27",
+  "depsBefore": "2025-09-08T16:11:55.899Z",
   "files": 1,
   "internalFiles": [],
   "internals": [],

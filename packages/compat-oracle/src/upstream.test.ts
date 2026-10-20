@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { platform, tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
@@ -8,7 +8,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { HOSTS, type Host } from './hosts.js';
 import { type Update, upstreamMode } from './report.js';
 
-import { type CompatRecord, diffRecords, isEmptyDiff, latestVersion, renderDiff, renderMissingExtras, sha256, snapshot, surfaceNames, testNames } from './upstream.js';
+import { type CompatRecord, diffRecords, isEmptyDiff, latestVersion, npmOn, renderDiff, renderMissingExtras, sha256, snapshot, surfaceNames, testNames } from './upstream.js';
 
 // `npm view` is the one network call in this file, so it is the one call faked.
 vi.mock('node:child_process', async (importOriginal) => ({ ...(await importOriginal<typeof import('node:child_process')>()), execFileSync: vi.fn() }));
@@ -110,7 +110,9 @@ describe('the edges of a record', () => {
   it('asks npm for the newest release, and trims what it prints', () => {
     vi.mocked(execFileSync).mockReturnValueOnce('6.0.0\n');
     expect(latestVersion('chalk')).toBe('6.0.0');
-    expect(vi.mocked(execFileSync)).toHaveBeenCalledWith('npm', ['view', 'chalk', 'version'], { encoding: 'utf8' });
+    // `npm.cmd` through a shell on Windows (#1180), `npm` with none elsewhere.
+    const { file, shell } = npmOn(platform());
+    expect(vi.mocked(execFileSync)).toHaveBeenCalledWith(file, ['view', 'chalk', 'version'], { encoding: 'utf8', shell });
   });
 });
 

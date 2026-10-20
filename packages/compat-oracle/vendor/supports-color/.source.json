@@ -4,6 +4,7 @@
   "tag": "v11.0.0",
   "commit": "e2a4cd3c44eb384b075161ef32859cd29ce1aa7f",
   "vendored": "2026-10-19",
+  "depsBefore": "2026-07-26T16:13:36.815Z",
   "files": 1,
   "internalFiles": [],
   "internals": [],

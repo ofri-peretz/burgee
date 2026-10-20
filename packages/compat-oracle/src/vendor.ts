@@ -14,7 +14,7 @@ import { type OmittedFile, stripExecutables } from './binaries.js';
 import { testFiles } from './discover.js';
 import { type Host } from './hosts.js';
 import { fieldsFromRecord, PROVENANCE_FILE, renderProvenance } from './provenance.js';
-import { type CompatRecord, diffRecords, latestVersion, readRecord, type RecordDiff, snapshot } from './upstream.js';
+import { type CompatRecord, diffRecords, latestVersion, readRecord, type RecordDiff, registryTime, type ReleaseTime, snapshot } from './upstream.js';
 
 /** Length of an ISO date, `YYYY-MM-DD`. */
 const ISO_DATE = 10;
@@ -293,6 +293,27 @@ export function splitSpec(spec: string): [string, string] {
   return [spec.slice(0, at), spec.slice(at + 1)];
 }
 
+/**
+ * How long after the newest pinned release a suite's dependency tree is read: a monorepo
+ * publishes a release's siblings in one batch, @inquirer/prompts 8.7.3's within 38 seconds of
+ * each other on 2026-10-04, and a sibling outside the cutoff would be a range nothing satisfies.
+ */
+export const DEPS_MARGIN_MS = 3_600_000;
+
+/**
+ * `.source.json`'s `depsBefore`: the newest release among the host's exact `suiteDeps` pins, or
+ * the incumbent's own release (`version`) where it pins none, plus {@link DEPS_MARGIN_MS}.
+ *
+ * Read from the pins, not from the day the suite was vendored: a pin is the release the row is
+ * graded against, and everything it depends on is resolved as of then, so the tree a clean
+ * checkout installs a year later is the tree the row was measured on.
+ */
+export function depsCutoff(host: Host, version: string, timeOf: ReleaseTime = registryTime): string {
+  const pins = (host.suiteDeps ?? []).map(splitSpec);
+  const releases = (pins.length > 0 ? pins : [[host.npmName ?? host.name, version] as const]).map(([name, pinned]) => Date.parse(timeOf(name, pinned)));
+  return new Date(Math.max(...releases) + DEPS_MARGIN_MS).toISOString();
+}
+
 /** The suite-local dependencies a vendored directory declares, if it declares any. */
 export function readSuiteDeps(hostDir: string): Record<string, string> {
   const at = join(hostDir, 'package.json');
@@ -469,7 +490,7 @@ function carryKept(host: Host, live: string, staging: string): void {
 }
 
 /** Vendor the host's suite at its latest npm release (or the given version). */
-export function vendor(host: Host, into: string, version = host.pinnedVersion ?? latestVersion(host.npmName ?? host.name)): VendorResult {
+export function vendor(host: Host, into: string, version = host.pinnedVersion ?? latestVersion(host.npmName ?? host.name), timeOf: ReleaseTime = registryTime): VendorResult {
   const clone = mkdtempSync(join(tmpdir(), `vendor-${host.name}-`));
   try {
     const { commit, tag } = cloneRelease(host, version, clone);
@@ -511,7 +532,8 @@ export function vendor(host: Host, into: string, version = host.pinnedVersion ??
     // minimal one with a *different* name: upstream's own name plus its exports map would
     // make Node's self-reference rule resolve `import 'yargs'` to a file that is not here.
     const upstream = JSON.parse(readFileSync(join(clone, 'package.json'), 'utf8')) as UpstreamPackage;
-    writeFileSync(join(staging, 'package.json'), `${JSON.stringify(rootPackage(host, upstream), null, 2)}\n`);
+    const manifest = rootPackage(host, upstream);
+    writeFileSync(join(staging, 'package.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 
     const packageType = upstream.type ?? 'commonjs';
     // Programs the suite runs from outside its own directory, rewritten so they reach the shim
@@ -537,6 +559,8 @@ export function vendor(host: Host, into: string, version = host.pinnedVersion ??
       tag,
       commit,
       vendored: new Date().toISOString().slice(0, ISO_DATE),
+      // Only where there is a tree to install, so a suite with no dependencies reproduces byte for byte.
+      ...(manifest.devDependencies === undefined ? {} : { depsBefore: depsCutoff(host, version, timeOf) }),
       files,
       internalFiles,
       internals: [...internals].sort(),

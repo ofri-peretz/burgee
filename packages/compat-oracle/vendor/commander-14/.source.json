@@ -4,6 +4,7 @@
   "tag": "v14.0.3",
   "commit": "8247364da749736570161e95682b07fc2d72497b",
   "vendored": "2026-09-24",
+  "depsBefore": "2026-01-31T02:47:17.592Z",
   "files": 110,
   "internalFiles": [
     "help.stripAnsi.test.js",
