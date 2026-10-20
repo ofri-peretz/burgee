@@ -514,6 +514,7 @@ execution order. The selection is
 | 78  | [`migrate-dynamic-specifiers/`](./migrate-dynamic-specifiers/)             | **adoption barrier 9**: a plugin loader's `import(name)` holds only what it could load. 3 of 9 trial CLIs ran partial | approved |
 | 79  | [`mutation-tested/`](./mutation-tested/)                                   | **a PR cannot add a line no test can tell is broken**: Stryker on the changed lines; a weekly per-package floor that only rises | approved |
 | 80  | [`evals-record-not-run/`](./evals-record-not-run/)                         | **an agent that never ran is recorded `not-run`, never a score**: eval history v2, readers skip it, and a B1 sweep the limit cut short is no reading | approved |
+| 81  | [`native-engine/`](./native-engine/)                                       | **CPU-bound layers on a Rust engine, still on npm**: measured per layer, released the oxc way (per-platform optional deps, WASM fallback, opt-in, suite-graded). Runs last. oxc-project/tsrs | draft |
 
 Rows 73–78 come from [`adoption-barriers-2026-10.md`](../research/adoption-barriers-2026-10.md),
 a field trial of the published `burgee migrate` on 9 CLIs we did not write, plus population

@@ -11,7 +11,10 @@ The colour-facades design was accepted on 2026-10-19 in the same pull request th
 first, and the spec asks for one host per pull request in the oracle's lane. What each needs,
 measured 2026-10-19 on Node 24.12 from the upstream release tags:
 
-- **yoctocolors 2.2.0** (`a02a16ec`), the smallest step. ava, ESM only, 78 cases. One case spawns
+- **yoctocolors 2.2.0** (`a02a16ec`): **built 2026-10-20**, 78 / 78 against a control of 78 / 78,
+  with no oracle code — `extraDirs` vendors `fixture.js` and `entries` writes the `index.js` it
+  imports (D-20261020-colour-facades-yoctocolors-first). What it needed, as measured:
+  the smallest step. ava, ESM only, 78 cases. One case spawns
   `node fixture.js` from the repository root, and the vendor step copies only files matching
   `testGlob` when `testDir` is `.`, so the host needs a way to vendor one root file and rewrite its
   import. The drop-in is 61 named exports plus `export * as default`, gated on

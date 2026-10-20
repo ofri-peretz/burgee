@@ -996,6 +996,21 @@ export default [
     },
   },
   {
+    // `roundel/yoctocolors` is yoctocolors 2.2.0 (`colour-facades` R3), line for line: its default
+    // export is yoctocolors' `export * as default`, which is this module's own namespace, so the
+    // file names itself once; the numbers are yoctocolors' SGR open and close codes, one style a
+    // line, which its `test.js` asserts byte for byte (naming each would double the file the
+    // subpath-weight lock holds under yoctocolors' own bytes). With colour off, each style gets
+    // its own identity function, as yoctocolors' formatter makes one per style, so no two
+    // styles are the same function.
+    files: ["packages/roundel/src/yoctocolors.ts"],
+    rules: {
+      "import-next/no-self-import": "off",
+      "conventions/no-magic-numbers": "off",
+      "maintainability/consistent-function-scoping": "off",
+    },
+  },
+  {
     // `roundel/policy` is the floor every subpath stands on, so its bytes are multiplied by
     // every R8 ceiling in the package. See the note on `chalk.ts` above for why its level
     // tables are ternary chains rather than statements.

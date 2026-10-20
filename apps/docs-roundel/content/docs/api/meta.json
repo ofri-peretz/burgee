@@ -10,6 +10,7 @@
     "chalk",
     "picocolors",
     "supports-color",
+    "yoctocolors",
     "terminal",
     "import"
   ]
