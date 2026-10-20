@@ -19,9 +19,6 @@ Render help for one node — a runnable command, a group, or both — as text.
 Deterministic for a given node and width; a snapshot suite pins it. With `color`
 off — the default — a theme changes nothing; with it on, only ANSI is added.
 
-With `format: 'markdown'` it is the same sections as Markdown (agent-skill R1), and a
-promise: that layout is loaded when asked for, so this door carries none of it.
-
 ```ts
 function renderHelp(manifest: Manifest, node: CommandNode, opts?: HelpOptions & {
     format?: 'text';
@@ -94,10 +91,6 @@ interface HelpOptions {
 Per-token styling for help (R7). A user who has `roundel` passes its tokens; a user
 who does not gets the defaults. Help reads `heading`, `command`, `flag` and `value`;
 the others are accepted so one theme object serves the whole output stack.
-
-What the theme does not touch: the command name after `Usage:` and every `$ example`
-line are rendered plain, whatever the theme says. Styling wraps a finished cell, so a
-name is measured and padded plain and never coloured in the manifest (yargs #1699).
 
 ```ts
 type HelpTheme = Partial<Record<HelpToken, (s: string) => string>>;

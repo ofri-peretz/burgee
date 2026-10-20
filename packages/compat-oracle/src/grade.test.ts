@@ -26,7 +26,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type Host } from './hosts.js';
-import { ALIAS_HOOK, aliasHook, cjsLoad, entryBody, grade, installSuiteDeps, internalShimBody, jestGlobals, peerHook, readBaseline, targetInternalBody } from './run.js';
+import { ALIAS_HOOK, aliasHook, cjsLoad, DEPS_MARKER, entryBody, grade, installSuiteDeps, internalShimBody, jestGlobals, peerHook, readBaseline, targetInternalBody } from './run.js';
 
 interface Call {
   file: string;
@@ -871,9 +871,10 @@ describe('the files a suite reaches by path (`entries`, dotenv 18)', () => {
    */
   it('links the control to the copy installed beside the suite, not to the vendored root that shares its name', () => {
     const h = incumbent({ entries: [{ ...entry, control: 'main.js' }], suiteDeps: ['commander@9.9.9'], selfExports: { '.': './dist/index.cjs' } });
-    const hostDir = vendored(h, { 'a.test.js': '' }, { pkg: { name: 'commander', exports: { '.': './dist/index.cjs' }, devDependencies: { commander: '9.9.9' } } });
+    const hostDir = vendored(h, { 'a.test.js': '' }, { pkg: { name: 'commander', exports: { '.': './dist/index.cjs' }, devDependencies: { commander: '9.9.9' } }, source: RECORD });
     const beside = join(hostDir, 'node_modules', 'commander');
     mkdirSync(beside, { recursive: true });
+    writeFileSync(join(hostDir, 'node_modules', DEPS_MARKER), CUTOFF);
     writeFileSync(join(beside, 'package.json'), JSON.stringify({ name: 'commander', version: '9.9.9', main: 'main.js' }));
     writeFileSync(join(beside, 'main.js'), 'module.exports = {};\n');
     seam.exec = tap;
@@ -919,32 +920,106 @@ describe('COMPAT_TAP_DIR keeps the raw TAP', () => {
   });
 });
 
+/** The cutoff a vendored record names, and the same record a day later: another tree. */
+const CUTOFF = '2026-10-04T18:42:14.098Z';
+const RECORD = { depsBefore: CUTOFF };
+
+/** A pin beside the suite, at its version. */
+function pinned(hostDir: string, name = 'pinned-dep', version = '1.2.3'): void {
+  mkdirSync(join(hostDir, 'node_modules', name), { recursive: true });
+  writeFileSync(join(hostDir, 'node_modules', name, 'package.json'), JSON.stringify({ name, version }));
+}
+
 describe('installing what a vendored suite declares', () => {
-  it('installs into the vendored directory, with no lockfile, when a pin is missing', () => {
-    const hostDir = vendored(host(), { 'a.test.js': '' }, { pkg: { type: 'module', devDependencies: { 'pinned-dep': '1.2.3' } } });
+  it('installs into the vendored directory, with no lockfile, as of the recorded cutoff, when a pin is missing', () => {
+    const hostDir = vendored(host(), { 'a.test.js': '' }, { pkg: { type: 'module', devDependencies: { 'pinned-dep': '1.2.3' } }, source: RECORD });
     const said: string[] = [];
     seam.exec = prints('');
     installSuiteDeps(host(), hostDir, (s) => said.push(s));
-    expect(said).toEqual(["  installing fake's suite dependencies into vendor/fake/node_modules: pinned-dep@1.2.3\n"]);
+    expect(said).toEqual([`  installing fake's suite dependencies into vendor/fake/node_modules as of ${CUTOFF}: pinned-dep@1.2.3, the tree beside them\n`]);
     expect(only()).toEqual({
       file: 'npm',
-      args: ['install', '--no-audit', '--no-fund', '--no-package-lock', '--prefix', hostDir],
+      args: ['install', '--no-audit', '--no-fund', '--no-package-lock', `--before=${CUTOFF}`, '--prefix', hostDir],
       options: { stdio: ['ignore', 'ignore', 'inherit'], timeout: 300_000 },
     });
+    expect(read(hostDir, 'node_modules', DEPS_MARKER)).toBe(CUTOFF);
   });
 
-  it('installs nothing when every pin is already beside the suite, or nothing is declared', () => {
-    const hostDir = vendored(host(), { 'a.test.js': '' }, { pkg: { devDependencies: { 'pinned-dep': '1.2.3' } } });
-    mkdirSync(join(hostDir, 'node_modules', 'pinned-dep'), { recursive: true });
-    writeFileSync(join(hostDir, 'node_modules', 'pinned-dep', 'package.json'), JSON.stringify({ name: 'pinned-dep', version: '1.2.3' }));
+  it('installs nothing when every pin is beside the suite in a tree resolved as of the cutoff, or nothing is declared', () => {
+    const hostDir = vendored(host(), { 'a.test.js': '' }, { pkg: { devDependencies: { 'pinned-dep': '1.2.3' } }, source: RECORD });
+    pinned(hostDir);
+    writeFileSync(join(hostDir, 'node_modules', DEPS_MARKER), CUTOFF);
     installSuiteDeps(host(), hostDir);
     rmSync(join(hostDir, 'package.json'));
     installSuiteDeps(host(), hostDir);
     expect(seam.calls).toEqual([]);
   });
 
+  // 2026-10-19: every pin satisfied, and the siblings beside them floated to the batch published
+  // that evening. The pins alone said "installed"; only the cutoff says "as of when".
+  it.each([
+    ['as of no date, as every tree before this one', undefined],
+    ['as of another date', '2026-10-19T21:42:34.497Z'],
+  ])('removes a tree resolved %s and installs it again as of the cutoff, though every pin is satisfied', (_, asOf) => {
+    const hostDir = vendored(host(), { 'a.test.js': '' }, { pkg: { devDependencies: { 'pinned-dep': '1.2.3' } }, source: RECORD });
+    pinned(hostDir);
+    pinned(hostDir, 'floated-sibling', '5.2.7');
+    if (asOf !== undefined) writeFileSync(join(hostDir, 'node_modules', DEPS_MARKER), asOf);
+    const said: string[] = [];
+    seam.exec = prints('');
+    installSuiteDeps(host(), hostDir, (s) => said.push(s));
+    expect(said).toEqual([`  installing fake's suite dependencies into vendor/fake/node_modules as of ${CUTOFF}: the tree beside them\n`]);
+    expect(only().args).toContain(`--before=${CUTOFF}`);
+    expect(existsSync(join(hostDir, 'node_modules', 'floated-sibling')), 'npm keeps any copy that still satisfies its range, so the old tree has to go').toBe(false);
+    expect(read(hostDir, 'node_modules', DEPS_MARKER)).toBe(CUTOFF);
+  });
+
+  it('re-dates the tree of a suite that pins one package beside a range, as it does one that pins only', () => {
+    const hostDir = vendored(host(), { 'a.test.js': '' }, { pkg: { devDependencies: { 'pinned-dep': '1.2.3', 'hoisted-dep': '^1.0.0' } }, source: RECORD });
+    pinned(hostDir);
+    pinned(hostDir, 'hoisted-dep', '1.4.0');
+    seam.exec = prints('');
+    installSuiteDeps(host(), hostDir);
+    expect(only().args, 'one exact pin is a tree beside the suite, whatever else the manifest declares').toContain(`--before=${CUTOFF}`);
+  });
+
+  it('leaves a suite that declares only ranges to the hoist when it resolves, and installs a missing one as of the cutoff', () => {
+    const hostDir = vendored(host(), { 'a.test.js': '' }, { pkg: { devDependencies: { 'hoisted-dep': '^1.0.0' } }, source: RECORD });
+    pinned(hostDir, 'hoisted-dep', '1.4.0');
+    installSuiteDeps(host(), hostDir);
+    expect(seam.calls, 'a range has no tree beside the suite to re-date').toEqual([]);
+    rmSync(join(hostDir, 'node_modules'), { recursive: true });
+    const said: string[] = [];
+    seam.exec = prints('');
+    installSuiteDeps(host(), hostDir, (s) => said.push(s));
+    expect(said).toEqual([`  installing fake's suite dependencies into vendor/fake/node_modules as of ${CUTOFF}: hoisted-dep@^1.0.0\n`]);
+    expect(only().args).toContain(`--before=${CUTOFF}`);
+  });
+
+  it('leaves a node_modules the host commits as it is, and installs into it only what is missing, as of the cutoff', () => {
+    const keeper = host({ keep: ['node_modules'] });
+    const hostDir = vendored(keeper, { 'a.test.js': '' }, { pkg: { devDependencies: { 'pinned-dep': '1.2.3' } }, source: RECORD });
+    pinned(hostDir);
+    installSuiteDeps(keeper, hostDir);
+    expect(seam.calls, 'a committed tree is fixed already: re-dating it would rewrite tracked files').toEqual([]);
+    pinned(hostDir, 'committed-dep', '2.0.0');
+    rmSync(join(hostDir, 'node_modules', 'pinned-dep'), { recursive: true });
+    seam.exec = prints('');
+    installSuiteDeps(keeper, hostDir);
+    expect(only().args).toContain(`--before=${CUTOFF}`);
+    expect(existsSync(join(hostDir, 'node_modules', 'committed-dep', 'package.json')), 'nothing committed is removed').toBe(true);
+  });
+
+  it('refuses to install a tree with no recorded cutoff, which would resolve as of today', () => {
+    const hostDir = vendored(host(), { 'a.test.js': '' }, { pkg: { devDependencies: { 'pinned-dep': '1.2.3' } }, source: {} });
+    expect(() => installSuiteDeps(host(), hostDir)).toThrow("vendor/fake/.source.json records no depsBefore, so its suite dependencies would resolve as of today: re-vendor the host");
+    rmSync(join(hostDir, '.source.json'));
+    expect(() => installSuiteDeps(host(), hostDir)).toThrow('records no depsBefore');
+    expect(seam.calls).toEqual([]);
+  });
+
   it('runs before the suite, silently, as part of a grade', () => {
-    vendored(host(), { 'a.test.js': '' }, { pkg: { devDependencies: { 'pinned-dep': '1.2.3' } } });
+    vendored(host(), { 'a.test.js': '' }, { pkg: { devDependencies: { 'pinned-dep': '1.2.3' } }, source: RECORD });
     seam.exec = npmThenSummary;
     expect(grade(host(), vendorDir, 'fake')).toMatchObject({ passed: 1 });
     expect(seam.calls.map((c) => c.file)).toEqual(['npm', process.execPath]);

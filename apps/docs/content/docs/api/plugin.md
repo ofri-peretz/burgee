@@ -15,11 +15,6 @@ import { validate, definePlugin, CONTRACT, … } from 'burgee/plugin';
 
 Declare a plugin: typed, validated, and stamped with the contract it was compiled against.
 
-The stamp is the half that makes the refusal in `checkContract` fair. An author who builds
-against this burgee gets `contract: 1` without typing it, so the only objects that reach
-`use()` without one are objects built against a burgee that checked nothing — which is
-exactly the population the version message is addressed to.
-
 ```ts
 function definePlugin(plugin: Plugin): Plugin;
 ```
@@ -33,13 +28,6 @@ function definePlugin(plugin: Plugin): Plugin;
 ### validate
 
 Refuse a plugin that cannot contribute, at the door.
-
-`taken` is the command paths the manifest already serves. A contributed path that is already
-declared is refused rather than merged, because the two projections disagree about which
-node wins: `find()` answers the first on a path and `resolve()` the last, so the same
-command reads one way to help and the other way to dispatch. Which of the two is right for a
-*first-party* duplicate is a decision about every program rather than about plugins, and is
-left alone here.
 
 ```ts
 function validate(plugin: unknown, taken?: readonly string[]): asserts plugin is Plugin;

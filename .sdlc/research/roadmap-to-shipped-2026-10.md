@@ -111,7 +111,7 @@ Abbreviations used below:
 | control-band-yargs-front-end-bundled-bytes | **dropped** (batch 0, `D-20261018-drop-band-yargs-front-end-bytes`) | n | DROPPED | benchmarks/bands | 2 | 2 | – | n | – | Original breach gone; new +31 B 1σ drift does not gate |
 | controlroom | approved | y | P | controlroom | 31 | 22 | R1/S4 PTY, R14/S7 W3 demo half, R16 controlroom-side lock, R22 per-boilerplate PTY job, S1 gallery, S3 100-run, S6 Ink fixture | **y** | save-restore, registry (parts) | Stale text fixed 2026-10-19 (batch 4): the intent, spec, `composition.json` and the README row say published at 1.0.3, and the two `#PR_NUMBER`s are #804 and #803 |
 | controlroom-scroll-pane | **shipped** (batch 4, PR #1156) | y | NS | controlroom | 10 | 0 | R1–R6, S1–S4 | n (property test) | – | Fixed: a pane scrolls, follows its tail, and the static frame prints every line. Mutation 180 / 180 on the changed lines |
-| declaration-summaries | review | y | NS | published artifacts / build scripts | 4 | 0 | R1–R4 | n | – | Wave-4 #2, early. Kill switch if the gzip saving is under 5% |
+| declaration-summaries | approved (schema-group) | y | P | published artifacts / build scripts | 4 | 4 | – (waits on the release of its `patch`) | n | – (property test) | R1 measured burgee −5.7% gzipped, past the 5% kill switch; R2–R4 built 2026-10-20 |
 | default-command | review | y | NS | burgee/parse | 5 | 1 | R1–R4 | n | – | Adoption barrier (commander `isDefault`, yargs `$0`) |
 | dev-loop | review | y | P | burgee/dev | 6 | 2 | W2 (`list_changed` in conformance), W3 (diff, not manifest), W4 byte-identical, W6 budget | **y** | **dev-reload.qnt** | Add three tests or restate |
 | docs-deploy | **dropped** (batch 0, `D-20261018-drop-docs-deploy`) | y | DROPPED | docs-site | 10 | 7 | – | n | – | Ruling: folded into docs-per-package |
@@ -147,8 +147,8 @@ Abbreviations used below:
 | release-cadence | approved (#1124, beside batch 0) | **n** | SPEC — **IN-PROGRESS** | release | 3 | 0 | S1, S2, BATCH | **y** (7-day window with a fix exemption) | none | Barrier 5. Batch 1, local agent |
 | replacement-parser | review | y | P | burgee/parse | 10 | 7 | G3 (quirks subpath; contradicts yargs-compat), G7, SC2 (1.55× ratchet, not ≤1×) | n | – | Restate to D-157 and drop G3 |
 | roundel | **shipped** (batch 0) | y | SHIPPED | roundel | 17 | 17 | – | n | – | Rewrite the stale 2026-09-09 verified section |
-| schema-bytes-gated | review | y | NS | benchmarks reliability | 3 | 0 | R1–R3 | n | – | Wave-4 #3. Copy the `SKILL_BYTES_BUDGET` gate |
-| schema-is-validated | approved | y | P | burgee/schema | 3 | 2 | R3/SC3 (the cited lock is wrong) | n | – | Add a README-claim lock or restate as struck |
+| schema-bytes-gated | **shipped** (schema-group) | y | SHIPPED | benchmarks reliability | 3 | 3 | – | n | – | Budget 4,650 B (demo 4,628 B at `326907ec`); gap B-20261012 closed |
+| schema-is-validated | **shipped** (schema-group) | y | SHIPPED | burgee/schema | 3 | 3 | – | n | – | SC3: the claim is made again and `program-schema.test.ts` holds it |
 | sdlc-locks-evals-bands | review | y | P | sdlc locks | 10 | 7 | S2, R2/R3 (`.sdlc/intents` outside the link checker and evals paths) | n | – | Expect it to surface broken links |
 | security-profile | **dropped** (batch 0, `D-20261018-drop-security-profile`) | y | DROPPED | burgee/security | 11 | 0 | – | n | – | Ruling: no adopter; exit-code clash |
 | seniority | approved | y | P | seniority | 21 | 13 | R1/S2 truth-table page, R2/S5 shared precedence vectors, R7 extends chain in explain, R9 spawn delta, S3, S4 | n | – | The truth table is the product and is unproduced |

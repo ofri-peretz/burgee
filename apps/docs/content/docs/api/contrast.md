@@ -7,22 +7,6 @@ description: "Every export of burgee/contrast, with its signature and doc commen
 
 Contrast, as a thing the package checks rather than a thing someone remembers.
 
-A burgee is a mark whose charge sits ON its own field, and whose field sits on
-a page nobody here controls. Both of those are contrast relationships, and
-both are easy to get wrong in a way that looks fine at 512px and fails at 24.
-This module measures them, so `burgee brand` can refuse to emit a flag that
-would not clear the floor and CI can hold ours to the same line.
-
-WCAG 2.2 sets 4.5:1 for body text and 3:1 for large text and for the parts of
-a graphic you need in order to understand it. A logo's bars are the latter, so
-3:1 is the floor used here — see `AA`.
-
-The measuring is `roundel`'s, not ours. Colour is the layer below this one, and until
-2026-09-09 both packages carried the same forty lines of WCAG luminance — identical
-constants, identical maths, differing only in which package name the hex error says.
-What is left here is the part that is actually about a burgee: which pairs of a flag's
-own colours have to clear the floor, and how to say so to a person running `burgee brand`.
-
 ```ts
 import { mix, ratio, check, … } from 'burgee/contrast';
 ```
@@ -32,11 +16,6 @@ import { mix, ratio, check, … } from 'burgee/contrast';
 ### auditBurgee
 
 Every contrast relationship a burgee has to survive.
-
-Two are intrinsic — each bar against the field beneath it — and hold wherever
-the flag is used. The rest depend on where it is placed, so pass the grounds
-the flag will actually fly on and they are checked too. A flag that passes the
-intrinsic pair and fails a ground has a page problem, not a logo problem.
 
 ```ts
 function auditBurgee(brand: AuditInput, grounds?: readonly string[]): ContrastFinding[];

@@ -9,14 +9,6 @@ description: "Every export of roundel/chalk, with its signature and doc comment:
 `Chalk`, `chalkStderr`, `supportsColor` — over the tokens' emitter and the policy's
 level, graded by chalk's own suite vendored into `compat-oracle`.
 
-chalk's mutable `level` is honoured here and nowhere else: `chalk.level = 0` silences
-this façade, not the tokens, which read the policy. The template literal
-(`` chalk`{red x}` ``) went with chalk 5 and is not resurrected. Not one escape is
-written here: parameters are computed, `sgr()` in tokens emits them (R3).
-
-The SGR numbers below are chalk's tables (ansi-styles) as written; naming each would
-double the file the R8 ceiling measures, so the lint's magic-number rule is off here.
-
 ```ts
 import chalk from 'roundel/chalk';
 import { modifierNames, foregroundColorNames, backgroundColorNames, … } from 'roundel/chalk';

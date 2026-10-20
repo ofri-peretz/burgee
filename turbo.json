@@ -3,7 +3,12 @@
   "agentGuidance": false,
   "globalDependencies": [
     "tsconfig.base.json",
-    "package-lock.json"
+    "package-lock.json",
+    "scripts/schema-to-dist.mjs",
+    "scripts/family-versions.mjs",
+    "scripts/strip-comments.mjs",
+    "scripts/declaration-summaries.mts",
+    "scripts/declaration-reach.mts"
   ],
   "globalPassThroughEnv": [
     "HTTP_PROXY",

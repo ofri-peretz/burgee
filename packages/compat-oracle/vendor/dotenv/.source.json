@@ -4,6 +4,7 @@
   "tag": "v18.0.8",
   "commit": "e2fe95e8e952e881787d8207b654c80326f821d8",
   "vendored": "2026-10-19",
+  "depsBefore": "2026-10-14T16:51:09.752Z",
   "files": 10,
   "internalFiles": [
     "test-config-options.js"

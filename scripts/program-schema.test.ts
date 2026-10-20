@@ -175,3 +175,63 @@ describe('--schema names the reserved surfaces a façade program shadows (J4)', 
     expect(Object.keys(published.properties ?? {}).filter((k) => !emitted.has(k))).toEqual([]);
   });
 });
+
+/**
+ * schema-is-validated SC3 — `--schema  versioned, JSON-Schema validated` sat on both front pages
+ * while no such schema existed, and nothing compared the claim to the tree. The claim is made
+ * again now that the file ships, and this holds it: a README that says `--schema` validates names
+ * `burgee/program-schema.json`, and that subpath resolves, in the package's own `exports`, to
+ * the file the tests above validate real output against.
+ */
+const PROGRAM_SCHEMA = 'burgee/program-schema.json';
+const READMES = ['README.md', 'packages/burgee/README.md'] as const;
+
+/**
+ * A README's statements: a paragraph, a list item or a table row with its wrapped lines joined,
+ * and each line of a fenced block on its own, so a claim wrapped over two lines is read whole.
+ */
+function statements(readme: string): string[] {
+  const units: string[] = [];
+  let fenced = false;
+  let open = false;
+  for (const line of readme.split('\n')) {
+    if (line.startsWith('```')) fenced = !fenced;
+    const starts = fenced || line.trim() === '' || /^\s*(?:[-*|#>]|\d+\.)/.test(line);
+    if (starts || !open) units.push(line.trim());
+    else units[units.length - 1] += ` ${line.trim()}`;
+    open = !fenced && line.trim() !== '';
+  }
+  return units;
+}
+
+/** What a README claims about validating `--schema` that the package does not back. Empty when every claim holds. */
+function unbackedSchemaClaims(readme: string, exportsMap: Record<string, unknown>): string[] {
+  const claims = statements(readme).filter((unit) => unit.includes('--schema') && /validat|JSON[- ]Schema/i.test(unit));
+  const problems = claims.filter((unit) => !unit.includes(PROGRAM_SCHEMA)).map((unit) => `claims validation without naming ${PROGRAM_SCHEMA}: ${unit}`);
+  if (readme.includes(PROGRAM_SCHEMA) && exportsMap['./program-schema.json'] !== './dist/program-schema.json') problems.push(`names ${PROGRAM_SCHEMA}, which the exports map does not publish`);
+  return problems;
+}
+
+describe('the READMEs say --schema validates, and the package backs it (schema-is-validated SC3)', () => {
+  const manifest = JSON.parse(readFileSync(join(root, 'packages/burgee/package.json'), 'utf8')) as { exports: Record<string, unknown> };
+
+  it.each(READMES)('%s makes the claim, naming the file, and the claim holds', (file) => {
+    const readme = readFileSync(join(root, file), 'utf8');
+    expect(statements(readme).some((unit) => unit.includes('--schema') && unit.includes(PROGRAM_SCHEMA))).toBe(true);
+    expect(unbackedSchemaClaims(readme, manifest.exports)).toEqual([]);
+  });
+
+  it('the subpath the READMEs name is the file validated above, copied to dist by the build', () => {
+    expect(manifest.exports['./program-schema.json']).toBe('./dist/program-schema.json');
+    expect(readFileSync(join(root, 'scripts/schema-to-dist.mjs'), 'utf8')).toContain("'program-schema.json'");
+    expect(published.$id).toBe('https://burgee.dev/program-schema.json');
+  });
+
+  it('the check can fail — the struck line, and a named file the package does not publish', () => {
+    expect(unbackedSchemaClaims('                                  ├──▶  --schema    versioned, JSON-Schema validated', manifest.exports)).toHaveLength(1);
+    expect(unbackedSchemaClaims(`- \`--schema\` validates against \`${PROGRAM_SCHEMA}\`.`, {})).toEqual([`names ${PROGRAM_SCHEMA}, which the exports map does not publish`]);
+    expect(unbackedSchemaClaims('- `--schema` — the whole command tree as data, versioned.', {})).toEqual([]);
+    expect(unbackedSchemaClaims('- `--schema` — the tree. It is\n  JSON-Schema validated.\n\nNext.', {})).toHaveLength(1);
+    expect(unbackedSchemaClaims('```text\n--schema  versioned\nJSON Schema\n```', {})).toEqual([]);
+  });
+});

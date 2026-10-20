@@ -15,9 +15,6 @@ import { showCursor, hideCursor, alternateScreen, … } from 'closeout/cursor';
 
 Enter the alternate screen, and register leaving it.
 
-Returns the function that leaves it, with {@link hideCursor}'s contract: once only, and
-calling it early unregisters the exit handler. A non-TTY gets nothing in either direction.
-
 ```ts
 function alternateScreen(stream: OutputStream, onExit: Registrar): () => void;
 ```
@@ -49,9 +46,6 @@ function bracketedPaste(stream: OutputStream, onExit: Registrar): () => void;
 
 Hide the cursor, and register its restore.
 
-Returns the function that shows it again. Calling that function unregisters the handler
-too, so a program that cleans up normally leaves nothing behind for exit to do.
-
 ```ts
 function hideCursor(stream: OutputStream, onExit: Registrar): () => void;
 ```
@@ -66,17 +60,6 @@ function hideCursor(stream: OutputStream, onExit: Registrar): () => void;
 ### rawMode
 
 Turn raw mode on, and register turning it off.
-
-**Only a mode this call turned on is turned off.** If the input is already raw, somebody
-else owns that state — a prompt library, the program itself — and switching it off at exit
-would take it from them; the call changes nothing and returns a no-op. The same holds for
-an input that is not a terminal or has no `setRawMode`: there is no mode to change.
-
-**Callers through here share the mode it turned on.** A spinner discarding stdin and a prompt
-reading keys both ask; the mode goes off when the last of them lets go, in whatever order
-they do. Handing the second a no-op — it saw `isRaw` and took it for somebody else's — let a
-spinner that stopped first take the keyboard from a prompt still reading it
-(`.sdlc/models/save-restore.qnt`).
 
 ```ts
 function rawMode(input: InputStream, onExit: Registrar): () => void;
@@ -94,9 +77,6 @@ function rawMode(input: InputStream, onExit: Registrar): () => void;
 Show the cursor. Safe to call when it was never hidden, and safe to call twice — the
 sequence is idempotent, which is what makes it usable from an exit path that may run
 after a caller has already cleaned up.
-
-A non-TTY gets nothing: writing escape sequences into a pipe corrupts the output the
-pipe exists to carry.
 
 ```ts
 function showCursor(stream: OutputStream): void;

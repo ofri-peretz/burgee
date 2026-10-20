@@ -81,12 +81,6 @@ line, and writes only what changed since the last paint, wrapped in synchronized
 a frame identical to the last writes nothing. `release` forgets the painted frame without
 erasing it: what is on screen becomes scrollback, and the next paint starts at the cursor.
 
-Between paints the cursor rests at the end of the frame's last row, which is where the
-hoisted projection has always left it. A frame taller than the terminal cannot be reached
-above its top row, so one is clipped (frames-fit-the-screen R2): its tail, the lines that
-change, under one dim `… N more` line. `release` then writes the whole frame once, because
-a final write needs no repaint, so nothing the frame held is lost to the clip.
-
 ```ts
 interface FrameWriter {
     paint(lines: readonly string[]): void;

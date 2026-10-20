@@ -4,6 +4,7 @@
   "tag": "@inquirer/core@12.0.4",
   "commit": "a9436bd94d55a439df308f50e77a7cd0b2078e98",
   "vendored": "2026-10-19",
+  "depsBefore": "2026-10-04T18:42:16.209Z",
   "files": 1,
   "internalFiles": [],
   "internals": [],

@@ -14,7 +14,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { type Host, HOSTS } from './hosts.js';
-import { type Baseline, cjsLoad, type Grade, grade as gradeHost, hoistJestMocks, TSD_SCRIPT, installSuiteDeps, internalShimBody, jestGlobals, mochaCli, internalShimFrom, parseFlatTap, parseNodeTest, regressed, summarize, tsLoaderArgs, unsatisfiedPins } from './run.js';
+import { type Baseline, cjsLoad, DEPS_MARKER, type Grade, grade as gradeHost, hoistJestMocks, TSD_SCRIPT, installSuiteDeps, internalShimBody, jestGlobals, mochaCli, internalShimFrom, parseFlatTap, parseNodeTest, regressed, summarize, tsLoaderArgs, unsatisfiedPins } from './run.js';
 import { declarationName, type TsdAssertion, type TsdDiagnostic, tsdTap } from './tsd.js';
 
 const scratch = scratchDirs();
@@ -606,6 +606,8 @@ describe('a CommonJS shim busts the incumbent only when the suite busted the shi
 // everywhere.
 describe.skipIf(process.platform === 'win32')('the tsd runner (extra-typings-drop-in R1)', () => {
   const TSD_DEPS = { tsd: '0.33.0', '@tsd/typescript': '5.9.3' };
+  /** When the pins above resolve as of: the day they were written, after both were published. */
+  const TSD_AS_OF = '2026-10-19T00:00:00.000Z';
   const PKG = resolve(fileURLToPath(new URL('..', import.meta.url)));
   let vendorDir = '';
   const typed = (over: Partial<Host> = {}): Host => ({
@@ -648,6 +650,8 @@ describe.skipIf(process.platform === 'win32')('the tsd runner (extra-typings-dro
   beforeAll(() => {
     mkdirSync(TSD_CACHE, { recursive: true });
     writeFileSync(join(TSD_CACHE, 'package.json'), JSON.stringify({ name: '@vendored/tsd-runner-deps', private: true, devDependencies: TSD_DEPS }));
+    // The tree as of the day these pins were written, as a vendored suite records its own (`depsBefore`).
+    writeFileSync(join(TSD_CACHE, '.source.json'), JSON.stringify({ depsBefore: TSD_AS_OF }));
     installSuiteDeps(typed({ name: 'tsd-runner-deps' }), TSD_CACHE);
     // Inside this package, as grade.test.ts's scratch hosts are: the control resolves commander by
     // walking up to the workspace's node_modules.
@@ -655,6 +659,7 @@ describe.skipIf(process.platform === 'win32')('the tsd runner (extra-typings-dro
     mkdirSync(hostDir(), { recursive: true });
     writeFileSync(join(hostDir(), 'package.json'), JSON.stringify({ name: '@vendored/typed-suite', private: true, type: 'module', main: './shim.js', devDependencies: TSD_DEPS }));
     writeFileSync(join(hostDir(), 'tsconfig.json'), TSCONFIG);
+    writeFileSync(join(hostDir(), '.source.json'), JSON.stringify({ depsBefore: TSD_AS_OF }));
     // Beside the suite as far as resolution can tell: Node and `unsatisfiedPins` both read the
     // link's real path, so `grade()` finds its pins satisfied and installs nothing.
     symlinkSync(join(TSD_CACHE, 'node_modules'), join(hostDir(), 'node_modules'), 'dir');
@@ -721,6 +726,8 @@ describe.skipIf(process.platform === 'win32')('the tsd runner (extra-typings-dro
     mkdirSync(join(broken, 'test-d'), { recursive: true });
     writeFileSync(join(broken, 'package.json'), JSON.stringify({ name: '@vendored/broken-suite', private: true, type: 'module', main: './shim.js', devDependencies: { tsd: '0.33.0' } }));
     writeFileSync(join(broken, 'tsconfig.json'), TSCONFIG);
+    writeFileSync(join(broken, '.source.json'), JSON.stringify({ depsBefore: TSD_AS_OF }));
+    writeFileSync(join(broken, 'node_modules', DEPS_MARKER), TSD_AS_OF);
     writeFileSync(join(broken, 'node_modules', 'tsd', 'package.json'), JSON.stringify({ name: 'tsd', version: '0.33.0', main: 'index.js' }));
     writeFileSync(join(broken, 'node_modules', 'tsd', 'index.js'), "throw new Error('tsd exploded on load');\n");
     writeFileSync(join(broken, 'test-d', 'name.test-d.ts'), [...HEADER, ''].join('\n'));

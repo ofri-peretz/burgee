@@ -8,17 +8,6 @@ description: "Every export of roundel/policy, with its signature and doc comment
 The output policy — one answer to "where is this output going?", read from a
 `Runtime`, never from `process` (R1, R2, R9 of `roundel`; U2 of the stack).
 
-Five colour libraries disagreeing about the terminal (clack #286) is what this file
-exists to end: every package in the family asks here, and nothing else in it reads
-`isTTY`, `NO_COLOR`, `FORCE_COLOR`, `CI`, `CLI_ACCESSIBLE` or a `--color` flag. It also
-holds the one record `fly()` writes and every token reads, because it is the only module
-every subpath may import (R7).
-
-The code here is written tight — ternaries where a reader might expect statements —
-because `./chalk` reaches this file and R8 caps that whole graph at chalk 6's own
-9,370 bytes. Comments are stripped from `dist`, so the prose is free; the statements
-are not.
-
 ```ts
 import { colorLevel, outputMode, flown } from 'roundel/policy';
 ```
@@ -34,25 +23,6 @@ explicit "colour off" is never undone by a level flag; then the `--color` flags 
 `argv`, an exact `--color=256` beating a numeric `FORCE_COLOR` as chalk's own suite says;
 then `FORCE_COLOR`. `--json` is the one output the level never enters: structured text
 carries no escapes. The mode decides redraws (U2), never the level.
-
-Accessible mode defaults to 0, on the same footing as a pipe rather than a terminal:
-`CLI_ACCESSIBLE` is itself an explicit instruction from a human, and ANSI colour is noise
-to a screen reader. As with a pipe, an explicit colour ask (`FORCE_COLOR`, `--color=…`)
-still wins and `NO_COLOR` still beats everything.
-
-With no instruction the order is supports-color's own, and deliberately so — chalk's
-`level.js` asserts it, and a family that disagreed with chalk about a bare pipe would be
-the clack #286 bug again. A pipe is 0, because a pipe nobody asked to colour is a file or
-another program's stdin; the one exception is Azure Pipelines (`TF_BUILD` *and*
-`AGENT_NAME` — `TF_BUILD` alone is a build without an agent), which supports-color reads
-before it gives up on a pipe. Once colour *is* being detected — a terminal, or a run that
-asked — `TERM=dumb` is the floor, a `CI` run is its vendor's level (gated on `'CI' in env`
-as supports-color gates it, so an empty `CI=` still selects the table), and anything else
-is what `TERM`/`COLORTERM` report. So the CI user who exports `FORCE_COLOR=true` to get
-coloured logs gets their runner's colours, and nobody else's pipe changes.
-
-ponytail: supports-color also consults the platform, TEAMCITY_VERSION, TERM_PROGRAM and
-the emulator allow-list; R2 refuses that detection, so those stay unread.
 
 ```ts
 function colorLevel(rt: Runtime, opts?: ModeOptions): ColorLevel;

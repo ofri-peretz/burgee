@@ -8,16 +8,6 @@ description: "Every export of caique/binding, with its signature and doc comment
 Resolving a whole command's prompts in one pass (R2, R3) — the piece a framework calls
 from its `preAction` hook, after the environment and config layers have had their turn.
 
-The design sketched this as `caique/burgee`, one binding per host. It is one binding for
-all of them instead, and that is the better answer: what a host actually supplies is a
-record of options, the values parsed so far, and a runtime. None of that needs burgee's
-types, so nothing here imports them — which keeps the family's rule that no package
-requires another, and means `burgee`, `burgee/commander` and `burgee/yargs` share one
-implementation rather than three that drift.
-
-The order is the declaration order, because `--interactive` asks for several things at
-once and a person answering them needs the sequence to match the help they just read.
-
 ```ts
 import { resolvePrompts, localise } from 'caique/binding';
 ```

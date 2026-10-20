@@ -18,7 +18,7 @@ import { describe, expect, it } from 'vitest';
 import { testFiles } from './discover.js';
 import { active, type Host, HOSTS, PREVIOUS_MAJORS } from './hosts.js';
 import { ALIAS_HOOK, readBaseline } from './run.js';
-import { rootPackage, shimName, splitSpec } from './vendor.js';
+import { readSuiteDeps, rootPackage, shimName, splitSpec } from './vendor.js';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const VENDOR = join(root, 'vendor');
@@ -420,6 +420,26 @@ function readInternals(host: Host): string[] | undefined {
  * leaves the control installing a release the row no longer names.
  */
 const withManifest = onDisk.filter((h) => existsSync(join(VENDOR, h.name, 'package.json')));
+
+/**
+ * 2026-10-19, 21:42 UTC: inquirer published its next batch, and the required control for
+ * `@inquirer/prompts` 8.7.3 read 212 / 213 on `main` with nothing changed here. The pin held
+ * only the package it names; its siblings, reached by `^` range, resolved as of the day of the
+ * run. A suite that declares dependencies records the moment they resolve as of, and the
+ * install reads it (`installSuiteDeps`, D-20261020-oracle-suite-deps-floated).
+ */
+describe('a vendored suite with dependencies records when they resolve as of', () => {
+  const declaring = withManifest.filter((h) => Object.keys(readSuiteDeps(join(VENDOR, h.name))).length > 0);
+
+  it('finds suites that declare dependencies — otherwise the cases below assert nothing', () => {
+    expect(declaring.length).toBeGreaterThan(0);
+  });
+
+  it.each(declaring.map((h) => [h.name] as const))('%s', (name) => {
+    const record = JSON.parse(readFileSync(join(VENDOR, name, '.source.json'), 'utf8')) as { depsBefore?: string };
+    expect(record.depsBefore, `vendor/${name}/.source.json has no depsBefore, so a clean checkout installs its suite's tree as of the day it runs`).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u);
+  });
+});
 
 describe('the vendored manifest pins what hosts.ts declares', () => {
   it('finds vendored manifests at all — otherwise the cases below assert nothing', () => {

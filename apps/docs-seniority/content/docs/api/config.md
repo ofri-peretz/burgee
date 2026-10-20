@@ -62,11 +62,6 @@ function discover(d: Discovery): Promise<Loaded | undefined>;
 
 The line a top-level key is set on, one-based, or `undefined`.
 
-Text, not a parse tree: a JSON parser that reported positions would *be* a parser, and
-`JSON.parse` reports none. The scan is exact about what it can answer — a `"key":` on a
-line — and silent about what it cannot, because a wrong line number in an error message
-is worse than no line number at all (R3, R12).
-
 ```ts
 function lineOf(text: string, key: string): number | undefined;
 ```
@@ -81,10 +76,6 @@ function lineOf(text: string, key: string): number | undefined;
 ### loadWithExtends
 
 Load a file and everything it extends, outermost first, the file's own keys winning.
-
-The lines reported are the **extending file's own** (R3). A value a parent set and the
-child did not override is cited through `chain` at the parent's path; a line number
-borrowed across files would point confidently at the wrong text.
 
 ```ts
 function loadWithExtends(path: string, options?: LoadConfigOptions, seen?: string[]): Promise<Loaded>;

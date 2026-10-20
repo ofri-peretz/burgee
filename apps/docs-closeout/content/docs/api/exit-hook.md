@@ -18,10 +18,6 @@ The default export, declared as `exitHook`.
 
 Register a synchronous hook. Returns the function that unregisters it.
 
-Declared here and exported at the foot of the file: `exit-hook`'s default *is* its
-`exitHook`, so an `import exitHook from 'closeout/exit-hook'` swap only works if ours is a
-default too, and this repository's lint wants every export last and grouped.
-
 ```ts
 function exitHook(onExit: ExitHookCallback): () => void;
 ```
@@ -35,9 +31,6 @@ function exitHook(onExit: ExitHookCallback): () => void;
 ### asyncExitHook
 
 Register an asynchronous hook, bounded by `wait`.
-
-`wait` is required and must be a positive number: `asyncExitHook(fn, {})` and
-`asyncExitHook(fn, { wait: 'abc' })` both throw, and both are graded.
 
 ```ts
 function asyncExitHook(onExit: ExitHookCallback, options?: Partial<AsyncExitHookOptions>): () => void;
@@ -54,10 +47,6 @@ function asyncExitHook(onExit: ExitHookCallback, options?: Partial<AsyncExitHook
 
 Exit the way `process.exit()` cannot: asynchronous hooks get to run, and stdio is drained
 before the process goes.
-
-The argument is the exit code, and it is named `signal` upstream. Kept as upstream names
-it, because a drop-in whose parameter names disagree with the incumbent's `.d.ts` is a
-drop-in that breaks the first person to use a named argument in their editor.
 
 ```ts
 function gracefulExit(signal?: number): void;

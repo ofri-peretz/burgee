@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 // Strips comments from the emitted JavaScript under a dist directory, in place, with
-// TypeScript's own transpiler — no other transform, no minification. The .d.ts files keep
-// every doc comment, so editors lose nothing; the shipped bytes a user pays for drop by
-// roughly a fifth, which is what the weight lock measures.
+// TypeScript's own transpiler — no other transform, no minification. The shipped bytes a user
+// pays for drop by roughly a fifth, which is what the weight lock measures.
+//
+// Declarations are summarised rather than stripped (`declaration-summaries.mts`,
+// D-20261012-declarations-carry-summaries): each JSDoc block keeps its first paragraph and the
+// tags an editor renders, so hover text keeps its summary, and the design essays stay in the
+// source where a reader of the repository wants them. Every other comment goes.
 //
 // Emitted JSON is re-serialised without its indentation for the same reason: tsc pretty-
 // prints every data file it copies, and flagstaff's spinner corpus pays 13 KB for the
@@ -18,9 +22,12 @@ import { join } from 'node:path';
 
 import ts from 'typescript';
 
+import { DECLARATION, summariseDeclaration } from './declaration-summaries.mts';
+
 const dir = process.argv[2] ?? 'dist';
 let files = 0;
 let jsonFiles = 0;
+let declarations = 0;
 
 function strip(at) {
   for (const entry of readdirSync(at, { withFileTypes: true })) {
@@ -32,6 +39,11 @@ function strip(at) {
     if (entry.name.endsWith('.json')) {
       writeFileSync(full, JSON.stringify(JSON.parse(readFileSync(full, 'utf8'))));
       jsonFiles += 1;
+      continue;
+    }
+    if (DECLARATION.test(entry.name)) {
+      writeFileSync(full, summariseDeclaration(readFileSync(full, 'utf8')));
+      declarations += 1;
       continue;
     }
     // `.cjs` too: closeout's `signal-exit` façade is CommonJS on purpose, and skipping it
@@ -48,4 +60,4 @@ function strip(at) {
 }
 
 strip(dir);
-process.stdout.write(`stripped comments from ${files} file(s) and reserialised ${jsonFiles} JSON file(s) in ${dir}\n`);
+process.stdout.write(`stripped comments from ${files} file(s), summarised ${declarations} declaration(s) and reserialised ${jsonFiles} JSON file(s) in ${dir}\n`);

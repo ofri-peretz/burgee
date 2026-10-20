@@ -4,6 +4,7 @@
   "tag": "v6.8.0",
   "commit": "be1b1bb6ec65056e2ed60ef3c5ae642704b82d31",
   "vendored": "2026-10-06",
+  "depsBefore": "2026-09-20T08:22:17.792Z",
   "files": 39,
   "internalFiles": [
     "ansi-tokenizer.ts",
