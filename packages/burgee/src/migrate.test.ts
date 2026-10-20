@@ -546,6 +546,8 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     });
     const left = await migrate({ dir: on10, status: clean });
     expect(read(on10, 'src/a.ts')).toBe("import supportsColor from 'supports-color';\n");
+    // migrate-older-majors: 11 is the nearest claimed major, and supports-color has no removed-API
+    // table, so there are no sites to read and no move nothing checked.
     expect(left.offMajor).toEqual([{ from: 'supports-color', found: '^10.2.2', graded: '11.0.0', nearest: 11, sites: [], move: null }]);
   });
 
