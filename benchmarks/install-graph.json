@@ -22,8 +22,9 @@
     },
     {
       "name": "caique",
-      "count": 5,
+      "count": 6,
       "installed": [
+        "bellpull",
         "caique",
         "closeout",
         "linegauge",
@@ -40,8 +41,9 @@
     },
     {
       "name": "controlroom",
-      "count": 7,
+      "count": 8,
       "installed": [
+        "bellpull",
         "caique",
         "closeout",
         "controlroom",

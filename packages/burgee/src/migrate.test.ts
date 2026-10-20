@@ -111,6 +111,7 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
       'dotenv/config.js': 'seniority/dotenv/config',
       '@clack/prompts': 'caique/clack',
       '@inquirer/core': 'caique/inquirer',
+      '@inquirer/prompts': 'caique/inquirer/prompts',
       meow: 'burgee/meow',
       'restore-cursor': 'closeout/restore-cursor',
       'exit-hook': 'closeout/exit-hook',
@@ -784,6 +785,19 @@ describe('A11 — a rewrite moves only names the target exports', () => {
     expect(rewriteSource("import { intro, text, isCancel } from '@clack/prompts';\n").source).toBe("import { intro, text, isCancel } from 'caique/clack';\n");
     const source = "import { box, progress, taskLog, text } from '@clack/prompts';\n";
     expect(rewriteSource(source)).toMatchObject({ source, mapped: [], refused: [{ line: 1, specifier: '@clack/prompts', reason: 'unknown-export', names: ['box', 'progress', 'taskLog'] }] });
+  });
+
+  it('moves an @inquirer/prompts program to caique/inquirer/prompts, and refuses a name the subpath does not export', () => {
+    // inquirer-prompts went level on 2026-10-20 (213 / 213, inquirer-prompts-drop-in R3), so
+    // `migrate` rewrites it (D-137). `createPrompt` is `@inquirer/core`'s, at `caique/inquirer`,
+    // and a file that asks the prompts subpath for it stays where it is.
+    const program = "import { select, checkbox, Separator, type SelectConfig } from '@inquirer/prompts';\n";
+    expect(rewriteSource(program)).toMatchObject({
+      source: "import { select, checkbox, Separator, type SelectConfig } from 'caique/inquirer/prompts';\n",
+      mapped: [{ from: '@inquirer/prompts', to: 'caique/inquirer/prompts' }],
+    });
+    const source = "import { input, createPrompt } from '@inquirer/prompts';\n";
+    expect(rewriteSource(source)).toMatchObject({ source, mapped: [], refused: [{ line: 1, specifier: '@inquirer/prompts', reason: 'unknown-export', names: ['createPrompt'] }] });
   });
 
   it('moves a cosmiconfig program to seniority, and refuses a file that names a type seniority does not export', () => {

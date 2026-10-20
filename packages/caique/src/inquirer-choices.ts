@@ -61,10 +61,27 @@ export function moveCursor<Value>(
 ): number | undefined {
   const up = isUpKey(key, keybindings);
   if (!up && !isDownKey(key, keybindings)) return undefined;
-  if (!loop && active === (up ? bounds.first : bounds.last)) return active;
-  let next = active;
-  do next = (next + (up ? -1 : 1) + items.length) % items.length;
-  while (!isNavigable(items[next]));
+  if (!canMove(loop, up, active, bounds)) return active;
+  return step(items, active, up ? -1 : 1, isNavigable);
+}
+
+/**
+ * Whether the cursor may move from `at` towards `up`'s end: always in a looping list, and
+ * otherwise only while it is not already on the first (or last) row it may stand on.
+ */
+export const canMove = (loop: boolean, up: boolean, at: number, bounds: { first: number; last: number }): boolean => loop || at !== (up ? bounds.first : bounds.last);
+
+/** The validator a prompt uses when the caller gives none: every answer passes. */
+export const alwaysValid = (): true => true;
+
+/**
+ * The index one step from `from` in `offset`'s direction that `lands` accepts, coming round
+ * the end of the list. Called only where such an index exists, so it always stops.
+ */
+export function step<Row>(items: readonly Row[], from: number, offset: 1 | -1, lands: (item: Row | undefined) => boolean): number {
+  let next = from;
+  do next = (next + offset + items.length) % items.length;
+  while (!lands(items[next]));
   return next;
 }
 

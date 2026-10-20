@@ -12,10 +12,10 @@ name: Models · Quint
 on:
   push:
     branches: [main]
-    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/migrate.ts', 'packages/burgee/src/migrate-majors.ts', '.github/workflows/release.yml', '.github/workflows/changesets-pr.yml', 'scripts/release-window.mts', 'packages/caique/src/clack-core.ts', '.github/workflows/models.yml']
+    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/migrate.ts', 'packages/burgee/src/migrate-majors.ts', '.github/workflows/release.yml', '.github/workflows/changesets-pr.yml', 'scripts/release-window.mts', 'packages/caique/src/clack-core.ts', 'packages/caique/src/inquirer-search.ts', '.github/workflows/models.yml']
   pull_request:
     branches: [main]
-    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/migrate.ts', 'packages/burgee/src/migrate-majors.ts', '.github/workflows/release.yml', '.github/workflows/changesets-pr.yml', 'scripts/release-window.mts', 'packages/caique/src/clack-core.ts', '.github/workflows/models.yml']
+    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/migrate.ts', 'packages/burgee/src/migrate-majors.ts', '.github/workflows/release.yml', '.github/workflows/changesets-pr.yml', 'scripts/release-window.mts', 'packages/caique/src/clack-core.ts', 'packages/caique/src/inquirer-search.ts', '.github/workflows/models.yml']
   workflow_dispatch:
 
 concurrency:
@@ -104,6 +104,27 @@ jobs:
           done
           if $QUINT run "$m" --invariant=neverMoves --max-steps=30 --max-samples=20000 >/dev/null; then
             echo "::error::majors.qnt: neverMoves now holds — no run prints a move, so safety holds vacuously"
+            exit 1
+          fi
+      - name: inquirer search — the rejected designs still fail, and some run still answers
+        run: |
+          m=.sdlc/intents/inquirer-prompts-drop-in/search.qnt
+          for s in stepNoAbort stepEnterLoading; do
+            if $QUINT run "$m" --step="$s" --invariant=safety --max-steps=30 --max-samples=20000 >/dev/null; then
+              echo "::error::search.qnt: safety holds under $s — the model no longer distinguishes the shipped design from the one it rejects"
+              exit 1
+            fi
+          done
+          if $QUINT run "$m" --invariant=someAnswer --max-steps=30 --max-samples=20000 >/dev/null; then
+            echo "::error::search.qnt: someAnswer now holds — no run answers, so safety holds vacuously"
+            exit 1
+          fi
+      # An open question, pinned: Enter straight after a key answers from the list drawn for the
+      # term before it, as @inquirer/search does. When this starts holding, answer it in spec.md.
+      - name: inquirer search answers one edit behind (open question, see spec.md)
+        run: |
+          if $QUINT run .sdlc/intents/inquirer-prompts-drop-in/search.qnt --invariant=answersFromTermOnScreen --max-steps=30 --max-samples=20000; then
+            echo "answersFromTermOnScreen now holds — answer the open question in .sdlc/intents/inquirer-prompts-drop-in/spec.md and drop this step"
             exit 1
           fi
       # closeout/exit-hook without the registry (closeout-at-incumbent-weight spec.md, R4): each

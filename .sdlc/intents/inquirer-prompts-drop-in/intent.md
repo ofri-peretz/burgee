@@ -4,7 +4,7 @@
 > ([`next-wave-2026-10.md`](../../research/next-wave-2026-10.md)), from a gap `caique`'s own
 > design names and leaves open.
 
-**Status:** approved · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
+**Status:** approved — built 2026-10-20, every criterion evidenced below; it moves to `shipped` when the `caique` and `burgee` minors that carry it publish (held by the release window to about 2026-10-25) · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Design:** [`spec.md`](./spec.md)
 
 ---
 
@@ -72,3 +72,15 @@ no graded path.
 - Whether the single-prompt packages (`@inquirer/select` and the rest) get drop-ins too.
   **Answered 2026-10-12 in `spec.md`**: not in this intent. Their default exports would each need
   a subpath of their own, and `@inquirer/prompts` is where the downloads are.
+
+## Status — 2026-10-20
+
+Built on `feat/inquirer-prompts-drop-in` against `main` at `71dbe45e`; the spec's *Re-grounded*
+section records what changed from the design as written.
+
+| Criterion | Evidence |
+| :-- | :-- |
+| 1. `GRADED` carries an `inquirer-prompts` row, level with its control or with every subtracted case named by exact title; `npm run compat -- inquirer-prompts` reproduces it | **Met.** 213 / 213 against a control of 213 / 213 at `@inquirer/prompts` 8.7.3 (`baseline/inquirer-prompts.json`); 100 / 213 on `main` before this change. The eleven `editor` cases are subtracted by exact title for both sides and listed on the compatibility page (D-20261011-inquirer-prompts-editor-mock). |
+| 2. The pagination suite is vendored, and its row grows by its cases and stays level with its control | **Met, restated.** The suite is `select`'s (`packages/select/test/pagination.test.ts`, 10 cases), since `@inquirer/core` 12.0.4 ships none (D-20261011-inquirer-pagination-suite-is-selects), so it counts in the `inquirer-prompts` row; `inquirer-core` stays 41 / 41. |
+| 3. `burgee migrate` rewrites `@inquirer/prompts` in a fixture, and `scripts/migrate-drop-ins-lock.test.ts` passes | **Met.** `migrate.test.ts` › "moves an @inquirer/prompts program to caique/inquirer/prompts, and refuses a name the subpath does not export", red with `main`'s row; the Migrate page and `MAPPING` carry the row. |
+| 4. `packages/caique/competitors.json` fingerprints `@inquirer/prompts` | **Met.** `./inquirer/prompts` claims `compat` against the `inquirer-prompts` host, fingerprinted at 8.7.3 (25 packages, 547,175 B). |
