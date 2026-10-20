@@ -128,3 +128,36 @@ schema check in R4 knows them. No message-format parser is written.
 bundled core is 24,273 B on top of `main`'s 23,918 B (merged 2026-10-12, after `agent-skill` R2–R6 and `mcp-current`
 R2), inside the 24,282 B `bundled-bytes` ceiling, which was not raised.
 No budget was raised.
+
+### Re-grounded on `main` — 2026-10-20
+
+Every row above still holds. This is what changed under the design since 2026-10-12, recorded so
+the table is not read as today's numbers:
+
+- **The catalog is 92 ids, not 82.** `agent-lint-conformance` and `agent-skill` added human
+  strings after R1, as the intent scheduled. `messages.test.ts` still holds each against its call
+  site, and the pack schema has one property per id (`scripts/locale-pack-schema-lock.test.ts`).
+- **The budgets moved under other intents, not this one.** `.` is now 36,100 B and `./help`
+  9,650 B in `weight.test.ts`. Nothing in this design moved them. `locale.ts` and `check.ts` stay
+  behind `await import()`, so no entry's static graph reaches them, and the 2026-10-20 change below
+  moves no entry.
+- **R4: `burgee check` reports `coverage` on a pack it accepts.** For each locale, it lists the
+  ids translated, the ids left in English, and each plural id's forms `have` against `need`. This
+  is `locale-pack-in-five` R1, built here because it reuses R4's `formsOf` and renders in R4's
+  report: `check.ts`, `check.test.ts` (3 cases, red on `main`:
+  `expected undefined to deeply equal { …(3) }`). Lazy: `check.js` 2,795 → 3,408 B.
+- **R7: the schema's description holds a whole French module.** It has a three-form plural and is
+  under 600 B. This is `locale-pack-in-five` R2. `scripts/locale-pack-schema.ts` generates it, and
+  `src/locale-pack-schema.test.ts` runs `burgee check` on it (red on `main`:
+  `expected undefined to be defined`).
+- **R7's "one turn" is restated** in the intent's criterion 4
+  (D-20261020-locale-eval-criterion-restated). The runner now prints a passing case's calls
+  (`caseLines`, `scripts/run-evals.ts`), so a reading says where its turns went.
+- **No Quint model.** Locale resolution is a pure function read once per run. The reasons and
+  the rejected models are in the same decision.
+
+| check | result, 2026-10-20 |
+| :-- | :-- |
+| Stryker, the PR lane on the changed lines (`npx tsx scripts/mutation.ts changed --base origin/main`) | burgee: 26 killed, 0 survived, 1.25 min. The first run had 3 survivors on a `have` filter that is equivalent on every pack `check` accepts, and the filter was removed rather than disabled |
+| `npm run compat -- clack inquirer-core` | 16 / 16, 41 / 41, ▲ 0 |
+| `weight.test.ts` | 64 passed, no entry moved |
