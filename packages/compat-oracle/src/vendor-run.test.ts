@@ -169,6 +169,25 @@ describe('vendoring a whole suite', () => {
     expect(read(live, 'test', 'fixtures', 'load.js')).toBe("module.exports = require('../../shim.mjs');\n");
   });
 
+  // D-20261020-oracle-suite-deps-floated: the cutoff is recorded when the suite is vendored, so a
+  // grade reads it and never asks the registry.
+  it('records when a suite with dependencies resolves them as of, and nothing for a suite with none', () => {
+    const dir = into();
+    const asked: string[] = [];
+    const timeOf = (name: string, version: string): string => {
+      asked.push(`${name}@${version}`);
+      return name === 'sibling' ? '2026-10-04T17:42:14.098Z' : '2026-10-04T17:41:40.731Z';
+    };
+    vendor(hostAt(upstream(), { suiteDeps: ['incumbent@1.0.0', 'sibling@2.0.0'] }), dir, '1.0.0', timeOf);
+    expect(asked).toEqual(['incumbent@1.0.0', 'sibling@2.0.0']);
+    expect(JSON.parse(read(dir, 'fakehost', '.source.json')).depsBefore).toBe('2026-10-04T18:42:14.098Z');
+    const none = into();
+    vendor(hostAt(upstream()), none, '1.0.0', () => {
+      throw new Error('a suite with no dependencies asks the registry nothing');
+    });
+    expect(JSON.parse(read(none, 'fakehost', '.source.json'))).not.toHaveProperty('depsBefore');
+  });
+
   it('writes no `omitted` key at all for a suite with nothing to omit', () => {
     const dir = into();
     expect(vendor(hostAt(upstream()), dir).omitted).toEqual([]);

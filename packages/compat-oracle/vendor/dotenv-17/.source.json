@@ -4,6 +4,7 @@
   "tag": "v17.4.2",
   "commit": "f116f70310abab44fbfddbaeb833698b5bf84a9b",
   "vendored": "2026-10-01",
+  "depsBefore": "2026-04-12T17:41:11.574Z",
   "files": 9,
   "internalFiles": [
     "test-cli-options.js",

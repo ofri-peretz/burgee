@@ -1289,21 +1289,56 @@ export function unsatisfiedPins(declared: Record<string, string>, dir: string): 
     .map(([name, want]) => `${name}@${want}`);
 }
 
+/** Written into a vendored `node_modules` after an install: the `depsBefore` its tree was resolved as of. */
+export const DEPS_MARKER = '.oracle-deps-before';
+
+/** `.source.json`'s `depsBefore`, which every vendored suite with dependencies records (`vendored-suite.test.ts`). */
+function recordedCutoff(host: Host, hostDir: string): string {
+  const at = join(hostDir, '.source.json');
+  const cutoff = existsSync(at) ? (JSON.parse(readFileSync(at, 'utf8')) as { depsBefore?: string }).depsBefore : undefined;
+  if (cutoff === undefined) throw new Error(`vendor/${host.name}/.source.json records no depsBefore, so its suite dependencies would resolve as of today: re-vendor the host`);
+  return cutoff;
+}
+
 /**
- * Install what a vendored suite declares, into the vendored directory and nowhere else.
+ * Install what a vendored suite declares, into the vendored directory and nowhere else, **as of
+ * the release it was vendored at**.
  *
- * Skipped the moment every declared package is present *at the version it was declared at*,
- * so a normal run does no network at all; the install happens once per clean checkout.
+ * `--before` is the determinism. A pin holds only the package it names: @inquirer/prompts 8.7.3
+ * depends on its siblings by `^` range, so on 2026-10-19 at 21:42 UTC, when inquirer published
+ * the next batch, every clean checkout installed the new siblings under the old pin, and the
+ * required control read 212 / 213 on `main` with nothing changed here
+ * (D-20261020-oracle-suite-deps-floated). Resolved as of `depsBefore`, the tree is the one the
+ * row was measured on, whatever upstream publishes later.
+ *
+ * Skipped when every declared package is present at its pin and the tree beside it was resolved
+ * as of this cutoff, so a normal run does no network at all. A suite declaring only ranges
+ * (`vendorDeps`) installs only what the hoist does not supply, as before, and as of the cutoff. A tree installed as of another
+ * date, or of none, is removed and installed again, because npm keeps any installed copy that
+ * still satisfies its range. A host that commits its `node_modules` (`keep`) is the exception:
+ * its tree is already fixed, and re-dating it would rewrite tracked files.
+ *
  * `--no-package-lock` because the lockfile that matters is the workspace's and this is not
  * part of it, and the versions are already pinned exactly in `hosts.ts`.
  */
 export function installSuiteDeps(host: Host, hostDir: string, write: Write = silent): void {
   const declared = readSuiteDeps(hostDir);
   if (Object.keys(declared).length === 0) return;
+  const before = recordedCutoff(host, hostDir);
+  const modules = join(hostDir, 'node_modules');
+  const marker = join(modules, DEPS_MARKER);
+  // Only an exact pin is installed beside the suite. A range (`vendorDeps`) is the workspace
+  // hoist's to supply, so a suite that declares only ranges has no tree of its own to re-date;
+  // nor does one whose tree is committed (`keep`), which is fixed already and is tracked files.
+  const ownsATree = Object.values(declared).some((want) => EXACT_PIN.test(want)) && !(host.keep ?? []).includes('node_modules');
+  const stale = ownsATree && (existsSync(marker) ? readFileSync(marker, 'utf8') : undefined) !== before;
   const wrong = unsatisfiedPins(declared, hostDir);
-  if (wrong.length === 0) return;
-  write(`  installing ${host.name}'s suite dependencies into vendor/${host.name}/node_modules: ${wrong.join(', ')}\n`);
-  execFileSync('npm', ['install', '--no-audit', '--no-fund', '--no-package-lock', '--prefix', hostDir], { stdio: ['ignore', 'ignore', 'inherit'], timeout: INSTALL_TIMEOUT_MS });
+  if (wrong.length === 0 && !stale) return;
+  write(`  installing ${host.name}'s suite dependencies into vendor/${host.name}/node_modules as of ${before}: ${[...wrong, ...(stale ? ['the tree beside them'] : [])].join(', ')}\n`);
+  if (stale) rmSync(modules, { recursive: true, force: true });
+  execFileSync('npm', ['install', '--no-audit', '--no-fund', '--no-package-lock', `--before=${before}`, '--prefix', hostDir], { stdio: ['ignore', 'ignore', 'inherit'], timeout: INSTALL_TIMEOUT_MS });
+  mkdirSync(modules, { recursive: true });
+  writeFileSync(marker, before);
 }
 
 export function grade(host: Host, vendorDir: string, target: string, reference = 0): Grade {

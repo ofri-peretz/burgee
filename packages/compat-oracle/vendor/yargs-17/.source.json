@@ -4,6 +4,7 @@
   "tag": "v17.7.3",
   "commit": "2f7df4db9630f8d1e4c1d7cbae8e69753cb79185",
   "vendored": "2026-09-24",
+  "depsBefore": "2026-06-19T03:08:41.275Z",
   "files": 14,
   "internalFiles": [
     "argsert.cjs",

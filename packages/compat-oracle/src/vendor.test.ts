@@ -13,7 +13,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { HOSTS, type Host } from './hosts.js';
-import { rewriteAt, rootPackage, shimName, splitSpec, vendor } from './vendor.js';
+import { DEPS_MARGIN_MS, depsCutoff, rewriteAt, rootPackage, shimName, splitSpec, vendor } from './vendor.js';
 
 const VENDOR_DIR = resolve(fileURLToPath(new URL('..', import.meta.url)), 'vendor');
 
@@ -389,5 +389,32 @@ describe('a vendor run that cannot finish', () => {
     expect(result.missingExtras, 'a rewritten tree the release no longer ships is named like a missing extra').toEqual(['gone']);
     rmSync(into, { recursive: true, force: true });
     rmSync(fileURLToPath(host.repo), { recursive: true, force: true });
+  });
+});
+
+/**
+ * D-20261020-oracle-suite-deps-floated — the moment a suite's dependency tree is read as of: the
+ * newest pinned release plus an hour, so a monorepo's siblings published in the same batch are
+ * in and a batch published a fortnight later is not.
+ */
+describe('depsCutoff', () => {
+  const times: Record<string, string> = {
+    'incumbent@8.7.3': '2026-10-04T17:41:40.731Z',
+    'sibling@12.0.4': '2026-10-04T17:42:14.098Z',
+    'runner@3.3.14': '2026-10-04T17:41:36.010Z',
+  };
+  const timeOf = (name: string, version: string): string => times[`${name}@${version}`] as string;
+  // Any real host, without the two fields the cutoff reads, so each case sets only what it means.
+  const { suiteDeps: _pins, npmName: _npm, ...bare } = HOSTS[0] as Host;
+  const fake = (over: Partial<Host>): Host => ({ ...bare, name: 'fake', ...over });
+
+  it('is the newest pinned release, plus the margin', () => {
+    expect(depsCutoff(fake({ npmName: 'incumbent', suiteDeps: ['runner@3.3.14', 'sibling@12.0.4', 'incumbent@8.7.3'] }), '8.7.3', timeOf)).toBe('2026-10-04T18:42:14.098Z');
+    expect(DEPS_MARGIN_MS).toBe(3_600_000);
+  });
+
+  it("is the incumbent's own release where the suite pins nothing", () => {
+    expect(depsCutoff(fake({ npmName: 'incumbent' }), '8.7.3', timeOf)).toBe('2026-10-04T18:41:40.731Z');
+    expect(depsCutoff(fake({ name: 'incumbent' }), '8.7.3', timeOf), 'by its directory name when it has no npm name of its own').toBe('2026-10-04T18:41:40.731Z');
   });
 });

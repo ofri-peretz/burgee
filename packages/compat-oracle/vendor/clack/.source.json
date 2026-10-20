@@ -4,6 +4,7 @@
   "tag": "@clack/prompts@1.8.1",
   "commit": "da44e23128c2f6a64f908224683e22d1190a576b",
   "vendored": "2026-10-19",
+  "depsBefore": "2026-09-13T22:54:22.060Z",
   "files": 19,
   "internalFiles": [],
   "internals": [

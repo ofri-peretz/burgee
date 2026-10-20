@@ -24,6 +24,15 @@ export interface CompatRecord {
   tag: string | null;
   commit: string;
   vendored: string;
+  /**
+   * The moment the suite's dependencies are installed as of (npm's `--before`): the newest
+   * release its `suiteDeps` pin, or the incumbent's own release where it pins none, plus a
+   * margin for the siblings a monorepo publishes in the same batch. Present only where the
+   * vendored manifest declares dependencies. Without it the transitive tree resolved as of
+   * the day of the run, and an upstream release turned a control red with nothing changed
+   * here (D-20261020-oracle-suite-deps-floated).
+   */
+  depsBefore?: string;
   files: number;
   internalFiles: string[];
   internals: string[];
@@ -116,6 +125,7 @@ export interface SnapshotMeta {
   tag: string | null;
   commit: string;
   vendored: string;
+  depsBefore?: string;
   files: number;
   internalFiles: string[];
   internals: string[];
