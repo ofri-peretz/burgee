@@ -16,7 +16,6 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "bellpull": "*",
     "burgee": "*",
     "flagstaff": "*",
     "roundel": "*"

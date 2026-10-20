@@ -10,9 +10,8 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { platform } from 'node:os';
 import { join } from 'node:path';
-
-import { sync } from 'bellpull/cross-spawn';
 
 import { type OmittedFile } from './binaries.js';
 import { posix, testFiles } from './discover.js';
@@ -214,7 +213,7 @@ export function renderMissingExtras(version: string, missing: string[]): string 
 
 /** The newest release on npm. */
 export function latestVersion(pkg: string): string {
-  return execFileSync('npm', ['view', pkg, 'version'], { encoding: 'utf8' }).trim();
+  return npm(['view', pkg, 'version']).trim();
 }
 
 export function readRecord(hostDir: string): CompatRecord | undefined {
@@ -229,15 +228,29 @@ export function readRecord(hostDir: string): CompatRecord | undefined {
 export type ReleaseTime = (name: string, version: string) => string;
 
 /**
- * The registry's `time` for `name@version`; a release it does not list is an error, never a guess.
+ * How npm is run on `system`: `npm` on the PATH, which on Windows is `npm.cmd`, a batch file only
+ * `cmd.exe` runs, so through a shell there. A bare `npm` with no shell was `spawnSync npm ENOENT`
+ * on every Windows cell of #1180.
  *
- * Through bellpull's cross-spawn, which runs `npm` as `npm.cmd` on Windows without a shell. A bare
- * `execFileSync('npm', …)` was `spawnSync npm ENOENT` on every Windows cell of #1180.
+ * Not bellpull's cross-spawn, which would do it without a shell: the vendor step must load from a
+ * checkout with nothing installed (`scripts/vendor-suite-resolution.test.ts`), so this module
+ * imports nothing outside `node:`. The shell is safe here because every argument is a literal or
+ * a package name `hosts.ts` declares.
  */
+export function npmOn(system: string): { file: string; shell: boolean } {
+  const windows = system === 'win32';
+  return { file: windows ? 'npm.cmd' : 'npm', shell: windows };
+}
+
+/** `npm <args>` on this machine, its stdout. */
+function npm(args: string[]): string {
+  const { file, shell } = npmOn(platform());
+  return execFileSync(file, args, { encoding: 'utf8', shell });
+}
+
+/** The registry's `time` for `name@version`; a release it does not list is an error, never a guess. */
 export const registryTime: ReleaseTime = (name, version) => {
-  const view = sync('npm', ['view', name, 'time', '--json'], { encoding: 'utf8' });
-  if (view.status !== 0) throw new Error(`npm view ${name} time exited ${String(view.status)}: ${String(view.stderr).trim()}`);
-  const at = (JSON.parse(String(view.stdout)) as Record<string, string | undefined>)[version];
+  const at = (JSON.parse(npm(['view', name, 'time', '--json'])) as Record<string, string | undefined>)[version];
   if (at === undefined) throw new Error(`the registry lists no publish time for ${name}@${version}`);
   return at;
 };
