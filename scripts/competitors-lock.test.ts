@@ -67,6 +67,7 @@ const KNOWN = [
   '@inkjs/ui',
   'inquirer',
   '@inquirer/core',
+  'inquirer-prompts',
   'lilconfig',
   'log-update',
   'meow',
