@@ -109,7 +109,7 @@ jobs:
         if: always()
         run: |
           { echo '## Compatibility'; echo; echo '```'; cat compat.log || echo '(no output)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: compat-results
@@ -260,7 +260,7 @@ jobs:
       # windows-lane-holds R1, R2: the per-case durations, kept whatever the cell's verdict, and the
       # cases above half their timeout named in the summary. Informational until the cases
       # intent names are fixed; then the half-budget check becomes a gate.
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: vitest-durations-${{ github.job }}-${{ matrix.os }}-node${{ matrix.node }}
@@ -337,7 +337,7 @@ jobs:
       # windows-lane-holds R1, R2: the per-case durations, kept whatever the cell's verdict, and the
       # cases above half their timeout named in the summary. Informational until the cases
       # intent names are fixed; then the half-budget check becomes a gate.
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: vitest-durations-${{ github.job }}-${{ matrix.os }}-node${{ matrix.node }}
