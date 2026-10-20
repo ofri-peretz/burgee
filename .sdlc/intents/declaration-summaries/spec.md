@@ -1,6 +1,6 @@
 # Design — published declarations carry summaries, not design essays
 
-Intent: [`intent.md`](./intent.md). **Status:** approved — accepted by the coordinator under the
+Intent: [`intent.md`](./intent.md). **Status:** shipped 2026-10-20 (all ten packages, Version PR #1184) — accepted by the coordinator under the
 owner's delegation, [`D-20261020-schema-group-design-accepted`](../../decisions/D-20261020-schema-group-design-accepted.md), as re-grounded below.
 
 ---
