@@ -1,6 +1,6 @@
 {
   "name": "burgee",
-  "version": "1.6.6",
+  "version": "1.6.7",
   "description": "A CLI framework built on one declaration: help, --json, --schema, MCP, completions and types are projected from it, with exit codes and fix: lines an agent can act on. No dependency outside the burgee family. Drop-in paths for commander, yargs and meow.",
   "license": "MIT",
   "type": "module",
@@ -198,7 +198,7 @@
     "closeout": "^1.1.6",
     "linegauge": "^1.1.4",
     "roundel": "^1.2.0",
-    "seniority": "^1.0.12"
+    "seniority": "^1.1.0"
   },
   "devDependencies": {
     "vitest": "^5.0.1"
