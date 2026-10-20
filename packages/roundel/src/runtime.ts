@@ -40,11 +40,17 @@ export interface Runtime {
 interface Proc {
   env: Runtime['env'];
   argv?: string[];
+  // Read by `./supports-color` alone: supports-color consults the platform, and its suite sets it.
+  platform?: string;
   stdout?: { isTTY?: boolean };
   stderr?: { isTTY?: boolean };
 }
 
-const proc = (globalThis as { process?: Proc }).process;
+// Exported, not wrapped: `./supports-color` reads `env`, `argv` and `platform` live, as
+// supports-color does, and a wrapper would cost bytes in `./chalk`'s graph (9 B to spare;
+// `export ` costs 7). A line comment, so the published declaration does not carry it.
+/** The process global, or `undefined` where there is none. */
+export const proc = (globalThis as { process?: Proc }).process;
 
 /**
  * The real process. `stream` names the stream this output is going to — `chalkStderr` and

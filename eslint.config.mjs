@@ -980,6 +980,22 @@ export default [
     },
   },
   {
+    // `roundel/supports-color` is supports-color 11 (`supports-color-drop-in` R2): its entry is a
+    // default export, and `level()` is supports-color's decision table in supports-color's order,
+    // one row per line, which its suite and `supports-color.test.ts` (differential, against
+    // supports-color's own source) hold row by row. The numbers are supports-color's: the levels
+    // 0–3 and the Windows builds that first had 256 colours and truecolor. Splitting the table
+    // into helpers would hide the order the suite asserts, and a statement per branch costs bytes
+    // against supports-color's own, which R4 holds it under.
+    files: ["packages/roundel/src/supports-color.ts"],
+    rules: {
+      "import-next/no-default-export": "off",
+      "conventions/no-magic-numbers": "off",
+      "maintainability/no-nested-ternary": "off",
+      "maintainability/cognitive-complexity": "off",
+    },
+  },
+  {
     // `roundel/policy` is the floor every subpath stands on, so its bytes are multiplied by
     // every R8 ceiling in the package. See the note on `chalk.ts` above for why its level
     // tables are ternary chains rather than statements.

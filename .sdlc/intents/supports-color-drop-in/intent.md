@@ -5,7 +5,7 @@
 > number of any candidate in that table: 441.6 M weekly downloads for a decision roundel
 > already makes, with no subpath and no grade behind it.
 
-**Status:** approved · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
+**Status:** approved — built 2026-10-19, every criterion evidenced below; it moves to `shipped` when the `roundel` minor that carries `./supports-color` publishes (held by the release window to about 2026-10-25), as `migrate-preflight` did · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Design:** [`spec.md`](./spec.md)
 
 ---
 
@@ -74,3 +74,15 @@ number on the compatibility page. `burgee migrate` rewrites the import.
 - Which major to grade. **Answered 2026-10-12 in `spec.md`**: the current major on
   `dist-tags.latest` when R1 lands, and no older major until its own suite grades level
   (D-145's rule).
+
+## Status — 2026-10-19
+
+Built on `feat/colour-drop-ins` against `main` at `326907ec`; the spec's *Re-grounded* section
+records what changed from the design as written.
+
+| Criterion | Evidence |
+| :-- | :-- |
+| 1. `npm run compat -- supports-color` grades `roundel/supports-color` level with the control of the current major, and `GRADED` carries the row | **Met.** 55 / 55 against a control of 55 / 55 at supports-color 11.0.0 (`baseline/supports-color.json`); 0 before the subpath existed. `GRADED['supports-color']` is `{ reference: 55, passed: 55, rate: 1, control: 55 }`. |
+| 2. The compatibility page lists it, generated, with the major claimed in `SUPPORTED_MAJORS` | **Met.** `apps/docs/content/docs/compatibility.mdx` rows `supports-color · roundel · 55 / 55` and `supports-color · 11 · 11.0.0`, from `npm run compat:page`; `SUPPORTED_MAJORS['supports-color']` is `[11]`. |
+| 3. `benchmarks/fixtures/entry-points.ts` has the pair, and its ratio reads at or below 1 on CI | **Met locally**, 1,764 B against 2,128 B, 0.829, under `BUNDLED_CEILING` 1,850 and the U5 ratio gate of 1; the CI reading is in the PR's `bench` job. |
+| 4. `burgee migrate` rewrites `import supportsColor from 'supports-color'` to the subpath, and `migrate.test.ts` holds it | **Met.** `migrate.test.ts` › "rewrites a supports-color default import and its `createSupportsColor` to `roundel/supports-color`", red on `main`. |

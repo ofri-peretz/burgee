@@ -56,6 +56,7 @@ const DROP_INS: Record<string, string> = {
   'flagstaff/src/ora.ts': "ora's isEnabled default ('CI' in env)",
   'paratext/src/hyperlinks.ts': 'supports-hyperlinks 4.5.0 and the supports-color 10.2.2 half it defers to',
   'roundel/src/picocolors.ts': "picocolors' isColorSupported",
+  'roundel/src/supports-color.ts': "supports-color 11's own order (FORCE_COLOR over the flags, the CI vendor table), which its test.js grades",
 };
 
 /** Published packages only: compat-oracle is private tooling, not a layer. */

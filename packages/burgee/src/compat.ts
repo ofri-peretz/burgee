@@ -79,6 +79,7 @@ export const GRADED: Readonly<Record<string, Row>> = {
   'cli-truncate': { reference: 12, passed: 12, rate: 1, control: 12 },
   'widest-line': { reference: 1, passed: 1, rate: 1, control: 1 },
   picocolors: { reference: 1, passed: 1, rate: 1, control: 1 },
+  'supports-color': { reference: 55, passed: 55, rate: 1, control: 55 },
   'extra-typings': { reference: 369, passed: 369, rate: 1, control: 369 },
 };
 
@@ -139,6 +140,7 @@ export const DROP_INS: readonly DropIn[] = [
   { host: 'cli-truncate', from: 'cli-truncate', to: 'linegauge/cli-truncate' },
   { host: 'widest-line', from: 'widest-line', to: 'linegauge/widest-line' },
   { host: 'picocolors', from: 'picocolors', to: 'roundel/picocolors' },
+  { host: 'supports-color', from: 'supports-color', to: 'roundel/supports-color' },
   { host: 'extra-typings', from: '@commander-js/extra-typings', to: 'burgee/commander/extra-typings' },
 ];
 
@@ -179,6 +181,7 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
   'slice-ansi': '9.0.1',
   'string-width': '8.3.0',
   'strip-ansi': '7.2.0',
+  'supports-color': '11.0.0',
   'term-img': '7.1.0',
   'terminal-link': '5.0.0',
   which: '7.0.0',
@@ -257,6 +260,7 @@ export const SUPPORTED_MAJORS: Readonly<Record<string, readonly number[]>> = {
   'slice-ansi': [9],
   'string-width': [8],
   'strip-ansi': [7],
+  'supports-color': [11],
   'term-img': [7],
   'terminal-link': [5],
   which: [7],

@@ -123,6 +123,7 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
       'cli-truncate': 'linegauge/cli-truncate',
       'widest-line': 'linegauge/widest-line',
       picocolors: 'roundel/picocolors',
+      'supports-color': 'roundel/supports-color',
       '@commander-js/extra-typings': 'burgee/commander/extra-typings',
     });
   });
@@ -131,6 +132,14 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
     const { source, mapped } = rewriteSource("import { hideBin } from 'yargs/helpers';\n");
     expect(source).toBe("import { hideBin } from 'burgee/yargs/helpers';\n");
     expect(mapped).toEqual([{ from: 'yargs/helpers', to: 'burgee/yargs/helpers' }]);
+  });
+
+  // `supports-color-drop-in` criterion 4. supports-color 11 exports `.` alone, so there is no
+  // deep `supports-color/browser` to map (the spec's R5, re-grounded 2026-10-19).
+  it('rewrites a supports-color default import and its `createSupportsColor` to `roundel/supports-color`', () => {
+    const { source, mapped } = rewriteSource("import supportsColor, { createSupportsColor } from 'supports-color';\n");
+    expect(source).toBe("import supportsColor, { createSupportsColor } from 'roundel/supports-color';\n");
+    expect(mapped).toEqual([{ from: 'supports-color', to: 'roundel/supports-color' }]);
   });
 
   it('every specifier it can produce is a subpath its package actually publishes', () => {
@@ -516,6 +525,28 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     const report = await migrate({ dir, status: clean });
     expect(read(dir, 'src/a.ts')).toBe("import { lilconfig } from 'lilconfig';\n");
     expect(report.offMajor).toEqual([{ from: 'lilconfig', found: '^2.1.0', graded: '3.1.4', nearest: 3, sites: [], move: null }]);
+  });
+
+  // `supports-color-drop-in` criterion 4, end to end: 11 is the one major claimed, so a program on
+  // it moves, `require()` included (both sides hand back their namespace), and one on 10 stays.
+  it('moves a program on supports-color 11 to roundel/supports-color, and leaves 10 alone naming 11.0.0', async () => {
+    const on11 = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { 'supports-color': '^11.0.0' } }),
+      'src/a.ts': "import supportsColor, { createSupportsColor } from 'supports-color';\n",
+      'src/b.cjs': "const { createSupportsColor } = require('supports-color');\n",
+    });
+    const moved = await migrate({ dir: on11, status: clean });
+    expect(moved.offMajor).toEqual([]);
+    expect(read(on11, 'src/a.ts')).toBe("import supportsColor, { createSupportsColor } from 'roundel/supports-color';\n");
+    expect(read(on11, 'src/b.cjs')).toBe("const { createSupportsColor } = require('roundel/supports-color');\n");
+    expect(moved.refused).toEqual([]);
+    const on10 = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { 'supports-color': '^10.2.2' } }),
+      'src/a.ts': "import supportsColor from 'supports-color';\n",
+    });
+    const left = await migrate({ dir: on10, status: clean });
+    expect(read(on10, 'src/a.ts')).toBe("import supportsColor from 'supports-color';\n");
+    expect(left.offMajor).toEqual([{ from: 'supports-color', found: '^10.2.2', graded: '11.0.0' }]);
   });
 
   // `previous-majors` R6: commander 14 is claimed (its own suite grades `burgee/commander/v14`

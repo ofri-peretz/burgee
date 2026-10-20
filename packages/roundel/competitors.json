@@ -102,5 +102,40 @@
         ]
       }
     }
+  ],
+  "./supports-color": [
+    {
+      "package": "supports-color",
+      "claim": "compat",
+      "seen": {
+        "version": "11.0.0",
+        "measured": "2026-10-19",
+        "cited": [
+          "packages/roundel/README.md"
+        ],
+        "registry": "supports-color",
+        "shasum": "54f4096e9cac614c6f273dc764e697e3c2c3941d",
+        "weight": 5139,
+        "self": 5139,
+        "packages": 1,
+        "files": {
+          "browser.d.ts": "09d791bf6471207eb7553c17a6cb03d6e6bd1d789f19bbec67da2b08ec9bb570",
+          "browser.js": "5b97566f47298a81d65856f736f143ac0e0639ee49e037bc364645f7d69cb130",
+          "index.d.ts": "f61a4dc92450609c353738f0a2daebf8cae71b24716dbd952456d80b1e1a48b6",
+          "index.js": "27a7c10d960b9f37a353581e776132ba182bb8e621766a732f5160df2f16d9f7",
+          "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+          "package.json": "c63fd90073ce7eead52b5386295c55fa87f5d67d6dfecb736e1174525e93da6b",
+          "readme.md": "9a7af7d64abd9d4b4ec246b9426d7e42f838554e1f4cf039dbae0fe7bb5f68b3"
+        },
+        "exports": [
+          "ColorInfo",
+          "ColorSupport",
+          "ColorSupportLevel",
+          "Options",
+          "createSupportsColor",
+          "default"
+        ]
+      }
+    }
   ]
 }

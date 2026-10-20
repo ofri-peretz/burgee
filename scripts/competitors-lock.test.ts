@@ -80,6 +80,7 @@ const KNOWN = [
   'slice-ansi',
   'string-width',
   'strip-ansi',
+  'supports-color',
   'term-img',
   'terminal-link',
   'tinyexec',

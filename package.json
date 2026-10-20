@@ -154,6 +154,7 @@
     "slice-ansi": "^9.0.1",
     "string-width": "^8.3.0",
     "strip-ansi": "^7.1.2",
+    "supports-color": "11.0.0",
     "supports-hyperlinks": "4.6.0",
     "terminal-link": "5.0.0",
     "terminal.js": "^1.0.11",
