@@ -57,8 +57,8 @@ real-process signal tests are POSIX-only and skipped on Windows.
 ## Can I use it from CommonJS?
 
 Yes, on Node 20.19+ and 22.13+: the package is ESM with a `default` condition, so
-`require('closeout')` loads it through `require(esm)`. `closeout/signal-exit` is CommonJS
-itself, as signal-exit is.
+`require('closeout')` loads it through `require(esm)`. `require('closeout/signal-exit')`
+loads a CommonJS file, as signal-exit's does, and `import` an ES one over the same code.
 
 ## Does importing it attach listeners?
 
@@ -71,8 +71,8 @@ It passes 134 of the 135 cases of signal-exit 4.1.0's own suite, and signal-exit
 passes the same 134; the case both fail is signal-exit's, on current Node. The differences
 that remain are on [Compatibility](/docs/drop-ins#known-differences).
 
-## Why is `closeout/exit-hook` bigger than exit-hook?
+## Is `closeout/exit-hook` heavier than exit-hook?
 
-It carries the phase ordering and the bounded runner the rest of closeout uses: 11,841 B
-against exit-hook's 4,458 B. Startup is level, 4.5 ms against 4.6 ms, as closeout's README
-measures.
+No. In a bundle it is 1,593 B against exit-hook 5.1.0's 1,645 B, measured the way the
+benchmarks page measures every drop-in. It runs exit-hook's own machine; the phase ordering
+and the bounded runner stay on closeout's own `onExit`.

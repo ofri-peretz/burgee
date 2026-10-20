@@ -102,6 +102,28 @@ describe('hideCursor on the process-wide instance', () => {
   });
 });
 
+describe('every door at once, on one process (closeout-at-incumbent-weight R4)', () => {
+  it('runs each handler once, whichever door registered it, however many exits arrive', async () => {
+    const proc = fakeProcess();
+    // signal-exit's door wires only a process it can patch: these four are what it reads.
+    const usable = Object.assign(proc, { reallyExit: () => undefined, listeners: (event: string) => Array.from({ length: proc.listenerCount(event) }) });
+    vi.resetModules();
+    vi.doMock('./ambient.js', () => ({ ambientProcess: () => usable }));
+    const root = await import('./install.js');
+    const { default: exitHook } = await import('./exit-hook.js');
+    const signalExit = await import('./signal-exit.js');
+
+    const ran: string[] = [];
+    root.onExit(() => void ran.push('closeout'));
+    exitHook(() => void ran.push('exit-hook'));
+    signalExit.onExit(() => void ran.push('signal-exit'));
+
+    usable.emit('exit', 0);
+    usable.emit('exit', 0);
+    expect(ran.sort()).toEqual(['closeout', 'exit-hook', 'signal-exit']);
+  });
+});
+
 describe('the ambient lookup', () => {
   const real: unknown = Reflect.get(globalThis, 'process');
   /** Swap the global for one synchronous call, and put it back whatever happens. */

@@ -54,8 +54,9 @@
     },
     "./signal-exit": {
       "types": "./dist/signal-exit.d.cts",
-      "import": "./dist/signal-exit.cjs",
-      "default": "./dist/signal-exit.cjs"
+      "require": "./dist/signal-exit.cjs",
+      "import": "./dist/signal-exit.js",
+      "default": "./dist/signal-exit.js"
     },
     "./signal-exit/signals": {
       "types": "./dist/signal-exit-signals.d.cts",

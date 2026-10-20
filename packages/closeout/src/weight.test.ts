@@ -44,7 +44,7 @@ const pkgRoot = fileURLToPath(new URL('..', import.meta.url));
 const dist = resolve(pkgRoot, 'dist');
 
 interface Manifest {
-  exports: Record<string, { import: string } | string>;
+  exports: Record<string, { import: string; require?: string } | string>;
 }
 
 // Read rather than import: the published entry list is data here, and a JSON import would
@@ -91,16 +91,24 @@ const RULES: Record<string, EntryRule> = {
   // Raised 14,000 -> 14,300 on 2026-10-12 for the `rawMode` holder count. Measured 14,066 B.
   './restore-cursor': { allow: [], budget: 14_300, denied: ['plugin.js', 'exit-hook.js'] },
   // The drop-in for `exit-hook` (8.8 M/wk), graded 21 / 21 by its own suite. Measured
-  // 11,841 B against the incumbent's 4,458 B in one file.
-  './exit-hook': { allow: [], budget: 13_000, denied: ['plugin.js', 'restore-cursor.js', 'cursor.js'] },
+  // 11,841 B against the incumbent's 4,458 B in one file, when it ran through the registry.
+  // Lowered 13,000 -> 3,800 on 2026-10-20 (closeout-at-incumbent-weight): it runs exit-hook's
+  // own small machine (`lean.qnt`) and reaches the process door alone. Measured 3,748 B. The
+  // registry, the deadline and the report are denied, so the phases cannot creep back in.
+  './exit-hook': { allow: [], budget: 3_800, denied: ['plugin.js', 'restore-cursor.js', 'cursor.js', 'registry.js', 'deadline.js', 'report.js', 'install.js'] },
   // The drop-in for `signal-exit` (198.9 M/wk), graded 134 / 135 by its own suite — the case
   // it misses, signal-exit misses too. Measured 4,797 B on 2026-09-23 across the façade, its
   // signal list and `ambient.js`, against the incumbent's 10,995 B (`dist/cjs/index.js` +
-  // `signals.js`). It reaches one ES module, the package's door to the process, and never
-  // the registry.
-  './signal-exit': { allow: [], budget: 5_500, denied: ['index.js', 'registry.js', 'install.js', 'exit-hook.js'] },
-  // The platform's fatal-signal list, alone. Measured 381 B.
-  './signal-exit/signals': { allow: [], budget: 500, denied: ['index.js', 'registry.js', 'signal-exit.cjs'] },
+  // `signals.js`). It never reaches the registry.
+  // Since 2026-10-20 this is the ES door, what `import` reaches (closeout-at-incumbent-weight):
+  // the machine, the list and the process door, and no CommonJS file, because a bundler wraps
+  // a CommonJS file in interop that cost more than signal-exit's own ES build. Measured 4,792 B.
+  // `REQUIRE_RULES` below weighs the CommonJS door.
+  './signal-exit': { allow: [], budget: 4_900, denied: ['index.js', 'registry.js', 'install.js', 'exit-hook.js', 'signal-exit.cjs', 'signal-exit-signals.cjs'] },
+  // The platform's fatal-signal list, alone. Measured 381 B. Raised 500 -> 550 on 2026-10-20
+  // (D-20261020-closeout-drop-in-budgets): the list moved to `signal-list.js`, one copy for both
+  // doors of `./signal-exit`, and this entry is now a CommonJS file that calls it. Measured 521 B.
+  './signal-exit/signals': { allow: [], budget: 550, denied: ['index.js', 'registry.js', 'signal-exit.cjs'] },
   // The drop-in for `onetime` 8 (155.0 M/wk), graded 6 / 6 by its own suite
   // (`graded-override-targets` R3). A leaf, like `./once`. Measured 1,295 B on 2026-10-11,
   // against onetime 1,033 B + mimic-function 3,038 B.
@@ -110,6 +118,17 @@ const RULES: Record<string, EntryRule> = {
   // 14,544 B on 2026-10-11, against the 15,679 B cli-cursor installs to do the same: cli-cursor
   // 694, restore-cursor 386, onetime 1,033, mimic-function 3,038 and signal-exit 10,528.
   './cli-cursor': { allow: [], budget: 15_000, denied: ['plugin.js', 'exit-hook.js'] },
+};
+
+/**
+ * The `require` doors, for the entries that have one: what a CommonJS caller loads. Weighed
+ * apart from `RULES` because the two doors of `./signal-exit` reach different files.
+ */
+const REQUIRE_RULES: Record<string, EntryRule> = {
+  // The CommonJS door of `./signal-exit`, the file the suite re-evaluates. Measured 4,797 B on
+  // 2026-09-23 when it was the only door, and 5,083 B on 2026-10-20 once the machine moved to
+  // `signal-exit-core.js` for the ES door to share (+286 B of module seams, inside the budget).
+  './signal-exit': { allow: [], budget: 5_500, denied: ['index.js', 'registry.js', 'install.js', 'exit-hook.js', 'signal-exit.js'] },
 };
 
 // `require("…")` as well: the `signal-exit` façade is CommonJS, and tsc prints its requires
@@ -135,10 +154,12 @@ function walk(entry: string): { reached: string[]; external: string[]; bytes: nu
   return { reached: [...files].map((f) => relative(dist, f)), external: [...external], bytes };
 }
 
-function entryFile(subpath: string): string {
+function entryFile(subpath: string, condition: 'import' | 'require' = 'import'): string {
   const conditions = manifest.exports[subpath];
   if (typeof conditions !== 'object') throw new Error(`no code exports entry for ${subpath}`);
-  return resolve(pkgRoot, conditions.import);
+  const target = condition === 'require' ? conditions.require : conditions.import;
+  if (target === undefined) throw new Error(`${subpath} has no ${condition} condition`);
+  return resolve(pkgRoot, target);
 }
 
 describe.each(Object.keys(RULES))('entry %s', (subpath) => {
@@ -158,9 +179,33 @@ describe.each(Object.keys(RULES))('entry %s', (subpath) => {
   });
 });
 
+describe.each(Object.keys(REQUIRE_RULES))('the require door of %s', (subpath) => {
+  const rule = REQUIRE_RULES[subpath] as EntryRule;
+  const graph = walk(entryFile(subpath, 'require'));
+
+  it('imports only what its rule allows', () => {
+    expect(graph.external.sort()).toEqual([...rule.allow].sort());
+  });
+
+  it('reaches nothing on its denied list', () => {
+    for (const denied of rule.denied) expect(graph.reached).not.toContain(denied);
+  });
+
+  it('stays inside its byte budget', () => {
+    expect(graph.bytes).toBeLessThanOrEqual(rule.budget);
+  });
+});
+
 describe('the lock grows with the package', () => {
-  it('follows a CommonJS require, so the signal-exit entry is weighed with its signal list', () => {
-    expect(walk(entryFile('./signal-exit')).reached).toContain('signal-exit-signals.cjs');
+  it('follows a CommonJS require, so the signal-exit require door is weighed with its signal list', () => {
+    expect(walk(entryFile('./signal-exit', 'require')).reached).toContain('signal-exit-signals.cjs');
+  });
+
+  it('weighs every require door an entry declares', () => {
+    const doors = Object.entries(manifest.exports)
+      .filter(([, target]) => typeof target === 'object' && target.require !== undefined)
+      .map(([subpath]) => subpath);
+    expect(doors.sort()).toEqual(Object.keys(REQUIRE_RULES).sort());
   });
 
   it('every published entry point declares a weight rule', () => {

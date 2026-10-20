@@ -1,7 +1,7 @@
 ---
 id: B-20261012-closeout-bundles-heavier-than-exit-hook
 section: B
-status: open
+status: closed
 source: foundation-claims-watched R6
 recommendation: 'Keep the B4 row a ratchet at its measurement (`BUNDLED_CEILING` 4,900 B, `RATIO_CEILING` 2.98 in `benchmarks/axes/weight.ts`) so it cannot grow, and lower both, toward U5''s 1, as closeout''s exit-hook path sheds bytes. Whether the drop-in is held to U5 on its own or carries the shared runner as product is closeout''s decision to record'
 ---
@@ -17,3 +17,8 @@ published JavaScript by hand (11,841 B against 4,458 B). This row is the first t
 figure is measured, and it is gated: the ceiling is the measurement plus the 80 B CI margin,
 rounded up, so it cannot grow unremarked. How the 3,174 B divide inside closeout is *unmeasured*
 here.
+
+**Closed 2026-10-20** by [`closeout-at-incumbent-weight`](../intents/closeout-at-incumbent-weight/intent.md):
+`closeout/exit-hook` reads **1,593 B** against exit-hook's 1,645 B (**0.968**), and the `RATIO_CEILING` row is U5's 1
+(D-20261020-closeout-drop-in-budgets). The decision this gap asked for is
+D-20261012-closeout-drop-ins-held-to-u5: held to U5 on its own.
