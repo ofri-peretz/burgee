@@ -13,7 +13,7 @@ every option it returns three things:
 | `candidates[key]` | every source in `ORDER`, set or not, with its value |
 
 The first source in `ORDER` that sets an option wins: `flag`, `env`, `config`, `package`,
-`default`. [The truth table](./truth-table) spells that out for all 32 combinations, generated
+`default`. [The truth table](/docs/guides/truth-table) spells that out for all 32 combinations, generated
 from the exported `TRUTH_TABLE`. `flags` must hold only what the user typed. A parser's defaults belong in the spec;
 if they were passed as flags, they would outrank the environment.
 

@@ -62,7 +62,7 @@ export function render(): string {
     'change to the order has to change the vectors in the same diff.',
     '',
     'A plugin source slots between two of these by `rank` and never reorders them; see',
-    '[Plugins](./plugins).',
+    '[Plugins](/docs/guides/plugins).',
     '',
   ].join('\n');
 }
