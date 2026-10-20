@@ -1,6 +1,6 @@
 # Intent — `--schema` output validates against a published schema
 
-**Status:** shipped · **Opened:** `2026-09-17` · **Owner:** `@ofri-peretz` · **Approved:** 2026-09-23, under the owner's delegation, D-129 · **Shipped:** 2026-10-20 in the `feat/schema-group` PR, the last criterion (SC3)
+**Status:** shipped · **Opened:** `2026-09-17` · **Owner:** `@ofri-peretz` · **Approved:** 2026-09-23, under the owner's delegation, D-129 · **Shipped:** 2026-10-20 in [#1186](https://github.com/ofri-peretz/burgee/pull/1186), the last criterion (SC3)
 
 ---
 

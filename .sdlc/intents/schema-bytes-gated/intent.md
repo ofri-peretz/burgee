@@ -4,7 +4,7 @@
 > ([`next-wave-4-2026-10.md`](../../research/next-wave-4-2026-10.md)) to close gap
 > `B-20261012-agent-schema-bytes-no-gate`.
 
-**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Design:** [`spec.md`](./spec.md), accepted in [`D-20261020-schema-group-design-accepted`](../../decisions/D-20261020-schema-group-design-accepted.md) · **Shipped:** 2026-10-20 in the `feat/schema-group` PR
+**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Design:** [`spec.md`](./spec.md), accepted in [`D-20261020-schema-group-design-accepted`](../../decisions/D-20261020-schema-group-design-accepted.md) · **Shipped:** 2026-10-20 in [#1186](https://github.com/ofri-peretz/burgee/pull/1186)
 
 ---
 

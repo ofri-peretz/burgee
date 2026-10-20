@@ -1,6 +1,6 @@
 # Design — `--schema` output validates against a published schema
 
-Intent: [`intent.md`](./intent.md). **Status:** shipped (approved 2026-09-23 under the owner's delegation, D-129; R3 rebuilt in the `feat/schema-group` PR).
+Intent: [`intent.md`](./intent.md). **Status:** shipped (approved 2026-09-23 under the owner's delegation, D-129; R3 rebuilt in [#1186](https://github.com/ofri-peretz/burgee/pull/1186)).
 
 ---
 

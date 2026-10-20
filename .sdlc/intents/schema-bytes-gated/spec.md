@@ -1,7 +1,7 @@
 # Design — the schema an agent reads first has a budget
 
 Intent: [`intent.md`](./intent.md). **Status:** shipped — accepted by the coordinator under the
-owner's delegation, [`D-20261020-schema-group-design-accepted`](../../decisions/D-20261020-schema-group-design-accepted.md), as re-grounded below, and built in the `feat/schema-group` PR.
+owner's delegation, [`D-20261020-schema-group-design-accepted`](../../decisions/D-20261020-schema-group-design-accepted.md), as re-grounded below, and built in [#1186](https://github.com/ofri-peretz/burgee/pull/1186).
 
 ---
 
@@ -59,7 +59,7 @@ Against `main` at `326907ec`:
 
 ## Build status
 
-Built in the `feat/schema-group` PR against `main` at `326907ec`. Each check was red on `main` first.
+Built in [#1186](https://github.com/ofri-peretz/burgee/pull/1186) against `main` at `326907ec`. Each check was red on `main` first.
 
 | R | Status | Where | Check |
 | :-- | :-- | :-- | :-- |

@@ -15,6 +15,6 @@ five observations sit outside it.
 
 No budget is chosen here. The measured value on 2026-10-12 is 4,752 B (`4c85515`).
 
-**Closed 2026-10-20 by the `feat/schema-group` PR** (intent `schema-bytes-gated`): burgee's `schema-bytes` record is
+**Closed 2026-10-20 by [#1186](https://github.com/ofri-peretz/burgee/pull/1186)** (intent `schema-bytes-gated`): burgee's `schema-bytes` record is
 gated at `SCHEMA_BYTES_BUDGET` = 4,650 B (the demo read 4,628 B on `326907ec`, rounded up to 50 B
 by D-20261012-schema-bytes-budget). Growing `--schema` past it fails the PR that grows it.
