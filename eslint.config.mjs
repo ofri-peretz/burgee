@@ -1000,8 +1000,9 @@ export default [
     // export is yoctocolors' `export * as default`, which is this module's own namespace, so the
     // file names itself once; the numbers are yoctocolors' SGR open and close codes, one style a
     // line, which its `test.js` asserts byte for byte (naming each would double the file the
-    // subpath-weight lock holds under yoctocolors' own bytes); and colour off is a fresh identity
-    // function per style, as yoctocolors' `format` returns one, so no two styles are `===`.
+    // subpath-weight lock holds under yoctocolors' own bytes). With colour off, each style gets
+    // its own identity function, as yoctocolors' formatter makes one per style, so no two
+    // styles are the same function.
     files: ["packages/roundel/src/yoctocolors.ts"],
     rules: {
       "import-next/no-self-import": "off",
