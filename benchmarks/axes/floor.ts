@@ -98,9 +98,15 @@ export function agentLintFailures(report: AgentLintReport): string[] {
 // the global `--no-color`, `--quiet`, `--timeout` and root help's completion, exit codes and
 // examples landed (#1002, #1006): 91, so losing even an info check (89.8%) fails, and so does
 // falling out of the top grade.
+// clispec raised 2026-10-12 (clispec-conformance R9, D-20261012-clispec-remainder-built) to 24 of
+// 24, the published reading once R1–R8 built the remainder D-151 had left argued with the checker:
+// at the maximum, losing any one point fails.
+// cli-agent-lint raised 2026-10-19 (agent-lint-conformance R9) to 100, the published CI reading:
+// the `floor-results` artifact of the first green N10 run on main after R8 (run 39228945490 at
+// `28843a5`, promoted as `results/external-floor/2026-10-19.json`), 100% (A), nothing failing.
 export const BURGEE_FLOOR = {
-  clispec: { min: 14, why: 'N10: a change that loses a point on clispec.dev’s published checklist regresses the floor against someone else’s bar' },
-  agentLint: { min: 91, why: 'N10: a change that loses a check on cli-agent-lint’s 34 regresses the floor against someone else’s bar' },
+  clispec: { min: 24, why: 'N10: a change that loses a point on clispec.dev’s published checklist regresses the floor against someone else’s bar' },
+  agentLint: { min: 100, why: 'N10: a change that loses a check on cli-agent-lint’s 34 regresses the floor against someone else’s bar' },
 } as const;
 
 export function clispecRecord(variant: string, report: ClispecScore, tool: Tool): BenchRecord {
@@ -147,6 +153,46 @@ export function agentLintRecord(variant: string, report: AgentLintReport, tool: 
 }
 
 /**
+ * cli-agent-lint checks burgee holds by name, beyond the score: a ratchet on the percentage lets
+ * one check be traded for another of the same weight, and these two each close a criterion.
+ *
+ *   - **SD-5**, skill / context files: `agent-skill` criterion 4, passed since root help names the
+ *     `AGENTS.md` beside the demo's bin (agent-skill R4).
+ *   - **FS-4**, env var auth support: `agent-lint-conformance` R8. A program with no credential
+ *     prints no auth row, and one that declares `auth` names its variable.
+ *
+ * A held check the report does not carry at all counts as failing: a renamed or dropped check
+ * under a bumped pin must be looked at, not read as a pass.
+ */
+export const BURGEE_HELD_CHECKS = ['SD-5', 'FS-4'] as const;
+
+/** Burgee's held checks that did not pass (or skip), each as `agentLintFailures` names it, or as not reported. */
+export function heldFailures(report: AgentLintReport): string[] {
+  return BURGEE_HELD_CHECKS.flatMap((id) => {
+    const check = report.checks.find((c) => c.id === id);
+    if (check === undefined) return [`${id} (not reported)`];
+    return check.status === 'pass' || check.status === 'skip' ? [] : agentLintFailures({ ...report, checks: [check] });
+  });
+}
+
+/** The held checks as a gated record of burgee's: how many failed, at most none. */
+export function heldChecksRecord(report: AgentLintReport, tool: Tool): BenchRecord {
+  const failed = heldFailures(report);
+  return {
+    axis: 'floor',
+    variant: 'burgee',
+    metric: 'cli-agent-lint-held-checks-failing',
+    unit: 'checks',
+    samples: 1,
+    median: failed.length,
+    p95: failed.length,
+    gate: { max: 0, why: 'agent-skill C4 and agent-lint-conformance R8: SD-5 and FS-4 are held by name, so no other check can be traded for either' },
+    note: `cli-agent-lint ${tool.version}: ${BURGEE_HELD_CHECKS.join(' and ')}, held by name`,
+    detail: { tool: `cli-agent-lint ${tool.version}`, held: BURGEE_HELD_CHECKS.join(', '), failed: failed.join('; ') },
+  };
+}
+
+/**
  * An executable the tools can be pointed at. Both take a path and `exec` it, and a built
  * `dist/bin.js` is neither executable nor guaranteed to find this Node — so a two-line shim,
  * named like the demo's own `bin`, that runs it with the Node running the suite.
@@ -182,9 +228,11 @@ export function measure(variant: Variant, dir: string): BenchRecord[] {
   const target = shim(dir, variant);
   const clispec = toolById('clispec');
   const agentLint = toolById('cli-agent-lint');
+  const lint = parseAgentLint(runTool(agentLint, ['--output', 'json', '--no-color', 'check', target]));
   return [
     clispecRecord(variant.id, parseClispec(runTool(clispec, ['--output', 'json', 'score', target])), clispec),
-    agentLintRecord(variant.id, parseAgentLint(runTool(agentLint, ['--output', 'json', '--no-color', 'check', target])), agentLint),
+    agentLintRecord(variant.id, lint, agentLint),
+    ...(variant.id === 'burgee' ? [heldChecksRecord(lint, agentLint)] : []),
   ];
 }
 

@@ -20,14 +20,20 @@ Deterministic for a given node and width; a snapshot suite pins it. With `color`
 off — the default — a theme changes nothing; with it on, only ANSI is added.
 
 ```ts
-function renderHelp(manifest: Manifest, node: CommandNode, opts?: HelpOptions): string;
+function renderHelp(manifest: Manifest, node: CommandNode, opts?: HelpOptions & {
+    format?: 'text';
+}): string;
+
+function renderHelp(manifest: Manifest, node: CommandNode, opts: HelpOptions & {
+    format: 'markdown';
+}): Promise<string>;
 ```
 
 | Parameter | Type |
 | :-- | :-- |
 | `manifest` | `Manifest` |
 | `node` | `CommandNode` |
-| `opts` (optional) | `HelpOptions` |
+| `opts` (optional) | `HelpOptions & { format?: 'text'; }` |
 
 **Returns** `string`
 
@@ -63,6 +69,18 @@ interface HelpOptions {
         term: string;
         text: string;
     }[];
+    /**
+     * The run's language (`localised-human-surfaces` R1): every heading, row text and the root's
+     * line for agents are passed through it once laid out in English (the node's own description
+     * arrives already in the run's language, R5). The engine hands in a pack's translator; absent,
+     * it is the identity, and help is byte-for-byte what it was.
+     */
+    say?: (english: string) => string;
+    /**
+     * Words the engine adds to the root's line for agents: `AGENTS.md`, when one sits beside the
+     * binary (agent-skill R4). Passed in like `commands`, so this renderer looks for no file.
+     */
+    forAgents?: string;
 }
 ```
 
@@ -73,10 +91,6 @@ interface HelpOptions {
 Per-token styling for help (R7). A user who has `roundel` passes its tokens; a user
 who does not gets the defaults. Help reads `heading`, `command`, `flag` and `value`;
 the others are accepted so one theme object serves the whole output stack.
-
-What the theme does not touch: the command name after `Usage:` and every `$ example`
-line are rendered plain, whatever the theme says. Styling wraps a finished cell, so a
-name is measured and padded plain and never coloured in the manifest (yargs #1699).
 
 ```ts
 type HelpTheme = Partial<Record<HelpToken, (s: string) => string>>;

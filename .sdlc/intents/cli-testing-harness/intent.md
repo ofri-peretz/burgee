@@ -4,12 +4,65 @@
 > requirement T1. First in the order of work because every other requirement is
 > verified through it.
 
-**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz · **Corrected from
-`shipped` 2026-09-09** — two of four criteria met, one superseded, one unbuilt; see [Verified against `main`](#verified-against-main--2026-09-09)
+**Status:** shipped · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-19 by
+`docs/restate-superseded-intents`, verified on a branch from `main` at `51fec1ba` — S1–S4 each held by the check named in § Restated 2026-10-18; the last one, S1's ANSI half, by `examples/conformance/src/harness.test.ts` › "writes no ANSI escape when no stream is a terminal — help, output, a failure and a usage error"
+
+**Corrected from `shipped` 2026-09-09** — two of four criteria met, one superseded, one unbuilt; see [Verified against `main`](#verified-against-main--2026-09-09)
+
+**Restated:** 2026-10-18 — see § Restated 2026-10-18
 
 > Approved 2026-09-06 by @ofri-peretz in session ("Approve. lets move forward.").
 
 ---
+
+## Restated 2026-10-18
+
+**Criteria restated to the shipped `burgee/testing` harness and the compat-oracle drivers; S2 and S4 restated and held, S3 held, the ANSI half of S1 has no check on main — REMAINING: S1 ANSI-in-non-TTY conformance case.** *Closed 2026-10-19 by a conformance case on all five hosts; all four criteria held.*
+
+What shipped differs from the 2026-09-06 design in vocabulary, not in behaviour.
+`@interlace/cli-core` became the `burgee` package: `Runtime` and `processRuntime` live in
+`packages/burgee/src/runtime.ts` (with a `clock` member added for cli-output-stack R14), and
+the harness is the `burgee/testing` entry (`runBurgee`, `fakeRuntime`, `swapEnv`, `stripAnsi`,
+in `packages/burgee/src/testing-helpers.ts`). `commander-harness` and `yargs-harness` were never
+published as packages: `runCommander` and `runYargs` are
+`packages/compat-oracle/src/drivers/{commander,yargs}.ts`, private tooling. The conformance
+suite runs over **five** hosts (`commander`, `burgee-commander`, `yargs`, `burgee-yargs`,
+`burgee`; `examples/conformance/src/hosts.ts`), not two. The success-criteria bullets are
+numbered S1–S4 here in their order; the text of each is kept below with an annotation.
+
+| ID | promised | on main | check | disposition |
+| :-- | :-- | :-- | :-- | :-- |
+| S1a | the conformance suite passes on both demos; a wrong exit code turns it red | yes, on five hosts | `examples/conformance/src/harness.test.ts` › "an unknown command is USAGE", › "a runtime failure is RUNTIME with the message on stderr and no help text", › "runtime.exit unwinds with its E1 code" | held |
+| S1b | a deliberate ANSI-in-non-TTY regression in a demo turns the suite red | yes since 2026-10-19, on five hosts: `--help`, a command's output, a runtime failure and a usage error, with no stream a TTY (the harness default) | `examples/conformance/src/harness.test.ts` › "writes no ANSI escape when no stream is a terminal — help, output, a failure and a usage error" | held (2026-10-19) |
+| S2 | `runCommander` under 20 ms warm, pinned with a generous ceiling | yes, as a relative bound | `examples/conformance/src/harness.test.ts` › "is fast: a warm in-process run beats half a spawned run of the same CLI, measured in the same run" | restated |
+| S3 | `process.env` byte-identical after an injected-env run | yes, on five hosts, after a failing run | `examples/conformance/src/harness.test.ts` › "leaves process.env byte-identical after a run that injected env and failed"; `packages/burgee/src/testing-helpers.test.ts` › "leaves process.env byte-identical after a run, even one that throws" | held |
+| S4 | no `process.` in `packages/*/src/**` outside `processRuntime`, grep lock | yes, one seam per package | `packages/burgee/src/process-reference-lock.test.ts` › "no layer source reads process.* outside the three files that own it" | restated |
+
+- **S1b (held, 2026-10-19).** The case runs `--help`, `greet ada`, `fail` and `confg` on every
+  host and fails on any `\u001b` in stdout or stderr. Proven red against a deliberately coloured
+  demo: wrapping the greeting in `examples/demo-cli-burgee/dist/index.js` with `\u001b[1m` …
+  `\u001b[22m` reads `burgee greet ada: expected '\u001b[1mHello\u001b[22m, ada!\n' not to
+  contain '\u001b'`, and the case is green again once the file is restored. What follows is the
+  2026-10-18 reading that found the gap. Plain text off a terminal is held for burgee's own help by
+  `packages/burgee/src/color.test.ts` › "is styled on a terminal, and only there". That is the
+  engine's O2 check, called through `execute` directly; it is not a conformance case, does not
+  run on the commander or yargs hosts, and would not see colour emitted by a demo handler. The
+  promise here — a demo that regresses to ANSI under a pipe turns the shared suite red — needs a
+  conformance case plus a demo output that can carry colour, proven red on a deliberately
+  coloured demo (rule 4). No other intent covers it, so it stays here.
+- **S2 (restated).** The absolute 20 ms (and 40 ms yargs) ceiling was removed after it failed two
+  PRs that touched no relevant code (#27). The shipped bound is relative and contention-proof:
+  the harness p95 over warm in-process runs must be under half the median of spawned runs of the
+  same demo CLI, sampled in the same test. That is the claim T1 actually makes (in-process is
+  cheaper than spawning), so the criterion now says that.
+- **S4 (restated).** The lock is real, unit-tests its own regexes (`PROCESS_READ`,
+  `PROCESS_BIND`, four `it.each` tables in the same file), and also catches a `node:process`
+  import or a `globalThis.process` binding. Its shape is "one `runtime.ts` seam per package,
+  plus the `bin` a package declares (derived from its `package.json`, not listed), plus three
+  compat-oracle files that own a process by job" — ten listed paths on FETCH_HEAD, down from the
+  18 counted on 2026-09-09. The 2026-09-09 paragraph below is kept as the record of that count.
+- **The spec's R1–R7** are restated in [`spec.md`](./spec.md) § Restated 2026-10-18; all seven
+  are held.
 
 ## What is wanted
 
@@ -68,12 +121,25 @@ Concretely:
 
 - The same conformance suite passes against both demo CLIs, and a deliberate
   regression in either demo (wrong exit code, ANSI in non-TTY) turns it red.
-- `runCommander` resolves in under 20 ms for the demo CLI on a warm process, measured
-  in the suite and pinned as a lock with a generous ceiling.
+  **Restated 2026-10-18 (S1):** the suite runs on five hosts and the exit-code half is
+  held by `examples/conformance/src/harness.test.ts` › "an unknown command is USAGE";
+  the ANSI-in-non-TTY half has no check on main and is **remaining**.
+- ~~`runCommander` resolves in under 20 ms for the demo CLI on a warm process, measured
+  in the suite and pinned as a lock with a generous ceiling.~~
+  **Restated 2026-10-18 (S2):** a warm in-process run's p95 is under half the median of
+  spawned runs of the same demo CLI, measured in the same test — held by
+  `examples/conformance/src/harness.test.ts` › "is fast: a warm in-process run beats half
+  a spawned run of the same CLI, measured in the same run".
 - `process.env` is byte-identical before and after a run that injected `env`, pinned by
-  a lock test.
-- No `process.` reference in `packages/*/src/**` outside `processRuntime`, pinned by a
-  grep lock (and later by `eslint-plugin-cli-floor`).
+  a lock test. **Held (S3)** by `examples/conformance/src/harness.test.ts` › "leaves
+  process.env byte-identical after a run that injected env and failed".
+- ~~No `process.` reference in `packages/*/src/**` outside `processRuntime`, pinned by a
+  grep lock (and later by `eslint-plugin-cli-floor`).~~
+  **Restated 2026-10-18 (S4):** no `process` read or binding in `packages/*/src/**`
+  outside each package's `runtime.ts` seam, its declared `bin`, and three compat-oracle
+  files — held by `packages/burgee/src/process-reference-lock.test.ts` › "no layer source
+  reads process.* outside the three files that own it". (`eslint-plugin-cli-floor` moved
+  to the eslint repo as eslint#1137 and is not a check here.)
 
 ## Verified against `main` — 2026-09-09
 

@@ -25,10 +25,6 @@ function kinds(): string[];
 
 The static projection for *any* kind — the one surface a caller needs.
 
-The six are still drawn by caique; anything else is a registered widget's `static`. A
-kind that is neither is a refusal naming what *is* registered, so the reader can see the
-typo rather than a text prompt where their rating widget should have been.
-
 ```ts
 function projectionOf(spec: PromptSpec): string;
 ```
@@ -77,9 +73,6 @@ function reset(): void;
 ### validate
 
 Refuse a plugin that cannot contribute a widget, at the door.
-
-Every refusal here is about the `widgets` key or the plugin's own identity. A key another
-layer owns is not inspected and not rejected (R1) — caique has no opinion about a spinner.
 
 ```ts
 function validate(plugin: unknown): asserts plugin is Plugin;
@@ -165,16 +158,20 @@ interface Plugin {
     name: string;
     contract?: number;
     widgets?: Record<string, Widget>;
+    /**
+     * A locale pack (`localised-human-surfaces` R6): language tag → message id → translation. caique
+     * reads the ids that begin `caique.` and leaves the rest to the package that owns them, so the
+     * one object burgee registers for its own messages carries these too. Checked where it is
+     * first used — the run whose locale it speaks — and by `caique check`, not here: this door is
+     * on every entry's startup path, and the check is the catalog's weight.
+     */
+    locales?: Locales;
 }
 ```
 
 ### Widget
 
 How a plugin draws one kind of prompt.
-
-`static(spec)` is what a pipe, an agent and a screen reader get; it is what `projection()`
-already returns for the six built-ins, so a plugin widget slots into the same surface
-rather than beside it. `frame` is optional and drives `caique/raw`.
 
 ```ts
 interface Widget {
@@ -187,9 +184,6 @@ interface Widget {
 ### WidgetSample
 
 Two named states of plain data, which a grader renders a widget with (R7).
-
-It carries no behaviour, so reading it does not mean running the author's code — that is
-why an optional `sample` does not turn a plugin into a program.
 
 ```ts
 interface WidgetSample {

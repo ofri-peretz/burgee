@@ -12,6 +12,7 @@ import { Command } from './commander.js';
 import { renderCompletion, renderFigSpec } from './completions.js';
 import { defineCommand, defineProgram, execute, run } from './index.js';
 import { annotationsOf, MCP_PROTOCOL_VERSION, serveMcp, toolsOf } from './mcp-entry.js';
+import { SUPPORTED_REVISIONS } from './mcp.js';
 import { inputSchemaOf, Manifest, schemaOf } from './schema-entry.js';
 import { runBurgee } from './testing.js';
 
@@ -67,12 +68,53 @@ async function session(requests: object[]): Promise<Map<number | string | null, 
 
 const init = { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: MCP_PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: 'test', version: '0' } } };
 
+/** One `tools/call` after the handshake, and its result. */
+const structured = async (name: string, args: object): Promise<Record<string, unknown>> => {
+  const replies = await session([init, { jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name, arguments: args } }]);
+  return replies.get(9)?.['result'] as Record<string, unknown>;
+};
+
+/** The revision `initialize` answers when the client asks for `protocolVersion` (R3). */
+const negotiated = async (protocolVersion: unknown): Promise<unknown> => {
+  const replies = await session([{ ...init, params: { ...init.params, protocolVersion } }]);
+  return (replies.get(1)?.['result'] as { protocolVersion?: unknown } | undefined)?.protocolVersion;
+};
+
 describe('--mcp', () => {
   it('completes the handshake and names the program (N1)', async () => {
     const replies = await session([init, { jsonrpc: '2.0', method: 'notifications/initialized' }, { jsonrpc: '2.0', id: 2, method: 'ping' }]);
     expect(replies.get(1)?.['result']).toMatchObject({ protocolVersion: MCP_PROTOCOL_VERSION, capabilities: { tools: {} }, serverInfo: { name: 'app', version: '0.3.0' } });
     expect(replies.get(2)?.['result']).toEqual({});
     expect(replies.size).toBe(2); // the notification got no reply
+  });
+
+  /**
+   * mcp-current R3 — the specification's own rule: a revision the server supports is answered
+   * with itself, anything else with the latest the server supports. 2026-07-28 has no
+   * `initialize`, so a client that sends one for it is answered with the latest handshake
+   * revision. Each answer's messages validate against that revision's schema in
+   * `scripts/mcp-messages.test.ts`.
+   */
+  describe('negotiates the protocol revision (R3)', () => {
+    it('answers 2025-06-18 with 2025-06-18', async () => {
+      expect(await negotiated('2025-06-18')).toBe('2025-06-18');
+    });
+
+    it('answers 2025-11-25 with 2025-11-25', async () => {
+      expect(await negotiated('2025-11-25')).toBe('2025-11-25');
+    });
+
+    it('answers 2026-07-28, an unknown string, a non-string and no version at all with 2025-11-25', async () => {
+      expect(await negotiated('2026-07-28')).toBe('2025-11-25');
+      expect(await negotiated('1999-01-01')).toBe('2025-11-25');
+      expect(await negotiated(20_250_618)).toBe('2025-11-25');
+      expect(await negotiated(undefined)).toBe('2025-11-25');
+    });
+
+    it('lists exactly the two handshake revisions, latest last, and exports the latest', () => {
+      expect(SUPPORTED_REVISIONS).toEqual(['2025-06-18', '2025-11-25']);
+      expect(MCP_PROTOCOL_VERSION).toBe('2025-11-25');
+    });
   });
 
   /**
@@ -92,6 +134,52 @@ describe('--mcp', () => {
     // proven red: an implementation that exposes everything lists the withheld command
     expect(tools.some((t) => t.name === 'wipe')).toBe(false);
     expect(toolsOf(program).find((t) => t.name === 'greet')?.description).toBe('Greet someone\nExample: app greet ada --shout — loudly');
+  });
+
+  /**
+   * mcp-current R2 — `outputSchema` from the command's own `output.schema`, never invented.
+   * Red before it was built: no tool carried an `outputSchema` key at all.
+   */
+  describe('lists outputSchema for a command that declares one (R2)', () => {
+    const declared = defineProgram({
+      name: 'typed',
+      commands: [
+        defineCommand({ name: 'user', effects: 'read_only', output: { cardinality: 'single', schema: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] } }, run: () => ({ name: 'ada' }) }),
+        defineCommand({ name: 'count', effects: 'read_only', output: { cardinality: 'single', schema: { type: 'integer' } }, run: () => 3 }),
+        // An object, under a schema that is not `type: 'object'`: wrapped by the schema, not the value.
+        defineCommand({ name: 'either', effects: 'read_only', output: { cardinality: 'single', schema: { anyOf: [{ type: 'object' }, { type: 'string' }] } }, run: () => ({ name: 'ada' }) }),
+        defineCommand({ name: 'plain', effects: 'read_only', output: { cardinality: 'single' }, run: () => 'words' }),
+      ],
+    });
+    const byName = new Map(toolsOf(declared).map((t) => [t.name, t]));
+
+    it('as declared, when the schema is an object type', () => {
+      expect(byName.get('user')?.outputSchema).toEqual({ type: 'object', properties: { name: { type: 'string' } }, required: ['name'] });
+    });
+
+    it('wrapped as { result } otherwise, the same way the result is', () => {
+      expect(byName.get('count')?.outputSchema).toEqual({ type: 'object', properties: { result: { type: 'integer' } }, required: ['result'] });
+    });
+
+    it('and the result has the shape the schema advertised, whatever the value is', async () => {
+      const input = new PassThrough();
+      const written: string[] = [];
+      const run = async (argv: string[]): Promise<{ stdout: string; stderr: string; code: number }> => {
+        const out: string[] = [];
+        await execute(declared, { argv, env: {}, stdout: { write: (s: string) => out.push(s) }, stderr: { write: () => true }, exit: () => undefined });
+        return { stdout: out.join(''), stderr: '', code: 0 };
+      };
+      const done = serveMcp(declared, { input, output: { write: (s: string) => written.push(s) }, invoke: run });
+      input.end(['user', 'count', 'either'].map((name, at) => JSON.stringify({ jsonrpc: '2.0', id: at, method: 'tools/call', params: { name, arguments: {} } })).join('\n'));
+      await done;
+      const results = written.join('').trim().split('\n').map((l) => (JSON.parse(l) as { result: { structuredContent: unknown } }).result.structuredContent);
+      expect(results).toEqual([{ name: 'ada' }, { result: 3 }, { result: { name: 'ada' } }]);
+    });
+
+    it('not at all for a command that declares none: an absent schema is honest, an invented one is not', () => {
+      expect(byName.get('plain')).not.toHaveProperty('outputSchema');
+      expect(toolsOf(program).some((t) => 'outputSchema' in t)).toBe(false);
+    });
   });
 
   it('maps effects to the hints an agent reads, never defaulting destructive to silence (N6)', () => {
@@ -114,6 +202,48 @@ describe('--mcp', () => {
     const result = replies.get(4)?.['result'] as { content: { text: string }[]; isError: boolean };
     expect(result.isError).toBe(true);
     expect(JSON.parse(result.content[0]?.text ?? '')).toMatchObject({ ok: false, error: { code: 1, message: 'boom' } });
+  });
+
+  /**
+   * mcp-current R1 — the result as data. Red before it was built: the result carried
+   * `content` and `isError` and nothing else, so a client that wanted the data parsed the text.
+   */
+  describe('carries structuredContent beside the text (R1)', () => {
+    it('deep-equals the envelope’s data when the data is an object, with the text first and unchanged', async () => {
+      const result = await structured('config_get', { key: 'user' });
+      const [text] = result['content'] as { text: string }[];
+      expect(result['structuredContent']).toEqual((JSON.parse(text?.text ?? '') as { data: unknown }).data);
+      expect(result['structuredContent']).toEqual({ key: 'user', value: 'ada' });
+      expect(result['isError']).toBe(false);
+    });
+
+    it('wraps a result that is not an object as { result }, because the protocol requires an object', async () => {
+      expect((await structured('greet', { name: 'ada' }))['structuredContent']).toEqual({ result: 'Hello, ada!' });
+    });
+
+    it('carries the envelope’s error object on a failure, with isError', async () => {
+      const result = await structured('fail', {});
+      expect(result['isError']).toBe(true);
+      expect(result['structuredContent']).toMatchObject({ code: 1, message: 'boom' });
+    });
+
+    it('carries none for JSON that is not an envelope, an error key without ok included', async () => {
+      const input = new PassThrough();
+      const written: string[] = [];
+      const done = serveMcp(program, { input, output: { write: (s: string) => written.push(s) }, invoke: async () => ({ stdout: '{"error":{"code":1}}\n', stderr: '', code: 1 }) });
+      input.end(`${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'greet', arguments: { name: 'ada' } } })}\n`);
+      await done;
+      expect((JSON.parse(written.join('')) as { result: unknown }).result).not.toHaveProperty('structuredContent');
+    });
+
+    it('carries none when stdout is not an envelope, and leaves the text as it was', async () => {
+      const input = new PassThrough();
+      const written: string[] = [];
+      const done = serveMcp(program, { input, output: { write: (s: string) => written.push(s) }, invoke: async () => ({ stdout: 'just words\n', stderr: '', code: 0 }) });
+      input.end(`${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'greet', arguments: { name: 'ada' } } })}\n`);
+      await done;
+      expect((JSON.parse(written.join('')) as { result: unknown }).result).toEqual({ content: [{ type: 'text', text: 'just words' }], isError: false });
+    });
   });
 
   it('refuses an unknown or undeclared tool and an unknown method with JSON-RPC errors', async () => {
@@ -398,9 +528,9 @@ describe('a tool call that prints', () => {
   });
 
   /**
-   * The transport answers one request at a time — `serve` awaits each before it reads the
-   * next line — so two calls cannot overlap. Pipelined anyway, with the first one printing
-   * only after it has yielded: each result carries its own output and nothing of the other's.
+   * Two calls in flight at once, since the transport stopped awaiting each before reading the
+   * next line (mcp-current R4), with the first one printing only after the second has run: each
+   * result carries its own output and nothing of the other's.
    */
   it('keeps two pipelined calls from reading each other’s output', async () => {
     const program = new Command('two');
@@ -445,6 +575,25 @@ describe('a tool call that prints', () => {
     expect(stream.map((l) => (JSON.parse(l) as { id: number }).id)).toEqual([1, 2]);
     expect(errs.join('')).toContain('late');
     expect(process.stdout.write).toBe(originalOut);
+  });
+
+  it('hands a console.log made after its call settled to the console the server found, not to the call', async () => {
+    const seen: unknown[] = [];
+    const original = console.log;
+    console.log = (...args: unknown[]): void => void seen.push(args[0]);
+    const input = new PassThrough();
+    const written: string[] = [];
+    try {
+      const done = serveMcp(program, { input, output: { write: (s: string) => written.push(s) }, invoke: async () => (setTimeout(() => console.log('after'), 5), { stdout: '{"ok":true}', stderr: '', code: 0 }) });
+      input.write(`${JSON.stringify(callOf(1, 'greet'))}\n`);
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      input.end();
+      await done;
+    } finally {
+      console.log = original;
+    }
+    expect(seen).toEqual(['after']);
+    expect(written.join('')).not.toContain('after');
   });
 
   describe('puts stdout and the console back after the call', () => {

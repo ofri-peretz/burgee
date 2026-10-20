@@ -31,7 +31,8 @@ const program = defineProgram({
       effects: 'read_only',
       run: ({ stdin }) => ({ stdin: stdin !== undefined }),
     }),
-    defineCommand({ name: 'echo', arguments: [{ name: 'word' }], effects: 'read_only', run: ({ positionals, stdin }) => ({ word: positionals[0], stdin: stdin !== undefined }) }),
+    defineCommand({ name: 'echo', arguments: [{ name: 'from', type: 'file' }, { name: 'word' }], effects: 'read_only', run: ({ positionals, stdin }) => ({ word: positionals[1], stdin: stdin !== undefined }) }),
+    defineCommand({ name: 'pass', arguments: [{ name: 'from', type: 'file' }], allowExcess: true, effects: 'read_only', run: ({ positionals, stdin }) => ({ positionals, stdin: stdin !== undefined }) }),
   ],
 });
 
@@ -60,8 +61,13 @@ describe('`-` on a file argument means stdin (S4)', () => {
     expect(r.stderr).toContain('standard input can be read once');
   });
 
+  it('leaves `-` alone past the declared arguments, where a command takes the excess (parse-refusals R2)', async () => {
+    const r = await runCommand(program, ['pass', 'a.txt', '-', '--json'], { stdin: Readable.from(['x']) });
+    expect(data(r.stdout)).toEqual({ positionals: ['a.txt', '-'], stdin: false });
+  });
+
   it('leaves `-` alone on an argument that is not a file', async () => {
-    const r = await runCommand(program, ['echo', '-', '--json'], { stdin: Readable.from(['x']) });
+    const r = await runCommand(program, ['echo', 'a.txt', '-', '--json'], { stdin: Readable.from(['x']) });
     expect(data(r.stdout)).toEqual({ word: '-', stdin: false });
   });
 });

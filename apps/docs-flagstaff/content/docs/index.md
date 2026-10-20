@@ -140,6 +140,11 @@ import { table, tableComponent } from 'flagstaff/table';
 That table is the package's argument in one place. A bar of `█` in a log file tells an agent
 nothing and tells a screen reader less; the count and the percentage tell both.
 
+Inside a burgee `--mcp` tool call that asked for progress, `flagstaff/progress` goes one step
+further and draws nothing: it sends its count to the client as `notifications/progress`, with
+the static line as the message. That bridge lives on the subpath only; `progress` from the root
+`flagstaff` entry always draws.
+
 `box` and `table` are also plain string functions, because most callers want the string:
 
 ```js
@@ -149,6 +154,17 @@ table([['ora', '99'], ['log-update', '99']], { head: ['host', 'tests'] });
 
 No layout engine, and there will not be one: these measure with `width()`, wrap with
 `wrap()`, and join strings.
+
+A table column can be bounded. `columns` is positional, like `align`: `max` caps a column
+whatever its content, and `min` keeps it open while another column can give way. Both count
+the content's display width, not the padding. When the mins add up past `width`, the mins win
+and the table is wider than asked. A cell wider than its column wraps; `overflow: 'truncate'`
+cuts it to one row ending in `…` instead, by display width, with a link kept around what is
+left. The static projection has no columns to cap, so it prints every cell whole.
+
+```js
+table(rows, { head: ['id', 'status'], columns: [{ max: 12, overflow: 'truncate' }, { min: 10 }] });
+```
 
 ### A log tail and a tab bar
 
@@ -522,10 +538,10 @@ keeps both true.
 | Package | What it is | Migrates from |
 | :-- | :-- | :-- |
 | [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander, yargs and meow |
-| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk |
+| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk, picocolors and supports-color |
 | **flagstaff** (this package) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
 | [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | @inquirer/core |
-| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi and slice-ansi |
+| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line |
 | [paratext](https://paratext.interlace.tools/docs) | Hyperlinks, images, title, clipboard and notifications | ansi-escapes, terminal-link and term-img |
 | [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, lilconfig, dotenv and rc |
 | [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook, restore-cursor, cli-cursor and onetime |

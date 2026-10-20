@@ -1,0 +1,116 @@
+# Quint models — every `.qnt` beside a spec.md is checked against its `safety` invariant by
+# random simulation (20k traces × 30 steps). A model is the spec's state machine stated so a
+# checker can walk the interleavings a hand-written matrix cannot enumerate.
+#
+# Convention: a model declares `val safety` (the conjunction of its guarantees). A model
+# without one fails here, so a model cannot land unchecked. See .sdlc/JEV-AND-QUINT.md.
+#
+# Ceiling: simulation, not proof. `quint verify` (Apalache, exhaustive to a bound) needs a JDK
+# and minutes; add it here when a model's bug would cost more than that.
+name: Models · Quint
+
+on:
+  push:
+    branches: [main]
+    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/migrate.ts', 'packages/burgee/src/migrate-majors.ts', '.github/workflows/release.yml', '.github/workflows/changesets-pr.yml', 'scripts/release-window.mts', 'packages/caique/src/clack-core.ts', '.github/workflows/models.yml']
+  pull_request:
+    branches: [main]
+    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/migrate.ts', 'packages/burgee/src/migrate-majors.ts', '.github/workflows/release.yml', '.github/workflows/changesets-pr.yml', 'scripts/release-window.mts', 'packages/caique/src/clack-core.ts', '.github/workflows/models.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: models-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  QUINT: npx -y @informalsystems/quint@0.33.0
+
+jobs:
+  simulate:
+    name: every model holds its safety invariant
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      # quint fetches its Rust evaluator from GitHub's API unauthenticated, and has no token
+      # option, so a busy runner IP hits the anonymous rate limit and the gate fails with no
+      # model checked (#1097, 2026-10-13). The evaluator is fixed by the pinned quint version.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.quint
+          key: quint-${{ runner.os }}-${{ env.QUINT }}
+      - name: safety holds
+        run: |
+          set -euo pipefail
+          mapfile -t models < <(git ls-files '*.qnt')
+          [ "${#models[@]}" -gt 0 ] || { echo "no .qnt files tracked"; exit 1; }
+          for m in "${models[@]}"; do
+            echo "::group::$m"
+            $QUINT typecheck "$m"
+            $QUINT run "$m" --invariant=safety --max-steps=30 --max-samples=20000
+            echo "::endgroup::"
+          done
+      # The release window's rejected designs, pinned as counterexamples (release-cadence
+      # spec.md): holding the whole Version PR delays a fix; reading npm alone lets a second
+      # minor through while the first publishes. And a witness that the shipped design ships a
+      # feature at all, so `safety` is not holding vacuously. Each must stay violated.
+      - name: release window — the rejected designs still fail, and the shipped one ships
+        run: |
+          for inv in unsplitHolds npmOnlyHolds shippedNeverReleasesAFeature; do
+            if $QUINT run .sdlc/intents/release-cadence/release-window.qnt --invariant="$inv" --max-steps=30 --max-samples=20000 >/dev/null; then
+              echo "::error::release-window.qnt: $inv now holds — the model no longer distinguishes the shipped design from the one it rejects"
+              exit 1
+            fi
+          done
+      # migrate's gate writes in some run, so `safety` is not holding because nothing writes.
+      - name: migrate preflight — some run still writes
+        run: |
+          if $QUINT run .sdlc/intents/migrate-preflight/preflight.qnt --invariant=writesHappen --max-steps=30 --max-samples=20000 >/dev/null; then
+            echo "::error::preflight.qnt: writesHappen now holds — no run writes, so safety holds vacuously"
+            exit 1
+          fi
+      # migrate's computed specifiers (migrate-dynamic-specifiers spec.md): each rejected design
+      # still fails `safety`, and some run still moves a file whose computed specifier passed.
+      - name: migrate dynamic specifiers — the rejected designs still fail, and literals still move
+        run: |
+          m=.sdlc/intents/migrate-dynamic-specifiers/dynamic.qnt
+          for s in stepNoGuard stepWide stepImportsOnly stepEager; do
+            if $QUINT run "$m" --step="$s" --invariant=safety --max-steps=30 --max-samples=20000 >/dev/null; then
+              echo "::error::dynamic.qnt: safety holds under $s — the model no longer distinguishes the shipped design from the one it rejects"
+              exit 1
+            fi
+          done
+          if $QUINT run "$m" --invariant=passedNeverMoves --max-steps=30 --max-samples=20000 >/dev/null; then
+            echo "::error::dynamic.qnt: passedNeverMoves now holds — no run moves a file with a passed computed specifier, so safety holds vacuously"
+            exit 1
+          fi
+      # migrate's older-majors gate (migrate-older-majors spec.md): each rejected design still
+      # fails `safety`, and some run still prints a move, so `safety` is not holding because none is.
+      - name: migrate older majors — the rejected designs still fail, and some run still moves
+        run: |
+          m=.sdlc/intents/migrate-older-majors/majors.qnt
+          for s in stepUnchecked stepOffByOne stepLatest stepEager stepNoDeep; do
+            if $QUINT run "$m" --step="$s" --invariant=safety --max-steps=30 --max-samples=20000 >/dev/null; then
+              echo "::error::majors.qnt: safety holds under $s — the model no longer distinguishes the shipped design from the one it rejects"
+              exit 1
+            fi
+          done
+          if $QUINT run "$m" --invariant=neverMoves --max-steps=30 --max-samples=20000 >/dev/null; then
+            echo "::error::majors.qnt: neverMoves now holds — no run prints a move, so safety holds vacuously"
+            exit 1
+          fi
+      # An open question, pinned: closeout's late add() is silently dropped today. When the
+      # code changes and this starts holding, the step fails and the question gets answered.
+      - name: closeout late add() is still dropped (open question, see spec.md)
+        run: |
+          if $QUINT run .sdlc/intents/closeout/registry.qnt --invariant=lateAddRuns --max-steps=30 --max-samples=20000; then
+            echo "lateAddRuns now holds — answer the open question in .sdlc/intents/closeout/spec.md and drop this step"
+            exit 1
+          fi

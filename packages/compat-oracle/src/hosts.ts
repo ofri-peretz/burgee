@@ -47,6 +47,28 @@ export interface HostImport {
    * a program migrates: the same named import, from one module or the other.
    */
   defaultExport?: string;
+  /**
+   * What a **target** run re-exports for this import, when it is not `<target><subpath>`.
+   *
+   * A previous major's row grades the major's own entry — `burgee/yargs/v17` — and that entry
+   * has no `/parser` beside it: a program on yargs 17 that imports `yargs-parser` is migrated to
+   * `burgee/yargs/parser`, the same module a program on 18 gets, so that is what is graded.
+   */
+  target?: string;
+  /**
+   * The named exports, for a suite that **re-imports** the module with a query string to
+   * evaluate it again, on both runs.
+   *
+   * supports-color 11's `test.js` sets `process.env`, `process.argv` and `process.platform`,
+   * then `import(\`./index.js?${randomInt(…)}\`)`, because the module decides its answer at
+   * import. Rewritten, that busts the *shim*, and a shim of `export * from 'supports-color'`
+   * hands back the incumbent it already evaluated: the control would grade the first case's
+   * environment fifty-five times. With this set the shim imports the module by URL with its
+   * own query appended, so each fresh shim is a fresh module beneath it, as the suite meant.
+   * A dynamic import cannot be `export *`'d, so the names are written out; `default` is the
+   * `reexportDefault` flag's, as everywhere else.
+   */
+  fresh?: string[];
 }
 
 /** One file a suite reaches by path; see {@link Host.entries}. */
@@ -612,6 +634,9 @@ export interface Host {
    * the target's own module of the same job, by absolute path (an exports map blocks a deep
    * import by name): the drop-in's write protocol and key decoder, graded by the same cases
    * that grade ink's. `file` is relative to the target package's root.
+   *
+   * At a `.cjs` path the shim is CommonJS, as the path is parsed: it `require()`s the file and
+   * hands over an object of the names. yargs 17's suite requires `../build/index.cjs`.
    */
   targetInternals?: Record<string, { file: string; names: Record<string, string> }>;
   /** Our entry point graded against it. */
@@ -666,6 +691,27 @@ export const HOSTS: Host[] = [
     status: 'active',
   },
   {
+    // commander's typed variant (`extra-typings-drop-in` R2). Its JavaScript is
+    // `export * from 'commander'`, graded by the row above; what this suite grades is the
+    // declarations, one case per tsd assertion. Upstream's `tsconfig.json` is vendored at the
+    // root because tsd refuses to guess one, and `types: ["node"]` in it is why `@types/node`
+    // is pinned beside tsd at the version upstream's lockfile resolves.
+    name: 'extra-typings',
+    npmName: '@commander-js/extra-typings',
+    repo: 'https://github.com/commander-js/extra-typings',
+    testDir: 'tests',
+    testGlob: '*.test-d.ts',
+    imports: [{ upstream: '../index.js', subpath: '', reexportDefault: false }],
+    extraDirs: ['tsconfig.json'],
+    suiteDeps: ['tsd@0.33.0', '@tsd/typescript@5.9.3', '@types/node@22.19.19', 'commander@15.0.0', '@commander-js/extra-typings@15.0.0'],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    pinnedVersion: '15.0.0',
+    runner: 'tsd',
+    target: 'burgee/commander/extra-typings',
+    status: 'active',
+    note: "**Graded 2026-10-12 at 15.0.0: `burgee/commander/extra-typings` 369 / 369 against a control of 369 / 369**, one case per tsd assertion and none excluded (`extra-typings-drop-in` R2, R3). Before the façade the target run reported `target not built yet`; with only `burgee/commander`'s own declarations behind the subpath it read 205 / 390, 164 assertions failing and 21 errors outside any assertion. The runtime is `burgee/commander`'s, graded by the row above.",
+  },
+  {
     name: 'yargs',
     repo: 'https://github.com/yargs/yargs',
     testDir: 'test',
@@ -717,6 +763,50 @@ export const HOSTS: Host[] = [
     target: 'roundel/chalk',
     status: 'active',
     note: 'Graded against roundel, not burgee: the colour layer has its own façade.',
+  },
+  {
+    // `roundel/picocolors`' grader (`graded-override-targets` R7). picocolors' own `npm test` is
+    // `node tests/test.js` and nothing else: `tests/environments.js` is not in it, so the glob
+    // names the one file upstream runs. That file is a script of bare assertions that throws on
+    // the first failure, so the grade is its exit code, as rc's is.
+    name: 'picocolors',
+    repo: 'https://github.com/alexeyraspopov/picocolors',
+    testDir: 'tests',
+    testGlob: 'test.js',
+    imports: [{ upstream: '../picocolors.js', subpath: '/picocolors', reexportDefault: true, control: 'picocolors' }],
+    suiteDeps: ['picocolors@1.1.1'],
+    surfaceFiles: ['picocolors.d.ts', 'picocolors.js'],
+    // The suite asserts coloured bytes from the module's default instance, so it needs a run
+    // picocolors itself colours. Upstream's runs are GitHub Actions', which set `CI`; a piped
+    // runner here is not a TTY, and without it the control fails on the first assertion.
+    env: { CI: 'true' },
+    runner: 'exit-code',
+    target: 'roundel',
+    status: 'active',
+    note: "**Graded 2026-10-11 at 1.1.1: `roundel/picocolors` 1 / 1 against a control of 1 / 1, by exit code** (D-20261011-roundel-picocolors). Before the façade the target run read 0 / 1. `tests/environments.js` is not graded: upstream's `npm test` does not run it, and it evaluates picocolors' source text in a `vm` with a fake `process`, which only one self-contained script can pass. Its nine environments are held by `roundel/src/picocolors.test.ts` against picocolors' own source instead. The façade bundles 1,607 B against picocolors' 2,739 B, which is R7's kill criterion, held in `scripts/subpath-weight-lock.test.ts`.",
+  },
+  {
+    // `roundel/supports-color`'s grader (`supports-color-drop-in` R1). Upstream's `npm test` is
+    // `xo && ava && tsd`; the ava half is graded, as chalk's is, and the declarations are held by
+    // `scripts/drop-in-type-surface-lock.test.ts`. Every case re-imports `./index.js` with a query
+    // string after setting the process up, so the import is declared `fresh`.
+    // Stryker disable all: graded in another process: the compat ratchet's run and its `--control` run read this row against `baseline/supports-color.json` (55 of 55), and a mutant here moves one of those counts — except `repo` and `surfaceFiles`, which only a re-vendor and the upstream watch read, and `note`, which nothing renders for an active row
+    name: 'supports-color',
+    repo: 'https://github.com/chalk/supports-color',
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '/supports-color', reexportDefault: true, control: 'supports-color', fresh: ['createSupportsColor'] }],
+    // Installed beside the suite at the graded release, never whatever the root hoists.
+    suiteDeps: ['supports-color@11.0.0'],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'ava',
+    // Upstream's own `ava` block. Every case rewrites `process.env`, `process.argv` and
+    // `process.platform` and then imports: run concurrently, they read each other's process.
+    avaConfig: { serial: true, workerThreads: false },
+    target: 'roundel',
+    status: 'active',
+    note: 'Graded against roundel, as chalk and picocolors are: `roundel/supports-color` answers in supports-color 11\'s order, where `roundel/policy` keeps its own (a `--no-color` beats `FORCE_COLOR=3` there, and `NO_COLOR` is honoured).',
+    // Stryker restore all
   },
   {
     name: 'ora',
@@ -905,7 +995,7 @@ export const HOSTS: Host[] = [
     // rather than left to whatever the hoist supplies. No runner: 10.1.0 dropped ava for
     // `node:test`, which ships with Node.
     suiteDeps: [
-      'execa@10.1.0',
+      'execa@10.2.0',
       // Not imported: `arguments/local.js` runs `c8 --version` under `preferLocal`, so it has
       // to be in `node_modules/.bin` and nowhere on PATH. 10.0.1 ran `ava` the same way.
       'c8@12.0.0',
@@ -957,7 +1047,8 @@ export const HOSTS: Host[] = [
     ceiling:
       "bellpull ships no execa API and will not: `run` resolves a record on a non-zero exit where execa throws, so an execa façade would silently stop every caller's error path firing (bellpull spec R7). The row is graded to publish that distance as a number rather than as a sentence — every graded file imports `execa`, which `bellpull` does not export, and fails at link time.",
     status: 'active',
-    note: "**2026-10-11: target `bellpull` 0 / 1179, control 1179 / 1179, on every machine.** The two compiled executables execa ships beside its tests are no longer vendored (OpenSSF Binary-Artifacts), and `write to fast-exit subprocess`, the one case that runs them, is excluded for both sides — see `excludes`. Before that it was declared in `conditionalCases`, because it registers only on x64; with it excluded nothing about this row depends on the machine. **Re-vendored 2026-10-07 at 10.1.0 (#843): target `bellpull` 0 / 1180, control 1180 / 1180 on ubuntu (1179 / 1179 on an arm64 Mac, see `conditionalCases`).** 10.1.0 moved the suite from ava to `node:test` (`node --test --test-concurrency=1 --test-timeout=240000`), so the row's runner moved with it and `timeoutMs` now reaches node's `--test-timeout`; `ava` left `suiteDeps` and `c8` joined it, because `arguments/local.js` now proves `preferLocal` by running `c8` where it ran `ava`. The upstream check named 144 test titles added and 4 removed (`prototype-pollution.js` is new); the counted cases moved 1048 -> 1180. The zero is still a link-time zero and still the whole suite's: over all 152 files, every one fails on `does not provide an export named 'execa'`. The paragraph below is 10.0.1's. Vendored 2026-09-27 at 10.0.1 (GAPS A10, D-160). **Target `bellpull` 0 / 1048, control 1048 / 1048** over `arguments/`, `methods/` and `return/`; the other nine directories are vendored and named in `ungradedDirs` with the cost that keeps them out. Every graded file fails at link time against the target — `The requested module '../../shim.js' does not provide an export named 'execa'` — and the same was measured over all 149 files, so the zero is the whole suite's and not the slice's. This is a ceiling by design, not a façade in progress: see `ceiling`. The one rewrite this row needed was `namedOnly` on the bare `execa` import, because `test/verbose/info.js` also uses the word as a `NODE_DEBUG` value.",
+    // Stryker disable next-line StringLiteral: an active row's note is its maintainers' log and nothing reads it — `Host.note` is rendered only for a row that is not active (compat-page), so emptying it changes no grade, page or output.
+    note: "**2026-10-19: re-vendored at 10.2.0 (#1102, #1107; D-20261019-revendor-execa-dotenv-lilconfig): target `bellpull` 0 / 1360, control 1360 / 1360.** The upstream check named 176 test titles added and none removed; the counted cases over `arguments/`, `methods/` and `return/` moved 1179 -> 1360, and the one new platform branch (`arguments/escape.js`) picks an expected string on Windows rather than registering a case, so the reference is still the same on every machine. The zero is still a link-time zero: every graded file imports `execa`, which `bellpull` does not export. 10.2.0 adds no import by name to the suite, so `suiteDeps` moved only its `execa` pin. **2026-10-11: target `bellpull` 0 / 1179, control 1179 / 1179, on every machine.** The two compiled executables execa ships beside its tests are no longer vendored (OpenSSF Binary-Artifacts), and `write to fast-exit subprocess`, the one case that runs them, is excluded for both sides — see `excludes`. Before that it was declared in `conditionalCases`, because it registers only on x64; with it excluded nothing about this row depends on the machine. **Re-vendored 2026-10-07 at 10.1.0 (#843): target `bellpull` 0 / 1180, control 1180 / 1180 on ubuntu (1179 / 1179 on an arm64 Mac, see `conditionalCases`).** 10.1.0 moved the suite from ava to `node:test` (`node --test --test-concurrency=1 --test-timeout=240000`), so the row's runner moved with it and `timeoutMs` now reaches node's `--test-timeout`; `ava` left `suiteDeps` and `c8` joined it, because `arguments/local.js` now proves `preferLocal` by running `c8` where it ran `ava`. The upstream check named 144 test titles added and 4 removed (`prototype-pollution.js` is new); the counted cases moved 1048 -> 1180. The zero is still a link-time zero and still the whole suite's: over all 152 files, every one fails on `does not provide an export named 'execa'`. The paragraph below is 10.0.1's. Vendored 2026-09-27 at 10.0.1 (GAPS A10, D-160). **Target `bellpull` 0 / 1048, control 1048 / 1048** over `arguments/`, `methods/` and `return/`; the other nine directories are vendored and named in `ungradedDirs` with the cost that keeps them out. Every graded file fails at link time against the target — `The requested module '../../shim.js' does not provide an export named 'execa'` — and the same was measured over all 149 files, so the zero is the whole suite's and not the slice's. This is a ceiling by design, not a façade in progress: see `ceiling`. The one rewrite this row needed was `namedOnly` on the bare `execa` import, because `test/verbose/info.js` also uses the word as a `NODE_DEBUG` value.",
   },
   {
     // The host with no parseable output, and the reason `mode: "exit-code"` exists.
@@ -1061,6 +1152,38 @@ export const HOSTS: Host[] = [
     target: 'linegauge/slice',
     status: 'active',
     note: "**Moved to 9.0.1 on 2026-09-27 (burgee#317): 104 / 104 against a control of 104 / 104, level.** The suite grew from 15 cases to 104, and `linegauge/slice` first graded **53 / 104** against it. `slice.ts` was rewritten over slice-ansi 9's own token grammar and walk — `tokenize-ansi.js` is in the vendored suite, and its rules are what the suite grades — keeping `linegauge`'s style stack and `measure` for the columns. What moved the 49: (1) **escapes it did not read** — `OSC 8` ended by `ESC \\` or `U+009C`, the C1 `OSC` introducer, `DCS`/`SOS`/`PM`/`APC` strings, a lone `ST`, a truncated or malformed `CSI` (which now ends at the first byte no `CSI` can hold, so `ESC[31ĀA` keeps its `ĀA`), and a private `ESC[?25m` that is not an SGR; (2) **a cluster interrupted by an escape** — `ESC[31me ESC[39m U+0301` is one `é`, so the visible text is segmented with the escapes set aside; (3) **hyperlinks** — no nesting (a second open replaces the first, closed with its own introducer and terminator), an empty link removed rather than emitted, the open code kept with its parameters; (4) **SGR at the edges** — a close just after `end` kept as written rather than synthesised, an opener with no text after it dropped, a C1 `CSI` opener reopened as C1; and (5) **rounding inward at a wide character**, where `linegauge` used to round outward. That last one was a documented divergence and it was wrong: `truncate` is a slice plus an ellipsis and returned `あい…`, five columns, for a budget of four. **The last two were a position rule, and they moved too.** `treats CRLF as a single grapheme cluster` wants `\\r\\n` to take one position, and `counts emoji-style graphemes as fullwidth` wants a lone regional indicator `🇦` to take two. `string-width`, graded 229 / 229 in the row above, measures those as 0 and 1, and so do `measure` and `width`. At 102 / 104 the row was not level, which took slice-ansi out of `burgee migrate`'s `MAPPING` (only level drop-ins are rewritten, D-137). So `slice` counts **positions** for a cut, not rendered columns: every cluster is at least one, and a lone indicator is two (`positions()` in `slice.ts`). `width` is unchanged. The two differ only on clusters that draw nothing, and the difference can only shorten a `truncate`, never widen it. `slice.test.ts` states both cases, and the `truncate` bound, against the real slice-ansi. The suite imports `random-item` and, through `tokenize-ansi.js`, `ansi-styles` and `is-fullwidth-code-point` — all three in `suiteDeps`, the committed `node_modules/random-item` having been deleted by this re-vendor exactly as wrap-ansi's `has-ansi` was. `slice links`, the case 7 marked `test.failing()` and `linegauge` passed, is an ordinary passing case in 9: the incumbent learned to round-trip `OSC 8`.",
+  },
+  {
+    // `linegauge/cli-truncate`'s grader (`graded-override-targets` R5). linegauge's README said
+    // its truncation was "checked case by case against `cli-truncate` in `truncate.test.ts`":
+    // honest, and no number. The suite is one file beside the implementation, and it imports
+    // `string-width` by name to measure what it asserts.
+    name: 'cli-truncate',
+    repo: 'https://github.com/sindresorhus/cli-truncate',
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '/cli-truncate', reexportDefault: true, control: 'cli-truncate' }],
+    suiteDeps: ['cli-truncate@6.1.1', 'string-width@8.3.0'],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'ava',
+    target: 'linegauge',
+    status: 'active',
+    note: "**Graded 2026-10-11 at 6.1.1: `linegauge/cli-truncate` 12 / 12 against a control of 12 / 12.** Before the façade the target run reported `target not built yet: linegauge/cli-truncate`. The façade is cli-truncate's arithmetic over linegauge's `slice` and `width`, and `cli-truncate.test.ts` holds it byte-equal to the installed incumbent over 1,980 inputs. `linegauge/truncate` stays the family's API, with a different rule at the edges.",
+  },
+  {
+    // `linegauge/widest-line`'s grader (`graded-override-targets` R6): one case, three
+    // assertions, and ava counts the case.
+    name: 'widest-line',
+    repo: 'https://github.com/sindresorhus/widest-line',
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '/widest-line', reexportDefault: true, control: 'widest-line' }],
+    suiteDeps: ['widest-line@6.0.0'],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'ava',
+    target: 'linegauge',
+    status: 'active',
+    note: "**Graded 2026-10-11 at 6.0.0: `linegauge/widest-line` 1 / 1 against a control of 1 / 1.** The suite is one case of three assertions, and ava counts the case. Before the façade the target run reported `target not built yet: linegauge/widest-line`.",
   },
   {
     // seniority's two incumbents (PLAN 2.2–2.13, `seniority/spec.md` R10).
@@ -1175,7 +1298,7 @@ export const HOSTS: Host[] = [
     // ts-loader cases transpile through `transpileModule`. `cosmiconfig` is pinned at the 8.x
     // upstream tested against and *not* at the 9.0.2 this workspace hoists — a parity case
     // compared against a different major is measuring the wrong disagreement.
-    suiteDeps: ['lilconfig@3.1.3', 'cosmiconfig@8.3.6', 'typescript@5.3.3'],
+    suiteDeps: ['lilconfig@3.1.4', 'cosmiconfig@8.3.6', 'typescript@5.9.3'],
     surfaceFiles: ['src/index.d.ts', 'src/index.js'],
     // **Seven cases that assert nothing, for anybody.** Each writes
     // `expect(promise).rejects.toThrowError(…)` with no `await`, so the assertion is a
@@ -1204,7 +1327,8 @@ export const HOSTS: Host[] = [
     runner: 'vitest',
     target: 'seniority',
     status: 'active',
-    note: "**2026-09-23: 67 / 77 -> 77 / 77, control 67 -> 77, and all ten were the harness.** The `controlFailures` allowance of ten is gone because nothing is left for it to excuse. Two harness fixes, both jest semantics rather than leniency: `jest.mock('fs', factory)` of a *builtin* now writes the factory's values onto the one shared `fs` object and syncs ESM importers, because vitest's mocking never reaches `require()` and the suite's spies were the real functions (eight cases); and a generated `jest-hoist` transform moves `jest.mock(…)` to the top of the file as babel-plugin-jest-hoist does, because lilconfig captures `fs.promises.readFile` at load and the mock used to run after it (the last two, `options > cache > … > async load()`). The target passed those two before the hoist, which is the one behavioural difference this row shows: seniority reads `fs.promises.readFile` at call time. Vendored and activated 2026-09-16 at 3.1.3 (`v3.1.3` -> commit 77d7186c). Control **67 / 77** against a declared allowance of 10; target **67 / 77, 87.0%** as of 2026-09-20 — the same number as the control, which is this row's ceiling and it is reached. **It was 0 / 77 until the target stopped being a package root**, and the reason is D-006 in one line of TAP repeated seventy-seven times: `TypeError: lilconfigSync is not a function`. seniority's root export is cosmiconfig's surface (R8), so pointing this suite at it measured the *absence* of a lilconfig façade rather than a partial one. `packages/seniority/src/lilconfig.ts` is that façade and `imports[].subpath` is now `/lilconfig` with `control: 'lilconfig'` — the `dotenv` / `restore-cursor` / `exit-hook` shape, where the target stays the package root and the import composes the subpath. **The root could not have carried it**, and that is worth stating because it is not a style preference: the suite's last case, `npm package api > exports the same things as cosmiconfig`, reads `Object.keys()` of the module it is handed, drops the four factory names and `metaSearchPlaces`, and compares what is left against the real cosmiconfig's. A module exporting both surfaces fails it by construction. The subpath therefore publishes **four runtime names and no more**, locked in `lilconfig.test.ts`. The remaining ten are the declared blind spot below and are exactly the ten the control loses — eight `options > cache` cases plus the two root-directory searches — so no case in this suite now separates `seniority/lilconfig` from `lilconfig`. The denominator is 77 and not 84 because of the seven vacuous cases subtracted above; read it with that paragraph or not at all.",
+    // Stryker disable next-line StringLiteral: an active row's note is its maintainers' log and nothing reads it — `Host.note` is rendered only for a row that is not active (compat-page), so emptying it changes no grade, page or output.
+    note: "**2026-10-19: re-vendored at 3.1.4 (#1106; D-20261019-revendor-execa-dotenv-lilconfig): 77 / 77, control 77 / 77, unchanged.** 3.1.4's one behaviour change — its JSON loader drops a leading byte-order mark — is graded only in `old-node-tests.uvu.js`, which `testGlob` does not run; `seniority/lilconfig` ports it anyway and holds it in its own unit cases. `typescript` moved 5.3.3 -> 5.9.3 with upstream's range. **2026-09-23: 67 / 77 -> 77 / 77, control 67 -> 77, and all ten were the harness.** The `controlFailures` allowance of ten is gone because nothing is left for it to excuse. Two harness fixes, both jest semantics rather than leniency: `jest.mock('fs', factory)` of a *builtin* now writes the factory's values onto the one shared `fs` object and syncs ESM importers, because vitest's mocking never reaches `require()` and the suite's spies were the real functions (eight cases); and a generated `jest-hoist` transform moves `jest.mock(…)` to the top of the file as babel-plugin-jest-hoist does, because lilconfig captures `fs.promises.readFile` at load and the mock used to run after it (the last two, `options > cache > … > async load()`). The target passed those two before the hoist, which is the one behavioural difference this row shows: seniority reads `fs.promises.readFile` at call time. Vendored and activated 2026-09-16 at 3.1.3 (`v3.1.3` -> commit 77d7186c). Control **67 / 77** against a declared allowance of 10; target **67 / 77, 87.0%** as of 2026-09-20 — the same number as the control, which is this row's ceiling and it is reached. **It was 0 / 77 until the target stopped being a package root**, and the reason is D-006 in one line of TAP repeated seventy-seven times: `TypeError: lilconfigSync is not a function`. seniority's root export is cosmiconfig's surface (R8), so pointing this suite at it measured the *absence* of a lilconfig façade rather than a partial one. `packages/seniority/src/lilconfig.ts` is that façade and `imports[].subpath` is now `/lilconfig` with `control: 'lilconfig'` — the `dotenv` / `restore-cursor` / `exit-hook` shape, where the target stays the package root and the import composes the subpath. **The root could not have carried it**, and that is worth stating because it is not a style preference: the suite's last case, `npm package api > exports the same things as cosmiconfig`, reads `Object.keys()` of the module it is handed, drops the four factory names and `metaSearchPlaces`, and compares what is left against the real cosmiconfig's. A module exporting both surfaces fails it by construction. The subpath therefore publishes **four runtime names and no more**, locked in `lilconfig.test.ts`. The remaining ten are the declared blind spot below and are exactly the ten the control loses — eight `options > cache` cases plus the two root-directory searches — so no case in this suite now separates `seniority/lilconfig` from `lilconfig`. The denominator is 77 and not 84 because of the seven vacuous cases subtracted above; read it with that paragraph or not at all.",
   },
   {
     // The load-bearing one. `.sdlc/intents/seniority/issues.md` records 20 closed issues at
@@ -1223,14 +1347,14 @@ export const HOSTS: Host[] = [
     // carry one.
     imports: [{ upstream: '../lib/main', subpath: '/dotenv', reexportDefault: true, control: 'dotenv' }],
     // Everything the suite reaches for by name, installed into `vendor/dotenv/node_modules`
-    // and pinned to what upstream's own lockfile resolves at 18.0.7 — tap 21, and
+    // and pinned to what upstream's own lockfile resolves at 18.0.8 — tap 21, and
     // `process-on-spawn`, which `test-config-quiet.js` requires. This is the route the
     // earlier note called closed: it said `tap` "pulls 203 packages and 140 MB, which this
     // repository will not commit beside a suite or put in its lockfile" — both true, and
     // neither is what `suiteDeps` does. They are installed on the first grade of a clean
     // checkout, under a gitignored directory, and touch no manifest and no lockfile.
     // Measured 2026-09-16: 319 packages, 86 MB, once.
-    suiteDeps: ['dotenv@18.0.7', 'tap@21.7.4', 'sinon@14.0.1', 'process-on-spawn@1.1.0'],
+    suiteDeps: ['dotenv@18.0.8', 'tap@21.7.4', 'sinon@14.0.1', 'process-on-spawn@1.1.0'],
     // Six files, all of them named individually because `copyTests` copies a *directory*
     // whole and otherwise takes only files the glob matches — and every fixture dotenv reads
     // is a dotfile beside the tests, which no glob of runnable tests can name.
@@ -1264,7 +1388,8 @@ export const HOSTS: Host[] = [
     // until a run touches it, which is the same lesson `wrap-ansi`'s note records.
     target: 'seniority',
     status: 'active',
-    note: "**2026-10-11: re-vendored at 18.0.7 (#946) and level — `seniority` 191 / 191 against a control of 191 / 191 (D-20261011-revendor-dotenv-18-0-7).** 18.0.7 drops options given as `undefined` before laying them over the `DOTENV_*` defaults (#1070), and `dotenv run` reads a `DOTENV_QUIET` the loaded `.env` sets when neither the flags nor the starting environment said (#1071). Its three new test titles count ten, eight of them one loop of spawned runs; the re-vendor read `seniority` 188 / 191 until both rules were ported. **2026-10-07: re-vendored at 18.0.6 (#844) and level — `seniority` 181 / 181 against a control of 181 / 181.** 18.0.6 reads `populate`'s `override` and `debug` through `parseBoolean` instead of `Boolean` (#1069), so the string `'false'` is off, and adds the two cases that say so; `seniority/dotenv`'s `populate` now reads both through `truthy`, its port of `parseBoolean`. Nothing else in the package moved. **2026-10-06: level at 18.0.5 — `seniority` 179 / 179 against a control of 179 / 179 (D-20261001-seniority-dotenv-vault).** `seniority/dotenv` follows dotenv 18, and `seniority/dotenv/config` and `seniority/dotenv/cli` are the entries the suite spawns; nothing is excluded. The paragraph below is the re-vendor's, when the target read 128 / 179. **2026-10-06: re-vendored at 18.0.5 — control 179 / 179, `seniority` 128 / 179 (D-20261006-flagstaff-boxen-9 records the harness).** dotenv 18.0.0 (2026-09-17) deleted `.env.vault`, `DOTENV_KEY`, `decrypt` and the log-line tips together with the 31 cases that asserted them, and added 42: the `{ fast: true }` character scanner (`test-parse-fast.js`), `DOTENV_*` defaults and their `DOTENV_CONFIG_*` fallbacks (`test-config-options.js`), the `quiet` rules of `config()` and of `dotenv/config` (`test-config-quiet.js`, `test-config-import.js`), and a `dotenv run` command line with signal forwarding (`test-cli.js`, `test-cli-signals.js`). **The suite tests the build, so the row declares it.** It spawns `node dist/index.cjs run …`, preloads `dist/config.cjs`, and runs programs that name `dotenv` and `dotenv/config` from the repo root; `entries` writes those files per run (a link to the incumbent's own file on the control, upstream's `index.js` pointed at the target otherwise) and `selfExports` gives the vendored root dotenv's name so the spawned programs reach whichever is graded. Without them the control was 141 / 179 against dotenv 18 — and against 17.4.2 before the pin moved, which is what PR #794 read as 52 failing. The 51 the target fails are seniority's: it still speaks 17, and the `seniority/dotenv/config` and `seniority/dotenv/cli` subpaths the entries point at are not built yet; that lane brings them. The informational line is **4 / 10 on the control**: `test-config-options.js` loads the private `lib/config-options`, the published package ships only `dist/`, so its six `optionsFromEnv` cases fail against dotenv itself, and its four spawned cases pass. One case, `Windows resolves executables and batch shims with spaces in their paths`, skips itself off win32 on both sides. dotenv 17.4.2 is graded as `dotenv-17` in `PREVIOUS_MAJORS`. The paragraphs below are the 17.4.2 history. **2026-09-23: 80 → 106 / 141 under D-135.** `config()` now defaults `processEnv` to the process's own and `path` to `./.env` through `seniority/src/runtime.ts`, reads through the `fs` and `os` module objects the suite stubs, takes a `URL` or a `~` path, and returns `{ parsed, error }` together as dotenv 17 does. The 35 left: 27 vault/decrypt (declined), 2 dotenvx tips (declined), and 6 that load dotenv's private `lib/*` modules, which the harness maps to the package root. The history below predates this. Activated 2026-09-16; re-measured 2026-09-20 at **80 / 141, 56.7%**, up from 74. Control **141 / 141, 100%**, unchanged — the first row graded through the `tap` arm, one `node <file>` spawn per file with the outputs concatenated. **Four of the six came from the harness declaration, not from this package.** `test-populate.js` opens with `sinon.stub(dotenv, 'parse')` in a top-level `beforeEach`; an ES module namespace is non-extensible with non-configurable properties, so sinon refused with `ES Modules cannot be stubbed`, the hook threw, and all six of that file's cases failed before their first assertion — twelve entries in the raw TAP against the control's plan of six, none of them having reached a `populate` call. Probed directly 2026-09-20: `require` of a shim that `export *`s from the **CJS** incumbent hands back a mutable object (`parse` writable, enumerable, configurable), and the same shim over an ESM target hands back a sealed namespace. The fix is `reexportDefault: true` on this row plus a default export on `seniority/dotenv` carrying the three functions — the `module.exports` name Node's `require()` of an ES module returns whole, which is the mechanism commander's and yargs' CJS fixtures already run on and which this row simply never declared. The control is 141 / 141 with it and was 141 / 141 without it. The other two came from `populate` itself: it validates **`parsed`** and not `processEnv` upstream (the `OBJECT_REQUIRED` message names the wrong argument, and a case asserts that exact string), returns what it set, and logs through `console.log` under `debug`. **The remaining 61 are a ceiling with two named causes and no third.** 26 in `test-config-vault.js` plus 1 in `test-decrypt.js` are `DOTENV_KEY` / `.env.vault`, which dotenv deprecated in favour of dotenvx and this package declines; 31 of `test-config.js`'s 32 and all 3 of `test-config-cli.js` need `config()` to default `processEnv` to `process.env` and `path` to a cwd-relative `.env`, which R11 forbids — read the case list and every one of them asserts `process.env.BASIC` after a bare `config()`. The single case in that file that hands `config` an object of its own, `can write to a different object rather than process.env`, passes. **One thing to read carefully in this row and in any `tap` row after it:** node-tap's plan counts *assertions*, not cases, so the size of the suite depends on which branches ran — the control plans sum to 141 and the target's to 141 now that the populate hook no longer throws (it was 147). `rate()` divides by `max(reference, registered)`, so a target can never score above its own denominator. Three things had to change together when this row was activated and none of them is about dotenv: the arm in `run.ts`; `control: 'dotenv'` on the import, without which the control's shim re-exported the non-existent `dotenv/dotenv`; and `target` reading the package root rather than the subpath it was already composing. The suite's own `tap`, `sinon` and `decache` are `suiteDeps` — 319 packages and 86 MB installed once into a gitignored `vendor/dotenv/node_modules`, in no manifest and no lockfile.",
+    // Stryker disable next-line StringLiteral: an active row's note is its maintainers' log and nothing reads it — `Host.note` is rendered only for a row that is not active (compat-page), so emptying it changes no grade, page or output.
+    note: "**2026-10-19: re-vendored at 18.0.8 (#1105) and level — `seniority` 193 / 193 against a control of 193 / 193 (D-20261019-revendor-execa-dotenv-lilconfig).** 18.0.8 makes the `{ fast: true }` scanner unquote segments that end at a U+2028 or U+2029 inside an unquoted value, as the regex parser always did (#1073), and types `populate`'s result `string | undefined` (#1074). Its two new test titles count two; the re-vendor read `seniority` 192 / 193 until the scanner change was ported. **2026-10-11: re-vendored at 18.0.7 (#946) and level — `seniority` 191 / 191 against a control of 191 / 191 (D-20261011-revendor-dotenv-18-0-7).** 18.0.7 drops options given as `undefined` before laying them over the `DOTENV_*` defaults (#1070), and `dotenv run` reads a `DOTENV_QUIET` the loaded `.env` sets when neither the flags nor the starting environment said (#1071). Its three new test titles count ten, eight of them one loop of spawned runs; the re-vendor read `seniority` 188 / 191 until both rules were ported. **2026-10-07: re-vendored at 18.0.6 (#844) and level — `seniority` 181 / 181 against a control of 181 / 181.** 18.0.6 reads `populate`'s `override` and `debug` through `parseBoolean` instead of `Boolean` (#1069), so the string `'false'` is off, and adds the two cases that say so; `seniority/dotenv`'s `populate` now reads both through `truthy`, its port of `parseBoolean`. Nothing else in the package moved. **2026-10-06: level at 18.0.5 — `seniority` 179 / 179 against a control of 179 / 179 (D-20261001-seniority-dotenv-vault).** `seniority/dotenv` follows dotenv 18, and `seniority/dotenv/config` and `seniority/dotenv/cli` are the entries the suite spawns; nothing is excluded. The paragraph below is the re-vendor's, when the target read 128 / 179. **2026-10-06: re-vendored at 18.0.5 — control 179 / 179, `seniority` 128 / 179 (D-20261006-flagstaff-boxen-9 records the harness).** dotenv 18.0.0 (2026-09-17) deleted `.env.vault`, `DOTENV_KEY`, `decrypt` and the log-line tips together with the 31 cases that asserted them, and added 42: the `{ fast: true }` character scanner (`test-parse-fast.js`), `DOTENV_*` defaults and their `DOTENV_CONFIG_*` fallbacks (`test-config-options.js`), the `quiet` rules of `config()` and of `dotenv/config` (`test-config-quiet.js`, `test-config-import.js`), and a `dotenv run` command line with signal forwarding (`test-cli.js`, `test-cli-signals.js`). **The suite tests the build, so the row declares it.** It spawns `node dist/index.cjs run …`, preloads `dist/config.cjs`, and runs programs that name `dotenv` and `dotenv/config` from the repo root; `entries` writes those files per run (a link to the incumbent's own file on the control, upstream's `index.js` pointed at the target otherwise) and `selfExports` gives the vendored root dotenv's name so the spawned programs reach whichever is graded. Without them the control was 141 / 179 against dotenv 18 — and against 17.4.2 before the pin moved, which is what PR #794 read as 52 failing. The 51 the target fails are seniority's: it still speaks 17, and the `seniority/dotenv/config` and `seniority/dotenv/cli` subpaths the entries point at are not built yet; that lane brings them. The informational line is **4 / 10 on the control**: `test-config-options.js` loads the private `lib/config-options`, the published package ships only `dist/`, so its six `optionsFromEnv` cases fail against dotenv itself, and its four spawned cases pass. One case, `Windows resolves executables and batch shims with spaces in their paths`, skips itself off win32 on both sides. dotenv 17.4.2 is graded as `dotenv-17` in `PREVIOUS_MAJORS`. The paragraphs below are the 17.4.2 history. **2026-09-23: 80 → 106 / 141 under D-135.** `config()` now defaults `processEnv` to the process's own and `path` to `./.env` through `seniority/src/runtime.ts`, reads through the `fs` and `os` module objects the suite stubs, takes a `URL` or a `~` path, and returns `{ parsed, error }` together as dotenv 17 does. The 35 left: 27 vault/decrypt (declined), 2 dotenvx tips (declined), and 6 that load dotenv's private `lib/*` modules, which the harness maps to the package root. The history below predates this. Activated 2026-09-16; re-measured 2026-09-20 at **80 / 141, 56.7%**, up from 74. Control **141 / 141, 100%**, unchanged — the first row graded through the `tap` arm, one `node <file>` spawn per file with the outputs concatenated. **Four of the six came from the harness declaration, not from this package.** `test-populate.js` opens with `sinon.stub(dotenv, 'parse')` in a top-level `beforeEach`; an ES module namespace is non-extensible with non-configurable properties, so sinon refused with `ES Modules cannot be stubbed`, the hook threw, and all six of that file's cases failed before their first assertion — twelve entries in the raw TAP against the control's plan of six, none of them having reached a `populate` call. Probed directly 2026-09-20: `require` of a shim that `export *`s from the **CJS** incumbent hands back a mutable object (`parse` writable, enumerable, configurable), and the same shim over an ESM target hands back a sealed namespace. The fix is `reexportDefault: true` on this row plus a default export on `seniority/dotenv` carrying the three functions — the `module.exports` name Node's `require()` of an ES module returns whole, which is the mechanism commander's and yargs' CJS fixtures already run on and which this row simply never declared. The control is 141 / 141 with it and was 141 / 141 without it. The other two came from `populate` itself: it validates **`parsed`** and not `processEnv` upstream (the `OBJECT_REQUIRED` message names the wrong argument, and a case asserts that exact string), returns what it set, and logs through `console.log` under `debug`. **The remaining 61 are a ceiling with two named causes and no third.** 26 in `test-config-vault.js` plus 1 in `test-decrypt.js` are `DOTENV_KEY` / `.env.vault`, which dotenv deprecated in favour of dotenvx and this package declines; 31 of `test-config.js`'s 32 and all 3 of `test-config-cli.js` need `config()` to default `processEnv` to `process.env` and `path` to a cwd-relative `.env`, which R11 forbids — read the case list and every one of them asserts `process.env.BASIC` after a bare `config()`. The single case in that file that hands `config` an object of its own, `can write to a different object rather than process.env`, passes. **One thing to read carefully in this row and in any `tap` row after it:** node-tap's plan counts *assertions*, not cases, so the size of the suite depends on which branches ran — the control plans sum to 141 and the target's to 141 now that the populate hook no longer throws (it was 147). `rate()` divides by `max(reference, registered)`, so a target can never score above its own denominator. Three things had to change together when this row was activated and none of them is about dotenv: the arm in `run.ts`; `control: 'dotenv'` on the import, without which the control's shim re-exported the non-existent `dotenv/dotenv`; and `target` reading the package root rather than the subpath it was already composing. The suite's own `tap`, `sinon` and `decache` are `suiteDeps` — 319 packages and 86 MB installed once into a gitignored `vendor/dotenv/node_modules`, in no manifest and no lockfile.",
   },
   {
     // `seniority/find-up`'s grader (`graded-override-targets` R2). Its header called it "the
@@ -1415,26 +1540,45 @@ export const HOSTS: Host[] = [
     ],
     // Each suite imports its prompt as its package's default; the program imports it by name
     // from `@inquirer/prompts`. `defaultExport` grades that name, read off `@inquirer/prompts`
-    // on the control and off `caique/inquirer` on a target run. checkbox's suite also imports
+    // on the control and off `caique/inquirer/prompts` on a target run: the prompts are a
+    // subpath of their own, so `caique/inquirer` (`@inquirer/core`'s drop-in) keeps its byte
+    // budget (D-20261012-caique-inquirer-prompts-subpath). checkbox's suite also imports
     // `ValidationError` from `@inquirer/core` and asserts the prompt rejects with that class,
     // so the core import moves with it, as it does in a migrated program.
     imports: [
-      { upstream: './input/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'input' },
-      { upstream: './select/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'select' },
-      { upstream: './checkbox/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'checkbox' },
-      { upstream: './confirm/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'confirm' },
-      { upstream: './password/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'password' },
-      { upstream: './number/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'number' },
-      { upstream: './expand/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'expand' },
-      { upstream: './rawlist/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'rawlist' },
-      { upstream: './search/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'search' },
-      { upstream: './editor/src/index.ts', subpath: '', reexportDefault: false, defaultExport: 'editor' },
+      { upstream: './input/src/index.ts', subpath: '/prompts', reexportDefault: false, control: '@inquirer/prompts', defaultExport: 'input' },
+      { upstream: './select/src/index.ts', subpath: '/prompts', reexportDefault: false, control: '@inquirer/prompts', defaultExport: 'select' },
+      { upstream: './checkbox/src/index.ts', subpath: '/prompts', reexportDefault: false, control: '@inquirer/prompts', defaultExport: 'checkbox' },
+      { upstream: './confirm/src/index.ts', subpath: '/prompts', reexportDefault: false, control: '@inquirer/prompts', defaultExport: 'confirm' },
+      { upstream: './password/src/index.ts', subpath: '/prompts', reexportDefault: false, control: '@inquirer/prompts', defaultExport: 'password' },
+      { upstream: './number/src/index.ts', subpath: '/prompts', reexportDefault: false, control: '@inquirer/prompts', defaultExport: 'number' },
+      { upstream: './expand/src/index.ts', subpath: '/prompts', reexportDefault: false, control: '@inquirer/prompts', defaultExport: 'expand' },
+      { upstream: './rawlist/src/index.ts', subpath: '/prompts', reexportDefault: false, control: '@inquirer/prompts', defaultExport: 'rawlist' },
+      { upstream: './search/src/index.ts', subpath: '/prompts', reexportDefault: false, control: '@inquirer/prompts', defaultExport: 'search' },
+      { upstream: './editor/src/index.ts', subpath: '/prompts', reexportDefault: false, control: '@inquirer/prompts', defaultExport: 'editor' },
       { upstream: '@inquirer/core', subpath: '', reexportDefault: false, control: '@inquirer/core' },
     ],
     surfaceFiles: ['packages/prompts/src/index.ts'],
     suiteDeps: [
       '@inquirer/prompts@8.7.3',
       '@inquirer/core@12.0.4',
+      // The ten prompts `@inquirer/prompts` re-exports, at the releases 8.7.3 shipped with
+      // (2026-10-04). 8.7.3 asks for each by caret, so unpinned they float to the newest, and
+      // the 2026-10-19 releases (`select@5.2.7` and the rest) ask for `@inquirer/core@^12.0.5`:
+      // npm puts a second core under each prompt, beside the 12.0.4 pinned above. checkbox's
+      // suite imports `ValidationError` from the top-level core and asserts the prompt rejects
+      // with that class; a prompt built on the nested core rejects with the other one, and the
+      // control read 212 / 213 (D-20261019-inquirer-prompts-pins-its-prompts).
+      '@inquirer/checkbox@5.2.6',
+      '@inquirer/confirm@6.3.3',
+      '@inquirer/editor@5.3.4',
+      '@inquirer/expand@5.1.6',
+      '@inquirer/input@5.1.7',
+      '@inquirer/number@4.2.4',
+      '@inquirer/password@5.2.3',
+      '@inquirer/rawlist@5.3.6',
+      '@inquirer/search@4.3.4',
+      '@inquirer/select@5.2.6',
       // The harness every file renders through: a headless xterm that asserts the screen.
       '@inquirer/testing@3.3.14',
       // `withResolver`, a promise helper `search.test.ts` imports for itself.
@@ -1482,7 +1626,7 @@ export const HOSTS: Host[] = [
     runner: 'vitest',
     target: 'caique/inquirer',
     status: 'active',
-    note: "**2026-10-11: 52 / 213 against a control of 213 / 213** (R1 and R3's first prompt of inquirer-prompts-drop-in): `caique/inquirer` carries `select` and `usePagination`, and passes all 52 of their cases; the other nine prompts are held out of caique's tarball (B-20261011-inquirer-prompts-tarball-room), so their cases still fail with `prompt is not a function` and `burgee migrate` does not rewrite `@inquirer/prompts`. **Vendored the same day at 8.7.3 (R2): control 213 / 213, target 0 / 213.** Eleven files, 224 cases, of which `editor.test.ts`'s eleven are excluded above. Every target case fails with `prompt is not a function`: `caique/inquirer` exports `@inquirer/core`'s surface and none of the ten prompts yet. The table of imports and counts this design is read from is in `.sdlc/intents/inquirer-prompts-drop-in/spec.md`.",
+    note: "**2026-10-12 (R1, R3 of inquirer-prompts-drop-in): `caique/inquirer/prompts` 100 / 213, control 213 / 213** — `select` (its own 42 cases and its pagination suite's 10) and `checkbox` (48) level over `usePagination`; `input`, `confirm`, `password`, `number`, `expand`, `rawlist` and `search` are not built yet, and fail with `prompt is not a function`. **Vendored 2026-10-11 at 8.7.3 (R2 of inquirer-prompts-drop-in): control 213 / 213, target `caique/inquirer` 0 / 213.** Eleven files, 224 cases, of which `editor.test.ts`'s eleven are excluded above. Every target case fails with `prompt is not a function`: `caique/inquirer` exports `@inquirer/core`'s surface and none of the ten prompts yet. The table of imports and counts this design is read from is in `.sdlc/intents/inquirer-prompts-drop-in/spec.md`.",
   },
   {
     // 2.16: the testable unit of the inquirer monorepo, and the decision that came with it.
@@ -2049,9 +2193,11 @@ export const PREVIOUS_MAJORS: Host[] = [
     runner: 'vitest',
     pinnedVersion: '14.0.3',
     suiteDeps: ['commander@14.0.3'],
-    target: 'burgee/commander',
+    // `previous-majors` R1: 14's entry, which `burgee migrate` writes for a project on 14. It is
+    // `burgee/commander` with 14's excess-arguments message, so the row grades the same front-end.
+    target: 'burgee/commander/v14',
     status: 'active',
-    note: "**Measured 2026-09-24: 1329 / 1331 against a control of 1331 / 1331 — not level, so 14 is graded and not claimed** (`SUPPORTED_MAJORS.commander` is `[15]`). The two that fail are one change between the majors, named from the raw TAP: `command.exitOverride.test.js > .exitOverride and error details > when specify excess argument then throw CommanderError` and `… > when specify command with excess argument then throw CommanderError`. Commander 15 names the surplus argument in the message — `error: too many arguments. Expected 0 arguments but got 1: excess.` — and 14 stops at `got 1.`; the façade speaks 15. The control reached 1331 only once the runner stopped handing a jest suite vitest's own worker flags (`jestGlobals`, `process.execArgv`): ten `executableSubcommand.search` cases assert the spawned argv, and before that fix they failed against commander 14 itself.",
+    note: "**2026-10-12: level and claimed — `burgee/commander/v14` 1331 / 1331 against a control of 1331 / 1331 (`previous-majors` R1, R2), so `SUPPORTED_MAJORS.commander` is `[14, 15]`.** The subpath is `burgee/commander` with one method of `Command` overridden: the excess-arguments message stops at the count, as 14.0.3 prints it, and `.command()` makes subcommands of the same class so a subcommand's message is 14's too. A program on 15 imports `burgee/commander` and bundles none of it. Against `burgee/commander` itself the suite still reads 1329 / 1331, the two cases below. The paragraph below is the row before the subpath. **Measured 2026-09-24: 1329 / 1331 against a control of 1331 / 1331 — not level, so 14 is graded and not claimed** (`SUPPORTED_MAJORS.commander` is `[15]`). The two that fail are one change between the majors, named from the raw TAP: `command.exitOverride.test.js > .exitOverride and error details > when specify excess argument then throw CommanderError` and `… > when specify command with excess argument then throw CommanderError`. Commander 15 names the surplus argument in the message — `error: too many arguments. Expected 0 arguments but got 1: excess.` — and 14 stops at `got 1.`; the façade speaks 15. The control reached 1331 only once the runner stopped handing a jest suite vitest's own worker flags (`jestGlobals`, `process.execArgv`): ten `executableSubcommand.search` cases assert the spawned argv, and before that fix they failed against commander 14 itself.",
   },
   {
     name: 'yargs-17',
@@ -2073,14 +2219,29 @@ export const PREVIOUS_MAJORS: Host[] = [
       // `require()` of the façade already returns the callable (its `'module.exports'` export).
       { upstream: '../index.cjs', subpath: '', reexportDefault: false },
       // `yargs/yargs`, 17's non-singleton factory and the form its README teaches for
-      // CommonJS. yargs 18's own exports map points `./yargs` at its main entry, so the
-      // façade's main is what the name means one major on, and it is graded as that.
-      { upstream: '../yargs.cjs', subpath: '', reexportDefault: true, control: 'yargs/yargs' },
-      { upstream: 'yargs-parser', subpath: '/parser', reexportDefault: true, control: 'yargs-parser' },
+      // CommonJS, with its three statics. Not the singleton: `helpers.cjs` counts its keys. A
+      // program on 17 that names it is migrated to `burgee/yargs/v17/yargs`, so that is graded.
+      // Stryker disable next-line all: graded in another process: the compat ratchet's `--majors` and `--majors --control` runs read this row against `baseline/majors/yargs-17.json` (793 of 794), and a mutant here moves one of those counts — except `upstream`, which only a re-vendor reads, and `reexportDefault`, which is equivalent because neither module has a `default` to unwrap
+      { upstream: '../yargs.cjs', subpath: '', reexportDefault: true, control: 'yargs/yargs', target: 'burgee/yargs/v17/yargs' },
+      // `burgee/yargs/parser` on 17 as on 18: `migrate` writes it for `yargs-parser` on either.
+      // Stryker disable next-line all: graded in another process: the compat ratchet's `--majors` and `--majors --control` runs read this row against `baseline/majors/yargs-17.json` (793 of 794), and a mutant here moves one of those counts — except `upstream`, which only a re-vendor reads
+      { upstream: 'yargs-parser', subpath: '/parser', reexportDefault: true, control: 'yargs-parser', target: 'burgee/yargs/parser' },
     ],
     // `../build/index.cjs`, the compiled bundle 17 exports its helpers from (`argsert`,
     // `YError`, `parseCommand`). 18 reaches the same classes through `build/lib/`.
+    // Stryker disable next-line StringLiteral: read when the suite is re-vendored (`vendor.ts` finds `../build/` imports by it) and when an internal shim is written, which the compat ratchet's `--majors` runs grade
     internalDir: 'build',
+    // The helpers the suite reads off 17's bundle, from the entry's own namespace on a target run.
+    // Without it the shim re-exported what `require('burgee/yargs/v17')` returns, the singleton,
+    // so `parser.cjs` read `Parser` and `usage.cjs` read `YError` off an instance.
+    // Stryker disable all: graded in another process: the compat ratchet's `--majors` and `--majors --control` runs read this row against `baseline/majors/yargs-17.json` (793 of 794), and a mutant here moves one of those counts, or the informational internals line (23 / 23)
+    targetInternals: {
+      'build/index.cjs': {
+        file: 'dist/yargs/v17.js',
+        names: { argsert: 'argsert', isPromise: 'isPromise', objFilter: 'objFilter', Parser: 'Parser', parseCommand: 'parseCommand', YError: 'YError' },
+      },
+    },
+    // Stryker restore all
     runner: 'mocha',
     // `fixtures/`, `esm/` and `deno/` are copied too and hold no `*.cjs`, so the walk grades
     // nothing in them and there is nothing to declare: 17's ESM suite (`test:esm` upstream)
@@ -2118,11 +2279,14 @@ export const PREVIOUS_MAJORS: Host[] = [
     ],
     controlFailures: {
       count: 1,
+      // Stryker disable next-line StringLiteral: a subtraction's written reason, which the compatibility page publishes and `scripts/compat-page-subtractions.test.ts` holds the page to, outside this package's suite
       why: "`helpers > applyExtends > exposes applyExtends helper` extends `./package.json` from the cwd and asserts its `name` is `yargs`. The cwd is the vendored root, whose manifest is deliberately `@vendored/yargs-17-suite` (`rootPackage()` — upstream's name would let Node's self-reference resolve `yargs` to a file that is not here). The current-major row's two allowed failures are the same lookup reading the same file.",
     },
-    target: 'burgee/yargs',
+    // Stryker disable next-line StringLiteral: graded in another process: the compat ratchet's `--majors` and `--majors --control` runs read this row against `baseline/majors/yargs-17.json` (793 of 794), and a mutant here moves one of those counts
+    target: 'burgee/yargs/v17',
     status: 'active',
-    note: "**Measured 2026-09-24: 191 / 794, 24.1%, against a control of 793 / 794 — 17 is graded and not claimed** (`SUPPORTED_MAJORS.yargs` is `[18]`). It is one decision of 18's, not 603 gaps: **17's `require('yargs')` is a singleton** — an instance already bound to `process.argv`, with every method on the required object — and 18 removed it, so the façade, which speaks 18, hands a `require()` caller the factory. Every file but three opens with `yargs.getInternalMethods().reset()` or `require('../../').help(…)` on that object, so the `beforeEach` of `Command`, `Completion`, `usage tests` and `validation tests` throws `yargs.getInternalMethods is not a function` and mocha abandons the rest of each block: **274 of the 794 register at all**, and the 520 that never run are counted against the row, not dropped. Of the 83 that register and fail, the named groups are the same cause seen from the inside: the 14 `integration tests` spawn fixtures that call `require('../../').help('help')`; `helpers` wants 17's `yargs/yargs` statics (`applyExtends`, `Parser`, `hideBin`) on the factory, where 18 moved them to `yargs/helpers`; `should expose yargs-parser as Parser` reads `Parser` off 17's build bundle; and the `yargs dsl tests` failures (`$0` from the bin name, electron argv, `locale`, `env`, `terminalWidth`, the minimum-Node check) each drive the singleton or its module-scope state. Three harness fixes were needed before the control read 793 and none moved an assertion: the mocha 9 CLI path (`mochaCli`), a top-level `yargs-parser@21.1.1` in `suiteDeps`, and a CommonJS shim that evicts the incumbent only when the suite busted the shim (`cjsLoad`) with the internal `build/index.cjs` a link to the incumbent's own on a control run (`linksInternal`).",
+    // Stryker disable next-line StringLiteral: an active row's note is its maintainers' log and nothing reads it — `Host.note` is rendered only for a row that is not active (compat-page), so emptying it changes no grade, page or output.
+    note: "**2026-10-19: level and claimed — `burgee/yargs/v17` 793 / 794 against a control of 793 / 794 (`previous-majors` R3–R5), so `SUPPORTED_MAJORS.yargs` is `[17, 18]`.** The one miss is the control's own, above. Four things, each found by the suite and none by reading the changelog. **The singleton (R4):** `require('burgee/yargs/v17')` reaches `dist/yargs/v17.cjs`, CommonJS on purpose: every `beforeEach` busts the require cache and requires the entry again to get an instance over the `process.argv` it has just set, and an ES module is evaluated once per process whatever the cache says — an ESM singleton kept the first `process.argv` and the last instance a test built, and read 772. **`yargs/yargs` is not the singleton:** `helpers.cjs` counts the keys of `require('yargs/yargs')` and wants three, so 17's factory-with-statics is its own entry, `burgee/yargs/v17/yargs`, and the second import names it (`HostImport.target`); `yargs-parser` names `burgee/yargs/parser`, which a program on either major is migrated to. **The string table (R3):** 18's constructor sets `en_US` on every instance and 17's leaves the table alone, and 17's table is made per load of its build, so a locale one test updated (`OPTIONS!`) is not the next file's, and the constructor's `en_US` is not 17's `en`; fourteen cases. **`commandDir()` (R3):** 17 walks with `require-directory` — depth first, `include` and `exclude` against the path, `visit` handed the module itself (18's prototype-less copy has no `.should`) — and names a command module that names no command by finding it in `require.cache` (`whichModule`). Plus `YARGS_MIN_NODE_VERSION`, which 17's CommonJS entry reads at load. All of it is in `burgee/yargs/v17`'s own modules (`yargs/v17-factory.ts`, `yargs/v17.cts`); `burgee/yargs` gains one optional `CommandInstance` on its platform shim, and `burgee/yargs` still grades 816 / 816. `targetInternals` serves `../build/index.cjs` from `dist/yargs/v17.js`'s namespace, in CommonJS at that path, so `parser.cjs` reads `Parser` and `usage.cjs` reads `YError` from the entry rather than off an instance; the internals line is 23 / 23 with it. The paragraph below is the row before the entry. **Measured 2026-09-24: 191 / 794, 24.1%, against a control of 793 / 794 — 17 is graded and not claimed** (`SUPPORTED_MAJORS.yargs` is `[18]`). It is one decision of 18's, not 603 gaps: **17's `require('yargs')` is a singleton** — an instance already bound to `process.argv`, with every method on the required object — and 18 removed it, so the façade, which speaks 18, hands a `require()` caller the factory. Every file but three opens with `yargs.getInternalMethods().reset()` or `require('../../').help(…)` on that object, so the `beforeEach` of `Command`, `Completion`, `usage tests` and `validation tests` throws `yargs.getInternalMethods is not a function` and mocha abandons the rest of each block: **274 of the 794 register at all**, and the 520 that never run are counted against the row, not dropped. Of the 83 that register and fail, the named groups are the same cause seen from the inside: the 14 `integration tests` spawn fixtures that call `require('../../').help('help')`; `helpers` wants 17's `yargs/yargs` statics (`applyExtends`, `Parser`, `hideBin`) on the factory, where 18 moved them to `yargs/helpers`; `should expose yargs-parser as Parser` reads `Parser` off 17's build bundle; and the `yargs dsl tests` failures (`$0` from the bin name, electron argv, `locale`, `env`, `terminalWidth`, the minimum-Node check) each drive the singleton or its module-scope state. Three harness fixes were needed before the control read 793 and none moved an assertion: the mocha 9 CLI path (`mochaCli`), a top-level `yargs-parser@21.1.1` in `suiteDeps`, and a CommonJS shim that evicts the incumbent only when the suite busted the shim (`cjsLoad`) with the internal `build/index.cjs` a link to the incumbent's own on a control run (`linksInternal`).",
   },
   {
     // slice-ansi 7, kept graded when the current row moved to 9 (burgee#317), because 7 is

@@ -98,8 +98,13 @@ function fake({ tty = true, raw = true, env = {} as Record<string, string> } = {
       isTTY: tty,
       columns: 20,
       rows: 6,
-      on: (_: 'resize', fn: () => void) => (onResize = fn),
-      off: () => (onResize = nothing),
+      // Only the event the screen asks for: a listener on any other name would never fire.
+      on: (event: string, fn: () => void) => {
+        if (event === 'resize') onResize = fn;
+      },
+      off: (event: string) => {
+        if (event === 'resize') onResize = nothing;
+      },
     },
     stderr: { write: (s: string) => err.push(s) },
     stdin,
@@ -256,6 +261,32 @@ describe('R19 — inline, the default', () => {
     f.resize();
     expect(f.out.join('')).toContain('read th');
     expect(f.out.join('')).not.toContain('read the docs');
+    screen.close();
+  });
+
+  it('stops listening for resizes when it closes', () => {
+    const f = fake();
+    open(f.rt, options()).close();
+    f.out.length = 0;
+    f.resize();
+    expect(f.out).toEqual([]);
+  });
+
+  it('a stdout that cannot report resizes still opens and closes', () => {
+    const f = fake();
+    const { on: _on, off: _off, ...stdout } = f.rt.stdout;
+    const screen = open({ ...f.rt, stdout }, options());
+    expect(f.out.join('')).toContain('read the docs');
+    expect(() => screen.close()).not.toThrow();
+  });
+
+  it("an animated pane's clock starts when the screen opens, not when the process did", () => {
+    const f = fake();
+    f.clock.tick(250);
+    const screen = open(f.rt, { ...options(), panes: { s: { component: spinner, state: 'build' } }, layout: 's' });
+    f.out.length = 0;
+    f.clock.tick(100);
+    expect(f.out.join('')).toContain('/ build');
     screen.close();
   });
 });
@@ -470,5 +501,67 @@ describe('processRuntime', () => {
     rt.clock.schedule(fn, 1_000_000)();
     expect(typeof rt.clock.now()).toBe('number');
     expect(fn).not.toHaveBeenCalled();
+  });
+});
+
+describe('controlroom-scroll-pane — the focused pane scrolls', () => {
+  const tall = Array.from({ length: 200 }, (_, i) => `line ${i + 1}`);
+  const scrolling = (extra: Partial<ScreenOptions> = {}): ScreenOptions => ({ layout: 'log', panes: { log: { component: text, state: tall.join('\n') } }, focus: ['log'], ...extra });
+
+  it('opens at its bottom, and the default keys move it: Home, PgDn with its `↓ N` hint, End', async () => {
+    const f = fake();
+    const screen = open(f.rt, scrolling());
+    expect(f.out.join('')).toContain('line 200');
+    press(f, `${ESC}[H`);
+    await flush();
+    expect(screen.state.scroll.get('log')).toBe(0);
+    f.out.length = 0;
+    press(f, `${ESC}[6~`);
+    await flush();
+    expect(screen.state.scroll.get('log')).toBe(6);
+    expect(f.out.join('')).toContain('↓ 188');
+    press(f, `${ESC}[F`);
+    await flush();
+    expect(screen.state.scroll.get('log')).toBe('end');
+    screen.close();
+  });
+
+  it('R5 — a resize re-clamps the offset, and an offset the new size reaches follows the tail again', () => {
+    const f = fake();
+    const screen = open(f.rt, scrolling());
+    screen.dispatch('scroll.up');
+    expect(screen.state.scroll.get('log')).toBe(193);
+    (f.rt.stdout as { rows: number }).rows = 4;
+    f.resize();
+    expect(screen.state.scroll.get('log')).toBe(193);
+    (f.rt.stdout as { rows: number }).rows = 10;
+    f.resize();
+    expect(screen.state.scroll.get('log')).toBe('end');
+    screen.close();
+  });
+
+  it('scrolls by what is drawn: an animated pane is measured by its frame, not its static projection', () => {
+    const f = fake();
+    const ticker: Component<string> = { name: 'ticker', static: () => 'done', frame: () => tall.join('\n') };
+    const screen = open(f.rt, { layout: 'log', panes: { log: { component: ticker, state: '' } }, focus: ['log'] });
+    screen.dispatch('scroll.top');
+    expect(screen.state.scroll.get('log')).toBe(0);
+    screen.close();
+  });
+
+  it('S3 — piped, the same screen prints all 200 lines, scrolled or not', () => {
+    const f = fake({ tty: false });
+    const screen = open(f.rt, scrolling());
+    screen.dispatch('scroll.top');
+    screen.close();
+    expect(f.out.join('').trimEnd().split('\n')).toEqual(tall);
+  });
+
+  it('R6 — closing inline settles every line of the pane into scrollback, not the page it was on', () => {
+    const f = fake();
+    const screen = open(f.rt, scrolling());
+    screen.dispatch('scroll.top');
+    screen.close();
+    expect(replay(f.out.join('')).filter((line) => line.startsWith('line '))).toEqual(tall);
   });
 });

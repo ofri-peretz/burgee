@@ -30,14 +30,14 @@
       ]
     },
     "lighter-than-commander": {
-      "ceiling": 1.565,
+      "ceiling": 1.42,
       "unit": "ratio",
       "was": "<= 1: burgee/commander is lighter in a user's bundle than commander alone",
       "derive": {
         "source": "bundle",
         "headroomBytes": 80,
         "step": 0.005,
-        "rule": "Bundle ratios are deterministic, so this is the build's own measurement: burgee/commander 60,969 B over commander's 39,084 B = 1.560 (CI reads 1.560 at 7b694f7). CI measures about 32 B heavier than a local build, so 80 B go on our side before rounding: 61,049 / 39,084 = 1.562, rounded up to the next 0.005 — the step this row's B4 ceiling has moved in since D-100 — is 1.565, B4's existing ceiling, carried over unchanged. The next 0.05 would be 1.6, a raise dressed as a first ceiling."
+        "rule": "Bundle ratios are deterministic, so this is the build's own measurement: burgee/commander 55,346 B over commander's 39,084 B = 1.416, and CI reads the same 55,346 B (1.416) at every reading from 2026-10-13-ba91416-ci through 2026-10-19-c05c86e-ci. CI has measured about 32 B heavier than a local build elsewhere, so 80 B go on our side before rounding: 55,426 / 39,084 = 1.418, rounded up to the next 0.005 (the step this row's B4 ceiling has moved in since D-100) is 1.42, which holds 55,499 B. B4's byte ceiling for burgee/commander (55,400) still binds first; this is the ceiling on the published ratio. The first ceiling, 1.565, was 60,969 B over 39,084 B at 7b694f7, before commander-front-end-diet took 5,623 B off."
       },
       "history": [
         {
@@ -46,6 +46,13 @@
           "decision": "D-157",
           "measured": 1.56,
           "why": "First ceiling, and B4's `burgee/commander` ratio ceiling from J3/J4 (2026-09-24) carried over, not raised. Replaces the claim's <= 1."
+        },
+        {
+          "ceiling": 1.42,
+          "setOn": "2026-10-19",
+          "decision": "D-20261019-lighter-than-commander-ratchet",
+          "measured": 1.416,
+          "why": "Lowered after commander-front-end-diet R1 and R2 (bellpull behind import(), the completion and --mcp routers in a lazily loaded commander/surfaces.js) took burgee/commander from 60,969 B to 55,346 B. Every CI reading since 2026-10-13-ba91416-ci is 55,346 B, ratio 1.416. (55,346 + 80) / 39,084 = 1.418, rounded up to 0.005, is 1.42."
         }
       ]
     },
@@ -57,7 +64,7 @@
         "source": "bundle",
         "headroomBytes": 80,
         "step": 0.05,
-        "rule": "Bundle ratios are deterministic, so this is the build's own measurement on main after #631: burgee 24,216 B over cac's 10,452 B = 2.317. CI measures about 32 B heavier than a local build, so 80 B go on our side before rounding: 24,296 / 10,452 = 2.324, rounded up to the next 0.05 is 2.35, which holds 24,562 B. B4's byte ceiling (24,282) still binds first; this is the ceiling on the published ratio."
+        "rule": "Bundle ratios are deterministic, so this is the build's own measurement on main after #631: burgee 24,216 B over cac's 10,452 B = 2.317. CI measures about 32 B heavier than a local build, so 80 B go on our side before rounding: 24,296 / 10,452 = 2.324, rounded up to the next 0.05 is 2.35, which holds 24,562 B. B4's byte ceiling (24,500 since D-20261019-typed-schema-surface-weight) still binds first; this is the ceiling on the published ratio."
       },
       "history": [
         {

@@ -8,33 +8,6 @@ description: "Every export of caique/clack, with its signature and doc comment: 
 `caique/clack` — `@clack/prompts`' API on caique's own engine: its twelve prompts, its
 writers, its symbols and its settings, under the names clack gives them.
 
-## Read this before reading the compatibility number
-
-`@clack/prompts`' own suite is 606 cases, and **289 of its 444 assertions are
-`toMatchSnapshot()`, spread across 17 of its 19 files**. Those seventeen files grade
-clack's exact frames — every bar, every colour, every cursor move — and they stay
-subtracted from the row by D-001: agreeing with them byte for byte would mean copying
-clack's renderer, which is not what a drop-in owes a caller.
-
-**What is left is seventeen cases in two files, and this module passes sixteen:**
-
-- `limit-options.test.ts`, 14 cases — the sliding window a list draws through
-  (`clack-limit.ts`).
-- `guide.test.ts`, 3 cases — all twelve prompts render the same grey guide, and none
-  renders one when `withGuide` is false. Until D-152 this module exported only
-  `limitOptions`, and the first two were written off as "the drawing"; they are not —
-  they grade that the twelve prompts exist, take clack's options and streams, cancel on
-  escape and draw clack's layout, which is the whole of what a caller migrating a prompt
-  needs. They pass now.
-- The third, `no prompt renders a guide when withGuide is globally false`, calls
-  `updateSettings` **imported from `@clack/core`** and asserts our prompts obey it. That is
-  module state in a package caique does not depend on (U6) and cannot read, so it is the
-  row's one ceiling. `updateSettings` from *this* module does the same job for a program
-  that imports it from here.
-
-Not built, and named so it is a decision rather than a silence: `box`, `progress` and
-`taskLog`, which no graded case reaches (D-152).
-
 ```ts
 import { CANCEL_SYMBOL, formatInstructionFooter, isCancel, … } from 'caique/clack';
 ```
@@ -60,19 +33,6 @@ function formatInstructionFooter(instructions: string[], hasGuide: boolean): str
 
 The window of options a list should draw, as lines, with `...` where it was cut.
 
-The order of the four decisions is the behaviour, and every one of them is a graded case:
-
-1. **How many options may show at all** — the smaller of `maxItems` and the rows left
-   after `rowPadding`, but never fewer than five. "clamps to 5 rows minimum" is that
-   floor, and it is why a list in a seven-row terminal still shows something.
-2. **Where the window starts** — it only slides once the cursor comes within three of the
-   bottom, and it stops at the end of the list rather than running past it.
-3. **Which ends get an ellipsis** — each `...` costs a line, so it is counted before the
-   options are, not after.
-4. **What to give up when the options wrapped** — options are dropped whole, away from the
-   cursor first, and an ellipsis appears wherever something was dropped. The three
-   "multi-line item clamping" cases are start, middle and end of that.
-
 ```ts
 function limitOptions<TOption>({ cursor, options, style, output, maxItems, columnPadding, rowPadding, }: LimitOptionsParams<TOption>): string[];
 ```
@@ -86,11 +46,6 @@ function limitOptions<TOption>({ cursor, options, style, output, maxItems, colum
 ### updateSettings
 
 Change the settings every later prompt reads.
-
-**These are caique's settings, not `@clack/core`'s**, and that is the one place this
-subpath cannot follow the incumbent: clack's live in a module caique does not depend on
-(U6), so a program that calls `@clack/core`'s `updateSettings` is changing a package our
-prompts never read. A program that imports this one from `caique/clack` gets the behaviour.
 
 ```ts
 function updateSettings(updates: ClackSettings): void;
@@ -122,7 +77,7 @@ const autocompleteMultiselect: <Value>(opts: AutocompleteMultiSelectOptions<Valu
 
 ### cancel
 
-Closes a session that was cancelled: the end of the guide, and the message in red.
+Closes a session that was cancelled: the end of the guide, and the message in red. Not decoration, so never quiet.
 
 ```ts
 const cancel: (message?: string, opts?: CommonOptions) => void;
@@ -189,9 +144,12 @@ const isCancel: (value: unknown) => value is symbol;
 Whether `CI` is the string `true`, which is the test clack makes. This and the glyph table
 above stay clack's rules rather than roundel's: `interactive()` asks whether a person can
 answer, which clack never asks, and clack's table counts `CI` where roundel's `unicode()` does not.
+A caller's runtime is read when one is passed (`caique-quiet-seam` R1), the process's otherwise.
 
 ```ts
-const isCI: () => boolean;
+const isCI: (runtime?: {
+    env: PolicyRuntime["env"];
+}) => boolean;
 ```
 
 ### isTTY
@@ -206,17 +164,18 @@ const isTTY: (output: {
 
 ### log
 
-clack's `log`: a message on the guide, with a symbol for its kind.
+clack's `log`: a message on the guide, with a symbol for its kind. Every kind but `error` is decoration.
 
 ```ts
 const log: {
-    message: typeof message;
+    message: (text?: string | string[], opts?: LogMessageOptions) => void;
     info: (text: string, opts?: LogMessageOptions) => void;
     success: (text: string, opts?: LogMessageOptions) => void;
     step: (text: string, opts?: LogMessageOptions) => void;
     warn: (text: string, opts?: LogMessageOptions) => void;
     /** An alias for `log.warn()`. */
     warning: (text: string, opts?: LogMessageOptions) => void;
+    /** A failure: written under a quiet runtime too, because `--quiet` never hides one. */
     error: (text: string, opts?: LogMessageOptions) => void;
 };
 ```
@@ -583,6 +542,13 @@ interface CommonOptions {
     output?: NodeJS.WritableStream & SizedOutput;
     signal?: AbortSignal;
     withGuide?: boolean;
+    /**
+     * The caller's runtime — burgee's `ctx.runtime` — and the one way `--quiet` reaches this port
+     * (`caique-quiet-seam` R1). With `quiet`, the writers that decorate draw nothing; prompts
+     * ignore it. Its `env` is the one `CI` is read from. It carries no streams, so `input` and
+     * `output` still default to the process's. Never read from the environment: a caller passes it.
+     */
+    runtime?: PolicyRuntime;
 }
 ```
 

@@ -1,0 +1,46 @@
+{
+  "repo": "https://github.com/sindresorhus/cli-truncate",
+  "version": "6.1.1",
+  "tag": "v6.1.1",
+  "commit": "00818cbd97f5bd6c9b8af39f19c0cd1e42971e54",
+  "vendored": "2026-10-19",
+  "depsBefore": "2026-09-24T15:37:52.226Z",
+  "files": 1,
+  "internalFiles": [],
+  "internals": [],
+  "hashes": {
+    "./example.js": "1ed3152da80459c984f67ee17c0a7125bf35494f5cdce728163ff25d77dfc062",
+    "./index.d.ts": "67b6c1c398e5b7e04d99dd51eee0293da5c006ec597c31367f8134cf4a7f285d",
+    "./index.js": "1354e8a1eb49e753e0df8096f90db1326b6ca629605542734f4441ec0ba5f245",
+    "./index.test-d.ts": "b4e59125c4314a5e65a9eb563c92cf884a36b0e2901262958d3ab933431064d8",
+    "./test.js": "1a6591af657b38cb523f0b32f2cb19f2ac610deb5901f6254196e8708413b5a7",
+    "index.d.ts": "67b6c1c398e5b7e04d99dd51eee0293da5c006ec597c31367f8134cf4a7f285d",
+    "index.js": "1354e8a1eb49e753e0df8096f90db1326b6ca629605542734f4441ec0ba5f245"
+  },
+  "tests": {
+    "./example.js": [],
+    "./index.d.ts": [],
+    "./index.js": [],
+    "./index.test-d.ts": [],
+    "./test.js": [
+      "main",
+      "non-finite columns",
+      "position option validation",
+      "space option",
+      "preferTruncationOnSpace respects a multi-column truncation character",
+      "preferTruncationOnSpace option",
+      "truncationCharacter option",
+      "custom truncation character inherits style (end/start)",
+      "styled truncation character inherits for start and end",
+      "edge cases",
+      "preserves ANSI escape codes at the end - issue #24",
+      "wide characters should not exceed maxWidth - issue #28"
+    ]
+  },
+  "surface": {
+    "index.d.ts": [
+      "Options"
+    ],
+    "index.js": []
+  }
+}

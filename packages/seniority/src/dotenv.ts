@@ -26,7 +26,7 @@ import path from 'node:path';
 import url from 'node:url';
 
 import { optionsFromEnv, truthy } from './dotenv-options.js';
-import { parseFast } from './dotenv-scan.js';
+import { parseFast, unquoteLines } from './dotenv-scan.js';
 import { LoaderError } from './load.js';
 import { ambientCwd, ambientEnv } from './runtime.js';
 
@@ -74,7 +74,7 @@ export function parse(src: string | Buffer, options?: ParseOptions): Record<stri
  */
 function unwrap(raw: string): string {
   const value = raw.trim();
-  const unquoted = value.replace(/^(['"`])([\s\S]*)\1$/gm, '$2');
+  const unquoted = unquoteLines(value);
   // A single-quoted or backticked value is literal, which is the distinction half of dotenv's
   // multi-line issues turn on.
   return value.startsWith(DOUBLE_QUOTE) ? unquoted.replaceAll('\\n', '\n').replaceAll('\\r', '\r') : unquoted;
@@ -102,10 +102,10 @@ function objectRequired(): Error {
  * `env > config` (R1), arrived at independently by dotenv and worth noticing. Either argument
  * that is not an object is `OBJECT_REQUIRED`, as dotenv 18 checks both before it reads either.
  */
-export function populate(target: Record<string, string | undefined>, parsed: Record<string, string>, options: PopulateOptions = {}): Record<string, string> {
+export function populate(target: DotenvPopulateInput, parsed: DotenvPopulateInput, options: PopulateOptions = {}): DotenvPopulateOutput {
    
   if (typeof target !== 'object' || target === null || typeof parsed !== 'object' || parsed === null) throw objectRequired();
-  const populated: Record<string, string> = {};
+  const populated: DotenvPopulateOutput = {};
   // `parseBoolean`, as dotenv 18.0.6 does (#1069): `config` hands its options through
   // unparsed, so `{ override: 'false' }` from a config file or a flag is off, not truthy.
   const override = truthy(options.override);
@@ -161,7 +161,7 @@ export type DotenvParseOptions = ParseOptions;
 export type DotenvParseOutput = Record<string, string>;
 export type DotenvPopulateInput = Record<string, string | undefined>;
 export type DotenvPopulateOptions = PopulateOptions;
-export type DotenvPopulateOutput = Record<string, string>;
+export type DotenvPopulateOutput = Record<string, string | undefined>;
 
 /**
  * Read, parse and populate. Returns `{ parsed }`, or `{ parsed, error }` with the last error,

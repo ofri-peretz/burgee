@@ -7,18 +7,30 @@
  * records how each one failed. The fixtures are the trial's shapes cut down to the line that
  * mattered, not the projects themselves.
  */
+import { spawn } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ExitCode } from './exit-code.js';
 import { familyVersions, migrate, type MigrationReport, rewriteSource, scan, textOf, UnknownIncumbentError } from './migrate.js';
 
+/**
+ * Every project this file makes, handed after its last test to an `rm` of its own that the hook does
+ * not wait for — under the pre-push load, unlinking a scratch directory from Node took 64.9 s
+ * (#1137). Before this they were never removed: ~15k `burgee-migrate-*` a day in `$TMPDIR`.
+ */
+const scratch: string[] = [];
+afterAll(() => {
+  if (scratch.length > 0 && process.platform !== 'win32') spawn('rm', ['-rf', ...scratch], { detached: true, stdio: 'ignore' }).unref();
+});
+
 function project(files: Record<string, string>): string {
   const dir = mkdtempSync(join(tmpdir(), 'burgee-migrate-u12-'));
+  scratch.push(dir);
   for (const [path, body] of Object.entries(files)) {
     mkdirSync(dirname(join(dir, path)), { recursive: true });
     writeFileSync(join(dir, path), body);
@@ -212,9 +224,24 @@ describe('U12-2 — under a release age, next pins the newest family version old
     ['a block list', 'minimumReleaseAgeExclude:\n  - roundel\nminimumReleaseAge: 4320\n'],
     ['a flow list with a glob', "minimumReleaseAge: 4320\nminimumReleaseAgeExclude: ['round*']\n"],
     ['an exact version', `minimumReleaseAge: 4320\nminimumReleaseAgeExclude:\n  - "roundel@${versions['roundel'] as string}"\n`],
+    // migrate-release-age R3: `name@a || b` makes each listed version installable at once. The graded
+    // one is listed second, so it is exempt only when the entry is split on `||` and each side trimmed;
+    // read whole, nothing matches and the floor drops to the ten-day-old `M.0.0`.
+    ['a version list, name@a || b', `minimumReleaseAge: 4320\nminimumReleaseAgeExclude:\n  - "roundel@${majorOf('roundel')}.0.0 || ${versions['roundel'] as string}"\n`],
   ])('keeps the graded pin for a package minimumReleaseAgeExclude exempts, as %s', async (_, workspace) => {
     const report = await migrate({ dir: mcpc(workspace), status: clean, registry: registry(), now });
     expect(report.next).toBe(`pnpm add flagstaff@^${majorOf('flagstaff')}.0.0 roundel@^${versions['roundel'] as string} && pnpm remove chalk ora`);
+  });
+
+  it('orders two old-enough releases of one minor by patch, and pins the newer', async () => {
+    // Two patches of one minor, both past the age: the caret floor is the later patch.
+    const patches = async (name: string): Promise<Record<string, string>> => ({
+      [`${majorOf(name)}.0.0`]: daysAgo(10),
+      [`${majorOf(name)}.0.3`]: daysAgo(8),
+      [versions[name] as string]: daysAgo(1),
+    });
+    const report = await migrate({ dir: mcpc('minimumReleaseAge: 4320\n'), status: clean, registry: patches, now });
+    expect(report.next).toBe(`pnpm add flagstaff@^${majorOf('flagstaff')}.0.3 roundel@^${majorOf('roundel')}.0.3 && pnpm remove chalk ora`);
   });
 
   it('says plainly when no version is old enough yet, and when one will be', async () => {
@@ -311,14 +338,12 @@ describe('U12-3 — the project chooses what moves, and an undeclared incumbent 
 describe('U12-4 — an incumbent moves in every file or in none', () => {
   // mac-cleaner: one file's @inquirer/core import was refused (usePagination) and the others
   // moved, so caique's ExitPromptError was not the class @inquirer/confirm threw, and Ctrl+C
-  // printed an error where it used to exit 0. `caique/inquirer` carries `usePagination` since
-  // 2026-10-11 (inquirer-prompts-drop-in R1), so the refused import here is a name it does not
-  // export; the rule under test is the same.
+  // printed an error where it used to exit 0.
   it('does not rewrite an incumbent anywhere once one of its imports is refused, and says why', async () => {
     const clean1 = "import { createPrompt } from '@inquirer/core';\n";
     const dir = project({
       'package.json': manifest({ '@inquirer/core': '^12.0.0', chalk: '^6.0.0' }),
-      'src/page.ts': "import { usePromptHistory } from '@inquirer/core';\n",
+      'src/page.ts': "import { usePagination } from '@inquirer/core';\n",
       'src/prompt.ts': clean1,
       'src/a.ts': "import chalk from 'chalk';\n",
     });
@@ -441,6 +466,10 @@ describe('U12-5 — the report says what happened in words', () => {
   it('renders every section a report can carry', () => {
     const report: MigrationReport = {
       summary: 'partial: 1 file rewritten, 2 refused',
+      preflight: [
+        { check: 'jest-cjs', blocking: true, found: 'jest', message: 'jest cannot load it', fix: 'set transformIgnorePatterns' },
+        { check: 'floor', blocking: false, found: 'engines', message: 'the floor rises', fix: 'npm pkg set' },
+      ],
       files: 1,
       imports: 2,
       mapped: [{ from: 'chalk', to: 'roundel/chalk', imports: 2, files: 1 }],
@@ -449,12 +478,48 @@ describe('U12-5 — the report says what happened in words', () => {
         { file: 'b.ts', line: 3, specifier: '@clack/core', reason: 'sibling-state', fix: 'do the thing' },
         { file: 'b.ts', line: 4, specifier: '@inquirer/core', reason: 'unknown-export', names: ['usePagination'] },
       ],
+      dynamic: [{ file: 'index.js', line: 69, shape: 'argv-member' }],
       kept: [{ file: 'c.ts', line: 4, specifier: 'yargs', names: ['X'], note: 'a note' }],
       detected: { declared: [], imported: [] },
       dependencies: { before: [], removable: [], after: 0, add: [] },
       graded: [],
       partial: [{ from: 'dotenv', to: 'seniority/dotenv', reference: 141, passed: 106, rate: 0.75, control: 141 }],
-      offMajor: [{ from: 'chalk', found: '4.1.2', graded: '6.0.1' }],
+      offMajor: [
+        { from: 'boxen', found: '10.0.0', graded: '9.0.0', nearest: null, sites: [], move: null },
+        { from: 'chalk', found: '4.1.2', graded: '6.0.1', nearest: 6, sites: [], move: null },
+        {
+          from: 'commander',
+          found: '9.4.0',
+          graded: '15.0.0',
+          nearest: 14,
+          sites: [{ file: 'bin/wait-port.js', line: 4, api: 'module-as-program', removedIn: '12.0.0', replacement: "const { program } = require('commander')", source: 'https://x', firstUse: 13 }],
+          move: null,
+        },
+        {
+          from: 'yargs',
+          found: '15.4.1',
+          graded: '18.2.0',
+          nearest: 17,
+          sites: [{ file: 'bin/qrcode', line: 2, api: 'singleton', removedIn: '18.0.0', replacement: 'the factory', source: 'https://y', firstUse: undefined }],
+          move: { yargs: 'burgee/yargs/v17', 'yargs/yargs': 'burgee/yargs/v17/yargs' },
+        },
+        {
+          from: 'commander',
+          found: '13.1.0',
+          graded: '15.0.0',
+          nearest: 14,
+          sites: [{ file: 'cli.mjs', line: 1, api: 'esm-mjs', removedIn: '15.0.0', replacement: 'the root', source: 'https://z', firstUse: undefined }],
+          move: null,
+        },
+        {
+          from: 'yargs',
+          found: '16.2.0',
+          graded: '18.2.0',
+          nearest: 17,
+          sites: [{ file: 'cli.js', line: 3, api: 'reset', removedIn: '17.0.0', replacement: 'a fresh instance', source: 'https://r', firstUse: undefined }],
+          move: null,
+        },
+      ],
       guided: [{ file: 'ui.js', line: 5, from: 'blessed', pattern: 'screen', guide: 'Screen' }],
       undeclared: [],
       held: [],
@@ -471,12 +536,17 @@ describe('U12-5 — the report says what happened in words', () => {
     expect(textOf(report)).toBe(
       [
         'partial: 1 file rewritten, 2 refused',
+        'before the move:',
+        '  block  jest-cjs  jest cannot load it; fix: set transformIgnorePatterns',
+        '  warn  floor  the floor rises; fix: npm pkg set',
         'rewrote:',
         '  chalk -> roundel/chalk  2 imports in 1 file',
         'refused, and left exactly as it was:',
         '  a.ts:2  <not a literal>  non-literal-specifier',
         '  b.ts:3  @clack/core  sibling-state; fix: do the thing',
         '  b.ts:4  @inquirer/core  unknown-export (usePagination)',
+        'read as not an incumbent (a computed specifier):',
+        '  index.js:69  argv-member',
         'kept on the incumbent:',
         '  c.ts:4  yargs  a note',
         'still installed by another dependency:',
@@ -485,7 +555,16 @@ describe('U12-5 — the report says what happened in words', () => {
         'not level yet, left alone:',
         '  dotenv -> seniority/dotenv  106 / 141 (the incumbent passes 141)',
         'on a major that was not graded, left alone:',
-        '  chalk 4.1.2 (graded 6.0.1)',
+        '  boxen 10.0.0 (graded 9.0.0)',
+        '  chalk 4.1.2 (graded 6.0.1); nearest claimed 6',
+        '  commander 9.4.0 (graded 15.0.0); nearest claimed 14, no move: 1 line below uses an API 14 removed',
+        "    bin/wait-port.js:4  module-as-program  removed in 12.0.0; use: const { program } = require('commander') (first use line 13)",
+        '  yargs 15.4.1 (graded 18.2.0); nearest claimed 17, move yargs -> burgee/yargs/v17, yargs/yargs -> burgee/yargs/v17/yargs',
+        '    bin/qrcode:2  singleton  removed in 18.0.0; use: the factory',
+        '  commander 13.1.0 (graded 15.0.0); nearest claimed 14',
+        '    cli.mjs:1  esm-mjs  removed in 15.0.0; use: the root',
+        '  yargs 16.2.0 (graded 18.2.0); nearest claimed 17, no move: 1 line below uses an API 17 removed',
+        '    cli.js:3  reset  removed in 17.0.0; use: a fresh instance',
         'no drop-in; see the guide:',
         '  ui.js:5  blessed  screen  Screen',
         'declared: none',

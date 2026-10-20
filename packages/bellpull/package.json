@@ -1,6 +1,6 @@
 {
   "name": "bellpull",
-  "version": "1.0.4",
+  "version": "1.0.8",
   "description": "Runs a subprocess, resolves the executable it names, and returns one structured result every caller can read: a line for a person, a --json envelope or an agent event. Zero dependencies. Drop-in paths for cross-spawn and which.",
   "license": "MIT",
   "type": "module",
@@ -8,12 +8,14 @@
   "engines": {
     "node": "^20.19.0 || >=22.13.0"
   },
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./package.json": "./package.json",
     "./schema.json": "./dist/schema.json",
     "./which": {
       "types": "./dist/which.d.ts",
@@ -34,6 +36,14 @@
       "types": "./dist/plugin.d.ts",
       "import": "./dist/plugin.js",
       "default": "./dist/plugin.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "which": ["./dist/which.d.ts"],
+      "node-which": ["./dist/node-which.d.ts"],
+      "cross-spawn": ["./dist/cross-spawn.d.ts"],
+      "plugin": ["./dist/plugin.d.ts"]
     }
   },
   "files": [

@@ -60,9 +60,9 @@ export const GRADED: Readonly<Record<string, Row>> = {
   'slice-ansi': { reference: 104, passed: 104, rate: 1, control: 104 },
   cosmiconfig: { reference: 243, passed: 242, rate: 0.9958847736625515, control: 242 },
   lilconfig: { reference: 77, passed: 77, rate: 1, control: 77 },
-  dotenv: { reference: 191, passed: 191, rate: 1, control: 191 },
+  dotenv: { reference: 193, passed: 193, rate: 1, control: 193 },
   clack: { reference: 16, passed: 16, rate: 1, control: 16 },
-  'inquirer-prompts': { reference: 213, passed: 52, rate: 0.24413145539906103, control: 213 },
+  'inquirer-prompts': { reference: 213, passed: 100, rate: 0.4694835680751174, control: 213 },
   'inquirer-core': { reference: 41, passed: 41, rate: 1, control: 41 },
   meow: { reference: 148, passed: 146, rate: 0.9864864864864865, control: 146 },
   'ansi-escapes': { reference: 4, passed: 4, rate: 1, control: 4 },
@@ -76,6 +76,11 @@ export const GRADED: Readonly<Record<string, Row>> = {
   'find-up': { reference: 104, passed: 104, rate: 1, control: 104 },
   onetime: { reference: 6, passed: 6, rate: 1, control: 6 },
   'cli-cursor': { reference: 8, passed: 8, rate: 1, control: 8 },
+  'cli-truncate': { reference: 12, passed: 12, rate: 1, control: 12 },
+  'widest-line': { reference: 1, passed: 1, rate: 1, control: 1 },
+  picocolors: { reference: 1, passed: 1, rate: 1, control: 1 },
+  'supports-color': { reference: 55, passed: 55, rate: 1, control: 55 },
+  'extra-typings': { reference: 369, passed: 369, rate: 1, control: 369 },
 };
 
 /** One graded path: an incumbent's specifier, and the family specifier that replaces it. */
@@ -118,7 +123,7 @@ export const DROP_INS: readonly DropIn[] = [
   { host: 'dotenv', from: 'dotenv/config', to: 'seniority/dotenv/config' },
   { host: 'dotenv', from: 'dotenv/config.js', to: 'seniority/dotenv/config' },
   { host: 'clack', from: '@clack/prompts', to: 'caique/clack' },
-  { host: 'inquirer-prompts', from: '@inquirer/prompts', to: 'caique/inquirer' },
+  { host: 'inquirer-prompts', from: '@inquirer/prompts', to: 'caique/inquirer/prompts' },
   { host: 'inquirer-core', from: '@inquirer/core', to: 'caique/inquirer' },
   { host: 'meow', from: 'meow', to: 'burgee/meow' },
   { host: 'ansi-escapes', from: 'ansi-escapes', to: 'paratext' },
@@ -132,6 +137,11 @@ export const DROP_INS: readonly DropIn[] = [
   { host: 'find-up', from: 'find-up', to: 'seniority/find-up' },
   { host: 'onetime', from: 'onetime', to: 'closeout/onetime' },
   { host: 'cli-cursor', from: 'cli-cursor', to: 'closeout/cli-cursor' },
+  { host: 'cli-truncate', from: 'cli-truncate', to: 'linegauge/cli-truncate' },
+  { host: 'widest-line', from: 'widest-line', to: 'linegauge/widest-line' },
+  { host: 'picocolors', from: 'picocolors', to: 'roundel/picocolors' },
+  { host: 'supports-color', from: 'supports-color', to: 'roundel/supports-color' },
+  { host: 'extra-typings', from: '@commander-js/extra-typings', to: 'burgee/commander/extra-typings' },
 ];
 
 /**
@@ -143,6 +153,7 @@ export const DROP_INS: readonly DropIn[] = [
  */
 export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
   '@clack/prompts': '1.8.1',
+  '@commander-js/extra-typings': '15.0.0',
   '@inquirer/core': '12.0.4',
   '@inquirer/prompts': '8.7.3',
   'ansi-escapes': '7.3.0',
@@ -150,27 +161,31 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
   chalk: '6.0.1',
   'cli-cursor': '5.0.0',
   'cli-table3': '0.6.5',
+  'cli-truncate': '6.1.1',
   commander: '15.0.0',
   cosmiconfig: '10.0.1',
   'cross-spawn': '7.0.6',
-  dotenv: '18.0.7',
+  dotenv: '18.0.8',
   'exit-hook': '5.1.0',
   'find-up': '8.0.0',
   ink: '8.0.0',
-  lilconfig: '3.1.3',
+  lilconfig: '3.1.4',
   'log-update': '8.0.0',
   meow: '14.1.0',
   onetime: '8.0.0',
   ora: '9.4.1',
+  picocolors: '1.1.1',
   rc: '1.2.8',
   'restore-cursor': '5.1.0',
   'signal-exit': '4.1.0',
   'slice-ansi': '9.0.1',
   'string-width': '8.3.0',
   'strip-ansi': '7.2.0',
+  'supports-color': '11.0.0',
   'term-img': '7.1.0',
   'terminal-link': '5.0.0',
   which: '7.0.0',
+  'widest-line': '6.0.0',
   'wrap-ansi': '10.0.2',
   yargs: '18.2.0',
   'yargs-parser': '22.0.0',
@@ -186,10 +201,17 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
  * tag and graded in CI by `compat.yml`'s ratchet job — whose baseline passes as many cases as
  * its control does.
  *
- * The older majors graded today are **not claimed**, because none is level: commander 14
- * grades 1329 / 1331 (15 names the surplus argument in the excess-arguments message, 14 does
- * not), yargs 17 grades 191 / 794 (17's `require('yargs')` is a singleton, which 18 removed),
- * dotenv 17 grades 107 / 141 (18 moved `config()`'s log line to `console.error` and
+ * Commander 14 is claimed: its suite grades `burgee/commander/v14` 1331 / 1331, level with
+ * commander 14.0.3 itself. That subpath is the front-end with 14's excess-arguments message,
+ * which omits the surplus argument 15 names, and `migrate` writes it for a project on 14
+ * (`previous-majors` R1, R2, R6).
+ *
+ * Yargs 17 is claimed: its suite grades `burgee/yargs/v17` 793 / 794, level with yargs 17.7.3
+ * itself, whose one miss is the vendored root's own manifest. That entry is the front-end with
+ * 17's `require()` singleton, its string table, and its `commandDir()` walk, and `burgee/yargs/v17/yargs`
+ * is 17's `yargs/yargs`; `migrate` writes them for a project on 17 (`previous-majors` R3–R6).
+ *
+ * The other older majors graded today are **not claimed**, because none is level: dotenv 17 grades 107 / 141 (18 moved `config()`'s log line to `console.error` and
  * deleted `.env.vault`, `DOTENV_KEY` and the tips, and the façade speaks 18), and ink 6 grades
  * 540 / 584 (`controlroom/ink` follows ink 8 where the two majors disagree — Delete is
  * backspace, a kitty Ctrl+letter is its own code point, the cursor and frame protocol moved;
@@ -203,12 +225,14 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
  *
  * `migrate` reads this, and not `GRADED_VERSIONS`, to decide a project is on a major it may
  * rewrite — so a major that becomes level here is a major `migrate` serves, with no second
- * edit. `scripts/supported-majors-lock.test.ts` holds every entry to `GRADED_VERSIONS` and to
+ * edit, except that a major whose behaviour differs has its own entry, which `migrate` writes
+ * from {@link PREVIOUS_MAJOR_ENTRIES}. `scripts/supported-majors-lock.test.ts` holds every entry to `GRADED_VERSIONS` and to
  * the oracle's graded rows.
  */
 /* eslint-disable conventions/no-magic-numbers -- these are major versions of other packages, data `migrate` reads and a lock holds to the oracle's grades; naming each would be twenty-seven constants that say `15` */
 export const SUPPORTED_MAJORS: Readonly<Record<string, readonly number[]>> = {
   '@clack/prompts': [1],
+  '@commander-js/extra-typings': [15],
   '@inquirer/core': [12],
   '@inquirer/prompts': [8],
   'ansi-escapes': [7],
@@ -216,7 +240,8 @@ export const SUPPORTED_MAJORS: Readonly<Record<string, readonly number[]>> = {
   chalk: [6],
   'cli-cursor': [5],
   'cli-table3': [0],
-  commander: [15],
+  'cli-truncate': [6],
+  commander: [14, 15],
   cosmiconfig: [10],
   'cross-spawn': [7],
   dotenv: [18],
@@ -228,18 +253,34 @@ export const SUPPORTED_MAJORS: Readonly<Record<string, readonly number[]>> = {
   meow: [14],
   onetime: [8],
   ora: [9],
+  picocolors: [1],
   rc: [1],
   'restore-cursor': [5],
   'signal-exit': [4],
   'slice-ansi': [9],
   'string-width': [8],
   'strip-ansi': [7],
+  'supports-color': [11],
   'term-img': [7],
   'terminal-link': [5],
   which: [7],
+  'widest-line': [6],
   'wrap-ansi': [10],
-  yargs: [18],
+  yargs: [17, 18],
   'yargs-parser': [22],
+};
+
+/**
+ * `previous-majors` R6 — the entry `migrate` writes for a specifier whose project is on a
+ * claimed older major that behaves differently from the current one, per specifier and major.
+ * A claimed older major missing here behaves as the current one does, and is rewritten to
+ * `MAPPING`'s target. Each entry is graded: its `PREVIOUS_MAJORS` row's `target` is this value.
+ */
+export const PREVIOUS_MAJOR_ENTRIES: Readonly<Record<string, Readonly<Record<number, string>>>> = {
+  commander: { 14: 'burgee/commander/v14' },
+  yargs: { 17: 'burgee/yargs/v17' },
+  // 17's `yargs/yargs` is the factory, never the singleton `require('yargs')` returns in 17.
+  'yargs/yargs': { 17: 'burgee/yargs/v17/yargs' },
 };
 /* eslint-enable conventions/no-magic-numbers */
 

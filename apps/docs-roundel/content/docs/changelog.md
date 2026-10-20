@@ -3,6 +3,42 @@ title: Changelog
 description: "Every release of roundel, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.1.3
+
+### Patch Changes
+
+- [#1160](https://github.com/ofri-peretz/burgee/pull/1160) [`0b381a0`](https://github.com/ofri-peretz/burgee/commit/0b381a0d394092edf2ea21a9143a10111aa72fe4) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Export `./package.json`. `require('<package>/package.json')` threw `ERR_PACKAGE_PATH_NOT_EXPORTED`, which broke tools that read a dependency's manifest that way: bundlers, license scanners and version checks.
+
+## 1.1.2
+
+### Patch Changes
+
+- [#1130](https://github.com/ofri-peretz/burgee/pull/1130) [`c05c86e`](https://github.com/ofri-peretz/burgee/commit/c05c86e2caa0fc3a89f97f7fe9c37bd7b876bfaf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Every drop-in subpath now type-checks under `moduleResolution: node10`, and under `module: commonjs`
+  with no resolution set, which is TypeScript's default there. `import … from 'burgee/commander'`
+  used to fail with TS2307 in such a project, although `require()` of the same specifier worked.
+  Each package now declares `types` and a `typesVersions` map, derived from `exports`, with one key per
+  typed subpath pointing at the file `exports` already names. `exports` is unchanged, so `node16`,
+  `nodenext` and `bundler` read exactly what they read before. `controlroom/ink`'s declarations no
+  longer name the untyped `react-reconciler`, which was TS7016 for consumers with `skipLibCheck: false`.
+
+## 1.1.1
+
+### Patch Changes
+
+- [#1045](https://github.com/ofri-peretz/burgee/pull/1045) [`c4fd9a3`](https://github.com/ofri-peretz/burgee/commit/c4fd9a3cb10bc36bef8c468365addfc6deb572cf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The family plugin schema (`schema.json`, identical in every plugin host) now describes `locales`, burgee's locale-pack key. A plugin carrying `locales` validates against the shared schema as it does against `burgee/locale-pack-schema.json`, which lists every message id. This package reads nothing new, and a plugin carrying `locales` registers here as before.
+
+## 1.1.0
+
+### Minor Changes
+
+- [#1014](https://github.com/ofri-peretz/burgee/pull/1014) [`65afee5`](https://github.com/ofri-peretz/burgee/commit/65afee5c96e4cae62dbb9b0ba28fab98fffdbf01) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A quiet runtime. roundel's `Runtime` gains an optional `quiet` field, and flagstaff draws nothing when it is `true`: no spinner, no progress, no status line, and the frame clock never armed. Data and errors stay the caller's to print and are never quieted. burgee's global `--quiet` sets it.
+
+- [#1008](https://github.com/ofri-peretz/burgee/pull/1008) [`bcc438a`](https://github.com/ofri-peretz/burgee/commit/bcc438ac3936ee1cd530931ea090c6a8bdd016b2) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - New entry point `roundel/picocolors`: picocolors' default export, its `createColors` and its `isColorSupported`, graded 1 / 1 by picocolors 1.1.1's own `tests/test.js` and bundled at 1,607 B against picocolors' 2,739. Its nine environments from `tests/environments.js` are held byte-equal to picocolors' own source in `picocolors.test.ts`. The forty-one styles are on the default object, not named exports, as with picocolors itself under Node's ES loader.
+
+### Patch Changes
+
+- [#1022](https://github.com/ofri-peretz/burgee/pull/1022) [`ecb0a00`](https://github.com/ofri-peretz/burgee/commit/ecb0a00ca68e9a3b3584aefabb9dcf97e3ff967a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The tarball no longer carries declaration files that no `exports` entry reaches. TypeScript could never open them, because a deep import is refused by `exports`. Every entry's types are unchanged. The ten packages drop 71 files and 118,312 bytes between them, burgee 35 files and 76,504 bytes, which takes its tarball from 251,814 to 225,278 bytes gzipped.
+
 ## 1.0.4
 
 ### Patch Changes

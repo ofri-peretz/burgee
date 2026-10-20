@@ -25,6 +25,9 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
+// eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: a bare `compat-oracle/*` resolves from another checkout's dist/ in an uninstalled worktree (compat-oracle R6)
+import { npmNameOf } from '../packages/compat-oracle/src/competitors.js';
+
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const PACKAGES = join(ROOT, 'packages');
 
@@ -35,29 +38,66 @@ const CLAIMS = new Set(['compat', 'weight', 'surface']);
  * searched for when it is on this list, so an incidental mention of, say, `node` in prose
  * cannot fail a build — and adding a competitor to a README means adding it here, which is
  * the moment somebody decides whether it is watched.
+ *
+ * Widened on 2026-10-12 (`foundation-claims-watched` R1) by every incumbent
+ * `.sdlc/bands/foundation-ceilings.json` names and the drop-in hosts the six foundation
+ * packages are graded against. Until then the foundation's figures were checked against a
+ * list that held none of their competitors, so they passed by being invisible.
  */
 const KNOWN = [
+  'ansi-escapes',
   'boxen',
   'chalk',
+  'clack',
+  '@clack/prompts',
   'cli-boxes',
+  'cli-cursor',
   'cli-spinners',
   'cli-table3',
-  'clack',
+  'cli-truncate',
   'commander',
+  'cosmiconfig',
+  'cross-spawn',
+  'dotenv',
+  'execa',
+  'exit-hook',
+  'find-up',
   'get-east-asian-width',
+  'ink',
+  '@inkjs/ui',
   'inquirer',
-  'inquirer-prompts',
+  '@inquirer/core',
+  'lilconfig',
   'log-update',
+  'meow',
   'mimic-function',
+  'onetime',
   'ora',
   'picocolors',
+  'rc',
+  'restore-cursor',
   'signal-exit',
   'slice-ansi',
   'string-width',
+  'strip-ansi',
+  'supports-color',
+  'term-img',
+  'terminal-link',
+  'tinyexec',
+  'which',
+  'widest-line',
   'wrap-ansi',
   'yargs',
   'yoctocolors',
 ];
+
+/**
+ * Competitor names that are also English words. `which` is the one in this list: the
+ * file-level rule found it beside a figure in nine of ten packages, every time as the
+ * relative pronoun. Such a name is a citation only when it is written as code, `` `which` ``,
+ * which is how bellpull writes the one comparison it makes against the package.
+ */
+const CODE_ONLY = new Set(['which']);
 
 interface Entry {
   package: string;
@@ -86,7 +126,7 @@ function declared(): Declared[] {
       const dir = join(PACKAGES, e.name);
       const file = join(dir, 'competitors.json');
       const raw = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
-      const subpaths = Object.fromEntries(Object.entries(raw).filter(([key]) => key.startsWith('./'))) as Record<string, Entry[]>;
+      const subpaths = Object.fromEntries(Object.entries(raw).filter(([key]) => key === '.' || key.startsWith('./'))) as Record<string, Entry[]>;
       const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as { exports?: Record<string, unknown> };
       return {
         name: e.name,
@@ -117,11 +157,23 @@ const FIGURE = /\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?\s*(?:B|KB|MB|bytes)\b|\d+\.\d+(
 function cited(pkg: Declared): string[] {
   const lines = pkg.citations.flatMap((path) => readFileSync(path, 'utf8').split('\n')).filter((line) => FIGURE.test(line));
   // Not preceded by `/`: `roundel/chalk` is our own subpath, not a citation of chalk.
-  return KNOWN.filter((name) => lines.some((line) => new RegExp(`(^|[^\\w/-])${name}\\b`).test(line)));
+  return KNOWN.filter((name) => {
+    const pattern = CODE_ONLY.has(name) ? new RegExp(`\`${name}\``) : new RegExp(`(^|[^\\w/-])${name}\\b`);
+    return lines.some((line) => pattern.test(line));
+  });
 }
 
-/** Every competitor this package declares, across all its subpaths. */
-const declaredNames = (pkg: Declared): string[] => [...new Set(Object.values(pkg.subpaths).flat().map((entry) => entry.package))];
+/**
+ * Every competitor this package declares, across all its subpaths, under both of its names.
+ *
+ * A host is declared by its `hosts.ts` name, because a `compat` claim has to name a host the
+ * oracle grades, and that name is not always the npm package: `inkjs-ui` is `@inkjs/ui` and
+ * `clack` is `@clack/prompts`. A README writes the npm name. One declaration covers both,
+ * through the same `npmNameOf` the watch fetches with, so the two cannot disagree.
+ */
+const declaredNames = (pkg: Declared): string[] => [
+  ...new Set(Object.values(pkg.subpaths).flat().flatMap((entry) => [entry.package, npmNameOf(entry)])),
+];
 
 const declaredEntries = (pkg: Declared): Entry[] => Object.values(pkg.subpaths).flat();
 
@@ -173,6 +225,27 @@ describe('competitor declarations', () => {
     expect(found.map((p) => p.name)).not.toHaveLength(0);
   });
 
+  /**
+   * `upstream-watch`'s first success criterion, and `foundation-claims-watched` R5: every
+   * published package declares at least one competitor. Every assertion below is `it.each`
+   * over the packages that *have* a file, so a package without one was checked by none of
+   * them — six of ten were, until 2026-10-12, and theirs were the numbers measured once and
+   * never again. Published means what npm means: a version, and not `private`. A reservation
+   * at 0.0.1 counts, since its name is already a public promise.
+   */
+  it('every published package declares its competitors', () => {
+    const published = readdirSync(PACKAGES, { withFileTypes: true })
+      .filter((e) => e.isDirectory() && existsSync(join(PACKAGES, e.name, 'package.json')))
+      .filter((e) => {
+        const manifest = JSON.parse(readFileSync(join(PACKAGES, e.name, 'package.json'), 'utf8')) as { private?: boolean; version?: string };
+        return manifest.private !== true && typeof manifest.version === 'string';
+      })
+      .map((e) => e.name);
+    expect(published.length, 'no published package was found — the reader is broken, not the tree').toBeGreaterThan(0);
+    const silent = published.filter((name) => !found.some((pkg) => pkg.name === name));
+    expect(silent, `${silent.join(', ')} ${silent.length === 1 ? 'is' : 'are'} published and declare${silent.length === 1 ? 's' : ''} no competitors.json — nothing watches ${silent.length === 1 ? 'its' : 'their'} numbers`).toEqual([]);
+  });
+
   it.each(found)('$name: every declared subpath is a real export', (pkg) => {
     for (const subpath of Object.keys(pkg.subpaths)) {
       expect(pkg.exports, `${pkg.name} declares competitors for ${subpath}, which it does not export`).toContain(subpath);
@@ -202,7 +275,7 @@ describe('competitor declarations', () => {
    * a declaration cannot outrun it.
    */
   it.each(found)('$name: every competitor it declares is on the KNOWN list', (pkg) => {
-    const unknown = declaredNames(pkg).filter((name) => !KNOWN.includes(name));
+    const unknown = declaredEntries(pkg).filter((entry) => !KNOWN.includes(entry.package) && !KNOWN.includes(npmNameOf(entry))).map((entry) => entry.package);
     expect(unknown, `${pkg.name} declares ${unknown.join(', ')}, which KNOWN does not list — nothing would search for ${unknown.length === 1 ? 'it' : 'them'}`).toEqual([]);
   });
 
@@ -215,6 +288,24 @@ describe('competitor declarations', () => {
     const everywhere = new Set(found.flatMap((pkg) => declaredNames(pkg)));
     const missing = REQUIRED.filter((name) => !everywhere.has(name));
     expect(missing, `no package declares ${missing.join(', ')} — the watch would not cover ${missing.length === 1 ? 'it' : 'them'}`).toEqual([]);
+  });
+
+  /**
+   * `foundation-claims-watched` success criterion 2. Every foundation ceiling is set from
+   * these incumbents' weights, measured once, on the date the band records. A ceiling anchored
+   * to a package nobody watches goes stale exactly the way a README figure does, so each one
+   * is on KNOWN and declared by some package in the family.
+   */
+  it('every incumbent a foundation ceiling is measured from is known and declared', () => {
+    const band = JSON.parse(readFileSync(join(ROOT, '.sdlc/bands/foundation-ceilings.json'), 'utf8')) as {
+      layers: Record<string, { incumbents: Record<string, number> }>;
+    };
+    const incumbents = [...new Set(Object.values(band.layers).flatMap((layer) => Object.keys(layer.incumbents)))].sort();
+    expect(incumbents.length, 'no incumbents were read from the band — the reader is broken, not the band').toBeGreaterThan(10);
+    expect(incumbents.filter((name) => !KNOWN.includes(name)), 'a foundation ceiling names an incumbent KNOWN does not list').toEqual([]);
+    const everywhere = new Set(found.flatMap((pkg) => declaredNames(pkg)));
+    const missing = incumbents.filter((name) => !everywhere.has(name));
+    expect(missing, `no package declares ${missing.join(', ')} — a foundation ceiling rests on ${missing.length === 1 ? 'it' : 'them'} and nothing re-reads ${missing.length === 1 ? 'it' : 'them'}`).toEqual([]);
   });
 
   /**

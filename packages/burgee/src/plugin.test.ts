@@ -315,3 +315,52 @@ describe('the plugin host is reachable by the specifier the family names', () =>
     expect(thrown.fix, 'the fix names `definePlugin` and has never said where `definePlugin` is').toContain('burgee/plugin');
   });
 });
+
+/**
+ * `localised-human-surfaces` R4 — a locale pack registers through the one `use()`, and a pack
+ * that cannot be rendered is refused in the family's vocabulary where it is first used: the
+ * help it would have translated. (`burgee check` refuses the same pack before it ships;
+ * `check.test.ts` holds each refusal's words.)
+ */
+/** A two-command program with one plugin registered: a locale pack carrying `locales`. */
+function localised(locales: unknown): Manifest {
+  const m = new Manifest();
+  m.rootPath = ['tool'];
+  m.add({ path: ['tool'], options: {} });
+  m.add({ path: ['tool', 'go'], effects: 'read_only', options: {}, run: () => 'went' });
+  m.use({ name: 'pack', contract: 1, locales } as Plugin);
+  return m;
+}
+
+describe('a locale pack is a plugin (R4)', () => {
+  const program = localised;
+  const GERMAN = { LANG: 'de_DE.UTF-8' };
+
+  it('registers through use(), and help speaks it', async () => {
+    const r = await runCommand(program({ de: { 'help.usage': 'Aufruf:' } }), ['--help'], { env: GERMAN });
+    expect(r.stdout.split('\n')[0]).toBe('Aufruf: tool <command> [options]');
+  });
+
+  it.each([
+    ['an unknown id', { de: { 'help.nope': 'x' } }, 'plugin "pack": locales.de["help.nope"] is not a message burgee has'],
+    ['a wrong placeholder', { de: { 'usage.unknownOption': 'unbekannte Option {flag}' } }, 'plugin "pack": locales.de["usage.unknownOption"] has {flag}, which the English "unknown option {option}" does not'],
+    ['a missing plural form', { de: { 'usage.stdinOnce': { other: '{count}' } } }, 'plugin "pack": locales.de["usage.stdinOnce"] is missing the plural form one'],
+  ])('refuses a pack with %s under E_PLUGIN_SCHEMA, as a config failure naming the fix', async (_, locales, message) => {
+    const r = await runCommand(program(locales), ['--help'], { env: GERMAN });
+    expect(r.code).toBe(3);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toContain(`error: E_PLUGIN_SCHEMA ${message}\nhint: `);
+  });
+
+  it('is not read for a run in the base language, so a broken pack costs an English run nothing', async () => {
+    const r = await runCommand(program({ de: { 'help.nope': 'x' } }), ['--help'], { env: { LANG: 'C' } });
+    expect(r.code).toBe(0);
+    expect(r.stdout.split('\n')[0]).toBe('Usage: tool <command> [options]');
+  });
+
+  it('leaves a refusal in English when the pack it would be translated by is the broken one', async () => {
+    const r = await runCommand(program({ de: { 'help.nope': 'x' } }), ['go', '--nope'], { env: GERMAN });
+    expect(r.code).toBe(2);
+    expect(r.stderr.split('\n')[0]).toBe('error: unknown option --nope');
+  });
+});

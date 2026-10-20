@@ -81,10 +81,6 @@ line, and writes only what changed since the last paint, wrapped in synchronized
 a frame identical to the last writes nothing. `release` forgets the painted frame without
 erasing it: what is on screen becomes scrollback, and the next paint starts at the cursor.
 
-Between paints the cursor rests at the end of the frame's last row, which is where the
-hoisted projection has always left it. A frame taller than the terminal cannot be reached
-above its top row; that is the terminal's limit, and a caller lays out within its height.
-
 ```ts
 interface FrameWriter {
     paint(lines: readonly string[]): void;
@@ -135,5 +131,10 @@ interface Writer {
      * TTY stream carries it, and a writer without it is taken to be `DEFAULT_COLUMNS` wide.
      */
     readonly columns?: number | undefined;
+    /**
+     * How tall the terminal is, read at every paint like the width (frames-fit-the-screen R1).
+     * A writer without it — a pipe — is unbounded, and no frame is clipped.
+     */
+    readonly rows?: number | undefined;
 }
 ```

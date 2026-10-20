@@ -361,7 +361,7 @@ read 240 of 241.
 
 ### `seniority/dotenv`
 
-**Graded by dotenv 18.0.7's own test suite: 191 of 191, the same as the real `dotenv` gets
+**Graded by dotenv 18.0.8's own test suite: 193 of 193, the same as the real `dotenv` gets
 here.** That includes its `dotenv run` command line and signal forwarding, both parsers, and
 `import 'dotenv/config'`. dotenv 17.4.2's suite is graded too and not claimed: 107 of 141,
 because 17's vault, tips and `console.log` line are what 18 changed.
@@ -376,7 +376,7 @@ defaults to the process's working directory, as find-up's do.
 
 ### `seniority/lilconfig`
 
-**Graded by lilconfig 3.1.3's own test suite: 77 of 77 cases, the same as the real
+**Graded by lilconfig 3.1.4's own test suite: 77 of 77 cases, the same as the real
 `lilconfig` gets here.** Ten of them assert which files were read by mocking `fs` with
 `jest.mock`; since #549 the oracle applies that mock the way jest does, so they run and pass
 instead of failing for both.
@@ -396,12 +396,12 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `cosmiconfig` | 242 / 243 |
-| `dotenv` | 191 / 191 |
+| `dotenv` | 193 / 193 |
 | `find-up` | 104 / 104 |
 | `lilconfig` | 77 / 77 |
 | `rc` | 1 / 1 |
 
-Weight, installed and tree-inclusive: **230,439 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1168**.
+Weight, installed and tree-inclusive: **218,298 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1107**.
 
 ## For agents
 
@@ -486,10 +486,10 @@ keeps both true.
 | Package | What it is | Migrates from |
 | :-- | :-- | :-- |
 | [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander, yargs and meow |
-| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk |
+| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk, picocolors and supports-color |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
 | [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | @inquirer/core |
-| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi and slice-ansi |
+| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line |
 | [paratext](https://paratext.interlace.tools/docs) | Hyperlinks, images, title, clipboard and notifications | ansi-escapes, terminal-link and term-img |
 | **seniority** (this package) | Configuration precedence and discovery, with provenance | cosmiconfig, lilconfig, dotenv and rc |
 | [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook, restore-cursor, cli-cursor and onetime |

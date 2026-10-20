@@ -1,13 +1,16 @@
 {
   "name": "caique",
-  "version": "1.0.4",
+  "version": "1.4.4",
   "description": "Prompts that are flags first: an agent passes the answer up front, and a non-TTY caller gets an error naming the flag, never a prompt that waits. No dependency outside the burgee family. Drop-in path for @inquirer/core.",
   "license": "MIT",
   "type": "module",
-  "sideEffects": ["./dist/cli.js"],
+  "sideEffects": [
+    "./dist/cli.js"
+  ],
   "engines": {
     "node": "^20.19.0 || >=22.13.0"
   },
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -23,6 +26,11 @@
       "types": "./dist/binding.d.ts",
       "import": "./dist/binding.js",
       "default": "./dist/binding.js"
+    },
+    "./locale": {
+      "types": "./dist/locale.d.ts",
+      "import": "./dist/locale.js",
+      "default": "./dist/locale.js"
     },
     "./clack": {
       "types": "./dist/clack.d.ts",
@@ -44,6 +52,11 @@
       "import": "./dist/inquirer.js",
       "default": "./dist/inquirer.js"
     },
+    "./inquirer/prompts": {
+      "types": "./dist/inquirer-prompts.d.ts",
+      "import": "./dist/inquirer-prompts.js",
+      "default": "./dist/inquirer-prompts.js"
+    },
     "./keys": {
       "types": "./dist/keys.d.ts",
       "import": "./dist/keys.js",
@@ -59,6 +72,7 @@
       "import": "./dist/raw.js",
       "default": "./dist/raw.js"
     },
+    "./package.json": "./package.json",
     "./schema.json": "./dist/schema.json",
     "./spec": {
       "types": "./dist/spec.d.ts",
@@ -69,6 +83,23 @@
       "types": "./dist/terminal.d.ts",
       "import": "./dist/terminal.js",
       "default": "./dist/terminal.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "ask": ["./dist/ask.d.ts"],
+      "binding": ["./dist/binding.d.ts"],
+      "locale": ["./dist/locale.d.ts"],
+      "clack": ["./dist/clack.d.ts"],
+      "decide": ["./dist/decide.d.ts"],
+      "editor": ["./dist/editor.d.ts"],
+      "inquirer": ["./dist/inquirer.d.ts"],
+      "inquirer/prompts": ["./dist/inquirer-prompts.d.ts"],
+      "keys": ["./dist/keys.d.ts"],
+      "plugin": ["./dist/plugin.d.ts"],
+      "raw": ["./dist/raw.d.ts"],
+      "spec": ["./dist/spec.d.ts"],
+      "terminal": ["./dist/terminal.d.ts"]
     }
   },
   "files": [
@@ -108,10 +139,10 @@
     "ai-agent"
   ],
   "dependencies": {
-    "closeout": "^1.0.4",
-    "linegauge": "^1.0.8",
-    "paratext": "^1.0.4",
-    "roundel": "^1.0.4"
+    "closeout": "^1.1.5",
+    "linegauge": "^1.1.3",
+    "paratext": "^1.0.9",
+    "roundel": "^1.1.3"
   },
   "devDependencies": {
     "vitest": "^5.0.1"

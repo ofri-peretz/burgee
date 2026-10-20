@@ -1,6 +1,6 @@
 {
   "name": "closeout",
-  "version": "1.1.0",
+  "version": "1.1.5",
   "description": "Runs every exit handler exactly once on every path out of the process, restores the terminal, and holds shutdown to a deadline so it cannot hang. Zero dependencies. Drop-in paths for signal-exit, exit-hook, restore-cursor, cli-cursor and onetime.",
   "license": "MIT",
   "type": "module",
@@ -8,12 +8,14 @@
   "engines": {
     "node": "^20.19.0 || >=22.13.0"
   },
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./package.json": "./package.json",
     "./schema.json": "./dist/schema.json",
     "./once": {
       "types": "./dist/once.d.ts",
@@ -59,6 +61,19 @@
       "types": "./dist/signal-exit-signals.d.cts",
       "import": "./dist/signal-exit-signals.cjs",
       "default": "./dist/signal-exit-signals.cjs"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "once": ["./dist/once.d.ts"],
+      "onetime": ["./dist/onetime.d.ts"],
+      "cursor": ["./dist/cursor.d.ts"],
+      "plugin": ["./dist/plugin.d.ts"],
+      "restore-cursor": ["./dist/restore-cursor.d.ts"],
+      "cli-cursor": ["./dist/cli-cursor.d.ts"],
+      "exit-hook": ["./dist/exit-hook.d.ts"],
+      "signal-exit": ["./dist/signal-exit.d.cts"],
+      "signal-exit/signals": ["./dist/signal-exit-signals.d.cts"]
     }
   },
   "files": [

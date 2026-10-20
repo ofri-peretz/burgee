@@ -18,9 +18,6 @@ The default export, declared as `rc`.
 
 rc, with its world as an argument.
 
-`defaults` may be a string, which rc reads as a JSON document — `cc.json` — and that form
-is kept because it is how rc's own README tells you to pass a default config.
-
 ```ts
 function rc(name: string, defaults?: RcConfig | string, argv?: RcConfig, parseWith?: RcParse, options?: RcOptions): RcConfig;
 ```
@@ -38,9 +35,6 @@ function rc(name: string, defaults?: RcConfig | string, argv?: RcConfig, parseWi
 ### module.exports
 
 rc, with its world as an argument.
-
-`defaults` may be a string, which rc reads as a JSON document — `cc.json` — and that form
-is kept because it is how rc's own README tells you to pass a default config.
 
 ```ts
 function rc(name: string, defaults?: RcConfig | string, argv?: RcConfig, parseWith?: RcParse, options?: RcOptions): RcConfig;
@@ -75,9 +69,6 @@ function parse(content: string): RcConfig;
 ### rc
 
 rc, with its world as an argument.
-
-`defaults` may be a string, which rc reads as a JSON document — `cc.json` — and that form
-is kept because it is how rc's own README tells you to pass a default config.
 
 ```ts
 function rc(name: string, defaults?: RcConfig | string, argv?: RcConfig, parseWith?: RcParse, options?: RcOptions): RcConfig;

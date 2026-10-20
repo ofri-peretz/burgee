@@ -8,9 +8,6 @@ description: "Every export of burgee/testing, with its signature and doc comment
 `burgee/testing` — run a burgee CLI in-process, with argv, env, stdin, cwd and
 TTY-ness injected, and get back `{ code, stdout, stderr, json }`. Requirement T1.
 
-A separate entry point so it is paid for per import (K6): a user's shipped CLI
-imports `burgee` and never pulls a byte of this.
-
 ```ts
 import { processRuntime, captureConsole, codeOf, … } from 'burgee/testing';
 ```
@@ -131,11 +128,6 @@ function runBurgee(program: Manifest, opts: RunOptions): Promise<RunResult>;
 
 Strip ANSI escape sequences — the decision from the intent: `stdout` stays raw.
 
-linegauge's `strip`, not a regex of this file's own. The one this used to carry,
-`ESC[[0-9;]*[A-Za-z]`, left the private modes (`ESC[?25l`, which every spinner writes),
-the colon form of an extended colour (`ESC[38:2::255:0:0m`, which chalk emits for
-truecolor) and every OSC 8 hyperlink in the text a test asserted against.
-
 ```ts
 function stripAnsi(text: string): string;
 ```
@@ -191,27 +183,10 @@ const ExitCode: {
     readonly CANCELLED: 4;
     /**
      * E6 — the far side said no: a credential is missing, expired, or refused.
-     *
-     * Its own code because it is the most actionable one in the survey. `RUNTIME` means *it
-     * failed, read the message*; `AUTH` means *log in and run it again*, and a script or an
-     * agent can branch on that without parsing prose. `USAGE` says fix the script, `CONFIG`
-     * says fix the runner, and this says fix the credential — three different responses that
-     * collapsed into one code before it existed.
-     *
-     * **5, where `gh` uses 4.** Four is `CANCELLED` here and has been since the contract was
-     * written, and moving a published code to match another tool's is a breaking change for
-     * every consumer that already branches on it. The survey's other citation, `aws` v2, uses
-     * 252/253/254 and agrees with nobody either; what matters is that the code is stable and
-     * documented, not that it matches a particular neighbour.
      */
     readonly AUTH: 5;
     /**
      * agent-lint-conformance R3 — the deadline `--timeout` set has passed: retry with more time.
-     *
-     * Its own code because a caller that cancelled and a deadline that passed want different
-     * responses, one a decision and the other a retry. **6, where GNU `timeout` uses 124**: 124 is
-     * inside the 7–125 range `defineError` hands to authors, and 6 is the one number the contract
-     * had reserved and nobody could hold (D-20261011-timeout-exit-code).
      */
     readonly TIMEOUT: 6;
     /** SIGINT after the terminal was restored (E5). */
@@ -239,27 +214,10 @@ const ExitCode: {
     readonly CANCELLED: 4;
     /**
      * E6 — the far side said no: a credential is missing, expired, or refused.
-     *
-     * Its own code because it is the most actionable one in the survey. `RUNTIME` means *it
-     * failed, read the message*; `AUTH` means *log in and run it again*, and a script or an
-     * agent can branch on that without parsing prose. `USAGE` says fix the script, `CONFIG`
-     * says fix the runner, and this says fix the credential — three different responses that
-     * collapsed into one code before it existed.
-     *
-     * **5, where `gh` uses 4.** Four is `CANCELLED` here and has been since the contract was
-     * written, and moving a published code to match another tool's is a breaking change for
-     * every consumer that already branches on it. The survey's other citation, `aws` v2, uses
-     * 252/253/254 and agrees with nobody either; what matters is that the code is stable and
-     * documented, not that it matches a particular neighbour.
      */
     readonly AUTH: 5;
     /**
      * agent-lint-conformance R3 — the deadline `--timeout` set has passed: retry with more time.
-     *
-     * Its own code because a caller that cancelled and a deadline that passed want different
-     * responses, one a decision and the other a retry. **6, where GNU `timeout` uses 124**: 124 is
-     * inside the 7–125 range `defineError` hands to authors, and 6 is the one number the contract
-     * had reserved and nobody could hold (D-20261011-timeout-exit-code).
      */
     readonly TIMEOUT: 6;
     /** SIGINT after the terminal was restored (E5). */
@@ -272,10 +230,6 @@ type ExitCode = (typeof ExitCode)[keyof typeof ExitCode];
 ### processRuntime
 
 The real `Runtime`, for a caller that injects none.
-
-`argv`, `env` and `cwd` are getters for the reason the block above gives; `isTTY` is one
-too, because a stream's `isTTY` is a property of whatever stream is installed *now*, and
-the harness swaps streams. `stdin`/`stdout`/`stderr` likewise.
 
 ```ts
 const processRuntime: Runtime;

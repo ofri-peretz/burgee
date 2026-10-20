@@ -10,43 +10,86 @@ import type { parseArgs } from 'node:util';
 import { type Layers, type Provenance, resolve as resolveLayers } from 'seniority/precedence';
 
 import { beforeTerminator, isJsonFlag, mayServe } from './argv.js';
-import { checkCommand } from './definition.js';
+import { checkCommand, type Declared } from './definition.js';
 import { ExitCode, isExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
 import { type LazyArgs } from './fields.js';
-import { type ActionRequiredSpec, type ArgumentSpec, type CommandNode, type DeclaredEffects, type Example, type LazyModule, Manifest, type OptionSpec, type Relation, relationsOf, type RunContext } from './manifest.js';
+import { type ActionRequiredSpec, type ArgumentSpec, type CommandNode, type CommandOutput, type DeclaredEffects, type Example, type LazyModule, Manifest, type OptionSpec, type OutputOf, type Relation, relationsOf, type RunContext } from './manifest.js';
 import { camel, kebab } from './names.js';
 import { owningPackage, type Package } from './pkg.js';
 import { builtin, host } from './runtime.js';
 import { detachedTeardown, processTeardown, type Teardown } from './shutdown.js';
 import { coerce, UsageError } from './validate.js';
 
-export interface CommandContext<O> extends Omit<RunContext, 'options'> {
+export interface CommandContext<O, A = Record<string, unknown>> extends Omit<RunContext, 'options' | 'args'> {
   options: O;
+  /** The declared positionals by name, typed from the declaration (typed-positionals R2). */
+  args: A;
 }
 
-type Scalar<S extends OptionSpec> = S['type'] extends 'number' ? number : S['type'] extends 'boolean' ? boolean : S extends { choices: readonly (infer C)[] } ? C : string;
-type Many<S extends OptionSpec, V> = S extends { multiple: true } ? V[] : V;
-type Present<S extends OptionSpec> = S extends { required: true } ? true : S extends { default: unknown } ? true : false;
+type Scalar<S extends DeclaredOption> = S['type'] extends 'number' ? number : S['type'] extends 'boolean' ? boolean : S extends { choices: readonly (infer C)[] } ? C : string;
+type Many<S extends DeclaredOption, V> = S extends { multiple: true } ? V[] : V;
+type Present<S extends DeclaredOption> = S extends { required: true } ? true : S extends { default: unknown } ? true : false;
+
+/**
+ * A positional as declared (typed-positionals R1): `choices` on a string type only, as on an
+ * option, so `{ type: 'number', choices: [...] }` is a type error here and a definition-time
+ * error for a caller TypeScript does not check.
+ */
+export type DeclaredArgument = Omit<ArgumentSpec, 'type' | 'choices'> & ({ type?: 'string'; choices?: readonly string[] } | { type: 'number' | 'integer' | 'boolean' | 'file'; choices?: never });
+
+type ArgValue<A> = A extends { type: 'number' | 'integer' } ? number : A extends { type: 'boolean' } ? boolean : A extends { choices: readonly (infer C)[] } ? C : string;
+type ArgPresent<A> = A extends { variadic: true } | { default: string } ? true : A extends { required: false } ? false : true;
+
+/**
+ * The handler's `args`, derived from the declaration (typed-positionals R2): keyed by name, a
+ * variadic one an array, `number` and `integer` a number, `boolean` a boolean, `choices` a union,
+ * and `| undefined` only on an optional one with no default. `any` stays `any`, so a list of
+ * commands of different shapes (`AnyCommand`) still holds each of them.
+ */
+export type InferArgs<A extends readonly DeclaredArgument[]> = 0 extends 1 & A
+  ? any
+  : { [K in A[number] as K['name']]: K extends { variadic: true } ? ArgValue<K>[] : ArgPresent<K> extends true ? ArgValue<K> : ArgValue<K> | undefined };
 
 /** The handler's `options`, derived from the declaration (S1): `choices` become a union, `multiple` an array, `number` a number. */
-export type InferOptions<S extends Record<string, OptionSpec>> = {
+export type InferOptions<S extends Record<string, DeclaredOption>> = {
   [K in keyof S]: Present<S[K]> extends true ? Many<S[K], Scalar<S[K]>> : Many<S[K], Scalar<S[K]>> | undefined;
 };
 
-export type OptionSpecs = Record<string, OptionSpec>;
+/**
+ * `localised-human-surfaces` R5 — text an author writes in more than one language: one string, or
+ * locale → text with the author's base language **first**. Help renders the run's locale (the
+ * tag, then its bare language, then the base); `--schema`, `--mcp` and every other machine
+ * surface carry the base language and nothing else, because a command's description there is
+ * data a program reads, not prose (R3).
+ */
+export type Localised = string | Readonly<Record<string, string>>;
+
+/** An option as declared: an {@link OptionSpec} whose description may be {@link Localised} (R5). */
+export type DeclaredOption = Omit<OptionSpec, 'description'> & { description?: Localised };
+
+/** An example as declared: its description may be {@link Localised} (R5). */
+export type DeclaredExample = Omit<Example, 'description'> & { description?: Localised };
+
+export type OptionSpecs = Record<string, DeclaredOption>;
 
 // Children are declared with their own specs; a container holds a heterogeneous list of them.
-export type AnyCommand = Command<any>;
+export type AnyCommand = Command<any, any, any>;
 
-export interface Command<S extends OptionSpecs = OptionSpecs> {
+/** What `run` may return: anything, or what `output.schema` describes (clispec-conformance R5). */
+type Returns<O> = O extends { schema: infer J } ? OutputOf<J> | Promise<OutputOf<J>> : unknown;
+
+export interface Command<S extends OptionSpecs = OptionSpecs, O extends CommandOutput = CommandOutput, A extends readonly DeclaredArgument[] = readonly []> {
   name: string;
-  description?: string;
+  /** Other words that run this command, `['s']` for `serve`: listed on it in help, `--schema` and completions, never as commands of their own. */
+  aliases?: readonly string[];
+  description?: Localised;
   /** Shown in command lists instead of the description. */
-  summary?: string;
+  summary?: Localised;
   /** Declared once (S1); the handler's `options` type is derived from it. */
   options?: S;
-  arguments?: ArgumentSpec[];
-  examples?: Example[];
+  /** Positionals in order, each with its `type` and `choices` (typed-positionals R1); the handler reads them as `args`. */
+  arguments?: A;
+  examples?: DeclaredExample[];
   /** Heading this command is listed under in its parent's help. */
   group?: string;
   epilogue?: string;
@@ -72,34 +115,59 @@ export interface Command<S extends OptionSpecs = OptionSpecs> {
    * Without them `--json=a,b` still selects, checked against the result's own keys.
    */
   fields?: readonly string[];
+  /**
+   * clispec-conformance R5 — what the result is and how much of it: `--schema` publishes it as
+   * `output_kind`, `cardinality` and `stdout_schema`. With a `schema`, `run` must return what it
+   * describes; without one, anything.
+   */
+  output?: O;
+  /** Pass positionals past the declared ones to the handler instead of refusing them. */
+  allowExcess?: boolean;
   /** Absent on a group that only holds subcommands. `NoInfer`: the spec fixes S, the handler only reads it. */
-  run?: (ctx: CommandContext<InferOptions<NoInfer<S>>>) => unknown;
+  run?: (ctx: CommandContext<InferOptions<NoInfer<S>>, InferArgs<NoInfer<A>>>) => Returns<NoInfer<O>>;
   /** The handler's module, imported on dispatch only (M2); everything else about the command is declared here. */
   load?: () => Promise<LazyModule>;
   commands?: AnyCommand[];
 }
 
-/** Everything help renders, copied as declared; `undefined` never lands on the node. */
-function helpFields(c: AnyCommand): Partial<CommandNode> {
-  const node: Partial<CommandNode> = {};
-  if (c.description !== undefined) node.description = c.description;
-  if (c.summary !== undefined) node.summary = c.summary;
-  if (c.arguments !== undefined) node.arguments = c.arguments;
-  if (c.examples !== undefined) node.examples = c.examples;
-  if (c.group !== undefined) node.group = c.group;
-  if (c.epilogue !== undefined) node.epilogue = c.epilogue;
-  if (c.hidden !== undefined) node.hidden = c.hidden;
-  if (c.deprecated !== undefined) node.deprecated = c.deprecated;
-  if (c.effects !== undefined) node.effects = c.effects;
-  if (c.relations !== undefined) node.relations = c.relations;
-  if (c.fields !== undefined) node.fields = c.fields;
+/** The declared keys a node carries as they are: what help renders, and what `--schema` publishes. */
+const NODE_KEYS = ['description', 'summary', 'aliases', 'arguments', 'examples', 'group', 'epilogue', 'hidden', 'deprecated', 'effects', 'relations', 'fields', 'output', 'allowExcess'] as const;
+
+/**
+ * Everything help renders, copied as declared; `undefined` never lands on the node. One loop over
+ * the keys, not an `if` per key: the eleven `if`s were more bytes than the loop with clispec's
+ * `output` added to it, against a core budget with 71 to spare (clispec-conformance R5).
+ */
+function helpFields(c: AnyCommand): Partial<CommandNode> & Pick<CommandNode, 'options'> {
+  const node: Record<string, unknown> = {};
+  for (const key of NODE_KEYS) if (c[key] !== undefined) node[key] = c[key];
+  node['examples'] &&= (node['examples'] as DeclaredExample[]).map(based);
+  node['options'] = Object.fromEntries(Object.entries(c.options ?? {}).map(([key, spec]) => [key, based(spec as DeclaredOption)]));
+  return based(node) as Partial<CommandNode> & Pick<CommandNode, 'options'>;
+}
+
+/**
+ * `localised-human-surfaces` R5 — a declaration as the manifest holds it: a {@link Localised}
+ * `description` or `summary` becomes its base language, the first entry, and the declaration as
+ * written rides along under `Symbol.for('burgee.l10n')` for help to pick the run's locale
+ * from. Every projection that reads the manifest — `--schema`, `--mcp`, completions, Fig — sees
+ * a string and nothing else, and a symbol is invisible to `JSON.stringify` and `Object.keys`.
+ * A declaration with no `Record` is returned as it came.
+ */
+function based<T extends object>(declared: T): T {
+  let node = declared;
+  // `description` and `summary`, the first two of the keys a node carries: named once, in `NODE_KEYS`.
+  for (const key of NODE_KEYS.slice(0, 2)) {
+    const text = (declared as Record<string, unknown>)[key];
+    if (text instanceof Object) node = { ...node, [key]: Object.values(text as object)[0], [Symbol.for('burgee.l10n')]: declared };
+  }
   return node;
 }
 
 export interface Program {
   name: string;
   version?: string;
-  description?: string;
+  description?: Localised;
   /** Options read `PREFIX_OPTION_NAME` from the environment unless they name their own variable (V2). */
   envPrefix?: string;
   /** Characters of `--schema` output above which it is summarised (N13); 48,000 by default. */
@@ -110,16 +178,22 @@ export interface Program {
    */
   config?: boolean | { name: string };
   /** Shown under `Examples:` in root help; without them, each top-level command's first example is (agent-lint-conformance R6). */
-  examples?: Example[];
+  examples?: DeclaredExample[];
+  /**
+   * The credential a non-interactive caller supplies, by the environment variable it sets (agent-lint-conformance
+   * R8). Declared, the program's exit-code contract lists `auth` and names the variable in its advice
+   * and in an `AuthError`'s default hint; undeclared, the program claims no auth failure at all.
+   */
+  auth?: { env: string };
   commands: AnyCommand[];
 }
 
-export function defineCommand<const S extends OptionSpecs = OptionSpecs>(command: Command<S>): Command<S> {
+export function defineCommand<const S extends OptionSpecs = OptionSpecs, const O extends CommandOutput = CommandOutput, const A extends readonly DeclaredArgument[] = readonly []>(command: Command<S, O, A>): Command<S, O, A> {
   // The reserved names of V5, `checkDefinition`'s four and N6's declared effects, in one
   // place, because `Manifest.use()` needs exactly these on a plugin's commands and used to
   // run none of them. A node with `load` and no `run` is runnable: its module has not been
   // imported, and what running it does to the world was knowable when it was declared.
-  checkCommand(command.name, command);
+  checkCommand(command.name, command as Declared);
   return command;
 }
 
@@ -129,7 +203,6 @@ function addTree(manifest: Manifest, parent: string[], commands: AnyCommand[]): 
     manifest.add({
       path,
       ...helpFields(c),
-      options: c.options ?? {},
       ...(c.run === undefined ? {} : { run: c.run as (ctx: RunContext) => unknown }),
       ...(c.load === undefined ? {} : { load: c.load }),
     });
@@ -154,9 +227,13 @@ export function defineProgram(program: Program): Manifest {
   if (program.version !== undefined) manifest.version = program.version;
   if (program.envPrefix !== undefined) manifest.envPrefix = program.envPrefix;
   if (program.schemaBudget !== undefined) manifest.schemaBudget = program.schemaBudget;
+  // agent-lint-conformance R8 — help and `--schema` print the variable as the way to recover from
+  // `auth`, so it has to be one a shell can set. Checked here, not in `definition.ts`: every
+  // front-end loads that file, and only a native program declares `auth`.
+  if (program.auth !== undefined && !/^[A-Z][A-Z\d_]*$/.test((manifest.auth = program.auth).env)) throw new Error('burgee: auth.env must name an environment variable, such as DEMO_TOKEN');
   if (program.config === true) manifest.config = { name: program.name };
   else if (typeof program.config === 'object' && program.config !== null) manifest.config = program.config;
-  manifest.add({ path: [program.name], ...helpFields(program as AnyCommand), options: {} });
+  manifest.add({ path: [program.name], ...helpFields(program as AnyCommand) });
   addTree(manifest, [program.name], program.commands);
   return manifest;
 }
@@ -177,6 +254,13 @@ export interface RunOptions {
   cwd?: string;
   /** The entry file, whose nearest package.json owns the program's version (V4); `process.argv[1]` otherwise. */
   entry?: string;
+  /**
+   * The language help and refusals speak to a person, ahead of `BURGEE_LOCALE`, `LC_ALL`,
+   * `LC_MESSAGES` and `LANG` (`localised-human-surfaces` R2). A BCP 47 tag, or `C` for the
+   * program's own words; a registered plugin's `locales` supplies the translation. Machine
+   * surfaces never read it (R3).
+   */
+  locale?: string;
 }
 
 /** `ctx.actionRequired(spec)` unwinds through this: the caller must act before the command can continue (N11). */
@@ -240,8 +324,8 @@ function toParseConfig(specs: Record<string, OptionSpec>, withConfig: boolean): 
   for (const [name, spec] of Object.entries(specs)) {
     config[kebab(name)] = {
       type: spec.type === 'boolean' ? 'boolean' : 'string',
-      ...(spec.short === undefined ? {} : { short: spec.short }),
-      ...(spec.multiple === true ? { multiple: true } : {}),
+      ...(spec.short && { short: spec.short }),
+      ...(spec.multiple && { multiple: true }),
     };
     // Every boolean is negatable, and it is the precedence order that requires it rather
     // than a convention borrowed from yargs. `flag > env > config > package.json > default`
@@ -279,11 +363,11 @@ function canonical(values: Values, specs: Record<string, OptionSpec>, tokens: re
     const bare = camel(key.startsWith(NO) ? key.slice(NO.length) : key);
     return specs[bare]?.type === 'boolean' ? bare : '';
   };
-  for (const [k, v] of Object.entries(values)) if (!k.startsWith(NO) || negatable(k) === '') out[camel(k)] = v;
+  for (const [k, v] of Object.entries(values)) if (!k.startsWith(NO) || !negatable(k)) out[camel(k)] = v;
   for (const token of tokens) {
     if (token.kind !== 'option') continue;
     const bare = negatable(token.name);
-    if (bare !== '') out[bare] = !token.name.startsWith(NO);
+    if (bare) out[bare] = !token.name.startsWith(NO);
   }
   return out;
 }
@@ -321,7 +405,7 @@ async function resolveValues(manifest: Manifest, specs: Record<string, OptionSpe
   // it was typed before either reads it (see that file).
   if (values.json === true || asked !== undefined) out.explainText = (await import('./as-typed.js')).asTyped(resolved, specs, tokens, asked);
   for (const [name, spec] of Object.entries(specs)) {
-    if (out.values[name] === undefined && spec.required === true && out.explainText === undefined) {
+    if (out.values[name] === undefined && spec.required && out.explainText === undefined) {
       throw new UsageError(`missing required option --${kebab(name)}`, `pass --${kebab(name)} <value>`);
     }
   }
@@ -389,6 +473,8 @@ interface Io {
   pkg: Package | undefined;
   /** Where `ctx.onExit` registers, and what `leave` runs before the exit (E5, O5). */
   teardown: Teardown;
+  /** `RunOptions.locale`, read only by the prose paths (`localised-human-surfaces` R2). */
+  locale?: string | undefined;
 }
 interface Outcome {
   json: boolean;
@@ -399,7 +485,7 @@ interface Outcome {
   text?: string;
   provenance?: Record<string, Provenance>;
   /** What an idempotent command reports (N7); read from the data's own `changed`. */
-  changed?: boolean;
+  changed?: boolean | undefined;
 }
 
 /** N7: an idempotent command must say whether it changed anything; silence is what an agent misreads as success. */
@@ -440,13 +526,14 @@ function exitCodeOf(data: unknown): ExitCodeType {
  */
 const readsLazily = (arg: string): boolean => /^(--json=|--format=agent$|-q$|--(no-color|quiet|color|timeout)(=|$))/.test(arg);
 
+// eslint-disable-next-line maintainability/cognitive-complexity -- parse-refusals' gate is inline: as a helper it cost B4's core bundle ceiling (24,282 B) the bytes it does not have, and the branch it adds is one `if`.
 async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolved, io: Io): Promise<Outcome> {
   // N14's selection, N15's format and the R1–R3 globals are imported only when a caller typed
   // one of them (M2): every other run pays nothing for any.
   const select = typed.some(readsLazily) ? await import('./fields.js') : undefined;
   const { args: rest, fields, lines, global } = select?.lazyArgs(typed, node) ?? ({ args: typed } as LazyArgs);
   if (fields?.length === 0) return { json: true, text: `${JSON.stringify(select?.listFields(node))}\n` };
-  if (fields !== undefined) select?.checkFields(fields, node);
+  if (fields) select?.checkFields(fields, node);
   const parsed = builtin('node:util').parseArgs({ args: rest, options: toParseConfig(node.options, manifest.config !== undefined), allowPositionals: true, strict: true, tokens: true });
   const flags = canonical(parsed.values as Values, node.options, parsed.tokens);
   const json = flags.json === true;
@@ -454,8 +541,8 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   // caller who asked for a machine-readable answer got one they had to parse: the exact
   // failure the `--json` surface exists to avoid, on the flag people type first.
   // Help and the version are surfaces (U5): `surfaces.js` is imported only when one is asked for.
-  if (flags.help === true) return { json, text: await (await import('./surfaces.js')).helpFor(manifest, node, io, { json, color: global?.color }) };
-  if (flags.version === true) return { json, text: `${(await import('./surfaces.js')).versionOf(manifest, io)}\n` };
+  if (flags.help) return { json, text: await (await import('./surfaces.js')).helpFor(manifest, node, io, { json, color: global?.color }) };
+  if (flags.version) return { json, text: `${(await import('./surfaces.js')).versionOf(manifest, io)}\n` };
 
   const resolved = await resolveValues(manifest, node.options, flags, io, parsed.tokens);
   if (resolved.explainText !== undefined) return { json, text: resolved.explainText };
@@ -469,35 +556,33 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   if (relations.length > 0) (await import('./relations.js')).checkRelations(relations, resolved.values, provenance);
   const values = await coerce(node.options, resolved.values);
   const { positionals, passthrough } = splitPositionals(parsed.tokens);
-  requirePositionals(node, positionals);
+  // A missing argument, and parse-refusals R1/R3: a surplus positional and a flag given twice were
+  // dropped, and the run reported success with the wrong input. All three are one chunk (M2), loaded
+  // only when the count of positionals is not the declared one, or when there are more tokens than
+  // positionals, `--` tail and value keys together: parseArgs keeps one value per option it saw and is
+  // given no defaults, so an option named twice is one token more than its key (a `--` is one more
+  // too, and loads the chunk for nothing). Inline, not a helper: B4's bundle ceiling had no room for one.
+  if (positionals.length !== (node.arguments?.length ?? 0) || parsed.tokens.length > positionals.length + passthrough.length + Object.keys(parsed.values).length) (await import('./parse-refusals.js')).refuse(node, positionals, parsed, rest, typed);
+  // typed-positionals R2 — each declared positional by name: a variadic one takes the rest, an absent
+  // one its default. R3's types and choices are their own chunk (M2), loaded only for a command whose
+  // arguments declare one, so a program of plain words carries the naming and nothing else. S4's `-`
+  // rides the same load: standard input is only ever a `type: 'file'` argument's.
+  let given: Pick<RunContext, 'args' | 'stdin'> = { args: Object.fromEntries((node.arguments ?? []).map((a, i) => [a.name, a.variadic ? positionals.slice(i) : (positionals[i] ?? a.default)])) };
+  // Stryker disable next-line ConditionalExpression: loading the chunk for a command of plain words changes no result, only what start-up loads, which benchmarks/cold-start-modules.test.ts locks by name
+  if (node.arguments?.some((a) => a.type ?? a.choices)) given = (await import('./typed-args.js')).typedArgs(node, given.args, parsed, rest, typed, io.stdin);
   // M5, from its own chunk, loaded only for a deprecated command; `--quiet` silences it (R2).
   if (node.deprecated) (await import('./deprecation.js')).warnDeprecated(node, io, global?.quiet);
   await manifest.fire('preRun', name, values);
-  // S4's check is imported only when a `-` was typed (M2).
-  const stdin = positionals.includes('-') ? (await import('./stdin-dash.js')).stdinFor(node, positionals, io.stdin) : {};
   // `env`, `onExit`, `agent`, `interactive`, `signal`, `quiet` and `runtime` come from `ctx.js`, a
   // chunk loaded on this path only: whether a person may be asked is roundel's rule, over stdin
   // (D-20260930-one-interactive-rule). `--timeout` races the handler against its deadline (R3).
-  const ran = node.run({ options: values, positionals, passthrough, ...stdin, exit: ctxExit, actionRequired, ...(await import('./ctx.js')).ctxOf(io, global) });
+  const ran = node.run({ options: values, ...given, positionals, passthrough, exit: ctxExit, actionRequired, ...(await import('./ctx.js')).ctxOf(io, global) });
   const data = await (global?.within(ran) ?? ran);
   await manifest.fire('postRun', name, values);
   const changed = changedOf(node, data);
-  const selected = fields === undefined || select === undefined ? data : select.selectFields(data, fields);
-  return { json, lines, data: selected, provenance, ...(changed === undefined ? {} : { changed }) };
-}
-
-/**
- * A declared, required positional that argv did not supply is a usage error naming it, as on
- * both hosts. No hint: the refusal already prints the command's usage line (`failure.js`), so
- * "run --help to see what it takes" sent the reader for a page it was already holding.
- */
-function requirePositionals(node: CommandNode, positionals: string[]): void {
-  const required = (node.arguments ?? []).filter((a) => a.required !== false && a.variadic !== true);
-  // Defined exactly when fewer positionals were typed than are required: the first one missing.
-  const missing = required[positionals.length];
-  if (missing !== undefined) {
-    throw new UsageError(`missing required argument "${missing.name}"`);
-  }
+  const selected = fields && select ? select.selectFields(data, fields) : data;
+  // `emit` leaves an undefined `changed` out of `meta`, so it is handed on as it is.
+  return { json, lines, data: selected, provenance, changed };
 }
 
 /** Success: help, or the data on the requested surface. */
@@ -536,12 +621,12 @@ interface FailureContext {
 async function report(cause: unknown, { manifest, io, argv, json, name }: FailureContext): Promise<string[] | void> {
   // U5 — the whole failure vocabulary is its own chunk: a run that succeeds never loads it.
   const { describeFailure, reportFailure } = await import('./failure.js');
-  const failure = await describeFailure(cause, { root: manifest.rootPath, argv }, resolveCommand(manifest, argv) ?? undefined, cause instanceof ActionRequired ? cause.spec : undefined);
+  const failure = await describeFailure(cause, { manifest, argv }, resolveCommand(manifest, argv) ?? undefined, cause instanceof ActionRequired ? cause.spec : undefined);
   // Nothing is reported and nothing has run: the caller runs this line instead (`execute`).
   if (failure.again) return failure.again;
-  if (failure.silent === true) return await leave(io, failure.code);
+  if (failure.silent) return await leave(io, failure.code);
   await manifest.fire('onError', name, {});
-  reportFailure(failure, manifest, json, io);
+  await reportFailure(failure, manifest, json, io);
   return await leave(io, failure.code);
 }
 
@@ -553,6 +638,9 @@ async function report(cause: unknown, { manifest, io, argv, json, name }: Failur
 function ioOf(opts: RunOptions): Io {
   const out = opts.stdout ?? host.stdout;
   return {
+    // What the run was given, under every field below that resolves it: so `locale`
+    // (`localised-human-surfaces` R2) reaches the prose paths without a line of its own.
+    ...opts,
     out,
     err: opts.stderr ?? host.stderr,
     env: opts.env ?? host.env,
@@ -589,6 +677,10 @@ export async function execute(manifest: Manifest, opts: RunOptions & { root?: st
   const pass = async (next: string[] | Promise<string[]>): Promise<string[] | void> => {
     try {
       argv = await next;
+      // facade-projection-fidelity R5 — each alias typed in a command's place becomes that command's
+      // name, so dispatch, help, `--schema` and `__complete` all read one spelling. Its own chunk (M2),
+      // loaded only for a program that declares an alias.
+      if (manifest.commands.some((c) => c.aliases)) argv = (await import('./aliases.js')).unalias(manifest, argv, root);
       json = beforeTerminator(argv).some(isJsonFlag);
       // U5 — every surface lives in `surfaces.js`, imported only when argv could be asking for one.
       if (mayServe(argv) && (await (await import('./surfaces.js')).serve(manifest, argv, io, { resolution: (specs, flags) => resolution(manifest, specs, flags, io), execute }))) return await leave(io, ExitCode.OK);
@@ -612,7 +704,12 @@ export async function execute(manifest: Manifest, opts: RunOptions & { root?: st
   while (next) next = await pass(next);
 }
 
-/** M6: which command argv names, or null — the same longest-prefix match `execute` uses. */
+/**
+ * M6: which command argv names, or null — the same longest-prefix match `execute` uses, over the
+ * declared names. An alias is not read here: `execute` rewrites one to its command's name before it
+ * resolves (`aliases.ts`, facade-projection-fidelity R5), and that chunk is loaded only on a run, so
+ * this function stays synchronous and off the startup path. Pass the canonical words.
+ */
 export function resolveCommand(manifest: Manifest, argv: readonly string[]): CommandNode | null {
   const { node } = manifest.resolve(beforeTerminator(argv) as string[], manifest.rootPath);
   return node ?? null;
@@ -628,7 +725,7 @@ export interface RunResult {
  * M6: run a command programmatically — the harness's own entry, public. The streams are
  * captured, the exit recorded; env, cwd and the entry can be injected like `execute`'s.
  */
-export async function runCommand(manifest: Manifest, argv: readonly string[], opts: Pick<RunOptions, 'env' | 'cwd' | 'entry' | 'stdin'> = {}): Promise<RunResult> {
+export async function runCommand(manifest: Manifest, argv: readonly string[], opts: Pick<RunOptions, 'env' | 'cwd' | 'entry' | 'stdin' | 'locale'> = {}): Promise<RunResult> {
   const out: string[] = [];
   const err: string[] = [];
   let code: number = ExitCode.OK;
@@ -640,7 +737,7 @@ export async function runCommand(manifest: Manifest, argv: readonly string[], op
  * The one-file entry: a single command, or a program from `defineProgram`. Both go
  * through `execute`, so there is exactly one code path from argv to exit.
  */
-export async function run<S extends OptionSpecs>(target: Command<S> | Manifest, opts: RunOptions = {}): Promise<void> {
+export async function run<S extends OptionSpecs, A extends readonly DeclaredArgument[] = readonly []>(target: Command<S, CommandOutput, A> | Manifest, opts: RunOptions = {}): Promise<void> {
   if (target instanceof Manifest) return await execute(target, opts);
   const manifest = new Manifest();
   manifest.rootPath = [target.name];
@@ -650,8 +747,7 @@ export async function run<S extends OptionSpecs>(target: Command<S> | Manifest, 
   manifest.add({
     path: [target.name],
     ...helpFields(target as AnyCommand),
-    options: target.options ?? {},
-    ...(target.run === undefined ? {} : { run: target.run as (ctx: RunContext) => unknown }),
+    ...(target.run && { run: target.run as (ctx: RunContext) => unknown }),
   });
   return await execute(manifest, opts);
 }

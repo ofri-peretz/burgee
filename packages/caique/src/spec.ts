@@ -52,6 +52,11 @@ export interface PromptSpec {
   choices?: Choice[];
   /** Returns a message when the answer is unacceptable, or nothing when it is fine. */
   validate?: (value: string) => string | undefined;
+  /**
+   * The most choices a raw `select` or `multiselect` shows at once, clack's name for it. The
+   * screen caps it too: never more than the terminal's rows less three.
+   */
+  maxItems?: number;
 }
 
 /** A prompt spec bound to the option it answers. */

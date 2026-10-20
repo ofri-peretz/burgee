@@ -9,8 +9,11 @@ name: Benchmarks
 #            and the ones a refactor regresses silently, so they gate every PR.
 #   agent  — B1 agent cost. Costs money and is noisy over short intervals, so it
 #            does not run on a pull request unless one asks by name with the
-#            `bench:agent` label: weekly on the schedule, on every push to main,
-#            on demand, and on a labelled PR. (An earlier draft of this comment
+#            `bench:agent` label: weekly on the schedule, on demand, and on a
+#            labelled PR. **Not on a push to main** since 2026-10-18
+#            (D-20261019-b1-weekly-not-per-push): about 25 paid runs per merge
+#            drew on the same Claude weekly quota as the required `review` check
+#            and froze the repository for five days. (An earlier draft of this comment
 #            claimed a `packages/**` paths filter; there is none, and the `if:`
 #            on the job is the whole of the rule.) It needs
 #            CLAUDE_CODE_OAUTH_TOKEN (preferred; no per-token charge) or
@@ -18,6 +21,12 @@ name: Benchmarks
 #            reports a number it did not measure. On a scheduled run that skips,
 #            it opens an issue, because a weekly benchmark that has never run is
 #            the kind of thing a green tick hides for a year.
+#            Its third arm, `burgee-mcp` (.sdlc/intents/b1-mcp-arm/), is the same
+#            demo over `--mcp` on the tasks both surfaces can state: 3 tasks × 5
+#            runs = 15 more paid runs a reading. It runs on the weekly schedule
+#            and on a `bench:agent` PR ONLY — never on a push to main or a manual
+#            dispatch — and `ci-axes.test.ts` holds that bound (R4). It stays off
+#            until the owner sets the repository variable B1_MCP_ARM=approved.
 #   floor  — N10, the demo graded by clispec and cli-agent-lint. Free, every PR,
 #            its own suite (`external-floor`); see the job.
 #
@@ -201,7 +210,15 @@ jobs:
           # With the App token or RELEASE_BOT_PAT this PR gets its required checks and `--auto`
           # merges it. With only `github.token` it sits at BLOCKED with zero failures forever;
           # 65 of them were landed by hand as #570.
-          gh pr merge --auto --squash "$BRANCH" || true
+          # A held PR (hold, do-not-merge, wip) is left alone: on a PR that is already mergeable,
+          # `--auto` merges at once rather than arming, which is how #1049, #1050 and #1055 merged.
+          # Fail closed: labels that cannot be read count as held.
+          HELD=$(gh pr view "$BRANCH" --json labels --jq '[.labels[].name]|any(.=="hold" or .=="do-not-merge" or .=="wip")') || HELD=true
+          if [ "$HELD" = true ]; then
+            echo "::notice::$BRANCH is held (hold, do-not-merge or wip, or its labels could not be read); not arming auto-merge."
+          else
+            gh pr merge --auto --squash "$BRANCH" || true
+          fi
 
   # N10 — the floor, graded by two published checklists we did not write: clispec.dev v0.3
   # and cli-agent-lint's 34 checks. Its own job and its own suite (`external-floor`),
@@ -246,9 +263,13 @@ jobs:
     # intervals, and a fork PR cannot read the credential anyway. A PR that
     # moves the manifest, the help renderer or the MCP surface is exactly where
     # agent cost changes, so `bench:agent` asks for it explicitly.
+    # Not on a push to main (D-20261019-b1-weekly-not-per-push): one weekly reading plus the PRs
+    # that ask by label bounds the spend. `ci-axes.test.ts` evaluates this condition per event.
     if: >-
-      github.event_name != 'pull_request' ||
-      contains(github.event.pull_request.labels.*.name, 'bench:agent')
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+      contains(github.event.pull_request.labels.*.name, 'bench:agent'))
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -279,6 +300,12 @@ jobs:
           # commits it; uploaded below. The first CI reading (run 36740119305) disagreed
           # with the local one and had nothing a reader could open to see why.
           BENCH_AGENT_TRANSCRIPTS: ${{ runner.temp }}/b1-transcripts
+          # The MCP arm's spend bound (b1-mcp-arm R4): `1` on the schedule and a `bench:agent`
+          # PR, `0` everywhere else, and the axis runs the arm only on `1`. It also waits on the
+          # owner: the repository variable B1_MCP_ARM must read `approved` (spec.md, "Cost"), so
+          # merging the harness spends nothing. The one place it is set; `ci-axes.test.ts`
+          # evaluates this expression for every event.
+          BENCH_AGENT_MCP: ${{ (vars.B1_MCP_ARM == 'approved' && (github.event_name == 'schedule' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'bench:agent')))) && '1' || '0' }}
         shell: bash
         # `--check` so the one gated record on this axis can fire. `success-rate`
         # is a floor on the harness, not on the model: a run where a third of the
@@ -340,7 +367,7 @@ jobs:
       # 2026-10-08, four readings visible only in job logs). It lands its one file the same way.
       - name: Mint the release App's token
         id: app
-        if: github.event_name == 'push' && steps.status.outputs.status == 'measured' && vars.RELEASE_APP_ID != '' && env.HAS_APP_KEY == 'true'
+        if: (github.event_name == 'push' || github.event_name == 'schedule') && steps.status.outputs.status == 'measured' && vars.RELEASE_APP_ID != '' && env.HAS_APP_KEY == 'true'
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           client-id: ${{ vars.RELEASE_APP_ID }}
@@ -348,8 +375,12 @@ jobs:
           permission-contents: write
           permission-pull-requests: write
 
+      # The weekly reading lands too: it is the one that carries the MCP arm, and the claim
+      # `cli-vs-mcp-tokens` reads four of them. It lands as `<date>-<sha>-weekly-ci.json`,
+      # because the schedule measures whatever main's head is, and a push reading of that same
+      # commit on the same day already holds `<date>-<sha>-ci.json`.
       - name: Land B1's observation
-        if: github.event_name == 'push' && steps.status.outputs.status == 'measured'
+        if: (github.event_name == 'push' || github.event_name == 'schedule') && steps.status.outputs.status == 'measured'
         env:
           GH_TOKEN: ${{ steps.app.outputs.token || secrets.RELEASE_BOT_PAT || github.token }}
           BODY: "B1's agent-cost reading from the push to main, landed so `agent-tokens-40pct`, `agent-turns-30pct` and the agent bands have a CI series to read."
@@ -360,6 +391,9 @@ jobs:
             *-${GITHUB_SHA::7}-ci.json) ;;
             *) mv "$FILE" "${FILE%.json}-${GITHUB_SHA::7}-ci.json"; FILE="${FILE%.json}-${GITHUB_SHA::7}-ci.json" ;;
           esac
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            mv "$FILE" "${FILE%-ci.json}-weekly-ci.json"; FILE="${FILE%-ci.json}-weekly-ci.json"
+          fi
           KEEP=$(mktemp); cp "$FILE" "$KEEP"
           git checkout -- benchmarks/results/ && git clean -fdq benchmarks/results/
           BRANCH="chore/b1-series"
@@ -384,7 +418,15 @@ jobs:
             git push --force "$REMOTE" "HEAD:refs/heads/$BRANCH"
             gh pr create --base main --head "$BRANCH" --label skip-changeset --title "$TITLE" --body "$BODY"
           fi
-          gh pr merge --auto --squash "$BRANCH" || true
+          # A held PR (hold, do-not-merge, wip) is left alone: on a PR that is already mergeable,
+          # `--auto` merges at once rather than arming, which is how #1049, #1050 and #1055 merged.
+          # Fail closed: labels that cannot be read count as held.
+          HELD=$(gh pr view "$BRANCH" --json labels --jq '[.labels[].name]|any(.=="hold" or .=="do-not-merge" or .=="wip")') || HELD=true
+          if [ "$HELD" = true ]; then
+            echo "::notice::$BRANCH is held (hold, do-not-merge or wip, or its labels could not be read); not arming auto-merge."
+          else
+            gh pr merge --auto --squash "$BRANCH" || true
+          fi
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()

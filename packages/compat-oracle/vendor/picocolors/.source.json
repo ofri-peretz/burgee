@@ -1,0 +1,43 @@
+{
+  "repo": "https://github.com/alexeyraspopov/picocolors",
+  "version": "1.1.1",
+  "tag": "v1.1.1",
+  "commit": "7249f8c5d4825550f70bc1ea98652639933d3bbd",
+  "vendored": "2026-10-19",
+  "depsBefore": "2024-10-16T19:20:03.921Z",
+  "files": 1,
+  "internalFiles": [],
+  "internals": [],
+  "hashes": {
+    "tests/environments.js": "317317f13c6359005db870fb8e22b6569272a26566382021e65853532a338484",
+    "tests/test.js": "1b8af32564e5ff8b8cb0f7704f809b423186646d38245295c47310f2ef7a3fc1",
+    "picocolors.d.ts": "8c5f0739f00f89f89b03a1fe6658c6d78000d7ebd7f556f0f8d6908fa679de35",
+    "picocolors.js": "213bb870fcaad4def0215fe34fbb0f529836cc4d2462e02f14f1a49d09781625"
+  },
+  "tests": {
+    "tests/environments.js": [
+      "ci server",
+      "arg --color",
+      "env NO_COLOR",
+      "env NO_COLOR empty",
+      "env FORCE_COLOR",
+      "arg --no-color",
+      "no term",
+      "windows",
+      "edge runtime"
+    ],
+    "tests/test.js": [
+      "color matching",
+      "format/color nesting",
+      "proper wrapping",
+      "complex case of wrapping",
+      "close sequence replacement",
+      "non-string input",
+      "shouldn't overflow when coloring already colored large text"
+    ]
+  },
+  "surface": {
+    "picocolors.d.ts": [],
+    "picocolors.js": []
+  }
+}

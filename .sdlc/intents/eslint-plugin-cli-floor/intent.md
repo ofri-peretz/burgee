@@ -3,7 +3,9 @@
 > Stage 1 artifact. Child of [`burgee`](../burgee/intent.md),
 > step 3 of its order of work. The L side of every "R + L" requirement.
 
-**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** dropped (2026-10-18) · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+
+> **Dropped 2026-10-18** → [`D-20261018-drop-eslint-plugin-cli-floor`](../../decisions/D-20261018-drop-eslint-plugin-cli-floor.md): the lane moved to ofri-peretz/eslint, where the rules merged in eslint#1137 (gap `C-20260922-cli-floor-lint`).
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why still `review`:** **no package exists** — only this intent directory.
 

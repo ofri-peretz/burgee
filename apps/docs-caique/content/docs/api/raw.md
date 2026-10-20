@@ -15,13 +15,6 @@ import { keyOf, canRender, renderList, … } from 'caique/raw';
 
 Drive a list prompt with the arrow keys, repainting in place.
 
-Returns the same `Asked` shape `ask()` does, so a caller can swap the two without
-knowing which ran — and cancels the same way, because `Ctrl-C` in raw mode is a byte and
-not a signal, and a person who presses it means to leave.
-
-The cursor is hidden through `closeout`: the byte path resolves and `restore()` runs in
-the `finally`; every path that never reaches the `finally` is the exit hook's.
-
 ```ts
 function askList(spec: PromptSpec, io: RawIo, multi?: boolean): Promise<Asked>;
 ```
@@ -53,10 +46,6 @@ function canRender(keys: KeyStream): boolean;
 What a keypress means. Only the six that drive a list — everything else is `other`, and
 a widget that does not know what to do with a key does nothing, which is what a person
 expects from a key they pressed by accident.
-
-Decoded by `caique/keys`, the one decoder in the package. A chunk that holds anything but
-exactly one key — two keys typed faster than they were read, or a partial sequence — is
-`other`, as it was when this compared the chunk's bytes.
 
 ```ts
 function keyOf(data: string): Key;

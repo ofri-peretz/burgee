@@ -20,6 +20,8 @@ export interface Runtime {
   stdout: NodeJS.WritableStream & { isTTY?: boolean };
   /** `stdin` decides whether a person can be asked at all; `stdout`, whether anything is drawn. */
   isTTY: { stdin: boolean; stdout: boolean };
+  /** The language a person is spoken to in, when the host resolved one (`localised-human-surfaces` R6). */
+  locale?: string | undefined;
 }
 
 /** What a real process looks like. Callers that have not got one pass their own. */

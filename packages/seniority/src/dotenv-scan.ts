@@ -1,7 +1,7 @@
 /**
  * dotenv 18's `{ fast: true }` parser — the hand-written character scanner from upstream
  * #1010 and the six releases of fixes after it — ported line for line from `lib/main.js`
- * (18.0.5, `parseFast`).
+ * (18.0.5, `parseFast`; 18.0.8 for the unquoting at a Unicode line boundary).
  *
  * It is a second grammar, not an optimisation of the first: dotenv's own suite grades it
  * separately (`test-parse-fast.js`) and pins exactly where it differs from the regex parser,
@@ -34,6 +34,13 @@ const EXPORT_LENGTH = 6;
  * line — upstream's own threshold (18.0.5, "Bound fast parser comment scans to the current line").
  */
 const SHORT_SOURCE = 4096;
+
+/**
+ * dotenv's quote strip, `m`-flagged as upstream writes it: `$` matches before a U+2028 or
+ * U+2029, so each segment ending at one is unquoted on its own. The regex parser in `dotenv.ts`
+ * runs it on every value; the scanner, since 18.0.8, on a value that holds such a boundary.
+ */
+export const unquoteLines = (value: string): string => value.replace(/^(['"`])([\s\S]*)\1$/gm, '$2');
 
 /** `[A-Za-z0-9_.-]`, as a lookup table — upstream's `KEY_CHAR`. */
 const KEY_CHAR = new Uint8Array(256);
@@ -119,7 +126,15 @@ function unquotedValue(str: string, rawStart: number, len: number): { value: str
   while (start < end && isWhitespace(str.charCodeAt(start))) start++;
   while (end > start && isWhitespace(str.charCodeAt(end - 1))) end--;
   const first = str.charCodeAt(start);
-  const value = end - start >= 2 && isQuote(first) && str.charCodeAt(end - 1) === first ? str.slice(start + 1, end - 1) : str.slice(start, end);
+  let value = str.slice(start, end);
+  // dotenv 18.0.8 (#1073): a value holding a Unicode line boundary is unquoted segment by
+  // segment, as the regex parser does, rather than by its first and last characters alone.
+  // Stryker disable next-line ConditionalExpression,Regex: equivalent, both branches unquote a one-line value alike (D-20261019-revendor-execa-dotenv-lilconfig)
+  if (/[\u2028\u2029]/u.test(value)) {
+    value = unquoteLines(value);
+  } else if (end - start > 1 && isQuote(first) && str.charCodeAt(end - 1) === first) {
+    value = str.slice(start + 1, end - 1);
+  }
   // Unquoted values include Unicode separators, but comments do not.
   return { value, end: hash < nl ? lineEnd(str, hash, len) : hash };
 }

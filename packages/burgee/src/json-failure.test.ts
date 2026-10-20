@@ -265,8 +265,9 @@ describe('--mcp: a failing tool call is an MCP error result, and the server keep
   it.each(CASES)('$name: isError with the envelope as the text, then answers the next call', async ({ name, exit, message }) => {
     const r = await runBurgee(nativeProgram, { argv: ['--mcp'], stdin: Readable.from([`${toolCall(1, name)}\n${toolCall(2, 'sync')}\n`]) });
     const replies = r.stdout.split('\n').filter((l) => l !== '').map((l) => JSON.parse(l) as { id: number; result: { isError: boolean; content: { text: string }[] } });
-    expect(replies.map((x) => x.id)).toEqual([1, 2]);
-    const [first] = replies;
+    // Calls are dispatched together (mcp-current R4), so each reply goes out when its call settles.
+    expect(replies.map((x) => x.id).sort()).toEqual([1, 2]);
+    const first = replies.find((x) => x.id === 1);
     expect(first?.result.isError).toBe(true);
     expect(JSON.parse(first?.result.content[0]?.text ?? '')).toMatchObject({ ok: false, error: { code: exit, message } });
   });
@@ -326,5 +327,43 @@ await run(defineProgram({ name: 'app', commands: Object.entries(h).map(([name, f
     // engine's add the one structured line on stderr (R6).
     if (front === 'native') expect(JSON.parse(r.stderr)).toMatchObject({ error: { code: exit, message } });
     else expect(r.stderr).toBe('');
+  });
+});
+
+/**
+ * parse-refusals R4 — both refusals are recoverable in one turn: the envelope's `fix` is the line
+ * as typed with the surplus words removed (R1), or with only the last of a repeated flag kept
+ * (R3), and that line runs. It is the `fix` every usage error already carries (E3), which is the
+ * runnable correction the spec's `next[]` names. Red first: before R1 and R3 these lines exited 0,
+ * so there was no failure and no line to run.
+ */
+/** A fix line's words, as a shell splits them: `shellWord` quotes with single quotes only. These cases carry no quote inside a word, so neither form's escape (POSIX or PowerShell) is parsed here. */
+const words = (line: string): string[] => [...line.matchAll(/'([^']*)'|(\S+)/gu)].map((m) => (m[1] ?? m[2]) as string);
+
+describe('parse-refusals R4: the fix of a refused line runs', () => {
+  const refusing = defineProgram({
+    name: 'app',
+    commands: [defineCommand({ name: 'greet', effects: 'read_only', arguments: [{ name: 'who' }], options: { level: { type: 'string', short: 'l' }, loud: { type: 'boolean' } }, run: ({ positionals, options }) => ({ positionals, options }) })],
+  });
+
+  it.each([
+    { argv: ['greet', 'ada', 'extra', '--json'], fix: 'app greet ada --json' },
+    { argv: ['greet', 'ada', '--json', 'b c', 'd'], fix: 'app greet ada --json' },
+    { argv: ['greet', 'ada', '--level', 'info', '--loud', '--level', 'debug', '--json'], fix: 'app greet ada --loud --level debug --json' },
+    { argv: ['greet', '-l', 'a', 'ada', '--level=b', '--json'], fix: 'app greet ada --level=b --json' },
+    { argv: ['greet', 'ada', 'x', '--level', 'a', '--level', 'b', '--json'], fix: 'app greet ada --level b --json' },
+    { argv: ['greet', 'ada', 'x', '--json', '--', 'tail'], fix: 'app greet ada --json -- tail' },
+  ])('$argv.0 $argv.2 …: exit 2, and `$fix` exits 0', async ({ argv, fix }) => {
+    const refused = await runBurgee(refusing, { argv });
+    expect(refused.code).toBe(ExitCode.USAGE);
+    expect(onlyEnvelope(refused.stdout)).toMatchObject({ error: { kind: 'usage', code: ExitCode.USAGE, fix } });
+    const again = await runBurgee(refusing, { argv: words(fix).slice(1) });
+    expect(again.code).toBe(ExitCode.OK);
+    expect(again.json).toMatchObject({ ok: true });
+  });
+
+  it('quotes a word the shell would split, the way every fix line does', async () => {
+    const r = await runBurgee(refusing, { argv: ['greet', 'Ada L', 'x', '--json'] });
+    expect(onlyEnvelope(r.stdout)).toMatchObject({ error: { fix: "app greet 'Ada L' --json" } });
   });
 });

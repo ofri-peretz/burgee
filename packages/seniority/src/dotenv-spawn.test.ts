@@ -5,13 +5,16 @@
  * Windows runner.
  */
 import cp from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, normalize } from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { envValue, protectShellToken, quoteWindowsArgument, resolveWindowsCommand, spawnCommand } from './dotenv-spawn.js';
+
+const scratch = scratchDirs();
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -33,8 +36,9 @@ describe('quoteWindowsArgument (the C runtime’s rules)', () => {
 });
 
 describe('protectShellToken (cmd’s rules)', () => {
-  it('carets every ASCII character that is not a letter, digit or path character', () => {
-    expect(protectShellToken('aZ09\\/:._-')).toBe('aZ09\\/:._-');
+  it('carets every ASCII character that is not a letter, digit or path character, and the drive colon', () => {
+    expect(protectShellToken('aZ09\\/._-')).toBe('aZ09\\/._-');
+    expect(protectShellToken('C:')).toBe('C^:');
     expect(protectShellToken('a&b|c<d>e%f!g^h(i) "j"')).toBe('a^&b^|c^<d^>e^%f^!g^^h^(i^)^ ^"j^"');
   });
 
@@ -45,7 +49,7 @@ describe('protectShellToken (cmd’s rules)', () => {
   });
 
   it('treats the characters at each range boundary as the ranges say', () => {
-    // '/' and ':' sit either side of the digits, '@' and '[' of the upper case, '`' and '{' of the lower.
+    // '/' and ':' sit either side of the digits, and both are tested above, '@' and '[' of the upper case, '`' and '{' of the lower.
     expect(protectShellToken('@[`{')).toBe('^@^[^`^{');
   });
 });
@@ -59,7 +63,7 @@ describe('envValue (Windows names are case-insensitive)', () => {
 });
 
 describe('resolveWindowsCommand', () => {
-  const root = mkdtempSync(join(tmpdir(), 'seniority-dotenv-win-'));
+  const root = scratch('seniority-dotenv-win-');
   const bin = join(root, 'bin');
   mkdirSync(bin);
   writeFileSync(join(bin, 'probe.CMD'), '');
@@ -105,7 +109,7 @@ describe('spawnCommand', () => {
     expect(spawn).toHaveBeenCalledWith('node', ['-e', 'a&b'], { stdio: 'inherit' });
   });
 
-  const root = mkdtempSync(join(tmpdir(), 'seniority-dotenv-spawn-'));
+  const root = scratch('seniority-dotenv-spawn-');
   writeFileSync(join(root, 'native.EXE'), '');
   writeFileSync(join(root, 'script.BAT'), '');
 
@@ -113,6 +117,9 @@ describe('spawnCommand', () => {
     const spawn = vi.spyOn(cp, 'spawn').mockReturnValue(fake);
     spawnCommand('native', ['a b'], { cwd: root }, context('win32'));
     expect(spawn).toHaveBeenCalledWith(join(root, 'native.EXE'), ['a b'], { cwd: root });
+    // No cmd.exe reads that line, so a variable name ending in a caret is no reason to refuse it.
+    spawnCommand('native', ['%x^%'], { cwd: root, env: { 'x^': 'set' } }, context('win32'));
+    expect(spawn).toHaveBeenLastCalledWith(join(root, 'native.EXE'), ['%x^%'], { cwd: root, env: { 'x^': 'set' } });
   });
 
   it('runs anything else through COMSPEC with each token escaped, twice for a batch file', () => {

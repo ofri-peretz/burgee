@@ -37,6 +37,10 @@ run-name: >-
 on:
   push:
     branches: [main]
+  schedule:
+    # Daily: a version the release window deferred publishes once its window opens. Every
+    # other day `detect` finds npm level with main and nothing runs past it.
+    - cron: "47 6 * * *"
   workflow_dispatch:
     inputs:
       dry-run:
@@ -97,6 +101,14 @@ jobs:
             fi
             publish=$(jq -c --argjson row "$row" '. + [$row]' <<<"$publish")
           done < <(jq -c '.[]' <<<"$order")
+          # The release window (release-cadence), the backstop behind changesets-pr.yml: a
+          # minor or major whose package shipped a non-fix release under 7 days ago waits,
+          # unless its changelog section carries a `Security:` entry, and so does a package
+          # that depends on it at that version. The Version PR never carries such a release;
+          # this catches one merged by hand. A later run (any push, or the daily schedule)
+          # publishes it once the window opens.
+          node scripts/release-window.mts publishable --out "$RUNNER_TEMP/publishable.json" <<<"$publish"
+          publish=$(cat "$RUNNER_TEMP/publishable.json")
           echo "plan=$publish" >> "$GITHUB_OUTPUT"
           echo "count=$(jq length <<<"$publish")" >> "$GITHUB_OUTPUT"
 
@@ -107,9 +119,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      # Full history and the tags: burgee's `family-versions.json` floors each subpath at the
+      # oldest release tag that exports it (migrate-pins-carry-the-drop-in).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
       - uses: ./.github/actions/setup
       - run: npx turbo run build --filter='./packages/*'
+      # Turbo may have restored burgee's dist from a build that ran in a shallow, tagless
+      # checkout, where every floor is the current version. Rewrite the table from this one,
+      # and fail rather than ship a tagless table.
+      - name: Subpath floors read from the release tags
+        working-directory: packages/burgee
+        run: node ../../scripts/family-versions.mjs --require-tags
       - name: Artifact gate (K4/K5) — exports exist, no maps or tests shipped, size ratchet
         run: npm run check:artifacts
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -198,6 +221,24 @@ jobs:
               echo "::error::Refusing to publish $SHA — a required check did not pass: $failed"
               exit 1
             fi
+            # Superseded while a gate is still missing or pending. A later merge can cancel a
+            # commit's Quality (Full) workflow before its Gate job exists, and then that check run
+            # is missing, not cancelled: run 39247745837 on 1b0ea782 waited out all 45 minutes
+            # holding the release concurrency group, then went red. Off the head of main, a
+            # cancelled gate or any cancelled workflow run on the commit settles it: the newer
+            # commit's release run gates and publishes. On the head of main nothing changes.
+            if [ -n "$pending" ]; then
+              head=$(gh api "repos/$GH_REPO/commits/main" --jq .sha)
+              if [ "$head" != "$SHA" ]; then
+                runs=$(gh api "repos/$GH_REPO/actions/runs?head_sha=$SHA&per_page=100" \
+                  --jq '[.workflow_runs[] | select(.conclusion == "cancelled")] | length')
+                if [ -n "$cancelled" ] || [ "$runs" -gt 0 ]; then
+                  echo "ok=false" >> "$GITHUB_OUTPUT"
+                  echo "::notice::$SHA was superseded by $head while its gates were unsettled (cancelled: ${cancelled:-none}; still missing or pending: $pending; $runs workflow run(s) cancelled). The release run for the newer commit publishes."
+                  exit 0
+                fi
+              fi
+            fi
             if [ -n "$cancelled" ] && [ -z "$pending" ]; then
               head=$(gh api "repos/$GH_REPO/commits/main" --jq .sha)
               if [ "$head" != "$SHA" ]; then
@@ -243,7 +284,7 @@ jobs:
       # `_authToken=${NODE_AUTH_TOKEN}` with a placeholder value, which is not a credential: npm
       # authenticates through OIDC first, and no workflow names an npm token
       # (`trusted-publishing-lock.test.ts`).
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -331,6 +372,9 @@ jobs:
               echo "🔐 $PKG_NAME@$PKG_VER published with npm trusted publishing (OIDC) — this job holds no npm token. npm: $(oidc_said "$logs")."
             fi
             git rev-parse -q --verify "refs/tags/$tag_name" >/dev/null || git tag -a "$tag_name" -m "Release $tag_name" || return 1
+            # A push lost here is not fatal: `gh release create` makes the tag — from `--target`,
+            # the commit that was built, not main's head, which can have moved on since
+            # (.sdlc/models/release-tag.qnt).
             git push origin "$tag_name" || echo "(tag already on remote)"
             # This version's section only — the whole CHANGELOG.md made every release page
             # repeat every release before it. Empty when the version has no section.
@@ -340,9 +384,9 @@ jobs:
             if gh release view "$tag_name" >/dev/null 2>&1; then
               echo "↻ Release $tag_name exists."
             elif [ -s "$notes" ]; then
-              gh release create "$tag_name" --title "$PKG_NAME@$PKG_VER" --notes-file "$notes" --latest=false ${extra[@]+"${extra[@]}"} || return 1
+              gh release create "$tag_name" --title "$PKG_NAME@$PKG_VER" --notes-file "$notes" --latest=false --target "$(git rev-parse HEAD)" ${extra[@]+"${extra[@]}"} || return 1
             else
-              gh release create "$tag_name" --title "$PKG_NAME@$PKG_VER" --generate-notes --latest=false ${extra[@]+"${extra[@]}"} || return 1
+              gh release create "$tag_name" --title "$PKG_NAME@$PKG_VER" --generate-notes --latest=false --target "$(git rev-parse HEAD)" ${extra[@]+"${extra[@]}"} || return 1
             fi
             attach_provenance "$PKG_NAME" "$PKG_VER" "$tag_name" || echo "::warning::$tag_name: provenance not attached to the GitHub Release (the npm publish itself is unaffected)."
             attach_sbom "$PKG_NAME" "$PKG_VER" "$tag_name" || echo "::warning::$tag_name: SBOM not attached to the GitHub Release (the npm publish itself is unaffected)."

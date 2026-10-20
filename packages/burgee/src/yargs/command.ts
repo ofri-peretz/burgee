@@ -14,6 +14,8 @@ const DEFAULT_MARKER = /(^\*)|(^\$0)/;
 
 export interface CommandHandler {
   original: string;
+  /** burgee: the other names it was registered under, which `--schema` lists on it. */
+  aliases?: string[];
   description?: string | false | undefined;
   handler: (argv: any) => any;
   builder: any;
@@ -47,12 +49,12 @@ export function isYargsInstance(y: any): boolean {
 }
 
 export class CommandInstance {
-  private requireCache = new Set<string>();
+  protected requireCache = new Set<string>();
   private handlers: Record<string, CommandHandler> = {};
   private aliasMap: Record<string, string> = {};
   private defaultCommand: CommandHandler | undefined;
   private frozens: { handlers: Record<string, CommandHandler>; aliasMap: Record<string, string>; defaultCommand: CommandHandler | undefined }[] = [];
-  private readonly shim: PlatformShim;
+  protected readonly shim: PlatformShim;
   private readonly usage: UsageInstance;
   private readonly globalMiddleware: any;
   private readonly validation: ValidationInstance;
@@ -153,6 +155,8 @@ export class CommandInstance {
       if (description !== false) this.usage.command(cmd, description as string, isDefault, aliases, deprecated);
       this.handlers[parsedCommand.cmd] = {
         original: cmd,
+        // burgee: what `--schema` lists on the command (facade-projection-fidelity R6).
+        aliases,
         description,
         handler,
         builder: builder || {},
@@ -465,7 +469,8 @@ export class CommandInstance {
 }
 
 export function command(usage: UsageInstance, validation: ValidationInstance, globalMiddleware: any, shim: PlatformShim): CommandInstance {
-  return new CommandInstance(usage, validation, globalMiddleware, shim);
+  // A previous major's entry brings its own (`burgee/yargs/v17`); 18 never sets it.
+  return new (shim.CommandInstance ?? CommandInstance)(usage, validation, globalMiddleware, shim);
 }
 
 export function isCommandBuilderDefinition(builder: any): builder is CommandBuilderDefinition {

@@ -24,13 +24,17 @@ manifest at build time; [Run it](/docs/concepts/drop-ins#run-it) shows a real ru
 predates the drop-in; under pnpm's `minimumReleaseAge` one did exactly that. When your
 project sets a minimum release age (`minimumReleaseAge` in `pnpm-workspace.yaml`, or
 `minimum-release-age` in `.npmrc`), the report says so under `releaseAge`: a graded version
-younger than the rule allows will not install.
+younger than the rule allows will not install. `next` then pins the newest release old enough,
+but never one older than the first release that exports every subpath the rewrite imports:
+`roundel/picocolors` first shipped in roundel 1.1.0, so a project moved onto it is never pinned
+to `roundel@^1.0.4`. When no release is both old enough and carrying the subpath, the note says
+which subpath and the date the first one that does becomes installable.
 
 The first line of the report says how it went — `complete: 3 files rewritten`,
-`partial: 2 files rewritten, 1 refused`, or `nothing to rewrite` — and the rest is the detail,
-as text. `--json` gives the same report as data, with that line as `summary`. The command
-exits 1 when anything was refused, so an agent can run it unattended and branch on the
-result. A refused run is partial, not undone: the files that could move have moved, and the
+`partial: 2 files rewritten, 1 refused`, `blocked: 1 preflight check; nothing written (3 files
+would be rewritten)`, or `nothing to rewrite` — and the rest is the detail, as text. `--json`
+gives the same report as data, with that line as `summary`. The command exits 1 when anything
+was refused or blocked, so an agent can run it unattended and branch on the result. A refused run is partial, not undone: the files that could move have moved, and the
 summary says how many.
 
 ## What it moves, and what you choose
@@ -59,6 +63,7 @@ equal.
 | incumbent | becomes |
 | :-- | :-- |
 | `commander` | `burgee/commander` |
+| `@commander-js/extra-typings` | `burgee/commander/extra-typings` |
 | `yargs` | `burgee/yargs` |
 | `yargs/yargs` | `burgee/yargs` |
 | `yargs/helpers` | `burgee/yargs/helpers` |
@@ -84,6 +89,10 @@ equal.
 | `find-up` | `seniority/find-up` |
 | `onetime` | `closeout/onetime` |
 | `cli-cursor` | `closeout/cli-cursor` |
+| `cli-truncate` | `linegauge/cli-truncate` |
+| `widest-line` | `linegauge/widest-line` |
+| `picocolors` | `roundel/picocolors` |
+| `supports-color` | `roundel/supports-color` |
 | `@clack/prompts` | `caique/clack` |
 | `@inquirer/core` | `caique/inquirer` |
 | `meow` | `burgee/meow` |
@@ -135,7 +144,8 @@ grades the drop-in 540 of 584, because it follows ink 8 where the two majors dis
   `signal-exit` 3 exports a function where 4 exports `onExit`, and `chalk` 4 is CommonJS where
   6 is not. A project whose installed version — or, with nothing installed, whose declared
   range — is on another major is listed under `offMajor` with both versions, and not
-  rewritten. Upgrade it first, and run the command again.
+  rewritten. For commander and yargs the row also says what stands between it and a move:
+  see [When your incumbent is on an older major](#when-your-incumbent-is-on-an-older-major).
 - **A `require()` whose two sides return different kinds of value.** `require()` of an ES
   module returns its namespace. The incumbents that ship ESM only (chalk 6, ora 9, boxen 9 and
   ten more) already hand `require()` a namespace, and so do their replacements, so
@@ -159,16 +169,98 @@ grades the drop-in 540 of 584, because it follows ink 8 where the two majors dis
   file is rewritten whole or not at all — and its incumbents are held. A mock or a
   `require.resolve` whose argument is not a literal is not refused: it loads nothing into
   the program.
+
+  Three computed shapes load your own file or your user's module, never an incumbent, so they
+  are not refused, and are listed under `dynamic` (`read as not an incumbent`) instead:
+
+  - a path from the working directory: `require(path.join(process.cwd(), 'package.json'))`, or
+    `path.resolve`, or from `__dirname`, followed by string literals only;
+  - a member of a parsed argv object: `import(argv.parser)`, and `args`, `options`, `opts` or
+    `flags`;
+  - an element of an argv array: `argv.use.map(async (plugin) => import(plugin))`, and `forEach`,
+    `flatMap` or `filter`.
+
+  A string anywhere in the file that names an incumbent being moved (`'chalk'`,
+  `'node_modules/chalk'`, `` `${dir}/chalk` ``) could be what a computed name is built from. Every
+  computed specifier in that file is then refused, and the file holds that incumbent too, even if
+  it does not import it.
 - **A dirty git tree**, unless you pass `--force`, so the rewrite is one reviewable diff. The
-  command exits 1 and writes nothing. `--dry-run` writes nothing either way, so it skips the
-  check, and a directory that is not a git repository has nothing to be dirty.
+  command exits 1 and writes nothing, and its `hint` lists the paths `git status` printed, so an
+  install that left an untracked cache behind is named. When every one of them is untracked, the
+  `fix` says to add them to `.gitignore` or commit them. `--dry-run` writes nothing either way, so
+  it skips the check, and a directory that is not a git repository has nothing to be dirty.
+
+## When your incumbent is on an older major
+
+Most commander and yargs CLIs are not on the major the drop-in claims, and moving one by hand
+is how four of them crashed in our field trial: each used an API its own incumbent removed in a
+later major. So for commander and yargs, an `offMajor` row carries three more fields:
+
+- `sites`: every line that uses an API the incumbent removed after your major, up to the
+  highest major the drop-in claims. Each has its `file`, `line`, `api`, the release that removed
+  it (`removedIn`), the line to write instead (`replacement`), and the incumbent's own changelog
+  entry (`source`). A binding such as `const program = require('commander')` is one site, at the
+  line that makes it, with `firstUse`, the first line that uses it as what is gone.
+- `nearest`: the smallest major the drop-in claims above yours: 14 for commander 13 and older, and
+  17 for yargs 16 and older.
+- `move`: each specifier you import, with the entry it moves to at `nearest`
+  (`{ "yargs": "burgee/yargs/v17" }`), when no site's API was gone by that major and every
+  specifier you import has an entry there. Otherwise it is `null`, and the lines in the way are
+  the sites removed at or before `nearest`. A deep import, or `commander/esm.mjs`, has no entry,
+  so it stops the move too.
+
+Nothing is rewritten: the major you are on was not graded, so this is a work list, not a
+rewrite. The first line says so: `nothing to rewrite; 1 line uses an API a claimed major
+removed (see offMajor)`. The move is checked against these seven APIs and nothing else. It is
+graded at `nearest`, not at your major, so the rest of the incumbent's own changelog between
+the two still applies.
+
+| API | Removed in | Use instead |
+| :-- | :-- | :-- |
+| `module-as-program` | [commander 12.0.0](https://github.com/tj/commander.js/blob/v15.0.0/CHANGELOG.md#1200-2024-02-03) | `const { program } = require('commander')` |
+| `multi-char-short-flag` | [commander 13.0.0](https://github.com/tj/commander.js/blob/v15.0.0/CHANGELOG.md#1300-2024-12-30) | a one-character short flag, or the long flag alone |
+| `esm-mjs` | [commander 15.0.0](https://github.com/tj/commander.js/blob/v15.0.0/CHANGELOG.md#1500-2026-05-29) | `import { program } from 'commander'` |
+| `rebase` | [yargs 16.0.0](https://github.com/yargs/yargs/blob/v18.0.0/CHANGELOG.md#1600-2020-09-09) | `path.relative()` |
+| `reset` | [yargs 17.0.0](https://github.com/yargs/yargs/blob/v18.0.0/CHANGELOG.md#1700-2021-05-02) | a fresh `yargs()` instance |
+| `on-finish-command` | [yargs 17.0.0](https://github.com/yargs/yargs/blob/v18.0.0/CHANGELOG.md#1700-2021-05-02) | await the promise the command's handler returns |
+| `singleton` | [yargs 18.0.0](https://github.com/yargs/yargs/blob/v18.0.0/CHANGELOG.md#1800-2025-05-26) | `require('yargs/yargs')(process.argv.slice(2))` |
+
+The command also reads each file your `package.json` `bin` names, so an extensionless
+`bin/cli` is checked, and moved on a claimed major, like any other source file.
+
+## What it checks before it writes
+
+Moving to the family changes what your package needs from the Node that runs it and from its test
+runner. Before it writes anything, the command reads your `package.json` (`type`, `engines.node`,
+`scripts.test`, a `jest` key) and any `jest.config.*` beside it, and lists what the move costs
+under `preflight`, first in the text report under `before the move`:
+
+| check | kind | when |
+| :-- | :-- | :-- |
+| `require-esm` | block | the package is CommonJS and `engines.node` allows a Node on which `require()` of an ES module throws `ERR_REQUIRE_ESM`: below 20.19.0, or 21.0.0 to 22.11.x |
+| `floor` | warn | `engines.node` allows a Node below 20.19.0, cannot be read, or is not declared. Adopting raises your package's floor, which is a semver-major for it |
+| `jest-cjs` | block | jest runs a CommonJS package, with neither `transformIgnorePatterns` nor `--experimental-vm-modules`: jest's own module loader cannot load an ES-module-only drop-in |
+| `untracked` | warn | `--force` let untracked paths through; they are named, so the report records what it ignored |
+
+Each row has the `found` text it read, a `message`, and a `fix`. For `require-esm` and `floor` the
+fix is `npm pkg set "engines.node=^20.19.0 || >=22.13.0"`, the floor every family package
+declares. For `jest-cjs` it is the `transformIgnorePatterns` that lets jest transform the family's
+packages, or running jest under `node --experimental-vm-modules`. The command runs neither: it
+rewrites specifiers and nothing else.
+
+A blocking row means the rewritten project would not load on a Node its own `engines` allows, or
+under its own tests. When one applies and the run would rewrite a file, nothing is written, the
+summary starts `blocked:`, and the command exits 1. `--force` does not lift it: `--force` skips
+the git-tree check and nothing else. A run with nothing to rewrite still prints the rows, and
+exits as it would have. The rows cover every incumbent you depend on, including one on a major
+the oracle did not grade, because what adopting costs does not depend on which major you are on.
 
 ## Exit codes
 
 | Code | When |
 | ---: | :-- |
 | 0 | nothing was refused — `complete: …` or `nothing to rewrite`. Held, kept, undeclared and off-major incumbents are reported and are not failures. |
-| 1 | something was refused — `partial: N files rewritten, M refused` — or the git tree is dirty and nothing was written. The report is printed either way. |
+| 1 | something was refused — `partial: N files rewritten, M refused` — or a blocking preflight check stopped the write (`blocked: …`), or the git tree is dirty and nothing was written. The report is printed either way. |
 | 2 | `--only` or `--skip` named a package it does not migrate; nothing was read or written. |
 
 ## What it reports, and never rewrites

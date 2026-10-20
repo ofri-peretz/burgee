@@ -160,7 +160,10 @@ interface EntryRule {
 const RULES: Record<string, EntryRule> = {
   // Everything: the loop, the registry, and all five built-ins. `box` and `table` bring the
   // wrapper and the width function with them, which is most of it. A program that wants one component should import its subpath (U5, R10).
-  '.': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'linegauge/wrap', 'paratext/link', 'roundel/policy', 'roundel/tokens'], budget: 29_300, measured: 28_656, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
+  //
+  // 29,300 -> 30,100 on 2026-10-13 with `./loop` below, for the same 795 B of `projection.js`
+  // (D-20261013-frames-fit-the-screen-budgets).
+  '.': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'linegauge/truncate', 'linegauge/wrap', 'paratext/link', 'roundel/policy', 'roundel/tokens'], budget: 30_100, measured: 30_065, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
   // The loop and its four projections; never the registry — a program that hoists its own
   // component pays nothing for the plugin host.
   //
@@ -189,7 +192,16 @@ const RULES: Record<string, EntryRule> = {
   // budgets, which did not move.
   // 2026-10-11, agent-lint-conformance R2: a runtime that says `quiet` gets a projection that
   // draws nothing. Measured 6,910, inside the 7,000 budget, which did not move.
-  './loop': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'roundel/policy'], budget: 7_000, measured: 6_910, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
+  //
+  // **7,000 -> 7,750 on 2026-10-13, deliberately** (D-20261013-frames-fit-the-screen-budgets,
+  // under the owner's delegation of budgets that day). `frameWriter` reads the writer's `rows`
+  // at every paint and clips a frame taller than the screen to its tail under one
+  // `muted('… N more')` line, writes the clipped frame whole on `release`, and repaints from
+  // the top when the height changes (frames-fit-the-screen R1–R3): a repaint can no longer
+  // climb above the top row and leave lines it can never erase. +796 B, all `projection.js`,
+  // and `roundel/tokens` joins the allow list for the dim. The budget is the measurement
+  // rounded up to the next 50.
+  './loop': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'roundel/policy', 'roundel/tokens'], budget: 7_750, measured: 7_706, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
   // The registry, the validator, the built-ins and the schema they are checked against.
   // The registry, the validator, the built-ins and the schema they are checked against —
   // which now carries `borders` too, so both this and `./spinner` are larger than before.
@@ -198,10 +210,12 @@ const RULES: Record<string, EntryRule> = {
   // host validates against `plugin.schema.json`, its own slice of the family schema, instead of
   // importing the whole file — which had just grown to describe all nine hosts (D-108's answer,
   // applied to flagstaff). Budgets followed the measurements down.
-  './plugin': { allow: [], budget: 12_100, measured: 9_974, denied: ['loop.js', 'projection.js', 'spinner.js', 'cli.js', 'index.js'] },
+  // Measured 10,400 on 2026-10-12, and every entry reaching `plugin.js` by the same 426 B: the walker
+  // reads `anyOf`, `enum`, a type list and draft-07 `definitions`, for mcp-current R7. No budget moved.
+  './plugin': { allow: [], budget: 12_100, measured: 10_400, denied: ['loop.js', 'projection.js', 'spinner.js', 'cli.js', 'index.js'] },
   // The ceiling is ora (R10). The spinner plus the registry it reads its style from;
   // ora 9.4.1's own index.js is 17,891 B before any of its sixteen dependencies.
-  './spinner': { allow: ['roundel/tokens'], budget: 13_000, measured: 10_902, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
+  './spinner': { allow: ['roundel/tokens'], budget: 13_000, measured: 11_328, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
   // The ora façade: the port, the width function and the spinner corpus it re-exports. The
   // cursor control is no longer counted here — it is `closeout`'s since 2026-09-15, and a bare
   // specifier leaves this measurement while staying in the program.
@@ -284,15 +298,20 @@ const RULES: Record<string, EntryRule> = {
   // plugin costs less than one of them. The corpora themselves are the caller's (U5), and
   // the last case in `import.test.ts` asserts neither became a dependency.
   './import': { allow: [], budget: 2_000, measured: 795, denied: ['plugin.js', 'builtins.js', 'schema.json', 'loop.js', 'projection.js', 'box.js', 'spinner.js', 'cli.js', 'index.js'] },
-  './progress': { allow: ['roundel/tokens'], budget: 2_000, measured: 971, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'cli.js', 'index.js'] },
-  './tasks': { allow: ['roundel/tokens'], budget: 13_500, measured: 11_301, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
+  // **2026-10-12, `mcp-current` R5.** `flagstaff/progress` reports to an MCP client instead of
+  // drawing when it runs inside a tool call that asked for progress: 971 -> 1,711 B, inside the
+  // budget, which did not move. The bar itself moved to `progress-bar.js`, which the root entry
+  // re-exports without the bridge, so `.` pays 4 B for the longer file name and nothing else
+  // (29,266 -> 29,270): an MCP-only feature stays off the entry every flagstaff user loads.
+  './progress': { allow: ['roundel/tokens'], budget: 2_000, measured: 1_711, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'cli.js', 'index.js'] },
+  './tasks': { allow: ['roundel/tokens'], budget: 13_500, measured: 11_727, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
   // The two controlroom components (R3), new on 2026-10-05. Each reads the registry — the
   // `tail`, `step` glyphs for the log tail — and registers its built-in through it, so each
   // carries the plugin host as `./tasks` does; the component itself is 1,905 B and 919 B.
   // Budgets at the same headroom `./tasks` has. Neither reaches the loop: drawing a frame is
   // the caller's, through `hoist` or `frameWriter`.
-  './log-tail': { allow: ['roundel/tokens'], budget: 13_500, measured: 11_879, denied: ['loop.js', 'projection.js', 'tasks.js', 'tab-bar.js', 'cli.js', 'index.js'] },
-  './tab-bar': { allow: ['roundel/tokens'], budget: 12_500, measured: 10_893, denied: ['loop.js', 'projection.js', 'tasks.js', 'log-tail.js', 'cli.js', 'index.js'] },
+  './log-tail': { allow: ['roundel/tokens'], budget: 13_500, measured: 12_305, denied: ['loop.js', 'projection.js', 'tasks.js', 'tab-bar.js', 'cli.js', 'index.js'] },
+  './tab-bar': { allow: ['roundel/tokens'], budget: 12_500, measured: 11_319, denied: ['loop.js', 'projection.js', 'tasks.js', 'log-tail.js', 'cli.js', 'index.js'] },
   // The chat widgets (controlroom R21), new on 2026-10-05. Self-contained like `./progress`:
   // tokens and string work, no registry, no loop. `./markdown` is the block splitter (the
   // part a byte-offset property holds stable) and an inline pass for code, strong and
@@ -304,8 +323,16 @@ const RULES: Record<string, EntryRule> = {
   // That is the price of R11 — a corpus imported with `fromCliBoxes()` is a registered
   // plugin, and `box('…', { border: 'arrow' })` then draws with it without knowing it
   // exists. A caller who wants neither passes a style object and a bundler drops the rest.
-  './box': { allow: ['linegauge', 'linegauge/wrap', 'paratext/link', 'roundel/tokens'], budget: 16_300, measured: 14_135, denied: ['loop.js', 'projection.js', 'table.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
-  './table': { allow: ['linegauge', 'linegauge/wrap', 'paratext/link', 'roundel/tokens'], budget: 6_000, measured: 4_649, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'box.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
+  './box': { allow: ['linegauge', 'linegauge/wrap', 'paratext/link', 'roundel/tokens'], budget: 16_300, measured: 14_561, denied: ['loop.js', 'projection.js', 'table.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
+  // **2026-10-12, `table-column-widths` R1-R2.** Per-column `min` and `max` landed with no
+  // budget moved and the file smaller: `table.ts` was tightened in the same change (the
+  // corners as three strings, one cell-text helper, padding and painting in one step), so `dist/table.js` is 3,321 B against 3,493 before. The room is for R3, which
+  // brings `linegauge/truncate`, inside the root entry's 53 B of headroom.
+  // **R3-R4** add `overflow: 'truncate'`: `dist/table.js` 3,321 -> 3,512 B, and `.` 29,266 of
+  // its 29,300. The new edge is `linegauge/truncate`, whose bytes are linegauge's and not
+  // counted here. Bundled it reaches linegauge's `slice`: `flagstaff/table` measured
+  // 15,024 -> 19,169 B locally with esbuild --bundle --minify, under cli-table3, the bar.
+  './table': { allow: ['linegauge', 'linegauge/truncate', 'linegauge/wrap', 'paratext/link', 'roundel/tokens'], budget: 6_000, measured: 4_668, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'box.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
 };
 
 /**
@@ -392,7 +419,8 @@ it('every entry records a measurement — otherwise the check above asserts noth
  * that host bundles. That is a change in `scripts/`, written down as PLAN 1.8 rather than
  * made here — it is not paratext's to make and not this PR's shape.
  */
-const DATA_EXPORTS = ['./schema.json'];
+// `./package.json` is the manifest itself, exported so a tool can `require()` it.
+const DATA_EXPORTS = ['./package.json', './schema.json'];
 
 describe('the lock grows with the package', () => {
   it('every published entry point declares a weight rule', () => {

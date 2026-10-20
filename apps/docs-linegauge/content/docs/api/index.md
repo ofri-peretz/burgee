@@ -7,25 +7,6 @@ description: "Every export of linegauge, with its signature and doc comment: lin
 
 linegauge — how much of a terminal line a string occupies, and how to fold it.
 
-F1 of the foundation tier, built by moving rather than by writing: `width` and `wrap`
-were already in `flagstaff`, already ported, already graded differentially against
-`string-width` and `wrap-ansi`. This package is where they belong, because measuring a
-line is not drawing one — a spinner, a box, a table and a status line all need the
-measurement, and nothing about the measurement needs any of them.
-
-The default export is `width`, byte-for-byte call-compatible with `string-width`'s
-default (R8), so `overrides: { "string-width": "npm:linegauge@^1" }` resolves.
-
-`slice`, `truncate` and `widest` came next, built on the style stack `wrap` already
-carried — which is the consolidation the design is named for: `slice-ansi`, `wrap-ansi`
-and `cli-truncate` each keep their own copy of it, and they disagree at the edges.
-
-`strip` (R3) followed, and it is where the measured divergence from Node's own
-`stripVTControlCharacters` is recorded — one shape in sixteen, and it was a live bug in
-`width()`.
-
-R2's fast path: locked by `differential.test.ts`.
-
 ```ts
 import width from 'linegauge';
 import { lineCount, measure, width, … } from 'linegauge';
@@ -38,12 +19,6 @@ import { lineCount, measure, width, … } from 'linegauge';
 The default export, declared as `width`.
 
 How many terminal columns `input` occupies once its escape sequences are removed.
-
-**Non-strings measure 0.** `string-width` has always answered `0` for a number, `null` or
-`undefined` rather than throwing, and callers rely on it — a width function is usually
-reached with whatever a template produced. Three cases of its suite grade exactly this, and
-the check is `typeof` rather than a truthiness test so that `0` and `false` are not quietly
-treated as strings that happen to be empty.
 
 ```ts
 function width(input: string, options?: WidthOptions): number;
@@ -93,12 +68,6 @@ function measure(text: string, ambiguousIsWide?: boolean): number;
 
 How many terminal columns `input` occupies once its escape sequences are removed.
 
-**Non-strings measure 0.** `string-width` has always answered `0` for a number, `null` or
-`undefined` rather than throwing, and callers rely on it — a width function is usually
-reached with whatever a template produced. Three cases of its suite grade exactly this, and
-the check is `typeof` rather than a truthiness test so that `0` and `false` are not quietly
-treated as strings that happen to be empty.
-
 ```ts
 function width(input: string, options?: WidthOptions): number;
 ```
@@ -123,18 +92,10 @@ interface WidthOptions {
      * Treat East Asian Ambiguous characters as one column. **Default `true`** — the incumbent's
      * default, and right for a Latin terminal: `±`, `×`, `÷`, the box-drawing set, Greek and
      * Cyrillic all occupy one column there.
-     *
-     * `false` for a CJK context, where a terminal using a CJK font renders the same characters
-     * two columns wide. Nothing can detect which a terminal is doing, which is exactly why this
-     * is the caller's decision and not ours.
      */
     ambiguousIsNarrow?: boolean;
     /**
      * Count escape sequences as the characters they are made of instead of removing them.
-     *
-     * Off by default, which is what every caller measuring styled output wants. On, the escape
-     * byte itself is still non-printing — `\u001B[31m` measures 4, the `[31m` a terminal would
-     * have swallowed.
      */
     countAnsiEscapeCodes?: boolean;
 }
@@ -151,18 +112,10 @@ interface WidthOptions {
      * Treat East Asian Ambiguous characters as one column. **Default `true`** — the incumbent's
      * default, and right for a Latin terminal: `±`, `×`, `÷`, the box-drawing set, Greek and
      * Cyrillic all occupy one column there.
-     *
-     * `false` for a CJK context, where a terminal using a CJK font renders the same characters
-     * two columns wide. Nothing can detect which a terminal is doing, which is exactly why this
-     * is the caller's decision and not ours.
      */
     ambiguousIsNarrow?: boolean;
     /**
      * Count escape sequences as the characters they are made of instead of removing them.
-     *
-     * Off by default, which is what every caller measuring styled output wants. On, the escape
-     * byte itself is still non-printing — `\u001B[31m` measures 4, the `[31m` a terminal would
-     * have swallowed.
      */
     countAnsiEscapeCodes?: boolean;
 }

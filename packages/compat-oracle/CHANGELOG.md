@@ -1,5 +1,64 @@
 # compat-oracle
 
+## 0.3.9
+
+### Patch Changes
+
+- [#1165](https://github.com/ofri-peretz/burgee/pull/1165) [`51fec1b`](https://github.com/ofri-peretz/burgee/commit/51fec1ba42ec7793b8a7e031d7936d50c4ce4177) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Yargs 17 is supported. Two new entry points serve programs written for yargs 17. yargs 17.7.3's own suite grades them 793 of 794, level with yargs 17 itself, whose one miss is the test harness's own manifest. `burgee/yargs/v17` is 17's `yargs`: `require()` returns 17's global instance, bound to `process.argv` and callable as the factory, and `import` returns the factory. `burgee/yargs/v17/yargs` is 17's `yargs/yargs`, the factory with `applyExtends`, `hideBin` and `Parser` on it. Both follow 17 where 18 differs: a locale stays as the program set it rather than being reset per instance, `commandDir()` walks depth first and hands `visit` the module itself, and from `require()` a command module without a `command` takes its file's name. `burgee migrate` now rewrites a project pinned to yargs 17 (`~17.7.2`, `^17`, or installed at 17.x) to these entries instead of leaving it alone as off-major. A program on 18 still imports `burgee/yargs` and bundles none of it: that entry grows by 20 B.
+
+## 0.3.8
+
+### Patch Changes
+
+- [#1138](https://github.com/ofri-peretz/burgee/pull/1138) [`6b90ffe`](https://github.com/ofri-peretz/burgee/commit/6b90ffed8cd883b26f94fc3b690c1e2beb41ec83) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - execa re-vendored at 10.2.0: control 1360 / 1360, `bellpull` 0 / 1360, still a ceiling. dotenv re-vendored at 18.0.8: control 193 / 193. lilconfig re-vendored at 3.1.4, with `typescript` 5.9.3 as upstream now declares: control 77 / 77.
+- Updated dependencies [[`28843a5`](https://github.com/ofri-peretz/burgee/commit/28843a536a3ec3bcd4b201a47436c4c672a16b65), [`6b90ffe`](https://github.com/ofri-peretz/burgee/commit/6b90ffed8cd883b26f94fc3b690c1e2beb41ec83)]:
+  - burgee@1.6.3
+
+## 0.3.7
+
+### Patch Changes
+
+- [#1086](https://github.com/ofri-peretz/burgee/pull/1086) [`0f685d4`](https://github.com/ofri-peretz/burgee/commit/0f685d4609892cf6d0bfaf4a13d53ad041a82ad1) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Commander 14 is supported. `burgee/commander/v14` is a new entry point for programs written for commander 14. Commander 14.0.3's own suite grades it 1331 of 1331, level with commander 14 itself. It is `burgee/commander` with the one behaviour the two majors differ on: the excess-arguments message stops at the count (`Expected 0 arguments but got 1.`), where 15 also names the surplus arguments. `burgee migrate` now rewrites a project pinned to commander 14 (`^14`, `~14`, or installed at 14.x) to `burgee/commander/v14` instead of leaving it alone as off-major. A program on 15 still imports `burgee/commander` and bundles none of it: this change leaves that entry's 55,648 B as it is, and the new one bundles to 55,997 B.
+- Updated dependencies [[`db0ad9b`](https://github.com/ofri-peretz/burgee/commit/db0ad9b688790ec9979a52c2f76f45862800ef35)]:
+  - burgee@1.6.1
+
+## 0.3.6
+
+### Patch Changes
+
+- [#1037](https://github.com/ofri-peretz/burgee/pull/1037) [`50cc502`](https://github.com/ofri-peretz/burgee/commit/50cc5024df7a99ecd2dff33570eea21730b87b99) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `@inquirer/prompts`' graded drop-in is `caique/inquirer/prompts`, now 100 / 213. `burgee migrate` still reports it rather than rewriting it, because it is not level yet.
+- Updated dependencies [[`50cc502`](https://github.com/ofri-peretz/burgee/commit/50cc5024df7a99ecd2dff33570eea21730b87b99), [`dc1d1d1`](https://github.com/ofri-peretz/burgee/commit/dc1d1d196bafa63df5580135a8c42b324480fc9e), [`dc1d1d1`](https://github.com/ofri-peretz/burgee/commit/dc1d1d196bafa63df5580135a8c42b324480fc9e)]:
+  - burgee@1.6.0
+
+## 0.3.5
+
+### Patch Changes
+
+- [#1039](https://github.com/ofri-peretz/burgee/pull/1039) [`3bd9a9e`](https://github.com/ofri-peretz/burgee/commit/3bd9a9eaba812776c87dbea1def87e850599219d) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/commander/extra-typings` is a new entry point: a drop-in for `@commander-js/extra-typings`, graded 369 of 369 by its own tsd suite, level with the control. Its JavaScript re-exports `burgee/commander`, as extra-typings re-exports commander; its declarations are extra-typings 15.0.0's, ported with their MIT notice, so options and arguments are inferred from the strings that declare them and `.opts()` and an action's parameters are typed without a cast. `burgee migrate` now rewrites `@commander-js/extra-typings`.
+
+  It bundles to 61,207 B, what `burgee/commander` bundles to, against 39,329 B for `@commander-js/extra-typings` plus `commander`: a re-exporting door takes `burgee/commander`'s position (D-20261012-extra-typings-inherits-front-end), and the overage is `commander-front-end-diet`'s to close.
+
+- Updated dependencies [[`3bd9a9e`](https://github.com/ofri-peretz/burgee/commit/3bd9a9eaba812776c87dbea1def87e850599219d), [`c736740`](https://github.com/ofri-peretz/burgee/commit/c7367408fbed1b66e13172e71a39bf050afa2cdd), [`91a67e9`](https://github.com/ofri-peretz/burgee/commit/91a67e9f50bbad08d2335a66df0635fd31f6359f), [`264a413`](https://github.com/ofri-peretz/burgee/commit/264a413388d846178cea4176743cd65aa2b5d65a), [`582bc15`](https://github.com/ofri-peretz/burgee/commit/582bc15ec32466190f19db6f24c934e59cfb4012), [`4a62884`](https://github.com/ofri-peretz/burgee/commit/4a6288481a77dce34c496af5a5ffbaed900483c6), [`2fcd04e`](https://github.com/ofri-peretz/burgee/commit/2fcd04e7f5703f57b9698c2accc7e7c8ba80f097), [`e8e02fa`](https://github.com/ofri-peretz/burgee/commit/e8e02faec8df56dcd730407e570cb48a22454303)]:
+  - burgee@1.5.0
+  - flagstaff@1.6.0
+
+## 0.3.4
+
+### Patch Changes
+
+- [#1021](https://github.com/ofri-peretz/burgee/pull/1021) [`dfc49be`](https://github.com/ofri-peretz/burgee/commit/dfc49be7c701959675f4808fd99cd0d5be9c38b1) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The oracle runs type-only suites. A host may declare `runner: 'tsd'`: its suite's own pinned `tsd` compiles the vendored files against the shim's declarations, and each assertion it recognises (`expectType`, `expectAssignable`, `expectError`, …) is one case, failing when an error falls inside it. An error outside every assertion — an `@ts-expect-error` that found nothing, an import the target lacks — is one more failure, never dropped. A file is never one case. The run is refused when the suite does not pin tsd in `suiteDeps` or has no `tsconfig.json` of its own, because tsd would otherwise resolve both by walking up the directory tree.
+
+- [#1024](https://github.com/ofri-peretz/burgee/pull/1024) [`5d13c9f`](https://github.com/ofri-peretz/burgee/commit/5d13c9f428132689b9bc7846ca1b76d405b0854d) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The tsd runner's end-to-end cases skip on Windows, where `installSuiteDeps` cannot start `npm` (`npm.cmd` needs a shell). No `suiteDeps` host is graded on Windows — the oracle's ratchet runs on ubuntu — and the grade's arithmetic (`tsdTap`) is still tested on every platform.
+
+- [#1012](https://github.com/ofri-peretz/burgee/pull/1012) [`49d8e94`](https://github.com/ofri-peretz/burgee/commit/49d8e943ceaf8dcef14d43c0a70c2edec1a67816) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `@inquirer/prompts` is now graded: its ten prompts' own suites (8.7.3) are vendored and run against `caique/inquirer`, with a control of 213 of 213 against the real packages. `caique/inquirer` passes 0 of them today, because it exports `@inquirer/core`'s surface and none of the prompts yet, and `burgee migrate` reports `@inquirer/prompts` as a graded path that is not level, never rewriting it. The eleven `@inquirer/editor` cases are excluded by title: each answers the prompt through a mock of `@inquirer/external-editor`, which caique does not import.
+
+  The oracle gains two host fields for it. `suiteFiles` lists a monorepo suite's files across several packages and vendors only those; `defaultExport` grades a suite that imports its prompt as a default against the named export a program migrates.
+
+- Updated dependencies [[`bcc438a`](https://github.com/ofri-peretz/burgee/commit/bcc438ac3936ee1cd530931ea090c6a8bdd016b2), [`e0532b2`](https://github.com/ofri-peretz/burgee/commit/e0532b2cf298c183699621fc6e17e59373f83bad), [`a2e4f98`](https://github.com/ofri-peretz/burgee/commit/a2e4f98c5524f59c24c560130a8c9cfbcb961991), [`1357061`](https://github.com/ofri-peretz/burgee/commit/1357061168d836d87389dc0881b4a52df648cdc3), [`49d8e94`](https://github.com/ofri-peretz/burgee/commit/49d8e943ceaf8dcef14d43c0a70c2edec1a67816), [`bfe4ab8`](https://github.com/ofri-peretz/burgee/commit/bfe4ab8b13ff04293345a69007cad9e0cb81c678), [`d8569f5`](https://github.com/ofri-peretz/burgee/commit/d8569f53c31382a864d5a86b5a3b720b7918476f), [`45a70be`](https://github.com/ofri-peretz/burgee/commit/45a70bec5d1ace1345a883afe10a3a081b081711), [`206d2a8`](https://github.com/ofri-peretz/burgee/commit/206d2a8da4bbac20f5b6370989f103b3de86c2bf), [`35ded07`](https://github.com/ofri-peretz/burgee/commit/35ded075ffcc7175bc5dffb5b8d0210a584571f9), [`1968eb4`](https://github.com/ofri-peretz/burgee/commit/1968eb46feec57bb047a9c4a4288e0cf4442f4b2), [`65afee5`](https://github.com/ofri-peretz/burgee/commit/65afee5c96e4cae62dbb9b0ba28fab98fffdbf01), [`bcc438a`](https://github.com/ofri-peretz/burgee/commit/bcc438ac3936ee1cd530931ea090c6a8bdd016b2), [`ecb0a00`](https://github.com/ofri-peretz/burgee/commit/ecb0a00ca68e9a3b3584aefabb9dcf97e3ff967a)]:
+  - burgee@1.2.0
+  - flagstaff@1.3.0
+  - roundel@1.1.0
+
 ## 0.3.3
 
 ### Patch Changes

@@ -16,8 +16,7 @@ oracle's last run and is the authority for the current figures.
 
 | incumbent | graded version | drop-in | cases |
 | :-- | :-- | :-- | --: |
-| `@inquirer/core` | 12.0.4 | `caique/inquirer` | 41 / 41 |
-| `@inquirer/prompts` | 8.7.3 | `caique/inquirer` | 52 / 213 |
+| `@inquirer/core` | 12.0.3 | `caique/inquirer` | 41 / 41 |
 | `@clack/prompts` | 1.8.1 | `caique/clack` | 16 / 16 |
 
 ## How a suite is graded
@@ -36,18 +35,8 @@ oracle's last run and is the authority for the current figures.
 `@inquirer/testing` renders through a headless terminal and asserts the screen, so the 41 grade
 hooks keeping their place across re-renders, keypresses that stop the instant a prompt settles,
 an effect cleanup that throws superseding the answer, and an aborted signal still restoring the
-cursor — behaviour a second implementation can share.
-
-## `@inquirer/prompts`: one prompt of ten so far
-
-`@inquirer/prompts` re-exports ten packages, and each package's own suite is vendored and run,
-eleven files in all because `select` keeps `usePagination`'s suite beside its own. They assert
-the screen to the character: the cursor, the page of a list longer than `pageSize`, the key
-hints. `caique/inquirer` carries `select` and `usePagination`, and passes all 52 of their
-cases. The other nine prompts are not built into the package yet, because they do not fit
-caique's tarball ratchet, so the row is 52 / 213 and `burgee migrate` does not rewrite
-`@inquirer/prompts`. `@inquirer/editor`'s eleven cases are excluded by title for both sides:
-each answers through a mock of `@inquirer/external-editor`, which caique does not import.
+cursor — behaviour a second implementation can share. `usePagination` is not implemented, and
+no case in the suite reaches it.
 
 ## `@clack/prompts`: 16 behavioural cases
 
@@ -75,5 +64,6 @@ that imports `box`, `progress` or `taskLog` on clack.
   again. It reads one file at a time, so an `updateSettings` from `@clack/core` in a file with no
   clack prompts is not caught. Move that import yourself.
 - **`caique/clack` does not build `box`, `progress` or `taskLog`**; no graded case reaches them.
-- **`caique/inquirer` has `select` of `@inquirer/prompts`' ten prompts**, as above.
-- **The legacy `inquirer` package is not a drop-in**: its object API is out of scope.
+- **`caique/inquirer` has no `usePagination`.**
+- **The legacy `inquirer` package is not a drop-in**: its object API is out of scope, and
+  `caique/inquirer` is `@inquirer/core`'s surface.

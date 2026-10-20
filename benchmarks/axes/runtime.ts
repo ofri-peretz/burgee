@@ -20,6 +20,12 @@
  *   incumbent back to back, alternating which goes first, with a collection before each block;
  *   the gated number is the median of the per-round ratios, so machine load that lands on a
  *   round lands on both halves of it. The same reason B2 gates a ratio, not milliseconds (#27).
+ * - **A confirm round before a red verdict** (D-20261012-runtime-ratio-gate-median). Load that
+ *   lands on a whole process lands on every round in it, and on 2026-10-12 a saturated runner
+ *   failed two PRs that could not have moved their pair. A first reading over the ceiling is
+ *   followed by `CONFIRM_PROCESSES` more fresh processes, and the verdict is the median of every
+ *   per-round ratio from all of them: a spike in one process is outvoted, a regression is in
+ *   every process and still fails. A pair under its ceiling pays nothing.
  * - **Resolved before timed**, through the same `resolvePackage` guard B2 and B4 use, from the
  *   directory the spawned workload resolves from — the version and path go into every record.
  * - **Gated by a downward-only ratchet per pair** (`runtime-ratchets.ts`). The target is ≤ 1.0;
@@ -158,7 +164,7 @@ export function sample(p: RuntimePair, rounds: number = ROUNDS): Sample {
  * round *i* of the incumbent — never a ratio of two medians, which could come from different
  * minutes of the machine's life.
  */
-export function runtimeRecord(p: RuntimePair, s: Sample, resolved?: Resolution): BenchRecord {
+export function runtimeRecord(p: RuntimePair, s: Sample, resolved?: Resolution, confirm?: Confirm): BenchRecord {
   const ratios = s.ours.map((ns, i) => ns / (s.theirs[i] as number));
   const ratchet = runtimeRatchet(p.id);
   const ratio = round(median(ratios), RATIO_PLACES);
@@ -174,11 +180,15 @@ export function runtimeRecord(p: RuntimePair, s: Sample, resolved?: Resolution):
       max: ratchet.ceiling,
       why: `a downward-only ratchet toward ≤ ${String(ratchet.target)} (at or below the incumbent): just above the last CI measurement, lowered by the PR that makes this pair faster, never raised without a decision (.sdlc/bands/runtime-ratchets.json)`,
     },
-    note: `median over ${String(ratios.length)} interleaved rounds of the per-round ratio, ${String(s.n)} workload call(s) per side per round, in a fresh process (fixtures/runtime/${p.file})`,
+    note:
+      confirm === undefined
+        ? `median over ${String(ratios.length)} interleaved rounds of the per-round ratio, ${String(s.n)} workload call(s) per side per round, in a fresh process (fixtures/runtime/${p.file})`
+        : `median over ${String(ratios.length)} interleaved rounds of the per-round ratio, pooled from ${String(confirm.processes)} fresh processes: the first read ${String(confirm.first)}, over the ceiling, so ${String(confirm.processes - 1)} more confirmed or outvoted it; ${String(s.n)} workload call(s) per side per round (fixtures/runtime/${p.file})`,
     detail: {
       workload: p.file,
       target: ratchet.target,
       met: ratio <= ratchet.target,
+      ...(confirm === undefined ? {} : { confirmFirst: confirm.first, confirmProcesses: confirm.processes, confirmPerProcess: confirm.perProcess.join(' ') }),
       oursNsPerCall: round(median(s.ours), NS_PLACES),
       theirsNsPerCall: round(median(s.theirs), NS_PLACES),
       ...(resolved === undefined
@@ -188,10 +198,47 @@ export function runtimeRecord(p: RuntimePair, s: Sample, resolved?: Resolution):
   };
 }
 
+/**
+ * Fresh processes a first reading over its ceiling buys before the verdict is red. Two, so the
+ * verdict is the median over three processes' rounds: one process's load is outvoted two to one,
+ * and a regression, which is in every process, is not. Bounded: at most two more of that pair's
+ * own sample, paid only by a pair that read over: ~34 s for `bellpull`, the dearest (17 s a
+ * process on a 4-core sandbox), ~4 s for `roundel/chalk`; nothing when every pair is under.
+ */
+export const CONFIRM_PROCESSES = 2;
+
+export interface Confirm {
+  /** The first process's median: the reading that was over the ceiling. */
+  first: number;
+  /** Every process's own median, the first included. */
+  perProcess: number[];
+  processes: number;
+}
+
+/** Every process's rounds, pooled: round *i* of ours stays paired with round *i* of the incumbent. */
+function pool(samples: readonly Sample[]): Sample {
+  return { ours: samples.flatMap((s) => s.ours), theirs: samples.flatMap((s) => s.theirs), n: samples[0]?.n ?? 0 };
+}
+
+/**
+ * One pair's gated record. The first process is the reading; only when its median is over the
+ * ceiling does the confirm round run, and then the record is the median of every per-round ratio
+ * across all `1 + CONFIRM_PROCESSES` processes. `take` is `sample` in a run and a synthetic
+ * series in `runtime.test.ts`, which proves a spike passes and a regression fails.
+ */
+export function measurePair(p: RuntimePair, rounds: number, take: (p: RuntimePair, rounds: number) => Sample = sample, resolved?: Resolution): BenchRecord {
+  const first = take(p, rounds);
+  const reading = runtimeRecord(p, first, resolved);
+  if (reading.gate?.max === undefined || reading.median <= reading.gate.max) return reading;
+  const samples = [first, ...Array.from({ length: CONFIRM_PROCESSES }, () => take(p, rounds))];
+  const perProcess = samples.map((s) => round(median(s.ours.map((ns, i) => ns / (s.theirs[i] as number))), RATIO_PLACES));
+  return runtimeRecord(p, pool(samples), resolved, { first: reading.median, perProcess, processes: samples.length });
+}
+
 export function run(rounds: number = ROUNDS, pairs: readonly RuntimePair[] = PAIRS): BenchRecord[] {
   const resolved = resolvePairs();
   // A pair's own `rounds` apply to the full run; a caller asking for fewer (a test) gets fewer.
-  return pairs.map((p) => runtimeRecord(p, sample(p, rounds === ROUNDS ? (p.rounds ?? rounds) : rounds), resolved.get(p.id)));
+  return pairs.map((p) => measurePair(p, rounds === ROUNDS ? (p.rounds ?? rounds) : rounds, sample, resolved.get(p.id)));
 }
 
-export const method = `One realistic workload per (package, incumbent) pair, in a fresh Node process per pair with a TTY, iTerm2, FORCE_COLOR=3 and FORCE_HYPERLINK=1; each workload first proves both sides produce the same output. Then three warm-up rounds and ${String(ROUNDS)} interleaved rounds (${String(MORE_ROUNDS)} or ${String(SPEC_BAR_ROUNDS)} for the pairs whose gate needs a tighter median), each timing ours and the incumbent back to back (alternating which goes first, a full GC before each block). The gated number is the median of the per-round ratio ours ÷ incumbent; the target is ≤ 1.0 and the gate is each pair's downward-only ratchet, derived from its CI spread (max of mean + 3 sd and the largest reading), or a spec bar where one is written. Both packages are resolved against the ranges benchmarks/package.json declares before any timing.`;
+export const method = `One realistic workload per (package, incumbent) pair, in a fresh Node process per pair with a TTY, iTerm2, FORCE_COLOR=3 and FORCE_HYPERLINK=1; each workload first proves both sides produce the same output. Then three warm-up rounds and ${String(ROUNDS)} interleaved rounds (${String(MORE_ROUNDS)} or ${String(SPEC_BAR_ROUNDS)} for the pairs whose gate needs a tighter median), each timing ours and the incumbent back to back (alternating which goes first, a full GC before each block). The gated number is the median of the per-round ratio ours ÷ incumbent; a first reading over its ceiling is confirmed by ${String(CONFIRM_PROCESSES)} more fresh processes and the verdict is the median of every per-round ratio from all of them, so load on one process cannot fail a PR and a regression in every process still does; the target is ≤ 1.0 and the gate is each pair's downward-only ratchet, derived from its CI spread (max of mean + 3 sd and the largest reading), or a spec bar where one is written. Both packages are resolved against the ranges benchmarks/package.json declares before any timing.`;

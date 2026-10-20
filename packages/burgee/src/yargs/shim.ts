@@ -15,6 +15,7 @@ import { host } from '../runtime.js';
 import { Parser } from '../yargs-parser.js';
 
 import { cliui, stringWidth } from './cliui.js';
+import type { CommandInstance } from './command.js';
 import { getProcessArgvBin } from './utils.js';
 import { y18n, type Y18N } from './y18n.js';
 
@@ -53,6 +54,8 @@ export interface PlatformShim {
   getCallerFile: () => string;
   stringWidth: (str: string) => number;
   y18n: Y18N;
+  /** burgee: a previous major's command collaborator, where its behaviour differs from 18's (`yargs/v17-factory.ts`). */
+  CommandInstance?: typeof CommandInstance;
 }
 
 const here = fileURLToPath(import.meta.url);

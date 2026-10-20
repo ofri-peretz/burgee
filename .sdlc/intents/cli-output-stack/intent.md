@@ -7,8 +7,52 @@
 > a chalk alternative.
 
 **Status:** approved · **Opened:** 2026-09-07 · **Owner:** @ofri-peretz · **Approved:** 2026-09-08 by the owner, in session ("remove all blockers")
+**Restated:** 2026-10-18 — see § Restated 2026-10-18
 
 ---
+
+## Restated 2026-10-18
+
+**This umbrella closes through its children: every row is held on main with a check or moved to the child that owns it, except three unowned rows. REMAINING: R2 env-name single-file lock unbuilt, R12 no-burgee README opening unlocked, S2 complete-CLI dependency-bill row unbuilt.** *2026-10-19: R2 held by `scripts/output-env-lock.test.ts` (D-20261019-output-env-lock-scope); R12 and S2 remain, so the status stays `approved`.*
+
+Read on `main` at `1013b65db5` (2026-10-18). No test was run; every check below was located on
+that commit by file and test name. The requirement rows R1–R15 are mapped in
+[`spec.md` § Restated 2026-10-18](./spec.md#restated-2026-10-18); this section maps the eight
+success criteria, numbered S1–S8 in the order they appear under `## Success criteria`. A child's
+success criteria are cited the same way: `flagstaff` S1 is the first bullet of
+[`flagstaff/intent.md`](../flagstaff/intent.md) `## Success criteria`, and `flagstaff`
+Constraint 7 is item 7 of its `## Constraints`. Nothing below is deleted: each original criterion
+keeps its text, and the `## Verified against main — 2026-09-09` section stays as the record it
+was.
+
+| ID | promised | on main | check | disposition |
+| :-- | :-- | :-- | :-- | :-- |
+| S1 | three packages install from their tarballs, one file each (U7) | all three, and `caique` now has its own `shape.test.ts` (it had none on 2026-09-09) | `packages/roundel/src/shape.test.ts`, `packages/flagstaff/src/shape.test.ts`, `packages/caique/src/shape.test.ts` › "the user authored exactly one file, and never ran a build" | held via `roundel` R10, `flagstaff`, `caique` |
+| S2 | `cli-benchmarks` publishes the complete-CLI dependency bill, burgee's column 0 | per-package install counts only: `benchmarks/install-graph.json` (`npm i burgee` installs 6 packages, all in-family). No row compares a burgee-stack CLI with commander + chalk + ora + cli-table3 + inquirer, and "0" is restated to "0 external" (D-111) | `scripts/install-graph-lock.test.ts` › "installs nothing from outside the family" holds the restated burgee column; nothing holds the comparison | remaining (no child owns it) |
+| S3 | every façade in the metrics table vendored, `--control`-proven, ratcheting (U11) | chalk 59 / 59 (6.0.1), picocolors 1 / 1 (exit-code mode; and `roundel/picocolors` exists, D-20261011-roundel-picocolors), ora 99 / 99, log-update 99 / 99, boxen 213 / 213 (9.0.0), cli-table3 29 / 29, each in `packages/compat-oracle/baseline/<host>.json` | `.github/workflows/compat.yml` job "Ratchet · each host's suite against burgee"; `packages/compat-oracle/src/gate.test.ts` › "fails a known-good implementation that is one case short of its own suite" | held via `roundel` R6, `flagstaff` R6 |
+| S4 | chalk subpath at or under picocolors' bytes and spawn delta; spinner subpath at or under ora's; both rows on the benchmarks page | restated by `roundel` R8: `./tokens` is held to picocolors' bytes, `./chalk` to chalk's own bytes, and both to picocolors' spawn + 10 ms (D-20260930-roundel-r8-spawn-bar). `flagstaff/spinner ÷ ora` is a gated B4 ratio. Both rows are on `apps/docs/content/docs/benchmarks.mdx` (the 2026-09-09 404 is gone) | `benchmarks/ratchet.test.ts` › "B2 cold start — roundel R8, the paired-delta gate over picocolors" and › "B4 weight — the "lighter than what it replaces" ratio gate"; `packages/roundel/src/weight.test.ts` › "stays inside its byte budget" | restated, held via `roundel` R8, `flagstaff` R10 |
+| S5 | five conformance cases in `examples/` for a third-party JSON spinner | the five behaviours are asserted in-package, not in `examples/` | `packages/flagstaff/src/cli.test.ts` › "prints the plugin in all five modes side by side and exits 0"; `packages/flagstaff/src/plugin.test.ts` › "R2 · a contribution without a static projection is refused" | moved → `flagstaff` S1 (its text names the five plugin conformance cases) |
+| S6 | every package's Z1 test and size ratchet on every PR | all three packages have `shape.test.ts` and `weight.test.ts`; tests and `check:artifacts` run in `quality-full.yml` on every non-draft PR (a draft without `run-full-ci` skips it) | `scripts/artifact-size-ratchet-lock.test.ts` › "runs check:artifacts in quality-full.yml's build job" | restated (every non-draft PR), held |
+| S7 | root `{ spinner }` bundles within 5% of `./spinner`; CJS `require()` of every entry | stricter than written: every same-binding root/subpath pair across the family (at least 25) must be equal to the byte; every code entry carries `types`/`import`/`default` | `scripts/tree-shake-fixture.test.ts` › "a root named import costs what the subpath import costs (U10)"; `scripts/package-shape-lock.test.ts` › "exposes types, import and default on every code entry, so CommonJS can require() it (K2)"; each `shape.test.ts` › "is consumable from CommonJS too — the same ESM file, through require(esm) (K2)" | restated (equal, not ±5%), held |
+| S8 | the U9 eval runs weekly in `evals/` | the cron (`20 5 * * 4`) and the case exist; three recorded runs at 10 / 10 (2026-10-08, and two dispatched 2026-10-09, D-20261009-burgee-1-0-evidence). The 2026-10-15 record (`evals/history/2026-10-15-29362dc-38717342918.json`, 0 / 11, `model: null`) is a run that never executed (the Claude usage limit), not a failure, so there is no current reading | `.github/workflows/evals.yml` schedule; `evals/cases/flagstaff-plugin-from-schema.json` | moved → `flagstaff` S7 (its text names this eval) |
+
+**What changed since this file was written, and where it is recorded.**
+
+- **The dependency arrows were reversed.** The design put `burgee` at the bottom with no
+  dependencies; the tree puts it at the top, and `packages/burgee/package.json` depends on
+  `bellpull`, `closeout`, `linegauge`, `roundel` and `seniority`. The output stack is reached
+  only through guarded `import()` (U13, restated by D-136). Recorded in `burgee/spec.md` U1
+  (D-130) and in the `FAMILY_ORDER` comment of `scripts/package-shape-lock.test.ts`. The
+  sentence under *Affected users* that `packages/burgee` "is not changed to depend on either" is
+  therefore false for `roundel`.
+- **caique does not depend on flagstaff.** `packages/caique/package.json` declares `closeout`,
+  `linegauge`, `paratext` and `roundel`, which its `shape.test.ts` asserts.
+- **The adopter half of U12** ("the first adopter installs a layer alone") was taken out of every
+  release gate by D-20261009-burgee-u12-1-0 and is tracked as `.sdlc/gaps/C3.md`. R12, the spec
+  row, never contained it.
+- **inquirer** in the metrics table and in R11 is now `@inquirer/prompts`, graded at 100 / 213
+  (`packages/compat-oracle/baseline/inquirer-prompts.json`); the seven unbuilt prompts are owned
+  by `inquirer-prompts-drop-in` R3.
 
 ## What is wanted
 
@@ -131,20 +175,32 @@ case and a listr2 façade is its own intent if an adopter asks).
 ## Success criteria
 
 - Three packages install from their tarballs into a temp dir, one file each, and run (U7).
+  **S1, 2026-10-18:** held.
 - `cli-benchmarks` publishes the complete-CLI dependency bill, and burgee's column reads 0.
+  **S2, 2026-10-18:** remaining; "0" restated to "0 external".
 - Every façade in the metrics table has a vendored suite, a `--control` run that proves the
   gate, and a pass rate on the scoreboard that only ratchets up (U11).
+  **S3, 2026-10-18:** held.
 - The chalk façade subpath measures at or under picocolors' bytes and spawn delta; the
   spinner subpath at or under ora's. Both rows are on the benchmarks page (B7).
+  **S4, 2026-10-18:** restated to `roundel` R8's bars; held.
 - A third-party spinner published as a JSON object renders on a TTY, prints one line per
   state on a pipe, emits one event under `--json`, and is refused if its `static` field is
   missing — five conformance cases in `examples/`.
+  **S5, 2026-10-18:** moved → `flagstaff` S1.
 - Every package's Z1 test and size ratchet run on every PR.
+  **S6, 2026-10-18:** restated to every non-draft PR; held.
 - The tree-shake fixture for `{ spinner }` from the root entry bundles to within 5% of
   the `./spinner` subpath, and `require()` of every entry loads in a CJS smoke (U10).
+  **S7, 2026-10-18:** restated to equal bytes; held.
 - The U9 eval runs weekly in `evals/`: one turn, schema plus one example, a passing plugin.
+  **S8, 2026-10-18:** moved → `flagstaff` S7.
 
 ## Verified against `main` — 2026-09-09
+
+Superseded on 2026-10-18 by § Restated 2026-10-18 at the top of this file; kept unchanged as the
+record of that day. Several figures below have since moved (chalk 59 / 59 at 6.0.1, boxen
+213 / 213 at 9.0.0, `caique` has its shape and weight tests, the benchmarks page exists).
 
 Checked criterion by criterion on `61bd11b9`. **Zero of eight met.** The status stays
 `approved`, which is the Design→Build gate the owner passed on 2026-09-08 and nothing more;

@@ -9,7 +9,7 @@ Node from `.nvmrc`, npm cache).
 | Workflow | Check name | When |
 | :-- | :-- | :-- |
 | [`quality.yml`](./quality.yml) | `Quality Gate` | every PR push, push to main — lint, markdown, workflow conventions, lockfile |
-| [`quality-full.yml`](./quality-full.yml) | `Quality (Full) Gate` | non-draft PRs, `run-full-ci` label, push to main, weekly — test, build, typecheck, and each changed package's coverage thresholds |
+| [`quality-full.yml`](./quality-full.yml) | `Quality (Full) Gate` | non-draft PRs, `run-full-ci` label, push to main, weekly — test, build, typecheck, and each changed package's coverage thresholds; on a PR, `test` runs the repository's locks in full and only the affected workspaces' suites (`scripts/affected.mts`) |
 | [`claude-code-review.yml`](./claude-code-review.yml) | `review` | non-draft PRs; green no-op until `CLAUDE_CODE_OAUTH_TOKEN` exists, and on a queue entry or a dispatched run |
 
 ## Release loop
@@ -24,12 +24,20 @@ open Version PR, and it merges as soon as its required checks are green. Each wo
 a required check also takes `workflow_dispatch:` — `npm run lint:workflows` fails if one does not, or
 if `changesets-pr.yml`'s `checks` matrix has no row for it.
 
+On a pull request, `compat.yml`'s `matrix` and `floor` cells and `quality-full.yml`'s `test` and
+`coverage` run only the affected packages: each one the PR changed and each that depends on one,
+computed once by `scripts/affected.mts` (D-20261012-ci-affected-pr-lanes). Root changes (any
+root-level file, `.github/`, `scripts/`, a package manifest) select everything, as do a push to
+main, the merge queue, the weekly scan, a dispatch and the `run-full-ci` label. A cell with nothing
+to run still starts and passes in one step. `npm run lint:workflows` holds the lanes to the script.
+
 ## SDLC loop (Stage 4 and Stage 6)
 
 | Workflow | Role |
 | :-- | :-- |
 | [`evals.yml`](./evals.yml) | PRs touching agent-facing docs, weekly: layer 1 link/script/floor-id checks; layer 2 task evals when a credential exists |
 | [`control-bands.yml`](./control-bands.yml) | Weekly: records observations, evaluates Western Electric rules, opens an intent PR on a 2σ+ breach |
+| [`models.yml`](./models.yml) | `.qnt` or `packages/closeout/src` changes: every Quint model holds its `safety` invariant over 20k simulated traces; open questions pinned as expected violations ([`JEV-AND-QUINT.md`](../../.sdlc/JEV-AND-QUINT.md)) |
 
 ## Security
 

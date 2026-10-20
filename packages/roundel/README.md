@@ -27,6 +27,8 @@
 
 <p align="center">
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/chalk%20suite-59%2F59-0a6b47?style=flat-square" alt="roundel/chalk passes 59 of 59 cases of the chalk test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/picocolors%20suite-1%2F1-0a6b47?style=flat-square" alt="roundel passes 1 of 1 cases of the picocolors test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/supports--color%20suite-55%2F55-0a6b47?style=flat-square" alt="roundel passes 55 of 55 cases of the supports-color test suite" /></a>
 </p>
 
 <p align="center">
@@ -201,6 +203,32 @@ validated), `new Chalk({ level })`, `chalkStderr`, `supportsColor` / `supportsCo
   kitty, ghostty, wezterm, TeamCity, the Windows build number) is not reproduced; a program
   on one of those terminals that wants colour asks for it with `FORCE_COLOR` or `--color`.
 
+```diff
+- import pc from 'picocolors';
++ import pc from 'roundel/picocolors';
+```
+
+**Identical.** `createColors(enabled)`, `isColorSupported`, and all forty-one styles, with
+picocolors' bytes: each closes on its own code, a nested close re-opens the outer style
+(`bold` and `dim` re-open each other), and the input is stringified as `"" + input` is.
+Colour is decided by picocolors' own rule — not `NO_COLOR` or `--no-color`, and one of
+`FORCE_COLOR`, `--color`, Windows, a stdout TTY whose `TERM` is not `dumb`, or `CI` — not by
+[the policy](#the-policy), because the drop-in answers what picocolors answers.
+`require('roundel/picocolors')` returns the same object, as `require('picocolors')` does.
+
+```diff
+- import supportsColor from 'supports-color';
++ import supportsColor from 'roundel/supports-color';
+```
+
+**Identical.** The default `{ stdout, stderr }`, decided at import, and
+`createSupportsColor(stream, { sniffFlags })`, each `false` or `{ level, hasBasic, has256, has16m }`,
+in supports-color 11's order: the platform and Windows build, TeamCity, `TERM_PROGRAM` and the
+truecolor terminals included. It answers what supports-color answers, so it is not
+[the policy](#the-policy) in two places, on purpose: a numeric `FORCE_COLOR` outranks
+`--no-color` (`FORCE_COLOR=3 --no-color` is level 3), and `NO_COLOR` is not read.
+`roundel/policy` keeps refusing colour a user turned off, and a test pins both answers side by side.
+
 Or let the codemod make the change: `npx burgee migrate --dry-run` lists every import it would
 rewrite — only drop-ins graded level with their incumbent — and `npx burgee migrate` makes it.
 See [Migrate](https://burgee.interlace.tools/docs/migrate).
@@ -210,6 +238,23 @@ See [Migrate](https://burgee.interlace.tools/docs/migrate).
 **Graded by chalk's own suite**, vendored at 6.0.1 into `compat-oracle` and run unedited
 through a generated shim: **59 of 59 tests (100.0%) on 2026-09-30**, alongside the same
 suite scoring 59 / 59 against real chalk in the same run.
+
+**Graded by picocolors' own test**, vendored at 1.1.1: `roundel/picocolors` passes
+`tests/test.js`, the one file picocolors' `npm test` runs. That file is a script of bare
+assertions that stops at the first failure, so the grade is one bit, as rc's is: 1 of 1, the
+same as picocolors itself. Its other file, `tests/environments.js`, evaluates picocolors'
+*source text* in a `vm` with a fake `process`. Upstream does not run it, and only a single
+self-contained script could pass it. Its nine environments are held instead by
+`picocolors.test.ts`, which runs picocolors' own source and this façade under the same fake
+process and requires the same answer. Bundled, the façade's whole surface is 1,607 bytes against
+picocolors' 2,739; `scripts/subpath-weight-lock.test.ts` holds it there.
+
+**Graded by supports-color's own suite**, vendored at 11.0.0: `roundel/supports-color` passes
+**55 of 55** cases of `test.js`, level with supports-color itself. Each case rewrites the process
+and re-imports the module with a query string, so `compat-oracle` passes the query through its
+shim. The rest of the decision table is held by `supports-color.test.ts`, which evaluates
+supports-color's own source and this module in thousands of generated environments and
+requires the same answers. Bundled, the whole surface is 1,781 bytes against supports-color's 2,145.
 
 The grade is re-run on every change to `roundel/chalk`; the current figure is generated under
 *Benchmarks* below and published with every other drop-in on the
@@ -238,6 +283,8 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `chalk` | 59 / 59 |
+| `picocolors` | 1 / 1 |
+| `supports-color` | 55 / 55 |
 
 ## For agents
 
@@ -287,10 +334,10 @@ keeps both true.
 | Package | What it is | Migrates from |
 | :-- | :-- | :-- |
 | [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander, yargs and meow |
-| **roundel** (this package) | Colour: one output policy, semantic tokens, a theme | chalk |
+| **roundel** (this package) | Colour: one output policy, semantic tokens, a theme | chalk, picocolors and supports-color |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
 | [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | @inquirer/core |
-| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi and slice-ansi |
+| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line |
 | [paratext](https://paratext.interlace.tools/docs) | Hyperlinks, images, title, clipboard and notifications | ansi-escapes, terminal-link and term-img |
 | [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, lilconfig, dotenv and rc |
 | [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook, restore-cursor, cli-cursor and onetime |

@@ -26,16 +26,18 @@
  * import on the `migrate` path only, and `weight.test.ts` denies `migrate.js` to the root
  * entry by name so that cannot drift.
  */
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { ambientRuntime, run } from 'bellpull';
 
-import { DROP_INS, GRADED, GRADED_VERSIONS, isLevel, type Row, SUPPORTED_MAJORS } from './compat.js';
+import { DROP_INS, GRADED, GRADED_VERSIONS, isLevel, PREVIOUS_MAJOR_ENTRIES, type Row, SUPPORTED_MAJORS } from './compat.js';
 import { ExitCode } from './exit-code.js';
 import { guidedSites, mentionsAGuided, type GuidedSite, type Token } from './migrate-guided.js';
+import { hostOfApi, isMajorHost, type MajorHost, moveOf, nearestOf, removedMajor, type RemovedSite, removedSites } from './migrate-majors.js';
+import { isUntracked, listed, pathsOf, preflightOf, type PreflightRow, type ProjectManifest } from './migrate-preflight.js';
 import { TEXT } from './render.js';
 
 /** The npm package a specifier names: `@scope/name/x` → `@scope/name`, `name/x` → `name`. */
@@ -129,6 +131,43 @@ export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
     'HelpContext',
     'HookEvent',
     'HookListener',
+    'InvalidArgumentError',
+    'InvalidOptionArgumentError',
+    'Option',
+    'OptionValueSource',
+    'OptionValues',
+    'OutputConfiguration',
+    'OutputContext',
+    'ParseOptions',
+    'ParseOptionsResult',
+    'createArgument',
+    'createCommand',
+    'createOption',
+    'humanReadableArgName',
+    'program',
+    'useColor',
+  ],
+  'burgee/commander/extra-typings': [
+    'AddHelpTextContext',
+    'AddHelpTextPosition',
+    'Argument',
+    'BurgeeParseOptions',
+    'Command',
+    'CommandOptions',
+    'CommandUnknownOpts',
+    'CommanderError',
+    'DualOptions',
+    'ErrorOptions',
+    'ExecutableCommandOptions',
+    'Help',
+    'HelpConfiguration',
+    'HelpContext',
+    'HookEvent',
+    'HookListener',
+    'InferArgument',
+    'InferArguments',
+    'InferCommandArguments',
+    'InferOptions',
     'InvalidArgumentError',
     'InvalidOptionArgumentError',
     'Option',
@@ -319,19 +358,13 @@ export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
     'AbortPromptError',
     'CancelPromptError',
     'CancelablePromise',
-    'Choice',
     'Context',
     'ExitPromptError',
     'HookError',
     'Keybinding',
     'KeypressEvent',
-    'NormalizedChoice',
-    'PaginationLayout',
-    'PaginationOptions',
     'PartialTheme',
     'Prompt',
-    'SelectConfig',
-    'SelectTheme',
     'Separator',
     'SetState',
     'Status',
@@ -351,11 +384,9 @@ export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
     'isTabKey',
     'isUpKey',
     'makeTheme',
-    'select',
     'useEffect',
     'useKeypress',
     'useMemo',
-    'usePagination',
     'usePrefix',
     'useRef',
     'useState',
@@ -377,6 +408,29 @@ export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
     'default',
   ],
   'closeout/cli-cursor': [
+    'default',
+  ],
+  'linegauge/cli-truncate': [
+    'Options',
+    'default',
+  ],
+  'linegauge/widest-line': [
+    'default',
+  ],
+  'roundel/picocolors': [
+    'Colors',
+    'Formatter',
+    'createColors',
+    'default',
+    'isColorSupported',
+    'module.exports',
+  ],
+  'roundel/supports-color': [
+    'ColorInfo',
+    'ColorSupport',
+    'ColorSupportLevel',
+    'Options',
+    'createSupportsColor',
     'default',
   ],
   'closeout/signal-exit': [
@@ -784,6 +838,7 @@ export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
  */
 export const IDENTITY: Readonly<Record<string, readonly string[]>> = {
   'burgee/commander': ['CommanderError', 'InvalidArgumentError', 'InvalidOptionArgumentError'],
+  'burgee/commander/extra-typings': ['CommanderError', 'InvalidArgumentError', 'InvalidOptionArgumentError'],
   'burgee/yargs': ['YError'],
   'caique/inquirer': ['AbortPromptError', 'CancelPromptError', 'ExitPromptError', 'HookError', 'ValidationError'],
   paratext: ['CapabilityError'],
@@ -835,7 +890,7 @@ const SIBLING_STATE: Readonly<Record<string, { sibling: string; fix: string }>> 
  * Node's own `require()` returns for every installed incumbent in `MAPPING`, so a name here
  * is a measurement and an incumbent that is not installed is left out, and refused as before.
  */
-export const REQUIRE_NAMESPACE: readonly string[] = ['ansi-escapes', 'chalk', 'ora', 'log-update', 'boxen', 'string-width', 'strip-ansi', 'wrap-ansi', 'slice-ansi', 'restore-cursor', 'exit-hook', 'terminal-link', 'meow', 'cli-cursor'];
+export const REQUIRE_NAMESPACE: readonly string[] = ['ansi-escapes', 'chalk', 'ora', 'log-update', 'boxen', 'string-width', 'strip-ansi', 'wrap-ansi', 'slice-ansi', 'restore-cursor', 'exit-hook', 'terminal-link', 'meow', 'cli-cursor', 'cli-truncate', 'widest-line', 'supports-color'];
 
 /** Whether `require(from)` and `require(to)` hand a CommonJS caller different kinds of value. */
 function requireShapesDiffer(from: string, to: string): boolean {
@@ -860,6 +915,21 @@ export interface Refusal {
   names?: string[];
   /** For `sibling-state`: the change to make before the next run, which then moves the file. */
   fix?: string;
+}
+
+/**
+ * migrate-dynamic-specifiers R1–R3 — the three computed-specifier shapes read as loading no
+ * incumbent: a path built from the working directory (`require(path.join(process.cwd(),
+ * 'package.json'))`), a member of a parsed argv object (`import(argv.parser)`), and an element of
+ * an argv array (`argv.use.map((plugin) => import(plugin))`).
+ */
+export type DynamicShape = 'cwd-path' | 'argv-member' | 'argv-element';
+
+/** A computed specifier that was not refused, because its shape says it loads the user's file or module, never an incumbent (R6). */
+export interface Dynamic {
+  file: string;
+  line: number;
+  shape: DynamicShape;
 }
 
 /**
@@ -899,6 +969,25 @@ export interface OffMajor {
   /** The installed version, or the declared range when nothing is installed here. */
   found: string;
   graded: string;
+  /** migrate-older-majors — the smallest claimed major above the one found, or `null` when none is. */
+  nearest: number | null;
+  /**
+   * migrate-older-majors — every line that uses an API the incumbent removed after the major found,
+   * up to the highest claimed one, each cited to the incumbent's changelog. `[]` for an incumbent
+   * with no table (`REMOVED_APIS`).
+   */
+  sites: Removed[];
+  /**
+   * migrate-older-majors — each specifier the project imports, with the entry it moves to at
+   * `nearest`, when no site's API is gone by then and every specifier has an entry there; `null`
+   * otherwise, and for an incumbent with no table, whose removals nothing here checks. Printed, never written.
+   */
+  move: Record<string, string> | null;
+}
+
+/** A line of an off-major project that uses an API a claimed major removed. */
+export interface Removed extends RemovedSite {
+  file: string;
 }
 
 /** A declared incumbent with a graded drop-in that is not level yet (A12). */
@@ -965,15 +1054,31 @@ export interface ReleaseAgePin {
   graded: string;
   /** When `version` is old enough to install, ISO 8601: already past, or the date the install starts working. */
   installable: string;
+  /**
+   * migrate-pins-carry-the-drop-in — present when a release of the major older than `since` was
+   * passed over because it does not export every specifier the rewrite imports.
+   */
+  requires?: { specifiers: string[]; since: string };
 }
 
 export interface MigrationReport {
-  /** U12-5 — the outcome in words: `partial: 3 files rewritten, 1 refused`, `complete: …` or `nothing to rewrite`. */
+  /** U12-5 — the outcome in words: `partial: 3 files rewritten, 1 refused`, `complete: …`, `blocked: …` or `nothing to rewrite`. */
   summary: string;
+  /**
+   * migrate-preflight R1 — what adopting the drop-ins costs this project, read before anything is
+   * written: a Node its `engines` allows that cannot load them, jest that cannot, what `--force`
+   * let through. A `blocking` row on a run that would rewrite a file writes nothing (R6).
+   */
+  preflight: PreflightRow[];
   files: number;
   imports: number;
   mapped: Mapped[];
   refused: Refusal[];
+  /**
+   * migrate-dynamic-specifiers R6 — computed specifiers read as loading no incumbent, by file and
+   * line. Never a refusal, never a hold, and never the exit code.
+   */
+  dynamic: Dynamic[];
   /** Type-only imports left pointing at the incumbent, each with the note that says why. */
   kept: Kept[];
   detected: Detection;
@@ -1033,12 +1138,26 @@ interface Scan {
   sites: Site[];
   /** `import(x)` / `require(x)` where `x` is not a string literal — refused, never guessed. */
   nonLiteral: number[];
+  /** migrate-dynamic-specifiers R1–R3 — the computed specifiers read as one of the three shapes. */
+  dynamic: Omit<Dynamic, 'file'>[];
+  /**
+   * R4 — every incumbent a string or template outside a specifier names, read only in a file with a
+   * computed specifier: what that specifier could be built from.
+   */
+  named: string[];
 }
 
 const WORD = /[A-Za-z0-9_$]/;
 
+/**
+ * What a quoted literal is recorded as; anything else quoted is `lit`, which is never a specifier.
+ * A quote character, because no word or punctuation token can be one: until 2026-10-19 it was
+ * `str`, so `import(str)` read as a literal and was not refused (migrate-dynamic-specifiers).
+ */
+const QUOTED = "'";
+
 /** After these, a `/` divides; after anything else it opens a regular expression. */
-const DIVIDES = new Set([')', ']', '}']);
+const DIVIDES = new Set([')', ']', '}', QUOTED]);
 
 function startsRegex(previous: string): boolean {
   if (previous === '') return true;
@@ -1220,15 +1339,15 @@ function endOfLiteral(source: string, at: number, previous: string): number {
   return -1;
 }
 
+/** A run of {@link WORD} characters from `lastIndex`: one match per word rather than one test per character (A10). */
+const WORD_RUN = /[A-Za-z0-9_$]*/y;
+
 /** Index just past the identifier or number starting at `at`, or `at` when neither starts there. */
 function endOfWord(source: string, at: number): number {
-  let i = at;
-  while (i < source.length && WORD.test(source.charAt(i))) i += 1;
-  return i;
+  WORD_RUN.lastIndex = at;
+  WORD_RUN.test(source);
+  return WORD_RUN.lastIndex;
 }
-
-/** What a quoted literal is recorded as; anything else quoted is `lit`, which is never a specifier. */
-const QUOTED = 'str';
 
 /** The code tokens behind the cursor, plus A4's open-call state and U12-1's call state. */
 interface Tokens {
@@ -1237,6 +1356,8 @@ interface Tokens {
   /** The two before `before`: a {@link CALLS} call is `vi . mock (`, and `x . vi . mock (` is not one. */
   third: string;
   fourth: string;
+  /** The one before `fourth`: R3's `argv . use . map (` is five tokens. */
+  fifth: string;
   /** A {@link CALLS} name is behind the cursor, so a `(` next opens it. */
   ready: Call | undefined;
   /** The token just pushed is the `(` of a {@link CALLS} call, so a quoted literal next is its specifier. */
@@ -1246,8 +1367,15 @@ interface Tokens {
   generic: Call | undefined;
   /** The two behind us were `import (` or `require (`, and what follows decides A4. */
   pending: boolean;
-  /** Lines where a call was opened and what followed was not a string literal. */
+  /** Lines where a call was opened and what followed was not a string literal, nor one of R1–R3's shapes. */
   nonLiteral: number[];
+  /** The tokens inside an `import (` or `require (` whose argument is not a literal, up to its own `)`. */
+  computed: { line: number; depth: number; seq: string[] } | undefined;
+  /** R3 — where the cursor is in a callback passed to `argv . x . map (`, before its first parameter. */
+  callback: Callback | undefined;
+  /** R3 — every name bound as the first parameter of such a callback, file-wide. */
+  elements: Set<string>;
+  dynamic: Omit<Dynamic, 'file'>[];
   /**
    * The tokens since the last `import` or `export` keyword — the clause of the statement in
    * progress — or `undefined` once there is none. A clause never holds `(` or `=`, and the
@@ -1255,6 +1383,83 @@ interface Tokens {
    * does not drag its body along.
    */
   clause: string[] | undefined;
+}
+
+/** migrate-dynamic-specifiers R2, R3 — the names a parsed argv object goes by. A new one joins when a measured project needs it. */
+const ARGV = ['argv', 'args', 'options', 'opts', 'flags'];
+
+/**
+ * R1 — `path.join(` or `path.resolve(`, from `process.cwd()` or `__dirname`, then quoted literals
+ * only: a file under the working directory or the module's own, never a package. Matched against
+ * the call's tokens joined by a space; `'` is {@link QUOTED}.
+ */
+const CWD_PATH = /^path \. (?:join|resolve) \( (?:process \. cwd \( \)|__dirname)(?: , ')* \)$/;
+
+/** R2 — the whole argument is `argv . x`: the user's own module, named on the command line. */
+const ARGV_MEMBER = new RegExp(`^(?:${ARGV.join('|')}) \\. [\\w$]+$`);
+
+/** R3 — the array methods whose callback receives an argv array's elements. */
+const ELEMENT_METHODS = ['map', 'forEach', 'flatMap', 'filter'];
+
+/**
+ * R3 — where the cursor is between `argv . x . map (` and the callback's first parameter:
+ * `p =>`, `(p) =>`, `async (p) =>`, `function (p)` and `async function (p)`. Keyed by state and
+ * token. `fn` binds nothing until its `(`, because `function name (p)` names the function.
+ */
+type Callback = 'open' | 'async' | 'fn' | 'paren';
+const CALLBACK = new Map<string, Callback>([
+  ['open async', 'async'],
+  ['open (', 'paren'],
+  ['open function', 'fn'],
+  ['async (', 'paren'],
+  ['async function', 'fn'],
+  ['fn (', 'paren'],
+]);
+/** The states a name binds in: not `fn`, whose next name is the function's own. */
+const BINDS: readonly string[] = ['open', 'async', 'paren'];
+
+/** The shape of a computed specifier's tokens, or `undefined` for one that could name anything (R5). */
+function shapeOf(seq: readonly string[], elements: ReadonlySet<string>): DynamicShape | undefined {
+  const text = seq.join(' ');
+  if (CWD_PATH.test(text)) return 'cwd-path';
+  if (ARGV_MEMBER.test(text)) return 'argv-member';
+  // A single name is its own text; any longer sequence has a space in it, which no name has.
+  return elements.has(text) ? 'argv-element' : undefined;
+}
+
+/**
+ * A4, and R1–R3 — a call opened as `import (` or `require (` whose next token is not a literal
+ * is captured to its own `)`, then read as one of the three shapes or refused. A second one opened
+ * inside it is refused outright, and so is the outer one, since a call is no shape's argument.
+ */
+function capture(tokens: Tokens, text: string, line: number): void {
+  if (tokens.pending && text !== QUOTED && text !== ')') {
+    if (tokens.computed === undefined) tokens.computed = { line, depth: 1, seq: [] };
+    else tokens.nonLiteral.push(line);
+  }
+  const open = tokens.computed;
+  if (open === undefined) return;
+  if (text === '(') open.depth += 1;
+  if (text === ')') open.depth -= 1;
+  if (open.depth > 0) {
+    open.seq.push(text);
+    return;
+  }
+  tokens.computed = undefined;
+  const shape = shapeOf(open.seq, tokens.elements);
+  if (shape === undefined) tokens.nonLiteral.push(open.line);
+  else tokens.dynamic.push({ line: open.line, shape });
+}
+
+/** R3 — one step of the walk from `argv . x . map (` to its callback's first parameter, binding it when it is reached. */
+function walk(tokens: Tokens, state: Callback, text: string): void {
+  tokens.callback = CALLBACK.get(`${state} ${text}`);
+  if (tokens.callback === undefined && BINDS.includes(state) && WORD.test(text)) tokens.elements.add(text);
+}
+
+/** R3 — the `(` just arriving opens `argv . x . map (`, so a callback may follow. */
+function opensACallback(tokens: Tokens): boolean {
+  return ELEMENT_METHODS.includes(tokens.previous) && tokens.before === '.' && tokens.fourth === '.' && ARGV.includes(tokens.fifth);
 }
 
 /**
@@ -1265,12 +1470,17 @@ interface Tokens {
  * the file it is in will be left alone.
  */
 function push(tokens: Tokens, text: string, line: number): void {
-  if (tokens.pending && text !== QUOTED && text !== ')') tokens.nonLiteral.push(line);
+  // Stryker disable next-line ConditionalExpression: A10 — the call is the per-token cost; `capture` makes the same no-op decision itself
+  if (tokens.pending || tokens.computed !== undefined) capture(tokens, text, line);
+  // Stryker disable next-line ConditionalExpression: A10 — with no walk in progress, a step matches no key and binds nothing; the test is the per-token cost
+  if (tokens.callback !== undefined) walk(tokens, tokens.callback, text);
+  if (text === '(' && opensACallback(tokens)) tokens.callback = 'open';
   tokens.pending = text === '(' && (tokens.previous === 'import' || tokens.previous === 'require');
   trackCall(tokens, text);
   if (text === 'import' || text === 'export') tokens.clause = [];
   else if (text === '(' || text === '=' || tokens.previous === 'from') tokens.clause = undefined;
   else tokens.clause?.push(text);
+  tokens.fifth = tokens.fourth;
   tokens.fourth = tokens.third;
   tokens.third = tokens.before;
   tokens.before = tokens.previous;
@@ -1338,13 +1548,48 @@ function lex(source: string, emit: (text: string, line: number, start: number, e
  * nothing else in the grammar looks like that.
  */
 export function scan(source: string): Scan {
+  const { sites, tokens } = pass(source);
+  // A call the file never closes could hold anything.
+  if (tokens.computed !== undefined) tokens.nonLiteral.push(tokens.computed.line);
+  const { nonLiteral, dynamic } = tokens;
+  // Stryker disable next-line ConditionalExpression,EqualityOperator,ArithmeticOperator: A10 — the second pass over a file with no computed specifier reads names nothing uses
+  const named = nonLiteral.length + dynamic.length === 0 ? [] : namedOutsideASpecifier(source);
+  return { sites, nonLiteral, dynamic, named };
+}
+
+/** One pass of {@link scan}. `literal`, when given, is handed the bounds of every string and template that is not a specifier. */
+function pass(source: string, literal?: (start: number, end: number) => void): { sites: Site[]; tokens: Tokens } {
   const sites: Site[] = [];
-  const tokens: Tokens = { previous: '', before: '', third: '', fourth: '', ready: undefined, opened: undefined, angle: 0, generic: undefined, pending: false, nonLiteral: [], clause: undefined };
+  // Stryker disable next-line StringLiteral: the five slots start empty; no check matches '' or any other non-token, so the first tokens read the same from any start
+  const tokens: Tokens = { previous: '', before: '', third: '', fourth: '', fifth: '', ready: undefined, opened: undefined, angle: 0, generic: undefined, pending: false, nonLiteral: [], computed: undefined, callback: undefined, elements: new Set(), dynamic: [], clause: undefined };
   lex(source, (text, line, start, end) => {
     if (text === QUOTED && isSpecifier(tokens)) sites.push(siteOf(source, { open: start, close: end, line }, tokens));
+    else if (text === QUOTED || text === 'lit') literal?.(start, end);
     push(tokens, text, line);
   });
-  return { sites, nonLiteral: tokens.nonLiteral };
+  return { sites, tokens };
+}
+
+/** R4 — the incumbents named outside a specifier, in a second pass, run only over a file with a computed specifier (A10). */
+function namedOutsideASpecifier(source: string): string[] {
+  const named = new Set<string>();
+  pass(source, (start, end) => {
+    for (const host of hostsIn(source.slice(start, end))) named.add(host);
+  });
+  return [...named];
+}
+
+const HOST_NAMES = new Set(HOSTS);
+
+/**
+ * R4 — the incumbents a literal's text, quotes included, names: a piece of it that equals one, or
+ * two consecutive pieces that equal a scoped one. It is cut at path separators, quotes and a
+ * template's `$` and `}`, so `node_modules/chalk`, `C:\\deps\\chalk` and `` `${dir}/chalk` ``
+ * name chalk, and `chalk-template` names nothing.
+ */
+function hostsIn(raw: string): string[] {
+  const parts = raw.split(/[\\/'"`$}]/);
+  return parts.flatMap((part, i) => [part, `${part}/${parts[i + 1]}`]).filter((name) => HOST_NAMES.has(name));
 }
 
 /** Every code token of `source`, with a quoted literal's contents as `value` — what {@link guidedSites} reads. */
@@ -1367,6 +1612,8 @@ export interface Rewrite {
   kept: Omit<Kept, 'file'>[];
   /** Whether this file references a host at all. A file that does not is not "untouched", it is unrelated. */
   relevant: boolean;
+  /** On a relevant file: its computed specifiers read as loading no incumbent (migrate-dynamic-specifiers R6). */
+  dynamic?: Omit<Dynamic, 'file'>[];
   /**
    * On a refused file only: every host it still imports. The file is left exactly as it was,
    * so `chalk` beside a refused `commander/lib/help.js` is still imported, although only the
@@ -1425,7 +1672,7 @@ export function bindingsOf(clause: readonly string[]): { typeOnly: boolean; name
     // `type x` / `type x as y`: the modifier. `type` alone, or `type as y`, is a binding named `type`.
     const modifier = element[0] === 'type' && element.length > 1 && element[1] !== 'as';
     const name = modifier ? element[1] : element[0];
-    if (name !== undefined && name !== 'default' && name !== QUOTED && WORD.test(name.charAt(0))) names.push(name);
+    if (name !== undefined && name !== 'default' && WORD.test(name)) names.push(name);
     element = [];
   }
   return { typeOnly, names };
@@ -1504,6 +1751,9 @@ const NONE: ReadonlySet<string> = new Set();
 /** No incumbent that another dependency still installs. */
 const ALONE: ReadonlyMap<string, readonly string[]> = new Map();
 
+/** No specifier written to an older major's own entry: every one goes where `MAPPING` says. */
+const CURRENT: ReadonlyMap<string, string> = new Map();
+
 /**
  * A2/A5 — map every host specifier in one file, or map none of them.
  *
@@ -1515,17 +1765,30 @@ const ALONE: ReadonlyMap<string, readonly string[]> = new Map();
  * project's dependencies still installs, with those dependencies (U12-4).
  */
 export function rewriteSource(source: string, skip: ReadonlySet<string> = NONE, transitive: ReadonlyMap<string, readonly string[]> = ALONE): Rewrite {
-  return rewriteFile(source, skip, transitive).rewrite;
+  return rewriteFile(source, skip, transitive, CURRENT).rewrite;
 }
 
-/** {@link rewriteSource}, and every incumbent the file names in a specifier position, skipped or not — what `detected.imported` and `undeclared` read. */
-function rewriteFile(source: string, skip: ReadonlySet<string>, transitive: ReadonlyMap<string, readonly string[]>): { rewrite: Rewrite; seen: string[] } {
-  if (!mentionsAHost(source)) return { rewrite: { source, mapped: [], refused: [], kept: [], relevant: false }, seen: [] };
-  const { sites, nonLiteral } = scan(source);
+/**
+ * {@link rewriteSource}, and every incumbent the file names in a specifier position, skipped or
+ * not — what `detected.imported` and `undeclared` read. `entries` names the specifiers that move
+ * to an older major's own entry instead of `MAPPING`'s (`previous-majors` R6).
+ */
+function rewriteFile(source: string, skip: ReadonlySet<string>, transitive: ReadonlyMap<string, readonly string[]>, entries: ReadonlyMap<string, string>): { rewrite: Rewrite; specifiers: string[] } {
+  // Stryker disable next-line ConditionalExpression,ArrayDeclaration: A10 — `migrate()` reads only files the pre-filter admitted, so this returns early only for `rewriteSource`, which reads no `specifiers`
+  if (!mentionsAHost(source)) return { rewrite: { source, mapped: [], refused: [], kept: [], relevant: false }, specifiers: [] };
+  const scanned = scan(source);
+  const { sites } = scanned;
+  // R4 — an incumbent this run moves, named in a string beside a computed specifier, could be what
+  // it loads: every computed specifier in the file is refused, and the file holds that incumbent
+  // too, whether or not it imports it. One the run does not move cannot split, so it guards nothing.
+  const loadable = scanned.named.filter((host) => !skip.has(host));
+  const guarded = loadable.length > 0;
+  const nonLiteral = guarded ? [...scanned.nonLiteral, ...scanned.dynamic.map((d) => d.line)] : scanned.nonLiteral;
+  const dynamic = guarded ? [] : scanned.dynamic;
   const named = sites.filter((s) => MAPPING[s.specifier] !== undefined || isDeep(s.specifier));
-  const seen = [...new Set(named.map((s) => packageOf(s.specifier)))];
+  const specifiers = [...new Set(named.map((s) => s.specifier))];
   const hits = named.filter((s) => !skip.has(packageOf(s.specifier)));
-  if (hits.length === 0) return { rewrite: { source, mapped: [], refused: [], kept: [], relevant: false }, seen };
+  if (hits.length === 0 && !guarded) return { rewrite: { source, mapped: [], refused: [], kept: [], relevant: false }, specifiers };
 
   // A name the façade lacks: a type-only statement stays on the incumbent (types are
   // erased, so the rest of the file can still move); anything else is refused, because
@@ -1547,16 +1810,16 @@ function rewriteFile(source: string, skip: ReadonlySet<string>, transitive: Read
     ...unknown,
     ...siblingState(sites, hits),
   ].sort((a, b) => a.line - b.line);
-  if (refused.length > 0) return { rewrite: { source, mapped: [], refused, kept: [], relevant: true, retained: [...new Set(hits.map((s) => packageOf(s.specifier)))] }, seen };
+  if (refused.length > 0) return { rewrite: { source, mapped: [], refused, kept: [], relevant: true, dynamic, retained: [...new Set([...hits.map((s) => packageOf(s.specifier)), ...loadable])] }, specifiers };
 
   let out = source;
   const mapped: { from: string; to: string }[] = [];
   for (const site of moving.sort((a, b) => b.start - a.start)) {
-    const to = MAPPING[site.specifier] as string;
+    const to = entries.get(site.specifier) ?? (MAPPING[site.specifier] as string);
     out = `${out.slice(0, site.start)}${to}${out.slice(site.end)}`;
     mapped.push({ from: site.specifier, to });
   }
-  return { rewrite: { source: out, mapped: mapped.reverse(), refused: [], kept, relevant: true }, seen };
+  return { rewrite: { source: out, mapped: mapped.reverse(), refused: [], kept, relevant: true, dynamic }, specifiers };
 }
 
 /* ------------------------------------------------------------------ the project */
@@ -1576,24 +1839,62 @@ export function sourceFiles(dir: string, at = '', found: string[] = []): string[
   return found;
 }
 
+/**
+ * migrate-older-majors R1 — the files `package.json`'s `bin` names that {@link sourceFiles} did not
+ * find: qrcode's crash is in `bin/qrcode`, which has no extension. A path outside the project,
+ * missing, under a generated tree, or with an extension that is not source (`cli.sh`) is not read.
+ */
+function binsOf(dir: string, bin: unknown, found: readonly string[]): string[] {
+  const named = typeof bin === 'string' ? [bin] : Object.values(bin ?? {});
+  const paths = named.filter((p) => typeof p === 'string').map((p) => posix.normalize(p.replaceAll('\\', '/')));
+  return [
+    ...new Set(
+      paths.filter((path) => {
+        const extension = posix.extname(path);
+        return (
+          !path.startsWith('/') &&
+          !path.startsWith('../') &&
+          !path.split('/').some((part) => SKIP.has(part)) &&
+          (extension === '' || SOURCE_EXTENSIONS.has(extension)) &&
+          !found.includes(path) &&
+          statSync(join(dir, path), { throwIfNoEntry: false })?.isFile() === true
+        );
+      }),
+    ),
+  ];
+}
+
 /** The four fields a manifest declares a dependency in. U12-3 counts every one: a peer or an optional dependency is as much the project's choice as a dependency is. */
 const DECLARING = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'] as const;
 
-type Manifest = Partial<Record<(typeof DECLARING)[number], Record<string, string>>>;
+type Manifest = ProjectManifest & Partial<Record<(typeof DECLARING)[number], Record<string, string>>> & { bin?: unknown };
 
-/** Every dependency the manifest at `path` declares, with its range; empty when there is none to read. */
-async function declaredIn(path: string): Promise<Map<string, string>> {
+/** The manifest at `path`, or an empty one when there is none to read. */
+async function manifestAt(path: string): Promise<Manifest> {
   try {
-    const raw = JSON.parse(await readFile(path, 'utf8')) as Manifest;
-    return new Map(DECLARING.flatMap((field) => Object.entries(raw[field] ?? {})));
+    return (JSON.parse(await readFile(path, 'utf8')) as Manifest | null) ?? {};
   } catch {
-    return new Map();
+    return {};
   }
 }
 
-/** Every dependency the project's `package.json` declares, with its range — one of A1's two independent sources. */
-async function declaredDependencies(dir: string): Promise<Map<string, string>> {
-  return await declaredIn(join(dir, 'package.json'));
+/** Every dependency a manifest declares, with its range — for the project, one of A1's two independent sources. */
+function declaredBy(raw: Manifest): Map<string, string> {
+  return new Map(DECLARING.flatMap((field) => Object.entries(raw[field] ?? {})));
+}
+
+/** Every dependency the manifest at `path` declares, with its range; empty when there is none to read. */
+async function declaredIn(path: string): Promise<Map<string, string>> {
+  return declaredBy(await manifestAt(path));
+}
+
+/** migrate-preflight R5 — the root jest configs jest itself looks for, by name. */
+const JEST_CONFIGS = ['js', 'cjs', 'mjs', 'ts', 'json'].map((ext) => `jest.config.${ext}`);
+
+/** The text of each root jest config that exists. */
+async function jestConfigsIn(dir: string): Promise<string[]> {
+  const texts = await Promise.all(JEST_CONFIGS.map(async (file) => await readFile(join(dir, file), 'utf8').catch(() => undefined)));
+  return texts.filter((text) => text !== undefined);
 }
 
 /** The version installed at `dir/node_modules/<name>`, when there is one. */
@@ -1609,16 +1910,72 @@ async function installedVersion(dir: string, name: string): Promise<string | und
  * Incumbents this project has on a major its drop-in does not claim (A12, C1). The claim is
  * `SUPPORTED_MAJORS` — every major graded level by that major's own suite — so an older major
  * that reaches level is served here without another edit.
+ *
+ * `entries` is the other half (`previous-majors` R6): each specifier of an incumbent on a
+ * claimed older major that has its own entry, with that entry — `commander` on 14 is
+ * `burgee/commander/v14`. The major is read from the project, never from the drop-in at runtime.
  */
-async function offMajorOf(dir: string, dependencies: Map<string, string>): Promise<OffMajor[]> {
+/** An off-major row before the scan: `withSites` adds what the files say. */
+type Found = Omit<OffMajor, 'sites' | 'move'>;
+
+async function majorsOf(dir: string, dependencies: Map<string, string>): Promise<{ offMajor: Found[]; entries: Map<string, string> }> {
   const found = await Promise.all(HOSTS.map(async (from) => ({ from, found: (await installedVersion(dir, from)) ?? dependencies.get(from) })));
-  return found.flatMap(({ from, found: version }) => {
+  const entries = new Map<string, string>();
+  const offMajor = found.flatMap(({ from, found: version }) => {
     const graded = GRADED_VERSIONS[from];
     if (version === undefined || graded === undefined) return [];
     const major = majorOf(version);
+    if (major === undefined) return [];
     // A graded host always has its majors: `supported-majors-lock.test.ts` holds one list per graded host.
-    return major === undefined || (SUPPORTED_MAJORS[from] as readonly number[]).includes(major) ? [] : [{ from, found: version, graded }];
+    const claimed = SUPPORTED_MAJORS[from] as readonly number[];
+    if (!claimed.includes(major)) return [{ from, found: version, graded, nearest: nearestOf(major, claimed) ?? null }];
+    for (const specifier of Object.keys(MAPPING).filter((s) => packageOf(s) === from)) {
+      const entry = PREVIOUS_MAJOR_ENTRIES[specifier]?.[major];
+      if (entry !== undefined) entries.set(specifier, entry);
+    }
+    return [];
   });
+  return { offMajor, entries };
+}
+
+/** migrate-older-majors — what `removedSites` reads, once per run. */
+interface Older {
+  /** Each off-major incumbent with a table (`REMOVED_APIS`), and the major found. */
+  found: Map<MajorHost, number>;
+  /** The highest major claimed: a removal after it is no claimed major's concern. */
+  claimed: Record<MajorHost, number>;
+  /** What the façade exports: a member it exports is valid on every claimed major. */
+  exports: Record<MajorHost, readonly string[]>;
+}
+
+/** One value per incumbent with a table. */
+function perHost<T>(of: (host: MajorHost) => T): Record<MajorHost, T> {
+  return { commander: of('commander'), yargs: of('yargs') };
+}
+
+function olderOf(offMajor: readonly Found[]): Older {
+  const found = new Map<MajorHost, number>();
+  for (const o of offMajor) if (isMajorHost(o.from)) found.set(o.from, majorOf(o.found) as number);
+  return {
+    found,
+    claimed: perHost((host) => Math.max(...(SUPPORTED_MAJORS[host] as readonly number[]))),
+    exports: perHost((host) => FACADE_EXPORTS[MAPPING[host] as string] as readonly string[]),
+  };
+}
+
+/**
+ * migrate-older-majors — an off-major row with its sites, and the move to its nearest claimed major
+ * when {@link moveOf} lets one through: each specifier the project imports, with the entry it
+ * takes at that major (`previous-majors` R6's, or `MAPPING`'s). A deep import has no entry.
+ */
+function withSites(row: Found, older: Older, scanned: readonly Scanned[]): OffMajor {
+  // An incumbent with no table has no found major here, so no nearest major above it and no move.
+  const found = older.found.get(row.from as MajorHost) as number;
+  const sites = scanned.flatMap(({ file, removed }) => removed.filter((site) => hostOfApi(site.api) === row.from).map((site) => ({ file, ...site })));
+  const imports = [...new Set(scanned.flatMap(({ specifiers }) => specifiers.filter((specifier) => packageOf(specifier) === row.from)))].sort();
+  const to = moveOf(found, SUPPORTED_MAJORS[row.from] as readonly number[], sites, imports.some((specifier) => MAPPING[specifier] === undefined));
+  const move = to === undefined || imports.length === 0 ? null : Object.fromEntries(imports.map((specifier) => [specifier, PREVIOUS_MAJOR_ENTRIES[specifier]?.[to] ?? (MAPPING[specifier] as string)]));
+  return { ...row, sites, move };
 }
 
 /**
@@ -1662,7 +2019,9 @@ const FAMILY: readonly string[] = [...new Set(Object.values(MAPPING).map(package
  */
 export async function familyVersions(here: string = dirname(fileURLToPath(import.meta.url))): Promise<Record<string, string>> {
   try {
-    return JSON.parse(await readFile(join(here, 'family-versions.json'), 'utf8')) as Record<string, string>;
+    const built = JSON.parse(await readFile(join(here, 'family-versions.json'), 'utf8')) as { versions?: Record<string, string> } & Record<string, string>;
+    // `{ versions, since }` since migrate-pins-carry-the-drop-in; a flat map before it.
+    return built.versions ?? built;
   } catch {
     const found = await Promise.all(FAMILY.map(async (name) => [name, (await readFile(join(here, '..', '..', name, 'package.json'), 'utf8').catch(() => '{}')) as string] as const));
     return Object.fromEntries(found.flatMap(([name, raw]) => {
@@ -1670,6 +2029,48 @@ export async function familyVersions(here: string = dirname(fileURLToPath(import
       return version === undefined ? [] : [[name, version]];
     }));
   }
+}
+
+/** For each family package, the version from which every release of its graded major exports each subpath: `{ roundel: { './picocolors': '1.1.0' } }`. */
+export type SubpathFloors = Readonly<Record<string, Readonly<Record<string, string>>>>;
+
+/**
+ * migrate-pins-carry-the-drop-in — the `since` half of `family-versions.json`.
+ *
+ * The build reads it from this repository's release tags (`scripts/family-versions.mjs`): for
+ * each subpath, the oldest version of the current major from which every tagged release exports
+ * it. Run from source there is no such file and no history to read at run time, so there are no
+ * floors, which is what this printed before; the published package always carries the file.
+ */
+export async function subpathFloors(here: string = dirname(fileURLToPath(import.meta.url))): Promise<SubpathFloors> {
+  try {
+    return (JSON.parse(await readFile(join(here, 'family-versions.json'), 'utf8')) as { since?: SubpathFloors }).since ?? {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * The lowest version of each package that exports every subpath the rewrite imports, and the
+ * specifiers that set it: `roundel/picocolors` → `{ roundel: { version: '1.1.0', specifiers: [...] } }`.
+ *
+ * A package the table names but whose subpath it does not — a pattern export, or a subpath newer
+ * than the table — floors at the graded version: nothing older is known to carry it. A package
+ * the table does not name at all has no floor.
+ */
+function floorsOf(specifiers: readonly string[], since: SubpathFloors, graded: Readonly<Record<string, string>>): Map<string, { version: string; specifiers: string[] }> {
+  const floors = new Map<string, { version: string; specifiers: string[] }>();
+  for (const specifier of specifiers) {
+    const name = packageOf(specifier);
+    const table = since[name];
+    const at = graded[name];
+    if (table === undefined || at === undefined) continue;
+    const version = table[`.${specifier.slice(name.length)}`] ?? at;
+    const floor = floors.get(name);
+    if (floor === undefined || byVersion(version, floor.version) > 0) floors.set(name, { version, specifiers: [specifier] });
+    else if (byVersion(version, floor.version) === 0) floor.specifiers.push(specifier);
+  }
+  return floors;
 }
 
 /**
@@ -1796,9 +2197,10 @@ const registryTimes: PublishTimes = async (name) => {
   }
 };
 
+/** Newest first within one major: `pinsUnder` only ever compares versions of the graded major. */
 const byVersion = (a: string, b: string): number => {
   const [x, y] = [a, b].map((v) => v.split('.').map(Number)) as [number[], number[]];
-  return (x[0] as number) - (y[0] as number) || (x[1] as number) - (y[1] as number) || (x[2] as number) - (y[2] as number);
+  return (x[1] as number) - (y[1] as number) || (x[2] as number) - (y[2] as number);
 };
 
 /**
@@ -1813,8 +2215,13 @@ const byVersion = (a: string, b: string): number => {
  * that becomes old enough first, with the date it does. Exempt by `minimumReleaseAgeExclude`,
  * or a registry that does not answer: the graded pin, unchanged.
  */
-async function pinsUnder(age: Setting, add: readonly string[], graded: Readonly<Record<string, string>>, clock: { times: PublishTimes; now: Date }): Promise<{ pins: ReleaseAgePin[]; unread: string[] }> {
-  const { times, now } = clock;
+async function pinsUnder(
+  age: Setting,
+  add: readonly string[],
+  graded: Readonly<Record<string, string>>,
+  clock: { times: PublishTimes; now: Date; floors: ReadonlyMap<string, { version: string; specifiers: string[] }> },
+): Promise<{ pins: ReleaseAgePin[]; unread: string[] }> {
+  const { times, now, floors } = clock;
   const wanted = add.filter((name) => graded[name] !== undefined && exempted(name, age.exclude) !== '*');
   const found = await Promise.all(
     wanted.map(async (name) => {
@@ -1823,14 +2230,19 @@ async function pinsUnder(age: Setting, add: readonly string[], graded: Readonly<
       if (listed === undefined) return { name, version, pin: undefined };
       const exempt = exempted(name, age.exclude) as Set<string>;
       const major = version.split('.')[0];
-      const candidates = Object.entries(listed)
+      const ofMajor = Object.entries(listed)
         .filter(([v]) => /^\d+\.\d+\.\d+$/.test(v) && v.split('.')[0] === major)
         .map(([v, at]) => ({ version: v, installable: exempt.has(v) ? Date.parse(at) : Date.parse(at) + age.minutes * MINUTE_MS }))
         .filter((c) => !Number.isNaN(c.installable));
+      // migrate-pins-carry-the-drop-in: a release older than the first one that exports every
+      // subpath the rewrite imports cannot be the floor, however old it is (svgo, roundel 1.0.4).
+      const floor = floors.get(name);
+      const candidates = floor === undefined ? ofMajor : ofMajor.filter((c) => byVersion(c.version, floor.version) >= 0);
       const ready = candidates.filter((c) => c.installable <= now.getTime()).sort((a, b) => byVersion(b.version, a.version))[0];
       const soonest = candidates.sort((a, b) => a.installable - b.installable)[0];
       const chosen = ready ?? soonest;
-      return { name, version, pin: chosen === undefined ? undefined : { name, version: chosen.version, graded: version, installable: new Date(chosen.installable).toISOString() } };
+      const requires = floor !== undefined && candidates.length < ofMajor.length ? { requires: { specifiers: floor.specifiers, since: floor.version } } : {};
+      return { name, version, pin: chosen === undefined ? undefined : { name, version: chosen.version, graded: version, installable: new Date(chosen.installable).toISOString(), ...requires } };
     }),
   );
   return {
@@ -1841,11 +2253,13 @@ async function pinsUnder(age: Setting, add: readonly string[], graded: Readonly<
 
 /** The `releaseAge` the report carries: the setting, the pins it forced, and one note that says what `next` will do. */
 function releaseAgeNote(age: Setting, pins: readonly ReleaseAgePin[], unread: readonly string[], now: Date): ReleaseAge {
-  const lines = pins.map((p) =>
-    Date.parse(p.installable) <= now.getTime()
-      ? `${p.name} ${p.graded} is younger than that, so next pins ^${p.version}, the newest ${p.name} ${p.version.split('.')[0]}.x old enough; run your tests on it`
-      : `no ${p.name} ${p.version.split('.')[0]}.x is old enough until ${p.installable.replace('T', ' ').replace(/:\d\d\.\d+Z$/, '')} UTC, when ${p.version} is: the install fails before then, or exempt ${p.name} from the rule`,
-  );
+  const lines = pins.map((p) => {
+    // migrate-pins-carry-the-drop-in: when an older release was old enough but lacks a subpath, the note says which one.
+    const carrying = p.requires === undefined ? '' : ` that exports ${p.requires.specifiers.join(', ')} (first in ${p.requires.since})`;
+    return Date.parse(p.installable) <= now.getTime()
+      ? `${p.name} ${p.graded} is younger than that, so next pins ^${p.version}, the newest ${p.name} ${p.version.split('.')[0]}.x${carrying} old enough; run your tests on it`
+      : `no ${p.name} ${p.version.split('.')[0]}.x${carrying} is old enough until ${p.installable.replace('T', ' ').replace(/:\d\d\.\d+Z$/, '')} UTC, when ${p.version} is: the install fails before then, or exempt ${p.name} from the rule`;
+  });
   if (lines.length === 0 && unread.length === 0) lines.push('every family version in next is older than that');
   if (unread.length > 0) lines.push(`the registry did not say when ${unread.join(', ')} ${unread.length === 1 ? 'was' : 'were'} published, so next pins the graded version, which may be younger than that`);
   const { file, key, minutes, exclude } = age;
@@ -1891,12 +2305,21 @@ const EXIT_CODE = Symbol.for('burgee.exitCode');
  */
 export class DirtyTreeError extends Error {
   static readonly [EXIT_CODE] = ExitCode.RUNTIME;
-  readonly fix = 'commit or stash your changes, or pass --force';
+  /**
+   * migrate-preflight R7 — the entries, as `git status --porcelain` prints them. @swc/cli's install
+   * wrote an untracked `node-compile-cache/`, and the refusal said only how many changes there were.
+   */
+  readonly hint: string;
+  /** An untracked-only tree is ignored or committed; anything tracked, committed or stashed. */
+  readonly fix: string;
   constructor(readonly entries: string[]) {
-    super(`the git tree has ${entries.length} uncommitted change${entries.length === 1 ? '' : 's'}`);
+    super(`the git tree has ${counted(entries.length, 'uncommitted change')}`);
     this.name = 'DirtyTreeError';
+    this.hint = listed(entries);
+    this.fix = entries.every(isUntracked) ? `add ${pathsOf(entries)} to .gitignore or commit them, or pass --force` : 'commit or stash your changes, or pass --force';
   }
 }
+
 
 /** Every incumbent package `--only` and `--skip` may name: each one a graded drop-in replaces, level or not. */
 export const INCUMBENTS: readonly string[] = [...new Set(DROP_INS.map((d) => packageOf(d.from)))].sort();
@@ -1925,6 +2348,19 @@ export interface MigrateOptions {
   registry?: PublishTimes;
   /** Injected by the tests; the clock otherwise. */
   now?: Date;
+  /** Injected by the tests; the `since` table the build wrote beside this module otherwise. */
+  since?: SubpathFloors;
+}
+
+/**
+ * A6 — the tree is clean, or `--force` or `--dry-run` says to go on anyway, or this throws. What it
+ * returns is the untracked entries `--force` let through, for the record (migrate-preflight R7).
+ */
+async function checkTree(options: MigrateOptions): Promise<string[]> {
+  const { dir, dryRun = false, force = false } = options;
+  const entries = (await (options.status ?? workingTree)(dir)) ?? [];
+  if (!dryRun && !force && entries.length > 0) throw new DirtyTreeError(entries);
+  return force ? entries.filter(isUntracked) : [];
 }
 
 /** Each name in `only` and `skip` that is not an incumbent, refused before anything is read. */
@@ -1943,8 +2379,21 @@ interface Scanned {
   file: string;
   result: Rewrite;
   seen: string[];
+  /** Every incumbent specifier it names, deep ones included: what an off-major move would have to serve. */
+  specifiers: string[];
   guided: GuidedSite[];
+  /** migrate-older-majors — its lines that use an API an off-major incumbent's claimed majors removed. */
+  removed: RemovedSite[];
   text?: string;
+}
+
+/** What every file of one run is rewritten under: the incumbents left alone, those another dependency installs, and the older majors' own entries. */
+interface Plan {
+  skip: ReadonlySet<string>;
+  transitive: ReadonlyMap<string, readonly string[]>;
+  entries: ReadonlyMap<string, string>;
+  /** migrate-older-majors — the off-major incumbents with a table, and what their sites are read against. */
+  older: Older;
 }
 
 /**
@@ -1960,26 +2409,30 @@ interface Scanned {
  * Nothing is written here any more (U12-4): a refusal in the last file can hold an incumbent
  * the first file imports, so every file is scanned before any is written.
  */
-async function scanBatch(dir: string, batch: string[], skip: ReadonlySet<string>, transitive: ReadonlyMap<string, readonly string[]>): Promise<Scanned[]> {
+async function scanBatch(dir: string, batch: string[], { skip, transitive, entries, older }: Plan): Promise<Scanned[]> {
   // Read as bytes and decode only what the pre-filter admits: on the bench tree a third of
   // the files never become a string at all, which is 405 ms against 427 for the same work.
   const sources = await Promise.all(batch.map(async (file) => await readFile(join(dir, file))));
   return sources.map((bytes, i) => {
     const text = mentionsAHost(bytes) ? bytes.toString('utf8') : undefined;
-    const { rewrite, seen } = text === undefined ? { rewrite: EMPTY, seen: [] } : rewriteFile(text, skip, transitive);
+    const { rewrite, specifiers } = text === undefined ? { rewrite: EMPTY, specifiers: [] } : rewriteFile(text, skip, transitive, entries);
+    const seen = [...new Set(specifiers.map(packageOf))];
     const guided = mentionsAGuided(bytes) ? guidedSites(tokensOf(bytes.toString('utf8'))) : [];
-    return { file: batch[i] as string, result: rewrite, seen, guided, ...(rewrite.relevant && text !== undefined ? { text } : {}) };
+    // A10: the second token pass runs only over a file that imports an off-major incumbent with a table.
+    const found = new Map([...older.found].filter(([host]) => seen.includes(host)));
+    const removed = found.size === 0 ? [] : removedSites(tokensOf(text as string), found, older.claimed, older.exports);
+    // Stryker disable next-line ConditionalExpression: keeping an unrelated file's text changes no result, only memory (A10); a relevant file always has its text
+    return { file: batch[i] as string, result: rewrite, seen, specifiers, guided, removed, ...(rewrite.relevant ? { text: text as string } : {}) };
   });
 }
 
-/** The per-mapping rollup, in the order `MAPPING` declares — so two runs print the same table. */
+/** The per-mapping rollup, in the order `MAPPING` declares — so two runs print the same table. Its `to` is what was written, an older major's entry included. */
 function rollup(all: { from: string; to: string; file: string }[]): Mapped[] {
-  return Object.entries(MAPPING)
-    .map(([from, to]) => {
-      const hits = all.filter((m) => m.from === from);
-      return { from, to, imports: hits.length, files: new Set(hits.map((m) => m.file)).size };
-    })
-    .filter((row) => row.imports > 0);
+  return Object.keys(MAPPING).flatMap((from) => {
+    const hits = all.filter((m) => m.from === from);
+    const [first] = hits;
+    return first === undefined ? [] : [{ from, to: first.to, imports: hits.length, files: new Set(hits.map((m) => m.file)).size }];
+  });
 }
 
 /**
@@ -2016,13 +2469,25 @@ function heldBy(scanned: readonly Scanned[]): Held[] {
 }
 
 /** `1 file`, `2 files`. */
-const fileCount = (n: number): string => `${n} file${n === 1 ? '' : 's'}`;
+function counted(n: number, noun: string): string {
+  return `${n} ${noun}${n === 1 ? '' : 's'}`;
+}
+const fileCount = (n: number): string => counted(n, 'file');
 
-/** U12-5 — the outcome in words, so a partial run never reads as a finished one. */
-function summaryOf(touched: number, refusedFiles: number, dryRun: boolean): string {
+/** U12-5 — the outcome in words, so a partial run never reads as a finished one. migrate-preflight R6: a blocked one says so first. */
+function summaryOf(touched: number, refusedFiles: number, dryRun: boolean, blocking: number): string {
+  if (blocking > 0) return `blocked: ${counted(blocking, 'preflight check')}; nothing written (${fileCount(touched)} would be rewritten)`;
   const done = `${fileCount(touched)} ${dryRun ? 'would be rewritten' : 'rewritten'}`;
   if (refusedFiles > 0) return `partial: ${done}, ${refusedFiles} refused`;
   return touched > 0 ? `complete: ${done}` : 'nothing to rewrite';
+}
+
+/** `1 line uses`, `2 lines use`. */
+const linesUse = (n: number): string => `${counted(n, 'line')} ${n === 1 ? 'uses' : 'use'}`;
+
+/** migrate-older-majors R5: a run that rewrote nothing, beside lines a claimed major removed, says it has a work list. */
+function workListed(summary: string, removed: number): string {
+  return summary === 'nothing to rewrite' && removed > 0 ? `${summary}; ${linesUse(removed)} an API a claimed major removed (see offMajor)` : summary;
 }
 
 /**
@@ -2037,6 +2502,27 @@ function summaryOf(touched: number, refusedFiles: number, dryRun: boolean): stri
  * which is exactly what "no AST" bought.
  */
 const BATCH = 256;
+
+/**
+ * migrate-preflight — the rows for one run, and how many of them block it: none when it would
+ * write nothing (R6). An off-major incumbent is considered (R1): adopting costs the same either way.
+ */
+async function gate(
+  dir: string,
+  run: { manifest: Manifest; dependencies: Map<string, string>; considered: readonly string[]; untracked: string[] },
+  planned: number,
+): Promise<{ preflight: PreflightRow[]; blocking: number }> {
+  const preflight = preflightOf({
+    manifest: run.manifest,
+    declared: run.dependencies,
+    jestConfigs: await jestConfigsIn(dir),
+    // Every incumbent is its own key in MAPPING; `migrate-preflight.test.ts` holds that.
+    targets: run.considered.map((host) => MAPPING[host] as string),
+    family: FAMILY,
+    untracked: run.untracked,
+  });
+  return { preflight, blocking: planned === 0 ? 0 : preflight.filter((row) => row.blocking).length };
+}
 
 /** Write every rewritten file, {@link BATCH} at a time. */
 async function writeAll(dir: string, changed: readonly { file: string; source: string }[]): Promise<void> {
@@ -2069,6 +2555,23 @@ function refusalLine(r: Refusal): string {
 }
 
 /**
+ * migrate-older-majors R5 — an off-major incumbent, its nearest claimed major and the move to it
+ * or what stands in the way, then each line its claimed majors removed, with the fix.
+ */
+function offMajorLines(o: OffMajor): string[] {
+  const nearest = o.nearest === null ? '' : `; nearest claimed ${o.nearest}`;
+  // With no nearest major there are no sites: each is removed above the found major and at or below a claimed one.
+  const blocked = o.sites.filter((site) => removedMajor(site) <= (o.nearest as number)).length;
+  let move = '';
+  if (o.move !== null) move = `, move ${Object.entries(o.move).map(([from, to]) => `${from} -> ${to}`).join(', ')}`;
+  else if (blocked > 0) move = `, no move: ${counted(blocked, 'line')} below ${blocked === 1 ? 'uses' : 'use'} an API ${o.nearest} removed`;
+  return [
+    `${o.from} ${o.found} (graded ${o.graded})${nearest}${move}`,
+    ...o.sites.map((site) => `  ${site.file}:${site.line}  ${site.api}  removed in ${site.removedIn}; use: ${site.replacement}${site.firstUse === undefined ? '' : ` (first use line ${site.firstUse})`}`),
+  ];
+}
+
+/**
  * U12-5 — the report as a person reads it. The engine's text surface is one level deep and
  * printed every list in this report as a line of JSON; this is the same report in sentences
  * and aligned lines, first line the summary. `--json` is unchanged: the data is the data.
@@ -2076,11 +2579,13 @@ function refusalLine(r: Refusal): string {
 export function textOf(r: MigrationReport): string {
   const lines = [
     r.summary,
+    ...section('before the move', r.preflight.map((p) => `${p.blocking ? 'block' : 'warn'}  ${p.check}  ${p.message}; fix: ${p.fix}`)),
     ...section(
       r.dryRun ? 'would rewrite' : 'rewrote',
       r.mapped.map((m) => `${m.from} -> ${m.to}  ${m.imports} import${m.imports === 1 ? '' : 's'} in ${fileCount(m.files)}`),
     ),
     ...section('refused, and left exactly as it was', r.refused.map(refusalLine)),
+    ...section('read as not an incumbent (a computed specifier)', r.dynamic.map((d) => `${d.file}:${d.line}  ${d.shape}`)),
     ...section('kept on the incumbent', r.kept.map((k) => `${k.file}:${k.line}  ${k.specifier}  ${k.note}`)),
     ...section(
       'held, rewritten in no file',
@@ -2092,7 +2597,7 @@ export function textOf(r: MigrationReport): string {
       r.transitive.map((t) => `${t.from} through ${t.through.join(', ')}${t.exports.length === 0 ? '' : `; its ${t.exports.join(', ')} would be different classes, so imports of them stay`}`),
     ),
     ...section('not level yet, left alone', r.partial.map((p) => `${p.from} -> ${p.to}  ${p.passed} / ${p.reference} (the incumbent passes ${p.control})`)),
-    ...section('on a major that was not graded, left alone', r.offMajor.map((o) => `${o.from} ${o.found} (graded ${o.graded})`)),
+    ...section('on a major that was not graded, left alone', r.offMajor.flatMap(offMajorLines)),
     ...section('no drop-in; see the guide', r.guided.map((g) => `${g.file}:${g.line}  ${g.from}  ${g.pattern}  ${g.guide}`)),
     ...section('graded by the incumbent’s own suite', r.graded.map((g) => `${g.host}  ${g.passed} / ${g.reference} (the incumbent passes ${g.control})`)),
     `declared: ${list(r.detected.declared)}`,
@@ -2117,26 +2622,32 @@ export function textOf(r: MigrationReport): string {
  * refused file or a kept import still names is held, and only then is anything written.
  */
 export async function migrate(options: MigrateOptions): Promise<MigrationReport> {
-  const { dir, dryRun = false, force = false } = options;
+  const { dir, dryRun = false } = options;
   checkNames(options);
-  const entries = await (options.status ?? workingTree)(dir);
-  if (!dryRun && !force && entries !== undefined && entries.length > 0) throw new DirtyTreeError(entries);
+  const untracked = await checkTree(options);
 
-  const dependencies = await declaredDependencies(dir);
-  const offMajor = await offMajorOf(dir, dependencies);
+  const manifest = await manifestAt(join(dir, 'package.json'));
+  const dependencies = declaredBy(manifest);
+  const { offMajor, entries: ownEntries } = await majorsOf(dir, dependencies);
   const only = options.only === undefined ? undefined : new Set(options.only);
   const skipped = new Set(options.skip);
-  // U12-3: an incumbent moves when the project chose it — `--only`, or else its manifest — and nothing excludes it.
-  const chosen = HOSTS.filter((host) => (only === undefined ? dependencies.has(host) : only.has(host)) && !skipped.has(host) && !offMajor.some((o) => o.from === host));
+  // U12-3: an incumbent is considered when the project chose it — `--only`, or else its manifest — and nothing excludes it.
+  const considered = HOSTS.filter((host) => (only === undefined ? dependencies.has(host) : only.has(host)) && !skipped.has(host));
+  // It moves when it is also on a claimed major.
+  const chosen = considered.filter((host) => !offMajor.some((o) => o.from === host));
   const skip = new Set(HOSTS.filter((host) => !chosen.includes(host)));
   const through = await transitiveOf(dir, dependencies, chosen);
 
-  const files = sourceFiles(dir);
+  const sources = sourceFiles(dir);
+  const files = [...sources, ...binsOf(dir, manifest.bin, sources)];
+  const older = olderOf(offMajor);
   const scanned: Scanned[] = [];
+  // Stryker disable MethodExpression: a project of more than one batch is migrate-bench.test.ts's 1,000 files, which the mutation lane skips (SKIPPED_TESTS)
   for (let i = 0; i < files.length; i += BATCH) {
     // eslint-disable-next-line reliability/no-await-in-loop -- the await IS the bound (A10). Each batch is 256 files in flight at once; awaiting one before opening the next is what keeps the command inside the open-file limit on a repository of any size, and `Promise.all` over every file in a monorepo is EMFILE.
-    scanned.push(...(await scanBatch(dir, files.slice(i, i + BATCH), skip, through)));
+    scanned.push(...(await scanBatch(dir, files.slice(i, i + BATCH), { skip, transitive: through, entries: ownEntries, older })));
   }
+  // Stryker restore MethodExpression
 
   // U12-4: what the first pass refused or kept is held everywhere, and a second pass over the
   // files that named an incumbent rewrites without it. Refusing never adds a refusal — it only
@@ -2145,12 +2656,18 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
   const rewrites =
     held.length === 0
       ? scanned.map(({ file, result }) => ({ file, result }))
-      : scanned.map(({ file, result, text }) => ({ file, result: text === undefined ? result : rewriteFile(text, new Set([...skip, ...held.map((h) => h.from)]), through).rewrite }));
+      : scanned.map(({ file, result, text }) => ({ file, result: text === undefined ? result : rewriteFile(text, new Set([...skip, ...held.map((h) => h.from)]), through, ownEntries).rewrite }));
   const changed = rewrites.filter(({ result }) => result.mapped.length > 0).map(({ file, result }) => ({ file, source: result.source }));
-  if (!dryRun) await writeAll(dir, changed);
+
+  // migrate-preflight R6: decided after the scan, because only a run that would write is blocked,
+  // and before the one writer.
+  const { preflight, blocking } = await gate(dir, { manifest, dependencies, considered, untracked }, changed.length);
+  const writes = !dryRun && blocking === 0;
+  if (writes) await writeAll(dir, changed);
 
   const all = rewrites.flatMap(({ file, result }) => result.mapped.map((m) => ({ ...m, file })));
   const refused: Refusal[] = scanned.flatMap(({ file, result }) => result.refused.map((r) => ({ file, ...r })));
+  const dynamic: Dynamic[] = scanned.flatMap(({ file, result }) => (result.dynamic ?? []).map((d) => ({ file, ...d })));
   const kept: Kept[] = scanned.flatMap(({ file, result }) => result.kept.map((k) => ({ file, ...k })));
   const guided: Guided[] = scanned.flatMap(({ file, guided: sites }) => sites.map((site) => ({ file, ...site })));
   const imported = [...new Set(scanned.flatMap(({ seen }) => seen))].sort();
@@ -2169,21 +2686,28 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
   const graded = await familyVersions();
   const age = await releaseAgeOf(dir);
   const now = options.now ?? new Date();
-  const under = age === null ? { pins: [], unread: [] } : await pinsUnder(age, add, graded, { times: options.registry ?? registryTimes, now });
+  const under =
+    age === null
+      ? { pins: [], unread: [] }
+      : await pinsUnder(age, add, graded, { times: options.registry ?? registryTimes, now, floors: floorsOf([...new Set(all.map((m) => m.to))].sort(), options.since ?? (await subpathFloors()), graded) });
+
+  const rows = offMajor.map((row) => withSites(row, older, scanned));
 
   const report: MigrationReport = {
-    summary: summaryOf(changed.length, refusedFiles, dryRun),
+    summary: workListed(summaryOf(changed.length, refusedFiles, dryRun, blocking), rows.reduce((n, row) => n + row.sites.length, 0)),
+    preflight,
     files: changed.length,
     imports: all.length,
     mapped: rollup(all),
     refused,
+    dynamic,
     kept,
     detected: { declared, imported },
     dependencies: { before: declared, removable, after: declared.length - removable.length, add },
     // The grades of what the project uses and chose; an undeclared incumbent is not this run's.
     graded: gradedFor([...new Set([...declared, ...imported])].filter((host) => !undeclared.includes(host)).sort()),
     partial,
-    offMajor,
+    offMajor: rows,
     guided,
     undeclared,
     held,
@@ -2191,8 +2715,8 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
     releaseAge: age === null ? null : releaseAgeNote(age, under.pins, under.unread, now),
     next: nextStep(dir, add, removable, { ...graded, ...Object.fromEntries(under.pins.map((p) => [p.name, p.version])) }),
     dryRun,
-    changed: !dryRun && changed.length > 0,
-    exitCode: refused.length > 0 ? ExitCode.RUNTIME : ExitCode.OK,
+    changed: writes && changed.length > 0,
+    exitCode: refused.length > 0 || blocking > 0 ? ExitCode.RUNTIME : ExitCode.OK,
   };
   // U12-5: the text surface, under a symbol so `--json` never carries it (`render.ts`).
   Object.defineProperty(report, TEXT, { value: () => textOf(report), enumerable: false });

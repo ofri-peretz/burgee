@@ -4,7 +4,7 @@
 > ([`next-wave-2026-10.md`](../../research/next-wave-2026-10.md)), after reading the scorer's
 > source at the version the `external-floor` suite pins.
 
-**Status:** approved · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-18 on [`1013b65db5`](https://github.com/ofri-peretz/burgee/commit/1013b65db5), verified against `main` at `1013b65db5` — all 4 criteria locked by `scripts/clispec-document.test.ts`, `json-failure.test.ts` and the floor ratchet
 
 ---
 
@@ -96,9 +96,11 @@ emits needs the same declaration.
 
 ## Success criteria
 
-1. `npx vitest run --config vitest.root.config.ts packages/burgee/src/clispec-document.test.ts`
-   validates the demo's `--schema` against the vendored `schemas/v0.3.json`. It is proven red on
-   `3a05dc8aad`, where the document lacks `clispec` and `errors`.
+1. `npx vitest run --config vitest.root.config.ts scripts/clispec-document.test.ts`
+   validates the demo's `--schema` against the vendored
+   `packages/burgee/src/__fixtures__/clispec-v0.3.json`. It is proven red on `3a05dc8aad`, where
+   the document lacks `clispec` and `errors`. *(Path corrected 2026-10-18: the test was built
+   under `scripts/`, not `packages/burgee/src/`, and the schema is vendored as a fixture.)*
 2. Every failure envelope carries `error.kind`. Under `--json` stderr is one JSON line; without
    it, when stderr is not a TTY, the last line is that JSON. Held by
    `packages/burgee/src/json-failure.test.ts`.
@@ -106,6 +108,27 @@ emits needs the same declaration.
    `BURGEE_FLOOR.clispec` rises to it. If a point is still lost, the benchmarks page names it
    with the probe's output and a decision records why.
 4. `npm run compat -- commander yargs` is unchanged in the same run.
+
+## Shipped — 2026-10-18
+
+**Status raised to `shipped`.** Every criterion was checked against `main` at `1013b65db5` in the
+roadmap-to-shipped Batch 0 pass (`.sdlc/research/roadmap-to-shipped-2026-10.md`).
+
+Criterion 1 named `packages/burgee/src/clispec-document.test.ts`. The test was built at
+`scripts/clispec-document.test.ts`, and the path is corrected above in this PR.
+
+| criterion | check | result |
+| :-- | :-- | :-- |
+| 1. the demo's `--schema` validates against the vendored v0.3 schema | `scripts/clispec-document.test.ts`, `program-schema.test.ts` | 53 passed (with `decisions-lock.test.ts`); `schema.test.ts` R1/R3/R4 5 passed, 9 skipped |
+| 2. every failure carries `error.kind`; the stderr JSON line | `json-failure.test.ts -t R6`; `exit-code.test.ts`, `define-error.test.ts -t R2` | 13 passed, 42 skipped; 8 passed, 3 skipped; 4 passed, 6 skipped |
+| 3. clispec 24 / 24 and `BURGEE_FLOOR.clispec` at 24 | `benchmarks/floor.test.ts`; `bench.yml`'s floor job runs `--check` against `min: 24` on every PR | 15 passed; the last two `Benchmarks` runs on `main` green (39160454575, 39157960032) |
+| 4. compat unchanged | `npm run compat -- commander yargs` | commander 1360 / 1360, yargs 816 / 816 |
+
+Supporting rows: output declarations (R7/R8) through `schema-fields.test.ts` (2 passed, 7 skipped),
+`facade-types.test.ts` (2 passed, 15 skipped), `definition.test.ts -t R5` (2 passed, 6 skipped),
+`machine-json.test.ts` (7 passed, 20 skipped), and the docs examples (`apps/docs` `tests/examples.test.ts`,
+42 passed). The published 24 / 24 reading (`external-floor/2026-10-12.json`, renamed `2026-10-12-35ded07-local.json` when agent-lint-conformance R9 published the CI reading of 2026-10-19) is a local run. CI
+gates at ≥ 24 on every PR rather than publishing its own reading.
 
 ## Open questions
 

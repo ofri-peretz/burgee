@@ -22,6 +22,7 @@ import { interactive } from 'roundel/terminal';
 import { detectAgent } from './agent.js';
 import { type Globals } from './globals.js';
 import { type RunContext } from './manifest.js';
+import { type McpCall } from './mcp.js';
 import { type Teardown } from './shutdown.js';
 
 /** The slice of the engine's `Io` the context reads. */
@@ -32,20 +33,32 @@ export interface RunIo {
   teardown: Teardown;
 }
 
+/** The MCP call this run is serving, if any: read by symbol, so this chunk never imports the server (mcp-current R4, R5). */
+const mcpCall = (): McpCall | undefined => (Reflect.get(globalThis, Symbol.for('burgee.mcp')) as (() => McpCall | undefined) | undefined)?.();
+
+/** `ctx.progress` outside an MCP call that asked for progress: nothing to tell. */
+const noProgress = (): void => undefined;
+
 /**
  * `ctx.env`, `ctx.onExit`, `ctx.agent` and `ctx.interactive` for one run, and what the globals
  * set (agent-lint-conformance R1–R3): `ctx.signal`, `ctx.quiet`, and `ctx.runtime`, the output
  * policy's runtime carrying the caller's colour flag and `quiet` to whatever the handler draws
  * with. A run that typed no global gets a signal that never aborts and a runtime that asks nothing.
+ *
+ * Inside an `--mcp` tool call, `ctx.signal` also aborts when the client cancels the call, and
+ * `ctx.progress` sends its progress; outside one, `ctx.progress` does nothing (mcp-current R4, R5).
  */
-export const ctxOf = ({ env, stdin, out, teardown }: RunIo, global?: Globals): Pick<RunContext, 'env' | 'onExit' | 'agent' | 'interactive' | 'signal' | 'quiet' | 'runtime'> => {
+export const ctxOf = ({ env, stdin, out, teardown }: RunIo, global?: Globals): Pick<RunContext, 'env' | 'onExit' | 'agent' | 'interactive' | 'signal' | 'progress' | 'quiet' | 'runtime'> => {
   const quiet = global?.quiet === true;
+  const call = mcpCall();
   return {
     env,
     onExit: (handler, label) => teardown.add(handler, label),
     ...detectAgent(env, false),
     interactive: interactive({ env, isTTY: { stdin: (stdin as { isTTY?: boolean }).isTTY === true } }),
-    signal: global?.signal ?? new AbortController().signal,
+    // `any` of none never aborts, of one follows it, and of both aborts with whichever came first.
+    signal: AbortSignal.any([global?.signal, call?.signal].filter((s) => s !== undefined)),
+    progress: call?.progress ?? noProgress,
     quiet,
     runtime: { env, argv: global?.color ?? [], isTTY: { stdout: out.isTTY === true }, quiet },
   };

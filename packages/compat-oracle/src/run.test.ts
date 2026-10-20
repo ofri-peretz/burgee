@@ -3,8 +3,8 @@
  * baseline must count as a regression; at or above it must not. A gate that has never
  * been shown to fail is not a gate.
  */
-import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync, spawn } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -12,9 +12,12 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { type Host, HOSTS } from './hosts.js';
-import { type Baseline, cjsLoad, type Grade, grade as gradeHost, hoistJestMocks, TSD_SCRIPT, installSuiteDeps, internalShimBody, jestGlobals, mochaCli, internalShimFrom, parseFlatTap, parseNodeTest, regressed, summarize, tsLoaderArgs, unsatisfiedPins } from './run.js';
+import { type Baseline, cjsLoad, DEPS_MARKER, type Grade, grade as gradeHost, hoistJestMocks, TSD_SCRIPT, installSuiteDeps, internalShimBody, jestGlobals, mochaCli, internalShimFrom, parseFlatTap, parseNodeTest, regressed, summarize, tsLoaderArgs, unsatisfiedPins } from './run.js';
 import { declarationName, type TsdAssertion, type TsdDiagnostic, tsdTap } from './tsd.js';
+
+const scratch = scratchDirs();
 
 const grade = (passed: number): Grade => ({
   host: 'commander',
@@ -190,7 +193,7 @@ describe('a control run’s internal shim', () => {
   const cliTable3 = HOSTS.find((h) => h.name === 'cli-table3') as Host;
   const clack = HOSTS.find((h) => h.name === 'clack') as Host;
 
-  const installed = mkdtempSync(join(tmpdir(), 'internal-shim-'));
+  const installed = scratch('internal-shim-');
   mkdirSync(join(installed, 'src'), { recursive: true });
   writeFileSync(join(installed, 'package.json'), '{"name":"fake","version":"0.0.0"}\n');
   writeFileSync(join(installed, 'src', 'cell.js'), 'module.exports = {};\n');
@@ -248,7 +251,7 @@ describe('a control run’s internal shim', () => {
  * The fake target ships `Cell` in both of the shapes the body has to handle.
  */
 const shimFor = (named: string | undefined, shape: 'default' | 'flat'): unknown => {
-  const dir = mkdtempSync(join(tmpdir(), 'named-shim-'));
+  const dir = scratch('named-shim-');
   const pkg = join(dir, 'node_modules', 'faketarget');
   mkdirSync(pkg, { recursive: true });
   writeFileSync(join(pkg, 'package.json'), '{"name":"faketarget","version":"0.0.0","main":"index.cjs"}\n');
@@ -418,8 +421,8 @@ describe('concatenated node-tap output', () => {
  * answered "satisfied" for all four.
  */
 describe('a pinned suite dependency is satisfied only beside the suite', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'suite-deps-'));
-  const outside = mkdtempSync(join(tmpdir(), 'elsewhere-'));
+  const dir = scratch('suite-deps-');
+  const outside = scratch('elsewhere-');
 
   // `dir` sits inside `outside`, so resolution from `dir` reaches `outside`'s node_modules
   // the way a vendored directory reaches the workspace's — and the way anything in this
@@ -430,6 +433,29 @@ describe('a pinned suite dependency is satisfied only beside the suite', () => {
   it('accepts a pin installed beside the suite at that exact version', () => {
     install(dir, 'pinned', '10.0.1');
     expect(unsatisfiedPins({ pinned: '10.0.1' }, dir)).toEqual([]);
+  });
+
+  it('accepts a pin whose package does not export its package.json — the tsd 0.33.0 case', () => {
+    install(dir, 'sealed', '0.33.0');
+    // tsd's own `exports`: one string, so `sealed/package.json` is not a specifier Node will resolve.
+    const manifest = join(dir, 'node_modules', 'sealed', 'package.json');
+    writeFileSync(manifest, JSON.stringify({ ...(JSON.parse(readFileSync(manifest, 'utf8')) as object), exports: './index.js' }));
+    expect(unsatisfiedPins({ sealed: '0.33.0' }, dir)).toEqual([]);
+    expect(unsatisfiedPins({ sealed: '0.34.0' }, dir), 'and still reads the version it found').toEqual(['sealed@0.34.0']);
+  });
+
+  it('refuses a pin it cannot read: a manifest that is not JSON, or a builtin’s name', () => {
+    install(dir, 'garbled', '1.0.0');
+    writeFileSync(join(dir, 'node_modules', 'garbled', 'package.json'), '{ nope');
+    expect(unsatisfiedPins({ garbled: '1.0.0', fs: '1.0.0' }, dir)).toEqual(['garbled@1.0.0', 'fs@1.0.0']);
+  });
+
+  it('refuses a pin whose nearest manifest is unreadable, even with a good copy further out', () => {
+    install(outside, 'cracked', '0.5.6');
+    mkdirSync(join(nested, 'node_modules', 'cracked'), { recursive: true });
+    writeFileSync(join(nested, 'node_modules', 'cracked', 'package.json'), '{ nope');
+    // A range accepts a copy from anywhere, so only stopping at the broken one refuses it.
+    expect(unsatisfiedPins({ cracked: '^0.5.1' }, nested)).toEqual(['cracked@^0.5.1']);
   });
 
   it('refuses a pin that is absent', () => {
@@ -580,6 +606,8 @@ describe('a CommonJS shim busts the incumbent only when the suite busted the shi
 // everywhere.
 describe.skipIf(process.platform === 'win32')('the tsd runner (extra-typings-drop-in R1)', () => {
   const TSD_DEPS = { tsd: '0.33.0', '@tsd/typescript': '5.9.3' };
+  /** When the pins above resolve as of: the day they were written, after both were published. */
+  const TSD_AS_OF = '2026-10-19T00:00:00.000Z';
   const PKG = resolve(fileURLToPath(new URL('..', import.meta.url)));
   let vendorDir = '';
   const typed = (over: Partial<Host> = {}): Host => ({
@@ -605,18 +633,45 @@ describe.skipIf(process.platform === 'win32')('the tsd runner (extra-typings-dro
   };
   const TSCONFIG = JSON.stringify({ compilerOptions: { module: 'nodenext', strict: true, types: [], noEmit: true } });
 
+  /**
+   * Where the pinned tsd lives between runs: installed once per checkout (and again after an
+   * `npm ci`, which empties `node_modules`), then linked beside each run's scratch suite.
+   *
+   * Each run used to install it into the scratch suite and delete it in `afterAll`: 1,352 files
+   * written and 1,701 entries unlinked, every run — and `grade()` ran npm again in every case,
+   * because `installedCopy` could not see tsd (fixed beside it). On this machine a process that
+   * unlinks stalls while the pre-push battery runs: with two root suites side by side
+   * (2026-10-19) the delete alone took 42.6 s of `afterAll`'s 60 s, against 0.9 s on a quiet
+   * machine, and the install 10.4 s. The install is still the real one, `installSuiteDeps` into
+   * a directory that declares the pins, and it skips itself once they are there.
+   */
+  const TSD_CACHE = join(PKG, 'node_modules', '.cache', 'compat-oracle-tsd-runner');
+
   beforeAll(() => {
+    mkdirSync(TSD_CACHE, { recursive: true });
+    writeFileSync(join(TSD_CACHE, 'package.json'), JSON.stringify({ name: '@vendored/tsd-runner-deps', private: true, devDependencies: TSD_DEPS }));
+    // The tree as of the day these pins were written, as a vendored suite records its own (`depsBefore`).
+    writeFileSync(join(TSD_CACHE, '.source.json'), JSON.stringify({ depsBefore: TSD_AS_OF }));
+    installSuiteDeps(typed({ name: 'tsd-runner-deps' }), TSD_CACHE);
     // Inside this package, as grade.test.ts's scratch hosts are: the control resolves commander by
     // walking up to the workspace's node_modules.
     vendorDir = mkdtempSync(join(PKG, '.grade-tsd-'));
     mkdirSync(hostDir(), { recursive: true });
     writeFileSync(join(hostDir(), 'package.json'), JSON.stringify({ name: '@vendored/typed-suite', private: true, type: 'module', main: './shim.js', devDependencies: TSD_DEPS }));
     writeFileSync(join(hostDir(), 'tsconfig.json'), TSCONFIG);
-    installSuiteDeps(typed(), hostDir());
+    writeFileSync(join(hostDir(), '.source.json'), JSON.stringify({ depsBefore: TSD_AS_OF }));
+    // Beside the suite as far as resolution can tell: Node and `unsatisfiedPins` both read the
+    // link's real path, so `grade()` finds its pins satisfied and installs nothing.
+    symlinkSync(join(TSD_CACHE, 'node_modules'), join(hostDir(), 'node_modules'), 'dir');
+    expect(unsatisfiedPins(TSD_DEPS, hostDir()), 'the linked install satisfies the suite’s pins').toEqual([]);
   }, 300_000);
 
   afterAll(() => {
-    rmSync(vendorDir, { recursive: true, force: true });
+    // Removed by an `rm` of its own that this hook does not wait for. Without tsd in it the
+    // directory is a handful of files, and under that same load unlinking them still took 64.9 s,
+    // past the hook's 60 s. `rm -rf` does not follow the link into the cache; a run killed first
+    // leaves a `.grade-*` directory, which `.gitignore` already covers.
+    if (process.platform !== 'win32') spawn('rm', ['-rf', vendorDir], { detached: true, stdio: 'ignore' }).unref();
   });
 
   const HEADER = ["import { expectError, expectType } from 'tsd';", "import { Command } from '../shim.js';", 'const program = new Command();'];
@@ -671,6 +726,8 @@ describe.skipIf(process.platform === 'win32')('the tsd runner (extra-typings-dro
     mkdirSync(join(broken, 'test-d'), { recursive: true });
     writeFileSync(join(broken, 'package.json'), JSON.stringify({ name: '@vendored/broken-suite', private: true, type: 'module', main: './shim.js', devDependencies: { tsd: '0.33.0' } }));
     writeFileSync(join(broken, 'tsconfig.json'), TSCONFIG);
+    writeFileSync(join(broken, '.source.json'), JSON.stringify({ depsBefore: TSD_AS_OF }));
+    writeFileSync(join(broken, 'node_modules', DEPS_MARKER), TSD_AS_OF);
     writeFileSync(join(broken, 'node_modules', 'tsd', 'package.json'), JSON.stringify({ name: 'tsd', version: '0.33.0', main: 'index.js' }));
     writeFileSync(join(broken, 'node_modules', 'tsd', 'index.js'), "throw new Error('tsd exploded on load');\n");
     writeFileSync(join(broken, 'test-d', 'name.test-d.ts'), [...HEADER, ''].join('\n'));

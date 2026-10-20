@@ -4,11 +4,53 @@
 > requirements S1–S4, plus the TypeScript cluster (research §5) and the validation
 > cluster (§4). Proposes floor additions S5–S8.
 
-**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** approved · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+
+> Accepted 2026-10-19 by the coordinator under the owner's delegation
+> ([`D-20261019-typed-schema-surface-design-accepted`](../../decisions/D-20261019-typed-schema-surface-design-accepted.md)).
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Evidence:** `schema.ts`, `schema-dsl.test.ts`, `validate.ts` (S1–S8).
 
+**Restated:** 2026-10-18 — see § Restated 2026-10-18
+
 ---
+
+## Restated 2026-10-18
+
+**The option half of "declare once" is in the native engine with checks. The positional half moves to `typed-positionals` R1–R3. `schemaVersion: 2` is dropped by `clispec-conformance`. Five pieces stay here — REMAINING: C1 (per-issue cases failing on commander), C3 (`minimum`/`maximum` asserted in `--schema`), R2 (option `file`/`path`/`object` types), R3 (`--no-x` honoured by relations, yargs #898), R4 (`file` existence check).** *2026-10-19: C3's min/max half is held by `packages/burgee/src/schema-dsl.test.ts` › "publishes minimum and maximum in --schema, on the option and on its inputSchema property (commander-schema C3)"; four remain, and the status stays `review`.* *2026-10-19: R3's `--no-x` half is held by `packages/burgee/src/schema-dsl.test.ts` › "counts a typed --no-x as given to implies and dependsOn, and a default as not given (yargs #898)", and the positional half by `typed-positionals` R1–R3; the status is `approved`. **REMAINING: C1, R2, R4**, each larger than one batch and written up as [`B-20261019-commander-schema-remaining`](../../gaps/B-20261019-commander-schema-remaining.md).*
+
+Verified against burgee `main` at `1013b65db5` with `git grep`; no test was run. Nothing is
+renumbered. This intent is a **supersede candidate**. Once the five remaining items are
+built, moved or ruled out, its content is held elsewhere, and the owner may mark it
+`dropped (superseded)` instead of `shipped`.
+
+**What superseded the design.** The intent proposed `packages/commander-schema` compiling a
+spec into commander `Option`/`Argument` objects with relations in `preAction`, schema types
+in `@interlace/cli-core`, and a manifest read by `commander-agent`. None of these exist. The
+declaration is the native engine's: `OptionSpec` / `ArgumentSpec` in
+`packages/burgee/src/manifest.ts`, inference as `InferOptions`, checks in `definition.ts` and
+`validate.ts`, projection in `schema.ts`. On `burgee/commander` a program keeps commander's
+own `Option` API, which the compat oracle grades. Constraint 1 ("parsing stays commander's")
+is therefore superseded. Constraints 2 and 3 hold: there is no code generation, and the
+Standard Schema interface is declared locally with no dependency.
+
+| ID | promised | on main | check | disposition |
+| :-- | :-- | :-- | :-- | :-- |
+| C1 | every named issue has a case that fails on plain commander and passes with the schema | 10 of the 23 named issues are cited in a passing test: yargs #1532, #1079, #846, #1093, #439, #1322, #1679, #1186, #887, #933. No test runs any of them against plain commander | `packages/burgee/src/schema-dsl.test.ts` (every `describe` cites its issues) | remaining. yargs #1649 and #1392 (typed and variadic positionals) move → `typed-positionals` R1–R2, whose intent cites #1649 |
+| C2 | `options.replicas` infers `number`, `args.env` `'dev' \| 'prod'`, a variadic positional `string[]`, pinned with `expectTypeOf` | options: yes. Positionals are untyped `ctx.positionals: string[]` | `packages/burgee/src/schema-dsl.test.ts` › "infers choices as a union, number as number, multiple as an array, and presence from required/default"; › "reaches the handler typed, without a generic" | options held; positional half moved → `typed-positionals` R1 (type and `choices` on `ArgumentSpec`), R2 (`ctx.args`, variadic as array, `expectTypeOf`) |
+| C3 | `--schema` gains `min`, `max`, `relations` and validates against `schemaVersion: 2` | `relations`: yes. `minimum`/`maximum`: emitted (`schema.ts`), asserted since 2026-10-19 by `packages/burgee/src/schema-dsl.test.ts` › "publishes minimum and maximum in --schema, on the option and on its inputSchema property (commander-schema C3)" (red with the emission removed). Validation: yes, against `burgee/program-schema.json` at `schemaVersion: 1` | `packages/burgee/src/relations-schema.test.ts` › "publishes what validate enforces"; › "survives the round trip an agent actually makes"; `scripts/program-schema.test.ts` › "accepts the document a program with every optional field prints" | relations and min/max held (min/max 2026-10-19); `schemaVersion: 2` dropped by `.sdlc/intents/clispec-conformance/spec.md` R1 ("`schemaVersion` stays 1 … bumped only when a field changes meaning") |
+
+The spec's R1–R7 are restated in [`spec.md` § Restated 2026-10-18](./spec.md#restated-2026-10-18).
+
+`typed-positionals` exists at `.sdlc/intents/typed-positionals/` (status `review`). Its
+§ Why now names this intent's unmet criterion as demand. Its R1–R3 are unbuilt on main:
+`packages/burgee/src/typed-positionals.test.ts` does not exist yet. The move hands that work
+to an open intent and does not close it.
+
+**Stale finding corrected.** § Verified against `main` — 2026-09-09 says `--schema` "drops
+`relations` entirely". That is fixed on main: `schema.ts` publishes `relationsOf(node)`, held
+by `relations-schema.test.ts` above.
+
 
 ## What is wanted
 
@@ -62,11 +104,17 @@ Any Standard Schema implementation (zod, valibot, arktype) is accepted where a
   `yargs-schema` is taken; the yargs side ships inside `yargs-agent`).
 - `commander-agent`'s manifest reads the schema when present, giving richer `--schema`
   output (types, min/max, relations) than the walk of plain commander objects.
+- **Restated 2026-10-18:** neither package above exists, and `commander-agent` is `dropped`.
+  The declaration lives in `packages/burgee/src/manifest.ts` and the projection in
+  `packages/burgee/src/schema.ts`.
 
 ## Constraints
 
-1. Parsing stays commander's: the schema is compiled to `Option`/`Argument` objects
-   with `argParser`/`choices`/`env`; validation of relations runs in `preAction`.
+1. ~~Parsing stays commander's: the schema is compiled to `Option`/`Argument` objects
+   with `argParser`/`choices`/`env`; validation of relations runs in `preAction`.~~
+   **Restated 2026-10-18:** the native engine parses (`node:util.parseArgs`) and validates
+   relations after resolution and before choices and the handler. `burgee/commander` keeps
+   commander's own API.
 2. Types are derived by TypeScript inference from the literal schema; no code
    generation step.
 3. Standard Schema is the only external contract; no dependency on any one library.
@@ -74,11 +122,14 @@ Any Standard Schema implementation (zod, valibot, arktype) is accepted where a
 ## Success criteria
 
 - Every issue named above has a conformance case that fails on plain commander and
-  passes with the schema.
+  passes with the schema. **(C1, 2026-10-18: remaining — 10 of 23 cited, none run against
+  commander; #1649 and #1392 moved to `typed-positionals`.)**
 - `options.replicas` infers as `number`, `args.env` as `'dev' | 'prod'`, a variadic
-  positional as `string[]` — pinned with `expectTypeOf` tests.
+  positional as `string[]` — pinned with `expectTypeOf` tests. **(C2, 2026-10-18: options
+  held; positionals moved to `typed-positionals` R1–R2.)**
 - `--schema` output for the demo gains `min`, `max`, `relations` and validates against
-  `schemaVersion: 2` (additive).
+  ~~`schemaVersion: 2`~~ `schemaVersion: 1` (additive). **(C3, 2026-10-18: relations and
+  validation held; min/max held 2026-10-19; the version stays 1 per `clispec-conformance` R1.)**
 
 ## Verified against `main` — 2026-09-09
 

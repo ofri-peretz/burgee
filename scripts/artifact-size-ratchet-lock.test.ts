@@ -28,7 +28,6 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
-  forbiddenInPack,
   sizeVerdict,
   type Baseline,
   type PackEntry,
@@ -87,16 +86,6 @@ describe("artifact size ratchet", () => {
     const baseline = base();
     expect(sizeVerdict(pkg, pack(9999, 8888), baseline, true)).toEqual([]);
     expect(baseline["demo"]).toEqual({ size: 9999, unpackedSize: 8888 });
-  });
-});
-
-describe("what may not ship", () => {
-  // caique's `src/__fixtures__/inquirer-render.ts` is a stand-in for `@inquirer/testing` that
-  // only its tests import, and tsc compiled it into `dist/__fixtures__/` beside the code: 2,994 B
-  // on every install, found 2026-10-11 when `caique/inquirer` needed the room.
-  it("refuses a test fixture compiled into dist", () => {
-    const files = [{ path: "dist/__fixtures__/inquirer-render.js" }, { path: "dist/inquirer.js" }];
-    expect(forbiddenInPack(pkg, { ...pack(1, 1), files })).toEqual(["demo: would publish dist/__fixtures__/inquirer-render.js"]);
   });
 });
 

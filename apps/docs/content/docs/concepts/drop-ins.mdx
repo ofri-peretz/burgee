@@ -139,6 +139,8 @@ export const help = new Help();
 
 ```text title="npx burgee migrate --dry-run" exit="1"
 partial: 1 file would be rewritten, 1 refused
+before the move:
+  warn  floor  the family needs Node ^20.19.0 || >=22.13.0; adopting raises this package's floor, a semver-major for it; fix: npm pkg set "engines.node=^20.19.0 || >=22.13.0"
 would rewrite:
   chalk -> roundel/chalk  1 import in 1 file
 refused, and left exactly as it was:
@@ -159,6 +161,11 @@ next: npm uninstall chalk
 commander import too, and moves only its chalk. `commander` stays installed, and only `chalk`
 is removable. roundel is already a dependency, so there is nothing to add; a project without
 it would be told `npm install roundel@^` and roundel's current version.
+
+The project declares no `engines.node`, so the report warns, before anything else, that adopting
+sets a Node floor it did not have. That is a warning, not a block: a CommonJS package whose
+`engines` allowed a Node without `require(esm)` would be blocked and nothing written.
+[What it checks before it writes](/docs/migrate#what-it-checks-before-it-writes) lists every check.
 
 ## Where the rules live
 

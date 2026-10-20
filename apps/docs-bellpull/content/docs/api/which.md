@@ -15,9 +15,6 @@ import { pathExtensions, extensionCandidates, searchPath, … } from 'bellpull/w
 
 The extensions tried for this command, in order.
 
-On Windows a command that already carries a dot may be complete as written, so the empty
-extension goes first — `which` does the same, and `whoami.cmd` on `PATH` depends on it.
-
 ```ts
 function extensionCandidates(command: string, options: WhichOptions): string[];
 ```
@@ -33,10 +30,6 @@ function extensionCandidates(command: string, options: WhichOptions): string[];
 
 The `PATHEXT` list for this runtime, as an array. `['']` off Windows: no expansion.
 
-Exported because it is the one half of Windows resolution that can be *checked* from
-another platform: which extensions are tried, and in what order, is policy, whereas
-whether `C:\\tools\\npm.cmd` exists is a fact about a filesystem that is not here.
-
 ```ts
 function pathExtensions(options: WhichOptions): string[];
 ```
@@ -51,17 +44,6 @@ function pathExtensions(options: WhichOptions): string[];
 
 Where `command` resolves to for the purpose of **spawning it** — two `PATHEXT` attempts,
 not one, as `cross-spawn` does.
-
-`PATHEXT` answers "what would the shell run if I typed this", which is right for `which`
-and wrong for a spawner: an extensionless file with a `#!` line is still runnable here,
-because `spawn-args.ts` puts the interpreter in front of it. So the walk is repeated with
-expansion disabled.
-
-**One function, because two callers asking this differently is a bug and was one.**
-`spawn-args.ts` made both attempts and `run.ts` only the first, so on Windows a shebang
-script resolved for the parse and was then refused by `run()` with `NotFoundError`. Off
-Windows `pathExtensions` is always `['']` and the second attempt is the first, so the
-divergence was invisible to a 68 / 68 grading.
 
 ```ts
 function resolveExecutable(command: string, options: WhichOptions): Resolution | undefined;
@@ -79,9 +61,6 @@ function resolveExecutable(command: string, options: WhichOptions): Resolution |
 `PATH` with every `node_modules/.bin` from `cwd` upward in front of it — `npm-run-path`'s
 contract (104 M/wk, 2 dependencies, last published 2024-08-26).
 
-Twelve lines rather than a sibling dependency (design R4): the walk stops at the
-filesystem root, which `resolve` of `'..'` reports by returning its own argument.
-
 ```ts
 function runPath(options: WhichOptions): string;
 ```
@@ -97,11 +76,6 @@ function runPath(options: WhichOptions): string;
 The directories this runtime would search, in order — the static projection of resolution
 (PRINCIPLES rule 6).
 
-A caller, or an agent, reads what *would* happen without running anything. It is also
-where the two refusals above become visible: an entry dropped for being empty or relative
-is listed with the reason, so a `PATH` that silently does less than its author expected
-says so.
-
 ```ts
 function searchPath(options: WhichOptions): SearchEntry[];
 ```
@@ -115,10 +89,6 @@ function searchPath(options: WhichOptions): SearchEntry[];
 ### whichAllSync
 
 Every place `command` resolves to, best first. Empty when it resolves nowhere.
-
-`all` in `which`'s API; here it is the primitive and the single answer is the first of it,
-because "there are two `node`s on this `PATH`" is the finding an investigation wants and
-throwing away everything after the first is what stops it being available.
 
 ```ts
 function whichAllSync(command: string, options: WhichOptions): Resolution[];
@@ -135,10 +105,6 @@ function whichAllSync(command: string, options: WhichOptions): Resolution[];
 
 Where `command` resolves to, throwing {@link NotFoundError} when it resolves nowhere.
 
-`which`'s own shape, for the callers that want it — and the one place in this package
-where not finding something is an exception, because the caller asked a question that has
-no other answer.
-
 ```ts
 function whichOrThrowSync(command: string, options: WhichOptions): Resolution;
 ```
@@ -153,9 +119,6 @@ function whichOrThrowSync(command: string, options: WhichOptions): Resolution;
 ### whichSync
 
 Where `command` resolves to, or `undefined`.
-
-The non-throwing form, because "it is not installed" is an ordinary answer that a caller
-branches on — the same argument the `Result` in `run.ts` makes about a non-zero exit.
 
 ```ts
 function whichSync(command: string, options: WhichOptions): Resolution | undefined;

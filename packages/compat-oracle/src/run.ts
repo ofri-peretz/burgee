@@ -328,7 +328,7 @@ function missingTarget(host: Host, target: string): string | undefined {
   if (target === controlName(host)) return undefined;
   // An aliasing host's imports name the library it grades, which is the same on both runs;
   // what the target replaces is the alias, so the target itself is the one entry to find.
-  const wanted = host.alias === undefined ? host.imports.map((e) => `${target}${e.subpath}`) : [target];
+  const wanted = host.alias === undefined ? host.imports.map((e) => targetOf(e, target)) : [target];
   return wanted.find((spec) => {
     try {
       import.meta.resolve(spec);
@@ -339,13 +339,16 @@ function missingTarget(host: Host, target: string): string | undefined {
   });
 }
 
+/** What a target run re-exports for one import: its own `target`, or `<target><subpath>`. */
+export const targetOf = (entry: HostImport, target: string): string => entry.target ?? `${target}${entry.subpath}`;
+
 /** The source of one generated public shim. */
 function shimSource(entry: HostImport, host: Host, target: string): string {
   const header = `// generated per run — COMPAT_TARGET=${target}`;
   // An aliasing host grades a library built on the incumbent, so the shim hands the suite that
   // library on both runs; the target arrives underneath it, through `aliasHook`.
   const own = target === controlName(host) || host.alias !== undefined;
-  const from = own ? (entry.control ?? `${controlName(host)}${entry.subpath}`) : `${target}${entry.subpath}`;
+  const from = own ? (entry.control ?? `${controlName(host)}${entry.subpath}`) : targetOf(entry, target);
   // A CommonJS shim hands the suite whatever `require()` of the implementation returns — the
   // `require` condition, where an ESM shim takes `import`. For a dual package that is a
   // different build: signal-exit's suite is written against `dist/cjs`, whose behaviour
@@ -359,6 +362,13 @@ function shimSource(entry: HostImport, host: Host, target: string): string {
     // incumbent has none and is handed over whole, which is what it already was.
     const exported = entry.reexportDefault ? 'loaded?.default ?? loaded' : 'loaded';
     return `${header}\n${cjsLoad(from)}\nmodule.exports = ${exported};\n`;
+  }
+  // A suite that re-imports with a query string (`HostImport.fresh`): the module beneath is
+  // imported by URL with this shim's own query, so a fresh shim is a fresh implementation.
+  if (entry.fresh !== undefined) {
+    const named = entry.fresh.map((name) => `export const ${name} = loaded.${name};\n`).join('');
+    const own = entry.reexportDefault ? 'export default loaded.default;\n' : '';
+    return `${header}\nconst loaded = await import(import.meta.resolve('${from}') + new URL(import.meta.url).search);\n${own}${named}`;
   }
   // `export *` never carries a default; yargs' entry has one and its tests use it.
   //
@@ -507,7 +517,7 @@ function writeInternalShims(host: Host, { hostDir, target, internals, packageTyp
     if (linksInternal(host, { from, at })) continue;
     // A target run of a host that names the target's own module for this path (`targetInternals`).
     const own = from === target ? host.targetInternals?.[rel] : undefined;
-    const body = own === undefined ? internalShimBody(from, language, named) : targetInternalBody(packageRoot(target), own);
+    const body = own === undefined ? internalShimBody(from, language, named) : targetInternalBody(packageRoot(target), own, language);
     writeFileSync(at, `// generated per run — COMPAT_TARGET=${target}\n${body}`);
   }
 }
@@ -517,7 +527,11 @@ function writeInternalShims(host: Host, { hostDir, target, internals, packageTyp
  * (`Host.targetInternals`): each name the suite imports, re-exported from the file by absolute
  * URL — an exports map blocks a deep import by name, as it does the control's.
  */
-export function targetInternalBody(root: string, { file, names }: { file: string; names: Record<string, string> }): string {
+export function targetInternalBody(root: string, { file, names }: { file: string; names: Record<string, string> }, language?: string): string {
+  if (language === 'commonjs') {
+    const list = Object.entries(names).map(([as, name]) => `${as}: loaded.${name}`);
+    return `const loaded = require(${JSON.stringify(join(root, file))});\nmodule.exports = { ${list.join(', ')} };\n`;
+  }
   const list = Object.entries(names).map(([as, name]) => (as === name ? name : `${name} as ${as}`));
   return `export { ${list.join(', ')} } from '${pathToFileURL(join(root, file)).href}';\n`;
 }
@@ -1192,12 +1206,27 @@ function keepTap(host: Host, target: string, kind: 'public' | 'internal', run: {
  * whole point is that resolution can succeed and still hand the suite the wrong thing.
  */
 function installedCopy(name: string, dir: string): { at: string; version: string | undefined } | undefined {
-  try {
-    const at = resolverAt(dir).resolve(`${name}/package.json`);
-    return { at, version: (JSON.parse(readFileSync(at, 'utf8')) as { version?: string }).version };
-  } catch {
-    return undefined;
+  // Found by walking Node's own lookup path, not by resolving `<name>/package.json`: a package
+  // whose `exports` leaves its manifest out refuses that specifier. tsd's `exports` is the one
+  // string "./dist/index.js", so every tsd pin read as missing and `installSuiteDeps` ran npm on
+  // every call, however many times the pin had been installed.
+  const lookup = resolverAt(dir).resolve.paths(name);
+  // A builtin's name: Node never looks for it in node_modules, so there is no copy to read.
+  if (lookup === null) return undefined;
+  for (const modules of lookup) {
+    const manifest = join(modules, name, 'package.json');
+    if (!existsSync(manifest)) continue;
+    // The nearest manifest is the one Node loads, so an unreadable one ends the walk: a valid
+    // copy further out would only describe a package this suite never gets.
+    try {
+      // A real path, as `require.resolve` would have answered: `unsatisfiedPins` compares it to one.
+      const at = realpathSync(manifest);
+      return { at, version: (JSON.parse(readFileSync(at, 'utf8')) as { version?: string }).version };
+    } catch {
+      return undefined;
+    }
   }
+  return undefined;
 }
 
 /**
@@ -1267,21 +1296,56 @@ export function unsatisfiedPins(declared: Record<string, string>, dir: string): 
     .map(([name, want]) => `${name}@${want}`);
 }
 
+/** Written into a vendored `node_modules` after an install: the `depsBefore` its tree was resolved as of. */
+export const DEPS_MARKER = '.oracle-deps-before';
+
+/** `.source.json`'s `depsBefore`, which every vendored suite with dependencies records (`vendored-suite.test.ts`). */
+function recordedCutoff(host: Host, hostDir: string): string {
+  const at = join(hostDir, '.source.json');
+  const cutoff = existsSync(at) ? (JSON.parse(readFileSync(at, 'utf8')) as { depsBefore?: string }).depsBefore : undefined;
+  if (cutoff === undefined) throw new Error(`vendor/${host.name}/.source.json records no depsBefore, so its suite dependencies would resolve as of today: re-vendor the host`);
+  return cutoff;
+}
+
 /**
- * Install what a vendored suite declares, into the vendored directory and nowhere else.
+ * Install what a vendored suite declares, into the vendored directory and nowhere else, **as of
+ * the release it was vendored at**.
  *
- * Skipped the moment every declared package is present *at the version it was declared at*,
- * so a normal run does no network at all; the install happens once per clean checkout.
+ * `--before` is the determinism. A pin holds only the package it names: @inquirer/prompts 8.7.3
+ * depends on its siblings by `^` range, so on 2026-10-19 at 21:42 UTC, when inquirer published
+ * the next batch, every clean checkout installed the new siblings under the old pin, and the
+ * required control read 212 / 213 on `main` with nothing changed here
+ * (D-20261020-oracle-suite-deps-floated). Resolved as of `depsBefore`, the tree is the one the
+ * row was measured on, whatever upstream publishes later.
+ *
+ * Skipped when every declared package is present at its pin and the tree beside it was resolved
+ * as of this cutoff, so a normal run does no network at all. A suite declaring only ranges
+ * (`vendorDeps`) installs only what the hoist does not supply, as before, and as of the cutoff. A tree installed as of another
+ * date, or of none, is removed and installed again, because npm keeps any installed copy that
+ * still satisfies its range. A host that commits its `node_modules` (`keep`) is the exception:
+ * its tree is already fixed, and re-dating it would rewrite tracked files.
+ *
  * `--no-package-lock` because the lockfile that matters is the workspace's and this is not
  * part of it, and the versions are already pinned exactly in `hosts.ts`.
  */
 export function installSuiteDeps(host: Host, hostDir: string, write: Write = silent): void {
   const declared = readSuiteDeps(hostDir);
   if (Object.keys(declared).length === 0) return;
+  const before = recordedCutoff(host, hostDir);
+  const modules = join(hostDir, 'node_modules');
+  const marker = join(modules, DEPS_MARKER);
+  // Only an exact pin is installed beside the suite. A range (`vendorDeps`) is the workspace
+  // hoist's to supply, so a suite that declares only ranges has no tree of its own to re-date;
+  // nor does one whose tree is committed (`keep`), which is fixed already and is tracked files.
+  const ownsATree = Object.values(declared).some((want) => EXACT_PIN.test(want)) && host.keep?.includes('node_modules') !== true;
+  const stale = ownsATree && (existsSync(marker) ? readFileSync(marker, 'utf8') : undefined) !== before;
   const wrong = unsatisfiedPins(declared, hostDir);
-  if (wrong.length === 0) return;
-  write(`  installing ${host.name}'s suite dependencies into vendor/${host.name}/node_modules: ${wrong.join(', ')}\n`);
-  execFileSync('npm', ['install', '--no-audit', '--no-fund', '--no-package-lock', '--prefix', hostDir], { stdio: ['ignore', 'ignore', 'inherit'], timeout: INSTALL_TIMEOUT_MS });
+  if (wrong.length === 0 && !stale) return;
+  write(`  installing ${host.name}'s suite dependencies into vendor/${host.name}/node_modules as of ${before}: ${[...wrong, ...(stale ? ['the tree beside them'] : [])].join(', ')}\n`);
+  if (stale) rmSync(modules, { recursive: true, force: true });
+  execFileSync('npm', ['install', '--no-audit', '--no-fund', '--no-package-lock', `--before=${before}`, '--prefix', hostDir], { stdio: ['ignore', 'ignore', 'inherit'], timeout: INSTALL_TIMEOUT_MS });
+  mkdirSync(modules, { recursive: true });
+  writeFileSync(marker, before);
 }
 
 export function grade(host: Host, vendorDir: string, target: string, reference = 0): Grade {

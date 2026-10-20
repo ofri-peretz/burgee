@@ -5,5 +5,6 @@
   "setup": [],
   "check": "grep -q 'fail' \"$BENCH_RESULT\" && grep -qE '\\-\\-code' \"$BENCH_RESULT\"",
   "maxTurns": 15,
+  "modalities": ["cli"],
   "exemplar": "`demo fail` exited 1 with 'boom'. `demo fail --code 0` exits 0."
 }

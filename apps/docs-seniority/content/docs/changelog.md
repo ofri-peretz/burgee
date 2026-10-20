@@ -3,6 +3,48 @@ title: Changelog
 description: "Every release of seniority, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.0.11
+
+### Patch Changes
+
+- [#1160](https://github.com/ofri-peretz/burgee/pull/1160) [`0b381a0`](https://github.com/ofri-peretz/burgee/commit/0b381a0d394092edf2ea21a9143a10111aa72fe4) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Export `./package.json`. `require('<package>/package.json')` threw `ERR_PACKAGE_PATH_NOT_EXPORTED`, which broke tools that read a dependency's manifest that way: bundlers, license scanners and version checks.
+
+## 1.0.10
+
+### Patch Changes
+
+- [#1138](https://github.com/ofri-peretz/burgee/pull/1138) [`6b90ffe`](https://github.com/ofri-peretz/burgee/commit/6b90ffed8cd883b26f94fc3b690c1e2beb41ec83) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `seniority/dotenv` follows dotenv 18.0.8: `parse(src, { fast: true })` unquotes a segment that ends at a U+2028 or U+2029 inside an unquoted value, as the regex parser does, and `populate` takes and returns dotenv's own `DotenvPopulateInput` / `DotenvPopulateOutput`, now `string | undefined` because an `undefined` input is copied as given. dotenv 18.0.8's own suite grades it 193 / 193, level with dotenv itself. `seniority/lilconfig` follows lilconfig 3.1.4: its JSON loader drops a leading byte-order mark, so a BOM-prefixed `package.json` or rc file loads instead of throwing. lilconfig 3.1.4's suite grades it 77 / 77.
+
+## 1.0.9
+
+### Patch Changes
+
+- [#1130](https://github.com/ofri-peretz/burgee/pull/1130) [`c05c86e`](https://github.com/ofri-peretz/burgee/commit/c05c86e2caa0fc3a89f97f7fe9c37bd7b876bfaf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Every drop-in subpath now type-checks under `moduleResolution: node10`, and under `module: commonjs`
+  with no resolution set, which is TypeScript's default there. `import … from 'burgee/commander'`
+  used to fail with TS2307 in such a project, although `require()` of the same specifier worked.
+  Each package now declares `types` and a `typesVersions` map, derived from `exports`, with one key per
+  typed subpath pointing at the file `exports` already names. `exports` is unchanged, so `node16`,
+  `nodenext` and `bundler` read exactly what they read before. `controlroom/ink`'s declarations no
+  longer name the untyped `react-reconciler`, which was TS7016 for consumers with `skipLibCheck: false`.
+
+## 1.0.8
+
+### Patch Changes
+
+- [#1075](https://github.com/ofri-peretz/burgee/pull/1075) [`48ccbaf`](https://github.com/ofri-peretz/burgee/commit/48ccbaf47b5363978e080acbfd5f63add7655d46) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `seniority/dotenv/cli` on Windows: `dotenv run` now refuses an argument with a line break or NUL in it, and an environment with a variable name ending in `^`, before anything starts. It reports `dotenv: …` and exits 1, because cmd.exe cannot carry those. It also escapes `:` for cmd, so `%name:…%` can no longer expand a variable into the command line. Each closes a way a crafted argument could reach cmd.exe live. Arguments that are not refused reach the program exactly as before.
+
+## 1.0.7
+
+### Patch Changes
+
+- [#1045](https://github.com/ofri-peretz/burgee/pull/1045) [`c4fd9a3`](https://github.com/ofri-peretz/burgee/commit/c4fd9a3cb10bc36bef8c468365addfc6deb572cf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The family plugin schema (`schema.json`, identical in every plugin host) now describes `locales`, burgee's locale-pack key. A plugin carrying `locales` validates against the shared schema as it does against `burgee/locale-pack-schema.json`, which lists every message id. This package reads nothing new, and a plugin carrying `locales` registers here as before.
+
+## 1.0.6
+
+### Patch Changes
+
+- [#1022](https://github.com/ofri-peretz/burgee/pull/1022) [`ecb0a00`](https://github.com/ofri-peretz/burgee/commit/ecb0a00ca68e9a3b3584aefabb9dcf97e3ff967a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The tarball no longer carries declaration files that no `exports` entry reaches. TypeScript could never open them, because a deep import is refused by `exports`. Every entry's types are unchanged. The ten packages drop 71 files and 118,312 bytes between them, burgee 35 files and 76,504 bytes, which takes its tarball from 251,814 to 225,278 bytes gzipped.
+
 ## 1.0.5
 
 ### Patch Changes

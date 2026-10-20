@@ -30,13 +30,14 @@
  * until the branch runs. The same definition B4 uses, from the same function, because two
  * definitions of "bundled bytes" in one repository is how the two disagree.
  *
- * `--check` regenerates into memory and exits non-zero if the committed page differs, which is
- * what makes "do not edit by hand" true rather than aspirational.
+ * `--check` regenerates into memory and exits non-zero if the committed page differs anywhere
+ * but its generation stamp, which is what makes "do not edit by hand" true rather than
+ * aspirational. CI runs it after the build (compat.yml, `ratchet`).
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { initialBytes, type Metafile } from 'benchmarks/axes/weight.js';
 import { resolvePackage } from 'benchmarks/resolve.js';
@@ -207,12 +208,12 @@ const num = (n: number): string => n.toLocaleString('en-US');
 /**
  * The date and commit the numbers were taken at, on the page.
  *
- * This page is generated from `dist/`, not from a committed results document, so its inputs
- * change on every commit that changes a byte. A `--check` gate on it would therefore go red on
- * every pull request that touches any package — which is a gate nobody can keep green and so
- * a gate nobody reads. What is gated instead is **completeness** (every published subpath has a
- * row — `subpath-weight-lock.test.ts`) and **staleness** (this stamp is not months old), which
- * is the shape `claim-table-lock.test.ts` already uses for the same reason.
+ * This page is generated from `dist/`, so a pull request that changes a byte of a published
+ * entry changes the page, and has to commit it: `--check` runs after the build in compat.yml's
+ * required `ratchet` job and compares every line but this one ({@link staleRows}). It was once
+ * judged a gate nobody could keep green and run nowhere, and the page then printed #1139's
+ * commander entries 5 B light while `OVER_INCUMBENT` read its ratchet from them. Completeness
+ * (`subpath-weight-lock.test.ts`) and the age of this stamp are still checked as well.
  */
 /** `YYYY-MM-DD`, the first ten characters of an ISO timestamp. */
 const ISO_DATE = 10;
@@ -276,6 +277,28 @@ ${sections}
 `;
 }
 
+/** The one line that changes on every run without anything having been measured differently. */
+const STAMP = /^Generated \d{4}-\d{2}-\d{2} at commit `[^`]*`\.$/m;
+
+/**
+ * Where the committed page and a fresh measurement disagree, line by line, the stamp aside.
+ *
+ * The stamp is the date and commit the numbers were taken at, so comparing it would fail every
+ * run on a day after the page was written, and nothing could keep that gate green. Every other
+ * line is a measurement or the prose around one, and is compared exactly: #1139 added 5 B to
+ * all three commander entries, and the page went on printing the old numbers, because this
+ * check compared the whole page and so ran nowhere.
+ */
+export function staleRows(committed: string, fresh: string): string[] {
+  const a = committed.replace(STAMP, '').split('\n');
+  const b = fresh.replace(STAMP, '').split('\n');
+  const out: string[] = [];
+  for (let i = 0; i < Math.max(a.length, b.length); i += 1) {
+    if (a[i] !== b[i]) out.push(`page: ${a[i] ?? '(nothing)'}\n  this build: ${b[i] ?? '(nothing)'}`);
+  }
+  return out;
+}
+
 function main(): void {
   const check = process.argv.includes('--check');
   rmSync(SCRATCH, { recursive: true, force: true });
@@ -292,9 +315,13 @@ function main(): void {
     return;
   }
   const committed = statSync(PAGE, { throwIfNoEntry: false }) === undefined ? '' : readFileSync(PAGE, 'utf8');
-  if (committed === text) return;
-  process.stderr.write(`✖ ${PAGE.replace(`${REPO_ROOT}/`, '')} is not what \`npm run weight:page\` produces.\n  Run it and commit the result — the page says "Do not edit by hand" and this is what makes that true.\n`);
+  const stale = staleRows(committed, text);
+  if (stale.length === 0) return;
+  process.stderr.write(
+    `✖ ${PAGE.replace(`${REPO_ROOT}/`, '')} is not what \`npm run weight:page\` produces from this build:\n  ${stale.join('\n  ')}\n` +
+      `  Run it and commit the result — the page says "Do not edit by hand" and this is what makes that true.\n`,
+  );
   process.exitCode = 1;
 }
 
-main();
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) main();

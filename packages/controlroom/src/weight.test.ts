@@ -54,9 +54,13 @@ const RULES: Record<string, EntryRule> = {
   // Raised 2026-10-05 for R10 and R20, measured 20,485 B: `open()` resolves registered keymaps
   // and panes (the plugin registry and its validation) and hosts caique's line editor, so the
   // root reaches `plugin.js`, `caique/editor` and `flagstaff/plugin`'s registry.
+  // Raised 2026-10-19 for controlroom-scroll-pane, measured 24,149 B against main's 20,485
+  // (D-20261019-controlroom-scroll-pane-weight): scroll state and its six actions in the
+  // reducer, `fit` from an offset with the `↓ N` hint, `extents()` for the reducer, the static
+  // frame grown to every line (R6), and the scroll keys in the default keymap, and `extents` exported beside `reduce`.
   '.': {
     allow: ['caique/editor', 'caique/keys', 'closeout', 'closeout/cursor', 'flagstaff/loop', 'flagstaff/plugin', 'linegauge', 'roundel/policy'],
-    budget: 21_000,
+    budget: 24_200,
     denied: ['react', 'react-reconciler', ...INK],
   },
   // The Ink drop-in (R11, R12): the host config, the flexbox subset, the output grid, Ink's
@@ -68,7 +72,9 @@ const RULES: Record<string, EntryRule> = {
   // caique's own `canonical()`, so no second key grammar lives here.
   './plugin': {
     allow: ['caique/keys'],
-    budget: 4_200, // measured 3,965 B on 2026-10-05
+    // measured 3,965 B on 2026-10-05; raised 2026-10-19, measured 4,246 B, for the six scroll
+    // keys and their labels in the default keymap (D-20261019-controlroom-scroll-pane-weight)
+    budget: 4_250,
     denied: ['react', 'react-reconciler', ...INK],
   },
   './ink': {

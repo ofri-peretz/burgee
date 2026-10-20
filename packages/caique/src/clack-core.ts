@@ -28,6 +28,7 @@ import { styleText } from 'node:util';
 import { hideCursor, rawMode } from 'closeout/cursor';
 import exitHook from 'closeout/exit-hook';
 import { wrap } from 'linegauge/wrap';
+import { type Runtime as PolicyRuntime } from 'roundel/policy';
 
 import { edit } from './line-edit.js';
 import { processFacts, processRuntime } from './runtime.js';
@@ -45,6 +46,13 @@ export interface CommonOptions {
   output?: NodeJS.WritableStream & SizedOutput;
   signal?: AbortSignal;
   withGuide?: boolean;
+  /**
+   * The caller's runtime — burgee's `ctx.runtime` — and the one way `--quiet` reaches this port
+   * (`caique-quiet-seam` R1). With `quiet`, the writers that decorate draw nothing; prompts
+   * ignore it. Its `env` is the one `CI` is read from. It carries no streams, so `input` and
+   * `output` still default to the process's. Never read from the environment: a caller passes it.
+   */
+  runtime?: PolicyRuntime;
 }
 
 type Primitive = Readonly<string | boolean | number>;
@@ -142,8 +150,9 @@ export const unicode = unicodeSupported();
  * Whether `CI` is the string `true`, which is the test clack makes. This and the glyph table
  * above stay clack's rules rather than roundel's: `interactive()` asks whether a person can
  * answer, which clack never asks, and clack's table counts `CI` where roundel's `unicode()` does not.
+ * A caller's runtime is read when one is passed (`caique-quiet-seam` R1), the process's otherwise.
  */
-export const isCI = (): boolean => processRuntime().env['CI'] === 'true';
+export const isCI = (runtime: { env: PolicyRuntime['env'] } = processRuntime()): boolean => runtime.env['CI'] === 'true';
 /** Whether a stream is a terminal. */
 export const isTTY = (output: { isTTY?: boolean }): boolean => output.isTTY === true;
 /** The first glyph where the terminal draws unicode, the second where it does not. */
@@ -207,6 +216,9 @@ export function runValidation<T>(validate: Validate<T>, value: T | undefined): M
   const result = validate['~standard'].validate(value);
   return result instanceof Promise ? result.then(firstIssue) : firstIssue(result);
 }
+
+/** What a validator threw, as the problem to show: its message, or the setting when it has none. */
+const thrown = (reason: unknown): string => (reason instanceof Error && reason.message !== '' ? reason.message : settings.messages.error);
 
 /** A Standard Schema result's first problem, which is the one a prompt has room to show. */
 function firstIssue(result: { issues?: readonly { message: string }[] | undefined }): string | undefined {
@@ -299,7 +311,8 @@ class Session<T> {
     private readonly definition: Definition<T>,
     private readonly input: Raw,
     private readonly output: Output,
-    private readonly settle: (answer: T | symbol) => void,
+    /** The prompt's promise: answered on close, or rejected with a throw from the prompt's own code. */
+    private readonly answer: { resolve: (answer: T | symbol) => void; reject: (reason: unknown) => void },
   ) {
     this.prompt = { state: 'initial', value: definition.initialValue, error: '', userInput: '', cursor: 0 };
     if (definition.initialUserInput !== undefined) {
@@ -317,12 +330,14 @@ class Session<T> {
       this.close();
       return;
     }
-    signal?.addEventListener('abort', this.onAbort, { once: true });
+    signal?.addEventListener('abort', this.cancel, { once: true });
     emitKeypressEvents(this.input, DECODER);
     this.input.on('keypress', this.onKeypress);
     this.unraw = rawMode(this.input, exitHook);
     this.input.resume();
-    this.draw();
+    this.guarded(() => {
+      this.draw();
+    });
   }
 
   /** Draw the current frame, if it changed. The first draw hides the cursor and registers its return. */
@@ -339,15 +354,20 @@ class Session<T> {
     this.previous = frame;
   }
 
-  private close(): void {
+  /** Listeners off, raw mode off, the cursor back: the terminal as the prompt found it. */
+  private release(): void {
     this.closed = true;
     this.input.removeListener('keypress', this.onKeypress);
-    this.definition.signal?.removeEventListener('abort', this.onAbort);
+    this.definition.signal?.removeEventListener('abort', this.cancel);
     this.output.write('\n');
     this.unraw();
     this.input.pause();
     this.restore();
-    this.settle(this.prompt.state === 'submit' ? (this.prompt.value as T) : CANCEL_SYMBOL);
+  }
+
+  private close(): void {
+    this.release();
+    this.answer.resolve(this.prompt.state === 'submit' ? (this.prompt.value as T) : CANCEL_SYMBOL);
   }
 
   private finish(): void {
@@ -356,20 +376,51 @@ class Session<T> {
     this.close();
   }
 
-  private readonly onAbort = (): void => {
-    this.prompt.state = 'cancel';
-    this.finish();
+  /**
+   * A throw from the prompt's own code — a render, a hook, `finalize` — rejects the prompt with
+   * it, after giving the terminal back. Nothing awaits the keypress listener and nothing catches
+   * for the abort listener, so left alone it would kill the process and leave raw mode on.
+   * Keys already queued may throw again before this runs; the first one closed the prompt.
+   */
+  private readonly crash = (reason: unknown): void => {
+    if (!this.closed) this.release();
+    this.answer.reject(reason);
   };
 
-  /** Validate, then submit — or stay open with the problem shown. */
+  private guarded(step: () => void): void {
+    try {
+      step();
+    } catch (reason) {
+      this.crash(reason);
+    }
+  }
+
+  /** An abort, or a cancel key while the validator is out: cancel, and close. */
+  private readonly cancel = (): void => {
+    this.prompt.state = 'cancel';
+    this.guarded(() => {
+      this.finish();
+    });
+  };
+
+  /**
+   * Validate, then submit — or stay open with the problem shown. A validator that throws or
+   * rejects failed the check: nothing awaits this listener, so a rejection out of it is an
+   * unhandledRejection, which kills the process. clack lets it out; this shows it instead.
+   */
   private async submit(): Promise<void> {
     const { validate } = this.definition;
     if (validate !== undefined) {
-      let problem = runValidation(validate, this.prompt.value);
+      let problem: MaybePromise<string | Error | undefined>;
+      try {
+        problem = runValidation(validate, this.prompt.value);
+      } catch (reason) {
+        problem = thrown(reason);
+      }
       if (problem instanceof Promise) {
         this.prompt.state = 'validating';
         this.draw();
-        problem = await problem;
+        problem = await problem.catch(thrown);
       }
       if (problem !== undefined && problem !== '') {
         this.prompt.error = problem instanceof Error ? problem.message : problem;
@@ -387,9 +438,19 @@ class Session<T> {
     if (edit(prompt, char, key)) definition.onInput?.(prompt);
   }
 
-  private readonly onKeypress = async (char: string | undefined, key: Keypress = {}): Promise<void> => {
+  private readonly onKeypress = (char: string | undefined, key: Keypress = {}): void => {
+    this.react(char, key).catch(this.crash);
+  };
+
+  private async react(char: string | undefined, key: Keypress): Promise<void> {
     const { definition, prompt } = this;
-    if (prompt.state === 'validating') return;
+    // Keys wait for the verdict, except cancel. In raw mode Ctrl-C is a byte, not a signal, so
+    // dropping it here strands a person behind a validator that never answers. clack drops it
+    // too, but its readline closes and leaves raw mode, so a second Ctrl-C kills the process.
+    if (prompt.state === 'validating') {
+      if (cancels(char, key)) this.cancel();
+      return;
+    }
     this.type(char, key);
     if (prompt.state === 'error') prompt.state = 'active';
     definition.onKey?.(prompt, char, key, actionOf(key, definition.track === true));
@@ -401,7 +462,7 @@ class Session<T> {
     if (cancels(char, key)) prompt.state = 'cancel';
     if (prompt.state === 'submit' || prompt.state === 'cancel') this.finish();
     else this.draw();
-  };
+  }
 }
 
 /**
@@ -415,8 +476,8 @@ export function run<T>(definition: Definition<T>): Promise<T | symbol> {
   const runtime = processRuntime();
   const input: Raw = definition.input ?? runtime.stdin;
   const output = definition.output ?? runtime.stdout;
-  return new Promise((resolve) => {
-    new Session(definition, input, output, resolve).open();
+  return new Promise((resolve, reject) => {
+    new Session(definition, input, output, { resolve, reject }).open();
   });
 }
 

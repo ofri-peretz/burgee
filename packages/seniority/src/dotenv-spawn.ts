@@ -33,14 +33,31 @@ export function quoteWindowsArgument(value: string): string {
 const isLetterOrDigit = (code: number): boolean => (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
 const ASCII_END = 128;
 
-/** Protect a token from cmd's parser, one layer of carets per pass; quotes survive for the program. */
+/**
+ * Whether cmd.exe can carry `value` at all. A line break ends cmd's command line, and a caret
+ * before one is a continuation that escapes the character after it instead, so `\n&x` would leave
+ * the `&` live; NUL ends the string. No escaping carries them, so they are refused, as Rust's std
+ * refuses them for batch files (CVE-2024-24576). Every other string is carried exactly.
+ */
+export const isCmdEscapeSafe = (value: string): boolean => !/[\0\n\r]/.test(value);
+
+/**
+ * Protect a token from cmd's parser, one layer of carets per pass; quotes survive for the program.
+ *
+ * Every ASCII character but a letter, a digit and `\ / . _ -` is careted, so cmd's tokenizer
+ * sees no operator and no quote, and a superset of cross-spawn's metacharacters is covered. `:`
+ * is careted too, unlike dotenv 18: then every `%…%` span cmd's percent pass can see names a
+ * variable ending in `^` even with a `:~` or `:=` modifier, and `spawnCommand` refuses an
+ * environment holding such a name, so nothing expands. A token cmd cannot carry throws.
+ */
 export function protectShellToken(token: string, passes = 1): string {
+  if (!isCmdEscapeSafe(token)) throw new TypeError('cmd.exe cannot carry a line break or NUL in the command or its arguments');
   let out = token;
   for (let pass = 0; pass < passes; pass++) {
     const output: string[] = [];
     for (const character of out) {
       const code = character.codePointAt(0) as number;
-      if (!isLetterOrDigit(code) && !'\\/:._-'.includes(character) && code < ASCII_END) output.push('^');
+      if (!isLetterOrDigit(code) && !'\\/._-'.includes(character) && code < ASCII_END) output.push('^');
       output.push(character);
     }
     out = output.join('');
@@ -88,6 +105,9 @@ export function spawnCommand(command: string, args: readonly string[], options: 
   const file = resolveWindowsCommand(command, env, typeof options.cwd === 'string' ? options.cwd : context.cwd());
   // A native executable gets its arguments quoted by Node, with no cmd.exe in between.
   if (file !== undefined && /\.(?:exe|com)$/i.test(file)) return cp.spawn(file, args, options);
+  // From here cmd.exe reads the line, and its percent pass would expand a name ending in a caret.
+  const caret = Object.keys(env).find((name) => name.endsWith('^'));
+  if (caret !== undefined) throw new TypeError(`cmd.exe would expand %${caret}%, a name ending in a caret`);
   // Batch files and npm's shims reparse what `%*` forwards, so they get a second pass.
   const batchFile = /\.(?:bat|cmd)$/i.test(file ?? command);
   const tokens = [protectShellToken(path.normalize(file ?? command))];

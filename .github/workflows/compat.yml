@@ -7,10 +7,20 @@
 #             hard gate everywhere; the controls are informational off Linux, because the
 #             hosts' suites are themselves OS-sensitive and a baseline recorded on one OS
 #             is not a contract for another.
+#   floor   — C3 for the two `engines` floors, the published suites only.
+#
+# On a pull request `matrix` and `floor` run only the affected packages: each one the PR changed
+# and each one that depends on one, from `scripts/affected.mts` (D-20261012-ci-affected-pr-lanes).
+# A PR that changes no package still starts every cell, and each says so in one step and passes.
+# A push to main, the merge queue, a dispatch and the `run-full-ci` label run everything, as do
+# root changes (workflows, the lockfile, root configs, `scripts/`). The ratchet is never
+# filtered: it grades every host, and the scoreboard is the product.
 name: Compatibility
 
 on:
   pull_request:
+    # `labeled`, so adding `run-full-ci` re-runs the cells with everything selected.
+    types: [opened, reopened, synchronize, labeled]
   push:
     branches: [main]
   # `ratchet` is a REQUIRED context as of this change. A merge queue builds
@@ -18,7 +28,21 @@ on:
   # THAT event; without this trigger the check never reports and the entry sits in the
   # queue forever with no error. `scripts/lint-workflows.ts` enforces the pairing.
   merge_group:
+  # `os` and `node` pick one cell (windows-lane-holds R1): measuring one Windows cell ten times
+  # should not cost ten full matrices. Left at `all`, a dispatch runs everything, as before —
+  # the Version PR's fallback (changesets-pr.yml) dispatches with no inputs and gets the ratchet.
   workflow_dispatch:
+    inputs:
+      os:
+        description: Run only this OS's cells (the ratchet is skipped when a cell is picked)
+        type: choice
+        default: all
+        options: [all, ubuntu-latest, macos-latest, windows-latest]
+      node:
+        description: Run only this Node's cells (24 is `matrix`, 20.19.0 and 22.13.0 are `floor`)
+        type: choice
+        default: all
+        options: [all, '24', '20.19.0', '22.13.0']
 
 concurrency:
   group: compat-${{ github.ref }}
@@ -30,6 +54,8 @@ permissions:
 jobs:
   ratchet:
     name: Ratchet · each host's suite against burgee
+    # A dispatch that picks a cell is a measurement of that cell, not a grade.
+    if: ${{ (!inputs.os || inputs.os == 'all') && (!inputs.node || inputs.node == 'all') }}
     runs-on: ubuntu-latest
     # 30, not 20: ink 8's suite is 1,309 cases run one file at a time with 78 of them in a
     # PTY, measured at 268 s for the control and 115 s for the drop-in on darwin, and ink 6.8
@@ -43,6 +69,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
       - name: Build
+        id: build
         run: npx turbo run build --filter='./packages/*'
       - name: Grade burgee (fails below baseline)
         shell: bash
@@ -71,6 +98,13 @@ jobs:
       # was written; this is the same check on the other generated page.
       - name: The published page is the one these results generate
         run: npm run compat:page -- --check
+      # The same check on /docs/weight, which is measured from this build's `dist/`. Its own
+      # lock only asked that every subpath have a row, so #1139 added 5 B to every commander
+      # entry and the page, and the `OVER_INCUMBENT` ratchet read from it, kept the old number.
+      # It compares every line but the generation stamp. About 40 s of esbuild.
+      - name: The published weight page is the one this build generates
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npm run weight:page -- --check
       - name: Summary
         if: always()
         run: |
@@ -109,28 +143,75 @@ jobs:
             echo "already open as #$EXISTING"
           fi
 
+  # The packages `matrix` and `floor` run, computed once for both (`scripts/affected.mts`). The
+  # script reads the event itself: anything but a pull request, or the `run-full-ci` label,
+  # selects everything. `packages` is a JSON array of names under `packages/`; `full` is true
+  # when everything was selected, and the cells then run exactly what they ran before.
+  affected:
+    name: Affected packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      full: ${{ steps.set.outputs.full }}
+      packages: ${{ steps.set.outputs.packages }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+        with:
+          turbo-cache: "false"
+      - name: The affected set
+        id: set
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
+          FULL: ${{ contains(github.event.pull_request.labels.*.name, 'run-full-ci') }}
+        run: |
+          set -euo pipefail
+          args=(--event "$EVENT" --base "$BASE")
+          if [ "$FULL" = true ]; then args+=(--full); fi
+          set_json=$(node scripts/affected.mts "${args[@]}")
+          echo "$set_json"
+          echo "full=$(jq -c .full <<<"$set_json")" >> "$GITHUB_OUTPUT"
+          echo "packages=$(jq -c .packages <<<"$set_json")" >> "$GITHUB_OUTPUT"
+
   matrix:
     name: Node ${{ matrix.node }} · ${{ matrix.os }}
+    needs: affected
+    # Skipped only by a dispatch that picked a `floor` Node; never on a push or a pull request.
+    if: ${{ !inputs.node || inputs.node == 'all' || inputs.node == '24' }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    env:
+      FULL: ${{ needs.affected.outputs.full }}
+      PACKAGES: ${{ needs.affected.outputs.packages }}
+      # Every suite that spreads `timeouts` writes each case's duration and timeout here
+      # (windows-lane-holds R1); the last two steps upload it and name the cases past half.
+      VITEST_DURATIONS_DIR: ${{ github.workspace }}/vitest-durations
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        # Every even major `engines` admits (C3). 26 was narrowed out on 2026-09-08 (#64) to
-        # halve the matrix while the output stack landed; it landed, and 26 came back on
-        # 2026-09-23 after the whole suite passed on v26.10.0 locally. 26 is Current until its
-        # LTS promotion in late October — graded now so it is not first graded as an LTS.
-        node: [24, 26]
+        os: ${{ fromJSON((inputs.os && inputs.os != 'all') && format('["{0}"]', inputs.os) || '["ubuntu-latest","macos-latest","windows-latest"]') }}
+        # The active LTS only (D-20261020-node-26-waits-for-lts). 26 is Current until its LTS
+        # promotion; it rejoins as `[24, 26]` the day it becomes Active LTS, not before.
+        node: [24]
     steps:
+      # Every cell starts and reports, so a PR that changes no package is green here, not absent.
+      - name: No package affected — nothing to run on this cell
+        if: env.PACKAGES == '[]'
+        run: echo "This pull request changes no package and no file every package consumes; the ratchet and the locks still run."
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: env.PACKAGES != '[]'
       # The shared setup action pins Node from .nvmrc; a matrix needs the version varied,
       # so this job installs Node directly.
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
+        if: env.PACKAGES != '[]'
         with:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci --ignore-scripts
+        if: env.PACKAGES != '[]'
       # Same `turbo run build`, the same 24 tasks with the same hashes, on every cell. On
       # macOS it runs two tasks at a time instead of turbo's default ten. macos-latest has
       # three cores, and ten concurrent `next build`s (every docs app) oversubscribe them:
@@ -143,17 +224,59 @@ jobs:
       # Quality (Full) runs, 2026-10-06), the shape of ten `next build`s running out of memory.
       # `scripts/turbo-concurrency-lock.test.ts` holds every unfiltered build to a cap.
       - run: npm run build -- --concurrency=${{ matrix.os == 'macos-latest' && '2' || '4' }}
+        if: env.FULL == 'true'
       # npm appends the flag to the script's last command, `turbo run test`. Linux runs four;
       # Windows and macOS run two. At the default ten, Windows' Node 26 cell failed 2 of 10 runs
       # on timing alone, each time a different test: vendor-run, ink-alias, completions.
       - name: Our suite (hard gate on every cell)
+        if: env.FULL == 'true'
         run: npm test -- --concurrency=${{ matrix.os == 'ubuntu-latest' && '4' || '2' }}
+      # A pull request's subset. Every package is built, not only the affected ones, and no docs
+      # app: a suite may import a package it does not declare (the `coverage` job's rule in
+      # quality-full.yml, from #827). Then the repository's locks and each affected suite.
+      # The root suite runs whole and starts the built demo (`clispec-document`, `mcp-config-block`),
+      # so the demo is built too: without it every PR that moved no package's source went red here
+      # (#1143, #1145, #1155). `scripts/root-suite-build-scope-lock.test.ts` holds the two together.
+      - name: Build every package and the demo the root suite runs (affected subset)
+        if: env.FULL != 'true' && env.PACKAGES != '[]'
+        run: npx turbo run build --filter='./packages/*' --filter=demo-cli-burgee --concurrency=${{ matrix.os == 'macos-latest' && '2' || '4' }}
+      - name: Our suite, affected packages only (hard gate on every cell)
+        if: env.FULL != 'true' && env.PACKAGES != '[]'
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Affected: $PACKAGES"
+          npx vitest run --config vitest.root.config.ts
+          # A read loop: macOS runs bash 3.2, which has no bash-4 builtins (bash3-workflow-lock).
+          # The step only runs with PACKAGES non-empty, so the array is never empty under set -u.
+          filters=()
+          while IFS= read -r f; do filters+=("$f"); done < <(node -p "JSON.parse(process.env.PACKAGES).map((n) => '--filter=' + n).join('\\n')")
+          npx turbo run test "${filters[@]}" --concurrency=${{ matrix.os == 'ubuntu-latest' && '4' || '2' }}
+      # The controls grade the real packages through compat-oracle, so only it can move them.
       - name: Controls (informational off Linux)
+        if: env.FULL == 'true' || contains(fromJSON(env.PACKAGES), 'compat-oracle')
         continue-on-error: ${{ matrix.os != 'ubuntu-latest' }}
         run: node packages/compat-oracle/dist/bin.js --control
+      # windows-lane-holds R1, R2: the per-case durations, kept whatever the cell's verdict, and the
+      # cases above half their timeout named in the summary. Informational until the cases
+      # intent names are fixed; then the half-budget check becomes a gate.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: vitest-durations-${{ github.job }}-${{ matrix.os }}-node${{ matrix.node }}
+          path: vitest-durations
+          if-no-files-found: ignore
+          retention-days: 30
+      - name: Cases above half their timeout (informational)
+        if: always() && hashFiles('vitest-durations/*.json') != ''
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          { echo '## Cases above half their timeout'; echo; echo '```'; node scripts/slow-cases.mts vitest-durations; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
 
   # C3 for the lower half of `engines` (D-132). The nine published packages declare
-  # `^20.19.0 || >=22.13.0`; the job above covers 24 and 26, this one the two floors,
+  # `^20.19.0 || >=22.13.0`; the job above covers 24, this one the two floors,
   # exact — a floor is only a claim if the floor itself is what runs. 20.19 and 22.13 are
   # where `require(esm)` loads without a warning, which is what K2's CommonJS promise needs.
   #
@@ -161,25 +284,42 @@ jobs:
   # dist npm ships is what a Node 20 or 22 user runs. The workspace tooling (root tests,
   # compat-oracle, docs) stays on 24 — its `engines` says so — so only the published
   # suites run here. Hard gate on every cell, the same policy as `matrix`.
+  #
+  # On a pull request, only the affected published packages (every package is still built).
   floor:
     name: Node ${{ matrix.node }} · ${{ matrix.os }} · published suites
+    needs: affected
+    # Skipped only by a dispatch that picked a `matrix` Node; never on a push or a pull request.
+    if: ${{ !inputs.node || inputs.node == 'all' || inputs.node == '20.19.0' || inputs.node == '22.13.0' }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    env:
+      PACKAGES: ${{ needs.affected.outputs.packages }}
+      VITEST_DURATIONS_DIR: ${{ github.workspace }}/vitest-durations
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: ${{ fromJSON((inputs.os && inputs.os != 'all') && format('["{0}"]', inputs.os) || '["ubuntu-latest","macos-latest","windows-latest"]') }}
         node: ['20.19.0', '22.13.0']
+        exclude: ${{ fromJSON(inputs.node == '20.19.0' && '[{"node":"22.13.0"}]' || inputs.node == '22.13.0' && '[{"node":"20.19.0"}]' || '[]') }}
     steps:
+      - name: No package affected — nothing to run on this cell
+        if: env.PACKAGES == '[]'
+        run: echo "This pull request changes no package and no file every package consumes; the ratchet and the locks still run."
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: env.PACKAGES != '[]'
       - uses: ./.github/actions/setup
+        if: env.PACKAGES != '[]'
       - name: Build on the .nvmrc Node — the dist npm ships
+        if: env.PACKAGES != '[]'
         run: npx turbo run build --filter='./packages/*'
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
+        if: env.PACKAGES != '[]'
         with:
           node-version: ${{ matrix.node }}
           cache: npm
-      - name: Every published package's suite (hard gate on every cell)
+      - name: Every affected published package's suite (hard gate on every cell)
+        if: env.PACKAGES != '[]'
         shell: bash
         run: |
           set -uo pipefail
@@ -188,8 +328,27 @@ jobs:
           for dir in packages/*/; do
             name=$(basename "$dir")
             [ "$(node -p "require('./${dir}package.json').private === true")" = true ] && continue
+            [ "$(node -p "process.env.PACKAGES.includes(JSON.stringify(require('./${dir}package.json').name))")" = true ] || continue
             echo "::group::$name"
             (cd "$dir" && npx vitest run) || failed+=("$name")
             echo "::endgroup::"
           done
           if [ ${#failed[@]} -gt 0 ]; then echo "::error::red on Node $(node --version): ${failed[*]}"; exit 1; fi
+      # windows-lane-holds R1, R2: the per-case durations, kept whatever the cell's verdict, and the
+      # cases above half their timeout named in the summary. Informational until the cases
+      # intent names are fixed; then the half-budget check becomes a gate.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: vitest-durations-${{ github.job }}-${{ matrix.os }}-node${{ matrix.node }}
+          path: vitest-durations
+          if-no-files-found: ignore
+          retention-days: 30
+      - name: Cases above half their timeout (informational)
+        if: always() && hashFiles('vitest-durations/*.json') != ''
+        continue-on-error: true
+        # This cell's Node is a floor (20.19, 22.13), which does not strip types; tsx does.
+        shell: bash
+        run: |
+          set -o pipefail
+          { echo '## Cases above half their timeout'; echo; echo '```'; npx --no tsx scripts/slow-cases.mts vitest-durations; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"

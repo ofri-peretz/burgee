@@ -151,7 +151,7 @@
           "why": "Every program prints a completion script for each of the four shells, generated from the same declaration as its help.",
           "ours": {
             "status": "yes",
-            "test": "packages/burgee/src/completions.test.ts",
+            "test": "packages/burgee/src/completions-shells.test.ts",
             "title": "each shell exercises its script (D4)"
           },
           "incumbents": {

@@ -46,6 +46,9 @@ const PAIRS: readonly (readonly [string, string])[] = [
   ['rc', 'seniority/rc'],
   ['terminal-link', 'paratext/terminal-link'],
   ['yargs-parser', 'burgee/yargs/parser'],
+  ['@commander-js/extra-typings', 'burgee/commander/extra-typings'],
+  // ES modules on both sides: `require()` returns each one's namespace, `default` and `createSupportsColor`.
+  ['supports-color', 'roundel/supports-color'],
 ];
 
 /** What `require()` returns, or `undefined` when the specifier is not installed here. */

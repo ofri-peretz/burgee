@@ -22,19 +22,30 @@
  * and that pair predates this feature, which is what makes it a gate rather than a fixture.
  * `migrate-demo.test.ts` runs it.
  */
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
-import { describe, expect, it, vi } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import { ExitCode } from './exit-code.js';
 import { bindingsOf, DirtyTreeError, FACADE_EXPORTS, MAPPING, migrate, packageOf, rewriteSource, scan, sourceFiles, workingTree } from './migrate.js';
 
+/**
+ * Every project this file makes, handed after its last test to an `rm` of its own that the hook does
+ * not wait for — under the pre-push load, unlinking a scratch directory from Node took 64.9 s
+ * (#1137). Before this they were never removed: ~15k `burgee-migrate-*` a day in `$TMPDIR`.
+ */
+const scratch: string[] = [];
+afterAll(() => {
+  if (scratch.length > 0 && process.platform !== 'win32') spawn('rm', ['-rf', ...scratch], { detached: true, stdio: 'ignore' }).unref();
+});
+
 /** A project on disk, under a fresh temporary directory each time. */
 function project(files: Record<string, string>): string {
   const dir = mkdtempSync(join(tmpdir(), 'burgee-migrate-'));
+  scratch.push(dir);
   for (const [path, body] of Object.entries(files)) {
     mkdirSync(dirname(join(dir, path)), { recursive: true });
     writeFileSync(join(dir, path), body);
@@ -109,6 +120,11 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
       'find-up': 'seniority/find-up',
       onetime: 'closeout/onetime',
       'cli-cursor': 'closeout/cli-cursor',
+      'cli-truncate': 'linegauge/cli-truncate',
+      'widest-line': 'linegauge/widest-line',
+      picocolors: 'roundel/picocolors',
+      'supports-color': 'roundel/supports-color',
+      '@commander-js/extra-typings': 'burgee/commander/extra-typings',
     });
   });
 
@@ -116,6 +132,14 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
     const { source, mapped } = rewriteSource("import { hideBin } from 'yargs/helpers';\n");
     expect(source).toBe("import { hideBin } from 'burgee/yargs/helpers';\n");
     expect(mapped).toEqual([{ from: 'yargs/helpers', to: 'burgee/yargs/helpers' }]);
+  });
+
+  // `supports-color-drop-in` criterion 4. supports-color 11 exports `.` alone, so there is no
+  // deep `supports-color/browser` to map (the spec's R5, re-grounded 2026-10-19).
+  it('rewrites a supports-color default import and its `createSupportsColor` to `roundel/supports-color`', () => {
+    const { source, mapped } = rewriteSource("import supportsColor, { createSupportsColor } from 'supports-color';\n");
+    expect(source).toBe("import supportsColor, { createSupportsColor } from 'roundel/supports-color';\n");
+    expect(mapped).toEqual([{ from: 'supports-color', to: 'roundel/supports-color' }]);
   });
 
   it('every specifier it can produce is a subpath its package actually publishes', () => {
@@ -320,6 +344,49 @@ describe('A1 — two independent sources, and they are allowed to disagree', () 
     const dir = project({ 'package.json': JSON.stringify({ name: 'x', devDependencies: { commander: '^15.0.0' } }), 'src/a.ts': "import 'commander';\n" });
     expect((await migrate({ dir, status: clean })).detected.declared).toEqual(['commander']);
   });
+
+  // migrate-older-majors R1: qrcode's crash is in `bin/qrcode`, which has no extension, so the walk never read it.
+  it('A1 — scans an extensionless bin that package.json names, and rewrites it on a claimed major', async () => {
+    const bin = "#!/usr/bin/env node\nconst chalk = require('chalk');\n";
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x', bin: { x: './bin/cli' }, dependencies: { chalk: '^6.0.0' } }), 'bin/cli': bin });
+    const report = await migrate({ dir, status: clean });
+    expect(read(dir, 'bin/cli')).toBe("#!/usr/bin/env node\nconst chalk = require('roundel/chalk');\n");
+    expect(report.detected.imported).toEqual(['chalk']);
+    expect(report.dependencies.removable).toEqual(['chalk']);
+  });
+
+  it('A1 — reads a bin given as a string, and a source-extension bin under a generated tree is not read', async () => {
+    const one = project({ 'package.json': JSON.stringify({ name: 'x', bin: 'cli', dependencies: { chalk: '^6.0.0' } }), cli: "require('chalk');\n" });
+    await migrate({ dir: one, status: clean });
+    expect(read(one, 'cli')).toBe("require('roundel/chalk');\n");
+    const windows = project({ 'package.json': JSON.stringify({ name: 'x', bin: { x: 'bin\\run' }, dependencies: { chalk: '^6.0.0' } }), 'bin/run': "require('chalk');\n" });
+    await migrate({ dir: windows, status: clean });
+    expect(read(windows, 'bin/run')).toBe("require('roundel/chalk');\n");
+    const built = project({ 'package.json': JSON.stringify({ name: 'x', bin: './dist/cli.js', dependencies: { chalk: '^6.0.0' } }), 'dist/cli.js': "require('chalk');\n" });
+    expect((await migrate({ dir: built, status: clean })).detected.imported).toEqual([]);
+  });
+
+  // Each path names a file that would import chalk if it were read: the project is `app/`, beside an `x` outside it.
+  it.each([
+    ['outside the project', '../x'],
+    ['absolute', '/bin/run'],
+    ['missing', 'bin/none'],
+    ['a directory', 'bin'],
+    ['not source', 'bin/cli.sh'],
+    ['under node_modules', 'node_modules/.bin/x'],
+    ['not a string', 7],
+  ])('A1 — ignores a bin path that is %s', async (_, path) => {
+    const chalk = "require('chalk')\n";
+    const dir = project({ 'app/package.json': JSON.stringify({ name: 'x', bin: { x: path }, dependencies: { chalk: '^6.0.0' } }), 'app/bin/cli.sh': chalk, 'app/bin/run': chalk, 'app/node_modules/.bin/x': chalk, x: chalk });
+    const report = await migrate({ dir: join(dir, 'app'), status: clean });
+    expect(report.detected.imported).toEqual([]);
+  });
+
+  it('A1 — counts a bin the walk already found once, however many names point at it', async () => {
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x', bin: { a: './bin/cli.js', b: 'bin/cli.js', c: 'bin\\cli', d: './bin/cli' }, dependencies: { chalk: '^6.0.0' } }), 'bin/cli.js': "require('chalk');\n", 'bin/cli': "require('chalk');\n" });
+    const report = await migrate({ dir, status: clean });
+    expect(report.mapped).toEqual([{ from: 'chalk', to: 'roundel/chalk', imports: 2, files: 2 }]);
+  });
 });
 
 describe('A7 — the numbers in the report are read, not typed', () => {
@@ -371,13 +438,44 @@ describe('A8 — the exit code says whether anything was left undone', () => {
     const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { commander: '^15.0.0' } }), 'src/a.ts': "import 'commander';\n" });
     expect(Object.keys(await migrate({ dir, status: clean })).sort()).toEqual(
       // `partial`, `offMajor` and `next` joined with A12: what was left alone and why, and the command to run.
-      // `summary`, `undeclared`, `held`, `transitive` and `releaseAge` joined with U12.
-      ['changed', 'dependencies', 'detected', 'dryRun', 'exitCode', 'files', 'graded', 'guided', 'held', 'imports', 'kept', 'mapped', 'next', 'offMajor', 'partial', 'refused', 'releaseAge', 'summary', 'transitive', 'undeclared'].sort(),
+      // `summary`, `undeclared`, `held`, `transitive` and `releaseAge` joined with U12; `preflight` with migrate-preflight R1; `dynamic` with migrate-dynamic-specifiers R6.
+      ['changed', 'dependencies', 'detected', 'dryRun', 'dynamic', 'exitCode', 'files', 'graded', 'guided', 'held', 'imports', 'kept', 'mapped', 'next', 'offMajor', 'partial', 'preflight', 'refused', 'releaseAge', 'summary', 'transitive', 'undeclared'].sort(),
     );
   });
 });
 
 describe('A12 — every drop-in the oracle grades level, in one run', () => {
+  // graded-override-targets SC3: the six stand-ins graded on 2026-10-11 move in one run, each to its façade.
+  it('rewrites a project importing find-up, onetime, cli-cursor, cli-truncate, widest-line and picocolors, each to its graded stand-in', async () => {
+    const dir = project({
+      'package.json': declares({ 'find-up': '^8.0.0', onetime: '^8.0.0', 'cli-cursor': '^5.0.0', 'cli-truncate': '^6.0.0', 'widest-line': '^6.0.0', picocolors: '^1.1.0' }),
+      'src/a.ts': [
+        "import { findUp } from 'find-up';",
+        "import onetime from 'onetime';",
+        "import cliCursor from 'cli-cursor';",
+        "import cliTruncate from 'cli-truncate';",
+        "import widestLine from 'widest-line';",
+        "import pc from 'picocolors';",
+        '',
+      ].join('\n'),
+    });
+    const report = await migrate({ dir, status: clean });
+    expect(read(dir, 'src/a.ts')).toBe(
+      [
+        "import { findUp } from 'seniority/find-up';",
+        "import onetime from 'closeout/onetime';",
+        "import cliCursor from 'closeout/cli-cursor';",
+        "import cliTruncate from 'linegauge/cli-truncate';",
+        "import widestLine from 'linegauge/widest-line';",
+        "import pc from 'roundel/picocolors';",
+        '',
+      ].join('\n'),
+    );
+    expect(report.refused).toEqual([]);
+    expect(report.dependencies.removable.sort()).toEqual(['cli-cursor', 'cli-truncate', 'find-up', 'onetime', 'picocolors', 'widest-line']);
+    expect(report.dependencies.add).toEqual(['closeout', 'linegauge', 'roundel', 'seniority']);
+  });
+
   it('rewrites the family drop-ins beside the front-ends, in one pass over one file', () => {
     // cross-spawn was a `require()` here until the case below: a require of an ES module with a
     // default gets its namespace, so that rewrite produced `spawn is not a function`.
@@ -394,7 +492,7 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
   });
 
   it('rewrites dotenv and its side-effect entry now that the drop-in is level at 18', async () => {
-    // dotenv 18.0.7's own suite passes 191 / 191 against seniority/dotenv, as it does against
+    // dotenv 18.0.8's own suite passes 193 / 193 against seniority/dotenv, as it does against
     // dotenv. `dotenv/config` is graded too — the suite spawns `import 'dotenv/config'` — so it
     // moves rather than being reported as a deep import.
     const dir = project({
@@ -416,7 +514,94 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     });
     const report = await migrate({ dir, status: clean });
     expect(read(dir, 'src/a.ts')).toBe("import 'dotenv/config';\n");
-    expect(report.offMajor).toEqual([{ from: 'dotenv', found: '^17.0.0', graded: '18.0.7' }]);
+    expect(report.offMajor).toEqual([{ from: 'dotenv', found: '^17.0.0', graded: '18.0.8', nearest: 18, sites: [], move: null }]);
+  });
+
+  it('leaves lilconfig 2 alone, and names 3.1.4 as the release its own suite grades level', async () => {
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { lilconfig: '^2.1.0' } }),
+      'src/a.ts': "import { lilconfig } from 'lilconfig';\n",
+    });
+    const report = await migrate({ dir, status: clean });
+    expect(read(dir, 'src/a.ts')).toBe("import { lilconfig } from 'lilconfig';\n");
+    expect(report.offMajor).toEqual([{ from: 'lilconfig', found: '^2.1.0', graded: '3.1.4', nearest: 3, sites: [], move: null }]);
+  });
+
+  // `supports-color-drop-in` criterion 4, end to end: 11 is the one major claimed, so a program on
+  // it moves, `require()` included (both sides hand back their namespace), and one on 10 stays.
+  it('moves a program on supports-color 11 to roundel/supports-color, and leaves 10 alone naming 11.0.0', async () => {
+    const on11 = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { 'supports-color': '^11.0.0' } }),
+      'src/a.ts': "import supportsColor, { createSupportsColor } from 'supports-color';\n",
+      'src/b.cjs': "const { createSupportsColor } = require('supports-color');\n",
+    });
+    const moved = await migrate({ dir: on11, status: clean });
+    expect(moved.offMajor).toEqual([]);
+    expect(read(on11, 'src/a.ts')).toBe("import supportsColor, { createSupportsColor } from 'roundel/supports-color';\n");
+    expect(read(on11, 'src/b.cjs')).toBe("const { createSupportsColor } = require('roundel/supports-color');\n");
+    expect(moved.refused).toEqual([]);
+    const on10 = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { 'supports-color': '^10.2.2' } }),
+      'src/a.ts': "import supportsColor from 'supports-color';\n",
+    });
+    const left = await migrate({ dir: on10, status: clean });
+    expect(read(on10, 'src/a.ts')).toBe("import supportsColor from 'supports-color';\n");
+    // migrate-older-majors: 11 is the nearest claimed major, and supports-color has no removed-API
+    // table, so there are no sites to read and no move nothing checked.
+    expect(left.offMajor).toEqual([{ from: 'supports-color', found: '^10.2.2', graded: '11.0.0', nearest: 11, sites: [], move: null }]);
+  });
+
+  // `previous-majors` R6: commander 14 is claimed (its own suite grades `burgee/commander/v14`
+  // level), so a program pinned to it moves, onto 14's entry and not 15's.
+  it.each([
+    ['declared on ^14', { 'package.json': JSON.stringify({ name: 'x', dependencies: { commander: '^14.0.0' } }) }],
+    [
+      'installed at 14.0.3',
+      {
+        'package.json': JSON.stringify({ name: 'x', dependencies: { commander: '~14.0.0' } }),
+        'node_modules/commander/package.json': JSON.stringify({ name: 'commander', version: '14.0.3' }),
+      },
+    ],
+  ])('rewrites a program pinned to commander 14 (%s) to burgee/commander/v14', async (_pin, files) => {
+    const dir = project({ ...files, 'src/a.ts': "import { Command } from 'commander';\n", 'src/b.cjs': "const { program } = require('commander');\n" });
+    const report = await migrate({ dir, status: clean });
+    expect(report.offMajor).toEqual([]);
+    expect(read(dir, 'src/a.ts')).toBe("import { Command } from 'burgee/commander/v14';\n");
+    expect(read(dir, 'src/b.cjs')).toBe("const { program } = require('burgee/commander/v14');\n");
+    expect(report.mapped).toEqual([{ from: 'commander', to: 'burgee/commander/v14', imports: 2, files: 2 }]);
+    expect(report.dependencies.removable).toEqual(['commander']);
+  });
+
+  // `previous-majors` R6, yargs half: 17 is claimed (its own suite grades `burgee/yargs/v17`
+  // level). `yargs` and `yargs/yargs` are two entries in 17 — the singleton and the factory — so
+  // each moves to its own, and `yargs/helpers` to the one helpers entry both majors share.
+  it.each([
+    ['declared on ~17.7.2', { 'package.json': JSON.stringify({ name: 'x', dependencies: { yargs: '~17.7.2' } }) }],
+    [
+      'installed at 17.7.3',
+      {
+        'package.json': JSON.stringify({ name: 'x', dependencies: { yargs: '^17.0.0' } }),
+        'node_modules/yargs/package.json': JSON.stringify({ name: 'yargs', version: '17.7.3' }),
+      },
+    ],
+  ])('rewrites a program pinned to yargs 17 (%s) to burgee/yargs/v17', async (_pin, files) => {
+    const dir = project({
+      ...files,
+      'src/a.cjs': "const yargs = require('yargs');\n",
+      'src/b.cjs': "const yargs = require('yargs/yargs');\nconst { hideBin } = require('yargs/helpers');\n",
+    });
+    const report = await migrate({ dir, status: clean });
+    expect(report.offMajor).toEqual([]);
+    expect(read(dir, 'src/a.cjs')).toBe("const yargs = require('burgee/yargs/v17');\n");
+    expect(read(dir, 'src/b.cjs')).toBe("const yargs = require('burgee/yargs/v17/yargs');\nconst { hideBin } = require('burgee/yargs/helpers');\n");
+    expect(report.dependencies.removable).toEqual(['yargs']);
+  });
+
+  it('rewrites to the current entry when the declared range names no major', async () => {
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { commander: 'latest' } }), 'src/a.ts': "import { Command } from 'commander';\n" });
+    const report = await migrate({ dir, status: clean });
+    expect(report.offMajor).toEqual([]);
+    expect(read(dir, 'src/a.ts')).toBe("import { Command } from 'burgee/commander';\n");
   });
 
   it('leaves a drop-in that is not level yet alone, and says so with its grade', async () => {
@@ -523,8 +708,8 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     const report = await migrate({ dir, status: clean });
     expect(read(dir, 'src/a.js')).toBe("const onExit = require('signal-exit');\nimport chalk from 'chalk';\nimport ora from 'flagstaff/ora';\n");
     expect(report.offMajor).toEqual([
-      { from: 'chalk', found: '4.1.2', graded: '6.0.1' },
-      { from: 'signal-exit', found: '^3.0.7', graded: '4.1.0' },
+      { from: 'chalk', found: '4.1.2', graded: '6.0.1', nearest: 6, sites: [], move: null },
+      { from: 'signal-exit', found: '^3.0.7', graded: '4.1.0', nearest: 4, sites: [], move: null },
     ]);
     expect(report.dependencies.removable).toEqual(['ora']);
   });
@@ -587,6 +772,7 @@ describe('A11 — a rewrite moves only names the target exports', () => {
       refused: [{ line: 2, specifier: 'commander', reason: 'unknown-export', names: ['NotACommanderExport'] }],
       kept: [],
       relevant: true,
+      dynamic: [],
       retained: ['commander'],
     });
   });
@@ -676,6 +862,7 @@ describe('A4 — a sibling whose state the incumbent reads refuses the file (D-2
       refused: [{ line: 2, specifier: '@clack/core', reason: 'sibling-state', fix }],
       kept: [],
       relevant: true,
+      dynamic: [],
       retained: ['@clack/prompts'],
     });
   });

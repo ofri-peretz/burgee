@@ -183,8 +183,11 @@ const RULES: Record<string, EntryRule> = {
   // family-wide floor the shared schema already stated — `|| contract < 1` in `plugin.js`.
   // Measured 13,512 on main after it merged: 12 B over, with every pre-push battery on it red.
   // 13,550 → 12,200 the same day (B5): the capability fragment without its prose. Measured
-  // 12,099 with #752's floor and #754's output-mode check.
-  './plugin': { allow: [], builtins: [], budget: 12_200, denied: ['index.js', 'builtins.js', 'ansi-escapes.js'] },
+  // 12,099 with #752's floor and #754's output-mode check. 12,200 → 12,950 on 2026-10-12
+  // (D-20261012-agent-eval-turn-budget): measured 12,927 once validate() reports every
+  // capability problem in one refusal, a missing field with a fix that shows it written —
+  // the `check` loop an agent repairs a plugin through, one run instead of one per mistake.
+  './plugin': { allow: [], builtins: [], budget: 12_950, denied: ['index.js', 'builtins.js', 'ansi-escapes.js'] },
 };
 
 /**

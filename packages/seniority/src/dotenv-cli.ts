@@ -16,7 +16,7 @@ import path from 'node:path';
 
 import { optionsFromEnv } from './dotenv-options.js';
 import { type ChildProcess, onChildEnd, spawnCommand, type SpawnOptions, spawnSync as spawnSyncDefault } from './dotenv-spawn.js';
-import dotenv from './dotenv.js';
+import dotenv, { type DotenvPopulateOutput } from './dotenv.js';
 import { ambientProcess, type CliProcess } from './runtime.js';
 
 /** dotenv's help text, to the line. */
@@ -136,7 +136,7 @@ const resolveHome = (envPath: string): string => (envPath.startsWith('~') ? path
  * dotenv's `loadEnvFiles`. A missing default `.env` is fine; any other failure — a named file
  * that is not there, one that cannot be read — stops the run before the command starts.
  */
-function loadEnvFiles(options: RunOptions, proc: CliProcess): { injected: Record<string, string>; loadedPaths: string[] } {
+function loadEnvFiles(options: RunOptions, proc: CliProcess): { injected: DotenvPopulateOutput; loadedPaths: string[] } {
   const parsedAll: Record<string, string> = {};
   const loadedPaths: string[] = [];
   const populateOptions = { override: options.override, debug: options.debug };
@@ -227,7 +227,15 @@ export function run(argv: readonly string[], proc: CliProcess = ambientProcess()
   const start = io.spawn ?? ((file: string, args: readonly string[], opts: SpawnOptions) => spawnCommand(file, args, opts, proc));
   const spawnSync = io.spawnSync ?? spawnSyncDefault;
   const [file, ...args] = parsed.command as [string, ...string[]];
-  const child = start(file, args, { stdio: 'inherit', detached: useProcessGroup });
+  let child: ChildProcess;
+  try {
+    child = start(file, args, { stdio: 'inherit', detached: useProcessGroup });
+  } catch (cause) {
+    // A command cmd.exe cannot carry is refused before anything starts: a usage error, as dotenv reports one.
+    console.error(`dotenv: ${(cause as Error).message}`);
+    proc.exitCode = 1;
+    return;
+  }
   // Windows has no POSIX process-group signals: the shell's whole tree is taken down instead.
   const forward = forwarder(child, proc, useProcessGroup, () => spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' }));
 

@@ -1,0 +1,38 @@
+{
+  "$comment": "upstream-watch R1, written by foundation-claims-watched on 2026-10-12. See packages/flagstaff/competitors.json for the field meanings. Every `seen` is null until the daily competitor pass in compat-upstream.yml fingerprints it. The drop-ins are graded `compat` claims (GRADED in burgee/src/compat.ts). cosmiconfig, dotenv and rc are the incumbents seniority's foundation ceiling is measured from (.sdlc/bands/foundation-ceilings.json); lilconfig and dotenv are the zero-dependency rivals its README compares against.",
+  ".": [
+    {
+      "package": "cosmiconfig",
+      "claim": "compat",
+      "seen": null
+    }
+  ],
+  "./dotenv": [
+    {
+      "package": "dotenv",
+      "claim": "compat",
+      "seen": null
+    }
+  ],
+  "./lilconfig": [
+    {
+      "package": "lilconfig",
+      "claim": "compat",
+      "seen": null
+    }
+  ],
+  "./rc": [
+    {
+      "package": "rc",
+      "claim": "compat",
+      "seen": null
+    }
+  ],
+  "./find-up": [
+    {
+      "package": "find-up",
+      "claim": "compat",
+      "seen": null
+    }
+  ]
+}

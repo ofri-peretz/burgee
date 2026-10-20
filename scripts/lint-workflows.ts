@@ -25,6 +25,14 @@
  *     `plan` output of a needed job that runs `scripts/release-order.mts` — the dependency
  *     order computed from the package.json files. See publishOrderProblems.
  *
+ * 11. The affected lanes (`AFFECTED_LANES`: compat.yml's `matrix` and `floor`, quality-full.yml's
+ *     `test` and `coverage`) take their set from `scripts/affected.mts`, give it the event and the
+ *     `run-full-ci` label, and are never skipped at the job level; no workflow runs `turbo ls`
+ *     itself. See affectedLaneProblems (ci-affected-lanes R2, R3).
+ * 12. compat.yml's `matrix` and `floor` cells set `VITEST_DURATIONS_DIR` and upload it with
+ *     `if: always()`, and its dispatch takes `os` and `node` inputs that pick one cell. See
+ *     durationsProblems in slow-cases.mts (windows-lane-holds R1).
+ *
  * Soft warnings (notice line, not a failure):
  *  9. Third-party actions are pinned to a SHA, not a floating tag.
  *     `actions/*`, `github/*`, and `./.github/actions/*` are exempt.
@@ -44,7 +52,9 @@ import url from 'node:url';
 
 import yaml from 'js-yaml';
 
+import { affectedLaneProblems } from './affected.mjs';
 import { publishOrderProblems, type WorkflowShape } from './release-order.mjs';
+import { durationsProblems } from './slow-cases.mjs';
 
 interface Step {
   name?: string;
@@ -333,6 +343,8 @@ for (const [file, wf] of parsed) {
   }
 
   errors.push(...publishOrderProblems(file, wf as WorkflowShape));
+  errors.push(...affectedLaneProblems(file, wf as Parameters<typeof affectedLaneProblems>[1]));
+  errors.push(...durationsProblems(file, wf as Parameters<typeof durationsProblems>[1]));
 
   const allSteps = Object.values(wf.jobs ?? {}).flatMap((job) => job?.steps ?? []);
   errors.push(...renamedOutputs(sources.get(file) ?? '', allSteps, file));

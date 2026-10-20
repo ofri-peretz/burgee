@@ -41,6 +41,16 @@ test('Can use "serialization: json" option', async () => {
 	await subprocess;
 });
 
+const testNullPrototypeMessage = async serialization => {
+	const subprocess = execa('ipc-echo.js', {ipc: true, serialization});
+	await subprocess.sendMessage({__proto__: null, foo: foobarString});
+	assert.deepEqual({...await subprocess.getOneMessage()}, {foo: foobarString});
+	await subprocess;
+};
+
+test('Can send null-prototype objects', () => testNullPrototypeMessage('advanced'));
+test('Can send null-prototype objects, serialization: "json"', () => testNullPrototypeMessage('json'));
+
 test('Validates JSON payload with serialization: "json"', async () => {
 	const subprocess = execa('ipc-echo.js', {ipc: true, serialization: 'json'});
 	await assertRejects(subprocess.sendMessage([0n]), {message: /serialize a BigInt/});
@@ -142,4 +152,10 @@ test('exports.sendMessage() handles I/O errors', async () => {
 	assert.equal(isTerminated, false);
 	assert.ok(message.includes(`Error: ${foobarString}`));
 	assert.deepEqual(ipcOutput, []);
+});
+
+test('The "strict" sendMessage() option must use a boolean', async () => {
+	const subprocess = execa('empty.js', {ipc: true});
+	assert.throws(() => subprocess.sendMessage(foobarString, {strict: 'true'}), {message: /`strict` option must use a boolean/});
+	await subprocess;
 });

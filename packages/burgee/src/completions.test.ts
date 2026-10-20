@@ -1,16 +1,10 @@
 /**
  * commander-completions D2–D5 — the four scripts and the Fig spec are pinned by snapshot
- * (deterministic for a manifest), and each shell that is installed exercises its script:
- * bash through COMP_WORDS, zsh through a real TAB in a pseudo-terminal, fish through
- * `complete -C`, PowerShell through TabExpansion2. TAB never runs the program (D3): the
- * scripts contain no call to it and the handler's sentinel never appears.
+ * (deterministic for a manifest). TAB never runs the program (D3): the scripts contain no call
+ * to it and the handler's sentinel never appears. Each installed shell exercising its script
+ * lives in `completions-shells.test.ts`, which runs after the parallel pool, alone
+ * (windows-lane-holds R3c).
  */
-import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { describe, expect, it } from 'vitest';
 
 import { renderCompletion, renderFigSpec, SHELLS } from './completions.js';
@@ -41,32 +35,6 @@ const program = defineProgram({
     defineCommand({ name: 'hush', hidden: true, effects: 'withheld', run: () => SENTINEL }),
   ],
 });
-
-/**
- * A job that installs the shells sets `REQUIRE_SHELLS=1` (completions.yml, and both coverage
- * jobs). There a missing shell fails this file instead of skipping its case: a skip is how the
- * code only these cases reach went uncovered on CI, unnoticed, until 2026-09-30.
- */
-const REQUIRE_SHELLS = process.env['REQUIRE_SHELLS'] === '1';
-const has = (shell: string): boolean => {
-  try {
-    execFileSync(shell, ['--version'], { stdio: 'ignore' });
-    return true;
-  } catch {
-    if (REQUIRE_SHELLS) throw new Error(`${shell} is not installed, and REQUIRE_SHELLS=1 says this job installs it`);
-    return false;
-  }
-};
-const dir = mkdtempSync(join(tmpdir(), 'burgee-completions-'));
-// PowerShell dot-sources only a `.ps1` file; any other extension is a file to open.
-const EXT = { bash: 'bash', zsh: 'zsh', fish: 'fish', pwsh: 'ps1' } as const;
-const scriptFor = (shell: 'bash' | 'zsh' | 'fish' | 'pwsh'): string => {
-  const at = join(dir, `demo.${EXT[shell]}`);
-  writeFileSync(at, renderCompletion(program, shell));
-  return at;
-};
-const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
-const lines = (out: string): string[] => out.split('\n').map((l) => l.trim()).filter((l) => l !== '');
 
 describe('completions are generated from the manifest (D2) and pinned (D4)', () => {
   it.each(SHELLS)('%s script is deterministic and mentions every visible command and option', (shell) => {
@@ -104,56 +72,5 @@ describe('completions are generated from the manifest (D2) and pinned (D4)', () 
     const bad = await runBurgee(program, { argv: ['completion', 'tcsh'] });
     expect(bad.code).toBe(2);
     expect(bad.stderr).toMatch(/bash\|zsh\|fish\|pwsh\|fig/);
-  });
-});
-
-const bash = (line: string): string[] => lines(execFileSync('bash', [join(repo, 'scripts/complete-bash.sh'), scriptFor('bash'), ...line.split(' ')], { encoding: 'utf8' }));
-
-// A pty zsh under a loaded pre-push battery: up to 40 s to start and 30 s to list, per call.
-const zsh = (line: string): string => execFileSync('zsh', [join(repo, 'scripts/complete-zsh.zsh'), scriptFor('zsh'), line], { encoding: 'utf8' });
-
-const fish = (line: string): string[] => lines(execFileSync('fish', [join(repo, 'scripts/complete-fish.fish'), scriptFor('fish'), line], { encoding: 'utf8' })).map((l) => l.split('\t')[0] ?? '');
-
-const pwsh = (line: string): string[] => lines(execFileSync('pwsh', ['-NoProfile', '-File', join(repo, 'scripts/complete-pwsh.ps1'), '-Script', scriptFor('pwsh'), '-Line', line], { encoding: 'utf8' }));
-
-describe('each shell exercises its script (D4)', () => {
-  // The three shells below carry a 30 s allowance and this one did not, which
-  // is the whole difference: it spawns bash six times, and a process spawn on
-  // a Windows runner costs an order of magnitude more than on Linux. It timed
-  // out at 5 s on windows-latest while passing everywhere else. Nothing about
-  // the assertions changed — the allowance is for the runner, not the test.
-  it.runIf(has('bash'))('bash: commands, subcommands, options at the right level, and choice values', { timeout: 30_000 }, () => {
-    expect(bash('demo con')).toEqual(['config']);
-    expect(bash('demo config ')).toEqual(['get']);
-    // `--no-shout` and `--no-raw` and no others: every declared boolean is negatable, and
-    // the reserved surfaces are not — `toParseConfig` registers `no-<name>` for a command's
-    // own options only, so completing `--no-json` would offer a flag the parser refuses.
-    // A real bash TAB is the strongest place that boundary is asserted.
-    expect(bash('demo greet --')).toEqual(['--shout', '--no-shout', '--greeting', '--json', '--help']);
-    expect(bash('demo greet --greeting ')).toEqual(['Hello', 'Hi']);
-    expect(bash('demo config get --')).toEqual(['--raw', '--no-raw', '--json', '--help']);
-    expect(bash('demo greet ada --')).not.toContain(SENTINEL);
-  });
-
-  it.runIf(has('zsh'))('zsh: a real TAB in a pseudo-terminal completes the command and lists options with descriptions', { timeout: 120_000 }, () => {
-    expect(zsh('demo con')).toContain('demo config');
-    const options = zsh('demo greet --');
-    for (const w of ['--greeting', '--shout', '--json', '--help']) expect(options).toContain(w);
-    expect(options).toContain('the greeting word');
-    expect(options).not.toContain(SENTINEL);
-  });
-
-  it.runIf(has('fish'))('fish: subcommands and options, with --no execution', { timeout: 30_000 }, () => {
-    expect(fish('demo con')).toEqual(['config']);
-    expect(fish('demo greet --')).toEqual(expect.arrayContaining(['--shout', '--greeting', '--json', '--help']));
-    expect(fish('demo greet --greeting ')).toEqual(expect.arrayContaining(['Hello', 'Hi']));
-  });
-
-  // pwsh starts cold in about two seconds on a runner, three times here — and a Windows runner
-  // took 33.6 s for the three against the old 30 s (#484, #433), so the ceiling is 120 s.
-  it.runIf(has('pwsh'))('PowerShell: subcommands, options and choice values with tooltips', { timeout: 120_000 }, () => {
-    expect(pwsh('demo con')).toEqual(['config']);
-    expect(pwsh('demo greet --')).toEqual(expect.arrayContaining(['--shout', '--greeting', '--json', '--help']));
-    expect(pwsh('demo greet --greeting ')).toEqual(['Hello', 'Hi']);
   });
 });

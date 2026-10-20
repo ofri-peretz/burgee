@@ -5,7 +5,9 @@
 > demand-over-cost score in the table: a third-party score, eight named failing checks, and
 > mostly flags the framework should already own.
 
-**Status:** approved · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-19 — R1–R8 as built in the spec; R9 by the published CI reading `benchmarks/results/external-floor/2026-10-19.json` (run 39228945490 at `28843a5`): burgee 100% (A), nothing failing, and `BURGEE_FLOOR.agentLint.min` raised to 100
+
+**Remaining:** nothing. The score moved from 81.4% (B) to 100% (A) on CI, and the ratchet sits at it.
 
 ---
 

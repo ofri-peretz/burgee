@@ -73,9 +73,8 @@ function guideUrl(h: (typeof HOSTS)[number]): string | undefined {
   const app = appForPackage(h.target.split('/')[0] ?? '');
   if (app === undefined) return undefined;
   const section = app.familyPages ? 'vs' : 'coming-from';
-  // `inquirer-core` and `inquirer-prompts` are graded by @inquirer/core's and @inquirer/prompts'
-  // suites; their guide is the one for inquirer.
-  for (const slug of [h.name, h.name.replace(/-(?:core|prompts)$/u, '')]) {
+  // `inquirer-core` is graded by @inquirer/core's suite; its guide is the one for inquirer.
+  for (const slug of [h.name, h.name.replace(/-core$/u, '')]) {
     if (existsSync(join(root, app.dir, 'content', 'docs', section, `${slug}.mdx`))) return `${app.productionUrl}/docs/${section}/${slug}`;
   }
   return undefined;

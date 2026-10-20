@@ -18,7 +18,8 @@ that touches the paths above:
 run non-interactively with `claude -p`. Reports `skipped` without a credential.
 
 Cases come from real incidents or from a claim somebody made that needs measuring, and
-they are written by whoever owns the claim. Ten, one per plugin host:
+they are written by whoever owns the claim. Eleven: one per plugin host, and one for the locale
+pack a plugin host carries:
 
 | case | the claim it measures |
 | :-- | :-- |
@@ -32,6 +33,7 @@ they are written by whoever owns the claim. Ten, one per plugin host:
 | `paratext-plugin-from-schema` | the same claim for a capability |
 | `roundel-plugin-from-schema` | the same claim for a token |
 | `seniority-plugin-from-schema` | the same claim for a configuration source |
+| `locale-pack-from-schema` | `localised-human-surfaces` R7 — that `burgee/locale-pack-schema.json` plus one example pack is enough for an agent to write a pack for a new language in one turn; French, so the plural message needs the `many` form the German example does not have |
 
 A case earns its place by discriminating. Every one's shell checks were run both ways
 before it was committed. The first, flagstaff's: green against a correct plugin, and red against the same plugin
@@ -69,5 +71,11 @@ token). Not both — the API key outranks the token.
 npm run evals:config   # layer 1 only — fast, deterministic, no key
 npm run evals          # both layers; layer 2 skips without a key
 ```
+
+Each case runs with `--output-format stream-json`, so every tool call the agent made is kept:
+`evals/results/<date>.json` has them under each case's `calls` (turn, tool, input, the start of
+the output, and whether it was refused), and a case that fails prints them in the log, one line
+per call. Until 2026-10-12 a case kept its last 240 characters and nothing else, so a run that
+stopped at the turn cap could not say where its turns went.
 
 Unit tests for the checkers live in `scripts/run-evals.test.ts` and run under `npm test`.

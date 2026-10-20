@@ -17,15 +17,16 @@
  * control run resolves the incumbent the way the vendored tree does — by walking up to the
  * workspace's `node_modules`.
  */
-import { type ExecFileSyncOptions } from 'node:child_process';
+import { type ExecFileSyncOptions, spawn } from 'node:child_process';
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type Host } from './hosts.js';
-import { ALIAS_HOOK, aliasHook, cjsLoad, entryBody, grade, installSuiteDeps, internalShimBody, jestGlobals, peerHook, readBaseline, targetInternalBody } from './run.js';
+import { ALIAS_HOOK, aliasHook, cjsLoad, DEPS_MARKER, entryBody, grade, installSuiteDeps, internalShimBody, jestGlobals, peerHook, readBaseline, targetInternalBody } from './run.js';
 
 interface Call {
   file: string;
@@ -90,7 +91,12 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  rmSync(vendorDir, { recursive: true, force: true });
+  // Removed by an `rm` of its own that this hook does not wait for, as run.test.ts's tsd runner
+  // removes its own: under the pre-push load, unlinking a scratch directory of a handful of files
+  // took 64.9 s (2026-10-19), past the hook's timeout. `spawn` is the real one; the seam only
+  // replaces `execFileSync`. A run killed first leaves a `.grade-*` directory, which `.gitignore`
+  // already covers.
+  if (process.platform !== 'win32') spawn('rm', ['-rf', vendorDir], { detached: true, stdio: 'ignore' }).unref();
   vi.unstubAllEnvs();
 });
 
@@ -404,6 +410,9 @@ describe('declared exclusions, on the control and on a target', () => {
   });
 });
 
+/** The load line of a `fresh` shim: the module beneath, by URL, with the shim's own query. */
+const freshLoad = (from: string): string => `const loaded = await import(import.meta.resolve('${from}') + new URL(import.meta.url).search);\n`;
+
 describe('the shims a run writes', () => {
   const tap = prints(SUMMARY(1, 1));
 
@@ -428,6 +437,18 @@ describe('the shims a run writes', () => {
     expect(read(hostDir, 'shim.js')).toBe("// generated per run — COMPAT_TARGET=vitest\nexport * from 'vitest';\nexport { select as default } from 'vitest';\n");
   });
 
+  // `supports-color-drop-in` R1: the suite busts the shim with `?<n>` before every case, and the
+  // shim passes the query to the module beneath, which a static `export *` cannot.
+  it('imports the module by URL with its own query for a `fresh` import, on both runs', () => {
+    const h = host({ imports: [{ upstream: '../index.js', subpath: '/x', reexportDefault: true, control: 'fake', fresh: ['make', 'other'] }] });
+    const hostDir = vendored(h, { 'a.test.js': '' });
+    seam.exec = tap;
+    grade(h, vendorDir, 'fake');
+    expect(read(hostDir, 'shim.js')).toBe(`// generated per run — COMPAT_TARGET=fake\n${freshLoad('fake')}export default loaded.default;\nexport const make = loaded.make;\nexport const other = loaded.other;\n`);
+    grade({ ...h, imports: [{ upstream: '../index.js', subpath: '/config', reexportDefault: false, fresh: [] }] }, vendorDir, 'vitest');
+    expect(read(hostDir, 'shim.js')).toBe(`// generated per run — COMPAT_TARGET=vitest\n${freshLoad('vitest/config')}`);
+  });
+
   it('re-exports the target on a target run, whatever the control entry says, as .mjs under a CommonJS package', () => {
     const h = host({ imports: [{ upstream: '../x.js', subpath: '/config', reexportDefault: false, control: 'fake/lib/x.js' }] });
     const hostDir = vendored(h, { 'a.test.js': '' }, { pkg: {} });
@@ -444,6 +465,24 @@ describe('the shims a run writes', () => {
     expect(read(hostDir, 'shim.cjs')).toBe(`// generated per run — COMPAT_TARGET=fake\n${cjsLoad('fake')}\nmodule.exports = loaded?.default ?? loaded;\n`);
     expect(read(hostDir, 'shim-1.cjs')).toBe(`// generated per run — COMPAT_TARGET=fake\n${cjsLoad('fake/x')}\nmodule.exports = loaded;\n`);
   });
+
+  // `previous-majors` R3: a previous major's row grades the major's entry, and an import that has
+  // no such entry beside it names the module a target run reads instead.
+  it("re-exports an import's own `target` on a target run, and the control's module on a control run", () => {
+    const h = incumbent({ imports: [{ upstream: '../index.js', subpath: '', reexportDefault: false }, { upstream: 'parser', subpath: '/parser', reexportDefault: false, control: 'semver', target: 'vitest/config' }] });
+    const hostDir = vendored(h, { 'a.test.js': '' });
+    seam.exec = tap;
+    grade(h, vendorDir, 'vitest');
+    expect(read(hostDir, 'shim-1.js')).toBe("// generated per run — COMPAT_TARGET=vitest\nexport * from 'vitest/config';\n");
+    grade(h, vendorDir, 'commander');
+    expect(read(hostDir, 'shim-1.js')).toBe("// generated per run — COMPAT_TARGET=commander\nexport * from 'semver';\n");
+  });
+
+  it("names an import's own `target` as the entry that is missing, when it is", () => {
+    const h = host({ imports: [{ upstream: '../index.js', subpath: '', reexportDefault: false }, { upstream: 'parser', subpath: '/parser', reexportDefault: false, target: 'vitest/no-such-entry' }] });
+    vendored(h, { 'a.test.js': '' });
+    expect(grade(h, vendorDir, 'vitest')).toMatchObject({ passed: 0, note: 'target not built yet: vitest/no-such-entry' });
+  });
 });
 
 /**
@@ -456,6 +495,15 @@ const lib = (over: Partial<Host> = {}): Host => host({ alias: 'the-incumbent', i
 const hook = (hostDir: string): string => join(hostDir, ALIAS_HOOK);
 
 describe('a host that grades a library built on the incumbent', () => {
+  it('looks for the target itself, never for an import of the library it grades', () => {
+    // The import names the library, which is not the target's: `semver/no-such-entry` does not
+    // exist and must not make a built target read as unbuilt.
+    const h = lib({ imports: [{ upstream: '../index.js', subpath: '/no-such-entry', reexportDefault: false, control: 'node:path' }] });
+    vendored(h, { 'a.test.js': '' });
+    seam.exec = prints(SUMMARY(1, 1));
+    expect(grade(h, vendorDir, 'semver').note).toBeUndefined();
+    expect(grade(h, vendorDir, 'no-such-target').note).toBe('target not built yet: no-such-target');
+  });
 
   it('hands the suite the library itself on both runs', () => {
     const hostDir = vendored(lib(), { 'a.test.js': '' });
@@ -620,6 +668,21 @@ describe('a host whose target brings optional peers', () => {
 describe('the target’s own module behind an internal path', () => {
   it('re-exports each name the suite imports from the target package’s file, by absolute URL', () => {
     expect(targetInternalBody('/pkg', { file: 'dist/a.js', names: { default: 'parse', bsu: 'bsu' } })).toBe(`export { parse as default, bsu } from '${pathToFileURL('/pkg/dist/a.js').href}';\n`);
+  });
+
+  it('is CommonJS at a path parsed as CommonJS: an object of the names, off a require of the file', () => {
+    expect(targetInternalBody('/pkg', { file: 'dist/a.js', names: { Parser: 'Parser', Err: 'YError' } }, 'commonjs')).toBe(
+      `const loaded = require(${JSON.stringify(join('/pkg', 'dist/a.js'))});\nmodule.exports = { Parser: loaded.Parser, Err: loaded.YError };\n`,
+    );
+  });
+
+  it('writes the CommonJS form at a `.cjs` internal of a module package, as yargs 17 requires `build/index.cjs`', () => {
+    const h = incumbent({ targetInternals: { 'build/index.cjs': { file: 'package.json', names: { name: 'name' } } } });
+    const hostDir = vendored(h, { 'a.test.js': '' }, { source: { internals: ['build/index.cjs'] } });
+    seam.exec = prints(SUMMARY(1, 1));
+    grade(h, vendorDir, 'vitest');
+    expect(read(hostDir, 'build', 'index.cjs')).toBe(`// generated per run — COMPAT_TARGET=vitest\n${targetInternalBody(installed('vitest'), { file: 'package.json', names: { name: 'name' } }, 'commonjs')}`);
+    expect(createRequire(import.meta.url)(join(hostDir, 'build', 'index.cjs'))).toEqual({ name: 'vitest' });
   });
 
   it('is written on a target run only; the control still gets the host’s own file', () => {
@@ -808,9 +871,10 @@ describe('the files a suite reaches by path (`entries`, dotenv 18)', () => {
    */
   it('links the control to the copy installed beside the suite, not to the vendored root that shares its name', () => {
     const h = incumbent({ entries: [{ ...entry, control: 'main.js' }], suiteDeps: ['commander@9.9.9'], selfExports: { '.': './dist/index.cjs' } });
-    const hostDir = vendored(h, { 'a.test.js': '' }, { pkg: { name: 'commander', exports: { '.': './dist/index.cjs' }, devDependencies: { commander: '9.9.9' } } });
+    const hostDir = vendored(h, { 'a.test.js': '' }, { pkg: { name: 'commander', exports: { '.': './dist/index.cjs' }, devDependencies: { commander: '9.9.9' } }, source: RECORD });
     const beside = join(hostDir, 'node_modules', 'commander');
     mkdirSync(beside, { recursive: true });
+    writeFileSync(join(hostDir, 'node_modules', DEPS_MARKER), CUTOFF);
     writeFileSync(join(beside, 'package.json'), JSON.stringify({ name: 'commander', version: '9.9.9', main: 'main.js' }));
     writeFileSync(join(beside, 'main.js'), 'module.exports = {};\n');
     seam.exec = tap;
@@ -856,32 +920,106 @@ describe('COMPAT_TAP_DIR keeps the raw TAP', () => {
   });
 });
 
+/** The cutoff a vendored record names, and the same record a day later: another tree. */
+const CUTOFF = '2026-10-04T18:42:14.098Z';
+const RECORD = { depsBefore: CUTOFF };
+
+/** A pin beside the suite, at its version. */
+function pinned(hostDir: string, name = 'pinned-dep', version = '1.2.3'): void {
+  mkdirSync(join(hostDir, 'node_modules', name), { recursive: true });
+  writeFileSync(join(hostDir, 'node_modules', name, 'package.json'), JSON.stringify({ name, version }));
+}
+
 describe('installing what a vendored suite declares', () => {
-  it('installs into the vendored directory, with no lockfile, when a pin is missing', () => {
-    const hostDir = vendored(host(), { 'a.test.js': '' }, { pkg: { type: 'module', devDependencies: { 'pinned-dep': '1.2.3' } } });
+  it('installs into the vendored directory, with no lockfile, as of the recorded cutoff, when a pin is missing', () => {
+    const hostDir = vendored(host(), { 'a.test.js': '' }, { pkg: { type: 'module', devDependencies: { 'pinned-dep': '1.2.3' } }, source: RECORD });
     const said: string[] = [];
     seam.exec = prints('');
     installSuiteDeps(host(), hostDir, (s) => said.push(s));
-    expect(said).toEqual(["  installing fake's suite dependencies into vendor/fake/node_modules: pinned-dep@1.2.3\n"]);
+    expect(said).toEqual([`  installing fake's suite dependencies into vendor/fake/node_modules as of ${CUTOFF}: pinned-dep@1.2.3, the tree beside them\n`]);
     expect(only()).toEqual({
       file: 'npm',
-      args: ['install', '--no-audit', '--no-fund', '--no-package-lock', '--prefix', hostDir],
+      args: ['install', '--no-audit', '--no-fund', '--no-package-lock', `--before=${CUTOFF}`, '--prefix', hostDir],
       options: { stdio: ['ignore', 'ignore', 'inherit'], timeout: 300_000 },
     });
+    expect(read(hostDir, 'node_modules', DEPS_MARKER)).toBe(CUTOFF);
   });
 
-  it('installs nothing when every pin is already beside the suite, or nothing is declared', () => {
-    const hostDir = vendored(host(), { 'a.test.js': '' }, { pkg: { devDependencies: { 'pinned-dep': '1.2.3' } } });
-    mkdirSync(join(hostDir, 'node_modules', 'pinned-dep'), { recursive: true });
-    writeFileSync(join(hostDir, 'node_modules', 'pinned-dep', 'package.json'), JSON.stringify({ name: 'pinned-dep', version: '1.2.3' }));
+  it('installs nothing when every pin is beside the suite in a tree resolved as of the cutoff, or nothing is declared', () => {
+    const hostDir = vendored(host(), { 'a.test.js': '' }, { pkg: { devDependencies: { 'pinned-dep': '1.2.3' } }, source: RECORD });
+    pinned(hostDir);
+    writeFileSync(join(hostDir, 'node_modules', DEPS_MARKER), CUTOFF);
     installSuiteDeps(host(), hostDir);
     rmSync(join(hostDir, 'package.json'));
     installSuiteDeps(host(), hostDir);
     expect(seam.calls).toEqual([]);
   });
 
+  // 2026-10-19: every pin satisfied, and the siblings beside them floated to the batch published
+  // that evening. The pins alone said "installed"; only the cutoff says "as of when".
+  it.each([
+    ['as of no date, as every tree before this one', undefined],
+    ['as of another date', '2026-10-19T21:42:34.497Z'],
+  ])('removes a tree resolved %s and installs it again as of the cutoff, though every pin is satisfied', (_, asOf) => {
+    const hostDir = vendored(host(), { 'a.test.js': '' }, { pkg: { devDependencies: { 'pinned-dep': '1.2.3' } }, source: RECORD });
+    pinned(hostDir);
+    pinned(hostDir, 'floated-sibling', '5.2.7');
+    if (asOf !== undefined) writeFileSync(join(hostDir, 'node_modules', DEPS_MARKER), asOf);
+    const said: string[] = [];
+    seam.exec = prints('');
+    installSuiteDeps(host(), hostDir, (s) => said.push(s));
+    expect(said).toEqual([`  installing fake's suite dependencies into vendor/fake/node_modules as of ${CUTOFF}: the tree beside them\n`]);
+    expect(only().args).toContain(`--before=${CUTOFF}`);
+    expect(existsSync(join(hostDir, 'node_modules', 'floated-sibling')), 'npm keeps any copy that still satisfies its range, so the old tree has to go').toBe(false);
+    expect(read(hostDir, 'node_modules', DEPS_MARKER)).toBe(CUTOFF);
+  });
+
+  it('re-dates the tree of a suite that pins one package beside a range, as it does one that pins only', () => {
+    const hostDir = vendored(host(), { 'a.test.js': '' }, { pkg: { devDependencies: { 'pinned-dep': '1.2.3', 'hoisted-dep': '^1.0.0' } }, source: RECORD });
+    pinned(hostDir);
+    pinned(hostDir, 'hoisted-dep', '1.4.0');
+    seam.exec = prints('');
+    installSuiteDeps(host(), hostDir);
+    expect(only().args, 'one exact pin is a tree beside the suite, whatever else the manifest declares').toContain(`--before=${CUTOFF}`);
+  });
+
+  it('leaves a suite that declares only ranges to the hoist when it resolves, and installs a missing one as of the cutoff', () => {
+    const hostDir = vendored(host(), { 'a.test.js': '' }, { pkg: { devDependencies: { 'hoisted-dep': '^1.0.0' } }, source: RECORD });
+    pinned(hostDir, 'hoisted-dep', '1.4.0');
+    installSuiteDeps(host(), hostDir);
+    expect(seam.calls, 'a range has no tree beside the suite to re-date').toEqual([]);
+    rmSync(join(hostDir, 'node_modules'), { recursive: true });
+    const said: string[] = [];
+    seam.exec = prints('');
+    installSuiteDeps(host(), hostDir, (s) => said.push(s));
+    expect(said).toEqual([`  installing fake's suite dependencies into vendor/fake/node_modules as of ${CUTOFF}: hoisted-dep@^1.0.0\n`]);
+    expect(only().args).toContain(`--before=${CUTOFF}`);
+  });
+
+  it('leaves a node_modules the host commits as it is, and installs into it only what is missing, as of the cutoff', () => {
+    const keeper = host({ keep: ['node_modules'] });
+    const hostDir = vendored(keeper, { 'a.test.js': '' }, { pkg: { devDependencies: { 'pinned-dep': '1.2.3' } }, source: RECORD });
+    pinned(hostDir);
+    installSuiteDeps(keeper, hostDir);
+    expect(seam.calls, 'a committed tree is fixed already: re-dating it would rewrite tracked files').toEqual([]);
+    pinned(hostDir, 'committed-dep', '2.0.0');
+    rmSync(join(hostDir, 'node_modules', 'pinned-dep'), { recursive: true });
+    seam.exec = prints('');
+    installSuiteDeps(keeper, hostDir);
+    expect(only().args).toContain(`--before=${CUTOFF}`);
+    expect(existsSync(join(hostDir, 'node_modules', 'committed-dep', 'package.json')), 'nothing committed is removed').toBe(true);
+  });
+
+  it('refuses to install a tree with no recorded cutoff, which would resolve as of today', () => {
+    const hostDir = vendored(host(), { 'a.test.js': '' }, { pkg: { devDependencies: { 'pinned-dep': '1.2.3' } }, source: {} });
+    expect(() => installSuiteDeps(host(), hostDir)).toThrow("vendor/fake/.source.json records no depsBefore, so its suite dependencies would resolve as of today: re-vendor the host");
+    rmSync(join(hostDir, '.source.json'));
+    expect(() => installSuiteDeps(host(), hostDir)).toThrow('records no depsBefore');
+    expect(seam.calls).toEqual([]);
+  });
+
   it('runs before the suite, silently, as part of a grade', () => {
-    vendored(host(), { 'a.test.js': '' }, { pkg: { devDependencies: { 'pinned-dep': '1.2.3' } } });
+    vendored(host(), { 'a.test.js': '' }, { pkg: { devDependencies: { 'pinned-dep': '1.2.3' } }, source: RECORD });
     seam.exec = npmThenSummary;
     expect(grade(host(), vendorDir, 'fake')).toMatchObject({ passed: 1 });
     expect(seam.calls.map((c) => c.file)).toEqual(['npm', process.execPath]);

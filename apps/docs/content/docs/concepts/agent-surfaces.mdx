@@ -96,6 +96,8 @@ const program = defineProgram({
       name: 'deploy',
       description: 'Deploy a build',
       effects: 'non_idempotent',
+      examples: [{ command: 'tool deploy --target prod --yes' }],
+      output: { cardinality: 'single' },
       options: {
         target: { type: 'string', required: true, description: 'where to deploy' },
         yes: { type: 'boolean', description: 'skip the confirmation' },
@@ -152,6 +154,17 @@ What an agent reads before it calls, from the same declaration:
 
 ```text title="node tool.mjs --schema deploy --field effects"
 "non_idempotent"
+```
+
+The same document is a [clispec v0.3](https://clispec.dev) document, so the call to try first and
+how much comes back are there too ([the keys](/docs/agent-surfaces#it-is-also-a-clispec-v03-document)):
+
+```text title="node tool.mjs --schema deploy --field example"
+{"args":["deploy","--target","prod","--yes"]}
+```
+
+```text title="node tool.mjs --schema deploy --field cardinality"
+"single"
 ```
 
 ## Where the rules live

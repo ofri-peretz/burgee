@@ -92,7 +92,7 @@ const RULES: Record<string, EntryRule> = {
   // `linegauge` joined on 2026-09-28 with the raw renderer's row count (`lineCount`): a frame
   // wider than the terminal occupies more rows than it has lines. Measured 14,472 after main's #680 (+265).
   // `paratext/csi` joined the same day (+70): the raw renderer's repaint is spelled with
-  // ansi-escapes' cursor moves from paratext rather than by hand. Measured 14,542.
+  // `paratext/csi`'s cursor moves rather than by hand. Measured 14,542.
   // `roundel/terminal` joined the same day (+98): whether anybody is there to type is
   // roundel's `interactive()`, which knows an agent from a person. Measured 14,640.
   //
@@ -100,7 +100,10 @@ const RULES: Record<string, EntryRule> = {
   // `keyOf` is decoded by `caique/keys` rather than by comparing bytes, and the root re-exports
   // the decoder and keymaps. Still under a fifth of clack's 101,684 B; the budget moved from
   // 15,000 because the surface did.
-  '.': { allow: [...CLOSEOUT, 'linegauge', 'paratext/csi', 'roundel/terminal'], budget: 20_000, denied: ['clack.js', 'inquirer.js'] },
+  //
+  // **20,000 -> 20,700 on 2026-10-13, deliberately** (D-20261013-frames-fit-the-screen-budgets,
+  // under the owner's delegation of budgets that day): measured 20,676, with `./raw` below.
+  '.': { allow: [...CLOSEOUT, 'linegauge', 'paratext/csi', 'roundel/terminal'], budget: 20_700, denied: ['clack.js', 'inquirer.js'] },
   // The shape and its validator. The floor every other subpath stands on, and a leaf: a
   // program that only declares prompts pays 739 B and never loads a widget.
   './spec': { allow: [], budget: 1_000, denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
@@ -164,16 +167,20 @@ const RULES: Record<string, EntryRule> = {
   // that carries it.
   './inquirer': {
     // `paratext/csi` on 2026-09-28 (-61): the cursor moves and erases `@inquirer/ansi` supplies
-    // are ansi-escapes' from paratext, with `@inquirer/ansi`'s zero-row guard kept. Measured 20,829 after merging main (20,890 there).
+    // are `paratext/csi`'s, with `@inquirer/ansi`'s zero-row guard kept. Measured 20,829 after merging main (20,890 there).
     // `roundel/terminal` the same day: the tick's unicode test is is-unicode-supported whole,
     // from roundel, rather than a four-condition subset of it here. Measured 20,782 (-47).
-    // 2026-10-11, `inquirer-prompts-drop-in` R1 and R3's first prompt: `select` and
-    // `usePagination`, graded by `@inquirer/select`'s own suites, on the engine split out of
-    // `inquirer.ts` into `inquirer-core.ts`. Measured 30,998 B. The other nine prompts are
-    // held out of the package until the tarball has room for them
-    // (`.sdlc/intents/inquirer-prompts-drop-in/spec.md`, § Status).
     allow: ['closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap', 'paratext/csi', 'roundel/terminal'],
-    budget: 32_000,
+    budget: 23_000,
+    denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js', 'spec.js', 'plugin.js', 'clack.js'],
+  },
+  // `@inquirer/prompts`' prompts over `./inquirer`'s loop (inquirer-prompts-drop-in): a subpath
+  // of its own, so `./inquirer` keeps its budget and a program on `@inquirer/core`'s hooks pays
+  // for no prompt. It reaches `./inquirer`'s whole graph and adds `usePagination`, the shared
+  // list helpers, `select` and `checkbox`. Measured 36,586 B on 2026-10-12.
+  './inquirer/prompts': {
+    allow: ['closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap', 'paratext/csi', 'roundel/terminal'],
+    budget: 38_000,
     denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js', 'spec.js', 'plugin.js', 'clack.js'],
   },
   // The six widgets in line mode (R5), which is the floor and the accessible rendering.
@@ -196,7 +203,12 @@ const RULES: Record<string, EntryRule> = {
   // 8,896 B (+4,980) on 2026-10-05: `keyOf` is rebuilt on `caique/keys`' decoder (controlroom
   // R2), so a list prompt and a screen read the same keys the same way. The budget moved from
   // 4,500 with it — one decoder in the package, paid by the renderer that reads keys.
-  './raw': { allow: [...CLOSEOUT, 'linegauge', 'paratext/csi'], budget: 9_000, denied: ['decide.js', 'binding.js', 'terminal.js', 'index.js'] },
+  // 9,548 B (+652) on 2026-10-13, and the budget 9,000 -> 9,550 with it (frames-fit-the-screen
+  // R4, D-20261013-frames-fit-the-screen-budgets): a list longer than the screen is drawn as a
+  // window that holds the cursor, with `↑ N more` and `↓ N more` rows, sized by `maxItems` and
+  // the writer's `rows`, so a repaint never climbs above the top row. The measurement rounded
+  // up to the next 50.
+  './raw': { allow: [...CLOSEOUT, 'linegauge', 'paratext/csi'], budget: 9_550, denied: ['decide.js', 'binding.js', 'terminal.js', 'index.js'] },
   // Key presses through `node:readline`'s decoder, keymaps as data, and a reader that takes raw
   // mode once through `closeout/cursor` (controlroom R2). A leaf: a screen that reads keys pays
   // for no prompt, and the two closeout subpaths are the raw-mode restore it owes on every exit
@@ -211,6 +223,12 @@ const RULES: Record<string, EntryRule> = {
   // `Io`, and which one is the caller's business. Measured 8,123 B; 8,395 B on 2026-09-28,
   // with `decide`'s `roundel/terminal`.
   './binding': { allow: ['roundel/terminal'], budget: 9_500, denied: ['raw.js', 'terminal.js', 'index.js'] },
+  // localised-human-surfaces R6 — the catalog, the pack check and `sayFor`, which a caller with a
+  // locale builds `io.say` from. Its own door so nothing else pays for it: `.`, `./ask` and
+  // `./binding` only apply the `say` they are handed. It reaches `plugin.js` for the registry
+  // (and, through it, `ask.js` and `spec.js`), never the raw renderer or the terminal.
+  // Measured 15,951 B on 2026-10-12.
+  './locale': { allow: [], budget: 16_000, denied: ['decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
   // The only file that touches a stream, and the only one that knows what echo is. It
   // carries `ask.js` for the `Io` shape it implements. Measured 1,947 B; +78 on
   // 2026-09-28 for the writer's `columns`, read through to the output stream.

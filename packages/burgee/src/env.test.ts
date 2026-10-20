@@ -1,13 +1,15 @@
 /** commander-env through the engine: provenance under --json, --explain, --version from the owning package.json (V3, V4). */
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { defineCommand, defineProgram, execute, type RunOptions } from './index.js';
 
-const dir = mkdtempSync(join(tmpdir(), 'burgee-env-'));
+const scratch = scratchDirs();
+
+const dir = scratch('burgee-env-');
 mkdirSync(join(dir, 'bin'), { recursive: true });
 writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'app-pkg', version: '9.9.9', app: { region: 'pkg', verbose: true } }));
 writeFileSync(join(dir, 'app.config.json'), JSON.stringify({ region: 'cfg' }));

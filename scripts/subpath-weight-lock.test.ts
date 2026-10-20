@@ -11,12 +11,13 @@
  * So: adding an entry point means the page grows with it. A subpath published and unmeasured is
  * a surface nobody has priced, and it is exactly how `flagstaff` came to publish thirteen.
  *
- * The `--check` half is `subpath-weight.ts`'s own, run by CI: it regenerates into memory and
- * exits non-zero when the committed page differs, which is what makes *do not edit by hand*
- * true rather than aspirational. This file checks the cheaper, more important property — that
+ * The `--check` half is `subpath-weight.ts`'s own, run by compat.yml's required `ratchet` job
+ * after its build: it regenerates into memory and exits non-zero when any line but the
+ * generation stamp differs, which is what makes *do not edit by hand* true rather than
+ * aspirational. This file checks the cheaper, more important property — that
  * nothing is *missing* — because a stale number is visible and an absent row is not.
  */
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -64,6 +65,44 @@ function published(): string[] {
 const DROP_IN_CEILINGS: Readonly<Record<string, { incumbent: string; bytes: number }>> = {
   'closeout/onetime': { incumbent: 'onetime@8.0.0', bytes: 1_527 },
   'closeout/cli-cursor': { incumbent: 'cli-cursor@5.0.0', bytes: 4_757 },
+  'linegauge/cli-truncate': { incumbent: 'cli-truncate@6.1.1', bytes: 20_675 },
+  'linegauge/widest-line': { incumbent: 'widest-line@6.0.0', bytes: 6_079 },
+  // R7's kill criterion: over this, `roundel/picocolors` does not publish.
+  'roundel/picocolors': { incumbent: 'picocolors@1.1.1', bytes: 2_739 },
+  // `supports-color-drop-in` R4: supports-color 11.0.0 by the same method, measured 2026-10-19.
+  'roundel/supports-color': { incumbent: 'supports-color@11.0.0', bytes: 2_145 },
+  // `previous-majors` R3: 17's `yargs/yargs` — `yargs.mjs` over its CommonJS build — measured
+  // 2026-10-19 from yargs 17.7.3 as `compat-oracle` installs it (D-20261019-yargs-17-budget).
+  'burgee/yargs/v17/yargs': { incumbent: 'yargs@17.7.3 (yargs/yargs)', bytes: 114_656 },
+};
+
+/**
+ * A drop-in that bundles **heavier** than what a user installs today, priced against it and named
+ * rather than left off the comparison. The same method as {@link DROP_IN_CEILINGS}.
+ *
+ * `ours` is a ratchet, not a budget: the latest measurement, which the façade may not grow past and
+ * which each change that shrinks it lowers. The row leaves this table for `DROP_IN_CEILINGS` the day
+ * it weighs no more than the incumbent, and the last assertion below fails until it does. `gap` is
+ * the ledger file that says why the row is over and what closing it takes.
+ *
+ * `burgee/commander` (commander-front-end-diet R4): 61,207 at `10edb48` and 61,272 once #1064 grew `schema.js`; 56,418 after R1, 55,661 after R2,
+ * 55,653 on 2026-10-19 (D-20261019-lighter-than-commander-ratchet): the page read 55,648 after #1083 and #1091, and #1139 added
+ * 5 B to all three commander entries without regenerating the page, so v14 moves with them, 55,997 -> 56,002. Every
+ * byte over commander is named in that spec's residual table.
+ */
+const OVER_INCUMBENT: Readonly<Record<string, { incumbent: string; bytes: number; ours: number; gap: string }>> = {
+  'burgee/commander': { incumbent: 'commander@15.0.0', bytes: 39_329, ours: 55_653, gap: 'B-20261012-commander-front-end-bundles-heavier' },
+  // `extra-typings-drop-in` R5: `export * from '../commander.js'`, so it bundles to `burgee/commander`
+  // byte for byte and its ratchet moves with that row.
+  'burgee/commander/extra-typings': { incumbent: '@commander-js/extra-typings@15.0.0 + commander@15.0.0', bytes: 39_329, ours: 55_653, gap: 'B-20261012-extra-typings-bundles-heavier' },
+  // `previous-majors` R1: `burgee/commander` plus one subclass with commander 14's excess-arguments
+  // message, so it bundles `burgee/commander`'s bytes plus 349, and its ratchet moves with that row.
+  // commander 14.0.3 measured 2026-10-12 by the same method: 40,970 B (D-20261012-commander-14-budget).
+  'burgee/commander/v14': { incumbent: 'commander@14.0.3', bytes: 40_970, ours: 56_002, gap: 'B-20261012-commander-front-end-bundles-heavier' },
+  // `previous-majors` R3: `burgee/yargs` plus 17's string table and `commandDir()` walk. yargs
+  // 17.7.3's `index.mjs` bundles to 84,475 B by the same method, measured 2026-10-19, and yargs
+  // 18.2.0's to 111,698 B, which `burgee/yargs` is under (D-20261019-yargs-17-budget).
+  'burgee/yargs/v17': { incumbent: 'yargs@17.7.3', bytes: 84_475, ours: 110_312, gap: 'B-20261019-yargs-17-entry-bundles-heavier' },
 };
 
 /** The "Everything" cell of a subpath's row on the page, or `undefined` when it has no row. */
@@ -79,6 +118,14 @@ describe('a drop-in façade weighs no more than its incumbent (U5)', () => {
     const ours = everything(page, specifier);
     expect(ours, `\`${specifier}\` has no row on /docs/weight`).toBeDefined();
     expect(ours, `\`${specifier}\` bundles ${String(ours)} B, over the incumbent's ${String(bytes)} B`).toBeLessThanOrEqual(bytes);
+  });
+
+  it.each(Object.entries(OVER_INCUMBENT))('%s, over its incumbent, does not grow past %o', (specifier, { bytes, ours, gap }) => {
+    const measured = everything(page, specifier);
+    expect(measured, `\`${specifier}\` has no row on /docs/weight`).toBeDefined();
+    expect(measured, `\`${specifier}\` bundles ${String(measured)} B, over the ${String(ours)} B its ratchet holds`).toBeLessThanOrEqual(ours);
+    expect(existsSync(join(REPO_ROOT, '.sdlc/gaps', `${gap}.md`)), `${gap} names no file in .sdlc/gaps`).toBe(true);
+    expect(measured, `\`${specifier}\` is at or under the incumbent's ${String(bytes)} B now: move it to DROP_IN_CEILINGS and close ${gap}`).toBeGreaterThan(bytes);
   });
 
   it('reads the Everything column, the last cell of the row', () => {
@@ -104,14 +151,13 @@ describe('the per-subpath weight page', () => {
   });
 
   /**
-   * Staleness, not freshness, and the difference is the whole design.
+   * The age of the stamp, beside the content check.
    *
-   * This page is generated from `dist/`, so a `--check` gate on it would go red on every pull
-   * request that changes a byte anywhere — a gate nobody can keep green is a gate nobody reads,
-   * which is what `quality.yml`'s own note about `compat:page --check` merging red in 29 seconds
-   * is a record of. So the page carries the date it was taken and this asks only that somebody
-   * has re-run `npm run weight:page` inside the window. The same shape, and the same number, as
-   * `claim-table-lock.test.ts` uses on the results document for the same reason.
+   * Every measured line is compared with the build by `npm run weight:page -- --check` in
+   * compat.yml's `ratchet` job (the describe block at the end of this file holds that). Before
+   * that check ran anywhere, this window was the page's only freshness gate, and it let #1139's
+   * 5 B through. It stays, because a page regenerated by nobody for a month is worth a second
+   * look even when the build happens to agree with it.
    */
   it('was regenerated recently enough to be worth reading', () => {
     const stamp = /Generated (\d{4}-\d{2}-\d{2}) at commit/.exec(page)?.[1];
@@ -132,5 +178,44 @@ describe('the per-subpath weight page', () => {
   it('prices nothing at zero', () => {
     const zeros = [...page.matchAll(/^\| `([^`]+)` \|.*\| 0 \|$/gm)].map((m) => m[1]);
     expect(zeros, 'a subpath measured 0 bytes, which is a hole in the instrument rather than a very small module').toEqual([]);
+  });
+});
+
+/**
+ * The page matches the build, not just the list of subpaths. `npm run weight:page -- --check`
+ * runs after the build in compat.yml's required `ratchet` job; this holds what it compares.
+ * #1139 added 5 B to every commander entry and the page kept the old numbers: `burgee/commander/v14`
+ * sat at 56,002 B against a page and a ratchet of 55,997, and nothing failed.
+ */
+/** A one-row weight page, stamped. */
+const stampedPage = (stamp: string, cell: string): string => `title\n\nGenerated ${stamp} at commit \`abc1234\`.\n\n| \`burgee/commander/v14\` | 14 | x | y | ${cell} |\n`;
+
+describe('the weight page check compares every measured line and only the stamp is free', () => {
+
+  it('passes a page whose only difference is the date and commit it was taken at', async () => {
+    const { staleRows } = await import('./subpath-weight.js');
+    expect(staleRows(stampedPage('2026-10-12', '56,002'), stampedPage('2026-10-19', '56,002').replace('abc1234', 'def5678'))).toEqual([]);
+  });
+
+  it('names a row whose bytes moved, with both readings', async () => {
+    const { staleRows } = await import('./subpath-weight.js');
+    expect(staleRows(stampedPage('2026-10-19', '55,997'), stampedPage('2026-10-19', '56,002'))).toEqual([
+      'page: | `burgee/commander/v14` | 14 | x | y | 55,997 |\n  this build: | `burgee/commander/v14` | 14 | x | y | 56,002 |',
+    ]);
+  });
+
+  it('names a row the page lacks, and one the build no longer produces', async () => {
+    const { staleRows } = await import('./subpath-weight.js');
+    expect(staleRows('a\n', 'a\nb\n')).toEqual(['page: \n  this build: b', 'page: (nothing)\n  this build: ']);
+    expect(staleRows('a\nb\n', 'a\n')).toEqual(['page: b\n  this build: ', 'page: \n  this build: (nothing)']);
+  });
+
+  it('is run by a required job, after that job builds', () => {
+    const workflow = readFileSync(join(REPO_ROOT, '.github/workflows/compat.yml'), 'utf8');
+    const ratchet = workflow.slice(workflow.indexOf('  ratchet:'), workflow.indexOf('\n  affected:'));
+    const build = ratchet.indexOf("npx turbo run build --filter='./packages/*'");
+    const check = ratchet.indexOf('npm run weight:page -- --check');
+    expect(build, 'the ratchet job builds the packages').toBeGreaterThan(-1);
+    expect(check, 'the ratchet job runs `npm run weight:page -- --check`').toBeGreaterThan(build);
   });
 });

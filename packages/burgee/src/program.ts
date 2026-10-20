@@ -239,8 +239,60 @@ export const pluginCheckCommand = defineCommand({
   run: async ({ positionals }) => (await import('./check.js')).checkPlugin(positionals[0] as string),
 });
 
+/**
+ * `burgee skill <entry> [--out <dir>] [--check]` — the program's Agent Skill (`SKILL.md`) and its
+ * `AGENTS.md`, projected from its declaration and written beside its binary (agent-skill R3).
+ * `--check` writes nothing and exits 1 when the files there differ from the projection, for an
+ * author's own CI. Loaded on this path only, like `dev` and `migrate`.
+ *
+ * `idempotent`, and earned: a second run over the same declaration writes nothing, and the result
+ * reports `changed` (N7).
+ */
+export const skillCommand = defineCommand({
+  name: 'skill',
+  description: 'Write SKILL.md and AGENTS.md for a CLI beside its binary, projected from its declaration',
+  arguments: [{ name: 'entry', description: 'the module that exports the program, as program or as its default export', required: true }],
+  options: {
+    out: { type: 'string', placeholder: 'dir', description: "directory to write into. Defaults to the directory of the bin in the entry's package.json" },
+    check: { type: 'boolean', description: 'write nothing; exit 1 when the files there differ from the projection' },
+  },
+  effects: 'idempotent',
+  examples: [
+    { command: 'burgee skill dist/index.js', description: 'write both files beside the bin' },
+    { command: 'burgee skill dist/index.js --check', description: 'in CI: exit 1 when the committed files are stale' },
+  ],
+  run: async ({ positionals, options }) => (await import('./skill-files.js')).writeSkill(positionals[0] as string, { out: options.out, check: options.check }),
+});
+
+/**
+ * `burgee init [dir]` — a first CLI in one command (first-cli R1–R5): the README quick start as
+ * `cli.mjs` and the `package.json` that runs it, and nothing else. Loaded on this path only, like
+ * `migrate` and `skill`, so neither `import 'burgee'` nor a user's bundle carries it.
+ *
+ * `non_idempotent`, as `brand` is: a second run is refused rather than repeated, and `--force`
+ * overwrites the two files the caller already has.
+ */
+export const initCommand = defineCommand({
+  name: 'init',
+  description: 'Start a CLI: write the quick start as cli.mjs and the package.json that runs it',
+  arguments: [{ name: 'dir', description: 'the directory to write into. Defaults to the current directory', required: false }],
+  options: {
+    install: { type: 'boolean', description: 'run the install with the package manager this ran under' },
+    force: { type: 'boolean', description: 'overwrite cli.mjs and package.json when they are already there' },
+  },
+  effects: 'non_idempotent',
+  examples: [
+    { command: 'npx burgee init my-cli', description: 'two files; then cd my-cli, npm install, node cli.mjs --help' },
+    { command: 'npx burgee init my-cli --install', description: 'the same, and the install too' },
+  ],
+  run: async ({ positionals, options, env }) => {
+    const [{ init }, { host }] = await Promise.all([import('./init.js'), import('./runtime.js')]);
+    return await init({ dir: positionals[0] ?? host.cwd(), typed: positionals[0], force: options.force === true, install: options.install === true, env });
+  },
+});
+
 export const program = defineProgram({
   name: 'burgee',
   description: 'The agent-native CLI framework, and the tools that come with it',
-  commands: [brandCommand, devCommand, migrateCommand, pluginCheckCommand],
+  commands: [brandCommand, devCommand, initCommand, migrateCommand, pluginCheckCommand, skillCommand],
 });

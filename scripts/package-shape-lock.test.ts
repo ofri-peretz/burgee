@@ -131,7 +131,13 @@ function checkCodeExports(exports: Record<string, unknown>): void {
   for (const [entry, target] of entries) {
     expect(typeof target, `${entry} must be a conditions object`).toBe('object');
     const conditions = target as Record<string, string>;
-    expect(Object.keys(conditions).sort(), entry).toEqual(['default', 'import', 'types']);
+    // A `require` condition only where `require()` must return something an ES module cannot be:
+    // a CommonJS file, re-evaluated after a cache bust. `burgee/yargs/v17` is yargs 17, whose
+    // `require('yargs')` is a singleton over the `process.argv` of the moment and whose `import`
+    // is the factory (`previous-majors` R4). Every other entry still requires the ESM file itself.
+    const keys = Object.keys(conditions).sort();
+    expect([['default', 'import', 'types'], ['default', 'import', 'require', 'types']], entry).toContainEqual(keys);
+    if (keys.includes('require')) expect(conditions['require'], `${entry}: a require condition names a CommonJS file in dist`).toMatch(/^\.\/dist\/.+\.cjs$/);
     expect(conditions['default'], `${entry}: default must be the same ESM file as import`).toBe(conditions['import']);
   }
 }
@@ -142,7 +148,7 @@ function checkCodeExports(exports: Record<string, unknown>): void {
  * points at a `.json` inside `dist/`, so what a caller reads is what was published.
  */
 function checkDataExports(exports: Record<string, unknown>): void {
-  for (const [entry, target] of Object.entries(exports).filter(([k]) => isDataExport(k))) {
+  for (const [entry, target] of Object.entries(exports).filter(([k]) => k !== './package.json' && isDataExport(k))) {
     expect(typeof target, `${entry} is data; it takes a path, not a conditions object`).toBe('string');
     expect(String(target), entry).toMatch(/^\.\/dist\/.+\.json$/);
   }
@@ -198,6 +204,14 @@ describe.each(published)('published package $pkg.name', ({ dir, pkg }) => {
 
   it('publishes any data export as a plain path into dist (K2)', () => {
     checkDataExports(pkg.exports ?? {});
+  });
+
+  // `require('<pkg>/package.json')` is how a bundler, a license scanner or a version check reads
+  // a dependency's manifest. Under an `exports` map that does not name it, Node throws
+  // ERR_PACKAGE_PATH_NOT_EXPORTED, and every family package did. Node's own convention: the
+  // manifest itself, exported as itself, beside the code entries.
+  it('exports its own package.json, so a tool can read the manifest of a dependency', () => {
+    expect(pkg.exports?.['./package.json'], `${pkg.name} does not export ./package.json`).toBe('./package.json');
   });
 
   it('imports none of the packages Node ships natively (K3)', () => {

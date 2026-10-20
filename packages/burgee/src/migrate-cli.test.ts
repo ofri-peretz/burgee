@@ -12,14 +12,16 @@
  * passes every in-process case and tells an unattended agent the migration is complete.
  */
 import { execFileSync, type ExecFileSyncOptions } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { ExitCode } from './exit-code.js';
+
+const scratch = scratchDirs();
 
 const CLI = resolve(fileURLToPath(new URL('..', import.meta.url)), 'dist/cli.js');
 
@@ -40,7 +42,7 @@ function burgee(args: string[]): Ran {
 }
 
 function project(files: Record<string, string>): string {
-  const dir = mkdtempSync(join(tmpdir(), 'burgee-migrate-cli-'));
+  const dir = scratch('burgee-migrate-cli-');
   for (const [path, body] of Object.entries(files)) {
     mkdirSync(dirname(join(dir, path)), { recursive: true });
     writeFileSync(join(dir, path), body);
@@ -93,6 +95,9 @@ describe('A9 — the surfaces are the framework’s, not this feature’s', () =
   });
 });
 
+/** `[major, minor, patch]` of a plain version. */
+const parts = (v: string): number[] => v.split('.').map(Number);
+
 describe('U12-2 — the versions next pins to ship with the binary', () => {
   it('wrote family-versions.json beside migrate.js, equal to every published manifest in this repository', () => {
     const packages = resolve(fileURLToPath(new URL('../..', import.meta.url)));
@@ -103,8 +108,30 @@ describe('U12-2 — the versions next pins to ship with the binary', () => {
         .filter((pkg) => pkg.private !== true)
         .map((pkg) => [pkg.name, pkg.version]),
     );
-    const built = JSON.parse(readFileSync(resolve(dirname(CLI), 'family-versions.json'), 'utf8')) as Record<string, string>;
-    expect(built).toEqual(expected);
+    const built = JSON.parse(readFileSync(resolve(dirname(CLI), 'family-versions.json'), 'utf8')) as { versions: Record<string, string> };
+    expect(built.versions).toEqual(expected);
+  });
+
+  it('wrote, for every subpath each package exports, a floor in its current major no newer than its version', () => {
+    // migrate-pins-carry-the-drop-in. The floors come from the release tags; a checkout without
+    // them floors every subpath at the current version, which is never too low.
+    const packages = resolve(fileURLToPath(new URL('../..', import.meta.url)));
+    const built = JSON.parse(readFileSync(resolve(dirname(CLI), 'family-versions.json'), 'utf8')) as { since: Record<string, Record<string, string>> };
+    for (const dir of readdirSync(packages, { withFileTypes: true }).filter((e) => e.isDirectory() && existsSync(join(packages, e.name, 'package.json')))) {
+      const pkg = JSON.parse(readFileSync(join(packages, dir.name, 'package.json'), 'utf8')) as { name: string; version: string; private?: boolean; exports?: Record<string, unknown> };
+      if (pkg.private === true) continue;
+      const floors = built.since[pkg.name] as Record<string, string>;
+      expect(Object.keys(floors), pkg.name).toEqual(Object.keys(pkg.exports ?? { '.': '' }).filter((k) => k === '.' || k.startsWith('./')));
+      for (const [subpath, floor] of Object.entries(floors)) {
+        const [f, v] = [parts(floor), parts(pkg.version)] as [number[], number[]];
+        expect(f[0], `${pkg.name}${subpath.slice(1)} floors in another major`).toBe(v[0]);
+        expect((f[1] as number) * 1e6 + (f[2] as number) <= (v[1] as number) * 1e6 + (v[2] as number), `${pkg.name}${subpath.slice(1)} floors at ${floor}, above ${pkg.version}`).toBe(true);
+      }
+    }
+    // Which floors the file holds depends on whether the build that wrote it saw the release tags
+    // (turbo can restore a dist/ from a tagless CI build), so no specific floor is asserted here.
+    // `scripts/family-versions.test.ts` holds the reading of history against a scratch repository,
+    // and `release.yml` rewrites the shipped table with `--require-tags`.
   });
 });
 
@@ -187,11 +214,55 @@ describe('A6 — it refuses a dirty tree through the binary, with the fix on std
   it('names the count and exits RUNTIME', () => {
     const dir = project({ 'src/a.ts': "import { Command } from 'commander';\n" });
     execFileSync('git', ['-C', dir, 'init', '-q'], { stdio: 'ignore' });
+    // Staged, so the change is tracked: an untracked-only tree gets the fix the next case holds (R7).
+    execFileSync('git', ['-C', dir, 'add', '-A'], { stdio: 'ignore' });
     const { code, stderr } = burgee(['migrate', dir]);
     expect(code).toBe(ExitCode.RUNTIME);
     expect(stderr).toContain('uncommitted change');
     // The fix was on the error and never printed, until 2026-09-30.
     expect(stderr).toContain('fix: commit or stash your changes, or pass --force');
     expect(readFileSync(join(dir, 'src/a.ts'), 'utf8')).toBe("import { Command } from 'commander';\n");
+  });
+
+  it('names the untracked paths on stderr, and offers .gitignore when nothing tracked changed', () => {
+    // R7 (migrate-preflight): @swc/cli's install wrote an untracked node-compile-cache/, and the
+    // refusal said only how many changes there were.
+    const dir = project({ 'package.json': DECLARES_COMMANDER, 'src/a.ts': "import { Command } from 'commander';\n" });
+    const git = (...args: string[]): void => void execFileSync('git', ['-C', dir, '-c', 'user.name=burgee', '-c', 'user.email=burgee@example.invalid', '-c', 'commit.gpgsign=false', ...args], { stdio: 'ignore' });
+    git('init', '-q');
+    git('add', '-A');
+    git('commit', '-q', '-m', 'init');
+    mkdirSync(join(dir, 'node-compile-cache'));
+    writeFileSync(join(dir, 'node-compile-cache/x'), '');
+    const { code, stderr } = burgee(['migrate', dir]);
+    expect(code).toBe(ExitCode.RUNTIME);
+    expect(stderr).toContain('the git tree has 1 uncommitted change');
+    expect(stderr).toContain('hint: ?? node-compile-cache/');
+    expect(stderr).toContain('fix: add node-compile-cache/ to .gitignore or commit them, or pass --force');
+    expect(readFileSync(join(dir, 'src/a.ts'), 'utf8')).toBe("import { Command } from 'commander';\n");
+  });
+});
+
+describe('R6, R8 — a blocking preflight, through the binary', () => {
+  it('A8 — a blocking preflight exits RUNTIME with the rows in --json', () => {
+    // migrate-preflight: wait-port's shape on a claimed major. CommonJS, and engines.node allows a
+    // Node on which require('burgee/commander') throws, so the rewrite would not load there.
+    const files = { 'package.json': JSON.stringify({ name: 'x', engines: { node: '>=10' }, dependencies: { commander: '^15.0.0' } }), 'bin/x.js': "const program = require('commander');\n" };
+    const dir = project(files);
+    const { code, stdout } = burgee(['migrate', dir, '--json']);
+    const { ok, data } = envelope(stdout);
+    expect(code).toBe(ExitCode.RUNTIME);
+    expect(ok).toBe(false);
+    expect(data).toMatchObject({ summary: 'blocked: 1 preflight check; nothing written (1 file would be rewritten)', changed: false, exitCode: ExitCode.RUNTIME });
+    expect(data['preflight']).toMatchObject([{ check: 'require-esm', blocking: true, found: 'engines.node ">=10" admits 10.0.0' }]);
+    expect(readFileSync(join(dir, 'bin/x.js'), 'utf8')).toBe(files['bin/x.js']);
+
+    const text = burgee(['migrate', dir]);
+    expect(text.code).toBe(ExitCode.RUNTIME);
+    expect(text.stdout.split('\n').slice(0, 3)).toEqual([
+      'blocked: 1 preflight check; nothing written (1 file would be rewritten)',
+      'before the move:',
+      "  block  require-esm  this package is CommonJS, and require('burgee/commander') throws ERR_REQUIRE_ESM on Node 10.0.0, which engines.node allows; raising the floor is a semver-major for this package; fix: npm pkg set \"engines.node=^20.19.0 || >=22.13.0\"",
+    ]);
   });
 });

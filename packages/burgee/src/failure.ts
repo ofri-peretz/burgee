@@ -15,8 +15,10 @@ import { AuthError, UsageError } from './errors.js';
 import { ExitCode, isExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
 import { type ActionRequiredSpec, type CommandNode, type Manifest } from './manifest.js';
 import { kebab } from './names.js';
+import { PluginError } from './plugin.js';
 // The failure path's own vocabulary, in this chunk with it: a run that succeeds loads neither (K6).
-import { Again, singleDashHint, unknownOption } from './unknown-option.js';
+import { adviceOf } from './root-help.js';
+import { Again, shellLine, singleDashHint, unknownOption } from './unknown-option.js';
 import { commandUsage, type Usage, usageText } from './usage.js';
 
 /**
@@ -100,13 +102,23 @@ function messageOf(cause: unknown): string {
   return typeof said === 'string' ? said : String(cause);
 }
 
-/** `hint`, `fix` and `usage` off an error that carries them, and nothing when it does not (E3). */
-function carried(cause: unknown): { hint?: string; fix?: string; usage?: Usage } {
+/**
+ * `hint`, `fix` and `usage` off an error that carries them, and nothing when it does not (E3).
+ *
+ * parse-refusals R4 — a refusal of dropped input names the words to leave out instead of a line,
+ * as `omit`: their places counted from the end of `line`, the whole line as typed. The chunk that
+ * threw saw only the command's own words, which are the line's tail; the program and the command
+ * in front are here, so the `fix` is that line without them, quoted as every fix line is.
+ */
+function carried(cause: unknown, line: readonly string[] = []): { hint?: string; fix?: string; usage?: Usage } {
   // Never nullish here: each caller has already matched `cause` by its class or its `code`.
-  const { hint, fix, usage } = cause as { hint?: unknown; fix?: unknown; usage?: unknown };
+  const { hint, fix, usage, omit, swap } = cause as { hint?: unknown; fix?: unknown; usage?: unknown; omit?: unknown; swap?: [number, string] };
   return {
     ...(typeof hint === 'string' ? { hint } : {}),
     ...(typeof fix === 'string' ? { fix } : {}),
+    ...(Array.isArray(omit) ? { fix: shellLine(line.filter((_, i) => !omit.includes(line.length - i))) } : {}),
+    // typed-positionals R3 — one word replaced, at its place from the end: the closest choice, the rounded integer.
+    ...(swap ? { fix: shellLine(line.map((word, i) => (line.length - i === swap[0] ? swap[1] : word))) } : {}),
     ...(typeof (usage as Usage | null | undefined)?.command === 'string' ? { usage: usage as Usage } : {}),
   };
 }
@@ -118,11 +130,15 @@ function carried(cause: unknown): { hint?: string; fix?: string; usage?: Usage }
  * own class and hands over; the class stays in `execute.ts` because a handler throws it on the
  * startup path.
  */
-export async function describeFailure(cause: unknown, { root, argv }: { root: readonly string[]; argv: readonly string[] }, node: CommandNode | undefined, action: ActionRequiredSpec | undefined): Promise<Failure> {
+export async function describeFailure(cause: unknown, { manifest, argv }: { manifest: Pick<Manifest, 'rootPath' | 'auth'>; argv: readonly string[] }, node: CommandNode | undefined, action: ActionRequiredSpec | undefined): Promise<Failure> {
+  const { rootPath: root, auth } = manifest;
   // The line as typed, program first: a fix that corrects an option names the whole line.
   const failure = await classify(cause, [...root, ...argv], node, action);
   // R2 — every failure has a kind: a defined error's own, else the contract's word for its code.
   failure.kind ??= kindOf(failure.code) as string;
+  // agent-lint-conformance R8 — a credential refused with no hint of its own is told the variable
+  // the program declared in `auth`: the recovery an agent can perform without a person.
+  if (failure.code === ExitCode.AUTH && auth !== undefined) failure.hint ??= adviceOf('AUTH', { auth });
   // A line to run instead is argv, without the program in front (D-20261009-json-asked-is-json).
   if (failure.again) failure.again = failure.again.slice(root.length);
   // D-20260930 — a failure with nothing to run next says what the command takes: its usage
@@ -140,7 +156,7 @@ async function classify(cause: unknown, argv: string[], node: CommandNode | unde
   const message = messageOf(cause);
   if (action !== undefined) return { code: ExitCode.CANCELLED, message, action, ...(action.hint === undefined ? {} : { hint: action.hint }) };
   const named = CLASSIFIED.find(([Class]) => cause instanceof Class);
-  if (named !== undefined) return { code: named[1], message, ...carried(cause) };
+  if (named !== undefined) return { code: named[1], message, ...carried(cause, argv) };
   // E7 — an author's own class, from `defineError`: its declared code, read off
   // `Symbol.for('burgee.exitCode')` on the instance's class (or a parent — statics inherit), and
   // rendered like the built-in ones. By symbol, not by import: the engine never loads
@@ -153,6 +169,10 @@ async function classify(cause: unknown, argv: string[], node: CommandNode | unde
   // `'CANCELLED'`, …) leaves with that code. It is how caique's prompt verdicts reach an exit
   // status with no dependency edge between the two packages: caique returns
   // `{ code, message, fix }`, the handler throws it, and nothing here imports caique.
+  // localised-human-surfaces R4 — a locale pack refused where it is first used. What is wrong is
+  // the program's setup and not the command typed, which is CONFIG's sentence; the family's code
+  // leads the message and its fix is the hint, so the refusal reads as it does in `burgee check`.
+  if (cause instanceof PluginError) return { code: ExitCode.CONFIG, message: `${cause.code} ${message}`, hint: cause.fix };
   const byName = namedCode(cause);
   if (byName !== undefined) return { code: byName, message, ...carried(cause) };
   if (isParseArgsFailure(cause)) {
@@ -165,15 +185,15 @@ async function classify(cause: unknown, argv: string[], node: CommandNode | unde
   return { code: ExitCode.RUNTIME, message };
 }
 
-function textFailure(failure: Failure): string {
-  const hint = failure.hint === undefined ? '' : `hint: ${failure.hint}\n`;
+function textFailure(failure: Failure, say: (english: string) => string): string {
+  const hint = failure.hint === undefined ? '' : `hint: ${say(failure.hint)}\n`;
   const fix = failure.fix === undefined ? '' : `fix: ${failure.fix}\n`;
   if (failure.action !== undefined) {
     // Always a list by here: `failureText` has already made each one runnable.
     const next = (failure.action.next as NonNullable<ActionRequiredSpec['next']>).map((n) => `  ${n.command}    ${n.when}\n`).join('');
     return `action required (${failure.action.reason}): ${failure.message}\n${next === '' ? '' : `next:\n${next}`}${hint}`;
   }
-  return `error: ${failure.message}\n${hint}${fix}${failure.usage === undefined ? '' : usageText(failure.usage)}`;
+  return `error: ${say(failure.message)}\n${hint}${fix}${failure.usage === undefined ? '' : usageText(failure.usage, say)}`;
 }
 
 /** The `next[]` commands as the caller can run them: the program in front, the caller's own `--json` carried (N11). */
@@ -186,16 +206,35 @@ function runnableNext(manifest: Manifest, spec: ActionRequiredSpec, json: boolea
  * What a described failure prints: under `--json` the envelope, for stdout; otherwise the prose,
  * for stderr. The caller picks the stream by the same `json` it passes here (O1, D-140).
  */
-function failureText(failure: Failure, manifest: Manifest, json: boolean): string {
+function failureText(failure: Failure, manifest: Manifest, json: boolean, say: (english: string) => string): string {
   if (failure.action !== undefined) {
     const next = runnableNext(manifest, failure.action, json);
     const rendered: Failure = { ...failure, action: { ...failure.action, next } };
     const body = { ok: false, status: 'action_required', reason: failure.action.reason, message: failure.message, next, hint: failure.hint, error: { kind: failure.kind, code: failure.code, message: failure.message } };
-    return json ? `${JSON.stringify(body)}\n` : textFailure(rendered);
+    return json ? `${JSON.stringify(body)}\n` : textFailure(rendered, say);
   }
   // E3 — `fix` beside `hint`: the exact flag or command, omitted rather than guessed.
   const body = { kind: failure.kind, code: failure.code, message: failure.message, hint: failure.hint, ...(failure.fix === undefined ? {} : { fix: failure.fix }), ...(failure.usage === undefined ? {} : { usage: failure.usage }) };
-  return json ? `${JSON.stringify({ ok: false, error: body })}\n` : textFailure(failure);
+  return json ? `${JSON.stringify({ ok: false, error: body })}\n` : textFailure(failure, say);
+}
+
+/**
+ * `localised-human-surfaces` R2 — the prose's language: the identity unless a registered plugin
+ * carries `locales`, so a program with no pack never loads `locale.js` or the catalog. Asked of
+ * the prose only: the envelope and the stderr error line below are machine surfaces and are
+ * written in the base language whatever the locale (R3).
+ *
+ * A pack that cannot be rendered is refused where it is first used (R4); here, already inside a
+ * failure, the refusal would replace the error the caller needs, so the prose stays English and
+ * help — where a refused pack is reported — says why.
+ */
+async function sayFor(manifest: Manifest, json: boolean, io: { env: Record<string, string | undefined>; locale?: string | undefined }): Promise<(english: string) => string> {
+  if (json || !manifest.plugins.some((p) => 'locales' in p)) return String;
+  try {
+    return (await import('./locale.js')).localiserFor(manifest, io)?.say ?? String;
+  } catch {
+    return String;
+  }
 }
 
 /**
@@ -208,7 +247,12 @@ function failureText(failure: Failure, manifest: Manifest, json: boolean): strin
  * is the reader both checkers model. A stream that does not say it is a terminal is not one:
  * Node leaves `isTTY` undefined on a pipe.
  */
-export function reportFailure(failure: Failure, manifest: Manifest, json: boolean, io: { out: { write: (s: string) => unknown }; err: { write: (s: string) => unknown; isTTY?: boolean } }): void {
-  (json ? io.out : io.err).write(failureText(failure, manifest, json));
+export async function reportFailure(
+  failure: Failure,
+  manifest: Manifest,
+  json: boolean,
+  io: { out: { write: (s: string) => unknown }; err: { write: (s: string) => unknown; isTTY?: boolean }; env: Record<string, string | undefined>; locale?: string | undefined },
+): Promise<void> {
+  (json ? io.out : io.err).write(failureText(failure, manifest, json, await sayFor(manifest, json, io)));
   if (json || io.err.isTTY !== true) io.err.write(`${JSON.stringify({ error: { kind: failure.kind, code: failure.code, message: failure.message } })}\n`);
 }

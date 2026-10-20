@@ -7,7 +7,7 @@
  * intention.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import ts from 'typescript';
@@ -42,7 +42,7 @@ const manifest = JSON.parse(readFileSync(join(PKG_ROOT, 'package.json'), 'utf8')
  * a user asks *why did this option get that value*. `seniority/precedence` no longer re-exports
  * it; the root still does, so `import { explain } from 'seniority'` is unchanged.
  */
-const SUBPATHS = ['.', './precedence', './explain', './config', './plugin', './cosmiconfig', './dotenv', './dotenv/config', './dotenv/cli', './lilconfig', './rc', './find-up', './yaml', './schema.json'];
+const SUBPATHS = ['.', './precedence', './explain', './config', './plugin', './cosmiconfig', './dotenv', './dotenv/config', './dotenv/cli', './lilconfig', './rc', './find-up', './yaml', './schema.json', './package.json'];
 
 describe('the export map is the compatibility claim (R8)', () => {
   it('publishes the root, the plugin host and one override target per graded incumbent', () => {
@@ -54,7 +54,7 @@ describe('the export map is the compatibility claim (R8)', () => {
     // acquire the cosmiconfig façade, because the two are graded separately and a shared
     // entry would make one suite's pass rate depend on the other's module graph.
     const entries = Object.entries(manifest.exports)
-      .filter(([key]) => key !== './schema.json')
+      .filter(([key]) => key !== './schema.json' && key !== './package.json')
       .map(([, value]) => (value as { import: string }).import);
     expect(new Set(entries).size).toBe(entries.length);
   });
@@ -121,8 +121,13 @@ describe('nothing reads the process (R11, Y9)', () => {
  * not have. What the lock prevents is the thing weight locks exist to prevent — a dependency
  * or a bundled parser arriving without anyone noticing, which would move this by an order of
  * magnitude rather than by a few hundred bytes.
+ *
+ * Raised 140,000 → 140,600 on 2026-10-12 (D-20261012-seniority-dotenv-spawn-codeql): main stood
+ * at 139,784 and `dotenv run` on Windows now refuses what cmd.exe cannot carry (a line break,
+ * NUL, a variable name ending in a caret) and reports it, 539 B. It closes a live `&` and a
+ * `%name:…%` expansion, which a few hundred bytes are worth.
  */
-const CEILING_BYTES = 140_000;
+const CEILING_BYTES = 140_600;
 
 describe('the weight ceiling (R9, Y8)', () => {
   it('keeps the built package under its declared ceiling', () => {
@@ -169,8 +174,9 @@ function specifiers(text: string): string[] {
   return ts.preProcessFile(text, true, true).importedFiles.map((f) => f.fileName);
 }
 
+/** What ships: `__fixtures__` is test scaffolding, outside the build like the tests themselves. */
 function sources(): string[] {
-  return walk(join(PKG_ROOT, 'src')).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'));
+  return walk(join(PKG_ROOT, 'src')).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts') && !f.split(sep).includes('__fixtures__'));
 }
 
 function walk(dir: string, out: string[] = []): string[] {

@@ -5,7 +5,7 @@
 > watch from *the five hosts we vendor a test suite for* to *every competitor a package
 > names* — and makes the issue it opens say what we should do, not only what they did.
 
-**Status:** draft · **Opened:** 2026-09-08 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-09-08 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-18 on [`1013b65db5`](https://github.com/ofri-peretz/burgee/commit/1013b65db5), verified against `main` at `1013b65db5` — all 6 criteria locked by `competitors-lock.test.ts`, the compat-oracle watch suites and `compat-upstream.yml`
 
 ---
 
@@ -115,6 +115,40 @@ files are affected, what bump that implies, or what the changeset should read.
 - The dedupe holds: running the job twice on the same day opens no second issue.
 - Proven by a fixture, not by waiting: a recorded "old" fingerprint and a recorded "new" one
   produce a known issue body, asserted byte-for-byte.
+
+## Shipped — 2026-10-18
+
+**Status raised to `shipped`.** Every criterion was checked against `main` at `1013b65db5` in the
+roadmap-to-shipped Batch 0 pass (`.sdlc/research/roadmap-to-shipped-2026-10.md`).
+
+The 2026-10-12 reading held this at `approved` for criterion 1 alone: six published packages
+declared no competitors. foundation-claims-watched R1–R5 closed that, and
+`competitors-lock.test.ts` now fails any published package without a declaration.
+
+| criterion | check | result |
+| :-- | :-- | :-- |
+| 1. every published package declares a competitor; a lock fails the gap | `competitors-lock.test.ts` | 94 passed |
+| 2. the watch covers every declared competitor | `watch.test.ts`, `competitors.test.ts`; `compat-upstream.yml` daily | 106 passed (with `registry.test.ts`, `issue.test.ts`, `upstream.test.ts`); the last five scheduled runs green, 2026-10-14 to 2026-10-18 |
+| 3. an added export yields an issue naming it, the subpath and a changeset block | `issue.test.ts` | the same run |
+| 4. a weight change yields an issue naming the stale README line and weight comment | `issue.test.ts`, `upstream.test.ts` | the same run |
+| 5. the dedupe: a second run the same day opens nothing | `compat-upstream.yml` lines 90–92 (R5: `gh issue list --state open … in:title`, `continue` on a hit) | held by workflow config, not a test. It searches **open** issues only, so closing a watch issue the same day lets a re-run open it again |
+| 6. proven by a fixture: old and new fingerprints give a known body, byte for byte | `issue.test.ts` | the same run |
+
+R7, "never a PR, never writes `.changeset/`", is held by the workflow's `permissions:` block and
+its comment at lines 94–96. The job holds `issues: write` and no `contents: write`.
+
+## Verified against `main` — 2026-10-12
+
+**`approved`, corrected from `draft`.** The header said `draft` after the work it describes had
+shipped. Steps 1–4 of `spec.md` landed on 2026-09-08 and 2026-09-09 (its two "What shipped"
+sections), and the daily competitor pass in `compat-upstream.yml` has run since: ten scheduled
+runs from 2026-10-02 to 2026-10-11, all green. It is not `shipped`, because the first success
+criterion is not met for the whole family: four packages declare competitors (`burgee`,
+`caique`, `flagstaff`, `roundel`) and six published ones (`seniority`, `bellpull`, `closeout`,
+`linegauge`, `paratext`, `controlroom`) do not. That remainder is
+`foundation-claims-watched` R1–R5, a wave-3 intent.
+
+The 2026-09-09 verification below is kept as it was read on that day.
 
 ## Verified against `main` — 2026-09-09
 

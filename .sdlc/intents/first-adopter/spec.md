@@ -8,11 +8,12 @@ Intent: [`intent.md`](./intent.md). **Status:** review.
 
 | id | Requirement |
 | :-- | :-- |
-| A1 | One non-demo CLI depends on `commander-agent` in a published release |
+| A1 | One non-demo CLI depends on ~~`commander-agent`~~ a burgee-family package in a published release. **Restated 2026-10-19:** `commander-agent` is a dropped intent; the published packages are `burgee` and its family |
 | A2 | An adoption report records time, diff size, breakages and gaps, written by someone who did not build the layer |
 | A3 | A revert branch removes the layer in one commit and is green, proving reversibility |
 | A4 | Every friction point becomes an intent or a recorded decision not to fix it |
 | A5 | `cli-benchmarks` B1 runs against the real CLI as well as the demo |
+| A6 | **Moved here 2026-10-19.** One CLI we did not write installs a single layer **alone, without `burgee`**, in a published release. Owns the adopter half of `burgee` U12 (D-20261009-burgee-u12-1-0; gap `.sdlc/gaps/C3.md`, candidate apify/mcpc#447, unmerged) and `cli-foundation-stack` S5, which asks the same of a foundation layer (`linegauge`, `seniority`, `bellpull`, `closeout`). The engineering half, that each tarball installs alone, is held by `scripts/independence-install-lock.test.ts` and is not part of A6 |
 
 ## Design
 

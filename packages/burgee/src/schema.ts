@@ -45,6 +45,8 @@ export interface CommandSchema {
   name: string;
   description?: string;
   summary?: string;
+  /** Other words that run it (R5): on the command, so a list of commands is one entry per command. */
+  aliases?: readonly string[];
   /**
    * What running it does, or `'withheld'` — published either way, because an agent reading
    * the program as data is better served by *this exists and is not for you* than by a gap
@@ -60,6 +62,7 @@ export interface CommandSchema {
   lazy?: true;
   /** Which plugin contributed it (M3). */
   plugin?: string;
+  excess?: true;
   arguments: ArgumentSpec[];
   options: Record<string, OptionSpec>;
   /**
@@ -127,9 +130,15 @@ export interface ProgramSchema {
   shadows?: ('--json' | '--mcp' | 'completion')[];
 }
 
+/** `choices` as `enum`, on each item of a list: one path for options and positionals (R3). */
+function withChoices(p: JsonSchemaProperty, choices: readonly string[] | undefined): JsonSchemaProperty {
+  if (choices !== undefined) (p.items ?? p).enum = [...choices];
+  return p;
+}
+
 /** Positionals go under their own names; a variadic one is an array. */
 function argumentProperty(a: ArgumentSpec): JsonSchemaProperty {
-  const p: JsonSchemaProperty = a.variadic === true ? { type: 'array', items: { type: 'string' } } : { type: 'string' };
+  const p = withChoices(a.variadic === true ? { type: 'array', items: { type: 'string' } } : { type: 'string' }, a.choices);
   if (a.description !== undefined) p.description = a.description;
   if (a.default !== undefined) p.default = a.default;
   return p;
@@ -145,10 +154,7 @@ function optionProperty(name: string, spec: OptionSpec): JsonSchemaProperty {
   const p: JsonSchemaProperty = spec.multiple === true ? { type: 'array', items: { type: scalar } } : { type: scalar };
   p.flag = `--${kebab(name)}`;
   if (spec.description !== undefined) p.description = spec.description;
-  if (spec.choices !== undefined) {
-    if (p.items !== undefined) p.items.enum = [...spec.choices];
-    else p.enum = [...spec.choices];
-  }
+  withChoices(p, spec.choices);
   if (spec.default !== undefined) p.default = spec.default;
   if (spec.minimum !== undefined) p.minimum = spec.minimum;
   if (spec.maximum !== undefined) p.maximum = spec.maximum;
@@ -179,7 +185,7 @@ export function typedName(node: CommandNode, root: string[]): string {
 }
 
 /** Keys a command's schema publishes exactly as the node holds them, in the order they appear. */
-const PASSED_THROUGH = ['description', 'summary', 'effects', 'fields', 'deprecated', 'group'] as const;
+const PASSED_THROUGH = ['description', 'summary', 'aliases', 'effects', 'fields', 'deprecated', 'group'] as const;
 
 export function commandSchemaOf(node: CommandNode, root: string[]): CommandSchema {
   const out: CommandSchema = {
@@ -194,6 +200,7 @@ export function commandSchemaOf(node: CommandNode, root: string[]): CommandSchem
   for (const key of PASSED_THROUGH) if (node[key] !== undefined) Object.assign(out, { [key]: node[key] });
   if (node.load !== undefined) out.lazy = true;
   if (node.plugin !== undefined) out.plugin = node.plugin;
+  if (node.allowExcess === true) out.excess = true;
   // Both spellings, in one list, through the one function the engine enforces (S2/S6).
   const relations = relationsOf(node);
   if (relations.length > 0) out.relations = relations.map(publishable);
@@ -222,8 +229,7 @@ export interface SchemaSummary {
 /** Above the budget (N13): every command by name and summary, and the drilling command for one in full. */
 export function summaryOf(manifest: Manifest, budget: number): SchemaSummary {
   const root = manifest.rootPath;
-  const program = manifest.find(root);
-  const out: SchemaSummary = {
+  return withProgram<SchemaSummary>(manifest, {
     schemaVersion: 1,
     name: root.join(' '),
     summarised: true,
@@ -236,19 +242,22 @@ export function summaryOf(manifest: Manifest, budget: number): SchemaSummary {
       return { name: typedName(c, root), ...(summary === undefined ? {} : { summary }), ...(c.effects === undefined ? {} : { effects: c.effects }) };
     }),
     hint: `run \`${root.join(' ')} <command> --schema\` for one command in full`,
-  };
-  if (manifest.version !== undefined) out.version = manifest.version;
-  const description = program?.description;
-  if (description !== undefined) out.description = description;
-  return out;
+  });
 }
 
 export function schemaOf(manifest: Manifest): ProgramSchema {
   const root = manifest.rootPath;
-  const program = manifest.find(root);
-  const out: ProgramSchema = { schemaVersion: 1, name: root.join(' '), exitCodes: ExitCode, commands: runnable(manifest).map((c) => commandSchemaOf(c, root)) };
+  return withProgram<ProgramSchema>(manifest, { schemaVersion: 1, name: root.join(' '), exitCodes: ExitCode, commands: runnable(manifest).map((c) => commandSchemaOf(c, root)) });
+}
+
+/**
+ * The program's version and description, after its commands, on the full schema and the summary
+ * alike. One copy: the two were the same three lines, and the bytes `--schema` publishes
+ * `excess` with came from folding them (parse-refusals R2, against the `./mcp` budget).
+ */
+function withProgram<T extends { version?: string; description?: string }>(manifest: Manifest, out: T): T {
   if (manifest.version !== undefined) out.version = manifest.version;
-  const description = program?.description;
+  const description = manifest.find(manifest.rootPath)?.description;
   if (description !== undefined) out.description = description;
   return out;
 }

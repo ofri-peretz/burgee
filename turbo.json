@@ -3,7 +3,22 @@
   "agentGuidance": false,
   "globalDependencies": [
     "tsconfig.base.json",
-    "package-lock.json"
+    "package-lock.json",
+    "scripts/schema-to-dist.mjs",
+    "scripts/family-versions.mjs",
+    "scripts/strip-comments.mjs",
+    "scripts/declaration-summaries.mts",
+    "scripts/declaration-reach.mts"
+  ],
+  "globalPassThroughEnv": [
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "NO_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "no_proxy",
+    "NODE_EXTRA_CA_CERTS",
+    "SSL_CERT_FILE"
   ],
   "tasks": {
     "build": {
@@ -34,6 +49,9 @@
       "dependsOn": [
         "build",
         "^build"
+      ],
+      "passThroughEnv": [
+        "VITEST_DURATIONS_DIR"
       ],
       "outputs": []
     },

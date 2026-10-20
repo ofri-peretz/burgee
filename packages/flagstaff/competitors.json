@@ -484,6 +484,12 @@
           "default"
         ]
       }
+    },
+    {
+      "package": "ansi-escapes",
+      "claim": "weight",
+      "via": "log-update",
+      "seen": null
     }
   ],
   "./box": [

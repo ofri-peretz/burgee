@@ -1,5 +1,75 @@
 # controlroom
 
+## 1.0.5
+
+### Patch Changes
+
+- [#1160](https://github.com/ofri-peretz/burgee/pull/1160) [`0b381a0`](https://github.com/ofri-peretz/burgee/commit/0b381a0d394092edf2ea21a9143a10111aa72fe4) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Export `./package.json`. `require('<package>/package.json')` threw `ERR_PACKAGE_PATH_NOT_EXPORTED`, which broke tools that read a dependency's manifest that way: bundlers, license scanners and version checks.
+- Updated dependencies [[`0b381a0`](https://github.com/ofri-peretz/burgee/commit/0b381a0d394092edf2ea21a9143a10111aa72fe4)]:
+  - caique@1.4.4
+  - closeout@1.1.5
+  - flagstaff@1.7.2
+  - linegauge@1.1.3
+  - paratext@1.0.9
+  - roundel@1.1.3
+
+## 1.0.4
+
+### Patch Changes
+
+- [#1156](https://github.com/ofri-peretz/burgee/pull/1156) [`05d1942`](https://github.com/ofri-peretz/burgee/commit/05d1942bda296cdc64c6c740123899ac14a3bcc2) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A pane taller than its rectangle scrolls. Before this, `fit` kept a pane's first rows and dropped the rest, and no key could reach them. The focused pane now moves with `↑`/`↓`, PgUp/PgDn and Home/End, bound in the default keymap as `scroll.up`, `scroll.down`, `scroll.pageUp`, `scroll.pageDown`, `scroll.top` and `scroll.bottom` and listed by `hints()`. A pane at its bottom follows new lines like a log tail. Scrolled up, it stays where it was put, and its last row says how many lines are below (`↓ 180`). A resize re-clamps the position. Its position is reducer state, `ScreenState.scroll`, and `reduce(state, action, extents)` takes the pane heights that the new `extents()` measures.
+
+  A tall pane on a live screen now opens at its last rows, where before it showed its first rows. Those rows were unreachable before, so nothing that worked stops working, but a long static text in a short pane now opens at its end until someone presses Home.
+
+  Off a terminal nothing changes: a pipe, CI, a screen reader and an agent still get every line of every pane. `compose` with `live: false` now prints every line too, so a screen that closes inline leaves every line in the scrollback, not just the page it was on.
+
+## 1.0.3
+
+### Patch Changes
+
+- [#1130](https://github.com/ofri-peretz/burgee/pull/1130) [`c05c86e`](https://github.com/ofri-peretz/burgee/commit/c05c86e2caa0fc3a89f97f7fe9c37bd7b876bfaf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Every drop-in subpath now type-checks under `moduleResolution: node10`, and under `module: commonjs`
+  with no resolution set, which is TypeScript's default there. `import … from 'burgee/commander'`
+  used to fail with TS2307 in such a project, although `require()` of the same specifier worked.
+  Each package now declares `types` and a `typesVersions` map, derived from `exports`, with one key per
+  typed subpath pointing at the file `exports` already names. `exports` is unchanged, so `node16`,
+  `nodenext` and `bundler` read exactly what they read before. `controlroom/ink`'s declarations no
+  longer name the untyped `react-reconciler`, which was TS7016 for consumers with `skipLibCheck: false`.
+- Updated dependencies [[`c05c86e`](https://github.com/ofri-peretz/burgee/commit/c05c86e2caa0fc3a89f97f7fe9c37bd7b876bfaf)]:
+  - caique@1.4.2
+  - closeout@1.1.4
+  - flagstaff@1.7.1
+  - linegauge@1.1.2
+  - paratext@1.0.8
+  - roundel@1.1.2
+
+## 1.0.2
+
+### Patch Changes
+
+- [#1045](https://github.com/ofri-peretz/burgee/pull/1045) [`c4fd9a3`](https://github.com/ofri-peretz/burgee/commit/c4fd9a3cb10bc36bef8c468365addfc6deb572cf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The family plugin schema (`schema.json`, identical in every plugin host) now describes `locales`, burgee's locale-pack key. A plugin carrying `locales` validates against the shared schema as it does against `burgee/locale-pack-schema.json`, which lists every message id. This package reads nothing new, and a plugin carrying `locales` registers here as before.
+- Updated dependencies [[`c4fd9a3`](https://github.com/ofri-peretz/burgee/commit/c4fd9a3cb10bc36bef8c468365addfc6deb572cf), [`c4fd9a3`](https://github.com/ofri-peretz/burgee/commit/c4fd9a3cb10bc36bef8c468365addfc6deb572cf), [`b45f141`](https://github.com/ofri-peretz/burgee/commit/b45f1413f40bc775329b066af1528250cd5145f3)]:
+  - caique@1.1.0
+  - closeout@1.1.2
+  - flagstaff@1.4.0
+  - linegauge@1.1.1
+  - paratext@1.0.6
+  - roundel@1.1.1
+
+## 1.0.1
+
+### Patch Changes
+
+- [#1011](https://github.com/ofri-peretz/burgee/pull/1011) [`1968eb4`](https://github.com/ofri-peretz/burgee/commit/1968eb46feec57bb047a9c4a4288e0cf4442f4b2) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The README quick start runs as written. On npm it was broken for flagstaff (`rt` undefined) and linegauge (`styled` undefined), controlroom's imported flagstaff without installing it, and paratext's printed nothing. No code changed; `readme-quick-start-lock` now runs every package's quick start.
+
+- [#1022](https://github.com/ofri-peretz/burgee/pull/1022) [`ecb0a00`](https://github.com/ofri-peretz/burgee/commit/ecb0a00ca68e9a3b3584aefabb9dcf97e3ff967a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The tarball no longer carries declaration files that no `exports` entry reaches. TypeScript could never open them, because a deep import is refused by `exports`. Every entry's types are unchanged. The ten packages drop 71 files and 118,312 bytes between them, burgee 35 files and 76,504 bytes, which takes its tarball from 251,814 to 225,278 bytes gzipped.
+- Updated dependencies [[`1357061`](https://github.com/ofri-peretz/burgee/commit/1357061168d836d87389dc0881b4a52df648cdc3), [`49d8e94`](https://github.com/ofri-peretz/burgee/commit/49d8e943ceaf8dcef14d43c0a70c2edec1a67816), [`bfe4ab8`](https://github.com/ofri-peretz/burgee/commit/bfe4ab8b13ff04293345a69007cad9e0cb81c678), [`45a70be`](https://github.com/ofri-peretz/burgee/commit/45a70bec5d1ace1345a883afe10a3a081b081711), [`1968eb4`](https://github.com/ofri-peretz/burgee/commit/1968eb46feec57bb047a9c4a4288e0cf4442f4b2), [`65afee5`](https://github.com/ofri-peretz/burgee/commit/65afee5c96e4cae62dbb9b0ba28fab98fffdbf01), [`bcc438a`](https://github.com/ofri-peretz/burgee/commit/bcc438ac3936ee1cd530931ea090c6a8bdd016b2), [`ecb0a00`](https://github.com/ofri-peretz/burgee/commit/ecb0a00ca68e9a3b3584aefabb9dcf97e3ff967a)]:
+  - flagstaff@1.3.0
+  - caique@1.0.5
+  - linegauge@1.1.0
+  - paratext@1.0.5
+  - roundel@1.1.0
+  - closeout@1.1.1
+
 ## 1.0.0
 
 ### Major Changes

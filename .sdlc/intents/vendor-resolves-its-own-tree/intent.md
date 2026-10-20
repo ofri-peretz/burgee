@@ -1,6 +1,6 @@
 # Intent — a vendor run reads the tree it writes to
 
-**Status:** approved · **Opened:** `2026-09-17` · **Owner:** `@ofri-peretz`
+**Status:** shipped · **Opened:** `2026-09-17` · **Owner:** `@ofri-peretz` · **Shipped:** 2026-10-19 — the three criteria in `spec.md` § Requirements, R3 a real run from a tree with no `node_modules`
 
 ---
 

@@ -26,16 +26,18 @@
  * on 28 missing yargs names and 4 missing commander names, and the migrated demo on
  * `Argv`. The PR records the output.
  */
-import { cpSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { cpSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { FACADE_EXPORTS, migrate } from './migrate.js';
 import yargs from './yargs.js';
+
+const scratch = scratchDirs();
 
 const PKG = fileURLToPath(new URL('..', import.meta.url));
 const EXAMPLES = resolve(PKG, '../../examples');
@@ -446,9 +448,57 @@ describe('coverage — every name the incumbent exports, the façade exports', (
   });
 });
 
+/**
+ * `extra-typings-drop-in` R4 — the import site `orval` has (`adoption-targets.md` excluded it
+ * for exactly this import): a `Command` and an `Option` from `@commander-js/extra-typings`,
+ * options declared by their flag strings and read back typed in the action. The last line is
+ * the inference itself: the options are not `any`, so assigning one to a `number` is an error.
+ */
+const EXTRA_TYPINGS_ORVAL = `import { Command, Option } from '@commander-js/extra-typings';
+
+const cli = new Command('orval')
+  .description('A swagger client generator for typescript')
+  .version('8.0.0')
+  .option('-o, --output <path>', 'output file destination')
+  .option('-i, --input <path>', 'input file (yaml or json openapi specs)')
+  .option('-c, --config <path>', 'override flags by a config file')
+  .option('-p, --project <name...>', 'focus one or more projects of the config')
+  .option('-w, --watch [path...]', 'watch mode; with no path, the input target')
+  .addOption(new Option('--client <name>', 'default client').choices(['axios', 'fetch', 'swr'] as const))
+  .option('--mock', 'activate the mock')
+  .option('--clean [path...]', 'clean output directory')
+  .action(async (options) => {
+    const output: string | undefined = options.output;
+    const projects: string[] | undefined = options.project;
+    const watch: true | string[] | undefined = options.watch;
+    const client: 'axios' | 'fetch' | 'swr' | undefined = options.client;
+    const mock: true | undefined = options.mock;
+    const clean: true | string[] | undefined = options.clean;
+    await Promise.resolve([output, projects, watch, client, mock, clean, options.input, options.config]);
+    // @ts-expect-error -- inferred from '<path>', not \`any\`: a string is not a number
+    const port: number = options.output;
+    await Promise.resolve(port);
+  });
+
+await cli.parseAsync(process.argv);
+`;
+
 describe('burgee migrate — its output compiles', () => {
+  it("migrates orval's @commander-js/extra-typings import site to one that type-checks, inference intact (extra-typings-drop-in R4)", async () => {
+    const dir = scratch('burgee-extra-typings-');
+    mkdirSync(join(dir, 'src'));
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'orval-shaped', type: 'module', dependencies: { '@commander-js/extra-typings': '^15.0.0', commander: '^15.0.0' } }));
+    writeFileSync(join(dir, 'src', 'orval.ts'), EXTRA_TYPINGS_ORVAL);
+    const report = await migrate({ dir, status: () => undefined });
+    expect(report).toMatchObject({ refused: [], kept: [] });
+    const migrated = readFileSync(join(dir, 'src', 'orval.ts'), 'utf8');
+    expect(migrated).toContain("from 'burgee/commander/extra-typings'");
+    expect(migrated).not.toContain('@commander-js/extra-typings');
+    expect(typeErrors({ 'orval/orval.ts': migrated })).toEqual([]);
+  });
+
   it('migrates demo-cli-yargs to a program that type-checks', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'burgee-demo-cli-yargs-'));
+    const dir = scratch('burgee-demo-cli-yargs-');
     cpSync(join(EXAMPLES, 'demo-cli-yargs', 'src'), join(dir, 'src'), { recursive: true });
     cpSync(join(EXAMPLES, 'demo-cli-yargs', 'package.json'), join(dir, 'package.json'));
     const report = await migrate({ dir, status: () => undefined });
@@ -456,5 +506,44 @@ describe('burgee migrate — its output compiles', () => {
     const files = Object.fromEntries(readdirSync(join(dir, 'src')).map((f) => [`demo/${f}`, readFileSync(join(dir, 'src', f), 'utf8')]));
     expect(Object.values(files).join('\n')).not.toMatch(/from 'yargs'/);
     expect(typeErrors(files)).toEqual([]);
+  });
+});
+
+/**
+ * clispec-conformance R5 — with `output.schema`, `run` must return what the schema describes.
+ * Compiled against the built package the way a user's project compiles, like every fixture
+ * above. Red before R5: `output` was not a key of `Command`, so the good program failed too.
+ */
+describe('burgee — a declared output schema types the handler (clispec-conformance R5)', () => {
+  const head = `import { defineCommand } from 'burgee';\n`;
+
+  it('accepts a handler returning what the schema describes, and one with no schema at all', () => {
+    expect(
+      typeErrors({
+        'output-good.ts': `${head}
+defineCommand({ name: 'one', effects: 'read_only', output: { cardinality: 'single', schema: { type: 'string' } }, run: () => 'hi' });
+defineCommand({ name: 'async', effects: 'read_only', output: { cardinality: 'single', schema: { type: 'integer' } }, run: async () => 3 });
+defineCommand({
+  name: 'rows',
+  effects: 'read_only',
+  output: { cardinality: 'bounded', schema: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, size: { type: 'number' }, tag: { enum: ['a', 'b'] } }, required: ['id'] } } },
+  run: () => [{ id: 'x', size: 1 }, { id: 'y', tag: 'a' as const }],
+});
+defineCommand({ name: 'free', effects: 'read_only', output: { cardinality: 'single' }, run: () => ({ anything: true }) });
+defineCommand({ name: 'none', effects: 'read_only', run: () => 42 });
+defineCommand({ name: 'never', effects: 'read_only', output: { cardinality: 'single', schema: { not: {} } }, run: () => { throw new Error('no'); } });
+`,
+      }),
+    ).toEqual([]);
+  });
+
+  it('refuses a handler that returns the wrong shape', () => {
+    const errors = typeErrors({
+      'output-bad.ts': `${head}
+defineCommand({ name: 'one', effects: 'read_only', output: { cardinality: 'single', schema: { type: 'string' } }, run: () => 3 });
+defineCommand({ name: 'rows', effects: 'read_only', output: { cardinality: 'bounded', schema: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } } }, run: () => [{ name: 'x' }] });
+`,
+    });
+    expect(errors).toEqual([expect.stringMatching(/^output-bad\.ts:3 TS2322 /), expect.stringMatching(/^output-bad\.ts:4 TS2322 /)]);
   });
 });

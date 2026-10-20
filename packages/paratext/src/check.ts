@@ -89,7 +89,9 @@ export async function check(argv: readonly string[], write: (s: string) => void)
     return await inspect(argv, write);
   } catch (error) {
     if (!(error instanceof PluginError)) throw error;
-    return refuse(error.code, error.message, error.fix, write);
+    // Each problem as its own refusal, so an author reads every one of them in one run.
+    for (const p of error.problems ?? [error]) refuse(p.code, p.message, p.fix, write);
+    return EXIT_RUNTIME;
   }
 }
 

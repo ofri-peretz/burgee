@@ -20,12 +20,16 @@
  * does, because what matters is what the script decides.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
+
+import { scratchDirs } from './scratch-dir.js';
+
+/** Every scratch directory this file makes, removed after its last test (`scripts/scratch-dir.ts`). */
+const scratchDir = scratchDirs();
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const WORKFLOW = join(REPO_ROOT, '.github/workflows/dependabot-automerge.yml');
@@ -53,7 +57,7 @@ interface Update {
 
 /** Run the step on fetch-metadata's `updated-dependencies-json` and return its `merge=` answer. */
 function mergeFor(updates: Update[] | string): string {
-  const dir = mkdtempSync(join(tmpdir(), 'dependabot-automerge-'));
+  const dir = scratchDir('dependabot-automerge-');
   const script = join(dir, 'decide.sh');
   const out = join(dir, 'output');
   writeFileSync(script, decideScript());

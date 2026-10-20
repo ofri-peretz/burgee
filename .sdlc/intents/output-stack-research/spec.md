@@ -2,7 +2,30 @@
 
 Intent: [`intent.md`](./intent.md). **Status:** review — corrected from `shipped` 2026-09-09; see the intent's verification section.
 
+**Restated:** 2026-10-18 — see [§ Restated 2026-10-18](#restated-2026-10-18)
+
 ---
+
+## Restated 2026-10-18
+
+**R1–R7 are all held by documents on `main`; the one open item is the intent's S3 for caique, which this design's out-of-scope line handed to a revision that never came — REMAINING: S3.**
+
+The table with the document behind each row is in the intent's
+[§ Restated 2026-10-18](./intent.md#restated-2026-10-18). This is a documents-only design, and
+no row is held by a test. In short:
+
+- **R1, R2** held by `scripts/fetch-competitor-issues.sh stack` and its snapshots in
+  `.sdlc/research/issues/output-stack/`.
+- **R3** held by D-071, and by the discussion (`D#`) citations in the research doc.
+- **R4, R5, R7** held by `.sdlc/research/output-stack-open-issues.md`: 21 clusters with an
+  owner each, the U-floor citations table, and § "What could not be determined".
+- **R6** held by `.sdlc/research/competitor-landscape.md` § "7. The output stack".
+
+The [Out of scope](#out-of-scope) line "Re-issuing the layer intents with citations — done in
+each layer's next design revision" landed for roundel and flagstaff, as an `### Evidence`
+table in each `spec.md`. It never landed for caique, and no intent took it over, so the
+intent keeps that piece as remaining rather than treating the out-of-scope line as a
+completed move.
 
 ## Requirements
 
@@ -46,4 +69,6 @@ later pass; this one does not edit intents.
 ## Out of scope
 
 - Re-issuing the layer intents with citations — done in each layer's next design revision.
+  **2026-10-18:** done for roundel and flagstaff (`spec.md` § "Evidence"); not done for
+  caique, and kept as remaining under the intent's S3.
 - Measuring installed closure and spawn delta for the ten — `cli-benchmarks` B4.

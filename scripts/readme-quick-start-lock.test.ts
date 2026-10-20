@@ -35,17 +35,23 @@
  * the program above it; a `bash` block is an install line; an untagged or `text` block is the
  * output of the program above it. Any other fence fails the lock until someone says what it is,
  * so a block cannot be skipped by being written in a language this file does not know.
+ *
+ * Off CI, tarballs that already passed here are not installed again: the per-package cases
+ * report skipped, naming the stamp (`installStamp` in `family-install.ts`).
  */
 import { execFile } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { declaredBy, discard, type Edge, installTarballs, packFamily, publishedManifests, readManifest, undeclaredReaches } from './family-install.js';
+import { declaredBy, discard, type Edge, type InstallStamp, installStamp, installTarballs, packFamily, publishedManifests, readManifest, undeclaredReaches } from './family-install.js';
+import { scratchDirs } from './scratch-dir.js';
+
+/** Every scratch directory this file makes, removed after its last test (`scripts/scratch-dir.ts`). */
+const scratchDir = scratchDirs();
 
 const run = promisify(execFile);
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -231,10 +237,13 @@ describe('every package README’s quick start runs as written', () => {
   const starts = new Map(RUN_HERE.map((pkg) => [pkg, classify(readFileSync(join(root, 'packages', pkg, 'README.md'), 'utf8'))]));
   const results = new Map<string, Ran[]>();
   let base: string;
+  let stamp: InstallStamp | undefined;
 
   beforeAll(async () => {
-    base = mkdtempSync(join(tmpdir(), 'burgee-quick-start-'));
+    base = scratchDir('burgee-quick-start-');
     const tarballs = await packFamily(root, manifests.keys(), join(base, 'tarballs'));
+    stamp = installStamp(fileURLToPath(import.meta.url), tarballs.values());
+    if (stamp.skip !== undefined) return;
     const adopter = join(base, 'adopter');
     mkdirSync(adopter);
     writeFileSync(join(adopter, 'package.json'), JSON.stringify({ name: 'quick-start-reader', private: true }));
@@ -271,7 +280,10 @@ describe('every package README’s quick start runs as written', () => {
     );
   }, SETUP_TIMEOUT_MS);
 
-  afterAll(() => discard(base));
+  afterAll(({}, suite) => {
+    discard(base);
+    stamp?.record(suite);
+  });
 
   it('grades every published package, and burgee where it is already run', () => {
     expect([...manifests.keys()].toSorted()).toEqual(PUBLISHED);
@@ -279,6 +291,9 @@ describe('every package README’s quick start runs as written', () => {
   });
 
   describe.each(RUN_HERE)('%s', (pkg) => {
+    beforeEach((ctx) => {
+      if (stamp?.skip !== undefined) ctx.skip(stamp.skip);
+    });
     const start = (): QuickStart => starts.get(pkg) ?? { programs: [], installs: [] };
     const ran = (): Ran[] => results.get(pkg) ?? [];
 

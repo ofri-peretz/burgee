@@ -102,14 +102,14 @@ describe('the strongest claim and the order of the list', () => {
 });
 
 describe('reading the declarations off disk', () => {
-  it('reads only `./` subpaths holding a list, from the packages that declare, in owner order', () => {
+  it('reads only subpaths (the root `.` or a `./` path) holding a list, from the packages that declare, in owner order', () => {
     const root = mkdtempSync(join(tmpdir(), 'competitors-'));
     const write = (owner: string, body: unknown): void => {
       mkdirSync(join(root, owner), { recursive: true });
       writeFileSync(join(root, owner, 'competitors.json'), JSON.stringify(body));
     };
     write('roundel', { $schema: './schema.json', notes: [{ package: 'not-a-subpath', claim: 'weight', seen: null }], './chalk': [{ package: 'chalk', claim: 'compat', seen: null }, { note: 'not an entry' }], './odd': { package: 'x' } });
-    write('Zebra', { './ora': [{ package: 'ora', claim: 'weight', seen: null }] });
+    write('Zebra', { '.': [{ package: 'execa', claim: 'weight', seen: null }], './ora': [{ package: 'ora', claim: 'weight', seen: null }], '.ora': [{ package: 'not-a-subpath', claim: 'weight', seen: null }] });
     mkdirSync(join(root, 'burgee'));
     writeFileSync(join(root, 'README.md'), '');
     const declarations = readDeclarations(root);
@@ -120,6 +120,12 @@ describe('reading the declarations off disk', () => {
       dir: join(root, 'roundel'),
       file: join(root, 'roundel', 'competitors.json'),
       subpaths: { './chalk': [{ package: 'chalk', claim: 'compat', seen: null }] },
+    });
+    // The root entry is a subpath like any other: bellpull's `run` is `.`, and it is what the
+    // execa and tinyexec figures are measured from. `.ora` is a key, not a subpath.
+    expect(declarations[1]?.subpaths).toEqual({
+      '.': [{ package: 'execa', claim: 'weight', seen: null }],
+      './ora': [{ package: 'ora', claim: 'weight', seen: null }],
     });
     rmSync(root, { recursive: true, force: true });
   });

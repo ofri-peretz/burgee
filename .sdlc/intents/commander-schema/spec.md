@@ -1,8 +1,35 @@
 # Design — `commander-schema`
 
-Intent: [`intent.md`](./intent.md). **Status:** review.
+Intent: [`intent.md`](./intent.md). **Status:** approved.
 
 ---
+
+## Restated 2026-10-18
+
+**R5, R6 and R7 are held. R1 and R2 are held for options, and their positional half moves to `typed-positionals` R1–R2. R3 and R4 are held except one piece each — REMAINING: R2 (option `file`/`path`/`object` types), R3 (`--no-x` honoured, yargs #898), R4 (`file` existence check).** *2026-10-19: R3 held; R2 and R4 remain, as `B-20261019-commander-schema-remaining`. The positional half is built (`typed-positionals` R1–R3).*
+
+Verified against burgee `main` at `1013b65db5` with `git grep`; no test was run. The § Design
+tree below (`packages/cli-core/src/schema/`, `packages/commander-schema/src/`) was never
+built. The engine's `manifest.ts` (`OptionSpec`, `ArgumentSpec`), `definition.ts`,
+`validate.ts` and `schema.ts` carry it, and `CliError` became the engine's usage error with
+`fix`/`hint`. The intent-level criteria (C1–C3) are in
+[`intent.md` § Restated 2026-10-18](./intent.md#restated-2026-10-18).
+
+| ID | promised | on main | check | disposition |
+| :-- | :-- | :-- | :-- | :-- |
+| R1 | `defineCommand(spec)` returns a commander `Command`; handler gets `{ args, options, ctx }` typed from the spec | a native `defineCommand`, not a commander `Command`; `options` typed; positionals arrive untyped as `ctx.positionals` | `packages/burgee/src/schema-dsl.test.ts` › "infers choices as a union, number as number, multiple as an array, and presence from required/default"; › "reaches the handler typed, without a generic" | restated (native); `args` moved → `typed-positionals` R2 |
+| R2 | types `flag`, `string`, `number`, `choice`, `file`, `path`, `object`, Standard Schema; `multiple`/`separator`; `required`, `default`, `env`, `hidden`, `alias`, `deprecated` | options: `string`, `boolean` (was `flag`), `number`; `choices` (was `choice`); Standard Schema as `schema`; `multiple`/`separator`; `required`, `default`, `env`, `hidden`, `short` (was `alias`), `deprecated`. Positionals: `type: 'file'` only. Not built: option `file`, `path`, and the `object` type the § Open questions decided | `packages/burgee/src/schema-dsl.test.ts` › "runs the Standard Schema on the parsed value and reports its issues as a usage error"; › "collects repetitions and splits on the separator, from flags and from env"; `packages/burgee/src/schema.test.ts` › "carries choices, defaults and requiredness as data in a JSON Schema per command (N9)"; `packages/burgee/src/help.test.ts` › "hides hidden commands and options, and marks deprecated ones inline (yargs #2248)" | options held; positional types moved → `typed-positionals` R1; option `file`/`path`/`object` remaining |
+| R3 | relations `exactlyOneOf`, `atLeastOneOf`, `atMostOneOf`, `implies` (name or predicate), `conflicts`; after parsing, before choices and the handler; honouring `--no-x` (yargs #898) | yes, in `validate.ts`, plus the option-level spelling `dependsOn`/`exclusive`. No test cites #898 or exercises `--no-x` against a relation | `packages/burgee/src/schema-dsl.test.ts` › "atMostOneOf, conflicts, and a value-aware implies (yargs #1093, #439, #1322)"; › "checks relations before choices (yargs #1186): a bad choice with a conflict reports the conflict"; › "exactlyOneOf and atLeastOneOf"; `packages/burgee/src/option-relations.test.ts` › "a default does not satisfy it (oclif/core #1639)" | held; `--no-x` held 2026-10-19 by `packages/burgee/src/schema-dsl.test.ts` › "counts a typed --no-x as given to implies and dependsOn, and a default as not given (yargs #898)" (it fails with `isSet` reading `false` as unset) |
+| R4 | `number` rejects NaN/Infinity, enforces `min`/`max`/`integer`; `file` checks existence when asked; unknown `type` throws at definition time | numbers: yes (`minimum`/`maximum`/`integer`). Unknown `type`: yes. `file` existence: not built (`type: 'file'` means "`-` is stdin" only) | `packages/burgee/src/schema-dsl.test.ts` › "parses and enforces integer, minimum and maximum, each with the fix in the hint"; › "never lets NaN or Infinity through from env or the default path"; › "rejects two keys that meet on the command line, and a repeated short alias, at definition time (yargs #887)" (asserts `unknown type "text"`) | held, except `file` existence remaining |
+| R5 | `file`/`path` positionals accept `-` as stdin; `--` pass-through preserved | yes for `type: 'file'` (S4, D-113); `path` is not a type | `packages/burgee/src/stdin-dash.test.ts` › "hands the handler the injected stdin, and the positional still reads `-`"; `packages/burgee/src/parsing-edges.test.ts` › "commander #2530, yargs #1527 — `--` ends options and everything after it survives verbatim" | held (`path` is under R2) |
+| R6 | duplicate aliases, reserved names, camel/kebab collisions are definition-time errors; camelCase key, kebab-case CLI, both in `--schema` | yes | `packages/burgee/src/schema-dsl.test.ts` › "rejects two keys that meet on the command line, and a repeated short alias, at definition time (yargs #887)"; › "types --dry-run and reads options.dryRun; help, schema and env agree"; `packages/burgee/src/env.test.ts` › "reserves version and explain like the other surfaces (V5)" | held |
+| R7 | `flag` takes no value; `multiple` splits on `separator` | yes (`boolean`) | `packages/burgee/src/schema-dsl.test.ts` › "leaves the next word as a positional and rejects --force=value"; › "collects repetitions and splits on the separator, from flags and from env" | held |
+
+The `typed-positionals` move is checked. Its spec R1 widens `ArgumentSpec.type` to
+`'string' | 'number' | 'integer' | 'boolean' | 'file'` with `choices`. Its R2 adds
+`RunContext.args`, "a variadic one as an array, typed through the program's inference like
+`options`", pinned by `expectTypeOf`. Both are unbuilt (`typed-positionals.test.ts` is not on
+main).
 
 ## Requirements
 
@@ -53,7 +80,7 @@ for `max` exceeded), so `commander-agent` renders them like every other error.
 | R3 (S2/S6) | `relations`: `exactlyOneOf`, `atLeastOneOf`, `atMostOneOf`, `conflicts`, `implies` (name or predicate); validated after resolution, before choices and the handler; a typed `--no-x` counts as set | `validate.ts` `checkRelations` |
 | R3b (S2) — PLAN 2.5.2 | the same two constraints spelled **on the option**: `dependsOn` → `implies`, `exclusive` → `conflicts`. Desugared by `relationsOf` and enforced by the one engine; published on the option in `--schema`, on its line in help, and as Fig's `dependsOn` / `exclusiveOn`; an undeclared or self name is a definition-time error | `manifest.ts` `optionRelations`/`relationsOf`, `definition.ts`, `option-relations.test.ts` |
 | R4 (S3) | `number` rejects NaN/Infinity, enforces `minimum`/`maximum`/`integer` with the fix in the hint; an unknown `type`, a numeric bound on a non-number, are definition-time errors | `toNumber`, `checkDefinition` |
-| R5 (S4) | `--` pass-through preserved (G5, already); `file`/`path` types and `-` as stdin — not yet | — |
+| R5 (S4) | `--` pass-through preserved (G5, already); `file`/`path` types and `-` as stdin — not yet (2026-10-18: `type: 'file'` and `-` as stdin shipped with S4, `stdin-dash.test.ts`; `path` not built) | — |
 | R6 (S5/V5) | canonical camelCase key, kebab-case on the command line, both in `--schema` (`flag`); duplicate short aliases and camel/kebab collisions are definition-time errors | `kebab`/`camel`, `checkDefinition` |
 | R7 (S7/S8) | `boolean` never consumes a value (parseArgs); `multiple` collects repetitions and splits on `separator` (`,` by default), from flags, env and config | `splitMultiple` |
 | `object` type (dotted options) | not yet | — |

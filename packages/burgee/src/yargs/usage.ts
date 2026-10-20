@@ -23,6 +23,8 @@ export interface UsageInstance {
   getUsageDisabled: () => boolean;
   getPositionalGroupName: () => string;
   example: (cmd: string, description?: string) => void;
+  /** burgee: the `.example()` pairs, for the manifest's `examples` (facade-projection-fidelity R4). */
+  getExamples: () => [string, string][];
   command: (cmd: string, description: string | false, isDefault: boolean, aliases: string[], deprecated?: boolean | string) => void;
   getCommands: () => [string, string, boolean, string[], boolean | string][];
   describe: (keyOrKeys: string | string[] | Record<string, string>, desc?: string) => void;
@@ -126,6 +128,7 @@ export function usage(yargs: any, shim: PlatformShim): UsageInstance {
   self.example = (cmd, description) => {
     examples.push([cmd, description || '']);
   };
+  self.getExamples = () => examples;
 
   let commands: [string, string, boolean, string[], boolean | string][] = [];
   self.command = function command(cmd, description, isDefault, aliases, deprecated = false) {

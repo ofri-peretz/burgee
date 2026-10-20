@@ -258,5 +258,12 @@
         ]
       }
     }
+  ],
+  "./meow": [
+    {
+      "package": "meow",
+      "claim": "compat",
+      "seen": null
+    }
   ]
 }

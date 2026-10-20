@@ -85,7 +85,7 @@ jobs:
       layers_page: ${{ steps.layers_page.outcome }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -103,6 +103,10 @@ jobs:
             exit 1
           fi
           echo "✅ Lockfile is in sync."
+          # The dry-run above is Node 24's npm, which passes a lock missing the platform-only
+          # @emnapi entries that npm >= 11.16 (Node 26) refuses (#1088). Ask
+          # the question that npm asks, from the lockfile alone, before anything is installed.
+          node --no-warnings scripts/lockfile-resolves.ts
       - id: setup
         if: ${{ !cancelled() }}
         uses: ./.github/actions/setup

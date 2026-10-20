@@ -1,5 +1,114 @@
 # caique
 
+## 1.4.4
+
+### Patch Changes
+
+- [#1160](https://github.com/ofri-peretz/burgee/pull/1160) [`0b381a0`](https://github.com/ofri-peretz/burgee/commit/0b381a0d394092edf2ea21a9143a10111aa72fe4) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Export `./package.json`. `require('<package>/package.json')` threw `ERR_PACKAGE_PATH_NOT_EXPORTED`, which broke tools that read a dependency's manifest that way: bundlers, license scanners and version checks.
+- Updated dependencies [[`0b381a0`](https://github.com/ofri-peretz/burgee/commit/0b381a0d394092edf2ea21a9143a10111aa72fe4)]:
+  - closeout@1.1.5
+  - linegauge@1.1.3
+  - paratext@1.0.9
+  - roundel@1.1.3
+
+## 1.4.3
+
+### Patch Changes
+
+- [#1141](https://github.com/ofri-peretz/burgee/pull/1141) [`711ba15`](https://github.com/ofri-peretz/burgee/commit/711ba151de96dcb18af8e7c9b293beaf0c1ab21d) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `caique/clack`: a throw from the prompt's own code — a `render`, `onKey` or `finalize` that throws, on a key, on an abort, or on the first frame — now rejects the prompt's promise with that error, after turning raw mode off, removing the keypress listener and showing the cursor again. From a key it used to escape the keypress listener as an unhandledRejection, which kills a Node process by default, and left the prompt unsettled with raw mode on; from an abort it was an uncaught exception; from the first frame the promise rejected but left raw mode on and the keypress listener attached. A validator that throws is still a failed check, as before.
+
+## 1.4.2
+
+### Patch Changes
+
+- [#1130](https://github.com/ofri-peretz/burgee/pull/1130) [`c05c86e`](https://github.com/ofri-peretz/burgee/commit/c05c86e2caa0fc3a89f97f7fe9c37bd7b876bfaf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Every drop-in subpath now type-checks under `moduleResolution: node10`, and under `module: commonjs`
+  with no resolution set, which is TypeScript's default there. `import … from 'burgee/commander'`
+  used to fail with TS2307 in such a project, although `require()` of the same specifier worked.
+  Each package now declares `types` and a `typesVersions` map, derived from `exports`, with one key per
+  typed subpath pointing at the file `exports` already names. `exports` is unchanged, so `node16`,
+  `nodenext` and `bundler` read exactly what they read before. `controlroom/ink`'s declarations no
+  longer name the untyped `react-reconciler`, which was TS7016 for consumers with `skipLibCheck: false`.
+- Updated dependencies [[`c05c86e`](https://github.com/ofri-peretz/burgee/commit/c05c86e2caa0fc3a89f97f7fe9c37bd7b876bfaf)]:
+  - closeout@1.1.4
+  - linegauge@1.1.2
+  - paratext@1.0.8
+  - roundel@1.1.2
+
+## 1.4.1
+
+### Patch Changes
+
+- [#1097](https://github.com/ofri-peretz/burgee/pull/1097) [`3f96896`](https://github.com/ofri-peretz/burgee/commit/3f96896fe01484cf597590d4bcd896b15d58a05e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `caique/clack`: a validator that throws, or returns a promise that rejects — a network check that fails, say — is now a failed check: the prompt shows the error's message (or the `messages.error` setting when it has none) and stays open, so the person can retry or cancel. It used to escape the keypress listener as an unhandledRejection, which kills a Node process by default; after an abort it escaped from a prompt that had already answered. `@clack/core` 1.5.1 lets it escape the same way.
+
+## 1.4.0
+
+### Minor Changes
+
+- [#1095](https://github.com/ofri-peretz/burgee/pull/1095) [`98a0004`](https://github.com/ofri-peretz/burgee/commit/98a00049a453aac7a5b4b69451ab51e0abc4618f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A list prompt never outgrows the terminal. The raw `select` and `multiselect` draw a list longer
+  than the screen as a window that follows the cursor, with `↑ N more` and `↓ N more` rows for
+  what is outside it, so a repaint never climbs above the top row. The window is the new
+  `maxItems` on a prompt spec, clack's name for it, and never more than the terminal's rows less
+  three. `renderList` takes `maxItems`, and the terminal `Writer` reports `rows`, read live.
+
+## 1.3.0
+
+### Minor Changes
+
+- [#1037](https://github.com/ofri-peretz/burgee/pull/1037) [`50cc502`](https://github.com/ofri-peretz/burgee/commit/50cc5024df7a99ecd2dff33570eea21730b87b99) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - New entry point `caique/inquirer/prompts`: `@inquirer/prompts`' `select` and `checkbox`, with `Separator` and their config, theme and choice types, over `caique/inquirer`'s prompt loop. Both are graded by their own suites in `@inquirer/prompts` 8.7.3, `select`'s pagination suite included: 100 of those 100 cases pass, level with the real packages. Paging follows `@inquirer/core`'s `usePagination`, multi-line choices and `loop: false` included. The other eight prompts are not built yet, so `burgee migrate` does not rewrite `@inquirer/prompts` imports. `caique/inquirer` is unchanged, and a program that imports it loads none of this.
+
+## 1.2.1
+
+### Patch Changes
+
+- [#1068](https://github.com/ofri-peretz/burgee/pull/1068) [`566b7d7`](https://github.com/ofri-peretz/burgee/commit/566b7d7a35431f384518e9705620441c5ab4b9b9) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `caique/clack`: Ctrl-C or escape while an async validator is still out now cancels the prompt (it answers `CANCEL_SYMBOL`), where it used to be dropped. In raw mode Ctrl-C reaches the prompt as a byte, not a signal, so a validator that never answered left no way out. `@clack/core` drops the key too, but its readline interface then leaves raw mode, so a second Ctrl-C kills the process. Other keys still wait for the verdict.
+- Updated dependencies [[`4a62884`](https://github.com/ofri-peretz/burgee/commit/4a6288481a77dce34c496af5a5ffbaed900483c6)]:
+  - paratext@1.0.7
+
+## 1.2.0
+
+### Minor Changes
+
+- [#1060](https://github.com/ofri-peretz/burgee/pull/1060) [`52f6c71`](https://github.com/ofri-peretz/burgee/commit/52f6c71d2db4bc3fd9cbfd9e83fedb5f3ea359dc) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--quiet` reaches `caique/clack`'s decoration. Every clack call's options take an optional `runtime` (roundel's policy `Runtime`, which is burgee's `ctx.runtime`). When it says `quiet`, `spinner`, `tasks`, `intro`, `outro`, `note` and `log.message`, `info`, `step`, `success` and `warn` write nothing, and the spinner arms no interval; their lifecycle methods still run. `log.error` and `cancel` still write, and prompts ignore `quiet`. A call without a `runtime` behaves exactly as before, and quiet is never read from argv or the environment. `isCI()` takes an optional runtime to read `CI` from.
+
+  burgee's README shows the call under For agents: `spinner({ runtime: ctx.runtime })`.
+
+### Patch Changes
+
+- Updated dependencies [[`1797388`](https://github.com/ofri-peretz/burgee/commit/1797388f27a294803b12839ff4d074226bd40917)]:
+  - closeout@1.1.3
+
+## 1.1.0
+
+### Minor Changes
+
+- [#1045](https://github.com/ofri-peretz/burgee/pull/1045) [`c4fd9a3`](https://github.com/ofri-peretz/burgee/commit/c4fd9a3cb10bc36bef8c468365addfc6deb572cf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - caique's own chrome can speak the user's language. That covers the instruction under a list, a problem with an answer, the giving-up line, and the no-terminal and cancel refusals. A locale pack registered with `register()` carries translations under ids that begin `caique.`, so one object can serve burgee's catalog too. The new `caique/locale` entry turns the runtime's `locale` into the translator: `io.say = sayFor(runtime.locale)`. `ask` and `resolvePrompts` apply it. Neither reads the catalog itself, and caique never reads `LANG`. A refusal keeps its English `message` and `fix`, which a host may put in a machine envelope, and adds `localised` beside them. `caique check` renders a pack's messages, or refuses an unknown id, a stray placeholder or a missing plural form with `E_PLUGIN_SCHEMA`. With no `say` handed in, every byte is unchanged, and `caique/clack` and `caique/inquirer` keep their incumbents' English.
+
+  burgee: the family plugin schema it publishes describes the `locales` key.
+
+### Patch Changes
+
+- [#1045](https://github.com/ofri-peretz/burgee/pull/1045) [`c4fd9a3`](https://github.com/ofri-peretz/burgee/commit/c4fd9a3cb10bc36bef8c468365addfc6deb572cf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The family plugin schema (`schema.json`, identical in every plugin host) now describes `locales`, burgee's locale-pack key. A plugin carrying `locales` validates against the shared schema as it does against `burgee/locale-pack-schema.json`, which lists every message id. This package reads nothing new, and a plugin carrying `locales` registers here as before.
+- Updated dependencies [[`c4fd9a3`](https://github.com/ofri-peretz/burgee/commit/c4fd9a3cb10bc36bef8c468365addfc6deb572cf)]:
+  - closeout@1.1.2
+  - linegauge@1.1.1
+  - paratext@1.0.6
+  - roundel@1.1.1
+
+## 1.0.5
+
+### Patch Changes
+
+- [#1012](https://github.com/ofri-peretz/burgee/pull/1012) [`49d8e94`](https://github.com/ofri-peretz/burgee/commit/49d8e943ceaf8dcef14d43c0a70c2edec1a67816) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `@inquirer/prompts` is now graded: its ten prompts' own suites (8.7.3) are vendored and run against `caique/inquirer`, with a control of 213 of 213 against the real packages. `caique/inquirer` passes 0 of them today, because it exports `@inquirer/core`'s surface and none of the prompts yet, and `burgee migrate` reports `@inquirer/prompts` as a graded path that is not level, never rewriting it. The eleven `@inquirer/editor` cases are excluded by title: each answers the prompt through a mock of `@inquirer/external-editor`, which caique does not import.
+
+  The oracle gains two host fields for it. `suiteFiles` lists a monorepo suite's files across several packages and vendors only those; `defaultExport` grades a suite that imports its prompt as a default against the named export a program migrates.
+
+- [#1022](https://github.com/ofri-peretz/burgee/pull/1022) [`ecb0a00`](https://github.com/ofri-peretz/burgee/commit/ecb0a00ca68e9a3b3584aefabb9dcf97e3ff967a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The tarball no longer carries declaration files that no `exports` entry reaches. TypeScript could never open them, because a deep import is refused by `exports`. Every entry's types are unchanged. The ten packages drop 71 files and 118,312 bytes between them, burgee 35 files and 76,504 bytes, which takes its tarball from 251,814 to 225,278 bytes gzipped.
+- Updated dependencies [[`bfe4ab8`](https://github.com/ofri-peretz/burgee/commit/bfe4ab8b13ff04293345a69007cad9e0cb81c678), [`1968eb4`](https://github.com/ofri-peretz/burgee/commit/1968eb46feec57bb047a9c4a4288e0cf4442f4b2), [`65afee5`](https://github.com/ofri-peretz/burgee/commit/65afee5c96e4cae62dbb9b0ba28fab98fffdbf01), [`bcc438a`](https://github.com/ofri-peretz/burgee/commit/bcc438ac3936ee1cd530931ea090c6a8bdd016b2), [`ecb0a00`](https://github.com/ofri-peretz/burgee/commit/ecb0a00ca68e9a3b3584aefabb9dcf97e3ff967a)]:
+  - linegauge@1.1.0
+  - paratext@1.0.5
+  - roundel@1.1.0
+  - closeout@1.1.1
+
 ## 1.0.4
 
 ### Patch Changes

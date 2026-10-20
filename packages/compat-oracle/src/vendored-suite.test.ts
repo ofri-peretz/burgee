@@ -18,7 +18,7 @@ import { describe, expect, it } from 'vitest';
 import { testFiles } from './discover.js';
 import { active, type Host, HOSTS, PREVIOUS_MAJORS } from './hosts.js';
 import { ALIAS_HOOK, readBaseline } from './run.js';
-import { shimName } from './vendor.js';
+import { readSuiteDeps, rootPackage, shimName, splitSpec } from './vendor.js';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const VENDOR = join(root, 'vendor');
@@ -412,3 +412,53 @@ function readInternals(host: Host): string[] | undefined {
   if (!existsSync(at)) return undefined;
   return (JSON.parse(readFileSync(at, 'utf8')) as { internals?: string[] }).internals ?? [];
 }
+
+/**
+ * `hosts.ts` and the committed `vendor/<host>/package.json` say the same thing twice: the vendor
+ * step writes the manifest's `devDependencies` from the host's `suiteDeps` and `vendorDeps`, and
+ * the grade installs from the manifest. A re-vendor that moves one by hand and not the other
+ * leaves the control installing a release the row no longer names.
+ */
+const withManifest = onDisk.filter((h) => existsSync(join(VENDOR, h.name, 'package.json')));
+
+/**
+ * 2026-10-19, 21:42 UTC: inquirer published its next batch, and the required control for
+ * `@inquirer/prompts` 8.7.3 read 212 / 213 on `main` with nothing changed here. The pin held
+ * only the package it names; its siblings, reached by `^` range, resolved as of the day of the
+ * run. A suite that declares dependencies records the moment they resolve as of, and the
+ * install reads it (`installSuiteDeps`, D-20261020-oracle-suite-deps-floated).
+ */
+describe('a vendored suite with dependencies records when they resolve as of', () => {
+  const declaring = withManifest.filter((h) => Object.keys(readSuiteDeps(join(VENDOR, h.name))).length > 0);
+
+  it('finds suites that declare dependencies — otherwise the cases below assert nothing', () => {
+    expect(declaring.length).toBeGreaterThan(0);
+  });
+
+  it.each(declaring.map((h) => [h.name] as const))('%s', (name) => {
+    const record = JSON.parse(readFileSync(join(VENDOR, name, '.source.json'), 'utf8')) as { depsBefore?: string };
+    expect(record.depsBefore, `vendor/${name}/.source.json has no depsBefore, so a clean checkout installs its suite's tree as of the day it runs`).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u);
+  });
+});
+
+describe('the vendored manifest pins what hosts.ts declares', () => {
+  it('finds vendored manifests at all — otherwise the cases below assert nothing', () => {
+    expect(withManifest.length).toBeGreaterThan(0);
+  });
+
+  it.each(withManifest.map((h) => [h.name, h] as const))('%s', (_name, host) => {
+    const committed = (JSON.parse(readFileSync(join(VENDOR, host.name, 'package.json'), 'utf8')) as { devDependencies?: Record<string, string> }).devDependencies;
+    expect(committed, `vendor/${host.name}/package.json and hosts.ts disagree — re-vendor, or move both`).toEqual(rootPackage(host, {}).devDependencies);
+  });
+
+  it('pins the incumbent itself at the release its suite was vendored at, where it pins it', () => {
+    const drift = onDisk.flatMap((host) => {
+      const provenance = join(VENDOR, host.name, 'PROVENANCE');
+      if (!existsSync(provenance)) return [];
+      const version = /^version:\s+(\S+)/mu.exec(readFileSync(provenance, 'utf8'))?.[1];
+      const pin = (host.suiteDeps ?? []).map(splitSpec).find(([name]) => name === (host.npmName ?? host.name));
+      return pin === undefined || pin[1] === version ? [] : [`${host.name}: suiteDeps pins ${pin[0]}@${pin[1]}, the suite is ${version ?? 'unversioned'}`];
+    });
+    expect(drift).toEqual([]);
+  });
+});

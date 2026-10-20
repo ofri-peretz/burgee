@@ -27,14 +27,16 @@
  *      does.** That is what "one pass, no AST" bought, stated so that the machine appears on
  *      both sides of the comparison and cancels.
  */
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, inject, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { migrate, rewriteSource, sourceFiles } from './migrate.js';
+
+const scratch = scratchDirs();
 
 /** The budget, in one place, in the units the design states it in. */
 const FILES = 1000;
@@ -58,7 +60,7 @@ function module_(n: number): string {
 
 /** A fresh tree per timed run, so no run is measured against another's page cache. */
 function tree(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'burgee-migrate-bench-'));
+  const dir = scratch('burgee-migrate-bench-');
   // Since U12-3 an incumbent moves only when the project declares it, as a real one does.
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'bench', dependencies: { commander: '^15.0.0', yargs: '^18.0.0' } }));
   for (let n = 0; n < FILES; n += 1) {
@@ -110,11 +112,47 @@ async function ioFloor(dir: string): Promise<number> {
  */
 const SHARED_HOST = process.env['CI'] === 'true' || process.env['TURBO_HASH'] !== undefined;
 
+/**
+ * Where a timing here grades the coverage instrumentation rather than the codemod: a run with
+ * coverage on (`npm run coverage` in this package), which the turbo-driven root run already
+ * reaches as SHARED_HOST but a direct run did not.
+ *
+ * vitest's v8 provider puts a counter on every block of the code the scan executes, and on
+ * nothing inside the yardstick, whose work is irregexp's generated code. So the ratio stops
+ * cancelling the machine and starts measuring the counters: on 2026-10-19, same host, same
+ * minutes, the scan read **108.5 yardsticks (91.7 ms) under coverage and 29.2-36.0 without** —
+ * and the whole-command case read 100 ms over the I/O floor against 37. No change to `migrate`
+ * could move either, so asserting them is the green-means-nothing gate from the other side.
+ *
+ * `inject` is undefined when the `globalSetup` that provides it is not wired, which reads as
+ * "not instrumented" and asserts: a lost flag fails loudly, it does not skip quietly.
+ */
+const INSTRUMENTED = inject('coverageEnabled') === true;
+/** Report instead of assert, and say why in the line that reports. */
+const REPORT_ONLY = SHARED_HOST || INSTRUMENTED;
+const WHERE = SHARED_HOST ? 'a shared host' : 'coverage-instrumented code';
+const informational = (said: string): void => {
+  process.stdout.write(`${said} — informational on ${WHERE}\n`);
+};
+
 /** Runs are timed in a batch and the fastest is graded: contention only ever adds time. */
-// One pair where the budget only reports (SHARED_HOST): seven 1,000-file trees took 95 s on
+// One pair where the budget only reports (REPORT_ONLY): seven 1,000-file trees took 95 s on
 // a Windows CI runner and hit vitest's 60 s timeout, failing a case whose number is not graded
 // there. The migration itself is still asserted on that one run.
-const RUNS = SHARED_HOST ? 1 : 3;
+const RUNS = REPORT_ONLY ? 1 : 3;
+/**
+ * Samples per timing in the two CPU cases, of which the median is graded.
+ *
+ * One sample was what made the scan case flaky on a developer's machine. The yardstick is about
+ * 0.6 ms of work, and on a host at load 33 on 14 cores nine back-to-back samples of it spread
+ * 0.52-0.72 ms — so a single one moved the budget by a fifth either way, while the scan itself
+ * held within 5%. The median of seven is the yardstick's typical cost, not its luckiest.
+ */
+const SAMPLES = 7;
+const median = (times: readonly number[]): number => {
+  const sorted = times.toSorted((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)] ?? 0;
+};
 const fastest = (times: number[]): number => Math.min(...times);
 
 /**
@@ -141,13 +179,16 @@ function cpuYardstick(): number {
     probe.lastIndex = 0;
     while (probe.exec(text) !== null) continue;
   }
-  const started = performance.now();
-  probe.lastIndex = 0;
-  let seen = 0;
-  while (probe.exec(text) !== null) seen += 1;
-  const elapsed = performance.now() - started;
-  expect(seen, 'the yardstick matched nothing, so it is timing an empty loop').toBe(YARDSTICK_LINES);
-  return Math.max(elapsed, MIN_YARDSTICK_MS);
+  const times: number[] = [];
+  for (let sample = 0; sample < SAMPLES; sample += 1) {
+    const started = performance.now();
+    probe.lastIndex = 0;
+    let seen = 0;
+    while (probe.exec(text) !== null) seen += 1;
+    times.push(performance.now() - started);
+    expect(seen, 'the yardstick matched nothing, so it is timing an empty loop').toBe(YARDSTICK_LINES);
+  }
+  return Math.max(median(times), MIN_YARDSTICK_MS);
 }
 
 /** Lines in the yardstick's synthetic source — one import each, like the fixtures. */
@@ -180,6 +221,15 @@ const P99 = 0.99;
  * whole-command case below, whose baseline is that host's own I/O floor — reading and
  * writing the same files is comparable work in a way a regex loop is not — and the
  * `rewritten` assertion here, which fails on any host if the scan stops finding imports.
+ *
+ * **The scan has since got dearer, and the budget was not moved to hide it.** Remeasured on
+ * 2026-10-19 on the same M4 Pro, every build back to back under one load (33 on 14 cores),
+ * median of nine scans: 17.0-17.4 ms at #382, where the 40 was set; 22.5 ms at #517, which
+ * taught `migrate` every level drop-in in the family; 27 ms at #866; 23.7 ms now — about 35
+ * yardsticks where #382 read about 26. The headroom that was 1.8x is now about 1.15x, so this
+ * gate fires on a 15% slowdown rather than a doubling. Whether to re-derive it from the
+ * current cost is a decision for the scan's owner, made in the open — not a number nudged
+ * up to quiet a flaky run.
  */
 const SCAN_YARDSTICKS = 40;
 /**
@@ -198,21 +248,26 @@ describe('A10 — measured, not asserted', () => {
     const sources = sourceFiles(dir).map((f) => readFileSync(join(dir, f), 'utf8'));
     // Warmed, for the reason the next case gives at length.
     for (const source of sources) rewriteSource(source);
-    const started = performance.now();
-    let rewritten = 0;
-    for (const source of sources) if (rewriteSource(source).mapped.length > 0) rewritten += 1;
-    const elapsed = performance.now() - started;
-    // A budget met by doing nothing is not a budget.
-    expect(rewritten).toBe(CHANGED);
+    const times: number[] = [];
+    for (let sample = 0; sample < SAMPLES; sample += 1) {
+      const started = performance.now();
+      let rewritten = 0;
+      for (const source of sources) if (rewriteSource(source).mapped.length > 0) rewritten += 1;
+      times.push(performance.now() - started);
+      // A budget met by doing nothing is not a budget.
+      expect(rewritten).toBe(CHANGED);
+    }
+    const elapsed = median(times);
     const unit = cpuYardstick();
     const ratio = elapsed / unit;
-    const said = `the scan of ${sources.length} files took ${elapsed.toFixed(1)} ms — ${ratio.toFixed(1)} yardsticks on this machine, against a budget of ${String(SCAN_YARDSTICKS)}`;
+    const said = `the scan of ${sources.length} files took ${elapsed.toFixed(1)} ms (median of ${String(SAMPLES)}) — ${ratio.toFixed(1)} yardsticks on this machine, against a budget of ${String(SCAN_YARDSTICKS)}`;
     // Gated only where the yardstick has been shown to mean something. See the note on
     // SCAN_YARDSTICKS: the ratio is stable on a developer's machine and is not stable across
-    // CI runners, so asserting it there grades the runner. The measurement still runs
-    // everywhere — a scan that stopped working would fail `rewritten` above on any host.
-    if (SHARED_HOST) {
-      process.stdout.write(`${said} — informational on a shared host\n`);
+    // CI runners, so asserting it there grades the runner — nor under coverage, where it grades
+    // the counters (INSTRUMENTED). The measurement still runs everywhere — a scan that stopped
+    // working would fail `rewritten` above on any host.
+    if (REPORT_ONLY) {
+      informational(said);
       return;
     }
     expect(elapsed, `${said} (${(unit * SCAN_YARDSTICKS).toFixed(1)} ms here)`).toBeLessThan(unit * SCAN_YARDSTICKS);
@@ -251,8 +306,8 @@ describe('A10 — measured, not asserted', () => {
     const budget = unit * SINGLE_FILE_YARDSTICKS;
     const said = `the p99 of ${files.length} files took ${p99.toFixed(3)} ms — ${(p99 / unit).toFixed(2)} yardsticks on this machine, against a budget of ${String(SINGLE_FILE_YARDSTICKS)} (${budget.toFixed(3)} ms here); slowest single sample ${(sorted.at(-1) ?? 0).toFixed(3)} ms`;
     // Same reason as the case above: the yardstick does not hold across CI runners.
-    if (SHARED_HOST) {
-      process.stdout.write(`${said} — informational on a shared host\n`);
+    if (REPORT_ONLY) {
+      informational(said);
       return;
     }
     expect(p99, said).toBeLessThan(budget);
@@ -308,8 +363,8 @@ describe('A10 — measured, not asserted', () => {
     // A developer's machine still asserts it, which is where the claim was written and where
     // it holds. What protects CI is `report` above: a codemod that stopped migrating files
     // fails on any host, at any speed.
-    if (SHARED_HOST) {
-      process.stdout.write(`${said} — informational on a shared host\n`);
+    if (REPORT_ONLY) {
+      informational(said);
       return;
     }
     expect(Math.min(run - WHOLE_PROJECT_MS, overhead - scanBudget), said).toBeLessThan(0);

@@ -1,3 +1,5 @@
+// The default import, with `spawn` read off it at the call site: commander's suite mocks `childProcess.spawn` in ~23 `executableSubcommand` cases, and a named binding would never see the mock.
+import childProcess, { type ChildProcess } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -18,12 +20,9 @@ import { stripVTControlCharacters } from 'node:util';
  *     then reports through the E1 taxonomy — the harness's seam (T1).
  */
  
-// eslint-disable-next-line import-next/no-namespace -- `spawn` is read off the namespace at the call site and never captured into a local. commander's own suite mocks `childProcess.spawn` in roughly 23 `executableSubcommand` cases, and a binding captured at import never re-syncs; bellpull's `cross-spawn.ts` reads `spawn` off its default import for this exact consumer, so a named import here would undo that and take the row from 1360 / 1360 to ungradeable.
-import * as crossSpawn from 'bellpull/cross-spawn';
-
 import { ExitCode } from '../exit-code.js';
 import { handlerFailure } from '../facade-failure.js';
-import { type DeclaredEffects, Manifest, type OptionSpec, type Plugin } from '../manifest.js';
+import { type ArgumentSpec, type DeclaredEffects, Manifest, type OptionSpec, type Plugin } from '../manifest.js';
 import { camel } from '../names.js';
 import { host } from '../runtime.js';
 import { machineJson, schemaOf } from '../schema.js';
@@ -154,6 +153,25 @@ function e1(err: { code: string; exitCode: number }): number {
   }
 }
 
+/** An executable subcommand that could not run: exit 1, or commander's error to an overridden exit. */
+function subCommandFailed(exitCallback: ((err: CommanderError) => void) | null, err: unknown): void {
+  if (!exitCallback) return host.exit(1);
+  const wrappedError = new CommanderError(1, 'commander.executeSubCommandAsync', '(error)');
+  wrappedError.nestedError = err;
+  exitCallback(wrappedError);
+}
+
+/**
+ * What an `Option` and an `Argument` both declare, copied onto the manifest's entry by one path:
+ * the description, and `choices`, which every surface publishes as `enum`
+ * (facade-projection-fidelity R1, R3).
+ */
+function declared<T extends OptionSpec | ArgumentSpec>(spec: T, from: Option | Argument): T {
+  if (from.description) spec.description = from.description;
+  if (from.argChoices) spec.choices = from.argChoices;
+  return spec;
+}
+
 /** What a run prints for an action's return value when the streams are injected. */
 function render(value: unknown): string {
   if (value === undefined || value === null) return '';
@@ -178,7 +196,7 @@ export class Command extends EventEmitter {
   rawArgs: string[] = [];
   /** like .args but after custom processing and collecting variadic */
   processedArgs: unknown[] = [];
-  runningCommand: crossSpawn.ChildProcess | undefined = undefined;
+  runningCommand: ChildProcess | undefined = undefined;
 
   _allowUnknownOption = false;
   _allowExcessArguments = false;
@@ -830,31 +848,26 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
 
     const launchWithNode = SOURCE_EXT.includes(path.extname(executableFile));
 
-    // Through `bellpull`, not `node:child_process`: it resolves the executable properly on
-    // Windows, where upstream sends every spawn through `node` to dodge `PATHEXT`. The
-    // reasoning, the measurement and the mock constraint are in `weight.test.ts`'s
-    // `./commander` entry — they are prose, and prose in this file ships.
-    let proc: crossSpawn.ChildProcess;
-    if (host.platform !== 'win32') {
-      if (launchWithNode) {
-        args.unshift(executableFile);
-        args = incrementNodeInspectorPort(host.execArgv).concat(args);
-        proc = crossSpawn.spawn(host.argv[0] ?? host.execPath, args, { stdio: 'inherit' });
-      } else {
-        proc = crossSpawn.spawn(executableFile, args, { stdio: 'inherit' });
-      }
+    // commander's own spawn on every path commander takes. `bellpull` resolves the one it cannot,
+    // and loads only for it (commander-front-end-diet R1).
+    const win = host.platform === 'win32';
+    if (win) this._checkForMissingExecutable(executableFile, executableDir, subcommand._name);
+    const watch = (proc: ChildProcess): void => this._watchSubCommand(proc, executableFile, executableDir, subcommand._name);
+    if (launchWithNode) {
+      args = incrementNodeInspectorPort(host.execArgv).concat(executableFile, args);
+      watch(childProcess.spawn(win ? host.execPath : (host.argv[0] ?? host.execPath), args, { stdio: 'inherit' }));
+    } else if (!win) {
+      watch(childProcess.spawn(executableFile, args, { stdio: 'inherit' }));
     } else {
-      this._checkForMissingExecutable(executableFile, executableDir, subcommand._name);
-      if (launchWithNode) {
-        args.unshift(executableFile);
-        args = incrementNodeInspectorPort(host.execArgv).concat(args);
-        proc = crossSpawn.spawn(host.execPath, args, { stdio: 'inherit' });
-      } else {
-        // The case upstream cannot reach: a `.cmd`, a `.bat`, or a shebang that is not node.
-        proc = crossSpawn.spawn(executableFile, args, { stdio: 'inherit' });
-      }
+      // The case upstream cannot reach: a `.cmd`, a `.bat`, or a shebang that is not node. A spawn
+      // that throws here takes the exit the `error` event takes, not an unhandled rejection.
+      void import('bellpull/cross-spawn')
+        .then(({ default: crossSpawn }) => watch(crossSpawn.spawn(executableFile, args, { stdio: 'inherit' })))
+        .catch((err: unknown) => subCommandFailed(this._exitCallback, err));
     }
+  }
 
+  _watchSubCommand(proc: ChildProcess, executableFile: string, executableDir: string, subcommandName: string): void {
     if (!proc.killed) {
       // Testing mainly to avoid leak warnings during unit tests with mocked spawn.
       for (const signal of FORWARDED_SIGNALS) {
@@ -872,17 +885,11 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
     });
     proc.on('error', (err: NodeJS.ErrnoException) => {
       if (err.code === 'ENOENT') {
-        this._checkForMissingExecutable(executableFile, executableDir, subcommand._name);
+        this._checkForMissingExecutable(executableFile, executableDir, subcommandName);
       } else if (err.code === 'EACCES') {
         throw new Error(`'${executableFile}' not executable`);
       }
-      if (!exitCallback) {
-        host.exit(1);
-      } else {
-        const wrappedError = new CommanderError(1, 'commander.executeSubCommandAsync', '(error)');
-        wrappedError.nestedError = err;
-        exitCallback(wrappedError);
-      }
+      subCommandFailed(exitCallback, err);
     });
 
     this.runningCommand = proc;
@@ -1281,7 +1288,7 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
   /** The failure envelope on stdout, once per run however many paths see the same failure (G5). */
   _writeFailure(error: Record<string, unknown>): void {
     const burgee = this._root()._burgee;
-    if (burgee === undefined || !burgee.json || burgee.reported) return;
+    if (!burgee?.json || burgee.reported) return;
     burgee.reported = true;
     this._outputConfiguration.writeOut(`${JSON.stringify({ ok: false, error })}\n`);
   }
@@ -1710,14 +1717,16 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
     const visit = (cmd: Command, at: string[]): void => {
       manifest.add({
         path: at,
+        // facade-projection-fidelity R6 — listed on the command, as commander lists them in help.
+        ...(cmd._aliases[0] ? { aliases: cmd._aliases } : {}),
         ...(cmd._description ? { description: cmd._description } : {}),
         ...(cmd._summary ? { summary: cmd._summary } : {}),
-        ...(cmd._effects === undefined ? {} : { effects: cmd._effects }),
+        ...(cmd._effects ? { effects: cmd._effects } : {}),
         ...(cmd._deprecated === undefined ? {} : { deprecated: cmd._deprecated }),
-        ...(cmd._helpGroupHeading === undefined || cmd._helpGroupHeading === '' ? {} : { group: cmd._helpGroupHeading }),
+        ...(cmd._helpGroupHeading ? { group: cmd._helpGroupHeading } : {}),
         ...(cmd._hidden ? { hidden: true } : {}),
         options: cmd._optionSpecs(),
-        arguments: cmd.registeredArguments.map((a) => ({ name: a.name(), required: a.required, variadic: a.variadic, ...(a.description ? { description: a.description } : {}) })),
+        arguments: cmd.registeredArguments.map((a) => declared({ name: a.name(), required: a.required, variadic: a.variadic, ...(typeof a.defaultValue === 'string' ? { default: a.defaultValue } : {}) }, a)),
         ...(cmd._actionHandler === null ? {} : { run: () => undefined }),
       });
       for (const sub of cmd.commands) visit(sub, [...at, sub._name]);
@@ -1743,14 +1752,17 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
       // `--x` with `--no-x`, in either order: the one pair commander negates.
       const paired = this.options.some((o) => o.negate !== option.negate && o.attributeName() === name);
       if (option.negate && paired) continue;
-      const spec: OptionSpec = { type: option.required || option.optional ? 'string' : 'boolean' };
-      if (option.description) spec.description = option.description;
+      const spec = declared<OptionSpec>({ type: option.required || option.optional ? 'string' : 'boolean' }, option);
       if (option.mandatory) spec.required = true;
       if (option.short && option.long) spec.short = option.short.slice(1);
       if (typeof option.defaultValue === 'string' || typeof option.defaultValue === 'boolean') spec.default = option.defaultValue;
       if (option.envVar) spec.env = option.envVar;
+      // facade-projection-fidelity R1/R2: declared on the option, so every surface reads it.
+      // Relations are declaration only here — commander enforces its own while parsing.
+      if (option.hidden) spec.hidden = true;
+      if (option.conflictsWith[0]) spec.exclusive = option.conflictsWith;
       if (spec.type === 'boolean') spec.negatable = paired;
-      Object.defineProperty(specs, option.negate ? camel(option.name()) : name, { value: spec, enumerable: true, writable: true, configurable: true });
+      specs[option.negate ? camel(option.name()) : name] = spec;
     }
     return specs;
   }
@@ -1779,27 +1791,15 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
     const root = this._root();
     const terminator = userArgs.indexOf('--');
     const head = terminator === -1 ? userArgs : userArgs.slice(0, terminator);
-    if (head[0] === 'completion' && root._findCommand('completion') === undefined) {
-      // Loaded on this command only (K6), exactly as the engine does.
-      return import('../completions.js').then(({ renderCompletion, renderFigSpec, SHELLS }) => {
-        const shell = head[1] ?? '';
-        if (shell === 'fig') {
-          root._outputConfiguration.writeOut(`${JSON.stringify(renderFigSpec(this.manifest), null, 2)}\n`);
-          return true;
-        }
-        const known = SHELLS.find((s) => s === shell);
-        if (known !== undefined) {
-          root._outputConfiguration.writeOut(renderCompletion(this.manifest, known));
-          return true;
-        }
-        return this._burgeeSurfaceRest(head);
-      });
+    // `completion` and `--mcp` answer with a Promise anyway, so they load on demand (K6, commander-front-end-diet R2).
+    if ((head[0] === 'completion' && root._findCommand('completion') === undefined) || (head[0] === '--mcp' && !root._declares('--mcp'))) {
+      return import('./surfaces.js').then(({ serveSurface }) => serveSurface(this, head));
     }
-    return this._burgeeSurfaceRest(head);
+    return this._burgeeSchema(head);
   }
 
-  /** The surfaces after `completion`: `--schema` is synchronous, `--mcp` serves until stdin closes. */
-  _burgeeSurfaceRest(head: string[]): boolean | Promise<boolean> {
+  /** `--schema`, synchronous: see below. A `completion` with an unknown shell falls through to it too. */
+  _burgeeSchema(head: string[]): boolean {
     const root = this._root();
     if (head.includes('--schema') && !root._declares('--schema')) {
       // R1, and the same escape hatch the engine has: `--schema` is burgee's surface, not
@@ -1808,25 +1808,13 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
       // **Static, and it has to be.** `commander/sync.test.ts` holds `parse()` synchronous —
       // that is commander's contract, not a preference — and `--schema` answers inside it.
       // Making this an `await import()` saved 2.2 KB and returned a Promise nobody awaited,
-      // so the document never printed. The MCP branch below is different: `--mcp` already
-      // returns a Promise, so loading its server on demand costs no contract.
+      // so the document never printed. `--mcp` and `completion` are different: they already
+      // return a Promise, so they load on demand from `surfaces.js`.
       // J4: the reserved surfaces this program declares for itself — withheld, and named here
       // rather than silently missing. Absent when it shadows none.
       const shadows = ['--json', '--mcp', 'completion'].filter((name) => root._declares(name) || root._findCommand(name) !== undefined);
       root._outputConfiguration.writeOut(`${machineJson({ ...schemaOf(this.manifest), ...(shadows.length > 0 && { shadows }) }, head)}\n`);
       return true;
-    }
-    if (head[0] === '--mcp' && !root._declares('--mcp')) {
-      // G3: held before the first tool call; `invoke` replaces `_outputConfiguration`.
-      const writeOut = root._outputConfiguration.writeOut;
-      const invoke = async (args: string[]): Promise<{ stdout: string; stderr: string; code: number }> => {
-        const out: string[] = [];
-        const err: string[] = [];
-        let code = 0;
-        await root.parseAsync(args, { from: 'user', stdout: { write: (s) => out.push(s) }, stderr: { write: (s) => err.push(s) }, exit: (c) => void (code = c) });
-        return { stdout: out.join(''), stderr: err.join(''), code };
-      };
-      return import('../mcp.js').then(async ({ serveMcp }) => serveMcp(this.manifest, { input: host.stdin, output: { write: writeOut }, invoke })).then(() => true);
     }
     return false;
   }
@@ -1947,7 +1935,7 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
     const root = this._root();
     const manifest = root._manifest;
     const settle = (value: unknown): void => this._emitResult(value);
-    if (manifest === undefined || manifest.plugins.length === 0) {
+    if (!manifest?.plugins.length) {
       const result = handler(this.processedArgs);
       return isThenable(result) ? Promise.resolve(result).then(settle) : settle(result);
     }
@@ -1975,7 +1963,8 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
 
   /** burgee (M5): once per process, on stderr; only for a command that asked, so commander's own output is untouched. */
   _warnDeprecated(): void {
-    if (this._deprecated === undefined || this._deprecated === false || this._deprecationWarned) return;
+    // `deprecate()` is the one writer, and it never writes `false`.
+    if (this._deprecated === undefined || this._deprecationWarned) return;
     this._deprecationWarned = true;
     const use = typeof this._deprecated === 'string' ? `, use '${this._deprecated}'` : '';
     this._outputConfiguration.writeErr(`warning: '${this.name()}' is deprecated${use}\n`);
@@ -1984,9 +1973,8 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
   /** burgee: where every option value came from, from commander's own value sources (V3). */
   _provenance(): Record<string, { source: string }> {
     const out: Record<string, { source: string }> = {};
-    const names: Record<string, string> = { cli: 'flag', env: 'env', config: 'config', default: 'default', implied: 'implied' };
     for (const [key, source] of Object.entries(this._optionValueSources)) {
-      if (source !== undefined && this.getOptionValue(key) !== undefined) out[key] = { source: names[source] ?? source };
+      if (source !== undefined && this.getOptionValue(key) !== undefined) out[key] = { source: source === 'cli' ? 'flag' : source };
     }
     return out;
   }

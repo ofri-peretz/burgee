@@ -16,17 +16,6 @@ import { supportsInlineImage, terminalImageFor, UnsupportedTerminalError } from 
 
 `term-img`'s own support question, from the environment alone.
 
-**One deliberate correction.** Upstream reads the iTerm2 major version as
-`Number(version[0])` — the first *character* — so it would read `10.2.1` as `1` and refuse
-a terminal five majors past its minimum. `Number.parseInt` is what it meant. Nothing in
-the vendored suite distinguishes the two (its case is `3.3.7`), so this is a fix that
-costs no compatibility and is written down rather than left to be re-discovered.
-
-Upstream reaches for `iterm2-version`, which falls back to reading the installed bundle's
-`Info.plist` through `app-path`. It never gets there when `TERM_PROGRAM` is `iTerm.app`,
-because that package returns `TERM_PROGRAM_VERSION` first — so an environment read is the
-whole of the reachable behaviour, and two dependencies buy nothing.
-
 ```ts
 function supportsInlineImage(runtime: Runtime): boolean;
 ```
@@ -40,13 +29,6 @@ function supportsInlineImage(runtime: Runtime): boolean;
 ### terminalImageFor
 
 `terminalImage` bound to a runtime you supply — the pure form, and what the export wraps.
-
-The order of the three checks is upstream's, exactly, because every one of its cases
-depends on it: the argument is validated *before* the terminal is consulted, and the
-terminal is consulted *before* the bytes are wanted. That is why a path handed to an
-unsupported terminal raises `UnsupportedTerminalError` (or calls `fallback`) without the
-file being opened — a missing file on a terminal that cannot draw it is not an `ENOENT`,
-because upstream would not have opened it either.
 
 ```ts
 function terminalImageFor(runtime: Runtime): <FallbackType = never>(image?: TerminalImageInput, options?: TerminalImageOptions<FallbackType>) => string | FallbackType;
@@ -95,12 +77,6 @@ const terminalImage: <FallbackType = never>(image?: TerminalImageInput, options?
 ### TerminalImageOptions
 
 `term-img`'s options: `ansi-escapes`' four, plus the escape hatch from the throw.
-
-Generic over what `fallback` returns, as upstream's `Options<FallbackType>` is, so the
-idiom in term-img's own README — a `fallback` that does something and returns nothing —
-type-checks here too. The default is upstream's `unknown`, so a bare `Options` annotation
-takes any `fallback`; the *call* defaults to `never` instead, so a call with no `fallback`
-is typed `string`, which is what it returns, where upstream's is typed `unknown`.
 
 ```ts
 interface TerminalImageOptions<FallbackType = unknown> extends ImageOptions {

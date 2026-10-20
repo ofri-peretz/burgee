@@ -85,13 +85,13 @@ class Manifest {
     };
     /** Characters of `--schema` output above which it is summarised (N13). */
     schemaBudget?: number;
+    /** The variable a non-interactive caller sets for the credential, when the program declares one (agent-lint-conformance R8). */
+    auth?: {
+        env: string;
+    };
     add(node: CommandNode): void;
     /**
      * Register a plugin, after the plugin host has read it (`plugin.ts`).
-     *
-     * Nothing is pushed until everything has been checked, so a refused plugin contributes no
-     * command and leaves no half-registration behind: `use()` used to push first and read the
-     * object afterwards, which is how `use(undefined)` became a `TypeError` one line later.
      */
     use(plugin: Plugin): void;
     /** `enforce: 'pre'` first, then unordered, then `'post'` — the Vite/Rolldown convention. */
@@ -127,6 +127,8 @@ interface CommandSchema {
     name: string;
     description?: string;
     summary?: string;
+    /** Other words that run it (R5): on the command, so a list of commands is one entry per command. */
+    aliases?: readonly string[];
     /**
      * What running it does, or `'withheld'` — published either way, because an agent reading
      * the program as data is better served by *this exists and is not for you* than by a gap
@@ -142,6 +144,7 @@ interface CommandSchema {
     lazy?: true;
     /** Which plugin contributed it (M3). */
     plugin?: string;
+    excess?: true;
     arguments: ArgumentSpec[];
     options: Record<string, OptionSpec>;
     /**
@@ -149,9 +152,6 @@ interface CommandSchema {
      * schema did not publish. Without them an agent can only discover that `--a` conflicts
      * with `--b` by sending both and reading exit 2 — a round trip per constraint, and under
      * E1 an exit 2 means *rewrite the command*, so it may well send the same pair again.
-     *
-     * Omitted entirely when a command declares none, so a reader can tell "no constraints"
-     * from "constraints not published".
      */
     relations?: PublishedRelation[];
     examples: Example[];

@@ -8,7 +8,7 @@ Intent: [`intent.md`](./intent.md). **Status:** approved.
 
 | R | Status | Where | Check |
 | :-- | :-- | :-- | :-- |
-| R1 | **Built** | `effects` is required on a runnable command; `definition.ts` refuses one without it | `effects.test.ts` — the refusal, proven red on the unfixed tree |
+| R1 | **Built** | `effects` is required on a runnable command; `definition.ts` refuses one without it | `mcp.test.ts` — `a runnable command declares its effects, or declines out loud (N6)`, the refusal, proven red on the unfixed tree (cited as `effects.test.ts` until 2026-10-18; no such file exists) |
 | R2 | **Built** | `effects: 'withheld'` is the opt-out — a value an author writes | `mcp.test.ts` — a `'withheld'` command defines cleanly |
 | R3 | **Built** | `'withheld'` is absent from `tools/list` and published as `"withheld"` in `--schema` | `mcp.test.ts` |
 | R4 | **Built** | the refusal names the command and every remedy | `mcp.test.ts` asserts the message |

@@ -36,6 +36,37 @@ const program = defineProgram({
   ],
 });
 
+/**
+ * agent-lint-conformance R8 — a program that declares `auth` names the variable in the refusal an
+ * `AuthError` without a hint of its own prints: the recovery an agent can perform without a person.
+ */
+const refuse = (hint?: string) => () => {
+  throw new AuthError('the registry refused the token', hint);
+};
+
+const declared = (hint?: string) => defineProgram({ name: 'r8', auth: { env: 'R8_TOKEN' }, commands: [defineCommand({ name: 'pull', effects: 'read_only', run: refuse(hint) })] });
+
+describe('a declared credential is named in the refusal (agent-lint-conformance R8)', () => {
+  it('an AuthError with no hint gets the declared variable’s advice as its hint', async () => {
+    const r = await runBurgee(declared(), { argv: ['pull', '--json'] });
+    expect(r.code).toBe(ExitCode.AUTH);
+    expect(JSON.parse(r.stdout)).toMatchObject({ error: { kind: 'auth', hint: 'a credential is missing or refused; set R8_TOKEN and run it again' } });
+  });
+
+  it('only an auth failure gets it: a plain failure in the same program has no hint', async () => {
+    const program = defineProgram({ name: 'r8', auth: { env: 'R8_TOKEN' }, commands: [defineCommand({ name: 'boom', effects: 'read_only', run: () => { throw new Error('came apart'); } })] });
+    const r = await runBurgee(program, { argv: ['boom', '--json'] });
+    expect(r.code).toBe(ExitCode.RUNTIME);
+    expect(JSON.parse(r.stdout).error).not.toHaveProperty('hint');
+  });
+
+  it('a hint the handler gave is kept, and a program that declares no auth adds none', async () => {
+    expect(JSON.parse((await runBurgee(declared('renew it at the portal'), { argv: ['pull', '--json'] })).stdout)).toMatchObject({ error: { hint: 'renew it at the portal' } });
+    const undeclared = defineProgram({ name: 'r8', commands: [defineCommand({ name: 'pull', effects: 'read_only', run: refuse() })] });
+    expect(JSON.parse((await runBurgee(undeclared, { argv: ['pull', '--json'] })).stdout).error).not.toHaveProperty('hint');
+  });
+});
+
 describe('a refused credential exits AUTH (E6)', () => {
   it('is its own code, and not the one everything else uses', async () => {
     const auth = await runBurgee(program, { argv: ['pull'] });

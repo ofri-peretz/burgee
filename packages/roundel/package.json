@@ -1,13 +1,14 @@
 {
   "name": "roundel",
-  "version": "1.0.4",
-  "description": "Colour for a CLI: one output policy decided from the runtime, nine semantic tokens over util.styleText, and a theme that changes them together, contrast-checked. Zero dependencies. Drop-in path for chalk.",
+  "version": "1.1.3",
+  "description": "Colour for a CLI: one output policy decided from the runtime, nine semantic tokens over util.styleText, and a theme that changes them together, contrast-checked. Zero dependencies. Drop-in paths for chalk, picocolors and supports-color.",
   "license": "MIT",
   "type": "module",
   "sideEffects": ["./dist/cli.js"],
   "engines": {
     "node": "^20.19.0 || >=22.13.0"
   },
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -24,6 +25,7 @@
       "import": "./dist/tokens.js",
       "default": "./dist/tokens.js"
     },
+    "./package.json": "./package.json",
     "./schema.json": "./dist/schema.json",
     "./plugin": {
       "types": "./dist/plugin.d.ts",
@@ -45,6 +47,16 @@
       "import": "./dist/chalk.js",
       "default": "./dist/chalk.js"
     },
+    "./picocolors": {
+      "types": "./dist/picocolors.d.ts",
+      "import": "./dist/picocolors.js",
+      "default": "./dist/picocolors.js"
+    },
+    "./supports-color": {
+      "types": "./dist/supports-color.d.ts",
+      "import": "./dist/supports-color.js",
+      "default": "./dist/supports-color.js"
+    },
     "./terminal": {
       "types": "./dist/terminal.d.ts",
       "import": "./dist/terminal.js",
@@ -54,6 +66,20 @@
       "types": "./dist/import.d.ts",
       "import": "./dist/import.js",
       "default": "./dist/import.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "policy": ["./dist/policy.d.ts"],
+      "tokens": ["./dist/tokens.d.ts"],
+      "plugin": ["./dist/plugin.d.ts"],
+      "theme": ["./dist/theme.d.ts"],
+      "contrast": ["./dist/contrast.d.ts"],
+      "chalk": ["./dist/chalk.d.ts"],
+      "picocolors": ["./dist/picocolors.d.ts"],
+      "supports-color": ["./dist/supports-color.d.ts"],
+      "terminal": ["./dist/terminal.d.ts"],
+      "import": ["./dist/import.d.ts"]
     }
   },
   "files": [
@@ -87,6 +113,7 @@
     "theme",
     "chalk",
     "picocolors",
+    "supports-color",
     "styleText",
     "plugin",
     "plugins",

@@ -7,17 +7,19 @@
  * commander it produced twelve items from `burgee/src/weight.test.ts`, three of them claims
  * about commander and the rest our own budgets that happened to name it.
  */
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { type Declaration } from './competitors.js';
 import { citationsFor, claimSite } from './facts.js';
 
+const scratch = scratchDirs();
+
 function packageWith(weightTest: string): { dir: string; root: string } {
-  const root = mkdtempSync(join(tmpdir(), 'facts-'));
+  const root = scratch('facts-');
   const dir = join(root, 'packages', 'burgee');
   mkdirSync(join(dir, 'src'), { recursive: true });
   writeFileSync(join(dir, 'src', 'weight.test.ts'), weightTest);
@@ -65,7 +67,7 @@ describe('a figure elsewhere on the line is not', () => {
 
 /** A declaring package with this manifest (or none) and these files on disk. */
 function owner(manifest: unknown, files: string[]): { declaration: Declaration; root: string } {
-  const root = mkdtempSync(join(tmpdir(), 'facts-site-'));
+  const root = scratch('facts-site-');
   const dir = join(root, 'packages', 'flagstaff');
   mkdirSync(join(dir, 'src'), { recursive: true });
   if (manifest !== undefined) writeFileSync(join(dir, 'package.json'), JSON.stringify(manifest));

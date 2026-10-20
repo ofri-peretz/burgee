@@ -116,6 +116,14 @@ const RULES: Record<string, EntryRule> = {
   // R12, on 2026-09-28: `interactive(rt)` and the is-unicode-supported probe, which caique
   // and flagstaff each carried by hand. Its own subpath because `./chalk` above has 7 B left
   // and `./policy` 28. Reaches nothing, and the root does not re-export it: `.` has 58 B left. Measured 878.
+  // `graded-override-targets` R7, 2026-10-11: picocolors' surface over the process seam alone.
+  // Measured 2,646 B with `runtime.js`, against picocolors 1.1.1's one file at 2,663 B on disk; the
+  // bar R7 sets is bundled bytes, held in `scripts/subpath-weight-lock.test.ts`.
+  './picocolors': { allow: [], budget: 2_800, denied: ['policy.js', 'tokens.js', 'theme.js', 'contrast.js', 'chalk.js', 'index.js'] },
+  // `supports-color-drop-in` R2, 2026-10-19: supports-color 11's decision table over the process
+  // seam alone. Measured 3,434 B with `runtime.js`, against supports-color 11.0.0's `index.js` at
+  // 4,474 B on disk; the bar R4 sets is bundled bytes, held in `scripts/subpath-weight-lock.test.ts`.
+  './supports-color': { allow: [], budget: 3_450, denied: ['policy.js', 'tokens.js', 'theme.js', 'contrast.js', 'chalk.js', 'picocolors.js', 'index.js'] },
   './terminal': { allow: [], budget: 1_000, denied: ['policy.js', 'tokens.js', 'theme.js', 'contrast.js', 'chalk.js', 'index.js'] },
   // R11, on 2026-09-30: `fromBase16` and `fromITerm`. It carries the whole theme graph on
   // purpose — `audit()` is how an imported theme is refused exactly when `fly()` would refuse
@@ -181,7 +189,8 @@ describe.each(Object.keys(RULES))('entry %s', (subpath) => {
  * graph and no budget — the file *is* the payload — so a byte rule would measure nothing.
  * Listed rather than pattern-matched so that adding one is still a decision somebody made.
  */
-const DATA_EXPORTS = ['./schema.json'];
+// `./package.json` is the manifest itself, exported so a tool can `require()` it.
+const DATA_EXPORTS = ['./package.json', './schema.json'];
 
 describe('the lock grows with the package', () => {
   it('every published entry point declares a weight rule', () => {

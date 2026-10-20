@@ -33,7 +33,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { type CaseUsage, historyLine, parseClaudeJson, writeHistory } from './eval-history';
+import { type CaseUsage, historyLine, type NotRunReason, parseClaudeJson, writeHistory } from './eval-history';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CASES_DIR = path.join(REPO_ROOT, 'evals/cases');
@@ -93,9 +93,43 @@ export function agentDocs(root = REPO_ROOT): string[] {
   return out.sort();
 }
 
-/** Strip fenced code blocks and inline code: example markdown is not a reference. */
+/** A line that opens or closes a fence: three or more backticks or tildes, in a blockquote or not. */
+const FENCE_MARK = /^[ \t>]*(`{3,}|~{3,})/;
+/** A closing line holds its marker and nothing else. */
+const FENCE_ONLY = /^[ \t>]*[`~]+[ \t]*$/;
+
+/**
+ * Drop fenced blocks as Markdown reads them: opened by three or more backticks or tildes, closed by
+ * a run of the same character at least as long, or by the end of the file when nothing closes it.
+ * A line scan, not one pattern over the file, so there is nothing for a crafted document to make
+ * backtrack.
+ */
+function stripFences(text: string): string {
+  const out: string[] = [];
+  let open: string | undefined;
+  for (const line of text.split('\n')) {
+    const mark = FENCE_MARK.exec(line)?.[1];
+    if (open === undefined) {
+      if (mark === undefined) out.push(line);
+      else open = mark;
+    } else if (mark !== undefined && mark[0] === open[0] && mark.length >= open.length && FENCE_ONLY.test(line)) {
+      open = undefined;
+    }
+  }
+  return out.join('\n');
+}
+
+/**
+ * A code span: a run of N backticks closed by a run of exactly N, inside one paragraph. Two
+ * backticks are how a span holding a backtick or a leading `<` is written, and the old one-run
+ * pattern read `` `` <path d="M0 0h10v10H0z"/> `` `` as two empty spans around prose — so the
+ * `M0` in quoted svgo output was a floor id, and a push was refused on it.
+ */
+const SPAN = /(?<!`)(`+)(?!`)(?:(?!\n[ \t]*\n)[\s\S])*?(?<!`)\1(?!`)/g;
+
+/** Strip fenced code blocks and code spans: example markdown is not a reference. */
 function stripCode(text: string): string {
-  return text.replace(/```[\s\S]*?```/g, '').replace(/`[^`\n]*`/g, '');
+  return stripFences(text).replace(SPAN, '');
 }
 
 const LINK = /\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
@@ -288,17 +322,24 @@ const CASE_TIMEOUT_MS = 180_000;
 /** 16 MiB of transcript. */
 const OUTPUT_BUFFER = 16777216;
 
-interface CaseResult extends CaseUsage {
+export interface CaseResult extends CaseUsage {
   id: string;
-  status: 'pass' | 'fail' | 'error';
+  status: 'pass' | 'fail' | 'error' | 'not-run';
+  /** A `not-run` case only: why the agent never ran, and the start of what `claude` said. */
+  reason?: NotRunReason;
+  excerpt?: string;
   failed: string[];
+  /** Every tool call the agent made, in `evals/results/<date>.json`; see `transcriptOf`. */
+  calls: ToolCall[];
 }
 
 const NO_USAGE: CaseUsage = { turns: null, tokens: null, model: null };
 
 /**
- * `--output-format json` so the run reports its turns and tokens for the history line.
- * The grade reads the document's `result`, which is exactly what text mode prints.
+ * `--output-format stream-json --verbose` so the run reports its turns and tokens for the
+ * history line — the stream's last event is the document `--output-format json` prints — and
+ * every tool call before it, for `transcriptOf`. The grade reads the document's `result`,
+ * which is exactly what text mode prints.
  */
 /**
  * D-143: "one turn" is one user prompt, not one model step. The authoring prompt asks for four
@@ -311,7 +352,7 @@ const NO_USAGE: CaseUsage = { turns: null, tokens: null, model: null };
 export const DEFAULT_MAX_TURNS = 12;
 
 export function claudeArgs(c: EvalCase, env: NodeJS.ProcessEnv = process.env): string[] {
-  const args = ['-p', c.prompt, '--allowedTools', c.allowedTools ?? 'Read,Grep,Glob', '--max-turns', env.EVAL_MAX_TURNS ?? String(DEFAULT_MAX_TURNS), '--output-format', 'json', ...ISOLATION];
+  const args = ['-p', c.prompt, '--allowedTools', c.allowedTools ?? 'Read,Grep,Glob', '--max-turns', env.EVAL_MAX_TURNS ?? String(DEFAULT_MAX_TURNS), '--output-format', 'stream-json', '--verbose', ...ISOLATION];
   if (env.EVAL_MODEL) args.push('--model', env.EVAL_MODEL);
   return args;
 }
@@ -335,13 +376,240 @@ export function whyFailed(stdout: string, stderr = ''): string {
   }
 }
 
-function runCase(c: EvalCase): CaseResult {
+/** One tool call an agent made: in which turn, what it called, on what, and how that came back. */
+export interface ToolCall {
+  turn: number;
+  tool: string;
+  input: string;
+  /** The start of what the tool returned. */
+  output: string;
+  error: boolean;
+}
+
+/** How much of a tool call's input and output a transcript keeps. */
+const CALL_CHARS = 400;
+
+/** `text` on one line, cut to `max` characters with an ellipsis. */
+const clipTo = (text: string, max: number): string => {
+  const flat = text.replaceAll(/\s+/gu, ' ').trim();
+  return flat.length > max ? `${flat.slice(0, max)}…` : flat;
+};
+
+const clip = (text: string): string => clipTo(text, CALL_CHARS);
+
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/** A tool's input as one line: the command a Bash call ran, the file a Read or a Write touched. */
+function inputOf(input: unknown): string {
+  if (!isRecord(input)) return clip(JSON.stringify(input) ?? '');
+  if (typeof input.command === 'string') return clip(input.command);
+  if (typeof input.file_path === 'string') return typeof input.content === 'string' ? `${input.file_path} (${input.content.length} chars)` : input.file_path;
+  return clip(JSON.stringify(input));
+}
+
+function textOf(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) return content.map((part) => (isRecord(part) && typeof part.text === 'string' ? part.text : '')).join('\n');
+  return '';
+}
+
+/** What `transcriptOf` builds as it reads: the calls so far, by id, and the turns seen. */
+interface Transcript {
+  calls: ToolCall[];
+  byId: Map<string, ToolCall>;
+  turns: Set<unknown>;
+}
+
+/** The content blocks of a stream event's message, or none. */
+function blocksOf(event: Record<string, unknown>, type: string): Record<string, unknown>[] {
+  const message = isRecord(event.message) ? event.message : {};
+  return Array.isArray(message.content) ? (message.content as unknown[]).filter(isRecord).filter((block) => block.type === type) : [];
+}
+
+/** An assistant message is a model turn; each `tool_use` in it is a call. */
+function readAssistant(event: Record<string, unknown>, t: Transcript): void {
+  const message = isRecord(event.message) ? event.message : {};
+  t.turns.add(message.id ?? t.turns.size);
+  // eslint-disable-next-line secure-coding/no-unchecked-loop-condition -- one message's content blocks, from a transcript OUTPUT_BUFFER bounds
+  for (const block of blocksOf(event, 'tool_use')) {
+    const call: ToolCall = { turn: t.turns.size, tool: String(block.name), input: inputOf(block.input), output: '', error: false };
+    t.calls.push(call);
+    t.byId.set(String(block.id), call);
+  }
+}
+
+/** A user message carries the tools' answers, each to the call it names. */
+function readResults(event: Record<string, unknown>, t: Transcript): void {
+  // eslint-disable-next-line secure-coding/no-unchecked-loop-condition -- one message's content blocks, from a transcript OUTPUT_BUFFER bounds
+  for (const block of blocksOf(event, 'tool_result')) {
+    const call = t.byId.get(String(block.tool_use_id));
+    if (call) Object.assign(call, { output: clip(textOf(block.content)), error: block.is_error === true });
+  }
+}
+
+/** One line of the stream as an event, or `undefined` for a line that is not one. */
+function eventOf(line: string): Record<string, unknown> | undefined {
+  try {
+    const parsed: unknown = JSON.parse(line);
+    return isRecord(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * A `stream-json` run split into its result document and its tool calls, numbered by the model
+ * turn that made them. Until 2026-10-12 a case kept only its last 240 characters, so a run that
+ * stopped at the turn cap (#1039, #1078) left nothing to say where its turns went. Output that is
+ * not a stream comes back as the result, untouched, so the grade reads what it always read.
+ */
+export function transcriptOf(stdout: string): { result: string; calls: ToolCall[] } {
+  const t: Transcript = { calls: [], byId: new Map(), turns: new Set() };
+  let result = stdout;
+  for (const line of stdout.split('\n')) {
+    const event = eventOf(line);
+    if (event?.type === 'result') result = line;
+    if (event?.type === 'assistant') readAssistant(event, t);
+    if (event?.type === 'user') readResults(event, t);
+  }
+  return { result, calls: t.calls };
+}
+
+/** What one `claude` process left behind: its output, and the error `spawnSync` reported, if any. */
+export interface Spawned {
+  stdout: string | undefined;
+  stderr: string;
+  error?: unknown;
+}
+
+/**
+ * Anything shaped like an Anthropic credential, and the values of the two credential variables —
+ * the same rule as `redact` in `benchmarks/axes/agent.ts`. A not-run excerpt lands in a committed
+ * history line and a public issue, and `claude`'s output is text this repository does not control.
+ */
+const TOKEN_SHAPES = [/sk-ant-[\w-]+/g, /\boat\d*[-_][\w-]{6,}/g];
+const MIN_SECRET_CHARS = 8;
+
+export function redact(text: string, env: NodeJS.ProcessEnv = process.env): string {
+  let out = text;
+  for (const name of ['CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_API_KEY']) {
+    const value = (env[name] ?? '').trim();
+    if (value.length >= MIN_SECRET_CHARS) out = out.split(value).join('[REDACTED]');
+  }
+  for (const shape of TOKEN_SHAPES) out = out.replace(shape, '[REDACTED]');
+  return out;
+}
+
+const EXCERPT_CHARS = 200;
+const excerptOf = (text: string): string => clipTo(text, EXCERPT_CHARS);
+
+/**
+ * The wording `claude` uses for a stop before the model works. It only names the reason; it never
+ * decides that a case did not run. `benchmarks/axes/agent.ts` holds the same words (`RATE_TEXT`,
+ * `AUTH_TEXT`), plus `hit your … limit`, which is what the weekly limit says and `RATE_TEXT` missed.
+ */
+const LIMIT_WORDS = /rate.?limit|usage limit|quota|overloaded|hit your .*limit/i;
+const AUTH_WORDS = /authenticat|not logged in|\/login|oauth|api key|invalid.*token|token.*(invalid|expired|revoked)/i;
+const HTTP_TOO_MANY = 429;
+const HTTP_UNAUTHORIZED = 401;
+const HTTP_FORBIDDEN = 403;
+
+/**
+ * A `usage` object whose four counts all read 0, an absent count reading 0 as `parseClaudeJson`
+ * reads it: the tokens the history line would record. So the runner's "never ran" and the history
+ * lock's "a zero-token case is a run that never happened" are one definition, not two.
+ */
+const zeroUsage = (u: unknown): boolean =>
+  isRecord(u) && (['input_tokens', 'output_tokens', 'cache_read_input_tokens', 'cache_creation_input_tokens'] as const).every((k) => (typeof u[k] === 'number' ? u[k] : 0) === 0);
+
+/**
+ * Whether the agent never ran, decided by evidence in its own output (evals-record-not-run R1):
+ *   (a) the result document's usage counts all read 0 and it bills no model; or
+ *   (b) the process ended on its own, printed no result document, and made no assistant turn.
+ * Either way the case is not scored. Anything with a token spent is graded as before.
+ */
+function neverRan(doc: Record<string, unknown> | undefined, stdout: string): boolean {
+  if (doc !== undefined) return zeroUsage(doc.usage) && !(isRecord(doc.modelUsage) && Object.keys(doc.modelUsage).length > 0);
+  return !stdout.split('\n').some((line) => eventOf(line)?.type === 'assistant');
+}
+
+/** Why it never ran: the HTTP status first, then the wording of `result` or stderr, else `did-not-start`. */
+function notRunReason(doc: Record<string, unknown> | undefined, text: string): NotRunReason {
+  const status = doc?.api_error_status;
+  if (status === HTTP_TOO_MANY) return 'usage-limit';
+  if (status === HTTP_UNAUTHORIZED || status === HTTP_FORBIDDEN) return 'auth';
+  if (LIMIT_WORDS.test(text)) return 'usage-limit';
+  if (AUTH_WORDS.test(text)) return 'auth';
+  return 'did-not-start';
+}
+
+/** One case's verdict from what its `claude` process printed. */
+export function caseOutcome(c: EvalCase, r: Spawned): Omit<CaseResult, 'id'> {
+  if (r.error !== undefined || typeof r.stdout !== 'string') return { status: 'error', failed: [String(r.error ?? 'no output')], ...NO_USAGE, calls: [] };
+  const { result, calls } = transcriptOf(r.stdout);
+  const doc = eventOf(result);
+  const resultDoc = doc?.type === 'result' ? doc : undefined;
+  if (neverRan(resultDoc, r.stdout)) {
+    const answer = resultDoc?.result;
+    const said = typeof answer === 'string' && answer !== '' ? answer : r.stderr;
+    return { status: 'not-run', reason: notRunReason(resultDoc, said), excerpt: redact(excerptOf(said)), failed: [], ...NO_USAGE, calls };
+  }
+  const { text, usage } = parseClaudeJson(result);
+  const { ok, failed } = grade(text, c.expect);
+  return { status: ok ? 'pass' : 'fail', failed: ok ? failed : [...failed, whyFailed(result, r.stderr)], ...usage, calls };
+}
+
+export function runCase(c: EvalCase): CaseResult {
   const args = claudeArgs(c);
   const r = spawnSync('claude', args, { cwd: REPO_ROOT, encoding: 'utf8', env: evalEnv(process.env), timeout: CASE_TIMEOUT_MS, maxBuffer: OUTPUT_BUFFER });
-  if (r.error || typeof r.stdout !== 'string') return { id: c.id, status: 'error', failed: [String(r.error ?? 'no output')], ...NO_USAGE };
-  const { text, usage } = parseClaudeJson(r.stdout);
-  const { ok, failed } = grade(text, c.expect);
-  return { id: c.id, status: ok ? 'pass' : 'fail', failed: ok ? failed : [...failed, whyFailed(r.stdout, r.stderr)], ...usage };
+  return { id: c.id, ...caseOutcome(c, { stdout: r.stdout, stderr: r.stderr, ...(r.error ? { error: r.error } : {}) }) };
+}
+
+/** A failed case's transcript in the log, one line per call — the CI log is all a pull request keeps. */
+export function callLines(calls: readonly ToolCall[]): string[] {
+  return calls.map((c) => `turn ${c.turn} ${c.tool}${c.error ? ' ✗' : ''}: ${c.input}${c.output === '' ? '' : ` → ${c.output}`}`);
+}
+
+/** The log line of a case whose agent never ran: what stopped it, in `claude`'s words. */
+export function notRunLine(r: CaseResult): string {
+  return `⏭ ${r.id} — not run: ${r.reason ?? 'did-not-start'} "${r.excerpt ?? ''}"`;
+}
+
+export interface Verdict {
+  /** What `evals.yml` reads from `$GITHUB_OUTPUT` to pick the issue it opens. */
+  outcome: 'passed' | 'failed' | 'not-run';
+  /** The not-run cases' common reason, or `mixed`; absent when every case ran. */
+  reason?: NotRunReason | 'mixed';
+  exitCode: 0 | 1;
+  /** `pass rate: <passed>/<ran>`, with the not-run count beside it; empty when layer 2 did not run. */
+  rate: string;
+  /** The run's last line. A run whose only trouble is not-run cases is never "eval failure(s)". */
+  last: string;
+}
+
+/**
+ * The run's verdict (evals-record-not-run R5). A not-run case still fails the job, as B1 fails an
+ * axis that measured nothing, but it is named for what it is: the run did not run, which is not
+ * the same news as an eval that stopped passing. A real failure, or a layer-1 one, outranks it.
+ */
+/** The one reason every not-run case shares, or `mixed`. */
+function oneReason(reasons: ReadonlySet<string>): string {
+  return reasons.size === 1 ? [...reasons][0] ?? 'mixed' : 'mixed';
+}
+
+export function verdict(results: readonly CaseResult[] | null, configFailures: number): Verdict {
+  const all = results ?? [];
+  const notRun = all.filter((r) => r.status === 'not-run');
+  const ran = all.filter((r) => r.status !== 'not-run');
+  const failures = configFailures + ran.filter((r) => r.status !== 'pass').length;
+  const reasons = new Set(notRun.map((r) => r.reason ?? 'did-not-start'));
+  const reason = notRun.length === 0 ? undefined : oneReason(reasons);
+  const notRunNote = notRun.length === 0 ? '' : ` (${notRun.length} not run: ${String(reason)})`;
+  const rate = results === null ? '' : `pass rate: ${ran.length - ran.filter((r) => r.status !== 'pass').length}/${ran.length}${notRunNote}`;
+  const skippedNote = notRun.length === 0 ? '' : `; ${notRun.length} case(s) not run`;
+  if (failures > 0) return { outcome: 'failed', ...(reason === undefined ? {} : { reason }), exitCode: 1, rate, last: `💥 ${failures} eval failure(s)${skippedNote}` };
+  if (notRun.length > 0) return { outcome: 'not-run', ...(reason === undefined ? {} : { reason }), exitCode: 1, rate, last: `⏭ ${notRun.length} case(s) not run — not an eval failure` };
+  return { outcome: 'passed', exitCode: 0, rate, last: '✅ evals pass' };
 }
 
 function runTaskLayer(cases: EvalCase[], credential: ReturnType<typeof billingFor>): CaseResult[] {
@@ -350,14 +618,20 @@ function runTaskLayer(cases: EvalCase[], credential: ReturnType<typeof billingFo
   if (bothSet) console.warn('  ⚠️ Both credentials are set; ANTHROPIC_API_KEY wins and bills per token. Unset one.\n');
   const results = cases.map(runCase);
   for (const r of results) {
+    if (r.status === 'not-run') {
+      console.warn(`  ${notRunLine(r)}`);
+      continue;
+    }
     console.warn(`  ${r.status === 'pass' ? '✓' : '✗'} ${r.id}${r.turns === null ? '' : ` — ${r.turns} turn(s)`}`);
     for (const f of r.failed) console.warn(`      ${f}`);
+    if (r.status !== 'pass') for (const line of callLines(r.calls)) console.warn(`        ${line}`);
   }
   const passed = results.filter((r) => r.status === 'pass').length;
+  const notRun = results.filter((r) => r.status === 'not-run').length;
   const stamp = new Date().toISOString().slice(0, 'YYYY-MM-DD'.length);
   fs.mkdirSync(RESULTS_DIR, { recursive: true });
-  fs.writeFileSync(path.join(RESULTS_DIR, `${stamp}.json`), `${JSON.stringify({ date: stamp, total: results.length, passed, results }, null, 2)}\n`);
-  console.warn(`\n  pass rate: ${passed}/${results.length}`);
+  fs.writeFileSync(path.join(RESULTS_DIR, `${stamp}.json`), `${JSON.stringify({ date: stamp, total: results.length - notRun, notRun, passed, results }, null, 2)}\n`);
+  console.warn(`\n  ${verdict(results, 0).rate}`);
   return results;
 }
 
@@ -392,7 +666,6 @@ function main(): void {
     console.warn(`\n🧪 Layer 2 — skipped: no credential (${cases.length} case(s) not run).\n`);
   } else {
     ran = runTaskLayer(cases, credential);
-    failures += ran.filter((r) => r.status !== 'pass').length;
   }
 
   if (record) {
@@ -408,8 +681,11 @@ function main(): void {
     console.warn(`  recorded → ${writeHistory(line, REPO_ROOT)}`);
   }
 
-  console.warn(`\n${failures === 0 ? '✅ evals pass' : `💥 ${failures} eval failure(s)`}\n`);
-  if (failures > 0) process.exitCode = 1;
+  const v = verdict(ran, failures);
+  // `evals.yml` reads `outcome` to open "did not run" rather than "failing" for a week no agent ran.
+  if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, `outcome=${v.outcome}\nreason=${v.reason ?? ''}\n`);
+  console.warn(`\n${v.last}\n`);
+  process.exitCode = v.exitCode;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

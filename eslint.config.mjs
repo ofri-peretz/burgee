@@ -306,7 +306,10 @@ export default [
     // it under a changed `process`, which an ES module cannot be (closeout spec, 2026-09-23).
     // `import x = require()` and `export =` are therefore the syntax, not a lapse, and the one
     // export object is what Node's lexer turns into named exports.
-    files: ["packages/closeout/src/*.cts"],
+    // burgee's `yargs/v17.cts` is CommonJS for the same reason: yargs 17's suite busts the require
+    // cache and requires the entry again for a singleton over a new `process.argv`
+    // (`previous-majors` R4), and `export =` is what `require()` of yargs 17 returns.
+    files: ["packages/closeout/src/*.cts", "packages/burgee/src/yargs/v17.cts"],
     rules: {
       "import-next/no-commonjs": "off",
       "import-next/unambiguous": "off",
@@ -853,6 +856,9 @@ export default [
       "packages/burgee/src/yargs-helpers.ts",
       "packages/burgee/src/yargs-parser.ts",
       "packages/burgee/src/yargs/**/*.ts",
+      // yargs 17's `index.cjs`, the singleton, as written: it copies each instance member onto
+      // the exported function by name (`previous-majors` R4).
+      "packages/burgee/src/yargs/v17.cts",
       "packages/flagstaff/src/ora.ts",
       "packages/flagstaff/src/log-update.ts",
       // Moved to `linegauge` with the port itself (F1). It is still wrap-ansi 10 line for
@@ -930,6 +936,10 @@ export default [
     files: [
       "packages/burgee/src/yargs.ts",
       "packages/burgee/src/yargs-parser.ts",
+      // yargs 17's two entries (`previous-majors` R3): `import yargs from 'yargs'` and
+      // `import yargs from 'yargs/yargs'` are default imports in a program on 17.
+      "packages/burgee/src/yargs/v17.ts",
+      "packages/burgee/src/yargs/v17-yargs.ts",
       // `import meow from 'burgee/meow'` is the drop-in for the same reason: meow's entire
       // API is one default-exported function, and every program written for it imports it
       // that way.
@@ -967,6 +977,22 @@ export default [
       // FP: `rgbToAnsi256(...rgb)` in `open()`, where the ternary above it has already
       // narrowed `rgb` to a tuple. The rule does not follow the narrowing.
       "reliability/no-missing-null-checks": "off",
+    },
+  },
+  {
+    // `roundel/supports-color` is supports-color 11 (`supports-color-drop-in` R2): its entry is a
+    // default export, and `level()` is supports-color's decision table in supports-color's order,
+    // one row per line, which its suite and `supports-color.test.ts` (differential, against
+    // supports-color's own source) hold row by row. The numbers are supports-color's: the levels
+    // 0–3 and the Windows builds that first had 256 colours and truecolor. Splitting the table
+    // into helpers would hide the order the suite asserts, and a statement per branch costs bytes
+    // against supports-color's own, which R4 holds it under.
+    files: ["packages/roundel/src/supports-color.ts"],
+    rules: {
+      "import-next/no-default-export": "off",
+      "conventions/no-magic-numbers": "off",
+      "maintainability/no-nested-ternary": "off",
+      "maintainability/cognitive-complexity": "off",
     },
   },
   {

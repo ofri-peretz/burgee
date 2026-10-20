@@ -420,7 +420,14 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // Measured 24,131.
   // 24,282 on 2026-09-24 for U5 merged with N15 (#586) and the rest of main: 30,178 -> 24,202,
   // the same 5,976 B the four moves took before the merge. Measured 24,202.
-  burgee: 24_282,
+  // 24,290 on 2026-10-12 for parse-refusals R1–R4 (#1064), by the owner's ruling there
+  // (D-20261012-core-bundle-parse-refusals): the gate that loads the refusal chunk, inline, and
+  // R4's two arguments to it. Measured 24,285 on top of main's 24,277; the next 10 B up, no further.
+  // 24,500 on 2026-10-19 for typed-positionals R2 (D-20261019-typed-schema-surface-weight): the
+  // naming of `ctx.args` and the gate that loads `typed-args.js`, with S4's stdin gate folded into
+  // that chunk. Measured 24,431 locally on top of main's 24,285; the ceiling covers CI's ~32 B.
+  // `burgee ÷ cac` reads 2.337 against its 2.35 claim ratchet, which is not raised.
+  burgee: 24_500,
   // 29,650 on 2026-09-23: D-140 and #521 on top of V8 (#481). Measured 29,634.
   // 29,200 on 2026-09-23 for **56 bytes**, the MCP stdout capture (#521): measured 29,172 on
   // top of D-122's 29,116. The capture lives in the lazily loaded MCP chunk; what reaches the
@@ -460,7 +467,12 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // through E1 and a failing action to the one-line report D-140 already carries, and
   // `--schema` names the reserved surfaces the program shadows. No module is added — the floor
   // is three checks in front of code already on this path. Measured 61,014 (+276).
-  'burgee/commander': 61_100,
+  // 56,150 on 2026-10-12, **down 4,950**, commander-front-end-diet R1: the subcommand spawn is
+  // commander's own `node:child_process` on every path commander takes, and `bellpull/cross-spawn`
+  // loads through `import()` only for a Windows executable that is not node. Measured 56,116, of which 65 B are #1064's `schema.js`.
+  // 55,400 on 2026-10-12, **down 750**, commander-front-end-diet R2: the `completion` and `--mcp`
+  // routers moved into `commander/surfaces.js`, loaded with the surface they serve. Measured 55,359.
+  'burgee/commander': 55_400,
 
   // 108,200 on 2026-09-27 for **847 bytes** (107,339 -> 108,186): `unknown-options-as-args`
   // ran five flag regexes over every `-`-prefixed argument and one was cubic (a 4,000-character
@@ -471,7 +483,11 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // 108,420 on 2026-09-28 for the two linegauge fixes it bundles: `width()` no longer
   // backtracks exponentially on a run of combining joiners, and `wrap()` no longer normalizes
   // an escape sequence into its neighbour. Measured 108,334 locally, with 80 B for CI.
-  'burgee/yargs': 108_420,
+  // 108,850 on 2026-10-19 for `facade-projection-fidelity` R4 (D-20261019-yargs-facade-relations-bytes):
+  // a yargs program's `.conflicts()`, `.implies()` and `.example()` reach `--schema` and `--mcp`.
+  // Main at `6b90ffe` measured 108,345 and this reads 108,769 (+424), on a clean build. Plus the
+  // ~32 B CI reads heavier, rounded up to the next 50. Still 2,917 B under yargs' own 111,686.
+  'burgee/yargs': 108_850,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
   // bundle grows by, set where the number actually is, so the next byte is a decision.
@@ -556,6 +572,32 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // the 80 B CI reads over local, rounded up to the next fifty. It sits above tinyexec on
   // purpose — the ratio is the bar, and it is the tighter of the two.
   bellpull: 6_000,
+  // foundation-claims-watched R6, first measured 2026-10-12: the last two layers' B4 rows. Each
+  // was added at a ceiling of 0 and failed (`npm run bench -- --axis weight --check`, 6 gate
+  // failures) before it was set here: the measurement plus the 80 B CI margin, rounded up to the
+  // next fifty. Incumbents at the versions compat-oracle grades (then): lilconfig 3.1.3, dotenv 18.0.7,
+  // exit-hook 5.1.0, signal-exit 4.1.0.
+  // `seniority/lilconfig` 3,263 against lilconfig's 5,343 (0.611) and `seniority/dotenv` 5,913
+  // against dotenv's 11,481 (0.515): both lighter, so the ratio gate is U5's 1.
+  // Re-pinned 2026-10-19 to the releases the oracle grades since #1138, dotenv 18.0.8 and
+  // lilconfig 3.1.4 (D-20261019-benchmark-pins-dotenv-lilconfig-graded): 3,286 against 5,365
+  // (0.612) and 5,966 against 11,570 (0.516), ours read the same on CI. `seniority/dotenv` has
+  // 34 B left under its ceiling.
+  'seniority/lilconfig': 3_350,
+
+  'seniority/dotenv': 6_000,
+  // **Both closeout rows are heavier than the incumbent, and the gates say so** (see
+  // `RATIO_CEILING`). `closeout/exit-hook` 4,819 against exit-hook's 1,645 (2.929) and
+  // `closeout/signal-exit` 3,634 against signal-exit's 2,856 (1.272).
+  'closeout/exit-hook': 4_900,
+
+  'closeout/signal-exit': 3_750,
+
+  // `supports-color-drop-in` R4, first measured 2026-10-19 against supports-color 11.0.0, the
+  // release compat-oracle grades. Added at a ceiling of 0, which failed, then set at the
+  // measurement plus the 80 B CI margin, rounded up to the next fifty: 1,764 against
+  // supports-color's 2,128 (0.829). Lighter, so the ratio gate is U5's 1.
+  'roundel/supports-color': 1_850,
 };
 
 /**
@@ -715,6 +757,14 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // OSC half degrade on a pipe. Measured 1.937.
   // 1.65 on 2026-09-30 with the byte ceiling above: (7,086 + 80) / 4,351 = 1.647.
   paratext: 1.65,
+  // foundation-claims-watched R6, 2026-10-12. `seniority/lilconfig` (0.611) and
+  // `seniority/dotenv` (0.515) are lighter and take the default 1. These two are not, and are
+  // ratchets at the measurement, as `paratext` is: **the claim is not met**, the gate stops it
+  // growing, and each is a gap in `.sdlc/gaps/`. Each is (measured + 80) / incumbent, rounded up.
+  // `closeout/exit-hook`: (4,819 + 80) / 1,645 = 2.978.
+  'closeout/exit-hook': 2.98,
+  // `closeout/signal-exit`: (3,634 + 80) / 2,856 = 1.300.
+  'closeout/signal-exit': 1.31,
 };
 
 /** Why a pair's ratio gate sits where it does: the claim's own ratchet, U5 at 1, or a B4 ratchet. */

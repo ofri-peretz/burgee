@@ -493,11 +493,6 @@ reading the API would not have told us, and each is a case:
    because the error a render function gets for returning nothing names that file, and the
    case snapshots the message including the path.
 
-**Closed 2026-10-11 by `inquirer-prompts-drop-in` R1:** `usePagination` is built in
-`inquirer-pagination.ts` and graded by `@inquirer/select`'s `test/pagination.test.ts`, where
-upstream moved the hook's suite (D-20261011-inquirer-pagination-suite-is-selects), and by every
-paging case of `select`. The paragraph below is the gap as it stood.
-
 **`usePagination` is not implemented, and that is a stated gap rather than an oversight.**
 It is 121 lines of list-window arithmetic that this suite does not touch anywhere. Shipping
 an ungraded re-derivation of it would be exactly the unmeasured claim the oracle exists to

@@ -18,28 +18,64 @@ requirement, and it should become one before R5 or `--format=tsv` is built.
 > first and each step is separately measurable, because a bundle of four changes with one
 > number at the end cannot say which of them paid.
 
+**Restated:** 2026-10-18 — see [§ Restated 2026-10-18](#restated-2026-10-18)
+
 ---
+
+## Restated 2026-10-18
+
+**R1 holds, R2 and R4 shipped as `burgee` N14 and N13, R6 and R7 are restated; R3, R5 and RF were never built — REMAINING: R2 (dotted result paths), R3, R5, R6 (hint-survival lock), RF.**
+
+The full table, with the check for each row and the success criteria C1–C5, is in the intent's
+[§ Restated 2026-10-18](./intent.md#restated-2026-10-18). Per requirement:
+
+- **R1** held: `packages/burgee/src/machine-json.test.ts`.
+- **R2** moved → `burgee` N14, as `--json=<a,b>` (D-114), held by
+  `packages/burgee/src/json-fields.test.ts`. Top-level fields only. Dotted paths into a result
+  are remaining.
+- **R3** remaining. D-062 placed the budget on every machine format, and `--max-bytes` does
+  not exist.
+- **R4** moved → `burgee` N13, held by `packages/burgee/src/agent.test.ts` and
+  `packages/burgee/src/schema-field.test.ts`. The drill is `--schema <command> --field <path>`
+  (D-116), not `--at`.
+- **R5** remaining. `clispec-conformance` records `--format=ndjson` as unbuilt and does not
+  take it.
+- **R6** restated. Compaction is shown value-preserving and `--format=agent` never renders a
+  failure. The hint-survival check in [Verification](#verification) was never built, so that
+  lock is remaining.
+- **R7** restated. `schema-bytes` is published and banded as `agent-schema-bytes`.
+  `recovery-bytes` is published and deliberately unbanded ("reported, never gated").
+- **RF** (the "Registered formats" step below, numbered here as the preamble asked) is
+  remaining. No `formats` key exists on the plugin object, and there is no `--format=tsv`.
 
 ## Requirements
 
 - **R1 — Machine formats are compact by default.** `--schema` and `--json` emit no
   indentation and no insignificant whitespace. `--format=json-pretty` is the escape hatch for
-  a human debugging.
+  a human debugging. **2026-10-18: held** (D-061) by `packages/burgee/src/machine-json.test.ts`.
 - **R2 — Projection at the source.** `--fields a,b.c` restricts the emitted document to the
   named paths, evaluated before serialisation so the bytes never exist. Omitting the argument
-  lists the valid paths; an invalid path prints the valid set (N14).
+  lists the valid paths; an invalid path prints the valid set (N14). **Restated 2026-10-18:**
+  shipped as `--json=<a,b>` over top-level result fields (D-114), moved to `burgee` N14 and
+  held by `json-fields.test.ts`; dotted result paths remaining.
 - **R3 — A byte budget, with legible truncation.** `--max-bytes N` on any machine format. A
   response that hits the ceiling stays *parseable* and says so: `{ truncated: true, ... }`
-  with a continuation token, never a document cut mid-string.
+  with a continuation token, never a document cut mid-string. **2026-10-18: remaining.**
 - **R4 — Progressive summarisation for `--schema`** (N13): above the budget, commands
   collapse to names and one-line descriptions, and `--schema --at <path>` drills into one
-  branch at full detail.
+  branch at full detail. **Restated 2026-10-18:** moved to `burgee` N13, drilling as
+  `--schema <command> --field <path>` (D-116); held by `agent.test.ts` and
+  `schema-field.test.ts`.
 - **R5 — Streaming for a result set.** `--format=ndjson` emits one object per line, so an
-  agent can stop reading at the first row that answers its question.
+  agent can stop reading at the first row that answers its question. **2026-10-18: remaining.**
 - **R6 — No hint is ever removed to save a byte** (intent constraint 1). The compaction rules
-  operate on serialisation and projection, never on error content.
+  operate on serialisation and projection, never on error content. **Restated 2026-10-18:**
+  each compaction is shown not to touch failures; a lock that a failure's `hint` survives
+  `--json=<fields>` and `--format=agent` is remaining.
 - **R7 — Every step is measured before the next begins.** `benchmarks/axes/reliability.ts`
   gains a `schema-bytes` metric alongside `recovery-bytes`, both published, both banded.
+  **Restated 2026-10-18:** both published; `schema-bytes` banded (`agent-schema-bytes`),
+  `recovery-bytes` reported and deliberately unbanded — held by `benchmarks/bands.test.ts`.
 
 ## Design
 

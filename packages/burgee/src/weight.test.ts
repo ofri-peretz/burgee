@@ -16,7 +16,7 @@
  * It reads `dist/`, so it measures what is published rather than what is written.
  */
 import { readFileSync, statSync } from "node:fs";
-import { dirname, relative, resolve } from "node:path";
+import { dirname, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import ts from "typescript";
@@ -289,7 +289,10 @@ const RULES: Record<string, EntryRule> = {
     // 39,150 -> 38,143, because neither takes the barrel and `agent.js` left the engine's graph.
     // 2026-10-08: a missing argument no longer adds "run --help to see what it takes" beside the
     // usage line it already prints: 35,540 -> 35,474 (-66), bundled 24,270 -> 24,208 (-62).
-    budget: 35_681,
+    // 35,850 on 2026-10-19 for typed-positionals R2 (D-20261019-typed-schema-surface-weight): `ctx.args`
+    // names each declared positional on every run, and one test loads R3's `typed-args.js` for a
+    // command whose arguments declare a type or choices; S4's stdin gate folded into that load. Measured 35,617 -> 35,822.
+    budget: 35_850,
     // 45,400 with D-140 and #521 on top of S4. Measured 45,361.
     // 45,250 with D-140 (the `--json` failure classification) on top of D-122 and #521. Measured 45,227.
     // 43,500 on 2026-09-23 for P2/P3: a thrown refusal names its exit code by string (`USAGE`, `CANCELLED`, …), which is how caique's prompt verdicts reach an exit status with no dependency edge — the four-row table and its lookup sit in `describeFailure`, where every failure is read. Measured 43,450.
@@ -307,6 +310,11 @@ const RULES: Record<string, EntryRule> = {
       "roundel",
       "flagstaff",
       "caique",
+      // `commander-compat` X5: `import 'burgee'` pulls zero bytes of the commander front-end.
+      // The spec named this entry as the check, but nothing here said so until 2026-10-19.
+      // "the denied list" below proves these names match the front-end's own files.
+      "commander.js",
+      "commander",
     ],
   },
   //
@@ -421,7 +429,8 @@ const RULES: Record<string, EntryRule> = {
   // importing it would have put that whole file on this door. Measured 9,112 (+105), inside.
   "./help": {
     allow: ["linegauge", "roundel/policy"],
-    budget: 9_130,
+    // 9,250 on 2026-10-19 for cli-help-renderer S1 (D-20261019-typed-schema-surface-weight): `(minimum: n)` and `(maximum: n)` on a number option's row. Measured 9,087 -> 9,228.
+    budget: 9_250,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel/tokens", "roundel/theme", "roundel/chalk", "flagstaff", "caique"],
   },
   // The MCP server. It reaches the schema and the manifest, because a tool list *is* the
@@ -443,7 +452,12 @@ const RULES: Record<string, EntryRule> = {
     // 21,000 with F1 on top of D-122, N14 and E7, after merging main. Measured 20,897.
     // 25,250 on 2026-09-23: D-140 and #521 on top of main (72a810352e). Measured 25,229.
     // 25,900 on 2026-09-24: the MCP session hold on top of P2/P3 (#484). Measured 25,806.
-    budget: 25_900,
+    // 26,250 on 2026-10-12 for mcp-current R1: a tool result carries the envelope's `data` (or its `error`) as `structuredContent`, parsed once from the text it already returns. Measured 25,850 -> 26,215.
+    // 26,700 on 2026-10-12 for mcp-current R2: `tools/list` carries a command's declared `output.schema` as `outputSchema`, wrapped as `{ result }` when it is not an object type, and the result is wrapped by that schema so the two agree. Measured 26,215 -> 26,695.
+    // 28,000 on 2026-10-12 for mcp-current R4 and R5: requests are dispatched without waiting for the one before, kept by id so `notifications/cancelled` aborts the call's signal and its reply is dropped; the stdout capture follows each call through `AsyncLocalStorage` instead of one global swap, which concurrent calls would have crossed; and a call with a `progressToken` sends `notifications/progress`. Measured 26,695 -> 27,991.
+    // 28,200 on 2026-10-12 for mcp-current R3: `initialize` answers the revision the client asked for when it is one of `SUPPORTED_REVISIONS` (2025-06-18, 2025-11-25), and the latest otherwise, instead of 2025-06-18 to everyone. Measured 27,991 -> 28,177.
+    // 28,400 on 2026-10-19 (D-20261019-typed-schema-surface-weight): a tool call that skips an optional positional fills it with its default, or is refused, instead of shifting every later value one place left. Measured 28,069 -> 28,364.
+    budget: 28_400,
     // 24,850 with the MCP stdout capture (#521) on top of D-122's 20,568. Measured 24,835.
     // 24,950 with D-140's MCP error classification on top of #521. Measured 24,900.
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
@@ -557,7 +571,7 @@ const RULES: Record<string, EntryRule> = {
    * looks lighter only because it *depends* on yargs-parser instead of carrying it; a caller
    * installing meow installs both, and this number is what they would have paid either way.
    * Set at the measurement, which is why it is not a round figure. Sits between
-   * `./commander` (129,400) and nothing — the two other front ends are larger still.
+   * `./commander` (112,100) and nothing — the two other front ends are larger still.
    *
    * It denies the engine outright: a caller who wanted `execute` would have imported burgee
    * itself rather than its meow-shaped door.
@@ -709,9 +723,51 @@ const RULES: Record<string, EntryRule> = {
   // `removeComments`. That is 41× the change above, in a directory whose sibling `dist/*.js`
   // files are stripped. Recorded and not fixed here — it would move several entries at once,
   // which is D-073's shape, and this lane owns none of `scripts/`.
+  //
+  // **`commander-front-end-diet` R1, 2026-10-12: `allow: []` again.** The spawn is commander's
+  // own `node:child_process` on every path commander 15 takes, and `bellpull/cross-spawn` loads
+  // through `import()` only for a Windows executable that is not node — the one case above that
+  // upstream cannot run. The walk reports that edge as lazy, so the entry imports nothing, and
+  // a bundler splits bellpull off the start-up path (61,272 -> 56,418 B on /docs/weight).
+  //
+  // **`commander-compat` X6, 2026-10-19: 129,400 -> 112,100, down 17,300, and the parity bar
+  // holds again.** `scripts/strip-comments.mjs` recurses now, so `dist/commander/` loses the
+  // 14,312 B of doc comments recorded above, and the diet took bellpull off the static walk.
+  // Measured 112,024 on a clean build (`rm -rf dist`, then build) of main at `6b90ffe`, the
+  // same reading D-20261018-commander-14-budget took. Plus the ~32 B CI reads heavier, rounded
+  // up to the next 50 B: 112,100. That is 14,265 B under commander's own `lib/` (126,365) and
+  // 15,900 under the 128,000 the spec states, so this entry is a parity bar again rather than
+  // a round number above the reading (D-20261019-commander-walk-budget-ratchet).
   "./commander": {
-    allow: ["bellpull/cross-spawn"],
-    budget: 129_400,
+    allow: [],
+    budget: 112_100,
+    denied: ["testing.js", "testing-helpers.js", "dev.js"],
+  },
+  // `extra-typings-drop-in` R5: `@commander-js/extra-typings`' door. Its JavaScript is one
+  // line, `export * from '../commander.js'`, as extra-typings' is `export * from 'commander'`;
+  // what it adds is a declaration file, which no runtime walk counts. So the entry weighs what
+  // `./commander` weighs plus that line. Set at the measurement, 115,356 B on 2026-10-12, with
+  // the ~32 B CI has read heavier than a local build elsewhere in this table, and no more.
+  // `allow: []` with `./commander` (commander-front-end-diet R1): bellpull is a lazy edge now.
+  "./commander/extra-typings": {
+    allow: [],
+    budget: 115_400,
+    denied: ["testing.js", "testing-helpers.js", "dev.js"],
+  },
+  // `previous-majors` R1, 2026-10-12: commander 14's door, which `burgee migrate` writes for a
+  // program on 14. `./commander` plus one subclass carrying 14's excess-arguments message, 687 B
+  // over `./commander`. Set at the measurement, 112,645 B after commander-front-end-diet R2, plus
+  // the ~32 B CI reads heavier than a local build (as `./commander/extra-typings` records),
+  // rounded up to the next 50 B (D-20261012-commander-14-budget). `./commander`'s budget does not
+  // move: 15 bundles none of it.
+  //
+  // **2026-10-18: 112,700 -> 112,750 (D-20261018-commander-14-budget).** #1083 (aliases) and #1091
+  // (an Argument's choices) grew the shared front-end 66 B in this walk (111,958 -> 112,024 for
+  // `./commander`), so this entry read 112,711. Measured + the ~32 B CI margin = 112,743, rounded
+  // up to the next 50 B. Nothing of v14's own grew: it is still 687 B over `./commander`.
+  "./commander/v14": {
+    allow: [],
+    budget: 112_750,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   // yargs 18 ported method for method, with its whole dependency tree — yargs-parser 22,
@@ -780,11 +836,24 @@ const RULES: Record<string, EntryRule> = {
     // (`yargs/flag-shapes.js`, 1,880 B, for five regexes one of which was cubic), and an async
     // builder's rejection under `showHelp()` reaches `fail` instead of going unhandled.
     // Measured 220,848.
-    budget: 220_900,
+    // 221,700 on 2026-10-19 for `facade-projection-fidelity` R4 (D-20261019-yargs-facade-relations-bytes):
+    // `.conflicts()`, `.implies()` and `.example()` reach `--schema` and `--mcp` as `exclusive`,
+    // `dependsOn` and `examples`. Main at `6b90ffe` measured 220,765 and this reads 221,617 (+852),
+    // on a clean build. Plus the ~32 B CI reads heavier, rounded up to the next 50.
+    budget: 221_700,
     // 217,100 with D-140 on top of D-122, N14 and E7, after merging #521. Measured 217,090.
     // 217,150 with A29's CommonJS export on top. Measured 217,123.
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
+  // `previous-majors` R3, 2026-10-19 (D-20261019-yargs-17-budget): yargs 17's `import` door, which
+  // `burgee migrate` writes for a program on 17. `./yargs` plus `yargs/v17-factory.js` (17's string
+  // table and `commandDir()` walk) and the entry itself, 3,042 B over `./yargs` in this walk: 224,695
+  // measured, plus the ~32 B CI reads heavier, rounded up to the next 50 B. Its `require()` door,
+  // `yargs/v17.cjs`, is not on this walk, which follows `import`. `./yargs` gained 36 B for the
+  // seam the factory plugs into (`shim.CommandInstance`) and its budget does not move.
+  "./yargs/v17": { allow: ["linegauge"], budget: 224_750, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
+  // 17's `yargs/yargs`: `./yargs/v17` and one function carrying three statics. 224,919 measured.
+  "./yargs/v17/yargs": { allow: ["linegauge"], budget: 225_000, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
   "./yargs/helpers": {
     allow: [],
     budget: 64_000,
@@ -876,7 +945,9 @@ function walk(entry: string): {
     }
   }
   return {
-    reached: [...files].map((f) => relative(dist, f)),
+    // `/` on every platform: a denied bare specifier covers its subpaths by `${denied}/`, so a
+    // Windows `commander\help.js` would slip past `commander` and the lock would pass blind.
+    reached: [...files].map((f) => relative(dist, f).split(sep).join("/")),
     external: [...external],
     bytes,
     lazy: [...lazy],
@@ -929,6 +1000,13 @@ describe("the denied list", () => {
     expect(isDenied("roundelle", roundel)).toBe(false);
     expect(isDenied("testing-helpers.js", "testing.js")).toBe(false);
   });
+
+  it("denies entry `.` every file the commander front-end is made of (commander-compat X5)", () => {
+    const denied = (RULES["."] as EntryRule).denied;
+    const own = walk(entryFile("./commander")).reached.filter((name) => name === "commander.js" || name.startsWith("commander/"));
+    expect(own.length, "the ./commander walk reached none of its own files, so this proves nothing").toBeGreaterThan(1);
+    expect(own.filter((name) => !denied.some((d) => isDenied(name, d)))).toEqual([]);
+  });
 });
 
 /**
@@ -937,8 +1015,10 @@ describe("the denied list", () => {
  * Listed rather than pattern-matched so that adding one is still a decision somebody made.
  */
 // Data, not code: a file a reader validates against, which no import reaches and no budget can weigh.
-// `program-schema.json` is the shape of `--schema` (F1, D-123).
-const DATA_EXPORTS = ["./schema.json", "./program-schema.json"];
+// `program-schema.json` is the shape of `--schema` (F1, D-123); `locale-pack-schema.json` is the
+// shape of a locale pack (`localised-human-surfaces` R4).
+// `./package.json` is the manifest itself, exported so a tool can `require()` it.
+const DATA_EXPORTS = ["./package.json", "./schema.json", "./program-schema.json", "./locale-pack-schema.json"];
 
 describe("the lock grows with the package", () => {
   it("every published entry point declares a weight rule", () => {

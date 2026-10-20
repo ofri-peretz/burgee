@@ -10,6 +10,7 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { platform } from 'node:os';
 import { join } from 'node:path';
 
 import { type OmittedFile } from './binaries.js';
@@ -24,6 +25,15 @@ export interface CompatRecord {
   tag: string | null;
   commit: string;
   vendored: string;
+  /**
+   * The moment the suite's dependencies are installed as of (npm's `--before`): the newest
+   * release its `suiteDeps` pin, or the incumbent's own release where it pins none, plus a
+   * margin for the siblings a monorepo publishes in the same batch. Present only where the
+   * vendored manifest declares dependencies. Without it the transitive tree resolved as of
+   * the day of the run, and an upstream release turned a control red with nothing changed
+   * here (D-20261020-oracle-suite-deps-floated).
+   */
+  depsBefore?: string;
   files: number;
   internalFiles: string[];
   internals: string[];
@@ -116,6 +126,7 @@ export interface SnapshotMeta {
   tag: string | null;
   commit: string;
   vendored: string;
+  depsBefore?: string;
   files: number;
   internalFiles: string[];
   internals: string[];
@@ -202,7 +213,7 @@ export function renderMissingExtras(version: string, missing: string[]): string 
 
 /** The newest release on npm. */
 export function latestVersion(pkg: string): string {
-  return execFileSync('npm', ['view', pkg, 'version'], { encoding: 'utf8' }).trim();
+  return npm(['view', pkg, 'version']).trim();
 }
 
 export function readRecord(hostDir: string): CompatRecord | undefined {
@@ -212,3 +223,34 @@ export function readRecord(hostDir: string): CompatRecord | undefined {
   // Records written before fingerprints existed diff as "everything added" — once, honestly.
   return { hashes: {}, tests: {}, surface: {}, version: "^0.0.0", tag: null, ...parsed } as CompatRecord;
 }
+
+/** When `name@version` was published, as the registry's `time` field records it (ISO 8601). */
+export type ReleaseTime = (name: string, version: string) => string;
+
+/**
+ * How npm is run on `system`: `npm` on the PATH, which on Windows is `npm.cmd`, a batch file only
+ * `cmd.exe` runs, so through a shell there. A bare `npm` with no shell was `spawnSync npm ENOENT`
+ * on every Windows cell of #1180.
+ *
+ * Not bellpull's cross-spawn, which would do it without a shell: the vendor step must load from a
+ * checkout with nothing installed (`scripts/vendor-suite-resolution.test.ts`), so this module
+ * imports nothing outside `node:`. The shell is safe here because every argument is a literal or
+ * a package name `hosts.ts` declares.
+ */
+export function npmOn(system: string): { file: string; shell: boolean } {
+  const windows = system === 'win32';
+  return { file: windows ? 'npm.cmd' : 'npm', shell: windows };
+}
+
+/** `npm <args>` on this machine, its stdout. */
+function npm(args: string[]): string {
+  const { file, shell } = npmOn(platform());
+  return execFileSync(file, args, { encoding: 'utf8', shell });
+}
+
+/** The registry's `time` for `name@version`; a release it does not list is an error, never a guess. */
+export const registryTime: ReleaseTime = (name, version) => {
+  const at = (JSON.parse(npm(['view', name, 'time', '--json'])) as Record<string, string | undefined>)[version];
+  if (at === undefined) throw new Error(`the registry lists no publish time for ${name}@${version}`);
+  return at;
+};

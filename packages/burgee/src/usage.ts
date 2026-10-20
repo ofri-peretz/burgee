@@ -106,12 +106,16 @@ export function groupUsage(manifest: Manifest, node: CommandNode): Usage {
   return bounded({ command: `${at} <command>` }, 'commands', rows, `${at} --help`);
 }
 
-/** The prose: `usage:`, then the rows under their heading, then where the rest are. */
-export function usageText(usage: Usage): string {
+/**
+ * The prose: `usage:`, then the rows under their heading, then where the rest are. `say` is the
+ * run's locale (`localised-human-surfaces` R1): it translates the heading and the pointer, never
+ * the `usage:` label or a row, and is the identity when no pack applies.
+ */
+export function usageText(usage: Usage, say: (english: string) => string = String): string {
   const rows = usage.options ?? usage.commands ?? [];
   const column = widest(rows.map((r) => r.name));
   const body = rows.map((r) => `  ${r.description === '' ? r.name : `${r.name}${' '.repeat(column - width(r.name))}  ${r.description}`}\n`).join('');
-  const label = usage.options === undefined ? 'commands:\n' : 'options:\n';
-  const heading = rows.length === 0 ? '' : label;
-  return `usage: ${usage.command}\n${heading}${body}${usage.more === undefined ? '' : `  … the rest: ${usage.more}\n`}`;
+  const label = say(usage.options === undefined ? 'commands:' : 'options:');
+  const heading = rows.length === 0 ? '' : `${label}\n`;
+  return `usage: ${usage.command}\n${heading}${body}${usage.more === undefined ? '' : `${say(`  … the rest: ${usage.more}`)}\n`}`;
 }

@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 
 import { PAIRS as RUNTIME_PAIRS } from 'benchmarks/axes/runtime.js';
 import { CLAIMS } from 'benchmarks/claims.js';
+import { renderTarget } from 'benchmarks/emit.js';
 import { publishedResults } from 'benchmarks/published.js';
 import { readRuntimeRatchets } from 'benchmarks/runtime-ratchets.js';
 
@@ -231,7 +232,32 @@ function claimVerdict(c: Claim): string {
   return c.met ? '✅ met' : '❌ **not met**';
 }
 
-const claimRow = (id: string, c: Claim): string => {
+/**
+ * A claim as `benchmarks/claims.ts` states it today, settled on the published measurement.
+ *
+ * The page printed each claim's text and target as the published document recorded them on the
+ * day it was measured. A ratchet lowered since then left the page stating the old one:
+ * `lighter-than-commander` went 1.565 -> 1.42 in #1152 and `/docs/benchmarks` went on saying
+ * "within 1.565x", with `bench:page --check` green, because the page was still exactly what the
+ * committed results generate. Reading the text and the threshold from the claim registry makes a
+ * ratchet move a page change, which that check then requires.
+ *
+ * The verdict is re-settled against today's threshold from the same record. A claim whose record
+ * changed since (the B1 rows, D-20261009-b1-totals-and-explain) keeps the document's own entry:
+ * its measurement is of a different quantity, and the note below the table says so.
+ */
+function current(id: string, c: Claim): Claim {
+  const spec = CLAIMS.find((s) => s.id === id);
+  if (spec === undefined) return c;
+  const { measured, from } = c;
+  if (measured === undefined || from?.metric !== spec.from.metric) return c;
+  const { max, min } = spec.test;
+  const met = (max === undefined || measured <= max) && (min === undefined || measured >= min);
+  return { ...c, claim: spec.claim, target: renderTarget(spec.test), met };
+}
+
+const claimRow = (id: string, settled: Claim): string => {
+  const c = current(id, settled);
   const verdict = claimVerdict(c);
   const measured = c.measured === undefined ? '—' : `${num(c.measured)} ${c.unit ?? ''}`;
   // The target is rendered as code: MDX reads a bare `<=` as the start of a JSX tag.
@@ -348,6 +374,8 @@ and submitted — each in its own process, in front of a TTY with colour and hyp
 each first proving that ours and the incumbent print **the same bytes**: a ratio between two
 different jobs is the flattering number this page exists to refuse. Eleven interleaved rounds;
 the number is the median of the per-round ratio, ours ÷ theirs, so a round's load lands on both.
+A reading over its ceiling is confirmed by two more fresh processes before it fails, so load on
+one process cannot fail a pull request and a regression in every process still does.
 
 **The target is ≤ 1.0 for every pair.** Where a pair is above it, the gate is a ceiling just above
 its CI measurement that **may only go down**: the PR that makes the pair faster lowers it, and

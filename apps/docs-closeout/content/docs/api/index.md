@@ -7,18 +7,6 @@ description: "Every export of closeout, with its signature and doc comment: alte
 
 closeout — close everything out.
 
-Exit handlers that run **exactly once on every path**, terminal restore, and a bounded
-deadline so shutdown cannot hang.
-
-"Every path" is the hard part and the reason this is a package. A program leaves by
-several doors — returning from main, `process.exit`, SIGINT, SIGTERM, SIGHUP — and a
-handler registered on `'exit'` alone misses most of them, which is why a Ctrl-C so often
-leaves a hidden cursor or a half-written file behind. Registering on all of them is
-easy; registering on all of them and running the handlers exactly once when two fire
-together is where the bugs live.
-
-Zero dependencies; Node builtins only.
-
 ```ts
 import { alternateScreen, assertDeadline, createRegistry, … } from 'closeout';
 ```
@@ -44,17 +32,6 @@ function alternateScreen(stream: OutputStream, closeout?: Closeout): () => void;
 ### assertDeadline
 
 Check a deadline at the moment it is registered, not at the moment it would have fired.
-
-**`Infinity` and `0` are both rejected, and they are the same mistake wearing two hats.**
-`Infinity` is "wait forever", which is the unbounded shutdown this package exists to
-remove. `0` reads like "do not wait", and what it actually buys is a shutdown where no
-asynchronous handler ever gets a turn — every one of them abandoned mid-flight, which is
-the *other* half of the same failure: work that silently did not happen. A caller who
-genuinely wants either wants a different package, and being told so at `install()` is
-worth far more than finding out during the one shutdown that mattered.
-
-Returns the number so a caller can use it in an expression, which is what makes it hard
-to call and then ignore.
 
 ```ts
 function assertDeadline(ms: number): number;
@@ -156,10 +133,6 @@ function reportToEvent(report: ShutdownReport): ExitEvent;
 
 The `--json` rendering: one line, machine-first, `error` flattened to text.
 
-`JSON.stringify` of the record itself would emit `"error": {}` for every `Error` — they
-have no enumerable own properties — which is a line that looks like a report and carries
-nothing. That is why this is a projection rather than a stringify.
-
 ```ts
 function reportToJson(report: ShutdownReport): string;
 ```
@@ -187,10 +160,6 @@ function showCursor(stream: OutputStream): void;
 ### timeoutMessage
 
 The line the deadline prints when it fires.
-
-Kept here beside the projections rather than in the registry because it *is* a rendering
-of the record, and because the sentence is the product: a hang that used to be silence
-becomes a named handler a reader can go and look at.
 
 ```ts
 function timeoutMessage(report: ShutdownReport, deadline: number): string;
@@ -223,11 +192,6 @@ class DeadlineError extends TypeError {
 A caller error, in the family's one vocabulary: a `code` that classifies it and a `fix`
 that says what to do instead.
 
-`USAGE` rather than an `E_…` code: the `E_…` names belong to the plugin contract, where a
-code travels between a plugin author and a host. This is a caller passing a number that
-cannot mean what they wanted it to mean, which is the same class caique's binding reports
-and the same class a CLI exits 2 for.
-
 ```ts
 const DEADLINE_ERROR_CODE = "USAGE";
 ```
@@ -237,31 +201,6 @@ const DEADLINE_ERROR_CODE = "USAGE";
 Two seconds: long enough to flush a file, short enough that nobody reaches for the
 keyboard.
 
-**Provisional, and the measurement that was supposed to settle it is recorded rather than
-quietly re-run until it agreed.** `measure/deadline.mjs` runs the five cleanup shapes this
-layer actually sees — flush a write stream, close a listening server, kill a child, remove
-a temp directory of 100 files, restore the terminal — 100x each and prints each p99. Run
-2026-09-14 on darwin arm64, node 24.13:
-
-    flush a write stream   p99     67.1 ms
-    close a server         p99      1.5 ms
-    kill a child           p99      1.3 ms
-    remove a temp dir      p99 17 818.5 ms
-    restore the terminal   p99      0.2 ms
-
-Four of the five are inside 70 ms and the fifth is four orders of magnitude out, which is
-not a fact about removing a directory: the machine was at **load average 19-22 across 14
-cores**, the same condition that makes `exit-hook`'s four signal cases a race. Re-run
-alone, the removal is p50 161 ms / p99 2 166 ms — still the shape that decides the answer,
-and still measured through the load.
-
-So the default stays 2 000 ms and stays *stated as provisional*, because rounding a p99
-that has another process's disk queue inside it would be a number with a decimal point
-and no meaning. The honest reading of the run is that everything except filesystem
-removal finishes inside 70 ms, and that the deadline is there for the shape that does not.
-`closeout/intent.md`'s open question is not closed; what changed is that it now has a
-repeatable instrument and one recorded run instead of an argument.
-
 ```ts
 const DEFAULT_DEADLINE = 2000;
 ```
@@ -269,10 +208,6 @@ const DEFAULT_DEADLINE = 2000;
 ### DEFAULT_PHASE
 
 Where a handler goes when its author did not say.
-
-`release` rather than `flush`: an unphased handler is far more often closing something
-than writing something, and either way it lands before `restore` — the property every
-caller of this package is relying on whether or not they know the word.
 
 ```ts
 const DEFAULT_PHASE: Phase;
@@ -290,25 +225,6 @@ const EXIT_PATHS: readonly ["exit", "beforeExit", "signal", "uncaught", "rejecti
 
 The order shutdown happens in, as **data** rather than as registration order.
 
-Registration order is the wrong ordering for a shutdown, and it is the ordering every
-incumbent gives you. The handler that hands the terminal back is registered by whichever
-renderer hid the cursor, at whatever moment it first drew — so anything registered a line
-later runs *after* the cursor is back and raw mode is off, which is to say it cleans up
-nothing it was registered to clean up. An ordering that depends on import order is not an
-ordering; it is a coincidence that happens to hold until someone moves an import.
-
-Three phases, and the names are the sequence:
-
-- `flush` — get the data out: write the file, drain the log, post the last event.
-- `release` — let go: locks, sockets, children, temp directories. The default.
-- `restore` — hand the terminal back: cursor shown, raw mode off. Last, always.
-
-Phases run **in sequence** — an async handler in `flush` is awaited before `release`
-begins — and handlers within one phase run together, in registration order. The
-sequencing is the half that makes the guarantee worth stating: sorting the calls but
-starting them all at once would put a plugin's `await` after the cursor was already back,
-which is the bug with the ordering merely rearranged.
-
 ```ts
 const PHASES: readonly ["flush", "release", "restore"];
 ```
@@ -316,19 +232,6 @@ const PHASES: readonly ["flush", "release", "restore"];
 ### SIGNALS
 
 The signals a CLI is expected to survive politely (design R1).
-
-SIGINT is Ctrl-C. SIGTERM is what an orchestrator sends before it loses patience. SIGHUP
-is the terminal closing out from under you, which is the one people forget and the one
-that most often strands a lock file. SIGQUIT is Ctrl-\\, which a shell sends expecting a
-core dump and which otherwise leaves every lock this package exists to release.
-
-SIGBREAK is Windows' Ctrl-Break and exists nowhere else; listening for it on POSIX costs
-one listener that can never fire, which is a better trade than a `platform` read inside
-the one package whose whole design is that it does not read the process.
-
-**SIGKILL is deliberately absent, and cannot be added.** It is not deliverable to a
-listener by design; a package that claimed it would be claiming something no program can
-do. The README says so in those words rather than leaving a reader to infer a guarantee.
 
 ```ts
 const SIGNALS: readonly ["SIGINT", "SIGTERM", "SIGHUP", "SIGQUIT", "SIGBREAK"];
@@ -342,9 +245,6 @@ const SIGNALS: readonly ["SIGINT", "SIGTERM", "SIGHUP", "SIGQUIT", "SIGBREAK"];
 interface Closeout {
     /**
      * Register a handler. Returns the function that unregisters it.
-     *
-     * The second argument is a phase (default `release`), or `{ phase, label }` when the
-     * handler wants a name in the deadline's report that is better than an arrow's empty one.
      */
     onExit(handler: ExitHandler, spec?: HandlerSpec): () => void;
     /** Hide the cursor and register its restore; the returned function shows it again. */
@@ -412,11 +312,6 @@ interface HandlerOptions {
     phase?: Phase;
     /**
      * What to call it in a report.
-     *
-     * Defaults to the function's own `name`, which is right for `onExit(releaseTheLock)` and
-     * useless for `onExit(async () => …)` — and the anonymous arrow is the shape that hangs.
-     * A label is the caller's chance to make the deadline's sentence name something they can
-     * go and look at.
      */
     label?: string;
 }
@@ -445,12 +340,6 @@ interface ProcessLike {
      * Send a signal to a process. closeout passes exactly one pid — {@link ProcessLike.pid},
      * its own — because the only thing it ever does with this is re-raise the signal it just
      * handled, so that a process killed by SIGINT *dies of SIGINT* instead of reporting 130.
-     *
-     * Required rather than optional, which is a deliberate cost. A `ProcessLike` without it
-     * would still compile and would silently take the exit path, and a seam that lets a fake
-     * quietly opt out of the behaviour under test is how `leaveAfter` stayed wrong through
-     * 21 / 21 and 6 / 6. A process that cannot raise a signal cannot honour this package's
-     * contract, so the type says so.
      */
     kill(pid: number, signal: string): unknown;
     /** This process's own id — the only one {@link ProcessLike.kill} is ever given. */
@@ -477,10 +366,6 @@ interface ProcessLike {
 interface Registry {
     /**
      * Register a handler in a phase. Returns the function that unregisters it.
-     *
-     * The phase defaults to {@link DEFAULT_PHASE}, so a caller that never heard of phases
-     * keeps the behaviour it had: unphased handlers share one phase and run in registration
-     * order within it — ahead of `restore`, which is the part that was not true before.
      */
     add(handler: ExitHandler, spec?: HandlerSpec): () => void;
     /**
@@ -498,9 +383,6 @@ interface Registry {
     readonly settled: boolean;
     /**
      * The report of the shutdown that happened, or `undefined` before one has.
-     *
-     * Readable after `runSync`, which cannot return a promise, and after a second trigger
-     * that found the work already done — the path that would otherwise have nothing to say.
      */
     readonly report: ShutdownReport | undefined;
 }
@@ -512,13 +394,6 @@ interface Registry {
 interface RegistryOptions {
     /**
      * How long shutdown may take before it stops waiting, in milliseconds.
-     *
-     * A deadline is not a nicety. A handler that awaits something that never resolves — a
-     * socket that will not close, a lock nobody releases — turns Ctrl-C into a process the
-     * user has to kill twice, and the second one is SIGKILL with no cleanup at all. Better
-     * to abandon a slow handler than to strand the person at the keyboard.
-     *
-     * `Infinity` and `0` are rejected here, at registration — see `deadline.ts`.
      */
     deadline?: number;
     /** Where a handler's own failure is reported. Defaults to stderr. */
@@ -536,10 +411,6 @@ interface RegistryOptions {
 
 What shutdown *was*, once it has run: the record plus what the deadline found.
 
-`unfinished` is the sentence this package exists to be able to say. It is empty on every
-ordinary shutdown, and on a breach it names each handler that had not returned — by the
-label its caller gave it, or by the function's own `name`.
-
 ```ts
 interface ShutdownReport extends ExitReport {
     /** Whether the deadline expired before the handlers were done. */
@@ -547,11 +418,6 @@ interface ShutdownReport extends ExitReport {
     /**
      * The handlers that had not returned when shutdown stopped waiting — by the label their
      * caller gave them, or by the function's own `name`.
-     *
-     * Empty on an ordinary shutdown. Non-empty in two cases, and they are different: the
-     * deadline fired (`timedOut`), or the trigger was `'exit'`, where Node gives no time at
-     * all and an asynchronous handler never had a turn to lose. The second is why this is
-     * not simply "what the deadline caught".
      */
     unfinished: readonly string[];
 }
@@ -570,10 +436,6 @@ type ExitHandler = (report: ExitReport) => void | Promise<void>;
 ### ExitPath
 
 Which door the process left by.
-
-`signal` covers all of them rather than naming each: the signal's own name is in
-`signal`, and a consumer switching on the path wants the *class* of exit — "somebody
-asked us to stop" is one case whether it arrived as SIGINT or SIGHUP.
 
 ```ts
 type ExitPath = 'exit' | 'beforeExit' | 'signal' | 'uncaught' | 'rejection';

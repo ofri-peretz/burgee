@@ -7,20 +7,6 @@ description: "Every export of caique/ask, with its signature and doc comment: as
 
 The six widgets, in line mode (R5) — and line mode is not a fallback, it is the floor.
 
-Every widget here works by writing a question and reading a line. No raw mode, no cursor
-movement, no escape sequence, no redraw. That makes it the accessible mode by
-construction rather than by a second implementation kept in step by hand: a screen
-reader gets the same bytes a terminal does, and `select` is a numbered list because a
-numbered list is what a person can answer without seeing a highlight move.
-
-It is also what makes the widgets testable without a PTY. A `Reader` is one method that
-returns the next line, so the whole suite is strings in and strings out; the raw-mode
-renderer that arrows and highlights will come later sits *on top* of this and answers
-the same questions, which is how it stays honest.
-
-Nothing here reads `process`, and nothing decides *whether* to ask — that is `decide()`,
-which runs first and refuses when there is no one to ask.
-
 ```ts
 import { ask, projection } from 'caique/ask';
 ```
@@ -30,12 +16,6 @@ import { ask, projection } from 'caique/ask';
 ### ask
 
 Ask one prompt and return its answer.
-
-A stream that ends is a cancellation, not an empty answer: `Ctrl-D` and a closed pipe
-both mean nobody is going to type, and treating that as `''` is how a program ends up
-writing to a path the user never chose. Invalid input is re-asked, bounded — after
-`MAX_ATTEMPTS` it gives up rather than looping, because a loop against a stream that
-keeps answering wrongly is the hang this package exists to prevent, wearing a hat.
 
 ```ts
 function ask(prompt: BoundPrompt | PromptSpec, io: Io): Promise<Asked>;
@@ -72,6 +52,12 @@ function projection(spec: PromptSpec): string;
 interface Io {
     reader: Reader;
     writer: Writer;
+    /**
+     * The run's language for what caique draws itself — the instruction under a list, a problem
+     * with an answer, the giving-up line — never the author's question (`localised-human-surfaces`
+     * R6). `sayFor(runtime.locale)` from `caique/locale` builds it; absent, it is English.
+     */
+    say?: (english: string) => string;
 }
 ```
 
@@ -109,6 +95,11 @@ interface Writer {
      * than one row of screen and the repaint has to climb all of them.
      */
     readonly columns?: number | undefined;
+    /**
+     * How many rows the terminal is, when it knows. The raw renderer windows a list to it, so a
+     * list longer than the screen never climbs above the top row on a repaint.
+     */
+    readonly rows?: number | undefined;
 }
 ```
 

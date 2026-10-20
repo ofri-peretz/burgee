@@ -17,6 +17,10 @@ How it works. The shape of the change, the files it touches, the order to do it 
 The feedback loop: the one command that exits non-zero when this is wrong, and the
 check that would have caught the original problem. Name the test file.
 
+If the design has states, ordering, concurrency, retries or a deadline, the model too: a
+`.qnt` beside this file with a `val safety`, checked by `models.yml`. See
+[`JEV-AND-QUINT.md`](../../JEV-AND-QUINT.md).
+
 ## Rejected alternatives
 
 What we chose not to do, with the reason. Per CLAUDE.md rule 3, this is the section a

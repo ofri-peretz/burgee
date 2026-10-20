@@ -87,6 +87,16 @@ describe('createIo', () => {
     expect(io.writer.columns).toBe(40);
     io.close();
   });
+
+  it("reports the output's height as it is now, so a list windows to a resized screen (frames-fit-the-screen R4)", () => {
+    const s = streams();
+    const output = Object.assign(s.output, { rows: 24 });
+    const io = createIo({ input: s.input, output });
+    expect(io.writer.rows).toBe(24);
+    output.rows = 10;
+    expect(io.writer.rows).toBe(10);
+    io.close();
+  });
 });
 
 describe('a hidden answer never reaches the output stream', () => {

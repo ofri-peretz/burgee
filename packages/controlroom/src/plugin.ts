@@ -97,8 +97,8 @@ const BUILT_IN: Plugin = {
   name: 'controlroom',
   keymaps: {
     default: {
-      keys: { left: 'tab.prev', right: 'tab.next', tab: 'focus.next', 'shift+tab': 'focus.prev', 'ctrl+c': 'quit' },
-      labels: { 'tab.prev': 'switch tab', 'tab.next': 'switch tab', 'focus.next': 'focus', quit: 'quit' },
+      keys: { left: 'tab.prev', right: 'tab.next', tab: 'focus.next', 'shift+tab': 'focus.prev', up: 'scroll.up', down: 'scroll.down', pageup: 'scroll.pageUp', pagedown: 'scroll.pageDown', home: 'scroll.top', end: 'scroll.bottom', 'ctrl+c': 'quit' },
+      labels: { 'tab.prev': 'switch tab', 'tab.next': 'switch tab', 'focus.next': 'focus', 'scroll.up': 'scroll', 'scroll.down': 'scroll', 'scroll.pageUp': 'page', 'scroll.pageDown': 'page', 'scroll.top': 'jump', 'scroll.bottom': 'jump', quit: 'quit' },
     },
   },
 };

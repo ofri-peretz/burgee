@@ -18,13 +18,6 @@ The default export, declared as `boxen`.
 
 Draw a box around `text`, exactly as boxen 9 draws it.
 
-An invalid colour throws rather than drawing something plausible, because boxen throws: a
-colour name that is not one is a typo, and a box drawn in the wrong colour is a bug somebody
-ships.
-
-`import boxen from 'boxen'` is the incumbent's surface. A named export here would break
-every migration this file exists to serve, so the house rule yields to the host.
-
 ```ts
 function boxen(input: string, options?: BoxenOptions): string;
 ```

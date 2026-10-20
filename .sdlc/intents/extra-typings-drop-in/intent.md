@@ -4,7 +4,7 @@
 > ([`next-wave-2026-10.md`](../../research/next-wave-2026-10.md)): a 5 M-a-week package that
 > `burgee migrate` cannot map, and an adoption target it cost.
 
-**Status:** approved · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-18 on [`1013b65db5`](https://github.com/ofri-peretz/burgee/commit/1013b65db5), verified against `main` at `1013b65db5` — all 4 criteria locked by `run.test.ts`, the compat baseline and four workspace locks
 
 ---
 
@@ -68,6 +68,21 @@ commander project already has.
    `tsc --noEmit` passes on the result.
 4. `scripts/drop-in-type-surface-lock.test.ts` and `scripts/migrate-drop-ins-lock.test.ts` pass
    with the new row.
+
+## Shipped — 2026-10-18
+
+**Status raised to `shipped`.** Every criterion was checked against `main` at `1013b65db5` in the
+roadmap-to-shipped Batch 0 pass (`.sdlc/research/roadmap-to-shipped-2026-10.md`).
+
+| criterion | check | result |
+| :-- | :-- | :-- |
+| 1. the oracle runs `tsd` suites per assertion, proven red on a wrong one | `run.test.ts -t "tsd runner"` | 5 passed, 63 skipped |
+| 2. `GRADED` carries `extra-typings`, level with its control | `npm run compat -- extra-typings` and `--control` | extra-typings 369 / 369; control extra-typings 369 / 369 |
+| 3. `burgee migrate` rewrites it and `tsc --noEmit` passes | `migrate.test.ts`, `compat-baseline-lock.test.ts`; `facade-types.test.ts -t "extra-typings-drop-in R4"` | 164 passed; 1 passed, 16 skipped |
+| 4. the type-surface and migrate locks pass with the row | `drop-in-type-surface-lock`, `drop-in-require-shape-lock`, `migrate-drop-ins-lock`, `subpath-weight-lock` | 215 passed |
+
+R5 holds the subpath **over** its incumbent, 61,207 B against 39,329 B, as a ratchet. That was
+accepted by `D-20261012-extra-typings-inherits-front-end`; it is a stated limit, not a hidden one.
 
 ## Open questions
 

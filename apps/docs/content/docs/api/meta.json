@@ -12,10 +12,14 @@
     "cli",
     "testing",
     "commander",
+    "commander/extra-typings",
+    "commander/v14",
     "meow",
     "completions",
     "yargs",
     "yargs/helpers",
-    "yargs/parser"
+    "yargs/parser",
+    "yargs/v17",
+    "yargs/v17/yargs"
   ]
 }

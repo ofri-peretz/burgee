@@ -27,7 +27,8 @@
  * graded on exiting 0. The one-file programs themselves are each package's `shape.test.ts`.
  *
  * It reads `dist/`, so it needs the packages built — which the pre-push battery and CI's
- * `npm test` both do before the root suite runs.
+ * `npm test` both do before the root suite runs. Off CI, tarballs that already passed here are
+ * not installed again: the per-package cases report skipped, naming the stamp (`installStamp`).
  */
 import { execFile } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
@@ -36,9 +37,9 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { declaredBy, discard, type Edge, installTarballs, type Manifest, ownerOf, packFamily, publishedManifests, readManifest, undeclaredReaches } from './family-install.js';
+import { declaredBy, discard, type Edge, type InstallStamp, installStamp, installTarballs, type Manifest, ownerOf, packFamily, publishedManifests, readManifest, undeclaredReaches } from './family-install.js';
 
 const run = promisify(execFile);
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -240,22 +241,31 @@ describe('U12 — each published package installs and loads alone', () => {
   const manifests = publishedManifests(root);
 
   let base: string;
+  let stamp: InstallStamp | undefined;
   const results = new Map<string, Install>();
 
   beforeAll(async () => {
     base = mkdtempSync(join(tmpdir(), 'burgee-independence-'));
     const tarballs = await packFamily(root, manifests.keys(), join(base, 'tarballs'));
+    stamp = installStamp(fileURLToPath(import.meta.url), tarballs.values());
+    if (stamp.skip !== undefined) return;
     const done = await Promise.all([...manifests.keys()].map((pkg) => installAlone(pkg, manifests, tarballs, base)));
     for (const r of done) results.set(r.pkg, r);
   }, SETUP_TIMEOUT_MS);
 
-  afterAll(() => discard(base));
+  afterAll(({}, suite) => {
+    discard(base);
+    stamp?.record(suite);
+  });
 
   it('grades exactly the nine published packages', () => {
     expect([...manifests.keys()].toSorted()).toEqual(PUBLISHED);
   });
 
   describe.each(PUBLISHED)('%s', (pkg) => {
+    beforeEach((ctx) => {
+      if (stamp?.skip !== undefined) ctx.skip(stamp.skip);
+    });
     const result = (): Install => {
       const r = results.get(pkg);
       if (r === undefined) throw new Error(`${pkg} was not installed`);

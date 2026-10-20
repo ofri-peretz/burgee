@@ -30,12 +30,15 @@
  * than this file.
  */
 import { execFileSync } from 'node:child_process';
-import { closeSync, mkdtempSync, openSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { closeSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import process from 'node:process';
 
 import { describe, expect, it } from 'vitest';
+
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
+
+const scratch = scratchDirs();
 
 const HIDE_CURSOR = '[?25l';
 const SHOW_CURSOR = '[?25h';
@@ -82,7 +85,7 @@ interface Outcome {
  * exit 0. The throw carries `.status` and `.signal`, and those two *are* the result.
  */
 function runChild(source: string): Outcome {
-  const dir = mkdtempSync(join(tmpdir(), 'closeout-signal-'));
+  const dir = scratch('closeout-signal-');
   const log = join(dir, 'fd2');
   const child = join(dir, 'child.mjs');
   writeFileSync(child, source);

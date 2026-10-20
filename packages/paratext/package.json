@@ -1,6 +1,6 @@
 {
   "name": "paratext",
-  "version": "1.0.4",
+  "version": "1.0.9",
   "description": "Hyperlinks, inline images, the window title, the clipboard, notifications and the bell, each with a static fallback for a terminal, pipe or agent that cannot show it. Zero dependencies. Drop-in paths for ansi-escapes, terminal-link and term-img.",
   "license": "MIT",
   "type": "module",
@@ -8,6 +8,7 @@
   "engines": {
     "node": "^20.19.0 || >=22.13.0"
   },
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -29,6 +30,7 @@
       "import": "./dist/plugin.js",
       "default": "./dist/plugin.js"
     },
+    "./package.json": "./package.json",
     "./schema.json": "./dist/schema.json",
     "./term-img": {
       "types": "./dist/term-img.d.ts",
@@ -39,6 +41,15 @@
       "types": "./dist/terminal-link.d.ts",
       "import": "./dist/terminal-link.js",
       "default": "./dist/terminal-link.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "csi": ["./dist/csi.d.ts"],
+      "link": ["./dist/link.d.ts"],
+      "plugin": ["./dist/plugin.d.ts"],
+      "term-img": ["./dist/term-img.d.ts"],
+      "terminal-link": ["./dist/terminal-link.d.ts"]
     }
   },
   "files": [

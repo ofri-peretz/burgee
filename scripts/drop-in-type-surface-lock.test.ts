@@ -42,6 +42,14 @@ const PAIRS: readonly (readonly [string, string])[] = [
   ['restore-cursor', 'closeout/restore-cursor'],
   // Joined 2026-10-11 with `graded-override-targets` R4; cli-cursor 5.0.0 is hoisted at the root.
   ['cli-cursor', 'closeout/cli-cursor'],
+  // Joined 2026-10-11 with R5 and R6; both are hoisted at the root at the graded release.
+  ['cli-truncate', 'linegauge/cli-truncate'],
+  ['widest-line', 'linegauge/widest-line'],
+  // Joined 2026-10-11 with R7; picocolors 1.1.1 is hoisted at the root.
+  ['picocolors', 'roundel/picocolors'],
+  // Joined 2026-10-19 with `supports-color-drop-in` R2; supports-color 11.0.0 is a root devDependency
+  // for this comparison and the differential test, as meow is.
+  ['supports-color', 'roundel/supports-color'],
   ['exit-hook', 'closeout/exit-hook'],
   ['signal-exit', 'closeout/signal-exit'],
   ['signal-exit/signals', 'closeout/signal-exit/signals'],
@@ -54,6 +62,9 @@ const PAIRS: readonly (readonly [string, string])[] = [
   // resolves through the copy `@changesets/cli` hoists to the root. When that copy is gone,
   // the pair is skipped, as any incumbent not installed at the root is.
   ['@clack/prompts', 'caique/clack'],
+  // Joined 2026-10-12 with `extra-typings-drop-in` R3. A root devDependency for this comparison
+  // alone, as meow is: the declarations are the whole of what the drop-in adds.
+  ['@commander-js/extra-typings', 'burgee/commander/extra-typings'],
 ];
 
 /** Names a drop-in does not export yet, each with the reason — the list only shrinks. */
@@ -78,6 +89,23 @@ const GAPS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
       name,
       "chalk's deprecated arrays, kept for chalk 4 callers; they cost 142 B against `./chalk`'s budget, which is chalk's own source size, and `burgee migrate` refuses a value import it cannot satisfy rather than break it",
     ]),
+  ),
+  // `graded-override-targets` R7. picocolors' `export =` object lets TypeScript import each
+  // style by name, and Node's ES loader does not: `import { red } from 'picocolors'` throws
+  // `Named export 'red' not found` against picocolors itself (measured 2026-10-11, Node 24.13),
+  // because `module.exports = createColors()` hides the names from cjs-module-lexer. Exporting
+  // the forty-one by name took the façade from 1,607 B to 2,845 B bundled, over picocolors'
+  // 2,739 B — R7's kill criterion. A CommonJS `const { red } = require(…)` gets them from the
+  // default object, as it does from picocolors; `burgee migrate` keeps a named import on the
+  // incumbent rather than rewrite a name the target does not export.
+  'roundel/picocolors': Object.fromEntries(
+    [
+      'reset', 'bold', 'dim', 'italic', 'underline', 'inverse', 'hidden', 'strikethrough',
+      'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white', 'gray',
+      'bgBlack', 'bgRed', 'bgGreen', 'bgYellow', 'bgBlue', 'bgMagenta', 'bgCyan', 'bgWhite',
+      'blackBright', 'redBright', 'greenBright', 'yellowBright', 'blueBright', 'magentaBright', 'cyanBright', 'whiteBright',
+      'bgBlackBright', 'bgRedBright', 'bgGreenBright', 'bgYellowBright', 'bgBlueBright', 'bgMagentaBright', 'bgCyanBright', 'bgWhiteBright',
+    ].map((name) => [name, "a member of picocolors' `export =` object, which TypeScript lets a caller import by name and Node's ES loader does not; by name it costs 1,238 B and takes the façade over picocolors' own bytes (R7)"]),
   ),
   paratext: {
     AnnotationOptions: "the options of `iTerm.annotation`, and `iTerm` is declared and empty (NotImplemented) until paratext has a capability for it",

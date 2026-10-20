@@ -7,16 +7,19 @@
 import cp, { type ChildProcess } from 'node:child_process';
 // eslint-disable-next-line modernization/prefer-event-target -- the fake stands in for a `ChildProcess` and a `process`, which are both EventEmitters; `dotenv run` calls their `on` and `removeListener`.
 import { EventEmitter } from 'node:events';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import os, { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { HELP, parseRunArgs, run } from './dotenv-cli.js';
 import { type CliProcess } from './runtime.js';
 
-const dir = mkdtempSync(join(tmpdir(), 'seniority-dotenv-cli-'));
+const scratch = scratchDirs();
+
+const dir = scratch('seniority-dotenv-cli-');
 writeFileSync(join(dir, 'a.env'), 'A=from-a\nSHARED=a\n');
 writeFileSync(join(dir, 'b.env'), 'B=from-b\nSHARED=b\n');
 
@@ -268,6 +271,14 @@ describe('the child', () => {
     run(['run', '-q', '-f', 'a.env', 'nope'], proc, { spawn: () => child });
     child.emit('error', new Error('spawn nope ENOENT'));
     expect(printed('error')).toEqual(['dotenv: spawn nope ENOENT']);
+    expect(proc.exitCode).toBe(1);
+    expect([...proc.listeners.values()].every((set) => set.size === 0)).toBe(true);
+  });
+
+  it('reports a command cmd.exe cannot carry, refused before anything starts, and fails', () => {
+    const proc = fakeProcess({ platform: 'win32', env: { PATHEXT: '.EXE' } });
+    run(['run', '-q', '-f', 'a.env', 'nope', 'a\n&b'], proc);
+    expect(printed('error')).toEqual(['dotenv: cmd.exe cannot carry a line break or NUL in the command or its arguments']);
     expect(proc.exitCode).toBe(1);
     expect([...proc.listeners.values()].every((set) => set.size === 0)).toBe(true);
   });

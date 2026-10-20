@@ -98,6 +98,15 @@ describe('numbers (S3, yargs #1079)', () => {
     expect((await failure(['--env', 'dev', '--replicas', '0'])).message).toMatch(/at least 1/);
     expect((await failure(['--env', 'dev', '--replicas', '99'])).hint).toBe('pass --replicas 20');
   });
+  it('publishes minimum and maximum in --schema, on the option and on its inputSchema property (commander-schema C3)', async () => {
+    const r = await runBurgee(program, { argv: ['deploy', '--schema'] });
+    const doc = JSON.parse(r.stdout) as { options: Record<string, unknown>; inputSchema: { properties: Record<string, unknown> } };
+    expect(doc.options['replicas']).toMatchObject({ minimum: 1, maximum: 20 });
+    // The JSON Schema an agent or an MCP client validates against carries the bounds too, so a
+    // value outside them is refused before the call rather than reported as exit 2 after it.
+    expect(doc.inputSchema.properties['replicas']).toMatchObject({ type: 'integer', minimum: 1, maximum: 20 });
+    expect(doc.inputSchema.properties['ratio']).not.toHaveProperty('minimum');
+  });
   it('never lets NaN or Infinity through from env or the default path', async () => {
     expect((await failure(['--env', 'dev'], { APP_RATIO: 'Infinity' })).code).toBe(2);
     expect(await data(['--env', 'dev'], { APP_RATIO: '0.5' })).toMatchObject({ ratio: 0.5 });
@@ -106,8 +115,10 @@ describe('numbers (S3, yargs #1079)', () => {
 
 describe('a flag never consumes a value (S7, yargs #1532, #933)', () => {
   it('leaves the next word as a positional and rejects --force=value', async () => {
+    // `deploy` declares no argument, so the word `--force` did not take is refused as one (parse-refusals R1).
     const r = await runBurgee(program, { argv: ['deploy', '--json', '--env', 'prod', '--force', 'extra'] });
-    expect((r.json as { data: Record<string, unknown> }).data).toMatchObject({ force: true });
+    expect(r.json).toMatchObject({ error: { message: 'too many arguments: expected 0, got 1 ("extra")', fix: 'app deploy --json --env prod --force' } });
+    expect(await data(['--env', 'prod', '--force'])).toMatchObject({ force: true });
     expect((await failure(['--env', 'prod', '--force=yes'])).code).toBe(2);
   });
 });
@@ -144,6 +155,24 @@ describe('relations, validated before choices and the handler (S2, S6)', () => {
   });
   it('checks relations before choices (yargs #1186): a bad choice with a conflict reports the conflict', async () => {
     expect((await failure(['--env', 'nope', '--dry-run', '--force'])).message).toMatch(/cannot be used together/);
+  });
+  /**
+   * commander-schema R3 — `--no-x` is honoured (yargs #898). yargs 8 printed "Implications
+   * failed: flag1 -> flag2" for `--flag1 --no-flag2`: the negation was not seen as the consequent
+   * being given. Here a typed `--no-b` is the caller deciding `b`, so it satisfies `implies` and
+   * the option-level `dependsOn` alike, and only a value from nowhere — absent, or a default —
+   * fails it. Held, not built: it passes on main, and it fails with `isSet` in `relations.ts`
+   * reading a `false` as unset, which is the yargs 8 behaviour.
+   */
+  it('counts a typed --no-x as given to implies and dependsOn, and a default as not given (yargs #898)', async () => {
+    const p = defineProgram({
+      name: 'p',
+      commands: [defineCommand({ name: 'x', options: { a: { type: 'boolean' }, b: { type: 'boolean', default: true }, c: { type: 'boolean', dependsOn: ['b'] } }, relations: [{ implies: ['a', 'b'] }], effects: 'withheld', run: ({ options }) => options })],
+    });
+    expect((await runBurgee(p, { argv: ['x', '--a', '--no-b', '--json'] })).json).toMatchObject({ ok: true, data: { a: true, b: false } });
+    expect((await runBurgee(p, { argv: ['x', '--c', '--no-b', '--json'] })).json).toMatchObject({ ok: true, data: { c: true, b: false } });
+    expect((await runBurgee(p, { argv: ['x', '--a'] })).stderr).toMatch(/--a requires --b/);
+    expect((await runBurgee(p, { argv: ['x', '--c'] })).stderr).toMatch(/--c requires --b/);
   });
   it('exactlyOneOf and atLeastOneOf', async () => {
     const p = defineProgram({
