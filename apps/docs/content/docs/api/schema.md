@@ -129,6 +129,8 @@ interface CommandSchema {
     summary?: string;
     /** Other words that run it (R5): on the command, so a list of commands is one entry per command. */
     aliases?: readonly string[];
+    /** It runs when argv names no command at its parent's level (default-command R4). */
+    default?: boolean;
     /**
      * What running it does, or `'withheld'` — published either way, because an agent reading
      * the program as data is better served by *this exists and is not for you* than by a gap

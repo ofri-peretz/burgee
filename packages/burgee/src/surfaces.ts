@@ -22,6 +22,7 @@ import { type ArgumentSpec, type CommandNode, type Manifest, type OptionSpec } f
 import { kebab } from './names.js';
 import { type Package } from './pkg.js';
 import { completionNode, exitRows, rootExamples } from './root-help.js';
+import { defaultOf } from './run-default.js';
 import { builtin } from './runtime.js';
 import { suggestSimilar } from './suggest.js';
 import { Again, jsonSpelling, shellLine, textSpelling } from './unknown-option.js';
@@ -133,7 +134,7 @@ const renderHelp = async (manifest: Manifest, node: CommandNode, io: SurfaceIo, 
   const completion = atRoot ? completionNode(manifest) : undefined;
   // Stryker disable next-line StringLiteral: the prefix only narrows which catalog entries are tried; no other entry's template matches an exit advice line, so '' finds the same one
   const commands = [...listed(manifest, node), ...(completion === undefined ? [] : [completion]), ...(atRoot ? exitRows(manifest, local && ((s) => local.say(s, 'exit.'))) : [])].map(view);
-  const shown = view(atRoot ? { ...node, examples: rootExamples(manifest, node) } : node);
+  const shown = view(withDefault(manifest, atRoot ? { ...node, examples: rootExamples(manifest, node) } : node));
   // The globals this command leaves global (R1–R3); none on a node the engine made up, such as
   // `completion`, which parses none of them.
   const globals = manifest.find(node.path) === undefined ? [] : globalRows(node);
@@ -142,6 +143,20 @@ const renderHelp = async (manifest: Manifest, node: CommandNode, io: SurfaceIo, 
   const agents = atRoot && agentsBeside(io.pkg) ? AGENTS_LINE : '';
   return help.renderHelp(manifest, shown, { width: io.width, color: help.colorFor(io.env, detectAgent(io.env, io.out.isTTY === true).interactive, argv), commands, globals, forAgents: agents, ...(say === undefined ? {} : { say }) });
 };
+
+/**
+ * default-command R3 (yargs #1331) — help for a level with a default lists what the default takes,
+ * because it is typed there: its arguments and options after the level's own, its examples after
+ * the level's, each once, and `--explain`, since the level now runs. Composed here, like the root's
+ * examples and exit codes, so the `./help` door carries none of it.
+ */
+function withDefault(manifest: Manifest, node: CommandNode): CommandNode {
+  const fallback = defaultOf(manifest, node);
+  if (fallback === undefined) return node;
+  const examples = new Map([...(node.examples ?? []), ...(fallback.examples ?? [])].map((e) => [e.command, e]));
+  const run = node.run ?? fallback.run;
+  return { ...node, ...(run && { run }), options: { ...fallback.options, ...node.options }, arguments: [...(node.arguments ?? []), ...(fallback.arguments ?? [])], examples: [...examples.values()] };
+}
 
 /** Whether a declaration was written with a localised text (R5): `execute.ts` marks it so. */
 const marked = (o: object): boolean => Symbol.for('burgee.l10n') in o;
@@ -219,7 +234,8 @@ export async function unresolved({ manifest, root, io }: Resolving, argv: string
   // resolved nothing, because the command is the next word. When the words after them name a
   // command that runs, the same line runs with the globals behind it, where the parse takes them
   // (`Again`, as a `--json` typed first does); otherwise they are read here, for help's colour.
-  const { globals, words: typed } = leadingGlobals(argv.slice(before.length));
+  const words = argv.slice(before.length);
+  const { globals, words: typed } = leadingGlobals(words);
   if (globals.length > 0) {
     const reached = manifest.resolve([...before, ...typed], root);
     if (reached.node?.run !== undefined) throw new Again(lineWords(reached.node.path, reached.rest, undefined, globals));
@@ -236,9 +252,32 @@ export async function unresolved({ manifest, root, io }: Resolving, argv: string
     return { text: await renderHelp(manifest, node, io, argv), code: ExitCode.OK };
   }
   if (first === '--version' || first === '-V') return { text: `${versionOf(manifest, io)}\n`, code: ExitCode.OK };
+  // default-command R2 — argv that names no command at a level with a default runs the default with
+  // the same words: nothing, flags, or a word it takes as its positional. A word near a command's
+  // name is not one, and stays the unknown-command refusal with its `did you mean`.
+  const fallback = toDefault(manifest, node, first, words);
+  if (fallback !== undefined) throw fallback;
   if (typed.length === 0) return { text: await renderHelp(manifest, node, io, argv), code: ExitCode.USAGE };
   const refusal = unknownCommand({ manifest, root, io }, node, before, typed);
   throw refusal;
+}
+
+/**
+ * default-command R2 — the line that runs the level's default with the caller's words, when there
+ * is one and the words are its: none, a flag first, or a first word the default takes as its
+ * positional (D-20261012-default-command-shape).
+ */
+function toDefault(manifest: Manifest, node: CommandNode, first: string, words: string[]): Again | undefined {
+  const fallback = defaultOf(manifest, node);
+  if (fallback === undefined) return undefined;
+  const takes = first === '' || first.startsWith('-') || ((fallback.arguments?.length ?? 0) > 0 && !nearCommand(manifest, node, first));
+  return takes ? new Again(lineWords(fallback.path, words, undefined)) : undefined;
+}
+
+/** Whether `word` reads as a command typed wrong rather than a positional: near a child's name, or exactly one deeper down. */
+function nearCommand(manifest: Manifest, node: CommandNode, word: string): boolean {
+  const said = suggestSimilar(word, childrenOf(manifest, node).map((c) => c.path.at(-1) as string));
+  return said !== '' || meant(manifest, node, word, said) !== undefined;
 }
 
 /**
