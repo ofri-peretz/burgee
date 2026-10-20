@@ -11,6 +11,16 @@
   "devDependencies": {
     "@inquirer/prompts": "8.7.3",
     "@inquirer/core": "12.0.4",
+    "@inquirer/checkbox": "5.2.6",
+    "@inquirer/confirm": "6.3.3",
+    "@inquirer/editor": "5.3.4",
+    "@inquirer/expand": "5.1.6",
+    "@inquirer/input": "5.1.7",
+    "@inquirer/number": "4.2.4",
+    "@inquirer/password": "5.2.3",
+    "@inquirer/rawlist": "5.3.6",
+    "@inquirer/search": "4.3.4",
+    "@inquirer/select": "5.2.6",
     "@inquirer/testing": "3.3.14",
     "@inquirer/type": "4.2.0",
     "@inquirer/external-editor": "3.0.6"

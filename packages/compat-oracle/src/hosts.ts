@@ -1525,6 +1525,23 @@ export const HOSTS: Host[] = [
     suiteDeps: [
       '@inquirer/prompts@8.7.3',
       '@inquirer/core@12.0.4',
+      // The ten prompts `@inquirer/prompts` re-exports, at the releases 8.7.3 shipped with
+      // (2026-10-04). 8.7.3 asks for each by caret, so unpinned they float to the newest, and
+      // the 2026-10-19 releases (`select@5.2.7` and the rest) ask for `@inquirer/core@^12.0.5`:
+      // npm puts a second core under each prompt, beside the 12.0.4 pinned above. checkbox's
+      // suite imports `ValidationError` from the top-level core and asserts the prompt rejects
+      // with that class; a prompt built on the nested core rejects with the other one, and the
+      // control read 212 / 213 (D-20261019-inquirer-prompts-pins-its-prompts).
+      '@inquirer/checkbox@5.2.6',
+      '@inquirer/confirm@6.3.3',
+      '@inquirer/editor@5.3.4',
+      '@inquirer/expand@5.1.6',
+      '@inquirer/input@5.1.7',
+      '@inquirer/number@4.2.4',
+      '@inquirer/password@5.2.3',
+      '@inquirer/rawlist@5.3.6',
+      '@inquirer/search@4.3.4',
+      '@inquirer/select@5.2.6',
       // The harness every file renders through: a headless xterm that asserts the screen.
       '@inquirer/testing@3.3.14',
       // `withResolver`, a promise helper `search.test.ts` imports for itself.
