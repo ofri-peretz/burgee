@@ -171,6 +171,18 @@ describe('a host whose repository is a monorepo', () => {
     }
   });
 
+  it('pins each prompt package @inquirer/prompts re-exports, not only the package itself', () => {
+    // An exact pin on `@inquirer/prompts` holds nothing beneath it: 8.7.3 asks for its ten
+    // prompts by caret. On 2026-10-19 they were re-released against `@inquirer/core@^12.0.5`,
+    // a second core landed under each one beside the pinned 12.0.4, and checkbox's
+    // `toBeInstanceOf(ValidationError)` failed the control, 212 / 213, with no change here.
+    const prompts = HOSTS.find((h) => h.name === 'inquirer-prompts') as Host;
+    const pinned = new Set((prompts.suiteDeps ?? []).map((spec) => splitSpec(spec)[0]));
+    const graded = prompts.imports.flatMap((i) => /^\.\/(\w+)\/src\/index\.ts$/.exec(i.upstream)?.slice(1) ?? []);
+    expect(graded).toHaveLength(10);
+    expect(graded.map((p) => `@inquirer/${p}`).filter((name) => !pinned.has(name))).toEqual([]);
+  });
+
   it('names the npm package separately from the directory key', () => {
     // Red before: there was no `npmName`, so the release lookup asked npm about a package
     // called "clack" and the control re-exported that same name. Neither throws — the first
