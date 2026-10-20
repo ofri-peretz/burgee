@@ -16,8 +16,9 @@
  * `@see` tags, each whole. Dropped: every later paragraph of prose, every other tag, and every
  * comment that is not JSDoc. Three kinds of
  * comment are not prose and stay byte for byte: a `///` directive, a `// @ts-…` pragma (it
- * changes what a consumer's compiler reports), and a licence notice (`Copyright`, `@license`,
- * `/*!`), which the MIT terms of the vendored declarations require to travel with them.
+ * changes what a consumer's compiler reports), and a licence notice (a copyright line,
+ * `@license`, `/*!`), which the MIT terms of the vendored declarations require to travel with
+ * them.
  *
  * Comments are located by TypeScript's own scanner (`getLeadingCommentRanges` /
  * `getTrailingCommentRanges` at every token of the parsed file), never by a regex over the
@@ -47,8 +48,13 @@ export const KEPT_TAGS: readonly string[] = ['param', 'returns', 'throws', 'exam
 /** A declaration file, by the three extensions tsc writes one under. */
 export const DECLARATION = /\.d\.[cm]?ts$/;
 
-/** A comment that is not prose: a directive, a compiler pragma, or a licence notice. */
-const KEEP_WHOLE = /^\/\/\/|^\/\/\s*@ts-|^\/\*\s*@ts-|^\/\*!|copyright|@license/i;
+/**
+ * A comment that is not prose: a directive, a compiler pragma, or a licence notice. A notice is
+ * `/*!`, `@license`, or a copyright line (`Copyright (c)`, `Copyright ©`, `Copyright 2026`)
+ * anywhere in the block, since a vendored licence often follows a paragraph of its own; the
+ * word "copyright" in prose is not one.
+ */
+const KEEP_WHOLE = /^\/\/\/|^\/\/\s*@ts-|^\/\*\s*@ts-|^\/\*!|\bcopyright\s+(?:\(c\)|©|\d{4})|@license\b/i;
 
 const FENCE = /^\s*```/;
 const TAG = /^@([A-Za-z]+)/;

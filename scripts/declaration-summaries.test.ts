@@ -142,6 +142,16 @@ describe('R2 — the rule: the first paragraph and the rendered tags stay', () =
     expect(multiParagraphBlocks(`${block}\nexport declare const a: 1;\n`)).toHaveLength(1);
   });
 
+  it('a block that mentions copyright in prose is prose; a notice anywhere in a block keeps it whole', () => {
+    const prose = '/**\n * Parses the copyright field of a package.json.\n *\n * The format follows SPDX syntax, the copyright 2nd field is ignored, and @licenses is not a tag.\n */';
+    expect(summariseBlock(prose)).toBe('/**\n * Parses the copyright field of a package.json.\n */');
+    expect(multiParagraphBlocks(`${prose}\nexport declare function parseCopyright(pkg: unknown): string;\n`)).toHaveLength(1);
+    for (const notice of ['Copyright (c) 2022 commander-js', 'Copyright © Someone', 'copyright 2026 Someone', 'Copyright  2019 wide-spaced', '@license MIT']) {
+      const text = `/**\n * Ported from upstream.\n *\n * ${notice}\n */\nexport declare const a: 1;\n`;
+      expect(summariseDeclaration(text)).toBe(text);
+    }
+  });
+
   it('the lock reads only JSDoc, and never a licence notice', () => {
     expect(multiParagraphBlocks('/**\n * Copyright (c) 2026 Someone\n *\n * Licensed under MIT.\n */\nexport declare const a: 1;\n')).toEqual([]);
     expect(multiParagraphBlocks('/*\n * a\n *\n * b\n */\nexport declare const a: 1;\n')).toEqual([]);
