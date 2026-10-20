@@ -66,7 +66,7 @@ R1 and R2 do not move the median. They are still worth their bytes.
   drift into one the check refuses.
 - **Cost.** Both live on the lazy `check` path. `check.js` goes from 2,795 to 3,408 B (+613 B).
   `locale.js` gains one `export` keyword (+7 B). The schema JSON, which is data and not code, gains
-  447 B. No entry in `weight.test.ts` moves (64 passed), because both modules are reached only by
+  550 B as published (15,525 → 16,075 B). No entry in `weight.test.ts` moves (64 passed), because both modules are reached only by
   `await import()`. The core bundle (24,500 B ceiling, about 16 B of headroom, #1215) is untouched
   by construction: its closure follows `import` statements, never `await import()`.
 - **Reversal.** Drop `coverage` from `CheckReport` and the module sentence from the generator's

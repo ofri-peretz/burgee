@@ -77,5 +77,5 @@ put a printer on the core path for a reader that the eval does not have: the pro
 `--json`. The same data is in the text output, under `locales`.
 
 **Weight.** `check.js` 2,795 → 3,408 B, lazy, reached only by `burgee check`. `locale.js` +7 B,
-lazy. `locale-pack-schema.json` +447 B, data. `weight.test.ts`: 64 passed, no entry moved. The core
+lazy. `locale-pack-schema.json` 15,525 → 16,075 B as published, data. `weight.test.ts`: 64 passed, no entry moved. The core
 bundle closure follows `import` statements only, so it cannot reach either module.
