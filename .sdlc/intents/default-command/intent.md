@@ -71,7 +71,7 @@ their baselines. cac has no graded suite yet, and only its weight is compared.
 `default-command.test.ts` holds R1–R4. Run against `main`'s sources, **18 of its 29 cases fail**
 and `tsc` reports `TS2353` (`'default' does not exist in type 'Command<…>'`) 14 times. The 11 that
 pass on `main` are the guards that must not move. `scripts/mutation.ts changed` on the changed
-lines: **118 killed and 1 timeout of 119 mutants, 0 survivors**, in 3.1 minutes. No Quint model:
+lines: **122 killed and 1 timeout of 123 mutants, 0 survivors**, in 3.3 minutes. No Quint model:
 dispatch is a pure function, and the spec gives the argument that the `Again` loop terminates.
 
 | Criterion | Evidence |
