@@ -15,11 +15,11 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { sync } from 'bellpull/cross-spawn';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { type Host } from './hosts.js';
-import { npmCommand, registryTime } from './npm.js';
-import { latestVersion } from './upstream.js';
+import { latestVersion, registryTime } from './upstream.js';
 import { classify, internalImports, keptPath, readSuiteDeps, rewriteAt, rootPackage, siblingImports, splitSpec, vendor } from './vendor.js';
 
 // Every git call still runs for real; the spy only records what `vendor()` asked for.
@@ -28,6 +28,12 @@ vi.mock('node:child_process', async (importOriginal) => {
   return { ...real, execFileSync: vi.fn(real.execFileSync) };
 });
 vi.mock('./upstream.js', async (importOriginal) => ({ ...(await importOriginal<typeof import('./upstream.js')>()), latestVersion: vi.fn(() => '1.0.0') }));
+vi.mock('bellpull/cross-spawn', async (importOriginal) => ({ ...(await importOriginal<typeof import('bellpull/cross-spawn')>()), sync: vi.fn() }));
+
+/** The next `npm view` through bellpull answers `stdout` and exits `status`. */
+const answers = (stdout: string, status = 0): void => {
+  vi.mocked(sync).mockReturnValueOnce({ status, stdout, stderr: status === 0 ? '' : 'E404', pid: 1, output: [], signal: null });
+};
 
 const SUITE: Record<string, string> = {
   'package.json': '{"name":"fakehost","version":"1.0.0","license":"MIT","description":"a host"}\n',
@@ -189,23 +195,16 @@ describe('vendoring a whole suite', () => {
     expect(JSON.parse(read(none, 'fakehost', '.source.json'))).not.toHaveProperty('depsBefore');
   });
 
-  it("reads a release's publish time from the registry's `time`, and refuses a release it does not list", () => {
-    vi.mocked(execFileSync).mockReturnValueOnce('{"created":"2020-01-01T00:00:00.000Z","8.7.3":"2026-10-04T17:41:40.731Z"}');
+  // #1180: a bare `execFileSync('npm', …)` was `spawnSync npm ENOENT` on Windows. bellpull's
+  // cross-spawn is what resolves `npm` to `npm.cmd` there, without a shell.
+  it("reads a release's publish time from the registry through bellpull, and refuses one it does not list or a failed npm", () => {
+    answers('{"created":"2020-01-01T00:00:00.000Z","8.7.3":"2026-10-04T17:41:40.731Z"}');
     expect(registryTime('@inquirer/prompts', '8.7.3')).toBe('2026-10-04T17:41:40.731Z');
-    const npm = npmCommand(['view', '@inquirer/prompts', 'time', '--json']);
-    expect(vi.mocked(execFileSync)).toHaveBeenLastCalledWith(npm.file, npm.args, { encoding: 'utf8', shell: npm.shell });
-    vi.mocked(execFileSync).mockReturnValueOnce('{"8.7.3":"2026-10-04T17:41:40.731Z"}');
+    expect(vi.mocked(sync)).toHaveBeenLastCalledWith('npm', ['view', '@inquirer/prompts', 'time', '--json'], { encoding: 'utf8' });
+    answers('{"8.7.3":"2026-10-04T17:41:40.731Z"}');
     expect(() => registryTime('@inquirer/prompts', '9.9.9')).toThrow('the registry lists no publish time for @inquirer/prompts@9.9.9');
-  });
-
-  // #1180: `npm view` spawned as bare `npm` with no shell was `spawnSync npm ENOENT` on Windows.
-  it.each([
-    ['npm\'s own CLI through this Node, under npm run', 'linux', '/usr/lib/node_modules/npm/bin/npm-cli.js', { file: process.execPath, args: ['/usr/lib/node_modules/npm/bin/npm-cli.js', 'view', 'x'], shell: false }],
-    ['npm.cmd through a shell on Windows', 'win32', '', { file: 'npm.cmd', args: ['view', 'x'], shell: true }],
-    ['npm.cmd on Windows when npm_execpath is not npm-cli.js', 'win32', 'C:\\yarn\\yarn.js', { file: 'npm.cmd', args: ['view', 'x'], shell: true }],
-    ['npm on the PATH, with no shell, elsewhere', 'darwin', '', { file: 'npm', args: ['view', 'x'], shell: false }],
-  ])('runs npm as %s', (_, platform, cli, expected) => {
-    expect(npmCommand(['view', 'x'], platform, cli)).toEqual(expected);
+    answers('', 1);
+    expect(() => registryTime('nope', '1.0.0')).toThrow('npm view nope time exited 1: E404');
   });
 
   it('writes no `omitted` key at all for a suite with nothing to omit', () => {

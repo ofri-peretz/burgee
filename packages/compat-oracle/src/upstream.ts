@@ -12,6 +12,8 @@ import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { sync } from 'bellpull/cross-spawn';
+
 import { type OmittedFile } from './binaries.js';
 import { posix, testFiles } from './discover.js';
 import { type Host } from './hosts.js';
@@ -222,3 +224,20 @@ export function readRecord(hostDir: string): CompatRecord | undefined {
   // Records written before fingerprints existed diff as "everything added" — once, honestly.
   return { hashes: {}, tests: {}, surface: {}, version: "^0.0.0", tag: null, ...parsed } as CompatRecord;
 }
+
+/** When `name@version` was published, as the registry's `time` field records it (ISO 8601). */
+export type ReleaseTime = (name: string, version: string) => string;
+
+/**
+ * The registry's `time` for `name@version`; a release it does not list is an error, never a guess.
+ *
+ * Through bellpull's cross-spawn, which runs `npm` as `npm.cmd` on Windows without a shell. A bare
+ * `execFileSync('npm', …)` was `spawnSync npm ENOENT` on every Windows cell of #1180.
+ */
+export const registryTime: ReleaseTime = (name, version) => {
+  const view = sync('npm', ['view', name, 'time', '--json'], { encoding: 'utf8' });
+  if (view.status !== 0) throw new Error(`npm view ${name} time exited ${String(view.status)}: ${String(view.stderr).trim()}`);
+  const at = (JSON.parse(String(view.stdout)) as Record<string, string | undefined>)[version];
+  if (at === undefined) throw new Error(`the registry lists no publish time for ${name}@${version}`);
+  return at;
+};

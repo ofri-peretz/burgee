@@ -13,9 +13,8 @@ import { dirname, join, matchesGlob, relative, resolve, sep } from 'node:path';
 import { type OmittedFile, stripExecutables } from './binaries.js';
 import { testFiles } from './discover.js';
 import { type Host } from './hosts.js';
-import { type ReleaseTime, registryTime } from './npm.js';
 import { fieldsFromRecord, PROVENANCE_FILE, renderProvenance } from './provenance.js';
-import { type CompatRecord, diffRecords, latestVersion, readRecord, type RecordDiff, snapshot } from './upstream.js';
+import { type CompatRecord, diffRecords, latestVersion, readRecord, type RecordDiff, registryTime, type ReleaseTime, snapshot } from './upstream.js';
 
 /** Length of an ISO date, `YYYY-MM-DD`. */
 const ISO_DATE = 10;
