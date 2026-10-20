@@ -20,7 +20,7 @@ load: () => void;
 ### onExit
 
 ```ts
-onExit: (handler: Handler, options?: Options) => () => void;
+onExit: (handler: core.Handler, options?: core.Options) => () => void;
 ```
 
 ### unload

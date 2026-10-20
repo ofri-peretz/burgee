@@ -8,20 +8,18 @@
  * `closeout/signal-exit/signals` — the signals `signal-exit` treats as fatal, for this platform.
  *
  * Read from the ambient `process.platform` at load, because that is when `signal-exit`'s own
- * `./signals` reads it and its suite snapshots the list once per faked platform. The order is
- * part of the contract: the snapshot compares arrays.
+ * `./signals` reads it and its suite snapshots the list once per faked platform. The list
+ * itself is `signal-list.ts`'s, shared with the ES entry.
  *
  * CommonJS (`.cts`) for the same reason as `signal-exit.cts`: the suite re-evaluates this file
- * under each faked platform, and an ES module is evaluated once per process.
- *
- * SIGKILL and SIGSTOP are absent because they cannot be caught. SIGUSR1 is absent because Node
- * uses it to start the inspector. SIGPROF, SIGVTALRM's cousin, is absent because profilers
- * send it to living processes.
+ * under each faked platform, and an ES module is evaluated once per process. Re-evaluating it
+ * calls `signalsOn()` again, which reads the platform of that moment.
  */
-const platform = (globalThis as { process?: { platform?: string } }).process?.platform;
+import list = require('./signal-list.js');
 
-const signals: string[] = ['SIGHUP', 'SIGINT', 'SIGTERM'];
-if (platform !== 'win32') signals.push('SIGALRM', 'SIGABRT', 'SIGVTALRM', 'SIGXCPU', 'SIGXFSZ', 'SIGUSR2', 'SIGTRAP', 'SIGSYS', 'SIGQUIT', 'SIGIOT');
-if (platform === 'linux') signals.push('SIGIO', 'SIGPOLL', 'SIGPWR', 'SIGSTKFLT');
+// Off the global itself, not `ambientProcess()`: the suite fakes the platform with
+// `global.process = { ...process, platform }`, a copy without the inherited `on` that
+// `ambientProcess()` tests for. A read of `platform` only, which `shape.test.ts`'s R7 lock admits.
+const signals: string[] = list.signalsOn((globalThis as { process?: { platform?: string } }).process?.platform);
 
 export = { signals };

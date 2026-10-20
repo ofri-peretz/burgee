@@ -88,6 +88,16 @@ export const TESTED_IN_ANOTHER_PROCESS = [
   // `flagstaff check <file>` — seven cases in `cli.test.ts`, every one of them
   // `execFileSync(dist/cli.js)`, because a CLI's contract is its exit code and its stdout.
   'src/cli.ts',
+  // closeout — signal-exit 134 / 135, through `compat-oracle`, whose suite `require()`s the
+  // CommonJS door and re-evaluates it under a faked `process` in a child per case. The machine
+  // moved out of that door into `signal-exit-core.ts` on 2026-10-20 so the ES door could share
+  // it (closeout-at-incumbent-weight); both doors are reached by children only:
+  // `signal-exit-doors.test.ts` spawns them through the built `dist/`. `signal-list.ts` stays
+  // in the denominator, since `signal-exit-doors.test.ts` calls it in process.
+  'src/signal-exit-core.ts',
+  'src/signal-exit.ts',
+  'src/signal-exit.cts',
+  'src/signal-exit-signals.cts',
   // The signal handlers. `loop-signal.test.ts`, `ora.test.ts` and `log-update.test.ts` each
   // spawn a child and kill it, which is the only way to test what node does *not* run on a
   // signal — the entire defect the file exists to fix.
