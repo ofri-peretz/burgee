@@ -1,6 +1,6 @@
 # Design — closeout's drop-ins bundle at or under the packages they replace
 
-Intent: [`intent.md`](./intent.md). **Status:** approved — accepted 2026-10-20 under the owner's delegation,
+Intent: [`intent.md`](./intent.md). **Status:** shipped 2026-10-20 in closeout 1.1.7 (Version PR #1199) — accepted 2026-10-20 under the owner's delegation,
 [`D-20261020-closeout-weight-design-accepted`](../../decisions/D-20261020-closeout-weight-design-accepted.md), as re-grounded below; built the same day.
 
 ---
