@@ -8,58 +8,6 @@ description: "Every export of bellpull/plugin, with its signature and doc commen
 The plugin host for bellpull's half of the contract — `plugin-contract` R5a, R6, R7, R8,
 and PLAN step 1.5.
 
-A plugin is one plain object shared by the whole family. This file keeps the key bellpull
-understands — **`resolvers`**, how an executable is found — and **ignores every other key
-without complaining**, which is what makes the same object work on any subset of the
-family that is installed. A plugin written for flagstaff registers here and contributes
-nothing; its `spinners` and `components` are not bellpull's business and are not an error.
-
-**Nothing here imports another layer, and the plugin shape is declared rather than
-imported** (R3).
-
-## Why `resolvers` is the key this layer owns
-
-R5a's sentence is *"how an executable is found (`PATH`, a version manager, a container),
-since `which` is the part every environment does differently"*. That is the whole
-argument: `PATH` is a convention from a world with one filesystem and one user, and the
-environments people actually run in have since bolted a search order on top of it — `nvm`
-and `asdf` put shims in a directory computed from an environment variable, `pnpm` and
-`yarn` place binaries somewhere `npm` does not, a devcontainer mounts tools outside every
-`PATH` the host had. Each of those is *the same operation with a different list of
-directories*, which is exactly the kind of difference that should be data rather than a
-fork of the resolver.
-
-## R7 is met with no exception asked for, and that is deliberate
-
-`closeout`'s `handlers` had to take a function, because an exit handler *is* behaviour and
-there is no data encoding of "close this socket". A resolver has one: a search order is a
-list of directories. So every field here is inspectable without running anything —
-`burgee plugin check` can print the search order a plugin contributes, and an agent can
-*write* one, which is PRINCIPLES' "plugins as data that agents write" rather than a slogan.
-
-The one thing a directory list cannot express on its own is a path computed from the
-environment (`$ASDF_DATA_DIR/shims`). That is solved the way `paratext` solved the same
-problem for OSC payloads: `{VAR}` in a path is substituted from the runtime's environment,
-and an entry naming a variable that is not set is **dropped**, not guessed at. A template
-is still data; a function would not be.
-
-## Security: a resolver may only add absolute directories
-
-A resolver contributes directories that are searched **before** `PATH`, which is real
-privilege: whoever writes the plugin decides what `run('node')` means. Two refusals bound
-it, both at `register()` rather than at search time, because a refusal at search time is a
-refusal nobody sees:
-
-- **a path must be absolute after substitution.** A relative entry resolves against
-  whatever the working directory happens to be when a child is spawned, so a plugin that
-  contributed `node_modules/.bin` would mean something different in every directory the
-  program was run from — and in a directory an attacker can write to, it means their
-  binary. `which.ts` refuses relative `PATH` entries for the same reason; this is the
-  same rule one layer out, where it can be enforced before anything runs.
-- **a substitution may not smuggle a separator.** `{HOME}` is a value from the
-  environment, and an environment variable containing `:` or `;` would otherwise split
-  one contributed directory into two — the entry is dropped rather than split.
-
 ```ts
 import { validate, register, reset, … } from 'bellpull/plugin';
 ```
@@ -70,10 +18,6 @@ import { validate, register, reset, … } from 'bellpull/plugin';
 
 Every resolver every registered plugin contributed, in the order they will be searched.
 
-This is the static projection of the search order, and the reason `rank` is worth having:
-a caller — or `burgee plugin check` — reads what `run('node')` would resolve against
-without resolving anything.
-
 ```ts
 function contributions(): Contribution[];
 ```
@@ -83,10 +27,6 @@ function contributions(): Contribution[];
 ### directories
 
 The directories registered plugins contribute for this runtime, in search order.
-
-A negative rank means "before `PATH`", so a caller splices these around the entries
-`which.ts`'s own `searchPath()` returns. Nothing here searches: this is the list, as data,
-which is the half a plugin is allowed to decide.
 
 ```ts
 function directories(runtime: Runtime): ContributedDirectory[];
@@ -138,11 +78,6 @@ function reset(): void;
 
 Substitute `{VAR}` from the environment.
 
-`undefined` for an unset variable, for a value that is not absolute, and for a value
-carrying a `PATH` separator — see the security note at the top of this file. Every one of
-those is "this entry does not apply here", which is a normal answer in an environment
-where the tool is simply not installed.
-
 ```ts
 function substitute(template: string, runtime: Runtime): string | undefined;
 ```
@@ -157,12 +92,6 @@ function substitute(template: string, runtime: Runtime): string | undefined;
 ### validate
 
 Refuse a plugin that cannot contribute a resolver, at the door.
-
-Every refusal here is a refusal rather than a silent drop, for the reason roundel's host
-gives about a misspelt token: a contribution that is quietly ignored looks like it worked,
-and its author debugs the wrong thing — except that here the thing they are debugging is
-"why did CI run a different `node` from my laptop", which is the question this layer
-exists to make answerable.
 
 ```ts
 function validate(plugin: unknown): asserts plugin is Plugin;
@@ -244,8 +173,6 @@ interface Plugin {
 ### Resolver
 
 One contributed way of finding an executable.
-
-No functions, so it travels through JSON and a `plugin check` can print it.
 
 ```ts
 interface Resolver {

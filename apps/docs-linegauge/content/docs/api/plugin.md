@@ -55,13 +55,6 @@ function register(plugin: unknown): void;
 
 Later registrations win, which is the point: the user is the authority on their terminal.
 
-An empty table **removes** the plugin rather than recording that it contributes nothing.
-`overrides()` is what `linegauge check` prints and what a caller inspects, and a name in it
-with no ranges under it reads as *this plugin is active* when the truth is the opposite.
-
-The seam in `width.ts` is installed only while something is registered, so the last plugin
-leaving puts `measure` back on the path with no call in it at all.
-
 ```ts
 function setOverrides(name: string, widths: Record<string, WidthOverride>): void;
 ```

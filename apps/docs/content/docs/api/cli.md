@@ -91,9 +91,6 @@ const devCommand: import("./execute.js").Command<{
 `cli.mjs` and the `package.json` that runs it, and nothing else. Loaded on this path only, like
 `migrate` and `skill`, so neither `import 'burgee'` nor a user's bundle carries it.
 
-`non_idempotent`, as `brand` is: a second run is refused rather than repeated, and `--force`
-overwrites the two files the caller already has.
-
 ```ts
 const initCommand: import("./execute.js").Command<{
     readonly install: {
@@ -115,14 +112,6 @@ const initCommand: import("./execute.js").Command<{
 
 `burgee migrate [dir]` — rewrite a commander or yargs project's imports to burgee's
 drop-in front-ends and report what changed, with the numbers that say why it was safe.
-
-The engine is loaded on this path only (K6), the same way `dev` is: a dynamic import, so
-`burgee`'s own start-up and the framework's weight are what they were. `weight.test.ts`
-denies `migrate.js` to the root entry by name, so that cannot drift back.
-
-`idempotent` is the honest answer rather than the conservative one, and it is earned:
-`burgee/commander` is not a key in the mapping, so a second run over a migrated tree
-rewrites nothing. N6 then requires the result to report `changed`, which it does.
 
 ```ts
 const migrateCommand: import("./execute.js").Command<{
@@ -178,9 +167,6 @@ const program: import("./manifest.js").Manifest;
 `AGENTS.md`, projected from its declaration and written beside its binary (agent-skill R3).
 `--check` writes nothing and exits 1 when the files there differ from the projection, for an
 author's own CI. Loaded on this path only, like `dev` and `migrate`.
-
-`idempotent`, and earned: a second run over the same declaration writes nothing, and the result
-reports `changed` (N7).
 
 ```ts
 const skillCommand: import("./execute.js").Command<{

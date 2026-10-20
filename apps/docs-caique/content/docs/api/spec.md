@@ -7,14 +7,6 @@ description: "Every export of caique/spec, with its signature and doc comment: f
 
 What a prompt *is*, before anything draws one (R1).
 
-A `PromptSpec` hangs off an option, not off a call site, and that is the whole
-inversion: the option is the thing that exists in the manifest, in `--help`, in the MCP
-tool schema and on the command line, and the prompt is one more projection of it. A
-program written this way can be answered by a flag, by an environment variable, by a
-config file or by a person, and nothing in it has to know which happened.
-
-Nothing here imports a runtime, a stream or a terminal. This file is data.
-
 ```ts
 import { flagOf, problemWith, BUILT_IN_KINDS } from 'caique/spec';
 ```
@@ -56,11 +48,6 @@ function problemWith(spec: PromptSpec): string | undefined;
 ### BUILT_IN_KINDS
 
 The six caique draws itself, as data rather than as a `switch` nobody can read back.
-
-`caique/plugin` needs this set to answer two questions a plugin makes askable for the
-first time: whether a kind is already spoken for, and which kinds a refusal should name.
-Deriving it from the widget dispatch in `ask.ts` would mean two lists that agree only by
-inspection, which is the drift the family's locks exist to prevent.
 
 ```ts
 const BUILT_IN_KINDS: ReadonlySet<string>;
@@ -117,16 +104,6 @@ interface PromptSpec {
 ### PromptKind
 
 The six kinds a prompt can be — plus whatever a plugin adds.
-
-**Why `(string & {})` rather than a closed union** (`plugin-contract` R5, D5). A closed
-union makes a plugin's seventh kind a type error, so hosting `widgets` at all would be a
-breaking change written as an additive one: every caller of `caique/plugin` would need
-this file edited before it could name its own kind. The intersection keeps all six
-literals in an editor's completion list — which a bare `string` would throw away — while
-admitting the kinds `caique/plugin` renders.
-
-Anything more than a *kind* is still a wizard, which is out of scope. Widening the type
-does not widen the model: a prompt is one question with one answer, whoever draws it.
 
 ```ts
 type PromptKind = 'text' | 'confirm' | 'select' | 'multiselect' | 'password' | 'path' | (string & {});

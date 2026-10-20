@@ -10,8 +10,6 @@ the three statics 17 hangs on it (`applyExtends`, `hideBin`, `Parser`). The form
 teaches for CommonJS, `require('yargs/yargs')(hideBin(process.argv))`, and `burgee migrate`
 writes this entry for it (`previous-majors` R3, R6).
 
-A function of its own, so the statics never land on `burgee/yargs`'s factory, which 18 serves.
-
 ```ts
 import factory from 'burgee/yargs/v17/yargs';
 import { module.exports } from 'burgee/yargs/v17/yargs';

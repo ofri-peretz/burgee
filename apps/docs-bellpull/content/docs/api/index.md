@@ -7,28 +7,6 @@ description: "Every export of bellpull, with its signature and doc comment: ambi
 
 bellpull — run another program and get back a result you can read.
 
-A bellpull is the cord you pull in one room to ring a bell in another. Request work at a
-distance; the work happens elsewhere; **someone comes back to you**. That last clause is
-the package: {@link run} returns a {@link Result} for every outcome a process can have,
-including the ones the incumbents raise as exceptions.
-
-Four things, and the boundaries between them are the design:
-
-- {@link run} — spawn, collect, and come back with a record. A non-zero exit is data.
-- {@link whichSync} / {@link searchPath} — resolution that reports **which `PATH` entry
-  the executable came from**, which is the open position in this layer.
-- {@link format} / {@link toJson} / {@link toEvent} — one result, three renderings.
-- the `resolvers` plugin host, at `bellpull/plugin`.
-
-The drop-in path for `cross-spawn` is `bellpull/cross-spawn` and is not re-exported here:
-it reads the ambient `process` because its callers expect it to, and this entry does not,
-so a program importing `bellpull` never picks that up by accident.
-
-**Honest scope.** `execa`'s surface is not reproduced — its streaming API and its
-template-literal form are a different product and are recorded as out of scope in
-`spec.md`. What is here is the result shape and the resolution, which is what the
-intent's kill gate says to build on.
-
 ```ts
 import { ambientRuntime, DEFAULT_GRACE, DEFAULT_TIMEOUT, … } from 'bellpull';
 ```
@@ -38,15 +16,6 @@ import { ambientRuntime, DEFAULT_GRACE, DEFAULT_TIMEOUT, … } from 'bellpull';
 ### ambientRuntime
 
 The runtime of the process this is running in, or a runtime that admits it knows nothing.
-
-A missing `process` yields `platform: ''`, an empty environment and `cwd: '.'`. Every one
-of those is a truthful answer that makes resolution fail rather than guess: an empty
-`PATH` finds nothing, and finding nothing is the correct result when there is no
-environment to look in.
-
-`uid`/`gid` are only read where the platform has them. On Windows `process.getuid` is
-absent, and `undefined` is what tells `which.ts` to skip the ownership half of the
-executable-bit check rather than compare against a number nobody supplied.
 
 ```ts
 function ambientRuntime(): Runtime;
@@ -58,8 +27,6 @@ function ambientRuntime(): Runtime;
 
 Escape one argument so `cmd.exe` and then the callee's argv parser both give it back
 unchanged.
-
-`doubleEscape` is for a `node_modules/.bin/*.cmd` shim, which re-enters `cmd.exe`.
 
 ```ts
 function escapeArgument(argument: unknown, doubleEscape?: boolean): string;
@@ -75,9 +42,6 @@ function escapeArgument(argument: unknown, doubleEscape?: boolean): string;
 ### escapeCommand
 
 Escape a command *name* for `cmd.exe`.
-
-Only pass (2): the command is not quoted, because `cmd.exe` resolves it before the C
-runtime parses anything, and a quoted command with a caret in it is not found.
 
 ```ts
 function escapeCommand(command: string): string;
@@ -135,11 +99,6 @@ function pathDelimiter(runtime: Runtime): string;
 
 The key `PATH` is spelled under in this environment.
 
-`path-key`, 244.9 M downloads a week, is this function. Windows environment variables are
-case-insensitive but a plain JavaScript object's keys are not, so an environment copied
-out of `process.env` on Windows can carry `Path`, and a lookup for `PATH` misses it. The
-last matching key wins, which is what `path-key` does and what the shell does.
-
 ```ts
 function pathKey(runtime: Runtime): string;
 ```
@@ -169,10 +128,6 @@ function pathOf(runtime: Runtime): string;
 The interpreter the file at `file` declares, or `undefined` — for a file that is not there,
 is not readable, is a directory, or simply has no shebang.
 
-Every one of those is the same answer to the caller ("no interpreter to use"), so they are
-one return rather than four. The distinction that matters — whether the file exists —
-belongs to resolution, which has already been done by the time this is asked.
-
 ```ts
 function readShebang(file: string): string | undefined;
 ```
@@ -186,10 +141,6 @@ function readShebang(file: string): string | undefined;
 ### run
 
 Run a program and come back with a {@link Result}.
-
-Rejects with {@link NotFoundError } when the executable does not resolve and
-{@link SpawnError} when the spawn itself fails. Everything else — any exit code, any
-signal, a breached deadline — resolves.
 
 ```ts
 function run(command: string, args: readonly unknown[] | undefined, options: RunOptions): Promise<Result>;
@@ -206,15 +157,6 @@ function run(command: string, args: readonly unknown[] | undefined, options: Run
 ### shebangCommand
 
 The interpreter a `#!` line names, or `undefined`.
-
-`#!/usr/bin/env node` is `node`: `env` is a launcher, so its *argument* is the interpreter
-and the path in front of it is discarded. `#!/bin/sh -e` is `sh -e` — the flag is kept,
-because dropping it changes what the script does.
-
-An empty argument is no argument, as it is to `shebang-command`, which tests it for truth:
-`#!/bin/sh` followed by a trailing space is `sh`, not `sh` plus a space — a name nothing on
-`PATH` answers to — and `#!/usr/bin/env` followed by two spaces and `node` names no
-interpreter rather than an empty one.
 
 ```ts
 function shebangCommand(source: string): string | undefined;
@@ -259,13 +201,6 @@ function toJson(result: Result): Record<string, unknown>;
 ### SpawnError
 
 Spawning failed for a reason that is not a missing executable.
-
-`ERR_`, not `E_`. The `E_…` codes are the *plugin* vocabulary — `E_PLUGIN_SCHEMA` and the
-rest — which `plugin-contract` R8 requires every layer to share and
-`scripts/plugin-error-vocabulary-lock.test.ts` enforces by refusing any `'E_…'` literal a
-host ships that is not in its declared union. This is a runtime failure rather than a
-refused plugin, so it takes Node's own convention for a runtime error code and stays out
-of a vocabulary it is not part of.
 
 ```ts
 class SpawnError extends Error {
@@ -387,17 +322,6 @@ interface RunOptions extends SpawnOptions {
     grace?: number | undefined;
     /**
      * Where to register the child's kill so it is not orphaned if the parent is shut down.
-     *
-     * **This is the `bellpull → closeout` seam, and it is a parameter rather than an import
-     * on purpose.** `closeout` owns bounded exit paths; a parent that is killed while a child
-     * is running must not leave that child behind. But `package-shape-lock.test.ts` asserts
-     * that a foundation package depends on *nothing* — bellpull and closeout are both in that
-     * tier, so a package edge between them is forbidden by a lock on main. The shape is
-     * declared structurally instead (the family's R3 idiom), so
-     * `run(cmd, args, { exitHost: closeoutRegistry })` composes with nothing imported.
-     *
-     * Given none, **no signal handler is registered at all**. Registering one silently would
-     * be this package deciding to own the process's signals, which is the layer above's job.
      */
     exitHost?: ExitHost | undefined;
     /** Passed to `child_process`. `'inherit'` is what a pass-through subcommand wants. */

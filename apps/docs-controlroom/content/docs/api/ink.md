@@ -9,11 +9,6 @@ description: "Every export of controlroom/ink, with its signature and doc commen
 `compat-oracle`. A program moves by changing its import and installing the reconciler
 ink used to bring along: `npm install react react-reconciler`.
 
-React is the program's own, rendered by React's own reconciler through a host config of
-ours; layout is a TypeScript port of yoga's algorithm (no yoga); colour is roundel's and
-borders are flagstaff's. Nothing else in the package imports React, so the native API never
-loads it.
-
 ```ts
 import { Box, Newline, Spacer, … } from 'controlroom/ink';
 ```

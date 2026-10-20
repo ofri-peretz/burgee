@@ -19,11 +19,6 @@ The default export, declared as `slice`.
 `[start, end)` in display columns. A negative or reversed range is empty rather than an
 error, matching `String.prototype.slice`'s temperament if not its units.
 
-The walk's state is locals of this function rather than fields of an object, and that is
-measured, not taste: a minifier renames a local and cannot touch a property name, and the
-object form — `cut.pendingAt`, `cut.linkAt` and eight more, each spelled out on every use —
-cost the bundled `linegauge/slice` more than this does (see `ceilings.json`).
-
 ```ts
 function slice(string: string, start?: number, end?: number): string;
 ```
@@ -40,11 +35,6 @@ function slice(string: string, start?: number, end?: number): string;
 
 `[start, end)` in display columns. A negative or reversed range is empty rather than an
 error, matching `String.prototype.slice`'s temperament if not its units.
-
-The walk's state is locals of this function rather than fields of an object, and that is
-measured, not taste: a minifier renames a local and cannot touch a property name, and the
-object form — `cut.pendingAt`, `cut.linkAt` and eight more, each spelled out on every use —
-cost the bundled `linegauge/slice` more than this does (see `ceilings.json`).
 
 ```ts
 function slice(string: string, start?: number, end?: number): string;

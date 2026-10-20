@@ -8,33 +8,6 @@ description: "Every export of burgee/brand, with its signature and doc comment: 
 burgee/brand — a brand declares itself once; every identity surface is that
 declaration read by a different reader.
 
-The same thesis as the rest of the package, applied to identity instead of
-argv. You declare a field and a mark; out come the flag, the favicon, the OG
-card and the article cover, every one a projection of that declaration, so
-none of them can drift from the others.
-
-THE FLAG. A burgee is the swallowtail flag a boat flies to say which club it
-belongs to — a flag of identity, not of instruction. This one is composed the
-way real club burgees are: a field, and one charge upon it. The field is a
-gradient run BACKWARDS along the axis the two Interlace bars are stacked on,
-so the leading bar sits over the following bar's colour and the reverse. The
-charge is the Interlace mark itself.
-
-WHY THE MIDPOINT STOP IS LOAD-BEARING. Deep rock on deep juniper measures
-1.16:1 — invisible. The middle stop drops the field to near-black exactly
-where the charge sits, lifting the two bars to 3.50:1 and 3.02:1, both
-clearing the 3:1 floor WCAG sets for a graphical object. Remove that stop and
-the mark disappears. It is contrast, not decoration.
-
-NOT in the core entry point. `import { defineCommand } from "burgee"` must
-stay one import of one file with no build step; this is a separate subpath and
-costs that path nothing.
-
-DETERMINISM. No timestamps, no randomness, coordinates rounded to 2dp. The one
-id in the output — a gradient cannot be anonymous — is derived from the
-declaration itself, so the same brand always produces the same bytes and two
-different brands can share a page without colliding.
-
 ```ts
 import { opposedField, burgeeFlagPath, fieldId, … } from 'burgee/brand';
 ```
@@ -139,12 +112,6 @@ function defineBurgee(brand: BurgeeBrand): Burgee;
 
 A stable id for the field gradient, derived from the declaration.
 
-A gradient is the one thing in SVG that cannot be anonymous. Deriving the id
-from the brand keeps output byte-identical across runs, and keeps two
-different brands from colliding when they share a page. Two instances of the
-SAME brand do share an id, which is harmless — the definitions are identical —
-and a React caller can pass its own `useId()` value instead.
-
 ```ts
 function fieldId(brand: BurgeeBrand): string;
 ```
@@ -158,12 +125,6 @@ function fieldId(brand: BurgeeBrand): string;
 ### opposedField
 
 The field two colours imply.
-
-Reversed on purpose: the leading colour goes at the FAR end, so the leading
-half of the charge sits against the following colour and the reverse. Through
-a dark midpoint, because the charge sits at the centre and two saturated
-colours of similar weight cannot be told apart — the reason this is a default
-rather than something each caller re-derives.
 
 ```ts
 function opposedField(colors: BurgeeColors, ground?: string): FieldStop[];
@@ -265,9 +226,6 @@ interface Burgee {
      * The same mark with its sheen sweeping across it, for a page that can afford
      * motion — a site header, a docs hero. Identical to {@link Burgee.flag} when
      * no `sheen` is declared, and parked still under `prefers-reduced-motion`.
-     *
-     * Not the favicon and not the README: a tab icon that shimmers is a tab icon
-     * that distracts.
      */
     alive(size?: number): string;
     /** Favicon master. One file serves both themes — the flag carries its own field. */
@@ -298,9 +256,6 @@ interface BurgeeBrand {
      * Your own charge instead of the bars: SVG markup drawn in a 0 0 100 100 box,
      * which burgee places and scales for you. Everything else — the swallowtail,
      * the reversed field, the sizes — still comes from this one declaration.
-     *
-     * The markup is emitted verbatim, so it is yours to trust: this runs at build
-     * time on a file you wrote, not on anything a user supplies at runtime.
      */
     charge?: string;
     /**
@@ -309,13 +264,6 @@ interface BurgeeBrand {
      * the flag does. For a sibling brand whose name is not a flag — a roundel is
      * rings, a parrot is a parrot — the shape is the whole point, and drawing it
      * here keeps every other projection (favicon, lockup, OG, cover) intact.
-     *
-     * Filled `evenodd`, so a subpath drawn inside another cuts a hole through it:
-     * that is how a ring gets its centre and an eye gets its white. Subpaths that
-     * are meant to read as one solid body must not overlap.
-     *
-     * Emitted verbatim, like {@link BurgeeBrand.charge}: a build-time value you
-     * wrote, never anything a user supplies at runtime.
      */
     shape?: string;
     /**
@@ -323,36 +271,15 @@ interface BurgeeBrand {
      * number is how bright its brightest point is. Depth, not decoration — a flat
      * gradient reads as printed ink, and one light source makes the same shape
      * read as an object with a front.
-     *
-     * It is drawn INSIDE the silhouette (clipped to it), so it never softens the
-     * outline the mark is recognised by, and it sits under the charge, so it never
-     * touches the contrast the charge was measured at.
-     *
-     * The same layer is what moves in {@link Burgee.alive}.
      */
     sheen?: number;
     /**
      * A bevel: how strongly the mark's own edge catches the light, `0` to `1`.
-     *
-     * The whole of the third dimension a logo can afford. Two copies of the
-     * silhouette stroked and clipped to itself — light offset up toward the light
-     * source, dark offset away — so the edge lifts and the face stays flat. No
-     * extrusion, no renderer, and nothing that stops it being a 16px favicon: the
-     * bevel is sub-pixel there and simply disappears, which is the correct
-     * behaviour rather than a compromise.
      */
     bevel?: number;
     /**
      * Markings: SVG markup in the same `0 0 100 100` box as {@link BurgeeBrand.shape},
      * drawn over the field and under the charge.
-     *
-     * One path can hold one fill, and some marks are not one colour — a roundel is
-     * concentric rings, a caique has a black cap over an orange throat over a white
-     * belly. Those are markings ON the body, not the body, and they are declared
-     * here rather than by stacking whole brands on top of each other.
-     *
-     * Emitted verbatim, like {@link BurgeeBrand.charge}: a build-time value you
-     * wrote, never anything a user supplies at runtime.
      */
     markings?: string;
     /**
@@ -362,15 +289,6 @@ interface BurgeeBrand {
     field: readonly FieldStop[];
     /**
      * The outline, outermost band first.
-     *
-     * One band is enough when you control the ground. Two is what you want when
-     * you do not: no single flat colour clears 3:1 against both a near-black and a
-     * white page, so a dark outer band and a light inner band are given, and
-     * whichever one the ground does not match is the one carrying the silhouette.
-     * That is one asset that holds its outline anywhere — which a favicon, having
-     * no stylesheet to read a theme from, actually needs.
-     *
-     * `width` is the visible thickness of each band in mark-space units.
      */
     bordure?: Bordure | readonly Bordure[];
 }

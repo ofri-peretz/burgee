@@ -15,10 +15,6 @@ import { usePrefix, useKeypress, createPrompt, … } from 'caique/inquirer';
 
 Turn a render function into a prompt.
 
-Two lines, because the interesting half is `runPrompt` and the only thing this one adds
-is the call site — captured now rather than at the throw, since the error a render
-function gets for returning nothing names the file `createPrompt` was called from.
-
 ```ts
 function createPrompt<Value, Config>(view: ViewFunction<Value, Config>): Prompt<Value, Config>;
 ```
@@ -54,9 +50,6 @@ function getDefaultTheme(): Theme;
 
 Merge any number of partial themes over the defaults, last one winning per leaf.
 
-`null` and `undefined` entries are dropped rather than merged, because a prompt passes
-`config.theme` straight through and a caller who set no theme passes `undefined`.
-
 ```ts
 function makeTheme<Extension = object>(...themes: readonly (PartialTheme<Extension> | undefined)[]): Theme & Extension;
 ```
@@ -70,9 +63,6 @@ function makeTheme<Extension = object>(...themes: readonly (PartialTheme<Extensi
 ### useEffect
 
 A side effect, queued when its dependency array changes and cleaned up before it re-runs.
-
-The comparison is `Object.is` per element, like the incumbent's, so a `useRef` handed back
-as a dependency is stable and an object literal is not.
 
 ```ts
 function useEffect(cb: (rl: PromptReadline) => Cleanup, depArray: readonly unknown[]): void;
@@ -89,11 +79,6 @@ function useEffect(cb: (rl: PromptReadline) => Cleanup, depArray: readonly unkno
 
 Register a keypress handler for as long as the prompt is rendering.
 
-`ignore` rather than only `removeListener`, because readline emits every keypress in one
-`data` event synchronously: a handler removed during that burst would still be called for
-the keys already queued behind the one that settled the prompt. Two graded cases — "after
-the prompt is done" and "after the prompt is aborted" — are that exact race.
-
 ```ts
 function useKeypress(userHandler: (event: KeypressEvent, rl: PromptReadline) => void | Promise<void>): void;
 ```
@@ -107,10 +92,6 @@ function useKeypress(userHandler: (event: KeypressEvent, rl: PromptReadline) => 
 ### useMemo
 
 A memoised value.
-
-Compared with `!==` rather than `Object.is`, and by length first, exactly as upstream
-does it — a drop-in that quietly tightened the comparison would recompute where the
-incumbent does not, and the graded case counts the calls.
 
 ```ts
 function useMemo<Value>(fn: () => Value, dependencies: readonly unknown[]): Value;
@@ -126,10 +107,6 @@ function useMemo<Value>(fn: () => Value, dependencies: readonly unknown[]): Valu
 ### usePrefix
 
 The prefix a prompt draws, and the spinner that replaces it while the prompt is loading.
-
-The 300 ms delay before the spinner appears is not decoration: it is what stops a prompt
-that resolves quickly from flickering a frame of spinner on its way past, and the graded
-case advances fake timers by exactly `delay + interval` to see the first frame.
 
 ```ts
 function usePrefix({ status, theme }: {
@@ -168,10 +145,6 @@ function useRef<Value>(value?: Value): {
 ### useState
 
 State that survives a re-render, addressed by call order.
-
-The setter accepts a value or a reducer, and does nothing at all when the next value is
-`Object.is`-equal to the current one — which is why `setValue(NaN)` on a `NaN` state does
-not re-render, and why a reducer returning its argument is free.
 The no-argument form, for state a later keypress fills.
 
 ```ts
@@ -237,11 +210,6 @@ class HookError extends Error {
 
 A non-choice in a list of choices.
 
-`isSeparator` is a duck type rather than an `instanceof` check, and deliberately so: a
-caller who built `{ type: 'separator', separator: '----' }` by hand — or who has two
-copies of the package in their tree — must still have it recognised. One of the three
-graded cases is exactly that object literal.
-
 ```ts
 class Separator {
     readonly separator: string;
@@ -267,10 +235,6 @@ class ValidationError extends Error {
 ### defaultTheme
 
 The incumbent's defaults, byte for byte where a byte is observable.
-
-`styleText` is `node:util`'s, which is the whole colour dependency: roundel owns colour
-for caique's own widgets, and reaching for it here would put a second policy on a subpath
-whose job is to behave like somebody else's package.
 
 ```ts
 const defaultTheme: Theme;

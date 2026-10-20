@@ -8,41 +8,6 @@ description: "Every export of closeout/plugin, with its signature and doc commen
 The plugin host for closeout's half of the contract
 (`plugin-contract` R1, R5a, R6, R8).
 
-A plugin is one plain object shared by the whole family. This file keeps the key closeout
-understands — `handlers`, cleanup with a declared phase — and **ignores every other key
-without complaining**, which is what makes the same object work on any subset of the
-family that is installed. A plugin written for flagstaff registers here and contributes
-nothing; its `spinners` and `components` are not closeout's business and are not an error.
-
-**Nothing here imports another layer, and the plugin shape is declared rather than
-imported** (R3). It imports `./registry.js` because that is this package's own module —
-the phase vocabulary has to have exactly one home or `phase: 'restore'` means one thing in
-the validator and another in the runner.
-
-## What `phase` buys, and why it is the whole point
-
-The load-bearing sentence in R5a is *"so a plugin's cleanup runs before terminal restore
-and never after it"*. A handler that runs after the cursor is back and raw mode is off
-cannot clean up what it was registered to clean up — it writes its "releasing lock…" line
-into a terminal that has already been handed back, and whatever it was guarding is
-released after the user got their prompt.
-
-Registration order cannot give that guarantee to a *plugin*, because a plugin's registration
-moment is decided by whoever imported it, and the restore's registration moment is decided
-by whichever renderer hid the cursor first. Both are import order wearing a lanyard. So the
-order is data: a handler declares a phase, {@link PHASES} declares the sequence, and the
-runner reads the sequence rather than the arrival times.
-
-## R7, honestly
-
-`plugin-contract` R7 says no key may require a function except a component's `frame` and
-burgee's `hooks`. `handlers` requires one: an exit handler *is* behaviour, and there is no
-data encoding of "close this socket". What R5a asks for, and what this delivers, is that
-the **ordering** is data — inspectable, diffable, and printable by a `plugin check` without
-running anything. R7's exemption list owes `handlers.run` an entry; that edit belongs to
-the lane that owns `plugin-contract`, and is recorded in this package's `spec.md` rather
-than left in a commit message.
-
 ```ts
 import { validate, register, reset, … } from 'closeout/plugin';
 ```
@@ -52,12 +17,6 @@ import { validate, register, reset, … } from 'closeout/plugin';
 ### attach
 
 Hand every contributed handler to a closeout's registry, each in its own phase.
-
-Returns the function that takes them all back off, so a test — or a program that reloads
-its plugins — can undo a registration without rebuilding the registry.
-
-**Registering does not run.** A plugin contributing cleanup must not decide *when*
-shutdown happens; `attach()` wires, and the process (or the caller) triggers.
 
 ```ts
 function attach(host: HandlerHost): () => void;
@@ -72,9 +31,6 @@ function attach(host: HandlerHost): () => void;
 ### contributions
 
 Every handler every registered plugin contributed, in the order they will run.
-
-This is the static projection of the ordering, and the reason `phase` is worth having: a
-caller — or `burgee plugin check` — reads the shutdown sequence without triggering one.
 
 ```ts
 function contributions(): Contribution[];
@@ -123,11 +79,6 @@ function reset(): void;
 
 Refuse a plugin that cannot contribute a handler, at the door.
 
-Every refusal here is a refusal rather than a silent drop, for the reason roundel's host
-gives about a misspelt token: a handler that is quietly ignored looks like it worked, and
-its author debugs the wrong thing — except that here the thing they are debugging is a
-lock that was never released.
-
 ```ts
 function validate(plugin: unknown): asserts plugin is Plugin;
 ```
@@ -166,13 +117,6 @@ const CONTRACT = 1;
 ### PLUGIN_PHASES
 
 The phases a plugin may put a handler in.
-
-`restore` is deliberately **not** one of them. It is closeout's own phase, it runs last,
-and it is where the cursor and raw mode go; a plugin handler admitted to it could land
-after the terminal was handed back, depending on nothing more than which of the two
-registered first — which is precisely the coincidence phases exist to replace. R5a says
-"never after it", and a rule enforced at the door is the only version of "never" a reader
-can rely on.
 
 ```ts
 const PLUGIN_PHASES: readonly ["flush", "release"];

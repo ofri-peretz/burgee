@@ -15,21 +15,6 @@ import { decide } from 'caique/decide';
 
 The rule, in order, and the order is the argument:
 
- 1. A value from any source wins. Prompting for something already answered is how a
-    script that sets an env var still ends up waiting for input.
- 2. `--json` never prompts. It means "a machine is reading this", and there is no
-    answer a machine can type.
- 3. `--yes` answers a `confirm`, and only a `confirm` — it is not a licence to invent
-    a path or a password.
- 4. Nobody there — no terminal on stdin, `CI` set, or an agent driving the process —
-    means refuse, naming the flag. That is roundel's `interactive()`, so `CLAUDECODE=1`
-    on a terminal refuses here exactly as burgee's own agent detection does; asking
-    `isTTY.stdin && !CI` alone prompted an agent that has a terminal and no person, and
-    hung it. `FORCE_TTY=1` is the one override, as it is everywhere in the family.
- 5. `--interactive` reaches past 4 only when there *is* a terminal; it is an override
-    for "you would not have asked", never for "there is no one to ask".
- 6. Otherwise, if it is required or `--interactive` was asked for, prompt.
-
 ```ts
 function decide({ value, spec, option, runtime, flags, required }: DecideInput): Decision;
 ```

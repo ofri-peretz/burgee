@@ -7,22 +7,6 @@ description: "Every export of seniority, with its signature and doc comment: exp
 
 seniority — which source outranks the others.
 
-One resolution for flags, environment, config files, a `package.json` field and declared
-defaults, in a fixed order, with **provenance**: every value can say where it came from.
-That last part is the whole reason this is a package rather than a function — `--explain`
-is only trustworthy if the thing that picked the value is the thing that reports it.
-
-    flag  >  env  >  config file  >  package.json field  >  default
-
-The order is not configurable. A precedence a program can rearrange is a precedence
-nobody can reason about from the outside.
-
-`resolve` is pure — layers in, values and provenance out — so it can be tested without a
-filesystem, an environment, or a process. `discover` is the half that does touch the
-disk, and it is a separate import for exactly that reason.
-
-Zero dependencies; Node builtins only.
-
 ```ts
 import { explain, ConfigError, envBoolean, … } from 'seniority';
 ```
@@ -122,17 +106,6 @@ function getDefaultSearchPlacesSync(moduleName: string): string[];
 
 A property name, or a period-delimited path, or an array of names.
 
-The literal key wins: `getPropertyByPath(source, 'ant.beetle.cootie')` returns
-`source['ant.beetle.cootie']` when that key exists, and only otherwise splits on periods.
-A name with a period *inside* a path can therefore only be expressed as an array, which is
-what the array form is for.
-
-**The walk guards `undefined` and nothing else**, as 10.0.1's does. A path through a string
-reads the string's own properties (`packageProp: 'name.length'` is a number), and a path
-through a `null` — `"foo": null` under `packageProp: 'foo.bar'` — throws the `TypeError`
-upstream throws, which the loader then annotates with the file. `lilconfig.ts` reproduces
-the same throw on purpose; a guard here would make the two façades disagree about one file.
-
 ```ts
 function getPropertyByPath(source: unknown, path: string | readonly string[]): unknown;
 ```
@@ -178,11 +151,6 @@ function loadPath(filepath: string, options?: LoadOptions): Promise<Record<strin
 ### search
 
 The nearest match, or `undefined`.
-
-**Proximity outranks the name.** Every name is checked in one directory before the walk
-steps up, so a `.apprc` beside you wins over an `app.config.json` two directories above
-even when the caller listed the latter first. That is the question an upward walk is
-being asked; ordering by name instead would answer a different one silently.
 
 ```ts
 function search(names: string | readonly string[], options: SearchOptions): Found | undefined;
@@ -231,12 +199,6 @@ function validate(shape: Record<string, Shape>, resolution: Resolution): Violati
 ### LoaderError
 
 A format nobody declared a loader for.
-
-`USAGE` and not `CONFIG` on purpose. `CONFIG` (3) tells the user their configuration file
-is wrong, and sends them to read a file that may be perfectly good; the mistake is the
-program's, one line up, where it did not declare the loader it needs. Carrying the code on
-the error rather than choosing it at the exit is what lets a façade report it correctly
-without this package owning a process.
 
 ```ts
 class LoaderError extends Error {
@@ -312,12 +274,6 @@ const NOT_BUNDLED: readonly string[];
 
 How many directories one walk may visit.
 
-A number rather than "until the root" alone, because the root is not the only way a walk
-ends badly: a bind mount, a container overlay or a deliberately deep fixture tree all
-present as an ancestor chain that is long rather than infinite. Sixty-four is far past any
-real repository — a monorepo package sits six or seven directories down — and small enough
-that the worst case is imperceptible.
-
 ```ts
 const WALK_LIMIT = 64;
 ```
@@ -388,10 +344,6 @@ interface SearchOptions {
 ### Shape
 
 What validation reads from a manifest, and no more.
-
-`type` is checked when it is one of the four JavaScript kinds and ignored otherwise: a
-shape that says nothing asserts nothing, which is what lets a richer spec pass through a
-field this package has never heard of.
 
 ```ts
 interface Shape {

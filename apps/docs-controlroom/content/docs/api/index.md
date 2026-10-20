@@ -8,14 +8,6 @@ description: "Every export of controlroom, with its signature and doc comment: s
 controlroom — full-screen, keyboard-driven terminal screens, each with a static
 projection for pipes, CI, screen readers and `--json`, and a drop-in path for `ink`.
 
-This entry is the native API: `open()` and the runtime it takes, the layout arithmetic,
-the tab, focus, collapse and scroll reducer with the hint line generated from a keymap, and the
-compositor. It never loads React. ink's API is `controlroom/ink`, and plugins register
-through `controlroom/plugin`.
-
-The approved intent and spec it is built to are `.sdlc/intents/controlroom/intent.md` and
-`spec.md` in https://github.com/ofri-peretz/burgee (D-158, amended by D-168).
-
 ```ts
 import { status, distribute, layout, … } from 'controlroom';
 ```
@@ -434,11 +426,6 @@ type Panes = Readonly<Record<string, Pane>>;
 ### Size
 
 How much of its parent's main axis a part takes.
-
-- a number: exactly that many cells;
-- `{ fr, min }`: a share of what the fixed and fitted parts leave, never below `min`;
-- `'fit'`: as many cells as the pane's content needs along that axis — its widest line in
-  a row, its line count in a column. Only a pane can fit; a split has no content of its own.
 
 ```ts
 type Size = number | {

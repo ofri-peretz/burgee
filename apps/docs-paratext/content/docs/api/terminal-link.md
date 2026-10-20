@@ -45,10 +45,6 @@ interface LinkOptions {
     target?: Target;
     /**
      * What to print when the terminal is not believed to render OSC 8.
-     *
-     * `false` returns the text alone, a function is called with `(text, url)`, and anything
-     * else — including absent — gives upstream's `text url`, a raw URL bounded by whitespace
-     * because that is what terminal linkifiers detect reliably.
      */
     fallback?: boolean | ((text: string, url: string) => string);
 }
@@ -57,10 +53,6 @@ interface LinkOptions {
 ### TerminalLink
 
 `terminalLink(text, url, options?)` against the real process.
-
-`isSupported` is a snapshot taken at import, which is upstream's shape exactly — it reads
-`supportsHyperlinks.stdout` once at module scope. A caller who needs the live answer calls
-the function and compares, or builds its own through {@link terminalLinkFor}.
 
 ```ts
 interface TerminalLink {

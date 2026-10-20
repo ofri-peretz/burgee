@@ -18,13 +18,6 @@ OSC 8 — the terminal hyperlink escape, and **not this package's to spell** (R1
 sequence is paratext's `link` capability rendered against {@link EMITTING }; this function
 contributes the argument order and upstream's `url || text`, and nothing else.
 
-Upstream's `hyperlink()` is an escape *builder*, not a policy decision: `utils-test.js`
-grades its exact bytes with no terminal anywhere in the call, and a cell given an `href`
-gets a sequence whatever `process.stdout` is. So this stays unconditional — the caller
-already decided — and the runtime handed to paratext says so out loud. `flagstaff/table`
-is the surface that *asks* whether the terminal can (rule 6); a façade that started asking
-would be reinterpreting its host, and `link.test.ts` pins these bytes against upstream's.
-
 ```ts
 function hyperlink(url: string, text: string): string;
 ```

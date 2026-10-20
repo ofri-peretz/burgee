@@ -17,12 +17,6 @@ import { annotationsOf, MCP_PROTOCOL_VERSION, serveMcp, … } from 'burgee/mcp';
 
 MCP's hints, from the declared effects. `destructiveHint` is only ever false by declaration.
 
-No declaration returns no hints (G1). That is not a gap: MCP defines a default for each of
-the three — `readOnlyHint: false`, `destructiveHint: true`, `idempotentHint: false` — so an
-absent hint already reads as *assume the worst*, in the client's own vocabulary and without
-burgee inventing a value it has no basis for. `effects: 'undeclared'` is the positive half:
-this command is not a `read_only` one, and it is not a `withheld` one either — nobody said.
-
 ```ts
 function annotationsOf(effects?: Effects): ToolAnnotations;
 ```
@@ -51,20 +45,6 @@ function serveMcp(manifest: Manifest, opts: ServeOptions): Promise<void>;
 ### toolsOf
 
 The tool list: every runnable, visible command an author has not withheld.
-
-One word is absent and one is not, and until 2026-09-21 they were the same thing. An
-author who wrote `'withheld'` thought about it and said no; that is what the word is for
-and it still means absent. An author who wrote nothing — which on burgee's own API
-`checkCommand` refuses, and which **every** command built through the commander or yargs
-façade is, because neither incumbent has a notion of effects and neither can be made to
-acquire one without breaking the suites that grade the façades — was treated the same way,
-so a migrated user's whole program was silently not a tool.
-
-Reading silence as refusal was conservative and it was also the thing standing between the
-product and its own pitch. Absent-from-the-list is strictly worse for the caller than
-present-with-honest-annotations: an agent that cannot see a command cannot decide about it,
-and cannot ask. So an undeclared command is listed and says so — see {@link annotationsOf}
-for why it carries no hints rather than a reassuring default.
 
 ```ts
 function toolsOf(manifest: Manifest): Tool[];

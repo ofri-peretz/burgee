@@ -15,10 +15,6 @@ import { decode, canonical, specOf, … } from 'caique/keys';
 
 Every binding in a keymap, in the order it was written, with each key in canonical form.
 
-This is what a hint line is generated from. A spec that names no key, or two specs that name
-the same key (`'G'` and `'shift+g'`), are refused here: a keymap that cannot be read one way
-is a hint line that can lie.
-
 ```ts
 function bindings<Action extends string>(keymap: Keymap<Action>): Binding<Action>[];
 ```
@@ -32,11 +28,6 @@ function bindings<Action extends string>(keymap: Keymap<Action>): Binding<Action
 ### canonical
 
 The one spelling of a key spec, or a `KeysError` naming what is wrong with it.
-
-Modifiers are `ctrl`, `meta` (or `alt`) and `shift`, in any order and any case. A named key
-is case-insensitive (`PageUp`). A single uppercase letter on its own is that letter with
-shift (`G` is `shift+g`, which is what the terminal sends for it); after a modifier its case
-is ignored (`Ctrl+C` is `ctrl+c` — a terminal cannot tell the two apart anyway).
 
 ```ts
 function canonical(spec: string): string;
@@ -67,12 +58,6 @@ function canReadKeys(input: InputStream): boolean;
 
 Every key in one chunk of input, in order — what one `data` event from a raw terminal means.
 
-The chunk goes through node's own decoder. The one thing node will not say synchronously is
-a chunk that *ends* in Escape: it waits for the rest of a sequence, then reports `escape`.
-A chunk decoded on its own has no rest, so that report is made here, as node would make it.
-A partial sequence node is still holding (`ESC [`) is reported as nothing, which is also
-what node does with it.
-
 ```ts
 function decode(chunk: string): KeyPress[];
 ```
@@ -101,13 +86,6 @@ function match<Action extends string>(keymap: Keymap<Action>, key: KeyPress): Ac
 ### readKeys
 
 Read key presses from a terminal until the returned function is called.
-
-Raw mode is taken **once**, here, and given back once, when the reader stops — or by the
-exit path, on a signal or a crash, through `onExit` (closeout's exit hook by default). If
-the input was already raw, somebody else owns that and it is left raw.
-
-Throws `E_NOT_A_TERMINAL` at once, before listening to anything, when `input` cannot be
-read a key at a time (controlroom R7): the caller reads lines, or takes the flag, instead.
 
 ```ts
 function readKeys(input: KeyInput, onKey: (key: KeyPress) => void, onExit?: Registrar): () => void;

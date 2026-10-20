@@ -7,29 +7,6 @@ description: "Every export of seniority/plugin, with its signature and doc comme
 
 The plugin host for seniority's half of the contract (`plugin-contract` R1, R5a, R6, R7, R8).
 
-A plugin is one plain object shared by the whole family. This file keeps the key seniority
-understands — `sources`, a resolution source — and **ignores every other key without
-complaining**, which is what makes the same object work on any subset of the family that
-is installed. A plugin written for flagstaff registers here and contributes nothing; its
-`spinners` and `components` are not seniority's business and are not an error.
-
-**Nothing here imports another layer, and the shape is declared rather than imported.**
-Types erase, so an import would cost nothing at run time — and it would still put another
-package in seniority's dependency story, which is the one thing the family promises it
-does not do.
-
-**A plugin adds a source; it cannot reorder the five.** `rank` slots a source between two
-built-ins and nothing else: below `RANK.flag`, so what the user typed on the command line
-always wins, and above `RANK.default`, so a declared default stays the floor. Both bounds
-are refused at the door rather than clamped, because a source silently demoted to last
-looks like it worked and the author debugs the wrong thing. "The order is not
-configurable" survives extension exactly this far, and no further.
-
-**Reading happens here, not in `resolve`.** `resolve` is pure over the layers it is
-handed (R2) and nothing in this package reads `process.*` (R11) — so `sources(runtime)`
-is the seam: the caller passes its own `{ env, cwd }`, this file calls each `read`, and
-what `resolve` receives is data.
-
 ```ts
 import { validate, register, reset, … } from 'seniority/plugin';
 ```
@@ -76,17 +53,6 @@ function reset(): void;
 
 Every registered source, read against this runtime and sorted by rank — the array
 `resolve` takes as `layers.sources`.
-
-A source whose `read` returns `undefined` had nothing for this run and contributes no
-candidate at all, which is different from contributing an empty one: `--explain` should
-not list a vault that was never reachable as a source that was consulted and lost.
-
-**At an equal rank the later plugin comes first**, because `resolve` takes the first
-candidate with a value: that is what makes "later wins" (`register`) true of the answer and
-not only of the registry. Plugins are read newest first and the sort is stable, so within
-one rank the order is newest plugin first, and each plugin's own sources keep the order it
-declared them in. Until 2026-09-30 the plugins were read oldest first, and the earlier
-registration won the tie the spec, this file and the guide all gave to the later one.
 
 ```ts
 function sources(runtime: SourceRuntime): SourceLayer[];
@@ -180,10 +146,6 @@ interface SourceRuntime {
 ### SourceSpec
 
 One source a plugin contributes, keyed in `sources` by the name `--explain` prints.
-
-Exactly one of `values` and `read`. `values` is the data-first form R7 asks for — a source
-that is a constant is inspectable without being run — and `read` is the dynamic form R5a
-names, for the vault or the remote config that has to go and look.
 
 ```ts
 interface SourceSpec {

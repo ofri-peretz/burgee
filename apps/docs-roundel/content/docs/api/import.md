@@ -7,12 +7,6 @@ description: "Every export of roundel/import, with its signature and doc comment
 
 `roundel/import` (R11) — a theme from the two largest corpora of terminal palettes: Base16
 schemes and iTerm2's `.itermcolors` files.
-
-**Data in, data out.** The caller reads the file; these functions take its text (or, for
-Base16, the object a YAML or JSON reader already made of it) and return the object `fly()`
-takes. No network, no bundled corpus, no file system — the same rule `flagstaff/import` keeps
-for cli-spinners, because the weight of a corpus nobody asked for is what U5 is about.
-
 ```js
 import { readFileSync } from 'node:fs';
 import { fromBase16 } from 'roundel/import';
@@ -20,36 +14,6 @@ import { fly } from 'roundel/theme';
 
 fly(fromBase16(readFileSync('gruvbox-dark-hard.yaml', 'utf8')), runtime);
 ```
-
-**Which colour each token takes.** A palette file names colours by position, not by meaning,
-so the mapping is the one both formats already agree on: the sixteen ANSI slots a terminal
-paints with. `error` is red, `warn` yellow, `ok` green, `flag` cyan and `value` magenta — the
-hue each token's default names — and `ground` is the background. For Base16 that is the
-base16-shell assignment read backwards (red ← `base08`, yellow ← `base0A`, green ← `base0B`,
-cyan ← `base0C`, magenta ← `base0E`, background ← `base00`); for iTerm it is `Ansi 1`, `3`, `2`,
-`6`, `5` and `Background Color`. Both tables are exported, so the mapping is data a reader can
-see rather than a choice buried in a function.
-
-**Four tokens are not imported, on purpose.** `hint`, `command` and `heading` default to `dim`,
-`bold` and `bold underline` — attributes, which a palette file has no opinion on, and a hex
-would replace them rather than colour them. `muted` defaults to `gray`, the terminal's bright
-black, and that slot is a scheme's comment grey, which is *designed* to recede: `base03` is
-2.50:1 on its ground in Default Dark and 2.52:1 in Gruvbox dark hard, and Dracula's `Ansi 8`
-is 3.03:1 — importing it would refuse three well-made schemes over the one token nobody reads
-first. Left at their defaults, all four follow the terminal, which in a terminal themed with
-the same scheme is the scheme's own colour anyway.
-
-**Contrast-checked on the way in (R5), with `fly()`'s own judgement.** The theme is run
-through `audit()` before it is returned, truecolor and the 256-colour substitute both, so
-whatever these functions return `fly()` accepts, and a theme that does not read is refused
-here with the slot it came from named. The refusal carries the unchecked theme, for a gallery
-that wants to show *why*.
-
-**Refusals are named.** Anything these formats do not need is not parsed, and anything they
-need and cannot find is an `ImportError` with a `code` and a `fix`, the shape `PluginError`
-has: `E_IMPORT_FORMAT` (not a Base16 scheme or an XML plist at all), `E_IMPORT_SLOT` (a slot
-the mapping reads is missing or is not a colour), `E_IMPORT_CONTRAST` (it parsed, and it
-does not read).
 
 ```ts
 import { fromBase16, fromITerm, ImportError, … } from 'roundel/import';
