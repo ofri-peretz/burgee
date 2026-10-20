@@ -1,0 +1,18 @@
+{
+  "name": "@vendored/yoctocolors-suite",
+  "private": true,
+  "type": "module",
+  "main": "./shim.js",
+  "version": "2.2.0",
+  "license": "MIT",
+  "description": "The smallest and fastest command-line coloring package on the internet",
+  "repository": "sindresorhus/yoctocolors",
+  "devDependencies": {
+    "yoctocolors": "2.2.0"
+  },
+  "ava": {
+    "environmentVariables": {
+      "FORCE_COLOR": "1"
+    }
+  }
+}

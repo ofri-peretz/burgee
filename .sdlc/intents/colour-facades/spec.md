@@ -42,7 +42,10 @@ compat-oracle lane, each with its R4 row and R5 rows.
 | R4 | B4 weight axis | no row |
 | R5 | `migrate.test.ts`; `compat:page -- --check` | no `DROP_INS` row |
 
-No state machine; no model.
+No state machine; no model. Each facade's colour decision is a pure function of the environment,
+read once at import (yoctocolors: Node's `tty.WriteStream.prototype.hasColors()`), and every style
+is a pure function of its input, so there is no state for Quint to explore; the differential tests
+against each incumbent's own source are the check.
 
 ## Re-grounded on `main` at `326907ec`, 2026-10-19
 
@@ -66,6 +69,34 @@ release tags held on 2026-10-19:
 
 The kill criterion is unchanged: a host whose drop-in cannot bundle at or under its incumbent does
 not ship.
+
+## Build status — 2026-10-20
+
+yoctocolors built on `feat/roundel-colour-facades` against `main` at `8681efca`, alone, because the
+design is one host per pull request (D-20261020-colour-facades-yoctocolors-first). Every check
+below was red first.
+
+| R | Status | Where | Check |
+| :-- | :-- | :-- | :-- |
+| R3 | Built | `roundel/src/yoctocolors.ts`, `./yoctocolors` in `exports` and `typesVersions`; the `yoctocolors` host in `compat-oracle` (`vendor/yoctocolors/` at `a02a16ec`, `depsBefore` recorded, `fixture.js` through `extraDirs`, its `index.js` through `entries`); `baseline/yoctocolors.json`; `GRADED`, `DROP_INS`, `GRADED_VERSIONS`, `SUPPORTED_MAJORS` | `npm run compat -- yoctocolors` 78 / 78, control 78 / 78, target 0 / 0 before the subpath; `yoctocolors.test.ts` (differential against yoctocolors' own `base.js`: every style, every pair nested, colour on and off, every missing link of the `hasColors` chain); `drop-in-type-surface-lock`, `drop-in-require-shape-lock` |
+| R4 (yoctocolors) | Built | `benchmarks/fixtures/entry-points.ts`, `BUNDLED_CEILING` 2,350; `DROP_IN_CEILINGS` 3,395; `competitors.json` `./yoctocolors` | `npm run bench -- --axis weight --check` (red at a ceiling of 0, then 0.951 against ≤ 1); `subpath-weight-lock` |
+| R5 (yoctocolors) | Built | `migrate.ts` `FACADE_EXPORTS` and `REQUIRE_NAMESPACE`; the Migrate and compatibility pages | `migrate.test.ts` › rewrites a yoctocolors import; › moves a program on yoctocolors 2; `migrate-drop-ins-lock` |
+| R1 | Not built | kleur 4.1.5 | needs the `uvu` runner and loader substitution |
+| R2 | Not built | colorette 2.0.20 | needs the `twist` runner and upstream CI's environment |
+
+Two things the design did not say, found building R3:
+
+- **The decision is Node's, not `runtime.ts`'s.** yoctocolors asks
+  `tty.WriteStream.prototype.hasColors()`, which reads `FORCE_COLOR`, `NO_COLOR`, `TERM` and `CI`
+  inside Node. The drop-in asks the same function, so it reads no output variable itself, never
+  reaches `runtime.ts`, and is not on `output-env-lock`'s allow-list (that lock's second case
+  would refuse an entry that reads nothing).
+- **The default export is the module's own namespace**, `export * as default from
+  './yoctocolors.js'`, as yoctocolors' `index.js` is `export * as default from './base.js'`.
+  `subpath-isolation.test.ts` allows the one self-edge, and `scripts/api-reference.ts` learned to
+  document a namespace re-export, which it had dropped (the checker resolves it to a source file).
+
+**Built: R3, and R4 and R5 for yoctocolors. Not built: R1, R2, and R4 and R5 for kleur and colorette.**
 
 ## Rejected alternatives
 

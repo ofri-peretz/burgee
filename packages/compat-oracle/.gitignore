@@ -35,6 +35,8 @@ vendor/*/build/
 vendor/*/dist/
 # cli-cursor's is `index.js` at the vendored root: its `require` case spawns `node index.js`.
 vendor/cli-cursor/index.js
+# yoctocolors' is `index.js` too: upstream's `fixture.js` imports it, and one case spawns that.
+vendor/yoctocolors/index.js
 # Written by a *suite* rather than by the oracle, and upstream ignores both in its own
 # repository (`node-cross-spawn/.gitignore`: `test/fixtures/(*` and `test/tmp/`). Its
 # "special shell chars" case copies a fixture to a name made of them and never removes it,

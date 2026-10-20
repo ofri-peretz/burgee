@@ -46,6 +46,7 @@ const EXTENSION_POINTS: Record<string, string> = {
   chalk: 'None — styles are code; there is no theme to register',
   picocolors: 'None — `createColors(enabled)` per instance, and nothing to register',
   'supports-color': 'Options per call (`createSupportsColor(stream, { sniffFlags })`); nothing to register',
+  yoctocolors: 'None — 61 plain functions, and nothing to register',
   ora: 'A custom spinner object, per instance (`spinner: { frames, interval }`)',
   'log-update': 'None',
   boxen: 'A custom border object, per call (`borderStyle`)',
