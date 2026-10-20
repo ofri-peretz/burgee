@@ -43,7 +43,11 @@ export interface CompletionContext {
   readonly options: Readonly<Record<string, unknown>>;
   /** The positionals typed before the cursor, as typed. */
   readonly positionals: readonly string[];
-  /** An option whose value failed coercion, as typed, and not in `options` (R2). */
+  /**
+   * An option whose value failed coercion, as typed, and not in `options` (R2). A repeatable
+   * option is coerced whole, so one bad element puts every value it was given here, joined by its
+   * separator (`--level 1 --level x` is `level: '1,x'`).
+   */
   readonly raw: Readonly<Record<string, string>>;
 }
 
