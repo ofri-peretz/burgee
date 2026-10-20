@@ -231,7 +231,7 @@ Graded by the incumbent's own test suite:
 | `execa` | 0 / 1360 |
 | `which` | 5 / 5 |
 
-Weight, installed and tree-inclusive: **96,196 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1257**.
+Weight, installed and tree-inclusive: **96,209 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1257**.
 
 ## For agents
 
@@ -281,7 +281,7 @@ keeps both true.
 | Package | What it is | Migrates from |
 | :-- | :-- | :-- |
 | [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander, yargs and meow |
-| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk, colorette, picocolors and supports-color |
+| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk, colorette, picocolors, supports-color and yoctocolors |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
 | [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | @inquirer/core |
 | [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line |

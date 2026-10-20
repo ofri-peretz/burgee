@@ -126,6 +126,7 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
       colorette: 'roundel/colorette',
       picocolors: 'roundel/picocolors',
       'supports-color': 'roundel/supports-color',
+      yoctocolors: 'roundel/yoctocolors',
       '@commander-js/extra-typings': 'burgee/commander/extra-typings',
     });
   });
@@ -153,6 +154,18 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
     const { source, mapped } = rewriteSource("import supportsColor, { createSupportsColor } from 'supports-color';\n");
     expect(source).toBe("import supportsColor, { createSupportsColor } from 'roundel/supports-color';\n");
     expect(mapped).toEqual([{ from: 'supports-color', to: 'roundel/supports-color' }]);
+  });
+
+  // `colour-facades` criterion 3: yoctocolors 2 exports `.` alone, a namespace whose default is
+  // the same namespace, so a default, a named and a namespace import all move as they are.
+  it('rewrites a yoctocolors default, named and namespace import to `roundel/yoctocolors`', () => {
+    const { source, mapped } = rewriteSource("import colors from 'yoctocolors';\nimport { red, bold } from 'yoctocolors';\nimport * as yc from 'yoctocolors';\n");
+    expect(source).toBe("import colors from 'roundel/yoctocolors';\nimport { red, bold } from 'roundel/yoctocolors';\nimport * as yc from 'roundel/yoctocolors';\n");
+    expect(mapped).toEqual([
+      { from: 'yoctocolors', to: 'roundel/yoctocolors' },
+      { from: 'yoctocolors', to: 'roundel/yoctocolors' },
+      { from: 'yoctocolors', to: 'roundel/yoctocolors' },
+    ]);
   });
 
   it('every specifier it can produce is a subpath its package actually publishes', () => {
@@ -585,6 +598,29 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     const left = await migrate({ dir: on1, status: clean });
     expect(read(on1, 'src/a.ts')).toBe("import { red } from 'colorette';\n");
     expect(left.offMajor).toEqual([{ from: 'colorette', found: '^1.4.0', graded: '2.0.20', nearest: 2, sites: [], move: null }]);
+  });
+
+  // `colour-facades` criterion 3, end to end: 2 is the one major claimed, so a program on it
+  // moves, `require()` included (both sides are ES modules and hand back their namespace), the
+  // underline styles 2.2.0 added included, and one on 1 stays.
+  it('moves a program on yoctocolors 2 to roundel/yoctocolors, and leaves 1 alone naming 2.2.0', async () => {
+    const on2 = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { yoctocolors: '^2.1.1' } }),
+      'src/a.ts': "import colors, { red, underlineCurly } from 'yoctocolors';\n",
+      'src/b.cjs': "const { red } = require('yoctocolors');\n",
+    });
+    const moved = await migrate({ dir: on2, status: clean });
+    expect(moved.offMajor).toEqual([]);
+    expect(read(on2, 'src/a.ts')).toBe("import colors, { red, underlineCurly } from 'roundel/yoctocolors';\n");
+    expect(read(on2, 'src/b.cjs')).toBe("const { red } = require('roundel/yoctocolors');\n");
+    expect(moved.refused).toEqual([]);
+    const on1 = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { yoctocolors: '^1.0.0' } }),
+      'src/a.ts': "import { red } from 'yoctocolors';\n",
+    });
+    const left = await migrate({ dir: on1, status: clean });
+    expect(read(on1, 'src/a.ts')).toBe("import { red } from 'yoctocolors';\n");
+    expect(left.offMajor).toEqual([{ from: 'yoctocolors', found: '^1.0.0', graded: '2.2.0', nearest: 2, sites: [], move: null }]);
   });
 
   // `previous-majors` R6: commander 14 is claimed (its own suite grades `burgee/commander/v14`

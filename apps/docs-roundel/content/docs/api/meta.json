@@ -11,6 +11,7 @@
     "colorette",
     "picocolors",
     "supports-color",
+    "yoctocolors",
     "terminal",
     "import"
   ]

@@ -180,6 +180,13 @@ function exportsOf(checker: ts.TypeChecker, sf: ts.SourceFile): ts.Symbol[] {
  */
 function documentModule(checker: ts.TypeChecker, sf: ts.SourceFile, self: string, owners: ReadonlyMap<ts.Symbol, string>): Documented[] {
   return exportsOf(checker, sf).flatMap((exported): Documented[] => {
+    // `export * as default from './yoctocolors.js'`: a module's namespace under a name. What it
+    // resolves to is the module itself, a source file with no declaration to quote, so the
+    // statement is the signature (`roundel/yoctocolors` is yoctocolors' `export * as default`).
+    const namespaceExport = exported.declarations?.find(ts.isNamespaceExport);
+    if (namespaceExport !== undefined) {
+      return [{ name: exported.name, kind: 'namespace', signatures: [namespaceExport.parent.getText()], summary: "The module's own namespace: every export on this page, as one object.", params: [], examples: [] }];
+    }
     const target = resolveExport(checker, exported);
     const decls = (target.declarations ?? []).filter((d) => kindOf(d) !== undefined);
     const [first] = decls;

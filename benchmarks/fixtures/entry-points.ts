@@ -151,6 +151,13 @@ export const PAIRS: readonly EntryPair[] = [
     why: 'the colour-detection drop-in against supports-color 11',
   },
   {
+    // `colour-facades` R4: the drop-in against the release compat-oracle grades it by.
+    id: 'roundel/yoctocolors',
+    ours: { specifier: 'roundel/yoctocolors', symbol: DEFAULT_EXPORT },
+    incumbent: { specifier: 'yoctocolors', symbol: DEFAULT_EXPORT },
+    why: 'colour under yoctocolors 2, the smallest of the colour packages',
+  },
+  {
     id: 'flagstaff/ora',
     ours: { specifier: 'flagstaff/ora', symbol: DEFAULT_EXPORT },
     incumbent: { specifier: 'ora', symbol: DEFAULT_EXPORT },

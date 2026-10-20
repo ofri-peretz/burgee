@@ -54,14 +54,19 @@ from a user's tree.
 
 - One intent or three. **Decided 2026-10-12**, D-20261012-colour-facades-one-intent.
 
-## Status — 2026-10-19
+## Status — 2026-10-20
 
-Design accepted; nothing built yet. The three hosts are open as
-[`A-20261019-colour-facades-hosts-not-built`](../../gaps/A-20261019-colour-facades-hosts-not-built.md),
-which names what compat-oracle needs first for each.
+yoctocolors is built (#1218) and colorette is built, on `feat/roundel-colorette` against `main` at
+`6213a30b`; kleur is not, and stays open in
+[`A-20261019-colour-facades-hosts-not-built`](../../gaps/A-20261019-colour-facades-hosts-not-built.md).
+The design asks for one host per pull request, so each carried one
+([`D-20261020-colour-facades-yoctocolors-first`](../../decisions/D-20261020-colour-facades-yoctocolors-first.md),
+[`D-20261020-colour-facades-colorette-twist`](../../decisions/D-20261020-colour-facades-colorette-twist.md)).
+The intent stays `approved`, and is stamped `shipped` once all three are built and roundel's
+minors are on npm.
 
-| Criterion | Evidence |
-| :-- | :-- |
-| 1. `npm run compat -- kleur colorette yoctocolors` level with each control | **Not met.** No host is vendored. |
-| 2. Three B4 rows at ratio ≤ 1 | **Not met.** No pair is declared. |
-| 3. `burgee migrate` rewrites each import in a fixture program that then passes its own tests | **Not met.** No `DROP_INS` row. |
+| Criterion | yoctocolors 2.2.0 | colorette 2.0.20 | kleur 4.1.5 |
+| :-- | :-- | :-- | :-- |
+| 1. `npm run compat -- <host>` level with each control | **Met.** `roundel/yoctocolors` 78 / 78 against a control of 78 / 78 (`baseline/yoctocolors.json`); the target read 0 / 0, `target not built yet`, before the subpath existed. `GRADED.yoctocolors` is `{ reference: 78, passed: 78, rate: 1, control: 78 }`; the compatibility page lists it, major 2 claimed. | **Met.** `roundel/colorette` 67 / 67 against a control of 67 / 67 (`baseline/colorette.json`), graded by the new `twist` runner, which reads twist's printed counts because twist exits 0 on failure (red first: `twist.test.ts`), in upstream CI's environment; the target read 0 / 0, `target not built yet`, before the subpath existed. `GRADED.colorette` is `{ reference: 67, passed: 67, rate: 1, control: 67 }`; the compatibility page lists it, major 2 claimed. | **Not met.** Not vendored: needs a `uvu` runner and a loader substitution for `-r esm`. |
+| 2. A B4 row at ratio ≤ 1 | **Met locally.** 2,247 B against yoctocolors' 2,363 B, **0.951**, under `BUNDLED_CEILING` 2,350 (red at a ceiling of 0 first) and the U5 ratio gate of 1; the whole surface is 3,275 B against 3,395 on `/docs/weight` (`DROP_IN_CEILINGS`). The CI reading is in the pull request's `bench` job. | **Met locally.** 1,806 B against colorette's 1,973 B for a program importing `red`, **0.915**, under `BUNDLED_CEILING` 1,900 (red at a ceiling of 0 first) and the U5 ratio gate of 1; the whole surface is 2,438 B against 2,602 on `/docs/weight` (`DROP_IN_CEILINGS`). The CI reading is in the pull request's `bench` job. | **Not met.** No pair. |
+| 3. `burgee migrate` rewrites the import in a fixture program that then passes its own tests | **Met.** `migrate.test.ts` › "moves a program on yoctocolors 2 to roundel/yoctocolors, and leaves 1 alone naming 2.2.0" (`import` and `require()`), and › "rewrites a yoctocolors default, named and namespace import", both red on `main`. The fixture program that passes its own tests is yoctocolors' `fixture.js`, which the graded suite spawns against the target. | **Met.** `migrate.test.ts` › "moves a program on colorette 2 to roundel/colorette, and leaves 1 alone naming 2.0.20" (`import` and `require()`), and › "rewrites a colorette named and namespace import, types included", both red on `main`. The fixture program that passes its own tests is colorette's `tests/scripts/bin.js`, which the graded suite spawns four times against the target. | **Not met.** No `DROP_INS` row. |

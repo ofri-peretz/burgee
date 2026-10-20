@@ -128,6 +128,10 @@ const RULES: Record<string, EntryRule> = {
   // seam alone. Measured 3,434 B with `runtime.js`, against supports-color 11.0.0's `index.js` at
   // 4,474 B on disk; the bar R4 sets is bundled bytes, held in `scripts/subpath-weight-lock.test.ts`.
   './supports-color': { allow: [], budget: 3_450, denied: ['policy.js', 'tokens.js', 'theme.js', 'contrast.js', 'chalk.js', 'picocolors.js', 'index.js'] },
+  // `colour-facades` R3, 2026-10-20: yoctocolors 2.2.0's formatter and Node's `hasColors()`, reaching
+  // nothing else of ours. Measured 3,188 B, against yoctocolors 2.2.0's `index.js` and `base.js` at
+  // 4,466 B on disk; the bar R4 sets is bundled bytes, held in `scripts/subpath-weight-lock.test.ts`.
+  './yoctocolors': { allow: [], budget: 3_250, denied: ['policy.js', 'tokens.js', 'theme.js', 'contrast.js', 'chalk.js', 'picocolors.js', 'supports-color.js', 'runtime.js', 'index.js'] },
   './terminal': { allow: [], budget: 1_000, denied: ['policy.js', 'tokens.js', 'theme.js', 'contrast.js', 'chalk.js', 'index.js'] },
   // R11, on 2026-09-30: `fromBase16` and `fromITerm`. It carries the whole theme graph on
   // purpose — `audit()` is how an imported theme is refused exactly when `fly()` would refuse

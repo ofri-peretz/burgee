@@ -1,6 +1,6 @@
 ---
 title: roundel
-description: "Colour for a CLI: one output policy decided from the runtime, nine semantic tokens over util.styleText, and a theme that changes them together, contrast-checked. Zero dependencies. Drop-in paths for chalk, colorette, picocolors and supports-color."
+description: "Colour for a CLI: one output policy decided from the runtime, nine semantic tokens over util.styleText, and a theme that changes them together, contrast-checked. Zero dependencies. Drop-in paths for chalk, colorette, picocolors, supports-color and yoctocolors."
 ---
 
 **roundel** is the colours a CLI carries: one output policy decided once from the runtime,
@@ -210,6 +210,17 @@ truecolor terminals included. It answers what supports-color answers, so it is n
 `--no-color` (`FORCE_COLOR=3 --no-color` is level 3), and `NO_COLOR` is not read.
 `roundel/policy` keeps refusing colour a user turned off, and a test pins both answers side by side.
 
+```diff
+- import colors, { red, bold } from 'yoctocolors';
++ import colors, { red, bold } from 'roundel/yoctocolors';
+```
+
+**Identical.** yoctocolors 2.2.0's 61 functions, the `4:x` underline styles, `overline` and the
+underline colours included, as named exports and as the default namespace. Colour is yoctocolors'
+own rule, decided once at import: Node's `tty.WriteStream.prototype.hasColors()`, which reads
+`FORCE_COLOR`, `NO_COLOR` and `TERM` itself. It is not [the policy](#the-policy), and with colour
+off each function hands its input back untouched, as yoctocolors' does.
+
 Or let the codemod make the change: `npx burgee migrate --dry-run` lists every import it would
 rewrite — only drop-ins graded level with their incumbent — and `npx burgee migrate` makes it.
 See [Migrate](https://burgee.interlace.tools/docs/migrate).
@@ -247,6 +258,12 @@ shim. The rest of the decision table is held by `supports-color.test.ts`, which 
 supports-color's own source and this module in thousands of generated environments and
 requires the same answers. Bundled, the whole surface is 1,781 bytes against supports-color's 2,145.
 
+**Graded by yoctocolors' own suite**, vendored at 2.2.0: `roundel/yoctocolors` passes **78 of 78**
+cases of `test.js`, level with yoctocolors itself, the case that spawns `node fixture.js` with
+`FORCE_COLOR=0` included. `yoctocolors.test.ts` evaluates yoctocolors' own `base.js` beside this
+module and requires the same value from every style, for every pair of styles nested in each
+other, with colour on and off. Bundled, the whole surface is 3,275 bytes against yoctocolors' 3,395.
+
 The grade is re-run on every change to `roundel/chalk`; the current figure is generated under
 *Benchmarks* below and published with every other drop-in on the
 [compatibility page](https://burgee.interlace.tools/docs/compatibility).
@@ -277,6 +294,7 @@ Graded by the incumbent's own test suite:
 | `colorette` | 67 / 67 |
 | `picocolors` | 1 / 1 |
 | `supports-color` | 55 / 55 |
+| `yoctocolors` | 78 / 78 |
 
 ## For agents
 
@@ -326,7 +344,7 @@ keeps both true.
 | Package | What it is | Migrates from |
 | :-- | :-- | :-- |
 | [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander, yargs and meow |
-| **roundel** (this package) | Colour: one output policy, semantic tokens, a theme | chalk, colorette, picocolors and supports-color |
+| **roundel** (this package) | Colour: one output policy, semantic tokens, a theme | chalk, colorette, picocolors, supports-color and yoctocolors |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
 | [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | @inquirer/core |
 | [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line |

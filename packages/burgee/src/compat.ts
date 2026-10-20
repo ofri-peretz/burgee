@@ -81,6 +81,7 @@ export const GRADED: Readonly<Record<string, Row>> = {
   colorette: { reference: 67, passed: 67, rate: 1, control: 67 },
   picocolors: { reference: 1, passed: 1, rate: 1, control: 1 },
   'supports-color': { reference: 55, passed: 55, rate: 1, control: 55 },
+  yoctocolors: { reference: 78, passed: 78, rate: 1, control: 78 },
   'extra-typings': { reference: 369, passed: 369, rate: 1, control: 369 },
 };
 
@@ -143,6 +144,7 @@ export const DROP_INS: readonly DropIn[] = [
   { host: 'colorette', from: 'colorette', to: 'roundel/colorette' },
   { host: 'picocolors', from: 'picocolors', to: 'roundel/picocolors' },
   { host: 'supports-color', from: 'supports-color', to: 'roundel/supports-color' },
+  { host: 'yoctocolors', from: 'yoctocolors', to: 'roundel/yoctocolors' },
   { host: 'extra-typings', from: '@commander-js/extra-typings', to: 'burgee/commander/extra-typings' },
 ];
 
@@ -192,6 +194,7 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
   'wrap-ansi': '10.0.2',
   yargs: '18.2.0',
   'yargs-parser': '22.0.0',
+  yoctocolors: '2.2.0',
 };
 
 /**
@@ -272,6 +275,7 @@ export const SUPPORTED_MAJORS: Readonly<Record<string, readonly number[]>> = {
   'wrap-ansi': [10],
   yargs: [17, 18],
   'yargs-parser': [22],
+  yoctocolors: [2],
 };
 
 /**

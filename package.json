@@ -171,6 +171,7 @@
     "wrap-ansi": "^10.0.2",
     "yargs": "^18.2.0",
     "yargs-parser": "^22.0.0",
-    "yargs-test-extends": "^1.0.1"
+    "yargs-test-extends": "^1.0.1",
+    "yoctocolors": "2.2.0"
   }
 }

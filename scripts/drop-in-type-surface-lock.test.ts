@@ -54,6 +54,9 @@ const PAIRS: readonly (readonly [string, string])[] = [
   // Joined 2026-10-19 with `supports-color-drop-in` R2; supports-color 11.0.0 is a root devDependency
   // for this comparison and the differential test, as meow is.
   ['supports-color', 'roundel/supports-color'],
+  // Joined 2026-10-20 with `colour-facades` R3; yoctocolors 2.2.0 is a root devDependency for this
+  // comparison and the differential test, as supports-color is.
+  ['yoctocolors', 'roundel/yoctocolors'],
   ['exit-hook', 'closeout/exit-hook'],
   ['signal-exit', 'closeout/signal-exit'],
   ['signal-exit/signals', 'closeout/signal-exit/signals'],

@@ -52,6 +52,8 @@ const PAIRS: readonly (readonly [string, string])[] = [
   ['colorette', 'roundel/colorette'],
   // ES modules on both sides: `require()` returns each one's namespace, `default` and `createSupportsColor`.
   ['supports-color', 'roundel/supports-color'],
+  // ES modules on both sides: `require()` returns each one's namespace, its `default` the same namespace.
+  ['yoctocolors', 'roundel/yoctocolors'],
   // ES modules on both sides too: the ten prompts and `Separator`, by name (inquirer-prompts-drop-in).
   ['@inquirer/prompts', 'caique/inquirer/prompts'],
 ];

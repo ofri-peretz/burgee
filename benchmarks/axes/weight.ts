@@ -613,6 +613,12 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // measurement plus the 80 B CI margin, rounded up to the next fifty: 1,764 against
   // supports-color's 2,128 (0.829). Lighter, so the ratio gate is U5's 1.
   'roundel/supports-color': 1_850,
+
+  // `colour-facades` R4, first measured 2026-10-20 against yoctocolors 2.2.0, the release
+  // compat-oracle grades. Added at a ceiling of 0, which failed, then set at the measurement plus
+  // the 80 B CI margin, rounded up to the next fifty: 2,247 against yoctocolors' 2,363 (0.951).
+  // Lighter, so the ratio gate is U5's 1, and it is the tighter bar of the two here.
+  'roundel/yoctocolors': 2_350,
 };
 
 /**
