@@ -30,10 +30,30 @@ updates:
         versions: [">=6"]
       # next 16.4.0's Turbopack production build grows past 14 GB RSS on every docs app and is
       # OOM-killed ("Creating an optimized production build ..."), locally and on CI's Build
-      # lane (#1088); 16.3.8 builds the same app in 18 s under 3 GB. Only this release is
-      # skipped, so the first patch after it is proposed again.
+      # lane (#1088); 16.3.8 builds the same app in 18 s under 3 GB. 16.4.2's docs builds took
+      # the runner down the same way, twice in #1148 and again in #1181. Only these releases
+      # are skipped, so the first patch after them is proposed again.
       - dependency-name: "next"
-        versions: ["16.4.0"]
+        versions: ["16.4.0", "16.4.2"]
+      # Declined twice with evidence (#1148, #1181) and re-proposed as the whole of #1205
+      # (D-20261020-dependabot-rejected-bumps). Exact releases only, like `next` above: the
+      # next release of each is proposed again.
+      # react 19.3.1: controlroom's W1–W4 weigh and time against ink + react on both sides,
+      # so react moves only in a PR that re-records them.
+      - dependency-name: "react"
+        versions: ["19.3.1"]
+      - dependency-name: "react-dom"
+        versions: ["19.3.1"]
+      # js-yaml 5.5.0 reports non-printable characters at a new position (its #801), and
+      # seniority's `yaml.test.ts` pins js-yaml's own error text, `(1:5)`.
+      - dependency-name: "js-yaml"
+        versions: ["5.5.0"]
+      # fumadocs 16.17.5: fumadocs-mdx's peer keeps 16.17.1 at the root, the lock carries two
+      # copies, and the front-door docs app fails prerendering `/` ("FrameworkProvider").
+      - dependency-name: "fumadocs-core"
+        versions: ["16.17.5"]
+      - dependency-name: "fumadocs-ui"
+        versions: ["16.17.5"]
       - dependency-name: "commander"
       - dependency-name: "yargs"
       - dependency-name: "yargs-parser"
