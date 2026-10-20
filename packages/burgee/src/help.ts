@@ -25,6 +25,7 @@ import { colorLevel } from 'roundel/policy';
 
 import type { ArgumentSpec, CommandNode, Example, Manifest, OptionSpec } from './manifest.js';
 import { flagsOf, kebab } from './names.js';
+import { defaultOf } from './run-default.js';
 
 /** The token names of `roundel`'s R3, typed structurally: help never imports the tokens (U13). */
 export type HelpToken = 'error' | 'warn' | 'ok' | 'hint' | 'muted' | 'command' | 'flag' | 'value' | 'heading';
@@ -228,7 +229,7 @@ function argumentRows(args: ArgumentSpec[]): Row[] {
  * gets `completion <shell>` and its `Exit codes:` (agent-lint-conformance R4, R5), passed in like
  * the rest so this door carries none of their words.
  */
-function commandSections(manifest: Manifest, node: CommandNode, listed?: readonly CommandNode[]): Section[] {
+function commandSections(manifest: Manifest, node: CommandNode, listed?: readonly CommandNode[], fallback?: CommandNode): Section[] {
   const children =
     listed ?? manifest.commands.filter((c) => c.hidden !== true && c.path.length === node.path.length + 1 && node.path.every((seg, i) => c.path[i] === seg));
   const groups = new Map<string, Row[]>();
@@ -236,7 +237,7 @@ function commandSections(manifest: Manifest, node: CommandNode, listed?: readonl
     const heading = (manifest.find(c.path.slice(0, node.path.length + 1)) ?? c).group ?? 'Commands:';
     const rows = groups.get(heading) ?? [];
     // R5 — a command's aliases beside its own name, as commander lists them: `serve|s`.
-    rows.push({ term: [...c.path.slice(node.path.length, -1), [c.path.at(-1), ...(c.aliases ?? [])].join('|'), ...(c.arguments ?? []).map(argumentTerm)].join(' '), text: `${c.summary ?? c.description ?? ''}${deprecation(c.deprecated)}`.trim(), kind: 'command' });
+    rows.push({ term: [...c.path.slice(node.path.length, -1), [c.path.at(-1), ...(c.aliases ?? [])].join('|'), ...(c.arguments ?? []).map(argumentTerm)].join(' '), text: `${c.summary ?? c.description ?? ''}${deprecation(c.deprecated)}${c.path.join() === fallback?.path.join() ? ' (default)' : ''}`.trim(), kind: 'command' });
     groups.set(heading, rows);
   }
   return [...groups].map(([title, rows]) => ({ title, rows }));
@@ -336,7 +337,9 @@ export interface HelpModel {
 
 export function helpModel(manifest: Manifest, node: CommandNode, opts: HelpOptions = {}): HelpModel {
   say = opts.say ?? String;
-  const commands = commandSections(manifest, node, opts.commands);
+  // default-command R3 — the level's default is marked where it is listed, and a command is optional.
+  const fallback = defaultOf(manifest, node);
+  const commands = commandSections(manifest, node, opts.commands, fallback);
   const atRoot = node.path.length === manifest.rootPath.length;
   const global = [...(atRoot ? ROOT_GLOBAL : GLOBAL), ...(opts.globals ?? []).map((r) => ({ ...r, kind: 'flag' as const })), ...(node.run === undefined ? [] : [EXPLAIN])];
   const sections = [
@@ -348,8 +351,9 @@ export function helpModel(manifest: Manifest, node: CommandNode, opts: HelpOptio
     { title: 'Environment:', rows: environmentRows(node.options) },
   ].filter((s) => s.rows.length > 0);
   const trailer = [...(atRoot ? [say(FOR_AGENTS) + say(opts.forAgents ?? '')] : []), ...(node.epilogue === undefined ? [] : [node.epilogue])];
-  // `usage` is what follows the command's name on its usage line.
-  const usage = [...(commands.length > 0 ? ['<command>'] : []), '[options]', ...(node.arguments ?? []).map(argumentTerm)].join(' ');
+  // `usage` is what follows the command's name on its usage line; a level with a default runs without one.
+  const command = fallback ? '[command]' : '<command>';
+  const usage = [...(commands.length > 0 ? [command] : []), '[options]', ...(node.arguments ?? []).map(argumentTerm)].join(' ');
   return { usage, description: node.description === undefined ? undefined : `${node.description}${deprecation(node.deprecated)}`, sections, trailer };
 }
 

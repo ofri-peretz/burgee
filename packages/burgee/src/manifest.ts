@@ -359,6 +359,8 @@ export interface CommandNode {
    * The engine reads them in `aliases.ts`; a façade dispatches its own.
    */
   aliases?: readonly string[];
+  /** The command that runs when argv names none at its parent's level (default-command R2); one per level. */
+  default?: boolean;
   description?: string;
   /** Shown in command lists instead of the description (yargs #1265). */
   summary?: string;

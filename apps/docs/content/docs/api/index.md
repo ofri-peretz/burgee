@@ -317,6 +317,12 @@ interface Command<S extends OptionSpecs = OptionSpecs, O extends CommandOutput =
     name: string;
     /** Other words that run this command, `['s']` for `serve`: listed on it in help, `--schema` and completions, never as commands of their own. */
     aliases?: readonly string[];
+    /**
+     * Runs when argv names no command at this level (default-command R2): `tool`, or `tool --port 1`
+     * with only this command's options, and a word as its positional when it declares one and the
+     * word is near no command's name. One per level; two siblings that both say so are refused.
+     */
+    default?: boolean;
     description?: Localised;
     /** Shown in command lists instead of the description. */
     summary?: Localised;
@@ -382,6 +388,8 @@ interface CommandNode {
      * The engine reads them in `aliases.ts`; a façade dispatches its own.
      */
     aliases?: readonly string[];
+    /** The command that runs when argv names none at its parent's level (default-command R2); one per level. */
+    default?: boolean;
     description?: string;
     /** Shown in command lists instead of the description (yargs #1265). */
     summary?: string;

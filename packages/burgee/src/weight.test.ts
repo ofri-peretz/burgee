@@ -292,7 +292,10 @@ const RULES: Record<string, EntryRule> = {
     // 35,850 on 2026-10-19 for typed-positionals R2 (D-20261019-typed-schema-surface-weight): `ctx.args`
     // names each declared positional on every run, and one test loads R3's `typed-args.js` for a
     // command whose arguments declare a type or choices; S4's stdin gate folded into that load. Measured 35,617 -> 35,822.
-    budget: 35_850,
+    // 36,100 on 2026-10-20 for default-command R1 (D-20261020-default-command-weight): `default` is one
+    // of `NODE_KEYS`, and `defineProgram` refuses two defaults at one level where it builds the tree.
+    // Dispatch, help and completions read the key from their own chunks. Measured 35,822 -> 36,069.
+    budget: 36_100,
     // 45,400 with D-140 and #521 on top of S4. Measured 45,361.
     // 45,250 with D-140 (the `--json` failure classification) on top of D-122 and #521. Measured 45,227.
     // 43,500 on 2026-09-23 for P2/P3: a thrown refusal names its exit code by string (`USAGE`, `CANCELLED`, …), which is how caique's prompt verdicts reach an exit status with no dependency edge — the four-row table and its lookup sit in `describeFailure`, where every failure is read. Measured 43,450.
@@ -430,7 +433,11 @@ const RULES: Record<string, EntryRule> = {
   "./help": {
     allow: ["linegauge", "roundel/policy"],
     // 9,250 on 2026-10-19 for cli-help-renderer S1 (D-20261019-typed-schema-surface-weight): `(minimum: n)` and `(maximum: n)` on a number option's row. Measured 9,087 -> 9,228.
-    budget: 9_250,
+    // 9,650 on 2026-10-20 for default-command R3 (D-20261020-default-command-weight): the level's default
+    // is marked `(default)` where it is listed and the usage reads `[command]`, through `run-default.js`,
+    // the one lookup dispatch and completions share. Its options and examples are composed in
+    // `surfaces.js`, off this door. Measured 9,228 -> 9,602.
+    budget: 9_650,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel/tokens", "roundel/theme", "roundel/chalk", "flagstaff", "caique"],
   },
   // The MCP server. It reaches the schema and the manifest, because a tool list *is* the

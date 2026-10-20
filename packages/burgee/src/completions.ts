@@ -6,6 +6,7 @@
  */
 import { type ArgumentSpec, type CommandNode, type Manifest, type OptionSpec } from './manifest.js';
 import { flagsOf, kebab } from './names.js';
+import { defaultOf } from './run-default.js';
 
 export type Shell = 'bash' | 'zsh' | 'fish' | 'pwsh';
 export const SHELLS: readonly Shell[] = ['bash', 'zsh', 'fish', 'pwsh'];
@@ -53,8 +54,9 @@ function children(manifest: Manifest, at: string[]): Node[] {
  */
 
 function nodeOf(manifest: Manifest, c: CommandNode): Node {
+  // default-command R4 — a level with a default takes the default's options, so it offers them.
   const visible: Record<string, OptionSpec> = Object.fromEntries(
-    Object.entries(c.options)
+    Object.entries({ ...defaultOf(manifest, c)?.options, ...c.options })
       .filter(([, spec]) => spec.hidden !== true)
       .map(([name, spec]) => [name, { ...spec, negatable: spec.type === 'boolean' && spec.negatable !== false }]),
   );
