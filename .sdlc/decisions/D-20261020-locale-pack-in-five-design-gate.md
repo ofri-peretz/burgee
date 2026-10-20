@@ -89,7 +89,10 @@ R1 and R2 do not move the median. They are still worth their bytes.
   seven times the sample the spec asked for. The local `claude` login on the building machine is
   not this project's credential, so a local paid run would bill the wrong account.
 - **"After" is this pull request's own `Agent Evals` runs, and every pull request's after it.**
-  Their transcripts are now in the log.
+  Their transcripts are now in the log. The first, run 39479245102 on `c3a7ba52`, passed in
+  **5 turns**: it read the schema and the example, wrote the pack, and ran `check` once. It made
+  no probe and spent no call on burgee. One reading claims nothing about the median. Before this
+  change, 7 of the 34 readings were also 5.
 
 ## Spend
 
