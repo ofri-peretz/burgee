@@ -3,9 +3,10 @@
  *
  * Enter (or the first render, with `waitForUserInput: false`) writes the current value to a
  * temporary file, opens `$VISUAL`, then `$EDITOR`, then the platform's editor on it, and
- * reads the file back when the editor exits. On Windows the editor is started through the
- * shell, so `code` resolves to `code.cmd` as it does through `@inquirer/external-editor`'s
- * own launch, with each argument quoted. The answer is validated like a typed one; a
+ * reads the file back when the editor exits. The editor is started through
+ * `bellpull/cross-spawn`, the family's spawn, so `code` resolves to `code.cmd` on Windows as
+ * it does through `@inquirer/external-editor`'s own launch. The answer is validated like a
+ * typed one; a
  * failed validation keeps what was written for the next round, or restores the default
  * under `validationFailureMode: 'clear'`.
  *
@@ -15,10 +16,11 @@
  * validation round trip are held by `inquirer-editor.test.ts` instead, against the same
  * screens those cases assert.
  */
-import { spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
+import { spawn } from 'bellpull/cross-spawn';
 
 import { alwaysValid } from './inquirer-choices.js';
 import { createPrompt, useKeypress, usePrefix } from './inquirer.js';
@@ -73,13 +75,10 @@ export async function editAsync(text: string, { prefix = 'inquirer-editor-', pos
   const folder = mkdtempSync(join(dir ?? tmpdir(), prefix));
   const file = join(folder, `answer${postfix}`);
   writeFileSync(file, text, mode === undefined ? {} : { mode });
-  const { platform } = processFacts();
-  const [bin, ...args] = editorCommand(processRuntime().env, platform);
-  const windows = platform === 'win32';
+  const [bin, ...args] = editorCommand(processRuntime().env, processFacts().platform);
   try {
     await new Promise<void>((resolve, reject) => {
-      const argv = [...args, file].map((arg) => (windows ? `"${arg}"` : arg));
-      const child = spawn(bin, argv, { stdio: 'inherit', shell: windows });
+      const child = spawn(bin, [...args, file], { stdio: 'inherit' });
       child.once('error', reject);
       child.once('exit', (code, signal) => {
         if (code === 0) resolve();

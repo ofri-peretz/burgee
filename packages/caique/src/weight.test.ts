@@ -178,9 +178,14 @@ const RULES: Record<string, EntryRule> = {
   // of its own, so `./inquirer` keeps its budget and a program on `@inquirer/core`'s hooks pays
   // for no prompt. It reaches `./inquirer`'s whole graph and adds `usePagination`, the shared
   // list helpers, `select` and `checkbox`. Measured 36,586 B on 2026-10-12.
+  // 2026-10-20, R3's other eight prompts (`input`, `confirm`, `password`, `number`, `expand`,
+  // `rawlist`, `search`, `editor`), which took the row from 100 / 213 to 213 / 213, and
+  // `bellpull/cross-spawn` for the one process `editor` starts. Measured 63,929 B; the budget
+  // moved from 38,000 by D-20261020-caique-inquirer-prompts-budget, where `@inquirer/prompts`
+  // 8.7.3 and its tree are the ceiling it is weighed against.
   './inquirer/prompts': {
-    allow: ['closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap', 'paratext/csi', 'roundel/terminal'],
-    budget: 38_000,
+    allow: ['bellpull/cross-spawn', 'closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap', 'paratext/csi', 'roundel/terminal'],
+    budget: 65_000,
     denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js', 'spec.js', 'plugin.js', 'clack.js'],
   },
   // The six widgets in line mode (R5), which is the floor and the accessible rendering.
