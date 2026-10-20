@@ -30,7 +30,8 @@ export default defineConfig({
     hookTimeout: 60_000,
     setupFiles: ['../../vitest-colour-setup.ts'],
     // The run leaves `dist/` as the build left it, or fails naming what changed.
-    globalSetup: ['../../vitest-dist-guard.ts'],
+    // And it tells a timing test whether the code it times is instrumented (`migrate-bench`).
+    globalSetup: ['../../vitest-dist-guard.ts', './src/__fixtures__/coverage-flag.ts'],
     coverage: { ...coverage, thresholds: { lines: 100, branches: 100, functions: 100, statements: 100 } },
     // One `vitest run`, two groups: the pool first, then the shell-driving files alone. `include`
     // lives in each project, not above them: `extends: true` concatenates arrays, so a shared
