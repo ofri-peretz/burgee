@@ -1,6 +1,6 @@
 {
   "name": "flagstaff",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "description": "Spinners, progress, boxes and tables on one terminal frame loop, with a static projection for pipes, screen readers and agents, and a plugin host. No dependency outside the burgee family. Drop-in paths for ora, log-update, boxen and cli-table3.",
   "license": "MIT",
   "type": "module",
@@ -163,10 +163,10 @@
     "json"
   ],
   "dependencies": {
-    "closeout": "^1.1.5",
-    "linegauge": "^1.1.3",
-    "paratext": "^1.0.9",
-    "roundel": "^1.1.3"
+    "closeout": "^1.1.6",
+    "linegauge": "^1.1.4",
+    "paratext": "^1.0.10",
+    "roundel": "^1.2.0"
   },
   "devDependencies": {
     "fast-check": "^4.10.2",

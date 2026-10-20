@@ -1,5 +1,15 @@
 # compat-oracle
 
+## 0.3.10
+
+### Patch Changes
+
+- [#1180](https://github.com/ofri-peretz/burgee/pull/1180) [`096d4ad`](https://github.com/ofri-peretz/burgee/commit/096d4ad3c62e556af14e4d171e9806a3d303dd0c) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A vendored suite's dependencies now install as of the release the suite was vendored at, not as of the day of the run. Each `.source.json` records `depsBefore`, the newest release the suite pins plus an hour, and the install passes it to npm as `--before`. On 2026-10-19 inquirer published new siblings under `@inquirer/prompts` 8.7.3's `^` ranges, and the control read 212 / 213 with nothing changed here. It reads 213 / 213 again. A tree installed before this is re-resolved once.
+- Updated dependencies [[`af24328`](https://github.com/ofri-peretz/burgee/commit/af243288e27cbffbcffac18af7112172e46a003b), [`122635d`](https://github.com/ofri-peretz/burgee/commit/122635dce20998d1cba0eaa3c9df9c38bfd47c8b)]:
+  - burgee@1.6.6
+  - flagstaff@1.7.3
+  - roundel@1.2.0
+
 ## 0.3.9
 
 ### Patch Changes

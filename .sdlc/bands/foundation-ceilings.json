@@ -19,7 +19,7 @@
       }
     },
     "paratext": {
-      "ours": 102861,
+      "ours": 102862,
       "incumbents": {
         "ansi-escapes": 30912,
         "terminal-link": 61152,
@@ -70,7 +70,7 @@
       "$note": "A zero-dependency incumbent exists here, so Y8's original wording applies too and beating it is reported separately."
     },
     "caique": {
-      "ours": 252687,
+      "ours": 252688,
       "incumbents": {
         "@clack/prompts": 182472,
         "@inquirer/core": 206577
