@@ -71,7 +71,9 @@ Author-scored, no `TYPESAFE_API_KEY` (skipped, never failed). `?` is confidence 
 Built on `feat/closeout-at-incumbent-weight` against `main` at `a7d8fb7386`. The constraints
 hold: grades did not fall, exactly-once across doors is checked, and no ratchet was raised on
 either B4 row. The one budget raise, `./signal-exit/signals` +50 B unminified, is recorded in
-D-20261020-closeout-drop-in-budgets.
+D-20261020-closeout-drop-in-budgets. `scripts/mutation.ts changed` on
+the changed lines: **120 of 120 mutants killed**, 0 survivors. The signal-exit doors are graded in
+child processes and listed in `TESTED_IN_ANOTHER_PROCESS`, as the CommonJS file always was.
 
 | Criterion | Evidence |
 | :-- | :-- |
