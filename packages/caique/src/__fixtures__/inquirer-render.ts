@@ -97,11 +97,9 @@ class Screen extends Writable {
   /** Wide, so nothing a test draws is wrapped by the terminal width. */
   columns = 10_000;
   readonly frames: string[] = [];
-  readonly raw: string[] = [];
 
   override _write(chunk: Buffer, _encoding: string, callback: () => void): void {
     const text = chunk.toString();
-    this.raw.push(text);
     if (stripVTControlCharacters(text).trim().length > 0) {
       this.frames.push(text);
       this.emit('render');
@@ -116,7 +114,10 @@ export interface Rendered<Value> {
   /** Whether the prompt has paused its input. */
   isPaused: () => boolean;
   events: { keypress: (key: Key) => void; type: (text: string) => void };
+  /** The last frame, stripped and trimmed; `raw` keeps its escapes and its edges, so a stray space shows. */
   getScreen: (options?: { raw?: boolean }) => string;
+  /** Every frame drawn so far, oldest first, stripped and trimmed as `getScreen()` is. */
+  frames: () => string[];
   /** Wait for the next frame, then for the event loop to settle behind it. */
   nextRender: () => Promise<void>;
 }
@@ -149,8 +150,9 @@ export async function render<Value, const Config>(prompt: Prompt<Value, Config>,
         for (const char of text) input.emit('keypress', null, { name: char });
       },
     },
+    frames: () => output.frames.map((text) => stripVTControlCharacters(text).trim()),
     getScreen: ({ raw = false } = {}) => {
-      const last = (raw ? output.raw : output.frames).at(-1) ?? '';
+      const last = output.frames.at(-1) ?? '';
       return raw ? last : stripVTControlCharacters(last).trim();
     },
     nextRender: async () => {

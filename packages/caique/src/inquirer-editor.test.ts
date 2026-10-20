@@ -147,6 +147,25 @@ describe('editor', () => {
     expect(pausedWhileValidating).toBe(false);
   });
 
+  it('does not open a second editor on Enter while the first answer is being validated', async () => {
+    const files = recording('v');
+    let release!: (verdict: boolean) => void;
+    const validate = async (): Promise<boolean> =>
+      new Promise((resolve) => {
+        release = resolve;
+      });
+    const { answer, events, getScreen, isPaused } = await render(editor, { message: 'Notes', validate });
+    events.keypress('enter');
+    await vi.waitFor(() => {
+      expect(getScreen()).toBe('? Notes Validating...');
+    });
+    events.keypress('enter');
+    expect(isPaused()).toBe(false);
+    release(true);
+    await expect(answer).resolves.toBe('v');
+    expect(files()).toHaveLength(1);
+  });
+
   it('takes the keyboard back when the editor fails, too', async () => {
     recording('');
     vi.stubEnv('EDIT_EXIT', '4');

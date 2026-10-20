@@ -122,11 +122,14 @@ used prompts. The rest share the text-input path.
 
 | R | Check | Proven red by |
 | :-- | :-- | :-- |
-| R1 | `npm run compat -- inquirer-core` and `-- --control inquirer-core`, and `packages/burgee/src/compat-baseline-lock.test.ts` | the vendored pagination cases fail on today's `caique/inquirer`, which has no `usePagination` |
-| R2 | the control run against the real packages, recorded in this file | the target run, on today's tree, fails every `select` and `checkbox` case that pages |
-| R3 | `npm run compat -- inquirer-prompts`; `compat-baseline-lock.test.ts` refuses a row below its committed baseline | each prompt's cases before its PR |
-| R4 | `scripts/migrate-drop-ins-lock.test.ts`, `packages/burgee/src/migrate.test.ts` (a fixture importing `select` and `checkbox`), and `packages/compat-oracle/src/competitors.test.ts` | a `DROP_INS` row with no `GRADED` row fails the lock |
-| R5 | `scripts/subpath-weight-lock.test.ts` | a façade over the ceiling fails it |
+| R1 | `npm run compat -- inquirer-prompts` (`select/test/pagination.test.ts`, 10 cases) and `-- --control inquirer-prompts`; `packages/caique/src/inquirer-prompts.test.ts` (every branch of the window) | the vendored pagination cases fail on a `caique/inquirer` with no `usePagination` (#1037) |
+| R2 | the control run against the real packages, recorded in this file | the target run, on the tree of 2026-10-11, fails every case (0 / 213) |
+| R3 | `npm run compat -- inquirer-prompts` reads **213 / 213**; `compat-baseline-lock.test.ts` refuses a row below `baseline/inquirer-prompts.json`; `caique`'s `inquirer-{input,keyed,search,editor}.test.ts` (64 cases) at 100% coverage | main at `71dbe45e` reads 100 / 213. Against main's sources the `keyed` and `search` suites fail 25 cases (`prompt is not a function`), and the `input` and `editor` suites do not load |
+| R3 | [`search.qnt`](./search.qnt) `safety` under `step`, each rejected design (§ Quint model) violating it, and `answersFromTermOnScreen` still violated, in `models.yml` | written with the build: `stepNoAbort` and `stepEnterLoading` each fail `safety`; `someAnswer` is violated |
+| R4 | `packages/burgee/src/migrate.test.ts` › `moves an @inquirer/prompts program to caique/inquirer/prompts, and refuses a name the subpath does not export`, and › `maps every row, subpaths included`; `scripts/migrate-drop-ins-lock.test.ts`; `packages/burgee/src/facade-types.test.ts` (`FACADE_EXPORTS` equal to the built declarations); `scripts/competitors-lock.test.ts` | with main's `GRADED` row (100 / 213, not level) the fixture is not rewritten and the case fails |
+| R4 | `scripts/drop-in-type-surface-lock.test.ts` and `scripts/drop-in-require-shape-lock.test.ts` (`@inquirer/prompts` 8.7.3 against `caique/inquirer/prompts`) | main's subpath exports two of the ten prompts, so eight value names are missing |
+| R5 | `scripts/subpath-weight-lock.test.ts` (`DROP_IN_CEILINGS`: 582,754 B); `packages/caique/src/weight.test.ts` (`./inquirer/prompts` at 65,000 B) | a façade over the ceiling fails it; the budget refused 63,929 B at 38,000 before D-20261020-caique-inquirer-prompts-budget |
+| all | `npx tsx scripts/mutation.ts changed --base origin/main` — every mutant on the changed lines detected | MUTATION_RESULT |
 
 ## Rejected alternatives
 
@@ -145,12 +148,81 @@ used prompts. The rest share the text-input path.
 - `@inquirer/testing` as a family export.
 - clack's `box`, `progress` and `taskLog`: no graded case reaches them (`caique/spec.md` R8).
 
+## Re-grounded 2026-10-20, on main at `71dbe45e`
+
+What the design above says and what was built differ in these places; each is recorded here
+rather than rewritten above, so the 2026-10-12 acceptance stays readable.
+
+- **The target is `caique/inquirer/prompts`, not `caique/inquirer`** (D-20261012-caique-inquirer-prompts-subpath,
+  #1037). R3's "fixed in `caique/inquirer`", the Design's "rewrite … to `caique/inquirer`" and R4's
+  "a name `caique/inquirer` does not export" all read `caique/inquirer/prompts`. `@inquirer/core`'s
+  `ValidationError` import still grades `caique/inquirer`, so the class is the one the prompt throws.
+- **R1's suite is `select`'s** (D-20261011-inquirer-pagination-suite-is-selects): `@inquirer/core`
+  12.0.4 ships no pagination suite, and upstream moved it to `select/test/pagination.test.ts`. So
+  the 10 cases count in the `inquirer-prompts` row, not the `inquirer-core` one, which stays
+  41 / 41; intent criterion 2 is met by that file. `usePagination` is internal to the prompts and
+  not exported from `caique/inquirer`, as D-20261012 deferred.
+- **R3 landed in two PRs, not four**: `select` and `checkbox` in #1037, the other eight here.
+  The control reads 213 / 213 since #1178 pinned the ten prompt releases
+  (D-20261019-inquirer-prompts-pins-its-prompts) and #1180 time-pinned the suite's install.
+- **No new exclusion.** The eleven `editor` cases stay excluded for both sides
+  (D-20261011-inquirer-prompts-editor-mock); every other case passes. `editor` is held by
+  `inquirer-editor.test.ts` against the same frames, with a real child process as the editor.
+- **`editor` starts the editor through `bellpull/cross-spawn`**, so caique gains `bellpull` as a
+  dependency (5 in the family, 0 outside). `scripts/inline-implementation-lock.test.ts` refused
+  `node:child_process` in caique: spawning is bellpull's job. `shape.test.ts`, the layers page and
+  the READMEs follow.
+- **R4's fingerprint is taken at the graded release**, `@inquirer/prompts` 8.7.3, under
+  `./inquirer/prompts`, rather than by `--fingerprint`, which reads `latest` (8.7.4 since
+  2026-10-19, the release #1178 pinned away from). The watch reports 8.7.4 as the next re-vendor.
+- **R4 gains the type and `require()` locks**: `@inquirer/prompts` 8.7.3 is a root
+  devDependency (it was already hoisted for `@stryker-mutator/core`) and Dependabot-ignored, as
+  supports-color is, so `drop-in-type-surface-lock` and `drop-in-require-shape-lock` compare the
+  pair. Every name `@inquirer/prompts` exports is exported, types included.
+- **R5's ceiling is measured, not copied**: 582,754 B bundled for `@inquirer/prompts` 8.7.3 with
+  its ten pinned prompts and `@inquirer/core` 12.0.4, by `/docs/weight`'s method; ours is 48,339 B.
+- **Budgets moved** (D-20261020-caique-inquirer-prompts-budget): `./inquirer/prompts` 38,000 →
+  65,000 B on disk (measured 63,929), and caique's tarball figure to 79,560 / 289,156 B.
+
+## Quint model: needed? Yes, for `search`
+
+Nine of the ten prompts settle in the turn that answers them, or await only their own
+`validate` with keys ignored meanwhile (`status !== 'idle'`), which caique's
+[`prompt-session.qnt`](../../models/prompt-session.qnt) already models for clack's session.
+`search` is different: every edit to the term calls `source` again, and those calls settle in
+any order. [`search.qnt`](./search.qnt) states it, one action per JS turn, with the store and
+the last frame drawn apart, because a key's handler reads the frame's state. `safety` holds
+that a list from an aborted call is never drawn and that an answer is at most one edit behind
+the term. The rejected designs, each checked in `models.yml` to still fail: drawing an aborted
+call (`stepNoAbort`, the race `search.test.ts` › "Handles race conditions between source calls"
+grades) and answering while a call the prompt has drawn as loading is out
+(`stepEnterLoading`). `someAnswer` is expected to be violated, so `safety` is not vacuous.
+`models.yml` runs on changes to `inquirer-search.ts`.
+
+**What the model found.** Its first version had `edit` mark the prompt loading in its own turn,
+and the ported tests showed the code does not: the effect that marks a new search loading
+draws nothing until the next frame, so the key right after an edit still sees the previous
+list as idle. Marking it loading in the key's own turn was tried and graded **212 / 213**:
+`search.test.ts` › "Autocomplete with tab" presses Enter straight after Tab and expects the
+choice drawn under the cursor. So the drop-in keeps the incumbent's timing, the model describes
+it, and the property it gives up is pinned as an open question below.
+
+## Open questions
+
+- **Should Enter straight after a key answer from the list of the term before it?** It does
+  in `@inquirer/search` 8.7.3 and here (`search.qnt` › `answersFromTermOnScreen`, expected to be
+  violated in `models.yml`; `inquirer-search.test.ts` holds that the second key after an edit
+  is held). Changing it costs the "Autocomplete with tab" case, so it waits for upstream.
+
 ## Status
 
 | R | Status | Where | Check |
 | :-- | :-- | :-- | :-- |
-| R1 | **Built** 2026-10-12 — `usePagination` in `caique/src/inquirer-pagination.ts`, graded with `select` (D-20261011-inquirer-pagination-suite-is-selects): `pagination.test.ts` 10 / 10, level with the control. Not exported from `caique/inquirer` yet: its 23,000 B budget does not hold it (D-20261012-caique-inquirer-prompts-subpath) | `caique/src/inquirer-pagination.ts`, `compat-oracle/vendor/inquirer-prompts/packages/select/test/pagination.test.ts` | `npm run compat -- inquirer-prompts` |
+| R1 | **Built** 2026-10-12 (#1037) — `usePagination`, graded with `select` (D-20261011-inquirer-pagination-suite-is-selects): `pagination.test.ts` 10 / 10, level with the control; internal to the prompts (D-20261012-caique-inquirer-prompts-subpath) | `caique/src/inquirer-pagination.ts`, `compat-oracle/vendor/inquirer-prompts/packages/select/test/pagination.test.ts` | `npm run compat -- inquirer-prompts` |
 | R2 | **Built** 2026-10-11 — vendored at 8.7.3, control 213 / 213, target 0 / 213 | `compat-oracle/vendor/inquirer-prompts`, this file (§ R2 — the measurement) | `npm run compat -- inquirer-prompts --control` |
-| R3 | **Partly built** 2026-10-12 — `select` (42 / 42) and `checkbox` (48 / 48) at the new subpath `caique/inquirer/prompts` (D-20261012-caique-inquirer-prompts-subpath); row 100 / 213, control 213 / 213. `input`, `confirm`, `password`, `number`, `expand`, `rawlist`, `search` not built | `caique/src/inquirer-{select,checkbox,choices,choice,prompts}.ts` | `npm run compat -- inquirer-prompts` |
-| R4 | Not built | `burgee/src/compat.ts`, `caique/competitors.json` | `migrate-drop-ins-lock.test.ts`, `competitors.test.ts` |
-| R5 | Not built | `subpath-weight` table | `subpath-weight-lock.test.ts` |
+| R3 | **Built** 2026-10-20 — all ten prompts at `caique/inquirer/prompts`, **213 / 213**, level with the control of 213 / 213; the eleven `editor` cases excluded for both sides (D-20261011-inquirer-prompts-editor-mock) | `caique/src/inquirer-{select,checkbox,input,keyed,search,editor,choices,choice,prompts}.ts`; [`search.qnt`](./search.qnt) | `npm run compat -- inquirer-prompts`; `compat-baseline-lock.test.ts`; `models.yml` |
+| R4 | **Built** 2026-10-20 — `migrate` rewrites `@inquirer/prompts` and refuses a name the subpath lacks; `FACADE_EXPORTS`, the type and `require()` locks; `competitors.json` fingerprints 8.7.3 under `./inquirer/prompts` | `burgee/src/compat.ts`, `burgee/src/migrate.ts`, `caique/competitors.json` | `migrate.test.ts`, `migrate-drop-ins-lock.test.ts`, `facade-types.test.ts`, `drop-in-type-surface-lock.test.ts`, `drop-in-require-shape-lock.test.ts`, `competitors-lock.test.ts` |
+| R5 | **Built** 2026-10-20 — 48,339 B bundled against `@inquirer/prompts` 8.7.3's 582,754 B (0.083) | `subpath-weight` table, `apps/docs/content/docs/weight.mdx` | `subpath-weight-lock.test.ts`, `caique/src/weight.test.ts` |
+
+The intent stays `approved` until caique's minor (`.changeset/caique-inquirer-prompts.md`) and
+burgee's (`.changeset/burgee-migrate-inquirer-prompts.md`) publish; then it is `shipped`.

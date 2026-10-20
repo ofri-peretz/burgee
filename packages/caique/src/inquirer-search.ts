@@ -73,9 +73,14 @@ export const search = createPrompt(<Value>(config: SearchConfig<Value>, done: (v
   const bounds = useMemo(() => ({ first: results.findIndex(isSelectable), last: results.findLastIndex(isSelectable) }), [results]);
   const [active = bounds.first, setActive] = useState<number>();
 
-  useEffect((rl) => {
-    if (config.initialValue) rl.write(config.initialValue);
-  }, []);
+  useEffect(
+    (rl) => {
+      // The term starts as `initialValue`; writing it puts it in readline's line, so typing edits it.
+      rl.write(term);
+    },
+    // Stryker disable next-line ArrayDeclaration: any constant list runs the effect once, on the first render, which is all this asks of it
+    [],
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -92,7 +97,6 @@ export const search = createPrompt(<Value>(config: SearchConfig<Value>, done: (v
         defaultApplied.current = true;
       }
       setActive(start);
-      setSearchError(undefined);
       setResults(normalized);
       setStatus('idle');
     };

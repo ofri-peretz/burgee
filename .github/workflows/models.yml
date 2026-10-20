@@ -119,6 +119,14 @@ jobs:
             echo "::error::search.qnt: someAnswer now holds — no run answers, so safety holds vacuously"
             exit 1
           fi
+      # An open question, pinned: Enter straight after a key answers from the list drawn for the
+      # term before it, as @inquirer/search does. When this starts holding, answer it in spec.md.
+      - name: inquirer search answers one edit behind (open question, see spec.md)
+        run: |
+          if $QUINT run .sdlc/intents/inquirer-prompts-drop-in/search.qnt --invariant=answersFromTermOnScreen --max-steps=30 --max-samples=20000; then
+            echo "answersFromTermOnScreen now holds — answer the open question in .sdlc/intents/inquirer-prompts-drop-in/spec.md and drop this step"
+            exit 1
+          fi
       # An open question, pinned: closeout's late add() is silently dropped today. When the
       # code changes and this starts holding, the step fails and the question gets answered.
       - name: closeout late add() is still dropped (open question, see spec.md)
