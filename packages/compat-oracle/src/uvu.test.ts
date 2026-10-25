@@ -56,11 +56,11 @@ describe("reading uvu's counts", () => {
   });
 
   it('reads counts of more than one digit, and a summary line with trailing space', () => {
-    expect(uvuCounts('  Total:     15  \n  Passed:    12 \n  Skipped:   10\n')).toEqual({ total: 15, passed: 12, skipped: 10 });
+    expect(uvuCounts('  Total:     15  \n  Passed:    12 \n  Skipped:   10 \n')).toEqual({ total: 15, passed: 12, skipped: 10 });
   });
 
   it('reads the summary lines, never a line of a failure’s report that mentions one', () => {
-    const decoys = '    Expected: Total:     99\n  Total:     98 of them\n    Expected: Passed:    99\n  Passed:    97 of them\n';
+    const decoys = '    Expected: Total:     99\n  Total:     98 of them\n    Expected: Passed:    99\n  Passed:    97 of them\n    Expected: Skipped:   99\n  Skipped:   96 of them\n';
     expect(uvuCounts(`${decoys}${FAILING}`)).toEqual({ total: 4, passed: 2, skipped: 1 });
   });
 
