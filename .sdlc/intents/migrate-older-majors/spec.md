@@ -1,6 +1,6 @@
 # Design — an off-major project gets a work list, and a move only where nothing is in its way
 
-Intent: [`intent.md`](./intent.md). **Status:** approved — accepted by the coordinator under the
+Intent: [`intent.md`](./intent.md). **Status:** shipped 2026-10-25 in burgee 1.7.0 (Version PR #1231) — accepted by the coordinator under the
 owner's 2026-10-12 delegation,
 [`D-20261019-migrate-older-majors-design-accepted`](../../decisions/D-20261019-migrate-older-majors-design-accepted.md).
 
@@ -428,6 +428,6 @@ hand. wait-port crashes with `program.version is not a function` and madge with
 `program.storeOptionsAsProperties is not a function`, each exit 1. Every `manual`-arm crash is
 named in the branch's report before anything moves (intent criterion 3).
 
-**Not yet `shipped`**: every criterion has evidence on the branch. The intent moves to `shipped`
-once this is on `main` and released. The change is a `minor`, which the release window holds until
-about 2026-10-25.
+**Shipped** 2026-10-25: #1176 merged as `7fe3b77e6f` and published in burgee 1.7.0
+(Version PR #1231). The criteria were re-read against the released package; the evidence is in the intent's
+*Shipped* section.

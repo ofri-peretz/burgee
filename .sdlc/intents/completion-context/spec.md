@@ -1,7 +1,7 @@
 # Design — Completion sees the rest of the line
 
-Intent: [`intent.md`](./intent.md). **Status:** approved — re-grounded on `main` at `24d8d8b599`
-and built 2026-10-20 (below); `shipped` when the burgee minor that carries it publishes.
+Intent: [`intent.md`](./intent.md). **Status:** shipped 2026-10-25 in burgee 1.7.0 (Version PR #1231) — re-grounded on `main` at
+`24d8d8b599` and built 2026-10-20 (below).
 
 **Accepted by the owner, 2026-10-12, by instruction: create and execute.** The instruction and the
 evidence are recorded in [`next-wave-3-2026-10.md`](../../research/next-wave-3-2026-10.md).

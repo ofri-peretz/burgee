@@ -20,6 +20,14 @@ not that it passes today.
 each with a `D-20261018-drop-<slug>` decision. `localised-human-surfaces` stays `approved`: its
 criterion 4 needs an executed eval run.
 
+**After batch 27 (2026-10-25), on top of batch 28's design gates (#1245):** 47 shipped · 32
+approved · 1 draft · 15 dropped, of 95 intents. burgee 1.7.0 / 1.7.1 and caique 1.5.0 published that day, and six intents were stamped
+from the released packages: `default-command`, `completion-context`, `migrate-preflight`,
+`migrate-dynamic-specifiers`, `migrate-older-majors` and `inquirer-prompts-drop-in`.
+`previous-majors`, stamped on 2026-10-19 before its changesets published, gained its release line.
+`typed-positionals`, `first-cli` and `locale-pack-in-five` were re-read on the release and held,
+each with what remains in its own status section.
+
 **Classes:** 18 LIKELY-SHIPPABLE · 40 PARTIAL · 14 NOT-STARTED · 8 NEEDS-SPEC ·
 9 DROP (by the coordinator's ruling).
 
@@ -103,7 +111,7 @@ Abbreviations used below:
 | commander-schema | **dropped** (batch 28, `D-20261025-commander-schema-dropped`) | y | DROPPED | burgee/types + parse | 10 | 3 (+5 partial) | – | n | – | **SUPERSEDED-CANDIDATE** for its positional half → typed-positionals; restate the rest |
 | compat-grader-layer | **dropped** (batch 0, `D-20261018-drop-compat-grader-layer`) | n | DROPPED | compat-oracle | 6 | 1 | – | n | – | Ruling: trigger fixed; conflicts with compat-oracle being internal |
 | compat-oracle | approved | y | P | compat-oracle | 13 | 12 | R1 (60 s warm budget, not gated) | n | – | Restate R1 or add a timing check. The README compat rows are hand-written |
-| completion-context | approved (built 2026-10-20; a burgee minor) | y | LS | burgee/completions (execute lane) | 5 | 5 | – (waits on the release of its `minor`) | n | **context.qnt** | Ahead of default-command and typed-positionals. Re-grounded on `24d8d8b5`; 229 / 229 mutants detected |
+| completion-context | **shipped** (burgee 1.7.0, Version PR #1231, 2026-10-25) | y | SHIPPED | burgee/completions (execute lane) | 5 | 5 | – | n | **context.qnt** | #1216. Re-grounded on `24d8d8b5`; 229 / 229 mutants detected; four shells on CI (run 40220698351) |
 | control-band-agent-schema-bytes | **dropped** (batch 0, `D-20261018-drop-control-band-agent-schema-bytes`) | n | DROPPED | benchmarks/bands | 2 | 2 | – | n | – | Recovered (flat 4,752 B). Cite D-20261012 step-change |
 | control-band-cold-start-ratio | **dropped** (batch 0, `D-20261018-drop-control-band-cold-start-ratio`) | n | DROPPED | benchmarks/bands | 2 | 1 | – | n | – | Recovered (1.08), never attributed |
 | control-band-commander-front-end-bundled-bytes | **dropped** (batch 0, `D-20261018-drop-band-commander-front-end-bytes`) | n | DROPPED | benchmarks/bands | 2 | 2 | – | n | – | Recovered (55,346) |
@@ -112,7 +120,7 @@ Abbreviations used below:
 | controlroom | approved | y | P | controlroom | 31 | 22 | R1/S4 PTY, R14/S7 W3 demo half, R16 controlroom-side lock, R22 per-boilerplate PTY job, S1 gallery, S3 100-run, S6 Ink fixture | **y** | save-restore, registry (parts) | Stale text fixed 2026-10-19 (batch 4): the intent, spec, `composition.json` and the README row say published at 1.0.3, and the two `#PR_NUMBER`s are #804 and #803 |
 | controlroom-scroll-pane | **shipped** (batch 4, PR #1156) | y | NS | controlroom | 10 | 0 | R1–R6, S1–S4 | n (property test) | – | Fixed: a pane scrolls, follows its tail, and the static frame prints every line. Mutation 180 / 180 on the changed lines |
 | declaration-summaries | **shipped** (patch, Version PR #1184, 2026-10-20) | y | SHIPPED | published artifacts / build scripts | 4 | 4 | – | n | – (property test) | R1 measured burgee −5.7% gzipped, past the 5% kill switch; R2–R4 built 2026-10-20 |
-| default-command | review | y | NS | burgee/parse | 5 | 1 | R1–R4 | n | – | Adoption barrier (commander `isDefault`, yargs `$0`) |
+| default-command | **shipped** (burgee 1.7.0, Version PR #1231, 2026-10-25) | y | SHIPPED | burgee/parse | 5 | 5 | – | n | – | Adoption barrier (commander `isDefault`, yargs `$0`). #1215; `default-command.test.ts` 29 / 29; re-read on burgee 1.7.1 from npm |
 | dev-loop | **shipped** (batch 29, #1252) | y | SHIPPED | burgee/dev | 6 | 6 | – | **y** | **dev-reload.qnt** | W4 byte-identity and W6 through the real watcher (74–100 ms local, budget 500 ms); tests only |
 | docs-deploy | **dropped** (batch 0, `D-20261018-drop-docs-deploy`) | y | DROPPED | docs-site | 10 | 7 | – | n | – | Ruling: folded into docs-per-package |
 | docs-per-package | approved | y | P | docs-site | 23 | 17 | C8 (mutations per row), R2 orgId/secrets lock, R4/R5 partial, R7 PATCH lock, R10 env lock | n | – | Takes docs-deploy's R1–R6 |
@@ -121,21 +129,21 @@ Abbreviations used below:
 | facade-gets-more | **shipped** (batch 0) | **design.md** | SHIPPED | burgee/commander-facade | 6 | 6 | – | n | – | Rename `design.md` to `spec.md` so it can be approved. Its yargs numbers are stale (804, not 816) |
 | facade-projection-fidelity | **shipped** (batch 3) | y | SHIPPED | burgee/yargs-facade | 6 | 6 | – | n | – | Batch 3: R4 built; `burgee/yargs` +424 B bundled (108,850 ceiling) and +852 B walked (221,700), recorded in D-20261019-yargs-facade-relations-bytes; still 0.974× yargs |
 | first-adopter | approved (batch 28, `D-20261025-first-adopter-design-accepted`) | y | NS | adoption/outreach | 5 | 0 | A3 revert-first on a fork, one disclosed PR + A2 report; A1/A6 wait on an outside merge | n | – | The spec still names `commander-agent` and needs a rewrite. Barrier 5 (trust) |
-| first-cli | approved (#1092, beside batch 0) | y | NS (on main) | burgee/init | 5 | 0 | R1–R5 (in #1092) | n | – | Rebase #1092; needs the Design→Build accept |
+| first-cli | approved (shipped in burgee 1.7.0 as #1092; not stamped) | y | P | burgee/init | 5 | 5 | criterion 1 omits the install step (restate); criterion 2: no check runs `--schema` / `--mcp` on the generated program | n | – | Re-run from npm 2026-10-25: both answer, but nothing holds them |
 | fix-lines-every-shell | review | y | NS | burgee core (failure.ts) | 7 | 0 | R1–R4, S1–S3 | n | – | **LIVE DEFECT:** `fix:` lines are POSIX-quoted on Windows. Exclude `completions.ts` from R2's grep |
 | flagstaff | approved | y | P | flagstaff | 23 | 19 | S1–S3 (restate where they live), S8 per-surface plugin case | **y** | **save-restore.qnt** | The `·` in loop/frame test names is stored as `Â·`, so `-t` misses |
 | foundation-claims-watched | approved | y | P | benchmarks + CI | 10 | 9 | S3 (every `seen: null`; needs a fingerprint PR) | n | – | Nothing to build. Run compat-upstream, then a fingerprint PR |
 | frames-fit-the-screen | **shipped** (batch 0) | y | SHIPPED | flagstaff + caique | 8 | 8 | – | n | – | R2 text (`rows-1`/`rows-2`) disagrees with the build. Correct the text before stamping |
 | graded-override-targets | approved | y | P | compat-oracle (+migrate test) | 9 | 8 | SC3 (no migrate fixture importing all six) | n | – | Prior reconciliation was wrong here. One test |
-| inquirer-prompts-drop-in | approved (built, batch 18) | y | P | caique + compat-oracle | 9 | 9 | – (`shipped` when caique's minor publishes) | **y** (search's source race) | **search.qnt** | Barrier 10. 213 / 213; R1 restated (the pagination suite is select's); budgets in D-20261020-caique-inquirer-prompts-budget |
+| inquirer-prompts-drop-in | **shipped** (caique 1.5.0, Version PR #1237, 2026-10-25) | y | SHIPPED | caique + compat-oracle | 9 | 9 | – | **y** (search's source race) | **search.qnt** | Barrier 10. 213 / 213 (run 40180212984); R1 restated (the pagination suite is select's); budgets in D-20261020-caique-inquirer-prompts-budget |
 | linegauge | approved | y | P (spec edits) | linegauge | 18 | 16 | R4 (spec says outward, code rounds inward), R13 (`widths` plugin exists) | n | – | Prior reconciliation was wrong here. Spec edits only |
-| locale-pack-in-five | approved (built, batch 24) | y | P | burgee check + evals | 6 | 5 | – (S3 restated: the median gap is an environment probe, D-20261020-locale-pack-in-five-design-gate) | n | – | Wave-4 #5. Moved from batch 12: R1, R2 built beside localised-human-surfaces. `shipped` when burgee's minor publishes |
+| locale-pack-in-five | approved (shipped in burgee 1.7.0 / 1.7.1; not stamped) | y | P | burgee check + evals | 6 | 5 | criterion 3: 2 of 12 transcripts since #1219 spend a call on burgee (runs 40086461208, 40217253606) | n | – | Wave-4 #5. Median 6, max 8 over those readings |
 | localised-human-surfaces | approved (re-grounded, batch 24) | y | **LS** | i18n (burgee + caique) | 11 | 11 | – (S4 restated, D-20261020-locale-eval-criterion-restated; 34 / 34 PR readings) | n (decided, same decision) | – | `shipped` after the 2026-10-22 scheduled run passes the case and the minor publishes |
 | mcp-current | **shipped** (batch 0) | y | SHIPPED | burgee/mcp | 7 | 7 | – | **y** (in-flight map, cancel vs settle, exactly-once exit) | **none** | Recommend `.sdlc/models/mcp-inflight.qnt` before stamping |
-| migrate-dynamic-specifiers | draft | **n** | SPEC | burgee/migrate | 3 | 0 | S1–S3 | n | – | Barrier 9 |
-| migrate-older-majors | draft | **n** | SPEC | burgee/migrate | 3 | 0 | S1–S3 (S2 partial) | n | – | **Barrier 1** (83.7% get "nothing to rewrite"). Depends on previous-majors |
+| migrate-dynamic-specifiers | **shipped** (burgee 1.7.0, Version PR #1231, 2026-10-25) | y | SHIPPED | burgee/migrate | 7 | 7 | – | n | – | Barrier 9. #1172; postcss-cli `complete` with burgee 1.7.1 |
+| migrate-older-majors | **shipped** (burgee 1.7.0, Version PR #1231, 2026-10-25) | y | SHIPPED | burgee/migrate | 8 | 8 | – | n | **majors.qnt** | **Barrier 1.** #1176; every `manual`-arm crash named in the field re-run |
 | migrate-pins-carry-the-drop-in | approved (#1124, beside batch 0) | **n** | SPEC — **IN-PROGRESS** | burgee/migrate | 2 | 0 | S1, S2 | n | – | **LIVE DEFECT** (svgo: `ERR_PACKAGE_PATH_NOT_EXPORTED`). Batch 1, local agent |
-| migrate-preflight | draft | **n** | SPEC | burgee/migrate | 3 | 0 | S1–S3 | n | – | Barriers 2, 3 and 8 |
+| migrate-preflight | **shipped** (burgee 1.7.0, Version PR #1231, 2026-10-25) | y | SHIPPED | burgee/migrate | 10 | 10 | – | n | – | Barriers 2, 3 and 8. #1168; re-run with burgee 1.7.1 on the trial clones |
 | migrate-release-age | approved | y | P | burgee/migrate | 6 | 5 | R3 (no `a \|\| b` exclude case) | n | – | One test. Cite pins-carry-the-drop-in as R1's within-major gap |
 | output-stack-compat | **dropped** (batch 28, `D-20261025-output-stack-compat-dropped`) | y | DROPPED | compat-oracle | 8 | 4 (+3 partial) | – | n | – | The spec was never accepted. Decide on the drawing bucket |
 | output-stack-research | **dropped** (batch 28, `D-20261025-output-stack-research-dropped`) | y | DROPPED | docs-only | 10 | 0 automated | – | n | – | Doc edits only |
@@ -143,7 +151,7 @@ Abbreviations used below:
 | parse-refusals | **shipped** (batch 0) | y | SHIPPED | burgee/parse | 5 | 5 | – | n | – | R4 shipped as `fix`, not `next[]`; say so in the header |
 | plugin-contract | review | y | P | burgee check / plugins | 12 | 8 | R7 "data first" (restate; R5a hosts functions), C2 five modes, C3 check covers burgee only, C4 eval | n | – | The spec needs a full status table |
 | positioning | **shipped** (batch 0) | y | SHIPPED | docs-only | 16 | 15 | – (R12 reported by decision) | n | – | |
-| previous-majors | approved | y | NS (on main) | compat-oracle + façades + migrate | 6 | 0 (2 partial) | R1–R6 | n | – | **Barrier 1.** Rebase #1086 (R1, R2, R6); yargs 17 (R3–R5) remains |
+| previous-majors | **shipped** (2026-10-19; released in burgee 1.7.0, Version PR #1231, 2026-10-25) | y | SHIPPED | compat-oracle + façades + migrate | 6 | 6 | – | n | – | **Barrier 1.** #1086 and #1165; commander-14 1,331 / 1,331, yargs-17 793 / 794 (run 40180212984) |
 | release-cadence | approved (#1124, beside batch 0) | **n** | SPEC — **IN-PROGRESS** | release | 3 | 0 | S1, S2, BATCH | **y** (7-day window with a fix exemption) | none | Barrier 5. Batch 1, local agent |
 | replacement-parser | review | y | P | burgee/parse | 10 | 7 | G3 (quirks subpath; contradicts yargs-compat), G7, SC2 (1.55× ratchet, not ≤1×) | n | – | Restate to D-157 and drop G3 |
 | roundel | **shipped** (batch 0) | y | SHIPPED | roundel | 17 | 17 | – | n | – | Rewrite the stale 2026-09-09 verified section |
@@ -154,7 +162,7 @@ Abbreviations used below:
 | seniority | approved | y | P | seniority | 21 | 13 | R1/S2 truth-table page, R2/S5 shared precedence vectors, R7 extends chain in explain, R9 spawn delta, S3, S4 | n | – | The truth table is the product and is unproduced |
 | supports-color-drop-in | **shipped** (roundel 1.2.0, 2026-10-20) | y | SHIPPED | roundel + compat-oracle | 9 | 9 | – | n | – | 441.6 M/wk with no override target |
 | table-column-widths | **shipped** (batch 0) | y | SHIPPED | flagstaff | 7 | 7 | – | n | – | |
-| typed-positionals | approved (typed-schema-surface) | y | P | burgee/parse + types | 6 | 5 (R4 partial) | R4 `type` on `inputSchema`, completions | n | – | R1–R3 built 2026-10-19; R5 and R6 met (#1091) |
+| typed-positionals | approved (typed-schema-surface; re-read on burgee 1.7.1, not stamped) | y | P | burgee/parse + types | 6 | 5 (R4 partial) | R4 `type` on `inputSchema`, completions of a positional's `choices` | n | – | R1–R3 shipped in burgee 1.7.0 (#1173); R5 and R6 met (#1091) |
 | types-under-node10 | draft | **n** | SPEC | published artifacts (`typesVersions`) | 3 | 0 | SC1–SC3 | n | – | **LIVE DEFECT / barrier 4:** TS2307 on node10 (38.8% of TS dependents) |
 | u5-weight-claim | **shipped** (batch 0) | y | SHIPPED | benchmarks (weight) | 3 | 3 | – | n | – | Reads 0.97 in CI; trim the stale Verification paragraph |
 | upstream-watch | **shipped** (batch 0) | y | SHIPPED | compat-oracle + CI | 8 | 8 | – | n | – | R5 and R7 are held by workflow config; cite those lines. Dedupe only searches open issues |

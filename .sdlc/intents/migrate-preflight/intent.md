@@ -1,6 +1,8 @@
 # Intent — `burgee migrate` says what the move costs the project before it writes anything
 
-**Status:** approved (2026-10-19, under the owner's delegation, [`D-20261019-migrate-preflight-design-accepted`](../../decisions/D-20261019-migrate-preflight-design-accepted.md)) · **Opened:** `2026-10-18` · **Owner:** `@ofri-peretz` · **Design:** [`spec.md`](./spec.md)
+**Status:** shipped · **Opened:** `2026-10-18` · **Owner:** `@ofri-peretz` · **Shipped:** 2026-10-25 on
+[`1dcf064a03`](https://github.com/ofri-peretz/burgee/commit/1dcf064a03) (#1168), released in burgee 1.7.0 (npm, 2026-10-25T17:05Z, Version PR #1231), verified against `main` at
+[`aff0c31f`](https://github.com/ofri-peretz/burgee/commit/aff0c31fdf) with burgee 1.7.1 from npm — all three criteria held by `migrate-preflight.test.ts` (25 / 25) and re-run on the trial clones · design accepted under the owner's delegation, [`D-20261019-migrate-preflight-design-accepted`](../../decisions/D-20261019-migrate-preflight-design-accepted.md) · **Design:** [`spec.md`](./spec.md)
 
 ---
 
@@ -73,3 +75,15 @@ and 8:
 ## Open questions
 
 None.
+
+## Shipped — 2026-10-25
+
+`burgee@1.7.0` is on npm (`"1.7.0":` `2026-10-25T17:05:01.964Z`, release run 40213249288), and its
+changelog carries #1168 as a minor. npm matches `main` for all ten packages (checked 18:26 UTC).
+Every criterion was re-read against the released code:
+
+| Criterion | Evidence on release |
+| :-- | :-- |
+| 1. wait-port, svgo, tsc-alias and @swc/cli fixtures each produce the matching `preflight` row; the test fails before the change | `migrate-preflight.test.ts` **25 / 25** on `main` at `aff0c31f`; its R3, R4, R-N10 and R5 cases were red on `e91f842423` (spec, *Build status*). In the field, `burgee@1.7.1`'s `dist/cli.js` from npm on a wait-port clone at `16083537`, `migrate --dry-run --json`: one row, `check: "require-esm"`, `blocking: true`, `found: engines.node ">=10" admits 10.0.0`, with `fix: npm pkg set "engines.node=^20.19.0 \|\| >=22.13.0"`, exit 0. svgo, tsc-alias and @swc/cli were re-run the same way at their trial SHAs. |
+| 2. A project on `"type": "module"` with `engines.node >= 22` gets no rows | `R4 — an ES-module project on engines.node >=22 gets no rows`, passing on `main`. In the field, postcss-cli at `03e8cee3` (ESM) reports `preflight: []`. |
+| 3. `--json` carries the rows as data; the human report prints them before the rewrite list | The wait-port report above is `--json` from the published CLI. `renders every section a report can carry` and `A8 — a blocking preflight exits RUNTIME with the rows in --json` hold the order and the exit, passing on `main`. |

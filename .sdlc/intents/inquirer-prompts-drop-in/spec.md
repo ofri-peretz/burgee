@@ -1,6 +1,6 @@
 # Design — `@inquirer/prompts`, graded
 
-Intent: [`intent.md`](./intent.md). **Status:** approved.
+Intent: [`intent.md`](./intent.md). **Status:** shipped 2026-10-25 in caique 1.5.0 (Version PR #1237), with the `migrate` row in burgee 1.7.0 (Version PR #1231).
 
 **Accepted by the owner, 2026-10-12, by instruction: create and execute.** The instruction and the
 evidence are recorded in [`next-wave-2026-10.md`](../../research/next-wave-2026-10.md).
@@ -233,5 +233,6 @@ it, and the property it gives up is pinned as an open question below.
 | R4 | **Built** 2026-10-20 — `migrate` rewrites `@inquirer/prompts` and refuses a name the subpath lacks; `FACADE_EXPORTS`, the type and `require()` locks; `competitors.json` fingerprints 8.7.3 under `./inquirer/prompts` | `burgee/src/compat.ts`, `burgee/src/migrate.ts`, `caique/competitors.json` | `migrate.test.ts`, `migrate-drop-ins-lock.test.ts`, `facade-types.test.ts`, `drop-in-type-surface-lock.test.ts`, `drop-in-require-shape-lock.test.ts`, `competitors-lock.test.ts` |
 | R5 | **Built** 2026-10-20 — 44,683 B bundled against `@inquirer/prompts` 8.7.3's 582,754 B (0.077) | `subpath-weight` table, `apps/docs/content/docs/weight.mdx` | `subpath-weight-lock.test.ts`, `caique/src/weight.test.ts` |
 
-The intent stays `approved` until caique's minor (`.changeset/caique-inquirer-prompts.md`) and
-burgee's (`.changeset/burgee-migrate-inquirer-prompts.md`) publish; then it is `shipped`.
+Both minors published on 2026-10-25: burgee's (`.changeset/burgee-migrate-inquirer-prompts.md`) in
+1.7.0 (Version PR #1231) and caique's (`.changeset/caique-inquirer-prompts.md`) in 1.5.0
+(Version PR #1237). The intent is `shipped`; the evidence is in its *Shipped* section.

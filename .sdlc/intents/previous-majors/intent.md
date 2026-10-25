@@ -5,7 +5,7 @@
 > graded already and claimed by neither drop-in. `burgee migrate` therefore declines most of the
 > programs it was built for.
 
-**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-19 — every requirement Built with its check in `spec.md` § Status: commander 14 at 1,331 / 1,331 and yargs 17 at 793 / 794, each level with its control
+**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-19 — every requirement Built with its check in `spec.md` § Status: commander 14 at 1,331 / 1,331 and yargs 17 at 793 / 794, each level with its control · released in burgee 1.7.0 (npm, 2026-10-25T17:05Z, Version PR #1231): #1086 [`0f685d4609`](https://github.com/ofri-peretz/burgee/commit/0f685d4609) and #1165 [`51fec1ba42`](https://github.com/ofri-peretz/burgee/commit/51fec1ba42), verified against `main` at [`aff0c31f`](https://github.com/ofri-peretz/burgee/commit/aff0c31fdf) with burgee 1.7.1 from npm (below)
 
 ---
 
@@ -76,3 +76,18 @@ the major it was written for, wherever 15 or 18 changed it.
 - Whether `burgee/yargs/v17`'s `require()` hands back a singleton. **Answered 2026-10-12 in
   `spec.md`**: yes, on that subpath only, because that is yargs 17's documented surface and the
   suite grades it.
+
+## Released — 2026-10-25
+
+This intent was stamped `shipped` on 2026-10-19, when both PRs had merged and before either
+changeset had published. Both reached npm in `burgee@1.7.0` (`"1.7.0":` `2026-10-25T17:05:01.964Z`,
+release run 40213249288 on `b3dbf60c9a`, Version PR #1231), whose changelog carries #1086 and #1165
+as minors. npm matches `main` for all ten packages (checked 18:26 UTC). The criteria, re-read
+against the released code:
+
+| Criterion | Evidence on release |
+| :-- | :-- |
+| 1. `burgee/commander/v14` grades 1,331 / 1,331 against commander 14's suite, and `SUPPORTED_MAJORS.commander` is `[14, 15]` | CI Compatibility run 40180212984 on `main` at `1f6be56d6e`, the commit Version PR #1231 was cut from: `commander-14 1331 / 1331 100.0% ▲ 0`. `SUPPORTED_MAJORS.commander` is `[14, 15]` in `packages/burgee/src/compat.ts`. `burgee/commander/v14` resolves from the published package and exports `Command`. |
+| 2. `burgee/yargs/v17` grades level with yargs 17's control, and `SUPPORTED_MAJORS.yargs` is `[17, 18]` | The same run: `yargs-17 793 / 794 99.9% ▲ 0`, level with the control, whose one miss is the harness's own manifest. `SUPPORTED_MAJORS.yargs` is `[17, 18]`. `burgee/yargs/v17` and `burgee/yargs/v17/yargs` resolve from the published package. |
+| 3. `burgee migrate` rewrites a `commander@^14` fixture to `burgee/commander/v14`, and a `yargs@~17.7.2` fixture to `burgee/yargs/v17` | The published CLI (`burgee@1.7.1`), `migrate --dry-run --json` on a one-file fixture of each: `complete: 1 file would be rewritten`, `mapped` `commander -> burgee/commander/v14` and `yargs -> burgee/yargs/v17`. |
+| 4. `scripts/supported-majors-lock.test.ts` passes with the new claims | Passes on `main` at `aff0c31f`. |

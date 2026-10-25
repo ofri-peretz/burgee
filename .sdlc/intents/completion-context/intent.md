@@ -5,7 +5,9 @@
 > the partial word and nothing else, so it cannot offer values that depend on another argument.
 > That is the most-commented open completion issue in yargs.
 
-**Status:** approved — built 2026-10-20, 4 of 4 criteria evidenced below; it moves to `shipped` when the burgee minor that carries it publishes · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Design:** [`spec.md`](./spec.md)
+**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-25 on
+[`d25860d692`](https://github.com/ofri-peretz/burgee/commit/d25860d692) (#1216), released in burgee 1.7.0 (npm, 2026-10-25T17:05Z, Version PR #1231), verified against `main` at
+[`aff0c31f`](https://github.com/ofri-peretz/burgee/commit/aff0c31fdf) with burgee 1.7.1 from npm — all four criteria held by `completion-context.test.ts` and the four-shell lane (run 40220698351) · **Design:** [`spec.md`](./spec.md)
 
 ---
 
@@ -98,3 +100,17 @@ reaches the startup path. `./completions` stays within its 16,000 B budget: mini
 9,203 to 10,063 B. `complete-dynamic.js`, which loads only on `__complete`, went from 513 to
 3,452 B minified, because it now reaches the coercion in `validate.js`. The tarball is within
 `artifact-size-baseline.json`. No budget moved, so no decision was needed.
+
+## Shipped — 2026-10-25
+
+`burgee@1.7.0` is on npm (`"1.7.0":` `2026-10-25T17:05:01.964Z`, release run 40213249288), and its
+changelog carries #1216 as a minor. npm matches `main` for all ten packages (checked 18:26 UTC).
+Every criterion was re-read against `burgee@1.7.1` installed from npm, and against `main` at
+`aff0c31f`:
+
+| Criterion | Evidence on release |
+| :-- | :-- |
+| 1. `prog deploy --remote origin --branch <TAB>` calls the `branch` completer with `context.options.remote === 'origin'` | Against the published package, `prog __complete deploy --remote origin --branch ''` hands the completer `{"path":["deploy"],"options":{"remote":"origin"},"positionals":[],"raw":{}}`, and it answers `origin/main`. |
+| 2. A positional's completer is called for the positional under the cursor | Against the published package, `prog __complete deploy ''` calls the `target` argument's `complete`, with `positionals: []`. |
+| 3. One-argument completers in the existing tests pass unchanged | Against the published package, a `complete: (p) => …` completer answers as before. `completion-context.test.ts` **31 passed, 1 skipped** on `main` at `aff0c31f` (the skip is the PowerShell case, which needs `pwsh`). |
+| 4. bash, zsh, fish and pwsh each pass the words before the cursor | CI "Completions · four shells", run 40220698351 on `main` at `aff0c31f`, with `REQUIRE_SHELLS: 1`: every shell case passes, the PowerShell `--branch sees --remote` case among them. |
