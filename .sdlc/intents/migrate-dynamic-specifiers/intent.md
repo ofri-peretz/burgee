@@ -1,6 +1,8 @@
 # Intent — a non-literal specifier holds only what it could load
 
-**Status:** approved (2026-10-19, under the owner's delegation, [`D-20261019-dynamic-specifiers-design-accepted`](../../decisions/D-20261019-dynamic-specifiers-design-accepted.md)) · **Opened:** `2026-10-18` · **Owner:** `@ofri-peretz` · **Design:** [`spec.md`](./spec.md)
+**Status:** shipped · **Opened:** `2026-10-18` · **Owner:** `@ofri-peretz` · **Shipped:** 2026-10-25 on
+[`23242c0bfc`](https://github.com/ofri-peretz/burgee/commit/23242c0bfc) (#1172), released in burgee 1.7.0 (npm, 2026-10-25T17:05Z, Version PR #1231), verified against `main` at
+[`aff0c31f`](https://github.com/ofri-peretz/burgee/commit/aff0c31fdf) with burgee 1.7.1 from npm — both criteria held by `migrate-dynamic.test.ts` (83 / 83) and re-run on the trial clones · design accepted under the owner's delegation, [`D-20261019-dynamic-specifiers-design-accepted`](../../decisions/D-20261019-dynamic-specifiers-design-accepted.md) · **Design:** [`spec.md`](./spec.md)
 
 ---
 
@@ -61,3 +63,14 @@ Plugin loaders and config readers are common in CLIs. Each one turns a `complete
 ## Open questions
 
 None.
+
+## Shipped — 2026-10-25
+
+`burgee@1.7.0` is on npm (`"1.7.0":` `2026-10-25T17:05:01.964Z`, release run 40213249288), and its
+changelog carries #1172 as a minor. npm matches `main` for all ten packages (checked 18:26 UTC).
+Every criterion was re-read against the released code:
+
+| Criterion | Evidence on release |
+| :-- | :-- |
+| 1. The postcss-cli shape: picocolors moves, and the run is `complete`. The madge shape: the file moves. Both tests fail on the code before the change | `burgee@1.7.1`'s `dist/cli.js` from npm on a postcss-cli clone at `03e8cee3`, `migrate --dry-run --json`: `complete: 2 files would be rewritten`, `mapped` holds `yargs -> burgee/yargs` and `picocolors -> roundel/picocolors`, `dynamic` lists `index.js` 69, 70 and 71 as `argv-member` and 77 as `argv-element`, `held: []`, exit 0. madge at `456057b8` was re-run the same way: `bin/cli.js:63` is listed as `cwd-path` and refuses nothing; the run is then blocked by `require-esm`, which is migrate-preflight's barrier, not this one (spec, *Field check*). `migrate-dynamic.test.ts` **83 / 83** on `main` at `aff0c31f`; 79 of its cases were red on `main` before #1172 (spec, *Build status*). |
+| 2. `import(name)` built from a string that names an incumbent still holds that incumbent | `the incumbent the string names is held in every file …` and `a file that imports no incumbent …`, both red on the code before #1172 and passing on `main`. |

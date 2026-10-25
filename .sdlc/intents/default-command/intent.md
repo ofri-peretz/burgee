@@ -4,7 +4,9 @@
 > ([`next-wave-4-2026-10.md`](../../research/next-wave-4-2026-10.md)). Wave 3 left it at the cut,
 > tied at 7.5, and named it first in line for wave 4.
 
-**Status:** approved (2026-10-20, under the owner's delegation, [`D-20261020-default-command-design-accepted`](../../decisions/D-20261020-default-command-design-accepted.md)) — built 2026-10-20, every criterion evidenced below; it moves to `shipped` when the burgee minor that carries it publishes · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Design:** [`spec.md`](./spec.md)
+**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-25 on
+[`a54f54fc1d`](https://github.com/ofri-peretz/burgee/commit/a54f54fc1d) (#1215), released in burgee 1.7.0 (npm, 2026-10-25T17:05Z, Version PR #1231), verified against `main` at
+[`aff0c31f`](https://github.com/ofri-peretz/burgee/commit/aff0c31fdf) with burgee 1.7.1 from npm — all three criteria held by `default-command.test.ts` (29 / 29) · design accepted 2026-10-20 under the owner's delegation, [`D-20261020-default-command-design-accepted`](../../decisions/D-20261020-default-command-design-accepted.md) · **Design:** [`spec.md`](./spec.md)
 
 ---
 
@@ -85,3 +87,16 @@ Weight (D-20261020-default-command-weight): `.` 35,822 → 36,069 B dist (ceilin
 24,500 ceiling, and `burgee ÷ cac` 2.343 under the 2.35 ratchet, which is unchanged. Every
 façade entry is lighter than on `main` (−95 B dist, −58 B bundled), because `--schema`'s option
 copy became one loop, and the four over-incumbent ratchets are lowered to match.
+
+## Shipped — 2026-10-25
+
+`burgee@1.7.0` is on npm (`npm view burgee time`, `"1.7.0":` `2026-10-25T17:05:01.964Z`, release
+run 40213249288), and its changelog carries #1215 as a minor. `burgee@1.7.1` followed at 17:59Z
+with an unrelated patch. npm matches `main` for all ten packages (checked 18:26 UTC). Every
+criterion was re-read against `burgee@1.7.1` installed from npm, and against `main` at `aff0c31f`:
+
+| Criterion | Evidence on release |
+| :-- | :-- |
+| 1. `demo` with no command runs the default and exits as it does; `demo --help` lists it with `(default)` and shows its examples | A two-command program against the published package: `demo` alone prints `serving on 3000` and exits 0, and `demo --help` lists `serve  serve the site (default)`, the default's `--port` and its example `$ demo --port 8080`. |
+| 2. Two `default: true` siblings fail definition with a `fix` | Against the published package, `defineProgram` throws `burgee: commands a and b of "d" are both default; keep default: true on one`. |
+| 3. `--schema` carries `default: true`; root completions offer the default's options | The published package's `--schema` carries `"default":true` on `serve` only. Root completions offering the default's options is held by `default-command.test.ts` (`completionTree` and the Fig spec), **29 / 29** on `main` at `aff0c31f`. |

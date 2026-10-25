@@ -49,6 +49,18 @@ README's "Start here", the docs landing, and `burgee`'s README quick start; `sha
   fails on a one-character change to either.
 - The generated directory holds exactly `cli.mjs` and `package.json`.
 
+## Status — 2026-10-25
+
+`npx burgee init` shipped in burgee 1.7.0 (#1092, `4c03dea45b`, Version PR #1231) and was re-run from
+npm with `burgee@1.7.1`. **Not stamped**: two criteria do not hold as written.
+
+| Criterion | State on release |
+| :-- | :-- |
+| 1. `<command> demo && cd demo && node cli.mjs --help` exits 0 and prints the quick start's help | **Not met as written.** `npx burgee@1.7.1 init demo` writes the two files and prints `install: npm install`, `installed: false`; `node cli.mjs --help` then exits **1**, because `burgee` is not installed yet. After `npm install`, or with `init --install`, it exits 0 and prints `Usage: greet <command> [options]`. The README's own line is `npx burgee init my-cli && cd my-cli && npm install`. Remaining: restate the criterion with the install step, by decision. |
+| 2. `node cli.mjs --schema`, `--json` and `--mcp` answer as the README transcript says | **Not met.** `--json` is held: `init.test.ts` runs the package README's quick-start transcript against the written program. `--schema` and `--mcp` do answer on the released package (a `--schema` document; a `tools/list` reply naming `greet`), but no test runs either on the generated program, and the package README's quick-start transcript has neither. The root README's `--schema` block is marked `trimmed`, so it cannot be compared as written. Remaining: a check that runs `--schema` and `--mcp` on the generated program against a transcript, or a restatement. |
+| 3. A test reads the written file and compares it to the README quick start, byte for byte | **Met.** `init.test.ts` › "R2 — cli.mjs is the README quick start, byte for byte". |
+| 4. The generated directory holds exactly `cli.mjs` and `package.json` | **Met.** The run from npm lists exactly `cli.mjs` and `package.json`; `init.test.ts` › "writes exactly cli.mjs and package.json, where the user stands". |
+
 ## Open questions
 
 1. **Which command?** **Decided 2026-10-12 → D-20261012-first-cli-defaults:** (a), `npx burgee

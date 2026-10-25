@@ -64,6 +64,12 @@ fails its type or choices is a usage error with a `fix`, as an option's is. `--s
 | 2. `choices` reach `--schema` (`enum`), `--mcp` `inputSchema` and completions, native and façade | `--schema` and `--mcp`: held, native and façade. Completions: **remaining** | `packages/burgee/src/typed-positionals.test.ts` › "publishes a native argument's choices as enum, and its requiredness"; › "runs an --mcp call that sends the typed values, and refuses one outside the enum"; `packages/burgee/src/facade-surface.test.ts` › "R3 — an Argument's .choices() is the enum, in --schema and in the MCP tool" |
 | 3. The gap is closed | held | `B-20261012-commander-argument-choices` is `status: closed` (#1091) |
 
+**Re-read 2026-10-25 against `burgee@1.7.1` (#1173 released in 1.7.0, Version PR #1231): not
+stamped.** Criteria 1 and 3 hold on the released package. Criterion 2 is still short of one surface:
+completions do not offer a positional's `choices`, native or façade. Spec R4 also still lacks the
+argument's `type` on its `inputSchema` property (an `integer` argument is published as `string`).
+Both are what remains before `shipped`.
+
 Found on the way and fixed: an `--mcp` call that skipped an optional positional shifted every
 later value one place left (`packages/burgee/src/typed-positionals.test.ts` › "fills a skipped
 optional argument with its default, and stops after the last one given").
