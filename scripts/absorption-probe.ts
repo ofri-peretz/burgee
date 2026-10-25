@@ -33,6 +33,8 @@ import { strip, width } from '../packages/linegauge/dist/index.js';
 // eslint-disable-next-line import-next/no-relative-packages -- as above
 import { parse as parseDotenv } from '../packages/seniority/dist/dotenv.js';
 
+import { tableCell } from './markdown-cell';
+
 const ESC = '\u001B';
 const BEL = '\u0007';
 
@@ -149,10 +151,11 @@ const EXIT_PATHS: Record<string, string> = {
 function handlerRuns(how: 'layer' | 'builtin', path: string): number {
   const register =
     how === 'layer'
-      ? `const { onExit } = await import(${JSON.stringify(CLOSEOUT)}); onExit(handler);`
+      ? // The module is handed over as an argument, never spliced into the code.
+        'const { onExit } = await import(process.argv[1]); onExit(handler);'
       : "process.on('exit', handler);";
   const code = `const handler = () => { process.stdout.write('ran\\n'); }; ${register} ${EXIT_PATHS[path] ?? ''}`;
-  const r = spawnSync(process.execPath, ['--input-type=module', '-e', code], { encoding: 'utf8', timeout: 10000 });
+  const r = spawnSync(process.execPath, ['--input-type=module', '-e', code, CLOSEOUT], { encoding: 'utf8', timeout: 10000 });
   return (r.stdout.match(/^ran$/gm) ?? []).length;
 }
 
@@ -206,7 +209,7 @@ function main(): void {
     '',
     '| Layer | Builtin | Layer passes | Builtin alone passes | What the builtin still misses |',
     '| :--- | :--- | ---: | ---: | :--- |',
-    ...rows.map((r) => `| ${r.layer} | \`${r.builtin}\` | ${r.layerPasses} / ${r.vectors} | ${r.builtinPasses} / ${r.vectors} | ${r.builtinMisses.join(' · ').replace(/\|/g, '\\|') || '—'} |`),
+    ...rows.map((r) => `| ${r.layer} | \`${r.builtin}\` | ${r.layerPasses} / ${r.vectors} | ${r.builtinPasses} / ${r.vectors} | ${tableCell(r.builtinMisses.join(' · ')) || '—'} |`),
     '',
   ];
   process.stdout.write(lines.join('\n'));

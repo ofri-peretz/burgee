@@ -87,10 +87,14 @@ function walkDocs(root: string, rel: string, out: string[]): void {
   }
 }
 
+/**
+ * Every agent-facing document, as a POSIX path relative to `root` on every OS: the reports quote
+ * these paths and `PLANNED_DOCS` matches them, and `path.join` spells them with `\` on Windows.
+ */
 export function agentDocs(root = REPO_ROOT): string[] {
   const out = CONFIG_FILES.filter((f) => fs.existsSync(path.join(root, f)));
   for (const dir of CONFIG_DIRS) walkDocs(root, dir, out);
-  return out.sort();
+  return out.map((doc) => doc.split(path.sep).join('/')).sort();
 }
 
 /** A line that opens or closes a fence: three or more backticks or tildes, in a blockquote or not. */

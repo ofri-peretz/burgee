@@ -21,6 +21,8 @@ import { fileURLToPath } from 'node:url';
 // eslint-disable-next-line import-next/no-relative-packages -- by path: the registry sits beside the conformance suite it indexes, a private workspace the root does not depend on
 import { type Caller, CALLERS, type Cell, type Feature, FEATURES, MATRIX } from '../examples/conformance/src/callers';
 
+import { tableCell } from './markdown-cell';
+
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const PAGE = join(ROOT, 'apps/docs/content/docs/callers.mdx');
 const SOURCE = 'https://github.com/ofri-peretz/burgee/blob/main';
@@ -28,8 +30,6 @@ const SOURCE = 'https://github.com/ofri-peretz/burgee/blob/main';
 const callers = Object.keys(CALLERS) as Caller[];
 const features = Object.keys(FEATURES) as Feature[];
 
-/** A `|` inside a table cell ends the cell; escape it. */
-const inCell = (s: string): string => s.replace(/\|/g, '\\|');
 
 function mark(cell: Cell): string {
   if ('test' in cell) return '✅';
@@ -38,8 +38,8 @@ function mark(cell: Cell): string {
 }
 
 function detail(f: Feature, c: Caller, cell: Cell): string {
-  if ('test' in cell) return `| ${f} | ${c} | ✅ [\`${cell.test}\`](${SOURCE}/${cell.test}) › “${inCell(cell.name)}” |`;
-  if ('na' in cell) return `| ${f} | ${c} | n/a — ${inCell(cell.na)} |`;
+  if ('test' in cell) return `| ${f} | ${c} | ✅ [\`${cell.test}\`](${SOURCE}/${cell.test}) › “${tableCell(cell.name)}” |`;
+  if ('na' in cell) return `| ${f} | ${c} | n/a — ${tableCell(cell.na)} |`;
   return `| ${f} | ${c} | ❌ missing — no test holds this cell yet |`;
 }
 
@@ -67,7 +67,7 @@ function render(): string {
     '',
     '| Caller | Who | Told apart by | Mode |',
     '| :--- | :--- | :--- | :--- |',
-    ...callers.map((c) => `| ${c} | ${CALLERS[c].who} | ${inCell(CALLERS[c].inputs)} | \`${CALLERS[c].mode}\` |`),
+    ...callers.map((c) => `| ${c} | ${CALLERS[c].who} | ${tableCell(CALLERS[c].inputs)} | \`${CALLERS[c].mode}\` |`),
     '',
     '## The matrix',
     '',
