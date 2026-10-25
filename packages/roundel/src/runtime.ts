@@ -40,7 +40,7 @@ export interface Runtime {
 interface Proc {
   env: Runtime['env'];
   argv?: string[];
-  // Read by `./supports-color` alone: supports-color consults the platform, and its suite sets it.
+  // Read by `./supports-color` and `./colorette`: each incumbent consults the platform, and supports-color's suite sets it.
   platform?: string;
   stdout?: { isTTY?: boolean };
   stderr?: { isTTY?: boolean };

@@ -1,0 +1,48 @@
+{
+  "repo": "https://github.com/jorgebucaran/colorette",
+  "version": "2.0.20",
+  "tag": "2.0.20",
+  "commit": "811fd2f255ed6b3d56b5977353d32dae13088b65",
+  "vendored": "2026-10-20",
+  "depsBefore": "2023-04-16T16:34:09.905Z",
+  "files": 3,
+  "internalFiles": [],
+  "internals": [],
+  "hashes": {
+    "tests/createColors.test.js": "aab02abfa7da21f0380dc5c8ed025615d7b5bdd9eb18e141ccdd05feca23ba03",
+    "tests/environment.test.js": "a22284bbabd372521b75f2f4aabb948b9723787965844870a961aaec7f732912",
+    "tests/index.test.cjs": "a171fbf69c7abacc8fda8d04746afc8a6c988e599dc81c97bb4b7ed3e0e3dd83",
+    "tests/index.test.js": "52f9e93b4d4a9a0e090b1f93857de5ab46ab60f8ded9835f9215009a5ee35a9a",
+    "index.d.ts": "c8adda9f45d2f7ec9fb28c59859db32da6c2835f1fec96433e2729e5805fa46f",
+    "index.js": "26402a4fa7ca930c4eed499a06f486371c368f639ae9f8a138e5eafb20b66f35"
+  },
+  "tests": {
+    "tests/createColors.test.js": [
+      "colorette",
+      "createColors",
+      "useColor overrides automatic color detection"
+    ],
+    "tests/environment.test.js": [
+      "environment",
+      "`FORCE_COLOR` forces color",
+      "`NO_COLOR` disables color",
+      "`--no-color` disables color",
+      "`--color` enables color"
+    ],
+    "tests/index.test.cjs": [],
+    "tests/index.test.js": [
+      "colorette",
+      "simple",
+      "nesting",
+      "numbers & others",
+      "empty & falsy values"
+    ]
+  },
+  "surface": {
+    "index.d.ts": [],
+    "index.js": [
+      "createColors",
+      "isColorSupported"
+    ]
+  }
+}

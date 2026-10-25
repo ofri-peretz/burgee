@@ -123,6 +123,7 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
       'cli-cursor': 'closeout/cli-cursor',
       'cli-truncate': 'linegauge/cli-truncate',
       'widest-line': 'linegauge/widest-line',
+      colorette: 'roundel/colorette',
       picocolors: 'roundel/picocolors',
       'supports-color': 'roundel/supports-color',
       yoctocolors: 'roundel/yoctocolors',
@@ -134,6 +135,17 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
     const { source, mapped } = rewriteSource("import { hideBin } from 'yargs/helpers';\n");
     expect(source).toBe("import { hideBin } from 'burgee/yargs/helpers';\n");
     expect(mapped).toEqual([{ from: 'yargs/helpers', to: 'burgee/yargs/helpers' }]);
+  });
+
+  // `colour-facades` criterion 3: colorette 2 exports `.` alone, named exports and no default, so
+  // a named and a namespace import move as they are.
+  it('rewrites a colorette named and namespace import, types included, to `roundel/colorette`', () => {
+    const { source, mapped } = rewriteSource("import { red, createColors, type Color } from 'colorette';\nimport * as c from 'colorette';\n");
+    expect(source).toBe("import { red, createColors, type Color } from 'roundel/colorette';\nimport * as c from 'roundel/colorette';\n");
+    expect(mapped).toEqual([
+      { from: 'colorette', to: 'roundel/colorette' },
+      { from: 'colorette', to: 'roundel/colorette' },
+    ]);
   });
 
   // `supports-color-drop-in` criterion 4. supports-color 11 exports `.` alone, so there is no
@@ -563,6 +575,29 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     // migrate-older-majors: 11 is the nearest claimed major, and supports-color has no removed-API
     // table, so there are no sites to read and no move nothing checked.
     expect(left.offMajor).toEqual([{ from: 'supports-color', found: '^10.2.2', graded: '11.0.0', nearest: 11, sites: [], move: null }]);
+  });
+
+  // `colour-facades` criterion 3, end to end: 2 is the one major claimed, so a program on it
+  // moves, `require()` included (colorette's CommonJS build hands back an object of its names, and
+  // `roundel/colorette`'s namespace carries the same names), and one on 1 stays.
+  it('moves a program on colorette 2 to roundel/colorette, and leaves 1 alone naming 2.0.20', async () => {
+    const on2 = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { colorette: '^2.0.16' } }),
+      'src/a.ts': "import { red, isColorSupported } from 'colorette';\n",
+      'src/b.cjs': "const { createColors } = require('colorette');\n",
+    });
+    const moved = await migrate({ dir: on2, status: clean });
+    expect(moved.offMajor).toEqual([]);
+    expect(read(on2, 'src/a.ts')).toBe("import { red, isColorSupported } from 'roundel/colorette';\n");
+    expect(read(on2, 'src/b.cjs')).toBe("const { createColors } = require('roundel/colorette');\n");
+    expect(moved.refused).toEqual([]);
+    const on1 = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { colorette: '^1.4.0' } }),
+      'src/a.ts': "import { red } from 'colorette';\n",
+    });
+    const left = await migrate({ dir: on1, status: clean });
+    expect(read(on1, 'src/a.ts')).toBe("import { red } from 'colorette';\n");
+    expect(left.offMajor).toEqual([{ from: 'colorette', found: '^1.4.0', graded: '2.0.20', nearest: 2, sites: [], move: null }]);
   });
 
   // `colour-facades` criterion 3, end to end: 2 is the one major claimed, so a program on it

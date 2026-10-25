@@ -27,6 +27,7 @@
 
 <p align="center">
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/chalk%20suite-59%2F59-0a6b47?style=flat-square" alt="roundel/chalk passes 59 of 59 cases of the chalk test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/colorette%20suite-67%2F67-0a6b47?style=flat-square" alt="roundel passes 67 of 67 cases of the colorette test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/picocolors%20suite-1%2F1-0a6b47?style=flat-square" alt="roundel passes 1 of 1 cases of the picocolors test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/supports--color%20suite-55%2F55-0a6b47?style=flat-square" alt="roundel passes 55 of 55 cases of the supports-color test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/yoctocolors%20suite-78%2F78-0a6b47?style=flat-square" alt="roundel passes 78 of 78 cases of the yoctocolors test suite" /></a>
@@ -205,6 +206,20 @@ validated), `new Chalk({ level })`, `chalkStderr`, `supportsColor` / `supportsCo
   on one of those terminals that wants colour asks for it with `FORCE_COLOR` or `--color`.
 
 ```diff
+- import { red, bold, createColors } from 'colorette';
++ import { red, bold, createColors } from 'roundel/colorette';
+```
+
+**Identical.** colorette 2.0.20's forty-one styles as named exports, `isColorSupported`, and
+`createColors({ useColor })`, with colorette's bytes: a nested close re-opens the outer style
+(`bold` and `dim` re-open each other), `''` and `undefined` style to `''`, and every other value
+is coerced as `'' + input` is. Colour is colorette's own rule, decided once at import — off for a
+`NO_COLOR` that is set at all, empty included, or `--no-color`; on for a set `FORCE_COLOR`,
+`--color`, Windows, a terminal with a `TERM` that is not `dumb`, or `CI` on GitHub Actions, GitLab
+or CircleCI — not [the policy](#the-policy). With colour off every style is `String`, as
+colorette's are. `require('roundel/colorette')` returns the same names `require('colorette')` does.
+
+```diff
 - import pc from 'picocolors';
 + import pc from 'roundel/picocolors';
 ```
@@ -250,6 +265,16 @@ See [Migrate](https://burgee.interlace.tools/docs/migrate).
 **Graded by chalk's own suite**, vendored at 6.0.1 into `compat-oracle` and run unedited
 through a generated shim: **59 of 59 tests (100.0%) on 2026-09-30**, alongside the same
 suite scoring 59 / 59 against real chalk in the same run.
+
+**Graded by colorette's own suite**, vendored at 2.0.20: `roundel/colorette` passes **67 of 67**
+cases of the three files colorette's `npm test` runs, level with colorette itself, the four that
+spawn a program under `FORCE_COLOR`, `NO_COLOR`, `--color` and `--no-color` included. colorette's
+runner, twist, exits 0 when its cases fail, so `compat-oracle` reads the counts twist prints
+rather than its exit code, and runs the suite in upstream CI's environment. `colorette.test.ts`
+evaluates colorette's own `index.js` beside this module and requires the same value from every
+style, for every pair of styles nested in each other, with colour on and off, and the same
+decision in every row of colorette's rule. Bundled, the whole surface is 2,425 bytes against
+colorette's 2,602.
 
 **Graded by picocolors' own test**, vendored at 1.1.1: `roundel/picocolors` passes
 `tests/test.js`, the one file picocolors' `npm test` runs. That file is a script of bare
@@ -301,6 +326,7 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `chalk` | 59 / 59 |
+| `colorette` | 67 / 67 |
 | `picocolors` | 1 / 1 |
 | `supports-color` | 55 / 55 |
 | `yoctocolors` | 78 / 78 |
@@ -353,7 +379,7 @@ keeps both true.
 | Package | What it is | Migrates from |
 | :-- | :-- | :-- |
 | [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander, yargs and meow |
-| **roundel** (this package) | Colour: one output policy, semantic tokens, a theme | chalk, picocolors, supports-color and yoctocolors |
+| **roundel** (this package) | Colour: one output policy, semantic tokens, a theme | chalk, colorette, picocolors, supports-color and yoctocolors |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
 | [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | @inquirer/core |
 | [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line |

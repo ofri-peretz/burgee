@@ -6,7 +6,7 @@
  * rewrites. That is the whole point: a compatibility claim graded by tests we wrote
  * would be graded by our reading of the host's behaviour, which is the thing under test.
  */
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, isAbsolute, join, relative, sep } from 'node:path';
@@ -15,6 +15,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { testFiles } from './discover.js';
 import { type Exclusion, exclusionsHere, type Host, type HostEntry, type HostImport } from './hosts.js';
 import { declarationName, type TsdFailure, type TsdReport, tsdTap } from './tsd.js';
+import { type TwistRun, twistTap } from './twist.js';
 import { readSuiteDeps, shimName, splitSpec } from './vendor.js';
 
 export interface Grade {
@@ -1148,9 +1149,37 @@ function tsdRefusal(host: Host, hostDir: string): string | undefined {
   return undefined;
 }
 
+/**
+ * The `twist` dialect (`twist.ts`): **one spawn per file**, twist's own CLI, and its printed counts
+ * read off stderr — never its exit code, which is 0 for a run of failures.
+ *
+ * Per file, so a file twist cannot load costs that file and not the suite: twist imports every
+ * file before it checks one, and a single failed import exits the whole run 1 with nothing
+ * counted. The CLI is the one pinned beside the suite (`suiteDeps`), as tsd's is, and a host that
+ * does not pin it is refused rather than run against whichever twist a walk up the tree finds.
+ */
+function runTwistFiles(host: Host, hostDir: string, files: string[], target: string): { output: string } | { error: string } {
+  if (host.suiteDeps?.some((spec) => splitSpec(spec)[0] === 'twist') !== true) return { error: 'a twist suite pins its own twist in `suiteDeps`; without the pin it would run whichever twist a walk up the directory tree finds' };
+  const cli = join(packageRoot('twist', hostDir), 'bin', 'twist.js');
+  const dir = join(hostDir, host.testDir);
+  const runs: TwistRun[] = files.map((file) => {
+    // cwd is the vendored root, and the path is relative to it, as each path upstream's glob hands twist is.
+    const spawned = spawnSync(process.execPath, [cli, relative(hostDir, join(dir, file))], {
+      encoding: 'utf8',
+      cwd: hostDir,
+      env: suiteEnv(host, hostDir, target),
+      timeout: host.suiteTimeoutMs ?? SUITE_TIMEOUT_MS,
+      maxBuffer: MAX_OUTPUT_BYTES,
+    });
+    return { file, status: spawned.status, stderr: spawned.stderr };
+  });
+  return twistTap(runs);
+}
+
 /** Runs the suite from its vendored root; a failing suite still prints its summary. */
 function runSuite(host: Host, hostDir: string, files: string[], target: string): { output: string } | { error: string } {
   if (host.runner === 'tap') return runTapFiles(host, hostDir, files, target);
+  if (host.runner === 'twist') return runTwistFiles(host, hostDir, files, target);
   const refused = host.runner === 'tsd' ? tsdRefusal(host, hostDir) : undefined;
   if (refused !== undefined) return { error: refused };
   const dir = join(hostDir, host.testDir);
