@@ -570,6 +570,20 @@ export function callLines(calls: readonly ToolCall[]): string[] {
   return calls.map((c) => `turn ${c.turn} ${c.tool}${c.error ? ' ✗' : ''}: ${c.input}${c.output === '' ? '' : ` → ${c.output}`}`);
 }
 
+/**
+ * A case that ran, as the log shows it: its verdict and turns, why it failed, and where its turns
+ * went. A failed case lists every call with the start of what came back; a passing one lists each
+ * call's tool and input, one line each. Until 2026-10-20 a passing case printed its turn count
+ * alone, so a case that passed in 6 turns against a target of 5 could not say which call was the
+ * sixth, and the CI log is all a pull request keeps (`locale-pack-in-five` R3).
+ */
+export function caseLines(r: CaseResult): string[] {
+  const head = `  ${r.status === 'pass' ? '✓' : '✗'} ${r.id}${r.turns === null ? '' : ` — ${r.turns} turn(s)`}`;
+  const failed = r.failed.map((f) => `      ${f}`);
+  const calls = r.status === 'pass' ? r.calls.map((c) => `        turn ${c.turn} ${c.tool}: ${c.input}`) : callLines(r.calls).map((line) => `        ${line}`);
+  return [head, ...failed, ...calls];
+}
+
 /** The log line of a case whose agent never ran: what stopped it, in `claude`'s words. */
 export function notRunLine(r: CaseResult): string {
   return `⏭ ${r.id} — not run: ${r.reason ?? 'did-not-start'} "${r.excerpt ?? ''}"`;
@@ -622,9 +636,7 @@ function runTaskLayer(cases: EvalCase[], credential: ReturnType<typeof billingFo
       console.warn(`  ${notRunLine(r)}`);
       continue;
     }
-    console.warn(`  ${r.status === 'pass' ? '✓' : '✗'} ${r.id}${r.turns === null ? '' : ` — ${r.turns} turn(s)`}`);
-    for (const f of r.failed) console.warn(`      ${f}`);
-    if (r.status !== 'pass') for (const line of callLines(r.calls)) console.warn(`        ${line}`);
+    for (const line of caseLines(r)) console.warn(line);
   }
   const passed = results.filter((r) => r.status === 'pass').length;
   const notRun = results.filter((r) => r.status === 'not-run').length;

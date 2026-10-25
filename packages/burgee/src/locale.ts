@@ -74,7 +74,7 @@ const placeholders = (template: string): string[] => [...template.matchAll(/\{(\
 const CATEGORIES: readonly Intl.LDMLPluralRule[] = ['zero', 'one', 'two', 'few', 'many', 'other'];
 
 /** The plural forms `Intl.PluralRules` selects among for `locale`: `one, other` for German, six for Arabic. */
-const formsOf = (locale: string): readonly Intl.LDMLPluralRule[] => {
+export const formsOf = (locale: string): readonly Intl.LDMLPluralRule[] => {
   const selected = new Intl.PluralRules(locale).resolvedOptions().pluralCategories;
   return CATEGORIES.filter((form) => selected.includes(form));
 };

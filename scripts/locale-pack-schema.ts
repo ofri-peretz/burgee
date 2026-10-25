@@ -56,6 +56,18 @@ function formsByLanguage(): string {
 /** French, the case the German example does not show: `many` beside `one` and `other`. */
 const FRENCH_COUNT = { one: '{count} argument de fichier', many: '{count} d’arguments de fichier', other: '{count} arguments de fichier' };
 
+/**
+ * A whole pack, as the module an author writes, three plural forms and all (`locale-pack-in-five`
+ * R2). Until 2026-10-20 the description showed the shape with `…` where the messages go, and the
+ * one example pack is JSON, so one measured run spent 11 model turns searching the source for how
+ * a pack is written as a module (D-20261012-agent-eval-turn-budget).
+ * `packages/burgee/src/locale-pack-schema.test.ts` runs `burgee check` on it.
+ */
+const quoted = (text: string): string => `'${text.replaceAll("'", "\\'")}'`;
+const FRENCH_MODULE = `export default { name: 'fr', contract: 1, locales: { fr: { 'usage.unknownOption': 'option inconnue {option}', 'usage.stdinOnce': { ${Object.entries(FRENCH_COUNT)
+  .map(([form, text]) => `${form}: ${quoted(text)}`)
+  .join(', ')} } } } };`;
+
 function messageOf(english: string): Record<string, unknown> {
   const text = textOf(english);
   if (!english.includes('{count}')) return { description: english, ...text };
@@ -71,7 +83,7 @@ export function packSchema(): Record<string, unknown> {
     $id: 'https://burgee.interlace.tools/locale-pack-schema.json',
     title: 'burgee locale pack',
     description:
-      "A plugin that translates burgee's human surfaces — usage errors, hints, help headings, the root's line for agents and the exit-code advice — into one or more languages. Register it with `program.use(pack)`; a run whose locale (the program's `locale` option, then BURGEE_LOCALE, LC_ALL, LC_MESSAGES, LANG) has a pack speaks it. Machine surfaces (--json, --schema, --mcp, --format=agent, error kinds, exit codes) never change. A pack is plain data: as a module it is the default export, `export default { name: 'fr', contract: 1, locales: { fr: { … } } }`, with nothing to import. Check one with `burgee check <pack> --json`, which refuses with every problem at once, each with a `fix`. Generated from packages/burgee/src/messages.ts by scripts/locale-pack-schema.ts.",
+      `A plugin that translates burgee's human surfaces — usage errors, hints, help headings, the root's line for agents and the exit-code advice — into one or more languages. Register it with \`program.use(pack)\`; a run whose locale (the program's \`locale\` option, then BURGEE_LOCALE, LC_ALL, LC_MESSAGES, LANG) has a pack speaks it. Machine surfaces (--json, --schema, --mcp, --format=agent, error kinds, exit codes) never change. A pack is plain data, a module's default export with nothing to import. A whole one, with a plural message in the three forms French needs: \`${FRENCH_MODULE}\` Check one with \`burgee check <pack> --json\`, which prints \`{ ok, data }\` where \`ok\` is the exit status (\`true\` is exit 0), so one run answers both: it refuses with every problem at once, each with a \`fix\`, and on success gives each locale's \`coverage\`: the ids \`translated\`, the ids \`missing\` (they stay in English), and for each plural id the forms written (\`have\`) against the forms the locale selects (\`need\`). Generated from packages/burgee/src/messages.ts by scripts/locale-pack-schema.ts.`,
     type: 'object',
     required: ['name', 'contract', 'locales'],
     properties: {

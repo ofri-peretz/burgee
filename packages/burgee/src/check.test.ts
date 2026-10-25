@@ -10,8 +10,9 @@ import { join } from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
-import { type CheckRefusal, checkPlugin } from './check.js';
+import { type CheckRefusal, type CheckReport, checkPlugin } from './check.js';
 import { ExitCode } from './exit-code.js';
+import { MESSAGES } from './messages.js';
 
 const dir = mkdtempSync(join(tmpdir(), 'burgee-check-'));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
@@ -119,9 +120,50 @@ describe('burgee check reads a locale pack (R4)', () => {
             { id: 'usage.stdinOnce', form: 'one', text: '1 Datei' },
             { id: 'usage.stdinOnce', form: 'other', text: '0 Dateien' },
           ],
+          coverage: expect.objectContaining({ translated: ['usage.unknownOption', 'usage.stdinOnce'] }),
         },
-        { locale: 'pt-BR', messages: [{ id: 'hint.passOne', text: 'passe um deles' }] },
+        { locale: 'pt-BR', messages: [{ id: 'hint.passOne', text: 'passe um deles' }], coverage: expect.objectContaining({ translated: ['hint.passOne'] }) },
       ],
+    });
+  });
+
+  // locale-pack-in-five R1: the check that accepts a pack is the verification, so an author (or an
+  // agent) does not run Intl.PluralRules, or diff ids against the schema, to know what it covers.
+  describe('says what a passing pack covers of the catalog, per locale (locale-pack-in-five R1)', () => {
+    const ids = Object.keys(MESSAGES);
+
+    it('lists the ids translated and the ids left in English, in the catalog’s order, together the whole catalog', async () => {
+      const report = await checkPlugin(pack({ fr: { 'hint.runHelp': 'lancez --help', 'usage.unknownOption': 'option inconnue {option}', 'caique.cancel': 'annulé' } }));
+      const [fr] = (report as CheckReport).locales ?? [];
+      expect(fr?.coverage.translated).toEqual(['usage.unknownOption', 'hint.runHelp']);
+      expect(fr?.coverage.missing).toEqual(ids.filter((id) => id !== 'usage.unknownOption' && id !== 'hint.runHelp'));
+      expect(fr?.coverage.missing).not.toContain('caique.cancel');
+    });
+
+    it('names, for each message with a {count}, the plural forms written against the forms the locale selects', async () => {
+      const report = (await checkPlugin(
+        pack({
+          fr: { 'usage.stdinOnce': { one: '{count} fichier', many: '{count} de fichiers', other: '{count} fichiers' } },
+          ru: { 'hint.passOne': 'один' },
+          de: { 'usage.stdinOnce': '{count} Datei(en)' },
+        }),
+      )) as CheckReport;
+      const plural = Object.fromEntries((report.locales ?? []).map((l) => [l.locale, l.coverage.plural]));
+      expect(plural).toEqual({
+        fr: { 'usage.stdinOnce': { have: ['one', 'many', 'other'], need: ['one', 'many', 'other'] } },
+        ru: { 'usage.stdinOnce': { have: [], need: ['one', 'few', 'many', 'other'] } },
+        // One string serves every count, so it has every form the locale selects.
+        de: { 'usage.stdinOnce': { have: ['one', 'other'], need: ['one', 'other'] } },
+      });
+    });
+
+    it('is on the --json document an agent reads, beside the rendered messages', async () => {
+      const report = (await checkPlugin(pack({ ja: { 'usage.stdinOnce': { other: '{count} 個' } } }))) as CheckReport;
+      expect(JSON.parse(JSON.stringify(report)).locales[0].coverage).toEqual({
+        translated: ['usage.stdinOnce'],
+        missing: ids.filter((id) => id !== 'usage.stdinOnce'),
+        plural: { 'usage.stdinOnce': { have: ['other'], need: ['other'] } },
+      });
     });
   });
 

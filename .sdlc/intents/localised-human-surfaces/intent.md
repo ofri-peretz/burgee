@@ -81,8 +81,13 @@ language is a registration.
 2. Every existing help and failure snapshot passes unchanged.
 3. `burgee check <pack>` validates a locale pack against its JSON Schema: unknown ids,
    placeholders that do not match, missing plural forms. It renders every message.
-4. An eval case: an agent given the pack schema and one example writes a passing pack for a new
-   language in one turn. It runs weekly beside the plugin eval.
+4. An eval case: an agent given the pack schema and one example writes a pack `burgee check`
+   accepts, on every reading, with no reading near the 12-turn cap (max under 12). It runs weekly
+   beside the plugin eval. *(Restated 2026-10-20,
+   [D-20261020-locale-eval-criterion-restated](../../decisions/D-20261020-locale-eval-criterion-restated.md):
+   "in one turn" was never the eval's unit, since the prompt's four calls floor `num_turns` at 5.
+   The median half of the D-20261012-agent-eval-turn-budget bar is
+   [`locale-pack-in-five`](../locale-pack-in-five/intent.md) S3's.)*
 
 ## Held at `approved` — 2026-10-18
 
@@ -99,6 +104,24 @@ language is a registration.
 **To ship:** first, Batch 1's fix, so a run that never executed is recorded as `not-run` and not
 as a failure. Then one weekly run that executes and passes the case. Then restate criterion 4's
 "one turn" to the bar D-20261012-agent-eval-turn-budget set, or meet it.
+
+## Re-grounded on `main` — 2026-10-20
+
+**Criteria 1–4 are met as written. The status stays `approved`, because two things are still
+outstanding:**
+
+- a **scheduled** weekly run that executes and passes the case (the next one is 2026-10-22);
+- the minor that carries `locale-pack-in-five` R1–R2, published.
+
+| criterion | check | result on 2026-10-20 |
+| :-- | :-- | :-- |
+| 1 | `npx --no vitest run --root packages/burgee src/locale.test.ts src/locale-invariance.test.ts src/messages.test.ts src/check.test.ts src/plugin.test.ts src/locale-pack-schema.test.ts` | 95 passed; `locale-invariance.test.ts` alone, 17 |
+| 2 | `help.test.ts -t "a localised description renders in the resolved locale"`; `schema.test.ts -t "carries the base language of a localised description"`; caique `locale.test.ts messages.test.ts`; `npm run compat -- clack inquirer-core` | 5 passed, 31 skipped; 1 passed, 16 skipped; 24 passed; clack 16 / 16, inquirer-core 41 / 41 (▲ 0) |
+| 3 | `check.test.ts`; `scripts/locale-pack-schema-lock.test.ts` | 30 passed (3 of them new: `coverage`, `locale-pack-in-five` R1); 4 passed |
+| 4 (restated) | `evals/cases/locale-pack-from-schema.json` in every `Agent Evals` run | 34 PR readings on 2026-10-20, **34 passed**, median 6, max 8; branch dispatch 39475810887: passed in 6, transcript in D-20261020-locale-pack-in-five-design-gate |
+
+Batch 1's fix landed: the 2026-10-15 run is recorded `not-run`, reason `usage-limit`, and is no
+longer a 0 / 11 failure. It is excluded from `caseSeries`.
 
 ## Open questions
 
