@@ -239,6 +239,30 @@ describe('burgee dev: save-to-callable under 500 ms, or five imports of the entr
  * default debounce. It writes the file, waits for `notifications/tools/list_changed`, and calls the
  * changed command — timed from the write, held to the same A30 budget, with no fixed sleep.
  */
+/**
+ * Wait, from line `from` of the channel on, for a `tools/list_changed` after which `answers()`
+ * holds. The watcher can also report the writes that created the fixture, just before `dev()`
+ * started, so the first notification after a save is not always the save's: this asks again after
+ * each one instead of trusting the first, and uses no fixed sleep.
+ */
+async function reloadedUntil(io: Rpc, from: number, answers: () => Promise<boolean>): Promise<void> {
+  const changed = await io.next((m) => m['method'] === 'notifications/tools/list_changed' && io.lines.indexOf(m) >= from);
+  if (await answers()) return;
+  await reloadedUntil(io, io.lines.indexOf(changed) + 1, answers);
+}
+
+/** One `tools/call`, and the envelope it answered with (`ok: false` for a tool not served). */
+let callId = 100;
+async function call(io: Rpc, name: string): Promise<{ ok?: boolean; data?: unknown }> {
+  callId += 1;
+  const id = callId;
+  io.send({ id, method: 'tools/call', params: { name, arguments: {} } });
+  const reply = await io.next((m) => m['id'] === id);
+  // A tool not served yet answers with a protocol error, or with text that is not an envelope.
+  const body = reply['result'] === undefined ? '' : text(reply);
+  return body.startsWith('{') ? (JSON.parse(body) as { ok?: boolean; data?: unknown }) : { ok: false };
+}
+
 describe('burgee dev: save-to-callable through the file watcher (W6)', () => {
   it('a save is seen, reloaded and callable within the budget, timed from the write', async () => {
     const at = scratch('watched-bench');
@@ -255,11 +279,10 @@ describe('burgee dev: save-to-callable through the file watcher (W6)', () => {
     const before = io.lines.length;
     const started = performance.now();
     writeFileSync(entry, cli(thirty('two')));
-    await io.next((m) => m['method'] === 'notifications/tools/list_changed' && io.lines.indexOf(m) >= before);
-    io.send({ id: 1, method: 'tools/call', params: { name: 'c29', arguments: {} } });
-    const answer = JSON.parse(text(await io.next((m) => m['id'] === 1))) as { data: string };
+    let answer: unknown;
+    await reloadedUntil(io, before, async () => (answer = (await call(io, 'c29')).data) === 'two 29');
     const elapsed = performance.now() - started;
-    expect(answer.data).toBe('two 29');
+    expect(answer).toBe('two 29');
     const budget = Math.max(RELOAD_BUDGET_MS, RELOAD_FLOORS * floor);
     // The CI log carries this line on every lane: the save-to-callable reading the design asked to record.
     process.stderr.write(`W6 save-to-callable through the watcher: ${elapsed.toFixed(1)} ms (budget ${budget.toFixed(0)} ms, floor ${floor.toFixed(1)} ms) on ${process.platform}\n`);
@@ -316,9 +339,7 @@ export const program = defineProgram({ name: 'devdemo', commands: [defineCommand
     expected.set(relative(at, entry), Buffer.from(edited).toString('base64'));
     const before = io.lines.length;
     writeFileSync(entry, edited);
-    await io.next((m) => m['method'] === 'notifications/tools/list_changed' && io.lines.indexOf(m) >= before);
-    io.send({ id: 2, method: 'tools/call', params: { name: 'ping', arguments: {} } });
-    expect(JSON.parse(text(await io.next((m) => m['id'] === 2)))).toMatchObject({ ok: true, data: 'pong' });
+    await reloadedUntil(io, before, async () => (await call(io, 'ping')).data === 'pong');
     handle.close();
     io.input.end();
     await handle.done;

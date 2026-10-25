@@ -9,6 +9,9 @@
 > **Accepted at the Design→Build gate 2026-10-25** by the coordinator under the owner's delegation
 > ([`D-20261025-commander-env-design-accepted`](../../decisions/D-20261025-commander-env-design-accepted.md)): narrowed to V2 and K3; C3b measured and held as a reading; C1 and R3 dropped. See
 > [`spec.md` § Design gate 2026-10-25](./spec.md#design-gate-2026-10-25).
+>
+> **Built 2026-10-25 (batch 29), still `approved` until `burgee` publishes:** V2 and K3 are on
+> `main`, behind a minor changeset. See [`spec.md` § Status 2026-10-25](./spec.md#status-2026-10-25).
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Evidence:** `precedence.ts`, `config.ts`, `env.test.ts` — one order, `--explain`, `meta.provenance`, `extends` (V1–V7).
 
@@ -124,12 +127,15 @@ documented in help and `--schema` (V2), env scoped to the command that declares 
 ## Success criteria
 
 - Conformance case per issue listed; each fails on plain commander. **(C1, 2026-10-18:
-  remaining — 9 of 25 cited, none run against commander.)**
+  remaining — 9 of 25 cited, none run against commander.)** **Dropped 2026-10-25** at the design
+  gate: plain commander has no API for most of the cited issues, so failing there measures nothing.
 - `--explain <option>` on the demo prints the source and every overridden candidate.
   **(C2, 2026-10-18: held.)**
 - `meta.provenance` present under `--json`; the benchmark's provenance task median
   turns drop versus the ~~`LAYER=off` build~~ commander variant. **(C3, 2026-10-18:
-  provenance held; the benchmark half restated and remaining.)**
+  provenance held; the benchmark half restated and remaining.)** **2026-10-25: held as a
+  reading.** Median turns on `diagnose-provenance` are 5 for burgee and 11 for commander, over
+  71 CI readings. The per-reading ratio has median 0.500 and is under 1 in 68 of 71.
 - `mytool --version` inside `examples/` (a monorepo) prints the demo's version, not the
   root's (V4). **(C4, 2026-10-18: restated to synthetic nested packages, because the root
   and every demo CLI `package.json` say `0.0.0`; held.)**

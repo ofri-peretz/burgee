@@ -39,6 +39,38 @@ collapse: D-133 made it a measurement of one package. S5 moved to `first-adopter
 **What to measure.** The per-layer, per-Node absorption counts from the first probe run,
 recorded in the PR as the baseline the probe compares against.
 
+## Status 2026-10-25
+
+Built in batch 29 under
+[D-20261025-batch29-locks-tests-rulings](../../decisions/D-20261025-batch29-locks-tests-rulings.md).
+Every row this gate kept is held on merged code. The umbrella stays `approved` only because four
+READMEs changed and npm shows a README from the published tarball. The changeset
+`.changeset/foundation-readmes-builtins.md` releases `linegauge`, `seniority`, `bellpull` and
+`closeout` as patches. Once that Version PR publishes, nothing is left.
+
+| row | state | check | proven red by |
+| :-- | :-- | :-- | :-- |
+| Y4 — each README names its builtin | built | `scripts/foundation-readme-lock.test.ts` › "%s" (one case per layer), › "names, for every layer, the builtin the absorption probe points at" | the lock, run against `main`: all four failed, because only `linegauge` named one of its two builtins |
+| Y4 — the absorption probe, per floor Node | built, reported and never gated | `scripts/absorption-probe.ts`, a `continue-on-error` step in `compat.yml`'s `floor` job (20.19.0 and 22.13.0, three OS lanes); `scripts/absorption-probe.test.ts` › "%s passes every one of its own vectors" | a wrong expected width (`古池や` 6 → 5) failed the layer's own case |
+| Y12 — no foundation README opening names `burgee` | built | `scripts/foundation-readme-lock.test.ts` › "fails an opening that names burgee, in the header or the first paragraph" | the lock, run against `main`: `linegauge`'s first paragraph said "burgee, caique and flagstaff measure their output with it". The 2026-10-18 reading of "true by reading" had missed it |
+
+Each README now carries an **Over the platform** paragraph that names the builtin and what the
+layer adds over it. `linegauge`'s opening no longer names its siblings.
+
+**The probe's baseline**, on darwin, as builtin passes over vectors:
+
+| Node | strip | width | dotenv | cross-spawn | exactly once |
+| :-- | --: | --: | --: | --: | --: |
+| 20.19.0 | 8 / 11 | 3 / 9 | 7 / 10 | 3 / 3 | 4 / 7 |
+| 22.13.0 | 8 / 11 | 3 / 9 | 7 / 10 | 3 / 3 | 4 / 7 |
+| 24.12.0 | 8 / 11 | 3 / 9 | 9 / 10 | 3 / 3 | 4 / 7 |
+| 26.10.0 | 11 / 11 | 3 / 9 | 9 / 10 | 3 / 3 | 4 / 7 |
+
+Node 26 strips the colon form of an SGR parameter. That form is the reason `linegauge/strip`
+scans. `util.parseEnv` gains two vectors from 22 to 24. Both rises are above the floor, so no
+layer can be deprecated yet. Moving `engines.node` to 26 is what must open the intent to
+deprecate `linegauge/strip`. The decision above records this.
+
 ## Restated 2026-10-18
 
 **Nine of twelve floor rows are held on main (most through a child), Y8 moves to the children, and three rows keep an unowned piece. REMAINING: Y2 incumbent-count and weekly-downloads half unlocked, Y4 platform-absorption check per Node LTS unbuilt, Y12 no-burgee README opening unlocked (S3 and S5, success criteria, are the other two; see `intent.md`).**
