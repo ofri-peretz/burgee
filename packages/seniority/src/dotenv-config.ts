@@ -7,7 +7,6 @@
  * in the starting environment overrides that, `false` included; a `DOTENV_QUIET` inside the
  * `.env` file does not, because the entry point has already said.
  */
-// eslint-disable-next-line import-next/no-unused-modules -- a side-effect entry exports nothing, as `dotenv/config` exports nothing; importing it is the call.
 import { config } from './dotenv.js';
 import { ambientEnv } from './runtime.js';
 
