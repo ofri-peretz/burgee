@@ -83,10 +83,10 @@ Abbreviations used below:
 | burgee-migrate | **shipped** (batch 0) | y | SHIPPED | burgee/migrate | 12 | 12 | – | n | – | Stale header: needs draft → approved (owner) → shipped. Verification 3 is indirect |
 | caique | approved | y | P | caique | 13 | 10 | R1 `promptFor` API, S2 non-TTY bench, S3 PTY / Windows | **y** | prompt-session, save-restore | |
 | caique-quiet-seam | **shipped** (batch 0) | y | SHIPPED | caique | 8 | 8 | – | n | – | Restate R2 (`progress` and `taskLog` were not ported, D-152) |
-| caller-matrix | approved (batch 29 built, #1251) | y | P | examples/conformance + docs | 5 | 5 | S1: 5 of 55 cells `missing` (ceiling 5, may only fall) | n | – | Registry, lock and `/docs/callers` built; 43 held, 7 n/a. S4 moved to first-adopter |
+| caller-matrix | approved (batch 29 built, #1252) | y | P | examples/conformance + docs | 5 | 5 | S1: 5 of 55 cells `missing` (ceiling 5, may only fall) | n | – | Registry, lock and `/docs/callers` built; 43 held, 7 n/a. S4 moved to first-adopter |
 | ci-affected-lanes | approved | y | P | workflows/CI | 7 | 5 | R4 / S3 (ci-minutes reading after 20 PRs since #1101) | n | – | Blocked only on time |
-| cli-benchmarks | approved (batch 29 built, #1251) | y | P | benchmarks | 16 | 16 | – (README text publishes with the next Version PR) | n | – | S4 as a series over 52 CI readings (tokens 0.502, turns 0.522), `claim-table-lock` restated; B7 link lock over 13 public files |
-| cli-foundation-stack | approved (batch 29 built, #1251) | y | P | umbrella (foundation) | 17 | 17 | – (README text publishes with the next Version PR) | n | – | Y4 builtin lock and absorption probe in compat.yml's floor job; Y12 lock found linegauge naming burgee. Probe baseline in the decision |
+| cli-benchmarks | approved (batch 29 built, #1252) | y | P | benchmarks | 16 | 16 | – (README text publishes with the next Version PR) | n | – | S4 as a series over 52 CI readings (tokens 0.502, turns 0.522), `claim-table-lock` restated; B7 link lock over 13 public files |
+| cli-foundation-stack | approved (batch 29 built, #1252) | y | P | umbrella (foundation) | 17 | 17 | – (README text publishes with the next Version PR) | n | – | Y4 builtin lock and absorption probe in compat.yml's floor job; Y12 lock found linegauge naming burgee. Probe baseline in the decision |
 | cli-help-renderer | **shipped** (typed-schema-surface) | y | SHIPPED | burgee/help | 10 | 10 | – | n | – | S1's min/max row held 2026-10-19 |
 | cli-mcp | approved (batch 28, `D-20261025-cli-mcp-design-accepted`) | y | LS | burgee/mcp | 16 | 14 | – (C4 is b1-mcp-arm's; lint rule moved to the eslint repo) | n | – | K1 "deps {}" → restate as "nothing outside the family" |
 | cli-output-stack | approved | y | P | umbrella (output stack) | 23 | 17 | R2 env-name lock, R3 examples case, R11 inquirer 100/213, S2 dependency-count row, S5 spinner cases | n | – | Close by mapping each row to roundel, flagstaff or caique |
@@ -98,7 +98,7 @@ Abbreviations used below:
 | colour-facades | review | y | NS | roundel + compat-oracle | 8 | 0 | R1–R5, S1–S3 | n | – | Waits on inquirer and supports-color in the compat-oracle lane |
 | commander-compat | **shipped** (batch 3) | y | SHIPPED | burgee/commander-facade | 8 | 8 | – | n | – | Batch 3: X6 ratcheted 129,400 → 112,100 on a clean-build reading of 112,024 (D-20261019-commander-walk-budget-ratchet). X5 had no real check (`.`'s denied list never named the front-end), so one was added and proven red |
 | commander-completions | **shipped** (batch 0) | y | SHIPPED | burgee/completions | 8 | 8 | – | n | – | Human accepts two restatements: Fig is structural, `complete` replaces `--dynamic`. CI's `completions.yml` is authoritative |
-| commander-env | approved (batch 29 built, #1251) | y | P | burgee/parse + seniority | 11 | 11 | – (the burgee minor publishes with the next Version PR) | n | – | V2 env on `inputSchema`; K3 discovery order in `config explain` and `--explain`; Stryker 100% on changed lines |
+| commander-env | approved (batch 29 built, #1252) | y | P | burgee/parse + seniority | 11 | 11 | – (the burgee minor publishes with the next Version PR) | n | – | V2 env on `inputSchema`; K3 discovery order in `config explain` and `--explain`; Stryker 100% on changed lines |
 | commander-front-end-diet | **shipped** (batch 3) | y | SHIPPED | burgee/commander-facade + weight | 4 | 4 | – | n | – | Batch 3: `lighter-than-commander` 1.565 → 1.42 (D-20261019-lighter-than-commander-ratchet); `OVER_INCUMBENT` 55,661 → 55,653 (v14 55,997 → 56,002 for #1139's unrecorded +5 B) |
 | commander-schema | **dropped** (batch 28, `D-20261025-commander-schema-dropped`) | y | DROPPED | burgee/types + parse | 10 | 3 (+5 partial) | – | n | – | **SUPERSEDED-CANDIDATE** for its positional half → typed-positionals; restate the rest |
 | compat-grader-layer | **dropped** (batch 0, `D-20261018-drop-compat-grader-layer`) | n | DROPPED | compat-oracle | 6 | 1 | – | n | – | Ruling: trigger fixed; conflicts with compat-oracle being internal |
@@ -113,7 +113,7 @@ Abbreviations used below:
 | controlroom-scroll-pane | **shipped** (batch 4, PR #1156) | y | NS | controlroom | 10 | 0 | R1–R6, S1–S4 | n (property test) | – | Fixed: a pane scrolls, follows its tail, and the static frame prints every line. Mutation 180 / 180 on the changed lines |
 | declaration-summaries | **shipped** (patch, Version PR #1184, 2026-10-20) | y | SHIPPED | published artifacts / build scripts | 4 | 4 | – | n | – (property test) | R1 measured burgee −5.7% gzipped, past the 5% kill switch; R2–R4 built 2026-10-20 |
 | default-command | review | y | NS | burgee/parse | 5 | 1 | R1–R4 | n | – | Adoption barrier (commander `isDefault`, yargs `$0`) |
-| dev-loop | **shipped** (batch 29, #1251) | y | SHIPPED | burgee/dev | 6 | 6 | – | **y** | **dev-reload.qnt** | W4 byte-identity and W6 through the real watcher (74–100 ms local, budget 500 ms); tests only |
+| dev-loop | **shipped** (batch 29, #1252) | y | SHIPPED | burgee/dev | 6 | 6 | – | **y** | **dev-reload.qnt** | W4 byte-identity and W6 through the real watcher (74–100 ms local, budget 500 ms); tests only |
 | docs-deploy | **dropped** (batch 0, `D-20261018-drop-docs-deploy`) | y | DROPPED | docs-site | 10 | 7 | – | n | – | Ruling: folded into docs-per-package |
 | docs-per-package | approved | y | P | docs-site | 23 | 17 | C8 (mutations per row), R2 orgId/secrets lock, R4/R5 partial, R7 PATCH lock, R10 env lock | n | – | Takes docs-deploy's R1–R6 |
 | eslint-plugin-cli-floor | **dropped** (batch 0, `D-20261018-drop-eslint-plugin-cli-floor`) | y | DROPPED | eslint repo | 9 | 0 | – | n | – | Ruling: lives in eslint#1137 |
@@ -149,7 +149,7 @@ Abbreviations used below:
 | roundel | **shipped** (batch 0) | y | SHIPPED | roundel | 17 | 17 | – | n | – | Rewrite the stale 2026-09-09 verified section |
 | schema-bytes-gated | **shipped** (schema-group) | y | SHIPPED | benchmarks reliability | 3 | 3 | – | n | – | Budget 4,650 B (demo 4,628 B at `326907ec`); gap B-20261012 closed |
 | schema-is-validated | **shipped** (schema-group) | y | SHIPPED | burgee/schema | 3 | 3 | – | n | – | SC3: the claim is made again and `program-schema.test.ts` holds it |
-| sdlc-locks-evals-bands | approved (batch 29 built, #1251) | y | P | sdlc locks | 10 | 9 | S3: `test-duration-ms` still at 7 points; the next weekly run names the failing test | n | – | `.sdlc/intents` in evals layer 1, which runs on every PR in `quality.yml`; 0 broken links, 8 planned scripts exempted. A dropped duration point names its cause |
+| sdlc-locks-evals-bands | approved (batch 29 built, #1252) | y | P | sdlc locks | 10 | 9 | S3: `test-duration-ms` still at 7 points; the next weekly run names the failing test | n | – | `.sdlc/intents` in evals layer 1, which runs on every PR in `quality.yml`; 0 broken links, 8 planned scripts exempted. A dropped duration point names its cause |
 | security-profile | **dropped** (batch 0, `D-20261018-drop-security-profile`) | y | DROPPED | burgee/security | 11 | 0 | – | n | – | Ruling: no adopter; exit-code clash |
 | seniority | approved | y | P | seniority | 21 | 13 | R1/S2 truth-table page, R2/S5 shared precedence vectors, R7 extends chain in explain, R9 spawn delta, S3, S4 | n | – | The truth table is the product and is unproduced |
 | supports-color-drop-in | **shipped** (roundel 1.2.0, 2026-10-20) | y | SHIPPED | roundel + compat-oracle | 9 | 9 | – | n | – | 441.6 M/wk with no override target |
@@ -414,7 +414,7 @@ Batches 8, 11, 14, 16, 17, 18 and 19 named some of these intents as "write spec"
 "decide". Those items are done here. What remains in those batches is the build scope each row
 now names.
 
-**Batch 29 — the locks and tests, 2026-10-25 (#1251).** The six designs whose build was tests,
+**Batch 29 — the locks and tests, 2026-10-25 (#1252).** The six designs whose build was tests,
 locks, docs or CI were built in one PR. The rulings are in
 [`D-20261025-batch29-locks-tests-rulings`](../decisions/D-20261025-batch29-locks-tests-rulings.md).
 

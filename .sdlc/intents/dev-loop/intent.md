@@ -1,6 +1,6 @@
 # Intent — `dev-loop`: your agent is connected to your CLI while you write it
 
-**Status:** shipped · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz` · **Shipped:** 2026-10-25 in [#1251](https://github.com/ofri-peretz/burgee/pull/1251), the last two criteria (4 and the save segment of 5) locked by `packages/burgee/src/dev.test.ts`; tests only, nothing to publish — see [§ Shipped 2026-10-25](#shipped-2026-10-25)
+**Status:** shipped · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz` · **Shipped:** 2026-10-25 in [#1252](https://github.com/ofri-peretz/burgee/pull/1252), the last two criteria (4 and the save segment of 5) locked by `packages/burgee/src/dev.test.ts`; tests only, nothing to publish — see [§ Shipped 2026-10-25](#shipped-2026-10-25)
 
 > **Accepted at the Design→Build gate 2026-10-25** by the coordinator under the owner's delegation
 > ([`D-20261025-dev-loop-design-accepted`](../../decisions/D-20261025-dev-loop-design-accepted.md)): W4 byte-identity and W6's watcher segment left to build. See
