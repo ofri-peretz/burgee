@@ -179,7 +179,11 @@ export function docsSiteSuite(testFileUrl: string): void {
       const html = app.built('index.html');
       const ref = /I\[\d+,\[((?:\\"[^"\\]+\\",?)+)\],\\"Analytics\\"\]/u.exec(html);
       expect(ref, 'index.html has no `Analytics` client reference — is <Analytics> still in docs-chassis RootLayout, and does this app’s layout still render it?').not.toBeNull();
-      const chunks = [...(ref?.[1] ?? '').matchAll(/\\"([^"\\]+)\\"/gu)].map((m) => m[1] ?? '');
+      // Turbopack names each chunk by path (`/_next/static/chunks/….js`). webpack lists id and path
+      // pairs, and a path it has already written is `$<row>`, a flight row defined earlier as
+      // `<row>:"static/chunks/….js"` (D-20261025-next-16-4-1-security). Ids are skipped; paths are read.
+      const rows = new Map([...html.matchAll(/([0-9a-f]+):\\"(static\/[^"\\]+)\\"/gu)].map((m) => [`$${m[1] ?? ''}`, m[2] ?? '']));
+      const chunks = [...(ref?.[1] ?? '').matchAll(/\\"([^"\\]+)\\"/gu)].map((m) => rows.get(m[1] ?? '') ?? m[1] ?? '').filter((c) => c.endsWith('.js'));
       const code = chunks.map((c) => readFileSync(join(app.dir, '.next', c.replace(/^\/_next\//u, '')), 'utf8')).join('\n');
       expect(code, `none of ${chunks.join(', ')} captures $pageview`).toContain('$pageview');
     });
