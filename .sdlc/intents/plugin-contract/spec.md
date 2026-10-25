@@ -394,6 +394,6 @@ fails when the row stops being true.
 | R6 | One contract version | **Built**: `CONTRACT = 1` in all ten. Each refuses a higher one. Equality across hosts is not locked | each host's `src/plugin.test.ts` (`contract: CONTRACT + 1` or `2` → `E_PLUGIN_CONTRACT`) |
 | R7 | Data first (restated) | **Built** | `scripts/plugin-schema-agreement.test.ts` |
 | R8 | One error vocabulary | **Built** | `scripts/plugin-error-vocabulary-lock.test.ts` |
-| R9 | One `check` runs every installed layer | **Built** in this PR | `packages/burgee/src/check.test.ts` › "burgee check hands each other layer's keys to that layer's check" (14 cases). `scripts/plugin-check-lock.test.ts` › "burgee check routes every other layer's key to that layer". `scripts/plugin-example-lock.test.ts` › "burgee check runs every other layer's own check on it…", "…carries flagstaff's rendering of the spinner in all five modes" |
+| R9 | One `check` runs every installed layer | **Built** in this PR | `packages/burgee/src/check.test.ts` › "burgee check hands each other layer's keys to that layer's check" (15 cases). `scripts/plugin-check-lock.test.ts` › "burgee check routes every other layer's key to that layer". `scripts/plugin-example-lock.test.ts` › "burgee check runs every other layer's own check on it…", "…carries flagstaff's rendering of the spinner in all five modes" |
 
 The intent's criteria are graded in [`intent.md`](./intent.md#status).

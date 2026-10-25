@@ -206,9 +206,12 @@ async function layersOf(plugin: object, file: string): Promise<Layer[]> {
   );
 }
 
-/** A layer's refusal as burgee's: the family's `CODE: message` and `  fix: …` lines, which every layer's `check` prints (R8). */
+/**
+ * A layer's refusal as burgee's: the family's `CODE: message` and `  fix: …` lines, which every
+ * layer's `check` prints (R8). Only a layer that ran exits non-zero, so its `output` is there.
+ */
 function refusedBy(layer: Layer, name: string): CheckRefusal {
-  const said = /^(E_[A-Z_]+): (.*)\n {2}fix: (.*)/mu.exec(layer.output ?? '');
+  const said = /^(E_[A-Z_]+): (.*)\n {2}fix: (.*)/mu.exec(String(layer.output));
   if (said === null) return refuse('E_PLUGIN_SCHEMA', `${layer.host} check exited ${String(layer.exitCode)} on ${name}`, `run \`${layer.run}\` and fix what it prints`);
   const [, code, message, fix] = said;
   return refuse(String(code), `${layer.host}: ${String(message)}`, String(fix));

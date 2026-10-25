@@ -344,6 +344,15 @@ describe('burgee check hands each other layer’s keys to that layer’s check (
     expect(await checkPlugin(file)).toMatchObject({ layers: [{ host: 'controlroom', exitCode: 0, output: 'boom\n' }] });
   });
 
+  it('reads a layer killed by a signal, which has no exit code, as a refusal', async () => {
+    const file = project("export default { name: 'acme', contract: 1, sources: {} };\n", { seniority: { out: '' } });
+    writeFileSync(join(dirname(file), 'node_modules', 'seniority', 'cli.js'), "process.kill(process.pid, 'SIGKILL');\n");
+    expect(await checkPlugin(file)).toEqual({
+      refused: { code: 'E_PLUGIN_SCHEMA', message: 'seniority check exited 1 on acme', fix: `run \`seniority check ${file}\` and fix what it prints` },
+      exitCode: ExitCode.RUNTIME,
+    });
+  });
+
   it('reads a refusal only where a line starts with the code, not a code quoted mid-line', async () => {
     const file = project("export default { name: 'acme', contract: 1, tokens: {} };\n", { roundel: { out: 'see E_QUOTED: x\n  fix: y\n', code: 1 } });
     expect(await checkPlugin(file)).toMatchObject({ refused: { code: 'E_PLUGIN_SCHEMA', message: 'roundel check exited 1 on acme' } });
