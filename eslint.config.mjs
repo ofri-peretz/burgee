@@ -736,6 +736,14 @@ export default [
     rules: { "import-next/no-unused-modules": "off" },
   },
   {
+    // A side-effect entry exports nothing by design: importing it *is* the call, as
+    // `dotenv/config` does. Each is listed in its package's `sideEffects`. The rule reports
+    // these at 1:1 since the plugin bumps in #1238, where no next-line
+    // disable can reach, so they are named here instead.
+    files: ["packages/seniority/src/dotenv-config.ts"],
+    rules: { "import-next/no-unused-modules": "off" },
+  },
+  {
     // A plugin is a default-exported object: every host reads `loaded.default ?? loaded`, so
     // the default export is the contract, not a style choice. And a plugin is data — a rank,
     // an interval, a code-point range — so its numbers are values, not magic.
