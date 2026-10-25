@@ -1,6 +1,6 @@
 # Design — `burgee migrate` says what the move costs before it writes anything
 
-Intent: [`intent.md`](./intent.md). **Status:** approved — accepted by the coordinator under the
+Intent: [`intent.md`](./intent.md). **Status:** shipped 2026-10-25 in burgee 1.7.0 (Version PR #1231) — accepted by the coordinator under the
 owner's 2026-10-12 delegation,
 [`D-20261019-migrate-preflight-design-accepted`](../../decisions/D-20261019-migrate-preflight-design-accepted.md).
 
@@ -377,6 +377,6 @@ rounded up to 50 B (267,600 / 1,016,900), in
 [`D-20261019-burgee-tarball-preflight`](../../decisions/D-20261019-burgee-tarball-preflight.md).
 Entry budgets are unchanged.
 
-**Not yet `shipped`**: every criterion has evidence on the branch, and the intent moves to
-`shipped` once this is on `main` and released. The change is a `minor`, which the release window
-holds until about 2026-10-25.
+**Shipped** 2026-10-25: #1168 merged as `1dcf064a03` and published in burgee 1.7.0
+(Version PR #1231). The criteria were re-read against the released package; the evidence is in the intent's
+*Shipped* section.

@@ -4,7 +4,9 @@
 > ([`next-wave-2026-10.md`](../../research/next-wave-2026-10.md)), from a gap `caique`'s own
 > design names and leaves open.
 
-**Status:** approved — built 2026-10-20, every criterion evidenced below; it moves to `shipped` when the `caique` and `burgee` minors that carry it publish (held by the release window to about 2026-10-25) · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Design:** [`spec.md`](./spec.md)
+**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-25 on
+[`70a86aa695`](https://github.com/ofri-peretz/burgee/commit/70a86aa695) (#1201), released in caique 1.5.0 (npm, 2026-10-25T18:00Z, Version PR #1237) and, for the `migrate` row, burgee 1.7.0 (npm, 2026-10-25T17:05Z, Version PR #1231), verified against `main` at
+[`aff0c31f`](https://github.com/ofri-peretz/burgee/commit/aff0c31fdf) — criterion 1 read 213 / 213 against a control of 213 / 213 on CI (Compatibility run 40180212984), criteria 2–4 unchanged since #1201 (below) · **Design:** [`spec.md`](./spec.md)
 
 ---
 
@@ -84,3 +86,22 @@ section records what changed from the design as written.
 | 2. The pagination suite is vendored, and its row grows by its cases and stays level with its control | **Met, restated.** The suite is `select`'s (`packages/select/test/pagination.test.ts`, 10 cases), since `@inquirer/core` 12.0.4 ships none (D-20261011-inquirer-pagination-suite-is-selects), so it counts in the `inquirer-prompts` row; `inquirer-core` stays 41 / 41. |
 | 3. `burgee migrate` rewrites `@inquirer/prompts` in a fixture, and `scripts/migrate-drop-ins-lock.test.ts` passes | **Met.** `migrate.test.ts` › "moves an @inquirer/prompts program to caique/inquirer/prompts, and refuses a name the subpath does not export", red with `main`'s row; the Migrate page and `MAPPING` carry the row. |
 | 4. `packages/caique/competitors.json` fingerprints `@inquirer/prompts` | **Met.** `./inquirer/prompts` claims `compat` against the `inquirer-prompts` host, fingerprinted at 8.7.3 (25 packages, 547,175 B). |
+
+## Shipped — 2026-10-25
+
+`caique@1.5.0` is on npm (`npm view caique time`, `"1.5.0":` `2026-10-25T18:00:55.029Z`; release run
+40216716346 on `64912a97ab`, after Version PR #1237). Its `exports` carry `./inquirer/prompts`
+(`types` `dist/inquirer-prompts.d.ts`, `import` and `default` `dist/inquirer-prompts.js`).
+Installed from npm beside `@inquirer/prompts@8.7.3`, `import('caique/inquirer/prompts')` exports
+`Separator`, `checkbox`, `confirm`, `editor`, `expand`, `input`, `number`, `password`, `rawlist`,
+`search` and `select`, and no name `@inquirer/prompts` exports is missing. `burgee@1.7.0`
+carries #1201's `migrate` row, and `burgee@1.7.1`'s family map names `caique` `1.5.0`, so the install line
+`migrate` prints reaches a caique that has the subpath. npm matches `main` for all ten packages
+(checked 18:26 UTC).
+
+| Criterion | Evidence on release |
+| :-- | :-- |
+| 1. `GRADED` carries an `inquirer-prompts` row, level with its control or with every subtracted case named by exact title; `npm run compat -- inquirer-prompts` reproduces it | CI Compatibility run 40180212984 on `main` at `1f6be56d6e`: `inquirer-prompts 213 / 213 100.0% ▲ 0`. The bench record at the release commit, `benchmarks/results/cli-benchmarks/2026-10-25-3ef9e76-ci.json`, reads `passed 213`, `reference 213`, `denominator 213`. The eleven `editor` cases stay subtracted by exact title for both sides (D-20261011-inquirer-prompts-editor-mock). |
+| 2. The pagination suite is vendored, and its row grows by its cases and stays level with its control | **Met as restated** (D-20261011-inquirer-pagination-suite-is-selects): the suite is `select`'s and counts in the `inquirer-prompts` row above; `inquirer-core` reads **41 / 41** in the same run. |
+| 3. `burgee migrate` rewrites `@inquirer/prompts` in a fixture, and `scripts/migrate-drop-ins-lock.test.ts` passes | The target is `caique/inquirer/prompts`, not `caique/inquirer` as written (D-20261012-caique-inquirer-prompts-subpath). `migrate.test.ts` › "moves an @inquirer/prompts program to caique/inquirer/prompts …" and `migrate-drop-ins-lock.test.ts` pass on `main`; the row shipped in burgee 1.7.0. The type-surface and `require()` locks (`drop-in-type-surface-lock.test.ts`, `drop-in-require-shape-lock.test.ts`) pass, and a strict `tsc` consumer of the published subpath compiles. |
+| 4. `packages/caique/competitors.json` fingerprints `@inquirer/prompts` | Unchanged since #1201: `./inquirer/prompts` claims `compat` against the `inquirer-prompts` host at 8.7.3. The published subpath bundles to 44,683 B against `@inquirer/prompts`' 582,754 B (`apps/docs/content/docs/weight.mdx`, held by `subpath-weight-lock.test.ts`). |

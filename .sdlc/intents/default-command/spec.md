@@ -1,7 +1,7 @@
 # Design — a native program names the command that runs when argv names none
 
-Intent: [`intent.md`](./intent.md). **Status:** approved (2026-10-20,
-[`D-20261020-default-command-design-accepted`](../../decisions/D-20261020-default-command-design-accepted.md)),
+Intent: [`intent.md`](./intent.md). **Status:** shipped 2026-10-25 in burgee 1.7.0 (Version PR #1231) — accepted 2026-10-20,
+[`D-20261020-default-command-design-accepted`](../../decisions/D-20261020-default-command-design-accepted.md),
 as re-grounded below on `main` at `ed14fd92c2`.
 
 ---

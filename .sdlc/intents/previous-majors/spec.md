@@ -1,6 +1,6 @@
 # Design — Commander 14 and yargs 17 are claimed
 
-Intent: [`intent.md`](./intent.md). **Status:** shipped.
+Intent: [`intent.md`](./intent.md). **Status:** shipped (2026-10-19), released 2026-10-25 in burgee 1.7.0 (Version PR #1231).
 
 **Accepted by the owner, 2026-10-12, by instruction: create and execute.** The instruction and the
 evidence are recorded in [`next-wave-3-2026-10.md`](../../research/next-wave-3-2026-10.md).

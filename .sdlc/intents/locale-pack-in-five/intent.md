@@ -53,6 +53,18 @@ not change: the product changes.
    (`ls evals/results/`, `ls dist/cli.js`) that no burgee change reaches and the eval may not be
    edited to remove.)*
 
+## Status — 2026-10-25
+
+PR #1219 (`80c8eaa52b`) shipped in burgee 1.7.0 (Version PR #1231), and #1232's fix for checking a
+`.json` pack in 1.7.1 (Version PR #1237). **Not stamped**: criterion 3 is broken by recorded
+transcripts.
+
+| Criterion | State on release |
+| :-- | :-- |
+| 1. `check <pack> --json` reports translated and missing ids and plural forms per locale | **Met** in burgee 1.7.0, and for a `.json` pack in 1.7.1. |
+| 2. The schema's top-level description holds a complete three-form module | **Met** in burgee 1.7.0 (`burgee/locale-pack-schema.json`). |
+| 3. Every reading passes with max under 12, and no transcript spends a call on burgee | **Not met.** Of the 12 transcripts recorded since #1219, 2 spend a call on burgee: Agent Evals run 40086461208 runs `Intl.PluralRules`, and run 40217253606 greps `messages.ts`. The median over those readings is 6, the maximum 8. Remaining: readings with no call spent on burgee. |
+
 ## Jev triage
 
 | user_impact | incumbent_gap | risk_reduced | composite | ready_for_spec | needs_model |

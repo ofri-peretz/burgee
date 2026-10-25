@@ -1,6 +1,8 @@
 # Intent — `burgee migrate` gives an off-major project a work list, not `nothing to rewrite`
 
-**Status:** approved (2026-10-19, under the owner's delegation, [`D-20261019-migrate-older-majors-design-accepted`](../../decisions/D-20261019-migrate-older-majors-design-accepted.md)) · **Opened:** `2026-10-18` · **Owner:** `@ofri-peretz` · **Design:** [`spec.md`](./spec.md)
+**Status:** shipped · **Opened:** `2026-10-18` · **Owner:** `@ofri-peretz` · **Shipped:** 2026-10-25 on
+[`7fe3b77e6f`](https://github.com/ofri-peretz/burgee/commit/7fe3b77e6f) (#1176), released in burgee 1.7.0 (npm, 2026-10-25T17:05Z, Version PR #1231), verified against `main` at
+[`aff0c31f`](https://github.com/ofri-peretz/burgee/commit/aff0c31fdf) with burgee 1.7.1 from npm — all three criteria held by `migrate-majors.test.ts` (73 / 73) and the field re-run · design accepted under the owner's delegation, [`D-20261019-migrate-older-majors-design-accepted`](../../decisions/D-20261019-migrate-older-majors-design-accepted.md) · **Design:** [`spec.md`](./spec.md)
 
 ---
 
@@ -73,3 +75,15 @@ a factor of two:
 ## Open questions
 
 None.
+
+## Shipped — 2026-10-25
+
+`burgee@1.7.0` is on npm (`"1.7.0":` `2026-10-25T17:05:01.964Z`, release run 40213249288), and its
+changelog carries #1176 as a minor. npm matches `main` for all ten packages (checked 18:26 UTC).
+Every criterion was re-read against the released code:
+
+| Criterion | Evidence on release |
+| :-- | :-- |
+| 1. On the four trial shapes, cut down to fixtures, `--json` lists each crash site with its file, line, the version that removed the API, and the replacement; the test fails before the change | `migrate-majors.test.ts` **73 / 73** on `main` at `aff0c31f`. In the field, `burgee@1.7.1`'s `dist/cli.js` from npm on a wait-port clone at `16083537`: `offMajor` carries `{ file: bin/wait-port.js, line: 4, api: module-as-program, removedIn: 12.0.0, replacement: const { program } = require('commander'), firstUse: 13 }` with commander's changelog entry, `nearest: 14` and `move: null`, and the summary reads `nothing to rewrite; 1 line uses an API a claimed major removed (see offMajor)`. |
+| 2. A project on the claimed major gets no new rows | The postcss-cli clone above, on yargs 18, reports `offMajor: []`; held on `main` by `migrate-majors.test.ts`. |
+| 3. Re-running the 2026-10-18 field trial: every `manual`-arm crash is named in the `mig` arm's report before anyone moves a specifier | The four trial projects (wait-port, madge, tsc-alias, node-qrcode) were re-run at their trial SHAs with the published CLI. Each `manual`-arm crash site in the spec's *Field re-run* table is named, and the one printed move is node-qrcode's `yargs -> burgee/yargs/v17`. |
