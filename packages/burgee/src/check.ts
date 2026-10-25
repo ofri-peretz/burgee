@@ -23,11 +23,13 @@
  * resolve the layer for the plugin, never imported: burgee depends on no layer (R3). A layer that
  * is not installed is named with the command to run; one that refuses refuses the check.
  */
-import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+
+import { ambientRuntime, run } from 'bellpull';
+import { findUpSync } from 'seniority/find-up';
 
 import { ExitCode } from './exit-code.js';
 import { checkLocales, countFor, formsOf, isOwnedElsewhere, type LocaleMessages, type LocaleRefusal, type Locales, type Message, render } from './locale.js';
@@ -142,7 +144,7 @@ export async function checkPlugin(file: string): Promise<CheckReport | CheckRefu
     throw error;
   }
   const { name, commands = [], hooks = {}, locales } = plugin as Plugin;
-  const layers = layersOf(plugin as object, resolve(file));
+  const layers = await layersOf(plugin as object, resolve(file));
   const refusing = layers.find((layer) => (layer.exitCode ?? 0) !== 0);
   if (refusing !== undefined) return refusedBy(refusing, name);
   const report: CheckReport = {
@@ -177,27 +179,31 @@ function reached(plugin: object): Map<string, string[]> {
 
 /**
  * The layer's bin, from the nearest `node_modules/<host>` at or above `dir`, where Node would
- * resolve the package from a module there. Read from its `package.json`, never imported.
+ * resolve the package from a module there (seniority's `findUp`). Read from its `package.json`,
+ * never imported.
  */
 function binOf(host: string, dir: string): string | undefined {
-  const pkg = join(dir, 'node_modules', host, 'package.json');
-  if (existsSync(pkg)) {
-    const { bin } = JSON.parse(readFileSync(pkg).toString()) as { bin?: string | Record<string, string> };
-    const file = typeof bin === 'string' ? bin : bin?.[host];
-    return file === undefined ? undefined : join(dirname(pkg), file);
-  }
-  const parent = dirname(dir);
-  return parent === dir ? undefined : binOf(host, parent);
+  const pkg = findUpSync(join('node_modules', host, 'package.json'), { cwd: dir });
+  if (pkg === undefined) return undefined;
+  const { bin } = JSON.parse(readFileSync(pkg).toString()) as { bin?: string | Record<string, string> };
+  const file = typeof bin === 'string' ? bin : bin?.[host];
+  return file === undefined ? undefined : join(dirname(pkg), file);
 }
 
-/** Every layer the plugin reaches, each checked by its own installed `check`, or named for the author to run. */
-function layersOf(plugin: object, file: string): Layer[] {
-  return [...reached(plugin)].map(([host, keys]) => {
-    const bin = binOf(host, dirname(file));
-    if (bin === undefined) return { host, keys, run: `npx ${host} check ${file}` };
-    const ran = spawnSync(process.execPath, [bin, 'check', file]);
-    return { host, keys, run: `${host} check ${file}`, exitCode: ran.status ?? ExitCode.RUNTIME, output: Buffer.concat([ran.stdout, ran.stderr]).toString() };
-  });
+/**
+ * Every layer the plugin reaches, each checked by its own installed `check`, or named for the
+ * author to run. bellpull runs it under this Node, output captured, within its default deadline: a
+ * layer's check that hangs is killed and reads as a refusal, never as a check that never returns.
+ */
+async function layersOf(plugin: object, file: string): Promise<Layer[]> {
+  return Promise.all(
+    [...reached(plugin)].map(async ([host, keys]): Promise<Layer> => {
+      const bin = binOf(host, dirname(file));
+      if (bin === undefined) return { host, keys, run: `npx ${host} check ${file}` };
+      const ran = await run(process.execPath, [bin, 'check', file], { runtime: ambientRuntime() });
+      return { host, keys, run: `${host} check ${file}`, exitCode: ran.code ?? ExitCode.RUNTIME, output: ran.stdout + ran.stderr };
+    }),
+  );
 }
 
 /** A layer's refusal as burgee's: the family's `CODE: message` and `  fix: …` lines, which every layer's `check` prints (R8). */

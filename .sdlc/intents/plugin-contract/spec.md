@@ -143,8 +143,10 @@ product. A layer that cannot be extended without a fork has failed it.
   criterion.)* `burgee check <file>` hands each key another layer hosts to that layer's own
   `check` and reports one row per layer under `layers`: `{ host, keys, run, exitCode,
   output }`. The layer's `check` is found where Node would resolve the package from the
-  plugin's directory (the nearest `node_modules/<host>` at or above it) and run as a command,
-  by its bin, with the same file. It is never imported, so R3 holds for burgee too. A layer
+  plugin's directory (the nearest `node_modules/<host>` at or above it, found with seniority's
+  `findUp`) and run as a command, by its bin, with the same file, through bellpull's `run`
+  within its default deadline. burgee already depends on both packages, and
+  `inline-implementation-lock` holds that it walks and spawns through them. It is never imported, so R3 holds for burgee too. A layer
   that is not installed gets a row whose `run` is the `npx` command to use, and no
   `exitCode`. A layer that exits non-zero makes the check refuse. The refusal uses that
   layer's own `code`, message and `fix`, read off the family's two refusal lines,
