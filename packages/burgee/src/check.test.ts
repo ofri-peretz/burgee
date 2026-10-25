@@ -7,6 +7,7 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
@@ -175,6 +176,20 @@ describe('burgee check reads a locale pack (R4)', () => {
   it('accepts the test pack the invariance lock registers', async () => {
     const file = plugin(`export default ${readFileSync(new URL('__fixtures__/locale-pack-de.json', import.meta.url), 'utf8')};\n`);
     expect(await checkPlugin(file)).toMatchObject({ name: 'test-de', locales: [{ locale: 'de' }] });
+  });
+
+  // The one example pack is JSON, and `import()` of a `.json` path without an import attribute
+  // throws ERR_IMPORT_ATTRIBUTE_MISSING, so an author checking the example as shipped hit a
+  // runtime error instead of a report. A `.json` file is read as data.
+  it('checks a pack written as JSON, as the example pack is, without wrapping it in a module', async () => {
+    const file = fileURLToPath(new URL('__fixtures__/locale-pack-de.json', import.meta.url));
+    expect(await checkPlugin(file)).toMatchObject({ name: 'test-de', locales: [{ locale: 'de' }] });
+  });
+
+  it('reads a JSON pack an editor saved with a byte-order mark', async () => {
+    const file = join(dir, 'bom.json');
+    writeFileSync(file, `﻿${JSON.stringify({ name: 'bom', contract: 1, locales: { de: { 'hint.passOne': 'eins davon' } } })}`);
+    expect(await checkPlugin(file)).toMatchObject({ name: 'bom', locales: [{ locale: 'de', messages: [{ id: 'hint.passOne', text: 'eins davon' }] }] });
   });
 
   it.each([
