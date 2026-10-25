@@ -1,10 +1,38 @@
 # Design — `cli-benchmarks`
 
-Intent: [`intent.md`](./intent.md). **Status:** review.
+Intent: [`intent.md`](./intent.md). **Status:** approved (2026-10-25).
 
 **Restated:** 2026-10-18 — see § Restated 2026-10-18
 
 ---
+
+## Design gate 2026-10-25
+
+**Accepted for Build**
+([D-20261025-cli-benchmarks-design-accepted](../../decisions/D-20261025-cli-benchmarks-design-accepted.md)).
+B1–B6 and R1–R8 hold as restated. Two items are left.
+
+**In scope.**
+
+1. S4, the claim stated as a series. The public agent-cost row in `README.md` and
+   `apps/docs/content/docs/comparison.mdx` states the token and turn ratios as the median and
+   range over a named window of CI readings in `benchmarks/results/agent-cli-bench/*-ci.json`.
+   It also states how many readings in the window met each bar. The row is generated from the
+   results, never typed. `scripts/claim-table-lock.test.ts` is restated to check the row
+   against the window it names, so a row quoting one run fails. `2026-10-09.json` stays as a
+   dated record.
+2. B7, the link lock. Every benchmark figure stated in `README.md`, `comparison.mdx` and each
+   `packages/*/README.md` (a ratio with `×`, a byte count against an incumbent, a cold-start
+   figure) sits in a paragraph or table row that links to `/docs/benchmarks`.
+
+**Acceptance checks.** The restated `claim-table-lock` is proven red by pasting the single-run
+0.699× back into the row. The B7 lock (`scripts/benchmark-links-lock.test.ts`) is proven red by
+removing one link. Both run in the root suite.
+
+**What to measure.** The window's medians and ranges at build time, written into the row by the
+generator. The design gate's reading (50 readings, 2026-10-10 to 2026-10-18: tokens median 0.504,
+range 0.434–0.627; turns median 0.524, range 0.446–0.634) is the expected order of magnitude,
+not a number to type in.
 
 ## Restated 2026-10-18
 

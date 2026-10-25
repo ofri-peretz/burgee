@@ -1,6 +1,10 @@
 # Intent — `cli-mcp`: every CLI on the floor is already an MCP server
 
-**Status:** review · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`
+**Status:** approved · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`
+
+> **Accepted at the Design→Build gate 2026-10-25** by the coordinator under the owner's delegation
+> ([`D-20261025-cli-mcp-design-accepted`](../../decisions/D-20261025-cli-mcp-design-accepted.md)): nothing left to build here: criterion 4 is `b1-mcp-arm`'s, and the lint rule moved to the eslint repo. See
+> [`spec.md` § Design gate 2026-10-25](./spec.md#design-gate-2026-10-25).
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Evidence:** `mcp.ts` + `mcp.test.ts`; `--mcp` served from the manifest (N1–N6, N8, N9).
 

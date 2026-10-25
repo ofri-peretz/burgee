@@ -4,7 +4,9 @@
 > requirement U11. The commander move, repeated seven times: a façade over our engine,
 > graded by the incumbent's own suite, with a published, ratcheting pass rate.
 
-**Status:** review · **Design:** [`spec.md`](./spec.md) (2026-09-08) · **Opened:** 2026-09-08 · **Owner:** @ofri-peretz
+**Status:** dropped (2026-10-25) · **Design:** [`spec.md`](./spec.md) (2026-09-08) · **Opened:** 2026-09-08 · **Owner:** @ofri-peretz
+
+**Dropped 2026-10-25** → [`D-20261025-output-stack-compat-dropped`](../../decisions/D-20261025-output-stack-compat-dropped.md): superseded. All eight output-stack hosts are graded at 100% with their controls, under `roundel`, `flagstaff`, `caique` and `inquirer-prompts-drop-in`. The release watch is `upstream-watch`, and the mechanical drawing classifier (R1, R5) is rejected for the named subtractions `compat-oracle` publishes.
 
 ---
 

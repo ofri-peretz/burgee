@@ -5,7 +5,11 @@
 > B1, which is where the claim is measured. Gathers three findings that are currently routed
 > to three different intents — one of them deferred — under the one decision they share.
 
-**Status:** review · **Opened:** 2026-09-09 · **Owner:** @ofri-peretz
+**Status:** approved · **Opened:** 2026-09-09 · **Owner:** @ofri-peretz
+
+> **Accepted at the Design→Build gate 2026-10-25** by the coordinator under the owner's delegation
+> ([`D-20261025-agent-headroom-design-accepted`](../../decisions/D-20261025-agent-headroom-design-accepted.md)): narrowed to R3 (row budget), R6 (hint-survival lock), RF (`formats` with `tsv`) and C1 (large-demo figure); R5 and R2's dotted paths dropped. See
+> [`spec.md` § Design gate 2026-10-25](./spec.md#design-gate-2026-10-25).
 
 **Restated:** 2026-10-18 — see [§ Restated 2026-10-18](#restated-2026-10-18)
 

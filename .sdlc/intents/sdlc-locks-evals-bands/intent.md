@@ -4,8 +4,12 @@
 > constraint 5: "AI-native SDLC from day one — `.sdlc/intents/` with the lock, `evals/`
 > layer 1, control bands with at least one band computing before v1."
 
-**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz · **Corrected from
+**Status:** approved · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz · **Corrected from
 `shipped` 2026-09-09** — the locks shipped, the bands did not; see [Verified against `main`](#verified-against-main--2026-09-09)
+
+> **Accepted at the Design→Build gate 2026-10-25** by the coordinator under the owner's delegation
+> ([`D-20261025-sdlc-locks-evals-bands-design-accepted`](../../decisions/D-20261025-sdlc-locks-evals-bands-design-accepted.md)): `.sdlc/intents` in the free link layer on every PR, never the paid task evals; the starved duration band made loud. See
+> [`spec.md` § Design gate 2026-10-25](./spec.md#design-gate-2026-10-25).
 
 **Restated:** 2026-10-18 — see [§ Restated 2026-10-18](#restated-2026-10-18)
 

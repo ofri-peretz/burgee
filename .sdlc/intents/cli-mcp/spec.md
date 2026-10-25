@@ -1,8 +1,28 @@
 # Design — `cli-mcp`
 
-Intent: [`intent.md`](./intent.md). **Status:** review.
+Intent: [`intent.md`](./intent.md). **Status:** approved (2026-10-25).
 
 ---
+
+## Design gate 2026-10-25
+
+**Accepted as built**
+([D-20261025-cli-mcp-design-accepted](../../decisions/D-20261025-cli-mcp-design-accepted.md)).
+N1–N9 and N11–N13 hold, with the checks in the status table below. The two rows that table
+reads "not yet" are settled:
+
+- The benchmark over MCP (criterion 4) is owned by [`b1-mcp-arm`](../b1-mcp-arm/intent.md). Its
+  criterion 3 marks this intent's criterion met after four weekly readings, and this intent then
+  moves to `shipped`. Nothing is built here.
+- The lint rule (destructive verb with `mcp`, without `confirm`) moved to
+  `eslint-plugin-cli-floor` in ofri-peretz/eslint
+  ([D-20261018-drop-eslint-plugin-cli-floor](../../decisions/D-20261018-drop-eslint-plugin-cli-floor.md)).
+  The runtime half holds here: a command without `effects` is not a tool.
+
+Restated, not reopened. N2's opt-in is spelled `effects:` (`read_only`, `idempotent`,
+`non_idempotent`), not `mcp: true`. N3's "zero runtime dependencies" is D-111's "nothing from
+outside this repository", held by `scripts/package-shape-lock.test.ts`, and the server itself
+still imports only Node.
 
 ## Requirements
 

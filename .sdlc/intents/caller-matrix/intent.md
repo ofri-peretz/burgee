@@ -6,7 +6,11 @@
 > explicit and tests every feature against every caller, so no layer can serve one well and
 > another by accident.
 
-**Status:** draft · **Opened:** 2026-09-08 · **Owner:** @ofri-peretz
+**Status:** approved · **Opened:** 2026-09-08 · **Owner:** @ofri-peretz
+
+> **Accepted at the Design→Build gate 2026-10-25** by the coordinator under the owner's delegation
+> ([`D-20261025-caller-matrix-design-accepted`](../../decisions/D-20261025-caller-matrix-design-accepted.md)): the first design, a declared features × callers registry over tests that exist. See
+> [`spec.md` § Design gate 2026-10-25](./spec.md#design-gate-2026-10-25).
 
 ---
 
