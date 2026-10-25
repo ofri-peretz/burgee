@@ -1,6 +1,10 @@
 # Design — One plugin contract across all four layers
 
-Intent: [`intent.md`](./intent.md). **Status:** draft — awaiting the Design→Build gate.
+Intent: [`intent.md`](./intent.md). **Status:** approved — accepted by the coordinator under the
+owner's delegation in
+[`D-20261025-plugin-contract-design-accepted`](../../decisions/D-20261025-plugin-contract-design-accepted.md),
+as re-grounded on `main` at `b453b07b` (below). The requirement-by-requirement state is the
+[Status](#status) table at the end.
 
 > Written 2026-09-08 against what `flagstaff` already ships, not against a blank page.
 > `packages/flagstaff/src/plugin.ts` and `schema.json` are the contract as built; this
@@ -32,6 +36,39 @@ Two things are *not* true yet, and they are what this design is:
    See R4.)
 2. **The schema is one file in one package.** The intent's first success criterion is one
    schema, byte-identical in every tarball, asserted by a lock. Today it is flagstaff's.
+
+## Re-grounded on `main` — 2026-10-25
+
+Checked at `b453b07b`, six weeks after this design was written. Every change to the text
+below is listed here, and nothing else was edited.
+
+1. **Ten hosts, not four.** Every package under `packages/` except `compat-oracle` now has
+   `src/plugin.ts` and a byte-identical `src/schema.json` (25,395 B, md5 `bffd4521…`):
+   bellpull, burgee, caique, closeout, controlroom, flagstaff, linegauge, paratext, roundel
+   and seniority. R1 and R2 hold for all ten (`plugin-contract-lock`, `plugin-schema-lock`).
+   Steps 1–3 of the build order are shipped, and so is the part of step 4 that hosts
+   burgee's own keys.
+2. **`schema:sync` exists in all but name.** The design said to write it "when the second host
+   arrives". The lock's byte-identity case, together with each host's schema fragment
+   (`schema fragments` in `plugin-schema-lock`), stood in for it. No change.
+3. **Step 4's command is `burgee check`, not `burgee plugin check`.** It shipped under that
+   name (2026-09-22, with eight sibling `check` commands, one per host). Until this change it
+   read burgee's own keys only. It refused an object that carried only `tokens` with
+   `E_NO_CONTRIBUTION`, "contributes nothing burgee reads". The intent asks for one command
+   that "runs every installed layer's validation". That is **R9**, added below and built in
+   the PR that accepts this design. Step 4 is no longer blocked on `cli-modularity`: burgee
+   has hosted `commands` and `hooks` through `Manifest.use()` since 2026-09-17.
+4. **R7 restated.** It said no key may require a function "except a component's or widget's
+   `frame`, and burgee's `hooks`". R5a's own hosts contradict it: seniority's `read`,
+   closeout's `run`, and burgee's command `run` and hook `handler` are functions, and so is
+   the required `static` on a component or widget. The rule that holds, and that
+   `plugin-schema-agreement` checks, is the one written below.
+5. **R5a gained controlroom.** It hosts `keymaps` and `panes` (added 2026-09-27). It also
+   gained linegauge's reversal: linegauge hosts `widths` (`plugin-contract-lock` › "linegauge
+   hosts `widths`"), so "linegauge hosts nothing, by design" is struck in place.
+6. **Out of scope, unchanged.** The docs gallery belongs to `docs-per-package`, which
+   absorbed `docs-deploy`. Contract 2 stays out of scope, and the npm namespace was decided
+   by D-067.
 
 ## Requirements
 
@@ -81,21 +118,49 @@ product. A layer that cannot be extended without a fork has failed it.
     cleanup runs before terminal restore and never after it.
   - `bellpull` hosts **`resolvers`** — how an executable is found (`PATH`, a version manager,
     a container), since `which` is the part every environment does differently.
-  - `linegauge` **hosts nothing, by design.** Six pure functions over Unicode tables; the
-    only extension is a table update, which is a release. Its README says so.
+  - ~~`linegauge` **hosts nothing, by design.**~~ *(Reversed: linegauge hosts `widths`, a
+    named set of code-point ranges and their column count, and its README says so.)*
+  - `controlroom` hosts **`keymaps`** and **`panes`** *(added 2026-09-27)*.
   - `burgee` hosts `commands` and `hooks` (M4, M5) — declared in the intent, `definePlugin`
     exists, the hosting is partial and is tracked under `cli-modularity`.
 
 - **R6 — One contract version.** `CONTRACT` is one number for the family. A host refuses a
   plugin declaring a higher contract with a `fix` naming the package to upgrade.
-- **R7 — Data first.** No key may require a function except a component's or widget's
-  `frame`, and burgee's `hooks`. Every other contribution is inspectable without running it.
+- **R7 — Data first.** *(Restated 2026-10-25; it named `frame` and `hooks` only, and R5a's
+  hosts take more.)* A function is allowed only as a named member that the family schema
+  describes and its host calls: `static` and `frame` on a component or widget, `read` on a
+  seniority source, `run` on a closeout handler or a burgee command, and `handler` on a burgee
+  hook. Everything else in a plugin is data, inspectable without running it, and the schema
+  describes it at the data level (`plugin-schema-agreement`: the schema and each host give
+  the same verdict on every data-level mistake).
 
   A `sample` (R5) is one of those contributions and does not weaken this. It is two named
   states of plain data — the schema admits objects, arrays, strings, numbers and booleans,
   and nothing that can carry behaviour — so a grader reads a component's declared states
   without executing anything its author wrote. The registry copies it to whatever depth it
   has and freezes each level, so the author's own object is not shared by reference either.
+- **R9 — One `check` runs every installed layer.** *(Added 2026-10-25, the intent's third
+  criterion.)* `burgee check <file>` hands each key another layer hosts to that layer's own
+  `check` and reports one row per layer under `layers`: `{ host, keys, run, exitCode,
+  output }`. The layer's `check` is found where Node would resolve the package from the
+  plugin's directory (the nearest `node_modules/<host>` at or above it, found with seniority's
+  `findUp`) and run as a command, by its bin, with the same file, through bellpull's `run`
+  within its default deadline. burgee already depends on both packages, and
+  `inline-implementation-lock` holds that it walks and spawns through them. It is never imported, so R3 holds for burgee too. A layer
+  that is not installed gets a row whose `run` is the `npx` command to use, and no
+  `exitCode`. A layer that exits non-zero makes the check refuse. The refusal uses that
+  layer's own `code`, message and `fix`, read off the family's two refusal lines,
+  `CODE: message` and an indented `fix: …` (R8), or `E_PLUGIN_SCHEMA` with the command to run when the layer printed
+  something else. `E_NO_CONTRIBUTION` now means that no layer of the family reads anything in
+  the object. Which key belongs to which layer is a table, `LAYERS` in `check.ts`.
+  `plugin-check-lock` holds the table to the family schema: every schema key burgee does not
+  read is routed, and each layer it names has a built bin of its own name.
+
+  Not routed: caique's own ids inside `locales` (`caique.…`). `locales` is burgee's key,
+  and a pack with no caique ids would be refused by `caique check` as contributing nothing.
+  An author runs `caique check` for those ids, and `burgee check` already leaves them to
+  caique (`isOwnedElsewhere`).
+
 - **R8 — One error vocabulary.** `E_PLUGIN_SCHEMA`, `E_PLUGIN_CONTRACT`,
   `E_NO_STATIC_PROJECTION` mean the same thing and carry the same `fix` shape in every
   layer, so a plugin author debugging against one package has learned all four.
@@ -312,3 +377,23 @@ red.
   does when it meets a higher one, which is all that is needed until there is one.
 - A namespace on npm for third-party plugins. The intent's open question stands: a
   `keywords` convention, and the gallery indexes by keyword. Nothing here depends on it.
+
+## Status
+
+On `main` at `b453b07b`, plus the PR that accepts this design. "Held by" names the check that
+fails when the row stops being true.
+
+| | Requirement | State | Held by |
+| :-- | :-- | :-- | :-- |
+| R1 | One object, every reader | **Built**, ten hosts | `scripts/plugin-contract-lock.test.ts` › "one object registers into every host" (validate, register, frozen, and dropping each host's key) |
+| R2 | One schema file, byte-identical | **Built**, ten copies | `scripts/plugin-schema-lock.test.ts` › "is byte-identical everywhere it is hosted" |
+| R3 | No layer imports another | **Built** | each package's `src/weight.test.ts` allow list. burgee's `check` runs other layers as commands, never by import (R9) |
+| R4 | roundel hosts `tokens` | **Built** | `packages/roundel/src/plugin.test.ts` |
+| R5 | caique hosts `widgets`, with `sample` | **Built** | `packages/caique/src/plugin.test.ts` › "a widget without `static` is E_NO_STATIC_PROJECTION…", "carries `sample`…" |
+| R5a | Every layer hosts, or says why not | **Built**, ten of ten host | `scripts/plugin-contract-lock.test.ts` › "every layer says what it hosts, in the generated section" |
+| R6 | One contract version | **Built**: `CONTRACT = 1` in all ten. Each refuses a higher one. Equality across hosts is not locked | each host's `src/plugin.test.ts` (`contract: CONTRACT + 1` or `2` → `E_PLUGIN_CONTRACT`) |
+| R7 | Data first (restated) | **Built** | `scripts/plugin-schema-agreement.test.ts` |
+| R8 | One error vocabulary | **Built** | `scripts/plugin-error-vocabulary-lock.test.ts` |
+| R9 | One `check` runs every installed layer | **Built** in this PR | `packages/burgee/src/check.test.ts` › "burgee check hands each other layer's keys to that layer's check" (15 cases). `scripts/plugin-check-lock.test.ts` › "burgee check routes every other layer's key to that layer". `scripts/plugin-example-lock.test.ts` › "burgee check runs every other layer's own check on it…", "…carries flagstaff's rendering of the spinner in all five modes" |
+
+The intent's criteria are graded in [`intent.md`](./intent.md#status).

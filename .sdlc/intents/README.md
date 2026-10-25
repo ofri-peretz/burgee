@@ -365,7 +365,7 @@ data, every animation with a static projection, weight paid per subpath. Propose
 
 | 26 | [`output-stack-research/`](./output-stack-research/) | **what we improve** — the ten incumbents' trackers read in full, won't-fix lists included; every U row cited | U1–U12 | review |
 | 27 | [`output-stack-compat/`](./output-stack-compat/) | **backwards compatibility** — eight façades graded by eight vendored suites; eight scoreboard rows | U11, C1–C6 | review — **5 of 8** graded (chalk 58 / 58, ora 99 / 99, log-update 99 / 99, boxen 84 / 84, **cli-table3 29 / 29**). **Decision taken 2026-09-08:** a drawing is a contract, so all four snapshot-graded hosts are built and gated; internal-module cases stay ungated (C4) and every row publishes three numbers — gated, internal, drawing. Eight rows is reachable |
-| 28 | [`plugin-contract/`](./plugin-contract/) | **spreading impact** — one plugin object, one schema, one `register()`, one `check`, across all four layers | U4, U9, M4–M5 | review — 1 of 4. The schema is byte-identical in roundel and flagstaff and locked; burgee and caique host no plugins, so "all four layers" is two |
+| 28 | [`plugin-contract/`](./plugin-contract/) | **spreading impact** — one plugin object, one schema, one `register()`, one `check`, across all four layers | U4, U9, M4–M5 | approved — 3 of 4 (2026-10-25). Ten hosts, one byte-identical schema, and `burgee check` runs every installed layer's own check (C3). The weekly eval has no current reading: the last two runs were `not-run` (usage limit) |
 | 31 | [`agent-headroom/`](./agent-headroom/) | **every machine-readable byte earns its place** — compact by default, projection at the source, a budget that truncates legibly. Gathers N13, N14 and N15, which sit in three intents with one deferred. `--schema` on the large demo is 39,512 B pretty-printed and 22,964 B minified, for the one command an agent runs first | N13–N15, B1 | review |
 | 30 | [`upstream-watch/`](./upstream-watch/) | **every package watches its own competitors** — a declared competitor list per subpath, a fingerprint from the published tarball, and a daily issue carrying the API diff, the stale claim, and the changeset we should write | C6, U5, U11 | shipped — 2026-10-18; 6 of 6, every published package declares competitors |
 | 29 | [`caller-matrix/`](./caller-matrix/) | **every caller** — features × callers conformance matrix, generated; humans, agents, CI, screen readers, programs | U2, U3, P1–P3, B1 | draft — nothing built. `/callers` is 404 and there is no matrix generator |
@@ -1126,7 +1126,7 @@ should be rewritten at their next edit:
 | `cli-help-renderer` #3                     | the two front-ends render byte-identical help to each other | the shipped contract is the **opposite**: each is byte-identical to _its own incumbent_, and the two incumbents differ   |
 | `replacement-parser`, `commander-compat`   | `selvage`, `COMPAT_TARGET=…`, `excluded.json`               | one package `burgee`; targets declared in `hosts.ts`; a ratchet in `baseline.json`                                       |
 | `cli-testing-harness`                      | `@interlace/cli-core`, `commander-harness`, a 20 ms lock    | `burgee`; drivers under `compat-oracle`; the 20 ms ceiling was deliberately superseded after it failed two unrelated PRs |
-| `plugin-contract` #3, `flagstaff` #7       | `burgee plugin check`                                       | shipped as `flagstaff check`, scoped to one layer                                                                        |
+| `plugin-contract` #3, `flagstaff` #7       | `burgee plugin check`                                       | shipped as `flagstaff check`, scoped to one layer. **Rewritten 2026-10-25:** the criterion names `burgee check`, which now runs every installed layer's `check` (`plugin-contract` R9) |
 | `output-stack-compat` #1                   | eight rows including clack and inquirer                     | a 2026-09-08 decision records both as blocked — a façade matching their drawing snapshots would _be_ the incumbent       |
 | `compat-oracle` #3                         | 1,210 / 1,215                                               | the vendored suite is 1,360 tests                                                                                        |
 | `docs-deploy` #1                           | `/.sdlc/research` returns 200                               | the page is at `/docs/research` (200); `/.sdlc/research` is 404                                                          |
@@ -1147,6 +1147,7 @@ should be rewritten at their next edit:
 - **`plugin-contract`** — one of four, and that one only at the two packages that already comply:
   the lock derives its host list from the tree, so `caique` and `burgee`, which ship no schema,
   are found _not applicable_ rather than failing.
+  *(2026-10-25: three of four. All ten hosts ship the schema; see the intent's Status table.)*
 
 ### 7. Owner-only, and blocking
 
