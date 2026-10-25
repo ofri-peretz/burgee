@@ -63,3 +63,14 @@ removed. It existed because a 16.4 bump could not build, and with webpack it can
 patch is proposed and graded by the same Build lane. **Revisit** when a 16.4 or 16.5 release
 builds these apps with Turbopack under 6 GB: remove `--webpack` from the ten `build` scripts and
 the replacement plugin from the chassis.
+
+**Follow-up, the same day: the front door's deploy.** The nine package hosts deployed from the
+merge (`b3dbf60c`). The front door (`docs`) failed in `vercel build`, after `next build` had
+passed, with `EISDIR: illegal operation on a directory, read`. webpack's file tracer read the
+build-time `readdirSync` of `packages/` in `docs-chassis/packages` (the `llms.txt` package map)
+as "every file under `packages/` is needed at run time". That was 3,871 traced files, and
+`packages/compat-oracle/vendor/find-up/fixture`, a directory, was among them. Turbopack's tracer
+had not done this. Every route is prerendered, so `docsNextConfig()` sets
+`outputFileTracingExcludes: { '*': ['../../packages/**'] }`. Reproduced and verified with
+`vercel build --prod` locally (exit 1 before, exit 0 after). `docsSiteSuite` gained "traces no
+file under the repository's packages/", which fails on the unfixed config with 3,871 paths.
