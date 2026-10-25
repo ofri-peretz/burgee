@@ -146,6 +146,8 @@ describe('the discovery order, explained (commander-env K3)', () => {
 
   it('says discovery is off under --no-config, and that --config names the one file read', async () => {
     expect((await explain('deploy', '--no-config')).stdout.trimEnd().split('\n').at(-1)).toBe('discovery: off (--no-config)');
+    const off = await explain('deploy', '--no-config', '--json');
+    expect((JSON.parse(off.stdout) as { data: { discovery: unknown } }).data.discovery).toEqual({ order: [], read: null, off: true });
     const r = await explain('deploy', '--config', 'app.config.json', '--json');
     expect((JSON.parse(r.stdout) as { data: { discovery: unknown } }).data.discovery).toEqual({ order: [{ path: read, reason: '--config', found: true }], read });
   });
@@ -169,6 +171,18 @@ describe('the discovery order, explained (commander-env K3)', () => {
     const r = await runBurgee(program, { argv: ['deploy', '--explain', 'region'], env: userEnv, cwd: home });
     expect(r.code).toBe(0);
     expect(addedLine(r.stdout).line).toBe(`config file ${join(home, 'xdg', 'app', 'config.json')}: discovery candidate ${String(tried.length)} of ${String(tried.length)} (user config directory)`);
+  });
+
+  it('reads nothing, and marks nothing read, where no candidate exists', async () => {
+    const empty = scratch('burgee-config-explain-empty-');
+    const bare = { XDG_CONFIG_HOME: join(empty, 'none'), HOME: join(empty, 'none') };
+    const r = await runBurgee(program, { argv: ['config', 'explain', 'deploy', '--json'], env: bare, cwd: empty });
+    const { discovery } = (JSON.parse(r.stdout) as { data: { discovery: { order: { found: boolean }[]; read: string | null } } }).data;
+    expect(discovery.read).toBeNull();
+    expect(discovery.order.length).toBeGreaterThan(0);
+    expect(discovery.order.every((step) => !step.found)).toBe(true);
+    const text = await runBurgee(program, { argv: ['config', 'explain', 'deploy'], env: bare, cwd: empty });
+    expect(text.stdout).not.toContain('— read');
   });
 
   it('--explain says nothing about discovery when the value did not come from a config file', async () => {

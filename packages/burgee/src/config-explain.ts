@@ -73,8 +73,10 @@ export async function explainConfig(manifest: Manifest, argv: readonly string[],
     return { option: `--${kebab(name)}`, value: resolved.values[name], source: p === undefined ? 'unset' : label(p.source), ...(location === '' ? {} : { location }) };
   });
   const precedence = ORDER.map(label);
-  const discovery = io === undefined || manifest.config === undefined ? undefined : await discoveryOf(manifest.config.name, flags, io);
-  if (json) return `${JSON.stringify({ ok: true, data: { precedence, options: rows, ...(discovery === undefined ? {} : { discovery }) }, meta: {} })}\n`;
+  // `config explain` is synthesised only for a program that declares `config` (surfaces.ts).
+  const discovery = io === undefined ? undefined : await discoveryOf(manifest.config!.name, flags, io);
+  // An undefined `discovery` is left out by `JSON.stringify`, so without `io` the shape is as it was.
+  if (json) return `${JSON.stringify({ ok: true, data: { precedence, options: rows, discovery }, meta: {} })}\n`;
   // Terminal columns, not code units: an option named in CJK is two code units a character
   // and four columns, and `.padEnd` lined its value up two columns right of everyone else's.
   const column = widest(rows.map((r) => r.option));

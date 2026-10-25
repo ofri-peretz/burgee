@@ -49,7 +49,7 @@ function discoveryLine(text: string, won: boolean, discovery: Discovery | undefi
 
 /** Rename the flag locations in place, then answer `--explain <asked>` when it was asked. */
 // eslint-disable-next-line maintainability/max-parameters -- the fifth is the run's io, which carries the discovery order only `--explain` reads; a parameter costs the startup path's byte budget less than an options object at the call site.
-export function asTyped(resolved: Resolution, specs: Record<string, { type?: string }>, tokens: readonly Token[], asked: unknown, io?: { cwd: string; discovery?: Discovery }): string | undefined {
+export function asTyped(resolved: Resolution, specs: Record<string, { type?: string }>, tokens: readonly Token[], asked: unknown, io: { cwd: string; discovery?: Discovery }): string | undefined {
   const spelled = spellings(specs, tokens);
   for (const [name, list] of Object.entries(resolved.candidates)) {
     const flag = spelled.get(name) ?? `--${kebab(name)}`;
@@ -57,5 +57,5 @@ export function asTyped(resolved: Resolution, specs: Record<string, { type?: str
     const winner = resolved.provenance[name];
     if (winner?.source === 'flag') winner.location = flag;
   }
-  return typeof asked === 'string' ? discoveryLine(explain(asked, resolved), resolved.provenance[asked]?.source === 'config', io?.discovery) : undefined;
+  return typeof asked === 'string' ? discoveryLine(explain(asked, resolved), resolved.provenance[asked]?.source === 'config', io.discovery) : undefined;
 }

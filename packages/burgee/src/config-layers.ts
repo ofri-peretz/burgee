@@ -63,6 +63,7 @@ export async function configLayers(
 ): Promise<Pick<Layers, 'config' | 'pkg'>> {
   // `--explain` reports where in the discovery order a config value came from (K3). Only then is
   // the order walked a second time; a run that explains nothing pays nothing for it.
+  // Stryker disable next-line ConditionalExpression: equivalent — walking the order on every run changes no output, only the cost this condition saves
   if (values['explain'] !== undefined) io.discovery = await discoveryOf(name, values, io);
   const { discover } = await import('seniority/config');
   const explicit = values['config'];
