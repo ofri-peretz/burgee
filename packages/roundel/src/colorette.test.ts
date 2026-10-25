@@ -72,7 +72,10 @@ function inputs(theirs: Module): unknown[] {
   const nested = NAMES.flatMap((inner) => [`a ${String(style(inner)('b'))} c`, String(style(inner)(style(inner)('x'))), `x${String(style(inner)(''))}y${String(style(inner)('z'))}`]);
   // Every close code at every offset either side of an open code's length (4 to 6), where
   // colorette's search begins: a close sitting exactly at the open's length is not seen.
-  const offsets = [0, 22, 23, 24, 27, 28, 29, 39, 49].flatMap((code) => [2, 3, 4, 5, 6, 7].map((n) => `${'x'.repeat(n)}\u001B[${String(code)}m.`));
+  // Twice in a row too, so the second close is found at the very start of what the first cut left.
+  const offsets = [0, 22, 23, 24, 27, 28, 29, 39, 49].flatMap((code) =>
+    [2, 3, 4, 5, 6, 7].flatMap((n) => [`${'x'.repeat(n)}\u001B[${String(code)}m.`, `${'x'.repeat(n)}\u001B[${String(code)}m\u001B[${String(code)}m.`]),
+  );
   return [
     ...offsets,
     '',

@@ -80,16 +80,18 @@ export interface Colorette {
   bgWhiteBright: Color;
 }
 
-// colorette's own fallbacks, for a runtime with no process or one missing a field.
-const { env = {}, argv = [], platform = '' } = proc ?? {};
+// colorette's own fallbacks, for a runtime with no process or one missing a field: no variables,
+// no arguments, no platform.
+const env = proc?.env ?? {};
+const flag = (name: string): boolean => proc?.argv?.includes(name) === true;
 const dumb = env['TERM'] === 'dumb';
 
 /** Whether colorette would colour this process's output. */
 export const isColorSupported: boolean =
-  !('NO_COLOR' in env || argv.includes('--no-color')) &&
+  !('NO_COLOR' in env || flag('--no-color')) &&
   ('FORCE_COLOR' in env ||
-    argv.includes('--color') ||
-    (platform === 'win32' && !dumb) ||
+    flag('--color') ||
+    (proc?.platform === 'win32' && !dumb) ||
     (isatty(1) && Boolean(env['TERM']) && !dumb) ||
     ('CI' in env && ('GITHUB_ACTIONS' in env || 'GITLAB_CI' in env || 'CIRCLECI' in env)));
 
@@ -113,8 +115,9 @@ const style =
     // starts one past the open code, as colorette's does.
     // eslint-disable-next-line modernization/prefer-template-literal -- the incumbent's coercion, which a template literal does not reproduce for an object whose `valueOf` and `toString` disagree
     let at = ('' + input).indexOf(close, open.length + 1);
-    if (at < 0) return open + input + close;
-    // colorette cuts the input itself, not its string, so an input that is not a string throws here as it does there.
+    // With no close inside, the loop does not run and this is `open + input + close`. With one,
+    // colorette cuts the input itself, not its string, so an input that is not a string throws here
+    // as it does there.
     let rest = input as string;
     let head = '';
     for (; at >= 0; at = rest.indexOf(close)) {

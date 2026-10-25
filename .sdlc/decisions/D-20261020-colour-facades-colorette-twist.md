@@ -21,7 +21,10 @@ pass, and no TAP arm can read it, because twist prints no TAP. So `runner: 'twis
 - **The last `Tests:` line, colour stripped** (through `linegauge/strip`, the family's layer for
   it, which makes `linegauge` a dependency of compat-oracle), and only when its counts add up to
   the total it prints. With `CI` unset twist redraws the whole view on every assertion; the last
-  frame is the finished one.
+  frame is the finished one — and only when its `Suites:` line has nothing `running`: a case
+  whose callback never settles leaves Node nothing to wait on, and twist then exits 0 with a last
+  frame reading `Suites: 1 running` over counts that look whole (measured on 0.0.5). That is an
+  error, not the passes drawn before it.
 - **A non-zero exit is one failure of that file**, never a pass and never nothing: the control's
   reference still divides the target, as it does for a node:test file that dies at load. A
   killed run, or an exit 0 with no summary that adds up, is an error, because twist does neither

@@ -38,19 +38,20 @@ export interface TwistRun {
 const COUNT = /(\d+) (failed|passed|skipped|total)/g;
 
 /**
- * The counts on the last `Tests:` line of twist's view, or `undefined` when it printed none or
- * printed one that does not add up to its own total.
+ * The counts on the last `Tests:` line of twist's view, or `undefined` when it printed none,
+ * printed one that does not add up to its own total, or drew it while a file was still running.
  *
  * The last, because twist redraws the whole view on every assertion when `CI` is unset, and the
- * last frame is the finished one; with `CI` set, as upstream's workflow runs it, there is one.
+ * last frame is the finished one; with `CI` set, as upstream's workflow runs it, there is one. A
+ * case whose callback never settles leaves nothing for Node to wait on, so twist exits 0 with
+ * its last frame reading `Suites: 1 running` over counts that look whole (measured on 0.0.5):
+ * that frame is not a finished run.
  */
 export function twistCounts(stderr: string): TwistCounts | undefined {
   // Its colours and its clear-screen are escape sequences, which linegauge strips.
-  const line = strip(stderr)
-    .split('\n')
-    .reverse()
-    .find((l) => l.startsWith('Tests:'));
-  if (line === undefined) return undefined;
+  const lines = strip(stderr).split('\n').reverse();
+  const line = lines.find((l) => l.startsWith('Tests:'));
+  if (line === undefined || lines.find((l) => l.startsWith('Suites:'))?.includes('running') !== false) return undefined;
   // twist leaves a zero count out of the line, so an absent word is 0 — except `total`, which it always prints.
   const found = new Map<string, number>();
   for (const [, n, word] of line.matchAll(COUNT)) found.set(word as string, Number(n));
@@ -88,7 +89,7 @@ export function twistTap(runs: readonly TwistRun[]): { output: string } | { erro
       continue;
     }
     const counts = twistCounts(stderr);
-    if (counts === undefined) return { error: `${file}: twist exited 0 with no summary that adds up: ${firstLine(stderr)}` };
+    if (counts === undefined) return { error: `${file}: twist exited 0 with no finished summary: ${firstLine(stderr)}` };
     lines.push(`# ${file}: ${String(counts.passed)} passed, ${String(counts.failed)} failed, ${String(counts.skipped)} skipped`);
     total.passed += counts.passed;
     total.failed += counts.failed;

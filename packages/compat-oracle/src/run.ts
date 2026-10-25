@@ -1159,7 +1159,7 @@ function tsdRefusal(host: Host, hostDir: string): string | undefined {
  * does not pin it is refused rather than run against whichever twist a walk up the tree finds.
  */
 function runTwistFiles(host: Host, hostDir: string, files: string[], target: string): { output: string } | { error: string } {
-  if (!(host.suiteDeps ?? []).some((spec) => splitSpec(spec)[0] === 'twist')) return { error: 'a twist suite pins its own twist in `suiteDeps`; without the pin it would run whichever twist a walk up the directory tree finds' };
+  if (host.suiteDeps?.some((spec) => splitSpec(spec)[0] === 'twist') !== true) return { error: 'a twist suite pins its own twist in `suiteDeps`; without the pin it would run whichever twist a walk up the directory tree finds' };
   const cli = join(packageRoot('twist', hostDir), 'bin', 'twist.js');
   const dir = join(hostDir, host.testDir);
   const runs: TwistRun[] = files.map((file) => {
@@ -1168,7 +1168,6 @@ function runTwistFiles(host: Host, hostDir: string, files: string[], target: str
       encoding: 'utf8',
       cwd: hostDir,
       env: suiteEnv(host, hostDir, target),
-      stdio: ['ignore', 'pipe', 'pipe'],
       timeout: host.suiteTimeoutMs ?? SUITE_TIMEOUT_MS,
       maxBuffer: MAX_OUTPUT_BYTES,
     });

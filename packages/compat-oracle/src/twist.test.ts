@@ -38,13 +38,17 @@ const PASSING = [
   '',
 ].join('\n');
 
+/** The `Suites:` line of a finished view: nothing running. */
+const DONE = 'Suites: 1 passed, 1 total\n';
+
 /** twist's clear-screen, which opens every frame it draws when `CI` is unset. */
 const CLS = '\u001B[2J\u001B[3J\u001B[H';
 
 const run = (stderr: string, status: number | null = 0, file = 'tests/a.test.js'): TwistRun => ({ file, status, stderr });
 
 /** One frame of twist's view as it redraws it with `CI` unset: a clear-screen, then the counts so far. */
-const frame = (failed: number, passed: number): string => `${CLS}Tests:  ${String(failed)} failed, ${String(passed)} passed, ${String(failed + passed)} total\n`;
+const frame = (failed: number, passed: number, running = 0): string =>
+  `${CLS}Suites: ${running > 0 ? `${String(running)} running, ` : ''}1 total\nTests:  ${String(failed)} failed, ${String(passed)} passed, ${String(failed + passed)} total\n`;
 
 describe("reading twist's counts", () => {
   it('reads the failures off a run that exited 0', () => {
@@ -56,17 +60,22 @@ describe("reading twist's counts", () => {
   });
 
   it('reads the last frame of a run that redrew its view, which is the finished one', () => {
-    expect(twistCounts(frame(0, 1) + frame(1, 1) + frame(2, 3))).toEqual({ passed: 3, failed: 2, skipped: 0 });
+    expect(twistCounts(frame(0, 1, 1) + frame(1, 1, 1) + frame(2, 3))).toEqual({ passed: 3, failed: 2, skipped: 0 });
+  });
+
+  it('reads no counts off a frame drawn while a file was still running, however whole they look', () => {
+    expect(twistCounts(frame(0, 1) + frame(0, 2, 1))).toBeUndefined();
+    expect(twistCounts('Tests:  2 passed, 2 total\n')).toBeUndefined();
   });
 
   it('counts a skip, and nothing that does not add up to twist’s own total', () => {
-    expect(twistCounts('Tests:  1 failed, 2 passed, 3 skipped, 6 total\n')).toEqual({ passed: 2, failed: 1, skipped: 3 });
-    expect(twistCounts('Tests:  1 failed, 2 passed, 4 total\n')).toBeUndefined();
-    expect(twistCounts('Tests:  1 failed, 2 passed\n')).toBeUndefined();
+    expect(twistCounts(`${DONE}Tests:  1 failed, 2 passed, 3 skipped, 6 total\n`)).toEqual({ passed: 2, failed: 1, skipped: 3 });
+    expect(twistCounts(`${DONE}Tests:  1 failed, 2 passed, 4 total\n`)).toBeUndefined();
+    expect(twistCounts(`${DONE}Tests:  1 failed, 2 passed\n`)).toBeUndefined();
   });
 
   it('reads an empty file as zero cases, and output with no summary as nothing', () => {
-    expect(twistCounts('Tests:  0 total\n')).toEqual({ passed: 0, failed: 0, skipped: 0 });
+    expect(twistCounts(`${DONE}Tests:  0 total\n`)).toEqual({ passed: 0, failed: 0, skipped: 0 });
     expect(twistCounts('Suites: 3 total\nTime:   0.1s\n')).toBeUndefined();
     expect(twistCounts('')).toBeUndefined();
   });
@@ -80,15 +89,18 @@ describe('a twist run as the summary the oracle grades', () => {
   });
 
   it('adds up across files, and takes a skip out of the cases as node:test’s summary does', () => {
-    const tap = twistTap([run(PASSING, 0, 'tests/a.test.js'), run('Tests:  1 failed, 2 passed, 1 skipped, 4 total\n', 0, 'tests/b.test.js')]);
+    const tap = twistTap([run(PASSING, 0, 'tests/a.test.js'), run(`${DONE}Tests:  1 failed, 2 passed, 1 skipped, 4 total\n`, 0, 'tests/b.test.js')]);
     expect(tap).toEqual({ output: expect.stringContaining('# tests 71\n# pass 69\n# fail 1\n# skipped 1\n') });
     expect(summarize((tap as { output: string }).output, 2, 70)).toMatchObject({ tests: 70, passed: 69, failed: 1, skipped: 1 });
   });
 
-  it('prints no skip line for a run with none, and says what each file counted', () => {
-    const { output } = twistTap([run(PASSING)]) as { output: string };
-    expect(output).not.toContain('# skipped');
-    expect(output).toContain('# tests/a.test.js: 67 passed, 0 failed, 0 skipped\n');
+  it('prints no skip line for a run with none, and says what each file counted, and nothing else', () => {
+    expect(twistTap([run(PASSING)])).toEqual({ output: '# tests/a.test.js: 67 passed, 0 failed, 0 skipped\n# tests 67\n# pass 67\n# fail 0\n' });
+  });
+
+  it('names the first line of a dead file’s stderr that is not blank or a stack frame, trimmed', () => {
+    const { output } = twistTap([run('\n    at node:internal/modules\n   TypeError: boom   \n', 1)]) as { output: string };
+    expect(output).toContain('counted as one failure: TypeError: boom\n');
   });
 
   it('counts a file twist could not load as one failure, and names why', () => {
@@ -98,7 +110,7 @@ describe('a twist run as the summary the oracle grades', () => {
   });
 
   it('counts a file that died after drawing a frame as one failure, not as the passes it had drawn', () => {
-    const { output } = twistTap([run(`${CLS}Tests:  5 passed, 5 total\n`, 1)]) as { output: string };
+    const { output } = twistTap([run(`${CLS}${DONE}Tests:  5 passed, 5 total\n`, 1)]) as { output: string };
     expect(summarize(output, 1, 9)).toMatchObject({ tests: 1, passed: 0, failed: 1 });
   });
 
@@ -108,7 +120,7 @@ describe('a twist run as the summary the oracle grades', () => {
 
   it('is an error, not a score, when twist was killed or exited 0 with no summary', () => {
     expect(twistTap([run(PASSING), run(FAILING, null, 'tests/b.test.js')])).toEqual({ error: 'tests/b.test.js: twist was killed before it finished' });
-    expect(twistTap([run('Error: something odd\n')])).toEqual({ error: 'tests/a.test.js: twist exited 0 with no summary that adds up: Error: something odd' });
+    expect(twistTap([run('Error: something odd\n')])).toEqual({ error: 'tests/a.test.js: twist exited 0 with no finished summary: Error: something odd' });
   });
 });
 
@@ -190,8 +202,23 @@ describe.skipIf(process.platform === 'win32')('the twist runner, end to end', ()
     expect(grade(twisted(), vendorDir, 'colorette', 4)).toMatchObject({ files: 3, tests: 4, passed: 1, failed: 3, rate: 1 / 4 });
   });
 
-  it('refuses a suite that does not pin its own twist', () => {
+  it('refuses a suite that does not pin its own twist, or pins nothing', () => {
     suite({ 'a.test.js': file('a', ['equal(1, 1)']) });
     expect(grade(twisted({ suiteDeps: ['colorette@2.0.20'] }), vendorDir, 'colorette').error).toMatch(/pins its own twist in `suiteDeps`/);
+    const unpinned = twisted();
+    delete unpinned.suiteDeps;
+    expect(grade(unpinned, vendorDir, 'colorette').error).toMatch(/pins its own twist in `suiteDeps`/);
+  });
+
+  it('grades a case that never settles as an error, not as the passes drawn before it', () => {
+    // Nothing keeps Node alive, so twist exits 0 with a frame still reading `1 running`.
+    suite({ 'a.test.js': file('a', ['equal(1, 1)', '() => {}']) });
+    expect(grade(twisted(), vendorDir, 'colorette').error).toMatch(/^a\.test\.js: twist exited 0 with no finished summary/);
+  });
+
+  it('holds each file to the host’s suite timeout, and reports a file it cut short as an error', () => {
+    // A case that keeps Node alive and never settles: only the timeout ends it.
+    suite({ 'a.test.js': file('a', ['() => { setInterval(() => {}, 1000) }']) });
+    expect(grade(twisted({ suiteTimeoutMs: 3_000 }), vendorDir, 'colorette').error).toBe('a.test.js: twist was killed before it finished');
   });
 });
