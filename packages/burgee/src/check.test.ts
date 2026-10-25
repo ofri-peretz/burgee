@@ -4,13 +4,13 @@
  * cases here are the report's rows and each way a plugin is refused, read off the returned
  * document rather than off prose.
  */
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
-import { type CheckRefusal, type CheckReport, checkPlugin } from './check.js';
+import { type CheckRefusal, type CheckReport, checkPlugin, LAYERS } from './check.js';
 import { ExitCode } from './exit-code.js';
 import { MESSAGES } from './messages.js';
 
@@ -63,13 +63,13 @@ describe('burgee check reports what a plugin contributes', () => {
 });
 
 describe('burgee check refuses, as data, with an exit code', () => {
-  it('refuses a plugin that contributes nothing burgee reads', async () => {
-    const file = plugin("export default { name: 'empty', contract: 1, commands: [] };\n");
+  it('refuses a plugin that contributes nothing any layer of the family reads', async () => {
+    const file = plugin("export default { name: 'empty', contract: 1, commands: [], spinnerz: {} };\n");
     expect(await checkPlugin(file)).toEqual({
       refused: {
         code: 'E_NO_CONTRIBUTION',
-        message: 'empty registers, but contributes nothing burgee reads',
-        fix: 'add `commands`, `hooks` or `locales` — a key another package in the family reads is allowed in the same object, but `burgee check` cannot show it',
+        message: 'empty registers, but contributes nothing any layer of the family reads',
+        fix: 'add a key the family schema (burgee/schema.json) describes: `commands`, `hooks` or `locales` for burgee, or another layer’s, such as `tokens` for roundel or `spinners` for flagstaff',
       },
       exitCode: ExitCode.RUNTIME,
     });
@@ -245,5 +245,128 @@ describe('burgee check reads a locale pack (R4)', () => {
 
   it('names the tag to write when Intl.Locale reads it another way', async () => {
     expect(await checkPlugin(pack({ de_DE: {} }))).toMatchObject({ refused: { fix: 'write it as "de-DE"' } });
+  });
+});
+
+/**
+ * `plugin-contract` C3 — one `check` runs every installed layer's validation. A key another layer
+ * hosts is handed to that layer's own `check`, found as `node_modules/<host>` at or above the
+ * plugin's directory and run as a command; a layer that is not installed is named, with the
+ * command to run.
+ *
+ * Each project here is a directory with a stand-in layer: a package whose bin prints what it is
+ * given and exits with a chosen code, so a case says what burgee does with a verdict without
+ * depending on what a real layer prints. `scripts/plugin-example-lock.test.ts` runs the real
+ * ones, on the example every docs page shows.
+ */
+describe('burgee check hands each other layer’s keys to that layer’s check (plugin-contract C3)', () => {
+  let projects = 0;
+  /** A project directory holding `plugin.mjs` and a stand-in for each layer in `layers`. */
+  const project = (source: string, layers: Record<string, { out: string; code?: number; bin?: unknown }>, at = ''): string => {
+    projects += 1;
+    const root = join(dir, `project-${String(projects)}`);
+    for (const [host, { out, code = 0, bin = { [host]: 'cli.js' } }] of Object.entries(layers)) {
+      const pkg = join(root, 'node_modules', host);
+      mkdirSync(pkg, { recursive: true });
+      writeFileSync(join(pkg, 'package.json'), JSON.stringify({ name: host, bin }));
+      writeFileSync(join(pkg, 'cli.js'), `process.stdout.write(${JSON.stringify(out)} + process.argv.slice(2).join(' ') + '\\n');\nprocess.exitCode = ${String(code)};\n`);
+    }
+    const home = join(root, at);
+    mkdirSync(home, { recursive: true });
+    const file = join(home, 'plugin.mjs');
+    writeFileSync(file, source);
+    return file;
+  };
+
+  it('runs an installed layer’s check on the same file, and reports its keys, command, exit code and output', async () => {
+    const file = project("export default { name: 'acme', contract: 1, tokens: { ok: '#1a7f37' } };\n", { roundel: { out: 'roundel ran: ' } });
+    expect(await checkPlugin(file)).toEqual({
+      name: 'acme',
+      commands: [],
+      hooks: [],
+      layers: [{ host: 'roundel', keys: ['tokens'], run: `roundel check ${file}`, exitCode: 0, output: `roundel ran: check ${file}\n` }],
+    });
+  });
+
+  it('runs a layer once for all the keys it hosts, in the order the plugin names them', async () => {
+    const file = project("export default { name: 'acme', contract: 1, spinners: {}, tokens: {}, glyphs: {} };\n", { flagstaff: { out: 'f ' }, roundel: { out: 'r ' } });
+    const { layers } = (await checkPlugin(file)) as CheckReport;
+    expect(layers?.map(({ host, keys }) => ({ host, keys }))).toEqual([
+      { host: 'flagstaff', keys: ['spinners', 'glyphs'] },
+      { host: 'roundel', keys: ['tokens'] },
+    ]);
+  });
+
+  it('finds a layer installed above the plugin’s directory, where Node would resolve it from', async () => {
+    const file = project("export default { name: 'acme', contract: 1, widths: {} };\n", { linegauge: { out: 'lg ' } }, 'src/plugins');
+    expect(await checkPlugin(file)).toMatchObject({ layers: [{ host: 'linegauge', exitCode: 0 }] });
+  });
+
+  it('reads a layer whose bin is a single path', async () => {
+    const file = project("export default { name: 'acme', contract: 1, handlers: [] };\n", { closeout: { out: 'co ', bin: 'cli.js' } });
+    expect(await checkPlugin(file)).toMatchObject({ layers: [{ host: 'closeout', exitCode: 0, output: `co check ${file}\n` }] });
+  });
+
+  it('names a layer that is not installed, with the command to run, and runs nothing', async () => {
+    const file = project("export default { name: 'acme', contract: 1, sources: {} };\n", {});
+    expect(await checkPlugin(file)).toEqual({ name: 'acme', commands: [], hooks: [], layers: [{ host: 'seniority', keys: ['sources'], run: `npx seniority check ${file}` }] });
+  });
+
+  it('treats a package of the layer’s name with no bin of that name as not installed', async () => {
+    const file = project("export default { name: 'acme', contract: 1, resolvers: {} };\n", { bellpull: { out: '', bin: { other: 'cli.js' } } });
+    expect(await checkPlugin(file)).toMatchObject({ layers: [{ host: 'bellpull', run: `npx bellpull check ${file}` }] });
+    expect((await checkPlugin(file)) as CheckReport).not.toHaveProperty('layers.0.exitCode');
+  });
+
+  it('treats a package of the layer’s name with no bin at all as not installed', async () => {
+    const file = project("export default { name: 'acme', contract: 1, resolvers: {} };\n", { bellpull: { out: '', bin: null } });
+    expect(await checkPlugin(file)).toMatchObject({ layers: [{ host: 'bellpull', run: `npx bellpull check ${file}` }] });
+  });
+
+  it('reads the layer’s stderr too, where a crash says what happened', async () => {
+    const file = project("export default { name: 'acme', contract: 1, panes: {} };\n", { controlroom: { out: '' } });
+    writeFileSync(join(dirname(file), 'node_modules', 'controlroom', 'cli.js'), "process.stderr.write('boom\\n');\n");
+    expect(await checkPlugin(file)).toMatchObject({ layers: [{ host: 'controlroom', exitCode: 0, output: 'boom\n' }] });
+  });
+
+  it('reads a refusal only where a line starts with the code, not a code quoted mid-line', async () => {
+    const file = project("export default { name: 'acme', contract: 1, tokens: {} };\n", { roundel: { out: 'see E_QUOTED: x\n  fix: y\n', code: 1 } });
+    expect(await checkPlugin(file)).toMatchObject({ refused: { code: 'E_PLUGIN_SCHEMA', message: 'roundel check exited 1 on acme' } });
+  });
+
+  it('reports burgee’s own contributions beside the other layers’', async () => {
+    const file = project("export default { name: 'acme', contract: 1, widgets: {}, commands: [{ path: ['doctor'], options: {}, effects: 'read_only', run: () => 1 }] };\n", {});
+    expect(await checkPlugin(file)).toMatchObject({ commands: [{ path: 'doctor' }], layers: [{ host: 'caique', keys: ['widgets'] }] });
+  });
+
+  it('refuses with the layer’s own code, message and fix when an installed layer refuses', async () => {
+    const out = 'E_NO_STATIC_PROJECTION: spinner "acme" has no static projection\n  fix: add `static`, the line a pipe prints\n';
+    const file = project("export default { name: 'acme', contract: 1, spinners: {} };\n", { flagstaff: { out, code: 1 } });
+    expect(await checkPlugin(file)).toEqual({
+      refused: { code: 'E_NO_STATIC_PROJECTION', message: 'flagstaff: spinner "acme" has no static projection', fix: 'add `static`, the line a pipe prints' },
+      exitCode: ExitCode.RUNTIME,
+    });
+  });
+
+  it('refuses with the command to run when a layer exits non-zero without the family’s refusal shape', async () => {
+    const file = project("export default { name: 'acme', contract: 1, keymaps: {} };\n", { controlroom: { out: 'something broke ', code: 2 } });
+    expect(await checkPlugin(file)).toEqual({
+      refused: { code: 'E_PLUGIN_SCHEMA', message: 'controlroom check exited 2 on acme', fix: `run \`controlroom check ${file}\` and fix what it prints` },
+      exitCode: ExitCode.RUNTIME,
+    });
+  });
+
+  it('refuses for the first layer that refuses, after running every layer', async () => {
+    const file = project("export default { name: 'acme', contract: 1, tokens: {}, capabilities: {} };\n", {
+      roundel: { out: 'E_PLUGIN_SCHEMA: bad token\n  fix: use hex\n', code: 1 },
+      paratext: { out: 'E_NO_STATIC_PROJECTION: no fallback\n  fix: add one\n', code: 1 },
+    });
+    expect(await checkPlugin(file)).toMatchObject({ refused: { code: 'E_PLUGIN_SCHEMA', message: 'roundel: bad token', fix: 'use hex' } });
+  });
+
+  it('leaves a key the table does not route, and one inherited from Object, to nobody', async () => {
+    const file = project("export default { name: 'acme', contract: 1, tokens: {}, constructor: {}, toString: {} };\n", {});
+    expect(((await checkPlugin(file)) as CheckReport).layers?.map((l) => l.host)).toEqual(['roundel']);
+    expect([...LAYERS.values()]).not.toContain('burgee');
   });
 });

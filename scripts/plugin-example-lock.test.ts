@@ -70,6 +70,22 @@ describe('one plugin object extends every layer', () => {
     expect(report).toMatchObject({ name: 'acme', commands: [{ path: 'doctor', effects: 'read_only' }] });
   });
 
+  // `plugin-contract` C2 and C3: the one command an author runs reaches every layer the example
+  // extends, each through its own installed `check` (the workspace links them under
+  // `node_modules/`, built before this suite), and flagstaff's renders the spinner in all five
+  // modes. A layer that stops running, or starts refusing, fails here by name.
+  it('burgee check runs every other layer’s own check on it, and each accepts it', async () => {
+    const report = (await burgee(EXAMPLE)) as { layers?: { host: string; exitCode?: number; output?: string }[] };
+    const ran = (report.layers ?? []).map(({ host, exitCode, output }) => ({ host, exitCode, ok: output?.trimEnd().endsWith('acme: ok') }));
+    expect(ran).toEqual(['roundel', 'flagstaff', 'linegauge', 'paratext', 'seniority', 'bellpull', 'closeout', 'caique'].map((host) => ({ host, exitCode: 0, ok: true })));
+  });
+
+  it('burgee check carries flagstaff’s rendering of the spinner in all five modes', async () => {
+    const report = (await burgee(EXAMPLE)) as { layers?: { host: string; output?: string }[] };
+    const flagstaffSaid = report.layers?.find((layer) => layer.host === 'flagstaff')?.output ?? '';
+    for (const mode of ['tty', 'pipe', 'ci', 'json', 'accessible']) expect(flagstaffSaid, `no ${mode} rendering`).toMatch(new RegExp(`^ {2}${mode} +\\S`, 'mu'));
+  });
+
   it('flagstaff accepts it — validated against its slice and registered', async () => {
     const plugin = await loadExample();
     expect(() => flagstaff(plugin)).not.toThrow();

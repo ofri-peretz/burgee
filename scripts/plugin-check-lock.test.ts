@@ -22,7 +22,7 @@
  * burgee's returns its report as data rather than printing it — its commands are documents the
  * engine renders — so it gets the same four cases in its own shape below.
  */
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -31,7 +31,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 // eslint-disable-next-line import-next/no-relative-packages -- the source, by path, on purpose: the package-name form resolves to `dist/`, which would check the last build rather than the tree
 import { check as bellpull } from '../packages/bellpull/src/check.js';
 // eslint-disable-next-line import-next/no-relative-packages -- see above
-import { checkPlugin as burgee } from '../packages/burgee/src/check.js';
+import { checkPlugin as burgee, LAYERS } from '../packages/burgee/src/check.js';
 // eslint-disable-next-line import-next/no-relative-packages -- see above
 import { check as caique } from '../packages/caique/src/check.js';
 // eslint-disable-next-line import-next/no-relative-packages -- see above
@@ -143,5 +143,30 @@ describe('burgee check returns its report as data', () => {
     // validating the shape alone would have said ok to a plugin the program then rejects.
     const report = await burgee(file("export default { name: 't', contract: 1, commands: [{ path: ['deploy'], description: 'ship it', options: {}, run() {} }] };"));
     expect(report).toMatchObject({ refused: { code: 'E_PLUGIN_SCHEMA' }, exitCode: 1 });
+  });
+});
+
+/**
+ * `plugin-contract` C3 — `burgee check` hands every key another layer hosts to that layer's own
+ * `check`, through `LAYERS`. A table can fall behind the schema it routes: a key the family schema
+ * gains with no row is a key `burgee check` silently skips, and a row naming a package with no
+ * `check` bin is a command that cannot run. Both are read off the tree here.
+ */
+describe('burgee check routes every other layer’s key to that layer (plugin-contract C3)', () => {
+  /** The keys burgee itself reads, or that describe the plugin rather than contribute to a layer. */
+  const OWN = ['name', 'contract', 'commands', 'hooks', 'enforce', 'locales'];
+  const schema = JSON.parse(readFileSync(new URL('../packages/burgee/src/schema.json', import.meta.url), 'utf8')) as { properties: Record<string, unknown> };
+
+  it('routes every key the family schema describes and burgee does not read, and no other', () => {
+    expect([...LAYERS.keys()].sort()).toEqual(Object.keys(schema.properties).filter((key) => !OWN.includes(key)).sort());
+  });
+
+  // The bin is what `burgee check` runs, and it is built before the root suite; the example lock
+  // runs each one on a plugin and reads its verdict.
+  it.each([...new Set(LAYERS.values())])('routes to %s, a package with a built bin of its own name', (host) => {
+    const at = new URL(`../packages/${host}/`, import.meta.url);
+    const { bin } = JSON.parse(readFileSync(new URL('package.json', at), 'utf8')) as { bin?: Record<string, string> };
+    expect(bin?.[host], `${host} has no bin named ${host}`).toBeDefined();
+    expect(existsSync(new URL(bin?.[host] ?? '', at)), `${host}'s bin is not built`).toBe(true);
   });
 });
