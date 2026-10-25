@@ -203,9 +203,9 @@ describe('U12-3 — --only and --skip, through the binary', () => {
 
   it('exits USAGE on a name it does not migrate, and writes nothing', () => {
     const dir = project({ 'package.json': DECLARES_COMMANDER, 'src/a.ts': "import { Command } from 'commander';\n" });
-    const { code, stderr } = burgee(['migrate', dir, '--only', 'kleur']);
+    const { code, stderr } = burgee(['migrate', dir, '--only', 'ansi-colors']);
     expect(code).toBe(ExitCode.USAGE);
-    expect(stderr).toContain('burgee migrate does not migrate kleur');
+    expect(stderr).toContain('burgee migrate does not migrate ansi-colors');
     expect(readFileSync(join(dir, 'src/a.ts'), 'utf8')).toBe("import { Command } from 'commander';\n");
   });
 });
