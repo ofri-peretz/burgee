@@ -70,21 +70,24 @@ release tags held on 2026-10-19:
 The kill criterion is unchanged: a host whose drop-in cannot bundle at or under its incumbent does
 not ship.
 
-## Build status — 2026-10-20
+## Build status — 2026-10-25
 
-yoctocolors built on `feat/roundel-colour-facades` against `main` at `8681efca` (#1218), and
-colorette on `feat/roundel-colorette` against `main` at `6213a30b`, each alone, because the design is
-one host per pull request (D-20261020-colour-facades-yoctocolors-first,
-D-20261020-colour-facades-colorette-twist). Every check below was red first.
+yoctocolors built on `feat/roundel-colour-facades` against `main` at `8681efca` (#1218), colorette
+on `feat/roundel-colorette` against `main` at `6213a30b` (#1233), and kleur on `feat/roundel-kleur`
+against `main` at `26bb166d`, each alone, because the design is one host per pull request
+(D-20261020-colour-facades-yoctocolors-first, D-20261020-colour-facades-colorette-twist,
+D-20261025-colour-facades-kleur-uvu). Every check below was red first.
 
 | R | Status | Where | Check |
 | :-- | :-- | :-- | :-- |
 | R3 | Built | `roundel/src/yoctocolors.ts`, `./yoctocolors` in `exports` and `typesVersions`; the `yoctocolors` host in `compat-oracle` (`vendor/yoctocolors/` at `a02a16ec`, `depsBefore` recorded, `fixture.js` through `extraDirs`, its `index.js` through `entries`); `baseline/yoctocolors.json`; `GRADED`, `DROP_INS`, `GRADED_VERSIONS`, `SUPPORTED_MAJORS` | `npm run compat -- yoctocolors` 78 / 78, control 78 / 78, target 0 / 0 before the subpath; `yoctocolors.test.ts` (differential against yoctocolors' own `base.js`: every style, every pair nested, colour on and off, every missing link of the `hasColors` chain); `drop-in-type-surface-lock`, `drop-in-require-shape-lock` |
 | R4 (yoctocolors) | Built | `benchmarks/fixtures/entry-points.ts`, `BUNDLED_CEILING` 2,350; `DROP_IN_CEILINGS` 3,395; `competitors.json` `./yoctocolors` | `npm run bench -- --axis weight --check` (red at a ceiling of 0, then 0.951 against ≤ 1); `subpath-weight-lock` |
 | R5 (yoctocolors) | Built | `migrate.ts` `FACADE_EXPORTS` and `REQUIRE_NAMESPACE`; the Migrate and compatibility pages | `migrate.test.ts` › rewrites a yoctocolors import; › moves a program on yoctocolors 2; `migrate-drop-ins-lock` |
-| R1 | Not built | kleur 4.1.5 | needs the `uvu` runner and loader substitution |
+| R1 | Built | `roundel/src/kleur.ts` and `roundel/src/kleur-colors.ts`, `./kleur` and `./kleur/colors` in `exports` and `typesVersions`; the `uvu` runner (`compat-oracle/src/uvu.ts`, `runUvuFiles` in `run.ts`) with tsx where `-r esm` stood (`Host.tsLoader`); an extensionless sibling (`./utils`) vendored as `utils.js`; the `kleur` host (`vendor/kleur/` at `fa345448`, tag `v4.1.5`, `depsBefore` recorded, `suiteDeps` kleur 4.1.5 and uvu 0.3.3, both entries as two imports); `baseline/kleur.json`; `GRADED`, `DROP_INS` (two rows), `GRADED_VERSIONS`, `SUPPORTED_MAJORS` | `npm run compat -- kleur` 15 / 15, control 15 / 15, target 0 / 0 before the subpath; `uvu.test.ts` (a real uvu 0.3.3 run of two passes and a failure graded as that, where uvu without the substitution exits 1 on the same file; a file that cannot load is one failure; red with no `uvu` arm); `vendor-run.test.ts` › brings a sibling named with no extension; `kleur.test.ts` and `kleur-colors.test.ts` (differential against kleur's own `index.mjs` and `colors.mjs`: every style alone, every pair chained and nested, held and grown chains, colour on and off, the `enabled` switch, twenty rows of kleur's decision, `env.sh`'s among them); `drop-in-type-surface-lock` (kleur's `export =` members gapped by name, as picocolors' are), `drop-in-require-shape-lock`, `output-env-lock` |
 | R2 | Built | `roundel/src/colorette.ts`, `./colorette` in `exports` and `typesVersions`; the `twist` runner (`compat-oracle/src/twist.ts`, `runTwistFiles` in `run.ts`); the `colorette` host (`vendor/colorette/` at `811fd2f2`, tag `2.0.20`, `depsBefore` recorded, `suiteDeps` colorette 2.0.20 and twist 0.0.5, `env` upstream CI's); `baseline/colorette.json`; `GRADED`, `DROP_INS`, `GRADED_VERSIONS`, `SUPPORTED_MAJORS` | `npm run compat -- colorette` 67 / 67, control 67 / 67, target 0 / 0 before the subpath; `twist.test.ts` (twist's own CLI exits 0 on a run with a failure, and the arm grades it as that failure; red with the arm's dispatch removed); `colorette.test.ts` (differential against colorette's own `index.js`: every style, every pair nested, every close code at every search offset, colour on and off, twenty rows of colorette's decision); `drop-in-type-surface-lock`, `drop-in-require-shape-lock`, `output-env-lock` |
 | R4 (colorette) | Built | `benchmarks/fixtures/entry-points.ts`, `BUNDLED_CEILING` 1,900; `DROP_IN_CEILINGS` 2,602; `competitors.json` `./colorette` | `npm run bench -- --axis weight --check` (red at a ceiling of 0, then 0.909 against ≤ 1); `subpath-weight-lock`; `competitors-lock` (colorette now in its `KNOWN`) |
+| R4 (kleur) | Built | `benchmarks/fixtures/entry-points.ts`, `BUNDLED_CEILING` 1,100 and 750; `DROP_IN_CEILINGS` 1,839 and 997; `competitors.json` `./kleur` and `./kleur/colors` | `npm run bench -- --axis weight --check` (red at a ceiling of 0, then 0.543 and 0.903 against ≤ 1); `subpath-weight-lock`; `competitors-lock` (kleur now in its `KNOWN`) |
+| R5 (kleur) | Built | `migrate.ts` `FACADE_EXPORTS` (not `REQUIRE_NAMESPACE`: `require('kleur')` is its one object, which `roundel/kleur` exports as `'module.exports'`, and `require('kleur/colors')` an object of names, which our namespace matches); the Migrate and compatibility pages | `migrate.test.ts` › rewrites a kleur default import and a kleur/colors named and namespace import; › moves a program on kleur 4; `migrate-drop-ins-lock` |
 | R5 (colorette) | Built | `migrate.ts` `FACADE_EXPORTS` (not `REQUIRE_NAMESPACE`: colorette's `require()` is its CommonJS build, an object of names, and ours is a namespace of the same names with no `default`); the Migrate and compatibility pages | `migrate.test.ts` › rewrites a colorette named and namespace import; › moves a program on colorette 2; `migrate-drop-ins-lock` |
 
 Two things the design did not say, found building R3:
@@ -112,7 +115,23 @@ Three more, found building R2:
   reads it through `runtime.ts` and `node:tty`'s `isatty(1)` and is allow-listed in
   `output-env-lock` by file, as picocolors' is.
 
-**Built: R2, R3, and R4 and R5 for yoctocolors and colorette. Not built: R1, and R4 and R5 for kleur.**
+Four more, found building R1:
+
+- **Both of kleur's entries are the suite.** `npm test` runs `test/index.js` against `kleur` and
+  `test/colors.js` against `kleur/colors`, so R1 is two subpaths, `roundel/kleur` and
+  `roundel/kleur/colors`, on one host, each with its own switch as kleur's two modules have.
+- **tsx is the `-r esm` substitution.** Besides ES module syntax and `./utils`, `esm` resolved
+  `uvu` to the CommonJS build uvu's CLI queues on; through the `import` condition `test.run()`
+  reaches a second uvu and throws. tsx resolves the way `esm` did, and `Host.tsLoader` already
+  carried it for signal-exit, so no second loader mechanism was added.
+- **`env.sh` is not `npm test`.** It is upstream CI's separate Linux step over `script -qfc`; its
+  rows are held by the differential tests' decision tables instead of graded.
+- **No state, no model.** Each facade's switch is a field a caller assigns, read on every call,
+  and every style is a pure function of its input and that field, so there is nothing for Quint
+  to explore beyond what the differential tests already enumerate.
+
+**Built: R1, R2, R3, and R4 and R5 for all three. The intent ships when roundel's minor carrying
+them is on npm.**
 
 ## Rejected alternatives
 

@@ -1,6 +1,6 @@
 ---
 title: roundel
-description: "Colour for a CLI: one output policy decided from the runtime, nine semantic tokens over util.styleText, and a theme that changes them together, contrast-checked. Zero dependencies. Drop-in paths for chalk, colorette, picocolors, supports-color and yoctocolors."
+description: "Colour for a CLI: one output policy decided from the runtime, nine semantic tokens over util.styleText, and a theme that changes them together, contrast-checked. Zero dependencies. Drop-in paths for chalk, colorette, kleur, picocolors, supports-color and yoctocolors."
 ---
 
 **roundel** is the colours a CLI carries: one output policy decided once from the runtime,
@@ -185,6 +185,25 @@ or CircleCI — not [the policy](#the-policy). With colour off every style is `S
 colorette's are. `require('roundel/colorette')` returns the same names `require('colorette')` does.
 
 ```diff
+- import kleur from 'kleur';
+- import { red, bold } from 'kleur/colors';
++ import kleur from 'roundel/kleur';
++ import { red, bold } from 'roundel/kleur/colors';
+```
+
+**Identical.** Both of kleur 4.1.5's entries. `roundel/kleur` is kleur's one object: `enabled`
+and twenty-six styles, each wrapping text in its codes or, called with nothing, starting a chain —
+`kleur.red().bold('x')` opens in the order chained, and a held chain adds a style it lacks and
+never one twice. `roundel/kleur/colors` is kleur's plain functions and `$`, nested by wrapping,
+handing `null` and `undefined` back, and every input back untouched while colour is off. Both
+re-open an outer style after a nested close and coerce as `txt + ''` does. Colour is kleur's own
+rule, decided once at import and kept on the switch a caller assigns — off for a truthy
+`NODE_DISABLE_COLORS`, a `NO_COLOR` that is set at all, or `TERM=dumb`; on for a `FORCE_COLOR`
+other than `0` or a terminal on stdout — not [the policy](#the-policy). `require('roundel/kleur')`
+returns the same object `require('kleur')` does. A named import of a style from `kleur` itself
+fails at load against kleur's own ES entry, and against this one too.
+
+```diff
 - import pc from 'picocolors';
 + import pc from 'roundel/picocolors';
 ```
@@ -241,6 +260,16 @@ style, for every pair of styles nested in each other, with colour on and off, an
 decision in every row of colorette's rule. Bundled, the whole surface is 2,425 bytes against
 colorette's 2,602.
 
+**Graded by kleur's own suite**, vendored at 4.1.5: `roundel/kleur` and `roundel/kleur/colors`
+pass **15 of 15** cases of the two files kleur's `npm test` runs, level with kleur itself. kleur's
+runner is `uvu -r esm`, and `esm` does not start on Node 24, so `compat-oracle` runs upstream's
+pinned uvu once per file with tsx where `esm` stood, which gives the suite what `esm` did — ES
+module syntax in `.js` files, imports resolved as CommonJS resolves them — and edits none of it. `kleur.test.ts` and
+`kleur-colors.test.ts` evaluate kleur's own `index.mjs` and `colors.mjs` beside these modules and
+require the same value from every style, every pair chained and nested, colour on and off, and the
+same decision in every row of kleur's rule, the rows of its Linux-only `env.sh` among them. Bundled,
+the whole surface is 1,016 bytes against kleur's 1,839, and 930 against kleur/colors' 997.
+
 **Graded by picocolors' own test**, vendored at 1.1.1: `roundel/picocolors` passes
 `tests/test.js`, the one file picocolors' `npm test` runs. That file is a script of bare
 assertions that stops at the first failure, so the grade is one bit, as rc's is: 1 of 1, the
@@ -292,6 +321,7 @@ Graded by the incumbent's own test suite:
 | :-- | --: |
 | `chalk` | 59 / 59 |
 | `colorette` | 67 / 67 |
+| `kleur` | 15 / 15 |
 | `picocolors` | 1 / 1 |
 | `supports-color` | 55 / 55 |
 | `yoctocolors` | 78 / 78 |
@@ -344,7 +374,7 @@ keeps both true.
 | Package | What it is | Migrates from |
 | :-- | :-- | :-- |
 | [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander, yargs and meow |
-| **roundel** (this package) | Colour: one output policy, semantic tokens, a theme | chalk, colorette, picocolors, supports-color and yoctocolors |
+| **roundel** (this package) | Colour: one output policy, semantic tokens, a theme | chalk, colorette, kleur, picocolors, supports-color and yoctocolors |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
 | [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | @inquirer/core |
 | [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line |

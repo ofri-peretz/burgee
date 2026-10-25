@@ -9,6 +9,8 @@
     "contrast",
     "chalk",
     "colorette",
+    "kleur",
+    "kleur/colors",
     "picocolors",
     "supports-color",
     "yoctocolors",
