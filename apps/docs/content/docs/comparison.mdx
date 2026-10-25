@@ -31,17 +31,27 @@ never for gating; the machine-independent figure is the ratio on
 | Installed size ⚙️ | 1607 KB | 203 KB | 515 KB | 912 KB 📖 | 40 KB | 52 KB 📖 |
 | Full CLI run over bare node ⚙️ | +19.1 ms | +15.3 ms | +77.1 ms | +131 ms 📖 | +4.1 ms | +6 ms 📖 |
 
+**Agent cost**, against commander on the same tasks with the same model. One run of this
+benchmark is not a verdict: two runs of one commit have read 0.49 and 0.995. So each figure is
+the median and the range over a named window of CI runs, and how many of them met the bar,
+generated from the runs on [Benchmarks](/docs/benchmarks):
+
+| Claim | Gate | Measured | |
+| :--- | :--- | ---: | :--- |
+| an agent spends ≥40% fewer tokens over the benchmark tasks (total over every task-run) | `agent-tokens-40pct` | median 0.502× over the 52 CI readings dated 2026-10-10 to 2026-10-18 (range 0.434–0.627), at or under 0.6 in 51 of them | ✅ met |
+| an agent takes ≥30% fewer turns over the benchmark tasks (total over every task-run) | `agent-turns-30pct` | median 0.522× over the 52 CI readings dated 2026-10-10 to 2026-10-18 (range 0.446–0.634), at or under 0.7 in 52 of them | ✅ met |
+
 Three things in that table got worse when they were measured rather than asserted, and
 they stay in it.
 
 **Installed size.** burgee installs at **1607 KB**. It is our largest number, it is our least
-flattering one, and it has now been wrong on this page twice in opposite directions.
+flattering one, and it has now been wrong on this page twice in opposite directions ([measured](/docs/benchmarks)).
 
 First it said 104 KB, a guess at the tarball rather than a measurement. That was corrected
 to **561 KB** on 2026-09-09 — the real `npm pack` unpacked size, which is what lands in a
 user's `node_modules` — and then the package grew to **2.3x that figure** while the cell sat
 still, because the cell was read from a *published* measurement rather than from a fresh
-install. Every check on this page compared the page against that file and stayed green.
+install. Every check on this page compared the page against that file and stayed green ([measured](/docs/benchmarks)).
 
 Fixed 2026-09-16: the row is now measured against the tree by CI on every run, so it cannot
 fall behind again. It is checked there and not on a developer's laptop for a reason worth
@@ -55,19 +65,19 @@ whole package — 86,113 bytes. What it buys is a Windows subcommand that actual
 commander sends every Windows spawn through `node`, which is a workaround for `spawn` not
 searching `PATHEXT`, and it is simply wrong for a subcommand that is a `.cmd`, a `.bat`, or has
 a shebang that is not node. The check on this row is what surfaced the cost, which is the
-argument for the check.
+argument for the check ([measured](/docs/benchmarks)).
 
 **24 KB more arrived on 2026-09-30:** `seniority/yaml` (24,226 bytes), the YAML parser that
 `seniority`'s cosmiconfig drop-in needs to read the YAML files cosmiconfig reads. burgee never
 loads it — no module on burgee's path imports it, and its bundled column did not move — but it
-is on disk.
+is on disk ([measured](/docs/benchmarks)).
 
 **About 90 KB left on 2026-10-11.** Every family package published a declaration file for
 every module, and a TypeScript consumer can only open the ones an `exports` entry reaches.
 burgee alone shipped 35 that none does, 76,504 bytes of them (`migrate.d.ts` was the largest).
 The build now prunes them by the closure the TypeScript compiler computes from the entry
 points, and a check fails if any shipped declaration imports one that was not shipped
-([D-20261011](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/decisions/D-20261011-tarball-unreachable-declarations.md)).
+([D-20261011](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/decisions/D-20261011-tarball-unreachable-declarations.md)) ([measured](/docs/benchmarks)).
 
 It buys no dependency outside the burgee family and seven drop-in front ends. It is still 1607 KB, and the
 bundled column on [Benchmarks](/docs/benchmarks) — what an application actually grows by —
@@ -82,7 +92,7 @@ read 1.47x to 1.56x: burgee's start-up got slower in that month, and this page s
 than keeping the older figure. Since D-157 the gate is what is reachable: a downward-only ratchet at 1.55x
 cac, set from CI's own spread and only ever lowered, which it still meets. The `burgee/yargs`
 drop-in starts at 0.64x yargs (0.82x on 2026-09-09). The `burgee/commander` drop-in starts at
-**1.07x** commander (1.18x on 2026-10-08, 1.08x on 2026-09-09).
+**1.07x** commander (1.18x on 2026-10-08, 1.08x on 2026-09-09) ([measured](/docs/benchmarks)).
 
 These are the figures from the CI runner, which is where the suite now publishes from: the
 same commit measured eleven times there put `burgee ÷ cac` inside 2.3%, where a developer
@@ -94,7 +104,7 @@ watch**, because a ratio taken between two spawns in the same run cancels the ma
 Moving to that machine did not uniformly flatter us. `burgee ÷ cac` improved from 1.45x to
 1.32x and commander went from a small loss to a level result; `burgee/yargs ÷ yargs` moved
 against us, from 0.69x to 0.82x. The machine was chosen for its variance, before these
-numbers were read.
+numbers were read ([measured](/docs/benchmarks)).
 
 burgee's speed comes from `node:util.parseArgs` being in the standard library, not from a
 faster language: burgee is TypeScript, exactly like commander and yargs. On this run it buys

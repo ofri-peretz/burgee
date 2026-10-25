@@ -83,6 +83,8 @@ jobs:
       bench_page: ${{ steps.bench_page.outcome }}
       plugins_page: ${{ steps.plugins_page.outcome }}
       layers_page: ${{ steps.layers_page.outcome }}
+      callers_page: ${{ steps.callers_page.outcome }}
+      evals_config: ${{ steps.evals_config.outcome }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
@@ -154,6 +156,21 @@ jobs:
         id: layers_page
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: npm run layers:page -- --check
+      # Its only input is the caller registry, examples/conformance/src/callers.ts, committed.
+      - name: The published callers page is the one the caller matrix generates
+        id: callers_page
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: npm run callers:page -- --check
+
+      # Evals layer 1 — every relative link in an agent-facing document resolves, every script a
+      # document names exists, every floor id a child intent cites is defined. Deterministic, no
+      # credential, no quota, so it runs on every PR; `.sdlc/intents/` is in its set. The paid
+      # task evals (layer 2) stay in evals.yml and keep its narrower `paths:` — an intent edit
+      # never spends the Claude quota (D-20261025-sdlc-locks-evals-bands-design-accepted).
+      - name: Evals layer 1 (links, scripts, floor ids)
+        id: evals_config
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: npm run evals:config
 
   quality-gate:
     name: Quality Gate
@@ -174,6 +191,8 @@ jobs:
           O_BENCH_PAGE: ${{ needs.fast.outputs.bench_page || needs.fast.result }}
           O_PLUGINS_PAGE: ${{ needs.fast.outputs.plugins_page || needs.fast.result }}
           O_LAYERS_PAGE: ${{ needs.fast.outputs.layers_page || needs.fast.result }}
+          O_CALLERS_PAGE: ${{ needs.fast.outputs.callers_page || needs.fast.result }}
+          O_EVALS_CONFIG: ${{ needs.fast.outputs.evals_config || needs.fast.result }}
         run: |
           set -euo pipefail
           icon() { case "$1" in success) echo "✅";; failure) echo "❌";; cancelled) echo "⏹";; skipped) echo "⏭";; *) echo "⚠️";; esac; }
@@ -193,6 +212,8 @@ jobs:
             echo "| Generated pages match their sources (benchmarks) | $(icon "$O_BENCH_PAGE") $O_BENCH_PAGE |"
             echo "| Generated pages match their sources (plugins) | $(icon "$O_PLUGINS_PAGE") $O_PLUGINS_PAGE |"
             echo "| Generated pages match their sources (family diagram) | $(icon "$O_LAYERS_PAGE") $O_LAYERS_PAGE |"
+            echo "| Generated pages match their sources (callers) | $(icon "$O_CALLERS_PAGE") $O_CALLERS_PAGE |"
+            echo "| Evals layer 1 (links, scripts, floor ids) | $(icon "$O_EVALS_CONFIG") $O_EVALS_CONFIG |"
             echo ""
             echo "_Heavy gates (test / build / typecheck) run in \`quality-full.yml\` once the PR is ready for review or labelled \`run-full-ci\`._"
           } >> "$GITHUB_STEP_SUMMARY"

@@ -5,8 +5,8 @@
  * written first against a load without the cache-busting query and observed failing
  * (rule 4). W6 is measured on a generated 30-command CLI.
  */
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { join, relative, resolve } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 
@@ -230,5 +230,99 @@ describe('burgee dev: save-to-callable under 500 ms, or five imports of the entr
     expect(elapsed, `${elapsed.toFixed(1)} ms — ${(elapsed / floor).toFixed(2)} imports of the entry (${floor.toFixed(1)} ms each here)`).toBeLessThan(budget);
     io.input.end();
     await handle.done;
+  });
+});
+
+/**
+ * W6, the segment the case above leaves out: detecting the save. That case times from
+ * `handle.reload()`; the criterion is save-to-callable, so this one drives the real watcher at its
+ * default debounce. It writes the file, waits for `notifications/tools/list_changed`, and calls the
+ * changed command — timed from the write, held to the same A30 budget, with no fixed sleep.
+ */
+describe('burgee dev: save-to-callable through the file watcher (W6)', () => {
+  it('a save is seen, reloaded and callable within the budget, timed from the write', async () => {
+    const at = scratch('watched-bench');
+    const entry = join(at, 'cli.ts');
+    writeFileSync(entry, cli(thirty('one')));
+    const io = rpc();
+    const handle = dev({ entry, input: io.input, output: io.output, log: { write: () => undefined } });
+    await handle.ready;
+    io.send({ id: 0, method: 'tools/call', params: { name: 'c29', arguments: {} } });
+    await io.next((m) => m['id'] === 0);
+    // The floor, taken before the save so it does not race the reload: one fresh import of an
+    // entry the same size as the one the watcher is about to import.
+    const floor = (await load(entry, 1_000)).ms;
+    const before = io.lines.length;
+    const started = performance.now();
+    writeFileSync(entry, cli(thirty('two')));
+    await io.next((m) => m['method'] === 'notifications/tools/list_changed' && io.lines.indexOf(m) >= before);
+    io.send({ id: 1, method: 'tools/call', params: { name: 'c29', arguments: {} } });
+    const answer = JSON.parse(text(await io.next((m) => m['id'] === 1))) as { data: string };
+    const elapsed = performance.now() - started;
+    expect(answer.data).toBe('two 29');
+    const budget = Math.max(RELOAD_BUDGET_MS, RELOAD_FLOORS * floor);
+    // The CI log carries this line on every lane: the save-to-callable reading the design asked to record.
+    process.stderr.write(`W6 save-to-callable through the watcher: ${elapsed.toFixed(1)} ms (budget ${budget.toFixed(0)} ms, floor ${floor.toFixed(1)} ms) on ${process.platform}\n`);
+    expect(elapsed, `${elapsed.toFixed(1)} ms — ${(elapsed / floor).toFixed(2)} imports of the entry (${floor.toFixed(1)} ms each here)`).toBeLessThan(budget);
+    handle.close();
+    io.input.end();
+    await handle.done;
+  });
+});
+
+/** Every file under `root`, by relative path, with its bytes: the listing and the contents in one map. */
+function snapshot(root: string): Map<string, string> {
+  const out = new Map<string, string>();
+  const walk = (at: string): void => {
+    for (const e of readdirSync(at, { withFileTypes: true })) {
+      const path = join(at, e.name);
+      if (e.isDirectory()) walk(path);
+      else out.set(relative(root, path), readFileSync(path).toString('base64'));
+    }
+  };
+  walk(root);
+  return out;
+}
+
+/**
+ * W4 — Z2 byte-identity. `burgee dev` reads the user's project and writes nothing into it: no
+ * cache, no build output, no lockfile, no dotfile. Non-inclusion in burgee's own bundle is
+ * locked by `weight.test.ts`; this is the promise about the user's tree, which only a run over a
+ * project keeps. The one change in the tree afterwards is the edit the test made itself.
+ */
+describe('burgee dev leaves the project byte-identical (W4, Z2)', () => {
+  it('after a load, an edit, a watched reload and a stop, every file and the listing are as they were', async () => {
+    const at = scratch('byte-identity');
+    mkdirSync(join(at, 'src'), { recursive: true });
+    writeFileSync(join(at, 'package.json'), `${JSON.stringify({ name: 'devdemo', version: '1.0.0', type: 'module', bin: { devdemo: 'src/cli.ts' } }, null, 2)}\n`);
+    writeFileSync(join(at, 'devdemo.config.json'), `${JSON.stringify({ greeting: 'Hello' })}\n`);
+    writeFileSync(join(at, 'src', 'words.ts'), "export const word = 'Hello';\n");
+    const entry = join(at, 'src', 'cli.ts');
+    // The entry imports a second file of the project, so the reload re-reads more than one.
+    writeFileSync(
+      entry,
+      `import { word } from './words.ts';
+import { defineCommand, defineProgram } from ${burgee};
+export const program = defineProgram({ name: 'devdemo', commands: [defineCommand({ name: 'greet', effects: 'read_only', arguments: [{ name: 'name', required: true }], run: ({ positionals }) => word + ', ' + positionals[0] })] });
+`,
+    );
+    const io = rpc();
+    const handle = dev({ entry, input: io.input, output: io.output, log: { write: () => undefined } });
+    await handle.ready;
+    io.send({ id: 1, method: 'tools/call', params: { name: 'greet', arguments: { name: 'ada' } } });
+    expect(JSON.parse(text(await io.next((m) => m['id'] === 1)))).toMatchObject({ ok: true, data: 'Hello, ada' });
+    const edited = cli(`${greet('Hi')}, ${ping}`);
+    const expected = snapshot(at);
+    expected.set(relative(at, entry), Buffer.from(edited).toString('base64'));
+    const before = io.lines.length;
+    writeFileSync(entry, edited);
+    await io.next((m) => m['method'] === 'notifications/tools/list_changed' && io.lines.indexOf(m) >= before);
+    io.send({ id: 2, method: 'tools/call', params: { name: 'ping', arguments: {} } });
+    expect(JSON.parse(text(await io.next((m) => m['id'] === 2)))).toMatchObject({ ok: true, data: 'pong' });
+    handle.close();
+    io.input.end();
+    await handle.done;
+    expect([...snapshot(at).keys()].sort()).toEqual([...expected.keys()].sort());
+    expect(snapshot(at)).toEqual(expected);
   });
 });

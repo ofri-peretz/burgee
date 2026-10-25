@@ -257,6 +257,17 @@ jobs:
         if: env.FULL == 'true' || contains(fromJSON(env.PACKAGES), 'compat-oracle')
         continue-on-error: ${{ matrix.os != 'ubuntu-latest' }}
         run: node packages/compat-oracle/dist/bin.js --control
+      # cli-foundation-stack Y4: has this Node absorbed a foundation layer? Each layer's vectors
+      # against the builtin it composes, alone (`scripts/absorption-probe.ts`). Reported, never
+      # gated: a count that rises on a new LTS opens an intent to deprecate that layer on
+      # purpose. Every package is built above, so it runs whenever the cell does.
+      - name: Absorption probe — the builtins alone, on this Node (informational)
+        if: always() && env.PACKAGES != '[]'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npx --no tsx scripts/absorption-probe.ts | tee -a "$GITHUB_STEP_SUMMARY"
       # windows-lane-holds R1, R2: the per-case durations, kept whatever the cell's verdict, and the
       # cases above half their timeout named in the summary. Informational until the cases
       # intent names are fixed; then the half-budget check becomes a gate.

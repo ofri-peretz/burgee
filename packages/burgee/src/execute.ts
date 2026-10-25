@@ -412,7 +412,7 @@ async function resolveValues(manifest: Manifest, specs: Record<string, OptionSpe
   // `as-typed.js` rides the same import: the two places a flag's provenance is read — the
   // `--json` envelope and `--explain` — are the two that load it, and it names each flag as
   // it was typed before either reads it (see that file).
-  if (values.json === true || asked !== undefined) out.explainText = (await import('./as-typed.js')).asTyped(resolved, specs, tokens, asked);
+  if (values.json === true || asked !== undefined) out.explainText = (await import('./as-typed.js')).asTyped(resolved, specs, tokens, asked, io);
   for (const [name, spec] of Object.entries(specs)) {
     if (out.values[name] === undefined && spec.required && out.explainText === undefined) {
       throw new UsageError(`missing required option --${kebab(name)}`, `pass --${kebab(name)} <value>`);

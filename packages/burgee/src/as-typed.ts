@@ -14,6 +14,7 @@
 import { explain } from 'seniority/explain';
 import { type Resolution } from 'seniority/precedence';
 
+import { type Discovery } from './config-layers.js';
 import { type Token } from './execute.js';
 import { camel, kebab } from './names.js';
 
@@ -31,8 +32,24 @@ function spellings(specs: Record<string, { type?: string }>, tokens: readonly To
   return spelled;
 }
 
+/**
+ * commander-env K3 — when a config file won, where that file sat in the discovery order. The
+ * order is `config-layers.js`'s, recorded on the run's `io` when `--explain` was asked.
+ */
+function discoveryLine(text: string, won: boolean, discovery: Discovery | undefined): string {
+  if (!won) return text;
+  // A value from a config file means a file was read, and `--explain` means the order was
+  // recorded (`config-layers.ts`): both are there whenever a config value won.
+  const { order, read } = discovery!;
+  const at = order.findIndex((step) => step.path === read);
+  // Under the explanation's own `candidates:` line, at its indent.
+  const indent = /\n( *)/.exec(text)![1]!;
+  return `${text}${indent}config file ${read!}: discovery candidate ${String(at + 1)} of ${String(order.length)} (${order[at]!.reason})\n`;
+}
+
 /** Rename the flag locations in place, then answer `--explain <asked>` when it was asked. */
-export function asTyped(resolved: Resolution, specs: Record<string, { type?: string }>, tokens: readonly Token[], asked: unknown): string | undefined {
+// eslint-disable-next-line maintainability/max-parameters -- the fifth is the run's io, which carries the discovery order only `--explain` reads; a parameter costs the startup path's byte budget less than an options object at the call site.
+export function asTyped(resolved: Resolution, specs: Record<string, { type?: string }>, tokens: readonly Token[], asked: unknown, io?: { cwd: string; discovery?: Discovery }): string | undefined {
   const spelled = spellings(specs, tokens);
   for (const [name, list] of Object.entries(resolved.candidates)) {
     const flag = spelled.get(name) ?? `--${kebab(name)}`;
@@ -40,5 +57,5 @@ export function asTyped(resolved: Resolution, specs: Record<string, { type?: str
     const winner = resolved.provenance[name];
     if (winner?.source === 'flag') winner.location = flag;
   }
-  return typeof asked === 'string' ? explain(asked, resolved) : undefined;
+  return typeof asked === 'string' ? discoveryLine(explain(asked, resolved), resolved.provenance[asked]?.source === 'config', io?.discovery) : undefined;
 }

@@ -239,7 +239,7 @@ rather than its exit code, and runs the suite in upstream CI's environment. `col
 evaluates colorette's own `index.js` beside this module and requires the same value from every
 style, for every pair of styles nested in each other, with colour on and off, and the same
 decision in every row of colorette's rule. Bundled, the whole surface is 2,425 bytes against
-colorette's 2,602.
+colorette's 2,602 ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 **Graded by picocolors' own test**, vendored at 1.1.1: `roundel/picocolors` passes
 `tests/test.js`, the one file picocolors' `npm test` runs. That file is a script of bare
@@ -249,20 +249,20 @@ same as picocolors itself. Its other file, `tests/environments.js`, evaluates pi
 self-contained script could pass it. Its nine environments are held instead by
 `picocolors.test.ts`, which runs picocolors' own source and this façade under the same fake
 process and requires the same answer. Bundled, the façade's whole surface is 1,607 bytes against
-picocolors' 2,739; `scripts/subpath-weight-lock.test.ts` holds it there.
+picocolors' 2,739; `scripts/subpath-weight-lock.test.ts` holds it there ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 **Graded by supports-color's own suite**, vendored at 11.0.0: `roundel/supports-color` passes
 **55 of 55** cases of `test.js`, level with supports-color itself. Each case rewrites the process
 and re-imports the module with a query string, so `compat-oracle` passes the query through its
 shim. The rest of the decision table is held by `supports-color.test.ts`, which evaluates
 supports-color's own source and this module in thousands of generated environments and
-requires the same answers. Bundled, the whole surface is 1,781 bytes against supports-color's 2,145.
+requires the same answers. Bundled, the whole surface is 1,781 bytes against supports-color's 2,145 ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 **Graded by yoctocolors' own suite**, vendored at 2.2.0: `roundel/yoctocolors` passes **78 of 78**
 cases of `test.js`, level with yoctocolors itself, the case that spawns `node fixture.js` with
 `FORCE_COLOR=0` included. `yoctocolors.test.ts` evaluates yoctocolors' own `base.js` beside this
 module and requires the same value from every style, for every pair of styles nested in each
-other, with colour on and off. Bundled, the whole surface is 3,275 bytes against yoctocolors' 3,395.
+other, with colour on and off. Bundled, the whole surface is 3,275 bytes against yoctocolors' 3,395 ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 The grade is re-run on every change to `roundel/chalk`; the current figure is generated under
 *Benchmarks* below and published with every other drop-in on the
@@ -280,7 +280,7 @@ also ships). Importing one never loads
 another — the tokens never carry the theme, the theme never carries the tokens, chalk
 carries neither — and `sideEffects: false` lets a bundler drop what a program does not use.
 ESM with a `default` condition, so `require('roundel/tokens')` works from CommonJS on
-Node 20.19+ and 22.13+.
+Node 20.19+ and 22.13+ ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## Benchmarks
 

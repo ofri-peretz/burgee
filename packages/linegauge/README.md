@@ -41,11 +41,17 @@
 
 **linegauge** measures, wraps, truncates and slices styled terminal text without the edge
 fraying, grapheme-correct over the platform's own `Intl.Segmenter`. Nothing here reads
-`process`, so a pipe, `--json` and an agent get the same columns a terminal does — burgee,
-caique and flagstaff measure their output with it. Zero dependencies.
+`process`, so a pipe, `--json` and an agent get the same columns a terminal does. Zero
+dependencies.
 
 Drop-in for **string-width** (the default export), **wrap-ansi**, **strip-ansi** and
 **slice-ansi**: `npx burgee migrate` moves the imports, each graded by the incumbent's own suite.
+
+**Over the platform.** `Intl.Segmenter` splits graphemes and `util.stripVTControlCharacters`
+strips escapes; neither one measures a column. linegauge adds the width table (East Asian wide
+characters, emoji, zero-width marks) and, on Node before 26, strips the colon form of a colour
+escape (`ESC[38:2::255:0:0m`) that the builtin leaves half behind. The repository's absorption
+probe asks every supported Node line how much of this the builtins now do alone.
 
 A printer's line gauge is the steel rule marked in picas and points: a compositor holds it
 against a line of type and checks it fits the measure it was set to.
@@ -233,7 +239,7 @@ Graded by the incumbent's own test suite:
 | `widest-line` | 1 / 1 |
 | `wrap-ansi` | 85 / 85 |
 
-Weight, installed and tree-inclusive: **105,638 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5436**.
+Weight, installed and tree-inclusive: **105,638 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5436** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 

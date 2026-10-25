@@ -47,6 +47,8 @@ import { fileURLToPath } from 'node:url';
 import { CLAIMS } from 'benchmarks/claims.js';
 import { describe, expect, it } from 'vitest';
 
+import { COMPARISON, measured, series, SERIES_CLAIMS, type SeriesClaim, verdict, windowIn } from './agent-cost-row';
+
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const README = join(REPO_ROOT, 'README.md');
 const RESULTS = join(REPO_ROOT, 'benchmarks/results/cli-benchmarks');
@@ -157,9 +159,62 @@ describe('the README claim table', () => {
 
   it('never marks a claim met that the newest CI measurement of it does not satisfy', () => {
     for (const claim of CLAIMS) {
+      // A series claim is settled by its window, below — never by one run, which is the point of it.
+      if ((SERIES_CLAIMS as readonly string[]).includes(claim.id)) continue;
       const row = rows.find((r) => r[2] === claim.id);
       if (row !== undefined && MET.test(row[4] ?? '')) checkMet(claim, backing(claim));
     }
+  });
+});
+
+/**
+ * cli-benchmarks S4, restated 2026-10-25: B1's two claims are stated as a series. One B1 run is
+ * not a verdict — two runs of one commit have read 0.49 and 0.995 — and the README said 0.699×
+ * from one run, `e6cff20`, for two weeks after a series of fifty readings had settled the claim.
+ *
+ * So each agent row must name a window of CI readings, and its Measured cell and verdict must be
+ * exactly what `scripts/agent-cost-row.ts` computes over that window from the committed results.
+ * A row quoting one run names no window and fails; a number typed by hand fails; a ✅ whose
+ * window median is over the bar fails. The same holds for the row in `comparison.mdx`.
+ *
+ * Proven red by pasting the single-run figure back into the README row:
+ * `0.699× on the newest CI run (\`e6cff20\`)` → "agent-tokens-40pct names no window of CI readings".
+ */
+/** Why one page's row for one claim is wrong, or undefined when it is what its window computes. */
+function problem(page: string, text: string, id: SeriesClaim): string | undefined {
+  const row = [...text.matchAll(ROW)].find((m) => m[2] === id);
+  if (row === undefined) return `${page} has no ${id} row`;
+  const cell = (row[3] ?? '').trim();
+  const window = windowIn(cell);
+  if (window === undefined) return `${page}: ${id} names no window of CI readings — it quotes one run ("${cell}")`;
+  const s = series(id, window);
+  if (cell !== measured(s)) return `${page}: ${id} says "${cell}", and its window computes "${measured(s)}"`;
+  if ((row[4] ?? '').trim() !== verdict(s)) return `${page}: ${id} is marked "${(row[4] ?? '').trim()}", and its window's median ${String(s.median)} against ${String(s.bar)} is "${verdict(s)}"`;
+  return undefined;
+}
+
+describe('the agent-cost rows are a series over a named window, never one run (cli-benchmarks S4)', () => {
+  const pages = [
+    ['README.md', readFileSync(README, 'utf8')],
+    ['comparison.mdx', readFileSync(COMPARISON, 'utf8')],
+  ] as const;
+
+  it.each(pages.flatMap(([page, text]) => SERIES_CLAIMS.map((id) => [page, id, text] as const)))('%s · %s', (page, id, text) => {
+    expect(problem(page, text, id)).toBeUndefined();
+  });
+
+  it('fails a row that quotes one run, a typed figure, and a verdict its window does not support', () => {
+    const readme = pages[0][1];
+    const row = [...readme.matchAll(ROW)].find((m) => m[2] === 'agent-tokens-40pct')!;
+    const cell = row[3]!;
+    const one = readme.replace(cell, '0.699× on the newest CI run (`e6cff20`)');
+    expect(problem('README.md', one, 'agent-tokens-40pct')).toMatch(/names no window of CI readings/);
+    const typed = readme.replace(cell, cell.replace(/median [\d.]+×/, 'median 0.401×'));
+    expect(typed).not.toBe(readme);
+    expect(problem('README.md', typed, 'agent-tokens-40pct')).toMatch(/its window computes/);
+    const flipped = readme.replace(`${cell} | ${row[4]!}`, `${cell} | ❌ **not met**`);
+    expect(flipped).not.toBe(readme);
+    expect(problem('README.md', flipped, 'agent-tokens-40pct')).toMatch(/is marked "❌ \*\*not met\*\*"/);
   });
 });
 

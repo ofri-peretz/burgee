@@ -45,10 +45,10 @@ const CONFIG_FILES = ['README.md', 'CLAUDE.md', 'AGENTS.md'];
 /** Every docs app's content, deployed or pending, from `.github/vercel-apps.json` — the one place an app is named. */
 const APP_TABLE = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, '.github/vercel-apps.json'), 'utf8')) as { apps: Record<string, { dir: string }>; pending?: Record<string, { dir: string }> };
 const APP_CONTENT = [...Object.values(APP_TABLE.apps), ...Object.values(APP_TABLE.pending ?? {})].map((app) => `${app.dir}/content`);
-const CONFIG_DIRS = ['docs', '.github', '.sdlc/bands', ...APP_CONTENT];
+const CONFIG_DIRS = ['docs', '.github', '.sdlc/bands', '.sdlc/intents', ...APP_CONTENT];
 const SKIP_DIRS = new Set(['node_modules', 'issues', 'results', '.next', 'dist']);
 /** Intents describe work that does not exist yet; a script they name is a plan, not a link. */
-const PLANNED_DOCS = /^docs\/intents\//;
+const PLANNED_DOCS = /^\.sdlc\/intents\//;
 
 export interface Expectation {
   check: 'output-contains' | 'output-omits' | 'shell';

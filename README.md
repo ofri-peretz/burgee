@@ -278,7 +278,7 @@ Everything beyond that first rung — precomputed manifests, plugins, the dev lo
 ## 📏 Measured
 
 2026-10-08 (`ba8a89c`), a GitHub Actions runner (AMD EPYC 7763, 4 cores), linux/x64, Node 24, 52 interleaved spawns per variant. † is a
-published figure taken on another machine, not reproduced here.
+published figure taken on another machine, not reproduced here ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 | | **burgee** | commander | yargs | @oclif/core | cac |
 | :--- | ---: | ---: | ---: | ---: | ---: |
@@ -291,9 +291,9 @@ language: burgee is TypeScript, like both incumbents.
 
 Milliseconds are a property of the machine that produced them, so nothing gates on them.
 What is gated is the ratio between two spawns interleaved in the same run, which cancels the
-machine out. Ten of those gates are stated in public — **eight are met, three of them as
-downward-only ratchets rather than the bar they started with; one is not met; and one is not
-settled yet, because its measure changed**:
+machine out. Ten of those gates are stated in public — **all ten are met, three of them as
+downward-only ratchets rather than the bar they started with, and the two agent claims as the
+median of a named window of CI runs rather than any one run** ([measured](https://burgee.interlace.tools/docs/benchmarks)):
 
 | Claim | Gate | Measured | |
 | :--- | :--- | ---: | :--- |
@@ -305,15 +305,21 @@ settled yet, because its measure changed**:
 | `burgee` starts within 1.55× of `cac`, the lightest framework in the landscape (ratchet; lowered as it speeds up) | `cold-start-at-or-below-cac` | 1.443× | ✅ met |
 | `burgee/commander` stays within 1.42× of `commander` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-commander` | 1.415× | ✅ met |
 | `burgee` stays within 2.35× of `cac` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-cac` | 2.343× | ✅ met |
-| an agent spends ≥40% fewer tokens over the benchmark tasks (total over every task-run) | `agent-tokens-40pct` | 0.699× on the newest CI run (`e6cff20`); 0.549–0.699 over the 12 runs since B1 installs the demo under its printed name, met on 5 of them | ❌ **not met** |
-| an agent takes ≥30% fewer turns over the benchmark tasks (total over every task-run) | `agent-turns-30pct` | 0.677× on the newest CI run (`e6cff20`); 0.583–0.703 over the same 12 runs, met on 9 of them | **unmeasured** as a record until the next CI run; the figures are its per-task detail, summed |
+| an agent spends ≥40% fewer tokens over the benchmark tasks (total over every task-run) | `agent-tokens-40pct` | median 0.502× over the 52 CI readings dated 2026-10-10 to 2026-10-18 (range 0.434–0.627), at or under 0.6 in 51 of them | ✅ met |
+| an agent takes ≥30% fewer turns over the benchmark tasks (total over every task-run) | `agent-turns-30pct` | median 0.522× over the 52 CI readings dated 2026-10-10 to 2026-10-18 (range 0.446–0.634), at or under 0.7 in 52 of them | ✅ met |
 
 **The two agent claims changed measure on 2026-10-09** (D-20261009-b1-totals-and-explain). They
 compared pooled medians until then, and the median ratio was decided by commander's luck: burgee
 holds at 3 turns, while commander's median lands at 4 or 6 from run to run, so the same build
 read 0.5 or 0.75. They now compare the tokens and turns each CLI spends, summed over all 25
-task-runs. The figures above are those sums, recomputed from each landed run's per-task detail.
-On the old measure the newest run read 0.492 tokens and 0.5 turns, both met.
+task-runs.
+
+**And since 2026-10-25 they are stated as a series** (D-20261025-cli-benchmarks-design-accepted).
+One run is not a verdict: two runs of the same commit have read 0.49 and 0.995. Each row is
+the median and the range over the CI runs in the window it names, and how many of them met the
+bar, written by `npm run agent-cost:row` from `benchmarks/results/agent-cli-bench/` and checked
+against that window by `scripts/claim-table-lock.test.ts`. Until then the token row said
+**0.699×**, from one run (`e6cff20`), and not met ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ### The two ways to ask the bundle question, and why both are here
 
@@ -321,7 +327,7 @@ On the old measure the newest run read 0.492 tokens and 0.5 turns, both met.
 stays on this page**. It is also not the choice anyone makes. A program that picks `cac` and
 then wants its config file read, its shutdown bounded on every path out, and its cursor handed
 back on Ctrl-C installs three more packages — and *that* is what one `import` of burgee competes
-with:
+with ([measured](https://burgee.interlace.tools/docs/benchmarks)):
 
 | | the incumbent alone | + what you add to match burgee | ours |
 | :--- | ---: | ---: | ---: |
@@ -358,12 +364,12 @@ carries a cross-platform spawn that cannot go lazy without giving up `parse()`'s
 contract and the 1360 / 1360 compat row that rests on it. And `import 'cac'` is one file in
 4.2 ms where `import 'burgee'` is twenty-one in 20 ms. Closing them means deleting the product,
 not optimising it: the analysis is [D-102](./.sdlc/decisions/D-102.md), and the shrink that moved every
-non-default path behind `await import()` is [D-148](./.sdlc/decisions/D-148.md).
+non-default path behind `await import()` is [D-148](./.sdlc/decisions/D-148.md) ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 So a bar we will never meet is no longer what these rows publish. Since
 [D-157](./.sdlc/decisions/D-157.md) each is a **downward-only ratchet**: a ceiling just above today's
 measurement, enforced on every benchmark run, that may be lowered by anyone and raised only by
-a new decision.
+a new decision ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 | Gate | Was | Ceiling | Set from, on 2026-09-27 |
 | :--- | :--- | ---: | :--- |

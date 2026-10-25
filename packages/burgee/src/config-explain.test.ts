@@ -8,10 +8,11 @@
  * V8 / D-117 — `config explain`: synthesised for a program that reads config, generated from
  * the resolver's own precedence and provenance.
  */
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { width } from 'linegauge';
+import { candidates } from 'seniority/config';
 import { ORDER } from 'seniority/precedence';
 import { describe, expect, it } from 'vitest';
 
@@ -64,7 +65,8 @@ describe('config explain (V8)', () => {
     const app = defineProgram({ name: 'app', version: '1.0.0', config: true, commands: [wide] });
     const r = await runBurgee(app, { argv: ['config', 'explain', 'deploy', '--no-config'], env, cwd });
     expect(r.code).toBe(0);
-    const rows = r.stdout.trimEnd().split('\n').slice(1);
+    // The option rows only: the discovery section below them is not part of this table.
+    const rows = r.stdout.trimEnd().split('\n').slice(1).filter((l) => l.startsWith('  --'));
     const starts = rows.map((l) => width(l.slice(0, l.search(/(?:us|eu) {2}\(/))));
     expect(starts).toHaveLength(2);
     expect(new Set(starts).size).toBe(1);
@@ -100,5 +102,78 @@ describe('config explain (V8)', () => {
     });
     const r = await runBurgee(own, { argv: ['config', 'explain'], env, cwd });
     expect(r.stdout.trim()).toBe('mine');
+  });
+});
+
+const indentOf = (l: string): string => l.slice(0, l.length - l.trimStart().length);
+/** The line `--explain` adds under its `candidates:` line, and the indent of each. */
+const addedLine = (stdout: string): { line: string; indent: string; under: string } => {
+  const lines = stdout.split('\n');
+  const at = lines.findIndex((l) => l.trimStart().startsWith('candidates:'));
+  const added = lines[at + 1] ?? '';
+  return { line: added.trimStart(), indent: indentOf(added), under: indentOf(lines[at] ?? '') };
+};
+
+/**
+ * commander-env K3 — constraint 3 promised that the file discovery order is itself explainable.
+ * `config explain` printed the precedence and `--explain` named the winning file, and neither
+ * said which files were tried, in what order, or why. seniority's `candidates()` already returns
+ * that order with a reason per path; these render it.
+ */
+describe('the discovery order, explained (commander-env K3)', () => {
+  const order = candidates({ name: 'app', cwd, env });
+  const read = join(cwd, 'app.config.json');
+
+  it('config explain prints every path tried, in order, with why, and marks the one read', async () => {
+    const r = await explain('deploy');
+    expect(r.code).toBe(0);
+    const lines = r.stdout.trimEnd().split('\n');
+    const at = lines.indexOf('discovery: the first file that exists is read');
+    expect(at, r.stdout).toBeGreaterThan(0);
+    const steps = lines.slice(at + 1);
+    expect(steps).toHaveLength(order.length);
+    order.forEach((c, i) => {
+      expect(steps[i]).toBe(`  ${String(i + 1)}. ${c.path}  (${c.reason})${c.path === read ? ' — read' : ''}`);
+    });
+  });
+
+  it('carries the same order under --json, and the path read', async () => {
+    const r = await explain('deploy', '--json');
+    const { discovery } = (JSON.parse(r.stdout) as { data: { discovery: { order: { path: string; reason: string; found: boolean }[]; read: string | null } } }).data;
+    expect(discovery.order).toEqual(order.map((c) => ({ path: c.path, reason: c.reason, found: c.path === read })));
+    expect(discovery.read).toBe(read);
+  });
+
+  it('says discovery is off under --no-config, and that --config names the one file read', async () => {
+    expect((await explain('deploy', '--no-config')).stdout.trimEnd().split('\n').at(-1)).toBe('discovery: off (--no-config)');
+    const r = await explain('deploy', '--config', 'app.config.json', '--json');
+    expect((JSON.parse(r.stdout) as { data: { discovery: unknown } }).data.discovery).toEqual({ order: [{ path: read, reason: '--config', found: true }], read });
+  });
+
+  it('--explain <option> names the file a config value won from, and its place in the discovery order', async () => {
+    const r = await runBurgee(program, { argv: ['deploy', '--explain', 'region'], env, cwd });
+    expect(r.code).toBe(0);
+    const position = order.findIndex((c) => c.path === read);
+    const { line, indent, under } = addedLine(r.stdout);
+    expect(line).toBe(`config file ${read}: discovery candidate ${String(position + 1)} of ${String(order.length)} (${order[position]!.reason})`);
+    expect(indent).toBe(under);
+    expect(indent.length).toBeGreaterThan(0);
+  });
+
+  it('--explain counts the place of a file read further down the order, from the user config directory', async () => {
+    const home = scratch('burgee-config-explain-user-');
+    mkdirSync(join(home, 'xdg', 'app'), { recursive: true });
+    writeFileSync(join(home, 'xdg', 'app', 'config.json'), `${JSON.stringify({ region: 'ap-south' })}\n`);
+    const userEnv = { XDG_CONFIG_HOME: join(home, 'xdg'), HOME: join(home, 'none') };
+    const tried = candidates({ name: 'app', cwd: home, env: userEnv });
+    const r = await runBurgee(program, { argv: ['deploy', '--explain', 'region'], env: userEnv, cwd: home });
+    expect(r.code).toBe(0);
+    expect(addedLine(r.stdout).line).toBe(`config file ${join(home, 'xdg', 'app', 'config.json')}: discovery candidate ${String(tried.length)} of ${String(tried.length)} (user config directory)`);
+  });
+
+  it('--explain says nothing about discovery when the value did not come from a config file', async () => {
+    const r = await runBurgee(program, { argv: ['deploy', '--explain', 'tier'], env, cwd });
+    expect(r.code).toBe(0);
+    expect(r.stdout).not.toContain('discovery candidate');
   });
 });

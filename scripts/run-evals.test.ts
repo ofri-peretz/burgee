@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  agentDocs,
   billingFor,
   brokenLinks,
   callLines,
@@ -51,6 +52,31 @@ describe('layer 1 — links', () => {
   it('ignores links inside code, anchors and URLs', () => {
     const root = repo({ 'docs/a.md': '`[x](./nope.md)` [h](#top) [u](https://x.y/z)\n```\n[c](./nope.md)\n```' });
     expect(brokenLinks(['docs/a.md'], root)).toEqual([]);
+  });
+});
+
+describe('layer 1 — the intents are agent documents', () => {
+  /**
+   * `.sdlc/intents/` is the roadmap work is handed off through, and the one directory the link
+   * checker did not read (sdlc-locks-evals-bands S2).
+   */
+  it('reports a broken relative link in .sdlc/intents/README.md', () => {
+    const root = repo({
+      '.sdlc/intents/README.md': '[a](./a/intent.md) [gone](./gone/intent.md)',
+      '.sdlc/intents/a/intent.md': '# Intent — a',
+    });
+    const docs = agentDocs(root);
+    expect(docs).toContain('.sdlc/intents/README.md');
+    expect(brokenLinks(docs, root)).toEqual(['.sdlc/intents/README.md → ./gone/intent.md']);
+  });
+
+  it('reads a script an intent names as a plan, and the same mention elsewhere as a dangling one', () => {
+    const root = repo({
+      'package.json': JSON.stringify({ scripts: {} }),
+      '.sdlc/intents/a/spec.md': 'the build adds scripts/planned.ts and npm run planned',
+      'docs/a.md': 'run scripts/planned.ts',
+    });
+    expect(missingScripts(agentDocs(root), root)).toEqual(['docs/a.md → scripts/planned.ts']);
   });
 });
 
