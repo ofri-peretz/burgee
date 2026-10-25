@@ -43,6 +43,9 @@ const ALLOWED: Record<string, string[]> = {
   // Interactivity and the unicode probe (R12). Environment reads over a runtime passed in;
   // it reaches nothing, so a caller asking "is anybody there" pays for nothing else.
   'terminal.js': [],
+  // colorette's surface (`colour-facades` R2): its own formatter and colorette's decision, over
+  // the process seam and `node:tty`'s `isatty` alone. Never `policy.js`: the two rules differ.
+  'colorette.js': ['./runtime.js'],
   // picocolors' surface (`graded-override-targets` R7): its own formatter and picocolors'
   // detection, over the process seam alone, so it carries none of the token or policy graph.
   'picocolors.js': ['./runtime.js'],
