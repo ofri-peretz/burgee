@@ -22,9 +22,12 @@
  * burgee's returns its report as data rather than printing it — its commands are documents the
  * engine renders — so it gets the same four cases in its own shape below.
  */
+import { execFile } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
@@ -168,5 +171,23 @@ describe('burgee check routes every other layer’s key to that layer (plugin-co
     const { bin } = JSON.parse(readFileSync(new URL('package.json', at), 'utf8')) as { bin?: Record<string, string> };
     expect(bin?.[host], `${host} has no bin named ${host}`).toBeDefined();
     expect(existsSync(new URL(bin?.[host] ?? '', at)), `${host}'s bin is not built`).toBe(true);
+  });
+});
+
+/**
+ * The example pack is JSON (`packages/burgee/src/__fixtures__/locale-pack-de.json`, which the
+ * locale eval hands an agent). `burgee check` on it threw Node's ERR_IMPORT_ATTRIBUTE_MISSING:
+ * `import()` of a `.json` path needs `with: { type: 'json' }`. The in-process cases above cannot
+ * see that — vitest's own loader imports JSON without the attribute — so this one spawns the
+ * BUILT bin, under the Node that runs the suite, the way an author runs it.
+ */
+describe('burgee check, as the built bin', () => {
+  const bin = fileURLToPath(new URL('../packages/burgee/dist/cli.js', import.meta.url));
+  const pack = fileURLToPath(new URL('../packages/burgee/src/__fixtures__/locale-pack-de.json', import.meta.url));
+
+  it('checks the example pack as shipped, a JSON file, and exits 0', async () => {
+    expect(existsSync(bin), `${bin} is missing: build burgee before the root suite`).toBe(true);
+    const { stdout } = await promisify(execFile)(process.execPath, [bin, 'check', pack, '--json'], { encoding: 'utf8' });
+    expect(JSON.parse(stdout)).toMatchObject({ ok: true, data: { name: 'test-de', locales: [{ locale: 'de' }] } });
   });
 });

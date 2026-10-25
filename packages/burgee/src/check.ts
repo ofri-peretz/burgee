@@ -25,6 +25,7 @@
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -113,10 +114,22 @@ const refuse = (code: string, message: string, fix: string, problems?: CheckRefu
   exitCode: ExitCode.RUNTIME,
 });
 
-export async function checkPlugin(file: string): Promise<CheckReport | CheckRefusal> {
+/**
+ * The plugin a file holds. A `.json` file is read as data: `import()` of one throws
+ * ERR_IMPORT_ATTRIBUTE_MISSING without `with: { type: 'json' }`, and on Node 20 a JSON module
+ * with it still prints an ExperimentalWarning — and the example locale pack is JSON. Decoded by
+ * `TextDecoder`, which drops a byte-order mark that `JSON.parse` would refuse.
+ */
+async function load(path: string): Promise<unknown> {
+  // Stryker disable next-line ConditionalExpression,MethodExpression: under vitest's loader `import()` reads JSON too, so only the built bin tells the two paths apart — scripts/plugin-check-lock.test.ts spawns it on the example pack
+  if (path.endsWith('.json')) return JSON.parse(new TextDecoder().decode(await readFile(path)));
   // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the file to check is the user's own, named on the command line
-  const loaded = (await import(pathToFileURL(resolve(file)).href)) as { default?: unknown };
-  const plugin: unknown = loaded.default ?? loaded;
+  const loaded = (await import(pathToFileURL(path).href)) as { default?: unknown };
+  return loaded.default ?? loaded;
+}
+
+export async function checkPlugin(file: string): Promise<CheckReport | CheckRefusal> {
+  const plugin = await load(resolve(file));
   try {
     validate(plugin, []);
     new Manifest().use(plugin as Plugin);
