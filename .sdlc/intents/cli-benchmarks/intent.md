@@ -6,9 +6,13 @@
 > the four are claims we already make in public and none of them was measured on a
 > schedule.
 
-**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** approved · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
 
-**State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why still `review`:** ~~**no bench script exists** — no `npm run bench`, no B1–B4 rows, so no published number.~~ *Stale since 2026-09-09 (#95): `benchmarks/` exists with seven axes, `npm run bench` and `bench.yml`; see § Restated 2026-10-18 for what is still open.*
+> **Accepted at the Design→Build gate 2026-10-25** by the coordinator under the owner's delegation
+> ([`D-20261025-cli-benchmarks-design-accepted`](../../decisions/D-20261025-cli-benchmarks-design-accepted.md)): S4 settled as the median and range of the CI series, never one run; B7 the link lock. See
+> [`spec.md` § Design gate 2026-10-25](./spec.md#design-gate-2026-10-25).
+
+**State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why `review` until 2026-10-25:** ~~**no bench script exists** — no `npm run bench`, no B1–B4 rows, so no published number.~~ *Stale since 2026-09-09 (#95): `benchmarks/` exists with seven axes, `npm run bench` and `bench.yml`; see § Restated 2026-10-18 for what is still open.*
 
 **Restated:** 2026-10-18 — see § Restated 2026-10-18
 

@@ -4,7 +4,11 @@
 > requirements V1–V5; research §3 (config and environment precedence), the second-
 > largest cluster after help.
 
-**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** approved · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+
+> **Accepted at the Design→Build gate 2026-10-25** by the coordinator under the owner's delegation
+> ([`D-20261025-commander-env-design-accepted`](../../decisions/D-20261025-commander-env-design-accepted.md)): narrowed to V2 and K3; C3b measured and held as a reading; C1 and R3 dropped. See
+> [`spec.md` § Design gate 2026-10-25](./spec.md#design-gate-2026-10-25).
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Evidence:** `precedence.ts`, `config.ts`, `env.test.ts` — one order, `--explain`, `meta.provenance`, `extends` (V1–V7).
 

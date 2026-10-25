@@ -4,6 +4,18 @@ Intent: [`intent.md`](./intent.md). **Status:** approved (2026-09-23, under the 
 
 ---
 
+## Moved here 2026-10-25 — an evidence table
+
+From `output-stack-research` S3, dropped with its research complete
+([D-20261025-output-stack-research-dropped](../../decisions/D-20261025-output-stack-research-dropped.md)).
+roundel's and flagstaff's designs each carry a `### Evidence` table keyed by requirement, citing
+[`output-stack-open-issues.md`](../../research/output-stack-open-issues.md) and marking an
+uncited row *hypothesis — measure before lock*. This design has none. caique's intent cites
+clack issues inline, and `issues.md` is a generated demand table that is not keyed to these
+requirements. **Open item:** add that table here, one row per requirement, citing the research
+doc's clusters for clack and inquirer. It is a design edit with no code, and it is the last
+piece of the output stack's research pass.
+
 ## Requirements
 
 - **R1** `PromptSpec = { kind: 'text' | 'confirm' | 'select' | 'multiselect' |

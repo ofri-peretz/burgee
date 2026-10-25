@@ -4,9 +4,13 @@
 > (commander, yargs, oclif, chalk) and a full read of the 329 open issues across the
 > six leading CLI libraries — see `.sdlc/research/competitor-open-issues.md`.
 
-**Status:** review · **Opened:** 2026-09-05 · **Owner:** @ofri-peretz ·
+**Status:** approved · **Opened:** 2026-09-05 · **Owner:** @ofri-peretz
 
-**State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why still `review`:** a living umbrella that keeps gaining floor requirements (U1–U12, then Y1–Y12); it closes when its children do, not before.
+> **Accepted at the Design→Build gate 2026-10-25** by the coordinator under the owner's delegation
+> ([`D-20261025-burgee-umbrella-design-accepted`](../../decisions/D-20261025-burgee-umbrella-design-accepted.md)): approved as the umbrella over its children; Z5 restated to a 250-command bench, criterion 4 to a disabled-rule ratchet. See
+> [`spec.md` § Design gate 2026-10-25](./spec.md#design-gate-2026-10-25).
+
+**State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why `review` until 2026-10-25:** a living umbrella that keeps gaining floor requirements (U1–U12, then Y1–Y12); it closes when its children do, not before.
 **Restructured:** 2026-09-06
 **Restated:** 2026-10-18 — see § Restated 2026-10-18
 
@@ -263,6 +267,10 @@ here rather than left as a contradiction between an intent and the code it gover
 - ~~**Schema library.**~~ Decided: Standard Schema is the only external contract; a tiny
   built-in type set (`flag`, `string`, `number`, `choice`, `file`, `path`, `object`) keeps
   the core zero-dependency. See `commander-schema`.
+  **2026-10-25:** that set did not ship as written. Options are `string`, `boolean` and
+  `number`, and positionals add `integer` and `file` (`typed-positionals`). The option `file`,
+  `path` and `object` types are ruled out by
+  [D-20261025-commander-schema-dropped](../../decisions/D-20261025-commander-schema-dropped.md).
 - ~~**Relationship to clack.**~~ Decided 2026-09-06: wrapped. **Re-decided 2026-09-08:** not a
   dependency at all. `caique` implements prompts over Node natives; `caique/clack` is a
   migration path graded by clack's suite. See `cli-output-stack` U6, U11.

@@ -1,10 +1,42 @@
 # Design — Every SDLC stage loaded in this repo
 
-Intent: [`intent.md`](./intent.md). **Status:** review — corrected from `shipped` 2026-09-09; the locks shipped, the bands did not.
+Intent: [`intent.md`](./intent.md). **Status:** approved (2026-10-25); it was corrected from `shipped` to `review` on 2026-09-09, when the locks had shipped and the bands had not.
 
 **Restated:** 2026-10-18 — see [§ Restated 2026-10-18](#restated-2026-10-18)
 
 ---
+
+## Design gate 2026-10-25
+
+**Accepted for Build**
+([D-20261025-sdlc-locks-evals-bands-design-accepted](../../decisions/D-20261025-sdlc-locks-evals-bands-design-accepted.md)).
+S1, S4, R1 and R4–R6 hold. R2 and R3 are restated below.
+
+**In scope.**
+
+1. R2: `.sdlc/intents` joins the link layer. `CONFIG_DIRS` in `scripts/run-evals.ts` gains
+   `.sdlc/intents`. `PLANNED_DOCS` moves from `^docs\/intents\/` to `^\.sdlc\/intents\/`, so a
+   design naming a script it plans to write is not reported as missing, while its links still
+   are. Any link this surfaces is fixed in the same PR.
+2. R3, restated: the free layer runs on every PR, and the paid layer does not move.
+   `quality.yml` gains a step running `npm run evals:config` (layer 1, no credential, no quota).
+   `evals.yml`'s `paths:` is unchanged, so an intent edit never spends the Claude quota on task
+   evals.
+3. S3: a dropped observation says why. `collectCommandDuration` in `scripts/control-bands.ts`
+   writes the reason it returned nothing (the exit code, or the timeout and its value) to
+   stderr, and the run summary carries it.
+
+**Acceptance checks.**
+
+- R2: a case in `scripts/run-evals.test.ts` is proven red first. It plants a broken relative
+  link in a fixture `.sdlc/intents/README.md` and expects it reported.
+- R3: the new `quality.yml` step is visible in the PR's own checks.
+- S3: two cases in `scripts/control-bands.test.ts`, one with a failing command and one with a
+  command past its timeout, each asserting the logged reason.
+
+**What to measure.** The number of broken links and planned-script mentions the widened scan
+finds on the build's base commit, recorded in the PR. After two weekly runs, whether
+`test-duration-ms` gains points or names its cause.
 
 ## Restated 2026-10-18
 

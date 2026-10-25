@@ -1,6 +1,6 @@
 # Design — The foundation stack
 
-Intent: [`intent.md`](./intent.md). **Status:** draft.
+Intent: [`intent.md`](./intent.md). **Status:** approved (2026-10-25, as the umbrella).
 
 Children: [`linegauge`](../linegauge/spec.md) · [`seniority`](../seniority/spec.md) ·
 [`bellpull`](../bellpull/spec.md) · [`closeout`](../closeout/spec.md).
@@ -8,6 +8,36 @@ Children: [`linegauge`](../linegauge/spec.md) · [`seniority`](../seniority/spec
 **Restated:** 2026-10-18 — see § Restated 2026-10-18
 
 ---
+
+## Design gate 2026-10-25
+
+**Accepted as the umbrella**
+([D-20261025-cli-foundation-stack-design-accepted](../../decisions/D-20261025-cli-foundation-stack-design-accepted.md)).
+Y1, Y3 and Y5–Y11 hold through the children, as § Restated 2026-10-18 maps. This gate rules on
+what had no owner.
+
+**In scope.**
+
+1. Y4: every layer names its builtin, and a probe asks whether the platform has absorbed it.
+   - A lock asserts that each foundation README (`linegauge`, `seniority`, `bellpull`,
+     `closeout`) names the Node builtin it composes. The builtins are `Intl.Segmenter` and
+     `util.stripVTControlCharacters`, `process.loadEnvFile` and `util.parseEnv`,
+     `child_process`, and `process.on(signal)`.
+   - An absorption probe runs each layer's shared test vectors (or the graded incumbent cases
+     the builtin can be pointed at) against the builtin alone, on every Node line the
+     `compat.yml` floor job runs. It reports the count the builtin passes. It is reported, not
+     gated. A count that rises on a new LTS opens an intent to deprecate that layer on purpose.
+2. Y12: a lock asserts that the opening of each foundation README, its header and first
+   paragraph, never names `burgee`. It sits beside `scripts/readme-opening-lock.test.ts` and is
+   proven red by adding the word to one opening.
+
+**Dropped at this gate.** Y2's combined weekly-downloads figure: it is a number about other
+people's packages that is stale within a week. The bytes half is held. S3, the override
+collapse: D-133 made it a measurement of one package. S5 moved to `first-adopter` A6 on
+2026-10-19.
+
+**What to measure.** The per-layer, per-Node absorption counts from the first probe run,
+recorded in the PR as the baseline the probe compares against.
 
 ## Restated 2026-10-18
 

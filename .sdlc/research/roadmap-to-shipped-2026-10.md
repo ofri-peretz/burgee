@@ -72,23 +72,23 @@ Abbreviations used below:
 
 | intent | status | spec? | class | lane | reqs | with check | unmet / missing-check Rs | Q? | qnt | notes |
 | :-- | :-- | :-: | :-- | :-- | --: | --: | :-- | :-: | :-- | :-- |
-| agent-headroom | review | y | P | burgee/agent-surface + benchmarks | 10 | 3 | R2 (partial: no `--fields`), R3 `--max-bytes`, R5 ndjson, R6, RF, C1 (asserts 30% not 40%), C4 | n | – | R2 and R4 overlap `burgee` N13/N14; restate to leave R3, R5 and RF |
+| agent-headroom | approved (batch 28, `D-20261025-agent-headroom-design-accepted`) | y | P | burgee/agent-surface + benchmarks | 10 | 3 | R6 hint lock, RF `formats` + `tsv`, R3 whole-row `--max-bytes`, C1 large-demo figure (R5, dotted R2 dropped) | n | – | R2 and R4 overlap `burgee` N13/N14; restate to leave R3, R5 and RF |
 | agent-lint-conformance | approved | y | P | burgee/agent-surface + floor | 8 | 7 | R7 (ratchet at 91, below the 94.9 reading); FS-4 regression | y (timeout timer vs settle) | registry.qnt (partial) | **LIVE DEFECT:** its own R4 auth row in help broke FS-4 |
 | agent-skill | approved | y | P | burgee/agent-surface | 7 | 6 | C4 (the published reading fails SD-5; nothing gates SD-5) | n | – | Same CI floor reading as agent-lint R7 |
 | agent-surface-declared | **shipped** (batch 0) | y | SHIPPED | burgee/mcp | 9 | 9 | – | n | – | The spec cites `effects.test.ts`, which is absent; tests are in `mcp.test.ts`. Fix the citation |
 | b1-mcp-arm | approved | y | P | benchmarks + CI | 9 | 6 | R5 (no MCP page section), C2 (0/4 weekly readings), C3 | n | – | The 10-13 weekly run left no reading. Investigate, possibly the usage limit |
 | bellpull | approved | y | P | bellpull | 17 | 14 | S1 kill-gate re-read, S4 (compat-oracle still uses `child_process`), S5 recipe not executed | **y** (deadline, SIGTERM, SIGKILL ladder) | **none** | The spec header still says "not accepted" |
-| brand-burgee | draft | **n** | SPEC | brand | 4 | 1 | C1, C2, C4 partial | n | – | Built before any design; write spec.md |
-| burgee | review | y | P | umbrella | 119 | 110 | Z4 (15-line cap), Z5 (250-cmd bench), F3/O3/P1 (eslint-repo; restate), U12 outside adopter, intent C3 (eslint plugin), C4 (disabled rules exist), C5 (non-TTY partial) | partly | registry, prompt-session, dev-reload | Constraint 1 and the agent-detection decision are contradicted by shipped code; record the reversals |
+| brand-burgee | **dropped** (batch 28, `D-20261025-brand-burgee-dropped`) | **n** | DROPPED | brand | 4 | 1 | – | n | – | Built before any design; write spec.md |
+| burgee | approved (batch 28, `D-20261025-burgee-umbrella-design-accepted`) | y | P | umbrella | 119 | 110 | Z5 250-command bench, criterion 4 disabled-rule ratchet (umbrella) | partly | registry, prompt-session, dev-reload | Constraint 1 and the agent-detection decision are contradicted by shipped code; record the reversals |
 | burgee-migrate | **shipped** (batch 0) | y | SHIPPED | burgee/migrate | 12 | 12 | – | n | – | Stale header: needs draft → approved (owner) → shipped. Verification 3 is indirect |
 | caique | approved | y | P | caique | 13 | 10 | R1 `promptFor` API, S2 non-TTY bench, S3 PTY / Windows | **y** | prompt-session, save-restore | |
 | caique-quiet-seam | **shipped** (batch 0) | y | SHIPPED | caique | 8 | 8 | – | n | – | Restate R2 (`progress` and `taskLog` were not ported, D-152) |
-| caller-matrix | draft | **n** | SPEC | examples/conformance + docs | 4 | 0 (2 partial) | S1–S4 | n | – | S4 is blocked on first-adopter |
+| caller-matrix | approved (batch 28, `D-20261025-caller-matrix-design-accepted`) | y | NS | examples/conformance + docs | 4 | 0 (2 partial) | R1–R5: registry, lock, `/docs/callers` | n | – | S4 is blocked on first-adopter |
 | ci-affected-lanes | approved | y | P | workflows/CI | 7 | 5 | R4 / S3 (ci-minutes reading after 20 PRs since #1101) | n | – | Blocked only on time |
-| cli-benchmarks | review | y | P | benchmarks | 16 | 11 | B7 link lock, B3/R8 compat-axis test, R6 ≥30 spawns, CLAIM 0.699× | n | – | Header stale ("no bench script"). Owner call on the token claim |
-| cli-foundation-stack | draft | y | P | umbrella (foundation) | 17 | 9 | Y2, Y3, Y4, Y8, Y12, S1, S3, S5 | n | – | Drifted: Node floor, and every package ships a bin. Close via children, move S3/S5 to a new intent |
+| cli-benchmarks | approved (batch 28, `D-20261025-cli-benchmarks-design-accepted`) | y | P | benchmarks | 16 | 11 | S4 series row + restated claim-table-lock, B7 link lock | n | – | Header stale ("no bench script"). Owner call on the token claim |
+| cli-foundation-stack | approved (batch 28, `D-20261025-cli-foundation-stack-design-accepted`) | y | P | umbrella (foundation) | 17 | 9 | Y4 builtin lock + absorption probe, Y12 no-burgee opening lock (Y2 downloads, S3 dropped) | n | – | Drifted: Node floor, and every package ships a bin. Close via children, move S3/S5 to a new intent |
 | cli-help-renderer | **shipped** (typed-schema-surface) | y | SHIPPED | burgee/help | 10 | 10 | – | n | – | S1's min/max row held 2026-10-19 |
-| cli-mcp | review | y | P | burgee/mcp | 16 | 14 | lint rule (eslint repo, now dropped here; restate), C4 (waits on b1-mcp-arm) | n | – | K1 "deps {}" → restate as "nothing outside the family" |
+| cli-mcp | approved (batch 28, `D-20261025-cli-mcp-design-accepted`) | y | LS | burgee/mcp | 16 | 14 | – (C4 is b1-mcp-arm's; lint rule moved to the eslint repo) | n | – | K1 "deps {}" → restate as "nothing outside the family" |
 | cli-output-stack | approved | y | P | umbrella (output stack) | 23 | 17 | R2 env-name lock, R3 examples case, R11 inquirer 100/213, S2 dependency-count row, S5 spinner cases | n | – | Close by mapping each row to roundel, flagstaff or caique |
 | cli-packaging | review | y | P | release/packaging | 10 | 8 | R4 / S3 (`.map` negative fixture; `forbiddenInPack` untested) | n | – (release-tag.qnt is tags only) | One test closes it |
 | cli-testing-harness | review | y | P | burgee/testing | 11 | 8 | S1 ANSI-in-non-TTY case, S2 and S4 restate | n | – | |
@@ -98,9 +98,9 @@ Abbreviations used below:
 | colour-facades | review | y | NS | roundel + compat-oracle | 8 | 0 | R1–R5, S1–S3 | n | – | Waits on inquirer and supports-color in the compat-oracle lane |
 | commander-compat | **shipped** (batch 3) | y | SHIPPED | burgee/commander-facade | 8 | 8 | – | n | – | Batch 3: X6 ratcheted 129,400 → 112,100 on a clean-build reading of 112,024 (D-20261019-commander-walk-budget-ratchet). X5 had no real check (`.`'s denied list never named the front-end), so one was added and proven red |
 | commander-completions | **shipped** (batch 0) | y | SHIPPED | burgee/completions | 8 | 8 | – | n | – | Human accepts two restatements: Fig is structural, `complete` replaces `--dynamic`. CI's `completions.yml` is authoritative |
-| commander-env | review | y | P | burgee/parse + seniority | 11 | 8 | intent C1 (per-issue case), C3 (`LAYER=off` gone), C4 (synthetic only), R3 façade `--explain` | n | – | Mostly restate; the `withEnv` design is superseded |
+| commander-env | approved (batch 28, `D-20261025-commander-env-design-accepted`) | y | P | burgee/parse + seniority | 11 | 8 | V2 env in `--schema`, K3 discovery order in `--explain` (C1, façade R3 dropped; C3b held as a reading) | n | – | Mostly restate; the `withEnv` design is superseded |
 | commander-front-end-diet | **shipped** (batch 3) | y | SHIPPED | burgee/commander-facade + weight | 4 | 4 | – | n | – | Batch 3: `lighter-than-commander` 1.565 → 1.42 (D-20261019-lighter-than-commander-ratchet); `OVER_INCUMBENT` 55,661 → 55,653 (v14 55,997 → 56,002 for #1139's unrecorded +5 B) |
-| commander-schema | approved (typed-schema-surface) | y | P | burgee/types + parse | 10 | 3 (+5 partial) | C1, R2, R4 (B-20261019-commander-schema-remaining) | n | – | **SUPERSEDED-CANDIDATE** for its positional half → typed-positionals; restate the rest |
+| commander-schema | **dropped** (batch 28, `D-20261025-commander-schema-dropped`) | y | DROPPED | burgee/types + parse | 10 | 3 (+5 partial) | – | n | – | **SUPERSEDED-CANDIDATE** for its positional half → typed-positionals; restate the rest |
 | compat-grader-layer | **dropped** (batch 0, `D-20261018-drop-compat-grader-layer`) | n | DROPPED | compat-oracle | 6 | 1 | – | n | – | Ruling: trigger fixed; conflicts with compat-oracle being internal |
 | compat-oracle | approved | y | P | compat-oracle | 13 | 12 | R1 (60 s warm budget, not gated) | n | – | Restate R1 or add a timing check. The README compat rows are hand-written |
 | completion-context | approved (built 2026-10-20; a burgee minor) | y | LS | burgee/completions (execute lane) | 5 | 5 | – (waits on the release of its `minor`) | n | **context.qnt** | Ahead of default-command and typed-positionals. Re-grounded on `24d8d8b5`; 229 / 229 mutants detected |
@@ -113,14 +113,14 @@ Abbreviations used below:
 | controlroom-scroll-pane | **shipped** (batch 4, PR #1156) | y | NS | controlroom | 10 | 0 | R1–R6, S1–S4 | n (property test) | – | Fixed: a pane scrolls, follows its tail, and the static frame prints every line. Mutation 180 / 180 on the changed lines |
 | declaration-summaries | **shipped** (patch, Version PR #1184, 2026-10-20) | y | SHIPPED | published artifacts / build scripts | 4 | 4 | – | n | – (property test) | R1 measured burgee −5.7% gzipped, past the 5% kill switch; R2–R4 built 2026-10-20 |
 | default-command | review | y | NS | burgee/parse | 5 | 1 | R1–R4 | n | – | Adoption barrier (commander `isDefault`, yargs `$0`) |
-| dev-loop | review | y | P | burgee/dev | 6 | 2 | W2 (`list_changed` in conformance), W3 (diff, not manifest), W4 byte-identical, W6 budget | **y** | **dev-reload.qnt** | Add three tests or restate |
+| dev-loop | approved (batch 28, `D-20261025-dev-loop-design-accepted`) | y | P | burgee/dev | 6 | 2 | W4 byte-identity test, W6 watcher-path timing | **y** | **dev-reload.qnt** | Add three tests or restate |
 | docs-deploy | **dropped** (batch 0, `D-20261018-drop-docs-deploy`) | y | DROPPED | docs-site | 10 | 7 | – | n | – | Ruling: folded into docs-per-package |
 | docs-per-package | approved | y | P | docs-site | 23 | 17 | C8 (mutations per row), R2 orgId/secrets lock, R4/R5 partial, R7 PATCH lock, R10 env lock | n | – | Takes docs-deploy's R1–R6 |
 | eslint-plugin-cli-floor | **dropped** (batch 0, `D-20261018-drop-eslint-plugin-cli-floor`) | y | DROPPED | eslint repo | 9 | 0 | – | n | – | Ruling: lives in eslint#1137 |
 | extra-typings-drop-in | **shipped** (batch 0) | y | SHIPPED | burgee/types | 5 | 5 | – | n | – | U5 fails (55,661 vs 39,329 B), accepted by decision |
 | facade-gets-more | **shipped** (batch 0) | **design.md** | SHIPPED | burgee/commander-facade | 6 | 6 | – | n | – | Rename `design.md` to `spec.md` so it can be approved. Its yargs numbers are stale (804, not 816) |
 | facade-projection-fidelity | **shipped** (batch 3) | y | SHIPPED | burgee/yargs-facade | 6 | 6 | – | n | – | Batch 3: R4 built; `burgee/yargs` +424 B bundled (108,850 ceiling) and +852 B walked (221,700), recorded in D-20261019-yargs-facade-relations-bytes; still 0.974× yargs |
-| first-adopter | review | y | NS | adoption/outreach | 5 | 0 | A1–A5 | n | – | The spec still names `commander-agent` and needs a rewrite. Barrier 5 (trust) |
+| first-adopter | approved (batch 28, `D-20261025-first-adopter-design-accepted`) | y | NS | adoption/outreach | 5 | 0 | A3 revert-first on a fork, one disclosed PR + A2 report; A1/A6 wait on an outside merge | n | – | The spec still names `commander-agent` and needs a rewrite. Barrier 5 (trust) |
 | first-cli | approved (#1092, beside batch 0) | y | NS (on main) | burgee/init | 5 | 0 | R1–R5 (in #1092) | n | – | Rebase #1092; needs the Design→Build accept |
 | fix-lines-every-shell | review | y | NS | burgee core (failure.ts) | 7 | 0 | R1–R4, S1–S3 | n | – | **LIVE DEFECT:** `fix:` lines are POSIX-quoted on Windows. Exclude `completions.ts` from R2's grep |
 | flagstaff | approved | y | P | flagstaff | 23 | 19 | S1–S3 (restate where they live), S8 per-surface plugin case | **y** | **save-restore.qnt** | The `·` in loop/frame test names is stored as `Â·`, so `-t` misses |
@@ -137,8 +137,8 @@ Abbreviations used below:
 | migrate-pins-carry-the-drop-in | approved (#1124, beside batch 0) | **n** | SPEC — **IN-PROGRESS** | burgee/migrate | 2 | 0 | S1, S2 | n | – | **LIVE DEFECT** (svgo: `ERR_PACKAGE_PATH_NOT_EXPORTED`). Batch 1, local agent |
 | migrate-preflight | draft | **n** | SPEC | burgee/migrate | 3 | 0 | S1–S3 | n | – | Barriers 2, 3 and 8 |
 | migrate-release-age | approved | y | P | burgee/migrate | 6 | 5 | R3 (no `a \|\| b` exclude case) | n | – | One test. Cite pins-carry-the-drop-in as R1's within-major gap |
-| output-stack-compat | review | y | P | compat-oracle | 8 | 4 (+3 partial) | R1/R5 drawing bucket, R4 drawing count, S1 inquirer/clack | n | – | The spec was never accepted. Decide on the drawing bucket |
-| output-stack-research | review | y | P (doc) | docs-only | 10 | 0 automated | S1 (hypothesis rows vs "every row cites"), S3 (caique evidence table) | n | – | Doc edits only |
+| output-stack-compat | **dropped** (batch 28, `D-20261025-output-stack-compat-dropped`) | y | DROPPED | compat-oracle | 8 | 4 (+3 partial) | – | n | – | The spec was never accepted. Decide on the drawing bucket |
+| output-stack-research | **dropped** (batch 28, `D-20261025-output-stack-research-dropped`) | y | DROPPED | docs-only | 10 | 0 automated | – | n | – | Doc edits only |
 | paratext | **shipped** (batch 0) | y | SHIPPED | paratext | 20 | 20 | – | n | – | R11 is a 1.65× ratchet, heavier than ansi-escapes. The owner calls whether that is acceptable as product |
 | parse-refusals | **shipped** (batch 0) | y | SHIPPED | burgee/parse | 5 | 5 | – | n | – | R4 shipped as `fix`, not `next[]`; say so in the header |
 | plugin-contract | review | y | P | burgee check / plugins | 12 | 8 | R7 "data first" (restate; R5a hosts functions), C2 five modes, C3 check covers burgee only, C4 eval | n | – | The spec needs a full status table |
@@ -149,7 +149,7 @@ Abbreviations used below:
 | roundel | **shipped** (batch 0) | y | SHIPPED | roundel | 17 | 17 | – | n | – | Rewrite the stale 2026-09-09 verified section |
 | schema-bytes-gated | **shipped** (schema-group) | y | SHIPPED | benchmarks reliability | 3 | 3 | – | n | – | Budget 4,650 B (demo 4,628 B at `326907ec`); gap B-20261012 closed |
 | schema-is-validated | **shipped** (schema-group) | y | SHIPPED | burgee/schema | 3 | 3 | – | n | – | SC3: the claim is made again and `program-schema.test.ts` holds it |
-| sdlc-locks-evals-bands | review | y | P | sdlc locks | 10 | 7 | S2, R2/R3 (`.sdlc/intents` outside the link checker and evals paths) | n | – | Expect it to surface broken links |
+| sdlc-locks-evals-bands | approved (batch 28, `D-20261025-sdlc-locks-evals-bands-design-accepted`) | y | P | sdlc locks | 10 | 7 | R2 `.sdlc/intents` in CONFIG_DIRS, R3 `evals:config` in quality.yml, S3 logged duration drops | n | – | Expect it to surface broken links |
 | security-profile | **dropped** (batch 0, `D-20261018-drop-security-profile`) | y | DROPPED | burgee/security | 11 | 0 | – | n | – | Ruling: no adopter; exit-code clash |
 | seniority | approved | y | P | seniority | 21 | 13 | R1/S2 truth-table page, R2/S5 shared precedence vectors, R7 extends chain in explain, R9 spawn delta, S3, S4 | n | – | The truth table is the product and is unproduced |
 | supports-color-drop-in | **shipped** (roundel 1.2.0, 2026-10-20) | y | SHIPPED | roundel + compat-oracle | 9 | 9 | – | n | – | 441.6 M/wk with no override target |
@@ -398,3 +398,18 @@ run in parallel, and only when they touch no common file. The lane table in next
 | 20 | **Native engine (last)** | burgee + release pipeline | native-engine (**opened 2026-10-20, owner prompt**; starts only after every other intent has closed: measure `migrate`, the CI type-check lane on tsrs, single-binary distribution and the core parser, JS against a native prototype; port only what wins, shipped the oxc way behind an opt-in, size-ratcheted package) | After all others |
 
 Coverage: each of the 63 intents still open after Batch 0 (the original 62, plus `localised-human-surfaces`, which Batch 0 held at `approved`) is in exactly one batch or in the in-progress row.
+
+**Batch 28 — design gates, 2026-10-25 (docs only).** Every intent waiting at a gate went through
+it, except `native-engine` (draft by the owner's order). Each ruling is one decision file.
+
+- **Approved, with a scoped build:** `agent-headroom`, `cli-benchmarks`, `commander-env`,
+  `dev-loop`, `first-adopter`, `sdlc-locks-evals-bands`, `caller-matrix`, `burgee` (umbrella)
+  and `cli-foundation-stack` (umbrella). Each scope is in the row above and in the intent's
+  `spec.md` § Design gate 2026-10-25.
+- **Approved with nothing to build:** `cli-mcp`. It ships when `b1-mcp-arm` lands.
+- **Dropped:** `output-stack-compat`, `output-stack-research`, `brand-burgee` and
+  `commander-schema`. Gap `B-20261019-commander-schema-remaining` is closed.
+
+Batches 8, 11, 14, 16, 17, 18 and 19 named some of these intents as "write spec", "restate" or
+"decide". Those items are done here. What remains in those batches is the build scope each row
+now names.

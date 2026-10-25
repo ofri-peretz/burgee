@@ -1,6 +1,10 @@
 # Intent — `dev-loop`: your agent is connected to your CLI while you write it
 
-**Status:** review · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`
+**Status:** approved · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`
+
+> **Accepted at the Design→Build gate 2026-10-25** by the coordinator under the owner's delegation
+> ([`D-20261025-dev-loop-design-accepted`](../../decisions/D-20261025-dev-loop-design-accepted.md)): W4 byte-identity and W6's watcher segment left to build. See
+> [`spec.md` § Design gate 2026-10-25](./spec.md#design-gate-2026-10-25).
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Evidence:** `dev.ts` + `dev.test.ts`; fresh module graph per reload, MCP on stdio (W1–W6).
 
