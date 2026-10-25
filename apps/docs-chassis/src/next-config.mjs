@@ -112,5 +112,19 @@ export function docsNextConfig() {
         ],
       };
     },
+    // Built with webpack, not Turbopack (D-20261025-next-16-4-1-security): every 16.4 release's
+    // Turbopack production build grows past 12 GB in its own process within 15 s and is killed,
+    // where webpack builds the same app under 3 GB. Turbopack reads `fumadocs-mdx:collections/*`
+    // through the app's tsconfig `paths`; webpack takes the `fumadocs-mdx:` prefix for a URI scheme
+    // it has no reader for, so the request is rewritten to the generated `.source/` file before
+    // resolution, which is where the `paths` entry points.
+    webpack(config, { webpack }) {
+      config.plugins.push(
+        new webpack.NormalModuleReplacementPlugin(/^fumadocs-mdx:collections\//u, (resource) => {
+          resource.request = join(process.cwd(), '.source', resource.request.slice('fumadocs-mdx:collections/'.length));
+        }),
+      );
+      return config;
+    },
   });
 }
