@@ -237,7 +237,7 @@ Graded by the incumbent's own test suite:
 | `execa` | 0 / 1360 |
 | `which` | 5 / 5 |
 
-Weight, installed and tree-inclusive: **96,209 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1257** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **96,664 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1263** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 

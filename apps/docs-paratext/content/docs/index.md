@@ -198,7 +198,7 @@ Graded by the incumbent's own test suite:
 | `term-img` | 18 / 18 |
 | `terminal-link` | 8 / 8 |
 
-Weight, installed and tree-inclusive: **102,886 bytes** against **2,235,987** for the incumbents it replaces — a ratio of **0.0460** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **103,008 bytes** against **2,235,987** for the incumbents it replaces — a ratio of **0.0461** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 
