@@ -1,5 +1,0 @@
----
-"burgee": minor
----
-
-`burgee migrate` reports what adopting the family costs a project before it writes anything, as a new `preflight` list in `--json` and a `before the move` section in the text report. It reads `package.json` and any root `jest.config.*`, and names a CommonJS package whose `engines.node` allows a Node where `require()` of an ES module throws (`require-esm`), an `engines.node` that allows a Node below 20.19.0 or is not declared (`floor`), and jest on a CommonJS package with neither `transformIgnorePatterns` nor `--experimental-vm-modules` (`jest-cjs`), each with a `fix` line. A run that would rewrite a file and has a `require-esm` or `jest-cjs` row now writes nothing and exits 1 with a `blocked:` summary, under `--force` and `--dry-run` too, because the rewritten project would not load on a Node its own `engines` allows or under its own tests. The dirty-tree refusal now lists the paths `git status` printed in its `hint`, and when they are all untracked its `fix` says to add them to `.gitignore` or commit them.
