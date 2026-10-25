@@ -36,7 +36,7 @@ benchmark is not a verdict: two runs of one commit have read 0.49 and 0.995. So 
 the median and the range over a named window of CI runs, and how many of them met the bar,
 generated from the runs on [Benchmarks](/docs/benchmarks):
 
-| Claim | Gate | Measured | |
+| Claim | Gate | Measured | Verdict |
 | :--- | :--- | ---: | :--- |
 | an agent spends ≥40% fewer tokens over the benchmark tasks (total over every task-run) | `agent-tokens-40pct` | median 0.502× over the 52 CI readings dated 2026-10-10 to 2026-10-18 (range 0.434–0.627), at or under 0.6 in 51 of them | ✅ met |
 | an agent takes ≥30% fewer turns over the benchmark tasks (total over every task-run) | `agent-turns-30pct` | median 0.522× over the 52 CI readings dated 2026-10-10 to 2026-10-18 (range 0.446–0.634), at or under 0.7 in 52 of them | ✅ met |
