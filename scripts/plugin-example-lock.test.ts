@@ -7,7 +7,7 @@
  * schema over it. A host that starts refusing the example, or an example that stops contributing
  * to a host, fails here before the page says something the packages do not do.
  */
-import { readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -78,6 +78,22 @@ describe('one plugin object extends every layer', () => {
     const report = (await burgee(EXAMPLE)) as { layers?: { host: string; exitCode?: number; output?: string }[] };
     const ran = (report.layers ?? []).map(({ host, exitCode, output }) => ({ host, exitCode, ok: output?.trimEnd().endsWith('acme: ok') }));
     expect(ran).toEqual(['roundel', 'flagstaff', 'linegauge', 'paratext', 'seniority', 'bellpull', 'closeout', 'caique'].map((host) => ({ host, exitCode: 0, ok: true })));
+  });
+
+  // The intent's third criterion, as worded: `burgee check` on a plugin missing `static` fails
+  // with `E_NO_STATIC_PROJECTION`. flagstaff is the layer that refuses; burgee carries its code and
+  // fix. The plugin sits under the repository's `node_modules/.cache` so the walk up finds the
+  // workspace's flagstaff, as it would in an author's project.
+  it('burgee check refuses a spinner with no static projection, with flagstaff’s own code and fix', async () => {
+    mkdirSync(join(root, 'node_modules', '.cache'), { recursive: true });
+    const dir = mkdtempSync(join(root, 'node_modules', '.cache', 'plugin-c3-'));
+    try {
+      const file = join(dir, 'no-static.mjs');
+      writeFileSync(file, "export default { name: 'nostatic', contract: 1, spinners: { bare: { frames: ['a', 'b'], interval: 80 } } };\n");
+      expect(await burgee(file)).toMatchObject({ refused: { code: 'E_NO_STATIC_PROJECTION', message: expect.stringMatching(/^flagstaff: /u) as string, fix: expect.any(String) as string }, exitCode: 1 });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('burgee check carries flagstaff’s rendering of the spinner in all five modes', async () => {

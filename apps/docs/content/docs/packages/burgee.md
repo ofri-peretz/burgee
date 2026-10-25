@@ -146,6 +146,13 @@ it is `false` here, and `data.refused.fix` says what to change:
 {"ok":false,"data":{"refused":{"code":"E_PLUGIN_CONTRACT","message":"plugin \"acme\" declares no contract; …","fix":"add `contract: 1` — `definePlugin` from `burgee/plugin` stamps it"},"exitCode":1},"meta":{"provenance":{}}}
 ```
 
+The same object can carry other layers' keys, such as `tokens` for roundel or `spinners` for
+flagstaff. `burgee check` hands each of them to that layer's own `check` and lists the result
+under `data.layers`, one row per layer: `{ host, keys, run, exitCode, output }`. The layer is
+found where Node would resolve it from the plugin's directory and is run as a command. A layer
+that is not installed gets a row with no `exitCode`, and its `run` is the `npx` command to use.
+A layer that refuses makes the whole check refuse, with that layer's `code` and `fix`.
+
 ## Speaking your user's language
 
 Help, usage errors and hints can speak the user's language; `--json`, `--schema`, `--mcp`,

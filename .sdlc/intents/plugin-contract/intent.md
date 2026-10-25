@@ -5,7 +5,7 @@
 > API is the product (Vite) and plugins are data (ESLint flat config). This intent makes
 > that one contract, not four.
 
-**Status:** review · **Opened:** 2026-09-08 · **Design:** [`spec.md`](./spec.md) (2026-09-08) · **Owner:** @ofri-peretz
+**Status:** approved · **Opened:** 2026-09-08 · **Design:** [`spec.md`](./spec.md), re-grounded 2026-10-25 and accepted in [`D-20261025-plugin-contract-design-accepted`](../../decisions/D-20261025-plugin-contract-design-accepted.md) · **Owner:** @ofri-peretz
 
 ---
 
@@ -75,12 +75,35 @@ plugins (a projection, not a registry), and the keyword convention indexes the g
 
 ## Success criteria
 
-- One schema file, byte-identical in every published tarball; a lock asserts it.
-- The sample plugin above registers in all four packages and renders in all five modes.
-- `burgee plugin check` on a plugin missing `static` fails with `E_NO_STATIC_PROJECTION`.
-- The U9 eval passes weekly against the shared schema.
+1. One schema file, byte-identical in every published tarball; a lock asserts it.
+2. The sample plugin above registers in all four packages and renders in all five modes.
+   *(Read 2026-10-25 as the family's sample, `examples/plugins/acme.mjs`, across every host. The
+   hosts grew from four to ten.)*
+3. `burgee check` on a plugin missing `static` fails with `E_NO_STATIC_PROJECTION`.
+   *(Restated 2026-10-25 from `burgee plugin check`, the name that never shipped. The
+   command is the one that "runs every installed layer's validation", spec R9.)*
+4. The U9 eval passes weekly against the shared schema. *(Restated 2026-10-25: every
+   **executed** weekly reading passes. A run the usage limit stopped is recorded `not-run`,
+   not a failure, and it is not a reading.)*
+
+## Status
+
+Graded 2026-10-25 on `main` at `b453b07b`, plus the PR that accepts the design. **Three of four
+are met. The fourth has no current reading**, so the intent stays `approved` and does not ship
+until a weekly eval run executes and passes.
+
+| | Criterion | State | Evidence |
+| :-- | :-- | :-- | :-- |
+| C1 | One schema, byte-identical, locked | **Met**: ten hosts, one 25,395 B file | `scripts/plugin-schema-lock.test.ts` › "is byte-identical everywhere it is hosted" |
+| C2 | The sample registers everywhere and renders in five modes | **Met** | `scripts/plugin-contract-lock.test.ts` › "one object registers into every host". `scripts/plugin-example-lock.test.ts` runs every host's `check` on `examples/plugins/acme.mjs`, and through `burgee check`, "…carries flagstaff's rendering of the spinner in all five modes" (tty, pipe, ci, json, accessible) |
+| C3 | `burgee check` on a plugin missing `static` → `E_NO_STATIC_PROJECTION` | **Met** in the accepting PR | `scripts/plugin-example-lock.test.ts` › "burgee check refuses a spinner with no static projection, with flagstaff's own code and fix" |
+| C4 | The U9 eval passes weekly | **Open: no current reading.** 10 of 10 plugin cases passed on 2026-10-08 (`c5843e3`) and 2026-10-09 (`3ff3b8e`). 2026-10-15 and 2026-10-22 were `not-run` (usage limit) | `evals/history/2026-10-0{8,9}-*.json`; `evals/history/2026-10-22-80c8eaa-39762001842.json` (`status: not-run`, `reason: usage-limit`) |
+
+The requirement-by-requirement state is the [spec's Status table](./spec.md#status).
 
 ## Verified against `main` — 2026-09-09
+
+*(Superseded by the Status section above; kept as the record of the first grading.)*
 
 Checked criterion by criterion on `61bd11b9`. **One of four met, and that one only at the two
 hosts that exist.** The status stays `review`.
