@@ -454,9 +454,10 @@ function copySiblings(siblings: Set<string>, host: Host, { from, dest, hostDir }
  * missing helper reads as nineteen failing files, which reads as a compatibility number.
  */
 function siblingFile(from: string, name: string): { name: string; path: string } | undefined {
-  // And a specifier with no extension at all names `<name>.js`, as CommonJS resolves it: kleur's
-  // suite imports `./utils` under `esm`, which resolves that way (`Host.tsLoader`).
-  const candidates = [name, ...(name.endsWith('.js') ? [`${name.slice(0, -'.js'.length)}.ts`] : []), ...(name.includes('.') ? [] : [`${name}.js`])];
+  const candidates = [name, ...(name.endsWith('.js') ? [`${name.slice(0, -'.js'.length)}.ts`] : [])];
+  // And, last, `<name>.js`, as CommonJS resolves a specifier that names no file: kleur's suite
+  // imports `./utils` under `esm`, which resolves that way (`Host.tsLoader`).
+  candidates.push(`${name}.js`);
   const found = candidates.find((c) => existsSync(join(from, c)));
   return found === undefined ? undefined : { name: found, path: join(from, found) };
 }

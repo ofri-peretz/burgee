@@ -55,6 +55,19 @@ describe("reading uvu's counts", () => {
     expect(uvuCounts('  Total:     2\n  Passed:    3\n  Skipped:   0\n')).toBeUndefined();
   });
 
+  it('reads counts of more than one digit, and a summary line with trailing space', () => {
+    expect(uvuCounts('  Total:     15  \n  Passed:    12 \n  Skipped:   10\n')).toEqual({ total: 15, passed: 12, skipped: 10 });
+  });
+
+  it('reads the summary lines, never a line of a failure’s report that mentions one', () => {
+    const decoys = '    Expected: Total:     99\n  Total:     98 of them\n    Expected: Passed:    99\n  Passed:    97 of them\n';
+    expect(uvuCounts(`${decoys}${FAILING}`)).toEqual({ total: 4, passed: 2, skipped: 1 });
+  });
+
+  it('reads no counts when the `Total` line is missing', () => {
+    expect(uvuCounts('  Passed:    2\n  Skipped:   0\n')).toBeUndefined();
+  });
+
   it('reads an empty file as zero cases', () => {
     expect(uvuCounts('  Total:     0\n  Passed:    0\n  Skipped:   0\n')).toEqual({ total: 0, passed: 0, skipped: 0 });
   });
@@ -178,6 +191,9 @@ describe.skipIf(process.platform === 'win32')('the uvu runner, end to end', () =
   it('refuses a suite that does not pin its own uvu, and runs a host that declares no loader without one', () => {
     suite({ 'a.test.js': file(['assert.ok(true)']), 'helper.js': 'export const ONE = 1;\n' });
     expect(grade(uvu({ suiteDeps: ['kleur@4.1.5'] }), vendorDir, 'kleur').error).toMatch(/pins its own uvu in `suiteDeps`/);
+    const unpinned = uvu();
+    delete unpinned.suiteDeps;
+    expect(grade(unpinned, vendorDir, 'kleur').error).toMatch(/pins its own uvu in `suiteDeps`/);
     const bare = uvu();
     delete bare.tsLoader;
     // Without `esm` the CommonJS root refuses the file: one failure, never a pass.
