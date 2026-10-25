@@ -1,7 +1,7 @@
 ---
 id: D-20261020-colour-facades-colorette-twist
 subject: 'colour-facades R2: how does compat-oracle grade a suite whose runner, twist, exits 0 on failure, and what does `roundel/colorette` weigh?'
-taken: 'twist runs once per file and is graded by the `Tests:` counts it prints, never its exit code; a file it cannot load is one failure, a run with no summary an error. colorette ships graded 67 / 67 at 2,438 B against 2,602, budgets set at the measurement (2026-10-20)'
+taken: 'twist runs once per file and is graded by the `Tests:` counts it prints, never its exit code; a file it cannot load is one failure, a run with no summary an error. colorette ships graded 67 / 67 at 2,408 B against 2,602, budgets set at the measurement (2026-10-20)'
 date: '2026-10-20'
 superseded_by: —
 ---
@@ -41,11 +41,11 @@ three end-to-end cases fail.
 under which twist draws once. The upstream watch reads twist's `t('…')` titles (`testNames`, for
 a twist host only, so no other host's recorded titles move).
 
-**Budgets, none raised.** B4 `roundel/colorette` 1,900 (1,806 measured against colorette's
-1,973 for a program importing `red`, 0.915, plus the 80 B CI margin rounded up to the next
+**Budgets, none raised.** B4 `roundel/colorette` 1,900 (1,777 measured against colorette's
+1,973 for a program importing `red`, 0.901, plus the 80 B CI margin rounded up to the next
 fifty, red at 0 first); `DROP_IN_CEILINGS` 2,602, colorette's whole surface by the page's
-method, against 2,438 for ours; `./colorette` 2,900 B of reachable `dist` in roundel's
-`weight.test.ts` (measured 2,849 with `runtime.js`, against colorette's own `index.js` at
+method, against 2,408 for ours; `./colorette` 2,900 B of reachable `dist` in roundel's
+`weight.test.ts` (measured 2,814 with `runtime.js`, against colorette's own `index.js` at
 3,381). The on-disk figure carries the three named close codes lint asks for; the bundled ones
 do not, because a minifier inlines them.
 
