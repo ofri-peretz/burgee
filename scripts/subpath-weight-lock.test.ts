@@ -70,6 +70,11 @@ const DROP_IN_CEILINGS: Readonly<Record<string, { incumbent: string; bytes: numb
   // `colour-facades` R4: colorette 2.0.20 by the same method (`export *` alone: it has no
   // default), measured 2026-10-20. Over this, `roundel/colorette` does not ship (the spec's kill criterion).
   'roundel/colorette': { incumbent: 'colorette@2.0.20', bytes: 2_602 },
+  // `colour-facades` R4: kleur 4.1.5 by the same method — `export *` and its default for `kleur`,
+  // `export *` alone for `kleur/colors`, which has none — measured 2026-10-25. Over these,
+  // `roundel/kleur` and `roundel/kleur/colors` do not ship (the spec's kill criterion).
+  'roundel/kleur': { incumbent: 'kleur@4.1.5', bytes: 1_839 },
+  'roundel/kleur/colors': { incumbent: 'kleur@4.1.5', bytes: 997 },
   // R7's kill criterion: over this, `roundel/picocolors` does not publish.
   'roundel/picocolors': { incumbent: 'picocolors@1.1.1', bytes: 2_739 },
   // `supports-color-drop-in` R4: supports-color 11.0.0 by the same method, measured 2026-10-19.

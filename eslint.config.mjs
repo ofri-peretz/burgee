@@ -1019,6 +1019,13 @@ export default [
     },
   },
   {
+    // `roundel/kleur/colors` is kleur 4.1.5's `colors.mjs` (`colour-facades` R1), one style a line:
+    // the numbers are kleur's SGR open and close codes, which its `test/colors.js` asserts byte for
+    // byte (naming each would double the file the subpath-weight lock holds under kleur's bytes).
+    files: ["packages/roundel/src/kleur-colors.ts"],
+    rules: { "conventions/no-magic-numbers": "off" },
+  },
+  {
     // `roundel/policy` is the floor every subpath stands on, so its bytes are multiplied by
     // every R8 ceiling in the package. See the note on `chalk.ts` above for why its level
     // tables are ternary chains rather than statements.

@@ -146,6 +146,7 @@
     "get-stream": "^9.0.1",
     "hashish": "0.0.4",
     "js-yaml": "^5.4.2",
+    "kleur": "4.1.5",
     "lefthook": "^2.2.2",
     "log-update": "8.0.0",
     "markdownlint-cli2": "^0.24.0",

@@ -50,6 +50,11 @@ const PAIRS: readonly (readonly [string, string])[] = [
   // colorette's `require()` is its CommonJS build, an object of its names and no `default`; ours is
   // the ES namespace of the same names, which has no `default` either.
   ['colorette', 'roundel/colorette'],
+  // kleur's `require()` is its one object, and ours exports it as `'module.exports'`; `kleur/colors`'
+  // is its CommonJS build, an object of `$` and its names and no `default`, and ours is the ES
+  // namespace of the same names, which has none either.
+  ['kleur', 'roundel/kleur'],
+  ['kleur/colors', 'roundel/kleur/colors'],
   // ES modules on both sides: `require()` returns each one's namespace, `default` and `createSupportsColor`.
   ['supports-color', 'roundel/supports-color'],
   // ES modules on both sides: `require()` returns each one's namespace, its `default` the same namespace.

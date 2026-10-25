@@ -144,6 +144,20 @@ export const PAIRS: readonly EntryPair[] = [
     why: 'colour under colorette 2, the functions picocolors was forked from',
   },
   {
+    // `colour-facades` R4: the drop-in against the release compat-oracle grades it by. kleur's
+    // entry is its default object, and `kleur/colors` is its second, entered by a style.
+    id: 'roundel/kleur',
+    ours: { specifier: 'roundel/kleur', symbol: DEFAULT_EXPORT },
+    incumbent: { specifier: 'kleur', symbol: DEFAULT_EXPORT },
+    why: 'colour under kleur 4, the chainable one',
+  },
+  {
+    id: 'roundel/kleur/colors',
+    ours: { specifier: 'roundel/kleur/colors', symbol: 'red' },
+    incumbent: { specifier: 'kleur/colors', symbol: 'red' },
+    why: "colour under kleur 4's plain functions",
+  },
+  {
     // `supports-color-drop-in` R4: the drop-in against the release compat-oracle grades it by.
     id: 'roundel/supports-color',
     ours: { specifier: 'roundel/supports-color', symbol: DEFAULT_EXPORT },

@@ -49,6 +49,11 @@ const PAIRS: readonly (readonly [string, string])[] = [
   // comparison and the differential test, as supports-color is. Its declarations are one ambient
   // `declare module`, whose types `Color` and `Colorette` are exports too.
   ['colorette', 'roundel/colorette'],
+  // Joined 2026-10-25 with `colour-facades` R1; kleur 4.1.5 is a root devDependency for this
+  // comparison and the differential tests, as colorette is. `kleur`'s declarations are one
+  // `export =` object merged with a namespace whose `Color` and `Kleur` are exports too.
+  ['kleur', 'roundel/kleur'],
+  ['kleur/colors', 'roundel/kleur/colors'],
   // Joined 2026-10-11 with R7; picocolors 1.1.1 is hoisted at the root.
   ['picocolors', 'roundel/picocolors'],
   // Joined 2026-10-19 with `supports-color-drop-in` R2; supports-color 11.0.0 is a root devDependency
@@ -117,6 +122,21 @@ const GAPS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
       'bgBlackBright', 'bgRedBright', 'bgGreenBright', 'bgYellowBright', 'bgBlueBright', 'bgMagentaBright', 'bgCyanBright', 'bgWhiteBright',
     ].map((name) => [name, "a member of picocolors' `export =` object, which TypeScript lets a caller import by name and Node's ES loader does not; by name it costs 1,238 B and takes the façade over picocolors' own bytes (R7)"]),
   ),
+  // `colour-facades` R1, the picocolors case again. kleur's `export =` object lets TypeScript import
+  // each style and `enabled` by name, and Node's ES loader does not: kleur's `import` condition is
+  // `index.mjs`, whose one export is its default, so `import { red } from 'kleur'` throws against
+  // kleur itself. `enabled` is a switch a caller assigns, which no binding can stand for. A
+  // CommonJS `require('kleur').red` gets each from the object, as it does from ours.
+  'roundel/kleur': Object.fromEntries(
+    [
+      'enabled', 'reset', 'bold', 'dim', 'italic', 'underline', 'inverse', 'hidden', 'strikethrough',
+      'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white', 'gray', 'grey',
+      'bgBlack', 'bgRed', 'bgGreen', 'bgYellow', 'bgBlue', 'bgMagenta', 'bgCyan', 'bgWhite',
+    ].map((name) => [name, "a member of kleur's `export =` object, which TypeScript lets a caller import by name and kleur's own ES entry does not export; the default object carries it, as kleur's does"]),
+  ),
+  'roundel/kleur/colors': {
+    print: "a helper inside kleur's `colors.d.ts`, the overloads its `Colorize` type is read off, exported only because a `.d.ts` exports every top-level declaration — not API, and no function by that name exists at run time; ours exports `Colorize` itself",
+  },
   paratext: {
     AnnotationOptions: "the options of `iTerm.annotation`, and `iTerm` is declared and empty (NotImplemented) until paratext has a capability for it",
     LiteralUnion: "a helper inside ansi-escapes' declaration file, exported only because a `.d.ts` exports every top-level declaration — not API",

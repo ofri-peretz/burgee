@@ -123,6 +123,10 @@ updates:
       # compat-oracle grades (`suiteDeps`), and the root pins the same one for the type-surface
       # and differential tests.
       - dependency-name: "colorette"
+      # colour-facades R4: B4 weighs `roundel/kleur` and `roundel/kleur/colors` against kleur 4.1.5,
+      # the release compat-oracle grades (`suiteDeps`), and the root pins the same one for the
+      # type-surface and differential tests.
+      - dependency-name: "kleur"
       # supports-color-drop-in R4: B4 weighs `roundel/supports-color` against supports-color
       # 11.0.0, the release compat-oracle grades (`suiteDeps`), and the root pins the same one
       # for the type-surface and differential tests.
