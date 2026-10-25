@@ -146,6 +146,14 @@ describe('vendoring a whole suite', () => {
     expect(existsSync(join(test, 'missing.js'))).toBe(false);
   });
 
+  it('brings a sibling the tests name with no extension, as CommonJS and kleur’s `esm` resolve it', () => {
+    // kleur's `test/index.js` imports `./utils`, and the file on disk is `utils.js`.
+    const dir = into();
+    vendor(hostAt(upstream({ ...SUITE, 'test/a.test.js': `${SUITE['test/a.test.js'] as string}import { ANSI } from './bare';\n`, 'test/bare.js': 'export const ANSI = 1;\n' })), dir);
+    expect(read(dir, 'fakehost', 'test', 'bare.js')).toBe('export const ANSI = 1;\n');
+    expect(existsSync(join(dir, 'fakehost', 'test', 'bare'))).toBe(false);
+  });
+
   it('leaves dot-directories and the host’s own internal directory behind', () => {
     const dir = into();
     vendor(hostAt(upstream()), dir);
