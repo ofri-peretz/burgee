@@ -3,6 +3,15 @@ title: Changelog
 description: "Every release of burgee, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.7.1
+
+### Patch Changes
+
+- [#1232](https://github.com/ofri-peretz/burgee/pull/1232) [`b453b07`](https://github.com/ofri-peretz/burgee/commit/b453b07b5680abaf1ed044dfd45c2986b9982ede) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee check` reads a `.json` plugin file as data. The example locale pack is JSON, and checking
+  it threw Node's ERR_IMPORT_ATTRIBUTE_MISSING (`import()` of a JSON file needs
+  `with: { type: 'json' }`), so an author checking the example as shipped got a runtime error instead
+  of a report. A byte-order mark an editor saved is dropped before parsing.
+
 ## 1.7.0
 
 ### Minor Changes

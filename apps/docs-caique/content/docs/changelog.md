@@ -3,6 +3,12 @@ title: Changelog
 description: "Every release of caique, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.5.0
+
+### Minor Changes
+
+- [#1201](https://github.com/ofri-peretz/burgee/pull/1201) [`70a86aa`](https://github.com/ofri-peretz/burgee/commit/70a86aa6959b1ab6a27dc03bbfc3ff6c0ad9c37b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `caique/inquirer/prompts` now carries all ten of `@inquirer/prompts`' prompts: `input`, `confirm`, `password`, `number`, `expand`, `rawlist`, `search` and `editor` join `select` and `checkbox`, with their config and theme types. `@inquirer/prompts` 8.7.3's own suites pass 213 / 213, level with `@inquirer/prompts` itself (the eleven `editor` cases that answer through a mock of `@inquirer/external-editor` are excluded for both sides, D-20261011-inquirer-prompts-editor-mock). The subpath bundles to 44,683 B against the incumbent's 582,754 B. `editor` starts the user's editor through `bellpull/cross-spawn`, so caique now depends on `bellpull`.
+
 ## 1.4.5
 
 ### Patch Changes
