@@ -28,18 +28,13 @@ updates:
       # (#5, #31). Drop this entry when typescript-eslint ships a TS 7 peer range.
       - dependency-name: "typescript"
         versions: [">=6"]
-      # next 16.4.0's Turbopack production build grows past 14 GB RSS on every docs app and is
-      # OOM-killed ("Creating an optimized production build ..."), locally and on CI's Build
-      # lane (#1088); 16.3.8 builds the same app in 18 s under 3 GB. 16.4.2's docs builds took
-      # the runner down the same way, twice in #1148 and again in #1181. Only these releases
-      # were skipped one by one at first; 16.4.1 then took the runner down the same way in #1210,
-      # so the whole 16.4 line is skipped (D-20261020-dependabot-ignore-ranges). 16.5.0 is
-      # proposed again.
-      - dependency-name: "next"
-        versions: [">=16.4.0 <16.5.0"]
-      # Declined twice with evidence (#1148, #1181) and re-proposed as the whole of #1205
-      # (D-20261020-dependabot-rejected-bumps). react and js-yaml skip exact releases only: the
-      # next release of each is proposed again.
+      # next 16.4.x is no longer ignored (D-20261025-next-16-4-1-security). Every 16.4 release's
+      # Turbopack production build is OOM-killed on the docs apps (#1088, #1148, #1181, #1210),
+      # and 16.3.8 carries GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr and GHSA-p3m5-59mp-jv5r,
+      # fixed only in 16.4.1. The docs apps now build with `next build --webpack`, which builds
+      # 16.4.1 in about half of 16.3.8's Turbopack memory, so a 16.4 patch is proposed again
+      # (#1205 was the last proposal declined, D-20261020-dependabot-rejected-bumps).
+      # react and js-yaml skip exact releases only: the next release of each is proposed again.
       # react 19.3.1: controlroom's W1–W4 weigh and time against ink + react on both sides,
       # so react moves only in a PR that re-records them.
       - dependency-name: "react"
