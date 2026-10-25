@@ -1,10 +1,34 @@
 # Design — `dev-loop`
 
-Intent: [`intent.md`](./intent.md). **Status:** review — built, W1–W6 verified.
+Intent: [`intent.md`](./intent.md). **Status:** approved (2026-10-25) — built; W4 and the watcher segment of W6 remain to build.
 
 **Restated:** 2026-10-18 — see § Restated 2026-10-18
 
 ---
+
+## Design gate 2026-10-25
+
+**Accepted for Build**
+([D-20261025-dev-loop-design-accepted](../../decisions/D-20261025-dev-loop-design-accepted.md)).
+W1–W3 and W5 hold as restated on 2026-10-18, and state isolation is model-held by
+`.sdlc/models/dev-reload.qnt`. Two tests are left.
+
+**In scope.**
+
+1. W4, Z2 byte-identity. A test copies a fixture project into a temp directory and records
+   every file's bytes and the directory listing. It runs `dev()` on the entry, edits the entry
+   once so a reload happens, stops `dev()`, and asserts the listing and every file's bytes are
+   unchanged. Proven red by a deliberate `writeFileSync` added to `dev.ts` in a scratch edit.
+2. W6, the save-detection segment. A case drives the real watcher on the 30-command fixture. It
+   writes the changed file, waits for `notifications/tools/list_changed`, calls the changed
+   command, and checks the new answer, timed from the write. It is held to the A30 budget,
+   max(500 ms, five imports of the entry). Proven red by a debounce raised past the budget.
+
+**Acceptance checks.** Both cases live in `packages/burgee/src/dev*.test.ts`, run in the package
+suite on all three OS lanes, and use no fixed sleep: the watcher case waits on the notification.
+
+**What to measure.** The save-to-callable time on each OS lane, from the test's own timing in
+the CI log, against the 66–89 ms hand measurement of 2026-09-09.
 
 ## Restated 2026-10-18
 

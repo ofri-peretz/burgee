@@ -4,7 +4,9 @@
 > requirements S1–S4, plus the TypeScript cluster (research §5) and the validation
 > cluster (§4). Proposes floor additions S5–S8.
 
-**Status:** approved · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** dropped (2026-10-25) · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+
+**Dropped 2026-10-25** → [`D-20261025-commander-schema-dropped`](../../decisions/D-20261025-commander-schema-dropped.md): superseded by the engine's declaration and `typed-positionals`. C1's plain-commander differential, R2's `file`/`path`/`object` options and R4's existence check are ruled out on value against core bytes, and gap `B-20261019-commander-schema-remaining` is closed.
 
 > Accepted 2026-10-19 by the coordinator under the owner's delegation
 > ([`D-20261019-typed-schema-surface-design-accepted`](../../decisions/D-20261019-typed-schema-surface-design-accepted.md)).

@@ -34,6 +34,13 @@ describe('fingerprinting an upstream release', () => {
     expect(testNames(src)).toEqual(['when x then y', 'quoted \\"inner\\" name', 'tpl']);
   });
 
+  it("reads twist's `t(…)` titles for a twist suite, and only there (colour-facades R2)", () => {
+    const src = 't("colorette", [\n  t(\'simple\', [equal(1, 1)]),\n  t(`nesting`, []),\n])\nit("not a twist case")';
+    expect(testNames(src, 'twist')).toEqual(['colorette', 'simple', 'nesting']);
+    expect(testNames(src)).toEqual(['not a twist case']);
+    expect(testNames(src, 'ava')).toEqual(['not a twist case']);
+  });
+
   it('reads exported names and Class.method names from a typings file', () => {
     const dts = [
       'export class Command extends EventEmitter {',

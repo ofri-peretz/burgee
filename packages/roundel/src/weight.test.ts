@@ -116,6 +116,10 @@ const RULES: Record<string, EntryRule> = {
   // R12, on 2026-09-28: `interactive(rt)` and the is-unicode-supported probe, which caique
   // and flagstaff each carried by hand. Its own subpath because `./chalk` above has 7 B left
   // and `./policy` 28. Reaches nothing, and the root does not re-export it: `.` has 58 B left. Measured 878.
+  // `colour-facades` R2, 2026-10-20: colorette 2.0.20's formatter and decision over the process
+  // seam alone. Measured 2,826 B with `runtime.js`, against colorette 2.0.20's `index.js` at 3,381 B
+  // on disk; the bar R4 sets is bundled bytes, held in `scripts/subpath-weight-lock.test.ts`.
+  './colorette': { allow: [], budget: 2_900, denied: ['policy.js', 'tokens.js', 'theme.js', 'contrast.js', 'chalk.js', 'picocolors.js', 'supports-color.js', 'index.js'] },
   // `graded-override-targets` R7, 2026-10-11: picocolors' surface over the process seam alone.
   // Measured 2,646 B with `runtime.js`, against picocolors 1.1.1's one file at 2,663 B on disk; the
   // bar R7 sets is bundled bytes, held in `scripts/subpath-weight-lock.test.ts`.

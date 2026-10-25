@@ -1,8 +1,12 @@
 # Intent — `first-adopter`: a CLI we did not write uses the layer
 
-**Status:** review · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`
+**Status:** approved · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`
 
-**State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why still `review`:** no external CLI has been migrated; A1–A5 are all open.
+> **Accepted at the Design→Build gate 2026-10-25** by the coordinator under the owner's delegation
+> ([`D-20261025-first-adopter-design-accepted`](../../decisions/D-20261025-first-adopter-design-accepted.md)): the design rewritten off `commander-agent` onto the published family and the U12 trial's lessons. See
+> [`spec.md` § Design gate 2026-10-25](./spec.md#design-gate-2026-10-25).
+
+**State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why `review` until 2026-10-25:** no external CLI has been migrated; A1–A5 are all open.
 
 ---
 

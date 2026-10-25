@@ -67,6 +67,9 @@ const DROP_IN_CEILINGS: Readonly<Record<string, { incumbent: string; bytes: numb
   'closeout/cli-cursor': { incumbent: 'cli-cursor@5.0.0', bytes: 4_757 },
   'linegauge/cli-truncate': { incumbent: 'cli-truncate@6.1.1', bytes: 20_675 },
   'linegauge/widest-line': { incumbent: 'widest-line@6.0.0', bytes: 6_079 },
+  // `colour-facades` R4: colorette 2.0.20 by the same method (`export *` alone: it has no
+  // default), measured 2026-10-20. Over this, `roundel/colorette` does not ship (the spec's kill criterion).
+  'roundel/colorette': { incumbent: 'colorette@2.0.20', bytes: 2_602 },
   // R7's kill criterion: over this, `roundel/picocolors` does not publish.
   'roundel/picocolors': { incumbent: 'picocolors@1.1.1', bytes: 2_739 },
   // `supports-color-drop-in` R4: supports-color 11.0.0 by the same method, measured 2026-10-19.

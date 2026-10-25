@@ -1,7 +1,7 @@
 ---
 id: B-20261019-commander-schema-remaining
 section: B
-status: open
+status: closed
 source: commander-schema C1, R2, R4 (restated 2026-10-18)
 recommendation: 'three PRs, each its own intent-sized change: C1 as a conformance suite in `examples/conformance` that runs each cited issue on plain commander and on burgee (about a day: 23 issues, 13 uncited); R2 as an `object` option type and dotted flags with a shape decision first (the spec says "no new grammar", which is the open design); R4 as a `mustExist` key on `file`, which needs `D-20261012-typed-positionals-shape` widened, since that decision fixed the key set'
 ---
@@ -23,4 +23,11 @@ the half day this batch allowed one intent, and are recorded here rather than st
   and on a positional it is a new key, which `D-20261012-typed-positionals-shape` closed the set
   against. A decision to widen it comes first.
 
-Until these land the intent stays `approved`, not `shipped`.
+~~Until these land the intent stays `approved`, not `shipped`.~~
+
+**Closed 2026-10-25** by [D-20261025-commander-schema-dropped](../decisions/D-20261025-commander-schema-dropped.md),
+the build-the-rest option declined: `commander-schema` is `dropped` (superseded by the engine's
+declaration and `typed-positionals`). C1's commander differential is ruled out, because
+commander has no API for most of the named issues, so it measures nothing. R2 (`file`, `path`,
+`object` options) and R4 (existence) are ruled out on value against core bytes, with no adopter
+asking. They reopen as one new intent when a demand signal names them.

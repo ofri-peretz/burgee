@@ -23,11 +23,10 @@ measured 2026-10-19 on Node 24.12 from the upstream release tags:
   and the `esm` loader fails on Node 24 before a case runs. The oracle needs a `uvu` runner and a
   loader substitution (`tsx`, as for signal-exit). kleur ships CommonJS (`index.js`, built by
   `npm run build`), so `require('roundel/kleur')` must hand back kleur's object.
-- **colorette 2.0.20** (`57c86b6b`). `twist tests/*.js`: three files, and twist exits 0 with
-  failures, so neither the exit-code runner nor a TAP reader grades it. The oracle needs a twist
-  runner that reads its `Tests: N failed, M passed` line. Off a terminal, 58 of 67 cases fail
-  against colorette itself, so the host needs upstream CI's environment. colorette ships
-  CommonJS (`index.cjs`).
+- **colorette 2.0.20** — **built** (`feat/roundel-colorette`, D-20261020-colour-facades-colorette-twist):
+  the `twist` runner reads twist's printed counts per file, the host runs in upstream CI's
+  environment, and `roundel/colorette` grades 67 / 67 against a control of 67 / 67. The release tag
+  `2.0.20` resolves to commit `811fd2f2` (vendored), not the `57c86b6b` this entry named on 2026-10-19. kleur is the one host left open here.
 
 Each host then follows `roundel/supports-color`'s path: a baseline, a `GRADED` row, a capability
 column if compat-oracle's `LAYERS` names it for roundel, a B4 pair, a `DROP_INS` row and the docs

@@ -5,9 +5,11 @@
 > layers have no equivalent yet; this intent produces it, and the floor rows for roundel,
 > flagstaff and caique come from here, not from taste.
 
-**Status:** review · **Opened:** 2026-09-08 · **Owner:** @ofri-peretz · **Corrected from `shipped`
+**Status:** dropped (2026-10-25) · **Opened:** 2026-09-08 · **Owner:** @ofri-peretz · **Corrected from `shipped`
 2026-09-09** — the doc landed, the intent did not; see [Verified against `main`](#verified-against-main--2026-09-09). The doc is
 [`../../research/output-stack-open-issues.md`](../../research/output-stack-open-issues.md)
+
+**Dropped 2026-10-25** → [`D-20261025-output-stack-research-dropped`](../../decisions/D-20261025-output-stack-research-dropped.md): the research is done (R1–R7, S1 and S2 held by documents on `main`). Its one open item, caique's `### Evidence` table (S3), moved to [`caique/spec.md`](../caique/spec.md).
 
 **Restated:** 2026-10-18 — see [§ Restated 2026-10-18](#restated-2026-10-18)
 

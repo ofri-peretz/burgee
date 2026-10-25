@@ -8,6 +8,7 @@
     "theme",
     "contrast",
     "chalk",
+    "colorette",
     "picocolors",
     "supports-color",
     "yoctocolors",

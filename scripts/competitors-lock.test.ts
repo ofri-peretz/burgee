@@ -55,6 +55,7 @@ const KNOWN = [
   'cli-spinners',
   'cli-table3',
   'cli-truncate',
+  'colorette',
   'commander',
   'cosmiconfig',
   'cross-spawn',
