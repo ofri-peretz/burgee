@@ -16,9 +16,6 @@ import { Script, createContext } from 'node:vm';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-// eslint-disable-next-line import-next/no-namespace -- the namespace is the subject: colorette's surface is its named exports, and their keys are what is compared
-import * as real from './colorette.js';
-
 type Style = (input: unknown) => unknown;
 type Module = Record<string, unknown> & { isColorSupported: boolean; createColors: (options?: { useColor?: boolean }) => Record<string, Style> };
 
@@ -39,6 +36,19 @@ function incumbent(world: World): Module {
   const context = createContext({ tty: { isatty: (fd: number) => fd === 1 && world.tty }, ...(world.process === undefined ? {} : { process: world.process }) });
   // eslint-disable-next-line node-security/detect-eval-with-expression -- the source is colorette's own installed `index.js`, with its one import supplied and its `export` keywords dropped; that evaluation is the comparison
   return new Script(`(() => {\n${body}\nreturn { isColorSupported, createColors, ${NAMES.join(', ')} };\n})()`).runInContext(context) as Module;
+}
+
+/**
+ * This module as this process imports it, evaluated afresh inside the test that asks.
+ *
+ * Never a static import at the top of this file: the module builds its named exports by calling
+ * `createColors()` at import, so a defect there throws while the file is collected — before any
+ * test runs — and a run that registers no test fails nothing (a mutant of `createColors` survived
+ * #1233's mutation lane exactly that way). Imported here, the same defect fails the test.
+ */
+async function real(): Promise<Module> {
+  vi.resetModules();
+  return (await import('./colorette.js')) as unknown as Module;
 }
 
 /** This module, imported in `world`. */
@@ -100,14 +110,15 @@ function inputs(theirs: Module): unknown[] {
 }
 
 describe('the surface is colorette’s', () => {
-  it('exports every style colorette exports, `isColorSupported` and `createColors`, and nothing else', () => {
+  it('exports every style colorette exports, `isColorSupported` and `createColors`, and nothing else', async () => {
     expect(NAMES).toHaveLength(41);
-    expect(Object.keys(real).sort()).toEqual([...NAMES, 'createColors', 'isColorSupported'].sort());
+    expect(Object.keys(await real()).sort()).toEqual([...NAMES, 'createColors', 'isColorSupported'].sort());
   });
 
-  it('builds `createColors()` with colorette’s keys, in colorette’s order, on and off', () => {
-    expect(Object.keys(real.createColors({ useColor: true }))).toEqual(NAMES);
-    expect(Object.keys(real.createColors({ useColor: false }))).toEqual(NAMES);
+  it('builds `createColors()` with colorette’s keys, in colorette’s order, on and off', async () => {
+    const { createColors } = await real();
+    expect(Object.keys(createColors({ useColor: true }))).toEqual(NAMES);
+    expect(Object.keys(createColors({ useColor: false }))).toEqual(NAMES);
   });
 });
 
