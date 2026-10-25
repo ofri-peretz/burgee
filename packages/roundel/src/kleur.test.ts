@@ -65,7 +65,7 @@ function outcome(program: (k: Kleur) => unknown, k: Kleur): unknown {
   try {
     const value = program(k);
     // A chain is compared by what it is made of: its keys, and what it gives for a string.
-    if (value !== null && typeof value === 'object') return { keys: Object.keys(value), styled: ((value as Record<string, Style>)['red'] as Style)('x') };
+    if (value !== null && typeof value === 'object' && !Array.isArray(value)) return { keys: Object.keys(value), styled: ((value as Record<string, Style>)['red'] as Style)('x') };
     return value;
   } catch (error) {
     return `throws ${(error as Error).name}`;
@@ -92,6 +92,14 @@ const CHAINS: [string, (k: Kleur) => unknown][] = [
       const chain = style(k, 'red')();
       const first = (chain['bold'] as Style)('a');
       return [first, (chain['italic'] as Style)('b'), (chain['red'] as Style)('c')];
+    },
+  ],
+  // Called on the module object, as a caller writes it, where `this` is kleur's object, not a chain.
+  [
+    'a style called as a method of the module',
+    (k) => {
+      const kleur = k as unknown as Record<string, Style>;
+      return [kleur['red']?.('m'), (kleur['red']?.()['bold'] as Style)('n'), kleur['bold']?.(0)];
     },
   ],
   ['gray and grey share a code', (k) => ((style(k, 'gray')()['grey'] as Style)()['red'] as Style)('g')],

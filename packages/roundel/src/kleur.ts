@@ -120,8 +120,8 @@ function grow(ctx: Chain, code: number, block: Block): void {
 /** A new chain holding `code`, with every style bound to it. */
 function chain(code: number, block: Block): Chain {
   const ctx: Chain = { has: [code], keys: [block] };
-  // eslint-disable-next-line reliability/no-unsafe-type-narrowing, secure-coding/detect-object-injection -- `name` is one of `NAMES`, a module constant, and a chain carries every style as kleur's does
-  for (const name of NAMES) (ctx as unknown as Record<string, unknown>)[name] = styles[name]?.bind(ctx);
+  // eslint-disable-next-line reliability/no-unsafe-type-narrowing, secure-coding/detect-object-injection -- `name` is one of `NAMES`, a module constant, each written below before any chain exists, and a chain carries every style as kleur's does
+  for (const name of NAMES) (ctx as unknown as Record<string, unknown>)[name] = (styles[name] as (typeof styles)[string]).bind(ctx);
   return ctx;
 }
 
