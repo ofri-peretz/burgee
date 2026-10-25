@@ -604,7 +604,7 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
 
   // `colour-facades` R4, first measured 2026-10-20 against colorette 2.0.20, the release
   // compat-oracle grades. Added at a ceiling of 0, which failed, then set at the measurement plus
-  // the 80 B CI margin, rounded up to the next fifty: 1,777 against colorette's 1,973 (0.901), each
+  // the 80 B CI margin, rounded up to the next fifty: 1,794 against colorette's 1,973 (0.909), each
   // side a program that imports `red`. Lighter, so the ratio gate is U5's 1, the tighter bar here.
   'roundel/colorette': 1_900,
 

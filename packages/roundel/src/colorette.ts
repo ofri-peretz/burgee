@@ -137,10 +137,16 @@ const colors = Object.fromEntries(
   }),
 ) as unknown as Colorette;
 
-/** The styles, coloured or not. `useColor` defaults to {@link isColorSupported}. */
-export const createColors = ({ useColor = isColorSupported }: { useColor?: boolean } = {}): Colorette =>
+/**
+ * The styles, coloured or not. `useColor` defaults to {@link isColorSupported}.
+ *
+ * A declaration, not colorette's arrow: an arrow assigned at import is chosen once, when the
+ * module is evaluated, so a mutant of it is one no test running after import can see.
+ */
+export function createColors({ useColor = isColorSupported }: { useColor?: boolean } = {}): Colorette {
   // eslint-disable-next-line reliability/no-unsafe-type-narrowing -- the same keys, `NAMES`, each `String`, as colorette's own reduce makes them
-  useColor ? colors : (Object.fromEntries(NAMES.map((name) => [name, String])) as unknown as Colorette);
+  return useColor ? colors : (Object.fromEntries(NAMES.map((name) => [name, String])) as unknown as Colorette);
+}
 
 export const {
   reset,

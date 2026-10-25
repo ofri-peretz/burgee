@@ -238,7 +238,7 @@ runner, twist, exits 0 when its cases fail, so `compat-oracle` reads the counts 
 rather than its exit code, and runs the suite in upstream CI's environment. `colorette.test.ts`
 evaluates colorette's own `index.js` beside this module and requires the same value from every
 style, for every pair of styles nested in each other, with colour on and off, and the same
-decision in every row of colorette's rule. Bundled, the whole surface is 2,408 bytes against
+decision in every row of colorette's rule. Bundled, the whole surface is 2,425 bytes against
 colorette's 2,602.
 
 **Graded by picocolors' own test**, vendored at 1.1.1: `roundel/picocolors` passes
