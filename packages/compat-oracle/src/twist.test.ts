@@ -179,7 +179,7 @@ describe.skipIf(process.platform === 'win32')('the twist runner, end to end', ()
   }, 300_000);
 
   afterAll(() => {
-    if (vendorDir !== '') spawn('rm', ['-rf', vendorDir], { detached: true, stdio: 'ignore' }).unref();
+    if (vendorDir !== '' && process.platform !== 'win32') spawn('rm', ['-rf', vendorDir], { detached: true, stdio: 'ignore' }).unref();
   });
 
   it('grades two passes and a failure as exactly that, where twist itself exits 0', () => {
