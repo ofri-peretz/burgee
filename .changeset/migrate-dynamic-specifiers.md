@@ -1,5 +1,0 @@
----
-"burgee": minor
----
-
-`burgee migrate` no longer refuses a file for a computed specifier that loads the user's own file or module. Three shapes now pass: `require(path.join(process.cwd(), 'package.json'))` (a path from the working directory or `__dirname`, then literals), `import(argv.parser)` (a member of `argv`, `args`, `options`, `opts` or `flags`), and `argv.use.map((plugin) => import(plugin))` (an element of an argv array). The literal imports beside them move, so postcss-cli's and madge's runs, `partial` with exit 1 before, now move their files. Passed sites are listed under `dynamic` in `--json` and in a `read as not an incumbent` section, and never change the exit code. Every other computed specifier is refused as before, and `import(str)`, which was read as a literal, is now refused too. A file that builds a computed name beside a string naming an incumbent the run moves (`const name = 'chalk'; import(name)`) is refused and holds that incumbent, whether or not it imports it, so chalk no longer moves next door while that line can still load the original.
