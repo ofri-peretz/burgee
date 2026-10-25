@@ -1,8 +1,37 @@
 # Design — `commander-env`
 
-Intent: [`intent.md`](./intent.md). **Status:** review.
+Intent: [`intent.md`](./intent.md). **Status:** approved (2026-10-25).
 
 ---
+
+## Design gate 2026-10-25
+
+**Accepted for Build, narrowed**
+([D-20261025-commander-env-design-accepted](../../decisions/D-20261025-commander-env-design-accepted.md)).
+The `withEnv` design below was superseded by `seniority` and the native engine
+(§ Restated 2026-10-18). This gate rules on the five open items.
+
+**In scope.**
+
+1. V2, env names in `--schema`. A test asserts that an option declared with `env` publishes that
+   name on the option in `--schema` and on its `inputSchema` property under `--mcp`. Proven red
+   by dropping `env` from the projection in `schema.ts` in a scratch edit.
+2. K3, the discovery order in `--explain`. `config explain` prints, under the precedence
+   order, the discovery order from `seniority`'s `candidates()`: each path, the reason it was
+   tried, and which one won. `--explain <option>` names the winning file and the position it
+   won from. `--json` carries the same list. Proven red by a test that expects the
+   order and runs against today's output.
+
+**Settled at this gate, nothing to build.**
+
+- C3b is measured and held as a reading. Over 71 CI readings dated 2026-10-08 to 2026-10-18, the
+  `diagnose-provenance` task's median turns are 5 for burgee and 11 for commander. The
+  per-reading ratio has median 0.500 (range 0.385–1.222), below 1 in 68 of 71. The source is the
+  `diagnose-provenance.turns` detail of each `agent` record in
+  `benchmarks/results/agent-cli-bench/*-ci.json`. It is reported and not gated.
+- C1 (the plain-commander differential and the uncited issues) is dropped. R3's façade half
+  (`--explain` on `burgee/commander` and `burgee/yargs`) is dropped. The reasons are in the
+  decision.
 
 ## Restated 2026-10-18
 

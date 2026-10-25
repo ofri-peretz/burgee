@@ -4,7 +4,9 @@
 > 2026-09-07: one shape had to be hand-carried into four surfaces, and the interlace
 > repo already runs a shell script to stop the same duplication drifting.
 
-**Status:** draft · **Opened:** 2026-09-07 · **Owner:** @ofri-peretz
+**Status:** dropped (2026-10-25) · **Opened:** 2026-09-07 · **Owner:** @ofri-peretz
+
+**Dropped 2026-10-25** → [`D-20261025-brand-burgee-dropped`](../../decisions/D-20261025-brand-burgee-dropped.md): D-043 placed a brand generator in `interlace`, not here. What shipped in `burgee brand`, `burgee/brand` and `burgee/contrast` stays frozen as built until burgee's next major version.
 
 ---
 

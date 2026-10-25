@@ -1,12 +1,35 @@
 # Design — An agent-native layer on top of commander and yargs
 
-Intent: [`intent.md`](./intent.md). **Status:** draft.
+Intent: [`intent.md`](./intent.md). **Status:** approved (2026-10-25, as the umbrella).
 **Restated:** 2026-10-18 — see § Restated 2026-10-18.
 
 > Stage 2 artifact. Requirements are the floor; the design is how the runtime and the
 > lint plugin each hold it; verification is the one command that goes red.
 
 ---
+
+## Design gate 2026-10-25
+
+**Accepted as the umbrella**
+([D-20261025-burgee-umbrella-design-accepted](../../decisions/D-20261025-burgee-umbrella-design-accepted.md)).
+The floor below stands. Its rows are held or owned by the children, as the audit
+*What is built, requirement by requirement* records. Two pieces have no child, and they are
+this umbrella's own build.
+
+- Z5, restated to a bench. A generated 250-command fixture (in the shape of
+  `examples/demo-cli-large`, with lazy handlers) has `--help` and `--schema` timed by the `perf`
+  axis, beside the 30-command demo. The reading is published and not banded at first.
+  Acceptance: the fixture is built by a script, not committed by hand, and the `perf` axis
+  emits both variants. The precompute opt-in is dropped, and reopens as an intent only if the
+  250-command reading is more than 3× the 30-command one.
+- Success criterion 4, restated to a ratchet. A lock reads `eslint.config.mjs` and counts the
+  rules set `"off"` for any non-test file under `packages/*/src/`. The count is pinned as a
+  ceiling that may only fall, each such override must carry a one-line reason comment, and the
+  wired Interlace plugins must number at least nine. Acceptance: proven red by adding one
+  `"off"` to a runtime override block in a scratch edit.
+
+What to measure: the 250- and 30-command `--help` and `--schema` medians, and the current count
+of disabled runtime rules, which becomes the ceiling.
 
 ## Restated 2026-10-18
 

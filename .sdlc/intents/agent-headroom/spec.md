@@ -1,6 +1,6 @@
 # Design — Agent headroom
 
-Intent: [`intent.md`](./intent.md).
+Intent: [`intent.md`](./intent.md). **Status:** approved (2026-10-25).
 
 **Accepted by the owner (Ofri) on 2026-09-09, at the Design→Build gate**, scoped to **R1 plus
 R7's metric** — the compact serialisation and the `schema-bytes` measurement that publishes it.
@@ -21,6 +21,53 @@ requirement, and it should become one before R5 or `--format=tsv` is built.
 **Restated:** 2026-10-18 — see [§ Restated 2026-10-18](#restated-2026-10-18)
 
 ---
+
+## Design gate 2026-10-25
+
+**Accepted for Build, narrowed**
+([D-20261025-agent-headroom-design-accepted](../../decisions/D-20261025-agent-headroom-design-accepted.md)).
+Re-grounded on `main` at `c92e4173f4`. R1 holds, R2/R4/N15 shipped as `burgee` N14/N13/N15, and
+R7 holds as restated. The build is four pieces, in this order.
+
+**In scope.**
+
+1. R6, the hint-survival lock. A failing command run with `--json=<a>` and with
+   `--format=agent` still carries the same `hint` and `fix` it carries with plain `--json`.
+   It needs no code, only the lock. Proven red by stripping `hint` from the agent renderer in a
+   scratch edit.
+2. RF, registered formats. `formats` becomes a key on the family plugin object that burgee
+   hosts: `{ [name]: { render(value) => string, description } }`, validated by the family
+   schema. `--format=<name>` picks one, and `--format` with no value lists every registered
+   name, built-ins included. `tsv` ships as the first one through that same path, not as a
+   special case. A list result renders a header row and one line per row. A non-list result
+   refuses with a `hint` naming `--json`. A failure is never rendered by a registered format:
+   the envelope rule holds, and R6's lock covers registered formats too.
+3. R3, the row budget. `--max-bytes N` on any machine format. A list result over budget is cut
+   at a whole row and stays parseable. The envelope carries `truncated: { of, returned }`, and
+   the key is absent when nothing was cut. A non-list result over budget is not cut: it is
+   returned whole with `truncated: { of: 1, returned: 1, over: <bytes> }`, so the caller learns
+   the budget was exceeded without receiving a broken document. No continuation token.
+4. C1, the large-demo figure. A test over `examples/demo-cli-large`'s `--schema` asserts that
+   compact is at least 40% smaller than pretty and that the two parse equal. The reliability
+   axis records `schema-bytes-pretty` beside `schema-bytes`, reported and not banded.
+
+**Acceptance checks.**
+
+- The lock files: `packages/burgee/src/hint-survives.test.ts` (R6),
+  `packages/burgee/src/formats.test.ts` (RF), `packages/burgee/src/max-bytes.test.ts` (R3) and the
+  large-demo case in `machine-json.test.ts` (C1).
+- Each check is run against the unfixed tree first and seen red.
+- R3 is fuzzed over budgets from 10 B up to the full size, and every output parses.
+- `packages/burgee/src/weight.test.ts` stays green. If RF or R3 move the root entry, the PR
+  re-converges the budget and states the delta in bytes.
+
+**What to measure.** `tsv` bytes against minified JSON on the fifty-row fixture (the design
+measured 63%), recorded in the PR. The root entry's bundled bytes before and after. The pretty
+and compact `--schema` bytes of the large demo.
+
+**Dropped at this gate.** R5 (`--format=ndjson`): no command streams, and once RF lands an author
+registers it as one format. R2's dotted result paths: no caller asked for them. The token claim
+stays unmade until a token count is measured.
 
 ## Restated 2026-10-18
 
