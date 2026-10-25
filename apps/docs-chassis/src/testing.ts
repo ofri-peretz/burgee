@@ -174,6 +174,27 @@ export function docsSiteSuite(testFileUrl: string): void {
     });
   });
 
+  // `vercel build` copies every file a server function's trace names into the deployment, and it
+  // failed the front door's deploy (EISDIR) when webpack's tracer turned a build-time
+  // `readdirSync` of `packages/` into 3,865 traced files, a directory among them. Nothing a
+  // function runs reads the repository's own packages once built (D-20261025-next-16-4-1-security).
+  describe(`${app.row.workspace}: no server function carries the repository's packages`, () => {
+    /** How many traced paths a failure prints: enough to name the cause, not all 3,865. */
+    const SHOWN = 5;
+    it('traces no file under the repository’s packages/, outside node_modules', () => {
+      const server = join(app.dir, '.next', 'server');
+      expect(existsSync(server), `no ${server}. Run \`npm run build -w ${app.row.workspace}\` first`).toBe(true);
+      const packagesDir = resolve(app.dir, '..', '..', 'packages');
+      const traced = readdirSync(server, { recursive: true, encoding: 'utf8' })
+        .filter((file) => file.endsWith('.nft.json'))
+        .flatMap((file) => {
+          const { files } = JSON.parse(readFileSync(join(server, file), 'utf8')) as { files: string[] };
+          return files.map((f) => resolve(dirname(join(server, file)), f)).filter((f) => f.startsWith(`${packagesDir}/`) && !f.includes('/node_modules/')).map((f) => `${file}: ${relative(packagesDir, f)}`);
+        });
+      expect(traced.slice(0, SHOWN), `${String(traced.length)} traced file(s) under packages/`).toEqual([]);
+    });
+  });
+
   describe(`${app.row.workspace}: PostHog is on every page, through the same origin`, () => {
     it('the prerendered home page references the Analytics client component, which captures pageviews', () => {
       const html = app.built('index.html');

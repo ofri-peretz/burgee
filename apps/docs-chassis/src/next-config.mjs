@@ -86,6 +86,13 @@ export function docsNextConfig() {
     // spawning thirteen workers was contention, not parallelism.
     typescript: { ignoreBuildErrors: true },
     experimental: { staticGenerationMinPagesPerWorker: 50 },
+    // The front door's `llms.txt` lists `packages/` at build time (`docs-chassis/packages`), and
+    // webpack's file tracer reads that `readdirSync` as "every file under `packages/` is needed at
+    // run time": 3,865 of them, a vendored suite's fixture directory among them, which
+    // `vercel build` then fails to read (EISDIR) and the deploy fails. Every route is prerendered
+    // and reads nothing from `packages/` once built, so nothing there is traced
+    // (D-20261025-next-16-4-1-security).
+    outputFileTracingExcludes: { '*': ['../../packages/**'] },
     // Inlined into the client bundle, so the provider's key check passes even when the build
     // environment forgot to supply one.
     env: { NEXT_PUBLIC_POSTHOG_KEY: POSTHOG_PROJECT_KEY },
