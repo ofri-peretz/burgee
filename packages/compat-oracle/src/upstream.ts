@@ -60,6 +60,11 @@ export interface RecordDiff {
 export const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex');
 
 const TEST_OPENER = /\b(?:test|it|describe)\(\s*(['"`])/g;
+/**
+ * twist's case opener, `t("…", [ … ])` (colorette's suite). Read only for a twist host: `t(` is
+ * an ordinary call anywhere else, and every other host's recorded titles must not move.
+ */
+const TWIST_OPENER = /\bt\(\s*(['"`])/g;
 
 /** The string literal starting at `from`, up to its unescaped closing `quote`, escapes kept as written. */
 function literalAt(source: string, from: number, quote: string): string {
@@ -77,11 +82,11 @@ function literalAt(source: string, from: number, quote: string): string {
   return out;
 }
 
-/** Every `test('…')`, `it('…')` and `describe('…')` title in a file, in order. */
-export function testNames(source: string): string[] {
+/** Every `test('…')`, `it('…')` and `describe('…')` title in a file, in order — or every `t('…')`, for a twist suite. */
+export function testNames(source: string, runner?: Host['runner']): string[] {
   const names: string[] = [];
   // The quote group is required by the pattern, and `matchAll` always sets `index`.
-  for (const m of source.matchAll(TEST_OPENER)) names.push(literalAt(source, m.index + m[0].length, m[1] as string));
+  for (const m of source.matchAll(runner === 'twist' ? TWIST_OPENER : TEST_OPENER)) names.push(literalAt(source, m.index + m[0].length, m[1] as string));
   return names;
 }
 
@@ -151,7 +156,7 @@ export function snapshot(clone: string, host: Host, meta: SnapshotMeta): CompatR
     const source = readFileSync(join(testDir, name), 'utf8');
     const rel = `${host.testDir}/${name}`;
     hashes.set(rel, sha256(source));
-    tests.set(rel, testNames(source));
+    tests.set(rel, testNames(source, host.runner));
   }
   for (const rel of host.surfaceFiles ?? []) {
     const at = join(clone, rel);

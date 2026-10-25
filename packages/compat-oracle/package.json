@@ -18,6 +18,7 @@
   "dependencies": {
     "burgee": "*",
     "flagstaff": "*",
+    "linegauge": "*",
     "roundel": "*"
   },
   "peerDependencies": {
