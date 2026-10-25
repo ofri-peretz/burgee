@@ -1,5 +1,11 @@
 # compat-oracle
 
+## 0.3.11
+
+### Patch Changes
+
+- [#1233](https://github.com/ofri-peretz/burgee/pull/1233) [`c92e417`](https://github.com/ofri-peretz/burgee/commit/c92e4173f40cb8547258544576c2d675173edd91) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A suite run by `twist` is graded by the counts twist prints, never by its exit code, which is 0 for a run of failures: colorette 2.0.20's suite exited 0 with 58 of its 67 cases failing against colorette itself. Each file runs on its own, a file twist cannot load is one failure, and a run that ends with no summary is an error. colorette is graded this way, 67 / 67 against a control of 67 / 67, in upstream CI's environment.
+
 ## 0.3.10
 
 ### Patch Changes
