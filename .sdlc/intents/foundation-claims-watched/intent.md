@@ -6,7 +6,7 @@
 > names: *every published package declares at least one competitor*. Four do and six do not,
 > and the six are the ones whose numbers were measured once and never again.
 
-**Status:** approved · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-26, verified against main at `3d079b15cc`, criterion 3 restated by [D-20261026-fingerprint-missing-not-rerecord](../../decisions/D-20261026-fingerprint-missing-not-rerecord.md) — all 4 criteria held: 1–3 by `scripts/competitors-lock.test.ts`, 4 by the gated rows in `benchmarks/results/cli-benchmarks/2026-10-26-e739f18-ci.json`; tooling and data only, nothing to publish
 
 ---
 
@@ -64,8 +64,10 @@
 1. All ten published packages have a `competitors.json`, and the lock fails on a published
    package without one.
 2. Every incumbent named in `foundation-ceilings.json` is declared and on `KNOWN`.
-3. The next scheduled `compat-upstream.yml` run fingerprints every new competitor (each `seen`
-   is non-null in the follow-up re-vendor PR).
+3. Every new competitor holds a fingerprint (each `seen` is non-null, and the lock fails on a
+   declared competitor with none), so the scheduled `compat-upstream.yml` run diffs every one.
+   *Restated 2026-10-26: the scheduled run is read-only and cannot write a fingerprint, so as
+   first written this criterion could never be met. See `spec.md` R7.*
 4. `npm run bench -- --axis weight` reports `seniority/lilconfig ÷ lilconfig`,
    `seniority/dotenv ÷ dotenv`, `closeout/exit-hook ÷ exit-hook` and `closeout/signal-exit ÷ signal-exit`,
    each gated.

@@ -1,24 +1,121 @@
 {
-  "$comment": "upstream-watch R1, written by foundation-claims-watched on 2026-10-12. See packages/flagstaff/competitors.json for the field meanings. Every `seen` is null until the daily competitor pass in compat-upstream.yml fingerprints it. Every subpath is a graded drop-in; the root carries the ansi-escapes surface.",
+  "$comment": "upstream-watch R1, written by foundation-claims-watched on 2026-10-12. See packages/flagstaff/competitors.json for the field meanings. Every `seen` was recorded on 2026-10-26 by `npm run compat -- --fingerprint --missing` (foundation-claims-watched R7): the daily pass in compat-upstream.yml cannot write one, and with none held it reports nothing, so a null `seen` fails competitors-lock. Every subpath is a graded drop-in; the root carries the ansi-escapes surface.",
   ".": [
     {
       "package": "ansi-escapes",
       "claim": "compat",
-      "seen": null
+      "seen": {
+        "registry": "ansi-escapes",
+        "version": "7.3.0",
+        "shasum": "5395bb74b2150a4a1d6e3c2565f4aeca78d28627",
+        "weight": 7839,
+        "self": 5611,
+        "packages": 2,
+        "files": {
+          "base.d.ts": "221c4e14131bacc75d792a09b250a5302ab974b455f2ee391c207ef52a6a0bf3",
+          "base.js": "e464e2fb562866171846f04648843d7080428110d2a1bfc2bf6959f60d269f1d",
+          "index.d.ts": "d1cc9289766f3874cb06fbc04c8292262e608db3b2ea3d78d8b797bf5965446a",
+          "index.js": "d1cc9289766f3874cb06fbc04c8292262e608db3b2ea3d78d8b797bf5965446a",
+          "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+          "package.json": "9b6171ada3a60bc8c44e7bf7b491b4069832f62d83dc4829158dd070f1453df7",
+          "readme.md": "b5fed27f37b6cdb18d974042645212500cb24c3708443a7414f073f4eced68f6"
+        },
+        "exports": [
+          "AnnotationOptions",
+          "ConEmu",
+          "ImageOptions",
+          "beep",
+          "beginSynchronizedOutput",
+          "clearScreen",
+          "clearTerminal",
+          "clearViewport",
+          "cursorBackward",
+          "cursorDown",
+          "cursorForward",
+          "cursorGetPosition",
+          "cursorHide",
+          "cursorLeft",
+          "cursorMove",
+          "cursorNextLine",
+          "cursorPrevLine",
+          "cursorRestorePosition",
+          "cursorSavePosition",
+          "cursorShow",
+          "cursorTo",
+          "cursorUp",
+          "endSynchronizedOutput",
+          "enterAlternativeScreen",
+          "eraseDown",
+          "eraseEndLine",
+          "eraseLine",
+          "eraseLines",
+          "eraseScreen",
+          "eraseStartLine",
+          "eraseUp",
+          "exitAlternativeScreen",
+          "iTerm",
+          "image",
+          "link",
+          "scrollDown",
+          "scrollUp",
+          "setCwd",
+          "synchronizedOutput"
+        ],
+        "measured": "2026-10-26"
+      }
     }
   ],
   "./terminal-link": [
     {
       "package": "terminal-link",
       "claim": "compat",
-      "seen": null
+      "seen": {
+        "registry": "terminal-link",
+        "version": "5.0.0",
+        "shasum": "f0447c8940418ab49b9b9bbc47a4ad2fa8ba81e7",
+        "weight": 17771,
+        "self": 1039,
+        "packages": 6,
+        "files": {
+          "index.d.ts": "707a0eef074f534a8e71f84795346397a379722c79d75c3b9ac2b747f33a0566",
+          "index.js": "f2893ed6409d2bab59e05518786bac78aff488b41bbec78e50e686826c551196",
+          "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+          "package.json": "7ecf00eaff6002e28e949bc03293c0c9148760f7cd9e5d58683ae1c7c31f468f",
+          "readme.md": "07a41b4946dee92039a0dc6b76e0eeb2a8e576bb39367aa92391a53e39987ef6"
+        },
+        "exports": [
+          "Options",
+          "default"
+        ],
+        "measured": "2026-10-26"
+      }
     }
   ],
   "./term-img": [
     {
       "package": "term-img",
       "claim": "compat",
-      "seen": null
+      "seen": {
+        "registry": "term-img",
+        "version": "7.1.0",
+        "shasum": "d15891ffd6360a29b68b4bbce6e72081c0fc9530",
+        "weight": 1503475,
+        "self": 2840,
+        "packages": 25,
+        "files": {
+          "index.d.ts": "0616860f88feb5c99ae32009e36537adba717d86ebba22c3c049f98a9f4097a7",
+          "index.js": "5c8d9e66071bbbcb97ea14650e541f9f1adf3637aa0cd4f253e2dc560af62343",
+          "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+          "package.json": "9436d8372e78fdc476dfbf63a99f6eb5b34b41b7c6485637bc6c6d11f6ff4a6a",
+          "readme.md": "6a84fb95662170eb9f763e08334f79c3e3817fbb291a4d3472c67c3983bcd1d9"
+        },
+        "exports": [
+          "Options",
+          "UnsupportedTerminalError",
+          "default"
+        ],
+        "measured": "2026-10-26"
+      }
     }
   ]
 }

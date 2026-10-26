@@ -205,7 +205,7 @@ export async function check(packagesDir: string, root: string, write: Write, cli
         const held = before?.version ?? null;
         if (held === null) {
           unfingerprinted.push(watched.npm);
-          write(`  ${label(watched).padEnd(COL)} ${after.version} — no fingerprint held; run --fingerprint\n`);
+          write(`  ${label(watched).padEnd(COL)} ${after.version} — no fingerprint held; run --fingerprint --missing\n`);
         } else {
           write(`  ${label(watched).padEnd(COL)} ${after.version} — up to date\n`);
         }
@@ -253,18 +253,37 @@ function record(entry: Entry, taken: Fingerprint, today: string): Seen {
   };
 }
 
+export interface FingerprintOptions {
+  /**
+   * Record only the competitors nothing in the family holds a fingerprint for
+   * (`foundation-claims-watched` R7). A held fingerprint stays as it is, even when upstream
+   * has moved past it: that release has an open issue, and re-recording it would mark the
+   * claim current before anyone re-graded it.
+   */
+  missing?: boolean;
+}
+
+/** With nothing held, a release is never reported — `moved()` records first. */
+const isHeld = (watched: Watched): boolean => (watched.seen?.version ?? null) !== null;
+
 /**
  * Write every competitor's current fingerprint into its `competitors.json`. A person runs
  * this and commits the result; the watch then has something to diff against. It is not run
  * by CI — a job that rewrites the baseline it is checking against can never report a change.
  */
-export async function fingerprint(packagesDir: string, write: Write, client: RegistryClient = liveRegistry): Promise<number> {
+export async function fingerprint(
+  packagesDir: string,
+  write: Write,
+  client: RegistryClient = liveRegistry,
+  options: FingerprintOptions = {},
+): Promise<number> {
   const declarations = readDeclarations(packagesDir);
   const shared = cached(client);
   const taken = new Map<string, Fingerprint>();
   let failures = 0;
 
   for (const watched of watchList(declarations)) {
+    if (options.missing === true && isHeld(watched)) continue;
     try {
       // eslint-disable-next-line reliability/no-await-in-loop -- deliberate: see `check`
       const fresh = await takeFingerprint(watched, shared);
