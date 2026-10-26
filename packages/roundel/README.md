@@ -304,7 +304,7 @@ module syntax in `.js` files, imports resolved as CommonJS resolves them — and
 `kleur-colors.test.ts` evaluate kleur's own `index.mjs` and `colors.mjs` beside these modules and
 require the same value from every style, every pair chained and nested, colour on and off, and the
 same decision in every row of kleur's rule, the rows of its Linux-only `env.sh` among them. Bundled,
-the whole surface is 1,016 bytes against kleur's 1,839, and 930 against kleur/colors' 997.
+the whole surface is 1,049 bytes against kleur's 1,839, and 930 against kleur/colors' 997.
 
 **Graded by picocolors' own test**, vendored at 1.1.1: `roundel/picocolors` passes
 `tests/test.js`, the one file picocolors' `npm test` runs. That file is a script of bare

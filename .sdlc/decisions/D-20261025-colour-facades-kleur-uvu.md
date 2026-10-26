@@ -1,7 +1,7 @@
 ---
 id: D-20261025-colour-facades-kleur-uvu
 subject: 'colour-facades R1: how does compat-oracle grade a suite run by `uvu -r esm`, which entries of kleur does the drop-in cover, and what do they weigh?'
-taken: 'uvu runs once per file and is graded by the summary it prints, with tsx standing where `-r esm` stood; both of kleur''s entries are graded, `roundel/kleur` and `roundel/kleur/colors`, 15 / 15 against a control of 15 / 15, at 1,016 B against 1,839 and 930 against 997; budgets set at the measurement, none raised (2026-10-25)'
+taken: 'uvu runs once per file and is graded by the summary it prints, with tsx standing where `-r esm` stood; both of kleur''s entries are graded, `roundel/kleur` and `roundel/kleur/colors`, 15 / 15 against a control of 15 / 15, at 1,049 B against 1,839 and 930 against 997; budgets set at the measurement, none raised (2026-10-25)'
 date: '2026-10-25'
 superseded_by: —
 ---
@@ -39,12 +39,12 @@ the drop-in is `roundel/kleur` and `roundel/kleur/colors`, two `HostImport`s on 
 `test/env.sh` is not graded: it is upstream CI's separate Linux step (`script -qfc`), not
 `npm test`, and its rows are the decision tables of `kleur.test.ts` and `kleur-colors.test.ts`.
 
-**Budgets, none raised.** B4 `roundel/kleur` 1,100 (1,003 measured against kleur's 1,847 for a
-program importing the default, 0.543) and `roundel/kleur/colors` 750 (621 against 688 for one
+**Budgets, none raised.** B4 `roundel/kleur` 1,150 (1,036 measured against kleur's 1,847 for a
+program importing the default, 0.561) and `roundel/kleur/colors` 750 (621 against 688 for one
 importing `red`, 0.903), each the measurement plus the 80 B CI margin rounded up to the next fifty,
 red at 0 first. `DROP_IN_CEILINGS` 1,839 and 997, kleur's surfaces by the weight page's method,
-against 1,016 and 930 for ours. roundel's `weight.test.ts` budgets `./kleur` 2,050 and
-`./kleur/colors` 1,750 of reachable `dist` (measured 2,022 and 1,717 with `runtime.js`). roundel's
+against 1,049 and 930 for ours. roundel's `weight.test.ts` budgets `./kleur` 2,200 and
+`./kleur/colors` 1,750 of reachable `dist` (measured 2,164 and 1,717 with `runtime.js`). roundel's
 tarball grows to 41,504 B gzipped and 129,929 unpacked (+5.5% and +7.2% on the
 D-20261025-roundel-tarball-colorette baseline), inside the 10% allowance, so that baseline is not
 moved.

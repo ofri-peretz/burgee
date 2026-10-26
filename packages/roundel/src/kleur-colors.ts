@@ -44,12 +44,9 @@ const init = (open: number, close: number): Colorize => {
   const closeCode = `\u001B[${String(close)}m`;
   // `'' + txt` is what kleur/colors searches, and the input itself is what it cuts — an input that
   // is not a string throws there, as it does in kleur/colors, only when its string holds the close.
-  return ((txt: unknown) => {
-    if (!$.enabled || txt == null) return txt;
-    const text = txt as string;
-    // eslint-disable-next-line modernization/prefer-template-literal -- the incumbent's coercion, which a template literal does not reproduce for an object whose `valueOf` and `toString` disagree
-    return openCode + (('' + text).includes(closeCode) ? text.replaceAll(closeCode, closeCode + openCode) : text) + closeCode;
-  }) as Colorize;
+  // One expression, as kleur/colors' is: statements cost bytes against its own (R4).
+  // eslint-disable-next-line modernization/prefer-template-literal -- the incumbent's coercion, which a template literal does not reproduce for an object whose `valueOf` and `toString` disagree
+  return ((txt: string) => (!$.enabled || txt == null ? txt : openCode + (('' + txt).includes(closeCode) ? txt.replaceAll(closeCode, closeCode + openCode) : txt) + closeCode)) as Colorize;
 };
 
 // modifiers
