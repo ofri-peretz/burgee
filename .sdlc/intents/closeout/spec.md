@@ -38,8 +38,10 @@ Intent: [`intent.md`](./intent.md). Umbrella:
   an exemption list of one is auditable; a convention is not.
 - **R8 (Y8)** Ceilings: bytes and spawn delta at or under `exit-hook` (0 deps, 8.8 M/wk, the
   lightest in the layer) — not under `signal-exit`, which would be a free pass. **Restated
-  2026-09-14, after the measurement rather than before it:** the spawn-delta half holds and is
-  asserted; the byte half does not, and the requirement now reads *zero dependencies, a
+  2026-09-14, after the measurement rather than before it:** ~~the spawn-delta half holds and is
+  asserted;~~ *(2026-10-26, [D-20261026-library-spawn-delta-rows](../../decisions/D-20261026-library-spawn-delta-rows.md):
+  the spawn half rests on one hand reading and nothing asserts it, so it is open until a `perf`
+  row gates `closeout/exit-hook` against `exit-hook`)* the byte half does not, and the requirement now reads *zero dependencies, a
   per-entry byte ratchet, and the whole package under the sum of what it replaces* — with the
   miss written out below rather than the ceiling quietly moved. A requirement that is edited
   to match the code is worthless unless the edit says what it cost.

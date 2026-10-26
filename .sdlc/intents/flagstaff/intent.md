@@ -7,7 +7,44 @@
 
 **Status:** approved · **Opened:** 2026-09-07 · **Owner:** @ofri-peretz · **Approved:** 2026-09-08 by the owner, in session ("remove all blockers")
 
+> **Umbrella sweep 2026-10-26: six of eight criteria held on `main` and in `flagstaff@1.7.4`.
+> Three of the six are held where their checks actually live
+> ([D-20261026-flagstaff-criteria-homes](../../decisions/D-20261026-flagstaff-criteria-homes.md)).
+> Open: the weekly U9 eval (no executed reading since 2026-10-09) and the one-case-per-surface
+> plugin criterion.** See [§ Umbrella sweep 2026-10-26](#umbrella-sweep-2026-10-26).
+
 ---
+
+## Umbrella sweep 2026-10-26
+
+Read on `main` at `3d079b15` and against `flagstaff@1.7.4` (`npm view flagstaff version` reads
+1.7.4, the same as the manifest). The children that shipped are `table-column-widths` and
+`frames-fit-the-screen`. `caller-matrix` (shipped) now carries criterion 1's five modes.
+`plugin-contract` (`approved`) shares criterion 7's eval.
+
+| # | criterion | held by | state |
+| :-- | :-- | :-- | :-- |
+| 1 | five plugin conformance cases on the demo | restated home (D-20261026-flagstaff-criteria-homes): the caller matrix's `spinner` and `plugins` rows, `scripts/callers-lock.test.ts` › "names, in every held cell, a test file that exists and a test title that file contains", published at `/docs/callers`. `packages/flagstaff/src/cli.test.ts` › "prints the plugin in all five modes side by side and exits 0". `packages/flagstaff/src/plugin.test.ts` › "R2 · a contribution without a static projection is refused" | held as restated |
+| 2 | a spinner snapshot deterministic across 20 runs in CI | restated home: `packages/flagstaff/src/loop.test.ts` › "the tty transcript is the same bytes twenty runs over", under `quality-full.yml`'s `turbo run test` on every non-draft PR | held as restated |
+| 3 | no `\r` in a piped run | restated home: `packages/flagstaff/src/shape.test.ts` › "prints one line per state through a pipe: no carriage return, no escape" (the installed tarball, a real pipe) | held as restated |
+| 4 | the built-in spinner registered through `register()` and nothing else | `packages/flagstaff/src/plugin.test.ts` › "R3 · the built-ins are a plugin like any other" and the describe "U3, U4 · register() is the only way into the registry" | held |
+| 5 | the spinner subpath at or under ora's import cost, on `/benchmarks` | `/docs/benchmarks`: "`flagstaff/spinner` is lighter in a user's bundle than `ora`", 0.121, met. Also `flagstaff/ora ÷ ora` 0.938 bundled and 0.930 at runtime (B5) | held |
+| 6 | ora, boxen, cli-table3 and log-update suites graded, four rates on the scoreboard | `packages/compat-oracle/baseline/`: ora 99 / 99, boxen 213 / 213 (9.0.0), cli-table3 29 / 29, log-update 99 / 99. Each row is on `/docs/compatibility` and ratcheted by compat.yml | held |
+| 7 | the U9 eval, weekly: an agent writes a spinner plugin that passes `flagstaff check` (written `burgee plugin check`, a name that never shipped) | `evals/cases/flagstaff-plugin-from-schema.json`, cron `20 5 * * 4`. It passed on every executed run (2026-10-08 `c5843e3`, 2026-10-09 `3ff3b8e`). 2026-10-15 and 2026-10-22 were `not-run` (`reason: usage-limit`) | **OPEN**: no current reading |
+| 8 | one registered plugin in help (theme), in a prompt's spinner and as `--json` events, one case per surface | `scripts/plugin-example-lock.test.ts` proves one object registers in every host and renders flagstaff's spinner in five modes. No case asserts the three named surfaces. caique does not depend on flagstaff, so "a prompt's spinner" has no path from a flagstaff registration | **OPEN** |
+
+**What closes it.**
+
+1. **Criterion 7** is measurement-gated. The next scheduled eval run (Thursday 2026-10-29, 05:20 UTC)
+   has to execute and pass `flagstaff-plugin-from-schema`, read as every **executed** weekly
+   reading passing (the `plugin-contract` C4 restatement). It depends on `evals-record-not-run`
+   so that a run the usage limit stops is not counted as a reading.
+2. **Criterion 8** needs three conformance cases, one per surface: the plugin's `tokens` in burgee
+   help, its `spinners` entry in a caique prompt, and its events under `--json`. Alternatively,
+   a decision names caique's own spinner surface as the prompt half. The prompt half needs code,
+   so caique or flagstaff has to publish.
+
+flagstaff is stamped `shipped` when both are held.
 
 ## What is wanted
 
@@ -89,14 +126,20 @@ export default {
 
 - The five plugin conformance cases pass on the demo: TTY animates, pipe prints one line
   per state, `--json` emits events, accessible prints text, missing `static` is refused.
+  *(Restated 2026-10-26 ([D-20261026-flagstaff-criteria-homes](../../decisions/D-20261026-flagstaff-criteria-homes.md)): held by the caller matrix's `spinner` and `plugins` rows and
+  flagstaff's own suites. No demo draws with flagstaff.)*
 - A spinner snapshot test in `burgee/testing` is deterministic across 20 runs in CI.
-- `grep -c $'\r'` over a piped run of the demo reads 0.
+  *(Restated 2026-10-26 ([D-20261026-flagstaff-criteria-homes](../../decisions/D-20261026-flagstaff-criteria-homes.md)): `flagstaff/src/loop.test.ts`, on every non-draft PR.)*
+- `grep -c $'\r'` over a piped run of the demo reads 0. *(Restated 2026-10-26 ([D-20261026-flagstaff-criteria-homes](../../decisions/D-20261026-flagstaff-criteria-homes.md)): a piped
+  run of the installed tarball, `flagstaff/src/shape.test.ts`.)*
 - The built-in spinner is registered through the public `register()` and nothing else.
 - Spinner subpath at or under ora's measured import cost, on `/benchmarks`.
 - ora's, boxen's, cli-table3's and log-update's suites vendored and graded through
   `compat-oracle`; four pass rates on the scoreboard.
 - The U9 eval: an agent given the schema and the nyan example writes a new spinner plugin
-  that passes `burgee plugin check` in one turn, weekly in `evals/`.
+  that passes `burgee plugin check` in one turn, weekly in `evals/`. *(2026-10-26 ([D-20261026-flagstaff-criteria-homes](../../decisions/D-20261026-flagstaff-criteria-homes.md)): the
+  command is `flagstaff check`, which `burgee check` runs. Still open: no executed reading since
+  2026-10-09.)*
 - A plugin registered once appears in help (theme), in a prompt's spinner, and as events
   under `--json` — one conformance case per surface.
 

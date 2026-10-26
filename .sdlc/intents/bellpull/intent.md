@@ -7,7 +7,32 @@
 
 **Status:** approved (2026-09-23, under the owner's delegation, D-129) · **Opened:** 2026-09-09 · **Owner:** @ofri-peretz · **Name published:** `bellpull@0.0.1`, 2026-09-09
 
+> **Umbrella sweep 2026-10-26: four of five criteria held on `main` and in `bellpull@1.0.10`.
+> The kill gate has its numbers.** It was read today and the verdict is build
+> ([D-20261026-bellpull-kill-gate-reading](../../decisions/D-20261026-bellpull-kill-gate-reading.md)).
+> Criterion 4, the repo's own tools spawning through bellpull, is open. See
+> [§ Umbrella sweep 2026-10-26](#umbrella-sweep-2026-10-26).
+
 ---
+
+## Umbrella sweep 2026-10-26
+
+Read on `main` at `3d079b15` and against the published tarball `bellpull@1.0.10` (`npm view
+bellpull version` reads 1.0.10, the same as the manifest). bellpull has no child intents. Its
+criteria are held by its own requirements (`spec.md` § Status, 12 of 12 built).
+
+| # | criterion | held by | state |
+| :-- | :-- | :-- | :-- |
+| 1 | the kill gate cleared, numbers recorded on the day | D-20261026-bellpull-kill-gate-reading: tinyexec 1.3.1 (2026-09-03), 106,919,562 downloads in the week to 2026-10-22, zero dependencies. It resolves a bare name and augments `PATH` inside its own spawn, but exports no resolver and no outcome, and replaces neither `cross-spawn` nor `which`. Verdict: build. The intent's "neither does executable resolution" is restated there. D-048 (2026-09-20) had the verdict without the numbers | held |
+| 2 | `execa`, `cross-spawn` and `which` suites graded, three rates published and ratcheting, `--control` first | `packages/compat-oracle/baseline/`: `cross-spawn.json` 68 / 68, `which.json` 5 / 5, `execa.json` 0 / 1,360 with `"ceiling": true` (a published partial number, not a drop-in, D-160). All three rows are on `/docs/compatibility` with their control columns (1,360 / 1,360 for execa). compat.yml ratchets them | held |
+| 3 | benchmark rows at or under `tinyexec` on bytes and spawn delta | B4 `bellpull ÷ tinyexec` 0.986 (claim `lighter-than-tinyexec`), B5 `bellpull ÷ tinyexec` 0.986 spawn time (D-20260930-bellpull-spawn-vs-tinyexec reads "spawn delta" as spawning, the thing this package does), each gated at 1 (CI `2026-10-26-f6919e9-ci.json`). Both rows are on `/docs/benchmarks` (0.986 and 0.987) | held |
+| 4 | `compat-oracle` and `cli-benchmarks` spawning through it, their suites unchanged | **not met.** `packages/compat-oracle/src/run.ts`, `vendor.ts` and `upstream.ts` import `node:child_process`. In `benchmarks/`, only `axes/weight.ts` spawns through `bellpull/cross-spawn`. `floor-tools.ts`, `machine.ts`, `axes/scale.ts` and the agent axis use `node:child_process` directly | **OPEN** |
+| 5 | one published example of the result's three projections from one value (Y5) | `bellpull.interlace.tools/docs/recipes/agent-output` (live, HTTP 200 on 2026-10-26), run byte for byte by `apps/docs-bellpull/tests/examples.test.ts` › "`%s` prints what the page shows"; `packages/bellpull/src/matrix.test.ts` › "one result, three renderings (R5, Y5)" | held |
+
+**What closes it.** One internal build PR moves the spawn sites of `compat-oracle` (`run.ts`,
+`vendor.ts`, `upstream.ts`) and `benchmarks/` onto `bellpull` (`run`) or `bellpull/cross-spawn`,
+with both suites passing unchanged. Neither package publishes, so no release is needed, and
+bellpull is stamped `shipped` in that PR.
 
 ## What is wanted
 
@@ -33,7 +58,10 @@ and the one where our differentiator is narrowest.
 packages, we pull none"* is not a differentiator here — it is a claim a competitor already
 makes, with traction. Every other reason below is conditional on that.
 
-- **What is still open is resolution and shape.** Neither `tinyexec` nor `nano-spawn` does
+- **What is still open is resolution and shape.** *(Restated 2026-10-26 by
+  [D-20261026-bellpull-kill-gate-reading](../../decisions/D-20261026-bellpull-kill-gate-reading.md):
+  tinyexec 1.3.1 resolves a bare name and augments `PATH` inside its own spawn. It returns
+  neither as an answer and ships no `which`. The sentence below is kept as written.)* Neither `tinyexec` nor `nano-spawn` does
   executable resolution (`which`, 290 M/wk) or `PATH` augmentation (`npm-run-path`,
   104 M/wk), and neither returns a **result with a static projection** (rule 6) or a
   per-caller conformance shape (rule 5).

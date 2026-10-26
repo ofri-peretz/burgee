@@ -14,12 +14,65 @@
 > and criterion 4's disabled-rule ratchet, are built, so all five criteria are held, moved, or
 > restated and held. It stays `approved` because it closes when its
 > children do, and eight are open. See [§ Built 2026-10-26](#built-2026-10-26).
+>
+> **Umbrella sweep 2026-10-26, still `approved`:** the five criteria are re-read and still held.
+> The closing list below is re-derived from every open intent, grouped by what closes each one.
+> It also records that the code of the burgee, roundel and seniority minors the release window
+> is holding is already on npm, published inside patch versions. See
+> [§ Umbrella sweep 2026-10-26](#umbrella-sweep-2026-10-26).
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why `review` until 2026-10-25:** a living umbrella that keeps gaining floor requirements (U1–U12, then Y1–Y12); it closes when its children do, not before.
 **Restructured:** 2026-09-06
 **Restated:** 2026-10-18 — see § Restated 2026-10-18
 
 ---
+
+## Umbrella sweep 2026-10-26
+
+Read on `main` at `3d079b15`. npm agrees with every manifest: `burgee@1.7.2`, `roundel@1.2.1`,
+`flagstaff@1.7.4`, `caique@1.5.1`, `linegauge@1.1.5`, `seniority@1.1.1`, `bellpull@1.0.10`,
+`closeout@1.1.8`, `controlroom@1.0.7`, `paratext@1.0.11` (`npm view <pkg> version`, 2026-10-26).
+
+**The five criteria, re-read.** Criteria 1, 2, 4 and 5 are held by the checks named in
+§ Restated 2026-10-18 and § Built 2026-10-26, and each of those files and test titles is still on
+`main`. Criterion 3 moved to the eslint repo. Nothing in this sweep changes them. The decision
+that accepted this umbrella ([D-20261025-burgee-umbrella-design-accepted](../../decisions/D-20261025-burgee-umbrella-design-accepted.md))
+makes it close when its children do, so it stays `approved`.
+
+**A release finding that changes what "release-gated" means here.** Version PR #1253 published
+patch versions built from a `main` that already carried every feature whose changeset the release
+window holds back as a minor. The published tarballs carry that code:
+
+- `burgee@1.7.2` has `dist/formats.js` (agent-headroom, #1266), `check.js`'s `layers` (plugin-contract,
+  #1240), and `migrate.js`'s colorette and kleur rewrites (colour-facades, #1233 and #1255).
+  typed-positionals R4 (#1262) and commander-env (#1252) are ancestors of the release commit
+  `c5b57355` as well, so their code went out in the same build.
+- `roundel@1.2.1` exports `./colorette`, `./kleur` and `./yoctocolors`.
+- `seniority@1.1.1` exports `packageLayer` (#1264).
+
+The window holds the version number and the changelog. It does not hold the code. So for these
+children the feature is already on npm, and what each one waits for is its own stamp against the
+minor that names it. This does not change any child's status here. It is a defect in how the
+window is enforced, and it belongs to `release-cadence`, whose R1 says no non-fix release
+"reaches npm" inside the window.
+
+**The closing list.** `native-engine` (draft) starts only after every other intent closes, by its
+own text, so it cannot gate this umbrella. `oxmutate` (draft) is a separate tool's intent.
+Everything else that is still open:
+
+| closes when | intents |
+| :-- | :-- |
+| an open PR merges (built, published, unstamped) | `cli-benchmarks` and `cli-foundation-stack` (README text published 2026-10-26 by #1253, stamped in #1276); `docs-per-package` (#1275) |
+| the burgee minor publishes (window opens 2026-11-01; the code is already in burgee 1.7.2, above) | `commander-env`, `agent-headroom`, `typed-positionals`; `plugin-contract` also needs criterion 4's eval reading |
+| the roundel minor publishes (window opens 2026-10-27) | `colour-facades` |
+| a flagstaff patch publishes after #1274 | `cli-output-stack` (S2 dependency bill, R12 opening lock) |
+| scheduled measurements accumulate | `b1-mcp-arm` and `cli-mcp` (four weekly B1 readings, about 2026-11-17); `localised-human-surfaces` and `plugin-contract` C4 (the 2026-10-29 eval run); `sdlc-locks-evals-bands` S3 (the weekly duration run); `evals-record-not-run`, `windows-lane-holds`, `release-cadence`, `mutation-tested`, `foundation-claims-watched` (each by its own reading) |
+| an outside merge (owner approval for the external PR) | `first-adopter`, which also owns U12's outside-adopter half |
+| a benchmark row or a page regeneration, no release | `linegauge` (spawn row), `closeout` (spawn row and a published bench measurement), `seniority` (a published bench measurement), `bellpull` (compat-oracle and benchmarks spawning through it) |
+| a build plus a release | `caique` (R1 `promptFor`, the layered demo, the PTY case), `flagstaff` (criterion 8, plus criterion 7's eval), `controlroom` (Gallery, 20 and 100 runs, PTY matrix, Ink screen fixture, W3 demo) |
+
+Each of the eight package umbrellas carries its own § Umbrella sweep 2026-10-26 with the exact
+items.
 
 ## Built 2026-10-26
 
