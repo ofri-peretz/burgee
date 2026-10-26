@@ -5,10 +5,14 @@
  * reads the code by name. This test is the only place the two meet, which is the point — the
  * contract is the shape, and the shape is proven here with each package's real code.
  */
+import { Readable } from 'node:stream';
+
 import { describe, expect, it } from 'vitest';
 
 // eslint-disable-next-line import-next/no-relative-packages -- the source, by path, on purpose: the package-name form resolves to `dist/`, which would check the last build rather than the tree
 import { defineCommand, defineProgram, runCommand } from '../packages/burgee/src/index.js';
+// eslint-disable-next-line import-next/no-relative-packages -- see above
+import { runBurgee } from '../packages/burgee/src/testing.js';
 // eslint-disable-next-line import-next/no-relative-packages -- see above
 import { resolvePrompts, type PromptableOption } from '../packages/caique/src/binding.js';
 // eslint-disable-next-line import-next/no-relative-packages -- see above
@@ -39,6 +43,9 @@ function program(runtime: Runtime, lines: string[]): ReturnType<typeof definePro
   });
 }
 
+/** A `tools/call` of the one command, as an MCP client frames it. */
+const call = (id: number): string => JSON.stringify({ jsonrpc: '2.0', id, method: 'tools/call', params: { name: 'new', arguments: {} } });
+
 describe('a prompt refusal reaches an exit code by name (P2, P3)', () => {
   it('a question nobody can answer — no TTY — exits 2, naming the flag to pass instead', async () => {
     const r = await runCommand(program({ env: {}, isTTY: { stdin: false } }, []), ['new']);
@@ -57,6 +64,25 @@ describe('a prompt refusal reaches an exit code by name (P2, P3)', () => {
     const r = await runCommand(program({ env: {}, isTTY: { stdin: false } }, []), ['new', '--json']);
     // D-140: a failing `--json` run writes its one envelope to stdout.
     expect(JSON.parse(r.stdout)).toMatchObject({ ok: false, error: { code: 2 } });
+  });
+
+  /**
+   * caller-matrix, `prompts` × `program`: under `--mcp` stdin is the transport, so a question
+   * can never be answered there. The call is a tool error whose envelope carries exit 2 and names
+   * the flag, and the server answers the call after it — it neither hangs nor reads a frame as
+   * an answer. Run red by making `resolvePrompts` return no failure: the call succeeded with no
+   * value for `--name`.
+   */
+  it('under --mcp, a question is a tool error naming the flag, and the server answers the next call', async () => {
+    const ping = JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'ping' });
+    const r = await runBurgee(program({ env: {}, isTTY: { stdin: false } }, []), { argv: ['--mcp'], stdin: Readable.from([`${call(1)}\n${ping}\n`]) });
+    const replies = r.stdout.split('\n').filter((l) => l !== '').map((l) => JSON.parse(l) as { id: number; result: { isError?: boolean; content?: { text: string }[] } });
+    expect(replies.map((x) => x.id).sort()).toEqual([1, 2]);
+    const refused = replies.find((x) => x.id === 1)?.result;
+    expect(refused?.isError).toBe(true);
+    const envelope = JSON.parse(refused?.content?.[0]?.text ?? '') as { ok: boolean; error: { code: number; message: string; fix?: string } };
+    expect(envelope).toMatchObject({ ok: false, error: { code: 2 } });
+    expect(JSON.stringify(envelope.error)).toContain('--name');
   });
 
   it('a string code outside the contract is not a claim: it stays a runtime failure', async () => {

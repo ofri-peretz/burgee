@@ -12,7 +12,7 @@ Every feature has a cell per caller. A cell is held by a named test, does not ap
 why, and that caller gets the plain static text), or is missing. A missing cell is a gap we
 publish, and the count of them may only fall.
 
-**43 held · 7 n/a · 5 missing**, of 55 cells.
+**48 held · 7 n/a · 0 missing**, of 55 cells.
 
 ## The callers
 
@@ -29,12 +29,12 @@ publish, and the count of them may only fall.
 | Feature | Package | tty | agent | ci | accessible | program |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
 | help | burgee | ✅ | ✅ | ✅ | ✅ | ✅ |
-| errors | burgee | ✅ | ✅ | ✅ | ❌ missing | ✅ |
-| prompts | caique | ✅ | ✅ | ✅ | ✅ | ❌ missing |
-| spinner | flagstaff | ✅ | ✅ | ✅ | ✅ | ❌ missing |
+| errors | burgee | ✅ | ✅ | ✅ | ✅ | ✅ |
+| prompts | caique | ✅ | ✅ | ✅ | ✅ | ✅ |
+| spinner | flagstaff | ✅ | ✅ | ✅ | ✅ | ✅ |
 | progress | flagstaff | ✅ | ✅ | ✅ | ✅ | ✅ |
-| table | flagstaff | ✅ | ✅ | ✅ | ✅ | ❌ missing |
-| box | flagstaff | ✅ | ✅ | ✅ | ✅ | ❌ missing |
+| table | flagstaff | ✅ | ✅ | ✅ | ✅ | ✅ |
+| box | flagstaff | ✅ | ✅ | ✅ | ✅ | ✅ |
 | theme | roundel | ✅ | ✅ | ✅ | ✅ | n/a |
 | plugins | burgee · flagstaff | ✅ | ✅ | ✅ | ✅ | ✅ |
 | completions | burgee | ✅ | n/a | n/a | n/a | ✅ |
@@ -52,18 +52,18 @@ publish, and the count of them may only fall.
 | errors | tty | ✅ [`packages/burgee/src/json-failure.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/json-failure.test.ts) › “$name: at a terminal, stderr is the prose alone — no JSON (R6)” |
 | errors | agent | ✅ [`packages/burgee/src/json-failure.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/json-failure.test.ts) › “$name: the envelope is on stdout, alone, and stderr is the one structured line (R6)” |
 | errors | ci | ✅ [`packages/burgee/src/json-failure.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/json-failure.test.ts) › “$name: plain mode keeps its prose on stderr, nothing on stdout, and the structured line last when stderr is piped (R6)” |
-| errors | accessible | ❌ missing — no test holds this cell yet |
+| errors | accessible | ✅ [`packages/burgee/src/json-failure.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/json-failure.test.ts) › “$name: under CLI_ACCESSIBLE at a colour terminal, stderr is the labelled prose once, with no escape and no JSON” |
 | errors | program | ✅ [`packages/burgee/src/json-failure.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/json-failure.test.ts) › “$name: isError with the envelope as the text, then answers the next call” |
 | prompts | tty | ✅ [`packages/caique/src/shape.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/caique/src/shape.test.ts) › “on a terminal, the same call is a prompt” |
 | prompts | agent | ✅ [`scripts/prompt-exit-codes.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/prompt-exit-codes.test.ts) › “carries the code into the JSON envelope an agent reads” |
 | prompts | ci | ✅ [`scripts/prompt-exit-codes.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/prompt-exit-codes.test.ts) › “a question nobody can answer — no TTY — exits 2, naming the flag to pass instead” |
 | prompts | accessible | ✅ [`packages/caique/src/ask.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/caique/src/ask.test.ts) › “writes no escape sequence and no carriage return — it is the accessible mode” |
-| prompts | program | ❌ missing — no test holds this cell yet |
+| prompts | program | ✅ [`scripts/prompt-exit-codes.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/prompt-exit-codes.test.ts) › “under --mcp, a question is a tool error naming the flag, and the server answers the next call” |
 | spinner | tty | ✅ [`packages/flagstaff/src/spinner.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/spinner.test.ts) › “hoisted on a terminal with a manual clock, the frames are exact” |
 | spinner | agent | ✅ [`packages/flagstaff/src/loop.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/loop.test.ts) › “json: one NDJSON event per transition on stderr, stdout untouched” |
 | spinner | ci | ✅ [`packages/flagstaff/src/ora.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/ora.test.ts) › “under CI the same, even when the stream claims to be a terminal” |
 | spinner | accessible | ✅ [`packages/flagstaff/src/loop.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/loop.test.ts) › “%s: the static projection once per state change, no repaint” |
-| spinner | program | ❌ missing — no test holds this cell yet |
+| spinner | program | ✅ [`scripts/components-under-mcp.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/components-under-mcp.test.ts) › “$name: the transport carries only JSON-RPC, the envelope leads, and the drawing follows as its static projection” |
 | progress | tty | ✅ [`packages/flagstaff/src/builtins.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/builtins.test.ts) › “the drawn bar is exactly the width it was given” |
 | progress | agent | ✅ [`packages/flagstaff/src/loop.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/loop.test.ts) › “json: one NDJSON event per transition on stderr, stdout untouched” |
 | progress | ci | ✅ [`packages/flagstaff/src/builtins.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/builtins.test.ts) › “%s writes no carriage return and no escape on a pipe” |
@@ -73,12 +73,12 @@ publish, and the count of them may only fall.
 | table | agent | ✅ [`packages/flagstaff/src/builtins.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/builtins.test.ts) › “the component emits header-and-value pairs off a terminal, not the grid” |
 | table | ci | ✅ [`packages/flagstaff/src/builtins.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/builtins.test.ts) › “%s writes no carriage return and no escape on a pipe” |
 | table | accessible | ✅ [`packages/flagstaff/src/loop.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/loop.test.ts) › “%s: the static projection once per state change, no repaint” |
-| table | program | ❌ missing — no test holds this cell yet |
+| table | program | ✅ [`scripts/components-under-mcp.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/components-under-mcp.test.ts) › “$name: the transport carries only JSON-RPC, the envelope leads, and the drawing follows as its static projection” |
 | box | tty | ✅ [`packages/flagstaff/src/builtins.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/builtins.test.ts) › “draws the border it was asked for, at the width it was given” |
 | box | agent | ✅ [`packages/flagstaff/src/loop.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/loop.test.ts) › “json: one NDJSON event per transition on stderr, stdout untouched” |
 | box | ci | ✅ [`packages/flagstaff/src/builtins.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/builtins.test.ts) › “the component says the text off a terminal, and draws only on one” |
 | box | accessible | ✅ [`packages/flagstaff/src/loop.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/loop.test.ts) › “%s: the static projection once per state change, no repaint” |
-| box | program | ❌ missing — no test holds this cell yet |
+| box | program | ✅ [`scripts/components-under-mcp.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/components-under-mcp.test.ts) › “$name: the transport carries only JSON-RPC, the envelope leads, and the drawing follows as its static projection” |
 | theme | tty | ✅ [`packages/roundel/src/theme.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/roundel/src/theme.test.ts) › “degrades to the nearest readable of 256 at level 2” |
 | theme | agent | ✅ [`packages/roundel/src/theme.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/roundel/src/theme.test.ts) › “flies at level 0 when the run was asked for --json” |
 | theme | ci | ✅ [`packages/roundel/src/policy.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/roundel/src/policy.test.ts) › “an empty CI with no vendor is the table’s floor, not the terminal’s level” |

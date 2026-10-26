@@ -1,6 +1,6 @@
 # Design — The caller matrix
 
-Intent: [`intent.md`](./intent.md). **Status:** approved (2026-10-25).
+Intent: [`intent.md`](./intent.md). **Status:** shipped (2026-10-26).
 
 > Written at the Design→Build gate of 2026-10-25 and accepted the same day by the coordinator under
 > the owner's delegation
@@ -40,6 +40,23 @@ appended.
 `prompts`, `spinner`, `table` and `box` × `program`. For the four flagstaff components, the
 `agent` and `accessible` cells cite the loop's own parameterised cases, because the loop is
 where every component's mode is decided, and the `tty` and `ci` cells cite the component's own.
+
+## Status 2026-10-26
+
+The five `missing` cells each have a test, `MISSING_CEILING` is 0, and the page reads 48 held,
+7 n/a, 0 missing. The intent is `shipped` ([`intent.md` § Shipped 2026-10-26](./intent.md#shipped-2026-10-26)
+has each test and how it was proven red).
+
+| cell | test |
+| :-- | :-- |
+| errors × accessible | `packages/burgee/src/json-failure.test.ts` › "$name: under CLI_ACCESSIBLE at a colour terminal, stderr is the labelled prose once, with no escape and no JSON" |
+| prompts × program | `scripts/prompt-exit-codes.test.ts` › "under --mcp, a question is a tool error naming the flag, and the server answers the next call" |
+| spinner, table, box × program | `scripts/components-under-mcp.test.ts` › "$name: the transport carries only JSON-RPC, the envelope leads, and the drawing follows as its static projection" |
+
+The `program` cells of the three components are one parameterised test in `scripts/`, because the
+cell is where two packages meet: burgee's server holds the process's stdout for the length of a
+tool call, and flagstaff's loop picks the projection. A test inside either package could not import
+the other. Still no state, so still no Quint model.
 
 ## Requirements
 
