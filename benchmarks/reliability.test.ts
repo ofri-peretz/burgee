@@ -170,9 +170,9 @@ describe('schema-bytes, measured in bytes and gated (schema-bytes-gated)', () =>
     expect(method).toMatch(/`schema-bytes` and `skill-bytes` are each gated at the demo’s committed budget\.$/);
   });
 
-  it('the budget is the measurement it was set at, rounded up to 50 B (D-20261012-schema-bytes-budget)', () => {
+  it('the budget is the measurement it was set at, rounded up to 50 B (D-20261012-schema-bytes-budget, D-20261026-schema-bytes-registered-formats)', () => {
     expect(SCHEMA_BYTES_BUDGET % 50).toBe(0);
-    expect(SCHEMA_BYTES_BUDGET).toBe(4_650);
+    expect(SCHEMA_BYTES_BUDGET).toBe(4_700);
   });
 
   it('burgee’s schema is measured in bytes, not characters, and gated at the budget', () => {
@@ -201,5 +201,27 @@ describe('schema-bytes, measured in bytes and gated (schema-bytes-gated)', () =>
     const record = schemaOf(measure({ id: 'other', bin: bin('other', 100) }, [task()]));
     expect(record?.median).toBe(100);
     expect(record?.gate).toBeUndefined();
+  });
+});
+
+/**
+ * agent-headroom C1 — the "before" figure beside the "after" (intent constraint 5): `--schema`
+ * indented, as a person asks for it, reported next to `schema-bytes` and never gated.
+ */
+describe('schema-bytes-pretty, the figure the compact schema is read against (agent-headroom C1)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'bench-pretty-'));
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+  const file = join(dir, 'pretty.mjs');
+  writeFileSync(file, "const doc = { a: [1, 2], b: { c: 'd' } };\nif (process.argv.includes('--schema')) process.stdout.write(JSON.stringify(doc, null, process.argv.includes('--format=json-pretty') ? 2 : 0));");
+
+  it('is the bytes of --schema --format=json-pretty, beside schema-bytes, and carries no gate', () => {
+    const records = measure({ id: 'burgee', bin: file }, [task()]);
+    const compact = records.find((r) => r.metric === 'schema-bytes');
+    const pretty = records.find((r) => r.metric === 'schema-bytes-pretty');
+    expect(compact?.median).toBe(Buffer.byteLength(JSON.stringify({ a: [1, 2], b: { c: 'd' } })));
+    expect(pretty?.median).toBe(Buffer.byteLength(JSON.stringify({ a: [1, 2], b: { c: 'd' } }, null, 2)));
+    expect(pretty?.unit).toBe('bytes');
+    expect(pretty?.gate).toBeUndefined();
+    expect(records.map((r) => r.metric).indexOf('schema-bytes-pretty')).toBe(records.map((r) => r.metric).indexOf('schema-bytes') + 1);
   });
 });

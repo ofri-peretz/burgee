@@ -24,6 +24,7 @@ const WRITERS = [
   'execute.ts',
   'failure.ts',
   'fields.ts',
+  'formats.ts',
   'globals.ts',
   'help.ts',
   'init.ts',

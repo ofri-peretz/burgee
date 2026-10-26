@@ -13,6 +13,14 @@
 
 **Restated:** 2026-10-18 — see [§ Restated 2026-10-18](#restated-2026-10-18)
 
+**Built 2026-10-25, awaiting the `burgee` minor.** All four accepted pieces are built and each
+check was seen red first. R6: `hint-survives.test.ts`. RF: `formats.test.ts`, with `tsv` 59.2%
+under minified JSON on fifty rows. R3: `max-bytes.test.ts`, fuzzed at every budget. C1: the
+large-demo case in `machine-json.test.ts` (41.1%), plus `schema-bytes-pretty` beside
+`schema-bytes`. See [`spec.md` § Build 2026-10-25](./spec.md#build-2026-10-25). The status stays
+`approved` until the release that carries them (not before 2026-11-01) is published and the
+criteria are re-read on the published package.
+
 ---
 
 ## Restated 2026-10-18

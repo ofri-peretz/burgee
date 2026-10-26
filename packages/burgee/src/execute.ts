@@ -14,6 +14,7 @@ import { checkCommand, type Declared } from './definition.js';
 import { ExitCode, isExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
 import { type LazyArgs } from './fields.js';
 import { type ActionRequiredSpec, type ArgumentSpec, type CommandNode, type CommandOutput, type DeclaredEffects, type Example, type LazyModule, Manifest, type OptionSpec, type OutputOf, type Relation, relationsOf, type RunContext } from './manifest.js';
+import { type Print } from './max-bytes.js';
 import { camel, kebab } from './names.js';
 import { owningPackage, type Package } from './pkg.js';
 import { builtin, host } from './runtime.js';
@@ -488,8 +489,8 @@ interface Io {
 }
 interface Outcome {
   json: boolean;
-  /** How `--format=agent` prints the data (N15), when it was typed and is burgee's. */
-  lines?: ((data: unknown) => string) | undefined;
+  /** How the success is written when a registered format or `--max-bytes` was typed (N15, RF, R3). */
+  print?: Print | undefined;
   data?: unknown;
   /** Text to print and leave OK: help, a version, an explanation. */
   text?: string;
@@ -529,21 +530,25 @@ function exitCodeOf(data: unknown): ExitCodeType {
 }
 
 /**
- * A flag `fields.js` reads off argv: N14's `--json=<fields>`, N15's `--format=agent`, and the
- * globals of agent-lint-conformance R1–R3 (`--color`, `--no-color`, `--quiet`, `-q`,
- * `--timeout`), which it hands to `globals.js`. One test and one lazy load for all of them:
- * the startup bundle had 3 bytes under its ceiling, and a second loader cost 42.
+ * A flag `fields.js` reads off argv: N14's `--json=<fields>`, `agent-headroom`'s `--format`
+ * (RF; N15's `agent` is one registered format) and `--max-bytes` (R3), and the globals of
+ * agent-lint-conformance R1–R3 (`--color`, `--no-color`, `--quiet`, `-q`, `--timeout`), which it
+ * hands to `globals.js`. One test and one lazy load for all of them: the startup bundle had 3
+ * bytes under its ceiling, and a second loader cost 42. `--format=json` loads it too, and is
+ * handed straight back for the spelling that answers it.
  */
-const readsLazily = (arg: string): boolean => /^(--json=|--format=agent$|-q$|--(no-color|quiet|color|timeout)(=|$))/.test(arg);
+// Stryker disable next-line Regex: a looser test loads `fields.js` for a word it hands straight back unchanged — what start-up loads, not what a run does, which benchmarks/cold-start-modules.test.ts locks by name
+const readsLazily = (arg: string): boolean => /^(--json=|-q$|--(no-color|quiet|color|timeout|format|max-bytes)(=|$))/.test(arg);
 
 // eslint-disable-next-line maintainability/cognitive-complexity -- parse-refusals' gate is inline: as a helper it cost B4's core bundle ceiling (24,282 B) the bytes it does not have, and the branch it adds is one `if`.
 async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolved, io: Io): Promise<Outcome> {
-  // N14's selection, N15's format and the R1–R3 globals are imported only when a caller typed
-  // one of them (M2): every other run pays nothing for any.
+  // N14's selection, the formats, the budget and the R1–R3 globals are imported only when a caller
+  // typed one of them (M2): every other run pays nothing for any. A listing — `--json=`'s fields or
+  // `--format`'s formats — comes back as `text`, and the handler never runs.
   const select = typed.some(readsLazily) ? await import('./fields.js') : undefined;
-  const { args: rest, fields, lines, global } = select?.lazyArgs(typed, node) ?? ({ args: typed } as LazyArgs);
-  if (fields?.length === 0) return { json: true, text: `${JSON.stringify(select?.listFields(node))}\n` };
-  if (fields) select?.checkFields(fields, node);
+  const { args: rest, fields, print, global, text } = select?.lazyArgs(typed, node, manifest.plugins) ?? ({ args: typed } as LazyArgs);
+  // Stryker disable next-line BooleanLiteral: equivalent — a listing is JSON whatever this says, and `json` is read again only if writing it throws
+  if (text) return { json: true, text };
   const parsed = builtin('node:util').parseArgs({ args: rest, options: toParseConfig(node.options, manifest.config !== undefined), allowPositionals: true, strict: true, tokens: true });
   const flags = canonical(parsed.values as Values, node.options, parsed.tokens);
   const json = flags.json === true;
@@ -592,7 +597,7 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   const changed = changedOf(node, data);
   const selected = fields && select ? select.selectFields(data, fields) : data;
   // `emit` leaves an undefined `changed` out of `meta`, so it is handed on as it is.
-  return { json, lines, data: selected, provenance, changed };
+  return { json, print, data: selected, provenance, changed };
 }
 
 /** Success: help, or the data on the requested surface. */
@@ -607,7 +612,7 @@ async function emit(io: Io, outcome: Outcome): Promise<void> {
   // `exitCode` (a `check` refusal, `migrate` with refusals) leaves non-zero, so it says `false`.
   const code = exitCodeOf(outcome.data);
   const envelope = { ok: code === ExitCode.OK, data: outcome.data, meta };
-  io.out.write(outcome.json ? `${JSON.stringify(envelope)}\n` : (outcome.lines?.(outcome.data) ?? `${await render(outcome.data)}\n`));
+  io.out.write(outcome.print?.(envelope, outcome.json, io) ?? (outcome.json ? `${JSON.stringify(envelope)}\n` : `${await render(outcome.data)}\n`));
   return await leave(io, code);
 }
 

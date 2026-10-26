@@ -136,8 +136,12 @@ describe('nothing reads the process (R11, Y9)', () => {
  * and this change adds 1,781 B — `config.js` +1,767 B for a line scan that knows which level of the
  * JSON a key is on (the old one cited a nested `"out":` above the real one) and `packageLayer`,
  * which gives the `package.json` field its lines (R3); `index.js` +14 B to re-export it.
+ *
+ * Raised 144,000 → 144,700 on 2026-10-26 (D-20261026-seniority-family-schema-formats): the family
+ * schema in `dist/schema.json` grew 930 B to describe burgee's `formats` (agent-headroom RF): 143,677 → 144,607 B. No
+ * seniority code changed; the shared file stays byte-identical (R2).
  */
-const CEILING_BYTES = 144_000;
+const CEILING_BYTES = 144_700;
 
 describe('the weight ceiling (R9, Y8)', () => {
   it('keeps the built package under its declared ceiling', () => {

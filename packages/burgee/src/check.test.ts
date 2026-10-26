@@ -57,6 +57,19 @@ describe('burgee check reports what a plugin contributes', () => {
     expect(await checkPlugin(file)).toEqual({ name: 'bare', commands: [], hooks: [{ stage: 'postRun', applies: 'every command' }] });
   });
 
+  it('reports the output formats a plugin registers, and nothing else is needed to contribute (agent-headroom RF)', async () => {
+    const file = plugin("export default { name: 'rows', contract: 1, formats: { csv: { description: 'comma-separated rows', render: () => '' } } };\n");
+    expect(await checkPlugin(file)).toEqual({ name: 'rows', commands: [], hooks: [], formats: [{ name: 'csv', description: 'comma-separated rows' }] });
+  });
+
+  it('refuses a format exactly as --format would: a name burgee registers is taken', async () => {
+    const file = plugin("export default { name: 'mine', contract: 1, formats: { tsv: { description: 'my tsv', render: () => '' } } };\n");
+    expect(await checkPlugin(file)).toEqual({
+      refused: { code: 'E_PLUGIN_SCHEMA', message: 'plugin "mine": format "tsv" is already registered', fix: 'rename it — one name, one format' },
+      exitCode: ExitCode.RUNTIME,
+    });
+  });
+
   it('reports a plugin with commands and no hooks', async () => {
     const file = plugin("export default { name: 'cmds', contract: 1, commands: [{ path: ['x'], effects: 'idempotent', options: {}, run: () => ({ changed: false }) }] };\n");
     expect(await checkPlugin(file)).toEqual({ name: 'cmds', commands: [{ path: 'x', description: '', effects: 'idempotent' }], hooks: [] });
@@ -70,7 +83,7 @@ describe('burgee check refuses, as data, with an exit code', () => {
       refused: {
         code: 'E_NO_CONTRIBUTION',
         message: 'empty registers, but contributes nothing any layer of the family reads',
-        fix: 'add a key the family schema (burgee/schema.json) describes: `commands`, `hooks` or `locales` for burgee, or another layer’s, such as `tokens` for roundel or `spinners` for flagstaff',
+        fix: 'add a key the family schema (burgee/schema.json) describes: `commands`, `hooks`, `locales` or `formats` for burgee, or another layer’s, such as `tokens` for roundel or `spinners` for flagstaff',
       },
       exitCode: ExitCode.RUNTIME,
     });
