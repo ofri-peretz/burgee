@@ -260,7 +260,7 @@ export interface FingerprintOptions {
    * has moved past it: that release has an open issue, and re-recording it would mark the
    * claim current before anyone re-graded it.
    */
-  missing: boolean;
+  missing?: boolean;
 }
 
 /** With nothing held, a release is never reported — `moved()` records first. */
@@ -275,7 +275,7 @@ export async function fingerprint(
   packagesDir: string,
   write: Write,
   client: RegistryClient = liveRegistry,
-  options: FingerprintOptions = { missing: false },
+  options: FingerprintOptions = {},
 ): Promise<number> {
   const declarations = readDeclarations(packagesDir);
   const shared = cached(client);
@@ -283,7 +283,7 @@ export async function fingerprint(
   let failures = 0;
 
   for (const watched of watchList(declarations)) {
-    if (options.missing && isHeld(watched)) continue;
+    if (options.missing === true && isHeld(watched)) continue;
     try {
       // eslint-disable-next-line reliability/no-await-in-loop -- deliberate: see `check`
       const fresh = await takeFingerprint(watched, shared);
