@@ -33,14 +33,14 @@
       }
     },
     "seniority": {
-      "ours": 222055,
+      "ours": 224506,
       "incumbents": {
         "cosmiconfig": 1832269,
         "dotenv": 44951,
         "rc": 95287
       },
       "ceiling": 1972507,
-      "ratio": 0.1126,
+      "ratio": 0.1138,
       "lightestIncumbent": {
         "name": "dotenv",
         "bytes": 44951

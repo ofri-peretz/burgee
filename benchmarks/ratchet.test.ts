@@ -23,7 +23,7 @@ import { BUNDLED_CEILING, type Measured, pairRecords, RATIO_CEILING as WEIGHT_CE
 import { claimRatchet } from './claim-ratchets.js';
 import { CLAIMS } from './claims.js';
 import { type AxisState } from './emit.js';
-import { PAIRS } from './fixtures/entry-points.js';
+import { type EntryPair, PAIRS } from './fixtures/entry-points.js';
 import { type AxisName, gateFailures } from './record.js';
 import { verdict } from './run.js';
 
@@ -107,8 +107,19 @@ describe('controlroom R14 — W1 to W4 are gated at 1.0×', () => {
   });
 
   it('gates the installed tree only where a requirement states a bar on it', () => {
-    expect(PAIRS.filter((p) => p.installed === true).map((p) => p.id)).toEqual(['controlroom/ink']);
+    expect(PAIRS.filter((p) => p.installed === true).map((p) => p.id)).toEqual(['seniority/discovery-chain', 'controlroom/ink']);
     expect(pairRecords(root, measuredAt(1), measuredAt(1)).some((r) => r.metric.startsWith('installed-') && r.metric.endsWith('-ratio'))).toBe(false);
+  });
+
+  it('says whose bar each installed gate is, so the discovery-chain row does not cite controlroom W2', () => {
+    const why = (id: string): string[] => {
+      const pair = PAIRS.find((p) => p.id === id) as EntryPair;
+      return pairRecords(pair, measuredAt(1), measuredAt(1))
+        .filter((r) => r.metric.startsWith('installed-') && r.metric.endsWith('-ratio'))
+        .map((r) => r.gate?.why ?? '');
+    };
+    expect(why('controlroom/ink')).toEqual([expect.stringMatching(/^controlroom W2: /), expect.stringMatching(/^controlroom W2: /)]);
+    expect(why('seniority/discovery-chain')).toEqual([expect.stringMatching(/^seniority criterion 4: /), expect.stringMatching(/^seniority criterion 4: /)]);
   });
 
   it.each(['controlroom/ink', 'controlroom'])('W4: %s exits non-zero past ink + react at 1.0×, and zero at it', (id) => {
@@ -157,7 +168,7 @@ describe('B2 cold start — the paired-ratio gate', () => {
 
 describe('B2 cold start — roundel R8, the paired-delta gate over picocolors', () => {
   const pico = Array.from({ length: 40 }, (_, i) => 30 + (i % 3));
-  const entries = VARIANTS.filter((v) => v.over !== undefined);
+  const entries = VARIANTS.filter((v) => v.over === 'picocolors');
 
   it('holds both colour entries to picocolors, at the allowance R8 writes', () => {
     expect(entries.map((v) => `${v.id} over ${String(v.over)}`)).toEqual(['roundel/tokens over picocolors', 'roundel/chalk over picocolors']);
@@ -185,6 +196,27 @@ describe('B2 cold start — roundel R8, the paired-delta gate over picocolors', 
     const record = deltaRecord({ v, ours, over, gateMax: DELTA_CEILING_MS });
     expect(record.median).toBe(5);
     expect(record.samples).toBe(5);
+  });
+});
+
+describe('B2 cold start — seniority R9, each drop-in held to the incumbent it replaces', () => {
+  const base = Array.from({ length: 40 }, (_, i) => 30 + (i % 3));
+  const bars = VARIANTS.filter((v) => v.pkg === 'seniority');
+
+  it('times both drop-ins against their incumbents, each at its own bar and not at roundel’s', () => {
+    expect(bars.map((v) => [v.id, v.over, v.bar?.max])).toEqual([
+      ['seniority/lilconfig', 'lilconfig', 2],
+      ['seniority/dotenv', 'dotenv', 10],
+    ]);
+  });
+
+  it.each(bars.map((v) => [v.id, v] as const))('%s: exits non-zero one step past its bar, zero at it, and says whose bar it is', (id, v) => {
+    const max = v.bar?.max ?? Number.NaN;
+    const over = String(v.over);
+    expect(verdict([deltaRecord({ v, ours: base.map((ms) => ms + max + 0.01), over: base, gateMax: max })])).toBe(1);
+    expect(said()).toContain(`${id} − ${over} cold-start-delta-ms: ${String(max + 0.01)} ms is above its ceiling of ${String(max)}`);
+    expect(said()).toContain(v.bar?.why ?? 'no bar');
+    expect(verdict([deltaRecord({ v, ours: base.map((ms) => ms + max), over: base, gateMax: max })])).toBe(0);
   });
 });
 

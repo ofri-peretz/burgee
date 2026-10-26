@@ -3,6 +3,18 @@
 Intent: [`intent.md`](./intent.md). Umbrella:
 [`cli-foundation-stack`](../cli-foundation-stack/spec.md). **Status:** approved (2026-09-23, under the owner's delegation, D-129).
 
+**Re-grounded on main, 2026-10-26 (`feat/seniority-remainder`).** The two things the 2026-10-20
+paragraph below left open are built. **R3's `package.json` line:** `packageLayer(path, name,
+manifest?)` in `src/config.ts` is the field as a layer with a line per key, and burgee's
+`config-layers.ts` builds its layer with it. The scan under it, `keyLines`, follows JSON's levels,
+because the one it replaced (`lineOf`'s substring match) returned the first `"key":` in the file —
+a nested key written above the top-level one was cited at the wrong line, proven red on main.
+**Criterion 4's rows:** B2 times `seniority/lilconfig` against lilconfig (R9's spawn half) and
+`seniority/dotenv` against dotenv; B4 adds the discovery-chain row. Every number and both gates
+are in D-20261026-seniority-spawn-bars; the `.env` drop-in starting slower than dotenv is gap
+B-20261026-seniority-dotenv-starts-slower. No state is added — `packageLayer` is a pure read
+beside `loadWithExtends` — so the Quint model is unchanged.
+
 **Re-grounded on main, 2026-10-20 (roadmap batch 20, `feat/seniority-truth-table`).** Every
 claim below was read against the code on `origin/main` (`de2209f813`) before anything was
 built, and each one that had drifted is restated in place, dated. What main already had: R1's
@@ -83,9 +95,14 @@ them the absent YAML parser, one of them the harness.
   extends nothing gets no `origins`; its one `path` is already the answer. (2) burgee's
   `config-layers.ts` passed `{ path: chain.join(' ← '), data }`, dropping `lines`, so
   burgee's `--explain` and `meta.provenance` never had a line for a config file. It now passes
-  the loaded layer whole. D-20261020-seniority-provenance-per-chain-file. **Still open:** the
-  `package.json` field has no line. burgee builds that layer from the parsed manifest, and
-  `lineOf` reads top-level keys only, so a nested field's line would need a depth-aware scan.
+  the loaded layer whole. D-20261020-seniority-provenance-per-chain-file. **Built 2026-10-26:**
+  the `package.json` field has its line. That needed the depth-aware scan this paragraph said it
+  would: `keyLines(text, at)` tracks the brackets and the key each was opened under, so it can
+  read the keys of `"<name>": { … }` one level down and tell a top-level key from a nested one.
+  `packageLayer(path, name, manifest?)` is the field as a layer with those lines; burgee passes
+  the manifest it already parsed, so the file is read again only for the lines. The scan is still
+  exact or silent — an escaped key (`"\u0061"`) gets no line — and a key set twice is cited at the
+  last one, which is the one `JSON.parse` keeps.
 - **R4 (Y5)** `explain(key)` returns `{ winner, candidates[] }` — the winning source and
   every source that set the key and lost, in `ORDER`. One record; human text, `--json` and
   an agent event are three renderings of it.
@@ -223,6 +240,12 @@ them the absent YAML parser, one of them the harness.
   arriving unnoticed, which moves this by an order of magnitude rather than by a few hundred
   bytes. The **spawn-delta** half of R9 is the `bench --axis weight` row and belongs to the
   benchmark suite, not here.
+
+  **Spawn delta built 2026-10-26** in that suite: `seniority/lilconfig − lilconfig`, B2's paired
+  median difference, measured −0.19 ms over 68 rounds and gated at +2 ms — the bar plus runner
+  noise, because a paired median of two near-equal spawns crosses zero on a bad minute
+  (D-20261026-seniority-spawn-bars). The ceiling is 144,000 B since the same day (142,000
+  before): the `package.json` line (R3) adds 1,845 B.
 - **R10 (Y7)** `cosmiconfig`, `lilconfig`, `dotenv` and `rc` suites vendored into
   `compat-oracle`, `--control` first, ratcheting.
 
@@ -384,13 +407,13 @@ are.
 | :-- | :-- | :-- | :-- |
 | R1 | **Built** | `src/precedence.ts` — `ORDER`, and `RANK` derived from its positions; `src/truth-table.ts` — `TRUTH_TABLE = truthTable(ORDER)` (2026-10-20); the page `apps/docs-seniority/content/docs/guides/truth-table.md`, written by `npm run truth-table:page` | `precedence.test.ts`: the resolved candidate order **equals** `ORDER`; `truth-table.test.ts`: `TRUTH_TABLE` equals `precedence-vectors.json` and `resolve` agrees with all 32 rows; `scripts/truth-table-page.test.ts`: the committed page is the generated one |
 | R2 | **Built** | `src/precedence.ts` — `resolve(specs, layers)`, no I/O; burgee resolves through it (#265); `src/precedence-vectors.json` read by both suites (2026-10-20) | `precedence.test.ts`, 20 cases over pure layers; `packages/burgee/src/precedence-vectors.test.ts` › "every row of the truth table, through a real program" |
-| R3 | **Built**, one clause open | `src/precedence.ts` — `provenance`, now with `line`; recorded by `config.ts`'s `lineOf` for JSON layers; `Layer.origins` for an `extends` chain (2026-10-20); burgee passes the line through. Open: no line for the `package.json` field | `discovery.test.ts`: `discover` returns `lines: { region: 2, out: 3 }`, and › "with all four sources set at once…"; `config.test.ts` › "which file in an extends chain set each key"; `packages/burgee/src/precedence-vectors.test.ts` › "provenance names the file and the line" |
+| R3 | **Built** | `src/precedence.ts` — `provenance`, now with `line`; recorded by `config.ts`'s `keyLines` for JSON layers; `Layer.origins` for an `extends` chain (2026-10-20); `packageLayer` for the `package.json` field (2026-10-26); burgee passes the line through | `discovery.test.ts`: `discover` returns `lines: { region: 2, out: 3 }`, › "cites the top-level key, not a nested key of the same name written above it", and › "with all four sources set at once…" (`package.json:6`); `config.test.ts` › "which file in an extends chain set each key" and › "the package.json field as a layer, with its lines (R3)"; `packages/burgee/src/precedence-vectors.test.ts` › "provenance names the file and the line" |
 | R4 | **Built** | `src/explain.ts` — `explanation()` is the record; `renderExplanation`, `explanationJson`, `explanationEvent` are its three renderings | `explain.test.ts`: `explain(…) === renderExplanation(explanation(…))`, byte for byte |
 | R5 | **Built** | `src/search.ts` — 120 lines, bounded by `stopAt`, `WALK_LIMIT` and the root; real paths compared so a symlink ring ends the walk | `search.test.ts`, 10 cases incl. a link pointing back at its own ancestor |
 | R6 | **Built** | `src/load.ts` — four builtin loaders, injected loaders for everything else, `LoaderError` (`exitCode: 2`) naming the extension and the option | `load.test.ts`, 11 cases; `NOT_BUNDLED` is asserted absent from `defaultLoaders` |
 | R7 | **Built** | shipped 0.1.0. `src/config.ts` — `loadWithExtends`, deep merge, cycle rejection. **2026-10-19:** two clauses of R7's own text had no check (moved here by `commander-env` R6). **2026-10-20:** both have one. The chain clause is restated: `explain` names the chain member that set the value (`origins`), D-20261020-seniority-provenance-per-chain-file | `packages/seniority/src/config.test.ts` › "resolves relative to the extending file, left to right, and records the chain"; › "resolves a bare target through node_modules, from the extending file (R7)"; › "is what resolve cites, so provenance and --explain name the parent that set the value" |
 | R8 | **Built** | `src/cosmiconfig.ts` + `-defaults` + `-util` re-exported from the root; `./cosmiconfig`, `./dotenv` (with `./dotenv/config` and `./dotenv/cli` since 2026-10-06), `./lilconfig`, `./rc`, `./find-up` as separate entry points | the incumbents' own suites: cosmiconfig **242 / 243** on ubuntu (level with its control since 2026-09-30, R16; the XDG pair since D-20260930-seniority-xdg-config-home), dotenv **179 / 179** at 18.0.5 (level with its control since 2026-10-06, D-20261001-seniority-dotenv-vault; 17.4.2 graded and not claimed at 107 / 141), lilconfig **67 / 77**, rc **0 / 1**. `shape.test.ts` locks the export map and subpath isolation |
-| R9 | **Built**, spawn delta open | `src/shape.test.ts` — a ceiling on the **built** `dist`, not on the source. The spawn-delta half is the benchmark lane's and has no row | `shape.test.ts`: 141,732 B against a 142,000 B ceiling (2026-10-20), and a floor so an empty build cannot pass |
+| R9 | **Built** | `src/shape.test.ts` — a ceiling on the **built** `dist`, not on the source. The spawn-delta half is B2's `seniority/lilconfig − lilconfig` row (2026-10-26), in `benchmarks/axes/perf.ts` | `shape.test.ts`: 143,577 B against a 144,000 B ceiling (2026-10-26), and a floor so an empty build cannot pass; `benchmarks/ratchet.test.ts` › "B2 cold start — seniority R9…"; `npm run bench -- --axis perf --check` |
 | R10 | **Built** | all four vendored and graded control-first, re-measured 2026-09-20: `cosmiconfig` **186 / 243, 76.5%** (**240 / 243, 98.8%** since 2026-09-30, R16; **242 / 243, 99.6%** on ubuntu once the global search read `XDG_CONFIG_HOME`, D-20260930-seniority-xdg-config-home), `dotenv` **80 / 141, 56.7%** (**106 / 141** since D-135; **179 / 179, 100%** at 18.0.5 since 2026-10-06, level with its control), `lilconfig` **67 / 77, 87.0%**, `rc` **0 / 1** (measured, not a placeholder) | `npm run compat -- cosmiconfig --control`, and the same for the other three; see [§ The four suites, measured](#the-four-suites-measured) |
 | R11 | **Built** | restated by D-135, and recorded as built 2026-10-06 once dotenv was level: the resolver names `process` nowhere; the one file that does is `src/runtime.ts`, the family's Y9 seam, which only the dotenv, rc and cosmiconfig drop-ins open and only as a default when the caller passed no world (cosmiconfig's global directory since D-20260930-seniority-xdg-config-home). `seniority/dotenv/cli` is the one drop-in that is a program — dotenv 18's `dotenv run` — and it takes the process whole through the same seam (`ambientProcess`), never by naming the global. Before 2026-09-23 the claim was *no source names `process` at all*, and it cost 34 dotenv cases and rc's one: their incumbents read the process by default and their suites assert it | `shape.test.ts` locally; `packages/burgee/src/process-reference-lock.test.ts` repo-wide, where `seniority/src/runtime.ts` is now the one allow-listed entry |
 | R12 | **Built** | `src/validate.ts` — `validate` returns every violation, `check` throws one `ConfigError` | `validate.test.ts`: ``` `out` must be a string; `./mytool.config.js:3` set it to `4` ``` |
@@ -944,9 +967,11 @@ discovered:
 - **77.2% is one incumbent's suite, not "compatibility".** It is cosmiconfig 10.0.1 on a
   Mac. `lilconfig` and `rc` have never been run against this package at all, and dotenv's
   suite cannot be run here.
-- **The 140 kB ceiling is a bound on growth, not a comparison.** Nothing in this repository
-  has yet measured seniority against `lilconfig` on installed bytes or on spawn delta, which
-  is what R9 actually asks for; that is the `bench --axis weight` row and it has not run.
+- **The 140 kB ceiling is a bound on growth, not a comparison.** The comparison R9 asks for
+  is B4's `seniority/lilconfig` row (bundled bytes, 0.612) and, since 2026-10-26, B2's spawn
+  difference (−0.19 ms on one machine under load). The spawn row is gated with 2 ms of noise
+  allowed, so a CI run can pass the gate with the bar itself narrowly missed; the median on
+  `/docs/benchmarks` is what says which.
 - **R3, R4 and R12 remain a hypothesis about adopters.** Provenance and `--explain` are the
   differentiator and no incumbent has them — but "no incumbent has it" is evidence about the
   ecosystem, not about demand. The Evidence table has said so since this design was written

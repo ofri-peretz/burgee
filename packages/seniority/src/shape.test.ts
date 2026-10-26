@@ -131,8 +131,13 @@ describe('nothing reads the process (R11, Y9)', () => {
  * at 140,541 and this change adds 1,191 B — `truth-table.js` (556 B), which builds the table the
  * docs page is generated from, and the per-key `origins` that cite the file in an `extends`
  * chain that set a value (`config.js` +518 B, `precedence.js` +57 B, `index.js` +60 B).
+ *
+ * Raised 142,000 → 144,000 on 2026-10-26 (D-20261026-seniority-spawn-bars): main stood at 141,732
+ * and this change adds 1,845 B — `config.js` +1,831 B for a line scan that knows which level of the
+ * JSON a key is on (the old one cited a nested `"out":` above the real one) and `packageLayer`,
+ * which gives the `package.json` field its lines (R3); `index.js` +14 B to re-export it.
  */
-const CEILING_BYTES = 142_000;
+const CEILING_BYTES = 144_000;
 
 describe('the weight ceiling (R9, Y8)', () => {
   it('keeps the built package under its declared ceiling', () => {

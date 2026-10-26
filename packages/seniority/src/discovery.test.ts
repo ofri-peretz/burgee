@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { scratchDirs } from './__fixtures__/scratch-dir.js';
-import { discover, lineOf } from './config.js';
+import { discover, lineOf, packageLayer } from './config.js';
 import { explain } from './explain-entry.js';
 import { LoaderError } from './load.js';
 import { resolve } from './precedence.js';
@@ -33,6 +33,19 @@ describe('a JSON layer records the line each key is set on (R3, R12)', () => {
     expect(lineOf('{\n  "a": 1\n}', 'out')).toBeUndefined();
   });
 
+  it('cites the top-level key, not a nested key of the same name written above it', () => {
+    expect(lineOf('{\n  "app": { "out": "nested" },\n  "out": "top"\n}', 'out')).toBe(3);
+    expect(lineOf('{\n  "list": [{ "out": 1 }, { "out": 2 }]\n}', 'out')).toBeUndefined();
+  });
+
+  it('cites a key set twice where JSON.parse takes it from, the last time', () => {
+    expect(lineOf('{\n  "out": 1,\n  "out": 2\n}', 'out')).toBe(3);
+  });
+
+  it('is not thrown off by a bracket, a colon or an escaped quote inside a string', () => {
+    expect(lineOf('{\n  "a": "x\\" : { [",\n  "out": 1\n}', 'out')).toBe(3);
+  });
+
   it('is on the layer `discover` hands back, so `--explain` and R12 can cite a line', async () => {
     const cwd = join(dir, 'lines');
     write('lines/app.config.json', '{\n  "region": "eu",\n  "out": "lib"\n}');
@@ -43,11 +56,12 @@ describe('a JSON layer records the line each key is set on (R3, R12)', () => {
   it('with all four sources set at once, `explain` names the winner and each loser by variable, file and line (criterion 3)', async () => {
     const cwd = join(dir, 'four');
     const config = write('four/app.config.json', '{\n  "tier": "pro",\n  "out": "build"\n}');
-    const pkg = { path: join(cwd, 'package.json'), data: { out: 'pkg' } };
+    const manifest = write('four/package.json', '{\n  "name": "four",\n  "out": "not the field",\n  "app": {\n    "tier": "free",\n    "out": "pkg"\n  }\n}\n');
+    const pkg = packageLayer(manifest, 'app');
     const found = await discover({ name: 'app', cwd, env: {} });
-    const r = resolve({ out: { default: 'dist' } }, { flags: { out: 'lib' }, env: { APP_OUT: 'tmp' }, envPrefix: 'APP', ...(found === undefined ? {} : { config: found }), pkg });
+    const r = resolve({ out: { default: 'dist' } }, { flags: { out: 'lib' }, env: { APP_OUT: 'tmp' }, envPrefix: 'APP', ...(found === undefined ? {} : { config: found }), ...(pkg === undefined ? {} : { pkg }) });
     expect(r.provenance['out']).toEqual({ source: 'flag', location: '--out' });
-    expect(explain('out', r)).toBe(`out = "lib"   from flag --out\n         candidates: env APP_OUT "tmp", config file ${config}:3 "build", package.json field in ${pkg.path} "pkg", default "dist"\n`);
+    expect(explain('out', r)).toBe(`out = "lib"   from flag --out\n         candidates: env APP_OUT "tmp", config file ${config}:3 "build", package.json field in ${manifest}:6 "pkg", default "dist"\n`);
   });
 
   it('has no lines for a JavaScript config, because there is no parser to ask', async () => {

@@ -48,13 +48,6 @@ export async function discoveryOf(name: string, values: Record<string, unknown>,
   return { order, read: order.find((step) => step.found)?.path ?? null };
 }
 
-/** The owning package.json's field named after the program, as a layer below config. */
-function packageLayer(pkg: Package | undefined, name: string): Layers['pkg'] {
-  if (pkg === undefined) return undefined;
-  const field = pkg.data[name];
-  return typeof field === 'object' && field !== null && !Array.isArray(field) ? { path: pkg.path, data: field as Record<string, unknown> } : undefined;
-}
-
 /** The config file and the package.json field, for a program that opted in; loaded lazily (K6). */
 export async function configLayers(
   name: string,
@@ -65,7 +58,7 @@ export async function configLayers(
   // the order walked a second time; a run that explains nothing pays nothing for it.
   // Stryker disable next-line ConditionalExpression: equivalent — walking the order on every run changes no output, only the cost this condition saves
   if (values['explain'] !== undefined) io.discovery = await discoveryOf(name, values, io);
-  const { discover } = await import('seniority/config');
+  const { discover, packageLayer } = await import('seniority/config');
   const explicit = values['config'];
   // Flags are canonical (camelCase) by now: `--no-config` reads as `noConfig`.
   const disabled = values['noConfig'] === true;
@@ -75,8 +68,9 @@ export async function configLayers(
   // that file's line (seniority R3, R7). Joining the chain into one path cited every key at all
   // of them and at no line, so `--explain` could not say where a value was written.
   if (loaded !== undefined) out.config = loaded;
-  // --no-config turns off every discovered source, the package.json field included.
-  const pkg = disabled ? undefined : packageLayer(io.pkg, name);
+  // --no-config turns off every discovered source, the package.json field included. The field
+  // is seniority's layer over the manifest already parsed, so each key is cited at its line (R3).
+  const pkg = disabled || io.pkg === undefined ? undefined : packageLayer(io.pkg.path, name, io.pkg.data);
   if (pkg !== undefined) out.pkg = pkg;
   return out;
 }

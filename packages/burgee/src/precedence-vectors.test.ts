@@ -56,11 +56,11 @@ interface Run {
   stdout: string;
 }
 
-/** One row as files, a variable and a flag; the config file sets `region` on its third line. */
+/** One row as files, a variable and a flag; `region` is on the config file's third line and the package.json's fifth. */
 async function run(set: readonly Source[], extra: readonly string[] = []): Promise<Run & { dir: string }> {
   const dir = scratch('burgee-vectors-');
   mkdirSync(join(dir, 'bin'));
-  writeFileSync(join(dir, 'package.json'), `${JSON.stringify({ name: 'app-pkg', version: '1.0.0', ...(set.includes('package') ? { app: { region: 'package' } } : {}) })}\n`);
+  writeFileSync(join(dir, 'package.json'), `${JSON.stringify({ name: 'app-pkg', version: '1.0.0', ...(set.includes('package') ? { app: { region: 'package' } } : {}) }, null, 2)}\n`);
   if (set.includes('config')) writeFileSync(join(dir, 'app.config.json'), '{\n  "tier": "pro",\n  "region": "config"\n}\n');
   // No user config directory and nothing ambient: every source is the one this row wrote.
   const env: Record<string, string> = { HOME: join(dir, 'none'), XDG_CONFIG_HOME: join(dir, 'none'), ...(set.includes('env') ? { APP_REGION: 'env' } : {}) };
@@ -97,6 +97,12 @@ describe('every row of the truth table, through a real program', () => {
 });
 
 describe('provenance names the file and the line (seniority R3, criterion 3)', () => {
+  it('a package.json field that wins carries the line inside the field that set it', async () => {
+    const r = await run(['package', 'default'], ['--json']);
+    const body = JSON.parse(r.stdout) as { meta: { provenance: Record<string, unknown> } };
+    expect(body.meta.provenance['region']).toEqual({ source: 'package', location: join(r.dir, 'package.json'), line: 5 });
+  });
+
   it('a config file that wins carries the line it set the value on', async () => {
     const r = await run(['config', 'package', 'default'], ['--json']);
     const body = JSON.parse(r.stdout) as { meta: { provenance: Record<string, unknown> } };
@@ -109,7 +115,7 @@ describe('provenance names the file and the line (seniority R3, criterion 3)', (
     expect(r.stdout).toMatch(/^region = "flag" {3}from flag --region\n/);
     expect(r.stdout).toContain('env APP_REGION "env"');
     expect(r.stdout).toContain(`config file ${join(r.dir, 'app.config.json')}:3 "config"`);
-    expect(r.stdout).toContain(`package.json field in ${join(r.dir, 'package.json')} "package"`);
+    expect(r.stdout).toContain(`package.json field in ${join(r.dir, 'package.json')}:5 "package"`);
     expect(r.stdout).toContain('default "default"');
   });
 });

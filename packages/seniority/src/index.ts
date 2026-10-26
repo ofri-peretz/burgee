@@ -40,7 +40,7 @@ export {
 
 export { TRUTH_TABLE, truthTable, type TruthRow } from './truth-table.js';
 
-export { candidates, deepMerge, discover, lineOf, loadWithExtends, type Discovery, type Loaded, type LoadConfigOptions } from './config.js';
+export { candidates, deepMerge, discover, lineOf, loadWithExtends, packageLayer, type Discovery, type Loaded, type LoadConfigOptions } from './config.js';
 
 export {
   explanation,

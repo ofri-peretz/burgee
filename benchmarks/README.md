@@ -30,6 +30,21 @@ picocolors + 10 ms to start**, gated as `cold-start-delta-ms`, the median of the
 differences — round *i* of the entry less round *i* of picocolors — so the machine's own
 startup cancels, as it does in a ratio. Measured 2026-09-30 on an M4 Pro: +1.26 ms and +2.97 ms.
 
+## B2 and B4 — seniority against lilconfig, dotenv and the discovery chain
+
+B2 spawns `lilconfig` and `seniority/lilconfig`, each importing the one function a program calls,
+and `dotenv` and `seniority/dotenv`, each parsing one line. seniority R9 sets the bar for the
+first pair: **spawn delta at or under lilconfig**, gated as `cold-start-delta-ms` with 2 ms of
+runner noise allowed over it (D-20261026-seniority-spawn-bars). The `.env` pair has no bar of its
+own and takes roundel's 10 ms as a ratchet: it is the slower one, six ES modules against one
+CommonJS file (gap B-20261026-seniority-dotenv-starts-slower). Both differences are drawn in the
+*Difference* table on `/docs/benchmarks`, beside the ratios.
+
+B4's discovery-chain row is seniority's headline number: `seniority/cosmiconfig +
+seniority/find-up` against `cosmiconfig + find-up` at the releases compat-oracle grades. It is
+gated on the bundle and on the installed tree, in packages and in bytes — measured 2026-10-26 at
+1 package against 10.
+
 ## B5 — runtime against the incumbent
 
 `--axis runtime`. One realistic workload per (package, incumbent) pair, in

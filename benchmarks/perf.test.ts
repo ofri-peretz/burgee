@@ -114,7 +114,7 @@ describe('the records say which package they timed', () => {
 });
 
 describe('roundel R8 — the colour rows time what they say, on any machine', () => {
-  const colour = VARIANTS.filter((v) => v.over !== undefined || v.id === 'picocolors');
+  const colour = VARIANTS.filter((v) => v.over === 'picocolors' || v.id === 'picocolors');
 
   it('are held to a variant that is timed in the same rounds', () => {
     for (const v of VARIANTS.filter((x) => x.over !== undefined)) expect(VARIANTS.map((x) => x.id)).toContain(v.over);

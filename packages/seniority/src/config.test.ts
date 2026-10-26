@@ -5,7 +5,7 @@ import { basename, join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { scratchDirs } from './__fixtures__/scratch-dir.js';
-import { candidates, deepMerge, discover, loadWithExtends, type Loaded } from './config.js';
+import { candidates, deepMerge, discover, loadWithExtends, type Loaded, packageLayer } from './config.js';
 import { explain } from './explain-entry.js';
 import { ConfigError, resolve as resolveLayers } from './precedence.js';
 
@@ -172,5 +172,34 @@ describe('the lines a JSON layer records (R3)', () => {
     const loaded = await loadWithExtends(at, { loaders });
     expect(loaded.data).toEqual({ region: 'eu' });
     expect(loaded.lines).toBeUndefined();
+  });
+});
+
+describe('the package.json field as a layer, with its lines (R3)', () => {
+  const manifest = '{\n  "name": "x",\n  "region": "top-level, not the field",\n  "app": {\n    "region": "eu",\n    "nested": { "retries": 1 },\n    "retries": 3\n  }\n}\n';
+
+  it('is the field named after the program, each key cited at the line inside the field that sets it', () => {
+    const at = write('pkg-lines/package.json', manifest);
+    expect(packageLayer(at, 'app')).toStrictEqual({ path: at, data: { region: 'eu', nested: { retries: 1 }, retries: 3 }, lines: { region: 5, nested: 6, retries: 7 } });
+  });
+
+  it('takes a manifest already parsed, reading the file only for the lines', () => {
+    const at = write('pkg-parsed/package.json', manifest);
+    expect(packageLayer(at, 'app', { app: { region: 'given' } })).toStrictEqual({ path: at, data: { region: 'given' }, lines: { region: 5 } });
+    const gone = join(dir, 'pkg-gone/package.json');
+    expect(packageLayer(gone, 'app', { app: { region: 'given' } })).toStrictEqual({ path: gone, data: { region: 'given' } });
+  });
+
+  it('is no layer for a missing file, a file that is not JSON, or a field that is absent or holds no options', () => {
+    expect(packageLayer(join(dir, 'pkg-missing/package.json'), 'app')).toBeUndefined();
+    expect(packageLayer(write('pkg-broken/package.json', '{ "app": '), 'app')).toBeUndefined();
+    const at = write('pkg-fields/package.json', { name: 'x', str: 'a', list: ['a'], none: null });
+    for (const name of ['app', 'str', 'list', 'none']) expect(packageLayer(at, name)).toBeUndefined();
+    expect(packageLayer(write('pkg-array/package.json', '[{ "app": {} }]'), 'app')).toBeUndefined();
+  });
+
+  it('has no lines when none of the field’s keys is written plainly, rather than an empty table', () => {
+    const at = write('pkg-escaped/package.json', '{ "app": { "\\u0061": 1 } }');
+    expect(packageLayer(at, 'app')).toStrictEqual({ path: at, data: { a: 1 } });
   });
 });

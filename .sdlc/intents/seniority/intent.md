@@ -111,21 +111,22 @@ seven packages; this is one, with none.*
   delta, and the seven-package discovery-chain row published.
 - The shared truth-table vectors green in both `burgee` and `seniority` suites.
 
-## Status (2026-10-20)
+## Status (2026-10-26)
 
-Re-grounded on main in [`spec.md`](./spec.md) (roadmap batch 20). The intent stays
-`approved`: criteria 2, 3 and 5 are met on `feat/seniority-truth-table` and ship in a seniority
-**minor** (`TRUTH_TABLE`, `truthTable`, `Layer.origins` are new public API). Criterion 4 is
-partly met and its rest is the benchmark lane's, so the intent is not stamped `shipped` when
-that minor publishes.
+Every criterion is now built on main or on `feat/seniority-remainder`. The intent stays
+`approved` until the seniority **minor** that ships `packageLayer` is on npm
+(`.changeset/seniority-package-field-lines.md`; `packageLayer` is new public API, and burgee's
+`--explain` reads it). Criteria 2 and 5 and most of 3 shipped in `seniority@1.1.0` (#1203).
+Criterion 4's rows are gated on every PR from this change; they reach `/docs/benchmarks` with
+the next published run.
 
 | Criterion | State | Check |
 | :-- | :-- | :-- |
-| 1. Four vendored suites graded, `--control` first, ratcheting | held before this change: cosmiconfig 242 / 243, lilconfig 77 / 77, rc 1 / 1, dotenv 193 / 193 | `npm run compat -- cosmiconfig lilconfig dotenv rc`; spec § R10 |
-| 2. The truth table as a generated page from the exported table, one row per combination | **held** (2026-10-20): `TRUTH_TABLE = truthTable(ORDER)`, 32 rows; the page `guides/truth-table` written from it | `packages/seniority/src/truth-table.test.ts` › "TRUTH_TABLE is the shared vectors, row for row"; `scripts/truth-table-page.test.ts` › "is what TRUTH_TABLE generates" |
-| 3. `explain(key)` names the file **and line** for a config-file value, on a fixture with all four sources set | **held** (2026-10-20), in seniority and through burgee, whose `--explain` had no line on main; a value set in an `extends` parent is cited at the parent (D-20261020-seniority-provenance-per-chain-file). **Remaining:** the `package.json` field is cited by file, with no line | `packages/seniority/src/discovery.test.ts` › "with all four sources set at once…"; `packages/burgee/src/precedence-vectors.test.ts` › "--explain, with all four sources set at once…" |
-| 4. Benchmark rows under `lilconfig` on bytes and spawn delta, and the seven-package discovery-chain row | bytes: held (`seniority/lilconfig` 0.611 of lilconfig, `benchmarks/axes/weight.ts`). **Remaining:** the spawn-delta row and the discovery-chain row — benchmark lane, not built here | — |
-| 5. The shared truth-table vectors green in both suites | **held** (2026-10-20): one edit to `ORDER` fails both suites at once (5 seniority and 4 burgee cases), and so does one edit to the vectors | `packages/seniority/src/truth-table.test.ts`; `packages/burgee/src/precedence-vectors.test.ts`; `scripts/shared-vectors-lock.test.ts` |
+| 1. Four vendored suites graded, `--control` first, ratcheting | held: cosmiconfig 242 / 243, lilconfig 77 / 77, rc 1 / 1, dotenv 193 / 193 | `npm run compat -- cosmiconfig lilconfig dotenv rc`; spec § R10 |
+| 2. The truth table as a generated page from the exported table, one row per combination | **held**, shipped in 1.1.0: `TRUTH_TABLE = truthTable(ORDER)`, 32 rows; the page `guides/truth-table` written from it | `packages/seniority/src/truth-table.test.ts` › "TRUTH_TABLE is the shared vectors, row for row"; `scripts/truth-table-page.test.ts` › "is what TRUTH_TABLE generates" |
+| 3. `explain(key)` names the file **and line** for a config-file value, on a fixture with all four sources set | **held** (2026-10-26). The config file's line shipped in 1.1.0, through `extends` too (D-20261020-seniority-provenance-per-chain-file). The `package.json` field now has its line as well: `packageLayer` reads the field's keys one level down, and burgee builds its layer with it. The line scan also stopped citing a nested key of the same name written above the real one | `packages/seniority/src/discovery.test.ts` › "with all four sources set at once…" (`package.json:6`); `packages/seniority/src/config.test.ts` › "the package.json field as a layer, with its lines (R3)"; `packages/burgee/src/precedence-vectors.test.ts` › "a package.json field that wins carries the line…" |
+| 4. Benchmark rows under `lilconfig` on bytes and spawn delta, and the seven-package discovery-chain row | **held** (2026-10-26). Bytes: `seniority/lilconfig` 0.612 of lilconfig. Spawn delta: `seniority/lilconfig − lilconfig` −0.19 ms, gated at +2 ms of runner noise over R9's bar (D-20261026-seniority-spawn-bars). Discovery chain: `seniority/cosmiconfig + seniority/find-up` against `cosmiconfig + find-up`, 0.154 bundled, 1 package installed against 10 (the intent's seven was counted at cosmiconfig 9 and find-up 5). `seniority/dotenv` is timed too and starts slower than dotenv: B-20261026-seniority-dotenv-starts-slower | `npm run bench -- --axis perf --axis weight --check`; `benchmarks/ratchet.test.ts` › "B2 cold start — seniority R9…" and "says whose bar each installed gate is…" |
+| 5. The shared truth-table vectors green in both suites | **held**, shipped in 1.1.0: one edit to `ORDER` fails both suites at once | `packages/seniority/src/truth-table.test.ts`; `packages/burgee/src/precedence-vectors.test.ts`; `scripts/shared-vectors-lock.test.ts` |
 
 The design is modelled: [`precedence.qnt`](./precedence.qnt) holds `safety` over 20,000 traces,
 and five rejected designs each fail it (`models.yml`).

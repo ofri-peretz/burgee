@@ -225,9 +225,14 @@ export function initialBytes(meta: Metafile, entryFile: string): number {
  * react-reconciler to ^0.34 while ink kept the hoisted 0.33, `controlroom/ink` resolved its own
  * nested copy and the program resolved benchmarks'. W1 bundled both, 881,459 B against the
  * 473,361 B recorded, and its claim went red for a measurement artifact.
+ *
+ * A second entry point of the side's own package is not a peer and gets no alias: an alias points
+ * at a directory, so `seniority/find-up` would resolve as a file under it and miss the `exports`
+ * map, and there is no second copy of the package to steer away from.
  */
 export function peerAliases(side: Side, from: string = BENCH_ROOT): string[] {
-  return (side.with ?? []).map((s) => packageOf(s.specifier)).map((name) => `--alias:${name}=${resolvePackage(name, from).dir}`);
+  const [, ...peers] = packagesOf(side);
+  return peers.map((name) => `--alias:${name}=${resolvePackage(name, from).dir}`);
 }
 
 export function bundle(side: Side, id: string, scratch: string): { initial: number; whole: number; inputs: string[] } {
@@ -591,6 +596,13 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   'seniority/lilconfig': 3_350,
 
   'seniority/dotenv': 6_000,
+
+  // seniority criterion 4, first measured 2026-10-26 against cosmiconfig 10.0.1 + find-up 8.0.0,
+  // the releases compat-oracle grades. Added at a ceiling of 0, which failed, then set at the
+  // measurement plus the 80 B CI margin, rounded up to the next fifty: 12,877 against the chain's
+  // 83,870 (0.154), and 1 package installed against 10 (224,506 B against 1,892,988 B). Lighter
+  // on all three, so every ratio gate is 1.
+  'seniority/discovery-chain': 13_000,
   // Both closeout rows were heavier than the incumbent when first measured: `closeout/exit-hook`
   // 4,819 against exit-hook's 1,645 (2.929) and `closeout/signal-exit` 3,634 against
   // signal-exit's 2,856 (1.272). Lowered 2026-10-20 (closeout-at-incumbent-weight,
@@ -839,7 +851,7 @@ export function pairRecords(pair: EntryPair, ours: Measured, theirs: Measured): 
       value: ours.installed,
       measured: ours,
       note:
-        pair.ours.with === undefined
+        packagesOf(pair.ours).length === 1
           ? `\`npm pack\` unpacked size of ${packageOf(pair.ours.specifier)} plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question`
           : `\`npm pack\` unpacked size of ${packageOf(pair.ours.specifier)} and its same-repo dependencies, plus the bytes on disk for ${packagesOf(pair.ours).slice(1).join(', ')} and every production dependency they drag in`,
     }),
@@ -899,7 +911,7 @@ const packagesRecord = (variant: string, measured: Measured): BenchRecord => ({
 
 function installedRecords(pair: EntryPair, ours: Measured, theirs: Measured): BenchRecord[] {
   const [oursLabel, theirsLabel] = [sideLabel(pair.ours), sideLabel(pair.incumbent)];
-  const why = 'controlroom W2: the drop-in installs no more than what it replaces, in packages and in bytes';
+  const why = pair.installedWhy ?? 'controlroom W2: the drop-in installs no more than what it replaces, in packages and in bytes';
   const ratioRow = (metric: string, value: number): BenchRecord => {
     const r = round(value, RATIO_PLACES);
     return { axis: 'weight', variant: ratioVariant(pair), metric, unit: 'ratio', samples: 1, median: r, p95: r, gate: { max: 1, why }, note: `${pair.why}; both trees walked from benchmarks/` };
