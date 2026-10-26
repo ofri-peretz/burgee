@@ -4,7 +4,7 @@
 > ([`next-wave-4-2026-10.md`](../../research/next-wave-4-2026-10.md)). The account runs about six
 > GitHub Actions jobs at a time, and every pull request asks for the full matrix.
 
-**Status:** approved · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-26 — criteria 1–2 by R1–R3 (#1101: `affected.test.ts`, `lint-workflows` rule 11; `main`'s run 40247943659 at `efc994e` ran every job); criterion 3 by `benchmarks/results/ci-minutes/2026-10-26.json`, median compat job-minutes per PR 411.8 before and 71.1 after, held by `ci-minutes.test.ts` and published in D-20261026-ci-affected-lanes-minutes
 
 ---
 
