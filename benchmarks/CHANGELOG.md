@@ -1,5 +1,23 @@
 # benchmarks
 
+## 0.0.15
+
+### Patch Changes
+
+- [#1264](https://github.com/ofri-peretz/burgee/pull/1264) [`e739f18`](https://github.com/ofri-peretz/burgee/commit/e739f1822cfc196e280ee74c1a47c0d3543fc989) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - B2 cold start times `seniority/lilconfig` against lilconfig and `seniority/dotenv` against dotenv, as paired differences: R9's bar for the first, gated with 2 ms of runner noise allowed, and a 10 ms ratchet for the second, which starts slower. B4 adds the discovery-chain row, `seniority/cosmiconfig + seniority/find-up` against `cosmiconfig + find-up` (find-up 8.0.0, pinned), gated on the bundle and on the installed tree. The benchmarks page draws every paired difference in a new table beside the ratios.
+- Updated dependencies [[`e3b3a41`](https://github.com/ofri-peretz/burgee/commit/e3b3a41745ecdc853d741c457306c566541271b6), [`676279a`](https://github.com/ofri-peretz/burgee/commit/676279ab67896b408a4acf5cd2c6418a7d88d01a), [`02e6f9f`](https://github.com/ofri-peretz/burgee/commit/02e6f9fcd779d892e7097659a6bd4c2f0e5b5a04), [`efc994e`](https://github.com/ofri-peretz/burgee/commit/efc994ea20dae1f31990a7afef9dfa3c34fee596), [`e3b3a41`](https://github.com/ofri-peretz/burgee/commit/e3b3a41745ecdc853d741c457306c566541271b6), [`e3b3a41`](https://github.com/ofri-peretz/burgee/commit/e3b3a41745ecdc853d741c457306c566541271b6), [`efc994e`](https://github.com/ofri-peretz/burgee/commit/efc994ea20dae1f31990a7afef9dfa3c34fee596), [`e739f18`](https://github.com/ofri-peretz/burgee/commit/e739f1822cfc196e280ee74c1a47c0d3543fc989)]:
+  - bellpull@1.0.10
+  - caique@1.5.1
+  - closeout@1.1.8
+  - controlroom@1.0.7
+  - flagstaff@1.7.4
+  - linegauge@1.1.5
+  - paratext@1.0.11
+  - roundel@1.2.1
+  - seniority@1.1.1
+  - compat-oracle@0.3.12
+  - burgee@1.7.2
+
 ## 0.0.14
 
 ### Patch Changes

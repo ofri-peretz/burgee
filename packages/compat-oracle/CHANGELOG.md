@@ -1,5 +1,16 @@
 # compat-oracle
 
+## 0.3.12
+
+### Patch Changes
+
+- [#1255](https://github.com/ofri-peretz/burgee/pull/1255) [`676279a`](https://github.com/ofri-peretz/burgee/commit/676279ab67896b408a4acf5cd2c6418a7d88d01a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A suite run by `uvu` is graded by the summary uvu prints, one file per run: a file uvu cannot load is one failure, and a run that ends with no summary is an error. A suite on `uvu -r esm`, which does not start on Node 24, runs with tsx where `esm` stood. The vendor step brings a sibling helper named with no extension (`./utils`) as `utils.js`. kleur is graded this way, 15 / 15 against a control of 15 / 15.
+- Updated dependencies [[`e3b3a41`](https://github.com/ofri-peretz/burgee/commit/e3b3a41745ecdc853d741c457306c566541271b6), [`02e6f9f`](https://github.com/ofri-peretz/burgee/commit/02e6f9fcd779d892e7097659a6bd4c2f0e5b5a04), [`efc994e`](https://github.com/ofri-peretz/burgee/commit/efc994ea20dae1f31990a7afef9dfa3c34fee596), [`e3b3a41`](https://github.com/ofri-peretz/burgee/commit/e3b3a41745ecdc853d741c457306c566541271b6), [`e3b3a41`](https://github.com/ofri-peretz/burgee/commit/e3b3a41745ecdc853d741c457306c566541271b6), [`efc994e`](https://github.com/ofri-peretz/burgee/commit/efc994ea20dae1f31990a7afef9dfa3c34fee596), [`e739f18`](https://github.com/ofri-peretz/burgee/commit/e739f1822cfc196e280ee74c1a47c0d3543fc989)]:
+  - flagstaff@1.7.4
+  - linegauge@1.1.5
+  - roundel@1.2.1
+  - burgee@1.7.2
+
 ## 0.3.11
 
 ### Patch Changes
