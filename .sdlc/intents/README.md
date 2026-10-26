@@ -515,6 +515,7 @@ execution order. The selection is
 | 79  | [`mutation-tested/`](./mutation-tested/)                                   | **a PR cannot add a line no test can tell is broken**: Stryker on the changed lines; a weekly per-package floor that only rises | approved |
 | 80  | [`evals-record-not-run/`](./evals-record-not-run/)                         | **an agent that never ran is recorded `not-run`, never a score**: eval history v2, readers skip it, and a B1 sweep the limit cut short is no reading | approved |
 | 81  | [`native-engine/`](./native-engine/)                                       | **CPU-bound layers on a Rust engine, still on npm**: measured per layer, released the oxc way (per-platform optional deps, WASM fallback, opt-in, suite-graded). Runs last. oxc-project/tsrs | draft |
+| 82  | [`oxmutate/`](./oxmutate/) | **mutation testing on the oxc engine that beats Stryker by far**: M0 measured 17.9x faster, 25.8x less CPU, Stryker's exact mutant set and 99.72% verdict agreement on es-toolkit (`m0-results.md`); CI lanes, SARIF and a Quint spec oracle follow | draft |
 
 Rows 73–78 come from [`adoption-barriers-2026-10.md`](../research/adoption-barriers-2026-10.md),
 a field trial of the published `burgee migrate` on 9 CLIs we did not write, plus population

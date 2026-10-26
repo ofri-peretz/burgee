@@ -191,6 +191,6 @@ Every question this intent raised is closed in `.sdlc/decisions/` (the repositor
 - **Type-checking mutants.** Decided 2026-10-26: kept, parallel, with `tsgo`, drop count
   reported — [D-20261026-oxmutate-type-check-mutants](../../decisions/D-20261026-oxmutate-type-check-mutants.md).
 - **Quint oracle.** Decided 2026-10-26: deferred to roadmap M3.5, which picks one of the four
-  `.qnt` models in `.sdlc/models/` against metric F6 — [D-20261026-oxmutate-quint-oracle-deferred](../../decisions/D-20261026-oxmutate-quint-oracle-deferred.md).
+  `.qnt` models in `.sdlc/models/` against metric `F6` — [D-20261026-oxmutate-quint-oracle-deferred](../../decisions/D-20261026-oxmutate-quint-oracle-deferred.md).
 - **Who else pays.** Decided 2026-10-26: deferred until burgee's dogfood week (M3) has published
   numbers; no claim outside before a second repository reports its own — [D-20261026-oxmutate-external-persona-deferred](../../decisions/D-20261026-oxmutate-external-persona-deferred.md).

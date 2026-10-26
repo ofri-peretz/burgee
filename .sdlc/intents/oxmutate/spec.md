@@ -142,11 +142,31 @@ packages/oxmutate/
   compat/mutation/                # WP-Y   compat-oracle grade
 ```
 
+**Native packaging follows the family's rule, not its own.** burgee's
+[`native-engine`](../native-engine/intent.md) intent and PRINCIPLES rule 9 already fix how a Rust
+core ships: one prebuilt package per platform as optional dependencies, a WASM fallback, no
+postinstall compile, graded by the incumbent's own suites, and native only where it wins on a
+measured number. `oxmutate` is the first package where native is the product rather than an
+opt-in, so it follows those rules from its first release. `M0` measured the boundary cost the
+rule warns about: `oxc-parser` through its native binding instrumented 69 files in 0.33 s, so the
+JS–native crossing is not the bottleneck at this scale. For the type-check pass (R6), tsrs
+(oxc-project's Rust port of the TypeScript checker, on npm with a WASM build) is a candidate
+beside `tsgo`; M1 measures both.
+
 **Runtime dependency policy (`SC6`).** The npm package has zero runtime dependencies. Platform
 binaries ship as `optionalDependencies` (one per target), which are the native payload, not
 library dependencies. The JS side only locates and executes the binary, and uses burgee for the
 CLI surface, closeout for teardown, seniority for config provenance and bellpull for the
 runner subprocess (Native to our stack in the intent).
+
+**The warm runner, after `M0` (2026-10-26).** `M0` proved the execution model with a hand-written
+Vitest shim, which covers only what its subject used. The M1 runner keeps Vitest's own semantics
+instead: `@vitest/runner` 4.1.11 exports `collectTests`, `getFn` and `getHooks`, so a custom runner
+(Vitest's `test.runner` option) collects each spec once inside a real Vitest worker, then per
+mutant flips the switch and re-invokes each covering task's own function with its suite's
+`beforeEach`/`afterEach` hooks. `expect`, `vi`, `vi.mock` (applied at module load, so warm) and the
+environment stay Vitest's. `M0`'s isolation guards carry over unchanged: spec re-import for fresh
+fixtures, cross-file kill confirmation, and pollution checkpoints (`m0-results.md`, finding 2).
 
 **Test-runner support.** Vitest first (the toolchain target). Jest and Mocha are out of scope for
 the first release; `runner/` is the seam for them.
