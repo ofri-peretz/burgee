@@ -81,7 +81,8 @@ export function budgetJson(envelope: Envelope, max: number): string {
   if (bytes(whole) <= max) return whole;
   const { data } = envelope;
   if (!Array.isArray(data)) return settled(max, (over) => line({ of: 1, returned: 1, over }));
-  const cut = (k: number, over?: number): string => `${JSON.stringify({ ...envelope, data: data.slice(0, k), truncated: { of: data.length, returned: k, ...(over === undefined ? {} : { over }) } })}\n`;
+  // An `over` left undefined is dropped by `JSON.stringify`, so a cut that fits carries none.
+  const cut = (k: number, over?: number): string => `${JSON.stringify({ ...envelope, data: data.slice(0, k), truncated: { of: data.length, returned: k, over } })}\n`;
   const k = fit(data, max, cut);
   return bytes(cut(k)) <= max ? cut(k) : settled(max, (over) => cut(k, over));
 }

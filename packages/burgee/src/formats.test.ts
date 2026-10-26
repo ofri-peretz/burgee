@@ -36,6 +36,7 @@ const program = defineProgram({
     defineCommand({ name: 'ragged', effects: 'read_only', run: () => ragged }),
     defineCommand({ name: 'cells', effects: 'read_only', run: () => [{ text: 'tab\there', lines: 'one\ntwo\r', slash: 'a\\b', nested: { a: [1, 2] }, list: ['x', 'y'], none: null, gone: undefined, at: new Date(Date.UTC(2026, 9, 25)) }] }),
     defineCommand({ name: 'names', effects: 'read_only', run: () => ['burgee', 'roundel', 'tab\tname'] }),
+    defineCommand({ name: 'holes', effects: 'read_only', run: () => [null, { a: 1 }] }),
     defineCommand({ name: 'empty', effects: 'read_only', run: () => [] }),
     defineCommand({ name: 'show', effects: 'read_only', run: () => ({ id: 'dep_7f3a', status: 'ready' }) }),
     defineCommand({ name: 'export', effects: 'read_only', options: { format: { type: 'string' } }, run: ({ options }) => ({ format: options.format ?? null }) }),
@@ -74,6 +75,10 @@ describe('--format=tsv — a header row, then one tab-separated line per row (RF
 
   it('prints a list of scalars as one column named value', async () => {
     expect((await runBurgee(program, { argv: ['names', TSV] })).stdout).toBe('value\nburgee\nroundel\ntab\\tname\n');
+  });
+
+  it('puts a row that is not an object, null included, in the value column', async () => {
+    expect((await runBurgee(program, { argv: ['holes', TSV] })).stdout).toBe('value\ta\n\t\n\t1\n');
   });
 
   it('prints nothing for an empty list, and exits OK', async () => {
@@ -116,6 +121,7 @@ describe('formats are registered on the plugin object (RF)', () => {
   it('--format alone lists every format, the built-ins first and then the registered ones in order', async () => {
     const r = await runBurgee(program, { argv: ['packages', '--format'] });
     expect(r.code).toBe(0);
+    expect(JSON.parse(r.stdout)).toMatchObject({ ok: true, meta: {} });
     const { formats } = data(r.stdout) as { formats: { name: string; description: string }[] };
     expect(formats.map((f) => f.name)).toEqual(['text', 'json', 'agent', 'tsv', 'pins']);
     for (const f of formats) expect(f.description).not.toBe('');
@@ -178,18 +184,26 @@ describe('a format is checked where it is first used, under the family’s code'
     return await runBurgee(p, { argv: ['ls', '--format=tsv'] });
   };
 
+  const NAME_FIX = 'name it in lower-case letters, digits and dashes, starting with a letter: it is typed as --format=<name>';
+  const SHAPE_FIX = "`rows: { render: (value) => string, description: '…' }`";
+  const TAKEN_FIX = 'rename it — one name, one format';
   it.each([
-    ['formats that are not an object', { formats: [] }, 'plugin "bad": formats must be an object'],
-    ['a name that is not one lower-case word', { formats: { 'My Rows': { render, description: 'x' } } }, 'plugin "bad": "My Rows" is not a format name'],
-    ['a format with no render', { formats: { rows: { description: 'x' } } }, 'plugin "bad": format "rows" is not { render(value), description }'],
-    ['a format with no description', { formats: { rows: { render } } }, 'plugin "bad": format "rows" is not { render(value), description }'],
-    ['an empty description', { formats: { rows: { render, description: '' } } }, 'plugin "bad": format "rows" is not { render(value), description }'],
-    ['a name burgee registers', { formats: { tsv: { render, description: 'mine' } } }, 'plugin "bad": format "tsv" is already registered'],
-    ['a name that is burgee’s own surface', { formats: { json: { render, description: 'mine' } } }, 'plugin "bad": format "json" is already registered'],
-  ])('refuses %s', async (_, plugin, message) => {
+    ['formats that are not an object', { formats: [] }, 'plugin "bad": formats must be an object', 'map a name to `{ render(value), description }`'],
+    ['a name that is not lower-case', { formats: { 'My-rows': { render, description: 'x' } } }, 'plugin "bad": "My-rows" is not a format name', NAME_FIX],
+    ['a name that is two words', { formats: { 'my rows': { render, description: 'x' } } }, 'plugin "bad": "my rows" is not a format name', NAME_FIX],
+    ['a format with no render', { formats: { rows: { description: 'x' } } }, 'plugin "bad": format "rows" is not { render(value), description }', SHAPE_FIX],
+    ['a format with no description', { formats: { rows: { render } } }, 'plugin "bad": format "rows" is not { render(value), description }', SHAPE_FIX],
+    ['an empty description', { formats: { rows: { render, description: '' } } }, 'plugin "bad": format "rows" is not { render(value), description }', SHAPE_FIX],
+    ['a name burgee registers', { formats: { tsv: { render, description: 'mine' } } }, 'plugin "bad": format "tsv" is already registered', TAKEN_FIX],
+    ['a name that is burgee’s own surface', { formats: { json: { render, description: 'mine' } } }, 'plugin "bad": format "json" is already registered', TAKEN_FIX],
+  ])('refuses %s, with the fix', async (_, plugin, message, fix) => {
     const r = await run(plugin);
     expect(r.code).toBe(ExitCode.CONFIG);
-    expect(r.stderr).toContain(`error: E_PLUGIN_SCHEMA ${message}`);
+    expect(r.stderr).toContain(`error: E_PLUGIN_SCHEMA ${message}\nhint: ${fix}\n`);
+  });
+
+  it('takes a name with digits and dashes', () => {
+    expect([...formatsOf([{ name: 'ok', contract: 1, formats: { 'csv-2': { render, description: 'x' } } }]).keys()]).toEqual(['agent', 'tsv', 'csv-2']);
   });
 
   it('refuses two plugins registering one name, naming the second', () => {

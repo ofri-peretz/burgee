@@ -36,6 +36,8 @@ const program = defineProgram({
     defineCommand({ name: 'ls', effects: 'read_only', fields: ['path', 'size', 'kind'], run: () => (ran++, files) }),
     defineCommand({ name: 'show', effects: 'read_only', run: () => deployment }),
     defineCommand({ name: 'save', effects: 'read_only', options: { output: { type: 'string' } }, run: ({ options }) => ({ output: options.output ?? null }) }),
+    defineCommand({ name: 'echo', effects: 'read_only', arguments: [{ name: 'words', variadic: true, required: false }], run: ({ positionals }) => positionals }),
+    defineCommand({ name: 'slow', effects: 'read_only', run: async ({ signal }) => await new Promise((resolve) => setTimeout(() => resolve({ aborted: signal.aborted }), 30)) }),
     defineCommand({ name: 'nothing', effects: 'read_only', run: () => undefined }),
     defineCommand({ name: 'mine', effects: 'read_only', options: { maxBytes: { type: 'number' } }, run: ({ options }) => ({ maxBytes: options.maxBytes ?? null }) }),
   ],
@@ -131,6 +133,11 @@ describe('--max-bytes on a line format (R3)', () => {
     expect(JSON.parse(r.stderr)).toEqual({ truncated: { of: 12, returned: lines.length - 2 } });
   });
 
+  it('writes the rows whole, and nothing to stderr, at a budget of exactly their bytes', async () => {
+    const whole = (await runBurgee(program, { argv: ['ls', '--format=agent'] })).stdout;
+    expect(await runBurgee(program, { argv: ['ls', '--format=agent', '--max-bytes', String(bytes(whole))] })).toMatchObject({ code: 0, stdout: whole, stderr: '' });
+  });
+
   it('writes nothing to stderr when the rows fit', async () => {
     expect(await runBurgee(program, { argv: ['ls', '--format=agent', '--max-bytes', '100000'] })).toMatchObject({ code: 0, stderr: '' });
   });
@@ -175,9 +182,20 @@ describe('--max-bytes is read the way the other globals are', () => {
 
   it.each([
     ['--format text, which asks for the human rendering', ['ls', '--format', 'text']],
+    ['--output xml, which is not a json spelling', ['ls', '--output', 'xml']],
+    ['a json that is a positional, not a flag’s value', ['echo', 'say', 'json']],
+    ['a word that only ends like the spelling', ['echo', 'x--output', 'json']],
     ['--output json on a command whose own option --output is', ['save', '--output', 'json']],
-  ])('is refused beside %s', async (_, argv) => {
-    expect((await runBurgee(program, { argv: [...argv, '--max-bytes', '100'] })).code).toBe(ExitCode.USAGE);
+  ])('is refused beside %s, before anything is parsed', async (_, argv) => {
+    const r = await runBurgee(program, { argv: [...argv, '--max-bytes', '100'] });
+    expect(r.code).toBe(ExitCode.USAGE);
+    expect(r.stderr).toContain('error: --max-bytes budgets a machine format, and none was asked for\n');
+  });
+
+  it('sets no deadline: a handler that takes its time is not cut short, and its signal never aborts', async () => {
+    const r = await runBurgee(program, { argv: ['slow', '--json', '--max-bytes', '1000'] });
+    expect(r.code).toBe(0);
+    expect(parse(r.stdout).data).toEqual({ aborted: false });
   });
 
   it('does not count a --json after `--`, which is the handler’s (G5)', async () => {
@@ -188,6 +206,7 @@ describe('--max-bytes is read the way the other globals are', () => {
     const r = await runBurgee(program, { argv: ['ls', '--json', `--max-bytes=${value}`] });
     expect(r.code).toBe(ExitCode.USAGE);
     expect(r.stdout).toContain(`"message":"--max-bytes takes a whole number of bytes, not \\"${value}\\""`);
+    expect(r.stdout).toContain('"hint":"pass a number above 0, such as --max-bytes 4096"');
   });
 
   it('takes the --format=json spelling, which runs as --json (D-20261009)', async () => {
@@ -198,6 +217,7 @@ describe('--max-bytes is read the way the other globals are', () => {
   it('takes the --format json and --output=json spellings too', async () => {
     expect(parse((await runBurgee(program, { argv: ['ls', '--format', 'json', '--max-bytes', '300'] })).stdout).truncated?.of).toBe(12);
     expect(parse((await runBurgee(program, { argv: ['ls', '--output=json', '--max-bytes', '300'] })).stdout).truncated?.of).toBe(12);
+    expect(parse((await runBurgee(program, { argv: ['ls', '--output', 'json', '--max-bytes', '300'] })).stdout).truncated?.of).toBe(12);
   });
 
   it('is read before the command, like the other globals', async () => {

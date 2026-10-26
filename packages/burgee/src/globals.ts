@@ -29,8 +29,8 @@ export interface Globals {
   signal?: AbortSignal;
   /** The handler's result, or the timeout error once the deadline passes. */
   within: <T>(ran: T | Promise<T>) => Promise<T>;
-  /** `--max-bytes`: the budget a machine format is written under; present only when one was typed. */
-  max?: number;
+  /** `--max-bytes`: the budget a machine format is written under, when one was typed. */
+  max?: number | undefined;
 }
 
 /** A word that may be one of the globals; `globalOf` decides whether it is, for this command. */
@@ -126,7 +126,8 @@ export function globalsOf(typed: readonly string[], node: CommandNode): Globals 
     take(read, name, value);
   }
   const { quiet, color, ms, max } = read;
-  const given = { args, quiet, color, ...(max === undefined ? {} : { max }) };
+  const given = { args, quiet, color, max };
+  // Stryker disable next-line ArrowFunction: equivalent — `execute.ts` takes the handler's own result when `within` gives nothing (`within(ran) ?? ran`)
   if (ms === undefined) return { ...given, within: async (ran) => await ran };
   const controller = new AbortController();
   return { ...given, signal: controller.signal, within: deadline(ms, controller) };

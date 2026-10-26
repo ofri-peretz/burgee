@@ -69,6 +69,7 @@ export function tsvOf(value: unknown): string {
 
 /** burgee's own formats, registered as an author registers theirs. */
 const BUILTIN: Plugin = {
+  // Stryker disable next-line StringLiteral: the name is read only in a refusal of burgee's own formats, and formats.test.ts shows they pass the check
   name: 'burgee',
   contract: CONTRACT,
   formats: {

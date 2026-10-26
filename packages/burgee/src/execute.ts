@@ -537,6 +537,7 @@ function exitCodeOf(data: unknown): ExitCodeType {
  * bytes under its ceiling, and a second loader cost 42. `--format=json` loads it too, and is
  * handed straight back for the spelling that answers it.
  */
+// Stryker disable next-line Regex: a looser test loads `fields.js` for a word it hands straight back unchanged — what start-up loads, not what a run does, which benchmarks/cold-start-modules.test.ts locks by name
 const readsLazily = (arg: string): boolean => /^(--json=|-q$|--(no-color|quiet|color|timeout|format|max-bytes)(=|$))/.test(arg);
 
 // eslint-disable-next-line maintainability/cognitive-complexity -- parse-refusals' gate is inline: as a helper it cost B4's core bundle ceiling (24,282 B) the bytes it does not have, and the branch it adds is one `if`.
@@ -546,6 +547,7 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   // `--format`'s formats — comes back as `text`, and the handler never runs.
   const select = typed.some(readsLazily) ? await import('./fields.js') : undefined;
   const { args: rest, fields, print, global, text } = select?.lazyArgs(typed, node, manifest.plugins) ?? ({ args: typed } as LazyArgs);
+  // Stryker disable next-line BooleanLiteral: equivalent — a listing is JSON whatever this says, and `json` is read again only if writing it throws
   if (text) return { json: true, text };
   const parsed = builtin('node:util').parseArgs({ args: rest, options: toParseConfig(node.options, manifest.config !== undefined), allowPositionals: true, strict: true, tokens: true });
   const flags = canonical(parsed.values as Values, node.options, parsed.tokens);

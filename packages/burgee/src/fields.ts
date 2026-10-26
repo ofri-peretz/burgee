@@ -68,11 +68,15 @@ export function selectFields(data: unknown, fields: readonly string[]): unknown 
 /** What `fields.js` reads off argv before the command's own parse. */
 export interface LazyArgs {
   args: string[];
-  fields?: string[];
-  /** How the success is written, when a format or a budget was typed (RF, R3); `execute.ts` writes it. */
+  fields?: string[] | undefined;
+  /**
+   * How the success is written (RF, R3): `execute.ts` writes what it returns, or its own envelope
+   * or human rendering when it returns nothing — which it does when neither a format nor a budget
+   * was typed.
+   */
   print?: Print;
   /** agent-lint-conformance R1–R3: the globals typed, when any were. */
-  global?: Globals;
+  global?: Globals | undefined;
   /** A listing to print instead of running the handler: `--json=`'s fields, or `--format`'s formats. */
   text?: string;
 }
@@ -94,8 +98,7 @@ export function lazyArgs(typed: readonly string[], node: CommandNode, plugins: r
   if (max !== undefined && render === undefined && !asksForJson(words, node)) {
     throw new UsageError('--max-bytes budgets a machine format, and none was asked for', 'add --json, or --format=<name>; --format lists them');
   }
-  const print = render === undefined && max === undefined ? {} : { print: printer(render, max) };
-  return { args, ...(fields === undefined ? {} : { fields }), ...print, ...(global === undefined ? {} : { global }) };
+  return { args, fields, print: printer(render, max), global };
 }
 
 /**
@@ -107,8 +110,8 @@ function asksForJson(words: readonly string[], node: CommandNode): boolean {
   const head = beforeTerminator(words);
   return head.some((word, i) => {
     if (isJsonFlag(word)) return true;
-    const [, flag, eq] = /^--(format|output)(=json)?$/.exec(word) ?? [];
-    return flag !== undefined && node.options[flag] === undefined && (eq !== undefined || head[i + 1] === 'json');
+    const flag = ['format', 'output'].find((f) => word === `--${f}=json` || (word === `--${f}` && head[i + 1] === 'json'));
+    return flag !== undefined && node.options[flag] === undefined;
   });
 }
 
@@ -121,9 +124,10 @@ function asksForJson(words: readonly string[], node: CommandNode): boolean {
  */
 function formatOf(head: readonly string[], plugins: readonly Plugin[]): { head: readonly string[]; render?: (value: unknown) => string; list?: string } {
   // A bare `--format` lists only when no value follows it: `--format json` is the D-20261009 spelling.
-  const word = head.findLast((a, i) => a.startsWith('--format=') || (a === '--format' && !/^[^-]/.test(head[i + 1] ?? '-')));
-  const name = word?.slice('--format='.length) ?? '';
-  if (word === undefined || SPELLINGS.includes(name)) return { head };
+  const word = head.findLast((a, i) => a.startsWith('--format=') || (a === '--format' && !/^[^-]/.test(head[i + 1] ?? '')));
+  if (word === undefined) return { head };
+  const name = word.slice('--format='.length);
+  if (SPELLINGS.includes(name)) return { head };
   const formats = formatsOf(plugins);
   const rest = head.filter((a) => a !== word);
   if (name === '') return { head: rest, list: listFormats(formats) };
