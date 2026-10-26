@@ -8,7 +8,7 @@
     "./config": "./dist/config.cjs",
     "./config.js": "./dist/config.cjs"
   },
-  "version": "18.0.8",
+  "version": "18.0.9",
   "license": "BSD-2-Clause",
   "description": "Loads environment variables from .env file",
   "repository": {

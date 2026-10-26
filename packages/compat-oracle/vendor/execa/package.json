@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "main": "./shim.js",
-  "version": "10.2.0",
+  "version": "10.2.1",
   "license": "MIT",
   "description": "Process execution for humans",
   "repository": "sindresorhus/execa",

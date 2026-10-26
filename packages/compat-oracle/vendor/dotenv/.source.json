@@ -1,9 +1,9 @@
 {
   "repo": "https://github.com/motdotla/dotenv",
-  "version": "18.0.8",
-  "tag": "v18.0.8",
-  "commit": "e2fe95e8e952e881787d8207b654c80326f821d8",
-  "vendored": "2026-10-19",
+  "version": "18.0.9",
+  "tag": "v18.0.9",
+  "commit": "8d1ab850aa628781929f08bfd0d71ba1d1bf0a23",
+  "vendored": "2026-10-26",
   "depsBefore": "2026-10-14T16:51:09.752Z",
   "files": 10,
   "internalFiles": [
@@ -14,12 +14,12 @@
   ],
   "hashes": {
     "tests/test-cli-signals.js": "c8cb0d2b0c13ed72fb1969652e36a7bc707d7a0b50ebabd329bd3475ca7e2c2e",
-    "tests/test-cli.js": "8a202646a3b4bbb2cd029f9ab60e51a15bd33e7233677e4d87f36686c0f82737",
+    "tests/test-cli.js": "4c4243d5dbea967d2dfafc4520d15bbfc97863e18c87d0b9099367307c403fd0",
     "tests/test-config-import.js": "e7879965e0e0f0558f0090374b7bf078d0a21b57511c6c69a3a7a2e4d4891bba",
     "tests/test-config-options.js": "0f9a313d50a923d435b02c71eca792aa32081bfb24b5ad50a5df1b18611669bf",
     "tests/test-config-quiet.js": "3b047074adc445ae7f4818517abbb14a6c7c1e12b549ea66ff4fdbaf7e90db2a",
     "tests/test-config.js": "8b7f8d3754ffd7af438d58229e53594161913e81a627499a0d7cec5383b0dac5",
-    "tests/test-parse-fast.js": "55021d397874dc1eb3e42962246d91fab60441d3f165c587caf841a03591c953",
+    "tests/test-parse-fast.js": "3f5b9ffce8102b22b33e7b35af99f5ce42b8966c8ee3216adae09b5a5a7ae4d7",
     "tests/test-parse-multiline.js": "f6281c83730796680f2362d3d8c123e3342ac210813652aa66937b6aadb1503b",
     "tests/test-parse.js": "62aa22388fb0f766fbe530b919cede7798e46d0117bd61c1ebd49d7ce046841d",
     "tests/test-populate.js": "92176f13bf7b969c710d171a2b26a445de09d725aed8e6d8c1700f3fe20d756d",
@@ -43,6 +43,7 @@
       "help before the command still shows dotenv help",
       "loads files in order: ${flags.join(' ')}",
       "file flags reject missing or empty lists",
+      "empty path environment variables load the default .env like config()",
       "preserves spaces, quotes, empty arguments, and shell metacharacters",
       "Windows resolves executables and batch shims with spaces in their paths",
       "CLI startup logging respects ${testCase.name}"
@@ -111,7 +112,10 @@
       "fast parse matches classic across quoted value combinations",
       "config({ fast: true }) reads a .env written with a BOM",
       "config({ fast: true }) loads with fast parser",
-      "fast parse matches classic unquoting at Unicode line boundaries"
+      "fast parse matches classic unquoting at Unicode line boundaries",
+      "fast parse finds comments the same way on either side of the 4096 character threshold",
+      "fast parse keeps export in the key when no whitespace follows it",
+      "fast parse ignores a key whose whitespace runs to the end of the input"
     ],
     "tests/test-parse-multiline.js": [],
     "tests/test-parse.js": [],

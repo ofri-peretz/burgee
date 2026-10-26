@@ -3,7 +3,7 @@ repo:     https://github.com/sindresorhus/exit-hook
 version:  5.1.0
 tag:      v5.1.0
 commit:   a46feec5bc3acca87f204a2dae287208ca20cac3
-vendored: 2026-10-19
+vendored: 2026-10-26
 files:    1
 tool:     scripts/vendor-suite.ts
 
