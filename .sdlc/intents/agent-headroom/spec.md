@@ -133,7 +133,9 @@ loaded `fields.js`, which saved more than the new `print` hook costs. Bundled, `
 from 'burgee'` went from 24,486 to 24,442 B, and `burgee/commander` stays at 1.415× commander.
 No weight ceiling was raised. The family schema grew by 930 B in every host's tarball, and
 `npm run weight:converge` re-recorded six foundation layers (for example, bellpull 96,671 →
-97,601 B, ratio 0.1263 → 0.1275).
+97,601 B, ratio 0.1263 → 0.1275). seniority's own dist ceiling had 104 B of room, so it rises
+from 142,000 to 142,900
+([D-20261026-seniority-family-schema-formats](../../decisions/D-20261026-seniority-family-schema-formats.md)).
 
 **Remaining:** publication. Once the `burgee` minor carrying this is on npm, re-read R3, R6, RF
 and C1 against the published package, and then the intent can be stamped `shipped`. The

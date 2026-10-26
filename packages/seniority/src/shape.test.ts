@@ -131,8 +131,12 @@ describe('nothing reads the process (R11, Y9)', () => {
  * at 140,541 and this change adds 1,191 B — `truth-table.js` (556 B), which builds the table the
  * docs page is generated from, and the per-key `origins` that cite the file in an `extends`
  * chain that set a value (`config.js` +518 B, `precedence.js` +57 B, `index.js` +60 B).
+ *
+ * Raised 142,000 → 142,900 on 2026-10-26 (D-20261026-seniority-family-schema-formats): main stood
+ * at 141,896 and the family schema in `dist/schema.json` grew 930 B to describe burgee's `formats`
+ * (agent-headroom RF). No seniority code changed; the shared file stays byte-identical (R2).
  */
-const CEILING_BYTES = 142_000;
+const CEILING_BYTES = 142_900;
 
 describe('the weight ceiling (R9, Y8)', () => {
   it('keeps the built package under its declared ceiling', () => {
