@@ -125,6 +125,7 @@ Measured on this branch, 2026-10-25:
 | :-- | --: | --: |
 | `tsv` against minified JSON, fifty rows of four fields (`formats.test.ts` fixture) | 3,170 B | 1,293 B (59.2% smaller; the design measured 63% on its own fixture) |
 | large demo `--schema`, pretty against compact | 42,783 B | 25,197 B (41.1% smaller) |
+| burgee demo `--schema`, `schema-bytes-pretty` against `schema-bytes` (reliability axis, local) | 7,717 B | 4,656 B (39.7% smaller; gate 4,700) |
 | root entry `.`, static graph on disk (`weight.test.ts`, budget 36,100) | 36,073 B | 35,988 B (−85) |
 
 The root entry got smaller: the `--json=` listing and its field check moved into the lazily

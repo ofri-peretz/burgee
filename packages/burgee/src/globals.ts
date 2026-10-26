@@ -34,6 +34,7 @@ export interface Globals {
 }
 
 /** A word that may be one of the globals; `globalOf` decides whether it is, for this command. */
+// Stryker disable next-line Regex: equivalent — a looser test only sends more words to `globalsOf`, which decides each one itself through `globalOf`
 export const isGlobal = (arg: string): boolean => /^(-q|--(no-color|quiet|color|timeout|max-bytes)(=.*)?)$/.test(arg);
 
 /** `--color`'s values; `--schema`'s `global_args` publishes them as the flag's `enum` (clispec-conformance R3). */
