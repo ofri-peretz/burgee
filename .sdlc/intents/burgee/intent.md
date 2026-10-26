@@ -9,6 +9,11 @@
 > **Accepted at the Design→Build gate 2026-10-25** by the coordinator under the owner's delegation
 > ([`D-20261025-burgee-umbrella-design-accepted`](../../decisions/D-20261025-burgee-umbrella-design-accepted.md)): approved as the umbrella over its children; Z5 restated to a 250-command bench, criterion 4 to a disabled-rule ratchet. See
 > [`spec.md` § Design gate 2026-10-25](./spec.md#design-gate-2026-10-25).
+>
+> **Built 2026-10-26, still `approved`:** the umbrella's own two pieces, Z5's 250-command bench
+> and criterion 4's disabled-rule ratchet, are built, so all five criteria are held, moved, or
+> restated and held. It stays `approved` because it closes when its
+> children do, and eight are open. See [§ Built 2026-10-26](#built-2026-10-26).
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why `review` until 2026-10-25:** a living umbrella that keeps gaining floor requirements (U1–U12, then Y1–Y12); it closes when its children do, not before.
 **Restructured:** 2026-09-06
@@ -16,9 +21,29 @@
 
 ---
 
+## Built 2026-10-26
+
+**The design gate's build scope, both pieces, tests and benchmarks only — nothing to publish.**
+
+| piece | check | reading | proven red by |
+| :-- | :-- | :-- | :-- |
+| Z5, the 250-command bench | `benchmarks/axes/scale.ts`, run by the `perf` axis (`npm run bench -- --axis perf --check` in `bench.yml`); `benchmarks/scale.test.ts` › "writes a 30- and a 250-command program, one handler in ten in a module of its own", › "answers --help and --schema as the program it was generated as, importing no lazy handler", › "is the decision’s 3×, gates the median of paired rounds, and fires one step over it" | the paired 250 ÷ 30 ratio, median of four local runs: `--help` **1.020** (0.956–1.225), `--schema` **1.081** (0.867–1.155); gate 3× ([D-20261026-scale-bench-gate](../../decisions/D-20261026-scale-bench-gate.md)). A third of the threshold, so no precompute intent is opened | the gate at 0 (both rows red on a live run); the ceiling constant at 0; a lazy handler imported eagerly by the generator (`imported a lazy handler: loaded cmd-010`) |
+| criterion 4, the disabled-rule ratchet | `scripts/disabled-rules-lock.test.ts` › "leaves no more rules off for runtime source than the ceiling, 50", › "pins the ceiling at the count, so a rule switched back on stays on", › "says why in every block that switches a rule off for runtime source, and in every OFF entry", › "wires at least 9 Interlace plugins" | 50 distinct rules resolved `off` for at least one runtime file, pinned as the ceiling ([D-20261026-disabled-rule-ceiling](../../decisions/D-20261026-disabled-rule-ceiling.md)); 31 Interlace plugins wired | the ceiling at 0 (listed all 50); one `"off"` added to the `mcp.ts` override block; the comment stripped from that block; an emptied `OFF` reason |
+
+**Why the umbrella stays `approved`.** Its criteria hold, but the decision accepted it "as the
+umbrella over its children", and these children are still open on `main`:
+
+- awaiting the next Version PR, all requirements checked: `cli-benchmarks`,
+  `cli-foundation-stack`, `commander-env`;
+- with work remaining: `agent-headroom` (R3, R6, RF, C1), `caique` (R1, S2, S3),
+  `cli-output-stack` (R2, R3, R11, S2, S5), `sdlc-locks-evals-bands` (S3, a series still
+  collecting), and `first-adopter`, which owns U12's outside-adopter half.
+
+`caller-matrix` closes in the same change as this section.
+
 ## Restated 2026-10-18
 
-**Criteria restated to what shipped on `main` (`1013b65db5`): criteria 1, 2 and 5 held, criterion 3 moved to the eslint repo, two constraints and one recorded decision reversed — class REMAINING: Z4 (15-line README ceiling unlocked), Z5 (250-command bench absent), criterion 4 (runtime packages disable rules).** *2026-10-19: Z4's ceiling is locked; Z5 and criterion 4 remain, and the umbrella stays `review`.*
+**Criteria restated to what shipped on `main` (`1013b65db5`): criteria 1, 2 and 5 held, criterion 3 moved to the eslint repo, two constraints and one recorded decision reversed — class REMAINING: Z4 (15-line README ceiling unlocked), Z5 (250-command bench absent), criterion 4 (runtime packages disable rules).** *2026-10-19: Z4's ceiling is locked; Z5 and criterion 4 remain, and the umbrella stays `review`.* *2026-10-26: Z5 and criterion 4 are built (§ Built 2026-10-26).*
 
 The roadmap tracker ([`roadmap-to-shipped-2026-10.md`](../../research/roadmap-to-shipped-2026-10.md), audited at `c51e25efe1`) counts this
 umbrella at **119 requirements — the spec's 114 rows plus the five success criteria below — with
@@ -35,7 +60,7 @@ stands and points back here.
 | 1 | `--schema \| jq` returns the full tree; a lock pins the JSON shape | `--schema` prints the tree with `schemaVersion`, validated against the published `burgee/program-schema.json` (D-123) | `packages/burgee/src/schema.test.ts` › "is the manifest as data: name, version, commands with arguments, options, effects, examples"; `scripts/program-schema.test.ts` › "accepts what the native surface prints, which names --explain (D-20261009-b1-totals-and-explain)" | held |
 | 2 | ≥40% fewer tokens and ≥30% fewer turns than plain commander, under `claude -p`; becomes a control band | The `agent` axis runs in CI; since D-20261009-b1-totals-and-explain the claims are settled on totals. Over the 50 CI readings dated 2026-10-10 to 2026-10-18 in `benchmarks/results/agent-cli-bench/`, the token ratio has median **0.504** (range 0.434–0.627) and the turn ratio median **0.524** (0.446–0.634). One reading misses the token bar (`2026-10-18-52e996d-ci.json`, 0.627); no reading misses the turn bar. The two bands (`agent-tokens-per-task`, `agent-turns-per-task`) are in `.sdlc/bands/control-bands.json` | claims `agent-tokens-40pct` and `agent-turns-30pct` in `benchmarks/claims.ts`; `scripts/claim-table-lock.test.ts` › "never marks a claim met that the newest CI measurement of it does not satisfy"; `benchmarks/agent.test.ts` › "records a dead run as a failure with no numbers, never as a zero-token success" | held, with the one miss stated: one run is not a verdict, and the median is |
 | 3 | `eslint-plugin-cli-floor` ships ≥10 rules with fixtures and flags ≥1 real finding on three internal CLIs | The plugin is not in this repository. D-124 (2026-09-23) placed the lint half in the Interlace ESLint monorepo; it merged there as ofri-peretz/eslint#1137 (`464385ff7`) with **four** rules. The `eslint-plugin-cli-floor` intent here was dropped by the coordinator's ruling of 2026-10-18 | in the eslint repo, not here: `packages/eslint-plugin-cli-floor` and its intent `docs/intents/cli-floor-rules` | moved → eslint repo `cli-floor-rules` (eslint#1137). That intent states four rules and a first run over burgee's demos; the "≥10 rules" and "three internal CLIs" bars are **not** carried there, and are not this repository's to close |
-| 4 | the repo's lint runs ≥9 Interlace plugins with zero disabled rules in the runtime packages | First half true by reading: `eslint.config.mjs` imports 31 `eslint-plugin-*` packages. Second half false: at least 19 override blocks set rules `"off"` for non-test files under `packages/*/src/` (burgee's `mcp.ts`, `manifest.ts`, `execute.ts`, `config.ts` among them) | none — no lock reads `eslint.config.mjs` for either half | remaining |
+| 4 | the repo's lint runs ≥9 Interlace plugins with zero disabled rules in the runtime packages | First half true by reading: `eslint.config.mjs` imports 31 `eslint-plugin-*` packages. Second half false: at least 19 override blocks set rules `"off"` for non-test files under `packages/*/src/` (burgee's `mcp.ts`, `manifest.ts`, `execute.ts`, `config.ts` among them) | none — no lock reads `eslint.config.mjs` for either half | remaining. *2026-10-26: held as a ratchet by `scripts/disabled-rules-lock.test.ts` (§ Built 2026-10-26)* |
 | 5 | zero prompts, spinners or ANSI in captured output when stdout is not a TTY, pinned by a test that runs the CLI through a pipe | Restated to what each part is held by. **ANSI:** the README quick start's CLI is spawned with piped stdio and its stdout and stderr must equal the README transcript byte for byte, which carries no escape byte; help on a non-TTY carries no SGR (in-process, `isTTY: false`). **Prompts:** a question nobody can answer in a non-TTY exits 2 naming the flag (P2), and caique refuses under a detected agent even on a terminal (N12). **Spinners:** the engine draws none; the output stack's spinner has a static projection (U3) | `packages/burgee/src/shape.test.ts` › "$ node cli.mjs %s" (one case per transcript session, both READMEs); `packages/burgee/src/color.test.ts` › "is styled on a terminal, and only there"; `scripts/prompt-exit-codes.test.ts` › "a question nobody can answer — no TTY — exits 2, naming the flag to pass instead"; `packages/caique/src/decide.test.ts` › "refuses under %s even on a terminal" | restated, held. Stated limit: no test asserts zero escape bytes on a *spawned* `--help`; the help pin is in-process |
 
 ### The nine unmet rows, and where each went
@@ -43,7 +68,7 @@ stands and points back here.
 | row | promised | disposition |
 | :-- | :-- | :-- |
 | Z4 | the README's first example is ≤15 lines, no build step — held by a lock | The no-build half is held: `packages/burgee/src/shape.test.ts` › "the user authored exactly one file, and never ran a build", and the quick start is run from the README itself. The example is 11 lines in both READMEs (re-counted 2026-10-19, comment and shebang included). **Since 2026-10-19 a lock reads its length:** `scripts/readme-first-example-lock.test.ts` › "burgee’s first example is 15 lines or fewer (Z4)", proven red by five comment lines added to `packages/burgee/README.md`'s example (`expected 16 to be less than or equal to 15`). The ceiling is **held** |
-| Z5 | manifest in memory by default; precompute an opt-in, with a benchmark for the 250-command case (yargs #1005) | In-memory half held: `examples/conformance/src/modularity.test.ts` › "serves --help and --schema without importing a single lazy handler", over `examples/demo-cli-large`'s 30 commands. No precompute path was built, and **no 250-command fixture or bench exists** in `benchmarks/` or `examples/`. The bench is **remaining** |
+| Z5 | manifest in memory by default; precompute an opt-in, with a benchmark for the 250-command case (yargs #1005) | In-memory half held: `examples/conformance/src/modularity.test.ts` › "serves --help and --schema without importing a single lazy handler", over `examples/demo-cli-large`'s 30 commands. No precompute path was built, and **no 250-command fixture or bench exists** in `benchmarks/` or `examples/`. The bench is **remaining**. *2026-10-26: built, `benchmarks/axes/scale.ts` in the `perf` axis, 250 ÷ 30 at about 1.0× against a 3× gate (§ Built 2026-10-26)* |
 | F3, O3, P1 | the lint rules `require-command-description`/`require-command-example`, `no-console-in-command`, `no-prompt-without-flag` | moved → eslint repo `docs/intents/cli-floor-rules` (eslint#1137, D-124); `eslint-plugin-cli-floor` dropped here by the coordinator's ruling, 2026-10-18. The runtime halves (O1, O2, P2, P3) stay here and are held |
 | U12 | each layer an independent product; locks when the independence test passes **and** the first adopter installs a layer alone | Engineering half held (D-20261009-burgee-u12-1-0): `scripts/independence-install-lock.test.ts` › "installs nothing but itself and the in-family packages it declares", "reaches no package it does not declare". Outside adopter: moved → `first-adopter` A6 (added 2026-10-19: "one CLI we did not write installs a single layer alone, without burgee"), tracked as gap `.sdlc/gaps/C3.md`. The 2026-10-18 caveat, that A1 named the dropped `commander-agent`, is answered there: A1 is restated and A6 owns this |
 | criteria 3, 4, 5 | see the table above | moved, remaining, held |
@@ -199,6 +224,9 @@ Concretely, once this lands:
 - The repo's own lint runs ≥9 Interlace plugins with zero disabled rules in the
   runtime packages. **Remaining** (2026-10-18): 31 plugins wired, at least 19 override
   blocks still switch rules off for runtime source, and no lock reads either half.
+  **Restated 2026-10-25 to a ratchet and held 2026-10-26:** `scripts/disabled-rules-lock.test.ts`
+  pins the 50 rules resolved `off` for runtime source as a ceiling that only falls, demands a
+  reason on every such override, and counts 31 Interlace plugins against 9 (§ Built 2026-10-26).
 - Zero prompts, spinners or ANSI in captured output when `stdout` is not a TTY —
   pinned by a test that runs the CLI through a pipe. **Restated and held** (2026-10-18):
   the piped README transcript run, the non-TTY help pin, P2 and N12 — see § Restated

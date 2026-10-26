@@ -32,8 +32,12 @@ import { CALLERS, type Cell, FEATURES, MATRIX } from '../examples/conformance/sr
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 
-/** The count of `{ missing: true }` cells when the registry was first filled, 2026-10-25. Only ever lowered. */
-const MISSING_CEILING = 5;
+/**
+ * The count of `{ missing: true }` cells. 5 when the registry was first filled, 2026-10-25; 0 since
+ * 2026-10-26, when the five were written (errors × accessible; prompts, spinner, table, box × program).
+ * Only ever lowered — and at 0, a feature or caller added without its tests is a red build.
+ */
+const MISSING_CEILING = 0;
 
 const escape = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 

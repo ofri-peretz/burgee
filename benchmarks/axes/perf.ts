@@ -38,6 +38,8 @@ import { type BenchRecord } from '../record.js';
 import { relativeToRepo, type Resolved, resolvePackage } from '../resolve.js';
 import { median, p95, round } from '../stats.js';
 
+import { method as scaleMethod, run as runScale } from './scale.js';
+
 const FIXTURES = fileURLToPath(new URL('../fixtures/cold-start/', import.meta.url));
 
 export interface Variant {
@@ -391,7 +393,10 @@ export function run(rounds = ROUNDS): BenchRecord[] {
       }),
     );
   }
+  // Z5: the 250- and 30-command `--help` and `--schema` rows, timed in rounds of their own so the
+  // rotation above stays a whole multiple of its variants (`scale.ts`).
+  records.push(...runScale(rounds));
   return records;
 }
 
-export const method = `${String(ROUNDS)} interleaved rounds — a whole multiple of the ${String(VARIANTS.length)} variants, so the rotation gives every variant each starting position equally often; each round spawns every variant once as \`node <fixture> greet ada\` (the colour rows print the same line, under \`NO_COLOR\`), after one discarded warm-up round. Every variant's package is resolved against the range \`benchmarks/package.json\` declares before any timing, and its version and resolved path are on every row. Absolute ms are a property of the machine recorded above and are not comparable across machines; the banded number is the paired ratio, and roundel's R8 rows gate the paired difference over picocolors.`;
+export const method = `${String(ROUNDS)} interleaved rounds — a whole multiple of the ${String(VARIANTS.length)} variants, so the rotation gives every variant each starting position equally often; each round spawns every variant once as \`node <fixture> greet ada\` (the colour rows print the same line, under \`NO_COLOR\`), after one discarded warm-up round. Every variant's package is resolved against the range \`benchmarks/package.json\` declares before any timing, and its version and resolved path are on every row. Absolute ms are a property of the machine recorded above and are not comparable across machines; the banded number is the paired ratio, and roundel's R8 rows gate the paired difference over picocolors. ${scaleMethod}`;
