@@ -66,6 +66,17 @@ describe('arguments', () => {
 });
 
 describe('the report', () => {
+  it('reads a .json plugin as data, byte-order mark and all, and reports it as the same module would', async () => {
+    const widths = { icons: { ranges: [[0xE0A0, 0xE0A0]], columns: 2, why: 'Nerd Font' } };
+    const asModule = await run([file(`export default ${JSON.stringify({ name: 'acme', widths })};`)]);
+    for (const name of [...overrides().keys()]) setOverrides(name, {});
+    serial += 1;
+    const json = join(dir, `p${String(serial)}.json`);
+    writeFileSync(json, `﻿${JSON.stringify({ name: 'acme', widths })}`);
+    expect(await run([json])).toEqual(asModule);
+    expect(asModule.code).toBe(EXIT_OK);
+  });
+
   it('lists every range with its span, the built-in answer and the new one, then ends in ok', async () => {
     const plugin = `export default { name: 'acme', widths: {
       icons: { ranges: [[0xE0A0, 0xE0A0], [0xF000, 0xF2FF]], columns: 2, why: 'Nerd Font' },
