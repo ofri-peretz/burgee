@@ -10,6 +10,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { active, gradable, type Host, hostNamed, HOSTS, PREVIOUS_MAJORS, registersOn } from './hosts.js';
+import { liveRegistry } from './registry.js';
 import { type Baseline, controlName, type Grade, grade, readBaseline, regressed } from './run.js';
 import { diffRecords, isEmptyDiff, latestVersion, readRecord, renderDiff, renderMissingExtras } from './upstream.js';
 import { vendor } from './vendor.js';
@@ -437,10 +438,13 @@ async function competitorMode(write: Write, paths: Paths): Promise<number> {
   return 0;
 }
 
-/** `--fingerprint`: record every competitor's current release into `competitors.json`. */
-async function fingerprintMode(write: Write, paths: Paths): Promise<number> {
+/**
+ * `--fingerprint`: record every competitor's current release into `competitors.json`.
+ * `--missing` records only the ones nothing holds a fingerprint for, and leaves the rest.
+ */
+async function fingerprintMode(write: Write, paths: Paths, missing: boolean): Promise<number> {
   write('\nfingerprinting competitors\n\n');
-  const failures = await writeFingerprints(paths.packages, write);
+  const failures = await writeFingerprints(paths.packages, write, liveRegistry, { missing });
   write(failures === 0 ? '\n  every competitor fingerprinted\n' : `\n\u2716 ${failures} competitor(s) failed\n`);
   return failures === 0 ? 0 : 1;
 }
@@ -448,7 +452,7 @@ async function fingerprintMode(write: Write, paths: Paths): Promise<number> {
 export async function main(argv: string[], write: Write, paths: Paths = PATHS): Promise<number> {
   if (argv.includes('--upstream')) return upstreamMode(write, { check: (host, w) => checkUpstream(host, w, paths.vendor), out: paths.upstream });
   if (argv.includes('--competitors')) return competitorMode(write, paths);
-  if (argv.includes('--fingerprint')) return fingerprintMode(write, paths);
+  if (argv.includes('--fingerprint')) return fingerprintMode(write, paths, argv.includes('--missing'));
 
   const wantsVendor = argv.includes('--vendor');
   // --control grades each host against its own real package: the proof that the gate

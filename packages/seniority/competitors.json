@@ -1,38 +1,229 @@
 {
-  "$comment": "upstream-watch R1, written by foundation-claims-watched on 2026-10-12. See packages/flagstaff/competitors.json for the field meanings. Every `seen` is null until the daily competitor pass in compat-upstream.yml fingerprints it. The drop-ins are graded `compat` claims (GRADED in burgee/src/compat.ts). cosmiconfig, dotenv and rc are the incumbents seniority's foundation ceiling is measured from (.sdlc/bands/foundation-ceilings.json); lilconfig and dotenv are the zero-dependency rivals its README compares against.",
+  "$comment": "upstream-watch R1, written by foundation-claims-watched on 2026-10-12. See packages/flagstaff/competitors.json for the field meanings. Every `seen` was recorded on 2026-10-26 by `npm run compat -- --fingerprint --missing` (foundation-claims-watched R7): the daily pass in compat-upstream.yml cannot write one, and with none held it reports nothing, so a null `seen` fails competitors-lock. The drop-ins are graded `compat` claims (GRADED in burgee/src/compat.ts). cosmiconfig, dotenv and rc are the incumbents seniority's foundation ceiling is measured from (.sdlc/bands/foundation-ceilings.json); lilconfig and dotenv are the zero-dependency rivals its README compares against.",
   ".": [
     {
       "package": "cosmiconfig",
       "claim": "compat",
-      "seen": null
+      "seen": {
+        "registry": "cosmiconfig",
+        "version": "10.0.1",
+        "shasum": "af7d6e328a18a7b04fc20c8064bf3c74ae452549",
+        "weight": 620558,
+        "self": 41465,
+        "packages": 4,
+        "files": {
+          "dist/cacheWrapper.d.ts": "8fbfa888dad678e147c0db86dadda1d0bf5f7c65670450c2d211ac598afc649e",
+          "dist/cacheWrapper.js": "e38b12bc5dd31215d45bb2a68c17bc5b1a7371477cc24124253b2670dcae9e87",
+          "dist/canUseDynamicImport.d.ts": "22949d8f992c8fe7b78ce55fd794b6a90f30442e7d82333751789d5af127f3fc",
+          "dist/canUseDynamicImport.js": "78ec7e874f2ecb0f8a7f0b99d377b935b1c786dc24fa6ad495898a1ad019ec27",
+          "dist/defaults.d.ts": "b15cc46c69a43a31c76acf71df5685b698bc1ece9d88622d83d5932f5e46acec",
+          "dist/defaults.js": "ee32dd204d631aa3c9640fad95716a500c37ad46df91229c6a757e0a7f8ed878",
+          "dist/Explorer.d.ts": "c835c8fe15ddf5ce258d1d2c203109cda71ab3fc8e7eb0bd07e8e5c34613e1e2",
+          "dist/Explorer.js": "61aa13ff3ca8bd61b5980fc80308586bafaa9a6d9ec238f9742b9c12db698b0a",
+          "dist/ExplorerBase.d.ts": "b138f2d37e74fc807ddde2e3b5c5bb46c42cd98c02090c003e4bf8d759309dc7",
+          "dist/ExplorerBase.js": "114a9090cf18babd40508e0655e1649962005c86e2f7fa6dda448916ef05ea02",
+          "dist/ExplorerSync.d.ts": "bd9d9d0cdd24b435e7ad9788eb630c0b2ce5c17e49ec780705e40a6b88b37c24",
+          "dist/ExplorerSync.js": "baddc5a1722400a4cf35019eefaa4c85e0e7e31e70dd08d0ce646f227d7ec183",
+          "dist/getDirectory.d.ts": "a0ce0f0284da8765903ab4a41a55c0c95bcc29994587066f4b2e295318560b24",
+          "dist/getDirectory.js": "85f57994b1895b0c022111e4b825fc1c52b592488c8e6f4d541339bda0ad2ea1",
+          "dist/getPropertyByPath.d.ts": "645b2e423777af0c1ab22a16eb8237dff2bbe6826f37506d989c8d86ed46befb",
+          "dist/getPropertyByPath.js": "794d5688daaae7a09a3271dac9b4b572328d4b0814d2d4d8c4b5325790420e71",
+          "dist/index.d.ts": "9b4ecbf76e82574471d40eef6b78355357eff1e0b5238bf2991dae16799e2ca4",
+          "dist/index.js": "215123baa4f5ca9bc58cf3c03407e685fcdd6677b7a9e7e3c77ebe0709ef1b38",
+          "dist/loaders.d.ts": "1a64d537b6a9a87be090059e70f3c4c644f786d87db0c5ffe70ff32bd6d2d30f",
+          "dist/loaders.js": "2381521638fe680eb3ca5920f63b8d5a017fd6ff9ca14e9e5d27c5c4627b7eb2",
+          "dist/merge.d.ts": "5e84b673a308b36e5c44f81276e1f9f1205bceb9a66a64e7ae0d58790a84f67e",
+          "dist/merge.js": "3ccf04a1f3c62bb1b954aa4078ea8d03c95062d5321955a91b95f499b99131ba",
+          "dist/readFile.d.ts": "0f93012a9b8608f73800ceb8cd6e1e0fa36112bca4bdcffedf41eb082a43081a",
+          "dist/readFile.js": "75db4c5abc414e6c7145d76972abb591a061a20aa86a38587872df13cc28e02b",
+          "dist/types.d.ts": "b5cfcb331eb26c1c0bdfdbaa5054f6dae5fdb8b6d09ba7ebd99d6661a155d6f6",
+          "dist/types.js": "b0d2bc4142d0c62d43f996aaeb64f22c4889ac853f8a3765758b505d972d0149",
+          "dist/util.d.ts": "35e1cd1902cac28e72912e7f195e89e6f2a1a55edfa60d906d7b98ab79e08fd8",
+          "dist/util.js": "699539ab3d9c3b0dc5f77d3dad92919d813965527404f18097826d3f8b125713",
+          "LICENSE": "8e714750725e75c8b31172ef84c0805f94873f86e3b5cfca8a948553f0778fa1",
+          "package.json": "f4071cc69b6a34192d2b86c31fd03d9c515882692060af7946b0f4409a5dcf98",
+          "README.md": "bef97b598f5656006468ff864189e34c8ee956e526522538b0c7741a1c447fec"
+        },
+        "exports": [
+          "CommonOptions",
+          "Config",
+          "CosmiconfigResult",
+          "Loader",
+          "LoaderResult",
+          "LoaderSync",
+          "Loaders",
+          "LoadersSync",
+          "MergeOptions",
+          "Options",
+          "OptionsSync",
+          "PublicExplorer",
+          "PublicExplorerBase",
+          "PublicExplorerSync",
+          "SearchStrategy",
+          "Transform",
+          "TransformSync",
+          "cacheWrapper",
+          "cacheWrapperSync",
+          "canUseDynamicImport",
+          "cosmiconfig",
+          "cosmiconfigSync",
+          "defaultLoaders",
+          "defaultLoadersSync",
+          "getDefaultSearchPlaces",
+          "getDefaultSearchPlacesSync",
+          "getDirectory",
+          "getDirectorySync",
+          "getPropertyByPath",
+          "globalConfigSearchPlaces",
+          "globalConfigSearchPlacesSync",
+          "hasOwn",
+          "loadJs",
+          "loadJsSync",
+          "loadJson",
+          "loadYaml",
+          "mergeAll",
+          "metaSearchPlaces"
+        ],
+        "measured": "2026-10-26"
+      }
     }
   ],
   "./dotenv": [
     {
       "package": "dotenv",
       "claim": "compat",
-      "seen": null
+      "seen": {
+        "registry": "dotenv",
+        "version": "18.0.9",
+        "shasum": "5c565760ce7e6fb69f9477ebcd1a3b64c766f9c8",
+        "weight": 11149,
+        "self": 11149,
+        "packages": 1,
+        "files": {
+          "dist/config.cjs": "a0f52c85f20fb4636135cb65fce2f5e66107a00dbe10d282c67435e162c4fe88",
+          "dist/config.d.ts": "2e29cd9a98755c46896f7a2d56524db2d6d96b248e36db46de14c30bf47c8d05",
+          "dist/index.cjs": "25b4ea3d783cf03df30d1606819788c2238b0ca3b459c81f8b4937cb70fabe38",
+          "dist/index.d.ts": "f40c997a341c68b8e85c22329a29a32fd907d94e3488c52fd5d1e60486baf850",
+          "LICENSE": "74b629b24865e1e83c5277ee84590b7937644d6fd959d0c7bdce758676cd2ced",
+          "package.json": "e3be746d149515f88df63793b53789b1c0c0d8d073e5e62a8b92a06be111c49b",
+          "README.md": "8b86bfacf772764a46e6010bb76b327a2d204d32e7b7e567447b5fdf051652ae"
+        },
+        "exports": [
+          "DotenvConfigOptions",
+          "DotenvConfigOutput",
+          "DotenvParseOptions",
+          "DotenvParseOutput",
+          "DotenvPopulateInput",
+          "DotenvPopulateOptions",
+          "DotenvPopulateOutput",
+          "config",
+          "configDotenv",
+          "parse",
+          "populate"
+        ],
+        "measured": "2026-10-26"
+      }
     }
   ],
   "./lilconfig": [
     {
       "package": "lilconfig",
       "claim": "compat",
-      "seen": null
+      "seen": {
+        "registry": "lilconfig",
+        "version": "3.1.4",
+        "shasum": "d0b8ba64f16567774579b24a5e15e8bf997b4151",
+        "weight": 11672,
+        "self": 11672,
+        "packages": 1,
+        "files": {
+          "LICENSE": "d70f9e316930b4333b6f51af5f0d0cb7ded6a4a2641549aa088027aaff91e950",
+          "package.json": "66bc935323f83700a0fb2ad918078fbc174a0e496a19232598add5b8ae94f661",
+          "readme.md": "df24e0338159823bee36dbe938a7183262889038d7f30d0f064ad329e65cf3e7",
+          "src/index.d.ts": "240b11fb56b8f437d4fa8aa99c9fdfc49cd2156a0cde523036c8e25ddc4d30c1",
+          "src/index.js": "72f57caf57fe0b796f10a21624f1713b9a738b66fd0324825916084cfa797fa3"
+        },
+        "exports": [
+          "LilconfigResult",
+          "Loader",
+          "LoaderSync",
+          "Loaders",
+          "LoadersSync",
+          "Options",
+          "OptionsSync",
+          "Transform",
+          "TransformSync",
+          "defaultLoaders",
+          "defaultLoadersSync",
+          "lilconfig",
+          "lilconfigSync"
+        ],
+        "measured": "2026-10-26"
+      }
     }
   ],
   "./rc": [
     {
       "package": "rc",
       "claim": "compat",
-      "seen": null
+      "seen": {
+        "registry": "rc",
+        "version": "1.2.8",
+        "shasum": "cd924bf5200a075b83c188cd6b9e211b7fc0d3ed",
+        "weight": 43550,
+        "self": 7388,
+        "packages": 5,
+        "files": {
+          "browser.js": "6c04801604d01bcc3c9b6db980749bdbd543205af5fef979e6adfc4a835b66c5",
+          "cli.js": "82383f5748af5f9380dbcde8f0166088614bf024e25bdbe073bb87cd385336ba",
+          "index.js": "7a4c19d1025d2669723dd2a939ced7d556d815eedfff62bf288970365b8b26dc",
+          "lib/utils.js": "3eba35eafd078a2c4843a11000c06443b5d8b2fea3b682aae20daeea5be66cd2",
+          "LICENSE.APACHE2": "e8734448285a2dd773d40136ed5d5e8163a70701dd540cdc796cfca232f67d55",
+          "LICENSE.BSD": "65e7e4d223688c601f42959defde380f8c4aa677fa4706da3b4a53f129bd78a3",
+          "LICENSE.MIT": "d72dea1a8cdf3f4dfa2f594253d0c5b37baefc76e806f5ecb0e426393edcd505",
+          "package.json": "96f035349a8e6034d380348ec3d454ed8ea3a602c7a5700eb36ff48310bdbe9f",
+          "README.md": "3088babbed9971cd5ac60321b0818863c49ea773be0b14389494b4e7e4248d8d",
+          "test/ini.js": "de40b4f5d4f8d7dfeeaae96d767c512e3cc3a4bfeee8780e608306ac36284a6d",
+          "test/nested-env-vars.js": "5b00a5b450b52b4c5d4432093665c20e62ad39126aed8da24cddc3e6c7871919",
+          "test/test.js": "1e277a1cdda596747a7d3d7d7995b43eb104901ce9f0ecf234dc6e625e2ebe6b"
+        },
+        "exports": [],
+        "measured": "2026-10-26"
+      }
     }
   ],
   "./find-up": [
     {
       "package": "find-up",
       "claim": "compat",
-      "seen": null
+      "seen": {
+        "registry": "find-up",
+        "version": "8.0.0",
+        "shasum": "9e4663f9605eeb615edd7399f376a01b1de312fe",
+        "weight": 13860,
+        "self": 6429,
+        "packages": 6,
+        "files": {
+          "index.d.ts": "468a5a0156a5016754f874ef471e97de60641b510f1ac05729aa47b81a800ded",
+          "index.js": "99715e1b62e9c0f52927348759f289a60104ed4156a627eae4c0c652c6420fdf",
+          "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+          "package.json": "0c56665f7734ce4318206334ddf20dc2d917f8d9bd2e533aeda3a7ed0dd113a4",
+          "readme.md": "6a57b4a00211f5b3c45ba1d73d35d7dd378107237316cbcd3c64b229b48e774e"
+        },
+        "exports": [
+          "FindDownOptions",
+          "Match",
+          "Options",
+          "findDown",
+          "findDownSync",
+          "findUp",
+          "findUpMultiple",
+          "findUpMultipleSync",
+          "findUpStop",
+          "findUpSync"
+        ],
+        "measured": "2026-10-26"
+      }
     }
   ]
 }

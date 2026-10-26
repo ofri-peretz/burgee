@@ -263,7 +263,33 @@
     {
       "package": "meow",
       "claim": "compat",
-      "seen": null
+      "seen": {
+        "registry": "meow",
+        "version": "14.1.0",
+        "shasum": "3cd2d16ad534829ab12fcb5010fc2fdb89facd31",
+        "weight": 263117,
+        "self": 263117,
+        "packages": 1,
+        "files": {
+          "build/dependencies.js": "b8a6bc10fd20a7a5066d87bc3d93a340d58f2dd07bfdc2ee1d96ab9bf47dc446",
+          "build/index.d.ts": "1603476235684645156f78b9ca1bed9f8368ade3bdaf5c79cf63489dce70bd20",
+          "build/index.js": "3eec62f9126849f561a625673bc55e9290ed11c8794d3b3d6d209efbd4d78280",
+          "build/licenses.md": "1f36b914a840cfd83a405fc103593666359d8a3fbd7ef5d3b9797cb28390183b",
+          "build/options.js": "54afbbd94c90e585d266cf2ee6312a3d28c16f9db239ce7a908c74ca8dc18d11",
+          "build/parser.js": "47a42e3a5576566ec00483072a5bf6d1ea9c18216e234da253d74a0facdeda02",
+          "build/utils.js": "dcdeb96f10ec1b5a82ebc0ca79e4a984978564dad6df145c4fdc575126dd65da",
+          "build/validate.js": "a4855e0fe377483587fe464c53cfe7bbc9f0c996647c3cc31c06bd03390d8077",
+          "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+          "package.json": "0b1191596e7ce37fab063dd4e4081079109b5cd88b81254464ab84217159d398",
+          "readme.md": "5b0cd831ee164bb157f535b67545710b0cde31789ed6e77dcbe596b70ffb84f3"
+        },
+        "exports": [
+          "FooBar",
+          "PackageJson",
+          "default"
+        ],
+        "measured": "2026-10-26"
+      }
     }
   ]
 }

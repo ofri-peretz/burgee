@@ -26,7 +26,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 // eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: a bare `compat-oracle/*` resolves from another checkout's dist/ in an uninstalled worktree (compat-oracle R6)
-import { npmNameOf } from '../packages/compat-oracle/src/competitors.js';
+import { npmNameOf, readDeclarations, watchList } from '../packages/compat-oracle/src/competitors.js';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const PACKAGES = join(ROOT, 'packages');
@@ -365,6 +365,24 @@ describe('competitor declarations', () => {
       })
       .map((entry) => entry.package);
     expect(unproven, `${pkg.name} records a weight with no fingerprint behind it — a number from a README, not from a tarball`).toEqual([]);
+  });
+
+  /**
+   * `foundation-claims-watched` R7. A declared competitor with no fingerprint is declared and
+   * not watched: `moved()` is false with nothing held, so the daily pass logs "no fingerprint
+   * held" and opens nothing, whatever upstream ships. That was 29 competitors for 14 green
+   * scheduled runs (2026-10-12 to 2026-10-25), every foundation incumbent among them, because
+   * the design said `seen` stays null "until the watch fills it" and the watch never writes.
+   *
+   * Keyed the way the watch keys it, by (npm package, `via`): an entry is watched when *any*
+   * declaration of the same resolution holds a fingerprint, so caique's `.` clack, which rides
+   * on `./ask`'s, is not a hole. The fix is `npm run compat -- --fingerprint --missing`.
+   */
+  it('every declared competitor holds a fingerprint, so a release of it is noticed', () => {
+    const watched = watchList(readDeclarations(PACKAGES));
+    expect(watched.length, 'no competitor was read — the reader is broken, not the tree').toBeGreaterThan(REQUIRED.length);
+    const blind = watched.filter((w) => (w.seen?.version ?? null) === null).map((w) => (w.via === undefined ? w.npm : `${w.npm}<${w.via}`));
+    expect(blind, `${blind.join(', ')} ${blind.length === 1 ? 'is' : 'are'} declared and hold no fingerprint, so no release of ${blind.length === 1 ? 'it' : 'them'} is ever reported — run \`npm run compat -- --fingerprint --missing\``).toEqual([]);
   });
 
   it.each(found)('$name: a `compat` claim names a host the oracle actually grades', (pkg) => {

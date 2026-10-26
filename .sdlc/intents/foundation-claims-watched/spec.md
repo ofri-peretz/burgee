@@ -1,6 +1,6 @@
 # Design — The foundation's published numbers are watched and benchmarked
 
-Intent: [`intent.md`](./intent.md). **Status:** approved.
+Intent: [`intent.md`](./intent.md). **Status:** shipped (2026-10-26).
 
 **Accepted by the owner, 2026-10-12, by instruction: create and execute.** The instruction and the
 evidence are recorded in [`next-wave-3-2026-10.md`](../../research/next-wave-3-2026-10.md).
@@ -15,13 +15,19 @@ evidence are recorded in [`next-wave-3-2026-10.md`](../../research/next-wave-3-2
   the six packages, which is the red this intent starts from.
 - **R2 — `seniority` and `bellpull` declare.** One `competitors.json` each, per subpath, with
   `claim` `compat` where `GRADED` has a row and `weight` where only a figure is cited. `seen` is
-  `null` until the watch fills it.
+  `null` until the watch fills it (superseded by R7: the watch never fills it).
 - **R3 — `closeout` and `linegauge` declare.** The same, for their subpaths.
 - **R4 — `paratext` and `controlroom` declare.** The same. `controlroom/ink` declares ink and
   `@inkjs/ui` as `compat`.
 - **R5 — Every published package must declare.** The lock adds the upstream-watch success
   criterion as an assertion: a package that is published (has a version and is not private)
   and has no `competitors.json` fails.
+- **R7 — A declared competitor holds a fingerprint.** *Added 2026-10-26.* R2's "`seen` is
+  `null` until the watch fills it" was wrong: the daily pass is read-only and `moved()` is false
+  with nothing held, so a null `seen` is a competitor no release of which is ever reported. The
+  lock fails on one, keyed as the watch keys it (npm package and `via`), and
+  `npm run compat -- --fingerprint --missing` fills the holes without re-recording a held
+  fingerprint ([D-20261026-fingerprint-missing-not-rerecord](../../decisions/D-20261026-fingerprint-missing-not-rerecord.md)).
 - **R6 — Two B4 pairs per package.** `PAIRS` gains `seniority/lilconfig ÷ lilconfig`,
   `seniority/dotenv ÷ dotenv`, `closeout/exit-hook ÷ exit-hook` and `closeout/signal-exit ÷ signal-exit`.
   Each gates at 1 when it measures under 1, and as a ratchet at its measurement when it does
@@ -44,7 +50,8 @@ declarations, then R6 in its own PR.
 | R1–R4 | `scripts/competitors-lock.test.ts` | widening `KNOWN` alone makes the citation assertion fail for each of the six READMEs that name an incumbent beside a figure |
 | R5 | the same file, new case | before the six files exist, it lists them |
 | R6 | `npm run bench -- --axis weight --check`; `benchmarks/weight.test.ts` | the pair is added with a placeholder ceiling of 0, which fails, before the measured ceiling is set |
-| watch | the next `compat-upstream.yml` run | each new `seen` is `null` until it runs |
+| R7 | `scripts/competitors-lock.test.ts` › `every declared competitor holds a fingerprint…`; `compat-oracle/src/watch.test.ts` and `report.test.ts` (`--missing`) | on `3d079b15cc` the lock lists 29 competitors, and the `--missing` cases fail before the option exists |
+| watch | `node packages/compat-oracle/dist/bin.js --competitors`, read-only against the live registry | before: `29 competitor(s) hold no fingerprint yet` (scheduled run 40189508824, 2026-10-25) |
 
 ## Rejected alternatives
 
@@ -76,6 +83,31 @@ declarations, then R6 in its own PR.
 | R5 | **Built** 2026-10-12 | `competitors-lock.test.ts` › `every published package declares its competitors` (not `private`, has a version) | the same case. Red, before the six files: `bellpull, closeout, controlroom, linegauge, paratext, seniority are published and declare no competitors.json` |
 | R6 | **Built** 2026-10-12 | `benchmarks/fixtures/entry-points.ts` (four `PAIRS`, incumbents at the versions compat-oracle grades: lilconfig 3.1.3, dotenv 18.0.7, exit-hook 5.1.0, signal-exit 4.1.0, pinned exactly in `benchmarks/package.json`, which now declares `seniority` and `closeout` too); `benchmarks/axes/weight.ts` (`BUNDLED_CEILING` at the measurement plus the 80 B CI margin, rounded up to the next fifty). Measured: `seniority/lilconfig` 3,263 B against 5,343 (0.611) and `seniority/dotenv` 5,913 against 11,481 (0.515), both gated at 1; `closeout/exit-hook` 4,819 against 1,645 (**2.929**) and `closeout/signal-exit` 3,634 against 2,856 (**1.272**), both heavier and ratchets at the measurement (2.98 and 1.31), with a gap each: [B-20261012-closeout-bundles-heavier-than-exit-hook](../../gaps/B-20261012-closeout-bundles-heavier-than-exit-hook.md), [B-20261012-closeout-heavier-than-signal-exit](../../gaps/B-20261012-closeout-heavier-than-signal-exit.md). `/docs/benchmarks` is generated from the published measurement (`benchmarks/published.ts`), so the four rows and the two *not met* claims reach it when the next CI run is promoted | `npm run bench -- --axis weight --check`; `benchmarks/weight.test.ts`. Red, with every ceiling at 0: `6 gate failure(s)` — the four `bundled-bytes … is above its ceiling of 0`, and `closeout/exit-hook ÷ exit-hook bundled-bytes-ratio: 2.929 ratio is above its ceiling of 1`, `closeout/signal-exit ÷ signal-exit … 1.272` |
 
-**Built: 6.** Every new `seen` is `null` until the daily
-`compat-upstream.yml` pass reports it and `npm run compat -- --fingerprint` records it
-(success criterion 3).
+| R7 | **Built** 2026-10-26 | `scripts/competitors-lock.test.ts` › `every declared competitor holds a fingerprint, so a release of it is noticed` (via compat-oracle's own `readDeclarations` and `watchList`); `fingerprint(…, { missing })` in `compat-oracle/src/watch.ts` and `--fingerprint --missing` in `report.ts`; the 29 readings, taken from the live registry on 2026-10-26 and committed in eight `competitors.json` files. caique's `.` clack stays `null`: it shares its watch with `./ask`'s, which holds 1.8.1 | Red on `3d079b15cc`: `@inkjs/ui, @inquirer/core, ansi-escapes, ansi-escapes<log-update, cli-cursor, cli-truncate, cosmiconfig, cross-spawn, dotenv, execa, exit-hook, find-up, ink, lilconfig, meow, mimic-function<onetime, onetime, rc, restore-cursor, signal-exit, slice-ansi, string-width, strip-ansi, term-img, terminal-link, tinyexec, which, widest-line, wrap-ansi are declared and hold no fingerprint`; and four unit cases: the `missing` workspace case and the `--missing` hint line in `watch.test.ts`, and the two `--fingerprint` cases in `report.test.ts` |
+
+**Built: 7.**
+
+### Shipped 2026-10-26
+
+All four success criteria hold, read against `main` at `3d079b15cc`:
+
+1. **Ten of ten declare.** `competitors-lock.test.ts` › `every published package declares its competitors`.
+2. **Every ceiling incumbent declared and on `KNOWN`.** The same file, `every incumbent a foundation ceiling is measured from is known and declared`.
+3. **Every competitor fingerprinted** (restated, R7). `npm run compat -- --fingerprint --missing` on
+   2026-10-26 recorded 29 releases, among them lilconfig 3.1.4 (11,672 B), tinyexec 1.3.1 (12,796 B),
+   exit-hook 5.1.0 (4,458 B), signal-exit 4.1.0 (21,983 B), dotenv 18.0.9 (11,149 B) and
+   cosmiconfig 10.0.1 (620,558 B across 4). The read-only pass the scheduled job runs then reported
+   55 watches: 53 up to date, **0 with no fingerprint**, and 2 moved, `inquirer` 14.2.3 → 14.2.4 and
+   `@inquirer/prompts` 8.7.3 → 8.7.4, which are issues #1195 and #1224 and were left held on purpose.
+   The first scheduled run after merge reads the same way, with no "hold no fingerprint yet" line.
+4. **Four gated pairs.** `benchmarks/results/cli-benchmarks/2026-10-26-e739f18-ci.json`:
+   `seniority/lilconfig ÷ lilconfig` 0.612, `seniority/dotenv ÷ dotenv` 0.516,
+   `closeout/exit-hook ÷ exit-hook` 0.960 and `closeout/signal-exit ÷ signal-exit` 0.930, each
+   gated at 1. The two closeout ratchets in R6 were retired by `closeout-at-incumbent-weight`.
+
+These byte figures are not `foundation-ceilings.json`'s. The band measures an `npm i` tree with
+`installedBytes`, and the watch weighs the registry tarballs, so cosmiconfig reads 1,832,269 B in one
+and 620,558 B in the other. Neither is rewritten here (out of scope, above).
+
+No Quint model: R7 adds no state. The `seen` record already existed, and `--missing` is a filter
+over the same write.

@@ -15,6 +15,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { active, gradable, HOSTS, type Host, hostNamed, PREVIOUS_MAJORS } from './hosts.js';
+import { liveRegistry } from './registry.js';
 import { main, type Paths, upstreamMode, verdict } from './report.js';
 import { controlName, grade, type Grade } from './run.js';
 import { type CompatRecord, latestVersion, renderDiff, renderMissingExtras, diffRecords } from './upstream.js';
@@ -382,10 +383,16 @@ describe('--competitors and --fingerprint', () => {
     fingerprinted.mockResolvedValueOnce(0).mockResolvedValueOnce(2);
     expect(await main(['--fingerprint'], write, paths)).toBe(0);
     expect(out).toBe('\nfingerprinting competitors\n\n\n  every competitor fingerprinted\n');
-    expect(fingerprinted.mock.calls[0]).toEqual([paths.packages, write]);
+    expect(fingerprinted.mock.calls[0]).toEqual([paths.packages, write, liveRegistry, { missing: false }]);
     out = '';
     expect(await main(['--fingerprint'], write, paths)).toBe(1);
     expect(out).toContain('\n✖ 2 competitor(s) failed\n');
+  });
+
+  it('passes `--missing` through, so only competitors nothing holds a fingerprint for are recorded', async () => {
+    fingerprinted.mockResolvedValueOnce(0);
+    expect(await main(['--fingerprint', '--missing'], write, paths)).toBe(0);
+    expect(fingerprinted.mock.calls.at(-1)).toEqual([paths.packages, write, liveRegistry, { missing: true }]);
   });
 });
 
