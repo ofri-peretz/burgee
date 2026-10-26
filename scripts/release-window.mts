@@ -14,13 +14,17 @@
  * those minors changed behaviour the incumbent itself shipped as a major. Two rules answer it:
  *
  * 1. **The window.** No non-fix release of a package within 7 days of its previous non-fix
- *    release. A fix is never delayed: a `patch` changeset, or one whose summary opens with
- *    `Security:`, always releases on the next Version PR. A non-fix changeset for a package
- *    whose window is closed is *held*: set aside while `changeset version` runs, so the Version
- *    PR carries everything else and auto-merges, and the held changeset stays on `main` until a
- *    later run (every push, and a daily schedule) finds the window open. A changeset that mixes
- *    held and releasable packages is split. Holding the whole Version PR instead would delay any
- *    fix that shares it; `.sdlc/intents/release-cadence/release-window.qnt` shows that trace.
+ *    release. A non-fix changeset for a package whose window is closed is *held*: set aside
+ *    while `changeset version` runs, so the Version PR carries everything else and auto-merges,
+ *    and the held changeset stays on `main` until a later run (every push, and a daily schedule)
+ *    finds the window open. A changeset that mixes held and releasable packages is split.
+ *    A release is built from `main`, and `main` already has a held changeset's code, so a held
+ *    package's fixes wait with it: published as a patch, they would ship the minor's code under
+ *    a patch number (#1253, D-20261026-release-window-holds-code). A fix to any other package
+ *    releases on the next Version PR. A `Security:` change is never delayed: it releases its
+ *    package at once with everything held for it, so the version says what the build carries.
+ *    Holding the whole Version PR instead would delay every fix that shares it;
+ *    `.sdlc/intents/release-cadence/release-window.qnt` shows that trace.
  * 2. **The lock.** A changeset whose summary matches a behaviour the incumbent shipped under a
  *    major (`.sdlc/bands/incumbent-majors.json`) cannot be `minor` or `patch` for the package
  *    that drops that incumbent in.
@@ -167,12 +171,19 @@ export interface WindowPlan {
 }
 
 /**
- * Which changeset entries release now and which wait. A package is closed when a non-fix entry
- * names it and its window has not opened; every non-fix entry for a closed package is held.
- * A package whose times could not be read (`undefined`) counts as closed: holding a minor a day
- * costs a day, and releasing one inside the window is the thing this exists to prevent. Fixes
- * are released whatever the registry says.
+ * Which changeset entries release now and which wait. A package is closed when its window has
+ * not opened. A non-fix entry for a closed package is held, and so is every other entry for
+ * that package: `main`'s build of it carries the held code, so a patch of it would publish the
+ * minor under a patch number. A `Security:` change opens its package instead: everything pending
+ * for it releases now. A package whose times could not be read (`undefined`) counts as closed:
+ * holding a minor a day costs a day, and releasing one inside the window is the thing this
+ * exists to prevent. A package with no held entry releases its fixes whatever the registry says.
  */
+/** The packages a pending `Security:` change releases: every one it bumps (a `none` bumps nothing). */
+function securityOpened(changesets: readonly Changeset[]): Set<string> {
+  return new Set(changesets.filter((cs) => securityTagged(cs.summary)).flatMap((cs) => cs.releases.filter((r) => r.type !== 'none').map((r) => r.name)));
+}
+
 /** Why a package's window is shut now, or `undefined` when it is open. */
 function shut(known: PackageState | undefined, now: number): string | undefined {
   if (known === undefined) return 'unknown: the registry did not answer';
@@ -188,9 +199,11 @@ export function planWindow(changesets: readonly Changeset[], state: ReadonlyMap<
     const why = shut(state.get(name), now);
     return why === undefined ? [] : [[name, why] as const];
   }));
+  const opened = securityOpened(changesets);
+  const holding = new Set(changesets.flatMap((cs) => cs.releases.filter((r) => !isFix(cs, r) && closed.has(r.name) && !opened.has(r.name)).map((r) => r.name)));
   const out: WindowPlan = { releasable: false, changesets: [], held: [] };
   for (const cs of changesets) {
-    const hold = cs.releases.filter((r) => !isFix(cs, r) && closed.has(r.name));
+    const hold = cs.releases.filter((r) => holding.has(r.name));
     const release = cs.releases.filter((r) => !hold.includes(r));
     out.changesets.push({ file: cs.file, release, hold });
     for (const r of hold) out.held.push({ file: cs.file, name: r.name, type: r.type, opens: closed.get(r.name) as string });
@@ -362,6 +375,14 @@ export function changelogSection(text: string, version: string): string {
 /** A changelog section with a `Security:` entry: a list item that says so. */
 const securityEntry = (section: string): boolean => section.split('\n').some((line) => line.trimStart().startsWith('-') && line.includes('Security:'));
 
+/** Why this version may not publish yet, or `undefined` when it may: the window for a non-fix version, held code for a fix. */
+function gateShut(row: PlanRow, times: ReadonlyMap<string, Times | undefined>, now: number, held: ReadonlySet<string>): string | undefined {
+  if (isNonFixVersion(row.version)) return windowShut(row, times.get(row.name), now);
+  return held.has(row.name) ? HELD_CODE : undefined;
+}
+
+const HELD_CODE = 'main holds an unreleased minor or major changeset for it, so this build carries that code; it publishes with that release once the window opens';
+
 /** Why this non-fix version may not publish yet, or `undefined` when it may. */
 function windowShut(row: PlanRow, times: Times | undefined, now: number): string | undefined {
   if (times === undefined) return 'the registry did not answer';
@@ -369,14 +390,30 @@ function windowShut(row: PlanRow, times: Times | undefined, now: number): string
   return at > now ? `its previous non-fix release was under ${WINDOW_DAYS} days ago; the window opens ${new Date(at).toISOString()}` : undefined;
 }
 
-export function publishable(rows: readonly PlanRow[], times: ReadonlyMap<string, Times | undefined>, changelog: (row: PlanRow) => string, now: number): { rows: PlanRow[]; deferred: { name: string; version: string; why: string }[] } {
+/** What the release commit holds: each version's changelog section, and the changesets still in `.changeset/`. */
+export interface ReleaseCommit {
+  changelog: (row: PlanRow) => string;
+  held: ReadonlySet<string>;
+}
+
+/**
+ * `held`: the packages `main` still has a non-fix, non-`Security:` changeset for. A fix version
+ * of one is built from code that changeset added, so it waits with it (the window held version
+ * numbers and not code until #1253, D-20261026-release-window-holds-code).
+ */
+export function publishable(
+  rows: readonly PlanRow[],
+  times: ReadonlyMap<string, Times | undefined>,
+  now: number,
+  { changelog, held }: ReleaseCommit,
+): { rows: PlanRow[]; deferred: { name: string; version: string; why: string }[] } {
   const deferred: { name: string; version: string; why: string }[] = [];
   const kept: PlanRow[] = [];
   for (const row of rows) {
     const dep = row.deps.find((d) => deferred.some((x) => x.name === d.name && x.version === d.version));
-    const gated = dep === undefined && isNonFixVersion(row.version) && !securityEntry(changelog(row));
+    const gated = dep === undefined && !securityEntry(changelog(row));
     const why = dep === undefined ? undefined : `it depends on ${dep.name}@${dep.version}, which waits`;
-    const shutBy = gated ? windowShut(row, times.get(row.name), now) : why;
+    const shutBy = gated ? gateShut(row, times, now, held) : why;
     if (shutBy === undefined) kept.push(row);
     else deferred.push({ name: row.name, version: row.version, why: shutBy });
   }
@@ -449,7 +486,7 @@ async function planCommand(args: readonly string[], io: Io): Promise<number> {
   const lines = [
     `### Release window (${WINDOW_DAYS} days between non-fix releases of a package)`,
     '',
-    plan.held.length === 0 ? 'Nothing held: every pending changeset releases on this Version PR.' : 'Held on `main` until the window opens; a fix in the same changeset releases now:',
+    plan.held.length === 0 ? 'Nothing held: every pending changeset releases on this Version PR.' : 'Held on `main` until the window opens, with every fix to a held package: its build carries the held code. A `Security:` change releases its package at once, held code and all:',
     ...plan.held.map((h) => `- \`${h.name}\` ${h.type} from \`.changeset/${h.file}\`: opens ${h.opens}`),
   ];
   append(io.env.GITHUB_STEP_SUMMARY, `${lines.join('\n')}\n`);
@@ -461,6 +498,11 @@ async function versionCommand(io: Io): Promise<number> {
   const dir = path.join(io.root, '.changeset');
   const changesets = readChangesets(dir);
   return version(dir, changesets, await planFor(changesets, io, io.env.RELEASE_WINDOW_PLAN), io.version);
+}
+
+/** The packages a changeset still on `main` would release at minor or major: their code is in the build. */
+export function heldNames(changesets: readonly Changeset[]): Set<string> {
+  return new Set(changesets.flatMap((cs) => cs.releases.filter((r) => !isFix(cs, r)).map((r) => r.name)));
 }
 
 async function publishableCommand(args: readonly string[], io: Io): Promise<number> {
@@ -476,7 +518,7 @@ async function publishableCommand(args: readonly string[], io: Io): Promise<numb
     const file = path.join(io.root, 'packages', row.dir, 'CHANGELOG.md');
     return fs.existsSync(file) ? changelogSection(fs.readFileSync(file, 'utf8'), row.version) : '';
   };
-  const result = publishable(rows, times, changelog, io.now);
+  const result = publishable(rows, times, io.now, { changelog, held: heldNames(readChangesets(path.join(io.root, '.changeset'))) });
   for (const d of result.deferred) io.write(`::notice::Not publishing ${d.name}@${d.version} yet: ${d.why}. A later run publishes it (release-cadence).\n`);
   fs.writeFileSync(out, JSON.stringify(result.rows));
   return 0;
