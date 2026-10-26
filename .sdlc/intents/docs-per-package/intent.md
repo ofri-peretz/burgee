@@ -5,7 +5,7 @@
 > seed: _"One app, hard-coded in the workflows; the `vercel-apps.json` map returns when a
 > second app exists."_ A second app now exists to build, so the map returns.
 
-**Status:** approved (2026-09-23, the owner's override, D-131 — built in the PR that carries it) · **Opened:** 2026-09-08 · **Revised:** 2026-09-23 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-09-08 · **Revised:** 2026-09-23 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-26, in the PR that carries this note — built in #494 (2026-09-23, the owner's override, D-131); the last open criterion (8, per row) and the spec's unlocked R2, R4/R5, R7 and R10 locked by `scripts/deploy-lock.test.ts` and `scripts/vercel-apps-lock.test.ts`; locks only, nothing to publish — see [§ Shipped 2026-10-26](#shipped-2026-10-26)
 
 ---
 
@@ -198,6 +198,30 @@ Each line is checkable by a person or by a command.
 Explicitly **not** a success criterion, because it is measurably false today and this
 change does not fix it: _"a merge that touches only one package deploys only that
 package's site."_ See the open question below.
+
+## Shipped 2026-10-26
+
+**All nine criteria hold on `main`, read the day this was stamped.** The build landed in #494
+(2026-09-23); what stayed open was criterion 8 and four spec requirements that the workflow
+already did but no check held (roadmap-to-shipped batch 17). This change adds those checks and
+nothing else: no workflow, app or package changes, so nothing ships to npm and no host moves.
+
+| criterion | check | evidence |
+| :-- | :-- | :-- |
+| 1 | `vercel-apps-lock.test.ts` › criterion 1 | ten published packages, ten rows, `excluded` empty; red on a scratch eleventh package |
+| 2 | `vercel-apps-lock.test.ts` › criterion 2 | every row's directory and workspace |
+| 3 | `vercel-apps-lock.test.ts` › criterion 3 | the three family pages exist only in `apps/docs`, and both generators write there |
+| 4 | `vercel-apps-lock.test.ts` › criterion 4 | each app's `site` resolves its own row's host |
+| 5 | `vercel-apps-lock.test.ts` › criterion 5 | no app key, host, project id or directory under `.github/` outside the table |
+| 6 | a diff | the tenth app, `controlroom`, arrived in #892 and went live in #897; neither touched `.github/workflows/` |
+| 7 | `curl`, 2026-10-26 | all ten hosts answer 200 with an `x-build-sha` that is a `main` commit; each `/llms.txt` answers 200, names its own host and links `burgee.interlace.tools/docs/{compatibility,comparison,gallery}` |
+| 8 | `deploy-lock.test.ts` › `for the <key> row` | every executed case starts from the real preflight resolve step for each of the ten rows; see the spec's [§ Locked 2026-10-26](./spec.md#locked-2026-10-26) |
+| 9 | CI on the PR that carries this note | `npm run lint`, the root locks and `turbo run typecheck test build`, the ten docs apps included |
+
+The spec's R2 (one team id, `VERCEL_TOKEN` the only secret), R4/R5 (a package app is the chassis
+plus its own facts), R7 (the self-heal PATCH, executed) and R10 (one GitHub Environment per app)
+were built and unlocked. Each now has a check, and each check was proven red by a mutation of
+the workflow or an app. The table is in the spec.
 
 ## Open questions
 
