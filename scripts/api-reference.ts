@@ -128,7 +128,17 @@ export interface Documented {
   readonly returns?: { type: string; doc: string };
   readonly examples: readonly string[];
   readonly deprecated?: string;
+  /** Set on a `module.exports` export that is the default export again: the page says so rather than repeating it. */
+  readonly requires?: true;
 }
+
+/**
+ * The export name Node's `require(esm)` interop reads as what `require()` returns
+ * (`export { kleur as default, kleur as 'module.exports' }`). It is a string name, not one an
+ * import can bind, so it is never printed in an import line: the default import is how an ES
+ * module reaches the same value.
+ */
+export const CJS_EXPORT = 'module.exports';
 
 function kindOf(decl: ts.Declaration): Kind | undefined {
   if (ts.isFunctionDeclaration(decl)) return 'function';
@@ -179,7 +189,10 @@ function exportsOf(checker: ts.TypeChecker, sf: ts.SourceFile): ts.Symbol[] {
  * each declaration, so a re-export of it anywhere else becomes a link rather than a copy.
  */
 function documentModule(checker: ts.TypeChecker, sf: ts.SourceFile, self: string, owners: ReadonlyMap<ts.Symbol, string>): Documented[] {
-  return exportsOf(checker, sf).flatMap((exported): Documented[] => {
+  const exported = exportsOf(checker, sf);
+  const fallback = exported.find((e) => e.name === 'default');
+  const defaultTarget = fallback === undefined ? undefined : resolveExport(checker, fallback);
+  return exported.flatMap((exported): Documented[] => {
     // `export * as default from './yoctocolors.js'`: a module's namespace under a name. What it
     // resolves to is the module itself, a source file with no declaration to quote, so the
     // statement is the signature (`roundel/yoctocolors` is yoctocolors' `export * as default`).
@@ -194,7 +207,9 @@ function documentModule(checker: ts.TypeChecker, sf: ts.SourceFile, self: string
     const kind = kindOf(first) ?? 'const';
     const name = exported.name;
     const declared = (first as ts.NamedDeclaration).name?.getText();
-    const local = name === 'default' && declared !== undefined ? { local: declared } : {};
+    const local = (name === 'default' || name === CJS_EXPORT) && declared !== undefined ? { local: declared } : {};
+    // `module.exports` beside a default that is the same value: named, and pointed at the default.
+    if (name === CJS_EXPORT && target === defaultTarget) return [{ name, ...local, kind, requires: true, signatures: [], summary: '', params: [], examples: [] }];
     const owner = owners.get(target);
     if (owner !== undefined && owner !== self) return [{ name, ...local, kind, owner, signatures: [], summary: '', params: [], examples: [] }];
     // A declaration with no doc of its own, first in its file, inherits the licence banner.
@@ -342,6 +357,7 @@ const signatureBlock = (signatures: readonly string[]): string[] => ['```ts', ..
 
 /** One export documented on its own page: heading, notes, summary, signature, params, returns, examples. */
 function renderExport(doc: Documented): string[] {
+  if (doc.requires === true) return [`### ${doc.name}`, '', `What \`require()\` returns: the default export, \`${doc.local ?? 'default'}\`, under the name Node's \`require(esm)\` reads.`, ''];
   return [
     `### ${doc.name}`,
     '',
@@ -368,7 +384,7 @@ const importList = (names: readonly string[]): string => `${names.slice(0, IMPOR
 
 /** The page's description: the entry, then its values by name and its types by count. */
 function describeEntry(entry: Entry, docs: readonly Documented[]): string {
-  const values = docs.filter((d) => !isType(d)).map((d) => (d.name === 'default' ? (d.local ?? 'default') : d.name));
+  const values = docs.filter((d) => !isType(d) && d.requires !== true).map((d) => (d.name === 'default' || d.name === CJS_EXPORT ? (d.local ?? d.name) : d.name));
   const types = docs.filter(isType).length;
   const listed = values.length > LISTED ? `${values.slice(0, LISTED).join(', ')} and ${values.length - LISTED} more` : values.join(', ');
   const plural = types === 1 ? '' : 's';
@@ -384,9 +400,10 @@ export const SIDE_EFFECT_ONLY = 'This entry exports nothing. Importing it is the
 
 /** How a caller imports from the entry: the default, a few values, or the types alone. */
 function importLines(entry: Entry, docs: readonly Documented[]): string[] {
-  const named = docs.filter((d) => d.name !== 'default' && !isType(d)).map((d) => d.name);
+  // `module.exports` is no name an import binds: with no `default` beside it, it is the default import.
+  const named = docs.filter((d) => d.name !== 'default' && d.name !== CJS_EXPORT && !isType(d)).map((d) => d.name);
   const typeNames = docs.filter(isType).map((d) => d.name);
-  const fallback = docs.find((d) => d.name === 'default');
+  const fallback = docs.find((d) => d.name === 'default') ?? docs.find((d) => d.name === CJS_EXPORT);
   // An entry that exports nothing is a side-effect entry (`seniority/dotenv/config`, as
   // `dotenv/config` is): importing it is the call, and that import is the whole of its API.
   if (docs.length === 0) return [SIDE_EFFECT_ONLY, '', '```ts', `import '${entry.specifier}';`, '```', ''];

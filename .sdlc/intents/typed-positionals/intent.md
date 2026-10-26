@@ -9,7 +9,9 @@
 
 > Accepted 2026-10-19 by the coordinator under the owner's delegation
 > ([`D-20261019-typed-schema-surface-design-accepted`](../../decisions/D-20261019-typed-schema-surface-design-accepted.md)).
-> R1–R3 built on `feat/typed-schema-surface`; **REMAINING: R4's argument `type` on `inputSchema`, and completions offering a positional's choices.**
+> R1–R3 built on `feat/typed-schema-surface`; R4's argument `type` on `inputSchema` and completions
+> offering a positional's choices built on `feat/typed-positionals-remainder` (2026-10-26). Every
+> criterion holds on `main`; it stays `approved` until the burgee minor carrying them publishes.
 
 ---
 
@@ -56,12 +58,12 @@ fails its type or choices is a usage error with a `fix`, as an option's is. `--s
    commander façade.
 3. The gap is closed.
 
-## Status (2026-10-19)
+## Status (2026-10-26)
 
 | Criterion | State | Check |
 | :-- | :-- | :-- |
 | 1. `type: 'integer'` gives `ctx.args.n` a `number` type and value; `x` is exit 2 | held. The `fix` follows E3: carried when one value is exact (the rounded integer for `2.6`, the closest choice), and for `x` the refusal teaches the usage line instead (D-20261019-typed-schema-surface-design-accepted) | `packages/burgee/src/typed-positionals.test.ts` › "coerces each declared type, and keeps ctx.positionals as typed"; › "refuses a word that is not an integer, and runs nothing"; › "refuses a fraction for an integer, with the rounded line as the fix" |
-| 2. `choices` reach `--schema` (`enum`), `--mcp` `inputSchema` and completions, native and façade | `--schema` and `--mcp`: held, native and façade. Completions: **remaining** | `packages/burgee/src/typed-positionals.test.ts` › "publishes a native argument's choices as enum, and its requiredness"; › "runs an --mcp call that sends the typed values, and refuses one outside the enum"; `packages/burgee/src/facade-surface.test.ts` › "R3 — an Argument's .choices() is the enum, in --schema and in the MCP tool" |
+| 2. `choices` reach `--schema` (`enum`), `--mcp` `inputSchema` and completions, native and façade | held on `main`, not yet released. `--schema` and `--mcp`: native and façade. Completions: a positional's choices in its slot in bash, zsh, fish and PowerShell, from the manifest, so a façade's `Argument.choices()` too | `packages/burgee/src/typed-positionals.test.ts` › "publishes a native argument's choices as enum, and its requiredness"; › "runs an --mcp call that sends the typed values, and refuses one outside the enum"; › "R4 — completions offer a positional its choices"; `packages/burgee/src/completions-shells.test.ts` › "typed-positionals R4 — each shell offers a positional its choices, in its slot"; `packages/burgee/src/facade-surface.test.ts` › "R3 — an Argument's .choices() is the enum, in --schema and in the MCP tool" |
 | 3. The gap is closed | held | `B-20261012-commander-argument-choices` is `status: closed` (#1091) |
 
 **Re-read 2026-10-25 against `burgee@1.7.1` (#1173 released in 1.7.0, Version PR #1231): not
@@ -69,6 +71,15 @@ stamped.** Criteria 1 and 3 hold on the released package. Criterion 2 is still s
 completions do not offer a positional's `choices`, native or façade. Spec R4 also still lacks the
 argument's `type` on its `inputSchema` property (an `integer` argument is published as `string`).
 Both are what remains before `shipped`.
+
+**2026-10-26: both built** (`feat/typed-positionals-remainder`). Spec R4 now publishes an
+argument's JSON type on its `inputSchema` property, `--schema` and `--mcp` alike, and its
+`default` as that type (`typed-positionals.test.ts` › "publishes each argument under its JSON
+type, and its default as that type", › "lists the typed property in --mcp tools/list"). The
+façade ratchets rise 94 B (D-20261026-typed-positionals-r4-weight). Completions are criterion 2's
+last surface, above. **The intent stays `approved`** until the burgee minor carrying both
+publishes; the release window opens no earlier than 2026-11-01. It is stamped `shipped` against
+the published package, not against `main`.
 
 Found on the way and fixed: an `--mcp` call that skipped an optional positional shifted every
 later value one place left (`packages/burgee/src/typed-positionals.test.ts` › "fills a skipped

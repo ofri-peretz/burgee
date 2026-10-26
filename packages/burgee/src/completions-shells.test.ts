@@ -69,20 +69,21 @@ const has = (shell: string): boolean => {
 const dir = scratch('burgee-completions-');
 // PowerShell dot-sources only a `.ps1` file; any other extension is a file to open.
 const EXT = { bash: 'bash', zsh: 'zsh', fish: 'fish', pwsh: 'ps1' } as const;
-const scriptFor = (shell: 'bash' | 'zsh' | 'fish' | 'pwsh'): string => {
-  const at = join(dir, `demo.${EXT[shell]}`);
-  writeFileSync(at, renderCompletion(program, shell));
+/** `of` is the program the script is for: `demo` unless a case names another (typed-positionals R4). */
+const scriptFor = (shell: 'bash' | 'zsh' | 'fish' | 'pwsh', of: typeof program = program): string => {
+  const at = join(dir, `${of.rootPath.join('-')}.${EXT[shell]}`);
+  writeFileSync(at, renderCompletion(of, shell));
   return at;
 };
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const lines = (out: string): string[] => out.split('\n').map((l) => l.trim()).filter((l) => l !== '');
 
-const bash = (line: string): string[] => lines(execFileSync('bash', [join(repo, 'scripts/complete-bash.sh'), scriptFor('bash'), ...line.split(' ')], { encoding: 'utf8' }));
+const bash = (line: string, of = program): string[] => lines(execFileSync('bash', [join(repo, 'scripts/complete-bash.sh'), scriptFor('bash', of), ...line.split(' ')], { encoding: 'utf8' }));
 
 // A pty zsh under a loaded pre-push battery: up to 40 s to start and 30 s to list, per call.
-const zsh = (line: string): string => execFileSync('zsh', [join(repo, 'scripts/complete-zsh.zsh'), scriptFor('zsh'), line], { encoding: 'utf8' });
+const zsh = (line: string, of = program): string => execFileSync('zsh', [join(repo, 'scripts/complete-zsh.zsh'), scriptFor('zsh', of), line], { encoding: 'utf8' });
 
-const fish = (line: string): string[] => lines(execFileSync('fish', [join(repo, 'scripts/complete-fish.fish'), scriptFor('fish'), line], { encoding: 'utf8' })).map((l) => l.split('\t')[0] ?? '');
+const fish = (line: string, of = program): string[] => lines(execFileSync('fish', [join(repo, 'scripts/complete-fish.fish'), scriptFor('fish', of), line], { encoding: 'utf8' })).map((l) => l.split('\t')[0] ?? '');
 
 /** The case's own ceiling is 120 s; the call's is below it, so a hang fails with pwsh's own stderr. */
 const PWSH_TIMEOUT_MS = 100_000;
@@ -108,8 +109,8 @@ const pwshCall = (script: string, args: readonly string[]): { file: string; args
 /** The `pwsh-phase <name> <ms>` lines `complete-pwsh.ps1` writes to stderr (R3a). */
 const phases = (stderr: string): string[] => stderr.split(/\r?\n/).filter((l) => l.startsWith('pwsh-phase '));
 
-const runPwsh = (args: readonly string[]): { stdout: string; stderr: string } => {
-  const call = pwshCall(scriptFor('pwsh'), args);
+const runPwsh = (args: readonly string[], of = program): { stdout: string; stderr: string } => {
+  const call = pwshCall(scriptFor('pwsh', of), args);
   const started = Date.now();
   const r = spawnSync(call.file, call.args, call.options);
   const took = Date.now() - started;
@@ -127,8 +128,8 @@ const runPwsh = (args: readonly string[]): { stdout: string; stderr: string } =>
  * `runs` are command lines the same session runs afterwards (fix-lines-every-shell R3), each
  * under `### run:<n>`: its output, then `exit:<code>`.
  */
-const pwsh = (queries: readonly string[], runs: readonly string[] = []): Map<string, { text: string; tip: string }[]> => {
-  const out = runPwsh(['-Run', runs.join('\n'), '-Delimited', ...queries]).stdout;
+const pwsh = (queries: readonly string[], runs: readonly string[] = [], of = program): Map<string, { text: string; tip: string }[]> => {
+  const out = runPwsh(['-Run', runs.join('\n'), '-Delimited', ...queries], of).stdout;
   const blocks = new Map<string, { text: string; tip: string }[]>();
   let current: { text: string; tip: string }[] = [];
   for (const raw of out.split(/\r?\n/)) {
@@ -266,5 +267,90 @@ describe('each shell exercises its script (D4)', () => {
     const ran = (n: number): string[] | undefined => got.get(`run:${String(n)}`)?.map((c) => c.text);
     expect(ran(0)).toEqual([JSON.stringify(MEANT), 'exit:0']);
     expect(ran(1)).toEqual([JSON.stringify(WORDS), 'exit:0']);
+  });
+});
+
+/**
+ * typed-positionals R4 — a positional's `choices` are offered in its slot, as an option's are
+ * after its flag, and from the script alone: TAB never runs the program for them (D3). The slot
+ * is counted from the words typed, an option's value not among them, and a variadic argument
+ * takes every slot from its own on. Red on main at 676279ab: every shell offered nothing (bash,
+ * fish, PowerShell) or files (zsh) where `env` was due.
+ */
+const choosy = defineProgram({
+  name: 'choosy',
+  commands: [
+    defineCommand({
+      name: 'deploy',
+      arguments: [
+        { name: 'env', choices: ['staging', 'prod'] },
+        { name: 'note' },
+        { name: 'tiers', variadic: true, required: false, choices: ['free', 'pro'] },
+      ],
+      options: { region: { type: 'string', short: 'r' }, force: { type: 'boolean' } },
+      effects: 'withheld',
+      run: () => SENTINEL,
+    }),
+  ],
+});
+
+const bashChoosy = (line: string): string[] => bash(line, choosy);
+const fishChoosy = (line: string): string[] => fish(line, choosy);
+
+describe('typed-positionals R4 — each shell offers a positional its choices, in its slot', () => {
+  it.runIf(has('bash'))('bash', { timeout: 30_000 }, () => {
+    const at = bashChoosy;
+    expect(at('choosy deploy ')).toEqual(['staging', 'prod']);
+    expect(at('choosy deploy st')).toEqual(['staging']);
+    expect(at('choosy deploy prod ')).toEqual([]);
+    expect(at('choosy deploy prod hi ')).toEqual(['free', 'pro']);
+    expect(at('choosy deploy prod hi free ')).toEqual(['free', 'pro']);
+    // An option's value is not a positional; a boolean takes none; `--region=eu` is one word.
+    expect(at('choosy deploy --region eu ')).toEqual(['staging', 'prod']);
+    expect(at('choosy deploy -r eu prod hi ')).toEqual(['free', 'pro']);
+    expect(at('choosy deploy --region=eu --force ')).toEqual(['staging', 'prod']);
+    // readline splits `--region=eu` at the `=`: the flag, a lone `=`, then its value.
+    expect(at('choosy deploy --region = eu ')).toEqual(['staging', 'prod']);
+    // The cursor on an option's value is not a slot.
+    expect(at('choosy deploy --region ')).toEqual([]);
+    expect(at('choosy deploy --r')).toEqual(['--region']);
+  });
+
+  it.runIf(has('zsh'))('zsh', { timeout: 120_000 }, () => {
+    const first = zsh('choosy deploy ', choosy);
+    for (const w of ['staging', 'prod']) expect(first).toContain(w);
+    expect(first).not.toContain('free');
+    const third = zsh('choosy deploy -r eu prod hi ', choosy);
+    for (const w of ['free', 'pro']) expect(third).toContain(w);
+    expect(third).not.toContain('staging');
+    expect(third).not.toContain(SENTINEL);
+  });
+
+  it.runIf(has('fish'))('fish', { timeout: 30_000 }, () => {
+    const at = fishChoosy;
+    expect(at('choosy deploy ')).toEqual(['prod', 'staging']);
+    expect(at('choosy deploy st')).toEqual(['staging']);
+    expect(at('choosy deploy prod hi ')).toEqual(['free', 'pro']);
+    expect(at('choosy deploy prod hi free ')).toEqual(['free', 'pro']);
+    expect(at('choosy deploy --region eu ')).toEqual(['prod', 'staging']);
+    expect(at('choosy deploy -r eu prod hi ')).toEqual(['free', 'pro']);
+    expect(at('choosy deploy --region=eu --force ')).toEqual(['prod', 'staging']);
+    expect(at('choosy deploy --region ')).not.toContain('staging');
+    expect(at('choosy deploy prod ')).not.toContain('free');
+  });
+
+  it.runIf(has('pwsh'))('PowerShell', { timeout: 120_000 }, () => {
+    const lines = ['choosy deploy ', 'choosy deploy st', 'choosy deploy prod hi ', 'choosy deploy prod hi free ', 'choosy deploy --region eu ', 'choosy deploy -r eu prod hi ', 'choosy deploy --region ', 'choosy deploy --r'];
+    const got = pwsh(lines, [], choosy);
+    const texts = (line: string): string[] | undefined => got.get(line)?.map((c) => c.text);
+    expect(texts('choosy deploy ')).toEqual(['staging', 'prod']);
+    expect(texts('choosy deploy st')).toEqual(['staging']);
+    expect(texts('choosy deploy prod hi ')).toEqual(['free', 'pro']);
+    expect(texts('choosy deploy prod hi free ')).toEqual(['free', 'pro']);
+    expect(texts('choosy deploy --region eu ')).toEqual(['staging', 'prod']);
+    expect(texts('choosy deploy -r eu prod hi ')).toEqual(['free', 'pro']);
+    expect(texts('choosy deploy --region ')).not.toContain('staging');
+    expect(texts('choosy deploy --r')).toEqual(['--region']);
+    expect(got.get('choosy deploy ')).toEqual([{ text: 'staging', tip: 'staging' }, { text: 'prod', tip: 'prod' }]);
   });
 });

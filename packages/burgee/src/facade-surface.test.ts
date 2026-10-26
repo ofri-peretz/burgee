@@ -57,6 +57,7 @@ import { Readable } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
 
 import { Argument, Command, Option } from './commander.js';
+import { renderCompletion } from './completions.js';
 import { toolsOf } from './mcp.js';
 import yargs, { type Argv } from './yargs.js';
 
@@ -356,6 +357,17 @@ describe('facade-projection-fidelity R1–R3 — what a commander program declar
     expect(cmd['inputSchema'].properties.x).toEqual({ type: 'string', enum: ['a', 'b'] });
     expect(toolsOf(program.manifest)[0]?.inputSchema.properties['x']).toMatchObject({ enum: ['a', 'b'] });
     expect((await schemaOf(deploy(), 'deploy'))['inputSchema'].properties.env).toMatchObject({ enum: ['staging', 'prod'], default: 'staging' });
+  });
+
+  // typed-positionals R4, criterion 2's façade half: the completion scripts read the manifest the
+  // façade builds, so `.choices()` is offered in the argument's slot. Red on main at 676279ab.
+  it("typed-positionals R4 — an Argument's .choices() is offered in its slot by every shell", () => {
+    const program = new Command('pick');
+    program.command('one').addArgument(new Argument('<x>').choices(['a', 'b'])).action(() => undefined);
+    expect(renderCompletion(program.manifest, 'bash')).toContain("((n == 1)) && listed='a b'");
+    expect(renderCompletion(program.manifest, 'zsh')).toContain("'1: :(a b)'");
+    expect(renderCompletion(program.manifest, 'fish')).toContain("complete -c pick -n '__fish_seen_subcommand_from one; and test (_pick_slot) -eq 1' -f -a 'a b'");
+    expect(renderCompletion(program.manifest, 'pwsh')).toContain("Slots = @{ 1 = @('a', 'b') }");
   });
 
   it('R3 — a variadic Argument puts its choices on the items, as a multiple option does', async () => {

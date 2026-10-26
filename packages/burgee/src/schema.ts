@@ -140,11 +140,17 @@ function withChoices(p: JsonSchemaProperty, choices: readonly string[] | undefin
   return p;
 }
 
-/** Positionals go under their own names; a variadic one is an array. */
+/**
+ * Positionals go under their own names; a variadic one is an array. typed-positionals R4: under
+ * the JSON type the engine coerces to — a `file` is a path, so a string — and the default as
+ * that type, read as the engine reads it, so the document agrees with itself.
+ */
 function argumentProperty(a: ArgumentSpec): JsonSchemaProperty {
-  const p = withChoices(a.variadic === true ? { type: 'array', items: { type: 'string' } } : { type: 'string' }, a.choices);
+  const type = a.type === 'file' ? 'string' : (a.type ?? 'string');
+  const p = withChoices(a.variadic === true ? { type: 'array', items: { type } } : { type }, a.choices);
   if (a.description !== undefined) p.description = a.description;
-  if (a.default !== undefined) p.default = a.default;
+  // eslint-disable-next-line maintainability/no-nested-ternary -- every façade bundles this line, and a helper or a lookup costs each of them more bytes (D-20261026-typed-positionals-r4-weight)
+  if (a.default !== undefined) p.default = type === 'string' ? a.default : type === 'boolean' ? a.default === 'true' : Number(a.default);
   return p;
 }
 

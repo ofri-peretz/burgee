@@ -162,7 +162,7 @@ Abbreviations used below:
 | seniority | approved | y | P | seniority | 21 | 13 | R1/S2 truth-table page, R2/S5 shared precedence vectors, R7 extends chain in explain, R9 spawn delta, S3, S4 | n | – | The truth table is the product and is unproduced |
 | supports-color-drop-in | **shipped** (roundel 1.2.0, 2026-10-20) | y | SHIPPED | roundel + compat-oracle | 9 | 9 | – | n | – | 441.6 M/wk with no override target |
 | table-column-widths | **shipped** (batch 0) | y | SHIPPED | flagstaff | 7 | 7 | – | n | – | |
-| typed-positionals | approved (typed-schema-surface; re-read on burgee 1.7.1, not stamped) | y | P | burgee/parse + types | 6 | 5 (R4 partial) | R4 `type` on `inputSchema`, completions of a positional's `choices` | n | – | R1–R3 shipped in burgee 1.7.0 (#1173); R5 and R6 met (#1091) |
+| typed-positionals | approved (typed-schema-surface; R4 completed on `feat/typed-positionals-remainder`, awaiting the burgee minor) | y | P | burgee/parse + types | 6 | 6 | – (R4's `type` on `inputSchema` and a positional's `choices` in completions built 2026-10-26, unreleased) | n | – | R1–R3 shipped in burgee 1.7.0 (#1173); R5 and R6 met (#1091); stamp against the minor that carries R4 (window opens 2026-11-01) |
 | types-under-node10 | draft | **n** | SPEC | published artifacts (`typesVersions`) | 3 | 0 | SC1–SC3 | n | – | **LIVE DEFECT / barrier 4:** TS2307 on node10 (38.8% of TS dependents) |
 | u5-weight-claim | **shipped** (batch 0) | y | SHIPPED | benchmarks (weight) | 3 | 3 | – | n | – | Reads 0.97 in CI; trim the stale Verification paragraph |
 | upstream-watch | **shipped** (batch 0) | y | SHIPPED | compat-oracle + CI | 8 | 8 | – | n | – | R5 and R7 are held by workflow config; cite those lines. Dedupe only searches open issues |

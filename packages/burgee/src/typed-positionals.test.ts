@@ -11,7 +11,9 @@ import { PassThrough } from 'node:stream';
 
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
+import { renderCompletion } from './completions.js';
 import { defineCommand, defineProgram, execute, ExitCode } from './index.js';
+import { Manifest } from './manifest.js';
 import { argvOf } from './mcp.js';
 import { schemaOf } from './schema-entry.js';
 import { runBurgee } from './testing.js';
@@ -68,6 +70,9 @@ const words = (line: string): string[] => [...line.matchAll(/'([^']*)'|(\S+)/gu)
 /** A one-command program declaring `arguments` as a caller TypeScript does not check would. */
 const declaring = (args: unknown): Parameters<typeof runBurgee>[0] =>
   defineProgram({ name: 'app', commands: [defineCommand({ name: 'n', effects: 'read_only', arguments: args as [], run: () => 'ran' })] });
+
+/** A command's `inputSchema` properties, as `--schema` publishes them. */
+const inputOf = (name: string): Record<string, unknown> => schemaOf(program).commands.find((c) => c.name === name)?.inputSchema.properties ?? {};
 
 /** One `tools/call` of `deploy`, as a client sends it. */
 const callDeploy = (id: number, args: Record<string, unknown>): object => ({ jsonrpc: '2.0', id, method: 'tools/call', params: { name: 'deploy', arguments: args } });
@@ -196,8 +201,44 @@ describe('R3 — a value that fails its type or choices is a usage error', () =>
 describe('R4 — the projections carry the choices', () => {
   it('publishes a native argument\'s choices as enum, and its requiredness', () => {
     const { properties, required } = schemaOf(program).commands.find((c) => c.name === 'deploy')?.inputSchema ?? { properties: {}, required: [] };
-    expect(properties).toMatchObject({ env: { type: 'string', enum: ['staging', 'prod'] }, ratio: { type: 'string', default: '0.5' } });
+    expect(properties).toMatchObject({ env: { type: 'string', enum: ['staging', 'prod'] } });
     expect(required).toEqual(['env', 'replicas']);
+  });
+
+  // R4's remaining half, red on main at 676279ab: every argument was published `type: 'string'`
+  // (an `integer` one too), and a number's default as the string it is declared in.
+  it('publishes each argument under its JSON type, and its default as that type', () => {
+    expect(inputOf('deploy')).toEqual({
+      env: { type: 'string', enum: ['staging', 'prod'] },
+      replicas: { type: 'integer' },
+      ratio: { type: 'number', default: 0.5 },
+      dry: { type: 'boolean' },
+    });
+    expect(inputOf('tag')).toEqual({ name: { type: 'string', description: 'untyped, as every 1.x positional is' }, ports: { type: 'array', items: { type: 'number' } } });
+    // A file is a path, so a string; a boolean's default is the word the engine reads as true.
+    const more = defineProgram({
+      name: 'app',
+      commands: [
+        defineCommand({
+          name: 'm',
+          effects: 'read_only',
+          arguments: [{ name: 'file', type: 'file' }, { name: 'n', type: 'integer', required: false, default: '7' }, { name: 'on', type: 'boolean', required: false, default: 'true' }, { name: 'off', type: 'boolean', required: false, default: 'false' }],
+          run: () => 'ran',
+        }),
+      ],
+    });
+    expect(schemaOf(more).commands[0]?.inputSchema.properties).toEqual({ file: { type: 'string' }, n: { type: 'integer', default: 7 }, on: { type: 'boolean', default: true }, off: { type: 'boolean', default: false } });
+  });
+
+  it('lists the typed property in --mcp tools/list, which is what a client validates a call against', async () => {
+    const input = new PassThrough();
+    const out: string[] = [];
+    const running = execute(program, { argv: ['--mcp'], env: {}, stdin: input, stdout: { write: (s: string) => out.push(s) }, stderr: { write: () => true }, exit: () => undefined });
+    for (const message of [{ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '1' } } }, { jsonrpc: '2.0', id: 2, method: 'tools/list' }]) input.write(`${JSON.stringify(message)}\n`);
+    input.end();
+    await running;
+    const listed = out.join('').split('\n').filter((l) => l !== '').map((l) => JSON.parse(l) as { id: number; result: { tools?: { name: string; inputSchema: { properties: object } }[] } }).find((m) => m.id === 2);
+    expect(listed?.result.tools?.find((t) => t.name === 'deploy')?.inputSchema.properties).toMatchObject({ replicas: { type: 'integer' }, ratio: { type: 'number', default: 0.5 }, dry: { type: 'boolean' } });
   });
 
   it('runs an --mcp call that sends the typed values, and refuses one outside the enum', async () => {
@@ -213,6 +254,118 @@ describe('R4 — the projections carry the choices', () => {
     expect(JSON.parse(text(2))).toMatchObject({ ok: true, data: { args: { env: 'prod', replicas: 3, ratio: 0.5, dry: false } } });
     expect(replies.get(3)?.isError).toBe(true);
     expect(JSON.parse(text(3))).toMatchObject({ ok: false, error: { message: 'argument "env" must be one of staging, prod, got "qa"' } });
+  });
+});
+
+/**
+ * R4, its completions half — a positional's `choices` are offered in its slot. The real shells run
+ * in `completions-shells.test.ts` › "typed-positionals R4"; these hold what each script says where
+ * a shell is not installed (the mutation lane has no zsh, fish or pwsh), and the program's side
+ * for a command that sends its slots to it. Red on main at 676279ab: no script carried a choice
+ * of a positional, and `__complete` offered nothing for a slot without a completer.
+ */
+describe('R4 — completions offer a positional its choices', () => {
+  const choosy = defineProgram({
+    name: 'choosy',
+    commands: [
+      defineCommand({
+        name: 'deploy',
+        arguments: [{ name: 'env', choices: ['staging', 'prod'] }, { name: 'note' }, { name: 'tiers', variadic: true, required: false, choices: ['free', 'pro'] }],
+        options: { region: { type: 'string', short: 'r' }, force: { type: 'boolean' } },
+        effects: 'withheld',
+        run: () => 'ran',
+      }),
+      defineCommand({ name: 'plain', arguments: [{ name: 'what' }], effects: 'withheld', run: () => 'ran' }),
+    ],
+  });
+  // A program that is one command: its slots start at 0, under no subcommand condition, and it has no valued flag.
+  const solo = new Manifest();
+  solo.rootPath = ['solo'];
+  solo.add({ path: ['solo'], options: {}, arguments: [{ name: 'mode', choices: ['a', "it's"] }], effects: 'read_only', run: () => 'ran' });
+  // A command with a completer sends every slot to the program, which offers a listed one its choices.
+  const mixed = defineProgram({ name: 'mx', commands: [defineCommand({ name: 'cp', arguments: [{ name: 'from', complete: () => ['a.txt', 'b.txt'] }, { name: 'mode', choices: ['fast', 'safe'] }], effects: 'withheld', run: () => 'ran' })] });
+
+  it('bash: counts the words before the cursor, skipping a valued flag and its value, and lists the slot', () => {
+    const script = renderCompletion(choosy, 'bash');
+    expect(script).toContain(`    local listed='' n=0 j
+    for ((j = 1; j < cword; j++)); do
+      case "\${words[j]}" in
+        -r|--region) j=$((j + 1)); [[ "\${words[j]:-}" == = ]] && j=$((j + 1)) ;;
+        -*) ;;
+        *) n=$((n + 1)) ;;
+      esac
+    done
+    ((n == 1)) && listed='staging prod'
+    ((n >= 3)) && listed='free pro'
+    COMPREPLY=($(compgen -W ''" $listed" -- "$cur"))
+`);
+    // Once: `plain` lists nothing, so it counts nothing.
+    expect(script.match(/local listed=/gu)).toHaveLength(1);
+    expect(renderCompletion(solo, 'bash')).toContain(`      case "\${words[j]}" in
+        -*) ;;
+        *) n=$((n + 1)) ;;
+      esac
+    done
+    ((n == 0)) && listed='a it'\\''s'
+`);
+    expect(renderCompletion(mixed, 'bash')).not.toContain('listed');
+  });
+
+  it('zsh: a listed positional is its slot\'s action, beside a completer\'s and `_files`', () => {
+    expect(renderCompletion(choosy, 'zsh')).toContain(`'1: :(staging prod)' '2: :_files' '*: :(free pro)'\n}`);
+    expect(renderCompletion(choosy, 'zsh')).toMatch(/_choosy_plain\(\) \{\n {2}_arguments -s .* '\*: :_files'\n\}/u);
+    expect(renderCompletion(solo, 'zsh')).toContain(`'1: :(a it'\\''s)'\n}`);
+    expect(renderCompletion(mixed, 'zsh')).toContain(`"$PREFIX" 2>/dev/null)"}}' '2: :(fast safe)'\n}`);
+  });
+
+  it('fish: one slot function, and a line per listed positional under its command and its slot', () => {
+    const script = renderCompletion(choosy, 'fish');
+    expect(script).toContain(`function _choosy_slot
+  set -l w (commandline -opc); set -e w[1]
+  set -l n 0; set -l skip 0
+  for t in $w
+    if test $skip = 1; set skip 0; continue; end
+    if contains -- $t $argv; set skip 1; continue; end
+    string match -q -- '-*' $t; or set n (math $n + 1)
+  end
+  if test $skip = 1; echo -1; else; echo $n; end
+end
+`);
+    expect(script).toContain(`complete -c choosy -n '__fish_seen_subcommand_from deploy; and test (_choosy_slot -r --region) -eq 1' -f -a 'staging prod'\n`);
+    expect(script).toContain(`complete -c choosy -n '__fish_seen_subcommand_from deploy; and test (_choosy_slot -r --region) -ge 3' -f -a 'free pro'\n`);
+    expect(script.match(/_choosy_slot/gu)).toHaveLength(3);
+    expect(renderCompletion(solo, 'fish')).toContain(`complete -c solo -n 'test (_solo_slot) -eq 0' -f -a 'a it'\\''s'\n`);
+    expect(renderCompletion(mixed, 'fish')).not.toContain('_slot');
+  });
+
+  it('PowerShell: the slots, the valued flags and the variadic slot on the entry, and one block that reads them', () => {
+    const script = renderCompletion(choosy, 'pwsh');
+    expect(script).toContain("; Slots = @{ 1 = @('staging', 'prod'); 3 = @('free', 'pro') }; Valued = @('-r', '--region'); Rest = 3 }\n");
+    expect(script).toContain(`  if ($entry.Slots -and $wordToComplete -notlike '-*') {
+    $n = 0; $skip = $false
+    foreach ($w in $words) { if ($skip) { $skip = $false } elseif ($entry.Valued -ccontains $w) { $skip = $true } elseif ($w -notlike '-*') { $n++ } }
+    if ($null -ne $entry.Rest -and $n -gt $entry.Rest) { $n = $entry.Rest }
+    if (-not $skip -and $entry.Slots.ContainsKey($n)) {
+      $entry.Slots[$n] | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object { [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }
+      return
+    }
+  }
+`);
+    expect(script.match(/; Slots = /gu)).toHaveLength(1);
+    expect(renderCompletion(solo, 'pwsh')).toContain("; Slots = @{ 0 = @('a', 'it''s') }; Valued = @() }\n");
+    expect(renderCompletion(mixed, 'pwsh')).not.toContain('Slots');
+  });
+
+  it('every shell still never runs the program for a listed positional', () => {
+    for (const shell of ['bash', 'zsh', 'fish', 'pwsh'] as const) expect(renderCompletion(choosy, shell)).toContain('never runs choosy on TAB');
+  });
+
+  it('the program offers a slot with choices and no completer its choices, filtered by the partial', async () => {
+    const complete = async (...words: string[]): Promise<string> => (await runBurgee(mixed, { argv: ['__complete', ...words] })).stdout;
+    expect(await complete('cp', '')).toBe('a.txt\nb.txt\n');
+    expect(await complete('cp', 'a.txt', '')).toBe('fast\nsafe\n');
+    expect(await complete('cp', 'a.txt', 's')).toBe('safe\n');
+    expect(await complete('cp', 'a.txt', 'fast', '')).toBe('');
   });
 });
 
