@@ -12,6 +12,20 @@ import { pathToFileURL } from 'node:url';
 import { PluginError, type PluginErrorCode, register, registered } from './plugin.js';
 import { hints } from './tabs.js';
 
+/**
+ * The plugin a file holds. A `.json` file is read as data: `import()` of one throws
+ * ERR_IMPORT_ATTRIBUTE_MISSING without `with: { type: 'json' }`, and on Node 20 a JSON module
+ * with it still prints an ExperimentalWarning. Until 2026-10-25 a JSON plugin got Node's message
+ * and nothing else. Decoded by `TextDecoder`, which drops a byte-order mark `JSON.parse` refuses.
+ */
+async function load(path: string): Promise<unknown> {
+  // Stryker disable next-line ConditionalExpression,MethodExpression: under vitest's loader `import()` reads JSON too, so only the built bin tells the two paths apart — scripts/plugin-check-lock.test.ts spawns it on a JSON plugin
+  if (path.endsWith('.json')) return JSON.parse(new TextDecoder().decode(readFileSync(path)));
+  // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the file to check is the user's own, named on the command line
+  const loaded = (await import(pathToFileURL(path).href)) as { default?: unknown };
+  return loaded.default ?? loaded;
+}
+
 export const EXIT_OK = 0;
 export const EXIT_RUNTIME = 1;
 export const EXIT_USAGE = 2;
@@ -63,9 +77,7 @@ export async function check(argv: readonly string[], write: (s: string) => void)
 async function inspect(argv: readonly string[], write: (s: string) => void): Promise<number> {
   const file = target(argv[0], write);
   if (typeof file === 'number') return file;
-  // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the file to check is the user's own, named on the command line
-  const loaded = (await import(pathToFileURL(resolve(file)).href)) as { default?: unknown };
-  const plugin: unknown = loaded.default ?? loaded;
+  const plugin: unknown = await load(resolve(file));
   register(plugin);
   const { name, keymaps = {}, panes = {} } = plugin as { name: string; keymaps?: Record<string, unknown>; panes?: Record<string, unknown> };
   const now = registered();

@@ -255,7 +255,9 @@ rewrites specifiers and nothing else.
 
 A blocking row means the rewritten project would not load on a Node its own `engines` allows, or
 under its own tests. When one applies and the run would rewrite a file, nothing is written, the
-summary starts `blocked:`, and the command exits 1. `--force` does not lift it: `--force` skips
+summary starts `blocked:`, and the command exits 1. The file list is headed
+`would rewrite, not rewritten (blocked):`, and there is no `next:` line (`next` is `""` in
+`--json`): the install and uninstall follow a move, and the rows' `fix` lines come first. `--force` does not lift it: `--force` skips
 the git-tree check and nothing else. A run with nothing to rewrite still prints the rows, and
 exits as it would have. The rows cover every incumbent you depend on, including one on a major
 the oracle did not grade, because what adopting costs does not depend on which major you are on.

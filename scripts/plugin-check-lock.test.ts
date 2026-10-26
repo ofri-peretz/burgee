@@ -191,3 +191,49 @@ describe('burgee check, as the built bin', () => {
     expect(JSON.parse(stdout)).toMatchObject({ ok: true, data: { name: 'test-de', locales: [{ locale: 'de' }] } });
   });
 });
+
+/**
+ * The same defect in every other host, found 2026-10-25 while stamping: each `check` handed a
+ * `.json` plugin to `import()`, and Node refused it with ERR_IMPORT_ATTRIBUTE_MISSING before a
+ * line of the check ran. The in-process cases above cannot see it, for the reason the burgee case
+ * gives, so this spawns each BUILT bin on a JSON plugin. One that contributes nothing is refused
+ * in the family's words (every host); one each JSON-expressible host reads ends in `ok`.
+ */
+/** A plugin written as JSON, because that is the defect: `check` must read it as data. */
+function json(body: object): string {
+  serial += 1;
+  const at = join(dir, `p${String(serial)}.json`);
+  writeFileSync(at, JSON.stringify(body));
+  return at;
+}
+
+describe.each(['bellpull', 'caique', 'closeout', 'controlroom', 'flagstaff', 'linegauge', 'paratext', 'roundel', 'seniority'])('%s check, as the built bin, on a JSON plugin', (host) => {
+  const bin = fileURLToPath(new URL(`../packages/${host}/dist/cli.js`, import.meta.url));
+  const spawnCheck = async (file: string): Promise<{ code: number; stdout: string; stderr: string }> =>
+    await new Promise((done) => {
+      execFile(process.execPath, [bin, 'check', file], { encoding: 'utf8' }, (error, stdout, stderr) => {
+        done({ code: error === null ? 0 : Number(error.code), stdout, stderr });
+      });
+    });
+
+  it('reads the JSON as data and refuses one that contributes nothing with E_NO_CONTRIBUTION', async () => {
+    expect(existsSync(bin), `${bin} is missing: build ${host} before the root suite`).toBe(true);
+    const { code, stdout, stderr } = await spawnCheck(json({ name: 't', spinnerz: { dots: {} } }));
+    expect(stderr).not.toContain('import attribute');
+    expect(stdout).toContain('E_NO_CONTRIBUTION');
+    expect(code).toBe(1);
+  });
+
+  const READS: Record<string, object> = {
+    bellpull: { name: 't', resolvers: { asdf: { rank: -10, paths: ['{ASDF_DATA_DIR}/shims'], when: { envAny: ['ASDF_DATA_DIR'] } } } },
+    controlroom: { name: 't', keymaps: { vim: { keys: { h: 'tab.prev' } } } },
+    linegauge: { name: 't', widths: { icons: { ranges: [[0xe0a0, 0xe0a0]], columns: 2, why: 'a Nerd Font glyph, measured in the test' } } },
+    paratext: { name: 't', capabilities: { beep: { name: 'beep', osc: 'BEL', when: { tty: true }, encode: '\u0007', fallback: '' } } },
+    roundel: { name: 't', tokens: { ok: '#336699' } },
+  };
+  it.runIf(READS[host] !== undefined)('checks a JSON plugin it reads and ends in ok', async () => {
+    const { code, stdout } = await spawnCheck(json(READS[host] as object));
+    expect(stdout.trimEnd().split('\n').at(-1)).toBe('t: ok');
+    expect(code).toBe(0);
+  });
+});

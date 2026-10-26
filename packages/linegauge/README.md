@@ -239,7 +239,7 @@ Graded by the incumbent's own test suite:
 | `widest-line` | 1 / 1 |
 | `wrap-ansi` | 85 / 85 |
 
-Weight, installed and tree-inclusive: **107,034 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5508** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **107,198 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5516** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 

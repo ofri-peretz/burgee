@@ -79,3 +79,13 @@ graded hosts have cleared it.
 | R6 | **Built** 2026-10-12 (commander), 2026-10-19 (yargs) | `burgee/src/migrate.ts`, `PREVIOUS_MAJOR_ENTRIES` in `compat.ts` | `migrate.test.ts`: `rewrites a program pinned to commander 14 (…)` and `rewrites a program pinned to yargs 17 (declared on ~17.7.2 / installed at 17.7.3)`: `yargs` → `burgee/yargs/v17`, `yargs/yargs` → `burgee/yargs/v17/yargs`, `yargs/helpers` → `burgee/yargs/helpers`. Red first on main's `compat.ts`: both yargs cases reported in `offMajor` and left alone. The entry per specifier is data, so the yargs half was two rows |
 
 **Built: 6 of 6.** Shipped 2026-10-19.
+
+**A released defect, fixed 2026-10-26 (polish batch).** After a rewrite to `burgee/commander/v14`
+or `burgee/yargs/v17`, `migrate` printed the current major's grade (1,360 / 1,360 or 816 / 816)
+beside a program that now runs on the older entry. `compat.ts` gains `GRADED_MAJORS`, keyed as
+`baseline/majors/` names its files (`commander-14`, `yargs-17`), and the report's `graded` row
+carries `major` and that major's own grade: `commander 14  1331 / 1331`. `compat-baseline-lock.test.ts`
+holds each row to its baseline file and to the compatibility page's control, and holds the keys to
+the claimed older majors that have an entry. `migrate.test.ts`'s four R6 cases now assert the
+grade; red on `main`: `expected [ { host: 'commander', …(4) } ] to match object [ { host:
+'commander', …(3) } ]`. No state was added, so there is no model to change.

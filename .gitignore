@@ -8,7 +8,9 @@ next-env.d.ts
 *.tsbuildinfo
 .env
 .env.local
-.vercel/
+# `.vercel`, not `.vercel/`: a trailing slash matches a directory only, and `vercel link` in a
+# worktree is often a symlink to the main checkout's (tracked-symlink-lock.test.ts).
+.vercel
 # dev-loop test fixtures, written per run
 .dev-fixtures/
 # a docs site's runnable examples, written and run by its tests/examples.test.ts

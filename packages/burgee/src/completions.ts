@@ -116,6 +116,26 @@ const callback = (program: string, words: string, partial: string): string => `$
 const isDynamic = (spec: OptionSpec | ArgumentSpec): boolean => spec.complete !== undefined;
 /** Whether a positional of this command completes through its declared completer (R3). */
 const dynamicArgs = (node: Node): boolean => node.arguments.some(isDynamic);
+/** A positional the script lists itself (typed-positionals R4): it has choices and no completer to ask instead. */
+const listed = (a: ArgumentSpec): boolean => a.choices !== undefined && !isDynamic(a);
+/**
+ * typed-positionals R4 — a command whose positionals the script offers by slot, from the
+ * manifest, never running the program (D3): some list choices and none declares a completer. A
+ * completer sends every slot to the program (R3), which offers a listed slot its choices too.
+ */
+const slotted = (node: Node): boolean => !dynamicArgs(node) && node.arguments.some(listed);
+/** The flags that take the next word as their value, which is therefore not a positional. */
+const valuedFlags = (node: Node): string[] =>
+  Object.entries(node.options)
+    .filter(([, s]) => takesValue(s))
+    .flatMap(([n, s]) => flags(n, s));
+/**
+ * Each listed positional's slot, counted in the non-option words after the program — the
+ * command's own path among them, so a slot is `path.length + i` — and whether it is variadic,
+ * which takes every slot from its own on.
+ */
+const slots = (node: Node): { at: number; rest: boolean; choices: readonly string[] }[] =>
+  node.arguments.flatMap((a, i) => (listed(a) ? [{ at: node.path.length + i, rest: a.variadic === true, choices: a.choices as readonly string[] }] : []));
 /** What the header promises, true of the script beneath it. */
 const promise = (program: string, root: Node): string => {
   const nodes = walk(root);
@@ -128,6 +148,28 @@ const fname = (program: string, path: string[]): string => `_${[program, ...path
 
 /** bash's words before the cursor: `words` from `_get_comp_words_by_ref`, or `COMP_WORDS`, without the program. */
 const BASH_WORDS = '"${words[@]:1:cword-1}"';
+
+/**
+ * typed-positionals R4 — the slot the cursor is in, counted from `words`, and `listed` set to its
+ * choices. A valued flag's next word is its value; readline splits `--region=eu` at the `=`, so a
+ * lone `=` after one is skipped with the value after it. The count is assigned rather than
+ * `((n++))`, whose status is 1 at zero.
+ */
+function bashSlots(node: Node): string {
+  const valued = valuedFlags(node);
+  const skip = valued.length === 0 ? '' : `        ${valued.join('|')}) j=$((j + 1)); [[ "\${words[j]:-}" == = ]] && j=$((j + 1)) ;;\n`;
+  const pick = slots(node)
+    .map(({ at, rest, choices }) => `    ((n ${rest ? '>=' : '=='} ${at})) && listed=${sq(choices.join(' '))}\n`)
+    .join('');
+  return `    local listed='' n=0 j
+    for ((j = 1; j < cword; j++)); do
+      case "\${words[j]}" in
+${skip}        -*) ;;
+        *) n=$((n + 1)) ;;
+      esac
+    done
+${pick}`;
+}
 
 function bashCase(program: string, node: Node): string {
   const opts = Object.entries(node.options).flatMap(([n, s]) => flags(n, s));
@@ -146,7 +188,7 @@ function bashCase(program: string, node: Node): string {
 ${valued === '' ? '      *) ;;' : `${valued}\n      *) ;;`}
     esac
     if [[ "$cur" == -* ]]; then COMPREPLY=($(compgen -W ${sq(opts.join(' '))} -- "$cur")); return; fi
-    COMPREPLY=($(compgen -W ${sq(subs.join(' '))}${dynamicArgs(node) ? `" ${ask}"` : ''} -- "$cur"))
+${slotted(node) ? bashSlots(node) : ''}    COMPREPLY=($(compgen -W ${sq(subs.join(' '))}${dynamicArgs(node) ? `" ${ask}"` : ''}${slotted(node) ? '" $listed"' : ''} -- "$cur"))
   }`;
 }
 
@@ -204,15 +246,20 @@ function zshOptionSpec(program: string, node: Node, name: string, spec: OptionSp
     .join(' ');
 }
 
+/** A positional's `_arguments` action: its completer's call, its choices (typed-positionals R4), or `_files`. */
+function zshSlot(program: string, node: Node, a: ArgumentSpec): string {
+  if (isDynamic(a) && a.type !== 'file') return zshAsk(program, node);
+  return a.choices === undefined ? '_files' : `(${a.choices.join(' ')})`;
+}
+
 function zshFunction(program: string, node: Node): string {
   const options = Object.entries(node.options).map(([n, s]) => zshOptionSpec(program, node, n, s));
   if (node.children.length === 0) {
     // R3 — a positional with a completer asks the program, slot by slot; a file argument and one
     // with no completer keep `_files`, which is all any positional had before.
-    const slots = dynamicArgs(node)
-      ? node.arguments.map((a, i) => sq(`${a.variadic === true ? '*' : i + 1}: :${isDynamic(a) && a.type !== 'file' ? zshAsk(program, node) : '_files'}`)).join(' ')
-      : "'*: :_files'";
-    return `${fname(program, node.path)}() {\n  _arguments -s ${options.join(' ')} ${slots}\n}`;
+    const positions =
+      dynamicArgs(node) || slotted(node) ? node.arguments.map((a, i) => sq(`${a.variadic === true ? '*' : i + 1}: :${zshSlot(program, node, a)}`)).join(' ') : "'*: :_files'";
+    return `${fname(program, node.path)}() {\n  _arguments -s ${options.join(' ')} ${positions}\n}`;
   }
   const subs = node.children.flatMap((c) => words(c).map((w) => sq(`${w}[${c.description.replaceAll(/[[\]:]/g, ' ')}]`))).join(' ');
   const dispatch = node.children.map((c) => `      ${words(c).join('|')}) ${fname(program, c.path)} ;;`).join('\n');
@@ -263,12 +310,40 @@ function fishOption({ program, cond }: FishSite, name: string, spec: OptionSpec)
   return `complete -c ${program} -n ${cond}${short} -l ${name}${value} -d ${sq(spec.description ?? '')}`;
 }
 
+/**
+ * typed-positionals R4 — the slot the cursor is in: the non-option tokens before it, less the
+ * program, a valued flag's value (each flag passed as an argument) not among them; -1 when the
+ * cursor is on that value.
+ */
+const fishSlotFunction = (program: string): string => `function ${fname(program, [])}_slot
+  set -l w (commandline -opc); set -e w[1]
+  set -l n 0; set -l skip 0
+  for t in $w
+    if test $skip = 1; set skip 0; continue; end
+    if contains -- $t $argv; set skip 1; continue; end
+    string match -q -- '-*' $t; or set n (math $n + 1)
+  end
+  if test $skip = 1; echo -1; else; echo $n; end
+end`;
+
+/** Each listed positional's `complete` line: the command's condition, and the slot the cursor must be in. None unless `slotted`. */
+function fishSlots(program: string, node: Node): string[] {
+  if (!slotted(node)) return [];
+  const valued = valuedFlags(node).join(' ');
+  return slots(node).map(({ at, rest, choices }) => {
+    const slot = `test (${fname(program, [])}_slot${valued === '' ? '' : ` ${valued}`}) ${rest ? '-ge' : '-eq'} ${at}`;
+    const cond = node.path.length === 0 ? slot : `${fishCondition(node)}; and ${slot}`;
+    return `complete -c ${program} -n ${sq(cond)} -f -a ${sq(choices.join(' '))}`;
+  });
+}
+
 function fish(program: string, root: Node): string {
-  const lines: string[] = [];
+  const lines: string[] = walk(root).some(slotted) ? [fishSlotFunction(program)] : [];
   for (const node of walk(root)) {
     const cond = sq(fishCondition(node));
     for (const c of node.children) for (const w of words(c)) lines.push(`complete -c ${program} -n ${cond} -f -a ${w} -d ${sq(c.description)}`);
     if (dynamicArgs(node)) lines.push(`complete -c ${program} -n ${cond} -f -a ${fishAsk(program)}`);
+    lines.push(...fishSlots(program, node));
     for (const [name, spec] of Object.entries(node.options)) {
       // `kebab`, which fish alone was missing: it emitted `-l dryRun` where the CLI form is
       // `--dry-run`, so every camelCase option was completed as a flag the parser refuses.
@@ -289,6 +364,14 @@ ${lines.join('\n')}
 
 // ───── PowerShell ───────────────────────────────────────────────────────────────────────
 
+/** typed-positionals R4 — a node's listed slots, keyed by slot; the flags whose next word is a value; a variadic one's slot as `Rest`. */
+function pwshSlots(node: Node): string {
+  const listed = slots(node);
+  const rest = listed.find((s) => s.rest);
+  const keyed = listed.map(({ at, choices }) => `${at} = @(${choices.map((c) => `'${c.replaceAll("'", "''")}'`).join(', ')})`);
+  return `; Slots = @{ ${keyed.join('; ')} }; Valued = @(${valuedFlags(node).map((f) => `'${f}'`).join(', ')})${rest === undefined ? '' : `; Rest = ${rest.at}`}`;
+}
+
 function pwshEntry(node: Node): string {
   const subs = node.children.flatMap((c) => words(c).map((w) => `@('${w}', 'Command', '${c.description.replaceAll("'", "''")}')`));
   const opts = Object.entries(node.options).flatMap(([n, s]) =>
@@ -302,7 +385,7 @@ function pwshEntry(node: Node): string {
     .map(([n]) => `'--${kebab(n)}' = $true`);
   const callbacks = dynamic.length === 0 ? '' : `; Dynamic = @{ ${dynamic.join('; ')} }`;
   const positional = dynamicArgs(node) ? '; Positional = $true' : '';
-  return `    '${node.path.join(' ')}' = @{ Items = @(${[...subs, ...opts].join(', ')}); Values = @{ ${values.join('; ')} }${callbacks}${positional} }`;
+  return `    '${node.path.join(' ')}' = @{ Items = @(${[...subs, ...opts].join(', ')}); Values = @{ ${values.join('; ')} }${callbacks}${positional}${slotted(node) ? pwshSlots(node) : ''} }`;
 }
 
 function pwsh(program: string, root: Node): string {
@@ -340,6 +423,19 @@ ${
     return
   }
 ${
+  walk(root).some(slotted)
+    ? `  if ($entry.Slots -and $wordToComplete -notlike '-*') {
+    $n = 0; $skip = $false
+    foreach ($w in $words) { if ($skip) { $skip = $false } elseif ($entry.Valued -ccontains $w) { $skip = $true } elseif ($w -notlike '-*') { $n++ } }
+    if ($null -ne $entry.Rest -and $n -gt $entry.Rest) { $n = $entry.Rest }
+    if (-not $skip -and $entry.Slots.ContainsKey($n)) {
+      $entry.Slots[$n] | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object { [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }
+      return
+    }
+  }
+`
+    : ''
+}${
   walk(root).some(dynamicArgs)
     ? `  if ($entry.Positional -and $wordToComplete -notlike '-*') {
     $found = @(& '${program}' __complete @words $wordToComplete 2>$null)

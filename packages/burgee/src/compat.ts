@@ -86,6 +86,19 @@ export const GRADED: Readonly<Record<string, Row>> = {
   'extra-typings': { reference: 369, passed: 369, rate: 1, control: 369 },
 };
 
+/**
+ * The grade of each claimed older major, keyed `<host>-<major>` as `baseline/majors/` names its
+ * file: that major's own suite, run against the entry `migrate` writes for it
+ * ({@link PREVIOUS_MAJOR_ENTRIES}). A program rewritten to `burgee/commander/v14` runs on 14's
+ * entry, so the grade `migrate` prints beside it is 14's, never the current major's.
+ * `compat-baseline-lock.test.ts` holds each row to its baseline file and to the page's control,
+ * and holds the keys to the claimed older majors that have an entry.
+ */
+export const GRADED_MAJORS: Readonly<Record<string, Row>> = {
+  'commander-14': { reference: 1331, passed: 1331, rate: 1, control: 1331 },
+  'yargs-17': { reference: 794, passed: 793, rate: 0.9987405541561712, control: 793 },
+};
+
 /** One graded path: an incumbent's specifier, and the family specifier that replaces it. */
 export interface DropIn {
   /** The `hosts.ts` name, which keys `GRADED`. */

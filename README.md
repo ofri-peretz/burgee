@@ -301,9 +301,9 @@ median of a named window of CI runs rather than any one run** ([measured](https:
 | `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 0.974× | ✅ met |
 | `burgee` is lighter than `cac` **plus what a cac user installs to match it** | `lighter-than-cac-at-parity` | 0.250× | ✅ met |
 | `burgee/commander` is lighter than `commander` **plus the same** | `lighter-than-commander-at-parity` | 0.438× | ✅ met |
-| `burgee/yargs` is lighter than `yargs` **plus the same** | `lighter-than-yargs-at-parity` | 0.547× | ✅ met |
+| `burgee/yargs` is lighter than `yargs` **plus the same** | `lighter-than-yargs-at-parity` | 0.548× | ✅ met |
 | `burgee` starts within 1.55× of `cac`, the lightest framework in the landscape (ratchet; lowered as it speeds up) | `cold-start-at-or-below-cac` | 1.443× | ✅ met |
-| `burgee/commander` stays within 1.42× of `commander` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-commander` | 1.415× | ✅ met |
+| `burgee/commander` stays within 1.42× of `commander` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-commander` | 1.417× | ✅ met |
 | `burgee` stays within 2.35× of `cac` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-cac` | 2.338× | ✅ met |
 | an agent spends ≥40% fewer tokens over the benchmark tasks (total over every task-run) | `agent-tokens-40pct` | median 0.502× over the 52 CI readings dated 2026-10-10 to 2026-10-18 (range 0.434–0.627), at or under 0.6 in 51 of them | ✅ met |
 | an agent takes ≥30% fewer turns over the benchmark tasks (total over every task-run) | `agent-turns-30pct` | median 0.522× over the 52 CI readings dated 2026-10-10 to 2026-10-18 (range 0.446–0.634), at or under 0.7 in 52 of them | ✅ met |
@@ -332,8 +332,8 @@ with ([measured](https://burgee.interlace.tools/docs/benchmarks)):
 | | the incumbent alone | + what you add to match burgee | ours |
 | :--- | ---: | ---: | ---: |
 | `cac` | 10,452 B | **97,692 B** | 24,442 B |
-| `commander` | 39,084 B | **126,335 B** | 55,299 B |
-| `yargs` | 111,686 B | **198,784 B** | 108,742 B |
+| `commander` | 39,084 B | **126,335 B** | 55,393 B |
+| `yargs` | 111,686 B | **198,784 B** | 108,836 B |
 
 The additions are `cosmiconfig` (find and load a config file), `exit-hook` (run cleanup on
 every path out, including a signal) and `restore-cursor` (hand the terminal back), bundled
