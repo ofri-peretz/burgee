@@ -55,6 +55,18 @@
  * | controlroom copied into `apps` with a placeholder `prj_` id, `pending` left as is | is not also a deployable row |
  * | `pending` emptied, `apps/docs-controlroom` left on disk | has no Next app under apps/ that the table does not name |
  *
+ * **A package app is the chassis plus its own facts** (spec R4/R5, locked 2026-10-26). Nine apps
+ * with the same Next-required files are nine copies unless something says they are one: the
+ * shims must be the same bytes in every package app, `package.json` and `src/site.ts` may differ
+ * only by the app key (and by sibling family packages a page's examples import), and every `src/`
+ * shim must call the chassis. Proven red (2026-10-26):
+ *
+ * | mutation | fails |
+ * | :-- | :-- |
+ * | a line of logic added to `apps/docs-caique/src/app/layout.tsx` | every shim is the same bytes › caique |
+ * | `apps/docs-paratext/src/app/robots.ts` deleted | has exactly the files every other package app has › paratext |
+ * | a hard-coded `description` added to `apps/docs-closeout/package.json` | differ from the others only by the key › closeout |
+ *
  * **Links a live crawl found.** A crawl of all ten sites (314 pages, 10,774 links,
  * 2026-10-11) found every page and every anchor resolving; the dead links were GitHub issue
  * links the release's changelog generator had written into this repo from a bare `#N` in a
@@ -472,6 +484,97 @@ describe('the chassis stays a private workspace (intent constraint 5)', () => {
         return 'docs-chassis' in { ...m.dependencies, ...m.devDependencies, ...m.peerDependencies };
       });
     expect(dependents).toEqual([]);
+  });
+});
+
+// ─── R4/R5: a package app is the chassis plus its own facts ──────────────────────────
+
+/**
+ * The files a package app may make its own. Everything else outside `content/` is a shim at
+ * a path Next requires, and the chassis owns what it does — so it is the same bytes in every
+ * package app (spec R5). `examples.test.ts` runs each page's own fenced examples against its
+ * own package's bin and environment; the icon is the package's mark.
+ */
+const OWN = new Set(['package.json', 'src/site.ts', 'src/app/icon.svg', 'tests/examples.test.ts']);
+/** Of {@link OWN}, the two that state nothing but the app's key: its name, its row, its package. */
+const KEYED = ['package.json', 'src/site.ts'] as const;
+/** Every package app: each row and pending app that is not the front door. */
+const PACKAGE_APPS = SITES.filter(([, row]) => !row.familyPages);
+
+/**
+ * An app's files outside `content/`, posix and relative to the app: what git tracks plus what
+ * it would track, so build output (`.next`, `next-env.d.ts`, `.examples-*`) never counts.
+ */
+function appFiles(dir: string): string[] {
+  const r = spawnSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '--', dir], { cwd: REPO_ROOT, encoding: 'utf8' });
+  if (r.status !== 0) throw new Error(`git ls-files ${dir} failed: ${r.stderr}`);
+  return r.stdout
+    .split('\n')
+    .filter((f) => f !== '' && existsSync(join(REPO_ROOT, f)))
+    .map((f) => f.slice(dir.length + 1))
+    .filter((f) => !f.startsWith('content/'))
+    .toSorted();
+}
+
+/** The published family packages, by name: the only dependencies an app may add beyond its own. */
+const FAMILY = new Set(publishedPackages(join(REPO_ROOT, 'packages')));
+
+/**
+ * A keyed file's text with the app key folded to a placeholder, so two apps compare on their
+ * shape. In `package.json` a dependency on a *sibling* family package is set aside first: a page
+ * may run an example that imports one (controlroom's import flagstaff), and that is content, not
+ * chassis. Any other extra dependency still differs.
+ */
+function unkeyed(dir: string, file: string, key: string): string {
+  if (file !== 'package.json') return read(join(dir, file)).replaceAll(key, '<key>');
+  const manifest = JSON.parse(read(join(dir, file))) as Record<string, unknown>;
+  for (const field of ['dependencies', 'devDependencies'] as const) {
+    const deps = manifest[field] as Record<string, string> | undefined;
+    if (deps) manifest[field] = Object.fromEntries(Object.entries(deps).filter(([name]) => name === key || !FAMILY.has(name)));
+  }
+  return JSON.stringify(manifest, null, 2).replaceAll(key, '<key>');
+}
+
+describe('R4/R5: a package app is the chassis plus its own facts', () => {
+  const [refKey, ref] = PACKAGE_APPS[0]!;
+  const refFiles = appFiles(ref.dir);
+
+  it('finds the package apps and the shims it is comparing', () => {
+    expect(PACKAGE_APPS.length).toBeGreaterThanOrEqual(2);
+    // The Next-required paths R5 names; if the reference lost one, every app "matches" its gap.
+    for (const shim of ['next.config.mjs', 'source.config.ts', 'src/app/layout.tsx', 'src/app/llms.txt/route.ts', 'src/source.ts']) {
+      expect(refFiles, `${ref.dir} has no ${shim}`).toContain(shim);
+    }
+  });
+
+  it.each(PACKAGE_APPS.slice(1))('%s: has exactly the files every other package app has, outside content/', (_key, row) => {
+    const files = appFiles(row.dir);
+    const missing = refFiles.filter((f) => !files.includes(f));
+    const extra = files.filter((f) => !refFiles.includes(f));
+    expect({ missing, extra }, `${row.dir} against ${ref.dir}: a shim one app lacks, or a file only one app has, is an app that stopped being a row`).toEqual({ missing: [], extra: [] });
+  });
+
+  it.each(PACKAGE_APPS.slice(1))('%s: every shim is the same bytes as in every other package app', (_key, row) => {
+    // A shim that grows logic in one app is the copy R5 exists to prevent: the next fix lands
+    // in the chassis and misses it. Logic an app needs goes into the chassis, behind its row.
+    const shims = refFiles.filter((f) => !OWN.has(f) && existsSync(join(REPO_ROOT, row.dir, f)));
+    const differ = shims.filter((f) => read(join(row.dir, f)) !== read(join(ref.dir, f)));
+    expect(differ, `${row.dir} differs from ${ref.dir} in these shims`).toEqual([]);
+  });
+
+  it.each(PACKAGE_APPS.slice(1))('%s: its package.json and site.ts differ from the others only by the key', (key, row) => {
+    for (const file of KEYED) {
+      expect(unkeyed(row.dir, file, key), `${row.dir}/${file} says more than its key — compare ${ref.dir}/${file}`).toBe(unkeyed(ref.dir, file, refKey));
+    }
+  });
+
+  it('keeps every source shim a call into the chassis', () => {
+    // Identical across apps could still be identical copies of real logic. Each `src/` shim
+    // imports the chassis, or this app's own row (`#/site`) and source (`#/source`).
+    const thick = refFiles
+      .filter((f) => f.startsWith('src/') && /\.(?:ts|tsx|mjs)$/u.test(f) && !OWN.has(f))
+      .filter((f) => !/from '(?:docs-chassis\/[\w-]+|#\/(?:site|source))'/u.test(read(join(ref.dir, f))));
+    expect(thick, `these shims in ${ref.dir} import nothing from docs-chassis`).toEqual([]);
   });
 });
 

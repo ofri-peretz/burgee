@@ -1,6 +1,6 @@
 # Design — One docs app per published package
 
-Intent: [`intent.md`](./intent.md). **Status:** approved (2026-09-23, D-131) — built in the PR that carries this note.
+Intent: [`intent.md`](./intent.md). **Status:** shipped (2026-10-26) — built in #494 (approved 2026-09-23, D-131); its last unlocked requirements (C8 per row, R2, R4/R5, R7, R10) locked in the PR that carries [§ Locked 2026-10-26](#locked-2026-10-26).
 
 > **As built — where the build departs from the text below, and why.** Every departure is
 > also in the PR that built it.
@@ -28,6 +28,14 @@ Intent: [`intent.md`](./intent.md). **Status:** approved (2026-09-23, D-131) —
 > - **The unmeasured DNS case names the record** (`A <host> 76.76.21.21`) and still warns
 >   rather than fails, as `deploy-lock.test.ts` already pinned.
 > - **Constraint 7's analytics clause: overridden for PostHog** (D-131), in the chassis once.
+> - **R5 holds for the package apps, not the front door.** A package app owns four files outside
+>   `content/` — `package.json`, `src/site.ts`, its icon and `tests/examples.test.ts`, which runs
+>   its pages' fenced examples against its own bin — and every other file is a shim, the same
+>   bytes in all nine. `apps/docs` keeps the family-wide surface R11 gives it (the brand labs,
+>   its components, the pitch in `#/lib/llms`), so the R5 lock compares the package apps only
+>   ([`D-20261026-docs-per-package-c8-r5-reading`](../../decisions/D-20261026-docs-per-package-c8-r5-reading.md)).
+> - **Ten rows, not nine.** `controlroom` was published after D-131 and became the tenth row in
+>   #892/#897 with no workflow edit, which is criterion 6 demonstrated a second time.
 
 Parent design: [`docs-deploy/spec.md`](../docs-deploy/spec.md), whose R1–R6 this one
 generalises from one app to N. Nothing below re-argues a decision that design made; where
@@ -388,6 +396,40 @@ Two gaps found while writing this, recorded rather than fixed here:
   scoreboard that four sites now link to is a better reason to close it than one site was.
 - `apps/docs/src/app/` has no `robots` or `sitemap` route, on a site whose stated audience
   includes crawlers and agents. Four hosts is four times no robots file.
+
+## Locked 2026-10-26
+
+Roadmap-to-shipped batch 17. R2, R4/R5, R7 and R10 were built in #494, and the workflow does
+each of them, but no check held any of them. Criterion 8 held per row for the verify and
+`/llms.txt` steps only, and those cases took the host from the JSON rather than from the path
+a runner takes. This PR changes tests and this file, nothing else.
+
+**Criterion 8, read precisely.** Every executed case in `deploy-lock.test.ts` now runs once per
+row, and each run starts by executing preflight's real `Resolve the app` step for that row. The
+deploy job's `env:` is then resolved from that step's outputs, so a row reaches each step the
+way it does on a runner: table, then `jq`, then the job output, then the job `env:`. A
+defect anywhere on that path fails under the row's name. The mutations that are properties of
+the one workflow file stay single assertions, because no row's value reaches them: the
+triggers, `deploymentEnabled`, the dispatch `if:`, the deploy flags, `working-directory`,
+`$comment` and the concurrency group. Asserting them ten times would read the same bytes ten
+times ([`D-20261026-docs-per-package-c8-r5-reading`](../../decisions/D-20261026-docs-per-package-c8-r5-reading.md)).
+
+| requirement | the check | the mutation that proves it red | cases that failed |
+| :-- | :-- | :-- | :-- |
+| R2 | `deploy-lock` › "keeps VERCEL_TOKEN the only secret in the deploy path", and each row's "reaches the deploy job from the table, through preflight, and nowhere else" | `VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}` in the deploy job | 71: the R2 case and all 70 per-row cases, whose job `env:` no longer resolves |
+| R7 | `deploy-lock` › each row's "writes its own row onto its own Vercel project before it pulls or builds", executed against a recording `curl` | the PATCH body sends `rootDirectory: ""` instead of `null` | 10, one per row |
+| R7 | the same, its refused-PATCH half | `\|\| true` after the PATCH | 10, one per row |
+| R7 | the same, the URL | `?teamId=` dropped from the PATCH URL | 10, one per row |
+| R7 | `deploy-lock` › "heals the project before `vercel pull` reads its settings and before the build uses them" | the self-heal step moved after the pull | 1 |
+| R10 | `deploy-lock` › "gives the `<key>` app its own GitHub Environment, per target" | `environment.name: docs-…`, one environment for every app | 10, one per row |
+| C8 | every per-row case | preflight emits `production_url` from the row's `dir` | 20: each row's chain case and its DNS case, which names the wrong host |
+| C8 | each row's "treats a Deployment Protection redirect as protection" (was `ROWS[0]` only) | the protection case narrowed back to `401\|403` | 10, one per row (was 1) |
+| R4/R5 | `vercel-apps-lock` › "R4/R5: a package app is the chassis plus its own facts" — same files, shims byte-identical, `package.json`/`site.ts` differ only by the key (a dependency on a sibling family package a page's examples import is allowed: controlroom's import flagstaff), every `src/` shim imports the chassis | a line of logic added to `apps/docs-caique/src/app/layout.tsx` | 1 (caique) |
+| R4/R5 | the same, the file set | `apps/docs-paratext/src/app/robots.ts` deleted | 1 (paratext) |
+| R4/R5 | the same, the keyed files | a hard-coded description added to `apps/docs-closeout/package.json` | 1 (closeout) |
+
+No state is added, so no Quint model. No source outside `scripts/*.test.ts` changes, so there is
+no mutation-testing gate. No published package changes, so there is no changeset.
 
 ## Rejected alternatives
 
