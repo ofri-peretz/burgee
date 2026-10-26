@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { GRADED, type Graded } from './compat.js';
+import { GRADED, GRADED_MAJORS, type Graded, PREVIOUS_MAJOR_ENTRIES, SUPPORTED_MAJORS } from './compat.js';
 
 const BASELINE = resolve(fileURLToPath(new URL('..', import.meta.url)), '../compat-oracle/baseline');
 
@@ -66,8 +66,27 @@ describe('the graded numbers migrate reports', () => {
     expect(Object.keys(GRADED).sort()).toEqual(baselines.sort());
   });
 
+  // previous-majors: the grade `migrate` prints beside a rewrite to `burgee/commander/v14` is 14's
+  // own suite's, read from `baseline/majors/`, and its control from the page's older-majors table.
+  it.each(Object.keys(GRADED_MAJORS))('%s matches the older-major baseline exactly', (key) => {
+    const { reference, passed, rate } = GRADED_MAJORS[key] as Graded;
+    expect({ reference, passed, rate }).toEqual(oracle(`majors/${key}`));
+  });
+
+  it.each(Object.keys(GRADED_MAJORS))('%s carries the control the compatibility page publishes', (key) => {
+    expect(GRADED_MAJORS[key]?.control).toBe(CONTROL.get(key));
+  });
+
+  it('carries an older-major row for every claimed older major with its own entry, and no other', () => {
+    const claimedOlder = Object.entries(PREVIOUS_MAJOR_ENTRIES)
+      .filter(([specifier]) => !specifier.includes('/'))
+      .flatMap(([host, majors]) => Object.keys(majors).map(Number).filter((major) => SUPPORTED_MAJORS[host]?.includes(major)).map((major) => `${host}-${major}`));
+    expect(Object.keys(GRADED_MAJORS).sort()).toEqual(claimedOlder.sort());
+  });
+
   it('reads a real baseline file and a real page, so the comparisons above cannot pass vacuously', () => {
     expect(oracle('commander').reference).toBeGreaterThan(0);
     expect(CONTROL.size).toBeGreaterThan(20);
+    expect(oracle('majors/commander-14').reference).toBeGreaterThan(0);
   });
 });

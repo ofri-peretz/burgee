@@ -72,7 +72,10 @@ function messageOf(english: string): Record<string, unknown> {
   const text = textOf(english);
   if (!english.includes('{count}')) return { description: english, ...text };
   return {
-    description: `${english} — a string, or an object with exactly the plural forms Intl.PluralRules selects for the locale (new Intl.PluralRules(tag).resolvedOptions().pluralCategories), no more and no fewer: ${formsByLanguage()}. French needs "many" (1000000) as well as "one" and "other", which a copy of a German pack lacks.`,
+    // No expression to run: run 40086461208 ran the `Intl.PluralRules` call this used to print
+    // beside the list it computes (locale-pack-in-five criterion 3). The list is the answer, and
+    // `check` names the forms for any language the list leaves out.
+    description: `${english} — a string, or an object with exactly the plural forms the locale selects, no more and no fewer: ${formsByLanguage()}. French needs "many" (1000000) as well as "one" and "other", which a copy of a German pack lacks. For a language not listed, \`burgee check\` names the forms in \`coverage\` (\`need\`).`,
     anyOf: [text, { type: 'object', propertyNames: { enum: FORMS }, required: ['other'], additionalProperties: text, examples: [FRENCH_COUNT] }],
   };
 }
@@ -83,7 +86,7 @@ export function packSchema(): Record<string, unknown> {
     $id: 'https://burgee.interlace.tools/locale-pack-schema.json',
     title: 'burgee locale pack',
     description:
-      `A plugin that translates burgee's human surfaces — usage errors, hints, help headings, the root's line for agents and the exit-code advice — into one or more languages. Register it with \`program.use(pack)\`; a run whose locale (the program's \`locale\` option, then BURGEE_LOCALE, LC_ALL, LC_MESSAGES, LANG) has a pack speaks it. Machine surfaces (--json, --schema, --mcp, --format=agent, error kinds, exit codes) never change. A pack is plain data, a module's default export with nothing to import. A whole one, with a plural message in the three forms French needs: \`${FRENCH_MODULE}\` Check one with \`burgee check <pack> --json\`, which prints \`{ ok, data }\` where \`ok\` is the exit status (\`true\` is exit 0), so one run answers both: it refuses with every problem at once, each with a \`fix\`, and on success gives each locale's \`coverage\`: the ids \`translated\`, the ids \`missing\` (they stay in English), and for each plural id the forms written (\`have\`) against the forms the locale selects (\`need\`). Generated from packages/burgee/src/messages.ts by scripts/locale-pack-schema.ts.`,
+      `A plugin that translates burgee's human surfaces — usage errors, hints, help headings, the root's line for agents and the exit-code advice — into one or more languages. Register it with \`program.use(pack)\`; a run whose locale (the program's \`locale\` option, then BURGEE_LOCALE, LC_ALL, LC_MESSAGES, LANG) has a pack speaks it. Machine surfaces (--json, --schema, --mcp, --format=agent, error kinds, exit codes) never change. A pack is plain data, a module's default export with nothing to import, and each id’s English, with the {placeholders} to keep, is its \`description\` under \`$defs.messages\`. A whole one, with a plural message in the three forms French needs: \`${FRENCH_MODULE}\` Check one with \`burgee check <pack> --json\`, which prints \`{ ok, data }\` where \`ok\` is the exit status (\`true\` is exit 0), so one run answers both: it refuses with every problem at once, each with a \`fix\`, and on success gives each locale's \`coverage\`: the ids \`translated\`, the ids \`missing\` (they stay in English), and for each plural id the forms written (\`have\`) against the forms the locale selects (\`need\`). Generated from packages/burgee/src/messages.ts by scripts/locale-pack-schema.ts.`,
     type: 'object',
     required: ['name', 'contract', 'locales'],
     properties: {

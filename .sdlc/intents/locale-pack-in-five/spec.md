@@ -20,8 +20,17 @@ R1 and R2 are accepted as written. R3 is restated below on a measurement taken b
   prints coverage. *Check:* `packages/burgee/src/locale-pack-schema.test.ts` imports the module
   from the description and runs `check` on it, exit 0; red on main, the description holds no
   module.
-- **R3 — Measured** *(restated 2026-10-20; the text below the restatement is the original)*.
-  **Now:** every reading passes and the max stays under 12. No transcript spends a call on burgee:
+- **R3 — Measured** *(restated 2026-10-26 by
+  [D-20261026-locale-criterion-3-median-range](../../decisions/D-20261026-locale-criterion-3-median-range.md);
+  the 2026-10-20 text follows it, then the original)*. **Now:** every reading passes and the max
+  stays under 12. The median and range are reported over a named window, beside the aim of under 6.
+  So is the share of transcripts that spend a call on burgee (as listed below), and **above 1 in 4
+  the intent reopens**. *Check:* the runner's `caseLines` in each pull request's own log, read into
+  a decision per window. **R3a — the schema leaves nothing to look up** *(added 2026-10-26)*: the
+  plural message's description lists the forms per language and prints no expression to run, and
+  the top-level description says each id's English is its `description` under `$defs.messages`.
+  *Check:* `locale-pack-schema.test.ts` › "the locale pack schema leaves nothing to look up" (2
+  cases). **2026-10-20:** every reading passes and the max stays under 12. No transcript spends a call on burgee:
   no read of its source, no `Intl.PluralRules` or `check --help` run, no refused `check`, and no
   second `check` of a pack the first accepted. The
   runner prints each call under a passing case (`caseLines`), so the pull request's own log is the
@@ -45,7 +54,8 @@ missing-form fix) and returns it on success too. R2 is data. Both live on `check
 | :-- | :-- | :-- |
 | R1 | `check.test.ts` coverage case | no `coverage` |
 | R2 | `locale-pack-schema.test.ts` module case | no module in the description |
-| R3 | eval history median | 7 |
+| R3 | readings over a named window: all pass, max under 12, median and range, burgee-call share at most 1 in 4 | 2 of 16 is under the band; the zero-tolerance text was broken |
+| R3a | `locale-pack-schema.test.ts` › "leaves nothing to look up" | the description printed `new Intl.PluralRules(…)` and never said where the English is |
 
 No state machine; no model.
 
@@ -62,7 +72,11 @@ No state machine; no model.
 
 ## Status
 
-**Built: R1, R2. R3 measured, restated.** One pull request with `localised-human-surfaces`'s
+**Built: R1, R2, R3a. R3 measured, restated twice, met on the 2026-10-24 to 2026-10-25 window** (16
+readings, median 6, range 5–8, 2 of 16 spend a call on burgee; the decision has the table). R3a is
+two sentences in `scripts/locale-pack-schema.ts`, regenerated into `locale-pack-schema.json`, and
+adds no state, so there is no Quint model. Red on `main`: both cases, `expected … not to match
+/new Intl\.PluralRules\(/` and the missing `$defs.messages` clause. One pull request with `localised-human-surfaces`'s
 re-grounding.
 
 | R | Status | Where | Check |

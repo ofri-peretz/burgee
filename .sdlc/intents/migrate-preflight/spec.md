@@ -339,6 +339,15 @@ Built on `feat/migrate-preflight` against `main` at `e91f842423`. Every check be
 
 **Built: 10. Not built: 0.**
 
+**A released defect, fixed 2026-10-26 (polish batch).** A blocked run still printed `rewrote:` over
+the files it had left alone, and `next: npm install burgee@^… && npm uninstall commander`, in text
+and in `--json` (`next`). It moved nothing, so it now says neither: `next` is `''` whenever a row
+blocks, dry run or not, and the list is headed `would rewrite, not rewritten (blocked):`, read off
+the summary `summaryOf` writes. `migrate-preflight.test.ts` › R6 gains three cases (blocked, blocked
+dry run, and an unblocked control that still says `rewrote:` and prints its `next`). Red on `main`:
+`expected 'npm install burgee@^1.7.1 && npm unin…' to be ''`. No state was added, so `preflight.qnt`
+is unchanged.
+
 ### Evidence against the intent's success criteria
 
 | Criterion | Evidence |

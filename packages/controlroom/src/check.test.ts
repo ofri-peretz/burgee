@@ -77,3 +77,13 @@ describe('controlroom check', () => {
     await expect(run([join(dir, 'missing.mjs')])).rejects.toThrow();
   });
 });
+
+describe('a .json plugin', () => {
+  it('is read as data, byte-order mark and all, and reported as the same module would be', async () => {
+    const data = { name: 42 };
+    const asModule = await run([file(`export default ${JSON.stringify(data)};`)]);
+    const json = join(dir, 'plugin-as-data.json');
+    writeFileSync(json, `\uFEFF${JSON.stringify(data)}`);
+    expect(await run([json])).toEqual(asModule);
+  });
+});

@@ -15,7 +15,10 @@ import { afterAll, describe, expect, it } from 'vitest';
 
 import { type CheckReport, checkPlugin } from './check.js';
 
-const schema = JSON.parse(readFileSync(new URL('locale-pack-schema.json', import.meta.url), 'utf8')) as { description: string };
+const schema = JSON.parse(readFileSync(new URL('locale-pack-schema.json', import.meta.url), 'utf8')) as {
+  description: string;
+  $defs: { messages: { properties: Record<string, { description: string }> } };
+};
 
 /** The module the description holds: the backticked span that starts `export default`. */
 const whole = /`(export default \{.*?\};)`/u.exec(schema.description)?.[1];
@@ -49,5 +52,28 @@ describe('the locale pack schema shows a whole module (locale-pack-in-five R2)',
   // "says ok: false in its --json envelope on a refusal, because it exits 1").
   it('says the --json envelope’s `ok` is the exit status, so one check run answers both', () => {
     expect(schema.description).toMatch(/`ok` is the exit status/u);
+  });
+});
+
+/**
+ * `locale-pack-in-five` criterion 3: of the readings on the released product, two spent a call on
+ * burgee, each on something the schema already said. Run 40086461208 ran
+ * `new Intl.PluralRules('fr').resolvedOptions().pluralCategories` — the expression the plural
+ * message's description printed beside the very list it computes. Run 40217253606 grepped
+ * `messages.ts` for the English of the ids to translate, which is each id's `description` here,
+ * and the top-level description never said so.
+ */
+describe('the locale pack schema leaves nothing to look up (locale-pack-in-five criterion 3)', () => {
+  const plural = schema.$defs.messages.properties['usage.stdinOnce']?.description ?? '';
+
+  it('names the plural forms per language, and prints no expression for an agent to run instead', () => {
+    expect(plural).toMatch(/fr, es, it, pt: one, many, other/u);
+    expect(plural).not.toMatch(/new Intl\.PluralRules\(/u);
+    expect(plural).toMatch(/`coverage`/u);
+  });
+
+  it('says each id’s English is its description, so no run reads the source for it', () => {
+    expect(schema.description).toMatch(/each id’s English, with the \{placeholders\} to keep, is its `description` under `\$defs\.messages`/u);
+    expect(schema.$defs.messages.properties['help.forAgents']?.description).toMatch(/^For agents: /u);
   });
 });

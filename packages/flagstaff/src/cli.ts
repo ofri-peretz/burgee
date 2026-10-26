@@ -25,6 +25,20 @@ import { processRuntime } from './runtime.js';
 import { spinner, type SpinnerState } from './spinner.js';
 
 /**
+ * The plugin a file holds. A `.json` file is read as data: `import()` of one throws
+ * ERR_IMPORT_ATTRIBUTE_MISSING without `with: { type: 'json' }`, and on Node 20 a JSON module
+ * with it still prints an ExperimentalWarning. Until 2026-10-25 a JSON plugin got Node's message
+ * and nothing else. Decoded by `TextDecoder`, which drops a byte-order mark `JSON.parse` refuses.
+ */
+async function load(path: string): Promise<unknown> {
+  // Stryker disable next-line ConditionalExpression,MethodExpression: under vitest's loader `import()` reads JSON too, so only the built bin tells the two paths apart — scripts/plugin-check-lock.test.ts spawns it on a JSON plugin
+  if (path.endsWith('.json')) return JSON.parse(new TextDecoder().decode(readFileSync(path)));
+  // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the file to check is the user's own, named on the command line
+  const loaded = (await import(pathToFileURL(path).href)) as { default?: unknown };
+  return loaded.default ?? loaded;
+}
+
+/**
  * The process, through the seam (Y9). This command owns the process by definition — argv
  * in, stdout out, exit code set — and `./runtime.js` is where the package names it. The
  * `Runtime` imported from `./loop.js` above is a different thing: the world `hoist()` is
@@ -191,9 +205,7 @@ async function main(argv: string[], write: (s: string) => void): Promise<number>
   const file = target(argv[0], write);
   if (typeof file === 'number') return file;
   const before = new Set(registered().plugins);
-  // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the file to check is the user's own, named on the command line
-  const loaded = (await import(pathToFileURL(resolve(file)).href)) as { default?: unknown };
-  const plugin = loaded.default ?? loaded;
+  const plugin = await load(resolve(file));
   register(plugin);
   const { name, spinners = {}, components = {} } = plugin as Plugin;
   const { line, total } = census(plugin as Record<string, unknown>);

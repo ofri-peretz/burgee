@@ -261,6 +261,34 @@ describe('first-cli — the stranger’s path: the built bin, a real install, a 
     expect(ran.code).toBe(session.code);
   });
 
+  // first-cli criterion 2: the generated program is an agent's tool as it stands. `--json` is held
+  // by the transcript above; `--schema` and `--mcp` had no check on the generated program until
+  // 2026-10-25, and the intent cited a transcript for them that did not exist.
+  it('the program it wrote answers --schema with its command as data', () => {
+    const ran = node(['cli.mjs', '--schema'], demo);
+    expect(ran.code, ran.stderr).toBe(0);
+    expect(JSON.parse(ran.stdout)).toMatchObject({
+      description: 'Greet someone by name',
+      effects: 'read_only',
+      inputSchema: { type: 'object', properties: { name: { type: 'string', flag: '--name', description: 'who to greet' } }, required: ['name'], additionalProperties: false },
+    });
+  });
+
+  it('the program it wrote serves --mcp: initialize, tools/list naming greet, and a tools/call of it', () => {
+    const lines = [
+      { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'first-cli', version: '0' } } },
+      { jsonrpc: '2.0', method: 'notifications/initialized' },
+      { jsonrpc: '2.0', id: 2, method: 'tools/list' },
+      { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'greet', arguments: { name: 'ada' } } },
+    ];
+    // stdin closes after the last line, which is how a client hangs up; the server then exits 0.
+    const out = execFileSync(process.execPath, ['cli.mjs', '--mcp'], { cwd: demo, encoding: 'utf8', input: lines.map((l) => `${JSON.stringify(l)}\n`).join('') });
+    const replies = new Map(out.trim().split('\n').map((line) => JSON.parse(line) as { id: number; result: Record<string, unknown> }).map((r) => [r.id, r.result]));
+    expect(replies.get(1)).toMatchObject({ serverInfo: { name: 'greet' }, capabilities: { tools: {} } });
+    expect(replies.get(2)).toMatchObject({ tools: [{ name: 'greet', description: 'Greet someone by name', annotations: { readOnlyHint: true, destructiveHint: false } }] });
+    expect(replies.get(3)).toMatchObject({ isError: false, structuredContent: { greeting: 'hello, ada' } });
+  });
+
   it('runs through its own start script, as npm runs it', () => {
     expect(npm(['start', '--silent', '--', '--name', 'ada'], demo).trim()).toBe('greeting: hello, ada');
   });
