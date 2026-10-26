@@ -97,7 +97,7 @@ Abbreviations used below:
 | cli-foundation-stack | shipped (batch 29 built #1252; READMEs published by Version PR #1253, 2026-10-26) | y | P | umbrella (foundation) | 17 | 17 | – (published by Version PR #1253) | n | – | Y4 builtin lock and absorption probe in compat.yml's floor job; Y12 lock found linegauge naming burgee. Probe baseline in the decision |
 | cli-help-renderer | **shipped** (typed-schema-surface) | y | SHIPPED | burgee/help | 10 | 10 | – | n | – | S1's min/max row held 2026-10-19 |
 | cli-mcp | approved (batch 28, `D-20261025-cli-mcp-design-accepted`) | y | LS | burgee/mcp | 16 | 14 | – (C4 is b1-mcp-arm's; lint rule moved to the eslint repo) | n | – | K1 "deps {}" → restate as "nothing outside the family" |
-| cli-output-stack | approved (2026-10-26: S2 bill and R12 opening locked, D-20261026-output-stack-bill-and-opening) | y | P | umbrella (output stack) | 23 | 23 | – on main; R3, R11, S5 moved to flagstaff and inquirer-prompts-drop-in, R2 held 2026-10-19 | n | – | Closes when flagstaff's next release publishes its README (`.changeset/flagstaff-readme-opening.md`) |
+| cli-output-stack | shipped (2026-10-26: R12's README opening published in `flagstaff@1.7.5` by Version PR #1278, read from the tarball; S2 bill and R12 locked, D-20261026-output-stack-bill-and-opening) | y | P | umbrella (output stack) | 23 | 23 | – ; R3, R11, S5 moved to flagstaff and inquirer-prompts-drop-in, R2 held 2026-10-19 | n | – | `npm pack flagstaff@1.7.5` README byte-identical to `main`; `bench:page --check` and `dependency-bill-lock` pass |
 | cli-packaging | review | y | P | release/packaging | 10 | 8 | R4 / S3 (`.map` negative fixture; `forbiddenInPack` untested) | n | – (release-tag.qnt is tags only) | One test closes it |
 | cli-testing-harness | review | y | P | burgee/testing | 11 | 8 | S1 ANSI-in-non-TTY case, S2 and S4 restate | n | – | |
 | clispec-conformance | **shipped** (batch 0) | y | SHIPPED | burgee/schema | 10 | 10 | – | n | – | Fix the C1 path (it is `scripts/clispec-document.test.ts`); the 24/24 reading is local, but bench.yml enforces ≥24 |
@@ -474,6 +474,8 @@ tarball (`npm i <pkg>@<exact version>` in an empty directory), and the ruling is
 - **Stamped `shipped`:** `colour-facades` (`roundel@1.2.1`), `typed-positionals`,
   `agent-headroom` and `commander-env` (`burgee@1.7.2`). Each intent's § Shipped 2026-10-26 has
   the command run against the published package for every criterion.
+- **Stamped `shipped` after Version PR #1278:** `cli-output-stack`. Its last open item, R12's
+  README opening, is in the `flagstaff@1.7.5` tarball, byte-identical to `main`.
 - **Re-read, still `approved`:** `plugin-contract`. C1–C3 hold on all ten tarballs. C4 has no
   executed weekly eval since 2026-10-09; the 2026-10-29 run decides it.
 - **Not touched here:** `seniority`, whose wait on the minor ended the same way, but whose
