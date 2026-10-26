@@ -2602,13 +2602,20 @@ function rollup(all: { from: string; to: string; file: string }[]): Mapped[] {
  * template is a number that goes stale silently, and this repository has published four
  * of those and caught them all late.
  */
-function gradedFor(packages: string[], majors: ReadonlyMap<string, number>): (Row & { host: string; major?: number })[] {
-  const hosts = [...new Map(packages.flatMap((p) => { const host = HOST_OF.get(p); return host === undefined ? [] : [[host, majors.get(p)] as const]; })).entries()];
-  return hosts.flatMap(([host, major]) => {
+function gradedFor(packages: readonly string[], majors: ReadonlyMap<string, number>): (Row & { host: string; major?: number })[] {
+  const rows = new Map<string, Row & { host: string; major?: number }>();
+  for (const p of packages) {
+    // Every incumbent has a host and every host a grade: `migrate-drop-ins-lock.test.ts` and
+    // `compat-baseline-lock.test.ts` hold both, so neither lookup can miss.
+    const host = HOST_OF.get(p) as string;
+    const major = majors.get(p);
+    // The first package of a host decides its row: `yargs` on 17 is graded as 17 even when a
+    // `yargs-parser` the project also declares sorts after it on no claimed older major.
+    if (rows.has(host)) continue;
     // previous-majors: a program on a claimed older major runs on that major's entry, so it reads that major's grade.
-    if (major !== undefined) return [{ host, major, ...(GRADED_MAJORS[`${host}-${major}`] as Row) }];
-    return GRADED[host] === undefined ? [] : [{ host, ...(GRADED[host] as Row) }];
-  });
+    rows.set(host, major === undefined ? { host, ...(GRADED[host] as Row) } : { host, major, ...(GRADED_MAJORS[`${host}-${major}`] as Row) });
+  }
+  return [...rows.values()];
 }
 
 /**

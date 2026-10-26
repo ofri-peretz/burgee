@@ -646,7 +646,7 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     // The grade printed is 14's own suite's, never 15's: the program now runs on the v14 entry.
     expect(report.graded).toMatchObject([{ host: 'commander', major: 14, reference: 1331, passed: 1331 }]);
     expect(report.graded).toEqual([{ host: 'commander', major: 14, ...GRADED_MAJORS['commander-14'] }]);
-    expect(textOf(report)).toContain('\n  commander 14  1331 / 1331 (the incumbent passes 1331)\n');
+    expect(textOf(report)).toContain('\ngraded by the incumbent’s own suite:\n  commander 14  1331 / 1331 (the incumbent passes 1331)\n');
   });
 
   // `previous-majors` R6, yargs half: 17 is claimed (its own suite grades `burgee/yargs/v17`
@@ -676,12 +676,28 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     expect(report.graded).toEqual([{ host: 'yargs', major: 17, ...GRADED_MAJORS['yargs-17'] }]);
   });
 
+  it('grades yargs 17 as 17 when the project also declares the current yargs-parser, one row per host', async () => {
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { yargs: '~17.7.2', 'yargs-parser': '^22.0.0' } }),
+      'src/a.cjs': "const yargs = require('yargs');\n",
+    });
+    const report = await migrate({ dir, status: clean });
+    expect(report.graded).toEqual([{ host: 'yargs', major: 17, ...GRADED_MAJORS['yargs-17'] }]);
+  });
+
+  it('lists the grades in package order, whatever order the incumbents are declared in', async () => {
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x', type: 'module', dependencies: { commander: '^15.0.0', chalk: '^6.0.0' } }), 'src/a.js': "import { Command } from 'commander';\nimport chalk from 'chalk';\n" });
+    const report = await migrate({ dir, status: clean });
+    expect(report.graded.map((g) => g.host)).toEqual(['chalk', 'commander']);
+  });
+
   it('rewrites to the current entry when the declared range names no major', async () => {
     const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { commander: 'latest' } }), 'src/a.ts': "import { Command } from 'commander';\n" });
     const report = await migrate({ dir, status: clean });
     expect(report.offMajor).toEqual([]);
     expect(read(dir, 'src/a.ts')).toBe("import { Command } from 'burgee/commander';\n");
     expect(report.graded).toEqual([{ host: 'commander', reference: 1360, passed: 1360, rate: 1, control: 1360 }]);
+    expect(textOf(report)).toContain('\ngraded by the incumbent’s own suite:\n  commander  1360 / 1360 (the incumbent passes 1360)\n');
   });
 
   it('leaves a drop-in that is not level yet alone, and says so with its grade', async () => {

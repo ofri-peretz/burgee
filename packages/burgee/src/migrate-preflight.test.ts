@@ -319,6 +319,15 @@ describe('R6 — a blocking row stops the write, and --force does not lift it', 
     expect(textOf(report).split('\n')).toContain('would rewrite, not rewritten (blocked):');
   });
 
+  it('R6 — an unblocked dry run labels its list would rewrite, and still prints its next step', async () => {
+    const dir = project({ 'package.json': JSON.stringify({ type: 'module', engines: { node: '>=20.19.0' }, dependencies: { commander: '^15.0.0' } }), 'a.js': "import { Command } from 'commander';\n" });
+    const report = await run(dir, { dryRun: true });
+    const text = textOf(report).split('\n');
+    expect(text).toContain('would rewrite:');
+    expect(text).toContain(`next: ${report.next}`);
+    expect(report.next).not.toBe('');
+  });
+
   it('R6 — an unblocked run still labels its list rewrote and prints its next step', async () => {
     const dir = project({ 'package.json': JSON.stringify({ type: 'module', engines: { node: '>=20.19.0' }, dependencies: { commander: '^15.0.0' } }), 'a.js': "import { Command } from 'commander';\n" });
     const report = await run(dir);
