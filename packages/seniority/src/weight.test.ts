@@ -47,12 +47,14 @@ const DISK = ['search.js', 'load.js', 'runtime.js'];
 // Measured 2026-10-05 on a clean build; each budget is the measurement plus a few percent.
 const RULES: Record<string, EntryRule> = {
   // The root re-exports the cosmiconfig surface, so it carries that façade and no other. 42,950.
-  '.': { budget: 45_000, denied: [...NEVER, 'plugin.js', ...others('cosmiconfig.js')] },
+  // 46,400 from 45,000 on 2026-10-26: 44,195 + 1,781 B for R3's line scan and `packageLayer`, 45,976.
+  '.': { budget: 46_400, denied: [...NEVER, 'plugin.js', ...others('cosmiconfig.js')] },
   './precedence': { budget: 4_000, denied: [...NEVER, ...FACADES, ...DISK] },
   './explain': { budget: 3_000, denied: [...NEVER, ...FACADES, ...DISK] },
   // Registering a plugin reads no file. 7,744.
   './plugin': { budget: 8_200, denied: [...NEVER, ...FACADES, ...DISK] },
-  './config': { budget: 13_000, denied: [...NEVER, ...FACADES] },
+  // 14,900 from 13,000 on 2026-10-26: 12,895 + 1,767 B, the same change, 14,662 (D-20261026-seniority-spawn-bars).
+  './config': { budget: 14_900, denied: [...NEVER, ...FACADES] },
   './cosmiconfig': { budget: 26_000, denied: [...NEVER, ...others('cosmiconfig.js')] },
   // Raised 10,700 → 18,200 on 2026-10-06 for dotenv 18: its `{ fast: true }` character scanner
   // (`dotenv-scan.js`) and the `DOTENV_*` defaults (`dotenv-options.js`), both on `config()`'s

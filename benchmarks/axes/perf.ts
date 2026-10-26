@@ -68,9 +68,37 @@ export interface Variant {
    * machine-independent as the ratio is.
    */
   over?: string;
+  /**
+   * The allowance over `over` and the requirement that sets it, when it is not roundel R8's
+   * `DELTA_CEILING_MS`. seniority R9 writes its bar as "spawn delta at or under `lilconfig`", so
+   * its rows carry their own number and their own reason rather than borrowing a colour entry's.
+   */
+  bar?: { max: number; why: string };
 }
 
 const NO_COLOR = { NO_COLOR: '1' } as const;
+
+/**
+ * seniority R9's time half: "spawn delta at or under `lilconfig`". Read as the median of the
+ * per-round differences, the gate sits 2 ms above the bar rather than on it, because a paired
+ * median of two near-equal spawns crosses zero on a runner's bad minute: measured 2026-10-26 on an
+ * M4 Pro under load, 68 rounds, −0.19 ms, and −0.72 ms over 40 more. D-20261026-seniority-spawn-bars.
+ */
+const SENIORITY_R9 = {
+  max: 2,
+  why: 'seniority R9: `seniority/lilconfig` may cost no more than lilconfig to start; the gate allows 2 ms of runner noise over that bar (D-20261026-seniority-spawn-bars)',
+};
+
+/**
+ * The `.env` drop-in has no time bar of its own — R9 names lilconfig — so it takes roundel R8's
+ * allowance as a ratchet, and the row is measured rather than left out. It is the slower of the
+ * two: +1.74 ms and +4.88 ms over dotenv in two runs on 2026-10-26, six ES modules against
+ * dotenv's one CommonJS file. Gap B-20261026-seniority-dotenv-starts-slower.
+ */
+const SENIORITY_DOTENV = {
+  max: 10,
+  why: "a ratchet, not a claim: `seniority/dotenv` starts slower than dotenv, and roundel R8's 10 ms allowance stops that growing (B-20261026-seniority-dotenv-starts-slower)",
+};
 
 /** `bare node` is mandatory (intent constraint 5): it is most of every other row. */
 export const VARIANTS: readonly Variant[] = [
@@ -94,6 +122,14 @@ export const VARIANTS: readonly Variant[] = [
   { id: 'ink + react', file: 'ink-react.mjs', parses: false, pkg: 'ink' },
   { id: 'controlroom/ink', file: 'controlroom-ink.mjs', host: 'ink + react', parses: false, pkg: 'controlroom' },
   { id: 'controlroom', file: 'controlroom.mjs', host: 'ink + react', parses: false, pkg: 'controlroom' },
+  // seniority R9's time half, and the `.env` drop-in beside it: each against the incumbent it
+  // replaces, at the release compat-oracle grades. No parser of argv — the lilconfig rows import
+  // the one function and the dotenv rows parse one line, each printing the floor's line only
+  // when what it imported worked.
+  { id: 'lilconfig', file: 'lilconfig.mjs', parses: false, pkg: 'lilconfig' },
+  { id: 'seniority/lilconfig', file: 'seniority-lilconfig.mjs', parses: false, pkg: 'seniority', over: 'lilconfig', bar: SENIORITY_R9 },
+  { id: 'dotenv', file: 'dotenv.mjs', parses: false, pkg: 'dotenv' },
+  { id: 'seniority/dotenv', file: 'seniority-dotenv.mjs', parses: false, pkg: 'seniority', over: 'dotenv', bar: SENIORITY_DOTENV },
 ];
 
 /**
@@ -125,9 +161,9 @@ const SHOUT_EXPECTED = 'HELLO, ADA!\n';
  * only five — which is why it read 42 then. With roundel R8's three colour rows there are ten,
  * and 40 makes every variant go first, second and last exactly four times, which is the only
  * thing the rotation is for. controlroom W4's three rows make thirteen, and 52 is four turns
- * in each position again.
+ * in each position again. seniority's four rows make seventeen, and 68 keeps four.
  */
-export const ROUNDS = 52;
+export const ROUNDS = 68;
 const RATIO_PLACES = 3;
 const MS_PLACES = 2;
 
@@ -312,7 +348,7 @@ export function deltaRecord({ v, ours, over, gateMax, versions }: DeltaInput): B
     p95: round(p95(paired), MS_PLACES),
     gate: {
       max: gateMax,
-      why: `roundel R8: a colour entry may cost no more than ${v.over ?? ''} + ${String(gateMax)} ms to start — the difference of two spawns in the same round, not an absolute`,
+      why: v.bar?.why ?? `roundel R8: a colour entry may cost no more than ${v.over ?? ''} + ${String(gateMax)} ms to start — the difference of two spawns in the same round, not an absolute`,
     },
     note: `median of ${String(paired.length)} paired differences, each round's ${v.id} less the same round's ${v.over ?? ''}`,
     ...(versions === undefined ? {} : { detail: { ours: `${v.pkg ?? v.id}@${versions.ours}`, over: `${v.over ?? ''}@${versions.over}` } }),
@@ -350,7 +386,7 @@ export function run(rounds = ROUNDS): BenchRecord[] {
         v,
         ours: samples.get(v.id) as number[],
         over: samples.get(v.over) as number[],
-        gateMax: DELTA_CEILING_MS,
+        gateMax: v.bar?.max ?? DELTA_CEILING_MS,
         ...(ours === undefined || over === undefined ? {} : { versions: { ours: ours.version, over: over.version } }),
       }),
     );

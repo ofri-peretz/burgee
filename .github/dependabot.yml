@@ -119,6 +119,9 @@ updates:
       - dependency-name: "lilconfig"
       - dependency-name: "dotenv"
       - dependency-name: "signal-exit"
+      # seniority criterion 4: B4's discovery-chain row weighs `seniority/find-up` against find-up
+      # 8.0.0, the release compat-oracle grades (`suiteDeps`), so it moves with its re-vendor.
+      - dependency-name: "find-up"
       # colour-facades R4: B4 weighs `roundel/colorette` against colorette 2.0.20, the release
       # compat-oracle grades (`suiteDeps`), and the root pins the same one for the type-surface
       # and differential tests.

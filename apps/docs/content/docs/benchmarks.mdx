@@ -98,6 +98,11 @@ agent actually pay, and excluding Node's own startup would flatter every row.
 | controlroom/ink ÷ ink + react | **0.416×** | 0.453× | ≤ 1 |
 | controlroom ÷ ink + react | **0.159×** | 0.171× | ≤ 1 |
 
+| Difference | p50 | p95 | gate |
+| :--- | ---: | ---: | ---: |
+| roundel/tokens − picocolors | **0.0 ms** | +1.2 ms | ≤ +10.0 ms |
+| roundel/chalk − picocolors | **+2.6 ms** | +3.9 ms | ≤ +10.0 ms |
+
 ## B1, the half that needs no model — what an agent can act on
 
 Not B1, and not a stand-in for it: this measures nothing about tokens or turns. It measures
