@@ -120,7 +120,10 @@ export async function completeDynamic(manifest: Manifest, argv: readonly string[
   const typingOption = partial.startsWith('-') && !tokens.some((t) => t.kind === 'option-terminator');
   // Stryker disable next-line ArrayDeclaration: equivalent — a placeholder element has no `complete`, so a command without arguments completes no positional either way
   const positional = typingOption ? undefined : slotOf(node.arguments ?? [], context.positionals.length);
-  const complete: Completer | undefined = awaiting === undefined ? positional?.complete : awaiting.complete;
+  // typed-positionals R4 — a slot with choices and no completer offers its choices: a script asks
+  // the program for every slot of a command where any positional declares a completer.
+  const chosen = positional?.choices;
+  const complete: Completer | undefined = awaiting === undefined ? (positional?.complete ?? (chosen && (() => chosen))) : awaiting.complete;
   // Stryker disable next-line ConditionalExpression: equivalent — calling an absent completer throws inside the catch below, which offers nothing too
   if (complete === undefined) return;
   // A completer that throws offers nothing (see the header): its failure is the program's to

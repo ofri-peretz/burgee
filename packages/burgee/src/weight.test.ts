@@ -464,7 +464,8 @@ const RULES: Record<string, EntryRule> = {
     // 28,000 on 2026-10-12 for mcp-current R4 and R5: requests are dispatched without waiting for the one before, kept by id so `notifications/cancelled` aborts the call's signal and its reply is dropped; the stdout capture follows each call through `AsyncLocalStorage` instead of one global swap, which concurrent calls would have crossed; and a call with a `progressToken` sends `notifications/progress`. Measured 26,695 -> 27,991.
     // 28,200 on 2026-10-12 for mcp-current R3: `initialize` answers the revision the client asked for when it is one of `SUPPORTED_REVISIONS` (2025-06-18, 2025-11-25), and the latest otherwise, instead of 2025-06-18 to everyone. Measured 27,991 -> 28,177.
     // 28,400 on 2026-10-19 (D-20261019-typed-schema-surface-weight): a tool call that skips an optional positional fills it with its default, or is refused, instead of shifting every later value one place left. Measured 28,069 -> 28,364.
-    budget: 28_400,
+    // 28,500 on 2026-10-26 (D-20261026-typed-positionals-r4-weight): an argument's `inputSchema` property carries its JSON type and its default as that type. Measured 28,294 -> 28,428.
+    budget: 28_500,
     // 24,850 with the MCP stdout capture (#521) on top of D-122's 20,568. Measured 24,835.
     // 24,950 with D-140's MCP error classification on top of #521. Measured 24,900.
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
@@ -635,9 +636,11 @@ const RULES: Record<string, EntryRule> = {
   // The completion templates for four shells and Fig. Loaded by the engine and the
   // commander front-end only on `completion <shell>`, through a dynamic import, so a
   // program pays for them when it prints a script and never at startup (K6).
+  // 18,550 on 2026-10-26 (D-20261026-typed-positionals-r4-weight): each shell offers a
+  // positional its `choices` in its slot, counted by the script itself. Measured 15,234 -> 18,491.
   "./completions": {
     allow: [],
-    budget: 16_000,
+    budget: 18_550,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js"],
   },
   //
@@ -772,9 +775,12 @@ const RULES: Record<string, EntryRule> = {
   // (an Argument's choices) grew the shared front-end 66 B in this walk (111,958 -> 112,024 for
   // `./commander`), so this entry read 112,711. Measured + the ~32 B CI margin = 112,743, rounded
   // up to the next 50 B. Nothing of v14's own grew: it is still 687 B over `./commander`.
+  //
+  // **2026-10-26: 112,750 -> 112,800 (D-20261026-typed-positionals-r4-weight).** `schema.js`
+  // publishes an argument's JSON type and typed default: +134 B in this walk, 112,633 -> 112,767.
   "./commander/v14": {
     allow: [],
-    budget: 112_750,
+    budget: 112_800,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   // yargs 18 ported method for method, with its whole dependency tree — yargs-parser 22,
