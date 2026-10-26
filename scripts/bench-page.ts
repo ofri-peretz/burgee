@@ -90,6 +90,19 @@ const num = (n: number): string => n.toLocaleString('en-US');
 
 const coldStart = pick(cheap, 'cold-start-ms').map((r) => `| \`${r.variant}\` | ${r.median.toFixed(MS_PLACES)} | ${r.p95.toFixed(MS_PLACES)} | ${String(r.samples)} |`);
 const ratios = pick(cheap, 'cold-start-ratio').map((r) => `| ${r.variant} | **${r.median.toFixed(RATIO_PLACES)}×** | ${r.p95.toFixed(RATIO_PLACES)}× | ${r.gate === undefined ? '—' : `≤ ${String(r.gate.max)}`} |`);
+/** A signed allowance: `+1.5 ms` slower, `−0.19 ms` faster — the sign is the finding. */
+const signedMs = (v: number): string => {
+  const at = Math.abs(v).toFixed(MS_PLACES);
+  // A difference that rounds to nothing has no sign to show; `−0.0 ms` would claim one.
+  if (Number(at) === 0) return `${at} ms`;
+  return `${v < 0 ? '−' : '+'}${at} ms`;
+};
+/**
+ * The paired differences — roundel R8's colour entries over picocolors, seniority R9's drop-ins
+ * over the incumbent each replaces. They were gated on every run and drawn on no page: a bar a
+ * requirement writes in milliseconds is published in milliseconds, beside the ratios.
+ */
+const deltas = pick(cheap, 'cold-start-delta-ms').map((r) => `| ${r.variant} | **${signedMs(r.median)}** | ${signedMs(r.p95)} | ${r.gate === undefined ? '—' : `≤ ${signedMs(r.gate.max)}`} |`);
 
 const RELIABILITY = ['hangs-per-100', 'exit-code-accuracy', 'structured-output-rate', 'recovery-bytes'] as const;
 const pct = (v: number): string => `${(v * PERCENT).toFixed(1)}%`;
@@ -343,6 +356,10 @@ ${coldStart.join('\n')}
 | Ratio | p50 | p95 | gate |
 | :--- | ---: | ---: | ---: |
 ${ratios.join('\n')}
+
+| Difference | p50 | p95 | gate |
+| :--- | ---: | ---: | ---: |
+${deltas.join('\n')}
 
 ## B1, the half that needs no model — what an agent can act on
 

@@ -947,6 +947,7 @@ export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
     'loadWithExtends',
     'loaderFor',
     'metaSearchPlaces',
+    'packageLayer',
     'renderExplanation',
     'resolve',
     'screaming',

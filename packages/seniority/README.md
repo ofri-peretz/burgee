@@ -447,7 +447,7 @@ Graded by the incumbent's own test suite:
 | `lilconfig` | 77 / 77 |
 | `rc` | 1 / 1 |
 
-Weight, installed and tree-inclusive: **222,219 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1127** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **224,606 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1139** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 
@@ -474,6 +474,7 @@ Weight, installed and tree-inclusive: **222,219 bytes** against **1,972,507** fo
 | `explain(name, resolution)`   | the winning source and everything it beat, formatted                         |
 | `discover(discovery)`         | find and load a config file, following `extends`                             |
 | `loadWithExtends(path)`       | load one file and its `extends` chain                                        |
+| `packageLayer(path, name)`    | the program's `package.json` field as a layer, each key cited at its line    |
 | `candidates(discovery)`       | the paths discovery _would_ try, and why                                     |
 | `deepMerge(base, over)`       | objects merge recursively; anything else, later wins                         |
 | `envName(name, spec, prefix)` | the variable an option reads                                                 |

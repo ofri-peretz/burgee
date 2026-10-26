@@ -59,6 +59,8 @@ export interface EntryPair {
   claim?: string;
   /** Where the claim is written, when it is a package's own bar rather than U5's. */
   source?: string;
+  /** Why the installed tree is gated, when it is not controlroom W2 — the first pair to gate it. */
+  installedWhy?: string;
   /** Why this is the right comparison, for the table. */
   why: string;
 }
@@ -80,13 +82,13 @@ export function packagesOf(side: Side): string[] {
 }
 
 /**
- * How a side is named on its rows: its specifier, then each further package it imports. A
- * one-import side is named by its specifier, so no row written before a side could be several
- * packages changes its name.
+ * How a side is named on its rows: its specifier, then each further one it imports. A one-import
+ * side is named by its specifier, so no row written before a side could be several imports
+ * changes its name. Specifiers, not packages: the discovery-chain row imports two entry points of
+ * `seniority`, and a label that said only `seniority/cosmiconfig` would hide the second.
  */
 export function sideLabel(side: Side): string {
-  const [, ...rest] = packagesOf(side);
-  return [side.specifier, ...rest].join(' + ');
+  return [...new Set([side, ...(side.with ?? [])].map((s) => s.specifier))].join(' + ');
 }
 
 /** The ratio row's variant, which claims and bands key on: ours ÷ theirs. */
@@ -275,8 +277,9 @@ export const PAIRS: readonly EntryPair[] = [
   // Each drop-in against the zero-dependency incumbent it replaces, at the exact version
   // compat-oracle grades (`suiteDeps` in `hosts.ts`), importing the same symbol on both sides:
   // the default where the incumbent has one, the one named function where it does not.
-  // cosmiconfig is not paired: its tree is the anchor of seniority's foundation ceiling, and that
-  // comparison is made in `.sdlc/bands/foundation-ceilings.json`.
+  // cosmiconfig is not paired alone: its tree is the anchor of seniority's foundation ceiling, and
+  // that comparison is made in `.sdlc/bands/foundation-ceilings.json`. It stands below in the
+  // discovery-chain row, beside find-up, which is a different question.
   {
     id: 'seniority/lilconfig',
     ours: { specifier: 'seniority/lilconfig', symbol: 'lilconfig' },
@@ -288,6 +291,24 @@ export const PAIRS: readonly EntryPair[] = [
     ours: { specifier: 'seniority/dotenv', symbol: DEFAULT_EXPORT },
     incumbent: { specifier: 'dotenv', symbol: DEFAULT_EXPORT },
     why: 'the .env drop-in against dotenv, the lightest incumbent in seniority\'s foundation ceiling',
+  },
+  {
+    // seniority criterion 4, the package's headline number: what a program that finds and loads
+    // a config file installs today — cosmiconfig (env-paths, js-yaml, argparse) plus the find-up
+    // chain (locate-path, p-locate, p-limit, yocto-queue, unicorn-magic) — against the two
+    // seniority entry points that do both jobs. Each incumbent at the release compat-oracle grades
+    // it at, cosmiconfig 10.0.1 and find-up 8.0.0. The installed tree is gated too, in packages and
+    // in bytes, because "seven packages; this is one, with none" is a claim about the tree and not
+    // about a bundle. The intent counted seven at cosmiconfig 9 and find-up 5 (import-fresh,
+    // parse-json, path-exists); at the graded releases the walk counts ten.
+    id: 'seniority/discovery-chain',
+    claim: 'seniority-lighter-than-the-discovery-chain',
+    source: '.sdlc/intents/seniority/intent.md, success criterion 4 — the seven-package discovery-chain row',
+    ours: { specifier: 'seniority/cosmiconfig', symbol: 'cosmiconfig', with: [{ specifier: 'seniority/find-up', symbol: 'findUp' }] },
+    incumbent: { specifier: 'cosmiconfig', symbol: 'cosmiconfig', with: [{ specifier: 'find-up', symbol: 'findUp' }] },
+    installed: true,
+    installedWhy: 'seniority criterion 4: one package with no dependencies installs no more than the discovery chain it replaces, in packages and in bytes',
+    why: 'seniority criterion 4: config loading and the upward walk, as cosmiconfig and find-up against the two seniority entry points that replace them',
   },
   {
     id: 'closeout/exit-hook',

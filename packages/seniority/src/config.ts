@@ -68,37 +68,141 @@ export function deepMerge(base: Record<string, unknown>, over: Record<string, un
 }
 
 /**
- * The line a top-level key is set on, one-based, or `undefined`.
+ * Each key of the object at `at` in JSON `text`, and the one-based line it is set on.
  *
  * Text, not a parse tree: a JSON parser that reported positions would *be* a parser, and
- * `JSON.parse` reports none. The scan is exact about what it can answer — a `"key":` on a
- * line — and silent about what it cannot, because a wrong line number in an error message
- * is worse than no line number at all (R3, R12).
+ * `JSON.parse` reports none. So this is a scan that knows only what JSON's grammar makes
+ * unambiguous — strings, the colon after a key, and the brackets that open and close a level —
+ * which is enough to tell a top-level `"out":` from the `"out":` inside a nested object. It is
+ * exact about what it can answer and silent about what it cannot, because a wrong line number in
+ * an error message is worse than no line number at all (R3, R12): a key written with an escape
+ * (`"\u0061"`) is not matched to `a`, and a key set twice is cited where `JSON.parse` takes it
+ * from, the last time.
  */
-export function lineOf(text: string, key: string): number | undefined {
-  const needle = `"${key}"`;
-  for (const [i, line] of text.split('\n').entries()) {
-    const at = line.indexOf(needle);
-    if (at !== -1 && line.slice(at + needle.length).trimStart().startsWith(':')) return i + 1;
+function keyLines(text: string, at: readonly string[]): Map<string, number> {
+  const out = new Map<string, number>();
+  // One entry per open bracket: the key it was opened under, or `null` for the root or an array element.
+  const open: (string | null)[] = [];
+  let line = 1;
+  // The last string read and its line; a `:` makes it a key. JSON strings hold no raw newline.
+  // Stryker disable next-line StringLiteral: equivalent — a colon reads `raw` only after a string has set it, unless the text puts a colon before any string, which no JSON does
+  let raw = '';
+  let rawLine = 0;
+  let key: string | null = null;
+  // Stryker disable next-line EqualityOperator: equivalent — one step past the end reads `undefined`, which no case matches
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') {
+      const end = closingQuote(text, i);
+      raw = text.slice(i + 1, end);
+      rawLine = line;
+      i = end;
+      continue;
+    }
+    switch (c) {
+      case '\n':
+        line++;
+        break;
+      case ':':
+        key = raw;
+        if (isAt(open, at)) out.set(key, rawLine);
+        break;
+      case '{':
+      case '[':
+        open.push(key);
+        key = null;
+        break;
+      case '}':
+      case ']':
+        open.pop();
+        break;
+      // An element after a comma is opened under no key.
+      // Stryker disable all: equivalent through every export — a stale key here reaches only a level under a root array, and `lineOf` reads the root while `packageLayer` refuses a manifest that is not an object
+      case ',':
+        key = null;
+        break;
+      // Stryker restore all
+      default:
+    }
   }
-  return undefined;
+  return out;
 }
 
-/** Every key's line, for the keys the loaded object actually has. JSON only — see `lineOf`. */
-function linesFor(path: string, data: Record<string, unknown>): Record<string, number> | undefined {
-  if (!path.endsWith('.json')) return undefined;
-  let text: string;
-  try {
-    text = readFileSync(path, 'utf8');
-  } catch {
-    return undefined;
-  }
+/** The index of the quote that closes the string opening at `start`, stepping over each escaped character whole. */
+function closingQuote(text: string, start: number): number {
+  let j = start + 1;
+  // Stryker disable next-line EqualityOperator: equivalent — one step past the end reads `undefined`, the loop's other test then ends it, and the slice is the same
+  while (j < text.length && text[j] !== '"') j += text[j] === '\\' ? 2 : 1;
+  return j;
+}
+
+/** Whether the innermost open object is the one at `at`: below the root, opened under each of its keys in turn. */
+const isAt = (open: readonly (string | null)[], at: readonly string[]): boolean => open.length === at.length + 1 && at.every((k, n) => open[n + 1] === k);
+
+/** The line a top-level key is set on, one-based, or `undefined`. See `keyLines` for what it will and will not match. */
+export function lineOf(text: string, key: string): number | undefined {
+  return keyLines(text, []).get(key);
+}
+
+/** Every key's line, for the keys `data` actually has, at `at` within the file's object. */
+function linesOf(text: string, data: Record<string, unknown>, at: readonly string[] = []): Record<string, number> | undefined {
+  const all = keyLines(text, at);
   const out = new Map<string, number>();
   for (const key of Object.keys(data)) {
-    const line = lineOf(text, key);
+    const line = all.get(key);
     if (line !== undefined) out.set(key, line);
   }
   return out.size === 0 ? undefined : Object.fromEntries(out);
+}
+
+const readText = (path: string): string | undefined => {
+  try {
+    // Stryker disable BlockStatement: equivalent — the catch block below returns `undefined`, and an empty one returns it all the same
+    return readFileSync(path, 'utf8');
+  } catch {
+    // Stryker restore BlockStatement
+    return undefined;
+  }
+};
+
+/** Every key's line, for the keys the loaded object actually has. JSON only — see `keyLines`. */
+function linesFor(path: string, data: Record<string, unknown>): Record<string, number> | undefined {
+  if (!path.endsWith('.json')) return undefined;
+  const text = readText(path);
+  return text === undefined ? undefined : linesOf(text, data);
+}
+
+/** The parsed text, or `undefined` for none or for text that is not JSON. */
+function parseJson(text: string | undefined): unknown {
+  try {
+    // `String(undefined)` is not JSON either, so a file that could not be read lands in `catch` too.
+    // Stryker disable BlockStatement: equivalent — the catch block below returns `undefined`, and an empty one returns it all the same
+    return JSON.parse(String(text)) as unknown;
+  } catch {
+    // Stryker restore BlockStatement
+    return undefined;
+  }
+}
+
+/**
+ * The `package.json` field named after a program, as the layer below the config file, with the
+ * line each of its keys is set on (R3). Without the line, `explain` could say a value came from
+ * `package.json` and not where in it, which is the one file in a project long enough for that to
+ * matter.
+ *
+ * `manifest` is the file already parsed, for a caller that has it (burgee reads the owning
+ * package.json once, for `--version` too); the file is then read again only for the lines, and a
+ * file that cannot be read gives a layer with none. Without it the file is read and parsed here,
+ * and one that is missing or is not JSON is no layer. A field that is not an object is no layer
+ * either: the field holds options, and a string or an array there sets none of them.
+ */
+export function packageLayer(path: string, name: string, manifest?: Record<string, unknown>): Layer | undefined {
+  const text = readText(path);
+  const data = manifest ?? parseJson(text);
+  const field = isObject(data) ? data[name] : undefined;
+  if (!isObject(field)) return undefined;
+  const lines = text === undefined ? undefined : linesOf(text, field, [name]);
+  return { path, data: field, ...(lines === undefined ? {} : { lines }) };
 }
 
 function resolveExtends(spec: string, from: string): string {
