@@ -1,6 +1,5 @@
 ---
 "seniority": minor
-"burgee": patch
 ---
 
 Provenance now gives the line for a value set in the `package.json` field. The new `packageLayer(path, name)` in `seniority/config` (and the root) reads the field named after your program as the layer below the config file, and records the line each of its keys is set on. `explain` then prints `package.json field in /app/package.json:6`, not just the file. Pass the parsed manifest as a third argument if you already have it, and the file is read again only for the lines.

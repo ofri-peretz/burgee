@@ -1,5 +1,26 @@
 # burgee
 
+## 1.7.2
+
+### Patch Changes
+
+- [#1258](https://github.com/ofri-peretz/burgee/pull/1258) [`e3b3a41`](https://github.com/ofri-peretz/burgee/commit/e3b3a41745ecdc853d741c457306c566541271b6) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/locale-pack-schema.json` no longer prints an `Intl.PluralRules` expression beside the plural forms it lists, which agents ran instead of reading the list, and its top-level description now says each catalog id's English, with its placeholders, is that id's `description` under `$defs.messages`.
+
+- [#1258](https://github.com/ofri-peretz/burgee/pull/1258) [`e3b3a41`](https://github.com/ofri-peretz/burgee/commit/e3b3a41745ecdc853d741c457306c566541271b6) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` no longer tells a blocked run it rewrote anything. When a preflight row blocks the write, the file list is headed `would rewrite, not rewritten (blocked):` instead of `rewrote:`, and there is no `next: npm install … && npm uninstall …` line (`next` is `""` in `--json`), since nothing moved. After a rewrite to `burgee/commander/v14` or `burgee/yargs/v17`, the grade printed beside it is that major's own suite's (`commander 14  1331 / 1331`, `yargs 17  793 / 794`), not the current major's, and the `--json` row carries `major`.
+
+- [#1264](https://github.com/ofri-peretz/burgee/pull/1264) [`e739f18`](https://github.com/ofri-peretz/burgee/commit/e739f1822cfc196e280ee74c1a47c0d3543fc989) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Provenance now gives the line for a value set in the `package.json` field. The new `packageLayer(path, name)` in `seniority/config` (and the root) reads the field named after your program as the layer below the config file, and records the line each of its keys is set on. `explain` then prints `package.json field in /app/package.json:6`, not just the file. Pass the parsed manifest as a third argument if you already have it, and the file is read again only for the lines.
+
+  `lineOf` now reads the top level of the JSON only. It used to return the first `"key":` anywhere in the file, so a nested key with the same name, written above the top-level one, was cited at the wrong line. A key set twice is cited at the last one, the one `JSON.parse` keeps.
+
+  burgee: `--explain` and `meta.provenance` now give the line for a value set in the `package.json` field (`package.json:5`), as they already did for a config file.
+
+- Updated dependencies [[`e3b3a41`](https://github.com/ofri-peretz/burgee/commit/e3b3a41745ecdc853d741c457306c566541271b6), [`02e6f9f`](https://github.com/ofri-peretz/burgee/commit/02e6f9fcd779d892e7097659a6bd4c2f0e5b5a04), [`efc994e`](https://github.com/ofri-peretz/burgee/commit/efc994ea20dae1f31990a7afef9dfa3c34fee596), [`efc994e`](https://github.com/ofri-peretz/burgee/commit/efc994ea20dae1f31990a7afef9dfa3c34fee596)]:
+  - bellpull@1.0.10
+  - closeout@1.1.8
+  - linegauge@1.1.5
+  - roundel@1.2.1
+  - seniority@1.1.1
+
 ## 1.7.1
 
 ### Patch Changes

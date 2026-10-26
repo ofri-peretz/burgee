@@ -1,5 +1,20 @@
 # controlroom
 
+## 1.0.7
+
+### Patch Changes
+
+- [#1258](https://github.com/ofri-peretz/burgee/pull/1258) [`e3b3a41`](https://github.com/ofri-peretz/burgee/commit/e3b3a41745ecdc853d741c457306c566541271b6) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `check` reads a `.json` plugin file as data. It handed every file to `import()`, and Node refuses a `.json` module without an import attribute (ERR_IMPORT_ATTRIBUTE_MISSING), so a plugin written as JSON got Node's message and no verdict, from the host's own `check` and through `burgee check`, which runs it.
+
+- [#1266](https://github.com/ofri-peretz/burgee/pull/1266) [`02e6f9f`](https://github.com/ofri-peretz/burgee/commit/02e6f9fcd779d892e7097659a6bd4c2f0e5b5a04) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The family plugin schema (`schema.json`, identical in every plugin host) now describes `formats`, burgee's output-format key. This package reads nothing new, and a plugin carrying `formats` registers here as before.
+- Updated dependencies [[`e3b3a41`](https://github.com/ofri-peretz/burgee/commit/e3b3a41745ecdc853d741c457306c566541271b6), [`02e6f9f`](https://github.com/ofri-peretz/burgee/commit/02e6f9fcd779d892e7097659a6bd4c2f0e5b5a04), [`efc994e`](https://github.com/ofri-peretz/burgee/commit/efc994ea20dae1f31990a7afef9dfa3c34fee596), [`efc994e`](https://github.com/ofri-peretz/burgee/commit/efc994ea20dae1f31990a7afef9dfa3c34fee596)]:
+  - caique@1.5.1
+  - closeout@1.1.8
+  - flagstaff@1.7.4
+  - linegauge@1.1.5
+  - paratext@1.0.11
+  - roundel@1.2.1
+
 ## 1.0.6
 
 ### Patch Changes

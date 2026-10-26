@@ -70,7 +70,7 @@
       "$note": "A zero-dependency incumbent exists here, so Y8's original wording applies too and beating it is reported separately."
     },
     "caique": {
-      "ours": 289702,
+      "ours": 289703,
       "incumbents": {
         "@clack/prompts": 182472,
         "@inquirer/core": 206577
@@ -83,7 +83,7 @@
       }
     },
     "bellpull": {
-      "ours": 97765,
+      "ours": 97766,
       "incumbents": {
         "execa": 647091,
         "cross-spawn": 46962,
