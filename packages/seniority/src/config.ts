@@ -116,10 +116,8 @@ function keyLines(text: string, at: readonly string[]): Map<string, number> {
       case ']':
         open.pop();
         break;
-      // An element after a comma is opened under no key. Equivalent through every export: a stale key
-      // here reaches only a level under a root array, and `lineOf` reads the root while
-      // `packageLayer` refuses a manifest that is not an object.
-      // Stryker disable all
+      // An element after a comma is opened under no key.
+      // Stryker disable all: equivalent through every export — a stale key here reaches only a level under a root array, and `lineOf` reads the root while `packageLayer` refuses a manifest that is not an object
       case ',':
         key = null;
         break;
@@ -159,8 +157,10 @@ function linesOf(text: string, data: Record<string, unknown>, at: readonly strin
 
 const readText = (path: string): string | undefined => {
   try {
+    // Stryker disable BlockStatement: equivalent — the catch block below returns `undefined`, and an empty one returns it all the same
     return readFileSync(path, 'utf8');
   } catch {
+    // Stryker restore BlockStatement
     return undefined;
   }
 };
@@ -176,9 +176,10 @@ function linesFor(path: string, data: Record<string, unknown>): Record<string, n
 function parseJson(text: string | undefined): unknown {
   try {
     // `String(undefined)` is not JSON either, so a file that could not be read lands in `catch` too.
+    // Stryker disable BlockStatement: equivalent — the catch block below returns `undefined`, and an empty one returns it all the same
     return JSON.parse(String(text)) as unknown;
   } catch {
-    // Stryker disable next-line BlockStatement: equivalent — an empty block returns `undefined` all the same
+    // Stryker restore BlockStatement
     return undefined;
   }
 }
