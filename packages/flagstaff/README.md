@@ -40,8 +40,7 @@
 **flagstaff** is a terminal frame loop: it hoists a component, holds it, changes it and
 lowers it. Every mode but the terminal gets a **static projection** — one line per state on a
 pipe, one event per transition under `--json`, plain text for a screen reader — so no state is
-lost to the log an agent reads back. Plugins are data. No layout engine, and no dependency
-outside the burgee family.
+lost to the log an agent reads back. Plugins are data, and there is no layout engine.
 
 Drop-in for **ora**, **log-update**, **boxen** and **cli-table3**: `npx burgee migrate` moves
 the imports, each path graded by the incumbent's own suite — see [Migrating](#migrating).
