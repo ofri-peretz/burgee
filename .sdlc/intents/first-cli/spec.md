@@ -41,7 +41,10 @@ same `await import()`.
   - `init` into a temp dir produces exactly two files;
   - `cli.mjs` equals the README quick start byte for byte;
   - `node cli.mjs --help` matches the README transcript;
-  - a second `init` exits 2 with a `fix:` line.
+  - a second `init` exits 2 with a `fix:` line;
+  - *(added 2026-10-26, the intent's restated criterion 2)* on the generated program, installed
+    from the packed tarballs, `node cli.mjs --schema` prints the command as data and
+    `node cli.mjs --mcp` answers `initialize`, `tools/list` and a `tools/call` of `greet`.
 - `shape.test.ts` keeps holding the quick start itself. The new test holds that `init` writes
   that same file.
 - Each test is proven red against an `init` that writes a one-character variant.
@@ -68,3 +71,12 @@ Project layouts, TypeScript build setups, test scaffolds, CI files, and plugin t
 | R5 | **Built** 2026-10-13 | Declared like every `burgee` command, so `--json`, `--schema`, `--help` and the API reference project it; the result is `{ dir, files, install, installed }`. Static: no spinner, no prompt. **Weight:** `.` unchanged at 35,447 B; `./cli` 55,965 → 57,122 B (+1,157) of its 81,400; `init.js` 3,199 B, lazy and counted on no entry. No budget moved | `init.test.ts` › `R5 — init answers --schema, --help and --json like every burgee command`. Red: `expected undefined to match object { effects: 'non_idempotent' }` |
 
 **Built: 5. Not built: 0.**
+
+**Criteria, 2026-10-26.** The intent's criteria 1 and 2 were restated (the install step; a check in
+place of a `--schema`/`--mcp` transcript that never existed), and both hold on burgee 1.7.1 as
+published. The new check is two cases in `init.test.ts`'s stranger's-path suite: "the program it
+wrote answers --schema with its command as data" and "the program it wrote serves --mcp:
+initialize, tools/list naming greet, and a tools/call of it". Both were red against a quick start
+whose `effects` was edited to `non_idempotent`: `expected { name: '', arguments: [], …(5) } to
+match object { …(3) }` for the schema, and the `readOnlyHint` mismatch for `tools/list`. No
+requirement changed, and no state was added, so there is no Quint model.

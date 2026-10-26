@@ -396,4 +396,16 @@ fails when the row stops being true.
 | R8 | One error vocabulary | **Built** | `scripts/plugin-error-vocabulary-lock.test.ts` |
 | R9 | One `check` runs every installed layer | **Built** in this PR | `packages/burgee/src/check.test.ts` › "burgee check hands each other layer's keys to that layer's check" (15 cases). `scripts/plugin-check-lock.test.ts` › "burgee check routes every other layer's key to that layer". `scripts/plugin-example-lock.test.ts` › "burgee check runs every other layer's own check on it…", "…carries flagstaff's rendering of the spinner in all five modes" |
 
+**A released defect, fixed 2026-10-26 (polish batch).** Nine hosts' `check` — bellpull, caique,
+closeout, controlroom, flagstaff, linegauge, paratext, roundel and seniority — handed a `.json`
+plugin to `import()`, which Node refuses with ERR_IMPORT_ATTRIBUTE_MISSING before a line of the check
+runs. `burgee check` had the same defect, fixed in #1232, and R9 routes each layer's keys to these
+bins, so a JSON plugin with a `tokens` key failed through `burgee check` too. Each now reads a
+`.json` file as data, as `burgee/src/check.ts` does. Two locks hold it:
+`scripts/plugin-check-lock.test.ts` spawns each built bin on a JSON plugin (refused with
+`E_NO_CONTRIBUTION` when it contributes nothing, and `ok` for the five hosts whose contributions JSON
+can express; red on `main`, 14 failing). `scripts/json-import-attribute-lock.test.ts` reads every
+package's `src` and fails on a literal `.json` import without `with { type: 'json' }`, or on a file
+that `import()`s a user-named path without reading `.json` as data first.
+
 The intent's criteria are graded in [`intent.md`](./intent.md#status).
