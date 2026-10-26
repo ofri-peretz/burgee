@@ -106,4 +106,20 @@ describe("tracked symlinks stay inside the repository", () => {
     const ignore = readFileSync(resolve(REPO_ROOT, ".gitignore"), "utf8");
     expect(ignore.split("\n")).toContain("node_modules");
   });
+
+  // The same hole, one name over, found 2026-10-25 while stamping: `.gitignore` said `.vercel/`,
+  // so a `.vercel` that is a link or a file — what `vercel link` leaves when a worktree shares
+  // the project's link with `ln -s` — was offered to `git add`. Asked of git itself, for a path
+  // that does not exist, which git reads as a file: the shape a directory-only line misses.
+  it.each([".vercel", "apps/docs/.vercel", ".vercel/project.json"])("ignores %s, whether a directory, a link or a file", (path) => {
+    const ignored = (): boolean => {
+      try {
+        execFileSync("git", ["check-ignore", "-q", "--no-index", path], { cwd: REPO_ROOT });
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    expect(ignored()).toBe(true);
+  });
 });

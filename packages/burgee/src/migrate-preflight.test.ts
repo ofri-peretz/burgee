@@ -17,7 +17,7 @@ import { describe, expect, it } from 'vitest';
 
 import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { ExitCode } from './exit-code.js';
-import { HOSTS, MAPPING, migrate, type MigrateOptions } from './migrate.js';
+import { HOSTS, MAPPING, migrate, type MigrateOptions, textOf } from './migrate.js';
 
 const scratch = scratchDirs();
 const preflight = async (): Promise<typeof import('./migrate-preflight.js')> => await import('./migrate-preflight.js');
@@ -297,6 +297,44 @@ describe('R6 — a blocking row stops the write, and --force does not lift it', 
     expect(report.changed).toBe(false);
     expect(report.summary).toBe('blocked: 1 preflight check; nothing written (1 file would be rewritten)');
     expect(read(dir, 'bin/wait-port.js')).toBe(before);
+  });
+
+  // A blocked run rewrote nothing, so it must not say it did, nor hand out the install that
+  // follows a rewrite: until this case, it printed `rewrote:` over the file list and
+  // `next: npm install burgee@^… && npm uninstall commander`, in text and in `--json`.
+  it('R6 — a blocked run prints no next step and labels its list as not rewritten, in text and JSON', async () => {
+    const report = await run(project(waitPort('^15.0.0')));
+    expect(report.summary.startsWith('blocked:')).toBe(true);
+    expect(report.next).toBe('');
+    expect((JSON.parse(JSON.stringify(report)) as { next: string }).next).toBe('');
+    const text = textOf(report).split('\n');
+    expect(text).not.toContain('rewrote:');
+    expect(text).toContain('would rewrite, not rewritten (blocked):');
+    expect(text.some((line) => line.startsWith('next:'))).toBe(false);
+  });
+
+  it('R6 — a blocked dry run prints no next step either', async () => {
+    const report = await run(project(waitPort('^15.0.0')), { dryRun: true });
+    expect(report.next).toBe('');
+    expect(textOf(report).split('\n')).toContain('would rewrite, not rewritten (blocked):');
+  });
+
+  it('R6 — an unblocked dry run labels its list would rewrite, and still prints its next step', async () => {
+    const dir = project({ 'package.json': JSON.stringify({ type: 'module', engines: { node: '>=20.19.0' }, dependencies: { commander: '^15.0.0' } }), 'a.js': "import { Command } from 'commander';\n" });
+    const report = await run(dir, { dryRun: true });
+    const text = textOf(report).split('\n');
+    expect(text).toContain('would rewrite:');
+    expect(text).toContain(`next: ${report.next}`);
+    expect(report.next).not.toBe('');
+  });
+
+  it('R6 — an unblocked run still labels its list rewrote and prints its next step', async () => {
+    const dir = project({ 'package.json': JSON.stringify({ type: 'module', engines: { node: '>=20.19.0' }, dependencies: { commander: '^15.0.0' } }), 'a.js': "import { Command } from 'commander';\n" });
+    const report = await run(dir);
+    expect(report.next).toMatch(/^npm install burgee@\^\S+ && npm uninstall commander$/u);
+    const text = textOf(report).split('\n');
+    expect(text).toContain('rewrote:');
+    expect(text).toContain(`next: ${report.next}`);
   });
 
   it('gives a dry run the same report and exit code', async () => {

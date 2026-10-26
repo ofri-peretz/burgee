@@ -1,0 +1,119 @@
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/array/chunk.spec.ts > chunk > should throw if the size is not an integer of is less than 1
+Error: toThrowErrorMatchingInlineSnapshot with different snapshots cannot be called at the same location
+
+Expected: "[RangeError: Invalid array length]"
+Received: "[Error: Size must be an integer greater than zero.]"
+
+ ❯ src/array/chunk.spec.ts:12:39
+     10|
+     11|   it('should throw if the size is not an integer of is less than 1', (…
+     12|     expect(() => chunk([1, 2, 3], 0)).toThrowErrorMatchingInlineSnapsh…
+       |                                       ^
+     13|       `[Error: Size must be an integer greater than zero.]`
+     14|     );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  src/array/combinations.spec.ts > combinations > throws when r is negative
+Error: toThrowErrorMatchingInlineSnapshot with different snapshots cannot be called at the same location
+
+Expected: "[RangeError: Invalid array length]"
+Received: "[Error: r must be a non-negative integer.]"
+
+ ❯ src/array/combinations.spec.ts:53:47
+     51|
+     52|   it('throws when r is negative', () => {
+     53|     expect(() => combinations([1, 2, 3], -1)).toThrowErrorMatchingInli…
+       |                                               ^
+     54|       `[Error: r must be a non-negative integer.]`
+     55|     );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  src/array/sampleSize.spec.ts > sampleSize > throws an error if the size is greater than the array length
+Error: toThrowErrorMatchingInlineSnapshot with different snapshots cannot be called at the same location
+
+Expected: "[Error: Invalid input: The maximum value must be greater than the minimum value.]"
+Received: "[Error: Size must be less than or equal to the length of array.]"
+
+ ❯ src/array/sampleSize.spec.ts:27:44
+     25|
+     26|   it('throws an error if the size is greater than the array length', (…
+     27|     expect(() => sampleSize([1, 2, 3], 4)).toThrowErrorMatchingInlineS…
+       |                                            ^
+     28|       `[Error: Size must be less than or equal to the length of array.…
+     29|     );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  src/array/sortBy.spec.ts > sortBy > should stable sort objects by iteratee function
+AssertionError: expected [ { user: 'bar', age: 7 }, …(3) ] to deeply equal [ { user: 'bar', age: 7 }, …(3) ]
+
+- Expected
++ Received
+
+@@ -6,13 +6,13 @@
+    {
+      "age": 29,
+      "user": "bar",
+    },
+    {
+-     "age": 24,
++     "age": 8,
+      "user": "foo",
+    },
+    {
+-     "age": 8,
++     "age": 24,
+      "user": "foo",
+    },
+  ]
+
+ ❯ src/array/sortBy.spec.ts:32:48
+     30|
+     31|   it('should stable sort objects by iteratee function', () => {
+     32|     expect(sortBy(users, [user => user.user])).toEqual([
+       |                                                ^
+     33|       { user: 'bar', age: 7 },
+     34|       { user: 'bar', age: 29 },
+ ❯ OxmRunner.runTask ../../../spike2/oxm-runner.mjs:42:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  src/array/windowed.spec.ts > windowed > should throw error on invalid size or step
+Error: toThrowErrorMatchingInlineSnapshot with different snapshots cannot be called at the same location
+
+Expected: "[Error]"
+Received: "[Error: Size must be a positive integer.]"
+
+ ❯ src/array/windowed.spec.ts:59:42
+     57|
+     58|   it('should throw error on invalid size or step', () => {
+     59|     expect(() => windowed([1, 2, 3], 0)).toThrowErrorMatchingInlineSna…
+       |                                          ^
+     60|       `[Error: Size must be a positive integer.]`
+     61|     );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+        8.34 real         7.38 user         1.78 sys
+           158187520  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+              323277  page reclaims
+                5859  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                2810  messages sent
+                2767  messages received
+                1041  signals received
+                1015  voluntary context switches
+               62859  involuntary context switches
+          6168719507  instructions retired
+          3517567845  cycles elapsed
+           113913376  peak memory footprint

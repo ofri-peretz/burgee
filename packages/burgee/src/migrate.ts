@@ -33,7 +33,7 @@ import { fileURLToPath } from 'node:url';
 
 import { ambientRuntime, run } from 'bellpull';
 
-import { DROP_INS, GRADED, GRADED_VERSIONS, isLevel, PREVIOUS_MAJOR_ENTRIES, type Row, SUPPORTED_MAJORS } from './compat.js';
+import { DROP_INS, GRADED, GRADED_MAJORS, GRADED_VERSIONS, isLevel, PREVIOUS_MAJOR_ENTRIES, type Row, SUPPORTED_MAJORS } from './compat.js';
 import { ExitCode } from './exit-code.js';
 import { guidedSites, mentionsAGuided, type GuidedSite, type Token } from './migrate-guided.js';
 import { hostOfApi, isMajorHost, type MajorHost, moveOf, nearestOf, removedMajor, type RemovedSite, removedSites } from './migrate-majors.js';
@@ -1275,7 +1275,12 @@ export interface MigrationReport {
   detected: Detection;
   /** `add`: the family packages the rewritten imports now name, which the project must depend on. */
   dependencies: { before: string[]; removable: string[]; after: number; add: string[] };
-  graded: (Row & { host: string })[];
+  /**
+   * The grade of each incumbent the project uses and chose. `major` is set when the project is
+   * on a claimed older major: the row is then that major's own suite's, the one its entry
+   * (`burgee/commander/v14`) is graded by, never the current major's.
+   */
+  graded: (Row & { host: string; major?: number })[];
   /** Declared incumbents whose drop-in is graded but not level — left alone, with the grade that says why. */
   partial: NotLevel[];
   /** Incumbents on a major the oracle did not grade — left alone, never rewritten onto an API they do not use. */
@@ -2109,9 +2114,10 @@ async function installedVersion(dir: string, name: string): Promise<string | und
 /** An off-major row before the scan: `withSites` adds what the files say. */
 type Found = Omit<OffMajor, 'sites' | 'move'>;
 
-async function majorsOf(dir: string, dependencies: Map<string, string>): Promise<{ offMajor: Found[]; entries: Map<string, string> }> {
+async function majorsOf(dir: string, dependencies: Map<string, string>): Promise<{ offMajor: Found[]; entries: Map<string, string>; majors: Map<string, number> }> {
   const found = await Promise.all(HOSTS.map(async (from) => ({ from, found: (await installedVersion(dir, from)) ?? dependencies.get(from) })));
   const entries = new Map<string, string>();
+  const majors = new Map<string, number>();
   const offMajor = found.flatMap(({ from, found: version }) => {
     const graded = GRADED_VERSIONS[from];
     if (version === undefined || graded === undefined) return [];
@@ -2120,13 +2126,14 @@ async function majorsOf(dir: string, dependencies: Map<string, string>): Promise
     // A graded host always has its majors: `supported-majors-lock.test.ts` holds one list per graded host.
     const claimed = SUPPORTED_MAJORS[from] as readonly number[];
     if (!claimed.includes(major)) return [{ from, found: version, graded, nearest: nearestOf(major, claimed) ?? null }];
+    if (GRADED_MAJORS[`${HOST_OF.get(from) as string}-${major}`] !== undefined) majors.set(from, major);
     for (const specifier of Object.keys(MAPPING).filter((s) => packageOf(s) === from)) {
       const entry = PREVIOUS_MAJOR_ENTRIES[specifier]?.[major];
       if (entry !== undefined) entries.set(specifier, entry);
     }
     return [];
   });
-  return { offMajor, entries };
+  return { offMajor, entries, majors };
 }
 
 /** migrate-older-majors — what `removedSites` reads, once per run. */
@@ -2632,9 +2639,20 @@ function rollup(all: { from: string; to: string; file: string }[]): Mapped[] {
  * template is a number that goes stale silently, and this repository has published four
  * of those and caught them all late.
  */
-function gradedFor(packages: string[]): (Row & { host: string })[] {
-  const hosts = [...new Set(packages.map((p) => HOST_OF.get(p)).filter((h) => h !== undefined))];
-  return hosts.filter((host) => GRADED[host] !== undefined).map((host) => ({ host, ...(GRADED[host] as Row) }));
+function gradedFor(packages: readonly string[], majors: ReadonlyMap<string, number>): (Row & { host: string; major?: number })[] {
+  const rows = new Map<string, Row & { host: string; major?: number }>();
+  for (const p of packages) {
+    // Every incumbent has a host and every host a grade: `migrate-drop-ins-lock.test.ts` and
+    // `compat-baseline-lock.test.ts` hold both, so neither lookup can miss.
+    const host = HOST_OF.get(p) as string;
+    const major = majors.get(p);
+    // The first package of a host decides its row: `yargs` on 17 is graded as 17 even when a
+    // `yargs-parser` the project also declares sorts after it on no claimed older major.
+    if (rows.has(host)) continue;
+    // previous-majors: a program on a claimed older major runs on that major's entry, so it reads that major's grade.
+    rows.set(host, major === undefined ? { host, ...(GRADED[host] as Row) } : { host, major, ...(GRADED_MAJORS[`${host}-${major}`] as Row) });
+  }
+  return [...rows.values()];
 }
 
 /**
@@ -2763,6 +2781,16 @@ function offMajorLines(o: OffMajor): string[] {
 }
 
 /**
+ * migrate-preflight R6 — what the list of moves is called. A blocked run wrote nothing, dry run
+ * or not, so it never says `rewrote`: until 2026-10-25 a blocked run printed `rewrote:` over the
+ * files it had left alone. The summary is the outcome in words, and `summaryOf` alone writes `blocked:`.
+ */
+function rewroteLabel(r: MigrationReport): string {
+  if (r.summary.startsWith('blocked:')) return 'would rewrite, not rewritten (blocked)';
+  return r.dryRun ? 'would rewrite' : 'rewrote';
+}
+
+/**
  * U12-5 — the report as a person reads it. The engine's text surface is one level deep and
  * printed every list in this report as a line of JSON; this is the same report in sentences
  * and aligned lines, first line the summary. `--json` is unchanged: the data is the data.
@@ -2772,7 +2800,7 @@ export function textOf(r: MigrationReport): string {
     r.summary,
     ...section('before the move', r.preflight.map((p) => `${p.blocking ? 'block' : 'warn'}  ${p.check}  ${p.message}; fix: ${p.fix}`)),
     ...section(
-      r.dryRun ? 'would rewrite' : 'rewrote',
+      rewroteLabel(r),
       r.mapped.map((m) => `${m.from} -> ${m.to}  ${m.imports} import${m.imports === 1 ? '' : 's'} in ${fileCount(m.files)}`),
     ),
     ...section('refused, and left exactly as it was', r.refused.map(refusalLine)),
@@ -2790,7 +2818,7 @@ export function textOf(r: MigrationReport): string {
     ...section('not level yet, left alone', r.partial.map((p) => `${p.from} -> ${p.to}  ${p.passed} / ${p.reference} (the incumbent passes ${p.control})`)),
     ...section('on a major that was not graded, left alone', r.offMajor.flatMap(offMajorLines)),
     ...section('no drop-in; see the guide', r.guided.map((g) => `${g.file}:${g.line}  ${g.from}  ${g.pattern}  ${g.guide}`)),
-    ...section('graded by the incumbent’s own suite', r.graded.map((g) => `${g.host}  ${g.passed} / ${g.reference} (the incumbent passes ${g.control})`)),
+    ...section('graded by the incumbent’s own suite', r.graded.map((g) => `${g.host}${g.major === undefined ? '' : ` ${g.major}`}  ${g.passed} / ${g.reference} (the incumbent passes ${g.control})`)),
     `declared: ${list(r.detected.declared)}`,
     `imported: ${list(r.detected.imported)}`,
     `add: ${list(r.dependencies.add)}`,
@@ -2819,7 +2847,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
 
   const manifest = await manifestAt(join(dir, 'package.json'));
   const dependencies = declaredBy(manifest);
-  const { offMajor, entries: ownEntries } = await majorsOf(dir, dependencies);
+  const { offMajor, entries: ownEntries, majors } = await majorsOf(dir, dependencies);
   const only = options.only === undefined ? undefined : new Set(options.only);
   const skipped = new Set(options.skip);
   // U12-3: an incumbent is considered when the project chose it — `--only`, or else its manifest — and nothing excludes it.
@@ -2896,7 +2924,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
     detected: { declared, imported },
     dependencies: { before: declared, removable, after: declared.length - removable.length, add },
     // The grades of what the project uses and chose; an undeclared incumbent is not this run's.
-    graded: gradedFor([...new Set([...declared, ...imported])].filter((host) => !undeclared.includes(host)).sort()),
+    graded: gradedFor([...new Set([...declared, ...imported])].filter((host) => !undeclared.includes(host)).sort(), majors),
     partial,
     offMajor: rows,
     guided,
@@ -2904,7 +2932,9 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
     held,
     transitive: [...through.entries()].map(([from, by]) => ({ from, through: by, exports: identityOf(from) })),
     releaseAge: age === null ? null : releaseAgeNote(age, under.pins, under.unread, now),
-    next: nextStep(dir, add, removable, { ...graded, ...Object.fromEntries(under.pins.map((p) => [p.name, p.version])) }),
+    // migrate-preflight R6: a blocked run moved nothing, so the install and uninstall that follow a
+    // move are not its next step; the preflight rows' fixes are.
+    next: blocking > 0 ? '' : nextStep(dir, add, removable, { ...graded, ...Object.fromEntries(under.pins.map((p) => [p.name, p.version])) }),
     dryRun,
     changed: writes && changed.length > 0,
     exitCode: refused.length > 0 || blocking > 0 ? ExitCode.RUNTIME : ExitCode.OK,

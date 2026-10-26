@@ -44,10 +44,11 @@ const POSIX_ESCAPE = /'\\{1,2}''/gu;
 /**
  * The files allowed to write it, and how many times. `unknown-option.ts` is the one quoter;
  * `completions.ts` quotes inside the generated bash, zsh and fish scripts (`sq`), which are POSIX
- * by definition and never a `fix` line; this file pins the POSIX form. By count, so a second
+ * by definition and never a `fix` line; this file pins the POSIX form, and `typed-positionals.test.ts`
+ * pins it in the bash, zsh and fish lines that list a choice holding a quote. By count, so a second
  * quoter added to an allowed file still fails.
  */
-const ALLOWED: Record<string, number> = { 'unknown-option.ts': 1, 'completions.ts': 1, 'shell-word.test.ts': 2 };
+const ALLOWED: Record<string, number> = { 'unknown-option.ts': 1, 'completions.ts': 1, 'shell-word.test.ts': 2, 'typed-positionals.test.ts': 3 };
 
 const SRC = dirname(fileURLToPath(import.meta.url));
 const SKIPPED = new Set(['__snapshots__', '__fixtures__']);

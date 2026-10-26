@@ -4,7 +4,7 @@
 > marketing and docs websites better", and the plan of that day: there is no command that
 > starts a burgee CLI, and `create-burgee` is free on npm.
 
-**Status:** approved · **Opened:** 2026-10-10 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-10-10 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-26, on burgee 1.7.1 from npm (`npx burgee init`, #1092), criteria 1 and 2 restated and held by `init.test.ts` — all 4 criteria met
 
 ---
 
@@ -43,23 +43,33 @@ README's "Start here", the docs landing, and `burgee`'s README quick start; `sha
 
 ## Success criteria
 
-- `<command> demo && cd demo && node cli.mjs --help` exits 0 and prints the quick start's help.
-- `node cli.mjs --schema`, `--json` and `--mcp` answer as the README transcript says.
+- `<command> demo && cd demo && npm install && node cli.mjs --help` exits 0 and prints the quick
+  start's help. *(Restated 2026-10-26: the install step was missing. The program imports
+  `burgee`, so before `npm install` it cannot load. The README's own line has always been
+  `npx burgee init my-cli && cd my-cli && npm install`, and `init --install` does both.)*
+- On the generated program, `node cli.mjs --json` answers as the package README's quick-start
+  transcript says; `--schema` prints the command as data (its description, `effects`, and an
+  `inputSchema` that requires `name`); and `--mcp` answers `initialize`, a `tools/list` naming
+  `greet`, and a `tools/call` of it with the greeting. *(Restated 2026-10-26: it cited a README
+  transcript for `--schema` and `--mcp` that does not exist. `--mcp` speaks JSON-RPC on stdin, so
+  a console transcript cannot show it. The test is the transcript.)*
 - A test reads the written file and compares it to the README quick start, byte for byte, and
   fails on a one-character change to either.
 - The generated directory holds exactly `cli.mjs` and `package.json`.
 
-## Status — 2026-10-25
+## Status — 2026-10-26
 
-`npx burgee init` shipped in burgee 1.7.0 (#1092, `4c03dea45b`, Version PR #1231) and was re-run from
-npm with `burgee@1.7.1`. **Not stamped**: two criteria do not hold as written.
+**Shipped.** `npx burgee init` shipped in burgee 1.7.0 (#1092, `4c03dea45b`, Version PR #1231).
+Every criterion below was re-run from npm against burgee 1.7.1 on 2026-10-26: `npx burgee@1.7.1
+init demo`, then `npm install`, then the program. No code changed to meet them. Criteria 1 and 2
+were restated, and the check for criterion 2 is new in the polish batch.
 
 | Criterion | State on release |
 | :-- | :-- |
-| 1. `<command> demo && cd demo && node cli.mjs --help` exits 0 and prints the quick start's help | **Not met as written.** `npx burgee@1.7.1 init demo` writes the two files and prints `install: npm install`, `installed: false`; `node cli.mjs --help` then exits **1**, because `burgee` is not installed yet. After `npm install`, or with `init --install`, it exits 0 and prints `Usage: greet <command> [options]`. The README's own line is `npx burgee init my-cli && cd my-cli && npm install`. Remaining: restate the criterion with the install step, by decision. |
-| 2. `node cli.mjs --schema`, `--json` and `--mcp` answer as the README transcript says | **Not met.** `--json` is held: `init.test.ts` runs the package README's quick-start transcript against the written program. `--schema` and `--mcp` do answer on the released package (a `--schema` document; a `tools/list` reply naming `greet`), but no test runs either on the generated program, and the package README's quick-start transcript has neither. The root README's `--schema` block is marked `trimmed`, so it cannot be compared as written. Remaining: a check that runs `--schema` and `--mcp` on the generated program against a transcript, or a restatement. |
+| 1. `<command> demo && cd demo && npm install && node cli.mjs --help` exits 0 and prints the quick start's help | **Met.** From npm: before the install, `node cli.mjs --help` exits 1 (the reason for the restatement). After `npm install`, it exits 0 and prints `Usage: greet <command> [options]` and `Greet someone by name`. `init.test.ts` › "the program it wrote answers --help" runs the same path on the packed tarballs. |
+| 2. `--json` as the transcript says; `--schema` the command as data; `--mcp` initialize, `tools/list`, `tools/call` | **Met.** From npm, `--schema` prints `description: "Greet someone by name"`, `effects: "read_only"` and an `inputSchema` requiring `name`. `--mcp` answers `serverInfo.name: "greet"`, a `tools/list` of one tool `greet` with `readOnlyHint: true`, and a `tools/call` whose `structuredContent` is `{ greeting: "hello, ada" }`. `init.test.ts` › "the program it wrote answers --schema with its command as data" and "… serves --mcp …" hold both on the generated program. Both were red against a quick start whose `effects` was edited to `non_idempotent`. `--json` is held by the transcript cases as before. |
 | 3. A test reads the written file and compares it to the README quick start, byte for byte | **Met.** `init.test.ts` › "R2 — cli.mjs is the README quick start, byte for byte". |
-| 4. The generated directory holds exactly `cli.mjs` and `package.json` | **Met.** The run from npm lists exactly `cli.mjs` and `package.json`; `init.test.ts` › "writes exactly cli.mjs and package.json, where the user stands". |
+| 4. The generated directory holds exactly `cli.mjs` and `package.json` | **Met.** The run from npm lists exactly `cli.mjs` and `package.json` before the install; `init.test.ts` › "writes exactly cli.mjs and package.json, where the user stands". |
 
 ## Open questions
 

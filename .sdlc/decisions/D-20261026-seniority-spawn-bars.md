@@ -24,6 +24,6 @@ superseded_by: —
 | `weight.test.ts` `./config` | 13,000 | 12,895 → 14,662 | 14,900 |
 | `weight.test.ts` `.` | 45,000 | 44,195 → 45,976 | 46,400 |
 
-burgee's core bundle does not move: `config-layers.ts` reaches `seniority/config` through `await import()`, only for a program that declares `config`. `npm run weight:converge` re-measured `layers.seniority.ours` (222,055 → 224,442 B installed).
+burgee's core bundle does not move: `config-layers.ts` reaches `seniority/config` through `await import()`, only for a program that declares `config`. `npm run weight:converge` re-measured `layers.seniority.ours` (222,219 → 224,606 B installed, on main `e3b3a41745`).
 
 **Why it is worth it.** A line number in provenance is the reason the package exists, and a wrong one is worse than none (R12). The bytes buy a correct line where one was wrong and a line where there was none.
