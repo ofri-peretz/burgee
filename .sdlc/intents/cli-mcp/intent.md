@@ -86,6 +86,12 @@ Checked criterion by criterion on `61bd11b9`. **Three of five met.** The status 
   wording drift, same semantics.
 - **B1 reports the same task set over MCP and over Bash** — **not met.** No benchmark exists;
   the two bands that would hold this sit at 0 of 8 points.
+  **Still not met on 2026-10-26, and nothing left to build here.** The arm is built in
+  [`b1-mcp-arm`](../b1-mcp-arm/spec.md) (R1–R4 and R6). Its first weekly run, 2026-10-20, never
+  reached the server, so it is no reading
+  ([D-20261026-b1-mcp-arm-server-guard](../../decisions/D-20261026-b1-mcp-arm-server-guard.md)).
+  This criterion is met, and the intent moves to `shipped`, when four landed weekly readings
+  carry the arm's ratio and `b1-mcp-arm` R5 cites their run ids.
 - **A copy-pasteable client configuration on the docs page that works unmodified** — **not met as
   written.** `/docs/agent-surfaces` is live and carries an `mcpServers` block, but it is a
   template naming `mytool`, so it does not work unmodified, and no test in `apps/docs/tests/`
