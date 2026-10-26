@@ -4,7 +4,7 @@
 > ([`next-wave-4-2026-10.md`](../../research/next-wave-4-2026-10.md)). Wave 3 scored each host at
 > 6.7 and left all three for the compat-oracle lane.
 
-**Status:** approved (2026-10-19, under the owner's delegation, [`D-20261019-colour-facades-design-accepted`](../../decisions/D-20261019-colour-facades-design-accepted.md)) · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Design:** [`spec.md`](./spec.md)
+**Status:** shipped (2026-10-26, every criterion re-read against `roundel@1.2.1` and `burgee@1.7.2` as installed from npm, [`D-20261026-shipped-on-published-patch`](../../decisions/D-20261026-shipped-on-published-patch.md); approved 2026-10-19 under the owner's delegation, [`D-20261019-colour-facades-design-accepted`](../../decisions/D-20261019-colour-facades-design-accepted.md)) · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Design:** [`spec.md`](./spec.md)
 
 ---
 
@@ -54,6 +54,29 @@ from a user's tree.
 
 - One intent or three. **Decided 2026-10-12**, D-20261012-colour-facades-one-intent.
 
+## Shipped — 2026-10-26
+
+**All three criteria hold on the published packages, for all three hosts.** Version PR #1253
+published `roundel@1.2.1` and `burgee@1.7.2` on 2026-10-26 from `main` at `c4230e33` (the `gitHead`
+`npm view` reports), which carries #1218, #1233 and #1255. `roundel@1.2.1` exports `./yoctocolors`,
+`./colorette`, `./kleur` and `./kleur/colors`. The release went out as a patch, because the release
+window holds a minor's version number and not its code. Why that is enough to stamp, and the
+release-cadence breach it records:
+[`D-20261026-shipped-on-published-patch`](../../decisions/D-20261026-shipped-on-published-patch.md).
+
+Every row below was run on 2026-10-26 in an empty `mktemp -d` directory after
+`npm i roundel@1.2.1 burgee@1.7.2 kleur@4.1.5 colorette@2.0.20 yoctocolors@2.2.0 esbuild`. None
+of it read the workspace.
+
+| Criterion | Command, against the published tarball | Output |
+| :-- | :-- | :-- |
+| 1. `npm run compat -- kleur colorette yoctocolors` level with each control | `packages/roundel/dist` replaced by the tarball's `dist` (35 files, copied from `node_modules/roundel/dist`), then `npm run compat -- kleur colorette yoctocolors`, then `--control` | target: colorette **67 / 67**, kleur **15 / 15**, yoctocolors **78 / 78**, ▲ 0 each; control: 67 / 67, 15 / 15, 78 / 78. The run reads the swapped `dist`: with the tarball's `kleur.js` removed, kleur fell to 7 / 15 |
+| 2. A B4 row at ratio ≤ 1, per host | `esbuild <fixture> --bundle --minify --format=esm --platform=node --splitting`, the B4 command and fixture shape from `benchmarks/axes/weight.ts`, over each published subpath and its incumbent | `roundel/yoctocolors` 2,247 B against 2,363 (**0.951**); `roundel/colorette` 1,794 against 1,973 (**0.909**); `roundel/kleur` 1,036 against 1,847 (**0.561**); `roundel/kleur/colors` 621 against 688 (**0.903**). Byte for byte the figures recorded at build time |
+| 3. `burgee migrate` rewrites each import in a fixture program that then passes its own tests | a fixture project declaring `kleur`, `colorette` and `yoctocolors`, with an ESM test (default, named and namespace imports, `kleur/colors` included) and a CJS test (`require()`). `npm test` passes on the incumbents, then `burgee migrate` from `burgee@1.7.2`, then `npm test` again | `complete: 2 files rewritten`: colorette → `roundel/colorette` (3 imports), kleur → `roundel/kleur` (2), kleur/colors → `roundel/kleur/colors` (2), yoctocolors → `roundel/yoctocolors` (2). It reports `graded by the incumbent’s own suite: colorette 67 / 67, kleur 15 / 15, yoctocolors 78 / 78`. `npm test` after the rewrite prints `esm ok` and `cjs ok`, with `roundel/kleur` resolving to the installed `roundel/dist/kleur.js` |
+
+The minor changeset still bumps roundel's version when the window opens. That bump is
+bookkeeping, and nothing here waits on it.
+
 ## Status — 2026-10-25
 
 All three are built: yoctocolors (#1218), colorette (#1233) and kleur, on `feat/roundel-kleur`
@@ -63,7 +86,8 @@ The design asks for one host per pull request, so each carried one
 ([`D-20261020-colour-facades-yoctocolors-first`](../../decisions/D-20261020-colour-facades-yoctocolors-first.md),
 [`D-20261020-colour-facades-colorette-twist`](../../decisions/D-20261020-colour-facades-colorette-twist.md),
 [`D-20261025-colour-facades-kleur-uvu`](../../decisions/D-20261025-colour-facades-kleur-uvu.md)).
-The intent stays `approved`, and is stamped `shipped` once roundel's minor carrying them is on npm.
+The intent stayed `approved` until roundel's release carrying them was on npm: it shipped as
+`roundel@1.2.1`, above.
 
 | Criterion | yoctocolors 2.2.0 | colorette 2.0.20 | kleur 4.1.5 |
 | :-- | :-- | :-- | :-- |
