@@ -42,18 +42,15 @@ const SETUP_TIMEOUT_MS = 300_000;
  * them at this version. Read from the manifests, not listed, because a Version PR raises a
  * sibling's own range (caique's bellpull) past the registry, and a hand-kept list then misses it.
  */
-const FAMILY = ((): string[] => {
-  const seen = new Set<string>();
-  const visit = (name: string): void => {
-    const manifest = join(root, 'packages', name, 'package.json');
-    if (seen.has(name) || !existsSync(manifest)) return;
-    seen.add(name);
-    const { dependencies = {} } = JSON.parse(readFileSync(manifest, 'utf8')) as { dependencies?: Record<string, string> };
-    for (const dep of Object.keys(dependencies)) visit(dep);
-  };
-  visit('controlroom');
-  return [...seen];
-})();
+function familyOf(name: string, seen = new Set<string>()): Set<string> {
+  const manifest = join(root, 'packages', name, 'package.json');
+  if (seen.has(name) || !existsSync(manifest)) return seen;
+  seen.add(name);
+  const { dependencies = {} } = JSON.parse(readFileSync(manifest, 'utf8')) as { dependencies?: Record<string, string> };
+  for (const dep of Object.keys(dependencies)) familyOf(dep, seen);
+  return seen;
+}
+const FAMILY = [...familyOf('controlroom')];
 
 /** The line under test, as each example's package.json and controlroom's README write it. */
 const LINE = '"ink": "file:./ink"';
