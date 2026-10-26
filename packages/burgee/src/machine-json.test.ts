@@ -292,6 +292,37 @@ describe('--format text is the human rendering, asked for (R7)', () => {
 
   it('is declared in --schema: text at a terminal and under a pipe, and the formats there are', async () => {
     const doc = JSON.parse((await runBurgee(program, { argv: ['--schema'] })).stdout) as Record<string, unknown>;
-    expect(doc['output']).toEqual({ tty: 'text', piped: 'text', formats: ['text', 'json', 'agent'] });
+    expect(doc['output']).toEqual({ tty: 'text', piped: 'text', formats: ['text', 'json', 'agent', 'tsv'] });
+  });
+});
+
+/**
+ * `agent-headroom` C1 — the figure the intent opened on, held on the document it was measured
+ * on. The cases above measure a fixture; the 42% the design quoted (39,512 → 22,964 B on
+ * 2026-09-09) belongs to `examples/demo-cli-large`, and nothing checked it there until now.
+ *
+ * The demo is loaded from its source by a computed specifier: it is another workspace, outside
+ * this package's `rootDir`, and its own `burgee` import is the built one — what is measured is
+ * this source's `--schema` writer over the large demo's declarations.
+ */
+async function largeDemo(): Promise<Parameters<typeof runBurgee>[0]> {
+  const at = new URL('../../../examples/demo-cli-large/src/index.ts', import.meta.url).href;
+  // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- a fixed path to this repository's own demo, computed only to stay outside tsc's rootDir
+  return ((await import(/* @vite-ignore */ at)) as { program: Parameters<typeof runBurgee>[0] }).program;
+}
+
+describe('the large demo’s --schema (C1)', () => {
+  it('is at least 40% smaller compact than pretty, and the two parse to the same document', async () => {
+    const program = await largeDemo();
+    const compact = await runBurgee(program, { argv: ['--schema'] });
+    const pretty = await runBurgee(program, { argv: ['--schema', JSON_PRETTY] });
+    expect([compact.code, pretty.code]).toEqual([0, 0]);
+    // Whole, not summarised: a summary is smaller for another reason, and would pass this for it.
+    expect(JSON.parse(compact.stdout)).not.toHaveProperty('summarised');
+    expect(JSON.parse(compact.stdout)).toEqual(JSON.parse(pretty.stdout));
+    const bytes = { compact: Buffer.byteLength(compact.stdout), pretty: Buffer.byteLength(pretty.stdout) };
+    // Measured 2026-10-25 at f6919e9c1a: 25,197 B compact against 42,783 B pretty, 41.1% smaller.
+    // The bound is the intent's (C1), not the measurement: indentation came back if it fails.
+    expect(1 - bytes.compact / bytes.pretty).toBeGreaterThanOrEqual(0.4);
   });
 });

@@ -69,6 +69,75 @@ and compact `--schema` bytes of the large demo.
 registers it as one format. R2's dotted result paths: no caller asked for them. The token claim
 stays unmade until a token count is measured.
 
+## Build 2026-10-25
+
+**The four pieces the gate accepted are built on the branch `feat/agent-headroom`, and each check
+was seen red first.** Code-bearing pieces ship with the next `burgee` minor (release window not
+before 2026-11-01), so the intent stays `approved` until that release is published and the
+criteria are re-read on it. No state machine was added, so there is no Quint model for this
+build: each piece is a pure function of argv and a result.
+
+| Piece | Check | Red first |
+| :-- | :-- | :-- |
+| R6, hint-survival lock | `packages/burgee/src/hint-survives.test.ts` | stripping `hint` from a failure when `--format=agent` or `--json=` is typed failed 12 of its cases; the `tsv`, plugin-format and `--max-bytes` cases failed on `main` because those surfaces did not exist |
+| RF, `formats` + `tsv` | `packages/burgee/src/formats.test.ts`; `scripts/plugin-schema-agreement.test.ts` › "burgee formats"; `packages/burgee/src/check.test.ts` | failed on `main`: no `formats.ts`, `--format=tsv` refused as an unknown option |
+| R3, row budget | `packages/burgee/src/max-bytes.test.ts` | failed on `main`: no `max-bytes.ts`, `--max-bytes` refused as an unknown option |
+| C1, large demo | `packages/burgee/src/machine-json.test.ts` › "the large demo’s --schema (C1)"; `benchmarks/reliability.test.ts` › "schema-bytes-pretty" | indenting compact output by one space dropped the saving to 17.1% and failed the 40% bound |
+
+What was built, where the design left a choice:
+
+- **R6 is an identity, not a presence check.** A failing command run with `--json=<a>`,
+  `--format=agent|tsv|<plugin's>` or `--max-bytes` writes exactly what it writes without them:
+  the same envelope byte for byte under `--json`, the same prose on stderr without it. A plugin
+  format that renders nothing is registered in the lock, so a failure that ever reached a format
+  would lose its hint there.
+- **RF.** `formats` is a key on the family plugin object, described in the family schema
+  (`$defs.format`) and synced to every host. burgee checks it where `--format` first uses it and
+  in `burgee check`, not at `use()`, the choice `locales` made, so the root entry carries no
+  validator for it. burgee's own `agent` and `tsv` are registered by a plugin object of its own
+  through that same check. `text`, `json` and `json-pretty` are taken names: `--format=json` and
+  `--format text` keep their D-20261009 spellings. An unregistered name is refused with the names
+  there are. `--schema`'s `output.formats` names the same set as `--format`, and a test holds the
+  two equal. A non-list result under `tsv` is refused with a hint naming `--json`, after the
+  handler ran, because only the result says whether it is a list.
+- **R3.** `--max-bytes <n>` is read with the R1–R3 globals: either spelling, before the command
+  or after it, and a command's own `maxBytes` option wins. A list result is cut at the last whole
+  row that fits, found by binary search. The `--json` envelope carries `truncated: { of, returned }`,
+  absent when nothing was cut. A non-list result is returned whole with `{ of: 1, returned: 1,
+  over }`. `over` is also set on a list that does not fit even empty, and it is the exact number
+  of bytes the sent document is over. The line formats have no envelope, so stdout keeps whole
+  rows and the same `{"truncated":…}` object goes to stderr as one JSON line. `--max-bytes`
+  without `--json`, a `--json` spelling or a registered format is refused before the handler
+  runs. It is not a row in help's `Global options:`, because that table is `--schema`'s
+  `global_args` and `schema-bytes` is gated. That row waits for a decision of its own
+  ([D-20261026-schema-bytes-registered-formats](../../decisions/D-20261026-schema-bytes-registered-formats.md)).
+- **`schema-bytes` budget.** `output.formats` naming `tsv` took the demo's `--schema` from
+  4,650 B, exactly its budget, to 4,656 B. The budget rises to 4,700 by the rule it was set by
+  ([D-20261026-schema-bytes-registered-formats](../../decisions/D-20261026-schema-bytes-registered-formats.md)).
+  The other choice was a schema that undercounts the formats the CLI takes.
+- **C1.** The large demo is loaded from its source by a computed specifier, because it is outside
+  the package's `rootDir`. The reliability axis records `schema-bytes-pretty` beside
+  `schema-bytes`, reported and not banded.
+
+Measured on this branch, 2026-10-25:
+
+| What | Before | After |
+| :-- | --: | --: |
+| `tsv` against minified JSON, fifty rows of four fields (`formats.test.ts` fixture) | 3,170 B | 1,293 B (59.2% smaller; the design measured 63% on its own fixture) |
+| large demo `--schema`, pretty against compact | 42,783 B | 25,197 B (41.1% smaller) |
+| root entry `.`, static graph on disk (`weight.test.ts`, budget 36,100) | 36,073 B | 35,988 B (−85) |
+
+The root entry got smaller: the `--json=` listing and its field check moved into the lazily
+loaded `fields.js`, which saved more than the new `print` hook costs. Bundled, `import { run }
+from 'burgee'` went from 24,486 to 24,442 B, and `burgee/commander` stays at 1.415× commander.
+No weight ceiling was raised. The family schema grew by 930 B in every host's tarball, and
+`npm run weight:converge` re-recorded six foundation layers (for example, bellpull 96,671 →
+97,601 B, ratio 0.1263 → 0.1275).
+
+**Remaining:** publication. Once the `burgee` minor carrying this is on npm, re-read R3, R6, RF
+and C1 against the published package, and then the intent can be stamped `shipped`. The
+first published `schema-bytes-pretty` figure comes from the next recorded benchmark run.
+
 ## Restated 2026-10-18
 
 **R1 holds, R2 and R4 shipped as `burgee` N14 and N13, R6 and R7 are restated; R3, R5 and RF were never built — REMAINING: R2 (dotted result paths), R3, R5, R6 (hint-survival lock), RF.**

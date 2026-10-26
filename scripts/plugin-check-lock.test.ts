@@ -157,7 +157,7 @@ describe('burgee check returns its report as data', () => {
  */
 describe('burgee check routes every other layer’s key to that layer (plugin-contract C3)', () => {
   /** The keys burgee itself reads, or that describe the plugin rather than contribute to a layer. */
-  const OWN = ['name', 'contract', 'commands', 'hooks', 'enforce', 'locales'];
+  const OWN = ['name', 'contract', 'commands', 'hooks', 'enforce', 'locales', 'formats'];
   const schema = JSON.parse(readFileSync(new URL('../packages/burgee/src/schema.json', import.meta.url), 'utf8')) as { properties: Record<string, unknown> };
 
   it('routes every key the family schema describes and burgee does not read, and no other', () => {

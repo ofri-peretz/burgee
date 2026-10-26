@@ -381,7 +381,7 @@ Graded by the incumbent's own test suite:
 | `restore-cursor` | 6 / 6 |
 | `signal-exit` | 134 / 135 |
 
-Weight, installed and tree-inclusive: **109,458 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.5955** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **110,388 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.6006** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 

@@ -32,6 +32,7 @@ import { ambientRuntime, run } from 'bellpull';
 import { findUpSync } from 'seniority/find-up';
 
 import { ExitCode } from './exit-code.js';
+import { formatsOf } from './formats.js';
 import { checkLocales, countFor, formsOf, isOwnedElsewhere, type LocaleMessages, type LocaleRefusal, type Locales, type Message, render } from './locale.js';
 import { Manifest } from './manifest.js';
 import { MESSAGES } from './messages.js';
@@ -47,6 +48,8 @@ export interface CheckReport {
    * for a plugin that carries `locales`.
    */
   locales?: { locale: string; messages: { id: string; form?: string; text: string }[]; coverage: Coverage }[];
+  /** The output formats the plugin registers (`agent-headroom` RF), each checked as `--format` checks it. Present only for a plugin that carries `formats`. */
+  formats?: { name: string; description: string }[];
   /** Each other layer the plugin reaches, and what its own `check` said. Present only for a plugin that reaches one. */
   layers?: Layer[];
 }
@@ -136,6 +139,8 @@ export async function checkPlugin(file: string): Promise<CheckReport | CheckRefu
     validate(plugin, []);
     new Manifest().use(plugin as Plugin);
     checkLocales(plugin as Plugin);
+    // Beside burgee's own, as a program would hold them: a name burgee registers is refused here too.
+    formatsOf([plugin as Plugin]);
   } catch (error) {
     if (error instanceof PluginError) return refuse(error.code, error.message, error.fix, (error as PluginError & Partial<LocaleRefusal>).problems);
     // `use()` refuses a contributed command through `checkCommand`, which throws a plain
@@ -143,7 +148,7 @@ export async function checkPlugin(file: string): Promise<CheckReport | CheckRefu
     if (error instanceof Error) return refuse('E_PLUGIN_SCHEMA', error.message, 'fix the contributed command the message names; it is checked exactly as one of the program’s own');
     throw error;
   }
-  const { name, commands = [], hooks = {}, locales } = plugin as Plugin;
+  const { name, commands = [], hooks = {}, locales, formats } = plugin as Plugin;
   const layers = await layersOf(plugin as object, resolve(file));
   const refusing = layers.find((layer) => (layer.exitCode ?? 0) !== 0);
   if (refusing !== undefined) return refusedBy(refusing, name);
@@ -155,13 +160,14 @@ export async function checkPlugin(file: string): Promise<CheckReport | CheckRefu
       applies: hooks[stage]?.filter?.command === undefined ? 'every command' : `commands matching ${String(hooks[stage]?.filter?.command)}`,
     })),
     ...(locales === undefined ? {} : { locales: rendered(locales) }),
+    ...(formats === undefined ? {} : { formats: Object.entries(formats).map(([format, { description }]) => ({ name: format, description })) }),
     ...(layers.length === 0 ? {} : { layers }),
   };
-  if (report.commands.length === 0 && report.hooks.length === 0 && (report.locales ?? []).length === 0 && layers.length === 0) {
+  if (report.commands.length === 0 && report.hooks.length === 0 && (report.locales ?? []).length === 0 && (report.formats ?? []).length === 0 && layers.length === 0) {
     return refuse(
       'E_NO_CONTRIBUTION',
       `${name} registers, but contributes nothing any layer of the family reads`,
-      'add a key the family schema (burgee/schema.json) describes: `commands`, `hooks` or `locales` for burgee, or another layer’s, such as `tokens` for roundel or `spinners` for flagstaff',
+      'add a key the family schema (burgee/schema.json) describes: `commands`, `hooks`, `locales` or `formats` for burgee, or another layer’s, such as `tokens` for roundel or `spinners` for flagstaff',
     );
   }
   return report;

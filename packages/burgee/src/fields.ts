@@ -7,12 +7,16 @@
 /**
  * N14 — what `--json=<fields>` does once it is typed: list the declared fields, refuse an
  * unknown one naming the valid set, select the named fields of a result. Its own chunk,
- * imported by `execute.ts` only when `--json=` or `--format=agent` is on the command line
- * (M2) — N15's flag is read off argv here too, so the startup path carries one test for both.
+ * imported by `execute.ts` only when `--json=`, `--format` or a global is on the command line
+ * (M2) — `agent-headroom` RF's `--format` and R3's `--max-bytes` are read off argv here too, so
+ * the startup path carries one test for all of them.
  */
-import { agentLines } from './agent-format.js';
+import { beforeTerminator, isJsonFlag } from './argv.js';
+import { formatNames, formatsOf, listFormats, SPELLINGS } from './formats.js';
 import { type Globals, globalsOf, isGlobal } from './globals.js';
 import { type CommandNode } from './manifest.js';
+import { type Print, printer } from './max-bytes.js';
+import { type Plugin } from './plugin.js';
 import { UsageError } from './validate.js';
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -61,45 +65,87 @@ export function selectFields(data: unknown, fields: readonly string[]): unknown 
   return Array.isArray(data) ? data.map(pick) : pick(data);
 }
 
-const AGENT = '--format=agent';
-
-/**
- * N14 — `--json=a,b` becomes `--json` plus the fields it names; `--json=` alone is an empty
- * list, which asks for the valid set. Only the `=` form takes fields, so `cmd --json name`
- * keeps `name` a positional (D-114). Nothing after `--` is read (G5).
- *
- * N15 — `--format=agent` is taken out before the parser sees it and hands back the formatter.
- * A command that declares its own `format` option keeps the flag, because the program wins;
- * and after `--` it is the command's, like everything else there.
- */
 /** What `fields.js` reads off argv before the command's own parse. */
 export interface LazyArgs {
   args: string[];
   fields?: string[];
-  lines?: (data: unknown) => string;
+  /** How the success is written, when a format or a budget was typed (RF, R3); `execute.ts` writes it. */
+  print?: Print;
   /** agent-lint-conformance R1–R3: the globals typed, when any were. */
   global?: Globals;
+  /** A listing to print instead of running the handler: `--json=`'s fields, or `--format`'s formats. */
+  text?: string;
 }
 
 /**
- * Everything the engine reads lazily off argv, in one call: the R1–R3 globals first
- * (`globals.js`), then `--json=<fields>` and `--format=agent` from what is left.
+ * Everything the engine reads lazily off argv, in one call: the R1–R3 globals and `--max-bytes`
+ * first (`globals.js`), then `--format` and `--json=<fields>` from what is left. A listing, an
+ * unknown field and a budget with no machine format to budget are all refused or answered here,
+ * before the parse and before the handler.
  */
-export function lazyArgs(typed: readonly string[], node: CommandNode): LazyArgs {
+export function lazyArgs(typed: readonly string[], node: CommandNode, plugins: readonly Plugin[]): LazyArgs {
   const global = typed.some(isGlobal) ? globalsOf(typed, node) : undefined;
-  return { ...jsonFields(global?.args ?? typed, node), ...(global === undefined ? {} : { global }) };
+  const words = global?.args ?? typed;
+  const { args, fields, render, list } = jsonFields(words, node, plugins);
+  if (list !== undefined) return { args, text: list };
+  if (fields?.length === 0) return { args, text: `${JSON.stringify(listFields(node))}\n` };
+  if (fields) checkFields(fields, node);
+  const max = global?.max;
+  if (max !== undefined && render === undefined && !asksForJson(words, node)) {
+    throw new UsageError('--max-bytes budgets a machine format, and none was asked for', 'add --json, or --format=<name>; --format lists them');
+  }
+  const print = render === undefined && max === undefined ? {} : { print: printer(render, max) };
+  return { args, ...(fields === undefined ? {} : { fields }), ...print, ...(global === undefined ? {} : { global }) };
 }
 
-export function jsonFields(args: readonly string[], node: CommandNode): { args: string[]; fields?: string[]; lines?: (data: unknown) => string } {
+/**
+ * Whether the line asks for the `--json` envelope: `--json`, `--json=<fields>`, or a spelling that
+ * runs as one (`--format=json`, `--output json`, D-20261009) on a command that leaves the word to
+ * burgee. Read so `--max-bytes` beside any of them is kept for the envelope.
+ */
+function asksForJson(words: readonly string[], node: CommandNode): boolean {
+  const head = beforeTerminator(words);
+  return head.some((word, i) => {
+    if (isJsonFlag(word)) return true;
+    const [, flag, eq] = /^--(format|output)(=json)?$/.exec(word) ?? [];
+    return flag !== undefined && node.options[flag] === undefined && (eq !== undefined || head[i + 1] === 'json');
+  });
+}
+
+/**
+ * RF — `--format=<name>` is taken out before the parser sees it and hands back the registered
+ * format's renderer; `--format` alone, or `--format=`, asks for the list. A command that declares
+ * its own `format` option keeps the word, because the program wins. `text`, `json` and
+ * `json-pretty` stay in argv for the spellings that already answer them; any other name nothing
+ * registered is refused with the names there are.
+ */
+function formatOf(head: readonly string[], plugins: readonly Plugin[]): { head: readonly string[]; render?: (value: unknown) => string; list?: string } {
+  // A bare `--format` lists only when no value follows it: `--format json` is the D-20261009 spelling.
+  const word = head.findLast((a, i) => a.startsWith('--format=') || (a === '--format' && !/^[^-]/.test(head[i + 1] ?? '-')));
+  const name = word?.slice('--format='.length) ?? '';
+  if (word === undefined || SPELLINGS.includes(name)) return { head };
+  const formats = formatsOf(plugins);
+  const rest = head.filter((a) => a !== word);
+  if (name === '') return { head: rest, list: listFormats(formats) };
+  const format = formats.get(name);
+  if (format === undefined) throw new UsageError(`unknown format "${name}"`, `formats: ${formatNames(formats).join(', ')}`);
+  return { head: rest, render: format.render };
+}
+
+/**
+ * N14 — `--json=a,b` becomes `--json` plus the fields it names; `--json=` alone is an empty
+ * list, which asks for the valid set. Only the `=` form takes fields, so `cmd --json name`
+ * keeps `name` a positional (D-114). Nothing after `--` is read (G5) — neither here nor by
+ * `--format`, which is read first.
+ */
+export function jsonFields(args: readonly string[], node: CommandNode, plugins: readonly Plugin[]): { args: string[]; fields?: string[]; render?: (value: unknown) => string; list?: string } {
   const end = args.indexOf('--');
   const all = end === -1 ? args : args.slice(0, end);
-  const agent = node.options['format'] === undefined && all.includes(AGENT);
-  const head = agent ? all.filter((a) => a !== AGENT) : all;
-  const lines = agent ? { lines: agentLines } : {};
+  const { head, ...format } = node.options['format'] === undefined ? formatOf(all, plugins) : { head: all };
   const tail = end === -1 ? [] : args.slice(end);
   const given = head.findLast((a) => a.startsWith('--json='));
-  if (given === undefined) return { args: [...head, ...tail], ...lines };
+  if (given === undefined) return { args: [...head, ...tail], ...format };
   const fields = given.slice('--json='.length).split(',').map((f) => f.trim()).filter((f) => f !== '');
   const kept = head.map((a) => (a.startsWith('--json=') ? '--json' : a));
-  return { args: [...kept, ...tail], fields, ...lines };
+  return { args: [...kept, ...tail], fields, ...format };
 }
