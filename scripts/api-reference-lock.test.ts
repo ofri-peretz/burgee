@@ -93,6 +93,22 @@ describe.each(REFERENCED.map((pkg) => [pkg] as const))('%s: the API reference', 
     expect(unlisted, `${entry.specifier} exports these and its page does not name them`).toEqual([]);
   });
 
+  // An export named `module.exports` is what `require()` of the entry returns (Node's require(esm)
+  // interop), not a name an import binds: `import { module.exports } from 'roundel/kleur'` is a
+  // syntax error, and it was printed on four pages (kleur, picocolors, node-which, yargs/v17/yargs).
+  it('shows import lines that parse: never `import { module.exports }`, only names a binding can take', () => {
+    const unbindable = [...owned].flatMap(([file, text]) =>
+      [...text.matchAll(/^import (?:type )?\{ (?<names>[^}]*) \} from /gmu)].flatMap((m) =>
+        (m.groups?.['names'] ?? '')
+          .split(', ')
+          .filter((name) => name !== '…' && !/^[A-Za-z_$][\w$]*$/u.test(name))
+          .map((name) => `${file}: ${name}`),
+      ),
+    );
+    expect(unbindable).toEqual([]);
+    for (const [file, text] of owned) expect(text, file).not.toContain('import { module.exports }');
+  });
+
   // `tsc` keeps a source file's licence header in its `.d.ts`, where it reads as the module's
   // doc, or as the doc of a first declaration that has none; neither is documentation.
   it('never prints a licence banner as a module intro or an export summary', () => {
