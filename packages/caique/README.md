@@ -311,7 +311,7 @@ Every subpath is a lock, not a convention: `weight.test.ts` walks each entry's i
 `dist/` and asserts its budget and what it may reach, and the figures below are what it
 measured. **The ceiling is clack**: `@clack/prompts`
 1.8.0 is **101,684 B across six packages** — itself, `@clack/core`, `fast-string-width`,
-`fast-string-truncated-width`, `fast-wrap-ansi` and `sisteransi`.
+`fast-string-truncated-width`, `fast-wrap-ansi` and `sisteransi` ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 | Subpath | Bytes | Reaches |
 | :-- | --: | :-- |
@@ -332,7 +332,7 @@ The root entry is **under a fifth of the lightest incumbent**, and nothing reach
 repository: every `allow` list in `weight.test.ts` names only `closeout` and `linegauge`
 subpaths, asserted rather than claimed. Deciding *not* to ask costs 2,133 B and never loads
 the machinery of asking — which is the case an agent hits. The two façades are leaves away
-from the rest: a program on caique's own API never loads a byte of either.
+from the rest: a program on caique's own API never loads a byte of either ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 Measured 2026-09-20 (the root, `caique/raw`, `caique/keys`, `caique/editor` and `caique/clack` on 2026-10-05), the same way every bill in this family is: shipped code and data
 (`.js`/`.mjs`/`.cjs` plus imported `.json`, `package.json` never counted), each competitor
@@ -347,7 +347,7 @@ outside this repository is installed.
 The two drop-in subpaths are priced on their own, because a program that imports caique
 never loads either. **`caique/clack`** — clack's twelve prompts, its writers, glyphs and
 settings — is **62,238 B** against clack's 101,684 B (measured 2026-09-27, budget 64,000 in
-`weight.test.ts`); `caique/inquirer` is priced beside it.
+`weight.test.ts`); `caique/inquirer` is priced beside it ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## Benchmarks
 
@@ -361,7 +361,7 @@ Graded by the incumbent's own test suite:
 | `inquirer-core` | 41 / 41 |
 | `inquirer-prompts` | 213 / 213 |
 
-Weight, installed and tree-inclusive: **288,357 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.7412**.
+Weight, installed and tree-inclusive: **288,601 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.7418** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 

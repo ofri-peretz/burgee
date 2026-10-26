@@ -27,6 +27,8 @@ export interface JsonSchemaProperty {
   flag?: string;
   /** The shared set this option was copied from (M4). */
   sharedFrom?: string;
+  /** The environment variable the option also reads (commander-env V2), so an MCP client sees where a value can come from. */
+  env?: string;
   /**
    * The flags this option requires, and the flags it excludes — as the caller types them, not
    * as the handler reads them, because the reader of this document is composing a command line
@@ -152,7 +154,7 @@ function scalarType(spec: OptionSpec): 'string' | 'boolean' | 'number' | 'intege
 }
 
 /** An option's keys its property carries unchanged, after `description` and `enum`. */
-const COPIED = ['default', 'minimum', 'maximum', 'sharedFrom'] as const;
+const COPIED = ['default', 'minimum', 'maximum', 'sharedFrom', 'env'] as const;
 
 function optionProperty(name: string, spec: OptionSpec): JsonSchemaProperty {
   const scalar = scalarType(spec);

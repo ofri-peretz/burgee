@@ -10,6 +10,9 @@
 > **Accepted at the Design→Build gate 2026-10-25** by the coordinator under the owner's delegation
 > ([`D-20261025-sdlc-locks-evals-bands-design-accepted`](../../decisions/D-20261025-sdlc-locks-evals-bands-design-accepted.md)): `.sdlc/intents` in the free link layer on every PR, never the paid task evals; the starved duration band made loud. See
 > [`spec.md` § Design gate 2026-10-25](./spec.md#design-gate-2026-10-25).
+>
+> **Built 2026-10-25 (batch 29), still `approved`:** S2 holds, and S3's build item holds, but the
+> duration band has not gained a point yet. See [`spec.md` § Status 2026-10-25](./spec.md#status-2026-10-25).
 
 **Restated:** 2026-10-18 — see [§ Restated 2026-10-18](#restated-2026-10-18)
 
@@ -163,11 +166,17 @@ The three mechanisms `eslint/` has and this repo only promises:
 - A deliberately broken relative link in `.sdlc/intents/README.md` fails the evals job.
   **2026-10-18: remaining** — `scripts/run-evals.ts` does not scan `.sdlc/intents/`, and
   `evals.yml`'s `paths:` does not name it; see [§ Restated 2026-10-18](#restated-2026-10-18).
+  **2026-10-25: held**, as restated at the design gate: the free layer runs on every PR in
+  `quality.yml` (step "Evals layer 1 (links, scripts, floor ids)"), and
+  `scripts/run-evals.test.ts` › "reports a broken relative link in .sdlc/intents/README.md".
 - ~~`control-bands.yml` runs weekly and records four observations per run; after eight
   runs the first 2σ evaluation is real, not "insufficient points".~~ **Restated 2026-10-18:**
   every band in `control-bands.json` gains a point per scheduled run, and each band at
   `minPoints` or more evaluates. The two lint bands (10 points) and the B1 bands (56) evaluate;
   `test-duration-ms` has stalled at 7 points since 2026-09-28 and is **remaining**.
+  **2026-10-25:** a dropped point now says why (`scripts/control-bands.test.ts` › "names the exit
+  code of a command that failed, and quotes the last lines it printed"). The band still has 7
+  points, so this criterion stays open until the cause the next weekly run names is fixed.
 - A simulated breach in a unit test produces an `intent.md` that itself passes the
   intent lock. **2026-10-18: held** by `scripts/control-bands.test.ts` › "satisfies the schema
   the intent lock enforces".

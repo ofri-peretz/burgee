@@ -1,6 +1,6 @@
 # Intent — `dev-loop`: your agent is connected to your CLI while you write it
 
-**Status:** approved · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`
+**Status:** shipped · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz` · **Shipped:** 2026-10-25 in [#1252](https://github.com/ofri-peretz/burgee/pull/1252), the last two criteria (4 and the save segment of 5) locked by `packages/burgee/src/dev.test.ts`; tests only, nothing to publish — see [§ Shipped 2026-10-25](#shipped-2026-10-25)
 
 > **Accepted at the Design→Build gate 2026-10-25** by the coordinator under the owner's delegation
 > ([`D-20261025-dev-loop-design-accepted`](../../decisions/D-20261025-dev-loop-design-accepted.md)): W4 byte-identity and W6's watcher segment left to build. See
@@ -14,7 +14,7 @@
 
 ## Restated 2026-10-18
 
-**Criteria 1–3 and 5 restated to what `burgee dev` ships and held, except the save-detection segment of 5; criterion 4 has no test — REMAINING: W4 byte-identical-after-removal test, W6 save-to-reload segment untimed.**
+**Criteria 1–3 and 5 restated to what `burgee dev` ships and held, except the save-detection segment of 5; criterion 4 has no test — REMAINING: W4 byte-identical-after-removal test, W6 save-to-reload segment untimed.** *2026-10-25: both held, see [§ Shipped 2026-10-25](#shipped-2026-10-25).*
 
 | ID | promised | on main | check | disposition |
 | :-- | :-- | :-- | :-- | :-- |
@@ -108,12 +108,36 @@ lets a CLI be loaded in-process exists (T1). This intent is the loop around them
    held by `packages/burgee/src/dev.test.ts` and `packages/burgee/src/dev-load.test.ts` › "names a removed command
    with a minus".
 4. Removing every trace of `burgee dev` from a project leaves its CLI byte-identical
-   (Z2), asserted by a test. **Remaining 2026-10-18:** non-inclusion is locked by
-   `packages/burgee/src/weight.test.ts`; byte-identity has no test.
+   (Z2), asserted by a test. ~~**Remaining 2026-10-18:** non-inclusion is locked by
+   `packages/burgee/src/weight.test.ts`; byte-identity has no test.~~ **Held 2026-10-25:**
+   `packages/burgee/src/dev.test.ts` › "after a load, an edit, a watched reload and a stop, every
+   file and the listing are as they were".
 5. Time from saving a file to an agent being able to call the changed command is under
    500ms on the 30-command demo. **Restated 2026-10-18:** under max(500 ms, five imports
    of the entry) (gap A30), held from `reload()` by `packages/burgee/src/dev.test.ts` › "reloads thirty commands
-   within the budget"; the save-detection segment is still untimed (remaining).
+   within the budget"; ~~the save-detection segment is still untimed (remaining)~~. **Held
+   2026-10-25** through the real watcher: `packages/burgee/src/dev.test.ts` › "a save is seen,
+   reloaded and callable within the budget, timed from the write".
+
+## Shipped 2026-10-25
+
+**All five criteria hold on merged code, and nothing is left to publish: the two new checks are
+tests in the package suite, with no change to `burgee dev` itself.** Built under
+[`D-20261025-dev-loop-design-accepted`](../../decisions/D-20261025-dev-loop-design-accepted.md).
+
+| criterion | check | proven red by |
+| :-- | :-- | :-- |
+| 4 (Z2) | `packages/burgee/src/dev.test.ts` › "after a load, an edit, a watched reload and a stop, every file and the listing are as they were" | a scratch `writeFileSync` of `.burgee-dev-<n>` beside the entry on each reload in `dev.ts`: the listing gained the file and the case failed |
+| 5, save segment | `packages/burgee/src/dev.test.ts` › "a save is seen, reloaded and callable within the budget, timed from the write" | `DEFAULT_DEBOUNCE_MS` raised from 50 to 1000 in a scratch edit: 1,438 ms against the 500 ms budget |
+
+The byte-identity case runs over a project of four files (a manifest, a config file, an entry
+that imports a second module). It edits the entry once, waits for the watcher's
+`notifications/tools/list_changed`, calls the new command and stops. The tree afterwards is
+the tree before, plus the one edit the test made. The watcher case times from the write to the
+changed command's answer. It uses no fixed sleep and runs at the default debounce. It read 74–100 ms
+over four local runs on darwin (budget 500 ms), against the 66–89 ms hand measurement of
+2026-09-09. Each run prints its reading on stderr (`W6 save-to-callable through the watcher:
+…`), which vitest shows with `--silent=false`.
 
 ## Verified against `main` — 2026-09-09
 

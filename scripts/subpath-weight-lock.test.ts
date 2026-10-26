@@ -100,21 +100,23 @@ const DROP_IN_CEILINGS: Readonly<Record<string, { incumbent: string; bytes: numb
  * 5 B to all three commander entries without regenerating the page, so v14 moves with them, 55,997 -> 56,002. Every
  * byte over commander is named in that spec's residual table. 55,595 on 2026-10-20 (D-20261020-default-command-weight):
  * `--schema` passes `default` through, and `optionProperty` copies four keys in one loop, -58 B on every façade row.
- * v14 56,002 -> 55,944, `burgee/yargs/v17` 110,312 -> 110,254.
+ * v14 56,002 -> 55,944, `burgee/yargs/v17` 110,312 -> 110,254. 55,601 on 2026-10-25
+ * (D-20261025-commander-env-v2-facade-weight): `env` joins the keys `optionProperty` copies, so an MCP
+ * client sees an option's variable, +6 B on every façade row; v14 55,950, `burgee/yargs/v17` 110,260.
  */
 const OVER_INCUMBENT: Readonly<Record<string, { incumbent: string; bytes: number; ours: number; gap: string }>> = {
-  'burgee/commander': { incumbent: 'commander@15.0.0', bytes: 39_329, ours: 55_595, gap: 'B-20261012-commander-front-end-bundles-heavier' },
+  'burgee/commander': { incumbent: 'commander@15.0.0', bytes: 39_329, ours: 55_601, gap: 'B-20261012-commander-front-end-bundles-heavier' },
   // `extra-typings-drop-in` R5: `export * from '../commander.js'`, so it bundles to `burgee/commander`
   // byte for byte and its ratchet moves with that row.
-  'burgee/commander/extra-typings': { incumbent: '@commander-js/extra-typings@15.0.0 + commander@15.0.0', bytes: 39_329, ours: 55_595, gap: 'B-20261012-extra-typings-bundles-heavier' },
+  'burgee/commander/extra-typings': { incumbent: '@commander-js/extra-typings@15.0.0 + commander@15.0.0', bytes: 39_329, ours: 55_601, gap: 'B-20261012-extra-typings-bundles-heavier' },
   // `previous-majors` R1: `burgee/commander` plus one subclass with commander 14's excess-arguments
   // message, so it bundles `burgee/commander`'s bytes plus 349, and its ratchet moves with that row.
   // commander 14.0.3 measured 2026-10-12 by the same method: 40,970 B (D-20261012-commander-14-budget).
-  'burgee/commander/v14': { incumbent: 'commander@14.0.3', bytes: 40_970, ours: 55_944, gap: 'B-20261012-commander-front-end-bundles-heavier' },
+  'burgee/commander/v14': { incumbent: 'commander@14.0.3', bytes: 40_970, ours: 55_950, gap: 'B-20261012-commander-front-end-bundles-heavier' },
   // `previous-majors` R3: `burgee/yargs` plus 17's string table and `commandDir()` walk. yargs
   // 17.7.3's `index.mjs` bundles to 84,475 B by the same method, measured 2026-10-19, and yargs
   // 18.2.0's to 111,698 B, which `burgee/yargs` is under (D-20261019-yargs-17-budget).
-  'burgee/yargs/v17': { incumbent: 'yargs@17.7.3', bytes: 84_475, ours: 110_254, gap: 'B-20261019-yargs-17-entry-bundles-heavier' },
+  'burgee/yargs/v17': { incumbent: 'yargs@17.7.3', bytes: 84_475, ours: 110_260, gap: 'B-20261019-yargs-17-entry-bundles-heavier' },
 };
 
 /** The "Everything" cell of a subpath's row on the page, or `undefined` when it has no row. */

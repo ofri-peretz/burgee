@@ -1,6 +1,6 @@
 # Design — `dev-loop`
 
-Intent: [`intent.md`](./intent.md). **Status:** approved (2026-10-25) — built; W4 and the watcher segment of W6 remain to build.
+Intent: [`intent.md`](./intent.md). **Status:** shipped (2026-10-25, [#1252](https://github.com/ofri-peretz/burgee/pull/1252)) — built; W4 and the watcher segment of W6 locked by `packages/burgee/src/dev.test.ts`, see the intent's [§ Shipped 2026-10-25](./intent.md#shipped-2026-10-25).
 
 **Restated:** 2026-10-18 — see § Restated 2026-10-18
 

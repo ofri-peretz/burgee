@@ -38,6 +38,30 @@ S1, S4, R1 and R4–R6 hold. R2 and R3 are restated below.
 finds on the build's base commit, recorded in the PR. After two weekly runs, whether
 `test-duration-ms` gains points or names its cause.
 
+## Status 2026-10-25
+
+Built in batch 29 under
+[D-20261025-batch29-locks-tests-rulings](../../decisions/D-20261025-batch29-locks-tests-rulings.md).
+The intent stays `approved`, because S3's band has not gained a point.
+
+| item | state | check | proven red by |
+| :-- | :-- | :-- | :-- |
+| R2 — `.sdlc/intents` in the link layer | built | `scripts/run-evals.test.ts` › "reports a broken relative link in .sdlc/intents/README.md" | the case, run against `main`: `agentDocs` did not list the file |
+| R2 — `PLANNED_DOCS` moved to `^\.sdlc\/intents\/` | built | `scripts/run-evals.test.ts` › "reads a script an intent names as a plan, and the same mention elsewhere as a dangling one" | the case, run with `CONFIG_DIRS` widened and `PLANNED_DOCS` still on `docs/intents` |
+| R3 — the free layer on every PR, the paid layer unmoved | built | `.github/workflows/quality.yml`, Fast checks › "Evals layer 1 (links, scripts, floor ids)", reported in the `Quality Gate` table; `evals.yml`'s `paths:` unchanged | the step runs in this PR's own checks |
+| S3 — a dropped observation says why | built | `scripts/control-bands.test.ts` › "names the exit code of a command that failed, and quotes the last lines it printed", › "names the timeout, and its value, for a command that ran past it", › "names the signal that killed a command", › "names a command that could not start", › "records a passing command and logs nothing" | the first three, run against `main`: the collector logged nothing |
+| S3 — every band gains a point per run | open | the series in `.sdlc/bands/control-bands.history.json` | — |
+
+**Measured on the base commit `c92e4173f4`:** the widened scan reads 202 Markdown files under
+`.sdlc/intents/` and finds **0** broken links. It exempts **8** planned-script mentions in intent
+designs. The design gate's own documents, merged from #1245, add none.
+
+**What the duration band needs next.** The weekly run of 2026-10-19 recorded nothing for
+`test-duration-ms`, and `npm test` ended about 69 s after the record step began. That is a red
+suite, not the 900,000 ms ceiling. The collector now logs the exit code and the last fifteen lines
+`npm test` printed, and `control-bands.yml` tees that into the run summary. So the next weekly run
+names the failing test, and fixing it is what gives the band its eighth point.
+
 ## Restated 2026-10-18
 
 **R1, R4 and R5 hold as shipped; R2, R3 and R6 are restated, each with a remaining piece — REMAINING: R2/R3, R6.** *2026-10-19: R6 held; R2/R3 remain.*
