@@ -7,6 +7,12 @@
 
 **Status:** approved · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
 
+> **0 of the four weekly readings on 2026-10-26.** The first paid run of the arm, 2026-10-20, never
+> reached its MCP server, so it is no reading. The harness now refuses that before it spends a run
+> ([`spec.md`](./spec.md) R6,
+> [`D-20261026-b1-mcp-arm-server-guard`](../../decisions/D-20261026-b1-mcp-arm-server-guard.md)).
+> What closes this intent is in [`spec.md` § What closes this intent](./spec.md#what-closes-this-intent).
+
 ---
 
 ## What is wanted
