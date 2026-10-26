@@ -326,9 +326,9 @@ describe('U12-3 — the project chooses what moves, and an undeclared incumbent 
 
   it('refuses a name it does not migrate, as a usage error that lists the ones it does', async () => {
     const dir = project({ 'package.json': manifest({}) });
-    const error = await migrate({ dir, status: clean, only: ['chalk', 'kleur'] }).catch((cause: unknown) => cause);
+    const error = await migrate({ dir, status: clean, only: ['chalk', 'ansi-colors'] }).catch((cause: unknown) => cause);
     expect(error).toBeInstanceOf(UnknownIncumbentError);
-    expect((error as Error).message).toBe('burgee migrate does not migrate kleur');
+    expect((error as Error).message).toBe('burgee migrate does not migrate ansi-colors');
     expect((error as { fix: string }).fix).toContain('@inquirer/core');
     expect((error as { constructor: Record<symbol, unknown> }).constructor[Symbol.for('burgee.exitCode')]).toBe(ExitCode.USAGE);
     await expect(migrate({ dir, status: clean, skip: ['yargs/helpers'] })).rejects.toThrow('does not migrate yargs/helpers');

@@ -56,6 +56,7 @@ const KNOWN = [
   'cli-table3',
   'cli-truncate',
   'colorette',
+  'kleur',
   'commander',
   'cosmiconfig',
   'cross-spawn',

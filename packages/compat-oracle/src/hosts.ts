@@ -507,6 +507,13 @@ export interface Host {
    * are `.ts`. For `node:test` it is upstream's own: ink 8's `npm test` is
    * `node --import=tsx --test`, and the arm passes the same `--import` ahead of `--test`.
    *
+   * **A `uvu` host's `-r esm` is the same substitution** (`colour-facades` R1). kleur's `npm test`
+   * is `uvu -r esm`, and `esm` does not start on Node 24: measured, uvu then dies on the first file
+   * with `Cannot use import statement outside a module`. What `esm` gave the suite — ES module
+   * syntax in `.js` files under a root with no `type`, `./utils` resolved to `./utils.js`, and `uvu`
+   * resolved to the CommonJS build uvu's own CLI queues on — tsx gives it too, through the same
+   * `--import`, ahead of uvu's CLI where upstream's `-r` put `esm`; no file is edited.
+   *
    * The `tap` history follows.
    *
    * The `tap` arm is `node <file>` per file, and Node 24 strips types natively — which is
@@ -569,8 +576,14 @@ export interface Host {
    * pinned twist once per file and reads its `Tests:` line (`twist.ts`); a file twist cannot load
    * is one failure, and a run with no summary is an error. twist names only failing cases, so
    * there is nothing to exclude by, and an exclusion on a twist host is refused.
+   *
+   * **`uvu` reads the summary uvu prints** (`colour-facades` R1). kleur's `npm test` is
+   * `uvu -r esm`, and uvu prints `Total`, `Passed` and `Skipped` and exits 1 on a failure. The arm
+   * runs the suite's own pinned uvu once per file (`uvu.ts`); a file uvu cannot load is one
+   * failure, and a run that ends with no summary is an error. Like twist, uvu names only failing
+   * cases, so an exclusion on a uvu host is refused. `-r esm` is {@link Host.tsLoader}.
    */
-  runner: 'node:test' | 'mocha' | 'ava' | 'vitest' | 'tap' | 'exit-code' | 'tsd' | 'twist';
+  runner: 'node:test' | 'mocha' | 'ava' | 'vitest' | 'tap' | 'exit-code' | 'tsd' | 'twist' | 'uvu';
   /**
    * The shim's module system. Unset, every shim is ESM and Node resolves the implementation
    * through its `import` condition. `'cjs'` writes `module.exports = require(…)` instead, for a
@@ -800,6 +813,34 @@ export const HOSTS: Host[] = [
     target: 'roundel',
     status: 'active',
     note: "Graded against roundel, as chalk, picocolors and supports-color are. `roundel/colorette` decides colour by colorette's own rule — a *present* `NO_COLOR` or `FORCE_COLOR`, the flags, Windows, a terminal with a `TERM`, three CI vendors — not by `roundel/policy`'s.",
+    // Stryker restore all
+  },
+  {
+    // `roundel/kleur`'s grader (`colour-facades` R1). Upstream's `npm test` is
+    // `uvu -r esm -i utils -i xyz` from the repository root: uvu's default pattern, every `.js` in
+    // `test/`, less the helper `utils.js` and `xyz.js` (a two-line program `env.sh` runs). That
+    // leaves `colors.js` and `index.js`, written out as the glob. `env.sh` itself is the separate
+    // `Test w/ Environment` step of upstream CI, a bash script over `script -qfc` that runs only on
+    // Linux, and is not `npm test`; the decision it pins is `roundel/kleur`'s own differential test.
+    // Both entries are graded, `kleur` and `kleur/colors`, because both files are the suite.
+    // Stryker disable all: graded in another process: the compat ratchet's run and its `--control` run read this row against `baseline/kleur.json`, and a mutant here moves one of those counts — except `repo`, `surfaceFiles` and `tagPrefix`, which only a re-vendor and the upstream watch read, and `note`, which nothing renders for an active row
+    name: 'kleur',
+    repo: 'https://github.com/lukeed/kleur',
+    testDir: 'test',
+    testGlob: '{colors,index}.js',
+    imports: [
+      { upstream: '../index.mjs', subpath: '/kleur', reexportDefault: true, control: 'kleur' },
+      { upstream: '../colors.mjs', subpath: '/kleur/colors', reexportDefault: false, control: 'kleur/colors' },
+    ],
+    // Installed beside the suite at the graded release, never whatever the root hoists; uvu is
+    // upstream's runner at its own pin, and `esm`, its other devDependency, is substituted (`tsLoader`).
+    suiteDeps: ['kleur@4.1.5', 'uvu@0.3.3'],
+    surfaceFiles: ['index.d.ts', 'colors.d.ts', 'index.mjs', 'colors.mjs'],
+    runner: 'uvu',
+    tsLoader: 'tsx',
+    target: 'roundel',
+    status: 'active',
+    note: "Graded against roundel, as chalk, colorette, picocolors and supports-color are. `roundel/kleur` decides colour by kleur's own rule — `NODE_DISABLE_COLORS`, a present `NO_COLOR`, `TERM=dumb`, then `FORCE_COLOR` other than `0` or a terminal on stdout — not by `roundel/policy`'s.",
     // Stryker restore all
   },
   {

@@ -124,6 +124,8 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
       'cli-truncate': 'linegauge/cli-truncate',
       'widest-line': 'linegauge/widest-line',
       colorette: 'roundel/colorette',
+      kleur: 'roundel/kleur',
+      'kleur/colors': 'roundel/kleur/colors',
       picocolors: 'roundel/picocolors',
       'supports-color': 'roundel/supports-color',
       yoctocolors: 'roundel/yoctocolors',
@@ -145,6 +147,18 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
     expect(mapped).toEqual([
       { from: 'colorette', to: 'roundel/colorette' },
       { from: 'colorette', to: 'roundel/colorette' },
+    ]);
+  });
+
+  // `colour-facades` criterion 3: kleur 4 exports `.`, one default object, and `./colors`, named
+  // functions and `$`; each moves to the entry that keeps its subpath, types included.
+  it('rewrites a kleur default import and a kleur/colors named and namespace import, each to its own entry', () => {
+    const { source, mapped } = rewriteSource("import kleur, { type Kleur } from 'kleur';\nimport { red, $ } from 'kleur/colors';\nimport * as c from 'kleur/colors';\n");
+    expect(source).toBe("import kleur, { type Kleur } from 'roundel/kleur';\nimport { red, $ } from 'roundel/kleur/colors';\nimport * as c from 'roundel/kleur/colors';\n");
+    expect(mapped).toEqual([
+      { from: 'kleur', to: 'roundel/kleur' },
+      { from: 'kleur/colors', to: 'roundel/kleur/colors' },
+      { from: 'kleur/colors', to: 'roundel/kleur/colors' },
     ]);
   });
 
@@ -598,6 +612,30 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     const left = await migrate({ dir: on1, status: clean });
     expect(read(on1, 'src/a.ts')).toBe("import { red } from 'colorette';\n");
     expect(left.offMajor).toEqual([{ from: 'colorette', found: '^1.4.0', graded: '2.0.20', nearest: 2, sites: [], move: null }]);
+  });
+
+  // `colour-facades` criterion 3, end to end: 4 is the one major claimed, so a program on it moves,
+  // `require()` included (`require('kleur')` is its one object and `roundel/kleur` exports the same
+  // as `'module.exports'`; `require('kleur/colors')` is an object of its names, and our namespace
+  // carries the same names), and one on 3 stays.
+  it('moves a program on kleur 4 to roundel/kleur, both entries, and leaves 3 alone naming 4.1.5', async () => {
+    const on4 = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { kleur: '^4.1.4' } }),
+      'src/a.ts': "import kleur from 'kleur';\nimport { bold } from 'kleur/colors';\n",
+      'src/b.cjs': "const kleur = require('kleur');\nconst { red } = require('kleur/colors');\n",
+    });
+    const moved = await migrate({ dir: on4, status: clean });
+    expect(moved.offMajor).toEqual([]);
+    expect(read(on4, 'src/a.ts')).toBe("import kleur from 'roundel/kleur';\nimport { bold } from 'roundel/kleur/colors';\n");
+    expect(read(on4, 'src/b.cjs')).toBe("const kleur = require('roundel/kleur');\nconst { red } = require('roundel/kleur/colors');\n");
+    expect(moved.refused).toEqual([]);
+    const on3 = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { kleur: '^3.0.3' } }),
+      'src/a.ts': "import kleur from 'kleur';\n",
+    });
+    const left = await migrate({ dir: on3, status: clean });
+    expect(read(on3, 'src/a.ts')).toBe("import kleur from 'kleur';\n");
+    expect(left.offMajor).toEqual([{ from: 'kleur', found: '^3.0.3', graded: '4.1.5', nearest: 4, sites: [], move: null }]);
   });
 
   // `colour-facades` criterion 3, end to end: 2 is the one major claimed, so a program on it

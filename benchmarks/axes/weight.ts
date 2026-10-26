@@ -608,6 +608,15 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // side a program that imports `red`. Lighter, so the ratio gate is U5's 1, the tighter bar here.
   'roundel/colorette': 1_900,
 
+  // `colour-facades` R4, first measured 2026-10-25 against kleur 4.1.5, the release compat-oracle
+  // grades. Added at a ceiling of 0, which failed, then set at the measurement plus the 80 B CI margin,
+  // rounded up to the next fifty: 1,036 against kleur's 1,847 (0.561) for a program importing the
+  // default, and 621 against kleur/colors' 688 (0.903) for one importing `red`. Lighter, so the ratio
+  // gate is U5's 1, the tighter bar of the two here.
+  'roundel/kleur': 1_150,
+
+  'roundel/kleur/colors': 750,
+
   // `supports-color-drop-in` R4, first measured 2026-10-19 against supports-color 11.0.0, the
   // release compat-oracle grades. Added at a ceiling of 0, which failed, then set at the
   // measurement plus the 80 B CI margin, rounded up to the next fifty: 1,764 against

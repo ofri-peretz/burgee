@@ -19,7 +19,7 @@ import { join, sep } from 'node:path';
 import { describe, expect, it, onTestFinished } from 'vitest';
 
 import { bundle, installedDependencies, uniqueRecords } from './axes/weight.js';
-import { packagesOf, PAIRS } from './fixtures/entry-points.js';
+import { packageOf, packagesOf, PAIRS } from './fixtures/entry-points.js';
 import manifest from './package.json' with { type: 'json' };
 import { BENCH_ROOT, packageDir, satisfies } from './resolve.js';
 
@@ -115,7 +115,8 @@ describe('an incumbent paired twice is one record, not two', () => {
 });
 
 describe('installed bytes count every copy on disk, once', () => {
-  const measured = [...new Set(PAIRS.map((p) => p.incumbent.specifier))];
+  // By package, not specifier: `kleur/colors` is installed as `kleur`, and the axis weighs it so.
+  const measured = [...new Set(PAIRS.map((p) => packageOf(p.incumbent.specifier)))];
 
   it.each(measured)('%s: every nested install is reached through the dependency graph', (name) => {
     expect(unreached(name), `nested under ${name} but not reachable from its dependencies — its bytes would go uncounted`).toEqual([]);
