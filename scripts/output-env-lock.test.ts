@@ -56,6 +56,8 @@ const DROP_INS: Record<string, string> = {
   'flagstaff/src/ora.ts': "ora's isEnabled default ('CI' in env)",
   'paratext/src/hyperlinks.ts': 'supports-hyperlinks 4.5.0 and the supports-color 10.2.2 half it defers to',
   'roundel/src/colorette.ts': "colorette's isColorSupported (a present NO_COLOR or FORCE_COLOR, and CI on three vendors)",
+  'roundel/src/kleur.ts': "kleur's enabled (NODE_DISABLE_COLORS, a present NO_COLOR, TERM=dumb, FORCE_COLOR other than 0)",
+  'roundel/src/kleur-colors.ts': "kleur/colors' $.enabled, kleur's same rule",
   'roundel/src/picocolors.ts': "picocolors' isColorSupported",
   'roundel/src/supports-color.ts': "supports-color 11's own order (FORCE_COLOR over the flags, the CI vendor table), which its test.js grades",
 };

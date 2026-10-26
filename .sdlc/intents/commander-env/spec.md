@@ -33,6 +33,29 @@ The `withEnv` design below was superseded by `seniority` and the native engine
   (`--explain` on `burgee/commander` and `burgee/yargs`) is dropped. The reasons are in the
   decision.
 
+## Status 2026-10-25
+
+Built in batch 29. Both rows this gate kept are held on merged code. The intent stays `approved`
+only because both are runtime changes in `burgee`. They reach users with the `burgee` minor in
+`.changeset/burgee-env-in-schema-discovery-order.md`, and once it publishes nothing is left.
+
+| row | state | where | check | proven red by |
+| :-- | :-- | :-- | :-- | :-- |
+| V2 — env names in `--schema` and `--mcp` | built | `packages/burgee/src/schema.ts`: `env` joins the keys an option's property carries as declared | `packages/burgee/src/schema-env.test.ts` › "is on the option and on its inputSchema property in --schema, and absent where none was declared", › "is on the tool’s inputSchema property under --mcp" | both, run against `main`: `--schema` carried `env` on the option, and neither `inputSchema` property carried it |
+| K3 — the discovery order in `config explain` | built | `config-layers.ts` `discoveryOf()` over seniority's `candidates()`; `config-explain.ts` lists it under the option rows, and `--json` carries `data.discovery` | `packages/burgee/src/config-explain.test.ts` › "config explain prints every path tried, in order, with why, and marks the one read", › "carries the same order under --json, and the path read", › "says discovery is off under --no-config, and that --config names the one file read", › "reads nothing, and marks nothing read, where no candidate exists" | the first three, run against `main`: no discovery section existed |
+| K3 — the discovery order in `--explain` | built | `as-typed.ts` adds one line under the explanation when a config file won; `config-layers.ts` walks the order only when `--explain` was asked | `packages/burgee/src/config-explain.test.ts` › `"--explain <option> names the file a config value won from, and its place in the discovery order"`, › "--explain counts the place of a file read further down the order, from the user config directory", › "--explain says nothing about discovery when the value did not come from a config file" | the first, run against `main` |
+
+**Stryker over the changed lines.** The first run of `scripts/mutation.ts changed` left 7
+survivors. Five were killed by tests: the `--no-config` JSON shape, a directory with no
+candidate, and the required `io`. Two were marked equivalent, each with its reason on the line. One
+is the condition that walks the order only under `--explain`: walking it on every run changes no
+output, only cost. The other is `execute.ts`'s existing condition for loading `as-typed.js`,
+which this change touched only to pass `io`.
+
+**Out of scope, noticed.** An option that reads its variable through `envPrefix` (`APP_REGION`
+from `envPrefix: 'APP'`) still publishes no `env`, because the prefixed name is derived at
+resolution and not stored on the option. V2 as designed covers a declared `env`.
+
 ## Restated 2026-10-18
 
 **R1, R2, R4, R5 and R7 are held on main through `seniority` and the native engine. R6's `--explain` chain and `node_modules` case move to `seniority` R7. R3's façade half is unbuilt — REMAINING: R3 (`--explain` and a checked `meta.provenance` on the façades).**

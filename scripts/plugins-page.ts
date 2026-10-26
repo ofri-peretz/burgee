@@ -45,6 +45,7 @@ const EXTENSION_POINTS: Record<string, string> = {
   citty: '`setup` and `cleanup` on each command',
   chalk: 'None — styles are code; there is no theme to register',
   colorette: 'None — `createColors({ useColor })` per instance, and nothing to register',
+  kleur: 'None — one `enabled` switch on the module object, and nothing to register',
   picocolors: 'None — `createColors(enabled)` per instance, and nothing to register',
   'supports-color': 'Options per call (`createSupportsColor(stream, { sniffFlags })`); nothing to register',
   yoctocolors: 'None — 61 plain functions, and nothing to register',

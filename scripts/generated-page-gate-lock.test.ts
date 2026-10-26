@@ -192,9 +192,9 @@ describe('a generated page is gated by a check that can block a merge', () => {
 
   it('finds the page gates at all', () => {
     // A regex that matches nothing passes the assertion below vacuously, and this repo
-    // has three pages. If a rename drops the `*:page --check` convention, fail HERE — with
+    // has six pages. If a rename drops the `*:page --check` convention, fail HERE — with
     // the reason — rather than reporting full coverage of an empty set.
-    // Named, not counted: this repo has exactly three generated pages, and a lock that
+    // Named, not counted: this repo has exactly six generated pages, and a lock that
     // only counted would keep passing if one gate were deleted and another added.
     const scripts = gates.map((g) => g.script);
     const raw = gates.map((g) => `${g.file}:${g.job}`);
@@ -203,7 +203,7 @@ describe('a generated page is gated by a check that can block a merge', () => {
       `no \`*:page ... --check\` step found for every page (saw ${raw.join(', ') || 'nothing'}). ` +
         'Either a page gate is gone or it no longer follows the naming this lock matches ' +
         'on — in which case this file reports coverage of an empty set.',
-    ).toEqual(['bench:page', 'compat:page', 'layers:page', 'plugins:page', 'weight:page']);
+    ).toEqual(['bench:page', 'callers:page', 'compat:page', 'layers:page', 'plugins:page', 'weight:page']);
   });
 
   it.each(gates.map((g) => [`${g.file} › ${g.job}`, g] as const))(

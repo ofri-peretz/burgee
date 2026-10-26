@@ -47,6 +47,13 @@ person does.
 Drop-in for **cosmiconfig**, **dotenv** and **rc**: `npx burgee migrate` moves the imports,
 each path graded by that incumbent's own suite.
 
+**Over the platform.** Node reads one `.env` file itself, with `process.loadEnvFile` and
+`util.parseEnv`. The platform's parser is not dotenv's: it reads an escaped quote differently, and
+on Node 20 and 22 it differs on more. seniority parses the way dotenv does, and adds what no
+builtin has: one precedence over flags, environment, config files and defaults, discovery, and
+the provenance of every value. The repository's absorption probe asks every supported Node line
+how far `util.parseEnv` has caught up.
+
 ```
 flag  >  env  >  config file  >  package.json field  >  default
 ```
@@ -440,7 +447,7 @@ Graded by the incumbent's own test suite:
 | `lilconfig` | 77 / 77 |
 | `rc` | 1 / 1 |
 
-Weight, installed and tree-inclusive: **221,639 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1124**.
+Weight, installed and tree-inclusive: **222,219 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1127** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 
@@ -526,7 +533,7 @@ keeps both true.
 | Package | What it is | Migrates from |
 | :-- | :-- | :-- |
 | [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander, yargs and meow |
-| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk, colorette, picocolors, supports-color and yoctocolors |
+| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk, colorette, kleur, picocolors, supports-color and yoctocolors |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
 | [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | @inquirer/core |
 | [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line |

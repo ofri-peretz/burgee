@@ -11,6 +11,9 @@
 > **Accepted at the Design→Build gate 2026-10-25** by the coordinator under the owner's delegation
 > ([`D-20261025-cli-benchmarks-design-accepted`](../../decisions/D-20261025-cli-benchmarks-design-accepted.md)): S4 settled as the median and range of the CI series, never one run; B7 the link lock. See
 > [`spec.md` § Design gate 2026-10-25](./spec.md#design-gate-2026-10-25).
+>
+> **Built 2026-10-25 (batch 29), still `approved` until four package READMEs publish:** S4 and the
+> link half of `S9` are held on merged code. See [`spec.md` § Status 2026-10-25](./spec.md#status-2026-10-25).
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why `review` until 2026-10-25:** ~~**no bench script exists** — no `npm run bench`, no B1–B4 rows, so no published number.~~ *Stale since 2026-09-09 (#95): `benchmarks/` exists with seven axes, `npm run bench` and `bench.yml`; see § Restated 2026-10-18 for what is still open.*
 
@@ -166,13 +169,19 @@ with no scheduled measurement between them.
   number. Both are acceptable outcomes; a claim without a number is not.
   **Restated 2026-10-18 (S4): remaining.** Settled on every run by `benchmarks/claims.ts`; the
   README row still states 0.699× (not met) while the CI series since 2026-10-10 reads median
-  0.504 (met on 49 of 50). Confirm or rewrite is the owner's call.
+  0.504 (met on 49 of 50). Confirm or rewrite is the owner's call. **Held 2026-10-25:**
+  confirmed as a series (D-20261025-cli-benchmarks-design-accepted). The README and
+  `comparison.mdx` rows state the median and range over the CI readings dated 2026-10-10 to
+  2026-10-18 (tokens 0.502, range 0.434–0.627, at or under 0.6 in 51 of 52; turns 0.522, range
+  0.446–0.634, at or under 0.7 in 52 of 52), written by `npm run agent-cost:row` and checked by
+  `scripts/claim-table-lock.test.ts` › "%s · %s".
 - **B2**: cold start reported for bare node, both hosts, both hosts + layer, and the
   replacement, p50 and p95 over ≥30 spawns. The layer's own overhead over its host is
   stated as a single number and banded.
   **Restated 2026-10-18 (S5):** "host + layer" is each burgee front-end against its
   incumbent, banded as `cold-start-ratio`; held, except that the ≥30-spawn floor has no
-  test (remaining, with spec R6).
+  test (remaining, with spec R6). **Held 2026-10-19:** `benchmarks/sample-floor.test.ts` ›
+  "perf spawns every variant at least 30 times per run (R6)".
 - **B3**: per-host pass rate read from `compat-oracle`, shown as a ratchet over time.
 - **B4**: bundled KB for `core`, `core + commander front-end`, `core + yargs front-end`,
   each against the published target (§6 of the competitor map: core under cac's 52KB,
@@ -183,7 +192,8 @@ with no scheduled measurement between them.
   public number we cite elsewhere links to it.
   **Restated 2026-10-18 (`S9`):** generated and drift-checked (`npm run bench:page -- --check`
   in `quality.yml`); the "every public number links to it" half has no check and is
-  **remaining** (spec B7).
+  **remaining** (spec B7). **Held 2026-10-25:** `scripts/benchmark-links-lock.test.ts` › "%s",
+  over the root README, `comparison.mdx` and every package README.
 
 ## Verified against `main` — 2026-09-09
 

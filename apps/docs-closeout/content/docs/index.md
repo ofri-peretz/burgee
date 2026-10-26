@@ -11,6 +11,12 @@ an agent event. Zero dependencies. Node builtins only.
 Drop-in for **signal-exit**, **exit-hook** and **restore-cursor**: `npx burgee migrate` moves
 the imports to closeout's subpaths, each graded by the incumbent's own suite.
 
+**Over the platform.** The builtin is `process.on(signal)` beside `process.on('exit')`. An
+`exit` listener runs on a code and never on a signal, and a signal listener replaces the default
+exit rather than running before it. closeout runs each handler exactly once on every path, then
+leaves the way the process would have. The repository's absorption probe asks every supported
+Node line how many of those paths the builtin covers alone.
+
 **Close everything out.** To *close out* is to settle and finish — an account, a position, a
 shift. Everything outstanding is resolved and nothing is left open. That is what a process
 should do on the way out, and mostly does not.
@@ -340,7 +346,7 @@ Graded by the incumbent's own test suite:
 | `restore-cursor` | 6 / 6 |
 | `signal-exit` | 134 / 135 |
 
-Weight, installed and tree-inclusive: **109,054 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.5933**.
+Weight, installed and tree-inclusive: **109,622 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.5964** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 
@@ -379,7 +385,7 @@ Weight, installed and tree-inclusive: **109,054 bytes** against **183,804** for 
 `run()` resolves with the shutdown's own record: the four fields above plus `timedOut` and
 `unfinished`, the handlers that had not returned.
 
-And the two leaves, for a program that wants one of them and none of the rest:
+And the two leaves, for a program that wants one of them and none of the rest ([measured](https://burgee.interlace.tools/docs/benchmarks)):
 
 | | |
 | :-- | :-- |
@@ -436,7 +442,7 @@ keeps both true.
 | Package | What it is | Migrates from |
 | :-- | :-- | :-- |
 | [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander, yargs and meow |
-| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk, colorette, picocolors, supports-color and yoctocolors |
+| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk, colorette, kleur, picocolors, supports-color and yoctocolors |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
 | [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | @inquirer/core |
 | [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line |

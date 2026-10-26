@@ -12,6 +12,12 @@ Drop-in for **cross-spawn** and npm's **which**: `npx burgee migrate` moves the 
 `bellpull/cross-spawn` and `bellpull/node-which`, each graded by the incumbent's own test suite.
 **execa** has no drop-in; `run()` below is the alternative.
 
+**Over the platform.** Every run goes through `node:child_process`. What bellpull adds is what
+`spawn` does not do by name: resolve an executable the way the shell would (a `.cmd` shim on
+Windows, `PATHEXT`, a shebang), and hand back one result every caller can read. The repository's
+absorption probe asks every supported Node line whether `child_process` alone now starts the same
+commands.
+
 A **bellpull** is the cord in one room wired to a bell in another. You pull it here; a bell rings there; someone comes back to you.
 
 That is a subprocess. Request work at a distance, work happens elsewhere, a result returns. **That last clause is the package.**
@@ -198,7 +204,7 @@ Graded by the incumbent's own test suite:
 | `execa` | 0 / 1360 |
 | `which` | 5 / 5 |
 
-Weight, installed and tree-inclusive: **96,373 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1259**.
+Weight, installed and tree-inclusive: **96,835 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1265** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 
@@ -248,7 +254,7 @@ keeps both true.
 | Package | What it is | Migrates from |
 | :-- | :-- | :-- |
 | [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander, yargs and meow |
-| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk, colorette, picocolors, supports-color and yoctocolors |
+| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk, colorette, kleur, picocolors, supports-color and yoctocolors |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
 | [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | @inquirer/core |
 | [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line |

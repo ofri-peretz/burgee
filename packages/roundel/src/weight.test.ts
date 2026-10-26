@@ -120,6 +120,12 @@ const RULES: Record<string, EntryRule> = {
   // seam alone. Measured 2,826 B with `runtime.js`, against colorette 2.0.20's `index.js` at 3,381 B
   // on disk; the bar R4 sets is bundled bytes, held in `scripts/subpath-weight-lock.test.ts`.
   './colorette': { allow: [], budget: 2_900, denied: ['policy.js', 'tokens.js', 'theme.js', 'contrast.js', 'chalk.js', 'picocolors.js', 'supports-color.js', 'index.js'] },
+  // `colour-facades` R1, 2026-10-25: kleur 4.1.5's two entries, each its formatter and kleur's
+  // decision over the process seam alone, and neither reaching the other. Measured 2,164 B and
+  // 1,717 B with `runtime.js`, against kleur's `index.mjs` at 2,743 B and `colors.mjs` at 1,645 B on
+  // disk; the bar R4 sets is bundled bytes, held in `scripts/subpath-weight-lock.test.ts`.
+  './kleur': { allow: [], budget: 2_200, denied: ['policy.js', 'tokens.js', 'theme.js', 'contrast.js', 'chalk.js', 'colorette.js', 'picocolors.js', 'kleur-colors.js', 'index.js'] },
+  './kleur/colors': { allow: [], budget: 1_750, denied: ['policy.js', 'tokens.js', 'theme.js', 'contrast.js', 'chalk.js', 'colorette.js', 'picocolors.js', 'kleur.js', 'index.js'] },
   // `graded-override-targets` R7, 2026-10-11: picocolors' surface over the process seam alone.
   // Measured 2,646 B with `runtime.js`, against picocolors 1.1.1's one file at 2,663 B on disk; the
   // bar R7 sets is bundled bytes, held in `scripts/subpath-weight-lock.test.ts`.

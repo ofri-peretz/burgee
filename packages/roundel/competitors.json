@@ -130,6 +130,120 @@
       }
     }
   ],
+  "./kleur": [
+    {
+      "package": "kleur",
+      "claim": "compat",
+      "seen": {
+        "registry": "kleur",
+        "version": "4.1.5",
+        "shasum": "95106101795f7050c6c650f350c683febddb1780",
+        "weight": 8653,
+        "self": 8653,
+        "packages": 1,
+        "files": {
+          "colors.d.ts": "d2a2f3fd9fd566004a9e99237baeb5dc1e1bb6540e2628e7d15d60585677d9ad",
+          "colors.js": "c3e69887f23ab990b3bc8db4e09853ec0539c2480aed328c430ccc2127001160",
+          "colors.mjs": "7fdf74216f4a5cb135e7c570a5e7ed9bc131204644b3663c83fb4ae0e3e21e45",
+          "index.d.ts": "6ab263df6465e2ed8f1d02922bae18bb5b407020767de021449a4c509859b22e",
+          "index.js": "220005f775ef157abe0725480e7cd8c90918e71bdabeb584000608dd9ed63a0d",
+          "index.mjs": "beedc85f8ff8475d7aa0b39a8e36d98811297a2d15a0ca58d05be12ec1f657a4",
+          "license": "306fa513e39b23a6e8747520de761809d206b99800ef41907b530226574c59ae",
+          "package.json": "cc1c864fe6dc0eabc980a74b4af4fee8b8491319de2d48a34cb6f4959dad9ef0",
+          "readme.md": "a091438bed05b30f57ed23753dba1eae4732452baf5ff78b7dd411a0f216fb2d"
+        },
+        "exports": [
+          "$",
+          "bgBlack",
+          "bgBlue",
+          "bgCyan",
+          "bgGreen",
+          "bgMagenta",
+          "bgRed",
+          "bgWhite",
+          "bgYellow",
+          "black",
+          "blue",
+          "bold",
+          "cyan",
+          "default",
+          "dim",
+          "gray",
+          "green",
+          "grey",
+          "hidden",
+          "inverse",
+          "italic",
+          "kleur",
+          "magenta",
+          "red",
+          "reset",
+          "strikethrough",
+          "underline",
+          "white",
+          "yellow"
+        ],
+        "measured": "2026-10-25"
+      }
+    }
+  ],
+  "./kleur/colors": [
+    {
+      "package": "kleur",
+      "claim": "compat",
+      "seen": {
+        "registry": "kleur",
+        "version": "4.1.5",
+        "shasum": "95106101795f7050c6c650f350c683febddb1780",
+        "weight": 8653,
+        "self": 8653,
+        "packages": 1,
+        "files": {
+          "colors.d.ts": "d2a2f3fd9fd566004a9e99237baeb5dc1e1bb6540e2628e7d15d60585677d9ad",
+          "colors.js": "c3e69887f23ab990b3bc8db4e09853ec0539c2480aed328c430ccc2127001160",
+          "colors.mjs": "7fdf74216f4a5cb135e7c570a5e7ed9bc131204644b3663c83fb4ae0e3e21e45",
+          "index.d.ts": "6ab263df6465e2ed8f1d02922bae18bb5b407020767de021449a4c509859b22e",
+          "index.js": "220005f775ef157abe0725480e7cd8c90918e71bdabeb584000608dd9ed63a0d",
+          "index.mjs": "beedc85f8ff8475d7aa0b39a8e36d98811297a2d15a0ca58d05be12ec1f657a4",
+          "license": "306fa513e39b23a6e8747520de761809d206b99800ef41907b530226574c59ae",
+          "package.json": "cc1c864fe6dc0eabc980a74b4af4fee8b8491319de2d48a34cb6f4959dad9ef0",
+          "readme.md": "a091438bed05b30f57ed23753dba1eae4732452baf5ff78b7dd411a0f216fb2d"
+        },
+        "exports": [
+          "$",
+          "bgBlack",
+          "bgBlue",
+          "bgCyan",
+          "bgGreen",
+          "bgMagenta",
+          "bgRed",
+          "bgWhite",
+          "bgYellow",
+          "black",
+          "blue",
+          "bold",
+          "cyan",
+          "default",
+          "dim",
+          "gray",
+          "green",
+          "grey",
+          "hidden",
+          "inverse",
+          "italic",
+          "kleur",
+          "magenta",
+          "red",
+          "reset",
+          "strikethrough",
+          "underline",
+          "white",
+          "yellow"
+        ],
+        "measured": "2026-10-25"
+      }
+    }
+  ],
   "./supports-color": [
     {
       "package": "supports-color",

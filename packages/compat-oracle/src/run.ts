@@ -16,6 +16,7 @@ import { testFiles } from './discover.js';
 import { type Exclusion, exclusionsHere, type Host, type HostEntry, type HostImport } from './hosts.js';
 import { declarationName, type TsdFailure, type TsdReport, tsdTap } from './tsd.js';
 import { type TwistRun, twistTap } from './twist.js';
+import { type UvuRun, uvuTap } from './uvu.js';
 import { readSuiteDeps, shimName, splitSpec } from './vendor.js';
 
 export interface Grade {
@@ -1176,10 +1177,41 @@ function runTwistFiles(host: Host, hostDir: string, files: string[], target: str
   return twistTap(runs);
 }
 
+/** Every character a pattern reads as syntax, escaped so a file name matches itself. */
+const REGEX_SPECIAL = /[.*+?^$()|[\]{}\\]/g;
+
+/**
+ * The `uvu` dialect (`uvu.ts`): **one spawn per file**, the suite's own pinned uvu CLI handed the
+ * test directory and a pattern that matches that one file, and its printed summary read off
+ * stdout — a file uvu cannot load costs that file and not the suite, as `runTwistFiles` keeps it.
+ *
+ * A host that declares `tsLoader` gets it through `--import`, ahead of the CLI, where upstream's
+ * `-r esm` put `esm` (`Host.tsLoader`). The CLI is the one pinned beside the suite (`suiteDeps`),
+ * and a host that does not pin it is refused.
+ */
+function runUvuFiles(host: Host, hostDir: string, files: string[], target: string): { output: string } | { error: string } {
+  if (host.suiteDeps?.some((spec) => splitSpec(spec)[0] === 'uvu') !== true) return { error: 'a uvu suite pins its own uvu in `suiteDeps`; without the pin it would run whichever uvu a walk up the directory tree finds' };
+  const cli = join(packageRoot('uvu', hostDir), 'bin.js');
+  const loader = tsLoaderArgs(host);
+  const runs: UvuRun[] = files.map((file) => {
+    // uvu reads its second argument as a pattern over paths relative to the first: this file, exactly.
+    const spawned = spawnSync(process.execPath, [...loader, cli, host.testDir, `^${file.replace(REGEX_SPECIAL, '\\$&')}$`], {
+      encoding: 'utf8',
+      cwd: hostDir,
+      env: suiteEnv(host, hostDir, target),
+      timeout: host.suiteTimeoutMs ?? SUITE_TIMEOUT_MS,
+      maxBuffer: MAX_OUTPUT_BYTES,
+    });
+    return { file, status: spawned.status, stdout: spawned.stdout, stderr: spawned.stderr };
+  });
+  return uvuTap(runs);
+}
+
 /** Runs the suite from its vendored root; a failing suite still prints its summary. */
 function runSuite(host: Host, hostDir: string, files: string[], target: string): { output: string } | { error: string } {
   if (host.runner === 'tap') return runTapFiles(host, hostDir, files, target);
   if (host.runner === 'twist') return runTwistFiles(host, hostDir, files, target);
+  if (host.runner === 'uvu') return runUvuFiles(host, hostDir, files, target);
   const refused = host.runner === 'tsd' ? tsdRefusal(host, hostDir) : undefined;
   if (refused !== undefined) return { error: refused };
   const dir = join(hostDir, host.testDir);

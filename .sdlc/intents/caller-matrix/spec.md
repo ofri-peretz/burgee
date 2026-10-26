@@ -17,6 +17,30 @@ test fills and which cells nothing fills. So the build is a registry over tests 
 the lock and the page that read it. Writing tests for the empty cells is follow-on work, counted
 and ratcheted down.
 
+## Status 2026-10-25
+
+Built in batch 29. The intent stays `approved`, because 5 cells are `missing` and the first
+criterion asks for none. Building them is out of scope here (§ Out of scope); each one is an
+ordinary follow-on change that lowers the ceiling.
+
+| R | state | where | check |
+| :-- | :-- | :-- | :-- |
+| R1 | built | `examples/conformance/src/callers.ts`: 11 features × 5 callers, each caller defined by its observable inputs; the sixth caller is named in a comment (D-068) | the lock below |
+| R2 | built | every cell is `{ test, name }`, `{ na }` or `{ missing: true }` | `scripts/callers-lock.test.ts` › "names, in every held cell, a test file that exists and a test title that file contains", › "gives a reason for every cell that does not apply" |
+| R3 | built | the lock, with `MISSING_CEILING = 5` | `scripts/callers-lock.test.ts` › "has a cell for every feature and every caller, and nothing besides", › "has no more missing cells than the ceiling, 5, which only falls" |
+| R4 | built | `scripts/callers-page.ts` → `apps/docs/content/docs/callers.mdx`, in the docs nav after agent surfaces | `quality.yml` › "The published callers page is the one the caller matrix generates" (`npm run callers:page -- --check`), listed in `scripts/generated-page-gate-lock.test.ts` |
+| R5 | built | the prompts cells cite `scripts/prompt-exit-codes.test.ts`; the accessible cells of spinner and prompts cite flagstaff's `loop.test.ts` and caique's `ask.test.ts` | the lock resolves each title |
+
+**Proven red three ways**, each in a scratch edit of the registry. A title that does not exist
+failed the second case. A deleted cell (`mcp` × `ci`) failed the first two. A sixth `missing`
+cell failed the ceiling. `callers-page.ts --check` exited 1 on a committed page with one line
+appended.
+
+**The counts.** 43 held, 7 n/a, 5 missing. The missing cells are `errors` × `accessible`, and
+`prompts`, `spinner`, `table` and `box` × `program`. For the four flagstaff components, the
+`agent` and `accessible` cells cite the loop's own parameterised cases, because the loop is
+where every component's mode is decided, and the `tty` and `ci` cells cite the component's own.
+
 ## Requirements
 
 - **R1 — The matrix is data.** `examples/conformance/src/callers.ts` exports the matrix as one
