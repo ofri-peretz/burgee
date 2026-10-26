@@ -62,6 +62,23 @@ suite, not the 900,000 ms ceiling. The collector now logs the exit code and the 
 `npm test` printed, and `control-bands.yml` tees that into the run summary. So the next weekly run
 names the failing test, and fixing it is what gives the band its eighth point.
 
+## Status 2026-10-26
+
+The weekly run the 2026-10-25 status waited for has run. S3 stays open, now with its cause
+named, and the intent stays `approved`.
+
+| item | state | evidence |
+| :-- | :-- | :-- |
+| a dropped observation names its cause | **held, live** | run 40311991676 (scheduled, 2026-10-26 11:02 UTC) logged `⚠️ test-duration-ms: no observation — npm test exited 1` with the failing case: `scripts/mcp-config-block.test.ts` › "starts the server it names, as pasted, …", `ENOENT … chmod '…/examples/demo-cli-burgee/dist/bin.js'` |
+| `test-duration-ms` gains a point | open | the job's build step is `--filter='./packages/*'`; the demo the root suite starts is not built. compat.yml fixed the same failure in #1159 |
+| every band gains a point per run | open | the same run was cancelled at its 20-minute limit inside "Record observations and evaluate bands", after `--backfill-git` collected 121 new observations per compat band (46 on 2026-10-19). Nothing landed for any band. The 2026-10-19 observations went out in #1154, a breach draft closed under D-20261019-front-end-byte-steps-rebase-bands, so the lint bands still end at 2026-10-12 |
+
+**What closes S3:** B-20261026-control-bands-demo-build-and-budget (build the demo in
+`control-bands.yml`, and give the job the time `--backfill-git` now takes, or stop it re-reading
+what it already read), then the first scheduled run after it whose PR lands a point for every
+band, `test-duration-ms`'s eighth among them. Not built here: a change under `.github/` runs
+the paid task evals on its own pull request, and this batch spends no quota.
+
 ## Restated 2026-10-18
 
 **R1, R4 and R5 hold as shipped; R2, R3 and R6 are restated, each with a remaining piece — REMAINING: R2/R3, R6.** *2026-10-19: R6 held; R2/R3 remain.*

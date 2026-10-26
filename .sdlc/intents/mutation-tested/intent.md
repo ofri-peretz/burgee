@@ -4,7 +4,7 @@
 > of 2026-10-18: "everything should go through quint and striker in terms of detecting bugs,
 > fp/fn".
 
-**Status:** approved · **Opened:** 2026-10-18 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-10-18 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-26, on the first weekly run's floors (see [§ Shipped — 2026-10-26](#shipped--2026-10-26))
 
 ---
 
@@ -107,6 +107,33 @@ is not.** Status stays `approved` until it is.
   reason (linegauge's is a suite that cannot pass instrumented).
 - **Workflows** — met. `npx tsx scripts/lint-workflows.ts`: 23 workflow files pass; every
   action is SHA-pinned; `mutation` is not in `REQUIRED_CHECKS`.
+
+## Shipped — 2026-10-26
+
+**All four criteria are met; the one open on 2026-10-18 closed on the first scheduled run.**
+
+| criterion | state | evidence |
+| :-- | :-- | :-- |
+| `scripts/mutation-lock.test.ts` passes | met | `npx vitest run --config vitest.root.config.ts scripts/mutation-lock.test.ts scripts/quality-full-trigger-lock.test.ts`, green on `main` at `8550bdbd6c`, 2026-10-26 |
+| the PR-lane script red on an unkilled mutant, green once a test kills it, both recorded | met | § Build status — 2026-10-18 above |
+| a floor for `burgee` and for `roundel` or `linegauge`, each from a real full run; every other package `unmeasured` with a reason | met | `.sdlc/bands/mutation-ratchets.json`, landed by #1229 from the scheduled `mutation.yml` run 40074196603 (2026-10-24, at `80c8eaa52b`): `burgee` floor 90.9 (90.95%, 12,495 of 13,738 detected, 186 minutes in a 300-minute cell); `roundel` 79.4 → 83.2 (83.22%). caique 87.8, compat-oracle 91.4, controlroom 92.4 and paratext 85.2 were measured for the first time too |
+| `lint-workflows` passes with the job and workflow, SHA-pinned; the trigger lock holds the new job | met | `npx tsx scripts/lint-workflows.ts`: 23 workflow files pass, 2026-10-26; `quality-full-trigger-lock.test.ts` green |
+
+**Five packages are still `unmeasured`, each with a reason, and the reason in the file is
+thinner than it should be.** The ratchet file says "Stryker exited 1 without a report — its own
+error is above", which points at a log that expires. The run's logs say why:
+
+| package | job | why Stryker stopped |
+| :-- | :-- | :-- |
+| `bellpull` | 120813958614 | `src/cross-spawn.ts:115:44`: Stryker 10 cannot place a `StringLiteral` mutant in an `export` specifier (the `'module.exports'` string export name, the same one `roundel/src/picocolors.ts` carries a disable comment for) |
+| `seniority` | 120813958785 | `src/dotenv.ts:266:19`: the same placement error |
+| `closeout` | 120813958777 | the initial, unmutated test run failed under Stryker |
+| `flagstaff` | 120813958857 | the initial, unmutated test run failed under Stryker |
+| `linegauge` | 120813958817 | the initial, unmutated test run failed under Stryker (the 2026-10-18 reason: a suite that cannot pass instrumented) |
+
+Criterion 3 asks for those packages to be `unmeasured` with a reason, and they are; it does not
+ask for every package to be measured, so these do not hold the stamp. Getting each one a floor
+is follow-up work; the first two meet the placement error `roundel` already works around.
 
 ## Open questions
 
