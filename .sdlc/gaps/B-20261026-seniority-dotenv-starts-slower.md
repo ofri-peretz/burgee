@@ -11,3 +11,9 @@ recommendation: 'Keep `seniority/dotenv − dotenv` a ratchet at roundel R8''s 1
 The cause is the module graph, not the code. dotenv is one CommonJS file. `seniority/dotenv` loads six ES modules before it prints: `dotenv.js`, `dotenv-options.js`, `dotenv-scan.js`, `load.js`, `precedence.js` and `runtime.js`. Every ES module costs a resolve, a package-scope lookup, a compile and a link, whatever its size (`benchmarks/cold-start-modules.test.ts` measured that cost for burgee). The bundled bytes say the opposite: 5,966 B against dotenv's 11,570 (0.516). A bundler folds the six files into one, and Node's loader does not.
 
 No published claim rests on this row. R9's time bar names lilconfig only, and the README publishes no start-up figure for the `.env` drop-in.
+
+**The first CI reading disagrees.** On the ubuntu runner (Benchmarks run 40259807578, 2026-10-26)
+the row read **−15.26 ms**: `seniority/dotenv` started faster than dotenv, and `seniority/lilconfig`
+read −1.92 ms. So "slower" is measured on darwin under load and is not yet a property of the
+package. This gap closes once three CI readings in a row are at or under 0; until then the ratchet
+stays, and the next reading on darwin is the one to compare.
