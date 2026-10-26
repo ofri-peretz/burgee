@@ -25,6 +25,20 @@ const pkgRoot = fileURLToPath(new URL('..', import.meta.url));
 /** controlroom's same-repo dependencies: the whole of what it may install (U6). */
 const SIBLINGS = ['caique', 'closeout', 'flagstaff', 'linegauge', 'paratext', 'roundel'];
 
+/** `names` and every workspace package they depend on, at any depth. */
+function sameRepoClosure(names: string[]): string[] {
+  const seen = new Set<string>();
+  const visit = (name: string): void => {
+    const manifest = resolve(pkgRoot, '..', name, 'package.json');
+    if (seen.has(name) || !existsSync(manifest)) return;
+    seen.add(name);
+    const { dependencies = {} } = JSON.parse(readFileSync(manifest, 'utf8')) as { dependencies?: Record<string, string> };
+    for (const dep of Object.keys(dependencies)) visit(dep);
+  };
+  for (const name of names) visit(name);
+  return [...seen];
+}
+
 /**
  * The drop-in's optional peers, and the scheduler the reconciler brings with it, packed from
  * this workspace's own copies so nothing is fetched. The scheduler is the copy the reconciler
@@ -55,7 +69,9 @@ beforeAll(() => {
   // The siblings' real tarballs too, as flagstaff's shape lock packs its own: controlroom
   // stands on subpaths (`caique/keys`, flagstaff's frame writer) that ship in the same
   // release, so the registry's copies would test last release's family, not this one.
-  const roots = SIBLINGS.map((name) => resolve(pkgRoot, '..', name)).concat(pkgRoot);
+  // Their own same-repo dependencies too (caique's bellpull): a Version PR raises those ranges
+  // to versions the registry does not have yet, and the install then fails with ETARGET.
+  const roots = sameRepoClosure(SIBLINGS).map((name) => resolve(pkgRoot, '..', name)).concat(pkgRoot);
   const tarballs = roots.map((root) => join(dir, npm(['pack', '--silent', '--pack-destination', dir], { cwd: root, encoding: 'utf8' }).trim()));
   npm(['install', '--no-audit', '--no-fund', '--silent', ...tarballs], { cwd: dir, stdio: 'ignore' });
   writeFileSync(join(dir, 'cli.mjs'), ONE_FILE);
