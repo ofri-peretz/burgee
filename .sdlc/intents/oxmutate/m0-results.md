@@ -128,6 +128,30 @@ With the 5 s budget, 3–5 more `windowed.ts:59` runaway mutants flip between Ru
 Timeout in the same race, which is why that column's agreement is lower. Same cause; not a
 verdict error.
 
+## Probe for M1: the warm runner inside Vitest's own runner
+
+Run the same night, to test the M1 design in `spec.md` ("The warm runner, after `M0`") before
+anyone builds it. Code: [`m0/vitest-probe/`](./m0/vitest-probe/).
+
+- **How.** A custom Vitest runner (`test.runner`) that implements `runTask(test)`. Vitest calls it
+  in place of the test function, inside its own `beforeEach`/`afterEach`, in a real Vitest worker
+  (`pool: forks`, 4 workers, default per-file isolation). For each covering mutant it flips the
+  switch and calls the test's own function (`getFn`), then runs the test once more unmutated as
+  the result Vitest reports. Mutants planned from Stryker's coverage map; the 59 runaway, crashed
+  and uncovered mutants excluded.
+- **Result.** 661 mutants, 1,339 mutant-test executions plus the normal suite in **8.3 s wall,
+  9.2 CPU-seconds**, median 0.053 ms per execution. Verdicts agree with Stryker on **99.70%**
+  (659 of 661): #397 (the fixture pollution from finding 2) and #505 (random).
+- **The free canary works.** The final unmutated run failed in exactly 5 tests. One is in
+  `sortBy.spec.ts`, the file #394 polluted, so "a failing unmutated run re-runs that file's
+  mutants in isolation" would have caught #397 with no per-mutant reload.
+- **A new problem: snapshot bookkeeping.** The other 4 canary failures are all
+  `toThrowErrorMatchingInlineSnapshot` tests. Calling one test's function several times in a single
+  task confuses Vitest's per-test snapshot state. M1 must save and restore it around mutant runs,
+  or the canary raises false alarms.
+- **Confirmed limit.** A synchronous runaway mutant cannot be stopped inside a Vitest worker. M1
+  keeps M0's process-level watchdog around the workers.
+
 ## What this does and does not show
 
 - **Shows:** on a real open-source TypeScript library, the warm execution model is more than an
@@ -136,8 +160,16 @@ verdict error.
 - **Does not show:** behaviour on suites that use hooks, fake timers, snapshot files, mocks of
   modules (`vi.mock`), or browser environments. The spike's Vitest shim implements only what this
   subject uses (`describe`, `it`, `expect`, `vi.fn`, `expectTypeOf`, inline error snapshots). The
-  product runner must either drive Vitest's own runner warm or implement the full surface; M1
-  decides which, on burgee's own suites.
+  product runner must either drive Vitest's own runner warm or implement the full surface. Burgee's
+  own suites decide it (inventoried 2026-10-26 over 347 test files in 11 packages): 177 hook calls,
+  58 `vi.mock`, 92 `vi.spyOn`, 22 fake-timer uses, 319 `.each`/`.for` tables, and about 530
+  subprocess call sites. So M1 drives Vitest's own runner (`spec.md`, "The warm runner, after
+  `M0`"); a shim would never cover this.
+- **Does not show:** mutants exercised only in a spawned child process. Coverage is recorded in
+  the process that runs the code, so a test that spawns a CLI reaches mutants the parent never
+  sees. Burgee's weekly run already excludes those files (`TESTED_IN_ANOTHER_PROCESS` in
+  `.sdlc/bands/mutation-ratchets.json`); M1 has to report them as a named category, never as
+  silent no-coverage.
 - **Does not show:** results at burgee scale (13,738 mutants). M3's gate measures that on the CI
   runner.
 
