@@ -186,6 +186,11 @@ export default [
       // benchmark wrote. Both commands are in CONTRIBUTING; the order between them was not.
       "benchmarks/.fixtures/**",
       ".sdlc/research/issues/**",
+      // oxmutate M0 spike and Vitest probe: the exact harnesses that produced the numbers in
+      // .sdlc/intents/oxmutate/m0-results.md, kept as evidence and re-runnable through
+      // m0/reproduce.sh. Linting it to the product rules would change the code the
+      // measurement ran; the product package (M1) is linted like every other.
+      ".sdlc/intents/oxmutate/m0/**",
       "apps/*/next-env.d.ts",
       // Vendored upstream test suites (compat-oracle C6). They are the hosts' own
       // files, unmodified except one import specifier, and are graded, never linted:
