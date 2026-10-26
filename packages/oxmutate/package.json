@@ -1,0 +1,45 @@
+{
+  "name": "oxmutate",
+  "version": "0.1.0",
+  "description": "Mutation testing on the oxc engine: Stryker-compatible, warm in-process runs inside Vitest, CI lanes, SARIF and an agent surface. No dependency outside the burgee family.",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "bin": {
+    "oxmutate": "./dist/bin.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./runner": "./dist/runner.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "binding",
+    "!dist/**/*.map",
+    "!dist/**/*.test.*"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "build:native": "cd native && cargo build --release --features napi --lib && node ../scripts/copy-binding.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:native": "cd native && cargo test --release",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "burgee": "*"
+  },
+  "peerDependencies": {
+    "vitest": ">=4.1.0"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.1"
+  }
+}
