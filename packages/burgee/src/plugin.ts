@@ -92,6 +92,23 @@ export interface Plugin {
    * `burgee/locale-pack-schema.json`.
    */
   locales?: Locales;
+  /**
+   * Output formats (`agent-headroom` RF): a name a caller types as `--format=<name>`, and how a
+   * success's data is rendered under it. burgee's own `agent` and `tsv` are registered this same
+   * way. Like `locales`, not read at the door — `validate` lets it through and `use()` stays as
+   * light as it was — but checked in full where it is first used (`--format`, `formats.ts`) and
+   * by `burgee check`. A format renders data only: a failure never reaches one, so it cannot
+   * drop the `hint` that failure carries (R6).
+   */
+  formats?: Record<string, Format>;
+}
+
+/** One registered output format (`agent-headroom` RF). */
+export interface Format {
+  /** The data `--json` would carry, as text. Called for a success only, never for a failure. */
+  render: (value: unknown) => string;
+  /** One line `--format` lists beside the name. */
+  description: string;
 }
 
 export type PluginErrorCode = 'E_PLUGIN_SCHEMA' | 'E_PLUGIN_CONTRACT' | 'E_NO_CONTRIBUTION';

@@ -175,6 +175,16 @@
         }
       }
     },
+    "formats": {
+      "type": "object",
+      "description": "burgee output formats (agent-headroom RF): a name a caller types as `--format=<name>`, mapped to how a success's data is rendered under it. burgee registers `agent` and `tsv` the same way; `text`, `json`, `json-pretty` and every name already registered are taken. A format renders data only, never a failure. `--format` lists every name; `burgee check` checks them.",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/format"
+      }
+    },
     "keymaps": {
       "$ref": "#/$defs/keymaps"
     },
@@ -682,6 +692,24 @@
         },
         "handler": {
           "description": "(ctx) => void | Promise<void>. Required. On parse it may return the string[] argv to use instead."
+        }
+      }
+    },
+    "format": {
+      "type": "object",
+      "required": [
+        "render",
+        "description"
+      ],
+      "description": "One burgee output format.",
+      "properties": {
+        "render": {
+          "description": "(value) => string. Required: the data `--json` would carry, `toJSON` applied and `undefined` dropped, as the text a caller reads. Called for a success only."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Required: the one line `--format` lists beside the name."
         }
       }
     },

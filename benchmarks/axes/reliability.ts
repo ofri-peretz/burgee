@@ -160,8 +160,8 @@ export function judge(task: Task, run: RunOutcome): Judgement {
  * ask a CLI what commands it has must scrape help text, and the difference between "cheap
  * to discover" and "not discoverable" is not a quantity.
  */
-function schemaBytes(bin: string): number | undefined {
-  const run = runOnce(bin, ['--schema']);
+function schemaBytes(bin: string, flags: readonly string[] = []): number | undefined {
+  const run = runOnce(bin, ['--schema', ...flags]);
   if (run.hung || run.status !== 0) return undefined;
   // Bytes, as the record's unit says: an agent's context pays per byte, and `.length` counts
   // UTF-16 units, which reads a non-ASCII description low.
@@ -193,8 +193,11 @@ export const SKILL_BYTES_BUDGET = 1_857;
  * rounded up to the next 50 B. A ratchet: lowering it is free, raising it is a decision written in
  * the PR that grows the document. The `agent-schema-bytes` control band stays; this fails the PR,
  * where the band only notices afterwards.
+ *
+ * 4,700 on 2026-10-26 (D-20261026-schema-bytes-registered-formats): `output.formats` names `tsv`,
+ * the first format registered through `formats` (agent-headroom RF), 4,650 → 4,656 B.
  */
-export const SCHEMA_BYTES_BUDGET = 4_650;
+export const SCHEMA_BYTES_BUDGET = 4_700;
 
 /** Four places: a rate over ten tasks is exact well inside that, and rounding hides drift. */
 const RATE_PLACES = 4;
@@ -203,6 +206,10 @@ const rate = (hits: number, of: number): number => (of === 0 ? 1 : round(hits / 
 export function measure(variant: Variant, tasks: readonly Task[] = TASKS): BenchRecord[] {
   const verdicts = tasks.map((task) => judge(task, runOnce(variant.bin, task.args)));
   const schema = schemaBytes(variant.bin);
+  // agent-headroom C1 — the "before" figure kept beside the "after" (intent constraint 5): the same
+  // document indented, as a person asks for it. Reported, never gated or banded: it is the reference
+  // the saving is read against, and a reference that moved would be no reason to fail a PR.
+  const pretty = schema === undefined ? undefined : schemaBytes(variant.bin, ['--format=json-pretty']);
   const skill = skillBytes(variant.bin);
   const asked = verdicts.filter((v) => v.jsonParsed !== null);
   const shared = { axis: 'reliability', variant: variant.id, samples: tasks.length } as const;
@@ -244,6 +251,16 @@ export function measure(variant: Variant, tasks: readonly Task[] = TASKS): Bench
             ...(variant.id === 'burgee' ? { gate: { max: SCHEMA_BYTES_BUDGET, why: 'schema-bytes-gated: every byte of --schema is paid in every agent’s context; growing it is a decision in the PR that grows it' } } : {}),
           }),
         ]),
+    ...(pretty === undefined
+      ? []
+      : [
+          one({
+            metric: 'schema-bytes-pretty',
+            unit: 'bytes',
+            value: pretty,
+            note: 'bytes of `--schema --format=json-pretty`, the same document indented: the figure before agent-headroom R1, kept beside `schema-bytes`; reported, never gated',
+          }),
+        ]),
     ...(skill === undefined
       ? []
       : [
@@ -259,7 +276,7 @@ export function measure(variant: Variant, tasks: readonly Task[] = TASKS): Bench
 }
 
 export const method =
-  'Ten tasks per variant, one spawn each, non-TTY with stdin closed. The same demo program built on burgee, commander and yargs. Exit codes are judged by class (0 ok, 2 usage, other runtime), not by value; `--json` is judged by whether an addressable envelope parses off whichever stream carried it. This is not B1: it measures what an agent can act on, never what it spends. `schema-bytes` is emitted only for a variant that answers `--schema` with a parseable document, and `skill-bytes` only for one that answers `--skill` with an Agent Skill — neither incumbent has either, and no record is written rather than a zero. burgee’s `schema-bytes` and `skill-bytes` are each gated at the demo’s committed budget.';
+  'Ten tasks per variant, one spawn each, non-TTY with stdin closed. The same demo program built on burgee, commander and yargs. Exit codes are judged by class (0 ok, 2 usage, other runtime), not by value; `--json` is judged by whether an addressable envelope parses off whichever stream carried it. This is not B1: it measures what an agent can act on, never what it spends. `schema-bytes` is emitted only for a variant that answers `--schema` with a parseable document, with `schema-bytes-pretty` (the same document indented, reported) beside it, and `skill-bytes` only for one that answers `--skill` with an Agent Skill — neither incumbent has either, and no record is written rather than a zero. burgee’s `schema-bytes` and `skill-bytes` are each gated at the demo’s committed budget.';
 
 export function run(): { records: BenchRecord[] } | { reason: string } {
   const missing = VARIANTS.filter((v) => !existsSync(resolve(REPO_ROOT, v.bin)));

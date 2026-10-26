@@ -73,6 +73,8 @@ const LOOP_JSON = { test: LOOP, name: 'json: one NDJSON event per transition on 
 const LOOP_STATIC = { test: LOOP, name: '%s: the static projection once per state change, no repaint' } as const;
 const BUILTINS = 'packages/flagstaff/src/builtins.test.ts';
 const BUILTIN_ON_A_PIPE = { test: BUILTINS, name: '%s writes no carriage return and no escape on a pipe' } as const;
+/** A command served over `--mcp` that hoists a component to the process's stdout: the transport stays framed. */
+const UNDER_MCP = { test: 'scripts/components-under-mcp.test.ts', name: '$name: the transport carries only JSON-RPC, the envelope leads, and the drawing follows as its static projection' } as const;
 const FLAGSTAFF_CHECK = { test: 'packages/flagstaff/src/cli.test.ts', name: 'prints the plugin in all five modes side by side and exits 0' } as const;
 
 const NOT_A_SHELL_FEATURE = 'a completion script is what a shell sources; this caller runs commands, and reads `--schema` for what they take';
@@ -90,7 +92,7 @@ export const MATRIX: { readonly [F in Feature]: { readonly [C in Caller]: Cell }
     tty: { test: 'packages/burgee/src/json-failure.test.ts', name: '$name: at a terminal, stderr is the prose alone — no JSON (R6)' },
     agent: { test: 'packages/burgee/src/json-failure.test.ts', name: '$name: the envelope is on stdout, alone, and stderr is the one structured line (R6)' },
     ci: { test: 'packages/burgee/src/json-failure.test.ts', name: '$name: plain mode keeps its prose on stderr, nothing on stdout, and the structured line last when stderr is piped (R6)' },
-    accessible: { missing: true },
+    accessible: { test: 'packages/burgee/src/json-failure.test.ts', name: '$name: under CLI_ACCESSIBLE at a colour terminal, stderr is the labelled prose once, with no escape and no JSON' },
     program: { test: 'packages/burgee/src/json-failure.test.ts', name: '$name: isError with the envelope as the text, then answers the next call' },
   },
   prompts: {
@@ -100,14 +102,14 @@ export const MATRIX: { readonly [F in Feature]: { readonly [C in Caller]: Cell }
     ci: { test: 'scripts/prompt-exit-codes.test.ts', name: 'a question nobody can answer — no TTY — exits 2, naming the flag to pass instead' },
     // The intent's accessible-transcript criterion is this cell and spinner's (spec R5).
     accessible: { test: 'packages/caique/src/ask.test.ts', name: 'writes no escape sequence and no carriage return — it is the accessible mode' },
-    program: { missing: true },
+    program: { test: 'scripts/prompt-exit-codes.test.ts', name: 'under --mcp, a question is a tool error naming the flag, and the server answers the next call' },
   },
   spinner: {
     tty: { test: 'packages/flagstaff/src/spinner.test.ts', name: 'hoisted on a terminal with a manual clock, the frames are exact' },
     agent: LOOP_JSON,
     ci: { test: 'packages/flagstaff/src/ora.test.ts', name: 'under CI the same, even when the stream claims to be a terminal' },
     accessible: LOOP_STATIC,
-    program: { missing: true },
+    program: UNDER_MCP,
   },
   progress: {
     tty: { test: BUILTINS, name: 'the drawn bar is exactly the width it was given' },
@@ -121,14 +123,14 @@ export const MATRIX: { readonly [F in Feature]: { readonly [C in Caller]: Cell }
     agent: { test: BUILTINS, name: 'the component emits header-and-value pairs off a terminal, not the grid' },
     ci: BUILTIN_ON_A_PIPE,
     accessible: LOOP_STATIC,
-    program: { missing: true },
+    program: UNDER_MCP,
   },
   box: {
     tty: { test: BUILTINS, name: 'draws the border it was asked for, at the width it was given' },
     agent: LOOP_JSON,
     ci: { test: BUILTINS, name: 'the component says the text off a terminal, and draws only on one' },
     accessible: LOOP_STATIC,
-    program: { missing: true },
+    program: UNDER_MCP,
   },
   theme: {
     tty: { test: 'packages/roundel/src/theme.test.ts', name: 'degrades to the nearest readable of 256 at level 2' },

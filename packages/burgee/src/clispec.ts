@@ -73,9 +73,19 @@ export function globalArgsOf(manifest: Manifest): GlobalArg[] {
 /**
  * R7 — what a run prints when no format is asked for: text, at a terminal and under a pipe
  * alike. clispec lets a tool keep a human default as long as it says so; `formats` are the ones
- * `--format` and `--json` select.
+ * `--format` and `--json` select: the two surfaces, burgee's registered `agent` and `tsv`, then
+ * each plugin's in registration order (`agent-headroom` RF) — the names `--format` lists. Names
+ * only: a plugin's formats are checked where `--format` first uses them (`formats.ts`), and
+ * `--schema` is not the place a broken one is refused.
  */
-export const OUTPUT = { tty: 'text', piped: 'text', formats: ['text', 'json', 'agent'] } as const;
+export function outputOf(manifest: Manifest): { tty: 'text'; piped: 'text'; formats: string[] } {
+  // A key that is not a map of formats names none: `--format` is where it is refused, with the reason.
+  const registered = manifest.plugins.flatMap(({ formats }) => {
+    const map = formats as unknown;
+    return typeof map === 'object' && map !== null && !Array.isArray(map) ? Object.keys(map) : [];
+  });
+  return { tty: 'text', piped: 'text', formats: ['text', 'json', 'agent', 'tsv', ...registered] };
+}
 
 /**
  * The document as printed: `explain` just ahead of `commands`, so a reader that stops partway
@@ -86,7 +96,7 @@ export const OUTPUT = { tty: 'text', piped: 'text', formats: ['text', 'json', 'a
  * `errors` and no claim of conformance; `program` is the manifest either way, which `errors` reads.
  */
 export function documentOf(doc: object, manifest: Manifest | undefined, explain: string, program: Manifest): Record<string, unknown> {
-  const whole = manifest === undefined ? [] : [['global_args', globalArgsOf(manifest)], ['output', OUTPUT]];
+  const whole = manifest === undefined ? [] : [['global_args', globalArgsOf(manifest)], ['output', outputOf(manifest)]];
   return Object.fromEntries(
     Object.entries(doc).flatMap((entry) => {
       if (entry[0] === 'schemaVersion' && manifest !== undefined) return [entry, ['clispec', CLISPEC]];

@@ -31,6 +31,23 @@ this umbrella's own build.
 What to measure: the 250- and 30-command `--help` and `--schema` medians, and the current count
 of disabled runtime rules, which becomes the ceiling.
 
+## Status 2026-10-26
+
+**Both pieces built; tests and benchmarks only.** The umbrella stays `approved` until its open
+children ship ([`intent.md` § Built 2026-10-26](./intent.md#built-2026-10-26) lists them).
+
+| piece | built as | check |
+| :-- | :-- | :-- |
+| Z5 bench | `benchmarks/axes/scale.ts`: one generator writes a 30- and a 250-command program per run under the gitignored `benchmarks/.fixtures-scale/`, in `examples/demo-cli-large`'s shape; each is proved (schema lists every generated command, help names the last, no lazy handler loads), then `--help` and `--schema` are timed in 24 interleaved rounds. `perf.ts` appends the rows: `scale-start-ms` per size and surface, `scale-ratio` per surface gated at 3× | `benchmarks/scale.test.ts`; the gate runs in `bench.yml` (`--axis perf --check`). Readings and the gate: [D-20261026-scale-bench-gate](../../decisions/D-20261026-scale-bench-gate.md) |
+| criterion 4 ratchet | `scripts/disabled-rules-lock.test.ts`: ESLint's resolved config for every non-test file under `packages/*/src/`, counting distinct rules at `off`; a comment in every literal block that switches one off for runtime source; a reason on every `OFF` entry; ≥9 Interlace plugins | the lock itself, at ceiling 50 ([D-20261026-disabled-rule-ceiling](../../decisions/D-20261026-disabled-rule-ceiling.md)) |
+
+**Measured.** The 250 ÷ 30 ratio is about 1.0 on both surfaces (`--help` 1.020, `--schema` 1.081,
+medians of four runs), so precompute stays dropped. The disabled-rule count is 50 and the wired
+Interlace plugins 31.
+
+**No Quint model.** Neither piece adds state, ordering or concurrency: the bench is a measurement
+and the lock a count.
+
 ## Restated 2026-10-18
 
 **Six of the 114 rows restated on `main` (`1013b65db5`): three moved to the eslint repo, U12's adopter half moved to `first-adopter`, and two kept open — class REMAINING: Z4 (15-line README ceiling unlocked), Z5 (250-command bench absent).** *2026-10-19: Z4's ceiling is held by `scripts/readme-first-example-lock.test.ts` › "burgee’s first example is 15 lines or fewer (Z4)"; Z5 remains.*

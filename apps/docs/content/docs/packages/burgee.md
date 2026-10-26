@@ -338,7 +338,7 @@ option and type, is at [burgee.interlace.tools](https://burgee.interlace.tools/d
 
 ## Where it sits
 
-Plugins register under the `commands`, `hooks`, `locales` keys, against the one schema the whole family shares.
+Plugins register under the `commands`, `hooks`, `locales`, `formats` keys, against the one schema the whole family shares.
 
 Nothing in this family builds on it yet, and it builds on `bellpull`, `closeout`, `linegauge`, `roundel`, `seniority`.
 

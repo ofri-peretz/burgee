@@ -22,6 +22,8 @@ import { describe, expect, it } from 'vitest';
 // eslint-disable-next-line import-next/no-relative-packages -- the source, by path, on purpose: the package-name form resolves to `dist/`, which would check the last build rather than the tree
 import { validate as bellpull } from '../packages/bellpull/src/plugin.js';
 // eslint-disable-next-line import-next/no-relative-packages -- see above
+import { formatsOf } from '../packages/burgee/src/formats.js';
+// eslint-disable-next-line import-next/no-relative-packages -- see above
 import { validate as burgee } from '../packages/burgee/src/plugin.js';
 // eslint-disable-next-line import-next/no-relative-packages -- see above
 import { validate as caique } from '../packages/caique/src/plugin.js';
@@ -110,6 +112,20 @@ const HOSTS = [
       'a hook filter that names no command': { ...base, contract: 1, hooks: { preRun: { filter: {}, handler: noop } } },
       'a hook filter that is a string': { ...base, contract: 1, hooks: { preRun: { filter: 'deploy', handler: noop } } },
       'an enforce that is neither pre nor post': { ...base, contract: 1, enforce: 'first' },
+    },
+  },
+  {
+    // agent-headroom RF — burgee checks `formats` where `--format` first uses them, not at `use()`
+    // (as it does `locales`), so its verdict on them is `formatsOf`'s. A name's pattern is
+    // `propertyNames`, which the schema states and flagstaff's walker does not read, as for `locales`.
+    host: 'burgee formats',
+    validate: (plugin: unknown): void => void formatsOf([plugin as Parameters<typeof formatsOf>[0][number]]),
+    valid: { ...base, contract: 1, formats: { 'csv-rows': { render: noop, description: 'comma-separated rows' } } },
+    refused: {
+      'formats that are not an object': { ...base, contract: 1, formats: [] },
+      'a format with no render': { ...base, contract: 1, formats: { rows: { description: 'x' } } },
+      'a format with no description': { ...base, contract: 1, formats: { rows: { render: noop } } },
+      'an empty description': { ...base, contract: 1, formats: { rows: { render: noop, description: '' } } },
     },
   },
 ];

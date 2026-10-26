@@ -87,11 +87,11 @@ Abbreviations used below:
 | b1-mcp-arm | approved | y | P | benchmarks + CI | 9 | 6 | R5 (no MCP page section), C2 (0/4 weekly readings), C3 | n | – | The 10-13 weekly run left no reading. Investigate, possibly the usage limit |
 | bellpull | approved | y | P | bellpull | 17 | 14 | S1 kill-gate re-read, S4 (compat-oracle still uses `child_process`), S5 recipe not executed | **y** (deadline, SIGTERM, SIGKILL ladder) | **none** | The spec header still says "not accepted" |
 | brand-burgee | **dropped** (batch 28, `D-20261025-brand-burgee-dropped`) | **n** | DROPPED | brand | 4 | 1 | – | n | – | Built before any design; write spec.md |
-| burgee | approved (batch 28, `D-20261025-burgee-umbrella-design-accepted`) | y | P | umbrella | 119 | 110 | Z5 250-command bench, criterion 4 disabled-rule ratchet (umbrella) | partly | registry, prompt-session, dev-reload | Constraint 1 and the agent-detection decision are contradicted by shipped code; record the reversals |
+| burgee | approved (batch 28, `D-20261025-burgee-umbrella-design-accepted`; Z5 bench and criterion 4 ratchet built 2026-10-26) | y | P | umbrella | 119 | 112 | – of its own; closes when its open children do (agent-headroom, caique, cli-benchmarks, cli-foundation-stack, cli-output-stack, commander-env, sdlc-locks-evals-bands, first-adopter) | partly | registry, prompt-session, dev-reload | Constraint 1 and the agent-detection decision are contradicted by shipped code; record the reversals |
 | burgee-migrate | **shipped** (batch 0) | y | SHIPPED | burgee/migrate | 12 | 12 | – | n | – | Stale header: needs draft → approved (owner) → shipped. Verification 3 is indirect |
 | caique | approved | y | P | caique | 13 | 10 | R1 `promptFor` API, S2 non-TTY bench, S3 PTY / Windows | **y** | prompt-session, save-restore | |
 | caique-quiet-seam | **shipped** (batch 0) | y | SHIPPED | caique | 8 | 8 | – | n | – | Restate R2 (`progress` and `taskLog` were not ported, D-152) |
-| caller-matrix | approved (batch 29 built, #1252) | y | P | examples/conformance + docs | 5 | 5 | S1: 5 of 55 cells `missing` (ceiling 5, may only fall) | n | – | Registry, lock and `/docs/callers` built; 43 held, 7 n/a. S4 moved to first-adopter |
+| caller-matrix | **shipped** (batch 29 built, #1252; five cells 2026-10-26) | y | SHIPPED | examples/conformance + docs | 5 | 5 | – | n | – | Registry, lock and `/docs/callers`; 48 held, 7 n/a, 0 missing, ceiling 0. S4 moved to first-adopter |
 | ci-affected-lanes | **shipped** (`D-20261026-ci-affected-lanes-minutes`) | y | SHIPPED | workflows/CI | 7 | 7 | – | n | – | R4 read 2026-10-26: median compat job-minutes per PR 411.8 before #1101, 71.1 after (`ci-minutes.test.ts`) |
 | cli-benchmarks | approved (batch 29 built, #1252) | y | P | benchmarks | 16 | 16 | – (README text publishes with the next Version PR) | n | – | S4 as a series over 52 CI readings (tokens 0.502, turns 0.522), `claim-table-lock` restated; B7 link lock over 13 public files |
 | cli-foundation-stack | approved (batch 29 built, #1252) | y | P | umbrella (foundation) | 17 | 17 | – (README text publishes with the next Version PR) | n | – | Y4 builtin lock and absorption probe in compat.yml's floor job; Y12 lock found linegauge naming burgee. Probe baseline in the decision |
@@ -433,3 +433,15 @@ locks, docs or CI were built in one PR. The rulings are in
   reach npm only when the next Version PR publishes, and that is when they ship.
 - **Built, one criterion open:** `caller-matrix` (5 missing cells) and `sdlc-locks-evals-bands`
   (the duration band has not gained a point; the next weekly run names why).
+
+**Caller matrix and the umbrella's own build, 2026-10-26 (`test/caller-matrix-and-umbrella`).**
+Tests, locks and a benchmark; no package source changed, so nothing waits on a release.
+
+- **Stamped `shipped`:** `caller-matrix`. The five `missing` cells each got a test, the ceiling
+  fell to 0, and `/docs/callers` reads 48 held, 7 n/a.
+- **Built, still `approved`:** `burgee` (umbrella). Z5's 250-command bench is in the `perf`
+  axis (250 ÷ 30 at about 1.0×, gate 3×,
+  [`D-20261026-scale-bench-gate`](../decisions/D-20261026-scale-bench-gate.md)) and criterion 4
+  is a ratchet at 50 disabled rules
+  ([`D-20261026-disabled-rule-ceiling`](../decisions/D-20261026-disabled-rule-ceiling.md)). It
+  closes when its open children do.
