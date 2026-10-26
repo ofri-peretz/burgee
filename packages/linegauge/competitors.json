@@ -1,45 +1,157 @@
 {
-  "$comment": "upstream-watch R1, written by foundation-claims-watched on 2026-10-12. See packages/flagstaff/competitors.json for the field meanings. Every `seen` is null until the daily competitor pass in compat-upstream.yml fingerprints it. Every subpath is a graded drop-in.",
+  "$comment": "upstream-watch R1, written by foundation-claims-watched on 2026-10-12. See packages/flagstaff/competitors.json for the field meanings. Every `seen` was recorded on 2026-10-26 by `npm run compat -- --fingerprint --missing` (foundation-claims-watched R7): the daily pass in compat-upstream.yml cannot write one, and with none held it reports nothing, so a null `seen` fails competitors-lock. Every subpath is a graded drop-in.",
   ".": [
     {
       "package": "string-width",
       "claim": "compat",
-      "seen": null
+      "seen": {
+        "registry": "string-width",
+        "version": "8.3.0",
+        "shasum": "f1e85ca6d276ed9226c979c3651fb7abf548fbbe",
+        "weight": 16923,
+        "self": 6447,
+        "packages": 4,
+        "files": {
+          "index.d.ts": "2386b50ac5929c1a1374725e6b4b9dcbf06a5843c107713fbc54c652bcf59290",
+          "index.js": "abc20775da6b552188b098688ebec671e29f5416d6339d3534bb7b016174003e",
+          "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+          "package.json": "91dd282553b13e201d56de724f61c6755996f3120c3ff4d024a8a7171e0aa2cb",
+          "readme.md": "f634d81182a56e7732165e16c49215688911d560d5b738ff6741c51d964b19c6"
+        },
+        "exports": [
+          "Options",
+          "default"
+        ],
+        "measured": "2026-10-26"
+      }
     }
   ],
   "./strip": [
     {
       "package": "strip-ansi",
       "claim": "compat",
-      "seen": null
+      "seen": {
+        "registry": "strip-ansi",
+        "version": "7.2.0",
+        "shasum": "d22a269522836a627af8d04b5c3fd2c7fa3e32e3",
+        "weight": 1559,
+        "self": 626,
+        "packages": 2,
+        "files": {
+          "index.d.ts": "d690ec58f57c5fa69cfe088959335c9f12482db67eb1bc1bbba93e3062f69276",
+          "index.js": "9ff7e1abf2727fbf9854a9dfcc1e69d1f9a0b23ccc0649269fc1c4fa8e44bd79",
+          "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+          "package.json": "228b214dd06ca80ab3c36e2b890a8696a39cea65585f6d61498c922c615e18a0",
+          "readme.md": "97c8f78e30d8dd4f03a252669110d775f6308674bcdb0280ecea942d191045b1"
+        },
+        "exports": [
+          "default"
+        ],
+        "measured": "2026-10-26"
+      }
     }
   ],
   "./wrap": [
     {
       "package": "wrap-ansi",
       "claim": "compat",
-      "seen": null
+      "seen": {
+        "registry": "wrap-ansi",
+        "version": "10.0.2",
+        "shasum": "92f8f14b014136d034389a8700d6ce3df79c65d5",
+        "weight": 42549,
+        "self": 20370,
+        "packages": 6,
+        "files": {
+          "index.d.ts": "06f92be4ba4f9cf7a447ecabb0f37f0520861b837ca7a2a4455a64c0831bd0d9",
+          "index.js": "0c65e1cad00d994a60eb6755ea7ed1bde4d81d072b0ab83d19a301bf67ca1750",
+          "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+          "package.json": "b4090ca81b7fa1d93972f363e5220095b2d7743fb41cf3ba8d66187d85b39321",
+          "readme.md": "064cb1b710679d984818f6b8af174cb39031a8a7725bdf6f8e603d6719aabbab"
+        },
+        "exports": [
+          "Options",
+          "default"
+        ],
+        "measured": "2026-10-26"
+      }
     }
   ],
   "./slice": [
     {
       "package": "slice-ansi",
       "claim": "compat",
-      "seen": null
+      "seen": {
+        "registry": "slice-ansi",
+        "version": "9.0.1",
+        "shasum": "6754918812fed4460e215ea8ee24abedaca435c3",
+        "weight": 41247,
+        "self": 26813,
+        "packages": 4,
+        "files": {
+          "index.d.ts": "36597477aaaaf277248ec9114f5070da204abe2487b24e3cf188a999f1665a06",
+          "index.js": "c64a17645269b8a5aee17be46db59f8d556bdb3cbedb128122cf70941fc8226d",
+          "license": "c91d87c3bca16ab6d96d82da08edc54377d14b679547a331eecc4adef3c353c8",
+          "package.json": "24d3b14254411a4a75e89389e874b649cf5802324179bf4a411d578721958407",
+          "readme.md": "b64554b0f3c005daf16bccb67abd711d37d5dac043b2f1c5a303765647b12395",
+          "tokenize-ansi.js": "bf7cb711bf987b5f23f858671c97dbaeaf38e4e4ba01a29a924cf5d9c410a34c"
+        },
+        "exports": [
+          "default"
+        ],
+        "measured": "2026-10-26"
+      }
     }
   ],
   "./cli-truncate": [
     {
       "package": "cli-truncate",
       "claim": "compat",
-      "seen": null
+      "seen": {
+        "registry": "cli-truncate",
+        "version": "6.1.1",
+        "shasum": "35ae66a040eef357aedcfffd6149d847bf7a2eb1",
+        "weight": 54795,
+        "self": 5542,
+        "packages": 8,
+        "files": {
+          "index.d.ts": "67b6c1c398e5b7e04d99dd51eee0293da5c006ec597c31367f8134cf4a7f285d",
+          "index.js": "1354e8a1eb49e753e0df8096f90db1326b6ca629605542734f4441ec0ba5f245",
+          "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+          "package.json": "726cc5fe7cffd357d072d96780dac96622abcb7158acd1f0079cd40d5da46b19",
+          "readme.md": "6a295736fff0b21479da88a2f25d325fae21f5142c818181d4b355a85cabe482"
+        },
+        "exports": [
+          "Options",
+          "default"
+        ],
+        "measured": "2026-10-26"
+      }
     }
   ],
   "./widest-line": [
     {
       "package": "widest-line",
       "claim": "compat",
-      "seen": null
+      "seen": {
+        "registry": "widest-line",
+        "version": "6.0.0",
+        "shasum": "6a8638af837059501d61c5d3bdf72cb934f6c792",
+        "weight": 17151,
+        "self": 228,
+        "packages": 5,
+        "files": {
+          "index.d.ts": "7f84608411c5db35db3a6817e7f886ecd65a0446049439a62a90c1d6e6d99e96",
+          "index.js": "c56c70d00610e14d157c1ed4fc3a2b83d96f7e595b1842ba12f3a84217796eb1",
+          "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+          "package.json": "632e64cbe43d7448728426c8f47445653b63d0ecd545d1242d123164fc2b48dd",
+          "readme.md": "631d0c7d12553d5d0e48b7d97a925e15495dc2137088a9753554913788999bcc"
+        },
+        "exports": [
+          "default"
+        ],
+        "measured": "2026-10-26"
+      }
     }
   ]
 }

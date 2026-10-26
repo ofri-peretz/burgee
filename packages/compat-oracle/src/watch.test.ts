@@ -357,6 +357,52 @@ describe('check and fingerprint, over a workspace', () => {
     expect(again.out).toContain('✖ registry down');
   });
 
+  /**
+   * `foundation-claims-watched` R7. A competitor with nothing held is not watched at all —
+   * `moved()` is false with no fingerprint, so a release of it is never reported — and the
+   * only way out was a full `--fingerprint`, which also re-records every *held* fingerprint.
+   * One of those can be a release an open issue is waiting on (inquirer 14.2.4 was, on
+   * 2026-10-26): re-recording it would mark the claim current without anyone re-grading it.
+   * `missing` fills the holes and touches nothing else.
+   */
+  it('with `missing`, records only what nothing holds, and leaves a held fingerprint behind upstream alone', async () => {
+    const { packagesDir } = workspace({
+      roundel: {
+        './chalk': [{ package: 'chalk', claim: 'compat', seen: behind }],
+        // Held through `./chalk`: the watch is keyed by package, so this entry is already watched.
+        './index': [{ package: 'chalk', claim: 'surface', seen: null }],
+        './ora': [{ package: 'ora', claim: 'surface', seen: null }],
+      },
+    });
+    const file = join(packagesDir, 'roundel', 'competitors.json');
+    const sink = lines();
+
+    expect(await fingerprint(packagesDir, sink.write, TREE, { missing: true })).toBe(0);
+
+    const written = JSON.parse(readFileSync(file, 'utf8')) as Record<string, { seen: Seen | null }[]>;
+    expect(written['./chalk']?.[0]?.seen).toEqual(behind);
+    expect(written['./index']?.[0]?.seen).toBeNull();
+    expect(written['./ora']?.[0]?.seen).toMatchObject({ version: '9.0.0', registry: 'ora' });
+    expect(sink.out).not.toContain('chalk');
+    expect(sink.out).toContain('ora');
+  });
+
+  it('without `missing`, re-records a held fingerprint too, which is what a reviewed upstream release needs', async () => {
+    const { packagesDir } = workspace({
+      roundel: { './chalk': [{ package: 'chalk', claim: 'compat', seen: behind }] },
+    });
+    expect(await fingerprint(packagesDir, () => {}, TREE, { missing: false })).toBe(0);
+    const written = JSON.parse(readFileSync(join(packagesDir, 'roundel', 'competitors.json'), 'utf8')) as { './chalk': { seen: Seen }[] };
+    expect(written['./chalk'][0]?.seen.version).toBe('6.0.0');
+  });
+
+  it('tells a person how to record a competitor with no fingerprint without re-recording the rest', async () => {
+    const { root, packagesDir } = workspace({ roundel: { './index': [{ package: 'chalk', claim: 'surface' }] } });
+    const sink = lines();
+    await check(packagesDir, root, sink.write, REGISTRY);
+    expect(sink.out).toContain(`  ${'chalk'.padEnd(26)} 6.0.0 — no fingerprint held; run --fingerprint --missing\n`);
+  });
+
   it('keeps the citations a person wrote into a seen block when it re-fingerprints', async () => {
     const { packagesDir } = workspace({
       roundel: { './chalk': [{ package: 'chalk', claim: 'compat', seen: { ...behind, cited: ['README.md:12'] } }] },
