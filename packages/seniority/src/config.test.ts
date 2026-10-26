@@ -176,7 +176,9 @@ describe('the lines a JSON layer records (R3)', () => {
 });
 
 describe('the package.json field as a layer, with its lines (R3)', () => {
-  const manifest = '{\n  "name": "x",\n  "region": "top-level, not the field",\n  "app": {\n    "region": "eu",\n    "nested": { "retries": 1 },\n    "retries": 3\n  }\n}\n';
+  // A top-level `region` above the field and a sibling object's `region` below it, so a scan that
+  // read the wrong level, or the right level of the wrong object, cites a line that is not the field's.
+  const manifest = '{\n  "name": "x",\n  "region": "top-level, not the field",\n  "app": {\n    "region": "eu",\n    "nested": { "retries": 1 },\n    "retries": 3\n  },\n  "publishConfig": { "region": "not the field either" }\n}\n';
 
   it('is the field named after the program, each key cited at the line inside the field that sets it', () => {
     const at = write('pkg-lines/package.json', manifest);

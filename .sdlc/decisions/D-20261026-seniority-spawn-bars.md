@@ -14,16 +14,16 @@ superseded_by: —
 
 **`ROUNDS` goes from 52 to 68.** The four rows make seventeen variants, and the rotation needs a whole number of turns per starting position (`perf.test.ts`). 68 is four turns each, as 52 was for thirteen. That is about 30% more spawns on the perf axis, most of them `ink + react` at ~340 ms. The alternative was to drop the dotenv pair, which is the selection the paragraph above rules out.
 
-**The discovery-chain row.** `seniority/cosmiconfig + seniority/find-up` against `cosmiconfig + find-up` at the graded releases (10.0.1 and 8.0.0; find-up 8.0.0 is added to `benchmarks`' devDependencies, pinned and ignored by dependabot like the other graded incumbents). It is gated on bundled bytes (ceiling 13,000 B: 12,877 measured plus the 80 B CI margin, rounded up to the next fifty), on the bundled ratio (0.154) and on the installed tree in packages (1 against 10) and bytes (224,506 against 1,892,988, 0.119). All three ratios are under 1, so each gate is U5's 1. The intent counted seven packages at cosmiconfig 9 and find-up 5; at the graded releases the tree is ten (cosmiconfig 10 dropped import-fresh and parse-json, find-up 8 dropped path-exists, and js-yaml, argparse, env-paths, p-limit, yocto-queue and unicorn-magic are in it). The number published is the walk's, not the intent's.
+**The discovery-chain row.** `seniority/cosmiconfig + seniority/find-up` against `cosmiconfig + find-up` at the graded releases (10.0.1 and 8.0.0; find-up 8.0.0 is added to `benchmarks`' devDependencies, pinned and ignored by dependabot like the other graded incumbents). It is gated on bundled bytes (ceiling 13,000 B: 12,877 measured plus the 80 B CI margin, rounded up to the next fifty), on the bundled ratio (0.154) and on the installed tree in packages (1 against 10) and bytes (224,442 against 1,892,988, 0.119). All three ratios are under 1, so each gate is U5's 1. The intent counted seven packages at cosmiconfig 9 and find-up 5; at the graded releases the tree is ten (cosmiconfig 10 dropped import-fresh and parse-json, find-up 8 dropped path-exists, and js-yaml, argparse, env-paths, p-limit, yocto-queue and unicorn-magic are in it). The number published is the walk's, not the intent's.
 
-**R3's budgets.** The line scan that gives the `package.json` field its lines also had to know which level of the JSON a key sits on: the old one returned the first `"out":` in the file, so a nested key written above the top-level one was cited at the wrong line. `config.js` grows by 1,831 B and `index.js` by 14 B (unminified `tsc` output; clean builds of main `bcc075fff7` and this branch).
+**R3's budgets.** The line scan that gives the `package.json` field its lines also had to know which level of the JSON a key sits on: the old one returned the first `"out":` in the file, so a nested key written above the top-level one was cited at the wrong line. `config.js` grows by 1,767 B and `index.js` by 14 B (unminified `tsc` output; clean builds of main `bcc075fff7` and this branch).
 
 | budget | was | main → branch | now |
 | :-- | --: | --: | --: |
-| `shape.test.ts` R9 ceiling (whole `dist`) | 142,000 | 141,732 → 143,577 | 144,000 |
-| `weight.test.ts` `./config` | 13,000 | 12,895 → 14,726 | 14,900 |
-| `weight.test.ts` `.` | 45,000 | 44,195 → 46,040 | 46,400 |
+| `shape.test.ts` R9 ceiling (whole `dist`) | 142,000 | 141,732 → 143,513 | 144,000 |
+| `weight.test.ts` `./config` | 13,000 | 12,895 → 14,662 | 14,900 |
+| `weight.test.ts` `.` | 45,000 | 44,195 → 45,976 | 46,400 |
 
-burgee's core bundle does not move: `config-layers.ts` reaches `seniority/config` through `await import()`, only for a program that declares `config`. `npm run weight:converge` re-measured `layers.seniority.ours` (222,055 → 224,506 B installed).
+burgee's core bundle does not move: `config-layers.ts` reaches `seniority/config` through `await import()`, only for a program that declares `config`. `npm run weight:converge` re-measured `layers.seniority.ours` (222,055 → 224,442 B installed).
 
 **Why it is worth it.** A line number in provenance is the reason the package exists, and a wrong one is worse than none (R12). The bytes buy a correct line where one was wrong and a line where there was none.

@@ -38,6 +38,14 @@ describe('a JSON layer records the line each key is set on (R3, R12)', () => {
     expect(lineOf('{\n  "list": [{ "out": 1 }, { "out": 2 }]\n}', 'out')).toBeUndefined();
   });
 
+  it('steps over an array a top-level key holds, closing it where it ends', () => {
+    expect(lineOf('{\n  "list": ["x", "y"],\n  "out": 1\n}', 'out')).toBe(3);
+  });
+
+  it('ends at an unterminated string rather than reading past the text', () => {
+    expect(lineOf('{\n  "out": 1,\n  "tail', 'out')).toBe(2);
+  });
+
   it('cites a key set twice where JSON.parse takes it from, the last time', () => {
     expect(lineOf('{\n  "out": 1,\n  "out": 2\n}', 'out')).toBe(3);
   });
@@ -67,6 +75,12 @@ describe('a JSON layer records the line each key is set on (R3, R12)', () => {
   it('has no lines for a JavaScript config, because there is no parser to ask', async () => {
     const cwd = join(dir, 'nolines');
     write('nolines/app.config.mjs', 'export default { region: "eu" };');
+    expect((await discover({ name: 'app', cwd, env: {} }))?.lines).toBeUndefined();
+  });
+
+  it('has none for a JavaScript config that quotes its keys either: the scan reads JSON, not JavaScript', async () => {
+    const cwd = join(dir, 'quoted-js');
+    write('quoted-js/app.config.mjs', 'export default {\n  "region": "eu"\n};');
     expect((await discover({ name: 'app', cwd, env: {} }))?.lines).toBeUndefined();
   });
 });

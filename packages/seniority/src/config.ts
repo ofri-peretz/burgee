@@ -85,9 +85,11 @@ function keyLines(text: string, at: readonly string[]): Map<string, number> {
   const open: (string | null)[] = [];
   let line = 1;
   // The last string read and its line; a `:` makes it a key. JSON strings hold no raw newline.
+  // Stryker disable next-line StringLiteral: equivalent — a colon reads `raw` only after a string has set it, unless the text puts a colon before any string, which no JSON does
   let raw = '';
   let rawLine = 0;
   let key: string | null = null;
+  // Stryker disable next-line EqualityOperator: equivalent — one step past the end reads `undefined`, which no case matches
   for (let i = 0; i < text.length; i++) {
     const c = text[i];
     if (c === '"') {
@@ -114,11 +116,14 @@ function keyLines(text: string, at: readonly string[]): Map<string, number> {
       case ']':
         open.pop();
         break;
+      // An element after a comma is opened under no key. Equivalent through every export: a stale key
+      // here reaches only a level under a root array, and `lineOf` reads the root while
+      // `packageLayer` refuses a manifest that is not an object.
+      // Stryker disable all
       case ',':
-        // An element after a comma is opened under no key.
-        // Stryker disable next-line all: equivalent through every export — a stale key here reaches only a level under a root array, and `lineOf` reads the root while `packageLayer` refuses a manifest that is not an object
         key = null;
         break;
+      // Stryker restore all
       default:
     }
   }
@@ -128,6 +133,7 @@ function keyLines(text: string, at: readonly string[]): Map<string, number> {
 /** The index of the quote that closes the string opening at `start`, stepping over each escaped character whole. */
 function closingQuote(text: string, start: number): number {
   let j = start + 1;
+  // Stryker disable next-line EqualityOperator: equivalent — one step past the end reads `undefined`, the loop's other test then ends it, and the slice is the same
   while (j < text.length && text[j] !== '"') j += text[j] === '\\' ? 2 : 1;
   return j;
 }
@@ -166,6 +172,17 @@ function linesFor(path: string, data: Record<string, unknown>): Record<string, n
   return text === undefined ? undefined : linesOf(text, data);
 }
 
+/** The parsed text, or `undefined` for none or for text that is not JSON. */
+function parseJson(text: string | undefined): unknown {
+  try {
+    // `String(undefined)` is not JSON either, so a file that could not be read lands in `catch` too.
+    return JSON.parse(String(text)) as unknown;
+  } catch {
+    // Stryker disable next-line BlockStatement: equivalent — an empty block returns `undefined` all the same
+    return undefined;
+  }
+}
+
 /**
  * The `package.json` field named after a program, as the layer below the config file, with the
  * line each of its keys is set on (R3). Without the line, `explain` could say a value came from
@@ -180,15 +197,7 @@ function linesFor(path: string, data: Record<string, unknown>): Record<string, n
  */
 export function packageLayer(path: string, name: string, manifest?: Record<string, unknown>): Layer | undefined {
   const text = readText(path);
-  let data = manifest;
-  if (data === undefined) {
-    if (text === undefined) return undefined;
-    try {
-      data = JSON.parse(text) as Record<string, unknown>;
-    } catch {
-      return undefined;
-    }
-  }
+  const data = manifest ?? parseJson(text);
   const field = isObject(data) ? data[name] : undefined;
   if (!isObject(field)) return undefined;
   const lines = text === undefined ? undefined : linesOf(text, field, [name]);

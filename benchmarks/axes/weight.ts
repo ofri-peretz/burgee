@@ -600,7 +600,7 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // seniority criterion 4, first measured 2026-10-26 against cosmiconfig 10.0.1 + find-up 8.0.0,
   // the releases compat-oracle grades. Added at a ceiling of 0, which failed, then set at the
   // measurement plus the 80 B CI margin, rounded up to the next fifty: 12,877 against the chain's
-  // 83,870 (0.154), and 1 package installed against 10 (224,506 B against 1,892,988 B). Lighter
+  // 83,870 (0.154), and 1 package installed against 10 (224,442 B against 1,892,988 B). Lighter
   // on all three, so every ratio gate is 1.
   'seniority/discovery-chain': 13_000,
   // Both closeout rows were heavier than the incumbent when first measured: `closeout/exit-hook`
