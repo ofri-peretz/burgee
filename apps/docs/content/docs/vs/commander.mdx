@@ -78,7 +78,7 @@ Weight. From the root README's *Measured* table (2026-10-08, one CI runner, gene
 | Full CLI run over bare node | +20.3 ms | +14.8 ms |
 | Installed size | 1690 KB | 203 KB |
 
-Against commander alone, `burgee/commander` is the heavier bundle (1.415×). Lighter than
+Against commander alone, `burgee/commander` is the heavier bundle (1.417×). Lighter than
 commander alone is not reachable while the front end also carries a manifest, a schema and an
 MCP server, so the `lighter-than-commander` gate is a downward-only ratchet instead: it holds
 the ratio within 1.42× and may only be lowered (D-157). Against commander *plus* what a

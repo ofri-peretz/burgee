@@ -42,7 +42,10 @@ rounded up to the next 50 B: `./completions` 16,000 → 18,550 (measured 18,491)
   They are offered from the script, never by running the program (D3). That is why each shell
   carries its own counting rather than one call back to `__complete`.
 
-The ratchets stay ratchets: a later change that shrinks the façade lowers them again.
+The ratchets stay ratchets: a later change that shrinks the façade lowers them again. The
+README's generated claims move with them (`npm run readme:gates`): `lighter-than-commander`
+reads 1.417× against its 1.42× ratchet (was 1.415×), and `lighter-than-yargs-at-parity` 0.548×
+(was 0.547×). Both still hold.
 
 **Rejected.**
 
