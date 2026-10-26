@@ -150,3 +150,13 @@ describe('what is not a refusal', () => {
     await expect(run([file])).rejects.toThrow(new TypeError('not a plugin problem'));
   });
 });
+
+describe('a .json plugin', () => {
+  it('is read as data, byte-order mark and all, and reported as the same module would be', async () => {
+    const data = { name: 42 };
+    const asModule = await run([pluginFile(`export default ${JSON.stringify(data)};`)]);
+    const json = join(dir, 'plugin-as-data.json');
+    writeFileSync(json, `\uFEFF${JSON.stringify(data)}`);
+    expect(await run([json])).toEqual(asModule);
+  });
+});

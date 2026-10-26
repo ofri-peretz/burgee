@@ -112,3 +112,13 @@ describe('refusals', () => {
     await expect(run([join(root, 'no-such-plugin.mjs')])).rejects.toThrow(/no-such-plugin\.mjs/);
   });
 });
+
+describe('a .json plugin', () => {
+  it('is read as data, byte-order mark and all, and reported as the same module would be', async () => {
+    const data = { name: 42 };
+    const asModule = await run([plugin(`export default ${JSON.stringify(data)};`)]);
+    const json = join(root, 'plugin-as-data.json');
+    writeFileSync(json, `\uFEFF${JSON.stringify(data)}`);
+    expect(await run([json])).toEqual(asModule);
+  });
+});
