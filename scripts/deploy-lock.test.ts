@@ -50,10 +50,26 @@ import { fileURLToPath } from 'node:url';
  * | key `concurrency.group` on the ref again, or delete it | serialises every deploy of one host |
  *
  * **Per row, not per file** (docs-per-package, criterion 8). There is one workflow and one
- * table (`.github/vercel-apps.json`); the executed cases run once for every row in the table,
- * with that row's host as `PRODUCTION_URL`, so a mutation that only breaks one app's path — or
- * a row whose host the verify step mishandles — fails under that row's name. The per-row
- * mutations were each re-proven red on 2026-09-23 against all nine rows.
+ * table (`.github/vercel-apps.json`); every executed case runs once for every row, and each run
+ * starts by executing preflight's real `Resolve the app` step for that row and resolving the
+ * deploy job's `env:` from its outputs — table, `jq`, job output, job env, the path a runner
+ * takes. A mutation that only breaks one app's path, or a row whose host the verify step
+ * mishandles, fails under that row's name. The mutations above that are properties of the one
+ * workflow file (triggers, `deploymentEnabled`, the dispatch `if:`, the deploy flags,
+ * `working-directory`, `$comment`, the concurrency group) are asserted once: no row reaches them.
+ *
+ * **The spec's requirements the workflow met and nothing held** (R2, R7, R10; locked
+ * 2026-10-26, roadmap-to-shipped batch 17). Proven red, one mutation at a time:
+ *
+ * | mutation | fails |
+ * | :-- | :-- |
+ * | `VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}` in the deploy job | keeps VERCEL_TOKEN the only secret; every per-row case (its env no longer resolves) |
+ * | the self-heal body sends `rootDirectory: ""`, not `null` | writes its own row onto its own Vercel project (every row) |
+ * | `\|\| true` after the self-heal PATCH | the same — a refused PATCH must stop the deploy |
+ * | `?teamId=` dropped from the PATCH URL | the same |
+ * | the self-heal step moved after `vercel pull` | heals the project before `vercel pull` reads its settings |
+ * | `environment.name: docs-…` | gives each app its own GitHub Environment (every row) |
+ * | preflight emits `production_url` from the row's `dir` | reaches the deploy job from the table (every row) |
  *
  * `--archive=tgz` and the repo-root CLI are the deploy that #79 shipped and that never once
  * succeeded. Root Directory on every project is unset — the repo root — so `vercel.json`
@@ -77,6 +93,9 @@ const WORKFLOWS = join(REPO_ROOT, '.github', 'workflows');
 
 const text = (file: string): string => readFileSync(join(WORKFLOWS, file), 'utf8');
 
+/** Every `secrets.<NAME>` a workflow reads, once each, sorted. */
+const secretsIn = (file: string): string[] => [...new Set([...text(file).matchAll(/secrets\.([A-Za-z_][A-Za-z0-9_]*)/gu)].map((m) => m[1] ?? ''))].toSorted();
+
 interface Step {
   name?: string;
   id?: string;
@@ -87,6 +106,7 @@ interface Step {
 interface Job {
   if?: string;
   env?: Record<string, string>;
+  environment?: { name?: string; url?: string } | string;
   steps?: Step[];
   defaults?: { run?: { 'working-directory'?: string } };
 }
@@ -112,13 +132,16 @@ interface Row {
   package: string;
   workspace: string;
   dir: string;
+  projectId: string;
   productionUrl: string;
+  rootDirectory: string;
   buildCommand: string;
   outputDirectory: string;
   familyPages: boolean;
 }
 /** Every row of the table — the executed cases below run once per row. */
-const ROWS: [string, Row][] = Object.entries((JSON.parse(readFileSync(join(REPO_ROOT, '.github', 'vercel-apps.json'), 'utf8')) as { apps: Record<string, Row> }).apps);
+const TABLE = JSON.parse(readFileSync(join(REPO_ROOT, '.github', 'vercel-apps.json'), 'utf8')) as { orgId: string; apps: Record<string, Row> };
+const ROWS: [string, Row][] = Object.entries(TABLE.apps);
 const FAMILY = ROWS.find(([, row]) => row.familyPages)?.[1];
 
 // ─── Running a step for real ────────────────────────────────────────────────────────
@@ -136,13 +159,22 @@ function step(job: Job | undefined, name: string): Step {
   return found;
 }
 
+/**
+ * `${{ … }}` expressions in `value` replaced the way Actions would, from `ctx`. An expression
+ * `ctx` does not know is a failure that names it — that is how a `secrets.VERCEL_PROJECT_ID`
+ * slipped back into the deploy job's `env:` fails here rather than resolving to nothing.
+ */
+function interpolate(value: string, ctx: Record<string, string>, where: string): string {
+  return value.replace(/\$\{\{\s*(.+?)\s*\}\}/g, (_match, expr: string) => {
+    if (!(expr in ctx)) throw new Error(`${where} interpolates ${expr}, which this test does not know how to substitute`);
+    return ctx[expr];
+  });
+}
+
 /** A step's `run:`, with `${{ … }}` expressions replaced the way Actions would. */
 function script(s: Step, ctx: Record<string, string> = {}): string {
   if (!s.run) throw new Error(`step "${s.name}" has no run: block`);
-  return s.run.replace(/\$\{\{\s*(.+?)\s*\}\}/g, (_match, expr: string) => {
-    if (!(expr in ctx)) throw new Error(`step "${s.name}" interpolates ${expr}, which this test does not know how to substitute`);
-    return ctx[expr];
-  });
+  return interpolate(s.run, ctx, `step "${s.name}"`);
 }
 
 interface Result {
@@ -152,6 +184,8 @@ interface Result {
   githubOutput: string;
   /** Everything the step appended to $GITHUB_STEP_SUMMARY. */
   summary: string;
+  /** The argv of every `curl` the step ran, in order. */
+  curls: string[][];
 }
 
 /**
@@ -176,6 +210,9 @@ function runStep(body: string, env: Record<string, string>): Result {
       // `$SHIM_LATE_BODY` replaces the body once `$SHIM_LATE_AFTER` calls have been made: an
       // alias that moves while the step is still retrying.
       `n=$(( $(cat "${dir}/calls" 2>/dev/null || echo 0) + 1 )); echo "$n" > "${dir}/calls"`,
+      // One argument per line and an `--END--` line after each call: what the self-heal
+      // PATCH sends is asserted, not inferred from the step's text.
+      `for a in "$@"; do printf '%s\\n' "$a"; done >> "${dir}/curl-args"; printf '%s\\n' '--END--' >> "${dir}/curl-args"`,
       'body="${SHIM_BODY-}"; [ -n "${SHIM_LATE_AFTER-}" ] && [ "$n" -gt "$SHIM_LATE_AFTER" ] && body="${SHIM_LATE_BODY-}"',
       '[ -n "$out" ] && printf \'%s\' "$body" > "$out"',
       'printf \'%s\' "${SHIM_CODE-000}"',
@@ -198,26 +235,80 @@ function runStep(body: string, env: Record<string, string>): Result {
   writeFileSync(outFile, '');
   writeFileSync(summaryFile, '');
 
+  // At the repo root, where a runner's checkout puts the workflow: the resolve step reads
+  // `.github/vercel-apps.json` by its relative path.
   const r = spawnSync('bash', [scriptFile], {
+    cwd: REPO_ROOT,
     encoding: 'utf8',
     env: { PATH: `${bin}${delimiter}${process.env.PATH ?? ''}`, GITHUB_OUTPUT: outFile, GITHUB_STEP_SUMMARY: summaryFile, ...env },
   });
+  const argsFile = join(dir, 'curl-args');
+  const curls = existsSync(argsFile)
+    ? readFileSync(argsFile, 'utf8')
+        .split('--END--\n')
+        .filter((call) => call !== '')
+        .map((call) => call.replace(/\n$/u, '').split('\n'))
+    : [];
   return {
     status: r.status ?? -1,
     output: `${r.stdout ?? ''}${r.stderr ?? ''}`,
     githubOutput: readFileSync(outFile, 'utf8'),
     summary: readFileSync(summaryFile, 'utf8'),
+    curls,
   };
 }
 
 const preflight = script(step(deployDocs.jobs?.preflight, 'Check credentials and approval'));
+const resolveStep = (deployDocs.jobs?.preflight?.steps ?? []).find((s) => s.id === 'app');
 const verifyStep = step(deployDocs.jobs?.deploy, 'Verify the deployed URL serves this build');
 const llmsStep = step(deployDocs.jobs?.deploy, 'Verify the agent surfaces are on the deployed build');
+const healStep = step(deployDocs.jobs?.deploy, 'Self-heal Vercel project config');
+
+/** The token every executed case stands in for `secrets.VERCEL_TOKEN`. */
+const TOKEN = 'tok';
+
 /**
- * The deploy job's `env:`, with `PRODUCTION_URL` set the way the preflight output sets it for
- * one row. The verify step reads the host from there; it is no longer a workflow constant.
+ * What preflight's `Resolve the app` step writes to `$GITHUB_OUTPUT` for `key`, by running it.
+ * Every per-row case below starts here, so a row reaches the deploy job the way it does on a
+ * runner — table, `jq`, job output, job `env:` — and a defect anywhere on that path fails under
+ * the row's own name (docs-per-package, criterion 8).
  */
-const envFor = (row: Row): Record<string, string> => ({ ...deployDocs.jobs?.deploy?.env, PRODUCTION_URL: row.productionUrl });
+const resolvedCache = new Map<string, Record<string, string>>();
+function resolved(key: string): Record<string, string> {
+  const cached = resolvedCache.get(key);
+  if (cached) return cached;
+  if (resolveStep?.run === undefined) throw new Error('deploy-docs.yml preflight has no step with id "app" — nothing resolves the row');
+  const r = runStep(script(resolveStep), { APP: key });
+  if (r.status !== 0) throw new Error(`preflight could not resolve '${key}':\n${r.output}`);
+  const outputs = Object.fromEntries(
+    r.githubOutput
+      .split('\n')
+      .filter((line) => line.includes('='))
+      .map((line) => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1)]),
+  );
+  resolvedCache.set(key, outputs);
+  return outputs;
+}
+
+/** The expressions a deploy-job value may use, for one row: preflight's outputs and the token. */
+const contextFor = (key: string): Record<string, string> => ({
+  ...Object.fromEntries(Object.entries(resolved(key)).map(([name, value]) => [`needs.preflight.outputs.${name}`, value])),
+  'secrets.VERCEL_TOKEN': TOKEN,
+});
+
+/**
+ * The deploy job's `env:` for one row, every expression in it resolved from that row's preflight
+ * outputs. The verify step reads the host from there; it is no longer a workflow constant, and
+ * the Vercel ids are no longer secrets (R2) — an expression this cannot resolve fails the case.
+ */
+const envFor = (key: string): Record<string, string> =>
+  Object.fromEntries(Object.entries(deployDocs.jobs?.deploy?.env ?? {}).map(([name, value]) => [name, interpolate(String(value), contextFor(key), `the deploy job's env.${name}`)]));
+
+/** A step's own `env:`, resolved the same way, layered over the job's. */
+const stepEnvFor = (s: Step, key: string): Record<string, string> => ({
+  ...envFor(key),
+  ...Object.fromEntries(Object.entries(s.env ?? {}).map(([name, value]) => [name, interpolate(String(value), contextFor(key), `step "${s.name}" env.${name}`)])),
+});
 
 /**
  * These `run:` blocks are POSIX shell and the runner they execute on is
@@ -322,10 +413,88 @@ describe('deploy-docs.yml', () => {
     expect(deployDocs.jobs?.deploy?.env?.PRODUCTION_URL).toBe('${{ needs.preflight.outputs.production_url }}');
   });
 
-  describe.each(ROWS)('for the %s row', (_key, row) => {
+  it('keeps VERCEL_TOKEN the only secret in the deploy path (R2)', () => {
+    // The team and project ids are public identifiers and live in the table. Read from
+    // `secrets.VERCEL_ORG_ID` / `secrets.VERCEL_PROJECT_ID`, as this workflow did when it
+    // deployed one app, they are one owner-only value for ten projects: every app but one
+    // deploys into the wrong project, and no reviewer can see it in a diff.
+    expect(secretsIn('deploy-docs.yml'), 'deploy-docs.yml reads a secret other than VERCEL_TOKEN').toEqual(['VERCEL_TOKEN']);
+    // auto-deploy.yml only dispatches deploy-docs.yml, with the run's own token.
+    expect(secretsIn('auto-deploy.yml'), 'auto-deploy.yml reads a secret other than the run’s own GITHUB_TOKEN').toEqual(['GITHUB_TOKEN']);
+    expect(deployDocs.jobs?.deploy?.env?.VERCEL_ORG_ID).toBe('${{ needs.preflight.outputs.org_id }}');
+    expect(deployDocs.jobs?.deploy?.env?.VERCEL_PROJECT_ID).toBe('${{ needs.preflight.outputs.project_id }}');
+  });
+
+  it('heals the project before `vercel pull` reads its settings and before the build uses them (R7)', () => {
+    // `vercel pull` writes the project's settings into `.vercel/project.json` and `vercel build`
+    // obeys that file. A PATCH after the pull fixes the dashboard for the NEXT deploy and builds
+    // this one on whatever the dashboard said before — one host serving another app, once.
+    const names = (deployDocs.jobs?.deploy?.steps ?? []).map((s) => s.name ?? '');
+    const heal = names.indexOf('Self-heal Vercel project config');
+    const pull = names.indexOf('Pull Vercel environment metadata');
+    const build = names.findIndex((n) => n.startsWith('Build ('));
+    expect(heal, 'no self-heal step').toBeGreaterThanOrEqual(0);
+    expect(pull, 'no `vercel pull` step').toBeGreaterThanOrEqual(0);
+    expect(build, 'no build step').toBeGreaterThanOrEqual(0);
+    expect(heal < pull && pull < build, `the deploy job runs ${names.join(' → ')}; the self-heal PATCH must come before the pull, and the pull before the build`).toBe(true);
+  });
+
+  it.each(ROWS)('gives the %s app its own GitHub Environment, per target (R10, D-060)', (key) => {
+    // A reviewer approving a production deploy sees which site it is; one shared
+    // `docs-production` would be one approval for ten hosts, and the environment URL GitHub
+    // shows would be whichever app deployed last.
+    const environment = deployDocs.jobs?.deploy?.environment;
+    const name = typeof environment === 'string' ? environment : (environment?.name ?? '');
+    const target = "inputs.environment == 'production' && 'production' || 'preview'";
+    const resolveFor = (environmentInput: 'production' | 'preview'): string =>
+      interpolate(name, { 'inputs.app': key, [target]: environmentInput }, 'the deploy job’s environment.name');
+    expect(resolveFor('production')).toBe(`${key}-production`);
+    expect(resolveFor('preview')).toBe(`${key}-preview`);
+  });
+
+  describe.each(ROWS)('for the %s row', (key, row) => {
+  executes('reaches the deploy job from the table, through preflight, and nowhere else', () => {
+    // The chain every case below runs on (criterion 8). Preflight's resolve step reads the row
+    // with `jq`; the deploy job's `env:` reads preflight's outputs. If the host, the project or
+    // the team came from anywhere else — a constant, a secret — this row would deploy into, or
+    // be verified against, something that is not its own.
+    const env = envFor(key);
+    expect(env.PRODUCTION_URL).toBe(row.productionUrl);
+    expect(env.VERCEL_PROJECT_ID, 'the deploy job’s project id is not this row’s').toBe(row.projectId);
+    expect(env.VERCEL_ORG_ID, 'the deploy job’s team id is not the table’s one orgId (R2)').toBe(TABLE.orgId);
+    expect(env.VERCEL_TOKEN).toBe(TOKEN);
+  });
+
+  executes('writes its own row onto its own Vercel project before it pulls or builds (R7)', () => {
+    // Every project reads the one root `vercel.json`, which carries no build settings, so this
+    // PATCH is the only thing that makes this host build this app. Executed, against a stub
+    // `curl` that records what it was sent: the step's text could name every field and still
+    // send another project's id, an empty-string root the API rejects, or swallow a 4xx.
+    const env = { ...stepEnvFor(healStep, key), SHIM_CODE: '200', SHIM_RC: '0', SHIM_BODY: '{}' };
+    const r = runStep(script(healStep), env);
+    expect(r.status, r.output).toBe(0);
+    expect(r.curls, 'the self-heal step made no request, or more than one').toHaveLength(1);
+    const argv = r.curls[0]!;
+    expect(argv[argv.indexOf('-X') + 1], 'the self-heal request is not a PATCH').toBe('PATCH');
+    expect(argv, 'the PATCH does not name this row’s project under the table’s team').toContain(`https://api.vercel.com/v9/projects/${row.projectId}?teamId=${TABLE.orgId}`);
+    expect(argv).toContain(`Authorization: Bearer ${TOKEN}`);
+    const body = JSON.parse(argv[argv.indexOf('-d') + 1] ?? 'null') as Record<string, unknown>;
+    expect(body, 'the PATCH body is not this row’s build settings').toEqual({
+      // `""` is "the repo root" in the table and `null` to the API, which refuses an empty string.
+      rootDirectory: row.rootDirectory === '' ? null : row.rootDirectory,
+      buildCommand: row.buildCommand,
+      outputDirectory: row.outputDirectory,
+    });
+
+    // A refused PATCH — a revoked token, a deleted project — must stop the deploy, or the build
+    // runs on whatever settings the dashboard last had: `curl -f` exits 22 on an HTTP error.
+    const refused = runStep(script(healStep), { ...env, SHIM_CODE: '403', SHIM_RC: '22' });
+    expect(refused.status, `a refused self-heal PATCH exited ${refused.status}; the deploy must stop\n${refused.output}`).not.toBe(0);
+  });
+
   executes('passes only when the deployed URL serves the build it just made', () => {
     const body = script(verifyStep, { 'inputs.environment': 'production' });
-    const base = { ...envFor(row), DEPLOY_URL: 'https://dep.vercel.app', EXPECTED_SHA: SHA };
+    const base = { ...envFor(key), DEPLOY_URL: 'https://dep.vercel.app', EXPECTED_SHA: SHA };
 
     const served = runStep(body, { ...base, SHIM_CODE: '200', SHIM_RC: '0', SHIM_BODY: page(SHA) });
     expect(served.status, served.output).toBe(0);
@@ -355,7 +524,7 @@ describe('deploy-docs.yml', () => {
     // 000 *and* exits 6, so `$(curl … || echo 000)` used to yield the un-matchable code
     // `000000`, fall through to `*)`, and kill the run with `returned HTTP 000000`.
     const body = script(verifyStep, { 'inputs.environment': 'production' });
-    const r = runStep(body, { ...envFor(row), DEPLOY_URL: 'https://dep.vercel.app', EXPECTED_SHA: SHA, SHIM_CODE: '000', SHIM_RC: '6', SHIM_BODY: '' });
+    const r = runStep(body, { ...envFor(key), DEPLOY_URL: 'https://dep.vercel.app', EXPECTED_SHA: SHA, SHIM_CODE: '000', SHIM_RC: '6', SHIM_BODY: '' });
     expect(r.status, `an unresolvable host exited ${r.status}; the deploy succeeded and DNS is the owner's step, so this must warn\n${r.output}`).toBe(0);
     expect(r.output).toContain('::warning::');
     expect(r.output).not.toContain('000000');
@@ -365,9 +534,24 @@ describe('deploy-docs.yml', () => {
 
   executes('says so, rather than failing, when Deployment Protection hides the page', () => {
     const body = script(verifyStep, { 'inputs.environment': 'preview' });
-    const r = runStep(body, { ...envFor(row), DEPLOY_URL: 'https://dep.vercel.app', EXPECTED_SHA: SHA, SHIM_CODE: '401', SHIM_RC: '0', SHIM_BODY: '' });
+    const r = runStep(body, { ...envFor(key), DEPLOY_URL: 'https://dep.vercel.app', EXPECTED_SHA: SHA, SHIM_CODE: '401', SHIM_RC: '0', SHIM_BODY: '' });
     expect(r.status, r.output).toBe(0);
     expect(r.output).toContain('::warning::');
+  });
+
+  executes('treats a Deployment Protection redirect as protection, not as a broken deploy', () => {
+    // A protected PREVIEW does not answer 401 — it answers 302 and redirects to Vercel
+    // SSO. Measured 2026-09-09 on a real preview URL. Matching only 401|403 sent every
+    // protected preview down the `*)` branch and failed the run on a deploy that worked.
+    const body = script(verifyStep, { 'inputs.environment': 'preview' });
+    for (const code of ['302', '307']) {
+      const r = runStep(body, { ...envFor(key), DEPLOY_URL: 'https://dep.vercel.app', EXPECTED_SHA: SHA, SHIM_CODE: code, SHIM_RC: '0', SHIM_BODY: '' });
+      expect(r.status, `a ${code} from Deployment Protection exited ${r.status}; the deploy succeeded and this must warn\n${r.output}`).toBe(0);
+      expect(r.output).toContain('::warning::');
+    }
+    // The llms.txt step has the same failure mode and the same fix.
+    const llms = runStep(script(llmsStep), { ...envFor(key), DEPLOY_URL: 'https://dep.vercel.app', SHIM_CODE: '302', SHIM_RC: '0', SHIM_BODY: '' });
+    expect(llms.status, `the /llms.txt step failed on a 302 from Deployment Protection\n${llms.output}`).toBe(0);
   });
   });
 
@@ -390,21 +574,6 @@ describe('deploy-docs.yml', () => {
     expect(preview[0], `the preview deploy line does not pass --target=preview, so it deploys to PRODUCTION:\n  ${preview[0]}`).toContain('--target=preview');
     // ...and the production line must not claim to be a preview.
     expect(prod[0]).not.toContain('--target=preview');
-  });
-
-  executes('treats a Deployment Protection redirect as protection, not as a broken deploy', () => {
-    // A protected PREVIEW does not answer 401 — it answers 302 and redirects to Vercel
-    // SSO. Measured 2026-09-09 on a real preview URL. Matching only 401|403 sent every
-    // protected preview down the `*)` branch and failed the run on a deploy that worked.
-    const body = script(verifyStep, { 'inputs.environment': 'preview' });
-    for (const code of ['302', '307']) {
-      const r = runStep(body, { ...envFor(ROWS[0]![1]), DEPLOY_URL: 'https://dep.vercel.app', EXPECTED_SHA: SHA, SHIM_CODE: code, SHIM_RC: '0', SHIM_BODY: '' });
-      expect(r.status, `a ${code} from Deployment Protection exited ${r.status}; the deploy succeeded and this must warn\n${r.output}`).toBe(0);
-      expect(r.output).toContain('::warning::');
-    }
-    // The llms.txt step has the same failure mode and the same fix.
-    const llms = runStep(script(llmsStep), { ...envFor(ROWS[0]![1]), DEPLOY_URL: 'https://dep.vercel.app', SHIM_CODE: '302', SHIM_RC: '0', SHIM_BODY: '' });
-    expect(llms.status, `the /llms.txt step failed on a 302 from Deployment Protection\n${llms.output}`).toBe(0);
   });
 
   it('runs the Vercel CLI from the repo root', () => {
@@ -436,9 +605,9 @@ describe('deploy-docs.yml', () => {
     }
   });
 
-  executes.each(ROWS)('checks that /llms.txt is on the deployed build and has rows in it (%s)', (_key, row) => {
+  executes.each(ROWS)('checks that /llms.txt is on the deployed build and has rows in it (%s)', (key, row) => {
     const body = script(llmsStep);
-    const base = { ...envFor(row), DEPLOY_URL: 'https://dep.vercel.app' };
+    const base = { ...envFor(key), DEPLOY_URL: 'https://dep.vercel.app' };
 
     const ok = runStep(body, { ...base, SHIM_CODE: '200', SHIM_RC: '0', SHIM_BODY: `# ${row.package}\n\n- [Overview](${row.productionUrl}/docs)\n` });
     expect(ok.status, ok.output).toBe(0);

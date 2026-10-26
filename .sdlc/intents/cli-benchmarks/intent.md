@@ -6,13 +6,13 @@
 > the four are claims we already make in public and none of them was measured on a
 > schedule.
 
-**Status:** approved · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
 
 > **Accepted at the Design→Build gate 2026-10-25** by the coordinator under the owner's delegation
 > ([`D-20261025-cli-benchmarks-design-accepted`](../../decisions/D-20261025-cli-benchmarks-design-accepted.md)): S4 settled as the median and range of the CI series, never one run; B7 the link lock. See
 > [`spec.md` § Design gate 2026-10-25](./spec.md#design-gate-2026-10-25).
 >
-> **Built 2026-10-25 (batch 29), still `approved` until four package READMEs publish:** S4 and the
+> **Shipped 2026-10-26:** the README text is published 2026-10-26 by Version PR #1253 (bellpull 1.0.10, burgee 1.7.2, caique 1.5.1, closeout 1.1.8, flagstaff 1.7.4, linegauge 1.1.5, paratext 1.0.11, roundel 1.2.1, seniority 1.1.1, controlroom 1.0.7); each published `README.md` is byte-identical to `main`'s, and the locks below pass on it. **Built 2026-10-25 (batch 29), held until four package READMEs publish:** S4 and the
 > link half of `S9` are held on merged code. See [`spec.md` § Status 2026-10-25](./spec.md#status-2026-10-25).
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why `review` until 2026-10-25:** ~~**no bench script exists** — no `npm run bench`, no B1–B4 rows, so no published number.~~ *Stale since 2026-09-09 (#95): `benchmarks/` exists with seven axes, `npm run bench` and `bench.yml`; see § Restated 2026-10-18 for what is still open.*

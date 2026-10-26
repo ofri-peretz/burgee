@@ -294,6 +294,24 @@ nothing gates on it.
 | `controlroom/ink + react + react-reconciler` | `ink + react` | 531,706 | 673,137 | **0.790×** | 3,424,890 | 8,165,450 |
 | `controlroom` | `ink` | 40,354 | 642,330 | **0.063×** | 1,312,767 | 7,986,787 |
 
+### A complete CLI — the dependency bill
+
+What `npm install` puts on disk for a CLI that parses its arguments, colours its output, shows a
+spinner, prints a table and asks a question. Ours is the union of each package installed alone,
+offline, from its tarball ([supply chain](/docs/supply-chain)). Theirs is each incumbent's tree as
+`package-lock.json` resolves it, and each tree's size agrees with the one the upstream watch
+resolved from the registry for the same release. A package installed at two versions counts twice:
+both are on disk.
+
+Paired by job: parse arguments (`burgee` for `commander`), colour (`roundel` for `chalk`), spinner (`flagstaff` for `ora`), table (`flagstaff` for `cli-table3`), prompts (`caique` for `@inquirer/prompts`).
+
+| `npm install` | Packages installed | Beyond the ones named | Installed at two versions | From outside the family |
+| :--- | ---: | ---: | ---: | ---: |
+| `burgee` + `roundel` + `flagstaff` + `caique` | **9** | 5 | 0 | **0** |
+| `commander` + `chalk` + `ora` + `cli-table3` + `@inquirer/prompts` | **50** | 45 | 4 | — |
+
+Ours installs `bellpull`, `burgee`, `caique`, `closeout`, `flagstaff`, `linegauge`, `paratext`, `roundel`, `seniority`, every one published from this repository. Theirs installs `ansi-regex`, `chalk`, `string-width`, `strip-ansi` twice, at two versions each; the incumbents are separate projects, so the last column has no meaning for them.
+
 ## Reproduce
 
 ```bash
