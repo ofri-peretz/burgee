@@ -9,7 +9,47 @@
 
 **Status:** approved · **Opened:** 2026-09-27 · **Owner:** @ofri-peretz · **Approved:** 2026-09-27 by the owner, in session (D-158: a new package named `controlroom`, `controlroom/ink` in v1, the ceiling restated) · **Amended:** 2026-09-27 (D-168: compatibility with, and migration from, the leading competitors; `spec.md` R15–R18) · **Published:** `controlroom@1.0.3` on npm (read 2026-10-19), with the native API, `controlroom/plugin` and `controlroom/ink`. The `0.0.1` skeleton below is history
 
+> **Umbrella sweep 2026-10-26: two of nine criteria are fully held (5 and 9). Criteria 2, 6, 7 and
+> 8 are partly held, and 1, 3 and 4 are open.** The open items are the Gallery entry, the 20-run and
+> 100-run checks, the restore matrix through a real PTY, the Ink screen fixture, W3's demo
+> half, the `ci` and `accessible` runs, and one of the listed tests. See [§ Umbrella sweep 2026-10-26](#umbrella-sweep-2026-10-26).
+
 ---
+
+## Umbrella sweep 2026-10-26
+
+Read on `main` at `3d079b15` and against `controlroom@1.0.7` (`npm view controlroom version`
+reads 1.0.7, the same as the manifest). The one child that shipped is `controlroom-scroll-pane`
+(batch 4, #1156). The reference demo is `examples/dashboard` (the wizard's shape: tabs, a
+checklist with progress, a log tail, a collapsible status line).
+
+| # | criterion | held by | state |
+| :-- | :-- | :-- | :-- |
+| 1 | the reference demo reproduces the wizard's layout, appears in the Gallery in all five modes, and its `tty` transcript is byte-identical across 20 runs under `manualClock()` | the demo exists, and `examples/dashboard/dashboard.test.mjs` › "→ switches to the log tab, s collapses the status line, q quits and leaves the alternate screen". `apps/docs/content/docs/gallery.mdx` has no controlroom entry (`npm run gallery:page` does not generate one), and no test repeats the transcript 20 times | **OPEN** (Gallery, 20 runs) |
+| 2 | `pipe`, `ci` and `accessible` transcripts carry no `0x1B` and no `\r`; under `--json` stdout is empty and every stderr line is JSON naming a pane | `dashboard.test.mjs` › "prints clean lines, every step once, and exits on its own with stdin closed" (pipe) and › "--json writes parseable NDJSON to stderr, one event per pane change and one for the commit, and leaves stdout empty". `ci` and `accessible` are not run | **partly OPEN** (`ci`, `accessible`) |
+| 3 | the demo and the Ink screen fixture exit on their own in 100 of 100 runs, with stdin `/dev/null` and a pipe | the demo exits once with stdin closed (row 2). There are no 100 runs, no piped-stdin run, and no Ink screen fixture in the tree | **OPEN** |
+| 4 | the restore matrix (every exit path × cursor, raw mode, alternate screen) passes through a real PTY | `packages/closeout/src/matrix.test.ts` runs the exit paths against a recording process, not a PTY. The only real-PTY test in the repo is `packages/burgee/src/pty-signal.test.ts` (POSIX, burgee's shutdown) | **OPEN** |
+| 5 | Ink's suite vendored with a control run | `packages/compat-oracle/baseline/ink.json` 1,304 / 1,304 against ink 8.0.0, control on `/docs/compatibility`. ink 6.8.0 is graded too, as `ink-6`, not claimed | held |
+| 6 | `controlroom/ink` on the scoreboard with a control band and ratchet, conditional cases listed with reasons, and the Ink screen fixture running on it with only its import changed | the row, its control column, compat.yml's ratchet and the per-case reasons (`/docs/compatibility`, the `ink` and `ink-6` rows of the excluded-case table) are held. The screen fixture does not exist (row 3) | scoreboard held · **fixture OPEN** |
+| 7 | W1–W4 published on `/docs/benchmarks` as axis records | W1 0.79, W2 0.419 (bytes) and 0.25 (packages), W3's root half 0.063 (`controlroom` against `ink`), W4 0.416 and 0.159, all "met" on the page. W3's demo half (the dashboard against the Ink screen fixture) is not an axis record: `benchmarks/fixtures/entry-points.ts` says "The demo half waits on `examples/dashboard`", and the dashboard has landed since | W1, W2, W4 and W3 root held · **W3 demo OPEN** |
+| 8 | the listed tests | held: unit tests per module; `src/shape.test.ts`; subpath isolation (`src/weight.test.ts`, the root denied `react`, `react-reconciler` and `ink/`); `scripts/independence-install-lock.test.ts`; `scripts/tree-shake-fixture.test.ts`; `scripts/plugin-schema-lock.test.ts` (hosts derived from the tree); `scripts/layer-boundaries-lock.test.ts` at ten `LAYERS`; caique's `raw.test.ts` unchanged on `./keys`. **Not found:** flagstaff's `logTail` and `tabBar` run through `flagstaff check` in every mode | **partly OPEN** |
+| 9 | the composition band moves up: `edges` rises, `caique` and `flagstaff` leave `awaiting` | `.sdlc/bands/composition.json`: `edges` 19, `awaiting` is `["controlroom"]` only | held |
+
+**What closes it.** These are build items, and none of them needs a controlroom release unless a
+fix to `src/` falls out of it:
+
+1. a Gallery entry for the dashboard in five modes, from `gallery:page`, plus a 20-run
+   byte-identity case under `manualClock()`;
+2. `ci` and `accessible` runs in `dashboard.test.mjs`, a 100-run loop with stdin at `/dev/null`
+   and at a pipe, and an Ink screen fixture committed beside it that runs on `controlroom/ink`
+   with only its import changed;
+3. the restore matrix through a real PTY (spec R1, the `pty-signal.test.ts` route), which also
+   meets closeout R4 as written;
+4. W3's demo pair in `PAIRS` (`examples/dashboard` against the screen fixture), gated ≤ 1.0;
+5. a `flagstaff check` case over `logTail` and `tabBar` in every mode.
+
+Spec items outside the nine criteria are still open too: R16's controlroom-side contract lock
+and R22's per-boilerplate PTY job.
 
 ## What is wanted
 

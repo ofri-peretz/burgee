@@ -8,6 +8,12 @@
 
 **Status:** approved (2026-09-23, under the owner's delegation, D-129) · **Opened:** 2026-09-09 · **Owner:** @ofri-peretz · **Name published:** `seniority@0.0.1`, 2026-09-09
 
+> **Umbrella sweep 2026-10-26: criteria 1, 2, 3 and 5 held on `main` and in `seniority@1.1.1`.
+> Criterion 4 is gated on `main` but not published.** `packageLayer` is already in the
+> published tarball, so this intent no longer waits on the minor. It waits on
+> `/docs/benchmarks`, which still prints the measurement of 2026-10-19. See
+> [§ Umbrella sweep 2026-10-26](#umbrella-sweep-2026-10-26).
+
 ---
 
 ## What is wanted
@@ -110,6 +116,41 @@ seven packages; this is one, with none.*
 - Benchmark rows under `lilconfig` (0 deps, the lightest in the layer) on bytes and spawn
   delta, and the seven-package discovery-chain row published.
 - The shared truth-table vectors green in both `burgee` and `seniority` suites.
+
+## Umbrella sweep 2026-10-26
+
+Read on `main` at `3d079b15` and against the published tarball `seniority@1.1.1` (`npm view
+seniority version` reads 1.1.1, the same as the manifest). The section below, from earlier the
+same day, is kept as written. Two of its statements have moved since:
+
+- **"Stays `approved` until the seniority minor that ships `packageLayer` is on npm" is
+  superseded.** Version PR #1253 published `seniority@1.1.1` as a patch, but it was built from a
+  `main` that already carried #1264. The release window held back the minor changeset
+  (`.changeset/seniority-package-field-lines.md` is still on `main`, with its `burgee: patch` half
+  removed), and it did not hold back the code. The published `dist/config.js` exports
+  `packageLayer(path, name, manifest)` with its `linesOf` line scan, and `lineOf` reads the top
+  level only. `burgee@1.7.2`'s
+  `dist/config-layers.js` calls it. **Criterion 3 is held in published code.** The minor will
+  publish a version number and a changelog entry for an API npm already serves.
+- **Criterion 4 is held on `main` and not yet published.** The bytes row is on `/docs/benchmarks`
+  (`seniority/lilconfig` 0.615). The spawn row (`seniority/lilconfig − lilconfig`) and the
+  discovery-chain row (`seniority/cosmiconfig + seniority/find-up` against `cosmiconfig +
+  find-up`) are gated on every PR (`bench.yml`). They are not on the page, because the page is
+  generated from the newest *published* measurement (`benchmarks/published.ts`), which is
+  2026-10-19 at `66e4611`, before both rows existed.
+
+| # | criterion | state |
+| :-- | :-- | :-- |
+| 1 | four suites graded, `--control` first, ratcheting | held (unchanged below) |
+| 2 | the truth table as a generated page | held, `seniority@1.1.0` and later |
+| 3 | `explain(key)` names the file and line, all four sources set | held, and published in `seniority@1.1.1` (read from the tarball) |
+| 4 | rows under `lilconfig` on bytes and spawn delta, and the discovery-chain row, published | gated on `main`; the spawn and chain rows are **not on `/docs/benchmarks`** · **OPEN** |
+| 5 | shared truth-table vectors green in both suites | held |
+
+**What closes it.** A new published measurement (`benchmarks/results/cli-benchmarks/<date>.json`,
+chosen by a person per `benchmarks/published.ts`) taken after #1264, then `npm run bench:page`,
+so `/docs/benchmarks` carries the spawn and discovery-chain rows. No release is needed. seniority
+is stamped `shipped` in that PR.
 
 ## Status (2026-10-26)
 

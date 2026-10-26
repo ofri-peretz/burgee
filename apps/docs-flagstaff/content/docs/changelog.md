@@ -3,6 +3,12 @@ title: Changelog
 description: "Every release of flagstaff, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.7.5
+
+### Patch Changes
+
+- [#1274](https://github.com/ofri-peretz/burgee/pull/1274) [`8c9c088`](https://github.com/ofri-peretz/burgee/commit/8c9c0884bb2abd87dd8781d5483db915d35a7d9c) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The README's first paragraph no longer names burgee: flagstaff leads with its own problem and its own incumbents, as every layer does (`cli-output-stack` R12). The dependency statement stays in the third paragraph and the badge — four dependencies, all from this repository, none outside it.
+
 ## 1.7.4
 
 ### Patch Changes

@@ -7,7 +7,37 @@
 
 **Status:** approved (2026-09-23, under the owner's delegation, D-129) · **Opened:** 2026-09-09 · **Owner:** @ofri-peretz · **Name published:** `linegauge@0.0.1`, 2026-09-09
 
+> **Umbrella sweep 2026-10-26: four of five criteria held on `main` and in `linegauge@1.1.5`;
+> one half is open.** Criterion 2's spawn-delta half has no benchmark row
+> ([D-20261026-library-spawn-delta-rows](../../decisions/D-20261026-library-spawn-delta-rows.md)).
+> See [§ Umbrella sweep 2026-10-26](#umbrella-sweep-2026-10-26).
+
 ---
+
+## Umbrella sweep 2026-10-26
+
+Read on `main` at `3d079b15` and against the published tarball `linegauge@1.1.5` (`npm view
+linegauge version` reads 1.1.5, the same as the manifest). linegauge is one of
+`cli-foundation-stack`'s four packages, and its own criteria are held by its own requirements.
+It has no child intents.
+
+| # | criterion | held by | state |
+| :-- | :-- | :-- | :-- |
+| 1 | four vendored suites graded, `--control` first, four pass rates published and ratcheting | `packages/compat-oracle/baseline/{string-width,wrap-ansi,strip-ansi,slice-ansi}.json`: 233 / 233, 85 / 85, 8 / 8, 104 / 104. `.github/workflows/compat.yml` steps "Grade burgee (fails below baseline)", "Grade the real packages, so the page has its control column" and "The published page is the one these results generate". The rows are on `/docs/compatibility` | held |
+| 2 | benchmark rows under `get-east-asian-width` on bytes and spawn delta | **bytes:** the bar was restated by PLAN D1 to the incumbents' tree-inclusive install, `.sdlc/bands/foundation-ceilings.json` (`ours` 107,198 against 194,329, ratio 0.5516), held by `scripts/foundation-ceilings-lock.test.ts`. Also four B4 rows ≤ 1 on `/docs/benchmarks` (`linegauge` 0.939, `/wrap` 0.795, `/slice` 0.78, `/strip` 0.595). **Spawn delta:** no row. `spec.md` § R9's "does not apply" is overruled by D-20261026-library-spawn-delta-rows: roundel R8 and seniority R9 measure a library's start cost, so linegauge's is measurable | bytes held · **spawn delta OPEN** |
+| 3 | the grapheme table as a passing test file | `packages/linegauge/src/differential.test.ts` › "the six-row grapheme table (intent.md), as a passing test rather than a document" | held |
+| 4 | `flagstaff`'s `src/width.ts` deleted, its suite unchanged | `packages/flagstaff/src/width.ts` does not exist. `packages/flagstaff/src/plugin.test.ts` › "no module here declares a width or measure pass of its own — every one comes from linegauge" | held |
+| 5 | the override recipe published with its pass rate beside it, CI refusing the page if the rate drops | `packages/linegauge/README.md` § *Migrating* prints `{ "overrides": { "string-width": "npm:linegauge@^1" } }`, and the same README carries the 233 / 233 badge and the § *Benchmarks* row `string-width` 233 / 233. `scripts/override-recipe-lock.test.ts` › "an overrides recipe resolves against our root" holds that the recipe links. compat.yml's ratchet and page check (row 1) refuse a drop | held |
+
+**Requirement text restated.** R4 (slices round inward, as slice-ansi 9 grades) and R13 (linegauge
+hosts `widths`) say the opposite of what shipped. Both were restated to the package in
+[D-20261026-linegauge-r4-r13-restated](../../decisions/D-20261026-linegauge-r4-r13-restated.md),
+and the old text is struck in `spec.md`.
+
+**What closes it.** One `perf`-axis variant pair, `linegauge` against `string-width` 8.3.0, gated
+as a paired start-up difference the way seniority R9's is (D-20261026-library-spawn-delta-rows).
+It is a benchmark change, and no package code changes, so nothing has to publish. linegauge is
+stamped `shipped` in the PR that lands that row green.
 
 ## What is wanted
 

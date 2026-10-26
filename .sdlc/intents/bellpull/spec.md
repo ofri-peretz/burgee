@@ -14,7 +14,10 @@ downloads, its last publish date and a reading of its current API, re-measured b
 opens; `tinyexec` is not installed in this workspace and no measurement of it exists here.
 *(2026-09-27, D-160: `tinyexec` 1.3.1 is now a pinned `benchmarks/` devDependency and B4 weighs
 it — `run` bundles to 5,901 B against `x`'s 5,969, 0.989. The downloads-and-API half of the
-gate is still not recorded.)*
+gate is still not recorded.)* *(2026-10-26: recorded, in
+[D-20261026-bellpull-kill-gate-reading](../../decisions/D-20261026-bellpull-kill-gate-reading.md).
+tinyexec 1.3.1 had 106.9 M downloads a week and exports no resolver and no outcome. The verdict
+is build.)*
 So the condition this design set for itself is outstanding, and it is not a thing a lane can
 close by reasoning: it needs a number taken on the day it is taken. Recorded here rather
 than left for a reader to notice, because accepting a conditional design whose condition was

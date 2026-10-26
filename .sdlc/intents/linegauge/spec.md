@@ -43,7 +43,11 @@ what R9 is red about.
   is not — measured, and the divergence recorded rather than assumed.
 - **R4** `slice(s, start, end)` cuts in **display columns**, never in code units: never
   splits a grapheme cluster, closes every style open at the cut, and reopens it at the start
-  of the next slice. A slice that lands mid-cluster rounds outward, never inward.
+  of the next slice. ~~A slice that lands mid-cluster rounds outward, never inward.~~
+  *Restated 2026-10-26 ([D-20261026-linegauge-r4-r13-restated](../../decisions/D-20261026-linegauge-r4-r13-restated.md)):*
+  a slice that lands inside a wide cluster **rounds inward**, leaving the cluster out, as
+  slice-ansi 9's suite grades (104 / 104, #655). Rounding outward made `truncate` overflow its
+  budget by a column.
 - **R5** `wrap(s, cols, opts)` hard-wraps at `cols` display columns, breaking on word
   boundaries when one exists inside the measure and mid-cluster never. Styles reopen per
   line (R4's machinery). `opts.hard` and `opts.trim` match `wrap-ansi`'s semantics, because
@@ -64,7 +68,12 @@ what R9 is red about.
 - **R11 (Y9)** Nothing reads `process.*`. `stdout.columns` is the caller's to pass.
 - **R12** ESM with a `default` condition per entry, no top-level await, so
   `require('linegauge')` works via `require(esm)` (K2).
-- **R13** **No plugin key, by design** (`plugin-contract` R5a; PRINCIPLES rule 14). Every
+- **R13** *Restated 2026-10-26 ([D-20261026-linegauge-r4-r13-restated](../../decisions/D-20261026-linegauge-r4-r13-restated.md)):*
+  linegauge hosts **one** key, `widths` — `{ ranges, columns, why }`, plain data, `why`
+  required — for a terminal or font that draws a code point at a width the table does not
+  (`src/plugin.ts`, `plugin.test.ts` › "a plugin contributes width overrides"). With nothing
+  registered, every graded function answers as before. The text below is the 2026-09-09
+  wording, kept as written: ~~**No plugin key, by design** (`plugin-contract` R5a; PRINCIPLES rule 14).~~ Every
   other layer hosts one because it answers a question with more than one right answer —
   which colour, which glyph, which terminal, where configuration lives, how an executable is
   found. These six functions answer questions with one right answer: `width('古代')` is 4
@@ -211,7 +220,8 @@ measurement and not a redefinition:
   asserts it is still there. A bar that is restated and then vanishes is indistinguishable
   from one that was quietly met.
 
-**The spawn-delta clause of R9 does not apply and is not pending.** This package publishes no
+*2026-10-26: the next paragraph is overruled by [D-20261026-library-spawn-delta-rows](../../decisions/D-20261026-library-spawn-delta-rows.md). A library's spawn delta is its import cost in a fresh `node`, which roundel R8 and seniority R9 gate, so this clause is open, not inapplicable.*
+~~**The spawn-delta clause of R9 does not apply and is not pending.**~~ This package publishes no
 binary, so there is no spawn to measure; its analogue for a library is what a caller's bundle
 grows by, which is the per-entry ratchet above.
 
@@ -364,7 +374,7 @@ check is a claim, so every row names one.
 | R6 | **Built** | `src/truncate.ts` over `slice`, ellipsis measured with R1 and counted *inside* `cols` | `truncate.test.ts` — the ellipsis-fits arithmetic, all three positions |
 | R7 | **Built** | `src/widest.ts` — one pass, nothing allocated per line | `truncate.test.ts`'s 200 000-line case, which is where `Math.max(...lines)` throws and `widest` does not |
 | R8 | **Built** | `package.json` `exports`; `index.js` default is `width`; five subpaths carry the rest | `facade-defaults.test.ts` (each graded subpath publishes the default its suite links against) + `subpath-isolation.test.ts`, which reads `dist/` so it measures what is published |
-| R9 | **Built** | the bar is restated as D1's, in the integrator lane on 2026-09-16, on the reasoning [§ R9](#r9--the-bar-is-restated-as-d1s) already set out. **83,538 against a ceiling of 170,342, ratio 0.4904**; the bundled half is ratcheted per entry in `RATIO_CEILING` now that `entry-points.ts` has the four pairs | `weight.test.ts` pins `y8.holds` to the arithmetic `ours <= ceiling` rather than to a flag, checks this file against `.sdlc/bands/foundation-ceilings.json`, and asserts the superseded `get-east-asian-width` bar is still recorded with its one-of-six count |
+| R9 | **Not built** | *2026-10-26: the bytes half is built, and the spawn half is reopened by [D-20261026-library-spawn-delta-rows](../../decisions/D-20261026-library-spawn-delta-rows.md). It closes with a `perf` row, `linegauge` against `string-width`.* The bar is restated as D1's, in the integrator lane on 2026-09-16, on the reasoning [§ R9](#r9--the-bar-is-restated-as-d1s) already set out. **83,538 against a ceiling of 170,342, ratio 0.4904**; the bundled half is ratcheted per entry in `RATIO_CEILING` now that `entry-points.ts` has the four pairs | `weight.test.ts` pins `y8.holds` to the arithmetic `ours <= ceiling` rather than to a flag, checks this file against `.sdlc/bands/foundation-ceilings.json`, and asserts the superseded `get-east-asian-width` bar is still recorded with its one-of-six count |
 | R10 | **Built** | four suites vendored under `packages/compat-oracle/vendor/`, graded through generated shims | `node packages/compat-oracle/dist/bin.js string-width wrap-ansi strip-ansi slice-ansi` — 233/233, 85/85, 8/8, 104/104, `--control` first |
 | R11 | **Built** | no file in `src/` names `process` | `packages/burgee/src/process-reference-lock.test.ts` repo-wide — linegauge has **no allow-list entry at all**, which is the claim |
 | R12 | **Built** | ESM with a `default` condition per entry, no top-level await | `shape.test.ts`: every published entry is `require()`d from CommonJS. Node refuses a graph with a top-level `await` (`ERR_REQUIRE_ASYNC_MODULE`), so one check proves both clauses |
