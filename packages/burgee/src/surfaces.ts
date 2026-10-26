@@ -33,6 +33,8 @@ export interface SurfaceIo {
   /** `isTTY` decides whether help is coloured (O2): the output side, never whether to ask (N12). */
   out: { write: (s: string) => unknown; isTTY?: boolean };
   env: Record<string, string | undefined>;
+  /** The working directory the run resolves config from — what `config explain` lists discovery against (K3). */
+  cwd: string;
   width: number;
   stdin: NodeJS.ReadableStream;
   /** The package.json owning the entry file, read once (V4). */
@@ -483,7 +485,7 @@ export async function serve(manifest: Manifest, argv: string[], io: SurfaceIo, e
   const root = manifest.rootPath;
   if (head[0] === 'config' && head[1] === 'explain' && manifest.config !== undefined && manifest.find([...root, 'config', 'explain']) === undefined) {
     const { explainConfig } = await import('./config-explain.js');
-    io.out.write(await explainConfig(manifest, head.slice(2), engine.resolution));
+    io.out.write(await explainConfig(manifest, head.slice(2), engine.resolution, io));
     return true;
   }
   if (await completion(manifest, argv, io)) return true;

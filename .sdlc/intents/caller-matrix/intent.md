@@ -11,6 +11,10 @@
 > **Accepted at the Design→Build gate 2026-10-25** by the coordinator under the owner's delegation
 > ([`D-20261025-caller-matrix-design-accepted`](../../decisions/D-20261025-caller-matrix-design-accepted.md)): the first design, a declared features × callers registry over tests that exist. See
 > [`spec.md` § Design gate 2026-10-25](./spec.md#design-gate-2026-10-25).
+>
+> **Built 2026-10-25 (batch 29), still `approved`:** the registry, its lock and `/docs/callers` are
+> on `main`. 43 cells are held, 7 n/a and 5 missing, so the first criterion is open. See
+> [`spec.md` § Status 2026-10-25](./spec.md#status-2026-10-25).
 
 ---
 
@@ -64,10 +68,21 @@ conformance case per caller, and a cell that is "n/a" says why. Today's conforma
 ## Success criteria
 
 - The matrix page exists, generated, with every cell green or n/a-with-reason.
-- The non-TTY task in the benchmark never times out for any package.
+  **2026-10-25: half.** The page is generated (`npm run callers:page`, drift-checked in
+  `quality.yml`) and locked (`scripts/callers-lock.test.ts`). 5 of 55 cells are `missing`, under a
+  ceiling of 5 that may only fall.
+- The non-TTY task in the benchmark never times out for any package. **Restated 2026-10-25**
+  ([D-20261025-caller-matrix-design-accepted](../../decisions/D-20261025-caller-matrix-design-accepted.md)):
+  the `agent` and `ci` cells of `prompts`, held by `scripts/prompt-exit-codes.test.ts`, with B1's
+  `non-tty-required` task. **Held.**
 - An accessible-mode transcript of the demo contains zero cursor escapes and at most one
-  line per state change, asserted in CI.
+  line per state change, asserted in CI. **Restated 2026-10-25:** held per package, as the
+  `accessible` cells of `spinner` and `prompts`: `packages/flagstaff/src/loop.test.ts` ›
+  "%s: the static projection once per state change, no repaint" and
+  `packages/caique/src/ask.test.ts` › "writes no escape sequence and no carriage return — it is
+  the accessible mode". **Held.**
 - A first adopter's CLI passes the matrix without changes beyond the one-import migration.
+  **Moved 2026-10-25** to `first-adopter`, which owns adoption.
 
 ## Verified against `main` — 2026-09-09
 

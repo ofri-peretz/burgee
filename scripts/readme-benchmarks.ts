@@ -133,7 +133,9 @@ export function section(pkg: string): string {
   if (weight !== undefined) {
     const caveat = (weight.unmeasured?.length ?? 0) > 0 ? ` (${weight.unmeasured?.join(', ') ?? ''} measured but left out of the ceiling, so it is understated)` : '';
     lines.push(
-      `Weight, installed and tree-inclusive: **${weight.ours.toLocaleString('en-US')} bytes** against **${weight.ceiling.toLocaleString('en-US')}** for the incumbents it replaces — a ratio of **${weight.ratio.toFixed(RATIO_DIGITS)}**${caveat}.`,
+      // The link is in the sentence and not only in the section's first line: every benchmark
+      // figure sits in a paragraph that links to where it is measured (cli-benchmarks B7).
+      `Weight, installed and tree-inclusive: **${weight.ours.toLocaleString('en-US')} bytes** against **${weight.ceiling.toLocaleString('en-US')}** for the incumbents it replaces — a ratio of **${weight.ratio.toFixed(RATIO_DIGITS)}**${caveat} ([measured](${PAGE})).`,
       '',
     );
     // A weight ratio is only a claim once the package does the incumbent's job. `bellpull`

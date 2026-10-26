@@ -154,7 +154,7 @@ that relied on it.
 
 The CSI half is also published on its own, as `paratext/csi` — 2,700 bytes, and it
 registers none of the built-ins the root does. It is where `flagstaff` and `caique` take their
-cursor moves from:
+cursor moves from ([measured](https://burgee.interlace.tools/docs/benchmarks)):
 
 ```js
 import { cursorUp, eraseLines, synchronizedOutput } from 'paratext/csi';
@@ -198,7 +198,7 @@ Graded by the incumbent's own test suite:
 | `term-img` | 18 / 18 |
 | `terminal-link` | 8 / 8 |
 
-Weight, installed and tree-inclusive: **102,893 bytes** against **2,235,987** for the incumbents it replaces — a ratio of **0.0460**.
+Weight, installed and tree-inclusive: **103,015 bytes** against **2,235,987** for the incumbents it replaces — a ratio of **0.0461** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 

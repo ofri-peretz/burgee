@@ -442,13 +442,48 @@ function today(): string {
   return new Date().toISOString().slice(0, 'YYYY-MM-DD'.length);
 }
 
-/** Wall-clock of one command, in ms. One observation per day. */
-function collectCommandDuration(cfg: BandConfig): Observation[] {
+/** Why a finished command yields no duration, or undefined when it yields one. */
+function whyNoDuration(r: ReturnType<typeof spawnSync>, timeoutMs: number): string | undefined {
+  const code = (r.error as NodeJS.ErrnoException | undefined)?.code;
+  if (code === 'ETIMEDOUT') return `ran past its ${timeoutMs} ms timeout`;
+  if (r.error) return `could not start: ${r.error.message}`;
+  if (r.status !== 0) return r.status === null ? `was killed by ${String(r.signal)}` : `exited ${r.status}`;
+  return undefined;
+}
+
+/** How many of a failed run's last output lines the reason carries: enough to name the failing test. */
+const TAIL_LINES = 15;
+/** 64 MiB — the whole of `npm test`'s output, so its last lines are there to quote. */
+const OUTPUT_BUFFER = 67108864;
+
+/** The last lines a run printed, stderr after stdout, each marked as quoted output. */
+function tailOf(r: ReturnType<typeof spawnSync>): string {
+  const text = `${String(r.stdout ?? '')}\n${String(r.stderr ?? '')}`;
+  const lines = text.split('\n').filter((l) => l.trim() !== '');
+  return lines
+    .slice(-TAIL_LINES)
+    .map((l) => `\n    | ${l}`)
+    .join('');
+}
+
+/**
+ * Wall-clock of one command, in ms. One observation per day.
+ *
+ * A run that fails or times out records nothing, and says why on stderr, with the last lines
+ * the command printed — which `control-bands.yml` tees into the run summary. `test-duration-ms` once sat four weeks under
+ * `minPoints` with no line anywhere saying whether the suite was red or past the ceiling.
+ */
+export function collectCommandDuration(cfg: BandConfig, timeoutMs = COMMAND_TIMEOUT_MS): Observation[] {
   if (!cfg.command || cfg.command.length === 0) return [];
   const [bin, ...args] = cfg.command;
   const t0 = performance.now();
-  const r = spawnSync(bin!, args, { cwd: REPO_ROOT, stdio: 'ignore', timeout: COMMAND_TIMEOUT_MS });
-  if (r.status !== 0) return [];
+  // Piped, not ignored: a run that fails says which test, and that is the line a reader needs.
+  const r = spawnSync(bin!, args, { cwd: REPO_ROOT, stdio: ['ignore', 'pipe', 'pipe'], timeout: timeoutMs, maxBuffer: OUTPUT_BUFFER, encoding: 'utf8' });
+  const why = whyNoDuration(r, timeoutMs);
+  if (why !== undefined) {
+    console.warn(`  ⚠️ ${cfg.id}: no observation — \`${cfg.command.join(' ')}\` ${why}${tailOf(r)}`);
+    return [];
+  }
   return [{ date: today(), value: Math.round(performance.now() - t0) }];
 }
 

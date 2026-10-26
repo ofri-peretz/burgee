@@ -362,14 +362,14 @@ restore-cursor, onetime, mimic-function, signal-exit, is-interactive, is-unicode
 stdin-discarder, yoctocolors, strip-ansi, ansi-regex, get-east-asian-width. `flagstaff/ora`
 is 55,641 B across **two** — itself and roundel — **49% of ora's**, and 20,250 B of that is
 the spinner corpus ora's API re-exports. Nothing in it reaches the frame loop, so a program
-that migrates its spinner today can adopt `hoist()` a file at a time, or never.
+that migrates its spinner today can adopt `hoist()` a file at a time, or never ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 Both sides are counted the same way, so the number reproduces: shipped code and data —
 `.js`/`.mjs`/`.cjs` plus the `.json` a module imports, `package.json` never counted. Ours is
 the import graph walked from `dist/` by `weight.test.ts`; ora's is every package that graph
 touches in ora's own resolved tree, counted whole. Counting ora the stricter way — only the
 27 files its graph actually reaches — gives 101,809 B, and `flagstaff/ora` is still 55% of
-that.
+that ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 The cursor comes back the way ora's does. A spinner that hid the cursor restores it on a
 clean exit **and** on `SIGINT`, `SIGTERM` and `SIGHUP` — node does not run `'exit'`
@@ -412,7 +412,7 @@ so clipping a frame to the terminal's height is an array slice. `signal-exit`, 2
 those sixteen, is `closeout`'s to own, shared with the ora façade because both
 incumbents port the same `cli-cursor` → `restore-cursor` → `signal-exit` chain. Ctrl+C
 mid-frame puts your cursor back, and still terminates — unless your program installed its
-own `SIGINT` handler, in which case it is delivered once, to you, and this stays out of it.
+own `SIGINT` handler, in which case it is delivered once, to you, and this stays out of it ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 **This is the one façade that lowers a layer guarantee, and it says so.** R5 — no cursor
 escape off a terminal — cannot survive here: log-update's own suite asserts erase sequences
@@ -495,7 +495,7 @@ roundel counted, against boxen 9's own 114.9 KB across fourteen; `flagstaff/cli-
 `width.js`, and the first two share `closeout`; none reaches another's port, and none
 reaches the core. `sideEffects: false` lets a
 bundler drop what a program does not use. ESM with a `default` condition, so
-`require('flagstaff/spinner')` works from CommonJS on Node 20.19+ and 22.13+.
+`require('flagstaff/spinner')` works from CommonJS on Node 20.19+ and 22.13+ ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## Benchmarks
 

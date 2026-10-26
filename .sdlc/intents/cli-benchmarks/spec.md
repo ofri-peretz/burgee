@@ -34,6 +34,33 @@ generator. The design gate's reading (50 readings, 2026-10-10 to 2026-10-18: tok
 range 0.434–0.627; turns median 0.524, range 0.446–0.634) is the expected order of magnitude,
 not a number to type in.
 
+## Status 2026-10-25
+
+Built in batch 29 under
+[D-20261025-batch29-locks-tests-rulings](../../decisions/D-20261025-batch29-locks-tests-rulings.md).
+Both items this gate kept are held on merged code, and every other criterion was already held.
+The intent stays `approved` only because B7 changed READMEs that npm shows from the published
+tarball. The patch changesets `foundation-readmes-builtins.md` and
+`package-readmes-benchmark-links.md` release them, and once that Version PR publishes nothing is
+left.
+
+| item | state | check | proven red by |
+| :-- | :-- | :-- | :-- |
+| S4 — the agent rows as a series | built | `scripts/agent-cost-row.ts` (`npm run agent-cost:row`) writes the README and `comparison.mdx` rows; `scripts/claim-table-lock.test.ts` › "%s · %s" recomputes each from the window it names | the restated lock, run against `main`'s README: "agent-tokens-40pct names no window of CI readings — it quotes one run (0.699× on the newest CI run …)" |
+| S4 — `claim-table-lock` restated | built | a series claim is skipped by the single-run check and settled by its window | › "fails a row that quotes one run, a typed figure, and a verdict its window does not support" |
+| B7 — every public number links to `/docs/benchmarks` | built | `scripts/benchmark-links-lock.test.ts` › "%s", one case per file | the lock, run before the links were added: 10 of its 13 files failed. And › "fails the README once one link is removed" |
+
+**The window's reading**, written into the rows by the generator: 52 CI readings dated
+2026-10-10 to 2026-10-18. Tokens: median 0.502, range 0.434–0.627, at or under 0.6 in 51 of 52.
+Turns: median 0.522, range 0.446–0.634, at or under 0.7 in 52 of 52. Both claims are met on
+their median. The gate read 50 readings and a median of 0.504 by a selection it did not record.
+The generator's count is the one a lock can recompute. `2026-10-09.json` stays as a dated record.
+
+**How B7 reads a table.** A table row counts as linked when it links, or when the paragraph
+directly above the table links. A ten-row claim table therefore carries its link once. The
+generated weight sentence in every package README now carries its own link
+(`scripts/readme-benchmarks.ts`).
+
 ## Restated 2026-10-18
 
 **B1–B7 and R1–R8 checked against FETCH_HEAD: twelve held or restated, three open — REMAINING: B7 public-number link lock, R6 ≥30-spawn floor untested, B1 N≥5 runs untested.** *2026-10-19: both floors locked by `benchmarks/sample-floor.test.ts` (red with `ROUNDS = 20` and `RUNS_PER_TASK = 3`); B7 remains.*

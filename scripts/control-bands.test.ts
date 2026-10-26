@@ -14,9 +14,9 @@
  * ordinary variation gets muted, and a muted watcher is the thing this replaces.
  */
 
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 
-import { mean, stdev, detect, evaluate, rebased, renderIntent, type BandConfig, type Observation } from './control-bands';
+import { collectCommandDuration, mean, stdev, detect, evaluate, rebased, renderIntent, type BandConfig, type Observation } from './control-bands';
 
 
 /** n points at `base`, so σ is well defined and the mean sits where we expect. */
@@ -240,5 +240,56 @@ describe('a decided step re-bases the band', () => {
     expect(body).not.toContain('| 2026-10-17-ci | 55346 |');
     expect(body).toContain('| 2026-10-18-ci | 55351 |');
     expect(body).toContain('re-based at `2026-10-18-ci` by D-20261019-front-end-byte-steps-rebase-bands');
+  });
+});
+
+/**
+ * `test-duration-ms` sat at 7 points for four weeks because the collector returned nothing
+ * whenever `npm test` failed or ran long, and said nothing about which. A dropped point now
+ * names its cause on stderr, which the workflow tees into the run summary.
+ */
+const band = (command: string[]): BandConfig => ({ id: 'test-duration-ms', description: '', collector: 'command-duration', command, window: 20, minPoints: 8, worse: 'higher' });
+const node = (code: string): string[] => [process.execPath, '-e', code];
+
+describe('a duration that is not recorded says why', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('names the exit code of a command that failed, and quotes the last lines it printed', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const printsThenFails = "for (let i = 1; i <= 20; i++) console.log('line ' + i); console.error('FAIL scripts/x.test.ts'); process.exit(3)";
+    expect(collectCommandDuration(band(node(printsThenFails)))).toEqual([]);
+    expect(warn).toHaveBeenCalledOnce();
+    const [reason, ...quoted] = String(warn.mock.calls[0]?.[0]).split('\n');
+    expect(reason).toMatch(/test-duration-ms: no observation — .* exited 3$/);
+    // The last fifteen non-blank lines, stderr after stdout: lines 7–20, then the failure.
+    expect(quoted).toEqual([...Array.from({ length: 14 }, (_, i) => `    | line ${i + 7}`), '    | FAIL scripts/x.test.ts']);
+  });
+
+  it('names the timeout, and its value, for a command that ran past it', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    expect(collectCommandDuration(band(node('setTimeout(() => {}, 20000)')), 300)).toEqual([]);
+    expect(warn).toHaveBeenCalledOnce();
+    expect(String(warn.mock.calls[0]?.[0])).toMatch(/test-duration-ms: no observation — .* ran past its 300 ms timeout$/);
+  });
+
+  it.skipIf(process.platform === 'win32')('names the signal that killed a command', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    expect(collectCommandDuration(band(node("process.kill(process.pid, 'SIGKILL')")))).toEqual([]);
+    expect(String(warn.mock.calls[0]?.[0])).toMatch(/test-duration-ms: no observation — .* was killed by SIGKILL$/);
+  });
+
+  it('names a command that could not start', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    expect(collectCommandDuration(band(['./no-such-binary-anywhere']))).toEqual([]);
+    expect(String(warn.mock.calls[0]?.[0])).toMatch(/test-duration-ms: no observation — .* could not start: .*ENOENT/);
+  });
+
+  it('records a passing command and logs nothing', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const [obs, ...rest] = collectCommandDuration(band(node('')));
+    expect(rest).toEqual([]);
+    expect(obs?.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(obs?.value).toBeGreaterThanOrEqual(0);
+    expect(warn).not.toHaveBeenCalled();
   });
 });

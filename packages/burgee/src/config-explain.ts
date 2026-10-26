@@ -19,6 +19,7 @@
 import { widest, width } from 'linegauge';
 import { ORDER, type Provenance, type Resolution } from 'seniority/precedence';
 
+import { type Discovery, discoveryOf } from './config-layers.js';
 import { type Manifest, type OptionSpec } from './manifest.js';
 import { kebab } from './names.js';
 
@@ -45,7 +46,19 @@ interface Row {
   location?: string;
 }
 
-export async function explainConfig(manifest: Manifest, argv: readonly string[], resolve: Resolve): Promise<string> {
+/** The discovery section, under the option rows (K3). */
+function discoveryLines(d: Discovery): string {
+  if (d.off === true) return 'discovery: off (--no-config)';
+  const steps = d.order.map((s, i) => `  ${String(i + 1)}. ${s.path}  (${s.reason})${s.path === d.read ? ' — read' : ''}`);
+  return ['discovery: the first file that exists is read', ...steps].join('\n');
+}
+
+/**
+ * With `io` — where the run is, which is what the engine hands it — the discovery order is listed
+ * too (K3). Without it, only the precedence and the rows: what a caller holding a resolver alone
+ * can know.
+ */
+export async function explainConfig(manifest: Manifest, argv: readonly string[], resolve: Resolve, io?: { cwd: string; env: Record<string, string | undefined> }): Promise<string> {
   const json = argv.includes('--json');
   const at = argv.indexOf('--config');
   const flags: Record<string, unknown> = { ...(at === -1 ? {} : { config: argv[at + 1] }), ...(argv.includes('--no-config') ? { noConfig: true } : {}) };
@@ -60,10 +73,13 @@ export async function explainConfig(manifest: Manifest, argv: readonly string[],
     return { option: `--${kebab(name)}`, value: resolved.values[name], source: p === undefined ? 'unset' : label(p.source), ...(location === '' ? {} : { location }) };
   });
   const precedence = ORDER.map(label);
-  if (json) return `${JSON.stringify({ ok: true, data: { precedence, options: rows }, meta: {} })}\n`;
+  // `config explain` is synthesised only for a program that declares `config` (surfaces.ts).
+  const discovery = io === undefined ? undefined : await discoveryOf(manifest.config!.name, flags, io);
+  // An undefined `discovery` is left out by `JSON.stringify`, so without `io` the shape is as it was.
+  if (json) return `${JSON.stringify({ ok: true, data: { precedence, options: rows, discovery }, meta: {} })}\n`;
   // Terminal columns, not code units: an option named in CJK is two code units a character
   // and four columns, and `.padEnd` lined its value up two columns right of everyone else's.
   const column = widest(rows.map((r) => r.option));
   const lines = rows.map((r) => `  ${r.option}${' '.repeat(column - width(r.option))}  ${shown(r.value)}  (${r.source}${r.location === undefined ? '' : ` ${r.location}`})`);
-  return `precedence: ${precedence.join(' > ')} — the first that sets a value wins\n${lines.length === 0 ? '  (this command takes no options)' : lines.join('\n')}\n`;
+  return `precedence: ${precedence.join(' > ')} — the first that sets a value wins\n${lines.length === 0 ? '  (this command takes no options)' : lines.join('\n')}\n${discovery === undefined ? '' : `${discoveryLines(discovery)}\n`}`;
 }

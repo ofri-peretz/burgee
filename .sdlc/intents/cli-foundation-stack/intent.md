@@ -13,6 +13,11 @@
 > **Accepted at the Design→Build gate 2026-10-25** by the coordinator under the owner's delegation
 > ([`D-20261025-cli-foundation-stack-design-accepted`](../../decisions/D-20261025-cli-foundation-stack-design-accepted.md)): the umbrella over four shipped children; Y4 and Y12 to build, Y2's downloads half and S3 dropped. See
 > [`spec.md` § Design gate 2026-10-25](./spec.md#design-gate-2026-10-25).
+>
+> **Built 2026-10-25 (batch 29), still `approved` until the four packages publish:** the Y4 lock,
+> the absorption probe and the Y12 lock are on `main`. The README text they hold reaches npm with
+> the next Version PR, through the patch changesets this batch adds. See
+> [`spec.md` § Status 2026-10-25](./spec.md#status-2026-10-25).
 
 **Restated:** 2026-10-18 — see § Restated 2026-10-18
 
@@ -174,12 +179,14 @@ on their own `node_modules` with one command.
   a reader on their own project, and refused by CI until the pass rate justifying it is
   green.
   **S3, 2026-10-18:** remaining; the multi-incumbent recipe was withdrawn by D-133. Needs a new intent.
+  **Dropped 2026-10-25** at the design gate: after D-133 a collapse would measure one package.
 - `flagstaff` deletes `src/width.ts` and `caique` deletes its signal handling, both with
   their suites unchanged — the internal proof that the consolidation is real.
   **S4, 2026-10-18:** held.
 - One external adopter using a foundation package with no other burgee package installed.
   This is the test that these are products rather than internals with a README.
   **S5, 2026-10-18:** remaining; tracked as `.sdlc/gaps/C3.md` (D-20261009-burgee-u12-1-0). Needs a new intent.
+  **Moved 2026-10-19** to `first-adopter` A6.
 
 ## Open questions
 
