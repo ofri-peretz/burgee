@@ -462,3 +462,30 @@ describe('the vendored manifest pins what hosts.ts declares', () => {
     expect(drift).toEqual([]);
   });
 });
+
+/**
+ * An exact exclusion written as `file > describe > title` names a case the vendored suite
+ * registers. The flat TAP is the only other place the title is checked, and only on a run that
+ * passes `requireMatch`; a title that drifted from upstream, or a blank one, would otherwise
+ * leave the case counted and the declaration claiming it was not. Hosts that exclude by a bare
+ * title or an ava `›` path are not read here.
+ */
+describe('an exact exclusion names a case its vendored suite registers', () => {
+  const declared = onDisk.flatMap((host) =>
+    (host.excludes ?? []).filter((e) => e.exact === true && e.match.includes(' > ')).map((e) => [host, e.match] as const),
+  );
+
+  it('finds such exclusions at all — otherwise the case below asserts nothing', () => {
+    expect(declared.length).toBeGreaterThan(0);
+  });
+
+  it('finds each title under the file it names', () => {
+    const missing = declared.flatMap(([host, match]) => {
+      const tests = (JSON.parse(readFileSync(join(VENDOR, host.name, '.source.json'), 'utf8')) as { tests?: Record<string, string[]> }).tests ?? {};
+      const [file = '', ...path] = match.split(' > ');
+      const titles = Object.entries(tests).find(([key]) => key === file || key.endsWith(`/${file}`))?.[1] ?? [];
+      return titles.includes(path.at(-1) ?? '') ? [] : [`${host.name}: ${match}`];
+    });
+    expect(missing).toEqual([]);
+  });
+});

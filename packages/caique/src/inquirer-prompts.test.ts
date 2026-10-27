@@ -320,10 +320,14 @@ describe('checkbox', () => {
         settle = resolve;
       });
     const validate = vi.fn().mockImplementationOnce(pending).mockReturnValue(true);
-    const answer = checkbox({ message: 'Pick', choices: ['a', 'b'], validate }, io);
+    const answer = checkbox({ message: 'Pick', choices: ['a', 'b'], validate, theme: { spinner: { frames: ['@'] } } }, io);
     await io.press(' ', ENTER);
     await io.press(DOWN, ' ', 'a', 'i', '2', ENTER);
     expect(validate).toHaveBeenCalledOnce();
+    // Loading while it waits: past the spinner's 300 ms delay, the prefix is its frame.
+    await vi.waitFor(() => {
+      expect(io.output.text()).toContain('@ Pick');
+    });
     settle('b instead');
     await io.press();
     expect(lastFrame(io.output.text())).toContain('b instead');
