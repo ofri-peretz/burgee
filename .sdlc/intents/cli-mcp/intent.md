@@ -1,6 +1,6 @@
 # Intent — `cli-mcp`: every CLI on the floor is already an MCP server
 
-**Status:** approved · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`
+**Status:** shipped · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`
 
 > **Accepted at the Design→Build gate 2026-10-25** by the coordinator under the owner's delegation
 > ([`D-20261025-cli-mcp-design-accepted`](../../decisions/D-20261025-cli-mcp-design-accepted.md)): nothing left to build here: criterion 4 is `b1-mcp-arm`'s, and the lint rule moved to the eslint repo. See
@@ -86,6 +86,19 @@ Checked criterion by criterion on `61bd11b9`. **Three of five met.** The status 
   wording drift, same semantics.
 - **B1 reports the same task set over MCP and over Bash** — **not met.** No benchmark exists;
   the two bands that would hold this sit at 0 of 8 points.
+  **Still not met on 2026-10-26, and nothing left to build here.** The arm is built in
+  [`b1-mcp-arm`](../b1-mcp-arm/spec.md) (R1–R4 and R6). Its first weekly run, 2026-10-20, never
+  reached the server, so it is no reading
+  ([D-20261026-b1-mcp-arm-server-guard](../../decisions/D-20261026-b1-mcp-arm-server-guard.md)).
+  This criterion is met, and the intent moves to `shipped`, when four landed readings from
+  scheduled or owner-dispatched runs carry the arm's ratio and `b1-mcp-arm` R5 cites their run ids
+  with the median and range (restated 2026-10-27 from "four weekly readings",
+  [D-20261027-b1-mcp-arm-owner-dispatch](../../decisions/D-20261027-b1-mcp-arm-owner-dispatch.md)).
+  1 of 4 on 2026-10-27: run 40492593210.
+  **Met 2026-10-27.** Four readings landed: runs 40492593210 (weekly), 40518014447, 40528288811 and 40539828491 (owner-dispatched). `b1-mcp-arm` R5 cites them on
+  `what-an-agent-sees.mdx` with the median and range. Tokens MCP ÷ CLI: median 1.218, range 0.992
+  to 1.336. Turns: median 1.205, range 0.948 to 1.37. Every MCP session connected, and 58 of 60
+  passed. This intent is `shipped`.
 - **A copy-pasteable client configuration on the docs page that works unmodified** — **not met as
   written.** `/docs/agent-surfaces` is live and carries an `mcpServers` block, but it is a
   template naming `mytool`, so it does not work unmodified, and no test in `apps/docs/tests/`

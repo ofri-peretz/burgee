@@ -1,6 +1,6 @@
 {
   "name": "benchmarks",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "private": true,
   "description": "One suite: agent cost, cold start, compatibility, weight, and runtime against the incumbent. Emits one JSON document per run under results/, which the Stage 6 control bands read. Internal; never published.",
   "type": "module",
@@ -13,7 +13,8 @@
     "./fixtures/entry-points.js": "./fixtures/entry-points.ts",
     "./published.js": "./published.ts",
     "./resolve.js": "./resolve.ts",
-    "./runtime-ratchets.js": "./runtime-ratchets.ts"
+    "./runtime-ratchets.js": "./runtime-ratchets.ts",
+    "./stats.js": "./stats.ts"
   },
   "engines": {
     "node": ">=24"
@@ -25,15 +26,15 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "bellpull": "^1.0.1",
+    "bellpull": "^1.0.10",
     "burgee": "*",
     "caique": "*",
     "closeout": "*",
     "compat-oracle": "*",
     "controlroom": "*",
     "flagstaff": "*",
-    "linegauge": "^1.0.5",
-    "paratext": "^1.0.1",
+    "linegauge": "^1.1.5",
+    "paratext": "^1.0.11",
     "roundel": "*",
     "seniority": "*"
   },
@@ -48,7 +49,7 @@
     "colorette": "2.0.20",
     "commander": "^15.0.0",
     "cosmiconfig": "^10.0.1",
-    "dotenv": "18.0.8",
+    "dotenv": "18.0.9",
     "esbuild": "^0.28.0",
     "exit-hook": "^5.1.0",
     "find-up": "8.0.0",

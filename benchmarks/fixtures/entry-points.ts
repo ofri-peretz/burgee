@@ -36,6 +36,15 @@ export interface Side extends Import {
    * favour.
    */
   eager?: true;
+  /**
+   * A whole program, bundled instead of a generated fixture: a repo-relative path whose source
+   * becomes the fixture, written beside the generated ones and resolved from `benchmarks/` like
+   * them, so a shim or a nested copy beside the program is never what is measured. `specifier`
+   * and `with` then name the packages it imports, for the version and the installed tree; the
+   * side is labelled by this path. controlroom W3's demo half: the reference dashboard against
+   * the Ink screen fixture, two programs that draw the same screen.
+   */
+  program?: string;
 }
 
 export interface EntryPair {
@@ -88,6 +97,7 @@ export function packagesOf(side: Side): string[] {
  * `seniority`, and a label that said only `seniority/cosmiconfig` would hide the second.
  */
 export function sideLabel(side: Side): string {
+  if (side.program !== undefined) return side.program;
   return [...new Set([side, ...(side.with ?? [])].map((s) => s.specifier))].join(' + ');
 }
 
@@ -358,6 +368,27 @@ export const PAIRS: readonly EntryPair[] = [
     ours: { specifier: 'controlroom', symbol: 'open' },
     incumbent: { specifier: 'ink', symbol: 'render', external: ['react', 'react-devtools-core'] },
     why: "controlroom W3: the native API's screen against ink alone — where \"lighter than Ink\" may be claimed once measured",
+  },
+  {
+    // W3, the demo half: the reference dashboard on the native API against the same screen
+    // written for Ink and @inkjs/ui, each bundled as the whole program a user ships. The ink side
+    // is real ink 8.0.0 and the React it renders through, resolved from benchmarks/ — never the
+    // fixture's own `'ink'` shim, which points at controlroom/ink (spec R14, criterion 7).
+    id: 'controlroom/dashboard',
+    claim: 'controlroom-dashboard-lighter-than-ink-screen',
+    source: CONTROLROOM_WEIGHT,
+    ours: { specifier: 'controlroom', symbol: 'open', with: [{ specifier: 'flagstaff', symbol: 'register' }], program: 'examples/dashboard/dashboard.mjs' },
+    incumbent: {
+      specifier: 'ink',
+      symbol: 'render',
+      with: [
+        { specifier: 'react', symbol: DEFAULT_EXPORT },
+        { specifier: '@inkjs/ui', symbol: 'Spinner' },
+      ],
+      external: ['react-devtools-core'],
+      program: 'examples/dashboard-ink/screen.mjs',
+    },
+    why: 'controlroom W3, the demo half: the reference dashboard against the same screen written for Ink and @inkjs/ui, each bundled whole',
   },
 ];
 

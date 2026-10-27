@@ -3,7 +3,10 @@
  * `controlroom/ink` through one documented package.json line.
  *
  * `examples/ink-ecosystem` installs `ink-spinner`, `ink-text-input` and `ink-select-input` from
- * npm as published; `examples/chat-cli-ink` is `examples/chat-cli` written for Ink. Each resolves
+ * npm as published; `examples/chat-cli-ink` is `examples/chat-cli` written for Ink; and
+ * `examples/dashboard-ink` is the reference dashboard's screen written for Ink and `@inkjs/ui`,
+ * controlroom's Ink screen fixture (criteria 3 and 6), whose own suite runs it 100 times with
+ * stdin at /dev/null and 100 with stdin a pipe nobody writes to. Each resolves
  * `'ink'` with `"ink": "file:./ink"` — a two-line package that re-exports `controlroom/ink`,
  * versioned at the ink API it implements so every component's peer range on ink is met and npm
  * installs no other ink (D-20261005-controlroom-ink-alias says why a bare `npm:` alias cannot do
@@ -23,7 +26,7 @@
  * It reads `dist/`, so it needs the packages built, as the independence install does.
  */
 import { execFile, spawn } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -34,11 +37,23 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 const run = promisify(execFile);
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 
-/** One pack of seven packages, two installs from the registry, and two `node --test` runs. */
-const SETUP_TIMEOUT_MS = 300_000;
+/** One pack of the family, three installs from the registry, and three `node --test` runs. */
+const SETUP_TIMEOUT_MS = 420_000;
 
-/** `controlroom` and the in-family packages it declares, which the registry does not have at this version. */
-const FAMILY = ['controlroom', 'caique', 'closeout', 'flagstaff', 'linegauge', 'paratext', 'roundel'];
+/**
+ * `controlroom` and every in-family package it reaches, at any depth: the registry does not have
+ * them at this version. Read from the manifests, not listed, because a Version PR raises a
+ * sibling's own range (caique's bellpull) past the registry, and a hand-kept list then misses it.
+ */
+function familyOf(name: string, seen = new Set<string>()): Set<string> {
+  const manifest = join(root, 'packages', name, 'package.json');
+  if (seen.has(name) || !existsSync(manifest)) return seen;
+  seen.add(name);
+  const { dependencies = {} } = JSON.parse(readFileSync(manifest, 'utf8')) as { dependencies?: Record<string, string> };
+  for (const dep of Object.keys(dependencies)) familyOf(dep, seen);
+  return seen;
+}
+const FAMILY = [...familyOf('controlroom')];
 
 /** The line under test, as each example's package.json and controlroom's README write it. */
 const LINE = '"ink": "file:./ink"';
@@ -50,6 +65,7 @@ const LINE = '"ink": "file:./ink"';
 const EXAMPLES = [
   { dir: 'examples/ink-ecosystem', cases: 7 },
   { dir: 'examples/chat-cli-ink', cases: 12 },
+  { dir: 'examples/dashboard-ink', cases: 9 },
 ] as const;
 
 /** npm, without assuming a POSIX shell — the reasoning is `pack-list-lock.test.ts`'s. */

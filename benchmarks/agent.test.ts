@@ -15,7 +15,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { AGENT_ENV_RULE, agentEnv, armRecords, type Attempt, blockers, classifyFailure, installTool, ISOLATION, isPosix, MCP_ARM_OPT_IN, type McpConfig, mcpConfig, MODALITIES, nothingCameBack, OUTPUT_FORMAT, parseClaudeJson, perTaskDetail, POSIX_ONLY, priorReadings, type Reading, READINGS_METRIC, readTasks, redact, resultObject, run, runOne, STORED_LOGIN_OPT_IN, storedLogin, summariseFailures, type Task, tasksFor, totalRecords, type Variant, VARIANTS, variantsFor, writeMcpConfig } from './axes/agent.js';
+import { AGENT_ENV_RULE, agentEnv, armRecords, type Attempt, blockers, classifyFailure, installTool, ISOLATION, isPosix, MCP_ARM_OPT_IN, type McpConfig, mcpConfig, MODALITIES, nothingCameBack, OUTPUT_FORMAT, parseClaudeJson, perTaskDetail, POSIX_ONLY, priorReadings, probeServer, type Reading, READINGS_METRIC, readTasks, redact, resultObject, run, runOne, serverStatus, STORED_LOGIN_OPT_IN, storedLogin, summariseFailures, type Task, tasksFor, totalRecords, type Variant, VARIANTS, variantsFor, writeMcpConfig } from './axes/agent.js';
 import { SUITE } from './bands.js';
 import { CLAIMS } from './claims.js';
 import { buildDocument, type ResultsDoc } from './emit.js';
@@ -569,27 +569,48 @@ describe('R1 — each task declares the modalities it can be stated in', () => {
   });
 });
 
+/** How a stub demo's `--mcp` behaves: what `--print-config` prints, and whether its server answers. */
+interface StubMcp {
+  /** Printed for `--mcp --print-config`; absent prints nothing, the demo before mcp-current R6. */
+  printConfig?: unknown;
+  /** How `--print-config` ends: the exit status it prints with, or `hang` to never exit. */
+  printExit?: number | 'hang';
+  /** `dead` exits before answering anything; `toolless` answers and lists no tools. */
+  server?: 'ok' | 'dead' | 'toolless';
+  /** A file the server appends every line it reads to, so a test can see what a client sent. */
+  record?: string;
+}
+
 /**
  * A built "demo" that is a minimal MCP server when it is passed `--mcp`: it answers
- * `initialize` with its own argv, so a test can read what the config actually started.
+ * `initialize` with its own argv, so a test can read what the config actually started, and a
+ * `tools/call` with `ada-via-mcp`, so a test can tell an answer that came through the server
+ * from one that did not.
  */
-function stubMcpBin(): string {
+function stubMcpBin({ printConfig, printExit = 0, server = 'ok', record }: StubMcp = {}): string {
   const dir = scratchDir('stub-mcp-bin-');
   const bin = join(dir, 'bin.js');
+  const printed = printConfig === undefined ? '' : `process.stdout.write(${JSON.stringify(JSON.stringify(printConfig))}); `;
+  const tools = server === 'toolless' ? '[]' : "[{ name: 'config_get', inputSchema: { type: 'object' } }]";
   writeFileSync(
     bin,
     [
       "if (!process.argv.includes('--mcp')) { process.stdout.write('ada\\n'); process.exit(0); }",
-      "if (process.argv.includes('--print-config')) process.exit(0);",
+      `if (process.argv.includes('--print-config')) { ${printed}${printExit === 'hang' ? 'Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 120000); ' : `process.exit(${String(printExit)}); `}}`,
+      record === undefined ? '' : `else process.stdin.on('data', (c) => require('node:fs').appendFileSync(${JSON.stringify(record)}, c));`,
+      server === 'dead' ? "process.stderr.write('demo: cannot start\\n'); process.exit(3);" : '',
       "let buf = '';",
       "process.stdin.on('data', (c) => { buf += c; let i; while ((i = buf.indexOf('\\n')) >= 0) { const line = buf.slice(0, i); buf = buf.slice(i + 1); if (!line.trim()) continue; const m = JSON.parse(line); if (m.id === undefined) continue;",
-      "  const result = m.method === 'initialize' ? { protocolVersion: '2025-06-18', capabilities: { tools: {} }, serverInfo: { name: 'demo', version: '0.0.0' }, argv: process.argv.slice(2) } : { tools: [{ name: 'config_get', inputSchema: { type: 'object' } }] };",
+      `  const result = m.method === 'initialize' ? { protocolVersion: '2025-06-18', capabilities: { tools: {} }, serverInfo: { name: 'demo', version: '0.0.0' }, argv: process.argv.slice(2) } : m.method === 'tools/call' ? { content: [{ type: 'text', text: 'ada-via-mcp' }] } : { tools: ${tools} };`,
       "  process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: m.id, result }) + '\\n'); } });",
       "process.stdin.on('end', () => process.exit(0));",
     ].join('\n'),
   );
   return bin;
 }
+
+/** Where the config a stub demo printed came from, once the harness has read it. */
+const sourceOf = (printConfig: unknown): string => mcpConfig(installTool(stubMcpBin({ printConfig }))).source;
 
 /** `initialize` then `tools/list` against the server a config names, the way a client starts it. */
 function handshake(server: { command: string; args?: string[] }): unknown[] {
@@ -600,12 +621,19 @@ function handshake(server: { command: string; args?: string[] }): unknown[] {
   ]
     .map((m) => JSON.stringify(m))
     .join('\n');
-  const r = spawnSync(server.command, server.args ?? [], { input: `${input}\n`, encoding: 'utf8', timeout: 30_000 });
-  return r.stdout
+  const r = spawnSync(server.command, server.args ?? [], { input: `${input}\n`, encoding: 'utf8', timeout: 30_000, env: { PATH: '/usr/bin:/bin' } });
+  return (r.stdout ?? '')
     .split('\n')
     .filter((l) => l.trim() !== '')
     .map((l) => JSON.parse(l) as unknown);
 }
+
+/**
+ * What the real `claude` prints first under `--output-format stream-json --verbose`: an `init`
+ * event naming each MCP server and its status. A stub handed `--mcp-config` prints it with the
+ * server `connected`, the shape every run of a working arm has.
+ */
+const INIT_CONNECTED = `case "$*" in *--mcp-config*) echo '{"type":"system","subtype":"init","mcp_servers":[{"name":"demo","status":"connected"}]}';; esac\n`;
 
 /** A `claude` that answers with its argv, and copies the `--mcp-config` file it was handed beside it. */
 function argvClaude(): { bin: string; seen: string } {
@@ -614,7 +642,7 @@ function argvClaude(): { bin: string; seen: string } {
   const seen = join(dir, 'mcp-config-seen.json');
   writeFileSync(
     bin,
-    `#!/bin/sh\nif [ "$1" = --version ]; then echo '9.9.9 (Claude Code)'; exit 0; fi\nprev=''\nfor a in "$@"; do if [ "$prev" = --mcp-config ]; then cp "$a" "${seen}"; fi; prev="$a"; done\nprintf '{"type":"result","is_error":false,"num_turns":2,"usage":{"input_tokens":500,"output_tokens":100},"result":"ada %s"}' "$*"\n`,
+    `#!/bin/sh\nif [ "$1" = --version ]; then echo '9.9.9 (Claude Code)'; exit 0; fi\n${INIT_CONNECTED}prev=''\nfor a in "$@"; do if [ "$prev" = --mcp-config ]; then cp "$a" "${seen}"; fi; prev="$a"; done\nprintf '{"type":"result","is_error":false,"num_turns":2,"usage":{"input_tokens":500,"output_tokens":100},"result":"ada %s"}' "$*"\n`,
   );
   chmodSync(bin, EXECUTABLE);
   return { bin, seen };
@@ -645,11 +673,48 @@ describe.skipIf(!isPosix())('R2 — a `burgee-mcp` variant', () => {
     expect(replies[1]).toMatchObject({ id: 2, result: { tools: [{ name: 'config_get' }] } });
   });
 
-  it('takes the config the demo prints itself (`--mcp --print-config`, mcp-current R6) when it prints one', () => {
-    const dir = scratchDir('stub-printer-');
-    const bin = join(dir, 'bin.js');
-    writeFileSync(bin, `process.stdout.write(JSON.stringify({ mcpServers: { demo: { command: 'printed-by-the-demo', args: ['--mcp'] } } }));\n`);
-    expect(mcpConfig(installTool(bin))).toEqual({ server: 'demo', config: { mcpServers: { demo: { command: 'printed-by-the-demo', args: ['--mcp'] } } }, source: 'print-config' });
+  it('takes the server\'s name and arguments from the config the demo prints (`--mcp --print-config`, mcp-current R6)', () => {
+    const printed = { mcpServers: { demo: { command: 'demo-burgee', args: ['--mcp'] } } };
+    const toolDir = installTool(stubMcpBin({ printConfig: printed }));
+    const { config, server, source } = mcpConfig(toolDir);
+    expect({ server, source, args: config.mcpServers['demo']?.args }).toEqual({ server: 'demo', source: 'print-config', args: ['--mcp'] });
+  });
+
+  it('derives the config when what the demo printed is not one server with a command', () => {
+    expect(sourceOf({ mcpServers: { a: { command: 'x' }, b: { command: 'y' } } })).toBe('derived');
+    expect(sourceOf({ mcpServers: { demo: null } })).toBe('derived');
+    expect(sourceOf({ mcpServers: { demo: { args: ['--mcp'] } } })).toBe('derived');
+    expect(sourceOf({ mcpServers: {} })).toBe('derived');
+    expect(sourceOf({ mcpServers: null })).toBe('derived');
+    expect(sourceOf({ servers: {} })).toBe('derived');
+    expect(sourceOf(['not', 'an', 'object'])).toBe('derived');
+    expect(sourceOf(null)).toBe('derived');
+    expect(sourceOf('not json')).toBe('derived');
+    // A printed server with no arguments is started with none.
+    expect(mcpConfig(installTool(stubMcpBin({ printConfig: { mcpServers: { tool: { command: 'x' } } } })))).toMatchObject({ server: 'tool', source: 'print-config', config: { mcpServers: { tool: { args: [] } } } });
+  });
+
+  it('derives the config when the demo printed one and then exited non-zero', () => {
+    const printConfig = { mcpServers: { tool: { command: 'x', args: ['--mcp'] } } };
+    expect(mcpConfig(installTool(stubMcpBin({ printConfig, printExit: 1 })))).toMatchObject({ server: 'demo', source: 'derived' });
+  });
+
+  it('stops waiting for `--print-config` after ten seconds and derives the config', () => {
+    const started = Date.now();
+    expect(mcpConfig(installTool(stubMcpBin({ printExit: 'hang' }))).source).toBe('derived');
+    expect(Date.now() - started).toBeLessThan(30_000);
+  });
+
+  // The 2026-10-20 weekly reading (run 39407740629): the demo printed `demo-burgee`, its bin's
+  // name, and the harness handed that to `claude` as written. Nothing put the build under test on
+  // PATH under that name, so all 15 runs began with the server `failed` and no MCP tool at all.
+  it('starts the build under test from the printed config, whatever the bin name resolves to on PATH', () => {
+    const printed = { mcpServers: { demo: { command: 'demo-burgee', args: ['--mcp'] } } };
+    const toolDir = installTool(stubMcpBin({ printConfig: printed }));
+    const entry = mcpConfig(toolDir).config.mcpServers['demo'];
+    const replies = handshake(entry ?? { command: 'false' });
+    expect(replies[0]).toMatchObject({ id: 1, result: { serverInfo: { name: 'demo' }, argv: ['--mcp'] } });
+    expect(replies[1]).toMatchObject({ id: 2, result: { tools: [{ name: 'config_get' }] } });
   });
 
   it('spawns claude with --mcp-config and --strict-mcp-config, the demo\'s tools allowed and no Bash', () => {
@@ -744,6 +809,195 @@ describe.skipIf(!isPosix())('an MCP arm that fails every run', () => {
   });
 });
 
+/**
+ * A `claude` that is an MCP client the way the real one is: it reads the `--mcp-config` it was
+ * handed, starts the server that file names, completes the handshake, calls `config_get`, and
+ * answers with what the tool returned. Its `init` event says `connected` only when the server
+ * answered, as the real one's does.
+ */
+function clientClaude(): string {
+  const dir = scratchDir('stub-claude-client-');
+  const bin = join(dir, 'claude');
+  writeFileSync(
+    bin,
+    [
+      `#!${process.execPath}`,
+      "const { spawnSync } = require('node:child_process');",
+      "const { readFileSync } = require('node:fs');",
+      'const argv = process.argv.slice(2);',
+      "if (argv[0] === '--version') { console.log('9.9.9 (Claude Code)'); process.exit(0); }",
+      "const config = JSON.parse(readFileSync(argv[argv.indexOf('--mcp-config') + 1], 'utf8'));",
+      'const [name, server] = Object.entries(config.mcpServers)[0];',
+      "const msgs = [{ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'stub', version: '0' } } }, { jsonrpc: '2.0', method: 'notifications/initialized' }, { jsonrpc: '2.0', id: 2, method: 'tools/list' }, { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'config_get', arguments: { key: 'user.name' } } }];",
+      "const r = spawnSync(server.command, server.args || [], { input: msgs.map((m) => JSON.stringify(m)).join('\\n') + '\\n', encoding: 'utf8', timeout: 10000 });",
+      "const replies = (r.stdout || '').split('\\n').filter(Boolean).map((l) => JSON.parse(l));",
+      'const up = replies.some((m) => m.id === 1 && m.result);',
+      'const call = replies.find((m) => m.id === 3 && m.result);',
+      "console.log(JSON.stringify({ type: 'system', subtype: 'init', mcp_servers: [{ name, status: up ? 'connected' : 'failed' }] }));",
+      "console.log(JSON.stringify({ type: 'result', is_error: false, num_turns: 2, usage: { input_tokens: 500, output_tokens: 100 }, result: call ? call.result.content[0].text : 'no tool answered' }));",
+    ].join('\n'),
+  );
+  chmodSync(bin, EXECUTABLE);
+  return bin;
+}
+
+/** The shell line a stub `claude` ends with: a result with usage, answering `answer`. */
+const ok = (answer: string): string => `printf '{"type":"result","is_error":false,"num_turns":2,"usage":{"input_tokens":500,"output_tokens":100},"result":"%s"}' "${answer}"`;
+
+/** A stub demo installed as the shim, and the server entry that starts it. */
+const shim = (stub: StubMcp): { command: string; args: string[] } => ({ command: join(installTool(stubMcpBin(stub)), 'demo'), args: ['--mcp'] });
+
+/** A stream whose `init` event names `servers`. */
+const init = (servers: unknown): string => `${JSON.stringify({ type: 'system', subtype: 'init', mcp_servers: servers })}\n{"type":"result"}`;
+
+/**
+ * A `claude` that passes every CLI run, and on its nth MCP run reports the server with the nth
+ * status and answers with the nth answer (the last of each repeating). It counts its MCP runs in
+ * `count`, so a test can say how many paid runs the arm would have spent.
+ */
+function armClaude(statuses: readonly string[], answers: readonly string[]): { bin: string; count: string } {
+  const dir = scratchDir('stub-claude-arm-');
+  const bin = join(dir, 'claude');
+  const count = join(dir, 'count');
+  writeFileSync(
+    bin,
+    [
+      '#!/bin/sh',
+      `if [ "$1" = --version ]; then echo '9.9.9 (Claude Code)'; exit 0; fi`,
+      `case "$*" in *--mcp-config*) ;; *) ${ok('ada')}; exit 0;; esac`,
+      `n=$(cat "${count}" 2>/dev/null || echo 0); n=$((n + 1)); echo "$n" > "${count}"`,
+      'pick() { i=$1; shift; while [ "$i" -gt 1 ] && [ $# -gt 1 ]; do shift; i=$((i - 1)); done; echo "$1"; }',
+      `status=$(pick "$n" ${statuses.join(' ')}); answer=$(pick "$n" ${answers.join(' ')})`,
+      `echo '{"type":"system","subtype":"init","mcp_servers":[{"name":"demo","status":"'"$status"'"}]}'`,
+      ok('$answer'),
+    ].join('\n'),
+  );
+  chmodSync(bin, EXECUTABLE);
+  return { bin, count };
+}
+
+/** `run()` with the two CLI builds and the arm, every build a stub demo, one run per task. */
+function runArm(claudeBin: string, arm: StubMcp = {}, runs = 1): ReturnType<typeof run> {
+  return run({
+    variants: [
+      { id: 'burgee', bin: stubMcpBin(), floor: true },
+      { id: 'commander', bin: stubMcpBin(), floor: false },
+      { id: 'burgee-mcp', bin: stubMcpBin(arm), floor: true, modality: 'mcp' },
+    ],
+    env: { ...process.env, CLAUDE_CODE_OAUTH_TOKEN: 'stub' },
+    runs,
+    model: 'm',
+    timeoutMs: 30_000,
+    tasks: [MCP_TASK],
+    claudeBin,
+    readings: [],
+  });
+}
+
+/** The CLI arms' reading stood, and the MCP arm left an ungated success rate with its reason and no ratio. */
+function expectArmLeftNoReading(out: ReturnType<typeof run>): BenchRecord {
+  if (!('records' in out)) throw new Error(`the CLI readings were discarded: ${out.reason}`);
+  expect(out.records.find((r) => r.variant === 'burgee ÷ commander' && r.metric === 'tokens-total-ratio')?.median).toBe(1);
+  expect(out.records.some((r) => r.variant === 'burgee-mcp ÷ burgee')).toBe(false);
+  const arm = out.records.find((r) => r.variant === 'burgee-mcp' && r.metric === 'success-rate');
+  if (arm === undefined) throw new Error('the arm left no record');
+  expect(arm.gate).toBeUndefined();
+  return arm;
+}
+
+describe.skipIf(!isPosix())('the arm never runs without its server', () => {
+  it('asks the configured server for its tools before any paid run, the way a client starts it', () => {
+    const record = join(scratchDir('probe-record-'), 'stdin.jsonl');
+    expect(probeServer(shim({ record }), process.env)).toEqual({ tools: ['config_get'] });
+    const sent = readFileSync(record, 'utf8').trim().split('\n').map((l) => JSON.parse(l) as unknown);
+    expect(sent).toEqual([
+      { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'b1-preflight', version: '0' } } },
+      { jsonrpc: '2.0', method: 'notifications/initialized' },
+      { jsonrpc: '2.0', id: 2, method: 'tools/list' },
+    ]);
+  });
+
+  it('names why a server that never answered did not start: its exit status and its stderr', () => {
+    const probed = probeServer(shim({ server: 'dead' }), process.env);
+    expect('reason' in probed && probed.reason).toMatch(/demo --mcp` listed no tools \(exit 3\): demo: cannot start$/u);
+  });
+
+  it('refuses a server that answers and lists no tools: an arm with nothing to call is no arm', () => {
+    const probed = probeServer(shim({ server: 'toolless' }), process.env);
+    expect('reason' in probed && probed.reason).toMatch(/listed no tools \(exit 0\)$/u);
+  });
+
+  it('names a command that does not exist, which is what `demo-burgee` was on the 2026-10-20 runner', () => {
+    const probed = probeServer({ command: 'demo-burgee-not-on-path' }, { PATH: '/usr/bin:/bin' });
+    expect('reason' in probed && probed.reason).toBe('`demo-burgee-not-on-path` listed no tools (spawnSync demo-burgee-not-on-path ENOENT)');
+  });
+
+  it('reads the server\'s status off claude\'s own init event', () => {
+    expect(serverStatus(init([{ name: 'demo', status: 'connected' }]), 'demo')).toBe('connected');
+    expect(serverStatus(init([null, { name: 'other', status: 'connected' }, { name: 'demo', status: 'failed' }]), 'demo')).toBe('failed');
+    expect(serverStatus(init([{ name: 'demo' }]), 'demo')).toBe('absent');
+    expect(serverStatus(init([{ name: 'other', status: 'connected' }]), 'demo')).toBe('absent');
+    expect(serverStatus(init('not a list'), 'demo')).toBe('absent');
+    expect(serverStatus('{"type":"system","subtype":"status"}\n{"type":"result"}', 'demo')).toBe('no init event');
+    // Only `claude`'s own system event counts, and a line that is not JSON is passed over.
+    expect(serverStatus('{"type":"stream_event","subtype":"init","mcp_servers":[{"name":"demo","status":"connected"}]}', 'demo')).toBe('no init event');
+    expect(serverStatus(`not json\n${init([{ name: 'demo', status: 'connected' }])}`, 'demo')).toBe('connected');
+  });
+
+  it('runs the agent\'s tool calls through the server the config starts', () => {
+    const toolDir = installTool(stubMcpBin({ printConfig: { mcpServers: { demo: { command: 'demo-burgee', args: ['--mcp'] } } } }));
+    const viaMcp: Task = { ...MCP_TASK, check: 'grep -q ada-via-mcp "$BENCH_RESULT"' };
+    const r = runOne({ claudeBin: clientClaude(), task: viaMcp, toolDir, workdir: scratchDir('bench-work-'), model: 'm', timeoutMs: 30_000, modality: 'mcp', mcp: writeMcpConfig(toolDir) });
+    expect(r).toMatchObject({ success: true, usage: true, result: 'ada-via-mcp' });
+  });
+
+  // 1 of the 15 runs on 2026-10-20 passed its check with no MCP tool to call. It counted as a
+  // pass, the arm's medians and its ratio were computed, and nothing said the server never started.
+  it('fails a run whose server did not connect, however right its answer, and keeps it out of the medians', () => {
+    const toolDir = installTool(stubMcpBin());
+    const r = runOne({ claudeBin: armClaude(['failed'], ['ada']).bin, task: MCP_TASK, toolDir, workdir: scratchDir('bench-work-'), model: 'm', timeoutMs: 30_000, modality: 'mcp', mcp: writeMcpConfig(toolDir) });
+    expect(r).toMatchObject({ success: false, usage: false, result: 'ada', tokensIn: 500 });
+    expect(r.failure).toMatchObject({ kind: 'mcp-unavailable', excerpt: 'demo MCP server: failed' });
+  });
+
+  it('spends no agent run when the server does not start, and keeps the week\'s CLI readings', () => {
+    const { bin, count } = armClaude(['connected'], ['ada']);
+    const arm = expectArmLeftNoReading(runArm(bin, { server: 'dead' }));
+    expect(() => readFileSync(count, 'utf8')).toThrow(/ENOENT/u);
+    expect(arm).toMatchObject({ samples: 0, median: 0 });
+    expect(arm.note).toMatch(/^the burgee-mcp arm's MCP server \(config: derived\) did not start: `.+demo --mcp` listed no tools \(exit 3\): demo: cannot start; no agent run was spent on it$/u);
+  });
+
+  it('leaves no ratio when any run started without the server, though others connected', () => {
+    const { bin, count } = armClaude(['connected', 'failed'], ['ada']);
+    const arm = expectArmLeftNoReading(runArm(bin, {}, 2));
+    expect(readFileSync(count, 'utf8').trim()).toBe('2');
+    expect(arm).toMatchObject({ axis: 'agent', metric: 'success-rate', unit: 'ratio', samples: 2, median: 0.5, p95: 0.5, detail: { model: 'm', failed: 1, 'mapped.passed': '1/2', 'mapped.failures': 'mcp-unavailable×1' } });
+    expect(arm.note).toBe('1 of 2 burgee-mcp task-runs started without the demo MCP server ("demo MCP server: failed"); a run without the server is not a run of the arm, so this reading has no ratio');
+  });
+
+  it('leaves no ratio when the arm passes fewer runs than the floor the CLI arms are gated at', () => {
+    const { bin } = armClaude(['connected'], ['ada', 'nope']);
+    const arm = expectArmLeftNoReading(runArm(bin, {}, 2));
+    expect(arm).toMatchObject({ samples: 2, median: 0.5 });
+    expect(arm.note).toBe('1 of 2 burgee-mcp task-runs passed their own check, below the 0.8 floor the CLI arms are gated at; medians over the runs that survived are a different measurement, so this reading has no ratio');
+  });
+
+  it('takes a reading at exactly the floor: 4 of 5 is a reading', () => {
+    const out = runArm(armClaude(['connected'], ['ada', 'ada', 'ada', 'ada', 'nope']).bin, {}, 5);
+    if (!('records' in out)) throw new Error(out.reason);
+    expect(out.records.find((r) => r.variant === 'burgee-mcp' && r.metric === 'success-rate')).toMatchObject({ median: 0.8, gate: { min: 0.8 } });
+    expect(out.records.some((r) => r.variant === 'burgee-mcp ÷ burgee')).toBe(true);
+  });
+
+  it('measures the arm, ratio and all, when every run connected and enough passed', () => {
+    const out = runArm(armClaude(['connected'], ['ada']).bin, {}, 2);
+    if (!('records' in out)) throw new Error(out.reason);
+    expect(out.records.find((r) => r.variant === 'burgee-mcp' && r.metric === 'success-rate')).toMatchObject({ median: 1, gate: { min: 0.8 } });
+    expect(out.records.find((r) => r.variant === 'burgee-mcp ÷ burgee' && r.metric === 'mcp-tokens-total-ratio')?.median).toBe(1);
+  });
+});
+
 /** One reading's `burgee-mcp ÷ burgee` ratio, the shape a landed results file carries. */
 const reading = (ratio: number, i: number): Reading => ({ file: `2026-10-${String(13 + 7 * i).padStart(2, '0')}-abc${String(i)}def-weekly-ci.json`, ratio });
 
@@ -823,6 +1077,27 @@ describe('R3 — medians and ranges, never one run', () => {
     writeFileSync(join(dir, '2026-10-15-ccccccc-ci.json'), JSON.stringify({ records: [] }));
     expect(priorReadings(dir)).toEqual([{ file: '2026-10-13-aaaaaaa-weekly-ci.json', ratio: 0.9 }]);
   });
+
+  // D-20261027-b1-mcp-arm-owner-dispatch: an owner-dispatched run lands as
+  // `<date>-<sha>-dispatch-<run id>-ci.json`, and counts exactly as a weekly one does.
+  it('counts an owner-dispatched reading, named by its run id, and nothing that only looks like one', () => {
+    const dir = scratchDir('agent-results-');
+    const file = (ratio: number): string => JSON.stringify({ records: [{ axis: 'agent', variant: 'burgee-mcp ÷ burgee', metric: 'mcp-tokens-total-ratio', median: ratio }] });
+    writeFileSync(join(dir, '2026-10-27-4c336da-weekly-ci.json'), file(1.108));
+    writeFileSync(join(dir, '2026-10-27-ddddddd-dispatch-40500000001-ci.json'), file(0.95));
+    writeFileSync(join(dir, '2026-10-27-ddddddd-dispatch-ci.json'), file(0.1));
+    writeFileSync(join(dir, '2026-10-27-ddddddd-dispatch-x1-ci.json'), file(0.2));
+    writeFileSync(join(dir, '2026-10-27-ddddddd-dispatch-40500000001-local.json'), file(0.3));
+    writeFileSync(join(dir, 'x2026-10-27-ddddddd-dispatch-40500000002-ci.json'), file(0.4));
+    writeFileSync(join(dir, '2026-10-27-ddddddd-dispatch-40500000003-ci.json.orig'), file(0.5));
+    // A push reading's name still counts when it carries the ratio, as it always did.
+    writeFileSync(join(dir, '2026-10-12-eeeeeee-ci.json'), file(0.8));
+    expect(priorReadings(dir)).toEqual([
+      { file: '2026-10-12-eeeeeee-ci.json', ratio: 0.8 },
+      { file: '2026-10-27-4c336da-weekly-ci.json', ratio: 1.108 },
+      { file: '2026-10-27-ddddddd-dispatch-40500000001-ci.json', ratio: 0.95 },
+    ]);
+  });
 });
 
 /**
@@ -845,7 +1120,7 @@ function limitedClaude(limitFrom: number): string {
   const ok = JSON.stringify({ type: 'result', is_error: false, num_turns: 3, usage: { input_tokens: 900, cache_read_input_tokens: 300, output_tokens: 120 }, modelUsage: { 'test-model': {} }, result: 'the value is ada' });
   writeFileSync(
     bin,
-    `#!/bin/sh\nif [ "$1" = --version ]; then echo '9.9.9 (Claude Code)'; exit 0; fi\nn=$(cat "${count}" 2>/dev/null || echo 0)\nn=$((n + 1))\necho "$n" > "${count}"\nif [ "$n" -ge ${String(limitFrom)} ]; then cat "${limit}"; exit 1; fi\ncat <<'JSON'\n${ok}\nJSON\n`,
+    `#!/bin/sh\nif [ "$1" = --version ]; then echo '9.9.9 (Claude Code)'; exit 0; fi\nn=$(cat "${count}" 2>/dev/null || echo 0)\nn=$((n + 1))\necho "$n" > "${count}"\nif [ "$n" -ge ${String(limitFrom)} ]; then cat "${limit}"; exit 1; fi\n${INIT_CONNECTED}cat <<'JSON'\n${ok}\nJSON\n`,
   );
   chmodSync(bin, EXECUTABLE);
   return bin;

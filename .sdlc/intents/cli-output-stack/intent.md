@@ -6,14 +6,25 @@
 > Proposes floor additions U1–U8. Opened from the 2026-09-07 discussion on whether to ship
 > a chalk alternative.
 
-**Status:** approved · **Opened:** 2026-09-07 · **Owner:** @ofri-peretz · **Approved:** 2026-09-08 by the owner, in session ("remove all blockers")
+**Status:** shipped (2026-10-26, R12's README opening read from the `flagstaff@1.7.5` tarball; see § Shipped 2026-10-26) · **Opened:** 2026-09-07 · **Owner:** @ofri-peretz · **Approved:** 2026-09-08 by the owner, in session ("remove all blockers")
 **Restated:** 2026-10-18 — see § Restated 2026-10-18
 
 ---
 
+## Shipped 2026-10-26
+
+**The last open item is on npm.** Version PR #1278 published `flagstaff@1.7.5` on 2026-10-26
+(07:43 UTC, `gitHead` `8d7126cd`), carrying `.changeset/flagstaff-readme-opening.md`. Every
+other row was already held or moved (§ Restated 2026-10-18, its 2026-10-26 note).
+
+| Row | Command | Output |
+| :-- | :-- | :-- |
+| R12. The README opening does not lead with burgee | `npm pack flagstaff@1.7.5` into an empty `mktemp -d` directory, unpacked; `cmp package/README.md packages/flagstaff/README.md` against `main` | byte-identical (sha256 `9b6d2d8af45ce748…` both). The first paragraph names no `burgee` and ends "Plugins are data, and there is no layout engine." |
+| S2. The complete-CLI dependency bill on `/docs/benchmarks` | `npm run bench:page -- --check`; `npx vitest run --config vitest.root.config.ts scripts/dependency-bill-lock.test.ts scripts/readme-opening-lock.test.ts`; the live page | `✓ apps/docs/content/docs/benchmarks.mdx matches the committed results`; 2 files, 34 tests passed. § "A complete CLI — the dependency bill" is on `main`'s page and on `burgee.interlace.tools/docs/benchmarks`: `burgee` + `roundel` + `flagstaff` + `caique` install **9** packages, 0 from outside the family; commander + chalk + ora + cli-table3 + `@inquirer/prompts` install **50** |
+
 ## Restated 2026-10-18
 
-**This umbrella closes through its children: every row is held on main with a check or moved to the child that owns it, except three unowned rows. REMAINING: R2 env-name single-file lock unbuilt, R12 no-burgee README opening unlocked, S2 complete-CLI dependency-bill row unbuilt.** *2026-10-19: R2 held by `scripts/output-env-lock.test.ts` (D-20261019-output-env-lock-scope); R12 and S2 remain, so the status stays `approved`.*
+**This umbrella closes through its children: every row is held on main with a check or moved to the child that owns it, except three unowned rows. REMAINING: R2 env-name single-file lock unbuilt, R12 no-burgee README opening unlocked, S2 complete-CLI dependency-bill row unbuilt.** *2026-10-19: R2 held by `scripts/output-env-lock.test.ts` (D-20261019-output-env-lock-scope); R12 and S2 remain, so the status stays `approved`.* *2026-10-26: R12 and S2 are held on main (D-20261026-output-stack-bill-and-opening): S2 by `scripts/dependency-bill-lock.test.ts`, R12 by a first-paragraph clause in `scripts/readme-opening-lock.test.ts` and an edit to flagstaff's README. Every row is now held or moved. The status stays `approved` only until flagstaff's next release puts that README on npm (`.changeset/flagstaff-readme-opening.md`); that release closes the intent as `shipped`.*
 
 Read on `main` at `1013b65db5` (2026-10-18). No test was run; every check below was located on
 that commit by file and test name. The requirement rows R1–R15 are mapped in
@@ -28,13 +39,13 @@ was.
 | ID | promised | on main | check | disposition |
 | :-- | :-- | :-- | :-- | :-- |
 | S1 | three packages install from their tarballs, one file each (U7) | all three, and `caique` now has its own `shape.test.ts` (it had none on 2026-09-09) | `packages/roundel/src/shape.test.ts`, `packages/flagstaff/src/shape.test.ts`, `packages/caique/src/shape.test.ts` › "the user authored exactly one file, and never ran a build" | held via `roundel` R10, `flagstaff`, `caique` |
-| S2 | `cli-benchmarks` publishes the complete-CLI dependency bill, burgee's column 0 | per-package install counts only: `benchmarks/install-graph.json` (`npm i burgee` installs 6 packages, all in-family). No row compares a burgee-stack CLI with commander + chalk + ora + cli-table3 + inquirer, and "0" is restated to "0 external" (D-111) | `scripts/install-graph-lock.test.ts` › "installs nothing from outside the family" holds the restated burgee column; nothing holds the comparison | remaining (no child owns it) |
+| S2 | `cli-benchmarks` publishes the complete-CLI dependency bill, burgee's column 0 | 2026-10-18: per-package install counts only (`benchmarks/install-graph.json`), and "0" restated to "0 external" (D-111). **2026-10-26:** the bill is on `/docs/benchmarks` under B4, computed from the install graph and `package-lock.json`: `burgee` + `roundel` + `flagstaff` + `caique` install 9 packages, 0 outside the family; commander + chalk + ora + cli-table3 + `@inquirer/prompts` install 50 | `scripts/dependency-bill-lock.test.ts` › "is on the benchmarks page exactly as computed — run `npm run bench:page` if not", › "installs nothing from outside the family on our side (D-111, "0 external")", › "agrees, incumbent by incumbent, with the tree upstream-watch resolved from the registry" | restated (lockfile + install graph, D-20261026-output-stack-bill-and-opening), held (2026-10-26) |
 | S3 | every façade in the metrics table vendored, `--control`-proven, ratcheting (U11) | chalk 59 / 59 (6.0.1), picocolors 1 / 1 (exit-code mode; and `roundel/picocolors` exists, D-20261011-roundel-picocolors), ora 99 / 99, log-update 99 / 99, boxen 213 / 213 (9.0.0), cli-table3 29 / 29, each in `packages/compat-oracle/baseline/<host>.json` | `.github/workflows/compat.yml` job "Ratchet · each host's suite against burgee"; `packages/compat-oracle/src/gate.test.ts` › "fails a known-good implementation that is one case short of its own suite" | held via `roundel` R6, `flagstaff` R6 |
 | S4 | chalk subpath at or under picocolors' bytes and spawn delta; spinner subpath at or under ora's; both rows on the benchmarks page | restated by `roundel` R8: `./tokens` is held to picocolors' bytes, `./chalk` to chalk's own bytes, and both to picocolors' spawn + 10 ms (D-20260930-roundel-r8-spawn-bar). `flagstaff/spinner ÷ ora` is a gated B4 ratio. Both rows are on `apps/docs/content/docs/benchmarks.mdx` (the 2026-09-09 404 is gone) | `benchmarks/ratchet.test.ts` › "B2 cold start — roundel R8, the paired-delta gate over picocolors" and › "B4 weight — the "lighter than what it replaces" ratio gate"; `packages/roundel/src/weight.test.ts` › "stays inside its byte budget" | restated, held via `roundel` R8, `flagstaff` R10 |
 | S5 | five conformance cases in `examples/` for a third-party JSON spinner | the five behaviours are asserted in-package, not in `examples/` | `packages/flagstaff/src/cli.test.ts` › "prints the plugin in all five modes side by side and exits 0"; `packages/flagstaff/src/plugin.test.ts` › "R2 · a contribution without a static projection is refused" | moved → `flagstaff` S1 (its text names the five plugin conformance cases) |
 | S6 | every package's Z1 test and size ratchet on every PR | all three packages have `shape.test.ts` and `weight.test.ts`; tests and `check:artifacts` run in `quality-full.yml` on every non-draft PR (a draft without `run-full-ci` skips it) | `scripts/artifact-size-ratchet-lock.test.ts` › "runs check:artifacts in quality-full.yml's build job" | restated (every non-draft PR), held |
 | S7 | root `{ spinner }` bundles within 5% of `./spinner`; CJS `require()` of every entry | stricter than written: every same-binding root/subpath pair across the family (at least 25) must be equal to the byte; every code entry carries `types`/`import`/`default` | `scripts/tree-shake-fixture.test.ts` › "a root named import costs what the subpath import costs (U10)"; `scripts/package-shape-lock.test.ts` › "exposes types, import and default on every code entry, so CommonJS can require() it (K2)"; each `shape.test.ts` › "is consumable from CommonJS too — the same ESM file, through require(esm) (K2)" | restated (equal, not ±5%), held |
-| S8 | the U9 eval runs weekly in `evals/` | the cron (`20 5 * * 4`) and the case exist; three recorded runs at 10 / 10 (2026-10-08, and two dispatched 2026-10-09, D-20261009-burgee-1-0-evidence). The 2026-10-15 record (`evals/history/2026-10-15-29362dc-38717342918.json`, 0 / 11, `model: null`) is a run that never executed (the Claude usage limit), not a failure, so there is no current reading | `.github/workflows/evals.yml` schedule; `evals/cases/flagstaff-plugin-from-schema.json` | moved → `flagstaff` S7 (its text names this eval) |
+| S8 | the U9 eval runs weekly in `evals/` | the cron (`20 6 * * 6` since 2026-10-27, `20 5 * * 4` before) and the case exist; three recorded runs at 10 / 10 (2026-10-08, and two dispatched 2026-10-09, D-20261009-burgee-1-0-evidence). The 2026-10-15 record (`evals/history/2026-10-15-29362dc-38717342918.json`, 0 / 11, `model: null`) is a run that never executed (the Claude usage limit), not a failure, so there is no current reading | `.github/workflows/evals.yml` schedule; `evals/cases/flagstaff-plugin-from-schema.json` | moved → `flagstaff` S7 (its text names this eval) |
 
 **What changed since this file was written, and where it is recorded.**
 
@@ -178,6 +189,8 @@ case and a listr2 façade is its own intent if an adopter asks).
   **S1, 2026-10-18:** held.
 - `cli-benchmarks` publishes the complete-CLI dependency bill, and burgee's column reads 0.
   **S2, 2026-10-18:** remaining; "0" restated to "0 external".
+  **S2, 2026-10-26:** held by `scripts/dependency-bill-lock.test.ts`: 9 packages and 0 external
+  against 50 (D-20261026-output-stack-bill-and-opening).
 - Every façade in the metrics table has a vendored suite, a `--control` run that proves the
   gate, and a pass rate on the scoreboard that only ratchets up (U11).
   **S3, 2026-10-18:** held.

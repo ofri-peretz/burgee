@@ -14,12 +14,17 @@
  */
 import { ask, type Asked, type Io } from './ask.js';
 import { decide, type Decision, type Flags, type Runtime } from './decide.js';
-import { type PromptSpec, problemWith } from './spec.js';
+import { flagOf, type PromptSpec, problemWith } from './spec.js';
 
 /** What a host tells us about one option. Structural: any framework's spec satisfies it. */
 export interface PromptableOption {
   required?: boolean;
   prompt?: PromptSpec;
+  /**
+   * How a refusal names it when `--<option>` is not how it is passed: `<name>` for a
+   * positional, `--dry-run` for a host's camelCase `dryRun` key (R1, `promptFor`).
+   */
+  flag?: string;
 }
 
 export interface ResolveInput<O extends PromptableOption = PromptableOption> {
@@ -58,6 +63,7 @@ export interface Resolved {
 
 interface OneOption {
   option: string;
+  flag: string;
   prompt: PromptSpec;
   required: boolean;
   value: unknown;
@@ -70,11 +76,11 @@ interface OneOption {
  * caught here rather than in the widget: better to say so than to draw an empty list and
  * wait, which is the hang this package exists to prevent.
  */
-function verdictFor({ option, prompt, required, value, runtime, flags }: OneOption): Decision | ResolveFailure {
+function verdictFor({ option, flag, prompt, required, value, runtime, flags }: OneOption): Decision | ResolveFailure {
   const malformed = problemWith(prompt);
-  if (malformed !== undefined) return { option, code: 'USAGE', message: `--${option} has a prompt that cannot be drawn: ${malformed}`, fix: 'fix the prompt spec where the option is declared' };
+  if (malformed !== undefined) return { option, code: 'USAGE', message: `${flag} has a prompt that cannot be drawn: ${malformed}`, fix: 'fix the prompt spec where the option is declared' };
 
-  const verdict = decide({ value, spec: prompt, option, runtime, ...(flags === undefined ? {} : { flags }), required });
+  const verdict = decide({ value, spec: prompt, option, flag, runtime, flags, required });
   // `decide` gives every refusal both a message and a fix: the fix is the point of refusing.
   if (verdict.action === 'error') return { option, code: 'USAGE', message: verdict.message as string, fix: verdict.fix as string };
   return verdict;
@@ -106,7 +112,8 @@ export async function resolvePrompts<O extends PromptableOption>({ options, valu
     const prompt = spec.prompt;
     if (prompt === undefined) continue;
 
-    const verdict = verdictFor({ option, prompt, required: spec.required === true, value: out[option], runtime, flags });
+    const flag = spec.flag ?? flagOf(option);
+    const verdict = verdictFor({ option, flag, prompt, required: spec.required === true, value: out[option], runtime, flags });
     if (isFailure(verdict)) return { values: out, failure: localise(verdict, say) };
     if (verdict.action === 'skip') continue;
     if (verdict.action === 'answer') {
@@ -122,7 +129,9 @@ export async function resolvePrompts<O extends PromptableOption>({ options, valu
     // eslint-disable-next-line reliability/no-await-in-loop -- see above
     const answer: Asked = await ask(prompt, io);
     if (!answer.ok) {
-      return { values: out, failure: localise({ option, code: 'CANCELLED', message: `cancelled at --${option}`, fix: `pass --${option} to skip the question` }, say) };
+      // `flag` carries its own dashes, so for a flag this is the catalog's `cancelled at --{option}`
+      // to the character, and a locale pack's translation of it still applies (`messages.test.ts`).
+      return { values: out, failure: localise({ option, code: 'CANCELLED', message: `cancelled at ${flag}`, fix: `pass ${flag} to skip the question` }, say) };
     }
     Object.defineProperty(out, option, { value: answer.value, writable: true, enumerable: true, configurable: true });
   }

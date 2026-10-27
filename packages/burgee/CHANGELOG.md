@@ -1,5 +1,101 @@
 # burgee
 
+## 1.9.0
+
+### Minor Changes
+
+- [#1316](https://github.com/ofri-peretz/burgee/pull/1316) [`d565864`](https://github.com/ofri-peretz/burgee/commit/d56586433d64b9485a266d3085ea5ef8527e86d5) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A missing value that declares a prompt is left to the handler's prompt binding, and every handler
+  learns whether the run is `--json` (caique R1, R6).
+
+  - An option or positional that declares `prompt` (caique's `promptFor` sets it) is no longer
+    refused by the engine when it is missing. The binding wrapped around the handler asks a person
+    for it, or refuses naming the flag. Help still marks it required, and so does `--schema`.
+  - `ctx.json` is `true` when the caller asked for `--json`, which an `--mcp` tool call always does.
+    A prompt binding reads it as "nobody is here to type", and flagstaff's `hoist` reads it as its
+    `json` mode.
+
+## 1.8.0
+
+### Minor Changes
+
+- [#1266](https://github.com/ofri-peretz/burgee/pull/1266) [`02e6f9f`](https://github.com/ofri-peretz/burgee/commit/02e6f9fcd779d892e7097659a6bd4c2f0e5b5a04) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Output formats are data on the plugin object, and `--max-bytes` budgets any machine format
+  (`agent-headroom` RF and R3).
+
+  - A plugin's `formats` maps a name to `{ render(value), description }`. `--format=<name>` picks
+    one, and `--format` with no name lists every format, built-ins included. burgee registers its
+    own `agent` and the new `tsv` the same way: a header row, then one tab-separated line per row
+    of a list result, 59% smaller than minified JSON on fifty rows of four fields. `--schema`'s
+    `output.formats` names the same set, and `burgee check` checks a plugin's formats. A format
+    renders a success's data only. A failure is written as it always was, `hint` and `fix`
+    included.
+  - `--max-bytes <n>` cuts a list result at the last whole row that fits, so the document still
+    parses, and says so: `truncated: { of, returned }` in the `--json` envelope, or one
+    `{"truncated":…}` line on stderr for a line format. A result that is not a list is returned
+    whole with `over`, the bytes it is over the budget. Without a machine format it is refused
+    before the handler runs.
+
+- [#1240](https://github.com/ofri-peretz/burgee/pull/1240) [`00a3913`](https://github.com/ofri-peretz/burgee/commit/00a391336910129b8453daddcd09bbe64cd21ab6) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee check` runs every installed layer's own `check`. A plugin is one object for the whole
+  family, and a key another layer hosts, such as `tokens` (roundel) or `spinners` (flagstaff), is
+  now handed to that layer's `check` and reported under `layers`: `{ host, keys, run, exitCode,
+output }`. Each layer is found where Node would resolve it from the plugin's directory and run as
+  a command, never imported, so burgee still depends on no layer. A layer that is not installed is
+  named with the `npx` command to run. A layer that refuses makes the check refuse, with that
+  layer's own code and fix. An object that carries only other layers' keys is no longer refused as
+  `E_NO_CONTRIBUTION`. That code now means no layer of the family reads anything in it.
+
+- [#1252](https://github.com/ofri-peretz/burgee/pull/1252) [`efc994e`](https://github.com/ofri-peretz/burgee/commit/efc994ea20dae1f31990a7afef9dfa3c34fee596) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - An option's environment variable is part of the machine contract, and the config discovery
+  order can be read. An option declared with `env` now carries that name on its `inputSchema`
+  property, in `--schema` and in `--mcp`'s `tools/list`, as it already did on the option itself.
+  `config explain` lists, under the option rows, every path discovery tries in order, why each is
+  tried, and which file was read (`discovery: off` under `--no-config`, the one path under
+  `--config`); `--json` carries the same as `data.discovery`. `--explain <option>`, when a config
+  file won, names that file and its place in the discovery order. Both are loaded only on those
+  two paths.
+
+- [#1233](https://github.com/ofri-peretz/burgee/pull/1233) [`c92e417`](https://github.com/ofri-peretz/burgee/commit/c92e4173f40cb8547258544576c2d675173edd91) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` now rewrites `colorette` to `roundel/colorette`, which colorette 2.0.20's own suite passes 67 / 67, level with colorette itself, `require()` included. A project on colorette 1 is left alone.
+
+- [#1255](https://github.com/ofri-peretz/burgee/pull/1255) [`676279a`](https://github.com/ofri-peretz/burgee/commit/676279ab67896b408a4acf5cd2c6418a7d88d01a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` now rewrites `kleur` to `roundel/kleur` and `kleur/colors` to `roundel/kleur/colors`, which kleur 4.1.5's own suite passes 15 / 15, level with kleur itself, `require()` included. A project on kleur 3 is left alone.
+
+- [#1262](https://github.com/ofri-peretz/burgee/pull/1262) [`ee9f874`](https://github.com/ofri-peretz/burgee/commit/ee9f87444ea654a968f1e4019384fcd1292348c6) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A typed positional is published as its type, and its `choices` are offered on TAB
+  (typed-positionals R4).
+
+  - `--schema` and `--mcp`'s `inputSchema` give an argument its JSON type: `integer`, `number`,
+    `boolean`, or `string` for `string` and `file`. Before this, every argument was `string`. A
+    declared `default` is published as that type (`0.5`, not `"0.5"`).
+  - Shell completions offer a positional's `choices` in its slot, in bash, zsh, fish and PowerShell,
+    for native programs and for `burgee/commander`'s `Argument.choices()`. They are read from the
+    script, so TAB still never runs the program for them. A command whose other positionals declare
+    a completer gets them from `__complete`.
+
+### Patch Changes
+
+- [#1285](https://github.com/ofri-peretz/burgee/pull/1285) [`6570ff2`](https://github.com/ofri-peretz/burgee/commit/6570ff28a3aa8959548ee338dfb114cb9b7deab5) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` reads dotenv 18.0.9, `@inquirer/core` 12.0.5 and `@inquirer/prompts` 8.7.4 as the graded releases of `seniority/dotenv` (197 / 197), `caique/inquirer` (45 / 45) and `caique/inquirer/prompts` (221 / 221), each level with its control.
+
+- [#1311](https://github.com/ofri-peretz/burgee/pull/1311) [`d00f78a`](https://github.com/ofri-peretz/burgee/commit/d00f78aabee34669876433c9f856a7cb774b20ac) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A `burgee/yargs` program that ends in `.parseSync()` now answers `completion <shell>` and `--mcp` instead of crashing with `YError: .parseSync() must not be used with asynchronous builders…`. Under `parseSync()` the completion module is required synchronously and still stays off the start-up path. The MCP server runs on after `parseSync()` returns. `completion` with an unknown shell now runs the program under `.parse()` and `.parseAsync()` as well, as it would on yargs, where before it did nothing. `burgee migrate` now pins the packages it adds in the project's own style. It pins exactly, with the installer's exact flag, when every runtime dependency is exact or when the incumbent is. It uses `~` when the incumbent does, and `^` otherwise.
+- Updated dependencies [[`6570ff2`](https://github.com/ofri-peretz/burgee/commit/6570ff28a3aa8959548ee338dfb114cb9b7deab5), [`e739f18`](https://github.com/ofri-peretz/burgee/commit/e739f1822cfc196e280ee74c1a47c0d3543fc989)]:
+  - seniority@1.2.0
+
+## 1.7.2
+
+### Patch Changes
+
+- [#1258](https://github.com/ofri-peretz/burgee/pull/1258) [`e3b3a41`](https://github.com/ofri-peretz/burgee/commit/e3b3a41745ecdc853d741c457306c566541271b6) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/locale-pack-schema.json` no longer prints an `Intl.PluralRules` expression beside the plural forms it lists, which agents ran instead of reading the list, and its top-level description now says each catalog id's English, with its placeholders, is that id's `description` under `$defs.messages`.
+
+- [#1258](https://github.com/ofri-peretz/burgee/pull/1258) [`e3b3a41`](https://github.com/ofri-peretz/burgee/commit/e3b3a41745ecdc853d741c457306c566541271b6) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` no longer tells a blocked run it rewrote anything. When a preflight row blocks the write, the file list is headed `would rewrite, not rewritten (blocked):` instead of `rewrote:`, and there is no `next: npm install … && npm uninstall …` line (`next` is `""` in `--json`), since nothing moved. After a rewrite to `burgee/commander/v14` or `burgee/yargs/v17`, the grade printed beside it is that major's own suite's (`commander 14  1331 / 1331`, `yargs 17  793 / 794`), not the current major's, and the `--json` row carries `major`.
+
+- [#1264](https://github.com/ofri-peretz/burgee/pull/1264) [`e739f18`](https://github.com/ofri-peretz/burgee/commit/e739f1822cfc196e280ee74c1a47c0d3543fc989) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Provenance now gives the line for a value set in the `package.json` field. The new `packageLayer(path, name)` in `seniority/config` (and the root) reads the field named after your program as the layer below the config file, and records the line each of its keys is set on. `explain` then prints `package.json field in /app/package.json:6`, not just the file. Pass the parsed manifest as a third argument if you already have it, and the file is read again only for the lines.
+
+  `lineOf` now reads the top level of the JSON only. It used to return the first `"key":` anywhere in the file, so a nested key with the same name, written above the top-level one, was cited at the wrong line. A key set twice is cited at the last one, the one `JSON.parse` keeps.
+
+  burgee: `--explain` and `meta.provenance` now give the line for a value set in the `package.json` field (`package.json:5`), as they already did for a config file.
+
+- Updated dependencies [[`e3b3a41`](https://github.com/ofri-peretz/burgee/commit/e3b3a41745ecdc853d741c457306c566541271b6), [`02e6f9f`](https://github.com/ofri-peretz/burgee/commit/02e6f9fcd779d892e7097659a6bd4c2f0e5b5a04), [`efc994e`](https://github.com/ofri-peretz/burgee/commit/efc994ea20dae1f31990a7afef9dfa3c34fee596), [`efc994e`](https://github.com/ofri-peretz/burgee/commit/efc994ea20dae1f31990a7afef9dfa3c34fee596)]:
+  - bellpull@1.0.10
+  - closeout@1.1.8
+  - linegauge@1.1.5
+  - roundel@1.2.1
+  - seniority@1.1.1
+
 ## 1.7.1
 
 ### Patch Changes

@@ -1,5 +1,5 @@
 {
-  "$comment": "upstream-watch R1. See packages/flagstaff/competitors.json for the field meanings. `./ask` is caique's own API, and claims only its surface against clack and inquirer. `./inquirer/prompts` is graded by @inquirer/prompts' own suites through compat-oracle (the `inquirer-prompts` host, inquirer-prompts-drop-in R4), so its claim is `compat`, and its fingerprint is @inquirer/prompts 8.7.3, the release graded, rather than the legacy `inquirer` package.",
+  "$comment": "upstream-watch R1. See packages/flagstaff/competitors.json for the field meanings. `./ask` is caique's own API, and claims only its surface against clack and inquirer. `./inquirer/prompts` is graded by @inquirer/prompts' own suites through compat-oracle (the `inquirer-prompts` host, inquirer-prompts-drop-in R4), so its claim is `compat`, and its fingerprint is @inquirer/prompts 8.7.4, the release graded, rather than the legacy `inquirer` package.",
   "./ask": [
     {
       "package": "clack",
@@ -162,7 +162,95 @@
       "package": "inquirer-core",
       "claim": "compat",
       "registry": "@inquirer/core",
-      "seen": null
+      "seen": {
+        "registry": "@inquirer/core",
+        "version": "12.0.5",
+        "shasum": "703008e9bd4eb59815b4e094a24ca0ced974a204",
+        "weight": 84291,
+        "self": 33516,
+        "packages": 10,
+        "files": {
+          "dist/index.d.ts": "e1d6ddd0c300ba35bd166063d5b2456e9d84fe96bdb7c16ad9379e50dca5dcda",
+          "dist/index.js": "465298a818b5ba4332579195a2f9a93b648db2a87d0bdd9608e5804955106c29",
+          "dist/lib/__probe/p1.d.ts": "708667d0be2b7c761d85d3fcd27ffd86af6d9b07285b844e4c89460dcd7a7136",
+          "dist/lib/__probe/p1.js": "b29c4a6673c41a76fbaf5a7dd4ee76ca1dc621713d35c6d1361c325e696415d5",
+          "dist/lib/__probe/p2.d.ts": "708667d0be2b7c761d85d3fcd27ffd86af6d9b07285b844e4c89460dcd7a7136",
+          "dist/lib/__probe/p2.js": "5664b041803cbeb6cd286c8fa242d5c5c6ebf7ad1f9c0c72613c84c07a3ee1a0",
+          "dist/lib/__probe/p3.d.ts": "708667d0be2b7c761d85d3fcd27ffd86af6d9b07285b844e4c89460dcd7a7136",
+          "dist/lib/__probe/p3.js": "08f8d9af8c032fa4db6c7b8dceb3f4365e99e6a369151ca33e8f6d0a992f30f1",
+          "dist/lib/create-prompt.d.ts": "673acd99a4a6296577959626d31fe5cabf5bb3441e973e3e8cea71ffece1ff81",
+          "dist/lib/create-prompt.js": "869b5aa206e12f431ffb605bc23b7894ae6be8436ac46d05398ca6f124d1bb5c",
+          "dist/lib/errors.d.ts": "cc2d9ba9d5434882cfb9bc2954fe433b5538fa78a40be504c9833a45d1a732ad",
+          "dist/lib/errors.js": "e853af7060009a0d0cc4634431c28d9b5ff43f0084982c1700b75b943b27a278",
+          "dist/lib/hook-engine.d.ts": "a93432b560099da85aadbb687183ac0d2e9d2719dff542a7db3d0cf296cdf0ac",
+          "dist/lib/hook-engine.js": "03abfab3475cb8f7d5feee2ce6bf7ca77327042d0e50bb1b362866c8667bd2b4",
+          "dist/lib/key.d.ts": "10043f2974346ba2baca701cd0a2bca1bda974d626a5d7eb92b741757a42443e",
+          "dist/lib/key.js": "23a8ce908654922f130da62b1b0146c2107dd939019d3ee67c69ef5bb56b336f",
+          "dist/lib/make-theme.d.ts": "5a7fe6ef136e88ee70d3cd0b1aa0d6875178b2682542ca340875a2711c81d779",
+          "dist/lib/make-theme.js": "434600c202a94ae6ba3b90ce9820e92aa7d629f894bfa4cdddde8fd0834cb870",
+          "dist/lib/pagination/use-pagination.d.ts": "6efe6725728024c1b6cf22b47fe1dcaecc951444e7cb6fe0037d96123bb75667",
+          "dist/lib/pagination/use-pagination.js": "0cbe099c4e7581198e6d18ea051cf9508b5d24c34b566ba45eae7a16286ff588",
+          "dist/lib/screen-manager.d.ts": "681cac7cfb615498ee2cf79c930d8b55e2da6c9a3c58971b3324205e218cf838",
+          "dist/lib/screen-manager.js": "39dc3d968f515138a35a46c89f0abea24c83ef0ebdad81eba482d605dbbf9499",
+          "dist/lib/Separator.d.ts": "ab37b1199441c7ecb602defe46f72099d3d4555f7911bd865f51657f419779ab",
+          "dist/lib/Separator.js": "f75aa2252ef60c62410bd604bf7c0688c678c947d446cfcef7946884db0a78e6",
+          "dist/lib/theme.d.ts": "c8c43f3c6f59572906c077ddd96a1856fc5c6519c30f356d6c9c511b9dadc9c0",
+          "dist/lib/theme.js": "321d96b2968d279502f04d1e711e4b1de50dbc25daba2c78041a0560e2e7db73",
+          "dist/lib/use-effect.d.ts": "8da95d257be3f2d83c21c555dedda9c96869e5f855652523cf52dc98ca8c57de",
+          "dist/lib/use-effect.js": "001c995aba7c77aee1c0043516327b7f4a2aadf0c94a3d7f00dfe171dce052bf",
+          "dist/lib/use-keypress.d.ts": "ce6ada7f4eb4cda3ccfe28a0201608828fc6ee2d3204101976831100d9550d47",
+          "dist/lib/use-keypress.js": "943a6d1ad799f073cea21eb155c193990b0802640aa5210e4f20ef18485f25e3",
+          "dist/lib/use-memo.d.ts": "aa9494cb36743567c0f6ce385ce869358b59193c9b61612e0d70e4de500424c3",
+          "dist/lib/use-memo.js": "70a292e170d545a5d28c87f579dafbf1f1ec8389fcb12f598ccf3ca87d73a757",
+          "dist/lib/use-prefix.d.ts": "988be2b47c162ddfc4ac289de0bc50b52fd425d4408cb4bc40fcc9b81f4957c6",
+          "dist/lib/use-prefix.js": "9ace5f806e90dd13a21fbdaaae9678af60b31f2202985be983a8b082290ae6a6",
+          "dist/lib/use-ref.d.ts": "904964129f1ef4797282d4ea4411eaf26d4b22bb481b8b8ab3e920d4cfc79ecf",
+          "dist/lib/use-ref.js": "b76dccca2579a01f21b77a437bb0177aca843b56b6f4727eb62ee8b18d7da81a",
+          "dist/lib/use-state.d.ts": "bf2b86c4d2d7db6fdbb14098c247526ef334ee62e8f06e3d790891b5d0d10090",
+          "dist/lib/use-state.js": "0bd91dcc4ba24d7f1eb657a3c4aab35f264c3faf4e59b8159411c1a4f67b0fdc",
+          "dist/lib/utils.d.ts": "7c8e5a4aaee3a6e83251ac295ab33a9e0aa2891c97674b9844128a8335aadc6b",
+          "dist/lib/utils.js": "951d0b5bb378664a26890fdc30951c72795bcc3988c44f2668ded27cc7162eba",
+          "LICENSE": "85aca0b12ce5ade4ff76e9cbbe7e0d5a4cdde979e3930727c272e1fa04b8cc23",
+          "package.json": "35e74b925b611b0d59022c3c592b875ba26c710391f634e5fc7e1381319cbfe7",
+          "README.md": "3755b653465b536e1f5fedccc71985ce26c2b669f95f71028d46e0f1f338e2ca"
+        },
+        "exports": [
+          "AbortPromptError",
+          "CancelPromptError",
+          "ExitPromptError",
+          "HookError",
+          "Keybinding",
+          "KeypressEvent",
+          "Separator",
+          "ValidationError",
+          "createPrompt",
+          "effectScheduler",
+          "f",
+          "getDefaultKeybindings",
+          "handleChange",
+          "isBackspaceKey",
+          "isDownKey",
+          "isEnterKey",
+          "isNumberKey",
+          "isShiftKey",
+          "isSpaceKey",
+          "isTabKey",
+          "isUpKey",
+          "makeTheme",
+          "readline",
+          "useEffect",
+          "useKeypress",
+          "useMemo",
+          "usePagination",
+          "usePrefix",
+          "useRef",
+          "useState",
+          "withHooks",
+          "withPointer",
+          "withUpdates"
+        ],
+        "measured": "2026-10-26"
+      }
     }
   ],
   "./inquirer/prompts": [
@@ -172,16 +260,16 @@
       "registry": "@inquirer/prompts",
       "seen": {
         "registry": "@inquirer/prompts",
-        "version": "8.7.3",
-        "shasum": "6ce4983574b86000558555d78fd475efd1546d66",
-        "weight": 547175,
+        "version": "8.7.4",
+        "shasum": "dfdac4378deda0dd5f5457a1c70db3ac11347925",
+        "weight": 547441,
         "self": 561,
         "packages": 25,
         "files": {
           "dist/index.d.ts": "736a3485c9e96b87b11fe6e55b5455e9f85ef59edc09bff1eb2f114ef661d1e5",
           "dist/index.js": "736a3485c9e96b87b11fe6e55b5455e9f85ef59edc09bff1eb2f114ef661d1e5",
           "LICENSE": "85aca0b12ce5ade4ff76e9cbbe7e0d5a4cdde979e3930727c272e1fa04b8cc23",
-          "package.json": "279d381dcc07897ef5902d97eff449248e64306dcdd75dcd9270d60313f90dc1",
+          "package.json": "8cd0273c7134ebffa043c84bc00621551c6c0eb73b687b67417894580a3bfcbd",
           "README.md": "e8793d3ce668616bf5bff1fa95585885cf68d40e6420409ef742cb02fb04c990"
         },
         "exports": [
@@ -197,7 +285,7 @@
           "search",
           "select"
         ],
-        "measured": "2026-10-11"
+        "measured": "2026-10-27"
       }
     }
   ]

@@ -738,6 +738,17 @@ interface SpinnerOptions extends CommonOptions {
     frames?: string[];
     delay?: number;
     styleFrame?: (frame: string) => string;
+    /**
+     * A spinner style as data — flagstaff's `lookupSpinner(name)`, or a plugin's `spinners` entry —
+     * in place of `frames` and `delay`: on a terminal its frames turn at its interval, and anywhere
+     * else its `static` is printed where the first frame would be (U3). caique imports no registry:
+     * the program that has both hands one to the other (D-20261027-prompt-spinner-composed).
+     */
+    style?: {
+        readonly frames: readonly string[];
+        readonly interval: number;
+        readonly static: string;
+    };
 }
 ```
 

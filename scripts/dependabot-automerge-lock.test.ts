@@ -19,14 +19,14 @@
  * This runs the step's own shell rather than matching its text, as changeset-check-lock
  * does, because what matters is what the script decides.
  */
-import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { scratchDirs } from './scratch-dir.js';
+import { bashSpawns, runStepScenarios } from './step-scenarios.js';
 
 /** Every scratch directory this file makes, removed after its last test (`scripts/scratch-dir.ts`). */
 const scratchDir = scratchDirs();
@@ -55,22 +55,6 @@ interface Update {
   packageEcosystem: string;
 }
 
-/** Run the step on fetch-metadata's `updated-dependencies-json` and return its `merge=` answer. */
-function mergeFor(updates: Update[] | string): string {
-  const dir = scratchDir('dependabot-automerge-');
-  const script = join(dir, 'decide.sh');
-  const out = join(dir, 'output');
-  writeFileSync(script, decideScript());
-  writeFileSync(out, '');
-  const UPDATES = typeof updates === 'string' ? updates : JSON.stringify(updates);
-  execFileSync('bash', [script], {
-    cwd: dir,
-    env: { ...process.env, UPDATES, GITHUB_OUTPUT: out, GITHUB_STEP_SUMMARY: join(dir, 'summary') },
-    stdio: 'pipe',
-  });
-  return (/^merge=(.*)$/m.exec(readFileSync(out, 'utf8'))?.[1] ?? '').trim();
-}
-
 const npm = (dependencyName: string, dependencyType: string, updateType: string): Update => ({
   dependencyName,
   dependencyType,
@@ -84,33 +68,73 @@ const action = (dependencyName: string, updateType: string): Update => ({
   packageEcosystem: 'github_actions',
 });
 
+/**
+ * fetch-metadata's `updated-dependencies-json` for every PR the cases ask about, by name. A
+ * string is passed as it is, so the cases can hand the step something that is not JSON.
+ */
+const PRS: Record<string, Update[] | string> = {
+  'dev-group': [npm('eslint', 'direct:development', 'minor'), npm('tsx', 'direct:development', 'patch'), npm('zod', 'indirect', 'patch')],
+  'action-patch': [action('actions/checkout', 'patch')],
+  'action-minor': [action('codecov/codecov-action', 'minor')],
+  'action-major': [action('actions/checkout', 'major')],
+  // #571's shape: sixteen development bumps and `fumadocs-mdx`/`posthog-js` in a docs app.
+  'group-with-production': [npm('eslint', 'direct:development', 'minor'), npm('posthog-js', 'direct:production', 'minor')],
+  'group-with-major': [npm('tsx', 'direct:development', 'patch'), npm('vitest', 'direct:development', 'major')],
+  'empty-list': [],
+  'empty-string': '',
+  'not-json': 'not json',
+  'no-update-type': [{ ...npm('tsx', 'direct:development', 'patch'), updateType: '' }],
+};
+
+/**
+ * windows-lane-holds R6 — the step runs for every PR above inside one `bash` started from Node,
+ * in `beforeAll` (`scripts/step-scenarios.ts`, which says why). On run 40513685943's Windows
+ * cell the first case, then one `bash` per call, took 29,691 ms of its 30,000.
+ */
+let answers: Record<string, { merge: string; trace: string }>;
+beforeAll(() => {
+  const scenarios = Object.fromEntries(Object.entries(PRS).map(([name, updates]) => [name, { env: { UPDATES: typeof updates === 'string' ? updates : JSON.stringify(updates) } }]));
+  const runs = runStepScenarios(scratchDir('dependabot-automerge-'), { script: decideScript(), variables: ['UPDATES'], scenarios, env: process.env });
+  answers = Object.fromEntries(Object.entries(runs).map(([name, { output, trace }]) => [name, { merge: (/^merge=(.*)$/m.exec(output)?.[1] ?? '').trim(), trace }]));
+}, 120_000);
+
+/** The step's `merge=` answer for one of {@link PRS}, with its trace as the message when it is wrong. */
+function expectMerge(name: keyof typeof PRS & string, expected: 'true' | 'false'): void {
+  const { merge, trace } = answers[name] ?? { merge: '', trace: 'no answer' };
+  expect(merge, merge === expected ? undefined : trace).toBe(expected);
+}
+
 describe('dependabot-automerge: which PRs get auto-merge', () => {
   it('merges a group of patch and minor development bumps', () => {
-    expect(mergeFor([npm('eslint', 'direct:development', 'minor'), npm('tsx', 'direct:development', 'patch'), npm('zod', 'indirect', 'patch')])).toBe('true');
+    expectMerge('dev-group', 'true');
   });
 
   it('merges a GitHub Actions patch or minor, which Dependabot always types direct:production', () => {
-    expect(mergeFor([action('actions/checkout', 'patch')])).toBe('true');
-    expect(mergeFor([action('codecov/codecov-action', 'minor')])).toBe('true');
+    expectMerge('action-patch', 'true');
+    expectMerge('action-minor', 'true');
   });
 
   it('does not merge a GitHub Actions major', () => {
-    expect(mergeFor([action('actions/checkout', 'major')])).toBe('false');
+    expectMerge('action-major', 'false');
   });
 
   it('does not merge a group when one entry is a direct production dependency, even a patch', () => {
-    // #571's shape: sixteen development bumps and `fumadocs-mdx`/`posthog-js` in a docs app.
-    expect(mergeFor([npm('eslint', 'direct:development', 'minor'), npm('posthog-js', 'direct:production', 'minor')])).toBe('false');
+    expectMerge('group-with-production', 'false');
   });
 
   it('does not merge a group when one entry is a major', () => {
-    expect(mergeFor([npm('tsx', 'direct:development', 'patch'), npm('vitest', 'direct:development', 'major')])).toBe('false');
+    expectMerge('group-with-major', 'false');
   });
 
   it('does not merge what it cannot read: an empty list, no JSON, or an entry with no update type', () => {
-    expect(mergeFor([])).toBe('false');
-    expect(mergeFor('')).toBe('false');
-    expect(mergeFor('not json')).toBe('false');
-    expect(mergeFor([{ ...npm('tsx', 'direct:development', 'patch'), updateType: '' }])).toBe('false');
+    expectMerge('empty-list', 'false');
+    expectMerge('empty-string', 'false');
+    expectMerge('not-json', 'false');
+    expectMerge('no-update-type', 'false');
+  });
+
+  it('R6 — starts the step\'s shell once per file, and every PR got an answer from it', () => {
+    expect(bashSpawns()).toBe(1);
+    expect(Object.entries(answers).filter(([, { trace }]) => !/^exit \d+$/mu.test(trace)).map(([name]) => name)).toEqual([]);
   });
 });

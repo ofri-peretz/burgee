@@ -372,7 +372,7 @@ read 240 of 241.
 
 ### `seniority/dotenv`
 
-**Graded by dotenv 18.0.8's own test suite: 193 of 193, the same as the real `dotenv` gets
+**Graded by dotenv 18.0.9's own test suite: 197 of 197, the same as the real `dotenv` gets
 here.** That includes its `dotenv run` command line and signal forwarding, both parsers, and
 `import 'dotenv/config'`. dotenv 17.4.2's suite is graded too and not claimed: 107 of 141,
 because 17's vault, tips and `console.log` line are what 18 changed.
@@ -407,12 +407,12 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `cosmiconfig` | 242 / 243 |
-| `dotenv` | 193 / 193 |
+| `dotenv` | 197 / 197 |
 | `find-up` | 104 / 104 |
 | `lilconfig` | 77 / 77 |
 | `rc` | 1 / 1 |
 
-Weight, installed and tree-inclusive: **224,606 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1139** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **225,522 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1143** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 

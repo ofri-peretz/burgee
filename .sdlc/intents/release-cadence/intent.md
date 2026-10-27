@@ -1,7 +1,14 @@
 # Intent — a release pace a cautious adopter can follow, and semver that matches the incumbent's
 
-**Status:** approved · **Opened:** `2026-10-18` · **Owner:** `@ofri-peretz` · approved by the owner
-2026-10-18; built 2026-10-18; the 30-day measurement completes 30 days after the merge (see below)
+**Status:** dropped (2026-10-27) · **Opened:** `2026-10-18` · **Owner:** `@ofri-peretz` · approved by
+the owner 2026-10-18; built 2026-10-18
+
+**Dropped 2026-10-27** → [`D-20261027-no-release-window`](../../decisions/D-20261027-no-release-window.md):
+the owner removed the release window ("No release window, we should release all day long every
+time we wish to release."). Every release now goes out when it merges, so the 7-day batch rule,
+its model and the 30-day share it was measured by are gone. The changeset lock, criterion 1, stays
+in force as `scripts/changeset-lock.mts` on every PR that adds a changeset. The sections below are
+the record as it stood.
 
 ---
 
@@ -80,12 +87,30 @@ criterion of the two can only be measured over the 30 days after it lands.
 - **`latest` at least 7 days old on at least 50% of days, per package, over 30 days** — **not yet
   measurable.** The window (no non-fix release within 7 days of the previous one; fixes and
   `Security:` changes immediate) runs in `changesets-pr.yml` and `release.yml`, modelled in
-  [`release-window.qnt`](./release-window.qnt). Measure with `node scripts/release-window.mts
+  `release-window.qnt` (retired 2026-10-27). Measure with `node scripts/release-window.mts
   measure --from <merge time> --to <merge time + 30 days>`: the window closes on the 30th day after
   this merges (2026-11-18 if it merges 2026-10-19). The spec records the prediction: the window
   alone would not have moved the last 30 days' share off 0, because fixes reset `latest`. Raise to
   `shipped` only if the measured share meets 50% for every package; otherwise the Maintain stage
   writes the shortfall back as a new intent.
+
+## Where the criteria stand — 2026-10-26
+
+**Still `approved`, and not stamped: the window was breached in substance.** #1253 published
+`roundel@1.2.1`, `seniority@1.1.1` and `burgee@1.7.2` as patches built from a `main` that already
+had the code of ten minor changesets the window was holding for them. The version numbers waited;
+the code did not. D-20261026-release-window-holds-code restates R2 (a held package's fixes wait
+with it; `Security:` releases it at once) and widens R6 (`release.yml` defers such a patch). The
+lock that would have refused #1253 is in `scripts/release-window.test.ts`, red on `main` first;
+see [`spec.md` § Status 2026-10-26](./spec.md#status-2026-10-26). The model's two new
+counterexamples, `holdsVersionsNotCode` and `shippedNeverHoldsAFix`, run in `models.yml` since
+2026-10-27 (D-20261027-close-three-workflow-gaps), so neither is checked by hand any more.
+
+- **The changeset lock** — met, unchanged.
+- **The 30-day share** — not met yet. 0 of 7.19 days for every package from #1124's merge to
+  2026-10-26. It is read over the 30 days after the fix above merges; with a merge on 2026-10-27
+  that reading is due 2026-11-26. Raise to `shipped` only if each package's share is at least 50%;
+  otherwise the Maintain stage writes the shortfall back as a new intent.
 
 ## Open questions
 

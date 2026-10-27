@@ -3,7 +3,7 @@ repo:     https://github.com/sindresorhus/yoctocolors
 version:  2.2.0
 tag:      v2.2.0
 commit:   a02a16ec36fbd58a0848e95598fb4913c54c7591
-vendored: 2026-10-20
+vendored: 2026-10-26
 files:    1
 tool:     scripts/vendor-suite.ts
 

@@ -120,6 +120,23 @@ describe('the engine: a failing handler under --json', () => {
     expect(r.stderr).not.toContain('{"error"');
   });
 
+  /**
+   * caller-matrix, `errors` × `accessible`: a screen reader at a terminal that could take colour.
+   * What it hears is the labelled prose, each line once — `error:`, then `hint:` and `fix:` when
+   * the error carries them, or the command's `usage:` when it does not — with no escape to read out, no carriage return to re-announce, and
+   * no JSON line, because stderr is a terminal. Run red twice in a scratch edit of `failure.ts`:
+   * writing the structured line at a terminal too, and dropping the `fix:` line.
+   */
+  it.each(CASES)('$name: under CLI_ACCESSIBLE at a colour terminal, stderr is the labelled prose once, with no escape and no JSON', async ({ name, run, message }) => {
+    const r = await runBurgee(nativeProgram, { argv: [name], env: { TERM: 'xterm-256color', COLORTERM: 'truecolor', CLI_ACCESSIBLE: '1' }, tty: { stdout: true, stderr: true } });
+    expect(r.stdout).toBe('');
+    expect(r.stderr).not.toMatch(/[\r\u001B]/);
+    expect(r.stderr).not.toContain('{"error"');
+    const lines = r.stderr.split('\n').filter((l) => l !== '');
+    const auth = run === throwsAuth;
+    expect(lines).toEqual(auth ? [`error: ${message}`, 'hint: the session ended', 'fix: app login'] : [`error: ${message}`, `usage: app ${name}`]);
+  });
+
   it('puts a usage failure on stdout too, so one rule covers every --json failure', async () => {
     const r = await runBurgee(nativeProgram, { argv: ['sync', '--json', '--nope'] });
     expect(r.code).toBe(ExitCode.USAGE);

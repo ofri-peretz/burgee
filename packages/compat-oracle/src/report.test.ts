@@ -15,6 +15,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { active, gradable, HOSTS, type Host, hostNamed, PREVIOUS_MAJORS } from './hosts.js';
+import { liveRegistry } from './registry.js';
 import { main, type Paths, upstreamMode, verdict } from './report.js';
 import { controlName, grade, type Grade } from './run.js';
 import { type CompatRecord, latestVersion, renderDiff, renderMissingExtras, diffRecords } from './upstream.js';
@@ -118,11 +119,75 @@ describe('choosing what to grade', () => {
   it('grades every active host when none is named, and every previous major under --majors', async () => {
     gradeOf.mockImplementation((h) => graded(h.name));
     await main([], write, paths);
-    expect(gradeOf.mock.calls.map(([h]) => h.name)).toEqual(active().map((h) => h.name));
+    // Less a host declared off this platform: ink, on the Windows cells that run this file.
+    expect(gradeOf.mock.calls.map(([h]) => h.name)).toEqual(active().filter((h) => h.notGradedOn?.platforms.includes(process.platform) !== true).map((h) => h.name));
     gradeOf.mockClear();
     baseline('commander-14', 1, 1360, paths.majors);
     await main(['--majors'], write, paths);
     expect(gradeOf.mock.calls.map(([h, , , reference]) => [h.name, reference])).toEqual(PREVIOUS_MAJORS.map((h) => [h.name, h.name === 'commander-14' ? 1360 : 0]));
+  });
+
+  it('names each host as it starts and as it ends under --progress, so a host that stalls is the last one named', async () => {
+    gradeOf.mockImplementation((h) => {
+      if (h.name === 'which') throw new Error('stalled');
+      return graded(h.name);
+    });
+    // A clock that reads 1 s as chalk starts and 4 s as it ends: three seconds, said in seconds.
+    const clock = vi.spyOn(performance, 'now').mockReturnValueOnce(1000).mockReturnValueOnce(4000).mockReturnValue(9000);
+    try {
+      await expect(main(['chalk', 'which', '--control', '--progress'], write, paths)).rejects.toThrow('stalled');
+    } finally {
+      clock.mockRestore();
+    }
+    expect(out).toBe('  grading chalk\n  graded chalk in 3 s\n  grading which\n');
+  });
+
+  it('does not grade a host declared notGradedOn this platform, and names it with its reason', async () => {
+    const chalk = byName('chalk');
+    gradeOf.mockImplementation((h) => graded(h.name));
+    chalk.notGradedOn = { platforms: [process.platform], why: 'upstream never runs it here' };
+    try {
+      expect(await main(['chalk', 'which', '--control'], write, paths)).toBe(0);
+    } finally {
+      delete chalk.notGradedOn;
+    }
+    expect(gradeOf.mock.calls.map(([h]) => h.name)).toEqual(['which']);
+    expect(out).toContain(`\n  not graded on ${process.platform}: chalk — upstream never runs it here\n`);
+    expect(json<{ grades: Grade[] }>(paths.controlResults).grades.map((g) => g.host)).toEqual(['which']);
+  });
+
+  it('does not grade ink on Windows, where its suite never gets past its first pseudo-terminal file', async () => {
+    gradeOf.mockImplementation((h) => graded(h.name));
+    const platform = Object.getOwnPropertyDescriptor(process, 'platform') as PropertyDescriptor;
+    Object.defineProperty(process, 'platform', { ...platform, value: 'win32' });
+    try {
+      await main(['ink', 'inkjs-ui', '--control'], write, paths);
+    } finally {
+      Object.defineProperty(process, 'platform', platform);
+    }
+    expect(gradeOf.mock.calls.map(([h]) => h.name)).toEqual(['inkjs-ui']);
+    expect(out).toContain('\n  not graded on win32: ink — upstream runs this suite on ubuntu only');
+    expect(HOSTS.filter((h) => h.notGradedOn !== undefined).map((h) => [h.name, h.notGradedOn?.platforms])).toEqual([['ink', ['win32']]]);
+  });
+
+  it('grades a host declared notGradedOn other platforms', async () => {
+    const chalk = byName('chalk');
+    gradeOf.mockImplementation((h) => graded(h.name));
+    chalk.notGradedOn = { platforms: process.platform === 'aix' ? ['sunos'] : ['aix'], why: 'elsewhere' };
+    try {
+      await main(['chalk', '--control'], write, paths);
+    } finally {
+      delete chalk.notGradedOn;
+    }
+    expect(gradeOf.mock.calls.map(([h]) => h.name)).toEqual(['chalk']);
+    expect(out).not.toContain('not graded');
+  });
+
+  it('prints no progress line without --progress', async () => {
+    gradeOf.mockImplementation((h) => graded(h.name));
+    await main(['chalk', '--control'], write, paths);
+    expect(out).not.toContain('grading');
+    expect(out).not.toContain('graded chalk');
   });
 
   it('grades the control against the incumbent’s npm name, and writes it to its own results file', async () => {
@@ -382,10 +447,16 @@ describe('--competitors and --fingerprint', () => {
     fingerprinted.mockResolvedValueOnce(0).mockResolvedValueOnce(2);
     expect(await main(['--fingerprint'], write, paths)).toBe(0);
     expect(out).toBe('\nfingerprinting competitors\n\n\n  every competitor fingerprinted\n');
-    expect(fingerprinted.mock.calls[0]).toEqual([paths.packages, write]);
+    expect(fingerprinted.mock.calls[0]).toEqual([paths.packages, write, liveRegistry, { missing: false }]);
     out = '';
     expect(await main(['--fingerprint'], write, paths)).toBe(1);
     expect(out).toContain('\n✖ 2 competitor(s) failed\n');
+  });
+
+  it('passes `--missing` through, so only competitors nothing holds a fingerprint for are recorded', async () => {
+    fingerprinted.mockResolvedValueOnce(0);
+    expect(await main(['--fingerprint', '--missing'], write, paths)).toBe(0);
+    expect(fingerprinted.mock.calls.at(-1)).toEqual([paths.packages, write, liveRegistry, { missing: true }]);
   });
 });
 

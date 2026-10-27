@@ -19,8 +19,8 @@ do, and every cell here now says where it comes from.
 
 ## Measured
 
-⚙️ rows: 2026-10-19 (`66e4611`), a GitHub Actions runner (AMD EPYC 7763, 4 cores), linux/x64, Node
-24.13, 52 interleaved spawns per variant. Milliseconds are a property of that machine, so the deltas below are for reading,
+⚙️ rows: 2026-10-27 (`ac7ccbc`), a GitHub Actions runner (AMD EPYC 7763, 4 cores), linux/x64, Node
+24.13, 92 interleaved spawns per variant. Milliseconds are a property of that machine, so the deltas below are for reading,
 never for gating; the machine-independent figure is the ratio on
 [Benchmarks](/docs/benchmarks).
 
@@ -28,8 +28,8 @@ never for gating; the machine-independent figure is the ratio on
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
 | Downloads / week | new | 508.2M | 259.3M | 10.9M | 49.4M | 30.5M |
 | Runtime dependencies | **5**, none outside the burgee family | 0 | 6 | **18** | 0 | 0 |
-| Installed size ⚙️ | 1642 KB | 203 KB | 515 KB | 912 KB 📖 | 40 KB | 52 KB 📖 |
-| Full CLI run over bare node ⚙️ | +19.1 ms | +15.3 ms | +77.1 ms | +131 ms 📖 | +4.1 ms | +6 ms 📖 |
+| Installed size ⚙️ | 1678 KB | 203 KB | 515 KB | 912 KB 📖 | 40 KB | 52 KB 📖 |
+| Full CLI run over bare node ⚙️ | +18.3 ms | +15.6 ms | +76.8 ms | +131 ms 📖 | +3.7 ms | +6 ms 📖 |
 
 **Agent cost**, against commander on the same tasks with the same model. One run of this
 benchmark is not a verdict: two runs of one commit have read 0.49 and 0.995. So each figure is
@@ -44,7 +44,7 @@ generated from the runs on [Benchmarks](/docs/benchmarks):
 Three things in that table got worse when they were measured rather than asserted, and
 they stay in it.
 
-**Installed size.** burgee installs at **1642 KB**. It is our largest number, it is our least
+**Installed size.** burgee installs at **1678 KB**. It is our largest number, it is our least
 flattering one, and it has now been wrong on this page twice in opposite directions ([measured](/docs/benchmarks)).
 
 First it said 104 KB, a guess at the tarball rather than a measurement. That was corrected
@@ -79,7 +79,7 @@ The build now prunes them by the closure the TypeScript compiler computes from t
 points, and a check fails if any shipped declaration imports one that was not shipped
 ([D-20261011](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/decisions/D-20261011-tarball-unreachable-declarations.md)) ([measured](/docs/benchmarks)).
 
-It buys no dependency outside the burgee family and seven drop-in front ends. It is still 1642 KB, and the
+It buys no dependency outside the burgee family and seven drop-in front ends. It is still 1678 KB, and the
 bundled column on [Benchmarks](/docs/benchmarks) — what an application actually grows by —
 is the number to judge us on. That one is over its own ceiling too, and says so.
 
@@ -91,8 +91,8 @@ met. It read 1.32x on 2026-09-09 and 1.56x on 2026-10-08, and CI runs since 2026
 read 1.47x to 1.56x: burgee's start-up got slower in that month, and this page says so rather
 than keeping the older figure. Since D-157 the gate is what is reachable: a downward-only ratchet at 1.55x
 cac, set from CI's own spread and only ever lowered, which it still meets. The `burgee/yargs`
-drop-in starts at 0.64x yargs (0.82x on 2026-09-09). The `burgee/commander` drop-in starts at
-**1.07x** commander (1.18x on 2026-10-08, 1.08x on 2026-09-09) ([measured](/docs/benchmarks)).
+drop-in starts at 0.63x yargs (0.64x on 2026-10-19, 0.82x on 2026-09-09). The `burgee/commander` drop-in starts at
+**1.08x** commander (1.07x on 2026-10-19, 1.18x on 2026-10-08, 1.08x on 2026-09-09) ([measured](/docs/benchmarks)).
 
 These are the figures from the CI runner, which is where the suite now publishes from: the
 same commit measured eleven times there put `burgee ÷ cac` inside 2.3%, where a developer

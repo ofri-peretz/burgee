@@ -9,7 +9,67 @@
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why still `review`:** `packages/caique/src/` is one file exporting a name; nothing of P1–P3 is built.
 
+> **Umbrella sweep 2026-10-26: one of three criteria held. Two are open and need building.**
+> No program the benchmark drives is layered on caique, and no prompt is driven through a real
+> PTY. See [§ Umbrella sweep 2026-10-26](#umbrella-sweep-2026-10-26).
+>
+> **Built 2026-10-27, not yet stamped.** R1's `promptFor` is built, the B1 demo is layered on it,
+> and a real-terminal Ctrl+C case runs on Linux, macOS and Windows. What is left is a reading and a
+> release, not code. See [§ Built 2026-10-27](#built-2026-10-27-what-is-left-is-a-reading-and-a-release).
+
 ---
+
+## Umbrella sweep 2026-10-26
+
+Read on `main` at `3d079b15` and against `caique@1.5.1` (`npm view caique version` reads 1.5.1,
+the same as the manifest). The children that shipped are `caique-quiet-seam`,
+`inquirer-prompts-drop-in` (caique 1.5.0), `frames-fit-the-screen` and `locale-pack-in-five`.
+`localised-human-surfaces` (caique's message half) is `approved` and waits on its own scheduled
+eval. None of them owns these three criteria, which are caique's own.
+
+| # | criterion | held by | state |
+| :-- | :-- | :-- | :-- |
+| 1 | the conformance cases: flag given → no prompt; TTY without flag → prompt; non-TTY without flag → `USAGE` with `fix`; `--yes`; `--interactive`; cancel → `CANCELLED` | `packages/caique/src/decide.test.ts`, describe "the whole table" › "every row matches the stated rule", "never prompts without a terminal — the one that would be a bug report" and "never prompts under --json, and never under CI"; "R2 · a value from any source is never prompted for"; "R3 · --yes answers a confirm, and only a confirm"; "R3 · --interactive reaches past …". `packages/caique/src/binding.test.ts` › "reports the option it was cancelled at, and how to avoid the question" (`CANCELLED`) | held |
+| 2 | the benchmark's non-TTY task never times out on the layered demo | B1's `non-tty-required` task (`benchmarks/tasks/non-tty-required.json`, 12 turns maximum) passed **355 of 355** runs on the burgee arm over the 71 CI readings from 2026-10-08 to 2026-10-18, at most 5 turns. But that arm is `examples/demo-cli-burgee`, which does not depend on caique: the missing argument is burgee's own P2 refusal, not a caique prompt. R1's `promptFor` / schema `prompt:` binding is not built (`grep -r promptFor packages/*/src` finds nothing), so no demo can be layered on caique | **OPEN** |
+| 3 | `Ctrl+C` during a prompt leaves `stdin` out of raw mode on macOS, Linux and Windows, tested with a PTY in CI | the only real-PTY test is `packages/burgee/src/pty-signal.test.ts` (python `pty`, POSIX only, skipped on Windows). It grades burgee's shutdown, not a caique prompt. `packages/caique/src/raw.test.ts` drives a synthetic key stream | **OPEN** |
+
+**What closes it.** Each item is a build, and each needs a caique or burgee release:
+
+1. **R1**: an option's `prompt:` spec resolved through caique in burgee's pre-action (the
+   decision table already exists), shipped in a caique and a burgee minor.
+2. **The layered demo**: a B1 arm, or the burgee demo, that prompts through R1, then executed weekly
+   B1 readings in which `non-tty-required` passes without reaching its turn limit. This is
+   measurement-gated, like `b1-mcp-arm`'s four readings.
+3. **The PTY case**: a caique prompt run in a real PTY on ubuntu and macOS runners (the
+   `pty-signal.test.ts` route) and on Windows through ConPTY, asserting raw mode is off after
+   `Ctrl+C`. If Windows has no dependency-free PTY route, that is a restatement, and it needs a
+   decision. It is not made here.
+
+Also outstanding, as a design edit with no code: `spec.md` § *Moved here 2026-10-25* asks for a
+requirement-keyed evidence table.
+
+## Built 2026-10-27: what is left is a reading and a release
+
+Built in one PR against the sweep's closing list above. The status stays `approved`, because a
+criterion is stamped only on what npm serves. With no release window
+([D-20261027-no-release-window](../../decisions/D-20261027-no-release-window.md)), the caique and
+burgee minors carrying R1 publish with the first Version PR after this merges.
+
+| # | criterion | held by, on `main` | still needed |
+| :-- | :-- | :-- | :-- |
+| 1 | the conformance cases | as in the sweep | nothing: **held** |
+| 2 | the benchmark's non-TTY task never times out on the layered demo | `examples/demo-cli-burgee`'s `greet` is `promptFor(defineCommand(…), 'name', …)`, so B1's `non-tty-required` now meets caique's refusal (`<name> is required when there is no terminal`, exit 2), not burgee's. `scripts/prompt-exit-codes.test.ts` › "promptFor on a burgee command (caique R1)" runs that path through the engine; `benchmarks/axes/reliability.ts`'s `greet-missing-arg` cases run the built demo with no terminal | **a reading**: the weekly B1 run on `main` after this merges (`bench.yml`, cron `40 5 * * 2`, first Tuesday 2026-11-03 05:40 UTC) has to pass `non-tty-required` on the burgee arm under its 12-turn limit. No paid run is dispatched for it |
+| 3 | `Ctrl+C` during a prompt leaves `stdin` out of raw mode on macOS, Linux and Windows, tested with a PTY in CI | `packages/caique/src/pty-cancel.test.ts` › "R4 · Ctrl+C at a %s prompt on …" — `promptFor`'s own terminal and `caique/clack`'s `text`, on a real terminal (`scripts/pty-host.py`: `pty.fork()` on POSIX, ConPTY through `ctypes` on Windows, D-20261027-caique-pty-windows-conpty), in `compat.yml`'s matrix on all three OSes. It proves the restore through the terminal itself: the second Ctrl+C ends the process only if the first prompt gave the terminal back | the release. Green on Linux, macOS and Windows under Node 24 on #1316; on Windows under Node 20.19 and 22.13 the second-press proof is skipped, a runtime gap recorded in D-20261027-caique-pty-windows-conpty |
+
+R1 itself — `promptFor` and burgee's deferral of a missing value that declares a `prompt` — ships in
+the next caique and burgee minors (`.changeset/caique-prompt-for.md`,
+`.changeset/burgee-prompt-binding.md`). The decisions it took are
+[D-20261027-caique-prompt-for-r1](../../decisions/D-20261027-caique-prompt-for-r1.md); the
+interrupt and restore state machine is [`interrupt.qnt`](./interrupt.qnt), whose first version
+found the handler running with stdin still raw.
+
+**Stamp `shipped` when** criterion 2's reading has passed and caique and burgee have published the
+minors carrying R1.
 
 ## What is wanted
 

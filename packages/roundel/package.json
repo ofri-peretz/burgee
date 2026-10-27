@@ -1,6 +1,6 @@
 {
   "name": "roundel",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Colour for a CLI: one output policy decided from the runtime, nine semantic tokens over util.styleText, and a theme that changes them together, contrast-checked. Zero dependencies. Drop-in paths for chalk, colorette, kleur, picocolors, supports-color and yoctocolors.",
   "license": "MIT",
   "type": "module",

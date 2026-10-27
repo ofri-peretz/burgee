@@ -12,9 +12,9 @@
  * the band (`.sdlc/bands/foundation-ceilings.json`), so a bump that adds a digit failed the
  * Version PR it was made in: #1142 went red on the published-suites cells with
  * `expected { ours: 233515 } to deeply equal { ours: 233514 }` for seniority, and stayed red,
- * because nothing on the release path re-measured. `changeset:version` (which
- * `scripts/release-window.mts version` runs for the Version PR) regenerated the doc versions,
- * the package docs and the lockfile, and never ran `weight:converge`.
+ * because nothing on the release path re-measured. `changeset:version` (the Version PR's
+ * `version-script`) regenerated the doc versions, the package docs and the lockfile, and never
+ * ran `weight:converge`.
  *
  * Read from `package.json`, the one place the release path takes the steps from.
  */

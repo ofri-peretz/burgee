@@ -177,6 +177,13 @@ export interface SpinnerOptions extends CommonOptions {
   frames?: string[];
   delay?: number;
   styleFrame?: (frame: string) => string;
+  /**
+   * A spinner style as data — flagstaff's `lookupSpinner(name)`, or a plugin's `spinners` entry —
+   * in place of `frames` and `delay`: on a terminal its frames turn at its interval, and anywhere
+   * else its `static` is printed where the first frame would be (U3). caique imports no registry:
+   * the program that has both hands one to the other (D-20261027-prompt-spinner-composed).
+   */
+  style?: { readonly frames: readonly string[]; readonly interval: number; readonly static: string };
 }
 
 export interface SpinnerResult {
@@ -239,7 +246,9 @@ class Spinner implements SpinnerResult {
   private unhook = noop;
   private readonly live: boolean;
   private readonly output: Output;
-  private readonly frames: string[];
+  private readonly frames: readonly string[];
+  /** What a run that does not animate prints in the frame's place: the style's own projection (U3). */
+  private readonly still: string;
   private readonly style: (frame: string) => string;
 
   constructor(private readonly opts: SpinnerOptions) {
@@ -247,7 +256,8 @@ class Spinner implements SpinnerResult {
     // quiet run cannot hold the event loop open (`caique-quiet-seam` R2). The lifecycle still runs.
     this.output = outputOf(opts);
     this.live = !isCI(opts.runtime) && isTTY(this.output);
-    this.frames = opts.frames ?? (unicode ? ['◒', '◐', '◓', '◑'] : ['•', 'o', 'O', '0']);
+    this.frames = opts.frames ?? opts.style?.frames ?? (unicode ? ['◒', '◐', '◓', '◑'] : ['•', 'o', 'O', '0']);
+    this.still = opts.style?.static ?? this.frames[0] ?? '';
     this.style = opts.styleFrame ?? magenta;
   }
 
@@ -294,7 +304,7 @@ class Spinner implements SpinnerResult {
       dots = dots < DOT_LIMIT ? dots + DOT_STEP : 0;
     };
     tick();
-    this.timer = setInterval(tick, this.opts.delay ?? (unicode ? UNICODE_DELAY : ASCII_DELAY));
+    this.timer = setInterval(tick, this.opts.delay ?? this.opts.style?.interval ?? (unicode ? UNICODE_DELAY : ASCII_DELAY));
   }
 
   start(msg = ''): void {
@@ -306,7 +316,7 @@ class Spinner implements SpinnerResult {
     this.opts.signal?.addEventListener('abort', this.onAbort, { once: true });
     this.unhook = exitHook(this.onExit);
     if (this.live) this.animate();
-    else this.output.write(`${this.style(this.frames[0] ?? '')}  ${this.text}...\n`);
+    else this.output.write(`${this.style(this.still)}  ${this.text}...\n`);
   }
 
   private end(msg: string, ending: Ending, silent = false): void {
@@ -338,7 +348,7 @@ class Spinner implements SpinnerResult {
 
   message(msg = ''): void {
     const next = withoutDots(msg === '' ? this.text : msg);
-    if (!this.live && this.spinning && next !== this.text) this.output.write(`${this.style(this.frames[0] ?? '')}  ${next}...\n`);
+    if (!this.live && this.spinning && next !== this.text) this.output.write(`${this.style(this.still)}  ${next}...\n`);
     this.text = next;
   }
 

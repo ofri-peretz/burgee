@@ -2,7 +2,7 @@
 name: Changesets
 
 run-name: >-
-  Changesets · ${{ github.event_name == 'pull_request' && format('PR #{0}', github.event.pull_request.number) || (github.event_name == 'push' && 'open / refresh Version PR' || (github.event_name == 'schedule' && 'daily release-window check' || 'manual')) }}
+  Changesets · ${{ github.event_name == 'pull_request' && format('PR #{0}', github.event.pull_request.number) || (github.event_name == 'push' && 'open / refresh Version PR' || 'manual') }}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Ported from ofri-peretz/eslint/changesets-pr.yml. Two responsibilities:
@@ -20,14 +20,8 @@ run-name: >-
 #    runs the required checks, merges and starts the release itself (`checks`,
 #    `land`) — no human close-and-reopen.
 #
-# 3. The release window (release-cadence): no non-fix release of a package within 7 days
-#    of its previous non-fix release; a fix is never delayed. `scripts/release-window.mts
-#    plan` decides, before the Version PR is refreshed, which changesets release now. A
-#    minor or major for a package whose window is closed is held: set aside while
-#    `changeset version` runs, so the Version PR carries everything else and still
-#    auto-merges, and the held changeset stays on main. A daily schedule re-runs this, so a
-#    held changeset releases on the first day its window is open even if nothing is pushed.
-#    `.sdlc/intents/release-cadence/release-window.qnt` is the model of it.
+# 3. No release window (D-20261027-no-release-window): every pending changeset goes into
+#    the next Version PR, whatever its bump and however recently its package released.
 #
 # 4. On PR — the changeset lock: a changeset describing a behaviour an incumbent shipped
 #    as a major (`.sdlc/bands/incumbent-majors.json`) cannot be a minor or a patch.
@@ -36,9 +30,6 @@ run-name: >-
 on:
   push:
     branches: [main]
-  schedule:
-    # Daily: a changeset the release window held releases the first day its window is open.
-    - cron: "23 6 * * *"
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, labeled, unlabeled]
@@ -54,7 +45,7 @@ permissions:
 jobs:
   version:
     name: Open / refresh Version Packages PR
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -125,42 +116,14 @@ jobs:
             echo "::warning title=Version PR opened with GITHUB_TOKEN::No release credential is configured ($missing). A PR opened with GITHUB_TOKEN raises no workflow runs, so this workflow will dispatch the required checks itself, mirror them onto the PR, and merge it itself. Set RELEASE_APP_ID (repo variable) + RELEASE_APP_PRIVATE_KEY (repo secret), or RELEASE_BOT_PAT, to retire the fallback — see .sdlc/gaps/C5.md."
           fi
 
-      # The release window: which pending changesets may release today. A package's previous
-      # non-fix release is read from npm, and a non-fix version main holds that npm does not
-      # (a release in flight) keeps the window shut. An unreadable registry holds the minor,
-      # never the fix. `releasable=false` means everything pending is held.
-      - name: Plan the release window
-        id: window
-        run: node scripts/release-window.mts plan --out "$RUNNER_TEMP/release-window.json"
-
-      # Everything pending is held: there is no Version PR to open. One left open from an
-      # earlier refresh would carry a release the window now refuses, so it is closed; the
-      # first run whose window is open opens a fresh one.
-      - name: Close a Version PR the window now holds entirely
-        if: steps.window.outputs.releasable != 'true' && steps.window.outputs.held != '0'
-        env:
-          GH_TOKEN: ${{ steps.app.outputs.token || secrets.RELEASE_BOT_PAT || secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          PR=$(gh pr list --head changeset-release/main --state open --json number --jq '.[0].number // empty')
-          if [ -n "$PR" ]; then
-            gh pr close "$PR" --comment "Every pending changeset is held by the release window (7 days between non-fix releases of a package; see the run summary for when each opens). The daily run reopens the Version PR once one is releasable." || \
-              echo "::warning::Could not close Version PR #$PR; release.yml's window check still keeps an in-window non-fix version off npm."
-          fi
-          echo "Nothing releasable today; held changesets stay on main." >> "$GITHUB_STEP_SUMMARY"
-
       - name: Open / refresh Version PR
         id: changesets
-        if: steps.window.outputs.releasable == 'true'
         uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v1
         with:
           # Renamed by the action in v1.5.4; the old names are a hard error, not a
           # warning, so every push to main since has failed and the Version PR has
           # been frozen at whatever main looked like when it last succeeded.
-          #
-          # `changeset version` with the held changesets set aside (release-cadence); it runs
-          # `npm run changeset:version` for everything else.
-          version-script: node scripts/release-window.mts version
+          version-script: npm run changeset:version
           pr-title: "chore(release): version packages"
           commit-message: "chore(release): version packages"
           # The token is an INPUT, not an env var. Passing it as `env: GITHUB_TOKEN` is
@@ -173,8 +136,6 @@ jobs:
           # lefthook's pre-push would otherwise gate the bot's push; the real
           # gates run on the resulting Version PR.
           LEFTHOOK: "0"
-          # The plan the step above wrote, so `version` holds exactly what the summary says.
-          RELEASE_WINDOW_PLAN: ${{ runner.temp }}/release-window.json
 
       - name: Enable auto-merge on the Version PR
         # The action's outputs were renamed alongside its inputs: `hasChangesets` is now
@@ -446,12 +407,12 @@ jobs:
           git fetch --no-tags --quiet origin main
           npx changeset status --since=origin/main
 
-      # The changeset lock (release-cadence): burgee 1.5.0 refused surplus positionals and
+      # The changeset lock: burgee 1.5.0 refused surplus positionals and
       # flagstaff 1.2.0 threw on `#GGG`, both as minors, when commander 13 and boxen 9 had
       # shipped the same changes as majors. A review rule let both through; this does not.
       - name: No minor or patch for a behaviour the incumbent shipped as a major
         if: steps.check.outputs.status == 'present'
-        run: node scripts/release-window.mts lock
+        run: node scripts/changeset-lock.mts
 
       - name: Comment on PR (when missing)
         if: steps.check.outputs.status == 'missing'

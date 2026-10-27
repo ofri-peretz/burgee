@@ -1,0 +1,308 @@
+{
+  "pivot": 1101,
+  "pivotMergedAt": "2026-10-18T15:41:23Z",
+  "measuredAt": "2026-10-26T04:18:34.963Z",
+  "workflow": "compat.yml",
+  "before": {
+    "n": 20,
+    "runs": 68,
+    "minutesPerRun": 177.3,
+    "medianMinutes": 411.8,
+    "totalMinutes": 12056.1,
+    "medianLaneMinutes": 356,
+    "totalLaneMinutes": 10817.2,
+    "prs": [
+      {
+        "number": 1100,
+        "branch": "ci/quint-evaluator-cache-v2",
+        "runs": 2,
+        "minutes": 230.7,
+        "laneMinutes": 197
+      },
+      {
+        "number": 1098,
+        "branch": "changeset-release/main",
+        "runs": 5,
+        "minutes": 527.9,
+        "laneMinutes": 480.8
+      },
+      {
+        "number": 1099,
+        "branch": "fix/lockfile-lock-names-property",
+        "runs": 1,
+        "minutes": 115.6,
+        "laneMinutes": 100.2
+      },
+      {
+        "number": 1090,
+        "branch": "docs/wave-4-intents",
+        "runs": 3,
+        "minutes": 590.1,
+        "laneMinutes": 483.2
+      },
+      {
+        "number": 1093,
+        "branch": "chore/b1-series",
+        "runs": 4,
+        "minutes": 831.4,
+        "laneMinutes": 754.6
+      },
+      {
+        "number": 1094,
+        "branch": "ci/lock-platform-emnapi",
+        "runs": 1,
+        "minutes": 385.9,
+        "laneMinutes": 334.7
+      },
+      {
+        "number": 1096,
+        "branch": "feat/frames-fit-the-screen-caique",
+        "runs": 1,
+        "minutes": 20.2,
+        "laneMinutes": 18.6
+      },
+      {
+        "number": 1088,
+        "branch": "dependabot/npm_and_yarn/all-packages-c23b5d66d4",
+        "runs": 2,
+        "minutes": 409.7,
+        "laneMinutes": 355.7
+      },
+      {
+        "number": 1091,
+        "branch": "feat/commander-argument-choices",
+        "runs": 5,
+        "minutes": 820,
+        "laneMinutes": 760.6
+      },
+      {
+        "number": 1037,
+        "branch": "feat/caique-inquirer-pagination",
+        "runs": 5,
+        "minutes": 972.8,
+        "laneMinutes": 866.5
+      },
+      {
+        "number": 1077,
+        "branch": "changeset-release/main",
+        "runs": 16,
+        "minutes": 3181.5,
+        "laneMinutes": 2863.1
+      },
+      {
+        "number": 1083,
+        "branch": "feat/command-aliases",
+        "runs": 4,
+        "minutes": 677.3,
+        "laneMinutes": 632
+      },
+      {
+        "number": 1087,
+        "branch": "docs/caique-tarball-rebaseline",
+        "runs": 1,
+        "minutes": 118.7,
+        "laneMinutes": 102
+      },
+      {
+        "number": 1085,
+        "branch": "test/pwsh-one-process",
+        "runs": 1,
+        "minutes": 108.5,
+        "laneMinutes": 94.2
+      },
+      {
+        "number": 1081,
+        "branch": "chore/b1-series",
+        "runs": 3,
+        "minutes": 323.3,
+        "laneMinutes": 276.2
+      },
+      {
+        "number": 1079,
+        "branch": "perf/commander-front-end-surfaces",
+        "runs": 4,
+        "minutes": 413.8,
+        "laneMinutes": 356.2
+      },
+      {
+        "number": 1084,
+        "branch": "feat/foundation-claims-watched-r6",
+        "runs": 1,
+        "minutes": 132.2,
+        "laneMinutes": 115.3
+      },
+      {
+        "number": 1078,
+        "branch": "perf/commander-front-end-spawn",
+        "runs": 4,
+        "minutes": 1110.9,
+        "laneMinutes": 1038.3
+      },
+      {
+        "number": 1082,
+        "branch": "fix/agent-eval-turn-budget",
+        "runs": 2,
+        "minutes": 179.7,
+        "laneMinutes": 158.3
+      },
+      {
+        "number": 1072,
+        "branch": "feat/flagstaff-mcp-progress",
+        "runs": 3,
+        "minutes": 905.9,
+        "laneMinutes": 829.7
+      }
+    ]
+  },
+  "after": {
+    "n": 20,
+    "runs": 49,
+    "minutesPerRun": 53,
+    "medianMinutes": 71.1,
+    "totalMinutes": 2595.4,
+    "medianLaneMinutes": 52.8,
+    "totalLaneMinutes": 2074.3,
+    "prs": [
+      {
+        "number": 1108,
+        "branch": "chore/b1-series",
+        "runs": 6,
+        "minutes": 258.6,
+        "laneMinutes": 199
+      },
+      {
+        "number": 1109,
+        "branch": "changeset-release/main",
+        "runs": 1,
+        "minutes": 109.7,
+        "laneMinutes": 91.7
+      },
+      {
+        "number": 1110,
+        "branch": "docs/adoption-barriers",
+        "runs": 2,
+        "minutes": 87.8,
+        "laneMinutes": 68.8
+      },
+      {
+        "number": 1111,
+        "branch": "chore/bench-series",
+        "runs": 2,
+        "minutes": 52.8,
+        "laneMinutes": 35.4
+      },
+      {
+        "number": 1112,
+        "branch": "changeset-release/main",
+        "runs": 3,
+        "minutes": 250.4,
+        "laneMinutes": 198.3
+      },
+      {
+        "number": 1113,
+        "branch": "chore/bench-series",
+        "runs": 3,
+        "minutes": 109.1,
+        "laneMinutes": 82.7
+      },
+      {
+        "number": 1114,
+        "branch": "chore/b1-series",
+        "runs": 2,
+        "minutes": 54,
+        "laneMinutes": 36.8
+      },
+      {
+        "number": 1115,
+        "branch": "changeset-release/main",
+        "runs": 1,
+        "minutes": 15.8,
+        "laneMinutes": 0.8
+      },
+      {
+        "number": 1116,
+        "branch": "chore/bench-series",
+        "runs": 2,
+        "minutes": 52.2,
+        "laneMinutes": 35.7
+      },
+      {
+        "number": 1117,
+        "branch": "chore/b1-series",
+        "runs": 2,
+        "minutes": 53.5,
+        "laneMinutes": 36
+      },
+      {
+        "number": 1118,
+        "branch": "ci/turbo-pass-proxy-env",
+        "runs": 2,
+        "minutes": 131,
+        "laneMinutes": 110.6
+      },
+      {
+        "number": 1119,
+        "branch": "chore/bench-series",
+        "runs": 2,
+        "minutes": 45.9,
+        "laneMinutes": 32.5
+      },
+      {
+        "number": 1120,
+        "branch": "chore/b1-series",
+        "runs": 2,
+        "minutes": 51.1,
+        "laneMinutes": 34
+      },
+      {
+        "number": 1121,
+        "branch": "changeset-release/main",
+        "runs": 8,
+        "minutes": 661.2,
+        "laneMinutes": 572.4
+      },
+      {
+        "number": 1122,
+        "branch": "chore/bench-series",
+        "runs": 2,
+        "minutes": 51.8,
+        "laneMinutes": 35.2
+      },
+      {
+        "number": 1123,
+        "branch": "chore/b1-series",
+        "runs": 2,
+        "minutes": 54.3,
+        "laneMinutes": 36.6
+      },
+      {
+        "number": 1124,
+        "branch": "feat/batch-1-pins-and-cadence",
+        "runs": 2,
+        "minutes": 221.1,
+        "laneMinutes": 190.6
+      },
+      {
+        "number": 1125,
+        "branch": "docs/ship-and-drop-wave-1",
+        "runs": 1,
+        "minutes": 103.6,
+        "laneMinutes": 87.3
+      },
+      {
+        "number": 1126,
+        "branch": "chore/bench-series",
+        "runs": 2,
+        "minutes": 52.7,
+        "laneMinutes": 35.8
+      },
+      {
+        "number": 1127,
+        "branch": "ci/mutation-tested",
+        "runs": 2,
+        "minutes": 178.8,
+        "laneMinutes": 154.1
+      }
+    ]
+  }
+}

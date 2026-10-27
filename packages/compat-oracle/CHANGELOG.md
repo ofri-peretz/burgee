@@ -1,5 +1,40 @@
 # compat-oracle
 
+## 0.3.16
+
+### Patch Changes
+
+- [#1322](https://github.com/ofri-peretz/burgee/pull/1322) [`b62cf2a`](https://github.com/ofri-peretz/burgee/commit/b62cf2a105ab901ded4fd6b38ef65598419f6962) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--progress` names each host as its grade starts and ends, with its seconds, so a run that stalls says on which host. A host can declare `notGradedOn` platforms with a reason; it is not graded there and every run there prints it with that reason. ink is declared off `win32`.
+
+## 0.3.15
+
+### Patch Changes
+
+- [#1303](https://github.com/ofri-peretz/burgee/pull/1303) [`ad27e9b`](https://github.com/ofri-peretz/burgee/commit/ad27e9b427ac60772f2c422704741380b3b3e2ff) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - twist's end-to-end suite stays skipped on Windows, now for twist's own reason: twist 0.0.5 loads each file with `import()` of a `D:\` path, which Windows refuses. The tsd and uvu suites run there.
+
+## 0.3.14
+
+### Patch Changes
+
+- [#1298](https://github.com/ofri-peretz/burgee/pull/1298) [`9de86af`](https://github.com/ofri-peretz/burgee/commit/9de86af7a8b27d4aa717aa78b66e743f64925089) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Every spawn goes through `bellpull/cross-spawn` (`src/spawn.ts`), so `npm` starts as `npm.cmd` on Windows without a shell, and the `suiteDeps` runners (tsd, twist, uvu) run there. Grades are unchanged. Private, never published.
+
+## 0.3.13
+
+### Patch Changes
+
+- [#1285](https://github.com/ofri-peretz/burgee/pull/1285) [`6570ff2`](https://github.com/ofri-peretz/burgee/commit/6570ff28a3aa8959548ee338dfb114cb9b7deab5) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - dotenv re-vendored at 18.0.9 (control 197 / 197), execa at 10.2.1 (control 1360 / 1360, `bellpull` 0 / 1360, still a ceiling), `@inquirer/core` at 12.0.5 (control 45 / 45) and `@inquirer/prompts` at 8.7.4 with its ten prompts pinned at the releases it shipped with (control 221 / 221). `editor`'s new case answers through the `editAsync` mock and is excluded by exact title with the other eleven.
+
+## 0.3.12
+
+### Patch Changes
+
+- [#1255](https://github.com/ofri-peretz/burgee/pull/1255) [`676279a`](https://github.com/ofri-peretz/burgee/commit/676279ab67896b408a4acf5cd2c6418a7d88d01a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A suite run by `uvu` is graded by the summary uvu prints, one file per run: a file uvu cannot load is one failure, and a run that ends with no summary is an error. A suite on `uvu -r esm`, which does not start on Node 24, runs with tsx where `esm` stood. The vendor step brings a sibling helper named with no extension (`./utils`) as `utils.js`. kleur is graded this way, 15 / 15 against a control of 15 / 15.
+- Updated dependencies [[`e3b3a41`](https://github.com/ofri-peretz/burgee/commit/e3b3a41745ecdc853d741c457306c566541271b6), [`02e6f9f`](https://github.com/ofri-peretz/burgee/commit/02e6f9fcd779d892e7097659a6bd4c2f0e5b5a04), [`efc994e`](https://github.com/ofri-peretz/burgee/commit/efc994ea20dae1f31990a7afef9dfa3c34fee596), [`e3b3a41`](https://github.com/ofri-peretz/burgee/commit/e3b3a41745ecdc853d741c457306c566541271b6), [`e3b3a41`](https://github.com/ofri-peretz/burgee/commit/e3b3a41745ecdc853d741c457306c566541271b6), [`efc994e`](https://github.com/ofri-peretz/burgee/commit/efc994ea20dae1f31990a7afef9dfa3c34fee596), [`e739f18`](https://github.com/ofri-peretz/burgee/commit/e739f1822cfc196e280ee74c1a47c0d3543fc989)]:
+  - flagstaff@1.7.4
+  - linegauge@1.1.5
+  - roundel@1.2.1
+  - burgee@1.7.2
+
 ## 0.3.11
 
 ### Patch Changes

@@ -75,6 +75,72 @@ runner is not saturated, with every assertion kept. They are PowerShell completi
 4. The PowerShell case at or under 60 s in every one of ten consecutive full Windows cells on
    `main`, with a median under 10 s. Baseline: median 22.0 s, maximum 59.7 s, n = 15.
 
+## Where the criteria stand — 2026-10-26
+
+**Status stays `approved`: criteria 1, 3 and 4 are met on `main`'s own Windows cells; criterion
+2 is not.** Read from every full Windows cell (`Node 24/26 · windows-latest`) that `main`'s
+pushes completed from #1135 (2026-10-19 06:38 UTC) to 2026-10-26 05:27 UTC: 71 cells in 53
+compat runs, each one's `vitest-durations-matrix-windows-latest-node*` artifact downloaded and
+read. R1–R5 merged in #1135.
+
+| # | criterion | state | evidence |
+| :-- | :-- | :-- | :-- |
+| 1 | a per-case duration report from every Windows cell, as an artifact | met | every one of the 71 cells uploaded one (e.g. run 40273043615, artifact 12629951273: 12,007 cases), and so does every floor cell |
+| 2 | the half-budget check names no case | **not met** | it named a case in 5 of the 71 cells; see below |
+| 3 | ten consecutive green Windows cells on `main` | met | 13 consecutive full cells, 2026-10-20 03:10 to 17:49 UTC (runs 39362061065 to 39468510809), with every floor Windows cell between them green (32; 18 more cancelled by a newer push). The table is in the spec |
+| 4 | the PowerShell case at or under 60 s in each of ten consecutive full cells, median under 10 s | met | 2.9–6.3 s over those ten, median 4.7 s; 2.1–6.7 s, median 4.4 s, over all 68 cells that ran it (baseline: median 22.0 s, maximum 59.7 s) |
+
+**Criterion 4 is met by the case it names, and the cost moved rather than vanished.** One pwsh
+now answers that case (#1085), but the first pwsh a cell starts is in *R3 — the PowerShell script
+reports its phases on stderr*, and it took 7.5–68.6 s, median 15.8 s. R3a's phase lines say where:
+`lookup` took 52.3 s of 54.7 (run 40178182310), 60.4 s of 62.4 (run 40261602993) and 65.3 s of
+68.6 (run 39441261818), and every later phase took milliseconds. That is R3d's condition, so R3d
+is built in this change: the `lookup` phase calls .NET instead of `Get-Command`, `Join-Path`,
+`New-Item`, `Set-Content` and `Select-Object` (`scripts/complete-pwsh-lock.test.ts`, red on
+`main`). Whether module discovery was the cost is what the next cells' `lookup` lines say.
+
+**Criterion 2, the cases it named:**
+
+| run | case | duration of timeout |
+| :-- | :-- | :-- |
+| 39212607045 (Node 26, a failed cell) | `scripts/family-versions.test.ts` › "… cutting each body by bytes …" | 15,373 of 30,000 ms |
+| 39238336591 | `scripts/changeset-check-lock.test.ts` › "… answers `release` for the branch changesets pushes …" and › "… still answers `skipped` for the label …" | 17,287 and 18,087 of 30,000 ms |
+| 39441261818 | `completions-shells.test.ts` › "R3 — the PowerShell script reports its phases on stderr"; `packages/controlroom/src/shape.test.ts` › "runs an Ink program once react and react-reconciler are installed" | 68,555 and 72,730 of 120,000 ms |
+| 40261602993 | `completions-shells.test.ts` › "R3 — the PowerShell script reports its phases on stderr" | 62,401 of 120,000 ms |
+| 40268928470 | `scripts/changeset-check-lock.test.ts` › "… answers `release` …" | 20,873 of 30,000 ms |
+| 40513685943 (2026-10-27) | `scripts/dependabot-automerge-lock.test.ts` › "merges a group of patch and minor development bumps" | 29,691 of 30,000 ms |
+| 40537347822 (2026-10-27, a failed cell) | `scripts/changeset-check-lock.test.ts` › "… answers `release` …" | 65,871 of 30,000 ms |
+
+**What closes it:** the check naming no case in each of ten consecutive full Windows cells on
+`main`, counted from the merge of R6 and R7, the window criteria 3 and 4 already use. R3d answers
+the pwsh row. R6 answers `changeset-check-lock`: R4 had already moved the git build out of the
+cases, and what was left was the first `bash` the file started from Node (3.2–8.5 s over ten
+full cells, then 65.9 s in run 40537347822, which timed out). R6 starts that `bash` once per file,
+in `beforeAll`, and the cases spawn nothing. `dependabot-automerge-lock` had the same shape and
+gets the same fix through the same helper (`scripts/step-scenarios.ts`): its first case took
+29.7 s of 30 s in run 40513685943, so the check would have named it. R7 answers controlroom's Ink case: 11.2–27.0 s of
+120 s over the same ten cells, so under half, but 72.7 s once. Its three peer `npm pack`s become
+one. Both are in [D-20261027-windows-lane-one-shell-per-file](../../decisions/D-20261027-windows-lane-one-shell-per-file.md),
+with what R6 moves into a hook that the check does not time. On 2026-10-19 `main` completed 31
+full Windows cells in a day, and on 2026-10-25 eleven, so the reading is one to two days of
+pushes.
+
+## 2026-10-27: why the full Windows cells stopped completing
+
+From about 13:00 UTC, most full `Node 24 · windows-latest` cells were cancelled at the job's
+30 minutes. Examples are runs 40563285190, 40562160983, 40560816628 and 40554842777. In each one
+the hard gate had passed, and Controls had run silent for 11 to 16 minutes. A cancelled cell is
+not green, so none of them counts toward criterion 2's ten-cell reading. The half-budget check
+still read 0 in them (0 of 12,129 in 40563285190), because no case was slow. The cause is in an
+informational step, not a case.
+
+PR #1298 let Windows Controls reach ink for the first time. Before it, Controls died after 7 to
+8 seconds on `spawnSync npm ENOENT`. ink's suite then ran into its 600 s cap twice per grade, and
+it was graded three times. Measured in run 40577331465: 1,208 s, 1,200 s and 1,200 s.
+[D-20261027-windows-controls-ink](../../decisions/D-20261027-windows-controls-ink.md) records
+three changes. ink is not graded on win32, and every run there says so. Controls gets its own
+17-minute limit. `--progress` names each host as it starts.
+
 ## Jev triage
 
 | user_impact | incumbent_gap | risk_reduced | composite | ready_for_spec | needs_model |

@@ -175,6 +175,26 @@
           "type": "string",
           "pattern": "^(?:[^{]|\\{(?:at|field)\\}|\\{(?!\\w+\\}))*$"
         },
+        "usage.unknownFormat": {
+          "description": "unknown format \"{format}\"",
+          "type": "string",
+          "pattern": "^(?:[^{]|\\{(?:format)\\}|\\{(?!\\w+\\}))*$"
+        },
+        "usage.notAList": {
+          "description": "--format=tsv prints a list result, and this one is not a list",
+          "type": "string",
+          "pattern": "^(?:[^{]|\\{(?!\\w+\\}))*$"
+        },
+        "usage.maxBytes": {
+          "description": "--max-bytes takes a whole number of bytes, not \"{value}\"",
+          "type": "string",
+          "pattern": "^(?:[^{]|\\{(?:value)\\}|\\{(?!\\w+\\}))*$"
+        },
+        "usage.maxBytesFormat": {
+          "description": "--max-bytes budgets a machine format, and none was asked for",
+          "type": "string",
+          "pattern": "^(?:[^{]|\\{(?!\\w+\\}))*$"
+        },
         "usage.fieldOne": {
           "description": "--field drills into one command",
           "type": "string",
@@ -350,6 +370,26 @@
           "description": "fields here: {fields}",
           "type": "string",
           "pattern": "^(?:[^{]|\\{(?:fields)\\}|\\{(?!\\w+\\}))*$"
+        },
+        "hint.formats": {
+          "description": "formats: {formats}",
+          "type": "string",
+          "pattern": "^(?:[^{]|\\{(?:formats)\\}|\\{(?!\\w+\\}))*$"
+        },
+        "hint.withJson": {
+          "description": "run it with --json for the whole result",
+          "type": "string",
+          "pattern": "^(?:[^{]|\\{(?!\\w+\\}))*$"
+        },
+        "hint.maxBytes": {
+          "description": "pass a number above 0, such as --max-bytes 4096",
+          "type": "string",
+          "pattern": "^(?:[^{]|\\{(?!\\w+\\}))*$"
+        },
+        "hint.maxBytesFormat": {
+          "description": "add --json, or --format=<name>; --format lists them",
+          "type": "string",
+          "pattern": "^(?:[^{]|\\{(?!\\w+\\}))*$"
         },
         "hint.nameCommand": {
           "description": "name the command first: --schema <command> --field <path>",

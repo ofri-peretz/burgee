@@ -16,12 +16,12 @@ import { decide } from 'caique/decide';
 The rule, in order, and the order is the argument:
 
 ```ts
-function decide({ value, spec, option, runtime, flags, required }: DecideInput): Decision;
+function decide({ value, spec, option, flag, runtime, flags, required }: DecideInput): Decision;
 ```
 
 | Parameter | Type |
 | :-- | :-- |
-| `{ value, spec, option, runtime, flags, required }` | `DecideInput` |
+| `{ value, spec, option, flag, runtime, flags, required }` | `DecideInput` |
 
 **Returns** `Decision`
 
@@ -36,8 +36,14 @@ interface DecideInput {
     spec: PromptSpec;
     /** The option's long name, for the flag a refusal names. */
     option: string;
+    /**
+     * How a refusal names it, when `--<option>` is not how it is passed: `<name>` for a
+     * positional (R1, `promptFor`), or a host's kebab-case flag for a camelCase key.
+     */
+    flag?: string;
     runtime: Runtime;
-    flags?: Flags;
+    /** Absent, or `undefined`, is a run that asked for none of them. */
+    flags?: Flags | undefined;
     /** Whether the option must have a value for the command to run. */
     required?: boolean;
 }

@@ -25,6 +25,13 @@
  *     fold.
  *   - **the agent surface is named there too**: `--json`, an agent, a non-TTY caller or a
  *     static projection. Wording beyond that is not policed.
+ *   - **the first paragraph never names burgee**, except in burgee's own README
+ *     (`cli-output-stack` R12, U12). Each layer is its own product and leads with its own
+ *     problem; a reader who arrives from "ora alternative" meets flagstaff, not the framework it
+ *     ships beside. On 2026-10-19 flagstaff's first paragraph ended "no dependency outside the
+ *     burgee family" and linegauge's said "burgee, caique and flagstaff measure their output with
+ *     it". Below the first paragraph burgee is fair to name: `npx burgee migrate` is how every
+ *     drop-in is reached.
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -80,6 +87,12 @@ export function opening(readme: string, lines = OPENING_LINES): string {
   return all.slice(i, i + lines).join('\n');
 }
 
+/** The first paragraph of the opening: everything up to its first blank line. */
+export const firstParagraph = (readme: string): string => opening(readme).split(/\n\s*\n/u)[0]!;
+
+/** The one package whose README may lead with its own name. */
+const FRAMEWORK = 'burgee';
+
 /** A name as a whole word: `ora` must not match inside `ornate`, `chalk` must match `roundel/chalk`. */
 const mentions = (text: string, name: string): boolean => new RegExp(String.raw`(?<![\w-])${name.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)}(?![\w-])`, 'u').test(text);
 
@@ -94,6 +107,7 @@ export function problems(name: string, readme: string, description: string): str
   if (names.length === 0) out.push(`${name}'s package.json description names no incumbent in a form this lock reads ("Drop-in paths for …", "Covers …") — say what it replaces there first`);
   else if (!names.some((incumbent) => mentions(head, incumbent))) out.push(`${name}'s README does not name what it replaces in the ${String(OPENING_LINES)} lines after its header — its description lists ${names.join(', ')}; name at least one there`);
   if (!AGENT_SURFACE.test(head)) out.push(`${name}'s README does not state its agent surface in the ${String(OPENING_LINES)} lines after its header — say what --json, a pipe or an agent gets`);
+  if (name !== FRAMEWORK && mentions(firstParagraph(readme), FRAMEWORK)) out.push(`${name}'s README names burgee in its first paragraph — a layer leads with its own problem and its own incumbents (cli-output-stack R12); name burgee further down`);
   return out;
 }
 
@@ -140,6 +154,25 @@ describe('the lock can fail', () => {
 
   it('fails a README whose opening states no agent surface', () => {
     expect(problems('roundel', 'replaces chalk, nothing else', 'a chalk migration path.')).toEqual([expect.stringMatching(/agent surface/u)]);
+  });
+
+  it('reads the first paragraph after the header, and only it', () => {
+    const text = ['<p align="center">tagline</p>', '', 'one', 'two', '', 'three'].join('\n');
+    expect(firstParagraph(text)).toBe('one\ntwo');
+  });
+
+  it('fails a layer whose first paragraph names burgee, and lets burgee and a later paragraph through', () => {
+    const named = 'replaces chalk for --json, with no dependency outside the burgee family.\n\nMore.';
+    expect(problems('roundel', named, 'a chalk migration path.')).toEqual([expect.stringMatching(/names burgee in its first paragraph/u)]);
+    expect(problems('roundel', 'replaces chalk for --json.\n\n`npx burgee migrate` moves it.', 'a chalk migration path.')).toEqual([]);
+    expect(problems('roundel', 'replaces chalk for --json, beside burgeeing.', 'a chalk migration path.')).toEqual([]);
+    expect(problems('burgee', 'burgee replaces commander for --json.', 'drop-in compatible with commander.')).toEqual([]);
+  });
+
+  it('fails flagstaff as it read before cli-output-stack R12', () => {
+    const before = readme('flagstaff').replace('Plugins are data, and there is no layout engine.', 'Plugins are data. No layout engine, and no dependency\noutside the burgee family.');
+    expect(before, 'the edit did not apply, so this proves nothing').not.toBe(readme('flagstaff'));
+    expect(problems('flagstaff', before, manifest('flagstaff').description ?? '')).toEqual([expect.stringMatching(/names burgee in its first paragraph/u)]);
   });
 
   it('fails a description that lists no incumbent', () => {

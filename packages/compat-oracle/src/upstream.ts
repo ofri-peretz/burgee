@@ -7,15 +7,14 @@
  * the precise list of what a new release added, removed or changed, so "commander 15.1.0
  * is out" arrives as work items, not as a number that moved.
  */
-import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { platform } from 'node:os';
 import { join } from 'node:path';
 
 import { type OmittedFile } from './binaries.js';
 import { posix, testFiles } from './discover.js';
 import { type Host } from './hosts.js';
+import { execFile } from './spawn.js';
 
 export interface CompatRecord {
   repo: string;
@@ -233,24 +232,15 @@ export function readRecord(hostDir: string): CompatRecord | undefined {
 export type ReleaseTime = (name: string, version: string) => string;
 
 /**
- * How npm is run on `system`: `npm` on the PATH, which on Windows is `npm.cmd`, a batch file only
- * `cmd.exe` runs, so through a shell there. A bare `npm` with no shell was `spawnSync npm ENOENT`
- * on every Windows cell of #1180.
+ * `npm <args>` on this machine, its stdout.
  *
- * Not bellpull's cross-spawn, which would do it without a shell: the vendor step must load from a
- * checkout with nothing installed (`scripts/vendor-suite-resolution.test.ts`), so this module
- * imports nothing outside `node:`. The shell is safe here because every argument is a literal or
- * a package name `hosts.ts` declares.
+ * Through bellpull (`spawn.ts`), which finds `npm.cmd` on Windows through `PATHEXT` and quotes it
+ * for `cmd.exe` itself. This used to choose `npm.cmd` and `shell: true` by hand on `win32`, after a
+ * bare `npm` with no shell was `spawnSync npm ENOENT` on every Windows cell of #1180: a second copy
+ * of the job bellpull exists to do, and a shell the arguments never needed.
  */
-export function npmOn(system: string): { file: string; shell: boolean } {
-  const windows = system === 'win32';
-  return { file: windows ? 'npm.cmd' : 'npm', shell: windows };
-}
-
-/** `npm <args>` on this machine, its stdout. */
 function npm(args: string[]): string {
-  const { file, shell } = npmOn(platform());
-  return execFileSync(file, args, { encoding: 'utf8', shell });
+  return execFile('npm', args, { encoding: 'utf8' });
 }
 
 /** The registry's `time` for `name@version`; a release it does not list is an error, never a guess. */

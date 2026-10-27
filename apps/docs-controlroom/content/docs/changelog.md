@@ -3,6 +3,31 @@ title: Changelog
 description: "Every release of controlroom, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.0.8
+
+### Patch Changes
+
+- [#1313](https://github.com/ofri-peretz/burgee/pull/1313) [`94ced9e`](https://github.com/ofri-peretz/burgee/commit/94ced9e2c6a894ce31a284a24bc6dc92c9899d27) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A terminal that reports a size of 0 × 0 is drawn at 80 × 24. A pseudo-terminal nobody gave a
+  window size (`docker run -t` before its first resize, Python's `pty.fork()`, `script` on some
+  systems) reports 0 columns and 0 rows, and a screen opened on one was laid out on zero rows and
+  drew nothing for its whole life. A size of 0 now means no size, as it already did in flagstaff's
+  frame writer and in `controlroom/ink`.
+
+## 1.0.7
+
+### Patch Changes
+
+- [#1258](https://github.com/ofri-peretz/burgee/pull/1258) [`e3b3a41`](https://github.com/ofri-peretz/burgee/commit/e3b3a41745ecdc853d741c457306c566541271b6) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `check` reads a `.json` plugin file as data. It handed every file to `import()`, and Node refuses a `.json` module without an import attribute (ERR_IMPORT_ATTRIBUTE_MISSING), so a plugin written as JSON got Node's message and no verdict, from the host's own `check` and through `burgee check`, which runs it.
+
+- [#1266](https://github.com/ofri-peretz/burgee/pull/1266) [`02e6f9f`](https://github.com/ofri-peretz/burgee/commit/02e6f9fcd779d892e7097659a6bd4c2f0e5b5a04) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The family plugin schema (`schema.json`, identical in every plugin host) now describes `formats`, burgee's output-format key. This package reads nothing new, and a plugin carrying `formats` registers here as before.
+- Updated dependencies [[`e3b3a41`](https://github.com/ofri-peretz/burgee/commit/e3b3a41745ecdc853d741c457306c566541271b6), [`02e6f9f`](https://github.com/ofri-peretz/burgee/commit/02e6f9fcd779d892e7097659a6bd4c2f0e5b5a04), [`efc994e`](https://github.com/ofri-peretz/burgee/commit/efc994ea20dae1f31990a7afef9dfa3c34fee596), [`efc994e`](https://github.com/ofri-peretz/burgee/commit/efc994ea20dae1f31990a7afef9dfa3c34fee596)]:
+  - caique@1.5.1
+  - closeout@1.1.8
+  - flagstaff@1.7.4
+  - linegauge@1.1.5
+  - paratext@1.0.11
+  - roundel@1.2.1
+
 ## 1.0.6
 
 ### Patch Changes

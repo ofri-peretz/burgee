@@ -104,7 +104,8 @@ function spelled(flag: OptionToken, word: string | undefined): boolean {
  * the startup path, since parse-refusals: `execute.ts` loads this chunk whenever the count is off.
  */
 function requirePositionals(node: CommandNode, positionals: readonly string[]): void {
-  const required = (node.arguments ?? []).filter((a) => a.required !== false && a.variadic !== true);
+  // P1: a positional that declares a `prompt` is the handler's binding's to ask for or refuse.
+  const required = (node.arguments ?? []).filter((a) => a.required !== false && a.variadic !== true && !a.prompt);
   // Defined exactly when fewer positionals were typed than are required: the first one missing.
   const missing = required[positionals.length];
   if (missing !== undefined) throw new UsageError(`missing required argument "${missing.name}"`);

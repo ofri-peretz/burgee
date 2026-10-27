@@ -4,7 +4,8 @@
 > constraint 5: "AI-native SDLC from day one — `.sdlc/intents/` with the lock, `evals/`
 > layer 1, control bands with at least one band computing before v1."
 
-**Status:** approved · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz · **Corrected from
+**Status:** shipped · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz · **Shipped 2026-10-27**,
+see [§ Shipped 2026-10-27](#shipped-2026-10-27) · **Corrected from
 `shipped` 2026-09-09** — the locks shipped, the bands did not; see [Verified against `main`](#verified-against-main--2026-09-09)
 
 > **Accepted at the Design→Build gate 2026-10-25** by the coordinator under the owner's delegation
@@ -13,8 +14,25 @@
 >
 > **Built 2026-10-25 (batch 29), still `approved`:** S2 holds, and S3's build item holds, but the
 > duration band has not gained a point yet. See [`spec.md` § Status 2026-10-25](./spec.md#status-2026-10-25).
+>
+> **Read 2026-10-26, still `approved`:** the weekly run named why the duration band starves (the
+> job never builds the demo `scripts/mcp-config-block.test.ts` starts) and ran past its 20-minute
+> limit, so no band gained a point. See [`spec.md` § Status 2026-10-26](./spec.md#status-2026-10-26).
 
 **Restated:** 2026-10-18 — see [§ Restated 2026-10-18](#restated-2026-10-18)
+
+## Shipped 2026-10-27
+
+The last open criterion, S3, closed on the first run after the control-bands fix (#1289) that gave
+every band a point and `test-duration-ms` its eighth. S1, S2 and S4 were already held.
+
+| item | evidence |
+| :-- | :-- |
+| the run | `control-bands.yml`, run 40537224930, `workflow_dispatch` on `main` at `3aaf422`, 2026-10-27 16:04 UTC, on the owner's "run them now". Counted as the scheduled run by [D-20261027-dispatched-eval-counts-as-weekly](../../decisions/D-20261027-dispatched-eval-counts-as-weekly.md) (extended to this workflow the same day) |
+| its observations landed | #1312, merged 2026-10-27 16:51 UTC: one file, `.sdlc/bands/control-bands.history.json`, a normal observations PR and not a breach draft |
+| every band gained a point | on `main` at `8a4bdaa`, the history holds 55 bands and every one has a 2026-10-27 point |
+| `test-duration-ms` has its eighth | 8 points, the newest 2026-10-27 at 145,451 ms; the seventh is 2026-09-28 at 188,804 ms |
+| every band evaluates | the run's log: 55 bands `inside band`, `test-duration-ms` among them at 8 points, then `0 breach(es), 0 at 2σ or above`. No breach-draft PR was opened |
 
 > Approved 2026-09-06 by @ofri-peretz in session ("You have everything on eslint repo,
 > why can't you copy it") — the copy-from-eslint intent, built the same day.
@@ -177,6 +195,28 @@ The three mechanisms `eslint/` has and this repo only promises:
   **2026-10-25:** a dropped point now says why (`scripts/control-bands.test.ts` › "names the exit
   code of a command that failed, and quotes the last lines it printed"). The band still has 7
   points, so this criterion stays open until the cause the next weekly run names is fixed.
+  **2026-10-26: the cause is named, and it is the job, not the suite.** The weekly run
+  40311991676 logged `npm test exited 1` on `scripts/mcp-config-block.test.ts`, which starts
+  `examples/demo-cli-burgee/dist/bin.js`, a file `control-bands.yml` never builds (it builds
+  `./packages/*` only). The same run was then cancelled at its 20-minute limit while
+  `--backfill-git` read 121 new compat observations per band, so no band gained a point that
+  week. Both fixes are in `control-bands.yml`: B-20261026-control-bands-demo-build-and-budget.
+  This criterion closes on the first scheduled run after that lands that gives every band a
+  point; the duration band then has its eighth, and evaluates. With the fix merged this week,
+  that is the run of Monday 2026-11-02.
+  **2026-10-27: both fixes landed** (D-20261027-close-three-workflow-gaps). The job builds the
+  demo beside the packages (`--filter=demo-cli-burgee`), held by
+  `scripts/root-suite-build-scope-lock.test.ts`, which now counts the band watcher as running the
+  root suite. The watcher reads each suite's git history once instead of once per band (50
+  `cli-benchmarks` bands at about 23 s a walk), and the job's limit is 25 minutes: `npm test`'s
+  15-minute cap plus 10, held by `scripts/control-bands-workflow-lock.test.ts`. What closes it is
+  unchanged: the scheduled run of Monday 2026-11-02 05:10 UTC, and the observations PR it opens
+  merging, gives every band a point, `test-duration-ms` its eighth among them. A run whose PR is
+  a breach draft that is closed does not (the 2026-10-19 points were lost that way, #1154).
+  **2026-10-27: met.** Run 40537224930, dispatched on `main` on the owner's instruction and counted
+  as the scheduled run (D-20261027-dispatched-eval-counts-as-weekly), landed through #1312. All 55
+  bands have a 2026-10-27 point, `test-duration-ms` has 8, and all 55 evaluated inside their band
+  with no breach. See [§ Shipped 2026-10-27](#shipped-2026-10-27).
 - A simulated breach in a unit test produces an `intent.md` that itself passes the
   intent lock. **2026-10-18: held** by `scripts/control-bands.test.ts` › "satisfies the schema
   the intent lock enforces".

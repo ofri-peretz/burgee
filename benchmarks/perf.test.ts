@@ -25,7 +25,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { msRecord, proveFixtures, ratioRecord, resolveVariants, ROUNDS, type Variant, VARIANTS } from './axes/perf.js';
+import { method, msRecord, proveFixtures, ratioRecord, resolveVariants, ROUNDS, type Variant, VARIANTS } from './axes/perf.js';
 import manifest from './package.json' with { type: 'json' };
 import { packageDir, resolvePackage } from './resolve.js';
 import { scratchDirs } from './scratch-dir.js';
@@ -49,7 +49,9 @@ function treeWith(name: string, version: string): string {
 
 describe('every timed variant names the package whose version decides its number', () => {
   it('declares that package in benchmarks/package.json, so the version is pinned rather than hoisted', () => {
-    for (const v of VARIANTS.filter((x) => x.parses)) {
+    // Every row but the floor, not only the parsers: an incumbent a delta row is held to decides
+    // that row's number as much as a parser's version decides a ratio.
+    for (const v of VARIANTS.filter((x) => x.id !== 'bare node')) {
       expect(v.pkg, `${v.id} is timed but names no package, so nothing checks which one it imported`).toBeDefined();
       expect(declared[v.pkg as string], `${v.id} imports ${String(v.pkg)}, which benchmarks/package.json does not declare`).toBeDefined();
     }
@@ -161,5 +163,12 @@ describe('the interleaving rotation', () => {
     // 40 rounds over 7 variants gave offsets 0-4 six turns and 5-6 five: a systematic
     // 20% imbalance in who paid the scheduler first, inside the numbers being ratioed.
     expect(ROUNDS % VARIANTS.length).toBe(0);
+  });
+});
+
+describe('the method line the page prints', () => {
+  it('states the rounds and the variants it was measured over, and every family a delta row gates', () => {
+    expect(method).toContain(`${String(ROUNDS)} interleaved rounds — a whole multiple of the ${String(VARIANTS.length)} variants`);
+    expect(method).toContain('the delta rows (roundel R8, seniority R9, linegauge, closeout) gate the paired difference');
   });
 });

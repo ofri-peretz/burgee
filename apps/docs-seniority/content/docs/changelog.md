@@ -3,6 +3,34 @@ title: Changelog
 description: "Every release of seniority, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.2.0
+
+### Minor Changes
+
+- [#1264](https://github.com/ofri-peretz/burgee/pull/1264) [`e739f18`](https://github.com/ofri-peretz/burgee/commit/e739f1822cfc196e280ee74c1a47c0d3543fc989) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Provenance now gives the line for a value set in the `package.json` field. The new `packageLayer(path, name)` in `seniority/config` (and the root) reads the field named after your program as the layer below the config file, and records the line each of its keys is set on. `explain` then prints `package.json field in /app/package.json:6`, not just the file. Pass the parsed manifest as a third argument if you already have it, and the file is read again only for the lines.
+
+  `lineOf` now reads the top level of the JSON only. It used to return the first `"key":` anywhere in the file, so a nested key with the same name, written above the top-level one, was cited at the wrong line. A key set twice is cited at the last one, the one `JSON.parse` keeps.
+
+  burgee: `--explain` and `meta.provenance` now give the line for a value set in the `package.json` field (`package.json:5`), as they already did for a config file.
+
+### Patch Changes
+
+- [#1285](https://github.com/ofri-peretz/burgee/pull/1285) [`6570ff2`](https://github.com/ofri-peretz/burgee/commit/6570ff28a3aa8959548ee338dfb114cb9b7deab5) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `seniority/dotenv/cli` follows dotenv 18.0.9: `dotenv run` reads an empty `DOTENV_PATH` or `DOTENV_CONFIG_PATH` as unset and loads `./.env`, where it used to read the empty string as a path and stop with `EISDIR`. dotenv 18.0.9's own suite grades `seniority/dotenv` 197 / 197, level with dotenv itself.
+
+## 1.1.1
+
+### Patch Changes
+
+- [#1258](https://github.com/ofri-peretz/burgee/pull/1258) [`e3b3a41`](https://github.com/ofri-peretz/burgee/commit/e3b3a41745ecdc853d741c457306c566541271b6) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `check` reads a `.json` plugin file as data. It handed every file to `import()`, and Node refuses a `.json` module without an import attribute (ERR_IMPORT_ATTRIBUTE_MISSING), so a plugin written as JSON got Node's message and no verdict, from the host's own `check` and through `burgee check`, which runs it.
+
+- [#1266](https://github.com/ofri-peretz/burgee/pull/1266) [`02e6f9f`](https://github.com/ofri-peretz/burgee/commit/02e6f9fcd779d892e7097659a6bd4c2f0e5b5a04) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The family plugin schema (`schema.json`, identical in every plugin host) now describes `formats`, burgee's output-format key. This package reads nothing new, and a plugin carrying `formats` registers here as before.
+
+- [#1252](https://github.com/ofri-peretz/burgee/pull/1252) [`efc994e`](https://github.com/ofri-peretz/burgee/commit/efc994ea20dae1f31990a7afef9dfa3c34fee596) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The README names the Node builtin the package builds on, and says what the package adds over
+  it: `Intl.Segmenter` and `util.stripVTControlCharacters` (linegauge), `process.loadEnvFile` and
+  `util.parseEnv` (seniority), `node:child_process` (bellpull), `process.on(signal)` (closeout).
+  The README's opening names the package and its incumbents only, and every benchmark figure
+  in it links to where it is measured.
+
 ## 1.1.0
 
 ### Minor Changes

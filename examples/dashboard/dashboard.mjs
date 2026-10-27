@@ -10,6 +10,8 @@ import { pathToFileURL } from 'node:url';
 
 import { hints, open, processRuntime } from 'controlroom';
 import { logTail } from 'flagstaff/log-tail';
+import { register } from 'flagstaff/plugin';
+import { progress as progressBar } from 'flagstaff/progress';
 import { tabBar } from 'flagstaff/tab-bar';
 import { tasks } from 'flagstaff/tasks';
 
@@ -21,7 +23,18 @@ export const STEPS = [
   { title: 'Check the setup', log: ['sent a test event', 'event received'] },
 ];
 
-const TABS = ['Status', 'Tail logs'];
+/**
+ * The wizard's marks, as a plugin: `◼` done, `◻` pending, and a `▶` that pulses while a step
+ * runs. Data, through the same `register()` every flagstaff plugin uses; delete it to keep
+ * flagstaff's own `✔`, a blank and a spinner.
+ */
+register({
+  name: 'dashboard',
+  glyphs: { ok: '◼', pending: '◻' },
+  spinners: { step: { frames: ['▶', '▷'], interval: 240, static: '▶' } },
+});
+
+const TABS = ['Status', 'Tail logs', 'Visualizer', 'HN'];
 const KEYMAP = { left: 'tab.prev', right: 'tab.next', s: 'toggle:status', q: 'quit', 'ctrl+c': 'quit' };
 const LABELS = { 'tab.prev': 'switch tab', 'tab.next': 'switch tab', 'toggle:status': 'toggle status', quit: 'quit' };
 export const TICK = 400;
@@ -29,12 +42,15 @@ const NOTHING = () => undefined;
 
 const text = { name: 'text', static: (s) => s };
 
-/** The arrangement for each tab: the status tab shows the learn panel and the checklist; the logs tab, the tail. */
+/**
+ * The body of each tab: the learn panel beside the checklist, the tail, the run drawn as a bar,
+ * and a tab of the app's own. The last two are where the wizard shows its own content; replace them.
+ */
+const BODIES = [{ direction: 'row', parts: [{ size: { fr: 1, min: 30 }, content: 'learn' }, { size: { fr: 2 }, content: 'tasks' }] }, 'log', 'visualizer', 'hn'];
+
+/** The arrangement for each tab: the tab bar, the status line, the tab's body, and the hints. */
 function layout(state) {
-  const body =
-    state.active === 0
-      ? { direction: 'row', parts: [{ size: { fr: 1, min: 20 }, content: 'learn' }, { size: { fr: 2 }, content: 'tasks' }] }
-      : 'log';
+  const body = BODIES[state.active];
   return {
     direction: 'column',
     parts: [
@@ -65,8 +81,11 @@ export function run(rt, argv = []) {
         tabs: { component: tabBar(), state: { tabs: TABS, active: 0 }, liveOnly: true },
         status: { component: text, state: progress(list), label: 'Status' },
         learn: { component: text, state: 'The wizard installs the SDK\nand checks the first event.', label: 'Learn' },
-        tasks: { component: tasks(), state: { tasks: list }, label: 'Tasks' },
+        tasks: { component: tasks({ spinner: 'step' }), state: { tasks: list }, label: 'Tasks' },
         log: { component: logTail({ height: 8 }), state: { lines }, label: 'Log' },
+        // The status line's count, drawn: off a terminal it would say the same thing twice.
+        visualizer: { component: progressBar({ width: 30 }), state: { done: 0, total: list.length, label: 'steps' }, liveOnly: true },
+        hn: { component: text, state: 'Your own tab: put your app’s content here.', label: 'HN' },
         hints: { component: text, state: hints(KEYMAP, LABELS), liveOnly: true },
       },
       onAction(action, s) {
@@ -87,6 +106,7 @@ export function run(rt, argv = []) {
       screen.update('tasks', { tasks: [...list] });
       screen.update('log', { lines: [...lines] });
       screen.update('status', progress(list));
+      screen.update('visualizer', { done: list.filter((t) => t.status === 'ok').length, total: list.length, label: 'steps' });
       step += 1;
       if (step > STEPS.length) {
         screen.commit(`Done: ${progress(list)}`);

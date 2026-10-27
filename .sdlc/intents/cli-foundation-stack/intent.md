@@ -8,13 +8,13 @@
 > Opened from [`candidate-layers.md`](../../research/candidate-layers.md), the 2026-09-08
 > measurement pass, and the four names published 2026-09-09.
 
-**Status:** approved · **Opened:** 2026-09-09 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-09-09 · **Owner:** @ofri-peretz
 
 > **Accepted at the Design→Build gate 2026-10-25** by the coordinator under the owner's delegation
 > ([`D-20261025-cli-foundation-stack-design-accepted`](../../decisions/D-20261025-cli-foundation-stack-design-accepted.md)): the umbrella over four shipped children; Y4 and Y12 to build, Y2's downloads half and S3 dropped. See
 > [`spec.md` § Design gate 2026-10-25](./spec.md#design-gate-2026-10-25).
 >
-> **Built 2026-10-25 (batch 29), still `approved` until the four packages publish:** the Y4 lock,
+> **Shipped 2026-10-26:** the README text is published 2026-10-26 by Version PR #1253 (bellpull 1.0.10, burgee 1.7.2, caique 1.5.1, closeout 1.1.8, flagstaff 1.7.4, linegauge 1.1.5, paratext 1.0.11, roundel 1.2.1, seniority 1.1.1, controlroom 1.0.7); each published `README.md` is byte-identical to `main`'s, and the locks below pass on it. **Built 2026-10-25 (batch 29), held until the four packages publish:** the Y4 lock,
 > the absorption probe and the Y12 lock are on `main`. The README text they hold reaches npm with
 > the next Version PR, through the patch changesets this batch adds. See
 > [`spec.md` § Status 2026-10-25](./spec.md#status-2026-10-25).

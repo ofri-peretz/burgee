@@ -10,6 +10,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { active, gradable, type Host, hostNamed, HOSTS, PREVIOUS_MAJORS, registersOn } from './hosts.js';
+import { liveRegistry } from './registry.js';
 import { type Baseline, controlName, type Grade, grade, readBaseline, regressed } from './run.js';
 import { diffRecords, isEmptyDiff, latestVersion, readRecord, renderDiff, renderMissingExtras } from './upstream.js';
 import { vendor } from './vendor.js';
@@ -55,6 +56,8 @@ const SHORT_SHA = 8;
 const HOST_COL = 12;
 const COUNT_COL = 5;
 const PCT_COL = 6;
+const MS_PER_S = 1000;
+const quiet = (): undefined => undefined;
 
 /** Which way the count moved against the baseline, or nothing if there is none yet. */
 function arrow(g: Grade, was: Baseline[string] | undefined): string {
@@ -437,10 +440,13 @@ async function competitorMode(write: Write, paths: Paths): Promise<number> {
   return 0;
 }
 
-/** `--fingerprint`: record every competitor's current release into `competitors.json`. */
-async function fingerprintMode(write: Write, paths: Paths): Promise<number> {
+/**
+ * `--fingerprint`: record every competitor's current release into `competitors.json`.
+ * `--missing` records only the ones nothing holds a fingerprint for, and leaves the rest.
+ */
+async function fingerprintMode(write: Write, paths: Paths, missing: boolean): Promise<number> {
   write('\nfingerprinting competitors\n\n');
-  const failures = await writeFingerprints(paths.packages, write);
+  const failures = await writeFingerprints(paths.packages, write, liveRegistry, { missing });
   write(failures === 0 ? '\n  every competitor fingerprinted\n' : `\n\u2716 ${failures} competitor(s) failed\n`);
   return failures === 0 ? 0 : 1;
 }
@@ -448,7 +454,7 @@ async function fingerprintMode(write: Write, paths: Paths): Promise<number> {
 export async function main(argv: string[], write: Write, paths: Paths = PATHS): Promise<number> {
   if (argv.includes('--upstream')) return upstreamMode(write, { check: (host, w) => checkUpstream(host, w, paths.vendor), out: paths.upstream });
   if (argv.includes('--competitors')) return competitorMode(write, paths);
-  if (argv.includes('--fingerprint')) return fingerprintMode(write, paths);
+  if (argv.includes('--fingerprint')) return fingerprintMode(write, paths, argv.includes('--missing'));
 
   const wantsVendor = argv.includes('--vendor');
   // --control grades each host against its own real package: the proof that the gate
@@ -478,11 +484,27 @@ export async function main(argv: string[], write: Write, paths: Paths = PATHS): 
   if (wantsVendor) vendorAll(hosts, write, paths);
 
   const baseline = { ...readBaseline(paths.baseline), ...readBaseline(paths.majors) };
-  const gradeOf = (host: Host): Grade => grade(host, paths.vendor, targetFor(host), baseline[host.name]?.reference ?? 0);
-  const grades = repeatAndAgree(hosts.map(gradeOf), { fell: fellFor(control, baseline), regrade: (g) => gradeOf(hosts.find((h) => h.name === g.host) as Host), write });
+  // `--progress`: a line as each host starts and as it ends, with its seconds. The report is
+  // printed only once every host is graded, so without it a host that runs to its timeout
+  // leaves the log silent until the job is killed, and nothing says which host it was: the
+  // Windows cell's Controls step printed nothing for 15 minutes on 2026-10-27.
+  const progress = argv.includes('--progress') ? write : quiet;
+  const gradeOf = (host: Host): Grade => {
+    progress(`  grading ${host.name}\n`);
+    const started = performance.now();
+    const result = grade(host, paths.vendor, targetFor(host), baseline[host.name]?.reference ?? 0);
+    progress(`  graded ${host.name} in ${String(Math.round((performance.now() - started) / MS_PER_S))} s\n`);
+    return result;
+  };
+  // A host declared `notGradedOn` this platform is vendored above but not graded, and named
+  // below with its reason, so the row is missing out loud rather than in silence.
+  const notHere = hosts.flatMap((h) => (h.notGradedOn?.platforms.includes(process.platform) === true ? [{ name: h.name, why: h.notGradedOn.why }] : []));
+  const graded = hosts.filter((h) => !notHere.some((n) => n.name === h.name));
+  const grades = repeatAndAgree(graded.map(gradeOf), { fell: fellFor(control, baseline), regrade: (g) => gradeOf(graded.find((h) => h.name === g.host) as Host), write });
 
   write(control ? '\ncontrol — each host graded against its real package\n\n' : '\ncompatibility\n\n');
   for (const g of grades) write(gradeLines(g, baseline));
+  for (const n of notHere) write(`\n  not graded on ${process.platform}: ${n.name} — ${n.why}\n`);
 
   const planned = HOSTS.filter((h) => h.status === 'planned').map((h) => h.name);
   if (planned.length > 0) write(`\n  planned: ${planned.join(', ')}\n`);

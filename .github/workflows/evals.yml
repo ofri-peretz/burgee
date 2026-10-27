@@ -29,7 +29,10 @@ on:
       - "!evals/history/**"
       - "scripts/run-evals.ts"
   schedule:
-    - cron: "20 5 * * 4"
+    # Saturdays 06:20 UTC, an hour after the subscription's weekly quota resets (Saturday 05:00
+    # UTC, quoted by the not-run lines of 2026-10-15 and 2026-10-22). On Thursdays both weeks
+    # found the quota spent (B-20261026-evals-run-after-quota-reset).
+    - cron: "20 6 * * 6"
   workflow_dispatch:
 
 concurrency:

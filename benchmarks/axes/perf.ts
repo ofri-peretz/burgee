@@ -30,13 +30,15 @@
  *   B4 uses, from the fixture directory the spawned processes themselves resolve from,
  *   **before anything is timed** — and the version and resolved path go into every record.
  */
-import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 import { claimRatchet } from '../claim-ratchets.js';
 import { type BenchRecord } from '../record.js';
 import { relativeToRepo, type Resolved, resolvePackage } from '../resolve.js';
+import { spawnSync } from '../spawn.js';
 import { median, p95, round } from '../stats.js';
+
+import { method as scaleMethod, run as runScale } from './scale.js';
 
 const FIXTURES = fileURLToPath(new URL('../fixtures/cold-start/', import.meta.url));
 
@@ -100,6 +102,38 @@ const SENIORITY_DOTENV = {
   why: "a ratchet, not a claim: `seniority/dotenv` starts slower than dotenv, and roundel R8's 10 ms allowance stops that growing (B-20261026-seniority-dotenv-starts-slower)",
 };
 
+/**
+ * linegauge criterion 2: "benchmark rows … on bytes and spawn delta", read as seniority R9's is —
+ * the median paired difference over the package a user removes, at the release compat-oracle
+ * grades (D-20261026-library-spawn-delta-rows). Gated at the bar itself, with no allowance: the
+ * allowance exists for two near-equal spawns, and these are not near equal. string-width 8.3.0
+ * builds an `Intl.Segmenter` at import, across three packages; linegauge builds its segmenter on
+ * first use (`style.ts`), and an ASCII string never reaches it.
+ * Measured 2026-10-27 on an M4 Pro, three runs of 92 rounds: −15.63, −15.86 and −15.21 ms.
+ * D-20261027-linegauge-closeout-spawn-bars.
+ */
+const LINEGAUGE_SPAWN = {
+  max: 0,
+  why: 'linegauge criterion 2: `linegauge` may cost no more than string-width to start (D-20261026-library-spawn-delta-rows, D-20261027-linegauge-closeout-spawn-bars)',
+};
+
+/**
+ * closeout criterion 3, the spawn half, and the optional `signal-exit` row beside it. These two are
+ * near equal, so each takes seniority R9's 2 ms allowance over a bar of 0, and the page prints the
+ * median so a reader sees whether the bar itself is met. Measured 2026-10-27 on an M4 Pro, three
+ * runs of 92 rounds: `closeout/exit-hook` +0.66, +0.40 and +0.59 ms over exit-hook, and
+ * `closeout/signal-exit` +1.22, +1.06 and +0.99 ms over signal-exit — two ES modules against one
+ * file each time. D-20261027-linegauge-closeout-spawn-bars.
+ */
+const CLOSEOUT_EXIT_HOOK_SPAWN = {
+  max: 2,
+  why: 'closeout criterion 3: `closeout/exit-hook` may cost no more than exit-hook to start; the gate allows 2 ms of runner noise over that bar (D-20261026-library-spawn-delta-rows, D-20261027-linegauge-closeout-spawn-bars)',
+};
+const CLOSEOUT_SIGNAL_EXIT_SPAWN = {
+  max: 2,
+  why: 'closeout criterion 3, the optional row: `closeout/signal-exit` may cost no more than signal-exit to start; the gate allows 2 ms of runner noise over that bar (D-20261026-library-spawn-delta-rows, D-20261027-linegauge-closeout-spawn-bars)',
+};
+
 /** `bare node` is mandatory (intent constraint 5): it is most of every other row. */
 export const VARIANTS: readonly Variant[] = [
   { id: 'bare node', file: 'node.mjs', parses: false },
@@ -130,6 +164,16 @@ export const VARIANTS: readonly Variant[] = [
   { id: 'seniority/lilconfig', file: 'seniority-lilconfig.mjs', parses: false, pkg: 'seniority', over: 'lilconfig', bar: SENIORITY_R9 },
   { id: 'dotenv', file: 'dotenv.mjs', parses: false, pkg: 'dotenv' },
   { id: 'seniority/dotenv', file: 'seniority-dotenv.mjs', parses: false, pkg: 'seniority', over: 'dotenv', bar: SENIORITY_DOTENV },
+  // linegauge criterion 2 and closeout criterion 3, the spawn halves: each library against the
+  // incumbent it replaces, at the release compat-oracle grades. No parser of argv — the width rows
+  // measure one string and the exit rows register one no-op hook, each printing the floor's line
+  // only when the call worked.
+  { id: 'string-width', file: 'string-width.mjs', parses: false, pkg: 'string-width' },
+  { id: 'linegauge', file: 'linegauge.mjs', parses: false, pkg: 'linegauge', over: 'string-width', bar: LINEGAUGE_SPAWN },
+  { id: 'exit-hook', file: 'exit-hook.mjs', parses: false, pkg: 'exit-hook' },
+  { id: 'closeout/exit-hook', file: 'closeout-exit-hook.mjs', parses: false, pkg: 'closeout', over: 'exit-hook', bar: CLOSEOUT_EXIT_HOOK_SPAWN },
+  { id: 'signal-exit', file: 'signal-exit.mjs', parses: false, pkg: 'signal-exit' },
+  { id: 'closeout/signal-exit', file: 'closeout-signal-exit.mjs', parses: false, pkg: 'closeout', over: 'signal-exit', bar: CLOSEOUT_SIGNAL_EXIT_SPAWN },
 ];
 
 /**
@@ -161,9 +205,10 @@ const SHOUT_EXPECTED = 'HELLO, ADA!\n';
  * only five — which is why it read 42 then. With roundel R8's three colour rows there are ten,
  * and 40 makes every variant go first, second and last exactly four times, which is the only
  * thing the rotation is for. controlroom W4's three rows make thirteen, and 52 is four turns
- * in each position again. seniority's four rows make seventeen, and 68 keeps four.
+ * in each position again. seniority's four rows make seventeen, and 68 keeps four. linegauge's
+ * and closeout's six make twenty-three, and 92 keeps four.
  */
-export const ROUNDS = 68;
+export const ROUNDS = 92;
 const RATIO_PLACES = 3;
 const MS_PLACES = 2;
 
@@ -391,7 +436,10 @@ export function run(rounds = ROUNDS): BenchRecord[] {
       }),
     );
   }
+  // Z5: the 250- and 30-command `--help` and `--schema` rows, timed in rounds of their own so the
+  // rotation above stays a whole multiple of its variants (`scale.ts`).
+  records.push(...runScale(rounds));
   return records;
 }
 
-export const method = `${String(ROUNDS)} interleaved rounds — a whole multiple of the ${String(VARIANTS.length)} variants, so the rotation gives every variant each starting position equally often; each round spawns every variant once as \`node <fixture> greet ada\` (the colour rows print the same line, under \`NO_COLOR\`), after one discarded warm-up round. Every variant's package is resolved against the range \`benchmarks/package.json\` declares before any timing, and its version and resolved path are on every row. Absolute ms are a property of the machine recorded above and are not comparable across machines; the banded number is the paired ratio, and roundel's R8 rows gate the paired difference over picocolors.`;
+export const method = `${String(ROUNDS)} interleaved rounds — a whole multiple of the ${String(VARIANTS.length)} variants, so the rotation gives every variant each starting position equally often; each round spawns every variant once as \`node <fixture> greet ada\` (the colour rows print the same line, under \`NO_COLOR\`), after one discarded warm-up round. Every variant's package is resolved against the range \`benchmarks/package.json\` declares before any timing, and its version and resolved path are on every row. Absolute ms are a property of the machine recorded above and are not comparable across machines; the banded number is the paired ratio, and the delta rows (roundel R8, seniority R9, linegauge, closeout) gate the paired difference over the incumbent each replaces. ${scaleMethod}`;

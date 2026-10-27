@@ -61,3 +61,51 @@ refused at `template` — the first option it would have had to ask about.
 What the pass needs is a record of options, the values so far, a runtime and an `io`. None of
 it is any framework's types, so `caique` imports none, and the same pass serves commander,
 yargs, burgee or a hand-rolled parser.
+
+## Wrapping a command: `promptFor`
+
+`caique/prompt-for` puts that pass where it belongs, in front of a command's handler.
+`promptFor(command, 'name', spec)` declares the prompt on the option or positional called `name`
+and wraps the handler: before it runs, every declared prompt with no value is asked for, or
+refused, and the handler never sees a missing value. `promptFor(command)` does the same for the
+`prompt:` a command already declares.
+
+```js title="greet.mjs"
+import { promptFor } from 'caique/prompt-for';
+
+const greet = promptFor(
+  { arguments: [{ name: 'name' }], run: ({ args }) => `Hello, ${args.name}!` },
+  'name',
+  { kind: 'text', message: 'Who should I greet?' },
+);
+
+// What a framework hands its handler. burgee builds this context; any other framework can too.
+const ctx = (over) => ({ options: {}, args: {}, positionals: [], env: process.env, interactive: false, json: false, ...over });
+
+console.log(await greet.run(ctx({ args: { name: 'ada' }, positionals: ['ada'] })));
+try {
+  await greet.run(ctx());
+} catch (refusal) {
+  console.log(`${refusal.code}: ${refusal.message}`);
+  console.log(`fix: ${refusal.fix}`);
+}
+```
+
+```text title="node greet.mjs"
+Hello, ada!
+USAGE: <name> is required when there is no terminal
+fix: pass <name>; it would have been asked as "Who should I greet?"
+```
+
+The refusal names the value the way it is passed: `<name>` for a positional, `--dry-run` for an
+option keyed `dryRun`. On burgee it leaves with exit 2, and a cancelled question with exit 4.
+
+- **Who is asked.** `ctx.interactive` is the host's answer — a terminal on stdin, no `CI`, no
+  agent — and `ctx.json` is `true` under `--json` and in every `--mcp` tool call, where nobody is
+  there to type.
+- **Where.** On stdin, with the question on stderr, so it never lands in the data on stdout.
+- **For how long.** The terminal is opened only to ask, handed to the host's exit path while it
+  is open, and closed before the handler runs. Ctrl+C at the question cancels it and gives the
+  terminal back out of raw mode.
+- **What a program reading `--schema` sees.** Not the prompt: it is left out of the command's
+  JSON, because a program is never asked. Declare prompts through `promptFor`, so this holds.

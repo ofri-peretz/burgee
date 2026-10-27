@@ -108,10 +108,10 @@ describe('a uvu run as the summary the oracle grades', () => {
 
 /**
  * The arm end to end, against the real uvu pinned beside a scratch suite, as `grade()` runs
- * kleur's. Not on Windows, for the reason the twist and tsd runners give: `installSuiteDeps`
- * spawns `npm`, which `execFileSync` cannot start there, and no `suiteDeps` host is graded there.
+ * kleur's. On Windows too, since `installSuiteDeps` spawns `npm` through bellpull (`spawn.ts`),
+ * which starts `npm.cmd` without a shell: under `execFileSync` it could not, and this was skipped.
  */
-describe.skipIf(process.platform === 'win32')('the uvu runner, end to end', () => {
+describe('the uvu runner, end to end', () => {
   const UVU_DEPS = { uvu: '0.3.3', kleur: '4.1.5' };
   /** When the pins resolve as of: an hour past kleur 4.1.5, the newer of the two. */
   const UVU_AS_OF = '2022-06-26T19:51:46.000Z';

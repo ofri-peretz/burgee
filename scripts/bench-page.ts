@@ -21,6 +21,8 @@ import { renderTarget } from 'benchmarks/emit.js';
 import { publishedResults } from 'benchmarks/published.js';
 import { readRuntimeRatchets } from 'benchmarks/runtime-ratchets.js';
 
+import { readBill, section as billSection } from './dependency-bill.js';
+
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const RESULTS = join(root, 'benchmarks', 'results');
 const OUT = join(root, 'apps', 'docs', 'content', 'docs', 'benchmarks.mdx');
@@ -430,6 +432,8 @@ nothing gates on it.
 | Entry point | Replaces | Bundled | Theirs | Ratio | Installed | Theirs |
 | :--- | :--- | ---: | ---: | ---: | ---: | ---: |
 ${weightRows.join('\n')}
+
+${billSection(readBill(root))}
 
 ## Reproduce
 
