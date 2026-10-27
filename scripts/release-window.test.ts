@@ -9,8 +9,10 @@
  *
  * Two rules, and the workflows that run them:
  *
- * - **The window.** No non-fix release of a package within 7 days of its previous one; a fix is
- *   never delayed. `scripts/release-window.mts plan` decides before each Version PR refresh,
+ * - **The window.** No non-fix release of a package within 7 days of its previous one. A fix to
+ *   a package with a held minor waits with it, because its build carries that minor's code
+ *   (D-20261026-release-window-holds-code); every other fix, and any `Security:` change, releases
+ *   at once. `scripts/release-window.mts plan` decides before each Version PR refresh,
  *   `version` sets the held changesets aside while `changeset version` runs, and `publishable`
  *   is `release.yml`'s backstop. `.sdlc/intents/release-cadence/release-window.qnt` models it.
  * - **The changeset lock.** burgee 1.5.0 (#1064) and flagstaff 1.2.0 (#827) shipped as minors a
@@ -214,13 +216,43 @@ describe('planWindow — what the next Version PR carries', () => {
     expect(plan.changesets).toEqual([{ file: 'mixed.md', release: [{ name: 'roundel', type: 'patch' }], hold: [{ name: 'burgee', type: 'minor' }] }]);
   });
 
-  it('releases a patch for a package whose minor is held, in another changeset', () => {
+  // Restated by D-20261026-release-window-holds-code: this case once released the patch, and
+  // #1253 showed what that ships. roundel 1.2.1, a patch, carried the three subpaths of three held
+  // minors, because a release is built from `main` and `main` already had their code.
+  it('holds a patch for a package whose minor is held: main’s build of it carries the minor’s code', () => {
     const plan = planWindow([cs('m.md', [{ name: 'burgee', type: 'minor' }]), cs('p.md', [{ name: 'burgee', type: 'patch' }])], state({ burgee: { '1.6.0': ago(3) } }), NOW);
     expect(plan.changesets.map((c) => [c.file, c.release.length, c.hold.length])).toEqual([
       ['m.md', 0, 1],
-      ['p.md', 1, 0],
+      ['p.md', 0, 1],
     ]);
+    expect(plan.held.map((h) => [h.name, h.type, h.opens])).toEqual([
+      ['burgee', 'minor', new Date(NOW + 4 * DAY).toISOString()],
+      ['burgee', 'patch', new Date(NOW + 4 * DAY).toISOString()],
+    ]);
+    expect(plan.releasable).toBe(false);
+  });
+
+  it('holds a fix behind its own package’s held minor only, and releases another package’s fix', () => {
+    const plan = planWindow(
+      [cs('m.md', [{ name: 'roundel', type: 'minor' }]), cs('p.md', [{ name: 'roundel', type: 'patch' }, { name: 'flagstaff', type: 'patch' }])],
+      state({ roundel: { '1.2.0': ago(6) }, flagstaff: { '1.7.0': ago(1) } }),
+      NOW,
+    );
+    expect(plan.changesets[1]).toEqual({ file: 'p.md', release: [{ name: 'flagstaff', type: 'patch' }], hold: [{ name: 'roundel', type: 'patch' }] });
     expect(plan.releasable).toBe(true);
+  });
+
+  it('a Security: change releases its package with everything held for it, so the version says what the build carries', () => {
+    const plan = planWindow(
+      [cs('m.md', [{ name: 'burgee', type: 'minor' }]), cs('s.md', [{ name: 'burgee', type: 'patch' }], 'Security: refuse a symlinked config.'), cs('p.md', [{ name: 'burgee', type: 'patch' }])],
+      state({ burgee: { '1.6.0': ago(1) } }),
+      NOW,
+    );
+    expect(plan.held).toEqual([]);
+    expect(plan.changesets.map((c) => c.release.length)).toEqual([1, 1, 1]);
+    // A `none` entry releases nothing, so it opens no window for the package it names.
+    const none = planWindow([cs('m.md', [{ name: 'burgee', type: 'minor' }]), cs('s.md', [{ name: 'burgee', type: 'none' }], 'Security: a note.')], state({ burgee: { '1.6.0': ago(1) } }), NOW);
+    expect(none.held.map((h) => h.type)).toEqual(['minor', 'none']);
   });
 
   it('releases a security minor inside the window', () => {
@@ -506,6 +538,21 @@ describe('main — the commands the workflows run', () => {
     expect(usage.join('')).toContain('usage:');
   });
 
+  it('publishable: reads the held minors from .changeset/, and a Security: or patch changeset holds nothing', async () => {
+    const root = scratch(
+      { 'k.md': '---\n"roundel": minor\n---\n\nkleur\n', 's.md': '---\n"caique": minor\n---\n\nSecurity: refuse it.\n', 'p.md': '---\n"flagstaff": patch\n---\n\nfix\n' },
+      { roundel: { version: '1.2.1' }, caique: { version: '1.4.2' }, flagstaff: { version: '1.7.1' } },
+    );
+    const rows = [row('roundel', '1.2.1'), row('caique', '1.4.2'), row('flagstaff', '1.7.1')];
+    const out = join(root, 'p.json');
+    const written: string[] = [];
+    expect(await main(['publishable', '--out', out], io({ root, times: refuses, stdin: () => JSON.stringify(rows), write: (t) => written.push(t) }))).toBe(0);
+    expect((JSON.parse(readFileSync(out, 'utf8')) as { name: string }[]).map((r) => r.name)).toEqual(['caique', 'flagstaff']);
+    expect(written.join('')).toBe(
+      '::notice::Not publishing roundel@1.2.1 yet: main holds an unreleased minor or major changeset for it, so this build carries that code; it publishes with that release once the window opens. A later run publishes it (release-cadence).\n',
+    );
+  });
+
   it('publishable: reads the version’s own changelog section for a Security: entry', async () => {
     const root = scratch({}, { burgee: { version: '1.7.0' } });
     writeFileSync(join(root, 'packages/burgee/CHANGELOG.md'), '# burgee\n\n## 1.7.0\n\n### Minor Changes\n\n- abc: Security: refuse a symlinked config.\n\n## 1.6.0\n\n- old\n');
@@ -559,10 +606,14 @@ describe('main — the commands the workflows run', () => {
 /** A row of release.yml's plan, and a package with no changelog. */
 const row = (name: string, version: string, deps: { name: string; version: string }[] = []) => ({ dir: name, name, version, deps });
 const none = (): string => '';
+/** No unreleased non-fix changeset on `main`: the build carries only what it versions. */
+const NO_HELD: ReadonlySet<string> = new Set();
+/** How many rows publish of roundel@1.2.1, built while a roundel minor is held, given its changelog section. */
+const heldFix = (section: string): number => publishable([row('roundel', '1.2.1')], new Map(), NOW, { changelog: () => section, held: new Set(['roundel']) }).rows.length;
 
 describe('publishable — release.yml’s backstop', () => {
   it('keeps fixes, and a non-fix version whose window is open', () => {
-    const result = publishable([row('roundel', '1.1.2'), row('burgee', '1.7.0')], new Map([['burgee', { '1.6.0': ago(8), '1.7.0': ago(0) }]]), none, NOW);
+    const result = publishable([row('roundel', '1.1.2'), row('burgee', '1.7.0')], new Map([['burgee', { '1.6.0': ago(8), '1.7.0': ago(0) }]]), NOW, { changelog: none, held: NO_HELD });
     expect(result).toEqual({ rows: [row('roundel', '1.1.2'), row('burgee', '1.7.0')], deferred: [] });
   });
 
@@ -570,8 +621,8 @@ describe('publishable — release.yml’s backstop', () => {
     const result = publishable(
       [row('roundel', '1.2.0'), row('flagstaff', '1.7.1', [{ name: 'roundel', version: '1.2.0' }]), row('caique', '1.4.2', [{ name: 'roundel', version: '1.1.1' }])],
       new Map([['roundel', { '1.1.0': ago(3) }]]),
-      none,
       NOW,
+      { changelog: none, held: NO_HELD },
     );
     expect(result.rows.map((r) => r.name)).toEqual(['caique']);
     expect(result.deferred).toEqual([
@@ -581,9 +632,32 @@ describe('publishable — release.yml’s backstop', () => {
   });
 
   it('defers when the registry did not answer, and publishes a security release at once', () => {
-    expect(publishable([row('burgee', '1.7.0')], new Map([['burgee', undefined]]), none, NOW).deferred[0]?.why).toBe('the registry did not answer');
-    expect(publishable([row('burgee', '1.7.0')], new Map([['burgee', { '1.6.0': ago(1) }]]), () => '### Minor Changes\n\n- [#1](x) Thanks! - Security: refuse it.\n', NOW).rows).toHaveLength(1);
-    expect(publishable([row('burgee', '1.7.0')], new Map([['burgee', { '1.6.0': ago(1) }]]), () => 'Mentions Security: in prose, not as an entry.\n', NOW).rows).toHaveLength(0);
+    expect(publishable([row('burgee', '1.7.0')], new Map([['burgee', undefined]]), NOW, { changelog: none, held: NO_HELD }).deferred[0]?.why).toBe('the registry did not answer');
+    expect(publishable([row('burgee', '1.7.0')], new Map([['burgee', { '1.6.0': ago(1) }]]), NOW, { changelog: () => '### Minor Changes\n\n- [#1](x) Thanks! - Security: refuse it.\n', held: NO_HELD }).rows).toHaveLength(1);
+    expect(publishable([row('burgee', '1.7.0')], new Map([['burgee', { '1.6.0': ago(1) }]]), NOW, { changelog: () => 'Mentions Security: in prose, not as an entry.\n', held: NO_HELD }).rows).toHaveLength(0);
+  });
+
+  // D-20261026-release-window-holds-code: the window held version numbers, not code. #1253
+  // published roundel 1.2.1, burgee 1.7.2 and seniority 1.1.1 as patches built from a `main` that
+  // already held three, six and one minor changesets for them: roundel 1.2.1 exports ./colorette,
+  // ./kleur and ./yoctocolors, which 1.2.0 does not.
+  it('defers a fix version while main holds an unreleased minor for the package, and what depends on it', () => {
+    const result = publishable(
+      [row('roundel', '1.2.1'), row('flagstaff', '1.7.1', [{ name: 'roundel', version: '1.2.1' }]), row('caique', '1.4.2')],
+      new Map(),
+      NOW,
+      { changelog: none, held: new Set(['roundel']) },
+    );
+    expect(result.rows.map((r) => r.name)).toEqual(['caique']);
+    expect(result.deferred).toEqual([
+      { name: 'roundel', version: '1.2.1', why: 'main holds an unreleased minor or major changeset for it, so this build carries that code; it publishes with that release once the window opens' },
+      { name: 'flagstaff', version: '1.7.1', why: 'it depends on roundel@1.2.1, which waits' },
+    ]);
+  });
+
+  it('publishes that fix version when its changelog section carries a Security: entry', () => {
+    expect(heldFix('### Patch Changes\n\n- abc: Security: refuse it.\n')).toBe(1);
+    expect(heldFix('### Patch Changes\n\n- abc: a fix.\n')).toBe(0);
   });
 
   it('cuts one version’s changelog section, up to the next', () => {
@@ -658,10 +732,17 @@ describe('the workflows run the window and the lock', () => {
 
   it('models.yml keeps the model’s rejected designs failing', () => {
     const text = workflow('models.yml');
-    expect(text).toContain('for inv in unsplitHolds npmOnlyHolds shippedNeverReleasesAFeature; do');
     expect(text).toContain('.sdlc/intents/release-cadence/release-window.qnt');
     const model = readFileSync(join(ROOT, '.sdlc/intents/release-cadence/release-window.qnt'), 'utf8');
-    for (const name of ['safety', 'unsplitHolds', 'npmOnlyHolds', 'shippedNeverReleasesAFeature']) expect(model).toContain(`val ${name} =`);
+    expect(model).toContain('val safety =');
+    // Every name must stay violated: the rejected designs, and the witnesses that `safety` is not
+    // vacuous. D-20261026-release-window-holds-code added `holdsVersionsNotCode` (the design that
+    // held version numbers and not code) and `shippedNeverHoldsAFix`; until
+    // B-20261026-models-yml-holds-code-invariants they were checked by hand.
+    const loop = /for inv in ([\w ]+); do\n\s+if \$QUINT run \.sdlc\/intents\/release-cadence\/release-window\.qnt --invariant="\$inv"/u.exec(text)?.[1]?.split(' ') ?? [];
+    const violated = ['unsplitHolds', 'npmOnlyHolds', 'holdsVersionsNotCode', 'shippedNeverReleasesAFeature', 'shippedNeverHoldsAFix'];
+    expect(loop.toSorted()).toEqual(violated.toSorted());
+    for (const name of violated) expect(model).toContain(`val ${name} =`);
   });
 });
 
@@ -727,11 +808,11 @@ describe('sentences and describes — a list of phrases must share one sentence'
 });
 
 /** How many rows publish when burgee 1.7.0, a day inside its window, has this changelog section. */
-const security = (section: string): number => publishable([row('burgee', '1.7.0')], new Map([['burgee', { '1.6.0': ago(1) }]]), () => section, NOW).rows.length;
+const security = (section: string): number => publishable([row('burgee', '1.7.0')], new Map([['burgee', { '1.6.0': ago(1) }]]), NOW, { changelog: () => section, held: NO_HELD }).rows.length;
 
 describe('planWindow and publishable — the boundaries', () => {
   it('publishes a non-fix version exactly 7 days after the previous one', () => {
-    expect(publishable([row('burgee', '1.7.0')], new Map([['burgee', { '1.6.0': ago(7) }]]), none, NOW).rows).toHaveLength(1);
+    expect(publishable([row('burgee', '1.7.0')], new Map([['burgee', { '1.6.0': ago(7) }]]), NOW, { changelog: none, held: NO_HELD }).rows).toHaveLength(1);
   });
 
   it('holds a dependent on the deferred package at that version only, and says it is the dependency', () => {
@@ -742,8 +823,8 @@ describe('planWindow and publishable — the boundaries', () => {
         ['linegauge', { '1.1.0': ago(30) }],
         ['b', { '1.0.0': ago(30) }],
       ]),
-      none,
       NOW,
+      { changelog: none, held: NO_HELD },
     );
     expect(result.rows.map((r) => r.name)).toEqual(['linegauge', 'a']);
     expect(result.deferred.map((d) => [d.name, d.why])).toEqual([
@@ -772,7 +853,7 @@ describe('main — the registry and the outputs', () => {
     const stepSummary = join(root, 'summary');
     await main(['plan'], io({ root, times: async () => ({ '1.6.0': ago(2) }), env: { GITHUB_STEP_SUMMARY: stepSummary } }));
     expect(readFileSync(stepSummary, 'utf8')).toBe(
-      `### Release window (7 days between non-fix releases of a package)\n\nHeld on \`main\` until the window opens; a fix in the same changeset releases now:\n- \`burgee\` minor from \`.changeset/m.md\`: opens ${new Date(NOW + 5 * DAY).toISOString()}\n`,
+      `### Release window (7 days between non-fix releases of a package)\n\nHeld on \`main\` until the window opens, with every fix to a held package: its build carries the held code. A \`Security:\` change releases its package at once, held code and all:\n- \`burgee\` minor from \`.changeset/m.md\`: opens ${new Date(NOW + 5 * DAY).toISOString()}\n`,
     );
   });
 
@@ -840,9 +921,11 @@ describe('the registry, and the version run, as the real process reaches them', 
     expect(usage.status).toBe(2);
     expect(usage.stdout).toMatch(/^usage: release-window\.mts/);
     const out = join(scratchDir('release-window-cli-'), 'p.json');
-    const fixes = cli(['publishable', '--out', out], JSON.stringify([row('roundel', '1.1.2')]));
+    // A name no changeset on this branch can name: the command reads this checkout's `.changeset/`,
+    // and a package with a held minor there would wait (D-20261026-release-window-holds-code).
+    const fixes = cli(['publishable', '--out', out], JSON.stringify([row('not-in-the-workspace', '1.1.2')]));
     expect(fixes.status).toBe(0);
-    expect(JSON.parse(readFileSync(out, 'utf8'))).toEqual([row('roundel', '1.1.2')]);
+    expect(JSON.parse(readFileSync(out, 'utf8'))).toEqual([row('not-in-the-workspace', '1.1.2')]);
   });
 });
 
@@ -861,8 +944,8 @@ describe('the last edges Stryker found', () => {
         ['roundel', { '1.1.0': ago(3) }],
         ['linegauge', { '1.1.0': ago(3) }],
       ]),
-      none,
       NOW,
+      { changelog: none, held: NO_HELD },
     );
     expect(result.rows).toEqual([]);
     expect(result.deferred.map((d) => d.name)).toEqual(['roundel', 'linegauge', 'flagstaff']);

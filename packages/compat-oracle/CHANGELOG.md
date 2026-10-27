@@ -1,5 +1,17 @@
 # compat-oracle
 
+## 0.3.14
+
+### Patch Changes
+
+- [#1298](https://github.com/ofri-peretz/burgee/pull/1298) [`9de86af`](https://github.com/ofri-peretz/burgee/commit/9de86af7a8b27d4aa717aa78b66e743f64925089) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Every spawn goes through `bellpull/cross-spawn` (`src/spawn.ts`), so `npm` starts as `npm.cmd` on Windows without a shell, and the `suiteDeps` runners (tsd, twist, uvu) run there. Grades are unchanged. Private, never published.
+
+## 0.3.13
+
+### Patch Changes
+
+- [#1285](https://github.com/ofri-peretz/burgee/pull/1285) [`6570ff2`](https://github.com/ofri-peretz/burgee/commit/6570ff28a3aa8959548ee338dfb114cb9b7deab5) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - dotenv re-vendored at 18.0.9 (control 197 / 197), execa at 10.2.1 (control 1360 / 1360, `bellpull` 0 / 1360, still a ceiling), `@inquirer/core` at 12.0.5 (control 45 / 45) and `@inquirer/prompts` at 8.7.4 with its ten prompts pinned at the releases it shipped with (control 221 / 221). `editor`'s new case answers through the `editAsync` mock and is excluded by exact title with the other eleven.
+
 ## 0.3.12
 
 ### Patch Changes

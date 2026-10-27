@@ -6,10 +6,21 @@
 > Proposes floor additions U1–U8. Opened from the 2026-09-07 discussion on whether to ship
 > a chalk alternative.
 
-**Status:** approved · **Opened:** 2026-09-07 · **Owner:** @ofri-peretz · **Approved:** 2026-09-08 by the owner, in session ("remove all blockers")
+**Status:** shipped (2026-10-26, R12's README opening read from the `flagstaff@1.7.5` tarball; see § Shipped 2026-10-26) · **Opened:** 2026-09-07 · **Owner:** @ofri-peretz · **Approved:** 2026-09-08 by the owner, in session ("remove all blockers")
 **Restated:** 2026-10-18 — see § Restated 2026-10-18
 
 ---
+
+## Shipped 2026-10-26
+
+**The last open item is on npm.** Version PR #1278 published `flagstaff@1.7.5` on 2026-10-26
+(07:43 UTC, `gitHead` `8d7126cd`), carrying `.changeset/flagstaff-readme-opening.md`. Every
+other row was already held or moved (§ Restated 2026-10-18, its 2026-10-26 note).
+
+| Row | Command | Output |
+| :-- | :-- | :-- |
+| R12. The README opening does not lead with burgee | `npm pack flagstaff@1.7.5` into an empty `mktemp -d` directory, unpacked; `cmp package/README.md packages/flagstaff/README.md` against `main` | byte-identical (sha256 `9b6d2d8af45ce748…` both). The first paragraph names no `burgee` and ends "Plugins are data, and there is no layout engine." |
+| S2. The complete-CLI dependency bill on `/docs/benchmarks` | `npm run bench:page -- --check`; `npx vitest run --config vitest.root.config.ts scripts/dependency-bill-lock.test.ts scripts/readme-opening-lock.test.ts`; the live page | `✓ apps/docs/content/docs/benchmarks.mdx matches the committed results`; 2 files, 34 tests passed. § "A complete CLI — the dependency bill" is on `main`'s page and on `burgee.interlace.tools/docs/benchmarks`: `burgee` + `roundel` + `flagstaff` + `caique` install **9** packages, 0 from outside the family; commander + chalk + ora + cli-table3 + `@inquirer/prompts` install **50** |
 
 ## Restated 2026-10-18
 
@@ -34,7 +45,7 @@ was.
 | S5 | five conformance cases in `examples/` for a third-party JSON spinner | the five behaviours are asserted in-package, not in `examples/` | `packages/flagstaff/src/cli.test.ts` › "prints the plugin in all five modes side by side and exits 0"; `packages/flagstaff/src/plugin.test.ts` › "R2 · a contribution without a static projection is refused" | moved → `flagstaff` S1 (its text names the five plugin conformance cases) |
 | S6 | every package's Z1 test and size ratchet on every PR | all three packages have `shape.test.ts` and `weight.test.ts`; tests and `check:artifacts` run in `quality-full.yml` on every non-draft PR (a draft without `run-full-ci` skips it) | `scripts/artifact-size-ratchet-lock.test.ts` › "runs check:artifacts in quality-full.yml's build job" | restated (every non-draft PR), held |
 | S7 | root `{ spinner }` bundles within 5% of `./spinner`; CJS `require()` of every entry | stricter than written: every same-binding root/subpath pair across the family (at least 25) must be equal to the byte; every code entry carries `types`/`import`/`default` | `scripts/tree-shake-fixture.test.ts` › "a root named import costs what the subpath import costs (U10)"; `scripts/package-shape-lock.test.ts` › "exposes types, import and default on every code entry, so CommonJS can require() it (K2)"; each `shape.test.ts` › "is consumable from CommonJS too — the same ESM file, through require(esm) (K2)" | restated (equal, not ±5%), held |
-| S8 | the U9 eval runs weekly in `evals/` | the cron (`20 5 * * 4`) and the case exist; three recorded runs at 10 / 10 (2026-10-08, and two dispatched 2026-10-09, D-20261009-burgee-1-0-evidence). The 2026-10-15 record (`evals/history/2026-10-15-29362dc-38717342918.json`, 0 / 11, `model: null`) is a run that never executed (the Claude usage limit), not a failure, so there is no current reading | `.github/workflows/evals.yml` schedule; `evals/cases/flagstaff-plugin-from-schema.json` | moved → `flagstaff` S7 (its text names this eval) |
+| S8 | the U9 eval runs weekly in `evals/` | the cron (`20 6 * * 6` since 2026-10-27, `20 5 * * 4` before) and the case exist; three recorded runs at 10 / 10 (2026-10-08, and two dispatched 2026-10-09, D-20261009-burgee-1-0-evidence). The 2026-10-15 record (`evals/history/2026-10-15-29362dc-38717342918.json`, 0 / 11, `model: null`) is a run that never executed (the Claude usage limit), not a failure, so there is no current reading | `.github/workflows/evals.yml` schedule; `evals/cases/flagstaff-plugin-from-schema.json` | moved → `flagstaff` S7 (its text names this eval) |
 
 **What changed since this file was written, and where it is recorded.**
 

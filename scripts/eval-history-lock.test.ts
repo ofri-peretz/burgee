@@ -267,7 +267,16 @@ describe('evals.yml records the weekly run and lands it', () => {
   const wf = readFileSync(join(REPO_ROOT, '.github/workflows/evals.yml'), 'utf8');
 
   it('still runs on a schedule', () => {
-    expect(wf).toMatch(/schedule:\n\s+- cron: /);
+    expect(wf).toMatch(/schedule:\n(?:\s+#.*\n)*\s+- cron: /);
+  });
+
+  it('runs after the weekly quota resets, not days into the spent week (B-20261026-evals-run-after-quota-reset)', () => {
+    // The 2026-10-15 and 2026-10-22 Thursday runs found the quota spent; both quoted the reset as
+    // Saturday 05:00 UTC. A run in the two hours after the reset meets the fullest quota.
+    const [minute, hour, , , day] = (/- cron: "([^"]+)"/u.exec(wf)?.[1] ?? '').split(' ');
+    expect(day).toBe('6');
+    expect(Number(hour) * 60 + Number(minute)).toBeGreaterThan(5 * 60);
+    expect(Number(hour) * 60 + Number(minute)).toBeLessThanOrEqual(7 * 60);
   });
 
   it('passes --record outside pull requests, and uploads what it wrote', () => {

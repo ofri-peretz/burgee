@@ -10,10 +10,11 @@ const bench = readFileSync(join(import.meta.dirname, '..', '.github', 'workflows
 const agentJob = bench.slice(bench.indexOf('\n  agent:\n'));
 
 describe('B1 lands its own observation', () => {
-  // The weekly run lands too (b1-mcp-arm R4): it is the reading that carries the MCP arm.
-  it('commits the agent-cli-bench result from the agent job on a push and on the schedule', () => {
+  // The weekly run lands too (b1-mcp-arm R4): it is the reading that carries the MCP arm. So does a
+  // manual dispatch that asks for the arm (D-20261027-b1-mcp-arm-owner-dispatch).
+  it('commits the agent-cli-bench result from the agent job on a push, the schedule and an arm dispatch', () => {
     expect(agentJob).toContain('name: Land B1\'s observation');
-    expect(agentJob).toMatch(/if: \(github\.event_name == 'push' \|\| github\.event_name == 'schedule'\) && steps\.status\.outputs\.status == 'measured'/u);
+    expect(agentJob).toMatch(/if: \(github\.event_name == 'push' \|\| github\.event_name == 'schedule' \|\| \(github\.event_name == 'workflow_dispatch' && inputs\.mcp-arm\)\) && steps\.status\.outputs\.status == 'measured'/u);
     expect(agentJob).toMatch(/benchmarks\/results\/agent-cli-bench\//u);
     expect(agentJob).toMatch(/git add "\$FILE"/u);
   });

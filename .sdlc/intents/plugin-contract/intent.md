@@ -86,6 +86,29 @@ plugins (a projection, not a registry), and the keyword convention indexes the g
    **executed** weekly reading passes. A run the usage limit stopped is recorded `not-run`,
    not a failure, and it is not a reading.)*
 
+## Re-read on the published packages — 2026-10-26
+
+**C1–C3 hold on what npm serves. C4 still has no executed reading, so the intent stays
+`approved`.** Version PR #1253 published all ten hosts on 2026-10-26 from `main` at `c4230e33`,
+which carries #1240 (`burgee check` runs every installed layer's check). Unlike the four intents
+stamped beside it in
+[`D-20261026-shipped-on-published-patch`](../../decisions/D-20261026-shipped-on-published-patch.md),
+this one never waited on a release alone.
+
+Run on 2026-10-26 in an empty `mktemp -d` directory after `npm i bellpull@1.0.10 burgee@1.7.2
+caique@1.5.1 closeout@1.1.8 controlroom@1.0.7 flagstaff@1.7.4 linegauge@1.1.5 paratext@1.0.11
+roundel@1.2.1 seniority@1.1.1`:
+
+| | Criterion | Command, against the published tarballs | Output |
+| :-- | :-- | :-- | :-- |
+| C1 | One schema, byte-identical in every published tarball | `shasum -a 256` of `require.resolve('<pkg>/schema.json')` for all ten | one hash, `b13e801f702edfca…`, 18,911 B in all ten (the published copy is minified; it parses deep-equal to `packages/burgee/src/schema.json` on `main`) |
+| C2 | The sample registers everywhere and renders in five modes | `burgee check acme.mjs`, the file `examples/plugins/acme.mjs` copied out | exit 0. `layers` lists roundel, flagstaff, linegauge, paratext, seniority, bellpull, closeout and caique, each `exitCode: 0`; flagstaff's renders the spinner in tty, pipe, ci, json and accessible. burgee's own `commands` show `doctor` |
+| C3 | `burgee check` on a plugin missing `static` → `E_NO_STATIC_PROJECTION` | `burgee check nostatic.mjs`, one spinner with `frames` and `interval` and no `static` | `refused:` with code `E_NO_STATIC_PROJECTION`, message `flagstaff: s has no static projection`, and a fix that says to give it a `static`; exit 1 |
+| C4 | The U9 eval passes weekly | `evals/history/` on `main`; `gh run list --workflow evals.yml` | **Open.** The newest executed weekly readings are still 2026-10-08 and 2026-10-09 (10 of 10 plugin cases). 2026-10-15 and 2026-10-22 were `not-run`. The next scheduled run is Saturday 2026-10-31 at 06:20 UTC (`cron: "20 6 * * 6"`, moved from Thursday to an hour after the weekly quota resets by D-20261027-close-three-workflow-gaps) |
+
+**What is missing to ship:** one scheduled weekly `evals.yml` run that executes and passes the
+plugin cases, recorded in `evals/history/`. No release and no code change are needed.
+
 ## Status
 
 Graded 2026-10-25 on `main` at `b453b07b`, plus the PR that accepts the design. **Three of four

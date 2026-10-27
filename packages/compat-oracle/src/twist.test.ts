@@ -126,10 +126,10 @@ describe('a twist run as the summary the oracle grades', () => {
 
 /**
  * The arm end to end, against the real twist pinned beside a scratch suite, as `grade()` runs
- * colorette's. Not on Windows, for the reason the tsd runner gives: `installSuiteDeps` spawns
- * `npm`, which `execFileSync` cannot start there, and no `suiteDeps` host is graded on Windows.
+ * colorette's. On Windows too, since `installSuiteDeps` spawns `npm` through bellpull (`spawn.ts`),
+ * which starts `npm.cmd` without a shell: under `execFileSync` it could not, and this was skipped.
  */
-describe.skipIf(process.platform === 'win32')('the twist runner, end to end', () => {
+describe('the twist runner, end to end', () => {
   const TWIST_DEPS = { twist: '0.0.5', colorette: '2.0.20' };
   /** When the pins resolve as of: colorette's vendoring day, after both were published. */
   const TWIST_AS_OF = '2026-10-20T00:00:00.000Z';

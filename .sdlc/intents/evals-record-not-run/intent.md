@@ -86,6 +86,41 @@ billed. The message text only names the reason.
 5. The next scheduled `evals.yml` run with quota left lands a normal v2 line, with no `not-run`
    cases.
 
+## Where the criteria stand — 2026-10-26
+
+**Status stays `approved`: four of five criteria are met on merged code, and the fifth needs a
+scheduled run with quota left, which has not happened since this was built.** All six
+requirements merged in #1135 (`0dc0e0231e`, 2026-10-19).
+
+| # | criterion | state | evidence |
+| :-- | :-- | :-- | :-- |
+| 1 | the usage-limit shape is `not-run`, reason `usage-limit`, in the runner and in B1 | met | `scripts/run-evals.test.ts` › "R1 — a usage-limit stop is not-run, with its reason, never a failure"; `benchmarks/agent.test.ts` › "R6 — a sweep the usage limit cut short is not a reading" |
+| 2 | the 2026-10-15 line reads `not-run` for all 11 cases, and a lock refuses a zero-token `fail` | met | `evals/history/2026-10-15-29362dc-38717342918.json` (`tasks.status: "not-run"`, `notRun: 11`); `scripts/eval-history-lock.test.ts` › "refuses a zero-token fail or error: a run that never happened, scored" |
+| 3 | the reader skips 2026-10-15; `[10/10, not-run, 10/10]` is two consecutive runs | met | `scripts/eval-history-lock.test.ts` › "R4 — a not-run week neither breaks nor counts toward a series" |
+| 4 | a B1 sweep the limit cut short is no reading, and leaves no MCP ratio | met | `benchmarks/agent.test.ts` › "R6 — a sweep the usage limit cut short is not a reading", › "R6 — an MCP arm cut short leaves no ratio" |
+| 5 | the next scheduled run with quota left lands a normal v2 line with no `not-run` case | **open** | no such run yet |
+
+**The one scheduled run since the build also hit the limit, and was recorded as this intent
+asks.** Run 39762001842 (2026-10-22 10:17 UTC) landed
+`evals/history/2026-10-22-80c8eaa-39762001842.json` through #1226: `v: 2`, `tasks.status:
+"not-run"`, `reason: "usage-limit"`, all 11 cases `not-run` with the excerpt "You've hit your
+weekly limit · resets Oct 25, 5am (UTC)". It opened issue #1225, "Agent evals did not run", not
+"failing" (R5, live). It does not close criterion 5: that one asks for a run *with quota left*.
+
+**What closes it:** the first scheduled `evals.yml` run that lands a v2 line with
+`tasks.status: "ran"` and no `not-run` case. ~~The next scheduled run is Thursday 2026-10-29 at
+05:20 UTC.~~ Two of the last two Thursday runs found the weekly limit already spent, and it
+resets Saturday 05:00 UTC, so the run sat five days into the quota week.
+
+**2026-10-27: the schedule moved to just after the reset**
+(B-20261026-evals-run-after-quota-reset, closed by D-20261027-close-three-workflow-gaps).
+`evals.yml` runs Saturdays at 06:20 UTC (`cron: "20 6 * * 6"`), an hour after the quota resets,
+and `scripts/eval-history-lock.test.ts` › "runs after the weekly quota resets, not days into the
+spent week" fails if the day leaves Saturday or the time leaves the two hours after the reset. So
+the run that can close criterion 5 is Saturday 2026-10-31 at 06:20 UTC, and its line lands through
+the `record` job's pull request. If that run is `not-run` too, the quota was spent inside the hour
+after the reset, which is a different cause, and the next reading is 2026-11-07.
+
 ## Jev triage
 
 | user_impact | incumbent_gap | risk_reduced | composite | ready_for_spec | needs_model |

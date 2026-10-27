@@ -1077,6 +1077,27 @@ describe('R3 — medians and ranges, never one run', () => {
     writeFileSync(join(dir, '2026-10-15-ccccccc-ci.json'), JSON.stringify({ records: [] }));
     expect(priorReadings(dir)).toEqual([{ file: '2026-10-13-aaaaaaa-weekly-ci.json', ratio: 0.9 }]);
   });
+
+  // D-20261027-b1-mcp-arm-owner-dispatch: an owner-dispatched run lands as
+  // `<date>-<sha>-dispatch-<run id>-ci.json`, and counts exactly as a weekly one does.
+  it('counts an owner-dispatched reading, named by its run id, and nothing that only looks like one', () => {
+    const dir = scratchDir('agent-results-');
+    const file = (ratio: number): string => JSON.stringify({ records: [{ axis: 'agent', variant: 'burgee-mcp ÷ burgee', metric: 'mcp-tokens-total-ratio', median: ratio }] });
+    writeFileSync(join(dir, '2026-10-27-4c336da-weekly-ci.json'), file(1.108));
+    writeFileSync(join(dir, '2026-10-27-ddddddd-dispatch-40500000001-ci.json'), file(0.95));
+    writeFileSync(join(dir, '2026-10-27-ddddddd-dispatch-ci.json'), file(0.1));
+    writeFileSync(join(dir, '2026-10-27-ddddddd-dispatch-x1-ci.json'), file(0.2));
+    writeFileSync(join(dir, '2026-10-27-ddddddd-dispatch-40500000001-local.json'), file(0.3));
+    writeFileSync(join(dir, 'x2026-10-27-ddddddd-dispatch-40500000002-ci.json'), file(0.4));
+    writeFileSync(join(dir, '2026-10-27-ddddddd-dispatch-40500000003-ci.json.orig'), file(0.5));
+    // A push reading's name still counts when it carries the ratio, as it always did.
+    writeFileSync(join(dir, '2026-10-12-eeeeeee-ci.json'), file(0.8));
+    expect(priorReadings(dir)).toEqual([
+      { file: '2026-10-12-eeeeeee-ci.json', ratio: 0.8 },
+      { file: '2026-10-27-4c336da-weekly-ci.json', ratio: 1.108 },
+      { file: '2026-10-27-ddddddd-dispatch-40500000001-ci.json', ratio: 0.95 },
+    ]);
+  });
 });
 
 /**

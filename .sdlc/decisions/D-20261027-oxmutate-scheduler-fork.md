@@ -1,6 +1,6 @@
 ---
 id: D-20261027-oxmutate-scheduler-fork
-subject: 'oxmutate forks its own Vitest servers instead of spawning through bellpull, and the inline-implementation ceiling moves 18 → 19 for it'
+subject: 'oxmutate forks its own Vitest servers instead of spawning through bellpull, and the inline-implementation ceiling moves 15 → 16 for it'
 taken: Taken
 date: '2026-10-27'
 superseded_by: —
@@ -8,8 +8,8 @@ superseded_by: —
 
 **oxmutate's scheduler (`packages/oxmutate/src/scheduler.ts`) forks its Vitest servers with
 `node:child_process` itself, and `scripts/inline-implementation-lock.test.ts` moves its ceiling
-from 18 to 19 to admit that one file. The ceiling only goes down; this raise is the owner's to
-accept or reverse.**
+from 15 to 16 to admit that one file. #1298 had lowered it from 18 to 15 the same day. The ceiling
+only goes down; this raise is the owner's to accept or reverse.**
 
 **Why the scheduler cannot use bellpull today.** A server is a long-lived child that stays up
 across hundreds of work units. It talks to the coordinator over an IPC channel (`run`, `done`,

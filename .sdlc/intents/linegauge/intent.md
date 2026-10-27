@@ -5,9 +5,60 @@
 > `string-width`, `wrap-ansi`, `strip-ansi` and `slice-ansi`, its README never mentions
 > burgee above the fold, and it is useful with nothing else installed.
 
-**Status:** approved (2026-09-23, under the owner's delegation, D-129) · **Opened:** 2026-09-09 · **Owner:** @ofri-peretz · **Name published:** `linegauge@0.0.1`, 2026-09-09
+**Status:** shipped · **Opened:** 2026-09-09 · **Owner:** @ofri-peretz · **Name published:** `linegauge@0.0.1`, 2026-09-09 · **Approved:** 2026-09-23, under the owner's delegation, D-129 · **Shipped:** 2026-10-27 on the merge of PR #1294, the spawn-delta row gated and on `/docs/benchmarks`; a benchmark change, nothing to publish — see [§ Shipped 2026-10-27](#shipped-2026-10-27)
+
+> **Umbrella sweep 2026-10-26: four of five criteria held on `main` and in `linegauge@1.1.5`;
+> one half was open.** Criterion 2's spawn-delta half had no benchmark row
+> ([D-20261026-library-spawn-delta-rows](../../decisions/D-20261026-library-spawn-delta-rows.md)).
+> See [§ Umbrella sweep 2026-10-26](#umbrella-sweep-2026-10-26). **2026-10-27:** the row is
+> gated and published, and all five hold ([§ Shipped 2026-10-27](#shipped-2026-10-27)).
 
 ---
+
+## Shipped 2026-10-27
+
+Every criterion read on this PR's tree, on CI run
+[40499538893](https://github.com/ofri-peretz/burgee/actions/runs/40499538893) (published as
+`benchmarks/results/cli-benchmarks/2026-10-27.json`,
+[D-20261027-benchmarks-published-2026-10-27](../../decisions/D-20261027-benchmarks-published-2026-10-27.md)),
+and against the published tarball `linegauge@1.1.5`. No package code changed, so nothing publishes.
+
+| # | criterion | evidence | state |
+| :-- | :-- | :-- | :-- |
+| 1 | four suites graded, `--control` first, ratcheting | `packages/compat-oracle/baseline/{string-width,wrap-ansi,strip-ansi,slice-ansi}.json` 233 / 233, 85 / 85, 8 / 8, 104 / 104; compat.yml's ratchet, `--control` and page steps; the four rows on `/docs/compatibility` | held (unchanged from the sweep) |
+| 2 | benchmark rows under the bar on bytes and spawn delta | **bytes:** `.sdlc/bands/foundation-ceilings.json` (0.5516 of the incumbents' tree, PLAN D1), `scripts/foundation-ceilings-lock.test.ts`, and the four B4 rows ≤ 1 on `/docs/benchmarks`. **Spawn delta:** B2 `linegauge − string-width` **−26.19 ms** (p95 −25.04) against string-width 8.3.0, gated at 0 ms, on `/docs/benchmarks`' *Difference* table. `benchmarks/ratchet.test.ts` › "B2 cold start — linegauge and closeout, each library held to the incumbent it replaces" (red one step past the gate); `npm run bench -- --axis perf --check`; [D-20261027-linegauge-closeout-spawn-bars](../../decisions/D-20261027-linegauge-closeout-spawn-bars.md). `get-east-asian-width` is not timed; that decision says why | held |
+| 3 | the grapheme table as a passing test file | `packages/linegauge/src/differential.test.ts` › "the six-row grapheme table (intent.md), as a passing test rather than a document" | held |
+| 4 | `flagstaff`'s `src/width.ts` deleted, suite unchanged | `packages/flagstaff/src/width.ts` absent; `packages/flagstaff/src/plugin.test.ts` › "no module here declares a width or measure pass of its own — every one comes from linegauge" | held |
+| 5 | the override recipe published beside its pass rate, CI refusing a drop | `packages/linegauge/README.md` § *Migrating* and its 233 / 233 badge; `scripts/override-recipe-lock.test.ts`; compat.yml's ratchet and page check | held |
+
+**Proven red first.** With the gate at 0 and closeout's two rows also at 0, a local `npm run bench --
+--axis perf --check` exited 1 on the two closeout rows and passed this one, which reads −15.6 ms on an
+M4 Pro. `ratchet.test.ts` drives the real `deltaRecord` 0.01 ms past the gate and asserts exit 1.
+
+## Umbrella sweep 2026-10-26
+
+Read on `main` at `3d079b15` and against the published tarball `linegauge@1.1.5` (`npm view
+linegauge version` reads 1.1.5, the same as the manifest). linegauge is one of
+`cli-foundation-stack`'s four packages, and its own criteria are held by its own requirements.
+It has no child intents.
+
+| # | criterion | held by | state |
+| :-- | :-- | :-- | :-- |
+| 1 | four vendored suites graded, `--control` first, four pass rates published and ratcheting | `packages/compat-oracle/baseline/{string-width,wrap-ansi,strip-ansi,slice-ansi}.json`: 233 / 233, 85 / 85, 8 / 8, 104 / 104. `.github/workflows/compat.yml` steps "Grade burgee (fails below baseline)", "Grade the real packages, so the page has its control column" and "The published page is the one these results generate". The rows are on `/docs/compatibility` | held |
+| 2 | benchmark rows under `get-east-asian-width` on bytes and spawn delta | **bytes:** the bar was restated by PLAN D1 to the incumbents' tree-inclusive install, `.sdlc/bands/foundation-ceilings.json` (`ours` 107,198 against 194,329, ratio 0.5516), held by `scripts/foundation-ceilings-lock.test.ts`. Also four B4 rows ≤ 1 on `/docs/benchmarks` (`linegauge` 0.939, `/wrap` 0.795, `/slice` 0.78, `/strip` 0.595). **Spawn delta:** no row. `spec.md` § R9's "does not apply" is overruled by D-20261026-library-spawn-delta-rows: roundel R8 and seniority R9 measure a library's start cost, so linegauge's is measurable | bytes held · **spawn delta OPEN** |
+| 3 | the grapheme table as a passing test file | `packages/linegauge/src/differential.test.ts` › "the six-row grapheme table (intent.md), as a passing test rather than a document" | held |
+| 4 | `flagstaff`'s `src/width.ts` deleted, its suite unchanged | `packages/flagstaff/src/width.ts` does not exist. `packages/flagstaff/src/plugin.test.ts` › "no module here declares a width or measure pass of its own — every one comes from linegauge" | held |
+| 5 | the override recipe published with its pass rate beside it, CI refusing the page if the rate drops | `packages/linegauge/README.md` § *Migrating* prints `{ "overrides": { "string-width": "npm:linegauge@^1" } }`, and the same README carries the 233 / 233 badge and the § *Benchmarks* row `string-width` 233 / 233. `scripts/override-recipe-lock.test.ts` › "an overrides recipe resolves against our root" holds that the recipe links. compat.yml's ratchet and page check (row 1) refuse a drop | held |
+
+**Requirement text restated.** R4 (slices round inward, as slice-ansi 9 grades) and R13 (linegauge
+hosts `widths`) say the opposite of what shipped. Both were restated to the package in
+[D-20261026-linegauge-r4-r13-restated](../../decisions/D-20261026-linegauge-r4-r13-restated.md),
+and the old text is struck in `spec.md`.
+
+**What closes it.** One `perf`-axis variant pair, `linegauge` against `string-width` 8.3.0, gated
+as a paired start-up difference the way seniority R9's is (D-20261026-library-spawn-delta-rows).
+It is a benchmark change, and no package code changes, so nothing has to publish. linegauge is
+stamped `shipped` in the PR that lands that row green.
 
 ## What is wanted
 

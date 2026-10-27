@@ -517,6 +517,19 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     expect(report.dependencies.add).toEqual(['closeout', 'linegauge', 'roundel', 'seniority']);
   });
 
+  it('leaves @inquirer/core 11 and @inquirer/prompts 7 alone, and names 12.0.5 and 8.7.4 as the releases graded level', async () => {
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { '@inquirer/core': '^11.0.0', '@inquirer/prompts': '^7.0.0' } }),
+      'src/a.ts': "import { createPrompt } from '@inquirer/core';\nimport { input } from '@inquirer/prompts';\n",
+    });
+    const report = await migrate({ dir, status: clean });
+    expect(read(dir, 'src/a.ts')).toBe("import { createPrompt } from '@inquirer/core';\nimport { input } from '@inquirer/prompts';\n");
+    expect(report.offMajor).toEqual([
+      { from: '@inquirer/prompts', found: '^7.0.0', graded: '8.7.4', nearest: 8, sites: [], move: null },
+      { from: '@inquirer/core', found: '^11.0.0', graded: '12.0.5', nearest: 12, sites: [], move: null },
+    ]);
+  });
+
   it('rewrites the family drop-ins beside the front-ends, in one pass over one file', () => {
     // cross-spawn was a `require()` here until the case below: a require of an ES module with a
     // default gets its namespace, so that rewrite produced `spawn is not a function`.
@@ -533,7 +546,7 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
   });
 
   it('rewrites dotenv and its side-effect entry now that the drop-in is level at 18', async () => {
-    // dotenv 18.0.8's own suite passes 193 / 193 against seniority/dotenv, as it does against
+    // dotenv 18.0.9's own suite passes 197 / 197 against seniority/dotenv, as it does against
     // dotenv. `dotenv/config` is graded too — the suite spawns `import 'dotenv/config'` — so it
     // moves rather than being reported as a deep import.
     const dir = project({
@@ -555,7 +568,7 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     });
     const report = await migrate({ dir, status: clean });
     expect(read(dir, 'src/a.ts')).toBe("import 'dotenv/config';\n");
-    expect(report.offMajor).toEqual([{ from: 'dotenv', found: '^17.0.0', graded: '18.0.8', nearest: 18, sites: [], move: null }]);
+    expect(report.offMajor).toEqual([{ from: 'dotenv', found: '^17.0.0', graded: '18.0.9', nearest: 18, sites: [], move: null }]);
   });
 
   it('leaves lilconfig 2 alone, and names 3.1.4 as the release its own suite grades level', async () => {

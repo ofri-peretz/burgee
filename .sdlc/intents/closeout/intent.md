@@ -4,9 +4,69 @@
 > requirements Y3, Y5, Y6, Y7, Y8, Y10, Y12. **A standalone product**: its competitors are
 > `signal-exit` and `exit-hook`, and it is useful with nothing else installed.
 
-**Status:** approved (2026-09-23, under the owner's delegation, D-129) · **Opened:** 2026-09-09 · **Owner:** @ofri-peretz · **Name published:** `closeout@0.0.1`, 2026-09-09
+**Status:** shipped · **Opened:** 2026-09-09 · **Owner:** @ofri-peretz · **Name published:** `closeout@0.0.1`, 2026-09-09 · **Approved:** 2026-09-23, under the owner's delegation, D-129 · **Shipped:** 2026-10-27 on the merge of PR #1294, the spawn row gated and the page republished; nothing to publish — see [§ Shipped 2026-10-27](#shipped-2026-10-27)
+
+> **Umbrella sweep 2026-10-26: four of five criteria held on `main` and in `closeout@1.1.8`;
+> criterion 3 was half open.** Its bytes half is held by the shipped child
+> `closeout-at-incumbent-weight`, but the public benchmarks page still printed the reading from
+> before that child. Its spawn half had no row. See
+> [§ Umbrella sweep 2026-10-26](#umbrella-sweep-2026-10-26). **2026-10-27:** both closing items are
+> done, and all five hold ([§ Shipped 2026-10-27](#shipped-2026-10-27)).
 
 ---
+
+## Shipped 2026-10-27
+
+The sweep's two closing items, both in PR #1294, neither needing a release:
+
+1. **The spawn row.** B2 times `closeout/exit-hook` against `exit-hook` 5.1.0 as a paired median
+   difference over 92 interleaved rounds, gated at +2 ms over a bar of 0
+   ([D-20261027-linegauge-closeout-spawn-bars](../../decisions/D-20261027-linegauge-closeout-spawn-bars.md)).
+   `closeout/signal-exit` against `signal-exit` 4.1.0 is timed beside it.
+2. **The page.** `/docs/benchmarks` is generated from a new published measurement,
+   `benchmarks/results/cli-benchmarks/2026-10-27.json`, CI run
+   [40499538893](https://github.com/ofri-peretz/burgee/actions/runs/40499538893)
+   ([D-20261027-benchmarks-published-2026-10-27](../../decisions/D-20261027-benchmarks-published-2026-10-27.md)).
+   It prints 0.96 and 0.93 where it printed 2.929 and 1.272.
+
+| # | criterion | evidence | state |
+| :-- | :-- | :-- | :-- |
+| 1 | two suites graded, `--control` first, ratcheting | `baseline/signal-exit.json` 134 / 135 (the one failure is signal-exit 4.1.0's own), `exit-hook.json` 21 / 21; both on `/docs/compatibility` (unchanged) | held |
+| 2 | the shutdown matrix green, no cell hangs | `packages/closeout/src/matrix.test.ts` (unchanged) | held |
+| 3 | rows at or under `exit-hook` on bytes and spawn delta | **bytes:** `closeout/exit-hook ÷ exit-hook` **0.96**, `closeout/signal-exit ÷ signal-exit` **0.93**, each ≤ 1, now on `/docs/benchmarks`. **Spawn delta:** `closeout/exit-hook − exit-hook` **−0.65 ms** on the published run and −0.31 ms on its re-run, under the bar of 0 on both; gate +2 ms. `benchmarks/ratchet.test.ts` › "B2 cold start — linegauge and closeout, each library held to the incumbent it replaces"; `npm run bench -- --axis perf --axis weight --check` | held |
+| 4 | `caique`'s own signal handling deleted | `packages/caique/src/keys.test.ts`, `packages/burgee/src/process-reference-lock.test.ts` (unchanged) | held |
+| 5 | the drop-in recipe behind its pass rate, CI refusing a drop | restated by D-133 to the import swap `closeout/signal-exit`; `burgee migrate` and the README row beside 134 / 135 (unchanged) | held as restated |
+
+**What the stamp does not hide.** On an M4 Pro under load the exit-hook spawn row read +0.40 to
++0.66 ms over exit-hook in three local runs: inside the gate's allowance, above the bar. The bar is
+read on the machine the page publishes from, where it holds twice. `closeout/signal-exit` starts
+0.38 to 1.22 ms slower than signal-exit on every reading; no criterion names signal-exit as a bar,
+and the row stays gated so it cannot grow (B-20261027-closeout-signal-exit-starts-slower).
+
+## Umbrella sweep 2026-10-26
+
+Read on `main` at `3d079b15` and against the published tarball `closeout@1.1.8` (`npm view
+closeout version` reads 1.1.8, the same as the manifest). Its one child intent is
+[`closeout-at-incumbent-weight`](../closeout-at-incumbent-weight/intent.md), shipped in closeout
+1.1.7 (Version PR #1199).
+
+| # | criterion | held by | state |
+| :-- | :-- | :-- | :-- |
+| 1 | `signal-exit` and `exit-hook` suites graded, two rates published and ratcheting, `--control` first | `packages/compat-oracle/baseline/signal-exit.json` 134 / 135 (the one failure is signal-exit 4.1.0's own, and its control fails it too) and `exit-hook.json` 21 / 21. Both rows are on `/docs/compatibility`. compat.yml's "Grade burgee (fails below baseline)", its `--control` step and the page check hold the ratchet | held |
+| 2 | the shutdown matrix green, no cell hangs, including a handler that never returns | `packages/closeout/src/matrix.test.ts` › "every signal runs the handlers exactly once and is re-raised at the process" and the describe "a handler that never returns" (signal, uncaught exception, unhandled rejection, `beforeExit`, exit path) | held |
+| 3 | benchmark rows at or under `exit-hook` on bytes and spawn delta | **bytes:** held by the child. B4 `closeout/exit-hook ÷ exit-hook` reads **0.96** and `closeout/signal-exit ÷ signal-exit` **0.93**, each gated at 1 (CI, `benchmarks/results/cli-benchmarks/2026-10-26-f6919e9-ci.json`). The code is in `closeout@1.1.8`. **But `/docs/benchmarks` is generated from the published measurement of 2026-10-19 (`66e4611`), before #1198, and still prints 2.929 and 1.272 "not met".** **Spawn delta:** one hand reading on 2026-09-14 (4.5 ms against 4.6 ms) and no row. D-20261026-library-spawn-delta-rows | bytes held on `main`, stale on the page · **spawn delta OPEN** |
+| 4 | `caique`'s own signal handling deleted, its suite unchanged | `packages/caique/src/keys.test.ts` › "registers on closeout’s exit hook when no registry is given"; `packages/burgee/src/process-reference-lock.test.ts` › "no layer source reads process.* outside the three files that own it" (also `cli-foundation-stack` S4) | held |
+| 5 | a published `overrides` recipe for `signal-exit`, behind its pass rate, CI refusing the page if it drops | **restated by D-133** (2026-09-23): an override can aim only at a package root, so the drop-in is the subpath `closeout/signal-exit`, swapped by import. `burgee migrate` rewrites `signal-exit` to it (`packages/burgee/src/migrate.test.ts`; the map is in `burgee@1.7.2`'s `dist/migrate.js`). The closeout README says "The swap is an import change, not an `overrides` entry", beside the 134 / 135 row. compat.yml refuses a drop | held as restated |
+
+**What closes it.** Two things, neither of which needs a release:
+
+1. a `perf`-axis variant pair, `closeout/exit-hook` against `exit-hook` 5.1.0, gated as a paired
+   start-up difference (D-20261026-library-spawn-delta-rows);
+2. a new published measurement, `benchmarks/results/cli-benchmarks/<date>.json` written by a
+   person per `benchmarks/published.ts`, then `npm run bench:page`, so that `/docs/benchmarks`
+   prints the 0.96 / 0.93 that CI reads.
+
+closeout is stamped `shipped` when both are on `main`.
 
 ## What is wanted
 

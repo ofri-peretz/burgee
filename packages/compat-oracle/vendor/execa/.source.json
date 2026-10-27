@@ -1,10 +1,10 @@
 {
   "repo": "https://github.com/sindresorhus/execa",
-  "version": "10.2.0",
-  "tag": "v10.2.0",
-  "commit": "a605753a476a168e111b6a0654692f22ddf37402",
-  "vendored": "2026-10-19",
-  "depsBefore": "2026-10-18T06:43:13.506Z",
+  "version": "10.2.1",
+  "tag": "v10.2.1",
+  "commit": "247faa0ff0641020e8790475989cee72df85d62b",
+  "vendored": "2026-10-27",
+  "depsBefore": "2026-10-23T10:16:50.918Z",
   "files": 30,
   "internalFiles": [],
   "internals": [],
@@ -21,7 +21,7 @@
     }
   ],
   "hashes": {
-    "test/arguments/command-resolution.js": "edab57361848fdf9453d1e5081aa314c43a3f77dd82c44860b7f64c339014c19",
+    "test/arguments/command-resolution.js": "85a786c5ccbc92421b0c97db12b79eab0d930a49143b93a49fb8933ec5af3b9b",
     "test/arguments/cwd.js": "67f7fc5856aefb86721a09f60fa9de2c55d08597292acc87c912cda9e81b7a3d",
     "test/arguments/encoding-option.js": "30715d13ae4b78046503033690c1fa02fae1ca0a000fc2d4ad372d14946a2ff4",
     "test/arguments/env.js": "0e212939bda689c9a2215b8015ea62f8e0e3af120c37e2eeae9418f40ff512fe",
@@ -36,7 +36,7 @@
     "test/methods/command.js": "aff32712e4ae575906acfd1598b494b98d9727fdcce039fa640e205d068523f4",
     "test/methods/create.js": "beaa7fb9760231a6c68c04d0d123114cc892741eaa829ea2ea67b480800a8ff4",
     "test/methods/main-async.js": "ab6d9c5f55e71018e286aef27710786f9ce56e4b1fd9eca43232b0bab5158144",
-    "test/methods/node.js": "dd7848743b62f690e8e2cbb11839ae72f4c5d31790c4853da28bf29cb11b242c",
+    "test/methods/node.js": "71d951cb8d2a1b83fcda15de32bb1b13a15531b41acf381c6ca76b29feaeed18",
     "test/methods/override-promise.js": "fd54f21ac1a07614d806371d18aa7a2c9ef5bfd4cf75b6b5c0567365b4db0094",
     "test/methods/parameters-args.js": "8211271454ac77e1856594ffd00c89dce07f63a367147177cdbe0fa51183cdcd",
     "test/methods/parameters-command.js": "ed3273d8cc1fdd0a35fd623694f69caaf8467015b59df3d9e7252053ab838335",

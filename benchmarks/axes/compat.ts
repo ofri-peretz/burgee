@@ -9,13 +9,13 @@
  * only ever visible to whoever re-read two logs. That missing band is the last gap
  * between `commander-compat`, `yargs-compat` and `shipped`.
  */
-import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { COMPAT_HOSTS } from '../bands.js';
 import { type BenchRecord } from '../record.js';
+import { execFile } from '../spawn.js';
 
 const REPO_ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const ORACLE = join(REPO_ROOT, 'packages', 'compat-oracle');
@@ -63,7 +63,7 @@ export function readResults(allowRun: boolean): Results | { reason: string } {
   if (!existsSync(RESULTS)) {
     if (!allowRun) return { reason: `${RESULTS} does not exist and --no-oracle was passed` };
     if (!existsSync(ORACLE_BIN)) return { reason: `compat-oracle is not built (${ORACLE_BIN}); run \`npx turbo run build --filter=./packages/*\`` };
-    execFileSync(process.execPath, [ORACLE_BIN], { cwd: REPO_ROOT, stdio: 'ignore' });
+    execFile(process.execPath, [ORACLE_BIN], { cwd: REPO_ROOT, stdio: 'ignore' });
   }
   return JSON.parse(readFileSync(RESULTS, 'utf8')) as Results;
 }

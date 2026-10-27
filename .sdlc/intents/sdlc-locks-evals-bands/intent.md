@@ -13,6 +13,10 @@
 >
 > **Built 2026-10-25 (batch 29), still `approved`:** S2 holds, and S3's build item holds, but the
 > duration band has not gained a point yet. See [`spec.md` § Status 2026-10-25](./spec.md#status-2026-10-25).
+>
+> **Read 2026-10-26, still `approved`:** the weekly run named why the duration band starves (the
+> job never builds the demo `scripts/mcp-config-block.test.ts` starts) and ran past its 20-minute
+> limit, so no band gained a point. See [`spec.md` § Status 2026-10-26](./spec.md#status-2026-10-26).
 
 **Restated:** 2026-10-18 — see [§ Restated 2026-10-18](#restated-2026-10-18)
 
@@ -177,6 +181,24 @@ The three mechanisms `eslint/` has and this repo only promises:
   **2026-10-25:** a dropped point now says why (`scripts/control-bands.test.ts` › "names the exit
   code of a command that failed, and quotes the last lines it printed"). The band still has 7
   points, so this criterion stays open until the cause the next weekly run names is fixed.
+  **2026-10-26: the cause is named, and it is the job, not the suite.** The weekly run
+  40311991676 logged `npm test exited 1` on `scripts/mcp-config-block.test.ts`, which starts
+  `examples/demo-cli-burgee/dist/bin.js`, a file `control-bands.yml` never builds (it builds
+  `./packages/*` only). The same run was then cancelled at its 20-minute limit while
+  `--backfill-git` read 121 new compat observations per band, so no band gained a point that
+  week. Both fixes are in `control-bands.yml`: B-20261026-control-bands-demo-build-and-budget.
+  This criterion closes on the first scheduled run after that lands that gives every band a
+  point; the duration band then has its eighth, and evaluates. With the fix merged this week,
+  that is the run of Monday 2026-11-02.
+  **2026-10-27: both fixes landed** (D-20261027-close-three-workflow-gaps). The job builds the
+  demo beside the packages (`--filter=demo-cli-burgee`), held by
+  `scripts/root-suite-build-scope-lock.test.ts`, which now counts the band watcher as running the
+  root suite. The watcher reads each suite's git history once instead of once per band (50
+  `cli-benchmarks` bands at about 23 s a walk), and the job's limit is 25 minutes: `npm test`'s
+  15-minute cap plus 10, held by `scripts/control-bands-workflow-lock.test.ts`. What closes it is
+  unchanged: the scheduled run of Monday 2026-11-02 05:10 UTC, and the observations PR it opens
+  merging, gives every band a point, `test-duration-ms` its eighth among them. A run whose PR is
+  a breach draft that is closed does not (the 2026-10-19 points were lost that way, #1154).
 - A simulated breach in a unit test produces an `intent.md` that itself passes the
   intent lock. **2026-10-18: held** by `scripts/control-bands.test.ts` › "satisfies the schema
   the intent lock enforces".

@@ -38,8 +38,12 @@ Intent: [`intent.md`](./intent.md). Umbrella:
   an exemption list of one is auditable; a convention is not.
 - **R8 (Y8)** Ceilings: bytes and spawn delta at or under `exit-hook` (0 deps, 8.8 M/wk, the
   lightest in the layer) — not under `signal-exit`, which would be a free pass. **Restated
-  2026-09-14, after the measurement rather than before it:** the spawn-delta half holds and is
-  asserted; the byte half does not, and the requirement now reads *zero dependencies, a
+  2026-09-14, after the measurement rather than before it:** ~~the spawn-delta half holds and is
+  asserted;~~ *(2026-10-26, [D-20261026-library-spawn-delta-rows](../../decisions/D-20261026-library-spawn-delta-rows.md):
+  the spawn half rests on one hand reading and nothing asserts it, so it is open until a `perf`
+  row gates `closeout/exit-hook` against `exit-hook`; 2026-10-27, [D-20261027-linegauge-closeout-spawn-bars](../../decisions/D-20261027-linegauge-closeout-spawn-bars.md):
+  B2 now gates `closeout/exit-hook − exit-hook` at +2 ms over a bar of 0, and CI reads −0.65 and
+  −0.31 ms, so the spawn half holds and is asserted)* the byte half does not, and the requirement now reads *zero dependencies, a
   per-entry byte ratchet, and the whole package under the sum of what it replaces* — with the
   miss written out below rather than the ceiling quietly moved. A requirement that is edited
   to match the code is worthless unless the edit says what it cost.
@@ -354,6 +358,13 @@ the phase ordering, the bounded runner and the report that names a hung handler.
 to win a byte comparison against a package that can do none of it would be optimising the
 number at the cost of the thing being measured, so the requirement was restated and the miss
 recorded.
+
+*2026-10-27: the paragraph below was one hand reading. The spawn half is now B2's
+`closeout/exit-hook − exit-hook`, a paired median over 92 interleaved rounds gated at +2 ms:
+−0.65 ms on the CI run `/docs/benchmarks` publishes (40499538893) and −0.31 ms on its re-run, +0.40
+to +0.66 ms on an M4 Pro. `closeout/signal-exit − signal-exit` is timed beside it and reads +0.38 to
++1.22 ms (B-20261027-closeout-signal-exit-starts-slower). The byte half has been met since closeout
+1.1.7 (`closeout-at-incumbent-weight`, 0.96 and 0.93).*
 
 **The spawn-delta half holds, measured the same day**: p50 over 21 spawns, importing
 `closeout/exit-hook` costs **4.5 ms** over a bare `node` and importing `exit-hook` itself costs
