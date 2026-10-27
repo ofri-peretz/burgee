@@ -57,8 +57,12 @@ installed" still holds.
 on `win32` (#1180). That was a second copy of bellpull's job, and the shell existed only to start a
 `.cmd`. The three `suiteDeps` end-to-end suites (`tsd` in `run.test.ts`, `twist.test.ts`,
 `uvu.test.ts`) were skipped on Windows because `installSuiteDeps` ran a bare `npm` through
-`execFileSync`. They run there now, and that is the Windows evidence: `compat.yml`'s
-`windows-latest` cell runs them whenever `compat-oracle` is affected.
+`execFileSync`. tsd's and uvu's run there now and pass on `compat.yml`'s `windows-latest` cell,
+which is the Windows evidence: each installs its pins through bellpull's `npm` first. twist's stays
+skipped, for a reason that is twist's own. Its CLI loads each file with `import(resolve(file))`,
+and on Windows that is a `D:\` path that `import()` refuses as a URL scheme. On #1298's first
+Windows run, the suite's premise check spawned twist directly through `node:child_process`, and it
+exited 1 there.
 
 **Out of scope, left as it was.** Test files: several spawn with `node:child_process` precisely to
 be independent of what they test. `compat-oracle/src/__fixtures__/scratch-dir.ts`, test scaffolding

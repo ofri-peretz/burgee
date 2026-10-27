@@ -5,7 +5,7 @@
 > single turn: the Claude subscription had hit its weekly usage limit. The line is on `main`, and
 > five intents' eval criteria now read it as a real failing week.
 
-**Status:** approved · **Opened:** 2026-10-18 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-10-18 · **Owner:** @ofri-peretz
 
 ---
 
@@ -88,7 +88,9 @@ billed. The message text only names the reason.
 
 ## Where the criteria stand — 2026-10-26
 
-**Status stays `approved`: four of five criteria are met on merged code, and the fifth needs a
+**Shipped 2026-10-27: all five criteria are met** (criterion 5 by run 40504387711 (2026-10-27, `db19cc6`), `evals/history/2026-10-27-db19cc6-40504387711.json` (#1299)).
+
+*Before 2026-10-27:* **Status stayed `approved`: four of five criteria were met on merged code, and the fifth needed a
 scheduled run with quota left, which has not happened since this was built.** All six
 requirements merged in #1135 (`0dc0e0231e`, 2026-10-19).
 
@@ -98,7 +100,7 @@ requirements merged in #1135 (`0dc0e0231e`, 2026-10-19).
 | 2 | the 2026-10-15 line reads `not-run` for all 11 cases, and a lock refuses a zero-token `fail` | met | `evals/history/2026-10-15-29362dc-38717342918.json` (`tasks.status: "not-run"`, `notRun: 11`); `scripts/eval-history-lock.test.ts` › "refuses a zero-token fail or error: a run that never happened, scored" |
 | 3 | the reader skips 2026-10-15; `[10/10, not-run, 10/10]` is two consecutive runs | met | `scripts/eval-history-lock.test.ts` › "R4 — a not-run week neither breaks nor counts toward a series" |
 | 4 | a B1 sweep the limit cut short is no reading, and leaves no MCP ratio | met | `benchmarks/agent.test.ts` › "R6 — a sweep the usage limit cut short is not a reading", › "R6 — an MCP arm cut short leaves no ratio" |
-| 5 | the next scheduled run with quota left lands a normal v2 line with no `not-run` case | **open** | no such run yet |
+| 5 | the next scheduled run with quota left lands a normal v2 line with no `not-run` case | **met 2026-10-27** | run 40504387711 (2026-10-27, `db19cc6`), `evals/history/2026-10-27-db19cc6-40504387711.json` (#1299): `v: 2`, `tasks.status: ran`, 11 / 11, `notRun: 0` — counted by [D-20261027-dispatched-eval-counts-as-weekly](../../decisions/D-20261027-dispatched-eval-counts-as-weekly.md) |
 
 **The one scheduled run since the build also hit the limit, and was recorded as this intent
 asks.** Run 39762001842 (2026-10-22 10:17 UTC) landed

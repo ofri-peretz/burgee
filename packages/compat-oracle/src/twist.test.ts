@@ -126,10 +126,15 @@ describe('a twist run as the summary the oracle grades', () => {
 
 /**
  * The arm end to end, against the real twist pinned beside a scratch suite, as `grade()` runs
- * colorette's. On Windows too, since `installSuiteDeps` spawns `npm` through bellpull (`spawn.ts`),
- * which starts `npm.cmd` without a shell: under `execFileSync` it could not, and this was skipped.
+ * colorette's. Not on Windows, and no longer for the oracle's reason: `installSuiteDeps` starts
+ * `npm` there since it spawns through bellpull (`spawn.ts`), and the tsd and uvu runners' end-to-end
+ * suites pass on windows-latest. twist 0.0.5 itself does not run there. Its CLI loads each file
+ * with `import(resolve(file))`, and on Windows that is a `D:\…` path, which `import()` refuses
+ * as a URL scheme. Measured on #1298's windows-latest cell, where this suite's own premise check
+ * spawns twist directly with `node:child_process` and it exits 1 on a run that exits 0 elsewhere.
+ * No twist host is graded on Windows.
  */
-describe('the twist runner, end to end', () => {
+describe.skipIf(process.platform === 'win32')('the twist runner, end to end', () => {
   const TWIST_DEPS = { twist: '0.0.5', colorette: '2.0.20' };
   /** When the pins resolve as of: colorette's vendoring day, after both were published. */
   const TWIST_AS_OF = '2026-10-20T00:00:00.000Z';
