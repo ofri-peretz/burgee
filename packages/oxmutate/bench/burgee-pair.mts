@@ -7,6 +7,7 @@
  * Stryker runs exactly as `scripts/mutation.ts full` runs it (its exported config and wrapper),
  * except that its JSON report is kept for the verdict comparison. Writes `<out>/<pkg>/`:
  * `stryker.json`, `oxmutate.json`, `pair.json` (times, CPU, verdicts, agreement).
+ * `OXMUTATE_BIN=<dist>/bin.js` runs another build of oxmutate, for an A/B of two builds.
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -85,7 +86,7 @@ try {
     const configFile = path.join(out, 'oxmutate.config.json');
     writeFileSync(configFile, JSON.stringify({ mutate: sources, vitest: { configFile: vitestConfig }, concurrency }));
     const loadBefore = loadavg()[0];
-    const t = timed(process.execPath, [path.join(REPO_ROOT, 'packages/oxmutate/dist/bin.js'), 'run', '--config', configFile, '--report-dir', reportDir, '--reporter', 'json'], packageDir, { ...process.env, FORCE_COLOR: '0' });
+    const t = timed(process.execPath, [process.env['OXMUTATE_BIN'] ?? path.join(REPO_ROOT, 'packages/oxmutate/dist/bin.js'), 'run', '--config', configFile, '--report-dir', reportDir, '--reporter', 'json'], packageDir, { ...process.env, FORCE_COLOR: '0' });
     // A 1-minute load average above the core count means another job shared the machine.
     result['oxmutate'] = { ...t, report: existsSync(path.join(reportDir, 'mutation.json')), loadBefore, loadAfter: loadavg()[0] };
   }

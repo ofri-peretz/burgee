@@ -194,18 +194,24 @@ export async function run(options: Options): Promise<RunResult> {
     if (failing.length) throw new InstrumentFault(`${String(failing.length)} test(s) fail with no mutant active, so no verdict can be trusted: ${failing.slice(0, 5).map((t) => t.name).join('; ')}. fix: make the suite pass first`);
     if (dry.tests.length === 0) throw new InstrumentFault('the dry run ran no tests. fix: check the Vitest config the run used');
 
-    const flakyTests = new Set<string>();
-    if (options.flakyReruns > 0) {
-      const second = await dryRun();
-      const keys = (cov: Record<string, number> | undefined): string => Object.keys(cov ?? {}).sort().join(',');
-      const again = new Map(second.tests.map((t) => [t.id, t]));
-      for (const t of dry.tests) {
-        const b = again.get(t.id);
-        if (!b || b.state !== t.state || keys(dry.perTest[t.id]) !== keys(second.perTest[t.id])) flakyTests.add(t.id);
+    // The second dry run only finds nondeterministic tests, which matter at step 7: it runs beside
+    // the warm phase instead of before it (6 s of a 107 s burgee/controlroom run, 2026-10-27).
+    const findFlakyTests = async (): Promise<Set<string>> => {
+      const flaky = new Set<string>();
+      if (options.flakyReruns > 0) {
+        const second = await dryRun();
+        const keys = (cov: Record<string, number> | undefined): string => Object.keys(cov ?? {}).sort().join(',');
+        const again = new Map(second.tests.map((t) => [t.id, t]));
+        for (const t of dry.tests) {
+          const b = again.get(t.id);
+          if (!b || b.state !== t.state || keys(dry.perTest[t.id]) !== keys(second.perTest[t.id])) flaky.add(t.id);
+        }
       }
-    }
-    dryPool.close();
-    stats.flakyTests = flakyTests.size;
+      dryPool.close();
+      return flaky;
+    };
+    const flakyCheck = findFlakyTests();
+    flakyCheck.catch(() => undefined); // awaited at step 7; a run that fails first must not also reject unhandled
 
     const testInfo = new Map(dry.tests.map((t) => [t.id, t]));
     const coveringTests = new Map<string, string[]>();
@@ -322,6 +328,9 @@ export async function run(options: Options): Promise<RunResult> {
         }
       }
       const units = [...perFile].flatMap(([file, tests]) => unitsFor(file, Object.fromEntries(tests)));
+      // Sizing and ordering units by dry-run time instead of pair count (longest first) was tried:
+      // 30% more units and ~10% more CPU on burgee/controlroom, and no wall-clock gain that this
+      // machine's load (average 21 to 76 across the A/B) could show (2026-10-27).
       const weight = (u: Unit): number => Object.values(planUnits.get(u.results)?.plan ?? {}).reduce((sum, l) => sum + l.length, 0);
       return units.sort((a, b) => weight(b) - weight(a));
     };
@@ -501,6 +510,8 @@ export async function run(options: Options): Promise<RunResult> {
     }
 
     // ── 7. Flaky verdicts: re-run mutants whose covering tests are nondeterministic ───────────
+    const flakyTests = await flakyCheck;
+    stats.flakyTests = flakyTests.size;
     const flakyCandidates = toRun.filter((m) => m.coveredBy.some((t) => flakyTests.has(t)));
     const seen = new Map(flakyCandidates.map((m) => [m.id, new Set<string>([m.status === 'Timeout' ? 'Killed' : m.status])]));
     for (let n = 1; n <= options.flakyReruns && flakyCandidates.length; n++) {
