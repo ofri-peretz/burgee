@@ -5,8 +5,8 @@ target) and step 2 (A3, revert first). Chosen 2026-10-27 by
 [D-20261027-first-adopter-target-concurrently](../../decisions/D-20261027-first-adopter-target-concurrently.md).
 The pull request draft is [`adoption-draft.md`](../../intents/first-adopter/adoption-draft.md).
 
-**Nothing was posted.** No pull request, issue, comment, fork or star was made on any repository
-outside `ofri-peretz/*`. Every read of GitHub was a read-only `gh api` call, and the proof ran in
+**One comment was posted**, on #418 on 2026-10-28 (https://github.com/open-cli-tools/concurrently/issues/418#issuecomment-6455508479). No pull request, issue, fork or star
+was made on any repository outside `ofri-peretz/*`. Every read of GitHub was a read-only `gh api` call, and the proof ran in
 a shallow clone under `mktemp -d`.
 
 **State: proven, held again.** The migration and its revert are green on the project's own suite.
@@ -15,7 +15,9 @@ The first burgee bug found on the way,
 is fixed in `burgee@1.8.0`. The re-run on 1.8.0 ([below](#re-run-on-burgee180-2026-10-27)) passes
 every check but one: `concurrently --mcp` no longer crashes, but it does not serve either. That is
 [A-20261027-yargs-parsesync-mcp-ended-by-exit](../../gaps/A-20261027-yargs-parsesync-mcp-ended-by-exit.md),
-and it holds the #418 comment the owner approved on the condition that `--mcp` starts a server.
+and it held the #418 comment the owner had approved on the condition that `--mcp` starts a server.
+On 2026-10-28 the owner chose to post a revised text that states `--mcp` is unchanged for
+concurrently. It was posted once: <https://github.com/open-cli-tools/concurrently/issues/418#issuecomment-6455508479>. The PR follows only on the maintainer's yes.
 
 ## The target
 
@@ -265,7 +267,8 @@ request on stdin and stdin held open for 2 s, stdout stays empty. `parseSync()` 
 the server starts, and concurrently's own `if (!commands.length) { program.showHelp();
 process.exit(); }` ends the process first. Recorded as
 [A-20261027-yargs-parsesync-mcp-ended-by-exit](../../gaps/A-20261027-yargs-parsesync-mcp-ended-by-exit.md).
-The owner's go required `--mcp` to start a server, so the comment was not posted.
+The owner's go required `--mcp` to start a server, so the comment was not posted that day. The
+owner then approved a revised text, posted 2026-10-28.
 
 **Footprint**, each tarball installed alone with `npm i --omit=dev`:
 
@@ -299,7 +302,8 @@ Each point is a gap or a decision, as A4 requires.
    (D-132's floor); the draft says so.
 5. **`--mcp` under `parseSync()` is ended by the program's own `process.exit()`**:
    [A-20261027-yargs-parsesync-mcp-ended-by-exit](../../gaps/A-20261027-yargs-parsesync-mcp-ended-by-exit.md).
-   Found by the 1.8.0 re-run. It holds the #418 comment.
+   Found by the 1.8.0 re-run. It held the #418 comment for a day; the posted text says `--mcp` is
+   unchanged for concurrently and promises no fix.
 
 ### A2 report, so far
 
