@@ -108,12 +108,19 @@ is built in this change: the `lookup` phase calls .NET instead of `Get-Command`,
 | 39441261818 | `completions-shells.test.ts` › "R3 — the PowerShell script reports its phases on stderr"; `packages/controlroom/src/shape.test.ts` › "runs an Ink program once react and react-reconciler are installed" | 68,555 and 72,730 of 120,000 ms |
 | 40261602993 | `completions-shells.test.ts` › "R3 — the PowerShell script reports its phases on stderr" | 62,401 of 120,000 ms |
 | 40268928470 | `scripts/changeset-check-lock.test.ts` › "… answers `release` …" | 20,873 of 30,000 ms |
+| 40537347822 (2026-10-27, a failed cell) | `scripts/changeset-check-lock.test.ts` › "… answers `release` …" | 65,871 of 30,000 ms |
 
 **What closes it:** the check naming no case in each of ten consecutive full Windows cells on
-`main` after this change merges, the window criteria 3 and 4 already use. R3d answers the pwsh
-row. `changeset-check-lock` (after R4) and controlroom's Ink case are not answered yet; each
-needs its own cheaper case if the next ten cells still name it. On 2026-10-19 `main` completed 31 full
-Windows cells in a day, and on 2026-10-25 eleven, so the reading is one to two days of pushes.
+`main`, counted from the merge of R6 and R7, the window criteria 3 and 4 already use. R3d answers
+the pwsh row. R6 answers `changeset-check-lock`: R4 had already moved the git build out of the
+cases, and what was left was the first `bash` the file started from Node (3.2–8.5 s over ten
+full cells, then 65.9 s in run 40537347822, which timed out). R6 starts that `bash` once per file,
+in `beforeAll`, and the cases spawn nothing. R7 answers controlroom's Ink case: 11.2–27.0 s of
+120 s over the same ten cells, so under half, but 72.7 s once. Its three peer `npm pack`s become
+one. Both are in [D-20261027-windows-lane-one-shell-per-file](../../decisions/D-20261027-windows-lane-one-shell-per-file.md),
+with what R6 moves into a hook that the check does not time. On 2026-10-19 `main` completed 31
+full Windows cells in a day, and on 2026-10-25 eleven, so the reading is one to two days of
+pushes.
 
 ## Jev triage
 
