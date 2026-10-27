@@ -5,7 +5,7 @@
 > after three years and 31 comments, which only a framework that separates human and machine
 > surfaces can offer safely.
 
-**Status:** approved · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
 
 ---
 
@@ -104,6 +104,10 @@ language is a registration.
 **To ship:** first, Batch 1's fix, so a run that never executed is recorded as `not-run` and not
 as a failure. Then one weekly run that executes and passes the case. Then restate criterion 4's
 "one turn" to the bar D-20261012-agent-eval-turn-budget set, or meet it.
+
+## Shipped — 2026-10-27
+
+Both outstanding items are closed. **Criterion 4:** run 40504387711 (2026-10-27, `db19cc6`), `evals/history/2026-10-27-db19cc6-40504387711.json` (#1299) executed and passed `locale-pack-from-schema` in **6 turns** (max under 12), counted as a weekly reading by [D-20261027-dispatched-eval-counts-as-weekly](../../decisions/D-20261027-dispatched-eval-counts-as-weekly.md). **The minor carrying `locale-pack-in-five` R1–R2** is published: [`locale-pack-in-five`](../locale-pack-in-five/intent.md) is `shipped` on the published burgee 1.7.x line.
 
 ## Re-grounded on `main` — 2026-10-20
 
