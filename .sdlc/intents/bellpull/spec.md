@@ -250,8 +250,8 @@ left that list, and its ceiling fell from 18 to 15. `scripts/dogfood-spawn-lock.
 `node:child_process` import anywhere in either tree outside test files and the measured fixtures.
 On `origin/main` it listed fourteen files. Both load bellpull on their first spawn, not at
 import, because `vendor-suite.ts` and `bench-page.ts` must load with nothing built. `upstream.ts`'s
-hand-written `npm.cmd` + `shell: true` (#1180) is gone, and the `suiteDeps` end-to-end suites run
-on Windows. Why `cross-spawn` and not `run`, and what the deferred load costs:
+hand-written `npm.cmd` + `shell: true` (#1180) is gone, and the tsd and uvu end-to-end suites run on
+Windows (twist's stays skipped: twist itself cannot load a file there). Why `cross-spawn` and not `run`, and what the deferred load costs:
 [D-20261027-bellpull-dogfood-spawn](../../decisions/D-20261027-bellpull-dogfood-spawn.md).
 
 **`which` ships first, and possibly alone.** It is the part of this layer nobody contests:
