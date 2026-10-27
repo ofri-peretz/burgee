@@ -235,6 +235,11 @@ describe('B2 cold start — linegauge and closeout, each library held to the inc
     ]);
   });
 
+  it('names, in each gate’s reason, the criterion it holds and the decision that set the number', () => {
+    expect(rows.map((v) => v.bar?.why.split(':')[0])).toEqual(['linegauge criterion 2', 'closeout criterion 3', 'closeout criterion 3, the optional row']);
+    for (const v of rows) expect(v.bar?.why).toContain('D-20261027-linegauge-closeout-spawn-bars');
+  });
+
   it.each(rows.map((v) => [v.id, v] as const))('%s: exits non-zero one step past its bar, zero at it, and says whose bar it is', (id, v) => {
     const max = v.bar?.max ?? Number.NaN;
     const over = String(v.over);

@@ -101,7 +101,7 @@ Abbreviations used below:
 | cli-packaging | review | y | P | release/packaging | 10 | 8 | R4 / S3 (`.map` negative fixture; `forbiddenInPack` untested) | n | – (release-tag.qnt is tags only) | One test closes it |
 | cli-testing-harness | review | y | P | burgee/testing | 11 | 8 | S1 ANSI-in-non-TTY case, S2 and S4 restate | n | – | |
 | clispec-conformance | **shipped** (batch 0) | y | SHIPPED | burgee/schema | 10 | 10 | – | n | – | Fix the C1 path (it is `scripts/clispec-document.test.ts`); the 24/24 reading is local, but bench.yml enforces ≥24 |
-| closeout | approved (umbrella sweep 2026-10-26) | y | P | closeout | 17 | 15 | C3 spawn half (no `perf` row; [D-20261026-library-spawn-delta-rows](../decisions/D-20261026-library-spawn-delta-rows.md)); `/docs/benchmarks` still prints the 2026-10-19 bytes (2.929, 1.272) where CI reads 0.96 / 0.93 | **y** | **registry.qnt** | C1, C2, C4 held; C5 held as restated by D-133 (import swap via `burgee migrate`). Closes with a perf row and a new published bench measurement, no release |
+| closeout | **shipped** (PR #1294, 2026-10-27; no release) | y | SHIPPED | closeout | 17 | 16 | – (C3's spawn row gated, −0.65 ms on CI; page republished at 0.96 / 0.93) | **y** | **registry.qnt** | [D-20261027-linegauge-closeout-spawn-bars](../decisions/D-20261027-linegauge-closeout-spawn-bars.md), [D-20261027-benchmarks-published-2026-10-27](../decisions/D-20261027-benchmarks-published-2026-10-27.md). `closeout/signal-exit` starts 0.4–1.2 ms slower than signal-exit: B-20261027-closeout-signal-exit-starts-slower |
 | closeout-at-incumbent-weight | **shipped** (closeout 1.1.7, Version PR #1199, 2026-10-20) | y | SHIPPED | closeout + weight ratchets | 8 | 8 | – | **y** (each door its own once-guard; restated) | **lean.qnt** | Wave-4 #1. Design accepted D-20261020-closeout-weight-design-accepted; B4 0.960 / 0.930 |
 | colour-facades | shipped (built #1218, #1233, #1255; published in `roundel@1.2.1` by Version PR #1253, re-read on the tarball 2026-10-26, `D-20261026-shipped-on-published-patch`) | y | P | roundel + compat-oracle | 8 | 8 | – | n | – | the published `dist` grades colorette 67 / 67, kleur 15 / 15, yoctocolors 78 / 78; B4 0.909, 0.561 / 0.903, 0.951; `burgee@1.7.2 migrate` rewrites all three and the fixture's tests pass |
 | commander-compat | **shipped** (batch 3) | y | SHIPPED | burgee/commander-facade | 8 | 8 | – | n | – | Batch 3: X6 ratcheted 129,400 → 112,100 on a clean-build reading of 112,024 (D-20261019-commander-walk-budget-ratchet). X5 had no real check (`.`'s denied list never named the front-end), so one was added and proven red |
@@ -136,7 +136,7 @@ Abbreviations used below:
 | frames-fit-the-screen | **shipped** (batch 0) | y | SHIPPED | flagstaff + caique | 8 | 8 | – | n | – | R2 text (`rows-1`/`rows-2`) disagrees with the build. Correct the text before stamping |
 | graded-override-targets | approved | y | P | compat-oracle (+migrate test) | 9 | 8 | SC3 (no migrate fixture importing all six) | n | – | Prior reconciliation was wrong here. One test |
 | inquirer-prompts-drop-in | **shipped** (caique 1.5.0, Version PR #1237, 2026-10-25) | y | SHIPPED | caique + compat-oracle | 9 | 9 | – | **y** (search's source race) | **search.qnt** | Barrier 10. 213 / 213 (run 40180212984); R1 restated (the pagination suite is select's); budgets in D-20261020-caique-inquirer-prompts-budget |
-| linegauge | approved (umbrella sweep 2026-10-26) | y | P (spec edits) | linegauge | 18 | 16 | criterion 2 spawn half: no `perf` row ([D-20261026-library-spawn-delta-rows](../decisions/D-20261026-library-spawn-delta-rows.md)); spec R9 now reads Not built | n | – | R4 (rounds inward) and R13 (`widths` key) restated to the package ([D-20261026-linegauge-r4-r13-restated](../decisions/D-20261026-linegauge-r4-r13-restated.md)). Closes with one perf row, no release |
+| linegauge | **shipped** (PR #1294, 2026-10-27; no release) | y | SHIPPED | linegauge | 18 | 17 | – (criterion 2's spawn row gated at 0, −26.19 ms on CI; spec R9 reads Built) | n | – | R4 (rounds inward) and R13 (`widths` key) restated to the package ([D-20261026-linegauge-r4-r13-restated](../decisions/D-20261026-linegauge-r4-r13-restated.md)); spawn bar [D-20261027-linegauge-closeout-spawn-bars](../decisions/D-20261027-linegauge-closeout-spawn-bars.md) |
 | locale-pack-in-five | **shipped** (polish batch, 2026-10-26, `D-20261026-locale-criterion-3-median-range`) | y | SHIPPED | burgee check + evals | 6 | 6 | – | n | – | Criterion 3 restated to median and range over a named window, with a 1-in-4 band on burgee calls: 16 readings, median 6, range 5–8, 2 of 16. Both causes removed from the schema (R3a) |
 | localised-human-surfaces | approved (re-grounded, batch 24) | y | **LS** | i18n (burgee + caique) | 11 | 11 | – (S4 restated, D-20261020-locale-eval-criterion-restated; 34 / 34 PR readings) | n (decided, same decision) | – | `shipped` after the 2026-10-22 scheduled run passes the case and the minor publishes |
 | mcp-current | **shipped** (batch 0) | y | SHIPPED | burgee/mcp | 7 | 7 | – | **y** (in-flight map, cancel vs settle, exactly-once exit) | **none** | Recommend `.sdlc/models/mcp-inflight.qnt` before stamping |
@@ -159,7 +159,7 @@ Abbreviations used below:
 | schema-is-validated | **shipped** (schema-group) | y | SHIPPED | burgee/schema | 3 | 3 | – | n | – | SC3: the claim is made again and `program-schema.test.ts` holds it |
 | sdlc-locks-evals-bands | approved (batch 29 built, #1252; read 2026-10-26) | y | P | sdlc locks | 10 | 9 | S3: `test-duration-ms` still at 7 points. Run 40311991676 named why (the job never builds the demo `mcp-config-block.test.ts` starts) and hit its 20-minute limit, so no band gained a point: B-20261026-control-bands-demo-build-and-budget, fixed by D-20261027-close-three-workflow-gaps; the 2026-11-02 run reads it | n | – | `.sdlc/intents` in evals layer 1, which runs on every PR in `quality.yml`; 0 broken links, 8 planned scripts exempted. A dropped duration point names its cause |
 | security-profile | **dropped** (batch 0, `D-20261018-drop-security-profile`) | y | DROPPED | burgee/security | 11 | 0 | – | n | – | Ruling: no adopter; exit-code clash |
-| seniority | approved (umbrella sweep 2026-10-26) | y | P | seniority | 21 | 13 | criterion 4: the spawn and discovery-chain rows are gated on main but not on `/docs/benchmarks` (published measurement is 2026-10-19) | n | – | `packageLayer` (R3) is already in the seniority 1.1.1 tarball, so the held minor no longer gates it. Closes with a new published bench measurement, no release |
+| seniority | **shipped** (PR #1294, 2026-10-27; no release) | y | SHIPPED | seniority | 21 | 13 | – (criterion 4's rows on `/docs/benchmarks` from the 2026-10-27 published measurement) | n | – | `packageLayer` (R3) is in the seniority 1.1.1 tarball. Published run: [D-20261027-benchmarks-published-2026-10-27](../decisions/D-20261027-benchmarks-published-2026-10-27.md) |
 | supports-color-drop-in | **shipped** (roundel 1.2.0, 2026-10-20) | y | SHIPPED | roundel + compat-oracle | 9 | 9 | – | n | – | 441.6 M/wk with no override target |
 | table-column-widths | **shipped** (batch 0) | y | SHIPPED | flagstaff | 7 | 7 | – | n | – | |
 | typed-positionals | shipped (R4 built #1262; published in `burgee@1.7.2` by Version PR #1253, re-read on the tarball 2026-10-26, `D-20261026-shipped-on-published-patch`) | y | P | burgee/parse + types | 6 | 6 | – | n | – | R1–R3 shipped in burgee 1.7.0 (#1173); R5 and R6 met (#1091); R4's `type` and `enum` on `inputSchema`, and a positional's choices on TAB in bash, zsh, fish and pwsh, native and façade |
@@ -445,6 +445,19 @@ Tests, locks and a benchmark; no package source changed, so nothing waits on a r
   is a ratchet at 50 disabled rules
   ([`D-20261026-disabled-rule-ceiling`](../decisions/D-20261026-disabled-rule-ceiling.md)). It
   closes when its open children do.
+
+**Umbrella closers, 2026-10-27 (PR #1294, `feat/umbrella-closers-spawn-rows`).** Three of the
+sweep's "no release needed" umbrellas closed in one benchmark PR.
+
+- **Stamped `shipped`:** `linegauge`, `closeout`, `seniority`. B2 gained `linegauge − string-width`
+  (gate 0 ms, −26.19 ms on CI), `closeout/exit-hook − exit-hook` (gate +2 ms, −0.65 ms) and
+  `closeout/signal-exit − signal-exit` (gate +2 ms, +0.62 ms, a ratchet:
+  B-20261027-closeout-signal-exit-starts-slower)
+  ([`D-20261027-linegauge-closeout-spawn-bars`](../decisions/D-20261027-linegauge-closeout-spawn-bars.md)).
+  `/docs/benchmarks` is generated from a new published measurement, CI run 40499538893
+  ([`D-20261027-benchmarks-published-2026-10-27`](../decisions/D-20261027-benchmarks-published-2026-10-27.md)).
+- **Still open from the sweep:** `bellpull` (spawn sites), `caique`, `flagstaff`, `controlroom`,
+  and `burgee` through its children.
 
 **Umbrella sweep, 2026-10-26 (docs only).** The eight package umbrellas were re-read criterion by
 criterion against `main` at `3d079b15` and against their published tarballs (`npm view` agrees

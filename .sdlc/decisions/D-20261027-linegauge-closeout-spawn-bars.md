@@ -62,4 +62,17 @@ each spawn in about 30 ms, and the cost is mostly the extra rounds of `ink + rea
 
 ## CI
 
-Pending the first `bench.yml` run of this change on a PR. Recorded in the same PR before it merges.
+`bench.yml` run [40499538893](https://github.com/ofri-peretz/burgee/actions/runs/40499538893) on
+PR #1294 (merge ref `ac7ccbc`), twice — attempt 2 is a re-run of the same job, for a second reading:
+
+| row | attempt 1 (published) | attempt 2 | gate | bar |
+| :-- | --: | --: | --: | --: |
+| `linegauge − string-width` | −26.19 ms | −21.18 ms | ≤ 0 | 0 |
+| `closeout/exit-hook − exit-hook` | −0.65 ms | −0.31 ms | ≤ +2 | 0 |
+| `closeout/signal-exit − signal-exit` | +0.62 ms | +0.38 ms | ≤ +2 | none of its own |
+
+The gates stand as set. linegauge's headroom is wider on the runner than on the M4 Pro. On the
+runner `closeout/exit-hook` is under exit-hook in both readings, so the bar closeout criterion 3
+names is met on the machine `/docs/benchmarks` publishes from; on the M4 Pro it read +0.40 to +0.66
+ms, which is inside the allowance and is written down here rather than averaged away.
+`closeout/signal-exit` is over 0 on every reading, CI and local: B-20261027-closeout-signal-exit-starts-slower.
