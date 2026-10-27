@@ -316,7 +316,7 @@ keeps both true.
 | [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook, restore-cursor, cli-cursor and onetime |
 | [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
 | **controlroom** (this package) | Keyboard-driven terminal screens, inline or full-screen | ink |
-| [oxmutate](https://burgee.interlace.tools/docs/packages/oxmutate) | Mutation testing on the oxc engine, inside your own Vitest | Stryker |
+| [oxmutate](https://oxmutate.interlace.tools/docs) | Mutation testing on the oxc engine, inside your own Vitest | Stryker |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

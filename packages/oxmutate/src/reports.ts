@@ -9,7 +9,8 @@ import path from 'node:path';
 
 import type { MutantResult, RunResult } from './coordinator.js';
 
-export const VERSION = '0.1.0';
+/** The package's own version, read from its manifest so `--version` and the reports never drift from it. */
+export const VERSION = (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version;
 
 /** A replacement longer than this is cut, in the SARIF message and in the terminal list. */
 const REPLACEMENT_WIDTH = 60;

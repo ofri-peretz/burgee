@@ -2,10 +2,12 @@
 name: oxmutate native cores
 
 # ─────────────────────────────────────────────────────────────────────────────
-# One prebuilt `oxmutate.node` per platform package (`packages/oxmutate/npm/<platform>`), the
-# way oxc, Rolldown and napi-rs ship native code (PRINCIPLES rule 9, `native-engine`): six
-# packages, each with `os`/`cpu`/`libc`, listed by oxmutate as optionalDependencies, so npm
-# installs the one that matches and nothing runs at install time.
+# One prebuilt `oxmutate.node` per platform (`packages/oxmutate/npm/<platform>` names the six),
+# PRINCIPLES rule 9, `native-engine`: nothing runs at install time. 0.1 ships all six inside
+# oxmutate's tarball — `release.yml` places each leg's artifact at
+# `packages/oxmutate/binding/oxmutate.<platform>.node` — because the per-platform package names do
+# not exist on npm yet; once they do, the same artifacts publish as those packages, the
+# oxc / Rolldown / napi-rs layout (`packages/oxmutate/RELEASING.md`).
 #
 # Called by `release.yml` (job `native`) when its plan carries a platform package, and on its
 # dry runs; dispatch it alone to build and smoke-test every core without publishing anything.

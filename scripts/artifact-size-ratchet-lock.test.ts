@@ -21,13 +21,17 @@
  *
  * The `unpacked` case below is the one that fails on the old single-dimension check.
  */
-import { readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 
 import { describe, expect, it } from "vitest";
 
 import {
+  dryPack,
+  measuredPack,
+  nativeCores,
   sizeVerdict,
   type Baseline,
   type PackEntry,
@@ -95,5 +99,40 @@ describe("the gate runs where a PR cannot merge past it", () => {
     const workflow = readFileSync(join(import.meta.dirname, "..", ".github", "workflows", "quality-full.yml"), "utf8");
     const build = workflow.slice(workflow.indexOf("\n  build:"), workflow.indexOf("\n  typecheck:"));
     expect(build).toContain("npm run check:artifacts");
+  });
+});
+
+/**
+ * oxmutate 0.1 bundles six prebuilt cores (~1.6 MB each) that exist only on the release runner,
+ * after this gate ran. A laptop that ran `build:native` holds one, so the same commit measured
+ * 1.6 MB heavier there than in CI; the ratchet measures the tarball without them.
+ */
+describe("the ratchet measures a tarball without its native cores", () => {
+  it("finds the cores in a pack list, and nothing else", () => {
+    const listed: PackEntry = { name: "oxmutate", size: 0, unpackedSize: 0, files: [{ path: "dist/index.js" }, { path: "binding/oxmutate.darwin-arm64.node" }, { path: "package.json" }] };
+    expect(nativeCores(listed)).toEqual(["binding/oxmutate.darwin-arm64.node"]);
+    expect(nativeCores({ ...listed, files: [{ path: "dist/index.js" }] })).toEqual([]);
+  });
+
+  it("re-measures a pack that lists a core from its other files, and leaves one without alone", () => {
+    const dir = mkdtempSync(join(tmpdir(), "artifact-cores-"));
+    try {
+      writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "demo-cores", version: "1.0.0", files: ["dist", "binding/oxmutate.*.node"] }));
+      mkdirSync(join(dir, "dist"));
+      writeFileSync(join(dir, "dist", "index.js"), "export const x = 1;\n");
+      const without = dryPack(dir) as PackEntry;
+      expect(measuredPack(dir, without)).toBe(without);
+      mkdirSync(join(dir, "binding"));
+      // Incompressible, like a real core, so it would move the gzipped figure too.
+      writeFileSync(join(dir, "binding", "oxmutate.darwin-arm64.node"), Buffer.from(Array.from({ length: 200_000 }, (_, i) => (i * 2_654_435_761) >>> 24)));
+      const withCore = dryPack(dir) as PackEntry;
+      expect(nativeCores(withCore)).toEqual(["binding/oxmutate.darwin-arm64.node"]);
+      expect(withCore.unpackedSize).toBeGreaterThan(without.unpackedSize + 199_000);
+      const measured = measuredPack(dir, withCore);
+      expect(measured.unpackedSize).toBe(without.unpackedSize);
+      expect(measured.size).toBe(without.size);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

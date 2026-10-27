@@ -1,11 +1,14 @@
 /**
  * The native core (`native/`, Rust on oxc), loaded for this platform. It ships as one prebuilt
- * `.node` per platform (PRINCIPLES rule 9, `native-engine`): `binding/oxmutate.<platform>-<arch>.node`
- * in development, the matching `@oxmutate/binding-*` optional dependency once published.
+ * `.node` per platform (PRINCIPLES rule 9, `native-engine`): 0.1 bundles all six in the tarball as
+ * `binding/oxmutate.<tag>.node` (`platform.ts` names the tag); development builds
+ * `binding/oxmutate.<platform>-<arch>.node`; the `oxmutate-<tag>` platform package comes last.
  */
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { bindingNames, type Machine, platformPackage } from './platform.js';
 
 export interface Location {
   line: number;
@@ -40,34 +43,31 @@ interface Binding {
 const here = path.dirname(fileURLToPath(import.meta.url));
 const target = `${process.platform}-${process.arch}`;
 
-/** The platform package for this machine: `oxmutate-<platform>-<arch>[-gnu|-musl|-msvc]`. */
-function platformPackage(): string {
-  if (process.platform === 'win32') return `oxmutate-win32-${process.arch}-msvc`;
-  if (process.platform === 'linux') {
-    const report = process.report?.getReport() as { header?: { glibcVersionRuntime?: string } } | undefined;
-    return `oxmutate-linux-${process.arch}-${report?.header?.glibcVersionRuntime ? 'gnu' : 'musl'}`;
-  }
-  return `oxmutate-${target}`;
+/** This machine, as `platform.ts` reads it: glibc's runtime version from `process.report` (absent on musl). */
+function machine(): Machine {
+  const glibc = process.platform === 'linux' ? (process.report?.getReport() as { header?: { glibcVersionRuntime?: string } } | undefined)?.header?.glibcVersionRuntime : undefined;
+  return { platform: process.platform, arch: process.arch, glibc };
 }
 
 let binding: Binding | undefined;
 
 export function native(): Binding {
   if (binding) return binding;
-  const candidates = [
-    path.join(here, '..', 'binding', `oxmutate.${target}.node`),
-    path.join(here, '..', '..', 'binding', `oxmutate.${target}.node`),
-  ];
+  const self = machine();
+  // `binding/` beside `dist/` (published) or `src/` (development), then one level up.
+  const candidates = [path.join(here, '..', 'binding'), path.join(here, '..', '..', 'binding')].flatMap((dir) => bindingNames(self).map((name) => path.join(dir, name)));
   try {
     // `process.dlopen` loads a native addon straight from its path, the way `require` does it
-    // underneath; the published core is the platform package's `main`, `oxmutate.node`.
-    const file = candidates.find((c) => existsSync(c)) ?? fileURLToPath(import.meta.resolve(platformPackage()));
+    // underneath. Since 0.1 the six release cores ship inside the tarball as
+    // `binding/oxmutate.<tag>.node`; the platform package (its `main`, `oxmutate.node`) is last,
+    // for when those publish.
+    const file = candidates.find((c) => existsSync(c)) ?? fileURLToPath(import.meta.resolve(platformPackage(self)));
     const addon = { exports: {} };
     process.dlopen(addon, file);
     binding = addon.exports as Binding;
   } catch (error) {
     throw new Error(
-      `oxmutate: no native core for ${target}. fix: install the platform package (npm i ${platformPackage()}) or build it (npm run build:native in packages/oxmutate)`,
+      `oxmutate: no native core for ${target}. fix: install the platform package (npm i ${platformPackage(machine())}) or build it (npm run build:native in packages/oxmutate)`,
       { cause: error },
     );
   }

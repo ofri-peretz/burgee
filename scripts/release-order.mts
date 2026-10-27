@@ -45,6 +45,12 @@ export interface WorkspacePackage {
    * `.node` from the native build matrix instead of a `dist/`.
    */
   platformOf?: string;
+  /**
+   * Set on a package that has platform packages: their directory names (`darwin-arm64`, …), each
+   * a native core the release job places at `binding/oxmutate.<tag>.node` inside this package's
+   * tarball. While the platform packages are private that bundle is how the cores ship.
+   */
+  nativeCores?: string[];
 }
 
 /** One row of the plan `release.yml` publishes from. */
@@ -56,6 +62,8 @@ export interface PlanRow {
   deps: { name: string; version: string }[];
   /** A platform package: published from the native build's artifact, never tagged or released on GitHub. */
   platformOf?: string;
+  /** The platform tags whose cores this package bundles (`binding/oxmutate.<tag>.node`); the publish refuses it without every one. */
+  nativeCores?: string[];
 }
 
 /** The manifest fields a workspace dependency can sit on. `devDependencies` never ship. */
@@ -101,7 +109,8 @@ export function readWorkspace(root: string): WorkspacePackage[] {
   return manifests.flatMap(({ dir, manifest }) => {
     const name = manifest.name ?? dir;
     const isPrivate = manifest.private === true;
-    // A platform package ships when its parent does: public only while the parent is public.
+    // A platform package ships only when its parent does AND it is public itself: since 0.1 the
+    // six are `private` and oxmutate bundles their cores instead (packages/oxmutate/RELEASING.md).
     const platforms = platformManifests(base, dir).map(
       (p): WorkspacePackage => ({
         dir: p.dir,
@@ -112,8 +121,12 @@ export function readWorkspace(root: string): WorkspacePackage[] {
         platformOf: name,
       }),
     );
-    const deps = [...DEPENDENCY_FIELDS.flatMap((field) => Object.keys(manifest[field] ?? {})).filter((n) => names.has(n)), ...platforms.map((p) => p.name)];
-    return [...platforms, { dir, name, version: manifest.version ?? '0.0.0', private: isPrivate, deps: [...new Set(deps)].toSorted() }];
+    // The parent waits for a platform package only when that one publishes; a private one is
+    // bundled into the parent's tarball, so there is nothing on npm to wait for.
+    const published = platforms.filter((p) => !p.private).map((p) => p.name);
+    const deps = [...DEPENDENCY_FIELDS.flatMap((field) => Object.keys(manifest[field] ?? {})).filter((n) => names.has(n)), ...published];
+    const cores = platforms.length === 0 ? {} : { nativeCores: platforms.map((p) => p.dir.slice(p.dir.lastIndexOf('/') + 1)) };
+    return [...platforms, { dir, name, version: manifest.version ?? '0.0.0', private: isPrivate, deps: [...new Set(deps)].toSorted(), ...cores }];
   });
 }
 
@@ -164,6 +177,7 @@ export function plan(pkgs: readonly WorkspacePackage[]): PlanRow[] {
     version: p.version,
     deps: p.deps.map((d) => ({ name: d, version: byName.get(d)?.version ?? '' })),
     ...(p.platformOf === undefined ? {} : { platformOf: p.platformOf }),
+    ...(p.nativeCores === undefined ? {} : { nativeCores: p.nativeCores }),
   }));
 }
 

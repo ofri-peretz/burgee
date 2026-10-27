@@ -1,6 +1,6 @@
 {
   "name": "oxmutate",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "description": "Mutation testing for JavaScript and TypeScript on the oxc engine, run warm inside the project's own Vitest, with CI lanes, SARIF and an agent surface. No dependency outside the burgee family. A Stryker migration path.",
   "license": "MIT",
   "repository": {
@@ -13,7 +13,7 @@
   },
   "homepage": "https://oxmutate.interlace.tools",
   "type": "module",
-  "private": true,
+  "private": false,
   "engines": {
     "node": "^20.19.0 || >=22.13.0"
   },
@@ -51,6 +51,7 @@
   },
   "files": [
     "dist",
+    "binding/oxmutate.*.node",
     "!dist/**/*.map",
     "!dist/**/*.test.*"
   ],
@@ -73,7 +74,7 @@
   "devDependencies": {
     "vitest": "^5.0.1"
   },
-  "//optionalDependencies": "Written at publish time by the release job (scripts/sync-platform-versions.mjs --publish): the six oxmutate-<platform> packages under npm/, at this version. Never committed: npm ci refuses a lockfile that cannot record an optional dependency npm does not serve (EUSAGE). See RELEASING.md.",
+  "//optionalDependencies": "Written at publish time by the release job (scripts/sync-platform-versions.mjs --publish): the public oxmutate-<platform> packages under npm/, at this version; none while they are private, as in 0.1, which ships all six cores in binding/ instead. Never committed: npm ci refuses a lockfile that cannot record an optional dependency npm does not serve (EUSAGE). See RELEASING.md.",
   "peerDependenciesMeta": {
     "vitest": {
       "optional": true

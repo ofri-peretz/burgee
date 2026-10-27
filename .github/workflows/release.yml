@@ -15,16 +15,18 @@ run-name: >-
 #   2. build    — `turbo run build --filter='./packages/*'` once; upload dist/.
 #      verify   — in parallel with build: wait for `Quality Gate` and `Quality (Full)
 #                 Gate` to pass on this very commit. Nothing publishes otherwise.
-#      native   — in parallel too, only when the plan carries a platform package (oxmutate's
-#                 `packages/oxmutate/npm/*`) or on a dry run: `oxmutate-native.yml` builds one
-#                 `oxmutate.node` per platform, smoke-loads it, uploads it.
+#      native   — in parallel too, only when the plan carries oxmutate (whose rows name
+#                 `nativeCores`) or a platform package, or on a dry run: `oxmutate-native.yml`
+#                 builds one `oxmutate.node` per platform, smoke-loads it, uploads it.
 #   3. publish  — one job walks the plan in order. Before each package it waits until every
 #                 in-family dependency is on npm at the workspace's version; then
 #                 `npm publish --provenance`, git tag `<name>@<version>`, GitHub Release
-#                 with that version's CHANGELOG section as its notes. Platform packages come
-#                 first (the plan makes oxmutate depend on them), publish from the native
-#                 artifacts, and get no tag or Release of their own; oxmutate's published
-#                 manifest gains `optionalDependencies` naming them just before its publish
+#                 with that version's CHANGELOG section as its notes. oxmutate ships its six
+#                 native cores inside its own tarball (`binding/oxmutate.<tag>.node`, placed from
+#                 the native artifacts; the publish refuses it without every one). The
+#                 `oxmutate-<platform>` packages are `private` until their names exist on npm;
+#                 once public they publish first, get no tag or Release of their own, and
+#                 oxmutate's manifest gains `optionalDependencies` naming them
 #                 (`packages/oxmutate/RELEASING.md`).
 #
 # Why one ordered loop and not a matrix: on 2026-09-23 (run 35822025894) the matrix leg for
@@ -108,8 +110,9 @@ jobs:
           # No release window (D-20261027-no-release-window): every version npm lacks publishes.
           echo "plan=$publish" >> "$GITHUB_OUTPUT"
           echo "count=$(jq length <<<"$publish")" >> "$GITHUB_OUTPUT"
-          # A platform package publishes from the native build matrix's artifact, so that matrix runs.
-          echo "native=$(jq 'any(.[]; has("platformOf"))' <<<"$publish")" >> "$GITHUB_OUTPUT"
+          # oxmutate bundles the native build matrix's cores, and a platform package publishes one,
+          # so either in the plan runs that matrix.
+          echo "native=$(jq 'any(.[]; has("platformOf") or has("nativeCores"))' <<<"$publish")" >> "$GITHUB_OUTPUT"
 
   build:
     name: Build packages
@@ -257,8 +260,8 @@ jobs:
           done
 
   # oxmutate's native cores, one per platform package. It builds; it never publishes — the
-  # `publish` job below publishes the platform packages from these artifacts, in the plan's
-  # order, so the one-publishing-job rule still holds. A dry run builds them even when nothing
+  # `publish` job below bundles them into oxmutate's tarball (and publishes the platform
+  # packages, once they are public) in the plan's order, so the one-publishing-job rule holds. A dry run builds them even when nothing
   # native is due, which is the way to prove every leg before oxmutate's first release.
   native:
     name: Native cores
@@ -280,8 +283,8 @@ jobs:
     needs: [detect, build, verify, native]
     # `native` is skipped whenever nothing native is due, and a skipped need skips this job
     # unless the condition names a status, hence `!cancelled()` and the explicit `build` result.
-    # A failed `native` still publishes: a platform package with no core fails its own row, and
-    # the loop holds back oxmutate (which depends on it) while unrelated packages publish.
+    # A failed `native` still publishes: oxmutate, missing a core, fails its own row (as would a
+    # platform package), and unrelated packages publish.
     if: >-
       !cancelled() && needs.detect.outputs.count != '0' && needs.build.result == 'success'
       && needs.verify.outputs.ok == 'true' && needs.native.result != 'cancelled'
@@ -328,8 +331,11 @@ jobs:
         with:
           pattern: oxmutate-native-*
           path: ${{ runner.temp }}/native
-      # Each artifact holds one `oxmutate.node`; it goes to the platform package its name says.
-      - name: Native cores into their platform packages
+      # Each artifact holds one `oxmutate.node` for the platform its name says. It goes into
+      # oxmutate's tarball as `binding/oxmutate.<tag>.node` (src/native.ts loads that first), and
+      # into `npm/<tag>/` for the day that platform package is public. Only this runner ever holds
+      # these files: binding/*.node is gitignored, and the build job packs without them.
+      - name: Native cores into oxmutate's binding/ and their platform packages
         if: needs.native.result == 'success' || needs.native.result == 'failure'
         run: |
           set -euo pipefail
@@ -337,8 +343,10 @@ jobs:
             [ -d "$d" ] || continue
             platform=$(basename "$d"); platform=${platform#oxmutate-native-}
             [ -d "packages/oxmutate/npm/$platform" ] || { echo "::error::artifact for unknown platform package $platform"; exit 1; }
+            mkdir -p packages/oxmutate/binding
+            cp "$d/oxmutate.node" "packages/oxmutate/binding/oxmutate.$platform.node"
             cp "$d/oxmutate.node" "packages/oxmutate/npm/$platform/oxmutate.node"
-            echo "npm/$platform/oxmutate.node: $(wc -c < "packages/oxmutate/npm/$platform/oxmutate.node" | tr -d ' ') bytes"
+            echo "binding/oxmutate.$platform.node: $(wc -c < "packages/oxmutate/binding/oxmutate.$platform.node" | tr -d ' ') bytes"
           done
       - name: Configure git
         run: |
@@ -386,7 +394,8 @@ jobs:
           }
 
           # platform_manifest DIR — a package that ships platform packages (`packages/DIR/npm/*`)
-          # publishes a manifest whose optionalDependencies name each of them at its version. It is
+          # publishes a manifest whose optionalDependencies name each public one at its version
+          # (none while they are private: the cores are bundled in binding/ instead). It is
           # written here, on the runner, never committed: an optional dependency npm does not serve
           # yet breaks `npm ci` for the whole monorepo (packages/oxmutate/RELEASING.md).
           platform_manifest() {
@@ -395,11 +404,24 @@ jobs:
             node "$sync" --publish
           }
 
-          # release_one DIR NAME VERSION [PARENT] — gate, publish (skipped when already on npm), tag,
-          # GitHub Release. With PARENT it is a platform package: its file is the native core from
-          # the build matrix, not dist/, and it gets no tag or Release (the parent's covers it).
+          # bundled_cores DIR TAGS — every platform core the package bundles is in its binding/.
+          # A tarball missing one installs on that platform and fails at its first mutant.
+          bundled_cores() {
+            local tag missing=""
+            for tag in $2; do
+              [ -f "packages/$1/binding/oxmutate.$tag.node" ] || missing+=" $tag"
+            done
+            [ -z "$missing" ] && return 0
+            echo "::error::Not publishing packages/$1 without its native core for:$missing — the Native cores job did not deliver binding/oxmutate.<tag>.node for each."
+            return 1
+          }
+
+          # release_one DIR NAME VERSION [PARENT] [CORES] — gate, publish (skipped when already on npm),
+          # tag, GitHub Release. With PARENT it is a platform package: its file is the native core from
+          # the build matrix, not dist/, and it gets no tag or Release (the parent's covers it). CORES
+          # are the platform tags the package bundles in binding/.
           release_one() {
-            local PKG_DIR="packages/$1" PKG_NAME="$2" PKG_VER="$3" PARENT="${4:-}"
+            local PKG_DIR="packages/$1" PKG_NAME="$2" PKG_VER="$3" PARENT="${4:-}" CORES="${5:-}"
             local tag_name="${PKG_NAME##*/}@${PKG_VER}" notes="$RUNNER_TEMP/notes-${1//\//-}.md"
             if [ -n "$PARENT" ]; then
               local core
@@ -407,6 +429,7 @@ jobs:
               [ -f "$PKG_DIR/$core" ] || { echo "::error::Missing $PKG_DIR/$core — the native build for $PKG_NAME did not reach this job (see the Native cores job)."; return 1; }
             else
               [ -d "$PKG_DIR/dist" ] || { echo "::error::Missing $PKG_DIR/dist — build artifact incomplete."; return 1; }
+              [ -z "$CORES" ] || bundled_cores "$1" "$CORES" || return 1
               platform_manifest "$1" || return 1
             fi
             scoreboard_gate "$PKG_NAME" "$PKG_VER" || return 1
@@ -498,7 +521,7 @@ jobs:
           done_=" "; failed=" "
           for row in ${rows[@]+"${rows[@]}"}; do
             name=$(jq -r .name <<<"$row"); ver=$(jq -r .version <<<"$row"); dir=$(jq -r .dir <<<"$row")
-            parent=$(jq -r '.platformOf // ""' <<<"$row")
+            parent=$(jq -r '.platformOf // ""' <<<"$row"); cores=$(jq -r '(.nativeCores // []) | join(" ")' <<<"$row")
             echo "::group::$name@$ver"
             blocked=""
             deps=()
@@ -525,7 +548,7 @@ jobs:
             if [ -n "$blocked" ]; then
               echo "::error::Not publishing $name@$ver — $blocked."
               failed+="$name "
-            elif release_one "$dir" "$name" "$ver" "$parent"; then
+            elif release_one "$dir" "$name" "$ver" "$parent" "$cores"; then
               done_+="$name "
               echo "- $name@$ver" >> "$GITHUB_STEP_SUMMARY"
             else

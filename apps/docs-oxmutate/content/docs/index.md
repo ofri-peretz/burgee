@@ -184,8 +184,8 @@ No suite is graded against this package yet, so there is no compatibility number
   the change weakened its tests); `2` a usage error, so rewrite the command; `3` the config or
   the suite did not load (a dry run that fails, an instrumented file that does not parse).
 - **The docs are machine-readable** at
-  [burgee.interlace.tools/llms.txt](https://burgee.interlace.tools/llms.txt) and
-  [llms-full.txt](https://burgee.interlace.tools/llms-full.txt), which carry this page.
+  [oxmutate.interlace.tools/llms.txt](https://oxmutate.interlace.tools/llms.txt) and
+  [llms-full.txt](https://oxmutate.interlace.tools/llms-full.txt).
 
 ## Configuration
 

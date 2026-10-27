@@ -190,7 +190,7 @@ const KNOWN: Record<string, string> = {
  * `vendor.ts` and `upstream.ts` spawn through bellpull (`compat-oracle/src/spawn.ts`), and
  * `scripts/dogfood-spawn-lock.test.ts` keeps them, and `benchmarks/`, off `node:child_process`.
  *
- * **Raised 15 → 16 the same day, the owner's to accept or reverse
+ * **Raised 15 → 16 the same day, accepted
  * (D-20261027-oxmutate-scheduler-fork).** oxmutate's scheduler forks long-lived Vitest servers
  * with an IPC channel and kills a runaway one; bellpull's `run` has no handle to a child that
  * outlives a call. The way back down is that handle in bellpull, and then

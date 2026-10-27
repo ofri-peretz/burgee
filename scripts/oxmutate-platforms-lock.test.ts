@@ -5,8 +5,17 @@
  */
 
 /**
- * oxmutate platforms lock — the seven packages oxmutate ships as (PRINCIPLES rule 9,
- * `native-engine`: per-platform optional dependencies, no postinstall) stay one release.
+ * oxmutate platforms lock — oxmutate and its six platform packages (PRINCIPLES rule 9,
+ * `native-engine`: per-platform cores, no postinstall) stay one release.
+ *
+ * Two layouts, chosen by the platform packages' own `private` flag (all six share it):
+ *
+ * - **Bundled** (0.1, the six `private`): the npm names do not exist and trusted publishing cannot be
+ *   set up on a name that does not exist, so oxmutate's own tarball carries every core as
+ *   `binding/oxmutate.<tag>.node`. The release job must place each native-matrix leg there, refuse
+ *   to publish without all of them, and `files` must ship them; the published manifest names no
+ *   optional dependency (it would resolve nothing).
+ * - **Split** (the six public): the published manifest lists exactly the six, at its version.
  *
  * npm installs oxmutate, then exactly one `oxmutate-<platform>` whose `os`/`cpu`/`libc` match the
  * machine, and `src/native.ts` loads that package's `oxmutate.node`. Each way that silently breaks:
@@ -27,6 +36,9 @@ import { fileURLToPath } from 'node:url';
 import { load as loadYaml } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
 
+// eslint-disable-next-line import-next/no-relative-packages -- by path, the source: the tag function the loader runs is what the bundle's file names must agree with, and it is not a package export
+import { platformTag } from '../packages/oxmutate/src/platform.js';
+
 import { plan, readWorkspace } from './release-order.mjs';
 import { scratchDirs } from './scratch-dir.js';
 
@@ -36,6 +48,7 @@ const scratchDir = scratchDirs();
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OXMUTATE = join(REPO_ROOT, 'packages', 'oxmutate');
 const NATIVE_WORKFLOW = join(REPO_ROOT, '.github', 'workflows', 'oxmutate-native.yml');
+const RELEASE_WORKFLOW = join(REPO_ROOT, '.github', 'workflows', 'release.yml');
 const SYNC = join(OXMUTATE, 'scripts', 'sync-platform-versions.mjs');
 
 interface Manifest {
@@ -88,26 +101,64 @@ function manifestProblems(dir: string, m: Manifest, version: string | undefined)
   return checks.filter(([ok]) => !ok).map(([, why]) => `npm/${dir}: ${why}`);
 }
 
+/** Whether the platform packages at `root` are private (bundled layout); `undefined` when they disagree. */
+export function bundled(root: string): boolean | undefined {
+  const flags = new Set(platformDirs(root).map((dir) => existsSync(join(root, 'npm', dir, 'package.json')) && readJson(join(root, 'npm', dir, 'package.json')).private === true));
+  return flags.size === 1 ? [...flags][0] : undefined;
+}
+
 /**
  * What is wrong with oxmutate at `root` and its platform packages. `published`: check the
  * manifest npm receives (after `sync-platform-versions.mjs --publish`), whose optionalDependencies
- * must list exactly the platform packages; otherwise the committed one, which lists none or exactly them.
+ * list exactly the platform packages when they are public and nothing when they are private;
+ * otherwise the committed one, which lists none or exactly those.
  */
 export function platformProblems(root: string, { published }: { published: boolean }): string[] {
   const parent = readJson(join(root, 'package.json'));
   const dirs = platformDirs(root);
   const problems: string[] = dirs.length === 0 ? ['no platform package under npm/'] : [];
+  const isBundled = bundled(root);
+  if (isBundled === undefined) problems.push('the platform packages disagree on `private`: they ship together, bundled (all private) or split (all public)');
   const expectedOptional: Record<string, string> = {};
   for (const dir of dirs) {
     const file = join(root, 'npm', dir, 'package.json');
     if (existsSync(file)) problems.push(...manifestProblems(dir, readJson(file), parent.version));
     else problems.push(`npm/${dir}: no package.json`);
-    expectedOptional[`oxmutate-${dir}`] = parent.version ?? '';
+    if (isBundled === false) expectedOptional[`oxmutate-${dir}`] = parent.version ?? '';
   }
-  const optional = parent.optionalDependencies;
-  const exact = JSON.stringify(Object.entries(optional ?? {}).toSorted()) === JSON.stringify(Object.entries(expectedOptional).toSorted());
-  if (published ? !exact : optional !== undefined && !exact)
-    problems.push(`oxmutate's optionalDependencies are ${JSON.stringify(optional)}, not exactly ${JSON.stringify(expectedOptional)}`);
+  return [...problems, ...optionalProblems(parent.optionalDependencies, isBundled === false ? expectedOptional : undefined, published)];
+}
+
+/** `optional` against `want` (`undefined`: none, the bundled layout). The committed manifest may also list none. */
+function optionalProblems(optional: Record<string, string> | undefined, want: Record<string, string> | undefined, published: boolean): string[] {
+  const exact = same(Object.entries(optional ?? {}).toSorted(), Object.entries(want ?? {}).toSorted()) && (want !== undefined) === (optional !== undefined);
+  if (exact || (!published && optional === undefined)) return [];
+  return [`oxmutate's optionalDependencies are ${JSON.stringify(optional)}, not ${want === undefined ? 'absent (its platform packages are private; the cores are bundled)' : `exactly ${JSON.stringify(want)}`}`];
+}
+
+/**
+ * What is wrong with the bundled layout: oxmutate's `files` ships `binding/oxmutate.<tag>.node`,
+ * each tag is what `src/platform.ts` computes for that platform, the native matrix uploads each
+ * leg under the name the release job downloads, the release job copies each into `binding/`, and
+ * its publish loop refuses oxmutate without every core.
+ */
+export function bundleProblems(root: string, releaseText: string, nativeText: string): string[] {
+  const parent = readJson(join(root, 'package.json'));
+  const problems: string[] = [];
+  if (!(parent.files ?? []).some((f) => f === 'binding' || f === 'binding/oxmutate.*.node'))
+    problems.push(`oxmutate's files ${JSON.stringify(parent.files)} do not ship binding/oxmutate.<tag>.node`);
+  for (const dir of platformDirs(root)) {
+    const { os, cpu, libc } = expectedPlatform(dir);
+    const tag = platformTag({ platform: os, arch: cpu, glibc: libc === 'glibc' ? '2.35' : undefined });
+    if (tag !== dir) problems.push(`npm/${dir}: src/platform.ts names that machine's core ${tag}, so binding/oxmutate.${dir}.node would never load`);
+  }
+  const steps: [string, string, string][] = [
+    [nativeText, 'name: oxmutate-native-${{ matrix.platform }}', 'oxmutate-native.yml does not upload each leg as oxmutate-native-<platform>'],
+    [releaseText, 'pattern: oxmutate-native-*', 'release.yml does not download the oxmutate-native-* artifacts'],
+    [releaseText, 'cp "$d/oxmutate.node" "packages/oxmutate/binding/oxmutate.$platform.node"', 'release.yml does not place each core at packages/oxmutate/binding/oxmutate.<tag>.node'],
+    [releaseText, '[ -z "$CORES" ] || bundled_cores "$1" "$CORES" || return 1', 'release.yml publishes oxmutate without checking every bundled core is there'],
+  ];
+  for (const [text, needle, why] of steps) if (!text.includes(needle)) problems.push(why);
   return problems;
 }
 
@@ -144,6 +195,13 @@ function copy(): string {
   return root;
 }
 
+/** A copy whose six platform packages are public: the split layout. */
+function publicCopy(): string {
+  const root = copy();
+  for (const dir of platformDirs(root)) breakPlatform(root, dir, (m) => (m.private = false));
+  return root;
+}
+
 /** Edit one platform manifest of a copy. */
 function breakPlatform(root: string, dir: string, edit: (m: Manifest & Record<string, unknown>) => void): void {
   const file = join(root, 'npm', dir, 'package.json');
@@ -157,9 +215,9 @@ const sync = (root: string, ...args: string[]) => {
   return { status: r.status ?? -1, output: `${r.stdout ?? ''}${r.stderr ?? ''}` };
 };
 
-/** The manifest the release job would publish: a copy, after `--publish`. */
-function publishedCopy(): string {
-  const root = copy();
+/** The manifest the release job would publish: a copy (bundled, or split with `split`), after `--publish`. */
+function publishedCopy(split = false): string {
+  const root = split ? publicCopy() : copy();
   const r = sync(root, '--publish');
   if (r.status !== 0) throw new Error(`sync-platform-versions --publish failed: ${r.output}`);
   return root;
@@ -174,8 +232,20 @@ describe('the real oxmutate and its platform packages', () => {
     expect(platformProblems(OXMUTATE, { published: false })).toEqual([]);
   });
 
-  it('holds every rule as published — optionalDependencies list exactly the six, at its version', () => {
+  it('ships 0.1 bundled: the six are private, and the published manifest names none of them', () => {
+    expect(bundled(OXMUTATE)).toBe(true);
     const root = publishedCopy();
+    expect(platformProblems(root, { published: true })).toEqual([]);
+    expect(readJson(join(root, 'package.json')).optionalDependencies).toBeUndefined();
+  });
+
+  it('while bundled, places, ships and checks every native core in binding/', () => {
+    const problems = bundleProblems(OXMUTATE, readFileSync(RELEASE_WORKFLOW, 'utf8'), readFileSync(NATIVE_WORKFLOW, 'utf8'));
+    expect(bundled(OXMUTATE) === true ? problems : []).toEqual([]);
+  });
+
+  it('once split, the published manifest lists exactly the six, at its version', () => {
+    const root = publishedCopy(true);
     expect(platformProblems(root, { published: true })).toEqual([]);
     const m = readJson(join(root, 'package.json'));
     expect(Object.keys(m.optionalDependencies ?? {})).toHaveLength(6);
@@ -187,10 +257,15 @@ describe('the real oxmutate and its platform packages', () => {
   });
 
   it('ignores the built cores in git', () => {
-    const r = spawnSync('git', ['check-ignore', '-q', 'packages/oxmutate/npm/darwin-arm64/oxmutate.node'], { cwd: REPO_ROOT });
-    expect(r.status).toBe(0);
+    for (const file of ['packages/oxmutate/npm/darwin-arm64/oxmutate.node', 'packages/oxmutate/binding/oxmutate.linux-x64-musl.node']) {
+      const r = spawnSync('git', ['check-ignore', '-q', file], { cwd: REPO_ROOT });
+      expect(r.status, `${file} is not ignored: a release core could be committed`).toBe(0);
+    }
   });
 });
+
+/** The bundle problems of the real package against edited workflow texts, one per line. */
+const bundleText = (releaseText: string, nativeText: string): string => bundleProblems(OXMUTATE, releaseText, nativeText).join('\n');
 
 /** The problems the lock finds in `root`, one per line. */
 const only = (root: string, published = false): string => platformProblems(root, { published }).join('\n');
@@ -249,28 +324,57 @@ describe('each rule fails on a broken copy', () => {
     expect(only(root)).toMatch(/npm\/darwin-arm64: main is index\.js/);
   });
 
+  it('platform packages that disagree on private', () => {
+    const root = copy();
+    breakPlatform(root, 'linux-x64-musl', (m) => (m.private = false));
+    expect(only(root)).toMatch(/disagree on `private`/);
+  });
+
+  it('a bundled oxmutate whose published manifest still names the platform packages', () => {
+    const root = publishedCopy();
+    const m = readJson(join(root, 'package.json'));
+    writeJson(join(root, 'package.json'), { ...m, optionalDependencies: { 'oxmutate-darwin-arm64': m.version } });
+    expect(only(root, true)).toMatch(/not absent \(its platform packages are private; the cores are bundled\)/);
+  });
+
+  it('a bundle that does not ship, place, check or load a core', () => {
+    const release = readFileSync(RELEASE_WORKFLOW, 'utf8');
+    const nativeText = readFileSync(NATIVE_WORKFLOW, 'utf8');
+    const noFiles = copy();
+    const m = readJson(join(noFiles, 'package.json'));
+    writeJson(join(noFiles, 'package.json'), { ...m, files: (m.files ?? []).filter((f) => !f.startsWith('binding')) });
+    expect(bundleProblems(noFiles, release, nativeText).join('\n')).toMatch(/do not ship binding\/oxmutate\.<tag>\.node/);
+    expect(bundleText(release.replace('packages/oxmutate/binding/oxmutate.$platform.node', 'packages/oxmutate/npm/$platform/core.node'), nativeText)).toMatch(/does not place each core/);
+    expect(bundleText(release.replace('[ -z "$CORES" ] || bundled_cores "$1" "$CORES" || return 1', ''), nativeText)).toMatch(/without checking every bundled core/);
+    expect(bundleText(release.replace('pattern: oxmutate-native-*', 'pattern: native-*'), nativeText)).toMatch(/does not download/);
+    expect(bundleText(release, nativeText.replace('name: oxmutate-native-${{ matrix.platform }}', 'name: core-${{ matrix.platform }}'))).toMatch(/does not upload each leg/);
+    const oddTag = copy();
+    mkdirSync(join(oddTag, 'npm', 'linux-x64'));
+    expect(bundleProblems(oddTag, release, nativeText).join('\n')).toMatch(/npm\/linux-x64: src\/platform\.ts names that machine's core linux-x64-musl/);
+  });
+
   it('a published oxmutate missing a platform, pinning another version, or naming an extra one', () => {
-    const missing = publishedCopy();
+    const missing = publishedCopy(true);
     const m = readJson(join(missing, 'package.json'));
     delete m.optionalDependencies?.['oxmutate-linux-x64-musl'];
     writeJson(join(missing, 'package.json'), m);
     expect(only(missing, true)).toMatch(/optionalDependencies are .* not exactly/);
 
-    const pinned = publishedCopy();
+    const pinned = publishedCopy(true);
     const p = readJson(join(pinned, 'package.json'));
     p.optionalDependencies = { ...p.optionalDependencies, 'oxmutate-darwin-arm64': '^0.1.0' };
     writeJson(join(pinned, 'package.json'), p);
     expect(only(pinned, true)).toMatch(/optionalDependencies are .* not exactly/);
 
-    const extra = publishedCopy();
+    const extra = publishedCopy(true);
     const e = readJson(join(extra, 'package.json'));
     e.optionalDependencies = { ...e.optionalDependencies, 'oxmutate-freebsd-x64': e.version ?? '' };
     writeJson(join(extra, 'package.json'), e);
     expect(only(extra, true)).toMatch(/optionalDependencies are .* not exactly/);
   });
 
-  it('a published oxmutate with no optionalDependencies at all', () => {
-    expect(only(copy(), true)).toMatch(/optionalDependencies are undefined, not exactly/);
+  it('a split oxmutate published with no optionalDependencies at all', () => {
+    expect(only(publicCopy(), true)).toMatch(/optionalDependencies are undefined, not exactly/);
   });
 
   it('a build matrix that skips a platform, or builds one for the wrong target', () => {
@@ -303,6 +407,17 @@ describe('sync-platform-versions.mjs keeps the seven in step', () => {
     expect(readJson(join(root, 'package.json')).optionalDependencies, 'optionalDependencies are written only by --publish').toBeUndefined();
   });
 
+  it('--publish names no platform package while they are private, and exactly the public ones once split', () => {
+    const privateRoot = copy();
+    const r = sync(privateRoot, '--publish');
+    expect(r.status, r.output).toBe(0);
+    expect(r.output).toMatch(/are private, so no optionalDependencies/);
+    expect(readJson(join(privateRoot, 'package.json')).optionalDependencies).toBeUndefined();
+    const splitRoot = publicCopy();
+    expect(sync(splitRoot, '--publish').status).toBe(0);
+    expect(Object.keys(readJson(join(splitRoot, 'package.json')).optionalDependencies ?? {}).toSorted()).toEqual(platformDirs(OXMUTATE).map((d) => `oxmutate-${d}`));
+  });
+
   it('--publish refuses a platform package out of step, and writes no optionalDependencies', () => {
     const root = copy();
     breakPlatform(root, 'win32-x64-msvc', (m) => (m.version = '0.0.9'));
@@ -312,8 +427,8 @@ describe('sync-platform-versions.mjs keeps the seven in step', () => {
   });
 });
 
-/** A workspace with oxmutate (private or not) and two platform packages. */
-function workspace(isPrivate: boolean): string {
+/** A workspace with oxmutate (private or not) and two platform packages (private or not). */
+function workspace(isPrivate: boolean, platformsPrivate = false): string {
   const root = scratchDir('oxmutate-order-');
   const write = (dir: string, manifest: object) => {
     mkdirSync(join(root, 'packages', dir), { recursive: true });
@@ -321,13 +436,21 @@ function workspace(isPrivate: boolean): string {
   };
   write('burgee', { name: 'burgee', version: '1.0.0' });
   write('oxmutate', { name: 'oxmutate', version: '0.1.0', private: isPrivate, dependencies: { burgee: '*' } });
-  write('oxmutate/npm/darwin-arm64', { name: 'oxmutate-darwin-arm64', version: '0.1.0' });
-  write('oxmutate/npm/linux-x64-gnu', { name: 'oxmutate-linux-x64-gnu', version: '0.1.0' });
+  write('oxmutate/npm/darwin-arm64', { name: 'oxmutate-darwin-arm64', version: '0.1.0', private: platformsPrivate });
+  write('oxmutate/npm/linux-x64-gnu', { name: 'oxmutate-linux-x64-gnu', version: '0.1.0', private: platformsPrivate });
   return root;
 }
 
-describe('release-order.mts publishes the platform packages before oxmutate', () => {
-  it('orders them first, marks them, and makes oxmutate wait for them', () => {
+describe('release-order.mts: bundled cores now, platform packages first once they are public', () => {
+  it('while the platform packages are private, publishes oxmutate alone, naming every core it must bundle', () => {
+    const rows = plan(readWorkspace(workspace(false, true)));
+    expect(rows.map((r) => r.name)).toEqual(['burgee', 'oxmutate']);
+    const ox = rows.find((r) => r.name === 'oxmutate');
+    expect(ox?.deps.map((d) => d.name)).toEqual(['burgee']);
+    expect(ox?.nativeCores).toEqual(['darwin-arm64', 'linux-x64-gnu']);
+  });
+
+  it('once public, orders them first, marks them, and makes oxmutate wait for them', () => {
     const rows = plan(readWorkspace(workspace(false)));
     const names = rows.map((r) => r.name);
     expect(names.indexOf('oxmutate')).toBeGreaterThan(names.indexOf('oxmutate-darwin-arm64'));
@@ -335,6 +458,7 @@ describe('release-order.mts publishes the platform packages before oxmutate', ()
     expect(rows.find((r) => r.name === 'oxmutate-darwin-arm64')).toMatchObject({ dir: 'oxmutate/npm/darwin-arm64', platformOf: 'oxmutate' });
     expect(rows.find((r) => r.name === 'oxmutate')?.deps.map((d) => `${d.name}@${d.version}`)).toEqual(['burgee@1.0.0', 'oxmutate-darwin-arm64@0.1.0', 'oxmutate-linux-x64-gnu@0.1.0']);
     expect(rows.find((r) => r.name === 'burgee')).not.toHaveProperty('platformOf');
+    expect(rows.find((r) => r.name === 'burgee')).not.toHaveProperty('nativeCores');
   });
 
   it('publishes none of them while oxmutate is private', () => {
@@ -346,6 +470,8 @@ describe('release-order.mts publishes the platform packages before oxmutate', ()
     const ox = real.find((p) => p.name === 'oxmutate');
     const platforms = real.filter((p) => p.platformOf === 'oxmutate');
     expect(platforms.map((p) => p.name).toSorted()).toEqual(platformDirs(OXMUTATE).map((d) => `oxmutate-${d}`));
-    for (const p of platforms) expect(p.private, `${p.name} must ship exactly when oxmutate does`).toBe(ox?.private);
+    // Private by their own flag (0.1 is bundled), and never public while oxmutate is private.
+    for (const p of platforms) expect(p.private, `${p.name} is published only once its name exists on npm`).toBe(true);
+    expect(ox?.nativeCores).toEqual(platformDirs(OXMUTATE));
   });
 });

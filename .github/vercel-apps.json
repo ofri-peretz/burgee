@@ -112,13 +112,12 @@
       "buildCommand": "npx turbo run build --filter=docs-controlroom",
       "outputDirectory": "apps/docs-controlroom/.next",
       "familyPages": false
-    }
-  },
-  "pending": {
+    },
     "oxmutate": {
       "package": "oxmutate",
       "workspace": "docs-oxmutate",
       "dir": "apps/docs-oxmutate",
+      "projectId": "prj_YJuNxB3xDYV2YXg9BWzXhuTt1FfO",
       "productionUrl": "https://oxmutate.interlace.tools",
       "rootDirectory": "",
       "buildCommand": "npx turbo run build --filter=docs-oxmutate",
@@ -126,7 +125,6 @@
       "familyPages": false
     }
   },
-  "excluded": {
-    "oxmutate": "site built at apps/docs-oxmutate, ahead of the package's first release; waits on the owner's Vercel project + DNS for oxmutate.interlace.tools, and the package on its flip to private: false (packages/oxmutate/RELEASING.md)"
-  }
+  "pending": {},
+  "excluded": {}
 }

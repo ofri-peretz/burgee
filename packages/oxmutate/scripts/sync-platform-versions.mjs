@@ -11,6 +11,7 @@
  *   node scripts/sync-platform-versions.mjs --check    # exit 1, naming each one out of step; writes nothing
  *   node scripts/sync-platform-versions.mjs --publish  # release job only: refuse a version out of step,
  *                                                      # then write oxmutate's optionalDependencies
+ *                                                      # (the public platform packages; none while private)
  *
  * `--publish` is never committed. A committed `optionalDependencies` naming a package npm does not
  * serve yet cannot be recorded in package-lock.json, and `npm ci` then refuses the whole tree
@@ -57,12 +58,22 @@ function writeVersions(parent, platforms, stale) {
   return 0;
 }
 
-/** Writes the published manifest's optionalDependencies: exactly the platform packages, at the parent's version. */
+/**
+ * Writes the published manifest's optionalDependencies: exactly the public platform packages, at
+ * the parent's version. A private one is not on npm, so naming it would leave every install
+ * resolving nothing for that platform; its core ships in the parent's `binding/` instead, and with
+ * all six private (0.1) the manifest is left as it is.
+ */
 function writeOptional(parentFile, parent, platforms) {
+  const published = platforms.filter(({ manifest }) => manifest.private !== true);
+  if (published.length === 0) {
+    console.log(`${parent.name}@${parent.version}: the ${platforms.length} platform packages are private, so no optionalDependencies; the cores ship in binding/`);
+    return 0;
+  }
   delete parent['//optionalDependencies'];
-  parent.optionalDependencies = Object.fromEntries(platforms.map(({ manifest }) => [manifest.name, parent.version]));
+  parent.optionalDependencies = Object.fromEntries(published.map(({ manifest }) => [manifest.name, parent.version]));
   write(parentFile, parent);
-  console.log(`${parent.name}@${parent.version} lists ${platforms.length} platform packages as optionalDependencies: ${Object.keys(parent.optionalDependencies).join(', ')}`);
+  console.log(`${parent.name}@${parent.version} lists ${published.length} platform packages as optionalDependencies: ${Object.keys(parent.optionalDependencies).join(', ')}`);
   return 0;
 }
 

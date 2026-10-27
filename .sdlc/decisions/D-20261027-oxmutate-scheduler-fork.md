@@ -9,7 +9,7 @@ superseded_by: —
 **oxmutate's scheduler (`packages/oxmutate/src/scheduler.ts`) forks its Vitest servers with
 `node:child_process` itself, and `scripts/inline-implementation-lock.test.ts` moves its ceiling
 from 15 to 16 to admit that one file. #1298 had lowered it from 18 to 15 the same day. The ceiling
-only goes down; this raise is the owner's to accept or reverse.**
+only goes down; this raise was the owner's to accept or reverse, and the owner delegated the call (2026-10-27): accepted, because the alternative is a new long-lived-child API in bellpull, a package at 1.0, for one caller.**
 
 **Why the scheduler cannot use bellpull today.** A server is a long-lived child that stays up
 across hundreds of work units. It talks to the coordinator over an IPC channel (`run`, `done`,
