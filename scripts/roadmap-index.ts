@@ -51,6 +51,15 @@ interface Row {
   raw: string;
 }
 
+/**
+ * The status word a row's status cell asserts: the first state word, once every `(was …)` is
+ * removed, so `**review** (was \`shipped\`)` reads as review — the correction, not the history.
+ */
+export function statusIn(cell: string): State | undefined {
+  const said = new RegExp(`\\b(${STATES.join('|')})\\b`).exec(cell.replace(/\(was [^)]*\)/g, ''));
+  return said === null ? undefined : (said[1] as State);
+}
+
 /** Index rows that link an intent directory, with the status word each one asserts. */
 export function rows(): Row[] {
   const out: Row[] = [];
@@ -59,11 +68,8 @@ export function rows(): Row[] {
     const link = /\]\(\.\/([a-z0-9-]+)\/\)/.exec(raw);
     if (link === null || !raw.startsWith('|')) continue;
     const slug = link[1] as string;
-    // The status cell is everything after the link's cell; the first state word in it wins,
-    // so `**review** (was \`shipped\`)` reads as review — the correction, not the history.
-    const after = raw.slice(raw.indexOf(`](./${slug}/)`));
-    const said = new RegExp(`\\b(${STATES.join('|')})\\b`).exec(after.replace(/\(was [^)]*\)/g, ''));
-    out.push({ slug, line: i + 1, says: said === null ? undefined : (said[1] as State), raw });
+    // The status cell is everything after the link's cell (`statusIn`).
+    out.push({ slug, line: i + 1, says: statusIn(raw.slice(raw.indexOf(`](./${slug}/)`))), raw });
   }
   return out;
 }

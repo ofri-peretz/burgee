@@ -5,9 +5,12 @@
 > success criterion unmet since 2026-09-06, and produces the number
 > `migration-drivers.md` calls the highest-value one this repository can make.
 
-**Status:** approved · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
 
-> **1 of the four readings on 2026-10-27** (run 40492593210: tokens 1.108, turns 1.081, 15 of 15 MCP
+> **Shipped 2026-10-27: four of four readings**, runs 40492593210 (weekly), 40518014447, 40528288811 and 40539828491 (owner-dispatched). R5 is on
+> `what-an-agent-sees.mdx` under `agent-page-lock`. See [`spec.md` § Shipped 2026-10-27](./spec.md#shipped-2026-10-27).
+>
+> *Before that:* **1 of the four readings on 2026-10-27** (run 40492593210: tokens 1.108, turns 1.081, 15 of 15 MCP
 > runs connected and passed). The first paid run of the arm, 2026-10-20, never reached its MCP
 > server, so it is no reading. The harness now refuses that before it spends a run
 > ([`spec.md`](./spec.md) R6,
