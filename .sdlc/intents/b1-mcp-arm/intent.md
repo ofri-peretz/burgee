@@ -7,10 +7,13 @@
 
 **Status:** approved · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
 
-> **0 of the four weekly readings on 2026-10-26.** The first paid run of the arm, 2026-10-20, never
-> reached its MCP server, so it is no reading. The harness now refuses that before it spends a run
+> **1 of the four readings on 2026-10-27** (run 40492593210: tokens 1.108, turns 1.081, 15 of 15 MCP
+> runs connected and passed). The first paid run of the arm, 2026-10-20, never reached its MCP
+> server, so it is no reading. The harness now refuses that before it spends a run
 > ([`spec.md`](./spec.md) R6,
 > [`D-20261026-b1-mcp-arm-server-guard`](../../decisions/D-20261026-b1-mcp-arm-server-guard.md)).
+> Since 2026-10-27 a reading may come from an owner-dispatched run as well as the schedule
+> ([`D-20261027-b1-mcp-arm-owner-dispatch`](../../decisions/D-20261027-b1-mcp-arm-owner-dispatch.md)).
 > What closes this intent is in [`spec.md` § What closes this intent](./spec.md#what-closes-this-intent).
 
 ---
@@ -61,14 +64,17 @@ surfaces are projections of the same manifest.
 - **The cost is quoted and bounded before anything runs.** The MCP arm runs on the weekly
   schedule (`cron: "40 5 * * 2"`) and on the `bench:agent` label, **not** on every push to
   `main`: +25 runs a week, not +25 runs a merge. Raising that frequency is a decision with the
-  number beside it.
+  number beside it. One was taken on 2026-10-27: the owner may dispatch a reading with the
+  `mcp-arm` input, and approved three
+  ([D-20261027-b1-mcp-arm-owner-dispatch](../../decisions/D-20261027-b1-mcp-arm-owner-dispatch.md)).
 - **One variable.** Same demo build, same model, same pinned `claude`, same tasks, same checks,
   same turn limits, same isolation (`--setting-sources project,local --strict-mcp-config`). The
   only difference is the allowed tool: `Bash(demo:*)` or the demo's MCP tools.
 - **Never conclude from one run.** B1's run-to-run swing is large: the pooled token medians
   read 0.491 to 0.995 across consecutive readings while the totals read 0.549 to 0.699
   (D-20261009-b1-totals-and-explain). The published claim is the median with its range, over at
-  least four weekly readings, before any verdict sentence is written.
+  least four readings from scheduled or owner-dispatched runs, before any verdict sentence is
+  written.
 - **Published whichever way it falls.** If the MCP arm is cheaper, the page says so. The family
   ships both surfaces, and the positioning (`agent-requirements.md` §7) is "and MCP, from the
   same source", not "instead of MCP".
@@ -80,7 +86,9 @@ surfaces are projections of the same manifest.
 
 1. `npm run bench -- --axis agent` runs the arm beside the two existing variants when a credential
    is present, and skips loudly without one, as B1 does today.
-2. Four weekly readings on `main` carry the arm. The page publishes, per mapped task and pooled,
+2. Four readings on `main` from scheduled or owner-dispatched runs carry the arm, reported as their
+   median and range (restated 2026-10-27 from "four weekly readings",
+   D-20261027-b1-mcp-arm-owner-dispatch). The page publishes, per mapped task and pooled,
    the median tokens and turns for `burgee` (CLI) and `burgee-mcp`, with the range. Every number
    is held by `agent-page-lock`.
 3. `cli-mcp`'s criterion "B1 reports the same task set over MCP and over Bash" is marked met,
