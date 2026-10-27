@@ -55,6 +55,7 @@ export function execFile(file: string, args: readonly string[], options: SpawnOp
   // Null when stderr was not piped, and undefined when nothing started: both are nothing printed.
   const stderr = (result.stderr as Buffer | string | null | undefined) ?? '';
   if (options.stdio === undefined && stderr.length > 0) process.stderr.write(stderr);
+  // Stryker disable next-line ConditionalExpression: no spawn reports an error with status 0 — a timeout, ENOBUFS or a missing program leaves it null on POSIX, and bellpull's Windows ENOENT is status 1 — so dropping the error check changes no outcome a child can produce
   if (result.error === undefined && result.status === 0) return result.stdout;
   const detail = stderr.length > 0 ? `\n${stderr.toString()}` : '';
   const failed = carrying(result.error ?? new Error(`Command failed: ${[file, ...args].join(' ')}${detail}`), result);
