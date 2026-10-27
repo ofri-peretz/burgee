@@ -27,13 +27,34 @@ import { describe, expect, it } from 'vitest';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 
+/**
+ * One line with its strings blanked and its comment cut, read left to right: a `#` inside a
+ * string is not a comment (`"#!/bin/sh"`), and a quote inside a comment opens no string.
+ */
+function codeOf(line: string): string {
+  let out = '';
+  let quote = '';
+  for (let i = 0; i < line.length; i += 1) {
+    const c = line[i] as string;
+    if (quote !== '') {
+      if (quote === '"' && c === '`') i += 1;
+      else if (c === quote) quote = '';
+      continue;
+    }
+    if (c === '#') break;
+    if (c === '"' || c === "'") {
+      quote = c;
+      out += "''";
+      continue;
+    }
+    out += c;
+  }
+  return out;
+}
+
 /** Verb-Noun words outside comments and strings: what PowerShell resolves as a command. */
 function commandWords(source: string): string[] {
-  const code = source
-    .split('\n')
-    .map((line) => line.replace(/#.*$/u, ''))
-    .join('\n')
-    .replace(/"(?:[^"`]|`.)*"|'[^']*'/gu, "''");
+  const code = source.split('\n').map(codeOf).join('\n');
   return [...new Set(code.match(/\b[A-Z][a-z]+-[A-Z][A-Za-z0-9]*\b/gu) ?? [])];
 }
 
@@ -54,6 +75,9 @@ describe('windows-lane-holds R3d — the lookup phase calls .NET, not cmdlets', 
 
   it('reads the command words of a line, and none inside a comment or a string', () => {
     expect(commandWords("if (Get-Command $p) { 'Set-Content' } # Remove-Item\n\"New-Item `\" x\" | Select-Object -Unique")).toEqual(['Get-Command', 'Select-Object']);
+    // A `#` inside a string is not a comment: the command after it on the line still counts.
+    expect(commandWords('[IO.File]::WriteAllText($stub, "#!/bin/sh") ; Set-Content x')).toEqual(['Set-Content']);
+    expect(commandWords("# it's a comment, Get-Command\nNew-Item")).toEqual(['New-Item']);
     expect(() => regions('no phases here')).toThrow(/no longer has a lookup phase/u);
   });
 
