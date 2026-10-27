@@ -4,15 +4,44 @@
 > requirements Y3, Y5, Y6, Y7, Y8, Y10, Y12. **A standalone product**: its competitors are
 > `signal-exit` and `exit-hook`, and it is useful with nothing else installed.
 
-**Status:** approved (2026-09-23, under the owner's delegation, D-129) · **Opened:** 2026-09-09 · **Owner:** @ofri-peretz · **Name published:** `closeout@0.0.1`, 2026-09-09
+**Status:** shipped · **Opened:** 2026-09-09 · **Owner:** @ofri-peretz · **Name published:** `closeout@0.0.1`, 2026-09-09 · **Approved:** 2026-09-23, under the owner's delegation, D-129 · **Shipped:** 2026-10-27 on the merge of PR #1294, the spawn row gated and the page republished; nothing to publish — see [§ Shipped 2026-10-27](#shipped-2026-10-27)
 
 > **Umbrella sweep 2026-10-26: four of five criteria held on `main` and in `closeout@1.1.8`;
-> criterion 3 is half open.** Its bytes half is held by the shipped child
-> `closeout-at-incumbent-weight`, but the public benchmarks page still prints the reading from
-> before that child. Its spawn half has no row. See
-> [§ Umbrella sweep 2026-10-26](#umbrella-sweep-2026-10-26).
+> criterion 3 was half open.** Its bytes half is held by the shipped child
+> `closeout-at-incumbent-weight`, but the public benchmarks page still printed the reading from
+> before that child. Its spawn half had no row. See
+> [§ Umbrella sweep 2026-10-26](#umbrella-sweep-2026-10-26). **2026-10-27:** both closing items are
+> done, and all five hold ([§ Shipped 2026-10-27](#shipped-2026-10-27)).
 
 ---
+
+## Shipped 2026-10-27
+
+The sweep's two closing items, both in PR #1294, neither needing a release:
+
+1. **The spawn row.** B2 times `closeout/exit-hook` against `exit-hook` 5.1.0 as a paired median
+   difference over 92 interleaved rounds, gated at +2 ms over a bar of 0
+   ([D-20261027-linegauge-closeout-spawn-bars](../../decisions/D-20261027-linegauge-closeout-spawn-bars.md)).
+   `closeout/signal-exit` against `signal-exit` 4.1.0 is timed beside it.
+2. **The page.** `/docs/benchmarks` is generated from a new published measurement,
+   `benchmarks/results/cli-benchmarks/2026-10-27.json`, CI run
+   [40499538893](https://github.com/ofri-peretz/burgee/actions/runs/40499538893)
+   ([D-20261027-benchmarks-published-2026-10-27](../../decisions/D-20261027-benchmarks-published-2026-10-27.md)).
+   It prints 0.96 and 0.93 where it printed 2.929 and 1.272.
+
+| # | criterion | evidence | state |
+| :-- | :-- | :-- | :-- |
+| 1 | two suites graded, `--control` first, ratcheting | `baseline/signal-exit.json` 134 / 135 (the one failure is signal-exit 4.1.0's own), `exit-hook.json` 21 / 21; both on `/docs/compatibility` (unchanged) | held |
+| 2 | the shutdown matrix green, no cell hangs | `packages/closeout/src/matrix.test.ts` (unchanged) | held |
+| 3 | rows at or under `exit-hook` on bytes and spawn delta | **bytes:** `closeout/exit-hook ÷ exit-hook` **0.96**, `closeout/signal-exit ÷ signal-exit` **0.93**, each ≤ 1, now on `/docs/benchmarks`. **Spawn delta:** `closeout/exit-hook − exit-hook` **−0.65 ms** on the published run and −0.31 ms on its re-run, under the bar of 0 on both; gate +2 ms. `benchmarks/ratchet.test.ts` › "B2 cold start — linegauge and closeout, each library held to the incumbent it replaces"; `npm run bench -- --axis perf --axis weight --check` | held |
+| 4 | `caique`'s own signal handling deleted | `packages/caique/src/keys.test.ts`, `packages/burgee/src/process-reference-lock.test.ts` (unchanged) | held |
+| 5 | the drop-in recipe behind its pass rate, CI refusing a drop | restated by D-133 to the import swap `closeout/signal-exit`; `burgee migrate` and the README row beside 134 / 135 (unchanged) | held as restated |
+
+**What the stamp does not hide.** On an M4 Pro under load the exit-hook spawn row read +0.40 to
++0.66 ms over exit-hook in three local runs: inside the gate's allowance, above the bar. The bar is
+read on the machine the page publishes from, where it holds twice. `closeout/signal-exit` starts
+0.38 to 1.22 ms slower than signal-exit on every reading; no criterion names signal-exit as a bar,
+and the row stays gated so it cannot grow (B-20261027-closeout-signal-exit-starts-slower).
 
 ## Umbrella sweep 2026-10-26
 

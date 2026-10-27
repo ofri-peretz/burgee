@@ -6,13 +6,14 @@
 > engine. **A standalone product**: its competitors are `cosmiconfig`, `lilconfig`, `rc`
 > and `dotenv`, and it is useful with nothing else installed.
 
-**Status:** approved (2026-09-23, under the owner's delegation, D-129) · **Opened:** 2026-09-09 · **Owner:** @ofri-peretz · **Name published:** `seniority@0.0.1`, 2026-09-09
+**Status:** shipped · **Opened:** 2026-09-09 · **Owner:** @ofri-peretz · **Name published:** `seniority@0.0.1`, 2026-09-09 · **Approved:** 2026-09-23, under the owner's delegation, D-129 · **Shipped:** 2026-10-27 on the merge of PR #1294, criterion 4's rows on `/docs/benchmarks` from a new published measurement; nothing to publish — see [§ Shipped 2026-10-27](#shipped-2026-10-27)
 
 > **Umbrella sweep 2026-10-26: criteria 1, 2, 3 and 5 held on `main` and in `seniority@1.1.1`.
-> Criterion 4 is gated on `main` but not published.** `packageLayer` is already in the
-> published tarball, so this intent no longer waits on the minor. It waits on
-> `/docs/benchmarks`, which still prints the measurement of 2026-10-19. See
-> [§ Umbrella sweep 2026-10-26](#umbrella-sweep-2026-10-26).
+> Criterion 4 was gated on `main` but not published.** `packageLayer` is already in the
+> published tarball, so this intent no longer waits on the minor. It waited on
+> `/docs/benchmarks`, which still printed the measurement of 2026-10-19. See
+> [§ Umbrella sweep 2026-10-26](#umbrella-sweep-2026-10-26). **2026-10-27:** the page is generated
+> from a measurement that has the rows, and all five hold ([§ Shipped 2026-10-27](#shipped-2026-10-27)).
 
 ---
 
@@ -116,6 +117,24 @@ seven packages; this is one, with none.*
 - Benchmark rows under `lilconfig` (0 deps, the lightest in the layer) on bytes and spawn
   delta, and the seven-package discovery-chain row published.
 - The shared truth-table vectors green in both `burgee` and `seniority` suites.
+
+## Shipped 2026-10-27
+
+The one open item was publication: criterion 4's spawn and discovery-chain rows were gated on every
+PR and absent from `/docs/benchmarks`. The published measurement is now
+`benchmarks/results/cli-benchmarks/2026-10-27.json`, CI run
+[40499538893](https://github.com/ofri-peretz/burgee/actions/runs/40499538893)
+([D-20261027-benchmarks-published-2026-10-27](../../decisions/D-20261027-benchmarks-published-2026-10-27.md)),
+and `npm run bench:page` regenerated the page from it (`bench:page --check` green). No package code
+changed; criteria 1, 2, 3 and 5 are as the sweep below read them, against `seniority@1.1.1`.
+
+| # | criterion | evidence on `/docs/benchmarks` (2026-10-27) | state |
+| :-- | :-- | :-- | :-- |
+| 1 | four suites graded, `--control` first, ratcheting | cosmiconfig 242 / 243, lilconfig 77 / 77, rc 1 / 1, dotenv 193 / 193 (unchanged) | held |
+| 2 | the truth table as a generated page | `guides/truth-table`, `scripts/truth-table-page.test.ts` (unchanged) | held |
+| 3 | `explain(key)` names file and line, all four sources set | `packages/seniority/src/discovery.test.ts`, in `seniority@1.1.1` (unchanged) | held |
+| 4 | rows under `lilconfig` on bytes and spawn delta, and the discovery-chain row, published | bytes `seniority/lilconfig ÷ lilconfig` **0.612**; spawn `seniority/lilconfig − lilconfig` **−1.71 ms** (gate +2 ms, bar 0); discovery chain `seniority/cosmiconfig + seniority/find-up ÷ cosmiconfig + find-up` **0.154** bundled, **0.119** installed bytes, **0.1** installed packages (1 against 10), each gated at 1. All three now print on the page. `seniority/dotenv − dotenv` reads −14.51 ms on this run | held |
+| 5 | shared truth-table vectors green in both suites | `scripts/shared-vectors-lock.test.ts` (unchanged) | held |
 
 ## Umbrella sweep 2026-10-26
 

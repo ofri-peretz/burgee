@@ -221,6 +221,7 @@ measurement and not a redefinition:
   from one that was quietly met.
 
 *2026-10-26: the next paragraph is overruled by [D-20261026-library-spawn-delta-rows](../../decisions/D-20261026-library-spawn-delta-rows.md). A library's spawn delta is its import cost in a fresh `node`, which roundel R8 and seniority R9 gate, so this clause is open, not inapplicable.*
+*2026-10-27: built. B2 times `linegauge` against `string-width` 8.3.0 as a paired difference, gated at 0 ms, the bar itself ([D-20261027-linegauge-closeout-spawn-bars](../../decisions/D-20261027-linegauge-closeout-spawn-bars.md)). CI read **−26.19 ms** (run 40499538893), an M4 Pro −15.63 ms over three runs: string-width builds an `Intl.Segmenter` at import, and linegauge builds its own on first use. The row is on `/docs/benchmarks` from the 2026-10-27 published measurement.*
 ~~**The spawn-delta clause of R9 does not apply and is not pending.**~~ This package publishes no
 binary, so there is no spawn to measure; its analogue for a library is what a caller's bundle
 grows by, which is the per-entry ratchet above.
@@ -260,7 +261,8 @@ the wrong reason the first day it is not hoisted where it expected.
 - `benchmarks/fixtures/entry-points.ts` has **no `linegauge` pair**, so B4 computes no
   tree-inclusive ratio for this package and D1's bar cannot be enforced anywhere yet. Also
   the integrator lane's path.
-- **The spawn-delta half of R9 is unmeasured.** It needs the B4 harness above; nothing here
+- ~~**The spawn-delta half of R9 is unmeasured.**~~ *(2026-10-27: measured and gated, B2's
+  `linegauge − string-width`, −26.19 ms on CI.)* It needs the B4 harness above; nothing here
   substitutes for it, and nothing here pretends to.
 
 ### Evidence
@@ -374,13 +376,13 @@ check is a claim, so every row names one.
 | R6 | **Built** | `src/truncate.ts` over `slice`, ellipsis measured with R1 and counted *inside* `cols` | `truncate.test.ts` — the ellipsis-fits arithmetic, all three positions |
 | R7 | **Built** | `src/widest.ts` — one pass, nothing allocated per line | `truncate.test.ts`'s 200 000-line case, which is where `Math.max(...lines)` throws and `widest` does not |
 | R8 | **Built** | `package.json` `exports`; `index.js` default is `width`; five subpaths carry the rest | `facade-defaults.test.ts` (each graded subpath publishes the default its suite links against) + `subpath-isolation.test.ts`, which reads `dist/` so it measures what is published |
-| R9 | **Not built** | *2026-10-26: the bytes half is built, and the spawn half is reopened by [D-20261026-library-spawn-delta-rows](../../decisions/D-20261026-library-spawn-delta-rows.md). It closes with a `perf` row, `linegauge` against `string-width`.* The bar is restated as D1's, in the integrator lane on 2026-09-16, on the reasoning [§ R9](#r9--the-bar-is-restated-as-d1s) already set out. **83,538 against a ceiling of 170,342, ratio 0.4904**; the bundled half is ratcheted per entry in `RATIO_CEILING` now that `entry-points.ts` has the four pairs | `weight.test.ts` pins `y8.holds` to the arithmetic `ours <= ceiling` rather than to a flag, checks this file against `.sdlc/bands/foundation-ceilings.json`, and asserts the superseded `get-east-asian-width` bar is still recorded with its one-of-six count |
+| R9 | **Built** | *2026-10-27: both halves. The spawn half is B2's `linegauge − string-width`, gated at 0 ms and read at −26.19 ms on CI ([D-20261027-linegauge-closeout-spawn-bars](../../decisions/D-20261027-linegauge-closeout-spawn-bars.md)); it was reopened on 2026-10-26 by [D-20261026-library-spawn-delta-rows](../../decisions/D-20261026-library-spawn-delta-rows.md).* The bar is restated as D1's, in the integrator lane on 2026-09-16, on the reasoning [§ R9](#r9--the-bar-is-restated-as-d1s) already set out. **83,538 against a ceiling of 170,342, ratio 0.4904**; the bundled half is ratcheted per entry in `RATIO_CEILING` now that `entry-points.ts` has the four pairs | `weight.test.ts` pins `y8.holds` to the arithmetic `ours <= ceiling` rather than to a flag, checks this file against `.sdlc/bands/foundation-ceilings.json`, and asserts the superseded `get-east-asian-width` bar is still recorded with its one-of-six count; `benchmarks/ratchet.test.ts` › "B2 cold start — linegauge and closeout…"; `npm run bench -- --axis perf --check` |
 | R10 | **Built** | four suites vendored under `packages/compat-oracle/vendor/`, graded through generated shims | `node packages/compat-oracle/dist/bin.js string-width wrap-ansi strip-ansi slice-ansi` — 233/233, 85/85, 8/8, 104/104, `--control` first |
 | R11 | **Built** | no file in `src/` names `process` | `packages/burgee/src/process-reference-lock.test.ts` repo-wide — linegauge has **no allow-list entry at all**, which is the claim |
 | R12 | **Built** | ESM with a `default` condition per entry, no top-level await | `shape.test.ts`: every published entry is `require()`d from CommonJS. Node refuses a graph with a top-level `await` (`ERR_REQUIRE_ASYNC_MODULE`), so one check proves both clauses |
 | R13 | **Built** | `packages/linegauge/README.md` `## Plugins`, and [§ Extending](#extending-linegauge--there-is-no-key-and-that-is-the-answer) below | `plan-progress.ts` 1.6 greps the README for the section; the family's `plugin-contract` R5a records the refusal beside the other layers' keys |
 
-**R9 is the single row that is not built, and it is not a bookkeeping gap.** The ceiling is
+*2026-10-27: superseded. The bytes half was restated as D1's and is held; the spawn half is B2's `linegauge − string-width` row. Every row above reads Built.* ~~**R9 is the single row that is not built, and it is not a bookkeeping gap.**~~ The ceiling is
 measured and the package is over it; the correctness work of 2026-09-15 made it *worse* by
 939–1 040 bundled bytes per measuring entry. The requirement stands as written until its bar
 is restated as D1's tree-inclusive one, and that restatement is one decision for the whole
