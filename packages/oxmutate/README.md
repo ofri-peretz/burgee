@@ -19,7 +19,7 @@ the file, the line, the change, and what to assert.
 ## How it is fast
 
 - **Instrumentation in Rust.** oxc parses every file in parallel and the mutants are emitted as span
-  edits: Stryker 10.0.0's mutant set (720 of 720 on es-toolkit's array module) in 35 ms.
+  edits: all 17 of Stryker 10.0.0's mutator families, with its exact mutant set (720 of 720 on es-toolkit's array module; Regex equal to weapon-regex on 928 of 932 real patterns), in 35 ms.
 - **Warm runs inside Vitest.** Each covering test is re-run per mutant inside a live Vitest worker,
   with its hooks, `vi.mock` and environment, instead of a Vitest run per mutant.
 - **A work-stealing pool.** Test files are split into small units over warm Vitest servers. A

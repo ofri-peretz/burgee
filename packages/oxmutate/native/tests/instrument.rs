@@ -122,3 +122,83 @@ fn a_mutated_case_test_keeps_its_case_body_intact() {
     let out = instrument("t.ts", src, Options::default()).expect("instrumented code parses");
     assert!(out.mutants.iter().any(|m| m.mutator_name == "StringLiteral" && m.replacement == "\"\""));
 }
+
+fn regex(src: &str) -> Vec<String> {
+    mutants(src).into_iter().filter(|(m, _)| m == "Regex").map(|(_, r)| r).collect()
+}
+
+/// Stryker's 17th mutator: a regex literal's Regex mutants are weapon-regex 2.0.6's level-1
+/// patterns, in its order (expected strings printed by weapon-regex itself).
+#[test]
+fn regex_literal_mutants_equal_weapon_regex() {
+    assert_eq!(regex("const r = /^abc(d+|[xyz])$/;"), ["/abc(d+|[xyz])$/", "/^abc(d+|[xyz])/", "/^abc(d|[xyz])$/", "/^abc(d+|[^xyz])$/"]);
+    assert_eq!(regex(r"const r = /(?<=a)\d{2,}?(?!b)/;"), [r"/(?<!a)\d{2,}?(?!b)/", r"/(?<=a)\d(?!b)/", r"/(?<=a)\D{2,}?(?!b)/", r"/(?<=a)\d{2,}?(?=b)/"]);
+    assert_eq!(regex(r"const r = /^\s*|\s*$/;"), [r"/\s*|\s*$/", r"/^\s|\s*$/", r"/^\S*|\s*$/", r"/^\s*|\s*/", r"/^\s*|\s$/", r"/^\s*|\S*$/"]);
+}
+
+/// The replacement keeps the literal's flags as written, and the `new RegExp('…', '…')` string
+/// argument is mutated with its flags (here `u`) and printed the way Babel prints a string.
+#[test]
+fn regex_mutants_keep_their_flags() {
+    assert_eq!(regex(r"const r = /^[^\W_]+$/giu;"), [r"/[^\W_]+$/giu", r"/^[^\W_]+/giu", r"/^[^\W_]$/giu", r"/^[\W_]+$/giu", r"/^[^\w_]+$/giu"]);
+    assert_eq!(regex(r"const r = new RegExp('^\\d+$', 'u');"), [r#""\\d+$""#, r#""^\\d+""#, r#""^\\d$""#, r#""^\\D+$""#]);
+    assert!(regex(r"const r = RegExp('^\\d+$');").is_empty(), "a call without `new` is not an obvious regex string");
+}
+
+/// A pattern oxc's regex parser rejects (possessive quantifiers, which weapon-regex accepts) gets
+/// no Regex mutants and the file still instruments.
+#[test]
+fn an_unparsable_pattern_has_no_regex_mutants() {
+    let out = instrument("t.ts", "const a = /ab++/; const b = new RegExp('a{2}{3}'); const c = 1 + 2;", Options::default()).expect("instruments");
+    assert!(out.mutants.iter().all(|m| m.mutator_name != "Regex"));
+    assert!(out.mutants.iter().any(|m| m.mutator_name == "ArithmeticOperator"));
+}
+
+/// weapon-regex reads `\v` as a predefined class and negates it to `\V`, an early SyntaxError under
+/// `u` that would fail the whole file; that one literal mutant is dropped, the string one is kept.
+#[test]
+fn regex_literal_mutants_that_do_not_compile_are_dropped() {
+    assert_eq!(regex(r"const r = /\v/;"), [r"/\V/"]);
+    assert!(regex(r"const r = /\v/u;").is_empty());
+    assert_eq!(regex(r"const r = new RegExp('\\v', 'u');"), [r#""\\V""#]);
+}
+
+/// linegauge check.ts, 2026-10-27: an optional member or call on a parenthesized object kept the
+/// object's `)` but lost its `(` (the replacement was built from the object's span, the node's
+/// span starts at the paren), so the instrumented file did not parse.
+#[test]
+fn optional_chains_on_parenthesized_objects_keep_both_parens() {
+    let cases = [
+        ("const f = (p: unknown) => (p as { w?: number } | null)?.w;", "(p as { w?: number } | null).w"),
+        ("const g = (a as B)?.c;", "(a as B).c"),
+        ("const h = (a satisfies B)?.c;", "(a satisfies B).c"),
+        ("const i = (<B>a)?.c;", "(<B>a).c"),
+        ("const j = (a || b)?.c;", "(a || b).c"),
+        ("const k = (a as B)?.[c];", "(a as B)[c]"),
+        ("const l = (a as F)?.(1);", "(a as F)(1)"),
+    ];
+    for (src, replacement) in cases {
+        let out = instrument("t.ts", src, Options::default()).unwrap_or_else(|e| panic!("{src}: {e}"));
+        assert!(out.mutants.iter().any(|m| m.mutator_name == "OptionalChaining" && m.replacement == replacement), "{src}: {:?}", out.mutants.iter().map(|m| (&m.mutator_name, &m.replacement)).collect::<Vec<_>>());
+    }
+}
+
+/// 2026-10-27, every burgee package's `cli.ts`: the runtime header went above `#!/usr/bin/env node`,
+/// and a hashbang anywhere but the first line does not parse.
+#[test]
+fn a_hashbang_stays_the_first_line() {
+    let out = instrument("cli.ts", "#!/usr/bin/env node\nconst a = 1 + 2;\n", Options::default()).expect("instrumented code parses");
+    assert!(out.code.unwrap().starts_with("#!/usr/bin/env node\n"));
+}
+
+/// 2026-10-27, controlroom `ink/components.ts` and burgee `yargs/v17-yargs.ts`: a string key in a
+/// destructuring pattern (`{ 'aria-label': x }`) and a string module export name
+/// (`export { a as 'module.exports' }`) were wrapped in a mutant switch, which does not parse.
+/// Stryker leaves the key alone (ObjectProperty key); an export name has no expression to mutate.
+#[test]
+fn destructuring_keys_and_module_export_names_are_not_mutated() {
+    for src in ["function f({ 'aria-label': a }: { 'aria-label'?: string }) { return a; }", "const a = 1; export { a as 'module.exports' };", "export { 'a' as b } from './c.js';"] {
+        let out = instrument("t.ts", src, Options::default()).unwrap_or_else(|e| panic!("{src}: {e}"));
+        assert!(out.mutants.iter().all(|m| m.replacement != "\"\""), "{src}: {:?}", out.mutants.iter().map(|m| (&m.mutator_name, &m.replacement)).collect::<Vec<_>>());
+    }
+}

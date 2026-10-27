@@ -10,6 +10,7 @@
 #![allow(clippy::too_many_lines)]
 
 pub mod instrument;
+pub mod regex;
 pub mod stable_id;
 
 #[cfg(feature = "napi")]

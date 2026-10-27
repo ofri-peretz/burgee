@@ -13,6 +13,7 @@ use oxc_syntax::operator::{
     AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator, UpdateOperator,
 };
 
+use crate::regex::{is_valid, js_string, regex_mutants};
 use crate::stable_id::stable_id;
 
 /// The runtime namespace and helper names the instrumented code calls. The runner owns the other
@@ -226,6 +227,11 @@ impl<'a> Collector<'a> {
             K::ImportDeclaration(_) | K::ExportNamedDeclaration(_) | K::ExportAllDeclaration(_) | K::ExportFromDeclaration(_)
             | K::ImportAttribute(_) | K::TSExternalModuleReference(_) | K::WithClause(_) => return false,
             K::ObjectProperty(p) if p.key.span() == span => return false,
+            // A destructuring key and a string module export name (`export { a as 'b' }`) are
+            // names, not expressions: wrapping one does not parse (controlroom ink/components.ts,
+            // burgee yargs/v17-yargs.ts, 2026-10-27).
+            K::BindingProperty(p) if p.key.span() == span => return false,
+            K::ImportSpecifier(_) | K::ExportSpecifier(_) => return false,
             K::TaggedTemplateExpression(_) => return false,
             K::UnaryExpression(u) if u.operator == UnaryOperator::Delete => return false,
             K::AssignmentExpression(a) if a.left.span() == span => return false,
@@ -308,7 +314,9 @@ impl<'a> Collector<'a> {
                 | K::ExportDefaultDeclaration(_) | K::TSExternalModuleReference(_)
                 | K::JSXAttribute(_) | K::ExpressionStatement(_) | K::ImportExpression(_)
                 | K::TSEnumMember(_) | K::TSExternalModuleDeclaration(_) | K::TSLiteralType(_) => false,
+                K::ImportSpecifier(_) | K::ExportSpecifier(_) => false,
                 K::ObjectProperty(o) => o.key.span() != span,
+                K::BindingProperty(o) => o.key.span() != span,
                 K::PropertyDefinition(o) => o.key.span() != span,
                 K::MethodDefinition(o) => o.key.span() != span,
                 K::CallExpression(c) => !matches!(&c.callee, Expression::Identifier(id) if id.name == "require" || id.name == "Symbol"),
@@ -454,6 +462,36 @@ impl<'a> Collector<'a> {
                 if self.valid_string_parent(span) {
                     out.push(("StringLiteral", if s.value.is_empty() { "\"Stryker was here!\"".into() } else { "\"\"".into() }));
                 }
+                // Stryker's "obvious regex string": the first argument of `new RegExp(…)` (a call
+                // without `new` is not one). Flags count only when they are a string literal too.
+                // No validity filter here: an invalid pattern throws only when its mutant runs.
+                if let Some(K::NewExpression(n)) = self.parent() {
+                    let first = n.arguments.first().is_some_and(|a| a.span() == span);
+                    if first && matches!(&n.callee, Expression::Identifier(id) if id.name == "RegExp") {
+                        if let Some(pattern) = s.value.as_str() {
+                            let flags = match n.arguments.get(1) {
+                                Some(Argument::StringLiteral(f)) => f.value.as_str(),
+                                _ => None,
+                            };
+                            for m in regex_mutants(pattern, flags) {
+                                out.push(("Regex", js_string(&m)));
+                            }
+                        }
+                    }
+                }
+            }
+            K::RegExpLiteral(r) => {
+                let literal = text(span);
+                let flags = &literal[literal.rfind('/').map_or(literal.len(), |i| i + 1)..];
+                // A regex literal that does not compile is an early SyntaxError: it would fail the
+                // whole file, every other mutant with it, so such mutants (`\v` -> `\V` under `u`,
+                // which weapon-regex prints) are dropped. The re-parse net cannot see this, as oxc
+                // does not validate patterns while parsing.
+                for m in regex_mutants(r.regex.pattern.text.as_str(), Some(flags)) {
+                    if is_valid(&m, flags) {
+                        out.push(("Regex", format!("/{m}/{flags}")));
+                    }
+                }
             }
             K::TemplateLiteral(t) => {
                 if !matches!(self.parent(), Some(K::TaggedTemplateExpression(_))) {
@@ -531,20 +569,23 @@ impl<'a> Collector<'a> {
                         }
                     }
                 }
+                // The replacement covers the node's span, which starts at a parenthesized callee's
+                // `(` (oxc drops the parens, not their extent): built from the callee's own span it
+                // lost the `(` and kept the `)` (linegauge check.ts, `(p as T | null)?.w`, 2026-10-27).
                 if c.optional {
                     let callee = c.callee.span();
-                    out.push(("OptionalChaining", format!("{}{}", text(callee), src[callee.end as usize..span.end as usize].replacen("?.", "", 1))));
+                    out.push(("OptionalChaining", format!("{}{}", &src[span.start as usize..callee.end as usize], src[callee.end as usize..span.end as usize].replacen("?.", "", 1))));
                 }
             }
             K::StaticMemberExpression(m) if m.optional => {
                 let object = m.object.span();
                 let between = &src[object.end as usize..m.property.span.start as usize];
-                out.push(("OptionalChaining", format!("{}{}{}", text(object), between.replacen("?.", ".", 1), &src[m.property.span.start as usize..span.end as usize])));
+                out.push(("OptionalChaining", format!("{}{}{}", &src[span.start as usize..object.end as usize], between.replacen("?.", ".", 1), &src[m.property.span.start as usize..span.end as usize])));
             }
             K::ComputedMemberExpression(m) if m.optional => {
                 let object = m.object.span();
                 let between = &src[object.end as usize..m.expression.span().start as usize];
-                out.push(("OptionalChaining", format!("{}{}{}", text(object), between.replacen("?.", "", 1), &src[m.expression.span().start as usize..span.end as usize])));
+                out.push(("OptionalChaining", format!("{}{}{}", &src[span.start as usize..object.end as usize], between.replacen("?.", "", 1), &src[m.expression.span().start as usize..span.end as usize])));
             }
             _ => {}
         }
@@ -814,7 +855,15 @@ pub fn instrument(path: &str, source: &str, options: Options) -> Result<Instrume
     let emitter = Emitter { src: source, placements: c.placements, mutants: with_ids };
     let mut cursor = 0;
     let body = emitter.render(0, source.len() as u32, &order, &mut cursor);
-    let code = header(NAMESPACE) + &body;
+    // A hashbang must stay the first line (bellpull cli.ts and every other package's cli.ts,
+    // 2026-10-27); it holds no mutants, so the header goes right after it.
+    let code = match &parsed.program.hashbang {
+        Some(h) => {
+            let end = h.span.end as usize;
+            format!("{}\n{}{}", &body[..end], header(NAMESPACE), &body[end..])
+        }
+        None => header(NAMESPACE) + &body,
+    };
     // The safety net: instrumented code that does not parse is never served. Span edits cannot
     // re-print the tree, so an emitter bug would otherwise surface as a test file that collects
     // nothing, which a dry run reads as "no tests" (burgee/paratext, 2026-10-26).
