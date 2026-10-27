@@ -132,8 +132,14 @@ describe('choosing what to grade', () => {
       if (h.name === 'which') throw new Error('stalled');
       return graded(h.name);
     });
-    await expect(main(['chalk', 'which', '--control', '--progress'], write, paths)).rejects.toThrow('stalled');
-    expect(out).toMatch(/^ {2}grading chalk\n {2}graded chalk in \d+ s\n {2}grading which\n$/u);
+    // A clock that reads 1 s as chalk starts and 4 s as it ends: three seconds, said in seconds.
+    const clock = vi.spyOn(performance, 'now').mockReturnValueOnce(1000).mockReturnValueOnce(4000).mockReturnValue(9000);
+    try {
+      await expect(main(['chalk', 'which', '--control', '--progress'], write, paths)).rejects.toThrow('stalled');
+    } finally {
+      clock.mockRestore();
+    }
+    expect(out).toBe('  grading chalk\n  graded chalk in 3 s\n  grading which\n');
   });
 
   it('does not grade a host declared notGradedOn this platform, and names it with its reason', async () => {
