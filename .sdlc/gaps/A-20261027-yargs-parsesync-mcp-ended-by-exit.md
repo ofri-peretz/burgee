@@ -39,5 +39,8 @@ document that `--mcp` needs `.parseAsync()` and make `parseSync()` print one cle
 instead of silently falling through. Either way the case needs a program that exits on empty
 argv, red on `burgee@1.8.0` first.
 
-Found by the 1.8.0 re-run of the first-adopter proof. It holds the #418 comment: the owner's go
-required `--mcp` to start a server, and on concurrently it does not.
+Found by the 1.8.0 re-run of the first-adopter proof. It held the #418 comment for a day: the
+owner's go required `--mcp` to start a server, and on concurrently it does not. On 2026-10-28 the
+owner chose to post a revised text instead (https://github.com/open-cli-tools/concurrently/issues/418#issuecomment-6455508479). It says `--mcp` behaves as it does today for
+concurrently and promises no fix. The gap stays open: every `parseSync()` program that exits on
+empty argv has the same dead `--mcp`.
