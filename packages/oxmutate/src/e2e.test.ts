@@ -180,3 +180,22 @@ describe.skipIf(!native || !existsSync(bin))('the frozen oracle (R14, SC10)', ()
     expect(r.report['x-oxmutate'].frozenOracle?.weakened).toEqual([]);
   });
 });
+
+const verdictOf = (m: ReportMutant): string => `${String(m.location.start.line)}:${m.mutatorName}:${m.status}`;
+
+describe.skipIf(!native || !existsSync(bin))('the command runner (testRunner: command)', () => {
+  const registry = path.join(pkg, 'test/fixtures/registry');
+  afterAll(() => rmSync(path.join(registry, 'reports'), { recursive: true, force: true }));
+
+  it('runs the command once per mutant in a sandbox and scores what the warm runner scores', () => {
+    const r = runWith(registry, { testRunner: 'command', commandRunner: { command: 'npx vitest run --config vitest.config.mjs' } });
+    expect(r.status).toBe(0);
+    const report = JSON.parse(readFileSync(path.join(r.reports, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: ReportMutant[] }> };
+    const mutants = report.files['src/registry.ts']?.mutants ?? [];
+    // A fresh process per mutant: no pollution to correct, the same partition as the warm run.
+    expect(mutants.map(verdictOf)).toEqual(mutants.map((m) => `${String(m.location.start.line)}:${m.mutatorName}:${m.location.start.line >= 14 ? 'Survived' : 'Killed'}`));
+    // The sandbox is gone afterwards, and the sources on disk were never touched.
+    expect(readdirSync(path.join(registry, '.oxmutate-tmp'))).toEqual([]);
+    expect(readFileSync(path.join(registry, 'src/registry.ts'), 'utf8')).not.toContain('oxmAct');
+  }, 120_000);
+});

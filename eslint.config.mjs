@@ -1075,6 +1075,12 @@ export default [
     rules: { "operability/no-process-exit": "off" },
   },
   {
+    // The command runner's workers each take the next mutant when their process exits: one
+    // process per worker at a time is the concurrency, so each await in the loop is the point.
+    files: ["packages/oxmutate/src/command-runner.ts"],
+    rules: { "reliability/no-await-in-loop": "off" },
+  },
+  {
     // The runner is what `test.runner` names, and Vitest instantiates the module's default
     // export, so the default export is the contract; it imports the project's Vitest by resolved
     // path for the reason `child.ts` does. Its awaits run in a test's own order: `beforeEach`

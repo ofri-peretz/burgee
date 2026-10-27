@@ -58,6 +58,8 @@ export interface Options {
   frozenOracle?: string | undefined;
   /** Test file contents served in place of the files on disk (absolute path → source). */
   testOverrides?: Record<string, string> | undefined;
+  /** `testRunner: 'command'`: run this command per mutant instead of the warm Vitest runner. */
+  commandRunner?: string | undefined;
 }
 
 const NOT_NEEDED: Record<string, string> = {
@@ -68,7 +70,6 @@ const NOT_NEEDED: Record<string, string> = {
   plugins: 'no runtime plugin loading; operators and ignorers are data',
   appendPlugins: 'no runtime plugin loading',
   packageManager: 'oxmutate never installs anything',
-  testRunner: 'Vitest is the runner (others are on the roadmap, M4)',
   coverageAnalysis: 'always perTest',
   checkers: 'type checking is M2 work (tsgo), not yet wired',
   maxTestRunnerReuse: 'workers are replaced on pollution and runaways, automatically',
@@ -85,7 +86,6 @@ const NOT_NEEDED: Record<string, string> = {
   disableBail: 'oxmutate always stops at the first killing test',
   testFiles: 'test files come from the Vitest config',
   ignorePatterns: 'oxmutate never copies the project, so there is nothing to ignore',
-  commandRunner: 'not implemented',
   force: 'use --no-incremental',
   checkerNodeArgs: 'not implemented',
 };
@@ -101,7 +101,7 @@ const DEFAULT_THRESHOLD_HIGH = 80;
 const DEFAULT_THRESHOLD_LOW = 60;
 const DEFAULT_DRY_RUN_MINUTES = 5;
 
-const USED = new Set(['mutate', 'vitest', 'concurrency', 'timeoutMS', 'timeoutFactor', 'thresholds', 'ignoreStatic', 'reporters', 'jsonReporter', 'htmlReporter', 'incremental', 'incrementalFile', '$schema', 'mutator', 'dryRunOnly', 'dryRunTimeoutMinutes', 'buildCommand', 'testRunnerNodeArgs', 'allowEmpty', 'warnings']);
+const USED = new Set(['mutate', 'vitest', 'concurrency', 'timeoutMS', 'timeoutFactor', 'thresholds', 'ignoreStatic', 'reporters', 'jsonReporter', 'htmlReporter', 'incremental', 'incrementalFile', '$schema', 'mutator', 'dryRunOnly', 'dryRunTimeoutMinutes', 'buildCommand', 'testRunnerNodeArgs', 'allowEmpty', 'warnings', 'testRunner', 'commandRunner']);
 
 async function loadFile(file: string): Promise<Record<string, unknown>> {
   if (file.endsWith('.json')) return JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
@@ -163,6 +163,7 @@ export async function loadOptions(root: string, overrides: Partial<Options> = {}
     buildCommand: typeof raw['buildCommand'] === 'string' ? raw['buildCommand'] : undefined,
     testRunnerNodeArgs: (raw['testRunnerNodeArgs'] as string[] | undefined) ?? [],
     allowEmpty: raw['allowEmpty'] === true,
+    commandRunner: raw['testRunner'] === 'command' ? ((raw['commandRunner'] as { command?: string } | undefined)?.command ?? 'npm test') : undefined,
     warnUnused: raw['warnings'] !== false && (raw['warnings'] as { unknownOptions?: boolean } | undefined)?.unknownOptions !== false,
     ...overrides,
   };

@@ -17,6 +17,7 @@ import path from 'node:path';
 import { ambientRuntime, run as spawn } from 'bellpull';
 
 import type { Unit } from './child.js';
+import { runCommandMutants } from './command-runner.js';
 import { disables, type Options } from './config.js';
 import { matchFiles } from './files.js';
 import type { FrozenOracle } from './frozen.js';
@@ -128,6 +129,17 @@ const sha = (s: string): string => createHash('sha256').update(s).digest('hex').
 /** Work units of at most this many (mutant, test) executions: small enough to steal. */
 const UNIT_PAIRS = 120;
 const MS_PER_MINUTE = 60_000;
+const PERCENT = 100;
+
+const percent = (n: number, of: number): number => (of ? (PERCENT * n) / of : PERCENT);
+
+/** Stryker's score: detected over everything valid and not ignored; `covered` leaves out no-coverage. */
+function scoreOf(mutants: MutantResult[]): RunResult['score'] {
+  const scored = mutants.filter((m) => !['Ignored', 'CompileError', 'RuntimeError'].includes(m.status));
+  const detected = scored.filter((m) => m.status === 'Killed' || m.status === 'Timeout').length;
+  const noCoverage = scored.filter((m) => m.status === 'NoCoverage').length;
+  return { detected, undetected: scored.length - detected, total: scored.length, mutationScore: percent(detected, scored.length), covered: percent(detected, scored.length - noCoverage) };
+}
 
 export async function run(options: Options): Promise<RunResult> {
   const wall0 = performance.now();
@@ -187,6 +199,21 @@ export async function run(options: Options): Promise<RunResult> {
       const [command = '', ...args] = options.buildCommand.trim().split(/\s+/);
       const built = await spawn(command, args, { cwd: root, runtime: ambientRuntime() });
       if (!built.ok) throw new InstrumentFault(`buildCommand \`${options.buildCommand}\` exited ${String(built.code)}: ${(built.stderr || built.stdout).trim().slice(-1500)}. fix: make the build pass on its own first`);
+    }
+
+    // ── 1c. The command runner: any test command, one process per mutant (command-runner.ts) ──
+    if (options.commandRunner) {
+      const m0 = performance.now();
+      try {
+        const ran = await runCommandMutants({ root, command: options.commandRunner, codeMap, concurrency: options.concurrency, timeoutMS: options.timeoutMS, timeoutFactor: options.timeoutFactor, dryRunTimeoutMinutes: options.dryRunTimeoutMinutes }, mutants);
+        stats.dryRunMs = ran.dryMs;
+        stats.testExecutions = ran.executions;
+      } catch (error) {
+        throw new InstrumentFault(error instanceof Error ? error.message : String(error));
+      }
+      stats.mutationMs = performance.now() - m0;
+      stats.wallMs = performance.now() - wall0;
+      return { root, options, sources, mutants, tests: [], stats, score: scoreOf(mutants) };
     }
 
     // ── 2. Dry run, twice (the second only to find nondeterministic tests) ────────────────────
@@ -571,9 +598,6 @@ export async function run(options: Options): Promise<RunResult> {
     stats.crashes = pool.stats.crashed;
 
     // ── 8. Score, cache, result ───────────────────────────────────────────────────────────────
-    const scored = mutants.filter((m) => !['Ignored', 'CompileError', 'RuntimeError'].includes(m.status));
-    const detected = scored.filter((m) => m.status === 'Killed' || m.status === 'Timeout').length;
-    const noCoverage = scored.filter((m) => m.status === 'NoCoverage').length;
     if (options.incremental) {
       mkdirSync(path.dirname(options.incrementalFile), { recursive: true });
       const next: Record<string, Cached> = { ...cache };
@@ -591,13 +615,7 @@ export async function run(options: Options): Promise<RunResult> {
       mutants,
       tests: dry.tests.map(({ id, file, name, ms }) => ({ id, file, name, ms })),
       stats,
-      score: {
-        detected,
-        undetected: scored.length - detected,
-        total: scored.length,
-        mutationScore: scored.length ? (100 * detected) / scored.length : 100,
-        covered: scored.length - noCoverage ? (100 * detected) / (scored.length - noCoverage) : 100,
-      },
+      score: scoreOf(mutants),
     };
   } finally {
     for (const p of pools) p.close();
