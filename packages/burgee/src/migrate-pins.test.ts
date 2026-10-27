@@ -215,3 +215,81 @@ describe('migrate-pins-carry-the-drop-in — the table ships beside the module',
     expect(await subpathFloors()).toEqual({});
   });
 });
+
+/**
+ * B-20261027-migrate-pins-match-exact-convention — `next` writes the family packages it adds in
+ * the project's own convention. On open-cli-tools/concurrently, whose six runtime dependencies are
+ * all exact, `burgee@1.7.2 migrate` printed `pnpm add burgee@^1.7.2`, and the one caret in the
+ * manifest was the reviewer's first question. Every case below that expects no caret was red on
+ * the code before it: that printed `^` whatever the manifest said.
+ */
+describe('B-20261027-migrate-pins-match-exact-convention — next pins in the project’s convention', () => {
+  const burgee = manifests()['burgee'] as string;
+  const roundel = manifests()['roundel'] as string;
+  const yargsProgram = "import yargs from 'yargs';\nimport { hideBin } from 'yargs/helpers';\nyargs(hideBin(process.argv)).parseSync();\n";
+
+  it('the concurrently shape: every runtime dependency exact, so the pin is exact, saved exact', async () => {
+    const dependencies = { chalk: '5.6.2', rxjs: '7.8.2', 'shell-quote': '1.12.0', 'supports-color': '10.2.2', 'tree-kill': '1.2.2', yargs: '18.0.0' };
+    const dir = project({ 'package.json': JSON.stringify({ name: 'concurrently', dependencies, devDependencies: { vitest: '^4.0.0' } }), 'pnpm-lock.yaml': '', 'bin/index.ts': yargsProgram });
+    expect((await migrate({ dir, status: clean })).next).toBe(`pnpm add --save-exact burgee@${burgee} && pnpm remove yargs`);
+  });
+
+  it.each([
+    ['package-lock.json', 'npm install --save-exact', 'npm uninstall'],
+    ['yarn.lock', 'yarn add --exact', 'yarn remove'],
+    ['bun.lock', 'bun add --exact', 'bun remove'],
+  ])('with %s, the installer’s own flag: without it the installer writes its default caret', async (lock, add, remove) => {
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { yargs: '18.0.0', 'tree-kill': '1.2.2' } }), [lock]: '', 'bin/index.ts': yargsProgram });
+    expect((await migrate({ dir, status: clean })).next).toBe(`${add} burgee@${burgee} && ${remove} yargs`);
+  });
+
+  it('pins exactly when the incumbent it moves is exact, though another runtime dependency is a range', async () => {
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { yargs: '18.0.0', rxjs: '^7.8.2' } }), 'bin/index.ts': yargsProgram });
+    expect((await migrate({ dir, status: clean })).next).toBe(`npm install --save-exact burgee@${burgee} && npm uninstall yargs`);
+  });
+
+  it('keeps the tilde of an incumbent written with one', async () => {
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { yargs: '~18.0.0', rxjs: '7.8.2', other: '>=1' } }), 'bin/index.ts': yargsProgram });
+    expect((await migrate({ dir, status: clean })).next).toBe(`npm install burgee@~${burgee} && npm uninstall yargs`);
+  });
+
+  it('reads an exact incumbent in devDependencies as the convention when there are no runtime dependencies', async () => {
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x', devDependencies: { chalk: '6.0.0' } }), 'scripts/a.ts': "import chalk from 'chalk';\n" });
+    expect((await migrate({ dir, status: clean })).next).toBe(`npm install --save-exact roundel@${roundel} && npm uninstall chalk`);
+  });
+
+  it('counts a prerelease written exactly as exact', async () => {
+    // The incumbent is a caret in devDependencies, so only the runtime rule can make this exact.
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { next: '15.0.0-canary.3', rxjs: '7.8.2' }, devDependencies: { yargs: '^18.0.0' } }), 'bin/index.ts': yargsProgram });
+    expect((await migrate({ dir, status: clean })).next).toBe(`npm install --save-exact burgee@${burgee} && npm uninstall yargs`);
+  });
+
+  it('reads no convention from a manifest with no runtime dependencies: the incumbent’s caret stands', async () => {
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x', devDependencies: { yargs: '^18.0.0' } }), 'bin/index.ts': yargsProgram });
+    expect((await migrate({ dir, status: clean })).next).toBe(`npm install burgee@^${burgee} && npm uninstall yargs`);
+  });
+
+  it.each([
+    ['incumbents written two ways', { chalk: '6.0.0', yargs: '^18.0.0', rxjs: '^7.8.2' }],
+    ['an incumbent written as a range of its own', { yargs: '>=18', chalk: '>=6' }],
+    ['an incumbent written as a tag', { yargs: 'latest', chalk: '*' }],
+    ['a range around a version that is not exact', { yargs: '^18.0', chalk: '~6' }],
+  ])('keeps the caret for %s', async (_, dependencies) => {
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies }), 'bin/index.ts': `${yargsProgram}import chalk from 'chalk';\n` });
+    const { next } = await migrate({ dir, status: clean });
+    expect(next).toMatch(/^npm install (?:\S+@\^\S+ ?)+ && npm uninstall/);
+    expect(next).not.toContain('--save-exact');
+  });
+
+  it('writes the release-age note in the same style as the pin', async () => {
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'svgo', dependencies: { picocolors: '1.1.1' } }),
+      'pnpm-lock.yaml': '',
+      'pnpm-workspace.yaml': 'minimumReleaseAge: 10080\n',
+      'lib/svgo-node.js': "import colors from 'picocolors';\nexport const red = colors.red;\n",
+    });
+    const report = await migrate({ dir, status: clean, registry: registry(8), now, since });
+    expect(report.next).toBe(`pnpm add --save-exact roundel@${first} && pnpm remove picocolors`);
+    expect(report.releaseAge?.note).toContain(`so next pins ${first}, the newest`);
+  });
+});
