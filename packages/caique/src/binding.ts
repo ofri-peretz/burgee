@@ -129,7 +129,10 @@ export async function resolvePrompts<O extends PromptableOption>({ options, valu
     // eslint-disable-next-line reliability/no-await-in-loop -- see above
     const answer: Asked = await ask(prompt, io);
     if (!answer.ok) {
-      return { values: out, failure: localise({ option, code: 'CANCELLED', message: `cancelled at ${flag}`, fix: `pass ${flag} to skip the question` }, say) };
+      // A flag keeps the catalog's `--{option}` sentences, so a locale pack's translation of them
+      // still applies; a positional (`<name>`) is said in English, as no pack has its sentence.
+      const cancelled = flag.startsWith('--') ? { message: `cancelled at --${flag.slice(2)}`, fix: `pass --${flag.slice(2)} to skip the question` } : { message: `cancelled at ${flag}`, fix: `pass ${flag} to skip the question` };
+      return { values: out, failure: localise({ option, code: 'CANCELLED', ...cancelled }, say) };
     }
     Object.defineProperty(out, option, { value: answer.value, writable: true, enumerable: true, configurable: true });
   }

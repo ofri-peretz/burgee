@@ -622,7 +622,8 @@ interface OptionSpec {
      * by the handler's prompt binding (caique's `promptFor`, R1). Declaring it moves a missing
      * required value's refusal from the engine to that binding, which asks on a terminal and
      * refuses, naming the flag, everywhere else; help and `--schema` still say it is required.
-     * Typed structurally: burgee never imports caique.
+     * Declare it through `promptFor`, which also keeps the question out of `--schema`: a program
+     * reading it is never asked. Typed structurally: burgee never imports caique.
      */
     prompt?: PromptDeclaration;
 }
