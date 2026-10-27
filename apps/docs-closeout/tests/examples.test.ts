@@ -88,6 +88,9 @@ afterAll(() => {
 /** The `closeout` bin, as `npx closeout` finds it in an install. */
 const BIN = join(APP, '..', '..', 'node_modules', 'closeout', 'dist', 'cli.js');
 
+/** The variables Node and the family read to decide colour, which a developer's shell often sets. */
+const COLOUR_SWITCHES: readonly string[] = ['FORCE_COLOR', 'NO_COLOR', 'NODE_DISABLE_COLORS'];
+
 /** `node x.mjs exit`, `NAME=1 node x.mjs` or `npx closeout check x.mjs` → env and node's argv. */
 function parse(command: string): { env: Record<string, string>; argv: string[] } {
   const words = command.split(/\s+/u);
@@ -115,7 +118,10 @@ describe.skipIf(process.platform === 'win32')('the examples on this site', () =>
       const { env, argv } = parse(run.command);
       // A hung example is killed with SIGKILL, which no page promises, so a timeout can never
       // pass for an example that was meant to die of SIGTERM.
-      const result = spawnSync(process.execPath, argv, { cwd: dir, env: { ...process.env, ...env }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 20_000, killSignal: 'SIGKILL' });
+      // The colour switches are cleared unless the command sets one: `console.log` colours a number
+      // under an inherited FORCE_COLOR, and the page shows what a plain pipe prints.
+      const inherited = Object.fromEntries(Object.entries(process.env).filter(([key]) => !COLOUR_SWITCHES.includes(key)));
+      const result = spawnSync(process.execPath, argv, { cwd: dir, env: { ...inherited, ...env }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 20_000, killSignal: 'SIGKILL' });
       expect({ status: result.status, signal: result.signal }, result.stderr).toEqual({ status: run.exit, signal: run.signal });
       expect(result.stdout + result.stderr).toBe(run.expected);
     }, 30_000);
