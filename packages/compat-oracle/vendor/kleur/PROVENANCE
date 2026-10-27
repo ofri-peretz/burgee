@@ -3,7 +3,7 @@ repo:     https://github.com/lukeed/kleur
 version:  4.1.5
 tag:      v4.1.5
 commit:   fa3454483899ddab550d08c18c028e6db1aab0e5
-vendored: 2026-10-25
+vendored: 2026-10-26
 files:    2
 tool:     scripts/vendor-suite.ts
 

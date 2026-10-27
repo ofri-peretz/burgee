@@ -592,7 +592,8 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // Re-pinned 2026-10-19 to the releases the oracle grades since #1138, dotenv 18.0.8 and
   // lilconfig 3.1.4 (D-20261019-benchmark-pins-dotenv-lilconfig-graded): 3,286 against 5,365
   // (0.612) and 5,966 against 11,570 (0.516), ours read the same on CI. `seniority/dotenv` has
-  // 34 B left under its ceiling.
+  // 34 B left under its ceiling. dotenv 18.0.9 since 2026-10-27 (D-20261027-revendor-dotenv-execa-inquirer):
+  // 5,966 against 11,564, still 0.516.
   'seniority/lilconfig': 3_350,
 
   'seniority/dotenv': 6_000,

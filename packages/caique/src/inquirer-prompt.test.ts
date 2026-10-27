@@ -409,6 +409,25 @@ describe('createPrompt, first render', () => {
     await expect(later).rejects.toBeInstanceOf(CancelPromptError);
   });
 
+  it('never runs a deferred first render once the prompt has settled, as @inquirer/core 12.0.5 does', async () => {
+    const cancelled = terminal();
+    const early = createPrompt<string, object>(() => '? never drawn')({}, cancelled);
+    early.cancel();
+    await expect(early).rejects.toBeInstanceOf(CancelPromptError);
+
+    const controller = new AbortController();
+    const aborted = terminal();
+    const gone = createPrompt<string, object>(() => '? never drawn')({}, { ...aborted, signal: controller.signal });
+    controller.abort();
+    await expect(gone).rejects.toBeInstanceOf(AbortPromptError);
+
+    await turn();
+    for (const { input, output } of [cancelled, aborted]) {
+      expect(input.listenerCount('keypress')).toBe(0);
+      expect(output.text()).not.toContain('? never drawn');
+    }
+  });
+
   it("uses the process's own streams when the caller passes none", async () => {
     const { input, output } = terminal();
     vi.spyOn(process, 'stdin', 'get').mockReturnValue(input as unknown as typeof process.stdin);
