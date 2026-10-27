@@ -128,7 +128,7 @@ Abbreviations used below:
 | extra-typings-drop-in | **shipped** (batch 0) | y | SHIPPED | burgee/types | 5 | 5 | – | n | – | U5 fails (55,661 vs 39,329 B), accepted by decision |
 | facade-gets-more | **shipped** (batch 0) | **design.md** | SHIPPED | burgee/commander-facade | 6 | 6 | – | n | – | Rename `design.md` to `spec.md` so it can be approved. Its yargs numbers are stale (804, not 816) |
 | facade-projection-fidelity | **shipped** (batch 3) | y | SHIPPED | burgee/yargs-facade | 6 | 6 | – | n | – | Batch 3: R4 built; `burgee/yargs` +424 B bundled (108,850 ceiling) and +852 B walked (221,700), recorded in D-20261019-yargs-facade-relations-bytes; still 0.974× yargs |
-| first-adopter | approved (batch 28, `D-20261025-first-adopter-design-accepted`) | y | NS | adoption/outreach | 5 | 0 | A3 revert-first on a fork, one disclosed PR + A2 report; A1/A6 wait on an outside merge | n | – | The spec still names `commander-agent` and needs a rewrite. Barrier 5 (trust) |
+| first-adopter | approved (batch 28, `D-20261025-first-adopter-design-accepted`; built 2026-10-27, `D-20261027-first-adopter-target-concurrently`) | y | P | adoption/outreach | 5 | 0 | the PR to open-cli-tools/concurrently (#418) is drafted and held on gap `A-20261027-yargs-parsesync-surfaces-throw` and owner approval; A1/A6 wait on an outside merge | n | – | A3 proven in a local clone (649 / 649 migrated and reverted); nothing posted. Barrier 5 (trust) |
 | first-cli | **shipped** (polish batch, 2026-10-26) | y | SHIPPED | burgee/init | 5 | 5 | – | n | – | Criterion 1 restated with the install step; criterion 2 restated to the two new `init.test.ts` cases that run `--schema` and `--mcp` on the generated program. Both met from npm on burgee 1.7.1 |
 | fix-lines-every-shell | review | y | NS | burgee core (failure.ts) | 7 | 0 | R1–R4, S1–S3 | n | – | **LIVE DEFECT:** `fix:` lines are POSIX-quoted on Windows. Exclude `completions.ts` from R2's grep |
 | flagstaff | approved (umbrella sweep 2026-10-26) | y | P | flagstaff | 23 | 19 | C7 U9 eval (no executed run since 2026-10-09; next Saturday 2026-10-31), C8 one case per plugin surface (caique does not depend on flagstaff) | **y** | **save-restore.qnt** | C1–C3 held where their checks live ([D-20261026-flagstaff-criteria-homes](../decisions/D-20261026-flagstaff-criteria-homes.md)); C4–C6 held |
@@ -152,7 +152,7 @@ Abbreviations used below:
 | plugin-contract | shipped 2026-10-27 (eval run 40504387711); before: approved (design accepted 2026-10-25; C1–C3 re-read on the ten published tarballs 2026-10-26) | y | P | burgee check / plugins | 12 | 11 | C4 eval: no executed weekly reading since 2026-10-09; the next run is Saturday 2026-10-31 | n | – | one schema, byte-identical in all ten tarballs; `burgee@1.7.2 check` runs every installed layer's check and refuses a spinner with no `static` |
 | positioning | **shipped** (batch 0) | y | SHIPPED | docs-only | 16 | 15 | – (R12 reported by decision) | n | – | |
 | previous-majors | **shipped** (2026-10-19; released in burgee 1.7.0, Version PR #1231, 2026-10-25) | y | SHIPPED | compat-oracle + façades + migrate | 6 | 6 | – | n | – | **Barrier 1.** #1086 and #1165; commander-14 1,331 / 1,331, yargs-17 793 / 794 (run 40180212984) |
-| release-cadence | approved (#1124; window fixed 2026-10-26, D-20261026-release-window-holds-code) | y | P | release | 9 | 9 | S2: the 30-day share, read over the 30 days after the fix merges (0 of 7.19 days so far) | **y** (`release-window.qnt`, now with the code on main) | all five counterexamples, `holdsVersionsNotCode` and `shippedNeverHoldsAFix` among them, in `models.yml` since D-20261027-close-three-workflow-gaps | #1253 shipped three held minors' code as patches; a held package's fixes now wait with it, and `release.yml` defers such a patch |
+| release-cadence | **dropped** (2026-10-27, `D-20261027-no-release-window`) | y | DROPPED | release | 9 | 1 (the lock) | – | n | – | The owner removed the release window: every release goes out when it merges. `release-window.qnt` retired with it; the changeset lock stays as `scripts/changeset-lock.mts` |
 | replacement-parser | review | y | P | burgee/parse | 10 | 7 | G3 (quirks subpath; contradicts yargs-compat), G7, SC2 (1.55× ratchet, not ≤1×) | n | – | Restate to D-157 and drop G3 |
 | roundel | **shipped** (batch 0) | y | SHIPPED | roundel | 17 | 17 | – | n | – | Rewrite the stale 2026-09-09 verified section |
 | schema-bytes-gated | **shipped** (schema-group) | y | SHIPPED | benchmarks reliability | 3 | 3 | – | n | – | Budget 4,650 B (demo 4,628 B at `326907ec`); gap B-20261012 closed |
@@ -187,7 +187,7 @@ These intents need a model:
 | bellpull | missing (kill ladder) |
 | closeout-at-incumbent-weight | `lean.qnt`, built 2026-10-20 |
 | completion-context | `context.qnt`, built 2026-10-20 |
-| release-cadence | missing (release window) |
+| release-cadence | none needed: dropped 2026-10-27 with the window (`D-20261027-no-release-window`); `release-window.qnt` retired |
 
 `release-tag.qnt` exists but is not an intent's model of record; it covers tag placement.
 

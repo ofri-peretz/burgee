@@ -12,10 +12,10 @@ name: Models · Quint
 on:
   push:
     branches: [main]
-    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/migrate.ts', 'packages/burgee/src/migrate-majors.ts', '.github/workflows/release.yml', '.github/workflows/changesets-pr.yml', 'scripts/release-window.mts', 'packages/caique/src/clack-core.ts', 'packages/caique/src/inquirer-search.ts', 'packages/seniority/src/precedence.ts', 'packages/seniority/src/plugin.ts', 'packages/seniority/src/truth-table.ts', 'packages/burgee/src/complete-dynamic.ts', '.github/workflows/models.yml']
+    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/migrate.ts', 'packages/burgee/src/migrate-majors.ts', '.github/workflows/release.yml', '.github/workflows/changesets-pr.yml', 'packages/caique/src/clack-core.ts', 'packages/caique/src/inquirer-search.ts', 'packages/seniority/src/precedence.ts', 'packages/seniority/src/plugin.ts', 'packages/seniority/src/truth-table.ts', 'packages/burgee/src/complete-dynamic.ts', '.github/workflows/models.yml']
   pull_request:
     branches: [main]
-    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/migrate.ts', 'packages/burgee/src/migrate-majors.ts', '.github/workflows/release.yml', '.github/workflows/changesets-pr.yml', 'scripts/release-window.mts', 'packages/caique/src/clack-core.ts', 'packages/caique/src/inquirer-search.ts', 'packages/seniority/src/precedence.ts', 'packages/seniority/src/plugin.ts', 'packages/seniority/src/truth-table.ts', 'packages/burgee/src/complete-dynamic.ts', '.github/workflows/models.yml']
+    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/migrate.ts', 'packages/burgee/src/migrate-majors.ts', '.github/workflows/release.yml', '.github/workflows/changesets-pr.yml', 'packages/caique/src/clack-core.ts', 'packages/caique/src/inquirer-search.ts', 'packages/seniority/src/precedence.ts', 'packages/seniority/src/plugin.ts', 'packages/seniority/src/truth-table.ts', 'packages/burgee/src/complete-dynamic.ts', '.github/workflows/models.yml']
   workflow_dispatch:
 
 concurrency:
@@ -56,20 +56,6 @@ jobs:
             $QUINT typecheck "$m"
             $QUINT run "$m" --invariant=safety --max-steps=30 --max-samples=20000
             echo "::endgroup::"
-          done
-      # The release window's rejected designs, pinned as counterexamples (release-cadence
-      # spec.md): holding the whole Version PR delays a security fix; reading npm alone lets a
-      # second minor through while the first publishes; holding version numbers and not code
-      # publishes held code in a patch (#1253, D-20261026-release-window-holds-code). And two
-      # witnesses: the shipped design ships a feature at all, and does hold a fix behind its
-      # package's held feature, so `safety` is not holding vacuously. Each must stay violated.
-      - name: release window — the rejected designs still fail, and the shipped one ships
-        run: |
-          for inv in unsplitHolds npmOnlyHolds holdsVersionsNotCode shippedNeverReleasesAFeature shippedNeverHoldsAFix; do
-            if $QUINT run .sdlc/intents/release-cadence/release-window.qnt --invariant="$inv" --max-steps=30 --max-samples=20000 >/dev/null; then
-              echo "::error::release-window.qnt: $inv now holds — the model no longer distinguishes the shipped design from the one it rejects"
-              exit 1
-            fi
           done
       # migrate's gate writes in some run, so `safety` is not holding because nothing writes.
       - name: migrate preflight — some run still writes

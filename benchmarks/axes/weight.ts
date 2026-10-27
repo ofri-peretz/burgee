@@ -497,7 +497,11 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // a yargs program's `.conflicts()`, `.implies()` and `.example()` reach `--schema` and `--mcp`.
   // Main at `6b90ffe` measured 108,345 and this reads 108,769 (+424), on a clean build. Plus the
   // ~32 B CI reads heavier, rounded up to the next 50. Still 2,917 B under yargs' own 111,686.
-  'burgee/yargs': 108_850,
+  // 108,900 on 2026-10-27 for A-20261027-yargs-parsesync-surfaces-throw (#1311,
+  // D-20261027-yargs-parsesync-surface-bytes): under `parseSync()` the `completion` and `--mcp`
+  // surfaces answer instead of throwing. CI read 108,897 (+61 over main's 108,836), rounded up
+  // to the next 50. Still 2,786 B under yargs' own 111,686.
+  'burgee/yargs': 108_900,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
   // bundle grows by, set where the number actually is, so the next byte is a decision.

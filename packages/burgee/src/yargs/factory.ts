@@ -6,6 +6,7 @@
  * existing program run unchanged (J2).
  */
  
+import type { Shell } from '../completions.js';
 import { ExitCode } from '../exit-code.js';
 import { type HandlerFailure, handlerFailure } from '../facade-failure.js';
 import { type DeclaredEffects, Manifest, type Plugin } from '../manifest.js';
@@ -164,6 +165,8 @@ export class YargsInstance {
   // ───── burgee: the manifest projection, plugins, --json, the surfaces and the seam ─────
   #burgee: BurgeeState | undefined = undefined;
   #floor = false;
+  /** burgee: set while `parseSync()` runs, so a surface answers without a promise. */
+  #sync = false;
   #effects: DeclaredEffects | undefined = undefined;
   #manifest: Manifest | undefined = undefined;
 
@@ -831,7 +834,14 @@ export class YargsInstance {
   }
 
   parseSync(args?: string | string[], shortCircuit?: object | ParseCallback | boolean, _parseFn?: ParseCallback): any {
-    const maybePromise = this.parse(args, shortCircuit, _parseFn);
+    // burgee: under parseSync() a surface answers without handing `parse()` a promise.
+    this.#sync = true;
+    let maybePromise: any;
+    try {
+      maybePromise = this.parse(args, shortCircuit, _parseFn);
+    } finally {
+      this.#sync = false;
+    }
     if (isPromise(maybePromise)) throw new YError('.parseSync() must not be used with asynchronous builders, handlers, or middleware');
     return maybePromise;
   }
@@ -1459,26 +1469,27 @@ export class YargsInstance {
   /**
    * `--schema`, `--mcp` and `completion <shell>` on a yargs-syntax program, from its
    * manifest (J2). Only when the program declares none of them itself; `--schema` is
-   * synchronous, the other two load lazily and return a promise.
+   * synchronous, the other two load lazily and return a promise — except under `parseSync()`,
+   * which throws on a promise from `parse()` (A-20261027-yargs-parsesync-surfaces-throw).
    */
   #burgeeSurface(args: string | string[]): boolean | Promise<boolean> {
     const list = typeof args === 'string' ? tokenizeArgString(args) : args;
     const terminator = list.indexOf('--');
     const head = terminator === -1 ? list : list.slice(0, terminator);
-    if (head[0] === 'completion' && this.#completionCommand === null && !this.#declares('completion')) {
-      return import('../completions.js').then(({ renderCompletion, renderFigSpec, SHELLS }) => {
-        const shell = head[1] ?? '';
-        if (shell === 'fig') {
-          this.#logger.log(JSON.stringify(renderFigSpec(this.manifest), null, 2));
-          this.exit(0);
-          return true;
-        }
-        const known = SHELLS.find((s) => s === shell);
-        if (known === undefined) return false;
-        this.#logger.log(renderCompletion(this.manifest, known).replace(/\n$/, ''));
+    const shell = head[1] as Shell | 'fig';
+    // `completions.js`' SHELLS and `fig`, known here before it loads: a shell it does not name is
+    // no surface and falls through, as on the commander façade, with nothing loaded and no
+    // promise. `parse-sync-surfaces.test.ts` runs every one of SHELLS, so a new shell fails there.
+    if (head[0] === 'completion' && ['bash', 'zsh', 'fish', 'pwsh', 'fig'].includes(shell) && this.#completionCommand === null && !this.#declares('completion')) {
+      const answer = ({ renderCompletion, renderFigSpec }: typeof import('../completions.js')): true => {
+        this.#logger.log(shell === 'fig' ? JSON.stringify(renderFigSpec(this.manifest), null, 2) : renderCompletion(this.manifest, shell).replace(/\n$/, ''));
         this.exit(0);
         return true;
-      });
+      };
+      // Under parseSync() the module is required, not imported: still off the start-up path, and
+      // answered, with its exit, before parseSync() returns, as `--help` is. The dist is ESM, so
+      // this is `require(esm)`, which the engines floor guarantees and `v17.cts` relies on too.
+      return this.#sync ? answer(this.#shim.require('../completions.js') as typeof import('../completions.js')) : import('../completions.js').then(answer);
     }
     if (head.includes('--schema') && !this.#declares('schema')) {
       // R1, through the same seam the engine and the commander façade use. Hand-rolling
@@ -1515,7 +1526,7 @@ export class YargsInstance {
       // the whole 2,520 bytes sat on the startup path of every `burgee/yargs` program — the
       // same shape the commander façade fixed and the root barrel fixed (D-101), missed here
       // because a comment said it had already been done.
-      return import('../mcp.js')
+      const served = import('../mcp.js')
         .then(async ({ serveMcp }) =>
           serveMcp(this.manifest, { input: this.#shim.process.stdin() as NodeJS.ReadableStream & { setEncoding?: unknown }, output: { write: (s) => void write.write(s) }, invoke }),
         )
@@ -1523,6 +1534,10 @@ export class YargsInstance {
           this.exit(0);
           return true;
         });
+      // A server is asynchronous whoever asks. Under parseSync() it runs on and exits when its
+      // input ends, and parseSync() returns the short-circuit argv, as `--help` does under
+      // `exitProcess(false)`: code a program runs after parseSync() returns still runs.
+      return this.#sync || served;
     }
     return false;
   }

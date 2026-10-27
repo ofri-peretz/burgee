@@ -51,8 +51,9 @@ requirement-keyed evidence table.
 ## Built 2026-10-27: what is left is a reading and a release
 
 Built in one PR against the sweep's closing list above. The status stays `approved`, because a
-criterion is stamped only on what npm serves, and caique's and burgee's release windows reopen on
-2026-11-01 (`scripts/release-window.mts`, D-20261026-release-window-holds-code).
+criterion is stamped only on what npm serves. With no release window
+([D-20261027-no-release-window](../../decisions/D-20261027-no-release-window.md)), the caique and
+burgee minors carrying R1 publish with the first Version PR after this merges.
 
 | # | criterion | held by, on `main` | still needed |
 | :-- | :-- | :-- | :-- |
