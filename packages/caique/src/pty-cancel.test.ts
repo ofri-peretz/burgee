@@ -17,13 +17,16 @@
  * ## How "out of raw mode" is observed, rather than reported
  *
  * The fixture prints `process.stdin.isRaw` after the prompt has settled, which is Node's own
- * record. But that is the program's word for it, so the test then presses Ctrl+C **a second
- * time**, with the fixture waiting on a timer and nothing reading stdin. On a terminal back in
- * cooked mode that keystroke is the terminal's signal key again: the POSIX line discipline raises
- * `SIGINT` and the process ends of it; a Windows console in processed-input mode raises
- * CTRL_C_EVENT and the process ends. (Not on Windows under Node 20 and 22: see `secondPressProves`.) On a terminal left raw it is one more byte nobody reads, and
- * the fixture outlives the press and says `still here`. That is the bug the criterion names
- * (clack #408), observed through the terminal itself.
+ * record. But that is the program's word for it, so the test then types `ok` and Return at the
+ * terminal and the fixture reads it back. A terminal back in cooked mode holds the line until
+ * Return and hands it over ended by a newline (`ok\n` on POSIX, `ok\r\n` from a Windows console);
+ * a terminal left raw hands over the keys as typed, Return as a bare `\r`. The mode is read off
+ * the terminal itself, the same way on all three OSes (clack #408).
+ *
+ * On POSIX the test then presses Ctrl+C **a second time**: a cooked line discipline raises SIGINT
+ * and the process ends of it. A Windows console raises CTRL_C_EVENT instead, which ConPTY on
+ * GitHub's runners does not deliver reliably, so there the second press is reported and not
+ * graded (`secondPressGraded`).
  *
  * ## The terminal comes from the system, not a dependency
  *
@@ -36,7 +39,8 @@
  * With `createIo()`'s interface given a `SIGINT` listener that ignores the key — the
  * readline idiom that keeps a prompt open on Ctrl+C — the `promptFor` fixture never settles, raw
  * mode is never released, and both of its cases go red; with `clack-core.ts`'s release of raw mode
- * removed from `close()`, the clack fixture says `raw=true` and outlives the second press.
+ * removed from `close()`, the clack fixture says `raw=true`, reads `ok\r` back, and outlives the
+ * second press.
  */
 import { execFileSync, spawn } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -71,9 +75,20 @@ afterAll(() => rmSync(dir, { recursive: true, force: true }));
 const QUESTION = 'Who should I greet?';
 const built = (file: string): string => JSON.stringify(new URL(`../dist/${file}`, import.meta.url).href);
 
-/** After the prompt: what it came to, Node's record of raw mode, then a wait for the second press. */
+/**
+ * After the prompt: what it came to and Node's record of raw mode; then one line read back
+ * through the terminal, which is how the line discipline is observed rather than reported; then a
+ * wait for the second Ctrl+C.
+ */
 const AFTER = `
-process.stdout.write('\\noutcome=' + outcome + '\\nraw=' + String(process.stdin.isRaw === true) + '\\nwaiting\\n');
+process.stdout.write('\\noutcome=' + outcome + '\\nraw=' + String(process.stdin.isRaw === true) + '\\n');
+process.stdin.setEncoding('utf8');
+process.stdin.once('data', (typed) => {
+  process.stdin.pause();
+  process.stdout.write('\\nline=' + JSON.stringify(typed) + '\\nwaiting\\n');
+});
+process.stdin.resume();
+process.stdout.write('typing\\n');
 setTimeout(() => { process.stdout.write('still here\\n'); process.exit(0); }, 8000);
 `;
 
@@ -113,7 +128,7 @@ function personEnv(): NodeJS.ProcessEnv {
   return env;
 }
 
-/** Run a fixture on a real terminal: Ctrl+C at the question, and again once it says it is waiting. */
+/** Run a fixture on a real terminal: Ctrl+C at the question, a line once it reads one, and Ctrl+C again once it has. */
 async function pressCtrlC(python: string, fixture: keyof typeof FIXTURES): Promise<Outcome> {
   const program = join(dir, `${fixture}-${String(Math.random()).slice(2)}.mjs`);
   writeFileSync(program, FIXTURES[fixture]);
@@ -122,11 +137,18 @@ async function pressCtrlC(python: string, fixture: keyof typeof FIXTURES): Promi
     let output = '';
     let status = '';
     let pressed = 0;
+    let typed = false;
     host.stdout.on('data', (chunk: Buffer) => {
       output += chunk.toString();
       // Pressed when the program shows it is listening, never after a fixed wait: a sleep long
       // enough for a loaded runner is a sleep in every green run.
-      if ((pressed === 0 && output.includes(QUESTION)) || (pressed === 1 && output.includes('waiting'))) {
+      if (pressed === 0 && output.includes(QUESTION)) {
+        pressed += 1;
+        host.stdin.write('\x03');
+      } else if (!typed && output.includes('typing')) {
+        typed = true;
+        host.stdin.write('ok\r');
+      } else if (pressed === 1 && output.includes('waiting')) {
         pressed += 1;
         host.stdin.write('\x03');
       }
@@ -145,15 +167,16 @@ async function pressCtrlC(python: string, fixture: keyof typeof FIXTURES): Promi
 const terminal = windows ? 'a Windows pseudo-console (ConPTY)' : 'a POSIX pty';
 
 /**
- * Whether the second Ctrl+C is a proof here. On Windows under Node 20.19 and 22.13 it is not, as
- * measured on GitHub's windows-latest (#1316): the prompt is cancelled and `setRawMode(false)`
- * has run (`raw=false`, asserted on every runtime), and yet the next Ctrl+C raises no
- * CTRL_C_EVENT, so the fixture outlives it. The same harness, fixture and code on Node 24 end on
- * it. The key does not reach the console as a control event on those runtimes, which is below
- * caique, so the case asserts there what holds and records the gap
- * (D-20261027-caique-pty-windows-conpty) rather than passing on a weaker reading.
+ * Whether the second Ctrl+C is graded here. On POSIX it is: the line discipline turns it into
+ * SIGINT. A Windows console turns it into CTRL_C_EVENT, and under ConPTY on GitHub's
+ * windows-latest that event is not delivered reliably: on Node 20.19 and 22.13 never, and on
+ * Node 24 in some runs and not others — in #1324's run both fixtures, on two different restore
+ * paths, outlived it after reporting `raw=false`, where run 40597587808 on the same image passed.
+ * A delivery that depends on the run is no proof of the terminal's mode, so on Windows the mode is
+ * graded by the line read back alone (`readsALine`), which every console does the same way, and
+ * the second press is only reported (D-20261027-caique-conpty-line-proof).
  */
-const secondPressProves = !windows || Number(process.versions.node.split('.')[0]) >= 24;
+const secondPressGraded = !windows;
 
 describe.skipIf(exe === undefined).each(Object.keys(FIXTURES) as (keyof typeof FIXTURES)[])(`R4 · Ctrl+C at a %s prompt on ${terminal}`, (fixture) => {
   let seen: Promise<Outcome> | undefined;
@@ -166,21 +189,37 @@ describe.skipIf(exe === undefined).each(Object.keys(FIXTURES) as (keyof typeof F
     expect(output).toContain('outcome=refused CANCELLED');
   }, 60_000);
 
-  it('leaves stdin out of raw mode: Node says so, and the next Ctrl+C is the terminal’s signal key again', async () => {
-    const { output, signal, code } = await run();
+  it('leaves stdin out of raw mode: Node says so, and the terminal hands back a whole line again', async () => {
+    const { output } = await run();
     // What the terminal showed, as text: ConPTY re-renders the screen and ends a line with an
     // erase (`ESC [ K`), so the escapes are read past rather than matched.
-    expect(stripVTControlCharacters(output).replace(/\r/gu, '')).toContain('raw=false\n');
-    if (!secondPressProves) return;
+    const shown = stripVTControlCharacters(output).replace(/\r/gu, '');
+    expect(shown).toContain('raw=false\n');
+    // The line discipline, observed: `ok` and Return typed at the terminal. Cooked, the terminal
+    // holds the line until Return and hands it over ended by a newline — `ok\n` on POSIX (ICRNL),
+    // `ok\r\n` from a Windows console in line mode. Raw, the keys arrive as typed and Return is a
+    // bare `\r`. Nothing in Node decides this; only the terminal's mode does.
+    const line = /line=(".*")/u.exec(shown)?.[1];
+    expect(line, 'the fixture never read a line back').toBeDefined();
+    const read = JSON.parse(line as string) as string;
+    expect(read.startsWith('ok'), `read ${JSON.stringify(read)}`).toBe(true);
+    expect(read.endsWith('\n'), `read ${JSON.stringify(read)}: the terminal was left raw`).toBe(true);
+  }, 60_000);
+
+  it.runIf(secondPressGraded)('and the next Ctrl+C is the terminal’s signal key again', async () => {
+    const { output, signal, code } = await run();
     expect(output, 'the second Ctrl+C was a byte nobody read: the terminal was left raw').not.toContain('still here');
-    // SIGINT, either way a program may take it: died of it, or a handler that the prompt library
-    // registered on the way in caught it and exited 128 + 2 — `caique/clack` hides the cursor and
-    // takes raw mode through `closeout/exit-hook`, which reports a signal as `128 + n` on every
-    // platform (`clack-output.ts`; burgee's `ExitCode.SIGINT` is 130). Without a handler, POSIX
-    // reports signal 2 and Windows STATUS_CONTROL_C_EXIT, 0xC000013A. Each needs the terminal to
-    // have turned the key into a signal, which a raw terminal never does.
-    const bySignal = windows ? code === 0xc0_00_01_3a : signal === 2;
-    expect(bySignal || (signal === 0 && code === 130), `ended by SIGINT, not by signal ${String(signal)} code ${String(code)}`).toBe(true);
+    // SIGINT, either way a program may take it: died of it (2), or a handler the prompt library
+    // registered on the way in caught it and exited 128 + 2 — `caique/clack` takes raw mode
+    // through `closeout/exit-hook`, which reports a signal as `128 + n` (`clack-output.ts`).
+    expect(signal === 2 || (signal === 0 && code === 130), `ended by SIGINT, not by signal ${String(signal)} code ${String(code)}`).toBe(true);
+  }, 60_000);
+
+  it.runIf(!secondPressGraded)('reports what the second Ctrl+C did, without grading it (see secondPressGraded)', async () => {
+    const { output, code } = await run();
+    const ended = !output.includes('still here');
+    console.info(`[pty-cancel] ${fixture} on Node ${process.versions.node}: the second Ctrl+C ${ended ? `ended the process (code ${String(code)})` : 'did not end the process'}`);
+    expect(typeof ended).toBe('boolean');
   }, 60_000);
 });
 
