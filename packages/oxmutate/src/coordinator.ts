@@ -19,6 +19,7 @@ import { ambientRuntime, run as spawn } from 'bellpull';
 import type { Unit } from './child.js';
 import { disables, type Options } from './config.js';
 import { matchFiles } from './files.js';
+import type { FrozenOracle } from './frozen.js';
 import { changedLines, shardOf, touches } from './lanes.js';
 import { native, type NativeMutant } from './native.js';
 import { FILE_KEY, env, stderr } from './runtime.js';
@@ -81,6 +82,8 @@ export interface RunResult {
   tests: TestInfo[];
   stats: RunStats;
   score: { detected: number; undetected: number; total: number; mutationScore: number; covered: number };
+  /** The frozen oracle's comparison, when `frozenOracle` was set (frozen.ts). */
+  frozen?: FrozenOracle | undefined;
   /** Set when the run stopped after the dry run (`dryRunOnly`): no verdicts, no reports. */
   dryRunOnly?: boolean | undefined;
 }
@@ -176,7 +179,8 @@ export async function run(options: Options): Promise<RunResult> {
     stats.files = files.length;
     stats.mutants = mutants.length;
     const mapFile = path.join(work, 'instrumented.json');
-    writeFileSync(mapFile, JSON.stringify(codeMap));
+    // The frozen oracle's base-ref test files ride along in the same map (frozen.ts).
+    writeFileSync(mapFile, JSON.stringify({ ...codeMap, ...options.testOverrides }));
 
     // ── 1b. The build, once, before anything runs (Stryker's `buildCommand`) ─────────────────
     if (options.buildCommand) {

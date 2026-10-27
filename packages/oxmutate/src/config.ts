@@ -54,6 +54,10 @@ export interface Options {
   allowEmpty: boolean;
   /** `false` hides the line listing config keys oxmutate does not use (Stryker's `warnings`). */
   warnUnused: boolean;
+  /** Also score the mutants against this ref's versions of the test files the change edited (R14). */
+  frozenOracle?: string | undefined;
+  /** Test file contents served in place of the files on disk (absolute path → source). */
+  testOverrides?: Record<string, string> | undefined;
 }
 
 const NOT_NEEDED: Record<string, string> = {

@@ -11,9 +11,10 @@ import { defineCommand, defineProgram, ExitCode } from 'burgee';
 
 import { loadOptions, type Options } from './config.js';
 import { InstrumentFault, run, type MutantResult, type RunResult } from './coordinator.js';
+import { frozenOracle } from './frozen.js';
 import { parseShard } from './lanes.js';
 import { describe, textSummary, VERSION, writeReports } from './reports.js';
-import { cwd, setExitCode, stderr } from './runtime.js';
+import { cwd, stderr } from './runtime.js';
 
 const TEXT = Symbol.for('burgee.text');
 
@@ -57,9 +58,13 @@ function summaryData(r: RunResult, written: string[]): Record<string | symbol, u
 }
 
 /** The `run` flags that override a config key, as the `Partial<Options>` loadOptions applies last. */
+/** How many weakened mutants the error line names; the JSON report has them all. */
+const WEAKENED_SHOWN = 3;
+
 function overridesFrom(o: Record<string, unknown>, root: string): Partial<Options> {
   const overrides: Partial<Options> = {};
   if (typeof o['since'] === 'string') overrides.since = o['since'];
+  if (typeof o['frozenOracle'] === 'string') overrides.frozenOracle = o['frozenOracle'];
   if (typeof o['shard'] === 'string') overrides.shard = parseShard(o['shard']);
   if (typeof o['concurrency'] === 'number') overrides.concurrency = o['concurrency'];
   if (typeof o['mutantTimeout'] === 'number') overrides.timeoutMS = o['mutantTimeout'];
@@ -87,6 +92,7 @@ const runCommand = defineCommand({
   ],
   options: {
     since: { type: 'string', description: 'only mutants on lines changed since this git ref (the PR lane)' },
+    frozenOracle: { type: 'string', description: "also score against this ref's tests; exit 1 if the change weakened them" },
     shard: { type: 'string', description: 'run one deterministic share, i/n, for a CI matrix' },
     concurrency: { type: 'number', description: 'worker processes (default: cores - 1, at most 8)' },
     mutantTimeout: { type: 'number', description: 'absolute slack per mutant, ms (default 500; Stryker 5000)' },
@@ -106,6 +112,7 @@ const runCommand = defineCommand({
     let result: RunResult;
     try {
       result = await run(options_);
+      if (options_.frozenOracle) result.frozen = await frozenOracle(result, options_.frozenOracle);
     } catch (e) {
       if (e instanceof InstrumentFault) {
         stderr.write(`oxmutate: ${e.message}\n`);
@@ -115,10 +122,15 @@ const runCommand = defineCommand({
     }
     const written = writeReports(result);
     const data = summaryData(result, written);
+    const weakened = result.frozen?.weakened ?? [];
+    if (weakened.length) {
+      stderr.write(`oxmutate: the change weakened its tests: ${String(weakened.length)} mutant(s) the tests at ${result.frozen?.base ?? ''} detect now survive (${weakened.slice(0, WEAKENED_SHOWN).map((w) => `${w.file}:${String(w.line)} ${w.mutatorName}`).join('; ')}). fix: restore the assertions the change removed, or replace them with ones that kill these mutants\n`);
+      data['exitCode'] = ExitCode.RUNTIME;
+    }
     const floor = options_.thresholds.break;
     if (floor !== null && result.score.mutationScore < floor) {
       stderr.write(`oxmutate: mutation score ${result.score.mutationScore.toFixed(2)}% is below the break threshold ${String(floor)}%. fix: kill the survivors listed above, or lower thresholds.break deliberately\n`);
-      setExitCode(ExitCode.RUNTIME);
+      data['exitCode'] = ExitCode.RUNTIME;
     }
     return data;
   },

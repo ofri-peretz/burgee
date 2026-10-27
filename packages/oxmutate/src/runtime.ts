@@ -34,6 +34,3 @@ export const argv = process.argv;
 export const cwd = (): string => process.cwd();
 export const stderr = process.stderr;
 export const exit = (code: number): never => process.exit(code);
-export const setExitCode = (code: number): void => {
-  process.exitCode = code;
-};

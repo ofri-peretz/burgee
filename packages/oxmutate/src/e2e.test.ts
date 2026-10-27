@@ -4,11 +4,11 @@
  * leftover entries kill the `reset()` mutants, which no test checks.
  */
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const pkg = path.join(here, '..');
@@ -96,9 +96,10 @@ it.skipIf(!native || !existsSync(bin))('confirms a watchdog stop with 3x the bud
 /** The CLI on a fixture with extra config keys, through a config file written for the run. */
 const runWith = (dir: string, extra: Record<string, unknown>): { status: number | null; out: string; reports: string } => {
   const base = JSON.parse(readFileSync(path.join(dir, 'oxmutate.config.json'), 'utf8')) as Record<string, unknown>;
-  const config = path.join(dir, 'reports', 'case.config.json');
-  const reports = path.join(dir, 'reports', 'case');
-  mkdirSync(reports, { recursive: true });
+  // One directory per call, so no case reads a report an earlier case wrote.
+  mkdirSync(path.join(dir, 'reports'), { recursive: true });
+  const reports = mkdtempSync(path.join(dir, 'reports', 'case-'));
+  const config = path.join(reports, 'case.config.json');
   writeFileSync(config, JSON.stringify({ ...base, ...extra }));
   const r = spawnSync(process.execPath, [bin, 'run', '--config', config, '--report-dir', reports, '--reporter', 'json'], { cwd: dir, encoding: 'utf8' });
   return { status: r.status, out: `${r.stdout}${r.stderr}`, reports };
@@ -118,6 +119,11 @@ describe.skipIf(!native || !existsSync(bin))('Stryker options the run honours', 
     expect(r.out).toMatch(/buildCommand `node -e process.exit\(4\)` exited 4/);
   });
 
+  it('thresholds.break: a score below it exits 1, through the exit code burgee reads', () => {
+    expect(runWith(registry, { thresholds: { break: 99 } }).status).toBe(1);
+    expect(runWith(registry, { thresholds: { break: 50 } }).status).toBe(0);
+  });
+
   it('dryRunOnly: the dry run passes and nothing is scored or written', () => {
     const r = runWith(registry, { dryRunOnly: true });
     expect(r.status).toBe(0);
@@ -129,5 +135,48 @@ describe.skipIf(!native || !existsSync(bin))('Stryker options the run honours', 
     const r = runWith(spin, { dryRunTimeoutMinutes: 0.02 });
     expect(r.status).toBe(3);
     expect(r.out).toMatch(/longer than dryRunTimeoutMinutes/);
+  });
+});
+
+describe.skipIf(!native || !existsSync(bin))('the frozen oracle (R14, SC10)', () => {
+  const registry = path.join(pkg, 'test/fixtures/registry');
+  // A git repository of its own, inside the fixture's ignored reports/, so Vitest still resolves.
+  const repo = path.join(registry, 'reports', 'frozen-repo');
+  const spec = path.join(repo, 'src/registry.spec.ts');
+  const git = (...args: string[]): void => {
+    execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', '-c', 'commit.gpgsign=false', ...args], { cwd: repo, stdio: 'pipe' });
+  };
+  const frozen = (): { status: number | null; out: string; report: { 'x-oxmutate': { frozenOracle?: { weakened: unknown[]; changedTests: string[]; delta: number } } } } => {
+    const r = spawnSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', 'out', '--reporter', 'json', '--frozen-oracle', 'HEAD'], { cwd: repo, encoding: 'utf8' });
+    return { status: r.status, out: `${r.stdout}${r.stderr}`, report: JSON.parse(readFileSync(path.join(repo, 'out', 'mutation.json'), 'utf8')) as never };
+  };
+  const original = readFileSync(path.join(registry, 'src/registry.spec.ts'), 'utf8');
+
+  beforeAll(() => {
+    rmSync(repo, { recursive: true, force: true });
+    mkdirSync(path.join(repo, 'src'), { recursive: true });
+    for (const f of ['package.json', 'vitest.config.mjs', 'oxmutate.config.json', 'src/registry.ts', 'src/registry.spec.ts']) writeFileSync(path.join(repo, f), readFileSync(path.join(registry, f)));
+    git('init', '-q');
+    git('add', '.');
+    git('commit', '-q', '-m', 'base');
+  });
+  afterAll(() => rmSync(repo, { recursive: true, force: true }));
+
+  it('reports the mutants a change stopped detecting when it weakens a test, and exits 1', () => {
+    writeFileSync(spec, original.replace("expect(list()).toEqual(['a']);", 'list();'));
+    const r = frozen();
+    expect(r.status).toBe(1);
+    expect(r.out).toMatch(/the change weakened its tests/);
+    const f = r.report['x-oxmutate'].frozenOracle;
+    expect(f?.changedTests).toEqual(['src/registry.spec.ts']);
+    expect(f?.weakened.length).toBeGreaterThan(0);
+    expect(f?.delta).toBeLessThan(0);
+  });
+
+  it('reports no drop when a change only adds a test', () => {
+    writeFileSync(spec, `${original}\nit('lists nothing after a reset', () => {\n  reset();\n  expect(list()).toEqual([]);\n});\n`);
+    const r = frozen();
+    expect(r.status).toBe(0);
+    expect(r.report['x-oxmutate'].frozenOracle?.weakened).toEqual([]);
   });
 });
