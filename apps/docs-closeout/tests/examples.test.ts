@@ -116,12 +116,13 @@ describe.skipIf(process.platform === 'win32')('the examples on this site', () =>
 
     it.each(page.runs.map((r) => [r.command, r] as const))('`%s` prints what the page shows', (_command, run) => {
       const { env, argv } = parse(run.command);
-      // A hung example is killed with SIGKILL, which no page promises, so a timeout can never
-      // pass for an example that was meant to die of SIGTERM.
       // The colour switches are cleared unless the command sets one: `console.log` colours a number
       // under an inherited FORCE_COLOR, and the page shows what a plain pipe prints.
-      const inherited = Object.fromEntries(Object.entries(process.env).filter(([key]) => !COLOUR_SWITCHES.includes(key)));
-      const result = spawnSync(process.execPath, argv, { cwd: dir, env: { ...inherited, ...env }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 20_000, killSignal: 'SIGKILL' });
+      const childEnv = { ...process.env, ...env };
+      for (const key of COLOUR_SWITCHES) if (!(key in env)) Reflect.deleteProperty(childEnv, key);
+      // A hung example is killed with SIGKILL, which no page promises, so a timeout can never
+      // pass for an example that was meant to die of SIGTERM.
+      const result = spawnSync(process.execPath, argv, { cwd: dir, env: childEnv, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 20_000, killSignal: 'SIGKILL' });
       expect({ status: result.status, signal: result.signal }, result.stderr).toEqual({ status: run.exit, signal: run.signal });
       expect(result.stdout + result.stderr).toBe(run.expected);
     }, 30_000);
