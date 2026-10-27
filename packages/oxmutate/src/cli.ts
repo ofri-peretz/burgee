@@ -13,6 +13,7 @@ import { loadOptions, type Options } from './config.js';
 import { InstrumentFault, run, type MutantResult, type RunResult } from './coordinator.js';
 import { parseShard } from './lanes.js';
 import { describe, textSummary, VERSION, writeReports } from './reports.js';
+import { cwd, setExitCode, stderr } from './runtime.js';
 
 const TEXT = Symbol.for('burgee.text');
 
@@ -97,7 +98,7 @@ const runCommand = defineCommand({
     config: { type: 'string', description: 'an oxmutate config file (JSON or JS) instead of oxmutate.config.*' },
   },
   run: async ({ options, exit }) => {
-    const root = process.cwd();
+    const root = cwd();
     const o = options as Record<string, unknown>;
     const options_ = await loadOptions(root, overridesFrom(o, root), typeof o['config'] === 'string' ? o['config'] : undefined);
     if (typeof o['break'] === 'number') options_.thresholds.break = o['break'];
@@ -106,7 +107,7 @@ const runCommand = defineCommand({
       result = await run(options_);
     } catch (e) {
       if (e instanceof InstrumentFault) {
-        process.stderr.write(`oxmutate: ${e.message}\n`);
+        stderr.write(`oxmutate: ${e.message}\n`);
         exit(ExitCode.CONFIG);
       }
       throw e;
@@ -115,8 +116,8 @@ const runCommand = defineCommand({
     const data = summaryData(result, written);
     const floor = options_.thresholds.break;
     if (floor !== null && result.score.mutationScore < floor) {
-      process.stderr.write(`oxmutate: mutation score ${result.score.mutationScore.toFixed(2)}% is below the break threshold ${String(floor)}%. fix: kill the survivors listed above, or lower thresholds.break deliberately\n`);
-      process.exitCode = ExitCode.RUNTIME;
+      stderr.write(`oxmutate: mutation score ${result.score.mutationScore.toFixed(2)}% is below the break threshold ${String(floor)}%. fix: kill the survivors listed above, or lower thresholds.break deliberately\n`);
+      setExitCode(ExitCode.RUNTIME);
     }
     return data;
   },

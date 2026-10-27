@@ -24,3 +24,16 @@ export interface Namespace {
   hitLimit?: number | undefined;
   mutantCoverage?: { static: Record<string, number>; perTest: Record<string, Record<string, number>> };
 }
+
+// ── The process seam ────────────────────────────────────────────────────────────────────────────
+// The one file in the package that names the process (burgee's `process-reference-lock.test.ts`):
+// the coordinator, the servers, the runner and the CLI read it here, so a test can see every
+// place the package touches it. `env` is the live object: a write here is a write to the process.
+export const env = process.env;
+export const argv = process.argv;
+export const cwd = (): string => process.cwd();
+export const stderr = process.stderr;
+export const exit = (code: number): never => process.exit(code);
+export const setExitCode = (code: number): void => {
+  process.exitCode = code;
+};

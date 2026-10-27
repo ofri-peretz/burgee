@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { ExitCode } from 'burgee';
 
 import { resolveEsm } from './resolve.js';
-import { ACTIVE_MUTANT_ENV } from './runtime.js';
+import { ACTIVE_MUTANT_ENV, argv, env, exit } from './runtime.js';
 import { instrumentedSources } from './vite-plugin.js';
 
 export interface ServerConfig {
@@ -38,8 +38,8 @@ export interface Unit {
   batch?: { id: string; files: string[]; tests?: string[] | undefined }[] | undefined;
 }
 
-const config = JSON.parse(readFileSync(process.argv[2] ?? '', 'utf8')) as ServerConfig;
-process.env['NODE_ENV'] ??= 'test';
+const config = JSON.parse(readFileSync(argv[2] ?? '', 'utf8')) as ServerConfig;
+env['NODE_ENV'] ??= 'test';
 
 const vitestNode = (await import(resolveEsm('vitest/node', config.root))) as {
   createVitest: (mode: string, options: Record<string, unknown>, viteOverrides?: Record<string, unknown>) => Promise<{
@@ -62,7 +62,7 @@ const vitest = await vitestNode.createVitest(
     maxWorkers: config.workers,
     isolate: true,
     runner,
-    reporters: process.env['OXMUTATE_DEBUG_VITEST'] ? ['default'] : [silent],
+    reporters: env['OXMUTATE_DEBUG_VITEST'] ? ['default'] : [silent],
     coverage: { enabled: false },
     passWithNoTests: true,
     // Bail is ours (per mutant); Vitest must run every test it is handed.
@@ -98,9 +98,9 @@ async function runIsolated(unit: Unit): Promise<void> {
   vitest.config.bail = 1;
   try {
     for (const item of unit.batch ?? []) {
-      process.env[ACTIVE_MUTANT_ENV] = item.id;
-      if (item.tests) process.env['OXMUTATE_ONLY_TESTS'] = JSON.stringify(item.tests);
-      else delete process.env['OXMUTATE_ONLY_TESTS'];
+      env[ACTIVE_MUTANT_ENV] = item.id;
+      if (item.tests) env['OXMUTATE_ONLY_TESTS'] = JSON.stringify(item.tests);
+      else delete env['OXMUTATE_ONLY_TESTS'];
       writeFileSync(unit.progress, `${item.id} ${String(Date.now())}\n`);
       // One file at a time, cheapest first (the coordinator orders them), stopping at the first
       // file that kills the mutant: Stryker runs every file for every isolated mutant.
@@ -109,8 +109,8 @@ async function runIsolated(unit: Unit): Promise<void> {
         if (killed(unit.results, item.id)) break;
       }
     }
-    delete process.env[ACTIVE_MUTANT_ENV];
-    delete process.env['OXMUTATE_ONLY_TESTS'];
+    delete env[ACTIVE_MUTANT_ENV];
+    delete env['OXMUTATE_ONLY_TESTS'];
   } finally {
     vitest.config.bail = 0;
   }
@@ -120,11 +120,11 @@ async function runIsolated(unit: Unit): Promise<void> {
 async function runUnit(unit: Unit): Promise<void> {
   // Workers copy the environment when they start, so each run sees the unit's settings
   // (verified across re-runs of one instance, 2026-10-26).
-  process.env['OXMUTATE_MODE'] = unit.mode;
-  process.env['OXMUTATE_RESULTS'] = unit.results;
-  process.env['OXMUTATE_PROGRESS'] = unit.progress;
-  if (unit.plan) process.env['OXMUTATE_PLAN'] = unit.plan;
-  delete process.env[ACTIVE_MUTANT_ENV];
+  env['OXMUTATE_MODE'] = unit.mode;
+  env['OXMUTATE_RESULTS'] = unit.results;
+  env['OXMUTATE_PROGRESS'] = unit.progress;
+  if (unit.plan) env['OXMUTATE_PLAN'] = unit.plan;
+  delete env[ACTIVE_MUTANT_ENV];
   if (unit.mode === 'isolated') await runIsolated(unit);
   else await vitest.start(unit.files.length ? unit.files : undefined);
 }
@@ -140,12 +140,12 @@ process.on('message', (msg: { type: string; unit?: Unit }) => {
     );
   } else if (msg.type === 'close') {
     // A worker thread stuck in a runaway mutant never lets `vitest.close()` settle: exit anyway.
-    setTimeout(() => process.exit(ExitCode.OK), CLOSE_GRACE_MS).unref();
-    void vitest.close().finally(() => process.exit(ExitCode.OK));
+    setTimeout(() => exit(ExitCode.OK), CLOSE_GRACE_MS).unref();
+    void vitest.close().finally(() => exit(ExitCode.OK));
   }
 });
 // The coordinator is gone (finished, crashed or killed): nothing will read this server's results,
 // and a worker thread may still be looping in a mutant. Two such servers were found spinning at
 // 100% CPU 11 hours after their run ended, and slowed the next run 50x (2026-10-27).
-process.on('disconnect', () => process.exit(ExitCode.OK));
+process.on('disconnect', () => exit(ExitCode.OK));
 process.send?.({ type: 'ready' });

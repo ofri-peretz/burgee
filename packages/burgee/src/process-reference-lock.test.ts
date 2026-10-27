@@ -46,6 +46,9 @@ const ALLOWED = new Set([
   // controlroom's seam (R4's `processRuntime`), which `controlroom/ink` reads its default
   // streams, its environment and `beforeExit` through as well.
   'controlroom/src/runtime.ts',
+  // oxmutate's seam: its CLI, its coordinator, the Vitest servers it forks and the runner it
+  // loads into the project's Vitest all read the process through it.
+  'oxmutate/src/runtime.ts',
   // compat-oracle is internal tooling — `private: true`, never published, not one of the nine
   // layers. Its three entries are each the job of owning a process rather than a lapse into
   // one: `bin.ts` is a CLI entry, `run.ts` spawns the host suites and needs `execPath`, and

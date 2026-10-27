@@ -22,7 +22,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 
 import { resolveEsm } from './resolve.js';
-import { ACTIVE_MUTANT_ENV, FILE_KEY, NAMESPACE, type Namespace } from './runtime.js';
+import { ACTIVE_MUTANT_ENV, FILE_KEY, NAMESPACE, cwd, env, type Namespace } from './runtime.js';
 
 type AnyTask = {
   id: string;
@@ -45,7 +45,7 @@ type RunnerStatics = {
  * The project's own Vitest, never the one beside this file: two Vitest instances in one worker
  * disagree about the current test, the snapshot state and `expect`.
  */
-const fromProject = async (specifier: string, dir = process.cwd()): Promise<unknown> => import(resolveEsm(specifier, dir));
+const fromProject = async (specifier: string, dir = cwd()): Promise<unknown> => import(resolveEsm(specifier, dir));
 
 /** Vitest 5 exports `TestRunner` from `vitest`; Vitest 4 from `vitest/runners` + `@vitest/runner`. */
 async function loadBase(): Promise<{ Base: new (config: unknown) => object; statics: RunnerStatics }> {
@@ -55,7 +55,7 @@ async function loadBase(): Promise<{ Base: new (config: unknown) => object; stat
     return { Base: v5, statics: { getTestFn: v5.getTestFn, getSuiteHooks: v5.getSuiteHooks } };
   }
   const runners = (await fromProject('vitest/runners')) as { VitestTestRunner: new (config: unknown) => object };
-  const vitestDir = path.dirname(createRequire(path.join(process.cwd(), 'package.json')).resolve('vitest/package.json'));
+  const vitestDir = path.dirname(createRequire(path.join(cwd(), 'package.json')).resolve('vitest/package.json'));
   const core = (await fromProject('@vitest/runner', vitestDir)) as {
     getFn: RunnerStatics['getTestFn'];
     getHooks: RunnerStatics['getSuiteHooks'];
@@ -65,7 +65,6 @@ async function loadBase(): Promise<{ Base: new (config: unknown) => object; stat
 
 const { Base, statics } = await loadBase();
 
-const env = process.env;
 const mode = env['OXMUTATE_MODE'] ?? 'dry';
 const resultsPath = env['OXMUTATE_RESULTS'];
 const progressPath = env['OXMUTATE_PROGRESS'];

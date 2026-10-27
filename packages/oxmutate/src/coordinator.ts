@@ -19,7 +19,7 @@ import { disables, type Options } from './config.js';
 import { matchFiles } from './files.js';
 import { changedLines, shardOf, touches } from './lanes.js';
 import { native, type NativeMutant } from './native.js';
-import { FILE_KEY } from './runtime.js';
+import { FILE_KEY, env, stderr } from './runtime.js';
 import { createPool, type UnitOutcome } from './scheduler.js';
 
 export type Status = 'Killed' | 'Survived' | 'Timeout' | 'NoCoverage' | 'RuntimeError' | 'CompileError' | 'Ignored';
@@ -564,7 +564,7 @@ export async function run(options: Options): Promise<RunResult> {
     };
   } finally {
     for (const p of pools) p.close();
-    if (process.env['OXMUTATE_KEEP']) process.stderr.write(`oxmutate: work directory kept at ${work}\n`);
+    if (env['OXMUTATE_KEEP']) stderr.write(`oxmutate: work directory kept at ${work}\n`);
     else rmSync(work, { recursive: true, force: true });
   }
 }

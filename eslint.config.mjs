@@ -1057,17 +1057,22 @@ export default [
     // A server (`child.ts`) is a process the coordinator forks, not a module. It loads the
     // project's own Vitest by the path `resolveEsm` finds from the project root, as Stryker's
     // vitest-runner does: a static import would load the Vitest beside oxmutate, and two Vitests
-    // in one process disagree about the current test. It exits itself, on `close` after a grace
-    // period because a worker stuck in a runaway mutant never lets `vitest.close()` settle, and
-    // on `disconnect` because servers whose coordinator was gone were found spinning 11 hours
-    // later (2026-10-27). And it starts Vitest once at a time, file after file, stopping at the
-    // first that kills the mutant: the server holds one Vitest and one armed mutant.
+    // in one process disagree about the current test. And it starts Vitest once at a time, file
+    // after file, stopping at the first that kills the mutant: the server holds one Vitest and
+    // one armed mutant.
     files: ["packages/oxmutate/src/child.ts"],
     rules: {
       "node-security/no-dynamic-dependency-loading": "off",
-      "operability/no-process-exit": "off",
       "reliability/no-await-in-loop": "off",
     },
+  },
+  {
+    // oxmutate's process seam. A server exits itself, through this `exit`: on `close` after a
+    // grace period, because a worker stuck in a runaway mutant never lets `vitest.close()`
+    // settle, and on `disconnect`, because servers whose coordinator was gone were found
+    // spinning 11 hours later (2026-10-27).
+    files: ["packages/oxmutate/src/runtime.ts"],
+    rules: { "operability/no-process-exit": "off" },
   },
   {
     // The runner is what `test.runner` names, and Vitest instantiates the module's default
