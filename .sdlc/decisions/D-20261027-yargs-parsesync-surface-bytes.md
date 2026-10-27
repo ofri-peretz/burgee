@@ -49,3 +49,8 @@ in the same file). The synchronous load is `require(esm)` through the shim's own
 
 **Not moved.** The `lighter-than-commander` claim (1.417×) measures `burgee/commander`, which
 this change does not touch.
+
+**Added 2026-10-27 (CI): the bundled-bytes ratchet too.** `benchmarks/axes/weight.ts` holds
+`burgee/yargs` bundled bytes at 108,850; CI read 108,897 on this PR (job 122313739823), +61 over
+main's 108,836. Raised to 108,900, the CI reading rounded up to the next 50 as that file does —
+still 2,786 B under yargs' own 111,686, so `lighter-than-yargs` holds (0.975).
