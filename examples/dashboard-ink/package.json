@@ -1,0 +1,24 @@
+{
+  "name": "example-dashboard-ink",
+  "version": "0.0.0",
+  "private": true,
+  "description": "controlroom's Ink screen fixture: the reference dashboard's screen written for Ink and @inkjs/ui, run on controlroom/ink with 'ink' resolved by one package.json line and react-reconciler installed. The other side of the W3 weight comparison.",
+  "type": "module",
+  "bin": {
+    "dashboard-ink": "./screen.mjs"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node screen.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@inkjs/ui": "2.0.0",
+    "controlroom": "*",
+    "ink": "file:./ink",
+    "react": "19.3.0",
+    "react-reconciler": "0.34.0"
+  }
+}
