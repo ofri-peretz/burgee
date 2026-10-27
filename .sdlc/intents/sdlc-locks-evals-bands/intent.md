@@ -13,6 +13,10 @@
 >
 > **Built 2026-10-25 (batch 29), still `approved`:** S2 holds, and S3's build item holds, but the
 > duration band has not gained a point yet. See [`spec.md` § Status 2026-10-25](./spec.md#status-2026-10-25).
+>
+> **Read 2026-10-26, still `approved`:** the weekly run named why the duration band starves (the
+> job never builds the demo `scripts/mcp-config-block.test.ts` starts) and ran past its 20-minute
+> limit, so no band gained a point. See [`spec.md` § Status 2026-10-26](./spec.md#status-2026-10-26).
 
 **Restated:** 2026-10-18 — see [§ Restated 2026-10-18](#restated-2026-10-18)
 
@@ -177,6 +181,15 @@ The three mechanisms `eslint/` has and this repo only promises:
   **2026-10-25:** a dropped point now says why (`scripts/control-bands.test.ts` › "names the exit
   code of a command that failed, and quotes the last lines it printed"). The band still has 7
   points, so this criterion stays open until the cause the next weekly run names is fixed.
+  **2026-10-26: the cause is named, and it is the job, not the suite.** The weekly run
+  40311991676 logged `npm test exited 1` on `scripts/mcp-config-block.test.ts`, which starts
+  `examples/demo-cli-burgee/dist/bin.js`, a file `control-bands.yml` never builds (it builds
+  `./packages/*` only). The same run was then cancelled at its 20-minute limit while
+  `--backfill-git` read 121 new compat observations per band, so no band gained a point that
+  week. Both fixes are in `control-bands.yml`: B-20261026-control-bands-demo-build-and-budget.
+  This criterion closes on the first scheduled run after that lands that gives every band a
+  point; the duration band then has its eighth, and evaluates. With the fix merged this week,
+  that is the run of Monday 2026-11-02.
 - A simulated breach in a unit test produces an `intent.md` that itself passes the
   intent lock. **2026-10-18: held** by `scripts/control-bands.test.ts` › "satisfies the schema
   the intent lock enforces".

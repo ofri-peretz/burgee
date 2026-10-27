@@ -87,6 +87,22 @@ criterion of the two can only be measured over the 30 days after it lands.
   `shipped` only if the measured share meets 50% for every package; otherwise the Maintain stage
   writes the shortfall back as a new intent.
 
+## Where the criteria stand — 2026-10-26
+
+**Still `approved`, and not stamped: the window was breached in substance.** #1253 published
+`roundel@1.2.1`, `seniority@1.1.1` and `burgee@1.7.2` as patches built from a `main` that already
+had the code of ten minor changesets the window was holding for them. The version numbers waited;
+the code did not. D-20261026-release-window-holds-code restates R2 (a held package's fixes wait
+with it; `Security:` releases it at once) and widens R6 (`release.yml` defers such a patch). The
+lock that would have refused #1253 is in `scripts/release-window.test.ts`, red on `main` first;
+see [`spec.md` § Status 2026-10-26](./spec.md#status-2026-10-26).
+
+- **The changeset lock** — met, unchanged.
+- **The 30-day share** — not met yet. 0 of 7.19 days for every package from #1124's merge to
+  2026-10-26. It is read over the 30 days after the fix above merges; with a merge on 2026-10-27
+  that reading is due 2026-11-26. Raise to `shipped` only if each package's share is at least 50%;
+  otherwise the Maintain stage writes the shortfall back as a new intent.
+
 ## Open questions
 
 None.
