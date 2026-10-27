@@ -95,7 +95,9 @@ had the code of ten minor changesets the window was holding for them. The versio
 the code did not. D-20261026-release-window-holds-code restates R2 (a held package's fixes wait
 with it; `Security:` releases it at once) and widens R6 (`release.yml` defers such a patch). The
 lock that would have refused #1253 is in `scripts/release-window.test.ts`, red on `main` first;
-see [`spec.md` § Status 2026-10-26](./spec.md#status-2026-10-26).
+see [`spec.md` § Status 2026-10-26](./spec.md#status-2026-10-26). The model's two new
+counterexamples, `holdsVersionsNotCode` and `shippedNeverHoldsAFix`, run in `models.yml` since
+2026-10-27 (D-20261027-close-three-workflow-gaps), so neither is checked by hand any more.
 
 - **The changeset lock** — met, unchanged.
 - **The 30-day share** — not met yet. 0 of 7.19 days for every package from #1124's merge to

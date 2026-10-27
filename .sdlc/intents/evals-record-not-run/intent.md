@@ -108,12 +108,18 @@ weekly limit · resets Oct 25, 5am (UTC)". It opened issue #1225, "Agent evals d
 "failing" (R5, live). It does not close criterion 5: that one asks for a run *with quota left*.
 
 **What closes it:** the first scheduled `evals.yml` run that lands a v2 line with
-`tasks.status: "ran"` and no `not-run` case. The next scheduled run is Thursday 2026-10-29 at
-05:20 UTC. If that week's quota is spent by Thursday too, the one after is 2026-11-05. Two of
-the last two Thursday runs found the weekly limit already spent, and it resets Saturday 05:00 UTC,
-so the run sits five days into the quota week. Moving it to just after the reset is
-B-20261026-evals-run-after-quota-reset; it is not done here, because any change under
-`.github/` runs the paid task evals on its own pull request.
+`tasks.status: "ran"` and no `not-run` case. ~~The next scheduled run is Thursday 2026-10-29 at
+05:20 UTC.~~ Two of the last two Thursday runs found the weekly limit already spent, and it
+resets Saturday 05:00 UTC, so the run sat five days into the quota week.
+
+**2026-10-27: the schedule moved to just after the reset**
+(B-20261026-evals-run-after-quota-reset, closed by D-20261027-close-three-workflow-gaps).
+`evals.yml` runs Saturdays at 06:20 UTC (`cron: "20 6 * * 6"`), an hour after the quota resets,
+and `scripts/eval-history-lock.test.ts` › "runs after the weekly quota resets, not days into the
+spent week" fails if the day leaves Saturday or the time leaves the two hours after the reset. So
+the run that can close criterion 5 is Saturday 2026-10-31 at 06:20 UTC, and its line lands through
+the `record` job's pull request. If that run is `not-run` too, the quota was spent inside the hour
+after the reset, which is a different cause, and the next reading is 2026-11-07.
 
 ## Jev triage
 

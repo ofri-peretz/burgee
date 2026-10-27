@@ -14,7 +14,7 @@ name: AI Citation Probe
 
 on:
   schedule:
-    # Mondays 06:40 UTC: off the hour, and clear of evals.yml (Thursday) and bench.yml.
+    # Mondays 06:40 UTC: off the hour, and clear of evals.yml (Saturday) and bench.yml.
     - cron: "40 6 * * 1"
   workflow_dispatch:
 

@@ -214,7 +214,9 @@ and this does not change it.
 ## Status
 
 All six built in #1135 (`0dc0e0231e`, 2026-10-19); re-read against `main` 2026-10-26. The
-intent's criterion 5 is the one still open: see the intent's § Where the criteria stand.
+intent's criterion 5 is the one still open: see the intent's § Where the criteria stand. Since
+2026-10-27 the run that can close it is the first Saturday one, 2026-10-31 at 06:20 UTC: the cron
+moved to an hour after the weekly quota resets (D-20261027-close-three-workflow-gaps).
 
 | R | Status | Where | Check |
 | :-- | :-- | :-- | :-- |

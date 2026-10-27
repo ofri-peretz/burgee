@@ -1,7 +1,7 @@
 ---
 id: B-20261026-control-bands-demo-build-and-budget
 section: B
-status: open
+status: closed
 source: sdlc-locks-evals-bands S3 (every band gains a point per scheduled run; test-duration-ms stalled at 7 points)
 recommendation: 'In one `control-bands.yml` pull request whose task-eval run the owner accepts: build the demo the root suite starts beside the packages (`npx turbo run build --filter=''./packages/*'' --filter=''./examples/demo-cli-burgee''`, as compat.yml has since #1159), and raise `timeout-minutes` from 20 to 40 or stop `--backfill-git` re-reading the 121 compat observations each run, whichever the next run''s timing supports'
 ---
@@ -39,3 +39,14 @@ D-20261019-front-end-byte-steps-rebase-bands. So `lint-rules-on` and
 Both fixes are in `.github/workflows/control-bands.yml`, and a change under `.github/` runs the
 paid task evals on its pull request, which is why this is a decision and not built in the batch
 that found it.
+
+**Closed 2026-10-27** by [D-20261027-close-three-workflow-gaps](../decisions/D-20261027-close-three-workflow-gaps.md). The build is the recommendation's, spelled as compat.yml spells
+it (`--filter=demo-cli-burgee`). The budget is both halves, not either: the cost that grew was
+the watcher reading one suite's git history once per band (50 `cli-benchmarks` bands, about 23 s
+a walk on the runner, 44 walks before the cancel), so `scripts/control-bands.ts` now reads each
+suite once per run; and `timeout-minutes` is 25, `npm test`'s 15-minute cap plus 10 for the rest.
+Locks, each red on `b62bd20c86`: `scripts/root-suite-build-scope-lock.test.ts` (counts the
+watcher as running the root suite: `control-bands.yml › watch … does not build demo-cli-burgee`)
+and `scripts/control-bands-workflow-lock.test.ts` (one git walk per suite; the limit covers the
+cap plus the rest: `expected 20 to be greater than or equal to 25`). Point 3, a closed breach
+draft losing the week's points, is not a workflow fault and is not changed here.

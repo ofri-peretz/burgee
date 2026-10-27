@@ -91,8 +91,11 @@ step. Two design choices are picked at `init`, so one simulation walks both side
 
 `safety` (the shipped design keeps the window and never delays a fix) holds over
 `--max-steps=30 --max-samples=20000`. `models.yml` also checks that `unsplitHolds`,
-`npmOnlyHolds` and the non-vacuity witness `shippedNeverReleasesAFeature` stay violated, so a
-model that stopped telling the designs apart, or never shipped a feature, goes red.
+`npmOnlyHolds`, `holdsVersionsNotCode` and the non-vacuity witnesses
+`shippedNeverReleasesAFeature` and `shippedNeverHoldsAFix` stay violated, so a model that stopped
+telling the designs apart, never shipped a feature or never held a fix, goes red.
+`scripts/release-window.test.ts` › "models.yml keeps the model’s rejected designs failing" fails
+if the loop names any other set.
 
 ### The 30-day target
 
@@ -154,8 +157,10 @@ mutates `packages/*/src` only): 70 mutants, 70 killed, 100%.
 `release-window.qnt` gains `fixWaits` and the code on `main` (a fix-only release merged while a
 feature is pending carries it). `safety` holds over `--max-steps=40 --max-samples=200000`;
 `unsplitHolds`, `npmOnlyHolds`, `holdsVersionsNotCode`, `shippedNeverReleasesAFeature` and
-`shippedNeverHoldsAFix` are each violated. `models.yml` checks the first three and not yet the
-two new ones: B-20261026-models-yml-holds-code-invariants.
+`shippedNeverHoldsAFix` are each violated. ~~`models.yml` checks the first three and not yet the
+two new ones: B-20261026-models-yml-holds-code-invariants.~~ **2026-10-27:** `models.yml`'s step
+"release window — the rejected designs still fail, and the shipped one ships" checks all five
+(D-20261027-close-three-workflow-gaps); the lock above, red on `b62bd20c86`, holds its list.
 
 **The 30-day measurement.** `node scripts/release-window.mts measure --from 2026-10-19T02:06:25Z
 --to 2026-10-26T06:40:00Z --age 7` reads 0 days of 7.19 for all ten packages: no package's
