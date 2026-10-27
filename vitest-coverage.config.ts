@@ -102,6 +102,20 @@ export const TESTED_IN_ANOTHER_PROCESS = [
   // spawn a child and kill it, which is the only way to test what node does *not* run on a
   // signal — the entire defect the file exists to fix.
   'src/cursor.ts',
+  // oxmutate — the run itself. `e2e.test.ts` drives the built CLI on fixture projects: the
+  // coordinator and its lanes run in that child, each Vitest server is a child of it, and the
+  // runner and the Vite plugin load inside the servers' Vitest. No in-process import reaches a
+  // run (pollution, the watchdog, orphan servers, timeouts and the frozen oracle are each a
+  // child-process case there). The pure modules — config, reports, lanes, files, resolve,
+  // spec — stay in the denominator. No other package has a file of these names (2026-10-27).
+  'src/coordinator.ts',
+  'src/runner.ts',
+  'src/scheduler.ts',
+  'src/child.ts',
+  'src/native.ts',
+  'src/vite-plugin.ts',
+  'src/command-runner.ts',
+  'src/frozen.ts',
 ];
 
 export const coverage: NonNullable<NonNullable<ViteUserConfig['test']>['coverage']> = {
