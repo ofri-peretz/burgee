@@ -26,7 +26,10 @@ the first-adopter pull request. The fix has three parts:
 Main at `c5e86d3044` measured 221,699 / 224,741 / 224,965; this branch measures 221,755 /
 224,797 / 225,021. One part shrank: the shell is now checked against a literal list before
 `completions.js` loads, so `completion foo` no longer loads the module. Bundled (`npm run weight:page`),
-`burgee/yargs` goes from 109,189 to 109,250 B (+61).
+`burgee/yargs` goes from 109,189 to 109,250 B (+61). `burgee/yargs/v17` moves by the same 61 B, from
+110,354 to 110,415, and that is over its incumbent: the `OVER_INCUMBENT` ratchet in
+`scripts/subpath-weight-lock.test.ts` rises with it (gap B-20261019-yargs-17-entry-bundles-heavier,
+unchanged in kind).
 
 **The lazy loading is kept, not traded.** Making `completions.js` a static import would answer
 `parseSync()` without the flag, but it would put 18,058 B on the start-up path of every
