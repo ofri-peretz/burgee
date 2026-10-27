@@ -1,5 +1,11 @@
 # compat-oracle
 
+## 0.3.15
+
+### Patch Changes
+
+- [#1303](https://github.com/ofri-peretz/burgee/pull/1303) [`ad27e9b`](https://github.com/ofri-peretz/burgee/commit/ad27e9b427ac60772f2c422704741380b3b3e2ff) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - twist's end-to-end suite stays skipped on Windows, now for twist's own reason: twist 0.0.5 loads each file with `import()` of a `D:\` path, which Windows refuses. The tsd and uvu suites run there.
+
 ## 0.3.14
 
 ### Patch Changes
