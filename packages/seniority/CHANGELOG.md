@@ -1,5 +1,19 @@
 # seniority
 
+## 1.2.0
+
+### Minor Changes
+
+- [#1264](https://github.com/ofri-peretz/burgee/pull/1264) [`e739f18`](https://github.com/ofri-peretz/burgee/commit/e739f1822cfc196e280ee74c1a47c0d3543fc989) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Provenance now gives the line for a value set in the `package.json` field. The new `packageLayer(path, name)` in `seniority/config` (and the root) reads the field named after your program as the layer below the config file, and records the line each of its keys is set on. `explain` then prints `package.json field in /app/package.json:6`, not just the file. Pass the parsed manifest as a third argument if you already have it, and the file is read again only for the lines.
+
+  `lineOf` now reads the top level of the JSON only. It used to return the first `"key":` anywhere in the file, so a nested key with the same name, written above the top-level one, was cited at the wrong line. A key set twice is cited at the last one, the one `JSON.parse` keeps.
+
+  burgee: `--explain` and `meta.provenance` now give the line for a value set in the `package.json` field (`package.json:5`), as they already did for a config file.
+
+### Patch Changes
+
+- [#1285](https://github.com/ofri-peretz/burgee/pull/1285) [`6570ff2`](https://github.com/ofri-peretz/burgee/commit/6570ff28a3aa8959548ee338dfb114cb9b7deab5) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `seniority/dotenv/cli` follows dotenv 18.0.9: `dotenv run` reads an empty `DOTENV_PATH` or `DOTENV_CONFIG_PATH` as unset and loads `./.env`, where it used to read the empty string as a path and stop with `EISDIR`. dotenv 18.0.9's own suite grades `seniority/dotenv` 197 / 197, level with dotenv itself.
+
 ## 1.1.1
 
 ### Patch Changes
