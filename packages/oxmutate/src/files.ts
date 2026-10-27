@@ -13,6 +13,7 @@ const escapeRegExp = (s: string): string => s.replace(/[.+^$()|[\]\\]/g, '\\$&')
 /** Translate one glob (without a leading `!`) into an anchored regular expression. */
 export function globToRegExp(glob: string): RegExp {
   let re = '';
+  // Stryker disable next-line EqualityOperator: one step past the end reads charAt(length), an empty string, which appends nothing
   for (let i = 0; i < glob.length; i++) {
     const c = glob.charAt(i);
     if (c === '*') {

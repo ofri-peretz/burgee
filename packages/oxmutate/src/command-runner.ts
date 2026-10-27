@@ -38,6 +38,19 @@ export interface CommandRunOptions {
 const SANDBOX_DIR = '.oxmutate-tmp';
 /** Stryker's default `ignorePatterns`, plus this sandbox. */
 const SKIP = new Set(['node_modules', '.git', 'reports', 'coverage', '.stryker-tmp', SANDBOX_DIR]);
+
+/**
+ * A copy of the project under `<root>/.oxmutate-tmp/`, for the paths that need files on disk (the
+ * command runner, the type checker). Inside the project so module resolution walks up to the same
+ * `node_modules`; entry by entry, since a directory cannot be copied into itself.
+ */
+export function makeSandbox(root: string): string {
+  const parent = path.join(root, SANDBOX_DIR);
+  mkdirSync(parent, { recursive: true });
+  const sandbox = mkdtempSync(path.join(parent, 'sandbox-'));
+  for (const entry of readdirSync(root)) if (!SKIP.has(entry)) cpSync(path.join(root, entry), path.join(sandbox, entry), { recursive: true });
+  return sandbox;
+}
 const MS_PER_MINUTE = 60_000;
 /** How much of a failing dry run's output the error keeps. */
 const OUTPUT_TAIL = 1500;
@@ -50,12 +63,8 @@ const PROCESS_SLACK_MS = 5000;
 
 /** Runs the command over every mutant not already decided; returns the dry run's time. */
 export async function runCommandMutants(o: CommandRunOptions, mutants: CommandMutant[]): Promise<{ dryMs: number; executions: number }> {
-  const parent = path.join(o.root, SANDBOX_DIR);
-  mkdirSync(parent, { recursive: true });
-  const sandbox = mkdtempSync(path.join(parent, 'sandbox-'));
+  const sandbox = makeSandbox(o.root);
   try {
-    // Entry by entry: the sandbox lives inside the project, and a directory cannot be copied into itself.
-    for (const entry of readdirSync(o.root)) if (!SKIP.has(entry)) cpSync(path.join(o.root, entry), path.join(sandbox, entry), { recursive: true });
     for (const [file, code] of Object.entries(o.codeMap)) writeFileSync(path.join(sandbox, path.relative(o.root, file)), code);
     // Stryker splits the command on spaces and runs it without a shell; so does this.
     const [command = '', ...args] = o.command.trim().split(/\s+/);

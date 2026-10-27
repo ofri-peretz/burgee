@@ -36,12 +36,14 @@ export function parseDiff(diff: string): LineRanges {
     const start = Number(hunk[1]);
     const count = hunk[2] === undefined ? 1 : Number(hunk[2]);
     if (count === 0) continue; // a pure deletion adds no line to mutate
+    // Stryker disable next-line OptionalChaining: the get after a set always finds the list; `?.` is only for the type
     (out.get(file) ?? out.set(file, []).get(file))?.push([start, start + count - 1]);
   }
   return out;
 }
 
 export function touches(ranges: LineRanges, file: string, startLine: number, endLine: number): boolean {
+  // Stryker disable next-line ArrayDeclaration: a string element destructures to letters, and a number compared with a letter is false, as with no ranges
   return (ranges.get(file) ?? []).some(([a, b]) => startLine <= b && endLine >= a);
 }
 
@@ -61,6 +63,7 @@ export function parseShard(value: string): { index: number; count: number } {
   const m = /^(\d+)\/(\d+)$/.exec(value);
   const index = Number(m?.[1]);
   const count = Number(m?.[2]);
-  if (!m || count < 1 || index < 1 || index > count) throw new Error(`--shard must be i/n with 1 <= i <= n, got "${value}"`);
+  // `count < 1` needs no check of its own: with 1 <= index <= count it cannot hold.
+  if (!m || index < 1 || index > count) throw new Error(`--shard must be i/n with 1 <= i <= n, got "${value}"`);
   return { index: index - 1, count };
 }

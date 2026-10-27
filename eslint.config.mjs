@@ -168,6 +168,9 @@ export default [
       // Agent worktrees are whole copies of this repo. Linting them lints every
       // file twice and fails on whatever a stale copy still contains.
       ".claude/**",
+      // oxmutate's sandbox: a copy of the project while the command runner or the type checker
+      // runs, removed after it. Linting it lints the project twice, mid-copy.
+      "**/.oxmutate-tmp/**",
       "**/dist/**",
       "**/.next/**",
       "**/.source/**",
@@ -1075,9 +1078,10 @@ export default [
     rules: { "operability/no-process-exit": "off" },
   },
   {
-    // The command runner's workers each take the next mutant when their process exits: one
-    // process per worker at a time is the concurrency, so each await in the loop is the point.
-    files: ["packages/oxmutate/src/command-runner.ts"],
+    // The command runner's and the type checker's workers each take the next mutant (or batch)
+    // when their process exits: one process per worker at a time is the concurrency, so each
+    // await in the loop is the point. A crossed-file batch re-checks one mutant at a time.
+    files: ["packages/oxmutate/src/command-runner.ts", "packages/oxmutate/src/checker.ts"],
     rules: { "reliability/no-await-in-loop": "off" },
   },
   {
@@ -1168,6 +1172,7 @@ export default [
       "packages/oxmutate/bench/burgee-pair.mts",
       "packages/oxmutate/bench/compare-reports.mjs",
       "packages/oxmutate/bench/metrics.mjs",
+      "packages/oxmutate/bench/spec-closeout.mts",
     ],
     rules: {
       "import-next/no-unused-modules": "off",
@@ -1188,6 +1193,35 @@ export default [
     },
   },
   {
+    // The Regex parity check is a program run by hand: it loads Stryker's weapon-regex (a
+    // dev-time install, Scala.js, CommonJS only) beside the native core's output for the same
+    // patterns, recurses into each regex AST, and exits non-zero on a difference. Nothing
+    // imports it, and nothing it loads ships.
+    files: ["packages/oxmutate/native/scripts/regex-parity.mjs"],
+    rules: {
+      "import-next/no-unused-modules": "off",
+      "import-next/no-commonjs": "off",
+      "import-next/no-extraneous-dependencies": "off",
+      "node-security/no-dynamic-dependency-loading": "off",
+      "maintainability/cognitive-complexity": "off",
+      "secure-coding/no-unchecked-loop-condition": "off",
+      "operability/no-process-exit": "off",
+      "conventions/no-magic-numbers": "off",
+      "operability/no-console-log": "off",
+      "operability/no-debug-code-in-production": "off",
+    },
+  },
+  {
+    // A replay test that runs inside closeout, not here: spec-closeout.mts copies it into
+    // closeout's .mutation/ for the run, where `../src/cursor.js` is closeout's own file and
+    // `oxmutate/spec` resolves from the workspace. Neither is a dependency of oxmutate's.
+    files: ["packages/oxmutate/bench/spec/cursor-replay.test.ts"],
+    rules: {
+      "import-next/no-extraneous-dependencies": "off",
+      "import-next/no-relative-parent-imports": "off",
+    },
+  },
+  {
     // The end-to-end fixtures are tiny projects the e2e tests run the built CLI in: each spec is
     // a Vitest entry, never imported, and each fixture's package.json declares nothing because
     // Vitest resolves from the workspace, as it does for every package here.
@@ -1204,6 +1238,7 @@ export default [
     files: [
       "packages/oxmutate/test/fixtures/spin/src/spin.spec.ts",
       "packages/oxmutate/test/fixtures/slow/src/one.spec.ts",
+      "packages/oxmutate/test/fixtures/slow-survivor/src/one.spec.ts",
     ],
     rules: {
       "secure-coding/no-unchecked-loop-condition": "off",

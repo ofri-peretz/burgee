@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { startProgress } from './progress.js';
 
@@ -43,5 +43,53 @@ describe('the progress reporters', () => {
       p.stop();
       expect(text()).toBe('oxmutate: dry run, 0 s\n');
     }
+  });
+
+  it('dots and a progress reporter among others turn it on too', () => {
+    for (const reporters of [['dots'], ['json', 'progress-append-only']]) {
+      const { out, text } = sink(false);
+      startProgress(reporters, out, () => 0).phase('dry run');
+      expect(text()).toBe('oxmutate: dry run, 0 s\n');
+    }
+  });
+
+  it('counts seconds from the start, on the real clock by default', () => {
+    const { out, text } = sink(false);
+    let t = 5000;
+    const p = startProgress(['ci'], out, () => t);
+    t = 7000;
+    p.phase('dry run');
+    p.stop();
+    const real = sink(false);
+    startProgress(['ci'], real.out).phase('warm runs');
+    expect(text() + real.text()).toBe('oxmutate: dry run, 2 s\noxmutate: warm runs, 0 s\n');
+  });
+});
+
+describe('the progress ticker', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('ticks every ten seconds off a terminal, and not after stop', () => {
+    vi.useFakeTimers();
+    const { out, text } = sink(false);
+    const p = startProgress(['ci'], out, () => Date.now());
+    p.phase('mutants');
+    vi.advanceTimersByTime(10_000);
+    expect(text().split('\n')).toHaveLength(3);
+    p.stop();
+    vi.advanceTimersByTime(60_000);
+    expect(text()).toBe('oxmutate: mutants, 0 s\noxmutate: mutants, 10 s\n');
+  });
+
+  it('never keeps the process alive', () => {
+    const spy = vi.spyOn(globalThis, 'setInterval');
+    const p = startProgress(['ci'], sink(false).out, () => 0);
+    p.phase('mutants');
+    const timer = spy.mock.results[0]?.value as NodeJS.Timeout;
+    expect(timer.hasRef()).toBe(false);
+    p.stop();
   });
 });

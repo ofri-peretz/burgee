@@ -1,0 +1,4 @@
+{
+  "compilerOptions": { "strict": true, "noEmit": true, "module": "nodenext", "target": "es2022", "skipLibCheck": true },
+  "files": ["src/pick.ts"]
+}

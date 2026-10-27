@@ -50,6 +50,7 @@ export async function tracesFor(oracle: SpecOracle, root: string, work: string):
   if (oracle.backend === 'itf') return path.resolve(root, oracle.dir ?? '');
   const dir = path.join(work, `spec-${oracle.name}`);
   mkdirSync(dir, { recursive: true });
+  // Stryker disable next-line StringLiteral: split always returns at least one element, so the default is never taken; it is there for the type
   const [command = '', ...prefix] = (oracle.quint ?? DEFAULT_QUINT).split(/\s+/);
   const n = String(oracle.traces ?? DEFAULT_TRACES);
   const args = [...prefix, 'run', path.resolve(root, oracle.model ?? ''), '--mbt', '--n-traces', n, '--max-samples', n, '--max-steps', String(oracle.maxSteps ?? DEFAULT_STEPS), '--out-itf', path.join(dir, 't{seq}.itf.json')];
@@ -125,6 +126,7 @@ export function summarizeSpec({ oracle, modelledFiles, traces, mutants, testName
     modelled: here.length,
     mappingCoverage: share(reached.length, here.length),
     specKillShare: share(killed.length, here.length),
+    // Stryker disable next-line OptionalChaining: every mutant in `killed` has spec.status Killed, so spec is defined; `?.` is only for the type
     testSpecGap: killed.filter(testsMiss).map((m) => ({ ...located(m), trace: testName(m.spec?.killedBy?.[0] ?? '') })),
     specEscapes: here.filter((m) => testsMiss(m) && m.spec?.status !== 'Killed').map(located),
     msPerSpecExecution: median(specMs),

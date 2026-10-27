@@ -116,37 +116,32 @@ Every Stryker 10.0.0 capability, where it lands, and what "better" means. **P** 
 
 ## Status, 2026-10-27
 
-What is built against this matrix. ✅ built and tested · 🟡 partly · ⬜ not started. The
-work queue below is the order these close in; each item ends with a check that fails without it.
+What is built against this matrix. ✅ built and tested · 🟡 partly · ⬜ not started. Every ✅
+has a test that fails without it (named in the commit that added it).
 
 | Area | Item | Status | Where |
 | :-- | :-- | :-- | :-- |
-| Mutators | 16 of 17 families, Stryker's exact set (720/720 on es-toolkit) | ✅ | `native/src/instrument.rs` |
-| Mutators | Regex (via `oxc_regular_expression`) | ⬜ | queue 1 |
-| Mutators | `mutator.excludedMutations` | ✅ | `src/config.ts` |
-| Runner | Vitest, warm, perTest, bail, canary, watchdog | ✅ | `src/runner.ts`, `src/scheduler.ts` |
-| Runner | Command runner | ⬜ | queue 6 |
-| Execution | Static mutants scored, loader-scoped | ✅ | `src/coordinator.ts` |
-| Execution | `timeoutMS`, `timeoutFactor`, thresholds and `break` | ✅ | |
-| Execution | `dryRunOnly`, `dryRunTimeoutMinutes`, `buildCommand`, `testRunnerNodeArgs`, `warnings` | ⬜ | queue 3 |
-| Execution | `ignorers` as data | ⬜ | queue 7 |
-| Execution | Type checker (tsgo), compile errors counted | ⬜ | queue 8 |
+| Mutators | All 17 families; Stryker's exact set (720/720 on es-toolkit), Regex equal to weapon-regex on 928 of 932 real patterns | ✅ | `native/src/instrument.rs`, `native/src/regex.rs` |
+| Mutators | `mutator.excludedMutations`; `// Stryker disable` with a reason | ✅ | `src/config.ts` |
+| Mutators | `ignorers`, as data: `ignore: [{ call: 'console.*' }]` | ✅ | native core, `src/config.ts` |
+| Runner | Vitest, warm, perTest, bail, adaptive canary, watchdog, no orphans | ✅ | `src/runner.ts`, `src/scheduler.ts`, `src/child.ts` |
+| Runner | Command runner (`testRunner: 'command'`) | ✅ | `src/command-runner.ts` |
+| Execution | Static mutants scored, loader-scoped; timeouts confirmed at 3x | ✅ | `src/coordinator.ts` |
+| Execution | `buildCommand`, `dryRunOnly`, `dryRunTimeoutMinutes`, `allowEmpty`, `testRunnerNodeArgs`, `warnings` | ✅ | `src/config.ts` |
+| Execution | Type checker on survivors (`checkers: ['typescript']`, tsgo or tsc) | ✅ | `src/checker.ts` |
 | Incremental | `--incremental`, keyed on source plus covering tests | 🟡 | built; not yet measured against Stryker's |
-| Reporters | JSON (schema 2), clear-text, SARIF | ✅ | `src/reports.ts` |
-| Reporters | HTML (`mutation-testing-elements`) | ⬜ | queue 2 |
-| Reporters | progress, `event-recorder`, `ci` | ⬜ | queue 3 |
-| Lanes | `--since`, `--shard`, `survivors --json`, `--mcp` | ✅ | `src/lanes.ts`, `src/cli.ts` |
-| Lanes | `record` (ratchet observations) | ⬜ | queue 4 |
-| Lanes | Frozen oracle | ⬜ | queue 5 |
-| Teardown | No orphan servers (T6) | ✅ | `src/child.ts`, e2e test |
-| Dogfood | burgee's weekly run on oxmutate | ⬜ | queue 9, after 4 |
-| Formal | Spec oracle contract and Quint backend | ⬜ | queue 10 |
-| Release | Per-platform native packages, trusted publishing | 🟡 | `npm/*` scaffolded; queue 11 |
+| Reporters | JSON (schema 2), clear-text, SARIF, HTML, progress / progress-append-only / ci | ✅ | `src/reports.ts`, `src/progress.ts` |
+| Lanes | `--since`, `--shard`, `survivors --json`, `--mcp`, `--break` (exit 1) | ✅ | `src/lanes.ts`, `src/cli.ts` |
+| Lanes | Frozen oracle (`--frozen-oracle <ref>`, R14 / SC10) | ✅ | `src/frozen.ts` |
+| Dogfood | burgee's `full` lane on oxmutate (`--engine oxmutate`); `mutation.yml` engine input | ✅ | `scripts/mutation.ts` |
+| Dogfood | One green week of the weekly run on oxmutate (the M3 gate) | ⬜ | owner: dispatch with `engine: oxmutate` |
+| Formal | Spec oracles: Quint (`quint run --mbt`) and ITF backends, `oxmutate/spec`, F1–F4 and F6 | ✅ | `src/spec-oracle.ts`, `src/spec.ts` |
+| Formal | The M3.5 gate on a burgee component with a `.qnt` model (closeout's save-restore) | ⬜ | a replay test in closeout's lane |
+| Release | Per-platform native packages, trusted publishing, version sync | ✅ | `oxmutate-native.yml`, `release.yml` |
+| Release | 0.1 on npm | ⬜ | owner: `RELEASING.md` |
+| Speed | `≥ 5x` on burgee packages (`S3`) | 🟡 | met on es-toolkit; missed on paratext (2.4x) and controlroom (`m1-results.md`) |
 
-**Work queue:** 1 Regex · 2 HTML report · 3 config and reporter breadth · 4 `record` · 5 frozen
-oracle · 6 command runner · 7 ignorers as data · 8 tsgo checker · 9 burgee weekly on oxmutate ·
-10 Quint spec oracle · 11 release 0.1. M4 items wait for an adopter, and M5 for a measured gain,
-as their gates say.
+M4 items wait for an adopter, and M5 items for a measured gain, as their gates say.
 
 ## Milestones
 

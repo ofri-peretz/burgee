@@ -44,6 +44,7 @@ export function strykerReport(r: RunResult): object {
   const testFiles = new Map<string, { tests: { id: string; name: string }[] }>();
   for (const t of r.tests) {
     const file = path.relative(r.root, t.file);
+    // Stryker disable next-line OptionalChaining: the get after a set always finds the entry; `?.` is only for the type
     (testFiles.get(file) ?? testFiles.set(file, { tests: [] }).get(file))?.tests.push({ id: t.id, name: t.name });
   }
   return {
@@ -115,6 +116,7 @@ function corrections(s: RunResult['stats']): string[] {
     s.flakyMutants && `${String(s.flakyMutants)} flaky verdict(s)`,
     s.survivorsOverturned && `${String(s.survivorsOverturned)} survivor(s) killed by a whole-file re-run`,
     s.timeoutsOverturned && `${String(s.timeoutsOverturned)} timeout(s) that finished given 3x the time`,
+    s.compileErrors && `${String(s.compileErrors)} survivor(s) that do not type-check, out of the score`,
     s.reused && `${String(s.reused)} verdict(s) reused`,
     s.crashes && `${String(s.crashes)} worker crash(es)`,
   ].filter((c): c is string => Boolean(c));
@@ -179,7 +181,10 @@ const ELEMENTS_SRI = 'sha384-xebNisAYQHHbrYIm991U9KOZ96oO+vRACR8kd+zHzWkU3pcRuig
 export function htmlReport(r: RunResult): string {
   let script: string;
   try {
-    script = `<script>${readFileSync(createRequire(path.join(r.root, 'package.json')).resolve(ELEMENTS), 'utf8')}</script>`;
+    const elements = createRequire(path.join(r.root, 'package.json')).resolve(ELEMENTS);
+    // Stryker disable next-line StringLiteral: without an encoding readFileSync returns a Buffer, which the template turns into the same UTF-8 text
+    const component = readFileSync(elements, 'utf8');
+    script = `<script>${component}</script>`;
   } catch {
     script = `<script src="${ELEMENTS_CDN}" integrity="${ELEMENTS_SRI}" crossorigin="anonymous"></script>`;
   }

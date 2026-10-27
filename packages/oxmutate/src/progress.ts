@@ -24,6 +24,7 @@ export function startProgress(reporters: readonly string[], out: Out, now: () =>
   const enabled = reporters.some((r) => REPORTERS.has(r));
   const rewrite = Boolean(out.isTTY) && reporters.includes('progress');
   const start = now();
+  // Stryker disable next-line StringLiteral: line() runs only after phase() has set the name, so the initial value is never printed
   let name = '';
   let detail: (() => string) | undefined;
   let timer: ReturnType<typeof setInterval> | undefined;
@@ -41,7 +42,7 @@ export function startProgress(reporters: readonly string[], out: Out, now: () =>
       timer.unref();
     },
     stop() {
-      if (timer) clearInterval(timer);
+      clearInterval(timer);
       if (enabled && rewrite) out.write('\n');
     },
   };

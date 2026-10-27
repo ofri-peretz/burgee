@@ -66,6 +66,12 @@ export interface Options {
    * (`{ "call": "console.*", "reason": "log text is not behaviour" }`; `*` stops at a dot, `**` does not).
    */
   ignore: IgnoreRule[];
+  /** Type-check survivors with the project's compiler (Stryker's `checkers: ['typescript']`; checker.ts). */
+  typeCheck: boolean;
+  /** The tsconfig the checker uses (Stryker's `tsconfigFile`). */
+  tsconfigFile: string;
+  /** The compiler command (default: the project's tsgo, else `npx tsc`). */
+  typeChecker?: string | undefined;
   /** Formal models whose traces are replayed against each mutant (spec-oracle.ts). */
   specOracles: SpecOracle[];
   /** `testRunner: 'command'`: run this command per mutant instead of the warm Vitest runner. */
@@ -81,7 +87,6 @@ const NOT_NEEDED: Record<string, string> = {
   appendPlugins: 'no runtime plugin loading',
   packageManager: 'oxmutate never installs anything',
   coverageAnalysis: 'always perTest',
-  checkers: 'type checking is M2 work (tsgo), not yet wired',
   maxTestRunnerReuse: 'workers are replaced on pollution and runaways, automatically',
   dashboard: 'the Stryker Dashboard reporter is M4 work',
   clearTextReporter: 'the summary is always printed',
@@ -89,10 +94,8 @@ const NOT_NEEDED: Record<string, string> = {
   logLevel: 'not implemented',
   fileLogLevel: 'not implemented',
   allowConsoleColors: 'colour follows the terminal (roundel policy)',
-  disableTypeChecks: 'type checking is M2 work',
-  tsconfigFile: 'type checking is M2 work',
+  disableTypeChecks: 'always on: instrumented files carry // @ts-nocheck, and the checker reads the original sources',
   ignorers: 'ignorer plugins are code; oxmutate takes the same rules as data in `ignore` (see the README)',
-  mutator: 'only mutator.excludedMutations is read',
   disableBail: 'oxmutate always stops at the first killing test',
   testFiles: 'test files come from the Vitest config',
   ignorePatterns: 'oxmutate never copies the project, so there is nothing to ignore',
@@ -111,10 +114,13 @@ const DEFAULT_THRESHOLD_HIGH = 80;
 const DEFAULT_THRESHOLD_LOW = 60;
 const DEFAULT_DRY_RUN_MINUTES = 5;
 
-const USED = new Set(['mutate', 'vitest', 'concurrency', 'timeoutMS', 'timeoutFactor', 'thresholds', 'ignoreStatic', 'reporters', 'jsonReporter', 'htmlReporter', 'incremental', 'incrementalFile', '$schema', 'mutator', 'dryRunOnly', 'dryRunTimeoutMinutes', 'buildCommand', 'testRunnerNodeArgs', 'allowEmpty', 'warnings', 'testRunner', 'commandRunner']);
+const USED = new Set(['mutate', 'vitest', 'concurrency', 'timeoutMS', 'timeoutFactor', 'thresholds', 'ignoreStatic', 'reporters', 'jsonReporter', 'htmlReporter', 'incremental', 'incrementalFile', '$schema', 'mutator', 'dryRunOnly', 'dryRunTimeoutMinutes', 'buildCommand', 'testRunnerNodeArgs', 'allowEmpty', 'warnings', 'testRunner', 'commandRunner', 'checkers', 'tsconfigFile']);
 
 async function loadFile(file: string): Promise<Record<string, unknown>> {
-  if (file.endsWith('.json')) return JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
+  if (file.endsWith('.json')) {
+    // Stryker disable next-line StringLiteral: without an encoding readFileSync returns a Buffer, which JSON.parse reads as UTF-8 text all the same
+    return JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
+  }
   const mod = (await import(pathToFileURL(file).href)) as { default?: unknown };
   const value = mod.default ?? mod;
   return (typeof value === 'function' ? await (value as () => unknown)() : value) as Record<string, unknown>;
@@ -175,6 +181,10 @@ export async function loadOptions(root: string, overrides: Partial<Options> = {}
     allowEmpty: raw['allowEmpty'] === true,
     specOracles: (raw['specOracles'] as SpecOracle[] | undefined) ?? [],
     ignore: (raw['ignore'] as IgnoreRule[] | undefined) ?? [],
+    // Stryker disable next-line ArrayDeclaration: a placeholder element is not 'typescript' either, so includes() is false as for an empty list
+    typeCheck: ((raw['checkers'] as string[] | undefined) ?? []).includes('typescript'),
+    tsconfigFile: (raw['tsconfigFile'] as string | undefined) ?? 'tsconfig.json',
+    typeChecker: typeof raw['typeChecker'] === 'string' ? raw['typeChecker'] : undefined,
     commandRunner: raw['testRunner'] === 'command' ? ((raw['commandRunner'] as { command?: string } | undefined)?.command ?? 'npm test') : undefined,
     warnUnused: raw['warnings'] !== false && (raw['warnings'] as { unknownOptions?: boolean } | undefined)?.unknownOptions !== false,
     ...overrides,
@@ -188,8 +198,9 @@ export interface Disable {
   reason: string;
 }
 
-const DIRECTIVE = /\/\/\s*(?:Stryker|oxmutate)\s+disable\s+next-line\s+([\w,\s]+?|all)\s*:\s*(.*)$/i;
-const NO_REASON = /\/\/\s*(?:Stryker|oxmutate)\s+disable\s+next-line\s+([\w,\s]+?|all)\s*$/i;
+// One `\s` after next-line is enough: the list's class takes any further whitespace, and is trimmed.
+const DIRECTIVE = /\/\/\s*(?:Stryker|oxmutate)\s+disable\s+next-line\s([\w,\s]+?|all)\s*:\s*(.*)/i;
+const NO_REASON = /\/\/\s*(?:Stryker|oxmutate)\s+disable\s+next-line\s([\w,\s]+?|all)\s*$/i;
 
 /** Disable directives in a file. A directive without a reason is an error (burgee's own rule). */
 export function disables(source: string, file: string): { disables: Disable[]; errors: string[] } {
@@ -198,8 +209,9 @@ export function disables(source: string, file: string): { disables: Disable[]; e
   source.split('\n').forEach((line, i) => {
     const m = DIRECTIVE.exec(line);
     if (m) {
-      const list = (m[1] ?? '').trim();
-      out.push({ line: i + 2, mutators: list.toLowerCase() === 'all' ? 'all' : list.split(',').map((s) => s.trim()).filter(Boolean), reason: (m[2] ?? '').trim() });
+      // Stryker disable next-line StringLiteral: both groups take part in every match, so the fallback is never used; it is there for the type
+      const [list, reason] = [(m[1] ?? '').trim(), (m[2] ?? '').trim()];
+      out.push({ line: i + 2, mutators: list.toLowerCase() === 'all' ? 'all' : list.split(',').map((s) => s.trim()).filter(Boolean), reason });
     } else if (NO_REASON.test(line)) {
       errors.push(`${file}:${String(i + 1)}: disable comment without a reason. fix: add ": <why this mutant cannot be killed>"`);
     }

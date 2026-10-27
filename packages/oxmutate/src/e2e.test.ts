@@ -233,3 +233,18 @@ describe.skipIf(!native || !existsSync(bin))('a spec oracle (M3.5): model traces
     expect(counter?.mappingCoverage).toBe(100);
   });
 });
+
+it.skipIf(!native || !existsSync(bin))('keeps a survivor whose confirmation run was only slow, not killed', () => {
+  const dir = path.join(pkg, 'test/fixtures/slow-survivor');
+  const reportDir = path.join(dir, 'reports');
+  rmSync(reportDir, { recursive: true, force: true });
+  mkdirSync(reportDir, { recursive: true });
+  execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe' });
+  const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as {
+    files: Record<string, { mutants: ReportMutant[] }>;
+    'x-oxmutate': { stats: { survivorsOverturned: number } };
+  };
+  rmSync(reportDir, { recursive: true, force: true });
+  expect(report.files['src/one.ts']?.mutants.map((m) => m.status)).toEqual(['Survived']);
+  expect(report['x-oxmutate'].stats.survivorsOverturned).toBe(0);
+}, 90_000);

@@ -12,6 +12,7 @@ type Exports = string | { [condition: string]: Exports } | null | undefined;
 
 function pick(entry: Exports): string | undefined {
   if (typeof entry === 'string') return entry;
+  // Stryker disable next-line ConditionalExpression: a number or boolean entry has no condition properties, so the loop below returns undefined too
   if (!entry || typeof entry !== 'object') return undefined;
   for (const condition of ['import', 'node', 'default']) {
     const found = pick(entry[condition]);
@@ -23,11 +24,14 @@ function pick(entry: Exports): string | undefined {
 export function resolveEsm(specifier: string, fromDir: string): string {
   const parts = specifier.split('/');
   const name = specifier.startsWith('@') ? parts.slice(0, 2).join('/') : (parts[0] ?? specifier);
-  const subpath = `.${specifier.slice(name.length)}` || '.';
+  const subpath = `.${specifier.slice(name.length)}`;
   const req = createRequire(path.join(fromDir, 'package.json'));
   const pkgJson = req.resolve(`${name}/package.json`);
-  const pkg = JSON.parse(readFileSync(pkgJson, 'utf8')) as { exports?: Record<string, Exports> | string; module?: string; main?: string };
-  const exportsMap = typeof pkg.exports === 'string' ? { '.': pkg.exports } : pkg.exports;
+  // A string `exports` exports no `./package.json`, so the resolve above has already thrown: here
+  // `exports` is a map or absent.
+  // Stryker disable next-line StringLiteral: without an encoding readFileSync returns a Buffer, which JSON.parse reads as UTF-8 text all the same
+  const pkg = JSON.parse(readFileSync(pkgJson, 'utf8')) as { exports?: Record<string, Exports>; module?: string; main?: string };
+  const exportsMap = pkg.exports;
   let target: string | undefined;
   if (exportsMap) target = pick(exportsMap[subpath]);
   else target = subpath === '.' ? (pkg.module ?? pkg.main) : subpath;

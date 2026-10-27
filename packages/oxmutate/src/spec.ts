@@ -69,6 +69,7 @@ const pick = (v: unknown): unknown => {
 
 /** One ITF file as steps. */
 export function readTrace(file: string): Trace {
+  // Stryker disable next-line StringLiteral: without an encoding readFileSync returns a Buffer, which JSON.parse reads as UTF-8 text all the same
   const itf = JSON.parse(readFileSync(file, 'utf8'), revive) as { states: Record<string, unknown>[] };
   const steps = itf.states.map((s) => ({
     action: String(s['mbt::actionTaken'] ?? ''),

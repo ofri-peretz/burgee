@@ -16,6 +16,7 @@ import path from 'node:path';
 
 import { ambientRuntime, run as spawn } from 'bellpull';
 
+import { checkSurvivors } from './checker.js';
 import type { Unit } from './child.js';
 import { runCommandMutants } from './command-runner.js';
 import { disables, type Options } from './config.js';
@@ -74,6 +75,8 @@ export interface RunStats {
   survivorsOverturned: number;
   /** Watchdog timeouts that finished when re-run with 3x the budget: the machine was slow, not the mutant. */
   timeoutsOverturned: number;
+  /** Survivors the type checker refused (checker.ts): CompileError, out of the score. */
+  compileErrors: number;
   isolatedRuns: number;
   reused: number;
   flakyTests: number;
@@ -162,7 +165,7 @@ export async function run(options: Options): Promise<RunResult> {
   const work = mkdtempSync(path.join(tmpdir(), 'oxmutate-'));
   const stats: RunStats = {
     files: 0, mutants: 0, instrumentMs: 0, dryRunMs: 0, mutationMs: 0, isolatedMs: 0, wallMs: 0, testExecutions: 0,
-    watchdogKills: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, survivorsOverturned: 0, timeoutsOverturned: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0,
+    watchdogKills: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0,
   };
   let unitSeq = 0;
   const fileFor = (kind: string, ext: string): string => path.join(work, `${kind}-${String(unitSeq++)}.${ext}`);
@@ -611,6 +614,15 @@ export async function run(options: Options): Promise<RunResult> {
     // re-run once with the mutant armed across its covering files before it is reported.
     const survivors = toRun.filter((m) => m.status === 'Survived');
     const confirmed = await runIsolated(survivors);
+    // A timeout here is a watchdog stop like any other, and a loaded machine makes them: two
+    // closeout survivors were reported killed this way while a docs build shared the machine
+    // (2026-10-27). The same rule as section 6: one more run at 3x the budget before believing it.
+    const stoppedHere = survivors.filter((m) => confirmed.get(m.id)?.status === 'Timeout');
+    const recheck = await runIsolated(stoppedHere, 3);
+    for (const m of stoppedHere) {
+      const v = recheck.get(m.id);
+      if (v) confirmed.set(m.id, v);
+    }
     for (const m of survivors) {
       const v = confirmed.get(m.id);
       if (v && v.status !== 'Survived' && v.status !== 'RuntimeError') {
@@ -618,6 +630,21 @@ export async function run(options: Options): Promise<RunResult> {
         m.killedBy = v.killedBy;
         m.statusReason = 'killed only when the mutant stays active across the whole test file (cross-test effect)';
         stats.survivorsOverturned++;
+      }
+    }
+
+    // ── 6c. Survivors that do not type-check are CompileErrors (checker.ts) ────────────────────
+    if (options.typeCheck) {
+      progress.phase('type-checking survivors');
+      // Every undetected mutant is one somebody would act on: survivors and the uncovered.
+      const survived = mutants.filter((m) => m.status === 'Survived' || m.status === 'NoCoverage');
+      const refused = await checkSurvivors({ root, tsconfig: options.tsconfigFile, command: options.typeChecker, concurrency: options.concurrency }, survived).catch((error: unknown) => {
+        throw new InstrumentFault(error instanceof Error ? error.message : String(error));
+      });
+      for (const m of survived.filter((x) => refused.has(x.id))) {
+        m.status = 'CompileError';
+        m.statusReason = `does not type-check: ${refused.get(m.id) ?? ''}`;
+        stats.compileErrors++;
       }
     }
 

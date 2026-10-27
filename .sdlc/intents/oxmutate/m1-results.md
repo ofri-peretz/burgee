@@ -61,6 +61,33 @@ fixes. It is re-measured on the CI lane before it is quoted again.
 | paratext `template.ts:47` CallExpression | Timeout | Survived | oxmutate: Stryker's hit limit (hits × 100) stops a loop that ends; the covering tests pass |
 | controlroom `screen.ts:224` ConditionalExpression | RuntimeError | Survived | Not yet checked: Stryker's worker errored, so Stryker has no verdict to compare. Next: run its covering tests with the mutant applied by hand |
 
+## The spec oracle on a real component (the M3.5 gate)
+
+`packages/oxmutate/bench/spec-closeout.mts`: closeout's `src/cursor.ts` mutated (77 mutants),
+scored by its own `cursor.test.ts`, and by `.sdlc/models/save-restore.qnt` — 200 traces from
+`quint run --mbt` (seed 7, 20 steps), replayed against `rawMode` on a fake terminal
+(`bench/spec/cursor-replay.test.ts`). Measured 2026-10-27, 58.8 s in all.
+
+| Metric | Value | Target (`metrics.md` §6) |
+| :-- | --: | :-- |
+| Tests' mutation score | 97.40% (75 of 77) | — |
+| `F1` spec-kill share | 31.2% of 77 | reported per component |
+| `F2` test-spec gap | 0 | every one listed |
+| `F3` spec escapes | 2 | every one listed, trend down |
+| `F4` ms per replay, mutant armed | 0.11 ms | ≤ 2x `S1` (0.084 ms at M0): **met** |
+| `F6` mapping coverage | 45.5% | ≥ 80%: **missed** |
+
+- **`F2` is 0, and that is a result, not a failure.** closeout holds its tests to a 100% line
+  floor; the spec catches nothing those tests miss. The fixture in `src/e2e.test.ts` shows the
+  other case: a counter whose `dec()` no test calls, where all six of its mutants are test-spec
+  gaps, each with the trace that killed it.
+- **The two escapes are the same two survivors** (`?.` removed from `unregister?.()` and from
+  `input.setRawMode?.(false)` after `setRawMode` was checked to exist): equivalent mutants by
+  reading, which neither oracle can kill.
+- **`F6` misses because the unit of mapping is a file.** The model describes `rawMode`; the file
+  also holds the cursor, alternate-screen and bracketed-paste switches it says nothing about.
+  The way up is a narrower `files` (one function's span) — or models for the rest.
+
 ## What oxmutate corrects that Stryker does not
 
 Each correction has a counter in the report's `x-oxmutate.stats` and in the terminal summary. Each
@@ -86,6 +113,11 @@ also has a test that fails without it.
    re-parse net on the first controlroom run.
 4. **Orphaned servers**, above. The scheduler's own kill was on an `unref`'d timer that never
    fired once the coordinator exited.
+5. **A slow survivor-confirmation run was read as a kill.** Survivor confirmation counted a
+   watchdog stop as overturning the survivor; on a loaded machine two closeout survivors were
+   reported killed (the spec-oracle bench above, run 2 of 3; runs 1 and 3 agree, and are the
+   numbers given). A stop there now gets the same 3x re-run section 6 gives every other stop
+   (`src/e2e.test.ts`, the slow-survivor fixture, red without it).
 
 ## Tried, measured, reverted
 
