@@ -90,8 +90,11 @@ Checked criterion by criterion on `61bd11b9`. **Three of five met.** The status 
   [`b1-mcp-arm`](../b1-mcp-arm/spec.md) (R1–R4 and R6). Its first weekly run, 2026-10-20, never
   reached the server, so it is no reading
   ([D-20261026-b1-mcp-arm-server-guard](../../decisions/D-20261026-b1-mcp-arm-server-guard.md)).
-  This criterion is met, and the intent moves to `shipped`, when four landed weekly readings
-  carry the arm's ratio and `b1-mcp-arm` R5 cites their run ids.
+  This criterion is met, and the intent moves to `shipped`, when four landed readings from
+  scheduled or owner-dispatched runs carry the arm's ratio and `b1-mcp-arm` R5 cites their run ids
+  with the median and range (restated 2026-10-27 from "four weekly readings",
+  [D-20261027-b1-mcp-arm-owner-dispatch](../../decisions/D-20261027-b1-mcp-arm-owner-dispatch.md)).
+  1 of 4 on 2026-10-27: run 40492593210.
 - **A copy-pasteable client configuration on the docs page that works unmodified** — **not met as
   written.** `/docs/agent-surfaces` is live and carries an `mcpServers` block, but it is a
   template naming `mytool`, so it does not work unmodified, and no test in `apps/docs/tests/`

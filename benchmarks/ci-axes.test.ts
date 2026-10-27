@@ -74,10 +74,12 @@ describe('each CI job runs its whole suite', () => {
  * B1 is paid agent runs on every reading. Until 2026-10-18 it landed one on every push to `main`;
  * since D-20261019-b1-weekly-not-per-push the job itself runs only on the weekly schedule, a manual
  * dispatch and a PR labelled `bench:agent` (the describe block at the end holds that). The arm adds
- * its runs to each reading it joins, so it joins the weekly schedule and a labelled PR, and nothing
- * else: a manual dispatch and an unlabelled PR run the two existing variants only. The axis runs the arm only when `BENCH_AGENT_MCP` is `1`
- * (`variantsFor` in `axes/agent.ts`), so the expression that sets it is the whole of the bound,
- * and this evaluates that expression for every event rather than matching its text.
+ * its runs to each reading it joins, so it joins the weekly schedule, a labelled PR, and a manual
+ * dispatch that asks for it by its `mcp-arm` input (D-20261027-b1-mcp-arm-owner-dispatch: the owner
+ * approved three extra readings on 2026-10-27), and nothing else: a push, a dispatch without the
+ * input and an unlabelled PR run the two existing variants only. The axis runs the arm only when
+ * `BENCH_AGENT_MCP` is `1` (`variantsFor` in `axes/agent.ts`), so the expression that sets it is the
+ * whole of the bound, and this evaluates that expression for every event rather than matching its text.
  */
 const agentJob = WORKFLOW.slice(WORKFLOW.indexOf('\n  agent:\n'));
 const runStep = agentJob.slice(agentJob.indexOf('- name: Run B1'), agentJob.indexOf('- name: Did it actually measure anything?'));
@@ -87,6 +89,8 @@ interface Event {
   labels: string[];
   /** `vars.B1_MCP_ARM`: the owner's approval of the spend. Absent reads as GitHub reads it, `''`. */
   approval?: string;
+  /** `inputs.mcp-arm`: a boolean on a manual dispatch, absent (GitHub's `null`) on every other event. */
+  mcpArm?: boolean;
 }
 
 /**
@@ -117,6 +121,7 @@ function evaluate(expression: string, ev: Event): unknown {
     if (t.startsWith("'")) return t.slice(1, -1);
     if (t === 'github.event_name') return ev.event_name;
     if (t === 'vars.B1_MCP_ARM') return ev.approval ?? '';
+    if (t === 'inputs.mcp-arm') return ev.event_name === 'workflow_dispatch' ? (ev.mcpArm ?? false) : null;
     if (t === 'contains') {
       take('(');
       const subject = take();
@@ -185,9 +190,27 @@ describe('R4 — the MCP arm runs where its cost was accepted, and nowhere else'
     expect(armFor({ event_name: 'pull_request', labels: [label], approval })).toBe('1');
   });
 
+  it('admits a manual dispatch that asks for the arm by its mcp-arm input', () => {
+    expect(armFor({ event_name: 'workflow_dispatch', labels: [], approval, mcpArm: true })).toBe('1');
+  });
+
+  it('refuses a manual dispatch that does not ask, and a push however it is dressed', () => {
+    expect(armFor({ event_name: 'workflow_dispatch', labels: [], approval, mcpArm: false })).not.toBe('1');
+    expect(armFor({ event_name: 'workflow_dispatch', labels: [], approval })).not.toBe('1');
+    expect(armFor({ event_name: 'push', labels: [], approval, mcpArm: true })).not.toBe('1');
+  });
+
+  it('declares mcp-arm as a boolean dispatch input that defaults to off', () => {
+    const dispatch = WORKFLOW.slice(WORKFLOW.indexOf('  workflow_dispatch:'), WORKFLOW.indexOf('\nconcurrency:'));
+    expect(dispatch).toMatch(/^ {6}mcp-arm:\n(?: {8}.+\n)*? {8}type: boolean\n/mu);
+    expect(dispatch).toMatch(/^ {6}mcp-arm:\n(?: {8}.+\n)*? {8}default: false\n/mu);
+  });
+
   it.each(['', 'yes', 'Approved'])('spends nothing anywhere until the owner approves it (B1_MCP_ARM=%j)', (value) => {
     for (const event_name of ['schedule', 'push', 'workflow_dispatch', 'pull_request']) {
-      for (const labels of [[], [label]]) expect(armFor({ event_name, labels, approval: value })).not.toBe('1');
+      for (const labels of [[], [label]]) {
+        for (const mcpArm of [false, true]) expect(armFor({ event_name, labels, approval: value, mcpArm })).not.toBe('1');
+      }
     }
   });
 
@@ -204,7 +227,9 @@ describe('R4 — the MCP arm runs where its cost was accepted, and nowhere else'
   it('is never wider than the job it runs in, which is where the two existing variants spend', () => {
     for (const event_name of ['schedule', 'push', 'workflow_dispatch', 'pull_request']) {
       for (const labels of [[], [label]]) {
-        if (armFor({ event_name, labels, approval }) === '1') expect(jobRunsFor({ event_name, labels }), `${event_name} ${labels.join()}`).toBe(true);
+        for (const mcpArm of [false, true]) {
+          if (armFor({ event_name, labels, approval, mcpArm }) === '1') expect(jobRunsFor({ event_name, labels, mcpArm }), `${event_name} ${labels.join()}`).toBe(true);
+        }
       }
     }
   });
@@ -221,8 +246,16 @@ describe('R4 — the MCP arm runs where its cost was accepted, and nowhere else'
   });
 
   it('lands a weekly reading under its own name, so it never collides with a push reading of the same commit', () => {
-    expect(agentJob).toMatch(/if: \(github\.event_name == 'push' \|\| github\.event_name == 'schedule'\) && steps\.status\.outputs\.status == 'measured'/u);
+    expect(agentJob).toMatch(/if: \(github\.event_name == 'push' \|\| github\.event_name == 'schedule' \|\| \(github\.event_name == 'workflow_dispatch' && inputs\.mcp-arm\)\) && steps\.status\.outputs\.status == 'measured'/u);
     expect(agentJob).toContain('-weekly-ci.json');
+  });
+
+  it('lands a dispatched reading under a name carrying its run id, so three dispatches of one commit never collide', () => {
+    const land = agentJob.slice(agentJob.indexOf("- name: Land B1's observation"), agentJob.indexOf('- uses: actions/upload-artifact'));
+    expect(land).toContain('-dispatch-${GITHUB_RUN_ID}-ci.json');
+    // A dispatch that did not ask for the arm measured nothing the verdict reads, and lands nothing.
+    const cond = /^ {8}if: (.+)$/mu.exec(land)?.[1] ?? '';
+    expect(cond).toContain("(github.event_name == 'workflow_dispatch' && inputs.mcp-arm)");
   });
 });
 

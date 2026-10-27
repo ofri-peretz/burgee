@@ -12,7 +12,8 @@ N1–N9 and N11–N13 hold, with the checks in the status table below. The two r
 reads "not yet" are settled:
 
 - The benchmark over MCP (criterion 4) is owned by [`b1-mcp-arm`](../b1-mcp-arm/intent.md). Its
-  criterion 3 marks this intent's criterion met after four weekly readings, and this intent then
+  criterion 3 marks this intent's criterion met after four readings from scheduled or
+  owner-dispatched runs (D-20261027-b1-mcp-arm-owner-dispatch), and this intent then
   moves to `shipped`. Nothing is built here.
 - The lint rule (destructive verb with `mcp`, without `confirm`) moved to
   `eslint-plugin-cli-floor` in ofri-peretz/eslint

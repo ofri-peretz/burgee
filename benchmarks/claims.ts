@@ -84,11 +84,12 @@ export const CLAIMS: readonly ClaimSpec[] = [
    * same agent, the tasks both can state. Published whichever way it falls (the intent's
    * constraint), so the bar is the neutral one: `met` says the CLI costs no more tokens than the
    * MCP server, and `met: false` says the MCP server is cheaper. Its record exists only once four
-   * weekly readings carry the arm, so until then it reads `unmeasured`, never a verdict.
+   * readings from scheduled or owner-dispatched runs carry the arm
+   * (D-20261027-b1-mcp-arm-owner-dispatch), so until then it reads `unmeasured`, never a verdict.
    */
   {
     id: 'cli-vs-mcp-tokens',
-    claim: "for the same capability, declared once, an agent spends no more tokens through burgee's CLI than through its MCP server (median of at least four weekly readings, the tasks both can state)",
+    claim: "for the same capability, declared once, an agent spends no more tokens through burgee's CLI than through its MCP server (median of at least four readings from scheduled or owner-dispatched runs, the tasks both can state)",
     source: '.sdlc/intents/b1-mcp-arm/intent.md, success criterion 4; .sdlc/research/migration-drivers.md §7',
     from: { axis: 'agent', variant: 'burgee-mcp ÷ burgee', metric: 'mcp-tokens-total-ratio-readings-median' },
     test: { min: 1 },
