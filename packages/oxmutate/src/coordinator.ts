@@ -19,6 +19,7 @@ import { disables, type Options } from './config.js';
 import { matchFiles } from './files.js';
 import { changedLines, shardOf, touches } from './lanes.js';
 import { native, type NativeMutant } from './native.js';
+import { FILE_KEY } from './runtime.js';
 import { createPool, type UnitOutcome } from './scheduler.js';
 
 export type Status = 'Killed' | 'Survived' | 'Timeout' | 'NoCoverage' | 'RuntimeError' | 'CompileError' | 'Ignored';
@@ -150,7 +151,7 @@ export async function run(options: Options): Promise<RunResult> {
           file: f.path,
           coveredBy: [],
           status: off || excluded ? 'Ignored' : 'NoCoverage',
-          statusReason: off ? off.reason : excluded ? `excluded mutator ${m.mutatorName}` : undefined,
+          statusReason: off?.reason ?? (excluded ? `excluded mutator ${m.mutatorName}` : undefined),
         });
         any = true;
       }
@@ -212,8 +213,8 @@ export async function run(options: Options): Promise<RunResult> {
     /** Static mutant → the test files whose collection (imports, beforeAll) reached it. */
     const staticFiles = new Map<string, Set<string>>();
     for (const [testId, perMutant] of Object.entries(dry.perTest)) {
-      if (testId.startsWith('file:')) {
-        const file = testId.slice('file:'.length);
+      if (testId.startsWith(FILE_KEY)) {
+        const file = testId.slice(FILE_KEY.length);
         for (const id of Object.keys(perMutant)) (staticFiles.get(id) ?? staticFiles.set(id, new Set()).get(id))?.add(file);
         continue;
       }
@@ -411,7 +412,7 @@ export async function run(options: Options): Promise<RunResult> {
       const tests = m.coveredBy.map((t) => testInfo.get(t)?.file ?? '');
       if (!m.static) return byCost([...new Set(tests)]);
       const loaders = staticFiles.get(m.id);
-      if (!loaders || Object.prototype.hasOwnProperty.call(dry.static, m.id)) return byCost(allTestFiles);
+      if (!loaders || m.id in dry.static) return byCost(allTestFiles);
       // Files whose tests reach the mutant first: they kill it. Ordering all loaders by cost alone
       // ran a file that only imports it first, and 288 of 349 isolated kills on burgee/paratext
       // came from a later file (2026-10-27).

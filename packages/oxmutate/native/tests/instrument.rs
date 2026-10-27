@@ -112,3 +112,13 @@ fn module_specifiers_are_never_mutated_or_wrapped() {
         assert!(out.mutants.is_empty(), "{src}: {:?}", out.mutants.iter().map(|m| (&m.mutator_name, &m.replacement)).collect::<Vec<_>>());
     }
 }
+
+/// 2026-10-27, controlroom `tabs.ts`: a `case 'x':` whose test is mutated (StringLiteral) inside a
+/// case whose body is mutated too. The body was sliced from the rendered case by a source offset,
+/// which the instrumented test had moved: the output cut a mutant id in half and did not parse.
+#[test]
+fn a_mutated_case_test_keeps_its_case_body_intact() {
+    let src = "export function f(a: string): number { switch (a) { case 'x': return 1; case 'y': { return 2; } } return 0; }";
+    let out = instrument("t.ts", src, Options::default()).expect("instrumented code parses");
+    assert!(out.mutants.iter().any(|m| m.mutator_name == "StringLiteral" && m.replacement == "\"\""));
+}

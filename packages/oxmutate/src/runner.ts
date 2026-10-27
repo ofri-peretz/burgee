@@ -22,13 +22,15 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 
 import { resolveEsm } from './resolve.js';
-import { ACTIVE_MUTANT_ENV, NAMESPACE, type Namespace } from './runtime.js';
+import { ACTIVE_MUTANT_ENV, FILE_KEY, NAMESPACE, type Namespace } from './runtime.js';
 
 type AnyTask = {
   id: string;
   name: string;
   type: string;
   file?: { filepath: string };
+  /** A file task's own path. */
+  filepath?: string;
   suite?: AnyTask | undefined;
   result?: { state?: string; duration?: number };
   tasks?: AnyTask[] | undefined;
@@ -87,6 +89,9 @@ let polluted = false;
 /** Mutants between canaries; doubles while the canary stays clean, back to 1 when it fails. */
 let canaryEvery = 1;
 const MAX_CANARY_EVERY = 8;
+/** How much of a test's error a `polluted` record keeps, and of a file's collection error. */
+const POLLUTION_ERROR_CHARS = 300;
+const FILE_ERROR_CHARS = 500;
 
 function emit(record: object): void {
   if (resultsPath) appendFileSync(resultsPath, `${JSON.stringify(record)}\n`);
@@ -118,8 +123,11 @@ async function afterEach(test: AnyTask, context: unknown, cleanups: Hook[]): Pro
 
 const isHitLimit = (e: unknown): boolean => e instanceof Error && /Hit count limit/.test(e.message);
 
-/** Coverage key prefix for hits that happen while a test file is being collected (imports). */
-export const FILE_KEY = 'file:';
+function fullName(t: AnyTask): string {
+  const parts = [t.name];
+  for (let s = t.suite; s && s.type === 'suite' && s.name; s = s.suite) parts.unshift(s.name);
+  return parts.join(' > ');
+}
 
 export default class OxmutateRunner extends (Base as new (config: unknown) => {
   onCollectStart?(file: unknown): unknown;
@@ -131,7 +139,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
    * mutant is later re-run against the files that load its module, not the whole suite (Stryker
    * re-runs everything for each one).
    */
-  onCollectStart(file: AnyTask & { filepath?: string }): unknown {
+  onCollectStart(file: AnyTask): unknown {
     if (mode === 'dry') ns.currentTestId = `${FILE_KEY}${file.filepath ?? file.file?.filepath ?? ''}`;
     return (super.onCollectStart as ((f: unknown) => unknown) | undefined)?.call(this, file);
   }
@@ -174,7 +182,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       } catch (e) {
         polluted = true;
         canaryEvery = 1;
-        emit({ type: 'polluted', id: unchecked[0], suspects: unchecked.slice(1), test: test.id, file: test.file?.filepath, error: e instanceof Error ? e.message.slice(0, 300) : String(e) });
+        emit({ type: 'polluted', id: unchecked[0], suspects: unchecked.slice(1), test: test.id, file: test.file?.filepath, error: e instanceof Error ? e.message.slice(0, POLLUTION_ERROR_CHARS) : String(e) });
         return false;
       }
     };
@@ -229,11 +237,11 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       };
       const fileErrors: { file: string; error: string }[] = [];
       for (const f of files) {
-        const filepath = f.file?.filepath ?? (f as unknown as { filepath: string }).filepath;
+        const filepath = (f.file?.filepath ?? f.filepath) as string;
         visit(f, filepath);
         // A file that fails to collect has no failing test to show for it: report the file.
         const result = f.result as { state?: string; errors?: { message?: string }[] } | undefined;
-        if (result?.state === 'fail' && !f.tasks?.length) fileErrors.push({ file: filepath, error: (result.errors?.[0]?.message ?? 'failed to collect').slice(0, 500) });
+        if (result?.state === 'fail' && !f.tasks?.length) fileErrors.push({ file: filepath, error: (result.errors?.[0]?.message ?? 'failed to collect').slice(0, FILE_ERROR_CHARS) });
       }
       emit({ type: 'dry', tests, coverage: ns.mutantCoverage, fileErrors });
     } else if (mode === 'isolated') {
@@ -247,10 +255,4 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     }
     return super.onAfterRunFiles?.(files);
   }
-}
-
-function fullName(t: AnyTask): string {
-  const parts = [t.name];
-  for (let s = t.suite; s && s.type === 'suite' && s.name; s = s.suite) parts.unshift(s.name);
-  return parts.join(' > ');
 }

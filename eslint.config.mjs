@@ -1051,4 +1051,165 @@ export default [
       "secure-coding/no-unsafe-type-assertion": "off",
     },
   },
+
+  // ── oxmutate (intent oxmutate) ─────────────────────────────────────────────
+  {
+    // A server (`child.ts`) is a process the coordinator forks, not a module. It loads the
+    // project's own Vitest by the path `resolveEsm` finds from the project root, as Stryker's
+    // vitest-runner does: a static import would load the Vitest beside oxmutate, and two Vitests
+    // in one process disagree about the current test. It exits itself, on `close` after a grace
+    // period because a worker stuck in a runaway mutant never lets `vitest.close()` settle, and
+    // on `disconnect` because servers whose coordinator was gone were found spinning 11 hours
+    // later (2026-10-27). And it starts Vitest once at a time, file after file, stopping at the
+    // first that kills the mutant: the server holds one Vitest and one armed mutant.
+    files: ["packages/oxmutate/src/child.ts"],
+    rules: {
+      "node-security/no-dynamic-dependency-loading": "off",
+      "operability/no-process-exit": "off",
+      "reliability/no-await-in-loop": "off",
+    },
+  },
+  {
+    // The runner is what `test.runner` names, and Vitest instantiates the module's default
+    // export, so the default export is the contract; it imports the project's Vitest by resolved
+    // path for the reason `child.ts` does. Its awaits run in a test's own order: `beforeEach`
+    // outer suite first, `afterEach` and cleanups in reverse, and one test's mutants one after
+    // another on one context, each followed by the canary that says whether it left state
+    // behind. `runTask` keeps that loop, the canary and the final unmutated run in one function
+    // because all three share the test's context, its cleanups and the attempt count.
+    files: ["packages/oxmutate/src/runner.ts"],
+    rules: {
+      "import-next/no-default-export": "off",
+      "node-security/no-dynamic-dependency-loading": "off",
+      "reliability/no-await-in-loop": "off",
+      "maintainability/cognitive-complexity": "off",
+    },
+  },
+  {
+    // The 2026-09-07 measurement above, with a sharper edge: under verbatimModuleSyntax
+    // `import { type Unit } from './child.js'` emits `import {} from './child.js'`, and
+    // `child.ts` is a server's entry point — it reads argv, starts Vitest and listens for IPC at
+    // its top level, so the coordinator and the scheduler would each start one. `reports.ts`
+    // would load the coordinator for its types.
+    files: [
+      "packages/oxmutate/src/coordinator.ts",
+      "packages/oxmutate/src/scheduler.ts",
+      "packages/oxmutate/src/reports.ts",
+    ],
+    rules: { "import-next/consistent-type-specifier-style": "off" },
+  },
+  {
+    // The pool's slots run concurrently, one `Promise.all` over them; inside a slot the awaits
+    // are one server taking one unit at a time — ready, run, outcome, next. A server holds one
+    // warm Vitest, so a slot awaiting two units at once would run both on the same instance.
+    files: ["packages/oxmutate/src/scheduler.ts"],
+    rules: { "reliability/no-await-in-loop": "off" },
+  },
+  {
+    // `run()` is the run's pipeline, phase by numbered phase (instrument, dry run, reuse, warm
+    // units, verdicts, isolated re-runs, flaky re-runs, score), and the phases share the run's
+    // maps; it reads top to bottom, and splitting it would pass a dozen of them through
+    // parameters. Its numbers are the run's tuning — budgets, factors and caps, the measured ones
+    // beside the comment that dates them (3x the covering test's time, not Stryker's 1.5x,
+    // 2026-10-27) — and the limits on what an error message quotes. The flaky re-runs await one
+    // round before the next because a mutant is flaky when the rounds disagree. Its records are
+    // keyed by repository-relative paths and mutant ids the run made itself.
+    files: ["packages/oxmutate/src/coordinator.ts"],
+    rules: {
+      "maintainability/cognitive-complexity": "off",
+      "conventions/no-magic-numbers": "off",
+      "reliability/no-await-in-loop": "off",
+      "secure-coding/detect-object-injection": "off",
+    },
+  },
+  {
+    // oxmutate reads the project's Stryker or oxmutate config: a JSON read, or a dynamic import
+    // of a JavaScript config, the feature burgee's config discovery has above. `loadOptions` is
+    // the option table, one key a line, and the rule counts each key's `??` default as a branch.
+    // The two directive patterns are Stryker's `// Stryker disable next-line` grammar, run over
+    // one line of the project's own source at a time, and backtracking can only begin after the
+    // literal `disable next-line`: the worst case is a comment written to be slow.
+    files: ["packages/oxmutate/src/config.ts"],
+    rules: {
+      "node-security/no-dynamic-dependency-loading": "off",
+      "maintainability/cognitive-complexity": "off",
+      "secure-coding/no-redos-vulnerable-regex": "off",
+    },
+  },
+  {
+    // A native addon loads only through `require`: ESM cannot import a `.node` file. Which one is
+    // what the file decides — the binding built beside the package in development, or this
+    // platform's `oxmutate-<platform>-<arch>` package once published — so the specifier is built
+    // from `process.platform` and `process.arch`, never from input.
+    files: ["packages/oxmutate/src/native.ts"],
+    rules: {
+      "import-next/no-commonjs": "off",
+      "import-next/no-dynamic-require": "off",
+      "node-security/no-dynamic-require": "off",
+      "node-security/no-dynamic-dependency-loading": "off",
+    },
+  },
+  {
+    // `globToRegExp` builds its RegExp from the glob it has just translated: every literal
+    // character escaped, and the only quantifiers the ones the translator writes (`[^/]*`, `.*`,
+    // `(?:.*/)?`). The pattern is the function's own output, not input passed through.
+    files: ["packages/oxmutate/src/files.ts"],
+    rules: { "secure-coding/detect-non-literal-regexp": "off" },
+  },
+  {
+    // T6 polls for the servers its run has forked: each pass waits 50 ms and then looks, so the
+    // await is the polling interval, not work that could run at once.
+    files: ["packages/oxmutate/src/e2e.test.ts"],
+    rules: { "reliability/no-await-in-loop": "off" },
+  },
+  {
+    // The measurement scripts are programs, run by hand or by each other (`metrics.mjs` runs
+    // `compare-reports.mjs`), never imported, and what they print is their result: a JSON
+    // record, and under it the indented list of disagreements.
+    files: [
+      "packages/oxmutate/bench/burgee-pair.mts",
+      "packages/oxmutate/bench/compare-reports.mjs",
+      "packages/oxmutate/bench/metrics.mjs",
+    ],
+    rules: {
+      "import-next/no-unused-modules": "off",
+      "operability/no-console-log": "off",
+      "operability/no-debug-code-in-production": "off",
+      "conventions/no-console-spaces": "off",
+    },
+  },
+  {
+    // The pair runs Stryker exactly as `scripts/mutation.ts full` does by importing that script's
+    // own config and wrapper, so the root script, extension and all, is the dependency, stated: a
+    // copy here would grade oxmutate against a Stryker set up unlike the one CI runs.
+    files: ["packages/oxmutate/bench/burgee-pair.mts"],
+    rules: {
+      "import-next/extensions": "off",
+      "import-next/no-relative-packages": "off",
+      "import-next/no-relative-parent-imports": "off",
+    },
+  },
+  {
+    // The end-to-end fixtures are tiny projects the e2e tests run the built CLI in: each spec is
+    // a Vitest entry, never imported, and each fixture's package.json declares nothing because
+    // Vitest resolves from the workspace, as it does for every package here.
+    files: ["packages/oxmutate/test/fixtures/**"],
+    rules: {
+      "import-next/no-unused-modules": "off",
+      "import-next/no-extraneous-dependencies": "off",
+    },
+  },
+  {
+    // Each of these specs *is* its misbehaviour: `spin` loops for ever so a server is mid-runaway
+    // when its coordinator is killed, and `slow` stalls 4 s, past the warm watchdog and the first
+    // isolated budget but inside 3x that.
+    files: [
+      "packages/oxmutate/test/fixtures/spin/src/spin.spec.ts",
+      "packages/oxmutate/test/fixtures/slow/src/one.spec.ts",
+    ],
+    rules: {
+      "secure-coding/no-unchecked-loop-condition": "off",
+      "conventions/no-magic-numbers": "off",
+    },
+  },
 ];

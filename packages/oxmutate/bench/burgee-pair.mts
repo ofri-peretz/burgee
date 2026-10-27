@@ -42,20 +42,29 @@ const vitestConfig = path.join(wrapperDir, 'vitest.config.ts');
 mkdirSync(wrapperDir, { recursive: true });
 writeFileSync(vitestConfig, wrapperConfig(packageDir, Object.keys(SKIPPED_TESTS[pkg] ?? {})));
 
+const KIB = 1024;
+const MIB = KIB * KIB;
+const MS_PER_S = 1000;
+/** 1 GiB: the child's whole stdout and stderr are buffered. */
+const MAX_OUTPUT_BYTES = KIB * MIB;
+const STDERR_TAIL = 2000;
+/** `time -l` reports max RSS in bytes; `time -v` in kilobytes. */
+const RSS_UNIT_BYTES = process.platform === 'darwin' ? 1 : KIB;
+
 /** wall, user+sys CPU and max RSS of a child, from /usr/bin/time -l (macOS) or -v (Linux). */
 function timed(cmd: string, args: string[], cwd: string, env: NodeJS.ProcessEnv): { wallS: number; cpuS: number; maxRssMb: number; status: number | null; stderrTail: string } {
   const flag = process.platform === 'darwin' ? '-l' : '-v';
   const t0 = Date.now();
-  const r = spawnSync('/usr/bin/time', [flag, cmd, ...args], { cwd, env, encoding: 'utf8', maxBuffer: 1024 * 1024 * 1024 });
-  const wallS = (Date.now() - t0) / 1000;
+  const r = spawnSync('/usr/bin/time', [flag, cmd, ...args], { cwd, env, encoding: 'utf8', maxBuffer: MAX_OUTPUT_BYTES });
+  const wallS = (Date.now() - t0) / MS_PER_S;
   const err = r.stderr ?? '';
   const mac = /([\d.]+) real\s+([\d.]+) user\s+([\d.]+) sys/.exec(err);
   const linuxUser = /User time \(seconds\): ([\d.]+)/.exec(err);
   const linuxSys = /System time \(seconds\): ([\d.]+)/.exec(err);
   const cpuS = mac ? Number(mac[2]) + Number(mac[3]) : Number(linuxUser?.[1] ?? 0) + Number(linuxSys?.[1] ?? 0);
   const rss = /(\d+)\s+maximum resident set size/.exec(err) ?? /Maximum resident set size \(kbytes\): (\d+)/.exec(err);
-  const maxRssMb = rss ? Number(rss[1]) / (process.platform === 'darwin' ? 1048576 : 1024) : 0;
-  return { wallS, cpuS, maxRssMb, status: r.status, stderrTail: err.slice(-2000) };
+  const maxRssMb = rss ? (Number(rss[1]) * RSS_UNIT_BYTES) / MIB : 0;
+  return { wallS, cpuS, maxRssMb, status: r.status, stderrTail: err.slice(-STDERR_TAIL) };
 }
 
 const result: Record<string, unknown> = { package: pkg, concurrency, mutate: sources.length, date: new Date().toISOString(), machine: `${process.platform}-${process.arch}` };

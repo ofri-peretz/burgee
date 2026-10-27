@@ -8,11 +8,13 @@ import path from 'node:path';
 
 const SKIP = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.next', '.turbo', '.oxmutate', '.stryker-tmp', 'reports']);
 
+const escapeRegExp = (s: string): string => s.replace(/[.+^$()|[\]\\]/g, '\\$&');
+
 /** Translate one glob (without a leading `!`) into an anchored regular expression. */
 export function globToRegExp(glob: string): RegExp {
   let re = '';
   for (let i = 0; i < glob.length; i++) {
-    const c = glob[i] ?? '';
+    const c = glob.charAt(i);
     if (c === '*') {
       if (glob[i + 1] === '*') {
         // `**/` matches zero or more directories; a bare `**` matches anything.
@@ -27,9 +29,9 @@ export function globToRegExp(glob: string): RegExp {
     } else if (c === '?') re += '[^/]';
     else if (c === '{') {
       const close = glob.indexOf('}', i);
-      re += `(?:${glob.slice(i + 1, close).split(',').map((s) => s.replace(/[.+^$()|[\]\\]/g, '\\$&')).join('|')})`;
+      re += `(?:${glob.slice(i + 1, close).split(',').map(escapeRegExp).join('|')})`;
       i = close;
-    } else re += c.replace(/[.+^$()|[\]\\]/g, '\\$&');
+    } else re += escapeRegExp(c);
   }
   return new RegExp(`^${re}$`);
 }

@@ -87,6 +87,34 @@ function killed(results: string, id: string): boolean {
   return text.split('\n').some((line) => line.includes(`"id":"${id}"`) && line.includes('"killed":true'));
 }
 
+/** An `isolated` unit: its mutants armed one after another, each across its files. */
+async function runIsolated(unit: Unit): Promise<void> {
+  // Stop a file at its first failing test: one failure kills the mutant, and the rest of the
+  // file is wasted time (burgee/paratext hyperlinks.test.ts: 2.3 s a run, the first failure
+  // typically in its first tests). Read per start, so dry and warm runs still run everything
+  // (measured on Vitest 4.1, 2026-10-27).
+  vitest.config.bail = 1;
+  try {
+    for (const item of unit.batch ?? []) {
+      process.env[ACTIVE_MUTANT_ENV] = item.id;
+      if (item.tests) process.env['OXMUTATE_ONLY_TESTS'] = JSON.stringify(item.tests);
+      else delete process.env['OXMUTATE_ONLY_TESTS'];
+      writeFileSync(unit.progress, `${item.id} ${String(Date.now())}\n`);
+      // One file at a time, cheapest first (the coordinator orders them), stopping at the first
+      // file that kills the mutant: Stryker runs every file for every isolated mutant.
+      for (const file of item.files) {
+        await vitest.start([file]);
+        if (killed(unit.results, item.id)) break;
+      }
+    }
+    delete process.env[ACTIVE_MUTANT_ENV];
+    delete process.env['OXMUTATE_ONLY_TESTS'];
+  } finally {
+    vitest.config.bail = 0;
+  }
+  writeFileSync(unit.progress, '');
+}
+
 async function runUnit(unit: Unit): Promise<void> {
   // Workers copy the environment when they start, so each run sees the unit's settings
   // (verified across re-runs of one instance, 2026-10-26).
@@ -95,35 +123,12 @@ async function runUnit(unit: Unit): Promise<void> {
   process.env['OXMUTATE_PROGRESS'] = unit.progress;
   if (unit.plan) process.env['OXMUTATE_PLAN'] = unit.plan;
   delete process.env[ACTIVE_MUTANT_ENV];
-  if (unit.mode === 'isolated') {
-    // Stop a file at its first failing test: one failure kills the mutant, and the rest of the
-    // file is wasted time (burgee/paratext hyperlinks.test.ts: 2.3 s a run, the first failure
-    // typically in its first tests). Read per start, so dry and warm runs still run everything
-    // (measured on Vitest 4.1, 2026-10-27).
-    vitest.config.bail = 1;
-    try {
-      for (const item of unit.batch ?? []) {
-        process.env[ACTIVE_MUTANT_ENV] = item.id;
-        if (item.tests) process.env['OXMUTATE_ONLY_TESTS'] = JSON.stringify(item.tests);
-        else delete process.env['OXMUTATE_ONLY_TESTS'];
-        writeFileSync(unit.progress, `${item.id} ${String(Date.now())}\n`);
-        // One file at a time, cheapest first (the coordinator orders them), stopping at the first
-        // file that kills the mutant: Stryker runs every file for every isolated mutant.
-        for (const file of item.files) {
-          await vitest.start([file]);
-          if (killed(unit.results, item.id)) break;
-        }
-      }
-      delete process.env[ACTIVE_MUTANT_ENV];
-      delete process.env['OXMUTATE_ONLY_TESTS'];
-    } finally {
-      vitest.config.bail = 0;
-    }
-    writeFileSync(unit.progress, '');
-  } else {
-    await vitest.start(unit.files.length ? unit.files : undefined);
-  }
+  if (unit.mode === 'isolated') await runIsolated(unit);
+  else await vitest.start(unit.files.length ? unit.files : undefined);
 }
+
+/** How long `close` waits for `vitest.close()` before the server exits regardless. */
+const CLOSE_GRACE_MS = 2000;
 
 process.on('message', (msg: { type: string; unit?: Unit }) => {
   if (msg.type === 'run' && msg.unit) {
@@ -133,7 +138,7 @@ process.on('message', (msg: { type: string; unit?: Unit }) => {
     );
   } else if (msg.type === 'close') {
     // A worker thread stuck in a runaway mutant never lets `vitest.close()` settle: exit anyway.
-    setTimeout(() => process.exit(0), 2000).unref();
+    setTimeout(() => process.exit(0), CLOSE_GRACE_MS).unref();
     void vitest.close().finally(() => process.exit(0));
   }
 });

@@ -5,6 +5,7 @@
  * (spec R15).
  */
 import { existsSync, readFileSync } from 'node:fs';
+import { availableParallelism } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -80,6 +81,16 @@ const NOT_NEEDED: Record<string, string> = {
   checkerNodeArgs: 'not implemented',
 };
 
+/**
+ * Defaults where the config sets nothing. Stryker's, except the per-mutant slack: Stryker's
+ * `timeoutMS` is 5000, and a warm run needs far less (cli.ts `--mutant-timeout`).
+ */
+const MAX_DEFAULT_CONCURRENCY = 8;
+const DEFAULT_TIMEOUT_MS = 500;
+const DEFAULT_TIMEOUT_FACTOR = 1.5;
+const DEFAULT_THRESHOLD_HIGH = 80;
+const DEFAULT_THRESHOLD_LOW = 60;
+
 const USED = new Set(['mutate', 'vitest', 'concurrency', 'timeoutMS', 'timeoutFactor', 'thresholds', 'ignoreStatic', 'reporters', 'jsonReporter', 'incremental', 'incrementalFile', '$schema', 'mutator']);
 
 async function loadFile(file: string): Promise<Record<string, unknown>> {
@@ -120,10 +131,10 @@ export async function loadOptions(root: string, overrides: Partial<Options> = {}
     root,
     mutate,
     vitestConfig: vitest.configFile ? path.resolve(root, vitest.configFile) : undefined,
-    concurrency: Number(raw['concurrency'] ?? Math.max(1, Math.min(8, (await import('node:os')).availableParallelism() - 1))),
-    timeoutMS: Number(raw['timeoutMS'] ?? 500),
-    timeoutFactor: Number(raw['timeoutFactor'] ?? 1.5),
-    thresholds: { high: thresholds.high ?? 80, low: thresholds.low ?? 60, break: thresholds.break ?? null },
+    concurrency: Number(raw['concurrency'] ?? Math.max(1, Math.min(MAX_DEFAULT_CONCURRENCY, availableParallelism() - 1))),
+    timeoutMS: Number(raw['timeoutMS'] ?? DEFAULT_TIMEOUT_MS),
+    timeoutFactor: Number(raw['timeoutFactor'] ?? DEFAULT_TIMEOUT_FACTOR),
+    thresholds: { high: thresholds.high ?? DEFAULT_THRESHOLD_HIGH, low: thresholds.low ?? DEFAULT_THRESHOLD_LOW, break: thresholds.break ?? null },
     excludedMutations: mutator.excludedMutations ?? [],
     ignoreStatic: raw['ignoreStatic'] === true,
     strykerCompat: raw['strykerCompat'] === true,

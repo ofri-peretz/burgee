@@ -3,10 +3,10 @@
  * `.node` per platform (PRINCIPLES rule 9, `native-engine`): `binding/oxmutate.<platform>-<arch>.node`
  * in development, the matching `@oxmutate/binding-*` optional dependency once published.
  */
-import { createRequire } from 'node:module';
 import { existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export interface Location {
   line: number;

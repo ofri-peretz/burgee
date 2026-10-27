@@ -10,6 +10,13 @@ import type { MutantResult, RunResult } from './coordinator.js';
 
 export const VERSION = '0.1.0';
 
+/** A replacement longer than this is cut, in the SARIF message and in the terminal list. */
+const REPLACEMENT_WIDTH = 60;
+const ELLIPSIS = '...';
+const MS_PER_S = 1000;
+/** Survivors the terminal summary lists before it says how many it left out. */
+const DEFAULT_SURVIVORS_SHOWN = 10;
+
 /** `mutation-testing-report-schema` 2, the format Stryker writes (`jsonReporter`). */
 export function strykerReport(r: RunResult): object {
   const files: Record<string, { language: string; source: string; mutants: object[] }> = {};
@@ -33,14 +40,17 @@ export function strykerReport(r: RunResult): object {
       })),
     };
   }
-  const testFiles: Record<string, { tests: { id: string; name: string }[] }> = {};
-  for (const t of r.tests) (testFiles[path.relative(r.root, t.file)] ??= { tests: [] }).tests.push({ id: t.id, name: t.name });
+  const testFiles = new Map<string, { tests: { id: string; name: string }[] }>();
+  for (const t of r.tests) {
+    const file = path.relative(r.root, t.file);
+    (testFiles.get(file) ?? testFiles.set(file, { tests: [] }).get(file))?.tests.push({ id: t.id, name: t.name });
+  }
   return {
     schemaVersion: '2',
     thresholds: { high: r.options.thresholds.high, low: r.options.thresholds.low },
     projectRoot: r.root,
     files,
-    testFiles,
+    testFiles: Object.fromEntries(testFiles),
     framework: { name: 'oxmutate', version: VERSION, branding: { homepageUrl: 'https://www.npmjs.com/package/oxmutate' } },
     'x-oxmutate': { stats: r.stats, score: r.score, unusedConfig: r.options.unused },
   };
@@ -91,22 +101,14 @@ export function sarifReport(r: RunResult): object {
 }
 
 export function describe(m: MutantResult): string {
-  const change = m.replacement.length > 60 ? `${m.replacement.slice(0, 57)}...` : m.replacement;
+  const change = m.replacement.length > REPLACEMENT_WIDTH ? `${m.replacement.slice(0, REPLACEMENT_WIDTH - ELLIPSIS.length)}${ELLIPSIS}` : m.replacement;
   if (m.status === 'NoCoverage') return `No test reaches this code: changing it to \`${change}\` (${m.mutatorName}) would go unnoticed. fix: add a test that executes ${m.file}:${String(m.start.line)}.`;
   return `${String(m.coveredBy.length)} test(s) run this code, and all still pass when it becomes \`${change}\` (${m.mutatorName}). fix: assert the behaviour this line decides.`;
 }
 
-/** The terminal summary: the score, what to look at first, what the run corrected. */
-export function textSummary(r: RunResult, opts: { survivors?: number } = {}): string {
-  const count = (s: string): number => r.mutants.filter((m) => m.status === s).length;
-  const s = r.stats;
-  const lines = [
-    `oxmutate ${VERSION}: ${String(r.mutants.length)} mutants in ${String(s.files)} files, ${(s.wallMs / 1000).toFixed(1)} s`,
-    `  mutation score ${r.score.mutationScore.toFixed(2)}% (covered ${r.score.covered.toFixed(2)}%)`,
-    `  killed ${String(count('Killed'))} · timeout ${String(count('Timeout'))} · survived ${String(count('Survived'))} · no coverage ${String(count('NoCoverage'))} · ignored ${String(count('Ignored'))} · errors ${String(count('RuntimeError') + count('CompileError'))}`,
-    `  instrument ${s.instrumentMs.toFixed(0)} ms · dry run ${(s.dryRunMs / 1000).toFixed(1)} s · mutants ${(s.mutationMs / 1000).toFixed(1)} s · isolated ${(s.isolatedMs / 1000).toFixed(1)} s`,
-  ];
-  const corrections = [
+/** What the run had to correct, one phrase per kind of correction that happened. */
+function corrections(s: RunResult['stats']): string[] {
+  return [
     s.watchdogKills && `${String(s.watchdogKills)} runaway(s) stopped`,
     s.pollutionRestarts && `${String(s.pollutionRestarts)} polluted context(s) restarted (in ${String(s.canaryFiles)} file(s))`,
     s.flakyMutants && `${String(s.flakyMutants)} flaky verdict(s)`,
@@ -114,13 +116,26 @@ export function textSummary(r: RunResult, opts: { survivors?: number } = {}): st
     s.timeoutsOverturned && `${String(s.timeoutsOverturned)} timeout(s) that finished given 3x the time`,
     s.reused && `${String(s.reused)} verdict(s) reused`,
     s.crashes && `${String(s.crashes)} worker crash(es)`,
-  ].filter(Boolean);
-  if (corrections.length) lines.push(`  corrected: ${corrections.join(' · ')}`);
+  ].filter((c): c is string => Boolean(c));
+}
+
+/** The terminal summary: the score, what to look at first, what the run corrected. */
+export function textSummary(r: RunResult, opts: { survivors?: number } = {}): string {
+  const count = (s: string): number => r.mutants.filter((m) => m.status === s).length;
+  const s = r.stats;
+  const lines = [
+    `oxmutate ${VERSION}: ${String(r.mutants.length)} mutants in ${String(s.files)} files, ${(s.wallMs / MS_PER_S).toFixed(1)} s`,
+    `  mutation score ${r.score.mutationScore.toFixed(2)}% (covered ${r.score.covered.toFixed(2)}%)`,
+    `  killed ${String(count('Killed'))} · timeout ${String(count('Timeout'))} · survived ${String(count('Survived'))} · no coverage ${String(count('NoCoverage'))} · ignored ${String(count('Ignored'))} · errors ${String(count('RuntimeError') + count('CompileError'))}`,
+    `  instrument ${s.instrumentMs.toFixed(0)} ms · dry run ${(s.dryRunMs / MS_PER_S).toFixed(1)} s · mutants ${(s.mutationMs / MS_PER_S).toFixed(1)} s · isolated ${(s.isolatedMs / MS_PER_S).toFixed(1)} s`,
+  ];
+  const corrected = corrections(s);
+  if (corrected.length) lines.push(`  corrected: ${corrected.join(' · ')}`);
   const survivors = r.mutants.filter((m) => m.status === 'Survived' || m.status === 'NoCoverage');
-  const limit = opts.survivors ?? 10;
+  const limit = opts.survivors ?? DEFAULT_SURVIVORS_SHOWN;
   if (survivors.length) {
     lines.push('', `Survivors (${String(survivors.length)}${survivors.length > limit ? `, first ${String(limit)}` : ''}):`);
-    for (const m of survivors.slice(0, limit)) lines.push(`  ${m.file}:${String(m.start.line)}:${String(m.start.column)}  ${m.mutatorName}  → ${m.replacement.replace(/\s+/g, ' ').slice(0, 60)}${m.flaky ? '  (flaky)' : ''}`);
+    for (const m of survivors.slice(0, limit)) lines.push(`  ${m.file}:${String(m.start.line)}:${String(m.start.column)}  ${m.mutatorName}  → ${m.replacement.replace(/\s+/g, ' ').slice(0, REPLACEMENT_WIDTH)}${m.flaky ? '  (flaky)' : ''}`);
     lines.push('', 'fix: run `oxmutate survivors --json` to hand the list to an agent, or kill the first one above with a test.');
   }
   if (r.options.unused.length) lines.push('', `Config keys not used: ${r.options.unused.map((u) => u.key).join(', ')} (see the JSON report for why)`);

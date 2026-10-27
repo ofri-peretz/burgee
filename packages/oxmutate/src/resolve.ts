@@ -28,7 +28,9 @@ export function resolveEsm(specifier: string, fromDir: string): string {
   const pkgJson = req.resolve(`${name}/package.json`);
   const pkg = JSON.parse(readFileSync(pkgJson, 'utf8')) as { exports?: Record<string, Exports> | string; module?: string; main?: string };
   const exportsMap = typeof pkg.exports === 'string' ? { '.': pkg.exports } : pkg.exports;
-  const target = exportsMap ? pick(exportsMap[subpath === '.' ? '.' : subpath]) : subpath === '.' ? (pkg.module ?? pkg.main) : subpath;
+  let target: string | undefined;
+  if (exportsMap) target = pick(exportsMap[subpath]);
+  else target = subpath === '.' ? (pkg.module ?? pkg.main) : subpath;
   if (!target) throw new Error(`oxmutate: cannot resolve ${specifier} from ${fromDir}`);
   return pathToFileURL(path.join(path.dirname(pkgJson), target)).href;
 }

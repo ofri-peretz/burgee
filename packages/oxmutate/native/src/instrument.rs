@@ -715,18 +715,26 @@ impl Emitter<'_> {
             }
             *cursor += 1;
             out.push_str(&self.src[at as usize..p.span.start as usize]);
-            let inner = self.render(p.span.start, p.span.end, order, cursor);
-            out.push_str(&self.wrap(p, inner));
+            // A case's head (`case <test>:`) and body render separately: the test can hold mutants
+            // of its own, so the rendered head is longer than the source head and the body cannot
+            // be found by a source offset (controlroom tabs.ts, `case 'tab.next':`, 2026-10-27).
+            let (head, inner) = match (p.placer, p.case_colon) {
+                (Placer::SwitchCase, Some(colon)) => (self.render(p.span.start, colon, order, cursor), self.render(colon, p.span.end, order, cursor)),
+                _ => (String::new(), self.render(p.span.start, p.span.end, order, cursor)),
+            };
+            out.push_str(&self.wrap(p, head, inner));
             at = p.span.end;
         }
         out.push_str(&self.src[at as usize..end as usize]);
         out
     }
 
-    fn wrap(&self, p: &Placement, inner: String) -> String {
+    /// `head` is the rendered `case <test>:` of a SwitchCase placement (empty otherwise), and
+    /// `inner` the rest of the placement's rendered text.
+    fn wrap(&self, p: &Placement, head: String, inner: String) -> String {
         let live: Vec<&(Raw, String)> = p.mutants.iter().map(|&i| &self.mutants[i]).filter(|(m, _)| !m.dropped).collect();
         if live.is_empty() {
-            return inner;
+            return head + &inner;
         }
         let ids = live.iter().map(|(_, id)| format!("\"{id}\"")).collect::<Vec<_>>().join(", ");
         match p.placer {
@@ -742,10 +750,7 @@ impl Emitter<'_> {
                 expr
             }
             Placer::SwitchCase => {
-                let colon = p.case_colon.unwrap_or(p.span.start) as usize;
-                let head = &self.src[p.span.start as usize..colon];
-                let body = &inner[colon - p.span.start as usize..];
-                let mut stmt = format!("{{ oxmCov({ids});{body} }}");
+                let mut stmt = format!("{{ oxmCov({ids});{inner} }}");
                 for (_, id) in &live {
                     stmt = format!("if (oxmAct(\"{id}\")) {{}} else {stmt}");
                 }

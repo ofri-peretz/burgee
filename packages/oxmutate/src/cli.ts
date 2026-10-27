@@ -57,6 +57,24 @@ function summaryData(r: RunResult, written: string[]): Record<string | symbol, u
   return data;
 }
 
+/** The `run` flags that override a config key, as the `Partial<Options>` loadOptions applies last. */
+function overridesFrom(o: Record<string, unknown>, root: string): Partial<Options> {
+  const overrides: Partial<Options> = {};
+  if (typeof o['since'] === 'string') overrides.since = o['since'];
+  if (typeof o['shard'] === 'string') overrides.shard = parseShard(o['shard']);
+  if (typeof o['concurrency'] === 'number') overrides.concurrency = o['concurrency'];
+  if (typeof o['mutantTimeout'] === 'number') overrides.timeoutMS = o['mutantTimeout'];
+  if (o['strykerCompat'] === true) overrides.strykerCompat = true;
+  if (o['incremental'] === true) overrides.incremental = true;
+  if (typeof o['flakyReruns'] === 'number') overrides.flakyReruns = o['flakyReruns'];
+  if (typeof o['reporter'] === 'string') overrides.reporters = o['reporter'].split(',').map((s) => s.trim());
+  if (typeof o['reportDir'] === 'string') {
+    overrides.jsonReport = path.resolve(root, o['reportDir'], 'mutation.json');
+    overrides.sarifReport = path.resolve(root, o['reportDir'], 'mutation.sarif');
+  }
+  return overrides;
+}
+
 const runCommand = defineCommand({
   name: 'run',
   description: 'Mutation-test the project in the current directory',
@@ -83,20 +101,7 @@ const runCommand = defineCommand({
   run: async ({ options, exit }) => {
     const root = process.cwd();
     const o = options as Record<string, unknown>;
-    const overrides: Partial<Options> = {};
-    if (typeof o['since'] === 'string') overrides.since = o['since'];
-    if (typeof o['shard'] === 'string') overrides.shard = parseShard(o['shard']);
-    if (typeof o['concurrency'] === 'number') overrides.concurrency = o['concurrency'];
-    if (typeof o['mutantTimeout'] === 'number') overrides.timeoutMS = o['mutantTimeout'];
-    if (o['strykerCompat'] === true) overrides.strykerCompat = true;
-    if (o['incremental'] === true) overrides.incremental = true;
-    if (typeof o['flakyReruns'] === 'number') overrides.flakyReruns = o['flakyReruns'];
-    if (typeof o['reporter'] === 'string') overrides.reporters = o['reporter'].split(',').map((s) => s.trim());
-    if (typeof o['reportDir'] === 'string') {
-      overrides.jsonReport = path.resolve(root, o['reportDir'], 'mutation.json');
-      overrides.sarifReport = path.resolve(root, o['reportDir'], 'mutation.sarif');
-    }
-    const options_ = await loadOptions(root, overrides, typeof o['config'] === 'string' ? o['config'] : undefined);
+    const options_ = await loadOptions(root, overridesFrom(o, root), typeof o['config'] === 'string' ? o['config'] : undefined);
     if (typeof o['break'] === 'number') options_.thresholds.break = o['break'];
     let result: RunResult;
     try {

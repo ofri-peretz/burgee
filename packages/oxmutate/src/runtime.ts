@@ -6,6 +6,12 @@
  */
 export const NAMESPACE = '__oxmutate__';
 
+/**
+ * Coverage key prefix for hits that happen while a test file is being collected (imports): the
+ * runner writes `file:<path>` keys, and the coordinator reads them back as static mutants' loaders.
+ */
+export const FILE_KEY = 'file:';
+
 /** Arms one mutant from process start, for static mutants and isolated re-runs. */
 export const ACTIVE_MUTANT_ENV = '__OXMUTATE_ACTIVE_MUTANT__';
 

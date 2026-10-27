@@ -16,6 +16,21 @@ import { fileURLToPath } from 'node:url';
 import type { ServerConfig, Unit } from './child.js';
 
 const childJs = fileURLToPath(new URL('./child.js', import.meta.url));
+/** The tail of a server's stderr kept for an error message. */
+const STDERR_TAIL = 4000;
+/** How often the watchdog reads a running unit's progress line. */
+const WATCHDOG_POLL_MS = 50;
+/** How long a server asked to close gets before it is killed (it gives itself the same). */
+const CLOSE_GRACE_MS = 2000;
+
+/** The mutant a unit's progress file says is running, if any. */
+function inFlight(progress: string): string | undefined {
+  try {
+    return readFileSync(progress, 'utf8').trim().split(' ')[0] || undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export interface UnitOutcome {
   /** The mutant in flight when the watchdog fired. */
@@ -36,7 +51,7 @@ class Server {
 
   constructor(configFile: string, cwd: string) {
     this.child = fork(childJs, [configFile], { cwd, stdio: ['ignore', 'ignore', 'pipe', 'ipc'], execArgv: [] });
-    this.child.stderr?.on('data', (d: Buffer) => (this.stderr = (this.stderr + d.toString()).slice(-4000)));
+    this.child.stderr?.on('data', (d: Buffer) => (this.stderr = (this.stderr + d.toString()).slice(-STDERR_TAIL)));
     this.ready = new Promise((resolve) => {
       const first = (m: { type: string }) => {
         if (m.type === 'ready') {
@@ -66,13 +81,6 @@ class Server {
         this.onExit = undefined;
         resolve(o);
       };
-      const inFlight = (): string | undefined => {
-        try {
-          return readFileSync(unit.progress, 'utf8').trim().split(' ')[0] || undefined;
-        } catch {
-          return undefined;
-        }
-      };
       const timer = setInterval(() => {
         let line = '';
         try {
@@ -86,11 +94,11 @@ class Server {
           this.child.kill('SIGKILL');
           finish({ killedFor: id, stderr: this.stderr });
         }
-      }, 50);
+      }, WATCHDOG_POLL_MS);
       this.onMessage = (m) => {
         if (m.type === 'done') finish({ stderr: this.stderr });
       };
-      this.onExit = () => finish({ crashed: true, crashedFor: inFlight(), stderr: this.stderr });
+      this.onExit = () => finish({ crashed: true, crashedFor: inFlight(unit.progress), stderr: this.stderr });
       if (this.exited) finish({ crashed: true, stderr: this.stderr });
       else this.child.send({ type: 'run', unit });
     });
@@ -99,7 +107,7 @@ class Server {
   close(): void {
     if (this.exited) return;
     this.child.send({ type: 'close' });
-    setTimeout(() => this.child.kill('SIGKILL'), 2000).unref();
+    setTimeout(() => this.child.kill('SIGKILL'), CLOSE_GRACE_MS).unref();
   }
 }
 

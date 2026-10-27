@@ -5,6 +5,7 @@
 // both tools' scores.
 import { readFileSync } from 'node:fs';
 
+const PERCENT = 100;
 const [fa, fb] = process.argv.slice(2);
 const list = process.argv.includes('--list');
 const load = (f) => {
@@ -30,6 +31,6 @@ for (const m of A) {
   if (verdict(m.status) === verdict(twin.status)) agree++;
   else disagreements.push(`${loose(m)} a=${m.status} b=${twin.status}`);
 }
-const out = { a: A.length, b: B.length, matched, agree, agreementPct: Number(((100 * agree) / matched).toFixed(2)), onlyA: A.length - matched, onlyB: B.length - matched };
+const out = { a: A.length, b: B.length, matched, agree, agreementPct: Number(((PERCENT * agree) / matched).toFixed(2)), onlyA: A.length - matched, onlyB: B.length - matched };
 console.log(JSON.stringify(out));
-if (list) for (const d of disagreements) console.log('  ' + d);
+if (list) for (const d of disagreements) console.log(`  ${d}`);

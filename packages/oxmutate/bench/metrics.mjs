@@ -12,6 +12,18 @@ const mutantsOf = (r) => Object.values(r.files).flatMap((f) => f.mutants);
 const scored = (ms) => ms.filter((m) => m.status !== 'Ignored' && m.status !== 'CompileError' && m.status !== 'RuntimeError');
 const survivorsOf = (ms) => ms.filter((m) => m.status === 'Survived' || m.status === 'NoCoverage');
 const round = (n, d = 3) => (Number.isFinite(n) ? Number(n.toFixed(d)) : null);
+const PERCENT = 100;
+const S_PER_HOUR = 3600;
+
+/** The metrics both sides of a pair answer the same way. */
+const side = (run, ms, executions) => ({
+  'S3 wall s': round(run.wallS, 1),
+  'E1 cpu s/mutant': round(run.cpuS / scored(ms).length),
+  'E2 executions/mutant': round(executions / scored(ms).length, 2),
+  'E4 mutants/core-hour': Math.round(scored(ms).length / (run.cpuS / S_PER_HOUR)),
+  'C4 peak RSS MB': Math.round(run.maxRssMb),
+  scored: scored(ms).length,
+});
 
 function measure(dir) {
   const pair = JSON.parse(readFileSync(path.join(dir, 'pair.json'), 'utf8'));
@@ -27,14 +39,6 @@ function measure(dir) {
   const records = JSON.parse(survivorsJson).data.survivors;
   const staticO = om.filter((m) => m.static);
   const staticS = sm.filter((m) => m.static);
-  const side = (run, ms, executions) => ({
-    'S3 wall s': round(run.wallS, 1),
-    'E1 cpu s/mutant': round(run.cpuS / scored(ms).length),
-    'E2 executions/mutant': round(executions / scored(ms).length, 2),
-    'E4 mutants/core-hour': Math.round(scored(ms).length / (run.cpuS / 3600)),
-    'C4 peak RSS MB': Math.round(run.maxRssMb),
-    scored: scored(ms).length,
-  });
   return {
     package: pair.package,
     date: pair.date,
@@ -42,7 +46,7 @@ function measure(dir) {
     concurrency: pair.concurrency,
     stryker: {
       ...side(pair.stryker, sm, sm.reduce((n, m) => n + (m.testsCompleted ?? 0), 0)),
-      'T4 static scored %': staticS.length ? round((100 * scored(staticS).length) / staticS.length, 1) : null,
+      'T4 static scored %': staticS.length ? round((PERCENT * scored(staticS).length) / staticS.length, 1) : null,
       // An agent without a survivors command reads the JSON report to find them.
       'A5 bytes/survivor': Math.round(statSync(sFile).size / Math.max(1, survivorsOf(sm).length)),
       'A7 fix-line %': 0,
@@ -50,9 +54,9 @@ function measure(dir) {
     oxmutate: {
       ...side(pair.oxmutate, om, stats.testExecutions),
       'S2 instrument ms': round(stats.instrumentMs, 0),
-      'T4 static scored %': staticO.length ? round((100 * scored(staticO).length) / staticO.length, 1) : null,
+      'T4 static scored %': staticO.length ? round((PERCENT * scored(staticO).length) / staticO.length, 1) : null,
       'A5 bytes/survivor': Math.round(Buffer.byteLength(survivorsJson) / Math.max(1, records.length)),
-      'A7 fix-line %': records.length ? round((100 * records.filter((r) => typeof r.fix === 'string' && r.fix.length).length) / records.length, 1) : 100,
+      'A7 fix-line %': records.length ? round((PERCENT * records.filter((r) => typeof r.fix === 'string' && r.fix.length).length) / records.length, 1) : PERCENT,
       corrections: { watchdogKills: stats.watchdogKills, pollutionRestarts: stats.pollutionRestarts, survivorsOverturned: stats.survivorsOverturned, flakyMutants: stats.flakyMutants },
     },
     'T1 agreement %': agreement.agreementPct,
