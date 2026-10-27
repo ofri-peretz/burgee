@@ -1,22 +1,30 @@
 # Draft — the one disclosed pull request for `first-adopter`
 
 **Status: prepared, held. Not posted.** Nothing below has been sent to
-`open-cli-tools/concurrently`. Posting needs two things, in this order:
+`open-cli-tools/concurrently`.
 
-1. **The burgee fix ships.**
-   [A-20261027-yargs-parsesync-surfaces-throw](../../gaps/A-20261027-yargs-parsesync-surfaces-throw.md)
-   has to land in a published `burgee` patch. Then the proof in
-   [`concurrently.md`](../../research/adoption/concurrently.md) is re-run with that exact version,
-   and every number in the body is replaced from the new run. Until then, `concurrently --mcp`
-   and `concurrently completion zsh` print a stack trace, and that contradicts the maintainer's
-   first condition in #418, "full compatibility".
-2. **The owner approves this target and this text**, per repository, as the 2026-10-27 rule
-   requires. The agent stops at this file.
+On 2026-10-27 the owner chose a short disclosed comment on #418 first, with the PR below only on
+the maintainer's yes, and cut the cold-start line. The go was conditional: re-run the whole proof
+on the published fix and post only if every check passed. It was re-run on `burgee@1.8.0` the
+same day, and one check failed. `completion zsh` now prints a script, but `concurrently --mcp`
+does not serve: concurrently's own `process.exit()` on an empty argv ends the server before it
+answers. So nothing was posted. Before posting:
+
+1. **The `--mcp` fix ships.**
+   [A-20261027-yargs-parsesync-mcp-ended-by-exit](../../gaps/A-20261027-yargs-parsesync-mcp-ended-by-exit.md)
+   lands in a published `burgee`. The first blocker,
+   [A-20261027-yargs-parsesync-surfaces-throw](../../gaps/A-20261027-yargs-parsesync-surfaces-throw.md),
+   is fixed in 1.8.0.
+2. **The proof is re-run on that version** and every number in the comment comes from that run.
+   The 1.8.0 numbers are in [`concurrently.md`](../../research/adoption/concurrently.md#re-run-on-burgee180-2026-10-27).
 
 Target, evidence and rejected candidates: [`concurrently.md`](../../research/adoption/concurrently.md).
 Decision: [D-20261027-first-adopter-target-concurrently](../../decisions/D-20261027-first-adopter-target-concurrently.md).
 
 ## Owner's calls before posting
+
+Decided 2026-10-27: a comment on #418 first, and the cold-start line cut. The calls as they
+were put:
 
 - **A pull request, or a comment on #418 first.** The owner's 2026-10-27 rule and intent
   constraint 4 both say a working PR. But in #418 gustavohenke asked to agree on the library
