@@ -23,6 +23,7 @@ import { matchFiles } from './files.js';
 import type { FrozenOracle } from './frozen.js';
 import { changedLines, shardOf, touches } from './lanes.js';
 import { native, type NativeMutant } from './native.js';
+import { startProgress } from './progress.js';
 import { FILE_KEY, env, stderr } from './runtime.js';
 import { createPool, type UnitOutcome } from './scheduler.js';
 import { summarizeSpec, tracesFor, type SpecSummary } from './spec-oracle.js';
@@ -166,7 +167,9 @@ export async function run(options: Options): Promise<RunResult> {
   let unitSeq = 0;
   const fileFor = (kind: string, ext: string): string => path.join(work, `${kind}-${String(unitSeq++)}.${ext}`);
   const pools: { close(): void; stats: { spawned: number } }[] = [];
+  const progress = startProgress(options.reporters, stderr);
   try {
+    progress.phase('instrumenting');
     // ── 1. Instrument ─────────────────────────────────────────────────────────────────────────
     const files = matchFiles(root, options.mutate);
     const sources: Record<string, string> = {};
@@ -261,6 +264,7 @@ export async function run(options: Options): Promise<RunResult> {
       }
       return { tests: recs.flatMap((r) => r.tests ?? []), perTest, static: stat };
     };
+    progress.phase('dry run');
     const d0 = performance.now();
     const dry = await dryRun();
     stats.dryRunMs = performance.now() - d0;
@@ -474,6 +478,8 @@ export async function run(options: Options): Promise<RunResult> {
       const pickHalf = (inHalf: boolean): Plan => Object.fromEntries(Object.entries(rest).map(([t, l]) => [t, l.filter((id) => half.has(id) === inHalf)]).filter(([, l]) => (l as string[]).length > 0));
       return [makeUnit(file, pickHalf(true), depth + 1), makeUnit(file, pickHalf(false), depth + 1)];
     };
+    const killedCount = (): string => `${String(killedSoFar(false).size)} of ${String(toRun.length)} mutants killed so far`;
+    progress.phase('warm runs', killedCount);
     const m0 = performance.now();
     // One round, every covering file at once. A two-round plan (cheapest file first, survivors
     // to the rest) cut executions 23% on burgee/paratext but took 2.9x longer: the second round
@@ -572,6 +578,7 @@ export async function run(options: Options): Promise<RunResult> {
       for (const m of items) if (!verdicts.has(m.id)) verdicts.set(m.id, { status: 'RuntimeError' });
       return verdicts;
     };
+    progress.phase(`isolated runs (static mutants and stragglers: ${String(isolatedQueue.length)})`);
     const i0 = performance.now();
     const first = await runIsolated(isolatedQueue);
     // A watchdog stop on a loaded machine is a slow test, not a runaway: 31 of them on one
@@ -667,6 +674,7 @@ export async function run(options: Options): Promise<RunResult> {
       score: scoreOf(mutants),
     };
   } finally {
+    progress.stop();
     for (const p of pools) p.close();
     if (env['OXMUTATE_KEEP']) stderr.write(`oxmutate: work directory kept at ${work}\n`);
     else rmSync(work, { recursive: true, force: true });
