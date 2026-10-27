@@ -260,8 +260,14 @@ describe('B-20261027-migrate-pins-match-exact-convention — next pins in the pr
 
   it('counts a prerelease written exactly as exact', async () => {
     // The incumbent is a caret in devDependencies, so only the runtime rule can make this exact.
-    const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { next: '15.0.0-canary.3', rxjs: '7.8.2' }, devDependencies: { yargs: '^18.0.0' } }), 'bin/index.ts': yargsProgram });
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { next: '15.0.0-canary.3', rxjs: '7.18.12' }, devDependencies: { yargs: '^18.0.0' } }), 'bin/index.ts': yargsProgram });
     expect((await migrate({ dir, status: clean })).next).toBe(`npm install --save-exact burgee@${burgee} && npm uninstall yargs`);
+  });
+
+  it('reads the convention from the incumbents the manifest declares, not from one --only names that it does not', async () => {
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { chalk: '6.0.0', rxjs: '^7.8.2' } }), 'bin/index.ts': `import chalk from 'chalk';\n${yargsProgram}` });
+    const { next } = await migrate({ dir, status: clean, only: ['chalk', 'yargs'] });
+    expect(next).toMatch(/^npm install --save-exact burgee@\S+ roundel@\S+ && npm uninstall chalk$/);
   });
 
   it('reads no convention from a manifest with no runtime dependencies: the incumbent’s caret stands', async () => {
@@ -272,10 +278,12 @@ describe('B-20261027-migrate-pins-match-exact-convention — next pins in the pr
   it.each([
     ['incumbents written two ways', { chalk: '6.0.0', yargs: '^18.0.0', rxjs: '^7.8.2' }],
     ['an incumbent written as a range of its own', { yargs: '>=18', chalk: '>=6' }],
+    ['an incumbent written as a comparator on an exact version', { yargs: '>18.0.0', chalk: '>6.0.0' }],
     ['an incumbent written as a tag', { yargs: 'latest', chalk: '*' }],
     ['a range around a version that is not exact', { yargs: '^18.0', chalk: '~6' }],
   ])('keeps the caret for %s', async (_, dependencies) => {
-    const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies }), 'bin/index.ts': `${yargsProgram}import chalk from 'chalk';\n` });
+    // chalk first, so the exact one is the first style read when the two differ.
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies }), 'bin/index.ts': `import chalk from 'chalk';\n${yargsProgram}` });
     const { next } = await migrate({ dir, status: clean });
     expect(next).toMatch(/^npm install (?:\S+@\^\S+ ?)+ && npm uninstall/);
     expect(next).not.toContain('--save-exact');

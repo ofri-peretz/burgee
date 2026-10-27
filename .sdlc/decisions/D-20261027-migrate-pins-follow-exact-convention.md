@@ -18,11 +18,13 @@ style), on the coordinator’s instruction.
 1. The manifest has runtime `dependencies` and every one is an exact version (`1.2.3`, or an
    exact prerelease): **exact**. This is concurrently’s case, with six exact dependencies,
    `yargs 18.0.0` among them.
-2. Otherwise, every incumbent the run moves is declared in one style, exact or `~` or `^`
-   around an exact version, in any of the four dependency fields: **that style**. A project that
-   wrote `"yargs": "~18.0.0"` gets `burgee@~1.7.2`.
-3. Otherwise: **`^`**, as before. This covers mixed styles, `>=18`, `*`, a tag, `^18.0`, and a
-   manifest with no runtime dependencies whose incumbent is a caret.
+2. Otherwise, every incumbent the run moves is declared in one style, exact or `~` around an
+   exact version, in any of the four dependency fields: **that style**. A project that wrote
+   `"yargs": "~18.0.0"` gets `burgee@~1.7.2`. A caret is not a style of its own here, since it
+   is what rule 3 writes anyway. An incumbent that `--only` names but the manifest does not
+   declare has no style and does not count.
+3. Otherwise: **`^`**, as before. This covers mixed styles, `>=18`, `>18.0.0`, `*`, a tag,
+   `^18.0`, and a manifest with no runtime dependencies whose incumbent is a caret.
 
 An exact pin carries the installer’s own flag: `npm install --save-exact`,
 `pnpm add --save-exact`, `yarn add --exact` or `bun add --exact`. npm adds its default `^` to

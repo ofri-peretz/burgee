@@ -2274,10 +2274,13 @@ function floorsOf(specifiers: readonly string[], since: SubpathFloors, graded: R
 /** A version with no range around it: `1.2.3`, or a prerelease of one. What `--save-exact` writes. */
 const EXACT = /^\d+\.\d+\.\d+(?:-[\w.-]+)?$/;
 
-/** How one range is written: `''` exact, `'~'` or `'^'` around an exact version, `undefined` for anything else (`>=18`, `*`, a tag). */
-function styleOf(range: string): '' | '~' | '^' | undefined {
+/**
+ * How one range is written: `''` exact, `'~'` around an exact version, `undefined` for anything
+ * else (`^1.2.3`, `>=18`, `*`, a tag). A caret is not told apart: `next` writes one by default.
+ */
+function styleOf(range: string): '' | '~' | undefined {
   if (EXACT.test(range)) return '';
-  return /^[~^]/.test(range) && EXACT.test(range.slice(1)) ? (range[0] as '~' | '^') : undefined;
+  return range.startsWith('~') && EXACT.test(range.slice(1)) ? '~' : undefined;
 }
 
 /**
@@ -2480,9 +2483,10 @@ function releaseAgeNote(age: Setting, { pins, unread }: { pins: readonly Release
   const lines = pins.map((p) => {
     // migrate-pins-carry-the-drop-in: when an older release was old enough but lacks a subpath, the note says which one.
     const carrying = p.requires === undefined ? '' : ` that exports ${p.requires.specifiers.join(', ')} (first in ${p.requires.since})`;
+    const major = p.version.slice(0, p.version.indexOf('.'));
     return Date.parse(p.installable) <= now.getTime()
-      ? `${p.name} ${p.graded} is younger than that, so next pins ${style}${p.version}, the newest ${p.name} ${p.version.split('.')[0]}.x${carrying} old enough; run your tests on it`
-      : `no ${p.name} ${p.version.split('.')[0]}.x${carrying} is old enough until ${p.installable.replace('T', ' ').replace(/:\d\d\.\d+Z$/, '')} UTC, when ${p.version} is: the install fails before then, or exempt ${p.name} from the rule`;
+      ? `${p.name} ${p.graded} is younger than that, so next pins ${style}${p.version}, the newest ${p.name} ${major}.x${carrying} old enough; run your tests on it`
+      : `no ${p.name} ${major}.x${carrying} is old enough until ${p.installable.replace('T', ' ').replace(/:\d\d\.\d+Z$/, '')} UTC, when ${p.version} is: the install fails before then, or exempt ${p.name} from the rule`;
   });
   if (lines.length === 0 && unread.length === 0) lines.push('every family version in next is older than that');
   if (unread.length > 0) lines.push(`the registry did not say when ${unread.join(', ')} ${unread.length === 1 ? 'was' : 'were'} published, so next pins the graded version, which may be younger than that`);
