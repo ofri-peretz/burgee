@@ -10,7 +10,7 @@
  * `.sdlc/intents/bellpull/intent.md` names its only internal users honestly as dogfooding:
  * `compat-oracle` spawns to grade and `cli-benchmarks` spawns at least thirty times a row. The
  * criterion is that both spawn through the package, "their suites unchanged". Until this lock the
- * claim had one call site behind it (`benchmarks/axes/weight.ts`'s `npm pack`) while fifteen files
+ * claim had one call site behind it (`benchmarks/axes/weight.ts`'s `npm pack`) while fourteen files
  * imported `node:child_process` directly, and the umbrella sweep of 2026-10-26 found that by
  * reading, not by a check.
  *
@@ -27,10 +27,13 @@
  *     with `node:child_process` precisely to be independent of the thing they test.
  *   - `benchmarks/fixtures/`. Those are the measured subjects, not the harness: a fixture is a
  *     program the benchmark runs and times, and a raw-spawn floor is a legitimate thing to time.
+ *   - `__fixtures__`: test scaffolding, outside the build, coverage and mutation. Its
+ *     `scratch-dir.ts` must stay byte-identical to every other package's copy
+ *     (`tmpdir-cleanup-lock.test.ts`), so it cannot move alone.
  *   - Dot-directories, `node_modules`, `results` and `dist`: generated, never authored here.
  *
- * Test scaffolding outside a test file (`scratch-dir.ts` in both trees) is *in* scope: it is
- * tooling the suites share, and it spawns.
+ * `benchmarks/scratch-dir.ts`, the benchmarks' own copy of the root's, is *in* scope: nothing
+ * holds it to another file, and it spawns.
  *
  * Comments are stripped before matching, and string literals are kept: `hosts.ts` quotes an
  * `import … from 'node:child_process'` inside a doc comment, and that is prose, not an import.
@@ -46,8 +49,8 @@ const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 /** The two consumers the intent names, as repository-relative directories. */
 const SCANNED = ['packages/compat-oracle/src', 'benchmarks'];
 
-/** Directories never read: generated output, installed trees, and the benchmarks' measured subjects. */
-const SKIPPED = new Set(['node_modules', 'results', 'dist']);
+/** Directories never read: generated output, installed trees, test fixtures, and the benchmarks' measured subjects. */
+const SKIPPED = new Set(['node_modules', 'results', 'dist', '__fixtures__']);
 const SUBJECTS = 'benchmarks/fixtures';
 
 /** Every way a module can reach `child_process`: static, side-effect, re-export, `import()` and `require()`. */

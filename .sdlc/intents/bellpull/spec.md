@@ -248,7 +248,7 @@ goes through `bellpull/cross-spawn`, by way of one module in each workspace
 `execFile` written as Node's own `execFileSync` over `crossSpawn.sync`. The three `KNOWN` entries
 left that list, and its ceiling fell from 18 to 15. `scripts/dogfood-spawn-lock.test.ts` refuses a
 `node:child_process` import anywhere in either tree outside test files and the measured fixtures.
-On `origin/main` it listed fifteen files. The oracle loads bellpull on its first spawn, not at
+On `origin/main` it listed fourteen files. The oracle loads bellpull on its first spawn, not at
 import, because `vendor-suite.ts` must load from a checkout with nothing installed. `upstream.ts`'s
 hand-written `npm.cmd` + `shell: true` (#1180) is gone, and the `suiteDeps` end-to-end suites run
 on Windows. Why `cross-spawn` and not `run`, and what the deferred load costs:

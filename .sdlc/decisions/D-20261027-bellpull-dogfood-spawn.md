@@ -56,6 +56,8 @@ on `win32` (#1180). That was a second copy of bellpull's job, and the shell exis
 `windows-latest` cell runs them whenever `compat-oracle` is affected.
 
 **Out of scope, left as it was.** Test files: several spawn with `node:child_process` precisely to
-be independent of what they test. `benchmarks/fixtures/` holds the measured programs. A raw-spawn
+be independent of what they test. `compat-oracle/src/__fixtures__/scratch-dir.ts`, test scaffolding
+that `tmpdir-cleanup-lock.test.ts` holds byte-identical to every other package's copy, so it
+cannot move alone. `benchmarks/fixtures/` holds the measured programs. A raw-spawn
 floor is a legitimate thing to time. `scripts/` is not one of the two consumers the criterion
 names.
