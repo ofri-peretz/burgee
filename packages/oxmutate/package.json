@@ -14,7 +14,7 @@
   "type": "module",
   "private": true,
   "engines": {
-    "node": ">=22.13.0"
+    "node": "^20.19.0 || >=22.13.0"
   },
   "bin": {
     "oxmutate": "./dist/bin.js"
@@ -22,11 +22,17 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
-    "./runner": "./dist/runner.js",
+    "./runner": {
+      "types": "./dist/runner.d.ts",
+      "import": "./dist/runner.js",
+      "default": "./dist/runner.js"
+    },
     "./spec": {
       "types": "./dist/spec.d.ts",
+      "import": "./dist/spec.js",
       "default": "./dist/spec.js"
     },
     "./package.json": "./package.json"
@@ -55,5 +61,10 @@
   "devDependencies": {
     "vitest": "^5.0.1"
   },
-  "//optionalDependencies": "Written at publish time by the release job (scripts/sync-platform-versions.mjs --publish): the six oxmutate-<platform> packages under npm/, at this version. Never committed: npm ci refuses a lockfile that cannot record an optional dependency npm does not serve (EUSAGE). See RELEASING.md."
+  "//optionalDependencies": "Written at publish time by the release job (scripts/sync-platform-versions.mjs --publish): the six oxmutate-<platform> packages under npm/, at this version. Never committed: npm ci refuses a lockfile that cannot record an optional dependency npm does not serve (EUSAGE). See RELEASING.md.",
+  "peerDependenciesMeta": {
+    "vitest": {
+      "optional": true
+    }
+  }
 }
