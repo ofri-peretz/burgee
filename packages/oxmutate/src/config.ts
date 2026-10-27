@@ -42,6 +42,18 @@ export interface Options {
   /** Config keys read but not used, with the reason. */
   unused: { key: string; why: string }[];
   configFile?: string | undefined;
+  /** Stop after the dry run: proves the test setup runs under oxmutate (Stryker's `dryRunOnly`). */
+  dryRunOnly: boolean;
+  /** Budget for one dry run, in minutes (Stryker's default: 5). Over it, the run stops with exit 3. */
+  dryRunTimeoutMinutes: number;
+  /** Run once before the dry run, split on spaces with no shell, as Stryker runs it. */
+  buildCommand?: string | undefined;
+  /** Node flags for every Vitest server (Stryker's `testRunnerNodeArgs`). */
+  testRunnerNodeArgs: string[];
+  /** A dry run that finds no tests scores nothing instead of failing (Stryker's `allowEmpty`). */
+  allowEmpty: boolean;
+  /** `false` hides the line listing config keys oxmutate does not use (Stryker's `warnings`). */
+  warnUnused: boolean;
 }
 
 const NOT_NEEDED: Record<string, string> = {
@@ -57,27 +69,20 @@ const NOT_NEEDED: Record<string, string> = {
   checkers: 'type checking is M2 work (tsgo), not yet wired',
   maxTestRunnerReuse: 'workers are replaced on pollution and runaways, automatically',
   dashboard: 'the Stryker Dashboard reporter is M4 work',
-  htmlReporter: 'set htmlReport instead',
   clearTextReporter: 'the summary is always printed',
   eventReporter: 'not implemented',
   logLevel: 'not implemented',
   fileLogLevel: 'not implemented',
   allowConsoleColors: 'colour follows the terminal (roundel policy)',
-  dryRunTimeoutMinutes: 'the dry run has no separate budget',
   disableTypeChecks: 'type checking is M2 work',
   tsconfigFile: 'type checking is M2 work',
-  buildCommand: 'not implemented; run your build before oxmutate',
-  warnings: 'not implemented',
   ignorers: "use Stryker's disable comments instead; ignorer plugins are not loaded",
   mutator: 'only mutator.excludedMutations is read',
   disableBail: 'oxmutate always stops at the first killing test',
   testFiles: 'test files come from the Vitest config',
   ignorePatterns: 'oxmutate never copies the project, so there is nothing to ignore',
   commandRunner: 'not implemented',
-  allowEmpty: 'an empty run is never an error',
-  dryRunOnly: 'not implemented',
   force: 'use --no-incremental',
-  testRunnerNodeArgs: 'not implemented',
   checkerNodeArgs: 'not implemented',
 };
 
@@ -90,8 +95,9 @@ const DEFAULT_TIMEOUT_MS = 500;
 const DEFAULT_TIMEOUT_FACTOR = 1.5;
 const DEFAULT_THRESHOLD_HIGH = 80;
 const DEFAULT_THRESHOLD_LOW = 60;
+const DEFAULT_DRY_RUN_MINUTES = 5;
 
-const USED = new Set(['mutate', 'vitest', 'concurrency', 'timeoutMS', 'timeoutFactor', 'thresholds', 'ignoreStatic', 'reporters', 'jsonReporter', 'incremental', 'incrementalFile', '$schema', 'mutator']);
+const USED = new Set(['mutate', 'vitest', 'concurrency', 'timeoutMS', 'timeoutFactor', 'thresholds', 'ignoreStatic', 'reporters', 'jsonReporter', 'htmlReporter', 'incremental', 'incrementalFile', '$schema', 'mutator', 'dryRunOnly', 'dryRunTimeoutMinutes', 'buildCommand', 'testRunnerNodeArgs', 'allowEmpty', 'warnings']);
 
 async function loadFile(file: string): Promise<Record<string, unknown>> {
   if (file.endsWith('.json')) return JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
@@ -124,6 +130,7 @@ export async function loadOptions(root: string, overrides: Partial<Options> = {}
   const thresholds = (raw['thresholds'] ?? {}) as Partial<Thresholds>;
   const vitest = (raw['vitest'] ?? {}) as { configFile?: string };
   const json = (raw['jsonReporter'] ?? {}) as { fileName?: string };
+  const html = (raw['htmlReporter'] ?? {}) as { fileName?: string };
   const mutator = (raw['mutator'] ?? {}) as { excludedMutations?: string[] };
   const mutate = (raw['mutate'] as string[] | undefined) ?? ['src/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}', '!src/**/*.{test,spec}.*', '!src/**/*.d.ts'];
 
@@ -141,12 +148,18 @@ export async function loadOptions(root: string, overrides: Partial<Options> = {}
     reporters: (raw['reporters'] as string[] | undefined) ?? ['clear-text', 'json'],
     jsonReport: path.resolve(root, json.fileName ?? 'reports/mutation/mutation.json'),
     sarifReport: path.resolve(root, (raw['sarifReport'] as string | undefined) ?? 'reports/mutation/mutation.sarif'),
-    htmlReport: path.resolve(root, (raw['htmlReport'] as string | undefined) ?? 'reports/mutation/mutation.html'),
+    htmlReport: path.resolve(root, html.fileName ?? 'reports/mutation/mutation.html'),
     incremental: raw['incremental'] === true,
     incrementalFile: path.resolve(root, (raw['incrementalFile'] as string | undefined) ?? 'reports/oxmutate-incremental.json'),
     flakyReruns: Number(raw['flakyReruns'] ?? 2),
     unused,
     configFile: oxFile ?? strykerFile,
+    dryRunOnly: raw['dryRunOnly'] === true,
+    dryRunTimeoutMinutes: Number(raw['dryRunTimeoutMinutes'] ?? DEFAULT_DRY_RUN_MINUTES),
+    buildCommand: typeof raw['buildCommand'] === 'string' ? raw['buildCommand'] : undefined,
+    testRunnerNodeArgs: (raw['testRunnerNodeArgs'] as string[] | undefined) ?? [],
+    allowEmpty: raw['allowEmpty'] === true,
+    warnUnused: raw['warnings'] !== false && (raw['warnings'] as { unknownOptions?: boolean } | undefined)?.unknownOptions !== false,
     ...overrides,
   };
 }

@@ -70,6 +70,7 @@ function overridesFrom(o: Record<string, unknown>, root: string): Partial<Option
   if (typeof o['reportDir'] === 'string') {
     overrides.jsonReport = path.resolve(root, o['reportDir'], 'mutation.json');
     overrides.sarifReport = path.resolve(root, o['reportDir'], 'mutation.sarif');
+    overrides.htmlReport = path.resolve(root, o['reportDir'], 'mutation.html');
   }
   return overrides;
 }
@@ -92,9 +93,9 @@ const runCommand = defineCommand({
     strykerCompat: { type: 'boolean', description: 'reproduce Stryker 10.0.0 skips (no mutants inside `as` casts or enums)' },
     incremental: { type: 'boolean', description: 'reuse verdicts whose source and covering tests did not change' },
     flakyReruns: { type: 'number', description: 're-runs for verdicts with nondeterministic tests (default 2; 0 disables)' },
-    reporter: { type: 'string', description: 'comma-separated: clear-text, json, sarif (default clear-text,json)' },
+    reporter: { type: 'string', description: 'comma-separated: clear-text, json, sarif, html (default clear-text,json)' },
     break: { type: 'number', description: 'exit 1 when the mutation score is below this' },
-    reportDir: { type: 'string', description: 'write mutation.json and mutation.sarif here instead of the configured paths' },
+    reportDir: { type: 'string', description: 'write mutation.json, mutation.sarif and mutation.html here instead of the configured paths' },
     config: { type: 'string', description: 'an oxmutate config file (JSON or JS) instead of oxmutate.config.*' },
   },
   run: async ({ options, exit }) => {

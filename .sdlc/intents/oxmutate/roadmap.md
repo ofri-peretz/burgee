@@ -114,6 +114,40 @@ Every Stryker 10.0.0 capability, where it lands, and what "better" means. **P** 
 | Execution sharing (mutant schemata, split-stream / AccMut-style) | M5 | Research track for the next order-of-magnitude gain |
 | Predictive prioritization | M5 | Run the mutants most likely to survive first; useful in PR budgets |
 
+## Status, 2026-10-27
+
+What is built against this matrix. ✅ built and tested · 🟡 partly · ⬜ not started. The
+work queue below is the order these close in; each item ends with a check that fails without it.
+
+| Area | Item | Status | Where |
+| :-- | :-- | :-- | :-- |
+| Mutators | 16 of 17 families, Stryker's exact set (720/720 on es-toolkit) | ✅ | `native/src/instrument.rs` |
+| Mutators | Regex (via `oxc_regular_expression`) | ⬜ | queue 1 |
+| Mutators | `mutator.excludedMutations` | ✅ | `src/config.ts` |
+| Runner | Vitest, warm, perTest, bail, canary, watchdog | ✅ | `src/runner.ts`, `src/scheduler.ts` |
+| Runner | Command runner | ⬜ | queue 6 |
+| Execution | Static mutants scored, loader-scoped | ✅ | `src/coordinator.ts` |
+| Execution | `timeoutMS`, `timeoutFactor`, thresholds and `break` | ✅ | |
+| Execution | `dryRunOnly`, `dryRunTimeoutMinutes`, `buildCommand`, `testRunnerNodeArgs`, `warnings` | ⬜ | queue 3 |
+| Execution | `ignorers` as data | ⬜ | queue 7 |
+| Execution | Type checker (tsgo), compile errors counted | ⬜ | queue 8 |
+| Incremental | `--incremental`, keyed on source plus covering tests | 🟡 | built; not yet measured against Stryker's |
+| Reporters | JSON (schema 2), clear-text, SARIF | ✅ | `src/reports.ts` |
+| Reporters | HTML (`mutation-testing-elements`) | ⬜ | queue 2 |
+| Reporters | progress, `event-recorder`, `ci` | ⬜ | queue 3 |
+| Lanes | `--since`, `--shard`, `survivors --json`, `--mcp` | ✅ | `src/lanes.ts`, `src/cli.ts` |
+| Lanes | `record` (ratchet observations) | ⬜ | queue 4 |
+| Lanes | Frozen oracle | ⬜ | queue 5 |
+| Teardown | No orphan servers (T6) | ✅ | `src/child.ts`, e2e test |
+| Dogfood | burgee's weekly run on oxmutate | ⬜ | queue 9, after 4 |
+| Formal | Spec oracle contract and Quint backend | ⬜ | queue 10 |
+| Release | Per-platform native packages, trusted publishing | 🟡 | `npm/*` scaffolded; queue 11 |
+
+**Work queue:** 1 Regex · 2 HTML report · 3 config and reporter breadth · 4 `record` · 5 frozen
+oracle · 6 command runner · 7 ignorers as data · 8 tsgo checker · 9 burgee weekly on oxmutate ·
+10 Quint spec oracle · 11 release 0.1. M4 items wait for an adopter, and M5 for a measured gain,
+as their gates say.
+
 ## Milestones
 
 Each milestone has one gate, a command that exits non-zero when it fails. Nothing advances on a

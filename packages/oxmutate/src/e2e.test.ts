@@ -4,11 +4,11 @@
  * leftover entries kill the `reset()` mutants, which no test checks.
  */
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const pkg = path.join(here, '..');
@@ -23,6 +23,8 @@ interface ReportMutant {
   mutatorName: string;
   status: string;
   location: { start: { line: number } };
+  static?: boolean;
+  testsCompleted?: number;
 }
 
 it.skipIf(!native || !existsSync(bin))('restarts a polluted context and judges later mutants from a clean state', () => {
@@ -41,6 +43,10 @@ it.skipIf(!native || !existsSync(bin))('restarts a polluted context and judges l
   expect(inReset.map((m) => `${m.mutatorName}:${m.status}`)).toEqual(inReset.map((m) => `${m.mutatorName}:Survived`));
   const rest = mutants.filter((m) => m.location.start.line < resetLine);
   expect(rest.map((m) => `${String(m.location.start.line)}:${m.mutatorName}:${m.status}`)).toEqual(rest.map((m) => `${String(m.location.start.line)}:${m.mutatorName}:Killed`));
+  // Every verdict says how many tests decided it, the static mutant's isolated run included:
+  // burgee's recorder rejects a covered survivor with none as a runner that matched nothing.
+  expect(mutants.some((m) => m.static)).toBe(true);
+  expect(mutants.filter((m) => (m.testsCompleted ?? 0) < 1).map((m) => `${String(m.location.start.line)}:${m.mutatorName}`)).toEqual([]);
   rmSync(reportDir, { recursive: true, force: true });
 }, 60_000);
 
@@ -86,3 +92,42 @@ it.skipIf(!native || !existsSync(bin))('confirms a watchdog stop with 3x the bud
   expect(report.files['src/one.ts']?.mutants.map((m) => m.status)).toEqual(['Killed']);
   expect(report['x-oxmutate'].stats.timeoutsOverturned).toBe(1);
 }, 90_000);
+
+/** The CLI on a fixture with extra config keys, through a config file written for the run. */
+const runWith = (dir: string, extra: Record<string, unknown>): { status: number | null; out: string; reports: string } => {
+  const base = JSON.parse(readFileSync(path.join(dir, 'oxmutate.config.json'), 'utf8')) as Record<string, unknown>;
+  const config = path.join(dir, 'reports', 'case.config.json');
+  const reports = path.join(dir, 'reports', 'case');
+  mkdirSync(reports, { recursive: true });
+  writeFileSync(config, JSON.stringify({ ...base, ...extra }));
+  const r = spawnSync(process.execPath, [bin, 'run', '--config', config, '--report-dir', reports, '--reporter', 'json'], { cwd: dir, encoding: 'utf8' });
+  return { status: r.status, out: `${r.stdout}${r.stderr}`, reports };
+};
+
+describe.skipIf(!native || !existsSync(bin))('Stryker options the run honours', () => {
+  const registry = path.join(pkg, 'test/fixtures/registry');
+  const spin = path.join(pkg, 'test/fixtures/spin');
+  afterAll(() => {
+    rmSync(path.join(registry, 'reports'), { recursive: true, force: true });
+    rmSync(path.join(spin, 'reports'), { recursive: true, force: true });
+  });
+
+  it('buildCommand: a failing build stops the run before the dry run, with exit 3', () => {
+    const r = runWith(registry, { buildCommand: 'node -e process.exit(4)' });
+    expect(r.status).toBe(3);
+    expect(r.out).toMatch(/buildCommand `node -e process.exit\(4\)` exited 4/);
+  });
+
+  it('dryRunOnly: the dry run passes and nothing is scored or written', () => {
+    const r = runWith(registry, { dryRunOnly: true });
+    expect(r.status).toBe(0);
+    expect(r.out).toMatch(/dry run only/);
+    expect(existsSync(path.join(r.reports, 'mutation.json'))).toBe(false);
+  });
+
+  it('dryRunTimeoutMinutes: a dry run that hangs stops at its budget, with exit 3', () => {
+    const r = runWith(spin, { dryRunTimeoutMinutes: 0.02 });
+    expect(r.status).toBe(3);
+    expect(r.out).toMatch(/longer than dryRunTimeoutMinutes/);
+  });
+});

@@ -25,6 +25,8 @@ export interface ServerConfig {
   vitestConfig?: string | undefined;
   workers: number;
   instrumentedMap: string;
+  /** `execArgv` for this server (Stryker's `testRunnerNodeArgs`). */
+  nodeArgs?: string[] | undefined;
 }
 
 export interface Unit {
@@ -126,7 +128,11 @@ async function runUnit(unit: Unit): Promise<void> {
   if (unit.plan) env['OXMUTATE_PLAN'] = unit.plan;
   delete env[ACTIVE_MUTANT_ENV];
   if (unit.mode === 'isolated') await runIsolated(unit);
-  else await vitest.start(unit.files.length ? unit.files : undefined);
+  else {
+    // A dry run names itself in the progress file, so the watchdog holds it to its budget.
+    if (unit.mode === 'dry') writeFileSync(unit.progress, `dry ${String(Date.now())}\n`);
+    await vitest.start(unit.files.length ? unit.files : undefined);
+  }
 }
 
 /** How long `close` waits for `vitest.close()` before the server exits regardless. */

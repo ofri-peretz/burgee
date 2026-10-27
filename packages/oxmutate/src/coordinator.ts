@@ -14,6 +14,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
+import { ambientRuntime, run as spawn } from 'bellpull';
+
 import type { Unit } from './child.js';
 import { disables, type Options } from './config.js';
 import { matchFiles } from './files.js';
@@ -79,9 +81,19 @@ export interface RunResult {
   tests: TestInfo[];
   stats: RunStats;
   score: { detected: number; undetected: number; total: number; mutationScore: number; covered: number };
+  /** Set when the run stopped after the dry run (`dryRunOnly`): no verdicts, no reports. */
+  dryRunOnly?: boolean | undefined;
 }
 
 export class InstrumentFault extends Error {}
+
+/** One mutant's verdict from its isolated runs. */
+interface Verdict {
+  status: Status;
+  killedBy?: string[] | undefined;
+  /** Tests that ran across its files: Stryker's `testsCompleted`. */
+  testsCompleted?: number | undefined;
+}
 
 interface ChildRecord {
   type: 'dry' | 'mutant' | 'polluted' | 'isolated';
@@ -91,6 +103,8 @@ interface ChildRecord {
   file?: string;
   killed?: boolean;
   failed?: string[];
+  /** `isolated`: tests that ran (passed or failed) in this file run. */
+  ran?: number;
   /** `polluted`: mutants run after the first since the last clean canary; their verdicts are dropped. */
   suspects?: string[];
   tests?: (TestInfo & { state: string })[];
@@ -110,6 +124,7 @@ const sha = (s: string): string => createHash('sha256').update(s).digest('hex').
 
 /** Work units of at most this many (mutant, test) executions: small enough to steal. */
 const UNIT_PAIRS = 120;
+const MS_PER_MINUTE = 60_000;
 
 export async function run(options: Options): Promise<RunResult> {
   const wall0 = performance.now();
@@ -163,16 +178,26 @@ export async function run(options: Options): Promise<RunResult> {
     const mapFile = path.join(work, 'instrumented.json');
     writeFileSync(mapFile, JSON.stringify(codeMap));
 
+    // ── 1b. The build, once, before anything runs (Stryker's `buildCommand`) ─────────────────
+    if (options.buildCommand) {
+      const [command = '', ...args] = options.buildCommand.trim().split(/\s+/);
+      const built = await spawn(command, args, { cwd: root, runtime: ambientRuntime() });
+      if (!built.ok) throw new InstrumentFault(`buildCommand \`${options.buildCommand}\` exited ${String(built.code)}: ${(built.stderr || built.stdout).trim().slice(-1500)}. fix: make the build pass on its own first`);
+    }
+
     // ── 2. Dry run, twice (the second only to find nondeterministic tests) ────────────────────
-    const dryPool = createPool({ root, vitestConfig: options.vitestConfig, workers: options.concurrency, instrumentedMap: mapFile }, 1, work, 'dry');
+    const dryPool = createPool({ root, vitestConfig: options.vitestConfig, workers: options.concurrency, instrumentedMap: mapFile, nodeArgs: options.testRunnerNodeArgs }, 1, work, 'dry');
     pools.push(dryPool);
     const dryRun = async (): Promise<{ tests: (TestInfo & { state: string })[]; perTest: Record<string, Record<string, number>>; static: Record<string, number> }> => {
       const unit: Unit = { mode: 'dry', files: [], results: fileFor('dry', 'jsonl'), progress: fileFor('dry', 'progress') };
       let failure: UnitOutcome | undefined;
-      await dryPool.drain([unit], () => Infinity, (_, o) => {
+      let overBudget = false;
+      await dryPool.drain([unit], () => options.dryRunTimeoutMinutes * MS_PER_MINUTE, (_, o) => {
         if (o.crashed) failure = o;
+        if (o.killedFor) overBudget = true;
         return [];
       });
+      if (overBudget) throw new InstrumentFault(`the dry run took longer than dryRunTimeoutMinutes (${String(options.dryRunTimeoutMinutes)}). fix: raise dryRunTimeoutMinutes, or find the test that hangs with no mutant active`);
       const recs = readRecords(unit.results).filter((r) => r.type === 'dry');
       if (failure && recs.length === 0) throw new InstrumentFault(`the dry run did not complete: ${failure.stderr.slice(-1500)}`);
       const perTest: Record<string, Record<string, number>> = {};
@@ -192,7 +217,7 @@ export async function run(options: Options): Promise<RunResult> {
     stats.dryRunMs = performance.now() - d0;
     const failing = dry.tests.filter((t) => t.state === 'fail');
     if (failing.length) throw new InstrumentFault(`${String(failing.length)} test(s) fail with no mutant active, so no verdict can be trusted: ${failing.slice(0, 5).map((t) => t.name).join('; ')}. fix: make the suite pass first`);
-    if (dry.tests.length === 0) throw new InstrumentFault('the dry run ran no tests. fix: check the Vitest config the run used');
+    if (dry.tests.length === 0 && !options.allowEmpty) throw new InstrumentFault('the dry run ran no tests. fix: check the Vitest config the run used, or set allowEmpty');
 
     // The second dry run only finds nondeterministic tests, which matter at step 7: it runs beside
     // the warm phase instead of before it (6 s of a 107 s burgee/controlroom run, 2026-10-27).
@@ -241,6 +266,12 @@ export async function run(options: Options): Promise<RunResult> {
           m.statusReason = 'static mutant (ignoreStatic)';
         }
       }
+    }
+
+    if (options.dryRunOnly) {
+      stats.wallMs = performance.now() - wall0;
+      const tests = dry.tests.map(({ id, file, name, ms }) => ({ id, file, name, ms }));
+      return { root, options, sources, mutants, tests, stats, score: { detected: 0, undetected: 0, total: 0, mutationScore: 0, covered: 0 }, dryRunOnly: true };
     }
 
     // ── 3. Incremental reuse ──────────────────────────────────────────────────────────────────
@@ -338,7 +369,7 @@ export async function run(options: Options): Promise<RunResult> {
     const records: ChildRecord[] = [];
     const runaways = new Set<string>();
     const crashedIds = new Set<string>();
-    const pool = createPool({ root, vitestConfig: options.vitestConfig, workers: 1, instrumentedMap: mapFile }, options.concurrency, work, 'mutant');
+    const pool = createPool({ root, vitestConfig: options.vitestConfig, workers: 1, instrumentedMap: mapFile, nodeArgs: options.testRunnerNodeArgs }, options.concurrency, work, 'mutant');
     pools.push(pool);
     const killedSoFar = (): Set<string> => new Set([...runaways, ...crashedIds, ...records.filter((r) => r.type === 'mutant' && r.status !== 'Survived').map((r) => r.id ?? '')]);
     const afterUnit = (unit: Unit, outcome: UnitOutcome): Unit[] => {
@@ -438,8 +469,8 @@ export async function run(options: Options): Promise<RunResult> {
     // Stryker's semantics, so cross-test effects still show (a no-op reset() lets state pile up
     // for the next covering test). A static mutant runs every test of its files, because an
     // import-time change reaches tests that never execute the mutated line.
-    const runIsolated = async (items: MutantResult[], slack = 1): Promise<Map<string, { status: Status; killedBy?: string[] | undefined }>> => {
-      const verdicts = new Map<string, { status: Status; killedBy?: string[] | undefined }>();
+    const runIsolated = async (items: MutantResult[], slack = 1): Promise<Map<string, Verdict>> => {
+      const verdicts = new Map<string, Verdict>();
       if (items.length === 0) return verdicts;
       const chunk = Math.max(1, Math.ceil(items.length / (options.concurrency * 2)));
       const mk = (batch: MutantResult[]): Unit => ({ mode: 'isolated', files: [], results: fileFor('iso', 'jsonl'), progress: fileFor('iso', 'progress'), batch: batch.map((m) => ({ id: m.id, files: filesFor(m), tests: m.static ? undefined : m.coveredBy })) });
@@ -454,8 +485,9 @@ export async function run(options: Options): Promise<RunResult> {
           for (const rec of readRecords(unit.results)) {
             if (rec.type !== 'isolated' || !rec.id) continue;
             const prev = verdicts.get(rec.id);
-            if (rec.killed) verdicts.set(rec.id, { status: 'Killed', killedBy: [...(prev?.killedBy ?? []), ...(rec.failed ?? [])] });
-            else if (!prev) verdicts.set(rec.id, { status: 'Survived' });
+            const testsCompleted = (prev?.testsCompleted ?? 0) + (rec.ran ?? 0);
+            if (rec.killed) verdicts.set(rec.id, { status: 'Killed', killedBy: [...(prev?.killedBy ?? []), ...(rec.failed ?? [])], testsCompleted });
+            else verdicts.set(rec.id, { status: prev?.status ?? 'Survived', killedBy: prev?.killedBy, testsCompleted });
           }
           if (outcome.killedFor) verdicts.set(outcome.killedFor, { status: 'Timeout' });
           if (outcome.crashed && outcome.crashedFor) verdicts.set(outcome.crashedFor, { status: 'RuntimeError' });
@@ -487,6 +519,7 @@ export async function run(options: Options): Promise<RunResult> {
       if (v) {
         m.status = v.status;
         m.killedBy = v.killedBy;
+        m.testsCompleted = v.testsCompleted;
         if (v.status === 'Timeout') m.statusReason = 'stopped by the watchdog twice, the second time with 3x the budget';
       }
     }

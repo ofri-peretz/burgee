@@ -15,9 +15,11 @@
  *       packages `scripts/affected.mts` names, and fails when one of those mutants is not
  *       detected — unless its line carries `// Stryker disable next-line <mutator>: <reason>`.
  *
- *   npx tsx scripts/mutation.ts full --package roundel [--concurrency 2] [--out <file>]
+ *   npx tsx scripts/mutation.ts full --package roundel [--concurrency 2] [--out <file>] [--engine oxmutate]
  *       One package, every mutation source, for the weekly ratchet (R5). Prints the score and
- *       writes a result file.
+ *       writes a result file. `--engine oxmutate` (or MUTATION_ENGINE=oxmutate) runs the
+ *       family's own mutation tester on the same mutate list, wrapper and budgets; it writes
+ *       Stryker's report schema, so `summarise` and `record` read it unchanged.
  *
  *   npx tsx scripts/mutation.ts record --results <dir> [--date YYYY-MM-DD]
  *       Folds result files into `.sdlc/bands/mutation-ratchets.json`: appends the observation,
@@ -43,6 +45,8 @@ const SCRIPT_DIR = path.dirname(url.fileURLToPath(import.meta.url));
 export const REPO_ROOT = path.resolve(SCRIPT_DIR, '..');
 export const RATCHETS_FILE = '.sdlc/bands/mutation-ratchets.json';
 const STRYKER_BIN = path.join(REPO_ROOT, 'node_modules', '@stryker-mutator', 'core', 'bin', 'stryker.js');
+const OXMUTATE_BIN = path.join(REPO_ROOT, 'packages', 'oxmutate', 'dist', 'bin.js');
+export type Engine = 'stryker' | 'oxmutate';
 const SETUP_FILE = path.join(SCRIPT_DIR, 'mutation-vitest-setup.ts');
 /** Where a run writes its vitest config, inside the package so vite bundles the package's own (gitignored). */
 const WRAPPER_DIR = '.mutation';
@@ -335,7 +339,9 @@ function restore(packageDir: string, before: ReadonlyMap<string, string>): strin
 }
 
 /** Stryker over `mutate` in one package. `budgetMs` kills it, and the run reports why. */
-export function runPackage(pkg: string, mutate: readonly string[], o: { concurrency: number; timeoutMS: number; dryRunTimeoutMinutes: number; budgetMs?: number }): PackageRun {
+export function runPackage(pkg: string, mutate: readonly string[], o: { concurrency: number; timeoutMS: number; dryRunTimeoutMinutes: number; budgetMs?: number; engine?: Engine }): PackageRun {
+  const engine = o.engine ?? 'stryker';
+  const name = engine === 'oxmutate' ? 'oxmutate' : 'Stryker';
   const packageDir = path.join(REPO_ROOT, 'packages', pkg);
   const work = mkdtempSync(path.join(tmpdir(), `mutation-${pkg}-`));
   const reportFile = path.join(work, 'report.json');
@@ -344,10 +350,15 @@ export function runPackage(pkg: string, mutate: readonly string[], o: { concurre
   const vitestConfig = path.join(wrapperDir, 'vitest.config.ts');
   mkdirSync(wrapperDir, { recursive: true });
   writeFileSync(vitestConfig, wrapperConfig(packageDir, Object.keys(SKIPPED_TESTS[pkg] ?? {})));
-  writeFileSync(configFile, JSON.stringify(strykerConfig({ ...o, vitestConfig, mutate, reportFile }), null, 2));
+  // oxmutate reads the same keys from a config of its own; it never writes the sources, so the
+  // snapshot below only ever finds Stryker's leftovers.
+  const config = engine === 'oxmutate'
+    ? { mutate, vitest: { configFile: vitestConfig }, concurrency: o.concurrency, timeoutMS: o.timeoutMS, dryRunTimeoutMinutes: o.dryRunTimeoutMinutes, reporters: ['clear-text', 'json'], jsonReporter: { fileName: reportFile } }
+    : strykerConfig({ ...o, vitestConfig, mutate, reportFile });
+  writeFileSync(configFile, JSON.stringify(config, null, 2));
   const before = snapshot(packageDir, mutate);
   const started = Date.now();
-  const r = spawnSync(process.execPath, [STRYKER_BIN, 'run', configFile], {
+  const r = spawnSync(process.execPath, engine === 'oxmutate' ? [OXMUTATE_BIN, 'run', '--config', configFile] : [STRYKER_BIN, 'run', configFile], {
     cwd: packageDir,
     stdio: 'inherit',
     timeout: o.budgetMs,
@@ -358,11 +369,11 @@ export function runPackage(pkg: string, mutate: readonly string[], o: { concurre
   const result = (error: string | undefined, summary?: Summary): PackageRun => ({ pkg, ok: error === undefined, error, summary, minutes });
   try {
     const left = restore(packageDir, before);
-    if (left.length > 0) return result(`Stryker left ${String(left.length)} file(s) instrumented (${left.join(', ')}); restored from before the run, and this run's report is not trusted`);
+    if (left.length > 0) return result(`${name} left ${String(left.length)} file(s) instrumented (${left.join(', ')}); restored from before the run, and this run's report is not trusted`);
     if (r.error && (r.error as NodeJS.ErrnoException).code === 'ETIMEDOUT') {
       return result(`over the lane's budget: stopped after ${String(minutes)} minutes. Split the pull request, or kill the mutants in a smaller one first`);
     }
-    if (r.status !== 0 || !existsSync(reportFile)) return result(`Stryker exited ${String(r.status ?? r.signal)} without a report — its own error is above`);
+    if (r.status !== 0 || !existsSync(reportFile)) return result(`${name} exited ${String(r.status ?? r.signal)} without a report — its own error is above`);
     const summary = summarise(JSON.parse(readFileSync(reportFile, 'utf8')) as StrykerReport, `packages/${pkg}/`);
     if (summary.silentSurvivors.length > 0) {
       return result(`${String(summary.silentSurvivors.length)} covered mutant(s) "survived" having run no test — the runner's filter matched nothing, so this report measures nothing (see scripts/mutation-vitest-setup.ts)`, summary);
@@ -595,6 +606,9 @@ function changedCommand(): number {
   return finish(runs.some((r) => !r.ok || (r.summary?.undetected.length ?? 0) > 0) ? 1 : 0);
 }
 
+/** `--engine oxmutate` or MUTATION_ENGINE=oxmutate; Stryker otherwise. */
+const engineArg = (): Engine => ((arg('--engine') ?? process.env['MUTATION_ENGINE']) === 'oxmutate' ? 'oxmutate' : 'stryker');
+
 function fullCommand(): number {
   const pkg = arg('--package');
   if (!pkg || !existsSync(path.join(REPO_ROOT, 'packages', pkg, 'package.json'))) {
@@ -604,7 +618,7 @@ function fullCommand(): number {
   const sources = allSources(pkg);
   const run: PackageRun = sources.length === 0
     ? { pkg, ok: false, error: 'no mutation source — every file is a test, a fixture or tested in another process', minutes: 0 }
-    : runPackage(pkg, sources, { concurrency: concurrency(), timeoutMS: PR_BUDGET.timeoutMS, dryRunTimeoutMinutes: 15 });
+    : runPackage(pkg, sources, { concurrency: concurrency(), timeoutMS: PR_BUDGET.timeoutMS, dryRunTimeoutMinutes: 15, engine: engineArg() });
   const result: FullResult = { pkg, commit: head(), ok: run.ok, error: run.error, summary: run.summary, minutes: run.minutes };
   const out = arg('--out');
   if (out) writeFileSync(out, `${JSON.stringify(result, null, 2)}\n`);

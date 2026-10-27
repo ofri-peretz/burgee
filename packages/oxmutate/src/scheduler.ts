@@ -49,8 +49,8 @@ class Server {
   private onExit?: ((code: number | null) => void) | undefined;
   exited = false;
 
-  constructor(configFile: string, cwd: string) {
-    this.child = fork(childJs, [configFile], { cwd, stdio: ['ignore', 'ignore', 'pipe', 'ipc'], execArgv: [] });
+  constructor(configFile: string, cwd: string, execArgv: string[]) {
+    this.child = fork(childJs, [configFile], { cwd, stdio: ['ignore', 'ignore', 'pipe', 'ipc'], execArgv });
     this.child.stderr?.on('data', (d: Buffer) => (this.stderr = (this.stderr + d.toString()).slice(-STDERR_TAIL)));
     this.ready = new Promise((resolve) => {
       const first = (m: { type: string }) => {
@@ -124,7 +124,7 @@ export function createPool(config: ServerConfig, size: number, workDir: string, 
   const stats = { spawned: 0, killed: 0, crashed: 0 };
   const spawn = (): Server => {
     stats.spawned++;
-    return new Server(configFile, config.root);
+    return new Server(configFile, config.root, config.nodeArgs ?? []);
   };
   const servers: Server[] = Array.from({ length: size }, spawn);
   let spare: Server | undefined = spawn();

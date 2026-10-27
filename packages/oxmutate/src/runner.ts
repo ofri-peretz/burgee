@@ -245,12 +245,14 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       emit({ type: 'dry', tests, coverage: ns.mutantCoverage, fileErrors });
     } else if (mode === 'isolated') {
       const failed: string[] = [];
+      let ran = 0;
       const visit = (t: AnyTask): void => {
+        if (t.type === 'test' && (t.result?.state === 'pass' || t.result?.state === 'fail')) ran++;
         if (t.type === 'test' && t.result?.state === 'fail') failed.push(t.id);
         for (const c of t.tasks ?? []) visit(c);
       };
       for (const f of files) visit(f);
-      emit({ type: 'isolated', id: env[ACTIVE_MUTANT_ENV] ?? ns.activeMutant, killed: failed.length > 0, failed });
+      emit({ type: 'isolated', id: env[ACTIVE_MUTANT_ENV] ?? ns.activeMutant, killed: failed.length > 0, failed, ran });
     }
     return super.onAfterRunFiles?.(files);
   }

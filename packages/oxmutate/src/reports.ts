@@ -3,7 +3,8 @@
  * ratchet), SARIF 2.1.0 (code scanning annotates the pull request), and a terminal summary that
  * ends with what to do next.
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 
 import type { MutantResult, RunResult } from './coordinator.js';
@@ -123,6 +124,10 @@ function corrections(s: RunResult['stats']): string[] {
 export function textSummary(r: RunResult, opts: { survivors?: number } = {}): string {
   const count = (s: string): number => r.mutants.filter((m) => m.status === s).length;
   const s = r.stats;
+  if (r.dryRunOnly) {
+    const covered = r.mutants.filter((m) => m.static || m.coveredBy.length > 0).length;
+    return `oxmutate ${VERSION}: dry run only, ${(s.wallMs / MS_PER_S).toFixed(1)} s\n  ${String(r.tests.length)} tests passed with every mutant compiled in and none active; ${String(covered)} of ${String(r.mutants.length)} mutants are reached by a test\n`;
+  }
   const lines = [
     `oxmutate ${VERSION}: ${String(r.mutants.length)} mutants in ${String(s.files)} files, ${(s.wallMs / MS_PER_S).toFixed(1)} s`,
     `  mutation score ${r.score.mutationScore.toFixed(2)}% (covered ${r.score.covered.toFixed(2)}%)`,
@@ -138,11 +143,54 @@ export function textSummary(r: RunResult, opts: { survivors?: number } = {}): st
     for (const m of survivors.slice(0, limit)) lines.push(`  ${m.file}:${String(m.start.line)}:${String(m.start.column)}  ${m.mutatorName}  → ${m.replacement.replace(/\s+/g, ' ').slice(0, REPLACEMENT_WIDTH)}${m.flaky ? '  (flaky)' : ''}`);
     lines.push('', 'fix: run `oxmutate survivors --json` to hand the list to an agent, or kill the first one above with a test.');
   }
-  if (r.options.unused.length) lines.push('', `Config keys not used: ${r.options.unused.map((u) => u.key).join(', ')} (see the JSON report for why)`);
+  if (r.options.unused.length && r.options.warnUnused) lines.push('', `Config keys not used: ${r.options.unused.map((u) => u.key).join(', ')} (see the JSON report for why)`);
   return `${lines.join('\n')}\n`;
 }
 
+/** The web component Stryker's HTML report renders with, at the version Stryker 10.0.0 ships. */
+const ELEMENTS = 'mutation-testing-elements/dist/mutation-test-elements.js';
+const ELEMENTS_CDN = 'https://cdn.jsdelivr.net/npm/mutation-testing-elements@3.8.4/dist/mutation-test-elements.js';
+/** sha384 of that file, the same bytes as the npm tarball's (both measured 2026-10-27). */
+const ELEMENTS_SRI = 'sha384-xebNisAYQHHbrYIm991U9KOZ96oO+vRACR8kd+zHzWkU3pcRuigrsI7XS2tj3rqq';
+
+/**
+ * Stryker's HTML report: the JSON report rendered by `mutation-testing-elements`. The component is
+ * inlined from the project's own install when it has one (Stryker brings it), so the page works
+ * offline as Stryker's does; otherwise the page loads that exact version from a CDN. oxmutate does
+ * not depend on it.
+ */
+export function htmlReport(r: RunResult): string {
+  let script: string;
+  try {
+    script = `<script>${readFileSync(createRequire(path.join(r.root, 'package.json')).resolve(ELEMENTS), 'utf8')}</script>`;
+  } catch {
+    script = `<script src="${ELEMENTS_CDN}" integrity="${ELEMENTS_SRI}" crossorigin="anonymous"></script>`;
+  }
+  // `<` as \u003c: still the same JSON, and no `</script>` inside a source file can end the tag.
+  const report = JSON.stringify(strykerReport(r)).replaceAll('<', '\\u003c');
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>oxmutate report</title>
+  ${script}
+</head>
+<body>
+  <mutation-test-report-app titlePostfix="oxmutate">Your browser does not support custom elements.</mutation-test-report-app>
+  <script>
+    const app = document.querySelector('mutation-test-report-app');
+    app.report = ${report};
+    const theme = () => { document.body.style.backgroundColor = app.themeBackgroundColor; };
+    app.addEventListener('theme-changed', theme);
+    theme();
+  </script>
+</body>
+</html>
+`;
+}
+
 export function writeReports(r: RunResult): string[] {
+  if (r.dryRunOnly) return [];
   const written: string[] = [];
   const write = (file: string, body: object | string): void => {
     mkdirSync(path.dirname(file), { recursive: true });
@@ -151,5 +199,6 @@ export function writeReports(r: RunResult): string[] {
   };
   if (r.options.reporters.includes('json')) write(r.options.jsonReport, strykerReport(r));
   if (r.options.reporters.includes('sarif')) write(r.options.sarifReport, sarifReport(r));
+  if (r.options.reporters.includes('html')) write(r.options.htmlReport, htmlReport(r));
   return written;
 }

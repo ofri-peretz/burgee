@@ -29,6 +29,12 @@ on:
         required: false
         type: string
         default: ""
+      engine:
+        description: "stryker (the schedule's) or oxmutate (the family's own, the M3 dogfood week: .sdlc/intents/oxmutate/roadmap.md)"
+        required: false
+        type: choice
+        options: [stryker, oxmutate]
+        default: stryker
 
 concurrency:
   group: mutation-weekly
@@ -58,10 +64,15 @@ jobs:
       # A suite may read a sibling's dist (see quality-full.yml's coverage job), so all of them.
       - name: Build every package
         run: npx turbo run build --filter='./packages/*' --concurrency=4
+      # oxmutate's core is Rust, per platform, and no `build` produces it; the runner image ships rustup.
+      - name: Build oxmutate's native core
+        if: inputs.engine == 'oxmutate'
+        run: cd packages/oxmutate && npm run build:native
       - name: Mutate every source line
         env:
           PKG: ${{ matrix.package }}
           ONLY: ${{ inputs.package }}
+          MUTATION_ENGINE: ${{ inputs.engine || 'stryker' }}
         run: |
           set -euo pipefail
           if [ -n "$ONLY" ] && [ "$ONLY" != "$PKG" ]; then echo "Dispatched for $ONLY only; $PKG not measured."; exit 0; fi
