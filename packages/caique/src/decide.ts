@@ -70,7 +70,8 @@ export interface DecideInput {
    */
   flag?: string;
   runtime: Runtime;
-  flags?: Flags;
+  /** Absent, or `undefined`, is a run that asked for none of them. */
+  flags?: Flags | undefined;
   /** Whether the option must have a value for the command to run. */
   required?: boolean;
 }

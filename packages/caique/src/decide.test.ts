@@ -98,6 +98,11 @@ describe('R2 · with nobody there, a missing value is an error and never a wait'
     expect(json).toMatchObject({ message: '<name> is required under --json', fix: expect.stringMatching(/^pass <name>; --json means/u) as string });
   });
 
+  it('an option that does not say it is required is not asked for, and needs no flags', () => {
+    expect(decide({ value: undefined, spec: text, option: 'out', runtime: rt(true) })).toEqual({ action: 'skip' });
+    expect(decide({ value: undefined, spec: text, option: 'out', runtime: rt(true), flags: undefined, required: true })).toEqual({ action: 'prompt' });
+  });
+
   it('FORCE_TTY=1 is the one override, as it is for burgee', () => {
     const runtime = { env: { CLAUDECODE: '1', FORCE_TTY: '1' }, isTTY: { stdin: true } };
     expect(decide({ value: undefined, spec: text, option: 'out', runtime, required: true }).action).toBe('prompt');

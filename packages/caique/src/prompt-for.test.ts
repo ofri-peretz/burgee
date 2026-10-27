@@ -108,6 +108,22 @@ describe('R1 · promptFor(command, name, spec) asks for what is missing, before 
     expect(runs).toBe(2);
   });
 
+  it('a name without a spec, or a spec without a name, declares nothing', async () => {
+    const original = greet();
+    expect(promptFor(original, 'name')).toMatchObject({ arguments: [{ name: 'name' }] });
+    expect(promptFor(original, 'name').arguments[0]).not.toHaveProperty('prompt');
+    expect(promptFor(original, undefined, ASK_NAME).arguments[0]).not.toHaveProperty('prompt');
+    // Nothing is declared, so nothing is asked: the handler runs with the positional missing.
+    await expect(promptFor(original, undefined, ASK_NAME, { io: io(['ada']) }).run(ctx())).resolves.toMatchObject({ args: {} });
+  });
+
+  it('keeps the words typed past the declared positionals, and invents none for one left unanswered', async () => {
+    const two = { arguments: [{ name: 'from' }, { name: 'to', required: false }], run: (c: PromptContext) => c.positionals };
+    const cmd = promptFor(two, 'to', { kind: 'path', message: 'Copy to?' }, { io: io([]) });
+    await expect(cmd.run(ctx({ args: { from: 'a' }, positionals: ['a'] }))).resolves.toEqual(['a']);
+    await expect(cmd.run(ctx({ args: { from: 'a', to: 'b' }, positionals: ['a', 'b', 'extra'] }))).resolves.toEqual(['a', 'b', 'extra']);
+  });
+
   it('returns a command with no handler as it came, with the prompt declared', () => {
     const group = { options: { a: { type: 'string' } } };
     expect(promptFor(group, 'a', ASK_NAME)).toEqual({ options: { a: { type: 'string', prompt: ASK_NAME } } });
@@ -168,6 +184,11 @@ describe('R2, R6 · nobody to ask is a refusal naming how to pass it, and the ha
     await expect(cmd.run(ctx({ interactive: false, env: { CI: 'true' }, options: { dryRun: true } }))).rejects.toMatchObject({ message: '<name> is required when nobody is there to answer' });
   });
 
+  it('with no terminal anywhere, says so even when CI is set as well', async () => {
+    const cmd = promptFor({ ...greet(), run: never }, 'name', ASK_NAME, { io: io([]) });
+    await expect(cmd.run(ctx({ interactive: false, env: { CI: 'true' }, options: { dryRun: true } }))).rejects.toMatchObject({ message: '<name> is required when there is no terminal' });
+  });
+
   it('a host that handed over no terminal is believed, whatever the process’s own stdin is', async () => {
     terminal.stdinIsTTY = true;
     const cmd = promptFor({ ...greet(), run: never }, 'name', ASK_NAME, { io: io([]) });
@@ -178,6 +199,13 @@ describe('R2, R6 · nobody to ask is a refusal naming how to pass it, and the ha
     const world = io(['ada']);
     const cmd = promptFor(promptFor({ ...greet(), run: never }, 'name', ASK_NAME), 'dryRun', { kind: 'confirm', message: 'Dry run?' }, { io: world });
     await expect(cmd.run(ctx({ json: true }))).rejects.toMatchObject({ option: 'dryRun' });
+    expect(world.transcript()).toBe('');
+  });
+
+  it('a person at a terminal is not asked for a positional once an option has been refused', async () => {
+    const world = io(['ada']);
+    const malformed = promptFor(promptFor({ ...greet(), run: never }, 'name', ASK_NAME), 'greeting', { kind: 'select', message: 'Which word?' }, { io: world });
+    await expect(malformed.run(ctx({ options: { dryRun: true } }))).rejects.toMatchObject({ option: 'greeting', message: expect.stringMatching(/^--greeting has a prompt that cannot be drawn/u) as string });
     expect(world.transcript()).toBe('');
   });
 
@@ -201,6 +229,8 @@ describe('R4 · the terminal is opened only to ask, closed after, and handed to 
     onExit.mockReturnValue(released);
     await expect(promptFor(greet(), 'name', ASK_NAME).run(ctx({ options: { dryRun: true }, onExit }))).resolves.toMatchObject({ args: { name: 'ada' } });
     expect(terminal).toMatchObject({ opened: 1, closed: 1 });
+    // The answer's Return ended the line; nothing more is written after it.
+    expect(terminal.written.join('')).toBe('Who should I greet? ');
     expect(onExit).toHaveBeenCalledWith(expect.any(Function), 'caique: give the terminal back');
     expect(released).toHaveBeenCalledTimes(1);
     // The handler the exit path holds is the terminal's close: a signal mid-question runs it.

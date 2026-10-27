@@ -80,7 +80,7 @@ function verdictFor({ option, flag, prompt, required, value, runtime, flags }: O
   const malformed = problemWith(prompt);
   if (malformed !== undefined) return { option, code: 'USAGE', message: `${flag} has a prompt that cannot be drawn: ${malformed}`, fix: 'fix the prompt spec where the option is declared' };
 
-  const verdict = decide({ value, spec: prompt, option, flag, runtime, ...(flags === undefined ? {} : { flags }), required });
+  const verdict = decide({ value, spec: prompt, option, flag, runtime, flags, required });
   // `decide` gives every refusal both a message and a fix: the fix is the point of refusing.
   if (verdict.action === 'error') return { option, code: 'USAGE', message: verdict.message as string, fix: verdict.fix as string };
   return verdict;
@@ -129,10 +129,9 @@ export async function resolvePrompts<O extends PromptableOption>({ options, valu
     // eslint-disable-next-line reliability/no-await-in-loop -- see above
     const answer: Asked = await ask(prompt, io);
     if (!answer.ok) {
-      // A flag keeps the catalog's `--{option}` sentences, so a locale pack's translation of them
-      // still applies; a positional (`<name>`) is said in English, as no pack has its sentence.
-      const cancelled = flag.startsWith('--') ? { message: `cancelled at --${flag.slice(2)}`, fix: `pass --${flag.slice(2)} to skip the question` } : { message: `cancelled at ${flag}`, fix: `pass ${flag} to skip the question` };
-      return { values: out, failure: localise({ option, code: 'CANCELLED', ...cancelled }, say) };
+      // `flag` carries its own dashes, so for a flag this is the catalog's `cancelled at --{option}`
+      // to the character, and a locale pack's translation of it still applies (`messages.test.ts`).
+      return { values: out, failure: localise({ option, code: 'CANCELLED', message: `cancelled at ${flag}`, fix: `pass ${flag} to skip the question` }, say) };
     }
     Object.defineProperty(out, option, { value: answer.value, writable: true, enumerable: true, configurable: true });
   }

@@ -193,36 +193,30 @@ function unpublished<T extends PromptableCommand>(command: T): T {
   };
 }
 
-/** The handler a `promptFor` command was given, so wrapping twice resolves once. */
-const ORIGINAL = new WeakMap<object, (ctx: never) => unknown>();
-
 /**
  * Wrap a command so that its declared prompts are resolved before its handler runs (R1, R2, R6).
  *
  * With `name` and `spec`, the spec is attached to that option or positional first; without them,
- * the command's own `prompt:` declarations are used. Calling it again on the result adds a prompt
- * and still resolves once. A command with no handler is returned as it came.
+ * the command's own `prompt:` declarations are used. Calling it again on the result adds a prompt:
+ * the outer pass asks for both, and the inner one finds both answered. A command with no handler
+ * is returned with its prompts declared and nothing wrapped.
  */
 export function promptFor<T extends PromptableCommand>(command: T & CarriesContext<T>, name?: string, spec?: PromptSpec, opts: PromptForOptions = {}): T {
   const declared: T = unpublished(name === undefined || spec === undefined ? command : attach(command, name, spec));
-  const inner = declared.run === undefined ? undefined : (ORIGINAL.get(declared.run) ?? declared.run);
+  const inner = declared.run;
   if (inner === undefined) return declared;
 
-  const options: Record<string, PromptableOption> = Object.fromEntries(
-    Object.entries(declared.options ?? {})
-      .filter(([, option]) => option.prompt !== undefined)
-      .map(([key, option]) => [key, { ...option, flag: flagFor(key) }]),
-  );
+  // Every option and positional, in declaration order; `resolvePrompts` passes over one with no prompt.
+  const options: Record<string, PromptableOption> = Object.fromEntries(Object.entries(declared.options ?? {}).map(([key, option]) => [key, { ...option, flag: flagFor(key) }]));
   // A positional is required unless it says otherwise, as burgee reads an argument (`<name>`).
-  const args: Record<string, PromptableOption> = Object.fromEntries(
-    (declared.arguments ?? []).flatMap((a) => (a.prompt === undefined ? [] : [[a.name, { prompt: a.prompt, required: a.required !== false, flag: `<${a.name}>` }]])),
-  );
+  const args: Record<string, PromptableOption> = Object.fromEntries(declared.arguments?.map((a) => [a.name, { ...a, required: a.required !== false, flag: `<${a.name}>` }]) ?? []);
 
   const run = async (ctx: PromptContext): Promise<unknown> => {
     const runtime = { env: ctx.env, isTTY: { stdin: terminalOn(ctx) } };
     const flags = flagsOf(ctx);
-    const terminal = opts.io === undefined ? lazyTerminal(ctx.onExit) : undefined;
-    const io = opts.io ?? (terminal as Io);
+    // Opened on the first question, if one is asked and no `io` was handed in: closing it is free otherwise.
+    const terminal = lazyTerminal(ctx.onExit);
+    const io = opts.io ?? terminal;
     let named: Resolved;
     let positional: Resolved;
     try {
@@ -232,18 +226,18 @@ export function promptFor<T extends PromptableCommand>(command: T & CarriesConte
       // Closed before the handler runs, not after it: a handler that ran with stdin still raw
       // would have a Ctrl+C pressed during its work read as a byte by a question already
       // answered (`.sdlc/intents/caique/interrupt.qnt`, `rawOnlyWhileAsking`).
-      terminal?.close();
+      terminal.close();
     }
     const failure = named.failure ?? positional.failure;
     if (failure !== undefined) throw new PromptRefusal(failure);
     const positionals = [...ctx.positionals];
-    // An answered positional takes its declared place, so a handler reading `positionals` sees it too.
-    (declared.arguments ?? []).forEach((a, at) => {
-      const answer = positional.values[a.name];
-      if (positionals[at] === undefined && answer !== undefined && at === positionals.length) positionals.push(String(answer));
-    });
+    // An answered positional takes its declared place, so a handler reading `positionals` sees it
+    // too: the words typed are the declared ones from the first, so the next missing one is next.
+    for (const [at, a] of Object.keys(args).entries()) {
+      const answer = positional.values[a];
+      if (at === positionals.length && answer !== undefined) positionals.push(String(answer));
+    }
     return await inner({ ...ctx, options: named.values, args: positional.values, positionals } as never);
   };
-  ORIGINAL.set(run, inner);
   return { ...declared, run } as T;
 }
