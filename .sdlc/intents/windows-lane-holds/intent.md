@@ -122,6 +122,22 @@ with what R6 moves into a hook that the check does not time. On 2026-10-19 `main
 full Windows cells in a day, and on 2026-10-25 eleven, so the reading is one to two days of
 pushes.
 
+## 2026-10-27: why the full Windows cells stopped completing
+
+From about 13:00 UTC, most full `Node 24 · windows-latest` cells were cancelled at the job's
+30 minutes. Examples are runs 40563285190, 40562160983, 40560816628 and 40554842777. In each one
+the hard gate had passed, and Controls had run silent for 11 to 16 minutes. A cancelled cell is
+not green, so none of them counts toward criterion 2's ten-cell reading. The half-budget check
+still read 0 in them (0 of 12,129 in 40563285190), because no case was slow. The cause is in an
+informational step, not a case.
+
+PR #1298 let Windows Controls reach ink for the first time. Before it, Controls died after 7 to
+8 seconds on `spawnSync npm ENOENT`. ink's suite then ran into its 600 s cap twice per grade, and
+it was graded three times. Measured in run 40577331465: 1,208 s, 1,200 s and 1,200 s.
+[D-20261027-windows-controls-ink](../../decisions/D-20261027-windows-controls-ink.md) records
+three changes. ink is not graded on win32, and every run there says so. Controls gets its own
+17-minute limit. `--progress` names each host as it starts.
+
 ## Jev triage
 
 | user_impact | incumbent_gap | risk_reduced | composite | ready_for_spec | needs_model |
