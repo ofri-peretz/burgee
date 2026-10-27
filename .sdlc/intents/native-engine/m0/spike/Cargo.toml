@@ -1,0 +1,25 @@
+[package]
+name = "burgee-migrate-spike"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "native-engine M0: burgee migrate's specifier rewrite on oxc. Not a package; never published."
+license = "MIT"
+
+# Its own workspace root, so cargo never looks for one above it.
+[workspace]
+
+[dependencies]
+oxc_allocator = "=0.156.0"
+oxc_ast = "=0.156.0"
+oxc_ast_visit = "=0.156.0"
+oxc_parser = "=0.156.0"
+oxc_span = "=0.156.0"
+memchr = "2"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true

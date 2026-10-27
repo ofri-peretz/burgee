@@ -536,7 +536,7 @@ execution order. The selection is
 | 78  | [`migrate-dynamic-specifiers/`](./migrate-dynamic-specifiers/)             | **adoption barrier 9**: a plugin loader's `import(name)` holds only what it could load. 3 of 9 trial CLIs ran partial | shipped — 2026-10-25 in burgee 1.7.0; 2 of 2, postcss-cli `complete` |
 | 79  | [`mutation-tested/`](./mutation-tested/)                                   | **a PR cannot add a line no test can tell is broken**: Stryker on the changed lines; a weekly per-package floor that only rises | shipped (2026-10-26: burgee 90.9 and roundel 83.2 floors from scheduled run 40074196603) |
 | 80  | [`evals-record-not-run/`](./evals-record-not-run/)                         | **an agent that never ran is recorded `not-run`, never a score**: eval history v2, readers skip it, and a B1 sweep the limit cut short is no reading | shipped — 2026-10-26: criteria 1–4 met; 5 waits on a scheduled run with quota left (2026-10-22's also hit the limit and was recorded `not-run`; next Saturday 2026-10-31, the run moved to just after the weekly quota reset by D-20261027-close-three-workflow-gaps). Shipped 2026-10-27: eval run 40504387711 executed and passed (11 / 11), D-20261027-dispatched-eval-counts-as-weekly |
-| 81  | [`native-engine/`](./native-engine/)                                       | **CPU-bound layers on a Rust engine, still on npm**: measured per layer, released the oxc way (per-platform optional deps, WASM fallback, opt-in, suite-graded). Runs last. oxc-project/tsrs | draft |
+| 81  | [`native-engine/`](./native-engine/)                                       | **CPU-bound layers on a Rust engine, still on npm**: measured per layer, released the oxc way (per-platform optional deps, opt-in, suite-graded). `M0` 2026-10-27: a Rust `migrate` on oxc matched JS on 701 / 701 files but projects to 1.00x (ceiling 1.08x, gate 2x), and the argv core's own work is ≤ 6 ms, so both stay JS ([D-20261027-native-engine-design-accepted](../decisions/D-20261027-native-engine-design-accepted.md)). Left: the tsrs lane (waits on tsrs stable) and single-binary | approved |
 | 82  | [`oxmutate/`](./oxmutate/) | **mutation testing on the oxc engine that beats Stryker by far**: M0 measured 17.9x faster, 25.8x less CPU, Stryker's exact mutant set and 99.72% verdict agreement on es-toolkit (`m0-results.md`); CI lanes, SARIF and a Quint spec oracle follow | draft |
 
 Rows 73–78 come from [`adoption-barriers-2026-10.md`](../research/adoption-barriers-2026-10.md),
@@ -1187,7 +1187,8 @@ disk. Two rows are done and now struck.
 [Where this stood](#where-this-stood--2026-09-09) above. The section below is kept as it was read.
 
 **Design gates, 2026-10-25.** Every intent that was waiting at a gate went through it, except
-`native-engine`, which stays `draft` by the owner's order. The gates were taken by the
+`native-engine`, which stayed `draft` by the owner's order (its own gate followed on 2026-10-27:
+`approved`, no layer ported, D-20261027-native-engine-design-accepted). The gates were taken by the
 coordinator under the owner's delegation of 2026-10-12, with one decision file each.
 
 - **Ten approved.** Nine carry a scoped build: `agent-headroom`, `cli-benchmarks`,
