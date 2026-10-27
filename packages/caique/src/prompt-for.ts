@@ -166,9 +166,8 @@ function flagsOf(ctx: PromptContext): Flags {
 function attach<T extends PromptableCommand>(command: T, name: string, spec: PromptSpec): T {
   const option = Object.entries(command.options ?? {}).find(([key]) => key === name)?.[1];
   if (option !== undefined) return { ...command, options: { ...command.options, [name]: { ...option, prompt: spec } } } as T;
-  const positionals = command.arguments ?? [];
-  if (positionals.some((a) => a.name === name)) {
-    return { ...command, arguments: positionals.map((a) => (a.name === name ? { ...a, prompt: spec } : a)) } as T;
+  if (command.arguments?.some((a) => a.name === name) === true) {
+    return { ...command, arguments: command.arguments.map((a) => (a.name === name ? { ...a, prompt: spec } : a)) } as T;
   }
   throw new Error(`caique: promptFor names "${name}", which is neither an option nor a positional of this command; declare it first — a prompt cannot exist without one`);
 }
