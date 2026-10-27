@@ -8,7 +8,7 @@ export default defineConfig({
   test: {
     ...timeouts,
     // The end-to-end tests run the built CLI on a fixture project, which starts Vitest servers
-    // in child processes; one deliberately stalls for 4 s twice. 90 s covers the slowest.
+    // in child processes; one deliberately stalls for 6 s twice. 90 s covers the slowest.
     testTimeout: 90_000,
     include: ['src/**/*.test.ts'],
     setupFiles: ['../../vitest-colour-setup.ts'],
