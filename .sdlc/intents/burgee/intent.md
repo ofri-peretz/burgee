@@ -18,7 +18,8 @@
 > **Umbrella sweep 2026-10-26, still `approved`:** the five criteria are re-read and still held.
 > The closing list below is re-derived from every open intent, grouped by what closes each one.
 > It also records that the code of the burgee, roundel and seniority minors the release window
-> is holding is already on npm, published inside patch versions. See
+> was holding is already on npm, published inside patch versions (the window is gone since
+> D-20261027-no-release-window). See
 > [§ Umbrella sweep 2026-10-26](#umbrella-sweep-2026-10-26).
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why `review` until 2026-10-25:** a living umbrella that keeps gaining floor requirements (U1–U12, then Y1–Y12); it closes when its children do, not before.
@@ -64,10 +65,8 @@ Everything else that is still open:
 
 | closes when | intents |
 | :-- | :-- |
-| the burgee minor publishes (window opens 2026-11-01; the code is already in burgee 1.7.2, above) | `commander-env`, `agent-headroom`, `typed-positionals`; `plugin-contract` also needs criterion 4's eval reading |
-| the roundel minor publishes (window opens 2026-10-27) | `colour-facades` |
-| a flagstaff patch publishes the README opening #1274 changed | `cli-output-stack` (S2 dependency bill and R12 opening lock merged in #1274) |
-| scheduled measurements accumulate | `b1-mcp-arm` and `cli-mcp` (four weekly B1 readings, about 2026-11-17); `localised-human-surfaces` and `plugin-contract` C4 (the 2026-10-29 eval run); `sdlc-locks-evals-bands` S3 (the weekly duration run); `evals-record-not-run`, `windows-lane-holds`, `release-cadence`, `mutation-tested` (each by its own reading) |
+| ~~the burgee minor publishes~~ · ~~the roundel minor publishes~~ · ~~a flagstaff patch publishes the README opening~~ | **closed 2026-10-26** ([D-20261026-shipped-on-published-patch](../../decisions/D-20261026-shipped-on-published-patch.md)): `commander-env`, `agent-headroom`, `typed-positionals` and `colour-facades` stamped `shipped` against `burgee@1.7.2` and `roundel@1.2.1`; `cli-output-stack` against `flagstaff@1.7.5` |
+| scheduled measurements accumulate | `b1-mcp-arm` and `cli-mcp` (four weekly B1 readings, about 2026-11-17); `localised-human-surfaces` and `plugin-contract` C4 (the 2026-10-31 eval run); `sdlc-locks-evals-bands` S3 (the weekly duration run); `evals-record-not-run`, `windows-lane-holds`, `release-cadence`, `mutation-tested` (each by its own reading) |
 | an outside merge (owner approval for the external PR) | `first-adopter`, which also owns U12's outside-adopter half |
 | a benchmark row or a page regeneration, no release | `linegauge` (spawn row), `closeout` (spawn row and a published bench measurement), `seniority` (a published bench measurement), `bellpull` (compat-oracle and benchmarks spawning through it) |
 | a build plus a release | `caique` (R1 `promptFor`, the layered demo, the PTY case), `flagstaff` (criterion 8, plus criterion 7's eval), `controlroom` (Gallery, 20 and 100 runs, PTY matrix, Ink screen fixture, W3 demo) |

@@ -80,12 +80,12 @@ Abbreviations used below:
 
 | intent | status | spec? | class | lane | reqs | with check | unmet / missing-check Rs | Q? | qnt | notes |
 | :-- | :-- | :-: | :-- | :-- | --: | --: | :-- | :-: | :-- | :-- |
-| agent-headroom | approved (batch 28, `D-20261025-agent-headroom-design-accepted`) | y | P | burgee/agent-surface + benchmarks | 10 | 3 | R6 hint lock, RF `formats` + `tsv`, R3 whole-row `--max-bytes`, C1 large-demo figure (R5, dotted R2 dropped) | n | – | R2 and R4 overlap `burgee` N13/N14; restate to leave R3, R5 and RF |
+| agent-headroom | shipped (built #1266; published in `burgee@1.7.2` by Version PR #1253, re-read on the tarball 2026-10-26, `D-20261026-shipped-on-published-patch`) | y | P | burgee/agent-surface + benchmarks | 10 | 10 | – (R5 and dotted R2 dropped at the design gate) | n | – | R6 nine failures byte-identical across `--json=`, `--format`, `--max-bytes`; RF `tsv` 59.2% under minified JSON; R3 whole-row cut parses; C1 large demo 41.1% |
 | agent-lint-conformance | approved | y | P | burgee/agent-surface + floor | 8 | 7 | R7 (ratchet at 91, below the 94.9 reading); FS-4 regression | y (timeout timer vs settle) | registry.qnt (partial) | **LIVE DEFECT:** its own R4 auth row in help broke FS-4 |
 | agent-skill | approved | y | P | burgee/agent-surface | 7 | 6 | C4 (the published reading fails SD-5; nothing gates SD-5) | n | – | Same CI floor reading as agent-lint R7 |
 | agent-surface-declared | **shipped** (batch 0) | y | SHIPPED | burgee/mcp | 9 | 9 | – | n | – | The spec cites `effects.test.ts`, which is absent; tests are in `mcp.test.ts`. Fix the citation |
-| b1-mcp-arm | approved | y | P | benchmarks + CI | 9 | 6 | R5 (no MCP page section), C2 (0/4 weekly readings), C3 | n | – | 10-13: the usage limit (D-20261019). 10-20: all 15 MCP runs had no server; R6 guards it (D-20261026-b1-mcp-arm-server-guard) |
-| bellpull | approved (umbrella sweep 2026-10-26) | y | P | bellpull | 17 | 14 | C4 only: compat-oracle (`run.ts`, `vendor.ts`, `upstream.ts`) and benchmarks spawn through `node:child_process` | **y** (deadline, SIGTERM, SIGKILL ladder) | **none** | Kill gate read 2026-10-26, verdict build ([D-20261026-bellpull-kill-gate-reading](../decisions/D-20261026-bellpull-kill-gate-reading.md)): tinyexec 1.3.1, 106.9 M/wk, resolves inside its spawn only. C5 recipe executed by `apps/docs-bellpull/tests/examples.test.ts`. Closes with one internal build PR, no release |
+| b1-mcp-arm | shipped 2026-10-27 (4 readings: runs 40492593210, 40518014447, 40528288811, 40539828491; tokens median 1.218, 0.992 to 1.336); before: approved | y | P | benchmarks + CI | 9 | 6 | R5 (no MCP page section), C2 (0/4 weekly readings), C3 | n | – | 10-13: the usage limit (D-20261019). 10-20: all 15 MCP runs had no server; R6 guards it (D-20261026-b1-mcp-arm-server-guard) |
+| bellpull | **shipped** 2026-10-27 (`feat/bellpull-dogfood-spawn`) | y | SHIPPED | bellpull | 17 | 16 | – (C1 is a recorded reading, not a check) | **y** (deadline, SIGTERM, SIGKILL ladder) | **none** | Kill gate read 2026-10-26, verdict build ([D-20261026-bellpull-kill-gate-reading](../decisions/D-20261026-bellpull-kill-gate-reading.md)): tinyexec 1.3.1, 106.9 M/wk, resolves inside its spawn only. C4: compat-oracle and benchmarks spawn through `bellpull/cross-spawn` (`scripts/dogfood-spawn-lock.test.ts`, [D-20261027-bellpull-dogfood-spawn](../decisions/D-20261027-bellpull-dogfood-spawn.md)). C5 recipe executed by `apps/docs-bellpull/tests/examples.test.ts`. No release. The kill-ladder model is still missing (batch 15) |
 | brand-burgee | **dropped** (batch 28, `D-20261025-brand-burgee-dropped`) | **n** | DROPPED | brand | 4 | 1 | – | n | – | Built before any design; write spec.md |
 | burgee | approved (umbrella sweep 2026-10-26; Z5 bench and criterion 4 ratchet built 2026-10-26) | y | P | umbrella | 119 | 112 | – of its own; closes when every open child does (the grouped list is in `burgee/intent.md` § Umbrella sweep 2026-10-26) | partly | registry, prompt-session, dev-reload | Finding: the 2026-10-26 patches (burgee 1.7.2, roundel 1.2.1, seniority 1.1.1) already carry the code of the minors the release window holds; the window holds the version label, not the code (`release-cadence` R1) |
 | burgee-migrate | **shipped** (batch 0) | y | SHIPPED | burgee/migrate | 12 | 12 | – | n | – | Stale header: needs draft → approved (owner) → shipped. Verification 3 is indirect |
@@ -96,17 +96,17 @@ Abbreviations used below:
 | cli-benchmarks | shipped (batch 29 built #1252; READMEs published by Version PR #1253, 2026-10-26) | y | P | benchmarks | 16 | 16 | – (published by Version PR #1253) | n | – | S4 as a series over 52 CI readings (tokens 0.502, turns 0.522), `claim-table-lock` restated; B7 link lock over 13 public files |
 | cli-foundation-stack | shipped (batch 29 built #1252; READMEs published by Version PR #1253, 2026-10-26) | y | P | umbrella (foundation) | 17 | 17 | – (published by Version PR #1253) | n | – | Y4 builtin lock and absorption probe in compat.yml's floor job; Y12 lock found linegauge naming burgee. Probe baseline in the decision |
 | cli-help-renderer | **shipped** (typed-schema-surface) | y | SHIPPED | burgee/help | 10 | 10 | – | n | – | S1's min/max row held 2026-10-19 |
-| cli-mcp | approved (batch 28, `D-20261025-cli-mcp-design-accepted`) | y | LS | burgee/mcp | 16 | 14 | – (C4 is b1-mcp-arm's; lint rule moved to the eslint repo) | n | – | K1 "deps {}" → restate as "nothing outside the family" |
-| cli-output-stack | approved (2026-10-26: S2 bill and R12 opening locked, D-20261026-output-stack-bill-and-opening) | y | P | umbrella (output stack) | 23 | 23 | – on main; R3, R11, S5 moved to flagstaff and inquirer-prompts-drop-in, R2 held 2026-10-19 | n | – | Closes when flagstaff's next release publishes its README (`.changeset/flagstaff-readme-opening.md`) |
+| cli-mcp | shipped 2026-10-27 (C4 met by b1-mcp-arm R5); before: approved (batch 28, `D-20261025-cli-mcp-design-accepted`) | y | LS | burgee/mcp | 16 | 14 | – (C4 is b1-mcp-arm's; lint rule moved to the eslint repo) | n | – | K1 "deps {}" → restate as "nothing outside the family" |
+| cli-output-stack | shipped (2026-10-26: R12's README opening published in `flagstaff@1.7.5` by Version PR #1278, read from the tarball; S2 bill and R12 locked, D-20261026-output-stack-bill-and-opening) | y | P | umbrella (output stack) | 23 | 23 | – ; R3, R11, S5 moved to flagstaff and inquirer-prompts-drop-in, R2 held 2026-10-19 | n | – | `npm pack flagstaff@1.7.5` README byte-identical to `main`; `bench:page --check` and `dependency-bill-lock` pass |
 | cli-packaging | review | y | P | release/packaging | 10 | 8 | R4 / S3 (`.map` negative fixture; `forbiddenInPack` untested) | n | – (release-tag.qnt is tags only) | One test closes it |
 | cli-testing-harness | review | y | P | burgee/testing | 11 | 8 | S1 ANSI-in-non-TTY case, S2 and S4 restate | n | – | |
 | clispec-conformance | **shipped** (batch 0) | y | SHIPPED | burgee/schema | 10 | 10 | – | n | – | Fix the C1 path (it is `scripts/clispec-document.test.ts`); the 24/24 reading is local, but bench.yml enforces ≥24 |
-| closeout | approved (umbrella sweep 2026-10-26) | y | P | closeout | 17 | 15 | C3 spawn half (no `perf` row; [D-20261026-library-spawn-delta-rows](../decisions/D-20261026-library-spawn-delta-rows.md)); `/docs/benchmarks` still prints the 2026-10-19 bytes (2.929, 1.272) where CI reads 0.96 / 0.93 | **y** | **registry.qnt** | C1, C2, C4 held; C5 held as restated by D-133 (import swap via `burgee migrate`). Closes with a perf row and a new published bench measurement, no release |
+| closeout | **shipped** (PR #1294, 2026-10-27; no release) | y | SHIPPED | closeout | 17 | 16 | – (C3's spawn row gated, −0.65 ms on CI; page republished at 0.96 / 0.93) | **y** | **registry.qnt** | [D-20261027-linegauge-closeout-spawn-bars](../decisions/D-20261027-linegauge-closeout-spawn-bars.md), [D-20261027-benchmarks-published-2026-10-27](../decisions/D-20261027-benchmarks-published-2026-10-27.md). `closeout/signal-exit` starts 0.4–1.2 ms slower than signal-exit: B-20261027-closeout-signal-exit-starts-slower |
 | closeout-at-incumbent-weight | **shipped** (closeout 1.1.7, Version PR #1199, 2026-10-20) | y | SHIPPED | closeout + weight ratchets | 8 | 8 | – | **y** (each door its own once-guard; restated) | **lean.qnt** | Wave-4 #1. Design accepted D-20261020-closeout-weight-design-accepted; B4 0.960 / 0.930 |
-| colour-facades | review | y | NS | roundel + compat-oracle | 8 | 0 | R1–R5, S1–S3 | n | – | Waits on inquirer and supports-color in the compat-oracle lane |
+| colour-facades | shipped (built #1218, #1233, #1255; published in `roundel@1.2.1` by Version PR #1253, re-read on the tarball 2026-10-26, `D-20261026-shipped-on-published-patch`) | y | P | roundel + compat-oracle | 8 | 8 | – | n | – | the published `dist` grades colorette 67 / 67, kleur 15 / 15, yoctocolors 78 / 78; B4 0.909, 0.561 / 0.903, 0.951; `burgee@1.7.2 migrate` rewrites all three and the fixture's tests pass |
 | commander-compat | **shipped** (batch 3) | y | SHIPPED | burgee/commander-facade | 8 | 8 | – | n | – | Batch 3: X6 ratcheted 129,400 → 112,100 on a clean-build reading of 112,024 (D-20261019-commander-walk-budget-ratchet). X5 had no real check (`.`'s denied list never named the front-end), so one was added and proven red |
 | commander-completions | **shipped** (batch 0) | y | SHIPPED | burgee/completions | 8 | 8 | – | n | – | Human accepts two restatements: Fig is structural, `complete` replaces `--dynamic`. CI's `completions.yml` is authoritative |
-| commander-env | approved (batch 29 built, #1252) | y | P | burgee/parse + seniority | 11 | 11 | – (the burgee minor publishes with the next Version PR) | n | – | V2 env on `inputSchema`; K3 discovery order in `config explain` and `--explain`; Stryker 100% on changed lines |
+| commander-env | shipped (batch 29 built #1252; published in `burgee@1.7.2` by Version PR #1253, re-read on the tarball 2026-10-26, `D-20261026-shipped-on-published-patch`) | y | P | burgee/parse + seniority | 11 | 11 | – | n | – | V2 env on `inputSchema`; K3 discovery order in `config explain` and `--explain`; Stryker 100% on changed lines |
 | commander-front-end-diet | **shipped** (batch 3) | y | SHIPPED | burgee/commander-facade + weight | 4 | 4 | – | n | – | Batch 3: `lighter-than-commander` 1.565 → 1.42 (D-20261019-lighter-than-commander-ratchet); `OVER_INCUMBENT` 55,661 → 55,653 (v14 55,997 → 56,002 for #1139's unrecorded +5 B) |
 | commander-schema | **dropped** (batch 28, `D-20261025-commander-schema-dropped`) | y | DROPPED | burgee/types + parse | 10 | 3 (+5 partial) | – | n | – | **SUPERSEDED-CANDIDATE** for its positional half → typed-positionals; restate the rest |
 | compat-grader-layer | **dropped** (batch 0, `D-20261018-drop-compat-grader-layer`) | n | DROPPED | compat-oracle | 6 | 1 | – | n | – | Ruling: trigger fixed; conflicts with compat-oracle being internal |
@@ -128,17 +128,17 @@ Abbreviations used below:
 | extra-typings-drop-in | **shipped** (batch 0) | y | SHIPPED | burgee/types | 5 | 5 | – | n | – | U5 fails (55,661 vs 39,329 B), accepted by decision |
 | facade-gets-more | **shipped** (batch 0) | **design.md** | SHIPPED | burgee/commander-facade | 6 | 6 | – | n | – | Rename `design.md` to `spec.md` so it can be approved. Its yargs numbers are stale (804, not 816) |
 | facade-projection-fidelity | **shipped** (batch 3) | y | SHIPPED | burgee/yargs-facade | 6 | 6 | – | n | – | Batch 3: R4 built; `burgee/yargs` +424 B bundled (108,850 ceiling) and +852 B walked (221,700), recorded in D-20261019-yargs-facade-relations-bytes; still 0.974× yargs |
-| first-adopter | approved (batch 28, `D-20261025-first-adopter-design-accepted`) | y | NS | adoption/outreach | 5 | 0 | A3 revert-first on a fork, one disclosed PR + A2 report; A1/A6 wait on an outside merge | n | – | The spec still names `commander-agent` and needs a rewrite. Barrier 5 (trust) |
+| first-adopter | approved (batch 28, `D-20261025-first-adopter-design-accepted`; built 2026-10-27, `D-20261027-first-adopter-target-concurrently`) | y | P | adoption/outreach | 5 | 0 | the owner approved a #418 comment first; the 1.8.0 re-run held it on gap `A-20261027-yargs-parsesync-mcp-ended-by-exit` (`--mcp` does not serve); A1/A6 wait on an outside merge | n | – | A3 proven in a local clone (649 / 649 migrated and reverted); nothing posted. Barrier 5 (trust) |
 | first-cli | **shipped** (polish batch, 2026-10-26) | y | SHIPPED | burgee/init | 5 | 5 | – | n | – | Criterion 1 restated with the install step; criterion 2 restated to the two new `init.test.ts` cases that run `--schema` and `--mcp` on the generated program. Both met from npm on burgee 1.7.1 |
 | fix-lines-every-shell | review | y | NS | burgee core (failure.ts) | 7 | 0 | R1–R4, S1–S3 | n | – | **LIVE DEFECT:** `fix:` lines are POSIX-quoted on Windows. Exclude `completions.ts` from R2's grep |
-| flagstaff | approved (umbrella sweep 2026-10-26) | y | P | flagstaff | 23 | 19 | C7 U9 eval (no executed run since 2026-10-09; next 2026-10-29), C8 one case per plugin surface (caique does not depend on flagstaff) | **y** | **save-restore.qnt** | C1–C3 held where their checks live ([D-20261026-flagstaff-criteria-homes](../decisions/D-20261026-flagstaff-criteria-homes.md)); C4–C6 held |
+| flagstaff | approved (umbrella sweep 2026-10-26) | y | P | flagstaff | 23 | 19 | C7 U9 eval (no executed run since 2026-10-09; next Saturday 2026-10-31), C8 one case per plugin surface (caique does not depend on flagstaff) | **y** | **save-restore.qnt** | C1–C3 held where their checks live ([D-20261026-flagstaff-criteria-homes](../decisions/D-20261026-flagstaff-criteria-homes.md)); C4–C6 held |
 | foundation-claims-watched | **shipped** (fingerprint PR, 2026-10-26, `D-20261026-fingerprint-missing-not-rerecord`) | y | SHIPPED | benchmarks + CI | 11 | 11 | – | n | – (no new state; `--missing` filters an existing write) | S3 restated: the scheduled pass is read-only and never fingerprints. R7 locks every declared competitor to a fingerprint; `--fingerprint --missing` recorded 29 on 2026-10-26, leaving inquirer #1195 and @inquirer/prompts #1224 held |
 | frames-fit-the-screen | **shipped** (batch 0) | y | SHIPPED | flagstaff + caique | 8 | 8 | – | n | – | R2 text (`rows-1`/`rows-2`) disagrees with the build. Correct the text before stamping |
 | graded-override-targets | approved | y | P | compat-oracle (+migrate test) | 9 | 8 | SC3 (no migrate fixture importing all six) | n | – | Prior reconciliation was wrong here. One test |
 | inquirer-prompts-drop-in | **shipped** (caique 1.5.0, Version PR #1237, 2026-10-25) | y | SHIPPED | caique + compat-oracle | 9 | 9 | – | **y** (search's source race) | **search.qnt** | Barrier 10. 213 / 213 (run 40180212984); R1 restated (the pagination suite is select's); budgets in D-20261020-caique-inquirer-prompts-budget |
-| linegauge | approved (umbrella sweep 2026-10-26) | y | P (spec edits) | linegauge | 18 | 16 | criterion 2 spawn half: no `perf` row ([D-20261026-library-spawn-delta-rows](../decisions/D-20261026-library-spawn-delta-rows.md)); spec R9 now reads Not built | n | – | R4 (rounds inward) and R13 (`widths` key) restated to the package ([D-20261026-linegauge-r4-r13-restated](../decisions/D-20261026-linegauge-r4-r13-restated.md)). Closes with one perf row, no release |
+| linegauge | **shipped** (PR #1294, 2026-10-27; no release) | y | SHIPPED | linegauge | 18 | 17 | – (criterion 2's spawn row gated at 0, −26.19 ms on CI; spec R9 reads Built) | n | – | R4 (rounds inward) and R13 (`widths` key) restated to the package ([D-20261026-linegauge-r4-r13-restated](../decisions/D-20261026-linegauge-r4-r13-restated.md)); spawn bar [D-20261027-linegauge-closeout-spawn-bars](../decisions/D-20261027-linegauge-closeout-spawn-bars.md) |
 | locale-pack-in-five | **shipped** (polish batch, 2026-10-26, `D-20261026-locale-criterion-3-median-range`) | y | SHIPPED | burgee check + evals | 6 | 6 | – | n | – | Criterion 3 restated to median and range over a named window, with a 1-in-4 band on burgee calls: 16 readings, median 6, range 5–8, 2 of 16. Both causes removed from the schema (R3a) |
-| localised-human-surfaces | approved (re-grounded, batch 24) | y | **LS** | i18n (burgee + caique) | 11 | 11 | – (S4 restated, D-20261020-locale-eval-criterion-restated; 34 / 34 PR readings) | n (decided, same decision) | – | `shipped` after the 2026-10-22 scheduled run passes the case and the minor publishes |
+| localised-human-surfaces | shipped 2026-10-27 (eval run 40504387711); before: approved (re-grounded, batch 24) | y | **LS** | i18n (burgee + caique) | 11 | 11 | – (S4 restated, D-20261020-locale-eval-criterion-restated; 34 / 34 PR readings) | n (decided, same decision) | – | `shipped` after the 2026-10-22 scheduled run passes the case and the minor publishes |
 | mcp-current | **shipped** (batch 0) | y | SHIPPED | burgee/mcp | 7 | 7 | – | **y** (in-flight map, cancel vs settle, exactly-once exit) | **none** | Recommend `.sdlc/models/mcp-inflight.qnt` before stamping |
 | migrate-dynamic-specifiers | **shipped** (burgee 1.7.0, Version PR #1231, 2026-10-25) | y | SHIPPED | burgee/migrate | 7 | 7 | – | n | – | Barrier 9. #1172; postcss-cli `complete` with burgee 1.7.1 |
 | migrate-older-majors | **shipped** (burgee 1.7.0, Version PR #1231, 2026-10-25) | y | SHIPPED | burgee/migrate | 8 | 8 | – | n | **majors.qnt** | **Barrier 1.** #1176; every `manual`-arm crash named in the field re-run |
@@ -149,25 +149,25 @@ Abbreviations used below:
 | output-stack-research | **dropped** (batch 28, `D-20261025-output-stack-research-dropped`) | y | DROPPED | docs-only | 10 | 0 automated | – | n | – | Doc edits only |
 | paratext | **shipped** (batch 0) | y | SHIPPED | paratext | 20 | 20 | – | n | – | R11 is a 1.65× ratchet, heavier than ansi-escapes. The owner calls whether that is acceptable as product |
 | parse-refusals | **shipped** (batch 0) | y | SHIPPED | burgee/parse | 5 | 5 | – | n | – | R4 shipped as `fix`, not `next[]`; say so in the header |
-| plugin-contract | review | y | P | burgee check / plugins | 12 | 8 | R7 "data first" (restate; R5a hosts functions), C2 five modes, C3 check covers burgee only, C4 eval | n | – | The spec needs a full status table |
+| plugin-contract | shipped 2026-10-27 (eval run 40504387711); before: approved (design accepted 2026-10-25; C1–C3 re-read on the ten published tarballs 2026-10-26) | y | P | burgee check / plugins | 12 | 11 | C4 eval: no executed weekly reading since 2026-10-09; the next run is Saturday 2026-10-31 | n | – | one schema, byte-identical in all ten tarballs; `burgee@1.7.2 check` runs every installed layer's check and refuses a spinner with no `static` |
 | positioning | **shipped** (batch 0) | y | SHIPPED | docs-only | 16 | 15 | – (R12 reported by decision) | n | – | |
 | previous-majors | **shipped** (2026-10-19; released in burgee 1.7.0, Version PR #1231, 2026-10-25) | y | SHIPPED | compat-oracle + façades + migrate | 6 | 6 | – | n | – | **Barrier 1.** #1086 and #1165; commander-14 1,331 / 1,331, yargs-17 793 / 794 (run 40180212984) |
-| release-cadence | approved (#1124, beside batch 0) | **n** | SPEC — **IN-PROGRESS** | release | 3 | 0 | S1, S2, BATCH | **y** (7-day window with a fix exemption) | none | Barrier 5. Batch 1, local agent |
+| release-cadence | **dropped** (2026-10-27, `D-20261027-no-release-window`) | y | DROPPED | release | 9 | 1 (the lock) | – | n | – | The owner removed the release window: every release goes out when it merges. `release-window.qnt` retired with it; the changeset lock stays as `scripts/changeset-lock.mts` |
 | replacement-parser | review | y | P | burgee/parse | 10 | 7 | G3 (quirks subpath; contradicts yargs-compat), G7, SC2 (1.55× ratchet, not ≤1×) | n | – | Restate to D-157 and drop G3 |
 | roundel | **shipped** (batch 0) | y | SHIPPED | roundel | 17 | 17 | – | n | – | Rewrite the stale 2026-09-09 verified section |
 | schema-bytes-gated | **shipped** (schema-group) | y | SHIPPED | benchmarks reliability | 3 | 3 | – | n | – | Budget 4,650 B (demo 4,628 B at `326907ec`); gap B-20261012 closed |
 | schema-is-validated | **shipped** (schema-group) | y | SHIPPED | burgee/schema | 3 | 3 | – | n | – | SC3: the claim is made again and `program-schema.test.ts` holds it |
-| sdlc-locks-evals-bands | approved (batch 29 built, #1252) | y | P | sdlc locks | 10 | 9 | S3: `test-duration-ms` still at 7 points; the next weekly run names the failing test | n | – | `.sdlc/intents` in evals layer 1, which runs on every PR in `quality.yml`; 0 broken links, 8 planned scripts exempted. A dropped duration point names its cause |
+| sdlc-locks-evals-bands | shipped 2026-10-27 (control-bands run 40537224930, #1312: 55 of 55 bands gained a point, `test-duration-ms` 8, no breach); before: approved (batch 29 built, #1252; read 2026-10-26) | y | P | sdlc locks | 10 | 9 | S3: `test-duration-ms` still at 7 points. Run 40311991676 named why (the job never builds the demo `mcp-config-block.test.ts` starts) and hit its 20-minute limit, so no band gained a point: B-20261026-control-bands-demo-build-and-budget, fixed by D-20261027-close-three-workflow-gaps; the 2026-11-02 run reads it | n | – | `.sdlc/intents` in evals layer 1, which runs on every PR in `quality.yml`; 0 broken links, 8 planned scripts exempted. A dropped duration point names its cause |
 | security-profile | **dropped** (batch 0, `D-20261018-drop-security-profile`) | y | DROPPED | burgee/security | 11 | 0 | – | n | – | Ruling: no adopter; exit-code clash |
-| seniority | approved (umbrella sweep 2026-10-26) | y | P | seniority | 21 | 13 | criterion 4: the spawn and discovery-chain rows are gated on main but not on `/docs/benchmarks` (published measurement is 2026-10-19) | n | – | `packageLayer` (R3) is already in the seniority 1.1.1 tarball, so the held minor no longer gates it. Closes with a new published bench measurement, no release |
+| seniority | **shipped** (PR #1294, 2026-10-27; no release) | y | SHIPPED | seniority | 21 | 13 | – (criterion 4's rows on `/docs/benchmarks` from the 2026-10-27 published measurement) | n | – | `packageLayer` (R3) is in the seniority 1.1.1 tarball. Published run: [D-20261027-benchmarks-published-2026-10-27](../decisions/D-20261027-benchmarks-published-2026-10-27.md) |
 | supports-color-drop-in | **shipped** (roundel 1.2.0, 2026-10-20) | y | SHIPPED | roundel + compat-oracle | 9 | 9 | – | n | – | 441.6 M/wk with no override target |
 | table-column-widths | **shipped** (batch 0) | y | SHIPPED | flagstaff | 7 | 7 | – | n | – | |
-| typed-positionals | approved (typed-schema-surface; R4 completed on `feat/typed-positionals-remainder`, awaiting the burgee minor) | y | P | burgee/parse + types | 6 | 6 | – (R4's `type` on `inputSchema` and a positional's `choices` in completions built 2026-10-26, unreleased) | n | – | R1–R3 shipped in burgee 1.7.0 (#1173); R5 and R6 met (#1091); stamp against the minor that carries R4 (window opens 2026-11-01) |
+| typed-positionals | shipped (R4 built #1262; published in `burgee@1.7.2` by Version PR #1253, re-read on the tarball 2026-10-26, `D-20261026-shipped-on-published-patch`) | y | P | burgee/parse + types | 6 | 6 | – | n | – | R1–R3 shipped in burgee 1.7.0 (#1173); R5 and R6 met (#1091); R4's `type` and `enum` on `inputSchema`, and a positional's choices on TAB in bash, zsh, fish and pwsh, native and façade |
 | types-under-node10 | draft | **n** | SPEC | published artifacts (`typesVersions`) | 3 | 0 | SC1–SC3 | n | – | **LIVE DEFECT / barrier 4:** TS2307 on node10 (38.8% of TS dependents) |
 | u5-weight-claim | **shipped** (batch 0) | y | SHIPPED | benchmarks (weight) | 3 | 3 | – | n | – | Reads 0.97 in CI; trim the stale Verification paragraph |
 | upstream-watch | **shipped** (batch 0) | y | SHIPPED | compat-oracle + CI | 8 | 8 | – | n | – | R5 and R7 are held by workflow config; cite those lines. Dedupe only searches open issues |
 | vendor-resolves-its-own-tree | approved | y | P | compat-oracle | 3 | 2 | R3 (no real run without `node_modules`) | n | – | The spec's verify command has the wrong `--root` |
-| windows-lane-holds | review | y | NS | workflows/CI + tests | 6 | 0 | R1–R5, S3 | n | – | **LIVE DEFECT:** the pwsh hang fails unrelated PRs (#1092, #1094). R3 goes first |
+| windows-lane-holds | approved (R1–R5 in #1135; R3d 2026-10-26) | y | P | workflows/CI + tests | 6 | 6 | criterion 2: the half-budget check named a case in 5 of 71 full Windows cells; closes after ten consecutive cells name none | n | – | Criteria 1, 3, 4 met on `main`'s cells: 13 green in a row (2026-10-20), the pwsh case median 4.7 s over ten. The cold start moved to the phases case, where `lookup` took 52–65 s: R3d |
 | yargs-compat | **shipped** (batch 0) | y | SHIPPED | burgee/yargs-facade | 8 | 8 | – | n | – | The stamped numbers should be 816/816 against 18.2.0 |
 
 ### Quint coverage summary
@@ -187,7 +187,7 @@ These intents need a model:
 | bellpull | missing (kill ladder) |
 | closeout-at-incumbent-weight | `lean.qnt`, built 2026-10-20 |
 | completion-context | `context.qnt`, built 2026-10-20 |
-| release-cadence | missing (release window) |
+| release-cadence | none needed: dropped 2026-10-27 with the window (`D-20261027-no-release-window`); `release-window.qnt` retired |
 
 `release-tag.qnt` exists but is not an intent's model of record; it covers tag placement.
 
@@ -398,12 +398,12 @@ run in parallel, and only when they touch no common file. The lane table in next
 | 12 | **burgee check + locale** | burgee check + evals | locale-pack-in-five (R1–R3; paid runs, quote the cost) · plugin-contract (R7 restate, C3 check beyond burgee, status table) | Wave-4 #5. Both edit check.ts. Needs batch 1's eval fix |
 | 13 | **Parse and dispatch** | burgee/parse | completion-context (R1–R4) → default-command (R1–R5) → typed-positionals (R1–R4) · commander-schema (restate; positional half moves to typed-positionals) | Wave-4 #8 and #11, in the wave-3 lane order |
 | 14 | **Output stack close-out** | flagstaff/caique (umbrella) | flagstaff (S1–S3 restate, S8, the `Â·` test names) · caique (R1 `promptFor`, S2, S3) · cli-output-stack (map rows to children) · output-stack-compat (drawing-bucket decision) · output-stack-research (caique evidence table) | Rest |
-| 15 | **Foundation close-out** | linegauge/seniority/bellpull | linegauge (spec edits: R4 rounding direction, R13 `widths` plugin; moved here from batch 0) · seniority (truth-table page, shared vectors, R7, R9) · bellpull (**Quint model for the kill ladder**, S1, S4, S5) · cli-foundation-stack (restate drift, close via children) | Rest |
+| 15 | **Foundation close-out** | linegauge/seniority/bellpull | linegauge (spec edits: R4 rounding direction, R13 `widths` plugin; moved here from batch 0) · seniority (truth-table page, shared vectors, R7, R9) · bellpull (**Quint model for the kill ladder**; S1, S4 and S5 closed, shipped 2026-10-27) · cli-foundation-stack (restate drift, close via children) | Rest |
 | 16 | **MCP and agent output** | burgee/mcp + agent-surface | `.sdlc/models/mcp-inflight.qnt` for shipped mcp-current (cancel vs settle, exactly-once exit; add its sources to `models.yml` `paths:`) · cli-mcp (drop the lint rule after the eslint move, C4 after batch 11) · agent-headroom (restate against N13/N14; R3, R5, RF) | Rest |
 | 17 | **Docs and SDLC locks** | docs-site + sdlc locks | ~~docs-per-package (C8 per row, R2, R7, R10 locks; absorbs docs-deploy)~~ **shipped 2026-10-26** (also R4/R5) · sdlc-locks-evals-bands (`.sdlc/intents` into the link checker and evals paths) · schema-is-validated (R3 lock) · brand-burgee (**write spec**) | Rest |
 | 18 | **burgee umbrella restatements** | burgee (umbrella) | burgee (Z4 15-line lock, Z5, F3/O3/P1 restated after the eslint drop, criteria 3–5) · commander-env (restate) · replacement-parser (drop G3, restate SC2/G7 to D-157) | Rest; mostly text |
 | 19 | **Help, harness, dev loop** | burgee/help + testing + dev | cli-help-renderer (S1 min/max, S3 restate) · cli-testing-harness (ANSI case, S2/S4 restate) · dev-loop (W2, W3, W4, W6 tests; dev-reload.qnt exists) | Rest |
-| 20 | **Native engine (last)** | burgee + release pipeline | native-engine (**opened 2026-10-20, owner prompt**; starts only after every other intent has closed: measure `migrate`, the CI type-check lane on tsrs, single-binary distribution and the core parser, JS against a native prototype; port only what wins, shipped the oxc way behind an opt-in, size-ratcheted package) | After all others |
+| 20 | **Native engine (last)** | burgee + release pipeline | native-engine (**approved 2026-10-27**, D-20261027-native-engine-design-accepted: spec R1–R11 is the oxc-way packaging for any port. `M0` measured `migrate` on a Rust/oxc engine at 701 / 701 byte-identical but 1.00x projected, ceiling 1.08x, against the 2x gate, and the argv core's own work at ≤ 6 ms, so both stay JS. Left: the tsrs lane once tsrs is stable against TS 7.1, and single-binary distribution against Node SEA and bun/deno, each port or drop) | After all others |
 
 Coverage: each of the 63 intents still open after Batch 0 (the original 62, plus `localised-human-surfaces`, which Batch 0 held at `approved`) is in exactly one batch or in the in-progress row.
 
@@ -446,6 +446,19 @@ Tests, locks and a benchmark; no package source changed, so nothing waits on a r
   ([`D-20261026-disabled-rule-ceiling`](../decisions/D-20261026-disabled-rule-ceiling.md)). It
   closes when its open children do.
 
+**Umbrella closers, 2026-10-27 (PR #1294, `feat/umbrella-closers-spawn-rows`).** Three of the
+sweep's "no release needed" umbrellas closed in one benchmark PR.
+
+- **Stamped `shipped`:** `linegauge`, `closeout`, `seniority`. B2 gained `linegauge − string-width`
+  (gate 0 ms, −26.19 ms on CI), `closeout/exit-hook − exit-hook` (gate +2 ms, −0.65 ms) and
+  `closeout/signal-exit − signal-exit` (gate +2 ms, +0.62 ms, a ratchet:
+  B-20261027-closeout-signal-exit-starts-slower)
+  ([`D-20261027-linegauge-closeout-spawn-bars`](../decisions/D-20261027-linegauge-closeout-spawn-bars.md)).
+  `/docs/benchmarks` is generated from a new published measurement, CI run 40499538893
+  ([`D-20261027-benchmarks-published-2026-10-27`](../decisions/D-20261027-benchmarks-published-2026-10-27.md)).
+- **Still open from the sweep:** `bellpull` (spawn sites), `caique`, `flagstaff`, `controlroom`,
+  and `burgee` through its children.
+
 **Umbrella sweep, 2026-10-26 (docs only).** The eight package umbrellas were re-read criterion by
 criterion against `main` at `3d079b15` and against their published tarballs (`npm view` agrees
 with every manifest). None is stamped. Each now carries a § Umbrella sweep 2026-10-26 with its
@@ -456,11 +469,29 @@ exact closing list, and the rows above are updated. Decisions:
 [`D-20261026-flagstaff-criteria-homes`](../decisions/D-20261026-flagstaff-criteria-homes.md).
 
 - **No release needed:** `linegauge` (a spawn row), `closeout` (a spawn row and a new published
-  bench measurement), `seniority` (that measurement), `bellpull` (spawn sites moved onto it).
+  bench measurement), `seniority` (that measurement), `bellpull` (spawn sites moved onto it; done and stamped
+  `shipped` 2026-10-27, D-20261027-bellpull-dogfood-spawn).
 - **Build plus a release:** `caique`, `flagstaff` (criterion 8), `controlroom`.
-- **Measurement:** `flagstaff` criterion 7, read on the 2026-10-29 eval run.
+- **Measurement:** `flagstaff` criterion 7, read on the 2026-10-31 eval run (Saturdays since D-20261027-close-three-workflow-gaps).
 - **`burgee`:** closes when its children do. The grouped list is in its intent.
 - **Release finding:** Version PR #1253's patches were built from a `main` that already carried
   every held minor's code (`burgee/dist/formats.js`, `check.js`'s `layers`, the colorette and
   kleur rewrites, roundel's `./colorette`, `./kleur` and `./yoctocolors`, seniority's
   `packageLayer`). The release window holds the version number, not the code.
+
+**Published-patch stamps, 2026-10-26 (`docs/stamp-published-features`).** Version PR #1253
+published patches built from a `main` that already carried the features the release window held
+as minors. Each intent waiting only on "the burgee minor" or "the roundel minor" was re-read on the
+tarball (`npm i <pkg>@<exact version>` in an empty directory), and the ruling is
+[`D-20261026-shipped-on-published-patch`](../decisions/D-20261026-shipped-on-published-patch.md).
+
+- **Stamped `shipped`:** `colour-facades` (`roundel@1.2.1`), `typed-positionals`,
+  `agent-headroom` and `commander-env` (`burgee@1.7.2`). Each intent's § Shipped 2026-10-26 has
+  the command run against the published package for every criterion.
+- **Stamped `shipped` after Version PR #1278:** `cli-output-stack`. Its last open item, R12's
+  README opening, is in the `flagstaff@1.7.5` tarball, byte-identical to `main`.
+- **Re-read, still `approved`:** `plugin-contract`. C1–C3 hold on all ten tarballs. C4 has no
+  executed weekly eval since 2026-10-09; the 2026-10-31 run decides it.
+- **Not touched here:** `seniority`, whose wait on the minor ended the same way, but whose
+  criterion 4 rows are not on `/docs/benchmarks` (#1280's umbrella sweep records it), and
+  `release-cadence`, whose window was breached in substance and which another batch owns.

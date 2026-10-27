@@ -114,7 +114,7 @@ export type Shared = ReadonlyMap<string, ReadonlySet<string>>;
 
 /**
  * The local names `source` imports from a shared module that are installers there. By the import,
- * not by the name: `release-window.test.ts` calls its own `main`, and `install-graph.ts` has a
+ * not by the name: `changeset-lock.test.ts` calls its own `main`, and `install-graph.ts` has a
  * `main` that installs — the same word, a different function.
  */
 function imported(source: ts.SourceFile, shared: Shared): Set<string> {
@@ -192,8 +192,8 @@ describe('windows-lane-holds R5 — one npm install per file, never inside a cas
 
   it('does not count an install in beforeAll, a pack, the words `npm install` in an assertion, or a same-named function from elsewhere', () => {
     const file = `
-      import { main } from './release-window.mjs';
-      it('own main', async () => { await main(['lock']); });
+      import { main } from './changeset-lock.mjs';
+      it('own main', () => { main(); });
       beforeAll(async () => { await npm(['install'], dir); await installTarballs(dir, files); });
       it('reads', () => {
         expect(readme).toContain('npm install roundel');

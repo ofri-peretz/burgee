@@ -159,6 +159,18 @@ describe('loading the files', () => {
     expect(loud.env['A']).toBe('from-a');
   });
 
+  it('reads an empty DOTENV_PATH or DOTENV_CONFIG_PATH as unset and loads ./.env, as dotenv 18.0.9 does', () => {
+    const home = scratch('seniority-dotenv-cli-empty-path-');
+    writeFileSync(join(home, '.env'), 'BASIC=default_basic\n');
+    for (const name of ['DOTENV_PATH', 'DOTENV_CONFIG_PATH']) {
+      const proc = fakeProcess({ cwd: () => home, env: { [name]: '' } });
+      run(['run', '-q', 'node'], proc, { spawn: () => fakeChild() });
+      expect(proc.env['BASIC'], name).toBe('default_basic');
+      expect(proc.exitCode, name).toBeUndefined();
+    }
+    expect(printed('error')).toEqual([]);
+  });
+
   it('reads DOTENV_QUIET from the .env it just loaded when nothing before it said, as dotenv 18.0.7 does (#1071)', () => {
     writeFileSync(join(dir, 'quiet.env'), 'DOTENV_QUIET=true\nQ=1\n');
     writeFileSync(join(dir, 'legacy-quiet.env'), 'DOTENV_CONFIG_QUIET=1\nQ=1\n');

@@ -1,5 +1,15 @@
 # roundel
 
+## 1.3.0
+
+### Minor Changes
+
+- [#1233](https://github.com/ofri-peretz/burgee/pull/1233) [`c92e417`](https://github.com/ofri-peretz/burgee/commit/c92e4173f40cb8547258544576c2d675173edd91) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - New entry point `roundel/colorette`: colorette 2's forty-one styles as named exports, `isColorSupported` and `createColors({ useColor })`, graded 67 / 67 by colorette 2.0.20's own suite, level with colorette itself, and bundled at 2,425 B against colorette's 2,602. Colour is colorette's own rule, decided once at import — a `NO_COLOR` or `FORCE_COLOR` that is set at all, `--no-color` and `--color`, Windows, a terminal with a `TERM`, and `CI` on GitHub Actions, GitLab or CircleCI — not `roundel/policy`'s; with colour off every style is `String`, as colorette's are. `roundel/policy` does not change.
+
+- [#1255](https://github.com/ofri-peretz/burgee/pull/1255) [`676279a`](https://github.com/ofri-peretz/burgee/commit/676279ab67896b408a4acf5cd2c6418a7d88d01a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - New entry points `roundel/kleur` and `roundel/kleur/colors`: kleur 4's two modules, graded 15 / 15 by kleur 4.1.5's own suite, level with kleur itself, and bundled at 1,049 B against kleur's 1,839 and 930 B against kleur/colors' 997. `roundel/kleur` is kleur's one object — `enabled` and twenty-six chainable styles, `kleur.red().bold('x')` — and `require('roundel/kleur')` returns it, as `require('kleur')` does; `roundel/kleur/colors` is kleur's plain functions and `$`. Colour is kleur's own rule, decided once at import and kept on the switch a caller assigns — a truthy `NODE_DISABLE_COLORS`, a `NO_COLOR` that is set at all, `TERM=dumb`, then `FORCE_COLOR` other than `0` or a terminal on stdout — not `roundel/policy`'s. `roundel/policy` does not change.
+
+- [#1218](https://github.com/ofri-peretz/burgee/pull/1218) [`6213a30`](https://github.com/ofri-peretz/burgee/commit/6213a30bfac062bf63457378ef8d2df84cf57c6a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - New entry point `roundel/yoctocolors`: yoctocolors 2's 61 style functions as named exports and as the default namespace, graded 78 / 78 by yoctocolors 2.2.0's own `test.js`, level with yoctocolors itself, and bundled at 3,275 B against yoctocolors' 3,395. Colour is yoctocolors' own rule, Node's `hasColors()` decided once at import, not `roundel/policy`'s; with colour off each function returns its input untouched, as yoctocolors' does. `roundel/policy` does not change.
+
 ## 1.2.1
 
 ### Patch Changes

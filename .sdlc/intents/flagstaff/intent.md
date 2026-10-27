@@ -12,6 +12,11 @@
 > ([D-20261026-flagstaff-criteria-homes](../../decisions/D-20261026-flagstaff-criteria-homes.md)).
 > Open: the weekly U9 eval (no executed reading since 2026-10-09) and the one-case-per-surface
 > plugin criterion.** See [§ Umbrella sweep 2026-10-26](#umbrella-sweep-2026-10-26).
+>
+> **2026-10-27: seven of eight held, the eighth built and waiting on a release.** Criterion 7 is
+> met by eval run 40504387711 (D-20261027-dispatched-eval-counts-as-weekly). Criterion 8's three
+> cases are `scripts/plugin-surfaces.test.ts` on `main`; two of them need caique's and burgee's
+> next minors on npm. See [§ 2026-10-27](#2026-10-27-criterion-7-met-criterion-8-built).
 
 ---
 
@@ -30,12 +35,12 @@ Read on `main` at `3d079b15` and against `flagstaff@1.7.4` (`npm view flagstaff 
 | 4 | the built-in spinner registered through `register()` and nothing else | `packages/flagstaff/src/plugin.test.ts` › "R3 · the built-ins are a plugin like any other" and the describe "U3, U4 · register() is the only way into the registry" | held |
 | 5 | the spinner subpath at or under ora's import cost, on `/benchmarks` | `/docs/benchmarks`: "`flagstaff/spinner` is lighter in a user's bundle than `ora`", 0.121, met. Also `flagstaff/ora ÷ ora` 0.938 bundled and 0.930 at runtime (B5) | held |
 | 6 | ora, boxen, cli-table3 and log-update suites graded, four rates on the scoreboard | `packages/compat-oracle/baseline/`: ora 99 / 99, boxen 213 / 213 (9.0.0), cli-table3 29 / 29, log-update 99 / 99. Each row is on `/docs/compatibility` and ratcheted by compat.yml | held |
-| 7 | the U9 eval, weekly: an agent writes a spinner plugin that passes `flagstaff check` (written `burgee plugin check`, a name that never shipped) | `evals/cases/flagstaff-plugin-from-schema.json`, cron `20 5 * * 4`. It passed on every executed run (2026-10-08 `c5843e3`, 2026-10-09 `3ff3b8e`). 2026-10-15 and 2026-10-22 were `not-run` (`reason: usage-limit`) | **OPEN**: no current reading |
+| 7 | the U9 eval, weekly: an agent writes a spinner plugin that passes `flagstaff check` (written `burgee plugin check`, a name that never shipped) | `evals/cases/flagstaff-plugin-from-schema.json`, cron `20 6 * * 6` (Saturdays since 2026-10-27; `20 5 * * 4` before). It passed on every executed run (2026-10-08 `c5843e3`, 2026-10-09 `3ff3b8e`). 2026-10-15 and 2026-10-22 were `not-run` (`reason: usage-limit`) | **OPEN**: no current reading |
 | 8 | one registered plugin in help (theme), in a prompt's spinner and as `--json` events, one case per surface | `scripts/plugin-example-lock.test.ts` proves one object registers in every host and renders flagstaff's spinner in five modes. No case asserts the three named surfaces. caique does not depend on flagstaff, so "a prompt's spinner" has no path from a flagstaff registration | **OPEN** |
 
 **What closes it.**
 
-1. **Criterion 7** is measurement-gated. The next scheduled eval run (Thursday 2026-10-29, 05:20 UTC)
+1. **Criterion 7** is measurement-gated. The next scheduled eval run (Saturday 2026-10-31, 06:20 UTC, an hour after the weekly quota resets: D-20261027-close-three-workflow-gaps)
    has to execute and pass `flagstaff-plugin-from-schema`, read as every **executed** weekly
    reading passing (the `plugin-contract` C4 restatement). It depends on `evals-record-not-run`
    so that a run the usage limit stops is not counted as a reading.
@@ -45,6 +50,20 @@ Read on `main` at `3d079b15` and against `flagstaff@1.7.4` (`npm view flagstaff 
    so caique or flagstaff has to publish.
 
 flagstaff is stamped `shipped` when both are held.
+
+## 2026-10-27: criterion 7 met, criterion 8 built
+
+| # | criterion | held by | state |
+| :-- | :-- | :-- | :-- |
+| 7 | the U9 eval, weekly | eval run 40504387711 (2026-10-27, `db19cc6`), `evals/history/2026-10-27-db19cc6-40504387711.json`: `flagstaff-plugin-from-schema` and every other plugin case executed and passed, counted as a weekly reading by [D-20261027-dispatched-eval-counts-as-weekly](../../decisions/D-20261027-dispatched-eval-counts-as-weekly.md) (the `plugin-contract` C4 reading) | **held** |
+| 8 | one registered plugin in help (theme), in a prompt's spinner and as `--json` events, one case per surface | `scripts/plugin-surfaces.test.ts` › "help: its token colours the flags burgee lists, through the theme seam", › "a prompt's spinner: its frames turn on a terminal, and its static line is what a pipe gets", › "--json: its component arrives as one event per state, by its own name, and stdout is the envelope". The prompt half's path is decided: caique's spinner takes a style as data and caique does not depend on flagstaff ([D-20261027-prompt-spinner-composed](../../decisions/D-20261027-prompt-spinner-composed.md)). The `--json` half needed burgee to hand a handler `ctx.json` | **built on `main`; held on npm** when caique (`spinner({ style })`) and burgee (`ctx.json`) publish their next minors — the first Version PR after the build merges, as there is no release window (D-20261027-no-release-window) |
+
+The help case passes on code that shipped before it (burgee's help theme seam, R7); it is the case
+that was missing, and it is red when `paintOf` drops the theme. The other two are red on the
+previous `main`: the spinner draws its default frames, and the component prints static lines where
+`--json` should have had events. No flagstaff code changed, so flagstaff has no release to wait for.
+
+**Stamp `shipped` when** npm serves the caique and burgee minors carrying `style` and `ctx.json`.
 
 ## What is wanted
 

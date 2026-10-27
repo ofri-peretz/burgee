@@ -87,10 +87,12 @@ const at = (variant: string, metric: string): number | undefined => CLAIMS.find(
 describe('controlroom R14 — W1 to W4 are gated at 1.0×', () => {
   const ink = PAIRS.find((p) => p.id === 'controlroom/ink') as (typeof PAIRS)[number];
   const root = PAIRS.find((p) => p.id === 'controlroom') as (typeof PAIRS)[number];
+  const demo = PAIRS.find((p) => p.id === 'controlroom/dashboard') as (typeof PAIRS)[number];
 
   it.each([
     ['W1', ink, 'controlroom/ink + react + react-reconciler ÷ ink + react bundled-bytes-ratio'],
     ['W3', root, 'controlroom ÷ ink bundled-bytes-ratio'],
+    ['W3, the demo half,', demo, 'examples/dashboard/dashboard.mjs ÷ examples/dashboard-ink/screen.mjs bundled-bytes-ratio'],
   ] as const)('%s exits non-zero one byte over its incumbent, and zero at parity', (_, pair, row) => {
     expect(verdict(pairRecords(pair, measuredAt(1001), measuredAt(1000)))).toBe(1);
     expect(said()).toContain(row);
@@ -137,6 +139,7 @@ describe('controlroom R14 — W1 to W4 are gated at 1.0×', () => {
     expect(at('controlroom/ink + react + react-reconciler ÷ ink + react', 'installed-bytes-ratio')).toBe(1);
     expect(at('controlroom/ink + react + react-reconciler ÷ ink + react', 'installed-packages-ratio')).toBe(1);
     expect(at('controlroom ÷ ink', 'bundled-bytes-ratio')).toBe(1);
+    expect(at('examples/dashboard/dashboard.mjs ÷ examples/dashboard-ink/screen.mjs', 'bundled-bytes-ratio')).toBe(1);
     expect(at('controlroom/ink ÷ ink + react', 'cold-start-ratio')).toBe(1);
     expect(at('controlroom ÷ ink + react', 'cold-start-ratio')).toBe(1);
   });
@@ -211,6 +214,36 @@ describe('B2 cold start — seniority R9, each drop-in held to the incumbent it 
   });
 
   it.each(bars.map((v) => [v.id, v] as const))('%s: exits non-zero one step past its bar, zero at it, and says whose bar it is', (id, v) => {
+    const max = v.bar?.max ?? Number.NaN;
+    const over = String(v.over);
+    expect(verdict([deltaRecord({ v, ours: base.map((ms) => ms + max + 0.01), over: base, gateMax: max })])).toBe(1);
+    expect(said()).toContain(`${id} − ${over} cold-start-delta-ms: ${String(max + 0.01)} ms is above its ceiling of ${String(max)}`);
+    expect(said()).toContain(v.bar?.why ?? 'no bar');
+    expect(verdict([deltaRecord({ v, ours: base.map((ms) => ms + max), over: base, gateMax: max })])).toBe(0);
+  });
+});
+
+describe('B2 cold start — linegauge and closeout, each library held to the incumbent it replaces', () => {
+  const base = Array.from({ length: 40 }, (_, i) => 30 + (i % 3));
+  const rows = VARIANTS.filter((v) => v.pkg === 'linegauge' || v.pkg === 'closeout');
+
+  // D-20261026-library-spawn-delta-rows reopened both criteria: "benchmark rows … on bytes and
+  // spawn delta" had a bytes row and no spawn row. These are the spawn rows, at the bars
+  // D-20261027-linegauge-closeout-spawn-bars sets from CI's readings.
+  it('times linegauge against string-width and both closeout drop-ins against theirs, each at its own bar', () => {
+    expect(rows.map((v) => [v.id, v.over, v.bar?.max])).toEqual([
+      ['linegauge', 'string-width', 0],
+      ['closeout/exit-hook', 'exit-hook', 2],
+      ['closeout/signal-exit', 'signal-exit', 2],
+    ]);
+  });
+
+  it('names, in each gate’s reason, the criterion it holds and the decision that set the number', () => {
+    expect(rows.map((v) => v.bar?.why.split(':')[0])).toEqual(['linegauge criterion 2', 'closeout criterion 3', 'closeout criterion 3, the optional row']);
+    for (const v of rows) expect(v.bar?.why).toContain('D-20261027-linegauge-closeout-spawn-bars');
+  });
+
+  it.each(rows.map((v) => [v.id, v] as const))('%s: exits non-zero one step past its bar, zero at it, and says whose bar it is', (id, v) => {
     const max = v.bar?.max ?? Number.NaN;
     const over = String(v.over);
     expect(verdict([deltaRecord({ v, ours: base.map((ms) => ms + max + 0.01), over: base, gateMax: max })])).toBe(1);

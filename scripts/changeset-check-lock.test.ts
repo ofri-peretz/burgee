@@ -21,13 +21,14 @@
  * script touches git, which is what makes it runnable outside a PR.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { scratchDirs } from './scratch-dir.js';
+import { bashSpawns, runStepScenarios, type StepScenario } from './step-scenarios.js';
 
 /** Every scratch directory this file makes, removed after its last test (`scripts/scratch-dir.ts`). */
 const scratchDir = scratchDirs();
@@ -72,22 +73,21 @@ interface Answer {
   trace: string;
 }
 
+/** The variables the step reads. Each scenario starts with every one of them unset, then sets its own. */
+const STEP_VARIABLES = ['BASE_SHA', 'HEAD_SHA', 'HEAD_REF', 'LABELS', 'PR_AUTHOR'];
+
 /**
- * Run the step with a given environment. Under `bash -x`, so a wrong answer arrives with the
- * path that produced it. This lock went red once in a pre-push hook and passed on retry, and
- * all that was left was the wrong status. The step discards `git show`'s stderr, and it maps
- * an empty result to `missing`. The trace shows each argument after expansion, so an empty
- * `git show` is visible in it.
+ * windows-lane-holds R6 — the step's shell starts once per file, and every scenario runs inside
+ * it (`scripts/step-scenarios.ts`, which says why).
+ *
+ * Each runs under `bash -x`, so a wrong answer arrives with the path that produced it. This lock
+ * went red once in a pre-push hook and passed on retry, and all that was left was the wrong
+ * status. The step discards `git show`'s stderr, and it maps an empty result to `missing`. The
+ * trace shows each argument after expansion, so an empty `git show` is visible in it.
  */
-function statusFor(env: Record<string, string>, cwd = scratchDir('changeset-check-')): Answer {
-  const scratch = scratchDir('changeset-check-');
-  const script = join(scratch, 'check.sh');
-  const out = join(scratch, 'output');
-  writeFileSync(script, checkScript());
-  writeFileSync(out, '');
-  const run = spawnSync('bash', ['-x', script], { cwd, env: { ...withoutGit(), ...env, GITHUB_OUTPUT: out }, encoding: 'utf8' });
-  const exit = `exit ${run.status ?? run.signal}${run.error ? ` (${run.error.message})` : ''}`;
-  return { status: (/^status=(.*)$/m.exec(readFileSync(out, 'utf8'))?.[1] ?? '').trim(), trace: `${exit}\n${run.stderr}` };
+function runScenarios(root: string, scenarios: Record<string, StepScenario>): Record<string, Answer> {
+  const runs = runStepScenarios(root, { script: checkScript(), variables: STEP_VARIABLES, scenarios, env: withoutGit() });
+  return Object.fromEntries(Object.entries(runs).map(([name, { output, trace }]) => [name, { status: (/^status=(.*)$/m.exec(output)?.[1] ?? '').trim(), trace }]));
 }
 
 /** Git's own view of the scratch repository, rerun beside the step with stderr kept. Only on a wrong answer: it is five more spawns. */
@@ -158,9 +158,9 @@ const commit = ({ ref, mark, message, files, from }: FastImportCommit): string =
  * The step itself stayed under 0.7 s every time. The time was in building, so building is what
  * moved out of the cases.
  */
-function buildRepository(): { cwd: string; shas: Record<'base' | Head, string> } {
-  const cwd = scratchDir('changeset-check-repo-');
-  const marks = join(scratchDir('changeset-check-marks-'), 'marks');
+function buildRepository(cwd: string): Record<'base' | Head, string> {
+  mkdirSync(cwd);
+  const marks = join(cwd, '..', 'marks');
   const names = Object.keys(HEADS) as Head[];
   const stream = [
     commit({ ref: 'base', mark: 1, message: 'base', files: file(MANIFEST_PATH, json(MANIFEST)) }),
@@ -173,7 +173,45 @@ function buildRepository(): { cwd: string; shas: Record<'base' | Head, string> }
   git(cwd, ['fast-import', '--quiet', `--export-marks=${marks}`], stream);
   const byMark = new Map(readFileSync(marks, 'utf8').trim().split('\n').map((line) => line.split(' ') as [string, string]));
   const sha = (mark: number): string => byMark.get(`:${String(mark)}`) ?? '';
-  return { cwd, shas: { base: sha(1), ...Object.fromEntries(names.map((name, i) => [name, sha(i + 2)])) } as Record<'base' | Head, string> };
+  return { base: sha(1), ...Object.fromEntries(names.map((name, i) => [name, sha(i + 2)])) } as Record<'base' | Head, string>;
+}
+
+/** The pull requests the Dependabot cases ask about: who opened it, and which head it carries. */
+const DEPENDABOT = {
+  'dependabot-dev': { author: 'dependabot[bot]', head: 'dev' },
+  'dependabot-runtime': { author: 'dependabot[bot]', head: 'runtime' },
+  'dependabot-src': { author: 'dependabot[bot]', head: 'src' },
+  'person-dev': { author: 'ofri-peretz', head: 'dev' },
+} satisfies Record<string, { author: string; head: Head }>;
+
+/**
+ * Everything this file spawns, done once before its first case: two git runs build the
+ * repository, and one bash runs the step for every scenario. The cases read the answers.
+ */
+let repository: { cwd: string; shas: Record<'base' | Head, string> };
+let answers: Record<string, Answer>;
+beforeAll(() => {
+  const root = scratchDir('changeset-check-');
+  repository = { cwd: join(root, 'repo'), shas: buildRepository(join(root, 'repo')) };
+  const { shas } = repository;
+  answers = runScenarios(root, {
+    release: { env: { HEAD_REF: 'changeset-release/main', LABELS: '' } },
+    skipped: { env: { HEAD_REF: 'fix/whatever', LABELS: 'skip-changeset,other' } },
+    ...Object.fromEntries(
+      Object.entries(DEPENDABOT).map(([name, { author, head }]) => [
+        name,
+        { env: { BASE_SHA: shas.base, HEAD_SHA: shas[head], HEAD_REF: 'dependabot/npm_and_yarn/all-packages-0', LABELS: 'dependencies,npm', PR_AUTHOR: author }, cwd: 'repo' },
+      ]),
+    ),
+  });
+}, 120_000);
+
+/** Assert the step's answer for one of {@link DEPENDABOT}'s pull requests. */
+function expectStatusOf(expected: string, name: keyof typeof DEPENDABOT): void {
+  const { cwd } = repository;
+  const shas = { BASE_SHA: repository.shas.base, HEAD_SHA: repository.shas[DEPENDABOT[name].head] };
+  const { status, trace } = answers[name] ?? { status: '', trace: 'no answer' };
+  expect(status, status === expected ? undefined : `${trace}\n${gitFacts(cwd, shas)}`).toBe(expected);
 }
 
 describe('the changeset check and the Version PR', () => {
@@ -182,12 +220,12 @@ describe('the changeset check and the Version PR', () => {
     // is what this assertion catches, and on a real Version PR — where the SHAs are set and
     // a `package.json` moved per bump — reaching the diff answers `missing` and goes red.
     // Either way the wrong branch was taken, and `release` can only come from the guard.
-    const { status, trace } = statusFor({ HEAD_REF: 'changeset-release/main', LABELS: '' });
+    const { status, trace } = answers.release ?? { status: '', trace: 'no answer' };
     expect(status, trace).toBe('release');
   });
 
   it('still answers `skipped` for the label, which the release case must not have displaced', () => {
-    const { status, trace } = statusFor({ HEAD_REF: 'fix/whatever', LABELS: 'skip-changeset,other' });
+    const { status, trace } = answers.skipped ?? { status: '', trace: 'no answer' };
     expect(status, trace).toBe('skipped');
   });
 
@@ -203,48 +241,41 @@ describe('the changeset check and the Version PR', () => {
  * went red on every one of them (#571) — a PR nobody authored, so nobody added the label.
  * The exemption is for exactly that shape and nothing wider: a runtime dependency reaches
  * the package's users, and so does anything under `src/`.
+ *
+ * The 120 s budget this block carried is gone: it was kept "until the R2 report shows these
+ * cases under half of 30 s on every cell", and over ten full Windows cells on `main` (runs
+ * 40273043615 to 40513685943) the slowest was 850 ms. The cases now spawn nothing.
  */
-//
-// Each case runs the step (five processes) against the one repository `beforeAll` built. The
-// 120 s budget predates that, when each case built its own; it stays until the R2 report shows
-// these cases under half of 30 s on every cell, and is then removed rather than kept as slack.
-describe('the changeset check and Dependabot', { timeout: 120_000 }, () => {
-  let repository: ReturnType<typeof buildRepository>;
-  beforeAll(() => {
-    repository = buildRepository();
-  }, 120_000);
-
-  /** Assert the step's answer for a pull request opened by `author` whose head is `head`. */
-  function expectStatusOf(expected: string, author: string, head: Head): void {
-    const { cwd } = repository;
-    const shas = { BASE_SHA: repository.shas.base, HEAD_SHA: repository.shas[head] };
-    const { status, trace } = statusFor({ ...shas, HEAD_REF: 'dependabot/npm_and_yarn/all-packages-0', LABELS: 'dependencies,npm', PR_AUTHOR: author }, cwd);
-    expect(status, status === expected ? undefined : `${trace}\n${gitFacts(cwd, shas)}`).toBe(expected);
-  }
-
+describe('the changeset check and Dependabot', () => {
   it('R4 — builds its repository once per file, in at most three git runs', () => {
     expect(Object.values(repository.shas).every((sha) => /^[0-9a-f]{40}$/u.test(sha)), JSON.stringify(repository.shas)).toBe(true);
     expect(new Set(Object.values(repository.shas)).size).toBe(Object.keys(HEADS).length + 1);
     expect(builderRuns).toBeLessThanOrEqual(3);
   });
 
+  it('R6 — starts the step\'s shell once per file, and every scenario got an answer from it', () => {
+    expect(bashSpawns()).toBe(1);
+    expect(Object.entries(answers).filter(([, { trace }]) => !/^exit \d+$/mu.test(trace)).map(([name]) => name)).toEqual([]);
+  });
+
   it('answers `dev-dependencies` when Dependabot moves only devDependencies', () => {
-    expectStatusOf('dev-dependencies', 'dependabot[bot]', 'dev');
+    expectStatusOf('dev-dependencies', 'dependabot-dev');
   });
 
   it('still answers `missing` when Dependabot moves a runtime dependency', () => {
-    expectStatusOf('missing', 'dependabot[bot]', 'runtime');
+    expectStatusOf('missing', 'dependabot-runtime');
   });
 
   it('still answers `missing` when a src/ change rides on a Dependabot branch', () => {
-    expectStatusOf('missing', 'dependabot[bot]', 'src');
+    expectStatusOf('missing', 'dependabot-src');
   });
 
   it('does not extend the exemption to a person — the label is their signed decision', () => {
-    expectStatusOf('missing', 'ofri-peretz', 'dev');
+    expectStatusOf('missing', 'person-dev');
   });
 
-  it('a case builds nothing: every git run above happened before the first case', () => {
+  it('a case builds and runs nothing: every git and bash run above happened before the first case', () => {
     expect(builderRuns).toBeLessThanOrEqual(3);
+    expect(bashSpawns()).toBe(1);
   });
 });

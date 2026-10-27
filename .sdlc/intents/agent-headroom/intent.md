@@ -5,7 +5,7 @@
 > B1, which is where the claim is measured. Gathers three findings that are currently routed
 > to three different intents — one of them deferred — under the one decision they share.
 
-**Status:** approved · **Opened:** 2026-09-09 · **Owner:** @ofri-peretz
+**Status:** shipped (2026-10-26, every criterion re-read against `burgee@1.7.2` as installed from npm, [`D-20261026-shipped-on-published-patch`](../../decisions/D-20261026-shipped-on-published-patch.md)) · **Opened:** 2026-09-09 · **Owner:** @ofri-peretz
 
 > **Accepted at the Design→Build gate 2026-10-25** by the coordinator under the owner's delegation
 > ([`D-20261025-agent-headroom-design-accepted`](../../decisions/D-20261025-agent-headroom-design-accepted.md)): narrowed to R3 (row budget), R6 (hint-survival lock), RF (`formats` with `tsv`) and C1 (large-demo figure); R5 and R2's dotted paths dropped. See
@@ -19,9 +19,34 @@ under minified JSON on fifty rows. R3: `max-bytes.test.ts`, fuzzed at every budg
 large-demo case in `machine-json.test.ts` (41.1%), plus `schema-bytes-pretty` beside
 `schema-bytes`. See [`spec.md` § Build 2026-10-25](./spec.md#build-2026-10-25). The status stays
 `approved` until the release that carries them (not before 2026-11-01) is published and the
-criteria are re-read on the published package.
+criteria are re-read on the published package. *2026-10-26: that release came early, as the
+patch `burgee@1.7.2`, and the re-read is § Shipped 2026-10-26 below.*
 
 ---
+
+## Shipped 2026-10-26
+
+**All four accepted pieces, and every success criterion, hold on the published package.** Version
+PR #1253 published `burgee@1.7.2` on 2026-10-26 from `main` at `c4230e33` (its `gitHead`); #1266,
+which built R6, RF, R3 and C1, is an ancestor of it, and the tarball carries `dist/formats.js` and
+`dist/max-bytes.js`. It went out as a patch, because the release window holds a minor's version
+number and not its code
+([`D-20261026-shipped-on-published-patch`](../../decisions/D-20261026-shipped-on-published-patch.md)).
+
+Every row was run on 2026-10-26 in an empty `mktemp -d` directory after `npm i burgee@1.7.2`, over
+a probe program: `packages` returns the design's fifty rows of four fields (its `fields` declared), `show` a non-list
+result, `ls` a `UsageError` with a hint, and one plugin registers a `pins` format through
+`definePlugin({ formats })`. None of it read the workspace.
+
+| Criterion | Command, against `burgee@1.7.2` | Output |
+| :-- | :-- | :-- |
+| C1. `--schema` on the large demo ≥ 40% smaller, no information lost, the pretty figure beside it | `examples/demo-cli-large` compiled into the temp directory, importing the installed `burgee`; `--schema` and `--schema --format=json-pretty` | 25,203 B against 42,796 B, **41.1%** smaller, and the two parse deep-equal. The reliability axis records `schema-bytes-pretty` (7,717 B, "reported, never gated") beside `schema-bytes` (4,656 B) in `benchmarks/results/cli-benchmarks/2026-10-26-c4230e3-ci.json`, the CI measurement of the release commit |
+| C2. `--json=<a,b>` selects at the source | `ah packages --json=name,version` (N14, shipped earlier) | `{"ok":true,"data":[{"name":"package-1","version":"1.0.0"},…` — the two fields of each row, nothing else |
+| C3. A budget truncates legibly, and an agent can tell partial from complete (R3) | `ah packages --json --max-bytes 300`; `--max-bytes 100000`; `ah show --json --max-bytes 50`; `ah packages --format=tsv --max-bytes 120` | 3 whole rows, parses, `"truncated":{"of":50,"returned":3}`. Under budget: no `truncated` key. A non-list result is returned whole with `"truncated":{"of":1,"returned":1,"over":285}`. TSV: a header and 4 rows, `{"truncated":{"of":50,"returned":4}}` on stderr |
+| C4. `recovery-bytes` below commander's, or a report of why not | unchanged, reported 2026-10-18 | no hint was removed (R6, next row) |
+| C5. `--json=` lists the valid fields | `ah packages --json=`; `ah packages --json=nope` (N14, shipped earlier) | `"data":{"fields":["id","name","version","private"]}` without running the handler; `unknown field "nope"`, `hint: valid fields: id, name, version, private`, exit 2 |
+| R6. No hint is lost to a compaction | `ah ls --json` as the reference, against `ah ls` with `--json=name`, `--format=agent --json`, `--format=tsv --json`, `--format=pins --json`, `--max-bytes 10 --json`; stderr of `ah ls` against `--format=agent`, `--format=tsv`, `--format=pins`, `--max-bytes 10 --format=agent` | all nine byte-identical to their reference. The reference carries `"hint":"unlock it with ah unlock"` |
+| RF. `formats` on the plugin object; `tsv` the first registered format | `ah packages --format`; `--format=pins`; `--format=tsv`; `ah deploy … --format=tsv`; `--format=nope` | the list names `text`, `json`, `agent`, `tsv` and the plugin's `pins`. `pins` prints `package-1@1.0.0` per row. TSV is 1,293 B against minified JSON's 3,170 B on the fifty rows, **59.2%** under. A non-list result is refused with `hint: run it with --json for the whole result`, exit 2. An unknown name is refused with `hint: formats: text, json, agent, tsv` |
 
 ## Restated 2026-10-18
 

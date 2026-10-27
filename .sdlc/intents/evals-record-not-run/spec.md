@@ -213,13 +213,18 @@ and this does not change it.
 
 ## Status
 
+All six built in #1135 (`0dc0e0231e`, 2026-10-19); re-read against `main` 2026-10-26. The
+intent's criterion 5 is the one still open: see the intent's § Where the criteria stand. Since
+2026-10-27 the run that can close it is the first Saturday one, 2026-10-31 at 06:20 UTC: the cron
+moved to an hour after the weekly quota resets (D-20261027-close-three-workflow-gaps).
+
 | R | Status | Where | Check |
 | :-- | :-- | :-- | :-- |
-| R1 | Not built | `scripts/run-evals.ts` (`runCase`, `caseOutcome`) | `scripts/run-evals.test.ts` › `R1 — …` |
-| R2 | Not built | `scripts/eval-history.ts` (v2, `historyProblems`) | `scripts/eval-history-lock.test.ts` › `R2 — …` |
-| R3 | Not built | `evals/history/2026-10-15-29362dc-38717342918.json` | `scripts/eval-history-lock.test.ts` › `every committed history file is one valid line` |
-| R4 | Not built | `scripts/eval-history.ts` (`readHistory`, `measured`, `caseSeries`) | `scripts/eval-history-lock.test.ts` › `R4 — …` |
-| R5 | Not built | `scripts/run-evals.ts` (`verdict`), `.github/workflows/evals.yml` | `run-evals.test.ts` › `R5 — …`; `eval-history-lock.test.ts` › `R5 — …` |
-| R6 | Not built | `benchmarks/axes/agent.ts` (`runOne`, `sweepAll`, `armRecords`) | `benchmarks/agent.test.ts` › `R6 — …` (two cases) |
+| R1 | Built | `scripts/run-evals.ts` (`runCase`, `caseOutcome`) | `scripts/run-evals.test.ts` › `R1 — a usage-limit stop is not-run, with its reason, never a failure` |
+| R2 | Built | `scripts/eval-history.ts` (v2, `historyProblems`) | `scripts/eval-history-lock.test.ts` › `R2 — records a run whose agent never ran as not-run, with no pass rate` |
+| R3 | Built | `evals/history/2026-10-15-29362dc-38717342918.json` | `scripts/eval-history-lock.test.ts` › `every committed history file is one valid line` |
+| R4 | Built | `scripts/eval-history.ts` (`readHistory`, `measured`, `caseSeries`) | `scripts/eval-history-lock.test.ts` › `R4 — a not-run week neither breaks nor counts toward a series` |
+| R5 | Built, and seen live: issue #1225 "Agent evals did not run" (run 39762001842) | `scripts/run-evals.ts` (`verdict`), `.github/workflows/evals.yml` | `run-evals.test.ts` › `R5 — a run with not-run cases names them and is not called a failure`; `eval-history-lock.test.ts` › `R5 — a week that did not run opens "did not run", not "failing"` |
+| R6 | Built | `benchmarks/axes/agent.ts` (`runOne`, `sweepAll`, `armRecords`) | `benchmarks/agent.test.ts` › `R6 — a sweep the usage limit cut short is not a reading`, › `R6 — an MCP arm cut short leaves no ratio` |
 
-**Built: 0. Not built: 6.**
+**Built: 6. Not built: 0.**

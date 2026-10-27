@@ -85,7 +85,9 @@ const DROP_IN_CEILINGS: Readonly<Record<string, { incumbent: string; bytes: numb
   // `inquirer-prompts-drop-in` R5: `@inquirer/prompts` 8.7.3 with the ten prompt releases it
   // shipped with and `@inquirer/core` 12.0.4 (the graded tree, D-20261019-inquirer-prompts-pins-its-prompts),
   // by the same method, measured 2026-10-20. iconv-lite's tables, through `@inquirer/editor`, are most of it.
-  'caique/inquirer/prompts': { incumbent: '@inquirer/prompts@8.7.3', bytes: 582_754 },
+  // Re-measured at 8.7.4 with its ten and core 12.0.5 on 2026-10-27, the same method reproducing
+  // 8.7.3's 582,754 first (D-20261027-revendor-dotenv-execa-inquirer).
+  'caique/inquirer/prompts': { incumbent: '@inquirer/prompts@8.7.4', bytes: 582_862 },
   // `previous-majors` R3: 17's `yargs/yargs` — `yargs.mjs` over its CommonJS build — measured
   // 2026-10-19 from yargs 17.7.3 as `compat-oracle` installs it (D-20261019-yargs-17-budget).
   'burgee/yargs/v17/yargs': { incumbent: 'yargs@17.7.3 (yargs/yargs)', bytes: 114_656 },
@@ -110,7 +112,8 @@ const DROP_IN_CEILINGS: Readonly<Record<string, { incumbent: string; bytes: numb
  * client sees an option's variable, +6 B on every façade row; v14 55,950, `burgee/yargs/v17` 110,260.
  * 55,695 on 2026-10-26 (D-20261026-typed-positionals-r4-weight): an argument's `inputSchema` property
  * carries its JSON type and its default as that type, +94 B on every façade row; v14 56,044,
- * `burgee/yargs/v17` 110,354.
+ * `burgee/yargs/v17` 110,354. 110,415 on 2026-10-27 (D-20261027-yargs-parsesync-surface-bytes): `completion`
+ * and `--mcp` answer a `parseSync()` program instead of throwing, +61 B on every yargs row.
  */
 const OVER_INCUMBENT: Readonly<Record<string, { incumbent: string; bytes: number; ours: number; gap: string }>> = {
   'burgee/commander': { incumbent: 'commander@15.0.0', bytes: 39_329, ours: 55_695, gap: 'B-20261012-commander-front-end-bundles-heavier' },
@@ -124,7 +127,7 @@ const OVER_INCUMBENT: Readonly<Record<string, { incumbent: string; bytes: number
   // `previous-majors` R3: `burgee/yargs` plus 17's string table and `commandDir()` walk. yargs
   // 17.7.3's `index.mjs` bundles to 84,475 B by the same method, measured 2026-10-19, and yargs
   // 18.2.0's to 111,698 B, which `burgee/yargs` is under (D-20261019-yargs-17-budget).
-  'burgee/yargs/v17': { incumbent: 'yargs@17.7.3', bytes: 84_475, ours: 110_354, gap: 'B-20261019-yargs-17-entry-bundles-heavier' },
+  'burgee/yargs/v17': { incumbent: 'yargs@17.7.3', bytes: 84_475, ours: 110_415, gap: 'B-20261019-yargs-17-entry-bundles-heavier' },
 };
 
 /** The "Everything" cell of a subpath's row on the page, or `undefined` when it has no row. */

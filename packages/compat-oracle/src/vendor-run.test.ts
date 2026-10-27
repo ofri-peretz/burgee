@@ -11,26 +11,27 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { platform, tmpdir } from 'node:os';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { type Host } from './hosts.js';
-import { latestVersion, npmOn, registryTime } from './upstream.js';
+import { execFile } from './spawn.js';
+import { latestVersion, registryTime } from './upstream.js';
 import { classify, internalImports, keptPath, readSuiteDeps, rewriteAt, rootPackage, siblingImports, splitSpec, vendor } from './vendor.js';
 
-// Every git call still runs for real; the spy only records what `vendor()` asked for.
-vi.mock('node:child_process', async (importOriginal) => {
-  const real = await importOriginal<typeof import('node:child_process')>();
-  return { ...real, execFileSync: vi.fn(real.execFileSync) };
+// Every git call still runs for real, through bellpull; the spy only records what `vendor()` asked for.
+vi.mock('./spawn.js', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./spawn.js')>();
+  return { ...real, execFile: vi.fn(real.execFile) };
 });
 vi.mock('./upstream.js', async (importOriginal) => ({ ...(await importOriginal<typeof import('./upstream.js')>()), latestVersion: vi.fn(() => '1.0.0') }));
 
 /** The next `npm view` answers `stdout`. */
 const answers = (stdout: string): void => {
-  vi.mocked(execFileSync).mockReturnValueOnce(stdout);
+  vi.mocked(execFile).mockReturnValueOnce(stdout);
 };
 
 const SUITE: Record<string, string> = {
@@ -204,19 +205,9 @@ describe('vendoring a whole suite', () => {
   it("reads a release's publish time from the registry's `time`, and refuses a release it does not list", () => {
     answers('{"created":"2020-01-01T00:00:00.000Z","8.7.3":"2026-10-04T17:41:40.731Z"}');
     expect(registryTime('@inquirer/prompts', '8.7.3')).toBe('2026-10-04T17:41:40.731Z');
-    const { file, shell } = npmOn(platform());
-    expect(vi.mocked(execFileSync)).toHaveBeenLastCalledWith(file, ['view', '@inquirer/prompts', 'time', '--json'], { encoding: 'utf8', shell });
+    expect(vi.mocked(execFile)).toHaveBeenLastCalledWith('npm', ['view', '@inquirer/prompts', 'time', '--json'], { encoding: 'utf8' });
     answers('{"8.7.3":"2026-10-04T17:41:40.731Z"}');
     expect(() => registryTime('@inquirer/prompts', '9.9.9')).toThrow('the registry lists no publish time for @inquirer/prompts@9.9.9');
-  });
-
-  // #1180: bare `npm` with no shell was `spawnSync npm ENOENT` on every Windows cell.
-  it.each([
-    ['win32', { file: 'npm.cmd', shell: true }],
-    ['linux', { file: 'npm', shell: false }],
-    ['darwin', { file: 'npm', shell: false }],
-  ])('runs npm on %s as %o', (system, expected) => {
-    expect(npmOn(system)).toEqual(expected);
   });
 
   it('writes no `omitted` key at all for a suite with nothing to omit', () => {
@@ -302,11 +293,22 @@ describe('the ref it clones', () => {
     expect(result.files).toBe(5);
   });
 
+  it("keeps git's own output off ours: every clone, the failed tag clone included, ignores stdio", () => {
+    // Without `stdio: 'ignore'` `execFile` echoes the child's stderr, as `execFileSync` does, and
+    // every vendor run printed git's "Cloning into…" and "fatal: Remote branch … not found"
+    // between the oracle's own lines.
+    vi.mocked(execFile).mockClear();
+    expect(vendor(hostAt(upstream(), { tagPrefix: 'release-' }), into()).tag).toBeNull();
+    const clones = vi.mocked(execFile).mock.calls.filter(([, args]) => (args as string[]).includes('clone'));
+    expect(clones).toHaveLength(2);
+    for (const [, , options] of clones) expect(options).toEqual({ stdio: 'ignore' });
+  });
+
   it('never hands git a ref that reads as an option, and refuses rather than cloning HEAD', () => {
     const repo = upstream();
-    vi.mocked(execFileSync).mockClear();
+    vi.mocked(execFile).mockClear();
     expect(() => vendor(hostAt(repo, { tagPrefix: '--upload-pack=touch /tmp/pwned;' }), into())).toThrow('refusing to pass "--upload-pack=touch /tmp/pwned;1.0.0" to git as a ref');
-    const clones = vi.mocked(execFileSync).mock.calls.filter(([, args]) => (args as string[]).includes('clone'));
+    const clones = vi.mocked(execFile).mock.calls.filter(([, args]) => (args as string[]).includes('clone'));
     expect(clones).toEqual([]);
   });
 

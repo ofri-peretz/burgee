@@ -29,7 +29,10 @@ jobs:
   watch:
     name: Watch control bands
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # `npm test`'s 15-minute cap (COMMAND_TIMEOUT_MS) plus WATCH_MINUTES_BEYOND_TEST, both in
+    # scripts/control-bands.ts and held here by control-bands-workflow-lock.test.ts. At 20 the
+    # 2026-10-26 run was cancelled before it landed a point (D-20261027-close-three-workflow-gaps).
+    timeout-minutes: 25
     permissions:
       contents: write
       pull-requests: write
@@ -48,8 +51,10 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
 
-      - name: Build (the test-duration band times npm test on built packages)
-        run: npx turbo run build --filter='./packages/*'
+      # The demo too: the root suite starts examples/demo-cli-burgee/dist/bin.js, and unbuilt it
+      # failed `npm test` here, so test-duration-ms lost its point (compat.yml since #1159).
+      - name: Build (the test-duration band times npm test on built packages and the demo)
+        run: npx turbo run build --filter='./packages/*' --filter=demo-cli-burgee
 
       - name: Record observations and evaluate bands
         id: bands

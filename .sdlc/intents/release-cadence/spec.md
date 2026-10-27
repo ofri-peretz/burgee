@@ -1,7 +1,10 @@
 # Design — a release pace a cautious adopter can follow, and semver that matches the incumbent's
 
-Intent: [`intent.md`](./intent.md). **Status:** approved (intent approved by the owner
-2026-10-18; design acceptance delegated for batch 1 of the roadmap-to-shipped program).
+Intent: [`intent.md`](./intent.md). **Status:** dropped 2026-10-27 by
+[`D-20261027-no-release-window`](../../decisions/D-20261027-no-release-window.md): the owner removed
+the release window. R1–R9 no longer hold anything; the changeset lock (R6's table, now
+`scripts/changeset-lock.mts`) stays. The design below is the record as it stood (intent approved by
+the owner 2026-10-18; design acceptance delegated for batch 1 of the roadmap-to-shipped program).
 
 ---
 
@@ -9,9 +12,15 @@ Intent: [`intent.md`](./intent.md). **Status:** approved (intent approved by the
 
 - **R1 — the window.** No non-fix release (`x.y.0`: a minor or a major) of a package reaches npm
   within 7 days of that package's previous non-fix release.
-- **R2 — fixes are never delayed.** A `patch` changeset, or any changeset whose summary opens
-  with `Security:`, releases on the next Version PR whatever any window says, including when it
-  shares a changeset or a Version PR with a held minor.
+- **R2 — fixes are never delayed by another package's window.** ~~A `patch` changeset, or any
+  changeset whose summary opens with `Security:`, releases on the next Version PR whatever any
+  window says, including when it shares a changeset or a Version PR with a held minor.~~
+  **Restated 2026-10-26** (D-20261026-release-window-holds-code): a release is built from `main`,
+  so a patch of a package with a held minor carried that minor's code (#1253). Now a fix to a
+  package with a held non-fix changeset waits with it; a fix to any other package releases on the
+  next Version PR, also from a changeset it shares with a held one. A `Security:` change is never
+  delayed: it releases its package at once with everything held for it, so the version says what
+  the build carries.
 - **R3 — held, not lost.** A held changeset stays on `main` and releases on the first run whose
   window is open: every push to `main`, and a daily schedule when nothing is pushed.
 - **R4 — a release in flight counts.** A non-fix version on `main`'s manifest that npm does not
@@ -21,6 +30,9 @@ Intent: [`intent.md`](./intent.md). **Status:** approved (intent approved by the
 - **R6 — backstop.** `release.yml` does not publish an in-window non-fix version that reached
   `main` some other way (a Version PR merged by hand), unless its changelog section has a
   `Security:` entry; a package that depends on it at that version waits with it.
+  **Widened 2026-10-26:** nor a fix version of a package that `.changeset/` on the release
+  commit still names at minor or major (without `Security:`), because that build carries the held
+  code. This is the check that refuses #1253's three patches.
 - **R7 — the changeset lock.** A changeset whose summary matches a behaviour row the incumbent
   listed under a major (`.sdlc/bands/incumbent-majors.json`) cannot be `minor` or `patch` for a
   package that drops that incumbent in. It runs on every PR that adds a changeset.
@@ -82,8 +94,11 @@ step. Two design choices are picked at `init`, so one simulation walks both side
 
 `safety` (the shipped design keeps the window and never delays a fix) holds over
 `--max-steps=30 --max-samples=20000`. `models.yml` also checks that `unsplitHolds`,
-`npmOnlyHolds` and the non-vacuity witness `shippedNeverReleasesAFeature` stay violated, so a
-model that stopped telling the designs apart, or never shipped a feature, goes red.
+`npmOnlyHolds`, `holdsVersionsNotCode` and the non-vacuity witnesses
+`shippedNeverReleasesAFeature` and `shippedNeverHoldsAFix` stay violated, so a model that stopped
+telling the designs apart, never shipped a feature or never held a fix, goes red.
+`scripts/release-window.test.ts` › "models.yml keeps the model’s rejected designs failing" fails
+if the loop names any other set.
 
 ### The 30-day target
 
@@ -119,6 +134,43 @@ already achieves, because then it would measure nothing.
   --invariant=safety --max-steps=30 --max-samples=20000`: no violation. The same run with
   `unsplitHolds`, `npmOnlyHolds` and `shippedNeverReleasesAFeature`: each violated.
 - `node scripts/release-window.mts lock` on this branch: 0 violations.
+
+## Status 2026-10-26
+
+**The window held version numbers, not code, and that is fixed here.** The Version PR #1253
+published `roundel@1.2.1`, `seniority@1.1.1` and `burgee@1.7.2` as patches from a `main` holding
+three, one and six of their minor changesets; `roundel@1.2.1` exports `./colorette`, `./kleur` and
+`./yoctocolors`, which `1.2.0` does not. R1 was breached in substance three times while every
+check passed. D-20261026-release-window-holds-code records the cause (the model had no variable
+for the code on `main`) and the rule above.
+
+| check | red on `main` (`8550bdbd6c`) | now |
+| :-- | :-- | :-- |
+| `scripts/release-window.test.ts` › "holds a patch for a package whose minor is held: main’s build of it carries the minor’s code" | the patch released (`['p.md', 1, 0]`), `releasable: true` | held, with its window's date |
+| › "holds a fix behind its own package’s held minor only, and releases another package’s fix" | `roundel` patch released | held; `flagstaff` patch released |
+| › "a Security: change releases its package with everything held for it, …" | the minor held | nothing held |
+| › "defers a fix version while main holds an unreleased minor for the package, and what depends on it" | `roundel@1.2.1` and its dependent kept | both deferred |
+| › "publishes that fix version when its changelog section carries a Security: entry" | — (no held set) | kept |
+| › "publishable: reads the held minors from .changeset/, and a Security: or patch changeset holds nothing" | `roundel@1.2.1` kept | deferred, with the `::notice` |
+| › "plan writes the whole summary" | the old sentence | the new one |
+
+Stryker over the changed lines of `release-window.mts` (run by hand: the repository lane
+mutates `packages/*/src` only): 70 mutants, 70 killed, 100%.
+
+`release-window.qnt` gains `fixWaits` and the code on `main` (a fix-only release merged while a
+feature is pending carries it). `safety` holds over `--max-steps=40 --max-samples=200000`;
+`unsplitHolds`, `npmOnlyHolds`, `holdsVersionsNotCode`, `shippedNeverReleasesAFeature` and
+`shippedNeverHoldsAFix` are each violated. ~~`models.yml` checks the first three and not yet the
+two new ones: B-20261026-models-yml-holds-code-invariants.~~ **2026-10-27:** `models.yml`'s step
+"release window — the rejected designs still fail, and the shipped one ships" checks all five
+(D-20261027-close-three-workflow-gaps); the lock above, red on `b62bd20c86`, holds its list.
+
+**The 30-day measurement.** `node scripts/release-window.mts measure --from 2026-10-19T02:06:25Z
+--to 2026-10-26T06:40:00Z --age 7` reads 0 days of 7.19 for all ten packages: no package's
+`latest` reached 7 days old in the first week after #1124. That window, as first written, closes
+2026-11-18T02:06:25Z and its reading will be recorded. But for its first week the mechanism let
+held code out, so the criterion is read over the 30 days after this fix merges, not the 30 after
+the merge of #1124: shifting the window later measures the mechanism the intent asked for, and lowers nothing.
 
 ## Rejected alternatives
 

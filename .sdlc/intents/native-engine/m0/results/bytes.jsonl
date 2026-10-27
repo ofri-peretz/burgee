@@ -1,0 +1,9 @@
+{"fixture":"byte-identical"}
+{"subject":"wait-port","compare":{"files":15,"jsRewritten":2,"compared":2,"identical":2,"differ":[],"jsRefusedOrKept":0,"rustOnly":[],"jsOnly":[]}}
+{"subject":"madge","compare":{"files":115,"jsRewritten":2,"compared":2,"identical":2,"differ":[],"jsRefusedOrKept":0,"rustOnly":[],"jsOnly":[]}}
+{"subject":"tsc-alias","compare":{"files":183,"jsRewritten":1,"compared":1,"identical":1,"differ":[],"jsRefusedOrKept":0,"rustOnly":[],"jsOnly":[]}}
+{"subject":"node-qrcode","compare":{"files":80,"jsRewritten":0,"compared":0,"identical":0,"differ":[],"jsRefusedOrKept":0,"rustOnly":[],"jsOnly":[]}}
+{"subject":"svgo","compare":{"files":120,"jsRewritten":4,"compared":4,"identical":4,"differ":[],"jsRefusedOrKept":0,"rustOnly":[],"jsOnly":[]}}
+{"subject":"docusaurus","compare":{"files":1185,"jsRewritten":10,"compared":10,"identical":10,"differ":[],"jsRefusedOrKept":0,"rustOnly":[],"jsOnly":[]}}
+{"subject":"typeorm","compare":{"files":3625,"jsRewritten":15,"compared":15,"identical":15,"differ":[],"jsRefusedOrKept":0,"rustOnly":[],"jsOnly":[]}}
+{"subject":"bench1000","compare":{"files":1000,"jsRewritten":667,"compared":667,"identical":667,"differ":[],"jsRefusedOrKept":0,"rustOnly":[],"jsOnly":[]}}

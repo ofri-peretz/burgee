@@ -304,6 +304,25 @@ describe('a terminal that does not report its size', () => {
     expect(f.out.join('')).toContain(`t=80${' '.repeat(76)}`);
     screen.close();
   });
+
+  /**
+   * A pseudo-terminal nobody gave a window size — `pty.fork()`, `docker run -t` before its first
+   * resize, `script` on some systems — reports 0 × 0, and Node passes the zeros on as numbers.
+   * `?? 80` let them through: the screen was laid out on no rows and drew nothing at all, found
+   * driving the reference dashboard on a real pty (controlroom criterion 4). flagstaff's own
+   * writer already reads a size of 0 as no size; the screen now does too.
+   */
+  it('reads a size of 0 as no size, and draws at 80 × 24', () => {
+    const f = fake();
+    Object.assign(f.rt.stdout, { columns: 0, rows: 0 });
+    const bare: Component<string> = { name: 'bare', static: (s) => s, frame: (t) => `t=${t}` };
+    const screen = open(f.rt, { layout: { direction: 'column', parts: [{ size: 1, content: 'b' }, { content: 'rest' }] }, panes: { b: { component: bare, state: '' }, rest: { component: text, state: 'below' } }, screen: 'alternate' });
+    expect(replay(f.out.join('')).slice(-24)).toEqual(['t=0', 'below', ...Array.from({ length: 22 }, () => '')]);
+    f.out.length = 0;
+    f.clock.tick(80);
+    expect(f.out.join('')).toContain(`t=80${' '.repeat(76)}`);
+    screen.close();
+  });
 });
 
 describe('R4 — the alternate screen', () => {

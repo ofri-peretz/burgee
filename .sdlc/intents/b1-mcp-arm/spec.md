@@ -1,6 +1,6 @@
 # Design — B1 over MCP
 
-Intent: [`intent.md`](./intent.md). **Status:** approved.
+Intent: [`intent.md`](./intent.md). **Status:** shipped (2026-10-27).
 
 **Accepted by the owner, 2026-10-12, by instruction: create and execute.** The instruction and the
 evidence are recorded in [`next-wave-2026-10.md`](../../research/next-wave-2026-10.md). The
@@ -46,18 +46,20 @@ what was accepted.
   The ratio `burgee-mcp ÷ burgee` is computed over the same task set only. A claim
   `cli-vs-mcp-tokens` in `benchmarks/claims.ts` stays `unmeasured` until four readings exist, and
   then takes its verdict from the median of the readings' ratios.
-- **R4 — The cost is bounded in the workflow.** `bench.yml` runs the arm on `schedule` and on the
-  `bench:agent` label only. A push to `main` runs the two existing variants. A test over the
-  workflow file holds that condition, so a later edit cannot widen the spend by accident.
+- **R4 — The cost is bounded in the workflow.** `bench.yml` runs the arm on `schedule`, on the
+  `bench:agent` label, and on a manual dispatch whose `mcp-arm` input is set (added 2026-10-27,
+  [D-20261027-b1-mcp-arm-owner-dispatch](../../decisions/D-20261027-b1-mcp-arm-owner-dispatch.md)),
+  only. A push to `main` and a dispatch without the input run the two existing variants. A test
+  over the workflow file holds that condition, so a later edit cannot widen the spend by accident.
 - **R5 — Published, both ways.** `what-an-agent-sees.mdx` gains a "CLI and MCP, one declaration"
-  section citing each reading by run id. Every number on it is checked by
+  section citing each reading by run id, with the median and range of the four. Every number on it is checked by
   `scripts/agent-page-lock.test.ts` against the landed results files. The section says which
   tasks were excluded and why. `cli-mcp/intent.md`'s fourth criterion is updated with the run ids.
 
 ## Design
 
 **Order:** R1 (the task files, no runs), R2 and R4 together (the variant cannot land without the
-bound), R3, then R5 after the fourth weekly reading.
+bound), R3, then R5 after the fourth reading.
 
 **Why the arm is cheap to build.** Everything that makes B1 trustworthy already exists:
 
@@ -82,8 +84,8 @@ what `migration-drivers.md` §6 argues and nobody has measured. Everything else 
 | R2 | `benchmarks/agent.test.ts`: the `burgee-mcp` spawn carries `--mcp-config` and `--strict-mcp-config`, allows no `Bash`, and its config starts the demo's server (a dry spawn with a stub `claude`) | today: two variants only |
 | R6 | `benchmarks/agent.test.ts` › *the arm never runs without its server*, and R2's *starts the build under test from the printed config*: a stub `claude` that is a real MCP client answers through the server the config starts; a dead server spends no run; a run reporting `failed` is not a pass; a weak arm leaves no ratio | 11 tests red on the 2026-10-20 harness (2026-10-26), among them the printed `demo-burgee` config failing to start the server, as it did on that run |
 | R3 | `benchmarks/agent.test.ts`: medians, ranges and the ratio from a fixture of attempts; the claim stays `unmeasured` with three readings and computes with four | a fixture with one reading must not produce a verdict |
-| R4 | `benchmarks/ci-axes.test.ts`: the arm's condition in `bench.yml` admits `schedule` and the label, refuses `push` | widening the condition to `push` fails it |
-| R5 | `scripts/agent-page-lock.test.ts` | a page number differing from its cited run's file fails it |
+| R4 | `benchmarks/ci-axes.test.ts`: the arm's condition in `bench.yml` admits `schedule`, the label and a dispatch with `mcp-arm` set, refuses `push` and a bare dispatch; a dispatched reading lands under its run id | widening the condition to `push` fails it; on 2026-10-27, 5 tests red on the schedule-only workflow (and 1 in `agent.test.ts` on the weekly-only file name) |
+| R5 | `scripts/agent-page-lock.test.ts` › "says only what the landed MCP readings say, and cites every one", and the seven cases of "the MCP lock can fail" | red on the page with no section ("has no … section"); each tampered ratio, dropped reading, mis-cited run id, wrong median, wrong per-task cell and unnamed excluded task fails it |
 
 ## Rejected alternatives
 
@@ -112,8 +114,8 @@ what `migration-drivers.md` §6 argues and nobody has measured. Everything else 
 | R2 | Built; since 2026-10-26 the config takes R6's print, with the build under test as its command | `benchmarks/axes/agent.ts` (`VARIANTS`, `variantsFor`, `mcpConfig`, `toolArgs`) | `benchmarks/agent.test.ts` (R2) |
 | R6 | Built 2026-10-26 | `benchmarks/axes/agent.ts` (`probeServer`, `serverStatus`, `armUnread`, `noReading`) | `benchmarks/agent.test.ts` (*the arm never runs without its server*) |
 | R3 | Built; the verdict waits on four paid readings | `benchmarks/axes/agent.ts` (`armRecords`, `priorReadings`), `benchmarks/claims.ts` | `benchmarks/agent.test.ts` (R3) |
-| R4 | Built | `.github/workflows/bench.yml` | `benchmarks/ci-axes.test.ts` (R4), `scripts/b1-lands-lock.test.ts` |
-| R5 | Not built: needs four paid weekly readings, 0 of 4 so far | `what-an-agent-sees.mdx`, `cli-mcp/intent.md` | `scripts/agent-page-lock.test.ts` |
+| R4 | Built; the owner's dispatch added 2026-10-27 | `.github/workflows/bench.yml` | `benchmarks/ci-axes.test.ts` (R4), `scripts/b1-lands-lock.test.ts` |
+| R5 | Built 2026-10-27 on four readings (runs 40492593210, 40518014447, 40528288811, 40539828491) | `what-an-agent-sees.mdx` § "CLI and MCP, one declaration", `cli-mcp/intent.md` | `scripts/agent-page-lock.test.ts` (*says only what the landed MCP readings say*, and *the MCP lock can fail*) |
 
 Built 2026-10-12 without a paid run. Every check above went red on the unbuilt code first and was
 proved against a stub `claude` and a stub MCP server, the same offline path B1's own harness uses.
@@ -149,7 +151,12 @@ proved against a stub `claude` and a stub MCP server, the same offline path B1's
   manual dispatch and an unlabelled PR run the two existing variants. The lock evaluates the
   expression for every event, and widening it to `push` turns it red (proved). The weekly reading
   now lands too, as `<date>-<sha>-weekly-ci.json`, so it never overwrites a push reading of the same
-  commit.
+  commit. Since 2026-10-27 a manual dispatch with the boolean `mcp-arm` input set (default `false`)
+  runs the arm too and lands as `<date>-<sha>-dispatch-<run id>-ci.json`
+  (D-20261027-b1-mcp-arm-owner-dispatch). The run id keeps three dispatches of one commit apart, and
+  `priorReadings` counts the name as it counts a weekly one. The name check (`isLandedCi`) is a
+  function rather than a module-level constant so Stryker can attribute it per test. Stryker, run
+  by hand on that line, killed 14 of 14 mutants.
 
 ## Cost
 
@@ -168,18 +175,52 @@ was no reading (R6), so it counts toward nothing.
 - A PR labelled `bench:agent` spends the same 15 runs on top of its 50.
 - Wall time: B1's job took 25–31 minutes on recent pushes. The extra 30% fits inside its
   60-minute `timeout-minutes`.
-- R5 and `cli-mcp`'s fourth criterion need **four weekly readings: 60 extra paid runs over four
-  weeks.**
+- R5 and `cli-mcp`'s fourth criterion need **four readings: 60 extra paid runs.** Since 2026-10-27
+  the owner may dispatch them rather than wait for the schedule
+  ([D-20261027-b1-mcp-arm-owner-dispatch](../../decisions/D-20261027-b1-mcp-arm-owner-dispatch.md)).
+  A dispatch is the whole B1 job, 50 CLI-arm runs and 15 MCP-arm runs. The owner approved three on
+  2026-10-27, at about 1.9M tokens each for the arm and about 6M in all.
 - **Stopping it.** The arm runs only while the repository variable `B1_MCP_ARM` reads `approved`
   (Settings → Secrets and variables → Actions → Variables). Deleting it stops the arm at the next
   run, and every event then runs the two CLI arms only.
 
+## Shipped 2026-10-27
+
+Four readings landed on `main` on 2026-10-27: one from the weekly schedule and three the owner
+dispatched (D-20261027-b1-mcp-arm-owner-dispatch). Each one meets R6's bar: every MCP run
+connected, and at least 0.8 of them passed.
+
+| run | results file | tokens, MCP ÷ CLI | turns, MCP ÷ CLI | MCP sessions passed |
+| :-- | :-- | --: | --: | --: |
+| 40492593210 | `2026-10-27-4c336da-weekly-ci.json` | 1.108 | 1.081 | 15/15 |
+| 40518014447 | `2026-10-27-7909fe2-dispatch-40518014447-ci.json` | 1.336 | 1.328 | 14/15 |
+| 40528288811 | `2026-10-27-8588e0d-dispatch-40528288811-ci.json` | 0.992 | 0.948 | 15/15 |
+| 40539828491 | `2026-10-27-72e3551-dispatch-40539828491-ci.json` | 1.327 | 1.37 | 14/15 |
+
+Every MCP session in the four readings connected. Tokens: median 1.218, range 0.992 to 1.336.
+Turns: median 1.205, range 0.948 to 1.37. The fourth file carries
+`mcp-tokens-total-ratio-readings-median` = 1.218, so `cli-vs-mcp-tokens` computes: met (≥ 1). The
+CLI cost fewer tokens than MCP in three readings of four. One reading, at 0.992, went the other
+way, so the page states the range beside the median.
+
+Spend of the three dispatches: the MCP arm used 4,394,371 tokens (1,681,322, 1,161,325 and
+1,551,724), under the owner's quote of about 1.9M a reading. The CLI arms in the same jobs used
+15,829,887 tokens. R5 is the "CLI and MCP, one declaration" section of `what-an-agent-sees.mdx`.
+It cites the four run ids, the median and range, and the per-task medians and ranges over all 20
+sessions per arm per task. It names the two excluded tasks and why. `scripts/agent-page-lock.test.ts`
+reads every weekly or dispatched file itself and holds every number in the section.
+
 ## What closes this intent
 
-R5, after four landed weekly readings. A reading is a `<date>-<sha>-weekly-ci.json` under
+R5, after four landed readings from scheduled or owner-dispatched runs, reported as their median
+and range (restated 2026-10-27 from "four weekly readings",
+[D-20261027-b1-mcp-arm-owner-dispatch](../../decisions/D-20261027-b1-mcp-arm-owner-dispatch.md)).
+A reading is a `<date>-<sha>-weekly-ci.json` or a `<date>-<sha>-dispatch-<run id>-ci.json` under
 `benchmarks/results/agent-cli-bench/` that carries a `burgee-mcp ÷ burgee` `mcp-tokens-total-ratio`
-record, and under R6 that record exists only when every MCP run connected and at least 0.8 of them
-passed. The fourth such file carries `mcp-tokens-total-ratio-readings-median`, so
-`cli-vs-mcp-tokens` computes. Then the "CLI and MCP, one declaration" section goes on
-`what-an-agent-sees.mdx` under `agent-page-lock`, `cli-mcp`'s criterion 4 is marked met with the
-four run ids, and both intents move to `shipped`. Count on 2026-10-26: 0 of 4.
+record. Under R6 that record exists only when every MCP run connected and at least 0.8 of them
+passed, and that bar is unchanged. The fourth such file carries
+`mcp-tokens-total-ratio-readings-median`, so `cli-vs-mcp-tokens` computes. Then the "CLI and MCP,
+one declaration" section goes on `what-an-agent-sees.mdx` under `agent-page-lock`, citing the four
+run ids with the median and range. `cli-mcp`'s criterion 4 is marked met with the four run ids, and
+both intents move to `shipped`. Count on 2026-10-27: 1 of 4 (run 40492593210,
+`2026-10-27-4c336da-weekly-ci.json`: tokens 1.108, turns 1.081, 15 of 15 connected and passed).

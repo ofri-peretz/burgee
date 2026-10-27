@@ -32,12 +32,12 @@
  *   a pair above it is held just above today's CI measurement until the PR that fixes it lowers
  *   the ceiling. Whether the target is met is on every record, beside the ceiling.
  */
-import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 import { type BenchRecord } from '../record.js';
 import { relativeToRepo, type Resolved, resolvePackage } from '../resolve.js';
 import { runtimeRatchet } from '../runtime-ratchets.js';
+import { spawnSync } from '../spawn.js';
 import { median, p95, round } from '../stats.js';
 
 const FIXTURES = fileURLToPath(new URL('../fixtures/runtime/', import.meta.url));

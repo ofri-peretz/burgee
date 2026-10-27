@@ -5,7 +5,6 @@
  * from a clean checkout (C6/R2). The upstream commit is recorded beside the
  * tests, and a scheduled job re-runs this to make the treadmill visible.
  */
-import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, matchesGlob, relative, resolve, sep } from 'node:path';
@@ -14,6 +13,7 @@ import { type OmittedFile, stripExecutables } from './binaries.js';
 import { testFiles } from './discover.js';
 import { type Host } from './hosts.js';
 import { fieldsFromRecord, PROVENANCE_FILE, renderProvenance } from './provenance.js';
+import { execFile } from './spawn.js';
 import { type CompatRecord, diffRecords, latestVersion, readRecord, type RecordDiff, registryTime, type ReleaseTime, snapshot } from './upstream.js';
 
 /** Length of an ISO date, `YYYY-MM-DD`. */
@@ -54,7 +54,7 @@ export interface VendorResult {
  *
  * The version reaching this function came from `npm view <pkg> version` — a remote answer,
  * which makes the tag built from it second-order input to a command line (CodeQL's
- * `js/second-order-command-line-injection`). `execFileSync` already rules out a shell, so
+ * `js/second-order-command-line-injection`). `execFile` already rules out a shell, so
  * the live hazard is not a metacharacter but a **leading dash**: a ref named `--upload-pack=…`
  * is read by git as an option, not a ref. So: no leading dash, and nothing outside the
  * characters a git ref may legally contain.
@@ -70,10 +70,10 @@ function cloneRelease(host: Host, version: string, clone: string): { commit: str
   // A refused ref is not an untagged release. Falling back to HEAD here is how clack's suite
   // was vendored three unreleased commits past 1.8.1 and failed its own control (PR #794).
   if (!SAFE_REF.test(tag)) throw new Error(`refusing to pass ${JSON.stringify(tag)} to git as a ref`);
-  const head = (): string => execFileSync('git', ['-C', clone, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  const head = (): string => execFile('git', ['-C', clone, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
   // `--` before the positionals, so a repo URL cannot be read as an option either.
   const shallow = (ref?: string): void => {
-    execFileSync('git', ['clone', '--depth', '1', ...(ref === undefined ? [] : ['--branch', ref]), '--', host.repo, clone], { stdio: 'ignore' });
+    execFile('git', ['clone', '--depth', '1', ...(ref === undefined ? [] : ['--branch', ref]), '--', host.repo, clone], { stdio: 'ignore' });
   };
   try {
     shallow(tag);

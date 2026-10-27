@@ -703,6 +703,54 @@ One mutation survived the first draft: dropping Escape's dismissal. Tab was the 
 case pressed after Escape, and Tab re-opened the menu without changing the text the case
 asserted. The case now asserts that the menu stays closed.
 
+## What shipped (R1 — `promptFor` — and R4 at a real terminal — 2026-10-27)
+
+**R1, the second spelling, is `caique/prompt-for`.** `promptFor(command, 'name', spec)` declares
+the prompt on the option or positional called `name` and wraps the command's handler;
+`promptFor(command)` wraps one whose options or arguments already declare `prompt:` (the schema
+spelling). Before the handler runs, `resolvePrompts()` walks the options, then the positionals,
+through `decide()`: asked where a person is, refused with `USAGE` where nobody is, `CANCELLED` on
+Ctrl+C or Ctrl+D. The handler never sees a missing value. The refusal is a `PromptRefusal`, an
+`Error` carrying `code`, `message`, `fix` and the `option` it stopped at, which burgee reads by
+name (P2, P3, D-120). Decisions: [D-20261027-caique-prompt-for-r1](../../decisions/D-20261027-caique-prompt-for-r1.md).
+
+- **The host is read structurally.** What `promptFor` reads of a command is `options`,
+  `arguments` and `run`; of a context, `options`, `args`, `positionals`, `env`, `interactive`,
+  `json` and `onExit`. burgee's `Command` and `RunContext` satisfy both; nothing imports burgee. A
+  handler whose context lacks those fields is a type error naming them.
+- **A refusal names the value the way it is passed** — `<name>` for a positional, `--dry-run` for
+  a `dryRun` key — through a `flag` that `decide()` and `resolvePrompts()` now accept.
+- **`--json` and `--mcp` refuse even at a terminal (R6).** burgee hands every handler `ctx.json`
+  for this; before it, a handler could not know.
+- **burgee leaves a missing value that declares a `prompt` to the binding** (`execute.ts`,
+  `parse-refusals.ts`), and help and `--schema` still say it is required. A declared prompt is
+  left out of the command's JSON, so `--schema` does not grow by a question no program is asked.
+- **The terminal is opened only to ask**: on stdin, the question on stderr, handed to the host's
+  exit path (E5) while open, and closed **before** the handler runs. The first version closed it
+  in a `finally` around the handler; [`interrupt.qnt`](./interrupt.qnt) found the handler running
+  with stdin raw in two steps.
+
+**R4, at a real terminal, on three OSes.** `src/pty-cancel.test.ts` drives two prompts —
+`promptFor`'s own terminal and `caique/clack`'s `text` — on a terminal from `scripts/pty-host.py`:
+`pty.fork()` on POSIX, ConPTY through `ctypes` on Windows
+([D-20261027-caique-pty-windows-conpty](../../decisions/D-20261027-caique-pty-windows-conpty.md)).
+It presses Ctrl+C at the question, then again once the prompt has settled: the second press ends
+the process only on a terminal back in cooked mode, so the restore is observed through the
+terminal rather than reported by Node. Proven red twice: `createIo()`'s interface given a `SIGINT`
+listener that ignores the key (the `promptFor` fixture never settles), and `clack-core.ts`'s
+`release()` without `this.unraw()` (the clack fixture prints `raw=true`). This is the "PTY tests
+… on all three OS runners" of § Verification, without `node-pty`.
+
+**The `style` option on `caique/clack`'s spinner** is flagstaff's criterion 8 on caique's side:
+a spinner style as data, so a plugin's registered spinner reaches a prompt without caique
+depending on flagstaff ([D-20261027-prompt-spinner-composed](../../decisions/D-20261027-prompt-spinner-composed.md)).
+Off a terminal it prints the style's `static`, where `frames` alone could only print the first
+frame.
+
+| Subpath | What a consumer gets | What it is for |
+| :-- | :-- | :-- |
+| `caique/prompt-for` | `promptFor`, `PromptRefusal`; `PromptContext`, `PromptableCommand`, `PromptableSpec`, `PromptableArgument`, `PromptForOptions` | a command's missing values asked for, or refused, before its handler runs (R1, added 2026-10-27; not reachable from the root) |
+
 ## Out of scope
 
 - **`inquirer@8`'s legacy `inquirer.prompt([...])` API.** See above: 34.3 M/wk of it, and

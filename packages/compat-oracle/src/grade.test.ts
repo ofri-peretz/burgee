@@ -8,7 +8,7 @@
  *
  * Three runners are driven for real — node:test, node-tap and exit-code need nothing but
  * `node`, so the counts below are the counts a real child printed. The others (mocha, ava,
- * vitest) and every failure to *start* a suite go through a fake `execFileSync` that records
+ * vitest) and every failure to *start* a suite go through a fake `execFile` (`spawn.ts`) that records
  * the call and answers with canned output: the argv is the thing under test there, and a
  * real spawn would add minutes and nothing a reader could check. `npm install` only ever
  * reaches the fake.
@@ -23,6 +23,7 @@ import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { type SpawnOptions } from 'bellpull/cross-spawn';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type Host } from './hosts.js';
@@ -34,25 +35,25 @@ interface Call {
   options: ExecFileSyncOptions & { env: NodeJS.ProcessEnv };
 }
 
-/** The real `execFileSync`, past the seam: the peer hook's child is this test's own, not a runner's. */
+/** A real `execFileSync`, past the seam: the peer hook's child is this test's own, not a runner's. */
 const realExec = (await vi.importActual<typeof import('node:child_process')>('node:child_process')).execFileSync;
 
 const seam = vi.hoisted(() => ({
-  /** When set, every `execFileSync` goes here instead of spawning. */
+  /** When set, every `execFile` goes here instead of spawning. */
   exec: undefined as undefined | ((call: { file: string; args: string[]; options: unknown }) => string),
   calls: [] as { file: string; args: string[]; options: unknown }[],
   /** When set, `symlinkSync` throws — the platform that refuses a link. */
   refuseLinks: false,
 }));
 
-vi.mock('node:child_process', async (importOriginal) => {
-  const real = await importOriginal<typeof import('node:child_process')>();
+vi.mock('./spawn.js', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./spawn.js')>();
   return {
     ...real,
-    execFileSync: (file: string, args: string[], options: unknown) => {
+    execFile: (file: string, args: string[], options: SpawnOptions) => {
       seam.calls.push({ file, args, options });
       if (seam.exec !== undefined) return seam.exec({ file, args, options });
-      return real.execFileSync(file, args, options as ExecFileSyncOptions);
+      return real.execFile(file, args, options);
     },
   };
 });

@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { decide, type Runtime as DecideRuntime } from './decide.js';
-import { processRuntime } from './runtime.js';
+import { processRuntime, promptStreams } from './runtime.js';
 import { streamsOf } from './terminal.js';
 
 const src = resolve(dirname(fileURLToPath(import.meta.url)));
@@ -120,5 +120,9 @@ describe('processRuntime', () => {
 
   it('is the stream pair `createIo()` builds over when it is given none', () => {
     expect(streamsOf(processRuntime())).toEqual({ input: process.stdin, output: process.stdout });
+  });
+
+  it('asks a prompt `promptFor` opens on stdin and writes it to stderr, never into the data on stdout (R1)', () => {
+    expect(promptStreams()).toEqual({ input: process.stdin, output: process.stderr });
   });
 });

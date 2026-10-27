@@ -199,6 +199,7 @@ function listenTo(target: NodeJS.EventEmitter | EventTarget, event: string, list
 // Captured at module load, so a suite that installs fake timers cannot take it away. The
 // deferral below is about the event loop's poll phase, not about anything a test is timing.
 const nativeSetImmediate = globalThis.setImmediate;
+const nativeClearImmediate = globalThis.clearImmediate;
 
 /**
  * A readline interface over a caller's input and our muted output.
@@ -389,8 +390,13 @@ function runPrompt<Value, Config>(view: ViewFunction<Value, Config>, origin: str
       });
     };
 
-    if ('readableFlowing' in input) nativeSetImmediate(startCycle);
-    else startCycle();
+    if ('readableFlowing' in input) {
+      // A prompt settled before its first render never draws it: a cancel or an abort in the
+      // same tick would otherwise leave readline listening on an input nobody reads
+      // (@inquirer/core 12.0.5).
+      const immediate = nativeSetImmediate(startCycle);
+      cleanups.add(nativeClearImmediate.bind(globalThis, immediate));
+    } else startCycle();
 
     return promptPromise;
   });

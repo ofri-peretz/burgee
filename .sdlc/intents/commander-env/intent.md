@@ -4,7 +4,7 @@
 > requirements V1–V5; research §3 (config and environment precedence), the second-
 > largest cluster after help.
 
-**Status:** approved · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** shipped (2026-10-26, every criterion re-read against `burgee@1.7.2` and `seniority@1.1.1` as installed from npm, [`D-20261026-shipped-on-published-patch`](../../decisions/D-20261026-shipped-on-published-patch.md)) · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
 
 > **Accepted at the Design→Build gate 2026-10-25** by the coordinator under the owner's delegation
 > ([`D-20261025-commander-env-design-accepted`](../../decisions/D-20261025-commander-env-design-accepted.md)): narrowed to V2 and K3; C3b measured and held as a reading; C1 and R3 dropped. See
@@ -12,12 +12,38 @@
 >
 > **Built 2026-10-25 (batch 29), still `approved` until `burgee` publishes:** V2 and K3 are on
 > `main`, behind a minor changeset. See [`spec.md` § Status 2026-10-25](./spec.md#status-2026-10-25).
+>
+> **Shipped 2026-10-26:** V2 and K3 are published in `burgee@1.7.2` (Version PR #1253, a patch
+> built from a `main` that carried #1252). See § Shipped 2026-10-26.
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Evidence:** `precedence.ts`, `config.ts`, `env.test.ts` — one order, `--explain`, `meta.provenance`, `extends` (V1–V7).
 
 **Restated:** 2026-10-18 — see § Restated 2026-10-18
 
 ---
+
+## Shipped 2026-10-26
+
+**Every criterion the design gate kept holds on the published package.** Version PR #1253
+published `burgee@1.7.2` and `seniority@1.1.1` on 2026-10-26 from `main` at `c4230e33` (their
+`gitHead`), and #1252, which built V2 and K3, is an ancestor of it. It went out as a patch, because
+the release window holds a minor's version number and not its code
+([`D-20261026-shipped-on-published-patch`](../../decisions/D-20261026-shipped-on-published-patch.md)).
+
+Every row was run on 2026-10-26 in an empty `mktemp -d` directory after
+`npm i burgee@1.7.2 seniority@1.1.1`, over a probe program `mytool` (`config: true`, one command
+`deploy` with `region: { type: 'string', env: 'MYTOOL_REGION', default: 'us-1' }`), with `HOME`
+and `XDG_CONFIG_HOME` pointed at an empty directory. None of it read the workspace.
+
+| Criterion | Command, against the published packages | Output |
+| :-- | :-- | :-- |
+| C1. A case per issue, failing on plain commander | — | dropped at the design gate, 2026-10-25 |
+| C2. `--explain <option>` prints the source and every overridden candidate | `mytool deploy --explain region`, with `mytool.config.json` setting `region` | `region = "eu-1"   from config file …/mytool.config.json:1`, `candidates: flag --region (unset), env MYTOOL_REGION (unset), default "us-1"` |
+| C3a. `meta.provenance` under `--json` | `mytool deploy --json`, the CLI inside a package whose `package.json` sets `mytool.region` on line 6 | `"provenance":{"region":{"source":"package","location":"…/package.json","line":6}}`. The line skips the top-level `region` key written above it |
+| C3b. Provenance-task median turns against commander | the CI readings in `benchmarks/results/agent-cli-bench/*-ci.json`, 2026-10-08 to 2026-10-18 | 5 turns for burgee against 11 for commander, over 71 readings; the per-reading ratio has median 0.500, under 1 in 68 of 71 (held as a reading at the design gate) |
+| C4. `--version` prints the owning package's, not the installing project's (V4) | a CLI with no declared version in `inner/` (`1.2.3`) under a root package (`9.9.9`), run from both directories | `1.2.3` both times |
+| V2. Env names in `--schema` (and `--mcp`) | `mytool --schema`; `tools/list` over `--mcp` | `options.region.env` is `MYTOOL_REGION`, and so is `inputSchema.properties.region.env`; the `--mcp` tool carries `"region":{"type":"string","flag":"--region",…,"env":"MYTOOL_REGION"}`. Help prints `[env: MYTOOL_REGION]` |
+| K3. The discovery order in `config explain` and `--explain` | `mytool config explain deploy`; `… --json`; `mytool deploy --explain region` | `discovery: the first file that exists is read`, then five numbered paths: `mytool.config.json` (current directory) `— read`, `.mjs`, `.js`, `.cjs`, then `mytool/config.json` (user config directory). `--json` carries `data.discovery.order` (path, reason, found) and `data.discovery.read`. `--explain` adds `config file …/mytool.config.json: discovery candidate 1 of 5 (current directory)` |
 
 ## Restated 2026-10-18
 

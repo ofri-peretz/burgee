@@ -5,13 +5,14 @@
 > and named it for wave 4, after `facade-projection-fidelity`, which it builds on; that intent's
 > R3 then opened gap `B-20261012-commander-argument-choices` for exactly this.
 
-**Status:** approved · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
+**Status:** shipped (2026-10-26, every criterion re-read against `burgee@1.7.2` as installed from npm, [`D-20261026-shipped-on-published-patch`](../../decisions/D-20261026-shipped-on-published-patch.md)) · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
 
 > Accepted 2026-10-19 by the coordinator under the owner's delegation
 > ([`D-20261019-typed-schema-surface-design-accepted`](../../decisions/D-20261019-typed-schema-surface-design-accepted.md)).
 > R1–R3 built on `feat/typed-schema-surface`; R4's argument `type` on `inputSchema` and completions
 > offering a positional's choices built on `feat/typed-positionals-remainder` (2026-10-26). Every
-> criterion holds on `main`; it stays `approved` until the burgee minor carrying them publishes.
+> criterion holds on `main`. *2026-10-26: shipped. The code is published in `burgee@1.7.2`; see
+> § Shipped 2026-10-26.*
 
 ---
 
@@ -58,6 +59,26 @@ fails its type or choices is a usage error with a `fix`, as an option's is. `--s
    commander façade.
 3. The gap is closed.
 
+## Shipped — 2026-10-26
+
+**Every criterion holds on the published package.** Version PR #1253 published `burgee@1.7.2` on
+2026-10-26 from `main` at `c4230e33` (its `gitHead`), and #1262, which built R4's `type` on
+`inputSchema` and the completions, is an ancestor of that commit. It went out as a patch, because
+the release window holds a minor's version number and not its code
+([`D-20261026-shipped-on-published-patch`](../../decisions/D-20261026-shipped-on-published-patch.md)).
+The "stays `approved`" paragraphs below are kept as written.
+
+Every row was run on 2026-10-26 in an empty `mktemp -d` directory after `npm i burgee@1.7.2`,
+over a probe program (`deploy` with `arguments: [{ name: 'env', choices: ['staging', 'prod'] },
+{ name: 'replicas', type: 'integer' }, { name: 'ratio', type: 'number', required: false, default:
+'0.5' }]`, and `fail` with one positional of choices `s m l`). None of it read the workspace.
+
+| Criterion | Command, against `burgee@1.7.2` | Output |
+| :-- | :-- | :-- |
+| 1. `type: 'integer'` gives `ctx.args.n` a `number`; `x` is exit 2 | `node cli.mjs deploy staging 3 --json`; `… deploy staging x`; `… deploy staging 2.6` | `"args":{"env":"staging","replicas":3,"ratio":0.5}`, `"types":{…"replicas":"number","ratio":"number"}`, `positionals` unchanged as strings, exit 0. `x`: `argument "replicas" expects an integer, got "x"`, the usage line, exit 2. `2.6`: the same refusal with `fix: tp deploy staging 3`, exit 2 |
+| 2. `choices` reach `--schema` (`enum`), `--mcp` `inputSchema` and completions, native and façade | `node cli.mjs --schema`; `tools/list` over `--mcp`; `node cli.mjs completion bash\|zsh\|fish\|pwsh`, and the bash script sourced in `/bin/bash` 3.2 with `COMP_WORDS` set; a `burgee/commander` program with `new Argument('<env>').choices(['staging', 'prod'])` | `--schema` and `--mcp` both carry `"env":{"type":"string","enum":["staging","prod"]}`, `"replicas":{"type":"integer"}`, `"ratio":{"type":"number","default":0.5}`, `required: ["env","replicas"]`. TAB: `tp deploy ⇥` offers `staging prod`, `tp deploy s⇥` offers `staging`, `tp deploy staging ⇥` offers nothing, `tp fail ⇥` offers `s m l`. zsh carries `'1: :(staging prod)'`, fish `-a 'staging prod'`, PowerShell `Slots = @{ 1 = @('staging', 'prod') }`. Façade: `deploy dev` is refused while parsing, `--schema` and the `--mcp` tool carry `"enum":["staging","prod"]`, and its bash and zsh scripts offer `staging prod` |
+| 3. The gap is closed | `.sdlc/gaps/B-20261012-commander-argument-choices.md` | `status: closed` (#1091) |
+
 ## Status (2026-10-26)
 
 | Criterion | State | Check |
@@ -78,7 +99,8 @@ argument's JSON type on its `inputSchema` property, `--schema` and `--mcp` alike
 type, and its default as that type", › "lists the typed property in --mcp tools/list"). The
 façade ratchets rise 94 B (D-20261026-typed-positionals-r4-weight). Completions are criterion 2's
 last surface, above. **The intent stays `approved`** until the burgee minor carrying both
-publishes; the release window opens no earlier than 2026-11-01. It is stamped `shipped` against
+publishes, which is the next Version PR now that there is no release window
+(D-20261027-no-release-window). It is stamped `shipped` against
 the published package, not against `main`.
 
 Found on the way and fixed: an `--mcp` call that skipped an optional positional shifted every

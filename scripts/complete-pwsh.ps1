@@ -28,19 +28,45 @@ function Write-Phase([string]$name) {
   $clock.Restart()
 }
 $dir = $null
-foreach ($program in @($Line | ForEach-Object { ($_ -split ' ')[0] } | Select-Object -Unique)) {
-  if (Get-Command $program -CommandType Application -TotalCount 1 -ErrorAction SilentlyContinue) { continue }
+# windows-lane-holds R3d: the phase lines named `lookup` as the slow one on the full Windows cells
+# (52.3 s, 60.4 s and 65.3 s of 54.7, 62.4 and 68.6, runs 40178182310, 40261602993, 39441261818)
+# while every later phase took milliseconds. Everything this phase called was a cmdlet PowerShell
+# had to find first: Get-Command for a name not on PATH, then Join-Path, New-Item, Set-Content
+# and Select-Object, which live in modules a -NoProfile session loads on first use, by searching
+# PSModulePath. That search is the likely cost, not a measured one; so the phase now calls .NET
+# only, and its next `lookup` line says whether it was. The PATH walk is a file check per
+# directory and PATHEXT entry, which is what `Get-Command -CommandType Application` answered.
+$exts = if ($IsWindows) { @($env:PATHEXT -split ';' | Where-Object { $_ }) } else { @('') }
+function Test-OnPath([string]$name) {
+  foreach ($d in ($env:PATH -split [System.IO.Path]::PathSeparator)) {
+    if (-not $d) { continue }
+    foreach ($e in $exts) {
+      $p = [System.IO.Path]::Combine($d, $name + $e)
+      if (-not [System.IO.File]::Exists($p)) { continue }
+      if ($IsWindows) { return $true }
+      # An Application on Unix is an executable file: any of the three execute bits (0o111).
+      if (([int][System.IO.File]::GetUnixFileMode($p)) -band 73) { return $true }
+    }
+  }
+  return $false
+}
+$seen = @{}
+foreach ($l in $Line) {
+  $program = ($l -split ' ')[0]
+  if ($seen.ContainsKey($program)) { continue }
+  $seen[$program] = $true
+  if (Test-OnPath $program) { continue }
   if (-not $dir) {
-    $dir = Join-Path ([System.IO.Path]::GetTempPath()) ("burgee-complete-" + [guid]::NewGuid().ToString('N'))
-    New-Item -ItemType Directory -Path $dir | Out-Null
+    $dir = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), 'burgee-complete-' + [guid]::NewGuid().ToString('N'))
+    [void][System.IO.Directory]::CreateDirectory($dir)
     $env:PATH = "$dir$([System.IO.Path]::PathSeparator)$env:PATH"
   }
   if ($IsWindows) {
-    Set-Content -Path (Join-Path $dir "$program.cmd") -Value '@echo off'
+    [System.IO.File]::WriteAllText([System.IO.Path]::Combine($dir, "$program.cmd"), "@echo off`r`n")
   } else {
-    $stub = Join-Path $dir $program
-    Set-Content -Path $stub -Value "#!/bin/sh`nexit 0"
-    chmod +x $stub
+    $stub = [System.IO.Path]::Combine($dir, $program)
+    [System.IO.File]::WriteAllText($stub, "#!/bin/sh`nexit 0`n")
+    [System.IO.File]::SetUnixFileMode($stub, [System.IO.UnixFileMode]'UserRead, UserWrite, UserExecute')
   }
 }
 Write-Phase 'lookup'
@@ -72,5 +98,5 @@ try {
     Write-Phase "run:$i"
   }
 } finally {
-  if ($dir) { Remove-Item -Recurse -Force $dir }
+  if ($dir) { [System.IO.Directory]::Delete($dir, $true) }
 }

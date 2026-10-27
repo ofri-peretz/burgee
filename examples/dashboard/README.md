@@ -1,9 +1,11 @@
 # dashboard — a controlroom boilerplate
 
-A full-screen dashboard in the shape of PostHog's setup wizard: tabs, a checklist with
-progress, a log tail, and a status line that collapses, in the alternate screen. The same
-program prints clean lines to a pipe, in CI and for a screen reader, and NDJSON under `--json`.
-It never waits for a key that nobody can press.
+A full-screen dashboard in the shape of PostHog's setup wizard: four tabs (Status, Tail logs,
+Visualizer, HN), a checklist with progress and the wizard's `◼ ▶ ◻` marks, a log tail, and a
+status line that collapses, in the alternate screen. The same program prints clean lines to a
+pipe, in CI and for a screen reader, and NDJSON under `--json`. It never waits for a key that
+nobody can press. [`examples/dashboard-ink`](../dashboard-ink) is the same screen written for
+Ink.
 
 ```bash
 npx degit ofri-peretz/burgee/examples/dashboard my-dashboard
@@ -25,9 +27,14 @@ cd my-dashboard && npm install && node dashboard.mjs
    [controlroom's layout](https://github.com/ofri-peretz/burgee/tree/main/packages/controlroom#api).
 3. **`KEYMAP` and `LABELS`**: the keys. The hint line is generated from them, so it can never
    name a key that does nothing.
+4. **The `register()` call**: the marks, as a flagstaff plugin. Delete it to keep flagstaff's own
+   `✔`, a blank pending mark and a spinner.
+5. **The `visualizer` and `hn` panes**: the tabs that are your app's own. The Visualizer draws
+   the run as a bar and is `liveOnly`, because off a terminal the status line already prints the
+   same count.
 
-The tab bar and the hint line are `liveOnly`: a pipe gets every pane's own static projection
-instead, under its label.
+The tab bar, the hint line and the Visualizer are `liveOnly`: a pipe gets every other pane's own
+static projection instead, under its label.
 
 ## Try every caller
 

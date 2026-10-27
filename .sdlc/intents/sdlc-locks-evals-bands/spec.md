@@ -1,6 +1,6 @@
 # Design — Every SDLC stage loaded in this repo
 
-Intent: [`intent.md`](./intent.md). **Status:** approved (2026-10-25); it was corrected from `shipped` to `review` on 2026-09-09, when the locks had shipped and the bands had not.
+Intent: [`intent.md`](./intent.md). **Status:** shipped (2026-10-27); approved 2026-10-25; it was corrected from `shipped` to `review` on 2026-09-09, when the locks had shipped and the bands had not.
 
 **Restated:** 2026-10-18 — see [§ Restated 2026-10-18](#restated-2026-10-18)
 
@@ -61,6 +61,44 @@ designs. The design gate's own documents, merged from #1245, add none.
 suite, not the 900,000 ms ceiling. The collector now logs the exit code and the last fifteen lines
 `npm test` printed, and `control-bands.yml` tees that into the run summary. So the next weekly run
 names the failing test, and fixing it is what gives the band its eighth point.
+
+## Status 2026-10-26
+
+The weekly run the 2026-10-25 status waited for has run. S3 stays open, now with its cause
+named, and the intent stays `approved`.
+
+| item | state | evidence |
+| :-- | :-- | :-- |
+| a dropped observation names its cause | **held, live** | run 40311991676 (scheduled, 2026-10-26 11:02 UTC) logged `⚠️ test-duration-ms: no observation — npm test exited 1` with the failing case: `scripts/mcp-config-block.test.ts` › "starts the server it names, as pasted, …", `ENOENT … chmod '…/examples/demo-cli-burgee/dist/bin.js'` |
+| `test-duration-ms` gains a point | open | the job's build step is `--filter='./packages/*'`; the demo the root suite starts is not built. compat.yml fixed the same failure in #1159 |
+| every band gains a point per run | open | the same run was cancelled at its 20-minute limit inside "Record observations and evaluate bands", after `--backfill-git` collected 121 new observations per compat band (46 on 2026-10-19). Nothing landed for any band. The 2026-10-19 observations went out in #1154, a breach draft closed under D-20261019-front-end-byte-steps-rebase-bands, so the lint bands still end at 2026-10-12 |
+
+**What closes S3:** B-20261026-control-bands-demo-build-and-budget (build the demo in
+`control-bands.yml`, and give the job the time `--backfill-git` now takes, or stop it re-reading
+what it already read), then the first scheduled run after it whose PR lands a point for every
+band, `test-duration-ms`'s eighth among them. Not built here: a change under `.github/` runs
+the paid task evals on its own pull request, and this batch spends no quota.
+
+**2026-10-27:** B-20261026-control-bands-demo-build-and-budget is closed by
+D-20261027-close-three-workflow-gaps. `control-bands.yml` builds `--filter=demo-cli-burgee`
+beside `./packages/*`; `scripts/control-bands.ts` reads each suite's git history once per run, not
+once per band; `timeout-minutes` is 25 (`COMMAND_TIMEOUT_MS` plus `WATCH_MINUTES_BEYOND_TEST`).
+Each is held by a lock that was red on `b62bd20c86`. S3 now waits only on the scheduled run of
+Monday 2026-11-02 and its observations PR merging.
+
+## Status 2026-10-27 — shipped
+
+S3 is met, so every success criterion holds. The owner dispatched `control-bands.yml` on `main`
+rather than wait for 2026-11-02, and the same decision that counts a dispatched `evals.yml` run
+counts this one: same job, same record path, owner's instruction.
+
+| item | evidence |
+| :-- | :-- |
+| the run | `control-bands.yml`, run 40537224930, `workflow_dispatch` on `main` at `3aaf422`, 2026-10-27 16:04 UTC, on the owner's "run them now". Counted as the scheduled run by [D-20261027-dispatched-eval-counts-as-weekly](../../decisions/D-20261027-dispatched-eval-counts-as-weekly.md) (extended to this workflow the same day) |
+| its observations landed | #1312, merged 2026-10-27 16:51 UTC: one file, `.sdlc/bands/control-bands.history.json`, a normal observations PR and not a breach draft |
+| every band gained a point | on `main` at `8a4bdaa`, the history holds 55 bands and every one has a 2026-10-27 point |
+| `test-duration-ms` has its eighth | 8 points, the newest 2026-10-27 at 145,451 ms; the seventh is 2026-09-28 at 188,804 ms |
+| every band evaluates | the run's log: 55 bands `inside band`, `test-duration-ms` among them at 8 points, then `0 breach(es), 0 at 2σ or above`. No breach-draft PR was opened |
 
 ## Restated 2026-10-18
 

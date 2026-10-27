@@ -137,6 +137,20 @@ describe('number', () => {
     await expect(empty.answer).resolves.toBeUndefined();
   });
 
+  it('reads a line of only whitespace as empty: the default, or a refusal under required, as @inquirer/number 4.2.5 does', async () => {
+    const fallback = await render(number, { message: 'Age', default: 35 });
+    fallback.events.type('  ');
+    fallback.events.keypress('enter');
+    await expect(fallback.answer).resolves.toBe(35);
+    expect(fallback.getScreen()).toBe(`${TICK} Age 35`);
+    const refused = await render(number, { message: 'Age', required: true });
+    refused.events.type('  ');
+    refused.events.keypress('enter');
+    await vi.waitFor(() => {
+      expect(refused.getScreen()).toContain('> You must provide a valid numeric value');
+    });
+  });
+
   it('shows a usable default, ignores one outside the bounds, and copies it on Tab', async () => {
     const shown = await render(number, { message: 'Age', default: 30 });
     expect(shown.getScreen()).toBe('? Age (30)');

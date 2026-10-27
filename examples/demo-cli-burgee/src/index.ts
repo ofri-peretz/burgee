@@ -4,6 +4,7 @@
  * data; the engine renders it as text or as the `--json` envelope.
  */
 import { defineCommand, defineProgram, isExitCode } from 'burgee';
+import { promptFor } from 'caique/prompt-for';
 
 /** A tiny "config store" so `config get` has something to return. */
 export const CONFIG = new Map<string, string>([
@@ -15,7 +16,9 @@ export const program = defineProgram({
   name: 'demo',
   description: 'The burgee reference demo',
   commands: [
-    defineCommand({
+    // caique R1: with no name, a person at a terminal is asked for one; anyone else — a pipe, CI,
+    // an agent, `--json`, an MCP tool call — is refused at once, naming `<name>` (P2, exit 2).
+    promptFor(defineCommand({
       name: 'greet',
       description: 'Greet someone',
       effects: 'read_only',
@@ -33,7 +36,7 @@ export const program = defineProgram({
         const line = `${String(options['greeting'])}, ${name ?? ''}!`;
         return options['shout'] === true ? line.toUpperCase() : line;
       },
-    }),
+    }), 'name', { kind: 'text', message: 'Who should I greet?' }),
     defineCommand({
       name: 'config',
       description: 'Read configuration',

@@ -115,7 +115,8 @@ function resolveRunOptions(parsed: Extract<RunArgs, { command: string[] }>, env:
     paths: ['.env'],
     defaultPath: true,
   };
-  if (envOptions.path !== undefined) {
+  // Truthiness, as upstream tests it: an empty `DOTENV_PATH` means the default (dotenv 18.0.9).
+  if (envOptions.path) {
     options.paths = [envOptions.path];
     options.defaultPath = false;
   }

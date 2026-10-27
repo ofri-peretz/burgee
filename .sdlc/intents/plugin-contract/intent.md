@@ -5,7 +5,7 @@
 > API is the product (Vite) and plugins are data (ESLint flat config). This intent makes
 > that one contract, not four.
 
-**Status:** approved · **Opened:** 2026-09-08 · **Design:** [`spec.md`](./spec.md), re-grounded 2026-10-25 and accepted in [`D-20261025-plugin-contract-design-accepted`](../../decisions/D-20261025-plugin-contract-design-accepted.md) · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-09-08 · **Design:** [`spec.md`](./spec.md), re-grounded 2026-10-25 and accepted in [`D-20261025-plugin-contract-design-accepted`](../../decisions/D-20261025-plugin-contract-design-accepted.md) · **Owner:** @ofri-peretz
 
 ---
 
@@ -85,6 +85,28 @@ plugins (a projection, not a registry), and the keyword convention indexes the g
 4. The U9 eval passes weekly against the shared schema. *(Restated 2026-10-25: every
    **executed** weekly reading passes. A run the usage limit stopped is recorded `not-run`,
    not a failure, and it is not a reading.)*
+
+## Re-read on the published packages — 2026-10-26
+
+**C1–C3 hold on what npm serves. C4 still has no executed reading, so the intent stays
+`approved`.** Version PR #1253 published all ten hosts on 2026-10-26 from `main` at `c4230e33`,
+which carries #1240 (`burgee check` runs every installed layer's check). Unlike the four intents
+stamped beside it in
+[`D-20261026-shipped-on-published-patch`](../../decisions/D-20261026-shipped-on-published-patch.md),
+this one never waited on a release alone.
+
+Run on 2026-10-26 in an empty `mktemp -d` directory after `npm i bellpull@1.0.10 burgee@1.7.2
+caique@1.5.1 closeout@1.1.8 controlroom@1.0.7 flagstaff@1.7.4 linegauge@1.1.5 paratext@1.0.11
+roundel@1.2.1 seniority@1.1.1`:
+
+| | Criterion | Command, against the published tarballs | Output |
+| :-- | :-- | :-- | :-- |
+| C1 | One schema, byte-identical in every published tarball | `shasum -a 256` of `require.resolve('<pkg>/schema.json')` for all ten | one hash, `b13e801f702edfca…`, 18,911 B in all ten (the published copy is minified; it parses deep-equal to `packages/burgee/src/schema.json` on `main`) |
+| C2 | The sample registers everywhere and renders in five modes | `burgee check acme.mjs`, the file `examples/plugins/acme.mjs` copied out | exit 0. `layers` lists roundel, flagstaff, linegauge, paratext, seniority, bellpull, closeout and caique, each `exitCode: 0`; flagstaff's renders the spinner in tty, pipe, ci, json and accessible. burgee's own `commands` show `doctor` |
+| C3 | `burgee check` on a plugin missing `static` → `E_NO_STATIC_PROJECTION` | `burgee check nostatic.mjs`, one spinner with `frames` and `interval` and no `static` | `refused:` with code `E_NO_STATIC_PROJECTION`, message `flagstaff: s has no static projection`, and a fix that says to give it a `static`; exit 1 |
+| C4 | The U9 eval passes weekly | `evals/history/` on `main`; `gh run list --workflow evals.yml` | **Met 2026-10-27:** run 40504387711 (2026-10-27, `db19cc6`), `evals/history/2026-10-27-db19cc6-40504387711.json` (#1299) executed and passed all 10 plugin cases (6–11 turns), counted as a weekly reading by [D-20261027-dispatched-eval-counts-as-weekly](../../decisions/D-20261027-dispatched-eval-counts-as-weekly.md). *Before that:* The newest executed weekly readings are still 2026-10-08 and 2026-10-09 (10 of 10 plugin cases). 2026-10-15 and 2026-10-22 were `not-run`. The next scheduled run is Saturday 2026-10-31 at 06:20 UTC (`cron: "20 6 * * 6"`, moved from Thursday to an hour after the weekly quota resets by D-20261027-close-three-workflow-gaps) |
+
+**Shipped 2026-10-27.** C1–C3 hold on the published packages (#1281); C4 is met by run 40504387711 (2026-10-27, `db19cc6`), `evals/history/2026-10-27-db19cc6-40504387711.json` (#1299).
 
 ## Status
 

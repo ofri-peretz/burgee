@@ -20,12 +20,13 @@
  * pointed at. The download is the only network this axis ever does, and it happens here,
  * before the measurement, not during it.
  */
-import { spawnSync } from 'node:child_process';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { spawnSync } from './spawn.js';
 
 const BENCH_ROOT = dirname(fileURLToPath(import.meta.url));
 /** Gitignored. A measurement tool is not source, and a binary in git is 1.5 MB of it. */

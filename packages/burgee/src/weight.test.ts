@@ -853,7 +853,11 @@ const RULES: Record<string, EntryRule> = {
     // `.conflicts()`, `.implies()` and `.example()` reach `--schema` and `--mcp` as `exclusive`,
     // `dependsOn` and `examples`. Main at `6b90ffe` measured 220,765 and this reads 221,617 (+852),
     // on a clean build. Plus the ~32 B CI reads heavier, rounded up to the next 50.
-    budget: 221_700,
+    // 221,800 on 2026-10-27 for A-20261027-yargs-parsesync-surfaces-throw
+    // (D-20261027-yargs-parsesync-surface-bytes): `completion <shell>` and `--mcp` answer a
+    // `parseSync()` program instead of throwing. Main at `c5e86d3044` measured 221,699 and this
+    // reads 221,755 (+56), on a clean build; plus the ~32 B, rounded up to the next 50.
+    budget: 221_800,
     // 217,100 with D-140 on top of D-122, N14 and E7, after merging #521. Measured 217,090.
     // 217,150 with A29's CommonJS export on top. Measured 217,123.
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
@@ -864,9 +868,11 @@ const RULES: Record<string, EntryRule> = {
   // measured, plus the ~32 B CI reads heavier, rounded up to the next 50 B. Its `require()` door,
   // `yargs/v17.cjs`, is not on this walk, which follows `import`. `./yargs` gained 36 B for the
   // seam the factory plugs into (`shim.CommandInstance`) and its budget does not move.
-  "./yargs/v17": { allow: ["linegauge"], budget: 224_750, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
+  // 224,850 on 2026-10-27 with `./yargs`' +56 B for parseSync() surfaces: 224,741 -> 224,797.
+  "./yargs/v17": { allow: ["linegauge"], budget: 224_850, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
   // 17's `yargs/yargs`: `./yargs/v17` and one function carrying three statics. 224,919 measured.
-  "./yargs/v17/yargs": { allow: ["linegauge"], budget: 225_000, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
+  // 225,100 on 2026-10-27 with `./yargs`' +56 B for parseSync() surfaces: 224,965 -> 225,021.
+  "./yargs/v17/yargs": { allow: ["linegauge"], budget: 225_100, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
   "./yargs/helpers": {
     allow: [],
     budget: 64_000,

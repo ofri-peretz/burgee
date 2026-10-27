@@ -180,3 +180,74 @@ now.
 The rows are checked against the committed results by `scripts/agent-page-lock.test.ts`, which
 sums the totals itself, and so are both counts above. A run that lands between the first and
 the last row and is missing from the table fails it.
+
+## CLI and MCP, one declaration
+
+The demo built on burgee is also an MCP server: `demo --mcp` serves the same commands, from the
+same declaration, as tools. So B1 has a third arm, `burgee-mcp`. It uses the same build, the same
+model, the same pinned `claude`, the same tasks and checks, and the same turn limits. The one
+difference is what the agent may call. The CLI arm may run `demo` through Bash, and the MCP arm
+may call the demo's MCP tools and nothing else. The CLI arm reads `--help` when it chooses to. The
+MCP arm's client loads every tool definition before the first turn. That difference is what the
+arm measures
+([b1-mcp-arm](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/b1-mcp-arm/spec.md)).
+
+Three of the five tasks can be stated word for word to an agent that has no shell. Two are
+excluded by name, not rewritten for MCP:
+
+- `recover-failure` asks for an exit status and "the exact command that worked", and its check
+  needs the flag spelling `--code`. A tool call has no exit status and no command line.
+- `non-tty-required` tests that a missing argument in a pipe exits 2 instead of prompting. That is
+  a terminal behaviour, and MCP has no terminal.
+
+A reading counts only when every MCP run's `claude` reported the server connected and at least
+0.8 of the arm's runs passed
+([D-20261026-b1-mcp-arm-server-guard](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/decisions/D-20261026-b1-mcp-arm-server-guard.md)).
+The first scheduled run of the arm, 2026-10-20, never reached its server, so it is no reading.
+One reading came from the weekly schedule. The owner dispatched the other three on 2026-10-27
+([D-20261027-b1-mcp-arm-owner-dispatch](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/decisions/D-20261027-b1-mcp-arm-owner-dispatch.md)).
+Each row is one run of the Benchmarks workflow: 15 sessions per arm, the three tasks five times
+each. Each ratio is the MCP arm's tokens or turns per session over the CLI arm's, on those three
+tasks:
+
+| run | results file | measured (UTC) | tokens, MCP ÷ CLI | turns, MCP ÷ CLI | MCP sessions passed |
+| :-- | :-- | :-- | --: | --: | --: |
+| 40492593210 | `2026-10-27-4c336da-weekly-ci.json` | 2026-10-27 11:23 | 1.108 | 1.081 | 15/15 |
+| 40518014447 | `2026-10-27-7909fe2-dispatch-40518014447-ci.json` | 2026-10-27 14:39 | 1.336 | 1.328 | 14/15 |
+| 40528288811 | `2026-10-27-8588e0d-dispatch-40528288811-ci.json` | 2026-10-27 15:44 | 0.992 | 0.948 | 15/15 |
+| 40539828491 | `2026-10-27-72e3551-dispatch-40539828491-ci.json` | 2026-10-27 16:58 | 1.327 | 1.37 | 14/15 |
+
+Every MCP session in all four readings connected to the server. The two failed sessions both hit
+the turn limit on diagnose-provenance.
+
+The tokens ratio over these 4 readings has a median of 1.218, from 0.992 to 1.336. The turns ratio
+over these 4 readings has a median of 1.205, from 0.948 to 1.37. With an even count, the median is
+the midpoint of the middle two readings. **On these three tasks, the agent spent more tokens and
+took more turns over MCP than over the CLI, in three of the four readings. In the fourth, MCP cost
+slightly less: 0.992 for tokens and 0.948 for turns.** The claim
+`cli-vs-mcp-tokens` ("an agent spends no more tokens through burgee's CLI than through its MCP
+server") reads its verdict from the median, 1.218, and is met. The range is the other half of
+that sentence. One reading came in under 1, and readings of B1's CLI ratio have swung from 0.49
+to 0.995 between runs, so four readings in one day are not a settled number.
+
+Per task, over every session of the four readings (20 per arm per task): the median, and the
+lowest and highest session, in tokens and in turns. A median here is the 10th of 20 sessions in
+order, the suite's nearest-rank rule:
+
+| task | CLI tokens | MCP tokens | CLI turns | MCP turns |
+| :-- | --: | --: | --: | --: |
+| diagnose-provenance | 109924 (107184 to 201729) | 154107 (64740 to 360415) | 5 (5 to 11) | 7 (3 to 16) |
+| discover-subcommand | 64162 (41949 to 107422) | 63683 (63575 to 63817) | 3 (2 to 5) | 3 (3 to 3) |
+| structured-output | 42129 (42035 to 63836) | 63696 (63628 to 63973) | 2 (2 to 3) | 3 (3 to 3) |
+
+The table shows where the difference comes from. No MCP session used fewer than 63,575 tokens, on
+any task. A CLI session on structured-output used as few as 42,035. The MCP client puts every tool
+definition in the context before the first turn, so a short task pays for all of them, and the CLI
+arm pays only for the help it reads. On discover-subcommand, where the CLI agent reads help before
+it acts, the two arms are level. diagnose-provenance is the long task, and it is where the arms
+spread most. The MCP arm's sessions ran from 3 to 16 turns, and both of its failures were there.
+
+The rows, both medians and ranges, and every per-task cell are checked against the committed
+results files by `scripts/agent-page-lock.test.ts`. A dispatched reading's run id is in its file
+name, and the lock holds the row to it. A landed reading missing from the table fails the lock,
+and so does a task the arm does not run that this section does not name.

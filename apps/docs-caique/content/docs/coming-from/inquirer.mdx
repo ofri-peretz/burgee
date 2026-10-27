@@ -1,6 +1,6 @@
 ---
 title: Coming from inquirer
-description: "An inquirer alternative for prompts that never hang: caique/inquirer carries @inquirer/core's surface, graded 41 / 41 by its own suite — and caique's prompts are flags first, so a non-TTY caller gets an error naming the flag instead of a hang."
+description: "An inquirer alternative for prompts that never hang: caique/inquirer carries @inquirer/core's surface, graded 45 / 45 by its own suite — and caique's prompts are flags first, so a non-TTY caller gets an error naming the flag instead of a hang."
 ---
 
 **caique** is an **inquirer alternative** built on one rule: a prompt is a flag first. Its
@@ -25,18 +25,18 @@ named as a gap in caique's spec.
 ## Is caique compatible with inquirer?
 
 Graded against `@inquirer/core`, where the prompt loop — the keypress state machine both
-inquirer façades sit on — is actually tested. Its suite, vendored at 12.0.3 and unmodified
+inquirer façades sit on — is actually tested. Its suite, vendored at 12.0.5 and unmodified
 apart from the import specifier, runs against `caique/inquirer` beside a control that runs it
 against the real package:
 
 | | passing | rate |
 | :-- | --: | --: |
-| `caique/inquirer` | 41 / 41 | 100.0% |
-| `@inquirer/core` itself (control) | 41 / 41 | 100.0% |
+| `caique/inquirer` | 45 / 45 | 100.0% |
+| `@inquirer/core` itself (control) | 45 / 45 | 100.0% |
 
 From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `npm run compat:page` generates from the
 oracle's last run; that page is the authority. There is **no graded row for the legacy
-`inquirer` package**, for the reason above. The 41 grade the loop, not the drawing.
+`inquirer` package**, for the reason above. The 45 grade the loop, not the drawing.
 
 ## What you gain over inquirer
 

@@ -39,3 +39,14 @@ export const processRuntime = (): Runtime => ({
  * `processRuntime` is one — read when asked, never frozen at import.
  */
 export const processFacts = (): { cwd: string; platform: string } => ({ cwd: process.cwd(), platform: process.platform });
+
+/**
+ * Where a prompt a program did not draw itself is asked (R1, `promptFor`): read from stdin and
+ * written to **stderr**. stdout is the command's data, and `cli new > out.json` must not put the
+ * question in the file — so the question goes where an error would, which is where a person at a
+ * terminal is still looking. A function for the reason `processRuntime` is one.
+ */
+export const promptStreams = (): { input: Runtime['stdin']; output: NodeJS.WritableStream & { isTTY?: boolean; columns?: number; rows?: number } } => ({
+  input: process.stdin,
+  output: process.stderr,
+});

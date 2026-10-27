@@ -3,7 +3,7 @@ repo:     https://github.com/chalk/supports-color
 version:  11.0.0
 tag:      v11.0.0
 commit:   e2a4cd3c44eb384b075161ef32859cd29ce1aa7f
-vendored: 2026-10-19
+vendored: 2026-10-26
 files:    1
 tool:     scripts/vendor-suite.ts
 

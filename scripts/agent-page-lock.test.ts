@@ -28,11 +28,13 @@
  *   - the model named on the page is the model the cited runs recorded, and the page is in the
  *     navigation.
  */
-import { readdirSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { CLAIMS } from 'benchmarks/claims.js';
+import { median } from 'benchmarks/stats.js';
 import { describe, expect, it } from 'vitest';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -182,12 +184,154 @@ export function problems(page: string, docs: Map<string, Doc>): string[] {
   ];
 }
 
+/**
+ * `.sdlc/intents/b1-mcp-arm/` R5 — "CLI and MCP, one declaration".
+ *
+ * The section cites every landed reading of the MCP arm: a scheduled run's
+ * `<date>-<sha>-weekly-ci.json` or an owner-dispatched run's `<date>-<sha>-dispatch-<run id>-ci.json`
+ * (D-20261027-b1-mcp-arm-owner-dispatch) that carries the `burgee-mcp ÷ burgee` tokens ratio. Under
+ * D-20261026-b1-mcp-arm-server-guard that record exists only when every MCP run connected and at
+ * least 0.8 passed, so a file without it is no reading. This reads those files itself rather than
+ * through the harness, so the harness cannot vouch for its own count.
+ *
+ *   - **every reading row** equals its file: the time it was measured, both ratios, and how many of
+ *     the arm's mapped runs passed. A dispatched reading's run id is in its file name, and the row's
+ *     run id must be that one;
+ *   - **no reading is left out**, and the rows run in the order the readings were measured;
+ *   - **the median and range** in the prose are recomputed from the rows (the midpoint of the middle
+ *     two for an even count, as `armRecords` takes it), and the newest reading's own
+ *     `mcp-tokens-total-ratio-readings-median`, once it has one, must say the same;
+ *   - **every per-task row** is recomputed from every run of every cited reading, per arm;
+ *   - **every task the arm does not run is named** in the section, which says why.
+ */
+const MCP_RATIO = 'burgee-mcp ÷ burgee';
+const MCP_HEADING = '## CLI and MCP, one declaration';
+const READING_FILE = /^\d{4}-\d{2}-\d{2}-[0-9a-f]{7}-(?:weekly|dispatch-(\d+))-ci\.json$/u;
+const MCP_ROW = /^\| (\d+) \| `(\d{4}-\d{2}-\d{2}-[0-9a-f]{7}-(?:weekly|dispatch-\d+)-ci\.json)` \| (\d{4}-\d{2}-\d{2} \d{2}:\d{2}) \| ([\d.]+) \| ([\d.]+) \| (\d+\/\d+) \|$/gmu;
+const MCP_TASK_ROW = /^\| ([a-z-]+) \| (\d+) \((\d+) to (\d+)\) \| (\d+) \((\d+) to (\d+)\) \| (\d+) \((\d+) to (\d+)\) \| (\d+) \((\d+) to (\d+)\) \|$/gmu;
+const MCP_SPREAD = /The\s+(tokens|turns)\s+ratio\s+over\s+these\s+(\d+)\s+readings\s+has\s+a\s+median\s+of\s+([\d.]+),\s+from\s+([\d.]+)\s+to\s+([\d.]+)\./gu;
+
+/** Every landed reading of the MCP arm, by file name. */
+export function mcpReadings(dir = RESULTS): Map<string, Doc> {
+  const out = new Map<string, Doc>();
+  for (const file of readdirSync(dir)) {
+    if (!READING_FILE.test(file)) continue;
+    const doc = JSON.parse(readFileSync(join(dir, file), 'utf8')) as Doc;
+    if (agent(doc, MCP_RATIO, 'mcp-tokens-total-ratio') !== undefined) out.set(file, doc);
+  }
+  return out;
+}
+
+/** The midpoint median `armRecords` takes, so an even count does not lean either way. */
+function midpoint(xs: readonly number[]): number {
+  const sorted = xs.toSorted((a, b) => a - b);
+  const half = Math.floor(sorted.length / 2);
+  const mid = sorted.length % 2 === 1 ? sorted[half]! : (sorted[half - 1]! + sorted[half]!) / 2;
+  return Math.round(mid * THOUSANDTHS) / THOUSANDTHS;
+}
+
+/** One build's runs of one task across the cited readings: `<task>.tokens` or `.turns`, measured runs only. */
+function pooled(docs: readonly Doc[], build: string, task: string, what: 'tokens' | 'turns'): number[] {
+  return docs.flatMap((doc) =>
+    String(agent(doc, build, 'success-rate')?.detail?.[`${task}.${what}`] ?? '')
+      .split(',')
+      .filter((v) => /^\d+$/u.test(v))
+      .map(Number),
+  );
+}
+
+/** One reading row against its file: the run id a dispatched file names, the time, both ratios, the passes. */
+function readingRow([, run, file, at, tokens, turns, passed]: Row, readings: Map<string, Doc>): string[] {
+  const doc = readings.get(file!);
+  if (doc === undefined) return [`${file!}: no landed reading of the MCP arm by that name`];
+  const out: string[] = [];
+  const dispatched = READING_FILE.exec(file!)?.[1];
+  if (dispatched !== undefined && dispatched !== run) out.push(`${file!}: the page cites run ${run!}, and the file was landed by run ${dispatched}`);
+  const mapped = agent(doc, 'burgee-mcp', 'mcp-mapped-tokens-per-task')?.detail;
+  const want = { measured: minute(doc.measured), tokens: agent(doc, MCP_RATIO, 'mcp-tokens-total-ratio')?.median, turns: agent(doc, MCP_RATIO, 'mcp-turns-total-ratio')?.median, passed: `${String(mapped?.['passed'])}/${String(mapped?.['runs'])}` };
+  const got = { measured: at!, tokens: Number(tokens), turns: Number(turns), passed: passed! };
+  for (const key of Object.keys(want) as (keyof typeof want)[]) if (want[key] !== got[key]) out.push(`${file!}: the page says ${key} ${String(got[key])}, the reading says ${String(want[key])}`);
+  return out;
+}
+
+/** "The tokens ratio over these N readings has a median of M, from A to B.", and turns, from the rows. */
+function spreadProblems(section: string, rows: readonly Row[], readings: Map<string, Doc>): string[] {
+  const spreads = new Map([...section.matchAll(MCP_SPREAD)].map((m) => [m[1]!, m] as const));
+  const out = (
+    [
+      ['tokens', 4],
+      ['turns', 5],
+    ] as const
+  ).flatMap(([what, column]) => {
+    const said = spreads.get(what);
+    if (said === undefined) return [`the MCP section no longer says "The ${what} ratio over these N readings has a median of M, from A to B."`];
+    const values = rows.map((r) => Number(r[column]));
+    const want = [values.length, midpoint(values), Math.min(...values), Math.max(...values)];
+    const got = [Number(said[2]), Number(said[3]), Number(said[4]), Number(said[5])];
+    return want.join() === got.join() ? [] : [`the page says the ${what} ratio over ${said[2]!} readings has median ${said[3]!}, from ${said[4]!} to ${said[5]!}; the rows say ${String(want[0])} readings, median ${String(want[1])}, from ${String(want[2])} to ${String(want[3])}`];
+  });
+  const newest = readings.get(rows.at(-1)?.[2] ?? '');
+  const settled = newest === undefined ? undefined : agent(newest, MCP_RATIO, 'mcp-tokens-total-ratio-readings-median')?.median;
+  const saidTokens = spreads.get('tokens')?.[3];
+  if (settled !== undefined && saidTokens !== undefined && settled !== Number(saidTokens)) out.push(`the newest reading settles cli-vs-mcp-tokens at ${String(settled)}, and the page says ${saidTokens}`);
+  return out;
+}
+
+/** Every per-task row, recomputed from every session of every cited reading; and a row for each mapped task. */
+function taskProblems(section: string, cited: readonly Doc[]): string[] {
+  const taskRows = [...section.matchAll(MCP_TASK_ROW)];
+  const mappedTasks = new Set(cited.flatMap((doc) => String(agent(doc, 'burgee-mcp', 'mcp-mapped-tokens-per-task')?.detail?.['tasks'] ?? '').split(',').filter(Boolean)));
+  const missing = [...mappedTasks].filter((task) => !taskRows.some((r) => r[1] === task)).map((task) => `the MCP section has no per-task row for ${task}`);
+  const wrong = taskRows.flatMap(([, task, ...cells]) => {
+    const columns = [pooled(cited, 'burgee', task!, 'tokens'), pooled(cited, 'burgee-mcp', task!, 'tokens'), pooled(cited, 'burgee', task!, 'turns'), pooled(cited, 'burgee-mcp', task!, 'turns')];
+    const want = columns.flatMap((xs) => (xs.length === 0 ? [Number.NaN, Number.NaN, Number.NaN] : [median(xs), Math.min(...xs), Math.max(...xs)]));
+    return want.join() === cells.map(Number).join() ? [] : [`${task!}: the page says ${cells.join(', ')}, the cited readings say ${want.join(', ')}`];
+  });
+  return [...missing, ...wrong];
+}
+
+/** Everything in the MCP section that disagrees with the landed readings. */
+export function mcpProblems(page: string, readings: Map<string, Doc>, excluded: readonly string[]): string[] {
+  const start = page.indexOf(MCP_HEADING);
+  if (start === -1) return [`the page has no "${MCP_HEADING.slice(3)}" section (b1-mcp-arm R5)`];
+  const next = page.indexOf('\n## ', start + MCP_HEADING.length);
+  const section = page.slice(start, next === -1 ? undefined : next);
+  const rows = [...section.matchAll(MCP_ROW)];
+  if (rows.length === 0) return ['the MCP section has no reading table this lock can read'];
+  const expected = [...readings.entries()].sort(([, a], [, b]) => a.measured.localeCompare(b.measured)).map(([file]) => file);
+  const shown = rows.map((r) => r[2]!);
+  const order = expected.join(' ') === shown.join(' ') ? [] : [`the MCP reading table is not every landed reading, in the order measured: expected ${expected.join(', ')}`];
+  const cited = shown.flatMap((file) => (readings.has(file) ? [readings.get(file)!] : []));
+  return [
+    ...rows.flatMap((row) => readingRow(row, readings)),
+    ...order,
+    ...spreadProblems(section, rows, readings),
+    ...taskProblems(section, cited),
+    ...excluded.filter((task) => !section.includes(`\`${task}\``)).map((task) => `the MCP section does not name ${task}, which the arm does not run`),
+  ];
+}
+
+/** The tasks whose file does not list `mcp` among its modalities: the ones the arm excludes by name. */
+function cliOnlyTasks(): string[] {
+  const dir = join(ROOT, 'benchmarks/tasks');
+  return readdirSync(dir)
+    .filter((f) => f.endsWith('.json'))
+    .map((f) => JSON.parse(readFileSync(join(dir, f), 'utf8')) as { id: string; modalities?: string[] })
+    .filter((t) => !(t.modalities ?? []).includes('mcp'))
+    .map((t) => t.id);
+}
+
 describe('What an agent sees', () => {
   const page = readFileSync(join(ROOT, PAGE), 'utf8');
   const docs = landed();
 
   it('says only what the landed B1 results say', () => {
     expect(problems(page, docs)).toEqual([]);
+  });
+
+  it('says only what the landed MCP readings say, and cites every one (b1-mcp-arm R5)', () => {
+    expect(cliOnlyTasks().length).toBeGreaterThan(0);
+    expect(mcpProblems(page, mcpReadings(), cliOnlyTasks())).toEqual([]);
   });
 
   it('is in the navigation', () => {
@@ -237,5 +381,62 @@ describe('the lock can fail', () => {
     const tampered = page.replace(/\| 0\/5 \|$/mu, '| 5/5 |');
     expect(tampered).not.toBe(page);
     expect(problems(tampered, docs).join('\n')).toMatch(/commander passed 5\/5/u);
+  });
+});
+
+/** A results file carrying the MCP ratio, or not. */
+const readingDoc = (ratio?: number): string => JSON.stringify({ measured: '2026-10-27T00:00:00.000Z', records: ratio === undefined ? [] : [{ axis: 'agent', variant: MCP_RATIO, metric: 'mcp-tokens-total-ratio', median: ratio }] });
+
+describe('the MCP lock can fail', () => {
+  const page = readFileSync(join(ROOT, PAGE), 'utf8');
+  const readings = mcpReadings();
+  const excluded = cliOnlyTasks();
+  const rows = [...page.matchAll(MCP_ROW)];
+
+  it('catches a ratio that is not the reading’s', () => {
+    const first = rows[0]![0];
+    const tampered = page.replace(first, first.replace(/\| ([\d.]+) \| ([\d.]+) \| (\d+\/\d+) \|$/u, '| 0.123 | $2 | $3 |'));
+    expect(tampered).not.toBe(page);
+    expect(mcpProblems(tampered, readings, excluded).join('\n')).toMatch(/the page says tokens 0\.123/u);
+  });
+
+  it('catches a reading dropped from the table', () => {
+    const tampered = page.replace(`${rows.at(-1)![0]}\n`, '');
+    expect(mcpProblems(tampered, readings, excluded).join('\n')).toMatch(/not every landed reading/u);
+  });
+
+  it('catches a dispatched reading cited under another run id', () => {
+    const dispatched = rows.find((r) => r[2]!.includes('-dispatch-'));
+    expect(dispatched, 'no dispatched reading to mis-cite').toBeDefined();
+    const tampered = page.replace(dispatched![0], dispatched![0].replace(/^\| \d+ \|/u, '| 1 |'));
+    expect(mcpProblems(tampered, readings, excluded).join('\n')).toMatch(/the page cites run 1, and the file was landed by run/u);
+  });
+
+  it('catches a median or a range the rows do not give', () => {
+    const tampered = page.replace(/The tokens ratio over these (\d+) readings has a median of [\d.]+/u, 'The tokens ratio over these $1 readings has a median of 0.5');
+    expect(tampered).not.toBe(page);
+    expect(mcpProblems(tampered, readings, excluded).join('\n')).toMatch(/the rows say/u);
+  });
+
+  it('catches a per-task row that is not the pooled runs', () => {
+    const row = [...page.matchAll(MCP_TASK_ROW)][0]![0];
+    const tampered = page.replace(row, row.replace(/^\| ([a-z-]+) \| \d+ /u, '| $1 | 1 '));
+    expect(mcpProblems(tampered, readings, excluded).join('\n')).toMatch(/the cited readings say/u);
+  });
+
+  it('catches an excluded task the section does not name', () => {
+    expect(mcpProblems(page, readings, [...excluded, 'not-a-task']).join('\n')).toMatch(/does not name not-a-task/u);
+  });
+
+  it('counts a weekly or dispatched file without the ratio as no reading, and a push file never', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-readings-'));
+    try {
+      writeFileSync(join(dir, '2026-10-20-a7d8fb7-weekly-ci.json'), readingDoc());
+      writeFileSync(join(dir, '2026-10-27-1111111-dispatch-42-ci.json'), readingDoc(1));
+      writeFileSync(join(dir, '2026-10-27-2222222-ci.json'), readingDoc(1));
+      expect([...mcpReadings(dir).keys()]).toEqual(['2026-10-27-1111111-dispatch-42-ci.json']);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
