@@ -368,6 +368,16 @@ Each item names the command that exits non-zero when it is wrong:
 The check that would have caught the original gap is R1's PTY case. It is red today,
 because `cursor.ts` never leaves the alternate screen.
 
+**Held 2026-10-27** (feat/controlroom-close): R1's PTY case is
+`packages/closeout/src/pty-matrix.test.ts`, every exit path of the intent's constraint 3 on a real
+terminal from `scripts/pty-host.py`, with raw mode read off the terminal by `stty -a` during the
+exit; R6 and R7's conformance test is `examples/dashboard/dashboard.test.mjs` in `pipe`, `ci`,
+`accessible` and `--json`, and 100 runs each with stdin at `/dev/null` and at a pipe nobody writes
+to (the Ink screen fixture, `examples/dashboard-ink`, the same); R14's W3 demo half is the B4 pair
+`controlroom/dashboard`; R16's controlroom side is `src/widget-contract.test.ts`; R22's PTY job is
+held for the dashboard by its own suite's real-terminal case. The model of the screen's restore
+is `restore.qnt` beside this file.
+
 ## Rejected alternatives
 
 - **A `flagstaff/screen` subpath.** flagstaff's design puts full-screen use, the alternate

@@ -1,0 +1,55 @@
+{
+ "note": "2026-10-27 19:27, interleaved, 11 runs. Field-trial projects run with --only commander,yargs (a superset of what the default considers).",
+ "runs": 11,
+ "load": [
+  49.2,
+  39.4,
+  29.4
+ ],
+ "cores": 14,
+ "node -e 0": {
+  "median": 20.8,
+  "min": 19.5,
+  "max": 24.8
+ },
+ "burgee --version": {
+  "median": 49.6,
+  "min": 45.9,
+  "max": 113.3
+ },
+ "js wait-port": {
+  "median": 90.4,
+  "min": 82.8,
+  "max": 214.2
+ },
+ "js madge": {
+  "median": 118.7,
+  "min": 106.9,
+  "max": 167.7
+ },
+ "js tsc-alias": {
+  "median": 134.6,
+  "min": 122.2,
+  "max": 156
+ },
+ "js node-qrcode": {
+  "median": 105.3,
+  "min": 98.9,
+  "max": 118.1
+ },
+ "js svgo": {
+  "median": 126.5,
+  "min": 114.2,
+  "max": 146.2
+ },
+ "js docusaurus": {
+  "median": 547.9,
+  "min": 523.8,
+  "max": 653.5
+ },
+ "js typeorm": {
+  "median": 842.3,
+  "min": 788.9,
+  "max": 952.3
+ }
+}

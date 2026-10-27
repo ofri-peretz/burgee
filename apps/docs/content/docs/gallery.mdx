@@ -76,6 +76,214 @@ One line per row of header-and-value pairs, parseable without knowing the drawin
 | `json` | `{"event":"table","state":{"rows":[["ora","99"]]}}⏎ {"event":"table","state":{"rows":[["ora","99"],["log-update","99"]]}}⏎` |
 | `accessible` | `host: ora, tests: 99⏎ host: log-update, tests: 99⏎` |
 
+## A whole screen, in five modes
+
+[controlroom](https://controlroom.interlace.tools)'s reference dashboard, `examples/dashboard` — four
+tabs, a checklist with progress, a log tail and a status line that collapses, in the shape of
+PostHog's setup wizard — run to the end in every mode over a manual clock. The `tty` screens are
+its bytes replayed onto a terminal grid; every other block is what it wrote, escapes shown as
+`␛`. Off a terminal no pane is hidden behind a tab, and the tab bar and the key hints, which only
+mean something to a person at a keyboard, are not printed.
+
+### tty
+
+The screen a terminal shows, 80 × 24: mid-run on the Status tab, with the second step running,
+
+```text
+[Status] · Tail logs · Visualizer · HN
+Progress: 1/4 completed
+The wizard installs the SDK   ◼ Detect the framework
+and checks the first event.   ▷ Install the SDK
+                              ◻ Write the config
+                              ◻ Check the setup
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+←→ switch tab  s toggle status  q/^C quit
+```
+
+and after `→`, on the Tail logs tab:
+
+```text
+Status · [Tail logs] · Visualizer · HN
+Progress: 1/4 completed
+◆ Detect the framework
+┊ found package.json
+┊ framework: next
+◆ Install the SDK
+┊ npm install posthog-js
+┊ added 1 package
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+←→ switch tab  s toggle status  q/^C quit
+```
+
+### pipe
+
+```text
+Status
+Progress: 0/4 completed
+Learn
+The wizard installs the SDK
+and checks the first event.
+Tasks
+
+Log
+
+HN
+Your own tab: put your app’s content here.
+◆ Detect the framework
+┊ found package.json
+┊ framework: next
+◼ Detect the framework
+◆ Install the SDK
+┊ npm install posthog-js
+┊ added 1 package
+Progress: 1/4 completed
+◼ Install the SDK
+◆ Write the config
+┊ wrote posthog.config.js
+Progress: 2/4 completed
+◼ Write the config
+◆ Check the setup
+┊ sent a test event
+┊ event received
+Progress: 3/4 completed
+◼ Check the setup
+Progress: 4/4 completed
+Done: Progress: 4/4 completed
+```
+
+### ci
+
+```text
+Status
+Progress: 0/4 completed
+Learn
+The wizard installs the SDK
+and checks the first event.
+Tasks
+
+Log
+
+HN
+Your own tab: put your app’s content here.
+◆ Detect the framework
+┊ found package.json
+┊ framework: next
+◼ Detect the framework
+◆ Install the SDK
+┊ npm install posthog-js
+┊ added 1 package
+Progress: 1/4 completed
+◼ Install the SDK
+◆ Write the config
+┊ wrote posthog.config.js
+Progress: 2/4 completed
+◼ Write the config
+◆ Check the setup
+┊ sent a test event
+┊ event received
+Progress: 3/4 completed
+◼ Check the setup
+Progress: 4/4 completed
+Done: Progress: 4/4 completed
+```
+
+### json
+
+```text
+{"event":"status","state":"Progress: 0/4 completed"}
+{"event":"learn","state":"The wizard installs the SDK\nand checks the first event."}
+{"event":"tasks","state":{"tasks":[{"title":"Detect the framework","status":"pending"},{"title":"Install the SDK","status":"pending"},{"title":"Write the config","status":"pending"},{"title":"Check the setup","status":"pending"}]}}
+{"event":"log","state":{"lines":[]}}
+{"event":"hn","state":"Your own tab: put your app’s content here."}
+{"event":"tasks","state":{"tasks":[{"title":"Detect the framework","status":"running"},{"title":"Install the SDK","status":"pending"},{"title":"Write the config","status":"pending"},{"title":"Check the setup","status":"pending"}]}}
+{"event":"log","state":{"lines":[{"step":"Detect the framework"},"found package.json","framework: next"]}}
+{"event":"status","state":"Progress: 0/4 completed"}
+{"event":"tasks","state":{"tasks":[{"title":"Detect the framework","status":"ok"},{"title":"Install the SDK","status":"running"},{"title":"Write the config","status":"pending"},{"title":"Check the setup","status":"pending"}]}}
+{"event":"log","state":{"lines":[{"step":"Detect the framework"},"found package.json","framework: next",{"step":"Install the SDK"},"npm install posthog-js","added 1 package"]}}
+{"event":"status","state":"Progress: 1/4 completed"}
+{"event":"tasks","state":{"tasks":[{"title":"Detect the framework","status":"ok"},{"title":"Install the SDK","status":"ok"},{"title":"Write the config","status":"running"},{"title":"Check the setup","status":"pending"}]}}
+{"event":"log","state":{"lines":[{"step":"Detect the framework"},"found package.json","framework: next",{"step":"Install the SDK"},"npm install posthog-js","added 1 package",{"step":"Write the config"},"wrote posthog.config.js"]}}
+{"event":"status","state":"Progress: 2/4 completed"}
+{"event":"tasks","state":{"tasks":[{"title":"Detect the framework","status":"ok"},{"title":"Install the SDK","status":"ok"},{"title":"Write the config","status":"ok"},{"title":"Check the setup","status":"running"}]}}
+{"event":"log","state":{"lines":[{"step":"Detect the framework"},"found package.json","framework: next",{"step":"Install the SDK"},"npm install posthog-js","added 1 package",{"step":"Write the config"},"wrote posthog.config.js",{"step":"Check the setup"},"sent a test event","event received"]}}
+{"event":"status","state":"Progress: 3/4 completed"}
+{"event":"tasks","state":{"tasks":[{"title":"Detect the framework","status":"ok"},{"title":"Install the SDK","status":"ok"},{"title":"Write the config","status":"ok"},{"title":"Check the setup","status":"ok"}]}}
+{"event":"log","state":{"lines":[{"step":"Detect the framework"},"found package.json","framework: next",{"step":"Install the SDK"},"npm install posthog-js","added 1 package",{"step":"Write the config"},"wrote posthog.config.js",{"step":"Check the setup"},"sent a test event","event received"]}}
+{"event":"status","state":"Progress: 4/4 completed"}
+{"event":"commit","state":"Done: Progress: 4/4 completed"}
+{"event":"status","state":"Progress: 4/4 completed"}
+{"event":"learn","state":"The wizard installs the SDK\nand checks the first event."}
+{"event":"tasks","state":{"tasks":[{"title":"Detect the framework","status":"ok"},{"title":"Install the SDK","status":"ok"},{"title":"Write the config","status":"ok"},{"title":"Check the setup","status":"ok"}]}}
+{"event":"log","state":{"lines":[{"step":"Detect the framework"},"found package.json","framework: next",{"step":"Install the SDK"},"npm install posthog-js","added 1 package",{"step":"Write the config"},"wrote posthog.config.js",{"step":"Check the setup"},"sent a test event","event received"]}}
+{"event":"hn","state":"Your own tab: put your app’s content here."}
+```
+
+### accessible
+
+```text
+Status
+Progress: 0/4 completed
+Learn
+The wizard installs the SDK
+and checks the first event.
+Tasks
+
+Log
+
+HN
+Your own tab: put your app’s content here.
+◆ Detect the framework
+┊ found package.json
+┊ framework: next
+◼ Detect the framework
+◆ Install the SDK
+┊ npm install posthog-js
+┊ added 1 package
+Progress: 1/4 completed
+◼ Install the SDK
+◆ Write the config
+┊ wrote posthog.config.js
+Progress: 2/4 completed
+◼ Write the config
+◆ Check the setup
+┊ sent a test event
+┊ event received
+Progress: 3/4 completed
+◼ Check the setup
+Progress: 4/4 completed
+Done: Progress: 4/4 completed
+```
+
 ## Spinner styles
 
 What the registry holds right now. `static` is what every mode but `tty` prints; a style

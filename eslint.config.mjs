@@ -194,6 +194,10 @@ export default [
       // m0/reproduce.sh. Linting it to the product rules would change the code the
       // measurement ran; the product package (M1) is linted like every other.
       ".sdlc/intents/oxmutate/m0/**",
+      // native-engine M0, for the same reason: the harness and fixture behind the numbers in
+      // .sdlc/intents/native-engine/spec.md, re-runnable through m0/reproduce.sh. The fixture is
+      // a migrate input (bare `vi`, `jest`, `require`) on purpose, so no rule set fits it.
+      ".sdlc/intents/native-engine/m0/**",
       "apps/*/next-env.d.ts",
       // Vendored upstream test suites (compat-oracle C6). They are the hosts' own
       // files, unmodified except one import specifier, and are graded, never linted:

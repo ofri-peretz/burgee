@@ -253,10 +253,17 @@ jobs:
           while IFS= read -r f; do filters+=("$f"); done < <(node -p "JSON.parse(process.env.PACKAGES).map((n) => '--filter=' + n).join('\\n')")
           npx turbo run test "${filters[@]}" --concurrency=${{ matrix.os == 'ubuntu-latest' && '4' || '2' }}
       # The controls grade the real packages through compat-oracle, so only it can move them.
+      # Its own limit, under the job's: an informational step must not spend the hard gate's
+      # budget. On 2026-10-27 the Windows cell's Controls ran from 19:00 until the job's 30
+      # minutes cancelled everything at 19:21, silent throughout: ink's suite, 1,200 s a grade
+      # and graded three times (D-20261027-windows-controls-ink). Measured without ink: ~7 min
+      # on ubuntu, ~9 on macOS, ~13.5 on Windows, and the steps before it take ~9 there, so 17
+      # leaves the job ~4. `--progress` names each host as it starts: a stall says which host.
       - name: Controls (informational off Linux)
         if: env.FULL == 'true' || contains(fromJSON(env.PACKAGES), 'compat-oracle')
         continue-on-error: ${{ matrix.os != 'ubuntu-latest' }}
-        run: node packages/compat-oracle/dist/bin.js --control
+        timeout-minutes: 17
+        run: node packages/compat-oracle/dist/bin.js --control --progress
       # cli-foundation-stack Y4: has this Node absorbed a foundation layer? Each layer's vectors
       # against the builtin it composes, alone (`scripts/absorption-probe.ts`). Reported, never
       # gated: a count that rises on a new LTS opens an intent to deprecate that layer on

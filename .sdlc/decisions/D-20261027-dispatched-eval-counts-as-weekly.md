@@ -24,5 +24,12 @@ and keeps producing the series `eval-history-lock` reads. A dispatched run is no
 failing week: a failed or `not-run` reading, scheduled or dispatched, still counts against the
 series exactly as before.
 
+**Extended the same day to `control-bands.yml`.** `sdlc-locks-evals-bands` S3 waited on "the
+scheduled run" of the band watcher. Run 40537224930 (2026-10-27, `3aaf422`) is that workflow
+dispatched on `main` on the same instruction. The job, the `--backfill-git --write-intent --check`
+step and the observations PR are the same on `schedule` and `workflow_dispatch`. It landed through
+PR #1312 and gave all 55 bands a point, `test-duration-ms` its eighth, with no breach. The weekly
+schedule (`10 5 * * 1`) stays.
+
 **Reversal.** If the next scheduled run (2026-10-31 06:20 UTC) executes and fails a case these
 intents name, reopen the intent that case belongs to.

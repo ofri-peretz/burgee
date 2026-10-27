@@ -149,7 +149,14 @@ process.stdout.write(renderToString(h(Box, { borderStyle: 'single', padding: 1 }
     const app = mkdtempSync(join(tmpdir(), 'controlroom-ink-'));
     try {
       const workspace = resolve(pkgRoot, '..', '..', 'node_modules');
-      const peers = peerDirs(workspace).map((at) => join(app, npm(['pack', '--silent', '--pack-destination', app], { cwd: at, encoding: 'utf8' }).trim()));
+      // One `npm pack` for the three peers, not one each. npm takes several folders and prints a
+      // tarball per line, in order. On Windows every npm is `npm.cmd` through `cmd.exe` and a cold
+      // Node, and this case took 11.2–27.0 s on `main`'s full Windows cells, 72.7 s once.
+      const peers = npm(['pack', '--silent', '--pack-destination', app, ...peerDirs(workspace)], { cwd: app, encoding: 'utf8' })
+        .trim()
+        .split(/\r?\n/u)
+        .map((tarball) => join(app, tarball.trim()));
+      expect(peers.filter((tarball) => tarball.endsWith('.tgz') && existsSync(tarball))).toHaveLength(3);
       const ours = readdirSync(dir).filter((f) => f.endsWith('.tgz')).map((f) => join(dir, f));
       npm(['install', '--offline', '--no-audit', '--no-fund', '--silent', ...ours, ...peers], { cwd: app, stdio: 'ignore' });
       writeFileSync(join(app, 'app.mjs'), INK_APP);

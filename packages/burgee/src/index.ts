@@ -80,6 +80,7 @@ export type {
   OutputSchema,
   ActionRequiredSpec,
   Plugin,
+  PromptDeclaration,
   Relation,
   RunContext,
   StandardResult,

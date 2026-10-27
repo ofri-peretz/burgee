@@ -10,6 +10,7 @@
  *
  * Run by `npm run gallery:page`, the way `compat-page.ts` is (B7, C2).
  */
+import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,6 +20,8 @@ import { box, boxComponent, type Component, fromCliBoxes, fromCliSpinners, hoist
 
 // eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and scripts read the app table through its one typed reader rather than re-parsing it
 import { familyApp } from '../apps/docs-chassis/src/config';
+
+import { screenOf, type Size } from './screen.js';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 /**
@@ -109,6 +112,43 @@ const shipped = new Set(registered().spinners.keys());
 const added = corpus.filter((name) => !shipped.has(name));
 const sampleStyles = added.slice(0, SAMPLE_STYLES);
 
+/** What `gallery-dashboard.mjs` prints: the dashboard's bytes in every mode, `tty` at two moments. */
+interface DashboardRun {
+  size: Size;
+  tty: { status: string; logs: string };
+  pipe: string;
+  ci: string;
+  json: string;
+  accessible: string;
+}
+
+const fence = (text: string): string => ['```text', text, '```'].join('\n');
+/** A transcript as written, escapes and carriage returns made visible; newlines stay newlines in a block. */
+const written = (bytes: string): string => bytes.replaceAll('\u001B', '␛').replaceAll('\r', '␍').trimEnd();
+
+/**
+ * controlroom's reference dashboard in all five modes (controlroom criterion 1). Run in its own
+ * process — see `gallery-dashboard.mjs` for why — and its `tty` bytes replayed onto a screen by
+ * `screen.ts`, because a whole screen's escape stream is kilobytes nobody can read.
+ */
+function dashboard(): string {
+  const r = JSON.parse(execFileSync(process.execPath, [join(root, 'scripts', 'gallery-dashboard.mjs')], { encoding: 'utf8' })) as DashboardRun;
+  const screen = (bytes: string): string => fence(screenOf(bytes, r.size).join('\n'));
+  return [
+    `### tty`,
+    '',
+    `The screen a terminal shows, ${String(r.size.columns)} × ${String(r.size.rows)}: mid-run on the Status tab, with the second step running,`,
+    '',
+    screen(r.tty.status),
+    '',
+    'and after `→`, on the Tail logs tab:',
+    '',
+    screen(r.tty.logs),
+    '',
+    ...(['pipe', 'ci', 'json', 'accessible'] as const).flatMap((mode) => [`### ${mode}`, '', fence(written(r[mode])), '']),
+  ].join('\n');
+}
+
 export function gallery(): string {
   return `---
 title: Gallery
@@ -130,6 +170,16 @@ screen reader all read. Notice that no other row contains an escape sequence.
 
 ${SAMPLES.map((s) => modesFor(s)).join('\n\n')}
 
+## A whole screen, in five modes
+
+[controlroom](https://controlroom.interlace.tools)'s reference dashboard, \`examples/dashboard\` — four
+tabs, a checklist with progress, a log tail and a status line that collapses, in the shape of
+PostHog's setup wizard — run to the end in every mode over a manual clock. The \`tty\` screens are
+its bytes replayed onto a terminal grid; every other block is what it wrote, escapes shown as
+\`␛\`. Off a terminal no pane is hidden behind a tab, and the tab bar and the key hints, which only
+mean something to a person at a keyboard, are not printed.
+
+${dashboard()}
 ## Spinner styles
 
 What the registry holds right now. \`static\` is what every mode but \`tty\` prints; a style

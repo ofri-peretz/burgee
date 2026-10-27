@@ -91,6 +91,18 @@ describe('R2 · with nobody there, a missing value is an error and never a wait'
     expect(d.message).toBe('--output-dir is required when nobody is there to answer');
   });
 
+  it('names `flag` instead, when that is how it is passed — a positional, under --json as anywhere (R1)', () => {
+    const d = decide({ value: undefined, spec: text, option: 'name', flag: '<name>', runtime: rt(false), required: true });
+    expect(d).toMatchObject({ message: '<name> is required when there is no terminal', fix: 'pass <name>; it would have been asked as "Where should it go?"' });
+    const json = decide({ value: undefined, spec: text, option: 'name', flag: '<name>', runtime: rt(true), flags: { json: true }, required: true });
+    expect(json).toMatchObject({ message: '<name> is required under --json', fix: expect.stringMatching(/^pass <name>; --json means/u) as string });
+  });
+
+  it('an option that does not say it is required is not asked for, and needs no flags', () => {
+    expect(decide({ value: undefined, spec: text, option: 'out', runtime: rt(true) })).toEqual({ action: 'skip' });
+    expect(decide({ value: undefined, spec: text, option: 'out', runtime: rt(true), flags: undefined, required: true })).toEqual({ action: 'prompt' });
+  });
+
   it('FORCE_TTY=1 is the one override, as it is for burgee', () => {
     const runtime = { env: { CLAUDECODE: '1', FORCE_TTY: '1' }, isTTY: { stdin: true } };
     expect(decide({ value: undefined, spec: text, option: 'out', runtime, required: true }).action).toBe('prompt');

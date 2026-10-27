@@ -2195,12 +2195,12 @@ async function transitiveOf(dir: string, dependencies: Map<string, string>, movi
 /* ------------------------------------------------------------------ what to run next */
 
 /** The package manager whose lockfile is here, so `next` is a command that runs as written. */
-function installer(dir: string): { add: string; remove: string } {
+function installer(dir: string): { add: string; remove: string; exact: string } {
   const has = (file: string): boolean => existsSync(join(dir, file));
-  if (has('pnpm-lock.yaml')) return { add: 'pnpm add', remove: 'pnpm remove' };
-  if (has('yarn.lock')) return { add: 'yarn add', remove: 'yarn remove' };
-  if (has('bun.lockb') || has('bun.lock')) return { add: 'bun add', remove: 'bun remove' };
-  return { add: 'npm install', remove: 'npm uninstall' };
+  if (has('pnpm-lock.yaml')) return { add: 'pnpm add', remove: 'pnpm remove', exact: '--save-exact' };
+  if (has('yarn.lock')) return { add: 'yarn add', remove: 'yarn remove', exact: '--exact' };
+  if (has('bun.lockb') || has('bun.lock')) return { add: 'bun add', remove: 'bun remove', exact: '--exact' };
+  return { add: 'npm install', remove: 'npm uninstall', exact: '--save-exact' };
 }
 
 /** Every family package a rewrite can name: the packages of `MAPPING`'s targets. */
@@ -2271,6 +2271,33 @@ function floorsOf(specifiers: readonly string[], since: SubpathFloors, graded: R
   return floors;
 }
 
+/** A version with no range around it: `1.2.3`, or a prerelease of one. What `--save-exact` writes. */
+const EXACT = /^\d+\.\d+\.\d+(?:-[\w.-]+)?$/;
+
+/**
+ * How one range is written: `''` exact, `'~'` around an exact version, `undefined` for anything
+ * else (`^1.2.3`, `>=18`, `*`, a tag). A caret is not told apart: `next` writes one by default.
+ */
+function styleOf(range: string): '' | '~' | undefined {
+  if (EXACT.test(range)) return '';
+  return range.startsWith('~') && EXACT.test(range.slice(1)) ? '~' : undefined;
+}
+
+/**
+ * B-20261027-migrate-pins-match-exact-convention — how the family packages `next` adds are
+ * written, in the project's own convention rather than burgee's. Exact when every runtime
+ * dependency the manifest declares is exact (concurrently pins all six, the incumbent among them,
+ * and `^1.7.2` was the one caret in its manifest); otherwise the style every incumbent the run
+ * moves shares, `~` or exact; otherwise the caret U12-2 chose.
+ */
+function pinStyle(runtime: Readonly<Record<string, string>>, incumbents: readonly string[]): '' | '~' | '^' {
+  const ranges = Object.values(runtime);
+  if (ranges.length > 0 && ranges.every((range) => styleOf(range) === '')) return '';
+  const styles = new Set(incumbents.map(styleOf));
+  const [only] = styles;
+  return styles.size === 1 && only !== undefined ? only : '^';
+}
+
 /**
  * `npm install roundel@^1.0.0 flagstaff@^1.2.1 && npm uninstall chalk ora`, or the half that applies.
  *
@@ -2279,12 +2306,14 @@ function floorsOf(specifiers: readonly string[], since: SubpathFloors, graded: R
  * and none of the three carries the drop-in the report had just graded. A caret at the version
  * the graded drop-in shipped in installs that version or a compatible later one, and fails
  * loudly rather than settling for an older one. A peer that is not ours (`react-reconciler`)
- * is not pinned: its version is the project's business.
+ * is not pinned: its version is the project's business. In a project that pins exactly, the pin
+ * is exact, with the installer's own flag, since `npm install burgee@1.7.2` alone saves `^1.7.2`.
  */
-function nextStep(dir: string, add: string[], remove: string[], versions: Readonly<Record<string, string>>): string {
+function nextStep(dir: string, add: string[], remove: string[], { versions, style }: { versions: Readonly<Record<string, string>>; style: '' | '~' | '^' }): string {
   const pm = installer(dir);
-  const pinned = add.map((name) => (versions[name] === undefined ? name : `${name}@^${versions[name]}`));
-  const steps = [pinned.length > 0 ? `${pm.add} ${pinned.join(' ')}` : '', remove.length > 0 ? `${pm.remove} ${remove.join(' ')}` : ''];
+  const pinned = add.map((name) => (versions[name] === undefined ? name : `${name}@${style}${versions[name]}`));
+  const adder = style === '' ? `${pm.add} ${pm.exact}` : pm.add;
+  const steps = [pinned.length > 0 ? `${adder} ${pinned.join(' ')}` : '', remove.length > 0 ? `${pm.remove} ${remove.join(' ')}` : ''];
   return steps.filter((c) => c !== '').join(' && ');
 }
 
@@ -2450,12 +2479,12 @@ async function pinsUnder(
 }
 
 /** The `releaseAge` the report carries: the setting, the pins it forced, and one note that says what `next` will do. */
-function releaseAgeNote(age: Setting, pins: readonly ReleaseAgePin[], unread: readonly string[], now: Date): ReleaseAge {
+function releaseAgeNote(age: Setting, { pins, unread }: { pins: readonly ReleaseAgePin[]; unread: readonly string[] }, now: Date, style: string): ReleaseAge {
   const lines = pins.map((p) => {
     // migrate-pins-carry-the-drop-in: when an older release was old enough but lacks a subpath, the note says which one.
     const carrying = p.requires === undefined ? '' : ` that exports ${p.requires.specifiers.join(', ')} (first in ${p.requires.since})`;
     return Date.parse(p.installable) <= now.getTime()
-      ? `${p.name} ${p.graded} is younger than that, so next pins ^${p.version}, the newest ${p.name} ${p.version.split('.')[0]}.x${carrying} old enough; run your tests on it`
+      ? `${p.name} ${p.graded} is younger than that, so next pins ${style}${p.version}, the newest ${p.name} ${p.version.slice(0, p.version.indexOf('.'))}.x${carrying} old enough; run your tests on it`
       : `no ${p.name} ${p.version.split('.')[0]}.x${carrying} is old enough until ${p.installable.replace('T', ' ').replace(/:\d\d\.\d+Z$/, '')} UTC, when ${p.version} is: the install fails before then, or exempt ${p.name} from the rule`;
   });
   if (lines.length === 0 && unread.length === 0) lines.push('every family version in next is older than that');
@@ -2911,6 +2940,8 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
       : await pinsUnder(age, add, graded, { times: options.registry ?? registryTimes, now, floors: floorsOf([...new Set(all.map((m) => m.to))].sort(), options.since ?? (await subpathFloors()), graded) });
 
   const rows = offMajor.map((row) => withSites(row, older, scanned));
+  const moved = [...new Set(all.map((m) => packageOf(m.from)))].flatMap((host) => dependencies.get(host) ?? []);
+  const style = pinStyle(manifest.dependencies ?? {}, moved);
 
   const report: MigrationReport = {
     summary: workListed(summaryOf(changed.length, refusedFiles, dryRun, blocking), rows.reduce((n, row) => n + row.sites.length, 0)),
@@ -2931,10 +2962,10 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
     undeclared,
     held,
     transitive: [...through.entries()].map(([from, by]) => ({ from, through: by, exports: identityOf(from) })),
-    releaseAge: age === null ? null : releaseAgeNote(age, under.pins, under.unread, now),
+    releaseAge: age === null ? null : releaseAgeNote(age, under, now, style),
     // migrate-preflight R6: a blocked run moved nothing, so the install and uninstall that follow a
     // move are not its next step; the preflight rows' fixes are.
-    next: blocking > 0 ? '' : nextStep(dir, add, removable, { ...graded, ...Object.fromEntries(under.pins.map((p) => [p.name, p.version])) }),
+    next: blocking > 0 ? '' : nextStep(dir, add, removable, { versions: { ...graded, ...Object.fromEntries(under.pins.map((p) => [p.name, p.version])) }, style }),
     dryRun,
     changed: writes && changed.length > 0,
     exitCode: refused.length > 0 || blocking > 0 ? ExitCode.RUNTIME : ExitCode.OK,

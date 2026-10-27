@@ -1,5 +1,11 @@
 # compat-oracle
 
+## 0.3.16
+
+### Patch Changes
+
+- [#1322](https://github.com/ofri-peretz/burgee/pull/1322) [`b62cf2a`](https://github.com/ofri-peretz/burgee/commit/b62cf2a105ab901ded4fd6b38ef65598419f6962) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--progress` names each host as its grade starts and ends, with its seconds, so a run that stalls says on which host. A host can declare `notGradedOn` platforms with a reason; it is not graded there and every run there prints it with that reason. ink is declared off `win32`.
+
 ## 0.3.15
 
 ### Patch Changes

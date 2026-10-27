@@ -103,7 +103,12 @@ const RULES: Record<string, EntryRule> = {
   //
   // **20,000 -> 20,700 on 2026-10-13, deliberately** (D-20261013-frames-fit-the-screen-budgets,
   // under the owner's delegation of budgets that day): measured 20,676, with `./raw` below.
-  '.': { allow: [...CLOSEOUT, 'linegauge', 'paratext/csi', 'roundel/terminal'], budget: 20_700, denied: ['clack.js', 'inquirer.js'] },
+  //
+  // **20,700 -> 20,800 on 2026-10-27** (D-20261027-caique-prompt-for-r1): measured 20,790 (+114).
+  // R1's `promptFor` names an option the way it is passed (`<name>`, `--dry-run`), which is a
+  // `flag` through `decide` and the binding, and `runtime.ts` gained `promptStreams()`, the
+  // stdin-and-stderr pair a prompt is asked on. `promptFor` itself is its own door, below.
+  '.': { allow: [...CLOSEOUT, 'linegauge', 'paratext/csi', 'roundel/terminal'], budget: 20_800, denied: ['clack.js', 'inquirer.js'] },
   // The shape and its validator. The floor every other subpath stands on, and a leaf: a
   // program that only declares prompts pays 739 B and never loads a widget.
   './spec': { allow: [], budget: 1_000, denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
@@ -228,6 +233,11 @@ const RULES: Record<string, EntryRule> = {
   // `Io`, and which one is the caller's business. Measured 8,123 B; 8,395 B on 2026-09-28,
   // with `decide`'s `roundel/terminal`.
   './binding': { allow: ['roundel/terminal'], budget: 9_500, denied: ['raw.js', 'terminal.js', 'index.js'] },
+  // R1 — `promptFor`, the binding wrapped around a host's handler: the pass above plus the one
+  // terminal it opens when, and only when, a question is asked. Its own door, so a program that
+  // resolves prompts through `./binding` with its own `Io` never carries the terminal, and one that
+  // wraps a command never carries the raw renderer or the keymaps. Measured 15,704 B on 2026-10-27.
+  './prompt-for': { allow: ['roundel/terminal'], budget: 15_800, denied: ['raw.js', 'keys.js', 'index.js', 'clack.js', 'inquirer.js', 'plugin.js'] },
   // localised-human-surfaces R6 — the catalog, the pack check and `sayFor`, which a caller with a
   // locale builds `io.say` from. Its own door so nothing else pays for it: `.`, `./ask` and
   // `./binding` only apply the `say` they are handed. It reaches `plugin.js` for the registry

@@ -12,11 +12,26 @@ open-cli-tools/concurrently, answering its #418
 A3 is proven in a local clone: `burgee@1.7.2 migrate` keeps its suite at 649 / 649 on Node 22,
 24 and 26, and one `git revert` restores the exact tree, green again
 ([`concurrently.md`](../../research/adoption/concurrently.md)). The disclosed PR is drafted in
-[`adoption-draft.md`](./adoption-draft.md). It is **held, not posted**, until
+[`adoption-draft.md`](./adoption-draft.md). It is **held, not posted**, until the
+`parseSync()` fix publishes and the owner approves the target and the text. It was blocked on
 [A-20261027-yargs-parsesync-surfaces-throw](../../gaps/A-20261027-yargs-parsesync-surfaces-throw.md)
-ships (`--mcp` and `completion` crash `parseSync()` programs) and the owner approves the target
-and the text. Nothing has been sent outside `ofri-peretz/*`. A1 and A6 stay open until a merge
-upstream, so this intent is not `shipped`.
+(`--mcp` and `completion` crashed `parseSync()` programs). That is fixed in #1311, which
+publishes with burgee's next release; the A3 proof is then re-run on the published version.
+The same pull request closes
+[B-20261027-migrate-pins-match-exact-convention](../../gaps/B-20261027-migrate-pins-match-exact-convention.md),
+so `migrate` writes the exact pin the draft had set by hand. Nothing has been sent outside
+`ofri-peretz/*`. A1 and A6 stay open until a merge upstream, so this intent is not `shipped`.
+
+**Re-run on `burgee@1.8.0`, 2026-10-27: held again, comment not posted.** The owner approved a
+disclosed comment on #418 first (the PR to follow only on the maintainer's yes), on the condition
+that the whole proof passed on the published fix. Everything passed but one check: the suite is
+649 / 649 migrated and reverted on Node 22, 24 and 26, `--help` is byte-identical, `migrate` now
+writes the exact pin, the revert restores the tree hash, and `completion zsh` prints a script. But
+`concurrently --mcp` does not serve. It no longer crashes; concurrently's own `process.exit()` on
+an empty argv ends the server `parseSync()` started, so it prints help exactly as yargs does.
+That is [A-20261027-yargs-parsesync-mcp-ended-by-exit](../../gaps/A-20261027-yargs-parsesync-mcp-ended-by-exit.md).
+The comment waits on that fix being published and the proof re-run on it
+([`concurrently.md`](../../research/adoption/concurrently.md#re-run-on-burgee180-2026-10-27)).
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why `review` until 2026-10-25:** no external CLI has been migrated; A1–A5 are all open.
 

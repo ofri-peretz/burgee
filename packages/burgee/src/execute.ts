@@ -416,7 +416,8 @@ async function resolveValues(manifest: Manifest, specs: Record<string, OptionSpe
   // Stryker disable next-line ConditionalExpression: equivalent — loading `as-typed.js` on every run renames flag locations only `--json` and `--explain` print, and returns no text unless `--explain` names an option
   if (values.json === true || asked !== undefined) out.explainText = (await import('./as-typed.js')).asTyped(resolved, specs, tokens, asked, io);
   for (const [name, spec] of Object.entries(specs)) {
-    if (out.values[name] === undefined && spec.required && out.explainText === undefined) {
+    // P1: an option that declares a `prompt` is the handler's binding's to ask for or refuse.
+    if (out.values[name] === undefined && spec.required && !spec.prompt && out.explainText === undefined) {
       throw new UsageError(`missing required option --${kebab(name)}`, `pass --${kebab(name)} <value>`);
     }
   }
@@ -591,7 +592,7 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   // `env`, `onExit`, `agent`, `interactive`, `signal`, `quiet` and `runtime` come from `ctx.js`, a
   // chunk loaded on this path only: whether a person may be asked is roundel's rule, over stdin
   // (D-20260930-one-interactive-rule). `--timeout` races the handler against its deadline (R3).
-  const ran = node.run({ options: values, ...given, positionals, passthrough, exit: ctxExit, actionRequired, ...(await import('./ctx.js')).ctxOf(io, global) });
+  const ran = node.run({ options: values, ...given, positionals, passthrough, json, exit: ctxExit, actionRequired, ...(await import('./ctx.js')).ctxOf(io, global) });
   const data = await (global?.within(ran) ?? ran);
   await manifest.fire('postRun', name, values);
   const changed = changedOf(node, data);
