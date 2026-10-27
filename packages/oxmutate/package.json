@@ -3,6 +3,14 @@
   "version": "0.1.0",
   "description": "Mutation testing on the oxc engine: Stryker-compatible, warm in-process runs inside Vitest, CI lanes, SARIF and an agent surface. No dependency outside the burgee family.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ofri-peretz/burgee.git",
+    "directory": "packages/oxmutate"
+  },
+  "bugs": {
+    "url": "https://github.com/ofri-peretz/burgee/issues"
+  },
   "type": "module",
   "private": true,
   "engines": {
@@ -17,11 +25,14 @@
       "default": "./dist/index.js"
     },
     "./runner": "./dist/runner.js",
+    "./spec": {
+      "types": "./dist/spec.d.ts",
+      "default": "./dist/spec.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
     "dist",
-    "binding",
     "!dist/**/*.map",
     "!dist/**/*.test.*"
   ],
@@ -44,5 +55,5 @@
   "devDependencies": {
     "vitest": "^5.0.1"
   },
-  "//optionalDependencies": "Added by the release workflow when it publishes the oxmutate-<platform> packages (npm/*): listing them before they exist on npm breaks every install with E404."
+  "//optionalDependencies": "Written at publish time by the release job (scripts/sync-platform-versions.mjs --publish): the six oxmutate-<platform> packages under npm/, at this version. Never committed: npm ci refuses a lockfile that cannot record an optional dependency npm does not serve (EUSAGE). See RELEASING.md."
 }

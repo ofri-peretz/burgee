@@ -1,0 +1,2 @@
+# Each platform package's core is built by the release workflow's native matrix, never committed.
+*/oxmutate.node

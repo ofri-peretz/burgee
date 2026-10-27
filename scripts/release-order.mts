@@ -32,13 +32,19 @@ import url from 'node:url';
 
 /** A workspace package, as the release sees it. */
 export interface WorkspacePackage {
-  /** Directory under `packages/`. */
+  /** Directory under `packages/` (`oxmutate/npm/darwin-arm64` for a platform package). */
   dir: string;
   name: string;
   version: string;
   private: boolean;
   /** Names of the other workspace packages it depends on, on any of the three fields. */
   deps: string[];
+  /**
+   * Set on a platform package (`packages/<dir>/npm/<platform>/package.json`, the napi-rs
+   * layout): the package that lists it as an optional dependency. It carries one prebuilt
+   * `.node` from the native build matrix instead of a `dist/`.
+   */
+  platformOf?: string;
 }
 
 /** One row of the plan `release.yml` publishes from. */
@@ -48,6 +54,8 @@ export interface PlanRow {
   version: string;
   /** In-family dependencies at the version the workspace holds — what must be on npm first. */
   deps: { name: string; version: string }[];
+  /** A platform package: published from the native build's artifact, never tagged or released on GitHub. */
+  platformOf?: string;
 }
 
 /** The manifest fields a workspace dependency can sit on. `devDependencies` never ship. */
@@ -62,7 +70,25 @@ interface Manifest {
   optionalDependencies?: Record<string, string>;
 }
 
-/** Every `packages/<dir>/package.json` under `root`, with its in-family edges resolved. */
+/**
+ * The platform packages under `packages/<dir>/npm/*`, in directory order. They are not npm
+ * workspaces: each declares an `os`/`cpu` that only one machine matches, and the parent's
+ * `optionalDependencies` naming them is written at publish time, not committed (an unpublished
+ * optional dependency breaks `npm ci` — `packages/oxmutate/RELEASING.md`). So the edge from the
+ * parent to them is read from the directory, not from a dependency field.
+ */
+function platformManifests(base: string, dir: string): { dir: string; manifest: Manifest }[] {
+  const npm = path.join(base, dir, 'npm');
+  if (!fs.existsSync(npm)) return [];
+  return fs
+    .readdirSync(npm)
+    .toSorted()
+    .map((sub) => ({ dir: `${dir}/npm/${sub}`, file: path.join(npm, sub, 'package.json') }))
+    .filter(({ file }) => fs.existsSync(file))
+    .map(({ dir: sub, file }) => ({ dir: sub, manifest: JSON.parse(fs.readFileSync(file, 'utf8')) as Manifest }));
+}
+
+/** Every `packages/<dir>/package.json` under `root`, and its platform packages, with their in-family edges resolved. */
 export function readWorkspace(root: string): WorkspacePackage[] {
   const base = path.join(root, 'packages');
   const manifests = fs
@@ -72,13 +98,23 @@ export function readWorkspace(root: string): WorkspacePackage[] {
     .filter(({ file }) => fs.existsSync(file))
     .map(({ dir, file }) => ({ dir, manifest: JSON.parse(fs.readFileSync(file, 'utf8')) as Manifest }));
   const names = new Set(manifests.map(({ manifest }) => manifest.name ?? ''));
-  return manifests.map(({ dir, manifest }) => ({
-    dir,
-    name: manifest.name ?? dir,
-    version: manifest.version ?? '0.0.0',
-    private: manifest.private === true,
-    deps: [...new Set(DEPENDENCY_FIELDS.flatMap((field) => Object.keys(manifest[field] ?? {})))].filter((n) => names.has(n)).toSorted(),
-  }));
+  return manifests.flatMap(({ dir, manifest }) => {
+    const name = manifest.name ?? dir;
+    const isPrivate = manifest.private === true;
+    // A platform package ships when its parent does: public only while the parent is public.
+    const platforms = platformManifests(base, dir).map(
+      (p): WorkspacePackage => ({
+        dir: p.dir,
+        name: p.manifest.name ?? p.dir,
+        version: p.manifest.version ?? '0.0.0',
+        private: isPrivate || p.manifest.private === true,
+        deps: [],
+        platformOf: name,
+      }),
+    );
+    const deps = [...DEPENDENCY_FIELDS.flatMap((field) => Object.keys(manifest[field] ?? {})).filter((n) => names.has(n)), ...platforms.map((p) => p.name)];
+    return [...platforms, { dir, name, version: manifest.version ?? '0.0.0', private: isPrivate, deps: [...new Set(deps)].toSorted() }];
+  });
 }
 
 /**
@@ -127,6 +163,7 @@ export function plan(pkgs: readonly WorkspacePackage[]): PlanRow[] {
     name: p.name,
     version: p.version,
     deps: p.deps.map((d) => ({ name: d, version: byName.get(d)?.version ?? '' })),
+    ...(p.platformOf === undefined ? {} : { platformOf: p.platformOf }),
   }));
 }
 
