@@ -53,7 +53,7 @@ export function strykerReport(r: RunResult): object {
     files,
     testFiles: Object.fromEntries(testFiles),
     framework: { name: 'oxmutate', version: VERSION, branding: { homepageUrl: 'https://www.npmjs.com/package/oxmutate' } },
-    'x-oxmutate': { stats: r.stats, score: r.score, unusedConfig: r.options.unused, frozenOracle: r.frozen },
+    'x-oxmutate': { stats: r.stats, score: r.score, unusedConfig: r.options.unused, frozenOracle: r.frozen, specOracles: r.spec },
   };
 }
 
@@ -120,6 +120,13 @@ function corrections(s: RunResult['stats']): string[] {
   ].filter((c): c is string => Boolean(c));
 }
 
+/** One line per spec oracle: its F metrics (metrics.md §6). */
+function specLines(r: RunResult): string[] {
+  return (r.spec ?? []).map(
+    (o) => `  spec ${o.name} (${o.backend}, ${String(o.traces)} traces): kills ${o.specKillShare.toFixed(1)}% of ${String(o.modelled)} modelled mutants, reaches ${o.mappingCoverage.toFixed(1)}%; ${String(o.testSpecGap.length)} test-spec gap(s), ${String(o.specEscapes.length)} escape(s)`,
+  );
+}
+
 /** The frozen oracle's line, when the change edited tests. */
 function frozenLine(r: RunResult): string[] {
   const f = r.frozen;
@@ -145,6 +152,7 @@ export function textSummary(r: RunResult, opts: { survivors?: number } = {}): st
   const corrected = corrections(s);
   if (corrected.length) lines.push(`  corrected: ${corrected.join(' · ')}`);
   lines.push(...frozenLine(r));
+  lines.push(...specLines(r));
   const survivors = r.mutants.filter((m) => m.status === 'Survived' || m.status === 'NoCoverage');
   const limit = opts.survivors ?? DEFAULT_SURVIVORS_SHOWN;
   if (survivors.length) {

@@ -3,7 +3,7 @@
 use napi_derive::napi;
 use rayon::prelude::*;
 
-use crate::instrument::{instrument, Options};
+use crate::instrument::{instrument, IgnoreRule, Options};
 
 #[napi(object)]
 pub struct SourceFile {
@@ -15,6 +15,16 @@ pub struct SourceFile {
 #[napi(object)]
 pub struct InstrumentOptions {
     pub stryker_compat: Option<bool>,
+    /// Stryker's `ignorers`, as data. See `IgnoreRule` for the glob dialect.
+    pub ignore: Option<Vec<IgnoreCallRule>>,
+}
+
+/// `{ call: "console.*", reason?: "…" }`: no mutant inside a matching call (or a statement that is
+/// that call) is placed; each is reported with `ignoredReason`.
+#[napi(object)]
+pub struct IgnoreCallRule {
+    pub call: String,
+    pub reason: Option<String>,
 }
 
 #[napi(object)]
@@ -30,6 +40,9 @@ pub struct MutantRecord {
     pub replacement: String,
     pub start: Location,
     pub end: Location,
+    /// Set when an ignore rule covers the mutant (Stryker's `Ignored` status and its
+    /// `statusReason`). The mutant has no switch in `code`; its id is the one it has unignored.
+    pub ignored_reason: Option<String>,
 }
 
 #[napi(object)]
@@ -43,10 +56,13 @@ pub struct InstrumentedFile {
 
 #[napi]
 pub fn instrument_files(files: Vec<SourceFile>, options: Option<InstrumentOptions>) -> Vec<InstrumentedFile> {
-    let options = Options { stryker_compat: options.and_then(|o| o.stryker_compat).unwrap_or(false) };
+    let options = options.map_or_else(Options::default, |o| Options {
+        stryker_compat: o.stryker_compat.unwrap_or(false),
+        ignore: o.ignore.unwrap_or_default().into_iter().map(|r| IgnoreRule { call: r.call, reason: r.reason }).collect(),
+    });
     files
         .into_par_iter()
-        .map(|f| match instrument(&f.path, &f.source, options) {
+        .map(|f| match instrument(&f.path, &f.source, &options) {
             Ok(r) => InstrumentedFile {
                 path: f.path,
                 code: r.code,
@@ -59,6 +75,7 @@ pub fn instrument_files(files: Vec<SourceFile>, options: Option<InstrumentOption
                         replacement: m.replacement,
                         start: Location { line: m.start.line, column: m.start.column },
                         end: Location { line: m.end.line, column: m.end.column },
+                        ignored_reason: m.ignored,
                     })
                     .collect(),
                 error: None,

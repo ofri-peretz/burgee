@@ -9,6 +9,9 @@ import { availableParallelism } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+import { type IgnoreRule } from './native.js';
+import { type SpecOracle } from './spec-oracle.js';
+
 export interface Thresholds {
   high: number;
   low: number;
@@ -58,6 +61,13 @@ export interface Options {
   frozenOracle?: string | undefined;
   /** Test file contents served in place of the files on disk (absolute path → source). */
   testOverrides?: Record<string, string> | undefined;
+  /**
+   * Calls whose subtrees are not mutated: Stryker's `ignorers`, as data instead of plugins
+   * (`{ "call": "console.*", "reason": "log text is not behaviour" }`; `*` stops at a dot, `**` does not).
+   */
+  ignore: IgnoreRule[];
+  /** Formal models whose traces are replayed against each mutant (spec-oracle.ts). */
+  specOracles: SpecOracle[];
   /** `testRunner: 'command'`: run this command per mutant instead of the warm Vitest runner. */
   commandRunner?: string | undefined;
 }
@@ -81,7 +91,7 @@ const NOT_NEEDED: Record<string, string> = {
   allowConsoleColors: 'colour follows the terminal (roundel policy)',
   disableTypeChecks: 'type checking is M2 work',
   tsconfigFile: 'type checking is M2 work',
-  ignorers: "use Stryker's disable comments instead; ignorer plugins are not loaded",
+  ignorers: 'ignorer plugins are code; oxmutate takes the same rules as data in `ignore` (see the README)',
   mutator: 'only mutator.excludedMutations is read',
   disableBail: 'oxmutate always stops at the first killing test',
   testFiles: 'test files come from the Vitest config',
@@ -163,6 +173,8 @@ export async function loadOptions(root: string, overrides: Partial<Options> = {}
     buildCommand: typeof raw['buildCommand'] === 'string' ? raw['buildCommand'] : undefined,
     testRunnerNodeArgs: (raw['testRunnerNodeArgs'] as string[] | undefined) ?? [],
     allowEmpty: raw['allowEmpty'] === true,
+    specOracles: (raw['specOracles'] as SpecOracle[] | undefined) ?? [],
+    ignore: (raw['ignore'] as IgnoreRule[] | undefined) ?? [],
     commandRunner: raw['testRunner'] === 'command' ? ((raw['commandRunner'] as { command?: string } | undefined)?.command ?? 'npm test') : undefined,
     warnUnused: raw['warnings'] !== false && (raw['warnings'] as { unknownOptions?: boolean } | undefined)?.unknownOptions !== false,
     ...overrides,

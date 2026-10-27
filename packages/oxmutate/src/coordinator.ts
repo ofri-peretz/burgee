@@ -10,7 +10,7 @@
  * what it had to correct, not just what it concluded.
  */
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -25,6 +25,8 @@ import { changedLines, shardOf, touches } from './lanes.js';
 import { native, type NativeMutant } from './native.js';
 import { FILE_KEY, env, stderr } from './runtime.js';
 import { createPool, type UnitOutcome } from './scheduler.js';
+import { summarizeSpec, tracesFor, type SpecSummary } from './spec-oracle.js';
+import { SPEC_TRACES_ENV } from './spec.js';
 
 export type Status = 'Killed' | 'Survived' | 'Timeout' | 'NoCoverage' | 'RuntimeError' | 'CompileError' | 'Ignored';
 
@@ -33,6 +35,10 @@ export interface MutantResult extends NativeMutant {
   status: Status;
   statusReason?: string | undefined;
   coveredBy: string[];
+  /** A spec oracle's replay tests that reach this mutant (spec-oracle.ts); not in `coveredBy`. */
+  specCoveredBy?: string[] | undefined;
+  /** The spec oracle's verdict, beside the tests' `status`. */
+  spec?: { oracle: string; status: 'Killed' | 'Survived' | 'Unknown'; killedBy?: string[] | undefined } | undefined;
   killedBy?: string[] | undefined;
   testsCompleted?: number | undefined;
   static?: boolean | undefined;
@@ -83,6 +89,8 @@ export interface RunResult {
   tests: TestInfo[];
   stats: RunStats;
   score: { detected: number; undetected: number; total: number; mutationScore: number; covered: number };
+  /** Each spec oracle's F metrics (spec-oracle.ts). */
+  spec?: SpecSummary[] | undefined;
   /** The frozen oracle's comparison, when `frozenOracle` was set (frozen.ts). */
   frozen?: FrozenOracle | undefined;
   /** Set when the run stopped after the dry run (`dryRunOnly`): no verdicts, no reports. */
@@ -107,6 +115,10 @@ interface ChildRecord {
   file?: string;
   killed?: boolean;
   failed?: string[];
+  /** `mutant`: how long this execution took. */
+  ms?: number;
+  /** `mutant`: the record came from a spec oracle's replay test. */
+  spec?: boolean;
   /** `isolated`: tests that ran (passed or failed) in this file run. */
   ran?: number;
   /** `polluted`: mutants run after the first since the last clean canary; their verdicts are dropped. */
@@ -131,6 +143,8 @@ const UNIT_PAIRS = 120;
 const MS_PER_MINUTE = 60_000;
 const PERCENT = 100;
 
+/** Every test that reaches a mutant: the score's, then a spec oracle's replay tests. */
+const allCovering = (m: MutantResult): string[] => [...m.coveredBy, ...(m.specCoveredBy ?? [])];
 const percent = (n: number, of: number): number => (of ? (PERCENT * n) / of : PERCENT);
 
 /** Stryker's score: detected over everything valid and not ignored; `covered` leaves out no-coverage. */
@@ -158,7 +172,7 @@ export async function run(options: Options): Promise<RunResult> {
     const sources: Record<string, string> = {};
     for (const f of files) sources[f] = readFileSync(path.join(root, f), 'utf8');
     const t0 = performance.now();
-    const instrumented = native().instrumentFiles(files.map((f) => ({ path: f, source: sources[f] ?? '' })), { strykerCompat: options.strykerCompat });
+    const instrumented = native().instrumentFiles(files.map((f) => ({ path: f, source: sources[f] ?? '' })), { strykerCompat: options.strykerCompat, ignore: options.ignore });
     stats.instrumentMs = performance.now() - t0;
     const parseErrors = instrumented.filter((f) => f.error).map((f) => f.error);
     if (parseErrors.length) throw new InstrumentFault(`cannot parse ${String(parseErrors.length)} file(s): ${parseErrors.slice(0, 3).join('; ')}`);
@@ -180,8 +194,8 @@ export async function run(options: Options): Promise<RunResult> {
           ...m,
           file: f.path,
           coveredBy: [],
-          status: off || excluded ? 'Ignored' : 'NoCoverage',
-          statusReason: off?.reason ?? (excluded ? `excluded mutator ${m.mutatorName}` : undefined),
+          status: off || excluded || m.ignoredReason ? 'Ignored' : 'NoCoverage',
+          statusReason: off?.reason ?? m.ignoredReason ?? (excluded ? `excluded mutator ${m.mutatorName}` : undefined),
         });
         any = true;
       }
@@ -217,6 +231,10 @@ export async function run(options: Options): Promise<RunResult> {
     }
 
     // ── 2. Dry run, twice (the second only to find nondeterministic tests) ────────────────────
+    // Spec oracles' traces, generated once; servers inherit where they are (spec.ts reads it).
+    const traceDirs: Record<string, string> = {};
+    for (const oracle of options.specOracles) traceDirs[oracle.name] = await tracesFor(oracle, root, work);
+    if (options.specOracles.length) env[SPEC_TRACES_ENV] = JSON.stringify(traceDirs);
     const dryPool = createPool({ root, vitestConfig: options.vitestConfig, workers: options.concurrency, instrumentedMap: mapFile, nodeArgs: options.testRunnerNodeArgs }, 1, work, 'dry');
     pools.push(dryPool);
     const dryRun = async (): Promise<{ tests: (TestInfo & { state: string })[]; perTest: Record<string, Record<string, number>>; static: Record<string, number> }> => {
@@ -287,9 +305,26 @@ export async function run(options: Options): Promise<RunResult> {
       }
     }
     const staticIds = new Set([...Object.keys(dry.static), ...staticFiles.keys()]);
+    // A spec oracle's replay tests, by test id → oracle name. They are not tests of the score:
+    // their kills are reported as the spec's, on a track of their own.
+    const specOf = new Map<string, string>();
+    for (const oracle of options.specOracles) {
+      const replay = new Set(matchFiles(root, oracle.replay).map((f) => path.join(root, f)));
+      for (const t of dry.tests) if (replay.has(t.file)) specOf.set(t.id, oracle.name);
+    }
+    const specVerdict = (m: MutantResult, recs: ChildRecord[]): NonNullable<MutantResult['spec']> => {
+      const oracle = specOf.get(m.specCoveredBy?.[0] ?? '') ?? '';
+      const killers = recs.filter((r) => r.status === 'Killed' || r.status === 'Timeout');
+      if (killers.length) return { oracle, status: 'Killed', killedBy: [...new Set(killers.map((r) => r.test ?? ''))] };
+      return { oracle, status: recs.length >= (m.specCoveredBy?.length ?? 0) && !unfinished.has(m.id) ? 'Survived' : 'Unknown' };
+    };
+    const byCostOf = (a: string, b: string): number => (testInfo.get(a)?.ms ?? 0) - (testInfo.get(b)?.ms ?? 0);
     for (const m of mutants) {
       if (m.status === 'Ignored') continue;
-      m.coveredBy = (coveringTests.get(m.id) ?? []).sort((a, b) => (testInfo.get(a)?.ms ?? 0) - (testInfo.get(b)?.ms ?? 0));
+      const covering = coveringTests.get(m.id) ?? [];
+      m.coveredBy = covering.filter((t) => !specOf.has(t)).sort(byCostOf);
+      const specCovering = covering.filter((t) => specOf.has(t)).sort(byCostOf);
+      if (specCovering.length) m.specCoveredBy = specCovering;
       if (staticIds.has(m.id)) {
         m.static = true;
         if (options.ignoreStatic) {
@@ -336,10 +371,10 @@ export async function run(options: Options): Promise<RunResult> {
     // Static mutants, hybrids included, never run warm: a module evaluated without the mutant
     // cannot stand in for one evaluated with it. Tried 2026-10-27: warm kills of hybrids gave 3
     // false kills on burgee/paratext (an import-time registration the tests then read).
-    const toRun = mutants.filter((m) => !m.reused && m.status !== 'Ignored' && !m.static && m.coveredBy.length > 0);
+    const toRun = mutants.filter((m) => !m.reused && m.status !== 'Ignored' && !m.static && allCovering(m).length > 0);
     const byId = new Map(mutants.map((m) => [m.id, m]));
     const hitLimits = Object.fromEntries(toRun.map((m) => [m.id, Math.max(1000, (hits.get(m.id) ?? 1) * 100)]));
-    const maxTestMs = (id: string): number => Math.max(0, ...(byId.get(id)?.coveredBy ?? []).map((t) => testInfo.get(t)?.ms ?? 0));
+    const maxTestMs = (id: string): number => { const m = byId.get(id); return Math.max(0, ...(m ? allCovering(m) : []).map((t) => testInfo.get(t)?.ms ?? 0)); };
     // The watchdog is for runaways, which loop in fast code; a slow test under a loaded machine is
     // not one. 3x the covering test's dry-run time, not Stryker's 1.5x: at 1.5x, subprocess-heavy
     // burgee/paratext tests were stopped as false timeouts (2026-10-27).
@@ -349,7 +384,7 @@ export async function run(options: Options): Promise<RunResult> {
     const fileOrder = new Map<string, string[]>();
     for (const m of toRun) {
       const cost = new Map<string, number>();
-      for (const t of m.coveredBy) {
+      for (const t of allCovering(m)) {
         const info = testInfo.get(t);
         if (info) cost.set(info.file, (cost.get(info.file) ?? 0) + info.ms + 0.05);
       }
@@ -360,7 +395,7 @@ export async function run(options: Options): Promise<RunResult> {
     const unfinished = new Set<string>();
     const makeUnit = (file: string, plan: Plan, depth = 0): Unit => {
       const unit: Unit = { mode: 'mutant', files: [file], results: fileFor('unit', 'jsonl'), progress: fileFor('unit', 'progress'), plan: fileFor('plan', 'json') };
-      writeFileSync(unit.plan as string, JSON.stringify({ tests: plan, hitLimits, skip: [] }));
+      writeFileSync(unit.plan as string, JSON.stringify({ tests: plan, hitLimits, skip: [], specTests: [...specOf.keys()] }));
       planUnits.set(unit.results, { file, plan, depth });
       stats.units++;
       return unit;
@@ -380,7 +415,7 @@ export async function run(options: Options): Promise<RunResult> {
       const perFile = new Map<string, Map<string, string[]>>();
       for (const m of mutantsHere) {
         const files = new Set(pick(m));
-        for (const t of m.coveredBy) {
+        for (const t of allCovering(m)) {
           const file = testInfo.get(t)?.file;
           if (!file || !files.has(file)) continue;
           if (!perFile.has(file)) perFile.set(file, new Map());
@@ -402,7 +437,8 @@ export async function run(options: Options): Promise<RunResult> {
     const crashedIds = new Set<string>();
     const pool = createPool({ root, vitestConfig: options.vitestConfig, workers: 1, instrumentedMap: mapFile, nodeArgs: options.testRunnerNodeArgs }, options.concurrency, work, 'mutant');
     pools.push(pool);
-    const killedSoFar = (): Set<string> => new Set([...runaways, ...crashedIds, ...records.filter((r) => r.type === 'mutant' && r.status !== 'Survived').map((r) => r.id ?? '')]);
+    /** Mutants decided on one verdict track: the tests', or a spec oracle's replay tests'. */
+    const killedSoFar = (spec: boolean): Set<string> => new Set([...runaways, ...crashedIds, ...records.filter((r) => r.type === 'mutant' && r.status !== 'Survived' && Boolean(r.spec) === spec).map((r) => r.id ?? '')]);
     const afterUnit = (unit: Unit, outcome: UnitOutcome): Unit[] => {
       // Verdicts a failed canary cannot vouch for are dropped; their pairs are re-queued below.
       const raw = readRecords(unit.results);
@@ -417,11 +453,12 @@ export async function run(options: Options): Promise<RunResult> {
       else if (bad) crashedIds.add(bad);
       // The rest of the unit: pairs not yet run, mutants not yet decided, into a fresh context.
       const ran = new Set(recs.filter((r) => r.type === 'mutant').map((r) => `${r.id ?? ''}|${r.test ?? ''}`));
-      const decided = killedSoFar();
+      const decided = { tests: killedSoFar(false), spec: killedSoFar(true) };
       const { file, plan, depth } = planUnits.get(unit.results) as { file: string; plan: Plan; depth: number };
       const rest: Plan = {};
       for (const [t, ids] of Object.entries(plan)) {
-        const left = ids.filter((id) => !decided.has(id) && !ran.has(`${id}|${t}`));
+        const done = specOf.has(t) ? decided.spec : decided.tests;
+        const left = ids.filter((id) => !done.has(id) && !ran.has(`${id}|${t}`));
         if (left.length) rest[t] = left;
       }
       if (Object.keys(rest).length === 0) return [];
@@ -452,9 +489,13 @@ export async function run(options: Options): Promise<RunResult> {
 
     const isolatedQueue: MutantResult[] = [];
     for (const m of toRun) {
-      const recs = byMutant.get(m.id) ?? [];
+      const all = byMutant.get(m.id) ?? [];
+      const recs = all.filter((r) => !r.spec);
       const killers = recs.filter((r) => r.status === 'Killed' || r.status === 'Timeout');
-      if (runaways.has(m.id)) {
+      if (m.specCoveredBy) m.spec = specVerdict(m, all.filter((r) => r.spec));
+      if (m.coveredBy.length === 0 && !runaways.has(m.id) && !crashedIds.has(m.id)) {
+        continue; // reached only by a spec oracle: no test covers it, and its status says so
+      } else if (runaways.has(m.id)) {
         isolatedQueue.push(m); // a watchdog stop is confirmed before it is reported (6, below)
       } else if (crashedIds.has(m.id)) {
         m.status = 'RuntimeError';
@@ -606,6 +647,13 @@ export async function run(options: Options): Promise<RunResult> {
       }
       writeFileSync(options.incrementalFile, JSON.stringify({ version: 1, mutants: next }));
     }
+    const spec = options.specOracles.map((oracle) => {
+      const dir = traceDirs[oracle.name] ?? '';
+      const traces = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.itf.json')).length : 0;
+      const ms = records.filter((r) => r.type === 'mutant' && r.spec && specOf.get(r.test ?? '') === oracle.name).map((r) => r.ms ?? 0);
+      const located = mutants.map((m) => ({ ...m, line: m.start.line }));
+      return summarizeSpec({ oracle, modelledFiles: new Set(matchFiles(root, oracle.files)), traces, mutants: located, testName: (t) => testInfo.get(t)?.name ?? t, specMs: ms });
+    });
     stats.serversSpawned = pools.reduce((s, p) => s + p.stats.spawned, 0);
     stats.wallMs = performance.now() - wall0;
     return {
@@ -615,6 +663,7 @@ export async function run(options: Options): Promise<RunResult> {
       mutants,
       tests: dry.tests.map(({ id, file, name, ms }) => ({ id, file, name, ms })),
       stats,
+      spec: spec.length ? spec : undefined,
       score: scoreOf(mutants),
     };
   } finally {

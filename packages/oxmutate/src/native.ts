@@ -17,6 +17,8 @@ export interface NativeMutant {
   replacement: string;
   start: Location;
   end: Location;
+  /** Set when an ignore rule covers the mutant: reported as Ignored, never placed in the code. */
+  ignoredReason?: string;
 }
 export interface InstrumentedFile {
   path: string;
@@ -24,8 +26,14 @@ export interface InstrumentedFile {
   mutants: NativeMutant[];
   error?: string;
 }
+/** A call whose subtree is not mutated (Stryker's ignorers, as data): `console.*`, `**.debug`. */
+export interface IgnoreRule {
+  call: string;
+  reason?: string | undefined;
+}
+
 interface Binding {
-  instrumentFiles(files: { path: string; source: string }[], options?: { strykerCompat?: boolean }): InstrumentedFile[];
+  instrumentFiles(files: { path: string; source: string }[], options?: { strykerCompat?: boolean; ignore?: IgnoreRule[] }): InstrumentedFile[];
   nativeVersion(): string;
 }
 

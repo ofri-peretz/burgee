@@ -19,7 +19,7 @@ fn main() {
     let root = arg("--root").expect("--root");
     let mutate = arg("--mutate").expect("--mutate");
     let out = arg("--out").expect("--out");
-    let options = Options { stryker_compat: env::args().any(|a| a == "--stryker-compat") };
+    let options = Options { stryker_compat: env::args().any(|a| a == "--stryker-compat"), ..Options::default() };
     let dir = Path::new(&root).join(&mutate);
     let mut files = Vec::new();
     collect(&dir, &mut files);
@@ -30,7 +30,7 @@ fn main() {
         .map(|p| {
             let rel = p.strip_prefix(&root).unwrap().to_string_lossy().replace('\\', "/");
             let src = fs::read_to_string(p).unwrap();
-            match instrument(&rel, &src, options) {
+            match instrument(&rel, &src, &options) {
                 Ok(r) => {
                     if let Some(code) = &r.code {
                         fs::write(p, code).unwrap();
@@ -51,10 +51,17 @@ fn main() {
     let mut total = 0;
     for (rel, src, r) in &results {
         total += r.mutants.len();
-        let mutants: Vec<_> = r.mutants.iter().map(|m| json!({
-            "id": m.id, "mutatorName": m.mutator_name, "replacement": m.replacement, "status": "Pending",
-            "location": { "start": { "line": m.start.line, "column": m.start.column }, "end": { "line": m.end.line, "column": m.end.column } }
-        })).collect();
+        let mutants: Vec<_> = r.mutants.iter().map(|m| {
+            let mut j = json!({
+                "id": m.id, "mutatorName": m.mutator_name, "replacement": m.replacement, "status": "Pending",
+                "location": { "start": { "line": m.start.line, "column": m.start.column }, "end": { "line": m.end.line, "column": m.end.column } }
+            });
+            if let Some(reason) = &m.ignored {
+                j["status"] = json!("Ignored");
+                j["statusReason"] = json!(reason);
+            }
+            j
+        }).collect();
         report["files"][rel] = json!({ "language": "typescript", "source": src, "mutants": mutants });
     }
     fs::write(&out, report.to_string()).unwrap();

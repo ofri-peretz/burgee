@@ -1,0 +1,7 @@
+{
+  "mutate": ["src/counter.ts"],
+  "concurrency": 1,
+  "flakyReruns": 0,
+  "reporters": ["json"],
+  "specOracles": [{ "name": "counter", "backend": "itf", "dir": "traces", "replay": ["src/counter.replay.spec.ts"], "files": ["src/counter.ts"] }]
+}

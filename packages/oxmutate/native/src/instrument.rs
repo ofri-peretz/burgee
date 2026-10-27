@@ -29,10 +29,62 @@ function oxmAct(id) {{ var ns = oxmNS(); if (ns.activeMutant === id) {{ if (ns.h
     )
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Options {
     /// Reproduce Stryker 10.0.0's skips (code inside `as` casts and enums is never mutated).
     pub stryker_compat: bool,
+    /// Stryker's `ignorers`, as data: subtrees whose mutants are reported as ignored and never
+    /// placed in the instrumented code.
+    pub ignore: Vec<IgnoreRule>,
+}
+
+/// One ignore rule. Stryker's ignorers are code (`shouldIgnore(path)`); here a rule is data the
+/// core applies, so a config file or an agent can write one.
+///
+/// `call` is a glob over a call's callee, matched against the callee's source text with every
+/// whitespace character removed and `?.` read as `.` (so `logger?.debug` and `logger.debug?.()`
+/// both match `logger.debug`). The whole callee must match. `*` matches any run of characters
+/// other than `.` (one segment, possibly empty), `**` any run including `.`; every other
+/// character matches itself. So `console.*` matches `console.log` and `console.error` but not
+/// `console.log.bind`; `**.debug` matches `logger.debug` and `this.log.debug`; `debug` matches
+/// only a bare `debug(…)`. A computed callee (`console['log']`) matches only its own text.
+///
+/// A rule matches a CallExpression, optional calls included (`a?.b()`), never a `new`
+/// expression or a tagged template. When the call is a statement of its own
+/// (`console.log(x);`), the ignored subtree is the statement, so its CallExpression mutant (the
+/// statement emptied to `;`) is ignored too, as Stryker's documented `console` ignorer does.
+#[derive(Debug, Clone, Default)]
+pub struct IgnoreRule {
+    pub call: String,
+    /// Reported as the ignored mutants' reason; defaults to `ignored by rule call: <call>`.
+    pub reason: Option<String>,
+}
+
+impl IgnoreRule {
+    fn matches(&self, callee: &str) -> bool {
+        let pattern: String = self.call.chars().filter(|c| !c.is_whitespace()).collect();
+        glob(pattern.as_bytes(), normalize_callee(callee).as_bytes())
+    }
+
+    fn reason(&self) -> String {
+        self.reason.clone().unwrap_or_else(|| format!("ignored by rule call: {}", self.call))
+    }
+}
+
+fn normalize_callee(text: &str) -> String {
+    text.chars().filter(|c| !c.is_whitespace()).collect::<String>().replace("?.", ".")
+}
+
+fn glob(p: &[u8], t: &[u8]) -> bool {
+    match p {
+        [] => t.is_empty(),
+        [b'*', b'*', rest @ ..] => (0..=t.len()).any(|i| glob(rest, &t[i..])),
+        [b'*', rest @ ..] => {
+            let run = t.iter().position(|&c| c == b'.').unwrap_or(t.len());
+            (0..=run).any(|i| glob(rest, &t[i..]))
+        }
+        [c, rest @ ..] => t.first() == Some(c) && glob(rest, &t[1..]),
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,11 +102,15 @@ pub struct Mutant {
     pub replacement: String,
     pub start: Position,
     pub end: Position,
+    /// Set when an ignore rule covers the mutant: Stryker's `Ignored` status with this as its
+    /// `statusReason`. An ignored mutant has the id it would have unignored, and no switch in the
+    /// instrumented code.
+    pub ignored: Option<String>,
 }
 
 #[derive(Debug)]
 pub struct Instrumented {
-    /// `None` when the file has no mutants (it is left untouched).
+    /// `None` when the file has no placed mutants, i.e. none or all ignored (it is left untouched).
     pub code: Option<String>,
     pub mutants: Vec<Mutant>,
 }
@@ -87,6 +143,7 @@ struct Raw {
     host: usize,
     owner: u32,
     dropped: bool,
+    ignored: Option<String>,
 }
 
 struct Frame<'a> {
@@ -99,9 +156,12 @@ struct Frame<'a> {
 
 struct Collector<'a> {
     src: &'a str,
-    options: Options,
+    options: &'a Options,
     stack: Vec<Frame<'a>>,
     skip_depth: usize,
+    /// The frame id of the outermost node an ignore rule matched, and the rule's reason. Like
+    /// Stryker's IgnorerBookkeeper, a match inside an ignored subtree does not replace it.
+    ignored: Option<(u32, String)>,
     placements: Vec<Placement>,
     mutants: Vec<Raw>,
     next_id: u32,
@@ -109,7 +169,7 @@ struct Collector<'a> {
 
 // ── Node classes ───────────────────────────────────────────────────────────────────────────────
 
-fn is_type_node(kind: &AstKind<'_>, options: Options) -> bool {
+fn is_type_node(kind: &AstKind<'_>, options: &Options) -> bool {
     use AstKind as K;
     match kind {
         K::TSTypeAnnotation(_) | K::TSLiteralType(_) | K::TSConditionalType(_) | K::TSUnionType(_)
@@ -149,6 +209,28 @@ fn is_member(kind: &AstKind<'_>) -> bool {
 }
 
 impl<'a> Collector<'a> {
+    /// The reason of the first ignore rule that matches this node: a call by its callee, or an
+    /// expression statement that is exactly such a call.
+    fn ignore_reason(&self, kind: &AstKind<'a>) -> Option<String> {
+        if self.options.ignore.is_empty() {
+            return None;
+        }
+        let callee = match kind {
+            AstKind::CallExpression(c) => c.callee.span(),
+            AstKind::ExpressionStatement(s) => match &s.expression {
+                Expression::CallExpression(c) => c.callee.span(),
+                Expression::ChainExpression(c) => match &c.expression {
+                    ChainElement::CallExpression(c) => c.callee.span(),
+                    _ => return None,
+                },
+                _ => return None,
+            },
+            _ => return None,
+        };
+        let text = self.text(callee);
+        self.options.ignore.iter().find(|r| r.matches(text)).map(IgnoreRule::reason)
+    }
+
     fn parent(&self) -> Option<&AstKind<'a>> {
         self.stack.last().map(|f| &f.kind)
     }
@@ -656,6 +738,11 @@ impl<'a> Visit<'a> for Collector<'a> {
             self.stack.push(Frame { kind, id, placement: None, mutants_before: self.mutants.len(), skipped: true });
             return;
         }
+        if self.ignored.is_none() {
+            if let Some(reason) = self.ignore_reason(&kind) {
+                self.ignored = Some((id, reason));
+            }
+        }
         let span = kind.span();
         let placer = if self.stack.is_empty() { None } else { self.placer_for(&kind, span) };
         let placement = placer.map(|placer| {
@@ -681,8 +768,9 @@ impl<'a> Visit<'a> for Collector<'a> {
         if !self.stack.is_empty() {
             let host = placement.or_else(|| self.stack.iter().rev().find_map(|f| f.placement));
             if let Some(host) = host {
+                let ignored = self.ignored.as_ref().map(|(_, reason)| reason.clone());
                 for (mutator_name, replacement) in self.mutate(&kind, span) {
-                    self.mutants.push(Raw { mutator_name, replacement, node: span, host, owner: id, dropped: false });
+                    self.mutants.push(Raw { mutator_name, replacement, node: span, host, owner: id, dropped: false, ignored: ignored.clone() });
                 }
             }
         }
@@ -696,13 +784,18 @@ impl<'a> Visit<'a> for Collector<'a> {
             return;
         }
         // Stryker's CallExpression filter: keep it only when it is the subtree's sole mutant.
-        let live = self.mutants[frame.mutants_before..].iter().filter(|m| !m.dropped).count();
+        // Ignored mutants neither count nor are filtered (Stryker's `mutantsInScope` leaves them
+        // out), so an ignored `;` stays reported as ignored.
+        let live = self.mutants[frame.mutants_before..].iter().filter(|m| !m.dropped && m.ignored.is_none()).count();
         if live != 1 {
             for m in &mut self.mutants[frame.mutants_before..] {
-                if m.owner == frame.id && m.mutator_name == "CallExpression" {
+                if m.owner == frame.id && m.mutator_name == "CallExpression" && m.ignored.is_none() {
                     m.dropped = true;
                 }
             }
+        }
+        if self.ignored.as_ref().is_some_and(|(id, _)| *id == frame.id) {
+            self.ignored = None;
         }
     }
 }
@@ -810,7 +903,7 @@ impl Emitter<'_> {
 }
 
 /// Instrument one file. `path` is the id namespace (use the repository-relative path).
-pub fn instrument(path: &str, source: &str, options: Options) -> Result<Instrumented, String> {
+pub fn instrument(path: &str, source: &str, options: &Options) -> Result<Instrumented, String> {
     let allocator = Allocator::default();
     let source_type = SourceType::from_path(path).unwrap_or_default();
     let parsed = Parser::new(&allocator, source, source_type)
@@ -819,13 +912,14 @@ pub fn instrument(path: &str, source: &str, options: Options) -> Result<Instrume
     if let Some(e) = parsed.diagnostics.errors().next() {
         return Err(format!("{path}: {e}"));
     }
-    let mut c = Collector { src: source, options, stack: Vec::new(), skip_depth: 0, placements: Vec::new(), mutants: Vec::new(), next_id: 0 };
+    let mut c = Collector { src: source, options, stack: Vec::new(), skip_depth: 0, ignored: None, placements: Vec::new(), mutants: Vec::new(), next_id: 0 };
     c.visit_program(&parsed.program);
 
     let lines = Lines::new(source);
     let mut seen = std::collections::HashSet::new();
     let mut mutants = Vec::new();
     let mut with_ids = Vec::with_capacity(c.mutants.len());
+    let mut placed = 0usize;
     for (i, m) in c.mutants.into_iter().enumerate() {
         let start = lines.position(m.node.start);
         let end = lines.position(m.node.end);
@@ -838,12 +932,16 @@ pub fn instrument(path: &str, source: &str, options: Options) -> Result<Instrume
             id = format!("{}-{n}", &id[..16]);
         }
         if !m.dropped {
-            mutants.push(Mutant { id: id.clone(), mutator_name: m.mutator_name, replacement: m.replacement.clone(), start, end });
-            c.placements[m.host].mutants.push(i);
+            mutants.push(Mutant { id: id.clone(), mutator_name: m.mutator_name, replacement: m.replacement.clone(), start, end, ignored: m.ignored.clone() });
+            // An ignored mutant is reported, never placed: its subtree keeps its source text.
+            if m.ignored.is_none() {
+                c.placements[m.host].mutants.push(i);
+                placed += 1;
+            }
         }
         with_ids.push((m, id));
     }
-    if mutants.is_empty() {
+    if placed == 0 {
         return Ok(Instrumented { code: None, mutants });
     }
     // Placements in document order, outer before inner on equal spans.

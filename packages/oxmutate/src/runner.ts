@@ -77,10 +77,15 @@ interface Plan {
   hitLimits: Record<string, number>;
   /** Mutants already decided (an earlier attempt of this shard finished or timed them out). */
   skip: string[];
+  /** A spec oracle's replay tests: they keep a verdict track of their own (spec-oracle.ts). */
+  specTests?: string[];
 }
 const plan: Plan =
   mode === 'mutant' && env['OXMUTATE_PLAN'] ? (JSON.parse(readFileSync(env['OXMUTATE_PLAN'], 'utf8')) as Plan) : { tests: {}, hitLimits: {}, skip: [] };
 const decided = new Set(plan.skip);
+/** The replay tests' own bail: a mutant the tests killed is still replayed, and the reverse. */
+const specTests = new Set(plan.specTests ?? []);
+const decidedBySpec = new Set<string>();
 /** `isolated`: when set, only these tests run (the mutant's covering tests); the rest pass untouched. */
 const only = mode === 'isolated' && env['OXMUTATE_ONLY_TESTS'] ? new Set(JSON.parse(env['OXMUTATE_ONLY_TESTS']) as string[]) : undefined;
 /** Set when a mutant left state behind; the rest of this context runs no mutants. */
@@ -159,7 +164,9 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     const context = test.context;
     // Once a mutant has polluted this context, no further verdict from it can be trusted: the
     // rest of the unit is left unrun, and the coordinator re-queues it into a fresh context.
-    const ids = polluted ? [] : (plan.tests[test.id] ?? []).filter((id) => !decided.has(id));
+    const spec = specTests.has(test.id);
+    const done = spec ? decidedBySpec : decided;
+    const ids = polluted ? [] : (plan.tests[test.id] ?? []).filter((id) => !done.has(id));
     let cleanups: Hook[] = [];
     let attempt = 0;
     const fresh = async (): Promise<void> => {
@@ -186,7 +193,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       }
     };
     for (const id of ids) {
-      if (decided.has(id)) continue;
+      if (done.has(id)) continue;
       if (attempt > 0) await fresh();
       if (progressPath) writeFileSync(progressPath, `${id} ${String(Date.now())}\n`);
       const t0 = performance.now();
@@ -203,8 +210,8 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
         ns.hitCount = undefined;
         ns.hitLimit = undefined;
       }
-      if (status !== 'Survived') decided.add(id);
-      emit({ type: 'mutant', id, test: test.id, status, ms: performance.now() - t0 });
+      if (status !== 'Survived') done.add(id);
+      emit({ type: 'mutant', id, test: test.id, status, ms: performance.now() - t0, ...(spec ? { spec: true } : {}) });
       unchecked.push(id);
       // The canary: the same test, unmutated, must still pass. If it fails, a mutant left state
       // behind (a cache, a registry, a fixture) that would decide the next verdicts. Run after every

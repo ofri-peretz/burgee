@@ -124,6 +124,16 @@ describe.skipIf(!native || !existsSync(bin))('Stryker options the run honours', 
     expect(runWith(registry, { thresholds: { break: 50 } }).status).toBe(0);
   });
 
+  it('ignore: mutants under a matched call are reported Ignored with the rule\'s reason, the rest unaffected', () => {
+    const r = runWith(registry, { ignore: [{ call: 'items.push', reason: 'the registry write is checked elsewhere' }] });
+    expect(r.status).toBe(0);
+    const mutants = (JSON.parse(readFileSync(path.join(r.reports, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: (ReportMutant & { statusReason?: string })[] }> }).files['src/registry.ts']?.mutants ?? [];
+    const ignored = mutants.filter((m) => m.status === 'Ignored');
+    expect(ignored.length).toBeGreaterThan(0);
+    expect(ignored.every((m) => m.statusReason === 'the registry write is checked elsewhere' && m.location.start.line === 6)).toBe(true);
+    expect(mutants.some((m) => m.status === 'Killed')).toBe(true);
+  });
+
   it('dryRunOnly: the dry run passes and nothing is scored or written', () => {
     const r = runWith(registry, { dryRunOnly: true });
     expect(r.status).toBe(0);
@@ -198,4 +208,28 @@ describe.skipIf(!native || !existsSync(bin))('the command runner (testRunner: co
     expect(readdirSync(path.join(registry, '.oxmutate-tmp'))).toEqual([]);
     expect(readFileSync(path.join(registry, 'src/registry.ts'), 'utf8')).not.toContain('oxmAct');
   }, 120_000);
+});
+
+describe.skipIf(!native || !existsSync(bin))('a spec oracle (M3.5): model traces as a second verdict', () => {
+  const fixture = path.join(pkg, 'test/fixtures/spec');
+  afterAll(() => rmSync(path.join(fixture, 'reports'), { recursive: true, force: true }));
+
+  it('reports the mutants only the model catches as test-spec gaps, with the trace, and leaves the score alone', () => {
+    const r = runWith(fixture, {});
+    expect(r.status).toBe(0);
+    const report = JSON.parse(readFileSync(path.join(r.reports, 'mutation.json'), 'utf8')) as {
+      files: Record<string, { mutants: (ReportMutant & { id: string })[] }>;
+      'x-oxmutate': { specOracles: { specKillShare: number; mappingCoverage: number; testSpecGap: { id: string; trace: string }[]; specEscapes: unknown[] }[] };
+    };
+    const mutants = report.files['src/counter.ts']?.mutants ?? [];
+    const [counter] = report['x-oxmutate'].specOracles;
+    // dec() on lines 7–8 is untested: its mutants are the tests' NoCoverage and the spec's kills.
+    const untested = mutants.filter((m) => m.location.start.line >= 7 && m.location.start.line <= 8);
+    expect(untested.length).toBeGreaterThan(0);
+    expect(untested.every((m) => m.status === 'NoCoverage')).toBe(true);
+    expect(counter?.testSpecGap.map((g) => g.id).sort()).toEqual(untested.map((m) => m.id).sort());
+    expect(counter?.testSpecGap.every((g) => /replays t\d+\.itf\.json/.test(g.trace))).toBe(true);
+    expect(counter?.specEscapes).toEqual([]);
+    expect(counter?.mappingCoverage).toBe(100);
+  });
 });
