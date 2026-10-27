@@ -36,6 +36,6 @@ R1 says no non-fix release reaches npm within 7 days of the previous one. Each o
 
 **Cost.** A fix to a package with a held minor waits up to 7 days. On the intent's 30-day measure this helps: a fix resets `latest`, and the spec predicted the share would stay at 0 while fixes publish freely. The constraint the intent wrote, security first, is unchanged.
 
-**What is not undone.** Nothing is unpublished or re-versioned (R8). roundel 1.2.1, seniority 1.1.1 and burgee 1.7.2 stay on npm. Their minors still release when the windows open: roundel 2026-10-27 05:27 UTC, seniority 2026-10-27 18:05 UTC, burgee 2026-11-01 17:05 UTC.
+**What is not undone.** Nothing is unpublished or re-versioned (R8). roundel 1.2.1, seniority 1.1.1 and burgee 1.7.2 stay on npm. D-20261026-shipped-on-published-patch stamps four intents `shipped` on that published code, and this decision does not reverse it: the code is on npm, whatever its version says. Their minors still release when the windows open: roundel 2026-10-27 05:27 UTC, seniority 2026-10-27 18:05 UTC, burgee 2026-11-01 17:05 UTC.
 
 **Open.** `models.yml` checks the three counterexamples it lists. `holdsVersionsNotCode` and `shippedNeverHoldsAFix` are checked by hand until its loop names them, because a change under `.github/` runs the paid task evals on its PR: B-20261026-models-yml-holds-code-invariants.
