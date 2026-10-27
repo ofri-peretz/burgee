@@ -1,7 +1,7 @@
 ---
 id: D-20261027-caique-prompt-for-r1
 subject: 'caique R1: where promptFor lives, how burgee leaves a missing value to it, what --schema says, and the root budget it costs'
-taken: 'A caique/prompt-for subpath; burgee defers a missing value that declares a prompt and hands ctx.json; --schema does not publish the prompt; caique''s root budget 20,700 -> 21,100. Decided under the owner''s delegation of budgets and trade-offs.'
+taken: 'A caique/prompt-for subpath; burgee defers a missing value that declares a prompt and hands ctx.json; --schema does not publish the prompt; caique''s root budget 20,700 -> 20,800. Decided under the owner''s delegation of budgets and trade-offs.'
 date: '2026-10-27'
 superseded_by: —
 ---
@@ -16,7 +16,7 @@ or 4 for a cancellation. Five choices the design did not settle, settled here.
 1. **Its own subpath, not the root.** `promptFor` reaches the terminal (`createIo`), so a program
    that resolves prompts through `caique/binding` with its own `Io` must not carry it, and one
    that wraps a command must not carry the raw renderer and the keymaps the root re-exports.
-   `./prompt-for` measures 16,242 B, budgeted at 16,300 in `weight.test.ts`.
+   `./prompt-for` measures 15,704 B, budgeted at 15,800 in `weight.test.ts`.
 
 2. **burgee defers; it does not import.** A missing required option or positional that declares a
    `prompt` is no longer refused by the engine (`execute.ts`, `parse-refusals.ts`): it reaches the
@@ -52,10 +52,10 @@ was a byte to a question already answered. The model describes the fix, and four
 (that one, no exit-path registration, an eagerly opened terminal, a registration never released)
 each still fail its `safety`.
 
-**caique's root budget, 20,700 -> 21,100.** Measured 21,000 B (+324): the `flag` a refusal names,
+**caique's root budget, 20,700 -> 20,800.** Measured 20,790 B (+114): the `flag` a refusal names,
 threaded through `decide` and `binding`, and `promptStreams()` in `runtime.ts`, all three of which
-the root re-exports. The binding's cancel line keeps the catalog's `cancelled at --{option}`
-sentence for a flag, so a locale pack written against it still translates it; a positional's
-(`cancelled at <name>`) is said in English, because no pack has that sentence yet. Renaming the
-catalog's placeholder to `{flag}` would have been smaller and would have broken every pack that
-translates those two ids. Product, not drift; `promptFor` itself is behind its own door.
+the root re-exports. The flag carries its own dashes, so the binding's cancel line for a flag is
+still the catalog's `cancelled at --{option}` to the character and a locale pack still translates
+it; a positional's (`cancelled at <name>`) is said in English, as no pack has that sentence yet.
+Renaming the catalog's placeholder to `{flag}` would have broken every pack that translates those
+two ids. Product, not drift; `promptFor` itself is behind its own door.
