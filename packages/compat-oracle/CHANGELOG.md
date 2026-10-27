@@ -1,5 +1,11 @@
 # compat-oracle
 
+## 0.3.14
+
+### Patch Changes
+
+- [#1298](https://github.com/ofri-peretz/burgee/pull/1298) [`9de86af`](https://github.com/ofri-peretz/burgee/commit/9de86af7a8b27d4aa717aa78b66e743f64925089) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Every spawn goes through `bellpull/cross-spawn` (`src/spawn.ts`), so `npm` starts as `npm.cmd` on Windows without a shell, and the `suiteDeps` runners (tsd, twist, uvu) run there. Grades are unchanged. Private, never published.
+
 ## 0.3.13
 
 ### Patch Changes
