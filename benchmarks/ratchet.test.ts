@@ -220,6 +220,31 @@ describe('B2 cold start — seniority R9, each drop-in held to the incumbent it 
   });
 });
 
+describe('B2 cold start — linegauge and closeout, each library held to the incumbent it replaces', () => {
+  const base = Array.from({ length: 40 }, (_, i) => 30 + (i % 3));
+  const rows = VARIANTS.filter((v) => v.pkg === 'linegauge' || v.pkg === 'closeout');
+
+  // D-20261026-library-spawn-delta-rows reopened both criteria: "benchmark rows … on bytes and
+  // spawn delta" had a bytes row and no spawn row. These are the spawn rows, at the bars
+  // D-20261027-linegauge-closeout-spawn-bars sets from CI's readings.
+  it('times linegauge against string-width and both closeout drop-ins against theirs, each at its own bar', () => {
+    expect(rows.map((v) => [v.id, v.over, v.bar?.max])).toEqual([
+      ['linegauge', 'string-width', 0],
+      ['closeout/exit-hook', 'exit-hook', 2],
+      ['closeout/signal-exit', 'signal-exit', 2],
+    ]);
+  });
+
+  it.each(rows.map((v) => [v.id, v] as const))('%s: exits non-zero one step past its bar, zero at it, and says whose bar it is', (id, v) => {
+    const max = v.bar?.max ?? Number.NaN;
+    const over = String(v.over);
+    expect(verdict([deltaRecord({ v, ours: base.map((ms) => ms + max + 0.01), over: base, gateMax: max })])).toBe(1);
+    expect(said()).toContain(`${id} − ${over} cold-start-delta-ms: ${String(max + 0.01)} ms is above its ceiling of ${String(max)}`);
+    expect(said()).toContain(v.bar?.why ?? 'no bar');
+    expect(verdict([deltaRecord({ v, ours: base.map((ms) => ms + max), over: base, gateMax: max })])).toBe(0);
+  });
+});
+
 /**
  * D-157: three published claims are downward-only ratchets, and the ceiling has to be what
  * `--check` enforces — a claim at 2.35 beside a gate at 2.9 would publish a ceiling nothing holds.
