@@ -87,6 +87,13 @@ afterAll(() => {
 /** The `oxmutate` bin, as `npx oxmutate` finds it in an install. */
 const BIN = join(APP, '..', '..', 'node_modules', 'oxmutate', 'dist', 'bin.js');
 
+/**
+ * The environment an example runs in: this one, with colour off. A page shows plain output, and a
+ * shell that exports FORCE_COLOR (a developer's, or a hook's) would have Node colour the objects.
+ */
+const { FORCE_COLOR: _force, ...inherited } = process.env;
+const plain = { ...inherited, NO_COLOR: '1' };
+
 /** `node x.mjs`, `NAME=1 node x.mjs` or `npx oxmutate survivors --json` → env and node's argv. */
 function parse(command: string): { env: Record<string, string>; argv: string[] } {
   const words = command.split(/\s+/u);
@@ -114,7 +121,7 @@ describe.skipIf(process.platform === 'win32')('the examples on this site', () =>
       const { env, argv } = parse(run.command);
       // A hung example is killed with SIGKILL, which no page promises, so a timeout can never
       // pass for an example that was meant to die of SIGTERM.
-      const result = spawnSync(process.execPath, argv, { cwd: dir, env: { ...process.env, ...env }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 20_000, killSignal: 'SIGKILL' });
+      const result = spawnSync(process.execPath, argv, { cwd: dir, env: { ...plain, ...env }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 20_000, killSignal: 'SIGKILL' });
       expect({ status: result.status, signal: result.signal }, result.stderr).toEqual({ status: run.exit, signal: run.signal });
       expect(result.stdout + result.stderr).toBe(run.expected);
     }, 30_000);
