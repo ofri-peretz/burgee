@@ -15,12 +15,13 @@
  *
  * Test scaffolding: `__fixtures__` is outside coverage, mutation and the build.
  */
-import { spawn } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterAll } from 'vitest';
+
+import { spawn } from '../spawn.js';
 
 /** Returns a `mkdtempSync` under `tmpdir()` whose directories are removed after the file's last test. */
 export function scratchDirs(): (prefix: string) => string {

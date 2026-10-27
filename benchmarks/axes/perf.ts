@@ -30,12 +30,12 @@
  *   B4 uses, from the fixture directory the spawned processes themselves resolve from,
  *   **before anything is timed** — and the version and resolved path go into every record.
  */
-import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 import { claimRatchet } from '../claim-ratchets.js';
 import { type BenchRecord } from '../record.js';
 import { relativeToRepo, type Resolved, resolvePackage } from '../resolve.js';
+import { spawnSync } from '../spawn.js';
 import { median, p95, round } from '../stats.js';
 
 import { method as scaleMethod, run as runScale } from './scale.js';

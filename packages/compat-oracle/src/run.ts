@@ -6,7 +6,6 @@
  * rewrites. That is the whole point: a compatibility claim graded by tests we wrote
  * would be graded by our reading of the host's behaviour, which is the thing under test.
  */
-import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, isAbsolute, join, relative, sep } from 'node:path';
@@ -14,6 +13,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { testFiles } from './discover.js';
 import { type Exclusion, exclusionsHere, type Host, type HostEntry, type HostImport } from './hosts.js';
+import { execFile, spawnSync } from './spawn.js';
 import { declarationName, type TsdFailure, type TsdReport, tsdTap } from './tsd.js';
 import { type TwistRun, twistTap } from './twist.js';
 import { type UvuRun, uvuTap } from './uvu.js';
@@ -1038,7 +1038,7 @@ function runExitCodes(host: Host, hostDir: string, files: string[], target: stri
   const failures: string[] = [];
   for (const file of files) {
     try {
-      execFileSync(process.execPath, [join(dir, file)], {
+      execFile(process.execPath, [join(dir, file)], {
         encoding: 'utf8',
         cwd: hostDir,
         env: suiteEnv(host, hostDir, target),
@@ -1106,7 +1106,7 @@ function runTapFiles(host: Host, hostDir: string, files: string[], target: strin
     // the measurement in both branches and only an empty one is a broken run.
     let stdout: string;
     try {
-      stdout = execFileSync(process.execPath, [...preload, join(dir, file)], {
+      stdout = execFile(process.execPath, [...preload, join(dir, file)], {
         encoding: 'utf8',
         cwd: hostDir,
         env: suiteEnv(host, hostDir, target),
@@ -1219,7 +1219,7 @@ function runSuite(host: Host, hostDir: string, files: string[], target: string):
   const { bin, args } = command(host, hostDir, dir, files.map((f) => join(dir, f)));
   try {
     // cwd is the vendored root: suites use cwd-relative paths into their own tree.
-    const output = execFileSync(bin, args, {
+    const output = execFile(bin, args, {
       encoding: 'utf8',
       cwd: hostDir,
       env: suiteEnv(host, hostDir, target),
@@ -1404,7 +1404,7 @@ export function installSuiteDeps(host: Host, hostDir: string, write: Write = sil
   if (wrong.length === 0 && !stale) return;
   write(`  installing ${host.name}'s suite dependencies into vendor/${host.name}/node_modules as of ${before}: ${[...wrong, ...(stale ? ['the tree beside them'] : [])].join(', ')}\n`);
   if (stale) rmSync(modules, { recursive: true, force: true });
-  execFileSync('npm', ['install', '--no-audit', '--no-fund', '--no-package-lock', `--before=${before}`, '--prefix', hostDir], { stdio: ['ignore', 'ignore', 'inherit'], timeout: INSTALL_TIMEOUT_MS });
+  execFile('npm', ['install', '--no-audit', '--no-fund', '--no-package-lock', `--before=${before}`, '--prefix', hostDir], { stdio: ['ignore', 'ignore', 'inherit'], timeout: INSTALL_TIMEOUT_MS });
   mkdirSync(modules, { recursive: true });
   writeFileSync(marker, before);
 }

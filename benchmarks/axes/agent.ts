@@ -27,13 +27,13 @@
  * to the local 3) is a different agent's, not a regression (D-20260930-b1-ci-environment).
  * Every record now names the `claude` version and the environment it ran in.
  */
-import { execFileSync, spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { type BenchRecord } from '../record.js';
+import { execFile, spawnSync } from '../spawn.js';
 import { median, p95, round } from '../stats.js';
 
 const BENCH_ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -564,7 +564,7 @@ export function agentEnv(env: NodeJS.ProcessEnv, toolDir: string): NodeJS.Proces
  */
 export function runOne(opts: RunOne): Attempt {
   const { claudeBin, task, toolDir, workdir, model, timeoutMs } = opts;
-  for (const cmd of task.setup) execFileSync(SHELL, ['-c', cmd], { cwd: workdir, stdio: 'ignore' });
+  for (const cmd of task.setup) execFile(SHELL, ['-c', cmd], { cwd: workdir, stdio: 'ignore' });
   const argv = ['-p', task.prompt, ...toolArgs(opts.modality ?? 'cli', opts.mcp), '--max-turns', String(task.maxTurns), ...OUTPUT_FORMAT, '--model', model, ...ISOLATION];
   const r = spawnSync(claudeBin, argv, {
     cwd: workdir,
