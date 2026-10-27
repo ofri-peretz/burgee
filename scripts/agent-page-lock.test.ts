@@ -209,7 +209,7 @@ const MCP_HEADING = '## CLI and MCP, one declaration';
 const READING_FILE = /^\d{4}-\d{2}-\d{2}-[0-9a-f]{7}-(?:weekly|dispatch-(\d+))-ci\.json$/u;
 const MCP_ROW = /^\| (\d+) \| `(\d{4}-\d{2}-\d{2}-[0-9a-f]{7}-(?:weekly|dispatch-\d+)-ci\.json)` \| (\d{4}-\d{2}-\d{2} \d{2}:\d{2}) \| ([\d.]+) \| ([\d.]+) \| (\d+\/\d+) \|$/gmu;
 const MCP_TASK_ROW = /^\| ([a-z-]+) \| (\d+) \((\d+) to (\d+)\) \| (\d+) \((\d+) to (\d+)\) \| (\d+) \((\d+) to (\d+)\) \| (\d+) \((\d+) to (\d+)\) \|$/gmu;
-const MCP_SPREAD = /The (tokens|turns) ratio over these (\d+) readings has a median of ([\d.]+), from ([\d.]+) to ([\d.]+)\./gu;
+const MCP_SPREAD = /The\s+(tokens|turns)\s+ratio\s+over\s+these\s+(\d+)\s+readings\s+has\s+a\s+median\s+of\s+([\d.]+),\s+from\s+([\d.]+)\s+to\s+([\d.]+)\./gu;
 
 /** Every landed reading of the MCP arm, by file name. */
 export function mcpReadings(dir = RESULTS): Map<string, Doc> {
