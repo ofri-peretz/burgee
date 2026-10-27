@@ -3,6 +3,16 @@ title: Changelog
 description: "Every release of controlroom, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.0.8
+
+### Patch Changes
+
+- [#1313](https://github.com/ofri-peretz/burgee/pull/1313) [`94ced9e`](https://github.com/ofri-peretz/burgee/commit/94ced9e2c6a894ce31a284a24bc6dc92c9899d27) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A terminal that reports a size of 0 × 0 is drawn at 80 × 24. A pseudo-terminal nobody gave a
+  window size (`docker run -t` before its first resize, Python's `pty.fork()`, `script` on some
+  systems) reports 0 columns and 0 rows, and a screen opened on one was laid out on zero rows and
+  drew nothing for its whole life. A size of 0 now means no size, as it already did in flagstaff's
+  frame writer and in `controlroom/ink`.
+
 ## 1.0.7
 
 ### Patch Changes
