@@ -83,7 +83,8 @@ describe('the records, and the gate on them', () => {
   });
 
   it('runs a whole multiple of four rounds, never more than it was asked for past the floor', () => {
-    expect(scaleRounds(52)).toBe(24);
+    expect(scaleRounds(52)).toBe(32);
+    expect(scaleRounds(92)).toBe(32);
     expect(scaleRounds(8)).toBe(8);
     expect(scaleRounds(5)).toBe(8);
     expect(scaleRounds(1)).toBe(4);

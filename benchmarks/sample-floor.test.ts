@@ -24,6 +24,7 @@ import { describe, expect, it } from 'vitest';
 
 import { readTasks, RUNS_PER_TASK } from './axes/agent.js';
 import { ROUNDS } from './axes/perf.js';
+import { SCALE_ROUNDS } from './axes/scale.js';
 
 /** The floors the two test names state; change both together. */
 const PERF_MIN_SAMPLES = 30;
@@ -34,6 +35,9 @@ const RESULTS = fileURLToPath(new URL('results/cli-benchmarks/', import.meta.url
 describe('sample floors', () => {
   it('perf spawns every variant at least 30 times per run (R6)', () => {
     expect(ROUNDS).toBeGreaterThanOrEqual(PERF_MIN_SAMPLES);
+    // The Z5 scale rows ride the perf axis in rounds of their own; at 24 they put six records
+    // under the floor in every CI reading, and only the newest committed reading noticed.
+    expect(SCALE_ROUNDS).toBeGreaterThanOrEqual(PERF_MIN_SAMPLES);
   });
 
   it('the newest CI reading carries those samples on every perf record', () => {
