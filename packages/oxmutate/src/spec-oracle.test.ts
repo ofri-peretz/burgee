@@ -32,8 +32,8 @@ const quint = (o: Partial<SpecOracle> = {}): SpecOracle => ({ name: 'counter', b
 
 describe('tracesFor', () => {
   it('itf: the given directory, resolved from the root, with nothing run', async () => {
-    expect(await tracesFor({ name: 'p', backend: 'itf', dir: 'traces/p', replay: [], files: [] }, '/proj', '/work')).toBe('/proj/traces/p');
-    expect(await tracesFor({ name: 'p', backend: 'itf', replay: [], files: [] }, '/proj', '/work')).toBe('/proj');
+    expect(await tracesFor({ name: 'p', backend: 'itf', dir: 'traces/p', replay: [], files: [] }, '/proj', '/work')).toBe(path.resolve('/proj', 'traces/p'));
+    expect(await tracesFor({ name: 'p', backend: 'itf', replay: [], files: [] }, '/proj', '/work')).toBe(path.resolve('/proj'));
   });
 
   it('quint: runs quint run --mbt into the work directory with the defaults', async () => {
@@ -52,7 +52,8 @@ describe('tracesFor', () => {
     expect(recorded()).toEqual(['run', path.join(tmp, 'specs/counter.qnt'), '--mbt', '--n-traces', '7', '--max-samples', '7', '--max-steps', '3', '--out-itf', path.join(dir, 't{seq}.itf.json'), '--seed', '0x2a']);
   });
 
-  it('quint: by default the pinned version through npx', async () => {
+  // A POSIX shell shim stands in for npx on PATH; Windows resolves npx.cmd, which this shim is not.
+  it.skipIf(process.platform === 'win32')('quint: by default the pinned version through npx', async () => {
     const bin = path.join(tmp, 'bin');
     mkdirSync(bin, { recursive: true });
     writeFileSync(path.join(bin, 'npx'), `#!/bin/sh\nexec node ${fake} "$@"\n`);

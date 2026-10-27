@@ -125,7 +125,8 @@ describe('checkSurvivors, against a stand-in compiler', () => {
     ]);
   });
 
-  it("uses the project's tsgo when it has one", async () => {
+  // A POSIX shell shim stands in for npm's .bin entry; Windows takes tsgo.cmd, which this shim is not.
+  it.skipIf(process.platform === 'win32')("uses the project's tsgo when it has one", async () => {
     const root = project();
     mkdirSync(path.join(root, 'node_modules', '.bin'), { recursive: true });
     writeFileSync(path.join(root, 'node_modules', '.bin', 'tsgo'), `#!/bin/sh\nexec node ${fake} "$@"\n`);

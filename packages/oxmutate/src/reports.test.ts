@@ -93,7 +93,7 @@ describe('the JSON report (mutation-testing-report-schema 2)', () => {
         'src/a.test.ts': { tests: [{ id: 't1', name: 'a works' }, { id: 't2', name: 'a again' }] },
         'test/b.test.js': { tests: [{ id: 't3', name: 'b' }] },
       },
-      framework: { name: 'oxmutate', version: '0.1.0', branding: { homepageUrl: 'https://www.npmjs.com/package/oxmutate' } },
+      framework: { name: 'oxmutate', version: VERSION, branding: { homepageUrl: 'https://www.npmjs.com/package/oxmutate' } },
       'x-oxmutate': { stats: r.stats, score: r.score, unusedConfig: [], frozenOracle: undefined, specOracles: [] },
     });
   });
@@ -107,7 +107,7 @@ describe('the JSON report (mutation-testing-report-schema 2)', () => {
   });
 
   it('is the package version', () => {
-    expect(VERSION).toBe('0.1.0');
+    expect(VERSION).toBe((JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version);
   });
 });
 
@@ -129,7 +129,7 @@ describe('the SARIF report', () => {
       version: '2.1.0',
       runs: [
         {
-          tool: { driver: { name: 'oxmutate', version: '0.1.0', informationUri: 'https://www.npmjs.com/package/oxmutate', rules: [rule('Regex'), rule('StringLiteral')] } },
+          tool: { driver: { name: 'oxmutate', version: VERSION, informationUri: 'https://www.npmjs.com/package/oxmutate', rules: [rule('Regex'), rule('StringLiteral')] } },
           results: [
             {
               ruleId: 'StringLiteral',
@@ -183,7 +183,7 @@ describe('the terminal summary', () => {
       tests: [{ id: 't1', file: 'a', name: 'a', ms: 1 }],
       mutants: [mutant({ coveredBy: ['t1'] }), mutant({ static: true }), mutant({ static: false }), mutant()],
     });
-    expect(textSummary(r)).toBe(`oxmutate 0.1.0: dry run only, 6.8 s\n  1 tests passed with every mutant compiled in and none active; 2 of 4 mutants are reached by a test\n`);
+    expect(textSummary(r)).toBe(`oxmutate ${VERSION}: dry run only, 6.8 s\n  1 tests passed with every mutant compiled in and none active; 2 of 4 mutants are reached by a test\n`);
   });
 
   it('counts every status, the phases, and lists the survivors with what to do next', async () => {
@@ -202,7 +202,7 @@ describe('the terminal summary', () => {
     });
     expect(textSummary(r)).toBe(
       [
-        'oxmutate 0.1.0: 9 mutants in 2 files, 6.8 s',
+        `oxmutate ${VERSION}: 9 mutants in 2 files, 6.8 s`,
         '  mutation score 60.00% (covered 75.00%)',
         '  killed 2 · timeout 1 · survived 1 · no coverage 1 · ignored 1 · errors 3',
         '  instrument 3 ms · dry run 1.3 s · mutants 4.0 s · isolated 1.0 s',

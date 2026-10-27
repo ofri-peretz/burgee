@@ -17,7 +17,7 @@
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { ambientRuntime, run as spawn } from 'bellpull';
+import { ambientRuntime, isWindows, run as spawn } from 'bellpull';
 
 import { makeSandbox } from './command-runner.js';
 
@@ -80,7 +80,8 @@ export function batches<T extends { file: string }>(items: readonly T[]): T[][] 
 
 function compiler(o: CheckOptions): string[] {
   if (o.command) return o.command.trim().split(/\s+/);
-  const tsgo = path.join(o.root, 'node_modules', '.bin', 'tsgo');
+  // npm's .bin entry on Windows is tsgo.cmd; the extensionless file beside it is a shell script.
+  const tsgo = path.join(o.root, 'node_modules', '.bin', isWindows(ambientRuntime()) ? 'tsgo.cmd' : 'tsgo');
   return existsSync(tsgo) ? [tsgo] : ['npx', 'tsc'];
 }
 
