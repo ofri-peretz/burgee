@@ -402,6 +402,13 @@ export interface Host {
    */
   suiteTimeoutMs?: number;
   /**
+   * Platforms the oracle does not grade this host on at all, and why: a suite upstream never
+   * runs there, and that cannot finish there for its own reason. Not a skip under another name,
+   * because every run on such a platform prints the host and `why` under the report, and the
+   * platforms that grade it are untouched. Only for a reason measured on that platform.
+   */
+  notGradedOn?: { platforms: NodeJS.Platform[]; why: string };
+  /**
    * Environment the host's own `npm test` sets, and the suite depends on: ora's tests read
    * private state through the `_`-prefixed properties its constructor only defines under
    * `NODE_ENV=test`. Merged over the runner's environment for control and target alike.
@@ -2147,6 +2154,11 @@ export const HOSTS: Host[] = [
     // 95 files one after another, 78 of whose cases open a pseudo-terminal: 271 s against ink
     // itself on darwin (2026-10-06), the gated and informational runs together.
     suiteTimeoutMs: 600_000,
+    // Measured on windows-latest, run 40577331465 (D-20261027-windows-controls-ink).
+    notGradedOn: {
+      platforms: ['win32'],
+      why: 'upstream runs this suite on ubuntu only (`.github/workflows/test.yml` at v8.0.0), and on Windows no file after the first node-pty file ever reports: components.tsx passes its 93 cases, then nothing until the 600 s cap; issue-973-static-commit.tsx does the same in the internals run. Each grade was 1,200 s, three grades an hour',
+    },
     env: { FORCE_COLOR: 'true', CI: 'false' },
     pinnedVersion: '8.0.0',
     suiteDeps: [
