@@ -152,7 +152,7 @@ Abbreviations used below:
 | plugin-contract | shipped 2026-10-27 (eval run 40504387711); before: approved (design accepted 2026-10-25; C1–C3 re-read on the ten published tarballs 2026-10-26) | y | P | burgee check / plugins | 12 | 11 | C4 eval: no executed weekly reading since 2026-10-09; the next run is Saturday 2026-10-31 | n | – | one schema, byte-identical in all ten tarballs; `burgee@1.7.2 check` runs every installed layer's check and refuses a spinner with no `static` |
 | positioning | **shipped** (batch 0) | y | SHIPPED | docs-only | 16 | 15 | – (R12 reported by decision) | n | – | |
 | previous-majors | **shipped** (2026-10-19; released in burgee 1.7.0, Version PR #1231, 2026-10-25) | y | SHIPPED | compat-oracle + façades + migrate | 6 | 6 | – | n | – | **Barrier 1.** #1086 and #1165; commander-14 1,331 / 1,331, yargs-17 793 / 794 (run 40180212984) |
-| release-cadence | approved (#1124; window fixed 2026-10-26, D-20261026-release-window-holds-code) | y | P | release | 9 | 9 | S2: the 30-day share, read over the 30 days after the fix merges (0 of 7.19 days so far) | **y** (`release-window.qnt`, now with the code on main) | all five counterexamples, `holdsVersionsNotCode` and `shippedNeverHoldsAFix` among them, in `models.yml` since D-20261027-close-three-workflow-gaps | #1253 shipped three held minors' code as patches; a held package's fixes now wait with it, and `release.yml` defers such a patch |
+| release-cadence | **dropped** (2026-10-27, `D-20261027-no-release-window`) | y | DROPPED | release | 9 | 1 (the lock) | – | n | – | The owner removed the release window: every release goes out when it merges. `release-window.qnt` retired with it; the changeset lock stays as `scripts/changeset-lock.mts` |
 | replacement-parser | review | y | P | burgee/parse | 10 | 7 | G3 (quirks subpath; contradicts yargs-compat), G7, SC2 (1.55× ratchet, not ≤1×) | n | – | Restate to D-157 and drop G3 |
 | roundel | **shipped** (batch 0) | y | SHIPPED | roundel | 17 | 17 | – | n | – | Rewrite the stale 2026-09-09 verified section |
 | schema-bytes-gated | **shipped** (schema-group) | y | SHIPPED | benchmarks reliability | 3 | 3 | – | n | – | Budget 4,650 B (demo 4,628 B at `326907ec`); gap B-20261012 closed |
@@ -187,7 +187,7 @@ These intents need a model:
 | bellpull | missing (kill ladder) |
 | closeout-at-incumbent-weight | `lean.qnt`, built 2026-10-20 |
 | completion-context | `context.qnt`, built 2026-10-20 |
-| release-cadence | missing (release window) |
+| release-cadence | none needed: dropped 2026-10-27 with the window (`D-20261027-no-release-window`); `release-window.qnt` retired |
 
 `release-tag.qnt` exists but is not an intent's model of record; it covers tag placement.
 
