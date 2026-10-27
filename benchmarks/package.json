@@ -13,7 +13,8 @@
     "./fixtures/entry-points.js": "./fixtures/entry-points.ts",
     "./published.js": "./published.ts",
     "./resolve.js": "./resolve.ts",
-    "./runtime-ratchets.js": "./runtime-ratchets.ts"
+    "./runtime-ratchets.js": "./runtime-ratchets.ts",
+    "./stats.js": "./stats.ts"
   },
   "engines": {
     "node": ">=24"

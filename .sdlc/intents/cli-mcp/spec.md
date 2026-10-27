@@ -1,6 +1,6 @@
 # Design — `cli-mcp`
 
-Intent: [`intent.md`](./intent.md). **Status:** approved (2026-10-25).
+Intent: [`intent.md`](./intent.md). **Status:** shipped (2026-10-27); approved 2026-10-25. Criterion 4 met by `b1-mcp-arm` R5 on four readings (runs 40492593210, 40518014447, 40528288811, 40539828491).
 
 ---
 

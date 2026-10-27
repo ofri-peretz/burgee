@@ -13,7 +13,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { declared, drift, rows, unlisted } from './roadmap-index.js';
+import { declared, drift, rows, statusIn, unlisted } from './roadmap-index.js';
 
 describe('roadmap index', () => {
   it('every row says what its intent says', () => {
@@ -28,10 +28,14 @@ describe('roadmap index', () => {
   });
 
   it('reads the status word rather than the first word that looks like one', () => {
-    // `**review** (was `shipped`)` is a correction, and the correction is the status.
-    const corrected = rows().filter((r) => r.raw.includes('(was `shipped`)'));
-    expect(corrected.length).toBeGreaterThan(0);
-    for (const row of corrected) expect(row.says).not.toBe('shipped');
+    // `**review** (was `shipped`)` is a correction, and the correction is the status. The index's
+    // one such row (`sdlc-locks-evals-bands`) shipped on 2026-10-27, so the case is stated here.
+    expect(statusIn('](./x/) | thing | — | **review** (was `shipped`) — 3 of 6 |')).toBe('review');
+    expect(statusIn('](./x/) | thing | — | **shipped** 2026-10-27. Before: **approved** (was `shipped`) |')).toBe('shipped');
+    expect(statusIn('](./x/) | thing | — | (was `shipped`, then `approved`) now **review** |')).toBe('review');
+    expect(statusIn('](./x/) | thing | — | review(was `shipped`) |')).toBe('review');
+    expect(statusIn('](./x/) | thing | — | nothing yet |')).toBeUndefined();
+    for (const row of rows().filter((r) => r.raw.includes('(was `shipped`)'))) expect(row.says, row.slug).toBe(declared(row.slug));
   });
 
   it('returns nothing for an intent it cannot read, rather than a default', () => {
