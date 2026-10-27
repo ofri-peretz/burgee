@@ -87,10 +87,12 @@ const at = (variant: string, metric: string): number | undefined => CLAIMS.find(
 describe('controlroom R14 — W1 to W4 are gated at 1.0×', () => {
   const ink = PAIRS.find((p) => p.id === 'controlroom/ink') as (typeof PAIRS)[number];
   const root = PAIRS.find((p) => p.id === 'controlroom') as (typeof PAIRS)[number];
+  const demo = PAIRS.find((p) => p.id === 'controlroom/dashboard') as (typeof PAIRS)[number];
 
   it.each([
     ['W1', ink, 'controlroom/ink + react + react-reconciler ÷ ink + react bundled-bytes-ratio'],
     ['W3', root, 'controlroom ÷ ink bundled-bytes-ratio'],
+    ['W3, the demo half,', demo, 'examples/dashboard/dashboard.mjs ÷ examples/dashboard-ink/screen.mjs bundled-bytes-ratio'],
   ] as const)('%s exits non-zero one byte over its incumbent, and zero at parity', (_, pair, row) => {
     expect(verdict(pairRecords(pair, measuredAt(1001), measuredAt(1000)))).toBe(1);
     expect(said()).toContain(row);
@@ -137,6 +139,7 @@ describe('controlroom R14 — W1 to W4 are gated at 1.0×', () => {
     expect(at('controlroom/ink + react + react-reconciler ÷ ink + react', 'installed-bytes-ratio')).toBe(1);
     expect(at('controlroom/ink + react + react-reconciler ÷ ink + react', 'installed-packages-ratio')).toBe(1);
     expect(at('controlroom ÷ ink', 'bundled-bytes-ratio')).toBe(1);
+    expect(at('examples/dashboard/dashboard.mjs ÷ examples/dashboard-ink/screen.mjs', 'bundled-bytes-ratio')).toBe(1);
     expect(at('controlroom/ink ÷ ink + react', 'cold-start-ratio')).toBe(1);
     expect(at('controlroom ÷ ink + react', 'cold-start-ratio')).toBe(1);
   });

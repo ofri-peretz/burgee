@@ -248,7 +248,9 @@ function live(rt: Runtime, options: Resolved): Screen {
   if (options.input !== undefined) undo.push(bracketedPaste(rt.stdout, restore));
   let writer = frameWriter(rt.stdout);
 
-  const sizeOf = (animated: boolean): Frame => ({ columns: rt.stdout.columns ?? DEFAULT_COLUMNS, rows: rt.stdout.rows ?? DEFAULT_ROWS, t: rt.clock.now() - started, live: animated });
+  // `||`, not `??`: a pseudo-terminal nobody sized reports 0 × 0 and Node passes the zeros on, and
+  // a screen laid out on zero rows draws nothing at all. flagstaff's frame writer reads 0 as no size too.
+  const sizeOf = (animated: boolean): Frame => ({ columns: rt.stdout.columns || DEFAULT_COLUMNS, rows: rt.stdout.rows || DEFAULT_ROWS, t: rt.clock.now() - started, live: animated });
   /** controlroom-scroll-pane R2 — what the reducer needs to scroll: each pane's height as drawn now. */
   const step = (action: string): void => {
     state = reduce(state, action, extents(treeOf(options, state), Object.fromEntries(panes), sizeOf(true)));

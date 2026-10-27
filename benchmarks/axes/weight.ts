@@ -239,14 +239,15 @@ export function bundle(side: Side, id: string, scratch: string): { initial: numb
   mkdirSync(scratch, { recursive: true });
   const stem = id.replaceAll('/', '__');
   const file = join(scratch, `${stem}.mjs`);
-  writeFileSync(file, sideSource(side));
+  // A program side is its own source, resolved from here like every fixture (`Side.program`).
+  writeFileSync(file, side.program === undefined ? sideSource(side) : readFileSync(join(REPO_ROOT, side.program), 'utf8'));
   const outdir = join(scratch, `${stem}.chunks`);
   rmSync(outdir, { recursive: true, force: true });
   const metafile = join(scratch, `${stem}.meta.json`);
   const external = (side.external ?? []).map((name) => `--external:${name}`);
   // esbuild from the CLI, not the API: one fewer import in a suite that measures imports,
   // and the exact command is quotable in the results file.
-  execFile(esbuildBin(), [file, '--bundle', '--minify', '--format=esm', '--platform=node', '--splitting', ...external, ...peerAliases(side), `--outdir=${outdir}`, `--metafile=${metafile}`], {
+  execFile(esbuildBin(), [file, '--bundle', '--minify', '--format=esm', '--platform=node', '--splitting', ...external, ...(side.program === undefined ? peerAliases(side) : []), `--outdir=${outdir}`, `--metafile=${metafile}`], {
     cwd: BENCH_ROOT,
     stdio: 'pipe',
   });
@@ -497,7 +498,11 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // a yargs program's `.conflicts()`, `.implies()` and `.example()` reach `--schema` and `--mcp`.
   // Main at `6b90ffe` measured 108,345 and this reads 108,769 (+424), on a clean build. Plus the
   // ~32 B CI reads heavier, rounded up to the next 50. Still 2,917 B under yargs' own 111,686.
-  'burgee/yargs': 108_850,
+  // 108,900 on 2026-10-27 for A-20261027-yargs-parsesync-surfaces-throw (#1311,
+  // D-20261027-yargs-parsesync-surface-bytes): under `parseSync()` the `completion` and `--mcp`
+  // surfaces answer instead of throwing. CI read 108,897 (+61 over main's 108,836), rounded up
+  // to the next 50. Still 2,786 B under yargs' own 111,686.
+  'burgee/yargs': 108_900,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
   // bundle grows by, set where the number actually is, so the next byte is a decision.
@@ -884,6 +889,7 @@ export function pairRecords(pair: EntryPair, ours: Measured, theirs: Measured): 
 
 /** What a fixture imports, for the note beside its number. */
 function importsNote(side: Side): string {
+  if (side.program !== undefined) return `the whole program \`${side.program}\`, which imports ${[side, ...(side.with ?? [])].map((s) => `\`${s.specifier}\``).join(', ')}`;
   return [side, ...(side.with ?? [])].map((s) => `${symbolNote(s)} from \`${s.specifier}\``).join(', ');
 }
 
