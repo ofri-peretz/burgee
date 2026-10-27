@@ -71,13 +71,14 @@ const runCommand = defineCommand({
     since: { type: 'string', description: 'only mutants on lines changed since this git ref (the PR lane)' },
     shard: { type: 'string', description: 'run one deterministic share, i/n, for a CI matrix' },
     concurrency: { type: 'number', description: 'worker processes (default: cores - 1, at most 8)' },
-    timeout: { type: 'number', description: 'absolute slack per mutant, ms (default 500; Stryker 5000)' },
+    mutantTimeout: { type: 'number', description: 'absolute slack per mutant, ms (default 500; Stryker 5000)' },
     strykerCompat: { type: 'boolean', description: 'reproduce Stryker 10.0.0 skips (no mutants inside `as` casts or enums)' },
     incremental: { type: 'boolean', description: 'reuse verdicts whose source and covering tests did not change' },
     flakyReruns: { type: 'number', description: 're-runs for verdicts with nondeterministic tests (default 2; 0 disables)' },
     reporter: { type: 'string', description: 'comma-separated: clear-text, json, sarif (default clear-text,json)' },
     break: { type: 'number', description: 'exit 1 when the mutation score is below this' },
     reportDir: { type: 'string', description: 'write mutation.json and mutation.sarif here instead of the configured paths' },
+    config: { type: 'string', description: 'an oxmutate config file (JSON or JS) instead of oxmutate.config.*' },
   },
   run: async ({ options, exit }) => {
     const root = process.cwd();
@@ -86,7 +87,7 @@ const runCommand = defineCommand({
     if (typeof o['since'] === 'string') overrides.since = o['since'];
     if (typeof o['shard'] === 'string') overrides.shard = parseShard(o['shard']);
     if (typeof o['concurrency'] === 'number') overrides.concurrency = o['concurrency'];
-    if (typeof o['timeout'] === 'number') overrides.timeoutMS = o['timeout'];
+    if (typeof o['mutantTimeout'] === 'number') overrides.timeoutMS = o['mutantTimeout'];
     if (o['strykerCompat'] === true) overrides.strykerCompat = true;
     if (o['incremental'] === true) overrides.incremental = true;
     if (typeof o['flakyReruns'] === 'number') overrides.flakyReruns = o['flakyReruns'];
@@ -95,7 +96,7 @@ const runCommand = defineCommand({
       overrides.jsonReport = path.resolve(root, o['reportDir'], 'mutation.json');
       overrides.sarifReport = path.resolve(root, o['reportDir'], 'mutation.sarif');
     }
-    const options_ = await loadOptions(root, overrides);
+    const options_ = await loadOptions(root, overrides, typeof o['config'] === 'string' ? o['config'] : undefined);
     if (typeof o['break'] === 'number') options_.thresholds.break = o['break'];
     let result: RunResult;
     try {
@@ -141,6 +142,7 @@ const survivorsCommand = defineCommand({
 
 export const program = defineProgram({
   name: 'oxmutate',
+  version: VERSION,
   description: 'Mutation testing on the oxc engine: Stryker-compatible, built for CI and coding agents',
   commands: [runCommand, survivorsCommand],
 });

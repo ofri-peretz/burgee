@@ -222,6 +222,9 @@ impl<'a> Collector<'a> {
         let Some(parent) = self.parent() else { return false };
         match parent {
             K::ChainExpression(_) => return false, // the chain is placed, same span
+            // A module specifier must stay a string literal.
+            K::ImportDeclaration(_) | K::ExportNamedDeclaration(_) | K::ExportAllDeclaration(_) | K::ExportFromDeclaration(_)
+            | K::ImportAttribute(_) | K::TSExternalModuleReference(_) | K::WithClause(_) => return false,
             K::ObjectProperty(p) if p.key.span() == span => return false,
             K::TaggedTemplateExpression(_) => return false,
             K::UnaryExpression(u) if u.operator == UnaryOperator::Delete => return false,
@@ -301,6 +304,7 @@ impl<'a> Collector<'a> {
             None => false,
             Some(p) => match p {
                 K::ImportDeclaration(_) | K::ExportNamedDeclaration(_) | K::ExportAllDeclaration(_)
+                | K::ExportFromDeclaration(_) | K::ImportAttribute(_) | K::WithClause(_)
                 | K::ExportDefaultDeclaration(_) | K::TSExternalModuleReference(_)
                 | K::JSXAttribute(_) | K::ExpressionStatement(_) | K::ImportExpression(_)
                 | K::TSEnumMember(_) | K::TSExternalModuleDeclaration(_) | K::TSLiteralType(_) => false,
@@ -376,7 +380,28 @@ impl<'a> Collector<'a> {
                     LogicalOperator::Or => "&&",
                     LogicalOperator::Coalesce => "&&",
                 };
-                out.push(("LogicalOperator", self.swap_operator(span, l.left.span(), l.right.span(), l.operator.as_str(), to)));
+                // `??` cannot be mixed with `&&`/`||` without parentheses (a SyntaxError), and
+                // span edits do not re-print the tree the way Babel does, so a logical operand is
+                // parenthesized. Found on burgee/paratext: `cwd ?? runtime.cwd ?? ''`.
+                let operand = |e: &Expression<'_>| {
+                    let t = text(e.span());
+                    if matches!(e, Expression::LogicalExpression(_)) { format!("({t})") } else { t.to_string() }
+                };
+                let between = &src[l.left.span().end as usize..l.right.span().start as usize];
+                let at = between.find(l.operator.as_str()).unwrap_or(0);
+                out.push((
+                    "LogicalOperator",
+                    format!(
+                        "{}{}{}{}{}{}{}",
+                        &src[span.start as usize..l.left.span().start as usize],
+                        operand(&l.left),
+                        &between[..at],
+                        to,
+                        &between[at + l.operator.as_str().len()..],
+                        operand(&l.right),
+                        &src[l.right.span().end as usize..span.end as usize]
+                    ),
+                ));
             }
             K::AssignmentExpression(a) => {
                 use AssignmentOperator as A;
@@ -784,7 +809,19 @@ pub fn instrument(path: &str, source: &str, options: Options) -> Result<Instrume
     let emitter = Emitter { src: source, placements: c.placements, mutants: with_ids };
     let mut cursor = 0;
     let body = emitter.render(0, source.len() as u32, &order, &mut cursor);
-    Ok(Instrumented { code: Some(header(NAMESPACE) + &body), mutants })
+    let code = header(NAMESPACE) + &body;
+    // The safety net: instrumented code that does not parse is never served. Span edits cannot
+    // re-print the tree, so an emitter bug would otherwise surface as a test file that collects
+    // nothing, which a dry run reads as "no tests" (burgee/paratext, 2026-10-26).
+    let check = Allocator::default();
+    let reparsed = Parser::new(&check, &code, source_type).with_options(ParseOptions { preserve_parens: false, ..ParseOptions::default() }).parse();
+    if let Some(e) = reparsed.diagnostics.errors().next() {
+        let at = e.labels.as_ref().first().map_or(0, |l| l.offset() as usize);
+        let from = code.floor_char_boundary(at.saturating_sub(80));
+        let to = code.ceil_char_boundary((at + 80).min(code.len()));
+        return Err(format!("{path}: oxmutate emitted code that does not parse ({e}) near: {}. This is an oxmutate bug; please report it with this file.", &code[from..to]));
+    }
+    Ok(Instrumented { code: Some(code), mutants })
 }
 
 #[allow(dead_code)]

@@ -1,0 +1,24 @@
+{
+  "name": "oxmutate-win32-x64-msvc",
+  "version": "0.1.0",
+  "description": "oxmutate native core (oxc) for win32-x64. Installed automatically as an optional dependency of oxmutate.",
+  "license": "MIT",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "main": "oxmutate.node",
+  "files": [
+    "oxmutate.node"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ofri-peretz/burgee.git",
+    "directory": "packages/oxmutate/npm/win32-x64-msvc"
+  },
+  "oxmutate": {
+    "rustTarget": "x86_64-pc-windows-msvc"
+  }
+}

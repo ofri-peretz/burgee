@@ -1,2 +1,4 @@
 native/target/
 binding/*.node
+bench/results/
+test/fixtures/*/reports/

@@ -80,6 +80,13 @@ interface Plan {
 const plan: Plan =
   mode === 'mutant' && env['OXMUTATE_PLAN'] ? (JSON.parse(readFileSync(env['OXMUTATE_PLAN'], 'utf8')) as Plan) : { tests: {}, hitLimits: {}, skip: [] };
 const decided = new Set(plan.skip);
+/** `isolated`: when set, only these tests run (the mutant's covering tests); the rest pass untouched. */
+const only = mode === 'isolated' && env['OXMUTATE_ONLY_TESTS'] ? new Set(JSON.parse(env['OXMUTATE_ONLY_TESTS']) as string[]) : undefined;
+/** Set when a mutant left state behind; the rest of this context runs no mutants. */
+let polluted = false;
+/** Mutants between canaries; doubles while the canary stays clean, back to 1 when it fails. */
+let canaryEvery = 1;
+const MAX_CANARY_EVERY = 8;
 
 function emit(record: object): void {
   if (resultsPath) appendFileSync(resultsPath, `${JSON.stringify(record)}\n`);
@@ -111,10 +118,24 @@ async function afterEach(test: AnyTask, context: unknown, cleanups: Hook[]): Pro
 
 const isHitLimit = (e: unknown): boolean => e instanceof Error && /Hit count limit/.test(e.message);
 
+/** Coverage key prefix for hits that happen while a test file is being collected (imports). */
+export const FILE_KEY = 'file:';
+
 export default class OxmutateRunner extends (Base as new (config: unknown) => {
+  onCollectStart?(file: unknown): unknown;
   onBeforeTryTask?(test: AnyTask, options: { retry: number; repeats: number }): unknown;
   onAfterRunFiles?(files: AnyTask[]): unknown;
 }) {
+  /**
+   * Import-time hits (static mutants) are attributed to the test file being collected, so a static
+   * mutant is later re-run against the files that load its module, not the whole suite (Stryker
+   * re-runs everything for each one).
+   */
+  onCollectStart(file: AnyTask & { filepath?: string }): unknown {
+    if (mode === 'dry') ns.currentTestId = `${FILE_KEY}${file.filepath ?? file.file?.filepath ?? ''}`;
+    return (super.onCollectStart as ((f: unknown) => unknown) | undefined)?.call(this, file);
+  }
+
   onBeforeTryTask(test: AnyTask, options: { retry: number; repeats: number }): unknown {
     if (mode === 'dry') ns.currentTestId = test.id;
     return super.onBeforeTryTask?.(test, options);
@@ -124,23 +145,42 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     const fn = statics.getTestFn(test);
     if (!fn) throw new Error(`oxmutate: no function for test ${test.name}`);
     if (mode !== 'mutant') {
+      if (only && !only.has(test.id)) return;
       await fn();
       return;
     }
     const context = test.context;
-    const ids = (plan.tests[test.id] ?? []).filter((id) => !decided.has(id));
-    // Vitest ran beforeEach once before calling us; it will run afterEach once after we return.
-    // Every invocation in between gets its own pair, so each one starts from fresh hook state.
+    // Once a mutant has polluted this context, no further verdict from it can be trusted: the
+    // rest of the unit is left unrun, and the coordinator re-queues it into a fresh context.
+    const ids = polluted ? [] : (plan.tests[test.id] ?? []).filter((id) => !decided.has(id));
     let cleanups: Hook[] = [];
     let attempt = 0;
+    const fresh = async (): Promise<void> => {
+      await afterEach(test, context, cleanups);
+      cleanups = await beforeEach(test, context);
+      await this.retryReset(test, ++attempt);
+    };
+    // Mutants run since the last clean canary. The first of them started from a clean state, so its
+    // verdict stands whatever the next canary says; the rest are suspects if it fails.
+    let unchecked: string[] = [];
+    const canary = async (): Promise<boolean> => {
+      if (!unchecked.length) return true;
+      await fresh();
+      try {
+        await fn();
+        unchecked = [];
+        canaryEvery = Math.min(MAX_CANARY_EVERY, canaryEvery * 2);
+        return true;
+      } catch (e) {
+        polluted = true;
+        canaryEvery = 1;
+        emit({ type: 'polluted', id: unchecked[0], suspects: unchecked.slice(1), test: test.id, file: test.file?.filepath, error: e instanceof Error ? e.message.slice(0, 300) : String(e) });
+        return false;
+      }
+    };
     for (const id of ids) {
       if (decided.has(id)) continue;
-      if (attempt > 0) {
-        await afterEach(test, context, cleanups);
-        cleanups = await beforeEach(test, context);
-        await this.retryReset(test, attempt);
-      }
-      attempt++;
+      if (attempt > 0) await fresh();
       if (progressPath) writeFileSync(progressPath, `${id} ${String(Date.now())}\n`);
       const t0 = performance.now();
       ns.activeMutant = id;
@@ -158,19 +198,18 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       }
       if (status !== 'Survived') decided.add(id);
       emit({ type: 'mutant', id, test: test.id, status, ms: performance.now() - t0 });
+      unchecked.push(id);
+      // The canary: the same test, unmutated, must still pass. If it fails, a mutant left state
+      // behind (a cache, a registry, a fixture) that would decide the next verdicts. Run after every
+      // mutant at first, then every 2, 4, 8 while it stays clean: pollution is rare per test, and the
+      // canary was half of all executions (burgee/paratext, 2026-10-27).
+      if (unchecked.length >= canaryEvery && !(await canary())) break;
     }
-    if (progressPath && attempt > 0) writeFileSync(progressPath, '');
-    if (attempt > 0) {
-      await afterEach(test, context, cleanups);
-      cleanups = await beforeEach(test, context);
-      await this.retryReset(test, attempt);
-    }
+    if (!polluted) await canary();
+    if (progressPath && ids.length) writeFileSync(progressPath, '');
+    if (attempt > 0) await fresh();
     try {
       await fn();
-    } catch (e) {
-      // The canary: the unmutated test fails only after mutants ran, so state leaked between them.
-      emit({ type: 'canary', test: test.id, file: test.file?.filepath, error: e instanceof Error ? e.message.slice(0, 300) : String(e) });
-      throw e;
     } finally {
       for (const cleanup of cleanups.reverse()) await cleanup();
     }
@@ -188,8 +227,15 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
         if (t.type === 'test') tests.push({ id: t.id, file, name: fullName(t), state: t.result?.state ?? 'skip', ms: t.result?.duration ?? 0 });
         for (const c of t.tasks ?? []) visit(c, file);
       };
-      for (const f of files) visit(f, f.file?.filepath ?? (f as unknown as { filepath: string }).filepath);
-      emit({ type: 'dry', tests, coverage: ns.mutantCoverage });
+      const fileErrors: { file: string; error: string }[] = [];
+      for (const f of files) {
+        const filepath = f.file?.filepath ?? (f as unknown as { filepath: string }).filepath;
+        visit(f, filepath);
+        // A file that fails to collect has no failing test to show for it: report the file.
+        const result = f.result as { state?: string; errors?: { message?: string }[] } | undefined;
+        if (result?.state === 'fail' && !f.tasks?.length) fileErrors.push({ file: filepath, error: (result.errors?.[0]?.message ?? 'failed to collect').slice(0, 500) });
+      }
+      emit({ type: 'dry', tests, coverage: ns.mutantCoverage, fileErrors });
     } else if (mode === 'isolated') {
       const failed: string[] = [];
       const visit = (t: AnyTask): void => {

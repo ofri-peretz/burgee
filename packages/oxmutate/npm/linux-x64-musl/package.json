@@ -1,0 +1,27 @@
+{
+  "name": "oxmutate-linux-x64-musl",
+  "version": "0.1.0",
+  "description": "oxmutate native core (oxc) for linux-x64-musl. Installed automatically as an optional dependency of oxmutate.",
+  "license": "MIT",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "main": "oxmutate.node",
+  "files": [
+    "oxmutate.node"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ofri-peretz/burgee.git",
+    "directory": "packages/oxmutate/npm/linux-x64-musl"
+  },
+  "oxmutate": {
+    "rustTarget": "x86_64-unknown-linux-musl"
+  },
+  "libc": [
+    "musl"
+  ]
+}

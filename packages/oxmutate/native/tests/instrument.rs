@@ -92,3 +92,23 @@ fn columns_count_utf16_after_non_ascii_text() {
     let m = out.mutants.iter().find(|m| m.mutator_name == "ArithmeticOperator").unwrap();
     assert_eq!((m.start.line, m.start.column), (2, 11));
 }
+
+/// burgee/paratext, 2026-10-26: `??` mixed with `&&` without parentheses is a SyntaxError, and
+/// the swap of the outer `??` in `a ?? b ?? ''` produced exactly that.
+#[test]
+fn logical_swaps_keep_coalesce_unmixed() {
+    let out = instrument("t.ts", "const x = a ?? b ?? '';", Options::default()).unwrap();
+    assert!(out.mutants.iter().any(|m| m.mutator_name == "LogicalOperator" && m.replacement == "(a ?? b) && ''"));
+    let code = out.code.unwrap();
+    assert!(!code.contains("a ?? b && ''"), "{code}");
+}
+
+/// burgee/paratext, 2026-10-26: in oxc 0.155 `export … from 'x'` is an ExportFromDeclaration, and
+/// its specifier was wrapped in a mutant switch.
+#[test]
+fn module_specifiers_are_never_mutated_or_wrapped() {
+    for src in ["export { default, a } from './a.js';", "export * from './b.js';", "export * as c from './c.js';", "import d from './d.js' with { type: 'json' };"] {
+        let out = instrument("t.ts", src, Options::default()).unwrap();
+        assert!(out.mutants.is_empty(), "{src}: {:?}", out.mutants.iter().map(|m| (&m.mutator_name, &m.replacement)).collect::<Vec<_>>());
+    }
+}

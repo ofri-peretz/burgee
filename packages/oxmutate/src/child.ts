@@ -11,6 +11,7 @@
  * project's own Vitest version and config run its tests.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { resolveEsm } from './resolve.js';
@@ -32,7 +33,7 @@ export interface Unit {
   progress: string;
   plan?: string | undefined;
   /** `isolated`: mutants armed one after another from process start, each with its files. */
-  batch?: { id: string; files: string[] }[] | undefined;
+  batch?: { id: string; files: string[]; tests?: string[] | undefined }[] | undefined;
 }
 
 const config = JSON.parse(readFileSync(process.argv[2] ?? '', 'utf8')) as ServerConfig;
@@ -42,6 +43,7 @@ const vitestNode = (await import(resolveEsm('vitest/node', config.root))) as {
   createVitest: (mode: string, options: Record<string, unknown>, viteOverrides?: Record<string, unknown>) => Promise<{
     start(files?: string[]): Promise<unknown>;
     close(): Promise<void>;
+    config: { bail: number };
   }>;
 };
 
@@ -63,9 +65,27 @@ const vitest = await vitestNode.createVitest(
     passWithNoTests: true,
     // Bail is ours (per mutant); Vitest must run every test it is handed.
     bail: 0,
+    // Vitest 5's persistent module cache keys on the file on disk, not on what a plugin serves,
+    // so it served a previous run's instrumentation: every mutant whose id had changed since got
+    // no coverage (burgee/paratext, 2026-10-27: 6% agreement until this was off). Off under both
+    // spellings (top-level in Vitest 5, `experimental` in 4.x).
+    fsModuleCache: false,
+    experimental: { fsModuleCache: false },
   },
-  { plugins: [instrumentedSources(config.instrumentedMap)] },
+  // A private Vite cache per run, so no cache outside this run can answer for a mutated file.
+  { plugins: [instrumentedSources(config.instrumentedMap)], cacheDir: path.join(path.dirname(config.instrumentedMap), 'vite-cache') },
 );
+
+/** Has the runner recorded a kill for this mutant in this unit's results yet? */
+function killed(results: string, id: string): boolean {
+  let text = '';
+  try {
+    text = readFileSync(results, 'utf8');
+  } catch {
+    return false;
+  }
+  return text.split('\n').some((line) => line.includes(`"id":"${id}"`) && line.includes('"killed":true'));
+}
 
 async function runUnit(unit: Unit): Promise<void> {
   // Workers copy the environment when they start, so each run sees the unit's settings
@@ -76,12 +96,29 @@ async function runUnit(unit: Unit): Promise<void> {
   if (unit.plan) process.env['OXMUTATE_PLAN'] = unit.plan;
   delete process.env[ACTIVE_MUTANT_ENV];
   if (unit.mode === 'isolated') {
-    for (const item of unit.batch ?? []) {
-      process.env[ACTIVE_MUTANT_ENV] = item.id;
-      writeFileSync(unit.progress, `${item.id} ${String(Date.now())}\n`);
-      await vitest.start(item.files);
+    // Stop a file at its first failing test: one failure kills the mutant, and the rest of the
+    // file is wasted time (burgee/paratext hyperlinks.test.ts: 2.3 s a run, the first failure
+    // typically in its first tests). Read per start, so dry and warm runs still run everything
+    // (measured on Vitest 4.1, 2026-10-27).
+    vitest.config.bail = 1;
+    try {
+      for (const item of unit.batch ?? []) {
+        process.env[ACTIVE_MUTANT_ENV] = item.id;
+        if (item.tests) process.env['OXMUTATE_ONLY_TESTS'] = JSON.stringify(item.tests);
+        else delete process.env['OXMUTATE_ONLY_TESTS'];
+        writeFileSync(unit.progress, `${item.id} ${String(Date.now())}\n`);
+        // One file at a time, cheapest first (the coordinator orders them), stopping at the first
+        // file that kills the mutant: Stryker runs every file for every isolated mutant.
+        for (const file of item.files) {
+          await vitest.start([file]);
+          if (killed(unit.results, item.id)) break;
+        }
+      }
+      delete process.env[ACTIVE_MUTANT_ENV];
+      delete process.env['OXMUTATE_ONLY_TESTS'];
+    } finally {
+      vitest.config.bail = 0;
     }
-    delete process.env[ACTIVE_MUTANT_ENV];
     writeFileSync(unit.progress, '');
   } else {
     await vitest.start(unit.files.length ? unit.files : undefined);
@@ -95,7 +132,13 @@ process.on('message', (msg: { type: string; unit?: Unit }) => {
       (error: unknown) => process.send?.({ type: 'done', error: error instanceof Error ? error.message : String(error) }),
     );
   } else if (msg.type === 'close') {
+    // A worker thread stuck in a runaway mutant never lets `vitest.close()` settle: exit anyway.
+    setTimeout(() => process.exit(0), 2000).unref();
     void vitest.close().finally(() => process.exit(0));
   }
 });
+// The coordinator is gone (finished, crashed or killed): nothing will read this server's results,
+// and a worker thread may still be looping in a mutant. Two such servers were found spinning at
+// 100% CPU 11 hours after their run ended, and slowed the next run 50x (2026-10-27).
+process.on('disconnect', () => process.exit(0));
 process.send?.({ type: 'ready' });

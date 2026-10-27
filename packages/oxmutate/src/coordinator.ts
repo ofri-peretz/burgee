@@ -56,6 +56,12 @@ export interface RunStats {
   watchdogKills: number;
   crashes: number;
   canaryFiles: number;
+  /** Contexts restarted because a mutant left state behind (the per-execution canary fired). */
+  pollutionRestarts: number;
+  /** Survivors of the warm run that a whole-file re-run killed (cross-test effects). */
+  survivorsOverturned: number;
+  /** Watchdog timeouts that finished when re-run with 3x the budget: the machine was slow, not the mutant. */
+  timeoutsOverturned: number;
   isolatedRuns: number;
   reused: number;
   flakyTests: number;
@@ -77,15 +83,18 @@ export interface RunResult {
 export class InstrumentFault extends Error {}
 
 interface ChildRecord {
-  type: 'dry' | 'mutant' | 'canary' | 'isolated';
+  type: 'dry' | 'mutant' | 'polluted' | 'isolated';
   id?: string;
   test?: string;
   status?: 'Killed' | 'Survived' | 'Timeout';
   file?: string;
   killed?: boolean;
   failed?: string[];
+  /** `polluted`: mutants run after the first since the last clean canary; their verdicts are dropped. */
+  suspects?: string[];
   tests?: (TestInfo & { state: string })[];
   coverage?: { static: Record<string, number>; perTest: Record<string, Record<string, number>> };
+  fileErrors?: { file: string; error: string }[];
 }
 
 function readRecords(file: string): ChildRecord[] {
@@ -107,7 +116,7 @@ export async function run(options: Options): Promise<RunResult> {
   const work = mkdtempSync(path.join(tmpdir(), 'oxmutate-'));
   const stats: RunStats = {
     files: 0, mutants: 0, instrumentMs: 0, dryRunMs: 0, mutationMs: 0, isolatedMs: 0, wallMs: 0, testExecutions: 0,
-    watchdogKills: 0, crashes: 0, canaryFiles: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0,
+    watchdogKills: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, survivorsOverturned: 0, timeoutsOverturned: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0,
   };
   let unitSeq = 0;
   const fileFor = (kind: string, ext: string): string => path.join(work, `${kind}-${String(unitSeq++)}.${ext}`);
@@ -171,6 +180,10 @@ export async function run(options: Options): Promise<RunResult> {
         Object.assign(perTest, r.coverage?.perTest ?? {});
         for (const [k, v] of Object.entries(r.coverage?.static ?? {})) stat[k] = (stat[k] ?? 0) + v;
       }
+      const fileErrors = recs.flatMap((r) => r.fileErrors ?? []);
+      if (fileErrors.length) {
+        throw new InstrumentFault(`${String(fileErrors.length)} test file(s) failed to load during the dry run, so their tests would be missing from every verdict: ${fileErrors.slice(0, 3).map((e) => `${path.relative(root, e.file)}: ${e.error}`).join('; ')}`);
+      }
       return { tests: recs.flatMap((r) => r.tests ?? []), perTest, static: stat };
     };
     const d0 = performance.now();
@@ -196,14 +209,21 @@ export async function run(options: Options): Promise<RunResult> {
     const testInfo = new Map(dry.tests.map((t) => [t.id, t]));
     const coveringTests = new Map<string, string[]>();
     const hits = new Map<string, number>();
+    /** Static mutant → the test files whose collection (imports, beforeAll) reached it. */
+    const staticFiles = new Map<string, Set<string>>();
     for (const [testId, perMutant] of Object.entries(dry.perTest)) {
+      if (testId.startsWith('file:')) {
+        const file = testId.slice('file:'.length);
+        for (const id of Object.keys(perMutant)) (staticFiles.get(id) ?? staticFiles.set(id, new Set()).get(id))?.add(file);
+        continue;
+      }
       for (const [id, n] of Object.entries(perMutant)) {
         if (!coveringTests.has(id)) coveringTests.set(id, []);
         coveringTests.get(id)?.push(testId);
         hits.set(id, (hits.get(id) ?? 0) + n);
       }
     }
-    const staticIds = new Set(Object.keys(dry.static));
+    const staticIds = new Set([...Object.keys(dry.static), ...staticFiles.keys()]);
     for (const m of mutants) {
       if (m.status === 'Ignored') continue;
       m.coveredBy = (coveringTests.get(m.id) ?? []).sort((a, b) => (testInfo.get(a)?.ms ?? 0) - (testInfo.get(b)?.ms ?? 0));
@@ -244,109 +264,134 @@ export async function run(options: Options): Promise<RunResult> {
     }
 
     // ── 4. Warm units on the server pool ──────────────────────────────────────────────────────
+    // Static mutants, hybrids included, never run warm: a module evaluated without the mutant
+    // cannot stand in for one evaluated with it. Tried 2026-10-27: warm kills of hybrids gave 3
+    // false kills on burgee/paratext (an import-time registration the tests then read).
     const toRun = mutants.filter((m) => !m.reused && m.status !== 'Ignored' && !m.static && m.coveredBy.length > 0);
     const byId = new Map(mutants.map((m) => [m.id, m]));
     const hitLimits = Object.fromEntries(toRun.map((m) => [m.id, Math.max(1000, (hits.get(m.id) ?? 1) * 100)]));
     const maxTestMs = (id: string): number => Math.max(0, ...(byId.get(id)?.coveredBy ?? []).map((t) => testInfo.get(t)?.ms ?? 0));
-    const warmBudget = (id: string): number => options.timeoutMS + options.timeoutFactor * maxTestMs(id) + 250;
+    // The watchdog is for runaways, which loop in fast code; a slow test under a loaded machine is
+    // not one. 3x the covering test's dry-run time, not Stryker's 1.5x: at 1.5x, subprocess-heavy
+    // burgee/paratext tests were stopped as false timeouts (2026-10-27).
+    const warmBudget = (id: string): number => options.timeoutMS + Math.max(options.timeoutFactor, 3) * maxTestMs(id) + 250;
 
-    // test file → test id → mutant ids
-    const perFile = new Map<string, Map<string, string[]>>();
+    // Files a mutant's covering tests live in, cheapest first (by the covering tests' time there).
+    const fileOrder = new Map<string, string[]>();
     for (const m of toRun) {
+      const cost = new Map<string, number>();
       for (const t of m.coveredBy) {
-        const file = testInfo.get(t)?.file;
-        if (!file) continue;
-        if (!perFile.has(file)) perFile.set(file, new Map());
-        const tests = perFile.get(file) as Map<string, string[]>;
-        if (!tests.has(t)) tests.set(t, []);
-        tests.get(t)?.push(m.id);
+        const info = testInfo.get(t);
+        if (info) cost.set(info.file, (cost.get(info.file) ?? 0) + info.ms + 0.05);
       }
+      fileOrder.set(m.id, [...cost].sort((a, b) => a[1] - b[1]).map(([f]) => f));
     }
     type Plan = Record<string, string[]>;
-    const planUnits = new Map<string, { file: string; plan: Plan }>();
-    const makeUnit = (file: string, plan: Plan): Unit => {
+    const planUnits = new Map<string, { file: string; plan: Plan; depth: number }>();
+    const unfinished = new Set<string>();
+    const makeUnit = (file: string, plan: Plan, depth = 0): Unit => {
       const unit: Unit = { mode: 'mutant', files: [file], results: fileFor('unit', 'jsonl'), progress: fileFor('unit', 'progress'), plan: fileFor('plan', 'json') };
       writeFileSync(unit.plan as string, JSON.stringify({ tests: plan, hitLimits, skip: [] }));
-      planUnits.set(unit.results, { file, plan });
+      planUnits.set(unit.results, { file, plan, depth });
       stats.units++;
       return unit;
     };
     /** Split a file's plan into units of about UNIT_PAIRS executions, by mutant. */
     const unitsFor = (file: string, plan: Plan): Unit[] => {
       const ids = [...new Set(Object.values(plan).flat())];
-      const pairs = Object.values(plan).reduce((s, l) => s + l.length, 0);
+      const pairs = Object.values(plan).reduce((sum, l) => sum + l.length, 0);
       const parts = Math.max(1, Math.min(ids.length, Math.ceil(pairs / UNIT_PAIRS)));
       return Array.from({ length: parts }, (_, i) => {
         const mine = new Set(ids.filter((_, j) => j % parts === i));
         return makeUnit(file, Object.fromEntries(Object.entries(plan).map(([t, l]) => [t, l.filter((id) => mine.has(id))]).filter(([, l]) => (l as string[]).length > 0)));
       });
     };
-    const initial = [...perFile].flatMap(([file, tests]) => unitsFor(file, Object.fromEntries(tests)));
-    // Biggest first: the longest units should not start last.
-    const weight = (u: Unit): number => Object.values(planUnits.get(u.results)?.plan ?? {}).reduce((s, l) => s + l.length, 0);
-    initial.sort((a, b) => weight(b) - weight(a));
+    /** Units for these mutants, each planned only in the files `pick` selects for it. */
+    const unitsForRound = (mutantsHere: MutantResult[], pick: (m: MutantResult) => string[]): Unit[] => {
+      const perFile = new Map<string, Map<string, string[]>>();
+      for (const m of mutantsHere) {
+        const files = new Set(pick(m));
+        for (const t of m.coveredBy) {
+          const file = testInfo.get(t)?.file;
+          if (!file || !files.has(file)) continue;
+          if (!perFile.has(file)) perFile.set(file, new Map());
+          const tests = perFile.get(file) as Map<string, string[]>;
+          if (!tests.has(t)) tests.set(t, []);
+          tests.get(t)?.push(m.id);
+        }
+      }
+      const units = [...perFile].flatMap(([file, tests]) => unitsFor(file, Object.fromEntries(tests)));
+      const weight = (u: Unit): number => Object.values(planUnits.get(u.results)?.plan ?? {}).reduce((sum, l) => sum + l.length, 0);
+      return units.sort((a, b) => weight(b) - weight(a));
+    };
 
     const records: ChildRecord[] = [];
     const runaways = new Set<string>();
     const crashedIds = new Set<string>();
     const pool = createPool({ root, vitestConfig: options.vitestConfig, workers: 1, instrumentedMap: mapFile }, options.concurrency, work, 'mutant');
     pools.push(pool);
+    const killedSoFar = (): Set<string> => new Set([...runaways, ...crashedIds, ...records.filter((r) => r.type === 'mutant' && r.status !== 'Survived').map((r) => r.id ?? '')]);
+    const afterUnit = (unit: Unit, outcome: UnitOutcome): Unit[] => {
+      // Verdicts a failed canary cannot vouch for are dropped; their pairs are re-queued below.
+      const raw = readRecords(unit.results);
+      const suspect = new Set(raw.filter((r) => r.type === 'polluted').flatMap((r) => (r.suspects ?? []).map((id) => `${id}|${r.test ?? ''}`)));
+      const recs = raw.filter((r) => !(r.type === 'mutant' && suspect.has(`${r.id ?? ''}|${r.test ?? ''}`)));
+      records.push(...recs);
+      const wasPolluted = recs.some((r) => r.type === 'polluted');
+      if (wasPolluted) stats.pollutionRestarts++;
+      if (!outcome.killedFor && !outcome.crashed && !wasPolluted) return [];
+      const bad = outcome.killedFor ?? outcome.crashedFor;
+      if (outcome.killedFor) runaways.add(outcome.killedFor);
+      else if (bad) crashedIds.add(bad);
+      // The rest of the unit: pairs not yet run, mutants not yet decided, into a fresh context.
+      const ran = new Set(recs.filter((r) => r.type === 'mutant').map((r) => `${r.id ?? ''}|${r.test ?? ''}`));
+      const decided = killedSoFar();
+      const { file, plan, depth } = planUnits.get(unit.results) as { file: string; plan: Plan; depth: number };
+      const rest: Plan = {};
+      for (const [t, ids] of Object.entries(plan)) {
+        const left = ids.filter((id) => !decided.has(id) && !ran.has(`${id}|${t}`));
+        if (left.length) rest[t] = left;
+      }
+      if (Object.keys(rest).length === 0) return [];
+      // A unit that made no progress, or that keeps being polluted, is left to the isolated
+      // re-run rather than retried for ever.
+      if (ran.size === 0 || depth >= 40) {
+        for (const id of new Set(Object.values(rest).flat())) unfinished.add(id);
+        return [];
+      }
+      const ids = [...new Set(Object.values(rest).flat())];
+      if (ids.length < 2) return [makeUnit(file, rest, depth + 1)];
+      const half = new Set(ids.slice(0, Math.ceil(ids.length / 2)));
+      const pickHalf = (inHalf: boolean): Plan => Object.fromEntries(Object.entries(rest).map(([t, l]) => [t, l.filter((id) => half.has(id) === inHalf)]).filter(([, l]) => (l as string[]).length > 0));
+      return [makeUnit(file, pickHalf(true), depth + 1), makeUnit(file, pickHalf(false), depth + 1)];
+    };
     const m0 = performance.now();
-    await pool.drain(
-      initial,
-      (_, id) => warmBudget(id),
-      (unit, outcome) => {
-        const recs = readRecords(unit.results);
-        records.push(...recs);
-        if (!outcome.killedFor && !outcome.crashed) return [];
-        const bad = outcome.killedFor ?? outcome.crashedFor;
-        if (outcome.killedFor) runaways.add(outcome.killedFor);
-        else if (bad) crashedIds.add(bad);
-        // The rest of the unit: pairs not yet run, mutants not yet decided.
-        const ran = new Set(recs.filter((r) => r.type === 'mutant').map((r) => `${r.id ?? ''}|${r.test ?? ''}`));
-        const decided = new Set([...runaways, ...crashedIds, ...records.filter((r) => r.type === 'mutant' && r.status !== 'Survived').map((r) => r.id ?? '')]);
-        const { file, plan } = planUnits.get(unit.results) as { file: string; plan: Plan };
-        const rest: Plan = {};
-        for (const [t, ids] of Object.entries(plan)) {
-          const left = ids.filter((id) => !decided.has(id) && !ran.has(`${id}|${t}`));
-          if (left.length) rest[t] = left;
-        }
-        if (Object.keys(rest).length === 0) return [];
-        // Split in two so idle servers share it.
-        const ids = [...new Set(Object.values(rest).flat())];
-        if (ids.length < 2) return [makeUnit(file, rest)];
-        const half = new Set(ids.slice(0, Math.ceil(ids.length / 2)));
-        const pick = (inHalf: boolean): Plan => Object.fromEntries(Object.entries(rest).map(([t, l]) => [t, l.filter((id) => half.has(id) === inHalf)]).filter(([, l]) => (l as string[]).length > 0));
-        return [makeUnit(file, pick(true)), makeUnit(file, pick(false))];
-      },
-    );
+    // One round, every covering file at once. A two-round plan (cheapest file first, survivors
+    // to the rest) cut executions 23% on burgee/paratext but took 2.9x longer: the second round
+    // waits for the first to drain, and the expensive files then run as a tail (2026-10-27).
+    await pool.drain(unitsForRound(toRun, (m) => fileOrder.get(m.id) ?? []), (_, id) => warmBudget(id), afterUnit);
     stats.mutationMs = performance.now() - m0;
 
     // ── 5. Verdicts from the warm run ─────────────────────────────────────────────────────────
     const byMutant = new Map<string, ChildRecord[]>();
     for (const r of records) if (r.type === 'mutant' && r.id) (byMutant.get(r.id) ?? byMutant.set(r.id, []).get(r.id))?.push(r);
     stats.testExecutions = records.filter((r) => r.type === 'mutant').length;
-    const canaryFiles = new Set(records.filter((r) => r.type === 'canary' && r.file).map((r) => r.file ?? ''));
-    stats.canaryFiles = canaryFiles.size;
+    stats.canaryFiles = new Set(records.filter((r) => r.type === 'polluted' && r.file).map((r) => r.file ?? '')).size;
 
     const isolatedQueue: MutantResult[] = [];
     for (const m of toRun) {
       const recs = byMutant.get(m.id) ?? [];
       const killers = recs.filter((r) => r.status === 'Killed' || r.status === 'Timeout');
-      const touchesCanary = m.coveredBy.some((t) => canaryFiles.has(testInfo.get(t)?.file ?? ''));
       if (runaways.has(m.id)) {
-        m.status = 'Timeout';
-        m.statusReason = 'stopped by the watchdog (synchronous runaway)';
+        isolatedQueue.push(m); // a watchdog stop is confirmed before it is reported (6, below)
       } else if (crashedIds.has(m.id)) {
         m.status = 'RuntimeError';
         m.statusReason = 'the worker crashed while this mutant ran';
-      } else if (touchesCanary) {
-        isolatedQueue.push(m); // a polluted file's verdicts are re-decided in isolation
       } else if (killers.length) {
         m.status = killers.some((r) => r.status === 'Killed') ? 'Killed' : 'Timeout';
         m.killedBy = [...new Set(killers.map((r) => r.test ?? ''))];
         m.testsCompleted = recs.length;
-      } else if (recs.length >= new Set(m.coveredBy).size) {
+      } else if (!unfinished.has(m.id) && recs.length >= new Set(m.coveredBy).size) {
         m.status = 'Survived';
         m.testsCompleted = recs.length;
       } else {
@@ -357,24 +402,43 @@ export async function run(options: Options): Promise<RunResult> {
 
     // ── 6. Isolated re-runs: the switch armed before import, Vitest run normally ──────────────
     const allTestFiles = [...new Set(dry.tests.map((t) => t.file))];
-    const filesFor = (m: MutantResult): string[] => (m.static ? allTestFiles : [...new Set(m.coveredBy.map((t) => testInfo.get(t)?.file ?? ''))]);
+    // A static mutant needs the files that load it (plus any whose tests reach it); only a hit
+    // with no file to attribute it to (a setup file outside collection) falls back to all files.
+    const fileCost = new Map<string, number>();
+    for (const t of dry.tests) fileCost.set(t.file, (fileCost.get(t.file) ?? 0) + t.ms);
+    const byCost = (files: string[]): string[] => [...files].sort((a, b) => (fileCost.get(a) ?? 0) - (fileCost.get(b) ?? 0));
+    const filesFor = (m: MutantResult): string[] => {
+      const tests = m.coveredBy.map((t) => testInfo.get(t)?.file ?? '');
+      if (!m.static) return byCost([...new Set(tests)]);
+      const loaders = staticFiles.get(m.id);
+      if (!loaders || Object.prototype.hasOwnProperty.call(dry.static, m.id)) return byCost(allTestFiles);
+      // Files whose tests reach the mutant first: they kill it. Ordering all loaders by cost alone
+      // ran a file that only imports it first, and 288 of 349 isolated kills on burgee/paratext
+      // came from a later file (2026-10-27).
+      const covering = byCost([...new Set(tests)]);
+      return [...covering, ...byCost([...loaders].filter((f) => !covering.includes(f)))];
+    };
     const isolatedBudget = (id: string): number => {
       const m = byId.get(id);
       const fs = m ? filesFor(m) : allTestFiles;
       const ms = dry.tests.filter((t) => fs.includes(t.file)).reduce((sum, t) => sum + t.ms, 0);
       return 1500 + options.timeoutMS + options.timeoutFactor * ms * 2;
     };
-    const runIsolated = async (items: MutantResult[]): Promise<Map<string, { status: Status; killedBy?: string[] | undefined }>> => {
+    // A non-static mutant runs only its covering tests, armed across all of them in file order:
+    // Stryker's semantics, so cross-test effects still show (a no-op reset() lets state pile up
+    // for the next covering test). A static mutant runs every test of its files, because an
+    // import-time change reaches tests that never execute the mutated line.
+    const runIsolated = async (items: MutantResult[], slack = 1): Promise<Map<string, { status: Status; killedBy?: string[] | undefined }>> => {
       const verdicts = new Map<string, { status: Status; killedBy?: string[] | undefined }>();
       if (items.length === 0) return verdicts;
       const chunk = Math.max(1, Math.ceil(items.length / (options.concurrency * 2)));
-      const mk = (batch: MutantResult[]): Unit => ({ mode: 'isolated', files: [], results: fileFor('iso', 'jsonl'), progress: fileFor('iso', 'progress'), batch: batch.map((m) => ({ id: m.id, files: filesFor(m) })) });
+      const mk = (batch: MutantResult[]): Unit => ({ mode: 'isolated', files: [], results: fileFor('iso', 'jsonl'), progress: fileFor('iso', 'progress'), batch: batch.map((m) => ({ id: m.id, files: filesFor(m), tests: m.static ? undefined : m.coveredBy })) });
       const units: Unit[] = [];
       for (let i = 0; i < items.length; i += chunk) units.push(mk(items.slice(i, i + chunk)));
       stats.isolatedRuns += items.length;
       await pool.drain(
         units,
-        (_, id) => isolatedBudget(id),
+        (_, id) => slack * isolatedBudget(id),
         (unit, outcome) => {
           // Vitest reports per test file: a mutant is killed if any of its files failed.
           for (const rec of readRecords(unit.results)) {
@@ -396,11 +460,42 @@ export async function run(options: Options): Promise<RunResult> {
     };
     const i0 = performance.now();
     const first = await runIsolated(isolatedQueue);
+    // A watchdog stop on a loaded machine is a slow test, not a runaway: 31 of them on one
+    // burgee/paratext run while the load average sat at 40, all Survived for Stryker (2026-10-27).
+    // Each stop gets one more run with 3x the budget; only one that is stopped again is a Timeout.
+    const stopped = isolatedQueue.filter((m) => first.get(m.id)?.status === 'Timeout');
+    const again = await runIsolated(stopped, 3);
+    for (const m of stopped) {
+      const v = again.get(m.id);
+      if (v && v.status !== 'Timeout' && v.status !== 'RuntimeError') {
+        first.set(m.id, v);
+        stats.timeoutsOverturned++;
+      }
+    }
     for (const m of isolatedQueue) {
       const v = first.get(m.id);
       if (v) {
         m.status = v.status;
         m.killedBy = v.killedBy;
+        if (v.status === 'Timeout') m.statusReason = 'stopped by the watchdog twice, the second time with 3x the budget';
+      }
+    }
+
+    // ── 6b. Confirm survivors under whole-file semantics ──────────────────────────────────────
+    // The warm runner arms a mutant for one test at a time, so a mutant whose effect only shows
+    // across tests (a `reset()` in beforeEach made a no-op, so state piles up for the next test)
+    // survives warm and is killed when armed for the whole file, the way Stryker runs it (burgee/
+    // paratext plugin.ts, 2026-10-27). Survivors are what a person acts on, so each one is
+    // re-run once with the mutant armed across its covering files before it is reported.
+    const survivors = toRun.filter((m) => m.status === 'Survived');
+    const confirmed = await runIsolated(survivors);
+    for (const m of survivors) {
+      const v = confirmed.get(m.id);
+      if (v && v.status !== 'Survived' && v.status !== 'RuntimeError') {
+        m.status = v.status;
+        m.killedBy = v.killedBy;
+        m.statusReason = 'killed only when the mutant stays active across the whole test file (cross-test effect)';
+        stats.survivorsOverturned++;
       }
     }
 
@@ -457,6 +552,7 @@ export async function run(options: Options): Promise<RunResult> {
     };
   } finally {
     for (const p of pools) p.close();
-    rmSync(work, { recursive: true, force: true });
+    if (process.env['OXMUTATE_KEEP']) process.stderr.write(`oxmutate: work directory kept at ${work}\n`);
+    else rmSync(work, { recursive: true, force: true });
   }
 }

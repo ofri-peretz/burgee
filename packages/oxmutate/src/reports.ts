@@ -108,8 +108,10 @@ export function textSummary(r: RunResult, opts: { survivors?: number } = {}): st
   ];
   const corrections = [
     s.watchdogKills && `${String(s.watchdogKills)} runaway(s) stopped`,
-    s.canaryFiles && `${String(s.canaryFiles)} polluted file(s) re-run in isolation`,
+    s.pollutionRestarts && `${String(s.pollutionRestarts)} polluted context(s) restarted (in ${String(s.canaryFiles)} file(s))`,
     s.flakyMutants && `${String(s.flakyMutants)} flaky verdict(s)`,
+    s.survivorsOverturned && `${String(s.survivorsOverturned)} survivor(s) killed by a whole-file re-run`,
+    s.timeoutsOverturned && `${String(s.timeoutsOverturned)} timeout(s) that finished given 3x the time`,
     s.reused && `${String(s.reused)} verdict(s) reused`,
     s.crashes && `${String(s.crashes)} worker crash(es)`,
   ].filter(Boolean);

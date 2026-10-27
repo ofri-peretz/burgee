@@ -41,5 +41,6 @@
   },
   "devDependencies": {
     "vitest": "^5.0.1"
-  }
+  },
+  "//optionalDependencies": "Added by the release workflow when it publishes the oxmutate-<platform> packages (npm/*): listing them before they exist on npm breaks every install with E404."
 }

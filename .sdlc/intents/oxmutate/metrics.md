@@ -24,7 +24,7 @@ first and for a human second.
 | A3 | **Parse reliability** | Leading | Share of runs whose `--json` output validates against `contracts/envelope.schema.json` | Not applicable (no envelope; clear-text output) | 100%, every run, every lane |
 | A4 | **One-turn kill rate** | Lagging | Share of survivors for which an agent, given only `survivors --json`, writes a test that kills the mutant in one turn. Weekly eval, fixed survivor set, fixed model. | TBM. Same eval run on Stryker's JSON report. | ≥ Stryker + 20 points |
 | A5 | **Tokens per actionable survivor** | Leading | Bytes of tool output an agent reads per survivor it can act on (survivor record plus fix line) | TBM (Stryker clear-text plus JSON) | ≤ 50% of Stryker |
-| A6 | **Exit-code determinism** | Leading | Share of runs whose exit code matches the documented contract (0/1/2/3/4) for the scenario | Not documented beyond pass/fail | 100% |
+| A6 | **Exit-code determinism** | Leading | Share of runs whose exit code matches the documented contract (burgee codes 0/1/2/3/6) for the scenario | Not documented beyond pass/fail | 100% |
 | A7 | **Fix-line coverage** | Leading | Share of non-zero exits and survivors that carry a `fix:` line naming the next action | 0% (no fix lines) | 100% |
 | A8 | **Agent turns to green** | Lagging | Median agent turns from first run to a mutation score at or above the floor on the eval repo | TBM | ≤ 70% of Stryker |
 
@@ -49,7 +49,7 @@ A4 and A8 are the outcome. A1, A3, A5 and A7 are what we control on every PR to 
 | T2 | **False-survivor rate** | Leading | Share of reported survivors that a direct run of the covering tests kills | > 0: vitest 5 name-filter fault (burgee, 2026-10-18), worked around in `scripts/mutation-vitest-setup.ts` | 0 on the SC7 fixture and on burgee |
 | T3 | **Verdict stability** | Leading | Share of mutants with the same verdict across three identical runs | TBM | ≥ 99.9% |
 | T4 | **Static-mutant coverage** | Lagging | Share of static mutants that receive a verdict instead of being skipped | 0% with `ignoreStatic` | 100% |
-| T5 | **Instrument-fault detection** | Leading | Share of planted instrument faults (a runner that runs zero tests, a coverage map that is empty) that the run refuses to score (exit 2) | 0 (Stryker scores them) | 100% |
+| T5 | **Instrument-fault detection** | Leading | Share of planted instrument faults (a runner that runs zero tests, a coverage map that is empty) that the run refuses to score (exit 3) | 0 (Stryker scores them) | 100% |
 | T6 | **Orphan processes** | Leading | Child processes alive 5 s after a forced abort mid-run | TBM | 0 |
 
 ## 4. CI economics

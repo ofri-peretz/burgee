@@ -97,9 +97,9 @@ function find(root: string, base: string): string | undefined {
   return undefined;
 }
 
-export async function loadOptions(root: string, overrides: Partial<Options> = {}): Promise<Options> {
+export async function loadOptions(root: string, overrides: Partial<Options> = {}, configFile?: string): Promise<Options> {
   const strykerFile = find(root, 'stryker');
-  const oxFile = find(root, 'oxmutate');
+  const oxFile = configFile ? path.resolve(root, configFile) : find(root, 'oxmutate');
   const stryker = strykerFile ? await loadFile(strykerFile) : {};
   const ox = oxFile ? await loadFile(oxFile) : {};
   const raw = { ...stryker, ...ox } as Record<string, unknown>;

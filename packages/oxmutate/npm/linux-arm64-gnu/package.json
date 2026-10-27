@@ -1,0 +1,27 @@
+{
+  "name": "oxmutate-linux-arm64-gnu",
+  "version": "0.1.0",
+  "description": "oxmutate native core (oxc) for linux-arm64-glibc. Installed automatically as an optional dependency of oxmutate.",
+  "license": "MIT",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "main": "oxmutate.node",
+  "files": [
+    "oxmutate.node"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ofri-peretz/burgee.git",
+    "directory": "packages/oxmutate/npm/linux-arm64-gnu"
+  },
+  "oxmutate": {
+    "rustTarget": "aarch64-unknown-linux-gnu"
+  },
+  "libc": [
+    "glibc"
+  ]
+}

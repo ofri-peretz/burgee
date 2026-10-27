@@ -34,6 +34,16 @@ const require = createRequire(import.meta.url);
 const here = path.dirname(fileURLToPath(import.meta.url));
 const target = `${process.platform}-${process.arch}`;
 
+/** The platform package for this machine: `oxmutate-<platform>-<arch>[-gnu|-musl|-msvc]`. */
+function platformPackage(): string {
+  if (process.platform === 'win32') return `oxmutate-win32-${process.arch}-msvc`;
+  if (process.platform === 'linux') {
+    const report = process.report?.getReport() as { header?: { glibcVersionRuntime?: string } } | undefined;
+    return `oxmutate-linux-${process.arch}-${report?.header?.glibcVersionRuntime ? 'gnu' : 'musl'}`;
+  }
+  return `oxmutate-${target}`;
+}
+
 let binding: Binding | undefined;
 
 export function native(): Binding {
@@ -44,10 +54,10 @@ export function native(): Binding {
   ];
   const local = candidates.find((c) => existsSync(c));
   try {
-    binding = (local ? require(local) : require(`@oxmutate/binding-${target}`)) as Binding;
+    binding = (local ? require(local) : require(platformPackage())) as Binding;
   } catch (error) {
     throw new Error(
-      `oxmutate: no native core for ${target}. fix: install the platform package (npm i @oxmutate/binding-${target}) or build it (npm run build:native in packages/oxmutate)`,
+      `oxmutate: no native core for ${target}. fix: install the platform package (npm i ${platformPackage()}) or build it (npm run build:native in packages/oxmutate)`,
       { cause: error },
     );
   }
