@@ -6,10 +6,21 @@
 > Proposes floor additions U1–U8. Opened from the 2026-09-07 discussion on whether to ship
 > a chalk alternative.
 
-**Status:** approved · **Opened:** 2026-09-07 · **Owner:** @ofri-peretz · **Approved:** 2026-09-08 by the owner, in session ("remove all blockers")
+**Status:** shipped (2026-10-26, R12's README opening read from the `flagstaff@1.7.5` tarball; see § Shipped 2026-10-26) · **Opened:** 2026-09-07 · **Owner:** @ofri-peretz · **Approved:** 2026-09-08 by the owner, in session ("remove all blockers")
 **Restated:** 2026-10-18 — see § Restated 2026-10-18
 
 ---
+
+## Shipped 2026-10-26
+
+**The last open item is on npm.** Version PR #1278 published `flagstaff@1.7.5` on 2026-10-26
+(07:43 UTC, `gitHead` `8d7126cd`), carrying `.changeset/flagstaff-readme-opening.md`. Every
+other row was already held or moved (§ Restated 2026-10-18, its 2026-10-26 note).
+
+| Row | Command | Output |
+| :-- | :-- | :-- |
+| R12. The README opening does not lead with burgee | `npm pack flagstaff@1.7.5` into an empty `mktemp -d` directory, unpacked; `cmp package/README.md packages/flagstaff/README.md` against `main` | byte-identical (sha256 `9b6d2d8af45ce748…` both). The first paragraph names no `burgee` and ends "Plugins are data, and there is no layout engine." |
+| S2. The complete-CLI dependency bill on `/docs/benchmarks` | `npm run bench:page -- --check`; `npx vitest run --config vitest.root.config.ts scripts/dependency-bill-lock.test.ts scripts/readme-opening-lock.test.ts`; the live page | `✓ apps/docs/content/docs/benchmarks.mdx matches the committed results`; 2 files, 34 tests passed. § "A complete CLI — the dependency bill" is on `main`'s page and on `burgee.interlace.tools/docs/benchmarks`: `burgee` + `roundel` + `flagstaff` + `caique` install **9** packages, 0 from outside the family; commander + chalk + ora + cli-table3 + `@inquirer/prompts` install **50** |
 
 ## Restated 2026-10-18
 

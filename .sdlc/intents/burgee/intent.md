@@ -64,9 +64,7 @@ Everything else that is still open:
 
 | closes when | intents |
 | :-- | :-- |
-| the burgee minor publishes (window opens 2026-11-01; the code is already in burgee 1.7.2, above) | `commander-env`, `agent-headroom`, `typed-positionals`; `plugin-contract` also needs criterion 4's eval reading |
-| the roundel minor publishes (window opens 2026-10-27) | `colour-facades` |
-| a flagstaff patch publishes the README opening #1274 changed | `cli-output-stack` (S2 dependency bill and R12 opening lock merged in #1274) |
+| ~~the burgee minor publishes~~ · ~~the roundel minor publishes~~ · ~~a flagstaff patch publishes the README opening~~ | **closed 2026-10-26** ([D-20261026-shipped-on-published-patch](../../decisions/D-20261026-shipped-on-published-patch.md)): `commander-env`, `agent-headroom`, `typed-positionals` and `colour-facades` stamped `shipped` against `burgee@1.7.2` and `roundel@1.2.1`; `cli-output-stack` against `flagstaff@1.7.5` |
 | scheduled measurements accumulate | `b1-mcp-arm` and `cli-mcp` (four weekly B1 readings, about 2026-11-17); `localised-human-surfaces` and `plugin-contract` C4 (the 2026-10-29 eval run); `sdlc-locks-evals-bands` S3 (the weekly duration run); `evals-record-not-run`, `windows-lane-holds`, `release-cadence`, `mutation-tested` (each by its own reading) |
 | an outside merge (owner approval for the external PR) | `first-adopter`, which also owns U12's outside-adopter half |
 | a benchmark row or a page regeneration, no release | `linegauge` (spawn row), `closeout` (spawn row and a published bench measurement), `seniority` (a published bench measurement), `bellpull` (compat-oracle and benchmarks spawning through it) |
