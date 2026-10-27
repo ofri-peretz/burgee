@@ -93,10 +93,11 @@ export const VARIANTS: readonly Variant[] = [
 ];
 
 /**
- * The opt-in for the MCP arm. `bench.yml` sets it to `1` on the weekly schedule and on a PR
- * labelled `bench:agent`, and nowhere else (R4, held by `ci-axes.test.ts`). Opt-in rather than
- * opt-out so that a missing variable spends nothing: a push to `main`, a manual dispatch and a
- * laptop's `npm run bench -- --axis agent` run the two existing variants only.
+ * The opt-in for the MCP arm. `bench.yml` sets it to `1` on the weekly schedule, on a PR labelled
+ * `bench:agent` and on a manual dispatch with its `mcp-arm` input set, and nowhere else (R4, held by
+ * `ci-axes.test.ts`). Opt-in rather than opt-out so that a missing variable spends nothing: a push
+ * to `main`, a dispatch without the input and a laptop's `npm run bench -- --axis agent` run the two
+ * existing variants only.
  */
 export const MCP_ARM_OPT_IN = 'BENCH_AGENT_MCP';
 
@@ -796,7 +797,8 @@ export const READINGS_METRIC = 'mcp-tokens-total-ratio-readings-median';
 /**
  * B1's run-to-run swing is large: the pooled token medians read 0.491 to 0.995 across consecutive
  * readings (D-20261009-b1-totals-and-explain). The intent's constraint is to never conclude from
- * one run, and its success criterion is four weekly readings before a verdict.
+ * one run, and its success criterion is four readings from scheduled or owner-dispatched runs,
+ * reported as their median and range, before a verdict (D-20261027-b1-mcp-arm-owner-dispatch).
  */
 export const READINGS_FOR_VERDICT = 4;
 
@@ -808,15 +810,16 @@ export interface Reading {
 
 /**
  * A landed CI reading: `<date>-<sha>-ci.json` from a push, `<date>-<sha>-weekly-ci.json` from the
- * schedule (`bench.yml`). A `-local.json` is a laptop's and never counts toward the verdict.
+ * schedule, `<date>-<sha>-dispatch-<run id>-ci.json` from an owner's dispatch with `mcp-arm` set
+ * (`bench.yml`). A `-local.json` is a laptop's and never counts toward the verdict.
  */
-const LANDED_CI = /^\d{4}-\d{2}-\d{2}-[0-9a-f]{7}(?:-weekly)?-ci\.json$/u;
+const isLandedCi = (file: string): boolean => /^\d{4}-\d{2}-\d{2}-[0-9a-f]{7}(?:-weekly|-dispatch-\d+)?-ci\.json$/u.test(file);
 
 /** Every landed reading that carries the MCP arm's ratio, oldest first by name. */
 export function priorReadings(dir: string = RESULTS_DIR): Reading[] {
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
-    .filter((f) => LANDED_CI.test(f))
+    .filter((f) => isLandedCi(f))
     .toSorted()
     .flatMap((file) => {
       const doc = tryParse(readFileSync(join(dir, file), 'utf8'));
@@ -1207,4 +1210,4 @@ export function run(options: AgentOptions = {}): { records: BenchRecord[] } | { 
   return { records };
 }
 
-export const method = `For each of the ${String(readTasks().length)} tasks and each of the two CLI builds, \`claude -p <prompt> --allowedTools 'Bash(demo:*)' --max-turns <n> --output-format stream-json --verbose --setting-sources project,local --strict-mcp-config\` — the \`claude\` pinned in \`.github/tools/claude-code\` when it is installed there — is spawned in a scratch directory with the build installed as \`demo\`, ${String(RUNS_PER_TASK)} times, in the caller's environment minus \`CI\`, \`GITHUB_*\`, \`RUNNER_*\` and \`ACTIONS_*\`; the task's own \`check\` decides success. Tokens are input + cache + output as the CLI reports them; turns is its \`num_turns\`, including runs that ended at the turn limit; a run that reported no usage is left out of the medians and totals and counted as a failure. The claims are settled on each build's tokens and turns summed over its task-runs, burgee's over commander's (per run, which is the ratio of the totals when both measured the same number); the pooled medians are reported beside them. The model and the \`claude\` version are recorded per results file, and a change of either starts a new band history. On the weekly schedule and a \`bench:agent\` PR only (\`${MCP_ARM_OPT_IN}=1\`), a third arm, \`burgee-mcp\`, runs the same burgee build over \`--mcp\` on the ${String(tasksFor('mcp', readTasks()).length)} tasks that hold word for word without a shell, with \`--mcp-config <file> --allowedTools mcp__demo\` in place of Bash and every other flag the same; it is compared with \`burgee\` over those tasks only. The config takes the server's name and arguments from the demo's \`--mcp --print-config\` and starts the same shim; before the arm's first run the harness starts that server and asks for its tools, and a server that lists none spends no run. A run whose \`init\` event does not report the server \`connected\` is a failure in no median, and the arm leaves a ratio only when every run connected and at least ${String(SUCCESS_FLOOR)} of them passed.`;
+export const method = `For each of the ${String(readTasks().length)} tasks and each of the two CLI builds, \`claude -p <prompt> --allowedTools 'Bash(demo:*)' --max-turns <n> --output-format stream-json --verbose --setting-sources project,local --strict-mcp-config\` — the \`claude\` pinned in \`.github/tools/claude-code\` when it is installed there — is spawned in a scratch directory with the build installed as \`demo\`, ${String(RUNS_PER_TASK)} times, in the caller's environment minus \`CI\`, \`GITHUB_*\`, \`RUNNER_*\` and \`ACTIONS_*\`; the task's own \`check\` decides success. Tokens are input + cache + output as the CLI reports them; turns is its \`num_turns\`, including runs that ended at the turn limit; a run that reported no usage is left out of the medians and totals and counted as a failure. The claims are settled on each build's tokens and turns summed over its task-runs, burgee's over commander's (per run, which is the ratio of the totals when both measured the same number); the pooled medians are reported beside them. The model and the \`claude\` version are recorded per results file, and a change of either starts a new band history. On the weekly schedule, a \`bench:agent\` PR and an owner's dispatch with \`mcp-arm\` set only (\`${MCP_ARM_OPT_IN}=1\`), a third arm, \`burgee-mcp\`, runs the same burgee build over \`--mcp\` on the ${String(tasksFor('mcp', readTasks()).length)} tasks that hold word for word without a shell, with \`--mcp-config <file> --allowedTools mcp__demo\` in place of Bash and every other flag the same; it is compared with \`burgee\` over those tasks only. The config takes the server's name and arguments from the demo's \`--mcp --print-config\` and starts the same shim; before the arm's first run the harness starts that server and asks for its tools, and a server that lists none spends no run. A run whose \`init\` event does not report the server \`connected\` is a failure in no median, and the arm leaves a ratio only when every run connected and at least ${String(SUCCESS_FLOOR)} of them passed.`;
