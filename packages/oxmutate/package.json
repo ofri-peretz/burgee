@@ -1,7 +1,7 @@
 {
   "name": "oxmutate",
   "version": "0.1.0",
-  "description": "Mutation testing on the oxc engine: Stryker-compatible, warm in-process runs inside Vitest, CI lanes, SARIF and an agent surface. No dependency outside the burgee family.",
+  "description": "Mutation testing for JavaScript and TypeScript on the oxc engine, run warm inside the project's own Vitest, with CI lanes, SARIF and an agent surface. No dependency outside the burgee family. A Stryker migration path.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -11,6 +11,7 @@
   "bugs": {
     "url": "https://github.com/ofri-peretz/burgee/issues"
   },
+  "homepage": "https://oxmutate.interlace.tools",
   "type": "module",
   "private": true,
   "engines": {
@@ -19,6 +20,7 @@
   "bin": {
     "oxmutate": "./dist/bin.js"
   },
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -37,13 +39,23 @@
     },
     "./package.json": "./package.json"
   },
+  "typesVersions": {
+    "*": {
+      "runner": [
+        "./dist/runner.d.ts"
+      ],
+      "spec": [
+        "./dist/spec.d.ts"
+      ]
+    }
+  },
   "files": [
     "dist",
     "!dist/**/*.map",
     "!dist/**/*.test.*"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/declaration-reach.mts --prune",
     "build:native": "cd native && cargo build --release --features napi --lib && node ../scripts/copy-binding.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",

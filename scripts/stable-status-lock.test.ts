@@ -12,6 +12,9 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+// eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and `released` is the one place a package released ahead of its flip is decided
+import { released } from '../apps/docs-chassis/src/packages';
+
 const ROOT = join(import.meta.dirname, '..');
 const PRE_1_0 = /\bpre-1\.0\b|\bpre-release\b|\breserved\b(?= package| name)/iu;
 
@@ -76,12 +79,16 @@ export function rootStatusProblems(readme: string, versions: Record<string, stri
   return out;
 }
 
-/** Every package under `packages/` that has a README, with its manifest's version. */
+/**
+ * Every released package under `packages/` that has a README, with its manifest's version:
+ * published, or private with a pending docs app built ahead of its first release (`released` in
+ * docs-chassis), so SECURITY.md says the same thing either side of the flip to `private: false`.
+ */
 const published = (): Record<string, { version: string; readme: string }> =>
   Object.fromEntries(
     readdirSync(join(ROOT, 'packages'))
       .filter((p) => existsSync(join(ROOT, 'packages', p, 'README.md')))
-      .filter((p) => (JSON.parse(readFileSync(join(ROOT, 'packages', p, 'package.json'), 'utf8')) as { private?: boolean }).private !== true)
+      .filter((p) => released(JSON.parse(readFileSync(join(ROOT, 'packages', p, 'package.json'), 'utf8')) as { name: string; private?: boolean }))
       .map((p) => [p, { version: (JSON.parse(readFileSync(join(ROOT, 'packages', p, 'package.json'), 'utf8')) as { version: string }).version, readme: readFileSync(join(ROOT, 'packages', p, 'README.md'), 'utf8') }]),
   );
 

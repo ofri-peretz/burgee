@@ -1,0 +1,81 @@
+---
+title: Configuration
+description: "Every key oxmutate reads: Stryker's keys, read from stryker.config.* as they stand, the keys only oxmutate reads, and the Stryker keys it does not use, each with the reason."
+---
+
+oxmutate reads two files from the project root, and a command-line flag beats both:
+
+1. `stryker.config.{mjs,js,cjs,json,mts,ts}`, as it stands. A JS config may export an object or a
+   function that returns one.
+2. `oxmutate.config.*` (the same extensions), which wins where both set a key. `--config <file>`
+   names a different file.
+
+The keys only oxmutate reads belong in `oxmutate.config.*`. Stryker never opens that file, so a
+project can run both tools while it compares them.
+
+## Stryker's keys oxmutate uses
+
+| Key | Default | What it does |
+| :-- | :-- | :-- |
+| `mutate` | `src/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}`, minus `*.test.*`, `*.spec.*` and `*.d.ts` | The files to mutate, as globs; a `!` glob excludes |
+| `testRunner` | Vitest | `'command'` runs `commandRunner.command` once per mutant instead of the warm Vitest runner |
+| `commandRunner` | `{ command: 'npm test' }` | The command for `testRunner: 'command'`; any non-zero exit kills the mutant |
+| `vitest` | — | `{ configFile }`: the Vitest config to run, when it is not the default one |
+| `concurrency` | cores − 1, at most 8 | Worker processes (`--concurrency`) |
+| `timeoutMS` | 500 | Absolute slack per mutant, in ms; Stryker's default is 5000 (`--mutant-timeout`) |
+| `timeoutFactor` | 1.5 | The multiple of a test's dry-run time a mutant may take before the slack |
+| `thresholds` | `{ high: 80, low: 60, break: null }` | Score bands for the report; below `break` the run exits 1 (`--break`) |
+| `mutator` | — | `{ excludedMutations }`: mutator names never generated |
+| `ignoreStatic` | `false` | Skip static mutants (code that runs at import) instead of scoring them |
+| `reporters` | `['clear-text', 'json']` | Any of `clear-text`, `json`, `html`, `sarif` (`--reporter`) |
+| `jsonReporter` | `reports/mutation/mutation.json` | `{ fileName }` of the JSON report |
+| `htmlReporter` | `reports/mutation/mutation.html` | `{ fileName }` of the HTML report |
+| `incremental` | `false` | Reuse verdicts whose source and covering tests did not change (`--incremental`) |
+| `incrementalFile` | `reports/oxmutate-incremental.json` | Where those verdicts are kept |
+| `dryRunOnly` | `false` | Stop after the dry run: proves the suite runs under oxmutate |
+| `dryRunTimeoutMinutes` | 5 | Budget for the dry run; over it the run stops with exit 3 |
+| `buildCommand` | — | Run once before the dry run, split on spaces, with no shell |
+| `testRunnerNodeArgs` | `[]` | Node flags for every Vitest worker |
+| `allowEmpty` | `false` | A dry run that finds no tests scores nothing instead of failing |
+| `warnings` | `true` | `false` (or `{ unknownOptions: false }`) hides the line that lists unused keys |
+| `checkers` | `[]` | `['typescript']` type-checks each survivor; one that does not compile is not counted |
+| `tsconfigFile` | `tsconfig.json` | The tsconfig that type check uses |
+
+`// Stryker disable next-line <Mutator>[,<Mutator>]: <reason>` comments are honoured, and
+`// oxmutate disable next-line …` is the same directive. A directive with no reason is an error,
+because a mutant switched off without one cannot be reviewed.
+
+## Keys only oxmutate reads
+
+| Key | Default | What it does |
+| :-- | :-- | :-- |
+| `ignore` | `[]` | Calls whose subtrees are not mutated, as data: `{ call: 'console.*', reason: '…' }`. `*` stops at a dot, `**` does not |
+| `specOracles` | `[]` | Formal models whose traces are replayed against each mutant ([Spec oracles](/docs/spec-oracles)) |
+| `strykerCompat` | `false` | Reproduce Stryker 10.0.0's skips: no mutants inside `as` casts or enums (`--stryker-compat`) |
+| `flakyReruns` | 2 | Re-runs for a verdict whose covering tests behaved differently across two dry runs; 0 disables |
+| `sarifReport` | `reports/mutation/mutation.sarif` | Where the SARIF report goes |
+| `typeChecker` | the project's `tsgo`, else `npx tsc` | The compiler command the type check runs |
+
+`--report-dir <dir>` writes `mutation.json`, `mutation.sarif` and `mutation.html` into one
+directory, whatever the config says.
+
+## Stryker's keys oxmutate does not use
+
+Each is listed in the run's output with its reason, so a config written for Stryker is never
+misread in silence.
+
+| Key | Why |
+| :-- | :-- |
+| `inPlace`, `tempDirName`, `cleanTempDir`, `symlinkNodeModules`, `ignorePatterns` | oxmutate never copies or rewrites the project; instrumented sources are served from memory |
+| `plugins`, `appendPlugins`, `ignorers` | No runtime plugin loading: mutators and ignore rules are data (`ignore`) |
+| `coverageAnalysis` | Always `perTest` |
+| `disableBail` | oxmutate always stops a mutant at its first killing test |
+| `maxTestRunnerReuse` | Workers are replaced on pollution and runaways, automatically |
+| `testFiles` | Test files come from the Vitest config |
+| `packageManager` | oxmutate never installs anything |
+| `disableTypeChecks` | Always on: instrumented files carry `// @ts-nocheck`, and the checker reads the original sources |
+| `allowConsoleColors` | Colour follows the terminal |
+| `clearTextReporter` | The summary is always printed |
+| `force` | Use a run without `--incremental` |
+| `dashboard` | The Stryker Dashboard reporter is not built yet |
+| `eventReporter`, `logLevel`, `fileLogLevel`, `checkerNodeArgs` | Not implemented |

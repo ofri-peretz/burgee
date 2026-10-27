@@ -39,8 +39,11 @@ export interface CheckOptions {
 }
 
 const OUTPUT_TAIL = 1500;
-/** `src/a.ts(3,7): error TS2322: …` — tsc's and tsgo's `--pretty false` shape. */
-const DIAGNOSTIC = /^(.+?)\((\d+),(\d+)\): error (TS\d+: .*)$/;
+/**
+ * `src/a.ts(3,7): error TS2322: …` — tsc's and tsgo's `--pretty false` shape. No anchors: the lazy
+ * first group already makes the leftmost match start the line, and the greedy last one ends it.
+ */
+const DIAGNOSTIC = /(.+?)\((\d+),(\d+)\): error (TS\d+: .*)/;
 
 /** The source with one mutant applied. Columns are UTF-16 and 1-based, as JavaScript counts. */
 export function applyMutant(source: string, m: Pick<CheckMutant, 'start' | 'end' | 'replacement'>): string {
@@ -56,8 +59,10 @@ export function parseDiagnostics(output: string, cwd: string): Map<string, strin
   for (const line of output.split('\n')) {
     const hit = DIAGNOSTIC.exec(line.trim());
     if (!hit) continue;
-    const file = path.relative(cwd, path.resolve(cwd, hit[1] ?? '')).split(path.sep).join('/');
-    if (!errors.has(file)) errors.set(file, `${hit[4] ?? ''} (line ${hit[2] ?? ''})`);
+    // Stryker disable next-line StringLiteral: all four groups take part in every match, so the defaults are never used; they are there for the type
+    const [, name = '', lineNo = '', , message = ''] = hit;
+    const file = path.relative(cwd, path.resolve(cwd, name)).split(path.sep).join('/');
+    if (!errors.has(file)) errors.set(file, `${message} (line ${lineNo})`);
   }
   return errors;
 }
@@ -83,6 +88,7 @@ function compiler(o: CheckOptions): string[] {
 export async function checkSurvivors(o: CheckOptions, survivors: readonly CheckMutant[]): Promise<Map<string, string>> {
   const failing = new Map<string, string>();
   if (survivors.length === 0) return failing;
+  // Stryker disable next-line StringLiteral: compiler() never returns an empty list, so the default is never taken; it is there for the type
   const [command = '', ...prefix] = compiler(o);
   const args = [...prefix, '--noEmit', '--pretty', 'false', '-p', o.tsconfig];
   const sandboxes = Array.from({ length: Math.max(1, Math.min(o.concurrency, survivors.length)) }, () => makeSandbox(o.root));
@@ -91,6 +97,7 @@ export async function checkSurvivors(o: CheckOptions, survivors: readonly CheckM
       const r = await spawn(command, args, { cwd: sandbox, runtime: ambientRuntime() });
       return { ok: r.ok, errors: parseDiagnostics(`${r.stdout}\n${r.stderr}`, sandbox), output: `${r.stdout}${r.stderr}` };
     };
+    // Stryker disable next-line StringLiteral: there is always at least one sandbox, so the fallback is never used; it is there for the type
     const base = await check(sandboxes[0] ?? '');
     if (!base.ok) throw new Error(`the project does not type-check with no mutant applied (\`${[command, ...args].join(' ')}\`): ${base.output.trim().slice(-OUTPUT_TAIL)}. fix: make the type check pass first, or drop checkers`);
 
@@ -118,6 +125,7 @@ export async function checkSurvivors(o: CheckOptions, survivors: readonly CheckM
     );
     return failing;
   } finally {
-    for (const s of sandboxes) rmSync(s, { recursive: true, force: true });
+    // No `force`: each sandbox was made above and nothing else removes it.
+    for (const s of sandboxes) rmSync(s, { recursive: true });
   }
 }

@@ -68,7 +68,7 @@ import { SUMMARY } from '../apps/docs/src/lib/site';
 // eslint-disable-next-line import-next/no-relative-packages -- by path, for the same reason as migrate-drop-ins-lock.test.ts: `compat.ts` is not an export
 import { DROP_INS, GRADED } from '../packages/burgee/src/compat.js';
 
-import { body, DOCS_LANDING, firstParagraph, incumbents, named, packageReadmes } from './positioning-audit.js';
+import { body, COMMAND_MIGRATION, DOCS_LANDING, firstParagraph, incumbents, named, packageReadmes } from './positioning-audit.js';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const read = (page: string): string => readFileSync(join(ROOT, page), 'utf8');
@@ -101,9 +101,16 @@ describe('no front page opens on an incumbent', () => {
   });
 });
 
+/** The switch a page owes its reader: `npx burgee migrate`, or a command-switched package's own bin. */
+const switchCommand = (page: string): string => {
+  const name = /^packages\/([\w-]+)\/README\.md$/u.exec(page)?.[1];
+  // A package with no drop-in has no import for migrate to move; its switch is its own command.
+  return name !== undefined && DROP_INS.every(({ to }) => to.split('/')[0] !== name) ? `npx ${name}` : 'npx burgee migrate';
+};
+
 describe('the switch stays one command (R6)', () => {
-  it.each(PAGES)('%s names `npx burgee migrate`', (page) => {
-    expect(read(page)).toContain('npx burgee migrate');
+  it.each(PAGES)('%s names its one-command switch', (page) => {
+    expect(read(page)).toContain(switchCommand(page));
   });
 
   it('the root README has the section the nav row links', () => {
@@ -269,6 +276,10 @@ function dependencyProblems(name: string, dependency: string, dependencies: read
 
 /** The migration clause: last, in the one form, listing only drop-ins compat.ts holds for this package. */
 function migrationProblems(name: string, migration: string, dropIns: readonly string[]): string[] {
+  // A package with no import to rewrite — oxmutate replaces a command, `stryker run` — has no
+  // drop-in for compat.ts to hold. Its clause names the tool it is a migration path from, and
+  // `positioning-audit.ts` reads that name as an incumbent, so it is held like a drop-in's.
+  if (dropIns.length === 0 && COMMAND_MIGRATION.test(migration)) return [];
   const listed = MIGRATION.exec(migration)?.[1];
   if (listed === undefined) return [`${name}: the description should end with "Drop-in paths for X, Y and Z." — it ends "${migration}"`];
   const unknown = listed.split(/,\s*|\s+and\s+/u).filter((item) => !dropIns.includes(item));

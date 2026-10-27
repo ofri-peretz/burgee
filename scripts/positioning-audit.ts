@@ -41,13 +41,34 @@ const CODE_ONLY = new Set(['which', 'rc']);
 /** `yargs/helpers` → `yargs`, `@clack/prompts` stays scoped, `dotenv/config.js` → `dotenv`. */
 const packageOf = (specifier: string): string => specifier.split('/').slice(0, specifier.startsWith('@') ? 2 : 1).join('/');
 
+/** A description's migration clause for a tool switched by its command, not an import: "A Stryker migration path." */
+export const COMMAND_MIGRATION = /^An? ([\w@/.-]+) migration path\b[^.]*\.$/u;
+
+/**
+ * The incumbents a package is migrated from by changing a command rather than an import, read out
+ * of each manifest's description (oxmutate's "A Stryker migration path."). `burgee migrate` has
+ * nothing to rewrite for them, so `DROP_INS` cannot name them; the description is the one place
+ * they are stated. Every package with a manifest is read, private or not, so the list is the same
+ * either side of a package's flip to `private: false`.
+ */
+export function commandMigrations(): string[] {
+  return readdirSync(PACKAGES)
+    .filter((name) => existsSync(join(PACKAGES, name, 'package.json')))
+    .flatMap((name) => {
+      const { description = '' } = JSON.parse(readFileSync(join(PACKAGES, name, 'package.json'), 'utf8')) as { description?: string };
+      const last = description.split(/(?<=[.!?])\s+(?=[A-Z@`])/u).at(-1) ?? '';
+      const found = COMMAND_MIGRATION.exec(last)?.[1];
+      return found === undefined ? [] : [found];
+    });
+}
+
 /**
  * Every incumbent the family replaces: the graded hosts, each drop-in's package, and the scope
  * of a scoped one (`clack` for `@clack/prompts`, `inquirer` for `@inquirer/core`), since prose
  * names the project rather than the package.
  */
 export function incumbents(): string[] {
-  const names = new Set<string>(Object.keys(GRADED));
+  const names = new Set<string>([...Object.keys(GRADED), ...commandMigrations()]);
   for (const { from } of DROP_INS) {
     const pkg = packageOf(from);
     names.add(pkg);

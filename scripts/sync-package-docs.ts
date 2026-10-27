@@ -5,8 +5,8 @@
  */
 
 /**
- * One docs page per published package, projected from its README — into that package's own
- * docs app.
+ * One docs page per released package (published, or private with a pending app), projected
+ * from its README — into that package's own docs app.
  *
  * The README is what npm and GitHub show, so it is the page people already read; a second,
  * hand-written copy on a site would start disagreeing with it the first time either changed.
@@ -43,7 +43,7 @@ import { fileURLToPath } from "node:url";
 // eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and scripts read the app table through its one typed reader rather than re-parsing it
 import { appForPackage, familyApp, siteForPackage } from "../apps/docs-chassis/src/config";
 // eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and scripts read the app table through its one typed reader rather than re-parsing it
-import { publicPackages } from "../apps/docs-chassis/src/packages";
+import { publicPackages, released } from "../apps/docs-chassis/src/packages";
 
 import { FAMILY_SITE_REFERENCES, STANDARD_SITES } from "./api-reference.js";
 
@@ -165,7 +165,9 @@ export function pages(): Map<string, string> {
     const readmePath = join(PACKAGES, e.name, "README.md");
     if (!e.isDirectory() || !existsSync(manifestPath) || !existsSync(readmePath)) continue;
     const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as Manifest;
-    if (manifest.private) continue;
+    // A private package a pending app documents is projected as if released, so the flip to
+    // `private: false` changes no page (`released` in docs-chassis).
+    if (!released(manifest)) continue;
     const readme = readFileSync(readmePath, "utf8");
     // The front door keeps a section until the package's own host is live; the app built for
     // the package — deployable, or `pending` its Vercel project — carries the projection.

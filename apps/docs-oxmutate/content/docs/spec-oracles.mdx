@@ -1,0 +1,104 @@
+---
+title: Spec oracles
+description: "Replay a formal model's traces against every mutant, as a second verdict beside the tests: Quint's quint run --mbt traces or any directory of ITF files, and a report of each mutant the model catches and the tests miss."
+---
+
+The tests are one oracle: they say whether a mutant changed behaviour they check. A formal model
+is another. A **spec oracle** takes a model's traces (sequences of actions and the states they
+lead to) and replays each one against the code with a mutant armed. A mutant a replay catches is
+killed by the spec, whatever the tests say about it.
+
+The interesting result is the disagreement. A mutant the spec kills and the tests let survive is
+a **test-spec gap**: behaviour the model pins down and the suite does not. Each one is reported
+with the trace that caught it.
+
+## The config
+
+In `oxmutate.config.json` (Stryker never reads it):
+
+```json
+{
+  "specOracles": [
+    {
+      "name": "save-restore",
+      "backend": "quint",
+      "model": "models/save-restore.qnt",
+      "traces": 200,
+      "maxSteps": 20,
+      "seed": "7",
+      "replay": ["test/cursor-replay.test.ts"],
+      "files": ["src/cursor.ts"]
+    }
+  ]
+}
+```
+
+| Key | What it is |
+| :-- | :-- |
+| `name` | The oracle's name: the key a replay test loads its traces by |
+| `backend` | `quint`: oxmutate runs `quint run --mbt` on `model`. `itf`: a directory of `*.itf.json` files any tool wrote, at `dir` |
+| `model` | `quint`: the model file, relative to the project root |
+| `traces`, `maxSteps`, `seed` | `quint`: how many traces (default 100), steps per trace (default 20), and a seed for a run that repeats |
+| `quint` | `quint`: how to run it (default `npx -y @informalsystems/quint@0.33.0`) |
+| `dir` | `itf`: the directory of traces. Apalache writes ITF, and a test can pin its traces this way |
+| `replay` | The replay test files (globs): their tests are this oracle's, scored on a verdict track of their own |
+| `files` | The source files the model describes (globs): the denominator of the metrics below |
+
+## The replay test
+
+A replay test is written once per modelled component. It loads the traces, performs each step's
+action on the real code, and asserts the model's state after it. Outside an oxmutate run there
+are no traces, so it skips:
+
+```ts
+import { loadTraces } from 'oxmutate/spec';
+import { expect, it } from 'vitest';
+
+const traces = loadTraces('save-restore');
+
+it.skipIf(traces.length === 0).each(traces)('replays $name', (trace) => {
+  const terminal = fakeTerminal();
+  for (const step of trace.steps) {
+    if (step.action === 'enterRaw') rawMode(terminal);
+    expect(terminal.isRaw).toBe(step.state.raw);
+  }
+});
+```
+
+Each step carries the action the model took (`mbt::actionTaken`), the nondeterministic choices
+it made (`mbt::nondetPicks`, with `Some`/`None` unwrapped) and the model's variables after it,
+with ITF's `#bigint`, `#set`, `#tup` and `#map` decoded to numbers, arrays and `Map`s:
+
+```json title="t1.itf.json"
+{"vars":["saved","raw"],"states":[{"#meta":{"index":0},"mbt::actionTaken":"init","mbt::nondetPicks":{},"saved":false,"raw":false},{"#meta":{"index":1},"mbt::actionTaken":"enterRaw","mbt::nondetPicks":{"depth":{"tag":"Some","value":{"#bigint":"1"}}},"saved":true,"raw":true}]}
+```
+
+```js title="replay.mjs"
+import { readTrace } from 'oxmutate/spec';
+
+const trace = readTrace('t1.itf.json');
+for (const step of trace.steps) console.log(step.action, step.picks, step.state);
+```
+
+```text title="node replay.mjs"
+init {} { saved: false, raw: false }
+enterRaw { depth: 1 } { saved: true, raw: true }
+```
+
+## What the report says
+
+Per oracle, over the mutants in its `files`:
+
+| Metric | What it measures |
+| :-- | :-- |
+| Spec-kill share | The share of those mutants a replay kills |
+| Test-spec gap | Mutants the spec kills and the tests miss, each with the trace that killed it |
+| Spec escapes | Mutants neither the spec nor the tests kill |
+| Cost per replay | Milliseconds per replay with a mutant armed |
+| Mapping coverage | The share of those mutants a replay test reaches at all |
+
+On closeout's `src/cursor.ts`, scored by its own tests and by a 200-trace model of `rawMode`, the
+gap was 0: the tests, held to a full line floor, already catch everything the model does. The
+mapping coverage was 45.5%, because the file also holds code the model says nothing about
+([`m1-results.md`](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/oxmutate/m1-results.md),
+"The spec oracle on a real component").

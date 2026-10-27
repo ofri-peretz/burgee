@@ -239,7 +239,7 @@ Graded by the incumbent's own test suite:
 | `widest-line` | 1 / 1 |
 | `wrap-ansi` | 85 / 85 |
 
-Weight, installed and tree-inclusive: **107,198 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5516** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **107,414 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5527** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 
@@ -281,13 +281,14 @@ Plugins register under the `widths` key, against the one schema the whole family
 
 ## The family
 
-Ten packages, one repository, one release pipeline. Each installs and works on its own, and each
+Eleven packages, one repository, one release pipeline. Each installs and works on its own, and each
 owns one job. Six of them — `bellpull`, `closeout`, `linegauge`, `paratext`, `roundel`, `seniority`
 — depend on nothing; the others depend only on packages in this table, and every dependency points
 one way, down the [layers](https://burgee.interlace.tools/docs/concepts/family).
 
 No package declares a dependency from outside the family; `react` and `react-reconciler` are
-optional peers of `controlroom`, which npm does not install.
+optional peers of `controlroom`, which npm does not install; `vitest` is an optional peer of
+`oxmutate`, which npm does not install.
 [`package-shape-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/package-shape-lock.test.ts)
 holds that for every manifest, and
 [`independence-install-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/independence-install-lock.test.ts)
@@ -310,6 +311,7 @@ keeps both true.
 | [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook, restore-cursor, cli-cursor and onetime |
 | [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
 | [controlroom](https://controlroom.interlace.tools/docs) | Keyboard-driven terminal screens, inline or full-screen | ink |
+| [oxmutate](https://burgee.interlace.tools/docs/packages/oxmutate) | Mutation testing on the oxc engine, inside your own Vitest | Stryker |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

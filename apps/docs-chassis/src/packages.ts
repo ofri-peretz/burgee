@@ -22,7 +22,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-import { appForPackage, packageDocsUrl } from './config';
+import { appForPackage, packageDocsUrl, PENDING } from './config';
 
 /** One public package, as the llms.txt package map and the family index print it. */
 export interface PublicPackage {
@@ -42,6 +42,23 @@ export interface Guide {
 }
 
 type Manifest = { name?: string; description?: string; private?: boolean };
+
+/**
+ * Whether the family's generated surfaces — the package map, the front door's section, the
+ * family table, the weight page — treat a package as released: it is published, or it is still
+ * `private` while a `pending` app in `.github/vercel-apps.json` documents it, built ahead of its
+ * first release.
+ *
+ * The second half exists so that a release is one flip. Every page generated about a package is
+ * the same with `private: true` as with `private: false`, so the commit that sets
+ * `"private": false` (and its changeset) changes nothing else, and every lock that reads these
+ * surfaces passes either side of it (oxmutate, 2026-10-27; its `RELEASING.md`). Until the flip
+ * the generated pages describe a package npm does not serve yet, which is why the flip belongs
+ * in the same pull request as the pending row, before anything deploys from `main`.
+ */
+export function released(manifest: { readonly name?: string; readonly private?: boolean }): boolean {
+  return manifest.private !== true || (manifest.name !== undefined && PENDING.some((app) => app.package === manifest.name));
+}
 
 /**
  * `packages/`, from the app directory. `next build` and vitest both run with `apps/<app>` as
@@ -93,7 +110,7 @@ export function replacesOf(name: string, description: string): string {
   throw new Error(`packages/${name}/package.json: the description names no incumbent ("Drop-in paths for …"), so the llms.txt package map cannot say what ${name} replaces.`);
 }
 
-/** Every public workspace package, burgee first — it is the framework; the rest are what it is built from. */
+/** Every released workspace package ({@link released}), burgee first — it is the framework; the rest are what it is built from. */
 export function publicPackages(dir: string = PACKAGES_DIR): PublicPackage[] {
   if (!existsSync(dir)) throw new Error(`No packages directory at ${dir}; the docs build must run from apps/<app> inside the monorepo.`);
   const found: PublicPackage[] = [];
@@ -101,7 +118,7 @@ export function publicPackages(dir: string = PACKAGES_DIR): PublicPackage[] {
     const manifestPath = join(dir, entry.name, 'package.json');
     if (!entry.isDirectory() || !existsSync(manifestPath)) continue;
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Manifest;
-    if (manifest.private === true || manifest.name === undefined) continue;
+    if (!released(manifest) || manifest.name === undefined) continue;
     const description = manifest.description ?? '';
     found.push({ name: manifest.name, description, replaces: replacesOf(manifest.name, description), url: packageDocsUrl(manifest.name), guides: guidesOf(manifest.name, dir) });
   }

@@ -47,9 +47,27 @@ type RunnerStatics = {
  */
 const fromProject = async (specifier: string, dir = cwd()): Promise<unknown> => import(resolveEsm(specifier, dir));
 
+/** The family's refusal shape for a missing optional peer (as `controlroom/ink`'s): a code and a fix. */
+export class PeerMissingError extends Error {
+  readonly code = 'E_PEER_MISSING';
+  readonly fix = "npm install vitest — oxmutate runs the project's own Vitest, so the project brings it";
+  constructor(cause: unknown) {
+    super('oxmutate/runner needs `vitest`, an optional peer that is not installed', { cause });
+    this.name = 'PeerMissingError';
+  }
+}
+
+const missing = (cause: unknown): boolean => {
+  const code = (cause as { code?: unknown } | null)?.code;
+  return code === 'ERR_MODULE_NOT_FOUND' || code === 'MODULE_NOT_FOUND';
+};
+
 /** Vitest 5 exports `TestRunner` from `vitest`; Vitest 4 from `vitest/runners` + `@vitest/runner`. */
 async function loadBase(): Promise<{ Base: new (config: unknown) => object; statics: RunnerStatics }> {
-  const vitest = (await fromProject('vitest')) as Record<string, unknown>;
+  const vitest = (await fromProject('vitest').catch((cause: unknown) => {
+    if (missing(cause)) throw new PeerMissingError(cause);
+    throw new Error('oxmutate/runner could not load the project\'s Vitest', { cause });
+  })) as Record<string, unknown>;
   const v5 = vitest['TestRunner'] as (new (config: unknown) => object) & Partial<RunnerStatics> | undefined;
   if (v5 && typeof v5.getTestFn === 'function' && typeof v5.getSuiteHooks === 'function') {
     return { Base: v5, statics: { getTestFn: v5.getTestFn, getSuiteHooks: v5.getSuiteHooks } };

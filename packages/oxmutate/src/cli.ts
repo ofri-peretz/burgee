@@ -83,7 +83,6 @@ function overridesFrom(o: Record<string, unknown>, root: string): Partial<Option
 const runCommand = defineCommand({
   name: 'run',
   description: 'Mutation-test the project in the current directory',
-  default: true,
   effects: 'idempotent',
   examples: [
     { command: 'oxmutate run', description: 'every mutant, with the Stryker config if there is one' },

@@ -39,12 +39,15 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
+// eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and `released` is the one place a package released ahead of its flip is decided
+import { released } from '../apps/docs-chassis/src/packages';
+
 import { FAMILY, grades, headerBlocks, reserved } from './readme-benchmarks.js';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const PACKAGES = join(ROOT, 'packages');
 
-const manifest = (name: string): { private?: boolean } => JSON.parse(readFileSync(join(PACKAGES, name, 'package.json'), 'utf8')) as { private?: boolean };
+const manifest = (name: string): { name: string; private?: boolean } => JSON.parse(readFileSync(join(PACKAGES, name, 'package.json'), 'utf8')) as { name: string; private?: boolean };
 
 /** Published packages with a README — `compat-oracle` is internal and ships to nobody. */
 const published = (): string[] =>
@@ -178,10 +181,16 @@ export function problems(pkg: string, readme: string): string[] {
 const read = (pkg: string): string => readFileSync(join(PACKAGES, pkg, 'README.md'), 'utf8');
 
 describe('every published README has the family header and shape', () => {
-  const names = published();
+  // `FAMILY`, not the published set: a package released ahead of its flip to `private: false`
+  // (`released` in docs-chassis) is held to the standard before it ships, so the flip changes
+  // nothing this reads.
+  const names = [...FAMILY];
 
   it('has the whole family to check', () => {
-    expect(names).toHaveLength(FAMILY_SIZE);
+    expect(published().filter((name) => !FAMILY.includes(name)), 'a published package missing from FAMILY in scripts/readme-benchmarks.ts').toEqual([]);
+    const ahead = FAMILY.filter((name) => !published().includes(name));
+    expect(ahead.filter((name) => !released(manifest(name))), 'FAMILY names a package that is neither published nor documented by a pending app').toEqual([]);
+    expect(names.filter((name) => !existsSync(join(PACKAGES, name, 'README.md'))), 'a FAMILY package with no README').toEqual([]);
   });
 
   it.each(names)('%s', (pkg) => {

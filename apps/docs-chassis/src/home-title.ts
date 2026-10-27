@@ -23,6 +23,7 @@ export const HOME_TITLES: Readonly<Record<string, string>> = {
   controlroom: 'keyboard-driven terminal screens',
   flagstaff: 'spinners, progress, boxes and tables',
   linegauge: 'measure, wrap and slice styled terminal text',
+  oxmutate: 'mutation testing on the oxc engine',
   paratext: 'terminal hyperlinks, images and notifications',
   roundel: 'colour for CLIs',
   seniority: 'config resolution with provenance',

@@ -75,7 +75,17 @@ const DECLARED = {
   paratext: { plugin: true, check: true, eval: true },
   roundel: { plugin: true, check: true, eval: true },
   seniority: { plugin: true, check: true, eval: true },
+  // Declared ahead of its flip to `private: false`, so the flip changes nothing here. Its one
+  // extension point is data in its config (`ignore` rules, `specOracles`), not a plugin host:
+  // no `./plugin`, no `check`, no eval case — the honest empty row, as linegauge's once was.
+  oxmutate: { plugin: false, check: false, eval: false },
 } as const;
+
+type Declared = (typeof DECLARED)[keyof typeof DECLARED];
+
+/** DECLARED's rows for the packages published right now; a row declared ahead of a release waits. */
+const declaredFor = (names: readonly string[], column: keyof Declared): Record<string, boolean> =>
+  Object.fromEntries(names.map((n) => [n, (DECLARED as Record<string, Declared | undefined>)[n]?.[column] === true]));
 
 /** Published packages only — `compat-oracle` and `docs` are private and extend nothing. */
 function published(): string[] {
@@ -111,29 +121,32 @@ function hasEval(name: string): boolean {
 
 describe('every extension surface declares how far it is built', () => {
   it('names every published package, so a new one cannot arrive undeclared', () => {
-    expect(published().sort()).toEqual(Object.keys(DECLARED).sort());
+    expect(published().filter((n) => !(n in DECLARED)), 'published and not declared').toEqual([]);
+    // A row for a package not yet published must be one under packages/ that is still private.
+    const ahead = Object.keys(DECLARED).filter((n) => !published().includes(n));
+    expect(ahead.filter((n) => !existsSync(join(PACKAGES, n, 'package.json'))), 'declared, and no such package').toEqual([]);
   });
 
   it('the plugin column is true exactly where `./plugin` is published', () => {
     const actual = Object.fromEntries(published().map((n) => [n, manifest(n).exports?.['./plugin'] !== undefined]));
-    expect(actual).toEqual(Object.fromEntries(Object.entries(DECLARED).map(([n, d]) => [n, d.plugin])));
+    expect(actual).toEqual(declaredFor(published(), 'plugin'));
   });
 
   it('a published `./plugin` exports `validate`, which is the half that is built everywhere', () => {
     const missing = published()
-      .filter((n) => DECLARED[n as keyof typeof DECLARED].plugin)
+      .filter((n) => declaredFor([n], 'plugin')[n] === true)
       .filter((n) => !/export function validate/u.test(readFileSync(join(PACKAGES, n, 'src', 'plugin.ts'), 'utf8')));
     expect(missing, 'a plugin surface with no `validate` cannot refuse anything').toEqual([]);
   });
 
   it('the check column is true exactly where a `check` command exists', () => {
     const actual = Object.fromEntries(published().map((n) => [n, hasCheck(n)]));
-    expect(actual).toEqual(Object.fromEntries(Object.entries(DECLARED).map(([n, d]) => [n, d.check])));
+    expect(actual).toEqual(declaredFor(published(), 'check'));
   });
 
   it('the eval column is true exactly where `evals/cases/` carries one', () => {
     const actual = Object.fromEntries(published().map((n) => [n, hasEval(n)]));
-    expect(actual).toEqual(Object.fromEntries(Object.entries(DECLARED).map(([n, d]) => [n, d.eval])));
+    expect(actual).toEqual(declaredFor(published(), 'eval'));
   });
 
   it('a surface that can be checked is a surface that is measured', () => {
