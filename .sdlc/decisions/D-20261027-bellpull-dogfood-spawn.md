@@ -25,7 +25,9 @@ sides of every ratio pay that cost once per spawn. On Windows it is the reason `
 the same throw on a failure to start or a non-zero exit, with `pid`, `output`, `stdout`, `stderr`,
 `status` and `signal` assigned onto the error; the same `Command failed: <file> <args>` message
 with stderr appended; and the child's stderr echoed to ours when the caller did not choose `stdio`.
-`spawn.test.ts` in each tree pins each of those against a real child. bellpull exports no
+`spawn.test.ts` in each tree pins each of those against a real child. The echo writes to file
+descriptor 2 rather than `process.stderr`: the same bytes on the same stream, and no `process`
+read in a compat-oracle module outside its seam (`packages/burgee/src/process-reference-lock.test.ts`). bellpull exports no
 `execFileSync`, and it should not: `bellpull/cross-spawn` is graded as a drop-in for `cross-spawn`,
 whose surface has none. Adding one would be a new public API in a published package to save
 private tooling twenty lines.

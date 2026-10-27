@@ -293,18 +293,15 @@ describe('the ref it clones', () => {
     expect(result.files).toBe(5);
   });
 
-  it("keeps git's own output off ours: a clone, and the failed tag clone before an untagged one", () => {
-    // `stdio: 'ignore'` on the clone. Without it `execFile` echoes the child's stderr, as
-    // `execFileSync` does, and every vendor run printed git's "Cloning into…" and "fatal: Remote
-    // branch … not found" between the oracle's own lines.
-    const write = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
-    try {
-      expect(vendor(hostAt(upstream(), { tagPrefix: 'release-' }), into()).tag).toBeNull();
-      const printed = write.mock.calls.map(([chunk]) => String(chunk)).join('');
-      expect(printed).not.toMatch(/Cloning|fatal|warning/u);
-    } finally {
-      write.mockRestore();
-    }
+  it("keeps git's own output off ours: every clone, the failed tag clone included, ignores stdio", () => {
+    // Without `stdio: 'ignore'` `execFile` echoes the child's stderr, as `execFileSync` does, and
+    // every vendor run printed git's "Cloning into…" and "fatal: Remote branch … not found"
+    // between the oracle's own lines.
+    vi.mocked(execFile).mockClear();
+    expect(vendor(hostAt(upstream(), { tagPrefix: 'release-' }), into()).tag).toBeNull();
+    const clones = vi.mocked(execFile).mock.calls.filter(([, args]) => (args as string[]).includes('clone'));
+    expect(clones).toHaveLength(2);
+    for (const [, , options] of clones) expect(options).toEqual({ stdio: 'ignore' });
   });
 
   it('never hands git a ref that reads as an option, and refuses rather than cloning HEAD', () => {

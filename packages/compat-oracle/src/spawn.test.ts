@@ -10,6 +10,8 @@
  * `npm.cmd` on Windows, and `execFileSync('npm', …)` with no shell is `spawnSync npm ENOENT` there
  * (#1180). It runs on every cell of `compat.yml`, Windows included, with no shell.
  */
+import { writeSync } from 'node:fs';
+
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { type ExecError, execFile, spawn, spawnSync } from './spawn.js';
@@ -27,8 +29,11 @@ function thrown(run: () => unknown): ExecError {
   throw new Error('expected a throw');
 }
 
+// The echo goes to file descriptor 2 (`STDERR_FD`); recorded here, not written.
+vi.mock('node:fs', async (importOriginal) => ({ ...(await importOriginal<typeof import('node:fs')>()), writeSync: vi.fn() }));
+
 afterEach(() => {
-  vi.restoreAllMocks();
+  vi.mocked(writeSync).mockClear();
 });
 
 describe('spawnSync, through bellpull', () => {
@@ -59,7 +64,6 @@ describe('execFile, as execFileSync behaves', () => {
   });
 
   it('returns bytes with no options at all', () => {
-    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     const out = execFile(process.execPath, child(0, ''));
     expect(Buffer.isBuffer(out)).toBe(true);
     expect(out.toString()).toBe('out');
@@ -89,22 +93,19 @@ describe('execFile, as execFileSync behaves', () => {
   });
 
   it('echoes the child’s stderr to ours when the caller left stdio alone, as execFileSync does', () => {
-    const write = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     expect(execFile(process.execPath, child(0), { encoding: 'utf8' })).toBe('out');
-    expect(write).toHaveBeenCalledTimes(1);
-    expect(write).toHaveBeenCalledWith('err');
+    expect(vi.mocked(writeSync)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(writeSync)).toHaveBeenCalledWith(2, Buffer.from('err'));
   });
 
   it('echoes nothing when there was nothing on stderr', () => {
-    const write = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     execFile(process.execPath, child(0, ''), { encoding: 'utf8' });
-    expect(write).not.toHaveBeenCalled();
+    expect(vi.mocked(writeSync)).not.toHaveBeenCalled();
   });
 
   it('echoes nothing when the caller chose stdio', () => {
-    const write = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     execFile(process.execPath, child(0), { encoding: 'utf8', stdio: 'pipe' });
-    expect(write).not.toHaveBeenCalled();
+    expect(vi.mocked(writeSync)).not.toHaveBeenCalled();
   });
 
   it('throws the spawn’s own error when nothing could start, with the result on it', () => {

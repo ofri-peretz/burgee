@@ -32,6 +32,7 @@
  * `status`, `stdout` and `stderr` on the thrown error, and stderr echoed to ours when the caller
  * did not choose `stdio`. The callers' `catch` blocks read those fields and were not changed.
  */
+import { writeSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 // `import type`, never `import { type … }`: under `verbatimModuleSyntax` the inline form compiles to
@@ -40,6 +41,13 @@ import { createRequire } from 'node:module';
 import type { ChildProcess, SpawnOptions, SpawnSyncReturns } from 'bellpull/cross-spawn';
 
 type CrossSpawn = typeof import('bellpull/cross-spawn');
+
+/**
+ * Where a child's stderr is echoed, as a file descriptor rather than `process.stderr`: the same
+ * bytes on the same stream, and no `process` read in a module outside the package's seam
+ * (`packages/burgee/src/process-reference-lock.test.ts`).
+ */
+const STDERR_FD = 2;
 
 /** Options with a text encoding: the result's `stdout` and `stderr` are strings. */
 export type TextOptions = SpawnOptions & { encoding: 'utf8' };
@@ -76,7 +84,7 @@ export function execFile(file: string, args: readonly string[], options: SpawnOp
   const result = spawnSync(file, args, options);
   // Null when stderr was not piped, and undefined when nothing started: both are nothing printed.
   const stderr = (result.stderr as Buffer | string | null | undefined) ?? '';
-  if (options.stdio === undefined && stderr.length > 0) process.stderr.write(stderr);
+  if (options.stdio === undefined && stderr.length > 0) writeSync(STDERR_FD, Buffer.from(stderr));
   // Stryker disable next-line ConditionalExpression: no spawn reports an error with status 0 — a timeout, ENOBUFS or a missing program leaves it null on POSIX, and bellpull's Windows ENOENT is status 1 — so dropping the error check changes no outcome a child can produce
   if (result.error === undefined && result.status === 0) return result.stdout;
   const detail = stderr.length > 0 ? `\n${stderr.toString()}` : '';

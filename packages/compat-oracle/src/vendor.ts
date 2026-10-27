@@ -73,7 +73,6 @@ function cloneRelease(host: Host, version: string, clone: string): { commit: str
   const head = (): string => execFile('git', ['-C', clone, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
   // `--` before the positionals, so a repo URL cannot be read as an option either.
   const shallow = (ref?: string): void => {
-    // Stryker disable next-line StringLiteral: `stdio: ''` falls back to `'pipe'` in spawnSync, which differs from `'ignore'` only in buffering git's progress that nothing reads; dropping the option is the mutant the stderr test kills
     execFile('git', ['clone', '--depth', '1', ...(ref === undefined ? [] : ['--branch', ref]), '--', host.repo, clone], { stdio: 'ignore' });
   };
   try {
