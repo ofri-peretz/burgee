@@ -13,9 +13,11 @@
  * fixtures, so every axis spawns from here.
  *
  * A copy of `packages/compat-oracle/src/spawn.ts`, as `scratch-dir.ts` is a copy of the root's:
- * this workspace does not import from outside itself. It differs in one line, on purpose: the
- * oracle loads bellpull on its first spawn, because `vendor-suite.ts` must load from a checkout
- * with nothing installed, and nothing here has that constraint, so the import is static.
+ * this workspace does not import from outside itself. Like the oracle's, it loads bellpull on the
+ * first spawn and not at import: `scripts/bench-page.ts` imports `axes/runtime.ts` to render the
+ * benchmarks page in CI's fast checks, which build nothing, and a static import of
+ * `bellpull/cross-spawn` is `Cannot find module …/bellpull/dist/cross-spawn.js` there (#1298's
+ * first run). `require()` of ESM is synchronous on every Node this repository supports.
  *
  * **What changes for a measurement: nothing that reaches a ratio.** On POSIX `bellpull/cross-spawn`
  * hands the call to `node:child_process` unchanged after normalising the arguments; the B2, B3 and
@@ -23,8 +25,17 @@
  * spawn. On Windows it is what lets `npm`, a `.cmd`, start at all.
  */
 import { writeSync } from 'node:fs';
+import { createRequire } from 'node:module';
 
-import crossSpawn, { type ChildProcess, type SpawnOptions, type SpawnSyncReturns } from 'bellpull/cross-spawn';
+// `import type`, never `import { type … }`: under `verbatimModuleSyntax` the inline form compiles to
+// `import {} from 'bellpull/cross-spawn'`, a static load, which is the one thing this file must not do.
+// eslint-disable-next-line import-next/consistent-type-specifier-style -- see the line above
+import type { ChildProcess, SpawnOptions, SpawnSyncReturns } from 'bellpull/cross-spawn';
+
+type CrossSpawn = typeof import('bellpull/cross-spawn');
+
+/** `bellpull/cross-spawn`, loaded from wherever this module is. Node caches it after the first call. */
+const crossSpawn = (): CrossSpawn => createRequire(import.meta.url)('bellpull/cross-spawn') as CrossSpawn;
 
 /**
  * Where a child's stderr is echoed, as a file descriptor rather than `process.stderr`: the same
@@ -40,14 +51,12 @@ export type TextOptions = SpawnOptions & { encoding: 'utf8' };
 export function spawnSync(file: string, args: readonly string[], options: TextOptions): SpawnSyncReturns<string>;
 export function spawnSync(file: string, args: readonly string[], options?: SpawnOptions): SpawnSyncReturns<Buffer | string>;
 export function spawnSync(file: string, args: readonly string[], options?: SpawnOptions): SpawnSyncReturns<Buffer | string> {
-  // A property read off the default, not a named binding, as bellpull's own doc asks: a test that
-  // mocks the exports object then sees its mock.
-  return crossSpawn.sync(file, args, options);
+  return crossSpawn().sync(file, args, options);
 }
 
 /** `spawn`, through bellpull: the `ChildProcess`, as `node:child_process` returns it. */
 export function spawn(file: string, args: readonly string[], options?: SpawnOptions): ChildProcess {
-  return crossSpawn.spawn(file, args, options);
+  return crossSpawn().spawn(file, args, options);
 }
 
 /** What `execFile` throws: an `Error` carrying the whole `spawnSync` result, as `execFileSync`'s does. */

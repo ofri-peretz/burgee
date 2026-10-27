@@ -9,7 +9,7 @@ superseded_by: —
 **`bellpull/cross-spawn`, not `run`. One small module per workspace (`packages/compat-oracle/src/spawn.ts`
 and `benchmarks/spawn.ts`) exports `spawnSync`, `spawn` and `execFile` over it, and nothing else in
 either tree imports `node:child_process` (`scripts/dogfood-spawn-lock.test.ts`). The oracle loads
-bellpull on its first spawn, through `createRequire`, and the benchmarks import it statically.**
+bellpull on its first spawn, through `createRequire`, and so do the benchmarks.**
 
 **Why `cross-spawn` and not `run`.** Every call site is synchronous, and several sit
 inside a timed region (B2's `perf.ts`, `scale.ts`) or a `catch` that reads `status`, `stdout` and
@@ -34,9 +34,12 @@ private tooling twenty lines.
 
 **Two copies, on purpose.** `benchmarks/` does not import from outside itself (`scratch-dir.ts`
 is a copy of the root's for the same reason), and `oracle-import-lock.test.ts` refuses a bare
-`compat-oracle/…` import there. The copies differ in one line, which is the next paragraph.
+`compat-oracle/…` import there. The two files carry the same code.
 
-**The oracle's load is deferred, and the cost is stated.** `scripts/vendor-suite.ts` imports
+**Both load bellpull on the first spawn, and the cost is stated.** The benchmarks' reason:
+`scripts/bench-page.ts` imports `benchmarks/axes/runtime.ts` in CI's fast checks, which build
+nothing, and a static import there was `Cannot find module …/bellpull/dist/cross-spawn.js` on the
+first CI run of #1298. The oracle's reason: `scripts/vendor-suite.ts` imports
 `vendor.ts` and `upstream.ts` by path and must load from a checkout with nothing installed
 (`scripts/vendor-suite-resolution.test.ts`, which still passes). A static
 `import 'bellpull/cross-spawn'` fails there with `Cannot find package` before the script prints
