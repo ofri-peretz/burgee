@@ -104,6 +104,32 @@ measured durations. R1, R2, R4 and R5 are kept, with stale facts updated.
   *Red on main:* `?`. Ten files spawn `npm`. Whether any does it inside an `it` body is read by
   the lock the day it is written.
 
+- **R6 — `changeset-check-lock` starts the step's shell once per file.** Added 2026-10-27. After
+  R4 the build was cheap, and the cost was the first `bash` the file started from Node. That
+  `bash` returns before any git, and it took 3.2–8.5 s over ten full Windows cells on `main`, then
+  65.9 s in run 40537347822 (timeout 30 s). The second took 0.9–5.9 s. The four that run git took
+  0.2–0.9 s. Now `beforeAll` spawns one driver `bash` that runs the step's own script for every
+  scenario, each as its own `bash -x` in a subshell with only its own variables and
+  `$GITHUB_OUTPUT`. The cases read the answers and spawn nothing. The Dependabot block's 120 s
+  budget goes, because its slowest case over those cells was 850 ms.
+
+  *Check:* `changeset-check-lock.test.ts` › `R6 — starts the step's shell once per file, and
+  every scenario got an answer from it`. The step's defects that the old file caught, written in
+  by hand, fail the same cases (D-20261027-windows-lane-one-shell-per-file); the R2 report.
+
+  *Red on main:* six `bash` spawns from Node, one per case.
+
+- **R7 — controlroom's Ink case packs its three peers in one `npm pack`.** Added 2026-10-27. It
+  took 11.2–27.0 s of 120 s over the same ten cells, and 72.7 s in run 39441261818. npm takes
+  several folders and prints one tarball per line. A `cmd.exe` and a cold npm are saved per
+  peer.
+
+  *Check:* `packages/controlroom/src/shape.test.ts` › `runs an Ink program once react and
+  react-reconciler are installed`, which now also asserts that three tarballs were packed; the R2
+  report. A `renderToString` that ignores `columns` fails it.
+
+  *Red on main:* three `npm pack` runs in the case.
+
 ## Design
 
 Measure first, then fix by spawn count. The measurement for R3 already exists: `gh run view
@@ -134,6 +160,8 @@ Order:
 | R2 | `scripts/slow-cases.test.ts` | no script |
 | R4 | the R2 report; the git-spawn count case | `git init` + commits per case |
 | R5 | the R2 report; `spawn-budget-lock.test.ts` | `?` |
+| R6 | the R2 report; the one-shell case | six `bash` spawns from Node per file |
+| R7 | the R2 report; the Ink case's three-tarball assertion | three `npm pack` runs in the case |
 
 ## Quint model: needed? No
 
@@ -160,7 +188,7 @@ this intent is `n`.
 ## Status
 
 Re-read against `main` 2026-10-26. R1–R5 merged in #1135 (`0dc0e0231e`, 2026-10-19); R3d is
-built in the change that wrote this section.
+built in the change that wrote this section. R6 and R7 were added and built 2026-10-27.
 
 | R | Status | Where | Check |
 | :-- | :-- | :-- | :-- |
@@ -169,8 +197,10 @@ built in the change that wrote this section.
 | R2 | Built | `scripts/slow-cases.mts` | `scripts/slow-cases.test.ts` |
 | R4 | Built | `scripts/changeset-check-lock.test.ts` | › `R4 — builds its repository once per file, in at most three git runs`; R2 report |
 | R5 | Built | the `npm`-spawning root-suite files | `scripts/spawn-budget-lock.test.ts`; R2 report |
+| R6 | Built (2026-10-27) | `scripts/changeset-check-lock.test.ts` | › `R6 — starts the step's shell once per file, and every scenario got an answer from it`; R2 report |
+| R7 | Built (2026-10-27) | `packages/controlroom/src/shape.test.ts` | › `runs an Ink program once react and react-reconciler are installed`; R2 report |
 
-**Built: 5. Not built: 0.** The intent's criterion 2 is open; see its § Where the criteria stand.
+**Built: 7. Not built: 0.** The intent's criterion 2 is open; see its § Where the criteria stand.
 
 **R3d, from the phase lines.** R3a's lines on the full cells, for the first pwsh of the file:
 
