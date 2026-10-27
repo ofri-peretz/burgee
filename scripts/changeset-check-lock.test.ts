@@ -21,13 +21,14 @@
  * script touches git, which is what makes it runnable outside a PR.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { scratchDirs } from './scratch-dir.js';
+import { bashSpawns, runStepScenarios, type StepScenario } from './step-scenarios.js';
 
 /** Every scratch directory this file makes, removed after its last test (`scripts/scratch-dir.ts`). */
 const scratchDir = scratchDirs();
@@ -73,68 +74,20 @@ interface Answer {
 }
 
 /** The variables the step reads. Each scenario starts with every one of them unset, then sets its own. */
-const STEP_VARIABLES = ['BASE_SHA', 'HEAD_SHA', 'HEAD_REF', 'LABELS', 'PR_AUTHOR', 'GITHUB_OUTPUT'];
-
-/** One pull request the step is asked about: its environment, and whether it runs in the repository. */
-interface Scenario {
-  env: Record<string, string>;
-  /** `true`: in `$root/repo`. `false`: in an empty directory that is no repository, so an answer that needed git cannot be given. */
-  inRepository: boolean;
-}
-
-/** A file's text, or nothing when the step never wrote it. */
-const readIfThere = (path: string): string => (existsSync(path) ? readFileSync(path, 'utf8') : '');
-
-/** A value as one single-quoted bash word. */
-const word = (value: string): string => `'${value.replaceAll("'", "'\\''")}'`;
-
-/** Every bash this file starts from Node, counted, so "once per file" is a fact and not a hope. */
-let shellRuns = 0;
+const STEP_VARIABLES = ['BASE_SHA', 'HEAD_SHA', 'HEAD_REF', 'LABELS', 'PR_AUTHOR'];
 
 /**
- * windows-lane-holds R6 — the step's shell starts once per file, and every scenario runs inside it.
+ * windows-lane-holds R6 — the step's shell starts once per file, and every scenario runs inside
+ * it (`scripts/step-scenarios.ts`, which says why).
  *
  * Each runs under `bash -x`, so a wrong answer arrives with the path that produced it. This lock
  * went red once in a pre-push hook and passed on retry, and all that was left was the wrong
  * status. The step discards `git show`'s stderr, and it maps an empty result to `missing`. The
  * trace shows each argument after expansion, so an empty `git show` is visible in it.
- *
- * Each scenario still runs the step's own script as its own `bash -x`, with only its own
- * variables set and its own `$GITHUB_OUTPUT`, in a subshell that cannot leak into the next. What
- * changed is who starts that bash: one driver bash, started once by Node, instead of Node once
- * per case. On `main`'s Windows cells the first bash a case started took 3.2–8.5 s and once
- * 65.9 s (run 40537347822, past its 30 s timeout, while two `npm install` files ran beside it),
- * the second 0.9–5.9 s, and the ones after it 0.3–0.9 s with five processes of their own. A
- * bash started by bash is the cheap kind. On macOS each is 15 ms.
- *
- * Paths inside the driver are relative to `$root`, the driver's own working directory, so it
- * names no Windows path.
  */
-function runScenarios(root: string, scenarios: Record<string, Scenario>): Record<string, Answer> {
-  writeFileSync(join(root, 'check.sh'), checkScript());
-  const lines = ['root=$PWD'];
-  for (const [name, { env, inRepository }] of Object.entries(scenarios)) {
-    mkdirSync(join(root, name, 'cwd'), { recursive: true });
-    writeFileSync(join(root, name, 'output'), '');
-    const exports = Object.entries(env).map(([key, value]) => `${key}=${word(value)}`);
-    lines.push(
-      `( unset ${STEP_VARIABLES.join(' ')}`,
-      `  export ${exports.join(' ')} GITHUB_OUTPUT="$root/${name}/output"`,
-      `  cd "$root/${inRepository ? 'repo' : `${name}/cwd`}" || exit 97`,
-      `  bash -x "$root/check.sh" 2>"$root/${name}/trace"`,
-      `  echo "exit $?" >>"$root/${name}/trace" )`,
-    );
-  }
-  writeFileSync(join(root, 'driver.sh'), `${lines.join('\n')}\n`);
-  shellRuns += 1;
-  const run = spawnSync('bash', ['driver.sh'], { cwd: root, env: withoutGit(), encoding: 'utf8' });
-  const driver = `driver: exit ${String(run.status ?? run.signal)}${run.error ? ` (${run.error.message})` : ''}${run.stderr ? `\n${run.stderr}` : ''}`;
-  return Object.fromEntries(
-    Object.keys(scenarios).map((name) => [
-      name,
-      { status: (/^status=(.*)$/m.exec(readIfThere(join(root, name, 'output')))?.[1] ?? '').trim(), trace: `${driver}\n${readIfThere(join(root, name, 'trace'))}` },
-    ]),
-  );
+function runScenarios(root: string, scenarios: Record<string, StepScenario>): Record<string, Answer> {
+  const runs = runStepScenarios(root, { script: checkScript(), variables: STEP_VARIABLES, scenarios, env: withoutGit() });
+  return Object.fromEntries(Object.entries(runs).map(([name, { output, trace }]) => [name, { status: (/^status=(.*)$/m.exec(output)?.[1] ?? '').trim(), trace }]));
 }
 
 /** Git's own view of the scratch repository, rerun beside the step with stderr kept. Only on a wrong answer: it is five more spawns. */
@@ -242,12 +195,12 @@ beforeAll(() => {
   repository = { cwd: join(root, 'repo'), shas: buildRepository(join(root, 'repo')) };
   const { shas } = repository;
   answers = runScenarios(root, {
-    release: { env: { HEAD_REF: 'changeset-release/main', LABELS: '' }, inRepository: false },
-    skipped: { env: { HEAD_REF: 'fix/whatever', LABELS: 'skip-changeset,other' }, inRepository: false },
+    release: { env: { HEAD_REF: 'changeset-release/main', LABELS: '' } },
+    skipped: { env: { HEAD_REF: 'fix/whatever', LABELS: 'skip-changeset,other' } },
     ...Object.fromEntries(
       Object.entries(DEPENDABOT).map(([name, { author, head }]) => [
         name,
-        { env: { BASE_SHA: shas.base, HEAD_SHA: shas[head], HEAD_REF: 'dependabot/npm_and_yarn/all-packages-0', LABELS: 'dependencies,npm', PR_AUTHOR: author }, inRepository: true },
+        { env: { BASE_SHA: shas.base, HEAD_SHA: shas[head], HEAD_REF: 'dependabot/npm_and_yarn/all-packages-0', LABELS: 'dependencies,npm', PR_AUTHOR: author }, cwd: 'repo' },
       ]),
     ),
   });
@@ -301,7 +254,7 @@ describe('the changeset check and Dependabot', () => {
   });
 
   it('R6 — starts the step\'s shell once per file, and every scenario got an answer from it', () => {
-    expect(shellRuns).toBe(1);
+    expect(bashSpawns()).toBe(1);
     expect(Object.entries(answers).filter(([, { trace }]) => !/^exit \d+$/mu.test(trace)).map(([name]) => name)).toEqual([]);
   });
 
@@ -323,6 +276,6 @@ describe('the changeset check and Dependabot', () => {
 
   it('a case builds and runs nothing: every git and bash run above happened before the first case', () => {
     expect(builderRuns).toBeLessThanOrEqual(3);
-    expect(shellRuns).toBe(1);
+    expect(bashSpawns()).toBe(1);
   });
 });

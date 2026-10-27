@@ -108,6 +108,7 @@ is built in this change: the `lookup` phase calls .NET instead of `Get-Command`,
 | 39441261818 | `completions-shells.test.ts` › "R3 — the PowerShell script reports its phases on stderr"; `packages/controlroom/src/shape.test.ts` › "runs an Ink program once react and react-reconciler are installed" | 68,555 and 72,730 of 120,000 ms |
 | 40261602993 | `completions-shells.test.ts` › "R3 — the PowerShell script reports its phases on stderr" | 62,401 of 120,000 ms |
 | 40268928470 | `scripts/changeset-check-lock.test.ts` › "… answers `release` …" | 20,873 of 30,000 ms |
+| 40513685943 (2026-10-27) | `scripts/dependabot-automerge-lock.test.ts` › "merges a group of patch and minor development bumps" | 29,691 of 30,000 ms |
 | 40537347822 (2026-10-27, a failed cell) | `scripts/changeset-check-lock.test.ts` › "… answers `release` …" | 65,871 of 30,000 ms |
 
 **What closes it:** the check naming no case in each of ten consecutive full Windows cells on
@@ -115,7 +116,9 @@ is built in this change: the `lookup` phase calls .NET instead of `Get-Command`,
 the pwsh row. R6 answers `changeset-check-lock`: R4 had already moved the git build out of the
 cases, and what was left was the first `bash` the file started from Node (3.2–8.5 s over ten
 full cells, then 65.9 s in run 40537347822, which timed out). R6 starts that `bash` once per file,
-in `beforeAll`, and the cases spawn nothing. R7 answers controlroom's Ink case: 11.2–27.0 s of
+in `beforeAll`, and the cases spawn nothing. `dependabot-automerge-lock` had the same shape and
+gets the same fix through the same helper (`scripts/step-scenarios.ts`): its first case took
+29.7 s of 30 s in run 40513685943, so the check would have named it. R7 answers controlroom's Ink case: 11.2–27.0 s of
 120 s over the same ten cells, so under half, but 72.7 s once. Its three peer `npm pack`s become
 one. Both are in [D-20261027-windows-lane-one-shell-per-file](../../decisions/D-20261027-windows-lane-one-shell-per-file.md),
 with what R6 moves into a hook that the check does not time. On 2026-10-19 `main` completed 31
