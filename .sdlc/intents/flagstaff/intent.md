@@ -30,12 +30,12 @@ Read on `main` at `3d079b15` and against `flagstaff@1.7.4` (`npm view flagstaff 
 | 4 | the built-in spinner registered through `register()` and nothing else | `packages/flagstaff/src/plugin.test.ts` › "R3 · the built-ins are a plugin like any other" and the describe "U3, U4 · register() is the only way into the registry" | held |
 | 5 | the spinner subpath at or under ora's import cost, on `/benchmarks` | `/docs/benchmarks`: "`flagstaff/spinner` is lighter in a user's bundle than `ora`", 0.121, met. Also `flagstaff/ora ÷ ora` 0.938 bundled and 0.930 at runtime (B5) | held |
 | 6 | ora, boxen, cli-table3 and log-update suites graded, four rates on the scoreboard | `packages/compat-oracle/baseline/`: ora 99 / 99, boxen 213 / 213 (9.0.0), cli-table3 29 / 29, log-update 99 / 99. Each row is on `/docs/compatibility` and ratcheted by compat.yml | held |
-| 7 | the U9 eval, weekly: an agent writes a spinner plugin that passes `flagstaff check` (written `burgee plugin check`, a name that never shipped) | `evals/cases/flagstaff-plugin-from-schema.json`, cron `20 5 * * 4`. It passed on every executed run (2026-10-08 `c5843e3`, 2026-10-09 `3ff3b8e`). 2026-10-15 and 2026-10-22 were `not-run` (`reason: usage-limit`) | **OPEN**: no current reading |
+| 7 | the U9 eval, weekly: an agent writes a spinner plugin that passes `flagstaff check` (written `burgee plugin check`, a name that never shipped) | `evals/cases/flagstaff-plugin-from-schema.json`, cron `20 6 * * 6` (Saturdays since 2026-10-27; `20 5 * * 4` before). It passed on every executed run (2026-10-08 `c5843e3`, 2026-10-09 `3ff3b8e`). 2026-10-15 and 2026-10-22 were `not-run` (`reason: usage-limit`) | **OPEN**: no current reading |
 | 8 | one registered plugin in help (theme), in a prompt's spinner and as `--json` events, one case per surface | `scripts/plugin-example-lock.test.ts` proves one object registers in every host and renders flagstaff's spinner in five modes. No case asserts the three named surfaces. caique does not depend on flagstaff, so "a prompt's spinner" has no path from a flagstaff registration | **OPEN** |
 
 **What closes it.**
 
-1. **Criterion 7** is measurement-gated. The next scheduled eval run (Thursday 2026-10-29, 05:20 UTC)
+1. **Criterion 7** is measurement-gated. The next scheduled eval run (Saturday 2026-10-31, 06:20 UTC, an hour after the weekly quota resets: D-20261027-close-three-workflow-gaps)
    has to execute and pass `flagstaff-plugin-from-schema`, read as every **executed** weekly
    reading passing (the `plugin-contract` C4 restatement). It depends on `evals-record-not-run`
    so that a run the usage limit stops is not counted as a reading.

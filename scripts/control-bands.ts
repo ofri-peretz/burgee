@@ -397,37 +397,56 @@ export function unmeasured(cfg: BandConfig, root = REPO_ROOT): { newest: string;
 /** 32 MiB — a long `git log --all` in a busy repo. */
 const GIT_BUFFER = 33554432;
 
-/** Every dated result file that has EVER existed for a suite, read out of git. */
-function collectFromGit(cfg: BandConfig): Observation[] {
-  if (!cfg.suite || !cfg.jsonPath) return [];
+/** One results document read out of git: its file name without `.json`, and what it holds. */
+export interface HistoricalDocument {
+  name: string;
+  doc: unknown;
+}
+
+/** Runs `git <args>` in the repository and returns stdout; the seam the history reader is tested through. */
+export type Git = (args: readonly string[]) => string;
+
+const git: Git = (args) => execFileSync('git', [...args], { cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: GIT_BUFFER });
+
+/**
+ * Every dated result file that has EVER existed in a suite, read out of git once per suite.
+ *
+ * It was read once per band. Every band in a suite reads the same files, and `cli-benchmarks`
+ * has fifty bands, one per graded compat host among them. Run 40311991676 (2026-10-26) walked
+ * that history once per band at about 23 s a walk, and its 20-minute limit cancelled it after
+ * 44 of them, before any band landed a point (B-20261026-control-bands-demo-build-and-budget).
+ * Read per band, the cost grew with hosts × history; read once, with history alone.
+ */
+export function suiteHistoryReader(run: Git = git): (suite: string) => HistoricalDocument[] {
+  const read = new Map<string, HistoricalDocument[]>();
+  return (suite) => {
+    const known = read.get(suite);
+    if (known !== undefined) return known;
+    const docs = readSuiteHistory(suite, run);
+    read.set(suite, docs);
+    return docs;
+  };
+}
+
+function readSuiteHistory(suite: string, run: Git): HistoricalDocument[] {
   // `*` after the date so observations are found too — see DATED_JSON. `git log` takes one
   // pathspec pattern, and this is the one that covers both shapes.
-  const glob = `benchmarks/results/${cfg.suite}/????-??-??*.json`;
+  const glob = `benchmarks/results/${suite}/????-??-??*.json`;
   let paths: string[];
   try {
-    paths = execFileSync('git', ['log', '--all', '--diff-filter=A', '--name-only', '--format=', '--', glob], {
-      cwd: REPO_ROOT,
-      encoding: 'utf8',
-      maxBuffer: GIT_BUFFER,
-    })
+    paths = run(['log', '--all', '--diff-filter=A', '--name-only', '--format=', '--', glob])
       .split('\n')
       .map((l) => l.trim())
       .filter((l) => l.endsWith('.json'));
   } catch {
     return [];
   }
-  const out: Observation[] = [];
+  const out: HistoricalDocument[] = [];
   for (const rel of new Set(paths)) {
     try {
-      const revs = execFileSync('git', ['rev-list', '--all', '--', rel], { cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: GIT_BUFFER })
-        .trim()
-        .split('\n')
-        .filter(Boolean);
+      const revs = run(['rev-list', '--all', '--', rel]).trim().split('\n').filter(Boolean);
       if (revs.length === 0) continue;
-      const blob = execFileSync('git', ['show', `${revs.at(-1)}:${rel}`], { cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: GIT_BUFFER });
-      const doc: unknown = JSON.parse(blob);
-      const value = onCi(doc) ? pick(doc, cfg.jsonPath) : null;
-      if (value !== null) out.push(observation(path.basename(rel).replace('.json', ''), value, measuredAt(doc)));
+      out.push({ name: path.basename(rel).replace('.json', ''), doc: JSON.parse(run(['show', `${revs.at(-1)}:${rel}`])) as unknown });
     } catch {
       continue; // a historical run in a different shape is not a reason to lose the rest
     }
@@ -435,8 +454,31 @@ function collectFromGit(cfg: BandConfig): Observation[] {
   return out;
 }
 
+/** The suite histories this process has read, shared by every band that reads one. */
+const suiteHistory = suiteHistoryReader();
+
+/** A band's observations from every result file that has ever existed in its suite. */
+export function collectFromGit(cfg: BandConfig, history: (suite: string) => HistoricalDocument[] = suiteHistory): Observation[] {
+  if (!cfg.suite || !cfg.jsonPath) return [];
+  const out: Observation[] = [];
+  for (const { name, doc } of history(cfg.suite)) {
+    const value = onCi(doc) ? pick(doc, cfg.jsonPath) : null;
+    if (value !== null) out.push(observation(name, value, measuredAt(doc)));
+  }
+  return out;
+}
+
 /** 15 minutes — `npm test` on a cold cache is well under this. */
-const COMMAND_TIMEOUT_MS = 900000;
+export const COMMAND_TIMEOUT_MS = 900000;
+
+/**
+ * Minutes `control-bands.yml`'s job needs beyond `npm test`'s cap: checkout and setup, the build,
+ * the two suites' git histories, the evaluation and the PR. Measured on run 40311991676
+ * (2026-10-26): setup 20 s, a cached build 1 s, one suite's history about 23 s. A cold build of
+ * the packages and the demo is the large unknown, so this keeps ten minutes, not three. The job's
+ * `timeout-minutes` is held to at least the cap plus this by `control-bands-workflow-lock.test.ts`.
+ */
+export const WATCH_MINUTES_BEYOND_TEST = 10;
 
 function today(): string {
   return new Date().toISOString().slice(0, 'YYYY-MM-DD'.length);

@@ -732,14 +732,17 @@ describe('the workflows run the window and the lock', () => {
 
   it('models.yml keeps the model’s rejected designs failing', () => {
     const text = workflow('models.yml');
-    expect(text).toContain('for inv in unsplitHolds npmOnlyHolds shippedNeverReleasesAFeature; do');
     expect(text).toContain('.sdlc/intents/release-cadence/release-window.qnt');
     const model = readFileSync(join(ROOT, '.sdlc/intents/release-cadence/release-window.qnt'), 'utf8');
-    for (const name of ['safety', 'unsplitHolds', 'npmOnlyHolds', 'shippedNeverReleasesAFeature']) expect(model).toContain(`val ${name} =`);
-    // D-20261026-release-window-holds-code: the design that held version numbers and not code, and
-    // a witness that the shipped one does hold a fix. Each is violated, checked by hand until
-    // models.yml's loop names them (B-20261026-models-yml-holds-code-invariants).
-    for (const name of ['holdsVersionsNotCode', 'shippedNeverHoldsAFix']) expect(model).toContain(`val ${name} =`);
+    expect(model).toContain('val safety =');
+    // Every name must stay violated: the rejected designs, and the witnesses that `safety` is not
+    // vacuous. D-20261026-release-window-holds-code added `holdsVersionsNotCode` (the design that
+    // held version numbers and not code) and `shippedNeverHoldsAFix`; until
+    // B-20261026-models-yml-holds-code-invariants they were checked by hand.
+    const loop = /for inv in ([\w ]+); do\n\s+if \$QUINT run \.sdlc\/intents\/release-cadence\/release-window\.qnt --invariant="\$inv"/u.exec(text)?.[1]?.split(' ') ?? [];
+    const violated = ['unsplitHolds', 'npmOnlyHolds', 'holdsVersionsNotCode', 'shippedNeverReleasesAFeature', 'shippedNeverHoldsAFix'];
+    expect(loop.toSorted()).toEqual(violated.toSorted());
+    for (const name of violated) expect(model).toContain(`val ${name} =`);
   });
 });
 

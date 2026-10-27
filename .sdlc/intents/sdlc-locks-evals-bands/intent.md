@@ -190,6 +190,15 @@ The three mechanisms `eslint/` has and this repo only promises:
   This criterion closes on the first scheduled run after that lands that gives every band a
   point; the duration band then has its eighth, and evaluates. With the fix merged this week,
   that is the run of Monday 2026-11-02.
+  **2026-10-27: both fixes landed** (D-20261027-close-three-workflow-gaps). The job builds the
+  demo beside the packages (`--filter=demo-cli-burgee`), held by
+  `scripts/root-suite-build-scope-lock.test.ts`, which now counts the band watcher as running the
+  root suite. The watcher reads each suite's git history once instead of once per band (50
+  `cli-benchmarks` bands at about 23 s a walk), and the job's limit is 25 minutes: `npm test`'s
+  15-minute cap plus 10, held by `scripts/control-bands-workflow-lock.test.ts`. What closes it is
+  unchanged: the scheduled run of Monday 2026-11-02 05:10 UTC, and the observations PR it opens
+  merging, gives every band a point, `test-duration-ms` its eighth among them. A run whose PR is
+  a breach draft that is closed does not (the 2026-10-19 points were lost that way, #1154).
 - A simulated breach in a unit test produces an `intent.md` that itself passes the
   intent lock. **2026-10-18: held** by `scripts/control-bands.test.ts` › "satisfies the schema
   the intent lock enforces".

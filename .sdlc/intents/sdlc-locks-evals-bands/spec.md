@@ -79,6 +79,13 @@ what it already read), then the first scheduled run after it whose PR lands a po
 band, `test-duration-ms`'s eighth among them. Not built here: a change under `.github/` runs
 the paid task evals on its own pull request, and this batch spends no quota.
 
+**2026-10-27:** B-20261026-control-bands-demo-build-and-budget is closed by
+D-20261027-close-three-workflow-gaps. `control-bands.yml` builds `--filter=demo-cli-burgee`
+beside `./packages/*`; `scripts/control-bands.ts` reads each suite's git history once per run, not
+once per band; `timeout-minutes` is 25 (`COMMAND_TIMEOUT_MS` plus `WATCH_MINUTES_BEYOND_TEST`).
+Each is held by a lock that was red on `b62bd20c86`. S3 now waits only on the scheduled run of
+Monday 2026-11-02 and its observations PR merging.
+
 ## Restated 2026-10-18
 
 **R1, R4 and R5 hold as shipped; R2, R3 and R6 are restated, each with a remaining piece — REMAINING: R2/R3, R6.** *2026-10-19: R6 held; R2/R3 remain.*
