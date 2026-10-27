@@ -3,7 +3,10 @@
  * `controlroom/ink` through one documented package.json line.
  *
  * `examples/ink-ecosystem` installs `ink-spinner`, `ink-text-input` and `ink-select-input` from
- * npm as published; `examples/chat-cli-ink` is `examples/chat-cli` written for Ink. Each resolves
+ * npm as published; `examples/chat-cli-ink` is `examples/chat-cli` written for Ink; and
+ * `examples/dashboard-ink` is the reference dashboard's screen written for Ink and `@inkjs/ui`,
+ * controlroom's Ink screen fixture (criteria 3 and 6), whose own suite runs it 100 times with
+ * stdin at /dev/null and 100 with stdin a pipe nobody writes to. Each resolves
  * `'ink'` with `"ink": "file:./ink"` — a two-line package that re-exports `controlroom/ink`,
  * versioned at the ink API it implements so every component's peer range on ink is met and npm
  * installs no other ink (D-20261005-controlroom-ink-alias says why a bare `npm:` alias cannot do
@@ -34,8 +37,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 const run = promisify(execFile);
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 
-/** One pack of the family, two installs from the registry, and two `node --test` runs. */
-const SETUP_TIMEOUT_MS = 300_000;
+/** One pack of the family, three installs from the registry, and three `node --test` runs. */
+const SETUP_TIMEOUT_MS = 420_000;
 
 /**
  * `controlroom` and every in-family package it reaches, at any depth: the registry does not have
@@ -62,6 +65,7 @@ const LINE = '"ink": "file:./ink"';
 const EXAMPLES = [
   { dir: 'examples/ink-ecosystem', cases: 7 },
   { dir: 'examples/chat-cli-ink', cases: 12 },
+  { dir: 'examples/dashboard-ink', cases: 9 },
 ] as const;
 
 /** npm, without assuming a POSIX shell — the reasoning is `pack-list-lock.test.ts`'s. */
