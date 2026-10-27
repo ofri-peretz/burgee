@@ -279,6 +279,7 @@ describe('B-20261027-migrate-pins-match-exact-convention — next pins in the pr
     ['incumbents written two ways', { chalk: '6.0.0', yargs: '^18.0.0', rxjs: '^7.8.2' }],
     ['an incumbent written as a range of its own', { yargs: '>=18', chalk: '>=6' }],
     ['an incumbent written as a comparator on an exact version', { yargs: '>18.0.0', chalk: '>6.0.0' }],
+    ['a hyphen range or a union that starts with an exact version', { yargs: '18.0.0 - 18.9.9', chalk: '6.0.0 || 7.0.0' }],
     ['an incumbent written as a tag', { yargs: 'latest', chalk: '*' }],
     ['a range around a version that is not exact', { yargs: '^18.0', chalk: '~6' }],
   ])('keeps the caret for %s', async (_, dependencies) => {
