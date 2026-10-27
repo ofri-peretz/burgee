@@ -12,6 +12,10 @@
 > **Umbrella sweep 2026-10-26: one of three criteria held. Two are open and need building.**
 > No program the benchmark drives is layered on caique, and no prompt is driven through a real
 > PTY. See [§ Umbrella sweep 2026-10-26](#umbrella-sweep-2026-10-26).
+>
+> **Built 2026-10-27, not yet stamped.** R1's `promptFor` is built, the B1 demo is layered on it,
+> and a real-terminal Ctrl+C case runs on Linux, macOS and Windows. What is left is a reading and a
+> release, not code. See [§ Built 2026-10-27](#built-2026-10-27-what-is-left-is-a-reading-and-a-release).
 
 ---
 
@@ -43,6 +47,28 @@ eval. None of them owns these three criteria, which are caique's own.
 
 Also outstanding, as a design edit with no code: `spec.md` § *Moved here 2026-10-25* asks for a
 requirement-keyed evidence table.
+
+## Built 2026-10-27: what is left is a reading and a release
+
+Built in one PR against the sweep's closing list above. The status stays `approved`, because a
+criterion is stamped only on what npm serves, and caique's and burgee's release windows reopen on
+2026-11-01 (`scripts/release-window.mts`, D-20261026-release-window-holds-code).
+
+| # | criterion | held by, on `main` | still needed |
+| :-- | :-- | :-- | :-- |
+| 1 | the conformance cases | as in the sweep | nothing: **held** |
+| 2 | the benchmark's non-TTY task never times out on the layered demo | `examples/demo-cli-burgee`'s `greet` is `promptFor(defineCommand(…), 'name', …)`, so B1's `non-tty-required` now meets caique's refusal (`<name> is required when there is no terminal`, exit 2), not burgee's. `scripts/prompt-exit-codes.test.ts` › "promptFor on a burgee command (caique R1)" runs that path through the engine; `benchmarks/axes/reliability.ts`'s `greet-missing-arg` cases run the built demo with no terminal | **a reading**: the weekly B1 run on `main` after this merges (`bench.yml`, cron `40 5 * * 2`, first Tuesday 2026-11-03 05:40 UTC) has to pass `non-tty-required` on the burgee arm under its 12-turn limit. No paid run is dispatched for it |
+| 3 | `Ctrl+C` during a prompt leaves `stdin` out of raw mode on macOS, Linux and Windows, tested with a PTY in CI | `packages/caique/src/pty-cancel.test.ts` › "R4 · Ctrl+C at a %s prompt on …" — `promptFor`'s own terminal and `caique/clack`'s `text`, on a real terminal (`scripts/pty-host.py`: `pty.fork()` on POSIX, ConPTY through `ctypes` on Windows, D-20261027-caique-pty-windows-conpty), in `compat.yml`'s matrix on all three OSes. It proves the restore through the terminal itself: the second Ctrl+C ends the process only if the first prompt gave the terminal back | a green Windows cell of the matrix on `main`, then the release |
+
+R1 itself — `promptFor` and burgee's deferral of a missing value that declares a `prompt` — ships in
+the next caique and burgee minors (`.changeset/caique-prompt-for.md`,
+`.changeset/burgee-prompt-binding.md`). The decisions it took are
+[D-20261027-caique-prompt-for-r1](../../decisions/D-20261027-caique-prompt-for-r1.md); the
+interrupt and restore state machine is [`interrupt.qnt`](./interrupt.qnt), whose first version
+found the handler running with stdin still raw.
+
+**Stamp `shipped` when** criterion 2's reading has passed and caique and burgee have published the
+minors carrying R1.
 
 ## What is wanted
 

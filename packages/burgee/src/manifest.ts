@@ -118,6 +118,22 @@ export interface OptionSpec {
   negatable?: boolean;
   /** The shared set this option was copied from (M4); `--schema` carries it, help lists the option like any other. */
   sharedFrom?: string;
+  /**
+   * P1 — the question a person is asked when this option has no value from any source, resolved
+   * by the handler's prompt binding (caique's `promptFor`, R1). Declaring it moves a missing
+   * required value's refusal from the engine to that binding, which asks on a terminal and
+   * refuses, naming the flag, everywhere else; help and `--schema` still say it is required.
+   * Declare it through `promptFor`, which also keeps the question out of `--schema`: a program
+   * reading it is never asked. Typed structurally: burgee never imports caique.
+   */
+  prompt?: PromptDeclaration;
+}
+
+/** caique's `PromptSpec`, as burgee holds it: a kind and a message, and whatever else the binding reads. */
+export interface PromptDeclaration {
+  kind: string;
+  message: string;
+  [field: string]: unknown;
 }
 
 /** What a lazily loaded command module exports: the handler as `run` or as the default export (M2). */
@@ -216,6 +232,8 @@ export interface ArgumentSpec {
    * option's completer is. zsh still offers files for a `type: 'file'` argument.
    */
   complete?: Completer;
+  /** P1 — as an option's: a missing required positional is asked for by the handler's prompt binding (caique's `promptFor`). */
+  prompt?: PromptDeclaration;
 }
 
 /** One example: a single copy-pasteable command line, the description below it (H2). */
@@ -341,6 +359,12 @@ export interface RunContext {
   progress: (done: number, total?: number, message?: string) => void;
   /** agent-lint-conformance R2 — the caller passed `--quiet`: draw no progress and print no hints. Data and errors still print. */
   quiet: boolean;
+  /**
+   * The caller asked for `--json`, and an `--mcp` tool call always does: a machine reads stdout,
+   * so nobody is there to answer a question (caique R6) and nothing animates (`roundel/policy`'s
+   * `json` mode). The engine's knowledge, handed on so a handler never sniffs argv for it.
+   */
+  json: boolean;
   /**
    * The output policy's runtime for this run (`roundel/policy`'s `Runtime`, typed structurally):
    * the environment, whether stdout is a terminal, the colour flag the caller typed (`--no-color`,

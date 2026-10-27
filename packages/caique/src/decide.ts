@@ -64,6 +64,11 @@ export interface DecideInput {
   spec: PromptSpec;
   /** The option's long name, for the flag a refusal names. */
   option: string;
+  /**
+   * How a refusal names it, when `--<option>` is not how it is passed: `<name>` for a
+   * positional (R1, `promptFor`), or a host's kebab-case flag for a camelCase key.
+   */
+  flag?: string;
   runtime: Runtime;
   flags?: Flags;
   /** Whether the option must have a value for the command to run. */
@@ -88,10 +93,9 @@ export interface DecideInput {
  *     for "you would not have asked", never for "there is no one to ask".
  *  6. Otherwise, if it is required or `--interactive` was asked for, prompt.
  */
-export function decide({ value, spec, option, runtime, flags = {}, required = false }: DecideInput): Decision {
+export function decide({ value, spec, option, flag = flagOf(option), runtime, flags = {}, required = false }: DecideInput): Decision {
   if (alreadyAnswered(value)) return SKIP;
 
-  const flag = flagOf(option);
   const asked = flags.interactive === true || flags.interactiveAll === true;
 
   if (flags.json === true) {
