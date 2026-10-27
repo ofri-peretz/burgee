@@ -286,7 +286,13 @@ describe('B-20261027-migrate-pins-match-exact-convention — next pins in the pr
     // chalk first, so the exact one is the first style read when the two differ.
     const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies }), 'bin/index.ts': `import chalk from 'chalk';\n${yargsProgram}` });
     const { next } = await migrate({ dir, status: clean });
-    expect(next).toMatch(/^npm install (?:\S+@\^\S+ ?)+ && npm uninstall/);
+    // Read the install half as tokens, not one regex: CodeQL flags `(?:\S+@\^\S+ ?)+` as
+    // exponential backtracking, and every spec still has to carry the caret.
+    expect(next.startsWith('npm install ')).toBe(true);
+    expect(next).toContain(' && npm uninstall');
+    const specs = next.slice('npm install '.length, next.indexOf(' && npm uninstall')).split(' ');
+    expect(specs.length).toBeGreaterThan(0);
+    for (const spec of specs) expect(spec).toMatch(/^@?[^@\s]+@\^[^@\s]+$/);
     expect(next).not.toContain('--save-exact');
   });
 
