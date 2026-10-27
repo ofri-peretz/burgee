@@ -3,7 +3,7 @@ id: D-20261026-release-window-holds-code
 subject: 'The release window held version numbers, not code: #1253 published roundel 1.2.1, burgee 1.7.2 and seniority 1.1.1 as patches built from a main that held ten minor changesets for them. What does release-cadence R2 become, and what refuses the next one?'
 taken: Taken
 date: '2026-10-26'
-superseded_by: —
+superseded_by: D-20261027-no-release-window
 ---
 
 **A fix to a package that has a held minor or major waits with it. A `Security:` change releases its package at once, held code and all. `release.yml` defers a fix version of a package `main` still holds a non-fix changeset for. R2 is restated to that, and R1 now holds in substance.**
