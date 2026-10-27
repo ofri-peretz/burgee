@@ -239,14 +239,15 @@ export function bundle(side: Side, id: string, scratch: string): { initial: numb
   mkdirSync(scratch, { recursive: true });
   const stem = id.replaceAll('/', '__');
   const file = join(scratch, `${stem}.mjs`);
-  writeFileSync(file, sideSource(side));
+  // A program side is its own source, resolved from here like every fixture (`Side.program`).
+  writeFileSync(file, side.program === undefined ? sideSource(side) : readFileSync(join(REPO_ROOT, side.program), 'utf8'));
   const outdir = join(scratch, `${stem}.chunks`);
   rmSync(outdir, { recursive: true, force: true });
   const metafile = join(scratch, `${stem}.meta.json`);
   const external = (side.external ?? []).map((name) => `--external:${name}`);
   // esbuild from the CLI, not the API: one fewer import in a suite that measures imports,
   // and the exact command is quotable in the results file.
-  execFile(esbuildBin(), [file, '--bundle', '--minify', '--format=esm', '--platform=node', '--splitting', ...external, ...peerAliases(side), `--outdir=${outdir}`, `--metafile=${metafile}`], {
+  execFile(esbuildBin(), [file, '--bundle', '--minify', '--format=esm', '--platform=node', '--splitting', ...external, ...(side.program === undefined ? peerAliases(side) : []), `--outdir=${outdir}`, `--metafile=${metafile}`], {
     cwd: BENCH_ROOT,
     stdio: 'pipe',
   });
@@ -888,6 +889,7 @@ export function pairRecords(pair: EntryPair, ours: Measured, theirs: Measured): 
 
 /** What a fixture imports, for the note beside its number. */
 function importsNote(side: Side): string {
+  if (side.program !== undefined) return `the whole program \`${side.program}\`, which imports ${[side, ...(side.with ?? [])].map((s) => `\`${s.specifier}\``).join(', ')}`;
   return [side, ...(side.with ?? [])].map((s) => `${symbolNote(s)} from \`${s.specifier}\``).join(', ');
 }
 

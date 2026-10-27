@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const cli = fileURLToPath(new URL('../dist/cli.js', import.meta.url));
+const dist = (file: string): string => new URL(`../dist/${file}`, import.meta.url).href;
 let dir: string;
 
 function check(...args: string[]): { code: number; stdout: string } {
@@ -35,6 +36,13 @@ beforeAll(() => {
   // own `try`, so the refusal reaches the handler at the foot of `cli.ts`.
   const host = new URL('../dist/plugin.js', import.meta.url).href;
   writeFileSync(join(dir, 'selfreg.mjs'), `import { register } from '${host}';\nregister({ name: 'self', spinners: { s: { frames: ['a'], interval: 80 } } });\nexport default {};\n`);
+  // controlroom criterion 8 — the two pane widgets controlroom R3 added, handed to `check` as an
+  // author would hand over their own: the built-ins as registered, samples and all.
+  writeFileSync(
+    join(dir, 'panes.mjs'),
+    `import { registered } from '${dist('plugin.js')}';\nimport '${dist('log-tail.js')}';\nimport '${dist('tab-bar.js')}';\n` +
+      "const { components } = registered();\nexport default { name: 'panes', components: { 'log-tail': components.get('log-tail'), 'tab-bar': components.get('tab-bar') } };\n",
+  );
 });
 
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
@@ -109,6 +117,33 @@ describe('flagstaff check', () => {
     expect(stdout).toContain('  json        {"event":"g","state":{"phase":"running"}}');
     expect(stdout).toContain('E_COMPONENT_THREW: g threw in tty, pipe, ci, accessible\n');
     expect(stdout).toMatch(/\n {2}fix: .*`sample: \{ running, done \}`/);
+  });
+
+  /**
+   * controlroom criterion 8: `logTail` and `tabBar` pass `flagstaff check` in every mode. Each
+   * static row is the projection R3 promises — the log tail appends every line once and never
+   * the window; the tab bar names the active tab and nothing else — with no escape in any row but
+   * `tty`. Fails if either `static` slides to the window or prints the whole bar.
+   */
+  it('passes logTail and tabBar in all five modes, each static row clean (controlroom criterion 8)', () => {
+    const { code, stdout } = check('check', 'panes.mjs');
+    expect(code).toBe(0);
+    expect(stdout).toContain('panes — 0 spinners, 0 borders, 2 components, 0 glyphs, 0 tokens\n');
+    const tail = '◆ Installing packages⏎ ┊ npm install⏎ ┊ added 12 packages⏎ ◆ Done⏎ ';
+    const blocks = stdout.split(/^component /mu).slice(1);
+    expect(blocks.map((b) => b.split('\n')[0])).toEqual(['log-tail', 'tab-bar']);
+    const [logTail = '', tabBar = ''] = blocks;
+    for (const mode of ['pipe', 'ci', 'accessible']) {
+      expect(logTail).toContain(`  ${mode.padEnd(12)}${tail}\n`);
+      expect(tabBar).toContain(`  ${mode.padEnd(12)}Status⏎ Tail logs⏎ \n`);
+    }
+    expect(logTail).toContain('  json        {"event":"log-tail","state":{"lines":[{"step":"Installing packages"},"npm install","added 12 packages"]}}⏎ ');
+    expect(tabBar).toContain('  json        {"event":"tab-bar","state":{"tabs":["Status","Tail logs","Visualizer"],"active":0}}⏎ ');
+    // On a terminal the tail is the window and the bar is every tab, the active one marked.
+    expect(logTail).toContain(`  tty         ␛[?25l${synced('◆ Installing packages⏎ ┊ npm install⏎ ┊ added 12 packages')}`);
+    expect(tabBar).toContain(`  tty         ␛[?25l${synced('[Status] · Tail logs · Visualizer')}`);
+    for (const line of stdout.split('\n').filter((l) => /^ {2}(?:pipe|ci|json|accessible) /u.test(l))) expect(line, line).not.toContain('␛');
+    expect(stdout).toMatch(/\npanes: ok\n$/u);
   });
 
   it('with no file, prints usage and exits 2', () => {
