@@ -3,8 +3,8 @@
   "version": "18.0.9",
   "tag": "v18.0.9",
   "commit": "8d1ab850aa628781929f08bfd0d71ba1d1bf0a23",
-  "vendored": "2026-10-26",
-  "depsBefore": "2026-10-14T16:51:09.752Z",
+  "vendored": "2026-10-27",
+  "depsBefore": "2026-10-22T19:28:31.107Z",
   "files": 10,
   "internalFiles": [
     "test-config-options.js"

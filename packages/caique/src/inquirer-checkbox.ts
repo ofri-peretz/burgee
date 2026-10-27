@@ -94,8 +94,11 @@ export const checkbox = createPrompt(<Value>(config: CheckboxConfig<Value>, done
   };
 
   const submit = async (): Promise<void> => {
+    // Loading until `validate` answers, and every key ignored meanwhile (@inquirer/checkbox 5.2.7).
+    setStatus('loading');
     const selection = items.filter(isChecked);
     const isValid = await validate([...selection]);
+    setStatus('idle');
     if (required && selection.length === 0) setError('At least one choice must be selected');
     else if (isValid === true) {
       setStatus('done');
@@ -104,6 +107,7 @@ export const checkbox = createPrompt(<Value>(config: CheckboxConfig<Value>, done
   };
 
   useKeypress(async (key) => {
+    if (status !== 'idle') return;
     const moved = moveCursor(key, keybindings, { items, active, loop, bounds });
     if (isEnterKey(key)) await submit();
     else if (moved !== undefined) {

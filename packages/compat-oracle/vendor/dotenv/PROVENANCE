@@ -3,7 +3,7 @@ repo:     https://github.com/motdotla/dotenv
 version:  18.0.9
 tag:      v18.0.9
 commit:   8d1ab850aa628781929f08bfd0d71ba1d1bf0a23
-vendored: 2026-10-26
+vendored: 2026-10-27
 files:    10
 tool:     scripts/vendor-suite.ts
 

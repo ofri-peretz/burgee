@@ -8,7 +8,7 @@
   "description": "Process execution for humans",
   "repository": "sindresorhus/execa",
   "devDependencies": {
-    "execa": "10.2.0",
+    "execa": "10.2.1",
     "c8": "12.0.0",
     "figures": "6.1.0",
     "get-stream": "9.0.1",

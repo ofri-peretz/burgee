@@ -171,7 +171,8 @@ export const number = createPrompt(<Required extends boolean>(config: NumberConf
 
   /** Enter: the typed number, or the default; the bounds and the step, then `validate`. */
   const submit = async (rl: PromptReadline): Promise<void> => {
-    const typed = value || defaultValue;
+    // Whitespace alone is nothing typed (@inquirer/number 4.2.5), so it falls back to the default.
+    const typed = value.trim() || defaultValue;
     const answer = typed === '' ? undefined : Number(typed);
     setStatus('loading');
     // An empty answer is a valid one unless `required` says otherwise.

@@ -312,6 +312,26 @@ describe('checkbox', () => {
     await expect(answer2).rejects.toThrow();
   });
 
+  it('ignores every key while a validation is pending, and listens again once it fails, as @inquirer/checkbox 5.2.7 does', async () => {
+    const io = terminal();
+    let settle!: (verdict: boolean | string) => void;
+    const pending = async (): Promise<boolean | string> =>
+      new Promise((resolve) => {
+        settle = resolve;
+      });
+    const validate = vi.fn().mockImplementationOnce(pending).mockReturnValue(true);
+    const answer = checkbox({ message: 'Pick', choices: ['a', 'b'], validate }, io);
+    await io.press(' ', ENTER);
+    await io.press(DOWN, ' ', 'a', 'i', '2', ENTER);
+    expect(validate).toHaveBeenCalledOnce();
+    settle('b instead');
+    await io.press();
+    expect(lastFrame(io.output.text())).toContain('b instead');
+    await io.press(' ', DOWN, ' ', ENTER);
+    await expect(answer).resolves.toEqual(['b']);
+    expect(validate).toHaveBeenCalledTimes(2);
+  });
+
   it('rejects a list with nothing to stand on', async () => {
     const io = terminal();
     await expect(checkbox({ message: 'Pick', choices: [] }, io)).rejects.toBeInstanceOf(ValidationError);
