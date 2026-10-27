@@ -18,7 +18,8 @@
 > **Umbrella sweep 2026-10-26, still `approved`:** the five criteria are re-read and still held.
 > The closing list below is re-derived from every open intent, grouped by what closes each one.
 > It also records that the code of the burgee, roundel and seniority minors the release window
-> is holding is already on npm, published inside patch versions. See
+> was holding is already on npm, published inside patch versions (the window is gone since
+> D-20261027-no-release-window). See
 > [§ Umbrella sweep 2026-10-26](#umbrella-sweep-2026-10-26).
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why `review` until 2026-10-25:** a living umbrella that keeps gaining floor requirements (U1–U12, then Y1–Y12); it closes when its children do, not before.

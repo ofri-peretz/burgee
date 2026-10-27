@@ -1,7 +1,10 @@
 # Design — a release pace a cautious adopter can follow, and semver that matches the incumbent's
 
-Intent: [`intent.md`](./intent.md). **Status:** approved (intent approved by the owner
-2026-10-18; design acceptance delegated for batch 1 of the roadmap-to-shipped program).
+Intent: [`intent.md`](./intent.md). **Status:** dropped 2026-10-27 by
+[`D-20261027-no-release-window`](../../decisions/D-20261027-no-release-window.md): the owner removed
+the release window. R1–R9 no longer hold anything; the changeset lock (R6's table, now
+`scripts/changeset-lock.mts`) stays. The design below is the record as it stood (intent approved by
+the owner 2026-10-18; design acceptance delegated for batch 1 of the roadmap-to-shipped program).
 
 ---
 

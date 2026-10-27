@@ -99,7 +99,8 @@ argument's JSON type on its `inputSchema` property, `--schema` and `--mcp` alike
 type, and its default as that type", › "lists the typed property in --mcp tools/list"). The
 façade ratchets rise 94 B (D-20261026-typed-positionals-r4-weight). Completions are criterion 2's
 last surface, above. **The intent stays `approved`** until the burgee minor carrying both
-publishes; the release window opens no earlier than 2026-11-01. It is stamped `shipped` against
+publishes, which is the next Version PR now that there is no release window
+(D-20261027-no-release-window). It is stamped `shipped` against
 the published package, not against `main`.
 
 Found on the way and fixed: an `--mcp` call that skipped an optional positional shifted every

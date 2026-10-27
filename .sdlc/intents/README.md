@@ -70,8 +70,11 @@ of what closes it. Four decisions came out of it:
 (reopens two spawn halves),
 [`D-20261026-bellpull-kill-gate-reading`](../decisions/D-20261026-bellpull-kill-gate-reading.md) and
 [`D-20261026-flagstaff-criteria-homes`](../decisions/D-20261026-flagstaff-criteria-homes.md). One
-finding reaches past the umbrellas. The release window holds a minor's version number and not its
-code: the 2026-10-26 patches carry the held features, as recorded in `burgee/intent.md`.
+finding reaches past the umbrellas. The release window held a minor's version number and not its
+code: the 2026-10-26 patches carry the held features, as recorded in `burgee/intent.md`. The
+window itself is gone since 2026-10-27
+([`D-20261027-no-release-window`](../decisions/D-20261027-no-release-window.md)): every release
+goes out when it merges.
 
 The one screen an agent picking this up should read before anything else. Everything below is
 the reasoning; this is the state.
@@ -528,7 +531,7 @@ execution order. The selection is
 | 73  | [`migrate-older-majors/`](./migrate-older-majors/)                         | **adoption barrier 1**: an off-major project gets the lines its incumbent's own later majors removed, not `nothing to rewrite`, and a move to the nearest claimed major only when none of them is in its way. 56.7% of dependents remain off-major after commander 14 and yargs 17 are claimed | shipped — 2026-10-25 in burgee 1.7.0; 3 of 3, every `manual`-arm crash named |
 | 74  | [`migrate-preflight/`](./migrate-preflight/)                               | **adoption barriers 2, 3 and 8**: migrate reports the Node floor it raises, CommonJS without `require(esm)`, and jest from CommonJS, before writing. 32.4% are CommonJS on an older Node | shipped — 2026-10-25 in burgee 1.7.0; 3 of 3, re-run on the trial clones |
 | 75  | [`types-under-node10/`](./types-under-node10/)                             | **adoption barrier 4**: `typesVersions` so drop-in subpaths type-check under `node10`. 38.8% of TS dependents; TS2307 in 2 of 2 TS CommonJS trial projects | shipped |
-| 76  | [`release-cadence/`](./release-cadence/)                                   | **adoption barrier 5**: an incumbent's major is our major, and `latest` passes a 7-day release age on most days (0 of 30 today) | approved — 2026-10-26: the window held version numbers, not code (#1253 shipped three held minors' code as patches); a held package's fixes now wait with it (D-20261026-release-window-holds-code). The 30-day share reads 0 for every package over the first 7.2 days; the window closes 2026-11-18 |
+| 76  | [`release-cadence/`](./release-cadence/)                                   | **adoption barrier 5**: an incumbent's major is our major, and `latest` passes a 7-day release age on most days (0 of 30 today) | dropped — 2026-10-27 ([D-20261027-no-release-window](../decisions/D-20261027-no-release-window.md)): the owner removed the release window, so every release goes out when it merges. The changeset lock (an incumbent's major is our major) stays, as `scripts/changeset-lock.mts` |
 | 77  | [`migrate-pins-carry-the-drop-in/`](./migrate-pins-carry-the-drop-in/)     | **adoption barrier 7**: a release-age pin never predates the subpath it installs. svgo got a roundel 1.x older than its `./picocolors` subpath and stopped starting | shipped |
 | 78  | [`migrate-dynamic-specifiers/`](./migrate-dynamic-specifiers/)             | **adoption barrier 9**: a plugin loader's `import(name)` holds only what it could load. 3 of 9 trial CLIs ran partial | shipped — 2026-10-25 in burgee 1.7.0; 2 of 2, postcss-cli `complete` |
 | 79  | [`mutation-tested/`](./mutation-tested/)                                   | **a PR cannot add a line no test can tell is broken**: Stryker on the changed lines; a weekly per-package floor that only rises | shipped (2026-10-26: burgee 90.9 and roundel 83.2 floors from scheduled run 40074196603) |
