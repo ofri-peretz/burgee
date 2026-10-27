@@ -14,6 +14,8 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { ExitCode } from 'burgee';
+
 import { resolveEsm } from './resolve.js';
 import { ACTIVE_MUTANT_ENV } from './runtime.js';
 import { instrumentedSources } from './vite-plugin.js';
@@ -138,12 +140,12 @@ process.on('message', (msg: { type: string; unit?: Unit }) => {
     );
   } else if (msg.type === 'close') {
     // A worker thread stuck in a runaway mutant never lets `vitest.close()` settle: exit anyway.
-    setTimeout(() => process.exit(0), CLOSE_GRACE_MS).unref();
-    void vitest.close().finally(() => process.exit(0));
+    setTimeout(() => process.exit(ExitCode.OK), CLOSE_GRACE_MS).unref();
+    void vitest.close().finally(() => process.exit(ExitCode.OK));
   }
 });
 // The coordinator is gone (finished, crashed or killed): nothing will read this server's results,
 // and a worker thread may still be looping in a mutant. Two such servers were found spinning at
 // 100% CPU 11 hours after their run ended, and slowed the next run 50x (2026-10-27).
-process.on('disconnect', () => process.exit(0));
+process.on('disconnect', () => process.exit(ExitCode.OK));
 process.send?.({ type: 'ready' });

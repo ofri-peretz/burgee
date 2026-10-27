@@ -133,7 +133,7 @@ export async function run(options: Options): Promise<RunResult> {
     const parseErrors = instrumented.filter((f) => f.error).map((f) => f.error);
     if (parseErrors.length) throw new InstrumentFault(`cannot parse ${String(parseErrors.length)} file(s): ${parseErrors.slice(0, 3).join('; ')}`);
 
-    const changed = options.since ? changedLines(root, options.since) : undefined;
+    const changed = options.since ? await changedLines(root, options.since) : undefined;
     const mutants: MutantResult[] = [];
     const codeMap: Record<string, string> = {};
     const directiveErrors: string[] = [];

@@ -1,0 +1,71 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: oxmutate vs Stryker
+
+# ─────────────────────────────────────────────────────────────────────────────
+# The paired benchmark behind .sdlc/intents/oxmutate/metrics.md, on a runner no
+# other job shares. Each cell runs Stryker exactly as `scripts/mutation.ts full`
+# runs it, then oxmutate on the same mutate list, Vitest wrapper and
+# concurrency (`bench/burgee-pair.mts`), and computes every metric one pair can
+# answer (`bench/metrics.mjs`): wall, CPU, executions, memory, verdict agreement.
+#
+# Wall-clock from a developer laptop is not published: on 2026-10-27 the same
+# build of oxmutate took 124 s and 278 s on one package as the endpoint agents'
+# load moved between 21 and 76. This runner is where the numbers come from.
+#
+# Dispatch only: a Stryker full run is the expensive half (paratext ~7 min).
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: "Only this package (a directory under packages/); empty runs every cell"
+        required: false
+        type: string
+        default: ""
+
+concurrency:
+  group: oxmutate-bench
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: "1"
+
+jobs:
+  pair:
+    name: Pair ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        package: [caique, controlroom, linegauge, paratext, roundel]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - name: Build every package
+        run: npx turbo run build --filter='./packages/*' --concurrency=4
+      # The runner image ships rustup and a stable toolchain.
+      - name: Build the native core
+        run: cd packages/oxmutate && npm run build:native
+      - name: Stryker, then oxmutate
+        env:
+          PKG: ${{ matrix.package }}
+          ONLY: ${{ inputs.package }}
+        run: |
+          set -euo pipefail
+          if [ -n "$ONLY" ] && [ "$ONLY" != "$PKG" ]; then echo "Dispatched for $ONLY only; $PKG not measured."; exit 0; fi
+          npx tsx packages/oxmutate/bench/burgee-pair.mts --package "$PKG" --concurrency 4 --out bench-results
+          node packages/oxmutate/bench/metrics.mjs "bench-results/$PKG" > "bench-results/$PKG/metrics.json"
+          { echo "## $PKG"; echo; echo '```json'; cat "bench-results/$PKG/metrics.json"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep the reports
+        if: always() && hashFiles('bench-results/**/pair.json') != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: oxmutate-bench-${{ matrix.package }}
+          path: bench-results/
+          retention-days: 30

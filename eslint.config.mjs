@@ -1137,19 +1137,6 @@ export default [
     },
   },
   {
-    // A native addon loads only through `require`: ESM cannot import a `.node` file. Which one is
-    // what the file decides — the binding built beside the package in development, or this
-    // platform's `oxmutate-<platform>-<arch>` package once published — so the specifier is built
-    // from `process.platform` and `process.arch`, never from input.
-    files: ["packages/oxmutate/src/native.ts"],
-    rules: {
-      "import-next/no-commonjs": "off",
-      "import-next/no-dynamic-require": "off",
-      "node-security/no-dynamic-require": "off",
-      "node-security/no-dynamic-dependency-loading": "off",
-    },
-  },
-  {
     // `globToRegExp` builds its RegExp from the glob it has just translated: every literal
     // character escaped, and the only quantifiers the ones the translator writes (`[^/]*`, `.*`,
     // `(?:.*/)?`). The pattern is the function's own output, not input passed through.

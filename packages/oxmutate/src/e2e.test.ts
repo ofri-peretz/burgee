@@ -14,8 +14,10 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const pkg = path.join(here, '..');
 const fixture = path.join(pkg, 'test/fixtures/registry');
 const bin = path.join(pkg, 'dist/bin.js');
-// ponytail: needs the native core built (`npm run build:native`); CI builds it in the release matrix.
+// Needs the native core (`npm run build:native`). Skipped locally without it; CI sets
+// OXMUTATE_REQUIRE_NATIVE (quality-full.yml), where a missing core fails instead of skipping.
 const native = existsSync(path.join(pkg, 'binding')) && readdirSync(path.join(pkg, 'binding')).some((f) => f.endsWith('.node'));
+if (!native && process.env['OXMUTATE_REQUIRE_NATIVE'] === '1') throw new Error('OXMUTATE_REQUIRE_NATIVE is set and no native core is built. fix: npm run build:native -w oxmutate');
 
 interface ReportMutant {
   mutatorName: string;

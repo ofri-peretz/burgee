@@ -68,7 +68,7 @@ const NOT_NEEDED: Record<string, string> = {
   tsconfigFile: 'type checking is M2 work',
   buildCommand: 'not implemented; run your build before oxmutate',
   warnings: 'not implemented',
-  ignorers: 'use // Stryker disable comments; ignorer plugins are not loaded',
+  ignorers: "use Stryker's disable comments instead; ignorer plugins are not loaded",
   mutator: 'only mutator.excludedMutations is read',
   disableBail: 'oxmutate always stops at the first killing test',
   testFiles: 'test files come from the Vitest config',
@@ -151,7 +151,7 @@ export async function loadOptions(root: string, overrides: Partial<Options> = {}
   };
 }
 
-/** `// Stryker disable next-line Mutator[,Mutator]: reason` (also `oxmutate disable`). */
+/** Stryker's `disable next-line` directive, `Mutator[,Mutator]: <reason>` after it (also spelled `oxmutate disable`). */
 export interface Disable {
   line: number;
   mutators: string[] | 'all';

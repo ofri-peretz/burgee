@@ -31,9 +31,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:native": "cd native && cargo test --release",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "coverage": "vitest run --coverage.enabled"
   },
   "dependencies": {
+    "bellpull": "*",
     "burgee": "*"
   },
   "peerDependencies": {

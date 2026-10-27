@@ -39,6 +39,12 @@ to run still starts and passes in one step. `npm run lint:workflows` holds the l
 | [`control-bands.yml`](./control-bands.yml) | Weekly: records observations, evaluates Western Electric rules, opens an intent PR on a 2σ+ breach |
 | [`models.yml`](./models.yml) | `.qnt` or `packages/closeout/src` changes: every Quint model holds its `safety` invariant over 20k simulated traces; open questions pinned as expected violations ([`JEV-AND-QUINT.md`](../../.sdlc/JEV-AND-QUINT.md)) |
 
+## oxmutate
+
+| Workflow | Role |
+| :-- | :-- |
+| [`oxmutate-bench.yml`](./oxmutate-bench.yml) | Dispatch only: Stryker and oxmutate on the same burgee packages, one cell per package, on a runner no other job shares; every metric one pair answers (`packages/oxmutate/bench/metrics.mjs`) in the run summary. Laptop wall-clock is not published (`.sdlc/intents/oxmutate/metrics.md`) |
+
 ## Security
 
 | Workflow | Role |

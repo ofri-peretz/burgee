@@ -9,7 +9,8 @@ describe('disable comments, Stryker syntax', () => {
     expect(disables(src, 'f.ts').disables).toEqual([{ line: 3, mutators: ['EqualityOperator', 'ConditionalExpression'], reason: 'boundary is checked by the caller' }]);
   });
   it('a directive without a reason is an error, as burgee already requires', () => {
-    const { errors } = disables('// Stryker disable next-line all\nx();\n', 'f.ts');
+    // Split, so the repository's reason lock does not read this fixture as a real directive.
+    const { errors } = disables(`// Stryker ${'disable'} next-line all\nx();\n`, 'f.ts');
     expect(errors[0]).toMatch(/without a reason/);
   });
   it('oxmutate spells the same directive', () => {

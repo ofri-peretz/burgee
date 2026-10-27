@@ -6,21 +6,20 @@
  * - `shard i/n` (a CI matrix): a mutant belongs to shard `fnv(id) mod n`, so a shard's share
  *   does not move when unrelated code changes, and the shards partition the run exactly.
  */
-import { execFileSync } from 'node:child_process';
+import { ambientRuntime, run } from 'bellpull';
 
 export type LineRanges = Map<string, [number, number][]>;
 
-/** `git diff` of a whole working tree can be large; the default 1 MiB buffer is not enough. */
-const MAX_DIFF_BYTES = 256 * 1024 * 1024;
 const NEW_FILE = '+++ ';
 /** FNV-1a 32-bit parameters. */
 const FNV_OFFSET = 0x811c9dc5;
 const FNV_PRIME = 0x01000193;
 
 /** Added or changed line ranges per repository-relative path, new side. */
-export function changedLines(root: string, base: string): LineRanges {
-  const diff = execFileSync('git', ['diff', '-U0', '--no-color', '--no-ext-diff', base, '--'], { cwd: root, encoding: 'utf8', maxBuffer: MAX_DIFF_BYTES });
-  return parseDiff(diff);
+export async function changedLines(root: string, base: string): Promise<LineRanges> {
+  const diff = await run('git', ['diff', '-U0', '--no-color', '--no-ext-diff', base, '--'], { cwd: root, runtime: ambientRuntime() });
+  if (!diff.ok) throw new Error(`git diff ${base} failed: ${diff.stderr.trim()}. fix: pass a ref this checkout has (fetch it first in CI)`);
+  return parseDiff(diff.stdout);
 }
 
 export function parseDiff(diff: string): LineRanges {

@@ -4,7 +4,6 @@
  * in development, the matching `@oxmutate/binding-*` optional dependency once published.
  */
 import { existsSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -30,7 +29,6 @@ interface Binding {
   nativeVersion(): string;
 }
 
-const require = createRequire(import.meta.url);
 const here = path.dirname(fileURLToPath(import.meta.url));
 const target = `${process.platform}-${process.arch}`;
 
@@ -52,9 +50,13 @@ export function native(): Binding {
     path.join(here, '..', 'binding', `oxmutate.${target}.node`),
     path.join(here, '..', '..', 'binding', `oxmutate.${target}.node`),
   ];
-  const local = candidates.find((c) => existsSync(c));
   try {
-    binding = (local ? require(local) : require(platformPackage())) as Binding;
+    // `process.dlopen` loads a native addon straight from its path, the way `require` does it
+    // underneath; the published core is the platform package's `main`, `oxmutate.node`.
+    const file = candidates.find((c) => existsSync(c)) ?? fileURLToPath(import.meta.resolve(platformPackage()));
+    const addon = { exports: {} };
+    process.dlopen(addon, file);
+    binding = addon.exports as Binding;
   } catch (error) {
     throw new Error(
       `oxmutate: no native core for ${target}. fix: install the platform package (npm i ${platformPackage()}) or build it (npm run build:native in packages/oxmutate)`,

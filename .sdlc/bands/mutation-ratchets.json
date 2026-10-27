@@ -1,9 +1,9 @@
 {
-  "$comment": "Mutation score per package (.sdlc/intents/mutation-tested/, D-20261018-mutation-tested): detected (killed + timeout) / (detected + survived + no coverage), Stryker over every mutation source, which is what coverage measures (src/**/*.ts minus tests, __fixtures__ and TESTED_IN_ANOTHER_PROCESS). `floor` only rises: `mutation.yml` measures main weekly, appends each observation, raises a floor the run beat (rounded down to one decimal) and fails on a run below it. Lowering one takes a newer decision in .sdlc/decisions/, cited in a new history step; scripts/mutation-lock.test.ts holds all of it. An `unmeasured` package says why, and its first weekly score becomes its first floor — no floor here is a number nobody measured.",
+  "$comment": "Mutation score per package (.sdlc/intents/mutation-tested/, D-20261018-mutation-tested): detected (killed + timeout) / (detected + survived + no coverage), Stryker over every mutation source, which is what coverage measures (src/**/*.ts minus tests, __fixtures__ and TESTED_IN_ANOTHER_PROCESS). `floor` only rises: `mutation.yml` measures main weekly, appends each observation, raises a floor the run beat (rounded down to one decimal) and fails on a run below it. Lowering one takes a newer decision in .sdlc/decisions/, cited in a new history step; scripts/mutation-lock.test.ts holds all of it. An `unmeasured` package says why, and its first weekly score becomes its first floor \u2014 no floor here is a number nobody measured.",
   "ratchets": {
     "bellpull": {
       "status": "unmeasured",
-      "reason": "2026-10-24: the weekly run produced no score — Stryker exited 1 without a report — its own error is above"
+      "reason": "2026-10-24: the weekly run produced no score \u2014 Stryker exited 1 without a report \u2014 its own error is above"
     },
     "burgee": {
       "status": "measured",
@@ -53,7 +53,7 @@
     },
     "closeout": {
       "status": "unmeasured",
-      "reason": "2026-10-24: the weekly run produced no score — Stryker exited 1 without a report — its own error is above"
+      "reason": "2026-10-24: the weekly run produced no score \u2014 Stryker exited 1 without a report \u2014 its own error is above"
     },
     "compat-oracle": {
       "status": "measured",
@@ -103,11 +103,15 @@
     },
     "flagstaff": {
       "status": "unmeasured",
-      "reason": "2026-10-24: the weekly run produced no score — Stryker exited 1 without a report — its own error is above"
+      "reason": "2026-10-24: the weekly run produced no score \u2014 Stryker exited 1 without a report \u2014 its own error is above"
     },
     "linegauge": {
       "status": "unmeasured",
-      "reason": "2026-10-24: the weekly run produced no score — Stryker exited 1 without a report — its own error is above"
+      "reason": "2026-10-24: the weekly run produced no score \u2014 Stryker exited 1 without a report \u2014 its own error is above"
+    },
+    "oxmutate": {
+      "status": "unmeasured",
+      "reason": "2026-10-27: the package is new; its first weekly score becomes its first floor"
     },
     "paratext": {
       "status": "measured",
@@ -172,7 +176,7 @@
     },
     "seniority": {
       "status": "unmeasured",
-      "reason": "2026-10-24: the weekly run produced no score — Stryker exited 1 without a report — its own error is above"
+      "reason": "2026-10-24: the weekly run produced no score \u2014 Stryker exited 1 without a report \u2014 its own error is above"
     }
   }
 }

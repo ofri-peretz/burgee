@@ -7,7 +7,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { defineCommand, defineProgram } from 'burgee';
+import { defineCommand, defineProgram, ExitCode } from 'burgee';
 
 import { loadOptions, type Options } from './config.js';
 import { InstrumentFault, run, type MutantResult, type RunResult } from './coordinator.js';
@@ -16,8 +16,6 @@ import { describe, textSummary, VERSION, writeReports } from './reports.js';
 
 const TEXT = Symbol.for('burgee.text');
 
-/** burgee's exit vocabulary (packages/burgee/src/exit-code.ts). */
-const EXIT = { OK: 0, RUNTIME: 1, USAGE: 2, CONFIG: 3, TIMEOUT: 6 } as const;
 
 function survivorRecord(m: MutantResult): object {
   return {
@@ -109,7 +107,7 @@ const runCommand = defineCommand({
     } catch (e) {
       if (e instanceof InstrumentFault) {
         process.stderr.write(`oxmutate: ${e.message}\n`);
-        exit(EXIT.CONFIG);
+        exit(ExitCode.CONFIG);
       }
       throw e;
     }
@@ -118,7 +116,7 @@ const runCommand = defineCommand({
     const floor = options_.thresholds.break;
     if (floor !== null && result.score.mutationScore < floor) {
       process.stderr.write(`oxmutate: mutation score ${result.score.mutationScore.toFixed(2)}% is below the break threshold ${String(floor)}%. fix: kill the survivors listed above, or lower thresholds.break deliberately\n`);
-      process.exitCode = EXIT.RUNTIME;
+      process.exitCode = ExitCode.RUNTIME;
     }
     return data;
   },

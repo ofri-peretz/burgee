@@ -66,6 +66,9 @@ component_management:
     - component_id: compat-oracle
       name: compat-oracle
       paths: [packages/compat-oracle/**]
+    - component_id: oxmutate
+      name: oxmutate
+      paths: [packages/oxmutate/**]
 
 ignore:
   - "**/*.test.ts"

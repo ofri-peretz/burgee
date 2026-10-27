@@ -69,3 +69,9 @@ core for your platform (installed automatically as an optional dependency).
 ## License
 
 MIT
+
+## Benchmarks
+
+Every number here is produced by `npm run bench` and published at [burgee.interlace.tools/docs/benchmarks](https://burgee.interlace.tools/docs/benchmarks).
+
+No suite is graded against this package yet, so there is no compatibility number to quote.
