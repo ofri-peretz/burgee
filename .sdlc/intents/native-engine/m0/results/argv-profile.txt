@@ -1,0 +1,21 @@
+== prog300 greet ada
+   84.0  87% module loading (resolve, read, compile)
+    5.7   6% (program)
+    2.7   3% burgee code, during module evaluation
+    1.7   2% node bootstrap / other
+    1.6   2% burgee code: parse, dispatch, render
+    0.9   1% (garbage collector)
+== prog300 --help
+   45.3  71% module loading (resolve, read, compile)
+    6.0  10% burgee code: parse, dispatch, render
+    5.9   9% (program)
+    3.2   5% burgee code, during module evaluation
+    2.0   3% (garbage collector)
+    0.9   1% node bootstrap / other
+== prog300 --schema
+  105.2  84% module loading (resolve, read, compile)
+    6.0   5% (program)
+    5.2   4% node bootstrap / other
+    4.5   4% burgee code: parse, dispatch, render
+    3.0   2% burgee code, during module evaluation
+    2.0   2% (garbage collector)

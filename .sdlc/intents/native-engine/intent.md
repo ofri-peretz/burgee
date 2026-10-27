@@ -5,7 +5,10 @@
 > This is the last item on the roadmap. It starts only after every other intent is shipped
 > or dropped.
 
-**Status:** draft · **Opened:** 2026-10-20 · **Owner:** @ofri-peretz
+**Status:** approved · **Opened:** 2026-10-20 · **Owner:** @ofri-peretz · **Design accepted:** 2026-10-27
+([`D-20261027-native-engine-design-accepted`](../../decisions/D-20261027-native-engine-design-accepted.md)),
+with no layer ported: `migrate` and the argv core were measured and stay JavaScript — see
+[§ Design gate 2026-10-27](#design-gate-2026-10-27)
 
 ---
 
@@ -90,3 +93,20 @@ That points at these layers. Each must be measured before it is designed.
 - ~~What the Rust cross-compile matrix costs in CI.~~ Decided (D-20261020-native-engine-order):
   no Rust toolchain in CI until a port is accepted, then a CI-minutes ceiling set from the
   first spike.
+
+## Design gate 2026-10-27
+
+[`spec.md`](./spec.md) is accepted
+([`D-20261027-native-engine-design-accepted`](../../decisions/D-20261027-native-engine-design-accepted.md)),
+and the intent moves `draft → approved`. Criterion 1 per layer, as measured by
+[`m0/reproduce.sh`](./m0/reproduce.sh):
+
+| Layer | Measured | Verdict |
+| :-- | :-- | :-- |
+| `burgee migrate` | A Rust engine on oxc 0.156 matches the JS build on 701 / 701 rewritten files and is 3.4–5.0x faster on the CPU part. That part is 0.6–8.0 ms of a 90–135 ms command, so the field-trial median projects to 1.00x, with a 1.08x ceiling. | **drop: stays JS** (below D-20261020's 2x) |
+| argv parser and dispatch | burgee's own code is 1.6 / 6.0 / 4.5 ms of a cold dispatch, `--help` and `--schema` at 300 commands. Module loading is 71–87% of each run. | **drop: stays JS** |
+| CI type-check lane on tsrs | tsrs is `0.20.0-ts7.1.0-beta`, so the stable-7.1 gate is not met. | **waiting** on tsrs stable |
+| single-binary distribution | Not a Rust question. Needs Node's SEA tooling. | **waiting** on its own intent (spec R9) |
+
+**What remains before `shipped`:** the tsrs lane and single-binary distribution, each measured
+and recorded as port or drop. If either ports, criteria 2–4 apply to it through spec R2–R10.
