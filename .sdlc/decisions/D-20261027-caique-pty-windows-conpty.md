@@ -36,6 +36,27 @@ same on all three OSes. The child is started with `STARTF_USESTDHANDLES` and nul
 node-pty's own ConPTY agent does, so it takes the pseudo-console's handles rather than the
 harness's redirected pipes.
 
+**Measured on the first CI run (#1316).** The ConPTY host works: on windows-latest both fixtures
+draw the question, Ctrl+C cancels it, and Node reports `raw=false` on Node 20.19, 22.13 and 24. Two
+things the first draft of the test had wrong, both on the test's side:
+
+- **The exit code of the second press.** `caique/clack`'s prompt takes raw mode and hides the
+  cursor through `closeout/exit-hook`, which handles SIGINT and leaves with `128 + n` on every
+  platform (`clack-output.ts`: "a signal (`128 + n`, as `closeout/exit-hook` reports one)";
+  burgee's `ExitCode.SIGINT` is 130). On Windows that is 130, not the NT status 0xC000013A a
+  process with no handler gets. The POSIX branch already accepted both; the Windows branch now
+  does too. The code is right and the expectation was wrong.
+- **ConPTY re-renders.** It ends a repainted line with `ESC [ K`, so `raw=false` is matched on the
+  text with escapes stripped (`util.stripVTControlCharacters`).
+
+**A gap, recorded rather than hidden.** On Windows under Node 20.19 and 22.13, after the prompt has
+released raw mode, the second Ctrl+C raises no CTRL_C_EVENT: the fixture outlives it. Node 24, the
+repository's runtime, ends on it with the same harness, fixture and code. caique has called
+`setRawMode(false)` (Node says so), so the missing event is below caique, in the runtime's console
+handling. The case asserts on those two runtimes what holds there — the cancel and `raw=false` —
+and skips only the second-press proof (`secondPressProves` in the test). Criterion 3 is held by
+the Node 24 cells of `compat.yml`'s matrix on all three OSes.
+
 **Not changed:** `pty-signal.test.ts` stays POSIX-only. Its subject is a signal delivered by the
 tty line discipline to a process in cooked mode; a console has no signals, only control events,
 and that is a different test.

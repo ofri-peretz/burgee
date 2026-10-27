@@ -20,8 +20,8 @@
  * record. But that is the program's word for it, so the test then presses Ctrl+C **a second
  * time**, with the fixture waiting on a timer and nothing reading stdin. On a terminal back in
  * cooked mode that keystroke is the terminal's signal key again: the POSIX line discipline raises
- * `SIGINT` and the process dies of it (signal 2); a Windows console in processed-input mode raises
- * CTRL_C_EVENT and the process ends. On a terminal left raw it is one more byte nobody reads, and
+ * `SIGINT` and the process ends of it; a Windows console in processed-input mode raises
+ * CTRL_C_EVENT and the process ends. (Not on Windows under Node 20 and 22: see `secondPressProves`.) On a terminal left raw it is one more byte nobody reads, and
  * the fixture outlives the press and says `still here`. That is the bug the criterion names
  * (clack #408), observed through the terminal itself.
  *
@@ -43,6 +43,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stripVTControlCharacters } from 'node:util';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
@@ -143,6 +144,17 @@ async function pressCtrlC(python: string, fixture: keyof typeof FIXTURES): Promi
 
 const terminal = windows ? 'a Windows pseudo-console (ConPTY)' : 'a POSIX pty';
 
+/**
+ * Whether the second Ctrl+C is a proof here. On Windows under Node 20.19 and 22.13 it is not, as
+ * measured on GitHub's windows-latest (#1316): the prompt is cancelled and `setRawMode(false)`
+ * has run (`raw=false`, asserted on every runtime), and yet the next Ctrl+C raises no
+ * CTRL_C_EVENT, so the fixture outlives it. The same harness, fixture and code on Node 24 end on
+ * it. The key does not reach the console as a control event on those runtimes, which is below
+ * caique, so the case asserts there what holds and records the gap
+ * (D-20261027-caique-pty-windows-conpty) rather than passing on a weaker reading.
+ */
+const secondPressProves = !windows || Number(process.versions.node.split('.')[0]) >= 24;
+
 describe.skipIf(exe === undefined).each(Object.keys(FIXTURES) as (keyof typeof FIXTURES)[])(`R4 · Ctrl+C at a %s prompt on ${terminal}`, (fixture) => {
   let seen: Promise<Outcome> | undefined;
   const run = async (): Promise<Outcome> => await (seen ??= pressCtrlC(exe as string, fixture));
@@ -156,17 +168,19 @@ describe.skipIf(exe === undefined).each(Object.keys(FIXTURES) as (keyof typeof F
 
   it('leaves stdin out of raw mode: Node says so, and the next Ctrl+C is the terminal’s signal key again', async () => {
     const { output, signal, code } = await run();
-    expect(output.replace(/\r/gu, '')).toContain('raw=false\n');
+    // What the terminal showed, as text: ConPTY re-renders the screen and ends a line with an
+    // erase (`ESC [ K`), so the escapes are read past rather than matched.
+    expect(stripVTControlCharacters(output).replace(/\r/gu, '')).toContain('raw=false\n');
+    if (!secondPressProves) return;
     expect(output, 'the second Ctrl+C was a byte nobody read: the terminal was left raw').not.toContain('still here');
-    if (windows) {
-      // A console's CTRL_C_EVENT ends a process with STATUS_CONTROL_C_EXIT, 0xC000013A.
-      expect(code).toBe(0xc0_00_01_3a);
-    } else {
-      // SIGINT, either way a program may take it: died of it (2), or a handler that the prompt
-      // library registers on the way in caught it and exited 128 + 2. Both need the line
-      // discipline to have turned the key into a signal, which a raw terminal never does.
-      expect(signal === 2 || (signal === 0 && code === 130), `ended by SIGINT, not by signal ${String(signal)} code ${String(code)}`).toBe(true);
-    }
+    // SIGINT, either way a program may take it: died of it, or a handler that the prompt library
+    // registered on the way in caught it and exited 128 + 2 — `caique/clack` hides the cursor and
+    // takes raw mode through `closeout/exit-hook`, which reports a signal as `128 + n` on every
+    // platform (`clack-output.ts`; burgee's `ExitCode.SIGINT` is 130). Without a handler, POSIX
+    // reports signal 2 and Windows STATUS_CONTROL_C_EXIT, 0xC000013A. Each needs the terminal to
+    // have turned the key into a signal, which a raw terminal never does.
+    const bySignal = windows ? code === 0xc0_00_01_3a : signal === 2;
+    expect(bySignal || (signal === 0 && code === 130), `ended by SIGINT, not by signal ${String(signal)} code ${String(code)}`).toBe(true);
   }, 60_000);
 });
 
