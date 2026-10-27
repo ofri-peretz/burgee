@@ -22,7 +22,7 @@ import { Writable } from 'node:stream';
 import { WITHHELD } from './definition.js';
 import { type ArgumentSpec, type CommandNode, type Effects, type Manifest, type OutputSchema } from './manifest.js';
 import { kebab } from './names.js';
-import { host } from './runtime.js';
+import { builtin, host } from './runtime.js';
 import { inputSchemaOf, type JsonSchema, runnable, typedName } from './schema.js';
 
 /**
@@ -63,8 +63,18 @@ export interface Tool {
   outputSchema?: OutputSchema;
 }
 
+/** What one tool call's run printed, and the code it left with. */
+export interface Ran {
+  stdout: string;
+  stderr: string;
+  code: number;
+}
+
 /** What a tool call runs: the same execute a `--json` caller reaches, with the streams captured. */
-export type Invoke = (argv: string[]) => Promise<{ stdout: string; stderr: string; code: number }>;
+export type Invoke = (argv: string[]) => Promise<Ran>;
+
+/** {@link Invoke} for {@link serveMcpSync}, which cannot wait for a run: it returns, or throws. */
+export type InvokeSync = (argv: string[]) => Ran;
 
 const JSON_RPC_INVALID_REQUEST = -32600;
 const JSON_RPC_METHOD_NOT_FOUND = -32601;
@@ -192,7 +202,7 @@ export function argvOf(node: CommandNode, root: string[], args: Record<string, u
 
 interface Session {
   manifest: Manifest;
-  invoke: Invoke;
+  invoke: Invoke | InvokeSync;
   serverInfo: { name: string; version: string };
   /** Writes one frame: a reply, or a notification such as a call's progress. */
   reply: (body: Record<string, unknown>) => void;
@@ -283,8 +293,18 @@ function unhold(): void {
   if (--sessions === 0) release();
 }
 
-/** Run one tool call as `call`, and hand back how it settled and what it printed. */
-async function printedBy<T>(call: McpCall, run: () => Promise<T>): Promise<{ settled: PromiseSettledResult<T>; printed: string }> {
+/** How one tool call's run settled, and what it printed meanwhile. */
+interface Printed {
+  settled: PromiseSettledResult<Ran>;
+  printed: string;
+}
+
+/**
+ * Run one tool call as `call`, and hand back how it settled and what it printed: once it settles
+ * for a run that returns a promise, and at once for one that returns or throws, which is the only
+ * kind {@link serveMcpSync} hands it.
+ */
+function printedBy(call: McpCall, run: () => Ran | Promise<Ran>): Printed | Promise<Printed> {
   const chunks: string[] = [];
   const decoder = new TextDecoder();
   // A string is text already; bytes are UTF-8, which is all a console or a `write` sends.
@@ -297,16 +317,21 @@ async function printedBy<T>(call: McpCall, run: () => Promise<T>): Promise<{ set
     },
   });
   const capture: Capture = { ...call, take, printer: new Console({ stdout: sink, stderr: host.stderr }), settled: false };
-  try {
-    return { settled: { status: 'fulfilled', value: await calls.run(capture, run) }, printed: chunks.join('') };
-  } catch (reason) {
-    return { settled: { status: 'rejected', reason }, printed: chunks.join('') };
-  } finally {
+  const end = (settled: PromiseSettledResult<Ran>): Printed => {
     capture.settled = true;
+    return { settled, printed: chunks.join('') };
+  };
+  const rejected = (reason: unknown): Printed => end({ status: 'rejected', reason });
+  try {
+    const value = calls.run(capture, run);
+    return value instanceof Promise ? value.then((ran) => end({ status: 'fulfilled', value: ran }), rejected) : end({ status: 'fulfilled', value });
+  } catch (reason) {
+    return rejected(reason);
   }
 }
 
-async function callTool(session: Session, params: Record<string, unknown> | undefined, signal: AbortSignal): Promise<unknown> {
+/** A tool call's reply: at once when the run returns, as under {@link serveMcpSync}; a promise when it returns one. */
+function callTool(session: Session, params: Record<string, unknown> | undefined, signal: AbortSignal): unknown {
   const { manifest, invoke } = session;
   const root = manifest.rootPath;
   const given = params ?? {};
@@ -328,7 +353,12 @@ async function callTool(session: Session, params: Record<string, unknown> | unde
       last = progress;
       session.reply({ method: 'notifications/progress', params: { progressToken: token, progress, total, message } });
     };
-  const { settled, printed } = await printedBy(call, async () => await invoke(argvOf(node, root, args)));
+  const ran = printedBy(call, () => invoke(argvOf(node, root, args)));
+  return ran instanceof Promise ? ran.then((printed) => resultOf(node, printed)) : resultOf(node, ran);
+}
+
+/** The `tools/call` result for `node`, from how its run settled and what it printed. */
+function resultOf(node: CommandNode, { settled, printed }: Printed): unknown {
   let text: string;
   let isError: boolean;
   if (settled.status === 'fulfilled') {
@@ -371,7 +401,8 @@ function structuredOf(text: string, schema?: OutputSchema): { structuredContent?
   }
 }
 
-async function handle(session: Session, request: Request, signal: AbortSignal): Promise<unknown> {
+/** A request's reply: at once, but for a tool call whose run returns a promise. */
+function handle(session: Session, request: Request, signal: AbortSignal): unknown {
   switch (request.method) {
     case 'initialize': {
       // The specification's rule: a revision the server supports is answered with itself, anything else with its latest.
@@ -383,7 +414,7 @@ async function handle(session: Session, request: Request, signal: AbortSignal): 
     case 'tools/list':
       return { result: { tools: toolsOf(session.manifest) } };
     case 'tools/call':
-      return await callTool(session, request.params, signal);
+      return callTool(session, request.params, signal);
     default:
       return { error: { code: JSON_RPC_METHOD_NOT_FOUND, message: `method not found: ${request.method}` } };
   }
@@ -411,21 +442,8 @@ export interface McpServer {
  * reply; a malformed line gets a JSON-RPC error with a null id, as the spec asks.
  */
 export function startMcp(manifest: Manifest, opts: ServeOptions): McpServer {
-  // One frame per write, whole, so replies that settle together cannot interleave inside a line.
-  const reply = (body: Record<string, unknown>): void => {
-    framing = true;
-    try {
-      opts.output.write(`${JSON.stringify({ jsonrpc: '2.0', ...body })}\n`);
-    } finally {
-      framing = false;
-    }
-  };
-  const session: Session = {
-    manifest,
-    invoke: opts.invoke,
-    serverInfo: { name: manifest.rootPath.join(' ') || 'burgee', version: manifest.version ?? '0.0.0' },
-    reply,
-  };
+  const session = sessionOf(manifest, opts.invoke, opts.output);
+  const { reply } = session;
   const swap = (next: Manifest, invoke?: Invoke): void => {
     session.manifest = next;
     if (invoke !== undefined) session.invoke = invoke;
@@ -434,6 +452,24 @@ export function startMcp(manifest: Manifest, opts: ServeOptions): McpServer {
   const unhold = holdStdout();
   const done = serve(session, opts.input).finally(unhold);
   return { done, swap };
+}
+
+/** The session a server answers from, writing each frame to `output`. */
+function sessionOf(manifest: Manifest, invoke: Invoke | InvokeSync, output: ServeOptions['output']): Session {
+  return {
+    manifest,
+    invoke,
+    serverInfo: { name: manifest.rootPath.join(' ') || 'burgee', version: manifest.version ?? '0.0.0' },
+    // One frame per write, whole, so replies that settle together cannot interleave inside a line.
+    reply: (body) => {
+      framing = true;
+      try {
+        output.write(`${JSON.stringify({ jsonrpc: '2.0', ...body })}\n`);
+      } finally {
+        framing = false;
+      }
+    },
+  };
 }
 
 /** Serve until the input closes. */
@@ -453,18 +489,8 @@ async function serve(session: Session, input: NodeJS.ReadableStream): Promise<vo
   const running = new Map<unknown, AbortController>();
   const replies: Promise<void>[] = [];
   for await (const line of createInterface({ input, crlfDelay: Infinity })) {
-    if (line.trim() === '') continue;
-    let request: Request;
-    try {
-      request = JSON.parse(line) as Request;
-    } catch {
-      reply({ id: null, error: { code: JSON_RPC_INVALID_REQUEST, message: 'invalid JSON' } });
-      continue;
-    }
-    if (typeof request.method !== 'string') {
-      reply({ id: request.id ?? null, error: { code: JSON_RPC_INVALID_REQUEST, message: 'missing method' } });
-      continue;
-    }
+    const request = requestOf(line, reply);
+    if (request === undefined) continue;
     if (request.method === 'notifications/cancelled') running.get(request.params?.['requestId'])?.abort('cancelled');
     // A notification carries no id and expects no reply.
     if (request.id === undefined) continue;
@@ -472,7 +498,7 @@ async function serve(session: Session, input: NodeJS.ReadableStream): Promise<vo
     const controller = new AbortController();
     running.set(id, controller);
     replies.push(
-      handle(session, request, controller.signal).then((outcome) => {
+      (async () => await handle(session, request, controller.signal))().then((outcome) => {
         running.delete(id);
         if (!controller.signal.aborted) reply({ id, ...(outcome as Record<string, unknown>) });
       }),
@@ -480,3 +506,103 @@ async function serve(session: Session, input: NodeJS.ReadableStream): Promise<vo
   }
   await Promise.all(replies);
 }
+
+/** The request on one line. A blank line is none; a malformed one is answered here, and is none. */
+function requestOf(line: string, reply: Session['reply']): Request | undefined {
+  if (line.trim() === '') return undefined;
+  let request: Request;
+  try {
+    request = JSON.parse(line) as Request;
+  } catch {
+    reply({ id: null, error: { code: JSON_RPC_INVALID_REQUEST, message: 'invalid JSON' } });
+    return undefined;
+  }
+  if (typeof request.method !== 'string') {
+    reply({ id: request.id ?? null, error: { code: JSON_RPC_INVALID_REQUEST, message: 'missing method' } });
+    return undefined;
+  }
+  return request;
+}
+
+/**
+ * Serve until the input ends, and return only then: `--mcp` on a `.parseSync()` program
+ * (A-20261027-yargs-parsesync-mcp-ended-by-exit). Such a program goes on the moment
+ * `parseSync()` returns, and one that finds nothing to run calls `process.exit()`, which ended
+ * {@link serveMcp} before it read a line. So this one reads and answers synchronously: each
+ * request in turn, a tool call run to its end through `invoke` before the next line is read.
+ * That is the difference from {@link serveMcp}, and the price: calls do not overlap, so a
+ * `notifications/cancelled` arrives after the call it names has answered and finds nothing, and
+ * `invoke` cannot wait on an asynchronous handler. Both are `.parseAsync()`'s to offer.
+ * Requests come from descriptor 0 and frames go to descriptor 1 unless `output` is given.
+ */
+export function serveMcpSync(manifest: Manifest, invoke: InvokeSync, output: ServeOptions['output'] = { write: writer(1) }, read = reader(0)): void {
+  const session = sessionOf(manifest, invoke, output);
+  const signal = new AbortController().signal;
+  const unhold = holdStdout();
+  try {
+    for (const line of linesOf(read)) {
+      const request = requestOf(line, session.reply);
+      // A notification carries no id and expects no reply.
+      if (request?.id !== undefined) session.reply({ id: request.id, ...(handle(session, request, signal) as Record<string, unknown>) });
+    }
+  } finally {
+    unhold();
+  }
+}
+
+/** The lines `read` fills its buffer with until it reads nothing, decoded as UTF-8 across reads; the last one need not end in a newline. */
+export function* linesOf(read: (into: Uint8Array) => number): Generator<string> {
+  const decoder = new TextDecoder();
+  const chunk = new Uint8Array(READ_BYTES);
+  let rest = '';
+  for (let n = read(chunk); n > 0; n = read(chunk)) {
+    const lines = (rest + decoder.decode(chunk.subarray(0, n), { stream: true })).split('\n');
+    rest = lines.pop() as string;
+    yield* lines;
+  }
+  yield rest + decoder.decode();
+}
+
+/** How much one synchronous read asks for: a pipe's buffer on Linux. */
+const READ_BYTES = 65_536;
+/** How long a synchronous server waits before it asks a would-block descriptor again. */
+const PAUSE_MS = 5;
+/** `Atomics.wait` needs a shared cell to wait on; nothing ever notifies it, so the wait is a pause. */
+const CELL_BYTES = 4;
+
+/**
+ * `op`, tried again after a short pause for as long as it fails with `EAGAIN`. A descriptor that
+ * something in the process opened as a stream is non-blocking, and a synchronous server waits on
+ * it rather than failing.
+ */
+export function blocking<T>(op: () => T): T {
+  for (;;) {
+    try {
+      return op();
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EAGAIN') throw error;
+      // Allocated here, not at the top: a module-level buffer is a side effect no bundle can drop.
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(CELL_BYTES)), 0, 0, PAUSE_MS);
+    }
+  }
+}
+
+/** Reads descriptor `fd` into a buffer, 0 at its end, which Windows reports on a pipe as an `EOF` error. */
+export const reader =
+  (fd: number, read: (fd: number, into: Uint8Array) => number = builtin('node:fs').readSync) =>
+  (into: Uint8Array): number => {
+    try {
+      return blocking(() => read(fd, into));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'EOF') return 0;
+      throw error;
+    }
+  };
+
+/** Writes all of `text` to descriptor `fd` before it returns, however little each write takes. */
+export const writer =
+  (fd: number, write: (fd: number, bytes: Uint8Array, at: number) => number = builtin('node:fs').writeSync) =>
+  (text: string): void => {
+    const bytes = new TextEncoder().encode(text);
+    for (let at = 0; at < bytes.length; ) at += blocking(() => write(fd, bytes, at));
+  };

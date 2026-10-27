@@ -32,6 +32,10 @@ an empty argv ends the server `parseSync()` started, so it prints help exactly a
 That is [A-20261027-yargs-parsesync-mcp-ended-by-exit](../../gaps/A-20261027-yargs-parsesync-mcp-ended-by-exit.md).
 The comment waits on that fix being published and the proof re-run on it
 ([`concurrently.md`](../../research/adoption/concurrently.md#re-run-on-burgee180-2026-10-27)).
+The gap closed on 2026-10-28: under `parseSync()`, `--mcp` is now served synchronously and
+returns only when its input ends
+([D-20261028-yargs-parsesync-mcp-serves-synchronously](../../decisions/D-20261028-yargs-parsesync-mcp-serves-synchronously.md)).
+The fix publishes with burgee's next release, and the proof is re-run on that version.
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why `review` until 2026-10-25:** no external CLI has been migrated; A1–A5 are all open.
 
