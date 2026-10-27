@@ -22,6 +22,17 @@ The same pull request closes
 so `migrate` writes the exact pin the draft had set by hand. Nothing has been sent outside
 `ofri-peretz/*`. A1 and A6 stay open until a merge upstream, so this intent is not `shipped`.
 
+**Re-run on `burgee@1.8.0`, 2026-10-27: held again, comment not posted.** The owner approved a
+disclosed comment on #418 first (the PR to follow only on the maintainer's yes), on the condition
+that the whole proof passed on the published fix. Everything passed but one check: the suite is
+649 / 649 migrated and reverted on Node 22, 24 and 26, `--help` is byte-identical, `migrate` now
+writes the exact pin, the revert restores the tree hash, and `completion zsh` prints a script. But
+`concurrently --mcp` does not serve. It no longer crashes; concurrently's own `process.exit()` on
+an empty argv ends the server `parseSync()` started, so it prints help exactly as yargs does.
+That is [A-20261027-yargs-parsesync-mcp-ended-by-exit](../../gaps/A-20261027-yargs-parsesync-mcp-ended-by-exit.md).
+The comment waits on that fix being published and the proof re-run on it
+([`concurrently.md`](../../research/adoption/concurrently.md#re-run-on-burgee180-2026-10-27)).
+
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why `review` until 2026-10-25:** no external CLI has been migrated; A1–A5 are all open.
 
 ---
