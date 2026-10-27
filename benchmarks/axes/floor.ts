@@ -22,7 +22,6 @@
  * any CLI that made the same choice. Arguing with a checklist belongs in D-149 and in an
  * upstream issue, not in a parser that quietly awards the points back.
  */
-import { spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -30,6 +29,7 @@ import { fileURLToPath } from 'node:url';
 
 import { type Tool, TOOLS, toolPath } from '../floor-tools.js';
 import { type BenchRecord } from '../record.js';
+import { spawnSync } from '../spawn.js';
 import { round } from '../stats.js';
 
 import { type Variant, VARIANTS } from './reliability.js';

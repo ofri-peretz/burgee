@@ -23,12 +23,12 @@
  *   lazy handler, which announces itself on stderr when it loads. A fixture that stopped parsing
  *   would otherwise produce a beautiful number about nothing.
  */
-import { spawnSync } from 'node:child_process';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { type BenchRecord } from '../record.js';
+import { spawnSync } from '../spawn.js';
 import { median, p95, round } from '../stats.js';
 
 const BENCH_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));

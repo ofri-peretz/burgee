@@ -148,8 +148,6 @@ const KNOWN: Record<string, string> = {
     "`nearestPackage` runs on every start-up (V4), and burgee's core bundle is 24,277 B against a 24,282 B ceiling. `findUpSync` from `seniority/find-up` measured 24,924 B (+647) and the `seniority` root's `search` 29,639 B; neither nets out (D-182, #683).",
   'burgee/src/yargs/shim.ts':
     "escalade's `findUp(start, callback)` for the yargs façade: a callback handed each directory's `readdir` listing. seniority's spec keeps its walk an override target for `find-up` only and declines to publish a second discovery product in escalade's shape (R5, D-182).",
-  'compat-oracle/src/run.ts': 'runs each vendored suite in a child process. Internal tooling, never published — but it is still bellpull\'s job, and it is where the executable-resolution bug would bite CI first.',
-  'compat-oracle/src/vendor.ts': '`git clone` and `git rev-parse`. Same as above.',
   'burgee/src/pkg.ts':
     "`nearestPackage` runs on every start-up (V4), and burgee's core bundle is 24,277 B against a 24,282 B ceiling. `findUpSync` from `seniority/find-up` measured 24,924 B (+647: the symlink-cycle guard, the depth limit and the generator), and `search` from the `seniority` root 29,639 B. Neither nets out, so the eighteen-line walk stays until the core finds the bytes.",
   'burgee/src/yargs/shim.ts':
@@ -158,8 +156,6 @@ const KNOWN: Record<string, string> = {
     "`useColor()` is commander 14's own colour rule, ported as commander has it — `NO_COLOR` and `FORCE_COLOR=0|false` off, `FORCE_COLOR` or `CLICOLOR_FORCE` on, otherwise the stream decides. It is the façade's graded behaviour (1360 / 1360), not a mechanism: roundel's policy answers a different question (a level, with `--color` flags and CI vendors) and routing commander through it would change what a migrated program prints. And `node:child_process` (commander-front-end-diet R1): an executable subcommand spawns through commander's own `child_process.spawn` on every path commander 15 takes, which is commander's graded process contract, and `bellpull/cross-spawn` resolves the one path commander cannot (a Windows executable that is not node), loaded through `import()` so that bellpull's 4,981 B leave the start-up bundle of every program that never takes it.",
   'paratext/src/hyperlinks.ts':
     "a declared fork of supports-color 10.2.2, the version supports-hyperlinks 4.5.0 depends on, graded against the real package case by case. paratext is a leaf and may not import roundel (PLAN's architecture rule: no leaf-to-leaf edge), and roundel follows chalk 6's newer vendored copy, which differs from 10.2.2 on purpose in three rows. `scripts/colour-fork-parity.test.ts` holds the two to agreement everywhere else.",
-  'compat-oracle/src/upstream.ts':
-    "`execFileSync('npm', …)` with no Windows guard — the exact bug bellpull exists to prevent, and the one `burgee/src/shape.test.ts` already works around with `shell: true`, which is the spelling cross-spawn refuses because it reopens command injection.",
   'controlroom/src/ink/process.ts':
     "is-in-ci as ink 6.8 reads it — `CI` or `CONTINUOUS_INTEGRATION` or any `CI_*` present, and `CI=0` or `CI=false` not CI, whether or not stdout is a terminal — which decides ink's CI path (Static as it arrives, the last frame once) and is graded by ink's suite, run under `CI=false` on a pipe. roundel's `outputMode` answers a different question (a pipe whose `CI` is set, `false` included, is `ci`), and routing the drop-in through it sent every case of ink's suite down the CI path. The suite decides where the two differ (controlroom constraint 1, D-20261005-controlroom-ink-drop-in).",
   'seniority/src/dotenv-spawn.ts':
@@ -187,8 +183,12 @@ const KNOWN: Record<string, string> = {
  * incumbent's suite at its latest release the bar for 1.0; `seniority/src/dotenv-spawn.ts` is
  * the one file that carries it. It is a façade reproducing its incumbent's own spawn, graded
  * case for case, in a zero-dependency foundation layer that cannot import bellpull.
+ *
+ * **Lowered 18 → 15 on 2026-10-27** (bellpull criterion 4): `compat-oracle`'s `run.ts`,
+ * `vendor.ts` and `upstream.ts` spawn through bellpull (`compat-oracle/src/spawn.ts`), and
+ * `scripts/dogfood-spawn-lock.test.ts` keeps them, and `benchmarks/`, off `node:child_process`.
  */
-const CEILING = 18;
+const CEILING = 15;
 
 const sources = (dir: string, out: string[] = []): string[] => {
   for (const e of readdirSync(dir, { withFileTypes: true })) {

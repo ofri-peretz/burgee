@@ -242,6 +242,18 @@ dogfooding switch is **one call site**: `benchmarks/axes/weight.ts` spawns `npm 
 carried in `scripts/inline-implementation-lock.test.ts`'s `KNOWN` list — a list that may only
 shrink, which is the right place for an unfinished adoption to sit.
 
+**Where it finished, 2026-10-27.** Every spawn in `packages/compat-oracle/src` and `benchmarks/`
+goes through `bellpull/cross-spawn`, by way of one module in each workspace
+(`compat-oracle/src/spawn.ts`, `benchmarks/spawn.ts`) that exports `spawnSync`, `spawn` and an
+`execFile` written as Node's own `execFileSync` over `crossSpawn.sync`. The three `KNOWN` entries
+left that list, and its ceiling fell from 18 to 15. `scripts/dogfood-spawn-lock.test.ts` refuses a
+`node:child_process` import anywhere in either tree outside test files and the measured fixtures.
+On `origin/main` it listed fourteen files. Both load bellpull on their first spawn, not at
+import, because `vendor-suite.ts` and `bench-page.ts` must load with nothing built. `upstream.ts`'s
+hand-written `npm.cmd` + `shell: true` (#1180) is gone, and the `suiteDeps` end-to-end suites run
+on Windows. Why `cross-spawn` and not `run`, and what the deferred load costs:
+[D-20261027-bellpull-dogfood-spawn](../../decisions/D-20261027-bellpull-dogfood-spawn.md).
+
 **`which` ships first, and possibly alone.** It is the part of this layer nobody contests:
 779 M/wk across `which` + `isexe` + `path-key`, and neither zero-dep rival touches it. If
 `run` turns out to be a crowded loser, `./which` still stands as a product, and the gate's
@@ -254,8 +266,8 @@ which is rule 6 applied one layer below where it usually lives.
 
 **Dogfooding as the honest test.** `compat-oracle` spawns to grade, `cli-benchmarks` spawns
 ≥30 times per row. Both switch to `bellpull` before it publishes. That proves the API
-against real use; it does not prove demand, and the README will not imply it does. **Partly
-done** — see "Where that order stopped" above.
+against real use; it does not prove demand, and the README will not imply it does. **Done
+2026-10-27** — see "Where it finished" above.
 
 ## Verification
 

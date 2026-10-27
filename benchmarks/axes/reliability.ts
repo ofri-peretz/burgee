@@ -22,12 +22,12 @@
  * commander because its errors carry a `hint` naming the fix — a trade of bytes per failure
  * against failed turns, which only B1 proper can settle.
  */
-import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { type BenchRecord } from '../record.js';
+import { spawnSync } from '../spawn.js';
 import { median, round } from '../stats.js';
 
 const REPO_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)), '..');

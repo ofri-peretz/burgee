@@ -5,15 +5,37 @@
 > zero-dependency rival already holds the weight pitch, so this intent carries a kill gate
 > rather than a launch date.
 
-**Status:** approved (2026-09-23, under the owner's delegation, D-129) · **Opened:** 2026-09-09 · **Owner:** @ofri-peretz · **Name published:** `bellpull@0.0.1`, 2026-09-09
+**Status:** shipped · **Opened:** 2026-09-09 · **Owner:** @ofri-peretz · **Name published:** `bellpull@0.0.1`, 2026-09-09 · **Shipped:** 2026-10-27 on the merge of `feat/bellpull-dogfood-spawn`, verified against `main` at `4c336da3` and the published `bellpull@1.0.10` — all five criteria held; criterion 4 moved internal tooling only, nothing to publish — see [§ Shipped 2026-10-27](#shipped-2026-10-27). Approved 2026-09-23 under the owner's delegation (D-129)
 
-> **Umbrella sweep 2026-10-26: four of five criteria held on `main` and in `bellpull@1.0.10`.
-> The kill gate has its numbers.** It was read today and the verdict is build
+> **Shipped 2026-10-27. All five criteria hold.** The umbrella sweep of 2026-10-26 left one open:
+> the repo's own tools spawning through bellpull. `compat-oracle` and `benchmarks/` now do, and
+> `scripts/dogfood-spawn-lock.test.ts` keeps them there
+> ([D-20261027-bellpull-dogfood-spawn](../../decisions/D-20261027-bellpull-dogfood-spawn.md)). The
+> kill gate was read on 2026-10-26 and the verdict was build
 > ([D-20261026-bellpull-kill-gate-reading](../../decisions/D-20261026-bellpull-kill-gate-reading.md)).
-> Criterion 4, the repo's own tools spawning through bellpull, is open. See
-> [§ Umbrella sweep 2026-10-26](#umbrella-sweep-2026-10-26).
 
 ---
+
+## Shipped 2026-10-27
+
+Read on `main` at `4c336da3` plus this branch, and against the published tarball `bellpull@1.0.10`
+(`npm view bellpull version` reads 1.0.10, the same as the manifest). bellpull's own source did
+not change, so nothing is released: criterion 4 is about internal tooling, and both consumers are
+private.
+
+| # | criterion | held by | proven red by |
+| :-- | :-- | :-- | :-- |
+| 1 | the kill gate cleared, numbers recorded on the day | [D-20261026-bellpull-kill-gate-reading](../../decisions/D-20261026-bellpull-kill-gate-reading.md): tinyexec 1.3.1, 106,919,562 downloads in the week to 2026-10-22, zero dependencies, no exported resolver or outcome. Verdict: build | the sweep's reading itself: before it, D-048 had the verdict and no numbers |
+| 2 | `execa`, `cross-spawn` and `which` suites graded, three rates published and ratcheting, `--control` first | `packages/compat-oracle/baseline/`: `cross-spawn.json` 68 / 68, `which.json` 5 / 5, `execa.json` 0 / 1,360 with `"ceiling": true` (D-160). `/docs/compatibility` carries all three rows and their controls, and `compat.yml` ratchets them | the oracle's own ratchet, which fails a row that falls |
+| 3 | benchmark rows at or under `tinyexec` on bytes and spawn delta | B4 `bellpull ÷ tinyexec` 0.986 (claim `lighter-than-tinyexec`) and B5 0.986 spawn time, each gated at 1 (`benchmarks/results/cli-benchmarks/2026-10-26-f6919e9-ci.json`). Both rows are on `/docs/benchmarks` | `runtime.test.ts` › "bellpull R8: spawn time at or under tinyexec" (1.01 exits non-zero) |
+| 4 | `compat-oracle` and `cli-benchmarks` spawning through it, their suites unchanged | every spawn in `packages/compat-oracle/src` and `benchmarks/` goes through `bellpull/cross-spawn`, by way of `compat-oracle/src/spawn.ts` and `benchmarks/spawn.ts`. `scripts/dogfood-spawn-lock.test.ts` › "no module imports node:child_process". `inline-implementation-lock`'s `KNOWN` loses `run.ts`, `vendor.ts` and `upstream.ts`, and its ceiling falls from 18 to 15. Both suites pass unchanged: compat-oracle 862 tests at 100 % coverage, benchmarks 437, and `node packages/compat-oracle/dist/bin.js` on darwin reads ▲ 0 against the baseline on every host but the two whose suites register fewer cases there (cosmiconfig and signal-exit, the platform's own count). Every suite's pins installed through bellpull's `npm`. `upstream.ts`'s hand-written `npm.cmd` + `shell: true` (#1180) is gone. The three `suiteDeps` end-to-end suites (tsd, twist, uvu), skipped on Windows because a bare `npm` could not start there, now run on the `windows-latest` cell | the lock on `origin/main`: 14 files listed (`run.ts`, `vendor.ts`, `upstream.ts`, and eleven under `benchmarks/`) |
+| 5 | one published example of the result's three projections from one value (Y5) | `bellpull.interlace.tools/docs/recipes/agent-output` (HTTP 200 on 2026-10-27), run byte for byte by `apps/docs-bellpull/tests/examples.test.ts`; `packages/bellpull/src/matrix.test.ts` › "one result, three renderings (R5, Y5)" | the examples test, which runs the page's code and compares its output |
+
+**Not a criterion, and still open.** The roadmap's Quint column marks the deadline's kill ladder
+(SIGTERM, then SIGKILL) as behaviour that needs a model, and none exists. It is queued in batch 15
+of `.sdlc/research/roadmap-to-shipped-2026-10.md`, as `mcp-current`'s in-flight model was queued
+after that intent shipped. The ladder is held today by `packages/bellpull/src/matrix.test.ts` ›
+"ignores SIGTERM: the parent still settles, timedOut is true, and the partial output survives".
 
 ## Umbrella sweep 2026-10-26
 

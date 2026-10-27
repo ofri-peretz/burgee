@@ -3,8 +3,9 @@
  * much as of the code, so every results file carries it and every table prints it —
  * constraint 6, and the reason the banded perf number is a ratio rather than a duration.
  */
-import { execFileSync } from 'node:child_process';
 import os from 'node:os';
+
+import { execFile } from './spawn.js';
 
 export interface Machine {
   os: string;
@@ -40,8 +41,8 @@ export function machine(): Machine {
  */
 export function commit(cwd: string): string {
   try {
-    const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd, encoding: 'utf8' }).trim();
-    const dirty = execFileSync('git', ['status', '--porcelain'], { cwd, encoding: 'utf8' }).trim() !== '';
+    const sha = execFile('git', ['rev-parse', 'HEAD'], { cwd, encoding: 'utf8' }).trim();
+    const dirty = execFile('git', ['status', '--porcelain'], { cwd, encoding: 'utf8' }).trim() !== '';
     return dirty ? `${sha}-dirty` : sha;
   } catch {
     return 'unknown';

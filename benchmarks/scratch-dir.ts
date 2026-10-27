@@ -17,12 +17,13 @@
  * pattern of #1137: under the pre-push load, unlinking a scratch directory from Node took 64.9 s
  * and 152 s, past the hook's timeout. A run killed first leaves its directories behind.
  */
-import { spawn } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterAll } from 'vitest';
+
+import { spawn } from './spawn.js';
 
 /** Returns a `mkdtempSync` under `tmpdir()` whose directories are removed after the file's last test. */
 export function scratchDirs(): (prefix: string) => string {

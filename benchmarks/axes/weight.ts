@@ -19,7 +19,6 @@
  * The second trap, and the one that made a published number 2.1x wrong: **whose directory
  * a transitive dependency is resolved from**. See `installedBytes`.
  */
-import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
@@ -29,6 +28,7 @@ import { claimRatchet, RATCHETED } from '../claim-ratchets.js';
 import { DEFAULT_EXPORT, packageOf, packagesOf, PAIRS, PARITY, ratioVariant, sideLabel, sideSource, stackFixtureSource, type EntryPair, type ParityStack, type Side } from '../fixtures/entry-points.js';
 import { type BenchRecord } from '../record.js';
 import { BENCH_ROOT, packageDir, relativeToRepo, type Resolved, resolvePackage } from '../resolve.js';
+import { execFile } from '../spawn.js';
 import { round } from '../stats.js';
 
 const REPO_ROOT = resolve(BENCH_ROOT, '..');
@@ -60,7 +60,7 @@ function dirBytes(dir: string): number {
  */
 function ownInstalledBytes(dir: string): number {
   if (!realpathSync(dir).startsWith(join(REPO_ROOT, 'packages'))) return dirBytes(dir);
-  // Through `bellpull`, not `execFileSync('npm', …)`, because `npm` is `npm.cmd` on Windows
+  // Through `bellpull`, not `execFile('npm', …)`, because `npm` is `npm.cmd` on Windows
   // and neither `spawnSync` nor `execFileSync` searches `PATHEXT` — and since the fix for
   // CVE-2024-27980 Node refuses to spawn a `.cmd` without `shell: true`. This line read the
   // bare name until 2026-09-16 and nothing noticed, because nothing on the Windows leg
@@ -246,7 +246,7 @@ export function bundle(side: Side, id: string, scratch: string): { initial: numb
   const external = (side.external ?? []).map((name) => `--external:${name}`);
   // esbuild from the CLI, not the API: one fewer import in a suite that measures imports,
   // and the exact command is quotable in the results file.
-  execFileSync(esbuildBin(), [file, '--bundle', '--minify', '--format=esm', '--platform=node', '--splitting', ...external, ...peerAliases(side), `--outdir=${outdir}`, `--metafile=${metafile}`], {
+  execFile(esbuildBin(), [file, '--bundle', '--minify', '--format=esm', '--platform=node', '--splitting', ...external, ...peerAliases(side), `--outdir=${outdir}`, `--metafile=${metafile}`], {
     cwd: BENCH_ROOT,
     stdio: 'pipe',
   });
@@ -302,7 +302,7 @@ function stackBytes(stack: ParityStack, incumbent: { specifier: string; symbol: 
   const outdir = join(scratch, `${stem}.chunks`);
   rmSync(outdir, { recursive: true, force: true });
   const metafile = join(scratch, `${stem}.meta.json`);
-  execFileSync(esbuildBin(), [file, '--bundle', '--minify', '--format=esm', '--platform=node', '--splitting', `--outdir=${outdir}`, `--metafile=${metafile}`], {
+  execFile(esbuildBin(), [file, '--bundle', '--minify', '--format=esm', '--platform=node', '--splitting', `--outdir=${outdir}`, `--metafile=${metafile}`], {
     cwd: BENCH_ROOT,
     stdio: 'pipe',
   });
