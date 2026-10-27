@@ -125,3 +125,24 @@ describe('options with no prompt are left entirely alone', () => {
     expect(r).toEqual({ values: {} });
   });
 });
+
+describe('R1 · an option is named the way it is passed', () => {
+  const asked = { kind: 'text', message: 'Who?' } as const;
+
+  it('a refusal names `flag` when the host gives one — a positional, or a kebab-case flag', async () => {
+    const r = await resolvePrompts({ options: { name: { required: true, prompt: asked, flag: '<name>' } }, values: {}, runtime: headless, io: io([]) });
+    expect(r.failure).toMatchObject({ option: 'name', code: 'USAGE', message: '<name> is required when there is no terminal', fix: 'pass <name>; it would have been asked as "Who?"' });
+  });
+
+  it('so does a cancellation, and a spec that cannot be drawn', async () => {
+    const cancelled = await resolvePrompts({ options: { dryRun: { required: true, prompt: asked, flag: '--dry-run' } }, values: {}, runtime: tty, io: io([undefined]) });
+    expect(cancelled.failure).toMatchObject({ code: 'CANCELLED', message: 'cancelled at --dry-run', fix: 'pass --dry-run to skip the question' });
+    const malformed = await resolvePrompts({ options: { pick: { required: true, prompt: { kind: 'select', message: 'Which?' }, flag: '<pick>' } }, values: {}, runtime: tty, io: io([]) });
+    expect(malformed.failure?.message).toMatch(/^<pick> has a prompt that cannot be drawn/u);
+  });
+
+  it('without one, it is `--` and the option’s own name, as before', async () => {
+    const r = await resolvePrompts({ options: { name: { required: true, prompt: asked } }, values: {}, runtime: headless, io: io([]) });
+    expect(r.failure?.message).toBe('--name is required when there is no terminal');
+  });
+});

@@ -33,13 +33,19 @@ for (const file of WRITERS) visit(ts.createSourceFile(file, readFileSync(new URL
 /**
  * `decide()` assembles its no-terminal refusal from three parts: the condition, then the
  * `--interactive` clause when the caller asked for one. These four templates are the four
- * sentences it can produce, so each is held to its parts rather than to one literal.
+ * sentences it can produce, so each is held to its parts rather than to one literal. The two
+ * cancel sentences are held to theirs for the reason beside them.
  */
 const ASSEMBLED: Record<string, string[]> = {
   'caique.requiredNobody': ['{} is required when {}{}', 'nobody is there to answer'],
   'caique.requiredNobodyAsked': ['{} is required when {}{}', 'nobody is there to answer', ' (--interactive needs {})', 'a person, and CI or an agent is driving this'],
   'caique.requiredNoTerminal': ['{} is required when {}{}', 'there is no terminal'],
   'caique.requiredNoTerminalAsked': ['{} is required when {}{}', 'there is no terminal', ' (--interactive needs {})', 'a terminal on stdin'],
+  // The binding writes the flag as it is passed, dashes included (R1): `--force` is
+  // `cancelled at --force`, which is this template's sentence and is translated as one
+  // (`locale.test.ts`); a positional's `<name>` is said in English.
+  'caique.cancelledAt': ['cancelled at {}'],
+  'caique.passToSkip': ['pass {} to skip the question'],
 };
 
 describe('caique’s catalog (R6)', () => {

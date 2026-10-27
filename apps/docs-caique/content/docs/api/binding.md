@@ -47,6 +47,11 @@ What a host tells us about one option. Structural: any framework's spec satisfie
 interface PromptableOption {
     required?: boolean;
     prompt?: PromptSpec;
+    /**
+     * How a refusal names it when `--<option>` is not how it is passed: `<name>` for a
+     * positional, `--dry-run` for a host's camelCase `dryRun` key (R1, `promptFor`).
+     */
+    flag?: string;
 }
 ```
 

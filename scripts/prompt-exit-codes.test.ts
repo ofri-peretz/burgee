@@ -17,6 +17,8 @@ import { runBurgee } from '../packages/burgee/src/testing.js';
 import { resolvePrompts, type PromptableOption } from '../packages/caique/src/binding.js';
 // eslint-disable-next-line import-next/no-relative-packages -- see above
 import { type Runtime } from '../packages/caique/src/decide.js';
+// eslint-disable-next-line import-next/no-relative-packages -- see above
+import { promptFor } from '../packages/caique/src/prompt-for.js';
 
 const OPTIONS: Record<string, PromptableOption> = {
   name: { required: true, prompt: { kind: 'text', message: 'Project name?' } },
@@ -99,5 +101,67 @@ describe('a prompt refusal reaches an exit code by name (P2, P3)', () => {
       ],
     });
     expect((await runCommand(odd, ['go'])).code).toBe(1);
+  });
+});
+
+/**
+ * caique R1 — the same contract with nothing written by hand: `promptFor` wraps a burgee command,
+ * burgee leaves the missing positional to it (P1), and its refusal or its answer reaches the exit
+ * code and the handler. The demo's `greet` is built exactly this way, which is what B1's
+ * `non-tty-required` task now runs against.
+ */
+/** A person whose answers are a list: `undefined` is Ctrl+C or Ctrl+D. */
+const lines = (answers: (string | undefined)[]): { reader: { line: () => Promise<string | undefined> }; writer: { write: () => undefined } } => ({
+  reader: { line: () => Promise.resolve(answers.shift()) },
+  writer: { write: () => undefined },
+});
+
+/** The demo's `greet`, built the way the demo builds it, answered by `io`. */
+const greet = (io = lines([])): ReturnType<typeof defineProgram> =>
+  defineProgram({
+    name: 'demo',
+    commands: [
+      promptFor(
+        defineCommand({ name: 'greet', effects: 'read_only', arguments: [{ name: 'name', required: true }], run: ({ positionals }) => `Hello, ${positionals[0] ?? ''}!` }),
+        'name',
+        { kind: 'text', message: 'Who should I greet?' },
+        { io },
+      ),
+    ],
+  });
+
+describe('promptFor on a burgee command (caique R1)', () => {
+  /** A terminal on stdin, and nothing in the environment that says CI or an agent. */
+  const terminal = { env: {}, stdin: Object.assign(Readable.from([]), { isTTY: true }) };
+
+  it('with no terminal, exits 2 naming the positional as it is typed, and the handler never runs', async () => {
+    const r = await runCommand(greet(), ['greet'], { env: {} });
+    expect(r.code).toBe(2);
+    expect(r.stderr).toContain('error: <name> is required when there is no terminal');
+    expect(r.stderr).toContain('fix: pass <name>; it would have been asked as "Who should I greet?"');
+    expect(r.stdout).toBe('');
+  });
+
+  it('a person at a terminal is asked, and the handler greets the answer', async () => {
+    expect(await runCommand(greet(lines(['ada'])), ['greet'], terminal)).toMatchObject({ code: 0, stdout: 'Hello, ada!\n' });
+  });
+
+  it('a cancelled question exits 4 with how to skip it', async () => {
+    const r = await runCommand(greet(lines([undefined])), ['greet'], terminal);
+    expect(r.code).toBe(4);
+    expect(r.stderr).toContain('fix: pass <name> to skip the question');
+  });
+
+  it('under --json a person at a terminal is still not asked (R6): exit 2 in the envelope', async () => {
+    const r = await runCommand(greet(lines(['ada'])), ['greet', '--json'], terminal);
+    expect(JSON.parse(r.stdout)).toMatchObject({ ok: false, error: { code: 2, message: '<name> is required under --json' } });
+  });
+
+  it('under --mcp, a tool call that leaves it out is a tool error naming it', async () => {
+    const greetCall = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'greet', arguments: {} } });
+    const r = await runBurgee(greet(lines(['ada'])), { argv: ['--mcp'], stdin: Readable.from([`${greetCall}\n`]), env: {} });
+    const reply = JSON.parse(r.stdout.trim()) as { result: { isError?: boolean; content: { text: string }[] } };
+    expect(reply.result.isError).toBe(true);
+    expect(JSON.parse(reply.result.content[0]?.text ?? '')).toMatchObject({ ok: false, error: { code: 2, message: '<name> is required under --json' } });
   });
 });

@@ -268,6 +268,17 @@ describe('a spinner off a terminal', () => {
     ).toBe('  work...\n  more...\n');
   });
 
+  it('prints a style’s static projection, not its first frame, wherever it does not animate (U3)', () => {
+    expect(
+      capture((output) => {
+        const spin = spinner({ output, withGuide: false, style: { frames: ['◐', '◓'], interval: 100, static: '•' } });
+        spin.start('work');
+        spin.message('more');
+        spin.stop('done');
+      }),
+    ).toBe(`•  work...\n•  more...\n${S_STEP_SUBMIT}  done\n`);
+  });
+
   it('writes to process.stdout when given no output, opening on the guide', async () => {
     const text = await stdoutOf(() => {
       const spin = spinner();
@@ -409,6 +420,26 @@ describe('a spinner on a terminal outside CI', () => {
     vi.advanceTimersByTime(10);
     spin.stop();
     expect(output.buffer.slice(1, 3)).toEqual(['  work', `${ERASE_ONE}  work`]);
+  });
+
+  it('turns a style handed in as data — a registered plugin spinner — at its own interval', () => {
+    const output = new Output(true);
+    const spin = spinner({ output, withGuide: false, style: { frames: ['◐', '◓'], interval: 100, static: '•' } });
+    spin.start('work');
+    vi.advanceTimersByTime(99);
+    expect(output.buffer).toEqual([HIDE_CURSOR, '◐  work']);
+    vi.advanceTimersByTime(1);
+    spin.stop('done');
+    expect(output.buffer.slice(0, 3)).toEqual([HIDE_CURSOR, '◐  work', `${ERASE_ONE}◓  work`]);
+  });
+
+  it('a style’s frames and interval give way to frames and delay given beside it', () => {
+    const output = new Output(true);
+    const spin = spinner({ output, withGuide: false, frames: ['a'], delay: 10, style: { frames: ['◐'], interval: 1000, static: '•' } });
+    spin.start('work');
+    vi.advanceTimersByTime(10);
+    spin.stop();
+    expect(output.buffer.slice(1, 3)).toEqual(['a  work', `${ERASE_ONE}a  work`]);
   });
 
   it('draws a new message on the next frame rather than printing it', () => {
