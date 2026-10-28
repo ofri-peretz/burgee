@@ -403,12 +403,12 @@ run in parallel, and only when they touch no common file. The lane table in next
 | 17 | **Docs and SDLC locks** | docs-site + sdlc locks | ~~docs-per-package (C8 per row, R2, R7, R10 locks; absorbs docs-deploy)~~ **shipped 2026-10-26** (also R4/R5) · sdlc-locks-evals-bands (`.sdlc/intents` into the link checker and evals paths) · schema-is-validated (R3 lock) · brand-burgee (**write spec**) | Rest |
 | 18 | **burgee umbrella restatements** | burgee (umbrella) | burgee (Z4 15-line lock, Z5, F3/O3/P1 restated after the eslint drop, criteria 3–5) · commander-env (restate) · replacement-parser (drop G3, restate SC2/G7 to D-157) | Rest; mostly text |
 | 19 | **Help, harness, dev loop** | burgee/help + testing + dev | cli-help-renderer (S1 min/max, S3 restate) · cli-testing-harness (ANSI case, S2/S4 restate) · dev-loop (W2, W3, W4, W6 tests; dev-reload.qnt exists) | Rest |
-| 20 | **Native engine (last)** | burgee + release pipeline | native-engine (**approved 2026-10-27**, D-20261027-native-engine-design-accepted: spec R1–R11 is the oxc-way packaging for any port. `M0` measured `migrate` on a Rust/oxc engine at 701 / 701 byte-identical but 1.00x projected, ceiling 1.08x, against the 2x gate, and the argv core's own work at ≤ 6 ms, so both stay JS. Left: the tsrs lane once tsrs is stable against TS 7.1, and single-binary distribution against Node SEA and bun/deno, each port or drop) | After all others |
+| 20 | **Native engine (last)** | burgee + release pipeline | ~~native-engine~~ (**dropped 2026-10-28**, D-20261028-native-engine-dropped: nothing ports, burgee stays JS. `M0` measured `migrate` on a Rust/oxc engine at 701 / 701 byte-identical but 1.00x projected, ceiling 1.08x, against the 2x gate, and the argv core's own work at ≤ 6 ms with module loading 71–87% of each run. The tsrs lane waits on tsrs stable 7.1 and reopens as a new intent; single-binary distribution is not a Rust question (spec R9) and gets its own intent. No Rust toolchain entered CI) | After all others. Closed: dropped 2026-10-28 |
 
 Coverage: each of the 63 intents still open after Batch 0 (the original 62, plus `localised-human-surfaces`, which Batch 0 held at `approved`) is in exactly one batch or in the in-progress row.
 
 **Batch 28 — design gates, 2026-10-25 (docs only).** Every intent waiting at a gate went through
-it, except `native-engine` (draft by the owner's order). Each ruling is one decision file.
+it, except `native-engine` (draft by the owner's order; approved 2026-10-27, then dropped 2026-10-28 by D-20261028-native-engine-dropped). Each ruling is one decision file.
 
 - **Approved, with a scoped build:** `agent-headroom`, `cli-benchmarks`, `commander-env`,
   `dev-loop`, `first-adopter`, `sdlc-locks-evals-bands`, `caller-matrix`, `burgee` (umbrella)
