@@ -86,8 +86,10 @@ const DROP_IN_CEILINGS: Readonly<Record<string, { incumbent: string; bytes: numb
   // shipped with and `@inquirer/core` 12.0.4 (the graded tree, D-20261019-inquirer-prompts-pins-its-prompts),
   // by the same method, measured 2026-10-20. iconv-lite's tables, through `@inquirer/editor`, are most of it.
   // Re-measured at 8.7.4 with its ten and core 12.0.5 on 2026-10-27, the same method reproducing
-  // 8.7.3's 582,754 first (D-20261027-revendor-dotenv-execa-inquirer).
-  'caique/inquirer/prompts': { incumbent: '@inquirer/prompts@8.7.4', bytes: 582_862 },
+  // 8.7.3's 582,754 first (D-20261027-revendor-dotenv-execa-inquirer). Re-measured at 8.7.5 with
+  // its ten and core 12.0.6 on 2026-10-28, the same method reproducing 8.7.4's 582,862 first
+  // (D-20261028-revendor-inquirer-8-7-5).
+  'caique/inquirer/prompts': { incumbent: '@inquirer/prompts@8.7.5', bytes: 582_855 },
   // `previous-majors` R3: 17's `yargs/yargs` — `yargs.mjs` over its CommonJS build — measured
   // 2026-10-19 from yargs 17.7.3 as `compat-oracle` installs it (D-20261019-yargs-17-budget).
   'burgee/yargs/v17/yargs': { incumbent: 'yargs@17.7.3 (yargs/yargs)', bytes: 114_656 },

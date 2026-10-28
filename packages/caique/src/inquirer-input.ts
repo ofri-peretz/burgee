@@ -268,7 +268,9 @@ export const password = createPrompt<string, PasswordConfig>((config, done) => {
   else if (!config.mask) shown += HIDE_CURSOR;
 
   const bottom = [errorMsg ? theme.style.error(errorMsg) : '', toggleMask && status === 'idle' ? theme.style.keysHelpTip([['ctrl+t', 'toggle visibility']]) : ''].filter(Boolean).join('\n');
-  return [[prefix, message, shown].filter(Boolean).join(' '), bottom];
+  // Not filtered: an empty mask still claims the space after the message, so the cursor sits
+  // one column past it rather than against it (@inquirer/password 5.2.5).
+  return [[prefix, message, shown].join(' '), bottom];
 });
 
 /** What `confirm` adds to the shared theme. */
