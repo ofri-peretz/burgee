@@ -89,7 +89,7 @@ Abbreviations used below:
 | brand-burgee | **dropped** (batch 28, `D-20261025-brand-burgee-dropped`) | **n** | DROPPED | brand | 4 | 1 | – | n | – | Built before any design; write spec.md |
 | burgee | approved (umbrella sweep 2026-10-26; Z5 bench and criterion 4 ratchet built 2026-10-26) | y | P | umbrella | 119 | 112 | – of its own; closes when every open child does (the grouped list is in `burgee/intent.md` § Umbrella sweep 2026-10-26) | partly | registry, prompt-session, dev-reload | Finding: the 2026-10-26 patches (burgee 1.7.2, roundel 1.2.1, seniority 1.1.1) already carry the code of the minors the release window holds; the window holds the version label, not the code (`release-cadence` R1) |
 | burgee-migrate | **shipped** (batch 0) | y | SHIPPED | burgee/migrate | 12 | 12 | – | n | – | Stale header: needs draft → approved (owner) → shipped. Verification 3 is indirect |
-| caique | approved (umbrella sweep 2026-10-26) | y | P | caique | 13 | 10 | criterion 2 (no B1 demo is layered on caique; R1 `promptFor` unbuilt), criterion 3 (no real-PTY prompt case, no Windows) | **y** | prompt-session, save-restore | Criterion 1 held by `decide.test.ts` and `binding.test.ts`. B1 `non-tty-required` 355 / 355 on the burgee arm (2026-10-08 to 10-18) is burgee P2, not caique. Closes with a build and a caique + burgee minor |
+| caique | **shipped** 2026-10-28 (caique 1.6.0, burgee 1.9.0) | y | SHIPPED | caique | 13 | 10 | – | **y** | prompt-session, save-restore, **interrupt.qnt** | R1 `promptFor` (#1316). B1 run 40598315926: burgee arm `non-tty-required` 5 / 5 in 2–3 turns, on caique's refusal. Real-terminal `Ctrl+C` on three OSes, graded by a line read back (#1327) |
 | caique-quiet-seam | **shipped** (batch 0) | y | SHIPPED | caique | 8 | 8 | – | n | – | Restate R2 (`progress` and `taskLog` were not ported, D-152) |
 | caller-matrix | **shipped** (batch 29 built, #1252; five cells 2026-10-26) | y | SHIPPED | examples/conformance + docs | 5 | 5 | – | n | – | Registry, lock and `/docs/callers`; 48 held, 7 n/a, 0 missing, ceiling 0. S4 moved to first-adopter |
 | ci-affected-lanes | **shipped** (`D-20261026-ci-affected-lanes-minutes`) | y | SHIPPED | workflows/CI | 7 | 7 | – | n | – | R4 read 2026-10-26: median compat job-minutes per PR 411.8 before #1101, 71.1 after (`ci-minutes.test.ts`) |
@@ -178,7 +178,7 @@ These intents need a model:
 | :-- | :-- |
 | closeout | covered by `registry.qnt` |
 | flagstaff | covered by `save-restore.qnt` |
-| caique | covered by `prompt-session.qnt` and `save-restore.qnt` |
+| caique | covered by `prompt-session.qnt`, `save-restore.qnt` and `.sdlc/intents/caique/interrupt.qnt` |
 | dev-loop | covered by `dev-reload.qnt` |
 | burgee | covered by its children |
 | agent-lint-conformance | partial: `registry.qnt` covers closeout's deadline, not the engine timer |
