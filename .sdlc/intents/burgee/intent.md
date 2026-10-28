@@ -59,8 +59,8 @@ window is enforced, and it belongs to `release-cadence`, whose R1 says no non-fi
 
 **The closing list.** Since the last section, `cli-benchmarks` and `cli-foundation-stack` (#1276)
 and `docs-per-package` (#1275) are stamped, as is `foundation-claims-watched` (#1277), and `caller-matrix` closed before them.
-`native-engine` (draft) starts only after every other intent closes, by its
-own text, so it cannot gate this umbrella. `oxmutate` (draft) is a separate tool's intent.
+`native-engine` is dropped (2026-10-28, D-20261028-native-engine-dropped: nothing ports, burgee
+stays JavaScript), so it cannot gate this umbrella. `oxmutate` (draft) is a separate tool's intent.
 Everything else that is still open:
 
 | closes when | intents |

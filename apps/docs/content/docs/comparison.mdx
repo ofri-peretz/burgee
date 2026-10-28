@@ -19,7 +19,7 @@ do, and every cell here now says where it comes from.
 
 ## Measured
 
-⚙️ rows: 2026-10-27 (`ac7ccbc`), a GitHub Actions runner (AMD EPYC 7763, 4 cores), linux/x64, Node
+⚙️ rows: 2026-10-27 (`440f18f`), a GitHub Actions runner (AMD EPYC 7763, 4 cores), linux/x64, Node
 24.13, 92 interleaved spawns per variant. Milliseconds are a property of that machine, so the deltas below are for reading,
 never for gating; the machine-independent figure is the ratio on
 [Benchmarks](/docs/benchmarks).
@@ -29,7 +29,7 @@ never for gating; the machine-independent figure is the ratio on
 | Downloads / week | new | 508.2M | 259.3M | 10.9M | 49.4M | 30.5M |
 | Runtime dependencies | **5**, none outside the burgee family | 0 | 6 | **18** | 0 | 0 |
 | Installed size ⚙️ | 1678 KB | 203 KB | 515 KB | 912 KB 📖 | 40 KB | 52 KB 📖 |
-| Full CLI run over bare node ⚙️ | +18.3 ms | +15.6 ms | +76.8 ms | +131 ms 📖 | +3.7 ms | +6 ms 📖 |
+| Full CLI run over bare node ⚙️ | +18.7 ms | +16.8 ms | +78.6 ms | +131 ms 📖 | +3.8 ms | +6 ms 📖 |
 
 **Agent cost**, against commander on the same tasks with the same model. One run of this
 benchmark is not a verdict: two runs of one commit have read 0.49 and 0.995. So each figure is
@@ -85,14 +85,14 @@ is the number to judge us on. That one is over its own ceiling too, and says so.
 
 **Speed.** This page previously ran two rows, an import cost and a full run, with burgee's
 cells in both unsourced. The suite times one thing, a full CLI run as a process, so there
-is one row. burgee does **not** land level with cac: it starts at **1.47x** cac's cold
+is one row. burgee does **not** land level with cac: it starts at **1.46x** cac's cold
 start against a published target of at or below cac, and that target is recorded as not
 met. It read 1.32x on 2026-09-09 and 1.56x on 2026-10-08, and CI runs since 2026-10-06 have
-read 1.47x to 1.56x: burgee's start-up got slower in that month, and this page says so rather
+read 1.46x to 1.56x: burgee's start-up got slower in that month, and this page says so rather
 than keeping the older figure. Since D-157 the gate is what is reachable: a downward-only ratchet at 1.55x
 cac, set from CI's own spread and only ever lowered, which it still meets. The `burgee/yargs`
-drop-in starts at 0.63x yargs (0.64x on 2026-10-19, 0.82x on 2026-09-09). The `burgee/commander` drop-in starts at
-**1.08x** commander (1.07x on 2026-10-19, 1.18x on 2026-10-08, 1.08x on 2026-09-09) ([measured](/docs/benchmarks)).
+drop-in starts at 0.64x yargs (0.63x on the earlier 2026-10-27 run, 0.64x on 2026-10-19, 0.82x on 2026-09-09). The `burgee/commander` drop-in starts at
+**1.08x** commander (1.08x on the earlier 2026-10-27 run, 1.07x on 2026-10-19, 1.18x on 2026-10-08, 1.08x on 2026-09-09) ([measured](/docs/benchmarks)).
 
 These are the figures from the CI runner, which is where the suite now publishes from: the
 same commit measured eleven times there put `burgee ÷ cac` inside 2.3%, where a developer

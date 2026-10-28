@@ -5,10 +5,21 @@
 > This is the last item on the roadmap. It starts only after every other intent is shipped
 > or dropped.
 
-**Status:** approved · **Opened:** 2026-10-20 · **Owner:** @ofri-peretz · **Design accepted:** 2026-10-27
+**Status:** dropped (2026-10-28) · **Opened:** 2026-10-20 · **Owner:** @ofri-peretz · **Design accepted:** 2026-10-27
 ([`D-20261027-native-engine-design-accepted`](../../decisions/D-20261027-native-engine-design-accepted.md)),
 with no layer ported: `migrate` and the argv core were measured and stay JavaScript — see
 [§ Design gate 2026-10-27](#design-gate-2026-10-27)
+
+**Dropped 2026-10-28** → [`D-20261028-native-engine-dropped`](../../decisions/D-20261028-native-engine-dropped.md):
+nothing ports, and burgee stays JavaScript. `M0` measured `burgee migrate` at a projected 1.00x
+(ceiling 1.08x) against D-20261020's 2x bar, and the argv core's own work at 1.6–6.0 ms, with
+module loading 71–87% of each run (`m0/reproduce.sh`). The two rows left waiting are not work
+this intent can do: the tsrs lane waits on tsrs's stable 7.1 release, and single-binary
+distribution is not a Rust question (spec R9), so it gets its own intent. With no layer ported,
+criteria 2–4 have nothing to apply to, and no Rust toolchain entered CI. It reopens when tsrs
+ships stable 7.1 (as a new intent for the CI lane), when a single-binary measurement shows a Rust
+engine at 2x or more, or when any layer projects 2x or more by spec R1. The sections below are
+the record as it stood.
 
 ---
 
@@ -110,3 +121,7 @@ and the intent moves `draft → approved`. Criterion 1 per layer, as measured by
 
 **What remains before `shipped`:** the tsrs lane and single-binary distribution, each measured
 and recorded as port or drop. If either ports, criteria 2–4 apply to it through spec R2–R10.
+
+**Closed 2026-10-28** by [`D-20261028-native-engine-dropped`](../../decisions/D-20261028-native-engine-dropped.md):
+neither waiting row is native-engine work, so the intent is dropped rather than held open for
+them.

@@ -465,7 +465,8 @@ const RULES: Record<string, EntryRule> = {
     // 28,200 on 2026-10-12 for mcp-current R3: `initialize` answers the revision the client asked for when it is one of `SUPPORTED_REVISIONS` (2025-06-18, 2025-11-25), and the latest otherwise, instead of 2025-06-18 to everyone. Measured 27,991 -> 28,177.
     // 28,400 on 2026-10-19 (D-20261019-typed-schema-surface-weight): a tool call that skips an optional positional fills it with its default, or is refused, instead of shifting every later value one place left. Measured 28,069 -> 28,364.
     // 28,500 on 2026-10-26 (D-20261026-typed-positionals-r4-weight): an argument's `inputSchema` property carries its JSON type and its default as that type. Measured 28,294 -> 28,428.
-    budget: 28_500,
+    // 30,800 on 2026-10-28 for A-20261027-yargs-parsesync-mcp-ended-by-exit (D-20261028-yargs-parsesync-mcp-serves-synchronously): `serveMcpSync`, the server a `.parseSync()` program gets, which reads descriptor 0 and answers synchronously so the program's own `process.exit()` cannot end it. Measured 28,428 -> 30,756, plus the ~32 B CI reads heavier, rounded up to the next 50.
+    budget: 30_800,
     // 24,850 with the MCP stdout capture (#521) on top of D-122's 20,568. Measured 24,835.
     // 24,950 with D-140's MCP error classification on top of #521. Measured 24,900.
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
@@ -857,7 +858,12 @@ const RULES: Record<string, EntryRule> = {
     // (D-20261027-yargs-parsesync-surface-bytes): `completion <shell>` and `--mcp` answer a
     // `parseSync()` program instead of throwing. Main at `c5e86d3044` measured 221,699 and this
     // reads 221,755 (+56), on a clean build; plus the ~32 B, rounded up to the next 50.
-    budget: 221_800,
+    // 222,300 on 2026-10-28 for A-20261027-yargs-parsesync-mcp-ended-by-exit
+    // (D-20261028-yargs-parsesync-mcp-serves-synchronously): under `parseSync()`, `--mcp` serves to
+    // the end of its input before `parseSync()` returns, and a tool call runs as a `parseSync()`.
+    // Main at `b62cf2a105` measured 221,755 and this reads 222,248 (+493), on a clean build; plus
+    // the ~32 B, rounded up to the next 50. `mcp.js` itself stays off this walk, required lazily.
+    budget: 222_300,
     // 217,100 with D-140 on top of D-122, N14 and E7, after merging #521. Measured 217,090.
     // 217,150 with A29's CommonJS export on top. Measured 217,123.
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
@@ -869,10 +875,12 @@ const RULES: Record<string, EntryRule> = {
   // `yargs/v17.cjs`, is not on this walk, which follows `import`. `./yargs` gained 36 B for the
   // seam the factory plugs into (`shim.CommandInstance`) and its budget does not move.
   // 224,850 on 2026-10-27 with `./yargs`' +56 B for parseSync() surfaces: 224,741 -> 224,797.
-  "./yargs/v17": { allow: ["linegauge"], budget: 224_850, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
+  // 225,350 on 2026-10-28 with `./yargs`' +493 B for `--mcp` under parseSync(): 224,797 -> 225,290.
+  "./yargs/v17": { allow: ["linegauge"], budget: 225_350, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
   // 17's `yargs/yargs`: `./yargs/v17` and one function carrying three statics. 224,919 measured.
   // 225,100 on 2026-10-27 with `./yargs`' +56 B for parseSync() surfaces: 224,965 -> 225,021.
-  "./yargs/v17/yargs": { allow: ["linegauge"], budget: 225_100, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
+  // 225,550 on 2026-10-28 with `./yargs`' +493 B for `--mcp` under parseSync(): 225,021 -> 225,514.
+  "./yargs/v17/yargs": { allow: ["linegauge"], budget: 225_550, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
   "./yargs/helpers": {
     allow: [],
     budget: 64_000,

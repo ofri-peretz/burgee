@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "suite": "cli-benchmarks",
-  "measured": "2026-10-27T12:06:54.541Z",
-  "commit": "ac7ccbc072f71a5633a40fab04d8b1c6b7cb0dda-dirty",
+  "measured": "2026-10-27T21:36:57.807Z",
+  "commit": "440f18fa137332e68386e6226069d3de9629e621-dirty",
   "machine": {
     "os": "linux",
     "release": "6.17.0-1022-azure",
@@ -42,8 +42,8 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 92,
-      "median": 26.9,
-      "p95": 28.3,
+      "median": 28.42,
+      "p95": 29.95,
       "note": "the floor: Node starting and writing one line, no parser",
       "detail": {
         "fixture": "node.mjs"
@@ -55,9 +55,9 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 92,
-      "median": 42.48,
-      "p95": 46.18,
-      "note": "spawned `node commander.mjs greet ada`; 15.58 ms of this is above the bare-node floor",
+      "median": 45.24,
+      "p95": 48.67,
+      "note": "spawned `node commander.mjs greet ada`; 16.82 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "commander.mjs",
         "package": "commander",
@@ -71,13 +71,13 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 92,
-      "median": 45.9,
-      "p95": 49.07,
-      "note": "spawned `node burgee-commander.mjs greet ada`; 19 ms of this is above the bare-node floor",
+      "median": 48.26,
+      "p95": 51.89,
+      "note": "spawned `node burgee-commander.mjs greet ada`; 19.84 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "burgee-commander.mjs",
         "package": "burgee",
-        "version": "1.7.2",
+        "version": "1.9.0",
         "resolvedFrom": "<repo>/node_modules/burgee"
       }
     },
@@ -87,9 +87,9 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 92,
-      "median": 103.69,
-      "p95": 106.87,
-      "note": "spawned `node yargs.mjs greet ada`; 76.79 ms of this is above the bare-node floor",
+      "median": 107.02,
+      "p95": 111.39,
+      "note": "spawned `node yargs.mjs greet ada`; 78.6 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "yargs.mjs",
         "package": "yargs",
@@ -103,13 +103,13 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 92,
-      "median": 64.94,
-      "p95": 68.89,
-      "note": "spawned `node burgee-yargs.mjs greet ada`; 38.04 ms of this is above the bare-node floor",
+      "median": 68.66,
+      "p95": 72.49,
+      "note": "spawned `node burgee-yargs.mjs greet ada`; 40.24 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "burgee-yargs.mjs",
         "package": "burgee",
-        "version": "1.7.2",
+        "version": "1.9.0",
         "resolvedFrom": "<repo>/node_modules/burgee"
       }
     },
@@ -119,9 +119,9 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 92,
-      "median": 30.62,
-      "p95": 32.01,
-      "note": "spawned `node cac.mjs greet ada`; 3.72 ms of this is above the bare-node floor",
+      "median": 32.18,
+      "p95": 34.18,
+      "note": "spawned `node cac.mjs greet ada`; 3.76 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "cac.mjs",
         "package": "cac",
@@ -135,13 +135,13 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 92,
-      "median": 45.15,
-      "p95": 47.81,
-      "note": "spawned `node burgee.mjs greet ada`; 18.24 ms of this is above the bare-node floor",
+      "median": 47.14,
+      "p95": 50.27,
+      "note": "spawned `node burgee.mjs greet ada`; 18.72 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "burgee.mjs",
         "package": "burgee",
-        "version": "1.7.2",
+        "version": "1.9.0",
         "resolvedFrom": "<repo>/node_modules/burgee"
       }
     },
@@ -151,9 +151,9 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 92,
-      "median": 30.07,
-      "p95": 32.06,
-      "note": "spawned `node picocolors.mjs` with NO_COLOR; 3.16 ms of this is above the bare-node floor",
+      "median": 31.82,
+      "p95": 33.3,
+      "note": "spawned `node picocolors.mjs` with NO_COLOR; 3.4 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "picocolors.mjs",
         "package": "picocolors",
@@ -167,13 +167,13 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 92,
-      "median": 30.07,
-      "p95": 31.34,
-      "note": "spawned `node roundel-tokens.mjs` with NO_COLOR; 3.16 ms of this is above the bare-node floor",
+      "median": 32.02,
+      "p95": 34.08,
+      "note": "spawned `node roundel-tokens.mjs` with NO_COLOR; 3.6 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "roundel-tokens.mjs",
         "package": "roundel",
-        "version": "1.2.1",
+        "version": "1.3.0",
         "resolvedFrom": "<repo>/node_modules/roundel"
       }
     },
@@ -183,13 +183,13 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 92,
-      "median": 32.5,
-      "p95": 34.12,
-      "note": "spawned `node roundel-chalk.mjs` with NO_COLOR; 5.6 ms of this is above the bare-node floor",
+      "median": 34.54,
+      "p95": 36.3,
+      "note": "spawned `node roundel-chalk.mjs` with NO_COLOR; 6.12 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "roundel-chalk.mjs",
         "package": "roundel",
-        "version": "1.2.1",
+        "version": "1.3.0",
         "resolvedFrom": "<repo>/node_modules/roundel"
       }
     },
@@ -199,9 +199,9 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 92,
-      "median": 335.42,
-      "p95": 344.77,
-      "note": "spawned `node ink-react.mjs`; 308.52 ms of this is above the bare-node floor",
+      "median": 345.79,
+      "p95": 358.95,
+      "note": "spawned `node ink-react.mjs`; 317.37 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "ink-react.mjs",
         "package": "ink",
@@ -215,13 +215,13 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 92,
-      "median": 134.33,
-      "p95": 150.65,
-      "note": "spawned `node controlroom-ink.mjs`; 107.42 ms of this is above the bare-node floor",
+      "median": 138.67,
+      "p95": 159.3,
+      "note": "spawned `node controlroom-ink.mjs`; 110.25 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "controlroom-ink.mjs",
         "package": "controlroom",
-        "version": "1.0.7",
+        "version": "1.0.8",
         "resolvedFrom": "<repo>/node_modules/controlroom"
       }
     },
@@ -231,13 +231,13 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 92,
-      "median": 53.42,
-      "p95": 57.03,
-      "note": "spawned `node controlroom.mjs`; 26.52 ms of this is above the bare-node floor",
+      "median": 56.33,
+      "p95": 61,
+      "note": "spawned `node controlroom.mjs`; 27.91 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "controlroom.mjs",
         "package": "controlroom",
-        "version": "1.0.7",
+        "version": "1.0.8",
         "resolvedFrom": "<repo>/node_modules/controlroom"
       }
     },
@@ -247,9 +247,9 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 92,
-      "median": 32.96,
-      "p95": 34.11,
-      "note": "spawned `node lilconfig.mjs`; 6.06 ms of this is above the bare-node floor",
+      "median": 34.5,
+      "p95": 36.11,
+      "note": "spawned `node lilconfig.mjs`; 6.08 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "lilconfig.mjs",
         "package": "lilconfig",
@@ -263,13 +263,13 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 92,
-      "median": 31.13,
-      "p95": 32.33,
-      "note": "spawned `node seniority-lilconfig.mjs`; 4.23 ms of this is above the bare-node floor",
+      "median": 32.73,
+      "p95": 34.47,
+      "note": "spawned `node seniority-lilconfig.mjs`; 4.31 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "seniority-lilconfig.mjs",
         "package": "seniority",
-        "version": "1.1.1",
+        "version": "1.2.0",
         "resolvedFrom": "<repo>/node_modules/seniority"
       }
     },
@@ -279,9 +279,9 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 92,
-      "median": 48.57,
-      "p95": 53,
-      "note": "spawned `node dotenv.mjs`; 21.67 ms of this is above the bare-node floor",
+      "median": 51.35,
+      "p95": 58.75,
+      "note": "spawned `node dotenv.mjs`; 22.93 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "dotenv.mjs",
         "package": "dotenv",
@@ -295,13 +295,13 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 92,
-      "median": 33.92,
-      "p95": 36.74,
-      "note": "spawned `node seniority-dotenv.mjs`; 7.02 ms of this is above the bare-node floor",
+      "median": 35.41,
+      "p95": 37.59,
+      "note": "spawned `node seniority-dotenv.mjs`; 6.99 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "seniority-dotenv.mjs",
         "package": "seniority",
-        "version": "1.1.1",
+        "version": "1.2.0",
         "resolvedFrom": "<repo>/node_modules/seniority"
       }
     },
@@ -311,9 +311,9 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 92,
-      "median": 59.43,
-      "p95": 61.18,
-      "note": "spawned `node string-width.mjs`; 32.53 ms of this is above the bare-node floor",
+      "median": 61.5,
+      "p95": 63.53,
+      "note": "spawned `node string-width.mjs`; 33.08 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "string-width.mjs",
         "package": "string-width",
@@ -327,9 +327,9 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 92,
-      "median": 33.24,
-      "p95": 34.68,
-      "note": "spawned `node linegauge.mjs`; 6.34 ms of this is above the bare-node floor",
+      "median": 34.88,
+      "p95": 36.62,
+      "note": "spawned `node linegauge.mjs`; 6.46 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "linegauge.mjs",
         "package": "linegauge",
@@ -343,9 +343,9 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 92,
-      "median": 30.07,
-      "p95": 31.4,
-      "note": "spawned `node exit-hook.mjs`; 3.16 ms of this is above the bare-node floor",
+      "median": 31.84,
+      "p95": 34.06,
+      "note": "spawned `node exit-hook.mjs`; 3.42 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "exit-hook.mjs",
         "package": "exit-hook",
@@ -359,9 +359,9 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 92,
-      "median": 29.59,
-      "p95": 30.93,
-      "note": "spawned `node closeout-exit-hook.mjs`; 2.69 ms of this is above the bare-node floor",
+      "median": 31.12,
+      "p95": 33.12,
+      "note": "spawned `node closeout-exit-hook.mjs`; 2.7 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "closeout-exit-hook.mjs",
         "package": "closeout",
@@ -375,9 +375,9 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 92,
-      "median": 29.93,
-      "p95": 31.27,
-      "note": "spawned `node signal-exit.mjs`; 3.03 ms of this is above the bare-node floor",
+      "median": 31.13,
+      "p95": 32.76,
+      "note": "spawned `node signal-exit.mjs`; 2.71 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "signal-exit.mjs",
         "package": "signal-exit",
@@ -391,9 +391,9 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 92,
-      "median": 30.48,
-      "p95": 32.98,
-      "note": "spawned `node closeout-signal-exit.mjs`; 3.58 ms of this is above the bare-node floor",
+      "median": 32.25,
+      "p95": 34.85,
+      "note": "spawned `node closeout-signal-exit.mjs`; 3.83 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "closeout-signal-exit.mjs",
         "package": "closeout",
@@ -407,15 +407,15 @@
       "metric": "cold-start-ratio",
       "unit": "ratio",
       "samples": 92,
-      "median": 1.083,
-      "p95": 1.158,
+      "median": 1.077,
+      "p95": 1.162,
       "gate": {
         "max": 1.4,
         "why": "the front-end must not cost meaningfully more to start than the package it replaces; a ceiling, not a promise — the measured value is what the band watches"
       },
       "note": "median of 92 paired spawns, each round's burgee/commander against the same round's commander",
       "detail": {
-        "ours": "burgee@1.7.2",
+        "ours": "burgee@1.9.0",
         "host": "commander@15.0.0"
       }
     },
@@ -425,15 +425,15 @@
       "metric": "cold-start-ratio",
       "unit": "ratio",
       "samples": 92,
-      "median": 0.629,
-      "p95": 0.675,
+      "median": 0.643,
+      "p95": 0.68,
       "gate": {
         "max": 0.95,
         "why": "the front-end must not cost meaningfully more to start than the package it replaces; a ceiling, not a promise — the measured value is what the band watches"
       },
       "note": "median of 92 paired spawns, each round's burgee/yargs against the same round's yargs",
       "detail": {
-        "ours": "burgee@1.7.2",
+        "ours": "burgee@1.9.0",
         "host": "yargs@18.2.0"
       }
     },
@@ -443,15 +443,15 @@
       "metric": "cold-start-ratio",
       "unit": "ratio",
       "samples": 92,
-      "median": 1.472,
-      "p95": 1.551,
+      "median": 1.46,
+      "p95": 1.565,
       "gate": {
         "max": 1.55,
         "why": "the front-end must not cost meaningfully more to start than the package it replaces; a ceiling, not a promise — the measured value is what the band watches"
       },
       "note": "median of 92 paired spawns, each round's burgee against the same round's cac",
       "detail": {
-        "ours": "burgee@1.7.2",
+        "ours": "burgee@1.9.0",
         "host": "cac@7.0.0"
       }
     },
@@ -461,15 +461,15 @@
       "metric": "cold-start-ratio",
       "unit": "ratio",
       "samples": 92,
-      "median": 0.399,
-      "p95": 0.448,
+      "median": 0.4,
+      "p95": 0.457,
       "gate": {
         "max": 1,
         "why": "the front-end must not cost meaningfully more to start than the package it replaces; a ceiling, not a promise — the measured value is what the band watches"
       },
       "note": "median of 92 paired spawns, each round's controlroom/ink against the same round's ink + react",
       "detail": {
-        "ours": "controlroom@1.0.7",
+        "ours": "controlroom@1.0.8",
         "host": "ink + react@8.0.0"
       }
     },
@@ -479,7 +479,7 @@
       "metric": "cold-start-ratio",
       "unit": "ratio",
       "samples": 92,
-      "median": 0.159,
+      "median": 0.163,
       "p95": 0.174,
       "gate": {
         "max": 1,
@@ -487,7 +487,7 @@
       },
       "note": "median of 92 paired spawns, each round's controlroom against the same round's ink + react",
       "detail": {
-        "ours": "controlroom@1.0.7",
+        "ours": "controlroom@1.0.8",
         "host": "ink + react@8.0.0"
       }
     },
@@ -497,15 +497,15 @@
       "metric": "cold-start-delta-ms",
       "unit": "ms",
       "samples": 92,
-      "median": -0.06,
-      "p95": 1.47,
+      "median": 0.16,
+      "p95": 2.33,
       "gate": {
         "max": 10,
         "why": "roundel R8: a colour entry may cost no more than picocolors + 10 ms to start — the difference of two spawns in the same round, not an absolute"
       },
       "note": "median of 92 paired differences, each round's roundel/tokens less the same round's picocolors",
       "detail": {
-        "ours": "roundel@1.2.1",
+        "ours": "roundel@1.3.0",
         "over": "picocolors@1.1.1"
       }
     },
@@ -515,15 +515,15 @@
       "metric": "cold-start-delta-ms",
       "unit": "ms",
       "samples": 92,
-      "median": 2.52,
-      "p95": 4.02,
+      "median": 2.6,
+      "p95": 4.77,
       "gate": {
         "max": 10,
         "why": "roundel R8: a colour entry may cost no more than picocolors + 10 ms to start — the difference of two spawns in the same round, not an absolute"
       },
       "note": "median of 92 paired differences, each round's roundel/chalk less the same round's picocolors",
       "detail": {
-        "ours": "roundel@1.2.1",
+        "ours": "roundel@1.3.0",
         "over": "picocolors@1.1.1"
       }
     },
@@ -533,15 +533,15 @@
       "metric": "cold-start-delta-ms",
       "unit": "ms",
       "samples": 92,
-      "median": -1.71,
-      "p95": -0.18,
+      "median": -1.81,
+      "p95": -0.34,
       "gate": {
         "max": 2,
         "why": "seniority R9: `seniority/lilconfig` may cost no more than lilconfig to start; the gate allows 2 ms of runner noise over that bar (D-20261026-seniority-spawn-bars)"
       },
       "note": "median of 92 paired differences, each round's seniority/lilconfig less the same round's lilconfig",
       "detail": {
-        "ours": "seniority@1.1.1",
+        "ours": "seniority@1.2.0",
         "over": "lilconfig@3.1.4"
       }
     },
@@ -551,15 +551,15 @@
       "metric": "cold-start-delta-ms",
       "unit": "ms",
       "samples": 92,
-      "median": -14.51,
-      "p95": 2.77,
+      "median": -16.14,
+      "p95": 0.81,
       "gate": {
         "max": 10,
         "why": "a ratchet, not a claim: `seniority/dotenv` starts slower than dotenv, and roundel R8's 10 ms allowance stops that growing (B-20261026-seniority-dotenv-starts-slower)"
       },
       "note": "median of 92 paired differences, each round's seniority/dotenv less the same round's dotenv",
       "detail": {
-        "ours": "seniority@1.1.1",
+        "ours": "seniority@1.2.0",
         "over": "dotenv@18.0.9"
       }
     },
@@ -569,8 +569,8 @@
       "metric": "cold-start-delta-ms",
       "unit": "ms",
       "samples": 92,
-      "median": -26.19,
-      "p95": -25.04,
+      "median": -26.6,
+      "p95": -24.73,
       "gate": {
         "max": 0,
         "why": "linegauge criterion 2: `linegauge` may cost no more than string-width to start (D-20261026-library-spawn-delta-rows, D-20261027-linegauge-closeout-spawn-bars)"
@@ -587,8 +587,8 @@
       "metric": "cold-start-delta-ms",
       "unit": "ms",
       "samples": 92,
-      "median": -0.65,
-      "p95": 0.57,
+      "median": -0.6,
+      "p95": 0.85,
       "gate": {
         "max": 2,
         "why": "closeout criterion 3: `closeout/exit-hook` may cost no more than exit-hook to start; the gate allows 2 ms of runner noise over that bar (D-20261026-library-spawn-delta-rows, D-20261027-linegauge-closeout-spawn-bars)"
@@ -605,8 +605,8 @@
       "metric": "cold-start-delta-ms",
       "unit": "ms",
       "samples": 92,
-      "median": 0.62,
-      "p95": 2.48,
+      "median": 1.08,
+      "p95": 3.7,
       "gate": {
         "max": 2,
         "why": "closeout criterion 3, the optional row: `closeout/signal-exit` may cost no more than signal-exit to start; the gate allows 2 ms of runner noise over that bar (D-20261026-library-spawn-delta-rows, D-20261027-linegauge-closeout-spawn-bars)"
@@ -623,13 +623,13 @@
       "metric": "scale-start-ms",
       "unit": "ms",
       "samples": 24,
-      "median": 58.68,
-      "p95": 62.35,
+      "median": 60.15,
+      "p95": 63.37,
       "note": "spawned `node cli.mjs --help` over a generated 30-command program; absolute ms are this machine's, the ratio row is the number",
       "detail": {
         "commands": 30,
         "surface": "--help",
-        "range": "56.87–63.46"
+        "range": "57.77–63.76"
       }
     },
     {
@@ -638,13 +638,13 @@
       "metric": "scale-start-ms",
       "unit": "ms",
       "samples": 24,
-      "median": 60.38,
-      "p95": 62.35,
+      "median": 61.27,
+      "p95": 64.25,
       "note": "spawned `node cli.mjs --schema` over a generated 30-command program; absolute ms are this machine's, the ratio row is the number",
       "detail": {
         "commands": 30,
         "surface": "--schema",
-        "range": "58.39–64.24"
+        "range": "59.67–65.07"
       }
     },
     {
@@ -653,13 +653,13 @@
       "metric": "scale-start-ms",
       "unit": "ms",
       "samples": 24,
-      "median": 73.06,
-      "p95": 75.08,
+      "median": 75.11,
+      "p95": 77.32,
       "note": "spawned `node cli.mjs --help` over a generated 250-command program; absolute ms are this machine's, the ratio row is the number",
       "detail": {
         "commands": 250,
         "surface": "--help",
-        "range": "69.38–76.57"
+        "range": "72.53–77.99"
       }
     },
     {
@@ -668,13 +668,13 @@
       "metric": "scale-start-ms",
       "unit": "ms",
       "samples": 24,
-      "median": 74.82,
-      "p95": 76.3,
+      "median": 77.26,
+      "p95": 79.01,
       "note": "spawned `node cli.mjs --schema` over a generated 250-command program; absolute ms are this machine's, the ratio row is the number",
       "detail": {
         "commands": 250,
         "surface": "--schema",
-        "range": "70.44–79.45"
+        "range": "73.74–79.51"
       }
     },
     {
@@ -683,15 +683,15 @@
       "metric": "scale-ratio",
       "unit": "ratio",
       "samples": 24,
-      "median": 1.236,
-      "p95": 1.29,
+      "median": 1.243,
+      "p95": 1.299,
       "gate": {
         "max": 3,
         "why": "Z5: above 3×, a 250-command program pays enough for its in-memory manifest that a precompute intent is opened from this number (D-20261025-burgee-umbrella-design-accepted)"
       },
       "note": "median of 24 paired spawns, each round's 250-command --help over the same round's 30",
       "detail": {
-        "range": "1.166–1.291"
+        "range": "1.164–1.307"
       }
     },
     {
@@ -700,15 +700,15 @@
       "metric": "scale-ratio",
       "unit": "ratio",
       "samples": 24,
-      "median": 1.228,
-      "p95": 1.287,
+      "median": 1.256,
+      "p95": 1.296,
       "gate": {
         "max": 3,
         "why": "Z5: above 3×, a 250-command program pays enough for its in-memory manifest that a precompute intent is opened from this number (D-20261025-burgee-umbrella-design-accepted)"
       },
       "note": "median of 24 paired spawns, each round's 250-command --schema over the same round's 30",
       "detail": {
-        "range": "1.163–1.309"
+        "range": "1.187–1.309"
       }
     },
     {
@@ -2316,15 +2316,15 @@
       "metric": "bundled-bytes",
       "unit": "bytes",
       "samples": 1,
-      "median": 24442,
-      "p95": 24442,
+      "median": 24460,
+      "p95": 24460,
       "gate": {
         "max": 24560,
         "why": "a ratchet on what a user's bundle grows by; raising it is a decision, not a drift"
       },
       "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing `run` from `burgee`",
       "detail": {
-        "version": "1.7.2",
+        "version": "1.9.0",
         "resolvedFrom": "<repo>/node_modules/burgee"
       }
     },
@@ -2348,11 +2348,11 @@
       "metric": "installed-bytes",
       "unit": "bytes",
       "samples": 1,
-      "median": 1720132,
-      "p95": 1720132,
+      "median": 1722512,
+      "p95": 1722512,
       "note": "`npm pack` unpacked size of burgee plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
       "detail": {
-        "version": "1.7.2",
+        "version": "1.9.0",
         "resolvedFrom": "<repo>/node_modules/burgee"
       }
     },
@@ -2376,15 +2376,15 @@
       "metric": "bundled-bytes-ratio",
       "unit": "ratio",
       "samples": 1,
-      "median": 2.338,
-      "p95": 2.338,
+      "median": 2.34,
+      "p95": 2.34,
       "gate": {
         "max": 2.35,
         "why": "the published claim itself, a downward-only ratchet (D-157): .sdlc/bands/claim-ratchets.json sets it just above the measurement, and it may only be lowered"
       },
       "note": "core against the published target: cac, the lightest framework in the landscape (§6); both sides bundled by the same command, both resolved from benchmarks/",
       "detail": {
-        "ours": "burgee@1.7.2",
+        "ours": "burgee@1.9.0",
         "incumbent": "cac@7.0.0"
       }
     },
@@ -2427,7 +2427,7 @@
       },
       "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing `Command` from `burgee/commander`",
       "detail": {
-        "version": "1.7.2",
+        "version": "1.9.0",
         "resolvedFrom": "<repo>/node_modules/burgee"
       }
     },
@@ -2451,11 +2451,11 @@
       "metric": "installed-bytes",
       "unit": "bytes",
       "samples": 1,
-      "median": 1720132,
-      "p95": 1720132,
+      "median": 1722512,
+      "p95": 1722512,
       "note": "`npm pack` unpacked size of burgee plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
       "detail": {
-        "version": "1.7.2",
+        "version": "1.9.0",
         "resolvedFrom": "<repo>/node_modules/burgee"
       }
     },
@@ -2487,7 +2487,7 @@
       },
       "note": "the commander front-end against commander itself; both sides bundled by the same command, both resolved from benchmarks/",
       "detail": {
-        "ours": "burgee/commander@1.7.2",
+        "ours": "burgee/commander@1.9.0",
         "incumbent": "commander@15.0.0"
       }
     },
@@ -2522,15 +2522,15 @@
       "metric": "bundled-bytes",
       "unit": "bytes",
       "samples": 1,
-      "median": 108836,
-      "p95": 108836,
+      "median": 108897,
+      "p95": 108897,
       "gate": {
-        "max": 108850,
+        "max": 108900,
         "why": "a ratchet on what a user's bundle grows by; raising it is a decision, not a drift"
       },
       "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing its default export from `burgee/yargs`",
       "detail": {
-        "version": "1.7.2",
+        "version": "1.9.0",
         "resolvedFrom": "<repo>/node_modules/burgee"
       }
     },
@@ -2554,11 +2554,11 @@
       "metric": "installed-bytes",
       "unit": "bytes",
       "samples": 1,
-      "median": 1720132,
-      "p95": 1720132,
+      "median": 1722512,
+      "p95": 1722512,
       "note": "`npm pack` unpacked size of burgee plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
       "detail": {
-        "version": "1.7.2",
+        "version": "1.9.0",
         "resolvedFrom": "<repo>/node_modules/burgee"
       }
     },
@@ -2582,15 +2582,15 @@
       "metric": "bundled-bytes-ratio",
       "unit": "ratio",
       "samples": 1,
-      "median": 0.974,
-      "p95": 0.974,
+      "median": 0.975,
+      "p95": 0.975,
       "gate": {
         "max": 1,
         "why": "U5, stated as a check: this entry point is no heavier in a user's bundle than the package it replaces"
       },
       "note": "the yargs front-end against yargs and its five dependencies; both sides bundled by the same command, both resolved from benchmarks/",
       "detail": {
-        "ours": "burgee/yargs@1.7.2",
+        "ours": "burgee/yargs@1.9.0",
         "incumbent": "yargs@18.2.0"
       }
     },
@@ -2629,7 +2629,7 @@
       "p95": 4790,
       "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing its default export from `roundel/chalk`",
       "detail": {
-        "version": "1.2.1",
+        "version": "1.3.0",
         "resolvedFrom": "<repo>/node_modules/roundel"
       }
     },
@@ -2657,7 +2657,7 @@
       "p95": 131561,
       "note": "`npm pack` unpacked size of roundel plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
       "detail": {
-        "version": "1.2.1",
+        "version": "1.3.0",
         "resolvedFrom": "<repo>/node_modules/roundel"
       }
     },
@@ -2689,7 +2689,7 @@
       },
       "note": "the colour façade against chalk; both sides bundled by the same command, both resolved from benchmarks/",
       "detail": {
-        "ours": "roundel/chalk@1.2.1",
+        "ours": "roundel/chalk@1.3.0",
         "incumbent": "chalk@6.0.1"
       }
     },
@@ -2703,7 +2703,7 @@
       "p95": 383,
       "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing `error` from `roundel/tokens`",
       "detail": {
-        "version": "1.2.1",
+        "version": "1.3.0",
         "resolvedFrom": "<repo>/node_modules/roundel"
       }
     },
@@ -2731,7 +2731,7 @@
       "p95": 131561,
       "note": "`npm pack` unpacked size of roundel plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
       "detail": {
-        "version": "1.2.1",
+        "version": "1.3.0",
         "resolvedFrom": "<repo>/node_modules/roundel"
       }
     },
@@ -2763,7 +2763,7 @@
       },
       "note": "the roadmap's second bet: colour under picocolors' weight; both sides bundled by the same command, both resolved from benchmarks/",
       "detail": {
-        "ours": "roundel/tokens@1.2.1",
+        "ours": "roundel/tokens@1.3.0",
         "incumbent": "picocolors@1.1.1"
       }
     },
@@ -2781,7 +2781,7 @@
       },
       "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing `red` from `roundel/colorette`",
       "detail": {
-        "version": "1.2.1",
+        "version": "1.3.0",
         "resolvedFrom": "<repo>/node_modules/roundel"
       }
     },
@@ -2809,7 +2809,7 @@
       "p95": 131561,
       "note": "`npm pack` unpacked size of roundel plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
       "detail": {
-        "version": "1.2.1",
+        "version": "1.3.0",
         "resolvedFrom": "<repo>/node_modules/roundel"
       }
     },
@@ -2841,7 +2841,7 @@
       },
       "note": "colour under colorette 2, the functions picocolors was forked from; both sides bundled by the same command, both resolved from benchmarks/",
       "detail": {
-        "ours": "roundel/colorette@1.2.1",
+        "ours": "roundel/colorette@1.3.0",
         "incumbent": "colorette@2.0.20"
       }
     },
@@ -2859,7 +2859,7 @@
       },
       "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing its default export from `roundel/kleur`",
       "detail": {
-        "version": "1.2.1",
+        "version": "1.3.0",
         "resolvedFrom": "<repo>/node_modules/roundel"
       }
     },
@@ -2887,7 +2887,7 @@
       "p95": 131561,
       "note": "`npm pack` unpacked size of roundel plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
       "detail": {
-        "version": "1.2.1",
+        "version": "1.3.0",
         "resolvedFrom": "<repo>/node_modules/roundel"
       }
     },
@@ -2919,7 +2919,7 @@
       },
       "note": "colour under kleur 4, the chainable one; both sides bundled by the same command, both resolved from benchmarks/",
       "detail": {
-        "ours": "roundel/kleur@1.2.1",
+        "ours": "roundel/kleur@1.3.0",
         "incumbent": "kleur@4.1.5"
       }
     },
@@ -2937,7 +2937,7 @@
       },
       "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing `red` from `roundel/kleur/colors`",
       "detail": {
-        "version": "1.2.1",
+        "version": "1.3.0",
         "resolvedFrom": "<repo>/node_modules/roundel"
       }
     },
@@ -2965,7 +2965,7 @@
       "p95": 131561,
       "note": "`npm pack` unpacked size of roundel plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
       "detail": {
-        "version": "1.2.1",
+        "version": "1.3.0",
         "resolvedFrom": "<repo>/node_modules/roundel"
       }
     },
@@ -2997,7 +2997,7 @@
       },
       "note": "colour under kleur 4's plain functions; both sides bundled by the same command, both resolved from benchmarks/",
       "detail": {
-        "ours": "roundel/kleur/colors@1.2.1",
+        "ours": "roundel/kleur/colors@1.3.0",
         "incumbent": "kleur/colors@4.1.5"
       }
     },
@@ -3015,7 +3015,7 @@
       },
       "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing its default export from `roundel/supports-color`",
       "detail": {
-        "version": "1.2.1",
+        "version": "1.3.0",
         "resolvedFrom": "<repo>/node_modules/roundel"
       }
     },
@@ -3043,7 +3043,7 @@
       "p95": 131561,
       "note": "`npm pack` unpacked size of roundel plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
       "detail": {
-        "version": "1.2.1",
+        "version": "1.3.0",
         "resolvedFrom": "<repo>/node_modules/roundel"
       }
     },
@@ -3075,7 +3075,7 @@
       },
       "note": "the colour-detection drop-in against supports-color 11; both sides bundled by the same command, both resolved from benchmarks/",
       "detail": {
-        "ours": "roundel/supports-color@1.2.1",
+        "ours": "roundel/supports-color@1.3.0",
         "incumbent": "supports-color@11.0.0"
       }
     },
@@ -3093,7 +3093,7 @@
       },
       "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing its default export from `roundel/yoctocolors`",
       "detail": {
-        "version": "1.2.1",
+        "version": "1.3.0",
         "resolvedFrom": "<repo>/node_modules/roundel"
       }
     },
@@ -3121,7 +3121,7 @@
       "p95": 131561,
       "note": "`npm pack` unpacked size of roundel plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
       "detail": {
-        "version": "1.2.1",
+        "version": "1.3.0",
         "resolvedFrom": "<repo>/node_modules/roundel"
       }
     },
@@ -3153,7 +3153,7 @@
       },
       "note": "colour under yoctocolors 2, the smallest of the colour packages; both sides bundled by the same command, both resolved from benchmarks/",
       "detail": {
-        "ours": "roundel/yoctocolors@1.2.1",
+        "ours": "roundel/yoctocolors@1.3.0",
         "incumbent": "yoctocolors@2.2.0"
       }
     },
@@ -4073,7 +4073,7 @@
       },
       "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing `lilconfig` from `seniority/lilconfig`",
       "detail": {
-        "version": "1.1.1",
+        "version": "1.2.0",
         "resolvedFrom": "<repo>/node_modules/seniority"
       }
     },
@@ -4101,7 +4101,7 @@
       "p95": 225522,
       "note": "`npm pack` unpacked size of seniority plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
       "detail": {
-        "version": "1.1.1",
+        "version": "1.2.0",
         "resolvedFrom": "<repo>/node_modules/seniority"
       }
     },
@@ -4133,7 +4133,7 @@
       },
       "note": "the config-search drop-in against lilconfig, the zero-dependency alternative to cosmiconfig; both sides bundled by the same command, both resolved from benchmarks/",
       "detail": {
-        "ours": "seniority/lilconfig@1.1.1",
+        "ours": "seniority/lilconfig@1.2.0",
         "incumbent": "lilconfig@3.1.4"
       }
     },
@@ -4151,7 +4151,7 @@
       },
       "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing its default export from `seniority/dotenv`",
       "detail": {
-        "version": "1.1.1",
+        "version": "1.2.0",
         "resolvedFrom": "<repo>/node_modules/seniority"
       }
     },
@@ -4179,7 +4179,7 @@
       "p95": 225522,
       "note": "`npm pack` unpacked size of seniority plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
       "detail": {
-        "version": "1.1.1",
+        "version": "1.2.0",
         "resolvedFrom": "<repo>/node_modules/seniority"
       }
     },
@@ -4211,7 +4211,7 @@
       },
       "note": "the .env drop-in against dotenv, the lightest incumbent in seniority's foundation ceiling; both sides bundled by the same command, both resolved from benchmarks/",
       "detail": {
-        "ours": "seniority/dotenv@1.1.1",
+        "ours": "seniority/dotenv@1.2.0",
         "incumbent": "dotenv@18.0.9"
       }
     },
@@ -4229,7 +4229,7 @@
       },
       "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing `cosmiconfig` from `seniority/cosmiconfig`, `findUp` from `seniority/find-up`",
       "detail": {
-        "version": "1.1.1",
+        "version": "1.2.0",
         "resolvedFrom": "<repo>/node_modules/seniority"
       }
     },
@@ -4257,7 +4257,7 @@
       "p95": 225522,
       "note": "`npm pack` unpacked size of seniority plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
       "detail": {
-        "version": "1.1.1",
+        "version": "1.2.0",
         "resolvedFrom": "<repo>/node_modules/seniority"
       }
     },
@@ -4285,7 +4285,7 @@
       "p95": 1,
       "note": "package directories on disk for the tree, each installed copy once, by the walk installed-bytes makes",
       "detail": {
-        "version": "1.1.1",
+        "version": "1.2.0",
         "resolvedFrom": "<repo>/node_modules/seniority"
       }
     },
@@ -4345,7 +4345,7 @@
       },
       "note": "seniority criterion 4: config loading and the upward walk, as cosmiconfig and find-up against the two seniority entry points that replace them; both sides bundled by the same command, both resolved from benchmarks/",
       "detail": {
-        "ours": "seniority/cosmiconfig@1.1.1",
+        "ours": "seniority/cosmiconfig@1.2.0",
         "incumbent": "cosmiconfig@10.0.1"
       }
     },
@@ -4515,7 +4515,7 @@
       "p95": 531706,
       "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing `render` from `controlroom/ink`, its default export from `react`, its default export from `react-reconciler`, every chunk counted: its peers load through `import()` under top-level await, so no chunk is lazy",
       "detail": {
-        "version": "1.0.7",
+        "version": "1.0.8",
         "resolvedFrom": "<repo>/node_modules/controlroom"
       }
     },
@@ -4539,11 +4539,11 @@
       "metric": "installed-bytes",
       "unit": "bytes",
       "samples": 1,
-      "median": 3519912,
-      "p95": 3519912,
+      "median": 3529608,
+      "p95": 3529608,
       "note": "`npm pack` unpacked size of controlroom and its same-repo dependencies, plus the bytes on disk for react, react-reconciler and every production dependency they drag in",
       "detail": {
-        "version": "1.0.7",
+        "version": "1.0.8",
         "resolvedFrom": "<repo>/node_modules/controlroom"
       }
     },
@@ -4571,7 +4571,7 @@
       "p95": 11,
       "note": "package directories on disk for the tree, each installed copy once, by the walk installed-bytes makes",
       "detail": {
-        "version": "1.0.7",
+        "version": "1.0.8",
         "resolvedFrom": "<repo>/node_modules/controlroom"
       }
     },
@@ -4595,8 +4595,8 @@
       "metric": "installed-bytes-ratio",
       "unit": "ratio",
       "samples": 1,
-      "median": 0.431,
-      "p95": 0.431,
+      "median": 0.432,
+      "p95": 0.432,
       "gate": {
         "max": 1,
         "why": "controlroom W2: the drop-in installs no more than what it replaces, in packages and in bytes"
@@ -4631,7 +4631,7 @@
       },
       "note": "controlroom W1 and W2: the drop-in with the React and reconciler it renders through, against ink and the React it renders through; both sides bundled by the same command, both resolved from benchmarks/",
       "detail": {
-        "ours": "controlroom/ink@1.0.7",
+        "ours": "controlroom/ink@1.0.8",
         "incumbent": "ink@8.0.0"
       }
     },
@@ -4645,7 +4645,7 @@
       "p95": 41982,
       "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing `open` from `controlroom`",
       "detail": {
-        "version": "1.0.7",
+        "version": "1.0.8",
         "resolvedFrom": "<repo>/node_modules/controlroom"
       }
     },
@@ -4669,11 +4669,11 @@
       "metric": "installed-bytes",
       "unit": "bytes",
       "samples": 1,
-      "median": 1407789,
-      "p95": 1407789,
+      "median": 1417485,
+      "p95": 1417485,
       "note": "`npm pack` unpacked size of controlroom plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
       "detail": {
-        "version": "1.0.7",
+        "version": "1.0.8",
         "resolvedFrom": "<repo>/node_modules/controlroom"
       }
     },
@@ -4705,7 +4705,81 @@
       },
       "note": "controlroom W3: the native API's screen against ink alone — where \"lighter than Ink\" may be claimed once measured; both sides bundled by the same command, both resolved from benchmarks/",
       "detail": {
-        "ours": "controlroom@1.0.7",
+        "ours": "controlroom@1.0.8",
+        "incumbent": "ink@8.0.0"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "examples/dashboard/dashboard.mjs",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 48366,
+      "p95": 48366,
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing the whole program `examples/dashboard/dashboard.mjs`, which imports `controlroom`, `flagstaff`",
+      "detail": {
+        "version": "1.0.8",
+        "resolvedFrom": "<repo>/node_modules/controlroom"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "examples/dashboard-ink/screen.mjs",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 730210,
+      "p95": 730210,
+      "note": "the same fixture over the whole program `examples/dashboard-ink/screen.mjs`, which imports `ink`, `react`, `@inkjs/ui`, with `react-devtools-core` external — controlroom W3, the demo half: the reference dashboard against the same screen written for Ink and @inkjs/ui, each bundled whole",
+      "detail": {
+        "version": "8.0.0",
+        "resolvedFrom": "<repo>/node_modules/ink"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "examples/dashboard/dashboard.mjs",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 1417485,
+      "p95": 1417485,
+      "note": "`npm pack` unpacked size of controlroom and its same-repo dependencies, plus the bytes on disk for flagstaff and every production dependency they drag in",
+      "detail": {
+        "version": "1.0.8",
+        "resolvedFrom": "<repo>/node_modules/controlroom"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "examples/dashboard-ink/screen.mjs",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 8470778,
+      "p95": 8470778,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "8.0.0",
+        "resolvedFrom": "<repo>/node_modules/ink"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "examples/dashboard/dashboard.mjs ÷ examples/dashboard-ink/screen.mjs",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.066,
+      "p95": 0.066,
+      "gate": {
+        "max": 1,
+        "why": "U5, stated as a check: this entry point is no heavier in a user's bundle than the package it replaces"
+      },
+      "note": "controlroom W3, the demo half: the reference dashboard against the same screen written for Ink and @inkjs/ui, each bundled whole; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "controlroom@1.0.8",
         "incumbent": "ink@8.0.0"
       }
     },
@@ -4877,8 +4951,8 @@
       "metric": "runtime-ratio",
       "unit": "ratio",
       "samples": 21,
-      "median": 1.015,
-      "p95": 1.05,
+      "median": 1.085,
+      "p95": 1.114,
       "gate": {
         "max": 1.15,
         "why": "a downward-only ratchet toward ≤ 1 (at or below the incumbent): just above the last CI measurement, lowered by the PR that makes this pair faster, never raised without a decision (.sdlc/bands/runtime-ratchets.json)"
@@ -4888,8 +4962,8 @@
         "workload": "paratext-ansi-escapes.mjs",
         "target": 1,
         "met": false,
-        "oursNsPerCall": 2755073,
-        "theirsNsPerCall": 2706163,
+        "oursNsPerCall": 2848710,
+        "theirsNsPerCall": 2623838,
         "ours": "paratext@1.0.11",
         "host": "ansi-escapes@7.3.0",
         "oursFrom": "<repo>/node_modules/paratext",
@@ -4902,8 +4976,8 @@
       "metric": "runtime-ratio",
       "unit": "ratio",
       "samples": 11,
-      "median": 0.508,
-      "p95": 0.792,
+      "median": 0.507,
+      "p95": 0.791,
       "gate": {
         "max": 0.95,
         "why": "a downward-only ratchet toward ≤ 1 (at or below the incumbent): just above the last CI measurement, lowered by the PR that makes this pair faster, never raised without a decision (.sdlc/bands/runtime-ratchets.json)"
@@ -4913,8 +4987,8 @@
         "workload": "paratext-terminal-link.mjs",
         "target": 1,
         "met": true,
-        "oursNsPerCall": 400664,
-        "theirsNsPerCall": 786628,
+        "oursNsPerCall": 398358,
+        "theirsNsPerCall": 783818,
         "ours": "paratext@1.0.11",
         "host": "terminal-link@5.0.0",
         "oursFrom": "<repo>/node_modules/paratext",
@@ -4927,8 +5001,8 @@
       "metric": "runtime-ratio",
       "unit": "ratio",
       "samples": 11,
-      "median": 0.725,
-      "p95": 0.75,
+      "median": 0.739,
+      "p95": 0.884,
       "gate": {
         "max": 0.85,
         "why": "a downward-only ratchet toward ≤ 1 (at or below the incumbent): just above the last CI measurement, lowered by the PR that makes this pair faster, never raised without a decision (.sdlc/bands/runtime-ratchets.json)"
@@ -4938,8 +5012,8 @@
         "workload": "linegauge-string-width.mjs",
         "target": 1,
         "met": true,
-        "oursNsPerCall": 10543797,
-        "theirsNsPerCall": 14577252,
+        "oursNsPerCall": 10534807,
+        "theirsNsPerCall": 14318211,
         "ours": "linegauge@1.1.5",
         "host": "string-width@8.3.0",
         "oursFrom": "<repo>/node_modules/linegauge",
@@ -4952,8 +5026,8 @@
       "metric": "runtime-ratio",
       "unit": "ratio",
       "samples": 11,
-      "median": 1.026,
-      "p95": 1.029,
+      "median": 1.036,
+      "p95": 1.049,
       "gate": {
         "max": 1.1,
         "why": "a downward-only ratchet toward ≤ 1 (at or below the incumbent): just above the last CI measurement, lowered by the PR that makes this pair faster, never raised without a decision (.sdlc/bands/runtime-ratchets.json)"
@@ -4963,8 +5037,8 @@
         "workload": "linegauge-strip-ansi.mjs",
         "target": 1,
         "met": false,
-        "oursNsPerCall": 108357,
-        "theirsNsPerCall": 105849,
+        "oursNsPerCall": 109621,
+        "theirsNsPerCall": 106040,
         "ours": "linegauge@1.1.5",
         "host": "strip-ansi@7.2.0",
         "oursFrom": "<repo>/node_modules/linegauge",
@@ -4977,8 +5051,8 @@
       "metric": "runtime-ratio",
       "unit": "ratio",
       "samples": 11,
-      "median": 0.719,
-      "p95": 0.783,
+      "median": 0.732,
+      "p95": 0.784,
       "gate": {
         "max": 0.85,
         "why": "a downward-only ratchet toward ≤ 1 (at or below the incumbent): just above the last CI measurement, lowered by the PR that makes this pair faster, never raised without a decision (.sdlc/bands/runtime-ratchets.json)"
@@ -4988,8 +5062,8 @@
         "workload": "linegauge-wrap-ansi.mjs",
         "target": 1,
         "met": true,
-        "oursNsPerCall": 32737388,
-        "theirsNsPerCall": 46162523,
+        "oursNsPerCall": 32480494,
+        "theirsNsPerCall": 44907218,
         "ours": "linegauge@1.1.5",
         "host": "wrap-ansi@10.0.2",
         "oursFrom": "<repo>/node_modules/linegauge",
@@ -5002,8 +5076,8 @@
       "metric": "runtime-ratio",
       "unit": "ratio",
       "samples": 21,
-      "median": 0.922,
-      "p95": 1.229,
+      "median": 0.957,
+      "p95": 1.134,
       "gate": {
         "max": 1.05,
         "why": "a downward-only ratchet toward ≤ 1 (at or below the incumbent): just above the last CI measurement, lowered by the PR that makes this pair faster, never raised without a decision (.sdlc/bands/runtime-ratchets.json)"
@@ -5013,8 +5087,8 @@
         "workload": "linegauge-slice-ansi.mjs",
         "target": 1,
         "met": true,
-        "oursNsPerCall": 8126755,
-        "theirsNsPerCall": 8860630,
+        "oursNsPerCall": 8615156,
+        "theirsNsPerCall": 8996963,
         "ours": "linegauge@1.1.5",
         "host": "slice-ansi@9.0.1",
         "oursFrom": "<repo>/node_modules/linegauge",
@@ -5027,8 +5101,8 @@
       "metric": "runtime-ratio",
       "unit": "ratio",
       "samples": 11,
-      "median": 1.224,
-      "p95": 1.258,
+      "median": 1.24,
+      "p95": 1.282,
       "gate": {
         "max": 1.35,
         "why": "a downward-only ratchet toward ≤ 1 (at or below the incumbent): just above the last CI measurement, lowered by the PR that makes this pair faster, never raised without a decision (.sdlc/bands/runtime-ratchets.json)"
@@ -5038,9 +5112,9 @@
         "workload": "roundel-chalk.mjs",
         "target": 1,
         "met": false,
-        "oursNsPerCall": 9547329,
-        "theirsNsPerCall": 7786840,
-        "ours": "roundel@1.2.1",
+        "oursNsPerCall": 9689760,
+        "theirsNsPerCall": 7796649,
+        "ours": "roundel@1.3.0",
         "host": "chalk@6.0.1",
         "oursFrom": "<repo>/node_modules/roundel",
         "hostFrom": "<repo>/node_modules/chalk"
@@ -5052,7 +5126,7 @@
       "metric": "runtime-ratio",
       "unit": "ratio",
       "samples": 11,
-      "median": 0.31,
+      "median": 0.314,
       "p95": 0.319,
       "gate": {
         "max": 0.5,
@@ -5063,8 +5137,8 @@
         "workload": "bellpull-which.mjs",
         "target": 1,
         "met": true,
-        "oursNsPerCall": 1159284,
-        "theirsNsPerCall": 3742430,
+        "oursNsPerCall": 1150629,
+        "theirsNsPerCall": 3686941,
         "ours": "bellpull@1.0.10",
         "host": "which@7.0.0",
         "oursFrom": "<repo>/node_modules/bellpull",
@@ -5077,8 +5151,8 @@
       "metric": "runtime-ratio",
       "unit": "ratio",
       "samples": 31,
-      "median": 0.985,
-      "p95": 1.018,
+      "median": 0.986,
+      "p95": 1.008,
       "gate": {
         "max": 1,
         "why": "a downward-only ratchet toward ≤ 1 (at or below the incumbent): just above the last CI measurement, lowered by the PR that makes this pair faster, never raised without a decision (.sdlc/bands/runtime-ratchets.json)"
@@ -5088,8 +5162,8 @@
         "workload": "bellpull-tinyexec.mjs",
         "target": 1,
         "met": true,
-        "oursNsPerCall": 3654463,
-        "theirsNsPerCall": 3709558,
+        "oursNsPerCall": 3633918,
+        "theirsNsPerCall": 3696007,
         "ours": "bellpull@1.0.10",
         "host": "tinyexec@1.3.1",
         "oursFrom": "<repo>/node_modules/bellpull",
@@ -5102,8 +5176,8 @@
       "metric": "runtime-ratio",
       "unit": "ratio",
       "samples": 11,
-      "median": 0.973,
-      "p95": 1.058,
+      "median": 0.949,
+      "p95": 1.037,
       "gate": {
         "max": 1.05,
         "why": "a downward-only ratchet toward ≤ 1 (at or below the incumbent): just above the last CI measurement, lowered by the PR that makes this pair faster, never raised without a decision (.sdlc/bands/runtime-ratchets.json)"
@@ -5113,8 +5187,8 @@
         "workload": "flagstaff-ora.mjs",
         "target": 1,
         "met": true,
-        "oursNsPerCall": 15460342,
-        "theirsNsPerCall": 15431613,
+        "oursNsPerCall": 13992761,
+        "theirsNsPerCall": 14820404,
         "ours": "flagstaff@1.7.5",
         "host": "ora@9.4.1",
         "oursFrom": "<repo>/node_modules/flagstaff",
@@ -5127,8 +5201,8 @@
       "metric": "runtime-ratio",
       "unit": "ratio",
       "samples": 21,
-      "median": 0.743,
-      "p95": 1.178,
+      "median": 0.762,
+      "p95": 1.435,
       "gate": {
         "max": 1.05,
         "why": "a downward-only ratchet toward ≤ 1 (at or below the incumbent): just above the last CI measurement, lowered by the PR that makes this pair faster, never raised without a decision (.sdlc/bands/runtime-ratchets.json)"
@@ -5138,8 +5212,8 @@
         "workload": "flagstaff-log-update.mjs",
         "target": 1,
         "met": true,
-        "oursNsPerCall": 21253208,
-        "theirsNsPerCall": 34693572,
+        "oursNsPerCall": 23884773,
+        "theirsNsPerCall": 32408295,
         "ours": "flagstaff@1.7.5",
         "host": "log-update@8.0.0",
         "oursFrom": "<repo>/node_modules/flagstaff",
@@ -5152,8 +5226,8 @@
       "metric": "runtime-ratio",
       "unit": "ratio",
       "samples": 11,
-      "median": 0.366,
-      "p95": 0.417,
+      "median": 0.37,
+      "p95": 0.393,
       "gate": {
         "max": 0.45,
         "why": "a downward-only ratchet toward ≤ 1 (at or below the incumbent): just above the last CI measurement, lowered by the PR that makes this pair faster, never raised without a decision (.sdlc/bands/runtime-ratchets.json)"
@@ -5163,8 +5237,8 @@
         "workload": "flagstaff-boxen.mjs",
         "target": 1,
         "met": true,
-        "oursNsPerCall": 98453843,
-        "theirsNsPerCall": 268709759,
+        "oursNsPerCall": 100595348,
+        "theirsNsPerCall": 273278843,
         "ours": "flagstaff@1.7.5",
         "host": "boxen@9.0.0",
         "oursFrom": "<repo>/node_modules/flagstaff",
@@ -5177,8 +5251,8 @@
       "metric": "runtime-ratio",
       "unit": "ratio",
       "samples": 11,
-      "median": 0.4,
-      "p95": 0.453,
+      "median": 0.39,
+      "p95": 0.467,
       "gate": {
         "max": 0.45,
         "why": "a downward-only ratchet toward ≤ 1 (at or below the incumbent): just above the last CI measurement, lowered by the PR that makes this pair faster, never raised without a decision (.sdlc/bands/runtime-ratchets.json)"
@@ -5188,8 +5262,8 @@
         "workload": "flagstaff-cli-table3.mjs",
         "target": 1,
         "met": true,
-        "oursNsPerCall": 32598641,
-        "theirsNsPerCall": 85306139,
+        "oursNsPerCall": 32692809,
+        "theirsNsPerCall": 82764683,
         "ours": "flagstaff@1.7.5",
         "host": "cli-table3@0.6.5",
         "oursFrom": "<repo>/node_modules/flagstaff",
@@ -5202,8 +5276,8 @@
       "metric": "runtime-ratio",
       "unit": "ratio",
       "samples": 11,
-      "median": 1.134,
-      "p95": 1.178,
+      "median": 1.102,
+      "p95": 1.167,
       "gate": {
         "max": 1.7,
         "why": "a downward-only ratchet toward ≤ 1 (at or below the incumbent): just above the last CI measurement, lowered by the PR that makes this pair faster, never raised without a decision (.sdlc/bands/runtime-ratchets.json)"
@@ -5213,9 +5287,9 @@
         "workload": "caique-clack.mjs",
         "target": 1,
         "met": false,
-        "oursNsPerCall": 2430220,
-        "theirsNsPerCall": 2126043,
-        "ours": "caique@1.5.2",
+        "oursNsPerCall": 2393744,
+        "theirsNsPerCall": 2141700,
+        "ours": "caique@1.6.0",
         "host": "@clack/prompts@1.8.1",
         "oursFrom": "<repo>/node_modules/caique",
         "hostFrom": "<repo>/node_modules/@clack/prompts"
@@ -5227,8 +5301,8 @@
       "metric": "runtime-ratio",
       "unit": "ratio",
       "samples": 11,
-      "median": 1.097,
-      "p95": 1.42,
+      "median": 1.044,
+      "p95": 1.245,
       "gate": {
         "max": 1.2,
         "why": "a downward-only ratchet toward ≤ 1 (at or below the incumbent): just above the last CI measurement, lowered by the PR that makes this pair faster, never raised without a decision (.sdlc/bands/runtime-ratchets.json)"
@@ -5238,9 +5312,9 @@
         "workload": "burgee-commander.mjs",
         "target": 1,
         "met": false,
-        "oursNsPerCall": 91629,
-        "theirsNsPerCall": 85586,
-        "ours": "burgee@1.7.2",
+        "oursNsPerCall": 91000,
+        "theirsNsPerCall": 84943,
+        "ours": "burgee@1.9.0",
         "host": "commander@15.0.0",
         "oursFrom": "<repo>/node_modules/burgee",
         "hostFrom": "<repo>/node_modules/commander"
@@ -5252,8 +5326,8 @@
       "metric": "runtime-ratio",
       "unit": "ratio",
       "samples": 11,
-      "median": 1.06,
-      "p95": 1.117,
+      "median": 1.081,
+      "p95": 1.123,
       "gate": {
         "max": 1.1,
         "why": "a downward-only ratchet toward ≤ 1 (at or below the incumbent): just above the last CI measurement, lowered by the PR that makes this pair faster, never raised without a decision (.sdlc/bands/runtime-ratchets.json)"
@@ -5263,9 +5337,9 @@
         "workload": "burgee-yargs.mjs",
         "target": 1,
         "met": false,
-        "oursNsPerCall": 914667,
-        "theirsNsPerCall": 861636,
-        "ours": "burgee@1.7.2",
+        "oursNsPerCall": 905558,
+        "theirsNsPerCall": 847987,
+        "ours": "burgee@1.9.0",
         "host": "yargs@18.2.0",
         "oursFrom": "<repo>/node_modules/burgee",
         "hostFrom": "<repo>/node_modules/yargs"
@@ -5274,7 +5348,7 @@
   ],
   "bands": {
     "cold-start-ratio": {
-      "value": 1.083,
+      "value": 1.077,
       "from": {
         "axis": "perf",
         "variant": "burgee/commander ÷ commander",
@@ -5650,7 +5724,7 @@
       }
     },
     "core-bundled-bytes": {
-      "value": 24442,
+      "value": 24460,
       "from": {
         "axis": "weight",
         "variant": "burgee",
@@ -5666,7 +5740,7 @@
       }
     },
     "yargs-front-end-bundled-bytes": {
-      "value": 108836,
+      "value": 108897,
       "from": {
         "axis": "weight",
         "variant": "burgee/yargs",
@@ -5679,7 +5753,7 @@
       "claim": "the engine's cold start stays within 1.55× of cac's, the lightest framework in the landscape (a downward-only ratchet; the ≤ 1 bar is not reachable, D-102)",
       "source": ".sdlc/intents/replacement-parser/intent.md #2, the scoreboard row in .sdlc/intents/README.md, and the speed row of apps/docs/content/docs/comparison.mdx; the ceiling is .sdlc/bands/claim-ratchets.json (D-157)",
       "target": "<= 1.55",
-      "measured": 1.472,
+      "measured": 1.46,
       "unit": "ratio",
       "met": true,
       "from": {
@@ -5692,7 +5766,7 @@
       "claim": "the core entry point is under 52 KB bundled",
       "source": ".sdlc/intents/replacement-parser/intent.md #3",
       "target": "<= 53248",
-      "measured": 24442,
+      "measured": 24460,
       "unit": "bytes",
       "met": true,
       "from": {
@@ -5705,7 +5779,7 @@
       "claim": "`burgee` stays within 2.35× of `cac` alone in a user's bundle (a downward-only ratchet, lowered as it shrinks; ≤ 1 is not reachable, D-102)",
       "source": "U5 in .sdlc/intents/README.md, restated as a ratchet by D-157; the ceiling is .sdlc/bands/claim-ratchets.json",
       "target": "<= 2.35",
-      "measured": 2.338,
+      "measured": 2.34,
       "unit": "ratio",
       "met": true,
       "from": {
@@ -5731,7 +5805,7 @@
       "claim": "`burgee/yargs` is lighter in a user's bundle than `yargs`, the package it replaces",
       "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
       "target": "<= 1",
-      "measured": 0.974,
+      "measured": 0.975,
       "unit": "ratio",
       "met": true,
       "from": {
@@ -6091,6 +6165,19 @@
         "metric": "bundled-bytes-ratio"
       }
     },
+    "controlroom-dashboard-lighter-than-ink-screen": {
+      "claim": "`examples/dashboard/dashboard.mjs` is lighter in a user's bundle than `examples/dashboard-ink/screen.mjs`, what it replaces",
+      "source": ".sdlc/intents/controlroom/intent.md — the size gates W1–W4 — and spec R14",
+      "target": "<= 1",
+      "measured": 0.066,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "weight",
+        "variant": "examples/dashboard/dashboard.mjs ÷ examples/dashboard-ink/screen.mjs",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
     "seniority-discovery-chain-installs-no-more-bytes-than-cosmiconfig": {
       "claim": "`seniority/cosmiconfig` + `seniority/find-up` installs no more bytes than `cosmiconfig` + `find-up`",
       "source": ".sdlc/intents/seniority/intent.md, success criterion 4 — the seven-package discovery-chain row",
@@ -6121,7 +6208,7 @@
       "claim": "`controlroom/ink` + `react` + `react-reconciler` installs no more bytes than `ink` + `react`",
       "source": ".sdlc/intents/controlroom/intent.md — the size gates W1–W4 — and spec R14",
       "target": "<= 1",
-      "measured": 0.431,
+      "measured": 0.432,
       "unit": "ratio",
       "met": true,
       "from": {
@@ -6147,7 +6234,7 @@
       "claim": "importing `controlroom/ink` starts no slower than importing `ink` + `react`, as a same-run ratio",
       "source": ".sdlc/intents/controlroom/intent.md — the size gates W1–W4 — and spec R14",
       "target": "<= 1",
-      "measured": 0.399,
+      "measured": 0.4,
       "unit": "ratio",
       "met": true,
       "from": {
@@ -6160,7 +6247,7 @@
       "claim": "importing `controlroom` starts no slower than importing `ink` + `react`, as a same-run ratio",
       "source": ".sdlc/intents/controlroom/intent.md — the size gates W1–W4 — and spec R14",
       "target": "<= 1",
-      "measured": 0.159,
+      "measured": 0.163,
       "unit": "ratio",
       "met": true,
       "from": {
