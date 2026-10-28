@@ -1,7 +1,11 @@
 # Design — `native-engine`
 
-Intent: [`intent.md`](./intent.md). **Status:** approved
-([`D-20261027-native-engine-design-accepted`](../../decisions/D-20261027-native-engine-design-accepted.md)).
+Intent: [`intent.md`](./intent.md). **Status:** dropped 2026-10-28 by
+[`D-20261028-native-engine-dropped`](../../decisions/D-20261028-native-engine-dropped.md): nothing
+ports, and burgee stays JavaScript. R1–R11 stay the design a future port is built to, if one of
+that decision's reopen triggers fires. The design below is the record as it stood (approved
+2026-10-27,
+[`D-20261027-native-engine-design-accepted`](../../decisions/D-20261027-native-engine-design-accepted.md)).
 Evidence: [`m0/`](./m0/), re-run end to end by [`m0/reproduce.sh`](./m0/reproduce.sh).
 
 ---
