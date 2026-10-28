@@ -3,6 +3,12 @@ title: Changelog
 description: "Every release of burgee, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.9.2
+
+### Patch Changes
+
+- [#1337](https://github.com/ofri-peretz/burgee/pull/1337) [`9bf2624`](https://github.com/ofri-peretz/burgee/commit/9bf2624f4ed6007fd8d745de4305cd6b3c6f6a95) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` reads `@inquirer/core` 12.0.6 and `@inquirer/prompts` 8.7.5 as the graded releases of `caique/inquirer` (46 / 46) and `caique/inquirer/prompts` (222 / 222), each level with its control.
+
 ## 1.9.1
 
 ### Patch Changes

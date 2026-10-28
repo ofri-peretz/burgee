@@ -3,6 +3,12 @@ title: Changelog
 description: "Every release of caique, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.6.1
+
+### Patch Changes
+
+- [#1337](https://github.com/ofri-peretz/burgee/pull/1337) [`9bf2624`](https://github.com/ofri-peretz/burgee/commit/9bf2624f4ed6007fd8d745de4305cd6b3c6f6a95) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `caique/inquirer` follows `@inquirer/core` 12.0.6 and `caique/inquirer/prompts` follows `@inquirer/prompts` 8.7.5. The first render waits a tick only when the input is a terminal, so an answer already piped into a non-TTY stdin before the prompt starts is read instead of dropped. `password` keeps the space after its message while the mask has nothing to draw, so the cursor sits past it. Their own suites grade them 46 / 46 and 222 / 222, level with the incumbents.
+
 ## 1.6.0
 
 ### Minor Changes

@@ -1,5 +1,13 @@
 # compat-oracle
 
+## 0.3.17
+
+### Patch Changes
+
+- [#1337](https://github.com/ofri-peretz/burgee/pull/1337) [`9bf2624`](https://github.com/ofri-peretz/burgee/commit/9bf2624f4ed6007fd8d745de4305cd6b3c6f6a95) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `@inquirer/core` re-vendored at 12.0.6 (control 46 / 46) and `@inquirer/prompts` at 8.7.5 with its ten prompts pinned at the releases it shipped with (control 222 / 222). Upstream renamed every suite file `*.test.ts` to `*.vitest.ts`, and the rows' `suiteFiles`, `testGlob` and editor exclusions follow the new names.
+- Updated dependencies [[`9bf2624`](https://github.com/ofri-peretz/burgee/commit/9bf2624f4ed6007fd8d745de4305cd6b3c6f6a95)]:
+  - burgee@1.9.2
+
 ## 0.3.16
 
 ### Patch Changes
