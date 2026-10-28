@@ -5,7 +5,7 @@
 > cli-table3 and Ink; its README leads with the render loop and the plugin contract, and it
 > runs with nothing else installed beyond roundel.
 
-**Status:** approved · **Opened:** 2026-09-07 · **Owner:** @ofri-peretz · **Approved:** 2026-09-08 by the owner, in session ("remove all blockers")
+**Status:** shipped · **Opened:** 2026-09-07 · **Owner:** @ofri-peretz · **Approved:** 2026-09-08 by the owner, in session ("remove all blockers") · **Shipped:** 2026-10-28, criterion 8 held on the published `burgee@1.9.0` and `caique@1.6.0` — see [§ Shipped 2026-10-28](#shipped-2026-10-28)
 
 > **Umbrella sweep 2026-10-26: six of eight criteria held on `main` and in `flagstaff@1.7.4`.
 > Three of the six are held where their checks actually live
@@ -17,8 +17,48 @@
 > met by eval run 40504387711 (D-20261027-dispatched-eval-counts-as-weekly). Criterion 8's three
 > cases are `scripts/plugin-surfaces.test.ts` on `main`; two of them need caique's and burgee's
 > next minors on npm. See [§ 2026-10-27](#2026-10-27-criterion-7-met-criterion-8-built).
+>
+> **2026-10-28: shipped.** Version PR #1321 published `burgee@1.9.0` and `caique@1.6.0`, and the
+> three surfaces hold on the installed tarballs ([§ Shipped 2026-10-28](#shipped-2026-10-28)).
 
 ---
+
+## Shipped 2026-10-28
+
+Read on `main` at `9016a321a7`, and against the tarballs npm serves: `burgee@1.9.0`, `caique@1.6.0`,
+`flagstaff@1.7.5` and `roundel@1.3.0` (each `npm view <pkg> version`, the same as the manifests).
+Criterion 8 was the one waiting on a release. It was checked outside the repo: `npm i burgee@1.9.0
+caique@1.6.0 flagstaff@1.7.5` in an empty directory, and then `scripts/plugin-surfaces.test.ts`'s
+three cases rewritten against the packages' published entry points (`burgee`, `burgee/help`,
+`caique/clack`, `flagstaff/loop`, `flagstaff/plugin`, `roundel/plugin`, `roundel/theme`,
+`roundel/tokens`). One plugin object, registered with roundel and with flagstaff:
+
+- **help:** `--target` is painted `\u001B[38;2;121;192;255m` (the plugin's `#79c0ff`), and never
+  burgee's default cyan;
+- **a prompt's spinner:** caique's `spinner({ style: lookupSpinner('harbor') })` turns `⠁ ⠂ ⠄`
+  on a terminal and prints `⠿  waiting for the registry...` on a pipe;
+- **`--json`:** `runCommand(…, ['deploy', '--json'])` prints the envelope on stdout, and the
+  component arrives as two events, `{ event: 'harbor-deploy', state: { step: 'build' } }` then
+  `'live'`; without `--json` it prints the two static lines instead.
+
+All three passed. The terminal check reads the frames with the colour escapes removed: the
+published spinner paints its frame magenta, which the repo's case does not see because its
+runtime has no colour.
+
+| # | criterion | evidence | state |
+| :-- | :-- | :-- | :-- |
+| 1 | five plugin conformance cases on the demo | as restated (D-20261026-flagstaff-criteria-homes): `scripts/callers-lock.test.ts` and `packages/flagstaff/src/cli.test.ts`, `plugin.test.ts` — re-run 2026-10-28, `packages/flagstaff` 435 / 435 and the lock green | held as restated |
+| 2 | a spinner snapshot deterministic across 20 runs in CI | `packages/flagstaff/src/loop.test.ts` › "the tty transcript is the same bytes twenty runs over" (in the 435) | held as restated |
+| 3 | no `\r` in a piped run | `packages/flagstaff/src/shape.test.ts` › "prints one line per state through a pipe…" (in the 435) | held as restated |
+| 4 | the built-in spinner registered through `register()` only | `plugin.test.ts` › "R3 · the built-ins are a plugin like any other" (in the 435) | held |
+| 5 | the spinner subpath at or under ora's import cost, on `/benchmarks` | the published page ([D-20261028-benchmarks-published-440f18f](../../decisions/D-20261028-benchmarks-published-440f18f.md)): `flagstaff/spinner ÷ ora` **0.121**, met; `flagstaff/ora ÷ ora` 0.938 | held |
+| 6 | four suites graded, four rates on the scoreboard | the published run: ora 99, boxen 213, cli-table3 29, log-update 99 passing, each at its baseline | held |
+| 7 | the U9 eval, weekly | eval run 40504387711 (2026-10-27): `flagstaff-plugin-from-schema` executed and passed ([D-20261027-dispatched-eval-counts-as-weekly](../../decisions/D-20261027-dispatched-eval-counts-as-weekly.md)). The next scheduled reading is Saturday 2026-10-31 | held |
+| 8 | one registered plugin in help, in a prompt's spinner and as `--json` events | `scripts/plugin-surfaces.test.ts` on `main` (4 / 4, re-run 2026-10-28), and the same three surfaces on the published tarballs, above | **held** |
+
+**What the stamp does not claim.** Criterion 7 is weekly, and this stamp rests on one executed
+reading. If a later executed reading fails, that reopens it, as every executed weekly reading has
+to pass (the `plugin-contract` C4 restatement).
 
 ## Umbrella sweep 2026-10-26
 
