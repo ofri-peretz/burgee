@@ -253,16 +253,10 @@ jobs:
           while IFS= read -r f; do filters+=("$f"); done < <(node -p "JSON.parse(process.env.PACKAGES).map((n) => '--filter=' + n).join('\\n')")
           npx turbo run test "${filters[@]}" --concurrency=${{ matrix.os == 'ubuntu-latest' && '4' || '2' }}
       # The controls grade the real packages through compat-oracle, so only it can move them.
-      # Its own limit, under the job's: an informational step must not spend the hard gate's
-      # budget. On 2026-10-27 the Windows cell's Controls ran from 19:00 until the job's 30
-      # minutes cancelled everything at 19:21, silent throughout: ink's suite, 1,200 s a grade
-      # and graded three times (D-20261027-windows-controls-ink). Measured without ink: ~7 min
-      # on ubuntu, ~9 on macOS, ~13.5 on Windows, and the steps before it take ~9 there, so 17
-      # leaves the job ~4. `--progress` names each host as it starts: a stall says which host.
-      - name: Controls (informational off Linux)
-        if: env.FULL == 'true' || contains(fromJSON(env.PACKAGES), 'compat-oracle')
-        continue-on-error: ${{ matrix.os != 'ubuntu-latest' }}
-        timeout-minutes: 17
+      # On Linux they are a gate and run here; off Linux they are informational and run in the
+      # `controls` job below, so they do not spend this cell's 30 minutes.
+      - name: Controls (gate on Linux)
+        if: matrix.os == 'ubuntu-latest' && (env.FULL == 'true' || contains(fromJSON(env.PACKAGES), 'compat-oracle'))
         run: node packages/compat-oracle/dist/bin.js --control --progress
       # cli-foundation-stack Y4: has this Node absorbed a foundation layer? Each layer's vectors
       # against the builtin it composes, alone (`scripts/absorption-probe.ts`). Reported, never
@@ -292,6 +286,40 @@ jobs:
         run: |
           set -o pipefail
           { echo '## Cases above half their timeout'; echo; echo '```'; node scripts/slow-cases.mts vitest-durations; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # The Controls off Linux, informational, in a job of their own. In the `matrix` cell they were
+  # half the Windows job: 542–883 s of 17 m 35 s – 28 m 28 s over ten dispatched runs at
+  # `b62cf2a105` (D-20261028-windows-pinned-sha-counts), and the slowest run ended 92 s from the
+  # cancel. Here a slow host costs only this job; the graded cell keeps its build and its suite.
+  # The same OSes and Node as `matrix`; only the packages are built, which is all
+  # compat-oracle reads (the ratchet builds the same). `scripts/off-linux-controls-lock.test.ts`.
+  controls:
+    name: Controls · Node ${{ matrix.node }} · ${{ matrix.os }} (informational)
+    needs: affected
+    if: >-
+      ${{ (!inputs.node || inputs.node == 'all' || inputs.node == '24') && inputs.os != 'ubuntu-latest'
+      && (needs.affected.outputs.full == 'true' || contains(fromJSON(needs.affected.outputs.packages), 'compat-oracle')) }}
+    runs-on: ${{ matrix.os }}
+    # Measured without ink (D-20261027-windows-controls-ink): ~9 min on macOS, ~13.5 on Windows,
+    # 15 at the worst of the ten; install and build add ~2.
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON((inputs.os && inputs.os != 'all') && format('["{0}"]', inputs.os) || '["macos-latest","windows-latest"]') }}
+        node: [24]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npx turbo run build --filter='./packages/*' --concurrency=${{ matrix.os == 'macos-latest' && '2' || '4' }}
+      # `--progress` names each host as it starts: a stall says which host.
+      - name: Controls (informational off Linux)
+        continue-on-error: true
+        run: node packages/compat-oracle/dist/bin.js --control --progress
 
   # C3 for the lower half of `engines` (D-132). The nine published packages declare
   # `^20.19.0 || >=22.13.0`; the job above covers 24, this one the two floors,
