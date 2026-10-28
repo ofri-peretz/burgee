@@ -12,7 +12,10 @@
 > The colleague's "19x on dayjs" figure is unverified and second-hand. Stage 0 measures it on our
 > own fixture before anyone repeats it.
 
-**Status:** draft · **Opened:** `2026-10-25` · **Owner:** `@ofri-peretz`
+**Status:** approved · **Opened:** `2026-10-25` · **Owner:** `@ofri-peretz` · **Design accepted:** 2026-10-28
+([`D-20261028-oxmutate-design-accepted`](../../decisions/D-20261028-oxmutate-design-accepted.md)).
+1.0.0 is on npm. It is not `shipped`: nine criteria and `S3` are open, see
+[§ Design gate 2026-10-28](#design-gate-2026-10-28)
 
 ---
 
@@ -194,3 +197,29 @@ Every question this intent raised is closed in `.sdlc/decisions/` (the repositor
   `.qnt` models in `.sdlc/models/` against metric `F6` — [D-20261026-oxmutate-quint-oracle-deferred](../../decisions/D-20261026-oxmutate-quint-oracle-deferred.md).
 - **Who else pays.** Decided 2026-10-26: deferred until burgee's dogfood week (M3) has published
   numbers; no claim outside before a second repository reports its own — [D-20261026-oxmutate-external-persona-deferred](../../decisions/D-20261026-oxmutate-external-persona-deferred.md).
+
+## Design gate 2026-10-28
+
+[`spec.md`](./spec.md) is accepted
+([`D-20261028-oxmutate-design-accepted`](../../decisions/D-20261028-oxmutate-design-accepted.md)),
+and the intent moves `draft → approved`. 1.0.0 is released: release run 40740297440,
+the GitHub Release `oxmutate@1.0.0`, provenance attested, with six native cores in the tarball.
+Each criterion below was checked by a reviewer that did not write the tool.
+
+| Criterion | State | Evidence, or the check that closes it |
+| :-- | :-- | :-- |
+| `SC1` | open | `M0` published medians of 5 runs with the machine spec, but `npm run bench:mutation` does not exist, and `oxmutate-bench.yml` has not published a runner number |
+| `SC2` | met | 17.9x warm, median of 5, on es-toolkit (`m0-results.md`); cold 8.2x beside it (`m1-results.md`) |
+| `SC3` | open | Agreement 99.90–99.92% (met). Disagreements are listed in `m1-results.md`, and controlroom `screen.ts:224` still has no reason |
+| `SC4` | open | `reports.test.ts` asserts the shape of both reports; no test validates against either schema file |
+| `SC5` | open | No committed sensitivity check (`test:sensitivity` does not exist) |
+| `SC6` | unmet as written | Runtime deps `burgee` and `bellpull` (family only); cores bundled, not `optionalDependencies`; `"*"` ranges, fix in progress as 1.0.1 |
+| `SC7` | open | No `test/fixtures/vitest5-regression/` |
+| `SC8` | open | Not measured; the first weekly run under oxmutate, 40783405734, is queued |
+| `SC9` | open | No compat-oracle grade for oxmutate |
+| `SC10` | met | `e2e.test.ts` "the frozen oracle (R14, SC10)", both cases; 161 / 161 green, natives present |
+| `SC11` | open | Closes no earlier than 2026-11-04, after one week of green mutation-lane runs on main under oxmutate |
+| `S3` (`metrics.md`) | open | 2.4x on paratext and slower by the clock on controlroom, against ≥ 5x |
+
+**What remains before `shipped`:** the nine open criteria and `S3`, each closed by the check
+named in its row.
