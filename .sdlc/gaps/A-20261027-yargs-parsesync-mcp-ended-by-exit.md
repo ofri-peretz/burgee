@@ -1,7 +1,7 @@
 ---
 id: A-20261027-yargs-parsesync-mcp-ended-by-exit
 section: A
-status: open
+status: closed
 source: first-adopter A3 re-run on burgee@1.8.0 against open-cli-tools/concurrently (`.sdlc/research/adoption/concurrently.md`)
 done_when: 'A `burgee/yargs` program that ends in `.parseSync()` and then acts on the argv it gets back (shows help and calls `process.exit()` when no positional is given, as concurrently does) answers `prog --mcp` with `initialize` and `tools/list` replies, with a case in `packages/burgee/src/yargs` proven red first on `burgee@1.8.0`; then the concurrently proof is re-run on the published fix'
 ---
@@ -39,5 +39,23 @@ document that `--mcp` needs `.parseAsync()` and make `parseSync()` print one cle
 instead of silently falling through. Either way the case needs a program that exits on empty
 argv, red on `burgee@1.8.0` first.
 
-Found by the 1.8.0 re-run of the first-adopter proof. It holds the #418 comment: the owner's go
-required `--mcp` to start a server, and on concurrently it does not.
+Found by the 1.8.0 re-run of the first-adopter proof. It held the #418 comment for a day: the
+owner's go required `--mcp` to start a server, and on concurrently it does not. On 2026-10-28 the
+owner chose to post a revised text instead (https://github.com/open-cli-tools/concurrently/issues/418#issuecomment-6455508479). It says `--mcp` behaves as it does today for
+concurrently and promises no fix. The gap stayed open: every `parseSync()` program that exits on
+empty argv had the same dead `--mcp`.
+
+**Closed 2026-10-28.** It publishes with burgee's next release. Under `parseSync()`, `--mcp` is
+served synchronously ([D-20261028-yargs-parsesync-mcp-serves-synchronously](../decisions/D-20261028-yargs-parsesync-mcp-serves-synchronously.md)).
+`serveMcpSync` reads descriptor 0 and answers each request before it reads the next. It returns
+only when the input ends, and then the façade exits 0, so `parseSync()` never hands control back
+to a program that would end the server. A tool call is the program's own `.parseSync()`,
+captured as `.parseAsync()`'s is. `parse-sync-surfaces.test.ts` › "--mcp under parseSync() in a
+program that exits on an empty argv" runs concurrently's shape: options, `.parseSync()`, then
+`showHelp(); process.exit()` when no positional is given. It requires `initialize` and an empty
+`tools/list` with no help on stderr, and a `tools/call` answered as the `.parseAsync()` program
+answers it. Both cases were red on `b62cf2a105`, whose `yargs/factory.ts` and `mcp.ts` are
+`burgee@1.8.0`'s, with the help screen on stderr. `mcp-sync.test.ts` holds the server's edges
+in-process. Re-running the concurrently proof on the published fix belongs to the first-adopter
+intent: the posted #418 comment says `--mcp` is unchanged for concurrently, and the pull request
+that follows it can say otherwise once this fix is on npm.

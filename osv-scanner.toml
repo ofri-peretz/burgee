@@ -2,3 +2,8 @@
 # `npm run check:osv` (scripts/osv-check.ts). Every entry needs an `ignoreUntil` and a
 # `reason`; an expired entry counts again, and an entry nothing matches fails check:osv.
 # Waive only what has no fixed release and no removable path — say both in the reason.
+
+[[IgnoredVulns]]
+id = "GHSA-gcqx-w48m-w2h4"
+ignoreUntil = 2026-11-27
+reason = "deepmerge@4.3.1 is the latest release and the advisory lists no fixed version (last_affected 4.3.1). Reached only through the private benchmarks workspace (benchmarks > @inkjs/ui@2.0.0, dev), which grades the inkjs-ui drop-in; it merges component theme objects this repo authors, never input from a user of a published package. Removing @inkjs/ui would remove a graded drop-in host, so there is no removable path. No published package depends on it. Re-check on expiry."

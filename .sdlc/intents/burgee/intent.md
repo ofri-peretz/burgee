@@ -59,14 +59,14 @@ window is enforced, and it belongs to `release-cadence`, whose R1 says no non-fi
 
 **The closing list.** Since the last section, `cli-benchmarks` and `cli-foundation-stack` (#1276)
 and `docs-per-package` (#1275) are stamped, as is `foundation-claims-watched` (#1277), and `caller-matrix` closed before them.
-`native-engine` (draft) starts only after every other intent closes, by its
-own text, so it cannot gate this umbrella. `oxmutate` (draft) is a separate tool's intent.
+`native-engine` is dropped (2026-10-28, D-20261028-native-engine-dropped: nothing ports, burgee
+stays JavaScript), so it cannot gate this umbrella. `oxmutate` (draft) is a separate tool's intent.
 Everything else that is still open:
 
 | closes when | intents |
 | :-- | :-- |
 | ~~the burgee minor publishes~~ · ~~the roundel minor publishes~~ · ~~a flagstaff patch publishes the README opening~~ | **closed 2026-10-26** ([D-20261026-shipped-on-published-patch](../../decisions/D-20261026-shipped-on-published-patch.md)): `commander-env`, `agent-headroom`, `typed-positionals` and `colour-facades` stamped `shipped` against `burgee@1.7.2` and `roundel@1.2.1`; `cli-output-stack` against `flagstaff@1.7.5` |
-| scheduled measurements accumulate | `b1-mcp-arm` and `cli-mcp` (four weekly B1 readings, about 2026-11-17); `localised-human-surfaces` and `plugin-contract` C4 (the 2026-10-31 eval run); `sdlc-locks-evals-bands` S3 (the weekly duration run); `evals-record-not-run`, `windows-lane-holds`, `release-cadence`, `mutation-tested` (each by its own reading) |
+| scheduled measurements accumulate | `b1-mcp-arm` and `cli-mcp` (four weekly B1 readings, about 2026-11-17); `localised-human-surfaces` and `plugin-contract` C4 (the 2026-10-31 eval run); `sdlc-locks-evals-bands` S3 (the weekly duration run); `evals-record-not-run`, `release-cadence`, `mutation-tested` (each by its own reading); ~~`windows-lane-holds`~~ stamped 2026-10-28 (D-20261028-windows-pinned-sha-counts) |
 | an outside merge (owner approval for the external PR) | `first-adopter`, which also owns U12's outside-adopter half |
 | a benchmark row or a page regeneration, no release | `linegauge` (spawn row), `closeout` (spawn row and a published bench measurement), `seniority` (a published bench measurement), `bellpull` (compat-oracle and benchmarks spawning through it) |
 | a build plus a release | `caique` (R1 `promptFor`, the layered demo, the PTY case), `flagstaff` (criterion 8, plus criterion 7's eval), `controlroom` (Gallery, 20 and 100 runs, PTY matrix, Ink screen fixture, W3 demo) |

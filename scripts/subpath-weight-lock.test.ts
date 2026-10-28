@@ -132,7 +132,9 @@ const OVER_INCUMBENT: Readonly<Record<string, { incumbent: string; bytes: number
   // `previous-majors` R3: `burgee/yargs` plus 17's string table and `commandDir()` walk. yargs
   // 17.7.3's `index.mjs` bundles to 84,475 B by the same method, measured 2026-10-19, and yargs
   // 18.2.0's to 111,698 B, which `burgee/yargs` is under (D-20261019-yargs-17-budget).
-  'burgee/yargs/v17': { incumbent: 'yargs@17.7.3', bytes: 84_475, ours: 110_415, gap: 'B-20261019-yargs-17-entry-bundles-heavier' },
+  // 110,662 on 2026-10-28 with `burgee/yargs`' +247 B for `--mcp` under parseSync()
+  // (D-20261028-yargs-parsesync-mcp-serves-synchronously): 110,415 -> 110,662 on `/docs/weight`.
+  'burgee/yargs/v17': { incumbent: 'yargs@17.7.3', bytes: 84_475, ours: 110_662, gap: 'B-20261019-yargs-17-entry-bundles-heavier' },
 };
 
 /** The "Everything" cell of a subpath's row on the page, or `undefined` when it has no row. */

@@ -1,30 +1,53 @@
 # Draft — the one disclosed pull request for `first-adopter`
 
-**Status: prepared, held. Not posted.** Nothing below has been sent to
-`open-cli-tools/concurrently`.
+**Status: comment posted, PR held for the maintainer's yes.** The comment below was posted on
+open-cli-tools/concurrently#418 on 2026-10-28: <https://github.com/open-cli-tools/concurrently/issues/418#issuecomment-6455508479>. The pull request further down is not
+opened. It follows only if the maintainer says yes, and its numbers are then replaced from the
+1.8.0 re-run in [`concurrently.md`](../../research/adoption/concurrently.md#re-run-on-burgee180-2026-10-27).
 
-On 2026-10-27 the owner chose a short disclosed comment on #418 first, with the PR below only on
-the maintainer's yes, and cut the cold-start line. The go was conditional: re-run the whole proof
-on the published fix and post only if every check passed. It was re-run on `burgee@1.8.0` the
-same day, and one check failed. `completion zsh` now prints a script, but `concurrently --mcp`
-does not serve: concurrently's own `process.exit()` on an empty argv ends the server before it
-answers. So nothing was posted. Before posting:
+How it got here. On 2026-10-27 the owner chose a short disclosed comment on #418 first and cut the
+cold-start line, on condition that the whole proof passed on the published fix. The re-run on
+`burgee@1.8.0` passed everything but one expectation: `concurrently --mcp` does not serve, because
+concurrently's own `process.exit()` on an empty argv ends the server first
+([A-20261027-yargs-parsesync-mcp-ended-by-exit](../../gaps/A-20261027-yargs-parsesync-mcp-ended-by-exit.md)).
+Nothing was posted that day. On 2026-10-28 the owner chose to post a revised text that says
+`--mcp` behaves as it does today for concurrently, and does not promise the fix.
 
-1. **The `--mcp` fix ships.**
-   [A-20261027-yargs-parsesync-mcp-ended-by-exit](../../gaps/A-20261027-yargs-parsesync-mcp-ended-by-exit.md)
-   lands in a published `burgee`. The first blocker,
-   [A-20261027-yargs-parsesync-surfaces-throw](../../gaps/A-20261027-yargs-parsesync-surfaces-throw.md),
-   is fixed in 1.8.0.
-2. **The proof is re-run on that version** and every number in the comment comes from that run.
-   The 1.8.0 numbers are in [`concurrently.md`](../../research/adoption/concurrently.md#re-run-on-burgee180-2026-10-27).
+## Posted comment, 2026-10-28
+
+Posted once, under `ofri-peretz`, exactly as below. Every number is from the 1.8.0 re-run.
+
+```markdown
+Hi, I'm Ofri Peretz. I wrote and maintain burgee, so please read this with that in mind.
+
+You said you'd consider dropping yargs if the replacement keeps full compatibility and has decent TypeScript types, and that you'd rather agree on the library before anyone opens a PR. So this is a measured proposal, not a PR.
+
+`burgee/yargs` implements the yargs API, so the change is two import lines in `bin/index.ts` and an exact pin, `"burgee": "1.8.0"`. `.env('CONCURRENTLY')` and the `.group()` headings stay as written, and `typecheck` passes against burgee's own types.
+
+What I measured on 2a80d44 with the published burgee 1.8.0:
+
+- `build`, `typecheck`, `lint` and `format` pass. vitest is 649/649 before, after, and after reverting, on Node 22.22, 24.12 and 26.10.
+- `--help` is byte-identical.
+- I ran the same 41 argument vectors through both packed builds: every option group, `-P`, invalid values, unknown flags, and the `CONCURRENTLY_*` variables. 38 are identical in stdout, stderr and exit code. The 3 that differ are flags burgee reserves. `--json` is now a boolean, so `--json "echo a"` runs the command where it used to print help. `--schema` prints a JSON description of the CLI. `completion zsh` prints a completion script instead of trying to run a command called `completion`. `--mcp` behaves exactly as today and prints help, because concurrently does its work after `parseSync()` returns.
+- Dependencies go from 19 packages to 12. `npm audit --omit=dev` is 0 before and after.
+
+What it costs:
+
+- It isn't lighter. The parser's install grows from 511 KB to 1.72 MB.
+- yargs' packages have eight npm maintainers. burgee's have one, me, and it was first published on 2026-09-07.
+
+Undoing it is one `git revert`.
+
+If you'd like the PR, I'll open it. If not, that's a fine answer.
+```
 
 Target, evidence and rejected candidates: [`concurrently.md`](../../research/adoption/concurrently.md).
 Decision: [D-20261027-first-adopter-target-concurrently](../../decisions/D-20261027-first-adopter-target-concurrently.md).
 
 ## Owner's calls before posting
 
-Decided 2026-10-27: a comment on #418 first, and the cold-start line cut. The calls as they
-were put:
+Decided 2026-10-27: a comment on #418 first, and the cold-start line cut. Decided 2026-10-28: post
+the revised text without waiting for the `--mcp` fix. The calls as they were put:
 
 - **A pull request, or a comment on #418 first.** The owner's 2026-10-27 rule and intent
   constraint 4 both say a working PR. But in #418 gustavohenke asked to agree on the library
@@ -46,8 +69,9 @@ deps: replace yargs with burgee/yargs, keeping the yargs API (#418)
 
 ## Body
 
-> `<burgee version>` and every number below come from the re-run after the fix ships. The numbers
-> shown are from `burgee@1.7.2` on `2a80d44`.
+> Not opened. If the maintainer says yes, `<burgee version>` and every number below are replaced
+> from the 1.8.0 re-run, the cold-start line is cut, and the reserved-shape list matches the posted
+> comment. The numbers shown are from `burgee@1.7.2` on `2a80d44`.
 
 ```markdown
 Hi, I'm Ofri Peretz. I wrote and maintain burgee, the package this PR adds, so please read it with

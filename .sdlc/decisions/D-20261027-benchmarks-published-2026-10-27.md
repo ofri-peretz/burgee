@@ -3,7 +3,7 @@ id: D-20261027-benchmarks-published-2026-10-27
 subject: '`/docs/benchmarks` is generated from the published measurement of 2026-10-19 (`66e4611`). It prints closeout''s drop-ins at 2.929 and 1.272 "not met" where CI reads 0.96 and 0.93, and it has no row for seniority''s spawn or discovery-chain gates. Which run is published now?'
 taken: 'Taken by the coordinator under the owner''s delegation (burgee-owner-delegates-tradeoffs), 2026-10-27'
 date: '2026-10-27'
-superseded_by: —
+superseded_by: D-20261028-benchmarks-published-440f18f
 ---
 
 **The published `cli-benchmarks` measurement is now `benchmarks/results/cli-benchmarks/2026-10-27.json`,
