@@ -1,29 +1,29 @@
 {
   "repo": "https://github.com/SBoudrias/Inquirer.js",
-  "version": "8.7.4",
-  "tag": "@inquirer/prompts@8.7.4",
-  "commit": "ea3130ebc609a6a3910b5397244044de7eda3d05",
-  "vendored": "2026-10-27",
-  "depsBefore": "2026-10-19T22:43:04.806Z",
+  "version": "8.7.5",
+  "tag": "@inquirer/prompts@8.7.5",
+  "commit": "672b77f0486388d7f5c35487d89a5ff63f4c54dd",
+  "vendored": "2026-10-28",
+  "depsBefore": "2026-10-27T01:50:59.980Z",
   "files": 11,
   "internalFiles": [],
   "internals": [],
   "hashes": {
-    "packages/checkbox/checkbox.test.ts": "d5c4b1443db0377b4d762f1bff0b473d22f74ef80740ffbca929d12b1bd5aa5d",
-    "packages/confirm/confirm.test.ts": "5afa24163984a19f0f4a1106a6a845f648dac390343551b3e30b40fff99f960a",
-    "packages/editor/editor.test.ts": "2ecde5b810b3be22db5adb23eed509a4bd578eae6c671832a3c69868eb1eaadb",
-    "packages/expand/expand.test.ts": "06500b103393013f7309d81735d0ec331db164a7a965419d6f77602e43b43177",
-    "packages/input/input.test.ts": "4af3ae1507ec0d8a1c115d7564901332e2843ab2d3aa542241784daf4ca2a35b",
-    "packages/number/number.test.ts": "216a10d36f020107c50b9860ba265efb2cd8abe322e48a9dbf5b0eeea146f6ad",
-    "packages/password/password.test.ts": "4ebdbee1f2c2c36cc77f64008171c2ed7372163454ea4564a51997b2a5b426c4",
-    "packages/rawlist/rawlist.test.ts": "55941b68c931d4c1e921f3487cc0b5d3d45129c3d93f49ad511d1b4afe764c11",
-    "packages/search/search.test.ts": "215418a0f7982662809a97dbdaf67b770fddf6c7da875c56f8bf9ca58c3b0c34",
-    "packages/select/test/pagination.test.ts": "45246bdd5bc0f4b75f470e156e54254ddb92c109fe52b135ca73851396bbf3c6",
-    "packages/select/test/select.test.ts": "b63f3f054ada078af28e7ae546cf8d9e92c4e174f74d0be8173cea70530b930c",
+    "packages/checkbox/checkbox.vitest.ts": "d5c4b1443db0377b4d762f1bff0b473d22f74ef80740ffbca929d12b1bd5aa5d",
+    "packages/confirm/confirm.vitest.ts": "5afa24163984a19f0f4a1106a6a845f648dac390343551b3e30b40fff99f960a",
+    "packages/editor/editor.vitest.ts": "2ecde5b810b3be22db5adb23eed509a4bd578eae6c671832a3c69868eb1eaadb",
+    "packages/expand/expand.vitest.ts": "06500b103393013f7309d81735d0ec331db164a7a965419d6f77602e43b43177",
+    "packages/input/input.vitest.ts": "4af3ae1507ec0d8a1c115d7564901332e2843ab2d3aa542241784daf4ca2a35b",
+    "packages/number/number.vitest.ts": "216a10d36f020107c50b9860ba265efb2cd8abe322e48a9dbf5b0eeea146f6ad",
+    "packages/password/password.vitest.ts": "337c959cb291a7afcff33283ac846685a9abb2770a21977a0755d36a57f900f4",
+    "packages/rawlist/rawlist.vitest.ts": "55941b68c931d4c1e921f3487cc0b5d3d45129c3d93f49ad511d1b4afe764c11",
+    "packages/search/search.vitest.ts": "215418a0f7982662809a97dbdaf67b770fddf6c7da875c56f8bf9ca58c3b0c34",
+    "packages/select/test/pagination.vitest.ts": "45246bdd5bc0f4b75f470e156e54254ddb92c109fe52b135ca73851396bbf3c6",
+    "packages/select/test/select.vitest.ts": "b63f3f054ada078af28e7ae546cf8d9e92c4e174f74d0be8173cea70530b930c",
     "packages/prompts/src/index.ts": "736a3485c9e96b87b11fe6e55b5455e9f85ef59edc09bff1eb2f114ef661d1e5"
   },
   "tests": {
-    "packages/checkbox/checkbox.test.ts": [
+    "packages/checkbox/checkbox.vitest.ts": [
       "checkbox prompt",
       "use arrow keys to select an option",
       "works with string choices",
@@ -87,7 +87,7 @@
       "infers exact string union from hardcoded string choices",
       "infers number[] from Choice<number> choices"
     ],
-    "packages/confirm/confirm.test.ts": [
+    "packages/confirm/confirm.vitest.ts": [
       "confirm prompt",
       "handles \"yes\"",
       "handles \"no\"",
@@ -105,7 +105,7 @@
       "highlights the default keyword in scripts without case (e.g. Chinese)",
       "toggle between values with the tab key"
     ],
-    "packages/editor/editor.test.ts": [
+    "packages/editor/editor.vitest.ts": [
       "editor prompt",
       "open editor after pressing enter",
       "accepts explicit undefined as default",
@@ -120,7 +120,7 @@
       "displays custom waitingMessage",
       "displays custom loadingMessage"
     ],
-    "packages/expand/expand.test.ts": [
+    "packages/expand/expand.vitest.ts": [
       "expand prompt",
       "selects in collapsed mode",
       "selects in expanded mode",
@@ -137,7 +137,7 @@
       "infers boolean from Choice<boolean> choices",
       "infers string literal union from name-only choices"
     ],
-    "packages/input/input.test.ts": [
+    "packages/input/input.vitest.ts": [
       "input prompt",
       "handle simple use case",
       "handle transformer",
@@ -160,7 +160,7 @@
       "supports pattern validation",
       "supports pattern validation with custom error message"
     ],
-    "packages/number/number.test.ts": [
+    "packages/number/number.vitest.ts": [
       "number prompt",
       "handle simple use case",
       "handle non numeric input",
@@ -183,8 +183,9 @@
       "handle decimal steps",
       "accepts decimal steps without floating-point precision errors"
     ],
-    "packages/password/password.test.ts": [
+    "packages/password/password.vitest.ts": [
       "password prompt",
+      "keeps a trailing space after the message before the first character is typed",
       "handle muted input",
       "handle masked input",
       "handle custom masked input",
@@ -197,7 +198,7 @@
       "preserves reveal state and input through failed validation",
       "supports customizing or hiding the keyboard help line"
     ],
-    "packages/rawlist/rawlist.test.ts": [
+    "packages/rawlist/rawlist.vitest.ts": [
       "rawlist prompt",
       "use number key to select an option",
       "works with string choices",
@@ -218,7 +219,7 @@
       "rawlist types",
       "preserves string literal union when called directly with inline choices"
     ],
-    "packages/search/search.test.ts": [
+    "packages/search/search.vitest.ts": [
       "search prompt",
       "does not submit stale choices and keeps the search term while a search is pending",
       "does not start another validation while one is pending",
@@ -242,7 +243,7 @@
       "infers exact string union from hardcoded string choices",
       "infers number from Choice<number> choices"
     ],
-    "packages/select/test/pagination.test.ts": [
+    "packages/select/test/pagination.vitest.ts": [
       "select() prompt pagination",
       "loop: true",
       "choices fitting in pageSize",
@@ -261,7 +262,7 @@
       "multi-line choices",
       "multi-line choices + separators"
     ],
-    "packages/select/test/select.test.ts": [
+    "packages/select/test/select.vitest.ts": [
       "select prompt",
       "use arrow keys to select an option",
       "allow selecting the first option",

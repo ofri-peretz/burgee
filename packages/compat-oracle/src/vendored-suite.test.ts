@@ -62,6 +62,13 @@ describe('every vendored test file is graded or named', () => {
     expect(orphaned).toEqual([]);
   });
 
+  // The converse of the case above, which an empty or stale glob passes by matching nothing:
+  // @inquirer 8.7.5 renamed every suite `*.test.ts` -> `*.vitest.ts`, and a glob left on the old
+  // name would leave every vendored file unaccounted for and the lock above silent.
+  it.each(onDisk.map((h) => [h.name, h] as const))('%s: its own glob matches the files it vendored', (_name, host) => {
+    expect(everyTestFile(vendored(host) ?? '', host.testGlob), `${host.name}: ${host.testGlob} matches no vendored file`).not.toEqual([]);
+  });
+
   it.each(onDisk.filter((h) => (h.ungradedDirs ?? []).length > 0).map((h) => [h.name, h] as const))(
     "%s's ungraded directories exist, hold tests, and say why",
     (_name, host) => {
@@ -477,6 +484,11 @@ describe('an exact exclusion names a case its vendored suite registers', () => {
 
   it('finds such exclusions at all — otherwise the case below asserts nothing', () => {
     expect(declared.length).toBeGreaterThan(0);
+  });
+
+  it('declares no blank exclusion, which the filter above would pass over unread', () => {
+    const blank = onDisk.flatMap((host) => (host.excludes ?? []).filter((e) => e.match.trim() === '').map(() => host.name));
+    expect(blank).toEqual([]);
   });
 
   it('finds each title under the file it names', () => {
