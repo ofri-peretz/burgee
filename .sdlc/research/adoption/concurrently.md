@@ -5,9 +5,13 @@ target) and step 2 (A3, revert first). Chosen 2026-10-27 by
 [D-20261027-first-adopter-target-concurrently](../../decisions/D-20261027-first-adopter-target-concurrently.md).
 The pull request draft is [`adoption-draft.md`](../../intents/first-adopter/adoption-draft.md).
 
-**One comment was posted**, on #418 on 2026-10-28 (https://github.com/open-cli-tools/concurrently/issues/418#issuecomment-6455508479). No pull request, issue, fork or star
-was made on any repository outside `ofri-peretz/*`. Every read of GitHub was a read-only `gh api` call, and the proof ran in
-a shallow clone under `mktemp -d`.
+**One comment was posted and one pull request opened, both by the owner.** The comment is on #418,
+2026-10-28 (https://github.com/open-cli-tools/concurrently/issues/418#issuecomment-6455508479).
+The pull request is open-cli-tools/concurrently#639, opened 2026-10-28 from the owner's fork
+(`ofri-peretz:burgee-yargs` at `d0da17b`). No other issue, pull request, fork or star was made
+outside `ofri-peretz/*`, and no agent posted or pushed anything upstream. Every agent read of
+GitHub was a read-only `gh api` call. The proofs ran in local clones; the 1.9.1 clone's
+`revert-proof` branch was never pushed.
 
 **State until 2026-10-28: proven, held again.** The migration and its revert are green on the project's own suite.
 The first burgee bug found on the way,
@@ -19,13 +23,14 @@ and it held the #418 comment the owner had approved on the condition that `--mcp
 On 2026-10-28 the owner chose to post a revised text that states `--mcp` is unchanged for
 concurrently. It was posted once: <https://github.com/open-cli-tools/concurrently/issues/418#issuecomment-6455508479>.
 
-**State 2026-10-28: proven on `burgee@1.9.1`, every check green, the PR being opened.** The
-re-run on the published fix ([below](#re-run-on-burgee191-2026-10-28)) passes every check, and
-`concurrently --mcp` now answers `initialize` and `tools/list`. The owner approved opening the
-pull request without waiting for a maintainer reply. It is being opened by the owner from the
-local branch and the files in
-[`first-adopter/upstream/`](../../intents/first-adopter/upstream/); nothing was pushed or posted
-by the agent that ran the proof.
+**State 2026-10-28: proven on `burgee@1.9.1`, every check green, PR opened 2026-10-28 as
+open-cli-tools/concurrently#639.** The re-run on the published fix
+([below](#re-run-on-burgee191-2026-10-28)) passes every check, and `concurrently --mcp` now
+answers `initialize` and `tools/list`. The owner approved opening the pull request without
+waiting for a maintainer reply, and opened it himself from the local branch and the files in
+[`first-adopter/upstream/`](../../intents/first-adopter/upstream/):
+<https://github.com/open-cli-tools/concurrently/pull/639>. The posted body is
+`upstream/pr-body.md`. Nothing was pushed or posted by the agent that ran the proof.
 
 ## The target
 
@@ -374,7 +379,10 @@ lint-staged hook ran on it. `git format-patch` of that commit is
 [`upstream/0001-refactor-use-burgee-yargs-as-a-drop-in-for-yargs.patch`](../../intents/first-adopter/upstream/0001-refactor-use-burgee-yargs-as-a-drop-in-for-yargs.patch).
 Applied with `git apply --index` to `2a80d44`, it gives tree `3c9f1a3080d2`, the branch's tree.
 Title and body are [`upstream/pr-title.txt`](../../intents/first-adopter/upstream/pr-title.txt) and
-[`upstream/pr-body.md`](../../intents/first-adopter/upstream/pr-body.md).
+[`upstream/pr-body.md`](../../intents/first-adopter/upstream/pr-body.md), the body as the owner
+posted it. The owner pushed `burgee-yargs` to his fork and opened it on 2026-10-28 as
+open-cli-tools/concurrently#639, head `d0da17b`. The `revert-proof` branch (`982bce3`) was not
+pushed.
 
 ### Friction found (A4)
 

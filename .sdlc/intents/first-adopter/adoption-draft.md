@@ -1,14 +1,15 @@
 # Draft — the one disclosed pull request for `first-adopter`
 
-**Status: comment posted; the pull request is ready locally and being opened by the owner. NOT
-OPENED by the agent.** The comment below was posted on open-cli-tools/concurrently#418 on
+**Status: comment posted; pull request opened 2026-10-28 as open-cli-tools/concurrently#639.**
+The comment below was posted on open-cli-tools/concurrently#418 on
 2026-10-28: <https://github.com/open-cli-tools/concurrently/issues/418#issuecomment-6455508479>. Later
 the same day the proof was re-run on `burgee@1.9.1`, which serves `--mcp` under `parseSync()`, and
 every check passed
 ([`concurrently.md`](../../research/adoption/concurrently.md#re-run-on-burgee191-2026-10-28)). The
-owner then approved opening the pull request without waiting for a maintainer reply. Its exact
-commit, title and body are in [`upstream/`](./upstream/). The owner opens it; this file records
-it as being opened until its URL is known.
+owner then approved opening the pull request without waiting for a maintainer reply, and opened it
+himself: <https://github.com/open-cli-tools/concurrently/pull/639>, from `ofri-peretz:burgee-yargs`
+at `d0da17b`. Its commit, title and posted body are in [`upstream/`](./upstream/). No agent
+opened, pushed or commented on anything upstream.
 
 How it got here. On 2026-10-27 the owner chose a short disclosed comment on #418 first and cut the
 cold-start line, on condition that the whole proof passed on the published fix. The re-run on
@@ -69,7 +70,10 @@ request now, on the 1.9.1 proof, without waiting for a maintainer reply. The cal
 
 ## The pull request, 2026-10-28
 
-**NOT OPENED by the agent: being opened by the owner.** Everything below is local.
+**Opened 2026-10-28 as open-cli-tools/concurrently#639**
+(<https://github.com/open-cli-tools/concurrently/pull/639>), by the owner, from his fork's
+`burgee-yargs` branch at `d0da17b`. The proof clone's `revert-proof` branch (`982bce3`, the
+`git revert` used for A3) was not pushed anywhere; it exists only in the local clone.
 
 - **Branch.** `burgee-yargs` in the proof clone, one commit on concurrently's default-branch HEAD
   `2a80d44`: `d0da17b924e24d15127e8774fb25f2348562d7c1`,
@@ -86,12 +90,18 @@ request now, on the 1.9.1 proof, without waiting for a maintainer reply. The cal
   refactor: use burgee/yargs as a drop-in for yargs
   ```
 
-- **Body.** [`upstream/pr-body.md`](./upstream/pr-body.md), the only copy. It opens with the
-  disclosure that Ofri wrote burgee, links #418 and the posted comment, and states the 1.9.1
-  numbers: 649 / 649 before, after and reverted on Node 22.22, 24.12 and 26.10 (naming the one
-  `cjs-import` timeout under load), `--help` byte-identical, 37 of 41 vectors identical against a
-  41 / 41 control, the four reserved flags and what each now does, `--mcp` serving with an empty
-  tool list, 19 packages to 12, +1.2 MB, eight maintainers to one, and the revert.
+- **Body.** [`upstream/pr-body.md`](./upstream/pr-body.md), the only copy, exactly as posted. It
+  opens with the disclosure that Ofri wrote burgee, links #418 and the posted comment, and states
+  the 1.9.1 numbers: 649 / 649 before, after and reverted on Node 22.22, 24.12 and 26.10 (naming
+  the one `cjs-import` timeout under load), `--help` byte-identical, 37 of 41 vectors identical
+  against a 41 / 41 control, the four reserved flags and what each now does, `--mcp` serving with
+  an empty tool list, 19 packages to 12, +1.2 MB, eight maintainers to one, and the revert.
+- **The owner's edits before posting.** The maintainer's words in #418 are quoted accurately: he
+  "wouldn't mind seeing a PR that ditches yargs" if it keeps full compatibility and has decent
+  TypeScript types, and "we should discuss first which library that'd be" (gustavohenke, #418). The agent's draft had said he would "take a
+  PR". A line was added that `typecheck` passes on burgee's own bundled types, with the
+  `cjs-import` and `cjs-require` smoke tests passing. Another notes that `@types/yargs` stays in
+  devDependencies, untouched.
 
 What changed from the 2026-10-27 body: the numbers are 1.9.1's, the cold-start line is cut as the
 owner decided, and the reserved-flag list says `--mcp` serves where it used to print help. The

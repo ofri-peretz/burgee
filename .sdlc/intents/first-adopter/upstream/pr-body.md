@@ -1,6 +1,6 @@
 Hi, I'm Ofri Peretz. I wrote and maintain burgee, the package this PR adds, so please read it with that in mind.
 
-This follows #418 and my comment there: https://github.com/open-cli-tools/concurrently/issues/418#issuecomment-6455508479. You said you'd take a PR that drops yargs if it keeps full compatibility and has decent TypeScript types. This is that PR, so you can judge the real diff. If burgee isn't the library you'd pick, closing it is a perfectly good answer.
+This follows #418 and my comment there: https://github.com/open-cli-tools/concurrently/issues/418#issuecomment-6455508479. You wrote that you wouldn't mind a PR that ditches yargs if it keeps full compatibility and has decent TypeScript types, and that you'd rather agree on the library first. That's what my comment asked about. I'm opening this alongside it so the question has a concrete diff to answer: two import lines, measured below. If burgee isn't the library you'd pick, closing it is a perfectly good answer.
 
 **What changes.** Two import lines in `bin/index.ts`, plus `package.json` and the lockfile:
 
@@ -17,6 +17,7 @@ This follows #418 and my comment there: https://github.com/open-cli-tools/concur
 
 - `build`, `typecheck`, `lint` and `format` pass. `vitest run` is 649/649 before the change, after it, and after reverting it, on Node 22.22, 24.12 and 26.10. One run after the change hit the 5 s timeout in the `cjs-import` smoke test on Node 22, with the laptop at a load average of 86. It passed on the re-run, and the same test timed out the same way once on the unchanged code in an earlier run.
 - `--help` is byte-identical.
+- `typecheck` passes on burgee's own bundled types, with no `@types` package added. `@types/yargs` stays in devDependencies, untouched, to keep the diff minimal; nothing imports it after this change, so it can go in a follow-up if you like. The `cjs-import` and `cjs-require` smoke tests pass, so CommonJS users are unaffected.
 - I packed both builds, installed each alone, and ran the same 41 argument vectors through both binaries: every option group, `-P`, `-i`, `--teardown`, invalid values, an unknown flag, no arguments, and the `CONCURRENTLY_*` variables. 37 are identical in stdout, stderr and exit code. A run of yargs against itself is 41/41, so the harness isn't adding noise. The 4 that differ are the flags burgee reserves, listed below.
 - `concurrently "echo a" "echo b"` prints the same lines and exits the same way.
 - Dependencies go from 19 packages to 12: yargs and its 12 dependencies become burgee and its 5. `npm audit --omit=dev` is 0 before and after.
