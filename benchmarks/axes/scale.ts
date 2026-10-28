@@ -51,7 +51,11 @@ export const SCALE_RATIO_CEILING = 3;
 
 /** Four spawns a round, so a whole multiple of four gives every spawn each starting position equally often. */
 const PER_ROUND = SIZES.length * SURFACES.length;
-export const SCALE_ROUNDS = 24;
+/**
+ * 32, not the decision's original 24: these rows land on the perf axis, so R6's ≥30-spawn floor
+ * (`benchmarks/sample-floor.test.ts`) reads them too. 32 is the first multiple of four over 30.
+ */
+export const SCALE_ROUNDS = 32;
 const GROUPS = ['Repository:', 'Packages:', 'Environments:', 'Reports:', 'Maintenance:'] as const;
 /** One command in ten loads its handler on dispatch (M2), as three of `demo-cli-large`'s thirty do. */
 const LAZY_EVERY = 10;
