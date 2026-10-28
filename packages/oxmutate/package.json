@@ -67,8 +67,8 @@
     "coverage": "vitest run --coverage.enabled"
   },
   "dependencies": {
-    "bellpull": "*",
-    "burgee": "*"
+    "bellpull": "^1.0.10",
+    "burgee": "^1.9.2"
   },
   "peerDependencies": {
     "vitest": ">=4.1.0"
