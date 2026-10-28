@@ -59,3 +59,10 @@ answers it. Both cases were red on `b62cf2a105`, whose `yargs/factory.ts` and `m
 in-process. Re-running the concurrently proof on the published fix belongs to the first-adopter
 intent: the posted #418 comment says `--mcp` is unchanged for concurrently, and the pull request
 that follows it can say otherwise once this fix is on npm.
+
+**Proven on the published fix, 2026-10-28.** `burgee@1.9.1` carries it. The first-adopter proof
+was re-run on it against concurrently `2a80d44`. With `initialize`, `notifications/initialized`
+and `tools/list` on stdin, `concurrently --mcp` answers `initialize` (`serverInfo` `concurrently`
+10.0.6) and `tools/list` (`[]`, since concurrently registers no handler). It writes nothing on
+stderr and exits 0 when the input ends. With stdin held open, it stays up and keeps answering
+([`concurrently.md`](../research/adoption/concurrently.md#re-run-on-burgee191-2026-10-28)).

@@ -45,6 +45,18 @@ and `--mcp` stated as unchanged for concurrently, because concurrently does its 
 posted text is in [`adoption-draft.md`](./adoption-draft.md#posted-comment-2026-10-28). Status
 stays `approved`: the intent ships only when an upstream PR merges.
 
+**Proof green on `burgee@1.9.1`, 2026-10-28; the PR is being opened by the owner.** The A3 proof
+was re-run on the published fix, against concurrently's default-branch HEAD, which is still
+`2a80d44`. Every check passed: 649 / 649 base, migrated and reverted on Node 22, 24 and 26,
+`--help` byte-identical, `migrate` writes the exact pin `"burgee": "1.9.1"`, the revert restores
+the tree hash, `completion zsh` prints a script, and `concurrently --mcp` now answers `initialize`
+and `tools/list`. 37 of 41 argument vectors are identical against a 41 / 41 control; the 4 that
+differ are burgee's reserved shapes, `--mcp` now among them because it serves
+([`concurrently.md`](../../research/adoption/concurrently.md#re-run-on-burgee191-2026-10-28)).
+The owner approved opening the pull request without waiting for a maintainer reply. The commit,
+patch, title and body are ready in [`upstream/`](./upstream/), and the owner opens it from Ofri's
+own fork. Status stays `approved` until an upstream merge: A1 and A6 cannot close before one.
+
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why `review` until 2026-10-25:** no external CLI has been migrated; A1–A5 are all open.
 
 ---

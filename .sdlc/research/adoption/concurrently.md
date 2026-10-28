@@ -9,7 +9,7 @@ The pull request draft is [`adoption-draft.md`](../../intents/first-adopter/adop
 was made on any repository outside `ofri-peretz/*`. Every read of GitHub was a read-only `gh api` call, and the proof ran in
 a shallow clone under `mktemp -d`.
 
-**State: proven, held again.** The migration and its revert are green on the project's own suite.
+**State until 2026-10-28: proven, held again.** The migration and its revert are green on the project's own suite.
 The first burgee bug found on the way,
 [A-20261027-yargs-parsesync-surfaces-throw](../../gaps/A-20261027-yargs-parsesync-surfaces-throw.md),
 is fixed in `burgee@1.8.0`. The re-run on 1.8.0 ([below](#re-run-on-burgee180-2026-10-27)) passes
@@ -17,7 +17,15 @@ every check but one: `concurrently --mcp` no longer crashes, but it does not ser
 [A-20261027-yargs-parsesync-mcp-ended-by-exit](../../gaps/A-20261027-yargs-parsesync-mcp-ended-by-exit.md),
 and it held the #418 comment the owner had approved on the condition that `--mcp` starts a server.
 On 2026-10-28 the owner chose to post a revised text that states `--mcp` is unchanged for
-concurrently. It was posted once: <https://github.com/open-cli-tools/concurrently/issues/418#issuecomment-6455508479>. The PR follows only on the maintainer's yes.
+concurrently. It was posted once: <https://github.com/open-cli-tools/concurrently/issues/418#issuecomment-6455508479>.
+
+**State 2026-10-28: proven on `burgee@1.9.1`, every check green, the PR being opened.** The
+re-run on the published fix ([below](#re-run-on-burgee191-2026-10-28)) passes every check, and
+`concurrently --mcp` now answers `initialize` and `tools/list`. The owner approved opening the
+pull request without waiting for a maintainer reply. It is being opened by the owner from the
+local branch and the files in
+[`first-adopter/upstream/`](../../intents/first-adopter/upstream/); nothing was pushed or posted
+by the agent that ran the proof.
 
 ## The target
 
@@ -282,6 +290,92 @@ owner then approved a revised text, posted 2026-10-28.
 
 burgee was first published 2026-09-07.
 
+### Re-run on `burgee@1.9.1`, 2026-10-28
+
+`burgee@1.9.1` (published 2026-10-28T03:05Z) is the first release with #1325, which serves
+`--mcp` under `parseSync()` until its input ends
+([D-20261028-yargs-parsesync-mcp-serves-synchronously](../../decisions/D-20261028-yargs-parsesync-mcp-serves-synchronously.md)).
+Its tarball's `dist/mcp.js` and `dist/yargs/factory.js` carry `serveMcpSync`. **Every check
+passed.**
+
+Same machine and method: macOS 26.2 (Darwin 25.2.0, Apple Silicon), pnpm 10.18.2, the CI steps
+under each Node. A fresh `git clone --filter=blob:none` of the default branch. Its HEAD is still
+`2a80d44da6c4` ("fix: forward signals to the teardown command (#630)"), so the research commit
+and the current HEAD are the same SHA. Load average ran from 10 to 86 during the run.
+
+| Step | Node | build | typecheck | lint | format | vitest |
+| :-- | :-- | :-: | :-: | :-: | :-: | :-- |
+| base (`2a80d44`) | 22.22.0 | 0 | 0 | 0 | 0 | 649 / 649 |
+| | 24.12.0 | 0 | 0 | 0 | 0 | 649 / 649 |
+| | 26.10.0 | 0 | 0 | 0 | 0 | 649 / 649 |
+| after `burgee@1.9.1 migrate` (`d0da17b`) | 22.22.0 | 0 | 0 | 0 | 0 | **649 / 649** (first run 648: the `cjs-import` smoke test hit its 5 s timeout at load average 86, as the 1.8.0 base run's did; the re-run passed) |
+| | 24.12.0 | 0 | 0 | 0 | 0 | **649 / 649** |
+| | 26.10.0 | 0 | 0 | 0 | 0 | **649 / 649** |
+| after `git revert` (`982bce3`) | 22.22.0 | 0 | 0 | 0 | 0 | **649 / 649** |
+| | 24.12.0 | 0 | 0 | 0 | 0 | **649 / 649** |
+| | 26.10.0 | 0 | 0 | 0 | 0 | **649 / 649** |
+
+| Check | Result |
+| :-- | :-- |
+| `npx -y burgee@1.9.1 migrate` | exit 0; 2 imports rewritten in `bin/index.ts`; yargs graded 816 / 816 (the incumbent passes 814) |
+| `migrate` writes the exact pin | `next: pnpm add --save-exact burgee@1.9.1 && pnpm remove yargs`; run as printed, `package.json` gets `"burgee": "1.9.1"` |
+| Diff | `bin/index.ts` 2 / 2, `package.json` 2 / 2, `pnpm-lock.yaml` +49 / −81 |
+| Suite, Node 22, 24 and 26 | 649 / 649 base, migrated and reverted (table above) |
+| `--help` | byte-identical: `022489e3…` base, migrated and reverted, 105 lines |
+| 41 argument vectors | **37 identical**; the 4 that differ are burgee's reserved shapes. Control, yargs against yargs: 41 / 41 |
+| A normal run, `concurrently "echo a" "echo b"` | identical: `[0] a`, `[1] b`, both exited with code 0, exit 0 |
+| `git revert` | `2a80d44^{tree}` = `HEAD^{tree}` = `74d047518f7d…`; suite green |
+| `completion zsh` | prints `#compdef concurrently`, exit 0 |
+| `concurrently --mcp` | **serves**: answers `initialize` and `tools/list`, exit 0 when stdin ends, nothing on stderr |
+| `preflight-outreach.mjs --base 2a80d44` | `preflight: clean — no known-fatal defect in this diff.` |
+| `npm audit --omit=dev` | 0 before, 0 after |
+
+**`--mcp` replies.** Through the packed and installed binary, with `initialize`,
+`notifications/initialized` and `tools/list` on stdin, then stdin closed:
+
+```text
+{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18","capabilities":{"tools":{}},"serverInfo":{"name":"concurrently","version":"10.0.6"}}}
+{"jsonrpc":"2.0","id":2,"result":{"tools":[]}}
+```
+
+Exit 0, stderr empty. A second probe held stdin open and sent each request only after the previous
+reply: `initialize` answered at +206 ms and `tools/list` at +211 ms. The process was still alive
+2 s later, with stdin open, and exited 0 when stdin closed. On `burgee@1.8.0` the same input got
+the help screen on stderr and nothing on stdout. `tools` is empty by design: concurrently runs
+after `parseSync()` returns and registers no handler (friction 3).
+
+**The four vectors that differ**, each burgee's reserved shape:
+
+| argv | yargs 18.0.0 | burgee 1.9.1 |
+| :-- | :-- | :-- |
+| `-m 1 --json "echo a"` | `--json` takes `echo a` as its value; help, exit 0 | `--json` is a boolean; runs `echo a`, exit 0 |
+| `--schema "echo a"` | help, exit 0 | prints the schema, `"commands": []`, exit 0 |
+| `completion zsh` | runs a command named `completion`: `command not found`, exit 1 | prints a zsh completion script, exit 0 |
+| `--mcp` | help on stderr, exit 0 | **serves**: the two replies above, exit 0 at end of input |
+
+`--mcp` moved from "identical" (1.8.0) to "differs", which is the fix working: it used to fall
+through to help. One consequence to state upstream: `concurrently --mcp` typed in a terminal now
+waits on stdin until Ctrl-D, where it used to print help.
+
+**Footprint**, each tarball installed alone with `npm i --omit=dev`:
+
+| | yargs 18.0.0 | burgee 1.9.1 |
+| :-- | --: | --: |
+| Packages besides concurrently | 19 | 12 |
+| Host subtree | yargs + 12, 511,460 B | burgee + 5 (bellpull, closeout, linegauge, roundel, seniority), 1,727,552 B |
+| All dependency bytes | 5,188,715 | 6,404,807 |
+| npm maintainer accounts in the host subtree | 8 | 1 (ofriperetz) |
+| `npm audit --omit=dev` | 0 | 0 |
+
+**The pull request, ready locally.** In the proof clone, branch `burgee-yargs` is one commit,
+`d0da17b924e2`, on `2a80d44`, authored as `Ofri Peretz <ofriperetzdev@gmail.com>` with the
+message `refactor: use burgee/yargs as a drop-in for yargs`. concurrently's own husky and
+lint-staged hook ran on it. `git format-patch` of that commit is
+[`upstream/0001-refactor-use-burgee-yargs-as-a-drop-in-for-yargs.patch`](../../intents/first-adopter/upstream/0001-refactor-use-burgee-yargs-as-a-drop-in-for-yargs.patch).
+Applied with `git apply --index` to `2a80d44`, it gives tree `3c9f1a3080d2`, the branch's tree.
+Title and body are [`upstream/pr-title.txt`](../../intents/first-adopter/upstream/pr-title.txt) and
+[`upstream/pr-body.md`](../../intents/first-adopter/upstream/pr-body.md).
+
 ### Friction found (A4)
 
 Each point is a gap or a decision, as A4 requires.
@@ -303,15 +397,17 @@ Each point is a gap or a decision, as A4 requires.
 5. **`--mcp` under `parseSync()` is ended by the program's own `process.exit()`**:
    [A-20261027-yargs-parsesync-mcp-ended-by-exit](../../gaps/A-20261027-yargs-parsesync-mcp-ended-by-exit.md).
    Found by the 1.8.0 re-run. It held the #418 comment for a day; the posted text says `--mcp` is
-   unchanged for concurrently and promises no fix.
+   unchanged for concurrently and promises no fix. Fixed in `burgee@1.9.1` (#1325): the 1.9.1
+   re-run gets `initialize` and `tools/list` replies from `concurrently --mcp`.
 
 ### A2 report, so far
 
 - **Time.** migrate and its `next` took under 10 seconds. The proof took about 40 minutes of wall
   time: install, four suite runs, the parity harness, footprint and cold start.
 - **Lines changed.** 4 source and manifest lines in 2 files, plus the lockfile (+49 / −81).
-- **What broke.** Nothing in the project's suite, on three Node majors. Outside the suite, two
-  argument shapes crash (friction 1).
+- **What broke.** Nothing in the project's suite, on three Node majors. Outside the suite, on
+  1.7.2, two argument shapes crashed (friction 1), and on 1.8.0 `--mcp` did not serve (friction 5).
+  On 1.9.1 nothing breaks; the four reserved shapes behave as the PR body lists.
 - **What was missing.** Agent surfaces for a program with no handler (friction 3), and pin style
   (friction 2).
 
