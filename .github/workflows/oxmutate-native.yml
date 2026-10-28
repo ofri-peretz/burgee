@@ -18,7 +18,7 @@ name: oxmutate native cores
 # Legs that cannot load their own binary on the runner, and what stands in:
 #   darwin-x64      cross-compiled on Apple silicon (the macOS 13 Intel image is retired):
 #                   header checked as Mach-O x86_64, not loaded.
-#   linux-x64-musl  built on glibc, loaded inside node:<.nvmrc>-alpine.
+#   linux-x64-musl  built inside rust:<version>-alpine, loaded inside node:<.nvmrc>-alpine.
 #
 # The matrix must list exactly the directories under packages/oxmutate/npm, each with its
 # `oxmutate.rustTarget` — `scripts/oxmutate-platforms-lock.test.ts` holds that.
@@ -89,20 +89,21 @@ jobs:
           rustup target add "${{ matrix.target }}"
           rustc --version
 
-      - name: musl toolchain
-        if: matrix.platform == 'linux-x64-musl'
-        run: |
-          set -euo pipefail
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq musl-tools
-
       - name: cargo build --target ${{ matrix.target }}
+        if: matrix.platform != 'linux-x64-musl'
         working-directory: packages/oxmutate/native
         env:
           RUSTFLAGS: ${{ matrix.rustflags }}
-          CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
-          CC_x86_64_unknown_linux_musl: musl-gcc
         run: cargo build --release --locked --features napi --lib --target "${{ matrix.target }}"
+
+      # On Alpine, not Ubuntu's musl-tools: a musl cdylib links libgcc_s, which musl-gcc on a
+      # glibc host cannot find (release run 40721822591, 2026-10-28). Same Rust as the runners.
+      - name: cargo build --target ${{ matrix.target }} (Alpine)
+        if: matrix.platform == 'linux-x64-musl'
+        run: |
+          docker run --rm -v "$PWD:/w" -w /w/packages/oxmutate/native -e RUSTFLAGS="${{ matrix.rustflags }}" \
+            rust:1.99.1-alpine3.22 sh -c 'apk add -q musl-dev && cargo build --release --locked --features napi --lib --target "${{ matrix.target }}"'
+          sudo chown -R "$(id -u):$(id -g)" packages/oxmutate/native/target
 
       - name: Into npm/${{ matrix.platform }}/oxmutate.node
         run: node packages/oxmutate/scripts/copy-platform-binding.mjs "${{ matrix.platform }}"
