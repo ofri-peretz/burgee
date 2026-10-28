@@ -57,6 +57,11 @@ handling. The case asserts on those two runtimes what holds there — the cancel
 and skips only the second-press proof (`secondPressProves` in the test). Criterion 3 is held by
 the Node 24 cells of `compat.yml`'s matrix on all three OSes.
 
+**Later, 2026-10-27:** the second press proved unreliable on Node 24 too, passing in some runs and
+failing in others. On Windows the mode is now graded by a line read back through the terminal,
+on every runtime, and the carve-out above is gone
+([D-20261027-caique-conpty-line-proof](./D-20261027-caique-conpty-line-proof.md)).
+
 **Not changed:** `pty-signal.test.ts` stays POSIX-only. Its subject is a signal delivered by the
 tty line discipline to a process in cooked mode; a console has no signals, only control events,
 and that is a different test.
