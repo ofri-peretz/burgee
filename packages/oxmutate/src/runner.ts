@@ -276,7 +276,12 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
         if (t.type === 'test' && t.result?.state === 'fail') failed.push(t.id);
         for (const c of t.tasks ?? []) visit(c);
       };
-      for (const f of files) visit(f);
+      for (const f of files) {
+        visit(f);
+        // A file that failed with no failing test (it threw at import, or in a hook) failed under
+        // the mutant: a kill, as Stryker scores it. Its id stands in for the test that failed.
+        if (f.result?.state === 'fail' && !failed.length) failed.push(f.id);
+      }
       emit({ type: 'isolated', id: env[ACTIVE_MUTANT_ENV] ?? ns.activeMutant, killed: failed.length > 0, failed, ran });
     }
     return super.onAfterRunFiles?.(files);

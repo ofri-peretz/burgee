@@ -108,6 +108,8 @@ describe("Stryker's mutate ranges", () => {
     expect(parseMutateSpec('src/a.ts:5-10')).toEqual({ glob: 'src/a.ts', range: { start: { line: 5, column: 0 }, end: { line: 10, column: Number.MAX_SAFE_INTEGER } } });
     expect(parseMutateSpec('src/a.ts:5:4-6:9')).toEqual({ glob: 'src/a.ts', range: { start: { line: 5, column: 4 }, end: { line: 6, column: 9 } } });
     expect(parseMutateSpec('C:/w/a.ts:12-13').glob).toBe('C:/w/a.ts');
+    expect(parseMutateSpec('src/a.ts:5:12-6:34')).toEqual({ glob: 'src/a.ts', range: { start: { line: 5, column: 12 }, end: { line: 6, column: 34 } } });
+    expect(parseMutateSpec('src/a.ts:5-10.bak')).toEqual({ glob: 'src/a.ts:5-10.bak' }); // a range ends the entry
   });
 
   // Report columns are 1-based with the end exclusive; a range's are Stryker's, 0-based inclusive.
@@ -116,6 +118,8 @@ describe("Stryker's mutate ranges", () => {
     expect(withinRange(lines, at(5, 1), at(6, 30))).toBe(true);
     expect(withinRange(lines, at(4, 9), at(5, 3))).toBe(false);
     expect(withinRange(lines, at(6, 1), at(7, 2))).toBe(false);
+    // strictly between the range's lines: inside whatever the columns, at either end
+    expect(withinRange(parseMutateSpec('a.ts:5:4-7:4').range as MutateRange, at(6, 1), at(6, 3))).toBe(true);
     const cols = parseMutateSpec('a.ts:5:4-5:9').range as MutateRange;
     expect(withinRange(cols, at(5, 5), at(5, 10))).toBe(true); // columns 4..9, both included
     expect(withinRange(cols, at(5, 4), at(5, 10))).toBe(false); // starts at column 3

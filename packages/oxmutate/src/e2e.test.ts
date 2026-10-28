@@ -22,7 +22,8 @@ if (!native && process.env['OXMUTATE_REQUIRE_NATIVE'] === '1') throw new Error('
 interface ReportMutant {
   mutatorName: string;
   status: string;
-  location: { start: { line: number } };
+  location: { start: { line: number; column?: number } };
+  replacement?: string;
   static?: boolean;
   testsCompleted?: number;
 }
@@ -132,6 +133,18 @@ describe.skipIf(!native || !existsSync(bin))('Stryker options the run honours', 
     expect(ignored.length).toBeGreaterThan(0);
     expect(ignored.every((m) => m.statusReason === 'the registry write is checked elsewhere' && m.location.start.line === 6)).toBe(true);
     expect(mutants.some((m) => m.status === 'Killed')).toBe(true);
+  });
+
+  it('a static mutant that stops the test file loading is Killed, not Survived', () => {
+    const loadError = path.join(pkg, 'test/fixtures/load-error');
+    try {
+      const r = runWith(loadError, {});
+      const mutants = (JSON.parse(readFileSync(path.join(r.reports, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: ReportMutant[] }> }).files['src/version.ts']?.mutants ?? [];
+      // '../package.json' → '' reads this module's own source, so JSON.parse throws at import
+      expect(mutants.find((m) => m.replacement === '""' && m.location.start.column === 57)?.status).toBe('Killed');
+    } finally {
+      rmSync(path.join(loadError, 'reports'), { recursive: true, force: true });
+    }
   });
 
   it('dryRunOnly: the dry run passes and nothing is scored or written', () => {

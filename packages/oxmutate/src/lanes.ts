@@ -74,13 +74,17 @@ export interface MutateRange {
   end: { line: number; column: number };
 }
 
-/** Stryker's own pattern (`mutate-pattern-constants.js`): `<glob>:<line>[:<col>]-<line>[:<col>]`. */
-const RANGE = /^(.*?):((\d+)(?::(\d+))?-(\d+)(?::(\d+))?)$/;
+/**
+ * Stryker's own pattern (`mutate-pattern-constants.js`): `<glob>:<line>[:<col>]-<line>[:<col>]`.
+ * No `^`: the lazy glob group can take any prefix, so the leftmost match already starts the string.
+ */
+const RANGE = /(.*?):((\d+)(?::(\d+))?-(\d+)(?::(\d+))?)$/;
 
 /** A `mutate` entry split into its glob and, when it names one, its range. */
 export function parseMutateSpec(spec: string): { glob: string; range?: MutateRange } {
   const m = RANGE.exec(spec);
   if (!m) return { glob: spec };
+  // Stryker disable next-line StringLiteral: the glob group always takes part, so its default is never used, and Number('') is 0 as Number('0') is
   const [, glob = '', , startLine, startColumn = '0', endLine, endColumn = String(Number.MAX_SAFE_INTEGER)] = m;
   return { glob, range: { start: { line: Number(startLine), column: Number(startColumn) }, end: { line: Number(endLine), column: Number(endColumn) } } };
 }

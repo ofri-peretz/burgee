@@ -10,6 +10,7 @@ import path from 'node:path';
 import type { MutantResult, RunResult } from './coordinator.js';
 
 /** The package's own version, read from its manifest so `--version` and the reports never drift from it. */
+// Stryker disable next-line StringLiteral: with no encoding readFileSync returns a Buffer, which JSON.parse reads as the same UTF-8 text
 export const VERSION = (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version;
 
 /** A replacement longer than this is cut, in the SARIF message and in the terminal list. */
