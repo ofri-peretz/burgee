@@ -75,18 +75,19 @@ export interface MutateRange {
 }
 
 /**
- * Stryker's own pattern (`mutate-pattern-constants.js`): `<glob>:<line>[:<col>]-<line>[:<col>]`.
- * No `^`: the lazy glob group can take any prefix, so the leftmost match already starts the string.
+ * The range end of Stryker's pattern (`mutate-pattern-constants.js`): `<glob>:<line>[:<col>]-<line>[:<col>]`.
+ * Only the suffix is matched; the glob is what comes before it. Stryker's lazy `^(.*?):` glob group
+ * backtracks polynomially (CodeQL js/polynomial-redos), and the leftmost match is the same split.
  */
-const RANGE = /(.*?):((\d+)(?::(\d+))?-(\d+)(?::(\d+))?)$/;
+const RANGE = /:(\d+)(?::(\d+))?-(\d+)(?::(\d+))?$/;
 
 /** A `mutate` entry split into its glob and, when it names one, its range. */
 export function parseMutateSpec(spec: string): { glob: string; range?: MutateRange } {
   const m = RANGE.exec(spec);
   if (!m) return { glob: spec };
-  // Stryker disable next-line StringLiteral: the glob group always takes part, so its default is never used, and Number('') is 0 as Number('0') is
-  const [, glob = '', , startLine, startColumn = '0', endLine, endColumn = String(Number.MAX_SAFE_INTEGER)] = m;
-  return { glob, range: { start: { line: Number(startLine), column: Number(startColumn) }, end: { line: Number(endLine), column: Number(endColumn) } } };
+  // Stryker disable next-line StringLiteral: Number('') is 0 as Number('0') is
+  const [, startLine, startColumn = '0', endLine, endColumn = String(Number.MAX_SAFE_INTEGER)] = m;
+  return { glob: spec.slice(0, m.index), range: { start: { line: Number(startLine), column: Number(startColumn) }, end: { line: Number(endLine), column: Number(endColumn) } } };
 }
 
 /**
