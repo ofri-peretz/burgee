@@ -237,9 +237,15 @@ describe('criterion 1: every published package has a site, or a written reason',
   });
 
   it('names only real, published packages in rows and exclusions', () => {
-    const published = new Set(publishedPackages(join(REPO_ROOT, 'packages')));
+    // A pending app may document a package that is still private: its site is built ahead of
+    // both its Vercel project and its first release (oxmutate, 2026-10-27), so its row and its
+    // exclusion are the same either side of the flip to `private: false`. A deployable row may not.
+    const ahead = new Set(PENDING.map(([, row]) => row.package).filter((name) => existsSync(join(REPO_ROOT, 'packages', name, 'package.json'))));
+    const published = new Set([...publishedPackages(join(REPO_ROOT, 'packages')), ...ahead]);
     const stray = [...SITES.map(([, row]) => row.package), ...Object.keys(TABLE.excluded)].filter((name) => !published.has(name));
     expect(stray, 'a row or exclusion for a package that is not published from packages/').toEqual([]);
+    const unreleased = ROWS.map(([, row]) => row.package).filter((name) => !publishedPackages(join(REPO_ROOT, 'packages')).includes(name));
+    expect(unreleased, 'a deployable row for a package that is still private — a site built ahead of its release stays pending').toEqual([]);
   });
 });
 

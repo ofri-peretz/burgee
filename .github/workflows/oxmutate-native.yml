@@ -1,0 +1,145 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: oxmutate native cores
+
+# ─────────────────────────────────────────────────────────────────────────────
+# One prebuilt `oxmutate.node` per platform (`packages/oxmutate/npm/<platform>` names the six),
+# PRINCIPLES rule 9, `native-engine`: nothing runs at install time. 0.1 ships all six inside
+# oxmutate's tarball — `release.yml` places each leg's artifact at
+# `packages/oxmutate/binding/oxmutate.<platform>.node` — because the per-platform package names do
+# not exist on npm yet; once they do, the same artifacts publish as those packages, the
+# oxc / Rolldown / napi-rs layout (`packages/oxmutate/RELEASING.md`).
+#
+# Called by `release.yml` (job `native`) when its plan carries a platform package, and on its
+# dry runs; dispatch it alone to build and smoke-test every core without publishing anything.
+# Each leg: build the cdylib for its Rust target, copy it to `npm/<platform>/oxmutate.node`,
+# check the binary's header is that platform's, load it with `process.dlopen` and call
+# `nativeVersion()` where the runner can, upload it as `oxmutate-native-<platform>`.
+#
+# Legs that cannot load their own binary on the runner, and what stands in:
+#   darwin-x64      cross-compiled on Apple silicon (the macOS 13 Intel image is retired):
+#                   header checked as Mach-O x86_64, not loaded.
+#   linux-x64-musl  built on glibc, loaded inside node:<.nvmrc>-alpine.
+#
+# The matrix must list exactly the directories under packages/oxmutate/npm, each with its
+# `oxmutate.rustTarget` — `scripts/oxmutate-platforms-lock.test.ts` holds that.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    name: Native core · ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      # One platform failing must not cancel the others: release.yml then publishes everything
+      # that does not depend on the missing core, and a re-run finishes the rest.
+      fail-fast: false
+      matrix:
+        include:
+          - platform: darwin-arm64
+            target: aarch64-apple-darwin
+            runner: macos-14
+            rustflags: ""
+          - platform: darwin-x64
+            target: x86_64-apple-darwin
+            runner: macos-14
+            rustflags: ""
+          # ubuntu-22.04 (glibc 2.35), not -latest (2.39): the .so needs no newer glibc than the
+          # runner it was linked on, and an older floor installs on more machines.
+          - platform: linux-x64-gnu
+            target: x86_64-unknown-linux-gnu
+            runner: ubuntu-22.04
+            rustflags: ""
+          - platform: linux-arm64-gnu
+            target: aarch64-unknown-linux-gnu
+            runner: ubuntu-22.04-arm
+            rustflags: ""
+          # musl's default is a static CRT, which cannot make a cdylib; napi-rs turns it off the
+          # same way, and the .so then links musl's libc.so dynamically, as Alpine's node does.
+          - platform: linux-x64-musl
+            target: x86_64-unknown-linux-musl
+            runner: ubuntu-22.04
+            rustflags: "-C target-feature=-crt-static"
+          # A static CRT, as napi-rs's template sets: no dependency on the VC++ redistributable.
+          - platform: win32-x64-msvc
+            target: x86_64-pc-windows-msvc
+            runner: windows-latest
+            rustflags: "-C target-feature=+crt-static"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+        with:
+          turbo-cache: "false"
+
+      # The runner images ship rustup and a stable toolchain (mutation.yml and oxmutate-bench.yml
+      # build the same crate on it). No toolchain action: nothing unpinned is installed.
+      - name: Rust target ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          command -v rustup >/dev/null || { echo "::error::$RUNNER_OS runner ${ImageOS:-} has no rustup."; exit 1; }
+          rustup target add "${{ matrix.target }}"
+          rustc --version
+
+      - name: musl toolchain
+        if: matrix.platform == 'linux-x64-musl'
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq musl-tools
+
+      - name: cargo build --target ${{ matrix.target }}
+        working-directory: packages/oxmutate/native
+        env:
+          RUSTFLAGS: ${{ matrix.rustflags }}
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
+          CC_x86_64_unknown_linux_musl: musl-gcc
+        run: cargo build --release --locked --features napi --lib --target "${{ matrix.target }}"
+
+      - name: Into npm/${{ matrix.platform }}/oxmutate.node
+        run: node packages/oxmutate/scripts/copy-platform-binding.mjs "${{ matrix.platform }}"
+
+      - name: Smoke-load it
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          set -euo pipefail
+          case "$PLATFORM" in
+            darwin-x64)
+              # Built on arm64; the header check is what this runner can prove.
+              node packages/oxmutate/scripts/smoke-platform-binding.mjs "$PLATFORM"
+              lipo -archs "packages/oxmutate/npm/$PLATFORM/oxmutate.node"
+              ;;
+            linux-x64-musl)
+              node packages/oxmutate/scripts/smoke-platform-binding.mjs "$PLATFORM"
+              docker run --rm -v "$PWD/packages/oxmutate:/w" -w /w "node:$(cat .nvmrc)-alpine" \
+                node scripts/smoke-platform-binding.mjs "$PLATFORM" --require-load
+              ;;
+            *)
+              node packages/oxmutate/scripts/smoke-platform-binding.mjs "$PLATFORM" --require-load
+              ;;
+          esac
+          file="packages/oxmutate/npm/$PLATFORM/oxmutate.node"
+          case "$PLATFORM" in
+            linux-*-gnu)
+              # The newest glibc symbol the core needs: its floor on users' machines.
+              floor=$(objdump -T "$file" | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -n 1)
+              echo "- \`$PLATFORM\`: needs ${floor:-no versioned glibc symbol}" >> "$GITHUB_STEP_SUMMARY"
+              ;;
+            *) echo "- \`$PLATFORM\`: $(wc -c < "$file" | tr -d ' ') bytes" >> "$GITHUB_STEP_SUMMARY" ;;
+          esac
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: oxmutate-native-${{ matrix.platform }}
+          path: packages/oxmutate/npm/${{ matrix.platform }}/oxmutate.node
+          if-no-files-found: error
+          retention-days: 3

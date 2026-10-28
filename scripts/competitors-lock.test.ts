@@ -82,6 +82,8 @@ const KNOWN = [
   'signal-exit',
   'slice-ansi',
   'string-width',
+  // oxmutate's incumbent (2026-10-27): its config, report and mutator set, by surface.
+  '@stryker-mutator/core',
   'strip-ansi',
   'supports-color',
   'term-img',

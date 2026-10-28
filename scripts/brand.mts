@@ -126,6 +126,7 @@ const MARK_SHARE = {
   closeout: 0.9,
   paratext: 0.95,
   controlroom: 0.9,
+  oxmutate: 0.8,
 } as const;
 
 /**
@@ -334,6 +335,20 @@ const CONTROLROOM =
 /** In the solid left pane, level with the cut one beside it. */
 const PANEL = { x: 31, y: (PANE.top + PANE.bottom) / 2 } as const;
 
+/**
+ * oxmutate: a program with one piece cut out and set slightly apart — a mutant, the small
+ * change a test has to notice. The block is solid ink, the displaced piece is the same ink a
+ * gap away, so the mark reads as one thing broken on purpose rather than two shapes.
+ */
+const BLOCK = { left: 14, right: 78, top: 22, bottom: 86 } as const;
+const NOTCH = { x: 60, y: 40 } as const;
+const PIECE = { left: 68, right: 86, top: 6, bottom: 24 } as const;
+const OXMUTATE =
+  `M${BLOCK.left} ${BLOCK.top} H${NOTCH.x} V${NOTCH.y} H${BLOCK.right} V${BLOCK.bottom} H${BLOCK.left} Z` +
+  ` M${PIECE.left} ${PIECE.top} H${PIECE.right} V${PIECE.bottom} H${PIECE.left} Z`;
+/** On the block, clear of the notch. */
+const SPECIMEN = { x: 40, y: 58 } as const;
+
 type Sibling = {
   name: keyof typeof MARK_SHARE;
   tagline: string;
@@ -353,6 +368,7 @@ const SIBLINGS: readonly Sibling[] = [
   { name: 'closeout', tagline: 'Settle, and finish.', shape: CLOSEOUT, at: TOTAL },
   { name: 'paratext', tagline: 'Everything around the output.', shape: PARATEXT, at: HEAD },
   { name: 'controlroom', tagline: 'Where a system is run from.', shape: CONTROLROOM, at: PANEL },
+  { name: 'oxmutate', tagline: 'The test of the tests.', shape: OXMUTATE, at: SPECIMEN },
 ];
 
 const siblings = SIBLINGS.map(({ name, tagline, shape, at, markings }) => ({

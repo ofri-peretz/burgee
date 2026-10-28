@@ -114,6 +114,36 @@ Every Stryker 10.0.0 capability, where it lands, and what "better" means. **P** 
 | Execution sharing (mutant schemata, split-stream / AccMut-style) | M5 | Research track for the next order-of-magnitude gain |
 | Predictive prioritization | M5 | Run the mutants most likely to survive first; useful in PR budgets |
 
+## Status, 2026-10-27
+
+What is built against this matrix. ✅ built and tested · 🟡 partly · ⬜ not started. Every ✅
+has a test that fails without it (named in the commit that added it).
+
+| Area | Item | Status | Where |
+| :-- | :-- | :-- | :-- |
+| Mutators | All 17 families; Stryker's exact set (720/720 on es-toolkit), Regex equal to weapon-regex on 928 of 932 real patterns | ✅ | `native/src/instrument.rs`, `native/src/regex.rs` |
+| Mutators | `mutator.excludedMutations`; `// Stryker disable` with a reason | ✅ | `src/config.ts` |
+| Mutators | `ignorers`, as data: `ignore: [{ call: 'console.*' }]` | ✅ | native core, `src/config.ts` |
+| Runner | Vitest, warm, perTest, bail, adaptive canary, watchdog, no orphans | ✅ | `src/runner.ts`, `src/scheduler.ts`, `src/child.ts` |
+| Runner | Command runner (`testRunner: 'command'`) | ✅ | `src/command-runner.ts` |
+| Execution | Static mutants scored, loader-scoped; timeouts confirmed at 3x | ✅ | `src/coordinator.ts` |
+| Execution | `buildCommand`, `dryRunOnly`, `dryRunTimeoutMinutes`, `allowEmpty`, `testRunnerNodeArgs`, `warnings` | ✅ | `src/config.ts` |
+| Execution | Type checker on survivors (`checkers: ['typescript']`, tsgo or tsc) | ✅ | `src/checker.ts` |
+| Incremental | `--incremental`, keyed on source plus covering tests | 🟡 | built; not yet measured against Stryker's |
+| Reporters | JSON (schema 2), clear-text, SARIF, HTML, progress / progress-append-only / ci | ✅ | `src/reports.ts`, `src/progress.ts` |
+| Lanes | `--since`, `--shard`, `survivors --json`, `--mcp`, `--break` (exit 1) | ✅ | `src/lanes.ts`, `src/cli.ts` |
+| Lanes | Frozen oracle (`--frozen-oracle <ref>`, R14 / SC10) | ✅ | `src/frozen.ts` |
+| Dogfood | burgee's `full` lane on oxmutate (`--engine oxmutate`); `mutation.yml` engine input | ✅ | `scripts/mutation.ts` |
+| Config | A `mutate` block in `vite.config.*` (the Vite+ file), typed by `oxmutate/vite` | ✅ | `src/config.ts`, `src/vite.ts` |
+| Dogfood | One green week of the weekly run on oxmutate (the M3 gate) | ⬜ | owner: dispatch with `engine: oxmutate` |
+| Formal | Spec oracles: Quint (`quint run --mbt`) and ITF backends, `oxmutate/spec`, F1–F4 and F6 | ✅ | `src/spec-oracle.ts`, `src/spec.ts` |
+| Formal | The M3.5 gate on a burgee component with a `.qnt` model (closeout's save-restore) | ⬜ | a replay test in closeout's lane |
+| Release | Per-platform native packages, trusted publishing, version sync | ✅ | `oxmutate-native.yml`, `release.yml` |
+| Release | 1.0.0 on npm, the native cores bundled; docs live at oxmutate.interlace.tools | 🟡 | publishes when ofri-peretz/burgee#1302 merges (`RELEASING.md`) |
+| Speed | `≥ 5x` on burgee packages (`S3`) | 🟡 | met on es-toolkit; missed on paratext (2.4x) and controlroom (`m1-results.md`) |
+
+M4 items wait for an adopter, and M5 items for a measured gain, as their gates say.
+
 ## Milestones
 
 Each milestone has one gate, a command that exits non-zero when it fails. Nothing advances on a

@@ -23,6 +23,9 @@ import { basename, isAbsolute, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
+// eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and `released` is the one place a package released ahead of its flip is decided
+import { released } from '../apps/docs-chassis/src/packages';
+
 const run = promisify(execFile);
 
 export interface Manifest {
@@ -39,14 +42,29 @@ export const readManifest = (dir: string): Manifest => JSON.parse(readFileSync(j
 
 /** Every published package under `packages/`, by name. `compat-oracle` is private and ships to nobody. */
 export function publishedManifests(root: string): Map<string, Manifest> {
+  return manifestsWhere(root, (m) => m.private !== true);
+}
+
+/** Every package under `packages/` whose manifest passes `keep`, by name. */
+function manifestsWhere(root: string, keep: (m: Manifest) => boolean): Map<string, Manifest> {
   const manifests = new Map<string, Manifest>();
   for (const dir of readdirSync(join(root, 'packages'))) {
     const at = join(root, 'packages', dir);
     if (!existsSync(join(at, 'package.json'))) continue;
     const m = readManifest(at);
-    if (m.private !== true) manifests.set(m.name, m);
+    if (keep(m)) manifests.set(m.name, m);
   }
   return manifests;
+}
+
+/**
+ * Every released package under `packages/`: the published ones, and a private one whose pending
+ * docs app is built ahead of its first release (`released` in docs-chassis). What a generated
+ * artifact measures — `benchmarks/install-graph.json` and the supply-chain page — reads this, so
+ * the flip to `private: false` changes no committed measurement.
+ */
+export function releasedManifests(root: string): Map<string, Manifest> {
+  return manifestsWhere(root, released);
 }
 
 /** Every name a manifest lets its code import. */

@@ -158,11 +158,32 @@ interface Run {
 }
 
 /**
+ * One package of the fake workspace: a `dist/` for an ordinary row; for a platform row the native
+ * core the build matrix made (left out when `withCore` is false) and the `main` naming it.
+ */
+function writeFakePackage(pkgDir: string, r: PlanRow, withCore: boolean, missingCores: readonly string[] = []): void {
+  const dependencies = Object.fromEntries(r.deps.map((d) => [d.name, d.version]));
+  if (r.platformOf === undefined) {
+    mkdirSync(join(pkgDir, 'dist'), { recursive: true });
+    // A package that bundles native cores carries `binding/oxmutate.<tag>.node` for each.
+    for (const tag of (r.nativeCores ?? []).filter((t) => !missingCores.includes(t))) {
+      mkdirSync(join(pkgDir, 'binding'), { recursive: true });
+      writeFileSync(join(pkgDir, 'binding', `oxmutate.${tag}.node`), '');
+    }
+    writeFileSync(join(pkgDir, 'package.json'), JSON.stringify({ name: r.name, version: r.version, dependencies }));
+    return;
+  }
+  mkdirSync(pkgDir, { recursive: true });
+  if (withCore) writeFileSync(join(pkgDir, 'oxmutate.node'), '');
+  writeFileSync(join(pkgDir, 'package.json'), JSON.stringify({ name: r.name, version: r.version, dependencies, main: 'oxmutate.node' }));
+}
+
+/**
  * Runs the loop over `rows` in a fake workspace. `onNpm` is what the registry holds before
  * the run; `failPublish` names packages whose `npm publish` exits 1; `lag` is how many
  * `npm view` calls a fresh publish misses before the registry serves it.
  */
-function runLoop(rows: PlanRow[], opts: { onNpm?: string[]; failPublish?: string[]; lag?: number } = {}): Run {
+function runLoop(rows: PlanRow[], opts: { onNpm?: string[]; failPublish?: string[]; lag?: number; noCore?: string[]; missingCores?: string[] } = {}): Run {
   const dir = scratchDir('release-loop-');
   const bin = join(dir, 'bin');
   mkdirSync(bin);
@@ -170,11 +191,7 @@ function runLoop(rows: PlanRow[], opts: { onNpm?: string[]; failPublish?: string
   mkdirSync(join(dir, '.sdlc', 'bands'), { recursive: true });
   copyFileSync(join(REPO_ROOT, 'scripts', 'changelog-section.sh'), join(dir, 'scripts', 'changelog-section.sh'));
   writeFileSync(join(dir, '.sdlc', 'bands', 'scoreboard-public.json'), JSON.stringify({ commanderCompatibilityPage: 'https://example.test/compat' }));
-  for (const r of rows) {
-    mkdirSync(join(dir, 'packages', r.dir, 'dist'), { recursive: true });
-    const dependencies = Object.fromEntries(r.deps.map((d) => [d.name, d.version]));
-    writeFileSync(join(dir, 'packages', r.dir, 'package.json'), JSON.stringify({ name: r.name, version: r.version, dependencies }));
-  }
+  for (const r of rows) writeFakePackage(join(dir, 'packages', r.dir), r, !(opts.noCore ?? []).includes(r.name), opts.missingCores);
   const registry = join(dir, 'registry');
   const log = join(dir, 'published');
   const early = join(dir, 'early');
@@ -290,6 +307,48 @@ describe('the publish loop, executed', () => {
     expect(missing.status).not.toBe(0);
     expect(missing.published).toEqual([]);
     expect(missing.output).toMatch(/is not on npm and this run does not publish it/);
+  });
+
+  /** oxmutate and two of its platform packages, as `plan` emits them once oxmutate is public. */
+  /** oxmutate 0.1 as `plan` emits it: its platform packages private, every core bundled. */
+  const bundledRows: PlanRow[] = [
+    { dir: 'burgee', name: 'burgee', version: '1.0.0', deps: [] },
+    { dir: 'oxmutate', name: 'oxmutate', version: '0.1.0', deps: [{ name: 'burgee', version: '1.0.0' }], nativeCores: ['darwin-arm64', 'linux-x64-musl', 'win32-x64-msvc'] },
+  ];
+
+  executes('publishes oxmutate with every bundled core in binding/, and no platform package', () => {
+    const r = runLoop(bundledRows);
+    expect(r.status, r.output).toBe(0);
+    expect(r.published).toEqual(['burgee@1.0.0', 'oxmutate@0.1.0']);
+  });
+
+  executes('refuses oxmutate when a bundled core is missing, naming it, and still publishes the rest', () => {
+    const r = runLoop(bundledRows, { missingCores: ['linux-x64-musl'] });
+    expect(r.status).not.toBe(0);
+    expect(r.published).toEqual(['burgee@1.0.0']);
+    expect(r.output).toMatch(/Not publishing packages\/oxmutate without its native core for: linux-x64-musl/);
+  });
+
+  const nativeRows: PlanRow[] = [
+    { dir: 'oxmutate/npm/darwin-arm64', name: 'oxmutate-darwin-arm64', version: '0.1.0', deps: [], platformOf: 'oxmutate' },
+    { dir: 'oxmutate/npm/linux-x64-gnu', name: 'oxmutate-linux-x64-gnu', version: '0.1.0', deps: [], platformOf: 'oxmutate' },
+    { dir: 'oxmutate', name: 'oxmutate', version: '0.1.0', deps: [{ name: 'oxmutate-darwin-arm64', version: '0.1.0' }, { name: 'oxmutate-linux-x64-gnu', version: '0.1.0' }] },
+  ];
+
+  executes('publishes the platform packages from their native core before oxmutate, without a tag or Release of their own', () => {
+    const r = runLoop(nativeRows, { lag: 1 });
+    expect(r.status, r.output).toBe(0);
+    expect(r.published).toEqual(['oxmutate-darwin-arm64@0.1.0', 'oxmutate-linux-x64-gnu@0.1.0', 'oxmutate@0.1.0']);
+    expect(r.early).toEqual([]);
+    expect(r.output).toMatch(/oxmutate-darwin-arm64@0\.1\.0 is oxmutate's core for one platform — no tag or Release of its own/);
+  });
+
+  executes('refuses a platform package whose native core never arrived, and holds oxmutate back', () => {
+    const r = runLoop(nativeRows, { noCore: ['oxmutate-linux-x64-gnu'] });
+    expect(r.status).not.toBe(0);
+    expect(r.published).toEqual(['oxmutate-darwin-arm64@0.1.0']);
+    expect(r.output).toMatch(/Missing packages\/oxmutate\/npm\/linux-x64-gnu\/oxmutate\.node — the native build/);
+    expect(r.output).toMatch(/Not publishing oxmutate@0\.1\.0 — its dependency oxmutate-linux-x64-gnu@0\.1\.0 did not publish in this run/);
   });
 
   executes('skips a version already on npm, and still tags and releases it', () => {

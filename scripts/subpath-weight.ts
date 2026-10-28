@@ -42,6 +42,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { initialBytes, type Metafile } from 'benchmarks/axes/weight.js';
 import { resolvePackage } from 'benchmarks/resolve.js';
 
+// eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and `released` is the one place a package released ahead of its flip is decided
+import { released } from '../apps/docs-chassis/src/packages';
+
 const REPO_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const BENCH_ROOT = join(REPO_ROOT, 'benchmarks');
 const SCRATCH = join(BENCH_ROOT, '.subpaths');
@@ -64,7 +67,9 @@ function surface(): { pkg: string; subpaths: string[] }[] {
     } catch {
       continue;
     }
-    if (manifest.private === true) continue;
+    // Released, not merely published: a package whose pending docs app is built ahead of its flip
+    // to `private: false` is priced already, so the flip changes nothing here.
+    if (!released(manifest)) continue;
     const subpaths = Object.keys(manifest.exports ?? {}).filter((k) => !k.endsWith('.json'));
     if (subpaths.length > 0) out.push({ pkg: manifest.name, subpaths });
   }

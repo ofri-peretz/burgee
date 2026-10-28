@@ -29,6 +29,12 @@ on:
         required: false
         type: string
         default: ""
+      engine:
+        description: "oxmutate (the family's own, and the schedule's) or stryker (kept to compare the two)"
+        required: false
+        type: choice
+        options: [oxmutate, stryker]
+        default: oxmutate
 
 concurrency:
   group: mutation-weekly
@@ -51,17 +57,22 @@ jobs:
       # Three at a time: the account runs about six jobs at once, shared with every PR.
       max-parallel: 3
       matrix:
-        package: [bellpull, burgee, caique, closeout, compat-oracle, controlroom, flagstaff, linegauge, paratext, roundel, seniority]
+        package: [bellpull, burgee, caique, closeout, compat-oracle, controlroom, flagstaff, linegauge, oxmutate, paratext, roundel, seniority]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
       # A suite may read a sibling's dist (see quality-full.yml's coverage job), so all of them.
       - name: Build every package
         run: npx turbo run build --filter='./packages/*' --concurrency=4
+      # oxmutate's core is Rust, per platform, and no `build` produces it; the runner image ships rustup.
+      - name: Build oxmutate's native core
+        if: inputs.engine != 'stryker'
+        run: cd packages/oxmutate && npm run build:native
       - name: Mutate every source line
         env:
           PKG: ${{ matrix.package }}
           ONLY: ${{ inputs.package }}
+          MUTATION_ENGINE: ${{ inputs.engine || 'oxmutate' }}
         run: |
           set -euo pipefail
           if [ -n "$ONLY" ] && [ "$ONLY" != "$PKG" ]; then echo "Dispatched for $ONLY only; $PKG not measured."; exit 0; fi

@@ -1,0 +1,61 @@
+---
+title: For agents
+description: "What a coding agent reads from oxmutate: one survivor record per mutant with a fix line, the --json envelope, an MCP server with run and survivors as tools, the schema, and exit codes that say whether to rewrite the command."
+---
+
+A coding agent asked to strengthen a test suite needs three things from a mutation tester: the
+lines no test checks, what to assert about each, and a signal it can act on without parsing
+prose. oxmutate's CLI is declared once on [burgee](https://burgee.interlace.tools), and every
+surface below is projected from that declaration.
+
+## The survivor list
+
+`oxmutate survivors --json` reads the last report and prints one record per survivor. Here it
+reads the report from [Getting started](/docs/getting-started):
+
+```text title="npx oxmutate survivors --report mutation.json --json"
+{"ok":true,"data":{"survivors":[{"id":"1","file":"src/age.ts","line":1,"column":50,"mutator":"EqualityOperator","replacement":"age > 18","status":"Survived","coveredBy":1,"flaky":false,"fix":"1 test(s) run this code, and all still pass when it becomes `age > 18` (EqualityOperator). fix: assert the behaviour this line decides."}]},"meta":{"provenance":{"report":{"source":"flag","location":"--report"}}}}
+```
+
+`coveredBy` is how many tests run the line. A survivor with `coveredBy: 0` is `NoCoverage`: no
+test reaches it, and the fix is a test, not an assertion. `flaky: true` marks a verdict whose
+covering tests behaved differently across two dry runs.
+
+On paratext, an agent read 326 bytes per survivor from this list, and 4,094 from Stryker's report
+for the same survivor (`A5` in
+[`m1-results.md`](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/oxmutate/m1-results.md)).
+
+## The MCP server
+
+```bash
+npx oxmutate --mcp
+```
+
+serves `run` and `survivors` as MCP tools over stdio, each with an input schema built from the
+same options the CLI takes. An MCP client config:
+
+```json
+{
+  "mcpServers": {
+    "oxmutate": { "command": "npx", "args": ["oxmutate", "--mcp"] }
+  }
+}
+```
+
+## The rest of the contract
+
+- **`--json`** on any command prints one envelope on stdout: `{ "ok": true, "data": … }`, or
+  `{ "error": { "kind", "code", "message" } }`.
+- **`--schema`** prints every command, option, default and exit code as one JSON document.
+- **`--explain <option>`** says where an option's value came from: a flag, an environment
+  variable, a config file or the default.
+- **Exit codes:** `0` ok; `1` it ran and a gate failed (a score under `--break`, or a change that
+  weakened its tests); `2` a usage error, so rewrite the command; `3` the config or the suite did
+  not load, so fix the project, not the command.
+- **Every error carries a `fix:`** line the agent can act on as written.
+
+## Machine-readable docs
+
+This site serves [`/llms.txt`](/llms.txt), a map of every page, and
+[`/llms-full.txt`](/llms-full.txt), the whole corpus in one file. Every page has a Markdown twin
+at its URL plus `.md`.

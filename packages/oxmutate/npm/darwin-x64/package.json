@@ -1,0 +1,25 @@
+{
+  "name": "oxmutate-darwin-x64",
+  "version": "1.0.0",
+  "private": true,
+  "description": "oxmutate native core (oxc) for darwin-x64. Installed automatically as an optional dependency of oxmutate.",
+  "license": "MIT",
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "main": "oxmutate.node",
+  "files": [
+    "oxmutate.node"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ofri-peretz/burgee.git",
+    "directory": "packages/oxmutate/npm/darwin-x64"
+  },
+  "oxmutate": {
+    "rustTarget": "x86_64-apple-darwin"
+  }
+}

@@ -61,8 +61,14 @@ const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
  * its `console` transcript, both on npm's page and on the repository's. It is not run twice.
  */
 const RUN_ELSEWHERE: Readonly<Record<string, string>> = { burgee: 'packages/burgee/src/shape.test.ts' };
-const PUBLISHED = ['bellpull', 'burgee', 'caique', 'closeout', 'controlroom', 'flagstaff', 'linegauge', 'paratext', 'roundel', 'seniority'];
-const RUN_HERE = PUBLISHED.filter((p) => RUN_ELSEWHERE[p] === undefined);
+/**
+ * Every package whose quick start this lock runs once it is published. `oxmutate` is listed ahead
+ * of its flip to `private: false`, so the flip edits nothing here; until then it is not packed and
+ * its quick start is not run (`independence-install-lock.test.ts` does the same).
+ */
+const PUBLISHED = ['bellpull', 'burgee', 'caique', 'closeout', 'controlroom', 'flagstaff', 'linegauge', 'oxmutate', 'paratext', 'roundel', 'seniority'];
+const isPublished = (pkg: string): boolean => (JSON.parse(readFileSync(join(root, 'packages', pkg, 'package.json'), 'utf8')) as { private?: boolean }).private !== true;
+const RUN_HERE = PUBLISHED.filter((p) => RUN_ELSEWHERE[p] === undefined && isPublished(p));
 
 /**
  * Names a quick start leaves to the reader's own program — releasing *your* lock, drawing *your*
@@ -286,7 +292,7 @@ describe('every package README’s quick start runs as written', () => {
   });
 
   it('grades every published package, and burgee where it is already run', () => {
-    expect([...manifests.keys()].toSorted()).toEqual(PUBLISHED);
+    expect([...manifests.keys()].filter((pkg) => !PUBLISHED.includes(pkg)), 'published, and its quick start is run by nothing').toEqual([]);
     for (const [pkg, where] of Object.entries(RUN_ELSEWHERE)) expect(readFileSync(join(root, where), 'utf8'), `${pkg}'s quick start is no longer run by ${where}`).toContain(`quickstart(join(pkgRoot, 'README.md'))`);
   });
 

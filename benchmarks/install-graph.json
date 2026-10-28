@@ -72,6 +72,19 @@
       ]
     },
     {
+      "name": "oxmutate",
+      "count": 7,
+      "installed": [
+        "bellpull",
+        "burgee",
+        "closeout",
+        "linegauge",
+        "oxmutate",
+        "roundel",
+        "seniority"
+      ]
+    },
+    {
       "name": "paratext",
       "count": 1,
       "installed": [

@@ -1,0 +1,83 @@
+---
+title: Coming from Stryker
+description: "Move a Stryker project to oxmutate by changing one command: it reads stryker.config.* unchanged, writes Stryker's JSON report, and runs Stryker's 17 mutator families. What differs on purpose, which keys it does not use, and how closely its verdicts agree with Stryker's."
+---
+
+oxmutate is built to replace `stryker run` in a project that tests with Vitest, without touching
+the project. The config stays, the report format stays, the disable comments stay. The command
+changes.
+
+## The switch
+
+```diff
+- npx stryker run
++ npx oxmutate run
+```
+
+```diff
+  "scripts": {
+-   "test:mutation": "stryker run"
++   "test:mutation": "oxmutate run"
+  },
+  "devDependencies": {
+-   "@stryker-mutator/core": "^10.0.0",
+-   "@stryker-mutator/vitest-runner": "^10.0.0",
++   "oxmutate": "^1.0.0",
+    "vitest": "^4.1.0"
+  }
+```
+
+Both write `reports/mutation/mutation.json` by default. To run them side by side and compare,
+give oxmutate a directory of its own: `npx oxmutate run --report-dir reports/oxmutate`.
+
+## What carries over unchanged
+
+- **`stryker.config.{mjs,js,cjs,json}`**, read as it stands. Every key oxmutate uses is on
+  [Configuration](/docs/configuration), and every key it does not use is listed in the run's
+  output with the reason.
+- **The JSON report** (schema 2), so `mutation-testing-elements`, the HTML report and any tool
+  that reads Stryker's report read oxmutate's.
+- **The mutant set**: Stryker 10.0.0's 17 mutator families. The Regex family gives the same
+  mutants as weapon-regex on 928 of 932 real patterns.
+- **`// Stryker disable next-line <Mutator>: <reason>`** comments, honoured as written.
+- **`thresholds`**, including `break`, and `mutator.excludedMutations`.
+
+## What differs, on purpose
+
+- **Code inside TypeScript `as` casts and enums is mutated.** Stryker 10.0.0 skips it.
+  `--stryker-compat` (or `strykerCompat: true`) gives Stryker's mutant set exactly.
+- **The default per-mutant slack is 500 ms, not 5,000 ms.** A warm in-process run has no process
+  start-up to absorb. Set `timeoutMS` to keep Stryker's.
+- **Static mutants are scored, not skipped.** Each is re-run with the mutant armed from process
+  start, in its own Vitest start, scoped to the test files that load it. `ignoreStatic: true`
+  skips them, as Stryker does.
+- **Plugins are data.** There are no runtime plugins: an ignorer plugin becomes an `ignore` rule,
+  `{ call: 'console.*', reason: '…' }`.
+- **The checker reads the original sources.** `checkers: ['typescript']` compiles each survivor
+  with the project's own compiler; instrumented files carry `// @ts-nocheck` and are never
+  type-checked.
+
+## What is not there yet
+
+The Stryker Dashboard reporter, `eventReporter`, `logLevel` and `fileLogLevel`. A config that
+sets them runs, and lists each as unused.
+
+## How closely the verdicts agree
+
+No Stryker suite is graded through compat-oracle, so in this family's sense the switch is not
+graded: compat-oracle grades an import by the incumbent's own test suite, and a mutation tester
+produces a verdict per mutant rather than a passing test. What is measured instead is verdict
+agreement: the same project scored by Stryker 10.0.0 and by oxmutate, each mutant's verdict
+compared against Stryker's own JSON report. Measured on 2026-10-27:
+
+| Subject | Mutants | Same verdict as Stryker |
+| :-- | --: | --: |
+| es-toolkit `src/array` | 720 | 99.58–100% (an earlier build; re-measured on CI before it is quoted as a result) |
+| burgee/paratext | 1,332 | 99.92% |
+| burgee/controlroom | 997 | 99.90% |
+
+On paratext one mutant disagreed: Stryker called it a timeout, and its covering tests pass with
+it, because Stryker's hit limit stopped a loop that ends. On controlroom Stryker's worker errored
+on one mutant, so there is no Stryker verdict to compare it with; it has not been checked by hand
+yet. The method, the subjects and the speed measured on the same runs are in
+[`m1-results.md`](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/oxmutate/m1-results.md).

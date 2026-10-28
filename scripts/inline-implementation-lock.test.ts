@@ -160,6 +160,8 @@ const KNOWN: Record<string, string> = {
     "is-in-ci as ink 6.8 reads it — `CI` or `CONTINUOUS_INTEGRATION` or any `CI_*` present, and `CI=0` or `CI=false` not CI, whether or not stdout is a terminal — which decides ink's CI path (Static as it arrives, the last frame once) and is graded by ink's suite, run under `CI=false` on a pipe. roundel's `outputMode` answers a different question (a pipe whose `CI` is set, `false` included, is `ci`), and routing the drop-in through it sent every case of ink's suite down the CI path. The suite decides where the two differ (controlroom constraint 1, D-20261005-controlroom-ink-drop-in).",
   'seniority/src/dotenv-spawn.ts':
     "`seniority/dotenv/cli` is dotenv 18's `dotenv run`, and this file is its `lib/spawn-command.js` ported line for line: `child_process.spawn` on POSIX, and on Windows a `PATHEXT` lookup and cmd/C-runtime escaping that dotenv's `test-cli.js` pins with arguments built to break each layer — graded 179 / 179 at 18.0.5 (D-20261001-seniority-dotenv-vault). The child's `error` and `exit` listeners and the `taskkill` `spawnSync` live here too, so this one file holds every child-process mechanism the drop-in has; the CLI imports none. bellpull owns spawning, but seniority is a foundation layer with zero dependencies and may not take a leaf-to-leaf edge to it.",
+  'oxmutate/src/scheduler.ts':
+    "`fork` of a long-lived Vitest server with an IPC channel, a SIGKILL from a watchdog that polls a progress file, and a spare started ahead: a mutant that loops synchronously can only be stopped by killing its process (2026-10-26), and the server is re-used across hundreds of work units. bellpull's `run` is one command to one result; it has no IPC channel and no handle to a child that outlives a call. The one other subprocess, `git diff` for the PR lane, goes through bellpull (`src/lanes.ts`).",
   // ── Moving: an open PR takes each of these onto its owner.
 };
 
@@ -187,8 +189,14 @@ const KNOWN: Record<string, string> = {
  * **Lowered 18 → 15 on 2026-10-27** (bellpull criterion 4): `compat-oracle`'s `run.ts`,
  * `vendor.ts` and `upstream.ts` spawn through bellpull (`compat-oracle/src/spawn.ts`), and
  * `scripts/dogfood-spawn-lock.test.ts` keeps them, and `benchmarks/`, off `node:child_process`.
+ *
+ * **Raised 15 → 16 the same day, accepted
+ * (D-20261027-oxmutate-scheduler-fork).** oxmutate's scheduler forks long-lived Vitest servers
+ * with an IPC channel and kills a runaway one; bellpull's `run` has no handle to a child that
+ * outlives a call. The way back down is that handle in bellpull, and then
+ * `oxmutate/src/scheduler.ts` leaves KNOWN.
  */
-const CEILING = 15;
+const CEILING = 16;
 
 const sources = (dir: string, out: string[] = []): string[] => {
   for (const e of readdirSync(dir, { withFileTypes: true })) {

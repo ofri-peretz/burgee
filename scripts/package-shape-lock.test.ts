@@ -30,7 +30,12 @@ interface Pkg {
  * The external peers a spec admits, each an optional peer npm never installs: controlroom's
  * `react` and `react-reconciler`, which only `controlroom/ink` reaches (controlroom R11, D-158).
  */
-const OPTIONAL_PEERS: Readonly<Record<string, readonly string[]>> = { controlroom: ['react', 'react-reconciler'] };
+const OPTIONAL_PEERS: Readonly<Record<string, readonly string[]>> = {
+  controlroom: ['react', 'react-reconciler'],
+  // oxmutate runs the project's own Vitest, resolved from the project (spec R1, R15: "your own
+  // Vitest and config"); bringing a second Vitest would grade a suite under the wrong runner.
+  oxmutate: ['vitest'],
+};
 
 /** A peer this package may name although it is not ours: admitted above, and marked optional. */
 const isUninstalledPeer = (pkg: Pkg, dep: string): boolean =>
@@ -78,6 +83,9 @@ const FAMILY_ORDER = [
   // will depend on both (D-158); burgee reaches it only through a guarded `import()` (U13).
   'controlroom',
   'burgee',
+  // A tool built on the stack rather than a layer of it: a burgee program (its CLI, --json, the
+  // MCP server) that spawns through bellpull. Above burgee, and nothing in the family depends on it.
+  'oxmutate',
 ];
 
 /**

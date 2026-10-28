@@ -43,7 +43,12 @@ import { declaredBy, discard, type Edge, type InstallStamp, installStamp, instal
 
 const run = promisify(execFile);
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const PUBLISHED = ['bellpull', 'burgee', 'caique', 'closeout', 'controlroom', 'flagstaff', 'linegauge', 'paratext', 'roundel', 'seniority'];
+/**
+ * Every package this lock grades once it is published. `oxmutate` is listed ahead of its flip to
+ * `private: false` (its pending docs app is built ahead of its first release), so the flip edits
+ * nothing here: until then it is not packed, and its cases are not declared.
+ */
+const PUBLISHED = ['bellpull', 'burgee', 'caique', 'closeout', 'controlroom', 'flagstaff', 'linegauge', 'oxmutate', 'paratext', 'roundel', 'seniority'];
 
 /** One pack of ten packages, then ten installs and their probes side by side. */
 const SETUP_TIMEOUT_MS = 240_000;
@@ -131,7 +136,9 @@ interface Probe {
  * `fix` naming the install line. That refusal is what is asserted for these, and every other
  * entry must still load.
  */
-const NEEDS_OPTIONAL_PEERS: Readonly<Record<string, string>> = { 'controlroom/ink': 'npm install react react-reconciler' };
+// `oxmutate/runner` is the runner Vitest loads inside its own worker (`test.runner`), so it reads
+// the project's Vitest, oxmutate's one optional peer; installed alone it must refuse the same way.
+const NEEDS_OPTIONAL_PEERS: Readonly<Record<string, string>> = { 'controlroom/ink': 'npm install react react-reconciler', 'oxmutate/runner': 'npm install vitest' };
 
 async function probe(dir: string, tag: string, specifiers: string[], argv: string[]): Promise<Probe> {
   const out = join(dir, `probe-${tag}.json`);
@@ -258,11 +265,13 @@ describe('U12 — each published package installs and loads alone', () => {
     stamp?.record(suite);
   });
 
-  it('grades exactly the nine published packages', () => {
-    expect([...manifests.keys()].toSorted()).toEqual(PUBLISHED);
+  it('grades exactly the published packages', () => {
+    expect([...manifests.keys()].filter((pkg) => !PUBLISHED.includes(pkg)), 'published, and not graded here').toEqual([]);
+    const ahead = PUBLISHED.filter((pkg) => !manifests.has(pkg));
+    expect(ahead.filter((pkg) => readManifest(join(root, 'packages', pkg)).private !== true), 'listed, and neither published nor a private package').toEqual([]);
   });
 
-  describe.each(PUBLISHED)('%s', (pkg) => {
+  describe.each(PUBLISHED.filter((pkg) => manifests.has(pkg)))('%s', (pkg) => {
     beforeEach((ctx) => {
       if (stamp?.skip !== undefined) ctx.skip(stamp.skip);
     });

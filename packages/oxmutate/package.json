@@ -1,0 +1,85 @@
+{
+  "name": "oxmutate",
+  "version": "1.0.0",
+  "description": "Mutation testing for JavaScript and TypeScript on the oxc engine, run warm inside the project's own Vitest, with CI lanes, SARIF and an agent surface. No dependency outside the burgee family. A Stryker migration path.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ofri-peretz/burgee.git",
+    "directory": "packages/oxmutate"
+  },
+  "bugs": {
+    "url": "https://github.com/ofri-peretz/burgee/issues"
+  },
+  "homepage": "https://oxmutate.interlace.tools",
+  "type": "module",
+  "private": false,
+  "engines": {
+    "node": "^20.19.0 || >=22.13.0"
+  },
+  "bin": {
+    "oxmutate": "./dist/bin.js"
+  },
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./runner": {
+      "types": "./dist/runner.d.ts",
+      "import": "./dist/runner.js",
+      "default": "./dist/runner.js"
+    },
+    "./spec": {
+      "types": "./dist/spec.d.ts",
+      "import": "./dist/spec.js",
+      "default": "./dist/spec.js"
+    },
+    "./vite": {
+      "types": "./dist/vite.d.ts",
+      "import": "./dist/vite.js",
+      "default": "./dist/vite.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "runner": ["./dist/runner.d.ts"],
+      "spec": ["./dist/spec.d.ts"],
+      "vite": ["./dist/vite.d.ts"]
+    }
+  },
+  "files": [
+    "dist",
+    "binding/oxmutate.*.node",
+    "!dist/**/*.map",
+    "!dist/**/*.test.*"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/declaration-reach.mts --prune",
+    "build:native": "cd native && cargo build --release --features napi --lib && node ../scripts/copy-binding.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:native": "cd native && cargo test --release",
+    "lint": "eslint src",
+    "coverage": "vitest run --coverage.enabled"
+  },
+  "dependencies": {
+    "bellpull": "*",
+    "burgee": "*"
+  },
+  "peerDependencies": {
+    "vitest": ">=4.1.0"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.1"
+  },
+  "//optionalDependencies": "Written at publish time by the release job (scripts/sync-platform-versions.mjs --publish): the public oxmutate-<platform> packages under npm/, at this version; none while they are private, as in 0.1, which ships all six cores in binding/ instead. Never committed: npm ci refuses a lockfile that cannot record an optional dependency npm does not serve (EUSAGE). See RELEASING.md.",
+  "peerDependenciesMeta": {
+    "vitest": {
+      "optional": true
+    }
+  }
+}

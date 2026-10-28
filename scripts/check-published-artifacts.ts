@@ -12,8 +12,18 @@
  * Exit code 1 on any failure. `--update-baseline` rewrites the baseline to what is built.
  */
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { basename, join, resolve } from "node:path";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -31,7 +41,7 @@ export interface PackEntry {
   name: string;
   size: number;
   unpackedSize: number;
-  files: { path: string }[];
+  files: { path: string; size?: number }[];
 }
 export type Baseline = Record<string, { size: number; unpackedSize: number }>;
 
@@ -166,18 +176,69 @@ export function sizeVerdict(
   return problems;
 }
 
+/**
+ * The prebuilt native cores in a pack list (`binding/oxmutate.<tag>.node`, oxmutate's six).
+ * Exported so `artifact-size-ratchet-lock.test.ts` drives it with a pack list that has them.
+ */
+export function nativeCores(pack: PackEntry): string[] {
+  return pack.files
+    .map(({ path }) => path)
+    .filter((path) => path.endsWith(".node"));
+}
+
+/** `npm pack --dry-run --json` in `cwd`. */
+export function dryPack(cwd: string): PackEntry | undefined {
+  const [pack] = JSON.parse(
+    // `npm` on Windows is `npm.cmd`, which Node runs only through a shell (as pack-list-lock does).
+    execFileSync("npm", ["pack", "--dry-run", "--json", "--ignore-scripts"], {
+      cwd,
+      encoding: "utf8",
+      shell: process.platform === "win32",
+    }),
+  ) as PackEntry[];
+  return pack;
+}
+
+/**
+ * The pack the size ratchet measures: the tarball without its native cores.
+ *
+ * oxmutate 0.1 ships six prebuilt cores (about 1.6 MB each, one per platform) inside its tarball,
+ * and they exist only on the release runner, which places them after this gate has run in the
+ * build job. A developer who ran `npm run build:native` has one of them in `binding/`, so the same
+ * commit would measure 1.6 MB heavier on that laptop than in CI. The cores are measured where they
+ * are made (`oxmutate-native.yml` writes each one's size to its run summary), and this ratchet holds
+ * the JavaScript and declarations, which is what a change here can grow. So a pack that lists a
+ * core is re-measured from a copy of its other files.
+ */
+export function measuredPack(dir: string, pack: PackEntry): PackEntry {
+  const cores = new Set(nativeCores(pack));
+  if (cores.size === 0) return pack;
+  const staged = mkdtempSync(join(tmpdir(), "artifact-pack-"));
+  try {
+    for (const { path } of pack.files) {
+      if (cores.has(path)) continue;
+      mkdirSync(dirname(join(staged, path)), { recursive: true });
+      copyFileSync(join(dir, path), join(staged, path));
+    }
+    const coreBytes = pack.files
+      .filter(({ path }) => cores.has(path))
+      .reduce((sum, { size }) => sum + (size ?? 0), 0);
+    process.stdout.write(
+      `  ${pack.name}: measured without its ${cores.size} native core(s), ${coreBytes} bytes unpacked\n`,
+    );
+    return dryPack(staged) ?? pack;
+  } finally {
+    rmSync(staged, { recursive: true, force: true });
+  }
+}
+
 function check(
   dir: string,
   pkg: Pkg,
   baseline: Baseline,
   update: boolean,
 ): string[] {
-  const [pack] = JSON.parse(
-    execFileSync("npm", ["pack", "--dry-run", "--json"], {
-      cwd: dir,
-      encoding: "utf8",
-    }),
-  ) as PackEntry[];
+  const pack = dryPack(dir);
   if (pack === undefined) return [`${pkg.name}: npm pack produced nothing`];
   return [
     ...missingExportTargets(dir, pkg),
@@ -187,7 +248,7 @@ function check(
         ? readFileSync(join(dir, file), "utf8")
         : undefined,
     ),
-    ...sizeVerdict(pkg, pack, baseline, update),
+    ...sizeVerdict(pkg, measuredPack(dir, pack), baseline, update),
   ];
 }
 

@@ -17,7 +17,7 @@ Node from `.nvmrc`, npm cache).
 | Workflow | Role |
 | :-- | :-- |
 | [`changesets-pr.yml`](./changesets-pr.yml) | PR: `Changeset present` — a hard gate: a PR that changes `packages/*/src` or a `package.json` and adds no changeset fails, unless labelled `skip-changeset` — or opened by Dependabot and moving only `devDependencies` in each package manifest. Main: opens / refreshes the "Version Packages" PR with the release App's token, else `RELEASE_BOT_PAT`, else `GITHUB_TOKEN` — and under `GITHUB_TOKEN` it dispatches every required-check workflow on the PR branch, mirrors each result onto the head commit as a status, then merges and dispatches the post-merge runs itself (`checks`, `land`) |
-| [`release.yml`](./release.yml) | Push to main (or dispatched by `land`): detect version diff vs npm, ordered dependencies-first by `scripts/release-order.mts` → build, and wait for `Quality Gate` + `Quality (Full) Gate` to pass on the same commit → one job publishes in that order (each package waits until its in-family dependencies are on npm) through npm trusted publishing (OIDC, no npm token — D-154) with provenance, tag, GitHub Release whose notes are that version's CHANGELOG section |
+| [`release.yml`](./release.yml) | Push to main (or dispatched by `land`): detect version diff vs npm, ordered dependencies-first by `scripts/release-order.mts` → build, and wait for `Quality Gate` + `Quality (Full) Gate` to pass on the same commit → one job publishes in that order (each package waits until its in-family dependencies are on npm) through npm trusted publishing (OIDC, no npm token — D-154) with provenance, tag, GitHub Release whose notes are that version's CHANGELOG section. When the plan carries oxmutate or an `oxmutate-<platform>` package (or on a dry run), `native` calls `oxmutate-native.yml` beside build and verify. oxmutate 0.1 bundles the six cores from its artifacts as `binding/oxmutate.<tag>.node`, and the loop refuses it without all six; the platform packages stay `private` until their names exist on npm, then publish first, with no tag or Release of their own, and oxmutate's published manifest gains `optionalDependencies` naming them ([`packages/oxmutate/RELEASING.md`](../../packages/oxmutate/RELEASING.md)) |
 
 The Version PR loop is continuous: every push to main that carries a changeset refreshes the one
 open Version PR, and it merges as soon as its required checks are green. Each workflow that reports
@@ -38,6 +38,13 @@ to run still starts and passes in one step. `npm run lint:workflows` holds the l
 | [`evals.yml`](./evals.yml) | PRs touching agent-facing docs, weekly: layer 1 link/script/floor-id checks; layer 2 task evals when a credential exists |
 | [`control-bands.yml`](./control-bands.yml) | Weekly: records observations, evaluates Western Electric rules, opens an intent PR on a 2σ+ breach |
 | [`models.yml`](./models.yml) | `.qnt` or `packages/closeout/src` changes: every Quint model holds its `safety` invariant over 20k simulated traces; open questions pinned as expected violations ([`JEV-AND-QUINT.md`](../../.sdlc/JEV-AND-QUINT.md)) |
+
+## oxmutate
+
+| Workflow | Role |
+| :-- | :-- |
+| [`oxmutate-bench.yml`](./oxmutate-bench.yml) | Dispatch only: Stryker and oxmutate on the same burgee packages, one cell per package, on a runner no other job shares; every metric one pair answers (`packages/oxmutate/bench/metrics.mjs`) in the run summary. Laptop wall-clock is not published (`.sdlc/intents/oxmutate/metrics.md`) |
+| [`oxmutate-native.yml`](./oxmutate-native.yml) | Called by `release.yml`, or dispatched alone (builds, publishes nothing): one `oxmutate.node` per `packages/oxmutate/npm/<platform>` — macOS 14 for both darwin targets (x64 cross-compiled, header-checked), Ubuntu 22.04 x64 and arm64 for glibc, musl via `x86_64-unknown-linux-musl` + musl-tools and loaded in `node:<.nvmrc>-alpine`, Windows for msvc. Each leg checks the binary's header, `process.dlopen`s it and calls `nativeVersion()` where the runner can, and uploads `oxmutate-native-<platform>`, which `release.yml` places in oxmutate's `binding/`. `scripts/oxmutate-platforms-lock.test.ts` holds the matrix to the directories |
 
 ## Security
 

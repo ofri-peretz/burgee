@@ -51,7 +51,8 @@
         "^build"
       ],
       "passThroughEnv": [
-        "VITEST_DURATIONS_DIR"
+        "VITEST_DURATIONS_DIR",
+        "OXMUTATE_REQUIRE_NATIVE"
       ],
       "outputs": []
     },

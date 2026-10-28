@@ -184,7 +184,7 @@ with a dated note here, never an edit made inside a work package.
 ```ts
 // contracts/mutant.ts
 export interface Mutant {
-  id: string;                // StableId: 16 lowercase hex, sha-256 of file|start|end|operator|replacement
+  id: string;                // StableId: 16 lowercase hex, FNV-1a 64 of file|start line:col|end line:col|operator|replacement
   file: string;              // repo-relative path
   span: { start: number; end: number };   // UTF-16 offsets into the file as read
   operator: OperatorName;    // one of the R2 operators
@@ -205,10 +205,17 @@ export interface MutantVerdict { id: string; verdict: Verdict; killedBy?: string
 export const ExitCode = { Pass: 0, BelowFloor: 1, InstrumentFault: 2, OverBudget: 3, Usage: 4 } as const;
 ```
 
+> **Integrator note, 2026-10-27.** Two contracts changed during build. (1) Exit codes follow
+> burgee's shared vocabulary, so one CI script reads every burgee CLI the same way: `0` pass, `1`
+> below `--break` or runtime fault, `2` usage, `3` config or instrument fault (a red dry run), `6`
+> over budget. (2) The StableId is FNV-1a 64 rather than sha-256: it is computed in both Rust and
+> TypeScript with no hashing dependency, and the end position is in the key because nested mutants
+> can share a start (a collision measured on es-toolkit; regression test in `native/tests`).
+
 - **StableId vectors:** `contracts/stable-id.vectors.json` holds three golden triples
   (file, span, operator, replacement → id). Every WP that computes an ID is checked against them,
   so shards, SARIF fingerprints and the cache agree across machines.
-- **Report:** Stryker's `mutation-testing-report-schema` 1.x unchanged, plus an `x-oxmutate`
+- **Report:** Stryker's `mutation-testing-report-schema` 2 (what Stryker 10 writes) unchanged, plus an `x-oxmutate`
   block carrying the frozen-oracle delta, the compile-error drop count and the unread config keys.
   Validated by `contracts/report.schema.json`, which allows the extension and nothing else.
 - **SARIF:** one `result` per survivor; `ruleId` = operator; `partialFingerprints.mutationId` =

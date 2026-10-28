@@ -1,0 +1,87 @@
+---
+title: CI lanes
+description: "Run oxmutate in CI the way the work is shaped: only the lines a pull request touched, a run split across a matrix, verdicts reused between runs, and a gate that fails a change which weakened its own tests."
+---
+
+A whole-project run is the slowest way to use a mutation tester and rarely the one CI needs.
+Each lane below is a flag on `oxmutate run`, and they compose.
+
+## The pull-request lane: `--since`
+
+```bash
+npx oxmutate run --since origin/main --reporter clear-text,json,sarif
+```
+
+Only mutants on lines changed since the ref are scored; the rest of the project is not mutated.
+`--reporter sarif` writes `reports/mutation/mutation.sarif`, which GitHub's code scanning shows
+as an annotation on each surviving line of the diff:
+
+```yaml
+- run: npx oxmutate run --since origin/${{ github.base_ref }} --reporter clear-text,json,sarif
+- uses: github/codeql-action/upload-sarif@v3
+  if: always()
+  with:
+    sarif_file: reports/mutation/mutation.sarif
+```
+
+Check out with enough history for the ref to exist (`fetch-depth: 0`, or a fetch of the base
+branch).
+
+## A gate on weaker tests: `--frozen-oracle`
+
+```bash
+npx oxmutate run --since origin/main --frozen-oracle origin/main
+```
+
+The mutants are scored twice: against the change's tests, and against the base ref's versions of
+the test files the change edited. A mutant the base's tests killed that the change's tests let
+survive means the change removed or loosened an assertion. The run then exits 1 and names those
+mutants, whatever the score.
+
+## A matrix: `--shard i/n`
+
+```yaml
+strategy:
+  matrix:
+    shard: [1, 2, 3, 4]
+steps:
+  - run: npx oxmutate run --shard ${{ matrix.shard }}/4 --report-dir reports/shard-${{ matrix.shard }}
+```
+
+Shards partition the mutants exactly: every mutant is in one shard and no mutant is in two, and
+the split is deterministic, so a re-run of shard 2 scores the same mutants.
+
+## Reuse between runs: `--incremental`
+
+```bash
+npx oxmutate run --incremental
+```
+
+A verdict is reused when neither its source file nor any of its covering tests changed since the
+run that recorded it (`reports/oxmutate-incremental.json`, or `incrementalFile`). Cache that file
+between CI runs to make a nightly full run pay only for what moved.
+
+## Fail on a score: `--break`
+
+```bash
+npx oxmutate run --break 80
+```
+
+Exit 1 below a mutation score of 80, the same as `thresholds.break` in the config. The flag wins.
+
+## Exit codes
+
+| Code | Meaning |
+| :-- | :-- |
+| 0 | The run completed, and passed its gates |
+| 1 | It ran, and a gate failed: the score is under `--break`, or the change weakened its tests |
+| 2 | A usage error: an unknown flag or a malformed value; rewrite the command |
+| 3 | The config or the suite did not load: the dry run failed, or an instrumented file did not parse |
+
+## Where the published numbers will come from
+
+`oxmutate-bench.yml` runs oxmutate and Stryker against the same burgee packages on a runner
+nothing else shares, and its numbers are the ones to quote. It is added in M1 and has not run
+yet; the figures measured so far are from a shared laptop, and
+[`m1-results.md`](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/oxmutate/m1-results.md)
+says how far they can be trusted.

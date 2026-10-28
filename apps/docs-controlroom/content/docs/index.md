@@ -254,13 +254,14 @@ Nothing in this family builds on it yet, and it builds on `caique`, `closeout`, 
 
 ## The family
 
-Ten packages, one repository, one release pipeline. Each installs and works on its own, and each
+Eleven packages, one repository, one release pipeline. Each installs and works on its own, and each
 owns one job. Six of them — `bellpull`, `closeout`, `linegauge`, `paratext`, `roundel`, `seniority`
 — depend on nothing; the others depend only on packages in this table, and every dependency points
 one way, down the [layers](https://burgee.interlace.tools/docs/concepts/family).
 
 No package declares a dependency from outside the family; `react` and `react-reconciler` are
-optional peers of `controlroom`, which npm does not install.
+optional peers of `controlroom`, which npm does not install; `vitest` is an optional peer of
+`oxmutate`, which npm does not install.
 [`package-shape-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/package-shape-lock.test.ts)
 holds that for every manifest, and
 [`independence-install-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/independence-install-lock.test.ts)
@@ -283,6 +284,7 @@ keeps both true.
 | [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook, restore-cursor, cli-cursor and onetime |
 | [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
 | **controlroom** (this package) | Keyboard-driven terminal screens, inline or full-screen | ink |
+| [oxmutate](https://oxmutate.interlace.tools/docs) | Mutation testing on the oxc engine, inside your own Vitest | Stryker |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

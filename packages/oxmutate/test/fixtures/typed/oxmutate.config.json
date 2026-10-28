@@ -1,0 +1,1 @@
+{ "mutate": ["src/pick.ts"], "concurrency": 2, "flakyReruns": 0, "reporters": ["json"], "checkers": ["typescript"] }

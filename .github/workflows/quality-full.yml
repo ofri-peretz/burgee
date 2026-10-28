@@ -91,6 +91,13 @@ jobs:
           if [ "$FULL" = true ]; then args+=(--full); fi
           set_json=$(node scripts/affected.mts "${args[@]}")
           echo "$set_json"
+          # oxmutate's end-to-end tests drive its Rust core, which no `build` produces (it is
+          # per platform, built in release.yml's matrix). Built here only when its suite runs, and
+          # required: without the core those tests skip, and a skipped gate is no gate.
+          if [ "$(jq -r .full <<<"$set_json")" = true ] || jq -e '.workspaces | index("oxmutate")' <<<"$set_json" >/dev/null; then
+            npm run build:native -w oxmutate
+            export OXMUTATE_REQUIRE_NATIVE=1
+          fi
           if [ "$(jq -r .full <<<"$set_json")" = true ]; then npx turbo run test --concurrency=4; exit 0; fi
           mapfile -t filters < <(jq -r '.workspaces[] | "--filter=" + .' <<<"$set_json")
           if [ "${#filters[@]}" -eq 0 ]; then echo "No workspace changed against $BASE; the locks above are the suite."; exit 0; fi
@@ -225,6 +232,10 @@ jobs:
       - name: Build every package
         if: steps.plan.outputs.run == 'true'
         run: npx turbo run build --filter='./packages/*' --concurrency=4
+      # The lane runs oxmutate, the family's own mutation tester; its core is Rust, and no `build`
+      # produces it (the runner image ships rustup).
+      - name: Build oxmutate's native core
+        run: cd packages/oxmutate && npm run build:native
       - name: Mutate the changed lines
         if: steps.plan.outputs.run == 'true'
         env:

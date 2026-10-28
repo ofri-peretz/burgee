@@ -23,6 +23,9 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
+// eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and `released` is the one place a package released ahead of its flip is decided
+import { released } from '../apps/docs-chassis/src/packages';
+
 const REPO_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const PAGE = join(REPO_ROOT, 'apps/docs/content/docs/weight.mdx');
 
@@ -41,7 +44,9 @@ function published(): string[] {
     } catch {
       continue;
     }
-    if (manifest.private === true) continue;
+    // Released, not merely published: a package whose pending docs app is built ahead of its flip
+    // to `private: false` is priced already, so the flip changes nothing here.
+    if (!released(manifest)) continue;
     for (const subpath of Object.keys(manifest.exports ?? {})) {
       if (subpath.endsWith('.json')) continue;
       out.push(subpath === '.' ? manifest.name : `${manifest.name}/${subpath.slice(2)}`);

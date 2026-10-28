@@ -1,0 +1,106 @@
+---
+title: Getting started
+description: "Install oxmutate, see the config it reads from your project, run it, and read the survivors back: the lines your tests run but do not check."
+---
+
+oxmutate is a mutation tester. It changes your code one small step at a time and runs the tests
+that cover each change. A change that every covering test still passes is a **survivor**: the
+tests run that line, and nothing they assert depends on it.
+
+## Install
+
+```bash
+npm install --save-dev oxmutate
+```
+
+It needs Node 20.19 or later on the 20 line, or 22.13 or later, and Vitest 4.1 or later in the
+project for its default runner. Vitest is an optional peer: oxmutate runs the project's own copy
+and never installs a second. The prebuilt native core for your platform is an optional
+dependency that npm picks by `os`, `cpu` and `libc`; nothing runs at install time.
+
+## The config it reads
+
+There is nothing to write if the project already has a Stryker config: oxmutate reads
+`stryker.config.{mjs,js,cjs,json}` as it stands. `loadOptions` is the reader the CLI uses, so a
+program can show what a run would use:
+
+```js title="options.mjs"
+import { writeFileSync } from 'node:fs';
+import { loadOptions } from 'oxmutate';
+
+// The Stryker config a project already has, written here so the program runs anywhere.
+writeFileSync('stryker.config.json', JSON.stringify({
+  mutate: ['src/**/*.ts', '!src/**/*.test.ts'],
+  thresholds: { high: 90, low: 70, break: 80 },
+  coverageAnalysis: 'perTest',
+}));
+
+const options = await loadOptions(process.cwd());
+console.log(options.mutate);
+console.log(options.thresholds);
+for (const { key, why } of options.unused) console.log(`${key}: ${why}`);
+```
+
+```text title="node options.mjs"
+[ 'src/**/*.ts', '!src/**/*.test.ts' ]
+{ high: 90, low: 70, break: 80 }
+coverageAnalysis: always perTest
+```
+
+A key oxmutate does not use is listed with the reason, never dropped in silence.
+
+In a Vite or Vite+ project, the same settings can live in `vite.config.ts` instead, in a `mutate`
+block beside `test` (`/// <reference types="oxmutate/vite" />` types it). Every key, and the order in which the
+sources win, is on [Configuration](/docs/configuration).
+
+## Run it
+
+```bash
+npx oxmutate run
+```
+
+The run has three phases. A **dry run** executes the suite once, unmutated, and records which
+tests reach which mutant; if it fails, nothing is scored and the run exits 3. Then every mutant
+is scored by re-running only its covering tests inside warm Vitest workers. Last, each survivor
+is confirmed in isolation, so a verdict that depended on another test's state is not reported.
+
+It prints a summary and writes Stryker's JSON report to `reports/mutation/mutation.json`. Add
+`--reporter clear-text,json,html,sarif` for the HTML report and a SARIF file as well.
+
+## Read the survivors
+
+`oxmutate survivors` reads the last report and prints one line per survivor, with what to
+assert. Here it reads a two-mutant report: one killed, one that survived.
+
+```json title="mutation.json"
+{
+  "schemaVersion": "2",
+  "thresholds": { "high": 80, "low": 60 },
+  "files": {
+    "src/age.ts": {
+      "language": "typescript",
+      "source": "export const isAdult = (age: number): boolean => age >= 18;\n",
+      "mutants": [
+        { "id": "1", "mutatorName": "EqualityOperator", "replacement": "age > 18", "status": "Survived", "location": { "start": { "line": 1, "column": 50 }, "end": { "line": 1, "column": 59 } }, "coveredBy": ["0"] },
+        { "id": "2", "mutatorName": "BooleanLiteral", "replacement": "false", "status": "Killed", "location": { "start": { "line": 1, "column": 50 }, "end": { "line": 1, "column": 59 } }, "coveredBy": ["0"] }
+      ]
+    }
+  }
+}
+```
+
+```text title="npx oxmutate survivors --report mutation.json"
+src/age.ts:1  1 test(s) run this code, and all still pass when it becomes `age > 18` (EqualityOperator). fix: assert the behaviour this line decides.
+```
+
+`age >= 18` and `age > 18` differ only at 18, so the survivor says no test asks about an
+18-year-old. `expect(isAdult(18)).toBe(true)` kills it.
+
+## Next
+
+- [Configuration](/docs/configuration): every key, Stryker's and oxmutate's own.
+- [CI lanes](/docs/ci-lanes): a pull-request lane, a sharded nightly, and a gate on tests that
+  got weaker.
+- [For agents](/docs/agents): `survivors --json`, the MCP server and the exit codes.
+- [Spec oracles](/docs/spec-oracles): a formal model's traces as a second verdict.
+- [Coming from Stryker](/docs/coming-from/stryker): what changes, and the three things that differ.

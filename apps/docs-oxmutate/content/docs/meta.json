@@ -1,0 +1,12 @@
+{
+  "title": "oxmutate",
+  "pages": [
+    "index",
+    "getting-started",
+    "configuration",
+    "ci-lanes",
+    "agents",
+    "spec-oracles",
+    "coming-from"
+  ]
+}

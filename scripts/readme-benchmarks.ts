@@ -57,8 +57,15 @@ const PAGE_TEXT = 'burgee.interlace.tools/docs/benchmarks';
 const RATIO_DIGITS = 4;
 const HEADING = '## Benchmarks';
 const PLACE_HEADING = '## Where it sits';
-/** The published layers. `compat-oracle` is internal tooling and is not one of them. */
-export const FAMILY = ['burgee', 'roundel', 'flagstaff', 'caique', 'linegauge', 'paratext', 'seniority', 'closeout', 'bellpull', 'controlroom'];
+/**
+ * The released packages: every published one, and `oxmutate`, which is still `private` while its
+ * pending docs app is built ahead of its first release (`released` in docs-chassis). It is listed
+ * here either side of that flip, so every README's family table is the same text before and
+ * after it, and the flip changes no generated section. `package-readme-header-lock` holds that
+ * this list is the published packages plus only such a package. `compat-oracle` is internal
+ * tooling and is not one of them.
+ */
+export const FAMILY = ['burgee', 'roundel', 'flagstaff', 'caique', 'linegauge', 'paratext', 'seniority', 'closeout', 'bellpull', 'controlroom', 'oxmutate'];
 
 interface Ceiling {
   ours: number;
@@ -224,7 +231,7 @@ const BRAND = '0a6b47';
 /** A suite not yet passed whole: amber, so a partial grade never reads as the green beside it. */
 const PARTIAL = 'b45309';
 const COMPAT_PAGE = 'https://burgee.interlace.tools/docs/compatibility';
-const WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'];
+const WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve'];
 
 interface Manifest {
   name: string;
@@ -386,6 +393,7 @@ const ROLE: Readonly<Record<string, string>> = {
   closeout: 'Exit handlers, terminal restore and a bounded shutdown',
   bellpull: 'Subprocesses, and which executable actually ran',
   controlroom: 'Keyboard-driven terminal screens, inline or full-screen',
+  oxmutate: 'Mutation testing on the oxc engine, inside your own Vitest',
 };
 
 /** The column generated prose is broken at — the width the hand-written READMEs keep. */

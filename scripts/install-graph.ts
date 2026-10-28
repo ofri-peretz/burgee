@@ -38,7 +38,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { discard, installTarballs, type Manifest, npm, packFamily, publishedManifests } from './family-install.js';
+import { discard, installTarballs, type Manifest, npm, packFamily, releasedManifests } from './family-install.js';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 export const GRAPH_FILE = join(ROOT, 'benchmarks/install-graph.json');
@@ -198,9 +198,9 @@ export function withTable(page: string, block: string): string | undefined {
   return `${page.slice(0, at)}${block}${page.slice(end + END.length)}`;
 }
 
-/** Pack every published package once and install each alone. The caller discards `base`. */
+/** Pack every released package once and install each alone. The caller discards `base`. */
 export async function measureFamily(root: string, base: string): Promise<{ family: Set<string>; installs: Installed[] }> {
-  const manifests = publishedManifests(root);
+  const manifests = releasedManifests(root);
   const tarballs = await packFamily(root, manifests.keys(), join(base, 'tarballs'));
   const installs = await Promise.all([...manifests.keys()].map((name) => installAlone(name, manifests, tarballs, base)));
   return { family: new Set(manifests.keys()), installs };

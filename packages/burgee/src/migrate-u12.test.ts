@@ -44,7 +44,13 @@ const clean = (): undefined => undefined;
 const unreachable = async (): Promise<undefined> => undefined;
 const read = (dir: string, file: string): string => readFileSync(join(dir, file), 'utf8');
 
-/** Every published package of this repository at the version its own manifest declares — what `next` must pin to. */
+/**
+ * A published package `migrate` never rewrites an import to: oxmutate is a tool you run, not a
+ * drop-in a program imports (its Stryker path is `npx oxmutate`), so it has no pin to carry.
+ */
+const NO_DROP_IN = new Set(['oxmutate']);
+
+/** Every published drop-in package of this repository at the version its own manifest declares — what `next` must pin to. */
 function manifests(): Record<string, string> {
   const packages = fileURLToPath(new URL('../../', import.meta.url));
   const out: Record<string, string> = {};
@@ -52,7 +58,7 @@ function manifests(): Record<string, string> {
     if (!entry.isDirectory()) continue;
     try {
       const pkg = JSON.parse(readFileSync(join(packages, entry.name, 'package.json'), 'utf8')) as { name: string; version: string; private?: boolean };
-      if (pkg.private !== true) out[pkg.name] = pkg.version;
+      if (pkg.private !== true && !NO_DROP_IN.has(pkg.name)) out[pkg.name] = pkg.version;
     } catch {
       // a directory without a manifest is not a package
     }
