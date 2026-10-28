@@ -16,7 +16,7 @@
     `testRunnerNodeArgs`, `warnings`, the command runner (`testRunner: 'command'`) and the
     TypeScript checker (`checkers: ['typescript']`, on surviving mutants, with tsgo or tsc).
   - **One config file, the Vite+ way.** A `mutate` block in `vite.config.ts` beside `test`, typed
-    by `/// <reference types="oxmutate/vite" />`. `oxmutate.config.*` and `stryker.config.*` work too.
+    by `/// <reference types="oxmutate/vite" />`. `defineMutate` types a block kept in its own file. `oxmutate.config.*` and `stryker.config.*` work too.
   - **Fast where Stryker spends its time.** The instrumenter is Rust and runs every file in
     parallel (35 ms for 720 mutants). Each covering test re-runs per mutant inside a live Vitest
     worker instead of a fresh run per mutant, on a work-stealing pool of warm servers.

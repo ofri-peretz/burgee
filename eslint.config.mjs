@@ -1113,8 +1113,7 @@ export default [
     files: [
       "packages/oxmutate/src/coordinator.ts",
       "packages/oxmutate/src/scheduler.ts",
-      "packages/oxmutate/src/reports.ts",
-    ],
+      "packages/oxmutate/src/reports.ts", "packages/oxmutate/src/vite.ts"],
     rules: { "import-next/consistent-type-specifier-style": "off" },
   },
   {

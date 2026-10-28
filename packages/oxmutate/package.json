@@ -46,12 +46,9 @@
   },
   "typesVersions": {
     "*": {
-      "runner": [
-        "./dist/runner.d.ts"
-      ],
-      "spec": [
-        "./dist/spec.d.ts"
-      ]
+      "runner": ["./dist/runner.d.ts"],
+      "spec": ["./dist/spec.d.ts"],
+      "vite": ["./dist/vite.d.ts"]
     }
   },
   "files": [

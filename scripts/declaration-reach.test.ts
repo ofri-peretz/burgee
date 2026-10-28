@@ -249,6 +249,16 @@ describe.each(published)('published package $pkg.name', ({ dir, pkg }) => {
  */
 const RESOLUTION = new Set([2307, 2305, 2724, 7016, 1479, 2306]);
 
+/**
+ * A peer whose own types `node10` and plain `commonjs` cannot reach, and the family declaration
+ * that names it. Vite 8 publishes its types only through `exports`, which those two resolutions
+ * ignore, so `import type { UserConfig } from 'vite'` fails there for every program, not only for
+ * this one: a project on node10 cannot type its `vite.config` at all. `oxmutate/vite` augments
+ * Vite's config type (as `vitest/config` does), so it names Vite and inherits that. Every other
+ * resolution diagnostic still fails.
+ */
+const EXPORTS_ONLY_PEERS: readonly { peer: string; declaration: string }[] = [{ peer: 'vite', declaration: '/packages/oxmutate/dist/vite.d.ts' }];
+
 /** The five consumer setups of spec `types-under-node10` R4. */
 const CONSUMERS: { name: string; esm: boolean; options: ts.CompilerOptions }[] = [
   { name: 'commonjs, no moduleResolution', esm: false, options: { module: ts.ModuleKind.CommonJS } },
@@ -301,6 +311,7 @@ describe('every typed subpath resolves under each moduleResolution', () => {
     const unresolved = ts
       .getPreEmitDiagnostics(program)
       .filter((d) => RESOLUTION.has(d.code))
+      .filter((d) => esm || options.moduleResolution === ts.ModuleResolutionKind.Bundler || !EXPORTS_ONLY_PEERS.some(({ peer, declaration }) => d.file?.fileName.endsWith(declaration) === true && ts.flattenDiagnosticMessageText(d.messageText, '\n').includes(`'${peer}'`)))
       .map((d) => `TS${d.code} ${ts.flattenDiagnosticMessageText(d.messageText, '\n').split('\n')[0]} (${d.file === undefined ? '?' : d.file.fileName.replace(consumer, '<consumer>')})`);
     expect(unresolved, `${unresolved.length} of ${specifiers.length} specifiers did not resolve`).toEqual([]);
   });
