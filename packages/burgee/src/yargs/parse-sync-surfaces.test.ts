@@ -117,3 +117,52 @@ describe('the reserved surfaces under parseSync() (A-20261027-yargs-parsesync-su
     expect(status).toBe(0);
   });
 });
+
+/**
+ * A-20261027-yargs-parsesync-mcp-ended-by-exit: the program goes on after `parseSync()` returns,
+ * as concurrently's `bin/index.ts` does — it reads the argv it got back and, finding nothing to
+ * run, shows help and calls `process.exit()`. On `burgee@1.8.0` that exit ended the server
+ * `parseSync()` had started before it read a line: help on stderr, exit 0, nothing on stdout.
+ */
+function exitsOnEmpty(ending: 'parseSync' | 'parseAsync', handler: boolean): string {
+  const file = join(scratch(`burgee-exits-${ending}-${String(handler)}-`), 'prog.mjs');
+  const command = handler ? ".command('$0 [things..]', 'count things', (b) => b, (argv) => console.log(`n=${String(argv.n)}`))" : '';
+  writeFileSync(
+    file,
+    [
+      `import yargs from ${entry('burgee/yargs')}; import { hideBin } from ${entry('burgee/yargs/helpers')};`,
+      `const program = yargs(hideBin(process.argv)).option('n', { type: 'number', describe: 'how many' })${command};`,
+      `const argv = ${ending === 'parseSync' ? 'program.parseSync()' : 'await program.parseAsync()'};`,
+      "if (argv._.length === 0 && argv.things === undefined) { program.showHelp(); process.exit(); }",
+    ].join('\n'),
+  );
+  return file;
+}
+
+function serve(file: string, input: string): { replies: { id: number; result: Record<string, unknown> }[]; stderr: string; status: number | null } {
+  const child = spawnSync(process.execPath, [file, '--mcp'], { encoding: 'utf8', input });
+  const replies = child.stdout.trim() === '' ? [] : child.stdout.trim().split('\n').map((line) => JSON.parse(line) as { id: number; result: Record<string, unknown> });
+  return { replies, stderr: child.stderr, status: child.status };
+}
+
+describe('--mcp under parseSync() in a program that exits on an empty argv (A-20261027-yargs-parsesync-mcp-ended-by-exit)', () => {
+  it('answers initialize and tools/list before the program’s own exit can run, as concurrently’s shape needs', () => {
+    const { replies, stderr, status } = serve(exitsOnEmpty('parseSync', false), MCP);
+    expect(stderr).not.toContain('how many');
+    expect(status).toBe(0);
+    expect(replies.map((reply) => reply.id)).toEqual([1, 2]);
+    expect(replies[0]?.result).toMatchObject({ capabilities: { tools: {} } });
+    expect(replies[1]?.result).toEqual({ tools: [] });
+  });
+
+  it('runs a tools/call and answers it as the parseAsync() program does', () => {
+    const list = serve(exitsOnEmpty('parseAsync', true), MCP).replies[1]?.result.tools as { name: string }[];
+    const call = `${MCP}\n{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"${list[0]?.name ?? ''}","arguments":{"n":3}}}`;
+    const sync = serve(exitsOnEmpty('parseSync', true), call);
+    const async = serve(exitsOnEmpty('parseAsync', true), call);
+    expect(sync.stderr).not.toContain('how many');
+    expect(sync.replies).toEqual(async.replies);
+    expect(sync.status).toBe(0);
+    expect(sync.replies[2]?.result).toMatchObject({ isError: false, content: [{ type: 'text' }, { type: 'text', text: 'n=3' }] });
+  });
+});

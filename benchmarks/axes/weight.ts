@@ -502,7 +502,13 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // D-20261027-yargs-parsesync-surface-bytes): under `parseSync()` the `completion` and `--mcp`
   // surfaces answer instead of throwing. CI read 108,897 (+61 over main's 108,836), rounded up
   // to the next 50. Still 2,786 B under yargs' own 111,686.
-  'burgee/yargs': 108_900,
+  // 109,200 on 2026-10-28 for A-20261027-yargs-parsesync-mcp-ended-by-exit
+  // (D-20261028-yargs-parsesync-mcp-serves-synchronously): under `parseSync()`, `--mcp` is served
+  // synchronously to the end of its input. The bundle inlines `mcp.js`' dynamic import, so the
+  // server's synchronous half is counted here too. Main at `b62cf2a105` measured 108,897 locally
+  // (CI's reading of it as well) and this reads 109,149 (+252); plus the ~32 B, rounded up to the
+  // next 50. Still 2,537 B under yargs' own 111,686.
+  'burgee/yargs': 109_200,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
   // bundle grows by, set where the number actually is, so the next byte is a decision.

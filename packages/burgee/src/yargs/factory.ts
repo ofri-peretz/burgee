@@ -1470,7 +1470,9 @@ export class YargsInstance {
    * `--schema`, `--mcp` and `completion <shell>` on a yargs-syntax program, from its
    * manifest (J2). Only when the program declares none of them itself; `--schema` is
    * synchronous, the other two load lazily and return a promise — except under `parseSync()`,
-   * which throws on a promise from `parse()` (A-20261027-yargs-parsesync-surfaces-throw).
+   * which throws on a promise from `parse()` (A-20261027-yargs-parsesync-surfaces-throw), and
+   * whose program goes on, to its own `process.exit()` perhaps, once it returns
+   * (A-20261027-yargs-parsesync-mcp-ended-by-exit): there both answer before it does.
    */
   #burgeeSurface(args: string | string[]): boolean | Promise<boolean> {
     const list = typeof args === 'string' ? tokenizeArgString(args) : args;
@@ -1506,19 +1508,37 @@ export class YargsInstance {
       return true;
     }
     if (head[0] === '--mcp' && !this.#declares('mcp')) {
-      const invoke = async (argv: string[]): Promise<{ stdout: string; stderr: string; code: number }> => {
+      const sync = this.#sync;
+      const invoke = (argv: string[]): any => {
         const out: string[] = [];
         const err: string[] = [];
         let code = 0;
         const before = this.#burgee;
         this.#burgee = { json: false, lastError: '', stdout: { write: (s) => out.push(s) }, stderr: { write: (s) => err.push(s) }, exit: (c) => void (code = c) };
-        try {
-          await this.parseAsync([...argv, '--json']);
-        } finally {
+        // Puts the seam back, then throws what failed or returns what the call printed.
+        const done = (...failed: unknown[]): any => {
           this.#burgee = before;
+          if (failed.length > 0) throw failed[0];
+          return { stdout: out.join(''), stderr: err.join(''), code };
+        };
+        // Under parseSync() the server cannot wait, so a call is a parseSync() too: a handler that
+        // returns a promise is refused there with yargs' own YError, as on the program's own run.
+        try {
+          return sync ? (this.parseSync([...argv, '--json']), done()) : this.parseAsync([...argv, '--json']).then(() => done(), done);
+        } catch (e) {
+          return done(e);
         }
-        return { stdout: out.join(''), stderr: err.join(''), code };
       };
+      if (sync) {
+        // A server is asynchronous, and a parseSync() program goes on the moment parseSync()
+        // returns: concurrently shows help and calls process.exit() on an empty argv, which ended
+        // the server before it read a line (A-20261027-yargs-parsesync-mcp-ended-by-exit). So it
+        // is served synchronously here, and parseSync() returns, or the process exits, only once
+        // the input ends. Required, not imported, for the reason `completion`'s module is above.
+        (this.#shim.require('../mcp.js') as typeof import('../mcp.js')).serveMcpSync(this.manifest, invoke, this.#burgee?.stdout);
+        this.exit(0);
+        return true;
+      }
       const write = this.#burgee?.stdout ?? this.#shim.process.stdout();
       // Loaded here rather than imported at the top, which is what the note above `#surfaces`
       // has claimed since it was written: this branch already returns a promise, so the server
@@ -1534,10 +1554,7 @@ export class YargsInstance {
           this.exit(0);
           return true;
         });
-      // A server is asynchronous whoever asks. Under parseSync() it runs on and exits when its
-      // input ends, and parseSync() returns the short-circuit argv, as `--help` does under
-      // `exitProcess(false)`: code a program runs after parseSync() returns still runs.
-      return this.#sync || served;
+      return served;
     }
     return false;
   }
