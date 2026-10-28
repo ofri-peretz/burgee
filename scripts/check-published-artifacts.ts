@@ -189,9 +189,11 @@ export function nativeCores(pack: PackEntry): string[] {
 /** `npm pack --dry-run --json` in `cwd`. */
 export function dryPack(cwd: string): PackEntry | undefined {
   const [pack] = JSON.parse(
+    // `npm` on Windows is `npm.cmd`, which Node runs only through a shell (as pack-list-lock does).
     execFileSync("npm", ["pack", "--dry-run", "--json", "--ignore-scripts"], {
       cwd,
       encoding: "utf8",
+      shell: process.platform === "win32",
     }),
   ) as PackEntry[];
   return pack;

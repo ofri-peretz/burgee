@@ -78,10 +78,12 @@ export function batches<T extends { file: string }>(items: readonly T[]): T[][] 
   return out;
 }
 
+/** npm's .bin entry for tsgo: `tsgo.cmd` on Windows, where the extensionless file beside it is a shell script. */
+export const tsgoBin = (windows: boolean): string => (windows ? 'tsgo.cmd' : 'tsgo');
+
 function compiler(o: CheckOptions): string[] {
   if (o.command) return o.command.trim().split(/\s+/);
-  // npm's .bin entry on Windows is tsgo.cmd; the extensionless file beside it is a shell script.
-  const tsgo = path.join(o.root, 'node_modules', '.bin', isWindows(ambientRuntime()) ? 'tsgo.cmd' : 'tsgo');
+  const tsgo = path.join(o.root, 'node_modules', '.bin', tsgoBin(isWindows(ambientRuntime())));
   return existsSync(tsgo) ? [tsgo] : ['npx', 'tsc'];
 }
 

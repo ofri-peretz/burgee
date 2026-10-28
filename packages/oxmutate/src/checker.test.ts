@@ -5,11 +5,15 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { applyMutant, batches, checkSurvivors, parseDiagnostics, type CheckMutant } from './checker.js';
+import { applyMutant, batches, checkSurvivors, parseDiagnostics, tsgoBin, type CheckMutant } from './checker.js';
 
 const typed = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'test', 'fixtures', 'typed');
 
 describe('the type checker', () => {
+  it("names npm's .bin entry for tsgo per platform: the .cmd shim on Windows", () => {
+    expect([tsgoBin(false), tsgoBin(true)]).toEqual(['tsgo', 'tsgo.cmd']);
+  });
+
   it('applies a mutant at UTF-16 columns, end exclusive', () => {
     const source = "const a = 'é';\nreturn fast ? 'fast' : 'safe';\n";
     expect(applyMutant(source, { start: { line: 2, column: 15 }, end: { line: 2, column: 21 }, replacement: '""' })).toBe("const a = 'é';\nreturn fast ? \"\" : 'safe';\n");

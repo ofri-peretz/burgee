@@ -44,7 +44,8 @@ export function strykerReport(r: RunResult): object {
   }
   const testFiles = new Map<string, { tests: { id: string; name: string }[] }>();
   for (const t of r.tests) {
-    const file = path.relative(r.root, t.file);
+    // Forward slashes on every OS, as Stryker's report keys its files.
+    const file = path.relative(r.root, t.file).split(path.sep).join('/');
     // Stryker disable next-line OptionalChaining: the get after a set always finds the entry; `?.` is only for the type
     (testFiles.get(file) ?? testFiles.set(file, { tests: [] }).get(file))?.tests.push({ id: t.id, name: t.name });
   }
