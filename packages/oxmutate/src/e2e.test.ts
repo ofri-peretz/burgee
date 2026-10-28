@@ -198,6 +198,8 @@ describe.skipIf(!native || !existsSync(bin))('the command runner (testRunner: co
   afterAll(() => rmSync(path.join(registry, 'reports'), { recursive: true, force: true }));
 
   it('runs the command once per mutant in a sandbox and scores what the warm runner scores', () => {
+    const sandboxes = (): string[] => (existsSync(path.join(registry, '.oxmutate-tmp')) ? readdirSync(path.join(registry, '.oxmutate-tmp')) : []);
+    const before = sandboxes();
     const r = runWith(registry, { testRunner: 'command', commandRunner: { command: 'npx vitest run --config vitest.config.mjs' } });
     expect(r.status).toBe(0);
     const report = JSON.parse(readFileSync(path.join(r.reports, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: ReportMutant[] }> };
@@ -205,7 +207,8 @@ describe.skipIf(!native || !existsSync(bin))('the command runner (testRunner: co
     // A fresh process per mutant: no pollution to correct, the same partition as the warm run.
     expect(mutants.map(verdictOf)).toEqual(mutants.map((m) => `${String(m.location.start.line)}:${m.mutatorName}:${m.location.start.line >= 14 ? 'Survived' : 'Killed'}`));
     // The sandbox is gone afterwards, and the sources on disk were never touched.
-    expect(readdirSync(path.join(registry, '.oxmutate-tmp'))).toEqual([]);
+    // This run's sandbox is gone (one an earlier, killed run left behind is not this run's to clean).
+    expect(sandboxes().filter((d) => !before.includes(d))).toEqual([]);
     expect(readFileSync(path.join(registry, 'src/registry.ts'), 'utf8')).not.toContain('oxmAct');
   }, 120_000);
 });
