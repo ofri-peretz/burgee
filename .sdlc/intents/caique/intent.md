@@ -5,7 +5,7 @@
 > back. Re-parented 2026-09-08 under [`cli-output-stack`](../cli-output-stack/intent.md) (U6, U11,
 > U12): caique **implements** prompts over Node natives; clack and inquirer are migration paths.
 
-**Status:** approved (2026-09-23, under the owner's delegation, D-129) · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** shipped (2026-10-28, on `caique@1.6.0` and `burgee@1.9.0`; approved 2026-09-23 under the owner's delegation, D-129) · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why still `review`:** `packages/caique/src/` is one file exporting a name; nothing of P1–P3 is built.
 
@@ -16,6 +16,11 @@
 > **Built 2026-10-27, not yet stamped.** R1's `promptFor` is built, the B1 demo is layered on it,
 > and a real-terminal Ctrl+C case runs on Linux, macOS and Windows. What is left is a reading and a
 > release, not code. See [§ Built 2026-10-27](#built-2026-10-27-what-is-left-is-a-reading-and-a-release).
+>
+> **Shipped 2026-10-28: three of three criteria held on published code.** `caique@1.6.0` and
+> `burgee@1.9.0` carry R1, B1's non-TTY task passed 5 of 5 on the caique-layered demo, and the
+> real-terminal Ctrl+C case is graded on all three OSes. See
+> [§ Shipped 2026-10-28](#shipped-2026-10-28-each-criterion-and-its-evidence).
 
 ---
 
@@ -70,6 +75,25 @@ found the handler running with stdin still raw.
 
 **Stamp `shipped` when** criterion 2's reading has passed and caique and burgee have published the
 minors carrying R1.
+
+## Shipped 2026-10-28: each criterion and its evidence
+
+Read on `main` at `c2c42450` (#1327). `npm view caique version` reads **1.6.0**, the same as
+`packages/caique/package.json` on `main`. `npm view burgee version` reads **1.9.0**, the same as
+`packages/burgee/package.json`. Both changelogs carry #1316: caique 1.6.0 adds `promptFor`, and
+burgee 1.9.0 adds the deferral of a missing value that declares a `prompt`, plus `ctx.json`.
+
+| # | criterion | evidence | state |
+| :-- | :-- | :-- | :-- |
+| 1 | the conformance cases: flag given → no prompt; TTY without flag → prompt; non-TTY without flag → `USAGE` with `fix`; `--yes`; `--interactive`; cancel → `CANCELLED` | `packages/caique/src/decide.test.ts` (the whole table, and the named non-TTY, `--json`/CI, R2 and R3 cases), `binding.test.ts` › "reports the option it was cancelled at, and how to avoid the question". Through R1 as well: `prompt-for.test.ts` (28 cases) and `scripts/prompt-exit-codes.test.ts` › "promptFor on a burgee command (caique R1)", where burgee exits 2 and 4 | **held** |
+| 2 | the benchmark's non-TTY task never times out on the layered demo | B1 dispatched run [40598315926](https://github.com/ofri-peretz/burgee/actions/runs/40598315926), at `f7fc484`, which contains #1316. The demo's `greet` is `promptFor(…)` at that commit. Artifact `b1-transcripts`, files `burgee-non-tty-required-{0..4}.jsonl`: 5 of 5 runs passed in 2, 2, 3, 2 and 2 turns, against a 12-turn limit. Every transcript shows caique's refusal, `<name> is required when there is no terminal`, not burgee's. The burgee arm's `success-rate` is **1** (gate ≥ 0.8). **The job is red for the commander arm**: `commander success-rate 0.76 ratio is below its floor of 0.8`. That arm runs `demo-cli-commander`, which is not layered on caique. Its floor is the B1 harness's validity floor for that arm's medians, not a caique criterion | **held** |
+| 3 | `Ctrl+C` during a prompt leaves `stdin` out of raw mode on macOS, Linux and Windows, tested with a PTY in CI | `packages/caique/src/pty-cancel.test.ts`, run by `compat.yml` on ubuntu, macOS and Windows: `promptFor`'s own terminal and `caique/clack`'s `text`, on a real terminal from `scripts/pty-host.py` (`pty.fork()` on POSIX, ConPTY through `ctypes` on Windows; D-20261027-caique-pty-windows-conpty). Since #1327 the restore is graded by a line read back through the terminal. A cooked terminal hands back `ok` ended by a newline; a raw one hands back a bare `\r` (D-20261027-caique-conpty-line-proof). That replaced a second-Ctrl+C proof whose CTRL_C_EVENT delivery under ConPTY varied run to run (#1324's cell). #1327's Compatibility run 40610668649 passed the case on Windows under Node 20.19 and 22.13, which earlier could only report `raw=false`. Node 24 · windows-latest passed it on `main`'s probe run 40597587808 | **held** |
+
+The interrupt and restore state machine is [`interrupt.qnt`](./interrupt.qnt), checked by
+`models.yml`: `safety` holds, and four rejected designs and the `neverAsks` witness each fail.
+
+**Still open, as design edits with no code:** the requirement-keyed evidence table that
+`spec.md` § *Moved here 2026-10-25* asks for.
 
 ## What is wanted
 
