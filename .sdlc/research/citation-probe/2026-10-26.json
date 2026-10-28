@@ -1,0 +1,106 @@
+{
+  "v": 2,
+  "date": "2026-10-26",
+  "commit": "8550bdbd6c0410075df3cb6ce85332ddb16df1f9",
+  "questions": [
+    "What is a good alternative to commander.js?",
+    "How do I make my Node CLI output JSON for AI agents?",
+    "How do I expose a command-line tool over MCP?",
+    "What is a zero-dependency replacement for yargs?",
+    "How do I stop an interactive CLI prompt from hanging in CI?"
+  ],
+  "assistants": {
+    "claude": {
+      "status": "ran",
+      "secret": "CLAUDE_CODE_OAUTH_TOKEN",
+      "requested": "claude-opus-5-5"
+    }
+  },
+  "observations": [
+    {
+      "date": "2026-10-26",
+      "commit": "8550bdbd6c0410075df3cb6ce85332ddb16df1f9",
+      "assistant": "claude",
+      "model": "claude-opus-5-5",
+      "question": 1,
+      "status": "ok",
+      "exitCode": 0,
+      "turns": 1,
+      "costUsd": 0.029081999999999997,
+      "error": null,
+      "named": false,
+      "mentions": [],
+      "citedUrls": [],
+      "ours": [],
+      "excerpt": null
+    },
+    {
+      "date": "2026-10-26",
+      "commit": "8550bdbd6c0410075df3cb6ce85332ddb16df1f9",
+      "assistant": "claude",
+      "model": "claude-opus-5-5",
+      "question": 2,
+      "status": "ok",
+      "exitCode": 0,
+      "turns": 1,
+      "costUsd": 0.044997999999999996,
+      "error": null,
+      "named": false,
+      "mentions": [],
+      "citedUrls": [],
+      "ours": [],
+      "excerpt": null
+    },
+    {
+      "date": "2026-10-26",
+      "commit": "8550bdbd6c0410075df3cb6ce85332ddb16df1f9",
+      "assistant": "claude",
+      "model": "claude-opus-5-5",
+      "question": 3,
+      "status": "ok",
+      "exitCode": 0,
+      "turns": 1,
+      "costUsd": 0.04891000000000001,
+      "error": null,
+      "named": false,
+      "mentions": [],
+      "citedUrls": [],
+      "ours": [],
+      "excerpt": null
+    },
+    {
+      "date": "2026-10-26",
+      "commit": "8550bdbd6c0410075df3cb6ce85332ddb16df1f9",
+      "assistant": "claude",
+      "model": "claude-opus-5-5",
+      "question": 4,
+      "status": "ok",
+      "exitCode": 0,
+      "turns": 1,
+      "costUsd": 0.028234,
+      "error": null,
+      "named": false,
+      "mentions": [],
+      "citedUrls": [],
+      "ours": [],
+      "excerpt": null
+    },
+    {
+      "date": "2026-10-26",
+      "commit": "8550bdbd6c0410075df3cb6ce85332ddb16df1f9",
+      "assistant": "claude",
+      "model": "claude-opus-5-5",
+      "question": 5,
+      "status": "ok",
+      "exitCode": 0,
+      "turns": 1,
+      "costUsd": 0.041002,
+      "error": null,
+      "named": false,
+      "mentions": [],
+      "citedUrls": [],
+      "ours": [],
+      "excerpt": null
+    }
+  ]
+}
