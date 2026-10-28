@@ -3,7 +3,17 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     include: ["**/*.test.ts"],
-    exclude: ["node_modules/**", ".fixtures/**"],
+    /*
+     * `scale.test.ts` writes, runs and deletes a 250-command program: 100 s of a local pre-push
+     * under endpoint scanning, which timed out its cleanup on three pushes running (2026-10-28).
+     * It checks the bench harness, not a package, so it runs on bench.yml's weekly schedule
+     * (`BENCH_SCALE=1`) instead of on every push and pull request.
+     */
+    exclude: [
+      "node_modules/**",
+      ".fixtures/**",
+      ...(process.env.BENCH_SCALE ? [] : ["scale.test.ts"]),
+    ],
     setupFiles: ["./no-gate-lines-setup.ts"],
     /*
      * Every test in this package spawns something and waits for it — a stub `claude` per

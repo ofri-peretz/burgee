@@ -111,6 +111,14 @@ jobs:
       # cost: `compat:page --check` failed on PR #197 and the PR merged 29 seconds
       # later. The check compares the committed page against the COMMITTED results,
       # so it never needed this job's measurements — only a gate that blocks.
+      # The scale bench's own tests (Z5): out of the default run (benchmarks/vitest.config.ts),
+      # so they run here on the weekly schedule and on demand, never on a push or pull request.
+      - name: Scale bench tests (weekly)
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        working-directory: benchmarks
+        env:
+          BENCH_SCALE: "1"
+        run: npx vitest run scale.test.ts
       - name: Run the cheap axes and check every gate
         shell: bash
         # `reliability` belongs here and was left out when it landed: it spawns a demo CLI
