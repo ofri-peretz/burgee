@@ -41,9 +41,17 @@ describe('sample floors', () => {
   });
 
   it('the newest CI reading carries those samples on every perf record', () => {
-    const newest = readdirSync(RESULTS).filter((f) => f.endsWith('-ci.json')).sort().at(-1);
+    // Newest by when it was measured, not by name: names are `<date>-<sha>`, so within one day
+    // the sort picks whichever commit hash sorts last — on 10-28 a pre-fix reading (cbe4a0d,
+    // 24 samples) beat the post-fix ones (2738e1b, 764b1af, 32 samples) and failed #1288.
+    type Reading = { measured: string; records: { axis: string; variant: string; samples: number }[] };
+    const [newest, doc] = readdirSync(RESULTS)
+      .filter((f) => f.endsWith('-ci.json'))
+      .map((f): [string, Reading] => [f, JSON.parse(readFileSync(join(RESULTS, f), 'utf8')) as Reading])
+      .sort(([, a], [, b]) => Date.parse(a.measured) - Date.parse(b.measured))
+      .at(-1) ?? [undefined, undefined];
     expect(newest, 'no CI reading is committed').toBeDefined();
-    const doc = JSON.parse(readFileSync(join(RESULTS, newest!), 'utf8')) as { records: { axis: string; variant: string; samples: number }[] };
+    if (doc === undefined) return;
     const perf = doc.records.filter((r) => r.axis === 'perf');
     expect(perf.length).toBeGreaterThan(0);
     expect(perf.filter((r) => r.samples < PERF_MIN_SAMPLES).map((r) => `${r.variant}: ${String(r.samples)}`), newest).toEqual([]);
