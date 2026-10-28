@@ -39,8 +39,11 @@ document that `--mcp` needs `.parseAsync()` and make `parseSync()` print one cle
 instead of silently falling through. Either way the case needs a program that exits on empty
 argv, red on `burgee@1.8.0` first.
 
-Found by the 1.8.0 re-run of the first-adopter proof. It holds the #418 comment: the owner's go
-required `--mcp` to start a server, and on concurrently it does not.
+Found by the 1.8.0 re-run of the first-adopter proof. It held the #418 comment for a day: the
+owner's go required `--mcp` to start a server, and on concurrently it does not. On 2026-10-28 the
+owner chose to post a revised text instead (https://github.com/open-cli-tools/concurrently/issues/418#issuecomment-6455508479). It says `--mcp` behaves as it does today for
+concurrently and promises no fix. The gap stayed open: every `parseSync()` program that exits on
+empty argv had the same dead `--mcp`.
 
 **Closed 2026-10-28.** It publishes with burgee's next release. Under `parseSync()`, `--mcp` is
 served synchronously ([D-20261028-yargs-parsesync-mcp-serves-synchronously](../decisions/D-20261028-yargs-parsesync-mcp-serves-synchronously.md)).
@@ -54,4 +57,5 @@ program that exits on an empty argv" runs concurrently's shape: options, `.parse
 answers it. Both cases were red on `b62cf2a105`, whose `yargs/factory.ts` and `mcp.ts` are
 `burgee@1.8.0`'s, with the help screen on stderr. `mcp-sync.test.ts` holds the server's edges
 in-process. Re-running the concurrently proof on the published fix belongs to the first-adopter
-intent, which still holds the pull request.
+intent: the posted #418 comment says `--mcp` is unchanged for concurrently, and the pull request
+that follows it can say otherwise once this fix is on npm.
