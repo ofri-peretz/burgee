@@ -117,7 +117,7 @@ Abbreviations used below:
 | control-band-commander-front-end-bundled-bytes | **dropped** (batch 0, `D-20261018-drop-band-commander-front-end-bytes`) | n | DROPPED | benchmarks/bands | 2 | 2 | – | n | – | Recovered (55,346) |
 | control-band-core-bundled-bytes | **dropped** (batch 0, `D-20261018-drop-control-band-core-bundled-bytes`) | n | DROPPED | benchmarks/bands | 2 | 2 | – | n | – | Recovered (24,281) |
 | control-band-yargs-front-end-bundled-bytes | **dropped** (batch 0, `D-20261018-drop-band-yargs-front-end-bytes`) | n | DROPPED | benchmarks/bands | 2 | 2 | – | n | – | Original breach gone; new +31 B 1σ drift does not gate |
-| controlroom | approved (umbrella sweep 2026-10-26) | y | P | controlroom | 31 | 22 | C1 Gallery + 20 runs, C2 `ci`/`accessible`, C3 100 runs + Ink screen fixture, C4 PTY restore matrix, C6 fixture, C7 W3 demo pair, C8 `logTail`/`tabBar` through `flagstaff check`; spec R16 controlroom-side lock, R22 per-boilerplate PTY job | **y** | save-restore, registry (parts) | C5 (ink 1,304 / 1,304) and C9 (composition `awaiting` = controlroom only) held; `examples/dashboard` is the reference demo |
+| controlroom | **shipped** (2026-10-28; `controlroom@1.0.8` on npm) | y | SHIPPED | controlroom | 31 | 22 | – (C7's W3 demo record on the published `/docs/benchmarks`, 48,366 B ÷ 730,210 B = 0.066; the closing sweep's other items held by #1313); outside the criteria: R22's PTY case for `chat-cli` / `chat-cli-ink` | **y** | save-restore, registry (parts), restore.qnt | Published run: [D-20261028-benchmarks-published-440f18f](../decisions/D-20261028-benchmarks-published-440f18f.md); `examples/dashboard` is the reference demo |
 | controlroom-scroll-pane | **shipped** (batch 4, PR #1156) | y | NS | controlroom | 10 | 0 | R1–R6, S1–S4 | n (property test) | – | Fixed: a pane scrolls, follows its tail, and the static frame prints every line. Mutation 180 / 180 on the changed lines |
 | declaration-summaries | **shipped** (patch, Version PR #1184, 2026-10-20) | y | SHIPPED | published artifacts / build scripts | 4 | 4 | – | n | – (property test) | R1 measured burgee −5.7% gzipped, past the 5% kill switch; R2–R4 built 2026-10-20 |
 | default-command | **shipped** (burgee 1.7.0, Version PR #1231, 2026-10-25) | y | SHIPPED | burgee/parse | 5 | 5 | – | n | – | Adoption barrier (commander `isDefault`, yargs `$0`). #1215; `default-command.test.ts` 29 / 29; re-read on burgee 1.7.1 from npm |
@@ -131,7 +131,7 @@ Abbreviations used below:
 | first-adopter | approved (batch 28, `D-20261025-first-adopter-design-accepted`; built 2026-10-27, `D-20261027-first-adopter-target-concurrently`) | y | P | adoption/outreach | 5 | 0 | #418 comment posted 2026-10-28 (owner-approved revised text; `--mcp` stated unchanged, gap `A-20261027-yargs-parsesync-mcp-ended-by-exit` open); the PR follows on the maintainer's yes; A1/A6 wait on an outside merge | n | – | A3 proven in a local clone (649 / 649 migrated and reverted); nothing posted. Barrier 5 (trust) |
 | first-cli | **shipped** (polish batch, 2026-10-26) | y | SHIPPED | burgee/init | 5 | 5 | – | n | – | Criterion 1 restated with the install step; criterion 2 restated to the two new `init.test.ts` cases that run `--schema` and `--mcp` on the generated program. Both met from npm on burgee 1.7.1 |
 | fix-lines-every-shell | review | y | NS | burgee core (failure.ts) | 7 | 0 | R1–R4, S1–S3 | n | – | **LIVE DEFECT:** `fix:` lines are POSIX-quoted on Windows. Exclude `completions.ts` from R2's grep |
-| flagstaff | approved (umbrella sweep 2026-10-26) | y | P | flagstaff | 23 | 19 | C7 U9 eval (no executed run since 2026-10-09; next Saturday 2026-10-31), C8 one case per plugin surface (caique does not depend on flagstaff) | **y** | **save-restore.qnt** | C1–C3 held where their checks live ([D-20261026-flagstaff-criteria-homes](../decisions/D-20261026-flagstaff-criteria-homes.md)); C4–C6 held |
+| flagstaff | **shipped** (2026-10-28; C8 on the published `burgee@1.9.0` / `caique@1.6.0`) | y | SHIPPED | flagstaff | 23 | 19 | – (C7 met by eval run 40504387711, [D-20261027-dispatched-eval-counts-as-weekly](../decisions/D-20261027-dispatched-eval-counts-as-weekly.md); C8's three surfaces held on the installed tarballs) | **y** | **save-restore.qnt** | C1–C3 held where their checks live ([D-20261026-flagstaff-criteria-homes](../decisions/D-20261026-flagstaff-criteria-homes.md)); C4–C6 held |
 | foundation-claims-watched | **shipped** (fingerprint PR, 2026-10-26, `D-20261026-fingerprint-missing-not-rerecord`) | y | SHIPPED | benchmarks + CI | 11 | 11 | – | n | – (no new state; `--missing` filters an existing write) | S3 restated: the scheduled pass is read-only and never fingerprints. R7 locks every declared competitor to a fingerprint; `--fingerprint --missing` recorded 29 on 2026-10-26, leaving inquirer #1195 and @inquirer/prompts #1224 held |
 | frames-fit-the-screen | **shipped** (batch 0) | y | SHIPPED | flagstaff + caique | 8 | 8 | – | n | – | R2 text (`rows-1`/`rows-2`) disagrees with the build. Correct the text before stamping |
 | graded-override-targets | approved | y | P | compat-oracle (+migrate test) | 9 | 8 | SC3 (no migrate fixture importing all six) | n | – | Prior reconciliation was wrong here. One test |
@@ -445,6 +445,18 @@ Tests, locks and a benchmark; no package source changed, so nothing waits on a r
   is a ratchet at 50 disabled rules
   ([`D-20261026-disabled-rule-ceiling`](../decisions/D-20261026-disabled-rule-ceiling.md)). It
   closes when its open children do.
+
+**Umbrella closers, 2026-10-28 (`docs/controlroom-flagstaff-shipped`, docs only).** Two more of
+the sweep's umbrellas closed on what was already built and published.
+
+- **Stamped `shipped`:** `controlroom` and `flagstaff`. `/docs/benchmarks` is generated from CI run
+  40586267630 at `440f18f`, the newest `main` run on the published machine, and it carries
+  controlroom W3's demo record, 0.066
+  ([`D-20261028-benchmarks-published-440f18f`](../decisions/D-20261028-benchmarks-published-440f18f.md)).
+  `controlroom@1.0.8` carries the 0 × 0 fix. flagstaff criterion 8's three surfaces hold on the
+  published `burgee@1.9.0`, `caique@1.6.0` and `flagstaff@1.7.5`.
+- **Still open from the sweep:** `bellpull` (spawn sites), `caique` (a B1 reading, dispatched as
+  run 40598315926), and `burgee` through its children.
 
 **Umbrella closers, 2026-10-27 (PR #1294, `feat/umbrella-closers-spawn-rows`).** Three of the
 sweep's "no release needed" umbrellas closed in one benchmark PR.

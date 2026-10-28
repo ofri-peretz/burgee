@@ -7,7 +7,7 @@
 > and D-158 records the answers: a new package, named `controlroom`, with an Ink drop-in in
 > v1, and the nine-package ceiling restated. The design is [`spec.md`](./spec.md).
 
-**Status:** approved · **Opened:** 2026-09-27 · **Owner:** @ofri-peretz · **Approved:** 2026-09-27 by the owner, in session (D-158: a new package named `controlroom`, `controlroom/ink` in v1, the ceiling restated) · **Amended:** 2026-09-27 (D-168: compatibility with, and migration from, the leading competitors; `spec.md` R15–R18) · **Published:** `controlroom@1.0.3` on npm (read 2026-10-19), with the native API, `controlroom/plugin` and `controlroom/ink`. The `0.0.1` skeleton below is history
+**Status:** shipped · **Opened:** 2026-09-27 · **Owner:** @ofri-peretz · **Approved:** 2026-09-27 by the owner, in session (D-158: a new package named `controlroom`, `controlroom/ink` in v1, the ceiling restated) · **Amended:** 2026-09-27 (D-168: compatibility with, and migration from, the leading competitors; `spec.md` R15–R18) · **Published:** `controlroom@1.0.3` on npm (read 2026-10-19), with the native API, `controlroom/plugin` and `controlroom/ink`. The `0.0.1` skeleton below is history · **Shipped:** 2026-10-28, with W3's demo record on the published `/docs/benchmarks` (D-20261028-benchmarks-published-440f18f) and `controlroom@1.0.8` on npm carrying the closing sweep's code — see [§ Shipped 2026-10-28](#shipped-2026-10-28)
 
 > **Closing sweep 2026-10-27 (feat/controlroom-close): eight of nine criteria are held in the tree;
 > criterion 7 waits only on publication.** W3's demo half is an axis pair gated at 1.0 (measured
@@ -15,8 +15,46 @@
 > `shipped` then, once that record is on the page and `controlroom`'s patch (a 0 × 0 terminal is
 > drawn at 80 × 24) is on npm. See [§ Closing sweep 2026-10-27](#closing-sweep-2026-10-27); the
 > 2026-10-26 sweep below is the state it started from.
+>
+> **2026-10-28: shipped.** Both closing items are done, and all nine criteria hold on `main` and
+> in `controlroom@1.0.8` ([§ Shipped 2026-10-28](#shipped-2026-10-28)).
 
 ---
+
+## Shipped 2026-10-28
+
+Read on `main` at `9016a321a7` and against the published `controlroom@1.0.8` (`npm view controlroom
+version` reads 1.0.8). The closing sweep's two outstanding items:
+
+1. **The W3 demo record is on the published page.** `/docs/benchmarks` is generated from CI run
+   [40586267630](https://github.com/ofri-peretz/burgee/actions/runs/40586267630) at `440f18f`, a
+   `main` commit after #1313 ([D-20261028-benchmarks-published-440f18f](../../decisions/D-20261028-benchmarks-published-440f18f.md)).
+   The page prints `examples/dashboard/dashboard.mjs` at **48,366 B** against
+   `examples/dashboard-ink/screen.mjs` at **730,210 B**: **0.066**, met against ≤ 1. The claims
+   table carries "`examples/dashboard/dashboard.mjs` is lighter in a user's bundle than
+   `examples/dashboard-ink/screen.mjs`". The sweep's 48,402 B was darwin; CI's linux reading is 48,366 B.
+2. **The patch is on npm.** `controlroom@1.0.8`'s `dist/screen.js` reads
+   `rt.stdout.columns || DEFAULT_COLUMNS` and `rt.stdout.rows || DEFAULT_ROWS`, the 0 × 0 fix of
+   [D-20261027-controlroom-zero-size-terminal](../../decisions/D-20261027-controlroom-zero-size-terminal.md),
+   read from the tarball `npm pack controlroom@1.0.8` downloads. Every other change of #1313 is in
+   the examples, the tests and the docs, none of which publish.
+
+| # | criterion | evidence, re-run on `main` at `9016a321a7` on 2026-10-28 | state |
+| :-- | :-- | :-- | :-- |
+| 1 | demo layout; Gallery in five modes; 20 byte-identical `tty` runs | `examples/dashboard/dashboard.test.mjs` 11 / 11 (the four tabs, "writes byte-identical transcripts in 20 runs out of 20"); `scripts/gallery-page.test.ts` passes | held |
+| 2 | `pipe`, `ci`, `accessible` clean; `--json` | `dashboard.test.mjs` › "%s: prints clean lines…" for all three, and the `--json` case (in the 11) | held |
+| 3 | demo and Ink screen fixture exit on their own, 100 of 100, `/dev/null` and a pipe | `dashboard.test.mjs` › "criterion 3 — …100 of 100 runs" (in the 11); `scripts/ink-alias-lock.test.ts` runs `examples/dashboard-ink/screen.test.mjs` on the drop-in installed alone, and passes | held |
+| 4 | the restore matrix through a real PTY | `packages/closeout/src/pty-matrix.test.ts` 7 / 7 | held |
+| 5 | Ink's suite vendored with a control run | the published run: `ink` 1,304 passing on `controlroom/ink`, pass rate 1 against its baseline; `inkjs-ui` 102 | held |
+| 6 | scoreboard row; the Ink screen fixture on `controlroom/ink` with only its import changed | `/docs/compatibility` (unchanged), and the fixture case through `ink-alias-lock.test.ts` | held |
+| 7 | W1–W4 on `/docs/benchmarks` as axis records | the published page: W1 0.79, W2 0.432 (bytes) and 0.275 (packages), W3 root 0.065, **W3 demo 0.066**, W4 0.4 and 0.163, every one met | **held** |
+| 8 | the listed tests | `packages/controlroom` 170 / 170; `packages/flagstaff` 435 / 435, with `cli.test.ts` › "passes logTail and tabBar in all five modes…"; `scripts/layer-boundaries-lock.test.ts` passes | held |
+| 9 | the composition band | `scripts/composition-lock.test.ts` passes; `.sdlc/bands/composition.json` has `caique` and `flagstaff` out of `awaiting` since 2026-10-05 | held |
+
+**What the stamp does not claim.** R22's PTY check exists for the dashboard only: `chat-cli` and
+`chat-cli-ink` still have no PTY case, which the closing sweep already recorded as outside the
+nine criteria. The `controlroom.interlace.tools` site still waits on the owner's Vercel project
+and DNS record.
 
 ## Closing sweep 2026-10-27
 
