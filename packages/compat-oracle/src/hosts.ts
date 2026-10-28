@@ -1633,23 +1633,25 @@ export const HOSTS: Host[] = [
     repo: 'https://github.com/SBoudrias/Inquirer.js',
     tagPrefix: '@inquirer/prompts@',
     testDir: 'packages',
-    testGlob: '*.test.ts',
+    testGlob: '*.vitest.ts',
     // Ten packages, eleven files: `select` keeps its pagination suite beside its own. That
     // file is the pagination suite the intent's R1 asked for under `@inquirer/core` — upstream
     // moved it to `select` with the 2025-05-25 rewrite of `usePagination` (5985e79), and core
-    // 12.0.4 ships none (D-20261011-inquirer-pagination-suite-is-selects).
+    // 12.0.4 ships none (D-20261011-inquirer-pagination-suite-is-selects). 8.7.5 renamed every
+    // suite file from `*.test.ts` to `*.vitest.ts`, contents unchanged by the rename
+    // (D-20261028-revendor-inquirer-8-7-5).
     suiteFiles: [
-      'checkbox/checkbox.test.ts',
-      'confirm/confirm.test.ts',
-      'editor/editor.test.ts',
-      'expand/expand.test.ts',
-      'input/input.test.ts',
-      'number/number.test.ts',
-      'password/password.test.ts',
-      'rawlist/rawlist.test.ts',
-      'search/search.test.ts',
-      'select/test/pagination.test.ts',
-      'select/test/select.test.ts',
+      'checkbox/checkbox.vitest.ts',
+      'confirm/confirm.vitest.ts',
+      'editor/editor.vitest.ts',
+      'expand/expand.vitest.ts',
+      'input/input.vitest.ts',
+      'number/number.vitest.ts',
+      'password/password.vitest.ts',
+      'rawlist/rawlist.vitest.ts',
+      'search/search.vitest.ts',
+      'select/test/pagination.vitest.ts',
+      'select/test/select.vitest.ts',
     ],
     // Each suite imports its prompt as its package's default; the program imports it by name
     // from `@inquirer/prompts`. `defaultExport` grades that name, read off `@inquirer/prompts`
@@ -1673,31 +1675,31 @@ export const HOSTS: Host[] = [
     ],
     surfaceFiles: ['packages/prompts/src/index.ts'],
     suiteDeps: [
-      '@inquirer/prompts@8.7.4',
-      '@inquirer/core@12.0.5',
-      // The ten prompts `@inquirer/prompts` re-exports, at the releases 8.7.4 shipped with
-      // (2026-10-19). It asks for each by caret, so unpinned they float to the newest, and a
+      '@inquirer/prompts@8.7.5',
+      '@inquirer/core@12.0.6',
+      // The ten prompts `@inquirer/prompts` re-exports, at the releases 8.7.5 shipped with
+      // (2026-10-27). It asks for each by caret, so unpinned they float to the newest, and a
       // later batch asking for a newer `@inquirer/core` would put a second core under each
       // prompt, beside the one pinned above — as the 2026-10-19 batch did to 8.7.3's 12.0.4.
       // checkbox's suite imports `ValidationError` from the top-level core and asserts the
       // prompt rejects with that class; a prompt built on the nested core rejects with the
       // other one, and the control read 212 / 213 (D-20261019-inquirer-prompts-pins-its-prompts).
-      '@inquirer/checkbox@5.2.7',
-      '@inquirer/confirm@6.3.4',
-      '@inquirer/editor@5.3.5',
-      '@inquirer/expand@5.1.7',
-      '@inquirer/input@5.1.8',
-      '@inquirer/number@4.2.5',
-      '@inquirer/password@5.2.4',
-      '@inquirer/rawlist@5.3.7',
-      '@inquirer/search@4.3.5',
-      '@inquirer/select@5.2.7',
+      '@inquirer/checkbox@5.2.8',
+      '@inquirer/confirm@6.3.5',
+      '@inquirer/editor@5.3.6',
+      '@inquirer/expand@5.1.8',
+      '@inquirer/input@5.1.9',
+      '@inquirer/number@4.2.6',
+      '@inquirer/password@5.2.5',
+      '@inquirer/rawlist@5.3.8',
+      '@inquirer/search@4.3.6',
+      '@inquirer/select@5.2.8',
       // The harness every file renders through: a headless xterm that asserts the screen.
-      '@inquirer/testing@3.3.15',
+      '@inquirer/testing@3.3.16',
       // `withResolver`, a promise helper `search.test.ts` imports for itself.
-      '@inquirer/type@4.2.0',
+      '@inquirer/type@4.2.1',
       // `editor.test.ts` imports `editAsync` from it to mock it.
-      '@inquirer/external-editor@3.0.6',
+      '@inquirer/external-editor@3.0.7',
     ],
     // Upstream runs this suite against its own source, where `@inquirer/editor` is a module of
     // the repository and `vi.mock('@inquirer/external-editor')` reaches its import. Vendored,
@@ -1712,7 +1714,7 @@ export const HOSTS: Host[] = [
     // that launches `$EDITOR` there must not open a real one on the grading machine and wait
     // for it. `true` exits at once on every runner the oracle uses, so those cases fail fast.
     env: { EDITOR: 'true', VISUAL: 'true' },
-    // Every case in `editor.test.ts` asserts on `editAsync`, the mock of `@inquirer/external-editor`
+    // Every case in `editor.vitest.ts` asserts on `editAsync`, the mock of `@inquirer/external-editor`
     // the suite installs — what it was called with and how often — and answers the prompt only
     // through that mock. That is a module caique does not import and may not (U6, zero runtime
     // dependencies), so no implementation of ours can be seen by these assertions: the
@@ -1733,7 +1735,7 @@ export const HOSTS: Host[] = [
         // 8.7.4: answers through `editorAction`, the same mock, and counts `editAsync` calls.
         'ignores keypresses while validation is running',
       ].map((title) => ({
-        match: `packages/editor/editor.test.ts > editor prompt > ${title}`,
+        match: `packages/editor/editor.vitest.ts > editor prompt > ${title}`,
         exact: true,
         why: "Asserts on, and answers through, `vi.mock('@inquirer/external-editor')`'s `editAsync` — a module of the incumbent's tree that `caique/inquirer` does not import (caique takes no dependency outside the burgee family, U6), so the mock can neither observe nor drive any implementation of ours. Excluded for both sides by exact title (D-20261011-inquirer-prompts-editor-mock).",
       })),
@@ -1742,7 +1744,7 @@ export const HOSTS: Host[] = [
     target: 'caique/inquirer',
     status: 'active',
     // Stryker disable next-line StringLiteral: an active row's note is its maintainers' log and nothing reads it — `Host.note` is rendered only for a row that is not active (compat-page), so emptying it changes no grade, page or output.
-    note: "**2026-10-27: re-vendored at 8.7.4 (#1193, #1224) and level — `caique/inquirer/prompts` 221 / 221 against a control of 221 / 221 (D-20261027-revendor-dotenv-execa-inquirer).** 8.7.4 adds nine titles: six for `checkbox` while an async `validate` is pending, two for `number` reading whitespace-only input as empty, and one for `editor`, which answers through the `editAsync` mock and is excluded with the other eleven. The re-vendor read 216 / 221 until `checkbox` ignored keys while it validates and `number` trimmed the line, both ported. `suiteDeps` moved to 8.7.4's ten prompts, core 12.0.5 and testing 3.3.15, and `depsBefore` with them. **2026-10-12 (R1, R3 of inquirer-prompts-drop-in): `caique/inquirer/prompts` 100 / 213, control 213 / 213** — `select` (its own 42 cases and its pagination suite's 10) and `checkbox` (48) level over `usePagination`; `input`, `confirm`, `password`, `number`, `expand`, `rawlist` and `search` are not built yet, and fail with `prompt is not a function`. **Vendored 2026-10-11 at 8.7.3 (R2 of inquirer-prompts-drop-in): control 213 / 213, target `caique/inquirer` 0 / 213.** Eleven files, 224 cases, of which `editor.test.ts`'s eleven are excluded above. Every target case fails with `prompt is not a function`: `caique/inquirer` exports `@inquirer/core`'s surface and none of the ten prompts yet. The table of imports and counts this design is read from is in `.sdlc/intents/inquirer-prompts-drop-in/spec.md`.",
+    note: "**2026-10-28: re-vendored at 8.7.5 (#1296) and level — `caique/inquirer/prompts` 222 / 222 against a control of 222 / 222 (D-20261028-revendor-inquirer-8-7-5).** 8.7.5 renames every suite file `*.test.ts` -> `*.vitest.ts`, so `suiteFiles`, `testGlob` and the editor exclusions follow the new names, and adds one title: `password` keeps the space after its message while the mask has nothing to draw. The re-vendor read 221 / 222 until `password` joined its parts unfiltered, as `@inquirer/password` 5.2.5 does, ported. `suiteDeps` moved to 8.7.5's ten prompts, core 12.0.6, testing 3.3.16, type 4.2.1 and external-editor 3.0.7, and `depsBefore` with them; the vendored tree holds one `@inquirer/core`. **2026-10-27: re-vendored at 8.7.4 (#1193, #1224) and level — `caique/inquirer/prompts` 221 / 221 against a control of 221 / 221 (D-20261027-revendor-dotenv-execa-inquirer).** 8.7.4 adds nine titles: six for `checkbox` while an async `validate` is pending, two for `number` reading whitespace-only input as empty, and one for `editor`, which answers through the `editAsync` mock and is excluded with the other eleven. The re-vendor read 216 / 221 until `checkbox` ignored keys while it validates and `number` trimmed the line, both ported. `suiteDeps` moved to 8.7.4's ten prompts, core 12.0.5 and testing 3.3.15, and `depsBefore` with them. **2026-10-12 (R1, R3 of inquirer-prompts-drop-in): `caique/inquirer/prompts` 100 / 213, control 213 / 213** — `select` (its own 42 cases and its pagination suite's 10) and `checkbox` (48) level over `usePagination`; `input`, `confirm`, `password`, `number`, `expand`, `rawlist` and `search` are not built yet, and fail with `prompt is not a function`. **Vendored 2026-10-11 at 8.7.3 (R2 of inquirer-prompts-drop-in): control 213 / 213, target `caique/inquirer` 0 / 213.** Eleven files, 224 cases, of which `editor.test.ts`'s eleven are excluded above. Every target case fails with `prompt is not a function`: `caique/inquirer` exports `@inquirer/core`'s surface and none of the ten prompts yet. The table of imports and counts this design is read from is in `.sdlc/intents/inquirer-prompts-drop-in/spec.md`.",
   },
   {
     // 2.16: the testable unit of the inquirer monorepo, and the decision that came with it.
@@ -1762,22 +1764,22 @@ export const HOSTS: Host[] = [
     packageDir: 'packages/core',
     // The suite is one file beside the implementation, like ora's and string-width's, so
     // the glob names the file rather than a directory.
-    testGlob: 'core.test.ts',
+    testGlob: 'core.vitest.ts',
     internalDir: 'src',
     imports: [{ upstream: './src/index.ts', subpath: '', reexportDefault: false }],
     surfaceFiles: ['packages/core/src/index.ts'],
     suiteDeps: [
-      '@inquirer/core@12.0.5',
-      '@inquirer/ansi@2.0.9',
+      '@inquirer/core@12.0.6',
+      '@inquirer/ansi@2.0.10',
       // The harness the suite renders through: a headless xterm that asserts the screen,
       // not the bytes. Same shape as log-update's `terminal.js`.
-      '@inquirer/testing@3.3.15',
+      '@inquirer/testing@3.3.16',
     ],
     runner: 'vitest',
     target: 'caique/inquirer',
     status: 'active',
     // Stryker disable next-line StringLiteral: an active row's note is its maintainers' log and nothing reads it — `Host.note` is rendered only for a row that is not active (compat-page), so emptying it changes no grade, page or output.
-    note: "**2026-10-27: re-vendored at 12.0.5 (#1194) and level — 45 / 45, control 45 / 45 (D-20261027-revendor-dotenv-execa-inquirer).** 12.0.5's four `settlement:` cases settle a prompt before its deferred first render; three failed against `caique/inquirer`, which still ran that render after a cancel or an abort and left readline listening on the input. The render is now a cleanup of the prompt, as upstream's is. **Re-vendored 2026-10-06 at 12.0.4: 41 / 41, control 41 / 41**, the suite unchanged from 12.0.3. PR #794 recorded it `tag: null` because the vendor step refused every `@scope/pkg@x` tag as unsafe and cloned the default branch; that branch happened to be 12.0.4. Activated 2026-09-20 at **41 / 41, 100.0%**, control **41 / 41**. The row moved from the package root `caique` (0 / 41) to the drop-in subpath `caique/inquirer` the same day the subpath was built, which is D-006 and D-007 in one edit: every row at 100% names a dedicated façade and every row at zero names a root, and a façade may not be named before it exists. **The 41 are a loop, not a drawing, and that is why they were reachable.** `@inquirer/testing` renders through a headless xterm and asserts the screen, so what is graded is hooks keeping their place across re-renders, keypresses that stop the instant a prompt settles, a `useEffect` cleanup that throws superseding the answer it was about to give, and an already-aborted signal still restoring the cursor — behaviours a second implementation can share. Contrast `clack`'s row directly below, where 289 of 444 assertions snapshot the incumbent's exact frames. **Three things had to be right that no amount of reading the API would have told us**, and each is a case: `AsyncResource.bind` on every setter and every keypress handler, without which a `setState` called from an `EventEmitter` listener registered inside an effect finds no hook store; the first render deferred by one `setImmediate` **only** when the input has `readableFlowing`, which is how a keystroke typed before the prompt existed is discarded rather than answered (upstream issue #1303); and `createPrompt`'s caller file captured at construction through `Error.prepareStackTrace`, because the error a render function gets for returning nothing names that file and the case snapshots it. The façade reaches `closeout/exit-hook` and `linegauge/wrap` and nothing else — both published from this repository, both declared in `packages/caique/package.json`, and `weight.test.ts` is what enforces that. `@inquirer/core`'s `usePagination` is **not** implemented and is named as a gap in `.sdlc/intents/caique/spec.md`: it is 121 lines of list-window arithmetic this suite does not touch, and shipping an ungraded re-derivation of it would be the unmeasured claim the rest of this file exists to prevent.",
+    note: "**2026-10-28: re-vendored at 12.0.6 (#1295) and level — 46 / 46, control 46 / 46 (D-20261028-revendor-inquirer-8-7-5).** 12.0.6 renames the suite `core.vitest.ts` and splits the buffered-keypress case in two: keys buffered before the prompt are still dropped on a TTY, and input already piped into a non-TTY stdin is now read. `caique/inquirer` deferred the first render for every modern readable and dropped the piped answer, so the re-vendor read 45 / 46 until it deferred only for a TTY, as upstream does. **2026-10-27: re-vendored at 12.0.5 (#1194) and level — 45 / 45, control 45 / 45 (D-20261027-revendor-dotenv-execa-inquirer).** 12.0.5's four `settlement:` cases settle a prompt before its deferred first render; three failed against `caique/inquirer`, which still ran that render after a cancel or an abort and left readline listening on the input. The render is now a cleanup of the prompt, as upstream's is. **Re-vendored 2026-10-06 at 12.0.4: 41 / 41, control 41 / 41**, the suite unchanged from 12.0.3. PR #794 recorded it `tag: null` because the vendor step refused every `@scope/pkg@x` tag as unsafe and cloned the default branch; that branch happened to be 12.0.4. Activated 2026-09-20 at **41 / 41, 100.0%**, control **41 / 41**. The row moved from the package root `caique` (0 / 41) to the drop-in subpath `caique/inquirer` the same day the subpath was built, which is D-006 and D-007 in one edit: every row at 100% names a dedicated façade and every row at zero names a root, and a façade may not be named before it exists. **The 41 are a loop, not a drawing, and that is why they were reachable.** `@inquirer/testing` renders through a headless xterm and asserts the screen, so what is graded is hooks keeping their place across re-renders, keypresses that stop the instant a prompt settles, a `useEffect` cleanup that throws superseding the answer it was about to give, and an already-aborted signal still restoring the cursor — behaviours a second implementation can share. Contrast `clack`'s row directly below, where 289 of 444 assertions snapshot the incumbent's exact frames. **Three things had to be right that no amount of reading the API would have told us**, and each is a case: `AsyncResource.bind` on every setter and every keypress handler, without which a `setState` called from an `EventEmitter` listener registered inside an effect finds no hook store; the first render deferred by one `setImmediate` **only** when the input has `readableFlowing`, which is how a keystroke typed before the prompt existed is discarded rather than answered (upstream issue #1303); and `createPrompt`'s caller file captured at construction through `Error.prepareStackTrace`, because the error a render function gets for returning nothing names that file and the case snapshots it. The façade reaches `closeout/exit-hook` and `linegauge/wrap` and nothing else — both published from this repository, both declared in `packages/caique/package.json`, and `weight.test.ts` is what enforces that. `@inquirer/core`'s `usePagination` is **not** implemented and is named as a gap in `.sdlc/intents/caique/spec.md`: it is 121 lines of list-window arithmetic this suite does not touch, and shipping an ungraded re-derivation of it would be the unmeasured claim the rest of this file exists to prevent.",
   },
   {
     name: 'meow',

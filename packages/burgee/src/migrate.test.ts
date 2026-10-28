@@ -517,7 +517,7 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     expect(report.dependencies.add).toEqual(['closeout', 'linegauge', 'roundel', 'seniority']);
   });
 
-  it('leaves @inquirer/core 11 and @inquirer/prompts 7 alone, and names 12.0.5 and 8.7.4 as the releases graded level', async () => {
+  it('leaves @inquirer/core 11 and @inquirer/prompts 7 alone, and names 12.0.6 and 8.7.5 as the releases graded level', async () => {
     const dir = project({
       'package.json': JSON.stringify({ name: 'x', dependencies: { '@inquirer/core': '^11.0.0', '@inquirer/prompts': '^7.0.0' } }),
       'src/a.ts': "import { createPrompt } from '@inquirer/core';\nimport { input } from '@inquirer/prompts';\n",
@@ -525,8 +525,8 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     const report = await migrate({ dir, status: clean });
     expect(read(dir, 'src/a.ts')).toBe("import { createPrompt } from '@inquirer/core';\nimport { input } from '@inquirer/prompts';\n");
     expect(report.offMajor).toEqual([
-      { from: '@inquirer/prompts', found: '^7.0.0', graded: '8.7.4', nearest: 8, sites: [], move: null },
-      { from: '@inquirer/core', found: '^11.0.0', graded: '12.0.5', nearest: 12, sites: [], move: null },
+      { from: '@inquirer/prompts', found: '^7.0.0', graded: '8.7.5', nearest: 8, sites: [], move: null },
+      { from: '@inquirer/core', found: '^11.0.0', graded: '12.0.6', nearest: 12, sites: [], move: null },
     ]);
   });
 

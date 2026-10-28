@@ -13,9 +13,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from './__fixtures__/inquirer-render.js';
 import { isStepOf } from './inquirer-input.js';
 import { confirm, input, number, password } from './inquirer-prompts.js';
+import { cursorTo } from './inquirer-screen.js';
 import { TICK } from './inquirer-theme.js';
 
 const frame = (...lines: string[]): string => lines.join('\n');
+
+/** The first line of a raw frame, escapes stripped. */
+const line = (raw: string): string => stripVTControlCharacters(raw).split('\n')[0] ?? '';
 
 /** Upper case while typing, bracketed once final. */
 const transformer = (value: string, { isFinal }: { isFinal: boolean }): string => (isFinal ? `[${value}]` : value.toUpperCase());
@@ -246,6 +250,19 @@ describe('password', () => {
     events.keypress('enter');
     await expect(answer).resolves.toBe('hunter2');
     expect(getScreen()).toBe(`${TICK} Secret`);
+  });
+
+  it('keeps the space after the message while the mask has nothing to draw, as @inquirer/password 5.2.5 does', async () => {
+    const { events, getScreen } = await render(password, { message: 'Secret', mask: true });
+    // The drawn line trims the trailing space away, so the cursor is what shows it: one
+    // column past the separator, as if a space had been typed.
+    const empty = getScreen({ raw: true });
+    expect(line(empty)).toBe('? Secret');
+    expect(empty.endsWith(cursorTo('? Secret'.length + 1))).toBe(true);
+    events.type('J');
+    const typed = getScreen({ raw: true });
+    expect(line(typed)).toBe('? Secret *');
+    expect(typed.endsWith(cursorTo('? Secret *'.length))).toBe(true);
   });
 
   it('draws a mask character per typed one, the default star or one of its own', async () => {
@@ -570,7 +587,7 @@ describe('the line prompts, frame by frame', () => {
     expect(getScreen()).toBe(`${TICK} Secret:done <>`);
   });
 
-  it('password: clears a refusal on the next key, hides the cursor only without a mask, and draws no empty part', async () => {
+  it('password: clears a refusal on the next key, hides the cursor only without a mask, and keeps every part', async () => {
     const { events, getScreen } = await render(password, { message: 'Secret', validate: () => 'no' });
     events.keypress('enter');
     await vi.waitFor(() => {
@@ -582,8 +599,9 @@ describe('the line prompts, frame by frame', () => {
     const masked = await render(password, { message: 'Secret', mask: true });
     masked.events.type('a');
     expect(stripVTControlCharacters(masked.getScreen({ raw: true }).replaceAll('\u001B[?25l', 'HIDDEN'))).not.toContain('HIDDEN');
+    // An empty prefix still takes its separator, as @inquirer/password 5.2.5 joins its parts unfiltered.
     const bare = await render(password, { message: 'Secret', mask: true, theme: { prefix: '' } });
-    expect(stripVTControlCharacters(bare.getScreen({ raw: true })).split('\n')[0]).toBe('Secret');
+    expect(stripVTControlCharacters(bare.getScreen({ raw: true })).split('\n')[0]).toBe(' Secret');
   });
 
   it('confirm: opens idle, trims what was typed, and reads its own words before yes and no', async () => {

@@ -1,19 +1,19 @@
 {
   "repo": "https://github.com/SBoudrias/Inquirer.js",
-  "version": "12.0.5",
-  "tag": "@inquirer/core@12.0.5",
-  "commit": "ea3130ebc609a6a3910b5397244044de7eda3d05",
-  "vendored": "2026-10-27",
-  "depsBefore": "2026-10-19T22:43:04.806Z",
+  "version": "12.0.6",
+  "tag": "@inquirer/core@12.0.6",
+  "commit": "672b77f0486388d7f5c35487d89a5ff63f4c54dd",
+  "vendored": "2026-10-28",
+  "depsBefore": "2026-10-27T01:51:03.428Z",
   "files": 1,
   "internalFiles": [],
   "internals": [],
   "hashes": {
-    "packages/core/core.test.ts": "c4131af49487fd25d60f1b99c05231080a2e9beaf24ac8ad5eab7f89c12fe61a",
+    "packages/core/core.vitest.ts": "86afe5b638099933692988064742f8407681498e041a9bdab485b52407b1aee5",
     "packages/core/src/index.ts": "5e1e82f35bf92684c45abea3a03eec5ea4f0b4a24ad7650bf0d0904db2c2040e"
   },
   "tests": {
-    "packages/core/core.test.ts": [
+    "packages/core/core.vitest.ts": [
       "createPrompt()",
       "onKeypress: allow to implement custom behavior on keypress",
       "useEffect: works with setting state at once with objects",
@@ -43,7 +43,8 @@
       "clear timeout when force closing",
       "release listeners when done",
       "allow aborting the prompt using signals",
-      "should ignore keypresses buffered before prompt creation",
+      "should ignore keypresses buffered before prompt creation on a TTY",
+      "should consume input piped into non-TTY stdin before the prompt starts",
       "fail on aborted signals",
       "Error handling",
       "gracefully error on missing content",

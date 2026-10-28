@@ -233,10 +233,10 @@ function readlineOver(input: NodeJS.ReadableStream, output: MuteStream): PromptR
  * 3. `settlePrompt`, which runs every cleanup **before** it settles the promise. A cleanup
  *    that throws replaces the settlement, answer included: "a throwing cleanup supersedes
  *    the abort error" is that rule, stated by the incumbent's own suite.
- * 4. A first render deferred by one `setImmediate` **only** for a modern readable, whose
- *    OS-level buffer may still deliver keystrokes typed before the prompt existed. A classic
- *    stream has no such buffer and renders synchronously, which is what `@inquirer/testing`
- *    relies on.
+ * 4. A first render deferred by one `setImmediate` **only** for a modern readable that is a
+ *    terminal, whose OS-level buffer may still deliver keystrokes typed before the prompt
+ *    existed. A classic stream has no such buffer and renders synchronously, which is what
+ *    `@inquirer/testing` relies on; so does a pipe, whose early bytes are the answer.
  */
 /**
  * One call of a prompt: the whole loop, from a muted output to a settled promise.
@@ -390,7 +390,10 @@ function runPrompt<Value, Config>(view: ViewFunction<Value, Config>, origin: str
       });
     };
 
-    if ('readableFlowing' in input) {
+    // Only a terminal's early bytes are stale keystrokes. A pipe's are the answer itself, written
+    // before the prompt started, and a deferred render would drop them and wait forever
+    // (@inquirer/core 12.0.6).
+    if ('readableFlowing' in input && (input as { isTTY?: boolean }).isTTY === true) {
       // A prompt settled before its first render never draws it: a cancel or an abort in the
       // same tick would otherwise leave readline listening on an input nobody reads
       // (@inquirer/core 12.0.5).

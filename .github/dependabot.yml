@@ -139,7 +139,7 @@ updates:
       # differential tests.
       - dependency-name: "yoctocolors"
       # inquirer-prompts-drop-in: compat-oracle grades `caique/inquirer/prompts` against
-      # `@inquirer/prompts` 8.7.4 (`suiteDeps`, its ten prompts pinned by
+      # `@inquirer/prompts` 8.7.5 (`suiteDeps`, its ten prompts pinned by
       # D-20261019-inquirer-prompts-pins-its-prompts), and the root pins the same release for the
       # type-surface and require-shape locks. It moves with a re-vendor, never by a bump here.
       - dependency-name: "@inquirer/prompts"

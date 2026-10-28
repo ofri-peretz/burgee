@@ -9,20 +9,20 @@
     "url": "https://github.com/SBoudrias/Inquirer.js.git"
   },
   "devDependencies": {
-    "@inquirer/prompts": "8.7.4",
-    "@inquirer/core": "12.0.5",
-    "@inquirer/checkbox": "5.2.7",
-    "@inquirer/confirm": "6.3.4",
-    "@inquirer/editor": "5.3.5",
-    "@inquirer/expand": "5.1.7",
-    "@inquirer/input": "5.1.8",
-    "@inquirer/number": "4.2.5",
-    "@inquirer/password": "5.2.4",
-    "@inquirer/rawlist": "5.3.7",
-    "@inquirer/search": "4.3.5",
-    "@inquirer/select": "5.2.7",
-    "@inquirer/testing": "3.3.15",
-    "@inquirer/type": "4.2.0",
-    "@inquirer/external-editor": "3.0.6"
+    "@inquirer/prompts": "8.7.5",
+    "@inquirer/core": "12.0.6",
+    "@inquirer/checkbox": "5.2.8",
+    "@inquirer/confirm": "6.3.5",
+    "@inquirer/editor": "5.3.6",
+    "@inquirer/expand": "5.1.8",
+    "@inquirer/input": "5.1.9",
+    "@inquirer/number": "4.2.6",
+    "@inquirer/password": "5.2.5",
+    "@inquirer/rawlist": "5.3.8",
+    "@inquirer/search": "4.3.6",
+    "@inquirer/select": "5.2.8",
+    "@inquirer/testing": "3.3.16",
+    "@inquirer/type": "4.2.1",
+    "@inquirer/external-editor": "3.0.7"
   }
 }

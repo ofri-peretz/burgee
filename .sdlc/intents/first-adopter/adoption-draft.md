@@ -1,9 +1,15 @@
 # Draft — the one disclosed pull request for `first-adopter`
 
-**Status: comment posted, PR held for the maintainer's yes.** The comment below was posted on
-open-cli-tools/concurrently#418 on 2026-10-28: <https://github.com/open-cli-tools/concurrently/issues/418#issuecomment-6455508479>. The pull request further down is not
-opened. It follows only if the maintainer says yes, and its numbers are then replaced from the
-1.8.0 re-run in [`concurrently.md`](../../research/adoption/concurrently.md#re-run-on-burgee180-2026-10-27).
+**Status: comment posted; pull request opened 2026-10-28 as open-cli-tools/concurrently#639.**
+The comment below was posted on open-cli-tools/concurrently#418 on
+2026-10-28: <https://github.com/open-cli-tools/concurrently/issues/418#issuecomment-6455508479>. Later
+the same day the proof was re-run on `burgee@1.9.1`, which serves `--mcp` under `parseSync()`, and
+every check passed
+([`concurrently.md`](../../research/adoption/concurrently.md#re-run-on-burgee191-2026-10-28)). The
+owner then approved opening the pull request without waiting for a maintainer reply, and opened it
+himself: <https://github.com/open-cli-tools/concurrently/pull/639>, from `ofri-peretz:burgee-yargs`
+at `d0da17b`. Its commit, title and posted body are in [`upstream/`](./upstream/). No agent
+opened, pushed or commented on anything upstream.
 
 How it got here. On 2026-10-27 the owner chose a short disclosed comment on #418 first and cut the
 cold-start line, on condition that the whole proof passed on the published fix. The re-run on
@@ -47,7 +53,8 @@ Decision: [D-20261027-first-adopter-target-concurrently](../../decisions/D-20261
 ## Owner's calls before posting
 
 Decided 2026-10-27: a comment on #418 first, and the cold-start line cut. Decided 2026-10-28: post
-the revised text without waiting for the `--mcp` fix. The calls as they were put:
+the revised text without waiting for the `--mcp` fix. Decided later on 2026-10-28: open the pull
+request now, on the 1.9.1 proof, without waiting for a maintainer reply. The calls as they were put:
 
 - **A pull request, or a comment on #418 first.** The owner's 2026-10-27 rule and intent
   constraint 4 both say a working PR. But in #418 gustavohenke asked to agree on the library
@@ -61,80 +68,45 @@ the revised text without waiting for the `--mcp` fix. The calls as they were put
 - **Identity.** Commit as `Ofri Peretz <ofriperetzdev@gmail.com>` (the preflight checks it), from
   Ofri's own fork, with no `Co-Authored-By` trailer and no generated-by footer.
 
-## Title
+## The pull request, 2026-10-28
 
-```text
-deps: replace yargs with burgee/yargs, keeping the yargs API (#418)
-```
+**Opened 2026-10-28 as open-cli-tools/concurrently#639**
+(<https://github.com/open-cli-tools/concurrently/pull/639>), by the owner, from his fork's
+`burgee-yargs` branch at `d0da17b`. The proof clone's `revert-proof` branch (`982bce3`, the
+`git revert` used for A3) was not pushed anywhere; it exists only in the local clone.
 
-## Body
+- **Branch.** `burgee-yargs` in the proof clone, one commit on concurrently's default-branch HEAD
+  `2a80d44`: `d0da17b924e24d15127e8774fb25f2348562d7c1`,
+  `refactor: use burgee/yargs as a drop-in for yargs`, authored as
+  `Ofri Peretz <ofriperetzdev@gmail.com>`, with no `Co-Authored-By` trailer. concurrently's own
+  husky and lint-staged hook ran on it, and their build, typecheck, lint, format and vitest are
+  green on it under Node 22, 24 and 26.
+- **Patch.** [`upstream/0001-refactor-use-burgee-yargs-as-a-drop-in-for-yargs.patch`](./upstream/0001-refactor-use-burgee-yargs-as-a-drop-in-for-yargs.patch)
+  is `git format-patch` of that commit. `git am` it onto `2a80d44` in a fork to recreate the
+  branch. `git apply --index` of it on `2a80d44` gives the branch's tree, `3c9f1a3080d2`.
+- **Title.** [`upstream/pr-title.txt`](./upstream/pr-title.txt):
 
-> Not opened. If the maintainer says yes, `<burgee version>` and every number below are replaced
-> from the 1.8.0 re-run, the cold-start line is cut, and the reserved-shape list matches the posted
-> comment. The numbers shown are from `burgee@1.7.2` on `2a80d44`.
+  ```text
+  refactor: use burgee/yargs as a drop-in for yargs
+  ```
 
-```markdown
-Hi, I'm Ofri Peretz. I wrote and maintain burgee, the package this PR adds, so please read it with
-that in mind. I'm opening it because of #418.
+- **Body.** [`upstream/pr-body.md`](./upstream/pr-body.md), the only copy, exactly as posted. It
+  opens with the disclosure that Ofri wrote burgee, links #418 and the posted comment, and states
+  the 1.9.1 numbers: 649 / 649 before, after and reverted on Node 22.22, 24.12 and 26.10 (naming
+  the one `cjs-import` timeout under load), `--help` byte-identical, 37 of 41 vectors identical
+  against a 41 / 41 control, the four reserved flags and what each now does, `--mcp` serving with
+  an empty tool list, 19 packages to 12, +1.2 MB, eight maintainers to one, and the revert.
+- **The owner's edits before posting.** The maintainer's words in #418 are quoted accurately: he
+  "wouldn't mind seeing a PR that ditches yargs" if it keeps full compatibility and has decent
+  TypeScript types, and "we should discuss first which library that'd be" (gustavohenke, #418). The agent's draft had said he would "take a
+  PR". A line was added that `typecheck` passes on burgee's own bundled types, with the
+  `cjs-import` and `cjs-require` smoke tests passing. Another notes that `@types/yargs` stays in
+  devDependencies, untouched.
 
-In #418 you said you'd take a PR that drops yargs if it keeps full compatibility and has decent
-TypeScript types, and that you'd rather agree on the library first. Treat this as a concrete
-version of that conversation. If burgee isn't the library you'd pick, closing this is a perfectly
-good answer.
-
-**What changes.** Two import lines in `bin/index.ts`, plus `package.json` and the lockfile:
-
-    -import yargs from 'yargs';
-    -import { hideBin } from 'yargs/helpers';
-    +import yargs from 'burgee/yargs';
-    +import { hideBin } from 'burgee/yargs/helpers';
-
-`burgee/yargs` implements yargs 18's API. CI checks it against yargs' own test suite: 816 of 816,
-where yargs itself passes 814 at the graded commit. Nothing else in concurrently changes, so
-`.env('CONCURRENTLY')` and the `.group()` headings that came up in #418 stay exactly as written.
-The version is pinned exactly, like your other runtime dependencies.
-
-**What I measured**, on macOS, at 2a80d44:
-
-- `build`, `typecheck`, `lint` and `format` all pass. `vitest run` is 649/649 before and after, on
-  Node 22.22, 24.12 and 26.10.
-- `--help` is byte-identical.
-- I packed both versions, installed each into an empty directory, and ran the same 40 argument
-  vectors through both binaries: every option group, `-P` passthrough, invalid values, unknown
-  flags and the `CONCURRENTLY_*` variables. 36 are identical in stdout, stderr and exit code. The
-  other 4 are below.
-- `npm i --omit=dev`: concurrently's dependencies go from 19 packages to 12. yargs and its 12
-  dependencies are replaced by burgee and its 5.
-- `npm audit --omit=dev`: 0 before, 0 after.
-- `concurrently --version` started 10 to 21 ms faster in three rounds of 20 paired runs. That was
-  on a busy laptop, and a real two-command run was within noise, so I wouldn't lean on it.
-
-**What it costs**, plainly:
-
-- It is not smaller. The yargs subtree is 511 KB on disk and burgee's is 1.72 MB, so the install
-  grows by about 1.2 MB.
-- Eight npm maintainer accounts become one, and that one is me. burgee is two months old. Every
-  release is published with npm provenance, but that doesn't change the bus factor.
-- burgee declares `node: ^20.19.0 || >=22.13.0`. yargs 18 already declares `^22.12.0`, so the new
-  gap is 22.12.x only. It runs there; npm just prints an EBADENGINE warning.
-- burgee reserves four argument shapes for itself: `--json`, `--schema`, `--mcp` and a leading
-  `completion <shell>`. Before this change, `concurrently completion zsh` tried to run a command
-  called `completion`. After it, burgee prints a zsh completion script instead. Likewise,
-  `--schema` used to fall through to the help screen and now prints a JSON description of the
-  CLI. I couldn't think of a real invocation that starts with any of these, but they are changes,
-  so they're listed here.
-
-**What I left out.** chalk and supports-color stay as they are. For concurrently today, the
-`--schema`, `--mcp` and completion output is close to empty. The run happens after `parseSync()`
-returns, not inside a command handler, and that's what those surfaces read. Moving it would be a
-separate change if you ever wanted one; nothing here depends on it.
-
-**To undo it:** `git revert <this commit>` restores the tree exactly (I compared the tree hashes),
-and the suite is 649/649 after the revert as well.
-
-CI will need a maintainer's approval to run, since this is my first PR here. Until then, the local
-runs above are what I have.
-```
+What changed from the 2026-10-27 body: the numbers are 1.9.1's, the cold-start line is cut as the
+owner decided, and the reserved-flag list says `--mcp` serves where it used to print help. The
+posted comment said `--mcp` was unchanged for concurrently. That was true of 1.8.0. The body says
+what 1.9.1 does instead, including that `concurrently --mcp` typed in a terminal waits for input.
 
 ## Outreach checks
 

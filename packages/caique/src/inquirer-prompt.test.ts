@@ -54,6 +54,11 @@ function terminal(): { input: PassThrough; output: ReturnType<typeof recorder> }
   return { input: new PassThrough(), output: recorder() };
 }
 
+/** A modern input that says it is a terminal: the one input whose first render waits a tick. */
+function tty(): { input: PassThrough & { isTTY: true }; output: ReturnType<typeof recorder> } {
+  return { input: Object.assign(new PassThrough(), { isTTY: true as const }), output: recorder() };
+}
+
 const noop = (): void => undefined;
 
 /** One turn of the event loop: long enough for the deferred first render and for keys to land. */
@@ -392,31 +397,58 @@ describe('createPrompt, first render', () => {
     }
   }
 
-  it('is synchronous for a classic input, and a tick later for a modern one', async () => {
+  it('is synchronous for a classic input and a piped one, and a tick later for a terminal', async () => {
     const classic = { input: new ClassicInput(), output: recorder() };
     const now = createPrompt<string, object>(() => '? sync')({}, classic as never);
     expect(classic.output.text()).toContain('? sync');
 
-    const modern = terminal();
+    const piped = terminal();
+    const atOnce = createPrompt<string, object>(() => '? piped')({}, piped);
+    expect(piped.output.text()).toContain('? piped');
+
+    const modern = tty();
     const later = createPrompt<string, object>(() => '? deferred')({}, modern);
     expect(modern.output.text()).not.toContain('? deferred');
     await turn();
     expect(modern.output.text()).toContain('? deferred');
 
-    now.cancel();
-    later.cancel();
-    await expect(now).rejects.toBeInstanceOf(CancelPromptError);
-    await expect(later).rejects.toBeInstanceOf(CancelPromptError);
+    const prompts = [now, atOnce, later];
+    for (const prompt of prompts) prompt.cancel();
+    await Promise.all(prompts.map(async (prompt) => expect(prompt).rejects.toBeInstanceOf(CancelPromptError)));
+  });
+
+  it('reads an answer already waiting on a piped input, and drops one typed early on a terminal, as @inquirer/core 12.0.6 does', async () => {
+    const enterAnswers = createPrompt<string, object>((_config, done) => {
+      useKeypress((key) => {
+        if (isEnterKey(key)) done('submitted');
+      });
+      return '? Question';
+    });
+    const piped = terminal();
+    piped.input.write('\r');
+    await expect(enterAnswers({}, piped)).resolves.toBe('submitted');
+
+    const typed = tty();
+    typed.input.write('\r');
+    const answer = enterAnswers({}, typed);
+    await turn();
+    await turn();
+    let settled = false;
+    void answer.then(() => (settled = true), noop);
+    await turn();
+    expect(settled).toBe(false);
+    typed.input.write('\r');
+    await expect(answer).resolves.toBe('submitted');
   });
 
   it('never runs a deferred first render once the prompt has settled, as @inquirer/core 12.0.5 does', async () => {
-    const cancelled = terminal();
+    const cancelled = tty();
     const early = createPrompt<string, object>(() => '? never drawn')({}, cancelled);
     early.cancel();
     await expect(early).rejects.toBeInstanceOf(CancelPromptError);
 
     const controller = new AbortController();
-    const aborted = terminal();
+    const aborted = tty();
     const gone = createPrompt<string, object>(() => '? never drawn')({}, { ...aborted, signal: controller.signal });
     controller.abort();
     await expect(gone).rejects.toBeInstanceOf(AbortPromptError);
