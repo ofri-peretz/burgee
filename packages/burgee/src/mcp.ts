@@ -63,15 +63,11 @@ export interface Tool {
   outputSchema?: OutputSchema;
 }
 
-/** What one tool call's run printed, and the code it left with. */
-export interface Ran {
-  stdout: string;
-  stderr: string;
-  code: number;
-}
-
 /** What a tool call runs: the same execute a `--json` caller reaches, with the streams captured. */
-export type Invoke = (argv: string[]) => Promise<Ran>;
+export type Invoke = (argv: string[]) => Promise<{ stdout: string; stderr: string; code: number }>;
+
+/** What one tool call's run printed, and the code it left with. */
+type Ran = Awaited<ReturnType<Invoke>>;
 
 /** {@link Invoke} for {@link serveMcpSync}, which cannot wait for a run: it returns, or throws. */
 export type InvokeSync = (argv: string[]) => Ran;
