@@ -47,8 +47,11 @@ for (const { key, why } of options.unused) console.log(`${key}: ${why}`);
 coverageAnalysis: always perTest
 ```
 
-A key oxmutate does not use is listed with the reason, never dropped in silence. Every key is on
-[Configuration](/docs/configuration).
+A key oxmutate does not use is listed with the reason, never dropped in silence.
+
+In a Vite or Vite+ project, the same settings can live in `vite.config.ts` instead, in a `mutate`
+block beside `test` (`/// <reference types="oxmutate/vite" />` types it). Every key, and the order in which the
+sources win, is on [Configuration](/docs/configuration).
 
 ## Run it
 

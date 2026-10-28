@@ -232,6 +232,10 @@ jobs:
       - name: Build every package
         if: steps.plan.outputs.run == 'true'
         run: npx turbo run build --filter='./packages/*' --concurrency=4
+      # The lane runs oxmutate, the family's own mutation tester; its core is Rust, and no `build`
+      # produces it (the runner image ships rustup).
+      - name: Build oxmutate's native core
+        run: cd packages/oxmutate && npm run build:native
       - name: Mutate the changed lines
         if: steps.plan.outputs.run == 'true'
         env:

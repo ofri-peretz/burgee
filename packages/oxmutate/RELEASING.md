@@ -1,7 +1,7 @@
 # Releasing oxmutate
 
 oxmutate's core is Rust on oxc, prebuilt for six platforms (PRINCIPLES rule 9, `native-engine`:
-per-platform cores, nothing runs at install time). **0.1 ships all six inside the `oxmutate` tarball**
+per-platform cores, nothing runs at install time). **1.0 ships all six inside the `oxmutate` tarball**
 as `binding/oxmutate.<tag>.node`, with tag `darwin-arm64`, `darwin-x64`, `linux-x64-gnu`,
 `linux-arm64-gnu`, `linux-x64-musl` or `win32-x64-msvc`. `src/native.ts` loads the one
 `src/platform.ts` names for the machine. That makes the tarball about 9.6 MB heavier than one
@@ -19,40 +19,21 @@ refuses to publish `oxmutate` unless all six are there. Then it publishes throug
 publishing with provenance. The cores exist only on that runner: `binding/*.node` is gitignored and
 the committed tree carries no binary.
 
-## The manual steps
+## How 1.0.0 shipped
 
-1. In [`package.json`](./package.json), set `"private": false`.
-2. In the root [`README.md`](../../README.md), change "Ten packages, one repository" to "Eleven
-   packages, one repository". `dependency-claim-lock` counts the published manifests, so this one
-   sentence is right in only one state; it stays right for the private one until this flip.
-3. Add a changeset for `oxmutate` (`npx changeset`). Merging the Version PR it opens publishes
-   oxmutate with its six cores.
-
-Do all three in the pull request that lands this work, before it merges. Every other surface is
-already written for the released package: oxmutate has a pending docs app in
-[`.github/vercel-apps.json`](../../.github/vercel-apps.json), and `released` in
-`apps/docs-chassis/src/packages.ts` treats a private package with a pending app as released, so the
-family table in every README, the front door's package map and section, the weight page, the install
-graph and `SECURITY.md` already list it and do not change at the flip. Until the flip lands those
-pages describe a package npm does not serve yet, which is why it should not wait for a later pull
-request.
+oxmutate went public at `1.0.0` in ofri-peretz/burgee#1302: `private: false`, the version set in
+the manifest (npm had only the `0.0.0` name reservation), and the `## 1.0.0` section of
+[`CHANGELOG.md`](./CHANGELOG.md) as the release notes. `release.yml` publishes a manifest version
+npm does not have, so merging that pull request published it. Later releases go through changesets
+as every other package does (`npx changeset`, then the Version PR).
 
 ## Its docs site
 
-`apps/docs-oxmutate` is built and tested (`npx turbo run build --filter=docs-oxmutate`), and filed
-under `pending`: nothing deploys it. **Needs owner action**, best before the release so the npm
-README's `Docs:` links land:
-
-1. Create a Vercel project for `apps/docs-oxmutate` in the team `orgId` names, with an Environment
-   `production`, root directory empty, build command `npx turbo run build --filter=docs-oxmutate` and
-   output directory `apps/docs-oxmutate/.next`, the other family sites' settings.
-2. Add the DNS record for `oxmutate.interlace.tools` and attach the domain to that project.
-3. Then one pull request: move `pending.oxmutate` into `apps` with the `projectId`, delete
-   `excluded.oxmutate`, run `npx tsx scripts/sync-package-docs.ts` (the front door's section gives
-   way to the site), and point the README's *For agents* line at
-   `https://oxmutate.interlace.tools/llms.txt`. It links the front door's `llms.txt` until then,
-   because a README section projected onto the front door may not link a host that serves nothing
-   (`vercel-apps-lock`).
+Live at [oxmutate.interlace.tools](https://oxmutate.interlace.tools): Vercel project `oxmutate`
+(`prj_YJuNxB3xDYV2YXg9BWzXhuTt1FfO`) in the interlace team, its row under `apps` in
+[`.github/vercel-apps.json`](../../.github/vercel-apps.json), and a `CNAME oxmutate →
+6f09232ee449d52d.vercel-dns-016.com.` in the `interlace.tools` zone at Namecheap. `deploy-docs.yml`
+deploys it like its siblings.
 
 ## Once, on npmjs.com, before the first release
 
@@ -127,27 +108,3 @@ job publishes the six itself:
   that ran `build:native` holds one. The baseline records 52,636 B gzipped and 167,395 B unpacked
   for the JavaScript and declarations. Each core is about 1.6 MB (darwin-arm64: 1,608,120 B), and
   each `oxmutate-native.yml` leg writes its core's size to the run summary.
-
-## What the flip still turns red
-
-Measured on 2026-10-27 by running the root lock suite (`npx vitest run --config
-vitest.root.config.ts`) with `"private": false` and again with `true`. With `true` it is green. With
-`false` three cases fail, and each needs a change outside this release checklist:
-
-- `dependency-claim-lock` › the root README counts the published packages: step 2 above.
-- `bin-help-lock` › `oxmutate` with no arguments is usage, never a crash. `run` is the default
-  command, so a bare `oxmutate` starts a mutation run of the current directory, and from the
-  repository root that outlives the lock's 30 s. It needs a decision in `src/cli.ts`: drop
-  `default: true` (every page here already writes `oxmutate run`), or have the lock admit a default
-  command that does work.
-- `independence-install-lock` › oxmutate loads every module entry. Installed alone, without Vitest,
-  `import('oxmutate/runner')` fails with `Cannot find module 'vitest/package.json'`. The lock already
-  expects `oxmutate/runner` to refuse the way `controlroom/ink` does, with `code: 'E_PEER_MISSING'`
-  and a `fix` containing `npm install vitest`, so `src/runner.ts` (or `src/resolve.ts`) has to throw
-  that, or `./runner` leaves `exports` and the coordinator loads it by path.
-
-The locks that took the released set rather than the published one, so that the flip moves nothing
-they read: `package-readme-header-lock` (through `FAMILY` in `scripts/readme-benchmarks.ts`),
-`extension-surface-lock`, `independence-install-lock`, `readme-quick-start-lock`,
-`stable-status-lock`, `subpath-weight-lock`, `sync-package-docs`, `install-graph-lock` and
-`vercel-apps-lock` (a pending row may name a private package).

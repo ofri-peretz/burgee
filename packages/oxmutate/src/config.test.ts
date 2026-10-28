@@ -1,6 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
@@ -277,5 +278,63 @@ describe('disable comments, Stryker syntax', () => {
     expect(disables('// Stryker restore all\n// disable next-line all: x\n/* Stryker disable next-line all: x */\n', 'f.ts')).toEqual({ disables: [], errors: [] });
     // Prose that mentions the directive is neither a directive nor an error.
     expect(disables(`// Stryker ${'disable'} next-line comments need a reason, see the README.\n`, 'f.ts')).toEqual({ disables: [], errors: [] });
+  });
+});
+
+describe('options from a Vite (Vite+) config', () => {
+  const fixture = fileURLToPath(new URL('../test/fixtures/vite-config', import.meta.url));
+
+  it('reads the mutate block of vite.config.ts, with include as the file list', async () => {
+    const o = await loadOptions(fixture);
+    expect([o.mutate, o.concurrency, o.flakyReruns, o.thresholds.break, o.reporters, o.configFile]).toEqual([['src/registry.ts'], 1, 0, 50, ['json'], path.join(fixture, 'vite.config.ts')]);
+  });
+
+  it('gives way to an oxmutate.config file, which is read instead', async () => {
+    const o = await loadOptions(fixture, {}, 'override.json');
+    expect(o.configFile).toBe(path.join(fixture, 'override.json'));
+  });
+
+  // Projects inside the fixture's ignored reports/, so the workspace's Vite resolves from them.
+  let k = 0;
+  const viteProject = (files: Record<string, string>): string => {
+    const dir = path.join(fixture, 'reports', `p${String(k++)}`);
+    mkdirSync(dir, { recursive: true });
+    for (const [name, body] of Object.entries(files)) writeFileSync(path.join(dir, name), body);
+    return dir;
+  };
+  afterAll(() => rmSync(path.join(fixture, 'reports'), { recursive: true, force: true }));
+
+  it.each(['vite.config.ts', 'vite.config.mts', 'vite.config.cts', 'vite.config.js', 'vite.config.mjs', 'vite.config.cjs', 'vitest.config.ts', 'vitest.config.mts', 'vitest.config.cts', 'vitest.config.js', 'vitest.config.mjs', 'vitest.config.cjs'])('finds %s', async (name) => {
+    const body = name.endsWith('cjs') || name.endsWith('cts') ? "module.exports = { mutate: { include: ['a.ts'] } };" : "export default { mutate: { include: ['a.ts'] } };";
+    const dir = viteProject({ [name]: body });
+    const o = await loadOptions(dir);
+    expect([o.mutate, o.configFile]).toEqual([['a.ts'], path.join(dir, name)]);
+  });
+
+  it('prefers vite.config to vitest.config, as Vite does', async () => {
+    const dir = viteProject({ 'vitest.config.ts': "export default { mutate: { include: ['b.ts'] } };", 'vite.config.ts': "export default { mutate: { include: ['a.ts'] } };" });
+    expect((await loadOptions(dir)).mutate).toEqual(['a.ts']);
+  });
+
+  it('loads a function config as Vitest would: serve, in test mode', async () => {
+    const dir = viteProject({ 'vite.config.mjs': 'export default ({ command, mode }) => ({ mutate: { include: [command, mode] } });' });
+    expect((await loadOptions(dir)).mutate).toEqual(['serve', 'test']);
+  });
+
+  it("takes Stryker's mutate spelling inside the block too, over include", async () => {
+    const dir = viteProject({ 'vite.config.mjs': "export default { mutate: { include: ['a.ts'], mutate: ['b.ts'], concurrency: 3 } };" });
+    const o = await loadOptions(dir);
+    expect([o.mutate, o.concurrency]).toEqual([['b.ts'], 3]);
+  });
+
+  it.each(['null', 'true', "'src'", '0'])('ignores a mutate block that is not an object (%s)', async (value) => {
+    const dir = viteProject({ 'vite.config.mjs': `export default { mutate: ${value} };` });
+    const o = await loadOptions(dir);
+    expect([o.mutate, o.configFile]).toEqual([defaults(dir).mutate, undefined]);
+  });
+
+  it('is skipped where Vite cannot be resolved, and where the config has no mutate block', async () => {
+    const outside = project({ 'vite.config.mjs': 'export default { mutate: { include: ["x.ts"] } };' });
+    expect((await loadOptions(outside)).mutate).toEqual(defaults(outside).mutate);
   });
 });

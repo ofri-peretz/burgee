@@ -5,7 +5,7 @@ import path from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
-import { changedLines, parseDiff, parseShard, shardOf, touches } from './lanes.js';
+import { changedLines, type MutateRange, parseDiff, parseMutateSpec, parseShard, shardOf, touches, withinRange } from './lanes.js';
 
 describe('the PR lane reads changed lines from git diff -U0', () => {
   const diff = [
@@ -97,5 +97,28 @@ describe('shards partition the run exactly and stably', () => {
     expect(parseShard('8/8')).toEqual({ index: 7, count: 8 });
     expect(parseShard('12/16')).toEqual({ index: 11, count: 16 });
     for (const bad of ['0/8', '9/8', '1/0', 'two', '2/8x', 'x2/8']) expect(() => parseShard(bad)).toThrow(`--shard must be i/n with 1 <= i <= n, got "${bad}"`);
+  });
+});
+
+const at = (line: number, column: number): { line: number; column: number } => ({ line, column });
+
+describe("Stryker's mutate ranges", () => {
+  it('splits a glob from its range, columns defaulting to the whole line as Stryker does', () => {
+    expect(parseMutateSpec('src/**/*.ts')).toEqual({ glob: 'src/**/*.ts' });
+    expect(parseMutateSpec('src/a.ts:5-10')).toEqual({ glob: 'src/a.ts', range: { start: { line: 5, column: 0 }, end: { line: 10, column: Number.MAX_SAFE_INTEGER } } });
+    expect(parseMutateSpec('src/a.ts:5:4-6:9')).toEqual({ glob: 'src/a.ts', range: { start: { line: 5, column: 4 }, end: { line: 6, column: 9 } } });
+    expect(parseMutateSpec('C:/w/a.ts:12-13').glob).toBe('C:/w/a.ts');
+  });
+
+  // Report columns are 1-based with the end exclusive; a range's are Stryker's, 0-based inclusive.
+  it('takes a mutant wholly inside the range, and nothing that crosses either edge', () => {
+    const lines = parseMutateSpec('a.ts:5-6').range as MutateRange;
+    expect(withinRange(lines, at(5, 1), at(6, 30))).toBe(true);
+    expect(withinRange(lines, at(4, 9), at(5, 3))).toBe(false);
+    expect(withinRange(lines, at(6, 1), at(7, 2))).toBe(false);
+    const cols = parseMutateSpec('a.ts:5:4-5:9').range as MutateRange;
+    expect(withinRange(cols, at(5, 5), at(5, 10))).toBe(true); // columns 4..9, both included
+    expect(withinRange(cols, at(5, 4), at(5, 10))).toBe(false); // starts at column 3
+    expect(withinRange(cols, at(5, 5), at(5, 11))).toBe(false); // ends at column 10
   });
 });

@@ -20,9 +20,9 @@ import { checkSurvivors } from './checker.js';
 import type { Unit } from './child.js';
 import { runCommandMutants } from './command-runner.js';
 import { disables, type Options } from './config.js';
-import { matchFiles } from './files.js';
+import { globToRegExp, matchFiles } from './files.js';
 import type { FrozenOracle } from './frozen.js';
-import { changedLines, shardOf, touches } from './lanes.js';
+import { changedLines, parseMutateSpec, shardOf, touches, withinRange, type MutateRange } from './lanes.js';
 import { native, type NativeMutant } from './native.js';
 import { startProgress } from './progress.js';
 import { FILE_KEY, env, stderr } from './runtime.js';
@@ -174,7 +174,13 @@ export async function run(options: Options): Promise<RunResult> {
   try {
     progress.phase('instrumenting');
     // ── 1. Instrument ─────────────────────────────────────────────────────────────────────────
-    const files = matchFiles(root, options.mutate);
+    // Stryker's `file:line-line` entries select files by their glob and mutants by their range.
+    const specs = options.mutate.map(parseMutateSpec);
+    const files = matchFiles(root, specs.map((x) => x.glob));
+    const rangesFor = (file: string): MutateRange[] | undefined => {
+      const here = specs.filter((x) => !x.glob.startsWith('!') && globToRegExp(x.glob).test(file));
+      return here.some((x) => !x.range) ? undefined : here.flatMap((x) => (x.range ? [x.range] : []));
+    };
     const sources: Record<string, string> = {};
     for (const f of files) sources[f] = readFileSync(path.join(root, f), 'utf8');
     const t0 = performance.now();
@@ -189,10 +195,12 @@ export async function run(options: Options): Promise<RunResult> {
     const directiveErrors: string[] = [];
     for (const f of instrumented) {
       const { disables: offs, errors } = disables(sources[f.path] ?? '', f.path);
+      const ranges = rangesFor(f.path);
       directiveErrors.push(...errors);
       let any = false;
       for (const m of f.mutants) {
         if (changed && !touches(changed, f.path, m.start.line, m.end.line)) continue;
+        if (ranges && !ranges.some((r) => withinRange(r, m.start, m.end))) continue;
         if (options.shard && shardOf(m.id, options.shard.count) !== options.shard.index) continue;
         const off = offs.find((d) => d.line === m.start.line && (d.mutators === 'all' || d.mutators.includes(m.mutatorName)));
         const excluded = options.excludedMutations.includes(m.mutatorName);

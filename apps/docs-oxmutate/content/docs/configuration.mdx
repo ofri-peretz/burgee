@@ -3,15 +3,41 @@ title: Configuration
 description: "Every key oxmutate reads: Stryker's keys, read from stryker.config.* as they stand, the keys only oxmutate reads, and the Stryker keys it does not use, each with the reason."
 ---
 
-oxmutate reads two files from the project root, and a command-line flag beats both:
+oxmutate reads its settings from the project root. Where more than one source sets a key, the
+nearest wins: a command-line flag, then `--config <file>` or `oxmutate.config.*`, then the
+`mutate` block of `vite.config.*` (or `vitest.config.*`), then `stryker.config.*`.
+
+## In vite.config.ts, the Vite+ way
+
+A Vite or [Vite+](https://viteplus.dev) project keeps test, lint, fmt and mutate in one file:
+
+```ts title="vite.config.ts"
+/// <reference types="vitest/config" />
+/// <reference types="oxmutate/vite" /> // adds `mutate` to the config's type
+import { defineConfig } from 'vite'; // or 'vite-plus'
+
+export default defineConfig({
+  test: { include: ['src/**/*.test.ts'] },
+  mutate: {
+    include: ['src/**/*.ts', '!src/**/*.test.ts'],
+    thresholds: { high: 90, low: 70, break: 80 },
+  },
+});
+```
+
+The block is loaded through the project's own Vite (`loadConfigFromFile`, in test mode), so a
+TypeScript config and its imports work as Vite sees them, and a function config receives
+`{ command: 'serve', mode: 'test' }`. Its keys are the ones below; the file list is `include`,
+Vitest's name for Stryker's `mutate` (which is accepted too).
+
+## In stryker.config.* or oxmutate.config.*
 
 1. `stryker.config.{mjs,js,cjs,json,mts,ts}`, as it stands. A JS config may export an object or a
    function that returns one.
-2. `oxmutate.config.*` (the same extensions), which wins where both set a key. `--config <file>`
-   names a different file.
+2. `oxmutate.config.*` (the same extensions), read instead of the `mutate` block when it exists.
 
-The keys only oxmutate reads belong in `oxmutate.config.*`. Stryker never opens that file, so a
-project can run both tools while it compares them.
+The keys only oxmutate reads belong in the `mutate` block or `oxmutate.config.*`. Stryker never
+opens either, so a project can run both tools while it compares them.
 
 ## Stryker's keys oxmutate uses
 

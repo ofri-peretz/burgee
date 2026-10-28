@@ -67,3 +67,32 @@ export function parseShard(value: string): { index: number; count: number } {
   if (!m || index < 1 || index > count) throw new Error(`--shard must be i/n with 1 <= i <= n, got "${value}"`);
   return { index: index - 1, count };
 }
+
+/** A Stryker `mutate` range: lines 1-based, columns 0-based and inclusive (`src/a.ts:5:4-6:4`). */
+export interface MutateRange {
+  start: { line: number; column: number };
+  end: { line: number; column: number };
+}
+
+/** Stryker's own pattern (`mutate-pattern-constants.js`): `<glob>:<line>[:<col>]-<line>[:<col>]`. */
+const RANGE = /^(.*?):((\d+)(?::(\d+))?-(\d+)(?::(\d+))?)$/;
+
+/** A `mutate` entry split into its glob and, when it names one, its range. */
+export function parseMutateSpec(spec: string): { glob: string; range?: MutateRange } {
+  const m = RANGE.exec(spec);
+  if (!m) return { glob: spec };
+  const [, glob = '', , startLine, startColumn = '0', endLine, endColumn = String(Number.MAX_SAFE_INTEGER)] = m;
+  return { glob, range: { start: { line: Number(startLine), column: Number(startColumn) }, end: { line: Number(endLine), column: Number(endColumn) } } };
+}
+
+/**
+ * Is the mutant wholly inside the range, as Stryker decides it (`locationIncluded`)? The mutant's
+ * columns are the report's, 1-based with the end exclusive; the range's are Stryker's, 0-based.
+ */
+export function withinRange(range: MutateRange, start: { line: number; column: number }, end: { line: number; column: number }): boolean {
+  const from = start.column - 1;
+  const to = end.column - 1;
+  const startIn = range.start.line < start.line || (range.start.line === start.line && range.start.column <= from);
+  const endIn = range.end.line > end.line || (range.end.line === end.line && range.end.column >= to);
+  return startIn && endIn;
+}

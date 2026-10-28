@@ -5,7 +5,9 @@
  */
 
 /**
- * mutation.ts — Stryker over the family, in the two shapes `.sdlc/intents/mutation-tested/` asks for.
+ * mutation.ts — mutation testing over the family, in the two shapes `.sdlc/intents/mutation-tested/`
+ * asks for. Run by oxmutate, the family's own mutation tester on the oxc engine; Stryker stays one
+ * flag away (`--engine stryker`), and both write the same report, read by `summarise` below.
  *
  * A surviving mutant is a test suite that passes on broken code: rule 4 of the working model
  * ("a fix is not done until a check would have caught it") stated per line instead of per fix.
@@ -554,7 +556,7 @@ function runChanged(specs: ReadonlyMap<string, string[]>): PackageRun[] {
   return [...specs].map(([pkg, mutate]) => {
     const budgetMs = deadline - Date.now();
     if (budgetMs <= 0) return { pkg, ok: false, error: 'the lane ran out of budget before reaching it', minutes: 0 };
-    return runPackage(pkg, mutate, { concurrency: concurrency(), timeoutMS: PR_BUDGET.timeoutMS, dryRunTimeoutMinutes: PR_BUDGET.dryRunTimeoutMinutes, budgetMs });
+    return runPackage(pkg, mutate, { concurrency: concurrency(), timeoutMS: PR_BUDGET.timeoutMS, dryRunTimeoutMinutes: PR_BUDGET.dryRunTimeoutMinutes, budgetMs, engine: engineArg() });
   });
 }
 
@@ -607,7 +609,11 @@ function changedCommand(): number {
 }
 
 /** `--engine oxmutate` or MUTATION_ENGINE=oxmutate; Stryker otherwise. */
-const engineArg = (): Engine => ((arg('--engine') ?? process.env['MUTATION_ENGINE']) === 'oxmutate' ? 'oxmutate' : 'stryker');
+/**
+ * The family's own mutation tester by default (oxmutate, on the oxc engine); Stryker on request
+ * (`--engine stryker` or MUTATION_ENGINE=stryker), kept for comparing the two.
+ */
+const engineArg = (): Engine => ((arg('--engine') ?? process.env['MUTATION_ENGINE']) === 'stryker' ? 'stryker' : 'oxmutate');
 
 function fullCommand(): number {
   const pkg = arg('--package');

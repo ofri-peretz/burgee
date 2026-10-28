@@ -251,3 +251,16 @@ it.skipIf(!native || !existsSync(bin))('keeps a survivor whose confirmation run 
   expect(report.files['src/one.ts']?.mutants.map((m) => m.status)).toEqual(['Survived']);
   expect(report['x-oxmutate'].stats.survivorsOverturned).toBe(0);
 }, 90_000);
+
+describe.skipIf(!native || !existsSync(bin))("Stryker's mutate ranges", () => {
+  const registry = path.join(pkg, 'test/fixtures/registry');
+  afterAll(() => rmSync(path.join(registry, 'reports'), { recursive: true, force: true }));
+
+  it('mutates only what lies wholly inside src/registry.ts:5-7, the register function', () => {
+    const r = runWith(registry, { mutate: ['src/registry.ts:5-7'] });
+    expect(r.status).toBe(0);
+    const mutants = (JSON.parse(readFileSync(path.join(r.reports, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: ReportMutant[] }> }).files['src/registry.ts']?.mutants ?? [];
+    expect(mutants.length).toBeGreaterThan(0);
+    expect(mutants.every((m) => m.location.start.line >= 5 && m.location.start.line <= 7)).toBe(true);
+  });
+});

@@ -134,11 +134,12 @@ has a test that fails without it (named in the commit that added it).
 | Lanes | `--since`, `--shard`, `survivors --json`, `--mcp`, `--break` (exit 1) | ✅ | `src/lanes.ts`, `src/cli.ts` |
 | Lanes | Frozen oracle (`--frozen-oracle <ref>`, R14 / SC10) | ✅ | `src/frozen.ts` |
 | Dogfood | burgee's `full` lane on oxmutate (`--engine oxmutate`); `mutation.yml` engine input | ✅ | `scripts/mutation.ts` |
+| Config | A `mutate` block in `vite.config.*` (the Vite+ file), typed by `oxmutate/vite` | ✅ | `src/config.ts`, `src/vite.ts` |
 | Dogfood | One green week of the weekly run on oxmutate (the M3 gate) | ⬜ | owner: dispatch with `engine: oxmutate` |
 | Formal | Spec oracles: Quint (`quint run --mbt`) and ITF backends, `oxmutate/spec`, F1–F4 and F6 | ✅ | `src/spec-oracle.ts`, `src/spec.ts` |
 | Formal | The M3.5 gate on a burgee component with a `.qnt` model (closeout's save-restore) | ⬜ | a replay test in closeout's lane |
 | Release | Per-platform native packages, trusted publishing, version sync | ✅ | `oxmutate-native.yml`, `release.yml` |
-| Release | 0.1 on npm | ⬜ | owner: `RELEASING.md` |
+| Release | 1.0.0 on npm, the native cores bundled; docs live at oxmutate.interlace.tools | 🟡 | publishes when ofri-peretz/burgee#1302 merges (`RELEASING.md`) |
 | Speed | `≥ 5x` on burgee packages (`S3`) | 🟡 | met on es-toolkit; missed on paratext (2.4x) and controlroom (`m1-results.md`) |
 
 M4 items wait for an adopter, and M5 items for a measured gain, as their gates say.

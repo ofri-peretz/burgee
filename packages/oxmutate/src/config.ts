@@ -10,6 +10,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { type IgnoreRule } from './native.js';
+import { resolveEsm } from './resolve.js';
 import { type SpecOracle } from './spec-oracle.js';
 
 export interface Thresholds {
@@ -134,11 +135,84 @@ function find(root: string, base: string): string | undefined {
   return undefined;
 }
 
+/**
+ * The `mutate` block of a Vite / Vite+ config, and the shape of `oxmutate.config.*`: Stryker's own
+ * option names where Stryker has one, so a config moves across unchanged.
+ */
+export interface MutateConfig {
+  /** Files to mutate (globs; `!` excludes). Stryker's `mutate`. Default: src, minus tests and .d.ts. */
+  include?: string[];
+  /** Stryker's spelling of `include`. */
+  mutate?: string[];
+  vitest?: { configFile?: string };
+  concurrency?: number;
+  /** Absolute slack per mutant, ms (default 500; Stryker's is 5000). */
+  timeoutMS?: number;
+  timeoutFactor?: number;
+  thresholds?: { high?: number; low?: number; break?: number | null };
+  mutator?: { excludedMutations?: string[] };
+  ignoreStatic?: boolean;
+  reporters?: ('clear-text' | 'json' | 'html' | 'sarif' | 'progress' | 'progress-append-only' | 'ci' | 'dots')[];
+  jsonReporter?: { fileName?: string };
+  htmlReporter?: { fileName?: string };
+  sarifReport?: string;
+  incremental?: boolean;
+  incrementalFile?: string;
+  flakyReruns?: number;
+  dryRunOnly?: boolean;
+  dryRunTimeoutMinutes?: number;
+  buildCommand?: string;
+  testRunnerNodeArgs?: string[];
+  allowEmpty?: boolean;
+  warnings?: boolean | { unknownOptions?: boolean };
+  testRunner?: 'vitest' | 'command';
+  commandRunner?: { command?: string };
+  checkers?: 'typescript'[];
+  tsconfigFile?: string;
+  typeChecker?: string;
+  /** Calls whose subtrees are not mutated: `{ call: 'console.*', reason }`. */
+  ignore?: IgnoreRule[];
+  /** Formal models replayed against each mutant (`quint` or `itf` traces). */
+  specOracles?: SpecOracle[];
+  strykerCompat?: boolean;
+}
+
+/** The Vite (and Vite+) config files, in the order Vite and Vitest look for them. */
+const VITE_CONFIGS = ['vite.config', 'vitest.config'].flatMap((base) => ['.ts', '.mts', '.cts', '.js', '.mjs', '.cjs'].map((ext) => `${base}${ext}`));
+
+/**
+ * The `mutate` block of the project's Vite config — the Vite+ shape, one file for test, lint, fmt
+ * and mutate. Loaded with the project's own Vite (`loadConfigFromFile`), so a TypeScript config and
+ * its imports work as Vite sees them. Inside the block the file list is `include`, as Vitest names
+ * it; Stryker's `mutate` is accepted too. No Vite installed, or no block: nothing.
+ */
+async function fromViteConfig(root: string): Promise<{ file: string; block: Record<string, unknown> } | undefined> {
+  const file = VITE_CONFIGS.map((f) => path.join(root, f)).find((f) => existsSync(f));
+  // Stryker disable next-line ConditionalExpression: without the guard Vite searches the root for the same names, finds none, and returns null, which returns undefined below
+  if (!file) return undefined;
+  let vite: { loadConfigFromFile: (env: { command: string; mode: string }, file: string, root: string, logLevel: string) => Promise<{ config: Record<string, unknown> } | null> };
+  try {
+    vite = (await import(resolveEsm('vite', root))) as typeof vite;
+  } catch {
+    return undefined;
+  }
+  // Stryker disable next-line StringLiteral: the log level only decides whether Vite prints, and a config that loads prints nothing at any level
+  const level = 'silent';
+  const loaded = await vite.loadConfigFromFile({ command: 'serve', mode: 'test' }, file, root, level);
+  // Stryker disable next-line OptionalChaining: given a file that exists, Vite returns a config or throws; null is its answer only when it found no file
+  const block = loaded?.config['mutate'];
+  if (!block || typeof block !== 'object') return undefined;
+  // `include` is the Vitest spelling; Stryker's `mutate`, when given too, is spread over it.
+  const { include, ...rest } = block as Record<string, unknown>;
+  return { file, block: { mutate: include, ...rest } };
+}
+
 export async function loadOptions(root: string, overrides: Partial<Options> = {}, configFile?: string): Promise<Options> {
   const strykerFile = find(root, 'stryker');
   const oxFile = configFile ? path.resolve(root, configFile) : find(root, 'oxmutate');
   const stryker = strykerFile ? await loadFile(strykerFile) : {};
-  const ox = oxFile ? await loadFile(oxFile) : {};
+  const vite = oxFile ? undefined : await fromViteConfig(root);
+  const ox = oxFile ? await loadFile(oxFile) : (vite?.block ?? {});
   const raw = { ...stryker, ...ox } as Record<string, unknown>;
 
   const unused: Options['unused'] = [];
@@ -173,7 +247,7 @@ export async function loadOptions(root: string, overrides: Partial<Options> = {}
     incrementalFile: path.resolve(root, (raw['incrementalFile'] as string | undefined) ?? 'reports/oxmutate-incremental.json'),
     flakyReruns: Number(raw['flakyReruns'] ?? 2),
     unused,
-    configFile: oxFile ?? strykerFile,
+    configFile: oxFile ?? vite?.file ?? strykerFile,
     dryRunOnly: raw['dryRunOnly'] === true,
     dryRunTimeoutMinutes: Number(raw['dryRunTimeoutMinutes'] ?? DEFAULT_DRY_RUN_MINUTES),
     buildCommand: typeof raw['buildCommand'] === 'string' ? raw['buildCommand'] : undefined,

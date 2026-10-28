@@ -13,12 +13,11 @@ otherwise.
 
 ## Supported versions
 
-Every package but `oxmutate` is at 1.0 or later, and its public API is under semver. A fix, a
+Every published package is at 1.0 or later, and its public API is under semver. A fix, a
 security fix included, ships as a patch or minor release of the current major, so a caret
-range on that major installs it without a breaking change. `oxmutate` is pre-1.0 (0.x): a
-minor release may change its API, and a fix ships in its next 0.x release. Only the latest
-release of each package is supported, and there are no long-term support branches: a fix lands
-on the newest release and is not backported.
+range on that major installs it without a breaking change. Only the latest release of each
+package is supported, and there are no long-term support branches: a fix lands on the newest
+release and is not backported.
 
 ## What reduces the attack surface here
 

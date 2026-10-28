@@ -3,19 +3,33 @@ title: oxmutate
 description: "Mutation testing for JavaScript and TypeScript on the oxc engine, run warm inside the project's own Vitest, with CI lanes, SARIF and an agent surface. No dependency outside the burgee family. A Stryker migration path."
 ---
 
-**oxmutate** changes your code one small step at a time (`a < b` becomes `a <= b`, a block
-becomes empty, `true` becomes `false`) and runs the tests that cover each change. A change no
-test notices is a **survivor**: a line your suite runs but does not check. Each one is reported
-with its file, its line, the change and a `fix:` line that says what to assert, the same record
-for a person, for `--json` and for a coding agent.
+**oxmutate** is mutation testing for JavaScript and TypeScript, on the [oxc](https://oxc.rs)
+engine. It changes your code one small step at a time (`a < b` becomes `a <= b`, a block becomes
+empty, `true` becomes `false`), runs the tests that cover each change, and reports every change no
+test notices: a **survivor**, a line your suite runs but does not check. Each survivor comes with
+its file, its line, the change and a `fix:` line that says what to assert, as the same record for
+a person, for `--json` and for a coding agent.
 
-Coming from **Stryker**, nothing in the project changes but the command: oxmutate reads
-`stryker.config.*` as it stands, writes Stryker's JSON report (schema 2, so
-`mutation-testing-elements` renders it), and runs Stryker's 17 mutator families. Where you ran
-`npx stryker run`, run `npx oxmutate run`.
+It reads your **Stryker** config as it stands and writes Stryker's report, so moving over is one
+command: where you ran `npx stryker run`, run `npx oxmutate run`. A community project built on
+oxc, not affiliated with the oxc project.
 
-**Built on oxc.** The instrumentation is Rust: [oxc](https://oxc.rs) parses every file in
-parallel and each mutant is a span edit. A community project, not affiliated with the oxc project.
+## Why oxmutate
+
+| | Stryker 10 | oxmutate 1.0 |
+| :-- | :-- | :-- |
+| Mutant set | 17 mutator families | the same 17, the same mutants (720 of 720 on es-toolkit) |
+| Verdicts | — | the same as Stryker's on 99.9% of mutants ([measured](#compatibility)) |
+| Instrumentation | Babel, file by file | Rust on oxc, every file in parallel: 720 mutants in 35 ms |
+| Test runs | a Vitest run per mutant | each covering test re-run per mutant inside a warm Vitest worker |
+| Config | `stryker.config.*` | your `stryker.config.*` unchanged, or a `mutate` block in `vite.config.ts` |
+| A mutant that leaves state behind | judges the next mutants by it | canary; the context restarts clean |
+| A slow machine | timeouts read as kills | a stop is re-run at 3x before it is a timeout |
+| Static mutants | skipped with `ignoreStatic`, else the whole suite per mutant | scored, against the files that load them |
+| Pull requests | your own script | `--since <ref>`, SARIF annotations, `--frozen-oracle` |
+| A change that weakens its tests | not seen | `--frozen-oracle` exits 1 and names each mutant |
+| Coding agents | read the JSON report | `survivors --json` (326 bytes a survivor against 4,094), `--mcp` |
+| Formal methods | — | spec oracles: Quint or any ITF traces as a second verdict |
 
 ## Install
 
@@ -26,10 +40,10 @@ yarn add oxmutate
 bun add oxmutate
 ```
 
-Install it as a dev dependency (`-D`) of the project whose tests it grades. The prebuilt native
-core for your platform arrives as an optional dependency; nothing runs at install time. Vitest
-4.1 or later is an optional peer: oxmutate runs the project's own Vitest and never brings a second
-one.
+Install it as a dev dependency (`-D`) of the project whose tests it grades. The native core for
+macOS (arm64, x64), Linux (glibc x64 and arm64, musl x64) and Windows (x64) is inside the package;
+nothing runs at install time. Vitest 4.1 or later is an optional peer: oxmutate runs the project's
+own Vitest, with its config, and never brings a second one.
 
 ## Quick start
 
@@ -60,57 +74,102 @@ for (const { key, why } of options.unused) console.log(`${key}: ${why}`);
 coverageAnalysis: always perTest
 ```
 
-That is the config `npx oxmutate run` reads in that directory: the same file Stryker reads, with
-each key oxmutate does not use listed and the reason beside it, never dropped in silence. In a
-project with Vitest installed, `npx oxmutate run` then scores every mutant and writes
+That is the config `npx oxmutate run` reads in that directory: the same file Stryker reads, each
+key oxmutate does not use listed with its reason, never dropped in silence. In a project with
+Vitest installed, `npx oxmutate run` then scores every mutant and writes
 `reports/mutation/mutation.json`.
 
-## What it does
+## One config file, the Vite+ way
 
-```bash
-npx oxmutate run                                     # every mutant, with stryker.config.* if there is one
-npx oxmutate run --since origin/main --reporter sarif  # PR lane: lines the change touched, in code scanning
-npx oxmutate run --shard 2/8                         # one cell of a CI matrix; shards partition exactly
-npx oxmutate run --incremental                       # reuse verdicts whose source and tests did not change
-npx oxmutate run --frozen-oracle origin/main         # exit 1 when the change weakened its tests
-npx oxmutate run --break 80                          # exit 1 below this mutation score
-npx oxmutate survivors --json                        # the list a coding agent writes tests from
+A Vite or [Vite+](https://viteplus.dev) project keeps its toolchain in one `vite.config.ts`. oxmutate
+reads its settings from a `mutate` block there, beside `test`:
+
+```ts
+// vite.config.ts
+/// <reference types="vitest/config" />
+/// <reference types="oxmutate/vite" /> // adds `mutate` to the config's type
+import { defineConfig } from 'vite'; // or 'vite-plus'
+
+export default defineConfig({
+  test: { include: ['src/**/*.test.ts'] },
+  mutate: {
+    include: ['src/**/*.ts', '!src/**/*.test.ts'],
+    thresholds: { high: 90, low: 70, break: 80 },
+    reporters: ['clear-text', 'html', 'sarif'],
+    ignore: [{ call: 'console.*', reason: 'log text is not behaviour' }],
+  },
+});
 ```
 
-- **Warm runs inside your Vitest.** Each covering test is re-run per mutant inside a live Vitest
-  worker, with its hooks, `vi.mock` and environment, instead of a Vitest start per mutant.
-- **Stryker's mutant set.** All 17 of Stryker 10.0.0's mutator families. The Regex family
-  produces the same mutants as weapon-regex on 928 of 932 real patterns.
-- **Reports a CI already reads.** Stryker's JSON report (schema 2), its HTML report, and SARIF
-  for GitHub code scanning (`--reporter sarif`).
-- **CI lanes.** `--since <ref>` scores only the lines a change touched, `--shard i/n` splits a run
-  across a matrix, `--incremental` reuses verdicts that cannot have changed, and
-  `--frozen-oracle <ref>` also scores the change against the base's tests and fails when a
-  mutant those tests killed now survives: a change that weakened its own tests.
-- **Any test command.** `testRunner: 'command'` with `commandRunner: { command: 'npm test' }` runs a
-  command per mutant, for a suite that is not Vitest.
-- **Type-checked survivors.** `checkers: ['typescript']` compiles each survivor with the project's
-  own compiler, and a mutant that does not type-check is not counted against the tests.
-- **Ignore rules as data.** `ignore: [{ call: 'console.*', reason: 'log text is not behaviour' }]`
-  leaves those call subtrees unmutated, Stryker's ignorer plugins as a list in the config.
-- **Spec oracles.** `specOracles` replays a formal model's traces against each mutant, `quint run
-  --mbt` traces or any directory of ITF files, through a test that imports `oxmutate/spec`. The
-  report lists each test-spec gap: a mutant the model's traces kill and the tests let survive.
+The block is loaded through the project's own Vite, so a TypeScript config and its imports work as
+Vite sees them. Its keys are Stryker's (`include` is the file list, Vitest's name for Stryker's
+`mutate`). Where more than one source sets a key, the nearest wins: a flag, then `--config` or
+`oxmutate.config.*`, then the `mutate` block of `vite.config.*` (or `vitest.config.*`), then
+`stryker.config.*`.
+
+## In CI
+
+The pull-request lane mutates only the lines a change touched, annotates the survivors in code
+scanning, and fails when the change weakened its own tests:
+
+```yaml
+# .github/workflows/mutation.yml
+on: pull_request
+permissions: { contents: read, security-events: write }
+jobs:
+  mutation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v5
+        with: { node-version: 22 }
+      - run: npm ci
+      - run: npx oxmutate run --since origin/${{ github.base_ref }} --frozen-oracle origin/${{ github.base_ref }} --reporter sarif,html
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with: { sarif_file: reports/mutation/mutation.sarif }
+```
+
+For the full run, `--shard i/n` splits the mutants across a matrix (a mutant's shard is a hash of
+its stable id, so the shards partition the run exactly and do not move when unrelated code does),
+and `--incremental` reuses every verdict whose source and covering tests did not change.
+
+## How it works
+
+```text
+ source ──► oxc (Rust, parallel) ──► every mutant compiled in, each behind a switch
+                                              │
+ dry run ──► which test reaches which mutant ─┤
+                                              ▼
+ warm Vitest servers (work-stealing) ──► per mutant: arm it, re-run its covering tests, bail at
+                                          the first failure, canary, disarm
+                                              │
+ isolated runs ──► static mutants, stragglers, survivor and timeout confirmation
+                                              │
+ reports ──► Stryker JSON · HTML · SARIF · survivors --json · exit code
+```
+
+Every mutant is compiled into one instrumented copy of each file, served to Vitest from memory, so
+the project is never copied or rewritten. A mutant is a switch, not a rebuild: arming one is
+setting a value inside the worker that already has the tests loaded.
 
 ## How it stays correct
 
 | Guard | What it catches |
 | :-- | :-- |
-| Dry run must pass | A suite that fails with no mutant active scores nothing (exit 3) |
-| Canary after every mutant | The same test, unmutated, must still pass; if a mutant left a cache, registry or fixture behind, the context restarts fresh |
-| Watchdog | A synchronous runaway is stopped and counted as a timeout |
-| Flaky detector | Tests that behave differently across two dry runs have their mutants re-run, and a verdict that changes is reported `flaky` |
-| Static mutants | Code that runs at import is re-run with the mutant armed from process start |
-| Instrument re-parse | Emitted code that does not parse stops the run (exit 3) instead of scoring a broken file |
+| The dry run must pass | A suite that fails with no mutant armed scores nothing (exit 3) |
+| Re-parse | Every instrumented file is parsed again before it runs; one that does not parse stops the run (exit 3) instead of scoring a broken file |
+| Canary | The unmutated test must still pass after mutants run in a context; if a mutant left a cache, a registry or a fixture behind, the context restarts and the suspect verdicts run again |
+| Survivor confirmation | A survivor is re-run with the mutant armed across its covering tests in one file, as Stryker arms it, so a mutant that only fails across tests is killed |
+| Watchdog | A synchronous runaway is stopped and its server replaced; the stop is re-run at 3x the budget before it is reported as a timeout |
+| Static mutants | Code that runs at import is re-run with the mutant armed from process start, against the files that load it |
+| Flaky tests | Tests that behave differently across two dry runs have their mutants re-run; a verdict that changes is reported `flaky` |
+| No orphans | Every Vitest server exits when its run does, killed or not |
 
 ## Migrating
 
-The config stays where it is, unchanged. The command changes:
+The config stays where it is. The command changes:
 
 ```diff
 - npx stryker run
@@ -124,8 +183,8 @@ The config stays where it is, unchanged. The command changes:
   }
 ```
 
-`// Stryker disable next-line <Mutator>: <reason>` comments are honoured as written. Three
-differences are on purpose:
+`// Stryker disable next-line <Mutator>: <reason>` comments are honoured as written, and every
+Stryker option oxmutate reads keeps its name and meaning. Three differences are on purpose:
 
 - Code inside TypeScript `as` casts and enums **is** mutated; Stryker 10.0.0 skips it.
   `--stryker-compat` gives Stryker's mutant set.
@@ -133,8 +192,8 @@ differences are on purpose:
   start-up to absorb. `timeoutMS` in your config wins.
 - Static mutants are scored, not skipped.
 
-[Coming from Stryker](https://github.com/ofri-peretz/burgee/blob/main/apps/docs-oxmutate/content/docs/coming-from/stryker.mdx)
-maps every config key.
+[Coming from Stryker](https://oxmutate.interlace.tools/docs/coming-from/stryker) maps every config
+key.
 
 ## Compatibility
 
@@ -154,9 +213,9 @@ mutant's verdict compared against Stryker's own JSON report. Measured on 2026-10
 ¹ From an earlier build of the same day, before that document's fixes; it is re-measured on the
 CI lane before it is quoted as a result.
 
-Of the two disagreements left, one is a Stryker timeout on a loop that ends (its hit limit
-stops it; the covering tests pass). The other is a mutant Stryker scored as a runtime error, so it
-has no Stryker verdict to compare; it has not been checked by hand yet.
+Of the two disagreements left, one is a Stryker timeout on a loop that ends (its hit limit stops
+it; the covering tests pass). The other is a mutant Stryker scored as a runtime error, so it has
+no Stryker verdict to compare.
 
 **Speed is not yet a published number.** On a shared laptop, paratext took 180.0 s under oxmutate
 and 427.4 s under Stryker, at 0.375 and 0.620 CPU-seconds a mutant; on controlroom oxmutate used
@@ -183,32 +242,60 @@ No suite is graded against this package yet, so there is no compatibility number
 - **Exit codes are the contract.** `0` ok; `1` it ran and the result failed (below `--break`, or
   the change weakened its tests); `2` a usage error, so rewrite the command; `3` the config or
   the suite did not load (a dry run that fails, an instrumented file that does not parse).
+- **The frozen oracle is a reward-hacking check.** An agent asked to make a mutation gate pass can
+  weaken the tests instead of strengthening them; `--frozen-oracle <ref>` scores the same mutants
+  against the base's tests and fails the change that did.
 - **The docs are machine-readable** at
   [oxmutate.interlace.tools/llms.txt](https://oxmutate.interlace.tools/llms.txt) and
   [llms-full.txt](https://oxmutate.interlace.tools/llms-full.txt).
 
+## Spec oracles
+
+A test asserts what someone thought to check; a formal model states what the code must do. A spec
+oracle replays a model's traces against every mutant, as a verdict beside the tests':
+
+```ts
+// vite.config.ts, inside `mutate`
+specOracles: [
+  {
+    name: 'save-restore',
+    backend: 'quint', // `quint run --mbt`; or 'itf' for a directory of traces any tool wrote
+    model: 'specs/save-restore.qnt',
+    replay: ['src/save-restore.replay.test.ts'],
+    files: ['src/cursor.ts'],
+  },
+],
+```
+
+The replay test imports `loadTraces` from `oxmutate/spec`, performs each step's action on the real
+code and asserts the model's state. The report then lists every **test-spec gap**: a mutant the
+model's traces kill while the tests let it survive, each with the trace that caught it, which is a
+test someone should write. [Spec oracles](https://oxmutate.interlace.tools/docs/spec-oracles) walks
+through one.
+
 ## Configuration
 
-oxmutate reads `stryker.config.{mjs,js,cjs,json}` and `oxmutate.config.*`, which wins where both
-set a key. Keys Stryker documents and oxmutate does not use are listed in the report with the
-reason. The keys only oxmutate reads (`ignore`, `specOracles`, `strykerCompat`, `flakyReruns`,
-`sarifReport`, `typeChecker`) belong in `oxmutate.config.*`, where Stryker never sees them.
+Every key, Stryker's and oxmutate's own, is on
+[oxmutate.interlace.tools/docs/configuration](https://oxmutate.interlace.tools/docs/configuration).
+Keys Stryker documents and oxmutate does not use are listed in the report with the reason. Beyond
+Stryker's options: `ignore` (calls whose subtrees are not mutated), `specOracles`, `flakyReruns`,
+`sarifReport`, `typeChecker` and `strykerCompat`.
 
 ## API
 
 | Import | What it gives you |
 | :-- | :-- |
-| `oxmutate` | `run()` and `loadOptions()`, the run's result types, `strykerReport()`, `sarifReport()` and `textSummary()`, and the CI-lane helpers `changedLines()`, `parseShard()` and `shardOf()` |
-| `oxmutate/spec` | `loadTraces()`, `readTrace()` and `decode()`: what a spec-oracle replay test imports to drive the code through a model's ITF traces |
+| `oxmutate` | `run()` and `loadOptions()`, the run's result types and `MutateConfig`, `strykerReport()`, `sarifReport()` and `textSummary()`, and the CI-lane helpers `changedLines()`, `parseShard()` and `shardOf()` |
+| `oxmutate/vite` | types only: the `mutate` block on Vite's `UserConfig` |
+| `oxmutate/spec` | `loadTraces()`, `readTrace()` and `decode()`: what a spec-oracle replay test imports |
 | `oxmutate/runner` | the Vitest runner oxmutate starts inside each Vitest worker; Vitest loads it, a program does not |
 
 The `oxmutate` bin is that API, declared once on burgee.
 
 ## Requirements
 
-Node 20.19 or later on the 20 line, or 22.13 or later. Vitest 4.1 or later in the project, for
-the default runner. A prebuilt native core for darwin-arm64, darwin-x64, linux-arm64-gnu,
-linux-x64-gnu, linux-x64-musl or win32-x64-msvc.
+Node 20.19 or later on the 20 line, or 22.13 or later. Vitest 4.1 or later in the project, for the
+default runner. macOS (arm64, x64), Linux (glibc x64 and arm64, musl x64) or Windows (x64).
 
 ## Where it sits
 
