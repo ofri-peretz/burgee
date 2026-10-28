@@ -103,7 +103,7 @@
           "why": "`caique/inquirer` — `createPrompt`, the hooks and the keypress helpers — is graded by @inquirer/core 12.0.3's own tests, unedited, rendered through a headless terminal.",
           "ours": { "status": "yes", "grade": "packages/compat-oracle/baseline/inquirer-core.json" },
           "incumbents": {
-            "inquirer-core": { "status": "yes", "source": "packages/compat-oracle/vendor/inquirer-core/packages/core/core.test.ts", "quote": "} from '../../shim.js';", "note": "its own suite, the control run" },
+            "inquirer-core": { "status": "yes", "source": "packages/compat-oracle/vendor/inquirer-core/packages/core/core.vitest.ts", "quote": "} from '../../shim.js';", "note": "its own suite, the control run" },
             "clack": { "status": "n/a", "source": "packages/compat-oracle/vendor/clack/packages/prompts/test/limit-options.test.ts", "quote": "import { type LimitOptionsParams, limitOptions } from '../../../shim.js';", "note": "a different API" }
           }
         },
@@ -112,7 +112,7 @@
           "why": "`caique/clack` is graded by the behavioural cases of @clack/prompts 1.8.1's own suite, with the snapshots of clack's exact frames subtracted by name, and one case that grades @clack/core's module state rather than @clack/prompts (D-20260930-caique-clack-core-exclusion).",
           "ours": { "status": "yes", "grade": "packages/compat-oracle/baseline/clack.json" },
           "incumbents": {
-            "inquirer-core": { "status": "n/a", "source": "packages/compat-oracle/vendor/inquirer-core/packages/core/core.test.ts", "quote": "} from '../../shim.js';", "note": "a different API" },
+            "inquirer-core": { "status": "n/a", "source": "packages/compat-oracle/vendor/inquirer-core/packages/core/core.vitest.ts", "quote": "} from '../../shim.js';", "note": "a different API" },
             "clack": { "status": "yes", "source": "packages/compat-oracle/vendor/clack/packages/prompts/test/limit-options.test.ts", "quote": "import { type LimitOptionsParams, limitOptions } from '../../../shim.js';", "note": "its own suite, the control run" }
           }
         }
