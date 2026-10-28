@@ -1,0 +1,502 @@
+From 7a0b38952b1de5dc7eb55e2b2e10c30d9218a2a8 Mon Sep 17 00:00:00 2001
+From: Ofri Peretz <ofriperetzdev@gmail.com>
+Date: Thu, 29 Oct 2026 01:02:41 +0200
+Subject: [PATCH] Refactor: replace yargs and its locale shim with burgee/yargs
+
+---
+ package-lock.json               | 172 ++++++++++++++------------------
+ package.json                    |   4 +-
+ scripts/compile.ts              |   2 +-
+ src/modules/argumentsParser.ts  |   3 +-
+ src/polyfill/yargsShim.ts       |  92 -----------------
+ test/polyfill/yargsShim.test.ts |  53 ----------
+ 6 files changed, 81 insertions(+), 245 deletions(-)
+ delete mode 100644 src/polyfill/yargsShim.ts
+ delete mode 100644 test/polyfill/yargsShim.test.ts
+
+diff --git a/package-lock.json b/package-lock.json
+index 4c0c0226..3d5b9117 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -16,6 +16,7 @@
+         "@openpgp/unbzip2-stream": "2.1.0",
+         "async": "3.2.6",
+         "async-mutex": "0.5.0",
++        "burgee": "1.9.2",
+         "chalk": "6.0.0",
+         "class-transformer": "0.5.1",
+         "fast-glob": "3.3.3",
+@@ -36,8 +37,7 @@
+         "typescript-memoize": "1.1.1",
+         "which": "7.0.0",
+         "wrap-ansi": "10.0.2",
+-        "xml2js": "0.6.2",
+-        "yargs": "18.2.0"
++        "xml2js": "0.6.2"
+       },
+       "bin": {
+         "igir": "dist/index.js"
+@@ -2185,6 +2185,18 @@
+         "node": ">=6.0.0"
+       }
+     },
++    "node_modules/bellpull": {
++      "version": "1.0.10",
++      "resolved": "https://registry.npmjs.org/bellpull/-/bellpull-1.0.10.tgz",
++      "integrity": "sha512-Wqo7LvExD6HasDTAoRrTnoZ1NLAJQX2H3KRqmp6WppO8fcd3FTw1VVuVEPS8WElDkjECLcXUSCPviT/zGJa+vg==",
++      "license": "MIT",
++      "bin": {
++        "bellpull": "dist/cli.js"
++      },
++      "engines": {
++        "node": "^20.19.0 || >=22.13.0"
++      }
++    },
+     "node_modules/bl": {
+       "version": "4.1.0",
+       "resolved": "https://registry.npmjs.org/bl/-/bl-4.1.0.tgz",
+@@ -2304,6 +2316,25 @@
+         "@types/node": "*"
+       }
+     },
++    "node_modules/burgee": {
++      "version": "1.9.2",
++      "resolved": "https://registry.npmjs.org/burgee/-/burgee-1.9.2.tgz",
++      "integrity": "sha512-9w0ILLtQn6c5n8FKRwdF3MyV94z48lUQDbF0Ssmz5NiJAg0nXBBRcT3kC/OnftPChSha5KP1frIYMa3lty1neg==",
++      "license": "MIT",
++      "dependencies": {
++        "bellpull": "^1.0.10",
++        "closeout": "^1.1.8",
++        "linegauge": "^1.1.5",
++        "roundel": "^1.2.1",
++        "seniority": "^1.2.0"
++      },
++      "bin": {
++        "burgee": "dist/cli.js"
++      },
++      "engines": {
++        "node": "^20.19.0 || >=22.13.0"
++      }
++    },
+     "node_modules/cacheable": {
+       "version": "2.5.0",
+       "resolved": "https://registry.npmjs.org/cacheable/-/cacheable-2.5.0.tgz",
+@@ -2422,52 +2453,16 @@
+       "integrity": "sha512-SQa1Ws6hUbfC98vKGxZH3KFY0Y1lm5Zm0SY8XX9zbK7FJCyVEac3ATW0RIpwzW+oOfmHE5PMPufDG9hCfoEOMw==",
+       "license": "MIT"
+     },
+-    "node_modules/cliui": {
+-      "version": "9.0.1",
+-      "resolved": "https://registry.npmjs.org/cliui/-/cliui-9.0.1.tgz",
+-      "integrity": "sha512-k7ndgKhwoQveBL+/1tqGJYNz097I7WOvwbmmU2AR5+magtbjPWQTS1C5vzGkBC8Ym8UWRzfKUzUUqFLypY4Q+w==",
+-      "license": "ISC",
+-      "dependencies": {
+-        "string-width": "^7.2.0",
+-        "strip-ansi": "^7.1.0",
+-        "wrap-ansi": "^9.0.0"
+-      },
+-      "engines": {
+-        "node": ">=20"
+-      }
+-    },
+-    "node_modules/cliui/node_modules/string-width": {
+-      "version": "7.2.0",
+-      "resolved": "https://registry.npmjs.org/string-width/-/string-width-7.2.0.tgz",
+-      "integrity": "sha512-tsaTIkKW9b4N+AEj+SVA+WhJzV7/zMhcSu78mLKWSk7cXMOSHsBKFWUs0fWwq8QyK3MgJBQRX6Gbi4kYbdvGkQ==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "emoji-regex": "^10.3.0",
+-        "get-east-asian-width": "^1.0.0",
+-        "strip-ansi": "^7.1.0"
+-      },
+-      "engines": {
+-        "node": ">=18"
+-      },
+-      "funding": {
+-        "url": "https://github.com/sponsors/sindresorhus"
+-      }
+-    },
+-    "node_modules/cliui/node_modules/wrap-ansi": {
+-      "version": "9.0.2",
+-      "resolved": "https://registry.npmjs.org/wrap-ansi/-/wrap-ansi-9.0.2.tgz",
+-      "integrity": "sha512-42AtmgqjV+X1VpdOfyTGOYRi0/zsoLqtXQckTmqTeybT+BDIbM/Guxo7x3pE2vtpr1ok6xRqM9OpBe+Jyoqyww==",
++    "node_modules/closeout": {
++      "version": "1.1.8",
++      "resolved": "https://registry.npmjs.org/closeout/-/closeout-1.1.8.tgz",
++      "integrity": "sha512-Pyva6aEpwEIutto4tCSaZGHjsXU+HBUUXxQm3AP7CMmKyBrypZ5KcWd7Gj1CzGX/4c62C6DJtL/QffJj0kko3Q==",
+       "license": "MIT",
+-      "dependencies": {
+-        "ansi-styles": "^6.2.1",
+-        "string-width": "^7.0.0",
+-        "strip-ansi": "^7.1.0"
++      "bin": {
++        "closeout": "dist/cli.js"
+       },
+       "engines": {
+-        "node": ">=18"
+-      },
+-      "funding": {
+-        "url": "https://github.com/chalk/wrap-ansi?sponsor=1"
++        "node": "^20.19.0 || >=22.13.0"
+       }
+     },
+     "node_modules/commander": {
+@@ -2651,12 +2646,6 @@
+         }
+       }
+     },
+-    "node_modules/emoji-regex": {
+-      "version": "10.6.0",
+-      "resolved": "https://registry.npmjs.org/emoji-regex/-/emoji-regex-10.6.0.tgz",
+-      "integrity": "sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A==",
+-      "license": "MIT"
+-    },
+     "node_modules/end-of-stream": {
+       "version": "1.4.5",
+       "resolved": "https://registry.npmjs.org/end-of-stream/-/end-of-stream-1.4.5.tgz",
+@@ -2754,6 +2743,7 @@
+       "version": "3.2.0",
+       "resolved": "https://registry.npmjs.org/escalade/-/escalade-3.2.0.tgz",
+       "integrity": "sha512-WUj2qlxaQtO4g6Pq5c29GTcWGDyd8itL8zTlipgECz3JesAiiOKotd8JU6otB3PACgG6xkJUyVhboMS+bje/jA==",
++      "dev": true,
+       "license": "MIT",
+       "engines": {
+         "node": ">=6"
+@@ -3418,15 +3408,6 @@
+         "node": "^8.16.0 || ^10.6.0 || >=11.0.0"
+       }
+     },
+-    "node_modules/get-caller-file": {
+-      "version": "2.0.5",
+-      "resolved": "https://registry.npmjs.org/get-caller-file/-/get-caller-file-2.0.5.tgz",
+-      "integrity": "sha512-DyFP3BM/3YHTQOCUL/w0OZHR0lpKeGrxotcHWcqNEdnltqFwXVfhEBQ94eIo34AfQpo0rGki4cyIiftY06h2Fg==",
+-      "license": "ISC",
+-      "engines": {
+-        "node": "6.* || 8.* || >= 10.*"
+-      }
+-    },
+     "node_modules/get-east-asian-width": {
+       "version": "1.7.0",
+       "resolved": "https://registry.npmjs.org/get-east-asian-width/-/get-east-asian-width-1.7.0.tgz",
+@@ -4230,6 +4211,18 @@
+         "url": "https://opencollective.com/parcel"
+       }
+     },
++    "node_modules/linegauge": {
++      "version": "1.1.5",
++      "resolved": "https://registry.npmjs.org/linegauge/-/linegauge-1.1.5.tgz",
++      "integrity": "sha512-8LVdYnstDAWDJTxpDgixQT/el77mKbpYNnyGJKFERWEslRUIy9GICeLWmWzHDG9f5GkG6T76c1ksLBTcZ1oCHA==",
++      "license": "MIT",
++      "bin": {
++        "linegauge": "dist/cli.js"
++      },
++      "engines": {
++        "node": "^20.19.0 || >=22.13.0"
++      }
++    },
+     "node_modules/locate-path": {
+       "version": "6.0.0",
+       "resolved": "https://registry.npmjs.org/locate-path/-/locate-path-6.0.0.tgz",
+@@ -5597,6 +5590,18 @@
+         "@rolldown/binding-win32-x64-msvc": "1.2.14"
+       }
+     },
++    "node_modules/roundel": {
++      "version": "1.3.0",
++      "resolved": "https://registry.npmjs.org/roundel/-/roundel-1.3.0.tgz",
++      "integrity": "sha512-NBEIW4fMTBYZ/Nh8+mdHSsHFxh8r6HFArnWWCU5gOOrEh1pT84+sGf+B0DDavw6UVfyBKQZIIxPVqiyi92jKsQ==",
++      "license": "MIT",
++      "bin": {
++        "roundel": "dist/cli.js"
++      },
++      "engines": {
++        "node": "^20.19.0 || >=22.13.0"
++      }
++    },
+     "node_modules/run-parallel": {
+       "version": "1.2.0",
+       "resolved": "https://registry.npmjs.org/run-parallel/-/run-parallel-1.2.0.tgz",
+@@ -5662,6 +5667,18 @@
+         "node": ">=10"
+       }
+     },
++    "node_modules/seniority": {
++      "version": "1.2.0",
++      "resolved": "https://registry.npmjs.org/seniority/-/seniority-1.2.0.tgz",
++      "integrity": "sha512-m+IyQr4WbH8/jyUD+Xg1E28yBM7smcikltZ7E65XK3TPl2JqcUv9NqvW2Zyg6B8E1HAiL3WpzK+Il1WlSfNcvg==",
++      "license": "MIT",
++      "bin": {
++        "seniority": "dist/cli.js"
++      },
++      "engines": {
++        "node": "^20.19.0 || >=22.13.0"
++      }
++    },
+     "node_modules/shebang-command": {
+       "version": "2.0.0",
+       "resolved": "https://registry.npmjs.org/shebang-command/-/shebang-command-2.0.0.tgz",
+@@ -6658,15 +6675,6 @@
+         "node": ">=4.0"
+       }
+     },
+-    "node_modules/y18n": {
+-      "version": "5.0.8",
+-      "resolved": "https://registry.npmjs.org/y18n/-/y18n-5.0.8.tgz",
+-      "integrity": "sha512-0pfFzegeDWJHJIAmTLRP2DwHjdF5s7jo9tuztdQxAhINCdvS+3nGINqPd00AphqJR/0LhANUS6/+7SCb98YOfA==",
+-      "license": "ISC",
+-      "engines": {
+-        "node": ">=10"
+-      }
+-    },
+     "node_modules/yallist": {
+       "version": "5.0.0",
+       "resolved": "https://registry.npmjs.org/yallist/-/yallist-5.0.0.tgz",
+@@ -6692,32 +6700,6 @@
+         "url": "https://github.com/sponsors/eemeli"
+       }
+     },
+-    "node_modules/yargs": {
+-      "version": "18.2.0",
+-      "resolved": "https://registry.npmjs.org/yargs/-/yargs-18.2.0.tgz",
+-      "integrity": "sha512-9OpKOLeaoNFecEp7P6iYbzze/5CqWoH7N3SMs/6y1XF4nMvFMspEGZzJ6uFi9MmQwXhyzqYoSEKO3tvA3Z/o2w==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "cliui": "^9.0.1",
+-        "escalade": "^3.1.1",
+-        "get-caller-file": "^2.0.5",
+-        "string-width": "^8.2.1",
+-        "y18n": "^5.0.5",
+-        "yargs-parser": "^22.0.0"
+-      },
+-      "engines": {
+-        "node": "^20.19.0 || ^22.12.0 || >=23"
+-      }
+-    },
+-    "node_modules/yargs-parser": {
+-      "version": "22.0.0",
+-      "resolved": "https://registry.npmjs.org/yargs-parser/-/yargs-parser-22.0.0.tgz",
+-      "integrity": "sha512-rwu/ClNdSMpkSrUb+d6BRsSkLUq1fmfsY6TOpYzTwvwkg1/NRG85KBy3kq++A8LKQwX6lsu+aWad+2khvuXrqw==",
+-      "license": "ISC",
+-      "engines": {
+-        "node": "^20.19.0 || ^22.12.0 || >=23"
+-      }
+-    },
+     "node_modules/yocto-queue": {
+       "version": "0.1.0",
+       "resolved": "https://registry.npmjs.org/yocto-queue/-/yocto-queue-0.1.0.tgz",
+diff --git a/package.json b/package.json
+index b2e23e1a..097c34e3 100644
+--- a/package.json
++++ b/package.json
+@@ -80,6 +80,7 @@
+     "@openpgp/unbzip2-stream": "2.1.0",
+     "async": "3.2.6",
+     "async-mutex": "0.5.0",
++    "burgee": "1.9.2",
+     "chalk": "6.0.0",
+     "class-transformer": "0.5.1",
+     "fast-glob": "3.3.3",
+@@ -100,8 +101,7 @@
+     "typescript-memoize": "1.1.1",
+     "which": "7.0.0",
+     "wrap-ansi": "10.0.2",
+-    "xml2js": "0.6.2",
+-    "yargs": "18.2.0"
++    "xml2js": "0.6.2"
+   },
+   "devDependencies": {
+     "@eslint/js": "10.0.1",
+diff --git a/scripts/compile.ts b/scripts/compile.ts
+index e71c1969..33472e42 100644
+--- a/scripts/compile.ts
++++ b/scripts/compile.ts
+@@ -5,7 +5,7 @@ import fs from 'node:fs';
+ import module from 'node:module';
+ import path from 'node:path';
+ 
+-import yargs from 'yargs';
++import yargs from 'burgee/yargs';
+ 
+ import Timer from '../src/async/timer.js';
+ import { logger } from '../src/console/logger.js';
+diff --git a/src/modules/argumentsParser.ts b/src/modules/argumentsParser.ts
+index 36b2ff9f..1e029b42 100644
+--- a/src/modules/argumentsParser.ts
++++ b/src/modules/argumentsParser.ts
+@@ -1,7 +1,7 @@
+ import fs from 'node:fs';
+ import path from 'node:path';
+ 
+-import type { Argv } from 'yargs';
++import yargs, { type Argv } from 'burgee/yargs';
+ 
+ import { logger } from '../console/logger.js';
+ import IgirException from '../exceptions/igirException.js';
+@@ -34,7 +34,6 @@ import Options, {
+   ZipFormat,
+   ZipFormatInverted,
+ } from '../models/options.js';
+-import yargs from '../polyfill/yargsShim.js';
+ import ArrayUtil from '../utils/arrayUtil.js';
+ import ConsoleUtil from '../utils/consoleUtil.js';
+ import PathUtil from '../utils/pathUtil.js';
+diff --git a/src/polyfill/yargsShim.ts b/src/polyfill/yargsShim.ts
+deleted file mode 100644
+index 195da4fc..00000000
+--- a/src/polyfill/yargsShim.ts
++++ /dev/null
+@@ -1,92 +0,0 @@
+-import module from 'node:module';
+-import path from 'node:path';
+-import util from 'node:util';
+-
+-import type { Argv } from 'yargs';
+-
+-/**
+- * Igir ships as a single self-contained binary (Bun-compiled). Nothing in the
+- * app — neither igir nor its dependencies — may rely on files being
+- * present on disk relative to the executable. Every asset that the runtime
+- * needs must be a static `import` so the bundler embeds it into the binary.
+- *
+- * yargs' default ESM platform shim violates this: it resolves its locale
+- * directory at runtime via `path.resolve(__dirname, '../../../locales')` and
+- * reads the matching JSON with `fs.readFileSync`. In a Bun-compiled Windows
+- * binary, that path lands on a virtual mount on the `B:` drive; if the user
+- * has a real `B:` drive (e.g., a DVD drive), the read returns `EUNKNOWN`
+- * instead of `ENOENT`, and y18n rethrows — crashing every igir invocation.
+- */
+-
+-type YargsConstructor = (processArgs?: readonly string[] | string, cwd?: string) => Argv;
+-type YargsFactoryFn = (shim: object) => YargsConstructor;
+-type LocaleEntry = string | { one: string; other: string };
+-
+-// yargs doesn't expose the files that we need, we have to import by file path
+-const require = module.createRequire(import.meta.url);
+-const yargsRoot = path.dirname(require.resolve('yargs/package.json'));
+-/* eslint-disable @typescript-eslint/no-unsafe-assignment -- yargs ships no types for these internals */
+-const { YargsFactory: YargsFactoryRaw } = require(`${yargsRoot}/build/lib/yargs-factory.js`);
+-const { default: esmShimRaw } = require(`${yargsRoot}/lib/platform-shims/esm.mjs`);
+-const enLocaleRaw: Record<string, LocaleEntry> = require(`${yargsRoot}/locales/en.json`);
+-
+-const YargsFactory: YargsFactoryFn = YargsFactoryRaw;
+-const esmShim: object = esmShimRaw;
+-const enLocale = enLocaleRaw;
+-
+-/**
+- * Apply `util.format` to `template` and `args`, dropping any function-valued
+- * arguments. y18n's public API treats a trailing callback as a write-completion
+- * notifier rather than a substitution value; this stub never performs writes,
+- * so those callbacks are silently discarded.
+- */
+-const format = (template: string, ...args: unknown[]): string =>
+-  util.format(template, ...args.filter((arg) => typeof arg !== 'function'));
+-
+-/**
+- * Build a y18n-compatible translation object seeded with yargs' English locale.
+- * The returned object exposes `__`, `__n`, `setLocale`, `getLocale`, and
+- * `updateLocale`, performs `util.format`-style substitution, and resolves
+- * unknown keys to the key itself. No filesystem access is ever performed.
+- */
+-const makeY18n = (): object => {
+-  const translations: Record<string, LocaleEntry> = { ...enLocale };
+-  return {
+-    __: (...args: unknown[]): string => {
+-      const [key, ...rest] = args;
+-      if (typeof key !== 'string') {
+-        return util.inspect(key);
+-      }
+-      const entry = translations[key];
+-      return format(typeof entry === 'string' ? entry : key, ...rest);
+-    },
+-    __n: (singular: string, plural: string, count: number, ...args: unknown[]): string => {
+-      const entry = translations[singular];
+-      const template =
+-        typeof entry === 'object'
+-          ? entry[count === 1 ? 'one' : 'other']
+-          : count === 1
+-            ? singular
+-            : plural;
+-      return format(template, ...(template.includes('%d') ? [count, ...args] : args));
+-    },
+-    setLocale: (): void => undefined,
+-    getLocale: (): string => 'en',
+-    updateLocale: (obj: Record<string, LocaleEntry>): void => {
+-      Object.assign(translations, obj);
+-    },
+-  };
+-};
+-
+-/**
+- * Drop-in replacement for the default `yargs` export. Accepts the same
+- * `processArgs` and `cwd` arguments and returns a fresh {@link Argv} instance.
+- *
+- * - Locale strings resolve without any filesystem access.
+- * - Only English is available; `.locale()` calls are silently ignored.
+- * - Each call produces an independent instance, so `.updateStrings()` on one
+- *   {@link Argv} does not affect any other.
+- */
+-const yargs = (processArgs?: readonly string[] | string, cwd?: string): Argv =>
+-  YargsFactory({ ...esmShim, y18n: makeY18n() })(processArgs, cwd);
+-export default yargs;
+diff --git a/test/polyfill/yargsShim.test.ts b/test/polyfill/yargsShim.test.ts
+deleted file mode 100644
+index 4c92b147..00000000
+--- a/test/polyfill/yargsShim.test.ts
++++ /dev/null
+@@ -1,53 +0,0 @@
+-import yargs from '../../src/polyfill/yargsShim.js';
+-
+-describe('factory', () => {
+-  it('should be callable', () => {
+-    expect(typeof yargs).toBe('function');
+-  });
+-
+-  it('should parse options', async () => {
+-    const argv = await yargs([]).option('foo', { type: 'string' }).parse(['--foo', 'bar']);
+-    expect(argv.foo).toBe('bar');
+-  });
+-});
+-
+-describe('translations', () => {
+-  it('should render English section headings in help output', async () => {
+-    const help = await yargs([]).option('foo', { type: 'string' }).getHelp();
+-    expect(help).toContain('Options:');
+-    expect(help).toContain('--foo');
+-  });
+-
+-  it('should render English error messages for missing required arguments', async () => {
+-    await expect(
+-      (async (): Promise<unknown> =>
+-        await yargs([])
+-          .option('foo', { type: 'string', demandOption: true })
+-          .fail((msg) => {
+-            throw new Error(msg);
+-          })
+-          .parse([]))(),
+-    ).rejects.toThrow(/Missing required argument: foo/);
+-  });
+-
+-  it('should accept updateStrings overrides', async () => {
+-    const help = await yargs([])
+-      .option('foo', { type: 'string' })
+-      .updateStrings({ 'Options:': 'Custom heading:' })
+-      .getHelp();
+-    expect(help).toContain('Custom heading:');
+-    expect(help).not.toContain('Options:');
+-  });
+-
+-  it('should pluralize messages with %s substitution', async () => {
+-    await expect(
+-      (async (): Promise<unknown> =>
+-        await yargs([])
+-          .demandCommand(2)
+-          .fail((msg) => {
+-            throw new Error(msg);
+-          })
+-          .parse(['only-one-arg']))(),
+-    ).rejects.toThrow(/Not enough non-option arguments: got 1, need at least 2/);
+-  });
+-});
+-- 
+2.49.0
+
