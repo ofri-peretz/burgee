@@ -64,13 +64,15 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('serveMcpSync', () => {
   it('reads descriptor 0 in pieces, answers each request in turn on descriptor 1, and returns when the input ends', () => {
-    const init = request(1, 'initialize', { protocolVersion: '2025-06-18', clientInfo: { name: 'é' } });
+    // The id is echoed, so a character split across two reads has to come back whole.
+    const init = `${JSON.stringify({ jsonrpc: '2.0', id: 'é1', method: 'initialize', params: { protocolVersion: '2025-06-18' } })}\n`;
     const bytes = new TextEncoder().encode(init);
-    const split = init.indexOf('é') + 1; // between the two bytes of `é`
-    const replies = session([bytes.subarray(0, split), bytes.subarray(split), '\n   \n{not json\n', request(undefined, 'notifications/initialized'), request(2, 'tools/list'), '{"jsonrpc":"2.0","id":3,"method":"ping"}']);
+    const split = new TextEncoder().encode(init.slice(0, init.indexOf('é'))).length + 1; // between the two bytes of `é`
+    const replies = session([bytes.subarray(0, split), bytes.subarray(split), '\n   \n{not json\n{"jsonrpc":"2.0","id":9}\n', request(undefined, 'notifications/initialized'), request(2, 'tools/list'), '{"jsonrpc":"2.0","id":3,"method":"ping"}']);
     expect(replies).toEqual([
-      { jsonrpc: '2.0', id: 1, result: { protocolVersion: '2025-06-18', capabilities: { tools: {} }, serverInfo: { name: 'app', version: '0.0.0' } } },
+      { jsonrpc: '2.0', id: 'é1', result: { protocolVersion: '2025-06-18', capabilities: { tools: {} }, serverInfo: { name: 'app', version: '0.0.0' } } },
       { jsonrpc: '2.0', id: null, error: { code: -32600, message: 'invalid JSON' } },
+      { jsonrpc: '2.0', id: 9, error: { code: -32600, message: 'missing method' } },
       { jsonrpc: '2.0', id: 2, result: { tools: [expect.objectContaining({ name: 'echo' })] } },
       { jsonrpc: '2.0', id: 3, result: {} },
     ]);
@@ -82,6 +84,7 @@ describe('serveMcpSync', () => {
     const invoke: InvokeSync = (argv) => {
       order.push(`run ${argv.join(' ')}`);
       console.log('printed by the handler');
+      process.stdout.write('and by a write');
       return { stdout: '{"ok":true,"data":{"n":3}}\n', stderr: '', code: 0 };
     };
     feed([request(1, 'tools/call', { name: 'echo', arguments: { words: ['a'] } }), request(2, 'ping')]);
@@ -96,7 +99,7 @@ describe('serveMcpSync', () => {
     expect(JSON.parse(written[0] as string)).toEqual({
       jsonrpc: '2.0',
       id: 1,
-      result: { content: [{ type: 'text', text: '{"ok":true,"data":{"n":3}}' }, { type: 'text', text: 'printed by the handler' }], isError: false, structuredContent: { n: 3 } },
+      result: { content: [{ type: 'text', text: '{"ok":true,"data":{"n":3}}' }, { type: 'text', text: 'printed by the handler\nand by a write' }], isError: false, structuredContent: { n: 3 } },
     });
   });
 
@@ -181,5 +184,16 @@ describe('the synchronous descriptors', () => {
     expect([...linesOf(reader(0))]).toEqual(['a', 'bc', '']);
     feed(['x\ny']);
     expect([...linesOf(reader(0))]).toEqual(['x', 'y']);
+  });
+});
+
+describe('the handshake', () => {
+  it('names a program whose root path is two words by both, with a space between', () => {
+    const named = defineProgram({ name: 'app', commands: [] });
+    named.rootPath = ['acme', 'deploy'];
+    feed([request(1, 'initialize')]);
+    const written: string[] = [];
+    serveMcpSync(named, ok, { write: (s) => written.push(s) });
+    expect((JSON.parse(written[0] as string) as { result: { serverInfo: { name: string } } }).result.serverInfo.name).toBe('acme deploy');
   });
 });

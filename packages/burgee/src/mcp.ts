@@ -317,6 +317,7 @@ function printedBy(call: McpCall, run: () => Ran | Promise<Ran>): Printed | Prom
     capture.settled = true;
     return { settled, printed: chunks.join('') };
   };
+  // Stryker disable next-line StringLiteral: `resultOf` reads only 'fulfilled'; this literal is the type's, and no reader tells one non-fulfilled status from another
   const rejected = (reason: unknown): Printed => end({ status: 'rejected', reason });
   try {
     const value = calls.run(capture, run);
