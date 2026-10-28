@@ -5,7 +5,7 @@
 > out on `windows-latest` and pass on Linux. Refreshed 2026-10-18 with per-case durations read
 > from `main`'s own Windows cells.
 
-**Status:** approved · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-10-12 · **Owner:** @ofri-peretz · **Shipped:** 2026-10-28 against `main` at `b62cf2a105` (#1322), counted by [D-20261028-windows-pinned-sha-counts](../../decisions/D-20261028-windows-pinned-sha-counts.md). All four criteria held: 2 and 3 over ten consecutive dispatched full Windows cells, each naming 0 of 12,207 cases; 1 and 4 in those cells and on `main`'s own. Tests and workflows only, nothing to publish. § Shipped has the table
 
 ---
 
@@ -74,6 +74,55 @@ runner is not saturated, with every assertion kept. They are PowerShell completi
 3. Ten consecutive green Windows cells on `main`.
 4. The PowerShell case at or under 60 s in every one of ten consecutive full Windows cells on
    `main`, with a median under 10 s. Baseline: median 22.0 s, maximum 59.7 s, n = 15.
+
+## Shipped — 2026-10-28
+
+Ten `compat.yml` runs were dispatched one after another, with `os=windows-latest` and `node=24`.
+Each one ran on `probe/windows-lane-holds`, pinned to `b62cf2a105`. That commit is #1322's merge
+on `main`, and it holds R6 and R7 (#1314, #1319). Every run was a full cell (`FULL: true`), and
+every run concluded `success` on its first attempt. No dispatch was dropped or re-run.
+
+The loop waited out a network outage between runs 6 and 7, from 01:43 to 08:05 UTC. It went on
+after that, so the ten are still consecutive.
+[D-20261028-windows-pinned-sha-counts](../../decisions/D-20261028-windows-pinned-sha-counts.md)
+records why ten cells of one `main` commit count as ten consecutive cells on `main`. It also
+records the one later commit that grades a case differently on Windows: c2c42450 (#1327), a
+caique test.
+
+| # | criterion | evidence |
+| :-- | :-- | :-- |
+| 1 | a per-case duration report from every Windows cell, as an artifact | every one of the ten cells uploaded `vitest-durations-matrix-windows-latest-node24`, with 12,207 cases (run 40597587808: artifact 12778551955) |
+| 2 | the half-budget check names no case | each cell's *Cases above half their timeout* step printed `0 of 12207 case(s) above half their timeout`. The highest share of any case was 32.1 % (`plan-progress-lock`, 96.2 s of 300 s, run 40613018097) |
+| 3 | ten consecutive green Windows cells on `main` | the ten cells below, every one `success`. `main`'s own six full Windows cells that completed after #1322 were green too, and named no case (40597994108 to 40623625466) |
+| 4 | the PowerShell case at or under 60 s in each of ten consecutive full cells, median under 10 s | 0.56–1.14 s over the ten, median 0.81 s (baseline: median 22.0 s, maximum 59.7 s) |
+
+The ten cells, in run order:
+
+| # | run | Windows job | job time | half-budget check | PowerShell case |
+| --: | :-- | :-- | --: | :-- | --: |
+| 1 | 40597587808 | 122517492175 | 27 m 22 s | 0 of 12,207 | 1,142 ms |
+| 2 | 40601063647 | 122529444476 | 26 m 15 s | 0 of 12,207 | 835 ms |
+| 3 | 40604239095 | 122540076795 | 26 m 03 s | 0 of 12,207 | 779 ms |
+| 4 | 40607319302 | 122550602693 | 24 m 37 s | 0 of 12,207 | 855 ms |
+| 5 | 40610173806 | 122560871013 | 22 m 06 s | 0 of 12,207 | 623 ms |
+| 6 | 40613018097 | 122571697675 | 26 m 55 s | 0 of 12,207 | 917 ms |
+| 7 | 40616755385 | 122584760526 | 23 m 32 s | 0 of 12,207 | 603 ms |
+| 8 | 40654350691 | 122701963614 | 24 m 34 s | 0 of 12,207 | 695 ms |
+| 9 | 40657396111 | 122711829188 | 28 m 28 s | 0 of 12,207 | 907 ms |
+| 10 | 40662232727 | 122727990005 | 17 m 35 s | 0 of 12,207 | 564 ms |
+
+These are the rows the 2026-10-26 reading named, as they stand over the ten cells:
+
+- The R3 phases case took 0.95–1.71 s, against 54.7–68.6 s before R3d.
+- controlroom's Ink case reached at most 18.4 s of 120 s.
+- Every `changeset-check-lock` and `dependabot-automerge-lock` case took 3 ms or less.
+- `family-versions` reached at most 1.4 s of 30 s.
+
+The cost R6 moved into `beforeAll` is not timed by the check. The whole `changeset-check-lock`
+file took 2.4–23.0 s, under the hook's 120 s.
+
+The reversal is in the decision. If any of the next ten full Windows cells fails a case named
+here, or the half-budget check names one of those cases, this intent reopens.
 
 ## Where the criteria stand — 2026-10-26
 
