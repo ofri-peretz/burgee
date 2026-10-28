@@ -185,6 +185,13 @@ describe.each(published)('published package $pkg.name', ({ dir, pkg }) => {
     expect(external, `${pkg.name} would install ${external.join(', ')} from outside this repository`).toEqual([]);
   });
 
+  // oxmutate 1.0.0 shipped `"burgee": "*"` and `"bellpull": "*"`, so a future major of either
+  // would install under it (2026-10-29). Every family package pins its siblings by caret range.
+  it('depends on a family package by a caret range, never "*"', () => {
+    const ranges = Object.entries(pkg.dependencies ?? {}).filter(([, range]) => !/^\^\d+\.\d+\.\d+$/.test(range));
+    expect(ranges, `${pkg.name}: ${ranges.map(([d, r]) => `${d}@${r}`).join(', ')}`).toEqual([]);
+  });
+
   // The one exception D-111 admits, and the reason it does not open the door D-111 closed: a
   // peer marked optional in `peerDependenciesMeta` is never installed by npm, so it costs an
   // adopter nothing unless their own program already has it. controlroom/spec.md R11 (D-158)
