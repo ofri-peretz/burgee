@@ -469,7 +469,7 @@ codebase is the number of things a user has to trust, not convenience.
 
 | | Layer | Package | What the layer owns | Migrates from | Status |
 | :-- | :-- | :-- | :-- | :-- | :-- |
-| **Engine** | argv, dispatch, manifest | [`burgee`](./packages/burgee/) | one declaration projected to help, `--json`, `--schema`, MCP, completions, types | commander · yargs · meow | released — `burgee@1.9.0` |
+| **Engine** | argv, dispatch, manifest | [`burgee`](./packages/burgee/) | one declaration projected to help, `--json`, `--schema`, MCP, completions, types | commander · yargs · meow | released — `burgee@1.9.1` |
 | **Output stack** | colour | [`roundel`](./packages/roundel/) | one output policy, nine semantic tokens, a contrast-checked theme, and chalk's API over them | chalk · picocolors | released — `roundel@1.3.0` |
 | | render | [`flagstaff`](./packages/flagstaff/) | frame loop with a static projection; plugin host for spinners, progress, boxes, tables | ora · log-update · boxen · cli-table3 | released — `flagstaff@1.7.5` |
 | | prompt | [`caique`](./packages/caique/) | prompts that are flags first, and never hang | inquirer · clack · prompts | released — `caique@1.6.0` |
