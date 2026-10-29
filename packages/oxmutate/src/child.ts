@@ -48,6 +48,7 @@ const vitestNode = (await import(resolveEsm('vitest/node', config.root))) as {
     start(files?: string[]): Promise<unknown>;
     close(): Promise<void>;
     config: { bail: number };
+    projects: { config: { runner?: string; isolate?: boolean } }[];
   }>;
 };
 
@@ -79,6 +80,11 @@ const vitest = await vitestNode.createVitest(
   // A private Vite cache per run, so no cache outside this run can answer for a mutated file.
   { plugins: [instrumentedSources(config.instrumentedMap)], cacheDir: path.join(path.dirname(config.instrumentedMap), 'vite-cache') },
 );
+// A config with `projects` resolves each project's `runner` and `isolate` from its own inline
+// config, never from these options, so its tests ran without oxmutate's runner and the dry run
+// recorded none (burgee, weekly run 40783405734, 2026-10-28). Each project keeps its own pool:
+// burgee's run in forks, and its process.env lock fails under threads.
+for (const project of vitest.projects) Object.assign(project.config, { runner, isolate: true });
 
 /** Has the runner recorded a kill for this mutant in this unit's results yet? */
 function killed(results: string, id: string): boolean {
