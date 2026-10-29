@@ -114,7 +114,7 @@ Every Stryker 10.0.0 capability, where it lands, and what "better" means. **P** 
 | Execution sharing (mutant schemata, split-stream / AccMut-style) | M5 | Research track for the next order-of-magnitude gain |
 | Predictive prioritization | M5 | Run the mutants most likely to survive first; useful in PR budgets |
 
-## Status, 2026-10-27
+## Status, 2026-10-29
 
 What is built against this matrix. ✅ built and tested · 🟡 partly · ⬜ not started. Every ✅
 has a test that fails without it (named in the commit that added it).
@@ -139,7 +139,9 @@ has a test that fails without it (named in the commit that added it).
 | Formal | Spec oracles: Quint (`quint run --mbt`) and ITF backends, `oxmutate/spec`, F1–F4 and F6 | ✅ | `src/spec-oracle.ts`, `src/spec.ts` |
 | Formal | The M3.5 gate on a burgee component with a `.qnt` model (closeout's save-restore) | ⬜ | a replay test in closeout's lane |
 | Release | Per-platform native packages, trusted publishing, version sync | ✅ | `oxmutate-native.yml`, `release.yml` |
-| Release | 1.0.0 on npm, the native cores bundled; docs live at oxmutate.interlace.tools | 🟡 | publishes when ofri-peretz/burgee#1302 merges (`RELEASING.md`) |
+| Release | 1.0.0 on npm, the native cores bundled; docs live at oxmutate.interlace.tools | ✅ | `oxmutate@1.0.0`, release run 40740297440 (publish re-run 2026-10-29), six cores in the tarball |
+| Release | Family dependencies by caret range (SC6 restated, D-20261028-oxmutate-sc6-family-deps-bundled-cores) | ✅ | ofri-peretz/burgee#1350; `scripts/package-shape-lock.test.ts` |
+| Compat | Graded by Stryker 10.0.0's own mutator specs (SC9): 236 of 236, 4 not applicable | ✅ | `npm run compat:mutation`, `vendor/stryker-mutators`, `compat/not-applicable.ts` |
 | Speed | `≥ 5x` on burgee packages (`S3`) | 🟡 | met on es-toolkit; missed on paratext (2.4x) and controlroom (`m1-results.md`) |
 
 M4 items wait for an adopter, and M5 items for a measured gain, as their gates say.

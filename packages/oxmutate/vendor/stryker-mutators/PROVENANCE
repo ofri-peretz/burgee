@@ -1,0 +1,35 @@
+Package:  @stryker-mutator/instrumenter (its mutator unit specs)
+repo:     https://github.com/stryker-mutator/stryker-js
+version:  10.0.0
+tag:      v10.0.0
+commit:   2ac2c23cd5261a3fbfdfe606c6c42bb20910ce96
+vendored: 2026-10-29
+files:    17
+license:  Apache-2.0 (LICENSE, beside this file)
+
+How this directory was made
+---------------------------
+The 17 files under packages/instrumenter/test/unit/mutators/*-mutator.spec.ts at v10.0.0,
+fetched through the GitHub contents API and copied here byte for byte. Not one edit, not
+even to the import specifiers: compat/vitest.config.ts resolves the specs' imports of
+`../../../src/mutators/*.js` and `../../helpers/expect-mutation.js` to oxmutate's shims, so
+Stryker's own tables grade oxmutate's native core (SC9, .sdlc/intents/oxmutate/intent.md).
+
+What is graded, and what is not
+-------------------------------
+Each `expectJSMutation(mutator, input, context, ...expected)` runs `input` through
+oxmutate's instrumenter, keeps the mutants of that mutator's family, and requires exactly
+`expected` — compared after both sides are printed by one printer, because Stryker prints a
+replaced node through @babel/generator and oxmutate edits the source span, and the two
+format a statement differently while meaning the same program.
+
+Tests of Stryker's internals rather than its mutants are listed, each with its reason, in
+compat/not-applicable.ts; they are skipped by name, never edited.
+
+Reproduce
+---------
+    for f in $(gh api "repos/stryker-mutator/stryker-js/git/trees/v10.0.0?recursive=1" --jq '.tree[].path' \
+        | grep -E 'packages/instrumenter/test/unit/mutators/.*-mutator\.spec\.ts$'); do
+      gh api "repos/stryker-mutator/stryker-js/contents/$f?ref=v10.0.0" --jq .content | base64 -d \
+        > packages/oxmutate/vendor/stryker-mutators/test/unit/mutators/$(basename "$f")
+    done

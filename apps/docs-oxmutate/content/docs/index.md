@@ -197,11 +197,16 @@ key.
 
 ## Compatibility
 
-**Not graded.** No suite is graded through `compat-oracle` for oxmutate, so it has no
-compatibility row. That oracle grades an import path by running the incumbent's own test suite
-against it, and a mutation tester's output is not a passing test but a verdict per mutant. So the
-comparison is verdict agreement: the same project, scored by Stryker 10.0.0 and by oxmutate, each
-mutant's verdict compared against Stryker's own JSON report. Measured on 2026-10-27
+**Mutants: graded by Stryker's own specs.** Stryker 10.0.0's 17 mutator spec files, vendored
+unedited, run against oxmutate's native core (`npm run compat:mutation`): **236 of
+236** pass. Four that test Stryker's internals (a private `filter()`, Svelte template context, a
+log message) are listed with their reasons in `compat/not-applicable.ts`.
+
+**Verdicts: not graded by `compat-oracle`.** That oracle grades an import path by running the
+incumbent's own test suite against it, and a mutation tester's output is not a passing test but a
+verdict per mutant. So the comparison is verdict agreement: the same project, scored by Stryker
+10.0.0 and by oxmutate, each mutant's verdict compared against Stryker's own JSON report.
+Measured on 2026-10-27
 ([`m1-results.md`](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/oxmutate/m1-results.md)):
 
 | Subject | Mutants | Same verdict as Stryker |
