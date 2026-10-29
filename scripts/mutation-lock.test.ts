@@ -31,6 +31,7 @@ import {
   type FullResult,
   isMutationSource,
   mutateSpecs,
+  oxmutateConfig,
   parseChangedLines,
   RATCHETS_FILE,
   type RatchetsDoc,
@@ -265,6 +266,29 @@ describe('recording a weekly run (R6)', () => {
     const out = record(base, [{ ...res('a', null, false), error: 'dry run failed' }, { ...res('b', null, false), error: 'dry run failed' }], '2026-10-24');
     expect(out.breaches).toEqual([expect.stringContaining('a: ')]);
     expect(out.doc.ratchets.b).toMatchObject({ status: 'unmeasured', reason: expect.stringContaining('dry run failed') });
+  });
+});
+
+describe('a changed range with no mutant in it', () => {
+  // #1361 changed one type-only line, an interface's call signature. Stryker scored nothing and
+  // passed; oxmutate refused its dry run as having no test to run, and the lane went red.
+  const o = { vitestConfig: 'v.config.ts', mutate: ['src/types.ts:90-92'], concurrency: 2, timeoutMS: 1000, dryRunTimeoutMinutes: 5, reportFile: 'r.json' };
+
+  it('is scored as nothing, not refused, under oxmutate as under Stryker', () => {
+    expect(oxmutateConfig(o)).toEqual({
+      mutate: ['src/types.ts:90-92'],
+      allowEmpty: true,
+      vitest: { configFile: 'v.config.ts' },
+      concurrency: 2,
+      timeoutMS: 1000,
+      dryRunTimeoutMinutes: 5,
+      reporters: ['clear-text', 'json'],
+      jsonReporter: { fileName: 'r.json' },
+    });
+  });
+
+  it('passes the lane with no score', () => {
+    expect(summarise({ files: { 'src/types.ts': { mutants: [] } } })).toMatchObject({ score: null, undetected: [], silentSurvivors: [] });
   });
 });
 

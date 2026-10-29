@@ -246,6 +246,22 @@ y.epilog('devcontainer <command> --help');
 y.parse();
 `;
 
+/**
+ * emmercm/igir's shape (A-20261028-yargs-argv-type-call-signature): a `.fail()` that stringifies
+ * the help of the `Argv` it is handed, and `@types/yargs`' call signature, `y(args, cwd)`.
+ */
+const YARGS_IGIR = `
+import yargs, { type Argv } from 'burgee/yargs';
+
+export function failed(msg: string, err: Error | undefined, y: Argv): never {
+  if (err) throw err;
+  console.error(y.help().toString().trimEnd());
+  throw new Error(msg);
+}
+export const again = (y: Argv<{ n: number }>): Argv<{ n: number }> => y(['--n', '1'], process.cwd());
+export const parsed = yargs().fail(failed).strictOptions(true).parse([], {}, (_err, _argv, output) => void output);
+`;
+
 /** commander's README, in TypeScript, touching every type it exports. */
 const COMMANDER_README = `
 import {
@@ -404,6 +420,32 @@ export const tools = yargs([])
   });
 });
 
+describe('burgee/yargs — Argv has the shape @types/yargs gives it, not only the name (A-20261028-yargs-argv-type-call-signature)', () => {
+  it("compiles igir's `.fail()` and calls an Argv as @types/yargs allows", () => {
+    expect(typeErrors({ 'igir.ts': YARGS_IGIR })).toEqual([]);
+  });
+
+  it("has @types/yargs' call signature, so its toString is Function's, as @typescript-eslint/no-base-to-string reads it", () => {
+    const prog = program({ 'shape.ts': "import type { Argv as Ours } from 'burgee/yargs';\nimport type { Argv as Theirs } from 'yargs';\nexport type A = Ours;\nexport type B = Theirs;\n" });
+    const checker = prog.getTypeChecker();
+    const [ours, theirs] = (prog.getSourceFile(slash(join(ROOT, 'shape.ts')))?.statements.slice(2) ?? []).map((alias) => {
+      if (!ts.isTypeAliasDeclaration(alias)) throw new Error('no probe');
+      return checker.getTypeAtLocation(alias);
+    });
+    if (ours === undefined || theirs === undefined) throw new Error('no probe');
+    const calls = (type: ts.Type): string[] => checker.getSignaturesOfType(type, ts.SignatureKind.Call).map((sig) => checker.signatureToString(sig));
+    // `@typescript-eslint/no-base-to-string` asks whose `toString` a value has: Object's prints `[object Object]`.
+    const toStringOf = (type: ts.Type): string | undefined => {
+      const owner = checker.getPropertyOfType(checker.getApparentType(type), 'toString')?.declarations?.[0]?.parent;
+      return owner !== undefined && ts.isInterfaceDeclaration(owner) ? owner.name.text : undefined;
+    };
+    expect(calls(theirs)).toEqual(['(args?: string | readonly string[] | undefined, cwd?: string | undefined): Argv<{}>']);
+    expect(calls(ours)).toEqual(calls(theirs));
+    expect(toStringOf(theirs)).toBe('Function');
+    expect(toStringOf(ours)).toBe(toStringOf(theirs));
+  });
+});
+
 describe('burgee/commander — a typed commander program compiles against it unchanged', () => {
   it("compiles commander's README idiom, touching every exported type", () => {
     expect(typeErrors({ 'readme.ts': COMMANDER_README })).toEqual([]);
@@ -417,6 +459,7 @@ describe('the control — the fixtures are the incumbents’ idiom, not ours', (
   it.each([
     ['docs.ts', YARGS_DOCS],
     ['devcontainers.ts', YARGS_DEVCONTAINERS],
+    ['igir.ts', YARGS_IGIR],
     ['readme.ts', COMMANDER_README],
   ])('%s compiles against @types/yargs and commander', (name, source) => {
     expect(incumbent(source)).not.toContain('burgee');

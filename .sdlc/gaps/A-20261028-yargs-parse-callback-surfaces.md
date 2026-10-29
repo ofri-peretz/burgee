@@ -1,7 +1,7 @@
 ---
 id: A-20261028-yargs-parse-callback-surfaces
 section: A
-status: open
+status: closed
 source: first-adopter second-target proof on emmercm/igir (`.sdlc/research/adoption/igir.md`)
 done_when: 'A `burgee/yargs` program that calls `.parse(args, context, callback)` and uses its return value synchronously, with `.demandCommand()` and `.strictOptions(true)`, behaves on `--json`, `--schema`, `--mcp` and `completion <shell>` as the same program does under `.parseSync()` (surfaces served, or the flag refused as yargs would), and `--json` on a program whose commands have no handler (igir declares each with a builder only, and does its work after `.parse()` returns) is either refused as an unknown argument under `.strictOptions()`, as yargs refuses it, or prints no envelope at all; it never prints `"ok": true` ahead of work it has not run; a case in `packages/burgee/src/yargs` proven red on `burgee@1.9.2` first; then the igir argument vectors are re-run on the published fix'
 ---
@@ -39,3 +39,27 @@ On igir itself, through the built binary, against a 44 / 44 yargs-against-yargs 
 - `igir --json` fails with `Cannot read properties of undefined (reading 'getLogLevel')`.
 
 All four exit 1 either way, so igir's suite does not notice. The parity harness does.
+
+**Closed 2026-10-29.** It publishes with burgee's next release. Under the callback form burgee
+intercepts none of the four: each is the program's argument, refused or passed through exactly
+as yargs would ([D-20261029-yargs-parse-callback-not-intercepted](../decisions/D-20261029-yargs-parse-callback-not-intercepted.md)).
+The callback form is how a program tells yargs it owns the output and the exit and goes on with
+the argv `parse()` returns, so a surface served there could not end the program first. A command
+declared with no handler now gives `--json` back to the program under every shape: refused with
+yargs' `Unknown argument: json` under `.strict()` or `.strictOptions()`, set on the argv
+otherwise, and no envelope either way. A command with a handler keeps its envelope.
+
+`packages/burgee/src/yargs/parse-callback-surfaces.test.ts` writes each program once and runs it
+on the installed yargs 18.2.0 and on `burgee/yargs`, and requires the same stdout, stderr and exit.
+It runs igir's shape (`.demandCommand(1)`, `.strictCommands(true)`, `.strictOptions(true)`, a
+throwing `.fail()`, the work after `.parse(argv, {}, cb)`) on all five vectors in the table above,
+the same under `.parse(argv, cb)`, a loose program with a handler on the same five, and `--json`
+on a no-handler command under `.parseSync()`, `.parse()` and the callback form, strict and loose.
+On `f801cf48e7`, whose `yargs/factory.ts` and `yargs/command.ts` are `burgee@1.9.2`'s, 20 of the
+first 22 cases failed: `--json` failed with `Cannot read properties of undefined (reading '_')`
+where yargs failed with "You must specify at least one command", `copy --input x --json` printed
+`{"ok":true,"data":null,…}` where yargs said "Unknown argument: json", and `--schema`, `--mcp` and
+`completion zsh` printed nothing and ran on. The two that passed were `--schema` on the loose
+program and the envelope that a handler's command keeps. Each changed line was then mutated by
+hand and seen red. Re-running the igir argument vectors on the published fix belongs to the
+first-adopter intent, with the rest of the igir proof.
