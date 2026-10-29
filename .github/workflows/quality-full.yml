@@ -28,9 +28,13 @@ on:
   schedule:
     - cron: "0 4 * * 0"
 
+# A push to main runs to the end, in a group of its own (as codeql.yml does): release.yml
+# publishes a commit only once its required gates pass, and a newer merge cancelling them
+# left every release deferring to the next commit, so with merges ~18 min apart nothing
+# published for hours (oxmutate 1.0.1, 2026-10-29). Pull requests still cancel superseded runs.
 concurrency:
-  group: quality-full-${{ github.ref }}
-  cancel-in-progress: true
+  group: quality-full-${{ github.ref }}-${{ github.event_name == 'push' && github.sha || '' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
