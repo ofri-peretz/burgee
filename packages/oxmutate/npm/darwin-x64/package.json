@@ -1,6 +1,6 @@
 {
   "name": "oxmutate-darwin-x64",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "oxmutate native core (oxc) for darwin-x64. Installed automatically as an optional dependency of oxmutate.",
   "license": "MIT",
