@@ -1,9 +1,28 @@
 {
-  "$comment": "Mutation score per package (.sdlc/intents/mutation-tested/, D-20261018-mutation-tested): detected (killed + timeout) / (detected + survived + no coverage), Stryker over every mutation source, which is what coverage measures (src/**/*.ts minus tests, __fixtures__ and TESTED_IN_ANOTHER_PROCESS). `floor` only rises: `mutation.yml` measures main weekly, appends each observation, raises a floor the run beat (rounded down to one decimal) and fails on a run below it. Lowering one takes a newer decision in .sdlc/decisions/, cited in a new history step; scripts/mutation-lock.test.ts holds all of it. An `unmeasured` package says why, and its first weekly score becomes its first floor \u2014 no floor here is a number nobody measured.",
+  "$comment": "Mutation score per package (.sdlc/intents/mutation-tested/, D-20261018-mutation-tested): detected (killed + timeout) / (detected + survived + no coverage), Stryker over every mutation source, which is what coverage measures (src/**/*.ts minus tests, __fixtures__ and TESTED_IN_ANOTHER_PROCESS). `floor` only rises: `mutation.yml` measures main weekly, appends each observation, raises a floor the run beat (rounded down to one decimal) and fails on a run below it. Lowering one takes a newer decision in .sdlc/decisions/, cited in a new history step; scripts/mutation-lock.test.ts holds all of it. An `unmeasured` package says why, and its first weekly score becomes its first floor — no floor here is a number nobody measured.",
   "ratchets": {
     "bellpull": {
-      "status": "unmeasured",
-      "reason": "2026-10-24: the weekly run produced no score \u2014 Stryker exited 1 without a report \u2014 its own error is above"
+      "status": "measured",
+      "floor": 90.1,
+      "history": [
+        {
+          "floor": 90.1,
+          "setOn": "2026-10-29",
+          "why": "First full run, at 00e4e411ed: 90.19% (1030 detected of 1142), rounded down to one decimal."
+        }
+      ],
+      "observations": [
+        {
+          "date": "2026-10-29",
+          "commit": "00e4e411ed",
+          "score": 90.19,
+          "killed": 1025,
+          "timeout": 5,
+          "survived": 111,
+          "noCoverage": 1,
+          "minutes": 9.05
+        }
+      ]
     },
     "burgee": {
       "status": "measured",
@@ -30,12 +49,17 @@
     },
     "caique": {
       "status": "measured",
-      "floor": 87.8,
+      "floor": 88.1,
       "history": [
         {
           "floor": 87.8,
           "setOn": "2026-10-24",
           "why": "First full run, at 80c8eaa52b: 87.86% (5465 detected of 6220), rounded down to one decimal."
+        },
+        {
+          "floor": 88.1,
+          "setOn": "2026-10-29",
+          "why": "Weekly run at 00e4e411ed measured 88.15%, above the 87.8% floor; the floor follows it up."
         }
       ],
       "observations": [
@@ -48,21 +72,55 @@
           "survived": 752,
           "noCoverage": 3,
           "minutes": 80.21
+        },
+        {
+          "date": "2026-10-29",
+          "commit": "00e4e411ed",
+          "score": 88.15,
+          "killed": 5722,
+          "timeout": 13,
+          "survived": 769,
+          "noCoverage": 2,
+          "minutes": 146.34
         }
       ]
     },
     "closeout": {
-      "status": "unmeasured",
-      "reason": "2026-10-24: the weekly run produced no score \u2014 Stryker exited 1 without a report \u2014 its own error is above"
+      "status": "measured",
+      "floor": 90.3,
+      "history": [
+        {
+          "floor": 90.3,
+          "setOn": "2026-10-29",
+          "why": "First full run, at 00e4e411ed: 90.35% (721 detected of 798), rounded down to one decimal."
+        }
+      ],
+      "observations": [
+        {
+          "date": "2026-10-29",
+          "commit": "00e4e411ed",
+          "score": 90.35,
+          "killed": 720,
+          "timeout": 1,
+          "survived": 77,
+          "noCoverage": 0,
+          "minutes": 3.62
+        }
+      ]
     },
     "compat-oracle": {
       "status": "measured",
-      "floor": 91.4,
+      "floor": 92,
       "history": [
         {
           "floor": 91.4,
           "setOn": "2026-10-24",
           "why": "First full run, at 80c8eaa52b: 91.45% (4225 detected of 4620), rounded down to one decimal."
+        },
+        {
+          "floor": 92,
+          "setOn": "2026-10-29",
+          "why": "Weekly run at 00e4e411ed measured 92.02%, above the 91.4% floor; the floor follows it up."
         }
       ],
       "observations": [
@@ -75,6 +133,16 @@
           "survived": 394,
           "noCoverage": 1,
           "minutes": 57.67
+        },
+        {
+          "date": "2026-10-29",
+          "commit": "00e4e411ed",
+          "score": 92.02,
+          "killed": 5797,
+          "timeout": 13,
+          "survived": 503,
+          "noCoverage": 1,
+          "minutes": 172.51
         }
       ]
     },
@@ -98,20 +166,87 @@
           "survived": 75,
           "noCoverage": 0,
           "minutes": 2.02
+        },
+        {
+          "date": "2026-10-29",
+          "commit": "00e4e411ed",
+          "score": 92.43,
+          "killed": 922,
+          "timeout": 6,
+          "survived": 76,
+          "noCoverage": 0,
+          "minutes": 1.58
         }
       ]
     },
     "flagstaff": {
-      "status": "unmeasured",
-      "reason": "2026-10-24: the weekly run produced no score \u2014 Stryker exited 1 without a report \u2014 its own error is above"
+      "status": "measured",
+      "floor": 87.7,
+      "history": [
+        {
+          "floor": 87.7,
+          "setOn": "2026-10-29",
+          "why": "First full run, at 00e4e411ed: 87.7% (1383 detected of 1577), rounded down to one decimal."
+        }
+      ],
+      "observations": [
+        {
+          "date": "2026-10-29",
+          "commit": "00e4e411ed",
+          "score": 87.7,
+          "killed": 1374,
+          "timeout": 9,
+          "survived": 194,
+          "noCoverage": 0,
+          "minutes": 6.31
+        }
+      ]
     },
     "linegauge": {
-      "status": "unmeasured",
-      "reason": "2026-10-24: the weekly run produced no score \u2014 Stryker exited 1 without a report \u2014 its own error is above"
+      "status": "measured",
+      "floor": 88.4,
+      "history": [
+        {
+          "floor": 88.4,
+          "setOn": "2026-10-29",
+          "why": "First full run, at 00e4e411ed: 88.49% (1837 detected of 2076), rounded down to one decimal."
+        }
+      ],
+      "observations": [
+        {
+          "date": "2026-10-29",
+          "commit": "00e4e411ed",
+          "score": 88.49,
+          "killed": 1795,
+          "timeout": 42,
+          "survived": 239,
+          "noCoverage": 0,
+          "minutes": 16.82
+        }
+      ]
     },
     "oxmutate": {
-      "status": "unmeasured",
-      "reason": "2026-10-27: the package is new; its first weekly score becomes its first floor"
+      "status": "measured",
+      "floor": 100,
+      "history": [
+        {
+          "floor": 100,
+          "setOn": "2026-10-29",
+          "why": "First full run, at 00e4e411ed: 100% (1245 detected of 1245), rounded down to one decimal."
+        }
+      ],
+      "observations": [
+        {
+          "date": "2026-10-29",
+          "commit": "00e4e411ed",
+          "score": 100,
+          "killed": 1232,
+          "timeout": 13,
+          "survived": 0,
+          "noCoverage": 0,
+          "minutes": 10.01
+        }
+      ]
     },
     "paratext": {
       "status": "measured",
@@ -133,12 +268,22 @@
           "survived": 197,
           "noCoverage": 2,
           "minutes": 7.99
+        },
+        {
+          "date": "2026-10-29",
+          "commit": "00e4e411ed",
+          "score": 85.27,
+          "killed": 1162,
+          "timeout": 2,
+          "survived": 199,
+          "noCoverage": 2,
+          "minutes": 3.55
         }
       ]
     },
     "roundel": {
       "status": "measured",
-      "floor": 83.2,
+      "floor": 91.8,
       "history": [
         {
           "floor": 79.4,
@@ -149,6 +294,11 @@
           "floor": 83.2,
           "setOn": "2026-10-24",
           "why": "Weekly run at 80c8eaa52b measured 83.22%, above the 79.4% floor; the floor follows it up."
+        },
+        {
+          "floor": 91.8,
+          "setOn": "2026-10-29",
+          "why": "Weekly run at 00e4e411ed measured 91.88%, above the 83.2% floor; the floor follows it up."
         }
       ],
       "observations": [
@@ -171,12 +321,41 @@
           "survived": 223,
           "noCoverage": 1,
           "minutes": 25.96
+        },
+        {
+          "date": "2026-10-29",
+          "commit": "00e4e411ed",
+          "score": 91.88,
+          "killed": 1580,
+          "timeout": 5,
+          "survived": 139,
+          "noCoverage": 1,
+          "minutes": 12.25
         }
       ]
     },
     "seniority": {
-      "status": "unmeasured",
-      "reason": "2026-10-24: the weekly run produced no score \u2014 Stryker exited 1 without a report \u2014 its own error is above"
+      "status": "measured",
+      "floor": 91,
+      "history": [
+        {
+          "floor": 91,
+          "setOn": "2026-10-29",
+          "why": "First full run, at 00e4e411ed: 91.09% (4488 detected of 4927), rounded down to one decimal."
+        }
+      ],
+      "observations": [
+        {
+          "date": "2026-10-29",
+          "commit": "00e4e411ed",
+          "score": 91.09,
+          "killed": 4379,
+          "timeout": 109,
+          "survived": 439,
+          "noCoverage": 0,
+          "minutes": 20.74
+        }
+      ]
     }
   }
 }
