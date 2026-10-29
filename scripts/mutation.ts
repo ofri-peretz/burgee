@@ -50,7 +50,6 @@ const STRYKER_BIN = path.join(REPO_ROOT, 'node_modules', '@stryker-mutator', 'co
 const OXMUTATE_BIN = path.join(REPO_ROOT, 'packages', 'oxmutate', 'dist', 'bin.js');
 export type Engine = 'stryker' | 'oxmutate';
 const SETUP_FILE = path.join(SCRIPT_DIR, 'mutation-vitest-setup.ts');
-const FLATTEN_FILE = path.join(SCRIPT_DIR, 'mutation-vitest-flatten.ts');
 /** Where a run writes its vitest config, inside the package so vite bundles the package's own (gitignored). */
 const WRAPPER_DIR = '.mutation';
 
@@ -267,18 +266,13 @@ export function disableProblems(file: string, source: string): string[] {
  * Written into `<package>/.mutation/` and imported statically, because the package's config
  * imports `../../vitest-*.config.js` by the name vite resolves to a `.ts` — a native
  * `import()` of it from elsewhere cannot.
- *
- * Under oxmutate, a config's `projects` are folded into one (`mutation-vitest-flatten.ts`): its
- * runner does not reach a project, and burgee's dry run collected no test at all.
  */
-export function wrapperConfig(packageDir: string, skipped: readonly string[], engine: Engine = 'stryker'): string {
-  const flatten = engine === 'oxmutate';
+export function wrapperConfig(packageDir: string, skipped: readonly string[]): string {
   return [
     "import { configDefaults, defineConfig, mergeConfig } from 'vitest/config';",
     "import base from '../vitest.config.ts';",
-    ...(flatten ? [`import { flattenProjects } from ${JSON.stringify(FLATTEN_FILE)};`] : []),
     '',
-    `export default mergeConfig(${flatten ? 'flattenProjects(base)' : 'base'}, defineConfig({`,
+    'export default mergeConfig(base, defineConfig({',
     `  root: ${JSON.stringify(packageDir)},`,
     `  test: { setupFiles: [${JSON.stringify(SETUP_FILE)}], exclude: [...configDefaults.exclude, ...${JSON.stringify(skipped)}] },`,
     '}));',
@@ -357,7 +351,7 @@ export function runPackage(pkg: string, mutate: readonly string[], o: { concurre
   const wrapperDir = path.join(packageDir, WRAPPER_DIR);
   const vitestConfig = path.join(wrapperDir, 'vitest.config.ts');
   mkdirSync(wrapperDir, { recursive: true });
-  writeFileSync(vitestConfig, wrapperConfig(packageDir, Object.keys(SKIPPED_TESTS[pkg] ?? {}), engine));
+  writeFileSync(vitestConfig, wrapperConfig(packageDir, Object.keys(SKIPPED_TESTS[pkg] ?? {})));
   // oxmutate reads the same keys from a config of its own; it never writes the sources, so the
   // snapshot below only ever finds Stryker's leftovers.
   const config = engine === 'oxmutate'

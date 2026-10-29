@@ -23,7 +23,6 @@ import { load as loadYaml } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
 
 import { readDecisions } from './ledgers.js';
-import { flattenProjects } from './mutation-vitest-flatten.js';
 import { widenTestNamePattern } from './mutation-vitest-setup.js';
 import {
   changedReport,
@@ -39,7 +38,6 @@ import {
   type ReportMutant,
   SKIPPED_TESTS,
   summarise,
-  wrapperConfig,
 } from './mutation.js';
 import { decisionNumber } from './ratchet-steps.js';
 
@@ -167,41 +165,6 @@ describe('`// Stryker disable` carries a reason (R4)', () => {
     const files = execFileSync('git', ['ls-files', '--', 'packages/*/src/**'], { cwd: REPO_ROOT, encoding: 'utf8' }).split('\n').filter((f) => /\.[cm]?[jt]sx?$/u.test(f));
     const problems = files.flatMap((f) => disableProblems(f, readFileSync(join(REPO_ROOT, f), 'utf8')));
     expect(problems).toEqual([]);
-  });
-});
-
-describe('the vitest config an oxmutate run uses', () => {
-  // burgee's config splits its tests into two projects, and oxmutate's runner reaches neither:
-  // every pull request that changed a burgee line failed with "the dry run ran no tests".
-  it("folds a package's projects into one that includes every file they did", () => {
-    // burgee's shape: a pool of everything but the shell-driving files, then those files alone.
-    const shells = ['src/completions-shells.test.ts'];
-    const split = {
-      test: {
-        testTimeout: 60_000,
-        projects: [
-          { extends: true, test: { name: 'pool', include: ['src/**/*.test.ts'], exclude: shells } },
-          { extends: true, test: { name: 'shells', include: shells, fileParallelism: false } },
-          'packages/*',
-        ],
-      },
-    };
-    expect(flattenProjects(split)).toEqual({ test: { testTimeout: 60_000, include: ['src/**/*.test.ts', ...shells] } });
-  });
-
-  it('reads the package config that has projects, so the fold is not for nothing', () => {
-    expect(readFileSync(join(REPO_ROOT, 'packages', 'burgee', 'vitest.config.ts'), 'utf8')).toMatch(/^\s+projects: \[/mu);
-  });
-
-  it('leaves a config without projects as it is', () => {
-    const plain = { test: { include: ['src/**/*.test.ts'] } };
-    expect(flattenProjects(plain)).toBe(plain);
-  });
-
-  it('is what the wrapper hands oxmutate, and only oxmutate', () => {
-    expect(wrapperConfig('/pkg', [], 'oxmutate')).toContain('mergeConfig(flattenProjects(base), ');
-    expect(wrapperConfig('/pkg', [], 'stryker')).toContain('mergeConfig(base, ');
-    expect(wrapperConfig('/pkg', [], 'stryker')).not.toContain('flattenProjects');
   });
 });
 
