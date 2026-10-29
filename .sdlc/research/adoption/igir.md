@@ -110,7 +110,7 @@ comment on #2249 asking first, never a cold PR.
 
 ## A3 — the proof, on published `burgee@1.9.2`
 
-Run 2026-10-29 (local time; 2026-10-28 UTC) on macOS 26.2 (Darwin 25.2.0, Apple Silicon, 14
+Run 2026-10-28 UTC (2026-10-29 local time) on macOS 26.2 (Darwin 25.2.0, Apple Silicon, 14
 cores), load average 5 to 59 during the runs. Two `git clone --filter=blob:none` of
 `744bc279`: `igir` (base) and `igir-pr` (the swap, then the revert). `npm ci --foreground-scripts`
 in each. The suite is igir's CI steps: `npx tsc --noEmit`, `npm run lint`,
