@@ -5,8 +5,9 @@
  */
 
 /**
- * Release-verify lock: `release.yml` publishes a commit only when its required gates passed, and a
- * commit superseded on `main` before its gates finished is skipped, not reported as a failure.
+ * Release-verify lock: `release.yml` publishes a commit only when its required gates passed. A
+ * commit superseded on `main` waits for its own gates like any other, and publishes when they pass;
+ * it is skipped, not reported as a failure, only when one of its gates was cancelled.
  *
  * On 2026-10-11 two release runs on `main` went red (38110188386, 38111759370) with "Refusing to
  * publish … Quality Gate (failure)". Every non-success check on both commits was `cancelled`: a newer
@@ -15,6 +16,16 @@
  * *failed* only because its jobs were cancelled fell through to the refusal. Nothing was published
  * either way (the next commit's release published seniority@1.0.4), but each superseded release
  * painted `main` red, which is how a real failure gets ignored.
+ *
+ * On 2026-10-29 the opposite failure starved releases. Run 40823297761 on 37cefdfa detected
+ * burgee 1.9.2 → 1.9.3 and skipped it as "superseded while its gates were unsettled": two *other*
+ * workflows on the commit (Completions, Auto Deploy on Main) had been cancelled, which the step
+ * read as its gates being cancelled. Both gates passed 26 minutes later. The Version PR's own run
+ * (40822748396 on 21a4c2f1) had skipped the same way, and 1.9.3 published only because a later
+ * commit stayed the head of main long enough. Since #1364 a push to main no longer cancels the
+ * gates, so a superseded commit's gates finish: it waits for them
+ * (D-20261029-release-waits-not-skips). 40698972302 (608d16be, before #1364), whose gate
+ * workflows really were cancelled, is still a skip.
  *
  * The verify step is lifted out of the parsed workflow and run under `bash` with `gh` stubbed.
  */
@@ -50,15 +61,20 @@ const waitStep = (): string => {
 };
 
 interface Gates {
-  /** What the stub reports for each gate: `success`, `failure`, `cancelled`, `in_progress`… */
+  /**
+   * What the stub reports for each gate: `success`, `failure`, `cancelled`, `in_progress`… A
+   * comma-separated list is what successive polls see, the last one repeating.
+   */
   qualityGate: string;
   fullGate: string;
   /** The head of `main`. */
   head: string;
   /** How many Actions check runs on the commit were cancelled. */
   cancelled: number;
-  /** How many workflow runs on the commit were cancelled (default 0). */
+  /** How many workflow runs of any workflow on the commit were cancelled (default 0). */
   runsCancelled?: number;
+  /** How many runs of each gate's own workflow on the commit were cancelled (default 0). */
+  gateRunsCancelled?: number;
 }
 
 const SHA = 'a'.repeat(40);
@@ -72,12 +88,16 @@ function verify(gates: Gates): { status: number; output: string; outputs: string
     [
       '#!/usr/bin/env bash',
       'args="$*"',
+      '# The next of a comma-separated list of states, one per poll, the last repeating.',
+      'next() { IFS="," read -ra seq <<< "$1"; n=$(cat "$HOME/$2" 2>/dev/null || echo 0); echo $((n + 1)) > "$HOME/$2"',
+      '  [ "$n" -lt "${#seq[@]}" ] || n=$((${#seq[@]} - 1)); echo "${seq[$n]}"; }',
       'case "$args" in',
       '  *"commits/main"*) echo "$HEAD"; exit 0 ;;',
       '  *"check-runs?per_page=100"*) echo "$CANCELLED"; exit 0 ;;',
       '  *"actions/runs?head_sha="*) echo "$RUNS_CANCELLED"; exit 0 ;;',
-      '  *"check_name=Quality Gate"*) echo "$QG"; exit 0 ;;',
-      '  *"check_name=Quality (Full) Gate"*) echo "$QFG"; exit 0 ;;',
+      '  *"actions/workflows/quality.yml/runs?head_sha="*|*"actions/workflows/quality-full.yml/runs?head_sha="*) echo "$GATE_RUNS_CANCELLED"; exit 0 ;;',
+      '  *"check_name=Quality Gate"*) next "$QG" qg; exit 0 ;;',
+      '  *"check_name=Quality (Full) Gate"*) next "$QFG" qfg; exit 0 ;;',
       'esac',
       'echo "unexpected gh call: $args" >&2; exit 3',
       '',
@@ -105,11 +125,13 @@ function verify(gates: Gates): { status: number; output: string; outputs: string
       SHA,
       DRY_RUN: 'false',
       CHECKS: 'Quality Gate|Quality (Full) Gate',
+      WORKFLOWS: 'quality.yml|quality-full.yml',
       QG: gates.qualityGate,
       QFG: gates.fullGate,
       HEAD: gates.head,
       CANCELLED: String(gates.cancelled),
       RUNS_CANCELLED: String(gates.runsCancelled ?? 0),
+      GATE_RUNS_CANCELLED: String(gates.gateRunsCancelled ?? 0),
     },
   });
   return { status: r.status ?? -1, output: `${r.stdout ?? ''}${r.stderr ?? ''}`, outputs: readFileSync(outputs, 'utf8') };
@@ -164,10 +186,46 @@ describe("release.yml's verify step", () => {
     expect(r.output).toContain('superseded');
   });
 
-  executes('skips a superseded commit whose gate is missing because its workflow run was cancelled', () => {
-    const r = verify({ qualityGate: 'success', fullGate: 'missing', head: NEWER, cancelled: 0, runsCancelled: 1 });
+  executes("skips a superseded commit whose gate is missing because the gate's own workflow run was cancelled", () => {
+    const r = verify({ qualityGate: 'success', fullGate: 'missing', head: NEWER, cancelled: 0, runsCancelled: 1, gateRunsCancelled: 1 });
     expect(r.status, r.output).toBe(0);
     expect(r.outputs).toContain('ok=false');
+  });
+
+  /** Run 40823297761 on 37cefdfa (burgee 1.9.3), and 40822748396 on 21a4c2f1 before it. */
+  executes('publishes a superseded commit once its own gates pass, though other workflows on it were cancelled', () => {
+    const r = verify({
+      qualityGate: 'queued,in_progress,success',
+      fullGate: 'missing,in_progress,success',
+      head: NEWER,
+      cancelled: 2,
+      runsCancelled: 2,
+      gateRunsCancelled: 0,
+    });
+    expect(r.status, r.output).toBe(0);
+    expect(r.outputs).toContain('ok=true');
+    expect(r.outputs).not.toContain('ok=false');
+  });
+
+  executes('still skips a superseded commit whose gate is cancelled after it was waited on', () => {
+    const r = verify({ qualityGate: 'in_progress,cancelled', fullGate: 'in_progress,success', head: NEWER, cancelled: 3, runsCancelled: 1 });
+    expect(r.status, r.output).toBe(0);
+    expect(r.outputs).toContain('ok=false');
+    expect(r.output).toContain('superseded');
+  });
+
+  executes('refuses a superseded commit whose gate fails after it was waited on', () => {
+    const r = verify({ qualityGate: 'in_progress,failure', fullGate: 'success', head: NEWER, cancelled: 0, runsCancelled: 2 });
+    expect(r.status).toBe(1);
+    expect(r.output).toContain('Refusing to publish');
+    expect(r.outputs).not.toContain('ok=');
+  });
+
+  executes('keeps waiting on a superseded commit whose only cancelled runs belong to other workflows', () => {
+    const r = verify({ qualityGate: 'success', fullGate: 'missing', head: NEWER, cancelled: 2, runsCancelled: 2, gateRunsCancelled: 0 });
+    expect(r.status).toBe(1);
+    expect(r.output).toContain('Gave up waiting');
+    expect(r.outputs).not.toContain('ok=');
   });
 
   executes('keeps waiting on a superseded commit when nothing on it was cancelled', () => {
