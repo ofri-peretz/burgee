@@ -1,5 +1,11 @@
 # oxmutate
 
+## 1.0.1
+
+### Patch Changes
+
+- [#1350](https://github.com/ofri-peretz/burgee/pull/1350) [`53512ae`](https://github.com/ofri-peretz/burgee/commit/53512aea54f0b4cb3ac62a4c877a07ac30951117) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Depend on `burgee` and `bellpull` by caret range (`^1.9.2`, `^1.0.10`), as every other family package does. 1.0.0 published `"*"`, which would install a future major of either under it.
+
 ## 1.0.0
 
 ### Major Changes

@@ -1,6 +1,6 @@
 {
   "name": "oxmutate-linux-arm64-gnu",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "oxmutate native core (oxc) for linux-arm64-glibc. Installed automatically as an optional dependency of oxmutate.",
   "license": "MIT",
