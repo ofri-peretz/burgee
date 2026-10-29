@@ -75,10 +75,12 @@ The verify job gains `actions: read`, because it now reads the gate workflows' r
 The repository-wide runs query it replaces worked without that permission only because the
 repository is public.
 
+**Deadline raised to 120 minutes (`timeout-minutes: 130`), 2026-10-29:** 45 minutes did not cover the measured Quality (Full) durations on `main` (28 to 40 minutes) plus runner queue time, and on the same day a weekly mutation run sat queued for over 4 hours on the account's runner limit.
+
 ## Unchanged
 
-The dry-run input, OIDC trusted publishing (D-154), the dependency-ordered publish loop, the
-45-minute deadline, and the oxmutate native-cores rows.
+The dry-run input, OIDC trusted publishing (D-154), the dependency-ordered publish loop, and the
+oxmutate native-cores rows. The deadline stayed at 45 minutes until the raise above.
 
 ## Evidence
 

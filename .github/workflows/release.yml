@@ -164,7 +164,10 @@ jobs:
     needs: detect
     if: needs.detect.outputs.count != '0'
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    # The wait below gives up at 120 minutes; the job's own timeout sits just past it, so the
+    # step reports why it stopped. Quality (Full) runs 28–40 minutes on a push to main, and a job
+    # can sit queued for hours on the account's runner limit (D-20261029-release-waits-not-skips).
+    timeout-minutes: 130
     permissions:
       # The gate workflows' runs on this commit, for a gate cancelled before its check run existed.
       actions: read
@@ -195,7 +198,7 @@ jobs:
           fi
           IFS='|' read -ra names <<< "$CHECKS"
           IFS='|' read -ra workflows <<< "$WORKFLOWS"
-          deadline=$(( $(date +%s) + 45 * 60 ))
+          deadline=$(( $(date +%s) + 120 * 60 ))
           while :; do
             pending=""; failed=""; cancelled=""
             for name in "${names[@]}"; do
@@ -264,7 +267,7 @@ jobs:
               exit 1
             fi
             if [ "$(date +%s)" -ge "$deadline" ]; then
-              echo "::error::Gave up waiting for $pending on $SHA after 45 minutes. Re-run this workflow once they report."
+              echo "::error::Gave up waiting for $pending on $SHA after 120 minutes. Re-run this workflow once they report."
               exit 1
             fi
             echo "waiting: $pending"

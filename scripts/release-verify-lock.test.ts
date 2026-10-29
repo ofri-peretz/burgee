@@ -106,8 +106,8 @@ function verify(gates: Gates): { status: number; output: string; outputs: string
   chmodSync(join(bin, 'gh'), 0o755);
   writeFileSync(join(bin, 'sleep'), '#!/usr/bin/env bash\nexit 0\n');
   chmodSync(join(bin, 'sleep'), 0o755);
-  // A clock that moves 20 minutes a call, so a step that would wait out its 45 minutes ends in
-  // three passes instead of hanging the suite.
+  // A clock that moves 20 minutes a call, so a step that would wait out its 120 minutes ends in
+  // six passes instead of hanging the suite.
   writeFileSync(join(bin, 'date'), '#!/usr/bin/env bash\nn=$(cat "$HOME/clock" 2>/dev/null || echo 0)\necho $((n + 1200)) > "$HOME/clock"\necho "$n"\n');
   chmodSync(join(bin, 'date'), 0o755);
   const outputs = join(dir, 'outputs');
@@ -233,6 +233,27 @@ describe("release.yml's verify step", () => {
     expect(r.status).toBe(1);
     expect(r.output).toContain('Gave up waiting');
     expect(r.outputs).not.toContain('ok=');
+  });
+
+  /**
+   * Quality (Full) took 28–40 minutes on a push to main, and a job can sit queued for hours on the
+   * account's runner limit (a weekly mutation run queued over 4 hours on 2026-10-29). A gate that
+   * reports after 100 minutes still publishes.
+   */
+  executes('publishes a commit whose gate passes after 100 minutes of queueing and running', () => {
+    const r = verify({ qualityGate: 'success', fullGate: 'queued,queued,queued,in_progress,in_progress,success', head: NEWER, cancelled: 0 });
+    expect(r.status, r.output).toBe(0);
+    expect(r.outputs).toContain('ok=true');
+  });
+
+  executes('gives up on a gate that has not reported after 120 minutes, inside the job timeout', () => {
+    const r = verify({ qualityGate: 'success', fullGate: 'queued', head: SHA, cancelled: 0 });
+    expect(r.status).toBe(1);
+    expect(r.output).toMatch(new RegExp(`Gave up waiting for Quality \\(Full\\) Gate \\(queued\\);\\s+on ${SHA} after 120 minutes`, 'u'));
+    const wf = loadYaml(readFileSync(join(REPO_ROOT, '.github/workflows/release.yml'), 'utf8')) as {
+      jobs: Record<string, { 'timeout-minutes'?: number }>;
+    };
+    expect(wf.jobs['verify']?.['timeout-minutes']).toBe(130);
   });
 
   executes('never skips on the head of main: a cancelled gate beside a missing one is waited on, then refused', () => {
