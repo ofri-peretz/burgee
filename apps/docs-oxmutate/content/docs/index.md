@@ -160,7 +160,7 @@ setting a value inside the worker that already has the tests loaded.
 | :-- | :-- |
 | The dry run must pass | A suite that fails with no mutant armed scores nothing (exit 3) |
 | Re-parse | Every instrumented file is parsed again before it runs; one that does not parse stops the run (exit 3) instead of scoring a broken file |
-| Canary | The unmutated test must still pass after mutants run in a context; if a mutant left a cache, a registry or a fixture behind, the context restarts and the suspect verdicts run again |
+| Canary | The unmutated test must still pass after mutants run in a context, with its `beforeEach`/`afterEach` hooks re-run around every run, file-level ones included; if a mutant left a cache, a registry or a fixture behind, the context restarts and the suspect verdicts run again. A kill that follows unchecked runs is checked at once and decided again from clean state, so no kill rests on another mutant's leftovers |
 | Survivor confirmation | A survivor is re-run with the mutant armed across its covering tests in one file, as Stryker arms it, so a mutant that only fails across tests is killed |
 | Watchdog | A synchronous runaway is stopped and its server replaced; the stop is re-run at 3x the budget before it is reported as a timeout |
 | Static mutants | Code that runs at import is re-run with the mutant armed from process start, against the files that load it |

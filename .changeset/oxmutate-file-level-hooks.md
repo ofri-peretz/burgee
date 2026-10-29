@@ -2,8 +2,9 @@
 "oxmutate": patch
 ---
 
-Two fixes to the warm runner's canary, both found by modelling its loop in Quint
-(`.sdlc/intents/oxmutate/canary.qnt`) and each reproduced by a fixture.
+Two fixes to the warm runner's canary, each reproduced by a fixture. The first showed up as a
+pollution restart on nearly every mutant of a real suite; modelling the loop in Quint
+(`.sdlc/intents/oxmutate/canary.qnt`) then found the second.
 
 **File-level `beforeEach`/`afterEach` hooks now re-run between mutants.** Vitest 5 does not link a
 top-level `describe` back to its file, so the hook walk stopped at the `describe` and skipped the hooks
