@@ -7,9 +7,10 @@
  *    `/\.*[\][<>]/g` / `/\.+[\]>]/` restart the dot run from every dot. Measured on the
  *    unfixed code, node v24.13.0, macOS: 5k / 10k / 20k repetitions took 46 / 165 / 681 ms
  *    for the split and 11 / 42 / 166 ms for the dots — double the input, four times the
- *    time. The budgets below sit at 5x-10x under the unfixed cost of their inputs and far
- *    over the linear one, so a slow runner does not turn them red while a reintroduced
- *    backtracking regex still does.
+ *    time. The locks below hold that shape rather than a number of milliseconds: they time
+ *    each input at two sizes and fail when four times the input costs eight times the time
+ *    or more (`__fixtures__/growth.ts`), which a slow or instrumented runner cannot cause and
+ *    a reintroduced backtracking regex does.
  * 2. apply-extends' `/\.json|\..*rc$/` is the same shape on a run of dots (#22).
  * 3. `pkgConf('__proto__')` read `obj[key]` bare, handed Object.prototype to applyExtends,
  *    and applyExtends deletes `extends` from the object it is given (#27). Both halves are
@@ -27,6 +28,7 @@ import { join } from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { growth, LINEAR, said } from '../__fixtures__/growth.js';
 import yargs from '../yargs.js';
 
 import { applyExtends, isConfigPath, parseCommand, type ParsedCommand } from './utils.js';
@@ -68,12 +70,6 @@ function configObjects(y: unknown): unknown[] {
   return (y as { getOptions(): { configObjects?: unknown[] } }).getOptions().configObjects ?? [];
 }
 
-function elapsed(fn: () => unknown): number {
-  const t = performance.now();
-  fn();
-  return performance.now() - t;
-}
-
 describe('parseCommand is linear and answers as upstream did (#17–#21)', () => {
   it('matches the upstream regexes on every short string of whitespace, dots, brackets and pipes', () => {
     const alphabet = [' ', '\t', '.', '[', ']', '<', '>', 'a', '|'];
@@ -99,16 +95,19 @@ describe('parseCommand is linear and answers as upstream did (#17–#21)', () =>
     expect(parseCommand('run <a|b> [c d]')).toEqual(upstreamParseCommand('run <a|b> [c d]'));
   });
 
-  it('splits 50,000 whitespace-separated words in well under the quadratic cost', () => {
-    const cmd = `cmd${' a'.repeat(50_000)}`;
-    expect(elapsed(() => parseCommand(cmd))).toBeLessThan(400);
-    const tabs = `cmd${'\ta'.repeat(50_000)}`;
-    expect(elapsed(() => parseCommand(tabs))).toBeLessThan(400);
+  // Each size is picked so the smaller input takes about 10-30 ms here (node v24.12.0, macOS).
+  it('splits whitespace-separated words in linear time', () => {
+    for (const sep of [' ', '\t']) {
+      const g = growth((n) => `cmd${`${sep}a`.repeat(n)}`, parseCommand, 50_000);
+      expect(g.ratio, `${JSON.stringify(sep)}: ${said(g)}`).toBeLessThan(LINEAR);
+    }
   });
 
-  it('strips brackets after a 100,000-dot run in well under the quadratic cost', () => {
-    expect(elapsed(() => parseCommand(`cmd${'.'.repeat(100_000)}`))).toBeLessThan(400);
-    expect(elapsed(() => parseCommand(`cmd x${'.'.repeat(100_000)}`))).toBeLessThan(400);
+  it('strips brackets after a run of dots in linear time', () => {
+    for (const head of ['cmd', 'cmd x']) {
+      const g = growth((n) => `${head}${'.'.repeat(n)}`, parseCommand, 200_000);
+      expect(g.ratio, `${head}: ${said(g)}`).toBeLessThan(LINEAR);
+    }
   });
 });
 
@@ -122,10 +121,12 @@ describe('applyExtends tells a path from a module in linear time (#22)', () => {
     expect(mismatches.slice(0, 10)).toEqual([]);
   });
 
-  it('reads a 100,000-dot `extends` in well under the quadratic cost', () => {
-    expect(elapsed(() => isConfigPath('.'.repeat(100_000)))).toBeLessThan(400);
-    const config = { extends: '.'.repeat(100_000) };
-    expect(elapsed(() => applyExtends(config, tmpdir()))).toBeLessThan(400);
+  it('reads a run of dots in `extends` in linear time', () => {
+    const dots = (n: number) => '.'.repeat(n);
+    const path = growth(dots, isConfigPath, 2_000_000);
+    expect(path.ratio, `isConfigPath: ${said(path)}`).toBeLessThan(LINEAR);
+    const config = growth(dots, (d) => applyExtends({ extends: d }, tmpdir()), 2_000_000);
+    expect(config.ratio, `applyExtends: ${said(config)}`).toBeLessThan(LINEAR);
   });
 });
 

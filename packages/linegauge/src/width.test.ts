@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import stringWidth from 'string-width';
 import { describe, expect, it } from 'vitest';
 
+import { growth, LINEAR, said } from './__fixtures__/growth.js';
 import { INVISIBLE_CLASSES, leadingInvisible, lineCount, measure, width } from './width.js';
 
 const ESC = '\u001B';
@@ -268,12 +269,6 @@ function* strings(alphabet: readonly string[], max: number): Generator<string> {
   }
 }
 
-function elapsed(fn: () => unknown): number {
-  const t = performance.now();
-  fn();
-  return performance.now() - t;
-}
-
 /**
  * A run of combining grapheme joiners could hang `width()`. The zero-width test was
  * `^(?:DI|Control|Format|Mn|Me|Surrogate)+$`, and `U+034F` is both Default_Ignorable and a
@@ -281,9 +276,9 @@ function elapsed(fn: () => unknown): number {
  * Measured on the unfixed code, Node 24.21, macOS, under load: 20 / 22 / 24 / 26 joiners
  * before `U+0903` took 39 / 154 / 614 / 2,381 ms — two more joiners, four times the time — and
  * 1,000 did not finish in ten minutes. string-width 8.3.0's suite added 1,000 and 3,000,000.
- * The fix measured 0.6 ms and 203 ms for those on the same machine. The budgets sit 5-10x
- * over that linear cost, so a slow runner stays green, and unimaginably far under the
- * exponential one, so a reintroduced backtracking pattern cannot.
+ * The fix measured 0.6 ms and 203 ms for those on the same machine. The lock times the scan at
+ * two sizes and holds the ratio, which no slow or instrumented runner moves and a reintroduced
+ * backtracking pattern multiplies past any bound.
  */
 describe('zero-width clusters are measured in linear time, and as the regexes measured them', () => {
   /** The two regexes `leadingInvisible` replaced, exactly as `width.ts` used to build them. */
@@ -316,20 +311,31 @@ describe('zero-width clusters are measured in linear time, and as the regexes me
     expect(checked).toBeGreaterThan(170_000);
   });
 
-  // A few ms locally; a shared Windows runner read 121 ms (2026-09-29). The regex this replaced
-  // did not finish 1,000 joiners in ten minutes, so 2 s still fails a return of the backtracking.
-  it('measures 1,000 joiners before a visible character in well under the exponential cost', () => {
+  // Timed at two sizes, so the lock holds the growth and not the milliseconds, which a slow or
+  // instrumented runner multiplies (`__fixtures__/growth.ts`): about 10 ms for the smaller pair of
+  // calls here (node v24.12.0, macOS), and four times that for the larger. The regex this replaced
+  // doubled its time per joiner added: at 5 and 20 joiners it read 0.005 -> 37 ms.
+  it('measures a run of joiners before a visible character in linear time', () => {
     width('\u034F\u0903'); // the property classes are built on first use; that is not the cost under test
-    expect(elapsed(() => expect(width(`${'\u034F'.repeat(1000)}\u0903`)).toBe(1))).toBeLessThan(2000);
-    expect(elapsed(() => expect(width(`${'\u034F'.repeat(1000)}\u{1F3FB}`)).toBe(2))).toBeLessThan(2000);
+    expect(width(`${'\u034F'.repeat(1000)}\u0903`)).toBe(1);
+    expect(width(`${'\u034F'.repeat(1000)}\u{1F3FB}`)).toBe(2);
+    const g = growth(
+      (n) => '\u034F'.repeat(n),
+      (joiners) => {
+        width(`${joiners}\u0903`);
+        width(`${joiners}\u{1F3FB}`);
+      },
+      250_000,
+    );
+    expect(g.ratio, said(g)).toBeLessThan(LINEAR);
   });
 
   // About 0.2 s on a laptop and 2–3 s on a shared CI runner (2,100 ms on ubuntu, 3,108 ms on
-  // macos, 2026-09-29). The regex this replaced did not finish 1,000 joiners in ten minutes, so
-  // 15 s still fails any return of the backtracking by orders of magnitude.
-  it('measures 3,000,000 joiners without backtracking or a RangeError', { timeout: 60_000 }, () => {
-    expect(elapsed(() => expect(width(`${'\u034F'.repeat(3_000_000)}\u0903`)).toBe(1))).toBeLessThan(15_000);
-    expect(elapsed(() => expect(width('\u034F'.repeat(3_000_000))).toBe(0))).toBeLessThan(15_000);
+  // macos, 2026-09-29). The case above is the lock on backtracking; this one is the size
+  // string-width 8.3.0's suite added, where a recursive or stack-bound scan would throw.
+  it('measures 3,000,000 joiners without a RangeError', { timeout: 60_000 }, () => {
+    expect(width(`${'\u034F'.repeat(3_000_000)}\u0903`)).toBe(1);
+    expect(width('\u034F'.repeat(3_000_000))).toBe(0);
   });
 });
 
