@@ -12,10 +12,10 @@ name: Models · Quint
 on:
   push:
     branches: [main]
-    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/migrate.ts', 'packages/burgee/src/migrate-majors.ts', '.github/workflows/release.yml', '.github/workflows/changesets-pr.yml', 'packages/caique/src/clack-core.ts', 'packages/caique/src/inquirer-search.ts', 'packages/seniority/src/precedence.ts', 'packages/seniority/src/plugin.ts', 'packages/seniority/src/truth-table.ts', 'packages/burgee/src/complete-dynamic.ts', '.github/workflows/models.yml']
+    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/migrate.ts', 'packages/burgee/src/migrate-majors.ts', '.github/workflows/release.yml', '.github/workflows/changesets-pr.yml', 'packages/caique/src/clack-core.ts', 'packages/caique/src/inquirer-search.ts', 'packages/seniority/src/precedence.ts', 'packages/seniority/src/plugin.ts', 'packages/seniority/src/truth-table.ts', 'packages/burgee/src/complete-dynamic.ts', 'packages/oxmutate/src/runner.ts', '.github/workflows/models.yml']
   pull_request:
     branches: [main]
-    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/migrate.ts', 'packages/burgee/src/migrate-majors.ts', '.github/workflows/release.yml', '.github/workflows/changesets-pr.yml', 'packages/caique/src/clack-core.ts', 'packages/caique/src/inquirer-search.ts', 'packages/seniority/src/precedence.ts', 'packages/seniority/src/plugin.ts', 'packages/seniority/src/truth-table.ts', 'packages/burgee/src/complete-dynamic.ts', '.github/workflows/models.yml']
+    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/migrate.ts', 'packages/burgee/src/migrate-majors.ts', '.github/workflows/release.yml', '.github/workflows/changesets-pr.yml', 'packages/caique/src/clack-core.ts', 'packages/caique/src/inquirer-search.ts', 'packages/seniority/src/precedence.ts', 'packages/seniority/src/plugin.ts', 'packages/seniority/src/truth-table.ts', 'packages/burgee/src/complete-dynamic.ts', 'packages/oxmutate/src/runner.ts', '.github/workflows/models.yml']
   workflow_dispatch:
 
 concurrency:

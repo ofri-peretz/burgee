@@ -51,6 +51,41 @@ it.skipIf(!native || !existsSync(bin))('restarts a polluted context and judges l
   rmSync(reportDir, { recursive: true, force: true });
 }, 60_000);
 
+// A file-level `beforeEach` must re-run between mutants like any suite's. Vitest 5 does not link a
+// top-level describe to its file, so it was skipped: every canary failed on the entries the previous
+// mutant left, each read as pollution and cost a fresh context (shop-service, 2026-10-29).
+it.skipIf(!native || !existsSync(bin))('re-runs file-level beforeEach hooks between mutants, so they read as no pollution', () => {
+  const hooks = path.join(pkg, 'test/fixtures/file-hooks');
+  const reportDir = path.join(hooks, 'reports');
+  rmSync(reportDir, { recursive: true, force: true });
+  execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: hooks, stdio: 'pipe' });
+  const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as {
+    files: Record<string, { mutants: ReportMutant[] }>;
+    'x-oxmutate': { stats: { pollutionRestarts: number } };
+  };
+  expect(report['x-oxmutate'].stats.pollutionRestarts).toBe(0);
+  expect(report.files['src/registry.ts']?.mutants.length).toBeGreaterThan(0);
+  rmSync(reportDir, { recursive: true, force: true });
+}, 60_000);
+
+// A kill must not be decided on an earlier mutant's leftovers. reset() mutated to do nothing leaves the
+// total behind; the next mutant's run fails on it and its `finally` resets, so the batch canary passed
+// and vouched for that kill (.sdlc/intents/oxmutate/canary.qnt, verdictsClean). spare() is unchecked:
+// on clean state every one of its mutants survives.
+it.skipIf(!native || !existsSync(bin))('decides no kill on a previous mutant\'s leftovers that a test cleaned up in finally', () => {
+  const dir = path.join(pkg, 'test/fixtures/batch-leftover');
+  const reportDir = path.join(dir, 'reports');
+  rmSync(reportDir, { recursive: true, force: true });
+  execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe' });
+  const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: ReportMutant[] }> };
+  rmSync(reportDir, { recursive: true, force: true });
+  const mutants = report.files['src/registry.ts']?.mutants ?? [];
+  const spareLines = [19, 20]; // `export function spare` in the fixture
+  const spare = mutants.filter((m) => spareLines.includes(m.location.start.line));
+  expect(spare.length).toBeGreaterThan(0);
+  expect(spare.map((m) => `${String(m.location.start.line)}:${m.mutatorName}:${m.status}`)).toEqual(spare.map((m) => `${String(m.location.start.line)}:${m.mutatorName}:Survived`));
+}, 60_000);
+
 const alive = (pid: number): boolean => {
   try {
     process.kill(pid, 0);

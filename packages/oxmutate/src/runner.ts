@@ -119,9 +119,14 @@ function emit(record: object): void {
   if (resultsPath) appendFileSync(resultsPath, `${JSON.stringify(record)}\n`);
 }
 
+// The suites whose hooks wrap `test`, outermost first. Vitest 5 leaves a top-level `describe`'s
+// `suite` unset and keeps file-level hooks on `test.file`, so the walk adds the file itself: without
+// it a file-level `beforeEach` reset never re-ran between mutants and every canary read as pollution.
 function chain(test: AnyTask): AnyTask[] {
   const suites: AnyTask[] = [];
   for (let s = test.suite; s; s = s.suite) suites.unshift(s);
+  const file = test.file as AnyTask | undefined;
+  if (file && suites[0] !== file) suites.unshift(file);
   return suites;
 }
 
@@ -210,10 +215,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
         return false;
       }
     };
-    for (const id of ids) {
-      if (done.has(id)) continue;
-      if (attempt > 0) await fresh();
-      if (progressPath) writeFileSync(progressPath, `${id} ${String(Date.now())}\n`);
+    const runArmed = async (id: string): Promise<{ status: 'Killed' | 'Survived' | 'Timeout'; ms: number }> => {
       const t0 = performance.now();
       ns.activeMutant = id;
       ns.hitCount = 0;
@@ -228,8 +230,25 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
         ns.hitCount = undefined;
         ns.hitLimit = undefined;
       }
+      return { status, ms: performance.now() - t0 };
+    };
+    for (const id of ids) {
+      if (done.has(id)) continue;
+      if (attempt > 0) await fresh();
+      if (progressPath) writeFileSync(progressPath, `${id} ${String(Date.now())}\n`);
+      let { status, ms } = await runArmed(id);
+      // A kill that follows unchecked runs may be one of their leftovers, which this run's own cleanup
+      // (a `finally`) then wipes, so the batch canary would pass and vouch for a wrong kill. Survivors
+      // are confirmed in isolation later; kills are checked here: a failing canary is pollution as
+      // usual (this verdict goes back with the unit), a passing one leaves the state clean to decide
+      // the mutant again from (.sdlc/intents/oxmutate/canary.qnt).
+      if (status !== 'Survived' && unchecked.length > 0) {
+        if (!(await canary())) break;
+        await fresh();
+        ({ status, ms } = await runArmed(id));
+      }
       if (status !== 'Survived') done.add(id);
-      emit({ type: 'mutant', id, test: test.id, status, ms: performance.now() - t0, ...(spec ? { spec: true } : {}) });
+      emit({ type: 'mutant', id, test: test.id, status, ms, ...(spec ? { spec: true } : {}) });
       unchecked.push(id);
       // The canary: the same test, unmutated, must still pass. If it fails, a mutant left state
       // behind (a cache, a registry, a fixture) that would decide the next verdicts. Run after every
