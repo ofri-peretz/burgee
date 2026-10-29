@@ -48,7 +48,9 @@ swap.
 
 **`Argv` is callable**, as `@types/yargs` declares it:
 `(args?: readonly string[] | string, cwd?: string): Argv<T>` (A-20261028-yargs-argv-type-call-signature).
-A yargs 18 instance is not callable at run time, and neither is burgee's. The signature is there
+This reverses one of the four departures `types.ts` recorded when it was ported, "`Argv` is not
+callable"; its header now lists three. A yargs 18 instance is not callable at run time, and
+neither is burgee's. The signature is there
 because the drop-in claim is the types `@types/yargs` gives a program, and a TypeScript project
 is checked against that shape: without it an `Argv`'s `toString` is Object's, and
 `@typescript-eslint/no-base-to-string` fails igir's lint on `_yargs.help().toString()`.
