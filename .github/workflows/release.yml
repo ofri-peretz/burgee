@@ -166,6 +166,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 50
     permissions:
+      # The gate workflows' runs on this commit, for a gate cancelled before its check run existed.
+      actions: read
       checks: read
       contents: read
     outputs:
@@ -181,6 +183,9 @@ jobs:
           # The contexts branch protection requires that also run on a push to main.
           # `review` is PR-only, so it has nothing to report here.
           CHECKS: "Quality Gate|Quality (Full) Gate"
+          # The workflows those gates belong to, for a gate whose run was cancelled before its
+          # check run existed.
+          WORKFLOWS: "quality.yml|quality-full.yml"
         run: |
           set -euo pipefail
           if [ "$DRY_RUN" = "true" ]; then
@@ -189,6 +194,7 @@ jobs:
             exit 0
           fi
           IFS='|' read -ra names <<< "$CHECKS"
+          IFS='|' read -ra workflows <<< "$WORKFLOWS"
           deadline=$(( $(date +%s) + 45 * 60 ))
           while :; do
             pending=""; failed=""; cancelled=""
@@ -223,20 +229,26 @@ jobs:
               echo "::error::Refusing to publish $SHA — a required check did not pass: $failed"
               exit 1
             fi
-            # Superseded while a gate is still missing or pending. A later merge can cancel a
-            # commit's Quality (Full) workflow before its Gate job exists, and then that check run
-            # is missing, not cancelled: run 39247745837 on 1b0ea782 waited out all 45 minutes
-            # holding the release concurrency group, then went red. Off the head of main, a
-            # cancelled gate or any cancelled workflow run on the commit settles it: the newer
-            # commit's release run gates and publishes. On the head of main nothing changes.
+            # Superseded while a gate is still missing or pending: keep waiting. Since #1364 a push
+            # to main never cancels quality, quality-full or compat, so an older commit's gates
+            # finish, and publishing it is safe (detect plans only versions npm lacks, and a newer
+            # commit's run publishes anything newer). Skipping it starved releases: run 40823297761
+            # on 37cefdfa skipped burgee 1.9.3 because two *other* workflows on the commit had been
+            # cancelled, and both its gates passed 26 minutes later (D-20261029-release-waits-not-skips).
+            # It is skipped only when a gate itself was cancelled: a cancelled check run, or its
+            # workflow cancelled before the gate's check run existed (run 39247745837 on 1b0ea782).
             if [ -n "$pending" ]; then
               head=$(gh api "repos/$GH_REPO/commits/main" --jq .sha)
               if [ "$head" != "$SHA" ]; then
-                runs=$(gh api "repos/$GH_REPO/actions/runs?head_sha=$SHA&per_page=100" \
-                  --jq '[.workflow_runs[] | select(.conclusion == "cancelled")] | length')
+                runs=0
+                for workflow in "${workflows[@]}"; do
+                  n=$(gh api "repos/$GH_REPO/actions/workflows/$workflow/runs?head_sha=$SHA&per_page=100" \
+                    --jq '[.workflow_runs[] | select(.conclusion == "cancelled")] | length')
+                  runs=$(( runs + n ))
+                done
                 if [ -n "$cancelled" ] || [ "$runs" -gt 0 ]; then
                   echo "ok=false" >> "$GITHUB_OUTPUT"
-                  echo "::notice::$SHA was superseded by $head while its gates were unsettled (cancelled: ${cancelled:-none}; still missing or pending: $pending; $runs workflow run(s) cancelled). The release run for the newer commit publishes."
+                  echo "::notice::$SHA was superseded by $head and a gate of its own was cancelled (cancelled: ${cancelled:-none}; still missing or pending: $pending; $runs gate workflow run(s) cancelled). The release run for the newer commit publishes."
                   exit 0
                 fi
               fi
