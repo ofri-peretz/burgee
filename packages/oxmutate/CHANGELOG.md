@@ -1,5 +1,11 @@
 # oxmutate
 
+## 1.0.3
+
+### Patch Changes
+
+- [#1364](https://github.com/ofri-peretz/burgee/pull/1364) [`8299218`](https://github.com/ofri-peretz/burgee/commit/8299218e54736c7343afab369160e7b19d2001a6) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A Vitest config with `projects` is mutation-tested. Each project resolves `runner` from its own inline config rather than from the options oxmutate passes, so such a suite ran with Vitest's runner, recorded no test, and the run stopped at "the dry run ran no tests". oxmutate now sets its runner on every project; each keeps its own pool.
+
 ## 1.0.2
 
 ### Patch Changes
