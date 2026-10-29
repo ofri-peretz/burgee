@@ -21,6 +21,8 @@ import { afterAll, describe, expect, it } from 'vitest';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const pkg = path.join(here, '..');
 const fixture = path.join(pkg, 'test/fixtures/vitest5-regression');
+// Absolute, so the run does not depend on which directory oxmutate resolves `vitest.configFile` from.
+const strykerFilterConfig = path.resolve(fixture, 'vitest.stryker-filter.config.mjs');
 const bin = path.join(pkg, 'dist/bin.js');
 // Needs the native core and the built CLI, as e2e.test.ts does. CI sets OXMUTATE_REQUIRE_NATIVE.
 const native = existsSync(path.join(pkg, 'binding')) && readdirSync(path.join(pkg, 'binding')).some((f) => f.endsWith('.node'));
@@ -40,7 +42,7 @@ interface Mutant {
 const out = mkdtempSync(path.join(tmpdir(), 'oxmutate-sc7-'));
 afterAll(() => rmSync(out, { recursive: true, force: true }));
 
-/** The built CLI on the fixture, with `vitest` overriding the fixture's Vitest config file. */
+/** The built CLI on the fixture, with `vitestConfig` (an absolute path) replacing the fixture's Vitest config file. */
 const run = (name: string, vitestConfig?: string): { status: number | null; out: string; mutants: Mutant[] } => {
   const base = JSON.parse(readFileSync(path.join(fixture, 'oxmutate.config.json'), 'utf8')) as Record<string, unknown>;
   const config = path.join(out, `${name}.config.json`);
@@ -72,7 +74,7 @@ describe.skipIf(!ready)('the Vitest 5 regression (SC7)', () => {
 
   it("reproduces the defect: with Stryker 10.0.0's name filter put back, the same mutants are Survived having run no test", () => {
     const clean = run('clean-for-fault');
-    const faulty = run('stryker-filter', 'vitest.stryker-filter.config.mjs');
+    const faulty = run('stryker-filter', strykerFilterConfig);
     expect(faulty.mutants.map(at)).toEqual(clean.mutants.map(at));
     expect(faulty.mutants.length).toBeGreaterThan(0);
     // Each one is a killed mutant reported Survived, the fault SC7 names. The case above would fail.

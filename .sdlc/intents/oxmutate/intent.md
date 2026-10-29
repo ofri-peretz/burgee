@@ -14,7 +14,7 @@
 
 **Status:** approved · **Opened:** `2026-10-25` · **Owner:** `@ofri-peretz` · **Design accepted:** 2026-10-28
 ([`D-20261028-oxmutate-design-accepted`](../../decisions/D-20261028-oxmutate-design-accepted.md)).
-1.0.0 is on npm. It is not `shipped`: nine criteria and `S3` are open, see
+1.0.0 is on npm. It is not `shipped`: six criteria and `S3` are open, see
 [§ Design gate 2026-10-28](#design-gate-2026-10-28)
 
 ---
@@ -211,15 +211,15 @@ Each criterion below was checked by a reviewer that did not write the tool.
 | `SC1` | open | `M0` published medians of 5 runs with the machine spec, but `npm run bench:mutation` does not exist, and `oxmutate-bench.yml` has not published a runner number |
 | `SC2` | met | 17.9x warm, median of 5, on es-toolkit (`m0-results.md`); cold 8.2x beside it (`m1-results.md`) |
 | `SC3` | open | Agreement 99.90–99.92% (met). Disagreements are listed in `m1-results.md`, and controlroom `screen.ts:224` still has no reason |
-| `SC4` | open | `reports.test.ts` asserts the shape of both reports; no test validates against either schema file |
-| `SC5` | open | No committed sensitivity check (`test:sensitivity` does not exist) |
+| `SC4` | met | #1355: `src/schemas.test.ts` validates both reports of a real run against the vendored schemas (`test/schemas/`: Stryker report schema 3.8.4, SARIF 2.1.0) |
+| `SC5` | met | #1355: `src/sensitivity.test.ts` (`npm run test:sensitivity`) on `test/fixtures/sensitivity-weak` (3 survivors) and `sensitivity-closed` (none) |
 | `SC6` | unmet as written | Runtime deps `burgee` and `bellpull` (family only); cores bundled, not `optionalDependencies`; `"*"` ranges, fix in progress as 1.0.1 |
-| `SC7` | open | No `test/fixtures/vitest5-regression/` |
+| `SC7` | met | #1355: `src/vitest5-regression.test.ts` on `test/fixtures/vitest5-regression/`: every mutant Killed under Vitest 5, and Stryker's name filter put back makes all of them Survived |
 | `SC8` | open | Not measured; the first weekly run under oxmutate, 40783405734, is queued |
 | `SC9` | open | No compat-oracle grade for oxmutate |
 | `SC10` | met | `e2e.test.ts` "the frozen oracle (R14, SC10)", both cases; 161 / 161 green, natives present |
 | `SC11` | open | Closes no earlier than 2026-11-04, after one week of green mutation-lane runs on main under oxmutate |
 | `S3` (`metrics.md`) | open | 2.4x on paratext and slower by the clock on controlroom, against ≥ 5x |
 
-**What remains before `shipped`:** the nine open criteria and `S3`, each closed by the check
+**What remains before `shipped`:** the six open criteria and `S3`, each closed by the check
 named in its row.

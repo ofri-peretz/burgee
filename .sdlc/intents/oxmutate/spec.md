@@ -136,7 +136,8 @@ packages/oxmutate/
   test/
     fixtures/dayjs-like/          # WP-A  reference fixture (Verification)
     fixtures/vitest5-regression/  # WP-B  SC7 fixture
-    sensitivity/                  # W0    SC5
+    fixtures/sensitivity-weak/    # W0    SC5 weak suite
+    fixtures/sensitivity-closed/  # W0    SC5 closed suite
     report/ sarif/ cli/ teardown/ config/   # Wave 1 red checks
   bench/                          # WP-A, WP-X
   compat/mutation/                # WP-Y   compat-oracle grade
@@ -249,7 +250,7 @@ requirement or a check with no requirement is a planning defect.
 | R15 Stryker compat surfaces | WP-O (tests WP-H) | `npm run test:config` | SC9 |
 | R16 orphan-free teardown | WP-P (tests WP-G) | `npm run test:teardown` | SC1, SC11 |
 | R17 agent surface | WP-Q (tests WP-F) | `npm run test:cli` | SC4 |
-| Vitest-5 regression | WP-B, WP-K | `npm run test:vitest5-regression` | SC7 |
+| Vitest-5 regression | WP-B, WP-K | `npm test` (`src/vitest5-regression.test.ts`) | SC7 |
 | Sensitivity (fails unfixed) | W0 | `npm run test:sensitivity` | SC5 |
 
 ## Verification
@@ -260,7 +261,7 @@ The feedback loop, one command per check. Each exits non-zero when wrong.
 | :-- | :-- | :-- |
 | Operator unit tests | `cargo test -p oxmutate operators` | a mutant is missing or wrong for its operator |
 | Span correctness | `cargo test -p oxmutate span_edit` | applying a span edit does not reproduce the expected source |
-| Schema | `npm run test:schema` (`SC4`) | the report fails the Stryker JSON schema |
+| Schema | `npm test` (`src/schemas.test.ts`, `SC4`) | the report fails the Stryker JSON schema |
 | Parity | `npm run bench:mutation -- --parity` (`SC3`) | killed/survived agreement with Stryker is below 99% |
 | Speed | `npm run bench:mutation` (`SC1`, `SC2`) | speedup on the fixture is below 10x |
 | Sensitivity | `npm run test:sensitivity` (`SC5`) | a weak suite yields no survivors, or a killed suite yields survivors |
