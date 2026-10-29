@@ -183,3 +183,19 @@ describe("release.yml's verify step", () => {
     expect(r.outputs).not.toContain('ok=');
   });
 });
+
+/**
+ * The gates the verify step waits on must finish on every merged commit. With them cancelled by
+ * the next push to `main`, each release run saw its gate superseded and deferred to the newer
+ * commit, whose run deferred in turn: merges ~18 minutes apart published nothing for hours
+ * (oxmutate 1.0.1, 2026-10-29). A push runs in a group of its own; only pull requests cancel.
+ */
+describe('the gates a release waits on are never cancelled on main', () => {
+  const workflows = ['quality.yml', 'quality-full.yml', 'compat.yml'];
+  it.each(workflows)('%s keeps a push to main in its own group, and cancels only pull requests', (file) => {
+    const text = readFileSync(join(REPO_ROOT, '.github/workflows', file), 'utf8');
+    const block = /^concurrency:\n((?: {2}.*\n)+)/mu.exec(text)?.[1] ?? '';
+    expect(block, file).toMatch(/group: .*\$\{\{ github\.event_name == 'push' && github\.sha \|\| '' \}\}/u);
+    expect(block, file).toMatch(/cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}/u);
+  });
+});
