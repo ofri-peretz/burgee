@@ -63,6 +63,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:native": "cd native && cargo test --release",
+    "test:sensitivity": "vitest run src/sensitivity.test.ts",
     "lint": "eslint src",
     "coverage": "vitest run --coverage.enabled"
   },
