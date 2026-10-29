@@ -39,7 +39,7 @@ jobs:
           test "$(bun examples/demo-cli-commander/dist/bin.js greet ada)" = "Hello, ada!"
           bun examples/demo-cli-burgee/dist/bin.js config get user.name --json | grep -q '"ok":true'
           bun examples/demo-cli-burgee/dist/bin.js --help | grep -q 'Commands:'
-      # yargs-compat X9: a `burgee/yargs` program compiled to one binary runs from an empty
+      # yargs-compat X11: a `burgee/yargs` program compiled to one binary runs from an empty
       # directory and speaks English with no `locales/` beside it. On burgee 1.9.2 the binary
       # threw `ENOENT … scandir '/$bunfs'` at load (A-20261028-yargs-locale-read-at-runtime).
       - name: A burgee/yargs program as one compiled binary

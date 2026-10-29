@@ -8,10 +8,13 @@
  * `import type` lines move with its value import and nothing else changes. Declarations
  * only: this module emits no code (J9 — no dependency on either package).
  *
- * Four departures, each deliberate, each wider than or equal to what it replaces:
+ * `Argv` keeps @types/yargs' call signature, from yargs 16's singleton, although a yargs 18
+ * instance is not a function and neither is burgee's. Until 2026-10-29 that was a departure; it
+ * made an `Argv`'s `toString` Object's, and a typed program's lint failed on code that passes on
+ * @types/yargs (A-20261028-yargs-argv-type-call-signature).
  *
- * - **`Argv` is not callable.** @types/yargs gives the instance a call signature from
- *   yargs 16's singleton; a yargs 18 instance is not a function, and neither is burgee's.
+ * Three departures, each deliberate, each wider than or equal to what it replaces:
+ *
  * - **`onFinishCommand` is gone.** yargs 17 removed it and @types/yargs still declares it;
  *   a method the type promises and the instance lacks is a TypeError that compiles.
  *   `facade-types.test.ts` checks every member of `Argv` against a live instance.
@@ -87,6 +90,9 @@ export type ParserConfigurationOptions = Configuration & {
  * `Arguments<T>` to simplify the inferred type signature in client code.
  */
 export interface Argv<T = {}> {
+  // @types/yargs' call signature: a typed program is checked against it, and without it an `Argv`'s
+  // `toString` is Object's, which igir's lint refuses (A-20261028-yargs-argv-type-call-signature).
+  (args?: readonly string[] | string, cwd?: string): Argv<T>;
 
   /**
    * Set key names as equivalent such that updates to a key will propagate to aliases and vice-versa.

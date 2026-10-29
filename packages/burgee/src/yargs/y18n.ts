@@ -2,7 +2,7 @@
  * y18n 5 — yargs' string table — ported for `burgee/yargs`. The 29 locales ship with
  * burgee under `locales/`, never written (yargs runs y18n with `updateFiles: false`).
  *
- * **English is never read from disk** (`yargs-compat` X9, A-20261028-yargs-locale-read-at-runtime).
+ * **English is never read from disk** (`yargs-compat` X11, A-20261028-yargs-locale-read-at-runtime).
  * It is in the module graph (`y18n-locales.ts`, generated from `locales/`), so a program bundled
  * into one file, such as a `bun build --compile` binary whose files live in a virtual `/$bunfs`,
  * speaks it with nothing beside it. Another locale is read from `locales/` on first use, and **a

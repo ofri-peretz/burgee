@@ -1,6 +1,6 @@
 /**
  * A-20261028-yargs-locale-read-at-runtime: `burgee/yargs` reads no locale file to speak English,
- * and no locale read, of any locale, can fail a run (`yargs-compat` X9).
+ * and no locale read, of any locale, can fail a run (`yargs-compat` X11).
  *
  * `shim.ts` walked up from its own file to `package.json` **at module load**, to find
  * `locales/` for y18n, and y18n read `locales/en.json` on the first message and rethrew every

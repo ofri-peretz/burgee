@@ -12,25 +12,29 @@ with the measurement, each the reading plus the ~32 B CI reads heavier, rounded 
 
 ## What the bytes buy
 
-`yargs-compat` X9. A `bun build --compile` binary of a `burgee/yargs` program ran nothing on
+`yargs-compat` X11. A `bun build --compile` binary of a `burgee/yargs` program ran nothing on
 `burgee@1.9.2`: `shim.ts` walked up from its own file to `package.json` at module load, and
 inside the binary that walk reaches the virtual `/$bunfs`, whose `readdirSync` throws. Under
 Node, a locale read failing with anything but `ENOENT` (igir#2244's `EUNKNOWN`) failed every run.
 Now English is served from `yargs/y18n-locales.js`, the walk runs only when a locale other than
 English is first read, and any failure on that path serves English.
-`packages/burgee/src/yargs/locales-embedded.test.ts` holds it, and every case in it was red on
-`f801cf48e7`.
+`packages/burgee/src/yargs/locales-embedded.test.ts` holds it: 15 of its 18 cases were red on
+`f801cf48e7`, and the other 3 pin what must not change (German still read from disk).
 
 ## The bytes
 
-| measure | main `f801cf48e7` | this change | step | ceiling |
+Measured on main at `8650d04352`, which already carries #1361's +186 B
+(D-20261029-yargs-parse-callback-not-intercepted), and on this change merged onto it. Against
+`f801cf48e7`, before #1361, the step was the same: +821 bundled, +740 on each walk.
+
+| measure | main `8650d04352` | this change | step | ceiling |
 | :-- | --: | --: | --: | :-- |
-| B4 bundled, `burgee/yargs` (`benchmarks/axes/weight.ts`) | 109,149 | 109,970 | +821 | 109,200 -> 110,050 |
-| `lighter-than-yargs` (against yargs' 111,686) | 0.977 | 0.985 | | ≤ 1, unchanged |
-| static walk, `./yargs` (`packages/burgee/src/weight.test.ts`) | 222,248 | 222,988 | +740 | 222,300 -> 223,050 |
-| static walk, `./yargs/v17` | 225,290 | 226,030 | +740 | 225,350 -> 226,100 |
-| static walk, `./yargs/v17/yargs` | 225,514 | 226,254 | +740 | 225,550 -> 226,300 |
-| `/docs/weight`, `burgee/yargs/v17` everything (`scripts/subpath-weight-lock.test.ts`) | 110,662 | 111,483 | +821 | `ours` follows |
+| B4 bundled, `burgee/yargs` (`benchmarks/axes/weight.ts`) | 109,335 | 110,156 | +821 | 109,400 -> 110,200 |
+| `lighter-than-yargs` (against yargs' 111,686) | 0.979 | 0.986 | | ≤ 1, unchanged |
+| static walk, `./yargs` (`packages/burgee/src/weight.test.ts`) | 222,685 | 223,425 | +740 | 222,750 -> 223,500 |
+| static walk, `./yargs/v17` | 225,727 | 226,467 | +740 | 225,800 -> 226,500 |
+| static walk, `./yargs/v17/yargs` | 225,951 | 226,691 | +740 | 226,000 -> 226,750 |
+| `/docs/weight`, `burgee/yargs/v17` everything (`scripts/subpath-weight-lock.test.ts`) | 110,848 | 111,669 | +821 | `ours` follows |
 
 Measured locally on clean builds of both trees, on the same machine, with `bundledRecords` and
 the static walk.

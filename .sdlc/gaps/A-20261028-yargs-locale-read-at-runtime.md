@@ -38,7 +38,7 @@ resolved lazily and only for a non-English locale, and a failed walk-up is not f
 single-file build of any `burgee/yargs` program needs no file beside it for its default strings.
 
 **Closed 2026-10-29** by `fix/yargs-locales-embedded`, which publishes with burgee's next release
-(`yargs-compat` X9). English is in the module graph: `packages/burgee/scripts/generate-yargs-locales.mjs`
+(`yargs-compat` X11). English is in the module graph: `packages/burgee/scripts/generate-yargs-locales.mjs`
 renders `src/yargs/y18n-locales.ts` from `locales/`, the seven `en.json` entries that are not
 their own key and the names of the 29 shipped locales. `--check` runs in the build and the tests
 compare the values, so `locales/` stays the one source. The walk up to `package.json` runs on the first
@@ -46,7 +46,7 @@ non-English read, not at load. y18n picks a file from the shipped list, never by
 any failure on the way (no `locales/` found, `ENOENT`, `EUNKNOWN`, `EACCES`, a file that is not
 JSON) serves English. A locale burgee does not ship stays its keys, as on y18n.
 
-`packages/burgee/src/yargs/locales-embedded.test.ts` holds it. Each case was red on `f801cf48e7`,
+`packages/burgee/src/yargs/locales-embedded.test.ts` holds it. Each case below was red on `f801cf48e7`,
 whose y18n and shim are `burgee@1.9.2`'s: a program run with every `readdirSync` and every
 `locales/*.json` read failing (`EUNKNOWN`, then `ENOENT`) prints help, runs `copy`, prints
 `Missing dependent arguments:` and reads no locale file (it crashed at load); the program bundled

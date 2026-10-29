@@ -863,12 +863,17 @@ const RULES: Record<string, EntryRule> = {
     // the end of its input before `parseSync()` returns, and a tool call runs as a `parseSync()`.
     // Main at `b62cf2a105` measured 221,755 and this reads 222,248 (+493), on a clean build; plus
     // the ~32 B, rounded up to the next 50. `mcp.js` itself stays off this walk, required lazily.
-    // 223,050 on 2026-10-29 for A-20261028-yargs-locale-read-at-runtime
+    // 222,750 on 2026-10-29 for A-20261028-yargs-parse-callback-surfaces
+    // (D-20261029-yargs-parse-callback-not-intercepted): a parse with a callback intercepts no
+    // reserved name, and `--json` on a command with no handler is the program's. Main at
+    // `f801cf48e7` measured 222,248 and this reads 222,685 (+437), on a clean build; plus the ~32 B,
+    // rounded up to the next 50.
+    // 223,500 on 2026-10-29 for A-20261028-yargs-locale-read-at-runtime
     // (D-20261029-yargs-english-embedded-bytes): English and the list of shipped locales are in
     // the module graph (`yargs/y18n-locales.js`), so no locale file is read to speak English and
-    // no locale read can fail a run. Main at `f801cf48e7` measured 222,248 and this reads 222,988
+    // no locale read can fail a run. Main at `8650d04352` measured 222,685 and this reads 223,425
     // (+740), on a clean build; plus the ~32 B, rounded up to the next 50.
-    budget: 223_050,
+    budget: 223_500,
     // 217,100 with D-140 on top of D-122, N14 and E7, after merging #521. Measured 217,090.
     // 217,150 with A29's CommonJS export on top. Measured 217,123.
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
@@ -881,13 +886,15 @@ const RULES: Record<string, EntryRule> = {
   // seam the factory plugs into (`shim.CommandInstance`) and its budget does not move.
   // 224,850 on 2026-10-27 with `./yargs`' +56 B for parseSync() surfaces: 224,741 -> 224,797.
   // 225,350 on 2026-10-28 with `./yargs`' +493 B for `--mcp` under parseSync(): 224,797 -> 225,290.
-  // 226,100 on 2026-10-29 with `./yargs`' +740 B for embedded English: 225,290 -> 226,030.
-  "./yargs/v17": { allow: ["linegauge"], budget: 226_100, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
+  // 225,800 on 2026-10-29 with `./yargs`' +437 B for the callback form and `--json` on no handler: 225,290 -> 225,727.
+  // 226,500 on 2026-10-29 with `./yargs`' +740 B for embedded English: 225,727 -> 226,467.
+  "./yargs/v17": { allow: ["linegauge"], budget: 226_500, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
   // 17's `yargs/yargs`: `./yargs/v17` and one function carrying three statics. 224,919 measured.
   // 225,100 on 2026-10-27 with `./yargs`' +56 B for parseSync() surfaces: 224,965 -> 225,021.
   // 225,550 on 2026-10-28 with `./yargs`' +493 B for `--mcp` under parseSync(): 225,021 -> 225,514.
-  // 226,300 on 2026-10-29 with `./yargs`' +740 B for embedded English: 225,514 -> 226,254.
-  "./yargs/v17/yargs": { allow: ["linegauge"], budget: 226_300, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
+  // 226,000 on 2026-10-29 with `./yargs`' +437 B for the callback form and `--json` on no handler: 225,514 -> 225,951.
+  // 226,750 on 2026-10-29 with `./yargs`' +740 B for embedded English: 225,951 -> 226,691.
+  "./yargs/v17/yargs": { allow: ["linegauge"], budget: 226_750, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
   "./yargs/helpers": {
     allow: [],
     budget: 64_000,

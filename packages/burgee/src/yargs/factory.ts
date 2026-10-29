@@ -15,7 +15,7 @@ import { machineJson, schemaOf } from '../schema.js';
 import { tokenizeArgString } from '../yargs-parser.js';
 
 import { projectManifest, render, type Snapshot } from './burgee.js';
-import { command as Command, type CommandHandler, type CommandInstance, isCommandBuilderCallback } from './command.js';
+import { command as Command, type CommandHandler, type CommandInstance, isCommandBuilderCallback, noHandler } from './command.js';
 import { completion as Completion, type Completion as CompletionInstance, type CompletionFunction } from './completion.js';
 import { applyMiddleware, GlobalMiddleware, type Middleware } from './middleware.js';
 import type { PlatformShim } from './shim.js';
@@ -785,12 +785,16 @@ export class YargsInstance {
       this.#parseFn = shortCircuit as ParseCallback;
       shortCircuit = false;
     }
+    // burgee: under the callback form the program owns the output and the exit, and goes on
+    // with the argv `parse()` returns; a surface could not end it first. So nothing is taken
+    // and every reserved name is the program's, as on yargs (A-20261028-yargs-parse-callback-surfaces).
+    const intercept = !shortCircuit && !this.#parseFn;
     if (!shortCircuit) {
-      args = this.#takeJson(args);
+      if (intercept) args = this.#takeJson(args);
       this.#processArgs = args;
     }
     if (this.#parseFn) this.#exitProcess = false;
-    if (!shortCircuit) {
+    if (intercept) {
       const served = this.#burgeeSurface(args);
       if (served !== false) {
         // A surface was (or is being) served: the argv handed back is the short-circuit parse,
@@ -1561,6 +1565,14 @@ export class YargsInstance {
 
   /** The handler, wrapped in the plugin hooks and followed by the envelope or the rendering. */
   #runHandler(handler: (argv: any) => any, argv: any, original: string): any {
+    // A command with no handler does its work after `parse()` returns, so an envelope here would
+    // claim a run that has not happened: `--json` is the program's argument after all, refused
+    // under strict options as yargs refuses it, or set on the argv (A-20261028-yargs-parse-callback-surfaces).
+    if (handler === noHandler && this.#burgee?.json) {
+      this.#burgee.json = false;
+      if (this.#strict || this.#strictOptions) this.#usage.fail(this.#shim.y18n.__n('Unknown argument: %s', 'Unknown arguments: %s', 1, 'json'));
+      argv.json = true;
+    }
     const manifest = this.#manifest;
     const settle = (value: unknown): unknown => {
       this.#settle(value, argv);

@@ -16,7 +16,9 @@ Intent: [`intent.md`](./intent.md). **Status:** review.
 | X6 | The front-end's reachable bytes stay under what yargs installs for the same surface (`lib/` 158 K + yargs-parser 52 K + cliui, y18n and the rest): budget **256,000** in `weight.test.ts` entry `./yargs`; `./yargs/helpers` **64,000** and it must never reach the factory |
 | X7 | `examples/demo-cli-yargs` produces byte-identical output on real yargs and on this front-end |
 | X8 | A program in yargs syntax runs unchanged and gains burgee's plugins and surfaces without a line changing (J2, J7, J8), and **nothing about its default behaviour changes**; the 29 locales ship with burgee so `.locale()` and `LC_ALL` work as on yargs |
-| X9 | **Loading `burgee/yargs` reads no file for locales, and no locale read can fail an invocation** (A-20261028-yargs-locale-read-at-runtime). English is in the module graph, generated from `locales/en.json` with one source of truth, so a single-file build (`bun build --compile`, an esbuild bundle) prints help and English errors with nothing beside it. `locales/` is looked for only when a locale other than English is first used; a read of it that fails for any reason (`ENOENT`, `EUNKNOWN`, `EACCES`, a file that is not JSON, no `locales/` to be found) serves English. A locale burgee does not ship stays its keys, as on y18n. `.locale()` and `.updateStrings()` behave as on yargs, under X2 |
+| X9 | **Added 2026-10-29** (A-20261028-yargs-parse-callback-surfaces, D-20261029-yargs-parse-callback-not-intercepted). Under yargs' callback form, `.parse(argv, context, callback)` or `.parse(argv, callback)`, burgee intercepts none of its reserved names: `--json`, `--schema`, `--mcp` and `completion <shell>` are refused or passed through exactly as yargs would, because the program owns the output and the exit there and goes on with the argv `parse()` returns. Under every shape, `--json` reaching a command declared with no handler prints no envelope: it is refused with yargs' `Unknown argument: json` under `.strict()` or `.strictOptions()`, and set on the argv otherwise. Held by `yargs/parse-callback-surfaces.test.ts`, against the installed yargs 18.2.0 |
+| X10 | **Added 2026-10-29** (A-20261028-yargs-argv-type-call-signature). The types `burgee/yargs` exports have the shapes `@types/yargs` gives them where a typed program can tell, not only the names: `Argv` carries the call signature `(args?: readonly string[] \| string, cwd?: string): Argv<T>`, so its apparent `toString` is `Function`'s. Held by `facade-types.test.ts`, which compiles igir's `.fail()` handler against both and compares the checker's call signatures |
+| X11 | **Loading `burgee/yargs` reads no file for locales, and no locale read can fail an invocation** (A-20261028-yargs-locale-read-at-runtime). English is in the module graph, generated from `locales/en.json` with one source of truth, so a single-file build (`bun build --compile`, an esbuild bundle) prints help and English errors with nothing beside it. `locales/` is looked for only when a locale other than English is first used; a read of it that fails for any reason (`ENOENT`, `EUNKNOWN`, `EACCES`, a file that is not JSON, no `locales/` to be found) serves English. A locale burgee does not ship stays its keys, as on y18n. `.locale()` and `.updateStrings()` behave as on yargs, under X2 |
 
 ## Design
 
@@ -118,7 +120,13 @@ runs the front-end as a fifth host and `yargs-parity.test.ts` requires identical
 `{ code, stdout, stderr }` on 26 argv cases — happy paths, every error class, help at
 every level, version, `--`.
 
-X9 is held by `packages/burgee/src/yargs/locales-embedded.test.ts`, every case red on
+X9 and X10 came from the second first-adopter proof, on emmercm/igir
+([`igir.md`](../../research/adoption/igir.md)). X9's cases run each program on yargs and on
+`burgee/yargs` and require identical stdout, stderr and exit; 20 of the first 22 were red on
+`burgee@1.9.2`'s factory. X10's two cases were red on its `types.ts` with
+`TS2349 This expression is not callable`.
+
+X11 is held by `packages/burgee/src/yargs/locales-embedded.test.ts`, each case below red on
 `f801cf48e7` (`burgee@1.9.2`'s y18n and shim) first: a program run with every `readdirSync`
 and every `locales/*.json` read failing (`EUNKNOWN`, then `ENOENT`) prints help, runs a
 command and prints English errors, reading no locale file; the same program bundled by
