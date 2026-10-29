@@ -23,20 +23,22 @@ export const FACTOR = 4;
 /** The ceiling on the ratio: linear is 4, quadratic 16, and 8 is the geometric middle of the two. */
 export const LINEAR = 8;
 
-/** Timed runs per size; the median of each is compared, so one preempted run cannot decide it. */
-const RUNS = 3;
+/**
+ * Timed runs per size, and the fastest of each is compared. What a shared host adds to a run — a
+ * preemption, a garbage collection — only ever adds time, so the fastest run is the nearest to the
+ * function's own cost. A median of three was not enough: on CI it read 8.84x for a linear
+ * `parseCommand` (ubuntu) and 22.6x for a linear `cutTrailingTabs` (macOS), PR #1373. The same
+ * lesson, learned the same way, is written up in `yargs/cliui.test.ts` in burgee.
+ */
+const RUNS = 5;
 
 export interface Growth {
-  /** Median ms at `n`. */
+  /** Fastest ms at `n`. */
   small: number;
-  /** Median ms at `FACTOR * n`. */
+  /** Fastest ms at `FACTOR * n`. */
   large: number;
   /** `large / small`. */
   ratio: number;
-}
-
-function median(xs: number[]): number {
-  return xs.toSorted((a, b) => a - b)[Math.floor(xs.length / 2)] as number;
 }
 
 function time(run: () => unknown): number {
@@ -65,12 +67,12 @@ export function growth<T>(input: (n: number) => T, run: (x: T) => unknown, n: nu
     smalls.push(time(() => run(small)));
     larges.push(time(() => run(large)));
   }
-  const s = median(smalls);
-  const l = median(larges);
+  const s = Math.min(...smalls);
+  const l = Math.min(...larges);
   return { small: s, large: l, ratio: l / s };
 }
 
-/** The failure message: both medians and the ratio, so a red run says what it measured. */
+/** The failure message: both timings and the ratio, so a red run says what it measured. */
 export function said(g: Growth): string {
   return `${FACTOR}x the input took ${g.ratio.toFixed(2)}x the time (${g.small.toFixed(1)} ms -> ${g.large.toFixed(1)} ms); linear is ${FACTOR}, quadratic ${FACTOR ** 2}`;
 }
