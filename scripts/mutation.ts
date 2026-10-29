@@ -314,6 +314,25 @@ export function strykerConfig(o: RunOptions): Record<string, unknown> {
   };
 }
 
+/**
+ * The config an oxmutate run uses: Stryker's keys, which oxmutate reads too, and `allowEmpty`. A
+ * changed range with no mutant in it, a type-only line, leaves oxmutate a dry run with no test to
+ * run, which it refuses unless `allowEmpty` is set; Stryker reports nothing to score and exits 0
+ * (#1361). Nothing is hidden by it: a mutant that no test runs is still NoCoverage, which fails.
+ */
+export function oxmutateConfig(o: RunOptions): Record<string, unknown> {
+  return {
+    mutate: [...o.mutate],
+    allowEmpty: true,
+    vitest: { configFile: o.vitestConfig },
+    concurrency: o.concurrency,
+    timeoutMS: o.timeoutMS,
+    dryRunTimeoutMinutes: o.dryRunTimeoutMinutes,
+    reporters: ['clear-text', 'json'],
+    jsonReporter: { fileName: o.reportFile },
+  };
+}
+
 export interface PackageRun {
   pkg: string;
   ok: boolean;
@@ -354,9 +373,7 @@ export function runPackage(pkg: string, mutate: readonly string[], o: { concurre
   writeFileSync(vitestConfig, wrapperConfig(packageDir, Object.keys(SKIPPED_TESTS[pkg] ?? {})));
   // oxmutate reads the same keys from a config of its own; it never writes the sources, so the
   // snapshot below only ever finds Stryker's leftovers.
-  const config = engine === 'oxmutate'
-    ? { mutate, vitest: { configFile: vitestConfig }, concurrency: o.concurrency, timeoutMS: o.timeoutMS, dryRunTimeoutMinutes: o.dryRunTimeoutMinutes, reporters: ['clear-text', 'json'], jsonReporter: { fileName: reportFile } }
-    : strykerConfig({ ...o, vitestConfig, mutate, reportFile });
+  const config = engine === 'oxmutate' ? oxmutateConfig({ ...o, vitestConfig, mutate, reportFile }) : strykerConfig({ ...o, vitestConfig, mutate, reportFile });
   writeFileSync(configFile, JSON.stringify(config, null, 2));
   const before = snapshot(packageDir, mutate);
   const started = Date.now();
