@@ -147,6 +147,21 @@ describe.skipIf(!native || !existsSync(bin))('Stryker options the run honours', 
     }
   });
 
+  it('a Vitest config with projects is scored: the runner reaches every project', () => {
+    // burgee's config has `projects`, which resolve `runner` from their own inline config: its
+    // weekly run ran with Vitest's runner, recorded no test, and stopped (run 40783405734).
+    const projects = path.join(pkg, 'test/fixtures/projects');
+    try {
+      const r = runWith(projects, {});
+      expect(r.status, r.out).toBe(0);
+      const mutants = (JSON.parse(readFileSync(path.join(r.reports, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: ReportMutant[] }> }).files['src/sign.ts']?.mutants ?? [];
+      expect(mutants.length).toBeGreaterThan(0);
+      expect(mutants.filter((m) => m.status === 'Killed').length).toBeGreaterThan(0);
+    } finally {
+      rmSync(path.join(projects, 'reports'), { recursive: true, force: true });
+    }
+  });
+
   it('dryRunOnly: the dry run passes and nothing is scored or written', () => {
     const r = runWith(registry, { dryRunOnly: true });
     expect(r.status).toBe(0);
