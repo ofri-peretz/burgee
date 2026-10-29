@@ -59,6 +59,22 @@ at `d0da17b`. The commit, patch, title and posted body are in [`upstream/`](./up
 local `revert-proof` branch was not pushed. Status stays `approved`. A1 and A6 hold only on an
 upstream merge, and A1 also needs a concurrently release that depends on burgee.
 
+**Second candidate lined up 2026-10-28: emmercm/igir, answering its own #2249; held, nothing
+posted.** It runs beside #639, in case #639 is declined or ignored, and does not replace it
+([D-20261028-first-adopter-second-target](../../decisions/D-20261028-first-adopter-second-target.md)).
+igir's maintainer opened #2249 to replace yargs, calling his locale shim "extremely brittle"; it
+is the only open maintainer ask among the five candidates shortlisted. The proof on
+`burgee@1.9.2` ([`igir.md`](../../research/adoption/igir.md)) keeps igir's suite as it was and
+`--help` byte-identical, but fails three checks, each a burgee gap: igir's own Bun compile builds
+a binary that throws on every invocation
+([A-20261028-yargs-locale-read-at-runtime](../../gaps/A-20261028-yargs-locale-read-at-runtime.md)),
+the reserved flags misbehave under `.parse(argv, {}, cb)`
+([A-20261028-yargs-parse-callback-surfaces](../../gaps/A-20261028-yargs-parse-callback-surfaces.md)),
+and lint fails on the `Argv` type
+([A-20261028-yargs-argv-type-call-signature](../../gaps/A-20261028-yargs-argv-type-call-signature.md)).
+The comment, PR body and patch in [`upstream-igir/`](./upstream-igir/) are marked
+`NOT POSTED — awaiting owner go`, and wait on those fixes and a re-run. Status stays `approved`.
+
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why `review` until 2026-10-25:** no external CLI has been migrated; A1–A5 are all open.
 
 ---

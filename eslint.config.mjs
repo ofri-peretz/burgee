@@ -424,6 +424,18 @@ export default [
     files: ["packages/*/src/**/*.test.ts"],
     rules: { "import-next/no-extraneous-dependencies": "off" },
   },
+  // oxmutate's Stryker grade (SC9): the harness the vendored, unedited Stryker mutator specs
+  // resolve to. It reaches the package's own native core in `../src` (the thing graded), prints
+  // with the root-pinned `typescript` as the graded tests do, and its setup file is a Vitest
+  // entry point that exports nothing.
+  {
+    files: ["packages/oxmutate/compat/**"],
+    rules: {
+      "import-next/no-relative-parent-imports": "off",
+      "import-next/no-extraneous-dependencies": "off",
+      "import-next/no-unused-modules": "off",
+    },
+  },
   // The docs apps read two files outside every workspace, by path, on purpose. The chassis's
   // config reader imports `.github/vercel-apps.json` — the one table that names every app —
   // so Next inlines it at build time; and each app's site module imports its documented
