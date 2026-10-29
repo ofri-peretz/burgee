@@ -87,6 +87,9 @@ export type ParserConfigurationOptions = Configuration & {
  * `Arguments<T>` to simplify the inferred type signature in client code.
  */
 export interface Argv<T = {}> {
+  // @types/yargs' call signature: a typed program is checked against it, and without it an `Argv`'s
+  // `toString` is Object's, which igir's lint refuses (A-20261028-yargs-argv-type-call-signature).
+  (args?: readonly string[] | string, cwd?: string): Argv<T>;
 
   /**
    * Set key names as equivalent such that updates to a key will propagate to aliases and vice-versa.

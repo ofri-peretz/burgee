@@ -12,6 +12,9 @@ import type { ValidationInstance } from './validation.js';
 
 const DEFAULT_MARKER = /(^\*)|(^\$0)/;
 
+/** burgee: what a command declared with no handler runs, so `--json` can tell it apart (A-20261028-yargs-parse-callback-surfaces). */
+export const noHandler = (): void => {};
+
 export interface CommandHandler {
   original: string;
   /** burgee: the other names it was registered under, which `--schema` lists on it. */
@@ -116,7 +119,7 @@ export class CommandInstance {
   ): void {
     let aliases: string[] = [];
     const middlewares = commandMiddlewareFactory(commandMiddleware);
-    handler = handler || (() => {});
+    handler = handler || noHandler;
     if (Array.isArray(cmd)) {
       if (isCommandAndAliases(cmd)) [cmd, ...aliases] = cmd as [string, ...string[]];
       else {

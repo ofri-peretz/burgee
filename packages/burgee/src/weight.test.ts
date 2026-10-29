@@ -863,7 +863,12 @@ const RULES: Record<string, EntryRule> = {
     // the end of its input before `parseSync()` returns, and a tool call runs as a `parseSync()`.
     // Main at `b62cf2a105` measured 221,755 and this reads 222,248 (+493), on a clean build; plus
     // the ~32 B, rounded up to the next 50. `mcp.js` itself stays off this walk, required lazily.
-    budget: 222_300,
+    // 222,750 on 2026-10-29 for A-20261028-yargs-parse-callback-surfaces
+    // (D-20261029-yargs-parse-callback-not-intercepted): a parse with a callback intercepts no
+    // reserved name, and `--json` on a command with no handler is the program's. Main at
+    // `f801cf48e7` measured 222,248 and this reads 222,685 (+437), on a clean build; plus the ~32 B,
+    // rounded up to the next 50.
+    budget: 222_750,
     // 217,100 with D-140 on top of D-122, N14 and E7, after merging #521. Measured 217,090.
     // 217,150 with A29's CommonJS export on top. Measured 217,123.
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
@@ -876,11 +881,13 @@ const RULES: Record<string, EntryRule> = {
   // seam the factory plugs into (`shim.CommandInstance`) and its budget does not move.
   // 224,850 on 2026-10-27 with `./yargs`' +56 B for parseSync() surfaces: 224,741 -> 224,797.
   // 225,350 on 2026-10-28 with `./yargs`' +493 B for `--mcp` under parseSync(): 224,797 -> 225,290.
-  "./yargs/v17": { allow: ["linegauge"], budget: 225_350, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
+  // 225,800 on 2026-10-29 with `./yargs`' +437 B for the callback form and `--json` on no handler: 225,290 -> 225,727.
+  "./yargs/v17": { allow: ["linegauge"], budget: 225_800, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
   // 17's `yargs/yargs`: `./yargs/v17` and one function carrying three statics. 224,919 measured.
   // 225,100 on 2026-10-27 with `./yargs`' +56 B for parseSync() surfaces: 224,965 -> 225,021.
   // 225,550 on 2026-10-28 with `./yargs`' +493 B for `--mcp` under parseSync(): 225,021 -> 225,514.
-  "./yargs/v17/yargs": { allow: ["linegauge"], budget: 225_550, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
+  // 226,000 on 2026-10-29 with `./yargs`' +437 B for the callback form and `--json` on no handler: 225,514 -> 225,951.
+  "./yargs/v17/yargs": { allow: ["linegauge"], budget: 226_000, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
   "./yargs/helpers": {
     allow: [],
     budget: 64_000,

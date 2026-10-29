@@ -508,7 +508,12 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // server's synchronous half is counted here too. Main at `b62cf2a105` measured 108,897 locally
   // (CI's reading of it as well) and this reads 109,149 (+252); plus the ~32 B, rounded up to the
   // next 50. Still 2,537 B under yargs' own 111,686.
-  'burgee/yargs': 109_200,
+  // 109,400 on 2026-10-29 for A-20261028-yargs-parse-callback-surfaces
+  // (D-20261029-yargs-parse-callback-not-intercepted): a parse with a callback intercepts no
+  // reserved name, and `--json` on a command with no handler is the program's. Main at
+  // `f801cf48e7` measured 109,149 and this reads 109,335 (+186); plus the ~32 B, rounded up to the
+  // next 50. Still 2,351 B under yargs' own 111,686.
+  'burgee/yargs': 109_400,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
   // bundle grows by, set where the number actually is, so the next byte is a decision.
