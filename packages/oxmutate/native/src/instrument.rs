@@ -394,7 +394,7 @@ impl<'a> Collector<'a> {
                 K::ImportDeclaration(_) | K::ExportNamedDeclaration(_) | K::ExportAllDeclaration(_)
                 | K::ExportFromDeclaration(_) | K::ImportAttribute(_) | K::WithClause(_)
                 | K::ExportDefaultDeclaration(_) | K::TSExternalModuleReference(_)
-                | K::JSXAttribute(_) | K::ExpressionStatement(_) | K::ImportExpression(_)
+                | K::JSXAttribute(_) | K::ExpressionStatement(_) | K::Directive(_) | K::ImportExpression(_)
                 | K::TSEnumMember(_) | K::TSExternalModuleDeclaration(_) | K::TSLiteralType(_) => false,
                 K::ImportSpecifier(_) | K::ExportSpecifier(_) => false,
                 K::ObjectProperty(o) => o.key.span() != span,
@@ -619,7 +619,11 @@ impl<'a> Collector<'a> {
             }
             K::SwitchCase(c) => {
                 if !c.consequent.is_empty() {
-                    out.push(("ConditionalExpression", String::new()));
+                    // Reported as Stryker reports it: the case with its body emptied (`case 1:`).
+                    // What runs is the same either way (`applied` keeps the head, skips the body).
+                    let from = c.test.as_ref().map_or(span.start as usize + "default".len(), |t| t.span().end as usize);
+                    let head = src[from..].find(':').map_or(&src[span.start as usize..span.end as usize], |i| &src[span.start as usize..=from + i]);
+                    out.push(("ConditionalExpression", head.to_string()));
                 }
             }
             K::ExpressionStatement(s) => {

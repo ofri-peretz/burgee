@@ -46,9 +46,15 @@
   },
   "typesVersions": {
     "*": {
-      "runner": ["./dist/runner.d.ts"],
-      "spec": ["./dist/spec.d.ts"],
-      "vite": ["./dist/vite.d.ts"]
+      "runner": [
+        "./dist/runner.d.ts"
+      ],
+      "spec": [
+        "./dist/spec.d.ts"
+      ],
+      "vite": [
+        "./dist/vite.d.ts"
+      ]
     }
   },
   "files": [
@@ -61,10 +67,11 @@
     "build": "tsc -p tsconfig.build.json && node ../../scripts/declaration-reach.mts --prune",
     "build:native": "cd native && cargo build --release --features napi --lib && node ../scripts/copy-binding.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
+    "test": "vitest run && vitest run --config compat/vitest.config.ts",
     "test:native": "cd native && cargo test --release",
     "lint": "eslint src",
-    "coverage": "vitest run --coverage.enabled"
+    "coverage": "vitest run --coverage.enabled",
+    "compat:mutation": "vitest run --config compat/vitest.config.ts"
   },
   "dependencies": {
     "bellpull": "^1.0.10",
