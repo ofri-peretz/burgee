@@ -16,6 +16,7 @@ Intent: [`intent.md`](./intent.md). **Status:** review.
 | X6 | The front-end's reachable bytes stay under what yargs installs for the same surface (`lib/` 158 K + yargs-parser 52 K + cliui, y18n and the rest): budget **256,000** in `weight.test.ts` entry `./yargs`; `./yargs/helpers` **64,000** and it must never reach the factory |
 | X7 | `examples/demo-cli-yargs` produces byte-identical output on real yargs and on this front-end |
 | X8 | A program in yargs syntax runs unchanged and gains burgee's plugins and surfaces without a line changing (J2, J7, J8), and **nothing about its default behaviour changes**; the 29 locales ship with burgee so `.locale()` and `LC_ALL` work as on yargs |
+| X9 | **Loading `burgee/yargs` reads no file for locales, and no locale read can fail an invocation** (A-20261028-yargs-locale-read-at-runtime). English is in the module graph, generated from `locales/en.json` with one source of truth, so a single-file build (`bun build --compile`, an esbuild bundle) prints help and English errors with nothing beside it. `locales/` is looked for only when a locale other than English is first used; a read of it that fails for any reason (`ENOENT`, `EUNKNOWN`, `EACCES`, a file that is not JSON, no `locales/` to be found) serves English. A locale burgee does not ship stays its keys, as on y18n. `.locale()` and `.updateStrings()` behave as on yargs, under X2 |
 
 ## Design
 
@@ -50,7 +51,12 @@ and wrap-ansi it wraps text with — the arithmetic is the upstream's line for l
 the usage tests compare screens), `yargs-y18n.ts` (the string table, reading
 `locales/<lang>.json` on first use, never writing) and two functions for escalade and
 get-caller-file. The 29 locale files ship with the package under `locales/`; they are
-data read at runtime, not imports, so the weight lock does not walk them.
+data read at runtime, not imports, so the weight lock does not walk them. **English is the
+exception (X9):** `scripts/generate-yargs-locales.mjs` renders `yargs/y18n-locales.ts` from
+`locales/`, the English entries that are not their own key and the names of the shipped
+locales, so English is never read from disk and a locale read that fails serves it. The
+walk up to `package.json` that finds `locales/` runs on the first non-English read, not at
+load.
 
 **burgee sits beside it, never in front of it.** The same additions as on the commander
 front-end, each guarded so a program that asks for none of them behaves exactly as on
@@ -111,6 +117,16 @@ oracle's drivers takes the yargs implementation as a parameter, `examples/confor
 runs the front-end as a fifth host and `yargs-parity.test.ts` requires identical
 `{ code, stdout, stderr }` on 26 argv cases — happy paths, every error class, help at
 every level, version, `--`.
+
+X9 is held by `packages/burgee/src/yargs/locales-embedded.test.ts`, every case red on
+`f801cf48e7` (`burgee@1.9.2`'s y18n and shim) first: a program run with every `readdirSync`
+and every `locales/*.json` read failing (`EUNKNOWN`, then `ENOENT`) prints help, runs a
+command and prints English errors, reading no locale file; the same program bundled by
+esbuild into a directory of its own speaks English, and still runs when that directory
+cannot be listed, as a Bun binary's `/$bunfs` cannot; the embedded values equal what
+`locales/` holds (the generator's `--check` holds the text, in the build); and
+the string table serves English without asking where `locales/` is. The bytes are
+D-20261029-yargs-english-embedded-bytes.
 
 ## Rejected alternatives
 

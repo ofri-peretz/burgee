@@ -39,6 +39,25 @@ jobs:
           test "$(bun examples/demo-cli-commander/dist/bin.js greet ada)" = "Hello, ada!"
           bun examples/demo-cli-burgee/dist/bin.js config get user.name --json | grep -q '"ok":true'
           bun examples/demo-cli-burgee/dist/bin.js --help | grep -q 'Commands:'
+      # yargs-compat X9: a `burgee/yargs` program compiled to one binary runs from an empty
+      # directory and speaks English with no `locales/` beside it. On burgee 1.9.2 the binary
+      # threw `ENOENT … scandir '/$bunfs'` at load (A-20261028-yargs-locale-read-at-runtime).
+      - name: A burgee/yargs program as one compiled binary
+        run: |
+          set -euo pipefail
+          cat > x9-prog.mjs <<'EOF'
+          import yargs from 'burgee/yargs';
+          import { hideBin } from 'burgee/yargs/helpers';
+          yargs(hideBin(process.argv)).scriptName('prog')
+            .command('copy', 'copy files', (b) => b.option('input', { type: 'string' }).option('output', { type: 'string' }).implies('input', 'output'), () => {})
+            .demandCommand(1).strict().parse();
+          EOF
+          bun build --compile x9-prog.mjs --outfile "$RUNNER_TEMP/x9-bin"
+          mkdir -p "$RUNNER_TEMP/empty"
+          cd "$RUNNER_TEMP/empty"
+          LC_ALL=en_US.UTF-8 "$RUNNER_TEMP/x9-bin" --help | grep -q 'copy files'
+          if LC_ALL=en_US.UTF-8 "$RUNNER_TEMP/x9-bin" copy --input a 2> err.txt; then exit 1; fi
+          grep -q 'Missing dependent arguments:' err.txt
 
   deno:
     name: deno runs the demos

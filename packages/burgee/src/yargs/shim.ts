@@ -112,11 +112,15 @@ function strictEqual(actual: any, expected: any, message?: string): void {
  * returned the key for every string, and 14 of yargs' own 804 tests failed. Walking up to
  * `package.json` resolves the same from `src/`, from `dist/`, and from
  * `node_modules/burgee/dist/` once published — so a later move cannot repeat it.
+ *
+ * **Walked only when a locale other than English is first read, never at load**
+ * (A-20261028-yargs-locale-read-at-runtime). It ran at module load until then, and inside a
+ * `bun build --compile` binary the walk reaches the virtual `/$bunfs`, whose `readdirSync` throws:
+ * every run of the binary failed before the program's first line. English needs no file now
+ * (`y18n.ts`), and a walk that throws serves English too.
  */
-const locales = resolve(
-  dirname(findUp(here, (_dir, names) => (names.includes('package.json') ? 'package.json' : undefined)) ?? here),
-  'locales',
-);
+const locales = (): string =>
+  resolve(dirname(findUp(here, (_dir, names) => (names.includes('package.json') ? 'package.json' : undefined)) ?? here), 'locales');
 
 export const shim: PlatformShim = {
   assert: { notStrictEqual, strictEqual },
