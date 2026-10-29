@@ -513,7 +513,13 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // reserved name, and `--json` on a command with no handler is the program's. Main at
   // `f801cf48e7` measured 109,149 and this reads 109,335 (+186); plus the ~32 B, rounded up to the
   // next 50. Still 2,351 B under yargs' own 111,686.
-  'burgee/yargs': 109_400,
+  // 110,200 on 2026-10-29 for A-20261028-yargs-locale-read-at-runtime
+  // (D-20261029-yargs-english-embedded-bytes): English and the list of shipped locales are in the
+  // module graph, so a single-file build speaks English with no `locales/` beside it and a locale
+  // read that fails serves English instead of failing the run. Main at `8650d04352` measured
+  // 109,335 locally and this reads 110,156 (+821); plus the ~32 B, rounded up to the next 50.
+  // Still 1,530 B under yargs' own 111,686.
+  'burgee/yargs': 110_200,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
   // bundle grows by, set where the number actually is, so the next byte is a decision.

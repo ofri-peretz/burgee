@@ -18,6 +18,7 @@ Intent: [`intent.md`](./intent.md). **Status:** review.
 | X8 | A program in yargs syntax runs unchanged and gains burgee's plugins and surfaces without a line changing (J2, J7, J8), and **nothing about its default behaviour changes**; the 29 locales ship with burgee so `.locale()` and `LC_ALL` work as on yargs |
 | X9 | **Added 2026-10-29** (A-20261028-yargs-parse-callback-surfaces, D-20261029-yargs-parse-callback-not-intercepted). Under yargs' callback form, `.parse(argv, context, callback)` or `.parse(argv, callback)`, burgee intercepts none of its reserved names: `--json`, `--schema`, `--mcp` and `completion <shell>` are refused or passed through exactly as yargs would, because the program owns the output and the exit there and goes on with the argv `parse()` returns. Under every shape, `--json` reaching a command declared with no handler prints no envelope: it is refused with yargs' `Unknown argument: json` under `.strict()` or `.strictOptions()`, and set on the argv otherwise. Held by `yargs/parse-callback-surfaces.test.ts`, against the installed yargs 18.2.0 |
 | X10 | **Added 2026-10-29** (A-20261028-yargs-argv-type-call-signature). The types `burgee/yargs` exports have the shapes `@types/yargs` gives them where a typed program can tell, not only the names: `Argv` carries the call signature `(args?: readonly string[] \| string, cwd?: string): Argv<T>`, so its apparent `toString` is `Function`'s. Held by `facade-types.test.ts`, which compiles igir's `.fail()` handler against both and compares the checker's call signatures |
+| X11 | **Loading `burgee/yargs` reads no file for locales, and no locale read can fail an invocation** (A-20261028-yargs-locale-read-at-runtime). English is in the module graph, generated from `locales/en.json` with one source of truth, so a single-file build (`bun build --compile`, an esbuild bundle) prints help and English errors with nothing beside it. `locales/` is looked for only when a locale other than English is first used; a read of it that fails for any reason (`ENOENT`, `EUNKNOWN`, `EACCES`, a file that is not JSON, no `locales/` to be found) serves English. A locale burgee does not ship stays its keys, as on y18n. `.locale()` and `.updateStrings()` behave as on yargs, under X2 |
 
 ## Design
 
@@ -52,7 +53,12 @@ and wrap-ansi it wraps text with — the arithmetic is the upstream's line for l
 the usage tests compare screens), `yargs-y18n.ts` (the string table, reading
 `locales/<lang>.json` on first use, never writing) and two functions for escalade and
 get-caller-file. The 29 locale files ship with the package under `locales/`; they are
-data read at runtime, not imports, so the weight lock does not walk them.
+data read at runtime, not imports, so the weight lock does not walk them. **English is the
+exception (X9):** `scripts/generate-yargs-locales.mjs` renders `yargs/y18n-locales.ts` from
+`locales/`, the English entries that are not their own key and the names of the shipped
+locales, so English is never read from disk and a locale read that fails serves it. The
+walk up to `package.json` that finds `locales/` runs on the first non-English read, not at
+load.
 
 **burgee sits beside it, never in front of it.** The same additions as on the commander
 front-end, each guarded so a program that asks for none of them behaves exactly as on
@@ -119,6 +125,16 @@ X9 and X10 came from the second first-adopter proof, on emmercm/igir
 `burgee/yargs` and require identical stdout, stderr and exit; 20 of the first 22 were red on
 `burgee@1.9.2`'s factory. X10's two cases were red on its `types.ts` with
 `TS2349 This expression is not callable`.
+
+X11 is held by `packages/burgee/src/yargs/locales-embedded.test.ts`, each case below red on
+`f801cf48e7` (`burgee@1.9.2`'s y18n and shim) first: a program run with every `readdirSync`
+and every `locales/*.json` read failing (`EUNKNOWN`, then `ENOENT`) prints help, runs a
+command and prints English errors, reading no locale file; the same program bundled by
+esbuild into a directory of its own speaks English, and still runs when that directory
+cannot be listed, as a Bun binary's `/$bunfs` cannot; the embedded values equal what
+`locales/` holds (the generator's `--check` holds the text, in the build); and
+the string table serves English without asking where `locales/` is. The bytes are
+D-20261029-yargs-english-embedded-bytes.
 
 ## Rejected alternatives
 

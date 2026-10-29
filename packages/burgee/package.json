@@ -148,7 +148,7 @@
     "locales"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && node ../../scripts/schema-to-dist.mjs && node ../../scripts/family-versions.mjs && node ../../scripts/strip-comments.mjs dist && node ../../scripts/declaration-reach.mts --prune",
+    "build": "node scripts/generate-yargs-locales.mjs --check && tsc -p tsconfig.build.json && node ../../scripts/schema-to-dist.mjs && node ../../scripts/family-versions.mjs && node ../../scripts/strip-comments.mjs dist && node ../../scripts/declaration-reach.mts --prune",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
     "coverage": "vitest run --coverage.enabled",
