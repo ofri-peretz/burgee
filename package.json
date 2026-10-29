@@ -54,6 +54,7 @@
     "evals:config": "tsx scripts/run-evals.ts --config",
     "compat": "npm run build -w compat-oracle && node packages/compat-oracle/dist/bin.js",
     "compat:page": "tsx scripts/compat-page.ts",
+    "compat:mutation": "npm run compat:mutation -w oxmutate",
     "gallery:page": "tsx scripts/gallery-page.ts",
     "schema:sync": "node scripts/schema-sync.mjs",
     "check:artifacts": "tsx scripts/check-published-artifacts.ts",

@@ -225,7 +225,7 @@ key.
 ## Compatibility
 
 **Mutants: graded by Stryker's own specs.** Stryker 10.0.0's 17 mutator spec files, vendored
-unedited, run against oxmutate's native core (`npm run compat:mutation` in this package): **236 of
+unedited, run against oxmutate's native core (`npm run compat:mutation`): **236 of
 236** pass. Four that test Stryker's internals (a private `filter()`, Svelte template context, a
 log message) are listed with their reasons in `compat/not-applicable.ts`.
 
