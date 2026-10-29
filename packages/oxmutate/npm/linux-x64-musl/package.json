@@ -1,6 +1,6 @@
 {
   "name": "oxmutate-linux-x64-musl",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "description": "oxmutate native core (oxc) for linux-x64-musl. Installed automatically as an optional dependency of oxmutate.",
   "license": "MIT",
