@@ -123,7 +123,7 @@ const staticVerdicts = (name: string, file: string): string[] => {
 
 describe.skipIf(!native || !existsSync(bin))('static mutants keep their fresh-worker verdicts', () => {
   it('an import-time constant decides its mutants; an unread one survives', () => {
-    expect(staticVerdicts('static-const', 'src/limits.ts')).toEqual(['3:StringLiteral:Killed', '5:StringLiteral:Survived']);
+    expect(staticVerdicts('static-const', 'src/limits.ts')).toEqual(['2:NumericLiteral:Killed', '3:StringLiteral:Killed', '5:StringLiteral:Survived']);
   }, 60_000);
 
   it('a global set at import does not carry one mutant value into the next', () => {
@@ -171,7 +171,8 @@ it.skipIf(!native || !existsSync(bin))('confirms a watchdog stop with 3x the bud
     'x-oxmutate': { stats: { timeoutsOverturned: number } };
   };
   rmSync(reportDir, { recursive: true, force: true });
-  expect(report.files['src/one.ts']?.mutants.map((m) => m.status)).toEqual(['Killed']);
+  // The slow ArrowFunction mutant, and the NumericLiteral 1 -> 0 beside it.
+  expect(report.files['src/one.ts']?.mutants.map((m) => m.status)).toEqual(['Killed', 'Killed']);
   expect(report['x-oxmutate'].stats.timeoutsOverturned).toBe(1);
 }, 90_000);
 
@@ -357,7 +358,8 @@ it.skipIf(!native || !existsSync(bin))('keeps a survivor whose confirmation run 
     'x-oxmutate': { stats: { survivorsOverturned: number } };
   };
   rmSync(reportDir, { recursive: true, force: true });
-  expect(report.files['src/one.ts']?.mutants.map((m) => m.status)).toEqual(['Survived']);
+  // The slow survivor, and the NumericLiteral beside it, which no test checks either.
+  expect(report.files['src/one.ts']?.mutants.map((m) => m.status)).toEqual(['Survived', 'Survived']);
   expect(report['x-oxmutate'].stats.survivorsOverturned).toBe(0);
 }, 90_000);
 

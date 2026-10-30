@@ -1,5 +1,5 @@
 ---
-"oxmutate": patch
+"oxmutate": minor
 ---
 
 Three fixes to the warm runner, each reproduced by a fixture, and one less waste. The first showed up as a
@@ -38,3 +38,10 @@ that fails sends the batch back to the fresh-worker path; `OXMUTATE_ISOLATE_STAT
 for everything. burgee/paratext: 35 s to 17.5 s, 6.2x faster than Stryker 10, every verdict unchanged
 (modelled in `.sdlc/intents/oxmutate/staticwarm.qnt`, locked by the `static-const` and `static-leak`
 fixtures).
+
+**A mutator Stryker does not have: `NumericLiteral`.** Numbers are mutated the way PIT's "inline
+constant" does it: 0 becomes 1, 1 becomes 0, anything else n + 1, the off-by-one a test of a limit or
+an index should notice. Object and destructuring keys, types and enum members are left alone. On
+burgee/paratext that is 78 more mutants (1,446 against Stryker's 1,356), 19 of them survivors no
+Stryker run reports; on controlroom 70 more, 17 survivors. `--stryker-compat` leaves numbers alone, so
+it still produces Stryker's mutant set exactly.

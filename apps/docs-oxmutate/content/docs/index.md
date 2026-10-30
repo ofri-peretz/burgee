@@ -18,7 +18,7 @@ oxc, not affiliated with the oxc project.
 
 | | Stryker 10 | oxmutate 1.0 |
 | :-- | :-- | :-- |
-| Mutant set | 17 mutator families | the same 17, the same mutants (720 of 720 on es-toolkit) |
+| Mutant set | 17 mutator families | the same 17, the same mutants (720 of 720 on es-toolkit), plus `NumericLiteral` (0 → 1, 1 → 0, n → n + 1): +6.6% mutants on burgee/paratext, 19 of them survivors Stryker cannot report. `--stryker-compat` gives Stryker's set exactly |
 | Verdicts | — | the same as Stryker's on 99.9% of mutants ([measured](#compatibility)) |
 | Instrumentation | Babel, file by file | Rust on oxc, every file in parallel: 720 mutants in 35 ms |
 | Test runs | a Vitest run per mutant | each covering test re-run per mutant inside a warm Vitest worker |
