@@ -580,10 +580,18 @@ export async function run(options: Options): Promise<RunResult> {
     const runIsolated = async (items: MutantResult[], slack = 1): Promise<Map<string, Verdict>> => {
       const verdicts = new Map<string, Verdict>();
       if (items.length === 0) return verdicts;
-      const chunk = Math.max(1, Math.ceil(items.length / (options.concurrency * 2)));
       const mk = (batch: MutantResult[]): Unit => ({ mode: 'isolated', files: [], results: fileFor('iso', 'jsonl'), progress: fileFor('iso', 'progress'), batch: batch.map((m) => ({ id: m.id, files: filesFor(m), tests: m.static ? undefined : m.coveredBy })) });
-      const units: Unit[] = [];
-      for (let i = 0; i < items.length; i += chunk) units.push(mk(items.slice(i, i + chunk)));
+      // Packed by estimated cost, heaviest first into the lightest bin, and the heaviest bins run
+      // first. Equal mutant counts left one unit at 8.4 s while the others finished in under 3 s on
+      // burgee/controlroom (2026-10-30): a mutant's cost is its files' dry-run time, not one.
+      const cost = (m: MutantResult): number => isolatedBudget(m.id);
+      const bins = Array.from({ length: Math.min(items.length, options.concurrency * 2) }, () => ({ load: 0, batch: [] as MutantResult[] }));
+      for (const m of [...items].sort((x, y) => cost(y) - cost(x))) {
+        const bin = bins.reduce((lightest, b) => (b.load < lightest.load ? b : lightest));
+        bin.load += cost(m);
+        bin.batch.push(m);
+      }
+      const units = bins.sort((x, y) => y.load - x.load).map((b) => mk(b.batch));
       stats.isolatedRuns += items.length;
       await pool.drain(
         units,
