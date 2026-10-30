@@ -592,43 +592,49 @@ export async function run(options: Options): Promise<RunResult> {
     const decideStaticLive = async (items: MutantResult[]): Promise<MutantResult[]> => {
       if (items.length === 0) return [];
       const STATIC_BATCH = 25;
-      const byFile = new Map<string, string[]>();
-      for (const m of items) for (const f of filesFor(m)) (byFile.get(f) ?? byFile.set(f, []).get(f))?.push(m.id);
-      const units: Unit[] = [];
-      for (const [file, ids] of byFile) {
-        for (let i = 0; i < ids.length; i += STATIC_BATCH) {
-          units.push({ mode: 'static', files: [file], results: fileFor('static', 'jsonl'), progress: fileFor('static', 'progress'), staticIds: ids.slice(i, i + STATIC_BATCH) });
-        }
-      }
+      /** Units of up to STATIC_BATCH mutants per test file, for the files each mutant gets this round. */
+      const unitsFor = (filesOf: (m: MutantResult) => string[]): Unit[] => {
+        const byFile = new Map<string, string[]>();
+        for (const m of items) for (const f of filesOf(m)) (byFile.get(f) ?? byFile.set(f, []).get(f))?.push(m.id);
+        return [...byFile].flatMap(([file, ids]) =>
+          Array.from({ length: Math.ceil(ids.length / STATIC_BATCH) }, (_, i): Unit => ({
+            mode: 'static', files: [file], results: fileFor('static', 'jsonl'), progress: fileFor('static', 'progress'), staticIds: ids.slice(i * STATIC_BATCH, (i + 1) * STATIC_BATCH),
+          })),
+        );
+      };
       const killed = new Map<string, { killedBy: string[]; ran: number }>();
       const passed = new Map<string, Set<string>>(); // mutant -> files that ran it clean
       const back = new Set<string>();
       const ran = new Map<string, number>();
       const staticPool = createPool({ root, vitestConfig: options.vitestConfig, workers: 1, instrumentedMap: mapFile, nodeArgs: options.testRunnerNodeArgs, inlineDeps: true }, options.concurrency, work, 'static');
       pools.push(staticPool);
-      await staticPool.drain(
-        units,
-        (_, id) => 2 * isolatedBudget(id), // the mutant's run and the unarmed canary after it
-        (unit, outcome) => {
-          const file = unit.files[0] ?? '';
-          const decided = new Set<string>();
-          for (const r of readRecords(unit.results)) {
-            if (r.type === 'static-fallback') for (const id of r.ids ?? []) back.add(id);
-            if (r.type !== 'isolated' || !r.id) continue;
-            decided.add(r.id);
-            ran.set(r.id, (ran.get(r.id) ?? 0) + (r.ran ?? 0));
-            if (r.killed) killed.set(r.id, { killedBy: [...(killed.get(r.id)?.killedBy ?? []), ...(r.failed ?? [])], ran: 0 });
-            else (passed.get(r.id) ?? passed.set(r.id, new Set()).get(r.id))?.add(file);
-          }
-          // A stop or a crash leaves the rest of the batch undecided: the fresh-worker path decides it.
-          if (outcome.killedFor || outcome.crashed) for (const id of unit.staticIds ?? []) if (!decided.has(id)) back.add(id);
-          return [];
-        },
-        (unit) => {
-          unit.staticIds = (unit.staticIds ?? []).filter((id) => !killed.has(id) && !back.has(id));
-          return unit.staticIds.length > 0;
-        },
-      );
+      const afterStatic = (unit: Unit, outcome: UnitOutcome): Unit[] => {
+        const file = unit.files[0] ?? '';
+        const decided = new Set<string>();
+        for (const r of readRecords(unit.results)) {
+          if (r.type === 'static-fallback') for (const id of r.ids ?? []) back.add(id);
+          if (r.type !== 'isolated' || !r.id) continue;
+          decided.add(r.id);
+          ran.set(r.id, (ran.get(r.id) ?? 0) + (r.ran ?? 0));
+          if (r.killed) killed.set(r.id, { killedBy: [...(killed.get(r.id)?.killedBy ?? []), ...(r.failed ?? [])], ran: 0 });
+          else (passed.get(r.id) ?? passed.set(r.id, new Set()).get(r.id))?.add(file);
+        }
+        // A stop or a crash leaves the rest of the batch undecided: the fresh-worker path decides it.
+        if (outcome.killedFor || outcome.crashed) for (const id of unit.staticIds ?? []) if (!decided.has(id)) back.add(id);
+        return [];
+      };
+      const keepUndecided = (unit: Unit): boolean => {
+        unit.staticIds = (unit.staticIds ?? []).filter((id) => !killed.has(id) && !back.has(id));
+        return unit.staticIds.length > 0;
+      };
+      // Two rounds: each mutant first in the file most likely to kill it (filesFor puts the files whose
+      // tests reach it first, cheapest first), then its other files only if it survived. In one round
+      // every loading file ran a mutant at once, and a kill in one did not spare the others: 41 tests a
+      // static kill on burgee/controlroom against Stryker's 33.6 (2026-10-30).
+      const open = (m: MutantResult): boolean => !killed.has(m.id) && !back.has(m.id);
+      const rounds = [(m: MutantResult): string[] => filesFor(m).slice(0, 1), (m: MutantResult): string[] => (open(m) ? filesFor(m).slice(1) : [])];
+      // the mutant's run and the unarmed canary after it
+      for (const round of rounds) await staticPool.drain(unitsFor(round), (_, id) => 2 * isolatedBudget(id), afterStatic, keepUndecided);
       const undecided: MutantResult[] = [];
       for (const m of items) {
         const k = killed.get(m.id);
