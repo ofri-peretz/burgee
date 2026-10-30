@@ -5,6 +5,7 @@
  * shows the run moving without a carriage-return mess. Off unless a progress reporter is named.
  */
 const REPORTERS = new Set(['progress', 'progress-append-only', 'ci', 'dots']);
+// Stryker disable next-line NumericLiteral: a repaint interval; no test can see 1,000 ms against 1,001
 const TTY_EVERY_MS = 1000;
 const APPEND_EVERY_MS = 10_000;
 const MS_PER_S = 1000;

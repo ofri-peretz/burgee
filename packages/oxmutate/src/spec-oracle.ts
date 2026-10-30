@@ -98,6 +98,7 @@ const share = (n: number, of: number): number => (of ? (PERCENT * n) / of : 0);
 const located = ({ id, file, line, mutatorName, replacement }: Located): Located => ({ id, file, line, mutatorName, replacement });
 const median = (xs: number[]): number => {
   const sorted = [...xs].sort((a, b) => a - b);
+  // Stryker disable next-line NumericLiteral: guarded by `sorted.length`, so the fallback never runs
   return sorted.length ? (sorted[Math.floor(sorted.length / 2)] ?? 0) : 0;
 };
 

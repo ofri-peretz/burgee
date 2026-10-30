@@ -27,6 +27,16 @@ describe('the progress reporters', () => {
     expect(text()).toBe('oxmutate: dry run, 0 s\noxmutate: warm runs, 12 of 40 mutants killed so far, 3 s\n');
   });
 
+  it('rounds the seconds so far to the nearest second', () => {
+    const { out, text } = sink(false);
+    let t = 0;
+    const p = startProgress(['progress'], out, () => t);
+    t = 1500; // 1.5 s reads as 2; a divisor of 1001 would read it as 1
+    p.phase('warm runs');
+    p.stop();
+    expect(text()).toBe('oxmutate: warm runs, 2 s\n');
+  });
+
   it('rewrite one line on a terminal, and end it when the run stops', () => {
     const { out, text } = sink(true);
     const p = startProgress(['progress'], out, () => 0);
