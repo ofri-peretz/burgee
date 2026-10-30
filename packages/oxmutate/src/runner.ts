@@ -115,6 +115,17 @@ const decidedBySpec = new Set<string>();
 const only = mode === 'isolated' && env['OXMUTATE_ONLY_TESTS'] ? new Set(JSON.parse(env['OXMUTATE_ONLY_TESTS']) as string[]) : undefined;
 /** `static`: the static mutants this file run decides in the live worker. */
 const staticIds = mode === 'static' && env['OXMUTATE_STATIC'] ? (JSON.parse(env['OXMUTATE_STATIC']) as string[]) : [];
+/** `static`: each mutant's hit-count limit. */
+const staticLimits = mode === 'static' && env['OXMUTATE_HIT_LIMITS'] ? (JSON.parse(env['OXMUTATE_HIT_LIMITS']) as Record<string, number>) : {};
+// `isolated`: the mutant is armed from process start, so its hit counter is too. A loop it causes
+// stops at the limit, as in warm runs, instead of holding the worker until the watchdog's budget:
+// on oxmutate's own suite 17 runaways left the isolated phase idle 140 of 186 s (2026-10-30).
+if (mode === 'isolated' && env['OXMUTATE_HIT_LIMIT']) {
+  ns.hitCount = 0;
+  ns.hitLimit = Number(env['OXMUTATE_HIT_LIMIT']);
+}
+/** Did the armed mutant's switch pass its limit, i.e. was this run stopped as a runaway? */
+const ranAway = (): boolean => ns.hitCount !== undefined && ns.hitLimit !== undefined && ns.hitCount > ns.hitLimit;
 
 // ── `static` mode: what a registry reset does not reset ─────────────────────────────────────────
 /** Built-ins a module may patch in place; their own methods are compared by identity. */
@@ -420,14 +431,19 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     const { collectTests } = browser;
     const { vi } = vitest;
     if (!collectTests || !vi) return fallback('this Vitest has no public collect'); // Vitest 4: the fresh path decides
-    const evaluate = async (armed: string | undefined): Promise<{ failed: string[]; ran: number }> => {
+    const evaluate = async (armed: string | undefined): Promise<{ failed: string[]; ran: number; timeout: boolean }> => {
       ns.activeMutant = armed;
+      ns.hitCount = armed ? 0 : undefined;
+      ns.hitLimit = armed ? (staticLimits[armed] ?? Number.MAX_SAFE_INTEGER) : undefined;
       try {
         vi.resetModules();
         const [file] = await collectTests([filepath], this);
-        return file ? await runCollected(file, runnable) : { failed: [filepath], ran: 0 };
+        const result = file ? await runCollected(file, runnable) : { failed: [filepath], ran: 0 };
+        return { ...result, timeout: ranAway() };
       } finally {
         ns.activeMutant = undefined;
+        ns.hitCount = undefined;
+        ns.hitLimit = undefined;
       }
     };
     while (rest.length) {
@@ -440,7 +456,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       const after = snapshotDiff(before, snapshot());
       if (after.length) return fallback('the unarmed re-collection left a trace', after);
       rest.shift();
-      emit({ type: 'isolated', id, killed: verdict.failed.length > 0, failed: verdict.failed, ran: verdict.ran });
+      emit({ type: 'isolated', id, killed: verdict.failed.length > 0 && !verdict.timeout, failed: verdict.failed, ran: verdict.ran, ...(verdict.timeout && { timeout: true }) });
     }
     if (progressPath) writeFileSync(progressPath, '');
     vi.resetModules();
@@ -481,7 +497,8 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
         // the mutant: a kill, as Stryker scores it. Its id stands in for the test that failed.
         if (f.result?.state === 'fail' && !failed.length) failed.push(f.id);
       }
-      emit({ type: 'isolated', id: env[ACTIVE_MUTANT_ENV] ?? ns.activeMutant, killed: failed.length > 0, failed, ran });
+      const timeout = ranAway();
+      emit({ type: 'isolated', id: env[ACTIVE_MUTANT_ENV] ?? ns.activeMutant, killed: failed.length > 0 && !timeout, failed, ran, ...(timeout && { timeout }) });
     }
     return super.onAfterRunFiles?.(files);
   }

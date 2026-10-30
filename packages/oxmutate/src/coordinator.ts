@@ -114,6 +114,8 @@ interface Verdict {
 interface ChildRecord {
   type: 'dry' | 'mutant' | 'polluted' | 'isolated' | 'static-fallback';
   id?: string;
+  /** `isolated`: the run stopped on the mutant's hit-count limit: a runaway, scored Timeout. */
+  timeout?: boolean;
   /** `static-fallback`: static mutants a live worker handed back to the fresh-worker path. */
   ids?: string[];
   test?: string;
@@ -318,7 +320,10 @@ export async function run(options: Options): Promise<RunResult> {
     for (const [testId, perMutant] of Object.entries(dry.perTest)) {
       if (testId.startsWith(FILE_KEY)) {
         const file = testId.slice(FILE_KEY.length);
-        for (const id of Object.keys(perMutant)) (staticFiles.get(id) ?? staticFiles.set(id, new Set()).get(id))?.add(file);
+        for (const [id, n] of Object.entries(perMutant)) {
+          (staticFiles.get(id) ?? staticFiles.set(id, new Set()).get(id))?.add(file);
+          hits.set(id, (hits.get(id) ?? 0) + n);
+        }
         continue;
       }
       for (const [id, n] of Object.entries(perMutant)) {
@@ -396,7 +401,9 @@ export async function run(options: Options): Promise<RunResult> {
     // false kills on burgee/paratext (an import-time registration the tests then read).
     const toRun = mutants.filter((m) => !m.reused && m.status !== 'Ignored' && !m.static && allCovering(m).length > 0);
     const byId = new Map(mutants.map((m) => [m.id, m]));
-    const hitLimits = Object.fromEntries(toRun.map((m) => [m.id, Math.max(1000, (hits.get(m.id) ?? 1) * 100)]));
+    /** The switch-taken count past which a run is a runaway: 100x what the dry run saw, at least 1000. */
+    const hitLimitOf = (id: string): number => Math.max(1000, (hits.get(id) ?? 1) * 100);
+    const hitLimits = Object.fromEntries(toRun.map((m) => [m.id, hitLimitOf(m.id)]));
     const maxTestMs = (id: string): number => { const m = byId.get(id); return Math.max(0, ...(m ? allCovering(m) : []).map((t) => testInfo.get(t)?.ms ?? 0)); };
     // The watchdog is for runaways, which loop in fast code; a slow test under a loaded machine is
     // not one. 3x the covering test's dry-run time, not Stryker's 1.5x: at 1.5x, subprocess-heavy
@@ -594,7 +601,11 @@ export async function run(options: Options): Promise<RunResult> {
     const isolatedBudget = (id: string): number => {
       const m = byId.get(id);
       const fs = m ? filesFor(m) : allTestFiles;
-      const ms = dry.tests.filter((t) => fs.includes(t.file)).reduce((sum, t) => sum + t.ms, 0);
+      // A non-static mutant's isolated run executes only its covering tests (`tests` below), so they
+      // are its budget; every test of its files made a hang wait 30-40 s on oxmutate's own suite,
+      // where its covering tests take a fraction of that (2026-10-30). A static mutant runs them all.
+      const covering = new Set(m && !m.static ? m.coveredBy : []);
+      const ms = dry.tests.filter((t) => fs.includes(t.file) && (covering.size === 0 || covering.has(t.id))).reduce((sum, t) => sum + t.ms, 0);
       return 1500 + options.timeoutMS + options.timeoutFactor * ms * 2;
     };
     // A non-static mutant runs only its covering tests, armed across all of them in file order:
@@ -615,10 +626,13 @@ export async function run(options: Options): Promise<RunResult> {
         return [...byFile].flatMap(([file, ids]) =>
           Array.from({ length: Math.ceil(ids.length / STATIC_BATCH) }, (_, i): Unit => ({
             mode: 'static', files: [file], results: fileFor('static', 'jsonl'), progress: fileFor('static', 'progress'), staticIds: ids.slice(i * STATIC_BATCH, (i + 1) * STATIC_BATCH),
+            hitLimits: Object.fromEntries(ids.slice(i * STATIC_BATCH, (i + 1) * STATIC_BATCH).map((id) => [id, hitLimitOf(id)])),
           })),
         );
       };
       const killed = new Map<string, { killedBy: string[]; ran: number }>();
+      /** Decided by the hit-count limit: a runaway, Timeout like a warm one. */
+      const timedOut = new Set<string>();
       const passed = new Map<string, Set<string>>(); // mutant -> files that ran it clean
       const back = new Set<string>();
       const ran = new Map<string, number>();
@@ -631,7 +645,8 @@ export async function run(options: Options): Promise<RunResult> {
           if (r.type !== 'isolated' || !r.id) continue;
           decided.add(r.id);
           ran.set(r.id, (ran.get(r.id) ?? 0) + (r.ran ?? 0));
-          if (r.killed) killed.set(r.id, { killedBy: [...(killed.get(r.id)?.killedBy ?? []), ...(r.failed ?? [])], ran: 0 });
+          if (r.timeout) timedOut.add(r.id);
+          if (r.killed || r.timeout) killed.set(r.id, { killedBy: [...(killed.get(r.id)?.killedBy ?? []), ...(r.failed ?? [])], ran: 0 });
           else (passed.get(r.id) ?? passed.set(r.id, new Set()).get(r.id))?.add(file);
         }
         // A stop or a crash leaves the rest of the batch undecided: the fresh-worker path decides it.
@@ -654,7 +669,7 @@ export async function run(options: Options): Promise<RunResult> {
       for (const m of items) {
         const k = killed.get(m.id);
         if (k) {
-          m.status = 'Killed';
+          m.status = timedOut.has(m.id) && !k.killedBy.length ? 'Timeout' : 'Killed';
           m.killedBy = [...new Set(k.killedBy)];
           m.testsCompleted = ran.get(m.id) ?? 0;
         } else if (!back.has(m.id) && filesFor(m).every((f) => passed.get(m.id)?.has(f))) {
@@ -667,7 +682,7 @@ export async function run(options: Options): Promise<RunResult> {
     const runIsolated = async (items: MutantResult[], slack = 1): Promise<Map<string, Verdict>> => {
       const verdicts = new Map<string, Verdict>();
       if (items.length === 0) return verdicts;
-      const mk = (batch: MutantResult[]): Unit => ({ mode: 'isolated', files: [], results: fileFor('iso', 'jsonl'), progress: fileFor('iso', 'progress'), batch: batch.map((m) => ({ id: m.id, files: filesFor(m), tests: m.static ? undefined : m.coveredBy })) });
+      const mk = (batch: MutantResult[]): Unit => ({ mode: 'isolated', files: [], results: fileFor('iso', 'jsonl'), progress: fileFor('iso', 'progress'), batch: batch.map((m) => ({ id: m.id, files: filesFor(m), tests: m.static ? undefined : m.coveredBy, hitLimit: hitLimitOf(m.id) })) });
       // Packed by estimated cost, heaviest first into the lightest bin, and the heaviest bins run
       // first. Equal mutant counts left one unit at 8.4 s while the others finished in under 3 s on
       // burgee/controlroom (2026-10-30): a mutant's cost is its files' dry-run time, not one.
@@ -689,7 +704,8 @@ export async function run(options: Options): Promise<RunResult> {
             if (rec.type !== 'isolated' || !rec.id) continue;
             const prev = verdicts.get(rec.id);
             const testsCompleted = (prev?.testsCompleted ?? 0) + (rec.ran ?? 0);
-            if (rec.killed) verdicts.set(rec.id, { status: 'Killed', killedBy: [...(prev?.killedBy ?? []), ...(rec.failed ?? [])], testsCompleted });
+            if (rec.timeout) verdicts.set(rec.id, { status: 'Timeout', testsCompleted });
+            else if (rec.killed) verdicts.set(rec.id, { status: 'Killed', killedBy: [...(prev?.killedBy ?? []), ...(rec.failed ?? [])], testsCompleted });
             else verdicts.set(rec.id, { status: prev?.status ?? 'Survived', killedBy: prev?.killedBy, testsCompleted });
           }
           if (outcome.killedFor) verdicts.set(outcome.killedFor, { status: 'Timeout' });

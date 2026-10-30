@@ -42,9 +42,11 @@ export interface Unit {
   progress: string;
   plan?: string | undefined;
   /** `isolated`: mutants armed one after another from process start, each with its files. */
-  batch?: { id: string; files: string[]; tests?: string[] | undefined }[] | undefined;
+  batch?: { id: string; files: string[]; tests?: string[] | undefined; hitLimit?: number | undefined }[] | undefined;
   /** `static`: the static mutants this one file's run decides in its live worker. */
   staticIds?: string[] | undefined;
+  /** `static`: each mutant's hit-count limit, past which its run is a runaway. */
+  hitLimits?: Record<string, number> | undefined;
 }
 
 const config = JSON.parse(readFileSync(argv[2] ?? '', 'utf8')) as ServerConfig;
@@ -115,6 +117,9 @@ async function runIsolated(unit: Unit): Promise<void> {
   try {
     for (const item of unit.batch ?? []) {
       env[ACTIVE_MUTANT_ENV] = item.id;
+      // The runaway guard warm runs have: a loop the mutant causes stops at the limit, not the watchdog.
+      if (item.hitLimit) env['OXMUTATE_HIT_LIMIT'] = String(item.hitLimit);
+      else delete env['OXMUTATE_HIT_LIMIT'];
       if (item.tests) env['OXMUTATE_ONLY_TESTS'] = JSON.stringify(item.tests);
       else delete env['OXMUTATE_ONLY_TESTS'];
       writeFileSync(unit.progress, `${item.id} ${String(Date.now())}\n`);
@@ -127,6 +132,7 @@ async function runIsolated(unit: Unit): Promise<void> {
     }
     delete env[ACTIVE_MUTANT_ENV];
     delete env['OXMUTATE_ONLY_TESTS'];
+    delete env['OXMUTATE_HIT_LIMIT'];
   } finally {
     vitest.config.bail = 0;
   }
@@ -142,6 +148,8 @@ async function runUnit(unit: Unit): Promise<void> {
   if (unit.plan) env['OXMUTATE_PLAN'] = unit.plan;
   if (unit.staticIds) env['OXMUTATE_STATIC'] = JSON.stringify(unit.staticIds);
   else delete env['OXMUTATE_STATIC'];
+  if (unit.hitLimits) env['OXMUTATE_HIT_LIMITS'] = JSON.stringify(unit.hitLimits);
+  else delete env['OXMUTATE_HIT_LIMITS'];
   delete env[ACTIVE_MUTANT_ENV];
   if (unit.mode === 'isolated') await runIsolated(unit);
   else {
