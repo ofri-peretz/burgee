@@ -2,7 +2,7 @@
 "oxmutate": patch
 ---
 
-Three fixes to the warm runner, each reproduced by a fixture. The first showed up as a
+Three fixes to the warm runner, each reproduced by a fixture, and one less waste. The first showed up as a
 pollution restart on nearly every mutant of a real suite; modelling the loop in Quint
 (`.sdlc/intents/oxmutate/canary.qnt`) then found the second.
 
@@ -23,3 +23,8 @@ is decided again from clean state. Survivors were already confirmed in isolation
 hook runs to the test, so a mutant in a fixture builder or a seed was planned for it, but the hooks ran
 before the mutant was armed: it always survived the warm run and was killed later by an isolated run in a
 fresh process. On a Mongo-backed suite that was 58 of 400 mutants; now the warm run kills them.
+
+**A unit no longer runs a mutant another unit has already killed.** Units are filtered against the kills
+known when a server takes them, not when they were built; most units wait in the queue while others run.
+On burgee/paratext warm executions fell from 6,548 to 5,209 and the warm phase from 85 s to 77 s, with
+every verdict unchanged (modelled in `.sdlc/intents/oxmutate/dispatch.qnt`).

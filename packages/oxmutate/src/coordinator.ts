@@ -495,7 +495,26 @@ export async function run(options: Options): Promise<RunResult> {
     // One round, every covering file at once. A two-round plan (cheapest file first, survivors
     // to the rest) cut executions 23% on burgee/paratext but took 2.9x longer: the second round
     // waits for the first to drain, and the expensive files then run as a tail (2026-10-27).
-    await pool.drain(unitsForRound(toRun, (m) => fileOrder.get(m.id) ?? []), (_, id) => warmBudget(id), afterUnit);
+    // Kills are filtered out at dispatch, not when a unit is built: most units wait in the queue while
+    // others run, and a mutant another unit has killed (vouched for by its canary) needs no more of its
+    // covering tests. 1,022 of 6,550 warm executions on burgee/paratext ran after the mutant's kill
+    // (2026-10-30). Verdicts are unchanged: a Killed mutant needs no other pair (dispatch.qnt).
+    const beforeUnit = (unit: Unit): boolean => {
+      const entry = planUnits.get(unit.results);
+      if (!entry) return true;
+      const decided = { tests: killedSoFar(false), spec: killedSoFar(true) };
+      const left: Plan = {};
+      for (const [t, ids] of Object.entries(entry.plan)) {
+        const done = specOf.has(t) ? decided.spec : decided.tests;
+        const keep = ids.filter((id) => !done.has(id));
+        if (keep.length) left[t] = keep;
+      }
+      if (Object.keys(left).length === 0) return false;
+      entry.plan = left;
+      writeFileSync(unit.plan as string, JSON.stringify({ tests: left, hitLimits, skip: [], specTests: [...specOf.keys()] }));
+      return true;
+    };
+    await pool.drain(unitsForRound(toRun, (m) => fileOrder.get(m.id) ?? []), (_, id) => warmBudget(id), afterUnit, beforeUnit);
     stats.mutationMs = performance.now() - m0;
 
     // ── 5. Verdicts from the warm run ─────────────────────────────────────────────────────────
