@@ -192,10 +192,17 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     const ids = polluted ? [] : (plan.tests[test.id] ?? []).filter((id) => !done.has(id));
     let cleanups: Hook[] = [];
     let attempt = 0;
-    const fresh = async (): Promise<void> => {
+    const teardown = async (): Promise<void> => {
       await afterEach(test, context, cleanups);
+      cleanups = [];
+    };
+    const setup = async (): Promise<void> => {
       cleanups = await beforeEach(test, context);
       await this.retryReset(test, ++attempt);
+    };
+    const fresh = async (): Promise<void> => {
+      await teardown();
+      await setup();
     };
     // Mutants run since the last clean canary. The first of them started from a clean state, so its
     // verdict stands whatever the next canary says; the rest are suspects if it fails.
@@ -215,13 +222,20 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
         return false;
       }
     };
+    // The mutant is armed through the test's own `beforeEach`, as Stryker arms it: the dry run credits
+    // code a hook runs to the test, so a mutant in a fixture builder or a seed is planned here, and with
+    // the hooks run unarmed it always survived, to be killed later by an isolated run that costs a
+    // fresh process (58 of 400 on a Mongo-backed suite, 2026-10-29). The previous run's `afterEach`
+    // runs first, unarmed: its cleanup belongs to that run.
     const runArmed = async (id: string): Promise<{ status: 'Killed' | 'Survived' | 'Timeout'; ms: number }> => {
+      await teardown();
       const t0 = performance.now();
       ns.activeMutant = id;
       ns.hitCount = 0;
       ns.hitLimit = plan.hitLimits[id] ?? Number.MAX_SAFE_INTEGER;
       let status: 'Killed' | 'Survived' | 'Timeout' = 'Survived';
       try {
+        await setup();
         await fn();
       } catch (e) {
         status = isHitLimit(e) ? 'Timeout' : 'Killed';
@@ -234,7 +248,6 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     };
     for (const id of ids) {
       if (done.has(id)) continue;
-      if (attempt > 0) await fresh();
       if (progressPath) writeFileSync(progressPath, `${id} ${String(Date.now())}\n`);
       let { status, ms } = await runArmed(id);
       // A kill that follows unchecked runs may be one of their leftovers, which this run's own cleanup
@@ -244,7 +257,6 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       // the mutant again from (.sdlc/intents/oxmutate/canary.qnt).
       if (status !== 'Survived' && unchecked.length > 0) {
         if (!(await canary())) break;
-        await fresh();
         ({ status, ms } = await runArmed(id));
       }
       if (status !== 'Survived') done.add(id);

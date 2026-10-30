@@ -86,6 +86,26 @@ it.skipIf(!native || !existsSync(bin))('decides no kill on a previous mutant\'s 
   expect(spare.map((m) => `${String(m.location.start.line)}:${m.mutatorName}:${m.status}`)).toEqual(spare.map((m) => `${String(m.location.start.line)}:${m.mutatorName}:Survived`));
 }, 60_000);
 
+// The mutant is armed through `beforeEach`, as Stryker arms it. A fixture builder only a hook calls was
+// planned for the test (the dry run credits hook code to it) but run with the hooks unarmed, so each of
+// its mutants survived the warm run and cost an isolated process to be killed.
+it.skipIf(!native || !existsSync(bin))('kills a mutant a beforeEach hook reaches in the warm run, with no isolated run', () => {
+  const dir = path.join(pkg, 'test/fixtures/hook-setup');
+  const reportDir = path.join(dir, 'reports');
+  rmSync(reportDir, { recursive: true, force: true });
+  execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe' });
+  const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as {
+    files: Record<string, { mutants: ReportMutant[] }>;
+    'x-oxmutate': { stats: { survivorsOverturned: number; isolatedRuns: number } };
+  };
+  rmSync(reportDir, { recursive: true, force: true });
+  const mutants = report.files['src/seed.ts']?.mutants ?? [];
+  expect(mutants.length).toBeGreaterThan(0);
+  expect(mutants.map((m) => m.status)).toEqual(mutants.map(() => 'Killed'));
+  expect(report['x-oxmutate'].stats.survivorsOverturned).toBe(0);
+  expect(report['x-oxmutate'].stats.isolatedRuns).toBe(0);
+}, 60_000);
+
 const alive = (pid: number): boolean => {
   try {
     process.kill(pid, 0);

@@ -2,7 +2,7 @@
 "oxmutate": patch
 ---
 
-Two fixes to the warm runner's canary, each reproduced by a fixture. The first showed up as a
+Three fixes to the warm runner, each reproduced by a fixture. The first showed up as a
 pollution restart on nearly every mutant of a real suite; modelling the loop in Quint
 (`.sdlc/intents/oxmutate/canary.qnt`) then found the second.
 
@@ -18,3 +18,8 @@ a mutant could run on state the mutant before it left behind (a cleanup function
 When that run failed and the test's own `finally` cleaned up, the batch canary passed and the wrong kill
 was reported. A kill that follows unchecked runs is now checked at once: the canary runs, and the mutant
 is decided again from clean state. Survivors were already confirmed in isolation.
+
+**A mutant is armed through the test's own `beforeEach`, as Stryker arms it.** The dry run credits code a
+hook runs to the test, so a mutant in a fixture builder or a seed was planned for it, but the hooks ran
+before the mutant was armed: it always survived the warm run and was killed later by an isolated run in a
+fresh process. On a Mongo-backed suite that was 58 of 400 mutants; now the warm run kills them.
