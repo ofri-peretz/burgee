@@ -639,7 +639,10 @@ export async function run(options: Options): Promise<RunResult> {
     // survives warm and is killed when armed for the whole file, the way Stryker runs it (burgee/
     // paratext plugin.ts, 2026-10-27). Survivors are what a person acts on, so each one is
     // re-run once with the mutant armed across its covering files before it is reported.
-    const survivors = toRun.filter((m) => m.status === 'Survived');
+    // A survivor with one covering test is not re-run: confirmation runs only covering tests, so there
+    // is no later test for its leftover state to reach, and the warm run already armed that test
+    // through its hooks from clean state (.sdlc/intents/oxmutate/confirm.qnt).
+    const survivors = toRun.filter((m) => m.status === 'Survived' && new Set(m.coveredBy).size > 1);
     const confirmed = await runIsolated(survivors);
     // A timeout here is a watchdog stop like any other, and a loaded machine makes them: two
     // closeout survivors were reported killed this way while a docs build shared the machine
