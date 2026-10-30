@@ -222,11 +222,18 @@ Of the two disagreements left, one is a Stryker timeout on a loop that ends (its
 it; the covering tests pass). The other is a mutant Stryker scored as a runtime error, so it has
 no Stryker verdict to compare.
 
-**Speed is not yet a published number.** On a shared laptop, paratext took 180.0 s under oxmutate
-and 427.4 s under Stryker, at 0.375 and 0.620 CPU-seconds a mutant; on controlroom oxmutate used
-less CPU (0.092 against 0.171 CPU-seconds a mutant) and was slower by the wall clock (107.2 s
-against 94.3 s). The laptop's load moved a run by more than the difference, so the wall-clock
-figures to publish will come from the `oxmutate-bench.yml` lane on a runner nothing else shares.
+**Speed, measured on a laptop, not yet a published number.** Medians of 3 head-to-head runs
+(`bench/burgee-pair.mts`, concurrency 4, one tool after the other, load 6–19, 2026-10-30):
+
+| Subject | Stryker 10 | oxmutate | Wall | CPU | Tests a mutant |
+| :-- | --: | --: | --: | --: | --: |
+| burgee/paratext | 108.3 s | 19.0 s | 5.70x | 5.92x | 31.7 → 16.8 |
+| burgee/controlroom | 63.4 s | 45.6 s | 1.39x | 2.55x | 7.3 → 9.2 |
+| oxmutate itself (Stryker's mutant set) | 508 s | 334 s | 1.52x | — | — |
+
+The ceiling depends on the suite as much as the tool: controlroom's own `vitest run` takes ~8 s and
+every fresh worker imports React and Ink, so even zero overhead would make it ~6x. The figures to
+publish will come from the `oxmutate-bench.yml` lane on a runner nothing else shares.
 
 ## Benchmarks
 
