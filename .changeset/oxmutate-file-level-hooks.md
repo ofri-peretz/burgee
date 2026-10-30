@@ -28,3 +28,13 @@ fresh process. On a Mongo-backed suite that was 58 of 400 mutants; now the warm 
 known when a server takes them, not when they were built; most units wait in the queue while others run.
 On burgee/paratext warm executions fell from 6,548 to 5,209 and the warm phase from 85 s to 77 s, with
 every verdict unchanged (modelled in `.sdlc/intents/oxmutate/dispatch.qnt`).
+
+**Static mutants are decided in a live worker.** Each one used to get a fresh worker per test file that
+loads its module, about 80 ms of start-up around tests that take milliseconds. Now a live worker arms
+the mutant, resets the module registry (dependencies inlined) and collects the file again, so its tests
+run against modules evaluated under the mutant. A file whose own collection changes globals,
+`process.env` or a built-in prototype, a mutant that leaves such a trace, or an unarmed re-collection
+that fails sends the batch back to the fresh-worker path; `OXMUTATE_ISOLATE_STATIC=1` keeps that path
+for everything. burgee/paratext: 35 s to 17.5 s, 6.2x faster than Stryker 10, every verdict unchanged
+(modelled in `.sdlc/intents/oxmutate/staticwarm.qnt`, locked by the `static-const` and `static-leak`
+fixtures).

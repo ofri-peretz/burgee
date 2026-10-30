@@ -13,6 +13,11 @@
  *   failure there means an earlier mutant polluted shared state (the canary).
  * - `isolated`: one mutant was armed before import (static mutants and canary re-runs). Run
  *   normally; any failed test kills it.
+ * - `static`: a batch of static mutants decided in this live worker (staticwarm.qnt). Before the file
+ *   runs, each mutant is armed, the module registry is reset and the file is collected again, so
+ *   its tests close over modules evaluated under the mutant; they run with their hooks, then an
+ *   unarmed re-collection must pass. A file whose own collection touches globals, or a mutant that
+ *   leaves a trace, sends the rest of the batch back to the fresh-worker path (`static-fallback`).
  *
  * Before each mutant the runner writes a progress line synchronously, so the coordinator can
  * attribute and kill a worker stuck in a synchronous loop that the hit counter cannot break.
@@ -34,11 +39,13 @@ type AnyTask = {
   suite?: AnyTask | undefined;
   result?: { state?: string; duration?: number };
   tasks?: AnyTask[] | undefined;
+  mode?: string;
+  context?: unknown;
 };
 type Hook = (...args: unknown[]) => unknown;
 type RunnerStatics = {
   getTestFn: (test: AnyTask) => (() => unknown) | undefined;
-  getSuiteHooks: (suite: AnyTask) => { beforeEach: Hook[]; afterEach: Hook[] };
+  getSuiteHooks: (suite: AnyTask) => { beforeEach: Hook[]; afterEach: Hook[]; beforeAll: Hook[]; afterAll: Hook[] };
 };
 
 /**
@@ -106,6 +113,46 @@ const specTests = new Set(plan.specTests ?? []);
 const decidedBySpec = new Set<string>();
 /** `isolated`: when set, only these tests run (the mutant's covering tests); the rest pass untouched. */
 const only = mode === 'isolated' && env['OXMUTATE_ONLY_TESTS'] ? new Set(JSON.parse(env['OXMUTATE_ONLY_TESTS']) as string[]) : undefined;
+/** `static`: the static mutants this file run decides in the live worker. */
+const staticIds = mode === 'static' && env['OXMUTATE_STATIC'] ? (JSON.parse(env['OXMUTATE_STATIC']) as string[]) : [];
+
+// ── `static` mode: what a registry reset does not reset ─────────────────────────────────────────
+/** Built-ins a module may patch in place; their own methods are compared by identity. */
+const PROTOTYPES: Record<string, object> = {
+  Object: Object.prototype, Array: Array.prototype, String: String.prototype, Number: Number.prototype,
+  Boolean: Boolean.prototype, Function: Function.prototype, Promise: Promise.prototype, Map: Map.prototype,
+  Set: Set.prototype, RegExp: RegExp.prototype, Date: Date.prototype, Error: Error.prototype,
+};
+/** Keys Vitest and oxmutate own: they change by design while a file runs. */
+const OWN_GLOBAL = /^(__vitest|__oxmutate__$|__VITEST|__vite)/;
+
+/** globalThis, process.env and the built-in prototypes, as a map a later look can be compared with. */
+function snapshot(): Map<string, unknown> {
+  const out = new Map<string, unknown>();
+  const g = globalThis as Record<string, unknown>;
+  for (const k of Object.getOwnPropertyNames(g)) {
+    if (OWN_GLOBAL.test(k)) continue;
+    const d = Object.getOwnPropertyDescriptor(g, k);
+    out.set(`g:${k}`, d && 'value' in d ? d.value : d?.get);
+  }
+  for (const [k, v] of Object.entries(env)) out.set(`env:${k}`, v);
+  for (const [name, proto] of Object.entries(PROTOTYPES)) {
+    for (const k of Object.getOwnPropertyNames(proto)) out.set(`proto:${name}.${k}`, Object.getOwnPropertyDescriptor(proto, k)?.value);
+  }
+  return out;
+}
+
+/** How many differing keys a `static-fallback` record names. */
+const DIFF_KEYS = 8;
+
+/** The keys whose presence or value differs between two snapshots (the first few, for a report). */
+const snapshotDiff = (a: Map<string, unknown>, b: Map<string, unknown>): string[] =>
+  [...new Set([...a.keys(), ...b.keys()])].filter((k) => !(a.has(k) && b.has(k) && Object.is(a.get(k), b.get(k)))).slice(0, DIFF_KEYS);
+const sameSnapshot = (a: Map<string, unknown>, b: Map<string, unknown>): boolean => snapshotDiff(a, b).length === 0;
+
+/** The state before this worker evaluated the test file: the baseline every later look compares with. */
+let pristine: Map<string, unknown> | undefined;
+
 /** Set when a mutant left state behind; the rest of this context runs no mutants. */
 let polluted = false;
 /** Mutants between canaries; doubles while the canary stays clean, back to 1 when it fails. */
@@ -150,6 +197,48 @@ async function afterEach(test: AnyTask, context: unknown, cleanups: Hook[]): Pro
 
 const isHitLimit = (e: unknown): boolean => e instanceof Error && /Hit count limit/.test(e.message);
 
+/**
+ * Runs a file collected outside Vitest's own run (`static` mode): each suite's beforeAll/afterAll,
+ * each test with its beforeEach/afterEach chain, stopping at the first failure, which is all a
+ * mutant's verdict needs.
+ */
+async function runCollected(file: AnyTask, runnable: Set<string>): Promise<{ failed: string[]; ran: number }> {
+  const failed: string[] = [];
+  let ran = 0;
+  const runSuite = async (suite: AnyTask): Promise<void> => {
+    const hooks = statics.getSuiteHooks(suite);
+    for (const hook of hooks.beforeAll) await hook(suite);
+    try {
+      for (const t of suite.tasks ?? []) {
+        if (failed.length) return;
+        if (t.type === 'suite') {
+          await runSuite(t);
+          continue;
+        }
+        const fn = runnable.has(t.id) ? statics.getTestFn(t) : undefined;
+        if (!fn) continue;
+        const cleanups = await beforeEach(t, t.context);
+        ran++;
+        try {
+          await fn();
+        } catch {
+          failed.push(t.id);
+        } finally {
+          await afterEach(t, t.context, cleanups);
+        }
+      }
+    } finally {
+      for (const hook of hooks.afterAll) await hook(suite);
+    }
+  };
+  try {
+    await runSuite(file);
+  } catch {
+    failed.push(file.id); // a hook threw: the file failed under the mutant, as Stryker scores it
+  }
+  return { failed, ran };
+}
+
 function fullName(t: AnyTask): string {
   const parts = [t.name];
   for (let s = t.suite; s && s.type === 'suite' && s.name; s = s.suite) parts.unshift(s.name);
@@ -157,6 +246,9 @@ function fullName(t: AnyTask): string {
 }
 
 export default class OxmutateRunner extends (Base as new (config: unknown) => {
+  onBeforeCollect?(paths: string[]): unknown;
+  importFile?(filepath: string, source: string): unknown;
+  onBeforeRunSuite?(suite: AnyTask): unknown;
   onCollectStart?(file: unknown): unknown;
   onBeforeTryTask?(test: AnyTask, options: { retry: number; repeats: number }): unknown;
   onAfterRunFiles?(files: AnyTask[]): unknown;
@@ -276,6 +368,82 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     } finally {
       for (const cleanup of cleanups.reverse()) await cleanup();
     }
+  }
+
+  /**
+   * The baseline is taken as the test file itself is imported (`source: 'collect'`), after setup
+   * files: those run before every collection, re-collections included, and write the same values
+   * each time (the family's colour setup sets TERM, COLORTERM and NO_COLOR), so they are not leaks.
+   */
+  importFile(filepath: string, source: string): unknown {
+    if (mode === 'static' && source === 'collect' && !pristine) pristine = snapshot();
+    return super.importFile?.(filepath, source);
+  }
+
+  async onBeforeRunSuite(suite: AnyTask): Promise<unknown> {
+    if (mode === 'static' && suite.filepath && staticIds.length) await this.decideStatic(suite);
+    return super.onBeforeRunSuite?.(suite);
+  }
+
+  /**
+   * `static` mode (.sdlc/intents/oxmutate/staticwarm.qnt). Re-evaluating the project's modules in
+   * this worker costs ~0.5 ms where a fresh worker per (mutant, file) cost ~80 ms (burgee/paratext,
+   * 2026-10-30). What a registry reset leaves behind is guarded three ways: the file's own unarmed
+   * collection must leave globalThis, process.env and the built-in prototypes as they were; so must
+   * each mutant; and an unarmed re-collection after each mutant must pass. Anything else hands the
+   * rest of the batch back to the fresh-worker path.
+   */
+  private async decideStatic(suite: AnyTask): Promise<void> {
+    const filepath = suite.filepath as string;
+    // The tests this run will execute, after Vitest's own filters (a name pattern, `.only`, `.skip`):
+    // a re-collected file has the same test ids, and runs exactly these.
+    const runnable = new Set<string>();
+    const visit = (t: AnyTask): void => {
+      if (t.type === 'test' && t.mode === 'run') runnable.add(t.id);
+      for (const c of t.tasks ?? []) visit(c);
+    };
+    visit(suite);
+    const rest = [...staticIds];
+    const fallback = (reason: string, keys: string[] = []): void => {
+      emit({ type: 'static-fallback', ids: rest.splice(0), reason, keys });
+    };
+    const before = pristine;
+    if (!before) return fallback('no baseline');
+    const atCollect = snapshotDiff(before, snapshot());
+    if (atCollect.length) return fallback('the file changed globals while it was collected', atCollect);
+    const vitest = (await fromProject('vitest')) as { vi?: { resetModules: () => void } };
+    // `collectTests` is exported for Vitest's browser runner from an internal subpath: if a Vitest
+    // moves or drops it, the import fails and the fresh-worker path decides, as on Vitest 4.
+    const browser = (await fromProject('vitest/internal/browser').catch(() => ({}))) as {
+      collectTests?: (specs: string[], runner: unknown) => Promise<AnyTask[]>;
+    };
+    const { collectTests } = browser;
+    const { vi } = vitest;
+    if (!collectTests || !vi) return fallback('this Vitest has no public collect'); // Vitest 4: the fresh path decides
+    const evaluate = async (armed: string | undefined): Promise<{ failed: string[]; ran: number }> => {
+      ns.activeMutant = armed;
+      try {
+        vi.resetModules();
+        const [file] = await collectTests([filepath], this);
+        return file ? await runCollected(file, runnable) : { failed: [filepath], ran: 0 };
+      } finally {
+        ns.activeMutant = undefined;
+      }
+    };
+    while (rest.length) {
+      const id = rest[0] as string;
+      if (progressPath) writeFileSync(progressPath, `${id} ${String(Date.now())}\n`);
+      const verdict = await evaluate(id);
+      const left = snapshotDiff(before, snapshot());
+      if (left.length) return fallback('the mutant left a trace', left);
+      if ((await evaluate(undefined)).failed.length > 0) return fallback('the unarmed re-collection failed');
+      const after = snapshotDiff(before, snapshot());
+      if (after.length) return fallback('the unarmed re-collection left a trace', after);
+      rest.shift();
+      emit({ type: 'isolated', id, killed: verdict.failed.length > 0, failed: verdict.failed, ran: verdict.ran });
+    }
+    if (progressPath) writeFileSync(progressPath, '');
+    vi.resetModules();
   }
 
   /** Reset per-try state (snapshot counters, assertion counts) the way Vitest does for a retry. */

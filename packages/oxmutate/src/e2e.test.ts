@@ -164,7 +164,8 @@ it.skipIf(!native || !existsSync(bin))('confirms a watchdog stop with 3x the bud
   const reportDir = path.join(slow, 'reports');
   rmSync(reportDir, { recursive: true, force: true });
   mkdirSync(reportDir, { recursive: true });
-  execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: slow, stdio: 'pipe' });
+  // The mutant is static: the fresh-worker path is the one whose watchdog this checks.
+  execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: slow, stdio: 'pipe', env: { ...process.env, OXMUTATE_ISOLATE_STATIC: '1' } });
   const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as {
     files: Record<string, { mutants: ReportMutant[] }>;
     'x-oxmutate': { stats: { timeoutsOverturned: number } };

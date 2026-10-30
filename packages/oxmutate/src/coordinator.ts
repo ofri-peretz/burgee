@@ -112,8 +112,10 @@ interface Verdict {
 }
 
 interface ChildRecord {
-  type: 'dry' | 'mutant' | 'polluted' | 'isolated';
+  type: 'dry' | 'mutant' | 'polluted' | 'isolated' | 'static-fallback';
   id?: string;
+  /** `static-fallback`: static mutants a live worker handed back to the fresh-worker path. */
+  ids?: string[];
   test?: string;
   status?: 'Killed' | 'Survived' | 'Timeout';
   file?: string;
@@ -553,7 +555,7 @@ export async function run(options: Options): Promise<RunResult> {
         isolatedQueue.push(m); // unfinished: a crash left work undone
       }
     }
-    for (const m of mutants) if (m.static && m.status !== 'Ignored' && !m.reused) isolatedQueue.push(m);
+    const staticMutants = mutants.filter((m) => m.static && m.status !== 'Ignored' && !m.reused);
 
     // ── 6. Isolated re-runs: the switch armed before import, Vitest run normally ──────────────
     const allTestFiles = [...new Set(dry.tests.map((t) => t.file))];
@@ -583,6 +585,64 @@ export async function run(options: Options): Promise<RunResult> {
     // Stryker's semantics, so cross-test effects still show (a no-op reset() lets state pile up
     // for the next covering test). A static mutant runs every test of its files, because an
     // import-time change reaches tests that never execute the mutated line.
+    /**
+     * Static mutants decided in live workers, one unit per (test file, batch of its static mutants),
+     * on a pool that inlines dependencies. Returns the mutants this path could not decide.
+     */
+    const decideStaticLive = async (items: MutantResult[]): Promise<MutantResult[]> => {
+      if (items.length === 0) return [];
+      const STATIC_BATCH = 25;
+      const byFile = new Map<string, string[]>();
+      for (const m of items) for (const f of filesFor(m)) (byFile.get(f) ?? byFile.set(f, []).get(f))?.push(m.id);
+      const units: Unit[] = [];
+      for (const [file, ids] of byFile) {
+        for (let i = 0; i < ids.length; i += STATIC_BATCH) {
+          units.push({ mode: 'static', files: [file], results: fileFor('static', 'jsonl'), progress: fileFor('static', 'progress'), staticIds: ids.slice(i, i + STATIC_BATCH) });
+        }
+      }
+      const killed = new Map<string, { killedBy: string[]; ran: number }>();
+      const passed = new Map<string, Set<string>>(); // mutant -> files that ran it clean
+      const back = new Set<string>();
+      const ran = new Map<string, number>();
+      const staticPool = createPool({ root, vitestConfig: options.vitestConfig, workers: 1, instrumentedMap: mapFile, nodeArgs: options.testRunnerNodeArgs, inlineDeps: true }, options.concurrency, work, 'static');
+      pools.push(staticPool);
+      await staticPool.drain(
+        units,
+        (_, id) => 2 * isolatedBudget(id), // the mutant's run and the unarmed canary after it
+        (unit, outcome) => {
+          const file = unit.files[0] ?? '';
+          const decided = new Set<string>();
+          for (const r of readRecords(unit.results)) {
+            if (r.type === 'static-fallback') for (const id of r.ids ?? []) back.add(id);
+            if (r.type !== 'isolated' || !r.id) continue;
+            decided.add(r.id);
+            ran.set(r.id, (ran.get(r.id) ?? 0) + (r.ran ?? 0));
+            if (r.killed) killed.set(r.id, { killedBy: [...(killed.get(r.id)?.killedBy ?? []), ...(r.failed ?? [])], ran: 0 });
+            else (passed.get(r.id) ?? passed.set(r.id, new Set()).get(r.id))?.add(file);
+          }
+          // A stop or a crash leaves the rest of the batch undecided: the fresh-worker path decides it.
+          if (outcome.killedFor || outcome.crashed) for (const id of unit.staticIds ?? []) if (!decided.has(id)) back.add(id);
+          return [];
+        },
+        (unit) => {
+          unit.staticIds = (unit.staticIds ?? []).filter((id) => !killed.has(id) && !back.has(id));
+          return unit.staticIds.length > 0;
+        },
+      );
+      const undecided: MutantResult[] = [];
+      for (const m of items) {
+        const k = killed.get(m.id);
+        if (k) {
+          m.status = 'Killed';
+          m.killedBy = [...new Set(k.killedBy)];
+          m.testsCompleted = ran.get(m.id) ?? 0;
+        } else if (!back.has(m.id) && filesFor(m).every((f) => passed.get(m.id)?.has(f))) {
+          m.status = 'Survived';
+          m.testsCompleted = ran.get(m.id) ?? 0;
+        } else undecided.push(m);
+      }
+      return undecided;
+    };
     const runIsolated = async (items: MutantResult[], slack = 1): Promise<Map<string, Verdict>> => {
       const verdicts = new Map<string, Verdict>();
       if (items.length === 0) return verdicts;
@@ -622,6 +682,13 @@ export async function run(options: Options): Promise<RunResult> {
       for (const m of items) if (!verdicts.has(m.id)) verdicts.set(m.id, { status: 'RuntimeError' });
       return verdicts;
     };
+    // ── 5b. Static mutants in live workers (.sdlc/intents/oxmutate/staticwarm.qnt) ─────────────
+    // A fresh worker per (static mutant, file) cost ~80 ms of start-up around tests that take a few
+    // ms: 29 of 35 s on burgee/paratext (2026-10-30). A live worker re-evaluates the project's modules
+    // per mutant instead; whatever it cannot vouch for comes back here for the fresh-worker path.
+    // OXMUTATE_ISOLATE_STATIC=1 sends every static mutant down the fresh-worker path, as before.
+    const staticBack = env['OXMUTATE_ISOLATE_STATIC'] ? staticMutants : await decideStaticLive(staticMutants);
+    isolatedQueue.push(...staticBack);
     progress.phase(`isolated runs (static mutants and stragglers: ${String(isolatedQueue.length)})`);
     const i0 = performance.now();
     const first = await runIsolated(isolatedQueue);

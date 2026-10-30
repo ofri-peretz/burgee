@@ -27,10 +27,15 @@ export interface ServerConfig {
   instrumentedMap: string;
   /** `execArgv` for this server (Stryker's `testRunnerNodeArgs`). */
   nodeArgs?: string[] | undefined;
+  /**
+   * Inline every dependency, so a module-registry reset re-evaluates them too (`static` units:
+   * state kept in an externalized dependency would outlive a reset; staticwarm.qnt, INLINE).
+   */
+  inlineDeps?: boolean | undefined;
 }
 
 export interface Unit {
-  mode: 'dry' | 'mutant' | 'isolated';
+  mode: 'dry' | 'mutant' | 'isolated' | 'static';
   /** Test files to run (absolute). Empty: every file the config includes. */
   files: string[];
   results: string;
@@ -38,6 +43,8 @@ export interface Unit {
   plan?: string | undefined;
   /** `isolated`: mutants armed one after another from process start, each with its files. */
   batch?: { id: string; files: string[]; tests?: string[] | undefined }[] | undefined;
+  /** `static`: the static mutants this one file's run decides in its live worker. */
+  staticIds?: string[] | undefined;
 }
 
 const config = JSON.parse(readFileSync(argv[2] ?? '', 'utf8')) as ServerConfig;
@@ -76,6 +83,7 @@ const vitest = await vitestNode.createVitest(
     // spellings (top-level in Vitest 5, `experimental` in 4.x).
     fsModuleCache: false,
     experimental: { fsModuleCache: false },
+    ...(config.inlineDeps && { server: { deps: { inline: true } } }),
   },
   // A private Vite cache per run, so no cache outside this run can answer for a mutated file.
   { plugins: [instrumentedSources(config.instrumentedMap)], cacheDir: path.join(path.dirname(config.instrumentedMap), 'vite-cache') },
@@ -132,6 +140,8 @@ async function runUnit(unit: Unit): Promise<void> {
   env['OXMUTATE_RESULTS'] = unit.results;
   env['OXMUTATE_PROGRESS'] = unit.progress;
   if (unit.plan) env['OXMUTATE_PLAN'] = unit.plan;
+  if (unit.staticIds) env['OXMUTATE_STATIC'] = JSON.stringify(unit.staticIds);
+  else delete env['OXMUTATE_STATIC'];
   delete env[ACTIVE_MUTANT_ENV];
   if (unit.mode === 'isolated') await runIsolated(unit);
   else {
