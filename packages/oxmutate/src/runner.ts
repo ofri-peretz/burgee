@@ -213,8 +213,12 @@ const isHitLimit = (e: unknown): boolean => e instanceof Error && /Hit count lim
  * each test with its beforeEach/afterEach chain, stopping at the first failure, which is all a
  * mutant's verdict needs.
  */
-async function runCollected(file: AnyTask, runnable: Set<string>): Promise<{ failed: string[]; ran: number }> {
+async function runCollected(file: AnyTask, runnable: Set<string>): Promise<{ failed: string[]; ran: number; error?: string }> {
   const failed: string[] = [];
+  let error: string | undefined;
+  const note = (t: AnyTask, e: unknown): void => {
+    error ??= `${fullName(t)}: ${e instanceof Error ? e.message : String(e)}`.slice(0, POLLUTION_ERROR_CHARS);
+  };
   let ran = 0;
   const runSuite = async (suite: AnyTask): Promise<void> => {
     const hooks = statics.getSuiteHooks(suite);
@@ -232,8 +236,9 @@ async function runCollected(file: AnyTask, runnable: Set<string>): Promise<{ fai
         ran++;
         try {
           await fn();
-        } catch {
+        } catch (e) {
           failed.push(t.id);
+          note(t, e);
         } finally {
           await afterEach(t, t.context, cleanups);
         }
@@ -244,10 +249,11 @@ async function runCollected(file: AnyTask, runnable: Set<string>): Promise<{ fai
   };
   try {
     await runSuite(file);
-  } catch {
+  } catch (e) {
     failed.push(file.id); // a hook threw: the file failed under the mutant, as Stryker scores it
+    note(file, e);
   }
-  return { failed, ran };
+  return { failed, ran, ...(error !== undefined && { error }) };
 }
 
 function fullName(t: AnyTask): string {
@@ -431,7 +437,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     const { collectTests } = browser;
     const { vi } = vitest;
     if (!collectTests || !vi) return fallback('this Vitest has no public collect'); // Vitest 4: the fresh path decides
-    const evaluate = async (armed: string | undefined): Promise<{ failed: string[]; ran: number; timeout: boolean }> => {
+    const evaluate = async (armed: string | undefined): Promise<{ failed: string[]; ran: number; timeout: boolean; error?: string }> => {
       ns.activeMutant = armed;
       ns.hitCount = armed ? 0 : undefined;
       ns.hitLimit = armed ? (staticLimits[armed] ?? Number.MAX_SAFE_INTEGER) : undefined;
@@ -452,7 +458,8 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       const verdict = await evaluate(id);
       const left = snapshotDiff(before, snapshot());
       if (left.length) return fallback('the mutant left a trace', left);
-      if ((await evaluate(undefined)).failed.length > 0) return fallback('the unarmed re-collection failed');
+      const unarmed = await evaluate(undefined);
+      if (unarmed.failed.length > 0) return fallback('the unarmed re-collection failed', unarmed.error ? [unarmed.error] : []);
       const after = snapshotDiff(before, snapshot());
       if (after.length) return fallback('the unarmed re-collection left a trace', after);
       rest.shift();
