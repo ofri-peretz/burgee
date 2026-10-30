@@ -222,8 +222,9 @@ Of the two disagreements left, one is a Stryker timeout on a loop that ends (its
 it; the covering tests pass). The other is a mutant Stryker scored as a runtime error, so it has
 no Stryker verdict to compare.
 
-**Speed, measured on a laptop, not yet a published number.** Medians of 3 head-to-head runs
-(`bench/burgee-pair.mts`, concurrency 4, one tool after the other, load 6–19, 2026-10-30):
+**Speed, measured on a laptop, not yet a published number** (the published ones live at
+[burgee.interlace.tools/docs/benchmarks](https://burgee.interlace.tools/docs/benchmarks)). Medians of 3
+head-to-head runs (`bench/burgee-pair.mts`, concurrency 4, one tool after the other, load 6–19, 2026-10-30):
 
 | Subject | Stryker 10 | oxmutate | Wall | CPU | Tests a mutant |
 | :-- | --: | --: | --: | --: | --: |
