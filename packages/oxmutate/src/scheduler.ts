@@ -151,10 +151,15 @@ export function createPool(config: ServerConfig, size: number, workDir: string, 
       const signal = () => {
         for (const w of waiters.splice(0)) w();
       };
+      /** The next unit `prepare` keeps, or undefined when the queue is empty. */
+      const take = (): Unit | undefined => {
+        for (let unit = queue.shift(); unit; unit = queue.shift()) if (!prepare || prepare(unit)) return unit;
+        return undefined;
+      };
       await Promise.all(
         servers.map(async (_, slot) => {
           for (;;) {
-            const unit = queue.shift();
+            const unit = take();
             if (!unit) {
               if (busy === 0) {
                 signal();
@@ -163,7 +168,6 @@ export function createPool(config: ServerConfig, size: number, workDir: string, 
               await new Promise<void>((r) => waiters.push(r));
               continue;
             }
-            if (prepare && !prepare(unit)) continue;
             busy++;
             let server = servers[slot] as Server;
             if (!(await server.ready)) {
