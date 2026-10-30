@@ -106,6 +106,31 @@ it.skipIf(!native || !existsSync(bin))('kills a mutant a beforeEach hook reaches
   expect(report['x-oxmutate'].stats.isolatedRuns).toBe(0);
 }, 60_000);
 
+// Reference verdicts for static mutants, decided today in a fresh worker per (mutant, file). A faster
+// path that decides them in a live worker (.sdlc/intents/oxmutate/staticwarm.qnt) must give the same:
+// `static-const` is reached only through import-time values; `static-leak` sets a global at import
+// with `??=`, so a worker that evaluated it once would make the MODE mutant survive.
+/** A fixture's static mutants as `line:mutator:status`, from a real run. */
+const staticVerdicts = (name: string, file: string): string[] => {
+  const dir = path.join(pkg, 'test/fixtures', name);
+  const reportDir = path.join(dir, 'reports');
+  rmSync(reportDir, { recursive: true, force: true });
+  execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe' });
+  const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: ReportMutant[] }> };
+  rmSync(reportDir, { recursive: true, force: true });
+  return (report.files[file]?.mutants ?? []).filter((m) => m.static).map((m) => `${String(m.location.start.line)}:${m.mutatorName}:${m.status}`);
+};
+
+describe.skipIf(!native || !existsSync(bin))('static mutants keep their fresh-worker verdicts', () => {
+  it('an import-time constant decides its mutants; an unread one survives', () => {
+    expect(staticVerdicts('static-const', 'src/limits.ts')).toEqual(['3:StringLiteral:Killed', '5:StringLiteral:Survived']);
+  }, 60_000);
+
+  it('a global set at import does not carry one mutant value into the next', () => {
+    expect(staticVerdicts('static-leak', 'src/mode.ts')).toEqual(['4:StringLiteral:Killed', '5:AssignmentOperator:Killed']);
+  }, 60_000);
+});
+
 const alive = (pid: number): boolean => {
   try {
     process.kill(pid, 0);
