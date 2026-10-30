@@ -142,8 +142,14 @@ function readRecords(file: string): ChildRecord[] {
 
 const sha = (s: string): string => createHash('sha256').update(s).digest('hex').slice(0, 16);
 
-/** Work units of at most this many (mutant, test) executions: small enough to steal. */
-const UNIT_PAIRS = 120;
+/**
+ * Work units of at most this many (mutant, test) executions: small enough to steal, large enough
+ * that each unit's fresh worker, which imports the test file's whole graph, is paid for few units.
+ * At 120, module loading was most of the CPU on burgee/controlroom (React/Ink in every worker); 400
+ * cut units 172 -> 93 and wall 44 -> 39 s (paratext 39 -> 35 s), and 1000 gained nothing more
+ * (2026-10-30). Smaller stays better for a pollution restart, which re-runs the rest of a unit.
+ */
+const UNIT_PAIRS = 400;
 const MS_PER_MINUTE = 60_000;
 const PERCENT = 100;
 
