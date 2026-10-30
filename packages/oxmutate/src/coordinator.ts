@@ -458,7 +458,8 @@ export async function run(options: Options): Promise<RunResult> {
     const records: ChildRecord[] = [];
     const runaways = new Set<string>();
     const crashedIds = new Set<string>();
-    const pool = createPool({ root, vitestConfig: options.vitestConfig, workers: 1, instrumentedMap: mapFile, nodeArgs: options.testRunnerNodeArgs }, options.concurrency, work, 'mutant');
+    // Dependencies inlined here too, so the static phase (5b) reuses these servers instead of starting its own.
+    const pool = createPool({ root, vitestConfig: options.vitestConfig, workers: 1, instrumentedMap: mapFile, nodeArgs: options.testRunnerNodeArgs, inlineDeps: true }, options.concurrency, work, 'mutant');
     pools.push(pool);
     /** Mutants decided on one verdict track: the tests', or a spec oracle's replay tests'. */
     const killedSoFar = (spec: boolean): Set<string> => new Set([...runaways, ...crashedIds, ...records.filter((r) => r.type === 'mutant' && r.status !== 'Survived' && Boolean(r.spec) === spec).map((r) => r.id ?? '')]);
@@ -621,8 +622,7 @@ export async function run(options: Options): Promise<RunResult> {
       const passed = new Map<string, Set<string>>(); // mutant -> files that ran it clean
       const back = new Set<string>();
       const ran = new Map<string, number>();
-      const staticPool = createPool({ root, vitestConfig: options.vitestConfig, workers: 1, instrumentedMap: mapFile, nodeArgs: options.testRunnerNodeArgs, inlineDeps: true }, options.concurrency, work, 'static');
-      pools.push(staticPool);
+      const staticPool = pool;
       const afterStatic = (unit: Unit, outcome: UnitOutcome): Unit[] => {
         const file = unit.files[0] ?? '';
         const decided = new Set<string>();
