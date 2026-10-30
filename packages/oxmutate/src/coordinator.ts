@@ -564,6 +564,21 @@ export async function run(options: Options): Promise<RunResult> {
     const fileCost = new Map<string, number>();
     for (const t of dry.tests) fileCost.set(t.file, (fileCost.get(t.file) ?? 0) + t.ms);
     const byCost = (files: string[]): string[] => [...files].sort((a, b) => (fileCost.get(a) ?? 0) - (fileCost.get(b) ?? 0));
+    // Test file -> source file -> how many of that source's mutants its tests reach. A static mutant
+    // rarely has covering tests of its own, so its loaders were tried cheapest first, and the cheapest
+    // seldom tests the module: on burgee/controlroom each tabs.ts static mutant ran 75 tests in two
+    // files where Stryker needed 37 (2026-10-30). The file that exercises the module goes first.
+    const affinity = new Map<string, Map<string, number>>();
+    for (const mm of mutants) {
+      for (const t of mm.coveredBy) {
+        const f = testInfo.get(t)?.file;
+        if (!f) continue;
+        const bySource = affinity.get(f) ?? affinity.set(f, new Map()).get(f) as Map<string, number>;
+        bySource.set(mm.file, (bySource.get(mm.file) ?? 0) + 1);
+      }
+    }
+    const byAffinity = (source: string, files: string[]): string[] =>
+      byCost(files).sort((a, b) => (affinity.get(b)?.get(source) ?? 0) - (affinity.get(a)?.get(source) ?? 0));
     const filesFor = (m: MutantResult): string[] => {
       const tests = m.coveredBy.map((t) => testInfo.get(t)?.file ?? '');
       if (!m.static) return byCost([...new Set(tests)]);
@@ -573,7 +588,7 @@ export async function run(options: Options): Promise<RunResult> {
       // ran a file that only imports it first, and 288 of 349 isolated kills on burgee/paratext
       // came from a later file (2026-10-27).
       const covering = byCost([...new Set(tests)]);
-      return [...covering, ...byCost([...loaders].filter((f) => !covering.includes(f)))];
+      return [...covering, ...byAffinity(m.file, [...loaders].filter((f) => !covering.includes(f)))];
     };
     const isolatedBudget = (id: string): number => {
       const m = byId.get(id);
