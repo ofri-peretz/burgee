@@ -67,19 +67,31 @@ export const PR_BUDGET = {
 } as const;
 
 /**
- * Suites that cannot pass against instrumented source, by package, each with why. They measure
- * the source text itself (bytes, a bundle), and Stryker's instrumented copy is larger by
- * construction. Skipped by the mutation run only: `npm test` and coverage still run them.
+ * Suites that cannot pass against instrumented source, or cannot reach it, by package, each with
+ * why. The first kind measure the source text itself (bytes, a bundle), and Stryker's instrumented
+ * copy is larger by construction. The second kind (`shape.test.ts` where it packs the package)
+ * install the `npm pack` tarball and run its `dist/` in a child process, so no mutant in `src/` can
+ * ever fail them: they only cost the dry run, every mutation run's floor (controlroom's R11 alone
+ * is 2.4 s of an 8 s suite, 2026-10-31). Skipped by the mutation run only: `npm test` and coverage
+ * still run them.
  * Found empirically, by the dry run failing; `mutation-lock.test.ts` checks each file exists.
  */
+const PACKED_ONLY = 'installs the npm pack tarball and runs its dist/ in a child process; no src/ mutant can reach it';
+
 export const SKIPPED_TESTS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   roundel: {
     'src/weight.test.ts': 'bundles src and holds it to a byte ceiling; instrumented source is larger by construction',
+    'src/shape.test.ts': PACKED_ONLY,
   },
+  bellpull: { 'src/shape.test.ts': PACKED_ONLY },
+  caique: { 'src/shape.test.ts': PACKED_ONLY },
+  controlroom: { 'src/shape.test.ts': PACKED_ONLY },
+  flagstaff: { 'src/shape.test.ts': PACKED_ONLY },
   burgee: {
     'src/migrate-bench.test.ts': 'A10 times a 1,000-file scan against a CPU yardstick (40); instrumented code ran it at 3,644 on 2026-10-18',
     'src/messages.test.ts': 'scans the source text of src/ for every message the engine writes; instrumented source carries each literal behind a mutant switch',
     'src/testing-helpers.test.ts': "compares JSON.stringify(process.env) byte for byte; Stryker's runner forces the threads pool, where restoring the env reorders its keys",
+    'src/shape.test.ts': PACKED_ONLY,
   },
 };
 
