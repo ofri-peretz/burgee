@@ -82,6 +82,16 @@
           "survived": 769,
           "noCoverage": 2,
           "minutes": 146.34
+        },
+        {
+          "date": "2026-10-31",
+          "commit": "bd98f43aae",
+          "score": 87.38,
+          "killed": 5988,
+          "timeout": 15,
+          "survived": 864,
+          "noCoverage": 3,
+          "minutes": 107.53
         }
       ]
     },
@@ -105,6 +115,16 @@
           "survived": 77,
           "noCoverage": 0,
           "minutes": 3.62
+        },
+        {
+          "date": "2026-10-31",
+          "commit": "bd98f43aae",
+          "score": 89.9,
+          "killed": 747,
+          "timeout": 1,
+          "survived": 84,
+          "noCoverage": 0,
+          "minutes": 2.66
         }
       ]
     },
@@ -143,6 +163,16 @@
           "survived": 503,
           "noCoverage": 1,
           "minutes": 172.51
+        },
+        {
+          "date": "2026-10-31",
+          "commit": "bd98f43aae",
+          "score": 91.17,
+          "killed": 6065,
+          "timeout": 14,
+          "survived": 588,
+          "noCoverage": 1,
+          "minutes": 186.56
         }
       ]
     },
@@ -176,6 +206,16 @@
           "survived": 76,
           "noCoverage": 0,
           "minutes": 1.58
+        },
+        {
+          "date": "2026-10-31",
+          "commit": "bd98f43aae",
+          "score": 91.34,
+          "killed": 974,
+          "timeout": 7,
+          "survived": 93,
+          "noCoverage": 0,
+          "minutes": 0.87
         }
       ]
     },
@@ -199,6 +239,16 @@
           "survived": 194,
           "noCoverage": 0,
           "minutes": 6.31
+        },
+        {
+          "date": "2026-10-31",
+          "commit": "bd98f43aae",
+          "score": 86.17,
+          "killed": 1455,
+          "timeout": 15,
+          "survived": 236,
+          "noCoverage": 0,
+          "minutes": 5.27
         }
       ]
     },
@@ -222,6 +272,16 @@
           "survived": 239,
           "noCoverage": 0,
           "minutes": 16.82
+        },
+        {
+          "date": "2026-10-31",
+          "commit": "bd98f43aae",
+          "score": 68.95,
+          "killed": 1974,
+          "timeout": 62,
+          "survived": 917,
+          "noCoverage": 0,
+          "minutes": 18.25
         }
       ]
     },
@@ -245,6 +305,16 @@
           "survived": 0,
           "noCoverage": 0,
           "minutes": 10.01
+        },
+        {
+          "date": "2026-10-31",
+          "commit": "bd98f43aae",
+          "score": 100,
+          "killed": 1312,
+          "timeout": 16,
+          "survived": 0,
+          "noCoverage": 0,
+          "minutes": 7.84
         }
       ]
     },
@@ -278,12 +348,22 @@
           "survived": 199,
           "noCoverage": 2,
           "minutes": 3.55
+        },
+        {
+          "date": "2026-10-31",
+          "commit": "bd98f43aae",
+          "score": 84.41,
+          "killed": 1215,
+          "timeout": 3,
+          "survived": 218,
+          "noCoverage": 7,
+          "minutes": 0.5
         }
       ]
     },
     "roundel": {
       "status": "measured",
-      "floor": 91.8,
+      "floor": 93.1,
       "history": [
         {
           "floor": 79.4,
@@ -299,6 +379,11 @@
           "floor": 91.8,
           "setOn": "2026-10-29",
           "why": "Weekly run at 00e4e411ed measured 91.88%, above the 83.2% floor; the floor follows it up."
+        },
+        {
+          "floor": 93.1,
+          "setOn": "2026-10-31",
+          "why": "Weekly run at bd98f43aae measured 93.11%, above the 91.8% floor; the floor follows it up."
         }
       ],
       "observations": [
@@ -331,6 +416,16 @@
           "survived": 139,
           "noCoverage": 1,
           "minutes": 12.25
+        },
+        {
+          "date": "2026-10-31",
+          "commit": "bd98f43aae",
+          "score": 93.11,
+          "killed": 2076,
+          "timeout": 6,
+          "survived": 153,
+          "noCoverage": 1,
+          "minutes": 36.88
         }
       ]
     },
@@ -354,6 +449,16 @@
           "survived": 439,
           "noCoverage": 0,
           "minutes": 20.74
+        },
+        {
+          "date": "2026-10-31",
+          "commit": "bd98f43aae",
+          "score": 90.71,
+          "killed": 4587,
+          "timeout": 119,
+          "survived": 482,
+          "noCoverage": 0,
+          "minutes": 17.2
         }
       ]
     }
