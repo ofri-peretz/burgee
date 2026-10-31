@@ -77,6 +77,7 @@ export const PR_BUDGET = {
  * Found empirically, by the dry run failing; `mutation-lock.test.ts` checks each file exists.
  */
 const PACKED_ONLY = 'installs the npm pack tarball and runs its dist/ in a child process; no src/ mutant can reach it';
+const BUILT_CLI = 'imports nothing from src/ and runs the built dist/bin.js in child processes; it covered and killed 0 mutants (2026-10-31)';
 
 export const SKIPPED_TESTS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   roundel: {
@@ -87,6 +88,12 @@ export const SKIPPED_TESTS: Readonly<Record<string, Readonly<Record<string, stri
   caique: { 'src/shape.test.ts': PACKED_ONLY },
   controlroom: { 'src/shape.test.ts': PACKED_ONLY },
   flagstaff: { 'src/shape.test.ts': PACKED_ONLY },
+  oxmutate: {
+    'src/e2e.test.ts': BUILT_CLI,
+    'src/vitest5-regression.test.ts': BUILT_CLI,
+    'src/schemas.test.ts': BUILT_CLI,
+    'src/sensitivity.test.ts': BUILT_CLI,
+  },
   burgee: {
     'src/migrate-bench.test.ts': 'A10 times a 1,000-file scan against a CPU yardstick (40); instrumented code ran it at 3,644 on 2026-10-18',
     'src/messages.test.ts': 'scans the source text of src/ for every message the engine writes; instrumented source carries each literal behind a mutant switch',
