@@ -6,7 +6,8 @@
  *    run of digits that does not end the string, and `/^-+([^=]+?)\W+.*$/` is cubic on a run
  *    of spaces or punctuation followed by a line break. Measured on the unfixed code, node
  *    v24.12.0, macOS: `-a` + `'! '` x 500 / 1,000 / 2,000 + `a\na` took 173 / 1,412 / 10,543 ms
- *    in the second regex alone. The budgets below sit far under that and far over linear.
+ *    in the second regex alone — twice the input, eight times the time. The locks below time a
+ *    parse at two sizes and hold the ratio, not the milliseconds (`__fixtures__/growth.ts`).
  * 2. `setKey` descended into a `null` parent. `{ a: null }` from one config and `a.b` from a
  *    default or a second config threw "Cannot read properties of null (reading 'b')" out of
  *    the parse, where `hasKey` had already read the `null` as an absent parent.
@@ -18,6 +19,7 @@
 import { describe, expect, it } from 'vitest';
 import upstreamParser from 'yargs-parser';
 
+import { growth, LINEAR, said } from '../__fixtures__/growth.js';
 import yargsParser from '../yargs-parser.js';
 
 import { flagEndingInDigits, flagEndingInHyphen, flagEndingInNonWordCharacters, flagWithEquals, normalFlag } from './flag-shapes.js';
@@ -36,12 +38,6 @@ function* strings(alphabet: string[], max: number, prefix = ''): Generator<strin
   yield prefix;
   if (max === 0) return;
   for (const c of alphabet) yield* strings(alphabet, max - 1, prefix + c);
-}
-
-function elapsed(fn: () => unknown): number {
-  const t = performance.now();
-  fn();
-  return performance.now() - t;
 }
 
 describe('the flag shapes answer as the upstream regexes did', () => {
@@ -65,16 +61,22 @@ describe('the flag shapes answer as the upstream regexes did', () => {
 describe('unknown-options-as-args classifies a long argument in linear time', () => {
   const parse = (arg: string) => yargsParser([arg], { configuration: { 'unknown-options-as-args': true } });
 
+  // Each size is picked so the smaller parse takes about 10 ms here (node v24.12.0, macOS, under
+  // load): 100,000 `'! '` read 11.3 -> 44.5 ms and 200,000 digits 9.5 -> 39.3 ms, and the ratio
+  // stayed within 3.9-4.6 over repeated runs. Upstream's regexes read 38x (cubic, 100 `'! '`) and
+  // 14x (quadratic, 2,000 digits), at sizes they can finish.
   it('a run of punctuation before a line break (cubic upstream)', () => {
-    const arg = `-a${'! '.repeat(20_000)}a\na`;
-    const ms = elapsed(() => expect(parse(arg)._).toEqual([arg]));
-    expect(ms).toBeLessThan(400);
+    const arg = (n: number) => `-a${'! '.repeat(n)}a\na`;
+    expect(parse(arg(100_000))._).toEqual([arg(100_000)]);
+    const g = growth(arg, parse, 100_000);
+    expect(g.ratio, said(g)).toBeLessThan(LINEAR);
   });
 
   it('a run of digits that does not end the argument (quadratic upstream)', () => {
-    const arg = `--${'1'.repeat(200_000)}x\n`;
-    const ms = elapsed(() => expect(parse(arg)._).toEqual([arg]));
-    expect(ms).toBeLessThan(400);
+    const arg = (n: number) => `--${'1'.repeat(n)}x\n`;
+    expect(parse(arg(200_000))._).toEqual([arg(200_000)]);
+    const g = growth(arg, parse, 200_000);
+    expect(g.ratio, said(g)).toBeLessThan(LINEAR);
   });
 
   it('sorts known and unknown flags of every shape exactly as yargs-parser 22 does', () => {

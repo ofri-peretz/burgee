@@ -11,6 +11,7 @@ import { PassThrough } from 'node:stream';
 
 import { describe, expect, it } from 'vitest';
 
+import { growth, LINEAR, said } from './__fixtures__/growth.js';
 import { bindings, canonical, canReadKeys, decode, type KeyInput, type KeyPress, KeysError, match, readKeys, specOf } from './keys.js';
 import { keyOf } from './raw.js';
 
@@ -114,11 +115,20 @@ describe('canonical: one spelling per key', () => {
   });
 
   it('reads a long run of modifiers in linear time, so a keymap from a file cannot stall it', () => {
-    // The regular expression this replaced backtracked polynomially here (CodeQL, #799).
-    const started = performance.now();
+    // The regular expression this replaced backtracked polynomially here (CodeQL, #799). Timed at
+    // two sizes, so the lock holds the growth and not the milliseconds (`__fixtures__/growth.ts`);
+    // the smaller pair of calls takes about 8 ms here (node v24.12.0, macOS).
     expect(() => canonical('alt+'.repeat(50_000))).toThrow(KeysError);
     expect(canonical(`${'alt+'.repeat(50_000)}x`)).toBe('meta+x');
-    expect(performance.now() - started).toBeLessThan(1_000);
+    const g = growth(
+      (n) => 'alt+'.repeat(n),
+      (run) => {
+        expect(() => canonical(run)).toThrow(KeysError);
+        canonical(`${run}x`);
+      },
+      100_000,
+    );
+    expect(g.ratio, said(g)).toBeLessThan(LINEAR);
   });
 
   it.each(['', 'shift+', 'hyper+x', 'ctrl+ab', 'leftt'])('refuses %j, with a fix', (spec) => {
