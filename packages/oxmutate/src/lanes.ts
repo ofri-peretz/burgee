@@ -53,6 +53,7 @@ export function shardOf(id: string, count: number): number {
   // Ids are hex (`native/src/stable_id.rs`), so a code point is a code unit and the shards are
   // the ones `charCodeAt` gave.
   for (let i = 0; i < id.length; i++) {
+    // Stryker disable next-line NumericLiteral: `i < id.length`, so codePointAt never returns undefined here
     h ^= id.codePointAt(i) ?? 0;
     h = Math.imul(h, FNV_PRIME) >>> 0;
   }

@@ -9,6 +9,10 @@
  * so agreement cannot come from both sides answering the same thing everywhere.
  */
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
@@ -111,9 +115,30 @@ function facade({ env, argv = [], platform = 'linux', tty = true }: Case): boole
   return link('docs', 'https://example.com').includes('\u001B]8;;');
 }
 
+// The incumbent's answers do not depend on this package's code, so they are asked once per
+// supports-hyperlinks version and case list and kept under node_modules/.cache. A mutation run loads
+// this file hundreds of times, and a process per case each time was 150 of 183 s of an oxmutate run
+// on paratext (2026-10-30). A new version or a changed case asks the incumbent again.
+const incumbentDir = path.dirname(fileURLToPath(incumbentUrl));
+const incumbentVersion = (JSON.parse(readFileSync(path.join(incumbentDir, 'package.json'), 'utf8')) as { version: string }).version;
+const cacheKey = createHash('sha256').update(`${incumbentVersion}\n${JSON.stringify(CASES)}`).digest('hex').slice(0, 16);
+const cacheFile = path.join(fileURLToPath(new URL('..', import.meta.url)), 'node_modules', '.cache', `a27-incumbent-${cacheKey}.json`);
+
+function incumbentAnswers(): Record<string, boolean> {
+  try {
+    return JSON.parse(readFileSync(cacheFile, 'utf8')) as Record<string, boolean>;
+  } catch {
+    const answers = Object.fromEntries(Object.entries(CASES).map(([name, c]) => [name, incumbent(c)]));
+    mkdirSync(path.dirname(cacheFile), { recursive: true });
+    writeFileSync(cacheFile, JSON.stringify(answers));
+    return answers;
+  }
+}
+
 describe('paratext/terminal-link links where supports-hyperlinks 4.5.0 does (A27)', () => {
-  it.each(Object.entries(CASES))('%s', (_name, c) => {
-    expect(facade(c)).toBe(incumbent(c));
+  const answers = incumbentAnswers();
+  it.each(Object.entries(CASES))('%s', (name, c) => {
+    expect(facade(c)).toBe(answers[name]);
   });
 
   it('asks about stderr when the call is bound for stderr', () => {

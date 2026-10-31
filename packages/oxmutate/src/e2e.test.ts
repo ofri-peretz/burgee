@@ -51,6 +51,86 @@ it.skipIf(!native || !existsSync(bin))('restarts a polluted context and judges l
   rmSync(reportDir, { recursive: true, force: true });
 }, 60_000);
 
+// A file-level `beforeEach` must re-run between mutants like any suite's. Vitest 5 does not link a
+// top-level describe to its file, so it was skipped: every canary failed on the entries the previous
+// mutant left, each read as pollution and cost a fresh context (shop-service, 2026-10-29).
+it.skipIf(!native || !existsSync(bin))('re-runs file-level beforeEach hooks between mutants, so they read as no pollution', () => {
+  const hooks = path.join(pkg, 'test/fixtures/file-hooks');
+  const reportDir = path.join(hooks, 'reports');
+  rmSync(reportDir, { recursive: true, force: true });
+  execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: hooks, stdio: 'pipe' });
+  const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as {
+    files: Record<string, { mutants: ReportMutant[] }>;
+    'x-oxmutate': { stats: { pollutionRestarts: number } };
+  };
+  expect(report['x-oxmutate'].stats.pollutionRestarts).toBe(0);
+  expect(report.files['src/registry.ts']?.mutants.length).toBeGreaterThan(0);
+  rmSync(reportDir, { recursive: true, force: true });
+}, 60_000);
+
+// A kill must not be decided on an earlier mutant's leftovers. reset() mutated to do nothing leaves the
+// total behind; the next mutant's run fails on it and its `finally` resets, so the batch canary passed
+// and vouched for that kill (.sdlc/intents/oxmutate/canary.qnt, verdictsClean). spare() is unchecked:
+// on clean state every one of its mutants survives.
+it.skipIf(!native || !existsSync(bin))('decides no kill on a previous mutant\'s leftovers that a test cleaned up in finally', () => {
+  const dir = path.join(pkg, 'test/fixtures/batch-leftover');
+  const reportDir = path.join(dir, 'reports');
+  rmSync(reportDir, { recursive: true, force: true });
+  execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe' });
+  const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: ReportMutant[] }> };
+  rmSync(reportDir, { recursive: true, force: true });
+  const mutants = report.files['src/registry.ts']?.mutants ?? [];
+  const spareLines = [19, 20]; // `export function spare` in the fixture
+  const spare = mutants.filter((m) => spareLines.includes(m.location.start.line));
+  expect(spare.length).toBeGreaterThan(0);
+  expect(spare.map((m) => `${String(m.location.start.line)}:${m.mutatorName}:${m.status}`)).toEqual(spare.map((m) => `${String(m.location.start.line)}:${m.mutatorName}:Survived`));
+}, 60_000);
+
+// The mutant is armed through `beforeEach`, as Stryker arms it. A fixture builder only a hook calls was
+// planned for the test (the dry run credits hook code to it) but run with the hooks unarmed, so each of
+// its mutants survived the warm run and cost an isolated process to be killed.
+it.skipIf(!native || !existsSync(bin))('kills a mutant a beforeEach hook reaches in the warm run, with no isolated run', () => {
+  const dir = path.join(pkg, 'test/fixtures/hook-setup');
+  const reportDir = path.join(dir, 'reports');
+  rmSync(reportDir, { recursive: true, force: true });
+  execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe' });
+  const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as {
+    files: Record<string, { mutants: ReportMutant[] }>;
+    'x-oxmutate': { stats: { survivorsOverturned: number; isolatedRuns: number } };
+  };
+  rmSync(reportDir, { recursive: true, force: true });
+  const mutants = report.files['src/seed.ts']?.mutants ?? [];
+  expect(mutants.length).toBeGreaterThan(0);
+  expect(mutants.map((m) => m.status)).toEqual(mutants.map(() => 'Killed'));
+  expect(report['x-oxmutate'].stats.survivorsOverturned).toBe(0);
+  expect(report['x-oxmutate'].stats.isolatedRuns).toBe(0);
+}, 60_000);
+
+// Reference verdicts for static mutants, decided today in a fresh worker per (mutant, file). A faster
+// path that decides them in a live worker (.sdlc/intents/oxmutate/staticwarm.qnt) must give the same:
+// `static-const` is reached only through import-time values; `static-leak` sets a global at import
+// with `??=`, so a worker that evaluated it once would make the MODE mutant survive.
+/** A fixture's static mutants as `line:mutator:status`, from a real run. */
+const staticVerdicts = (name: string, file: string): string[] => {
+  const dir = path.join(pkg, 'test/fixtures', name);
+  const reportDir = path.join(dir, 'reports');
+  rmSync(reportDir, { recursive: true, force: true });
+  execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe' });
+  const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: ReportMutant[] }> };
+  rmSync(reportDir, { recursive: true, force: true });
+  return (report.files[file]?.mutants ?? []).filter((m) => m.static).map((m) => `${String(m.location.start.line)}:${m.mutatorName}:${m.status}`);
+};
+
+describe.skipIf(!native || !existsSync(bin))('static mutants keep their fresh-worker verdicts', () => {
+  it('an import-time constant decides its mutants; an unread one survives', () => {
+    expect(staticVerdicts('static-const', 'src/limits.ts')).toEqual(['2:NumericLiteral:Killed', '3:StringLiteral:Killed', '5:StringLiteral:Survived']);
+  }, 60_000);
+
+  it('a global set at import does not carry one mutant value into the next', () => {
+    expect(staticVerdicts('static-leak', 'src/mode.ts')).toEqual(['4:StringLiteral:Killed', '5:AssignmentOperator:Killed']);
+  }, 60_000);
+});
+
 const alive = (pid: number): boolean => {
   try {
     process.kill(pid, 0);
@@ -84,13 +164,15 @@ it.skipIf(!native || !existsSync(bin))('confirms a watchdog stop with 3x the bud
   const reportDir = path.join(slow, 'reports');
   rmSync(reportDir, { recursive: true, force: true });
   mkdirSync(reportDir, { recursive: true });
-  execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: slow, stdio: 'pipe' });
+  // The mutant is static: the fresh-worker path is the one whose watchdog this checks.
+  execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: slow, stdio: 'pipe', env: { ...process.env, OXMUTATE_ISOLATE_STATIC: '1' } });
   const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as {
     files: Record<string, { mutants: ReportMutant[] }>;
     'x-oxmutate': { stats: { timeoutsOverturned: number } };
   };
   rmSync(reportDir, { recursive: true, force: true });
-  expect(report.files['src/one.ts']?.mutants.map((m) => m.status)).toEqual(['Killed']);
+  // The slow ArrowFunction mutant, and the NumericLiteral 1 -> 0 beside it.
+  expect(report.files['src/one.ts']?.mutants.map((m) => m.status)).toEqual(['Killed', 'Killed']);
   expect(report['x-oxmutate'].stats.timeoutsOverturned).toBe(1);
 }, 90_000);
 
@@ -276,7 +358,8 @@ it.skipIf(!native || !existsSync(bin))('keeps a survivor whose confirmation run 
     'x-oxmutate': { stats: { survivorsOverturned: number } };
   };
   rmSync(reportDir, { recursive: true, force: true });
-  expect(report.files['src/one.ts']?.mutants.map((m) => m.status)).toEqual(['Survived']);
+  // The slow survivor, and the NumericLiteral beside it, which no test checks either.
+  expect(report.files['src/one.ts']?.mutants.map((m) => m.status)).toEqual(['Survived', 'Survived']);
   expect(report['x-oxmutate'].stats.survivorsOverturned).toBe(0);
 }, 90_000);
 

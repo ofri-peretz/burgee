@@ -112,8 +112,16 @@ class Server {
 }
 
 export interface Pool {
-  /** Run every unit; `resolve` is called with each outcome and may return follow-up units. */
-  drain(units: Unit[], budget: (unit: Unit, id: string) => number, after: (unit: Unit, outcome: UnitOutcome) => Unit[]): Promise<void>;
+  /**
+   * Run every unit; `after` is called with each outcome and may return follow-up units. `prepare`, when
+   * given, sees a unit as a server takes it, and returns false to drop it (nothing left to run).
+   */
+  drain(
+    units: Unit[],
+    budget: (unit: Unit, id: string) => number,
+    after: (unit: Unit, outcome: UnitOutcome) => Unit[],
+    prepare?: (unit: Unit) => boolean,
+  ): Promise<void>;
   close(): void;
   stats: { spawned: number; killed: number; crashed: number };
 }
@@ -136,17 +144,22 @@ export function createPool(config: ServerConfig, size: number, workDir: string, 
 
   return {
     stats,
-    async drain(units, budget, after) {
+    async drain(units, budget, after, prepare) {
       const queue = [...units];
       let busy = 0;
       const waiters: (() => void)[] = [];
       const signal = () => {
         for (const w of waiters.splice(0)) w();
       };
+      /** The next unit `prepare` keeps, or undefined when the queue is empty. */
+      const take = (): Unit | undefined => {
+        for (let unit = queue.shift(); unit; unit = queue.shift()) if (!prepare || prepare(unit)) return unit;
+        return undefined;
+      };
       await Promise.all(
         servers.map(async (_, slot) => {
           for (;;) {
-            const unit = queue.shift();
+            const unit = take();
             if (!unit) {
               if (busy === 0) {
                 signal();

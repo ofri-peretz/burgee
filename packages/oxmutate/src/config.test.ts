@@ -294,15 +294,19 @@ describe('options from a Vite (Vite+) config', () => {
     expect(o.configFile).toBe(path.join(fixture, 'override.json'));
   });
 
-  // Projects inside the fixture's ignored reports/, so the workspace's Vite resolves from them.
+  // Projects inside the fixture's ignored reports/, so the workspace's Vite resolves from them, in a
+  // directory of this run's own: two runs of this file at once (a mutation tester runs several) each
+  // removed the whole reports/ while the other was writing to it (ENOTEMPTY, 2026-10-30).
+  mkdirSync(path.join(fixture, 'reports'), { recursive: true });
+  const runDir = mkdtempSync(path.join(fixture, 'reports', 'run-'));
   let k = 0;
   const viteProject = (files: Record<string, string>): string => {
-    const dir = path.join(fixture, 'reports', `p${String(k++)}`);
+    const dir = path.join(runDir, `p${String(k++)}`);
     mkdirSync(dir, { recursive: true });
     for (const [name, body] of Object.entries(files)) writeFileSync(path.join(dir, name), body);
     return dir;
   };
-  afterAll(() => rmSync(path.join(fixture, 'reports'), { recursive: true, force: true }));
+  afterAll(() => rmSync(runDir, { recursive: true, force: true }));
 
   it.each(['vite.config.ts', 'vite.config.mts', 'vite.config.cts', 'vite.config.js', 'vite.config.mjs', 'vite.config.cjs', 'vitest.config.ts', 'vitest.config.mts', 'vitest.config.cts', 'vitest.config.js', 'vitest.config.mjs', 'vitest.config.cjs'])('finds %s', async (name) => {
     const body = name.endsWith('cjs') || name.endsWith('cts') ? "module.exports = { mutate: { include: ['a.ts'] } };" : "export default { mutate: { include: ['a.ts'] } };";
