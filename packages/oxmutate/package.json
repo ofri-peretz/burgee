@@ -1,6 +1,6 @@
 {
   "name": "oxmutate",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "Mutation testing for JavaScript and TypeScript on the oxc engine, run warm inside the project's own Vitest, with CI lanes, SARIF and an agent surface. No dependency outside the burgee family. A Stryker migration path.",
   "license": "MIT",
   "repository": {
