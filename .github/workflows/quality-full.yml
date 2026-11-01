@@ -222,30 +222,17 @@ jobs:
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
-      - name: Which lines to mutate
-        id: plan
-        env:
-          EVENT: ${{ github.event_name }}
-          BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || (github.event_name == 'merge_group' && github.event.merge_group.base_sha || '') }}
-        run: |
-          set -euo pipefail
-          plan=$(npx tsx scripts/mutation.ts changed --event "$EVENT" --base "$BASE" --plan)
-          echo "$plan"
-          if jq -e 'type == "object" and length > 0' <<<"$(tail -n 1 <<<"$plan")" >/dev/null 2>&1; then echo "run=true" >> "$GITHUB_OUTPUT"; else echo "run=false" >> "$GITHUB_OUTPUT"; fi
-      # Every package, for the reason the coverage job gives: a suite may read a sibling's dist.
-      - name: Build every package
-        if: steps.plan.outputs.run == 'true'
-        run: npx turbo run build --filter='./packages/*' --concurrency=4
-      # The lane runs oxmutate, the family's own mutation tester; its core is Rust, and no `build`
-      # produces it (the runner image ships rustup).
-      - name: Build oxmutate's native core
-        run: cd packages/oxmutate && npm run build:native
+      # The lane is one script, `scripts/mutation-changed.sh`, and this step runs it the way a
+      # laptop does, through `npm run mutation:changed` (which pre-push runs): plan, then, only
+      # when a source line changed, build every package and oxmutate's Rust core (the runner image
+      # ships rustup) and mutate. `mutation-changed-lock.test.ts` fails when a step here does part
+      # of the lane itself, so CI and a laptop cannot drift apart.
       - name: Mutate the changed lines
-        if: steps.plan.outputs.run == 'true'
         env:
-          EVENT: ${{ github.event_name }}
-          BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || (github.event_name == 'merge_group' && github.event.merge_group.base_sha || '') }}
-        run: npx tsx scripts/mutation.ts changed --event "$EVENT" --base "$BASE" --concurrency 4 --summary "$GITHUB_STEP_SUMMARY"
+          MUTATION_EVENT: ${{ github.event_name }}
+          MUTATION_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || (github.event_name == 'merge_group' && github.event.merge_group.base_sha || '') }}
+          MUTATION_CONCURRENCY: 4
+        run: npm run mutation:changed
 
   quality-full-gate:
     name: Quality (Full) Gate

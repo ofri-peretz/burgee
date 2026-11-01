@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# The changed-lines mutation lane (.sdlc/intents/mutation-tested/, R1–R4), as one script.
+#
+# CI's `Mutation (changed lines)` job in quality-full.yml runs it, and so does a laptop, through
+# `npm run mutation:changed` — which pre-push runs. Before this script the job's steps lived only
+# in the workflow, so a surviving mutant was first seen in CI. `mutation-changed-lock.test.ts`
+# holds the workflow, package.json and lefthook.yml to this one file.
+#
+# The sequence, in both places:
+#   1. `mutation.ts changed --plan` decides whether any package source line changed; when none
+#      did, the lane ends here, successfully, having built nothing.
+#   2. Every package is built (a suite may read a sibling's dist), then oxmutate's native core,
+#      which is Rust and which no `build` produces.
+#   3. `mutation.ts changed` mutates those lines and fails on a mutant no test detects.
+#
+# Environment — set by CI, left unset on a laptop:
+#   MUTATION_EVENT        the GitHub event. Unset means a laptop: `pull_request`, the event a
+#                         pushed branch becomes, after `git fetch origin main`.
+#   MUTATION_BASE         what the diff is taken against. Unset means a laptop: `origin/main`.
+#   MUTATION_CONCURRENCY  mutants at once. CI passes 4 and gets 4. On a laptop it defaults to 2
+#                         and is capped at the cores the load average leaves free, never below 1.
+#   GITHUB_STEP_SUMMARY   set by Actions; the report is appended there too.
+#
+# Bash 3.2 (macOS /bin/bash): no mapfile, no associative arrays, no empty "${a[@]}" under set -u.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+if [ -z "${MUTATION_EVENT+set}" ]; then
+  git fetch --quiet origin main
+  event=pull_request
+  base=origin/main
+  wanted=${MUTATION_CONCURRENCY:-2}
+  concurrency=$(node -e '
+    const os = require("node:os");
+    const free = Math.floor(os.availableParallelism() - os.loadavg()[0]);
+    process.stdout.write(String(Math.max(1, Math.min(Number(process.argv[1]), free))));
+  ' "$wanted")
+  echo "mutation:changed: against $base, $concurrency mutant(s) at once (asked for $wanted)."
+else
+  event=$MUTATION_EVENT
+  base=${MUTATION_BASE-}
+  concurrency=${MUTATION_CONCURRENCY:-2}
+fi
+
+plan=$(npx tsx scripts/mutation.ts changed --event "$event" --base "$base" --plan)
+echo "$plan"
+# The plan's last line is the mutate specs, a non-empty JSON object, only when there is work.
+if ! tail -n 1 <<<"$plan" | node -e '
+  let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => {
+    try { const p = JSON.parse(s); process.exit(p && typeof p === "object" && !Array.isArray(p) && Object.keys(p).length > 0 ? 0 : 1); }
+    catch { process.exit(1); }
+  });'; then
+  exit 0
+fi
+
+npx turbo run build --filter='./packages/*' --concurrency="$concurrency"
+
+if ! command -v cargo >/dev/null 2>&1; then
+  echo "mutation:changed: oxmutate's native core is Rust, and cargo is not on PATH, so the changed lines cannot be mutated." >&2
+  echo "fix: install rustup (curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh), open a new shell, and run npm run mutation:changed again." >&2
+  exit 1
+fi
+(cd packages/oxmutate && npm run build:native)
+
+npx tsx scripts/mutation.ts changed --event "$event" --base "$base" --concurrency "$concurrency" ${GITHUB_STEP_SUMMARY:+--summary "$GITHUB_STEP_SUMMARY"}

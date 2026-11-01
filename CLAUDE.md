@@ -5,6 +5,7 @@
   a separate CI job, so run it independently.
 - `npm test` — vitest at the root config, then `turbo run test` per package.
 - `npm run bench` — `tsx benchmarks/run.ts`.
+- `npm run mutation:changed` — CI's changed-lines mutation lane on a laptop, the same script, against `origin/main` (pre-push runs it last; needs cargo).
 
 # Workflow
 

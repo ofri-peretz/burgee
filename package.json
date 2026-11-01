@@ -55,6 +55,7 @@
     "compat": "npm run build -w compat-oracle && node packages/compat-oracle/dist/bin.js",
     "compat:page": "tsx scripts/compat-page.ts",
     "compat:mutation": "npm run compat:mutation -w oxmutate",
+    "mutation:changed": "bash scripts/mutation-changed.sh",
     "gallery:page": "tsx scripts/gallery-page.ts",
     "schema:sync": "node scripts/schema-sync.mjs",
     "check:artifacts": "tsx scripts/check-published-artifacts.ts",
