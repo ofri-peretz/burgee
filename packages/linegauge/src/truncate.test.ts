@@ -57,6 +57,14 @@ describe('truncate keeps the ellipsis inside the budget', () => {
     expect(truncate('abcdefghij', 6, { position: 'middle' })).toBe('abc\u2026ij');
   });
 
+  // A zero-width cluster at column `keep` goes to the next slice, so the cut `keep` names drops
+  // it. When a wide character follows, the cut a column later keeps the zero-width cluster and
+  // rounds past the wide one, still inside the budget, and the head search takes it.
+  it('keeps a zero-width cluster at the cut when the wide character after it does not fit', () => {
+    expect(truncate('ab\u200B古xyz', 3)).toBe('ab\u200B…');
+    expect(width(truncate('ab\u200B古xyz', 3))).toBe(3);
+  });
+
   it('keeps the style closed, because it cuts through slice', () => {
     const out = truncate(red('the quick brown fox'), 10);
     expect(out.startsWith(`${ESC}[31m`)).toBe(true);
