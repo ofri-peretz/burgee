@@ -58,7 +58,7 @@ export function startHeartbeat(file: string | undefined): void {
     try {
       writeFileSync(file, String(realNow()));
     } catch {
-      // The run's directory is gone: the run is over, and nothing reads the beat.
+      return; // the run's directory is gone: the run is over, and nothing reads the beat
     }
   };
   beat();

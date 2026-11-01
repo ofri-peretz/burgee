@@ -372,6 +372,7 @@ describe.skipIf(!native || !existsSync(bin))('a spec oracle (M3.5): model traces
 // The mutant is static and sent straight to the fresh-worker path, whose watchdog this checks.
 it.skipIf(!native || !existsSync(bin))('scores a mutant whose test waits on an idle worker Timeout at its budget, with no 3x re-run', async () => {
   const dir = path.join(pkg, 'test/fixtures/stall');
+  // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the built package under test, present only after a build; the test is skipped without it
   const api = (await import(path.join(pkg, 'dist/index.js'))) as typeof import('./index.js');
   process.env['OXMUTATE_ISOLATE_STATIC'] = '1';
   try {
@@ -391,6 +392,7 @@ it.skipIf(!native || !existsSync(bin))('scores a mutant whose test waits on an i
 // 116 in compat-oracle's hosts.ts, rows graded in another process (sc8-profile.md).
 it.skipIf(!native || !existsSync(bin))('reports the mutants inside a disable/restore range Ignored, with its reason, and only those', async () => {
   const dir = path.join(pkg, 'test/fixtures/ranges');
+  // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the built package under test, present only after a build; the test is skipped without it
   const api = (await import(path.join(pkg, 'dist/index.js'))) as typeof import('./index.js');
   const result = await api.run(await api.loadOptions(dir, { reporters: [] }, path.join(dir, 'oxmutate.config.json')));
   const byLine = (line: number): string[] => [...new Set(result.mutants.filter((m) => m.start.line === line).map((m) => m.status))];

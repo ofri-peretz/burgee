@@ -45,6 +45,7 @@ export interface UnitOutcome {
   stderr: string;
 }
 
+const PERCENT = 100;
 /** How many CPU samples a server keeps: a little over the window. */
 const CPU_SAMPLES_KEPT = 8;
 
@@ -116,7 +117,7 @@ class Server {
           const share = cpuShare(this.cpu, now);
           const stall = classifyStall({ beatAge: beat, cpuShare: share });
           if (env['OXMUTATE_DEBUG_WATCHDOG']) {
-            const cpu = share === undefined ? '?' : `${String(Math.round(share * 100))}%`;
+            const cpu = share === undefined ? '?' : `${String(Math.round(share * PERCENT))}%`;
             stderr.write(`oxmutate watchdog: stop ${id} after ${String(now - Number(since))} ms; ${stall}; beat ${Number.isFinite(beat) ? `${String(beat)} ms ago` : 'never'}; cpu ${cpu} over ${String(CPU_WINDOW_MS)} ms\n`);
           }
           this.child.kill('SIGKILL');
@@ -165,6 +166,11 @@ export function createPool(config: ServerConfig, size: number, workDir: string, 
   };
   const servers: Server[] = Array.from({ length: size }, spawn);
   let spare: Server | undefined = spawn();
+  const tally = (outcome: UnitOutcome): void => {
+    if (outcome.killedFor) stats.killed++;
+    if (outcome.stall === 'idle') stats.idle++;
+    if (outcome.crashed) stats.crashed++;
+  };
   const replacement = (): Server => {
     const next = spare ?? spawn();
     spare = spawn();
@@ -205,9 +211,7 @@ export function createPool(config: ServerConfig, size: number, workDir: string, 
               await server.ready;
             }
             const outcome = await server.run(unit, (id) => budget(unit, id));
-            if (outcome.killedFor) stats.killed++;
-            if (outcome.stall === 'idle') stats.idle++;
-            if (outcome.crashed) stats.crashed++;
+            tally(outcome);
             if (outcome.killedFor || outcome.crashed) {
               servers[slot] = replacement();
             }

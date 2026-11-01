@@ -10,7 +10,9 @@
  * it, and its `disable` then runs to the end of the file. oxmutate does not reproduce that: the
  * directive means what it says.
  */
-const RANGE = /\/\/\s*(?:Stryker|oxmutate)\s+(disable|restore)\s+(?!next-line\b)([\w,\s]+?)\s*(?::\s*(.*))?$/i;
+const HEAD = /\/\/\s*(?:Stryker|oxmutate)\s+(disable|restore)\s+(\S.*)$/i;
+/** `all`, or a comma list of mutator names. */
+const LIST = /^(?:all|\w+(?:\s*,\s*\w+)*)$/i;
 
 interface Rule {
   /** The directive's line (1-based): it covers mutants starting after it. */
@@ -20,6 +22,8 @@ interface Rule {
   mutators: string[] | 'all';
   reason: string;
 }
+
+const covers = (r: Rule, mutator: string): boolean => r.mutators === 'all' || r.mutators.includes(mutator);
 
 export interface Ranges {
   /** Why a mutant of `mutator` starting on `line` is off, or undefined when it is on. */
@@ -32,11 +36,14 @@ export function rangeDisables(source: string, file: string): Ranges {
   const rules: Rule[] = [];
   const errors: string[] = [];
   source.split('\n').forEach((text, i) => {
-    const m = RANGE.exec(text);
-    if (!m) return;
+    const m = HEAD.exec(text);
+    const body = m?.[2] ?? '';
+    if (!m || /^next-line\b/i.test(body)) return;
+    const colon = body.indexOf(':');
+    const list = (colon === -1 ? body : body.slice(0, colon)).trim();
+    if (!LIST.test(list)) return;
     const kind = (m[1] ?? '').toLowerCase() as Rule['kind'];
-    const list = (m[2] ?? '').trim();
-    const reason = (m[3] ?? '').trim();
+    const reason = colon === -1 ? '' : body.slice(colon + 1).trim();
     if (kind === 'disable' && !reason) {
       errors.push(`${file}:${String(i + 1)}: disable comment without a reason. fix: add ": <why these mutants cannot be killed>"`);
       return;
@@ -44,7 +51,6 @@ export function rangeDisables(source: string, file: string): Ranges {
     const mutators = list.toLowerCase() === 'all' ? 'all' : list.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
     rules.push({ line: i + 1, kind, mutators, reason });
   });
-  const covers = (r: Rule, mutator: string): boolean => r.mutators === 'all' || r.mutators.includes(mutator);
   return {
     errors,
     reasonFor(line, mutator) {
