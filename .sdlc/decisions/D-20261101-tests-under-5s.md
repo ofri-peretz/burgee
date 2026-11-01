@@ -20,6 +20,10 @@ sensitivity check (16.1 s) and type checker (15.1 s), and roundel's supports-col
 (14.1 s). No timeout caught any of them: every suite runs under `testTimeout` 30 s or more
 (`vitest-timeouts.config.ts`), because a timeout is a bet on the machine.
 
+**After** (PR #1424, run 41353301389, the same job): no case over 5 s alone. Eight read over it
+inside the four-way battery and 1.6–2.7 s alone; the root suite took 104.9 s (from 177.6 s), and
+`plan-progress-lock` 5.6 s, `api-reference-lock` 6.6 s, compat-oracle's band lock 3.6 s.
+
 ## The rule, and the gate that holds it
 
 `scripts/vitest-case-budget-reporter.ts` reads each case's own duration after the run and sets the
