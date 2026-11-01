@@ -141,6 +141,9 @@ interface JsonReport {
  * the one result whose titles are the case's. `undefined` when that run did not report the case,
  * which leaves the first reading standing.
  */
+/** `env` without a single `GIT_*` variable. */
+export const withoutGitEnv = (env: NodeJS.ProcessEnv): NodeJS.ProcessEnv => Object.fromEntries(Object.entries(env).filter(([key]) => !key.startsWith('GIT_')));
+
 /** A case read over the budget, with what it takes to run it again: its title, and the run's cwd and config. */
 export type Candidate = CaseDuration & { title: string; cwd: string; config: string | undefined };
 
@@ -153,8 +156,12 @@ function measureAlone(c: Candidate): number | undefined {
     spawnSync(process.execPath, [vitest, 'run', resolve(ROOT, c.file), ...config, '-t', literal(c.title), '--reporter=json', `--outputFile=${report}`], {
       cwd: c.cwd,
       stdio: 'ignore',
-      // The nested run is a measurement, not a second gate.
-      env: { ...process.env, VITEST_CASE_BUDGET_MS: '0' },
+      // The nested run is a measurement, not a second gate. And never with git's own variables:
+      // from lefthook's pre-push they name the developer's repository (GIT_DIR inside
+      // `.git/worktrees/` from a worktree), and a package suite run outside turbo's strict env
+      // mode would hand them to every `git init` and `git` a test spawns — the way the shared
+      // `.git/config` went `core.bare = true` (vitest-git-env-setup.ts, 2026-10-18).
+      env: { ...withoutGitEnv(process.env), VITEST_CASE_BUDGET_MS: '0' },
     });
     const parsed = JSON.parse(readFileSync(report, 'utf8')) as JsonReport;
     for (const file of parsed.testResults ?? []) {

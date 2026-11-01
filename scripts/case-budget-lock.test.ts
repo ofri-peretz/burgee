@@ -24,7 +24,7 @@ import { load as loadYaml } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
 
 import { readWorkflow, REPO_ROOT, type Step } from './required-checks.mjs';
-import { budgetFrom, CASE_BUDGET_MS, caseKey, describeOverBudget, NIGHTLY_ONLY, overBudget, strict } from './vitest-case-budget-reporter.js';
+import { budgetFrom, CASE_BUDGET_MS, caseKey, describeOverBudget, NIGHTLY_ONLY, overBudget, strict, withoutGitEnv } from './vitest-case-budget-reporter.js';
 
 describe('the budget', () => {
   it('is the owner’s five seconds, and a case at exactly the budget is within it', () => {
@@ -59,6 +59,10 @@ describe('the budget', () => {
     expect(strict({ CI: 'true' })).toBe(true);
     expect(strict({})).toBe(false);
     expect(strict({ CI: 'false' })).toBe(false);
+  });
+
+  it('re-measures a case without a single GIT_* variable, which from pre-push names the developer’s repository', () => {
+    expect(withoutGitEnv({ GIT_DIR: '/r/.git/worktrees/w', GIT_INDEX_FILE: 'i', GITHUB_ACTIONS: 'true', PATH: '/bin' })).toEqual({ GITHUB_ACTIONS: 'true', PATH: '/bin' });
   });
 
   it('names each slow case with both readings, and what to do about it', () => {
