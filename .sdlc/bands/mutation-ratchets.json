@@ -49,7 +49,7 @@
     },
     "caique": {
       "status": "measured",
-      "floor": 88.1,
+      "floor": 87.3,
       "history": [
         {
           "floor": 87.8,
@@ -60,6 +60,12 @@
           "floor": 88.1,
           "setOn": "2026-10-29",
           "why": "Weekly run at 00e4e411ed measured 88.15%, above the 87.8% floor; the floor follows it up."
+        },
+        {
+          "floor": 87.3,
+          "setOn": "2026-11-01",
+          "why": "oxmutate 1.1.0 added NumericLiteral; the 2026-10-31 run at bd98f43aae measured 87.38% with it, below the 88.1% floor set without it. Restated to that run, rounded down to one decimal.",
+          "decision": "D-20261101-mutation-floors-numericliteral-restate"
         }
       ],
       "observations": [
@@ -97,12 +103,18 @@
     },
     "closeout": {
       "status": "measured",
-      "floor": 90.3,
+      "floor": 89.9,
       "history": [
         {
           "floor": 90.3,
           "setOn": "2026-10-29",
           "why": "First full run, at 00e4e411ed: 90.35% (721 detected of 798), rounded down to one decimal."
+        },
+        {
+          "floor": 89.9,
+          "setOn": "2026-11-01",
+          "why": "oxmutate 1.1.0 added NumericLiteral; the 2026-10-31 run at bd98f43aae measured 89.9% with it, below the 90.3% floor set without it. Restated to that run, rounded down to one decimal.",
+          "decision": "D-20261101-mutation-floors-numericliteral-restate"
         }
       ],
       "observations": [
@@ -130,7 +142,7 @@
     },
     "compat-oracle": {
       "status": "measured",
-      "floor": 92,
+      "floor": 91.1,
       "history": [
         {
           "floor": 91.4,
@@ -141,6 +153,12 @@
           "floor": 92,
           "setOn": "2026-10-29",
           "why": "Weekly run at 00e4e411ed measured 92.02%, above the 91.4% floor; the floor follows it up."
+        },
+        {
+          "floor": 91.1,
+          "setOn": "2026-11-01",
+          "why": "oxmutate 1.1.0 added NumericLiteral; the 2026-10-31 run at bd98f43aae measured 91.17% with it, below the 92% floor set without it. Restated to that run, rounded down to one decimal.",
+          "decision": "D-20261101-mutation-floors-numericliteral-restate"
         }
       ],
       "observations": [
@@ -178,12 +196,18 @@
     },
     "controlroom": {
       "status": "measured",
-      "floor": 92.4,
+      "floor": 91.3,
       "history": [
         {
           "floor": 92.4,
           "setOn": "2026-10-24",
           "why": "First full run, at 80c8eaa52b: 92.45% (918 detected of 993), rounded down to one decimal."
+        },
+        {
+          "floor": 91.3,
+          "setOn": "2026-11-01",
+          "why": "oxmutate 1.1.0 added NumericLiteral; the 2026-10-31 run at bd98f43aae measured 91.34% with it, below the 92.4% floor set without it. Restated to that run, rounded down to one decimal.",
+          "decision": "D-20261101-mutation-floors-numericliteral-restate"
         }
       ],
       "observations": [
@@ -221,12 +245,18 @@
     },
     "flagstaff": {
       "status": "measured",
-      "floor": 87.7,
+      "floor": 86.1,
       "history": [
         {
           "floor": 87.7,
           "setOn": "2026-10-29",
           "why": "First full run, at 00e4e411ed: 87.7% (1383 detected of 1577), rounded down to one decimal."
+        },
+        {
+          "floor": 86.1,
+          "setOn": "2026-11-01",
+          "why": "oxmutate 1.1.0 added NumericLiteral; the 2026-10-31 run at bd98f43aae measured 86.17% with it, below the 87.7% floor set without it. Restated to that run, rounded down to one decimal.",
+          "decision": "D-20261101-mutation-floors-numericliteral-restate"
         }
       ],
       "observations": [
@@ -320,12 +350,18 @@
     },
     "paratext": {
       "status": "measured",
-      "floor": 85.2,
+      "floor": 84.4,
       "history": [
         {
           "floor": 85.2,
           "setOn": "2026-10-24",
           "why": "First full run, at 80c8eaa52b: 85.27% (1152 detected of 1351), rounded down to one decimal."
+        },
+        {
+          "floor": 84.4,
+          "setOn": "2026-11-01",
+          "why": "oxmutate 1.1.0 added NumericLiteral; the 2026-10-31 run at bd98f43aae measured 84.41% with it, below the 85.2% floor set without it. Restated to that run, rounded down to one decimal.",
+          "decision": "D-20261101-mutation-floors-numericliteral-restate"
         }
       ],
       "observations": [
@@ -431,12 +467,18 @@
     },
     "seniority": {
       "status": "measured",
-      "floor": 91,
+      "floor": 90.7,
       "history": [
         {
           "floor": 91,
           "setOn": "2026-10-29",
           "why": "First full run, at 00e4e411ed: 91.09% (4488 detected of 4927), rounded down to one decimal."
+        },
+        {
+          "floor": 90.7,
+          "setOn": "2026-11-01",
+          "why": "oxmutate 1.1.0 added NumericLiteral; the 2026-10-31 run at bd98f43aae measured 90.71% with it, below the 91% floor set without it. Restated to that run, rounded down to one decimal.",
+          "decision": "D-20261101-mutation-floors-numericliteral-restate"
         }
       ],
       "observations": [
