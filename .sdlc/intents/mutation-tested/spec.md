@@ -111,7 +111,10 @@ was refused by a `git status` check for exactly that.
 **The PR lane** (`quality-full.yml` → `mutation`): a `--plan` step decides whether any source
 line changed; only then are packages built and Stryker run. A PR that changes no package source,
 and every event other than a pull request or a merge-queue entry, reports success from a step.
-The merge queue diffs against `merge_group.base_sha`.
+The merge queue diffs against `merge_group.base_sha`. The plan, the builds and the run are one
+script, `scripts/mutation-changed.sh`, which the job runs as `npm run mutation:changed` and a
+laptop runs the same way (pre-push runs it last, against `origin/main`);
+`mutation-changed-lock.test.ts` fails when the workflow does part of the lane itself.
 
 **The weekly run** (`mutation.yml`): one matrix cell per package, `max-parallel: 3`, 300-minute
 cells, results uploaded as artifacts; `record` folds them and lands a PR on the same credential
