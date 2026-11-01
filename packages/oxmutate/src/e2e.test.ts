@@ -387,8 +387,8 @@ it.skipIf(!native || !existsSync(bin))('scores a mutant whose test waits on an i
   }
 }, 60_000);
 
-// `// Stryker disable all` … `// Stryker restore all` turns mutants off between the two lines, as
-// Stryker does. Before, oxmutate read only `disable next-line` and graded every mutant in a range:
+// A range directive, `disable all` with a reason down to `restore all`, turns mutants off between
+// the two lines, as Stryker does. Before, oxmutate read only `disable next-line` and graded every mutant in a range:
 // 116 in compat-oracle's hosts.ts, rows graded in another process (sc8-profile.md).
 it.skipIf(!native || !existsSync(bin))('reports the mutants inside a disable/restore range Ignored, with its reason, and only those', async () => {
   const dir = path.join(pkg, 'test/fixtures/ranges');

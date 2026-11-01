@@ -1,6 +1,6 @@
 /**
- * Stryker's range directives: `// Stryker disable <Mutator[,Mutator]|all>: <reason>` turns mutators
- * off from the next line on, until `// Stryker restore <Mutator[,Mutator]|all>` (also spelled
+ * Stryker's range directives: a `disable` comment naming mutators (or `all`) and a reason turns them
+ * off from the next line on, until a `restore` comment naming them (either spelled with `Stryker` or
  * `oxmutate`). The `next-line` form is config.ts's `disables`. Before this, oxmutate read only the
  * `next-line` form and graded every mutant inside a range as if no directive were there: 116 such
  * mutants in compat-oracle's `hosts.ts` alone (.sdlc/intents/oxmutate/sc8-profile.md).

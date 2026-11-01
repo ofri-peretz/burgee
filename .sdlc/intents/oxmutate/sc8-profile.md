@@ -26,6 +26,11 @@ Weekly runs on GitHub's `ubuntu-latest` (4 vCPU), `concurrency: 4` for both engi
 | caique | 40818077916 (10-29) | oxmutate 1.0.2 | — | 6,506 / 8 | 135.4 | dry 7.0 · warm 2,553.0 · isolated 5,561.6; 1,142 runaways |
 | caique | 41185206028 (10-31) | oxmutate 1.1.0 | `bd98f43aae` | 6,870 / 8 | 107.5 | dry 4.5 · warm 1,474.5 · isolated 4,781.3 · unrecorded 191; 825 runaways, 375 overturned at 3x |
 
+Pollution restarts: 1,306 in 7 files on 10-29 (1.0.2) came from the file-level hook defect fixed
+in #1374. On 1.1.0 (10-31) they are 80 in 4 files on compat-oracle and 28 in 3 files on caique, a
+small share of either run. Pollution written to disk, which a restart cannot clear, is gap
+[`A-20261101-oxmutate-disk-pollution-restart`](../../gaps/A-20261101-oxmutate-disk-pollution-restart.md).
+
 Findings from the logs alone:
 
 1. **A phase was missing from the stats.** On compat-oracle's 10-31 run the phases in the summary
