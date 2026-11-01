@@ -333,7 +333,7 @@ with ([measured](https://burgee.interlace.tools/docs/benchmarks)):
 | :--- | ---: | ---: | ---: |
 | `cac` | 10,452 B | **97,692 B** | 24,460 B |
 | `commander` | 39,084 B | **126,335 B** | 55,393 B |
-| `yargs` | 111,794 B | **198,892 B** | 110,205 B |
+| `yargs` | 111,794 B | **198,892 B** | 110,274 B |
 
 The additions are `cosmiconfig` (find and load a config file), `exit-hook` (run cleanup on
 every path out, including a signal) and `restore-cursor` (hand the terminal back), bundled

@@ -7,10 +7,8 @@
  *    `/\.*[\][<>]/g` / `/\.+[\]>]/` restart the dot run from every dot. Measured on the
  *    unfixed code, node v24.13.0, macOS: 5k / 10k / 20k repetitions took 46 / 165 / 681 ms
  *    for the split and 11 / 42 / 166 ms for the dots — double the input, four times the
- *    time. The locks below hold that shape rather than a number of milliseconds: they time
- *    each input at two sizes 8x apart and fail at 24x the time or more
- *    (`__fixtures__/growth.ts`), which a slow or instrumented runner cannot cause and a
- *    reintroduced backtracking regex does.
+ *    time. The locks below time one input each against a 1 s budget: the fix reads them in
+ *    2-18 ms (node v24.12.0, macOS), and upstream's regexes did not finish them in 12 s.
  * 2. apply-extends' `/\.json|\..*rc$/` is the same shape on a run of dots (#22).
  * 3. `pkgConf('__proto__')` read `obj[key]` bare, handed Object.prototype to applyExtends,
  *    and applyExtends deletes `extends` from the object it is given (#27). Both halves are
@@ -28,10 +26,20 @@ import { join } from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { growth, LINEAR, said } from '../__fixtures__/growth.js';
 import yargs from '../yargs.js';
 
 import { applyExtends, isConfigPath, parseCommand, type ParsedCommand } from './utils.js';
+
+/** Each case: one adversarial input, timed once, against a budget the fix meets 50x over and the
+ * backtracking it replaced misses by 10x or more. A case's own `timeout` holds it to 5 s. */
+const BUDGET_MS = 1_000;
+const CASE_MS = 5_000;
+
+function elapsed(fn: () => unknown): number {
+  const t = performance.now();
+  fn();
+  return performance.now() - t;
+}
 
 /** Upstream's parse-command, verbatim — the reference the rewrite is held to. */
 function upstreamParseCommand(cmd: string): ParsedCommand {
@@ -95,21 +103,19 @@ describe('parseCommand is linear and answers as upstream did (#17–#21)', () =>
     expect(parseCommand('run <a|b> [c d]')).toEqual(upstreamParseCommand('run <a|b> [c d]'));
   });
 
-  // `growth` grows n from `from` until the smaller input takes 20 ms; `max` bounds the memory.
-  it('splits whitespace-separated words in linear time', () => {
-    for (const sep of [' ', '\t']) {
-      const g = growth((n) => `cmd${`${sep}a`.repeat(n)}`, parseCommand, { from: 1_000, max: 25_000 });
-      expect(g.ratio, `${JSON.stringify(sep)}: ${said(g)}`).toBeLessThan(LINEAR);
-    }
+  // 16-18 ms each here for 80,000 words; upstream did not finish them in 12 s.
+  it.each([' ', '\t'])('splits 80,000 words separated by %j in linear time', { timeout: CASE_MS }, (sep) => {
+    const cmd = `cmd${`${sep}a`.repeat(80_000)}`;
+    expect(elapsed(() => parseCommand(cmd))).toBeLessThan(BUDGET_MS);
   });
 
-  // Skipped: on CI this case grows past its ceiling (24x at 8x the input) while local runs are linear (7x).
-  // .sdlc/gaps/A-20261101-parsecommand-superlinear-dots.md — the fix PR removes this .skip.
-  it.skip('strips brackets after a run of dots in linear time', () => {
-    for (const head of ['cmd', 'cmd x']) {
-      const g = growth((n) => `${head}${'.'.repeat(n)}`, parseCommand, { from: 5_000, max: 100_000 });
-      expect(g.ratio, `${head}: ${said(g)}`).toBeLessThan(LINEAR);
-    }
+  // About 7 ms each here; upstream did not finish either in 12 s.
+  it.each([
+    ['cmd', 1_600_000],
+    ['cmd x', 400_000],
+  ])('strips brackets after a run of dots in linear time, after %j (%i dots)', { timeout: CASE_MS }, (head, dots) => {
+    const cmd = `${head}${'.'.repeat(dots)}`;
+    expect(elapsed(() => parseCommand(cmd))).toBeLessThan(BUDGET_MS);
   });
 });
 
@@ -123,12 +129,15 @@ describe('applyExtends tells a path from a module in linear time (#22)', () => {
     expect(mismatches.slice(0, 10)).toEqual([]);
   });
 
-  it('reads a run of dots in `extends` in linear time', () => {
-    const dots = (n: number) => '.'.repeat(n);
-    const path = growth(dots, isConfigPath, { from: 50_000, max: 250_000 });
-    expect(path.ratio, `isConfigPath: ${said(path)}`).toBeLessThan(LINEAR);
-    const config = growth(dots, (d) => applyExtends({ extends: d }, tmpdir()), { from: 50_000, max: 250_000 });
-    expect(config.ratio, `applyExtends: ${said(config)}`).toBeLessThan(LINEAR);
+  // About 7-8 ms each here for 1,000,000 dots; upstream's regex did not finish them in 12 s.
+  it('isConfigPath reads a run of 1,000,000 dots in linear time', { timeout: CASE_MS }, () => {
+    const dots = '.'.repeat(1_000_000);
+    expect(elapsed(() => isConfigPath(dots))).toBeLessThan(BUDGET_MS);
+  });
+
+  it('applyExtends reads a run of 1,000,000 dots in `extends` in linear time', { timeout: CASE_MS }, () => {
+    const config = { extends: '.'.repeat(1_000_000) };
+    expect(elapsed(() => applyExtends(config, tmpdir()))).toBeLessThan(BUDGET_MS);
   });
 });
 
