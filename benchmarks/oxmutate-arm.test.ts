@@ -6,7 +6,7 @@
  * Driven against a stub `claude` and a stub oxmutate, as `agent.test.ts` drives the demo arms. What
  * this cannot test is the model, which is what the three local readings measure.
  */
-import { chmodSync, existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, readdirSync, readFileSync, readlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -97,9 +97,21 @@ describe.skipIf(!isPosix())('a task\'s setup', () => {
 });
 
 describe.skipIf(!isPosix())('run({ arm: "oxmutate" })', () => {
+  /**
+   * Reading 1 (2026-11-01, b8057bc) lost 4 of 5 `oxmutate-score` runs to 17 permission denials:
+   * in a project with `node_modules` the agent ran `npx oxmutate`, which reaches the same
+   * workspace build through `node_modules/.bin`, and only `Bash(oxmutate:*)` was allowed. That
+   * measured the sandbox, not the CLI.
+   */
+  it('allows `npx oxmutate` beside the shim: in a project, that is how an agent runs it, and it is the same build', () => {
+    expect(ARMS.oxmutate.variant.allow).toEqual(['Bash(npx oxmutate:*)']);
+    expect(readlinkSync(join(REPO, 'node_modules', 'oxmutate'))).toBe('../packages/oxmutate');
+    expect(toolArgs('cli', undefined, 'oxmutate', ['Bash(npx oxmutate:*)'])).toEqual(['--allowedTools', 'Bash(oxmutate:*)', 'Bash(npx oxmutate:*)']);
+  });
+
   it('spawns claude with Bash on `oxmutate` only, and records the arm alone, with no ratio', () => {
     const { bin } = argvClaude();
-    const records = recordsOf(run(armOptions(bin)));
+    const records = recordsOf(run(armOptions(bin, { variants: [{ ...ARMS.oxmutate.variant, bin: stubOxmutate() }], tasks: [{ ...task, check: 'grep -q "Bash(oxmutate:\\*) Bash(npx oxmutate:\\*) --max-turns" "$BENCH_RESULT"' }] })));
     expect(records.filter((r) => r.variant.includes('÷'))).toEqual([]);
     expect(new Set(records.map((r) => r.variant))).toEqual(new Set(['oxmutate']));
     const rate = records.find((r) => r.metric === 'success-rate');

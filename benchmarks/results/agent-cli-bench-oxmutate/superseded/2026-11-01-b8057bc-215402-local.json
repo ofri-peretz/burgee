@@ -1,0 +1,113 @@
+{
+  "schema": 1,
+  "arm": "oxmutate",
+  "suite": "agent-cli-bench",
+  "measured": "2026-11-01T21:54:02.124Z",
+  "commit": "b8057bc6cc0ec2c760081081163f244718394eea",
+  "machine": {
+    "os": "darwin",
+    "release": "25.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M4 Pro",
+    "cores": 14,
+    "memoryGb": 48,
+    "node": "v24.12.0",
+    "ci": false
+  },
+  "axes": {
+    "agent": {
+      "status": "measured",
+      "method": "The oxmutate arm, run alone on the owner's machine and never in CI: for each of its 4 tasks (`benchmarks/tasks/oxmutate/`), the same `claude -p` spawn as the CLI arms with `--allowedTools 'Bash(oxmutate:*)'`, in a scratch directory with `packages/oxmutate/dist/bin.js` installed as `oxmutate`, 5 times; a task's setup runs with that shim on PATH. Before the first run the arm runs `cp -R \"$BENCH_FIXTURES/oxmutate/adult/.\" . && ln -s \"$BENCH_REPO/node_modules\" node_modules && oxmutate run --quiet`, and spends nothing if it fails. The task's own `check` decides success. Tokens, turns and success are absolute, with no ratio: the CLI has no build without burgee. `cost-usd-total` sums `total_cost_usd` as `claude` reports it. Once 3 readings are in `benchmarks/results/agent-cli-bench-oxmutate/`, the median of their success rates, with the range, is the grade, gated at 0.8."
+    }
+  },
+  "records": [
+    {
+      "axis": "agent",
+      "variant": "oxmutate",
+      "detail": {
+        "model": "claude-sonnet-4-5",
+        "claude": "claude 2.1.286 (Claude Code)",
+        "claudePinned": false,
+        "env": "caller env minus CI, GITHUB_*, RUNNER_*, ACTIONS_*; demo first on PATH"
+      },
+      "samples": 20,
+      "metric": "tokens-per-task",
+      "unit": "tokens",
+      "median": 93737,
+      "p95": 223035,
+      "note": "median over 20 task-runs on model claude-sonnet-4-5"
+    },
+    {
+      "axis": "agent",
+      "variant": "oxmutate",
+      "detail": {
+        "model": "claude-sonnet-4-5",
+        "claude": "claude 2.1.286 (Claude Code)",
+        "claudePinned": false,
+        "env": "caller env minus CI, GITHUB_*, RUNNER_*, ACTIONS_*; demo first on PATH"
+      },
+      "samples": 20,
+      "metric": "turns-per-task",
+      "unit": "turns",
+      "median": 3,
+      "p95": 8,
+      "note": "`num_turns` as `claude -p` reports it, including runs that ended at --max-turns"
+    },
+    {
+      "axis": "agent",
+      "variant": "oxmutate",
+      "detail": {
+        "model": "claude-sonnet-4-5",
+        "claude": "claude 2.1.286 (Claude Code)",
+        "claudePinned": false,
+        "env": "caller env minus CI, GITHUB_*, RUNNER_*, ACTIONS_*; demo first on PATH",
+        "failed": 4,
+        "oxmutate-discover-flag.turns": "2,3,2,2,2",
+        "oxmutate-discover-flag.tokens": "62513,62798,62465,62504,62525",
+        "oxmutate-discover-flag.passed": "5/5",
+        "oxmutate-discover-flag.denials": 0,
+        "oxmutate-explain-error.turns": "2,2,3,2,2",
+        "oxmutate-explain-error.tokens": "62209,62234,93737,62005,62296",
+        "oxmutate-explain-error.passed": "5/5",
+        "oxmutate-explain-error.denials": 1,
+        "oxmutate-score.turns": "13,7,5,8,6",
+        "oxmutate-score.tokens": "388679,221692,158532,223035,157927",
+        "oxmutate-score.passed": "1/5",
+        "oxmutate-score.denials": 17,
+        "oxmutate-score.failures": "max-turns×1, permission-denied×3",
+        "oxmutate-survivors.turns": "7,4,5,4,5",
+        "oxmutate-survivors.tokens": "161592,126414,131025,96723,127589",
+        "oxmutate-survivors.passed": "5/5",
+        "oxmutate-survivors.denials": 0
+      },
+      "samples": 20,
+      "metric": "success-rate",
+      "unit": "ratio",
+      "median": 0.8,
+      "p95": 0.8,
+      "gate": {
+        "min": 0.8,
+        "why": "below this the tokens and turns medians are taken over whichever task-runs happened to survive, which is a different measurement from the one the band is watching"
+      },
+      "note": "16 of 20 task-runs passed their own check"
+    },
+    {
+      "axis": "agent",
+      "variant": "oxmutate",
+      "metric": "cost-usd-total",
+      "unit": "usd",
+      "samples": 20,
+      "median": 2.2621,
+      "p95": 2.2621,
+      "note": "`total_cost_usd` as `claude` reported it, summed over 20 task-runs; on a subscription login it is the list-price equivalent, not a charge",
+      "detail": {
+        "model": "claude-sonnet-4-5",
+        "claude": "claude 2.1.286 (Claude Code)",
+        "claudePinned": false,
+        "env": "caller env minus CI, GITHUB_*, RUNNER_*, ACTIONS_*; demo first on PATH"
+      }
+    }
+  ],
+  "bands": {},
+  "claims": {}
+}

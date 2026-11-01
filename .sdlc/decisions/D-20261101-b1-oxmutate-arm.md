@@ -46,8 +46,8 @@ kill into a timeout, which oxmutate also counts as detected, so the score does n
 
 - **A task set and a shim per arm.** `run({ arm: 'oxmutate' })` takes its variant and its tasks from
   one table in `benchmarks/axes/agent.ts`. The shim on the agent's PATH is named `oxmutate`, the
-  name its help prints (D-20261008-b1-tool-name), and the agent is allowed `Bash(oxmutate:*)` and
-  nothing else. With no `--arm`, nothing changes: the demo variants, the demo's five tasks, the
+  name its help prints (D-20261008-b1-tool-name), and the agent is allowed `Bash(oxmutate:*)` and,
+  since reading 1, `Bash(npx oxmutate:*)`, which reaches the same build (see below). With no `--arm`, nothing changes: the demo variants, the demo's five tasks, the
   `demo` shim.
 - **The build under test** is `packages/oxmutate/dist/bin.js` with its native core, the same
   workspace build the demo arms use for theirs. Before the first paid run the arm runs its own
@@ -89,6 +89,32 @@ built on burgee, and that is what A5 asks for: B1 run against the real CLI.
   result's `total_cost_usd` is recorded beside the tokens as the list-price equivalent.
 - **Stops:** readings run one at a time, with load below 30. If any run reports the weekly usage
   limit, no further reading is started and A5 stays open.
+
+## Reading 1, and the one change made after it
+
+Reading 1 ran at `b8057bc` on 2026-11-01 with load 25.9 at the start: success rate 0.8, 2,448,494
+tokens, $2.26 list-price equivalent. Three tasks passed 5 of 5. `oxmutate-score` passed 1 of 5,
+and the transcripts say why: four runs typed `npx oxmutate` and were refused 17 times between them,
+because only `Bash(oxmutate:*)` was allowed. In a project with `node_modules`, `npx oxmutate` is how
+an agent runs a project's tool, and in the fixture it reaches the same workspace build, through the
+linked `node_modules/.bin/oxmutate`. Those runs measured the sandbox, not the CLI.
+
+**The arm now also allows `Bash(npx oxmutate:*)`, and reading 1 does not count.** Its file is kept,
+unchanged, in `benchmarks/results/agent-cli-bench-oxmutate/superseded/`, where `armReadings` does
+not look. The grade is three readings on the corrected harness. Reading 1 passed the 0.8 gate, so
+this change was not made to rescue a failing grade. A median over two harnesses would be a median of
+two measurements.
+
+Reading 1 also showed something this arm did not cause. In 11 of its 20 runs the agent ran `ls`,
+`cat` or the Read tool, which `--allowedTools` does not deny on `claude` 2.1.286. So the demo arms'
+premise, that the CLI's own output is the agent's only channel, does not hold on that `claude`
+either. The fix is to the shared spawn, it changes the demo arms, and it is out of scope here.
+
+**The spend, re-quoted.** Reading 1 cost 2.45M tokens, not the 1.5M estimated, because
+`oxmutate-score` and `oxmutate-survivors` run oxmutate and read its output. Three more readings
+are 60 more sessions, about 7.3M tokens and $6.80 at list price. With reading 1, that is
+**80 sessions, about 9.8M tokens and $9 at list price**, all on the subscription login. The stops
+are unchanged.
 
 ## Rejected
 

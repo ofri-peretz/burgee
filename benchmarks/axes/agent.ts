@@ -80,6 +80,8 @@ export interface Variant {
    * the CLI prints (D-20261008-b1-tool-name). Absent is `demo`, the name both demos print.
    */
   tool?: string;
+  /** More `--allowedTools` patterns, each reaching the same build some other way. Absent on the demo arms. */
+  allow?: readonly string[];
 }
 
 const BURGEE_DEMO = 'examples/demo-cli-burgee/dist/bin.js';
@@ -186,6 +188,8 @@ export function installTool(binPath: string, name: string = TOOL_NAME): string {
 
 const TOOL_NAME = 'demo';
 const toolOf = (variant: Variant): string => variant.tool ?? TOOL_NAME;
+/** What a CLI run of the variant is allowed: its shim, and any other way it reaches the same build. */
+const allowedOf = (variant: Variant): { tool: string; allow?: readonly string[] } => ({ tool: toolOf(variant), ...(variant.allow === undefined ? {} : { allow: variant.allow }) });
 
 /** An MCP client configuration, the `mcpServers` shape `claude --mcp-config` reads. */
 export interface McpConfig {
@@ -302,8 +306,8 @@ export function serverStatus(transcript: string, server: string): string {
  * `Bash(demo:*)`. The MCP arm loads one server from `--mcp-config` (with `--strict-mcp-config` in
  * `ISOLATION`, nothing else) and allows that server's tools, `mcp__<server>`, and no Bash at all.
  */
-export function toolArgs(modality: Modality, mcp?: McpSpawn, tool: string = TOOL_NAME): string[] {
-  if (modality === 'cli') return ['--allowedTools', `Bash(${tool}:*)`];
+export function toolArgs(modality: Modality, mcp?: McpSpawn, tool: string = TOOL_NAME, allow: readonly string[] = []): string[] {
+  if (modality === 'cli') return ['--allowedTools', `Bash(${tool}:*)`, ...allow];
   if (mcp === undefined) throw new Error('the MCP arm needs a config to spawn with');
   return ['--mcp-config', mcp.file, '--allowedTools', `mcp__${mcp.server}`];
 }
@@ -322,6 +326,8 @@ export interface RunOne {
   mcp?: McpSpawn;
   /** The shim's name in `toolDir`, which the CLI arms allow Bash on. Defaults to `demo`. */
   tool?: string;
+  /** The variant's further `--allowedTools` patterns (`Variant.allow`). */
+  allow?: readonly string[];
 }
 
 export interface Attempt extends ClaudeUsage {
@@ -584,7 +590,7 @@ const setupEnv = (env: NodeJS.ProcessEnv, toolDir: string): NodeJS.ProcessEnv =>
 export function runOne(opts: RunOne): Attempt {
   const { claudeBin, task, toolDir, workdir, model, timeoutMs } = opts;
   for (const cmd of task.setup) execFile(SHELL, ['-c', cmd], { cwd: workdir, stdio: 'ignore', env: setupEnv(opts.env ?? process.env, toolDir) });
-  const argv = ['-p', task.prompt, ...toolArgs(opts.modality ?? 'cli', opts.mcp, opts.tool), '--max-turns', String(task.maxTurns), ...OUTPUT_FORMAT, '--model', model, ...ISOLATION];
+  const argv = ['-p', task.prompt, ...toolArgs(opts.modality ?? 'cli', opts.mcp, opts.tool, opts.allow), '--max-turns', String(task.maxTurns), ...OUTPUT_FORMAT, '--model', model, ...ISOLATION];
   const r = spawnSync(claudeBin, argv, {
     cwd: workdir,
     encoding: 'utf8',
@@ -1048,7 +1054,10 @@ const OXMUTATE_FIXTURE = ['cp -R "$BENCH_FIXTURES/oxmutate/adult/." .', 'ln -s "
 
 export const ARMS: { readonly oxmutate: Arm } = {
   oxmutate: {
-    variant: { id: 'oxmutate', bin: 'packages/oxmutate/dist/bin.js', floor: true, tool: 'oxmutate' },
+    // `npx oxmutate` in the fixture reaches the same build through the linked `node_modules/.bin`,
+    // and it is what an agent in a project with `node_modules` reaches for: reading 1 lost four of
+    // five `oxmutate-score` runs to its denial, which measured the sandbox, not the CLI.
+    variant: { id: 'oxmutate', bin: 'packages/oxmutate/dist/bin.js', floor: true, tool: 'oxmutate', allow: ['Bash(npx oxmutate:*)'] },
     tasksDir: join(TASKS_DIR, 'oxmutate'),
     preflight: [...OXMUTATE_FIXTURE, 'oxmutate run --quiet'],
   },
@@ -1185,8 +1194,7 @@ interface Sweep {
  * says so without spending a run.
  */
 function sweep({ variant, tasks, runs, claudeBin, model, timeoutMs, env, transcriptDir }: Sweep): Attempt[] | { broken: string } {
-  const tool = toolOf(variant);
-  const toolDir = installTool(resolve(REPO_ROOT, variant.bin), tool);
+  const toolDir = installTool(resolve(REPO_ROOT, variant.bin), toolOf(variant));
   const modality = variant.modality ?? 'cli';
   const mcp = modality === 'mcp' ? writeMcpConfig(toolDir) : undefined;
   if (mcp !== undefined) {
@@ -1199,7 +1207,7 @@ function sweep({ variant, tasks, runs, claudeBin, model, timeoutMs, env, transcr
     for (let i = 0; i < runs; i++) {
       const workdir = mkdtempSync(join(tmpdir(), `bench-${task.id}-`));
       mkdirSync(workdir, { recursive: true });
-      const attempt = runOne({ claudeBin, task, toolDir, workdir, model, timeoutMs, env, modality, tool, ...(mcp === undefined ? {} : { mcp }) });
+      const attempt = runOne({ claudeBin, task, toolDir, workdir, model, timeoutMs, env, modality, ...allowedOf(variant), ...(mcp === undefined ? {} : { mcp }) });
       if (transcriptDir !== undefined) writeFileSync(join(transcriptDir, `${variant.id}-${task.id}-${String(i)}.jsonl`), redact(attempt.transcript, env));
       attempts.push(attempt);
     }
@@ -1384,7 +1392,8 @@ export function run(options: AgentOptions = {}): { records: BenchRecord[] } | { 
 export function armMethod(id: string): string {
   const arm = armOf(id);
   const tool = toolOf(arm.variant);
-  return `The ${id} arm, run alone on the owner's machine and never in CI: for each of its ${String(readTasks(arm.tasksDir).length)} tasks (\`benchmarks/tasks/${id}/\`), the same \`claude -p\` spawn as the CLI arms with \`--allowedTools 'Bash(${tool}:*)'\`, in a scratch directory with \`${arm.variant.bin}\` installed as \`${tool}\`, ${String(RUNS_PER_TASK)} times; a task's setup runs with that shim on PATH. Before the first run the arm runs \`${arm.preflight.join(' && ')}\`, and spends nothing if it fails. The task's own \`check\` decides success. Tokens, turns and success are absolute, with no ratio: the CLI has no build without burgee. \`cost-usd-total\` sums \`total_cost_usd\` as \`claude\` reports it. Once ${String(ARM_READINGS_FOR_GRADE)} readings are in \`benchmarks/results/agent-cli-bench-${id}/\`, the median of their success rates, with the range, is the grade, gated at ${String(SUCCESS_FLOOR)}.`;
+  const allowed = toolArgs('cli', undefined, tool, arm.variant.allow).slice(1).map((a) => `'${a}'`).join(' ');
+  return `The ${id} arm, run alone on the owner's machine and never in CI: for each of its ${String(readTasks(arm.tasksDir).length)} tasks (\`benchmarks/tasks/${id}/\`), the same \`claude -p\` spawn as the CLI arms with \`--allowedTools ${allowed}\`, in a scratch directory with \`${arm.variant.bin}\` installed as \`${tool}\`, ${String(RUNS_PER_TASK)} times; a task's setup runs with that shim on PATH. Before the first run the arm runs \`${arm.preflight.join(' && ')}\`, and spends nothing if it fails. The task's own \`check\` decides success. Tokens, turns and success are absolute, with no ratio: the CLI has no build without burgee. \`cost-usd-total\` sums \`total_cost_usd\` as \`claude\` reports it. Once ${String(ARM_READINGS_FOR_GRADE)} readings are in \`benchmarks/results/agent-cli-bench-${id}/\`, the median of their success rates, with the range, is the grade, gated at ${String(SUCCESS_FLOOR)}.`;
 }
 
 export const method = `For each of the ${String(readTasks().length)} tasks and each of the two CLI builds, \`claude -p <prompt> --allowedTools 'Bash(demo:*)' --max-turns <n> --output-format stream-json --verbose --setting-sources project,local --strict-mcp-config\` — the \`claude\` pinned in \`.github/tools/claude-code\` when it is installed there — is spawned in a scratch directory with the build installed as \`demo\`, ${String(RUNS_PER_TASK)} times, in the caller's environment minus \`CI\`, \`GITHUB_*\`, \`RUNNER_*\` and \`ACTIONS_*\`; the task's own \`check\` decides success. Tokens are input + cache + output as the CLI reports them; turns is its \`num_turns\`, including runs that ended at the turn limit; a run that reported no usage is left out of the medians and totals and counted as a failure. The claims are settled on each build's tokens and turns summed over its task-runs, burgee's over commander's (per run, which is the ratio of the totals when both measured the same number); the pooled medians are reported beside them. The model and the \`claude\` version are recorded per results file, and a change of either starts a new band history. On the weekly schedule, a \`bench:agent\` PR and an owner's dispatch with \`mcp-arm\` set only (\`${MCP_ARM_OPT_IN}=1\`), a third arm, \`burgee-mcp\`, runs the same burgee build over \`--mcp\` on the ${String(tasksFor('mcp', readTasks()).length)} tasks that hold word for word without a shell, with \`--mcp-config <file> --allowedTools mcp__demo\` in place of Bash and every other flag the same; it is compared with \`burgee\` over those tasks only. The config takes the server's name and arguments from the demo's \`--mcp --print-config\` and starts the same shim; before the arm's first run the harness starts that server and asks for its tools, and a server that lists none spends no run. A run whose \`init\` event does not report the server \`connected\` is a failure in no median, and the arm leaves a ratio only when every run connected and at least ${String(SUCCESS_FLOOR)} of them passed.`;
