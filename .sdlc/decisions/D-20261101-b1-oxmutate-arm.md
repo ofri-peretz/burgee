@@ -122,6 +122,9 @@ Taken 2026-11-01 at `d71dcb0`, one after another, on the owner's M4 Pro, with
 `claude` 2.1.286 (CI pins 2.1.283, so `claudePinned` is `false` in each file) and model
 `claude-sonnet-4-5`. The build is `packages/oxmutate` at that commit, whose `src/` and
 `native/src/` are identical to `oxmutate@1.1.0`'s `gitHead` `f0213f9f0a`. 20 task-runs each.
+`d71dcb0` (and reading 1's `b8057bc`) are this change's commits before it was rebased onto
+`788c2797ed`; `git diff d71dcb0144 301a3cdbc5 -- benchmarks packages/oxmutate` is empty, so the
+harness and the CLI measured are the rebased commit's. The files keep the commit they were taken at.
 
 | reading (`benchmarks/results/agent-cli-bench-oxmutate/`) | load at start | success | tokens / task (median) | turns / task (median) | tokens, all 20 runs | list-price cost |
 | :-- | --: | --: | --: | --: | --: | --: |
