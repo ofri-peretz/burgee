@@ -22,7 +22,8 @@
  *    the compat matrix's three Node 24 cells among them. A required check that never reports
  *    blocks every merge, so moving one of these to the night is the failure this guards;
  *  - the heavy workflows run on a nightly cron between 03:00 and 05:00 UTC, at staggered times,
- *    and a nightly failure opens or updates an issue;
+ *    and a nightly failure opens or updates an issue — from `nightly-report.yml`, never from a job
+ *    in a workflow a pull request or queue entry starts, where it would show as a check;
  *  - the gates stay where they were: `Quality Gate` and `Quality (Full) Gate` still report on a
  *    push to `main` (release.yml's verify waits for exactly those two), the compatibility ratchet
  *    still reports on every pull request and queue entry, and B4 weight still gates a pull request.
@@ -32,7 +33,19 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { checkNames, type Event, evaluate, producedOn, readWorkflow as read, REPO_ROOT, REQUIRED_CHECKS as REQUIRED, runs, type Workflow } from './required-checks.mjs';
+import {
+  checkNames,
+  type Event,
+  evaluate,
+  producedOn,
+  readWorkflow as read,
+  REPO_ROOT,
+  REQUIRED_CHECKS as REQUIRED,
+  runs,
+  triggers,
+  type Workflow,
+  workflowFiles,
+} from './required-checks.mjs';
 
 /**
  * The heavy jobs: benchmarks, the off-Linux and floor-Node compat cells, the paid evals and the
@@ -92,6 +105,40 @@ const minuteOfDay = (cron: string): number => {
   return (h ?? 0) * 60 + (m ?? 0);
 };
 
+/**
+ * Where a failed night is reported from. A job registers a check on every run of its workflow,
+ * whatever its `if:` says: the reporter used to be a job in bench.yml and compat.yml gated to the
+ * schedule, and every pull request's run showed it, skipped, or red as `Report a failed night`
+ * when a newer push cancelled the run (#1415, run 41330802597). In a workflow of its own that
+ * follows the nightly ones' completion it is never part of a pull request's or a queue entry's run.
+ */
+const REPORTER = 'nightly-report.yml';
+const REPORTED: { file: string; reporter: string; title: string; jobs: Record<string, string> }[] = [
+  { file: 'compat.yml', reporter: 'compat', title: 'Nightly compatibility matrix failed', jobs: { MATRIX_JOBS: 'matrix', FLOOR_JOBS: 'floor' } },
+  { file: 'bench.yml', reporter: 'bench', title: 'Nightly benchmarks failed', jobs: { CHEAP_JOBS: 'cheap', FLOOR_JOBS: 'floor' } },
+];
+const nameOf = (file: string): string => (read(file) as Workflow & { name?: string }).name ?? file;
+
+describe('a failed night is reported from outside the runs a pull request starts', () => {
+  const STARTED_BY_A_CHANGE = workflowFiles().filter((f) => triggers(read(f)).some((t) => t === 'pull_request' || t === 'merge_group'));
+
+  it('reads the workflows a pull request or a queue entry starts, bench.yml and compat.yml among them', () => {
+    expect(STARTED_BY_A_CHANGE).toEqual(expect.arrayContaining(['bench.yml', 'compat.yml']));
+  });
+
+  it.each(STARTED_BY_A_CHANGE)('%s has no job that only a scheduled run starts to open an issue', (file) => {
+    const wf = read(file);
+    const reporters = Object.entries(wf.jobs)
+      .filter(([, j]) => /github\.event_name == 'schedule'/u.test(j.if ?? '') && (j.steps ?? []).some((s) => /gh issue (?:create|comment)/u.test(s.run ?? '')))
+      .map(([key, j]) => `${key} (${j.name ?? key})`);
+    expect(reporters, `${file} would show these on every pull request as checks`).toEqual([]);
+  });
+
+  it(`${REPORTER} is started by nothing but the nightly workflows' completion`, () => {
+    expect(triggers(read(REPORTER))).toEqual(['workflow_run']);
+  });
+});
+
 describe('the heavy work runs over night, and a failed night is loud', () => {
   const NIGHTLY = ['bench.yml', 'compat.yml'];
 
@@ -107,15 +154,45 @@ describe('the heavy work runs over night, and a failed night is loud', () => {
     expect(new Set(times).size).toBe(times.length);
   });
 
-  it.each(NIGHTLY)('%s opens or updates an issue when a nightly run fails', (file) => {
-    const wf = read(file);
-    const reporters = Object.values(wf.jobs).filter(
-      (j) => j.permissions?.['issues'] === 'write' && /github\.event_name == 'schedule'/u.test(j.if ?? '') && /failure/u.test(j.if ?? ''),
-    );
-    expect(reporters, `${file} has no job that reports a failed nightly run`).toHaveLength(1);
-    const body = (reporters[0]!.steps ?? []).map((s) => s.run ?? '').join('\n');
+  it.each(REPORTED)('$file opens or updates one issue when a nightly run fails, from $reporter', ({ file, reporter, title }) => {
+    const wf = read(REPORTER);
+    const on = wf.on['workflow_run'] as { workflows?: string[]; types?: string[]; branches?: string[] } | undefined;
+    expect(on?.workflows, `${REPORTER} does not follow ${file}`).toContain(nameOf(file));
+    expect(on?.types).toEqual(['completed']);
+    // A pull request's and a queue entry's runs are on their own branches, so they never start it.
+    expect(on?.branches).toEqual(['main']);
+    const job = wf.jobs[reporter];
+    expect(job, `${REPORTER} has no \`${reporter}\` job`).toBeDefined();
+    expect(job!.permissions?.['issues']).toBe('write');
+    expect(job!.permissions?.['actions']).toBe('read');
+    for (const clause of [
+      `github.event.workflow_run.name == '${nameOf(file)}'`,
+      "github.event.workflow_run.event == 'schedule'",
+      "github.event.workflow_run.conclusion == 'failure'",
+    ]) expect(job!.if, `${REPORTER} → ${reporter} does not hold \`${clause}\``).toContain(clause);
+    const body = (job!.steps ?? []).map((s) => s.run ?? '').join('\n');
+    expect(body).toContain(`TITLE="${title}"`);
     expect(body).toContain('gh issue create');
     expect(body).toContain('gh issue comment');
+  });
+
+  // The reporter reads the night's jobs by the names they report, so a renamed job must move the
+  // pattern with it: each pattern matches every name its job reports on the nightly cron, and no
+  // other job's.
+  it.each(REPORTED)('$reporter reads $file\'s nightly jobs by the names they report, and no other job', ({ file, reporter, jobs }) => {
+    const wf = read(file);
+    const night: Event = { event_name: 'schedule', schedule: nightly(wf)[0] };
+    const env = (read(REPORTER).jobs[reporter] as { env?: Record<string, string> } | undefined)?.env ?? {};
+    for (const [variable, target] of Object.entries(jobs)) {
+      const pattern = env[variable];
+      expect(pattern, `${REPORTER} → ${reporter} sets no ${variable}`).toBeDefined();
+      const re = new RegExp(pattern!, 'u');
+      for (const [key, job] of Object.entries(wf.jobs)) {
+        const names = checkNames(key, job, night);
+        expect(names.length, `${file} → ${key} reports no name on the nightly cron`).toBeGreaterThan(0);
+        for (const n of names) expect(re.test(n), `${variable} /${pattern}/ on ${file} → ${key} \`${n}\``).toBe(key === target);
+      }
+    }
   });
 
   it('bench.yml lands at most one observation a night: only the scheduled run lands', () => {

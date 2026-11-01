@@ -25,7 +25,9 @@ longer required.
 
 Heavy work does not run during CI/CD ([D-20261101-heavy-ci-runs-nightly](../../.sdlc/decisions/D-20261101-heavy-ci-runs-nightly.md)):
 a pull request runs the gates, a push to `main` runs the two gates release waits for, and the rest
-runs on a staggered nightly cron. A failed night opens an issue, or comments on the open one.
+runs on a staggered nightly cron. A failed night opens an issue, or comments on the open one —
+from [`nightly-report.yml`](./nightly-report.yml), which follows the nightly runs' completion on
+`main`, so no pull request shows a reporter as a check.
 `scripts/heavy-ci-nightly-lock.test.ts` holds it.
 
 | UTC | Workflow | What | On a pull request instead |
