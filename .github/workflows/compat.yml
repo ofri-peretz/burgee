@@ -16,7 +16,8 @@
 # nightly at 03:30 UTC, on a dispatch, and on a PR labelled `run-full-ci`. Measured over the last
 # runs before the change: a PR started 13 jobs, about 92 job-minutes; a push to `main` 13 jobs,
 # about 103. A push to `main` no longer runs this file at all — release.yml waits on `Quality
-# Gate` and `Quality (Full) Gate`, never on it — and a failed night opens an issue.
+# Gate` and `Quality (Full) Gate`, never on it — and a failed night opens an issue: the ratchet from
+# its own step, the matrix and floor cells from nightly-report.yml, which no pull request starts.
 # `scripts/heavy-ci-nightly-lock.test.ts` holds both halves: the required names report on a PR,
 # and the heavy cells do not start there.
 #
@@ -458,32 +459,3 @@ jobs:
       - name: The nightly-only cases
         working-directory: packages/oxmutate
         run: npx vitest run src/e2e.test.ts src/sensitivity.test.ts src/vitest5-regression.test.ts src/checker.test.ts
-
-  # A failed night says so (D-20261101-heavy-ci-runs-nightly). The ratchet reports its own red main
-  # above; this is the matrix and the floor cells. The floor cells no longer run on a pull request,
-  # so a night is the first place a Node 20.19 or 22.13 regression shows. One issue, by title; each
-  # further failed night comments on it. The controls are informational and stay out of it.
-  report:
-    name: Report a failed night
-    needs: [matrix, floor, heavy-tests]
-    if: always() && github.event_name == 'schedule' && (needs.matrix.result == 'failure' || needs.floor.result == 'failure' || needs.heavy-tests.result == 'failure')
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      issues: write
-    steps:
-      - name: Open or update the issue
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          SHA: ${{ github.sha }}
-          MATRIX: ${{ needs.matrix.result }}
-          FLOOR: ${{ needs.floor.result }}
-          HEAVY: ${{ needs.heavy-tests.result }}
-        run: |
-          set -euo pipefail
-          TITLE="Nightly compatibility matrix failed"
-          BODY=$(printf 'The nightly OS × Node run on `%s` failed: Node 24 cells `%s`, Node-floor published suites `%s`, heavy test cases `%s`. The Node-floor cells and the heavy test cases (NIGHTLY_ONLY in scripts/vitest-case-budget-reporter.ts) no longer run on a pull request, so this is where a Node 20.19 or 22.13 regression, or a broken oxmutate end-to-end case, shows; a red Node 24 cell here is main drifting under green PRs. A PR labelled `run-full-ci` re-runs the matrix and floor cells.\n\n[Run](%s)\n' "$SHA" "$MATRIX" "$FLOOR" "$HEAVY" "$RUN_URL")
-          EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty')
-          if [ -n "$EXISTING" ]; then gh issue comment "$EXISTING" --body "$BODY"; else gh issue create --title "$TITLE" --body "$BODY"; fi

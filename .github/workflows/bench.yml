@@ -36,7 +36,8 @@ name: Benchmarks
 #            variable B1_MCP_ARM=approved.
 #   floor  — nightly: N10, the demo graded by clispec and cli-agent-lint, its own suite
 #            (`external-floor`); see the job. Its ratchet also runs in `gate` on every PR.
-#   report — a failed night opens (or comments on) one issue.
+#   A failed night opens (or comments on) one issue, from nightly-report.yml: a job here would show
+#   on every pull request as a check, whatever its `if:` says.
 #
 # The perf axis reports absolute milliseconds that are a property of the runner.
 # Nothing gates on them: the gated number is a ratio between two spawns
@@ -522,30 +523,3 @@ jobs:
           else
             gh issue comment "$EXISTING" --body "$BODY"
           fi
-
-  # A night that fails says so where someone will see it (D-20261101-heavy-ci-runs-nightly). The
-  # gates moved off pull requests are only as good as this: a red nightly run nobody opens is a
-  # benchmark that stopped gating. One issue, by title; each further failed night comments on it.
-  report:
-    name: Report a failed night
-    needs: [cheap, floor]
-    if: always() && github.event_name == 'schedule' && (needs.cheap.result == 'failure' || needs.floor.result == 'failure')
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      issues: write
-    steps:
-      - name: Open or update the issue
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          SHA: ${{ github.sha }}
-          CHEAP: ${{ needs.cheap.result }}
-          FLOOR: ${{ needs.floor.result }}
-        run: |
-          set -euo pipefail
-          TITLE="Nightly benchmarks failed"
-          BODY=$(printf 'The nightly benchmark run on `%s` failed: cheap axes `%s`, N10 floor `%s`. Cold start, runtime and the compat suite no longer gate a pull request, so this is where their regressions show up.\n\n[Run](%s)\n' "$SHA" "$CHEAP" "$FLOOR" "$RUN_URL")
-          EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty')
-          if [ -n "$EXISTING" ]; then gh issue comment "$EXISTING" --body "$BODY"; else gh issue create --title "$TITLE" --body "$BODY"; fi

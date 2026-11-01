@@ -1,0 +1,120 @@
+# A failed night says so where someone will see it (D-20261101-heavy-ci-runs-nightly): one issue
+# per workflow, by title; each further failed night comments on it. The gates moved off pull
+# requests are only as good as this — a red nightly run nobody opens is a gate that stopped gating.
+#
+# Why a workflow of its own. The reporters were jobs in bench.yml and compat.yml, gated to the
+# schedule. A job registers a check on every run of its workflow whatever its `if:` says, so every
+# pull request showed `Report a failed night`, skipped, and red when a newer push cancelled the run
+# (#1415, run 41330802597). This one follows the nightly workflows' completion on `main` only: a
+# pull request's run and a queue entry's are on their own branches and never start it.
+#
+# What each reports is what the jobs it replaced reported: compat.yml's Node 24 `matrix` cells and
+# its Node-floor `floor` cells and its nightly-only `heavy-tests` (the ratchet reports its own red
+# main from its own step), and
+# bench.yml's `cheap` and `floor` (the weekly B1 run says so from its own step). A night red for
+# another reason opens nothing here, as before. Each job's result is read from the run's jobs by
+# the names they report, the way `needs.<job>.result` read it: any cell failed is `failure`.
+# `scripts/heavy-ci-nightly-lock.test.ts` holds each pattern to exactly its job's names.
+name: Nightly failure report
+
+on:
+  workflow_run:
+    # By `name:`, which is what `workflow_run` matches on.
+    workflows: [Compatibility, Benchmarks]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  compat:
+    name: Report a failed night · Compatibility
+    if: >-
+      github.event.workflow_run.name == 'Compatibility' &&
+      github.event.workflow_run.event == 'schedule' &&
+      github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read # the run's jobs
+      issues: write
+    env:
+      MATRIX_JOBS: '^Node 24 · [a-z]+-latest$'
+      FLOOR_JOBS: ' · published suites$'
+      # The cases too heavy for a pull request (NIGHTLY_ONLY, D-20261101-tests-under-5s).
+      HEAVY_JOBS: '^Heavy test cases \(nightly\)$'
+    steps:
+      - name: Open or update the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/$GH_REPO/actions/runs/$RUN_ID/jobs?per_page=100" --jq '.jobs[]' > jobs.json
+          # `needs.<job>.result` for the jobs whose names match: any cell failed is a failure.
+          result() {
+            jq -rs --arg re "$1" '[.[] | select(.name | test($re)) | .conclusion // ""] as $c
+              | if ($c | any(. == "failure" or . == "timed_out")) then "failure"
+                elif ($c | any(. == "cancelled")) then "cancelled"
+                elif ($c | length) > 0 and ($c | all(. == "success")) then "success"
+                else "skipped" end' jobs.json
+          }
+          MATRIX=$(result "$MATRIX_JOBS")
+          FLOOR=$(result "$FLOOR_JOBS")
+          HEAVY=$(result "$HEAVY_JOBS")
+          if [ "$MATRIX" != failure ] && [ "$FLOOR" != failure ] && [ "$HEAVY" != failure ]; then
+            echo "Node 24 cells $MATRIX, Node-floor cells $FLOOR, heavy test cases $HEAVY: not a failed matrix night (the ratchet reports its own)."
+            exit 0
+          fi
+          TITLE="Nightly compatibility matrix failed"
+          BODY=$(printf 'The nightly OS × Node run on `%s` failed: Node 24 cells `%s`, Node-floor published suites `%s`, heavy test cases `%s`. The Node-floor cells and the heavy test cases (NIGHTLY_ONLY in scripts/vitest-case-budget-reporter.ts) no longer run on a pull request, so this is where a Node 20.19 or 22.13 regression, or a broken oxmutate end-to-end case, shows; a red Node 24 cell here is main drifting under green PRs. A PR labelled `run-full-ci` re-runs the matrix and floor cells.\n\n[Run](%s)\n' "$SHA" "$MATRIX" "$FLOOR" "$HEAVY" "$RUN_URL")
+          EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then gh issue comment "$EXISTING" --body "$BODY"; else gh issue create --title "$TITLE" --body "$BODY"; fi
+
+  bench:
+    name: Report a failed night · Benchmarks
+    if: >-
+      github.event.workflow_run.name == 'Benchmarks' &&
+      github.event.workflow_run.event == 'schedule' &&
+      github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read # the run's jobs
+      issues: write
+    env:
+      CHEAP_JOBS: '^B2 cold start · B3 compatibility · B4 weight$'
+      FLOOR_JOBS: '^N10 external floor '
+    steps:
+      - name: Open or update the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/$GH_REPO/actions/runs/$RUN_ID/jobs?per_page=100" --jq '.jobs[]' > jobs.json
+          # `needs.<job>.result` for the jobs whose names match: any cell failed is a failure.
+          result() {
+            jq -rs --arg re "$1" '[.[] | select(.name | test($re)) | .conclusion // ""] as $c
+              | if ($c | any(. == "failure" or . == "timed_out")) then "failure"
+                elif ($c | any(. == "cancelled")) then "cancelled"
+                elif ($c | length) > 0 and ($c | all(. == "success")) then "success"
+                else "skipped" end' jobs.json
+          }
+          CHEAP=$(result "$CHEAP_JOBS")
+          FLOOR=$(result "$FLOOR_JOBS")
+          if [ "$CHEAP" != failure ] && [ "$FLOOR" != failure ]; then
+            echo "Cheap axes $CHEAP, N10 floor $FLOOR: not a failed benchmark night."
+            exit 0
+          fi
+          TITLE="Nightly benchmarks failed"
+          BODY=$(printf 'The nightly benchmark run on `%s` failed: cheap axes `%s`, N10 floor `%s`. Cold start, runtime and the compat suite no longer gate a pull request, so this is where their regressions show up.\n\n[Run](%s)\n' "$SHA" "$CHEAP" "$FLOOR" "$RUN_URL")
+          EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then gh issue comment "$EXISTING" --body "$BODY"; else gh issue create --title "$TITLE" --body "$BODY"; fi
