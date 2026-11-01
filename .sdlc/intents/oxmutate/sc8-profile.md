@@ -1,0 +1,107 @@
+# SC8 profile: where oxmutate's minutes go, against Stryker's
+
+Intent: [`intent.md`](./intent.md) (`SC8`) · Metrics: [`metrics.md`](./metrics.md) (`S4`) ·
+Decisions: [`D-20261101-oxmutate-s3-fixture-sc11-week`](../../decisions/D-20261101-oxmutate-s3-fixture-sc11-week.md),
+[`D-20261101-idle-stall-is-timeout`](../../decisions/D-20261101-idle-stall-is-timeout.md) ·
+Model: [`stall.qnt`](./stall.qnt)
+
+**The bar (owner, 2026-11-01).** oxmutate takes less time than Stryker on the same package, on the
+same machine, measured the same way: both engines one after the other, one package at a time,
+`concurrency: 4`, with the load average recorded. The headline compares equal mutant sets. Each tool
+run as it runs by default is reported beside it. A per-mutant number is supporting evidence and does
+not count as a pass. Measurements are local only: no oxmutate runs in GitHub Actions (owner, same
+day).
+
+## 1. What the CI logs showed (free, before any local run)
+
+Weekly runs on GitHub's `ubuntu-latest` (4 vCPU), `concurrency: 4` for both engines, `timeoutMS:
+10000` (`scripts/mutation.ts`, `PR_BUDGET`). Logs pulled with `gh run view --log`.
+
+| Package | Run | Engine | Commit | Mutants (graded / ignored) | Minutes | Phases (s) |
+| :-- | :-- | :-- | :-- | :-- | --: | :-- |
+| compat-oracle | 40074196603 (10-24) | Stryker 10.1.1 | `80c8eaa52b` | 4,620 / **1,298** | 57.7 | dry run 25 s; 952 static (21%, "85% of the time") |
+| compat-oracle | 40818077916 (10-29) | oxmutate 1.0.2 | `bd98…`-ish | 6,314 / 25 | 203.4 | dry 32.6 · warm 4,314.8 · isolated 7,855.6 |
+| compat-oracle | 41185206028 (10-31) | oxmutate 1.1.0 | `bd98f43aae` | 6,668 / 25 | 186.6 | dry 34.6 · warm 1,532.9 · isolated 2,913.0 · **unrecorded 6,713** |
+| caique | 40074196603 (10-24) | Stryker 10.1.1 | `80c8eaa52b` | 6,222 / 5 | 80.2 | 417 Timeout; 537 static (9%) |
+| caique | 40818077916 (10-29) | oxmutate 1.0.2 | — | 6,506 / 8 | 135.4 | dry 7.0 · warm 2,553.0 · isolated 5,561.6; 1,142 runaways |
+| caique | 41185206028 (10-31) | oxmutate 1.1.0 | `bd98f43aae` | 6,870 / 8 | 107.5 | dry 4.5 · warm 1,474.5 · isolated 4,781.3 · unrecorded 191; 825 runaways, 375 overturned at 3x |
+
+Findings from the logs alone:
+
+1. **A phase was missing from the stats.** On compat-oracle's 10-31 run the phases in the summary
+   line add up to 4,480 of 11,193 s. The other 6,713 s (60%) were the live static phase (section
+   5b of `coordinator.ts`, added in 1.1.0), which no stat recorded. It is now `stats.staticMs`, and
+   the summary line prints it (`e2e.test.ts` checks the phases account for at least 95% of the run).
+2. **The 10-24 Stryker run graded a different, smaller mutant set on compat-oracle.** Stryker
+   ignored 1,298 mutants and its report never named them. All of them are in `hosts.ts`. Four
+   `// Stryker restore all` comments sat on the line above a row's closing `},`. Stryker reads a
+   directive only as the *leading comment of the next AST node* (`directive-bookkeeper.js`), and a
+   comment above a `}` leads nothing. So each `// Stryker disable all` before it ran to the end of
+   the file. Replaying that rule over oxmutate's mutants predicts 1,294 of them at `80c8eaa52b`
+   (Stryker reported 1,298), and 1,374 at `bd98f43aae`. Those are static data rows, the most
+   expensive mutants either tool has. So SC8 on compat-oracle as measured in CI compares oxmutate
+   grading 6,668 mutants against Stryker grading 4,620. That is not like for like.
+3. **oxmutate read no `disable`/`restore` range at all.** It read only `disable next-line`, so it
+   graded the 116 mutants the ranges in `hosts.ts` meant to turn off.
+4. **The mutator sets differ by about 7% by default.** At `80c8eaa52b` oxmutate generates 6,287
+   mutants on compat-oracle (Stryker: 5,918) and 6,703 on caique (Stryker: 6,227). With
+   `strykerCompat: true` it generates 5,915 and 6,230, within 3 of Stryker's set.
+5. **Runner and concurrency were equal** in CI (same `ubuntu-latest` image, `--concurrency 4`). The
+   commits were not. The Stryker numbers are a week older, and compat-oracle grew from 21 to 24
+   files in between.
+
+Per graded mutant, from CI (supporting only): compat-oracle oxmutate 1.68 s against Stryker 0.75 s;
+caique 0.94 s against 0.77 s.
+
+## 2. The async-hang hypothesis on caique: confirmed
+
+Method: `OXMUTATE_DEBUG_WATCHDOG=1` prints each watchdog stop with the age of the test worker's
+heartbeat (event-loop liveness, `heartbeat.ts`) and the server's CPU share over the stall. The
+first measurement used `ps` sampled 500 ms apart at the stop. The shipped one uses
+`process.cpuUsage()` samples the server sends every 250 ms, read over the last second. Subset:
+caique `src/inquirer-select.ts` + `src/inquirer-keys.ts` (248 mutants, 21 static), `concurrency: 4`,
+Apple M4 Pro (14 cores, 48 GB), macOS 26.2, Node 24.12.0.
+
+**Result: 18 of 19 stops read 0–2% CPU with a live heartbeat.** These are async hangs: the test
+awaits input the mutant never lets arrive. **1 of 19 read 72% CPU with a stale heartbeat**, a loop.
+The old path re-ran the hangs at 3x the isolated budget (about 34.5 s), where Vitest's own 30 s
+`testTimeout` failed the test, and reported them Killed. That is the "timeouts that finished given
+3x the time" line.
+
+## 3. Changes, each measured on the subset, verdicts compared mutant by mutant
+
+`A` is the 1.1.0 build (`main`). Wall times on a laptop whose load average sat at 10–37
+(recorded per run), so they are indicative; verdicts are exact.
+
+| Run | Change | Wall (s) | Warm | Static | Isolated | Stops | Verdicts against A |
+| :-- | :-- | --: | --: | --: | --: | --: | :-- |
+| A | baseline 1.1.0 | 179.7 | 42.7 | 41.2 (unrecorded) | 87.8 | 13, 5 overturned | — |
+| C | wait in place past the budget while the worker is idle, warm *and* isolated, up to 3x | 375.1 | 251.5 | 41.2 | 63.1 | 6 | identical |
+| D | the same wait, isolated runs only | 169.3 | 46.8 | 40.7 | 76.8 | 9, 1 overturned | identical |
+| G | **idle stop = Timeout at its budget, no 3x re-run (shipped)** | **139.9** | 49.4 | 42.4 | 35.7 | 13, 13 idle, 0 overturned | identical except **5 Killed → Timeout**, exactly the idle-stall set |
+
+- **C was rejected: 2.1x slower, same verdicts.** Waiting out a 30 s test timeout in the warm run
+  costs more than a stop. After a warm stop, the isolated run usually kills the mutant within
+  milliseconds through another covering test.
+- **D was superseded.** It saved the stop at 1x and the cold re-run, but kept the 30 s floor per
+  hung mutant.
+- **G is [`D-20261101-idle-stall-is-timeout`](../../decisions/D-20261101-idle-stall-is-timeout.md).**
+  The 5 flips are the mutants A had re-run at 3x and "overturned". The score is unchanged, because
+  a Timeout is detected.
+- One run, F, between D and G with the same build as G, read 15 extra stops at 0% CPU with no
+  heartbeat for the whole budget, in the survivor-confirmation phase. They were not reproduced in
+  G. Process freezes from the endpoint agent are the likely cause, and the old path would have
+  re-run them the same way. Noted, not explained.
+
+`OXMUTATE_DEBUG_WATCHDOG` also showed that a heartbeat path set per unit could reach a worker
+started under an earlier unit (stops read "beat never"). The beat file is now per server, set in
+its environment before Vitest starts.
+
+The burgee root import in `child.ts` costs 19–62 ms here (121–139 ms reported on CI) per server
+start. caique's 10-31 run started about 830 servers, about 108 CPU-s, under 0.5% of the run. The
+spare server also hides each start from the critical path. With idle stops still killing their
+server, the count is unchanged, so this stays below the line. Not taken.
+
+## 4. The full comparison on this machine
+
+_Filled in as the runs land; see below._

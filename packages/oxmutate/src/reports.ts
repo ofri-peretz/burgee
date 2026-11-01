@@ -152,7 +152,7 @@ export function textSummary(r: RunResult, opts: { survivors?: number } = {}): st
     `oxmutate ${VERSION}: ${String(r.mutants.length)} mutants in ${String(s.files)} files, ${(s.wallMs / MS_PER_S).toFixed(1)} s`,
     `  mutation score ${r.score.mutationScore.toFixed(2)}% (covered ${r.score.covered.toFixed(2)}%)`,
     `  killed ${String(count('Killed'))} · timeout ${String(count('Timeout'))} · survived ${String(count('Survived'))} · no coverage ${String(count('NoCoverage'))} · ignored ${String(count('Ignored'))} · errors ${String(count('RuntimeError') + count('CompileError'))}`,
-    `  instrument ${s.instrumentMs.toFixed(0)} ms · dry run ${(s.dryRunMs / MS_PER_S).toFixed(1)} s · mutants ${(s.mutationMs / MS_PER_S).toFixed(1)} s · isolated ${(s.isolatedMs / MS_PER_S).toFixed(1)} s`,
+    `  instrument ${s.instrumentMs.toFixed(0)} ms · dry run ${(s.dryRunMs / MS_PER_S).toFixed(1)} s · mutants ${(s.mutationMs / MS_PER_S).toFixed(1)} s · static ${(s.staticMs / MS_PER_S).toFixed(1)} s · isolated ${(s.isolatedMs / MS_PER_S).toFixed(1)} s`,
   ];
   const corrected = corrections(s);
   if (corrected.length) lines.push(`  corrected: ${corrected.join(' · ')}`);
