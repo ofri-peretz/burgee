@@ -1,5 +1,8 @@
 import { defineConfig } from "vitest/config";
 
+// The five-second per-case gate (D-20261101-tests-under-5s); this config sets its own clocks below.
+import { caseBudget } from "../vitest-timeouts.config.js";
+
 export default defineConfig({
   test: {
     include: ["**/*.test.ts"],
@@ -32,5 +35,6 @@ export default defineConfig({
      */
     testTimeout: 60_000,
     hookTimeout: 60_000,
+    ...caseBudget,
   },
 });

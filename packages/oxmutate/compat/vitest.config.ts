@@ -2,6 +2,9 @@ import { fileURLToPath } from 'node:url';
 
 import { defineConfig } from 'vitest/config';
 
+// The five-second per-case gate (D-20261101-tests-under-5s).
+import { caseBudget } from '../../../vitest-timeouts.config.js';
+
 const here = (file: string): string => fileURLToPath(new URL(file, import.meta.url));
 
 /**
@@ -20,6 +23,7 @@ export default defineConfig({
   },
   test: {
     globals: true,
+    ...caseBudget,
     include: ['vendor/stryker-mutators/test/unit/mutators/*.spec.ts'],
     setupFiles: [here('./setup.ts')],
   },

@@ -1,0 +1,213 @@
+/**
+ * Copyright (c) 2026 Ofri Peretz
+ * Licensed under the MIT License. Use of this source code is governed by the
+ * MIT license that can be found in the LICENSE file.
+ */
+
+/**
+ * No test case takes more than five seconds (D-20261101-tests-under-5s).
+ *
+ * The owner, 2026-11-01: "it doesn't make sense a single test case will take more than 5
+ * seconds". On main that day 46 cases did, the slowest at 90 s, and nothing said so: every
+ * suite runs under `testTimeout: 30_000` or more (`vitest-timeouts.config.ts`), because a
+ * timeout is a bet on the machine and has to sit far above what a case takes. So a timeout
+ * cannot be this gate — it fails the case that loses the bet, not the case that is slow.
+ *
+ * This reporter is the gate. Every suite that spreads `timeouts` loads it, so it runs in the
+ * pre-push battery, in `Quality (Full)`'s `Unit Tests` (the required check) and in compat's
+ * Linux cell. After the run it reads each case's own duration — the body and its `beforeEach` /
+ * `afterEach`, which is what vitest measures for a case — and when any is over
+ * `CASE_BUDGET_MS` it names them and sets the exit code to 1, whatever else passed.
+ *
+ * A case over the budget is **measured again, alone**, before it fails the run: its file is run by
+ * itself with `-t` naming the case, up to twice, and the case fails the gate only if its best
+ * alone reading is over the budget too. One reading on a loaded machine is not the case's
+ * duration — on this repository's development machine, with endpoint scanning at 170% CPU, a pure
+ * computation read 7.4 s in a full suite and 4 ms alone, and one release-loop case read 5.7 s and
+ * 16.4 s in two runs of the same tree — and a gate that goes red on the machine's load is a gate
+ * people learn to re-run, which is no gate. The fastest of the readings is the one the machine
+ * interfered with least. A case that is slow is slow every time, and the readings are printed.
+ *
+ * It does not judge:
+ *
+ * - **A run with coverage enabled.** v8's block counters slow the body itself, so a duration
+ *   measured there is the instrument's as much as the case's; the same cases are gated
+ *   uninstrumented by `Unit Tests`, in the same required check.
+ * - **A run with `VITEST_CASE_BUDGET_MS=0`.** Only compat's macOS and Windows cells set it: the
+ *   budget is set on the Linux runner the baselines are recorded on, and those cells are graded
+ *   on correctness under their own timeouts (windows-lane-holds keeps their half-budget report).
+ *
+ * `NIGHTLY_ONLY` is the only exemption, and it is not for a slow case that runs on a pull
+ * request: a case belongs there only when it was moved to the nightly workflow, and the reason
+ * says what heavy operation it needs (D-20261101-heavy-ci-runs-nightly).
+ */
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
+import { dirname, join, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { type Reporter, type TestModule } from 'vitest/node';
+
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
+
+/** The owner's number. A case at exactly the budget is within it. */
+export const CASE_BUDGET_MS = 5_000;
+
+/**
+ * Cases that run only on the nightly schedule, keyed `<repo-relative file> > <full name>`, each
+ * with the heavy operation that keeps it off a pull request. Empty is the goal; an entry leaves
+ * by getting fast, never by being explained again.
+ */
+const E2E = 'packages/oxmutate/src/e2e.test.ts';
+/** Why every oxmutate entry below is here; each adds what its own run does. */
+const MUTATION_RUN = 'a whole oxmutate run on a fixture — the CLI, its Vitest servers, every mutant — 6.5–15 s on a contended CI runner, and only oxmutate source can make it faster (follow-up in the PR that moved it)';
+export const NIGHTLY_ONLY: Readonly<Record<string, string>> = {
+  [`${E2E} > restarts a polluted context and judges later mutants from a clean state`]: `${MUTATION_RUN}; 8.2 s`,
+  [`${E2E} > re-runs file-level beforeEach hooks between mutants, so they read as no pollution`]: `${MUTATION_RUN}; 7.1 s`,
+  [`${E2E} > decides no kill on a previous mutant's leftovers that a test cleaned up in finally`]: `${MUTATION_RUN}; 11.4 s`,
+  [`${E2E} > kills a mutant a beforeEach hook reaches in the warm run, with no isolated run`]: `${MUTATION_RUN}; 6.6 s`,
+  [`${E2E} > static mutants keep their fresh-worker verdicts > an import-time constant decides its mutants; an unread one survives`]: `${MUTATION_RUN}, every static mutant in a fresh worker; 6.9 s`,
+  [`${E2E} > static mutants keep their fresh-worker verdicts > a global set at import does not carry one mutant value into the next`]: `${MUTATION_RUN}, every static mutant in a fresh worker; 9.3 s`,
+  [`${E2E} > confirms a watchdog stop with 3x the budget before reporting a timeout`]: `${MUTATION_RUN}, whose fixture stalls 8 s twice on purpose so the 3x confirmation is what decides; 14.6 s`,
+  [`${E2E} > the frozen oracle (R14, SC10) > reports the mutants a change stopped detecting when it weakens a test, and exits 1`]: `${MUTATION_RUN}, twice: the frozen base and the change; 9.7 s`,
+  [`${E2E} > the frozen oracle (R14, SC10) > reports no drop when a change only adds a test`]: `${MUTATION_RUN}, twice: the frozen base and the change; 7.7 s`,
+  [`${E2E} > the command runner (testRunner: command) > runs the command once per mutant in a sandbox and scores what the warm runner scores`]: `${MUTATION_RUN}, \`npx vitest run\` once per mutant; 9.3 s`,
+  ['packages/oxmutate/src/sensitivity.test.ts > sensitivity (SC5) > a weak suite produces survivors, every one of them covered by a test that ran']: `${MUTATION_RUN}; 8.9 s`,
+  ['packages/oxmutate/src/sensitivity.test.ts > sensitivity (SC5) > the closed suite produces none, over the same mutants']: `${MUTATION_RUN}; 16.1 s`,
+  ['packages/oxmutate/src/vitest5-regression.test.ts > the Vitest 5 regression (SC7) > reports no killed mutant as Survived: every mutant is Killed by a test that ran']: `${MUTATION_RUN}, under the fixture's own Vitest 5; 6.4 s`,
+  [
+    "packages/oxmutate/src/vitest5-regression.test.ts > the Vitest 5 regression (SC7) > reproduces the defect: with Stryker 10.0.0's name filter put back, the same mutants are Survived having run no test"
+  ]: `${MUTATION_RUN}, twice, the second with every mutant surviving into its confirmation run; 28.7 s`,
+  ['packages/oxmutate/src/checker.test.ts > the type checker > refuses the mutants that do not compile, with the error, and passes the ones that do']:
+    'the real TypeScript compiler, `npx tsc` once per batch, over the fixture project; 15.1 s on a contended CI runner',
+};
+
+export interface CaseDuration {
+  file: string;
+  name: string;
+  duration: number;
+  /** The best reading taken alone, when the first was over the budget. */
+  alone?: number;
+}
+
+/** The key `NIGHTLY_ONLY` is written in. */
+export const caseKey = (c: Pick<CaseDuration, 'file' | 'name'>): string => `${c.file} > ${c.name}`;
+
+/** Every case over `budget` that `allowed` does not name, slowest first. */
+export function overBudget(cases: readonly CaseDuration[], budget: number, allowed: Readonly<Record<string, string>> = NIGHTLY_ONLY): CaseDuration[] {
+  return cases.filter((c) => c.duration > budget && allowed[caseKey(c)] === undefined).sort((a, b) => b.duration - a.duration || caseKey(a).localeCompare(caseKey(b)));
+}
+
+/** The budget this run is held to: `CASE_BUDGET_MS`, or `VITEST_CASE_BUDGET_MS` when it is set; 0 turns the gate off. */
+export function budgetFrom(env: NodeJS.ProcessEnv): number {
+  const raw = env['VITEST_CASE_BUDGET_MS'];
+  if (raw === undefined || raw.trim() === '') return CASE_BUDGET_MS;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) throw new Error(`VITEST_CASE_BUDGET_MS=${raw}: not a number of milliseconds`);
+  return n;
+}
+
+/** Wide enough for a six-digit duration, so the names line up. */
+const MS_WIDTH = 7;
+
+/** The lines the gate prints for `slow`, one per case. */
+export function describeOverBudget(slow: readonly CaseDuration[], budget: number): string {
+  const lines = slow.map((c) => `  ${String(Math.round(c.duration)).padStart(MS_WIDTH)} ms${c.alone === undefined ? '' : `, ${String(Math.round(c.alone))} ms alone`}  ${caseKey(c)}`);
+  return [
+    `\n✗ ${slow.length} test case${slow.length === 1 ? '' : 's'} over the ${budget} ms per-case budget (D-20261101-tests-under-5s):`,
+    ...lines,
+    '  Make the case fast without weakening it — share a spawn in beforeAll, import instead of spawning, shrink the fixture —',
+    '  or, if it truly needs a heavy operation, move it to the nightly workflow and name it in NIGHTLY_ONLY',
+    '  (scripts/vitest-case-budget-reporter.ts) with the reason.\n',
+  ].join('\n');
+}
+
+const posix = (path: string): string => path.split('\\').join('/');
+
+/** `text` as a regular expression that matches exactly it. */
+const literal = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+
+interface JsonReport {
+  testResults?: { name: string; assertionResults?: { ancestorTitles: string[]; title: string; duration?: number | null }[] }[];
+}
+
+/**
+ * The case's duration when its file runs alone and `-t` selects it: vitest's JSON report, read for
+ * the one result whose titles are the case's. `undefined` when that run did not report the case,
+ * which leaves the first reading standing.
+ */
+function measureAlone(c: CaseDuration & { title: string; cwd: string; config: string | undefined }): number | undefined {
+  const out = mkdtempSync(join(tmpdir(), 'case-budget-'));
+  try {
+    const report = join(out, 'report.json');
+    const vitest = join(dirname(createRequire(join(c.cwd, 'package.json')).resolve('vitest/package.json')), 'vitest.mjs');
+    const config = c.config === undefined ? [] : ['--config', c.config];
+    spawnSync(process.execPath, [vitest, 'run', resolve(ROOT, c.file), ...config, '-t', literal(c.title), '--reporter=json', `--outputFile=${report}`], {
+      cwd: c.cwd,
+      stdio: 'ignore',
+      // The nested run is a measurement, not a second gate.
+      env: { ...process.env, VITEST_CASE_BUDGET_MS: '0' },
+    });
+    const parsed = JSON.parse(readFileSync(report, 'utf8')) as JsonReport;
+    for (const file of parsed.testResults ?? []) {
+      for (const result of file.assertionResults ?? []) {
+        if ([...result.ancestorTitles, result.title].join(' > ') === c.name && typeof result.duration === 'number') return result.duration;
+      }
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  } finally {
+    rmSync(out, { recursive: true, force: true });
+  }
+}
+
+/** Alone readings taken before a case fails: the second only when the first is over the budget. */
+const ALONE_READINGS = 2;
+
+/** The fastest alone reading, stopping at the first that is within `budget`; `undefined` when none was taken. */
+function bestAlone(c: Parameters<typeof measureAlone>[0], budget: number): number | undefined {
+  let best: number | undefined;
+  for (let i = 0; i < ALONE_READINGS && (best === undefined || best > budget); i++) {
+    const reading = measureAlone(c);
+    if (reading !== undefined && (best === undefined || reading < best)) best = reading;
+  }
+  return best;
+}
+
+// eslint-disable-next-line import-next/no-default-export -- vitest loads a reporter given by path from its default export
+export default class CaseBudgetReporter implements Reporter {
+  private coverage = false;
+  private config: string | undefined;
+
+  onInit(vitest: { config: { coverage?: { enabled?: boolean } }; vite?: { config?: { configFile?: string } } }): void {
+    this.coverage = vitest.config.coverage?.enabled === true;
+    this.config = vitest.vite?.config?.configFile;
+  }
+
+  onTestRunEnd(modules: ReadonlyArray<TestModule>): void {
+    const budget = budgetFrom(process.env);
+    if (budget === 0 || this.coverage) return;
+    const cases: (CaseDuration & { title: string })[] = [];
+    for (const module of modules) {
+      for (const test of module.children.allTests()) {
+        const diagnostic = test.diagnostic();
+        if (diagnostic === undefined) continue;
+        cases.push({ file: posix(relative(ROOT, module.moduleId)), name: test.fullName, title: test.name, duration: diagnostic.duration });
+      }
+    }
+    const first = overBudget(cases, budget) as (CaseDuration & { title: string })[];
+    if (first.length === 0) return;
+    const slow = first
+      .map((c) => ({ ...c, alone: bestAlone({ ...c, cwd: process.cwd(), config: this.config }, budget) }))
+      .filter((c) => c.alone === undefined || c.alone > budget);
+    if (slow.length === 0) {
+      process.stderr.write(`\n${String(first.length)} case(s) read over the ${String(budget)} ms budget in this run and under it alone; not failing on the machine's load:\n${first.map((c) => `  ${String(Math.round(c.duration))} ms  ${caseKey(c)}`).join('\n')}\n`);
+      return;
+    }
+    process.stderr.write(describeOverBudget(slow, budget));
+    process.exitCode = 1;
+  }
+}

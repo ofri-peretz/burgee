@@ -45,6 +45,8 @@ const HEAVY: { file: string; job: string }[] = [
   { file: 'bench.yml', job: 'agent' },
   { file: 'compat.yml', job: 'controls' },
   { file: 'compat.yml', job: 'floor' },
+  // The test cases too heavy for a pull request (D-20261101-tests-under-5s, NIGHTLY_ONLY).
+  { file: 'compat.yml', job: 'heavy-tests' },
   { file: 'evals.yml', job: 'evals' },
   { file: 'mutation.yml', job: 'full' },
 ];
