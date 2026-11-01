@@ -214,29 +214,27 @@ const RULES: Record<string, EntryRule> = {
   // reads `anyOf`, `enum`, a type list and draft-07 `definitions`, for mcp-current R7. No budget moved.
   './plugin': { allow: [], budget: 12_100, measured: 10_400, denied: ['loop.js', 'projection.js', 'spinner.js', 'cli.js', 'index.js'] },
   // The ceiling is ora (R10). The spinner plus the registry it reads its style from;
-  // ora 9.4.1's own index.js is 17,891 B before any of its sixteen dependencies.
+  // ora 10.0.0's own index.js is 26,277 B before any of its sixteen dependencies (9.4.1's was 17,891).
   './spinner': { allow: ['roundel/tokens'], budget: 13_000, measured: 11_328, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
   // The ora façade: the port, the width function and the spinner corpus it re-exports. The
   // cursor control is no longer counted here — it is `closeout`'s since 2026-09-15, and a bare
   // specifier leaves this measurement while staying in the program.
   // and `roundel/chalk` — the only thing it reaches outside the package — is a further
-  // 9,311 B (chalk.js 6,053 · policy.js 1,972 · tokens.js 1,286), which roundel's own
-  // weight lock records at the same figure. **55,641 B in two packages, against ora 9.4.1's
-  // 113,577 B in seventeen — 49%.**
+  // 9,368 B (chalk.js, policy.js, tokens.js and the colour-level probe), measured 2026-11-01.
+  // **53,486 B in two packages, against ora 10.0.0's 128,182 B in seventeen — 42%.**
+  // Before ora 10 (burgee#1396) the figure was 55,641 B against ora 9.4.1's 113,577 — 49%.
   //
   // The method, so the number reproduces: shipped code and data — `.js`/`.mjs`/`.cjs` plus
   // the `.json` a module imports, `package.json` never counted. Ours is `walk()` below over
   // `dist/`, the graph an import of the subpath actually pulls. ora's is every package that
-  // graph touches in ora's own resolved tree — its nested `node_modules` win, so chalk 5.6.2
-  // and string-width 8.2.2, not whatever is hoisted — each counted whole (ora 17,891 ·
-  // cli-spinners 27,841 · signal-exit 21,983 · chalk 16,727 · get-east-asian-width 8,785 ·
-  // string-width 6,194 · yoctocolors 4,466 · mimic-function 3,038 · the other nine 6,652).
-  // Those are the 2026-09-09 figures the total was taken from. get-east-asian-width is 8,917
-  // at 1.7.0 (2026-09-27, burgee#363) — +132, which does not move the 49% below.
-  // On 2026-10-06 ora's whole tree is 114,102 B (string-width 6,447 at 8.3.0, burgee#704);
-  // 55,641 B is still 49% of it.
-  // Counting ora the stricter way — only the 27 files its graph reaches, whole packages
-  // ignored — gives 101,809 B, and ours is still 55% of that.
+  // graph touches in ora's own resolved tree — its nested `node_modules` win, so the chalk
+  // ora itself asks for, not whatever is hoisted — each counted whole. At ora 10.0.0, fingerprinted
+  // 2026-11-01 (`competitors.json`): ora 26,277 · cli-spinners 27,841 · signal-exit 21,983 ·
+  // chalk 21,568 (6.0.1, which ora 10 moved to from 5.6.2's 16,727, burgee#1394) ·
+  // get-east-asian-width 8,917 · string-width 6,447 · yoctocolors 4,466 · mimic-function 3,038,
+  // and the other nine, ansi-regex 6.5.0 among them.
+  // The 9.4.1 history: 113,577 B on 2026-09-09, 114,102 B on 2026-10-06 (string-width 6,447 at
+  // 8.3.0, burgee#704), and 49% both times.
   //
   // It reaches nothing in the core: an ora migration does not drag the frame loop in, and
   // a program that hoists does not pay for the corpus.
@@ -244,12 +242,20 @@ const RULES: Record<string, EntryRule> = {
   // 40,933 (-35) on 2026-09-28: the synchronized-output pair is `paratext/csi`'s.
   // 40,369 (-564) on 2026-09-28: is-unicode-supported is `roundel/terminal`'s `unicode`, not
   // a copy here; that subpath is 878 B of roundel's and reaches nothing.
-  './ora': { allow: ['closeout/cursor', 'closeout/restore-cursor', 'linegauge', 'paratext/csi', 'roundel/chalk', 'roundel/terminal'], budget: 43_000, measured: 40_369, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
+  // 44,118 (+3,749) on 2026-11-01, and the budget 43,000 -> 44,150, the measurement
+  // rounded up to the next 50 (D-20261101-upstream-issues-2026-11-01): the port follows ora 10.0.0
+  // (burgee#1391), whose suite grew from 99 cases to 223. The frame is laid out cell by cell as a
+  // terminal shows it — tabs to their stop, a wide grapheme that does not fit moved to the next
+  // row, CR back to the start of the row — and kept above the last row, the erase count never
+  // grows on a resize, an unfinished external line pauses rendering until its newline, and a
+  // render with no caller to throw to stops the spinner instead. ora's own index.js grew 8,386 B
+  // for the same behaviour.
+  './ora': { allow: ['closeout/cursor', 'closeout/restore-cursor', 'linegauge', 'paratext/csi', 'roundel/chalk', 'roundel/terminal'], budget: 44_150, measured: 44_118, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
   // The log-update façade: the port, the ANSI-aware wrapper and the width function, against
   // log-update's own 113,368 B across sixteen packages (slice-ansi 27,630 · signal-exit 21,983
   // · wrap-ansi 20,004 · the rest) — 2026-09-09 figures, when slice-ansi resolved to 9.0.0; it
   // is 26,813 at 9.0.1 (2026-09-27), and wrap-ansi is 20,370 at 10.0.2, the tree 113,442 B
-  // (2026-10-06, burgee#705). signal-exit's 21,983 B is what `closeout` replaces, shared
+  // (2026-10-06, burgee#705) and 114,295 B on 2026-11-01, with ansi-regex 6.5.0 (burgee#1379). signal-exit's 21,983 B is what `closeout` replaces, shared
   // with `./ora` rather than ported twice — and, since 2026-09-15, owned one package over
   // rather than here.
   //
@@ -272,7 +278,8 @@ const RULES: Record<string, EntryRule> = {
   // option sanitised. boxen's own package doubled across the same release (10,923 -> 22,037
   // B self). Measured across packages the way `competitors.json` measures boxen — every file
   // the import reaches — `flagstaff/boxen` is **67,748 B in three packages** (flagstaff 17,600,
-  // linegauge 40,787, roundel 9,361), **against boxen 9.0.0's 114,927 B in fourteen — 59%.**
+  // linegauge 40,787, roundel 9,361), **against boxen 9.0.0's 114,927 B in fourteen — 59%.** The
+  // boxen tree is 115,780 B on 2026-11-01, with ansi-regex 6.5.0 (burgee#1376): still 59%.
   // linegauge is reached whole through its main entry, as it already was for `width`, and is
   // shared with every other façade, so a program on two of them pays for it once.
   './boxen': { allow: ['linegauge', 'linegauge/wrap', 'roundel/chalk'], budget: 18_000, measured: 17_600, denied: ['ora.js', 'spinners.json', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js', 'log-update.js'] },
@@ -411,7 +418,8 @@ it('every entry records a measurement — otherwise the check above asserts noth
  * 457 B of headroom, so *no* capability schema fits under the old ceiling — the breach is
  * structural, not drift, and each of the five moved by roughly the same 3,080 B.
  *
- * The claims survive it: `./spinner` at 15,551 B is still under ora's 17,891 B.
+ * The claims survive it: `./spinner` at 15,551 B is still under ora's 17,891 B (9.4.1; ora
+ * 10.0.0's own index.js is 26,277 B).
  *
  * A bigger ceiling is not the better fix. One byte-identical `src/schema.json` is the
  * contract each package *publishes* (plugin-contract R2), but a host only ever validates its
