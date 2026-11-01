@@ -10,7 +10,6 @@
  */
 import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 
-import { CASE_MS, growth, LINEAR, said } from './__fixtures__/growth.js';
 import meow, { type AnyFlags, type Flag, type Result, type TypedFlags } from './meow.js';
 import { cutTrailingTabs, trimNewlines } from './meow/present.js';
 
@@ -203,6 +202,17 @@ function strings(alphabet: string, max: number): string[] {
   return out;
 }
 
+/** Each case: one adversarial input, timed once, against a budget the fix meets 50x over and the
+ * backtracking it replaced misses by 10x or more. A case's own `timeout` holds it to 5 s. */
+const BUDGET_MS = 1_000;
+const CASE_MS = 5_000;
+
+function elapsed(fn: () => unknown): number {
+  const t = performance.now();
+  fn();
+  return performance.now() - t;
+}
+
 /** `n` newlines, a letter, `n` more and a last letter: the inner run never reaches the end. */
 const newlines = (n: number): string => `${'\n'.repeat(n)}a${'\n'.repeat(n)}b`;
 /** `n` tabs that never reach the end, then `n` that do and `n` newlines after them. */
@@ -218,17 +228,18 @@ describe('help trimming answers as meow\'s regexes did, in linear time (CodeQL #
 
   // A run that does not reach the end is what made the regexes quadratic, and the scans step over
   // it in O(1); each input also ends in a run as long, so the scan has linear work to be timed on.
-  // The scans cost about a nanosecond a character, so `max` keeps the strings small and `growth`
-  // repeats the call instead of building larger ones.
+  // About 1 ms each here, kept small because the scans are tight loops that the mutation run's
+  // instrumentation slowed about 75x (370-650 ms at 4x these sizes); the upstream regexes did not
+  // finish either input in 12 s.
   it('trims newlines, with a run that never reaches the end, in linear time', { timeout: CASE_MS }, () => {
     expect(trimNewlines(newlines(3))).toBe(`a${'\n'.repeat(3)}b`);
-    const g = growth(newlines, trimNewlines, { from: 1_000, max: 12_500 });
-    expect(g.normalized, said(g)).toBeLessThan(LINEAR);
+    const input = newlines(500_000);
+    expect(elapsed(() => trimNewlines(input))).toBeLessThan(BUDGET_MS);
   });
 
   it('cuts trailing tabs, with a run that never reaches the end, in linear time', { timeout: CASE_MS }, () => {
     expect(cutTrailingTabs(tabs(3))).toBe(`a${'\t'.repeat(3)}b`);
-    const g = growth(tabs, cutTrailingTabs, { from: 1_000, max: 8_000 });
-    expect(g.normalized, said(g)).toBeLessThan(LINEAR);
+    const input = tabs(375_000);
+    expect(elapsed(() => cutTrailingTabs(input))).toBeLessThan(BUDGET_MS);
   });
 });

@@ -27,22 +27,25 @@ inputs. Compare the time against a linear reference over the same input, so runn
 out. Make parseCommand allocation-light if the GC is the cause. The restored case must still fail
 on a quadratic parseCommand.
 
-**Closed 2026-11-01 by #1407.** The case is restored without `.skip`. It now runs as two cases,
-one after `cmd` and one after `cmd x`. Both the measurement and the code changed.
+**Closed 2026-11-01 by #1407.** The case is restored without `.skip`, as two cases: one after
+`cmd` and one after `cmd x`. Two changes did it.
 
-- **The measurement.** `growth()` divides the parse's growth over 8x the input by a linear
-  character scan's growth over the same two inputs. Linear code reads about 1 and quadratic about
-  8, against a ceiling of 3. Each 8x input is at most 200k characters. The call repeats rather
-  than the input growing, and each case carries a 5,000 ms timeout.
-- **The code.** parse-command's bracket map is a `Uint8Array`, where it was a plain array that V8
-  held as a sparse dictionary. `stripBrackets` splits at the brackets instead of building a rope.
-  A cpu profile on main put those two lines and the collector at 69% of the time. Each doubling
-  of `cmd x` + dots now costs 1.99–2.04x up to 5.12M, where it was 2.1–2.5x past 1M
-  (exponent 1.2–1.4).
+- **The measurement.** Each case times one parse of one adversarial input against a 1,000 ms
+  budget, and carries a `timeout` of 5,000 ms. Ratios of two wall-clock times, divided or not
+  by a linear reference, flaked on shared runners: #1407's run read 3.85 normalised on a linear
+  `cutTrailingTabs`, against a ceiling of 3.
+- **The code.** parse-command's bracket map is a `Uint8Array`. Before, it was a plain array
+  filled from its last index down, which V8 holds as a sparse dictionary. `stripBrackets` now
+  splits at the brackets instead of building a rope one character at a time. A cpu profile on
+  `main` put those two lines and the collector at 69% of the time.
+  - Each doubling of `cmd x` plus dots now costs 1.99–2.04x up to 5.12M characters. Before, it
+    cost 2.1–2.5x past 1M (exponent 1.2–1.4).
+  - `cmd x` plus 5.12M dots went from 461 ms to 134 ms.
 
 | | before | after |
 | :-- | :-- | :-- |
-| CI ratio, `cmd x` + dots | 24.05x and 25.42x at 8x the input, against 24 | passes the normalised ceiling of 3 |
-| local, normalised, 20 runs under load 41–54 | — | 0.74–1.18 (`cmd`), 0.78–1.05 (`cmd x`) |
-| CI case duration, `Unit Tests (Turbo)` on ubuntu | 7,650 ms, failed (#1404) | 1,382 / 702 ms on #1407's first helper; 288–363 / 286–759 ms locally with the final one |
-| quadratic stand-in (`upstreamParseCommand`) | — | 7.36 normalised (`cmd`) and over 5 s (`cmd x`): fails |
+| CI | 24.05x and 25.42x at 8x the input, against 24: failed | see #1407's `Unit Tests (Turbo)` |
+| `cmd` + 1,600,000 dots, local (node v24.12.0, macOS) | — | 6.8 ms best of 5; 18 ms in a vitest run |
+| `cmd x` + 400,000 dots, local | — | 7.4 ms best of 5; 11 ms in a vitest run |
+| the same two inputs, mutation dry run (oxmutate) | — | 18–34 ms and 11–16 ms |
+| upstream's `parseCommand` on the same two inputs | — | did not finish in 12 s, so it fails the budget |

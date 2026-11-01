@@ -6,8 +6,9 @@
  *    run of digits that does not end the string, and `/^-+([^=]+?)\W+.*$/` is cubic on a run
  *    of spaces or punctuation followed by a line break. Measured on the unfixed code, node
  *    v24.12.0, macOS: `-a` + `'! '` x 500 / 1,000 / 2,000 + `a\na` took 173 / 1,412 / 10,543 ms
- *    in the second regex alone — twice the input, eight times the time. The locks below time a
- *    parse at two sizes and hold the ratio, not the milliseconds (`__fixtures__/growth.ts`).
+ *    in the second regex alone — twice the input, eight times the time. The locks below time
+ *    one parse of an input the fix reads in about 11 ms (node v24.12.0, macOS) against a 1 s
+ *    budget; upstream's regexes did not finish the same input in 12 s.
  * 2. `setKey` descended into a `null` parent. `{ a: null }` from one config and `a.b` from a
  *    default or a second config threw "Cannot read properties of null (reading 'b')" out of
  *    the parse, where `hasKey` had already read the `null` as an absent parent.
@@ -19,7 +20,6 @@
 import { describe, expect, it } from 'vitest';
 import upstreamParser from 'yargs-parser';
 
-import { CASE_MS, growth, LINEAR, said } from '../__fixtures__/growth.js';
 import yargsParser from '../yargs-parser.js';
 
 import { flagEndingInDigits, flagEndingInHyphen, flagEndingInNonWordCharacters, flagWithEquals, normalFlag } from './flag-shapes.js';
@@ -32,6 +32,17 @@ const UPSTREAM: [string, RegExp, (s: string) => string | undefined][] = [
   ['flagEndingInDigits', /^-+([^=]+?\d+)$/, flagEndingInDigits],
   ['flagEndingInNonWordCharacters', /^-+([^=]+?)\W+.*$/, flagEndingInNonWordCharacters],
 ];
+
+/** Each case: one adversarial input, timed once, against a budget the fix meets 50x over and the
+ * backtracking it replaced misses by 10x or more. A case's own `timeout` holds it to 5 s. */
+const BUDGET_MS = 1_000;
+const CASE_MS = 5_000;
+
+function elapsed(fn: () => unknown): number {
+  const t = performance.now();
+  fn();
+  return performance.now() - t;
+}
 
 /** Every string over `alphabet` up to `max` long. */
 function* strings(alphabet: string[], max: number, prefix = ''): Generator<string> {
@@ -61,21 +72,15 @@ describe('the flag shapes answer as the upstream regexes did', () => {
 describe('unknown-options-as-args classifies a long argument in linear time', () => {
   const parse = (arg: string) => yargsParser([arg], { configuration: { 'unknown-options-as-args': true } });
 
-  // `growth` times the parse at n and 8n against a linear scan of the same inputs; `max` keeps the
-  // inputs small. Upstream's regexes, under the same helper, read 6.7x and 9.6x normalised against a
-  // ceiling of 3, or run past a case's 5 s.
+  // About 11-12 ms each here; upstream did not finish either input in 12 s.
   it('a run of punctuation before a line break (cubic upstream)', { timeout: CASE_MS }, () => {
-    const arg = (n: number) => `-a${'! '.repeat(n)}a\na`;
-    expect(parse(arg(100_000))._).toEqual([arg(100_000)]);
-    const g = growth(arg, parse, { from: 500, max: 12_500 });
-    expect(g.normalized, said(g)).toBeLessThan(LINEAR);
+    const arg = `-a${'! '.repeat(100_000)}a\na`;
+    expect(elapsed(() => expect(parse(arg)._).toEqual([arg]))).toBeLessThan(BUDGET_MS);
   });
 
   it('a run of digits that does not end the argument (quadratic upstream)', { timeout: CASE_MS }, () => {
-    const arg = (n: number) => `--${'1'.repeat(n)}x\n`;
-    expect(parse(arg(200_000))._).toEqual([arg(200_000)]);
-    const g = growth(arg, parse, { from: 1_000, max: 25_000 });
-    expect(g.normalized, said(g)).toBeLessThan(LINEAR);
+    const arg = `--${'1'.repeat(200_000)}x\n`;
+    expect(elapsed(() => expect(parse(arg)._).toEqual([arg]))).toBeLessThan(BUDGET_MS);
   });
 
   it('sorts known and unknown flags of every shape exactly as yargs-parser 22 does', () => {
