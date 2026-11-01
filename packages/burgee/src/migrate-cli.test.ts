@@ -194,7 +194,7 @@ describe('A8 — an agent branches on the code and reads the reason from `refuse
 
 describe('U12-3 — --only and --skip, through the binary', () => {
   it('moves only what --only names, comma-separated', () => {
-    const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { chalk: '^6.0.0', ora: '^9.0.0' } }), 'src/a.ts': "import chalk from 'chalk';\nimport ora from 'ora';\n" });
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { chalk: '^6.0.0', ora: '^10.0.0' } }), 'src/a.ts': "import chalk from 'chalk';\nimport ora from 'ora';\n" });
     const { code, stdout } = burgee(['migrate', dir, '--only', 'ora,chalk', '--skip', 'chalk', '--json']);
     expect(code).toBe(ExitCode.OK);
     expect(envelope(stdout).data).toMatchObject({ mapped: [{ from: 'ora', to: 'flagstaff/ora' }] });
