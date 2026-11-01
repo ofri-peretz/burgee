@@ -1,15 +1,15 @@
 package:  ora
 repo:     https://github.com/sindresorhus/ora
-version:  9.4.1
-tag:      v9.4.1
-commit:   79cd8c15ac34572cffb3ab53e3d4b6bab6d59ea8
-vendored: 2026-10-26
+version:  10.0.0
+tag:      v10.0.0
+commit:   413994cb92cc3e895203ac02dae7aa7b75c01e76
+vendored: 2026-11-01
 files:    1
 tool:     scripts/vendor-suite.ts
 
 How this directory was made
 ---------------------------
-A shallow clone of https://github.com/sindresorhus/ora at v9.4.1, then that repository's own test directory and
+A shallow clone of https://github.com/sindresorhus/ora at v10.0.0, then that repository's own test directory and
 its fixtures copied here. The only edit is to the import specifiers that reach the library:
 each is rewritten to a generated shim, so one unedited suite can grade any implementation.
 Everything else — assertions, fixtures, helpers — is upstream's, byte for byte.
@@ -33,7 +33,7 @@ vendor step deletes any shim it finds, so a stale one can never grade the wrong 
 
 Reproduce
 ---------
-    npx tsx scripts/vendor-suite.ts ora --version 9.4.1
+    npx tsx scripts/vendor-suite.ts ora --version 10.0.0
 
 Every field above is reproduced exactly, with one exception that is a date and not a
 defect: `vendored` is the day the copy was taken, so a fresh run writes today's.

@@ -933,7 +933,7 @@ export const HOSTS: Host[] = [
     runner: 'node:test',
     target: 'flagstaff/ora',
     status: 'active',
-    note: 'The second output-stack incumbent: 30M/wk, and the loop every other spinner copies.',
+    note: "**2026-11-01: re-vendored at 10.0.0 (burgee#1391) and level — `flagstaff/ora` 223 / 223 against a control of 223 / 223 (D-20261101-upstream-issues-2026-11-01).** The suite grew from 99 cases to 223: a frame laid out cell by cell as a terminal shows it (tabs to their stop, a wide grapheme that does not fit moved to the next row), kept above the last row with a truncation message that shortens to fit, an erase count a resize never raises, an unfinished external line that pauses rendering until its newline with no timeout, a render with no caller to throw to that stops the spinner instead, and what a persisted line carries. Before the port the target run never finished: `stream with zero columns falls back to 80 columns` hands the ora 9 port `columns: 0`, its line count came out `Infinity`, and the erase loop ran forever, so the 300 s suite timeout recorded nothing. With that case counted as failed, the ora 9 port read **130 / 223**. The port follows ora 10's `index.js` method for method. Before that: the second output-stack incumbent, 30M/wk, and the loop every other spinner copies; graded 99 / 99 at 9.4.1.",
   },
   {
     name: 'log-update',
@@ -1244,27 +1244,31 @@ export const HOSTS: Host[] = [
     // measure the gap between two of the incumbent's own majors and publish it as ours. The
     // row sat at 7.1.2 while npm had 9 for exactly that reason (burgee#317), and moved on
     // 2026-09-27 as one change — root manifest `^9.0.1`, `benchmarks/package.json` `9.0.1`,
-    // this pin — which is the only order that keeps control and suite on one release.
+    // this pin — which is the only order that keeps control and suite on one release. It moved
+    // to 10.0.0 the same way on 2026-11-01 (burgee#1392): `^10.0.0`, `10.0.0`, this pin.
     // `vendor.test.ts` holds the pin to the installed version, so a bump of either alone fails.
     name: 'slice-ansi',
     repo: 'https://github.com/chalk/slice-ansi',
     // The pin the paragraph above describes, in a form `vendor()` can read.
-    pinnedVersion: '9.0.1',
+    pinnedVersion: '10.0.0',
     testDir: '.',
     testGlob: 'test.js',
     imports: [{ upstream: './index.js', subpath: '', reexportDefault: true }],
     surfaceFiles: ['index.d.ts', 'index.js'],
-    runner: 'ava',
+    runner: 'node:test',
     // Declared, not committed — the move wrap-ansi's `has-ansi` made on 2026-09-21, for the
     // same reason: the 9.0.1 re-vendor deleted the committed `node_modules/random-item` and
     // the control read 0 / 15. 9's suite also gained `tokenize-ansi.js`, a helper that
-    // imports `ansi-styles` and `is-fullwidth-code-point` by name; the workspace hoists
-    // `is-fullwidth-code-point` at 3.0.0, so it is pinned to the 5.1.0 slice-ansi 9 itself
-    // depends on rather than left to whichever copy the hoist picks.
-    suiteDeps: ['random-item@4.0.1', 'is-fullwidth-code-point@5.1.0', 'ansi-styles@6.2.3'],
+    // imports its dependencies by name. In 10 that helper imports `ansi-styles` 7 and
+    // `string-width` — its columns are string-width's now, not `is-fullwidth-code-point`'s — so
+    // both are pinned to what slice-ansi 10.0.0 itself resolves, and `chalk` and `strip-ansi`,
+    // which 10's `test.js` imports, are pinned to its devDependencies rather than left to the
+    // hoist. 10 also moved its suite from ava to `node --test`, and with the runner left at
+    // ava the control read 0 / 104.
+    suiteDeps: ['random-item@4.0.1', 'ansi-styles@7.0.0', 'string-width@8.3.0', 'chalk@6.0.1', 'strip-ansi@7.2.0'],
     target: 'linegauge/slice',
     status: 'active',
-    note: "**Moved to 9.0.1 on 2026-09-27 (burgee#317): 104 / 104 against a control of 104 / 104, level.** The suite grew from 15 cases to 104, and `linegauge/slice` first graded **53 / 104** against it. `slice.ts` was rewritten over slice-ansi 9's own token grammar and walk — `tokenize-ansi.js` is in the vendored suite, and its rules are what the suite grades — keeping `linegauge`'s style stack and `measure` for the columns. What moved the 49: (1) **escapes it did not read** — `OSC 8` ended by `ESC \\` or `U+009C`, the C1 `OSC` introducer, `DCS`/`SOS`/`PM`/`APC` strings, a lone `ST`, a truncated or malformed `CSI` (which now ends at the first byte no `CSI` can hold, so `ESC[31ĀA` keeps its `ĀA`), and a private `ESC[?25m` that is not an SGR; (2) **a cluster interrupted by an escape** — `ESC[31me ESC[39m U+0301` is one `é`, so the visible text is segmented with the escapes set aside; (3) **hyperlinks** — no nesting (a second open replaces the first, closed with its own introducer and terminator), an empty link removed rather than emitted, the open code kept with its parameters; (4) **SGR at the edges** — a close just after `end` kept as written rather than synthesised, an opener with no text after it dropped, a C1 `CSI` opener reopened as C1; and (5) **rounding inward at a wide character**, where `linegauge` used to round outward. That last one was a documented divergence and it was wrong: `truncate` is a slice plus an ellipsis and returned `あい…`, five columns, for a budget of four. **The last two were a position rule, and they moved too.** `treats CRLF as a single grapheme cluster` wants `\\r\\n` to take one position, and `counts emoji-style graphemes as fullwidth` wants a lone regional indicator `🇦` to take two. `string-width`, graded 229 / 229 in the row above, measures those as 0 and 1, and so do `measure` and `width`. At 102 / 104 the row was not level, which took slice-ansi out of `burgee migrate`'s `MAPPING` (only level drop-ins are rewritten, D-137). So `slice` counts **positions** for a cut, not rendered columns: every cluster is at least one, and a lone indicator is two (`positions()` in `slice.ts`). `width` is unchanged. The two differ only on clusters that draw nothing, and the difference can only shorten a `truncate`, never widen it. `slice.test.ts` states both cases, and the `truncate` bound, against the real slice-ansi. The suite imports `random-item` and, through `tokenize-ansi.js`, `ansi-styles` and `is-fullwidth-code-point` — all three in `suiteDeps`, the committed `node_modules/random-item` having been deleted by this re-vendor exactly as wrap-ansi's `has-ansi` was. `slice links`, the case 7 marked `test.failing()` and `linegauge` passed, is an ordinary passing case in 9: the incumbent learned to round-trip `OSC 8`.",
+    note: "**Moved to 10.0.0 on 2026-11-01 (burgee#1392): 106 / 106 against a control of 106 / 106, level (D-20261101-upstream-issues-2026-11-01).** 10 moved the suite to `node --test`, dropped `treats CRLF as a single grapheme cluster`, and added `counts CRLF as zero width`, `counts columns the same way as string-width` and `a halfwidth voiced sound mark widens its cluster`: a cluster's columns are now string-width's. `linegauge/slice` read 104 / 106 at the re-vendor, because it still counted slice-ansi 9's positions — every cluster at least one, a lone regional indicator two. `positions()` is gone and `slice` cuts by `clusterColumns`, the numbers `width` already gave, so the two agree; `slice.test.ts` states CRLF, the lone indicator and an `ESC` that introduces nothing against the real slice-ansi 10, red on the unported source. The 9.0.1 history follows. **Moved to 9.0.1 on 2026-09-27 (burgee#317): 104 / 104 against a control of 104 / 104, level.** The suite grew from 15 cases to 104, and `linegauge/slice` first graded **53 / 104** against it. `slice.ts` was rewritten over slice-ansi 9's own token grammar and walk — `tokenize-ansi.js` is in the vendored suite, and its rules are what the suite grades — keeping `linegauge`'s style stack and `measure` for the columns. What moved the 49: (1) **escapes it did not read** — `OSC 8` ended by `ESC \\` or `U+009C`, the C1 `OSC` introducer, `DCS`/`SOS`/`PM`/`APC` strings, a lone `ST`, a truncated or malformed `CSI` (which now ends at the first byte no `CSI` can hold, so `ESC[31ĀA` keeps its `ĀA`), and a private `ESC[?25m` that is not an SGR; (2) **a cluster interrupted by an escape** — `ESC[31me ESC[39m U+0301` is one `é`, so the visible text is segmented with the escapes set aside; (3) **hyperlinks** — no nesting (a second open replaces the first, closed with its own introducer and terminator), an empty link removed rather than emitted, the open code kept with its parameters; (4) **SGR at the edges** — a close just after `end` kept as written rather than synthesised, an opener with no text after it dropped, a C1 `CSI` opener reopened as C1; and (5) **rounding inward at a wide character**, where `linegauge` used to round outward. That last one was a documented divergence and it was wrong: `truncate` is a slice plus an ellipsis and returned `あい…`, five columns, for a budget of four. **The last two were a position rule, and they moved too.** `treats CRLF as a single grapheme cluster` wants `\\r\\n` to take one position, and `counts emoji-style graphemes as fullwidth` wants a lone regional indicator `🇦` to take two. `string-width`, graded 229 / 229 in the row above, measures those as 0 and 1, and so do `measure` and `width`. At 102 / 104 the row was not level, which took slice-ansi out of `burgee migrate`'s `MAPPING` (only level drop-ins are rewritten, D-137). So `slice` counts **positions** for a cut, not rendered columns: every cluster is at least one, and a lone indicator is two (`positions()` in `slice.ts`). `width` is unchanged. The two differ only on clusters that draw nothing, and the difference can only shorten a `truncate`, never widen it. `slice.test.ts` states both cases, and the `truncate` bound, against the real slice-ansi. The suite imports `random-item` and, through `tokenize-ansi.js`, `ansi-styles` and `is-fullwidth-code-point` — all three in `suiteDeps`, the committed `node_modules/random-item` having been deleted by this re-vendor exactly as wrap-ansi's `has-ansi` was. `slice links`, the case 7 marked `test.failing()` and `linegauge` passed, is an ordinary passing case in 9: the incumbent learned to round-trip `OSC 8`.",
   },
   {
     // `linegauge/cli-truncate`'s grader (`graded-override-targets` R5). linegauge's README said
@@ -1276,12 +1280,12 @@ export const HOSTS: Host[] = [
     testDir: '.',
     testGlob: 'test.js',
     imports: [{ upstream: './index.js', subpath: '/cli-truncate', reexportDefault: true, control: 'cli-truncate' }],
-    suiteDeps: ['cli-truncate@6.1.1', 'string-width@8.3.0'],
+    suiteDeps: ['cli-truncate@6.2.0', 'string-width@8.3.0'],
     surfaceFiles: ['index.d.ts', 'index.js'],
-    runner: 'ava',
+    runner: 'node:test',
     target: 'linegauge',
     status: 'active',
-    note: "**Graded 2026-10-11 at 6.1.1: `linegauge/cli-truncate` 12 / 12 against a control of 12 / 12.** Before the façade the target run reported `target not built yet: linegauge/cli-truncate`. The façade is cli-truncate's arithmetic over linegauge's `slice` and `width`, and `cli-truncate.test.ts` holds it byte-equal to the installed incumbent over 1,980 inputs. `linegauge/truncate` stays the family's API, with a different rule at the edges.",
+    note: "**Re-vendored 2026-11-01 at 6.2.0 (burgee#1393): `linegauge/cli-truncate` 17 / 17 against a control of 17 / 17 (D-20261101-upstream-issues-2026-11-01).** 6.2.0 moved the suite from ava to `node --test`, renamed three cases and added five, all on `preferTruncationOnSpace`: the space is found by terminal column over the visible text, not by UTF-16 index over the raw string, so a style, a wide character or a zero-width one before the break no longer moves the search, and the text after the mark drops its leading spaces instead of being `trim()`med — which took its trailing spaces and its closing style with it. The façade read 12 / 17 at the re-vendor; it now builds the same column map over `strip` and the shared segmenter, and `cli-truncate.test.ts` holds it byte-equal to the installed 6.2.0 over 2,970 inputs, five new texts among them, which fail on the unported source. **Graded 2026-10-11 at 6.1.1: `linegauge/cli-truncate` 12 / 12 against a control of 12 / 12.** Before the façade the target run reported `target not built yet: linegauge/cli-truncate`. The façade is cli-truncate's arithmetic over linegauge's `slice` and `width`, and `cli-truncate.test.ts` holds it byte-equal to the installed incumbent over 1,980 inputs. `linegauge/truncate` stays the family's API, with a different rule at the edges.",
   },
   {
     // `linegauge/widest-line`'s grader (`graded-override-targets` R6): one case, three
