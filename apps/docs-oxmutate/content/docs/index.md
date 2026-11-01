@@ -18,7 +18,7 @@ oxc, not affiliated with the oxc project.
 
 | | Stryker 10 | oxmutate 1.0 |
 | :-- | :-- | :-- |
-| Mutant set | 17 mutator families | the same 17, the same mutants (720 of 720 on es-toolkit) |
+| Mutant set | 17 mutator families | the same 17, the same mutants (720 of 720 on es-toolkit), plus `NumericLiteral` (0 → 1, 1 → 0, n → n + 1): +6.6% mutants on burgee/paratext, 19 of them survivors Stryker cannot report. `--stryker-compat` gives Stryker's set exactly |
 | Verdicts | — | the same as Stryker's on 99.9% of mutants ([measured](#compatibility)) |
 | Instrumentation | Babel, file by file | Rust on oxc, every file in parallel: 720 mutants in 35 ms |
 | Test runs | a Vitest run per mutant | each covering test re-run per mutant inside a warm Vitest worker |
@@ -160,10 +160,10 @@ setting a value inside the worker that already has the tests loaded.
 | :-- | :-- |
 | The dry run must pass | A suite that fails with no mutant armed scores nothing (exit 3) |
 | Re-parse | Every instrumented file is parsed again before it runs; one that does not parse stops the run (exit 3) instead of scoring a broken file |
-| Canary | The unmutated test must still pass after mutants run in a context; if a mutant left a cache, a registry or a fixture behind, the context restarts and the suspect verdicts run again |
+| Canary | The unmutated test must still pass after mutants run in a context, with its `beforeEach`/`afterEach` hooks re-run around every run, file-level ones included; if a mutant left a cache, a registry or a fixture behind, the context restarts and the suspect verdicts run again. A kill that follows unchecked runs is checked at once and decided again from clean state, so no kill rests on another mutant's leftovers |
 | Survivor confirmation | A survivor is re-run with the mutant armed across its covering tests in one file, as Stryker arms it, so a mutant that only fails across tests is killed |
 | Watchdog | A synchronous runaway is stopped and its server replaced; the stop is re-run at 3x the budget before it is reported as a timeout |
-| Static mutants | Code that runs at import is re-run with the mutant armed from process start, against the files that load it |
+| Static mutants | Code that runs at import is decided in a live worker: the mutant is armed, the module registry reset and the test file collected again, against the files that load it. A file whose collection changes globals, `process.env` or a built-in prototype, or a mutant that leaves a trace, goes back to a fresh worker per mutant (`OXMUTATE_ISOLATE_STATIC=1` sends all of them there) |
 | Flaky tests | Tests that behave differently across two dry runs have their mutants re-run; a verdict that changes is reported `flaky` |
 | No orphans | Every Vitest server exits when its run does, killed or not |
 
@@ -222,11 +222,19 @@ Of the two disagreements left, one is a Stryker timeout on a loop that ends (its
 it; the covering tests pass). The other is a mutant Stryker scored as a runtime error, so it has
 no Stryker verdict to compare.
 
-**Speed is not yet a published number.** On a shared laptop, paratext took 180.0 s under oxmutate
-and 427.4 s under Stryker, at 0.375 and 0.620 CPU-seconds a mutant; on controlroom oxmutate used
-less CPU (0.092 against 0.171 CPU-seconds a mutant) and was slower by the wall clock (107.2 s
-against 94.3 s). The laptop's load moved a run by more than the difference, so the wall-clock
-figures to publish will come from the `oxmutate-bench.yml` lane on a runner nothing else shares.
+**Speed, measured on a laptop, not yet a published number** (the published ones live at
+[burgee.interlace.tools/docs/benchmarks](https://burgee.interlace.tools/docs/benchmarks)). Medians of 3
+head-to-head runs (`bench/burgee-pair.mts`, concurrency 4, one tool after the other, load 6–19, 2026-10-30):
+
+| Subject | Stryker 10 | oxmutate | Wall | CPU | Tests a mutant |
+| :-- | --: | --: | --: | --: | --: |
+| burgee/paratext | 108.3 s | 19.0 s | 5.70x | 5.92x | 31.7 → 16.8 |
+| burgee/controlroom | 63.4 s | 45.6 s | 1.39x | 2.55x | 7.3 → 9.2 |
+| oxmutate itself (Stryker's mutant set) | 508 s | 334 s | 1.52x | — | — |
+
+The ceiling depends on the suite as much as the tool: controlroom's own `vitest run` takes ~8 s and
+every fresh worker imports React and Ink, so even zero overhead would make it ~6x. The figures to
+publish will come from the `oxmutate-bench.yml` lane on a runner nothing else shares.
 
 ## Benchmarks
 

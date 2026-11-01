@@ -463,8 +463,12 @@ describe('R20 — an input line inside a screen', () => {
     const heard: string[] = [];
     const screen = open(f.rt, chat(heard));
     press(f, ESC);
-    // A lone ESC is only a key once readline's escape timeout says no sequence follows it.
-    await new Promise((resolve) => setTimeout(resolve, 600));
+    // A lone ESC is only a key once the escape timeout says no sequence follows it: caique's 50 ms,
+    // not readline's 500. Waiting for the answer, not a fixed 600 ms, keeps the test at ~50 ms; a
+    // mutation run executes it hundreds of times (97 runs, 58 s of burgee/controlroom's, 2026-10-30).
+    await vi.waitFor(() => expect(heard).toEqual(['interrupt']), { timeout: 1000, interval: 5 });
+    // One more escape timeout, so a second key the lone ESC should not have produced still shows.
+    await new Promise((resolve) => setTimeout(resolve, 60));
     expect(heard).toEqual(['interrupt']);
     screen.close();
   });

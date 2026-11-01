@@ -20,7 +20,7 @@ const strykerNames = [
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&');
 const mode = process.env.OXMUTATE_MODE;
 const state = globalThis.__vitest_worker__;
-if (state?.config && (mode === 'mutant' || mode === 'isolated')) {
+if (state?.config && (mode === 'mutant' || mode === 'isolated' || mode === 'static')) {
   state.config.testNamePattern = new RegExp(`^(?:${strykerNames.map(escape).join('|')})$`);
 }
 

@@ -1,6 +1,6 @@
 {
   "name": "oxmutate-win32-x64-msvc",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "private": true,
   "description": "oxmutate native core (oxc) for win32-x64. Installed automatically as an optional dependency of oxmutate.",
   "license": "MIT",

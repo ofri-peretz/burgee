@@ -386,6 +386,20 @@ impl<'a> Collector<'a> {
         matches!(e, Expression::StringLiteral(_) | Expression::TemplateLiteral(_))
     }
 
+    /// A number that is a runtime value: not an object or destructuring key, not a type.
+    fn valid_numeric_parent(&self, span: Span) -> bool {
+        use AstKind as K;
+        match self.parent() {
+            None => false,
+            Some(K::TSLiteralType(_) | K::ImportAttribute(_) | K::TSEnumMember(_)) => false,
+            Some(K::ObjectProperty(o)) => o.key.span() != span,
+            Some(K::BindingProperty(o)) => o.key.span() != span,
+            Some(K::PropertyDefinition(p)) => p.key.span() != span,
+            Some(K::MethodDefinition(m)) => m.key.span() != span,
+            Some(_) => true,
+        }
+    }
+
     fn valid_string_parent(&self, span: Span) -> bool {
         use AstKind as K;
         match self.parent() {
@@ -540,6 +554,12 @@ impl<'a> Collector<'a> {
                 out.push(("UpdateOperator", replacement));
             }
             K::BooleanLiteral(b) => out.push(("BooleanLiteral", (!b.value).to_string())),
+            // Beyond Stryker's 17 families: numbers, PIT's "inline constant". 0 -> 1, 1 -> 0, anything
+            // else n -> n + 1, the off-by-one a test of a limit or an index should notice. Off under
+            // --stryker-compat, which keeps Stryker's mutant set exactly.
+            K::NumericLiteral(n) if !self.options.stryker_compat && self.valid_numeric_parent(span) => {
+                out.push(("NumericLiteral", numeric_mutant(n.value)));
+            }
             K::StringLiteral(s) => {
                 if self.valid_string_parent(span) {
                     out.push(("StringLiteral", if s.value.is_empty() { "\"Stryker was here!\"".into() } else { "\"\"".into() }));
@@ -907,6 +927,22 @@ impl Emitter<'_> {
 }
 
 /// Instrument one file. `path` is the id namespace (use the repository-relative path).
+/// The replacement a number literal gets: 0 -> 1, 1 -> 0, otherwise one more, written as JavaScript.
+fn numeric_mutant(value: f64) -> String {
+    let next = if value == 0.0 {
+        1.0
+    } else if value == 1.0 {
+        0.0
+    } else {
+        value + 1.0
+    };
+    if next.fract() == 0.0 && next.abs() < 9.0e15 {
+        format!("{}", next as i64)
+    } else {
+        format!("{next}")
+    }
+}
+
 pub fn instrument(path: &str, source: &str, options: &Options) -> Result<Instrumented, String> {
     let allocator = Allocator::default();
     let source_type = SourceType::from_path(path).unwrap_or_default();

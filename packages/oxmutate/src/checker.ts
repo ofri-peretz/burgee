@@ -49,6 +49,7 @@ const DIAGNOSTIC = /(.+?)\((\d+),(\d+)\): error (TS\d+: .*)/;
 export function applyMutant(source: string, m: Pick<CheckMutant, 'start' | 'end' | 'replacement'>): string {
   const starts = [0];
   for (let i = source.indexOf('\n'); i !== -1; i = source.indexOf('\n', i + 1)) starts.push(i + 1);
+  // Stryker disable next-line NumericLiteral: `starts` holds every line the checker reports, so the fallback never runs
   const at = (p: { line: number; column: number }): number => (starts[p.line - 1] ?? 0) + p.column - 1;
   return source.slice(0, at(m.start)) + m.replacement + source.slice(at(m.end));
 }

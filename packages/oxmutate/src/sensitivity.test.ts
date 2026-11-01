@@ -29,6 +29,7 @@ interface Mutant {
   mutatorName: string;
   status: string;
   coveredBy?: string[];
+  static?: boolean;
   location: { start: { line: number; column: number } };
 }
 
@@ -56,8 +57,9 @@ describe.skipIf(!ready)('sensitivity (SC5)', () => {
     const r = run(weak);
     const survivors = r.mutants.filter((m) => m.status === 'Survived');
     expect(survivors.length).toBeGreaterThan(0);
-    // Weak, not missing: each survivor ran under a test, which passed anyway.
-    expect(survivors.filter((m) => !m.coveredBy?.length).map(at)).toEqual([]);
+    // Weak, not missing: each survivor ran under a test, which passed anyway. A static survivor (the
+    // NumericLiteral 90 -> 91 on A_FROM, the untested boundary) is covered by the file that loads it.
+    expect(survivors.filter((m) => !m.static && !m.coveredBy?.length).map(at)).toEqual([]);
     expect(r.mutants.filter((m) => m.status === 'NoCoverage').map(at)).toEqual([]);
   });
 
