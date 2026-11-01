@@ -18,7 +18,7 @@
  * workspace's `node_modules`.
  */
 import { type ExecFileSyncOptions, spawn } from 'node:child_process';
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -143,6 +143,22 @@ const dies = (fields: { stdout?: string; stderr?: string; status?: number | null
 const tapScript = (lines: string[]): string => `process.stdout.write(${JSON.stringify(`TAP version 14\n${lines.join('\n')}\n`)});`;
 /** A host whose control is the workspace's commander, so the incumbent's own files are on disk. */
 const incumbent = (over: Partial<Host> = {}): Host => host({ npmName: 'commander', ...over });
+/**
+ * A host whose control is a copy of the workspace's commander installed beside the suite, which a
+ * host with `suiteDeps` resolves in place of the workspace's, and that copy's root. For a test whose
+ * run links a vendored path to the incumbent's own file: a run that then writes through the link
+ * (the unlink skipped, or the link reported as not made) writes into this copy, under `vendorDir`.
+ * Linked to the workspace's install, such a run rewrote `node_modules/commander` itself, and every
+ * later test that loaded commander in that checkout failed: a mutant of `linksInternal` did exactly
+ * that, and oxmutate restarted context after context that no restart could clean (2026-11-01).
+ * The vendored root declares no dependencies, so nothing is installed: the copy is the pin.
+ */
+function ownIncumbent(hostDir: string): string {
+  const own = join(hostDir, 'node_modules', 'commander');
+  cpSync(COMMANDER, own, { recursive: true });
+  return own;
+}
+const linked = (over: Partial<Host> = {}): Host => incumbent({ suiteDeps: [`commander@${(JSON.parse(read(COMMANDER, 'package.json')) as { version: string }).version}`], ...over });
 /** `npm install` succeeds silently; anything else is a runner printing one passing case. */
 const npmThenSummary = ({ file }: { file: string }): string => (file === 'npm' ? '' : SUMMARY(1, 1));
 const only = (): Call => {
@@ -750,32 +766,36 @@ describe('the internal shims a run writes', () => {
   });
 
   it('links, rather than shims, the incumbent’s own file on the control of a cache-busting CJS host', () => {
-    const h = incumbent({ shim: 'cjs' });
+    const h = linked({ shim: 'cjs' });
     const hostDir = vendored(h, { 'a.test.js': '' }, { pkg: {}, source: { internals: ['lib/command.js'] } });
+    const own = join(ownIncumbent(hostDir), 'lib', 'command.js');
     seam.exec = tap;
     grade(h, vendorDir, 'commander');
     const at = join(hostDir, 'lib', 'command.js');
     expect(lstatSync(at).isSymbolicLink()).toBe(true);
-    expect(realpathSync(at)).toBe(realpathSync(shipped));
+    expect(realpathSync(at)).toBe(realpathSync(own));
     // Unlinked first on the next run, never written through into the incumbent.
     grade(h, vendorDir, 'commander');
     expect(lstatSync(at).isSymbolicLink()).toBe(true);
-    expect(read(shipped)).not.toContain('generated per run');
+    expect(read(own)).toBe(read(shipped));
   });
 
   it('links the compiled file on the control of a host that publishes its internals elsewhere, and shims the target', () => {
     // ink's shape, on commander's files: the suite names `src/…`, the tarball ships `lib/…`.
-    const h = incumbent({ internalDir: 'src', publishedInternalDir: 'lib' });
+    const h = linked({ internalDir: 'src', publishedInternalDir: 'lib' });
     const hostDir = vendored(h, { 'a.test.js': '' }, { source: { internals: ['src/command.js'] } });
+    const own = join(ownIncumbent(hostDir), 'lib', 'command.js');
     seam.exec = tap;
     grade(h, vendorDir, 'commander');
     const at = join(hostDir, 'src', 'command.js');
     // A link, not `export *`, which would drop the `default` ink's `parseKeypress` is.
     expect(lstatSync(at).isSymbolicLink()).toBe(true);
-    expect(realpathSync(at)).toBe(realpathSync(shipped));
+    expect(realpathSync(at)).toBe(realpathSync(own));
     grade(h, vendorDir, 'vitest');
     expect(lstatSync(at).isSymbolicLink()).toBe(false);
     expect(read(at)).toBe("// generated per run — COMPAT_TARGET=vitest\nexport * from 'vitest';\n");
+    // Unlinked before the target's shim was written, never written through into the incumbent.
+    expect(read(own)).toBe(read(shipped));
   });
 
   it('falls back to an ordinary shim where the platform refuses the link', () => {
@@ -804,16 +824,17 @@ describe('the files a suite reaches by path (`entries`, dotenv 18)', () => {
   const entry = { at: 'dist/index.cjs', control: 'index.js', target: '/sub', names: ['config', 'parse'], runs: '/sub/cli' };
 
   it('links each one to the incumbent’s own file on the control, so the incumbent is `require.main`', () => {
-    const h = incumbent({ entries: [entry] });
+    const h = linked({ entries: [entry] });
     const hostDir = vendored(h, { 'a.test.js': '' }, { pkg: {} });
+    const own = join(ownIncumbent(hostDir), 'index.js');
     seam.exec = tap;
     grade(h, vendorDir, 'commander');
     const at = join(hostDir, 'dist', 'index.cjs');
     expect(lstatSync(at).isSymbolicLink()).toBe(true);
-    expect(realpathSync(at)).toBe(realpathSync(shipped));
+    expect(realpathSync(at)).toBe(realpathSync(own));
     // Unlinked first on the next run, never written through into the incumbent.
     grade(h, vendorDir, 'commander');
-    expect(read(shipped)).not.toContain('generated per run');
+    expect(read(own)).toBe(read(shipped));
   });
 
   it('requires the incumbent’s file instead where the platform refuses the link', () => {
@@ -826,13 +847,15 @@ describe('the files a suite reaches by path (`entries`, dotenv 18)', () => {
   });
 
   it('writes upstream’s index.js pointed at the target on a target run: the module, its names, its CLI', () => {
-    const h = incumbent({ entries: [entry, { at: 'dist/config.cjs', control: 'index.js', target: '/sub/config' }] });
+    const h = linked({ entries: [entry, { at: 'dist/config.cjs', control: 'index.js', target: '/sub/config' }] });
     const hostDir = vendored(h, { 'a.test.js': '' }, { pkg: {} });
+    const own = join(ownIncumbent(hostDir), 'index.js');
     seam.exec = tap;
     grade(h, vendorDir, 'commander');
     // The target here is commander too, under another name: a target run is any run whose
     // target is not the control's, and only the body is under test.
     grade({ ...h, npmName: 'not-this' }, vendorDir, 'commander');
+    expect(read(own)).toBe(read(shipped));
     expect(lstatSync(join(hostDir, 'dist', 'index.cjs')).isSymbolicLink()).toBe(false);
     expect(read(hostDir, 'dist', 'index.cjs')).toBe(entryBody('commander', entry));
     expect(read(hostDir, 'dist', 'config.cjs')).toBe(
