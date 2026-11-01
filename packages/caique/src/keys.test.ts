@@ -11,9 +11,19 @@ import { PassThrough } from 'node:stream';
 
 import { describe, expect, it } from 'vitest';
 
-import { growth, LINEAR, said } from './__fixtures__/growth.js';
 import { bindings, canonical, canReadKeys, decode, type KeyInput, type KeyPress, KeysError, match, readKeys, specOf } from './keys.js';
 import { keyOf } from './raw.js';
+
+/** Each case: one adversarial input, timed once, against a budget the fix meets 50x over and the
+ * backtracking it replaced misses by 10x or more. A case's own `timeout` holds it to 5 s. */
+const BUDGET_MS = 1_000;
+const CASE_MS = 5_000;
+
+function elapsed(fn: () => unknown): number {
+  const t = performance.now();
+  fn();
+  return performance.now() - t;
+}
 
 const ESC = '\u001B';
 
@@ -114,20 +124,15 @@ describe('canonical: one spelling per key', () => {
     expect(canonical(spec)).toBe(expected);
   });
 
-  it('reads a long run of modifiers in linear time, so a keymap from a file cannot stall it', () => {
-    // The regular expression this replaced backtracked polynomially here (CodeQL, #799). Timed at
-    // two sizes, so the lock holds the growth and not the milliseconds (`__fixtures__/growth.ts`).
-    expect(() => canonical('alt+'.repeat(50_000))).toThrow(KeysError);
-    expect(canonical(`${'alt+'.repeat(50_000)}x`)).toBe('meta+x');
-    const g = growth(
-      (n) => 'alt+'.repeat(n),
-      (run) => {
-        expect(() => canonical(run)).toThrow(KeysError);
-        canonical(`${run}x`);
-      },
-      { from: 2_000, max: 50_000 },
-    );
-    expect(g.ratio, said(g)).toBeLessThan(LINEAR);
+  it('reads a long run of modifiers in linear time, so a keymap from a file cannot stall it', { timeout: CASE_MS }, () => {
+    // The regular expression this replaced backtracked polynomially here (CodeQL, #799). The pair
+    // takes about 8 ms here; a split that re-reads the whole spec per modifier did not finish in 12 s.
+    const run = 'alt+'.repeat(100_000);
+    const ms = elapsed(() => {
+      expect(() => canonical(run)).toThrow(KeysError);
+      expect(canonical(`${run}x`)).toBe('meta+x');
+    });
+    expect(ms).toBeLessThan(BUDGET_MS);
   });
 
   it.each(['', 'shift+', 'hyper+x', 'ctrl+ab', 'leftt'])('refuses %j, with a fix', (spec) => {

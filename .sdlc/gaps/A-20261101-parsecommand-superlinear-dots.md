@@ -1,7 +1,7 @@
 ---
 id: A-20261101-parsecommand-superlinear-dots
 section: A
-status: open
+status: closed
 source: 'packages/burgee/src/yargs/utils.test.ts › "strips brackets after a run of dots in linear time", red on CI from #1373 on (runs 41297420986 and 41299017646)'
 done_when: 'the case is restored without .skip, holds on CI runners, and finishes in well under 5 s; a quadratic parseCommand still fails it'
 ---
@@ -26,3 +26,26 @@ growth cases stay on.
 inputs. Compare the time against a linear reference over the same input, so runner speed cancels
 out. Make parseCommand allocation-light if the GC is the cause. The restored case must still fail
 on a quadratic parseCommand.
+
+**Closed 2026-11-01 by #1407.** The case is restored without `.skip`, as two cases: one after
+`cmd` and one after `cmd x`. Two changes did it.
+
+- **The measurement.** Each case times one parse of one adversarial input against a 1,000 ms
+  budget, and carries a `timeout` of 5,000 ms. Ratios of two wall-clock times, divided or not
+  by a linear reference, flaked on shared runners: #1407's run read 3.85 normalised on a linear
+  `cutTrailingTabs`, against a ceiling of 3.
+- **The code.** parse-command's bracket map is a `Uint8Array`. Before, it was a plain array
+  filled from its last index down, which V8 holds as a sparse dictionary. `stripBrackets` now
+  splits at the brackets instead of building a rope one character at a time. A cpu profile on
+  `main` put those two lines and the collector at 69% of the time.
+  - Each doubling of `cmd x` plus dots now costs 1.99–2.04x up to 5.12M characters. Before, it
+    cost 2.1–2.5x past 1M (exponent 1.2–1.4).
+  - `cmd x` plus 5.12M dots went from 461 ms to 134 ms.
+
+| | before | after |
+| :-- | :-- | :-- |
+| CI | 24.05x and 25.42x at 8x the input, against 24: failed | see #1407's `Unit Tests (Turbo)` |
+| `cmd` + 1,600,000 dots, local (node v24.12.0, macOS) | — | 6.8 ms best of 5; 18 ms in a vitest run |
+| `cmd x` + 400,000 dots, local | — | 7.4 ms best of 5; 11 ms in a vitest run |
+| the same two inputs, mutation dry run (oxmutate) | — | 18–34 ms and 11–16 ms |
+| upstream's `parseCommand` on the same two inputs | — | did not finish in 12 s, so it fails the budget |

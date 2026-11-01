@@ -519,7 +519,10 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // read that fails serves English instead of failing the run. Main at `8650d04352` measured
   // 109,335 locally and this reads 110,156 (+821); plus the ~32 B, rounded up to the next 50.
   // Still 1,530 B under yargs' own 111,686.
-  'burgee/yargs': 110_200,
+  // 110,300 on 2026-11-01 (D-20261101-yargs-parse-command-linear-bytes): parse-command reads a
+  // long run of dots in linear time. Main at `4204fb307f` measured 110,156 locally and this reads
+  // 110,225 (+69); plus the ~32 B, rounded up to the next 50. Still 1,461 B under yargs' 111,686.
+  'burgee/yargs': 110_300,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
   // bundle grows by, set where the number actually is, so the next byte is a decision.
