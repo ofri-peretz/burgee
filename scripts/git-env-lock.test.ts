@@ -30,7 +30,7 @@ describe('root tests run without the caller git environment', () => {
   // globalSetup; a git call there still saw pre-push's GIT_DIR. Importing the setup from the config
   // clears it in the main process, so every worker and child it spawns starts clean.
   it('the root config clears the git environment in the main process too', () => {
-    expect(read('vitest.root.config.ts')).toMatch(/^import '\.\/vitest-git-env-setup\.ts';$/mu);
+    expect(read('vitest.root.config.ts')).toMatch(/^dropGitEnv\(\);$/mu);
   });
 
   // The changed-lines lane runs package suites through oxmutate, not turbo, so turbo's strict env
