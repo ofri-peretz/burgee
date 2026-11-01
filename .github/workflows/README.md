@@ -11,7 +11,13 @@ Node from `.nvmrc`, npm cache).
 | [`quality.yml`](./quality.yml) | `Quality Gate` | every PR push, push to main — lint, markdown, workflow conventions, lockfile |
 | [`quality-full.yml`](./quality-full.yml) | `Quality (Full) Gate` | non-draft PRs, `run-full-ci` label, push to main, weekly — test, build, typecheck, and each changed package's coverage thresholds; on a PR, `test` runs the repository's locks in full and only the affected workspaces' suites (`scripts/affected.mts`) |
 | [`claude-code-review.yml`](./claude-code-review.yml) | `review` | non-draft PRs; green no-op until `CLAUDE_CODE_OAUTH_TOKEN` exists, and on a queue entry or a dispatched run |
-| [`compat.yml`](./compat.yml) | `Ratchet · each host's suite against burgee` | every PR, the merge queue, nightly — each host's own suite against burgee, below baseline fails |
+| [`compat.yml`](./compat.yml) | `Ratchet · each host's suite against burgee`, `Node 24 · ubuntu-latest`, `Node 24 · macos-latest`, `Node 24 · windows-latest` | every PR, the merge queue, nightly — each host's own suite against burgee, below baseline fails; our suite on each OS |
+| [`codeql.yml`](./codeql.yml) | `CodeQL` (reported by code scanning from the analyze job's upload) | non-draft PRs, push to main, weekly |
+| [`changesets-pr.yml`](./changesets-pr.yml) | `Changeset present` | every PR |
+| [`completions.yml`](./completions.yml) | `bash, zsh, fish, pwsh complete the demo` | every PR, push to main |
+
+`scripts/heavy-ci-nightly-lock.test.ts` holds that each of these names is produced by a job that
+runs on a pull request: a required check that never reports blocks every merge.
 
 ## Heavy work runs over night
 
@@ -23,7 +29,7 @@ runs on a staggered nightly cron. A failed night opens an issue, or comments on 
 | UTC | Workflow | What | On a pull request instead |
 | :-- | :-- | :-- | :-- |
 | 03:00 daily | [`bench.yml`](./bench.yml) | B2 cold start, B3 compat suite, B4 weight, B5 runtime, reliability, the N10 floor; lands the night's observation on `chore/bench-series` | `gate`: B4 weight, reliability and the floor ratchet, `--check`ed |
-| 03:30 daily | [`compat.yml`](./compat.yml) | the ratchet, the macOS and Windows Node 24 cells, the off-Linux controls, the six Node-floor published-suites cells | the ratchet and the Linux Node 24 cell; `run-full-ci` asks for everything |
+| 03:30 daily | [`compat.yml`](./compat.yml) | the ratchet, the three Node 24 cells, the off-Linux controls, the six Node-floor published-suites cells | the ratchet and the three Node 24 cells (required); `run-full-ci` adds the rest |
 | 05:40 Tue | [`bench.yml`](./bench.yml) | B1 agent cost (paid) | only with the `bench:agent` label |
 | 06:20 Sat | [`evals.yml`](./evals.yml) | layer 2 task evals (paid) | never; layer 1 runs in `Quality Gate` |
 | 02:30 Sat | [`mutation.yml`](./mutation.yml) | every package's full mutation score | the changed lines, in `Quality (Full) Gate` |
@@ -40,7 +46,7 @@ open Version PR, and it merges as soon as its required checks are green. Each wo
 a required check also takes `workflow_dispatch:` — `npm run lint:workflows` fails if one does not, or
 if `changesets-pr.yml`'s `checks` matrix has no row for it.
 
-On a pull request, `compat.yml`'s Linux `matrix` cell (and its `floor` cells under `run-full-ci`)
+On a pull request, `compat.yml`'s `matrix` cells (and its `floor` cells under `run-full-ci`)
 and `quality-full.yml`'s `test` and `coverage` run only the affected packages: each one the PR changed and each that depends on one,
 computed once by `scripts/affected.mts` (D-20261012-ci-affected-pr-lanes). Root changes (any
 root-level file, `.github/`, `scripts/`, a package manifest) select everything, as do a push to

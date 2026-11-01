@@ -10,17 +10,19 @@
 #   floor   — C3 for the two `engines` floors, the published suites only.
 #
 # Heavy work does not run during CI/CD (D-20261101-heavy-ci-runs-nightly). A pull request and a
-# merge-queue entry get the ratchet (a required check) and one `matrix` cell, Linux on Node 24 —
-# the gate. The macOS and Windows cells, the off-Linux controls and the `floor` cells (the
-# published suites on Node 20.19 and 22.13) run nightly at 03:30 UTC, on a dispatch, and on a PR
-# labelled `run-full-ci`. Measured over the last runs before the change: a PR started 13 jobs,
-# about 92 job-minutes; a push to `main` 13 jobs, about 103. A push to `main` no longer runs this
-# file at all — release.yml waits on `Quality Gate` and `Quality (Full) Gate`, never on it — and a
-# failed night opens an issue.
+# merge-queue entry get the ratchet and the three Node 24 `matrix` cells — all four are REQUIRED
+# checks on `main` (2026-11-01), so they must report on every PR. The off-Linux controls
+# (informational) and the `floor` cells (the published suites on Node 20.19 and 22.13) run
+# nightly at 03:30 UTC, on a dispatch, and on a PR labelled `run-full-ci`. Measured over the last
+# runs before the change: a PR started 13 jobs, about 92 job-minutes; a push to `main` 13 jobs,
+# about 103. A push to `main` no longer runs this file at all — release.yml waits on `Quality
+# Gate` and `Quality (Full) Gate`, never on it — and a failed night opens an issue.
+# `scripts/heavy-ci-nightly-lock.test.ts` holds both halves: the required names report on a PR,
+# and the heavy cells do not start there.
 #
-# On a pull request the Linux cell runs only the affected packages: each one the PR changed
+# On a pull request the `matrix` cells run only the affected packages: each one the PR changed
 # and each one that depends on one, from `scripts/affected.mts` (D-20261012-ci-affected-pr-lanes).
-# A PR that changes no package still starts the cell, and it says so in one step and passes.
+# A PR that changes no package still starts every cell, and each says so in one step and passes.
 # The schedule, the merge queue, a dispatch and the `run-full-ci` label run everything, as do
 # root changes (workflows, the lockfile, root configs, `scripts/`). The ratchet is never
 # filtered: it grades every host, and the scoreboard is the product.
@@ -194,9 +196,9 @@ jobs:
           echo "full=$(jq -c .full <<<"$set_json")" >> "$GITHUB_OUTPUT"
           echo "packages=$(jq -c .packages <<<"$set_json")" >> "$GITHUB_OUTPUT"
 
-  # On a pull request and in the merge queue, the Linux cell only: it is the gate. The macOS and
-  # Windows cells (about 6 and 10 minutes on a PR, 11 and 14 on a push, plus their controls below)
-  # run nightly, on a dispatch, and on a PR labelled `run-full-ci`.
+  # Every OS on every pull request: `Node 24 · ubuntu-latest`, `· macos-latest` and
+  # `· windows-latest` are required checks, and a required check that never reports blocks every
+  # merge. Their informational controls (below) are what moved to the night.
   matrix:
     name: Node ${{ matrix.node }} · ${{ matrix.os }}
     needs: affected
@@ -213,7 +215,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON((inputs.os && inputs.os != 'all') && format('["{0}"]', inputs.os) || ((github.event_name == 'pull_request' || github.event_name == 'merge_group') && !contains(github.event.pull_request.labels.*.name, 'run-full-ci')) && '["ubuntu-latest"]' || '["ubuntu-latest","macos-latest","windows-latest"]') }}
+        os: ${{ fromJSON((inputs.os && inputs.os != 'all') && format('["{0}"]', inputs.os) || '["ubuntu-latest","macos-latest","windows-latest"]') }}
         # The active LTS only (D-20261020-node-26-waits-for-lts). 26 is Current until its LTS
         # promotion; it rejoins as `[24, 26]` the day it becomes Active LTS, not before.
         node: [24]
@@ -427,8 +429,8 @@ jobs:
           { echo '## Cases above half their timeout'; echo; echo '```'; npx --no tsx scripts/slow-cases.mts vitest-durations; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
 
   # A failed night says so (D-20261101-heavy-ci-runs-nightly). The ratchet reports its own red main
-  # above; this is the matrix and the floor cells, which no longer run on a pull request, so a night
-  # is the first place a macOS, Windows or Node-floor regression shows. One issue, by title; each
+  # above; this is the matrix and the floor cells. The floor cells no longer run on a pull request,
+  # so a night is the first place a Node 20.19 or 22.13 regression shows. One issue, by title; each
   # further failed night comments on it. The controls are informational and stay out of it.
   report:
     name: Report a failed night
@@ -450,6 +452,6 @@ jobs:
         run: |
           set -euo pipefail
           TITLE="Nightly compatibility matrix failed"
-          BODY=$(printf 'The nightly OS × Node run on `%s` failed: Node 24 cells `%s`, Node-floor published suites `%s`. These cells no longer run on a pull request (only Linux on Node 24 does), so this is where a macOS, Windows or Node 20/22 regression shows. A PR labelled `run-full-ci` re-runs them all.\n\n[Run](%s)\n' "$SHA" "$MATRIX" "$FLOOR" "$RUN_URL")
+          BODY=$(printf 'The nightly OS × Node run on `%s` failed: Node 24 cells `%s`, Node-floor published suites `%s`. The Node-floor cells no longer run on a pull request, so this is where a Node 20.19 or 22.13 regression shows; a red Node 24 cell here is main drifting under green PRs. A PR labelled `run-full-ci` re-runs them all.\n\n[Run](%s)\n' "$SHA" "$MATRIX" "$FLOOR" "$RUN_URL")
           EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty')
           if [ -n "$EXISTING" ]; then gh issue comment "$EXISTING" --body "$BODY"; else gh issue create --title "$TITLE" --body "$BODY"; fi

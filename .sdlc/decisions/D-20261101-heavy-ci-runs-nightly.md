@@ -1,6 +1,6 @@
 ---
 id: D-20261101-heavy-ci-runs-nightly
-subject: 'Heavy work does not run during CI/CD: benchmarks, the compat OS × Node matrix and the Node-floor cells run on a nightly schedule, the paid evals weekly, and pull requests keep only the gates'
+subject: 'Heavy work does not run during CI/CD: benchmarks, the Node-floor published-suite cells and the off-Linux controls run on a nightly schedule, the paid evals weekly, and pull requests keep only the gates — every required check among them'
 taken: 'Taken — the owner''s directive of 2026-11-01'
 date: '2026-11-01'
 superseded_by: —
@@ -17,7 +17,7 @@ failed night opens an issue, or comments on the open one.
 | workflow | before (`on:`) | after (`on:`) | heavy part, now nightly | stays on a pull request |
 | --- | --- | --- | --- | --- |
 | `bench.yml` | pull_request, push, schedule (weekly), dispatch | pull_request (`paths-ignore: benchmarks/results/**`), schedule `0 3 * * *` + `40 5 * * 2`, dispatch | `cheap` (B2 cold start, B3 compat suite, B4, B5 runtime, reliability; lands the night's observation), `floor` (N10 artifact) | new `gate` job: B4 weight, reliability and the N10 floor, each `--check` |
-| `compat.yml` | pull_request, push, merge_group, dispatch | pull_request, merge_group, schedule `30 3 * * *`, dispatch | macOS and Windows Node 24 cells, off-Linux `controls`, the six `floor` published-suites cells | `ratchet` (required), `affected`, the Linux Node 24 cell |
+| `compat.yml` | pull_request, push, merge_group, dispatch | pull_request, merge_group, schedule `30 3 * * *`, dispatch | off-Linux `controls` (informational), the six `floor` published-suites cells | `ratchet`, `affected`, the three Node 24 cells (all four required) |
 | `evals.yml` | pull_request (paths), schedule (weekly), dispatch | schedule (weekly, unchanged), dispatch | the paid task evals (layer 2) | — (layer 1 already runs in `quality.yml`, inside `Quality Gate`) |
 | `mutation.yml` | schedule (weekly), dispatch | unchanged | the full run | changed-lines lane, inside `Quality (Full) Gate` |
 
@@ -74,7 +74,7 @@ minutes or more that is not a correctness gate.
 | `Quality (Full) Gate`: tests, build, typecheck, coverage, changed-lines mutation | 11.3 | gate | required; release waits for it; `Unit Tests` is 10.5 and is the correctness gate itself |
 | compat `ratchet` | 17.5 | gate | required; over ten minutes, but it is the graded scoreboard |
 | compat Linux Node 24 cell | 14.8 | gate | the hard-gated suite on the platform the baselines are recorded on |
-| compat macOS / Windows Node 24 cells | 6.1 / 9.8 | heavy | the OS matrix; 11.4 / 14.1 on a push |
+| compat macOS / Windows Node 24 cells | 6.1 / 9.8 | gate | required checks since 2026-11-01 (see below); 11.4 / 14.1 on a push, which no longer runs them |
 | compat off-Linux `controls` | 15.2 each | heavy | informational (`continue-on-error`) |
 | compat `floor` cells (Node 20.19, 22.13 × three OSes) | 2.1–5.0 each | heavy | the published-suites cells |
 | bench B4 weight + reliability + N10 floor | ~0.7 of axes on one build | gate | bytes, exit codes, a checklist score: no runner in the number, so a PR can be held to them |
@@ -89,10 +89,11 @@ split out into `gate`, beside reliability and the floor ratchet, on one build.
 
 ## What it saves
 
-Per pull request, about **71 runner-minutes**: `compat.yml` from 91.8 job-minutes to about 32.6
-(affected 0.3, ratchet 17.5, Linux cell 14.8), `bench.yml` from 16.5 to about 5 (one build and
-three byte-exact axes; to be confirmed against the first runs of `gate`), and `evals.yml`'s 1.1 on
-the pull requests its paths matched. Wall time per PR does not move much: the ratchet, at 17.5
+Per pull request, about **55 runner-minutes**: `compat.yml` from 91.8 job-minutes to about 48.5
+(affected 0.3, ratchet 17.5, the Linux, macOS and Windows cells 14.8, 6.1 and 9.8; the controls'
+30.4 and the floor cells' 22.0 no longer start), `bench.yml` from 16.5 to 5.3 (`gate` on this PR,
+run 41296456619: build 3.9, weight and reliability 0.7, floor 0.3), and `evals.yml`'s 1.1 on the
+pull requests its paths matched. Wall time per PR does not move much: the ratchet, at 17.5
 minutes, was and is the longest job.
 
 Per push to `main`, about **118 runner-minutes**: `bench.yml` (15.8) and `compat.yml` (102.7) no
@@ -108,7 +109,7 @@ Added: one nightly `bench.yml` run (about 16 job-minutes) and one nightly `compa
 | --- | --- | --- |
 | 02:30 Sat | `mutation.yml` (full, 4 h+) | weekly, unchanged |
 | 03:00 | `bench.yml` cheap axes + N10 floor, lands the night's observation | nightly |
-| 03:30 | `compat.yml` ratchet + OS × Node matrix + controls + floor cells | nightly |
+| 03:30 | `compat.yml` ratchet + the three Node 24 cells + controls + floor cells | nightly |
 | 04:00 Sun | `quality-full.yml` drift scan | weekly, unchanged |
 | 05:40 Tue | `bench.yml` B1 agent cost | weekly, unchanged |
 | 06:20 Sat | `evals.yml` paid task evals | weekly, unchanged |
@@ -120,9 +121,15 @@ run of 2026-10-27 started at 10:58. The stagger is a request, not a guarantee.
 
 ## Kept safe
 
-- **Branch protection is unchanged, and needs no change.** Its required contexts are `Quality
-  Gate`, `Quality (Full) Gate` and `Ratchet · each host's suite against burgee`; all three still
-  report on every pull request and every merge-queue entry.
+- **Every required check still reports on a pull request.** While this was being built the owner
+  set `main`'s required checks to nine, strict off: `Quality Gate`, `Quality (Full) Gate`,
+  `Ratchet · each host's suite against burgee`, `Node 24 · ubuntu-latest`, `Node 24 ·
+  macos-latest`, `Node 24 · windows-latest`, `CodeQL`, `Changeset present` and `bash, zsh, fish,
+  pwsh complete the demo`. A first cut of this change ran only the Linux Node 24 cell on a pull
+  request; with macOS and Windows required, that would have held every PR at BLOCKED with nothing
+  failing, so the three Node 24 cells stay on every pull request. What left the pull request is
+  only what no required check names: the Node 20.19 and 22.13 published-suite cells, the
+  informational off-Linux controls, and the benchmark axes.
 - **Release verify still finds its gates.** `quality.yml` and `quality-full.yml` keep their push
   trigger and their gate jobs; `release.yml`'s `CHECKS` (`Quality Gate|Quality (Full) Gate`) is
   untouched. `compat.yml` losing its push trigger does not touch release: it was never in `CHECKS`.
@@ -130,20 +137,22 @@ run of 2026-10-27 started at 10:58. The stagger is a request, not a guarantee.
   and comments on the open issue each further red night. A `report` job in each of `bench.yml` and
   `compat.yml` opens or comments on "Nightly benchmarks failed" / "Nightly compatibility matrix
   failed".
-- **What a red night costs.** A macOS, Windows or Node-floor regression, or a cold-start or runtime
-  ratchet breach, can now merge and be found the next night instead of on the PR. That is the trade
+- **What a red night costs.** A Node 20.19 or 22.13 regression, or a cold-start or runtime ratchet
+  breach, can now merge and be found the next night instead of on the PR. That is the trade
   the directive makes. A PR expected to move one of them can ask for it: `run-full-ci` for the
   compat matrix, a dispatch of `bench.yml` for the cheap axes.
 
 ## Held by
 
 - `scripts/heavy-ci-nightly-lock.test.ts` (new): every heavy job, evaluated from the workflow's
-  `on:` and its own `if:` over push, merge-queue and pull-request events, does not start; the compat
-  matrix is Linux-only on a PR; the nightly crons sit in 03:00–05:00 at different minutes; each
-  nightly workflow has one issue-opening failure reporter; only the scheduled bench run lands; the
-  nightly cron does not start B1; both release gates still report on a push to `main`; the ratchet
-  still reports on every PR; B4 weight still gates every PR. Against `main`'s workflows 15 of its 20
-  cases fail.
+  `on:` and its own `if:` over push, merge-queue and pull-request events, does not start; each of
+  the nine required checks is produced, under its exact name, by a job that runs on a pull request
+  (matrix names expanded, `CodeQL` from the analyze step's upload) — run against the Linux-only
+  matrix of this branch's first cut, the macOS and Windows cases fail (5 cases); the nightly crons
+  sit in 03:00–05:00 at different minutes; each nightly workflow has one issue-opening failure
+  reporter; only the scheduled bench run lands; the nightly cron does not start B1; both release
+  gates still report on a push to `main`; the ratchet still reports on every PR; B4 weight still
+  gates every PR.
 - `scripts/bench-loop-lock.test.ts`: `bench.yml` has no push trigger, measures on a daily cron, and
   ignores a PR that only moves `benchmarks/results/`.
 - `scripts/b1-lands-lock.test.ts`, `benchmarks/ci-axes.test.ts`: B1 lands from the schedule and an
@@ -152,9 +161,10 @@ run of 2026-10-27 started at 10:58. The stagger is a request, not a guarantee.
 - `scripts/eval-history-lock.test.ts`: `evals.yml` has no pull-request trigger, and layer 1 still
   runs in `quality.yml`.
 
-Run against `main`'s workflow files first, 26 of the new and changed cases fail there (19 in the
+Run against `main`'s workflow files first, 25 of the new and changed cases fail there (18 in the
 four root locks, 7 in `ci-axes`). The ones that pass on both sides are the preservation cases: the
-two release gates on a push, the ratchet on every PR, the `run-full-ci` escape hatch.
+nine required checks on a pull request, the two release gates on a push, the `run-full-ci` escape
+hatch.
 
 ## Not touched
 

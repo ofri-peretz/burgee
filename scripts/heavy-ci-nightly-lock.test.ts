@@ -17,15 +17,17 @@
  * What is held:
  *  - every job in `HEAVY` reports nothing on a push or an unlabelled pull request — evaluated from
  *    the workflow's `on:` and the job's own `if:`, not matched as text;
- *  - the compat matrix's macOS and Windows cells are not started on a pull request or in the merge
- *    queue; its Linux Node 24 cell is, because that one is a gate;
+ *  - every check `main`'s branch protection requires (`REQUIRED`, as the owner set it on
+ *    2026-11-01) is still produced by a job that runs on a pull request, under its exact name —
+ *    the compat matrix's three Node 24 cells among them. A required check that never reports
+ *    blocks every merge, so moving one of these to the night is the failure this guards;
  *  - the heavy workflows run on a nightly cron between 03:00 and 05:00 UTC, at staggered times,
  *    and a nightly failure opens or updates an issue;
  *  - the gates stay where they were: `Quality Gate` and `Quality (Full) Gate` still report on a
  *    push to `main` (release.yml's verify waits for exactly those two), the compatibility ratchet
  *    still reports on every pull request and queue entry, and B4 weight still gates a pull request.
  */
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -107,6 +109,9 @@ export function evaluate(source: string, ev: Event): unknown {
         return 'true';
       case 'needs.affected.outputs.packages':
         return '["compat-oracle","burgee"]';
+      // codeql.yml's `gate` job: `run=true` for any non-draft pull request, which is what is asked here.
+      case 'needs.gate.outputs.run':
+        return 'true';
     }
     if (t.startsWith('inputs.')) return ev.event_name === 'workflow_dispatch' ? (ev.inputs?.[t.slice('inputs.'.length)] ?? null) : null;
     throw new Error(`${t} is not a term this lock knows the meaning of (in ${expression})`);
@@ -204,15 +209,6 @@ describe('no heavy job runs during CI/CD (D-20261101-heavy-ci-runs-nightly)', ()
       for (const ev of CI_EVENTS) expect(runs(wf, job, ev), `${file} → ${job} on ${JSON.stringify(ev)}`).toBe(false);
     });
   }
-
-  it('compat.yml starts only the Linux Node 24 cell on a pull request and in the merge queue', () => {
-    const wf = read('compat.yml');
-    const os = String(wf.jobs['matrix']?.strategy?.matrix?.os);
-    for (const ev of CI_EVENTS.filter((e) => e.event_name !== 'push')) {
-      expect(evaluate(os, ev), JSON.stringify(ev)).toEqual(['ubuntu-latest']);
-      expect(runs(wf, 'matrix', ev)).toBe(true);
-    }
-  });
 
   it('a pull request labelled run-full-ci can still ask for the whole compat matrix', () => {
     const wf = read('compat.yml');
@@ -312,5 +308,109 @@ describe('the gates stay on CI/CD', () => {
     expect(commands).toMatch(/--axis floor --check/u);
     // Runner-noisy axes measure milliseconds, which are a property of the box: those are nightly.
     expect(commands).not.toMatch(/--axis (?:perf|compat|runtime|agent)\b/u);
+  });
+});
+
+/**
+ * `main`'s required status checks, exactly as the owner set them on 2026-11-01 (strict off). Read
+ * with `gh api repos/ofri-peretz/burgee/branches/main/protection --jq
+ * '.required_status_checks.contexts'`. A check that is required and never reports holds every pull
+ * request at BLOCKED with nothing failing, so none of these may leave `pull_request` or be renamed.
+ */
+const REQUIRED = [
+  'Quality Gate',
+  'Quality (Full) Gate',
+  "Ratchet · each host's suite against burgee",
+  'Node 24 · ubuntu-latest',
+  'Node 24 · macos-latest',
+  'Node 24 · windows-latest',
+  'CodeQL',
+  'Changeset present',
+  'bash, zsh, fish, pwsh complete the demo',
+];
+
+const WORKFLOWS = readdirSync(join(REPO_ROOT, '.github/workflows')).filter((f) => f.endsWith('.yml'));
+
+/** A matrix value as a list: a literal array, or an expression that evaluates to one for this event. */
+function matrixValues(value: unknown, ev: Event): unknown[] | undefined {
+  if (Array.isArray(value)) return value as unknown[];
+  if (typeof value === 'string') {
+    const v = evaluate(value, ev);
+    return Array.isArray(v) ? (v as unknown[]) : undefined;
+  }
+  return undefined;
+}
+
+/** The check names a job reports for one event: its `name:` with `${{ matrix.* }}` expanded over the matrix. */
+function checkNames(key: string, job: Job, ev: Event): string[] {
+  const name = job.name ?? key;
+  const matrix = (job.strategy?.matrix ?? {}) as Record<string, unknown>;
+  let names = [name];
+  for (const [axis, raw] of Object.entries(matrix)) {
+    if (axis === 'include' || axis === 'exclude') continue;
+    if (!name.includes(`matrix.${axis}`)) continue;
+    const values = matrixValues(raw, ev);
+    if (values === undefined) return [];
+    names = names.flatMap((n) => values.map((v) => n.replaceAll(new RegExp(`\\$\\{\\{ matrix\\.${axis} \\}\\}`, 'gu'), String(v))));
+  }
+  return names.filter((n) => !n.includes('${{'));
+}
+
+/**
+ * Every check name a pull request produces, with the job that produces it. `CodeQL` is not a job
+ * name: GitHub code scanning reports it from the SARIF a `github/codeql-action/analyze` step uploads.
+ */
+/** Whether a job starts for an event; a condition this lock cannot read vouches for nothing. */
+function startsSafely(wf: Workflow, key: string, ev: Event): boolean {
+  try {
+    return runs(wf, key, ev);
+  } catch {
+    return false;
+  }
+}
+
+/** The names one job reports: its expanded `name:`, plus `CodeQL` when it uploads a CodeQL analysis. */
+function reported(key: string, job: Job, ev: Event): string[] {
+  const uploadsCodeql = (job.steps ?? []).some((st) => /github\/codeql-action\/analyze@/u.test((st as { uses?: string }).uses ?? ''));
+  return [...checkNames(key, job, ev), ...(uploadsCodeql ? ['CodeQL'] : [])];
+}
+
+function producedOn(ev: Event): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const file of WORKFLOWS) {
+    const wf = read(file);
+    if (typeof wf.on !== 'object' || !(ev.event_name in wf.on)) continue;
+    for (const [key, job] of Object.entries(wf.jobs ?? {})) {
+      if (!startsSafely(wf, key, ev)) continue;
+      for (const n of reported(key, job, ev)) out.set(n, `${file} → ${key}`);
+    }
+  }
+  return out;
+}
+
+describe("every check main's branch protection requires still reports on a pull request", () => {
+  const PRS: Event[] = [
+    { event_name: 'pull_request', labels: [] },
+    { event_name: 'pull_request', labels: ['skip-changeset'] },
+  ];
+
+  for (const ev of PRS) {
+    const produced = producedOn(ev);
+    it.each(REQUIRED)(`%s (labels ${JSON.stringify(ev.labels)})`, (check) => {
+      expect(produced.get(check), `no job that runs on a pull request reports \`${check}\` — a required check that never reports blocks every merge`).toBeDefined();
+    });
+  }
+
+  it('reads the matrix: the compat cells are named per OS, and all three run on a pull request', () => {
+    const produced = producedOn({ event_name: 'pull_request', labels: [] });
+    for (const os of ['ubuntu-latest', 'macos-latest', 'windows-latest']) expect(produced.get(`Node 24 · ${os}`)).toBe('compat.yml → matrix');
+  });
+
+  it('is not blind: narrowing the compat matrix to Linux on a pull request drops two required checks', () => {
+    const wf = read('compat.yml');
+    const narrowed = "${{ fromJSON(github.event_name == 'pull_request' && '[\"ubuntu-latest\"]' || '[\"ubuntu-latest\",\"macos-latest\",\"windows-latest\"]') }}";
+    const job = { ...wf.jobs['matrix']!, strategy: { matrix: { ...wf.jobs['matrix']!.strategy!.matrix, os: narrowed } } };
+    const names = checkNames('matrix', job, { event_name: 'pull_request', labels: [] });
+    expect(names).toEqual(['Node 24 · ubuntu-latest']);
   });
 });
