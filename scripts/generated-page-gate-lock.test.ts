@@ -26,8 +26,9 @@
  * workflow YAML, so a new generated page parked in a convenient informational job fails
  * here rather than the next time someone forgets to regenerate.
  *
- * `REQUIRED_CHECKS` in `lint-workflows.ts` is a committed copy of branch protection —
- * that trade is documented there. Read the real list back with:
+ * `REQUIRED_CHECKS` in `scripts/required-checks.mts` is a committed copy of branch protection —
+ * that trade is documented there, and `required-checks-lock.test.ts` holds the copy to the
+ * real list. Read the real list back with:
  *
  *   gh api repos/ofri-peretz/burgee/branches/main/protection/required_status_checks \
  *     --jq '.contexts[]'
@@ -39,27 +40,17 @@ import { fileURLToPath } from 'node:url';
 import { load as loadYaml } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
 
+import { REQUIRED_CHECKS } from './required-checks.mjs';
+
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const WORKFLOWS = join(root, '.github', 'workflows');
 
 /**
- * The required contexts, read out of the linter rather than restated here. Two copies of
- * the same list drift, and the one that drifts is always the one in the test.
+ * The required contexts, imported from the one list lint-workflows.ts and the required-checks
+ * lock also read, rather than restated here. Two copies of the same list drift, and the one that
+ * drifts is always the one in the test.
  */
-const REQUIRED = new Set(
-  [
-    ...(
-      /const REQUIRED_CHECKS = new Set\(\[([\s\S]*?)\]\);/.exec(
-        readFileSync(join(root, 'scripts', 'lint-workflows.ts'), 'utf8'),
-      )?.[1] ?? ''
-    )
-      // Every quoted literal in the array body, whether the list is written on one line
-      // or across many. Comments there are prose, not context names — none of the reasons
-      // recorded beside these entries contains a quoted string, and one that did would add
-      // a name here rather than remove one, so the failure direction stays loud.
-      .matchAll(/(['"])(.+?)\1/g),
-  ].map((m) => m[2]),
-);
+const REQUIRED = new Set(REQUIRED_CHECKS);
 
 /**
  * A step that regenerates a committed page and compares.
@@ -217,7 +208,7 @@ describe('a generated page is gated by a check that can block a merge', () => {
           `exactly how PR #197 landed a stale compatibility.mdx and left main red. ` +
           `Either add the job to a required aggregate's \`needs\` AND to the results it ` +
           `reads (\`Quality Gate\` aggregates the cheap ones), or add this context to ` +
-          `REQUIRED_CHECKS in scripts/lint-workflows.ts *and* to branch protection.`,
+          `REQUIRED_CHECKS in scripts/required-checks.mts *and* to branch protection.`,
       ).toBe(true);
     },
   );
@@ -246,10 +237,7 @@ describe('a generated page is gated by a check that can block a merge', () => {
     expect(blocks('generated-pages', ignores, required)).toBe(false);
   });
 
-  it('parsed the required-context list out of lint-workflows.ts', () => {
-    // The list is scraped from source. A refactor that changes its shape would empty this
-    // set and turn every assertion above into a guaranteed failure — loud, not silent —
-    // but say so plainly rather than making someone diff the regex.
-    expect(REQUIRED.has('Quality Gate'), 'REQUIRED_CHECKS did not parse').toBe(true);
+  it('reads the required-context list from scripts/required-checks.mts', () => {
+    expect(REQUIRED.has('Quality Gate'), 'REQUIRED_CHECKS is empty or lost Quality Gate').toBe(true);
   });
 });

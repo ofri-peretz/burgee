@@ -27,6 +27,9 @@ on:
     types: [opened, reopened, ready_for_review, labeled, synchronize]
   push:
     branches: [main]
+  # A required check (`CodeQL`), and a required check with no `merge_group:` trigger never
+  # reports inside a merge queue: the entry neither merges nor fails (required-checks-lock).
+  merge_group:
   workflow_dispatch:
   schedule:
     - cron: "17 3 * * 1"
