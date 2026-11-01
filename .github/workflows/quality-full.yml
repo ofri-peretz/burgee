@@ -90,6 +90,9 @@ jobs:
           EVENT: ${{ github.event_name }}
           BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
           FULL: ${{ contains(github.event.pull_request.labels.*.name, 'run-full-ci') }}
+          # Four suites at once leave no quiet moment to re-measure a slow case in, so each run
+          # leaves its over-budget cases here and the next step judges them (D-20261101-tests-under-5s).
+          VITEST_CASE_BUDGET_DEFER: ${{ runner.temp }}/case-budget
         run: |
           set -euo pipefail
           args=(--event "$EVENT" --base "$BASE")
@@ -107,6 +110,11 @@ jobs:
           mapfile -t filters < <(jq -r '.workspaces[] | "--filter=" + .' <<<"$set_json")
           if [ "${#filters[@]}" -eq 0 ]; then echo "No workspace changed against $BASE; the locks above are the suite."; exit 0; fi
           npx turbo run test "${filters[@]}" --concurrency=4
+      # No test case over 5 s (D-20261101-tests-under-5s): every case a suite above read over the
+      # budget, measured again alone on a runner that has finished the battery. The root locks'
+      # step judges its own cases, alone already.
+      - name: No test case over 5 s
+        run: npx tsx scripts/case-budget.ts "$RUNNER_TEMP/case-budget"
 
   build:
     name: Build (Turbo)

@@ -20,6 +20,11 @@ const closed = path.join(pkg, 'test/fixtures/sensitivity-closed');
 const bin = path.join(pkg, 'dist/bin.js');
 const native = existsSync(path.join(pkg, 'binding')) && readdirSync(path.join(pkg, 'binding')).some((f) => f.endsWith('.node'));
 const ready = native && existsSync(bin);
+// A case that runs whole mutation runs — 6–15 s each on a contended CI runner — runs on the nightly
+// schedule, compat.yml's `heavy-tests` job, which sets BURGEE_NIGHTLY (D-20261101-tests-under-5s,
+// D-20261101-heavy-ci-runs-nightly). Each one is named in NIGHTLY_ONLY in
+// scripts/vitest-case-budget-reporter.ts, the only exemption from the five-second budget.
+const nightly = process.env['BURGEE_NIGHTLY'] === '1';
 // Skipped in a plain local `vitest run` without the native core, as e2e.test.ts is. Never skipped
 // where a skip would read as a pass: in CI (OXMUTATE_REQUIRE_NATIVE) or under `npm run test:sensitivity`.
 const required = process.env['OXMUTATE_REQUIRE_NATIVE'] === '1' || process.env['npm_lifecycle_event'] === 'test:sensitivity';
@@ -52,7 +57,7 @@ it('the two fixtures differ only in their test suites', () => {
   expect(readFileSync(path.join(closed, 'src/grade.spec.ts'), 'utf8')).not.toBe(readFileSync(path.join(weak, 'src/grade.spec.ts'), 'utf8'));
 });
 
-describe.skipIf(!ready)('sensitivity (SC5)', () => {
+describe.skipIf(!ready || !nightly)('sensitivity (SC5)', () => {
   it('a weak suite produces survivors, every one of them covered by a test that ran', () => {
     const r = run(weak);
     const survivors = r.mutants.filter((m) => m.status === 'Survived');

@@ -56,10 +56,12 @@ describe('the workloads run in front of a terminal', () => {
     expect(env).toMatchObject({ FORCE_COLOR: '3', FORCE_HYPERLINK: '1', TERM_PROGRAM: 'iTerm.app', PATH: '/bin' });
   });
 
-  it(
-    'and every one proves ours and the incumbent produce the same output before anything is timed',
-    () => {
-      for (const p of PAIRS) expect(() => sample(p, 0), p.id).not.toThrow();
+  // One case per pair: as one case the sixteen parity processes read 5.1 s on CI
+  // (D-20261101-tests-under-5s), and a failure now names its pair in the case's own title.
+  it.each(PAIRS.map((p) => [p.id, p] as const))(
+    'and every one proves ours and the incumbent produce the same output before anything is timed: %s',
+    (_id, p) => {
+      expect(() => sample(p, 0), p.id).not.toThrow();
     },
     PARITY_TIMEOUT_MS,
   );
@@ -69,15 +71,16 @@ describe('the workloads run in front of a terminal', () => {
     expect(failureText(stderr)).toBe('AssertionError: frames differ\n    at check (workload.mjs:3:9)');
   });
 
-  it(
-    'and a pair runs its full rounds, however much it writes to stderr (log-update: ~1.1 MB at 21 rounds)',
-    () => {
-      const logUpdate = PAIRS.find((p) => p.id === 'flagstaff/log-update');
-      expect(logUpdate?.rounds).toBeGreaterThan(ROUNDS);
-      expect(sample(logUpdate!, logUpdate!.rounds).ours).toHaveLength(logUpdate!.rounds!);
-    },
-    PARITY_TIMEOUT_MS,
-  );
+  // log-update writes ~1.1 MB to stderr over its 21 rounds, and `spawnSync`'s default 1 MiB buffer
+  // killed it with ENOBUFS. Timing log-update for real took 16.7 s on CI (D-20261101-tests-under-5s);
+  // `fixtures/runtime-test/loud.mjs` writes twice that in milliseconds, through the same `sample()`.
+  // The real 21 rounds still run, every night, in bench.yml's B5 axis.
+  it('and a pair runs its full rounds, however much it writes to stderr (log-update: ~1.1 MB at 21 rounds)', () => {
+    const logUpdate = PAIRS.find((p) => p.id === 'flagstaff/log-update');
+    expect(logUpdate?.rounds).toBeGreaterThan(ROUNDS);
+    const loud = { id: 'loud', host: 'nothing', pkg: 'linegauge', hostPkg: 'string-width', file: '../runtime-test/loud.mjs' };
+    expect(sample(loud, logUpdate!.rounds).ours).toHaveLength(logUpdate!.rounds!);
+  });
 
   it('and a workload whose parity check fails stops the run with its own words', () => {
     const broken = { id: 'broken', host: 'nothing', pkg: 'linegauge', hostPkg: 'string-width', file: 'does-not-exist.mjs' };

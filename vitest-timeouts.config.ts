@@ -57,15 +57,26 @@ import { fileURLToPath } from 'node:url';
  * `VITEST_DURATIONS_DIR` is set — `compat.yml`'s `matrix` and `floor` cells set it — every suite
  * that spreads `timeouts` also writes each case's duration and effective timeout there, through
  * `scripts/vitest-durations-reporter.ts`, and `scripts/slow-cases.mts` names any case above half
- * of it. Unset, nothing changes: the reporter list is vitest's own default.
+ * of it. Unset, that reporter is not loaded.
  */
 const DURATIONS = process.env['VITEST_DURATIONS_DIR'];
-const durations: { reporters?: string[] } =
-  DURATIONS === undefined || DURATIONS === '' ? {} : { reporters: ['default', fileURLToPath(new URL('./scripts/vitest-durations-reporter.ts', import.meta.url))] };
+const durationsReporter = DURATIONS === undefined || DURATIONS === '' ? [] : [fileURLToPath(new URL('./scripts/vitest-durations-reporter.ts', import.meta.url))];
+
+/**
+ * ## And no case over five seconds (D-20261101-tests-under-5s)
+ *
+ * The timeouts above are bets on the machine and sit far above what a case takes; they are not a
+ * speed limit. `scripts/vitest-case-budget-reporter.ts` is: it fails the run when any case's own
+ * duration is over 5,000 ms. Every suite that spreads `timeouts` loads it, and the three that set
+ * their own clocks (benchmarks, conformance, oxmutate's compat suite) spread `caseBudget` alone;
+ * `scripts/case-budget-lock.test.ts` holds every vitest config to one or the other.
+ */
+const caseBudgetReporter = fileURLToPath(new URL('./scripts/vitest-case-budget-reporter.ts', import.meta.url));
+export const caseBudget: { reporters: string[] } = { reporters: ['default', caseBudgetReporter, ...durationsReporter] };
 
 export const timeouts = {
   testTimeout: 30_000,
   /** Setup and teardown spawn and remove whole directory trees; `bellpull` already used 60 s by hand. */
   hookTimeout: 60_000,
-  ...durations,
+  ...caseBudget,
 };

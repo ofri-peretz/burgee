@@ -21,11 +21,13 @@ import { DEFAULT_EXPORT, fixtureSource, PAIRS, ratioVariant, sideSource } from '
 const SPAWN_TIMEOUT_MS = 120_000;
 
 describe('cold-start fixtures', () => {
-  it(
-    'all print the same line, and every one that claims a parser proves it honours --shout',
-    () => {
+  // One case per variant: as one case every variant's spawns read 6.5 s on CI
+  // (D-20261101-tests-under-5s), and a failure now names its variant in the case's title.
+  it.each(VARIANTS.map((v) => [v.id, v] as const))(
+    'all print the same line, and every one that claims a parser proves it honours --shout: %s',
+    (_id, v) => {
       expect(() => {
-        proveFixtures();
+        proveFixtures([v]);
       }).not.toThrow();
     },
     SPAWN_TIMEOUT_MS,

@@ -60,6 +60,8 @@ const HEAVY: { file: string; job: string }[] = [
   { file: 'bench.yml', job: 'agent' },
   { file: 'compat.yml', job: 'controls' },
   { file: 'compat.yml', job: 'floor' },
+  // The test cases too heavy for a pull request (D-20261101-tests-under-5s, NIGHTLY_ONLY).
+  { file: 'compat.yml', job: 'heavy-tests' },
   { file: 'evals.yml', job: 'evals' },
 ];
 
@@ -115,7 +117,7 @@ const minuteOfDay = (cron: string): number => {
  */
 const REPORTER = 'nightly-report.yml';
 const REPORTED: { file: string; reporter: string; title: string; jobs: Record<string, string> }[] = [
-  { file: 'compat.yml', reporter: 'compat', title: 'Nightly compatibility matrix failed', jobs: { MATRIX_JOBS: 'matrix', FLOOR_JOBS: 'floor' } },
+  { file: 'compat.yml', reporter: 'compat', title: 'Nightly compatibility matrix failed', jobs: { MATRIX_JOBS: 'matrix', FLOOR_JOBS: 'floor', HEAVY_JOBS: 'heavy-tests' } },
   { file: 'bench.yml', reporter: 'bench', title: 'Nightly benchmarks failed', jobs: { CHEAP_JOBS: 'cheap', FLOOR_JOBS: 'floor' } },
 ];
 const nameOf = (file: string): string => (read(file) as Workflow & { name?: string }).name ?? file;

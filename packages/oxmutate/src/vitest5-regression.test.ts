@@ -27,6 +27,11 @@ const bin = path.join(pkg, 'dist/bin.js');
 // Needs the native core and the built CLI, as e2e.test.ts does. CI sets OXMUTATE_REQUIRE_NATIVE.
 const native = existsSync(path.join(pkg, 'binding')) && readdirSync(path.join(pkg, 'binding')).some((f) => f.endsWith('.node'));
 const ready = native && existsSync(bin);
+// A case that runs whole mutation runs — 6–15 s each on a contended CI runner — runs on the nightly
+// schedule, compat.yml's `heavy-tests` job, which sets BURGEE_NIGHTLY (D-20261101-tests-under-5s,
+// D-20261101-heavy-ci-runs-nightly). Each one is named in NIGHTLY_ONLY in
+// scripts/vitest-case-budget-reporter.ts, the only exemption from the five-second budget.
+const nightly = process.env['BURGEE_NIGHTLY'] === '1';
 if (!ready && process.env['OXMUTATE_REQUIRE_NATIVE'] === '1') throw new Error('OXMUTATE_REQUIRE_NATIVE is set and the native core or dist/bin.js is missing. fix: npm run build:native -w oxmutate && npm run build -w oxmutate');
 
 interface Mutant {
@@ -53,6 +58,13 @@ const run = (name: string, vitestConfig?: string): { status: number | null; out:
   return { status: r.status, out: `${r.stdout}${r.stderr}`, mutants: report.files['src/hex.ts']?.mutants ?? [] };
 };
 
+/**
+ * The unaltered fixture's run, once: both cases below read it, and each ran it again
+ * (D-20261101-tests-under-5s). The run is the same command on the same files either time.
+ */
+let cleanRun: ReturnType<typeof run> | undefined;
+const clean = (): ReturnType<typeof run> => (cleanRun ??= run('clean'));
+
 const at = (m: Mutant): string => `${String(m.location.start.line)}:${String(m.location.start.column)} ${m.mutatorName}`;
 
 describe.skipIf(!ready)('the Vitest 5 regression (SC7)', () => {
@@ -61,8 +73,8 @@ describe.skipIf(!ready)('the Vitest 5 regression (SC7)', () => {
     expect(Number(version.split('.')[0])).toBe(5);
   });
 
-  it('reports no killed mutant as Survived: every mutant is Killed by a test that ran', () => {
-    const r = run('clean');
+  it.runIf(nightly)('reports no killed mutant as Survived: every mutant is Killed by a test that ran', () => {
+    const r = clean();
     expect(r.status).toBe(0);
     // Both verdict paths are on the fixture: the warm per-test runs, and a static mutant's isolated run.
     expect(r.mutants.some((m) => m.static)).toBe(true);
@@ -72,12 +84,12 @@ describe.skipIf(!ready)('the Vitest 5 regression (SC7)', () => {
     expect(r.mutants.filter((m) => !m.killedBy?.length || (m.testsCompleted ?? 0) < 1).map(at)).toEqual([]);
   });
 
-  it("reproduces the defect: with Stryker 10.0.0's name filter put back, the same mutants are Survived having run no test", () => {
-    const clean = run('clean-for-fault');
+  it.runIf(nightly)("reproduces the defect: with Stryker 10.0.0's name filter put back, the same mutants are Survived having run no test", () => {
+    const unfiltered = clean();
     const faulty = run('stryker-filter', strykerFilterConfig);
-    expect(faulty.mutants.map(at)).toEqual(clean.mutants.map(at));
+    expect(faulty.mutants.map(at)).toEqual(unfiltered.mutants.map(at));
     expect(faulty.mutants.length).toBeGreaterThan(0);
     // Each one is a killed mutant reported Survived, the fault SC7 names. The case above would fail.
-    expect(faulty.mutants.map((m) => `${at(m)}:${m.status}:${String(m.testsCompleted ?? 0)}`)).toEqual(clean.mutants.map((m) => `${at(m)}:Survived:0`));
+    expect(faulty.mutants.map((m) => `${at(m)}:${m.status}:${String(m.testsCompleted ?? 0)}`)).toEqual(unfiltered.mutants.map((m) => `${at(m)}:Survived:0`));
   });
 });

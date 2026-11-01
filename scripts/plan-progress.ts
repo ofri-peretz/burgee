@@ -16,15 +16,16 @@
  * Run it to see what is left; run it in CI to see the plan finish.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p: string): string => readFileSync(join(ROOT, p), 'utf-8');
 const json = <T>(p: string): T => JSON.parse(read(p)) as T;
 
-interface Step {
+export interface Step {
   id: string;
   what: string;
   /** True when the step has landed. Reads the tree; never a stored flag. */
@@ -49,7 +50,9 @@ const schemaHashes = (): Set<string> => {
   const out = new Set<string>();
   for (const pkg of readdirSync(join(ROOT, 'packages'))) {
     const file = join(ROOT, 'packages', pkg, 'src/schema.json');
-    if (existsSync(file)) out.add(execFileSync('shasum', ['-a', '256', file], { encoding: 'utf8' }).split(' ')[0] as string);
+    // Hashed here, not by `shasum`: there is no `shasum` on Windows, so this threw ENOENT there and
+    // 1.1 read as not landed — the per-step lock found it the day it started asking each condition.
+    if (existsSync(file)) out.add(createHash('sha256').update(readFileSync(file)).digest('hex'));
   }
   return out;
 };
@@ -82,7 +85,7 @@ const chalkGrade = (): string => {
 };
 
 /** True when `done()` throws — an unreadable tree is "not landed", never a pass. */
-const landed = (step: Step): boolean => {
+export const landed = (step: Step): boolean => {
   try {
     return step.done();
   } catch {
@@ -162,7 +165,7 @@ const designGap = (slug: string): string => {
   return missing.length === 0 ? '' : `${missing.join(', ')} not recorded as built`;
 };
 /**
- * `npm`, `npx` and `shasum` by a name Windows can actually find.
+ * `npm` and `npx` by a name Windows can actually find.
  *
  * `npm` and `npx` are `.cmd` shims there and neither `execFileSync` nor `spawnSync` searches
  * `PATHEXT`, so every one of these returned nothing on `windows-latest` — and `landed()` catches,
@@ -192,6 +195,29 @@ const bands = (): string[] => {
   const run = spawnSync(shim('npx'), ['tsx', 'scripts/control-bands.ts'], spawnOpts({ cwd: ROOT, encoding: 'utf8' as const }));
   return `${run.stdout ?? ''}${run.stderr ?? ''}`.split('\n').flatMap((l) => [...l.matchAll(/\bcompat-[a-z0-9-]+-pass-rate\b/g)].map((m) => m[0]));
 };
+/**
+ * `roadmap-index.ts --check`, run once per process: 0.2 and 2.5.0 both ask it, and it is the same
+ * tree both times. It throws as it always did when the check fails, and the throw is remembered,
+ * so the second step is not-landed for the same reason as the first.
+ */
+let roadmapCheck: { ok: true } | { ok: false; cause: unknown } | undefined;
+const roadmapAgrees = (): boolean => {
+  if (roadmapCheck === undefined) {
+    try {
+      execFileSync(shim('npx'), ['tsx', 'scripts/roadmap-index.ts', '--check'], spawnOpts({ cwd: ROOT, stdio: 'ignore' as const }));
+      roadmapCheck = { ok: true };
+    } catch (cause) {
+      roadmapCheck = { ok: false, cause };
+    }
+  }
+  if (!roadmapCheck.ok) {
+    // The cause's own words and code, so a tooling failure (ENOENT) still reads as one.
+    const { cause } = roadmapCheck;
+    const why = cause instanceof Error ? `${cause.message} ${String((cause as { code?: unknown }).code ?? '')}` : String(cause);
+    throw new Error(`\`roadmap-index.ts --check\` failed: ${why}`, { cause });
+  }
+  return true;
+};
 const citations = (): number => {
   const out = new Set<string>();
   for (const pkg of readdirSync(join(ROOT, 'packages'))) {
@@ -206,7 +232,7 @@ const citations = (): number => {
 
 /** Steps whose truth is not in the tree. A condition that guessed at these would report
  *  progress that has not happened — the `0.4` mistake, repeated six times. */
-const MANUAL: { id: string; why: string }[] = [
+export const MANUAL: { id: string; why: string }[] = [
   { id: '0.3', why: 'a repository setting; only the owner can create the merge-queue ruleset' },
   { id: '2.1', why: 'the claim lives in the npm registry, not in the tree — read it with `npm view <pkg> description`' },
   { id: '2.5.5', why: 'which sixteen commander-env issues to cover is a reading of 4.1 output, not a count' },
@@ -223,7 +249,7 @@ const MANUAL: { id: string; why: string }[] = [
 // becomes published stops being exempt on the day it does.
 const published = (pkg: string): boolean => existsSync(join(ROOT, 'packages', pkg, 'package.json')) && pkgJson(pkg).private !== true;
 
-const STEPS: Step[] = [
+export const STEPS: Step[] = [
   // The rename broke its own check: 0.1 replaced `agent-native-cli-layer` with `burgee` in
   // 132 files, this one included, so the condition became "the burgee intent does not exist"
   // and went red the moment the step succeeded. It asks the real question now — does any file
@@ -248,7 +274,7 @@ const STEPS: Step[] = [
     },
   },
   // `existsSync` was the first version, and a file that exists proves nothing about drift.
-  { id: '0.2', what: 'every roadmap row agrees with its intent (runs the check)', done: () => { execFileSync(shim('npx'), ['tsx', 'scripts/roadmap-index.ts', '--check'], spawnOpts({ cwd: ROOT, stdio: 'ignore' as const })); return true; } },
+  { id: '0.2', what: 'every roadmap row agrees with its intent (runs the check)', done: roadmapAgrees },
   {
     id: '0.4',
     what: 'chalk passes its whole suite (runs the gate, does not read it)',
@@ -285,7 +311,7 @@ const STEPS: Step[] = [
   { id: '1.5', what: 'bellpull hosts resolvers', done: () => existsSync(join(ROOT, 'packages/bellpull/src/plugin.ts')) },
   { id: '1.6', what: 'linegauge says why it has no plugins', done: () => has('packages/linegauge/README.md', '## Plugins') },
   { id: '2.17', what: 'one control band per graded suite', done: () => bands().filter((b) => b.startsWith('compat-')).length >= baselineSize() },
-  { id: '2.5.0', what: 'the six engine surfaces re-measured against the tree', done: () => { execFileSync(shim('npx'), ['tsx', 'scripts/roadmap-index.ts', '--check'], spawnOpts({ cwd: ROOT, stdio: 'ignore' as const })); return readdirSync(join(ROOT, '.sdlc/intents')).filter((s) => s.startsWith('commander-') || s.startsWith('yargs-')).every((s) => existsSync(join(ROOT, '.sdlc/intents', s, 'issues.md'))); } },
+  { id: '2.5.0', what: 'the six engine surfaces re-measured against the tree', done: () => roadmapAgrees() && readdirSync(join(ROOT, '.sdlc/intents')).filter((s) => s.startsWith('commander-') || s.startsWith('yargs-')).every((s) => existsSync(join(ROOT, '.sdlc/intents', s, 'issues.md'))) },
   { id: '2.5.1', what: 'help snapshots exist at three widths', done: () => existsSync(join(ROOT, 'packages/burgee/src/__snapshots__')) && readdirSync(join(ROOT, 'packages/burgee/src/__snapshots__')).some((f) => f.startsWith('help')) },
   { id: '2.5.2', what: 'dependsOn/exclusive are spelled in the schema', done: () => has('packages/burgee/src/schema.ts', 'dependsOn') && has('packages/burgee/src/schema.ts', 'exclusive') },
   { id: '2.5.3', what: 'the Fig spec is validated, not just emitted', done: () => existsSync(join(ROOT, 'packages/burgee/src/fig-schema.test.ts')) },
@@ -399,14 +425,27 @@ const STEPS: Step[] = [
 /** The design steps say why they are red, so "not done" is never confused with "cannot tell". */
 const DESIGN_STEPS: Record<string, string> = { '3.1': 'paratext', '3.2': 'seniority', '3.3': 'closeout', '3.5': 'linegauge' };
 
-const results = STEPS.map((step) => ({ ...step, ok: landed(step) }));
-for (const r of results) {
-  const slug = DESIGN_STEPS[r.id];
-  const why = r.ok || slug === undefined ? '' : `  — ${designGap(slug)}`;
-  console.log(`${r.ok ? '✓' : '·'} ${r.id.padEnd(ID_WIDTH)} ${r.what}${why}`);
+/**
+ * The report, from each step's verdict. Separate from running the conditions so a lock can hold
+ * the report's shape without spawning every tool the conditions ask (D-20261101-tests-under-5s).
+ */
+export function report(results: readonly (Step & { ok: boolean })[]): { text: string; left: number } {
+  const lines = results.map((r) => {
+    const slug = DESIGN_STEPS[r.id];
+    const why = r.ok || slug === undefined ? '' : `  — ${designGap(slug)}`;
+    return `${r.ok ? '✓' : '·'} ${r.id.padEnd(ID_WIDTH)} ${r.what}${why}`;
+  });
+  const left = results.filter((r) => !r.ok).length;
+  lines.push(`\n${results.length - left}/${results.length} landed. ${left === 0 ? 'The plan is done.' : `${String(left)} to go.`}`);
+  lines.push(`\nmanual: ${String(MANUAL.length)} steps whose truth is not in the tree`);
+  for (const m of MANUAL) lines.push(`  ${m.id.padEnd(ID_WIDTH)} ${m.why}`);
+  return { text: lines.join('\n'), left };
 }
-const left = results.filter((r) => !r.ok).length;
-console.log(`\n${results.length - left}/${results.length} landed. ${left === 0 ? 'The plan is done.' : `${String(left)} to go.`}`);
-console.log(`\nmanual: ${String(MANUAL.length)} steps whose truth is not in the tree`);
-for (const m of MANUAL) console.log(`  ${m.id.padEnd(ID_WIDTH)} ${m.why}`);
-process.exitCode = left === 0 ? 0 : 1;
+
+// Run as a script only. `design-gap-lock.test.ts` imports the regexes above, and importing this
+// file used to run every condition — the chalk grade among them — inside that test's process.
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  const { text, left } = report(STEPS.map((step) => ({ ...step, ok: landed(step) })));
+  console.log(text);
+  process.exitCode = left === 0 ? 0 : 1;
+}

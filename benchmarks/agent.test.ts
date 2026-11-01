@@ -15,7 +15,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { AGENT_ENV_RULE, agentEnv, armRecords, type Attempt, blockers, classifyFailure, installTool, ISOLATION, isPosix, MCP_ARM_OPT_IN, type McpConfig, mcpConfig, MODALITIES, nothingCameBack, OUTPUT_FORMAT, parseClaudeJson, perTaskDetail, POSIX_ONLY, priorReadings, probeServer, type Reading, READINGS_METRIC, readTasks, redact, resultObject, run, runOne, serverStatus, STORED_LOGIN_OPT_IN, storedLogin, summariseFailures, type Task, tasksFor, totalRecords, type Variant, VARIANTS, variantsFor, writeMcpConfig } from './axes/agent.js';
+import { AGENT_ENV_RULE, agentEnv, armRecords, type Attempt, blockers, classifyFailure, installTool, ISOLATION, isPosix, MCP_ARM_OPT_IN, type McpConfig, mcpConfig, MODALITIES, nothingCameBack, OUTPUT_FORMAT, parseClaudeJson, perTaskDetail, POSIX_ONLY, PRINT_CONFIG_TIMEOUT_MS, priorReadings, probeServer, type Reading, READINGS_METRIC, readTasks, redact, resultObject, run, runOne, serverStatus, STORED_LOGIN_OPT_IN, storedLogin, summariseFailures, type Task, tasksFor, totalRecords, type Variant, VARIANTS, variantsFor, writeMcpConfig } from './axes/agent.js';
 import { SUITE } from './bands.js';
 import { CLAIMS } from './claims.js';
 import { buildDocument, type ResultsDoc } from './emit.js';
@@ -680,17 +680,23 @@ describe.skipIf(!isPosix())('R2 — a `burgee-mcp` variant', () => {
     expect({ server, source, args: config.mcpServers['demo']?.args }).toEqual({ server: 'demo', source: 'print-config', args: ['--mcp'] });
   });
 
-  it('derives the config when what the demo printed is not one server with a command', () => {
-    expect(sourceOf({ mcpServers: { a: { command: 'x' }, b: { command: 'y' } } })).toBe('derived');
-    expect(sourceOf({ mcpServers: { demo: null } })).toBe('derived');
-    expect(sourceOf({ mcpServers: { demo: { args: ['--mcp'] } } })).toBe('derived');
-    expect(sourceOf({ mcpServers: {} })).toBe('derived');
-    expect(sourceOf({ mcpServers: null })).toBe('derived');
-    expect(sourceOf({ servers: {} })).toBe('derived');
-    expect(sourceOf(['not', 'an', 'object'])).toBe('derived');
-    expect(sourceOf(null)).toBe('derived');
-    expect(sourceOf('not json')).toBe('derived');
-    // A printed server with no arguments is started with none.
+  // One case per printed shape: each installs and spawns a stub, and as one case the ten read
+  // 4.9 s on the development machine (D-20261101-tests-under-5s).
+  it.each([
+    ['two servers', { mcpServers: { a: { command: 'x' }, b: { command: 'y' } } }],
+    ['a null server', { mcpServers: { demo: null } }],
+    ['a server with no command', { mcpServers: { demo: { args: ['--mcp'] } } }],
+    ['no server', { mcpServers: {} }],
+    ['null mcpServers', { mcpServers: null }],
+    ['another key', { servers: {} }],
+    ['an array', ['not', 'an', 'object']],
+    ['null', null],
+    ['not JSON', 'not json'],
+  ] as const)('derives the config when what the demo printed is not one server with a command: %s', (_shape, printed) => {
+    expect(sourceOf(printed)).toBe('derived');
+  });
+
+  it('starts a printed server with no arguments with none', () => {
     expect(mcpConfig(installTool(stubMcpBin({ printConfig: { mcpServers: { tool: { command: 'x' } } } })))).toMatchObject({ server: 'tool', source: 'print-config', config: { mcpServers: { tool: { args: [] } } } });
   });
 
@@ -699,10 +705,16 @@ describe.skipIf(!isPosix())('R2 — a `burgee-mcp` variant', () => {
     expect(mcpConfig(installTool(stubMcpBin({ printConfig, printExit: 1 })))).toMatchObject({ server: 'demo', source: 'derived' });
   });
 
-  it('stops waiting for `--print-config` after ten seconds and derives the config', () => {
+  // The wait is ten seconds in a run; here the same timeout is 300 ms, so the case does not spend
+  // ten seconds proving it stops (D-20261101-tests-under-5s). The ten is held separately.
+  it('stops waiting for `--print-config` at its timeout and derives the config', () => {
     const started = Date.now();
-    expect(mcpConfig(installTool(stubMcpBin({ printExit: 'hang' }))).source).toBe('derived');
-    expect(Date.now() - started).toBeLessThan(30_000);
+    expect(mcpConfig(installTool(stubMcpBin({ printExit: 'hang' })), 300).source).toBe('derived');
+    expect(Date.now() - started).toBeLessThan(5_000);
+  });
+
+  it('waits ten seconds for `--print-config` in a run', () => {
+    expect(PRINT_CONFIG_TIMEOUT_MS).toBe(10_000);
   });
 
   // The 2026-10-20 weekly reading (run 39407740629): the demo printed `demo-burgee`, its bin's
