@@ -61,21 +61,19 @@ describe('the flag shapes answer as the upstream regexes did', () => {
 describe('unknown-options-as-args classifies a long argument in linear time', () => {
   const parse = (arg: string) => yargsParser([arg], { configuration: { 'unknown-options-as-args': true } });
 
-  // Each size is picked so the smaller parse takes about 10 ms here (node v24.12.0, macOS, under
-  // load): 100,000 `'! '` read 11.3 -> 44.5 ms and 200,000 digits 9.5 -> 39.3 ms, and the ratio
-  // stayed within 3.9-4.6 over repeated runs. Upstream's regexes read 38x (cubic, 100 `'! '`) and
-  // 14x (quadratic, 2,000 digits), at sizes they can finish.
+  // `growth` grows n from `from` until the smaller parse takes 20 ms; `max` bounds the memory the
+  // inputs take. Upstream's regexes, under the same helper, read far past the ceiling of 24.
   it('a run of punctuation before a line break (cubic upstream)', () => {
     const arg = (n: number) => `-a${'! '.repeat(n)}a\na`;
     expect(parse(arg(100_000))._).toEqual([arg(100_000)]);
-    const g = growth(arg, parse, 100_000);
+    const g = growth(arg, parse, { from: 2_000, max: 50_000 });
     expect(g.ratio, said(g)).toBeLessThan(LINEAR);
   });
 
   it('a run of digits that does not end the argument (quadratic upstream)', () => {
     const arg = (n: number) => `--${'1'.repeat(n)}x\n`;
     expect(parse(arg(200_000))._).toEqual([arg(200_000)]);
-    const g = growth(arg, parse, 200_000);
+    const g = growth(arg, parse, { from: 5_000, max: 100_000 });
     expect(g.ratio, said(g)).toBeLessThan(LINEAR);
   });
 

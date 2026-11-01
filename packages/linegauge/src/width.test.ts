@@ -312,9 +312,8 @@ describe('zero-width clusters are measured in linear time, and as the regexes me
   });
 
   // Timed at two sizes, so the lock holds the growth and not the milliseconds, which a slow or
-  // instrumented runner multiplies (`__fixtures__/growth.ts`): about 10 ms for the smaller pair of
-  // calls here (node v24.12.0, macOS), and four times that for the larger. The regex this replaced
-  // doubled its time per joiner added: at 5 and 20 joiners it read 0.005 -> 37 ms.
+  // instrumented runner multiplies (`__fixtures__/growth.ts`). The regex this replaced doubled its
+  // time per joiner added: at 5 and 20 joiners it read 0.005 -> 37 ms.
   it('measures a run of joiners before a visible character in linear time', () => {
     width('\u034F\u0903'); // the property classes are built on first use; that is not the cost under test
     expect(width(`${'\u034F'.repeat(1000)}\u0903`)).toBe(1);
@@ -325,7 +324,7 @@ describe('zero-width clusters are measured in linear time, and as the regexes me
         width(`${joiners}\u0903`);
         width(`${joiners}\u{1F3FB}`);
       },
-      250_000,
+      { from: 5_000, max: 100_000 },
     );
     expect(g.ratio, said(g)).toBeLessThan(LINEAR);
   });

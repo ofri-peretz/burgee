@@ -218,15 +218,14 @@ describe('help trimming answers as meow\'s regexes did, in linear time (CodeQL #
 
   // A run that does not reach the end is what made the regexes quadratic, and the scans step over
   // it in O(1); each input also ends in a run as long, so the scan has linear work to be timed on.
-  // About 0.5-1 ms for the smaller input here (node v24.12.0, macOS), ratios 3.5-4.1 over eight
-  // runs beside a full suite; the regexes read 15x-16x. Small on purpose: the scans are tight loops, and under the
-  // mutation run's instrumentation sizes ten times these took 22-27 s.
+  // The scans cost about a nanosecond a character, so `max` keeps the strings small and `growth`
+  // repeats the call to reach its 20 ms instead of building strings of tens of megabytes.
   it('trims newlines and tabs, with a run that never reaches the end, in linear time', () => {
     expect(trimNewlines(newlines(3))).toBe(`a${'\n'.repeat(3)}b`);
     expect(cutTrailingTabs(tabs(3))).toBe(`a${'\t'.repeat(3)}b`);
-    const trimmed = growth(newlines, trimNewlines, 400_000);
+    const trimmed = growth(newlines, trimNewlines, { from: 10_000, max: 250_000 });
     expect(trimmed.ratio, `trimNewlines: ${said(trimmed)}`).toBeLessThan(LINEAR);
-    const cut = growth(tabs, cutTrailingTabs, 200_000);
+    const cut = growth(tabs, cutTrailingTabs, { from: 10_000, max: 150_000 });
     expect(cut.ratio, `cutTrailingTabs: ${said(cut)}`).toBeLessThan(LINEAR);
   });
 });

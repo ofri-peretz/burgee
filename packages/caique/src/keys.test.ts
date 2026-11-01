@@ -116,8 +116,7 @@ describe('canonical: one spelling per key', () => {
 
   it('reads a long run of modifiers in linear time, so a keymap from a file cannot stall it', () => {
     // The regular expression this replaced backtracked polynomially here (CodeQL, #799). Timed at
-    // two sizes, so the lock holds the growth and not the milliseconds (`__fixtures__/growth.ts`);
-    // the smaller pair of calls takes about 8 ms here (node v24.12.0, macOS).
+    // two sizes, so the lock holds the growth and not the milliseconds (`__fixtures__/growth.ts`).
     expect(() => canonical('alt+'.repeat(50_000))).toThrow(KeysError);
     expect(canonical(`${'alt+'.repeat(50_000)}x`)).toBe('meta+x');
     const g = growth(
@@ -126,7 +125,7 @@ describe('canonical: one spelling per key', () => {
         expect(() => canonical(run)).toThrow(KeysError);
         canonical(`${run}x`);
       },
-      100_000,
+      { from: 2_000, max: 50_000 },
     );
     expect(g.ratio, said(g)).toBeLessThan(LINEAR);
   });
