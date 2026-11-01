@@ -289,8 +289,13 @@ describe('evals.yml records the weekly run and lands it', () => {
     expect(wf).toContain('${{ steps.app.outputs.token || secrets.RELEASE_BOT_PAT || github.token }}');
   });
 
-  it('does not re-run the task evals on the pull request that only lands a line', () => {
-    expect(wf).toContain('- "!evals/history/**"');
+  // Stronger than the paths exclusion it replaces: no pull request runs the paid layer at all, the
+  // one that only lands a line included (D-20261101-heavy-ci-runs-nightly). Layer 1 runs on every
+  // pull request in quality.yml.
+  it('does not run the task evals on any pull request, the one that only lands a line included', () => {
+    const on = wf.slice(wf.indexOf('\non:\n'), wf.indexOf('\nconcurrency:'));
+    expect(on).not.toMatch(/^ {2}pull_request:/mu);
+    expect(readFileSync(join(REPO_ROOT, '.github/workflows/quality.yml'), 'utf8')).toContain('run: npm run evals:config');
   });
 
   it('R5 — a week that did not run opens "did not run", not "failing"', () => {

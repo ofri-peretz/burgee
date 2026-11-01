@@ -2,20 +2,25 @@
 name: Benchmarks
 
 # ─────────────────────────────────────────────────────────────────────────────
-# The four axes of `cli-benchmarks`, on the two cadences the intent sets.
+# The four axes of `cli-benchmarks`, on the cadences the intent sets. Heavy work does not run
+# during CI/CD (D-20261101-heavy-ci-runs-nightly): nothing here runs on a push to `main`, and a
+# pull request gets only the byte-exact gates.
 #
-#   cheap  — B2 cold start, B3 compatibility, B4 weight, B5 runtime against the
-#            incumbent, and the reliability axis (B1's deterministic half). Free,
-#            and the ones a refactor regresses silently, so they gate every PR.
+#   gate   — pull requests only: B4 weight, the reliability axis (bytes and exit codes, no clock)
+#            and the N10 floor, each `--check`ed. Deterministic, so a PR can be held to them; about
+#            five minutes, most of it the build. Nothing is landed from a pull request.
+#   cheap  — nightly (`0 3 * * *`): B2 cold start, B3 compatibility, B4 weight, B5 runtime against
+#            the incumbent, and the reliability axis, all `--check`ed, and the night's observation
+#            landed on `chore/bench-series` — one a night, where every push to `main` used to land
+#            one and the bot PR's own merge was the next push. Its milliseconds are a property of
+#            the runner, so they gate a night, not a pull request.
 #   agent  — B1 agent cost. Costs money and is noisy over short intervals, so it
 #            does not run on a pull request unless one asks by name with the
-#            `bench:agent` label: weekly on the schedule, on demand, and on a
-#            labelled PR. **Not on a push to main** since 2026-10-18
+#            `bench:agent` label: weekly on its own cron (`40 5 * * 2`, not the nightly one), on
+#            demand, and on a labelled PR. **Not on a push to main** since 2026-10-18
 #            (D-20261019-b1-weekly-not-per-push): about 25 paid runs per merge
 #            drew on the same Claude weekly quota as the required `review` check
-#            and froze the repository for five days. (An earlier draft of this comment
-#            claimed a `packages/**` paths filter; there is none, and the `if:`
-#            on the job is the whole of the rule.) It needs
+#            and froze the repository for five days. It needs
 #            CLAUDE_CODE_OAUTH_TOKEN (preferred; no per-token charge) or
 #            ANTHROPIC_API_KEY, and **reports skipped without one** — it never
 #            reports a number it did not measure. On a scheduled run that skips,
@@ -29,8 +34,9 @@ name: Benchmarks
 #            main or a dispatch without the input — and `ci-axes.test.ts` holds
 #            that bound (R4). It stays off until the owner sets the repository
 #            variable B1_MCP_ARM=approved.
-#   floor  — N10, the demo graded by clispec and cli-agent-lint. Free, every PR,
-#            its own suite (`external-floor`); see the job.
+#   floor  — nightly: N10, the demo graded by clispec and cli-agent-lint, its own suite
+#            (`external-floor`); see the job. Its ratchet also runs in `gate` on every PR.
+#   report — a failed night opens (or comments on) one issue.
 #
 # The perf axis reports absolute milliseconds that are a property of the runner.
 # Nothing gates on them: the gated number is a ratio between two spawns
@@ -44,18 +50,18 @@ on:
     # `labeled` so applying `bench:agent` starts a run rather than waiting for
     # the next push: the label IS the request to spend the money.
     types: [opened, synchronize, reopened, labeled]
-  push:
-    branches: [main]
-    # The record step below opens a PR whose merge is itself a push to main, and the
-    # run it triggers measures the same code and finds a diff every time — `cold-start-ms`
-    # is a property of the runner, so the guard "is there anything new to record" is
-    # always true. One merge therefore produced the next PR forever: #275, #277, #282,
-    # #284, #286, #288, #289 are one commit's observations, seven times over. Ignoring
-    # the directory the step writes is what ends it — a push carrying code *and* results
-    # still runs, because paths-ignore only skips a push whose every file matches.
+    # The nightly observation PR carries data and nothing else; the gate measures the build, which
+    # it does not move.
     paths-ignore:
       - 'benchmarks/results/**'
+  # No `push:`. Every push to `main` used to measure, land an observation and open or extend
+  # `chore/bench-series`, whose merge was the next push: a bot PR every 20–30 minutes, each one
+  # more CI and one more superseded release run (D-20261101-heavy-ci-runs-nightly). Without the
+  # trigger that loop cannot form, whatever the landing step finds (#275–#289 were the first one).
   schedule:
+    # Nightly, the first of the staggered heavy runs (compat.yml follows at 03:30).
+    - cron: "0 3 * * *"
+    # Weekly, B1 only. `github.event.schedule` tells the two apart in the jobs' `if:`.
     - cron: "40 5 * * 2"
   workflow_dispatch:
     inputs:
@@ -82,8 +88,42 @@ env:
   TURBO_TELEMETRY_DISABLED: "1"
 
 jobs:
+  # The pull request's share of this file: the axes whose numbers do not move with the machine.
+  # B4 weight is bytes (a bundle and an install, against the package each entry point replaces),
+  # reliability is bytes and exit codes, the floor is a checklist score — each a ratchet a PR can
+  # be held to. The cold-start, runtime and compat-suite axes are timings or the oracle's long run
+  # and gate the nightly `cheap` job instead. One build for all three; the two commands write the
+  # same `<date>-<sha>-ci.json` names, which is harmless here because a pull request lands nothing.
+  gate:
+    name: B4 weight · reliability · N10 floor (pull request gate)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - name: Build (the axes measure what is built, never what is written)
+        run: npx turbo run build --concurrency=4
+      - name: Install the two floor checkers, pinned by version and digest
+        run: npx tsx benchmarks/floor-tools.ts
+      - name: B4 weight and reliability, every gate checked
+        shell: bash
+        run: npm run bench -- --axis weight --axis reliability --check 2>&1 | tee gate.log
+      - name: N10 floor, burgee's ratchet checked
+        shell: bash
+        run: npm run bench -- --axis floor --check 2>&1 | tee -a gate.log
+      - name: Summary
+        if: always()
+        run: |
+          { echo '## Benchmarks (pull request gate)'; echo; echo '```'; cat gate.log || echo '(no output)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
   cheap:
     name: B2 cold start · B3 compatibility · B4 weight
+    # Nightly and on demand. Not on the weekly B1 cron: that would land a second observation the
+    # same day, and B1's reading lands on its own branch.
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule != '40 5 * * 2')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -112,8 +152,8 @@ jobs:
       # later. The check compares the committed page against the COMMITTED results,
       # so it never needed this job's measurements — only a gate that blocks.
       # The scale bench's own tests (Z5): out of the default run (benchmarks/vitest.config.ts),
-      # so they run here on the weekly schedule and on demand, never on a push or pull request.
-      - name: Scale bench tests (weekly)
+      # so they run here on the nightly schedule and on demand, never on a push or pull request.
+      - name: Scale bench tests (nightly)
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         working-directory: benchmarks
         env:
@@ -156,8 +196,9 @@ jobs:
       # watcher reads dated files out of the checkout, so a run that only uploads an
       # artifact feeds it nothing — which is how the two agent bands sat at 0 of 8 from
       # the day they were written. Same shape control-bands.yml already uses.
+      # The scheduled run only, so the bench-series PR is opened or extended at most once a night.
       - name: Land the day's observations, so the bands have a series to watch
-        if: github.event_name == 'push'
+        if: github.event_name == 'schedule'
         env:
           GH_TOKEN: ${{ steps.app.outputs.token || secrets.RELEASE_BOT_PAT || github.token }}
           SOURCE: ${{ steps.app.outputs.token != '' && 'app' || (env.HAS_PAT == 'true' && 'pat' || 'github-token') }}
@@ -193,7 +234,7 @@ jobs:
             esac
           done
           git checkout -- benchmarks/results/
-          # One rolling branch and PR, not one per push. Every file here is named by its
+          # One rolling branch and PR, not one per night. Every file here is named by its
           # commit, so observations never collide and each run just adds commits on top.
           # A per-commit branch opened a PR on every merge to main — 21 of them sat
           # unmergeable at once, because a GITHUB_TOKEN PR raises no checks (C5).
@@ -242,11 +283,12 @@ jobs:
   # and cli-agent-lint's 34 checks. Its own job and its own suite (`external-floor`),
   # because two `npm run bench` commands in one checkout write the same
   # `<date>-<sha>-ci.json` name for every suite, and the second would overwrite the first's
-  # measurements with `not-run`. Free and deterministic, so it runs on every PR; the one
-  # network step is the download, which `floor-tools.ts` refuses unless the archive's
-  # SHA-256 is the pinned one.
+  # measurements with `not-run`. Free and deterministic: its ratchet gates every PR inside
+  # `gate`, and this job grades main nightly and keeps the artifact. The one network step is
+  # the download, which `floor-tools.ts` refuses unless the archive's SHA-256 is the pinned one.
   floor:
     name: N10 external floor (clispec · cli-agent-lint)
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule != '40 5 * * 2')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -283,8 +325,10 @@ jobs:
     # agent cost changes, so `bench:agent` asks for it explicitly.
     # Not on a push to main (D-20261019-b1-weekly-not-per-push): one weekly reading, the PRs that
     # ask by label and the owner's dispatches bound the spend. `ci-axes.test.ts` evaluates this condition per event.
+    # The weekly cron only: the nightly one (D-20261101-heavy-ci-runs-nightly) would spend the
+    # quota seven times a week.
     if: >-
-      github.event_name == 'schedule' ||
+      github.event.schedule == '40 5 * * 2' ||
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' &&
       contains(github.event.pull_request.labels.*.name, 'bench:agent'))
@@ -323,7 +367,7 @@ jobs:
           # owner: the repository variable B1_MCP_ARM must read `approved` (spec.md, "Cost"), so
           # merging the harness spends nothing. The one place it is set; `ci-axes.test.ts`
           # evaluates this expression for every event.
-          BENCH_AGENT_MCP: ${{ (vars.B1_MCP_ARM == 'approved' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mcp-arm) || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'bench:agent')))) && '1' || '0' }}
+          BENCH_AGENT_MCP: ${{ (vars.B1_MCP_ARM == 'approved' && (github.event.schedule == '40 5 * * 2' || (github.event_name == 'workflow_dispatch' && inputs.mcp-arm) || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'bench:agent')))) && '1' || '0' }}
         shell: bash
         # `--check` so the one gated record on this axis can fire. `success-rate`
         # is a floor on the harness, not on the model: a run where a third of the
@@ -373,7 +417,7 @@ jobs:
                 console.log(`| ${id} | ${t[id + ".turns"]} | ${t[id + ".tokens"]} | ${t[id + ".passed"]} | ${t[id + ".denials"]} | ${t[id + ".failures"] ?? ""} |`);
             }' >> "$GITHUB_STEP_SUMMARY" || true
 
-      # Scheduled AND push-to-main: between Tuesdays, every push reported this
+      # Scheduled: between Tuesdays, every push to main once reported this
       # job green while it measured nothing, which is the exact shape of thing
       # a green tick hides for a year. A PR run stays quiet — the summary and
       # the ::warning:: are enough there, and one issue per labelled PR is noise.
@@ -385,7 +429,7 @@ jobs:
       # 2026-10-08, four readings visible only in job logs). It lands its one file the same way.
       - name: Mint the release App's token
         id: app
-        if: (github.event_name == 'push' || github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mcp-arm)) && steps.status.outputs.status == 'measured' && vars.RELEASE_APP_ID != '' && env.HAS_APP_KEY == 'true'
+        if: (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mcp-arm)) && steps.status.outputs.status == 'measured' && vars.RELEASE_APP_ID != '' && env.HAS_APP_KEY == 'true'
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           client-id: ${{ vars.RELEASE_APP_ID }}
@@ -395,12 +439,12 @@ jobs:
 
       # The weekly reading lands too: it is the one that carries the MCP arm, and the claim
       # `cli-vs-mcp-tokens` reads four of them. It lands as `<date>-<sha>-weekly-ci.json`,
-      # because the schedule measures whatever main's head is, and a push reading of that same
+      # because the schedule measures whatever main's head is, and the nightly reading of that same
       # commit on the same day already holds `<date>-<sha>-ci.json`. An owner dispatch with `mcp-arm`
       # set lands as `<date>-<sha>-dispatch-<run id>-ci.json`: two dispatches of one commit on one day
       # would otherwise share a name, and the run id is what the published page cites.
       - name: Land B1's observation
-        if: (github.event_name == 'push' || github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mcp-arm)) && steps.status.outputs.status == 'measured'
+        if: (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mcp-arm)) && steps.status.outputs.status == 'measured'
         env:
           GH_TOKEN: ${{ steps.app.outputs.token || secrets.RELEASE_BOT_PAT || github.token }}
           BODY: "B1's agent-cost reading from main, landed so `agent-tokens-40pct`, `agent-turns-30pct`, `cli-vs-mcp-tokens` and the agent bands have a CI series to read."
@@ -460,7 +504,7 @@ jobs:
 
       - name: Say so, where someone will see it
         if: >-
-          (github.event_name == 'schedule' || github.event_name == 'push') &&
+          github.event_name == 'schedule' &&
           steps.status.outputs.status != 'measured'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -472,13 +516,36 @@ jobs:
           TITLE="B1 agent cost has never been measured"
           EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty')
           BODY=$(printf '%s\n\n> %s\n\nUntil this runs, the roadmap headline — ≥40%% fewer tokens and ≥30%% fewer turns — is a claim with no number behind it, and `npm run bench` reports it as `unmeasured` rather than guessing.\n\n[Run](%s)\n' "The B1 run on $GITHUB_EVENT_NAME skipped." "$REASON" "$RUN_URL")
-          # An open issue is already the signal. Commenting again on every merge
-          # would turn it into a thread nobody reads, so a push only opens one;
-          # the weekly run is what keeps saying it, once a week.
+          # An open issue is already the signal; the weekly run is what keeps saying it.
           if [ -z "$EXISTING" ]; then
             gh issue create --title "$TITLE" --body "$BODY"
-          elif [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
-            gh issue comment "$EXISTING" --body "$BODY"
           else
-            echo "already open as #$EXISTING — not commenting on a push"
+            gh issue comment "$EXISTING" --body "$BODY"
           fi
+
+  # A night that fails says so where someone will see it (D-20261101-heavy-ci-runs-nightly). The
+  # gates moved off pull requests are only as good as this: a red nightly run nobody opens is a
+  # benchmark that stopped gating. One issue, by title; each further failed night comments on it.
+  report:
+    name: Report a failed night
+    needs: [cheap, floor]
+    if: always() && github.event_name == 'schedule' && (needs.cheap.result == 'failure' || needs.floor.result == 'failure')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Open or update the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SHA: ${{ github.sha }}
+          CHEAP: ${{ needs.cheap.result }}
+          FLOOR: ${{ needs.floor.result }}
+        run: |
+          set -euo pipefail
+          TITLE="Nightly benchmarks failed"
+          BODY=$(printf 'The nightly benchmark run on `%s` failed: cheap axes `%s`, N10 floor `%s`. Cold start, runtime and the compat suite no longer gate a pull request, so this is where their regressions show up.\n\n[Run](%s)\n' "$SHA" "$CHEAP" "$FLOOR" "$RUN_URL")
+          EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then gh issue comment "$EXISTING" --body "$BODY"; else gh issue create --title "$TITLE" --body "$BODY"; fi

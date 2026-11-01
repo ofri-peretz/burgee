@@ -121,7 +121,7 @@ Criterion 1 named `packages/burgee/src/clispec-document.test.ts`. The test was b
 | :-- | :-- | :-- |
 | 1. the demo's `--schema` validates against the vendored v0.3 schema | `scripts/clispec-document.test.ts`, `program-schema.test.ts` | 53 passed (with `decisions-lock.test.ts`); `schema.test.ts` R1/R3/R4 5 passed, 9 skipped |
 | 2. every failure carries `error.kind`; the stderr JSON line | `json-failure.test.ts -t R6`; `exit-code.test.ts`, `define-error.test.ts -t R2` | 13 passed, 42 skipped; 8 passed, 3 skipped; 4 passed, 6 skipped |
-| 3. clispec 24 / 24 and `BURGEE_FLOOR.clispec` at 24 | `benchmarks/floor.test.ts`; `bench.yml`'s floor job runs `--check` against `min: 24` on every PR | 15 passed; the last two `Benchmarks` runs on `main` green (39160454575, 39157960032) |
+| 3. clispec 24 / 24 and `BURGEE_FLOOR.clispec` at 24 | `benchmarks/floor.test.ts`; `bench.yml` runs `--axis floor --check` against `min: 24` on every PR (the `gate` job; the `floor` job nightly since D-20261101-heavy-ci-runs-nightly) | 15 passed; the last two `Benchmarks` runs on `main` green (39160454575, 39157960032) |
 | 4. compat unchanged | `npm run compat -- commander yargs` | commander 1360 / 1360, yargs 816 / 816 |
 
 Supporting rows: output declarations (R7/R8) through `schema-fields.test.ts` (2 passed, 7 skipped),

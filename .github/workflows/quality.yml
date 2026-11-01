@@ -169,8 +169,9 @@ jobs:
       # Evals layer 1 — every relative link in an agent-facing document resolves, every script a
       # document names exists, every floor id a child intent cites is defined. Deterministic, no
       # credential, no quota, so it runs on every PR; `.sdlc/intents/` is in its set. The paid
-      # task evals (layer 2) stay in evals.yml and keep its narrower `paths:` — an intent edit
-      # never spends the Claude quota (D-20261025-sdlc-locks-evals-bands-design-accepted).
+      # task evals (layer 2) stay in evals.yml, which runs weekly and on dispatch, never on a pull
+      # request — an intent edit never spends the Claude quota
+      # (D-20261025-sdlc-locks-evals-bands-design-accepted, D-20261101-heavy-ci-runs-nightly).
       - name: Evals layer 1 (links, scripts, floor ids)
         id: evals_config
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}

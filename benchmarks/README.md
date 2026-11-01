@@ -15,10 +15,14 @@ npm run bench -- --no-oracle     # B3 reads results.json or skips; never runs th
 | Axis | Question | Runs |
 | :--- | :--- | :--- |
 | **B1** agent | does a CLI that meets the floor make an agent cheaper? | weekly, **needs a credential** |
-| **B2** perf | are we cheap to start? | every PR |
-| **B3** compat | how compatible are we, exactly? | every PR |
-| **B4** weight | are we lighter than what we replace? | every PR |
-| **B5** runtime | are we faster than what we replace, doing the same job? | every PR |
+| **B2** perf | are we cheap to start? | nightly |
+| **B3** compat | how compatible are we, exactly? | nightly |
+| **B4** weight | are we lighter than what we replace? | every PR, and nightly |
+| **B5** runtime | are we faster than what we replace, doing the same job? | nightly |
+
+Nightly since 2026-11-01 ([D-20261101-heavy-ci-runs-nightly](../.sdlc/decisions/D-20261101-heavy-ci-runs-nightly.md)): heavy work does not run
+during CI/CD. A pull request runs the axes whose numbers do not move with the runner — B4 weight,
+reliability and the N10 floor — and a failed night opens an issue.
 
 ## B2 — roundel's colour entries against picocolors
 
@@ -151,7 +155,8 @@ the un-run state *and* passes on a correct answer.
 - **claims** — every public number, settled: `met`, not met, or `unmeasured` with a reason.
 
 Two suites, because the axes run on two cadences: `cli-benchmarks` (perf, compat, weight,
-reliability, runtime — free, gate every PR) and `agent-cli-bench` (B1 — costs money, weekly).
+reliability, runtime — free, gate every night, B4 and reliability every PR too) and
+`agent-cli-bench` (B1 — costs money, weekly).
 
 ### Observations and the published measurement
 

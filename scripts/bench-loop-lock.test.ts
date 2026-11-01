@@ -7,7 +7,7 @@
 /**
  * Lock — the benchmark recorder does not trigger on its own output.
  *
- * `bench.yml` runs on every push to `main`. On a push it writes `benchmarks/results/`,
+ * `bench.yml` ran on every push to `main`. On a push it wrote `benchmarks/results/`,
  * opens a PR with the diff, and enables auto-merge. That PR's merge is a push to `main`,
  * which runs `bench.yml` again. The step's own guard — "is there anything new to record"
  * — is always true, because the run overwrites the published measurements with this
@@ -52,14 +52,22 @@ function triggers(workflow: string): string {
 describe("bench.yml does not trigger on the directory it writes", () => {
   const on = triggers("bench.yml");
 
-  it("still runs on pushes to main", () => {
-    expect(on).toMatch(/push:\n\s+branches: \[main]/);
+  // D-20261101-heavy-ci-runs-nightly. `paths-ignore` ended the loop above, and each push that
+  // carried code still measured and still landed: one `chore/bench-series` PR every 20–30 minutes,
+  // each merge a push that ran CI again and superseded a release run. The recorder now lands from
+  // the nightly schedule only, and with no push trigger the bot PR's merge starts nothing here.
+  it("does not run on a push to main at all", () => {
+    expect(on).not.toMatch(/^ {2}push:/mu);
   });
 
-  it("ignores a push that only moved benchmarks/results", () => {
+  it("measures on a schedule instead", () => {
+    expect(on).toMatch(/^ {2}schedule:\n(?:\s+#.*\n)*\s+- cron: "\d+ \d+ \* \* \*"/mu);
+  });
+
+  it("ignores a pull request that only moved benchmarks/results — the nightly observation PR", () => {
     const ignored =
       on
-        .slice(on.indexOf("push:"))
+        .slice(on.indexOf("pull_request:"))
         .match(/paths-ignore:\n((?:\s+- .*\n)+)/)?.[1] ?? "";
     expect(ignored).toContain("- 'benchmarks/results/**'");
   });

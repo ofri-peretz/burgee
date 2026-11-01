@@ -110,7 +110,7 @@ section adds the check for each requirement as it stands on FETCH_HEAD.
 | B3 | Compatibility: per-host pass rate, read from `compat-oracle`'s JSON, never recomputed |
 | B4 | Weight: bundled KB of a fixture importing one entry point, per entry point, against its published target |
 | B5 | All four axes emit `{ axis, variant, metric, unit, samples, median, p95 }`; one collector reads all of them |
-| B6 | `npm run bench` runs every axis; `--axis <name>` runs one; B2/B3/B4 gate every PR, B1 runs weekly |
+| B6 | `npm run bench` runs every axis; `--axis <name>` runs one; B4 gates every PR, B2/B3 gate nightly (D-20261101-heavy-ci-runs-nightly: heavy work does not run during CI/CD), B1 runs weekly |
 | B7 | Every public number in the repo or on the site links to the generated `/benchmarks` page |
 
 Harness requirements:
@@ -216,8 +216,9 @@ the pay-per-import rule is enforced rather than merely intended.
 - **Measuring wall-clock.** Dominated by model latency; tokens and turns are what the
   layer can move.
 - **Running B1 on every PR.** Cost and noise; weekly plus `packages/**` changes is the
-  cadence, with `run-full-ci` for on-demand. B2, B3 and B4 are free and deterministic, so
-  they do gate every PR — those are the ones a refactor regresses silently.
+  cadence, with `run-full-ci` for on-demand. B2, B3 and B4 are free, so they gated every PR
+  until 2026-11-01; since D-20261101-heavy-ci-runs-nightly B4 (bytes, no runner in the number) still does,
+  and B2 and B3 gate a nightly run, which opens an issue when it fails.
 - **Four separate benchmark projects.** All four need the same thing: build N variants, run
   something per variant, emit one shape, compare to a band. Four projects would be that
   harness written four times and four docs pages to keep in sync.
@@ -259,7 +260,8 @@ Two additions the design did not ask for:
   compare against a research file by hand. Each claim names the file that states it, the
   record that settles it, and the verdict, and `unmeasured` never renders as `false`.
 - **A deterministic gate per record, separate from the band.** A band needs eight
-  observations before it says anything; B2, B3 and B4 gate every PR from the first one.
+  observations before it says anything; the gates fire from the first one — B4 on every PR, B2
+  and B3 on every nightly run (D-20261101-heavy-ci-runs-nightly).
   The gate is a bound on the median with a mandatory `why`; the band watches drift below
   it.
 

@@ -1,4 +1,4 @@
-# The compatibility scoreboard, on every change.
+# The compatibility scoreboard: its gates on every pull request, the whole matrix every night.
 #
 #   ratchet — C5: each host's own suite against burgee; falling below the recorded baseline
 #             fails. Runs where the baselines were recorded (Linux, the .nvmrc Node).
@@ -9,10 +9,21 @@
 #             is not a contract for another.
 #   floor   — C3 for the two `engines` floors, the published suites only.
 #
-# On a pull request `matrix` and `floor` run only the affected packages: each one the PR changed
+# Heavy work does not run during CI/CD (D-20261101-heavy-ci-runs-nightly). A pull request and a
+# merge-queue entry get the ratchet and the three Node 24 `matrix` cells — all four are REQUIRED
+# checks on `main` (2026-11-01), so they must report on every PR. The off-Linux controls
+# (informational) and the `floor` cells (the published suites on Node 20.19 and 22.13) run
+# nightly at 03:30 UTC, on a dispatch, and on a PR labelled `run-full-ci`. Measured over the last
+# runs before the change: a PR started 13 jobs, about 92 job-minutes; a push to `main` 13 jobs,
+# about 103. A push to `main` no longer runs this file at all — release.yml waits on `Quality
+# Gate` and `Quality (Full) Gate`, never on it — and a failed night opens an issue.
+# `scripts/heavy-ci-nightly-lock.test.ts` holds both halves: the required names report on a PR,
+# and the heavy cells do not start there.
+#
+# On a pull request the `matrix` cells run only the affected packages: each one the PR changed
 # and each one that depends on one, from `scripts/affected.mts` (D-20261012-ci-affected-pr-lanes).
 # A PR that changes no package still starts every cell, and each says so in one step and passes.
-# A push to main, the merge queue, a dispatch and the `run-full-ci` label run everything, as do
+# The schedule, the merge queue, a dispatch and the `run-full-ci` label run everything, as do
 # root changes (workflows, the lockfile, root configs, `scripts/`). The ratchet is never
 # filtered: it grades every host, and the scoreboard is the product.
 name: Compatibility
@@ -21,8 +32,10 @@ on:
   pull_request:
     # `labeled`, so adding `run-full-ci` re-runs the cells with everything selected.
     types: [opened, reopened, synchronize, labeled]
-  push:
-    branches: [main]
+  # No `push:` (D-20261101-heavy-ci-runs-nightly). The nightly run grades `main` in full, and a red
+  # night opens an issue the way a red push did.
+  schedule:
+    - cron: "30 3 * * *"
   # `ratchet` is a REQUIRED context as of this change. A merge queue builds
   # `refs/heads/gh-readonly-queue/...` and waits for the required checks to report on
   # THAT event; without this trigger the check never reports and the entry sits in the
@@ -44,10 +57,11 @@ on:
         default: all
         options: [all, '24', '20.19.0', '22.13.0']
 
-# A push to main runs to the end, in a group of its own (as codeql.yml does): release.yml
-# publishes a commit only once its required gates pass, and a newer merge cancelling them
-# left every release deferring to the next commit, so with merges ~18 min apart nothing
-# published for hours (oxmutate 1.0.1, 2026-10-29). Pull requests still cancel superseded runs.
+# A push to main ran to the end, in a group of its own (as codeql.yml does), while this file still
+# ran on one: release.yml publishes a commit only once its required gates pass, and a newer merge
+# cancelling them left every release deferring to the next commit (oxmutate 1.0.1, 2026-10-29).
+# The group is kept so a push trigger added back inherits it. Pull requests cancel superseded runs;
+# the nightly and dispatched runs on main do not.
 concurrency:
   group: compat-${{ github.ref }}-${{ github.event_name == 'push' && github.sha || '' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -129,22 +143,24 @@ jobs:
       # Making the check REQUIRED is the fix for the merge; this is the fix for
       # everything that gets in another way — an admin merge, a re-run that flips, an
       # upstream host suite changing under a green PR. A red main is an outage, so it is
-      # an issue and not a finding. Dedup by title, so a run of red merges opens one.
+      # an issue and not a finding. Dedup by title, so a run of red nights opens one and comments.
+      # Since D-20261101-heavy-ci-runs-nightly it grades main nightly rather than on each push, so
+      # the issue names the night's head, not the merge that did it.
       - name: Say so — a red main is an outage
-        if: failure() && github.event_name == 'push'
+        if: failure() && github.event_name == 'schedule'
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          TITLE="main is red — the compatibility ratchet failed after a merge"
+          TITLE="main is red — the nightly compatibility ratchet failed"
           EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty')
-          BODY=$(printf 'The ratchet failed on a push to main, so main is broken now and every branch cut from it inherits it. The merge that did it is `%s`.\n\nMost likely the published `compatibility.mdx` no longer matches what the oracle measures — rebuild, run `packages/compat-oracle/dist/bin.js --control` then without flags, then `npm run compat:page`, and commit the page.\n\n[Run](%s)\n' "$SHA" "$RUN_URL")
+          BODY=$(printf 'The nightly ratchet failed on main at `%s`, so main is broken now and every branch cut from it inherits it. The merge that did it is one of those since the last green night.\n\nMost likely the published `compatibility.mdx` no longer matches what the oracle measures — rebuild, run `packages/compat-oracle/dist/bin.js --control` then without flags, then `npm run compat:page`, and commit the page.\n\n[Run](%s)\n' "$SHA" "$RUN_URL")
           if [ -z "$EXISTING" ]; then
             gh issue create --title "$TITLE" --body "$BODY"
           else
-            echo "already open as #$EXISTING"
+            gh issue comment "$EXISTING" --body "$BODY"
           fi
 
   # The packages `matrix` and `floor` run, computed once for both (`scripts/affected.mts`). The
@@ -180,10 +196,13 @@ jobs:
           echo "full=$(jq -c .full <<<"$set_json")" >> "$GITHUB_OUTPUT"
           echo "packages=$(jq -c .packages <<<"$set_json")" >> "$GITHUB_OUTPUT"
 
+  # Every OS on every pull request: `Node 24 · ubuntu-latest`, `· macos-latest` and
+  # `· windows-latest` are required checks, and a required check that never reports blocks every
+  # merge. Their informational controls (below) are what moved to the night.
   matrix:
     name: Node ${{ matrix.node }} · ${{ matrix.os }}
     needs: affected
-    # Skipped only by a dispatch that picked a `floor` Node; never on a push or a pull request.
+    # Skipped only by a dispatch that picked a `floor` Node; never on a pull request.
     if: ${{ !inputs.node || inputs.node == 'all' || inputs.node == '24' }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
@@ -300,8 +319,10 @@ jobs:
   controls:
     name: Controls · Node ${{ matrix.node }} · ${{ matrix.os }} (informational)
     needs: affected
+    # Off-Linux cells only, so nightly, dispatched, or on a `run-full-ci` PR — never a plain PR.
     if: >-
       ${{ (!inputs.node || inputs.node == 'all' || inputs.node == '24') && inputs.os != 'ubuntu-latest'
+      && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'run-full-ci'))
       && (needs.affected.outputs.full == 'true' || contains(fromJSON(needs.affected.outputs.packages), 'compat-oracle')) }}
     runs-on: ${{ matrix.os }}
     # Measured without ink (D-20261027-windows-controls-ink): ~9 min on macOS, ~13.5 on Windows,
@@ -335,12 +356,16 @@ jobs:
   # compat-oracle, docs) stays on 24 — its `engines` says so — so only the published
   # suites run here. Hard gate on every cell, the same policy as `matrix`.
   #
-  # On a pull request, only the affected published packages (every package is still built).
+  # Nightly, on a dispatch, and on a PR labelled `run-full-ci` (then only the affected published
+  # packages; every package is still built). Six cells of 2–5 minutes each, about 21 job-minutes a
+  # run (D-20261101-heavy-ci-runs-nightly).
   floor:
     name: Node ${{ matrix.node }} · ${{ matrix.os }} · published suites
     needs: affected
-    # Skipped only by a dispatch that picked a `matrix` Node; never on a push or a pull request.
-    if: ${{ !inputs.node || inputs.node == 'all' || inputs.node == '20.19.0' || inputs.node == '22.13.0' }}
+    # Skipped by a dispatch that picked a `matrix` Node, and on a pull request without the label.
+    if: >-
+      ${{ (!inputs.node || inputs.node == 'all' || inputs.node == '20.19.0' || inputs.node == '22.13.0')
+      && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'run-full-ci')) }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     env:
@@ -402,3 +427,31 @@ jobs:
         run: |
           set -o pipefail
           { echo '## Cases above half their timeout'; echo; echo '```'; npx --no tsx scripts/slow-cases.mts vitest-durations; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # A failed night says so (D-20261101-heavy-ci-runs-nightly). The ratchet reports its own red main
+  # above; this is the matrix and the floor cells. The floor cells no longer run on a pull request,
+  # so a night is the first place a Node 20.19 or 22.13 regression shows. One issue, by title; each
+  # further failed night comments on it. The controls are informational and stay out of it.
+  report:
+    name: Report a failed night
+    needs: [matrix, floor]
+    if: always() && github.event_name == 'schedule' && (needs.matrix.result == 'failure' || needs.floor.result == 'failure')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Open or update the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SHA: ${{ github.sha }}
+          MATRIX: ${{ needs.matrix.result }}
+          FLOOR: ${{ needs.floor.result }}
+        run: |
+          set -euo pipefail
+          TITLE="Nightly compatibility matrix failed"
+          BODY=$(printf 'The nightly OS × Node run on `%s` failed: Node 24 cells `%s`, Node-floor published suites `%s`. The Node-floor cells no longer run on a pull request, so this is where a Node 20.19 or 22.13 regression shows; a red Node 24 cell here is main drifting under green PRs. A PR labelled `run-full-ci` re-runs them all.\n\n[Run](%s)\n' "$SHA" "$MATRIX" "$FLOOR" "$RUN_URL")
+          EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then gh issue comment "$EXISTING" --body "$BODY"; else gh issue create --title "$TITLE" --body "$BODY"; fi
