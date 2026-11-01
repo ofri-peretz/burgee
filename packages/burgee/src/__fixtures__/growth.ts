@@ -7,26 +7,20 @@
 /**
  * How a function's cost grows with its input, for the locks that say "linear, not quadratic".
  *
- * A wall-clock bound on one input cannot say that. It holds a constant factor too, so anything
- * that slows every operation by the same amount turns it red on linear code: the weekly mutation
- * run's dry run (oxmutate wraps every expression in a mutant switch) failed a linear parse at its
- * 400 ms bound on 2026-10-29. The ratio of two sizes cancels the constant. An input
- * {@link FACTOR} times larger costs a linear function 8 times as much, a quadratic one 64 and a
- * cubic one 512, so a ratio under {@link LINEAR} separates them whatever the machine, the load or
- * the instrumentation.
+ * A wall-clock bound on one input cannot say that: it holds a constant factor too, and the weekly
+ * mutation run's instrumentation failed a linear parse at its 400 ms bound (2026-10-29). So the
+ * function is timed at `n` and at {@link FACTOR}`n`, and its growth is divided by the growth of a
+ * linear reference — a character scan of the same two inputs, timed in the same rounds. Whatever
+ * the host does to both — a slow or shared runner, a cold cache at the larger size, a collector
+ * under pressure — cancels in that quotient. A linear function reads about 1, a quadratic one
+ * about {@link FACTOR} (8), a cubic one 64; the ceiling {@link LINEAR} (3) sits between.
  *
- * Three things keep the ratio from being noise, each learned from a red CI run on linear code
- * (PR #1373: 8.84x at 4x apart on ubuntu, 22.6x on macOS from a 1.2 ms baseline):
- *
- * 1. The smaller size is grown at run time until its run takes {@link TARGET_MS}, first by `n` up
- *    to the caller's memory ceiling, then by repeating the call. A millisecond is the timer and
- *    the JIT; twenty is the function. Calibrating on time also keeps the case's cost about the
- *    same on a laptop, a CI runner and under instrumentation, which just settles on a smaller n.
- * 2. Each size is compared by its fastest of {@link RUNS} runs. A preemption or a collection only
- *    ever adds time, so the fastest run is the estimate noise cannot inflate — the lesson
- *    `yargs/cliui.test.ts` in burgee wrote up first.
- * 3. The sizes sit 8x apart and the ceiling is 24: 3x over linear and 2.7x under quadratic,
- *    where 4x apart with a ceiling of 8 left only 2x either way.
+ * CI taught each of the rest (PR #1373, #1404): a ratio taken from a 1-5 ms baseline is the timer's,
+ * one round is one sample, and inputs of hundreds of thousands of characters measure the collector
+ * more than the code. So each timed call is small (the smaller size is grown at run time only until
+ * its fastest run takes {@link TARGET_MS}, then the call repeats rather than the input grows), each
+ * size is compared by its fastest of {@link RUNS} runs (interference only ever adds time), and a
+ * case is held to {@link CASE_MS}: past it, {@link growth} throws instead of measuring on.
  *
  * Test scaffolding: `__fixtures__` is outside coverage, mutation and the build.
  */
@@ -34,21 +28,23 @@
 /** How much larger the second input is than the first. */
 export const FACTOR = 8;
 
-/** The ceiling on the ratio: linear is 8, quadratic 64, cubic 512. */
-export const LINEAR = 24;
+/** The ceiling on the function's growth over the reference's: linear 1, quadratic 8, cubic 64. */
+export const LINEAR = 3;
 
-/** How long the smaller size's run is grown to take before anything is compared. */
-const TARGET_MS = 20;
+/** The owner's limit for one test case (2026-11-01); a case's `timeout`, and `growth`'s own. */
+export const CASE_MS = 5_000;
 
-/** Timed runs per size; the fastest of each is compared. */
+/** How long the smaller size's fastest run is grown to take: over the timer's noise, and cheap. */
+const TARGET_MS = 5;
+
+/** Timed rounds; the fastest of each size is compared. */
 const RUNS = 5;
 
-/**
- * Timed rounds stop once this much time has gone on them, after the first. Linear code never
- * reaches it (about 1 s for five rounds); a quadratic path does, and then fails in seconds rather
- * than at the test's timeout.
- */
-const BUDGET_MS = 2_000;
+/** Rounds that always run, so the fastest-of is never a single sample. */
+const MIN_ROUNDS = 3;
+
+/** Timed rounds stop once this much time has gone on them, after {@link MIN_ROUNDS}. */
+const BUDGET_MS = 400;
 
 /** The most times one timed sample repeats the call, for a function too fast at the memory ceiling. */
 const MAX_REPS = 4_096;
@@ -63,16 +59,25 @@ export interface Sizes {
 export interface Growth {
   /** The smaller size calibration settled on. */
   n: number;
-  /** Calls per timed sample. */
+  /** Calls per timed sample of the function. */
   reps: number;
-  /** Fastest ms at `n`. */
+  /** Fastest ms at `n`, and at `FACTOR * n`. */
   small: number;
-  /** Fastest ms at `FACTOR * n`. */
   large: number;
-  /** `large / small`. */
+  /** `large / small` for the function, and for the reference scan of the same inputs. */
   ratio: number;
+  reference: number;
+  /** `ratio / reference`: about 1 for linear code. */
+  normalized: number;
   /** Timed rounds run, out of {@link RUNS}. */
   rounds: number;
+}
+
+/** The linear reference: one pass over the characters, no allocation. */
+function scan(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h + (s.codePointAt(i) as number)) | 0;
+  return h;
 }
 
 function timed(run: () => unknown, reps: number): number {
@@ -81,20 +86,33 @@ function timed(run: () => unknown, reps: number): number {
   return performance.now() - started;
 }
 
+/** Doubles `reps` until `run`'s fastest of three samples takes {@link TARGET_MS}, or the cap. */
+function repsFor(run: () => unknown, from: number): number {
+  let reps = from;
+  const fastest = (): number => Math.min(timed(run, reps), timed(run, reps), timed(run, reps));
+  while (fastest() < TARGET_MS && 2 * reps <= MAX_REPS) reps *= 2;
+  return reps;
+}
+
 /**
- * Times `run` on `input(n)` and `input(FACTOR * n)`. `n` starts at `sizes.from` and doubles, up to
- * `sizes.max`, until the smaller run takes {@link TARGET_MS}; past `max` the call repeats instead.
- * Each size then runs once untimed, and the two are timed in turns, so both share whatever
- * contention the host has. Inputs are built before any clock starts.
+ * Times `run` and the reference scan on `input(n)` and `input(FACTOR * n)`. `n` starts at
+ * `sizes.from` and doubles, up to `sizes.max`, until the smaller run takes {@link TARGET_MS}; past
+ * `max` the call repeats instead. Each size runs once untimed first, the four are timed in turns,
+ * and inputs are built before any clock starts. When the timed fastest of the smaller size is under
+ * the floor, it grows and measures again; when the caps stop it under the floor, or the case passes
+ * {@link CASE_MS}, it throws rather than compare noise.
  */
-export function growth<T>(input: (n: number) => T, run: (x: T) => unknown, sizes: Sizes): Growth {
+export function growth(input: (n: number) => string, run: (s: string) => unknown, sizes: Sizes): Growth {
+  const began = performance.now();
+  const over = (): void => {
+    const ms = performance.now() - began;
+    if (ms > CASE_MS) throw new Error(`growth: the case has run ${ms.toFixed(0)} ms, over its ${String(CASE_MS)} ms limit`);
+  };
   let n = sizes.from;
   let reps = 1;
   let small = input(n);
   run(small);
-  const sample = (x: T): number => timed(() => run(x), reps);
-  let took = Math.min(sample(small), sample(small));
-  while (took < TARGET_MS) {
+  const grow = (): void => {
     if (2 * n <= sizes.max) {
       n *= 2;
       small = input(n);
@@ -102,27 +120,41 @@ export function growth<T>(input: (n: number) => T, run: (x: T) => unknown, sizes
     } else if (2 * reps <= MAX_REPS) {
       reps *= 2;
     } else {
-      break;
+      throw new Error(
+        `growth: the smaller size is still under ${String(TARGET_MS)} ms at n=${String(n)} x${String(reps)} calls, the most \`max\` and MAX_REPS allow; a ratio from there would be the timer's. Raise \`max\`.`,
+      );
     }
-    took = Math.min(sample(small), sample(small));
+    over();
+  };
+  const fastest = (): number => Math.min(timed(() => run(small), reps), timed(() => run(small), reps), timed(() => run(small), reps));
+  for (;;) {
+    while (fastest() < TARGET_MS) grow();
+    const large = input(FACTOR * n);
+    const scanReps = repsFor(() => scan(small), 1);
+    run(large);
+    scan(large);
+    const started = performance.now();
+    const t: [number[], number[], number[], number[]] = [[], [], [], []];
+    for (let i = 0; i < RUNS; i += 1) {
+      t[0].push(timed(() => run(small), reps));
+      t[1].push(timed(() => run(large), reps));
+      t[2].push(timed(() => scan(small), scanReps));
+      t[3].push(timed(() => scan(large), scanReps));
+      over();
+      if (i + 1 >= MIN_ROUNDS && performance.now() - started > BUDGET_MS) break;
+    }
+    const [s, l, rs, rl] = t.map((xs) => Math.min(...xs)) as [number, number, number, number];
+    if (s >= TARGET_MS) {
+      const ratio = l / s;
+      const reference = rl / rs;
+      return { n, reps, small: s, large: l, ratio, reference, normalized: ratio / reference, rounds: t[0].length };
+    }
+    grow();
   }
-  const large = input(FACTOR * n);
-  const started = performance.now();
-  run(large);
-  const smalls: number[] = [];
-  const larges: number[] = [];
-  for (let i = 0; i < RUNS; i += 1) {
-    smalls.push(sample(small));
-    larges.push(sample(large));
-    if (performance.now() - started > BUDGET_MS) break;
-  }
-  const s = Math.min(...smalls);
-  const l = Math.min(...larges);
-  return { n, reps, small: s, large: l, ratio: l / s, rounds: smalls.length };
 }
 
-/** The failure message: the sizes, both timings and the ratio, so a red run says what it measured. */
+/** The failure message: the sizes, both timings and both ratios, so a red run says what it measured. */
 export function said(g: Growth): string {
   const calls = g.reps === 1 ? '' : ` x${String(g.reps)} calls`;
-  return `${FACTOR}x the input (n=${String(g.n)}${calls}) took ${g.ratio.toFixed(2)}x the time (${g.small.toFixed(1)} ms -> ${g.large.toFixed(1)} ms, fastest of ${String(g.rounds)}); linear is ${FACTOR}, quadratic ${FACTOR ** 2}, the ceiling ${LINEAR}`;
+  return `${FACTOR}x the input (n=${String(g.n)}${calls}) took ${g.ratio.toFixed(2)}x the time (${g.small.toFixed(1)} -> ${g.large.toFixed(1)} ms, fastest of ${String(g.rounds)}), against ${g.reference.toFixed(2)}x for a linear scan of the same input: ${g.normalized.toFixed(2)} normalised; linear is 1, quadratic ${FACTOR}, the ceiling ${LINEAR}`;
 }

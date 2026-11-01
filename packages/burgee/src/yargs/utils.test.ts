@@ -8,9 +8,9 @@
  *    unfixed code, node v24.13.0, macOS: 5k / 10k / 20k repetitions took 46 / 165 / 681 ms
  *    for the split and 11 / 42 / 166 ms for the dots — double the input, four times the
  *    time. The locks below hold that shape rather than a number of milliseconds: they time
- *    each input at two sizes 8x apart and fail at 24x the time or more
- *    (`__fixtures__/growth.ts`), which a slow or instrumented runner cannot cause and a
- *    reintroduced backtracking regex does.
+ *    each input at two sizes 8x apart, against a linear scan of the same inputs, and fail when
+ *    the input's growth runs 3x the scan's (`__fixtures__/growth.ts`), which a slow or
+ *    instrumented runner cannot cause and a reintroduced backtracking regex does.
  * 2. apply-extends' `/\.json|\..*rc$/` is the same shape on a run of dots (#22).
  * 3. `pkgConf('__proto__')` read `obj[key]` bare, handed Object.prototype to applyExtends,
  *    and applyExtends deletes `extends` from the object it is given (#27). Both halves are
@@ -28,7 +28,7 @@ import { join } from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { growth, LINEAR, said } from '../__fixtures__/growth.js';
+import { CASE_MS, growth, LINEAR, said } from '../__fixtures__/growth.js';
 import yargs from '../yargs.js';
 
 import { applyExtends, isConfigPath, parseCommand, type ParsedCommand } from './utils.js';
@@ -95,19 +95,15 @@ describe('parseCommand is linear and answers as upstream did (#17–#21)', () =>
     expect(parseCommand('run <a|b> [c d]')).toEqual(upstreamParseCommand('run <a|b> [c d]'));
   });
 
-  // `growth` grows n from `from` until the smaller input takes 20 ms; `max` bounds the memory.
-  it('splits whitespace-separated words in linear time', () => {
-    for (const sep of [' ', '\t']) {
-      const g = growth((n) => `cmd${`${sep}a`.repeat(n)}`, parseCommand, { from: 1_000, max: 25_000 });
-      expect(g.ratio, `${JSON.stringify(sep)}: ${said(g)}`).toBeLessThan(LINEAR);
-    }
+  // One `growth` per case, so each case stays well under a second (`__fixtures__/growth.ts`).
+  it.each([' ', '\t'])('splits words separated by %j in linear time', { timeout: CASE_MS }, (sep) => {
+    const g = growth((n) => `cmd${`${sep}a`.repeat(n)}`, parseCommand, { from: 500, max: 12_500 });
+    expect(g.normalized, said(g)).toBeLessThan(LINEAR);
   });
 
-  it('strips brackets after a run of dots in linear time', () => {
-    for (const head of ['cmd', 'cmd x']) {
-      const g = growth((n) => `${head}${'.'.repeat(n)}`, parseCommand, { from: 5_000, max: 100_000 });
-      expect(g.ratio, `${head}: ${said(g)}`).toBeLessThan(LINEAR);
-    }
+  it.each(['cmd', 'cmd x'])('strips brackets after a run of dots in linear time, after %j', { timeout: CASE_MS }, (head) => {
+    const g = growth((n) => `${head}${'.'.repeat(n)}`, parseCommand, { from: 1_000, max: 25_000 });
+    expect(g.normalized, said(g)).toBeLessThan(LINEAR);
   });
 });
 
@@ -121,12 +117,14 @@ describe('applyExtends tells a path from a module in linear time (#22)', () => {
     expect(mismatches.slice(0, 10)).toEqual([]);
   });
 
-  it('reads a run of dots in `extends` in linear time', () => {
-    const dots = (n: number) => '.'.repeat(n);
-    const path = growth(dots, isConfigPath, { from: 50_000, max: 250_000 });
-    expect(path.ratio, `isConfigPath: ${said(path)}`).toBeLessThan(LINEAR);
-    const config = growth(dots, (d) => applyExtends({ extends: d }, tmpdir()), { from: 50_000, max: 250_000 });
-    expect(config.ratio, `applyExtends: ${said(config)}`).toBeLessThan(LINEAR);
+  it('isConfigPath reads a run of dots in linear time', { timeout: CASE_MS }, () => {
+    const g = growth((n) => '.'.repeat(n), isConfigPath, { from: 1_000, max: 25_000 });
+    expect(g.normalized, said(g)).toBeLessThan(LINEAR);
+  });
+
+  it('applyExtends reads a run of dots in `extends` in linear time', { timeout: CASE_MS }, () => {
+    const g = growth((n) => '.'.repeat(n), (d) => applyExtends({ extends: d }, tmpdir()), { from: 1_000, max: 25_000 });
+    expect(g.normalized, said(g)).toBeLessThan(LINEAR);
   });
 });
 

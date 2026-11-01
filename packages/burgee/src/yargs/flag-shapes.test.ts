@@ -19,7 +19,7 @@
 import { describe, expect, it } from 'vitest';
 import upstreamParser from 'yargs-parser';
 
-import { growth, LINEAR, said } from '../__fixtures__/growth.js';
+import { CASE_MS, growth, LINEAR, said } from '../__fixtures__/growth.js';
 import yargsParser from '../yargs-parser.js';
 
 import { flagEndingInDigits, flagEndingInHyphen, flagEndingInNonWordCharacters, flagWithEquals, normalFlag } from './flag-shapes.js';
@@ -61,20 +61,21 @@ describe('the flag shapes answer as the upstream regexes did', () => {
 describe('unknown-options-as-args classifies a long argument in linear time', () => {
   const parse = (arg: string) => yargsParser([arg], { configuration: { 'unknown-options-as-args': true } });
 
-  // `growth` grows n from `from` until the smaller parse takes 20 ms; `max` bounds the memory the
-  // inputs take. Upstream's regexes, under the same helper, read far past the ceiling of 24.
-  it('a run of punctuation before a line break (cubic upstream)', () => {
+  // `growth` times the parse at n and 8n against a linear scan of the same inputs; `max` keeps the
+  // inputs small. Upstream's regexes, under the same helper, read 6.7x and 9.6x normalised against a
+  // ceiling of 3, or run past a case's 5 s.
+  it('a run of punctuation before a line break (cubic upstream)', { timeout: CASE_MS }, () => {
     const arg = (n: number) => `-a${'! '.repeat(n)}a\na`;
     expect(parse(arg(100_000))._).toEqual([arg(100_000)]);
-    const g = growth(arg, parse, { from: 2_000, max: 50_000 });
-    expect(g.ratio, said(g)).toBeLessThan(LINEAR);
+    const g = growth(arg, parse, { from: 500, max: 12_500 });
+    expect(g.normalized, said(g)).toBeLessThan(LINEAR);
   });
 
-  it('a run of digits that does not end the argument (quadratic upstream)', () => {
+  it('a run of digits that does not end the argument (quadratic upstream)', { timeout: CASE_MS }, () => {
     const arg = (n: number) => `--${'1'.repeat(n)}x\n`;
     expect(parse(arg(200_000))._).toEqual([arg(200_000)]);
-    const g = growth(arg, parse, { from: 5_000, max: 100_000 });
-    expect(g.ratio, said(g)).toBeLessThan(LINEAR);
+    const g = growth(arg, parse, { from: 1_000, max: 25_000 });
+    expect(g.normalized, said(g)).toBeLessThan(LINEAR);
   });
 
   it('sorts known and unknown flags of every shape exactly as yargs-parser 22 does', () => {

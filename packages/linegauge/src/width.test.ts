@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import stringWidth from 'string-width';
 import { describe, expect, it } from 'vitest';
 
-import { growth, LINEAR, said } from './__fixtures__/growth.js';
+import { CASE_MS, growth, LINEAR, said } from './__fixtures__/growth.js';
 import { INVISIBLE_CLASSES, leadingInvisible, lineCount, measure, width } from './width.js';
 
 const ESC = '\u001B';
@@ -314,7 +314,7 @@ describe('zero-width clusters are measured in linear time, and as the regexes me
   // Timed at two sizes, so the lock holds the growth and not the milliseconds, which a slow or
   // instrumented runner multiplies (`__fixtures__/growth.ts`). The regex this replaced doubled its
   // time per joiner added: at 5 and 20 joiners it read 0.005 -> 37 ms.
-  it('measures a run of joiners before a visible character in linear time', () => {
+  it('measures a run of joiners before a visible character in linear time', { timeout: CASE_MS }, () => {
     width('\u034F\u0903'); // the property classes are built on first use; that is not the cost under test
     expect(width(`${'\u034F'.repeat(1000)}\u0903`)).toBe(1);
     expect(width(`${'\u034F'.repeat(1000)}\u{1F3FB}`)).toBe(2);
@@ -324,15 +324,15 @@ describe('zero-width clusters are measured in linear time, and as the regexes me
         width(`${joiners}\u0903`);
         width(`${joiners}\u{1F3FB}`);
       },
-      { from: 5_000, max: 100_000 },
+      { from: 1_000, max: 25_000 },
     );
-    expect(g.ratio, said(g)).toBeLessThan(LINEAR);
+    expect(g.normalized, said(g)).toBeLessThan(LINEAR);
   });
 
   // About 0.2 s on a laptop and 2–3 s on a shared CI runner (2,100 ms on ubuntu, 3,108 ms on
   // macos, 2026-09-29). The case above is the lock on backtracking; this one is the size
   // string-width 8.3.0's suite added, where a recursive or stack-bound scan would throw.
-  it('measures 3,000,000 joiners without a RangeError', { timeout: 60_000 }, () => {
+  it('measures 3,000,000 joiners without a RangeError', { timeout: CASE_MS }, () => {
     expect(width(`${'\u034F'.repeat(3_000_000)}\u0903`)).toBe(1);
     expect(width('\u034F'.repeat(3_000_000))).toBe(0);
   });

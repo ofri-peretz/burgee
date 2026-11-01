@@ -10,7 +10,7 @@
  */
 import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 
-import { growth, LINEAR, said } from './__fixtures__/growth.js';
+import { CASE_MS, growth, LINEAR, said } from './__fixtures__/growth.js';
 import meow, { type AnyFlags, type Flag, type Result, type TypedFlags } from './meow.js';
 import { cutTrailingTabs, trimNewlines } from './meow/present.js';
 
@@ -219,13 +219,16 @@ describe('help trimming answers as meow\'s regexes did, in linear time (CodeQL #
   // A run that does not reach the end is what made the regexes quadratic, and the scans step over
   // it in O(1); each input also ends in a run as long, so the scan has linear work to be timed on.
   // The scans cost about a nanosecond a character, so `max` keeps the strings small and `growth`
-  // repeats the call to reach its 20 ms instead of building strings of tens of megabytes.
-  it('trims newlines and tabs, with a run that never reaches the end, in linear time', () => {
+  // repeats the call instead of building larger ones.
+  it('trims newlines, with a run that never reaches the end, in linear time', { timeout: CASE_MS }, () => {
     expect(trimNewlines(newlines(3))).toBe(`a${'\n'.repeat(3)}b`);
+    const g = growth(newlines, trimNewlines, { from: 1_000, max: 12_500 });
+    expect(g.normalized, said(g)).toBeLessThan(LINEAR);
+  });
+
+  it('cuts trailing tabs, with a run that never reaches the end, in linear time', { timeout: CASE_MS }, () => {
     expect(cutTrailingTabs(tabs(3))).toBe(`a${'\t'.repeat(3)}b`);
-    const trimmed = growth(newlines, trimNewlines, { from: 10_000, max: 250_000 });
-    expect(trimmed.ratio, `trimNewlines: ${said(trimmed)}`).toBeLessThan(LINEAR);
-    const cut = growth(tabs, cutTrailingTabs, { from: 10_000, max: 150_000 });
-    expect(cut.ratio, `cutTrailingTabs: ${said(cut)}`).toBeLessThan(LINEAR);
+    const g = growth(tabs, cutTrailingTabs, { from: 1_000, max: 8_000 });
+    expect(g.normalized, said(g)).toBeLessThan(LINEAR);
   });
 });
