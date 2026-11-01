@@ -597,6 +597,16 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     ]);
   });
 
+  it('leaves cli-truncate 5 alone, and names 6.2.0 as the release its own suite grades level', async () => {
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { 'cli-truncate': '^5.1.0' } }),
+      'src/a.ts': "import cliTruncate from 'cli-truncate';\n",
+    });
+    const report = await migrate({ dir, status: clean });
+    expect(read(dir, 'src/a.ts')).toBe("import cliTruncate from 'cli-truncate';\n");
+    expect(report.offMajor).toEqual([{ from: 'cli-truncate', found: '^5.1.0', graded: '6.2.0', nearest: 6, sites: [], move: null }]);
+  });
+
   // `supports-color-drop-in` criterion 4, end to end: 11 is the one major claimed, so a program on
   // it moves, `require()` included (both sides hand back their namespace), and one on 10 stays.
   it('moves a program on supports-color 11 to roundel/supports-color, and leaves 10 alone naming 11.0.0', async () => {

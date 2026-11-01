@@ -42,6 +42,17 @@ describe('linegauge/cli-truncate agrees with cli-truncate 6.2.0', () => {
     expect(differ).toEqual([]);
   });
 
+  // The leading run of styles a start cut puts the mark inside is SGR with digit and `;`
+  // parameters only, as cli-truncate reads it. A colon-form truecolour opener (`ESC[38:2::…m`)
+  // ends that run, so the mark goes before it. Without `preferTruncationOnSpace` nothing here
+  // reads Node's `stripVTControlCharacters`, which mis-strips the colon form before v24.21, so
+  // the incumbent's answer is the same on every Node.
+  it('puts a start mark before a colon-form opener it does not read as SGR, as the incumbent does', () => {
+    const text = `\u001B[38:2::255:0:0municorns rainbow${RESET}`;
+    expect(cliTruncate(text, 8, { position: 'start' })).toBe(`…\u001B[38:2::255:0:0mrainbow${RESET}`);
+    expect(cliTruncate(text, 8, { position: 'start' })).toBe(cliTruncateIncumbent(text, 8, { position: 'start' }));
+  });
+
   it('defaults to the end and the ellipsis', () => {
     expect(cliTruncate('unicorn', 4)).toBe('uni…');
   });

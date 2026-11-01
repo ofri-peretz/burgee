@@ -44,26 +44,27 @@ const DIGIT_NINE = 57;
 const SEMICOLON = 59;
 
 /**
- * One entry per terminal column of the visible text — a cluster in its first column, `''` in
- * each further column a wide one covers — so a space is found by the column `slice` cuts at.
+ * Whether each terminal column of the visible text holds a space — one entry per column, a wide
+ * cluster's further columns `false` with it — so a space is found by the column `slice` cuts at.
+ * A space is one column wide, so a cluster that is one is the whole of its column.
  * cli-truncate 6.1.1 searched the raw string by UTF-16 index, so an escape or a wide character
  * before the break moved the search off the column it meant; 6.2.0 searches by column, and so
  * does this.
  */
-function visibleColumns(text: string): string[] {
-  const columns: string[] = [];
+function visibleColumns(text: string): boolean[] {
+  const columns: boolean[] = [];
   for (const { segment } of segmenter().segment(strip(text))) {
-    const cells = width(segment);
-    for (let column = 0; column < cells; column += 1) columns.push(column === 0 ? segment : '');
+    const space = segment === ' ';
+    for (let cells = width(segment); cells > 0; cells -= 1) columns.push(space);
   }
   return columns;
 }
 
 /** A space at `wanted`, or within three columns of it in one direction, or `wanted` itself. */
-function nearestSpace(columns: readonly string[], wanted: number, right = false): number {
-  const step = right ? 1 : -1;
+function nearestSpace(columns: readonly boolean[], wanted: number, right = false): number {
   for (let offset = 0; offset <= 3; offset += 1) {
-    if (columns[wanted + offset * step] === ' ') return wanted + offset * step;
+    const at = right ? wanted + offset : wanted - offset;
+    if (columns[at] === true) return at;
   }
   return wanted;
 }
@@ -73,9 +74,9 @@ function nearestSpace(columns: readonly string[], wanted: number, right = false)
  * not start with one. 6.1.1 `trim()`med the cut instead, which also ate the closing style
  * and the trailing spaces of styled text that plain text kept.
  */
-function afterSpaces(columns: readonly string[], index: number): number {
+function afterSpaces(columns: readonly boolean[], index: number): number {
   let at = index;
-  while (columns[at] === ' ') at += 1;
+  while (columns[at] === true) at += 1;
   return at;
 }
 

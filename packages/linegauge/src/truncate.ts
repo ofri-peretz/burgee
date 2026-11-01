@@ -29,27 +29,27 @@ export interface TruncateOptions {
 /**
  * The longest head of `string` that draws in `keep` columns, and the longest tail.
  *
- * Both ends search for the widest cut that fits by `width`, rather than trusting the cut `keep`
- * names. Until slice-ansi 10, `slice` counted **positions** — every cluster at least one, a lone
- * regional indicator two — and a tail started at `total - keep` came back one column over its
- * budget with CRLF before it. `slice` now counts `width`'s columns (burgee#1392), so for text
- * whose clusters all draw something the search lands on the cut `keep` names; it stays, because
- * a zero-width cluster at the boundary can still go either side of the cut.
+ * A tail is the cut from column `total - keep`. `slice` counts `width`'s columns since
+ * slice-ansi 10 (burgee#1392), so what is left from there draws in at most `keep`, and one
+ * column earlier would take a wide cluster the cut rounds past. Until then `slice` counted
+ * **positions** — every cluster at least one, a lone regional indicator two — and a tail cut
+ * there came back one column over its budget with CRLF before it, which is why the tail used to
+ * be searched for as the head is. That search could no longer move off its first guess, so it
+ * is gone.
+ *
+ * A head still searches for the widest cut that fits by `width`: a zero-width cluster at `keep`
+ * goes to the next slice, and the cut that keeps it is a column later.
  */
 function fit(string: string, keep: number, end: 'head' | 'tail', total: number): string {
-  const head = end === 'head';
-  // A head grows with its end position, a tail shrinks as its start moves right, so each
-  // searches for the boundary between the cuts that fit and the ones that do not.
-  const cut = (at: number): string => (head ? slice(string, 0, at) : slice(string, at));
-  let low = head ? keep : total - keep;
+  if (end === 'tail') return slice(string, total - keep);
+  let low = keep;
   let high = string.length * 2;
   while (low < high) {
-    const mid = (low + high + (head ? 1 : 0)) >> 1;
-    const fits = width(cut(mid)) <= keep;
-    if (head === fits) low = head ? mid : mid + 1;
-    else high = head ? mid - 1 : mid;
+    const mid = (low + high + 1) >> 1;
+    if (width(slice(string, 0, mid)) <= keep) low = mid;
+    else high = mid - 1;
   }
-  return cut(low);
+  return slice(string, 0, low);
 }
 
 export function truncate(string: string, columns: number, options: TruncateOptions = {}): string {
