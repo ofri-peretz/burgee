@@ -75,6 +75,26 @@ and lint fails on the `Argv` type
 The comment, PR body and patch in [`upstream-igir/`](./upstream-igir/) are marked
 `NOT POSTED — awaiting owner go`, and wait on those fixes and a re-run. Status stays `approved`.
 
+**Owner ruling 2026-11-01: oxmutate is the first adopter. Graded against it, A1–A4 hold, A5 is
+open and A6 is a measured miss, so the status stays `approved` and waits on A5 alone**
+([D-20261101-first-adopter-is-oxmutate](../../decisions/D-20261101-first-adopter-is-oxmutate.md)).
+The owner's words: "first adopter we have - oxmutate." / "we already have one." A1 is met by
+`oxmutate@1.1.0`, whose published dependencies are `burgee ^1.9.2` and `bellpull ^1.0.10`, and
+whose CLI is built on `defineProgram`, `defineCommand`, `run` and `ExitCode`. oxmutate is
+published from this repository, so the ruling, not an outside merge, is what closes A1. A2 is the
+report by the session that built oxmutate, which did not build burgee
+([`oxmutate.md`](../../research/adoption/oxmutate.md)); its time entry is a calendar span, because
+no effort log was kept. A3 is met by concurrently's proof, since oxmutate has no incumbent to
+revert to. A4: the report's five friction points and one unfiled breakage are now five gaps and one
+decision, and concurrently's and igir's friction points were each already a gap or a decision.
+**A5 is open.** A variant that is only data and config would run the demo's five tasks against
+oxmutate, fail all of them under the 0.8 `success-rate` gate, and turn the weekly B1 run red. And
+this program does not stamp a criterion that waits on a scheduled run. A5 waits on
+[B-20261101-b1-real-cli-arm-oxmutate](../../gaps/B-20261101-b1-real-cli-arm-oxmutate.md) and its
+first scheduled reading. **A6 is not met.** oxmutate depends on `burgee` itself and is ours, so the
+miss moves to [C3](../../gaps/C3.md), which now carries it. concurrently#639 and igir#2249 go on as
+outreach, outside the gate.
+
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why `review` until 2026-10-25:** no external CLI has been migrated; A1–A5 are all open.
 
 ---
