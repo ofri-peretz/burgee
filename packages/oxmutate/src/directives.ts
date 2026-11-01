@@ -10,7 +10,7 @@
  * it, and its `disable` then runs to the end of the file. oxmutate does not reproduce that: the
  * directive means what it says.
  */
-const HEAD = /\/\/\s*(?:Stryker|oxmutate)\s+(disable|restore)\s+(\S.*)$/i;
+const HEAD = /\/\/\s*(?:Stryker|oxmutate)\s+(disable|restore)\s+(\S.*)/i;
 /** `all`, or a comma list of mutator names. */
 const LIST = /^(?:all|\w+(?:\s*,\s*\w+)*)$/i;
 
@@ -37,18 +37,19 @@ export function rangeDisables(source: string, file: string): Ranges {
   const errors: string[] = [];
   source.split('\n').forEach((text, i) => {
     const m = HEAD.exec(text);
-    const body = m?.[2] ?? '';
-    if (!m || /^next-line\b/i.test(body)) return;
+    if (!m) return;
+    // `next-line` is not a list (the hyphen), so that form is left to config.ts here too.
+    const body = m[2] as string;
     const colon = body.indexOf(':');
     const list = (colon === -1 ? body : body.slice(0, colon)).trim();
     if (!LIST.test(list)) return;
-    const kind = (m[1] ?? '').toLowerCase() as Rule['kind'];
+    const kind = (m[1] as string).toLowerCase() as Rule['kind'];
     const reason = colon === -1 ? '' : body.slice(colon + 1).trim();
     if (kind === 'disable' && !reason) {
       errors.push(`${file}:${String(i + 1)}: disable comment without a reason. fix: add ": <why these mutants cannot be killed>"`);
       return;
     }
-    const mutators = list.toLowerCase() === 'all' ? 'all' : list.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+    const mutators = list.toLowerCase() === 'all' ? 'all' : list.split(',').map((s) => s.trim().toLowerCase());
     rules.push({ line: i + 1, kind, mutators, reason });
   });
   return {

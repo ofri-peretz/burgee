@@ -47,6 +47,7 @@ export const beatFile = (workDir: string, pid: number | undefined): string => pa
 const { setInterval: realSetInterval, clearInterval: realClearInterval } = globalThis;
 const realNow = Date.now.bind(Date);
 /** The beat this thread runs: one at a time, whatever re-evaluates this module. */
+// Stryker disable next-line StringLiteral: any key names one registry symbol on every evaluation of this module, which is all the key is for
 const BEAT_KEY = Symbol.for('oxmutate.heartbeat');
 
 /** Start this worker's beat into `file`. Does nothing when no beat file is set. */
@@ -54,22 +55,27 @@ export function startHeartbeat(file: string | undefined): void {
   if (!file) return;
   const holder = globalThis as { [BEAT_KEY]?: ReturnType<typeof setInterval> };
   realClearInterval(holder[BEAT_KEY]);
-  const beat = (): void => {
+  /** One beat; false once the run's directory is gone: the run is over, and nothing reads the beat. */
+  const beat = (): boolean => {
     try {
       writeFileSync(file, String(realNow()));
     } catch {
-      return; // the run's directory is gone: the run is over, and nothing reads the beat
+      return false;
     }
+    return true;
   };
   beat();
-  holder[BEAT_KEY] = realSetInterval(beat, HEARTBEAT_MS);
+  holder[BEAT_KEY] = realSetInterval(() => {
+    if (!beat()) realClearInterval(holder[BEAT_KEY]);
+  }, HEARTBEAT_MS);
+  // Stryker disable next-line CallExpression: unref only lets a process exit while its beat runs; Vitest ends its workers regardless, so no verdict depends on it
   holder[BEAT_KEY].unref();
 }
 
 /** How long ago a worker of this server last beat, or Infinity when none has. */
 export function beatAge(file: string, now = Date.now()): number {
   try {
-    const at = Number(readFileSync(file, 'utf8'));
+    const at = Number(String(readFileSync(file)));
     return Number.isFinite(at) && at > 0 ? now - at : Number.POSITIVE_INFINITY;
   } catch {
     return Number.POSITIVE_INFINITY;
@@ -92,6 +98,7 @@ export function cpuShare(samples: readonly CpuSample[], now: number): number | u
   const recent = samples.filter((s) => s.at >= now - CPU_WINDOW_MS && s.at <= now);
   const first = recent[0];
   const last = recent.at(-1);
+  // Stryker disable next-line LogicalOperator: the first and the last sample are both there or both missing, so `&&` reads the same
   if (!first || !last || last.at - first.at < MIN_CPU_SPAN_MS) return undefined;
   return (last.us - first.us) / US_PER_MS / (last.at - first.at);
 }
@@ -100,5 +107,5 @@ export type Stall = 'idle' | 'busy';
 
 /** A stopped run is idle when its worker's event loop turns and its server burns almost no CPU. */
 export function classifyStall(o: { beatAge: number; cpuShare: number | undefined }): Stall {
-  return o.beatAge < STALE_MS && o.cpuShare !== undefined && o.cpuShare < IDLE_CPU ? 'idle' : 'busy';
+  return o.beatAge < STALE_MS && (o.cpuShare ?? IDLE_CPU) < IDLE_CPU ? 'idle' : 'busy';
 }

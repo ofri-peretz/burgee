@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { rangeDisables } from './directives.js';
 
 const src = (...lines: string[]): string => lines.join('\n');
+/** Prose that mentions a disable, built so the repository's own directive lint does not read it as one. */
+const said = (prose: string): string => `// ${'Stryker'} disable ${prose}`;
 
 describe("Stryker's disable/restore ranges, read by line as written", () => {
   // compat-oracle's hosts.ts: a row graded in another process, its mutants off from the comment to
@@ -53,6 +55,19 @@ describe("Stryker's disable/restore ranges, read by line as written", () => {
 
   it('runs a disable with no restore to the end of the file', () => {
     expect(rangeDisables(src('// Stryker disable all: data, read once at load and checked by its generator', 'a', 'b'), 'a.ts').reasonFor(3, 'StringLiteral')).toBeDefined();
+  });
+
+  it('reads any spacing and any case, in the list and around the comment', () => {
+    const r = rangeDisables(src('//Stryker  Disable  StringLiteral ,BlockStatement : spaced out, and still a directive', 'x'), 'a.ts');
+    expect(r.errors).toEqual([]);
+    expect(r.reasonFor(2, 'StringLiteral')).toBe('spaced out, and still a directive');
+    expect(r.reasonFor(2, 'BlockStatement')).toBe('spaced out, and still a directive');
+  });
+
+  it('takes prose that mentions a directive for prose: no rule and no error', () => {
+    const r = rangeDisables(src(said('all of the rows below until the table ends'), 'x', said('this table'), 'y'), 'a.ts');
+    expect(r.errors).toEqual([]);
+    expect(r.reasonFor(4, 'StringLiteral')).toBeUndefined();
   });
 
   it('leaves `disable next-line` to config.ts, and refuses a range without a reason', () => {
