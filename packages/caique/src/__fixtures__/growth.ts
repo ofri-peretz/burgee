@@ -86,6 +86,12 @@ function timed(run: () => unknown, reps: number): number {
  * `sizes.max`, until the smaller run takes {@link TARGET_MS}; past `max` the call repeats instead.
  * Each size then runs once untimed, and the two are timed in turns, so both share whatever
  * contention the host has. Inputs are built before any clock starts.
+ *
+ * The floor is held on the measurement itself, not only on calibration: a calibration reading is
+ * one cold sample, and on CI one read 20 ms where the timed fastest was 5.3 ms, and the ratio
+ * read 34.8x on linear code (caique, PR #1373). So when the timed fastest of the smaller size is
+ * under the floor, `n` grows again and the sizes are measured again. When `max` and
+ * {@link MAX_REPS} both stop it below the floor, it throws rather than compare noise.
  */
 export function growth<T>(input: (n: number) => T, run: (x: T) => unknown, sizes: Sizes): Growth {
   let n = sizes.from;
@@ -93,8 +99,8 @@ export function growth<T>(input: (n: number) => T, run: (x: T) => unknown, sizes
   let small = input(n);
   run(small);
   const sample = (x: T): number => timed(() => run(x), reps);
-  let took = Math.min(sample(small), sample(small));
-  while (took < TARGET_MS) {
+  const fastest = (x: T): number => Math.min(sample(x), sample(x), sample(x));
+  const grow = (): void => {
     if (2 * n <= sizes.max) {
       n *= 2;
       small = input(n);
@@ -102,23 +108,28 @@ export function growth<T>(input: (n: number) => T, run: (x: T) => unknown, sizes
     } else if (2 * reps <= MAX_REPS) {
       reps *= 2;
     } else {
-      break;
+      throw new Error(
+        `growth: the smaller size is still under ${String(TARGET_MS)} ms at n=${String(n)} x${String(reps)} calls, the most \`max\` and MAX_REPS allow; a ratio from there would be the timer's. Raise \`max\`.`,
+      );
     }
-    took = Math.min(sample(small), sample(small));
+  };
+  for (;;) {
+    while (fastest(small) < TARGET_MS) grow();
+    const large = input(FACTOR * n);
+    const started = performance.now();
+    run(large);
+    const smalls: number[] = [];
+    const larges: number[] = [];
+    for (let i = 0; i < RUNS; i += 1) {
+      smalls.push(sample(small));
+      larges.push(sample(large));
+      if (performance.now() - started > BUDGET_MS) break;
+    }
+    const s = Math.min(...smalls);
+    const l = Math.min(...larges);
+    if (s >= TARGET_MS) return { n, reps, small: s, large: l, ratio: l / s, rounds: smalls.length };
+    grow();
   }
-  const large = input(FACTOR * n);
-  const started = performance.now();
-  run(large);
-  const smalls: number[] = [];
-  const larges: number[] = [];
-  for (let i = 0; i < RUNS; i += 1) {
-    smalls.push(sample(small));
-    larges.push(sample(large));
-    if (performance.now() - started > BUDGET_MS) break;
-  }
-  const s = Math.min(...smalls);
-  const l = Math.min(...larges);
-  return { n, reps, small: s, large: l, ratio: l / s, rounds: smalls.length };
 }
 
 /** The failure message: the sizes, both timings and the ratio, so a red run says what it measured. */
