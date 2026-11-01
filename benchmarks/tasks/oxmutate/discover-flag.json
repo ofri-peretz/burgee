@@ -1,0 +1,11 @@
+{
+  "id": "oxmutate-discover-flag",
+  "requirement": "D1/D2 — an option an agent finds from the CLI's own --help or --schema, without reading its source",
+  "prompt": "Using the `oxmutate` command, find the option of `oxmutate run` that makes it exit with status 1 when the mutation score is below a threshold. Tell me the exact flag.",
+  "setup": [],
+  "check": "grep -qE -- '--break([^-a-z]|$)' \"$BENCH_RESULT\"",
+  "maxTurns": 10,
+  "modalities": ["cli"],
+  "exemplar": "The flag is `--break`, for example `oxmutate run --break 80`.",
+  "wrong": "The flag is `--threshold`, for example `oxmutate run --threshold 80`."
+}
