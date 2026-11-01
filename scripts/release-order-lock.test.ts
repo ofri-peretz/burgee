@@ -179,25 +179,16 @@ function writeFakePackage(pkgDir: string, r: PlanRow, withCore: boolean, missing
 }
 
 /**
- * Runs the loop over `rows` in a fake workspace. `onNpm` is what the registry holds before
- * the run; `failPublish` names packages whose `npm publish` exits 1; `lag` is how many
- * `npm view` calls a fresh publish misses before the registry serves it.
+ * The stubs on the loop's PATH, written once for the file: every run's state reaches them through
+ * its environment (`$REGISTRY`, `$PUBLISHED_LOG`, `$EARLY`, `$LAG`, `$FAIL_PUBLISH`). They were
+ * written afresh for every run, and a new executable is a file endpoint security scans on its first
+ * exec: one run read 7.3 s on the development machine (D-20261101-tests-under-5s).
  */
-function runLoop(rows: PlanRow[], opts: { onNpm?: string[]; failPublish?: string[]; lag?: number; noCore?: string[]; missingCores?: string[] } = {}): Run {
-  const dir = scratchDir('release-loop-');
-  const bin = join(dir, 'bin');
+let stubs: string | undefined;
+function stubBin(): string {
+  if (stubs !== undefined) return stubs;
+  const bin = join(scratchDir('release-loop-bin-'), 'bin');
   mkdirSync(bin);
-  mkdirSync(join(dir, 'scripts'));
-  mkdirSync(join(dir, '.sdlc', 'bands'), { recursive: true });
-  copyFileSync(join(REPO_ROOT, 'scripts', 'changelog-section.sh'), join(dir, 'scripts', 'changelog-section.sh'));
-  writeFileSync(join(dir, '.sdlc', 'bands', 'scoreboard-public.json'), JSON.stringify({ commanderCompatibilityPage: 'https://example.test/compat' }));
-  for (const r of rows) writeFakePackage(join(dir, 'packages', r.dir), r, !(opts.noCore ?? []).includes(r.name), opts.missingCores);
-  const registry = join(dir, 'registry');
-  const log = join(dir, 'published');
-  const early = join(dir, 'early');
-  writeFileSync(early, '');
-  writeFileSync(registry, (opts.onNpm ?? []).map((x) => `${x}\n`).join(''));
-  writeFileSync(log, '');
   const shim = (name: string, body: string[]) => {
     writeFileSync(join(bin, name), ['#!/usr/bin/env bash', ...body, ''].join('\n'));
     chmodSync(join(bin, name), 0o755);
@@ -213,9 +204,11 @@ function runLoop(rows: PlanRow[], opts: { onNpm?: string[]; failPublish?: string
     '  echo "${2##*@}"; exit 0',
     'fi',
     'if [ "$1" = "publish" ]; then',
-    '  id=$(node -p "const p=require(\'./package.json\'); p.name+\'@\'+p.version")',
+    // jq, not `node -p`: the step under test already needs jq on every line, and a Node start per
+    // read was most of a run's time (D-20261101-tests-under-5s).
+    '  id=$(jq -r \'.name + "@" + .version\' package.json)',
     '  case " $FAIL_PUBLISH " in *" ${id%@*} "*) echo "E403 $id" >&2; exit 1 ;; esac',
-    '  for dep in $(node -p "Object.entries(require(\'./package.json\').dependencies||{}).map(([n,v])=>n+\'@\'+v).join(\' \')"); do',
+    '  for dep in $(jq -r \'(.dependencies // {}) | to_entries | map(.key + "@" + .value) | join(" ")\' package.json); do',
     '    served "$dep" || echo "$id before $dep" >> "$EARLY"',
     '  done',
     '  echo "$id" >> "$REGISTRY"; echo "$id" >> "$PUBLISHED_LOG"; exit 0',
@@ -225,7 +218,29 @@ function runLoop(rows: PlanRow[], opts: { onNpm?: string[]; failPublish?: string
   shim('git', ['exit 0']);
   shim('gh', ['[ "$1 $2" = "release view" ] && exit 1', 'exit 0']);
   shim('sleep', ['exit 0']);
+  stubs = bin;
+  return bin;
+}
 
+/**
+ * Runs the loop over `rows` in a fake workspace. `onNpm` is what the registry holds before
+ * the run; `failPublish` names packages whose `npm publish` exits 1; `lag` is how many
+ * `npm view` calls a fresh publish misses before the registry serves it.
+ */
+function runLoop(rows: PlanRow[], opts: { onNpm?: string[]; failPublish?: string[]; lag?: number; noCore?: string[]; missingCores?: string[] } = {}): Run {
+  const dir = scratchDir('release-loop-');
+  const bin = stubBin();
+  mkdirSync(join(dir, 'scripts'));
+  mkdirSync(join(dir, '.sdlc', 'bands'), { recursive: true });
+  copyFileSync(join(REPO_ROOT, 'scripts', 'changelog-section.sh'), join(dir, 'scripts', 'changelog-section.sh'));
+  writeFileSync(join(dir, '.sdlc', 'bands', 'scoreboard-public.json'), JSON.stringify({ commanderCompatibilityPage: 'https://example.test/compat' }));
+  for (const r of rows) writeFakePackage(join(dir, 'packages', r.dir), r, !(opts.noCore ?? []).includes(r.name), opts.missingCores);
+  const registry = join(dir, 'registry');
+  const log = join(dir, 'published');
+  const early = join(dir, 'early');
+  writeFileSync(early, '');
+  writeFileSync(registry, (opts.onNpm ?? []).map((x) => `${x}\n`).join(''));
+  writeFileSync(log, '');
   const script = join(dir, 'step.sh');
   writeFileSync(script, loopStep().run ?? '');
   const summary = join(dir, 'summary');

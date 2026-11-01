@@ -305,7 +305,7 @@ export default [
     // a config, not source reading source, and the alternative is the same exclusion list
     // copied into four files — which is how it drifts and how a façade quietly starts being
     // counted again. The packages themselves still depend on nothing.
-    files: ["packages/*/vitest.config.ts", "apps/*/vitest.config.ts", "examples/*/vitest.config.ts"],
+    files: ["packages/*/vitest.config.ts", "packages/*/compat/vitest.config.ts", "apps/*/vitest.config.ts", "examples/*/vitest.config.ts", "benchmarks/vitest.config.ts"],
     rules: {
       "import-next/no-relative-parent-imports": "off",
       "import-next/no-relative-packages": "off",
@@ -601,7 +601,8 @@ export default [
     // the iteration counts, column widths and terminal sizes *are* the workload, and naming each
     // one a constant would put the number a line further from the job it describes. The harness
     // loads a workload by path and reads its default export, the one shape every file shares.
-    files: ["benchmarks/fixtures/runtime/**"],
+    // `runtime-test/` holds workloads only `runtime.test.ts` runs, in the same shape.
+    files: ["benchmarks/fixtures/runtime/**", "benchmarks/fixtures/runtime-test/**"],
     rules: {
       "conventions/no-magic-numbers": "off",
       "import-next/no-default-export": "off",

@@ -21,9 +21,12 @@ pre-push:
     # One turbo invocation for all three: three parallel invocations each build the docs
     # app into the same .next directory and one of them loses (seen on every second push).
     # turbo still parallelises across packages inside the one run.
+    # Each suite leaves the cases it read over the 5 s budget in node_modules/.cache/case-budget,
+    # and `case-budget` below judges them alone once the battery is over: inside it nothing is
+    # alone (D-20261101-tests-under-5s).
     battery:
       priority: 1
-      run: npx --no turbo run typecheck test build --output-logs=errors-only
+      run: rm -rf node_modules/.cache/case-budget && VITEST_CASE_BUDGET_DEFER="$PWD/node_modules/.cache/case-budget" npx --no turbo run typecheck test build --output-logs=errors-only
     # `turbo run test` covers workspaces, and `scripts/` is not one — the root vitest config
     # is the only thing that runs `scripts/**/*.test.ts`. So the gate that is supposed to be
     # what CI runs was missing a whole directory of locks, and `plan-progress-lock.test.ts`
@@ -39,3 +42,8 @@ pre-push:
     mutation-changed:
       priority: 3
       run: npm run mutation:changed
+    # The battery's verdict on the five-second budget, the same script as CI's `No test case over
+    # 5 s` step. The root suite judges its own cases as it runs, alone already.
+    case-budget:
+      priority: 4
+      run: npx --no tsx scripts/case-budget.ts node_modules/.cache/case-budget

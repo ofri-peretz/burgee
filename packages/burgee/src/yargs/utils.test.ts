@@ -79,19 +79,25 @@ function configObjects(y: unknown): unknown[] {
 }
 
 describe('parseCommand is linear and answers as upstream did (#17–#21)', () => {
-  it('matches the upstream regexes on every short string of whitespace, dots, brackets and pipes', () => {
+  // One case per shape around the generated string: as one case the ~200,000 commands read 5.4 s
+  // on CI (D-20261101-tests-under-5s). Each shape still sees every string, and the three together
+  // every command the single case did.
+  it.each([
+    ['after a command name', (tail: string) => `x${tail}`],
+    ['before a command name', (tail: string) => `${tail}x`],
+    ['alone', (tail: string) => tail],
+  ] as const)('matches the upstream regexes on every short string of whitespace, dots, brackets and pipes: %s', (_shape, shape) => {
     const alphabet = [' ', '\t', '.', '[', ']', '<', '>', 'a', '|'];
     const mismatches: string[] = [];
     let checked = 0;
     for (const tail of strings(alphabet, 5)) {
-      for (const cmd of [`x${tail}`, `${tail}x`, tail]) {
-        const ours = JSON.stringify(outcome(() => parseCommand(cmd)));
-        if (ours !== JSON.stringify(outcome(() => upstreamParseCommand(cmd)))) mismatches.push(JSON.stringify(cmd));
-        checked++;
-      }
+      const cmd = shape(tail);
+      const ours = JSON.stringify(outcome(() => parseCommand(cmd)));
+      if (ours !== JSON.stringify(outcome(() => upstreamParseCommand(cmd)))) mismatches.push(JSON.stringify(cmd));
+      checked++;
     }
     expect(mismatches.slice(0, 10)).toEqual([]);
-    expect(checked).toBeGreaterThan(150_000);
+    expect(checked).toBeGreaterThan(50_000);
   });
 
   it('keeps the shapes yargs documents', () => {

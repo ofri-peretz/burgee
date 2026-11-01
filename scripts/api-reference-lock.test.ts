@@ -43,9 +43,29 @@ import { entriesOf, FAMILY_SITE_REFERENCES, incumbentDocs, incumbentPackage, LIN
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
+const OPTIONS: ts.CompilerOptions = { module: ts.ModuleKind.NodeNext, moduleResolution: ts.ModuleResolutionKind.NodeNext, skipLibCheck: true, noEmit: true, types: ['node'] };
+
+/**
+ * One parse of each declaration file for the whole lock, as a language service keeps it.
+ *
+ * Every entry gets its own program — so no entry's exports can be widened by another entry's
+ * augmentation — but each of those programs parsed `lib.*.d.ts` and all of `@types/node` again,
+ * about 200 times: 89.6 s for this file on CI, each case up to 2.9 s (D-20261101-tests-under-5s).
+ * A `SourceFile` is a function of its text and the options, which are the same for every program
+ * here, and TypeScript's own `DocumentRegistry` shares them across programs the same way; the
+ * binder skips a file that is already bound, and each program still has its own checker.
+ */
+const host = ts.createCompilerHost(OPTIONS);
+const parsed = new Map<string, ts.SourceFile | undefined>();
+const parse = host.getSourceFile.bind(host);
+host.getSourceFile = (fileName, languageVersion, onError, shouldCreate) => {
+  if (!parsed.has(fileName)) parsed.set(fileName, parse(fileName, languageVersion, onError, shouldCreate));
+  return parsed.get(fileName);
+};
+
 /** Every name an entry exports, as the checker sees it — independent of the generator. */
 function exportedNames(types: string): string[] {
-  const program = ts.createProgram([types], { module: ts.ModuleKind.NodeNext, moduleResolution: ts.ModuleResolutionKind.NodeNext, skipLibCheck: true, noEmit: true, types: ['node'] });
+  const program = ts.createProgram([types], OPTIONS, host);
   const sf = program.getSourceFile(types);
   const checker = program.getTypeChecker();
   const symbol = sf === undefined ? undefined : checker.getSymbolAtLocation(sf);

@@ -630,7 +630,10 @@ describe('the tsd runner (extra-typings-drop-in R1)', () => {
     mkdirSync(join(hostDir(), 'test-d'), { recursive: true });
     for (const [name, body] of Object.entries(files)) writeFileSync(join(hostDir(), 'test-d', name), body);
   };
-  const TSCONFIG = JSON.stringify({ compilerOptions: { module: 'nodenext', strict: true, types: [], noEmit: true } });
+  // `lib` named, so tsd's default — es2020 *and* the DOM, which it type-checks with skipLibCheck
+  // forced off — is not compiled for a fixture that touches neither: each grade spent most of
+  // its 11–13 s on CI checking lib.dom.d.ts (D-20261101-tests-under-5s).
+  const TSCONFIG = JSON.stringify({ compilerOptions: { module: 'nodenext', strict: true, types: [], lib: ['es2020'], noEmit: true } });
 
   /**
    * Where the pinned tsd lives between runs: installed once per checkout (and again after an
