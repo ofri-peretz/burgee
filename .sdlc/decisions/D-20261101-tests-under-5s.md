@@ -6,6 +6,13 @@ date: '2026-11-01'
 superseded_by: —
 ---
 
+> **Amended 2026-11-01 by [D-20261101-no-mutation-in-gha](./D-20261101-no-mutation-in-gha.md).**
+> The NIGHTLY_ONLY cases each run oxmutate end to end, and no mutation runs in GitHub Actions, so
+> compat.yml's `heavy-tests` job and its `nightly-report.yml` entry are removed. `npm run
+> mutation:weekly` runs the same four files with `BURGEE_NIGHTLY=1` and `OXMUTATE_REQUIRE_NATIVE=1`
+> before the full mutation runs, fails (exit 1) when one is red, and opens or updates the issue
+> "Weekly nightly-only test cases failed". Wherever "the nightly job" appears below, read that run.
+
 **The owner, 2026-11-01:** "We need to fix bottlenecks" and "it doesn't make sense a single test
 case will take more than 5 seconds".
 

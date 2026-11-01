@@ -36,7 +36,33 @@ from [`nightly-report.yml`](./nightly-report.yml), which follows the nightly run
 | 03:30 daily | [`compat.yml`](./compat.yml) | the ratchet, the three Node 24 cells, the off-Linux controls, the six Node-floor published-suites cells | the ratchet and the three Node 24 cells (required); `run-full-ci` adds the rest |
 | 05:40 Tue | [`bench.yml`](./bench.yml) | B1 agent cost (paid) | only with the `bench:agent` label |
 | 06:20 Sat | [`evals.yml`](./evals.yml) | layer 2 task evals (paid) | never; layer 1 runs in `Quality Gate` |
-| 02:30 Sat | [`mutation.yml`](./mutation.yml) | every package's full mutation score | the changed lines, in `Quality (Full) Gate` |
+
+## Mutation runs locally, never here
+
+No workflow mutates ([D-20261101-no-mutation-in-gha](../../.sdlc/decisions/D-20261101-no-mutation-in-gha.md)):
+the owner runs mutation on his machine and the results land as PRs. `mutation.yml` (the weekly
+full run), `quality-full.yml`'s `Mutation (changed lines)` job and `oxmutate-bench.yml` (Stryker
+beside oxmutate) were removed on 2026-11-01. `scripts/mutation-local-only-lock.test.ts` fails if a
+step under `.github/` runs `scripts/mutation.ts`, either npm script below, the oxmutate bin, the
+paired bench or Stryker, or sets `BURGEE_NIGHTLY` (the NIGHTLY_ONLY oxmutate cases, which compat.yml's `heavy-tests` ran until this change). Building oxmutate's native cores for a release (`oxmutate-native.yml`) and
+running oxmutate's own unit suite in `test` are not mutation runs, and stay.
+
+| When | Where | What |
+| :-- | :-- | :-- |
+| every push | pre-push (`lefthook.yml`) | `npm run mutation:changed`: the lines the branch changed against `origin/main`, the per-PR gate |
+| 02:30 Sat, local time | launchd, `npm run mutation:weekly` | the NIGHTLY_ONLY test cases with `BURGEE_NIGHTLY=1`, then every package in `.sdlc/bands/mutation-ratchets.json` in full, one at a time, on a clean worktree of `origin/main`; `record`, then a `chore(workspace): record mutation scores` PR with auto-merge armed; exits 2 on a breached floor |
+| on demand | `npx tsx packages/oxmutate/bench/burgee-pair.mts --package <pkg>` | Stryker and oxmutate on the same package, the same machine, back to back |
+
+The weekly run's launchd agent is [`tools/launchd/dev.burgee.mutation-weekly.plist`](../../tools/launchd/dev.burgee.mutation-weekly.plist).
+Install it once:
+
+```sh
+cp tools/launchd/dev.burgee.mutation-weekly.plist ~/Library/LaunchAgents/
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/dev.burgee.mutation-weekly.plist
+```
+
+`npm run mutation:weekly -- --dry-run` prints every step without changing anything; its log is
+`~/Library/Logs/burgee-mutation-weekly.log`.
 
 ## Release loop
 
@@ -73,7 +99,6 @@ to run still starts and passes in one step. `npm run lint:workflows` holds the l
 
 | Workflow | Role |
 | :-- | :-- |
-| [`oxmutate-bench.yml`](./oxmutate-bench.yml) | Dispatch only: Stryker and oxmutate on the same burgee packages, one cell per package, on a runner no other job shares; every metric one pair answers (`packages/oxmutate/bench/metrics.mjs`) in the run summary. Laptop wall-clock is not published (`.sdlc/intents/oxmutate/metrics.md`) |
 | [`oxmutate-native.yml`](./oxmutate-native.yml) | Called by `release.yml`, or dispatched alone (builds, publishes nothing): one `oxmutate.node` per `packages/oxmutate/npm/<platform>` — macOS 14 for both darwin targets (x64 cross-compiled, header-checked), Ubuntu 22.04 x64 and arm64 for glibc, musl via `x86_64-unknown-linux-musl` built in `rust:<version>-alpine` and loaded in `node:<.nvmrc>-alpine`, Windows for msvc. Each leg checks the binary's header, `process.dlopen`s it and calls `nativeVersion()` where the runner can, and uploads `oxmutate-native-<platform>`, which `release.yml` places in oxmutate's `binding/`. `scripts/oxmutate-platforms-lock.test.ts` holds the matrix to the directories |
 
 ## Security

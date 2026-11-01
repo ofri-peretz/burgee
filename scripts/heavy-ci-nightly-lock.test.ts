@@ -48,9 +48,13 @@ import {
 } from './required-checks.mjs';
 
 /**
- * The heavy jobs: benchmarks, the off-Linux and floor-Node compat cells, the paid evals and the
- * full mutation run. `bench.yml`'s `agent` may still run on a pull request the owner labels
- * `bench:agent` — the label is the request to spend — and nowhere else outside the schedule.
+ * The heavy jobs: benchmarks, the off-Linux and floor-Node compat cells and the paid evals.
+ * `bench.yml`'s `agent` may still run on a pull request the owner labels `bench:agent` — the
+ * label is the request to spend — and nowhere else outside the schedule. The full mutation run
+ * was on this list until it left GitHub Actions altogether (D-20261101-no-mutation-in-gha); it
+ * runs on the owner's machine, and `mutation-local-only-lock.test.ts` holds it there. So, for the
+ * same reason, do the NIGHTLY_ONLY test cases #1424 put in compat.yml's `heavy-tests`: each runs
+ * oxmutate end to end, and `npm run mutation:weekly` runs them.
  */
 const HEAVY: { file: string; job: string }[] = [
   { file: 'bench.yml', job: 'cheap' },
@@ -58,10 +62,7 @@ const HEAVY: { file: string; job: string }[] = [
   { file: 'bench.yml', job: 'agent' },
   { file: 'compat.yml', job: 'controls' },
   { file: 'compat.yml', job: 'floor' },
-  // The test cases too heavy for a pull request (D-20261101-tests-under-5s, NIGHTLY_ONLY).
-  { file: 'compat.yml', job: 'heavy-tests' },
   { file: 'evals.yml', job: 'evals' },
-  { file: 'mutation.yml', job: 'full' },
 ];
 
 /** What CI/CD is: a push to `main`, a pull request however it is labelled for review, a queue entry. */
@@ -116,7 +117,7 @@ const minuteOfDay = (cron: string): number => {
  */
 const REPORTER = 'nightly-report.yml';
 const REPORTED: { file: string; reporter: string; title: string; jobs: Record<string, string> }[] = [
-  { file: 'compat.yml', reporter: 'compat', title: 'Nightly compatibility matrix failed', jobs: { MATRIX_JOBS: 'matrix', FLOOR_JOBS: 'floor', HEAVY_JOBS: 'heavy-tests' } },
+  { file: 'compat.yml', reporter: 'compat', title: 'Nightly compatibility matrix failed', jobs: { MATRIX_JOBS: 'matrix', FLOOR_JOBS: 'floor' } },
   { file: 'bench.yml', reporter: 'bench', title: 'Nightly benchmarks failed', jobs: { CHEAP_JOBS: 'cheap', FLOOR_JOBS: 'floor' } },
 ];
 const nameOf = (file: string): string => (read(file) as Workflow & { name?: string }).name ?? file;

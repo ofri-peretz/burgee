@@ -41,8 +41,9 @@
  *   report), and the budget is held in one CI place, `Unit Tests`.
  *
  * `NIGHTLY_ONLY` is the only exemption, and it is not for a slow case that runs on a pull
- * request: a case belongs there only when it was moved to the nightly workflow, and the reason
- * says what heavy operation it needs (D-20261101-heavy-ci-runs-nightly).
+ * request: a case belongs there only when it was moved behind BURGEE_NIGHTLY, which only the weekly
+ * local run (`npm run mutation:weekly`) sets, and the reason says what heavy operation it needs
+ * (D-20261101-heavy-ci-runs-nightly; D-20261101-no-mutation-in-gha moved the run out of CI).
  */
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -122,7 +123,7 @@ export function describeOverBudget(slow: readonly CaseDuration[], budget: number
     `\n✗ ${slow.length} test case${slow.length === 1 ? '' : 's'} over the ${budget} ms per-case budget (D-20261101-tests-under-5s):`,
     ...lines,
     '  Make the case fast without weakening it — share a spawn in beforeAll, import instead of spawning, shrink the fixture —',
-    '  or, if it truly needs a heavy operation, move it to the nightly workflow and name it in NIGHTLY_ONLY',
+    '  or, if it truly needs a heavy operation, move it behind BURGEE_NIGHTLY (npm run mutation:weekly runs it) and name it in NIGHTLY_ONLY',
     '  (scripts/vitest-case-budget-reporter.ts) with the reason.\n',
   ].join('\n');
 }

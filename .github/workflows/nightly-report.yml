@@ -9,8 +9,7 @@
 # pull request's run and a queue entry's are on their own branches and never start it.
 #
 # What each reports is what the jobs it replaced reported: compat.yml's Node 24 `matrix` cells and
-# its Node-floor `floor` cells and its nightly-only `heavy-tests` (the ratchet reports its own red
-# main from its own step), and
+# its Node-floor `floor` cells (the ratchet reports its own red main from its own step), and
 # bench.yml's `cheap` and `floor` (the weekly B1 run says so from its own step). A night red for
 # another reason opens nothing here, as before. Each job's result is read from the run's jobs by
 # the names they report, the way `needs.<job>.result` read it: any cell failed is `failure`.
@@ -42,8 +41,6 @@ jobs:
     env:
       MATRIX_JOBS: '^Node 24 · [a-z]+-latest$'
       FLOOR_JOBS: ' · published suites$'
-      # The cases too heavy for a pull request (NIGHTLY_ONLY, D-20261101-tests-under-5s).
-      HEAVY_JOBS: '^Heavy test cases \(nightly\)$'
     steps:
       - name: Open or update the issue
         env:
@@ -65,13 +62,12 @@ jobs:
           }
           MATRIX=$(result "$MATRIX_JOBS")
           FLOOR=$(result "$FLOOR_JOBS")
-          HEAVY=$(result "$HEAVY_JOBS")
-          if [ "$MATRIX" != failure ] && [ "$FLOOR" != failure ] && [ "$HEAVY" != failure ]; then
-            echo "Node 24 cells $MATRIX, Node-floor cells $FLOOR, heavy test cases $HEAVY: not a failed matrix night (the ratchet reports its own)."
+          if [ "$MATRIX" != failure ] && [ "$FLOOR" != failure ]; then
+            echo "Node 24 cells $MATRIX, Node-floor cells $FLOOR: not a failed matrix night (the ratchet reports its own)."
             exit 0
           fi
           TITLE="Nightly compatibility matrix failed"
-          BODY=$(printf 'The nightly OS × Node run on `%s` failed: Node 24 cells `%s`, Node-floor published suites `%s`, heavy test cases `%s`. The Node-floor cells and the heavy test cases (NIGHTLY_ONLY in scripts/vitest-case-budget-reporter.ts) no longer run on a pull request, so this is where a Node 20.19 or 22.13 regression, or a broken oxmutate end-to-end case, shows; a red Node 24 cell here is main drifting under green PRs. A PR labelled `run-full-ci` re-runs the matrix and floor cells.\n\n[Run](%s)\n' "$SHA" "$MATRIX" "$FLOOR" "$HEAVY" "$RUN_URL")
+          BODY=$(printf 'The nightly OS × Node run on `%s` failed: Node 24 cells `%s`, Node-floor published suites `%s`. The Node-floor cells no longer run on a pull request, so this is where a Node 20.19 or 22.13 regression shows; a red Node 24 cell here is main drifting under green PRs. A PR labelled `run-full-ci` re-runs them all.\n\n[Run](%s)\n' "$SHA" "$MATRIX" "$FLOOR" "$RUN_URL")
           EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty')
           if [ -n "$EXISTING" ]; then gh issue comment "$EXISTING" --body "$BODY"; else gh issue create --title "$TITLE" --body "$BODY"; fi
 

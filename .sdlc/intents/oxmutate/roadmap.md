@@ -133,7 +133,7 @@ has a test that fails without it (named in the commit that added it).
 | Reporters | JSON (schema 2), clear-text, SARIF, HTML, progress / progress-append-only / ci | ✅ | `src/reports.ts`, `src/progress.ts` |
 | Lanes | `--since`, `--shard`, `survivors --json`, `--mcp`, `--break` (exit 1) | ✅ | `src/lanes.ts`, `src/cli.ts` |
 | Lanes | Frozen oracle (`--frozen-oracle <ref>`, R14 / SC10) | ✅ | `src/frozen.ts` |
-| Dogfood | burgee's `full` lane on oxmutate (`--engine oxmutate`); `mutation.yml` engine input | ✅ | `scripts/mutation.ts` |
+| Dogfood | burgee's `full` lane on oxmutate (`--engine oxmutate`); `npm run mutation:weekly -- --engine` (`mutation.yml`'s input until [`D-20261101-no-mutation-in-gha`](../../decisions/D-20261101-no-mutation-in-gha.md)) | ✅ | `scripts/mutation.ts` |
 | Config | A `mutate` block in `vite.config.*` (the Vite+ file), typed by `oxmutate/vite` | ✅ | `src/config.ts`, `src/vite.ts` |
 | Dogfood | One green week of the weekly run on oxmutate (the M3 gate) | ⬜ | owner: dispatch with `engine: oxmutate` |
 | Formal | Spec oracles: Quint (`quint run --mbt`) and ITF backends, `oxmutate/spec`, F1–F4 and F6 | ✅ | `src/spec-oracle.ts`, `src/spec.ts` |
@@ -188,7 +188,9 @@ implements 16 of the 17 mutator families.
   `--json`, `--schema` and MCP.
 - **Gate:** burgee's weekly `mutation.yml` runs `oxmutate` for one green week and records the
   observation; burgee's full run is ≤ 30 minutes on the CI runner (186 minutes on Stryker,
-  2026-10-24). The Stryker job is retired after that week.
+  2026-10-24). The Stryker job is retired after that week. *Since [`D-20261101-no-mutation-in-gha`](../../decisions/D-20261101-no-mutation-in-gha.md): the
+  weekly run is local (`npm run mutation:weekly`), and the 30 minutes are read on the owner's
+  machine with Stryker measured beside it there.*
 
 ### M3.5 — Spec oracle: Quint first, any formal method next (target 2027-02-15)
 

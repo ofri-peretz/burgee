@@ -80,8 +80,10 @@ Exit 1 below a mutation score of 80, the same as `thresholds.break` in the confi
 
 ## Where the published numbers will come from
 
-`oxmutate-bench.yml` runs oxmutate and Stryker against the same burgee packages on a runner
-nothing else shares, and its numbers are the ones to quote. It is added in M1 and has not run
-yet; the figures measured so far are from a shared laptop, and
+`packages/oxmutate/bench/burgee-pair.mts` runs oxmutate and Stryker against the same burgee
+package, back to back on one machine, and its pairs are the numbers to quote: the ratio between
+the two engines on the same hardware and the same load. burgee runs no mutation in GitHub
+Actions, so that machine is the maintainer's, and each pair records its spec and load average.
+The figures measured so far are from that shared machine, and
 [`m1-results.md`](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/oxmutate/m1-results.md)
 says how far they can be trusted.
