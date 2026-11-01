@@ -49,3 +49,6 @@ the static walk. Main is at `4204fb307f`.
 | static walk, `./yargs` (`packages/burgee/src/weight.test.ts`) | 223,425 | 223,480 | +55 | 223,500 -> 223,550 |
 | static walk, `./yargs/v17` | 226,467 | 226,522 | +55 | 226,500 -> 226,600 |
 | static walk, `./yargs/v17/yargs` | 226,691 | 226,746 | +55 | 226,750 -> 226,800 |
+| `/docs/weight`, `burgee/yargs` everything (`npm run weight:page`) | 110,509 | 110,578 | +69 | the page follows |
+| `/docs/weight`, `burgee/yargs/v17` everything (`scripts/subpath-weight-lock.test.ts`) | 111,669 | 111,738 | +69 | `ours` 111,669 -> 111,738 |
+| `/docs/weight`, `burgee/yargs/v17/yargs` everything | 111,476 | 111,545 | +69 | the page follows |
