@@ -14,8 +14,9 @@
  * cannot be this gate — it fails the case that loses the bet, not the case that is slow.
  *
  * This reporter is the gate. Every suite that spreads `timeouts` loads it, so it runs in the
- * pre-push battery, in `Quality (Full)`'s `Unit Tests` (the required check) and in compat's
- * Linux cell. After the run it reads each case's own duration — the body and its `beforeEach` /
+ * pre-push hook and in `Quality (Full)`'s `Unit Tests` (the required check); inside a battery it
+ * defers its verdict to `scripts/case-budget.ts` (see `DEFER_ENV`). After the run it reads each
+ * case's own duration — the body and its `beforeEach` /
  * `afterEach`, which is what vitest measures for a case — and when any is over
  * `CASE_BUDGET_MS` it names them and sets the exit code to 1, whatever else passed.
  *
@@ -33,16 +34,16 @@
  * - **A run with coverage enabled.** v8's block counters slow the body itself, so a duration
  *   measured there is the instrument's as much as the case's; the same cases are gated
  *   uninstrumented by `Unit Tests`, in the same required check.
- * - **A run with `VITEST_CASE_BUDGET_MS=0`.** Only compat's macOS and Windows cells set it: the
- *   budget is set on the Linux runner the baselines are recorded on, and those cells are graded
- *   on correctness under their own timeouts (windows-lane-holds keeps their half-budget report).
+ * - **A run with `VITEST_CASE_BUDGET_MS=0`.** Only compat.yml's cells set it: they grade
+ *   correctness on every OS under their own timeouts (windows-lane-holds keeps their half-budget
+ *   report), and the budget is held in one CI place, `Unit Tests`.
  *
  * `NIGHTLY_ONLY` is the only exemption, and it is not for a slow case that runs on a pull
  * request: a case belongs there only when it was moved to the nightly workflow, and the reason
  * says what heavy operation it needs (D-20261101-heavy-ci-runs-nightly).
  */
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -138,7 +139,10 @@ interface JsonReport {
  * the one result whose titles are the case's. `undefined` when that run did not report the case,
  * which leaves the first reading standing.
  */
-function measureAlone(c: CaseDuration & { title: string; cwd: string; config: string | undefined }): number | undefined {
+/** A case read over the budget, with what it takes to run it again: its title, and the run's cwd and config. */
+export type Candidate = CaseDuration & { title: string; cwd: string; config: string | undefined };
+
+function measureAlone(c: Candidate): number | undefined {
   const out = mkdtempSync(join(tmpdir(), 'case-budget-'));
   try {
     const report = join(out, 'report.json');
@@ -168,7 +172,7 @@ function measureAlone(c: CaseDuration & { title: string; cwd: string; config: st
 const ALONE_READINGS = 2;
 
 /** The fastest alone reading, stopping at the first that is within `budget`; `undefined` when none was taken. */
-function bestAlone(c: Parameters<typeof measureAlone>[0], budget: number): number | undefined {
+function bestAlone(c: Candidate, budget: number): number | undefined {
   let best: number | undefined;
   for (let i = 0; i < ALONE_READINGS && (best === undefined || best > budget); i++) {
     const reading = measureAlone(c);
@@ -176,6 +180,31 @@ function bestAlone(c: Parameters<typeof measureAlone>[0], budget: number): numbe
   }
   return best;
 }
+
+/**
+ * The verdict on `candidates`: each measured alone, and the ones still over `budget` named on
+ * stderr. Returns whether the gate passed. The reporter calls it at the end of a run; the deferred
+ * check (`scripts/case-budget.ts`) calls it after a whole battery.
+ */
+export function judge(candidates: readonly Candidate[], budget: number): boolean {
+  if (candidates.length === 0) return true;
+  const slow = candidates.map((c) => ({ ...c, alone: bestAlone(c, budget) })).filter((c) => c.alone === undefined || c.alone > budget);
+  if (slow.length === 0) {
+    process.stderr.write(`\n${String(candidates.length)} case(s) read over the ${String(budget)} ms budget in a full run and under it alone; not failing on the machine's load:\n${candidates.map((c) => `  ${String(Math.round(c.duration))} ms  ${caseKey(c)}`).join('\n')}\n`);
+    return true;
+  }
+  process.stderr.write(describeOverBudget(slow, budget));
+  return false;
+}
+
+/**
+ * Where a run inside a battery leaves its candidates instead of judging them. Inside
+ * `turbo run test` ten suites run at once, so "alone" is never alone: on the development machine a
+ * case whose `npm pack` takes 0.5 s read 17.5 s in the battery and 10.0 s re-run inside it. With
+ * `VITEST_CASE_BUDGET_DEFER` set, the reporter writes the candidates there and `npx tsx
+ * scripts/case-budget.ts <dir>` judges them after the battery, on a machine that has finished it.
+ */
+export const DEFER_ENV = 'VITEST_CASE_BUDGET_DEFER';
 
 // eslint-disable-next-line import-next/no-default-export -- vitest loads a reporter given by path from its default export
 export default class CaseBudgetReporter implements Reporter {
@@ -190,24 +219,23 @@ export default class CaseBudgetReporter implements Reporter {
   onTestRunEnd(modules: ReadonlyArray<TestModule>): void {
     const budget = budgetFrom(process.env);
     if (budget === 0 || this.coverage) return;
-    const cases: (CaseDuration & { title: string })[] = [];
+    const cases: Candidate[] = [];
     for (const module of modules) {
       for (const test of module.children.allTests()) {
         const diagnostic = test.diagnostic();
         if (diagnostic === undefined) continue;
-        cases.push({ file: posix(relative(ROOT, module.moduleId)), name: test.fullName, title: test.name, duration: diagnostic.duration });
+        cases.push({ file: posix(relative(ROOT, module.moduleId)), name: test.fullName, title: test.name, duration: diagnostic.duration, cwd: process.cwd(), config: this.config });
       }
     }
-    const first = overBudget(cases, budget) as (CaseDuration & { title: string })[];
-    if (first.length === 0) return;
-    const slow = first
-      .map((c) => ({ ...c, alone: bestAlone({ ...c, cwd: process.cwd(), config: this.config }, budget) }))
-      .filter((c) => c.alone === undefined || c.alone > budget);
-    if (slow.length === 0) {
-      process.stderr.write(`\n${String(first.length)} case(s) read over the ${String(budget)} ms budget in this run and under it alone; not failing on the machine's load:\n${first.map((c) => `  ${String(Math.round(c.duration))} ms  ${caseKey(c)}`).join('\n')}\n`);
+    const candidates = overBudget(cases, budget) as Candidate[];
+    if (candidates.length === 0) return;
+    const defer = process.env[DEFER_ENV];
+    if (defer !== undefined && defer !== '') {
+      mkdirSync(defer, { recursive: true });
+      writeFileSync(join(defer, `${String(process.pid)}-${String(Date.now())}.json`), `${JSON.stringify(candidates)}\n`);
+      process.stderr.write(`\n${String(candidates.length)} case(s) over the ${String(budget)} ms budget in this run; judged alone after the battery (scripts/case-budget.ts).\n`);
       return;
     }
-    process.stderr.write(describeOverBudget(slow, budget));
-    process.exitCode = 1;
+    if (!judge(candidates, budget)) process.exitCode = 1;
   }
 }

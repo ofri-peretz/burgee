@@ -26,7 +26,7 @@ sensitivity check (16.1 s) and type checker (15.1 s), and roundel's supports-col
 exit code to 1 when any is over **5,000 ms**. It is loaded by every vitest config in the
 repository, through `timeouts` or, for the three configs with their own clocks, `caseBudget`
 (`scripts/case-budget-lock.test.ts` holds that). So it runs in the pre-push battery and root
-suite, in the required `Unit Tests` job, and in compat's Linux cells.
+suite, and in the required `Unit Tests` job.
 
 - **A case over the budget is measured again, alone**, before it fails the run: its file runs by
   itself with `-t` naming it, up to twice, and the case fails only if its best alone reading is
@@ -34,9 +34,16 @@ suite, in the required `Unit Tests` job, and in compat's Linux cells.
   computation read 7.4 s in a full suite and milliseconds alone, and one release-loop case read
   5.7 s and 16.4 s in two runs of one tree; a gate that is red on load is a gate people learn to
   re-run. The readings are printed.
+- **Inside a battery the re-measuring waits for the battery.** With `turbo run test` running
+  several suites at once nothing is alone (a closeout case whose `npm pack` takes 0.5 s read 17.5 s
+  in the pre-push battery and 10.0 s re-run inside it), so there each run writes its candidates to
+  `VITEST_CASE_BUDGET_DEFER` and `scripts/case-budget.ts` judges them after: the `No test case over
+  5 s` step in `Unit Tests`, and the `case-budget` pre-push command. The root suite runs alone and
+  judges its own.
+- **compat.yml's cells do not judge it** (`VITEST_CASE_BUDGET_MS=0`): they grade correctness on
+  every OS, and the budget is held in one CI place, the required `Unit Tests` job.
 - **Not judged:** a run with coverage on (v8's counters slow the body; `Unit Tests` gates the
-  same cases uninstrumented in the same required check), and compat's macOS and Windows cells
-  (`VITEST_CASE_BUDGET_MS=0`): the budget is set on the Linux runner the baselines come from.
+  same cases uninstrumented in the same required check), and compat's cells, as above.
 - **`NIGHTLY_ONLY` is the only exemption.** An entry is a case that runs only where
   `BURGEE_NIGHTLY` is set — compat.yml's `heavy-tests` job, nightly and on a dispatch
   (D-20261101-heavy-ci-runs-nightly) — with the heavy operation it needs as its reason. The lock

@@ -23,7 +23,7 @@ import { join } from 'node:path';
 import { load as loadYaml } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
 
-import { readWorkflow, REPO_ROOT } from './required-checks.mjs';
+import { readWorkflow, REPO_ROOT, type Step } from './required-checks.mjs';
 import { budgetFrom, CASE_BUDGET_MS, caseKey, describeOverBudget, NIGHTLY_ONLY, overBudget } from './vitest-case-budget-reporter.js';
 
 describe('the budget', () => {
@@ -104,31 +104,41 @@ describe('every suite loads the gate', () => {
 describe('the required check and the pre-push hook run it', () => {
   const turnsOff = /VITEST_CASE_BUDGET_MS|--reporter/u;
 
-  it("Quality (Full)'s Unit Tests job runs the root suite and the package suites with the gate on", () => {
+  it("Quality (Full)'s Unit Tests job runs the root suite, defers the package suites' candidates, then judges them", () => {
     const job = readWorkflow('quality-full.yml').jobs['test'];
     expect(job?.name).toBe('Unit Tests (Turbo)');
-    const text = JSON.stringify(job);
-    expect(text).toContain('npx vitest run --config vitest.root.config.ts');
-    expect(text).toContain('turbo run test');
-    expect(text).not.toMatch(turnsOff);
+    expect(JSON.stringify(job)).not.toMatch(turnsOff);
+    const steps = (job?.steps ?? []) as (Step & { env?: Record<string, string> })[];
+    const at = (pattern: RegExp): number => steps.findIndex((s) => pattern.test(s.run ?? ''));
+    const root = at(/npx vitest run --config vitest\.root\.config\.ts/u);
+    const suites = at(/turbo run test/u);
+    const judge = at(/npx tsx scripts\/case-budget\.ts "\$RUNNER_TEMP\/case-budget"/u);
+    expect([root, suites, judge].every((i) => i >= 0), 'a step went missing').toBe(true);
+    expect(suites).toBeLessThan(judge);
+    expect(steps[suites]?.env?.['VITEST_CASE_BUDGET_DEFER']).toBe('${{ runner.temp }}/case-budget');
+    expect(steps[root]?.env?.['VITEST_CASE_BUDGET_DEFER'], 'the root suite runs alone and judges its own cases').toBeUndefined();
   });
 
-  it('the pre-push hook runs the battery and the root suite with the gate on', () => {
-    const hooks = loadYaml(readFileSync(join(REPO_ROOT, 'lefthook.yml'), 'utf8')) as { 'pre-push': { commands: Record<string, { run: string }> } };
-    const runs = Object.values(hooks['pre-push'].commands).map((c) => c.run);
-    expect(runs.some((r) => r.includes('turbo run') && r.includes('test'))).toBe(true);
-    expect(runs).toContain('npx --no vitest run --config vitest.root.config.ts');
-    for (const r of runs) expect(r).not.toMatch(turnsOff);
+  it('the pre-push hook defers the battery’s candidates, judges them after it, and runs the root suite with the gate on', () => {
+    const hooks = loadYaml(readFileSync(join(REPO_ROOT, 'lefthook.yml'), 'utf8')) as { 'pre-push': { commands: Record<string, { run: string; priority: number }> } };
+    const { battery, 'case-budget': judge, 'root-suite': root } = hooks['pre-push'].commands;
+    expect(battery?.run).toMatch(/^rm -rf node_modules\/\.cache\/case-budget && VITEST_CASE_BUDGET_DEFER="\$PWD\/node_modules\/\.cache\/case-budget" npx --no turbo run typecheck test build/u);
+    expect(judge?.run).toBe('npx --no tsx scripts/case-budget.ts node_modules/.cache/case-budget');
+    expect(judge!.priority).toBeGreaterThan(battery!.priority);
+    expect(root?.run).toBe('npx --no vitest run --config vitest.root.config.ts');
+    for (const c of Object.values(hooks['pre-push'].commands)) expect(c.run).not.toMatch(turnsOff);
   });
 
-  it('only the off-Linux compat cells turn it off', () => {
+  it('turbo hands the budget variables to every test task', () => {
+    const turbo = JSON.parse(readFileSync(join(REPO_ROOT, 'turbo.json'), 'utf8')) as { tasks: { test: { passThroughEnv: string[] } } };
+    expect(turbo.tasks.test.passThroughEnv).toEqual(expect.arrayContaining(['VITEST_CASE_BUDGET_MS', 'VITEST_CASE_BUDGET_DEFER']));
+  });
+
+  it('only the compat cells turn it off, where correctness is graded on every OS', () => {
     const offs = readdirSync(join(REPO_ROOT, '.github/workflows'))
       .filter((f) => f.endsWith('.yml'))
       .flatMap((f) => [...readFileSync(join(REPO_ROOT, '.github/workflows', f), 'utf8').matchAll(/VITEST_CASE_BUDGET_MS: (.*)$/gmu)].map((m) => `${f}: ${m[1] ?? ''}`));
-    expect(offs).toEqual([
-      "compat.yml: ${{ matrix.os == 'ubuntu-latest' && '5000' || '0' }}",
-      "compat.yml: ${{ matrix.os == 'ubuntu-latest' && '5000' || '0' }}",
-    ]);
+    expect(offs).toEqual(['compat.yml: "0"', 'compat.yml: "0"']);
   });
 });
 
