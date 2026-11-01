@@ -39,12 +39,12 @@ export interface ParsedCommand {
 /** `s.split(/\s+(?![^[]*]|[^<]*>)/)`: a whitespace run splits unless it sits inside `[…]` or `<…>`. */
 function splitOutsideBrackets(s: string): string[] {
   // inside[i]: the nearest `[`/`]` at or after i is `]`, or the nearest `<`/`>` is `>`.
-  const inside: boolean[] = [];
+  const inside = new Uint8Array(s.length + 1);
   for (let i = s.length, square = false, angle = false; i >= 0; i--) {
     const c = s[i];
     if (c === ']' || c === '[') square = c === ']';
     else if (c === '>' || c === '<') angle = c === '>';
-    inside[i] = square || angle;
+    inside[i] = +(square || angle);
   }
   const parts: string[] = [];
   let start = 0;
@@ -61,16 +61,15 @@ function splitOutsideBrackets(s: string): string[] {
 
 /** `s.replace(/\.*[\][<>]/g, '')`: drop every bracket along with the dots right before it. */
 function stripBrackets(s: string): string {
-  let out = '';
-  let dots = '';
-  for (const c of s) {
-    if (c === '.') dots += c;
-    else {
-      if (!'[]<>'.includes(c)) out += dots + c;
-      dots = '';
-    }
-  }
-  return out + dots;
+  // Each piece between brackets loses its trailing dots; no string is built a character at a time.
+  const pieces = s.split(/[\][<>]/);
+  return pieces
+    .map((piece, i) => {
+      let end = piece.length;
+      if (i < pieces.length - 1) while (piece[end - 1] === '.') end--;
+      return piece.slice(0, end);
+    })
+    .join('');
 }
 
 export function parseCommand(cmd: string): ParsedCommand {

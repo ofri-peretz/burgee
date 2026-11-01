@@ -873,7 +873,11 @@ const RULES: Record<string, EntryRule> = {
     // the module graph (`yargs/y18n-locales.js`), so no locale file is read to speak English and
     // no locale read can fail a run. Main at `8650d04352` measured 222,685 and this reads 223,425
     // (+740), on a clean build; plus the ~32 B, rounded up to the next 50.
-    budget: 223_500,
+    // 223,550 on 2026-11-01 (D-20261101-yargs-parse-command-linear-bytes): parse-command's bracket
+    // map is a typed array and its bracket strip splits instead of building a rope, so a long run
+    // of dots costs linear time. Main at `4204fb307f` measured 223,425 and this reads 223,480 (+55),
+    // on a clean build; plus the ~32 B, rounded up to the next 50.
+    budget: 223_550,
     // 217,100 with D-140 on top of D-122, N14 and E7, after merging #521. Measured 217,090.
     // 217,150 with A29's CommonJS export on top. Measured 217,123.
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
@@ -888,13 +892,15 @@ const RULES: Record<string, EntryRule> = {
   // 225,350 on 2026-10-28 with `./yargs`' +493 B for `--mcp` under parseSync(): 224,797 -> 225,290.
   // 225,800 on 2026-10-29 with `./yargs`' +437 B for the callback form and `--json` on no handler: 225,290 -> 225,727.
   // 226,500 on 2026-10-29 with `./yargs`' +740 B for embedded English: 225,727 -> 226,467.
-  "./yargs/v17": { allow: ["linegauge"], budget: 226_500, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
+  // 226,600 on 2026-11-01 with `./yargs`' +55 B for linear parse-command: 226,467 -> 226,522.
+  "./yargs/v17": { allow: ["linegauge"], budget: 226_600, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
   // 17's `yargs/yargs`: `./yargs/v17` and one function carrying three statics. 224,919 measured.
   // 225,100 on 2026-10-27 with `./yargs`' +56 B for parseSync() surfaces: 224,965 -> 225,021.
   // 225,550 on 2026-10-28 with `./yargs`' +493 B for `--mcp` under parseSync(): 225,021 -> 225,514.
   // 226,000 on 2026-10-29 with `./yargs`' +437 B for the callback form and `--json` on no handler: 225,514 -> 225,951.
   // 226,750 on 2026-10-29 with `./yargs`' +740 B for embedded English: 225,951 -> 226,691.
-  "./yargs/v17/yargs": { allow: ["linegauge"], budget: 226_750, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
+  // 226,800 on 2026-11-01 with `./yargs`' +55 B for linear parse-command: 226,691 -> 226,746.
+  "./yargs/v17/yargs": { allow: ["linegauge"], budget: 226_800, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
   "./yargs/helpers": {
     allow: [],
     budget: 64_000,
