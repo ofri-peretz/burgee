@@ -10,14 +10,16 @@ Node from `.nvmrc`, npm cache).
 | :-- | :-- | :-- |
 | [`quality.yml`](./quality.yml) | `Quality Gate` | every PR push, push to main — lint, markdown, workflow conventions, lockfile |
 | [`quality-full.yml`](./quality-full.yml) | `Quality (Full) Gate` | non-draft PRs, `run-full-ci` label, push to main, weekly — test, build, typecheck, and each changed package's coverage thresholds; on a PR, `test` runs the repository's locks in full and only the affected workspaces' suites (`scripts/affected.mts`) |
-| [`claude-code-review.yml`](./claude-code-review.yml) | `review` | non-draft PRs; green no-op until `CLAUDE_CODE_OAUTH_TOKEN` exists, and on a queue entry or a dispatched run |
 | [`compat.yml`](./compat.yml) | `Ratchet · each host's suite against burgee`, `Node 24 · ubuntu-latest`, `Node 24 · macos-latest`, `Node 24 · windows-latest` | every PR, the merge queue, nightly — each host's own suite against burgee, below baseline fails; our suite on each OS |
-| [`codeql.yml`](./codeql.yml) | `CodeQL` (reported by code scanning from the analyze job's upload) | non-draft PRs, push to main, weekly |
-| [`changesets-pr.yml`](./changesets-pr.yml) | `Changeset present` | every PR |
-| [`completions.yml`](./completions.yml) | `bash, zsh, fish, pwsh complete the demo` | every PR, push to main |
+| [`codeql.yml`](./codeql.yml) | `CodeQL` (reported by code scanning from the analyze job's upload) | non-draft PRs, the merge queue, push to main, weekly |
+| [`changesets-pr.yml`](./changesets-pr.yml) | `Changeset present` | every PR, the merge queue, the Version PR fallback |
+| [`completions.yml`](./completions.yml) | `bash, zsh, fish, pwsh complete the demo` | every PR, the merge queue, push to main |
 
-`scripts/heavy-ci-nightly-lock.test.ts` holds that each of these names is produced by a job that
-runs on a pull request: a required check that never reports blocks every merge.
+The nine names are `REQUIRED_CHECKS` in [`scripts/required-checks.mts`](../../scripts/required-checks.mts),
+held to branch protection by `scripts/required-checks-lock.test.ts`, which also holds that each is
+produced on a pull request, in a merge-queue entry and by the Version PR fallback: a required check
+that never reports blocks every merge. `review` (`claude-code-review.yml`) runs on PRs and is no
+longer required.
 
 ## Heavy work runs over night
 
@@ -44,7 +46,11 @@ runs on a staggered nightly cron. A failed night opens an issue, or comments on 
 The Version PR loop is continuous: every push to main that carries a changeset refreshes the one
 open Version PR, and it merges as soon as its required checks are green. Each workflow that reports
 a required check also takes `workflow_dispatch:` — `npm run lint:workflows` fails if one does not, or
-if `changesets-pr.yml`'s `checks` matrix has no row for it.
+if `changesets-pr.yml`'s `checks` matrix has no row for it. One row per workflow, dispatched once,
+mirroring every required check that run reports (compat.yml's reports four). `CodeQL` is the one the
+fallback cannot produce: code scanning creates it only from a `pull_request` analysis, and branch
+protection pins it to code scanning's app, so a Version PR opened with GITHUB_TOKEN cannot merge
+until the release App token or `RELEASE_BOT_PAT` is set.
 
 On a pull request, `compat.yml`'s `matrix` cells (and its `floor` cells under `run-full-ci`)
 and `quality-full.yml`'s `test` and `coverage` run only the affected packages: each one the PR changed and each that depends on one,

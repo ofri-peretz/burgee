@@ -33,7 +33,18 @@ on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, labeled, unlabeled]
+  # `Changeset present` is a required check, and a required check with no `merge_group:` trigger
+  # never reports inside a merge queue (scripts/required-checks-lock.test.ts).
+  merge_group:
   workflow_dispatch:
+    inputs:
+      # The Version PR's GITHUB_TOKEN fallback (`checks` below) dispatches this file on
+      # `changeset-release/main` with this set, so `Changeset present` runs on that PR's head
+      # commit and nothing else does: no Version PR refresh, no fallback inside the fallback.
+      version-pr-check:
+        description: "Run only `Changeset present`, on the dispatched branch (the Version PR fallback sets it)"
+        type: boolean
+        default: false
 
 concurrency:
   group: changesets-${{ github.ref }}
@@ -45,7 +56,7 @@ permissions:
 jobs:
   version:
     name: Open / refresh Version Packages PR
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.version-pr-check)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -185,17 +196,28 @@ jobs:
   # run's result — never an assumed one — as a status on the head commit, linked to the
   # run.
   #
-  # One leg per workflow that reports a required check. `scripts/lint-workflows.ts`
-  # fails if a workflow reports a REQUIRED_CHECKS name and has no row here, or has no
-  # `workflow_dispatch:` trigger to be dispatched by.
+  # Since 2026-11-01 seven of the nine required contexts are pinned to an app: six to GitHub
+  # Actions (15368) and `CodeQL` to code scanning (57789). A status posted with GITHUB_TOKEN is
+  # posted by GitHub Actions, so it can stand in for the six; nothing posted here can stand in for
+  # `CodeQL`, which code scanning creates only from a `pull_request` analysis. Under this fallback
+  # the Version PR therefore still lacks `CodeQL`, and `land` cannot merge it: the release needs
+  # the App token or `RELEASE_BOT_PAT`, whose Version PR raises `pull_request` runs
+  # (FALLBACK_CANNOT_PRODUCE in scripts/required-checks.mts).
+  #
+  # One leg per workflow that reports a required check, dispatched once and mirroring every
+  # required check that run reports (compat.yml's one run reports four).
+  # `scripts/required-checks-lock.test.ts` fails if a required check has no row, or if a row's
+  # workflow, dispatched with the row's inputs, would not report a check the row mirrors.
   checks:
-    name: Version PR · ${{ matrix.check }} (dispatched)
+    name: Version PR · ${{ matrix.workflow }} (dispatched)
     needs: version
     if: >-
       needs.version.outputs.token-source == 'github-token'
       && needs.version.outputs.has-changesets == 'true' && needs.version.outputs.pr-number != ''
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # compat.yml dispatched in full is its nightly run: the ratchet and nine OS × Node cells,
+    # behind whatever else holds the shared runner pool.
+    timeout-minutes: 120
     permissions:
       actions: write # gh workflow run
       statuses: write # mirror the result onto the head commit
@@ -205,30 +227,40 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { workflow: quality.yml, check: "Quality Gate" }
-          - { workflow: quality-full.yml, check: "Quality (Full) Gate" }
-          - { workflow: claude-code-review.yml, check: "review" }
-          - { workflow: compat.yml, check: "Ratchet · each host's suite against burgee" }
+          - { workflow: quality.yml, checks: ["Quality Gate"] }
+          - { workflow: quality-full.yml, checks: ["Quality (Full) Gate"] }
+          - workflow: compat.yml
+            checks:
+              - "Ratchet · each host's suite against burgee"
+              - "Node 24 · ubuntu-latest"
+              - "Node 24 · macos-latest"
+              - "Node 24 · windows-latest"
+          - { workflow: completions.yml, checks: ["bash, zsh, fish, pwsh complete the demo"] }
+          - { workflow: changesets-pr.yml, checks: ["Changeset present"], inputs: "version-pr-check=true" }
     steps:
-      - name: Dispatch ${{ matrix.workflow }} and mirror `${{ matrix.check }}`
+      - name: Dispatch ${{ matrix.workflow }} and mirror what it reports
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           PR: ${{ needs.version.outputs.pr-number }}
           BRANCH: changeset-release/main
           WORKFLOW: ${{ matrix.workflow }}
-          CHECK: ${{ matrix.check }}
+          CHECKS: ${{ join(matrix.checks, '|') }}
+          INPUTS: ${{ matrix.inputs || '' }}
         run: |
           set -euo pipefail
+          IFS='|' read -ra checks <<< "$CHECKS"
           sha=$(gh pr view "$PR" --json headRefOid --jq .headRefOid)
-          status() { # state description [target_url]
-            args=(-f state="$1" -f context="$CHECK" -f description="${2:0:140}")
-            [ -n "${3:-}" ] && args+=(-f target_url="$3")
+          status() { # context state description [target_url]
+            args=(-f state="$2" -f context="$1" -f description="${3:0:140}")
+            [ -n "${4:-}" ] && args+=(-f target_url="$4")
             gh api -X POST "repos/$GH_REPO/statuses/$sha" "${args[@]}" >/dev/null
           }
-          status pending "Dispatched $WORKFLOW (Version PR opened with GITHUB_TOKEN)"
+          for c in "${checks[@]}"; do status "$c" pending "Dispatched $WORKFLOW (Version PR opened with GITHUB_TOKEN)"; done
+          extra=()
+          for kv in $INPUTS; do extra+=(-f "$kv"); done
           since=$(date -u -d '-2 minutes' +%Y-%m-%dT%H:%M:%SZ)
-          gh workflow run "$WORKFLOW" --ref "$BRANCH"
+          gh workflow run "$WORKFLOW" --ref "$BRANCH" "${extra[@]}"
 
           # `gh workflow run` does not return the run it created; find it by head SHA.
           run=""
@@ -240,7 +272,7 @@ jobs:
             sleep 5
           done
           if [ -z "$run" ]; then
-            status error "No $WORKFLOW run appeared for $sha — the branch may have moved; the next refresh re-dispatches"
+            for c in "${checks[@]}"; do status "$c" error "No $WORKFLOW run appeared for $sha — the branch may have moved; the next refresh re-dispatches"; done
             echo "::error::No dispatched $WORKFLOW run found for $sha."
             exit 1
           fi
@@ -248,14 +280,19 @@ jobs:
           echo "Waiting on $url"
           gh run watch "$run" --interval 30 >/dev/null || true
 
-          conclusion=$(gh run view "$run" --json jobs --jq "[.jobs[] | select(.name == \"$CHECK\")] | first | .conclusion // \"missing\"")
-          if [ "$conclusion" = "success" ]; then
-            status success "$CHECK passed in the dispatched $WORKFLOW run" "$url"
-          else
-            status failure "$CHECK: $conclusion in the dispatched $WORKFLOW run" "$url"
-            echo "::error::$CHECK concluded '$conclusion' on the Version PR — $url"
-            exit 1
-          fi
+          jobs=$(gh run view "$run" --json jobs)
+          failed=0
+          for c in "${checks[@]}"; do
+            conclusion=$(CHECK="$c" jq -r '[.jobs[] | select(.name == env.CHECK)] | first | .conclusion // "missing"' <<<"$jobs")
+            if [ "$conclusion" = "success" ]; then
+              status "$c" success "$c passed in the dispatched $WORKFLOW run" "$url"
+            else
+              status "$c" failure "$c: $conclusion in the dispatched $WORKFLOW run" "$url"
+              echo "::error::$c concluded '$conclusion' on the Version PR — $url"
+              failed=1
+            fi
+          done
+          exit "$failed"
 
   # ── GITHUB_TOKEN fallback, part 2: merge, then start what the merge will not ───────
   #
@@ -308,9 +345,12 @@ jobs:
             echo "Merged #$PR; dispatched quality.yml, quality-full.yml and release.yml on main." >> "$GITHUB_STEP_SUMMARY"
           fi
 
+  # A required check, so it runs wherever a required check must report: every pull request, a
+  # merge-queue entry (the same PR rebuilt on main), and the Version PR's GITHUB_TOKEN fallback,
+  # which dispatches this file on `changeset-release/main` with `version-pr-check` set.
   required:
     name: Changeset present
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group' || (github.event_name == 'workflow_dispatch' && inputs.version-pr-check)
     runs-on: ubuntu-latest
     timeout-minutes: 8
     permissions:
@@ -321,14 +361,54 @@ jobs:
         with:
           fetch-depth: 0
 
+      # The five things the check reads, from wherever this event carries them. A pull request
+      # carries them all. A queue entry carries its two commits, and its ref names the PR
+      # (`gh-readonly-queue/main/pr-<n>-<sha>`), whose labels and author are read back so a
+      # `skip-changeset` PR is not failed in the queue for a label the event does not carry. A
+      # dispatch is the branch it ran on, against where it left main.
+      - name: Which change this is
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_REF: ${{ github.event.pull_request.head.ref }}
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          PR_USER: ${{ github.event.pull_request.user.login }}
+          QUEUE_BASE: ${{ github.event.merge_group.base_sha }}
+          QUEUE_HEAD: ${{ github.event.merge_group.head_sha }}
+          QUEUE_REF: ${{ github.event.merge_group.head_ref }}
+        run: |
+          set -euo pipefail
+          # gh names a bot `app/<name>`; the event names it `<name>[bot]`, which is what the check compares.
+          # One value per line: an empty label list stays an empty line, where a tab-separated row
+          # would collapse it under `read`.
+          meta() { gh pr view "$1" --json headRefName,labels,author --jq '.headRefName, ([.labels[].name] | join(",")), (.author.login | sub("^app/(?<n>.+)$"; "\(.n)[bot]"))'; }
+          case "$EVENT" in
+            pull_request)
+              base=$PR_BASE; head=$PR_HEAD; ref=$PR_REF; labels=$PR_LABELS; author=$PR_USER ;;
+            merge_group)
+              base=$QUEUE_BASE; head=$QUEUE_HEAD
+              n=$(sed -E 's#^.*/pr-([0-9]+)-[0-9a-f]+$#\1#' <<<"$QUEUE_REF")
+              { read -r ref; read -r labels; read -r author; } < <(meta "$n") ;;
+            *)
+              git fetch --no-tags --quiet origin main
+              base=$(git merge-base origin/main HEAD); head=$GITHUB_SHA; ref=$GITHUB_REF_NAME
+              { read -r _; read -r labels; read -r author; } < <(meta "$GITHUB_REF_NAME" || printf '\n\n\n') ;;
+          esac
+          { echo "base=$base"; echo "head=$head"; echo "ref=$ref"; echo "labels=$labels"; echo "author=$author"; } >> "$GITHUB_OUTPUT"
+          echo "$EVENT: $ref ($base...$head), labels [$labels], by $author"
+
       - name: Check for changeset
         id: check
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          HEAD_REF: ${{ github.event.pull_request.head.ref }}
-          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
-          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          BASE_SHA: ${{ steps.pr.outputs.base }}
+          HEAD_SHA: ${{ steps.pr.outputs.head }}
+          HEAD_REF: ${{ steps.pr.outputs.ref }}
+          LABELS: ${{ steps.pr.outputs.labels }}
+          PR_AUTHOR: ${{ steps.pr.outputs.author }}
         run: |
           set -euo pipefail
           # The Version PR is the one PR that must not have a changeset: it *consumes* them.
@@ -415,7 +495,7 @@ jobs:
         run: node scripts/changeset-lock.mts
 
       - name: Comment on PR (when missing)
-        if: steps.check.outputs.status == 'missing'
+        if: github.event_name == 'pull_request' && steps.check.outputs.status == 'missing'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |

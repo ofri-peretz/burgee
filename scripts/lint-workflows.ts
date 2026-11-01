@@ -54,6 +54,7 @@ import yaml from 'js-yaml';
 
 import { affectedLaneProblems } from './affected.mjs';
 import { publishOrderProblems, type WorkflowShape } from './release-order.mjs';
+import { FALLBACK_CANNOT_PRODUCE, kickerRows as kickerRowsOf, REQUIRED_CHECKS as REQUIRED_LIST, reported, VERSION_PR_KICKER, type Workflow as CheckWorkflow } from './required-checks.mjs';
 import { durationsProblems } from './slow-cases.mjs';
 
 interface Step {
@@ -206,59 +207,38 @@ function triggers(on: unknown): string[] {
 }
 
 /**
- * The status checks `main` requires, named the way a check reports: a job's `name:` when it
- * has one, otherwise its key.
- *
- * Branch protection holds the real list and this is a copy of it, which is the trade being
- * made: a copy can drift, and the alternative is a rule that cannot be checked without a
- * network call and a token. Read it back with:
- *
- *   gh api repos/ofri-peretz/burgee/branches/main/protection/required_status_checks --jq '.contexts[]'
+ * The status checks `main` requires — one list, in `scripts/required-checks.mts`, which
+ * `scripts/required-checks-lock.test.ts` holds to branch protection's own nine.
  *
  * A required check that cannot run inside a merge queue does not fail the merge — it never
  * reports, and the entry sits in the queue until someone notices. That is the failure this
  * table exists to make impossible.
  */
-const REQUIRED_CHECKS = new Set([
-  'Quality Gate',
-  'Quality (Full) Gate',
-  'review',
-  // Added 2026-09-10. It gates `apps/docs/content/docs/compatibility.mdx` against a fresh
-  // measurement, and it worked: it went RED on PR #197 at 14:44:16. The PR merged at
-  // 14:44:45 — 29 seconds later — because the context was not required, and main stayed
-  // red until #199. A drift gate that does not block is a drift gate that reports.
-  //
-  // It cannot fold into `Quality Gate` the way the benchmarks page did: its inputs
-  // (`results.json`, `results.control.json`) are produced by grading and are not
-  // committed, so there is nothing to check without running the oracle.
-  "Ratchet · each host's suite against burgee",
-]);
+const REQUIRED_CHECKS = new Set(REQUIRED_LIST);
 
 /**
- * The workflow that runs the required checks on the Version PR when it had to be opened with
- * GITHUB_TOKEN, and the job whose matrix names them.
+ * The Version PR's GITHUB_TOKEN fallback (`changesets-pr.yml` → `checks`): one matrix row per
+ * workflow that reports a required check, naming each check that row mirrors.
  *
  * A PR GITHUB_TOKEN opens raises no `pull_request` runs, so its required checks never report
  * and it sits BLOCKED at zero checks — #299, #367, #383 and #393 each needed a human to close
- * and reopen it. The fallback dispatches every workflow that reports a required check and
- * mirrors the result onto the PR. A required check added later without a row in that matrix,
- * or on a workflow that cannot be dispatched, is that deadlock back, and nobody sees it until
- * the next release sits there.
+ * and reopen it. A required check added later without a row, or on a workflow that cannot be
+ * dispatched, is that deadlock back, and nobody sees it until the next release sits there.
  */
-const VERSION_PR_KICKER = { file: 'changesets-pr.yml', job: 'checks' };
+const kickerRows = () => kickerRowsOf(parsed.get(VERSION_PR_KICKER.file) as CheckWorkflow | undefined);
 
-/** `{ workflow, check }` rows of the kicker's matrix; empty when the file or job is missing. */
-function kickerRows(): { workflow?: string; check?: string }[] {
-  const job = parsed.get(VERSION_PR_KICKER.file)?.jobs?.[VERSION_PR_KICKER.job] as
-    | { strategy?: { matrix?: { include?: unknown } } }
-    | undefined;
-  const include = job?.strategy?.matrix?.include;
-  return Array.isArray(include) ? (include as { workflow?: string; check?: string }[]) : [];
-}
-
-/** The context names a workflow reports, which is `name:` where there is one and the key where there is not. */
+/**
+ * The context names a workflow can report: each job's `name:` (or key) with its matrix expanded
+ * as a dispatch would run it, and `CodeQL` for a job that uploads a CodeQL analysis.
+ */
 function checkNames(wf: Workflow): string[] {
-  return Object.entries(wf.jobs ?? {}).map(([key, job]) => job?.name ?? key);
+  return Object.entries(wf.jobs ?? {}).flatMap(([key, job]) => {
+    try {
+      return reported(key, job as never, { event_name: 'workflow_dispatch', inputs: {} });
+    } catch {
+      return [job?.name ?? key];
+    }
+  });
 }
 
 for (const [file, wf] of parsed) {
@@ -288,9 +268,10 @@ for (const [file, wf] of parsed) {
     }
     const rows = kickerRows();
     for (const name of required) {
-      if (!rows.some((r) => r.workflow === file && r.check === name)) {
+      if (name in FALLBACK_CANNOT_PRODUCE) continue;
+      if (!rows.some((r) => r.workflow === file && r.checks.includes(name))) {
         errors.push(
-          `[version-pr] ${file}: reports the required check \`${name}\` but ${VERSION_PR_KICKER.file} → ${VERSION_PR_KICKER.job} has no \`{ workflow: ${file}, check: "${name}" }\` row — a Version PR opened with GITHUB_TOKEN never gets it.`,
+          `[version-pr] ${file}: reports the required check \`${name}\` but ${VERSION_PR_KICKER.file} → ${VERSION_PR_KICKER.job} has no \`{ workflow: ${file}, checks: [..., "${name}"] }\` row — a Version PR opened with GITHUB_TOKEN never gets it.`,
         );
       }
     }
