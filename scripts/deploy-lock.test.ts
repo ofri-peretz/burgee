@@ -189,17 +189,17 @@ interface Result {
 }
 
 /**
- * Run a `run:` block under bash with a scratch `$GITHUB_OUTPUT`/`$GITHUB_STEP_SUMMARY`.
+ * The `curl` and `sleep` stubs, written once for the whole file; each run's state lives in its
+ * own `$SHIM_STATE` directory.
  *
- * `curl` and `sleep` are stubbed onto the front of `PATH`: the stub `curl` writes
- * `$SHIM_BODY` to whatever `-o` names, prints `$SHIM_CODE` the way `-w '%{http_code}'`
- * does — including on a failure — and exits `$SHIM_RC`, which is how a real curl behaves
- * and is the entire reason the `000000` bug existed. The stub `sleep` returns at once so
- * the retry path costs nothing.
+ * They were written afresh for every run: about 120 runs, each a new pair of executables, and a
+ * new executable is a file endpoint security scans on its first exec. On this machine that made
+ * a case of five runs 4–5 s (D-20261101-tests-under-5s); the stubs themselves are unchanged.
  */
-function runStep(body: string, env: Record<string, string>): Result {
-  const dir = scratchDir('deploy-lock-');
-  const bin = join(dir, 'bin');
+let stubs: string | undefined;
+function stubBin(): string {
+  if (stubs !== undefined) return stubs;
+  const bin = join(scratchDir('deploy-lock-bin-'), 'bin');
   mkdirSync(bin);
   writeFileSync(
     join(bin, 'curl'),
@@ -209,10 +209,10 @@ function runStep(body: string, env: Record<string, string>): Result {
       'for a in "$@"; do [ "$prev" = "-o" ] && out="$a"; prev="$a"; done',
       // `$SHIM_LATE_BODY` replaces the body once `$SHIM_LATE_AFTER` calls have been made: an
       // alias that moves while the step is still retrying.
-      `n=$(( $(cat "${dir}/calls" 2>/dev/null || echo 0) + 1 )); echo "$n" > "${dir}/calls"`,
+      'n=$(( $(cat "$SHIM_STATE/calls" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$SHIM_STATE/calls"',
       // One argument per line and an `--END--` line after each call: what the self-heal
       // PATCH sends is asserted, not inferred from the step's text.
-      `for a in "$@"; do printf '%s\\n' "$a"; done >> "${dir}/curl-args"; printf '%s\\n' '--END--' >> "${dir}/curl-args"`,
+      `for a in "$@"; do printf '%s\\n' "$a"; done >> "$SHIM_STATE/curl-args"; printf '%s\\n' '--END--' >> "$SHIM_STATE/curl-args"`,
       'body="${SHIM_BODY-}"; [ -n "${SHIM_LATE_AFTER-}" ] && [ "$n" -gt "$SHIM_LATE_AFTER" ] && body="${SHIM_LATE_BODY-}"',
       '[ -n "$out" ] && printf \'%s\' "$body" > "$out"',
       'printf \'%s\' "${SHIM_CODE-000}"',
@@ -223,6 +223,22 @@ function runStep(body: string, env: Record<string, string>): Result {
   writeFileSync(join(bin, 'sleep'), '#!/usr/bin/env bash\nexit 0\n');
   chmodSync(join(bin, 'curl'), 0o755);
   chmodSync(join(bin, 'sleep'), 0o755);
+  stubs = bin;
+  return bin;
+}
+
+/**
+ * Run a `run:` block under bash with a scratch `$GITHUB_OUTPUT`/`$GITHUB_STEP_SUMMARY`.
+ *
+ * `curl` and `sleep` are stubbed onto the front of `PATH`: the stub `curl` writes
+ * `$SHIM_BODY` to whatever `-o` names, prints `$SHIM_CODE` the way `-w '%{http_code}'`
+ * does — including on a failure — and exits `$SHIM_RC`, which is how a real curl behaves
+ * and is the entire reason the `000000` bug existed. The stub `sleep` returns at once so
+ * the retry path costs nothing.
+ */
+function runStep(body: string, env: Record<string, string>): Result {
+  const dir = scratchDir('deploy-lock-');
+  const bin = stubBin();
 
   // The steps download to fixed `/tmp/home.html` / `/tmp/llms.txt` — fine on a fresh runner,
   // a race here: every concurrent run of this file (another worktree's pre-push, the root
@@ -240,7 +256,7 @@ function runStep(body: string, env: Record<string, string>): Result {
   const r = spawnSync('bash', [scriptFile], {
     cwd: REPO_ROOT,
     encoding: 'utf8',
-    env: { PATH: `${bin}${delimiter}${process.env.PATH ?? ''}`, GITHUB_OUTPUT: outFile, GITHUB_STEP_SUMMARY: summaryFile, ...env },
+    env: { PATH: `${bin}${delimiter}${process.env.PATH ?? ''}`, GITHUB_OUTPUT: outFile, GITHUB_STEP_SUMMARY: summaryFile, SHIM_STATE: dir, ...env },
   });
   const argsFile = join(dir, 'curl-args');
   const curls = existsSync(argsFile)
@@ -492,30 +508,43 @@ describe('deploy-docs.yml', () => {
     expect(refused.status, `a refused self-heal PATCH exited ${refused.status}; the deploy must stop\n${refused.output}`).not.toBe(0);
   });
 
-  executes('passes only when the deployed URL serves the build it just made', () => {
-    const body = script(verifyStep, { 'inputs.environment': 'production' });
-    const base = { ...envFor(key), DEPLOY_URL: 'https://dep.vercel.app', EXPECTED_SHA: SHA };
+  // Passes only when the deployed URL serves the build it just made. One case per answer the host
+  // can give: as a single case it ran five retry loops, 4–5 s on this machine
+  // (D-20261101-tests-under-5s), and a failure did not say which answer broke.
+  describe('passes only when the deployed URL serves the build it just made', () => {
+    const verify = (env: Record<string, string>): Result =>
+      runStep(script(verifyStep, { 'inputs.environment': 'production' }), { ...envFor(key), DEPLOY_URL: 'https://dep.vercel.app', EXPECTED_SHA: SHA, SHIM_RC: '0', ...env });
 
-    const served = runStep(body, { ...base, SHIM_CODE: '200', SHIM_RC: '0', SHIM_BODY: page(SHA) });
-    expect(served.status, served.output).toBe(0);
+    executes('passes when the host serves this build', () => {
+      const served = verify({ SHIM_CODE: '200', SHIM_BODY: page(SHA) });
+      expect(served.status, served.output).toBe(0);
+    });
 
     // The failure a green workflow cannot otherwise see: the upload worked, the alias
     // did not move, and the host still answers with the previous build.
-    const stale = runStep(body, { ...base, SHIM_CODE: '200', SHIM_RC: '0', SHIM_BODY: page('cafebabe') });
-    expect(stale.status, `a stale alias exited ${stale.status}; it must fail\n${stale.output}`).not.toBe(0);
+    executes('fails when the alias still serves the previous build', () => {
+      const stale = verify({ SHIM_CODE: '200', SHIM_BODY: page('cafebabe') });
+      expect(stale.status, `a stale alias exited ${stale.status}; it must fail\n${stale.output}`).not.toBe(0);
+    });
 
     // The alias moves while the step is retrying: the first three answers are the previous
     // build, the fourth is this one. That is a deploy that worked, and it must pass.
-    const late = runStep(body, { ...base, SHIM_CODE: '200', SHIM_RC: '0', SHIM_BODY: page('cafebabe'), SHIM_LATE_AFTER: '3', SHIM_LATE_BODY: page(SHA) });
-    expect(late.status, `an alias that moved on the 4th attempt exited ${late.status}; it must pass\n${late.output}`).toBe(0);
+    executes('passes when the alias moves while it retries', () => {
+      const late = verify({ SHIM_CODE: '200', SHIM_BODY: page('cafebabe'), SHIM_LATE_AFTER: '3', SHIM_LATE_BODY: page(SHA) });
+      expect(late.status, `an alias that moved on the 4th attempt exited ${late.status}; it must pass\n${late.output}`).toBe(0);
+    });
 
     // 200 from something that is not this app at all.
-    const foreign = runStep(body, { ...base, SHIM_CODE: '200', SHIM_RC: '0', SHIM_BODY: '<html>parked domain</html>' });
-    expect(foreign.status, foreign.output).not.toBe(0);
+    executes('fails on a 200 from something that is not this app', () => {
+      const foreign = verify({ SHIM_CODE: '200', SHIM_BODY: '<html>parked domain</html>' });
+      expect(foreign.status, foreign.output).not.toBe(0);
+    });
 
     // A real server error still fails after the retries.
-    const broken = runStep(body, { ...base, SHIM_CODE: '503', SHIM_RC: '0', SHIM_BODY: '' });
-    expect(broken.status, broken.output).not.toBe(0);
+    executes('fails on a server error after the retries', () => {
+      const broken = verify({ SHIM_CODE: '503', SHIM_BODY: '' });
+      expect(broken.status, broken.output).not.toBe(0);
+    });
   });
 
   executes('soft-warns instead of failing when the host does not resolve yet', () => {
