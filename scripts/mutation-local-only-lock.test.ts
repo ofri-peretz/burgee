@@ -77,6 +77,9 @@ function runsIn(file: string): Run[] {
   return groups.flatMap(([where, steps]) => steps.filter((s) => s.run).map((s) => ({ where: `${where} → ${s.name ?? '(unnamed)'}`, run: s.run! })));
 }
 
+/** A YAML file's text without its comment lines: what it sets and runs. */
+const uncommented = (file: string): string => read(file).split('\n').filter((l) => !l.trimStart().startsWith('#')).join('\n');
+
 /** Every `run:` of every workflow job and composite action under `.github/`, with where it is. */
 const githubRuns = (): Run[] => yamlFiles('.github').flatMap(runsIn);
 
@@ -103,6 +106,22 @@ describe('no GitHub Actions workflow mutates (D-20261101-no-mutation-in-gha)', (
     for (const run of ['cd packages/oxmutate && npm run build:native', 'npm run build:native -w oxmutate', 'cp target/release/liboxmutate.dylib "npm/$P/oxmutate.node"', 'node -e "require(\'./oxmutate.node\').nativeVersion()"']) {
       expect(mutates(run), run).toEqual([]);
     }
+  });
+
+  // BURGEE_NIGHTLY turns on NIGHTLY_ONLY, oxmutate's whole-run cases: each runs a mutation end to
+  // end (D-20261101-tests-under-5s). #1424 ran them in compat.yml's nightly `heavy-tests`; they
+  // run in `npm run mutation:weekly` instead. oxmutate's own unit suite, which skips them, stays in
+  // quality-full.yml → test.
+  it('no workflow sets BURGEE_NIGHTLY, or runs oxmutate\'s whole-run test files', () => {
+    const files = yamlFiles('.github').filter((f) => /^\.github\/(workflows|actions)\//u.test(f));
+    const offenders = files.flatMap((f) => {
+      const text = uncommented(f);
+      return [
+        ...(/\bBURGEE_NIGHTLY\b/u.test(text) ? [`${f}: BURGEE_NIGHTLY`] : []),
+        ...(/working-directory:\s*packages\/oxmutate\b/u.test(text) && /\bvitest\b/u.test(text) ? [`${f}: vitest in packages/oxmutate`] : []),
+      ];
+    });
+    expect(offenders, 'the nightly-only oxmutate cases run in npm run mutation:weekly').toEqual([]);
   });
 
   it('Quality (Full) Gate neither needs nor reports a mutation job', () => {
@@ -133,6 +152,7 @@ describe('the weekly full run is a local script that does what mutation.yml did'
       'switch --detach origin/main',
       "npx turbo run build --filter='./packages/*'",
       'npm run build:native',
+      'env BURGEE_NIGHTLY=1 OXMUTATE_REQUIRE_NATIVE=1 npm exec -w oxmutate -- vitest run',
       'npx tsx scripts/mutation.ts full --package "$pkg" --concurrency "$concurrency" --out "$results/$pkg.json"',
       'npx tsx scripts/mutation.ts record --results "$results"',
       'git status --porcelain "$RATCHETS"',
@@ -179,7 +199,7 @@ describe('the weekly full run is a local script that does what mutation.yml did'
     } finally {
       rmSync(scratch, { recursive: true, force: true });
     }
-  }, 5000);
+  });
 
   // Actions checks out a detached commit with no `origin/main`, and the first cut of the script
   // exited 1 there (#1421's Node 24 cells) while passing on every laptop that had fetched main.
@@ -199,7 +219,7 @@ describe('the weekly full run is a local script that does what mutation.yml did'
     } finally {
       rmSync(repo, { recursive: true, force: true });
     }
-  }, 5000);
+  });
 });
 
 describe('launchd starts it on Saturday at 02:30', () => {

@@ -15,6 +15,7 @@ superseded_by: —
 | `quality-full.yml` → `Mutation (changed lines)` | `npm run mutation:changed` on every non-draft PR, push to `main` and queue entry; a `needs` edge and a summary row in `Quality (Full) Gate` | pre-push only (`lefthook.yml` → `mutation-changed`, priority 3, after the battery and the root suite) |
 | `mutation.yml` | every package in full, Saturday 02:30 UTC, a 12-cell matrix, then `record` and a ratchet PR | `npm run mutation:weekly` (`scripts/mutation-weekly.sh`), started by launchd Saturday 02:30 local time (`tools/launchd/dev.burgee.mutation-weekly.plist`) |
 | `oxmutate-bench.yml` | Stryker beside oxmutate per package, on dispatch | `npx tsx packages/oxmutate/bench/burgee-pair.mts --package <pkg>` on the owner's machine |
+| `compat.yml` → `heavy-tests` (added by #1424), reported by `nightly-report.yml` | the NIGHTLY_ONLY test cases, oxmutate end to end, with `BURGEE_NIGHTLY=1`, nightly | `npm run mutation:weekly`, before the full runs; a red one exits 1 and opens or updates "Weekly nightly-only test cases failed" ([D-20261101-tests-under-5s](./D-20261101-tests-under-5s.md), amended) |
 
 `Mutation (changed lines)` was never a required check (`main`'s nine, read on 2026-11-01 with
 `gh api repos/ofri-peretz/burgee/branches/main/protection/required_status_checks`), so branch
@@ -65,7 +66,7 @@ builds oxmutate's core and runs oxmutate's own unit suite.
   then is logged `NOT RUN` and the script exits 1; nothing is dropped silently.
 - **A workflow mutates again.** `scripts/mutation-local-only-lock.test.ts` reads every `run:` step
   under `.github/` and fails on `scripts/mutation.ts`, `mutation:changed`, `mutation:weekly`, their
-  shell files, the oxmutate bin in command position, the paired bench or `stryker run`; it is proven
+  shell files, the oxmutate bin in command position, the paired bench or `stryker run`, and any workflow that sets `BURGEE_NIGHTLY` or runs vitest in `packages/oxmutate`; it is proven
   on the commands the removed jobs ran. It also holds the weekly script to every step above, in
   order, its dry run to every package in the ratchets, and the plist to Saturday 02:30 with Node
   24 on PATH.

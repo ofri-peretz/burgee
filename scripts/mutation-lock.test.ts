@@ -193,7 +193,7 @@ describe('the mutation ratchets (R5–R7)', () => {
     expect(r.status, `${r.stdout}${r.stderr}`).toBe(0);
     const planned = [...r.stdout.matchAll(/scripts\/mutation\.ts full --package (\S+)/gu)].map((m) => m[1]);
     expect(planned.toSorted()).toEqual(PACKAGES);
-  }, 5000);
+  });
 
   const decisions: ReadonlySet<string> = new Set(readDecisions(REPO_ROOT).entries.map((d) => d.id));
 

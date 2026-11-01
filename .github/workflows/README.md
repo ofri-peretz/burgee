@@ -44,13 +44,13 @@ the owner runs mutation on his machine and the results land as PRs. `mutation.ym
 full run), `quality-full.yml`'s `Mutation (changed lines)` job and `oxmutate-bench.yml` (Stryker
 beside oxmutate) were removed on 2026-11-01. `scripts/mutation-local-only-lock.test.ts` fails if a
 step under `.github/` runs `scripts/mutation.ts`, either npm script below, the oxmutate bin, the
-paired bench or Stryker. Building oxmutate's native cores for a release (`oxmutate-native.yml`) and
+paired bench or Stryker, or sets `BURGEE_NIGHTLY` (the NIGHTLY_ONLY oxmutate cases, which compat.yml's `heavy-tests` ran until this change). Building oxmutate's native cores for a release (`oxmutate-native.yml`) and
 running oxmutate's own unit suite in `test` are not mutation runs, and stay.
 
 | When | Where | What |
 | :-- | :-- | :-- |
 | every push | pre-push (`lefthook.yml`) | `npm run mutation:changed`: the lines the branch changed against `origin/main`, the per-PR gate |
-| 02:30 Sat, local time | launchd, `npm run mutation:weekly` | every package in `.sdlc/bands/mutation-ratchets.json` in full, one at a time, on a clean worktree of `origin/main`; `record`, then a `chore(workspace): record mutation scores` PR with auto-merge armed; exits 2 on a breached floor |
+| 02:30 Sat, local time | launchd, `npm run mutation:weekly` | the NIGHTLY_ONLY test cases with `BURGEE_NIGHTLY=1`, then every package in `.sdlc/bands/mutation-ratchets.json` in full, one at a time, on a clean worktree of `origin/main`; `record`, then a `chore(workspace): record mutation scores` PR with auto-merge armed; exits 2 on a breached floor |
 | on demand | `npx tsx packages/oxmutate/bench/burgee-pair.mts --package <pkg>` | Stryker and oxmutate on the same package, the same machine, back to back |
 
 The weekly run's launchd agent is [`tools/launchd/dev.burgee.mutation-weekly.plist`](../../tools/launchd/dev.burgee.mutation-weekly.plist).

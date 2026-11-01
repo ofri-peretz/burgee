@@ -8,7 +8,9 @@
 #   1. fetch origin main, and put a dedicated worktree (default ../burgee-mutation-weekly, beside
 #      this checkout) on a clean, detached origin/main — creating it when it is missing;
 #   2. install when package-lock.json changed since the worktree's last install, build every
-#      package (a suite may read a sibling's dist), then oxmutate's Rust core;
+#      package (a suite may read a sibling's dist), then oxmutate's Rust core; then run the test
+#      cases too heavy for a pull request (NIGHTLY_ONLY: oxmutate end to end, BURGEE_NIGHTLY=1),
+#      which compat.yml's `heavy-tests` job ran until no mutation ran in GitHub Actions;
 #   3. for each package in .sdlc/bands/mutation-ratchets.json: wait until the 5-minute load
 #      average is below 50 and more than 15 GB of disk is free, run `mutation.ts full` on it, then
 #      remove that package's temp dirs (its own TMPDIR, `.oxmutate-tmp`, `.stryker-tmp`);
@@ -17,7 +19,7 @@
 #      HTTPS with the hooks on, open the PR (label skip-changeset) and arm auto-merge, unless the
 #      PR carries hold, do-not-merge or wip;
 #   6. exit 2 on a breached floor (the PR still lands the observation), 1 when a package could
-#      not be run or the PR could not land, 0 otherwise.
+#      not be run, a nightly-only case failed or the PR could not land, 0 otherwise.
 #
 # Everything is appended to ~/Library/Logs/burgee-mutation-weekly.log. Each package's result
 # file is kept under ~/Library/Logs/burgee-mutation-weekly/<UTC date>/, as the workflow kept its
@@ -120,7 +122,7 @@ if [ "$DRY" = 0 ]; then
   for tool in node npm git gh; do
     command -v "$tool" >/dev/null 2>&1 || { say "$tool is not on PATH." >&2; echo "fix: run from a shell where $tool resolves; the launchd plist sets PATH for node 24." >&2; exit 1; }
   done
-  if [ "$engine" = oxmutate ] && ! command -v cargo >/dev/null 2>&1; then
+  if ! command -v cargo >/dev/null 2>&1; then
     say "oxmutate's native core is Rust, and cargo is not on PATH." >&2
     echo "fix: install rustup (curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh), or add ~/.cargo/bin to the plist's PATH." >&2
     exit 1
@@ -164,8 +166,22 @@ else
   say "package-lock.json unchanged since the last install; skipping npm ci"
 fi
 in_wt npx turbo run build --filter='./packages/*' --concurrency="$concurrency"
-if [ "$engine" = oxmutate ]; then
-  in_wt npm run build:native -w oxmutate
+# The native core is built whatever the engine: the nightly-only cases below need it too.
+in_wt npm run build:native -w oxmutate
+
+# 2b. The test cases too heavy for a pull request: NIGHTLY_ONLY in
+# scripts/vitest-case-budget-reporter.ts, each of which runs oxmutate end to end, so they run
+# here and nowhere in GitHub Actions. `case-budget-lock.test.ts` holds this list to NIGHTLY_ONLY's
+# files. A red one fails the run (exit 1) after the mutation runs and their PR still land.
+nightly_rc=0
+if [ -z "$only" ]; then
+  wait_for_room || say "no room for the nightly-only cases after $WAIT_MAX_MINUTES minutes; running them anyway." >&2
+  if ! in_wt env BURGEE_NIGHTLY=1 OXMUTATE_REQUIRE_NATIVE=1 npm exec -w oxmutate -- vitest run src/e2e.test.ts src/sensitivity.test.ts src/vitest5-regression.test.ts src/checker.test.ts; then
+    nightly_rc=1
+    say "the nightly-only test cases failed; see above." >&2
+  fi
+else
+  say "--package $only: the nightly-only test cases are not run."
 fi
 
 # 3. Every package in the ratchets, one at a time.
@@ -259,13 +275,26 @@ else
   in_wt git switch --detach origin/main
 fi
 
+# A red nightly-only case opens an issue, or comments on the open one, as nightly-report.yml did
+# for compat.yml's `heavy-tests`.
+if [ "$nightly_rc" -ne 0 ] && [ "$DRY" = 0 ]; then
+  issue_title="Weekly nightly-only test cases failed"
+  issue_body=$(printf 'The NIGHTLY_ONLY test cases (scripts/vitest-case-budget-reporter.ts), run with BURGEE_NIGHTLY=1 by `npm run mutation:weekly` on origin/main at %s, failed. They run oxmutate end to end, so no pull request runs them; this is where a broken end-to-end case shows. The log is ~/Library/Logs/burgee-mutation-weekly.log on the machine that ran it.\n' "$commit")
+  existing=$(cd "$WORKTREE" && gh issue list --state open --search "$issue_title in:title" --json number --jq '.[0].number // empty') || existing=''
+  if [ -n "$existing" ]; then
+    (cd "$WORKTREE" && gh issue comment "$existing" --body "$issue_body") || say "could not comment on issue #$existing." >&2
+  else
+    (cd "$WORKTREE" && gh issue create --title "$issue_title" --body "$issue_body") || say "could not open the issue." >&2
+  fi
+fi
+
 # 6. The verdict.
 if [ "$record_rc" -ne 0 ]; then
   say "A measured package fell below its mutation floor, or produced no score. See record.log above." >&2
   exit 2
 fi
-if [ -n "$not_run" ] || [ "$land_rc" -ne 0 ]; then
-  say "finished with failures:${not_run:+ not run:$not_run}$([ "$land_rc" -ne 0 ] && echo ' the PR did not land')" >&2
+if [ -n "$not_run" ] || [ "$land_rc" -ne 0 ] || [ "$nightly_rc" -ne 0 ]; then
+  say "finished with failures:${not_run:+ not run:$not_run}$([ "$nightly_rc" -ne 0 ] && echo ' the nightly-only test cases failed;')$([ "$land_rc" -ne 0 ] && echo ' the PR did not land')" >&2
   exit 1
 fi
 say "done$([ "$DRY" = 1 ] && echo ' (dry run: nothing was changed)')."
