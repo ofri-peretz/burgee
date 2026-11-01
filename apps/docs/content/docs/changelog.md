@@ -3,6 +3,17 @@ title: Changelog
 description: "Every release of burgee, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.10.0
+
+### Minor Changes
+
+- [#1411](https://github.com/ofri-peretz/burgee/pull/1411) [`e500294`](https://github.com/ofri-peretz/burgee/commit/e500294af9e3810f108039d637aef7162affb166) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` reads the new graded releases: ora 10.0.0 (`flagstaff/ora`, 223 / 223), slice-ansi 10.0.0 (`linegauge/slice`, 106 / 106) and cli-truncate 6.2.0 (`linegauge/cli-truncate`, 17 / 17), each level with its control. A project on ora 9 or slice-ansi 9 is now listed under `offMajor` and left alone, because those majors are no longer the ones graded.
+
+### Patch Changes
+
+- Updated dependencies [[`e500294`](https://github.com/ofri-peretz/burgee/commit/e500294af9e3810f108039d637aef7162affb166)]:
+  - linegauge@1.2.0
+
 ## 1.9.5
 
 ### Patch Changes

@@ -1,5 +1,0 @@
----
-"flagstaff": minor
----
-
-`flagstaff/ora` follows ora 10.0.0, graded 223 / 223 by ora 10's own suite (control 223 / 223). The frame is laid out the way a terminal shows it — a tab to its stop, a wide character that does not fit moved to the next row, a carriage return back to the start of the row — and kept above the last row of the screen, with a truncation message that shortens to fit. A resize never raises the number of rows erased, a line another writer left unfinished pauses rendering until its newline (there is no 200 ms timeout any more), and a timer, drain or external-write render whose affix function or stream throws stops the spinner instead of crashing the process. `{ isEnabled: false }` logs a line on every `.start()`, a symbol is written plain on a stream that cannot render colour, an unknown spinner name throws on every terminal, and `oraPromise()` keeps the action's own error or result when `failText`, `successText` or the final write throws. The weight comparisons are restated as each incumbent resolves today: ora 10.0.0 at 128,182 B across 17 packages, log-update 8.0.0 at 114,295 B and boxen 9.0.0 at 115,780 B.
