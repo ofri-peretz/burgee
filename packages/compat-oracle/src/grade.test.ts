@@ -144,21 +144,24 @@ const tapScript = (lines: string[]): string => `process.stdout.write(${JSON.stri
 /** A host whose control is the workspace's commander, so the incumbent's own files are on disk. */
 const incumbent = (over: Partial<Host> = {}): Host => host({ npmName: 'commander', ...over });
 /**
- * A host whose control is a copy of the workspace's commander installed beside the suite, which a
- * host with `suiteDeps` resolves in place of the workspace's, and that copy's root. For a test whose
- * run links a vendored path to the incumbent's own file: a run that then writes through the link
- * (the unlink skipped, or the link reported as not made) writes into this copy, under `vendorDir`.
- * Linked to the workspace's install, such a run rewrote `node_modules/commander` itself, and every
- * later test that loaded commander in that checkout failed: a mutant of `linksInternal` did exactly
- * that, and oxmutate restarted context after context that no restart could clean (2026-11-01).
- * The vendored root declares no dependencies, so nothing is installed: the copy is the pin.
+ * `vendored()` for a host whose control is a copy of the workspace's commander installed beside the
+ * suite, which a host with `suiteDeps` resolves in place of the workspace's; `root` is that copy.
+ * One helper on purpose: a `suiteDeps` host with no copy beside it resolves up the tree to the
+ * workspace's install, silently. For a test whose run links a vendored path to the incumbent's own
+ * file: a run that then writes through the link (the unlink skipped, or the link reported as not
+ * made) writes into this copy, under `vendorDir`. Linked to the workspace's install, such a run
+ * rewrote `node_modules/commander` itself, and every later test that loaded commander in that
+ * checkout failed: a mutant of `linksInternal` did exactly that, and oxmutate restarted context
+ * after context that no restart could clean (2026-11-01). The vendored root declares no
+ * dependencies, so nothing is installed: the copy is the pin.
  */
-function ownIncumbent(hostDir: string): string {
-  const own = join(hostDir, 'node_modules', 'commander');
-  cpSync(COMMANDER, own, { recursive: true });
-  return own;
+function linked(over: Partial<Host>, files: Record<string, string>, layout: Layout = {}): { h: Host; hostDir: string; root: string } {
+  const h = incumbent({ suiteDeps: [`commander@${(JSON.parse(read(COMMANDER, 'package.json')) as { version: string }).version}`], ...over });
+  const hostDir = vendored(h, files, layout);
+  const root = join(hostDir, 'node_modules', 'commander');
+  cpSync(COMMANDER, root, { recursive: true });
+  return { h, hostDir, root };
 }
-const linked = (over: Partial<Host> = {}): Host => incumbent({ suiteDeps: [`commander@${(JSON.parse(read(COMMANDER, 'package.json')) as { version: string }).version}`], ...over });
 /** `npm install` succeeds silently; anything else is a runner printing one passing case. */
 const npmThenSummary = ({ file }: { file: string }): string => (file === 'npm' ? '' : SUMMARY(1, 1));
 const only = (): Call => {
@@ -766,9 +769,8 @@ describe('the internal shims a run writes', () => {
   });
 
   it('links, rather than shims, the incumbent’s own file on the control of a cache-busting CJS host', () => {
-    const h = linked({ shim: 'cjs' });
-    const hostDir = vendored(h, { 'a.test.js': '' }, { pkg: {}, source: { internals: ['lib/command.js'] } });
-    const own = join(ownIncumbent(hostDir), 'lib', 'command.js');
+    const { h, hostDir, root } = linked({ shim: 'cjs' }, { 'a.test.js': '' }, { pkg: {}, source: { internals: ['lib/command.js'] } });
+    const own = join(root, 'lib', 'command.js');
     seam.exec = tap;
     grade(h, vendorDir, 'commander');
     const at = join(hostDir, 'lib', 'command.js');
@@ -782,9 +784,8 @@ describe('the internal shims a run writes', () => {
 
   it('links the compiled file on the control of a host that publishes its internals elsewhere, and shims the target', () => {
     // ink's shape, on commander's files: the suite names `src/…`, the tarball ships `lib/…`.
-    const h = linked({ internalDir: 'src', publishedInternalDir: 'lib' });
-    const hostDir = vendored(h, { 'a.test.js': '' }, { source: { internals: ['src/command.js'] } });
-    const own = join(ownIncumbent(hostDir), 'lib', 'command.js');
+    const { h, hostDir, root } = linked({ internalDir: 'src', publishedInternalDir: 'lib' }, { 'a.test.js': '' }, { source: { internals: ['src/command.js'] } });
+    const own = join(root, 'lib', 'command.js');
     seam.exec = tap;
     grade(h, vendorDir, 'commander');
     const at = join(hostDir, 'src', 'command.js');
@@ -824,9 +825,8 @@ describe('the files a suite reaches by path (`entries`, dotenv 18)', () => {
   const entry = { at: 'dist/index.cjs', control: 'index.js', target: '/sub', names: ['config', 'parse'], runs: '/sub/cli' };
 
   it('links each one to the incumbent’s own file on the control, so the incumbent is `require.main`', () => {
-    const h = linked({ entries: [entry] });
-    const hostDir = vendored(h, { 'a.test.js': '' }, { pkg: {} });
-    const own = join(ownIncumbent(hostDir), 'index.js');
+    const { h, hostDir, root } = linked({ entries: [entry] }, { 'a.test.js': '' }, { pkg: {} });
+    const own = join(root, 'index.js');
     seam.exec = tap;
     grade(h, vendorDir, 'commander');
     const at = join(hostDir, 'dist', 'index.cjs');
@@ -847,9 +847,8 @@ describe('the files a suite reaches by path (`entries`, dotenv 18)', () => {
   });
 
   it('writes upstream’s index.js pointed at the target on a target run: the module, its names, its CLI', () => {
-    const h = linked({ entries: [entry, { at: 'dist/config.cjs', control: 'index.js', target: '/sub/config' }] });
-    const hostDir = vendored(h, { 'a.test.js': '' }, { pkg: {} });
-    const own = join(ownIncumbent(hostDir), 'index.js');
+    const { h, hostDir, root } = linked({ entries: [entry, { at: 'dist/config.cjs', control: 'index.js', target: '/sub/config' }] }, { 'a.test.js': '' }, { pkg: {} });
+    const own = join(root, 'index.js');
     seam.exec = tap;
     grade(h, vendorDir, 'commander');
     // The target here is commander too, under another name: a target run is any run whose
