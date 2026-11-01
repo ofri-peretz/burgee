@@ -1,6 +1,8 @@
 import { defineConfig } from "vitest/config";
 
 // The five-second per-case gate (D-20261101-tests-under-5s); this config sets its own clocks below.
+// tsconfig.json leaves this file out: from here tsc reads the root config as CommonJS (the root
+// manifest has no "type"), while vitest loads it as ESM, as it does for every package's config.
 import { caseBudget } from "../vitest-timeouts.config.js";
 
 export default defineConfig({
