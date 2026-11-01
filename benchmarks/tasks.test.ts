@@ -101,4 +101,14 @@ describe.skipIf(!isPosix())('the oxmutate arm\'s task set', () => {
   it.each(oxmutateTasks)('$id passes on a correct answer', (task) => {
     expect(check(task, task.exemplar)).toBe(0);
   });
+
+  // Reading 2 (2026-11-01, d71dcb0) failed one correct answer: it put the line in a table column,
+  // so neither `line 2` nor `age.js:2` was in the text. A check that refuses a right answer is as
+  // wrong as one that passes a wrong one.
+  it('oxmutate-survivors passes a correct answer that puts the line in a table column', () => {
+    const survivors = oxmutateTasks.find((t) => t.id === 'oxmutate-survivors') as ArmTask;
+    const table = '| File | Line | Mutation | Changed To |\n|------|------|----------|------------|\n| `src/age.js` | 2 | EqualityOperator | `age > 18` |\n| `src/age.js` | 2 | NumericLiteral | `19` |';
+    expect(check(survivors, table)).toBe(0);
+    expect(check(survivors, table.replaceAll('| 2 |', '| 3 |'))).not.toBe(0);
+  });
 });
