@@ -16,10 +16,10 @@
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { load as loadYaml } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
 
 import { readDecisions } from './ledgers.js';
@@ -181,10 +181,17 @@ describe('the mutation ratchets (R5–R7)', () => {
     expect(Object.keys(doc.ratchets).toSorted()).toEqual(PACKAGES);
   });
 
-  it('are what the weekly workflow measures', () => {
-    const wf = loadYaml(readFileSync(join(REPO_ROOT, '.github/workflows/mutation.yml'), 'utf8')) as { jobs: { full: { strategy: { matrix: { package: string[] } } } } };
-    expect(wf.jobs.full.strategy.matrix.package.toSorted()).toEqual(PACKAGES);
-  });
+  // The weekly run is local since D-20261101-no-mutation-in-gha: `npm run mutation:weekly` reads
+  // the packages from this file, so its plan is what is measured.
+  it.skipIf(process.platform === 'win32')('are what the local weekly run measures', () => {
+    const plan = execFileSync('bash', ['scripts/mutation-weekly.sh', '--dry-run', '--worktree', join(tmpdir(), `mutation-weekly-plan-${String(process.pid)}`)], {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+      env: { ...process.env, MUTATION_WEEKLY_LOG: '/dev/null' },
+    });
+    const planned = [...plan.matchAll(/scripts\/mutation\.ts full --package (\S+)/gu)].map((m) => m[1]);
+    expect(planned.toSorted()).toEqual(PACKAGES);
+  }, 5000);
 
   const decisions: ReadonlySet<string> = new Set(readDecisions(REPO_ROOT).entries.map((d) => d.id));
 

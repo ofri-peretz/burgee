@@ -5,20 +5,21 @@
  */
 
 /**
- * Lock — a laptop runs CI's changed-lines mutation lane, not a copy of it.
+ * Lock — the changed-lines mutation lane is one script, and pre-push is where it runs.
  *
  * Until 2026-11-01 the lane's plan, builds and mutation run were four steps in quality-full.yml
  * and nowhere else: no npm script ran them and pre-push did not, so a surviving mutant was first
- * seen in CI. Now the lane is one file, `scripts/mutation-changed.sh`, run by
- * `npm run mutation:changed`; CI's job runs that npm script and pre-push runs it last.
+ * seen in CI. #1417 made the lane one file, `scripts/mutation-changed.sh`, run by
+ * `npm run mutation:changed`, which CI's job and pre-push both ran. Then the owner ruled "No
+ * oxmutate in GHA" (D-20261101-no-mutation-in-gha): CI's `Mutation (changed lines)` job is gone,
+ * and pre-push is the per-PR mutation gate.
  *
- * What fails here is each way the two could drift apart again: CI doing part of the lane in a
- * step of its own, CI passing a variable the script does not read (or the script reading one CI
- * does not pass), the npm script pointing elsewhere, pre-push dropping or reordering it, and the
- * script losing a step of the lane.
+ * What fails here: a workflow running the lane again, the npm script pointing elsewhere,
+ * pre-push dropping or reordering it, and the script losing a step of the lane.
+ * `mutation-local-only-lock.test.ts` holds every other mutation run out of `.github/`.
  */
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -30,43 +31,31 @@ const SCRIPT = 'scripts/mutation-changed.sh';
 const NPM_RUN = 'npm run mutation:changed';
 const read = (file: string): string => readFileSync(join(ROOT, file), 'utf8');
 
-interface Step {
-  name?: string;
-  run?: string;
-  if?: string;
-  env?: Record<string, unknown>;
-}
-const job = (loadYaml(read('.github/workflows/quality-full.yml')) as { jobs: { mutation: { steps: Step[] } } }).jobs.mutation;
 const script = read(SCRIPT);
 /** Without comments: what the script runs, not what it says about itself. */
 const code = script.split('\n').filter((l) => !l.trimStart().startsWith('#')).join('\n');
+/** A workflow file's text without its comment lines: what it runs. */
+const uncommented = (file: string): string => read(file).split('\n').filter((l) => !l.trimStart().startsWith('#')).join('\n');
 
-/** Text that only the lane does; a workflow step containing one is doing part of the lane itself. */
-const LANE_PARTS = ['scripts/mutation.ts', 'build:native', 'turbo run build', 'mutation-changed.sh'];
-
-describe('CI runs the npm script, and only the npm script', () => {
-  it('has exactly one step that runs the lane, and it is `npm run mutation:changed`, unconditionally', () => {
-    const lane = job.steps.filter((s) => s.run?.includes(NPM_RUN));
-    expect(lane, 'one step of quality-full.yml → mutation runs the npm script').toHaveLength(1);
-    expect(lane[0]?.run?.trim()).toBe(NPM_RUN);
-    // The plan inside the script decides; a step-level `if` would be a second rule beside it.
-    expect(lane[0]?.if).toBeUndefined();
+describe('no workflow runs the lane (D-20261101-no-mutation-in-gha)', () => {
+  it('quality-full.yml has no mutation job', () => {
+    const jobs = (loadYaml(read('.github/workflows/quality-full.yml')) as { jobs: Record<string, unknown> }).jobs;
+    expect(Object.keys(jobs)).not.toContain('mutation');
   });
 
-  it('does no part of the lane in a step of its own', () => {
-    const own = job.steps.flatMap((s) => LANE_PARTS.filter((p) => s.run?.includes(p)).map((p) => `${s.name ?? '(unnamed)'}: ${p}`));
-    expect(own, 'move it into scripts/mutation-changed.sh, which a laptop runs too').toEqual([]);
+  it('no workflow runs `npm run mutation:changed` or the script', () => {
+    const runs = readdirSync(join(ROOT, '.github/workflows'))
+      .filter((f) => /\.ya?ml$/u.test(f))
+      .filter((f) => [NPM_RUN, SCRIPT].some((t) => uncommented(`.github/workflows/${f}`).includes(t)));
+    expect(runs, "the changed-lines lane runs in pre-push, on the owner's machine").toEqual([]);
   });
 
-  it('passes exactly the variables the script reads', () => {
-    const passed = Object.keys(job.steps.find((s) => s.run?.includes(NPM_RUN))?.env ?? {}).toSorted();
-    const reads = [...new Set(code.match(/\bMUTATION_[A-Z_]+/g) ?? [])].toSorted();
-    expect(passed).toEqual(reads);
-    expect(reads).toEqual(['MUTATION_BASE', 'MUTATION_CONCURRENCY', 'MUTATION_EVENT']);
+  it('the script reads only its own three variables, so a laptop can set each', () => {
+    expect([...new Set(code.match(/\bMUTATION_[A-Z_]+/g) ?? [])].toSorted()).toEqual(['MUTATION_BASE', 'MUTATION_CONCURRENCY', 'MUTATION_EVENT']);
   });
 });
 
-describe('package.json and pre-push run the same script', () => {
+describe('package.json and pre-push run the script', () => {
   it('`mutation:changed` is the script', () => {
     const pkg = JSON.parse(read('package.json')) as { scripts: Record<string, string> };
     expect(pkg.scripts['mutation:changed']).toBe(`bash ${SCRIPT}`);

@@ -35,9 +35,11 @@ import { describe, expect, it } from 'vitest';
 import { checkNames, type Event, evaluate, producedOn, readWorkflow as read, REPO_ROOT, REQUIRED_CHECKS as REQUIRED, runs, type Workflow } from './required-checks.mjs';
 
 /**
- * The heavy jobs: benchmarks, the off-Linux and floor-Node compat cells, the paid evals and the
- * full mutation run. `bench.yml`'s `agent` may still run on a pull request the owner labels
- * `bench:agent` — the label is the request to spend — and nowhere else outside the schedule.
+ * The heavy jobs: benchmarks, the off-Linux and floor-Node compat cells and the paid evals.
+ * `bench.yml`'s `agent` may still run on a pull request the owner labels `bench:agent` — the
+ * label is the request to spend — and nowhere else outside the schedule. The full mutation run
+ * was on this list until it left GitHub Actions altogether (D-20261101-no-mutation-in-gha); it
+ * runs on the owner's machine, and `mutation-local-only-lock.test.ts` holds it there.
  */
 const HEAVY: { file: string; job: string }[] = [
   { file: 'bench.yml', job: 'cheap' },
@@ -46,7 +48,6 @@ const HEAVY: { file: string; job: string }[] = [
   { file: 'compat.yml', job: 'controls' },
   { file: 'compat.yml', job: 'floor' },
   { file: 'evals.yml', job: 'evals' },
-  { file: 'mutation.yml', job: 'full' },
 ];
 
 /** What CI/CD is: a push to `main`, a pull request however it is labelled for review, a queue entry. */

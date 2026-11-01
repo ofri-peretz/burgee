@@ -1,25 +1,26 @@
 #!/usr/bin/env bash
 # The changed-lines mutation lane (.sdlc/intents/mutation-tested/, R1–R4), as one script.
 #
-# CI's `Mutation (changed lines)` job in quality-full.yml runs it, and so does a laptop, through
-# `npm run mutation:changed` — which pre-push runs. Before this script the job's steps lived only
-# in the workflow, so a surviving mutant was first seen in CI. `mutation-changed-lock.test.ts`
-# holds the workflow, package.json and lefthook.yml to this one file.
+# Pre-push runs it, through `npm run mutation:changed`: the per-PR mutation gate. It was also
+# CI's `Mutation (changed lines)` job until the owner ruled "No oxmutate in GHA"
+# (D-20261101-no-mutation-in-gha); no workflow runs it now. `mutation-changed-lock.test.ts` holds
+# package.json and lefthook.yml to this one file, and every workflow away from it.
 #
-# The sequence, in both places:
+# The sequence:
 #   1. `mutation.ts changed --plan` decides whether any package source line changed; when none
 #      did, the lane ends here, successfully, having built nothing.
 #   2. Every package is built (a suite may read a sibling's dist), then oxmutate's native core,
 #      which is Rust and which no `build` produces.
 #   3. `mutation.ts changed` mutates those lines and fails on a mutant no test detects.
 #
-# Environment — set by CI, left unset on a laptop:
-#   MUTATION_EVENT        the GitHub event. Unset means a laptop: `pull_request`, the event a
+# Environment — unset in pre-push; set MUTATION_EVENT to run the lane as that event would:
+#   MUTATION_EVENT        the GitHub event the diff stands for. Unset: `pull_request`, the event a
 #                         pushed branch becomes, after `git fetch origin main`.
-#   MUTATION_BASE         what the diff is taken against. Unset means a laptop: `origin/main`.
-#   MUTATION_CONCURRENCY  mutants at once. CI passes 4 and gets 4. On a laptop it defaults to 2
-#                         and is capped at the cores the load average leaves free, never below 1.
-#   GITHUB_STEP_SUMMARY   set by Actions; the report is appended there too.
+#   MUTATION_BASE         what the diff is taken against. Unset: `origin/main`.
+#   MUTATION_CONCURRENCY  mutants at once. With MUTATION_EVENT set it is used as given; unset, it
+#                         defaults to 2 and is capped at the cores the load average leaves free,
+#                         never below 1.
+#   GITHUB_STEP_SUMMARY   when set, the report is appended there too.
 #
 # Bash 3.2 (macOS /bin/bash): no mapfile, no associative arrays, no empty "${a[@]}" under set -u.
 set -euo pipefail

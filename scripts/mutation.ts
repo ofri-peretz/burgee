@@ -576,7 +576,7 @@ const row = (u: Undetected): string => `| \`${u.file}:${String(u.line)}:${String
 /** The mutate specs for a pull request, or the sentence that says why there are none. */
 function changedSpecs(event: string, base: string): { specs: Map<string, string[]> } | { none: string; code: number } {
   if ((event !== 'pull_request' && event !== 'merge_group') || base === '') {
-    return { none: `Not a pull request (\`${event || 'none'}\`): nothing changed to mutate here. The weekly full run (\`mutation.yml\`) measures \`main\`.`, code: 0 };
+    return { none: `Not a pull request (\`${event || 'none'}\`): nothing changed to mutate here. The weekly full run (\`npm run mutation:weekly\`) measures \`main\`.`, code: 0 };
   }
   const set = affected({ root: REPO_ROOT, event: 'pull_request', base, log: (l) => process.stderr.write(`${l}\n`) });
   const diff = spawnSync('git', ['diff', '-U0', '--no-color', '--no-renames', '--diff-filter=AMR', `${base}...HEAD`, '--', 'packages/'], { cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: DIFF_BUFFER_BYTES });
