@@ -14,7 +14,7 @@
  * refused as measuring nothing — and the committed state: every `// Stryker disable` carries a
  * reason, and the ratchet file only moves up.
  */
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -184,12 +184,14 @@ describe('the mutation ratchets (R5–R7)', () => {
   // The weekly run is local since D-20261101-no-mutation-in-gha: `npm run mutation:weekly` reads
   // the packages from this file, so its plan is what is measured.
   it.skipIf(process.platform === 'win32')('are what the local weekly run measures', () => {
-    const plan = execFileSync('bash', ['scripts/mutation-weekly.sh', '--dry-run', '--worktree', join(tmpdir(), `mutation-weekly-plan-${String(process.pid)}`)], {
+    const r = spawnSync('bash', ['scripts/mutation-weekly.sh', '--dry-run', '--worktree', join(tmpdir(), `mutation-weekly-plan-${String(process.pid)}`)], {
       cwd: REPO_ROOT,
       encoding: 'utf8',
       env: { ...process.env, MUTATION_WEEKLY_LOG: '/dev/null' },
     });
-    const planned = [...plan.matchAll(/scripts\/mutation\.ts full --package (\S+)/gu)].map((m) => m[1]);
+    // The script sends stderr through stdout to its log, so stdout says why a plan failed.
+    expect(r.status, `${r.stdout}${r.stderr}`).toBe(0);
+    const planned = [...r.stdout.matchAll(/scripts\/mutation\.ts full --package (\S+)/gu)].map((m) => m[1]);
     expect(planned.toSorted()).toEqual(PACKAGES);
   }, 5000);
 

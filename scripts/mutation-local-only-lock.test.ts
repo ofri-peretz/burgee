@@ -26,9 +26,9 @@
  * own unit suite in `quality-full.yml` → `test` are not mutation runs, and are allowed.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { load as loadYaml } from 'js-yaml';
@@ -169,7 +169,8 @@ describe('the weekly full run is a local script that does what mutation.yml did'
     try {
       const wt = join(scratch, 'wt');
       const r = spawnSync('bash', [WEEKLY, '--dry-run', '--worktree', wt], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, MUTATION_WEEKLY_LOG: join(scratch, 'log') } });
-      expect(r.status, r.stderr).toBe(0);
+      // The script sends stderr to its log through stdout, so stdout is where a failure says why.
+      expect(r.status, `${r.stdout}${r.stderr}`).toBe(0);
       const doc = JSON.parse(read('.sdlc/bands/mutation-ratchets.json')) as { ratchets: Record<string, unknown> };
       const planned = [...r.stdout.matchAll(/scripts\/mutation\.ts full --package (\S+)/gu)].map((m) => m[1]);
       expect(planned).toEqual(Object.keys(doc.ratchets));
@@ -177,6 +178,26 @@ describe('the weekly full run is a local script that does what mutation.yml did'
       expect(existsSync(wt), 'a dry run creates no worktree').toBe(false);
     } finally {
       rmSync(scratch, { recursive: true, force: true });
+    }
+  }, 5000);
+
+  // Actions checks out a detached commit with no `origin/main`, and the first cut of the script
+  // exited 1 there (#1421's Node 24 cells) while passing on every laptop that had fetched main.
+  it.skipIf(process.platform === 'win32')('--dry-run plans in a checkout that has no origin/main', () => {
+    const repo = mkdtempSync(join(tmpdir(), 'mutation-weekly-bare-'));
+    try {
+      for (const f of [WEEKLY, '.sdlc/bands/mutation-ratchets.json', 'package-lock.json']) {
+        mkdirSync(dirname(join(repo, f)), { recursive: true });
+        copyFileSync(join(ROOT, f), join(repo, f));
+      }
+      // No repository at all, and git barred from finding one above it: `origin/main` does not
+      // resolve, the same path Actions' detached checkout takes, without `git init`'s second.
+      const env = { ...process.env, MUTATION_WEEKLY_LOG: join(repo, 'log'), GIT_CEILING_DIRECTORIES: dirname(repo) };
+      const r = spawnSync('bash', [WEEKLY, '--dry-run', '--worktree', join(repo, 'wt')], { cwd: repo, encoding: 'utf8', env });
+      expect(r.status, `${r.stdout}${r.stderr}`).toBe(0);
+      expect([...r.stdout.matchAll(/scripts\/mutation\.ts full --package /gu)]).toHaveLength(Object.keys((JSON.parse(read('.sdlc/bands/mutation-ratchets.json')) as { ratchets: object }).ratchets).length);
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
     }
   }, 5000);
 });

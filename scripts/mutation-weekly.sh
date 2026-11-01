@@ -145,11 +145,17 @@ else
   in_repo git worktree add --detach "$WORKTREE" origin/main
 fi
 in_wt git switch --detach origin/main
-commit=$([ "$DRY" = 1 ] && (cd "$REPO" && git rev-parse --short origin/main 2>/dev/null) || (cd "$WORKTREE" && git rev-parse --short HEAD))
+# A dry run reads origin/main as this checkout last fetched it, and a checkout without that ref
+# (Actions' detached one, which runs the locks) is no reason to fail a plan.
+if [ "$DRY" = 1 ]; then
+  commit=$(cd "$REPO" && git rev-parse --short origin/main 2>/dev/null || echo 'origin/main, not fetched here')
+else
+  commit=$(cd "$WORKTREE" && git rev-parse --short HEAD)
+fi
 say "measuring origin/main at ${commit:-unknown}"
 
 # 2. Install (only when the lockfile moved), build every package, then oxmutate's native core.
-lock_sum=$( (cd "$REPO" && shasum package-lock.json) | awk '{print $1}')
+lock_sum=$( (cd "$REPO" && shasum package-lock.json 2>/dev/null) | awk '{print $1}' || true)
 [ "$DRY" = 1 ] || lock_sum=$( (cd "$WORKTREE" && shasum package-lock.json) | awk '{print $1}')
 if [ "$DRY" = 1 ] || [ ! -d "$WORKTREE/node_modules" ] || [ "$(cat "$WORKTREE/node_modules/.mutation-weekly-lock" 2>/dev/null)" != "$lock_sum" ]; then
   in_wt npm ci --no-audit --no-fund
