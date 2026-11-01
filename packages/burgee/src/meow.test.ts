@@ -10,6 +10,7 @@
  */
 import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 
+import { growth, LINEAR, said } from './__fixtures__/growth.js';
 import meow, { type AnyFlags, type Flag, type Result, type TypedFlags } from './meow.js';
 import { cutTrailingTabs, trimNewlines } from './meow/present.js';
 
@@ -202,6 +203,11 @@ function strings(alphabet: string, max: number): string[] {
   return out;
 }
 
+/** `n` newlines, a letter, `n` more and a last letter: the inner run never reaches the end. */
+const newlines = (n: number): string => `${'\n'.repeat(n)}a${'\n'.repeat(n)}b`;
+/** `n` tabs that never reach the end, then `n` that do and `n` newlines after them. */
+const tabs = (n: number): string => `a${'\t'.repeat(n)}b${'\t'.repeat(n)}${'\n'.repeat(n)}`;
+
 describe('help trimming answers as meow\'s regexes did, in linear time (CodeQL #99, #100)', () => {
   it('matches the upstream regexes on every short string of tabs, newlines, spaces and text', () => {
     for (const s of strings('\t\n\r a', 6)) {
@@ -210,12 +216,16 @@ describe('help trimming answers as meow\'s regexes did, in linear time (CodeQL #
     }
   });
 
-  it('trims 200,000 newlines and tabs that never reach the end well under the quadratic cost', () => {
-    const newlines = `a${'\n'.repeat(200_000)}b`;
-    const tabs = `a${'\t'.repeat(200_000)}b`;
-    const started = performance.now();
-    expect(trimNewlines(newlines)).toBe(newlines);
-    expect(cutTrailingTabs(tabs)).toBe(tabs);
-    expect(performance.now() - started).toBeLessThan(200);
+  // A run that does not reach the end is what made the regexes quadratic, and the scans step over
+  // it in O(1); each input also ends in a run as long, so the scan has linear work to be timed on.
+  // The scans cost about a nanosecond a character, so `max` keeps the strings small and `growth`
+  // repeats the call to reach its 20 ms instead of building strings of tens of megabytes.
+  it('trims newlines and tabs, with a run that never reaches the end, in linear time', () => {
+    expect(trimNewlines(newlines(3))).toBe(`a${'\n'.repeat(3)}b`);
+    expect(cutTrailingTabs(tabs(3))).toBe(`a${'\t'.repeat(3)}b`);
+    const trimmed = growth(newlines, trimNewlines, { from: 10_000, max: 250_000 });
+    expect(trimmed.ratio, `trimNewlines: ${said(trimmed)}`).toBeLessThan(LINEAR);
+    const cut = growth(tabs, cutTrailingTabs, { from: 10_000, max: 150_000 });
+    expect(cut.ratio, `cutTrailingTabs: ${said(cut)}`).toBeLessThan(LINEAR);
   });
 });
