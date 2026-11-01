@@ -35,7 +35,7 @@ export const LINEAR = 3;
 export const CASE_MS = 5_000;
 
 /** How long the smaller size's fastest run is grown to take: over the timer's noise, and cheap. */
-const TARGET_MS = 5;
+const TARGET_MS = 4;
 
 /** Timed rounds; the fastest of each size is compared. */
 const RUNS = 5;
@@ -44,7 +44,7 @@ const RUNS = 5;
 const MIN_ROUNDS = 3;
 
 /** Timed rounds stop once this much time has gone on them, after {@link MIN_ROUNDS}. */
-const BUDGET_MS = 400;
+const BUDGET_MS = 250;
 
 /** The most times one timed sample repeats the call, for a function too fast at the memory ceiling. */
 const MAX_REPS = 4_096;
@@ -86,17 +86,27 @@ function timed(run: () => unknown, reps: number): number {
   return performance.now() - started;
 }
 
-/** Doubles `reps` until `run`'s fastest of three samples takes {@link TARGET_MS}, or the cap. */
-function repsFor(run: () => unknown, from: number): number {
-  let reps = from;
-  const fastest = (): number => Math.min(timed(run, reps), timed(run, reps), timed(run, reps));
-  while (fastest() < TARGET_MS && 2 * reps <= MAX_REPS) reps *= 2;
+/**
+ * How many times larger a run that took `took` ms must get to reach {@link TARGET_MS}, assuming it
+ * is linear: at least 2, so calibration always moves, and at most 8, so a quadratic run that is
+ * scaled as if it were linear overshoots by 64x at worst rather than without bound.
+ */
+function step(took: number): number {
+  return Math.min(8, Math.max(2, Math.ceil(TARGET_MS / Math.max(took, 0.01))));
+}
+
+/** Scales `reps` until `run`'s fastest of two samples takes {@link TARGET_MS}, or the cap. */
+function repsFor(run: () => unknown): number {
+  let reps = 1;
+  for (let took = timed(run, reps); took < TARGET_MS && reps < MAX_REPS; took = Math.min(timed(run, reps), timed(run, reps))) {
+    reps = Math.min(MAX_REPS, reps * step(took));
+  }
   return reps;
 }
 
 /**
  * Times `run` and the reference scan on `input(n)` and `input(FACTOR * n)`. `n` starts at
- * `sizes.from` and doubles, up to `sizes.max`, until the smaller run takes {@link TARGET_MS}; past
+ * `sizes.from` and grows, up to `sizes.max`, until the smaller run takes {@link TARGET_MS}; past
  * `max` the call repeats instead. Each size runs once untimed first, the four are timed in turns,
  * and inputs are built before any clock starts. When the timed fastest of the smaller size is under
  * the floor, it grows and measures again; when the caps stop it under the floor, or the case passes
@@ -112,13 +122,14 @@ export function growth(input: (n: number) => string, run: (s: string) => unknown
   let reps = 1;
   let small = input(n);
   run(small);
-  const grow = (): void => {
-    if (2 * n <= sizes.max) {
-      n *= 2;
+  const grow = (took: number): void => {
+    const by = step(took);
+    if (n < sizes.max) {
+      n = Math.min(sizes.max, n * by);
       small = input(n);
       run(small);
-    } else if (2 * reps <= MAX_REPS) {
-      reps *= 2;
+    } else if (reps < MAX_REPS) {
+      reps = Math.min(MAX_REPS, reps * by);
     } else {
       throw new Error(
         `growth: the smaller size is still under ${String(TARGET_MS)} ms at n=${String(n)} x${String(reps)} calls, the most \`max\` and MAX_REPS allow; a ratio from there would be the timer's. Raise \`max\`.`,
@@ -126,11 +137,11 @@ export function growth(input: (n: number) => string, run: (s: string) => unknown
     }
     over();
   };
-  const fastest = (): number => Math.min(timed(() => run(small), reps), timed(() => run(small), reps), timed(() => run(small), reps));
+  const fastest = (): number => Math.min(timed(() => run(small), reps), timed(() => run(small), reps));
   for (;;) {
-    while (fastest() < TARGET_MS) grow();
+    for (let took = fastest(); took < TARGET_MS; took = fastest()) grow(took);
     const large = input(FACTOR * n);
-    const scanReps = repsFor(() => scan(small), 1);
+    const scanReps = repsFor(() => scan(small));
     run(large);
     scan(large);
     const started = performance.now();
@@ -149,7 +160,7 @@ export function growth(input: (n: number) => string, run: (s: string) => unknown
       const reference = rl / rs;
       return { n, reps, small: s, large: l, ratio, reference, normalized: ratio / reference, rounds: t[0].length };
     }
-    grow();
+    grow(s);
   }
 }
 
