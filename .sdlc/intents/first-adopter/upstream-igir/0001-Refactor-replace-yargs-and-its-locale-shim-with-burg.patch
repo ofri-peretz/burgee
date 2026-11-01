@@ -1,6 +1,6 @@
-From 7a0b38952b1de5dc7eb55e2b2e10c30d9218a2a8 Mon Sep 17 00:00:00 2001
+From 264959d615a1f8c60166b7717df226f52ecbdc11 Mon Sep 17 00:00:00 2001
 From: Ofri Peretz <ofriperetzdev@gmail.com>
-Date: Thu, 29 Oct 2026 01:02:41 +0200
+Date: Sun, 1 Nov 2026 14:21:27 +0200
 Subject: [PATCH] Refactor: replace yargs and its locale shim with burgee/yargs
 
 ---
@@ -15,14 +15,14 @@ Subject: [PATCH] Refactor: replace yargs and its locale shim with burgee/yargs
  delete mode 100644 test/polyfill/yargsShim.test.ts
 
 diff --git a/package-lock.json b/package-lock.json
-index 4c0c0226..3d5b9117 100644
+index 4c0c0226..fd2ab5e2 100644
 --- a/package-lock.json
 +++ b/package-lock.json
 @@ -16,6 +16,7 @@
          "@openpgp/unbzip2-stream": "2.1.0",
          "async": "3.2.6",
          "async-mutex": "0.5.0",
-+        "burgee": "1.9.2",
++        "burgee": "1.9.4",
          "chalk": "6.0.0",
          "class-transformer": "0.5.1",
          "fast-glob": "3.3.3",
@@ -60,9 +60,9 @@ index 4c0c0226..3d5b9117 100644
        }
      },
 +    "node_modules/burgee": {
-+      "version": "1.9.2",
-+      "resolved": "https://registry.npmjs.org/burgee/-/burgee-1.9.2.tgz",
-+      "integrity": "sha512-9w0ILLtQn6c5n8FKRwdF3MyV94z48lUQDbF0Ssmz5NiJAg0nXBBRcT3kC/OnftPChSha5KP1frIYMa3lty1neg==",
++      "version": "1.9.4",
++      "resolved": "https://registry.npmjs.org/burgee/-/burgee-1.9.4.tgz",
++      "integrity": "sha512-L4VRxRPDPnJJ8R+ELavarLS7+a3mrq3n5y2INsGUD2tPWGA3aVu6J6EZ3rLymvBhwQCKkdTFlN1wAcIHYgUknQ==",
 +      "license": "MIT",
 +      "dependencies": {
 +        "bellpull": "^1.0.10",
@@ -285,14 +285,14 @@ index 4c0c0226..3d5b9117 100644
        "version": "0.1.0",
        "resolved": "https://registry.npmjs.org/yocto-queue/-/yocto-queue-0.1.0.tgz",
 diff --git a/package.json b/package.json
-index b2e23e1a..097c34e3 100644
+index b2e23e1a..36f676ad 100644
 --- a/package.json
 +++ b/package.json
 @@ -80,6 +80,7 @@
      "@openpgp/unbzip2-stream": "2.1.0",
      "async": "3.2.6",
      "async-mutex": "0.5.0",
-+    "burgee": "1.9.2",
++    "burgee": "1.9.4",
      "chalk": "6.0.0",
      "class-transformer": "0.5.1",
      "fast-glob": "3.3.3",

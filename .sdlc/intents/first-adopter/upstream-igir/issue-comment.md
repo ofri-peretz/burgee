@@ -3,59 +3,73 @@
 **NOT POSTED — awaiting owner go.** Nothing in this directory has been sent outside
 `ofri-peretz/*`. No comment, issue, pull request, fork or star was made on emmercm/igir.
 
-**Held, and not postable on `burgee@1.9.2`.** The proof
-([`igir.md`](../../../research/adoption/igir.md)) found three burgee defects that this text
-assumes are fixed:
+**Postable on `burgee@1.9.4`.** The three gaps the 1.9.2 proof found are closed and published, and
+the proof was re-run on `burgee@1.9.4` on 2026-11-01: every check passed
+([`igir.md` › Re-run on `burgee@1.9.4`](../../../research/adoption/igir.md#re-run-on-burgee194-2026-11-01)).
+Every number below is from that re-run.
 
-- [A-20261028-yargs-locale-read-at-runtime](../../../gaps/A-20261028-yargs-locale-read-at-runtime.md):
-  igir's own `bun scripts/compile.ts` builds a binary that throws on every invocation. This is the
-  exact defect #2249 is about, so posting before it is fixed would be false.
-- [A-20261028-yargs-parse-callback-surfaces](../../../gaps/A-20261028-yargs-parse-callback-surfaces.md):
-  `--json`, `--schema`, `--mcp` and `completion` misbehave under igir's `.parse(argv, {}, cb)`.
-- [A-20261028-yargs-argv-type-call-signature](../../../gaps/A-20261028-yargs-argv-type-call-signature.md):
-  `npm run lint` fails on the migrated tree.
+Before posting, check that #2249 is still open and still has no comments (true on 2026-11-01: open,
+assigned to emmercm, 0 comments, body unchanged). Post it as a comment on #2249, not a new issue:
+the issue is the maintainer's own and has no other participants, so a comment notifies only him.
 
-Before posting, re-run the whole proof on the published fix and replace every number below that
-is marked *(1.9.2)*. Then check that #2249 is still open and has no new comment, and that the
-burgee version to pin is at least 7 days old, igir's Renovate `minimumReleaseAge`. Post as a
-comment on #2249, not as a new issue: the issue is the maintainer's own and has no other
-participants, so a comment notifies only him.
+The comment can go now. A pull request cannot until **2026-11-05 06:28 UTC**: igir's Renovate has
+`minimumReleaseAge: '7 days'`, and `burgee@1.9.4` was published 2026-10-29 06:28 UTC. Its five
+dependencies at the resolved versions are older (2026-10-26 and 2026-10-27).
 
 ---
 
 ```markdown
 Hi, I'm Ofri Peretz. I wrote and maintain burgee, so please read this with that in mind.
 
-You opened this saying the #2247 shim is "extremely brittle", and that yargs "is quite slow, has six dependencies, and does filesystem reads at runtime". burgee has a `burgee/yargs` entry that implements the yargs 18 API, so I tried it on igir before asking. This is a question, not a PR.
+You wrote that yargs "does filesystem reads at runtime". `burgee/yargs` implements the yargs 18 API, and since 1.9.4 its English strings are in the module graph, so it opens no locale file at run time. I tried it on igir at 744bc279 before asking:
 
-On your three points, measured on 744bc279 with burgee <VERSION>:
+- The #2247 shim and its test go. The rest is two import lines and the dependency swap.
+- `bun scripts/compile.ts` builds a binary that passes its own `--help` check from an empty directory, and runs a real `copy` there.
+- With every `locales/*.json` read forced to fail with `EUNKNOWN`, as in #2244, `--help` and a real `copy` still run, because no locale file is opened.
+- On Node 24, `tsc`, `npm run lint`, `vitest --project=native` and `test/endToEndTest.sh` give the same results as on yargs. `--help` is byte-identical, and 44 argument vectors give the same stdout, stderr and exit code, `--json` and `completion` included.
 
-- **Filesystem reads.** `burgee/yargs` keeps its English strings in the module graph, so `src/polyfill/yargsShim.ts` and its test can go, and the package-root rewrite #2283 added to `scripts/compile.ts` has nothing left to rewrite (I left it in place). `bun scripts/compile.ts` passes its own `--help` check from an empty directory. One honest note: until burgee <VERSION>, burgee read `locales/en.json` from disk exactly as yargs does, and a Bun-compiled igir crashed on start. I found that on igir and fixed it in burgee before writing this.
-- **Dependencies.** Not zero, so it doesn't meet the commander bar you named. It has 5, all mine. In igir's production tree, yargs and the 8 packages only it pulled in go, and burgee and its 5 come in: 132 entries become 129 *(1.9.2)*. On disk it is about 1.25 MB *larger* *(1.9.2)*.
-- **Speed.** `igir --help` cold start, 20 paired runs, three rounds: median 10 to 72 ms faster out of about 450 ms, on a loaded laptop *(1.9.2)*. I wouldn't call that a reason by itself.
+What it costs:
 
-The change is two import lines (`src/modules/argumentsParser.ts`, `scripts/compile.ts`), the shim and its test deleted, and the dependency swap. <SUITE LINE FROM THE RE-RUN: `tsc`, `lint`, `vitest --project=native` and `test/endToEndTest.sh` on Node 22 (≥ 22.22.2), 24 and 26, before, after and reverted>, and `--help` is byte-identical. Of 44 argument vectors, every one is identical except the flags burgee reserves: <RESERVED-FLAG LINE FROM THE RE-RUN>.
+- It isn't zero dependencies. burgee brings five, against commander's zero. igir's production tree goes from 132 packages to 129, but `node_modules` grows by about 1.26 MB.
+- One maintainer, me. It was first published on 2026-09-07.
 
-What it costs besides the bytes: yargs' packages have nine npm maintainers, burgee's have one, me, and it was first published on 2026-09-07.
-
-If you'd like this as a PR, I'll open it. If you'd rather go to commander, or write your own, that's a fine answer and I won't follow up.
+Would you like this as a PR? If you'd rather move to commander or write your own parser, that's a fine answer and I won't follow up.
 ```
 
 ## What each sentence rests on
 
-- The quotes are #2249's body, verbatim: "The https://github.com/emmercm/igir/pull/2247 shim is
-  extremely brittle." and "'yargs' is quite slow, has six dependencies, and does filesystem
-  reads at runtime. Most other solutions, such as https://www.npmjs.com/package/commander, are
-  faster and have zero dependencies." The comment quotes only those words and does not say he
-  asked for burgee or for a PR. He named commander. The issue is self-assigned to him.
-- "132 entries become 129" and "+1.25 MB": `package-lock.json` production entries and the bytes
-  of the removed and added directories, base against the 1.9.2 PR shape.
-- "nine npm maintainers": `npm view <pkg> maintainers` over the 13 packages of
-  `yargs@18.2.0` installed alone (sindresorhus, bcoe, oss-bot, mathias, google-wombot, lukeed,
-  stefanpenner, nexdrew, shadowspawn; two are bot accounts). burgee's six packages have one.
-- On 1.9.2, `lint` fails (gap 3), the 5 reserved-flag vectors that differ are broken rather than
-  merely different (gap 2), and e2e on Node 22 was not measured because 22.22.0 is below igir's
-  `^22.22.2`. The suite and vector lines are placeholders until the re-run.
-- The `compile.ts` and filesystem sentences are **false on 1.9.2** and are the reason this is
-  held. They become true only when A-20261028-yargs-locale-read-at-runtime is fixed and the
-  compile check is re-run.
+- **The quote** is a verbatim substring of #2249's body, "'yargs' is quite slow, has six
+  dependencies, and does filesystem reads at runtime." The comment quotes those five words and
+  nothing else, and does not say he asked for burgee or for a PR. He named commander.
+- **"opens no locale file at run time"**: under Node, a preload that fails every
+  `locales/*.json` read with `EUNKNOWN` saw **0** such reads from the migrated tree across
+  `--help`, a real `copy`, a missing-argument error and an unknown-argument error, and each
+  behaved as without the preload. The unmigrated tree failed all four at load, at the shim's
+  `require()` of yargs' `en.json` (under Node that is a disk read; only `compile.ts` embeds it).
+- **"The rest is two import lines"**: `src/modules/argumentsParser.ts` +1 / −2 (the type import
+  becomes the value import; the shim import goes) and `scripts/compile.ts` +1 / −1, plus
+  `package.json` and the lockfile. The shim is 92 lines and its test 53.
+- **The compile sentence**: Bun 1.4.4 (igir's `.bun-version`), `bun scripts/compile.ts` exits 0
+  and logs `Finished!` after its own `--help` check. Copied alone into an empty `mktemp -d`, the
+  binary runs `--help` (278 lines, identical to the base binary's), `copy` (54 files written,
+  identical to the base binary's) and `copy extract test --dat …` (43 files, identical).
+- **The suite sentence**: Node 24.22.0. tsc 0 and lint 0 on base, migrated and reverted. vitest
+  `--project=native`: base 5,125 / 5,127, migrated 5,120 / 5,121 (six fewer cases: the shim's
+  test is deleted). The one failure in every run is `isFileOpen` with a non-ASCII path in a
+  macOS temp directory, environmental, as on 1.9.2; the second base failure was a 45 s timeout
+  under load average 90 that passed 35 / 35 when its file was re-run alone. e2e 0 on all.
+  The comment says "Node 24" and no other version because Node 22 (≥ 22.22.2) is not installed
+  here and Node 26.10.0 was skipped for load (load average 64 against a gate of 50). On 1.9.2,
+  Node 26 matched base on every step.
+- **"44 argument vectors"**: through both built trees, stdout (as a multiset of lines: igir
+  scans in parallel, so `WARN` lines come in any order), stderr, exit code and the files written.
+  44 / 44, and the yargs-against-yargs control is 44 / 44. `--json`, `--schema`, `--mcp` and
+  `completion zsh|bash` now print yargs' own errors under igir's `.parse(argv, {}, cb)`.
+- **"burgee brings five"**: `burgee@1.9.4` depends on bellpull, closeout, linegauge, roundel and
+  seniority. **"132 packages to 129"**: production entries in `package-lock.json`. **"about
+  1.26 MB"**: the bytes of the 6 added directories (1,729,422) less the 9 removed (474,062),
+  +1,255,360 B.
+- **"One maintainer"**: `npm view <pkg> maintainers` on all six packages: `ofriperetz` only.
+  yargs' 13 packages have nine accounts, two of them bots (1.9.2 proof).
+- **Not said, on purpose**: speed. The 1.9.2 cold-start measurement was within its own spread,
+  and it was not re-measured on 1.9.4.
