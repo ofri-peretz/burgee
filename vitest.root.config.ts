@@ -1,3 +1,7 @@
+// Before anything else: clears pre-push's GIT_* in the main process, so a globalSetup or any
+// child it spawns cannot `git init` into the developer's repository (git-env-lock.test.ts).
+import './vitest-git-env-setup.ts';
+
 import { defineConfig } from 'vitest/config';
 
 import { timeouts } from './vitest-timeouts.config.js';

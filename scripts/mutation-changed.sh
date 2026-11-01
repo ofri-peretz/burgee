@@ -23,6 +23,10 @@
 #
 # Bash 3.2 (macOS /bin/bash): no mapfile, no associative arrays, no empty "${a[@]}" under set -u.
 set -euo pipefail
+# pre-push exports GIT_DIR (inside .git/worktrees/ from a worktree). Package suites run here through
+# oxmutate, not turbo's strict env, so a test's `git init` would inherit it and set core.bare = true
+# on the shared repository (2026-11-01). Git finds the repository from the working directory.
+for name in $(compgen -e | grep '^GIT_' || true); do unset "$name"; done
 cd "$(dirname "$0")/.."
 
 if [ -z "${MUTATION_EVENT+set}" ]; then
