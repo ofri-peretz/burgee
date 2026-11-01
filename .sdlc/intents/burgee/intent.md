@@ -21,12 +21,31 @@
 > was holding is already on npm, published inside patch versions (the window is gone since
 > D-20261027-no-release-window). See
 > [§ Umbrella sweep 2026-10-26](#umbrella-sweep-2026-10-26).
+>
+> **Closing list 2026-11-01, still `approved`:** two intents are open. `first-adopter` waits on A5
+> alone, and `oxmutate` on its SC8 and SC11. Every other intent is `shipped` or `dropped`. See
+> [§ Closing list 2026-11-01](#closing-list-2026-11-01).
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why `review` until 2026-10-25:** a living umbrella that keeps gaining floor requirements (U1–U12, then Y1–Y12); it closes when its children do, not before.
 **Restructured:** 2026-09-06
 **Restated:** 2026-10-18 — see § Restated 2026-10-18
 
 ---
+
+## Closing list 2026-11-01
+
+Read from every `.sdlc/intents/*/intent.md` status line on 2026-11-01. Apart from this umbrella
+and the template, every intent is `shipped` or `dropped` except two:
+
+| intent | status | waits on |
+| :-- | :-- | :-- |
+| `first-adopter` | `approved` | A5 only: B1's real-CLI arm for oxmutate, [B-20261101-b1-real-cli-arm-oxmutate](../../gaps/B-20261101-b1-real-cli-arm-oxmutate.md), and its first scheduled reading. The owner ruled oxmutate the first adopter on 2026-11-01, and A1–A4 hold on it ([D-20261101-first-adopter-is-oxmutate](../../decisions/D-20261101-first-adopter-is-oxmutate.md)). A6 is a measured miss, moved to gap [C3](../../gaps/C3.md), which now carries A6 and with it U12's outside-adopter half |
+| `oxmutate` | `approved` | its SC8 and SC11. It is a separate tool's intent, but the umbrella is not stamped while it is open |
+
+The row "an outside merge (owner approval for the external PR)" in the 2026-10-26 table below no
+longer describes `first-adopter`: the ruling, not an outside merge, closed its A1. concurrently#639
+and igir#2249 go on as outreach, outside the gate. This umbrella stays `approved` until both rows
+above are stamped.
 
 ## Umbrella sweep 2026-10-26
 

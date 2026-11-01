@@ -4,6 +4,26 @@ Intent: [`intent.md`](./intent.md). **Status:** approved (2026-10-25).
 
 ---
 
+## Graded on oxmutate 2026-11-01
+
+The owner ruled oxmutate the first adopter
+([D-20261101-first-adopter-is-oxmutate](../../decisions/D-20261101-first-adopter-is-oxmutate.md)).
+That replaces the Acceptance line below, which said A1 and A6 close only on a merge in someone
+else's repository: A1 closes on oxmutate, which is published from this one.
+
+| id | grade | held by |
+| :-- | :-- | :-- |
+| A1 | met | `npm view oxmutate@1.1.0 dependencies`: `burgee ^1.9.2`, `bellpull ^1.0.10` |
+| A2 | met; time is a calendar span, not an effort figure | [`.sdlc/research/adoption/oxmutate.md`](../../research/adoption/oxmutate.md) |
+| A3 | met by concurrently's proof; does not apply to oxmutate | [`.sdlc/research/adoption/concurrently.md`](../../research/adoption/concurrently.md) |
+| A4 | met | five gaps and one decision filed 2026-11-01, listed in the decision |
+| A5 | **open** | [B-20261101-b1-real-cli-arm-oxmutate](../../gaps/B-20261101-b1-real-cli-arm-oxmutate.md) |
+| A6 | **not met**, moved to C3 | [C3](../../gaps/C3.md) |
+
+The intent ships when A5 holds: the real-CLI arm is built and a scheduled B1 run lands a reading.
+
+---
+
 ## Design gate 2026-10-25
 
 **Accepted for Build, with the design rewritten**
