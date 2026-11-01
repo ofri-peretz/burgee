@@ -24,7 +24,7 @@ import { load as loadYaml } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
 
 import { readWorkflow, REPO_ROOT, type Step } from './required-checks.mjs';
-import { budgetFrom, CASE_BUDGET_MS, caseKey, describeOverBudget, NIGHTLY_ONLY, overBudget } from './vitest-case-budget-reporter.js';
+import { budgetFrom, CASE_BUDGET_MS, caseKey, describeOverBudget, NIGHTLY_ONLY, overBudget, strict } from './vitest-case-budget-reporter.js';
 
 describe('the budget', () => {
   it('is the owner’s five seconds, and a case at exactly the budget is within it', () => {
@@ -53,6 +53,12 @@ describe('the budget', () => {
     expect(budgetFrom({ VITEST_CASE_BUDGET_MS: '2500' })).toBe(2_500);
     expect(() => budgetFrom({ VITEST_CASE_BUDGET_MS: 'soon' })).toThrow(/not a number/);
     expect(() => budgetFrom({ VITEST_CASE_BUDGET_MS: '-1' })).toThrow(/not a number/);
+  });
+
+  it('judges strictly on CI, whatever the load; off CI an overloaded machine leaves a case unjudged', () => {
+    expect(strict({ CI: 'true' })).toBe(true);
+    expect(strict({})).toBe(false);
+    expect(strict({ CI: 'false' })).toBe(false);
   });
 
   it('names each slow case with both readings, and what to do about it', () => {

@@ -40,6 +40,12 @@ suite, and in the required `Unit Tests` job.
   `VITEST_CASE_BUDGET_DEFER` and `scripts/case-budget.ts` judges them after: the `No test case over
   5 s` step in `Unit Tests`, and the `case-budget` pre-push command. The root suite runs alone and
   judges its own.
+- **Off CI, an overloaded machine leaves a case unjudged, not failed.** When every alone reading
+  was taken with the load average above the core count, a developer's pre-push prints the case
+  as unjudged and the required check judges it on a runner, where `CI=true` makes every reading
+  count. The machine this was written on sits at a load of 25–35 on 14 cores; in one pre-push a
+  lock that reads one file read 14 s alone, and `docs-controlroom`'s cleanup hook timed out at
+  60 s with no gate involved.
 - **compat.yml's cells do not judge it** (`VITEST_CASE_BUDGET_MS=0`): they grade correctness on
   every OS, and the budget is held in one CI place, the required `Unit Tests` job.
 - **Not judged:** a run with coverage on (v8's counters slow the body; `Unit Tests` gates the

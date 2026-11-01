@@ -28,6 +28,8 @@
  * 16.4 s in two runs of the same tree — and a gate that goes red on the machine's load is a gate
  * people learn to re-run, which is no gate. The fastest of the readings is the one the machine
  * interfered with least. A case that is slow is slow every time, and the readings are printed.
+ * Off CI, a case whose every alone reading was taken with the load average above the core count is
+ * printed as unjudged rather than failed (`strict`); on CI the runner is the job's, and it fails.
  *
  * It does not judge:
  *
@@ -45,7 +47,7 @@
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { tmpdir } from 'node:os';
+import { availableParallelism, loadavg, tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -171,15 +173,38 @@ function measureAlone(c: Candidate): number | undefined {
 /** Alone readings taken before a case fails: the second only when the first is over the budget. */
 const ALONE_READINGS = 2;
 
-/** The fastest alone reading, stopping at the first that is within `budget`; `undefined` when none was taken. */
-function bestAlone(c: Candidate, budget: number): number | undefined {
+/** Whether other processes held more than every core while a reading was taken. */
+const overloaded = (): boolean => (loadavg()[0] ?? 0) > availableParallelism();
+
+/**
+ * The fastest alone reading, stopping at the first that is within `budget` (`undefined` when none
+ * was taken), and whether every reading was taken on a machine more than fully loaded.
+ */
+function bestAlone(c: Candidate, budget: number): { best: number | undefined; overloaded: boolean } {
   let best: number | undefined;
+  let busy = true;
   for (let i = 0; i < ALONE_READINGS && (best === undefined || best > budget); i++) {
     const reading = measureAlone(c);
+    busy &&= overloaded();
     if (reading !== undefined && (best === undefined || reading < best)) best = reading;
   }
-  return best;
+  return { best, overloaded: busy };
 }
+
+/**
+ * Whether an over-budget reading taken on an overloaded machine still fails the gate: always on
+ * CI, where the runner is the job's alone; not on a developer's machine, where other processes
+ * held more than every core for both readings. The development machine this was written on sits
+ * at a load of 25–35 on 14 cores, under which a lock that reads one file read 14 s alone; failing
+ * a push on that is failing it on the machine. Such a case is still printed, as unjudged, and the
+ * required check judges it on a runner.
+ */
+export function strict(env: NodeJS.ProcessEnv): boolean {
+  return env['CI'] === 'true';
+}
+
+/** One line per case, with its alone reading when it has one. */
+const list = (cs: readonly CaseDuration[]): string => cs.map((c) => `  ${String(Math.round(c.duration))} ms${c.alone === undefined ? '' : `, ${String(Math.round(c.alone))} ms alone`}  ${caseKey(c)}`).join('\n');
 
 /**
  * The verdict on `candidates`: each measured alone, and the ones still over `budget` named on
@@ -188,11 +213,17 @@ function bestAlone(c: Candidate, budget: number): number | undefined {
  */
 export function judge(candidates: readonly Candidate[], budget: number): boolean {
   if (candidates.length === 0) return true;
-  const slow = candidates.map((c) => ({ ...c, alone: bestAlone(c, budget) })).filter((c) => c.alone === undefined || c.alone > budget);
-  if (slow.length === 0) {
-    process.stderr.write(`\n${String(candidates.length)} case(s) read over the ${String(budget)} ms budget in a full run and under it alone; not failing on the machine's load:\n${candidates.map((c) => `  ${String(Math.round(c.duration))} ms  ${caseKey(c)}`).join('\n')}\n`);
-    return true;
-  }
+  const measured = candidates.map((c) => {
+    const { best, overloaded: busy } = bestAlone(c, budget);
+    return { ...c, alone: best, busy };
+  });
+  const over = measured.filter((c) => c.alone === undefined || c.alone > budget);
+  const unjudged = strict(process.env) ? [] : over.filter((c) => c.busy);
+  const slow = over.filter((c) => !unjudged.includes(c));
+  const within = measured.filter((c) => !over.includes(c));
+  if (within.length > 0) process.stderr.write(`\n${String(within.length)} case(s) read over the ${String(budget)} ms budget in a full run and under it alone; not failing on the machine's load:\n${list(within)}\n`);
+  if (unjudged.length > 0) process.stderr.write(`\n${String(unjudged.length)} case(s) over the ${String(budget)} ms budget alone, but every reading was taken with the load average above ${String(availableParallelism())} cores; unjudged here, judged on CI:\n${list(unjudged)}\n`);
+  if (slow.length === 0) return true;
   process.stderr.write(describeOverBudget(slow, budget));
   return false;
 }
