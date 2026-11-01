@@ -14,7 +14,7 @@
 
 **Status:** approved · **Opened:** `2026-10-25` · **Owner:** `@ofri-peretz` · **Design accepted:** 2026-10-28
 ([`D-20261028-oxmutate-design-accepted`](../../decisions/D-20261028-oxmutate-design-accepted.md)).
-1.0.0 is on npm. It is not `shipped`: six criteria and `S3` are open, see
+1.0.0 is on npm. It is not `shipped`: criteria in the design-gate table below are open, see
 [§ Design gate 2026-10-28](#design-gate-2026-10-28)
 
 ---
@@ -215,11 +215,11 @@ Each criterion below was checked by a reviewer that did not write the tool.
 | `SC5` | met | #1355: `src/sensitivity.test.ts` (`npm run test:sensitivity`) on `test/fixtures/sensitivity-weak` (3 survivors) and `sensitivity-closed` (none) |
 | `SC6` | unmet as written | Runtime deps `burgee` and `bellpull` (family only); cores bundled, not `optionalDependencies`; `"*"` ranges, fix in progress as 1.0.1 |
 | `SC7` | met | #1355: `src/vitest5-regression.test.ts` on `test/fixtures/vitest5-regression/`: every mutant Killed under Vitest 5, and Stryker's name filter put back makes all of them Survived |
-| `SC8` | open | Not measured; the first weekly run under oxmutate, 40783405734, is queued |
+| `SC8` | open (missed) | Weekly run 40818077916 (2026-10-29): compat-oracle 203.4 min and caique 135.4 min of engine time, against Stryker's 58 and 80 min (2026-10-24). Engine fixes in progress: pollution restarts, runaway watchdog, 3x timeout re-runs |
 | `SC9` | open | No compat-oracle grade for oxmutate |
 | `SC10` | met | `e2e.test.ts` "the frozen oracle (R14, SC10)", both cases; 161 / 161 green, natives present |
-| `SC11` | open | Closes no earlier than 2026-11-04, after one week of green mutation-lane runs on main under oxmutate |
-| `S3` (`metrics.md`) | open | 2.4x on paratext and slower by the clock on controlroom, against ≥ 5x |
+| `SC11` | open | One green week: it starts at the first green weekly full run under oxmutate and closes 7 days later if every oxmutate mutation run on `main` in that window is green ([`D-20261101-oxmutate-s3-fixture-sc11-week`](../../decisions/D-20261101-oxmutate-s3-fixture-sc11-week.md)). Runs 40783405734, 40818077916 and 41185206028 were red (burgee and bellpull dry runs, fixed by #1373 and #1401) |
+| `S3` (`metrics.md`) | met | On its fixture, es-toolkit `src/array`, cold: 19.6 s against Stryker's 160.6 s, 8.2x ≥ 5x (`m1-results.md`); M3's 10x not yet. Burgee-scale wall clock is `S4` and `SC8` ([`D-20261101-oxmutate-s3-fixture-sc11-week`](../../decisions/D-20261101-oxmutate-s3-fixture-sc11-week.md)) |
 
-**What remains before `shipped`:** the six open criteria and `S3`, each closed by the check
+**What remains before `shipped`:** the open criteria, each closed by the check
 named in its row.
