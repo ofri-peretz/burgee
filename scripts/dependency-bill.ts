@@ -22,8 +22,9 @@
  *     `upstream-watch` resolved from the registry for the same release (`competitors.json`
  *     `seen.packages`), so two instruments must agree before the sum is published.
  *
- * A package is counted once per version on disk: the incumbents install chalk 5 (inside ora) beside
- * chalk 6, and both are on the adopter's disk. The pairing is by role, not by façade: `burgee`
+ * A package is counted once per version on disk: two versions of one package are both on the
+ * adopter's disk. Until ora 10.0.0 that was chalk 5 inside ora beside chalk 6; ora 10 asks for
+ * chalk 6 itself, which took one package off their side (burgee#1396). The pairing is by role, not by façade: `burgee`
  * parses where commander does, `flagstaff` draws both the spinner and the table.
  */
 import { readFileSync } from 'node:fs';

@@ -142,7 +142,10 @@ const OVER_INCUMBENT: Readonly<Record<string, { incumbent: string; bytes: number
   // handler (D-20261029-yargs-parse-callback-not-intercepted): 110,662 -> 110,848 on `/docs/weight`.
   // 111,669 on 2026-10-29 with `burgee/yargs`' +821 B for embedded English
   // (D-20261029-yargs-english-embedded-bytes): 110,848 -> 111,669 on `/docs/weight`.
-  'burgee/yargs/v17': { incumbent: 'yargs@17.7.3', bytes: 84_475, ours: 111_669, gap: 'B-20261019-yargs-17-entry-bundles-heavier' },
+  // 111,718 on 2026-11-01 with `linegauge/strip`'s +49 B for ansi-regex 6.5.0's pattern, which
+  // strip-ansi 7.2.0 now resolves and cliui measures through (D-20261101-upstream-issues-2026-11-01):
+  // 111,669 -> 111,718 on `/docs/weight`, every yargs row by the same 49.
+  'burgee/yargs/v17': { incumbent: 'yargs@17.7.3', bytes: 84_475, ours: 111_718, gap: 'B-20261019-yargs-17-entry-bundles-heavier' },
 };
 
 /** The "Everything" cell of a subpath's row on the page, or `undefined` when it has no row. */

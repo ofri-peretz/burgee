@@ -183,7 +183,7 @@ against their namesakes.
 The six drop-in paths are graded by each incumbent's own suite, unedited, through
 `compat-oracle`; the grades are generated under *Benchmarks* below and published on the
 [compatibility page](https://burgee.interlace.tools/docs/compatibility). `linegauge/cli-truncate`
-passes all 12 of cli-truncate 6.1.1's cases and `linegauge/widest-line` widest-line 6.0.0's one,
+passes all 17 of cli-truncate 6.2.0's cases and `linegauge/widest-line` widest-line 6.0.0's one,
 level with each incumbent. `truncate` and `widest` stay linegauge's own API: `truncate` counts
 the ellipsis inside the budget and cuts by measured width, and `widest` takes any iterable of
 lines.
@@ -196,14 +196,14 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
-| `cli-truncate` | 12 / 12 |
-| `slice-ansi` | 104 / 104 |
+| `cli-truncate` | 17 / 17 |
+| `slice-ansi` | 106 / 106 |
 | `string-width` | 233 / 233 |
 | `strip-ansi` | 8 / 8 |
 | `widest-line` | 1 / 1 |
 | `wrap-ansi` | 85 / 85 |
 
-Weight, installed and tree-inclusive: **107,398 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5527** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **107,837 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5549** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 

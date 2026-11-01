@@ -8,7 +8,7 @@
         "registry": "string-width",
         "version": "8.3.0",
         "shasum": "f1e85ca6d276ed9226c979c3651fb7abf548fbbe",
-        "weight": 16923,
+        "weight": 17776,
         "self": 6447,
         "packages": 4,
         "files": {
@@ -22,7 +22,7 @@
           "Options",
           "default"
         ],
-        "measured": "2026-10-26"
+        "measured": "2026-11-01"
       }
     }
   ],
@@ -34,7 +34,7 @@
         "registry": "strip-ansi",
         "version": "7.2.0",
         "shasum": "d22a269522836a627af8d04b5c3fd2c7fa3e32e3",
-        "weight": 1559,
+        "weight": 2412,
         "self": 626,
         "packages": 2,
         "files": {
@@ -47,7 +47,7 @@
         "exports": [
           "default"
         ],
-        "measured": "2026-10-26"
+        "measured": "2026-11-01"
       }
     }
   ],
@@ -59,7 +59,7 @@
         "registry": "wrap-ansi",
         "version": "10.0.2",
         "shasum": "92f8f14b014136d034389a8700d6ce3df79c65d5",
-        "weight": 42549,
+        "weight": 43402,
         "self": 20370,
         "packages": 6,
         "files": {
@@ -73,7 +73,7 @@
           "Options",
           "default"
         ],
-        "measured": "2026-10-26"
+        "measured": "2026-11-01"
       }
     }
   ],
@@ -83,23 +83,23 @@
       "claim": "compat",
       "seen": {
         "registry": "slice-ansi",
-        "version": "9.0.1",
-        "shasum": "6754918812fed4460e215ea8ee24abedaca435c3",
-        "weight": 41247,
-        "self": 26813,
-        "packages": 4,
+        "version": "10.0.0",
+        "shasum": "4b8db63bb7fa6dec3ccc650158d4597e567ebc59",
+        "weight": 51873,
+        "self": 27135,
+        "packages": 6,
         "files": {
-          "index.d.ts": "36597477aaaaf277248ec9114f5070da204abe2487b24e3cf188a999f1665a06",
-          "index.js": "c64a17645269b8a5aee17be46db59f8d556bdb3cbedb128122cf70941fc8226d",
+          "index.d.ts": "44b9c4b295c71e59e8f5bf4c77252dc56f6c0f1054811cadcd57f5370b126bf9",
+          "index.js": "d9be0b39131f0ce03228cdaf0188869182f150b0b6514199700dd9dce2a14e75",
           "license": "c91d87c3bca16ab6d96d82da08edc54377d14b679547a331eecc4adef3c353c8",
-          "package.json": "24d3b14254411a4a75e89389e874b649cf5802324179bf4a411d578721958407",
-          "readme.md": "b64554b0f3c005daf16bccb67abd711d37d5dac043b2f1c5a303765647b12395",
-          "tokenize-ansi.js": "bf7cb711bf987b5f23f858671c97dbaeaf38e4e4ba01a29a924cf5d9c410a34c"
+          "package.json": "673b3c8a507b3a3798437758b4b3d1ada4c1bc2e6dbf709a1df57b516045e072",
+          "readme.md": "690986d747ae32721d664c866da2b1605fac403d54158068d936a3e26644a445",
+          "tokenize-ansi.js": "f83bfc3573e245a880840c6b4619c088c23d4a42b5ca57a85d0ef3ff912d1de6"
         },
         "exports": [
           "default"
         ],
-        "measured": "2026-10-26"
+        "measured": "2026-11-01"
       }
     }
   ],
@@ -109,23 +109,23 @@
       "claim": "compat",
       "seen": {
         "registry": "cli-truncate",
-        "version": "6.1.1",
-        "shasum": "35ae66a040eef357aedcfffd6149d847bf7a2eb1",
-        "weight": 54795,
-        "self": 5542,
-        "packages": 8,
+        "version": "6.2.0",
+        "shasum": "d82f0601a62cd11c4fea53c67fd0b02b541f9d5b",
+        "weight": 58516,
+        "self": 6643,
+        "packages": 7,
         "files": {
-          "index.d.ts": "67b6c1c398e5b7e04d99dd51eee0293da5c006ec597c31367f8134cf4a7f285d",
-          "index.js": "1354e8a1eb49e753e0df8096f90db1326b6ca629605542734f4441ec0ba5f245",
+          "index.d.ts": "419cd87d7b5a5c3046367dba517aed225b21c40637e3a21ce4fbcfb4b870f67b",
+          "index.js": "47df499d91dc1f008c2ba9b898c9e5d2a78303dabf9f7291763f815ae2c88daa",
           "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
-          "package.json": "726cc5fe7cffd357d072d96780dac96622abcb7158acd1f0079cd40d5da46b19",
-          "readme.md": "6a295736fff0b21479da88a2f25d325fae21f5142c818181d4b355a85cabe482"
+          "package.json": "39131e61a16ab8522bff56b110c44d9ba01a996b798e81bf17e6975b98765316",
+          "readme.md": "5241e5ef9068e20acbb924009e41711669896b62e5e938f04fda009e40e412ed"
         },
         "exports": [
           "Options",
           "default"
         ],
-        "measured": "2026-10-26"
+        "measured": "2026-11-01"
       }
     }
   ],
@@ -137,7 +137,7 @@
         "registry": "widest-line",
         "version": "6.0.0",
         "shasum": "6a8638af837059501d61c5d3bdf72cb934f6c792",
-        "weight": 17151,
+        "weight": 18004,
         "self": 228,
         "packages": 5,
         "files": {
@@ -150,7 +150,7 @@
         "exports": [
           "default"
         ],
-        "measured": "2026-10-26"
+        "measured": "2026-11-01"
       }
     }
   ]

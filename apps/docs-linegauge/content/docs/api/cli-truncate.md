@@ -42,7 +42,7 @@ interface Options {
     readonly position?: 'start' | 'middle' | 'end';
     /** A space between the text and the mark. Default `false`. */
     readonly space?: boolean;
-    /** Cut at a space within three characters of the break, when there is one. Default `false`. */
+    /** Cut at a space within three columns of the break, when there is one. Default `false`. */
     readonly preferTruncationOnSpace?: boolean;
     /** The mark that says something was removed. Default `'…'`. */
     readonly truncationCharacter?: string;
