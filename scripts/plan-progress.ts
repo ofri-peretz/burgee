@@ -16,6 +16,7 @@
  * Run it to see what is left; run it in CI to see the plan finish.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -49,7 +50,9 @@ const schemaHashes = (): Set<string> => {
   const out = new Set<string>();
   for (const pkg of readdirSync(join(ROOT, 'packages'))) {
     const file = join(ROOT, 'packages', pkg, 'src/schema.json');
-    if (existsSync(file)) out.add(execFileSync('shasum', ['-a', '256', file], { encoding: 'utf8' }).split(' ')[0] as string);
+    // Hashed here, not by `shasum`: there is no `shasum` on Windows, so this threw ENOENT there and
+    // 1.1 read as not landed — the per-step lock found it the day it started asking each condition.
+    if (existsSync(file)) out.add(createHash('sha256').update(readFileSync(file)).digest('hex'));
   }
   return out;
 };
@@ -162,7 +165,7 @@ const designGap = (slug: string): string => {
   return missing.length === 0 ? '' : `${missing.join(', ')} not recorded as built`;
 };
 /**
- * `npm`, `npx` and `shasum` by a name Windows can actually find.
+ * `npm` and `npx` by a name Windows can actually find.
  *
  * `npm` and `npx` are `.cmd` shims there and neither `execFileSync` nor `spawnSync` searches
  * `PATHEXT`, so every one of these returned nothing on `windows-latest` — and `landed()` catches,
