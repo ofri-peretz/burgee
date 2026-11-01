@@ -9,7 +9,9 @@
  *
  * The design says to use `util.stripVTControlCharacters` "where it is exact and a local scan
  * where it is not — measured, and the divergence recorded rather than assumed". Measured, on
- * Node 24 over sixteen sequence shapes: **fifteen agree with `strip-ansi` and one does not.**
+ * Node 24 over sixteen sequence shapes: **fifteen agreed with `strip-ansi` and one did not.**
+ * Since ansi-regex 6.5.0 a second one differs, the other way round: Node removes an unterminated
+ * `ESC[31` whole, and strip-ansi now keeps it, because a CSI's final byte is never a digit.
  *
  *   ESC[38:2::255:0:0m   node -> ":2::255:0:0m"     strip-ansi -> ""
  *
@@ -30,8 +32,8 @@
  */
 
 /**
- * `strip-ansi` 7.2.0's own grammar — `ansi-regex` 6.4.0's pattern, the one its suite grades — in
- * one pass. Until 2026-09-30 this was two: `style.ts`'s scanner and then Node's
+ * `strip-ansi` 7.2.0's own grammar — `ansi-regex` 6.5.0's pattern, which a fresh install of it
+ * resolves since 2026-10-29 — in one pass. Until 2026-09-30 this was two: `style.ts`'s scanner and then Node's
  * `stripVTControlCharacters` over what was left, 3.7× strip-ansi's time (B5), and the scanner's
  * whole style stack in `linegauge/strip`'s bundle. The pattern:
  *
@@ -39,12 +41,19 @@
  *         unterminated one cannot rescan the rest of the input — then `BEL`, `ESC \` or `0x9C`;
  *   CSI   `ESC` or `0x9B`, intermediates, `;`/`:` parameters, a final byte. The colon form of an
  *         extended colour (`ESC[38:2::255:0:0m`) is in it, which is the shape Node's stripper
- *         got wrong before v24.21 and the reason this module was written.
+ *         got wrong before v24.21 and the reason this module was written. The final byte is
+ *         never a digit: in 6.4.0 it could be, so `ESC[5d` backtracked to take the `5` as its
+ *         final and left the `d` behind as text, and an unterminated `ESC[31` was removed whole
+ *         where 6.5.0 keeps it;
+ *   private  a CSI whose first parameter byte is `<`, `=` or `>` (`ESC[>0;276;0c`, the device
+ *         attributes reply), tried before the plain CSI. `= < >` are also final bytes of the
+ *         two-byte VT52 escapes, so in 6.4.0 `ESC[>` was the whole match and the rest of the
+ *         reply was left as text.
  *
  * Linear: every quantifier is over a class the next token cannot also match. `strip.test.ts`
  * holds it to `strip-ansi` shape by shape.
  */
-const ANSI = /(?:(?:\u001B\]|\u009D)[^\u0007\u001B\u009C\u009D]*(?:\u0007|\u001B\\|\u009C))|[\u001B\u009B][[\]()#;?]*(?:\d{1,4}(?:[;:]\d{0,4})*)?[\dA-PR-TZcf-nq-uy=><~]/g;
+const ANSI = /(?:(?:\u001B\]|\u009D)[^\u0007\u001B\u009C\u009D]*(?:\u0007|\u001B\\|\u009C))|(?:\u001B\[|\u009B)[<=>][0-9;:]*[A-PR-TZcf-nq-uy~]|[\u001B\u009B][[\]()#;?]*(?:\d{1,4}(?:[;:]\d{0,4})*)?[A-PR-TZcf-nq-uy=><~]/g;
 
 /**
  * Everything a terminal would print, with the escape sequences removed: CSI (SGR and the

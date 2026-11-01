@@ -29,12 +29,12 @@ export interface TruncateOptions {
 /**
  * The longest head of `string` that draws in `keep` columns, and the longest tail.
  *
- * `slice` counts **positions** (every cluster at least one, a lone regional indicator two, as
- * slice-ansi does), and a position is never fewer than the columns it draws, so cutting at
- * `keep` positions can only come up short. It also means a tail cannot start at
- * `total - keep`: with CRLF before it, that position lies one column too early, and the tail
- * came back one column over its budget. Both ends therefore search for the widest cut that
- * fits by `width`. For text without zero-width clusters that is the cut `keep` names.
+ * Both ends search for the widest cut that fits by `width`, rather than trusting the cut `keep`
+ * names. Until slice-ansi 10, `slice` counted **positions** — every cluster at least one, a lone
+ * regional indicator two — and a tail started at `total - keep` came back one column over its
+ * budget with CRLF before it. `slice` now counts `width`'s columns (burgee#1392), so for text
+ * whose clusters all draw something the search lands on the cut `keep` names; it stays, because
+ * a zero-width cluster at the boundary can still go either side of the cut.
  */
 function fit(string: string, keep: number, end: 'head' | 'tail', total: number): string {
   const head = end === 'head';

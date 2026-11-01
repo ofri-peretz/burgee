@@ -70,7 +70,9 @@ function published(): string[] {
 const DROP_IN_CEILINGS: Readonly<Record<string, { incumbent: string; bytes: number }>> = {
   'closeout/onetime': { incumbent: 'onetime@8.0.0', bytes: 1_527 },
   'closeout/cli-cursor': { incumbent: 'cli-cursor@5.0.0', bytes: 4_757 },
-  'linegauge/cli-truncate': { incumbent: 'cli-truncate@6.1.1', bytes: 20_675 },
+  // Re-measured at 6.2.0 on 2026-11-01 — slice-ansi 10.0.0, string-width 8.3.0, ansi-regex 6.5.0 —
+  // the same method reproducing 6.1.1's 20,675 first (D-20261101-upstream-issues-2026-11-01).
+  'linegauge/cli-truncate': { incumbent: 'cli-truncate@6.2.0', bytes: 21_489 },
   'linegauge/widest-line': { incumbent: 'widest-line@6.0.0', bytes: 6_079 },
   // `colour-facades` R4: colorette 2.0.20 by the same method (`export *` alone: it has no
   // default), measured 2026-10-20. Over this, `roundel/colorette` does not ship (the spec's kill criterion).

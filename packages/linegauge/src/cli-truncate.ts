@@ -19,6 +19,8 @@
  * measured width, which is a different rule at the edges, and other packages depend on it.
  */
 import { slice } from './slice.js';
+import { strip } from './strip.js';
+import { segmenter } from './style.js';
 import { width } from './width.js';
 
 /** cli-truncate's options. */
@@ -27,7 +29,7 @@ export interface Options {
   readonly position?: 'start' | 'middle' | 'end';
   /** A space between the text and the mark. Default `false`. */
   readonly space?: boolean;
-  /** Cut at a space within three characters of the break, when there is one. Default `false`. */
+  /** Cut at a space within three columns of the break, when there is one. Default `false`. */
   readonly preferTruncationOnSpace?: boolean;
   /** The mark that says something was removed. Default `'…'`. */
   readonly truncationCharacter?: string;
@@ -41,13 +43,40 @@ const DIGIT_ZERO = 48;
 const DIGIT_NINE = 57;
 const SEMICOLON = 59;
 
-/** A space at `wanted`, or within three characters of it in one direction, or `wanted` itself. */
-function nearestSpace(string: string, wanted: number, right = false): number {
+/**
+ * One entry per terminal column of the visible text — a cluster in its first column, `''` in
+ * each further column a wide one covers — so a space is found by the column `slice` cuts at.
+ * cli-truncate 6.1.1 searched the raw string by UTF-16 index, so an escape or a wide character
+ * before the break moved the search off the column it meant; 6.2.0 searches by column, and so
+ * does this.
+ */
+function visibleColumns(text: string): string[] {
+  const columns: string[] = [];
+  for (const { segment } of segmenter().segment(strip(text))) {
+    const cells = width(segment);
+    for (let column = 0; column < cells; column += 1) columns.push(column === 0 ? segment : '');
+  }
+  return columns;
+}
+
+/** A space at `wanted`, or within three columns of it in one direction, or `wanted` itself. */
+function nearestSpace(columns: readonly string[], wanted: number, right = false): number {
   const step = right ? 1 : -1;
   for (let offset = 0; offset <= 3; offset += 1) {
-    if (string.charAt(wanted + offset * step) === ' ') return wanted + offset * step;
+    if (columns[wanted + offset * step] === ' ') return wanted + offset * step;
   }
   return wanted;
+}
+
+/**
+ * The first column at or after `index` that is not a space, so the text after the mark does
+ * not start with one. 6.1.1 `trim()`med the cut instead, which also ate the closing style
+ * and the trailing spaces of styled text that plain text kept.
+ */
+function afterSpaces(columns: readonly string[], index: number): number {
+  let at = index;
+  while (columns[at] === ' ') at += 1;
+  return at;
 }
 
 function validate(text: unknown, columns: unknown, position: unknown, mark: unknown): void {
@@ -101,7 +130,8 @@ interface Cut {
 
 function fromStart({ text, columns, length, options, mark }: Cut): string {
   if (options.preferTruncationOnSpace === true) {
-    const visible = slice(text, nearestSpace(text, length - columns + width(mark), true), length).trim();
+    const cells = visibleColumns(text);
+    const visible = slice(text, afterSpaces(cells, nearestSpace(cells, length - columns + width(mark), true)), length);
     return markAt(visible, mark, leadingSgrEnd(visible));
   }
   const spaced = options.space === true ? `${mark} ` : mark;
@@ -120,16 +150,17 @@ function fromMiddle({ text, columns, length, options, mark }: Cut): string {
   // Room for the mark first, then the budget split, so a small budget cannot overflow.
   const half = Math.min(Math.floor(columns / 2), Math.max(0, columns - markWidth));
   if (options.preferTruncationOnSpace === true) {
-    const first = nearestSpace(text, half);
-    const second = nearestSpace(text, length - (columns - half) + markWidth, true);
-    return slice(text, 0, first) + spaced + slice(text, second, length).trim();
+    const cells = visibleColumns(text);
+    const first = nearestSpace(cells, half);
+    const second = nearestSpace(cells, length - (columns - half) + markWidth, true);
+    return slice(text, 0, first) + spaced + slice(text, afterSpaces(cells, second), length);
   }
   return slice(text, 0, half) + spaced + slice(text, length - (columns - half) + markWidth, length);
 }
 
 function fromEnd({ text, columns, options, mark }: Cut): string {
   const spaced = options.space === true && options.preferTruncationOnSpace !== true ? ` ${mark}` : mark;
-  const end = options.preferTruncationOnSpace === true ? nearestSpace(text, columns - width(mark)) : columns - width(spaced);
+  const end = options.preferTruncationOnSpace === true ? nearestSpace(visibleColumns(text), columns - width(mark)) : columns - width(spaced);
   const visible = slice(text, 0, end);
   return markAt(visible, spaced, trailingSgrStart(visible));
 }
