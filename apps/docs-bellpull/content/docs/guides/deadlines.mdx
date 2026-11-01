@@ -25,7 +25,7 @@ import { runtimeWith } from './tools.mjs';
 
 // A child that ignores SIGTERM, says one thing, and then never finishes.
 const stubborn = "process.on('SIGTERM', () => {}); console.log('partial output'); setInterval(() => {}, 1000);";
-const result = await run(process.execPath, ['-e', stubborn], { runtime: runtimeWith(), timeout: 5000, grace: 200 });
+const result = await run(process.execPath, ['-e', stubborn], { runtime: runtimeWith(), timeout: 1000, grace: 200 });
 
 console.log(result.ok, result.timedOut, result.signal, JSON.stringify(result.stdout));
 ```
@@ -63,7 +63,7 @@ const { registry } = install();
 const forever = "console.log('serving'); setInterval(() => {}, 1000);";
 const pending = run(process.execPath, ['-e', forever], { runtime: runtimeWith(), exitHost: registry, timeout: 0 });
 
-setTimeout(() => registry.run({ code: null, signal: 'SIGTERM' }), 3000); // the parent is told to stop
+setTimeout(() => registry.run({ code: null, signal: 'SIGTERM' }), 1000); // the parent is told to stop
 const result = await pending;
 console.log(result.signal, JSON.stringify(result.stdout));
 ```

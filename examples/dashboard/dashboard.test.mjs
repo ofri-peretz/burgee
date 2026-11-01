@@ -75,24 +75,32 @@ function once(stdin) {
   });
 }
 
-async function hundred(stdin) {
-  const outcomes = [];
-  for (let started = 0; started < RUNS; started += AT_ONCE) {
-    // eslint-disable-next-line reliability/no-await-in-loop -- batches, so a hundred node processes never start at once
-    outcomes.push(...(await Promise.all(Array.from({ length: Math.min(AT_ONCE, RUNS - started) }, () => once(stdin)))));
-  }
-  return outcomes;
-}
+/** One batch of `AT_ONCE` runs, so a hundred node processes never start at once. */
+const batch = (stdin) => Promise.all(Array.from({ length: AT_ONCE }, () => once(stdin)));
+
+/**
+ * The hundred runs as five cases of twenty, one batch each. As one case per stdin the five batches
+ * ran back to back inside it, 11–12 s on CI (D-20261101-tests-under-5s); the runs, the batching and
+ * the verdict on each are the same, and 5 × 20 is still every one of the 100.
+ */
+const BATCHES = Array.from({ length: RUNS / AT_ONCE }, (_, i) => `${String(i * AT_ONCE + 1)}–${String((i + 1) * AT_ONCE)}`);
 
 describe('criterion 3 — the dashboard exits on its own in 100 of 100 runs', () => {
-  it.each([
+  it('runs the hundred as whole batches', () => {
+    expect(BATCHES).toHaveLength(RUNS / AT_ONCE);
+    expect(BATCHES.at(-1)).toBe(`${String(RUNS - AT_ONCE + 1)}–${String(RUNS)}`);
+  });
+
+  describe.each([
     ['/dev/null', 'ignore'],
     ['a pipe nobody writes to', 'pipe'],
-  ])('with stdin at %s', async (_, stdin) => {
-    const outcomes = await hundred(stdin);
-    expect(outcomes.filter((o) => o !== '0 true')).toEqual([]);
-    expect(outcomes).toHaveLength(RUNS);
-  }, HUNDRED_RUNS_MS);
+  ])('with stdin at %s', (_, stdin) => {
+    it.each(BATCHES)('runs %s of 100', async () => {
+      const outcomes = await batch(stdin);
+      expect(outcomes.filter((o) => o !== '0 true')).toEqual([]);
+      expect(outcomes).toHaveLength(AT_ONCE);
+    }, HUNDRED_RUNS_MS);
+  });
 });
 
 /** A terminal that is not one: buffers for the streams, a manual clock, a stdin that can go raw. */
