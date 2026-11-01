@@ -149,14 +149,19 @@ const worlds: fc.Arbitrary<World> = fc.record({
 });
 
 describe('roundel/supports-color answers as supports-color 11 does', () => {
-  it(`agrees with ${SOURCE_PATH.split('node_modules/')[1] ?? SOURCE_PATH} on every world`, async () => {
+  it(`compares against ${SOURCE_PATH.split('node_modules/')[1] ?? SOURCE_PATH} at 11.0.0`, () => {
     // Its `exports` names `.` alone, so the manifest is read beside the entry.
     expect(JSON.parse(readFileSync(new URL('package.json', `file://${SOURCE_PATH}`), 'utf8'))).toMatchObject({ version: '11.0.0' });
+  });
+
+  // 3,000 worlds, in six cases of 500 that each draw their own: each world re-imports this module,
+  // and as one case of 3,000 that read 14.1 s on CI (D-20261101-tests-under-5s).
+  it.each([1, 2, 3, 4, 5, 6])(`agrees with ${SOURCE_PATH.split('node_modules/')[1] ?? SOURCE_PATH} on every world (500 of 3,000, part %i)`, async () => {
     await fc.assert(
       fc.asyncProperty(worlds, async (world) => {
         expect(await ours(world)).toEqual(incumbent(world));
       }),
-      { numRuns: 3000 },
+      { numRuns: 500 },
     );
   });
 

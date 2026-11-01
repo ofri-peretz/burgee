@@ -191,7 +191,8 @@ export interface McpServer {
   args?: string[];
 }
 
-const PRINT_CONFIG_TIMEOUT_MS = 10_000;
+/** How long `--print-config` may take before the config is derived instead. */
+export const PRINT_CONFIG_TIMEOUT_MS = 10_000;
 
 /** The one server a printed config names, or nothing when what was printed is not that shape. */
 function printedServer(raw: Record<string, unknown> | undefined): [string, McpServer] | undefined {
@@ -214,11 +215,12 @@ function printedServer(raw: Record<string, unknown> | undefined): [string, McpSe
  * run, by its absolute path, so the server is the build under test and nothing else.
  *
  * A demo that prints nothing (before R6) gets the same shim and `--mcp`. `source` records which.
+ * `timeoutMs` is `PRINT_CONFIG_TIMEOUT_MS` everywhere but the test that waits it out.
  */
-export function mcpConfig(toolDir: string): { config: McpConfig; server: string; source: 'print-config' | 'derived' } {
+export function mcpConfig(toolDir: string, timeoutMs = PRINT_CONFIG_TIMEOUT_MS): { config: McpConfig; server: string; source: 'print-config' | 'derived' } {
   const shim = join(toolDir, TOOL_NAME);
   // Stryker disable next-line StringLiteral: equivalent — without `utf8` stdout is a Buffer, and JSON.parse reads a Buffer as its text
-  const printed = spawnSync(shim, ['--mcp', '--print-config'], { encoding: 'utf8', timeout: PRINT_CONFIG_TIMEOUT_MS });
+  const printed = spawnSync(shim, ['--mcp', '--print-config'], { encoding: 'utf8', timeout: timeoutMs });
   const found = printedServer(printed.status === 0 ? tryParse(printed.stdout) : undefined);
   if (found !== undefined) {
     const [server, { args = [] }] = found;

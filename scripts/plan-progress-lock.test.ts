@@ -28,37 +28,54 @@
  * verdict — that is allowed to move as work lands — but the agreement between the checker's
  * view and the tool's own output. When they disagree, one of them is broken, and this says so.
  */
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
+import { landed, report, STEPS } from './plan-progress.js';
+
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 /**
- * Both streams, and a command name Windows can actually find.
- *
- * `npx` is `npx.cmd` there, and `spawnSync` does not search `PATHEXT` — so this returned two
- * empty strings on `windows-latest` and both assertions below failed for a reason that had
- * nothing to do with the roadmap. Which is the joke: a lock written to catch checkers that
- * cannot fail, shipped with the defect it was written about, in the same week `bellpull` was
- * built because four other files had it too.
- *
- * `shell` on Windows is what the repository already does in `burgee/src/shape.test.ts`, and it
- * is safe *here* only because every argument is a literal in this file. It is not a pattern to
- * copy — `bellpull/which` is the answer, and this should use it once bellpull lands.
+ * The watcher's whole report, both streams, run by Node itself — as compat-oracle's
+ * `bands.test.ts` runs it: Node 24 strips the types, and `npx tsx scripts/control-bands.ts`, the
+ * spelling a person uses, runs this same file a slower way. The process path needs no `.cmd` shim
+ * on Windows, which is what this lock once shipped without (an `npx` spawn there returned two
+ * empty strings). Asynchronous, so the watcher runs while the checker's own condition runs in
+ * this process.
  */
-const WINDOWS = process.platform === 'win32';
-const BOTH = (cmd: string, args: string[]): string => {
-  const run = spawnSync(WINDOWS ? `${cmd}.cmd` : cmd, args, { cwd: ROOT, encoding: 'utf8', shell: WINDOWS });
-  return `${run.stdout ?? ''}${run.stderr ?? ''}`;
-};
+const WATCHER = (): Promise<string> =>
+  new Promise((done) => {
+    const child = spawn(process.execPath, ['scripts/control-bands.ts'], { cwd: ROOT });
+    let out = '';
+    child.stdout.setEncoding('utf8').on('data', (chunk: string) => (out += chunk));
+    child.stderr.setEncoding('utf8').on('data', (chunk: string) => (out += chunk));
+    child.on('error', () => done(out));
+    child.on('close', () => done(out));
+  });
 const COMPAT_BAND = /\bcompat-[a-z0-9-]+-pass-rate\b/g;
+/** What a condition that crashed on its tooling, rather than answering, throws or prints. */
+const TOOLING = /ENOENT|command not found|is not a function/;
 
+const step = (id: string): (typeof STEPS)[number] => {
+  const found = STEPS.find((s) => s.id === id);
+  if (found === undefined) throw new Error(`plan-progress.ts has no step ${id} — this lock is reading nothing`);
+  return found;
+};
+
+/**
+ * The conditions are asked in this process, through the checker's own `STEPS` and `landed`, rather
+ * than by spawning the whole report: the report runs all 36, the chalk grade among them, and the
+ * two cases here spawned it twice — 117 s of the root suite on CI (D-20261101-tests-under-5s). The
+ * verdict printed beside a step is `landed(step)`, and `report` is held to printing it below.
+ */
 describe('the roadmap checker agrees with the tools it asks', () => {
-  it('sees every compat band the watcher derives — on whichever stream it prints to', () => {
-    const derived = new Set([...BOTH('npx', ['tsx', 'scripts/control-bands.ts']).matchAll(COMPAT_BAND)].map((m) => m[0]));
+  it('sees every compat band the watcher derives — on whichever stream it prints to', async () => {
+    const watcher = WATCHER();
+    const verdict = landed(step('2.17'));
+    const derived = new Set([...(await watcher).matchAll(COMPAT_BAND)].map((m) => m[0]));
     const baseline = resolve(ROOT, 'packages/compat-oracle/baseline');
     // A fragment flagged `"planned": true` records a measurement `hosts.ts` deliberately does
     // not publish, so the watcher derives no band for it — see `compat-oracle`'s
@@ -69,18 +86,38 @@ describe('the roadmap checker agrees with the tools it asks', () => {
     // One band per baseline fragment is 2.17's own done-condition; the point here is that the
     // checker and the watcher are counting the same thing.
     expect(derived.size, 'the watcher derives one band per baseline fragment').toBe(suites.length);
-    const verdict = BOTH('npx', ['tsx', 'scripts/plan-progress.ts']);
-    expect(verdict, 'the checker read a different stream than the watcher writes').toContain('✓ 2.17');
-  }, 300_000);
+    expect(verdict, 'the checker read a different stream than the watcher writes').toBe(true);
+  });
 
-  it('never reports a step as not-landed because its condition threw', () => {
-    // `landed()` catches, deliberately — a condition that reaches for a file that is not there
-    // yet must not crash the whole report. The cost is that a *broken* condition is
-    // indistinguishable from unfinished work, so the report has to say which it was.
-    const out = BOTH('npx', ['tsx', 'scripts/plan-progress.ts']);
-    expect(out, 'the report should not be an error dump').not.toMatch(/ENOENT|command not found|is not a function/);
-    expect(out).toMatch(/^\d+\/\d+ landed\./m);
-  }, 300_000);
+  /**
+   * `landed()` catches, deliberately — a condition that reaches for a file that is not there yet
+   * must not crash the whole report. The cost is that a *broken* condition is indistinguishable
+   * from unfinished work, so each one is asked here and must not have crashed on its tooling.
+   *
+   * One case per step, so a broken condition fails under its own id. `0.4` is the one not asked:
+   * its grade (`npm run compat -- chalk`, about ten seconds) runs inside a `try` that returns `''`
+   * on any failure and reads stdout alone, so it can neither throw nor print; compat's ratchet
+   * runs that same grade on every pull request.
+   */
+  describe('never reports a step as not-landed because its condition threw', () => {
+    it.each(STEPS.filter((s) => s.id !== '0.4').map((s) => [s.id, s] as const))('%s', (_id, s) => {
+      let crash = '';
+      try {
+        s.done();
+      } catch (cause) {
+        crash = cause instanceof Error ? `${cause.message} ${String((cause as { code?: unknown }).code ?? '')}` : String(cause);
+      }
+      expect(crash, 'the condition crashed on its tooling rather than answering').not.toMatch(TOOLING);
+    });
+
+    it('reports every step and the landed count, and is not an error dump', () => {
+      const { text, left } = report(STEPS.map((s, i) => ({ ...s, ok: i % 2 === 0 })));
+      expect(text, 'the report should not be an error dump').not.toMatch(TOOLING);
+      expect(text).toMatch(/^\d+\/\d+ landed\./m);
+      expect(left).toBe(Math.floor(STEPS.length / 2));
+      for (const s of STEPS) expect(text).toContain(` ${s.id.padEnd(10)} ${s.what}`);
+    });
+  });
 });
 
 /**

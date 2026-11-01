@@ -318,15 +318,48 @@ export function onCi(doc: unknown): boolean {
   return (doc as { machine?: { ci?: unknown } } | null)?.machine?.ci === true;
 }
 
+type DatedDocument = { name: string; doc: unknown; measured?: string };
+
+/**
+ * What `readDated` last parsed in each directory, with the names, sizes and mtimes it parsed.
+ *
+ * A report asks for the same suite once per band — `collectBenchmark` and `unmeasured` both, for
+ * ~40 bands over ~500 documents (60 MB) in `cli-benchmarks/` — and parsed all of it every time:
+ * the bare report took 62.7 s in compat-oracle's `bands.test.ts` on CI, and twice that inside
+ * `plan-progress.ts` (D-20261101-tests-under-5s). Keyed on every file's size and mtime, so a
+ * document written or replaced since — as the tests do in one temp directory — is read again.
+ */
+const DATED = new Map<string, { signature: string; docs: DatedDocument[] }>();
+
 /** Every dated, parseable results document in a suite, oldest first by `chronological`. */
-function readDated(dir: string): { name: string; doc: unknown; measured?: string }[] {
+function readDated(dir: string): DatedDocument[] {
   let files: string[];
   try {
     files = fs.readdirSync(dir).filter((f) => DATED_JSON.test(f));
   } catch {
     return [];
   }
-  const docs: { name: string; doc: unknown; measured?: string }[] = [];
+  const signature = files
+    .map((file) => {
+      try {
+        const st = fs.statSync(path.join(dir, file));
+        return `${file}:${String(st.size)}:${String(st.mtimeMs)}`;
+      } catch {
+        return `${file}:gone`;
+      }
+    })
+    .join('\n');
+  const cached = DATED.get(dir);
+  // The signature is file names, sizes and mtimes, nothing secret.
+  // eslint-disable-next-line secure-coding/no-insecure-comparison -- a cache key, not a credential
+  if (cached?.signature === signature) return [...cached.docs];
+  const docs = parseDated(dir, files);
+  DATED.set(dir, { signature, docs });
+  return [...docs];
+}
+
+function parseDated(dir: string, files: readonly string[]): DatedDocument[] {
+  const docs: DatedDocument[] = [];
   for (const file of files) {
     try {
       const doc: unknown = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf-8'));

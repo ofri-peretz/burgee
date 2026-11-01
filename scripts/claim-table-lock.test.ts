@@ -109,12 +109,25 @@ function backing(claim: (typeof CLAIMS)[number]): Doc | undefined {
   // marked met could never be backed: it went unnoticed while both agent rows read ❌, and
   // failed the first time a CI series met them (2026-10-09).
   const dir = claim.from.axis === 'agent' ? AGENT_RESULTS : RESULTS;
-  return newestOf(
-    readdirSync(dir)
+  return newestOf(ciDocs(dir).filter(measures));
+}
+
+/**
+ * Every CI-backed document in `dir`, parsed once per run. `backing` asks for each claim, and
+ * re-reading the directory per claim parsed the same ~60 MB of results ten times over: the case
+ * that checks every claim took 5.1 s on CI (D-20261101-tests-under-5s). The files do not change
+ * while the suite runs, so one read is the same reading.
+ */
+const CI_DOCS = new Map<string, readonly Doc[]>();
+function ciDocs(dir: string): readonly Doc[] {
+  let docs = CI_DOCS.get(dir);
+  if (docs === undefined) {
+    docs = readdirSync(dir)
       .filter((f) => CI_BACKED.test(f))
-      .map((f) => JSON.parse(readFileSync(join(dir, f), 'utf8')) as Doc)
-      .filter(measures),
-  );
+      .map((f) => JSON.parse(readFileSync(join(dir, f), 'utf8')) as Doc);
+    CI_DOCS.set(dir, docs);
+  }
+  return docs;
 }
 
 const MET = /✅/;

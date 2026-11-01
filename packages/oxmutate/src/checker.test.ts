@@ -7,6 +7,12 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 
 import { applyMutant, batches, checkSurvivors, parseDiagnostics, tsgoBin, type CheckMutant } from './checker.js';
 
+// The real-compiler case — `npx tsc` per batch, 15.1 s on a contended CI runner — runs on the nightly
+// schedule, compat.yml's `heavy-tests` job, which sets BURGEE_NIGHTLY (D-20261101-tests-under-5s,
+// D-20261101-heavy-ci-runs-nightly). Each one is named in NIGHTLY_ONLY in
+// scripts/vitest-case-budget-reporter.ts, the only exemption from the five-second budget.
+const nightly = process.env['BURGEE_NIGHTLY'] === '1';
+
 const typed = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'test', 'fixtures', 'typed');
 
 describe('the type checker', () => {
@@ -45,7 +51,7 @@ describe('the type checker', () => {
   });
 
   // The one run of the real compiler: the fixture's own tsc, over a real type error.
-  it('refuses the mutants that do not compile, with the error, and passes the ones that do', async () => {
+  it.runIf(nightly)('refuses the mutants that do not compile, with the error, and passes the ones that do', async () => {
     const source = readFileSync(path.join(typed, 'src/pick.ts'), 'utf8');
     const line = source.split('\n').findIndex((l) => l.includes("'fast' : 'safe'")) + 1;
     const col = (needle: string): number => (source.split('\n')[line - 1] ?? '').indexOf(needle) + 1;

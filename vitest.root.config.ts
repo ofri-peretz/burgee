@@ -1,10 +1,11 @@
-// Before anything else: clears pre-push's GIT_* in the main process, so a globalSetup or any
-// child it spawns cannot `git init` into the developer's repository (git-env-lock.test.ts).
-import './vitest-git-env-setup.ts';
-
 import { defineConfig } from 'vitest/config';
 
+import { dropGitEnv } from './vitest-git-env-setup.js';
 import { timeouts } from './vitest-timeouts.config.js';
+
+// The setup file below clears pre-push's GIT_* in each worker; this clears it in the main process
+// too, so a globalSetup or any child it spawns cannot `git init` into the developer's repository.
+dropGitEnv();
 
 /** Root project: the SDLC locks and the evals. Package suites run through turbo. */
 export default defineConfig({
