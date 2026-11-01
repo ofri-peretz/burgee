@@ -18,6 +18,11 @@ const bin = path.join(pkg, 'dist/bin.js');
 // OXMUTATE_REQUIRE_NATIVE (quality-full.yml), where a missing core fails instead of skipping.
 const native = existsSync(path.join(pkg, 'binding')) && readdirSync(path.join(pkg, 'binding')).some((f) => f.endsWith('.node'));
 if (!native && process.env['OXMUTATE_REQUIRE_NATIVE'] === '1') throw new Error('OXMUTATE_REQUIRE_NATIVE is set and no native core is built. fix: npm run build:native -w oxmutate');
+// A case that runs whole mutation runs — 6–15 s each on a contended CI runner — runs on the nightly
+// schedule, compat.yml's `heavy-tests` job, which sets BURGEE_NIGHTLY (D-20261101-tests-under-5s,
+// D-20261101-heavy-ci-runs-nightly). Each one is named in NIGHTLY_ONLY in
+// scripts/vitest-case-budget-reporter.ts, the only exemption from the five-second budget.
+const nightly = process.env['BURGEE_NIGHTLY'] === '1';
 
 interface ReportMutant {
   mutatorName: string;
@@ -28,7 +33,7 @@ interface ReportMutant {
   testsCompleted?: number;
 }
 
-it.skipIf(!native || !existsSync(bin))('restarts a polluted context and judges later mutants from a clean state', () => {
+it.skipIf(!native || !existsSync(bin) || !nightly)('restarts a polluted context and judges later mutants from a clean state', () => {
   const reportDir = path.join(fixture, 'reports');
   rmSync(reportDir, { recursive: true, force: true });
   execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: fixture, stdio: 'pipe' });
@@ -54,7 +59,7 @@ it.skipIf(!native || !existsSync(bin))('restarts a polluted context and judges l
 // A file-level `beforeEach` must re-run between mutants like any suite's. Vitest 5 does not link a
 // top-level describe to its file, so it was skipped: every canary failed on the entries the previous
 // mutant left, each read as pollution and cost a fresh context (shop-service, 2026-10-29).
-it.skipIf(!native || !existsSync(bin))('re-runs file-level beforeEach hooks between mutants, so they read as no pollution', () => {
+it.skipIf(!native || !existsSync(bin) || !nightly)('re-runs file-level beforeEach hooks between mutants, so they read as no pollution', () => {
   const hooks = path.join(pkg, 'test/fixtures/file-hooks');
   const reportDir = path.join(hooks, 'reports');
   rmSync(reportDir, { recursive: true, force: true });
@@ -72,7 +77,7 @@ it.skipIf(!native || !existsSync(bin))('re-runs file-level beforeEach hooks betw
 // total behind; the next mutant's run fails on it and its `finally` resets, so the batch canary passed
 // and vouched for that kill (.sdlc/intents/oxmutate/canary.qnt, verdictsClean). spare() is unchecked:
 // on clean state every one of its mutants survives.
-it.skipIf(!native || !existsSync(bin))('decides no kill on a previous mutant\'s leftovers that a test cleaned up in finally', () => {
+it.skipIf(!native || !existsSync(bin) || !nightly)('decides no kill on a previous mutant\'s leftovers that a test cleaned up in finally', () => {
   const dir = path.join(pkg, 'test/fixtures/batch-leftover');
   const reportDir = path.join(dir, 'reports');
   rmSync(reportDir, { recursive: true, force: true });
@@ -89,7 +94,7 @@ it.skipIf(!native || !existsSync(bin))('decides no kill on a previous mutant\'s 
 // The mutant is armed through `beforeEach`, as Stryker arms it. A fixture builder only a hook calls was
 // planned for the test (the dry run credits hook code to it) but run with the hooks unarmed, so each of
 // its mutants survived the warm run and cost an isolated process to be killed.
-it.skipIf(!native || !existsSync(bin))('kills a mutant a beforeEach hook reaches in the warm run, with no isolated run', () => {
+it.skipIf(!native || !existsSync(bin) || !nightly)('kills a mutant a beforeEach hook reaches in the warm run, with no isolated run', () => {
   const dir = path.join(pkg, 'test/fixtures/hook-setup');
   const reportDir = path.join(dir, 'reports');
   rmSync(reportDir, { recursive: true, force: true });
@@ -121,7 +126,7 @@ const staticVerdicts = (name: string, file: string): string[] => {
   return (report.files[file]?.mutants ?? []).filter((m) => m.static).map((m) => `${String(m.location.start.line)}:${m.mutatorName}:${m.status}`);
 };
 
-describe.skipIf(!native || !existsSync(bin))('static mutants keep their fresh-worker verdicts', () => {
+describe.skipIf(!native || !existsSync(bin) || !nightly)('static mutants keep their fresh-worker verdicts', () => {
   it('an import-time constant decides its mutants; an unread one survives', () => {
     expect(staticVerdicts('static-const', 'src/limits.ts')).toEqual(['2:NumericLiteral:Killed', '3:StringLiteral:Killed', '5:StringLiteral:Survived']);
   }, 60_000);
@@ -152,14 +157,16 @@ it.skipIf(!native || !existsSync(bin))('leaves no server running when the coordi
   expect(servers.length).toBeGreaterThan(0);
   await new Promise((r) => setTimeout(r, 1500)); // into the spinning test
   run.kill('SIGKILL');
-  await new Promise((r) => setTimeout(r, 5000));
+  // Up to 5 s for the servers to notice, as before, but no longer than they take: a fixed 5 s wait
+  // made this case 7.1 s on CI whatever happened (D-20261101-tests-under-5s).
+  for (let waited = 0; waited < 5000 && servers.some(alive); waited += 100) await new Promise((r) => setTimeout(r, 100));
   const left = servers.filter(alive);
   for (const pid of left) process.kill(pid, 'SIGKILL');
   rmSync(path.join(spin, 'reports'), { recursive: true, force: true });
   expect(left).toEqual([]);
 }, 60_000);
 
-it.skipIf(!native || !existsSync(bin))('confirms a watchdog stop with 3x the budget before reporting a timeout', () => {
+it.skipIf(!native || !existsSync(bin) || !nightly)('confirms a watchdog stop with 3x the budget before reporting a timeout', () => {
   const slow = path.join(pkg, 'test/fixtures/slow');
   const reportDir = path.join(slow, 'reports');
   rmSync(reportDir, { recursive: true, force: true });
@@ -202,8 +209,12 @@ describe.skipIf(!native || !existsSync(bin))('Stryker options the run honours', 
     expect(r.out).toMatch(/buildCommand `node -e process.exit\(4\)` exited 4/);
   });
 
+  // One run per case: as one case the two runs read 6.5 s on CI (D-20261101-tests-under-5s).
   it('thresholds.break: a score below it exits 1, through the exit code burgee reads', () => {
     expect(runWith(registry, { thresholds: { break: 99 } }).status).toBe(1);
+  });
+
+  it('thresholds.break: a score at or above it exits 0', () => {
     expect(runWith(registry, { thresholds: { break: 50 } }).status).toBe(0);
   });
 
@@ -258,7 +269,7 @@ describe.skipIf(!native || !existsSync(bin))('Stryker options the run honours', 
   });
 });
 
-describe.skipIf(!native || !existsSync(bin))('the frozen oracle (R14, SC10)', () => {
+describe.skipIf(!native || !existsSync(bin) || !nightly)('the frozen oracle (R14, SC10)', () => {
   const registry = path.join(pkg, 'test/fixtures/registry');
   // A git repository of its own, inside the fixture's ignored reports/, so Vitest still resolves.
   const repo = path.join(registry, 'reports', 'frozen-repo');
@@ -303,7 +314,7 @@ describe.skipIf(!native || !existsSync(bin))('the frozen oracle (R14, SC10)', ()
 
 const verdictOf = (m: ReportMutant): string => `${String(m.location.start.line)}:${m.mutatorName}:${m.status}`;
 
-describe.skipIf(!native || !existsSync(bin))('the command runner (testRunner: command)', () => {
+describe.skipIf(!native || !existsSync(bin) || !nightly)('the command runner (testRunner: command)', () => {
   const registry = path.join(pkg, 'test/fixtures/registry');
   afterAll(() => rmSync(path.join(registry, 'reports'), { recursive: true, force: true }));
 
