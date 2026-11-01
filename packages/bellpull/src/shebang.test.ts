@@ -11,15 +11,38 @@
  * through a spawn. They are pure in their input (a string, or a path), so they are asked here
  * directly; `windows.test.ts` drives the same read through `parse()`.
  */
-import { chmodSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import { readShebang, shebangCommand } from './shebang.js';
 
 const WINDOWS = process.platform === 'win32';
+
+/**
+ * Every descriptor `readShebang` takes and gives back, in order. The real `openSync` and
+ * `closeSync` do the work; this only writes down the numbers, so a close that is skipped, or
+ * that throws, leaves an opened descriptor with no matching close.
+ */
+const fds = vi.hoisted(() => ({ opened: [] as number[], closed: [] as number[] }));
+
+vi.mock('node:fs', async (actual) => {
+  const real = await actual<typeof import('node:fs')>();
+  return {
+    ...real,
+    openSync: ((...args: Parameters<typeof real.openSync>) => {
+      const fd = real.openSync(...args);
+      fds.opened.push(fd);
+      return fd;
+    }) as typeof real.openSync,
+    closeSync: ((fd: number) => {
+      real.closeSync(fd);
+      fds.closed.push(fd);
+    }) as typeof real.closeSync,
+  };
+});
 
 describe('shebangCommand — shebang-command, case for case', () => {
   it.each([
@@ -68,9 +91,6 @@ const script = join(dir, 'script');
 writeFileSync(script, `#!/usr/bin/env node\n${'// padding\n'.repeat(40)}`);
 chmodSync(script, 0o755);
 
-/** How many descriptors this process holds open. */
-const open = (): number => readdirSync('/dev/fd').length;
-
 describe('readShebang — the first 150 bytes of a real file', () => {
   it('reads the interpreter a script declares', () => {
     expect(readShebang(script)).toBe('node');
@@ -88,17 +108,26 @@ describe('readShebang — the first 150 bytes of a real file', () => {
 
   /*
    * POSIX opens a directory and then fails the read, so this is the path where a descriptor
-   * was taken and the read threw — the one a missing `finally` would leak on. `/dev/fd` lists
-   * this process's open descriptors on Linux and macOS alike; Windows refuses the open itself.
+   * was taken and the read threw — the one a missing `finally` would leak on. Windows refuses
+   * the open itself.
+   *
+   * The count is of `readShebang`'s own descriptors, not of the process's: under a `threads`
+   * pool (oxmutate's dry run) every test file shares one process, so `/dev/fd` moved while a
+   * sibling file opened and closed its own: weekly run 41185206028 failed its dry run here, and
+   * `vitest run --pool threads --maxWorkers 2` reproduces it (`expected 21 to be 23`, 2026-11-01).
    */
   it.skipIf(WINDOWS)('is undefined for a directory, and gives back every descriptor it took', () => {
     const sub = join(dir, 'a-directory');
     mkdirSync(sub);
-    const before = open();
-    for (let i = 0; i < 5; i += 1) {
+    const rounds = 5;
+    fds.opened.length = 0;
+    fds.closed.length = 0;
+    for (let i = 0; i < rounds; i += 1) {
       expect(readShebang(sub)).toBeUndefined();
       expect(readShebang(script)).toBe('node');
     }
-    expect(open()).toBe(before);
+    // The directory's open succeeded every time, so the throwing read was reached.
+    expect(fds.opened).toHaveLength(2 * rounds);
+    expect(fds.closed).toEqual(fds.opened);
   });
 });
