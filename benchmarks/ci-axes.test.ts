@@ -43,7 +43,14 @@ function axesOf(line: string): AxisName[] {
   return out;
 }
 
-const benchLines = WORKFLOW.split('\n').filter((l) => l.includes('npm run bench --') && l.includes('--axis'));
+/**
+ * The pull-request gate job (D-20261101-heavy-ci-runs-nightly) runs a deliberate subset — the axes
+ * whose numbers do not move with the runner — and lands nothing, so it is held apart: the suite
+ * jobs below each run their whole suite, and the gate job runs only byte-exact axes.
+ */
+const gateJob = WORKFLOW.slice(WORKFLOW.indexOf('\n  gate:\n'), WORKFLOW.indexOf('\n  cheap:\n'));
+const benchCommands = (text: string): string[] => text.split('\n').filter((l) => l.includes('npm run bench --') && l.includes('--axis'));
+const benchLines = benchCommands(WORKFLOW.replace(gateJob, ''));
 /** One job per suite selects axes, on the cadence the suite exists for, and owns it. */
 const selections = benchLines.map((l) => axesOf(l));
 const forSuite = (suite: string): AxisName[] => ALL_AXES.filter((a) => suiteOf(a) === suite).toSorted();
@@ -68,6 +75,28 @@ describe('each CI job runs its whole suite', () => {
   });
 });
 
+describe('the pull-request gate runs only the axes a pull request can be held to', () => {
+  const gated = benchCommands(gateJob).map((l) => axesOf(l));
+
+  it('exists, runs on pull requests only, and checks every gate it runs', () => {
+    expect(gateJob).toContain("if: github.event_name == 'pull_request'");
+    expect(gated.length).toBeGreaterThan(0);
+    for (const line of benchCommands(gateJob)) expect(line).toContain('--check');
+  });
+
+  it('selects B4 weight, reliability and the floor — bytes, exit codes and a checklist score', () => {
+    expect(gated.flat().toSorted()).toEqual((['floor', 'reliability', 'weight'] as AxisName[]).toSorted());
+  });
+
+  it('never selects an axis that measures the runner or spends money', () => {
+    for (const axis of ['perf', 'runtime', 'compat', 'agent'] as AxisName[]) expect(gated.flat()).not.toContain(axis);
+  });
+
+  it('never mixes suites in one command, so each --check reads one document', () => {
+    for (const axes of gated) expect(new Set(axes.map((a) => suiteOf(a))).size).toBe(1);
+  });
+});
+
 /**
  * `.sdlc/intents/b1-mcp-arm/` R4 — the MCP arm's spend is bounded in the workflow.
  *
@@ -87,6 +116,8 @@ const runStep = agentJob.slice(agentJob.indexOf('- name: Run B1'), agentJob.inde
 interface Event {
   event_name: string;
   labels: string[];
+  /** `github.event.schedule`: which cron fired, on a scheduled run; `null` on every other event. */
+  schedule?: string;
   /** `vars.B1_MCP_ARM`: the owner's approval of the spend. Absent reads as GitHub reads it, `''`. */
   approval?: string;
   /** `inputs.mcp-arm`: a boolean on a manual dispatch, absent (GitHub's `null`) on every other event. */
@@ -95,11 +126,20 @@ interface Event {
 
 /**
  * The GitHub expression grammar this condition may use: `||`, `&&`, `!`, parentheses, `==`/`!=`,
- * string literals, `github.event_name` and `contains(github.event.pull_request.labels.*.name, '…')`.
+ * string literals, `github.event_name`, `github.event.schedule` and
+ * `contains(github.event.pull_request.labels.*.name, '…')`.
  * Anything else throws, so a later edit cannot slip a term past the test by being unreadable.
  */
 /** GitHub's truthiness: `''`, `false`, `null` and `0` are false. */
 const truthy = (v: unknown): boolean => v !== '' && v !== false && v !== null && v !== undefined && v !== 0;
+
+/** What each context term reads for one event, as GitHub would hand it to the expression. */
+const TERMS: Record<string, (ev: Event) => unknown> = {
+  'github.event_name': (ev) => ev.event_name,
+  'github.event.schedule': (ev) => (ev.event_name === 'schedule' ? (ev.schedule ?? null) : null),
+  'vars.B1_MCP_ARM': (ev) => ev.approval ?? '',
+  'inputs.mcp-arm': (ev) => (ev.event_name === 'workflow_dispatch' ? (ev.mcpArm ?? false) : null),
+};
 
 function evaluate(expression: string, ev: Event): unknown {
   const parts = expression.match(/'[^']*'|\|\||&&|==|!=|!|\(|\)|,|[\w.*:-]+/gu) ?? [];
@@ -119,9 +159,8 @@ function evaluate(expression: string, ev: Event): unknown {
     }
     if (t === '!') return !truthy(primary());
     if (t.startsWith("'")) return t.slice(1, -1);
-    if (t === 'github.event_name') return ev.event_name;
-    if (t === 'vars.B1_MCP_ARM') return ev.approval ?? '';
-    if (t === 'inputs.mcp-arm') return ev.event_name === 'workflow_dispatch' ? (ev.mcpArm ?? false) : null;
+    const term = TERMS[t];
+    if (term) return term(ev);
     if (t === 'contains') {
       take('(');
       const subject = take();
@@ -178,12 +217,31 @@ function jobRunsFor(ev: Event): boolean {
   return evaluate(cond.replaceAll(/\s+/gu, ' ').trim(), ev) === true;
 }
 
+/** The two crons in `on.schedule`: B1's weekly one and the nightly one (D-20261101-heavy-ci-runs-nightly). */
+const CRONS = [...WORKFLOW.slice(0, WORKFLOW.indexOf('\nconcurrency:')).matchAll(/- cron: "([^"]+)"/gu)].map((m) => m[1]!);
+const WEEKLY = CRONS.find((c) => !/^\d+ \d+ \* \* \*$/u.test(c))!;
+const NIGHTLY = CRONS.find((c) => /^\d+ \d+ \* \* \*$/u.test(c))!;
+/** Every event the loops below try, a scheduled run once per cron. */
+const EVENTS = (labels: string[]): Event[] => [
+  ...CRONS.map((schedule) => ({ event_name: 'schedule', schedule, labels })),
+  ...['push', 'workflow_dispatch', 'pull_request'].map((event_name) => ({ event_name, labels })),
+];
+
 describe('R4 — the MCP arm runs where its cost was accepted, and nowhere else', () => {
   const label = 'bench:agent';
   const approval = 'approved';
 
+  it('reads two crons, a weekly and a nightly one', () => {
+    expect(WEEKLY).toBe('40 5 * * 2');
+    expect(NIGHTLY).toBeDefined();
+  });
+
   it('admits the weekly schedule', () => {
-    expect(armFor({ event_name: 'schedule', labels: [], approval })).toBe('1');
+    expect(armFor({ event_name: 'schedule', schedule: WEEKLY, labels: [], approval })).toBe('1');
+  });
+
+  it('refuses the nightly schedule: seven paid readings a week is not the spend that was accepted', () => {
+    expect(armFor({ event_name: 'schedule', schedule: NIGHTLY, labels: [], approval })).not.toBe('1');
   });
 
   it('admits a pull request labelled bench:agent', () => {
@@ -207,9 +265,9 @@ describe('R4 — the MCP arm runs where its cost was accepted, and nowhere else'
   });
 
   it.each(['', 'yes', 'Approved'])('spends nothing anywhere until the owner approves it (B1_MCP_ARM=%j)', (value) => {
-    for (const event_name of ['schedule', 'push', 'workflow_dispatch', 'pull_request']) {
-      for (const labels of [[], [label]]) {
-        for (const mcpArm of [false, true]) expect(armFor({ event_name, labels, approval: value, mcpArm })).not.toBe('1');
+    for (const labels of [[], [label]]) {
+      for (const ev of EVENTS(labels)) {
+        for (const mcpArm of [false, true]) expect(armFor({ ...ev, approval: value, mcpArm })).not.toBe('1');
       }
     }
   });
@@ -225,17 +283,17 @@ describe('R4 — the MCP arm runs where its cost was accepted, and nowhere else'
   });
 
   it('is never wider than the job it runs in, which is where the two existing variants spend', () => {
-    for (const event_name of ['schedule', 'push', 'workflow_dispatch', 'pull_request']) {
-      for (const labels of [[], [label]]) {
+    for (const labels of [[], [label]]) {
+      for (const ev of EVENTS(labels)) {
         for (const mcpArm of [false, true]) {
-          if (armFor({ event_name, labels, approval, mcpArm }) === '1') expect(jobRunsFor({ event_name, labels, mcpArm }), `${event_name} ${labels.join()}`).toBe(true);
+          if (armFor({ ...ev, approval, mcpArm }) === '1') expect(jobRunsFor({ ...ev, mcpArm }), `${ev.event_name} ${ev.schedule ?? ''} ${labels.join()}`).toBe(true);
         }
       }
     }
   });
 
   it('fails when the condition is widened to a push — the mutation this lock exists for', () => {
-    const widened = runStep.replace(/github\.event_name == 'schedule' \|\|/u, "github.event_name == 'push' || github.event_name == 'schedule' ||");
+    const widened = runStep.replace(/github\.event\.schedule == '40 5 \* \* 2' \|\|/u, "github.event_name == 'push' || github.event.schedule == '40 5 * * 2' ||");
     expect(widened).not.toBe(runStep);
     const line = /^\s+BENCH_AGENT_MCP: \$\{\{ (.+) \}\}\s*$/mu.exec(widened)?.[1] ?? '';
     expect(evaluate(line, { event_name: 'push', labels: [], approval })).toBe('1');
@@ -245,8 +303,8 @@ describe('R4 — the MCP arm runs where its cost was accepted, and nowhere else'
     expect(WORKFLOW.match(/BENCH_AGENT_MCP/gu)).toHaveLength(1);
   });
 
-  it('lands a weekly reading under its own name, so it never collides with a push reading of the same commit', () => {
-    expect(agentJob).toMatch(/if: \(github\.event_name == 'push' \|\| github\.event_name == 'schedule' \|\| \(github\.event_name == 'workflow_dispatch' && inputs\.mcp-arm\)\) && steps\.status\.outputs\.status == 'measured'/u);
+  it('lands a weekly reading under its own name, so it never collides with the nightly reading of the same commit', () => {
+    expect(agentJob).toMatch(/if: \(github\.event_name == 'schedule' \|\| \(github\.event_name == 'workflow_dispatch' && inputs\.mcp-arm\)\) && steps\.status\.outputs\.status == 'measured'/u);
     expect(agentJob).toContain('-weekly-ci.json');
   });
 
@@ -276,8 +334,13 @@ describe('B1 runs weekly and on request, never per push (D-20261019-b1-weekly-no
     expect(jobRunsFor({ event_name: 'push', labels: [...labels] })).toBe(false);
   });
 
-  it.each(['schedule', 'workflow_dispatch'])('runs on %s', (event_name) => {
-    expect(jobRunsFor({ event_name, labels: [] })).toBe(true);
+  it('runs on the weekly schedule and a dispatch', () => {
+    expect(jobRunsFor({ event_name: 'schedule', schedule: WEEKLY, labels: [] })).toBe(true);
+    expect(jobRunsFor({ event_name: 'workflow_dispatch', labels: [] })).toBe(true);
+  });
+
+  it('does not run on the nightly schedule (D-20261101-heavy-ci-runs-nightly)', () => {
+    expect(jobRunsFor({ event_name: 'schedule', schedule: NIGHTLY, labels: [] })).toBe(false);
   });
 
   it('runs on a pull request labelled bench:agent, and not on one without the label', () => {

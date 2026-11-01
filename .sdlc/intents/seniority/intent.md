@@ -154,7 +154,8 @@ same day, is kept as written. Two of its statements have moved since:
 - **Criterion 4 is held on `main` and not yet published.** The bytes row is on `/docs/benchmarks`
   (`seniority/lilconfig` 0.615). The spawn row (`seniority/lilconfig − lilconfig`) and the
   discovery-chain row (`seniority/cosmiconfig + seniority/find-up` against `cosmiconfig +
-  find-up`) are gated on every PR (`bench.yml`). They are not on the page, because the page is
+  find-up`) are gated by `bench.yml` — on every PR until 2026-11-01, nightly since
+  (D-20261101-heavy-ci-runs-nightly). They are not on the page, because the page is
   generated from the newest *published* measurement (`benchmarks/published.ts`), which is
   2026-10-19 at `66e4611`, before both rows existed.
 
@@ -177,7 +178,7 @@ Every criterion is now built on main or on `feat/seniority-remainder`. The inten
 `approved` until the seniority **minor** that ships `packageLayer` is on npm
 (`.changeset/seniority-package-field-lines.md`; `packageLayer` is new public API, and burgee's
 `--explain` reads it). Criteria 2 and 5 and most of 3 shipped in `seniority@1.1.0` (#1203).
-Criterion 4's rows are gated on every PR from this change; they reach `/docs/benchmarks` with
+Criterion 4's rows are gated from this change (nightly since D-20261101-heavy-ci-runs-nightly); they reach `/docs/benchmarks` with
 the next published run.
 
 | Criterion | State | Check |
