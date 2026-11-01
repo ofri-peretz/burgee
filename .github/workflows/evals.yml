@@ -12,22 +12,13 @@ name: Agent Evals
 # without this the weekly run kept no history at all.
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - "README.md"
-      - "CLAUDE.md"
-      - "docs/**"
-      - ".github/**"
-      - ".sdlc/bands/**"
-      # Every docs app's content — a glob, so adding a package's site needs no edit here.
-      - "apps/*/content/**"
-      - "eslint.config.mjs"
-      - "evals/**"
-      # The pull request the `record` job opens carries data and nothing else. Running the
-      # task evals on it would spend a credential to re-measure a line it just measured.
-      - "!evals/history/**"
-      - "scripts/run-evals.ts"
+  # No `pull_request:` (D-20261101-heavy-ci-runs-nightly). On a pull request this job installed
+  # `claude` and spent the task evals against the same Claude weekly quota as the required `review`
+  # check, and in the 19 runs measured it failed in about 20 seconds on most of them — the quota was
+  # already gone, or the case did not start. Layer 1 (links, scripts, floor ids) is free and is not
+  # lost: it runs on every pull request in `quality.yml` (Fast checks › "Evals layer 1"), inside the
+  # required `Quality Gate`. The paid layer runs weekly, after the quota resets, and on dispatch.
+  # Weekly rather than nightly, on purpose: nightly would spend the quota seven times a week.
   schedule:
     # Saturdays 06:20 UTC, an hour after the subscription's weekly quota resets (Saturday 05:00
     # UTC, quoted by the not-run lines of 2026-10-15 and 2026-10-22). On Thursdays both weeks

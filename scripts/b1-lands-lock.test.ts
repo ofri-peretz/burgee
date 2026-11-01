@@ -12,9 +12,12 @@ const agentJob = bench.slice(bench.indexOf('\n  agent:\n'));
 describe('B1 lands its own observation', () => {
   // The weekly run lands too (b1-mcp-arm R4): it is the reading that carries the MCP arm. So does a
   // manual dispatch that asks for the arm (D-20261027-b1-mcp-arm-owner-dispatch).
-  it('commits the agent-cli-bench result from the agent job on a push, the schedule and an arm dispatch', () => {
+  // Not on a push: the job has not run on one since D-20261019-b1-weekly-not-per-push, and bench.yml has no
+  // push trigger since D-20261101-heavy-ci-runs-nightly, so a `push` arm here was a condition nothing reaches.
+  it('commits the agent-cli-bench result from the agent job on the schedule and an arm dispatch', () => {
     expect(agentJob).toContain('name: Land B1\'s observation');
-    expect(agentJob).toMatch(/if: \(github\.event_name == 'push' \|\| github\.event_name == 'schedule' \|\| \(github\.event_name == 'workflow_dispatch' && inputs\.mcp-arm\)\) && steps\.status\.outputs\.status == 'measured'/u);
+    expect(agentJob).toMatch(/if: \(github\.event_name == 'schedule' \|\| \(github\.event_name == 'workflow_dispatch' && inputs\.mcp-arm\)\) && steps\.status\.outputs\.status == 'measured'/u);
+    expect(agentJob).not.toMatch(/github\.event_name == 'push'/u);
     expect(agentJob).toMatch(/benchmarks\/results\/agent-cli-bench\//u);
     expect(agentJob).toMatch(/git add "\$FILE"/u);
   });

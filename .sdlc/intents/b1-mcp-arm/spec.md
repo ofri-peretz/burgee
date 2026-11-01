@@ -46,7 +46,7 @@ what was accepted.
   The ratio `burgee-mcp ÷ burgee` is computed over the same task set only. A claim
   `cli-vs-mcp-tokens` in `benchmarks/claims.ts` stays `unmeasured` until four readings exist, and
   then takes its verdict from the median of the readings' ratios.
-- **R4 — The cost is bounded in the workflow.** `bench.yml` runs the arm on `schedule`, on the
+- **R4 — The cost is bounded in the workflow.** `bench.yml` runs the arm on the weekly `schedule` (`40 5 * * 2`; not the nightly cron of D-20261101-heavy-ci-runs-nightly), on the
   `bench:agent` label, and on a manual dispatch whose `mcp-arm` input is set (added 2026-10-27,
   [D-20261027-b1-mcp-arm-owner-dispatch](../../decisions/D-20261027-b1-mcp-arm-owner-dispatch.md)),
   only. A push to `main` and a dispatch without the input run the two existing variants. A test
@@ -84,7 +84,7 @@ what `migration-drivers.md` §6 argues and nobody has measured. Everything else 
 | R2 | `benchmarks/agent.test.ts`: the `burgee-mcp` spawn carries `--mcp-config` and `--strict-mcp-config`, allows no `Bash`, and its config starts the demo's server (a dry spawn with a stub `claude`) | today: two variants only |
 | R6 | `benchmarks/agent.test.ts` › *the arm never runs without its server*, and R2's *starts the build under test from the printed config*: a stub `claude` that is a real MCP client answers through the server the config starts; a dead server spends no run; a run reporting `failed` is not a pass; a weak arm leaves no ratio | 11 tests red on the 2026-10-20 harness (2026-10-26), among them the printed `demo-burgee` config failing to start the server, as it did on that run |
 | R3 | `benchmarks/agent.test.ts`: medians, ranges and the ratio from a fixture of attempts; the claim stays `unmeasured` with three readings and computes with four | a fixture with one reading must not produce a verdict |
-| R4 | `benchmarks/ci-axes.test.ts`: the arm's condition in `bench.yml` admits `schedule`, the label and a dispatch with `mcp-arm` set, refuses `push` and a bare dispatch; a dispatched reading lands under its run id | widening the condition to `push` fails it; on 2026-10-27, 5 tests red on the schedule-only workflow (and 1 in `agent.test.ts` on the weekly-only file name) |
+| R4 | `benchmarks/ci-axes.test.ts`: the arm's condition in `bench.yml` admits the weekly `schedule` (and refuses the nightly one), the label and a dispatch with `mcp-arm` set, refuses `push` and a bare dispatch; a dispatched reading lands under its run id | widening the condition to `push` fails it; on 2026-10-27, 5 tests red on the schedule-only workflow (and 1 in `agent.test.ts` on the weekly-only file name) |
 | R5 | `scripts/agent-page-lock.test.ts` › "says only what the landed MCP readings say, and cites every one", and the seven cases of "the MCP lock can fail" | red on the page with no section ("has no … section"); each tampered ratio, dropped reading, mis-cited run id, wrong median, wrong per-task cell and unnamed excluded task fails it |
 
 ## Rejected alternatives
