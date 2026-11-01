@@ -17,6 +17,13 @@ ask is about: igir's own compile step builds a single binary that throws on ever
 Each failure is a burgee gap, recorded below. The comment is held until they are fixed and the
 proof is re-run on the published fix.
 
+**State 2026-11-01: ready to comment, not posted.** The three gaps closed and shipped in
+`burgee@1.9.4`, and the proof re-ran on it: every check passed, including the compiled binary
+([Re-run on `burgee@1.9.4`](#re-run-on-burgee194-2026-11-01)). The comment in
+[`upstream-igir/issue-comment.md`](../../intents/first-adopter/upstream-igir/issue-comment.md)
+awaits the owner's go. A pull request may not pin 1.9.4 before 2026-11-05 06:28 UTC, igir's
+7-day release age.
+
 ## The shortlist
 
 Candidates: the four C targets left in [`adoption-targets.md`](../adoption-targets.md) (the fifth,
@@ -271,19 +278,119 @@ So, against the three reasons in #2249: **speed**, slightly faster on `--help`, 
 spread; **six dependencies**, five, all one maintainer's, against a named bar of zero;
 **filesystem reads at runtime**, not met on 1.9.2, and worse in the binary.
 
+### Re-run on `burgee@1.9.4`, 2026-11-01
+
+`burgee@1.9.4` (published 2026-10-29T06:28Z) carries all three fixes: #1362
+embeds yargs' English at build, so nothing reads a locale file at run time
+([A-20261028-yargs-locale-read-at-runtime](../../gaps/A-20261028-yargs-locale-read-at-runtime.md));
+and #1361 stops intercepting the reserved names under `.parse(argv, ctx, cb)` and makes `Argv`
+callable as `@types/yargs` declares it
+([A-20261028-yargs-parse-callback-surfaces](../../gaps/A-20261028-yargs-parse-callback-surfaces.md),
+[A-20261028-yargs-argv-type-call-signature](../../gaps/A-20261028-yargs-argv-type-call-signature.md),
+[D-20261029-yargs-parse-callback-not-intercepted](../../decisions/D-20261029-yargs-parse-callback-not-intercepted.md)).
+**Every check passed.** Nothing was posted.
+
+Same machine and method as above: macOS 26.2 (Darwin 25.2.0, Apple Silicon), two fresh
+`git clone --filter=blob:none` of igir in a scratch directory, `npm ci --foreground-scripts` in
+each. igir's default branch is still `744bc279`, and #2249 is still open with no comments and its
+body unchanged. Load average ran from 34 to 107 during the runs, from other sessions, so vitest
+ran with `--maxWorkers=2`.
+
+**Node versions.** Node 24.22.0 only. Node 22 was **skipped**: 22.22.0 is the newest 22 here and
+igir declares `^22.22.2`. Node 26.10.0 is installed but was **skipped** for load: the run was
+gated on a 5-minute load average below 50, and it was 64 when the Node 24 runs finished.
+
+| Step | Node | tsc | lint | vitest `--project=native` | e2e |
+| :-- | :-- | :-: | :-: | :-- | :-: |
+| base (`744bc279`) | 24.22.0 | 0 | 0 | 5,125 / 5,127 ‡ | 0 |
+| after the swap to `burgee@1.9.4` (`264959d6`) | 24.22.0 | 0 | **0** | 5,120 / 5,121 | 0 |
+| after `git revert` (`a46c1942`) | 24.22.0 | 0 | 0 | 5,126 / 5,127 | 0 |
+
+The one failure in all three is `isFileOpen` with a non-ASCII path in this scratch directory, as on
+1.9.2. ‡ Base also had one 45 s timeout under load, `igir.test.ts` › "should extract, report, and
+clean only unmatched output files"; that file re-run alone passed 35 / 35. The swap has 6 fewer
+cases because it deletes the shim's test.
+
+| Check | Result |
+| :-- | :-- |
+| `npx -y burgee@1.9.4 migrate` | **exit 1, partial**, as on 1.9.2 and as expected: the shim's computed paths are refused and yargs is held; chalk, strip-ansi, which and terminal-link rewritten, out of scope, discarded. yargs graded 816 / 816 (the incumbent passes 814). The `yargs through async` line is still there (friction 4, not a blocker) |
+| The swap, by hand | The same shape as on 1.9.2: `argumentsParser.ts` +1 / −2, `compile.ts` +1 / −1, `package.json` +2 / −2, `package-lock.json` +77 / −95, the shim and its test deleted. Commit `264959d6`, tree `126ce1ac89fe`, authored as `Ofri Peretz <ofriperetzdev@gmail.com>`, local only |
+| `tsc --noEmit` on the swap | pass |
+| `npm run lint` on the swap | **pass** (fail on 1.9.2: `no-base-to-string` on `_yargs.help()`; gap 3 closed) |
+| vitest and `test/endToEndTest.sh` | as base (table above) |
+| `--help` | byte-identical, sha256 `de6d6903…`, 278 lines |
+| 44 argument vectors, both built trees | **44 / 44 identical**. Control, base against base: 44 / 44 |
+| `bun scripts/compile.ts` (Bun 1.4.4) | **both pass**: each builds a 94.7 MB binary and its own `--help` check from an empty directory passes, exit 0 (the swap failed it on 1.9.2; gap 1 closed) |
+| The binaries, copied alone into an empty directory | base and swap identical on 6 runs: `--help` (278 lines), `copy` (54 files), `copy extract test --dat …` (43 files), a missing `--input`, `copy … --json` and `completion zsh` |
+| A locale read failing with `EUNKNOWN`, as in #2244 | swap: `--help`, a real `copy` (54 files), a missing-argument error and an unknown-argument error all behave as without the preload, and **0** locale reads were attempted. Base under Node: all four fail at load, at the shim's `require()` of `en.json` (as on 1.9.2; only the binary embeds it) |
+| `git revert` | `744bc279^{tree}` = `HEAD^{tree}` = `edb663eb8a99…`; the suite as base after it |
+| `npm audit --omit=dev` | 0 before, 0 after |
+| `bun-unit` (`bun test`) | not run |
+
+**The vectors.** Each runs `node dist/index.js <argv>` from an empty working directory with stdin
+closed, against igir's own fixtures, and compares exit code, stderr, the files written (size and
+path), and stdout. stdout is compared as a multiset of lines, because igir scans inputs in parallel
+and its `WARN` lines come in a different order run to run (base against base differs in raw stdout
+on 12 vectors, and in nothing once sorted), and a `YYYYMMDD-HHMMSS` stamp in a dir2dat file name is
+normalised. One vector's stderr names the tree's directory (`igir/` against `igir-pr/`) in a Node
+warning; that path is normalised too. The 44 cover no argv, `--help`, `-h`, `help`, `copy --help`,
+`--version`; `copy` with each required option missing; real `copy`, `copy test`, `copy extract`,
+`copy zip`, `copy playlist`, `copy extract test --dat`, `test`, `report --dat`, `dir2dat` and
+`fixdat` runs; the mutually exclusive pairs (`move copy`, `copy link`, `link extract`,
+`dir2dat fixdat`); `extract` and `clean` without a write command; unknown commands and flags;
+invalid values (`--dat-threads abc`, `--zip-format bogus`, `--link-mode bogus`); `conflicts`
+(`--dir-mirror --dir-dat-mirror`, `--overwrite --overwrite-invalid`); `implies`
+(`--dir-letter-count`, `--dat-name-regex`); `--patch`; and the reserved names. `--dat-threads abc`
+exits 13 with Node's "unsettled top-level await" on both trees: igir's own behaviour, unchanged.
+
+**The reserved names, now as yargs.** Under igir's `.parse(argv, {}, cb)`:
+
+| argv | yargs 18.2.0 + shim | burgee 1.9.2 | burgee 1.9.4 |
+| :-- | :-- | :-- | :-- |
+| `--json` | help, "You must specify at least one command", exit 1 | `Cannot read properties of undefined (reading 'getLogLevel')` | **as yargs** |
+| `copy --input <dir> --output <dir> --json` | `copy` help, "Unknown argument: json", exit 1 | `{"ok":true,…}`, then the run | **as yargs** |
+| `--schema` | help, "You must specify at least one command", exit 1 | runs with no command | **as yargs** |
+| `--mcp` | the same, exit 1 | `options.getLogLevel is not a function` | **as yargs** |
+| `completion zsh` | help, "Unknown commands: completion, zsh", exit 1 | `options.getLogLevel is not a function` | **as yargs** |
+| `completion bash` | help, "Unknown commands: completion, bash", exit 1 | not run | **as yargs** |
+
+So igir gets none of burgee's reserved surfaces while it parses with a callback, by design (the
+decision above). The comment says so only by listing them among the identical vectors.
+
+**Footprint on 1.9.4.**
+
+| | yargs 18.2.0 (base) | burgee 1.9.4 | change |
+| :-- | --: | --: | :-- |
+| igir production entries in `package-lock.json` | 132 | 129 | **−3**: yargs and 8 packages only it pulled in out (cliui and its nested string-width and wrap-ansi, emoji-regex, escalade, get-caller-file, y18n, yargs-parser), burgee and 5 in |
+| Bytes of the removed and added directories in igir | 474,062 | 1,729,422 | **+1,255,360** (1.26 MB; 1.9.2 was +1,253,490) |
+| Host installed alone (`npm i --omit=dev`) | 15 entries (13 names), 536,517 B (1.9.2 proof) | 6 packages, 1,732,162 B | |
+| npm maintainer accounts | 9, two of them bots (1.9.2 proof) | 1 (ofriperetz), all six packages | |
+| `npm audit --omit=dev` | 0 | 0 | adds 0 advisories |
+| Licences added | | MIT ×6 | on igir's `node-license` allow-list |
+| Release dates | | burgee 1.9.4 2026-10-29T06:28Z; bellpull 1.0.10, closeout 1.1.8, linegauge 1.1.5 2026-10-26; roundel 1.3.0, seniority 1.2.0 2026-10-27 | Renovate's 7 days: a PR may pin 1.9.4 from 2026-11-05T06:28Z |
+
+Cold start was not re-measured; on 1.9.2 it was within its own spread, and the comment makes no
+speed claim.
+
+**What is ready.** The patch,
+[`upstream-igir/0001-…patch`](../../intents/first-adopter/upstream-igir/0001-Refactor-replace-yargs-and-its-locale-shim-with-burg.patch),
+is `git format-patch` of `264959d6` and pins `"burgee": "1.9.4"`. The comment and the pull request
+body are rewritten on these numbers, both marked NOT POSTED. The `revert` commit (`a46c1942`) is
+local and not part of the patch.
+
 ### Friction found (A4)
 
 Each point is a gap or a decision, as A4 requires.
 
 1. The single binary throws at load, and English is read from disk:
    [A-20261028-yargs-locale-read-at-runtime](../../gaps/A-20261028-yargs-locale-read-at-runtime.md).
-   Blocks the comment.
+   Blocked the comment; closed, and passed on `burgee@1.9.4`.
 2. The reserved surfaces under `.parse(argv, {}, cb)`:
    [A-20261028-yargs-parse-callback-surfaces](../../gaps/A-20261028-yargs-parse-callback-surfaces.md).
-   Blocks the comment.
+   Blocked the comment; closed, and passed on `burgee@1.9.4`.
 3. `Argv` lacks `@types/yargs`' call signature, so igir's lint fails:
    [A-20261028-yargs-argv-type-call-signature](../../gaps/A-20261028-yargs-argv-type-call-signature.md).
-   Blocks the comment.
+   Blocked the comment; closed, and passed on `burgee@1.9.4`.
 4. `migrate` reads installed dependencies' `devDependencies`:
    [A-20261028-migrate-transitive-reads-dev-deps](../../gaps/A-20261028-migrate-transitive-reads-dev-deps.md).
    Does not block; igir imports no `YError`.
