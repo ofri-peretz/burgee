@@ -116,6 +116,36 @@ are 60 more sessions, about 7.3M tokens and $6.80 at list price. With reading 1,
 **80 sessions, about 9.8M tokens and $9 at list price**, all on the subscription login. The stops
 are unchanged.
 
+## The three graded readings
+
+Taken 2026-11-01 at `d71dcb0`, one after another, on the owner's M4 Pro, with
+`claude` 2.1.286 (CI pins 2.1.283, so `claudePinned` is `false` in each file) and model
+`claude-sonnet-4-5`. The build is `packages/oxmutate` at that commit, whose `src/` and
+`native/src/` are identical to `oxmutate@1.1.0`'s `gitHead` `f0213f9f0a`. 20 task-runs each.
+
+| reading (`benchmarks/results/agent-cli-bench-oxmutate/`) | load at start | success | tokens / task (median) | turns / task (median) | tokens, all 20 runs | list-price cost |
+| :-- | --: | --: | --: | --: | --: | --: |
+| `2026-11-01-d71dcb0-220347-local.json` | 16.3 | 0.95 | 62,795 | 3 | 1,923,261 | $1.78 |
+| `2026-11-01-d71dcb0-220910-local.json` | 14.2 | 1.00 | 94,273 | 4 | 2,158,733 | $1.91 |
+| `2026-11-01-d71dcb0-221455-local.json` | 10.4 | 1.00 | 62,535 | 2 | 2,155,006 | $1.90 |
+| **median (range)** | | **1.00 (0.95–1.00)** | **62,795 (62,535–94,273)** | **3 (2–4)** | **2,155,006 (1.92M–2.16M)** | **$1.90 ($1.78–$1.91)** |
+
+The third file carries the grade itself: `success-rate-readings-median` 1, min 0.95, max 1, gated
+at 0.8, and `tokens-per-task-readings-median` 62,795. **A5 is met.** Per task, across the 15 runs
+of each: `oxmutate-discover-flag` and `oxmutate-explain-error` passed 15 of 15 in 2 to 4 turns,
+`oxmutate-score` 15 of 15 in 4 to 7, `oxmutate-survivors` 14 of 15 in 4 to 6.
+
+**The one failure was the check's, not the agent's.** It answered with a table whose `Line`
+column read `2`, so neither `line 2` nor `age.js:2` was in the text, and the check refused a
+correct answer. The check now also accepts `age.js` followed by the line within a few
+punctuation characters, and `tasks.test.ts` holds that answer green and the same table with line
+3 red. The readings are left as they were measured. With the fixed check, the first of the three
+would read 1.00, and the grade is 1.00 either way.
+
+**Spent:** 80 sessions in all, the re-quoted bound. Reading 1 used 2,448,494 tokens and the three
+graded readings 6,237,000, so **8,685,494 tokens and $7.85 at list price**, on the subscription
+login. No run reported the usage limit.
+
 ## Rejected
 
 - **Reusing the demo's tasks against oxmutate.** They ask for commands oxmutate does not have; every
