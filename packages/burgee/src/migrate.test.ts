@@ -581,6 +581,32 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     expect(report.offMajor).toEqual([{ from: 'lilconfig', found: '^2.1.0', graded: '3.1.4', nearest: 3, sites: [], move: null }]);
   });
 
+  // ora 10.0.0 and slice-ansi 10.0.0 moved the grades on 2026-11-01 (burgee#1391, #1392). Neither 9
+  // can be level with its own suite any more — ora 10 deleted cases 9 asserts, and slice-ansi 10
+  // counts CRLF and a lone regional indicator the other way — so a program on 9 stays.
+  it('leaves ora 9 and slice-ansi 9 alone, and names the 10.0.0 each is graded at', async () => {
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { ora: '^9.4.1', 'slice-ansi': '^9.0.1' } }),
+      'src/a.ts': "import ora from 'ora';\nimport sliceAnsi from 'slice-ansi';\n",
+    });
+    const report = await migrate({ dir, status: clean });
+    expect(read(dir, 'src/a.ts')).toBe("import ora from 'ora';\nimport sliceAnsi from 'slice-ansi';\n");
+    expect(report.offMajor).toEqual([
+      { from: 'ora', found: '^9.4.1', graded: '10.0.0', nearest: 10, sites: [], move: null },
+      { from: 'slice-ansi', found: '^9.0.1', graded: '10.0.0', nearest: 10, sites: [], move: null },
+    ]);
+  });
+
+  it('leaves cli-truncate 5 alone, and names 6.2.0 as the release its own suite grades level', async () => {
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { 'cli-truncate': '^5.1.0' } }),
+      'src/a.ts': "import cliTruncate from 'cli-truncate';\n",
+    });
+    const report = await migrate({ dir, status: clean });
+    expect(read(dir, 'src/a.ts')).toBe("import cliTruncate from 'cli-truncate';\n");
+    expect(report.offMajor).toEqual([{ from: 'cli-truncate', found: '^5.1.0', graded: '6.2.0', nearest: 6, sites: [], move: null }]);
+  });
+
   // `supports-color-drop-in` criterion 4, end to end: 11 is the one major claimed, so a program on
   // it moves, `require()` included (both sides hand back their namespace), and one on 10 stays.
   it('moves a program on supports-color 11 to roundel/supports-color, and leaves 10 alone naming 11.0.0', async () => {
@@ -792,7 +818,7 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
 
   it('names the family packages to add, and the command that adds them and removes the incumbents', async () => {
     const dir = project({
-      'package.json': JSON.stringify({ name: 'x', dependencies: { chalk: '^6.0.0', ora: '^9.0.0', flagstaff: '^0.5.0' } }),
+      'package.json': JSON.stringify({ name: 'x', dependencies: { chalk: '^6.0.0', ora: '^10.0.0', flagstaff: '^0.5.0' } }),
       'pnpm-lock.yaml': '',
       'src/a.ts': "import chalk from 'chalk';\nimport ora from 'ora';\n",
     });
@@ -848,7 +874,7 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     // `require('signal-exit')(cb)` onto closeout/signal-exit would call an object. The installed
     // version wins over the declared range: chalk is declared ^6 and installed at 4.1.2.
     const dir = project({
-      'package.json': JSON.stringify({ name: 'x', dependencies: { 'signal-exit': '^3.0.7', chalk: '^6.0.0', ora: '^9.0.0' } }),
+      'package.json': JSON.stringify({ name: 'x', dependencies: { 'signal-exit': '^3.0.7', chalk: '^6.0.0', ora: '^10.0.0' } }),
       'node_modules/chalk/package.json': JSON.stringify({ name: 'chalk', version: '4.1.2' }),
       'src/a.js': "const onExit = require('signal-exit');\nimport chalk from 'chalk';\nimport ora from 'ora';\n",
     });

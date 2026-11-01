@@ -70,7 +70,9 @@ function published(): string[] {
 const DROP_IN_CEILINGS: Readonly<Record<string, { incumbent: string; bytes: number }>> = {
   'closeout/onetime': { incumbent: 'onetime@8.0.0', bytes: 1_527 },
   'closeout/cli-cursor': { incumbent: 'cli-cursor@5.0.0', bytes: 4_757 },
-  'linegauge/cli-truncate': { incumbent: 'cli-truncate@6.1.1', bytes: 20_675 },
+  // Re-measured at 6.2.0 on 2026-11-01 — slice-ansi 10.0.0, string-width 8.3.0, ansi-regex 6.5.0 —
+  // the same method reproducing 6.1.1's 20,675 first (D-20261101-upstream-issues-2026-11-01).
+  'linegauge/cli-truncate': { incumbent: 'cli-truncate@6.2.0', bytes: 21_489 },
   'linegauge/widest-line': { incumbent: 'widest-line@6.0.0', bytes: 6_079 },
   // `colour-facades` R4: colorette 2.0.20 by the same method (`export *` alone: it has no
   // default), measured 2026-10-20. Over this, `roundel/colorette` does not ship (the spec's kill criterion).
@@ -142,7 +144,10 @@ const OVER_INCUMBENT: Readonly<Record<string, { incumbent: string; bytes: number
   // (D-20261029-yargs-english-embedded-bytes): 110,848 -> 111,669 on `/docs/weight`.
   // 111,738 on 2026-11-01 with `burgee/yargs`' +69 B for linear parse-command
   // (D-20261101-yargs-parse-command-linear-bytes): 111,669 -> 111,738 on `/docs/weight`.
-  'burgee/yargs/v17': { incumbent: 'yargs@17.7.3', bytes: 84_475, ours: 111_738, gap: 'B-20261019-yargs-17-entry-bundles-heavier' },
+  // 111,787 on 2026-11-01 with `linegauge/strip`'s +49 B for ansi-regex 6.5.0's pattern, which
+  // strip-ansi 7.2.0 now resolves and cliui measures through (D-20261101-upstream-issues-2026-11-01):
+  // 111,738 -> 111,787 on `/docs/weight`, every yargs row by the same 49.
+  'burgee/yargs/v17': { incumbent: 'yargs@17.7.3', bytes: 84_475, ours: 111_787, gap: 'B-20261019-yargs-17-entry-bundles-heavier' },
 };
 
 /** The "Everything" cell of a subpath's row on the page, or `undefined` when it has no row. */

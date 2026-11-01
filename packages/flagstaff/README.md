@@ -29,7 +29,7 @@
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/boxen%20suite-213%2F213-0a6b47?style=flat-square" alt="flagstaff/boxen passes 213 of 213 cases of the boxen test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/cli--table3%20suite-29%2F29-0a6b47?style=flat-square" alt="flagstaff/cli-table3 passes 29 of 29 cases of the cli-table3 test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/log--update%20suite-99%2F99-0a6b47?style=flat-square" alt="flagstaff/log-update passes 99 of 99 cases of the log-update test suite" /></a>
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/ora%20suite-99%2F99-0a6b47?style=flat-square" alt="flagstaff/ora passes 99 of 99 cases of the ora test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/ora%20suite-223%2F223-0a6b47?style=flat-square" alt="flagstaff/ora passes 223 of 223 cases of the ora test suite" /></a>
 </p>
 
 <p align="center">
@@ -342,7 +342,7 @@ the change ([Migrate](https://burgee.interlace.tools/docs/migrate)).
 
 ### The ora path
 
-`flagstaff/ora` is ora 9's whole API, graded **99 / 99 by ora's own test suite** through
+`flagstaff/ora` is ora 10's whole API, graded **223 / 223 by ora's own test suite** through
 [`compat-oracle`](https://github.com/ofri-peretz/burgee/blob/main/packages/compat-oracle/README.md). One import changes:
 
 ```diff
@@ -353,22 +353,21 @@ the change ([Migrate](https://burgee.interlace.tools/docs/migrate)).
 Everything else stays: `ora({ text, spinner, color, indent, prefixText, suffixText })`,
 `.start() .stop() .succeed() .fail() .warn() .info() .stopAndPersist()`, `oraPromise()`,
 the `spinners` corpus, the stream hooks that keep a `console.log` above the frame, the
-synchronized-output sequences, the render deferral, the stdin discarder.
+synchronized-output sequences, the pause while another writer's line is unfinished, the frame
+kept above the last row of the screen, the stdin discarder.
 
-What changes is the bill. ora 9.4.1 ships 114,102 B of JavaScript across **seventeen
+What changes is the bill. ora 10.0.0 ships 128,182 B of JavaScript across **seventeen
 packages** — ora, chalk, cli-spinners, string-width, log-symbols, cli-cursor,
 restore-cursor, onetime, mimic-function, signal-exit, is-interactive, is-unicode-supported,
 stdin-discarder, yoctocolors, strip-ansi, ansi-regex, get-east-asian-width. `flagstaff/ora`
-is 55,641 B across **two** — itself and roundel — **49% of ora's**, and 20,250 B of that is
+is 53,486 B across **two** — itself and roundel — **42% of ora's**, and 20,250 B of that is
 the spinner corpus ora's API re-exports. Nothing in it reaches the frame loop, so a program
 that migrates its spinner today can adopt `hoist()` a file at a time, or never ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 Both sides are counted the same way, so the number reproduces: shipped code and data —
 `.js`/`.mjs`/`.cjs` plus the `.json` a module imports, `package.json` never counted. Ours is
 the import graph walked from `dist/` by `weight.test.ts`; ora's is every package that graph
-touches in ora's own resolved tree, counted whole. Counting ora the stricter way — only the
-27 files its graph actually reaches — gives 101,809 B, and `flagstaff/ora` is still 55% of
-that ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+touches in ora's own resolved tree, counted whole ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 The cursor comes back the way ora's does. A spinner that hid the cursor restores it on a
 clean exit **and** on `SIGINT`, `SIGTERM` and `SIGHUP` — node does not run `'exit'`
@@ -404,7 +403,7 @@ screen, not the bytes.
 `logUpdateStderr`, with the row-level diffing intact: a five-row frame whose last row is a
 counter costs one row of output per tick, not five.
 
-log-update ships 113.4 KB across **sixteen** packages. This subpath reaches two, both from
+log-update ships 114.3 KB across **sixteen** packages. This subpath reaches two, both from
 this repository: `linegauge/wrap` for the wrapper, and `closeout` for the cursor.
 It carries no port of `slice-ansi` — the wrapper already makes every row self-contained,
 so clipping a frame to the terminal's height is an array slice. `signal-exit`, 22.0 KB of
@@ -486,10 +485,10 @@ path instead. The current grades are generated under *Benchmarks* below and publ
 Every subpath is a lock, not a convention, and the numbers below are asserted by
 `weight.test.ts` against `dist/`, not estimated: `flagstaff/loop` reaches 4.4 KB on disk and
 never the plugin registry; `flagstaff/plugin` 8.4 KB, of which 2.4 KB is the schema;
-`flagstaff/spinner` 9.4 KB; `flagstaff/ora` 46.5 KB — 55.9 KB with roundel counted, against
-ora's own 113.6 KB; `flagstaff/log-update` 29.6 KB, against
-log-update's own 113.4 KB across sixteen, reaching only `linegauge/wrap` and `closeout`; `flagstaff/boxen` 17.6 KB — 67.8 KB with linegauge and
-roundel counted, against boxen 9's own 114.9 KB across fourteen; `flagstaff/cli-table3` 32.9 KB —
+`flagstaff/spinner` 9.4 KB; `flagstaff/ora` 44.1 KB — 53.5 KB with roundel counted, against
+ora 10's own 128.2 KB; `flagstaff/log-update` 29.6 KB, against
+log-update's own 114.3 KB across sixteen, reaching only `linegauge/wrap` and `closeout`; `flagstaff/boxen` 17.6 KB — 67.8 KB with linegauge and
+roundel counted, against boxen 9's own 115.8 KB across fourteen; `flagstaff/cli-table3` 32.9 KB —
 42.3 KB with roundel, against cli-table3's own 106.0 KB across seven. The three façades share `wrap.js` and
 `width.js`, and the first two share `closeout`; none reaches another's port, and none
 reaches the core. `sideEffects: false` lets a
@@ -507,7 +506,7 @@ Graded by the incumbent's own test suite:
 | `boxen` | 213 / 213 |
 | `cli-table3` | 29 / 29 |
 | `log-update` | 99 / 99 |
-| `ora` | 99 / 99 |
+| `ora` | 223 / 223 |
 
 ## For agents
 

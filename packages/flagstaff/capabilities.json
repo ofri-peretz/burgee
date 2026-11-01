@@ -71,7 +71,7 @@
           "why": "A test drives frames with `manualClock()` instead of patching global timers, so a spinner's terminal output is the same bytes on every run.",
           "ours": { "status": "yes", "test": "packages/flagstaff/src/loop.test.ts", "title": "the tty transcript is the same bytes twenty runs over" },
           "incumbents": {
-            "ora": { "status": "no", "source": "node_modules/ora/index.js", "quote": "this.#id = setInterval(this.render.bind(this), this.interval);", "note": "frames are scheduled on the global timer" },
+            "ora": { "status": "no", "source": "node_modules/ora/index.js", "quote": "this.#id = setInterval(this.#tryRender.bind(this), this.interval);", "note": "frames are scheduled on the global timer" },
             "log-update": { "status": "n/a", "source": "node_modules/log-update/index.js", "lacks": "setInterval", "note": "draws only when called; the caller owns the timing" },
             "boxen": { "status": "n/a", "source": "node_modules/boxen/index.js", "lacks": "setInterval", "note": "does not animate" },
             "cli-table3": { "status": "n/a", "source": "node_modules/cli-table3/src/table.js", "lacks": "setInterval", "note": "does not animate" }
@@ -109,7 +109,7 @@
           "why": "A spinner or border style is registered once, validated against the published JSON schema, and every component that draws one can use it by name.",
           "ours": { "status": "yes", "test": "packages/flagstaff/src/plugin.test.ts", "title": "R3 · validated against schema.json" },
           "incumbents": {
-            "ora": { "status": "partial", "source": "node_modules/ora/index.js", "quote": "if (typeof spinner === 'object') {", "missing": "a custom spinner object is passed to each instance; there is no registry and no schema" },
+            "ora": { "status": "partial", "source": "node_modules/ora/index.js", "quote": "if (typeof spinner === 'object' && spinner !== null) {", "missing": "a custom spinner object is passed to each instance; there is no registry and no schema" },
             "log-update": { "status": "n/a", "source": "node_modules/log-update/index.js", "lacks": "spinner", "note": "has no styles to register" },
             "boxen": { "status": "partial", "source": "node_modules/boxen/index.js", "quote": "throw new TypeError(`Invalid border style: ${side}`);", "missing": "a custom border object is passed to each call; there is no registry" },
             "cli-table3": { "status": "partial", "source": "node_modules/cli-table3/src/utils.js", "quote": "ret.chars = Object.assign({}, defaults.chars, options.chars);", "missing": "custom border characters are passed to each table; there is no registry and no validation" }

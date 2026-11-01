@@ -26,8 +26,8 @@
 </p>
 
 <p align="center">
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/cli--truncate%20suite-12%2F12-0a6b47?style=flat-square" alt="linegauge passes 12 of 12 cases of the cli-truncate test suite" /></a>
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/slice--ansi%20suite-104%2F104-0a6b47?style=flat-square" alt="linegauge/slice passes 104 of 104 cases of the slice-ansi test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/cli--truncate%20suite-17%2F17-0a6b47?style=flat-square" alt="linegauge passes 17 of 17 cases of the cli-truncate test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/slice--ansi%20suite-106%2F106-0a6b47?style=flat-square" alt="linegauge/slice passes 106 of 106 cases of the slice-ansi test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/string--width%20suite-233%2F233-0a6b47?style=flat-square" alt="linegauge passes 233 of 233 cases of the string-width test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/strip--ansi%20suite-8%2F8-0a6b47?style=flat-square" alt="linegauge/strip passes 8 of 8 cases of the strip-ansi test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/widest--line%20suite-1%2F1-0a6b47?style=flat-square" alt="linegauge passes 1 of 1 cases of the widest-line test suite" /></a>
@@ -219,7 +219,7 @@ against their namesakes.
 The six drop-in paths are graded by each incumbent's own suite, unedited, through
 `compat-oracle`; the grades are generated under *Benchmarks* below and published on the
 [compatibility page](https://burgee.interlace.tools/docs/compatibility). `linegauge/cli-truncate`
-passes all 12 of cli-truncate 6.1.1's cases and `linegauge/widest-line` widest-line 6.0.0's one,
+passes all 17 of cli-truncate 6.2.0's cases and `linegauge/widest-line` widest-line 6.0.0's one,
 level with each incumbent. `truncate` and `widest` stay linegauge's own API: `truncate` counts
 the ellipsis inside the budget and cuts by measured width, and `widest` takes any iterable of
 lines.
@@ -232,14 +232,14 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
-| `cli-truncate` | 12 / 12 |
-| `slice-ansi` | 104 / 104 |
+| `cli-truncate` | 17 / 17 |
+| `slice-ansi` | 106 / 106 |
 | `string-width` | 233 / 233 |
 | `strip-ansi` | 8 / 8 |
 | `widest-line` | 1 / 1 |
 | `wrap-ansi` | 85 / 85 |
 
-Weight, installed and tree-inclusive: **107,398 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5527** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **107,698 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5542** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 

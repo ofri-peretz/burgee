@@ -82,13 +82,15 @@ function nodeStripHandlesColon(): boolean {
   return nodeStrip(`${ESC}[38:2::255:0:0mred${ESC}[39m`) === 'red';
 }
 
-describe('where Node\u2019s own stripper diverges, on the Node versions where it still does', () => {
+describe('where Node\u2019s own stripper diverges', () => {
   const COLON = `${ESC}[38:2::255:0:0mred${ESC}[39m`;
 
-  it('agrees with Node everywhere except the colon form, and there only on an older Node 24', () => {
+  it('agrees with Node everywhere except an unterminated CSI, and the colon form on an older Node 24', () => {
     const differ = SHAPES.filter(([, input]) => nodeStrip(input) !== stripAnsi(input)).map(([name]) => name);
+    // `incomplete CSI` differs since ansi-regex 6.5.0, whose final byte is never a digit: Node
+    // still takes `ESC[31` as `ESC[3` ended by `1`, and strip-ansi keeps it as text.
     expect(differ, 'a shape outside the two measured states — Node changed again; update the note in strip.ts').toEqual(
-      NODE_FIXED_COLON_FORM ? [] : ['RGB colon form'],
+      NODE_FIXED_COLON_FORM ? ['incomplete CSI'] : ['RGB colon form', 'incomplete CSI'],
     );
   });
 
@@ -118,14 +120,36 @@ describe('where Node\u2019s own stripper diverges, on the Node versions where it
  * two-pass version answered differently (2026-09-30, B5): a C1 OSC is removed when an `ESC` or
  * `0x9B` is also present and kept when not, as strip-ansi's fast path does, and `ESC [` before a
  * byte that is no final is text.
+ *
+ * The first five are ansi-regex 6.5.0's, held here to a literal as well as to the incumbent, so a
+ * strip-ansi that resolved an older ansi-regex would name itself rather than pass.
  */
 describe('strip is strip-ansi at the edges too', () => {
   it.each([
+    // ansi-regex 6.5.0 (2026-10-29), which every fresh strip-ansi 7.2.0 install now resolves:
+    // a CSI's final byte is no longer a digit, so `ESC[5d`, whose `d` is outside the final-byte
+    // class, is no longer cut after the `5` with a bare `d` left behind — it is not a match at
+    // all, and stays as written — and a private-parameter CSI (`ESC[>0;276;0c`, the device
+    // attributes reply) is one sequence rather than `ESC[>` and visible text (burgee#1382).
+    ['a CSI whose final byte is outside the class', 'a\u001B[5db'],
+    ['a CSI with two parameters and a final past the digit class', 'a\u001B[12;40Hb'],
+    ['the device attributes reply, a private-parameter CSI', 'a\u001B[>0;276;0cb'],
+    ['a C1 private-parameter CSI', 'a\u009B<1;2Mb'],
+    ['a DEC private mode set, which was always one sequence', 'a\u001B[?25lb'],
     ['C1 OSC beside a CSI', '\u009D0;title\u009C\u001B[31mred'],
     ['C1 OSC alone, which strip-ansi returns as it is', '\u009D0;title\u009Cplain'],
     ['ESC [ before a non-final byte', 'a\u001B[aa'],
     ['a CSI with no final byte before a link', '\u001B[\u001B]8;;x\u0007t'],
   ])('%s', (_name, input) => {
     expect(strip(input)).toBe(stripAnsi(input));
+  });
+
+  it.each([
+    ['a\u001B[5db', 'a\u001B[5db'],
+    ['a\u001B[12;40Hb', 'ab'],
+    ['a\u001B[>0;276;0cb', 'ab'],
+    ['a\u009B<1;2Mb', 'ab'],
+  ])('turns %j into %j, as ansi-regex 6.5.0 does', (input, expected) => {
+    expect(strip(input)).toBe(expected);
   });
 });

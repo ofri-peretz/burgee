@@ -192,12 +192,12 @@ describe('R1, R3 — require-esm', () => {
   });
 
   it('names the first target the run considers, whatever the order of the manifest', async () => {
-    const dir = project({ 'package.json': JSON.stringify({ engines: { node: '>=18' }, dependencies: { ora: '^9.0.0', chalk: '^6.0.0' } }), 'a.js': "const ora = require('ora');\n" });
+    const dir = project({ 'package.json': JSON.stringify({ engines: { node: '>=18' }, dependencies: { ora: '^10.0.0', chalk: '^6.0.0' } }), 'a.js': "const ora = require('ora');\n" });
     expect((await run(dir, { dryRun: true })).preflight).toEqual([requireEsm('>=18', '18.0.0', 'roundel/chalk')]);
   });
 
   it('considers only what --only names, and nothing --skip leaves out', async () => {
-    const dir = project({ 'package.json': JSON.stringify({ engines: { node: '>=18' }, dependencies: { chalk: '^6.0.0', ora: '^9.0.0' } }) });
+    const dir = project({ 'package.json': JSON.stringify({ engines: { node: '>=18' }, dependencies: { chalk: '^6.0.0', ora: '^10.0.0' } }) });
     expect((await run(dir, { only: ['ora'] })).preflight).toEqual([requireEsm('>=18', '18.0.0', 'flagstaff/ora')]);
     expect((await run(dir, { skip: ['chalk'] })).preflight).toEqual([requireEsm('>=18', '18.0.0', 'flagstaff/ora')]);
     expect((await run(dir, { skip: ['chalk', 'ora'] })).preflight, 'no targets, no rows').toEqual([]);
@@ -366,7 +366,7 @@ describe('R6 — a blocking row stops the write, and --force does not lift it', 
 
   it('a refusal beside a block still exits RUNTIME, and the block is what the summary says', async () => {
     // The refusal holds ora only; commander still has a file to move, so the block is what stops it.
-    const dir = project({ 'package.json': JSON.stringify({ engines: { node: '>=10' }, dependencies: { commander: '^15.0.0', ora: '^9.0.0' } }), 'a.js': "require('commander');\n", 'b.js': "require('ora/lib/x.js');\n" });
+    const dir = project({ 'package.json': JSON.stringify({ engines: { node: '>=10' }, dependencies: { commander: '^15.0.0', ora: '^10.0.0' } }), 'a.js': "require('commander');\n", 'b.js': "require('ora/lib/x.js');\n" });
     const report = await run(dir);
     expect(report.summary).toBe('blocked: 1 preflight check; nothing written (1 file would be rewritten)');
     expect(report.exitCode).toBe(ExitCode.RUNTIME);

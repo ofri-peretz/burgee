@@ -522,7 +522,11 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // 110,300 on 2026-11-01 (D-20261101-yargs-parse-command-linear-bytes): parse-command reads a
   // long run of dots in linear time. Main at `4204fb307f` measured 110,156 locally and this reads
   // 110,225 (+69); plus the ~32 B, rounded up to the next 50. Still 1,461 B under yargs' 111,686.
-  'burgee/yargs': 110_300,
+  // 110,350 on 2026-11-01 (D-20261101-upstream-issues-2026-11-01): `linegauge/strip` carries
+  // ansi-regex 6.5.0's pattern, which strip-ansi 7.2.0 now resolves and cliui measures through.
+  // Main at `b3aaede393` measured 110,225 locally and this reads 110,274 (+49); plus the ~32 B,
+  // rounded up to the next 50. Still 1,412 B under yargs' 111,686.
+  'burgee/yargs': 110_350,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
   // bundle grows by, set where the number actually is, so the next byte is a decision.

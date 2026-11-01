@@ -208,25 +208,25 @@ describe('where slice-ansi 7 was not the specification, and 9 is', () => {
 });
 
 /**
- * Two clusters `width` and `slice` count differently, and why.
+ * Two clusters `width` and `slice` used to count differently, and no longer do.
  *
  * `width` gives string-width's answer: CRLF is no column and a lone regional indicator is
- * one. A cut needs somewhere to land, though, so `slice` gives every cluster at least one
- * position and a lone indicator two, as slice-ansi does. An earlier cut of this module used
- * `width`'s numbers for both and failed exactly these two cases of slice-ansi 9's suite
- * (102 / 104), which also took slice-ansi out of `burgee migrate`, since only a level
- * drop-in is rewritten.
+ * one. slice-ansi 9 gave every cluster at least one position and a lone indicator two, and
+ * `slice` followed it with a `positions()` rule of its own (102 / 104 against 9's suite
+ * without it). slice-ansi 10 takes its columns from string-width (`counts CRLF as zero width`,
+ * `counts columns the same way as string-width`), so `slice` now cuts by `width`'s numbers and
+ * the two agree (burgee#1392).
  */
-describe('where slice counts positions, not rendered columns', () => {
-  it('gives CRLF a position of its own, as slice-ansi does', () => {
+describe('slice counts the columns width counts, as slice-ansi 10 does', () => {
+  it('gives CRLF no column, so it rides with the cluster after it', () => {
     expect(width('\r\n')).toBe(0);
-    expect(slice('A\r\nB', 1, 2)).toBe('\r\n');
+    expect(slice('A\r\nB', 1, 2)).toBe('\r\nB');
     expect(sliceAnsi('A\r\nB', 1, 2)).toBe(slice('A\r\nB', 1, 2));
   });
 
-  it('gives a lone regional indicator two positions, as slice-ansi does', () => {
+  it('gives a lone regional indicator one column, as string-width does', () => {
     expect(width('\u{1F1E6}')).toBe(1);
-    expect(slice('A\u{1F1E6}B', 1, 3)).toBe('\u{1F1E6}');
+    expect(slice('A\u{1F1E6}B', 1, 3)).toBe('\u{1F1E6}B');
     expect(sliceAnsi('A\u{1F1E6}B', 1, 3)).toBe(slice('A\u{1F1E6}B', 1, 3));
   });
 
@@ -248,7 +248,7 @@ describe('where slice counts positions, not rendered columns', () => {
 /**
  * The escape grammar — every sequence `slice` carries without interpreting it.
  *
- * The corpus above sends SGR and one `ST`-terminated link; slice-ansi 9's suite, which grades
+ * The corpus above sends SGR and one `ST`-terminated link; slice-ansi 10's suite, which grades
  * this file in `compat-oracle`, sends the rest, but in another process. These are the shapes
  * that decide where a sequence *ends*: which terminator closes which introducer, what a
  * malformed or unterminated one swallows, and when an introducer is only a character. A
@@ -313,9 +313,10 @@ describe('an escape slice does not interpret is carried whole, and ends where sl
     ['a CSI broken by a byte no CSI contains ends before that byte', `a${ESC}[31\u0100bc`, [1, 3], '\u0100b'],
     ['an unterminated CSI at the end is the rest of the string', `ab${ESC}[31`, [0, 5], `ab${ESC}[31`],
     ['… and occupies no column', `ab${ESC}[31`, [2, 3], ''],
-    // An introducer that starts nothing this reads is a character, with a position of its own.
-    ['ESC before a byte that introduces nothing', `a${ESC}7b`, [1, 2], ESC],
-    ['… and the byte after it is text', `a${ESC}7b`, [2, 3], '7'],
+    // An introducer that starts nothing this reads is a character of no column, so it rides
+    // with the text after it.
+    ['ESC before a byte that introduces nothing', `a${ESC}7b`, [1, 2], `${ESC}7`],
+    ['… and the byte after it is text', `a${ESC}7b`, [2, 3], 'b'],
     ['ESC as the last character', `ab${ESC}`, [2, 3], ESC],
   ])('%s', (_name, input, [start = 0, end], expected) => {
     expect(slice(input, start, end)).toBe(expected);

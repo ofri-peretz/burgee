@@ -141,7 +141,7 @@ describe('U12-2 — the install command pins each family package to the version 
   it('prints name@^version for every family package, read from this repository’s manifests', async () => {
     const versions = manifests();
     const dir = project({
-      'package.json': manifest({ chalk: '^6.0.0', ora: '^9.0.0', commander: '^15.0.0' }),
+      'package.json': manifest({ chalk: '^6.0.0', ora: '^10.0.0', commander: '^15.0.0' }),
       'pnpm-lock.yaml': '',
       'src/a.ts': "import chalk from 'chalk';\nimport ora from 'ora';\nimport { Command } from 'commander';\n",
     });
@@ -182,10 +182,14 @@ describe('U12-2 — the install command pins each family package to the version 
   });
 });
 
-/** mcpc's shape: pnpm, chalk and ora, and the release-age settings in `pnpm-workspace.yaml`. */
+/**
+ * mcpc's shape: pnpm, chalk and ora, and the release-age settings in `pnpm-workspace.yaml`. ora is
+ * declared at the graded major, 10 since 2026-11-01 (burgee#1391), so the cases measure the pins; a
+ * project still on ora 9 has its ora left alone, which `migrate.test.ts` holds.
+ */
 const mcpc = (workspace: string): string =>
   project({
-    'package.json': manifest({ chalk: '^6.0.0', ora: '^9.0.0' }),
+    'package.json': manifest({ chalk: '^6.0.0', ora: '^10.0.0' }),
     'pnpm-lock.yaml': '',
     'pnpm-workspace.yaml': workspace,
     'src/a.ts': "import chalk from 'chalk';\nimport ora from 'ora';\n",
@@ -269,7 +273,7 @@ describe('U12-2 — under a release age, next pins the newest family version old
     ['a glob with two stars', { 'pnpm-workspace.yaml': "minimumReleaseAge: 4320\nminimumReleaseAgeExclude: [nope, 'x*y*z', 'ro*xx*l', 'r*und*del', '*a*f', 'r*u*l']\n" }],
     ['a block list with comments, blanks and a key after it', { 'pnpm-workspace.yaml': 'minimumReleaseAgeExclude:\n  # docs-only patches\n\n  - roundel # ours\n  -\nminimumReleaseAge: 4320\nother:\n  - flagstaff\n' }],
   ])('reads the exclusions from %s', async (_, files) => {
-    const dir = project({ 'package.json': manifest({ chalk: '^6.0.0', ora: '^9.0.0' }), 'pnpm-lock.yaml': '', 'src/a.ts': "import chalk from 'chalk';\nimport ora from 'ora';\n", ...files });
+    const dir = project({ 'package.json': manifest({ chalk: '^6.0.0', ora: '^10.0.0' }), 'pnpm-lock.yaml': '', 'src/a.ts': "import chalk from 'chalk';\nimport ora from 'ora';\n", ...files });
     const report = await migrate({ dir, status: clean, registry: registry(), now });
     expect(report.next).toContain(`roundel@^${versions['roundel'] as string}`);
   });
@@ -302,7 +306,7 @@ describe('U12-3 — the project chooses what moves, and an undeclared incumbent 
 
   it('counts optionalDependencies and peerDependencies as declared', async () => {
     const dir = project({
-      'package.json': JSON.stringify({ name: 'x', optionalDependencies: { chalk: '^6.0.0' }, peerDependencies: { ora: '^9.0.0' } }),
+      'package.json': JSON.stringify({ name: 'x', optionalDependencies: { chalk: '^6.0.0' }, peerDependencies: { ora: '^10.0.0' } }),
       'src/a.ts': "import chalk from 'chalk';\nimport ora from 'ora';\n",
     });
     expect(await migrate({ dir, status: clean })).toMatchObject({ undeclared: [], detected: { declared: ['chalk', 'ora'] } });
@@ -310,7 +314,7 @@ describe('U12-3 — the project chooses what moves, and an undeclared incumbent 
   });
 
   it('--only rewrites the named incumbents and no other', async () => {
-    const dir = project({ 'package.json': manifest({ chalk: '^6.0.0', ora: '^9.0.0' }), 'src/a.ts': "import chalk from 'chalk';\nimport ora from 'ora';\n" });
+    const dir = project({ 'package.json': manifest({ chalk: '^6.0.0', ora: '^10.0.0' }), 'src/a.ts': "import chalk from 'chalk';\nimport ora from 'ora';\n" });
     const report = await migrate({ dir, status: clean, only: ['ora'] });
     expect(read(dir, 'src/a.ts')).toBe("import chalk from 'chalk';\nimport ora from 'flagstaff/ora';\n");
     expect(report.dependencies).toMatchObject({ removable: ['ora'], add: ['flagstaff'] });
@@ -324,7 +328,7 @@ describe('U12-3 — the project chooses what moves, and an undeclared incumbent 
   });
 
   it('--skip leaves the named incumbents alone and out of the removable list', async () => {
-    const dir = project({ 'package.json': manifest({ chalk: '^6.0.0', ora: '^9.0.0' }), 'src/a.ts': "import chalk from 'chalk';\nimport ora from 'ora';\n" });
+    const dir = project({ 'package.json': manifest({ chalk: '^6.0.0', ora: '^10.0.0' }), 'src/a.ts': "import chalk from 'chalk';\nimport ora from 'ora';\n" });
     const report = await migrate({ dir, status: clean, skip: ['chalk'] });
     expect(read(dir, 'src/a.ts')).toBe("import chalk from 'chalk';\nimport ora from 'flagstaff/ora';\n");
     expect(report.dependencies.removable).toEqual(['ora']);

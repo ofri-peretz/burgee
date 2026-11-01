@@ -42,8 +42,10 @@ const ALLOWED: Record<string, string[]> = {
   'widest.js': ['./width.js'],
   // The two incumbent-named façades (`graded-override-targets` R5, R6): cli-truncate's
   // arithmetic over linegauge's own cut and measure, and widest-line's one string over
-  // `widest`. Each is the incumbent's shape over a family entry, by design.
-  'cli-truncate.js': ['./slice.js', './width.js'],
+  // `widest`. Each is the incumbent's shape over a family entry, by design. cli-truncate 6.2.0
+  // finds its space by column over the visible text, so the façade also reaches `strip` and the
+  // shared segmenter in `style` — both already in its closure through `width` and `slice`.
+  'cli-truncate.js': ['./slice.js', './strip.js', './style.js', './width.js'],
   'widest-line.js': ['./widest.js'],
   // The lowest entry there is, and `width` reaches *it* — which is why `style.js` no longer
   // reaches `width.js`. A strip that needed a measurement would be a cycle, and there is nothing
@@ -112,7 +114,9 @@ describe('the rule covers what is published', () => {
    * only thing standing between us and a fat subpath: cutting one string must not load the
    * wrapper, and wrapping must not load the truncator.
    */
-  const COMPOSED: Record<string, string[]> = { 'truncate.js': ['./slice.js'], 'cli-truncate.js': ['./slice.js'], 'widest-line.js': ['./widest.js'] };
+  // `cli-truncate -> strip` since cli-truncate 6.2.0 searches the visible text by column: `strip`
+  // was already in its closure through `width`, so the edge loads nothing it did not load before.
+  const COMPOSED: Record<string, string[]> = { 'truncate.js': ['./slice.js'], 'cli-truncate.js': ['./slice.js', './strip.js'], 'widest-line.js': ['./widest.js'] };
 
   it('no entry reaches a sibling entry', () => {
     const entries = new Set(published.filter((f) => f !== 'index.js'));

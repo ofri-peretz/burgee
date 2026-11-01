@@ -1,27 +1,27 @@
 {
-  "$comment": "upstream-watch R1. Per subpath, the npm packages that subpath replaces or is measured against. `claim` is what we assert: `compat` — graded by the package's own suite through compat-oracle; `weight` — we cite a byte figure against it in a published comparison; `surface` — parity intended, nothing graded yet. `seen` is the last fingerprint we recorded; the watch diffs against it, so an upstream release arrives as a git diff on this file. Figures are the same measurement the weight lock and the README use: shipped code and data over the graph an import pulls, a competitor counted across its own resolved tree. `via` says the figure is that package's contribution inside another's resolved tree rather than a claim about its own latest release: flagstaff itemises ora's bill, where chalk resolves to 5.6.2, not to the 6.0.0 on dist-tags.latest. boxen is the one figure that did not reproduce: `weight.test.ts` and the README publish \"boxen 8.0.1's 151,351 B in fourteen\", and boxen 8.0.1 measures 132,414 B across nineteen packages by the same method that reproduces ora's 113,577 and log-update's 113,368 to the byte. The declaration records the measured figure; the published claim is unchanged here and needs a decision from whoever measured it.",
+  "$comment": "upstream-watch R1. Per subpath, the npm packages that subpath replaces or is measured against. `claim` is what we assert: `compat` — graded by the package's own suite through compat-oracle; `weight` — we cite a byte figure against it in a published comparison; `surface` — parity intended, nothing graded yet. `seen` is the last fingerprint we recorded; the watch diffs against it, so an upstream release arrives as a git diff on this file. Figures are the same measurement the weight lock and the README use: shipped code and data over the graph an import pulls, a competitor counted across its own resolved tree. `via` says the figure is that package's contribution inside another's resolved tree rather than a claim about its own latest release: flagstaff itemises ora's bill, where chalk resolved to 5.6.2 under ora 9 and resolves to 6.0.1 under ora 10.0.0, its own release (burgee#1394). boxen is the one figure that did not reproduce: `weight.test.ts` and the README publish \"boxen 8.0.1's 151,351 B in fourteen\", and boxen 8.0.1 measures 132,414 B across nineteen packages by the same method that reproduces ora's 113,577 and log-update's 113,368 to the byte. The declaration records the measured figure; the published claim is unchanged here and needs a decision from whoever measured it.",
   "./ora": [
     {
       "package": "ora",
       "claim": "compat",
       "seen": {
-        "version": "9.4.1",
-        "weight": 114102,
-        "measured": "2026-10-06",
+        "version": "10.0.0",
+        "weight": 128182,
+        "measured": "2026-11-01",
         "cited": [
           "packages/flagstaff/src/weight.test.ts",
           "packages/flagstaff/README.md"
         ],
         "registry": "ora",
-        "shasum": "ba7644f3c7c92a8f830fbc48ca770b9eaf4bc55c",
-        "self": 17891,
+        "shasum": "eb3d13e363b4855972f1dd9e95bb553dbce5260e",
+        "self": 26277,
         "packages": 17,
         "files": {
-          "index.d.ts": "211ee257bf1d3d742ffe8295dd04697d648fdd4d045236c0bc82d1608d2dc2f6",
-          "index.js": "8ce1d2e2f12ab45970269ed8e0563494fdfebf502933963733d083c301908168",
+          "index.d.ts": "9ce293d56b29433886c5edf4ec6d7265b29327adb468139bedb700c3796e9e05",
+          "index.js": "0942d9c4b9c2a46d3a8655bd874bd0e0204e1f938419f14c3697b9421048ec7f",
           "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
-          "package.json": "5f47508dcf8f31ccb8b2c30ed42cde830ccbf1642bf1df1a9b9ad06c6fdf55da",
-          "readme.md": "d85f97f0103806f6e72c1018cb309d7710c6fe5761a4132cad0536bc214c608e"
+          "package.json": "75af589171085a44efde4278b209e6a270440c14e4e91978d38a41b3f8778393",
+          "readme.md": "f393ccd81accb26ad4975aec2e1dec6ef3fd21e806c3fd7d50d563cd4ec34331"
         },
         "exports": [
           "Color",
@@ -45,7 +45,7 @@
       "seen": {
         "version": "3.4.0",
         "weight": 27841,
-        "measured": "2026-10-06",
+        "measured": "2026-11-01",
         "cited": [
           "packages/flagstaff/src/weight.test.ts"
         ],
@@ -74,30 +74,30 @@
       "claim": "weight",
       "via": "ora",
       "seen": {
-        "version": "5.6.2",
-        "weight": 16727,
-        "measured": "2026-10-06",
+        "version": "6.0.1",
+        "weight": 21568,
+        "measured": "2026-11-01",
         "cited": [
           "packages/flagstaff/src/weight.test.ts",
           "packages/flagstaff/README.md"
         ],
         "registry": "chalk",
-        "shasum": "b1238b6e23ea337af71c7f8a295db5af0c158aea",
-        "self": 16727,
+        "shasum": "077d4667ad6e608c9687782caed3d534d7f9abc3",
+        "self": 21568,
         "packages": 1,
         "files": {
           "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
-          "package.json": "ef029c254479723c952a24c0d8d758378bd8ddf031f5bd6f027f65e1a3d030f3",
-          "readme.md": "03d260b86ecf3becaee6ae05d891ff32b291ba613661b5707d6d0121b8c2bec9",
-          "source/index.d.ts": "f3f76db6e76bc76d13cc4bfa10e1f74390b8ebe279535f62243e8d8acd919314",
-          "source/index.js": "64b22b1c442e6d460069807b521bf0a84e112c00c2b4163bc59deab20a9292db",
-          "source/utilities.js": "698ce3cb21b00b570631742d3a9e168de31df74b3a88220c4bcf18ac30fd00cd",
-          "source/vendor/ansi-styles/index.d.ts": "acfed6cc001e7f7f26d2ba42222a180ba669bb966d4dd9cb4ad5596516061b13",
-          "source/vendor/ansi-styles/index.js": "92efdc3e5203d02d1710ff60dea3965066f97a77c0feaaa919b2693c989b7ec1",
+          "package.json": "7116220f70a118975f834e1fd95ee3ecf6a23cb198a94d6845a4cea256007d01",
+          "readme.md": "83afc9420595c1f7bb4ad5e13c2d77614676983f3df1e58acbb6985ed6a2ad7b",
+          "source/index.d.ts": "d6ef4d0e2407eef316586745bfac66d5280fc7b2ad7cdde75fcb24c44ff2252c",
+          "source/index.js": "02abae0091d42e077f06e10c0918cf671707d1c73235bcb5d486ed66084ec7b4",
+          "source/utilities.js": "a58d81494366211509ea2c373328cf68a6365a94be8645f33c1ed49f1288650a",
+          "source/vendor/ansi-styles/index.d.ts": "09ec9006e2cea3d5ed9eb1129d3fdcce68a25dcfec953b02cef8c42c00987ee9",
+          "source/vendor/ansi-styles/index.js": "f28f1ede59be327626e4ae5f9f05387ab8072f298ba1ab7f9c9262d39923a25d",
           "source/vendor/supports-color/browser.d.ts": "09d791bf6471207eb7553c17a6cb03d6e6bd1d789f19bbec67da2b08ec9bb570",
-          "source/vendor/supports-color/browser.js": "af136d242c06422a0004775bdf11d9e25a05b1ec54a6932315dc016d22d8b440",
+          "source/vendor/supports-color/browser.js": "9baf3a04474e1d1cca8cb8bd46a4c9ca212f448c2c2f6f1725edf62ccf8a4997",
           "source/vendor/supports-color/index.d.ts": "f61a4dc92450609c353738f0a2daebf8cae71b24716dbd952456d80b1e1a48b6",
-          "source/vendor/supports-color/index.js": "e82368a5f05d145e33de6ae3464056511664b620735ef58d1800a7bcda6691e5"
+          "source/vendor/supports-color/index.js": "57f56bb90a586a6c7a65fc831cae47f0773b8f42edf11abb7c4f2273b82fb63e"
         },
         "exports": [
           "//",
@@ -119,6 +119,8 @@
           "ModifierName",
           "Modifiers",
           "Options",
+          "UnderlineColor",
+          "UnderlineColorName",
           "backgroundColorNames",
           "backgroundColors",
           "chalkStderr",
@@ -131,7 +133,8 @@
           "modifierNames",
           "modifiers",
           "supportsColor",
-          "supportsColorStderr"
+          "supportsColorStderr",
+          "underlineColorNames"
         ]
       }
     },
@@ -142,7 +145,7 @@
       "seen": {
         "version": "4.1.0",
         "weight": 21983,
-        "measured": "2026-10-06",
+        "measured": "2026-11-01",
         "cited": [
           "packages/flagstaff/src/weight.test.ts"
         ],
@@ -201,7 +204,7 @@
       "seen": {
         "version": "8.3.0",
         "weight": 6447,
-        "measured": "2026-10-06",
+        "measured": "2026-11-01",
         "cited": [
           "packages/flagstaff/src/weight.test.ts",
           "packages/flagstaff/src/width.test.ts"
@@ -230,7 +233,7 @@
       "seen": {
         "version": "1.7.0",
         "weight": 8917,
-        "measured": "2026-10-06",
+        "measured": "2026-11-01",
         "cited": [
           "packages/flagstaff/src/weight.test.ts"
         ],
@@ -286,7 +289,7 @@
       "seen": {
         "version": "2.2.0",
         "weight": 4466,
-        "measured": "2026-10-06",
+        "measured": "2026-11-01",
         "cited": [
           "packages/flagstaff/src/weight.test.ts"
         ],
@@ -376,7 +379,7 @@
       "seen": {
         "version": "5.0.1",
         "weight": 3038,
-        "measured": "2026-10-06",
+        "measured": "2026-11-01",
         "cited": [
           "packages/flagstaff/src/weight.test.ts"
         ],
@@ -404,8 +407,8 @@
       "claim": "compat",
       "seen": {
         "version": "8.0.0",
-        "weight": 113442,
-        "measured": "2026-10-06",
+        "weight": 114295,
+        "measured": "2026-11-01",
         "cited": [
           "packages/flagstaff/src/weight.test.ts",
           "packages/flagstaff/README.md"
@@ -558,7 +561,7 @@
         "registry": "boxen",
         "version": "9.0.0",
         "shasum": "05185a8f87e418b543762d8c66673ca178431bcd",
-        "weight": 114927,
+        "weight": 115780,
         "self": 22037,
         "packages": 14,
         "files": {
@@ -576,7 +579,7 @@
           "_borderStyles",
           "default"
         ],
-        "measured": "2026-10-06"
+        "measured": "2026-11-01"
       }
     }
   ],
@@ -672,8 +675,8 @@
       "claim": "compat",
       "seen": {
         "version": "9.0.0",
-        "weight": 114927,
-        "measured": "2026-10-06",
+        "weight": 115780,
+        "measured": "2026-11-01",
         "cited": [
           "packages/flagstaff/src/weight.test.ts",
           "packages/flagstaff/README.md"

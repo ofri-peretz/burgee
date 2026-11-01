@@ -32,7 +32,7 @@
  * Every escape this does not interpret — any other `CSI`, `OSC`, `DCS`, `SOS`, `PM`, `APC`,
  * in `ESC` or C1 form, terminated by `BEL`, `ESC \` or `U+009C`, or unterminated — is carried
  * through as a zero-width unit, and a malformed one ends at the first byte that cannot belong
- * to it, so the text after it stays text. That grammar is `slice-ansi` 9's `tokenize-ansi.js`,
+ * to it, so the text after it stays text. That grammar is `slice-ansi` 10's `tokenize-ansi.js`,
  * whose suite grades this file; the columns are this package's own `measure`.
  *
  * Built on the same style stack `wrap` uses rather than a second copy of it, which is the
@@ -167,24 +167,6 @@ function parseEscape(string: string, index: number): Escape | undefined {
   return parseLink(string, index) ?? parseControlString(string, index) ?? parseCsi(string, index);
 }
 
-/** A lone regional indicator — half a flag, with no partner to make it one. */
-const LONE_REGIONAL_INDICATOR = /^[\u{1F1E6}-\u{1F1FF}]$/u;
-
-/**
- * How many positions a cluster occupies **for cutting**, which is `measure`'s answer with
- * two exceptions, both slice-ansi's. Every cluster is at least one position, so CRLF, a
- * control or a zero-width character can be the start or end of a range the way a character
- * can, and a lone regional indicator is two, like the flag it is half of. `width` still says
- * 0 and 1 for those, as string-width does. The two diverge only on clusters that render as
- * nothing, where a cut has to land somewhere anyway. With `measure` alone this was 102 / 104
- * against slice-ansi 9's suite, and not level (burgee#317).
- */
-function positions(cluster: string): number {
-  const columns = clusterColumns(cluster);
-  if (columns === 0) return 1;
-  return LONE_REGIONAL_INDICATOR.test(cluster) ? 2 : columns;
-}
-
 /** An escape as the walk meets it, with whether the next code point continues a cluster. */
 type Placed = Escape & { ahead: boolean };
 
@@ -253,7 +235,11 @@ function walk(string: string, visit: (token: Text | Placed) => boolean): void {
     const cluster = clusters?.next();
     const whole = cluster?.done === false;
     const segment = whole ? cluster.value.segment : (next as string);
-    const columns = whole ? positions(segment) : 1;
+    // A cluster's columns are `width`'s, as slice-ansi 10 takes string-width's (`counts columns
+    // the same way as string-width`): CRLF and every other cluster that draws nothing are 0, a
+    // lone regional indicator is 1. slice-ansi 9 counted each at least one position and a lone
+    // indicator two, and `positions()` here followed it until 2026-11-01 (burgee#1392).
+    const columns = whole ? clusterColumns(segment) : 1;
     let offset = 0;
     for (const _ of segment) {
       // The clusters partition the visible text, which is these code points joined.

@@ -3,11 +3,16 @@
  * and widest-line's own suites grade in `compat-oracle` (`graded-override-targets` R5, R6).
  *
  * Those suites run in another process, so these cases hold the same façades here, differentially:
- * each input goes through the incumbent the workspace installs (cli-truncate 6.1.1, widest-line
+ * each input goes through the incumbent the workspace installs (cli-truncate 6.2.0, widest-line
  * 6.0.0, the graded releases) and through ours, and the two must agree byte for byte. The table
  * reaches every branch — each position with and without `space` and `preferTruncationOnSpace`,
  * a styled text and a styled mark, a cut that ends on a bare `m` and one that opens on a
  * sequence that is not SGR, the one-column and zero-column budgets, and every refusal.
+ *
+ * The last five texts are 6.2.0's: `preferTruncationOnSpace` finds its space by terminal column,
+ * not by UTF-16 index, so a style, a wide character or a zero-width one before the break no
+ * longer moves the search, and the text after the mark loses its leading spaces without a
+ * `trim()` that also took the trailing ones and the closing style.
  */
 import cliTruncateIncumbent from 'cli-truncate';
 import { describe, expect, it } from 'vitest';
@@ -20,14 +25,14 @@ const RED = '\u001B[31m';
 const RESET = '\u001B[39m';
 const BOLD = '\u001B[1m';
 
-const texts = ['unicorn', 'unicorns rainbow dragons', `${RED}unicorn${RESET}`, `${BOLD}${RED}unicorns rainbow${RESET}\u001B[22m`, '안녕하세요', 'a🈀b🈀c', `\u001B[3xunicorn`, `unicorn\u001B[3`, 'dream mm summer mm', `unicorns \u001B[2Krainbow`];
+const texts = ['unicorn', 'unicorns rainbow dragons', `${RED}unicorn${RESET}`, `${BOLD}${RED}unicorns rainbow${RESET}\u001B[22m`, '안녕하세요', 'a🈀b🈀c', `\u001B[3xunicorn`, `unicorn\u001B[3`, 'dream mm summer mm', `unicorns \u001B[2Krainbow`, `${RED}unicorns rainbow dragons${RESET}`, '古古 古古古 古古 古', 'a\u200Bb c\u200Bd e\u200Bf g\u200Bh', 'unicorns   rainbow   ', `${BOLD}unicorns${RESET}   rainbow  \u001B[22m`];
 const positions = ['start', 'middle', 'end'] as const;
 const shapes: Options[] = [{}, { space: true }, { preferTruncationOnSpace: true }, { truncationCharacter: '...' }, { truncationCharacter: `${RED}~${RESET}` }, { space: true, truncationCharacter: '+' }];
 const budgets = [-1, 0, 1, 2, 3, 4, 5, 8, 12, 20, 40];
 
 const cases = texts.flatMap((text) => positions.flatMap((position) => shapes.flatMap((shape) => budgets.map((columns) => [text, columns, { ...shape, position }] as const))));
 
-describe('linegauge/cli-truncate agrees with cli-truncate 6.1.1', () => {
+describe('linegauge/cli-truncate agrees with cli-truncate 6.2.0', () => {
   it('finds cases to compare, so the agreement cannot be vacuous', () => {
     expect(cases.length).toBeGreaterThan(1000);
   });
@@ -35,6 +40,17 @@ describe('linegauge/cli-truncate agrees with cli-truncate 6.1.1', () => {
   it('returns what the incumbent returns, for every text, position, option and budget', () => {
     const differ = cases.filter(([text, columns, options]) => cliTruncate(text, columns, options) !== cliTruncateIncumbent(text, columns, options));
     expect(differ).toEqual([]);
+  });
+
+  // The leading run of styles a start cut puts the mark inside is SGR with digit and `;`
+  // parameters only, as cli-truncate reads it. A colon-form truecolour opener (`ESC[38:2::…m`)
+  // ends that run, so the mark goes before it. Without `preferTruncationOnSpace` nothing here
+  // reads Node's `stripVTControlCharacters`, which mis-strips the colon form before v24.21, so
+  // the incumbent's answer is the same on every Node.
+  it('puts a start mark before a colon-form opener it does not read as SGR, as the incumbent does', () => {
+    const text = `\u001B[38:2::255:0:0municorns rainbow${RESET}`;
+    expect(cliTruncate(text, 8, { position: 'start' })).toBe(`…\u001B[38:2::255:0:0mrainbow${RESET}`);
+    expect(cliTruncate(text, 8, { position: 'start' })).toBe(cliTruncateIncumbent(text, 8, { position: 'start' }));
   });
 
   it('defaults to the end and the ellipsis', () => {

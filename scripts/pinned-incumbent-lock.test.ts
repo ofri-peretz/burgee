@@ -28,6 +28,9 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
+// eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: a bare `compat-oracle/*` resolves from another checkout's dist/ in an uninstalled worktree (compat-oracle R6)
+import { HOSTS, PREVIOUS_MAJORS } from '../packages/compat-oracle/src/hosts.js';
+
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 
 /** An exact pin: a bare version, no `^`, `~`, range or tag. */
@@ -67,16 +70,25 @@ describe('every exactly-pinned benchmark incumbent is ignored by dependabot', ()
 
 /**
  * The `name@version` specs every host in compat-oracle's `hosts.ts` installs for its suite, by
- * name. Read as text, so this lock needs no build of compat-oracle.
+ * name, and the release each row that pins its own incumbent (`pinnedVersion`) is vendored and
+ * controlled at. The specs are read as text; the pins from the source module, so no build of
+ * compat-oracle is needed either way.
+ *
+ * The pins were missing until 2026-11-01. slice-ansi's row grades the root install at its
+ * `pinnedVersion` and declares no `slice-ansi@…` spec, so this lock only ever saw the 9.0.1 that
+ * ink's suite happens to install — and at slice-ansi 10.0.0 it read the benchmark as weighing a
+ * release nobody grades, when the slice-ansi row grades exactly that one (burgee#1392).
  */
 function gradedVersions(): Map<string, Set<string>> {
   const src = readFileSync(join(ROOT, 'packages/compat-oracle/src/hosts.ts'), 'utf8');
   const out = new Map<string, Set<string>>();
+  const add = (name: string, version: string): void => {
+    out.set(name, (out.get(name) ?? new Set()).add(version));
+  };
   for (const list of src.matchAll(/suiteDeps:\s*\[([^\]]*)\]/g)) {
-    for (const [, name, version] of (list[1] ?? '').matchAll(/'((?:@[^@'/]+\/)?[^@']+)@([^']+)'/g)) {
-      out.set(name as string, (out.get(name as string) ?? new Set()).add(version as string));
-    }
+    for (const [, name, version] of (list[1] ?? '').matchAll(/'((?:@[^@'/]+\/)?[^@']+)@([^']+)'/g)) add(name as string, version as string);
   }
+  for (const host of [...HOSTS, ...PREVIOUS_MAJORS]) if (host.pinnedVersion !== undefined) add(host.npmName ?? host.name, host.pinnedVersion);
   return out;
 }
 
@@ -93,6 +105,7 @@ describe('every exact pin an oracle suite also installs is a release that suite 
 
   it('reads the oracle, so a broken reader cannot pass this', () => {
     expect(graded.get('dotenv')?.size ?? 0, 'no suiteDeps entry for dotenv was read out of hosts.ts').toBeGreaterThan(0);
+    expect(graded.get('slice-ansi')?.has(HOSTS.find((h) => h.name === 'slice-ansi')?.pinnedVersion ?? ''), "slice-ansi's own pinnedVersion was not read").toBe(true);
   });
 
   it('pins each to a version the oracle grades', () => {

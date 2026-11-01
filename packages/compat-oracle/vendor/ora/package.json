@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "main": "./shim.js",
-  "version": "9.4.1",
+  "version": "10.0.0",
   "license": "MIT",
   "description": "Elegant terminal spinner",
   "repository": "sindresorhus/ora"

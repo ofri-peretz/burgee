@@ -28,16 +28,19 @@ function ora(options?: Options | string): Ora;
 
 ### oraPromise
 
-Run an action under a spinner, and land on the right symbol whichever way it ends.
+Run an action under a spinner, and land on the right symbol whichever way it ends. The
+action's own outcome wins: a `failText` that throws, or a persist the stream cannot write,
+never replaces the action's error, and a persist that fails never discards its result. A
+`successText` that throws is the caller's error and is not drawn as a failure.
 
 ```ts
-function oraPromise<T>(action: Promise<T> | ((spinner: Ora) => Promise<T>), options?: PromiseOptions<T> | string): Promise<T>;
+function oraPromise<T>(action: Promise<T> | ((spinner: Ora) => Promise<T>), options?: PromiseOptions<T> | string | null): Promise<T>;
 ```
 
 | Parameter | Type |
 | :-- | :-- |
 | `action` | `Promise<T> \| ((spinner: Ora) => Promise<T>)` |
-| `options` (optional) | `PromiseOptions<T> \| string` |
+| `options` (optional) | `PromiseOptions<T> \| string \| null` |
 
 **Returns** `Promise<T>`
 
@@ -69,6 +72,12 @@ class Ora {
     set isSilent(value: boolean);
     frame(): string;
     clear(): this;
+    /**
+     * A stream without the readline cursor methods — a CI log stream that reports a TTY — gets
+     * the frame written where the cursor is. Unfinished external output is left alone until its
+     * newline, with no timeout: resized rows cannot be counted reliably, and a replay would
+     * duplicate rows already in scrollback.
+     */
     render(): this;
     start(text?: string): this;
     stop(): this;
@@ -76,7 +85,7 @@ class Ora {
     fail(text?: string): this;
     warn(text?: string): this;
     info(text?: string): this;
-    stopAndPersist(options?: PersistOptions): this;
+    stopAndPersist(options?: PersistOptions | null): this;
 }
 ```
 

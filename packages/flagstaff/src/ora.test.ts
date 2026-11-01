@@ -1,5 +1,5 @@
 /**
- * The façade's own locks, on top of the 99 tests ora's suite contributes through
+ * The façade's own locks, on top of the 223 tests ora's suite contributes through
  * `compat-oracle`.
  *
  * The one that matters is R5 on a migration: `output-stack-compat` constraint 2 says a
@@ -15,7 +15,7 @@ import { closeSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import process from 'node:process';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import ora, { oraPromise, spinners } from './ora.js';
@@ -318,4 +318,142 @@ describe('write hooks unwind in any stop order', () => {
       }
     });
   }
+});
+
+/**
+ * ora 10.0.0 (burgee#1391), whose suite grew from 99 cases to 223. Each case below is one of
+ * the behaviours the port took from it, stated on the façade itself so it is held here as well
+ * as in `compat-oracle`'s run, and each fails on the ora 9 port this replaced.
+ */
+interface FakeTerminal {
+  write: (s: string, encoding?: unknown, callback?: unknown) => boolean;
+  isTTY: true;
+  columns: number;
+  rows?: number;
+  cursorTo: (x: number) => boolean;
+  moveCursor: (dx: number, dy: number) => boolean;
+  clearLine: (direction: number) => boolean;
+  frames: () => string[];
+  text: () => string;
+}
+
+/** A terminal-shaped stream that records every write and every cursor call. */
+function terminal(rows?: number): FakeTerminal {
+  const chunks: string[] = [];
+  const stream: FakeTerminal = {
+    write: (s: string) => {
+      chunks.push(s);
+      return true;
+    },
+    isTTY: true,
+    columns: 40,
+    ...(rows === undefined ? {} : { rows }),
+    cursorTo: () => true,
+    moveCursor: () => true,
+    clearLine: () => true,
+    // What the frame writes are: everything between the synchronized-output pair.
+    frames: () => chunks.join('').split('\u001B[?2026h').slice(1).map((part) => part.split('\u001B[?2026l')[0] ?? ''),
+    text: () => chunks.join(''),
+  };
+  return stream;
+}
+
+const enabled = { isEnabled: true, hideCursor: false, discardStdin: false } as const;
+
+describe('ora 10: the frame fits the screen', () => {
+  it('keeps a tall frame above the last row, with the message on the last row it may use', () => {
+    const stream = terminal(4);
+    const spinner = ora({ ...enabled, stream, text: 'one\ntwo\nthree\nfour\nfive' }).start();
+    spinner.stop();
+    const frame = stream.frames()[0] ?? '';
+    // Four rows on screen: the frame takes three, so it can never scroll and be left behind.
+    expect(frame.split('\n')).toHaveLength(3);
+    expect(frame).toMatch(/\u001B\[0m\.\.\. \(content truncated to fit terminal\)$/);
+  });
+
+  it('shortens the message on a terminal too narrow for it, and still writes something', () => {
+    const stream = terminal(2);
+    stream.columns = 10;
+    const spinner = ora({ ...enabled, stream, text: 'one\ntwo\nthree' }).start();
+    spinner.stop();
+    const frame = stream.frames()[0] ?? '';
+    expect(frame.split('\n')).toHaveLength(1);
+    expect(frame.length).toBeGreaterThan(0);
+  });
+});
+
+describe('ora 10: an unfinished external line pauses rendering until its newline', () => {
+  it('does not paint over a partial line, however long it waits', () => {
+    vi.useFakeTimers();
+    try {
+      const stream = terminal();
+      const spinner = ora({ ...enabled, stream, text: 'busy' }).start();
+      stream.write('Downloading…');
+      const before = stream.frames().length;
+      // ora 9 resumed after 200 ms and drew the frame through the half-written line.
+      vi.advanceTimersByTime(1000);
+      expect(stream.frames()).toHaveLength(before);
+      stream.write(' done\n');
+      expect(stream.frames().length).toBeGreaterThan(before);
+      spinner.stop();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('ora 10: a render with no caller to throw to stops the spinner', () => {
+  it('stops on a throwing prefixText in a timer render instead of crashing the process', () => {
+    vi.useFakeTimers();
+    try {
+      const stream = terminal();
+      let calls = 0;
+      const spinner = ora({
+        ...enabled,
+        stream,
+        prefixText: () => {
+          calls += 1;
+          if (calls > 1) throw new Error('affix');
+          return 'p';
+        },
+      }).start();
+      expect(() => vi.advanceTimersByTime(500)).not.toThrow();
+      expect(spinner.isSpinning).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('ora 10: what is persisted', () => {
+  it('writes the symbol plain on a stream that cannot render colour', () => {
+    const stream = pipe();
+    ora({ stream, isEnabled: true }).stopAndPersist({ symbol: '\u001B[32m+\u001B[39m', text: 'ok' });
+    expect(stream.text()).toBe('+ ok\n');
+  });
+
+  it('starts the persisted line on a row of its own after an unfinished external line', () => {
+    const stream = terminal();
+    const spinner = ora({ ...enabled, stream, text: 'busy' }).start();
+    stream.write('partial');
+    spinner.succeed('done');
+    expect(stream.text()).toMatch(/partial\n[^\n]* done\n$/);
+  });
+
+  it('throws on an unknown spinner name whatever the terminal can draw', () => {
+    expect(() => ora({ spinner: null as unknown as string })).toThrow("There is no built-in spinner named 'null'");
+  });
+});
+
+/** A `failText` that throws, so the error it raises can be told from the action's. */
+const throwingFailText = (): string => {
+  throw new Error('from failText');
+};
+
+describe('ora 10: oraPromise keeps the action’s own outcome', () => {
+  it('rethrows the action’s error when failText itself throws', async () => {
+    const stream = pipe();
+    const failText = throwingFailText;
+    await expect(oraPromise(Promise.reject(new Error('the action')), { stream, failText })).rejects.toThrow('the action');
+  });
 });

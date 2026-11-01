@@ -14,7 +14,7 @@
             "string-width": { "status": "yes", "source": "node_modules/string-width/index.js", "quote": "import {eastAsianWidth} from 'get-east-asian-width';", "note": "through get-east-asian-width 1.7.0" },
             "wrap-ansi": { "status": "yes", "source": "node_modules/wrap-ansi/index.js", "quote": "import stringWidth from 'string-width';", "note": "measures through string-width" },
             "strip-ansi": { "status": "n/a", "source": "node_modules/strip-ansi/index.js", "lacks": "eastAsianWidth", "note": "removes escape sequences; measures nothing" },
-            "slice-ansi": { "status": "yes", "source": "node_modules/slice-ansi/node_modules/is-fullwidth-code-point/index.js", "quote": "_isWide as isWide,", "note": "through is-fullwidth-code-point and get-east-asian-width" }
+            "slice-ansi": { "status": "yes", "source": "node_modules/slice-ansi/tokenize-ansi.js", "quote": "import stringWidth from 'string-width';", "note": "through string-width and get-east-asian-width, since slice-ansi 10" }
           }
         },
         {
@@ -106,7 +106,7 @@
             "string-width": { "status": "no", "source": "node_modules/string-width/package.json", "quote": "\"get-east-asian-width\": \"^1.5.0\",", "note": "get-east-asian-width and strip-ansi" },
             "wrap-ansi": { "status": "no", "source": "node_modules/wrap-ansi/package.json", "quote": "\"ansi-styles\": \"^6.2.3\",", "note": "ansi-styles and string-width" },
             "strip-ansi": { "status": "no", "source": "node_modules/strip-ansi/package.json", "quote": "\"ansi-regex\": \"^6.2.2\"", "note": "ansi-regex" },
-            "slice-ansi": { "status": "no", "source": "node_modules/slice-ansi/package.json", "quote": "\"is-fullwidth-code-point\": \"^5.1.0\"", "note": "ansi-styles and is-fullwidth-code-point" }
+            "slice-ansi": { "status": "no", "source": "node_modules/slice-ansi/package.json", "quote": "\"string-width\": \"^8.3.0\"", "note": "ansi-styles and string-width" }
           }
         }
       ]
