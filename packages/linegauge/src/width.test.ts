@@ -254,6 +254,7 @@ describe('the width tables are the ones the pinned get-east-asian-width publishe
   // This asks the loaded tables about every code point.
   it('the loaded tables answer as the pinned package does for every code point', () => {
     const wrong: string[] = [];
+    // eslint-disable-next-line secure-coding/no-unchecked-loop-condition -- a fixed bound: Unicode's 1,114,112 code points, ~0.5 s
     for (let cp = 0; cp <= 0x10_ff_ff; cp++) {
       const type = eastAsianWidthType(cp);
       if (isWide(cp) !== (type === 'wide' || type === 'fullwidth') || isAmbiguous(cp) !== (type === 'ambiguous')) wrong.push(cp.toString(16));
