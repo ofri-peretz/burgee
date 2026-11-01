@@ -14,7 +14,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { ServerConfig, Unit } from './child.js';
-import { beatAge, beatFile, classifyStall, CPU_WINDOW_MS, cpuShare, type CpuSample, type Stall } from './heartbeat.js';
+import { beatFile, classifyStall, CPU_WINDOW_MS, cpuShare, readBeat, type CpuSample, type Stall } from './heartbeat.js';
 import { env, stderr } from './runtime.js';
 
 const childJs = fileURLToPath(new URL('./child.js', import.meta.url));
@@ -113,12 +113,12 @@ class Server {
         const now = Date.now();
         if (now - Number(since) > budget(id)) {
           // Read before the kill: an idle stop is a Timeout as it stands, a busy one is re-run (heartbeat.ts).
-          const beat = beatAge(this.beat, now);
+          const beat = readBeat(this.beat, now);
           const share = cpuShare(this.cpu, now);
-          const stall = classifyStall({ beatAge: beat, cpuShare: share });
+          const stall = classifyStall({ beat, cpuShare: share });
           if (env['OXMUTATE_DEBUG_WATCHDOG']) {
             const cpu = share === undefined ? '?' : `${String(Math.round(share * PERCENT))}%`;
-            stderr.write(`oxmutate watchdog: stop ${id} after ${String(now - Number(since))} ms; ${stall}; beat ${Number.isFinite(beat) ? `${String(beat)} ms ago` : 'never'}; cpu ${cpu} over ${String(CPU_WINDOW_MS)} ms\n`);
+            stderr.write(`oxmutate watchdog: stop ${id} after ${String(now - Number(since))} ms; ${stall}; beat ${Number.isFinite(beat.age) ? `${String(beat.age)} ms ago` : 'never'}${beat.inTest ? ' in a test' : ''}; cpu ${cpu} over ${String(CPU_WINDOW_MS)} ms\n`);
           }
           this.child.kill('SIGKILL');
           finish({ killedFor: id, stall, stderr: this.stderr });

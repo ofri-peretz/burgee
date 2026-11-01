@@ -4,36 +4,45 @@ import path from 'node:path';
 
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
-import { BEAT_ENV, beatAge, beatFile, classifyStall, CPU_SAMPLE_MS, CPU_WINDOW_MS, cpuShare, HEARTBEAT_MS, IDLE_CPU, MIN_CPU_SPAN_MS, STALE_MS, startHeartbeat } from './heartbeat.js';
+import { BEAT_ENV, beatFile, classifyStall, CPU_SAMPLE_MS, CPU_WINDOW_MS, cpuShare, HEARTBEAT_MS, IDLE_CPU, markTest, MIN_CPU_SPAN_MS, readBeat, STALE_MS, startHeartbeat } from './heartbeat.js';
+
+/** A beat of this age, from inside a test body unless said otherwise. */
+const beat = (age: number, inTest = true): { age: number; inTest: boolean } => ({ age, inTest });
+const beatAge = (file: string, now?: number): number => readBeat(file, now).age;
 
 const realNow = Date.now.bind(Date);
 const dir = mkdtempSync(path.join(tmpdir(), 'oxmutate-heartbeat-'));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
-describe('classifyStall: idle is a live beat and under IDLE_CPU of a core; anything else is busy', () => {
+describe('classifyStall: idle is a live beat inside a test body and under IDLE_CPU of a core; anything else is busy', () => {
+  // On a loaded machine a short budget can run out while the worker still collects its file, its
+  // CPU low while it waits for modules: that is a slow machine, not a hang (sc8-profile.md).
+  it('reads a worker outside a test body as busy, however idle', () => {
+    expect(classifyStall({ beat: beat(100, false), cpuShare: 0 })).toBe('busy');
+  });
   it('reads a prompt awaiting a keypress (live beat, 0–2% CPU) as idle', () => {
-    expect(classifyStall({ beatAge: 100, cpuShare: 0 })).toBe('idle');
-    expect(classifyStall({ beatAge: STALE_MS - 1, cpuShare: 0.02 })).toBe('idle');
+    expect(classifyStall({ beat: beat(100), cpuShare: 0 })).toBe('idle');
+    expect(classifyStall({ beat: beat(STALE_MS - 1), cpuShare: 0.02 })).toBe('idle');
   });
   it('reads a loop (stale beat, about a core) as busy', () => {
-    expect(classifyStall({ beatAge: 9000, cpuShare: 0.72 })).toBe('busy');
+    expect(classifyStall({ beat: beat(9000), cpuShare: 0.72 })).toBe('busy');
   });
   it('reads a live beat that burns CPU (a slow test on a loaded machine) as busy', () => {
-    expect(classifyStall({ beatAge: 100, cpuShare: IDLE_CPU })).toBe('busy');
+    expect(classifyStall({ beat: beat(100), cpuShare: IDLE_CPU })).toBe('busy');
   });
   it('reads a stale beat at 0% CPU (a worker blocked in a synchronous wait) as busy', () => {
-    expect(classifyStall({ beatAge: STALE_MS, cpuShare: 0 })).toBe('busy');
+    expect(classifyStall({ beat: beat(STALE_MS), cpuShare: 0 })).toBe('busy');
   });
   it('reads a stop with no CPU reading as busy: the re-run decides it, as before', () => {
-    expect(classifyStall({ beatAge: 0, cpuShare: undefined })).toBe('busy');
+    expect(classifyStall({ beat: beat(0), cpuShare: undefined })).toBe('busy');
   });
   // The thresholds as measured on caique (sc8-profile.md): idle stops read 0–2% of a core, the loop
   // read 72%. A beat a full second old is stale.
   it('holds the measured thresholds: 2% with a live beat is idle, 72% is busy, a 1 s old beat is stale', () => {
-    expect(classifyStall({ beatAge: 100, cpuShare: 0.02 })).toBe('idle');
-    expect(classifyStall({ beatAge: 100, cpuShare: 0.72 })).toBe('busy');
-    expect(classifyStall({ beatAge: 999, cpuShare: 0 })).toBe('idle');
-    expect(classifyStall({ beatAge: 1000, cpuShare: 0 })).toBe('busy');
+    expect(classifyStall({ beat: beat(100), cpuShare: 0.02 })).toBe('idle');
+    expect(classifyStall({ beat: beat(100), cpuShare: 0.72 })).toBe('busy');
+    expect(classifyStall({ beat: beat(999), cpuShare: 0 })).toBe('idle');
+    expect(classifyStall({ beat: beat(1000), cpuShare: 0 })).toBe('busy');
   });
   it('beats four times per stale window, and samples the CPU four times per window', () => {
     expect(STALE_MS / HEARTBEAT_MS).toBe(4);
@@ -71,9 +80,26 @@ describe('the beat', () => {
     expect(BEAT_ENV).toBe('OXMUTATE_BEAT');
   });
 
+  it('says whether a beat came from inside a test body', async () => {
+    const realSetTimeout = globalThis.setTimeout;
+    const file = beatFile(dir, 8);
+    startHeartbeat(file);
+    expect(readBeat(file).inTest).toBe(false);
+    markTest(true);
+    await new Promise((resolve) => realSetTimeout(resolve, HEARTBEAT_MS + 50));
+    expect(readBeat(file).inTest).toBe(true);
+    expect(readBeat(file).age).toBeLessThan(STALE_MS);
+    markTest(false);
+    await new Promise((resolve) => realSetTimeout(resolve, HEARTBEAT_MS + 50));
+    expect(readBeat(file).inTest).toBe(false);
+    expect(readBeat(file).age).toBeLessThan(STALE_MS);
+    writeFileSync(file, '1000 test');
+    expect(readBeat(file, 1250)).toEqual({ age: 250, inTest: true });
+  });
+
   it('reads as never when nothing beat, and as fresh just after a beat', () => {
     const file = beatFile(dir, 1);
-    expect(beatAge(file)).toBe(Number.POSITIVE_INFINITY);
+    expect(readBeat(file)).toEqual({ age: Number.POSITIVE_INFINITY, inTest: false });
     writeFileSync(file, String(1000));
     expect(beatAge(file, 1250)).toBe(250);
     writeFileSync(file, 'garbage');

@@ -4,9 +4,10 @@
  * .sdlc/decisions/D-20261101-idle-stall-is-timeout.md).
  *
  * A mutant's test either settles at some time `s` with an outcome (Killed or Survived), or never
- * settles. A run that passes its budget is stopped. The stop reads the run as `idle` (the worker's
- * event loop turns and the server burns under 25% of a core: it waits on something the mutant
- * never lets happen) or `busy` (a loop, or a slow test on a loaded machine).
+ * settles. A run that passes its budget is stopped. The stop reads the run as `idle` (the worker is
+ * inside a test body, its event loop turns and the server burns under 25% of a core: it waits on
+ * something the mutant never lets happen) or `busy` (a loop, a slow test on a loaded machine, or a
+ * worker still loading its file).
  *
  * The path: a warm run with budget `b`; a stop sends the mutant to an isolated run with budget `B`.
  * A busy stop there is re-run once with `3B`, and a stop on that re-run is a Timeout. An idle stop is

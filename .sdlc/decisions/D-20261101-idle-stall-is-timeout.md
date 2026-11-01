@@ -7,8 +7,8 @@ superseded_by: —
 ---
 
 **The decision.** When the watchdog stops an isolated run, it first reads what the run was doing.
-If the test worker's event loop was still turning and the server used under 25% of one core over
-the last second, the run is **idle**. Its verdict is Timeout at its budget, with no re-run. Any
+If the test worker was inside a test body, its event loop was still turning, and the server used
+under 25% of one core over the last second, the run is **idle**. Its verdict is Timeout at its budget, with no re-run. Any
 other stop is **busy** and keeps today's path: one re-run at 3x the budget, then Timeout only if
 that run is stopped too. Warm stops still send the mutant to an isolated run, as before.
 
@@ -29,6 +29,12 @@ set, and only that set. The mutation score does not change, because a Timeout co
 (`scoreOf` in `coordinator.ts`, `summarise` in `scripts/mutation.ts`). On the subset, every verdict
 was identical except 5 Killed → Timeout, which were exactly the idle stops the old path had re-run
 and "overturned".
+
+**Inside a test body, not just idle.** The first build read only the heartbeat and the CPU. Under
+load (average 33), the `stall` fixture's emptied-string mutant was stopped at its 1.5 s budget while
+its worker still collected the test file, at 3% CPU, and was scored Timeout. A worker that is still
+loading modules is a slow machine, which is what the 3x re-run is for. So the runner marks a test
+body as running, the heartbeat carries the mark, and only a stop inside one can be idle.
 
 **How it is held.** `heartbeat.ts` (the classifier and its thresholds) with `heartbeat.test.ts`.
 `e2e.test.ts` checks both directions: the `stall` fixture's hung mutant is Timeout at its budget with

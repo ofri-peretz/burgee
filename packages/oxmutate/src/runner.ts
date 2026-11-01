@@ -26,7 +26,7 @@ import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 
-import { BEAT_ENV, startHeartbeat } from './heartbeat.js';
+import { BEAT_ENV, markTest, startHeartbeat } from './heartbeat.js';
 import { resolveEsm } from './resolve.js';
 import { ACTIVE_MUTANT_ENV, FILE_KEY, NAMESPACE, cwd, env, type Namespace } from './runtime.js';
 
@@ -294,7 +294,13 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     if (!fn) throw new Error(`oxmutate: no function for test ${test.name}`);
     if (mode !== 'mutant') {
       if (only && !only.has(test.id)) return;
-      await fn();
+      // Only a wait inside a test body can be an idle stall; collection at low CPU is a slow machine.
+      markTest(true);
+      try {
+        await fn();
+      } finally {
+        markTest(false);
+      }
       return;
     }
     const context = test.context;

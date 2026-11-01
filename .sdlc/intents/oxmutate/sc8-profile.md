@@ -83,13 +83,20 @@ The old path re-ran the hangs at 3x the isolated budget (about 34.5 s), where Vi
 | A | baseline 1.1.0 | 179.7 | 42.7 | 41.2 (unrecorded) | 87.8 | 13, 5 overturned | — |
 | C | wait in place past the budget while the worker is idle, warm *and* isolated, up to 3x | 375.1 | 251.5 | 41.2 | 63.1 | 6 | identical |
 | D | the same wait, isolated runs only | 169.3 | 46.8 | 40.7 | 76.8 | 9, 1 overturned | identical |
-| G | **idle stop = Timeout at its budget, no 3x re-run (shipped)** | **139.9** | 49.4 | 42.4 | 35.7 | 13, 13 idle, 0 overturned | identical except **5 Killed → Timeout**, exactly the idle-stall set |
+| G | idle stop = Timeout at its budget, no 3x re-run | 139.9 | 49.4 | 42.4 | 35.7 | 13, 13 idle, 0 overturned | identical except **5 Killed → Timeout**, exactly the idle-stall set |
+| H | **G, idle only inside a test body, + grouped static re-collections (shipped)** | **119.3** | 48.4 | 36.4 | 29.0 | 13, 5 idle, 0 overturned | identical except the same **5 Killed → Timeout** |
 
 - **C was rejected: 2.1x slower, same verdicts.** Waiting out a 30 s test timeout in the warm run
   costs more than a stop. After a warm stop, the isolated run usually kills the mutant within
   milliseconds through another covering test.
 - **D was superseded.** It saved the stop at 1x and the cold re-run, but kept the 30 s floor per
   hung mutant.
+- **H is G made safe on a loaded machine.** In the `stall` fixture, at load 33, a mutant that
+  only fails its assertion was stopped at its 1.5 s budget while the worker still collected the
+  file, at 3% CPU. G scored it Timeout. Idle now also needs the worker inside a test body (the
+  runner marks it, and the heartbeat carries the mark). Warm stops therefore read busy (`runArmed`
+  is not marked) and go to an isolated run as before. On the subset, the static phase also
+  dropped from 41 s to 36 s, with 52 grouped re-collections.
 - **G is [`D-20261101-idle-stall-is-timeout`](../../decisions/D-20261101-idle-stall-is-timeout.md).**
   The 5 flips are the mutants A had re-run at 3x and "overturned". The score is unchanged, because
   a Timeout is detected.

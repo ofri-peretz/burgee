@@ -388,11 +388,11 @@ it.skipIf(!native || !existsSync(bin))('scores a mutant whose test waits on an i
   process.env['OXMUTATE_ISOLATE_STATIC'] = '1';
   try {
     const result = await api.run(await api.loadOptions(dir, { reporters: [] }, path.join(dir, 'oxmutate.config.json')));
-    // The executor's emptied body (the hang), and the emptied string.
-    expect(result.mutants.map((m) => `${m.mutatorName}:${m.status}`)).toEqual(['BlockStatement:Timeout', 'StringLiteral:Killed']);
+    // The executor's emptied body, the hang; the string is excluded, so the run is the one mutant.
+    expect(result.mutants.map((m) => `${m.mutatorName}:${m.status}`)).toEqual(['BlockStatement:Timeout', 'StringLiteral:Ignored']);
     expect(result.stats).toMatchObject({ watchdogKills: 1, idleStalls: 1, timeoutsOverturned: 0 });
     // A Timeout is detected: the score is the one the Killed verdict gave.
-    expect(result.score).toMatchObject({ detected: 2, total: 2, mutationScore: 100 });
+    expect(result.score).toMatchObject({ detected: 1, total: 1, mutationScore: 100 });
   } finally {
     delete process.env['OXMUTATE_ISOLATE_STATIC'];
   }

@@ -10,8 +10,10 @@
  * - **The CPU.** The server reports its process's CPU time (every thread, the worker included)
  *   every CPU_SAMPLE_MS. Over the last CPU_WINDOW_MS, a loop burns about a core.
  *
- * A run with a fresh beat and under IDLE_CPU of a core is **idle**: it waits on something the
- * mutant never lets happen (a prompt awaiting a keypress). Anything else is **busy**. On a caique
+ * A run whose worker is inside a test body, with a fresh beat and under IDLE_CPU of a core, is
+ * **idle**: the test waits on something the mutant never lets happen (a prompt awaiting a
+ * keypress). Anything else is **busy**, including a worker still collecting its file: on a loaded
+ * machine a short budget can run out while modules load, at low CPU, and that is a slow machine. On a caique
  * subset 18 of 19 stops read 0–2% CPU with a live beat, and the one loop read 72%
  * (sc8-profile.md). An idle stop is a Timeout as it stands, the way Stryker scores it. A busy stop
  * may be a slow test on a loaded machine, so it keeps its re-run at 3x.
@@ -50,6 +52,14 @@ const realNow = Date.now.bind(Date);
 // Stryker disable next-line StringLiteral: any key names one registry symbol on every evaluation of this module, which is all the key is for
 const BEAT_KEY = Symbol.for('oxmutate.heartbeat');
 
+/** Whether a test body is running in this worker (the runner marks it); the beat carries it. */
+let inTest = false;
+
+/** Mark a test body as running, or done. Only a wait inside a test body can be an idle stall. */
+export function markTest(running: boolean): void {
+  inTest = running;
+}
+
 /** Start this worker's beat into `file`. Does nothing when no beat file is set. */
 export function startHeartbeat(file: string | undefined): void {
   if (!file) return;
@@ -58,7 +68,7 @@ export function startHeartbeat(file: string | undefined): void {
   /** One beat; false once the run's directory is gone: the run is over, and nothing reads the beat. */
   const beat = (): boolean => {
     try {
-      writeFileSync(file, String(realNow()));
+      writeFileSync(file, inTest ? `${String(realNow())} test` : String(realNow()));
     } catch {
       return false;
     }
@@ -72,14 +82,24 @@ export function startHeartbeat(file: string | undefined): void {
   holder[BEAT_KEY].unref();
 }
 
-/** How long ago a worker of this server last beat, or Infinity when none has. */
-export function beatAge(file: string, now = Date.now()): number {
+export interface Beat {
+  /** How long ago a worker of this server last beat, or Infinity when none has. */
+  age: number;
+  /** That beat came from inside a test body. */
+  inTest: boolean;
+}
+
+/** The last beat of this server's workers. */
+export function readBeat(file: string, now = Date.now()): Beat {
+  let text: string;
   try {
-    const at = Number(String(readFileSync(file)));
-    return Number.isFinite(at) && at > 0 ? now - at : Number.POSITIVE_INFINITY;
+    text = String(readFileSync(file));
   } catch {
-    return Number.POSITIVE_INFINITY;
+    return { age: Number.POSITIVE_INFINITY, inTest: false };
   }
+  const [stamp, where] = text.split(' ');
+  const at = Number(stamp);
+  return { age: Number.isFinite(at) && at > 0 ? now - at : Number.POSITIVE_INFINITY, inTest: where === 'test' };
 }
 
 /** One CPU reading of a server: when, and its process's user + system time so far, in µs. */
@@ -105,7 +125,7 @@ export function cpuShare(samples: readonly CpuSample[], now: number): number | u
 
 export type Stall = 'idle' | 'busy';
 
-/** A stopped run is idle when its worker's event loop turns and its server burns almost no CPU. */
-export function classifyStall(o: { beatAge: number; cpuShare: number | undefined }): Stall {
-  return o.beatAge < STALE_MS && (o.cpuShare ?? IDLE_CPU) < IDLE_CPU ? 'idle' : 'busy';
+/** A stopped run is idle when its worker waits inside a test body, its event loop turning, and its server burns almost no CPU. */
+export function classifyStall(o: { beat: Beat; cpuShare: number | undefined }): Stall {
+  return o.beat.inTest && o.beat.age < STALE_MS && (o.cpuShare ?? IDLE_CPU) < IDLE_CPU ? 'idle' : 'busy';
 }

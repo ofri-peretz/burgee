@@ -1,1 +1,1 @@
-{ "mutate": ["src/wait.ts"], "concurrency": 1, "flakyReruns": 0, "reporters": ["json"], "timeoutMS": 500 }
+{ "mutate": ["src/wait.ts"], "mutator": { "excludedMutations": ["StringLiteral"] }, "concurrency": 1, "flakyReruns": 0, "reporters": ["json"], "timeoutMS": 0 }
