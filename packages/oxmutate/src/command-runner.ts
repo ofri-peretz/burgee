@@ -10,7 +10,7 @@
  * up to the same `node_modules` (a monorepo's hoisted ones included). The armed mutant reaches the
  * instrumented code through `__OXMUTATE_ACTIVE_MUTANT__`, which the runtime header reads.
  */
-import { cpSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { ambientRuntime, run as spawn } from 'bellpull';
@@ -49,8 +49,35 @@ export function makeSandbox(root: string): string {
   mkdirSync(parent, { recursive: true });
   const sandbox = mkdtempSync(path.join(parent, 'sandbox-'));
   for (const entry of readdirSync(root)) if (!SKIP.has(entry)) cpSync(path.join(root, entry), path.join(sandbox, entry), { recursive: true });
+  rebaseExtends(root, sandbox);
   return sandbox;
 }
+
+/** A relative `"extends"` that a tsconfig holds, quoted: the path is group 2. */
+const RELATIVE_EXTENDS = /("extends"\s*:\s*")(\.{1,2}\/[^"]*)(")/g;
+
+/**
+ * A tsconfig's relative `extends` resolves from the file that holds it, and the sandbox sits two
+ * directories deeper than the project, so one that climbs out of the project (a monorepo package's
+ * `../../tsconfig.base.json`) would now point at nothing. Each copied tsconfig is rewritten to
+ * reach the same file from its new place. `from` and `to` are the same directory, before and after.
+ */
+function rebaseExtends(from: string, to: string): void {
+  for (const entry of readdirSync(to, { withFileTypes: true })) {
+    if (SKIP.has(entry.name)) continue;
+    const copied = path.join(to, entry.name);
+    if (entry.isDirectory()) rebaseExtends(path.join(from, entry.name), copied);
+    else if (/^tsconfig.*\.json$/.test(entry.name)) {
+      const text = readFileSync(copied, 'utf8');
+      const rebased = text.replace(RELATIVE_EXTENDS, (_match, open: string, rel: string, close: string) => {
+        const relative = path.relative(to, path.resolve(from, rel)).split(path.sep).join('/');
+        return `${open}${relative.startsWith('.') ? relative : `./${relative}`}${close}`;
+      });
+      if (rebased !== text) writeFileSync(copied, rebased);
+    }
+  }
+}
+
 const MS_PER_MINUTE = 60_000;
 /** How much of a failing dry run's output the error keeps. */
 const OUTPUT_TAIL = 1500;
