@@ -35,8 +35,8 @@ on:
     # No `labeled`/`unlabeled`: a label event is a second run, and a second check suite, on the same
     # head commit. Its cancelled twin can be the newer suite, which branch protection reads, and the
     # PR sits BLOCKED with everything green (#1418). A label added at `gh pr create` is in the
-    # `opened` run; one added later reaches this file through pr-labels.yml, which dispatches this
-    # file with `version-pr-check`, and `Changeset present` reads the labels live on every event.
+    # `opened` run; one changed later reaches it through pr-labels.yml, which re-runs this run,
+    # and `Changeset present` reads the labels live, so the re-run sees the change.
     # scripts/pr-trigger-lock.test.ts.
     types: [opened, synchronize, reopened]
   # `Changeset present` is a required check, and a required check with no `merge_group:` trigger

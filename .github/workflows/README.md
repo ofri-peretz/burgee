@@ -28,9 +28,12 @@ second. A workflow that listed `labeled` started once per event, concurrency can
 one, and branch protection reads each required context from the newest check suite that carries
 it, which on #1418 was the cancelled twin: BLOCKED, everything green. So no workflow that reports a
 required check subscribes to `labeled`/`unlabeled`. A label applied at creation is in the `opened`
-run; one changed later lands in [`pr-labels.yml`](./pr-labels.yml), which dispatches the workflows
-that read it (`skip-changeset` → `Changeset present`; `run-full-ci` → `quality-full.yml`,
-`compat.yml`, `codeql.yml`), a newer run that nothing on the PR cancels. `bench.yml` keeps
+run; one changed later lands in [`pr-labels.yml`](./pr-labels.yml), which re-runs the PR's own
+run of each workflow that reads it (`skip-changeset` → `changesets-pr.yml`; `run-full-ci` →
+`quality-full.yml`, `compat.yml`, `codeql.yml`): a new attempt in the same check suite, never a
+second suite. Each step that reads one of those labels reads it back live, since a re-run keeps
+its event. A dispatch would not do: a `workflow_dispatch` suite is not among a PR's checks at all.
+`bench.yml` keeps
 `labeled` for `bench:agent` only; any other label's run runs no job, in a group of its own.
 `scripts/pr-trigger-lock.test.ts` holds all of it.
 

@@ -13,11 +13,11 @@
  * at 00:53:47Z and thirteen of them cancelled. A run cancelled after its jobs were created leaves
  * those checks `cancelled`, and its `always()` gate runs anyway and fails ("Quality (Full) Gate
  * failure"). Branch protection reads a required context from the most recently CREATED check
- * suite that carries it, whichever run the concurrency group let live: on 41 merged PRs the
- * failed twin sat in the older suite and the PR merged, and on #1418 the cancelled
- * `Ratchet · each host's suite against burgee` sat in the newer suite (112031688339 against the
- * successful 112031687932) and the PR stayed BLOCKED, all green, until the cancelled run was
- * re-run. Concurrency decides which twin survives; creation order decides which one counts; the
+ * suite that carries it, whichever run the concurrency group let live. Of the last 80 merged PRs,
+ * 37 carried such a twin: 35 merged past it because it sat in the older suite, and on #1418 the
+ * cancelled `Ratchet · each host's suite against burgee` sat in the newer suite (112031688339
+ * against the successful 112031687932, though it started and finished first) and the PR stayed
+ * BLOCKED, all green, until the cancelled run was re-run (#1349 the same). Concurrency decides which twin survives; creation order decides which one counts; the
  * two disagree, so no concurrency key fixes it. The twin must not exist.
  *
  * What is held:
@@ -27,8 +27,10 @@
  *  - a workflow that does subscribe runs no job for a label it does not read, and puts that run in
  *    a concurrency group of its own, so it cannot cancel the run of the change;
  *  - every label a required-check workflow reads is still acted on when it changes after the PR is
- *    opened: `pr-labels.yml` dispatches the workflows that read it, a run created after the PR's
- *    own and never cancelled by it;
+ *    opened: `pr-labels.yml` re-runs the PR's own run of each workflow that reads it, a new attempt
+ *    in the same suite. Not a dispatch: a `workflow_dispatch` suite on the head commit is not among
+ *    the PR's checks (#1433's rollup listed none), so it could neither pass nor fail one. A re-run
+ *    keeps its event, so each step that reads the label from the event also reads it back live;
  *  - every required-check workflow's concurrency group, on a pull request, keys on the PR number:
  *    a newer push supersedes the older run, and two PRs never share a group.
  */
@@ -166,9 +168,9 @@ describe('a workflow that does subscribe to a label event acts only on its own l
   });
 });
 
-const routerScript = (): string => (router().jobs['dispatch']?.steps ?? []).map((s) => s.run ?? '').join('\n');
-/** The workflows the router's `case` arm for a label dispatches. */
-const dispatched = (label: string): string =>
+const routerScript = (): string => (router().jobs['rerun']?.steps ?? []).map((s) => s.run ?? '').join('\n');
+/** The workflows the router's `case` arm for a label re-runs. */
+const rerunFor = (label: string): string =>
   routerScript()
     .split('\n')
     .map((line) => line.trim())
@@ -182,16 +184,30 @@ describe('a label changed after the PR is opened still reaches the checks that r
     expect([...new Set(READ.map((r) => r.label))].sort()).toEqual(['run-full-ci', 'skip-changeset']);
   });
 
-  it.each(READ)('$label, added later, dispatches $file', ({ file, label }) => {
+  it.each(READ)('$label, added later, re-runs $file', ({ file, label }) => {
     const wf = router();
-    expect(wf.jobs['dispatch'] !== undefined && runs(wf, 'dispatch', { event_name: 'pull_request', action: 'labeled', label, labels: [label] }), `${ROUTER} does not act on labeled ${label}`).toBe(true);
-    expect(dispatched(label), `${ROUTER} does not dispatch ${file} when ${label} changes`).toContain(file);
-    expect(triggers(read(file)), `${file} cannot be dispatched`).toContain('workflow_dispatch');
+    expect(wf.jobs['rerun'] !== undefined && runs(wf, 'rerun', { event_name: 'pull_request', action: 'labeled', label, labels: [label] }), `${ROUTER} does not act on labeled ${label}`).toBe(true);
+    expect(rerunFor(label).split(/\s+/u), `${ROUTER} does not re-run ${file} when ${label} changes`).toContain(file);
   });
 
-  it('removing skip-changeset dispatches the changeset check again, so it can go red', () => {
+  it('re-runs the pull request run, in its own suite; it never dispatches one', () => {
+    const script = routerScript();
+    expect(script).toMatch(/gh run list --workflow "\$wf" --commit "\$SHA" --event pull_request/u);
+    expect(script).toMatch(/gh run rerun "\$id"/u);
+    expect(script).not.toMatch(/gh workflow run/u);
+  });
+
+  it.each(READ)("$file reads $label back live in every step that reads it from the event", ({ file, label }) => {
+    const wf = read(file);
+    const steps = Object.values(wf.jobs).flatMap((job) => job.steps ?? []);
+    const fromEvent = steps.filter((s) => Object.values((s as { env?: Record<string, unknown> }).env ?? {}).some((v) => /labels\.\*\.name/u.test(String(v))));
+    expect(fromEvent.length, `${file} reads ${label} in no step`).toBeGreaterThan(0);
+    for (const s of fromEvent) expect(s.run ?? '', `${file} → ${s.name ?? s.run?.slice(0, 40)}: reads the labels from the event only, which a re-run does not refresh`).toMatch(/gh pr view "\$PR_NUMBER"|meta "\$PR_NUMBER"/u);
+  });
+
+  it('removing skip-changeset re-runs the changeset check, so it can go red', () => {
     const wf = router();
-    expect(wf.jobs['dispatch'] !== undefined && runs(wf, 'dispatch', { event_name: 'pull_request', action: 'unlabeled', label: 'skip-changeset', labels: [] })).toBe(true);
+    expect(wf.jobs['rerun'] !== undefined && runs(wf, 'rerun', { event_name: 'pull_request', action: 'unlabeled', label: 'skip-changeset', labels: [] })).toBe(true);
   });
 
   it('the changeset check reads the labels live on a pull request, not from the event', () => {
