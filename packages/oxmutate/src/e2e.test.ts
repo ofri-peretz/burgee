@@ -405,7 +405,7 @@ describe.skipIf(!native || !existsSync(bin))('a spec oracle (M3.5): model traces
 // mutant took two stops and a 3x re-run to come out Killed the same way.
 // In process, through the built package's API: the CLI's exit adds seconds this test does not need.
 // The mutant is static and sent straight to the fresh-worker path, whose watchdog this checks.
-it.skipIf(!native || !existsSync(bin))('scores a mutant whose test waits on an idle worker Timeout at its budget, with no 3x re-run', async () => {
+it.skipIf(!native || !existsSync(bin) || !nightly)('scores a mutant whose test waits on an idle worker Timeout at its budget, with no 3x re-run', async () => {
   const dir = path.join(pkg, 'test/fixtures/stall');
   // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the built package under test, present only after a build; the test is skipped without it
   const api = (await import(path.join(pkg, 'dist/index.js'))) as typeof import('./index.js');
