@@ -84,6 +84,8 @@ export const NIGHTLY_ONLY: Readonly<Record<string, string>> = {
   [
     "packages/oxmutate/src/vitest5-regression.test.ts > the Vitest 5 regression (SC7) > reproduces the defect: with Stryker 10.0.0's name filter put back, the same mutants are Survived having run no test"
   ]: `${MUTATION_RUN}, twice, the second with every mutant surviving into its confirmation run; 28.7 s`,
+  [`${E2E} > scores a mutant whose test waits on an idle worker Timeout at its budget, with no 3x re-run`]: `${MUTATION_RUN}, waiting out a 4.5 s budget on purpose: a shorter one is reached while a loaded runner still loads the test file, which reads as a slow machine and flaked on CI (2026-11-02); 9.2 s`,
+  [`${E2E} > keeps a survivor whose confirmation run was only slow, not killed`]: `${MUTATION_RUN}, whose fixture stalls 6 s on purpose so the confirmation's 3x re-run is what decides; 5.8 s`,
   ['packages/oxmutate/src/checker.test.ts > the type checker > refuses the mutants that do not compile, with the error, and passes the ones that do']:
     'the real TypeScript compiler, `npx tsc` once per batch, over the fixture project; 15.1 s on a contended CI runner',
 };
