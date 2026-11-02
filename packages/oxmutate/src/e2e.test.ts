@@ -415,6 +415,21 @@ it.skipIf(!native || !existsSync(bin))('reports the mutants inside a disable/res
   expect(byLine(5)).not.toContain('Ignored');
 }, 60_000);
 
+// A test that freezes the clock with `vi.useFakeTimers()` and never gives it back: the runner wrote
+// each mutant's start from that clock, so every mutant after it read as running since the freeze,
+// and the watchdog stopped it however briefly it had run. On a full caique run on 2026-11-02 such
+// stops read 100 to 1,055 s "elapsed", and each cost a killed server and an isolated run.
+it.skipIf(!native || !existsSync(bin))('times a mutant by the real clock, so a test that froze it causes no stop', async () => {
+  const dir = path.join(pkg, 'test/fixtures/fake-clock');
+  // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the built package under test, present only after a build; the test is skipped without it
+  const api = (await import(path.join(pkg, 'dist/index.js'))) as typeof import('./index.js');
+  const result = await api.run(await api.loadOptions(dir, { reporters: [] }, path.join(dir, 'oxmutate.config.json')));
+  // No mutant of `grade` runs away, so none is stopped. (The thresholds are module constants: their
+  // mutants are static, and go to isolated runs whatever the clock says.)
+  expect(result.stats.watchdogKills).toBe(0);
+  expect(result.mutants.filter((m) => m.status === 'Timeout')).toEqual([]);
+}, 60_000);
+
 it.skipIf(!native || !existsSync(bin))('keeps a survivor whose confirmation run was only slow, not killed', () => {
   const dir = path.join(pkg, 'test/fixtures/slow-survivor');
   const reportDir = path.join(dir, 'reports');
