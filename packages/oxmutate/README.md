@@ -261,7 +261,8 @@ head-to-head runs (`bench/burgee-pair.mts`, concurrency 4, one tool after the ot
 
 The ceiling depends on the suite as much as the tool: controlroom's own `vitest run` takes ~8 s and
 every fresh worker imports React and Ink, so even zero overhead would make it ~6x. The figures to
-publish will come from the `oxmutate-bench.yml` lane on a runner nothing else shares.
+publish come from `bench/burgee-pair.mts`, run locally on a quiet machine: no mutation run happens
+in GitHub Actions (`D-20261101-no-mutation-in-gha`).
 
 ## Benchmarks
 

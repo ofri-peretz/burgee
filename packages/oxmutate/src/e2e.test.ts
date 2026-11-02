@@ -18,9 +18,9 @@ const bin = path.join(pkg, 'dist/bin.js');
 // OXMUTATE_REQUIRE_NATIVE (quality-full.yml), where a missing core fails instead of skipping.
 const native = existsSync(path.join(pkg, 'binding')) && readdirSync(path.join(pkg, 'binding')).some((f) => f.endsWith('.node'));
 if (!native && process.env['OXMUTATE_REQUIRE_NATIVE'] === '1') throw new Error('OXMUTATE_REQUIRE_NATIVE is set and no native core is built. fix: npm run build:native -w oxmutate');
-// A case that runs whole mutation runs — 6–15 s each on a contended CI runner — runs on the nightly
-// schedule, compat.yml's `heavy-tests` job, which sets BURGEE_NIGHTLY (D-20261101-tests-under-5s,
-// D-20261101-heavy-ci-runs-nightly). Each one is named in NIGHTLY_ONLY in
+// A case that runs whole mutation runs — 6–15 s each on a contended runner — runs in the local
+// weekly run, `npm run mutation:weekly`, which sets BURGEE_NIGHTLY (D-20261101-tests-under-5s,
+// D-20261101-no-mutation-in-gha). Each one is named in NIGHTLY_ONLY in
 // scripts/vitest-case-budget-reporter.ts, the only exemption from the five-second budget.
 const nightly = process.env['BURGEE_NIGHTLY'] === '1';
 
