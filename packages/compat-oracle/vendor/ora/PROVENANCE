@@ -3,7 +3,7 @@ repo:     https://github.com/sindresorhus/ora
 version:  10.0.0
 tag:      v10.0.0
 commit:   413994cb92cc3e895203ac02dae7aa7b75c01e76
-vendored: 2026-11-01
+vendored: 2026-11-02
 files:    1
 tool:     scripts/vendor-suite.ts
 
