@@ -61,7 +61,9 @@ if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(
   const missing = unresolved(JSON.parse(readFileSync(path, 'utf8')) as Lock);
   for (const m of missing) console.error(`::error::package-lock.json: ${m} has no entry to resolve to — npm >= 11.16 refuses this lock with "Missing: … from lock file"`);
   if (missing.length > 0) {
-    console.error('Restore the entries from main as the last edit to the file (an npm that prunes them cannot regenerate them), then rerun this script.');
+    console.error(
+      'Restore the entries from main as the last edit to the file (an npm that prunes them cannot regenerate them): `npx tsx scripts/lockfile-repair.ts`, then rerun this script.',
+    );
     process.exit(1);
   }
   console.log('✅ Every dependency the lockfile names resolves inside it.');

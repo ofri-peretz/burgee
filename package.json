@@ -12,7 +12,7 @@
     "!examples/dashboard-ink",
     "!examples/ink-ecosystem"
   ],
-  "packageManager": "npm@11.6.2",
+  "packageManager": "npm@11.16.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ofri-peretz/burgee.git"
