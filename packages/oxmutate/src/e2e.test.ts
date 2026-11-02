@@ -160,6 +160,28 @@ const alive = (pid: number): boolean => {
   }
 };
 
+// A coordinator that dies while its servers are still loading Vitest: a server listened for the
+// disconnect only once Vitest had loaded, so it outlived its coordinator until then. At load 25–35,
+// T6 below found two such servers alive 5 s after the kill in 3 of 5 pre-push runs (2026-11-02).
+// The fixture's config takes 4 s to load, so each server is inside `createVitest` at the kill.
+it.skipIf(!native || !existsSync(bin))('leaves no server running when the coordinator dies while its servers load Vitest (T6)', async () => {
+  const dir = path.join(pkg, 'test/fixtures/slow-start');
+  const run = spawn(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', path.join(dir, 'reports'), '--reporter', 'json'], { cwd: dir, stdio: 'ignore' });
+  let servers: number[] = [];
+  for (let i = 0; i < 400 && !servers.length; i++) {
+    await new Promise((r) => setTimeout(r, 10));
+    servers = spawnSync('pgrep', ['-P', String(run.pid)], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean).map(Number);
+  }
+  expect(servers.length).toBeGreaterThan(0);
+  await new Promise((r) => setTimeout(r, 500)); // into the config's load
+  run.kill('SIGKILL');
+  for (let waited = 0; waited < 2500 && servers.some(alive); waited += 100) await new Promise((r) => setTimeout(r, 100));
+  const left = servers.filter(alive);
+  for (const pid of left) process.kill(pid, 'SIGKILL');
+  rmSync(path.join(dir, 'reports'), { recursive: true, force: true });
+  expect(left).toEqual([]);
+}, 60_000);
+
 // The orphans found on 2026-10-27 were servers whose worker thread was looping in a test.
 it.skipIf(!native || !existsSync(bin))('leaves no server running when the coordinator is killed mid-runaway (T6)', async () => {
   const spin = path.join(pkg, 'test/fixtures/spin');
@@ -424,8 +446,10 @@ it.skipIf(!native || !existsSync(bin))('times a mutant by the real clock, so a t
   // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the built package under test, present only after a build; the test is skipped without it
   const api = (await import(path.join(pkg, 'dist/index.js'))) as typeof import('./index.js');
   const result = await api.run(await api.loadOptions(dir, { reporters: [] }, path.join(dir, 'oxmutate.config.json')));
-  // No mutant of `grade` runs away, so none is stopped. (The thresholds are module constants: their
-  // mutants are static, and go to isolated runs whatever the clock says.)
+  // No mutant of `grade` runs away, and the fixture's 20 s budget is far past any real run, so the
+  // only stop there could be is one timed from the frozen epoch clock. The build before the fix
+  // stopped every mutant after the freeze; on a loaded CI runner a 400 ms budget made this flaky
+  // (main, run 41430279215), which the epoch clock and the long budget remove.
   expect(result.stats.watchdogKills).toBe(0);
   expect(result.mutants.filter((m) => m.status === 'Timeout')).toEqual([]);
 }, 60_000);

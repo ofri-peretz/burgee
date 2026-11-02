@@ -50,6 +50,14 @@ export interface Unit {
   hitLimits?: Record<string, number> | undefined;
 }
 
+// The coordinator is gone (finished, crashed or killed): nothing will read this server's results,
+// and a worker thread may still be looping in a mutant. Two such servers were found spinning at
+// 100% CPU 11 hours after their run ended, and slowed the next run 50x (2026-10-27). Listened for
+// before Vitest loads: a server that listened only after lived on through a load that takes seconds
+// on a busy machine (T6, 2026-11-02), and one whose coordinator died before it started exits now.
+process.on('disconnect', () => exit(ExitCode.OK));
+if (!process.connected) exit(ExitCode.OK);
+
 const config = JSON.parse(readFileSync(argv[2] ?? '', 'utf8')) as ServerConfig;
 env['NODE_ENV'] ??= 'test';
 // Before Vitest starts any worker, so each one inherits it (heartbeat.ts).
@@ -177,10 +185,6 @@ process.on('message', (msg: { type: string; unit?: Unit }) => {
     void vitest.close().finally(() => exit(ExitCode.OK));
   }
 });
-// The coordinator is gone (finished, crashed or killed): nothing will read this server's results,
-// and a worker thread may still be looping in a mutant. Two such servers were found spinning at
-// 100% CPU 11 hours after their run ended, and slowed the next run 50x (2026-10-27).
-process.on('disconnect', () => exit(ExitCode.OK));
 // The server's CPU time, every thread (the test worker included), for the watchdog to tell an idle
 // stall from a loop (heartbeat.ts). This thread stays free while a worker loops, so the samples come.
 const sendCpu = (): void => {
