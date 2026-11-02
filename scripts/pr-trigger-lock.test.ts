@@ -166,16 +166,16 @@ describe('a workflow that does subscribe to a label event acts only on its own l
   });
 });
 
-describe('a label changed after the PR is opened still reaches the checks that read it', () => {
-  const routerScript = (): string => (router().jobs['dispatch']?.steps ?? []).map((s) => s.run ?? '').join('\n');
-  /** The workflows the router's `case` arm for a label dispatches. */
-  const dispatched = (label: string): string =>
-    routerScript()
-      .split('\n')
-      .map((line) => line.trim())
-      .find((line) => line.startsWith(`${label}) `))
-      ?.slice(label.length + 2) ?? '';
+const routerScript = (): string => (router().jobs['dispatch']?.steps ?? []).map((s) => s.run ?? '').join('\n');
+/** The workflows the router's `case` arm for a label dispatches. */
+const dispatched = (label: string): string =>
+  routerScript()
+    .split('\n')
+    .map((line) => line.trim())
+    .find((line) => line.startsWith(`${label}) `))
+    ?.slice(label.length + 2) ?? '';
 
+describe('a label changed after the PR is opened still reaches the checks that read it', () => {
   const READ = REQUIRED_FILES.flatMap((file) => labelsRead(text(file)).map((label) => ({ file, label })));
 
   it('the required-check workflows read run-full-ci and skip-changeset', () => {

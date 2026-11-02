@@ -119,29 +119,31 @@ export const truthy = (v: unknown): boolean => v !== '' && v !== false && v !== 
  * for a pull request (every package, `compat-oracle` among them); codeql.yml's `gate` says
  * `run=true` for any non-draft pull request and every other event.
  */
+/** The terms only a pull request event carries; every other event reads them as `null`. */
+const PULL_REQUEST_TERMS: Readonly<Record<string, (ev: Event) => unknown>> = {
+  'github.event.action': (ev) => ev.action ?? 'opened',
+  'github.event.label.name': (ev) => (ev.action === 'labeled' || ev.action === 'unlabeled' ? (ev.label ?? null) : null),
+  'github.event.pull_request.number': (ev) => ev.number ?? 1,
+  'github.event.pull_request.labels.*.name': (ev) => ev.labels ?? [],
+  'github.event.pull_request.draft': () => false,
+};
+
+/** The terms every run carries. */
+const RUN_TERMS: Readonly<Record<string, (ev: Event) => unknown>> = {
+  'github.event_name': (ev) => ev.event_name,
+  'github.ref': refOf,
+  'github.sha': () => '0123456789abcdef0123456789abcdef01234567',
+  'github.run_id': (ev) => ev.runId ?? 1,
+};
+
 function term(t: string, ev: Event): unknown {
-  const pr = ev.event_name === 'pull_request';
+  const prTerm = PULL_REQUEST_TERMS[t];
+  if (prTerm) return ev.event_name === 'pull_request' ? prTerm(ev) : null;
+  const runTerm = RUN_TERMS[t];
+  if (runTerm) return runTerm(ev);
   switch (t) {
-    case 'github.event_name':
-      return ev.event_name;
-    case 'github.event.action':
-      return pr ? (ev.action ?? 'opened') : null;
-    case 'github.event.label.name':
-      return pr && (ev.action === 'labeled' || ev.action === 'unlabeled') ? (ev.label ?? null) : null;
-    case 'github.event.pull_request.number':
-      return pr ? (ev.number ?? 1) : null;
-    case 'github.ref':
-      return refOf(ev);
-    case 'github.sha':
-      return '0123456789abcdef0123456789abcdef01234567';
-    case 'github.run_id':
-      return ev.runId ?? 1;
     case 'github.event.schedule':
       return ev.event_name === 'schedule' ? (ev.schedule ?? null) : null;
-    case 'github.event.pull_request.labels.*.name':
-      return pr ? (ev.labels ?? []) : null;
-    case 'github.event.pull_request.draft':
-      return pr ? false : null;
     case 'needs.affected.outputs.full':
       return 'true';
     case 'needs.affected.outputs.packages':
