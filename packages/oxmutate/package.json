@@ -64,7 +64,7 @@
     "!dist/**/*.test.*"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && node ../../scripts/declaration-reach.mts --prune",
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/strip-comments.mjs dist && node ../../scripts/declaration-reach.mts --prune",
     "build:native": "cd native && cargo build --release --features napi --lib && node ../scripts/copy-binding.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run && vitest run --config compat/vitest.config.ts",
