@@ -21,6 +21,19 @@ produced on a pull request, in a merge-queue entry and by the Version PR fallbac
 that never reports blocks every merge. `review` (`claude-code-review.yml`) runs on PRs and is no
 longer required.
 
+## A label never starts a second run of a required check
+
+`gh pr create --label skip-changeset` raises `opened` and one `labeled` per label in the same
+second. A workflow that listed `labeled` started once per event, concurrency cancelled all but
+one, and branch protection reads each required context from the newest check suite that carries
+it, which on #1418 was the cancelled twin: BLOCKED, everything green. So no workflow that reports a
+required check subscribes to `labeled`/`unlabeled`. A label applied at creation is in the `opened`
+run; one changed later lands in [`pr-labels.yml`](./pr-labels.yml), which dispatches the workflows
+that read it (`skip-changeset` → `Changeset present`; `run-full-ci` → `quality-full.yml`,
+`compat.yml`, `codeql.yml`), a newer run that nothing on the PR cancels. `bench.yml` keeps
+`labeled` for `bench:agent` only; any other label's run runs no job, in a group of its own.
+`scripts/pr-trigger-lock.test.ts` holds all of it.
+
 ## Heavy work runs over night
 
 Heavy work does not run during CI/CD ([D-20261101-heavy-ci-runs-nightly](../../.sdlc/decisions/D-20261101-heavy-ci-runs-nightly.md)):

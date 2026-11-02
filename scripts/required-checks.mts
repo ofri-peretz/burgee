@@ -86,6 +86,21 @@ export interface Event {
   /** `github.event.schedule`: the cron string on a scheduled run, `null` on every other event. */
   schedule?: string;
   inputs?: Record<string, unknown>;
+  /** `github.event.action` on a pull request: `opened` unless set (`labeled`, `synchronize`, …). */
+  action?: string;
+  /** `github.event.label.name`: the label a `labeled` or `unlabeled` pull request event is about. */
+  label?: string;
+  /** The pull request's number, which `github.ref` (`refs/pull/<n>/merge`) carries. 1 unless set. */
+  number?: number;
+  /** `github.run_id`: unique per run. 1 unless set. */
+  runId?: number;
+}
+
+/** `github.ref` for an event: a pull request's merge ref names its number; everything else here runs on a branch. */
+function refOf(ev: Event): string {
+  if (ev.event_name === 'pull_request') return `refs/pull/${ev.number ?? 1}/merge`;
+  if (ev.event_name === 'merge_group') return `refs/heads/gh-readonly-queue/main/pr-${ev.number ?? 1}-0000000`;
+  return 'refs/heads/main';
 }
 
 export function readWorkflow(file: string): Workflow {
@@ -109,6 +124,18 @@ function term(t: string, ev: Event): unknown {
   switch (t) {
     case 'github.event_name':
       return ev.event_name;
+    case 'github.event.action':
+      return pr ? (ev.action ?? 'opened') : null;
+    case 'github.event.label.name':
+      return pr && (ev.action === 'labeled' || ev.action === 'unlabeled') ? (ev.label ?? null) : null;
+    case 'github.event.pull_request.number':
+      return pr ? (ev.number ?? 1) : null;
+    case 'github.ref':
+      return refOf(ev);
+    case 'github.sha':
+      return '0123456789abcdef0123456789abcdef01234567';
+    case 'github.run_id':
+      return ev.runId ?? 1;
     case 'github.event.schedule':
       return ev.event_name === 'schedule' ? (ev.schedule ?? null) : null;
     case 'github.event.pull_request.labels.*.name':
@@ -205,6 +232,17 @@ export function evaluate(source: string, ev: Event): unknown {
   const value = or();
   if (i !== parts.length) throw new Error(`trailing ${parts.slice(i).join(' ')} in ${expression}`);
   return value;
+}
+
+/**
+ * A string with `${{ … }}` in it, as GitHub renders it for one event: a `concurrency.group`, say.
+ * `null` and `undefined` render empty, the way GitHub renders a missing value.
+ */
+export function interpolate(template: string, ev: Event): string {
+  return template.replaceAll(/\$\{\{([\s\S]*?)\}\}/gu, (_, expression: string) => {
+    const v = evaluate(expression, ev);
+    return v === null || v === undefined ? '' : String(v);
+  });
 }
 
 /** The events a workflow subscribes to. */

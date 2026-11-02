@@ -78,8 +78,14 @@ on:
 # agent runs, and cancelling it threw away the spend and the reading. 21 of 30 runs on main were
 # cancelled on 2026-10-08. GitHub keeps one run and only the newest pending one, so commits in
 # between are skipped before they start, not killed halfway.
+#
+# `labeled` is here for `bench:agent` alone. Any other label (`gh pr create --label skip-changeset`
+# raises one `labeled` per label beside `opened`) starts a run that runs no job and sits in a group
+# of its own, keyed by its run id, so it cancels nothing: before, it cancelled the run of the change
+# and the B4 gate read cancelled (#1429). `bench:agent` is a whole pull request run, the gate with
+# it, and supersedes the one before it as a push does (scripts/pr-trigger-lock.test.ts).
 concurrency:
-  group: bench-${{ github.ref }}
+  group: bench-${{ github.ref }}${{ github.event.action == 'labeled' && github.event.label.name != 'bench:agent' && format('-{0}', github.run_id) || '' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -97,7 +103,7 @@ jobs:
   # same `<date>-<sha>-ci.json` names, which is harmless here because a pull request lands nothing.
   gate:
     name: B4 weight · reliability · N10 floor (pull request gate)
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'bench:agent')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -332,7 +338,8 @@ jobs:
       github.event.schedule == '40 5 * * 2' ||
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' &&
-      contains(github.event.pull_request.labels.*.name, 'bench:agent'))
+      contains(github.event.pull_request.labels.*.name, 'bench:agent') &&
+      (github.event.action != 'labeled' || github.event.label.name == 'bench:agent'))
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
