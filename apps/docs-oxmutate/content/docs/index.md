@@ -162,7 +162,7 @@ setting a value inside the worker that already has the tests loaded.
 | Re-parse | Every instrumented file is parsed again before it runs; one that does not parse stops the run (exit 3) instead of scoring a broken file |
 | Canary | The unmutated test must still pass after mutants run in a context, with its `beforeEach`/`afterEach` hooks re-run around every run, file-level ones included; if a mutant left a cache, a registry or a fixture behind, the context restarts and the suspect verdicts run again. A kill that follows unchecked runs is checked at once and decided again from clean state, so no kill rests on another mutant's leftovers |
 | Survivor confirmation | A survivor is re-run with the mutant armed across its covering tests in one file, as Stryker arms it, so a mutant that only fails across tests is killed |
-| Watchdog | A synchronous runaway is stopped and its server replaced; the stop is re-run at 3x the budget before it is reported as a timeout |
+| Watchdog | A synchronous runaway is stopped and its server replaced; the stop is re-run at 3x the budget before it is reported as a timeout. A stop whose worker was idle inside a test body (its event loop still turning, by a heartbeat, and its server under 25% of a core) is a hang, not a slow test: it is a Timeout as it stands, the way Stryker scores it, with no 3x re-run |
 | Static mutants | Code that runs at import is decided in a live worker: the mutant is armed, the module registry reset and the test file collected again, against the files that load it. A file whose collection changes globals, `process.env` or a built-in prototype, or a mutant that leaves a trace, goes back to a fresh worker per mutant (`OXMUTATE_ISOLATE_STATIC=1` sends all of them there) |
 | Flaky tests | Tests that behave differently across two dry runs have their mutants re-run; a verdict that changes is reported `flaky` |
 | No orphans | Every Vitest server exits when its run does, killed or not |
@@ -234,7 +234,8 @@ head-to-head runs (`bench/burgee-pair.mts`, concurrency 4, one tool after the ot
 
 The ceiling depends on the suite as much as the tool: controlroom's own `vitest run` takes ~8 s and
 every fresh worker imports React and Ink, so even zero overhead would make it ~6x. The figures to
-publish will come from the `oxmutate-bench.yml` lane on a runner nothing else shares.
+publish come from `bench/burgee-pair.mts`, run locally on a quiet machine: no mutation run happens
+in GitHub Actions (`D-20261101-no-mutation-in-gha`).
 
 ## Benchmarks
 

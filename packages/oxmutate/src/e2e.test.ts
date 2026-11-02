@@ -20,9 +20,9 @@ const bin = path.join(pkg, 'dist/bin.js');
 // OXMUTATE_REQUIRE_NATIVE (quality-full.yml), where a missing core fails instead of skipping.
 const native = existsSync(path.join(pkg, 'binding')) && readdirSync(path.join(pkg, 'binding')).some((f) => f.endsWith('.node'));
 if (!native && process.env['OXMUTATE_REQUIRE_NATIVE'] === '1') throw new Error('OXMUTATE_REQUIRE_NATIVE is set and no native core is built. fix: npm run build:native -w oxmutate');
-// A case that runs whole mutation runs — 6–15 s each on a contended CI runner — runs on the nightly
-// schedule, compat.yml's `heavy-tests` job, which sets BURGEE_NIGHTLY (D-20261101-tests-under-5s,
-// D-20261101-heavy-ci-runs-nightly). Each one is named in NIGHTLY_ONLY in
+// A case that runs whole mutation runs — 6–15 s each on a contended runner — runs in the local
+// weekly run, `npm run mutation:weekly`, which sets BURGEE_NIGHTLY (D-20261101-tests-under-5s,
+// D-20261101-no-mutation-in-gha). Each one is named in NIGHTLY_ONLY in
 // scripts/vitest-case-budget-reporter.ts, the only exemption from the five-second budget.
 const nightly = process.env['BURGEE_NIGHTLY'] === '1';
 
@@ -117,24 +117,37 @@ it.skipIf(!native || !existsSync(bin) || !nightly)('kills a mutant a beforeEach 
 // path that decides them in a live worker (.sdlc/intents/oxmutate/staticwarm.qnt) must give the same:
 // `static-const` is reached only through import-time values; `static-leak` sets a global at import
 // with `??=`, so a worker that evaluated it once would make the MODE mutant survive.
-/** A fixture's static mutants as `line:mutator:status`, from a real run. */
-const staticVerdicts = (name: string, file: string): string[] => {
+type PhaseStats = Record<'instrumentMs' | 'dryRunMs' | 'mutationMs' | 'staticMs' | 'isolatedMs' | 'wallMs' | 'staticRecollections', number>;
+
+/** A fixture's static mutants as `line:mutator:status`, and the run's stats, from a real run. */
+const staticRun = (name: string, file: string): { verdicts: string[]; stats: PhaseStats } => {
   const dir = path.join(pkg, 'test/fixtures', name);
   const reportDir = path.join(dir, 'reports');
   rmSync(reportDir, { recursive: true, force: true });
   execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe' });
-  const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: ReportMutant[] }> };
+  const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: ReportMutant[] }>; 'x-oxmutate': { stats: PhaseStats } };
   rmSync(reportDir, { recursive: true, force: true });
-  return (report.files[file]?.mutants ?? []).filter((m) => m.static).map((m) => `${String(m.location.start.line)}:${m.mutatorName}:${m.status}`);
+  const verdicts = (report.files[file]?.mutants ?? []).filter((m) => m.static).map((m) => `${String(m.location.start.line)}:${m.mutatorName}:${m.status}`);
+  return { verdicts, stats: report['x-oxmutate'].stats };
 };
 
 describe.skipIf(!native || !existsSync(bin) || !nightly)('static mutants keep their fresh-worker verdicts', () => {
   it('an import-time constant decides its mutants; an unread one survives', () => {
-    expect(staticVerdicts('static-const', 'src/limits.ts')).toEqual(['2:NumericLiteral:Killed', '3:StringLiteral:Killed', '5:StringLiteral:Survived']);
+    const { verdicts, stats } = staticRun('static-const', 'src/limits.ts');
+    expect(verdicts).toEqual(['2:NumericLiteral:Killed', '3:StringLiteral:Killed', '5:StringLiteral:Survived']);
+    // The live static phase (5b) is a phase of its own, and the phases account for the run. Without
+    // `staticMs` they did not: compat-oracle's 10-31 weekly run reported phases summing to 4,480 of
+    // its 11,193 s, the rest spent deciding static mutants (.sdlc/intents/oxmutate/sc8-profile.md).
+    expect(stats.staticMs).toBeGreaterThan(0);
+    const phases = stats.instrumentMs + stats.dryRunMs + stats.mutationMs + stats.staticMs + stats.isolatedMs;
+    expect(phases / stats.wallMs).toBeGreaterThan(0.95);
+    // The three mutants are one batch: re-collected unarmed after the first, then after the next two
+    // together, not after each (runner.ts, staticwarm.qnt `grouped`). The verdicts above are unchanged.
+    expect(stats.staticRecollections).toBe(2);
   }, 60_000);
 
   it('a global set at import does not carry one mutant value into the next', () => {
-    expect(staticVerdicts('static-leak', 'src/mode.ts')).toEqual(['4:StringLiteral:Killed', '5:AssignmentOperator:Killed']);
+    expect(staticRun('static-leak', 'src/mode.ts').verdicts).toEqual(['4:StringLiteral:Killed', '5:AssignmentOperator:Killed']);
   }, 60_000);
 });
 
@@ -177,12 +190,14 @@ it.skipIf(!native || !existsSync(bin) || !nightly)('confirms a watchdog stop wit
   execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: slow, stdio: 'pipe', env: { ...process.env, OXMUTATE_ISOLATE_STATIC: '1' } });
   const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as {
     files: Record<string, { mutants: ReportMutant[] }>;
-    'x-oxmutate': { stats: { timeoutsOverturned: number } };
+    'x-oxmutate': { stats: { timeoutsOverturned: number; idleStalls: number } };
   };
   rmSync(reportDir, { recursive: true, force: true });
   // The slow ArrowFunction mutant, and the NumericLiteral 1 -> 0 beside it.
   expect(report.files['src/one.ts']?.mutants.map((m) => m.status)).toEqual(['Killed', 'Killed']);
   expect(report['x-oxmutate'].stats.timeoutsOverturned).toBe(1);
+  // A loop burns its core: both stops read busy, so the slow test keeps its 3x re-run (heartbeat.ts).
+  expect(report['x-oxmutate'].stats.idleStalls).toBe(0);
 }, 90_000);
 
 /** The CLI on a fixture with extra config keys, through a config file written for the run. */
@@ -359,6 +374,46 @@ describe.skipIf(!native || !existsSync(bin))('a spec oracle (M3.5): model traces
     expect(counter?.mappingCoverage).toBe(100);
   });
 });
+
+// A mutant that leaves its test awaiting a promise that never settles is idle, not slow: its worker's
+// event loop turns and its server burns no CPU. It is a Timeout at its budget, as Stryker scores it,
+// with no re-run at 3x. caique is a prompts library: its 10-31 weekly run re-ran 375 such stops at
+// 3x, where they "finished" only because Vitest's 30 s test timeout failed the test, and were
+// reported Killed (D-20261101-idle-stall-is-timeout, stall.qnt). Before this, the fixture's hung
+// mutant took two stops and a 3x re-run to come out Killed the same way.
+// In process, through the built package's API: the CLI's exit adds seconds this test does not need.
+// The mutant is static and sent straight to the fresh-worker path, whose watchdog this checks.
+it.skipIf(!native || !existsSync(bin))('scores a mutant whose test waits on an idle worker Timeout at its budget, with no 3x re-run', async () => {
+  const dir = path.join(pkg, 'test/fixtures/stall');
+  // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the built package under test, present only after a build; the test is skipped without it
+  const api = (await import(path.join(pkg, 'dist/index.js'))) as typeof import('./index.js');
+  process.env['OXMUTATE_ISOLATE_STATIC'] = '1';
+  try {
+    const result = await api.run(await api.loadOptions(dir, { reporters: [] }, path.join(dir, 'oxmutate.config.json')));
+    // The executor's emptied body, the hang; the string is excluded, so the run is the one mutant.
+    expect(result.mutants.map((m) => `${m.mutatorName}:${m.status}`)).toEqual(['BlockStatement:Timeout', 'StringLiteral:Ignored']);
+    expect(result.stats).toMatchObject({ watchdogKills: 1, idleStalls: 1, timeoutsOverturned: 0 });
+    // A Timeout is detected: the score is the one the Killed verdict gave.
+    expect(result.score).toMatchObject({ detected: 1, total: 1, mutationScore: 100 });
+  } finally {
+    delete process.env['OXMUTATE_ISOLATE_STATIC'];
+  }
+}, 60_000);
+
+// A range directive, `disable all` with a reason down to `restore all`, turns mutants off between
+// the two lines, as Stryker does. Before, oxmutate read only `disable next-line` and graded every mutant in a range:
+// 116 in compat-oracle's hosts.ts, rows graded in another process (sc8-profile.md).
+it.skipIf(!native || !existsSync(bin))('reports the mutants inside a disable/restore range Ignored, with its reason, and only those', async () => {
+  const dir = path.join(pkg, 'test/fixtures/ranges');
+  // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the built package under test, present only after a build; the test is skipped without it
+  const api = (await import(path.join(pkg, 'dist/index.js'))) as typeof import('./index.js');
+  const result = await api.run(await api.loadOptions(dir, { reporters: [] }, path.join(dir, 'oxmutate.config.json')));
+  const byLine = (line: number): string[] => [...new Set(result.mutants.filter((m) => m.start.line === line).map((m) => m.status))];
+  expect(byLine(3)).toEqual(['Ignored']);
+  expect(result.mutants.find((m) => m.start.line === 3)?.statusReason).toBe('read only by the debug log, which no test asserts on');
+  expect(byLine(1)).not.toContain('Ignored');
+  expect(byLine(5)).not.toContain('Ignored');
+}, 60_000);
 
 it.skipIf(!native || !existsSync(bin))('keeps a survivor whose confirmation run was only slow, not killed', () => {
   const dir = path.join(pkg, 'test/fixtures/slow-survivor');
