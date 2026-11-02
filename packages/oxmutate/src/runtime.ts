@@ -31,6 +31,7 @@ export interface Namespace {
 // place the package touches it. `env` is the live object: a write here is a write to the process.
 export const env = process.env;
 export const argv = process.argv;
+export const pid = process.pid;
 export const cwd = (): string => process.cwd();
 export const stderr = process.stderr;
 export const exit = (code: number): never => process.exit(code);

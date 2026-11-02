@@ -162,6 +162,19 @@ describe('`// Stryker disable` carries a reason (R4)', () => {
     }
   });
 
+  // Stryker reads a directive only as the leading comment of the next node. One above a closing
+  // bracket leads nothing, so Stryker never sees it: four `restore all` comments in compat-oracle's
+  // hosts.ts sat above a row's `},`, and each `disable all` before them ran to the end of the file,
+  // so Stryker dropped 1,298 mutants its report never mentioned (oxmutate sc8-profile.md).
+  it('refuses a disable or restore comment that leads no code, which Stryker never reads', () => {
+    for (const lost of ['  name: 1,\n  // Stryker restore all\n},', 'f(\n  // Stryker disable all: the arguments are read only by the logger\n);']) {
+      expect(disableProblems('a.ts', lost), lost).toEqual([expect.stringMatching(/^a\.ts:2: .*leads no code/u)]);
+    }
+    expect(disableProblems('a.ts', '},\n// Stryker restore all\n{')).toEqual([]);
+    expect(disableProblems('a.ts', '  // Stryker restore all\n  // a note between\n  runner: "mocha",')).toEqual([]);
+    expect(disableProblems('a.ts', '// Stryker disable next-line StringLiteral: the message is not part of the contract\n}')).toEqual([expect.stringMatching(/leads no code/u)]);
+  });
+
   it('every disable comment in a package source has one', () => {
     const files = execFileSync('git', ['ls-files', '--', 'packages/*/src/**'], { cwd: REPO_ROOT, encoding: 'utf8' }).split('\n').filter((f) => /\.[cm]?[jt]sx?$/u.test(f));
     const problems = files.flatMap((f) => disableProblems(f, readFileSync(join(REPO_ROOT, f), 'utf8')));
