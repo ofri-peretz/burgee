@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { BEAT_ENV, beatFile, classifyStall, CPU_SAMPLE_MS, CPU_WINDOW_MS, cpuShare, HEARTBEAT_MS, IDLE_CPU, markTest, MIN_CPU_SPAN_MS, readBeat, STALE_MS, startHeartbeat } from './heartbeat.js';
 
 /** A beat of this age, from inside a test body unless said otherwise. */
@@ -12,7 +13,7 @@ const beatAge = (file: string, now?: number): number => readBeat(file, now).age;
 
 const realNow = Date.now.bind(Date);
 const dir = mkdtempSync(path.join(tmpdir(), 'oxmutate-heartbeat-'));
-afterAll(() => rmSync(dir, { recursive: true, force: true }));
+afterAll(() => discard(dir));
 
 describe('classifyStall: idle is a live beat inside a test body and under IDLE_CPU of a core; anything else is busy', () => {
   // On a loaded machine a short budget can run out while the worker still collects its file, its
