@@ -1,15 +1,16 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { resolveEsm } from './resolve.js';
 
 // Real path: Node resolves through the /var -> /private/var link on macOS.
 const root = realpathSync(mkdtempSync(path.join(tmpdir(), 'oxmutate-resolve-')));
-afterAll(() => rmSync(root, { recursive: true, force: true }));
+afterAll(() => discard(root));
 const pkg = (name: string, manifest: object): void => {
   const dir = path.join(root, 'node_modules', name);
   mkdirSync(dir, { recursive: true });

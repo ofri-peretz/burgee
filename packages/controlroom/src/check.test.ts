@@ -1,13 +1,14 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { check, EXIT_OK, EXIT_RUNTIME, EXIT_USAGE } from './check.js';
 
 const dir = mkdtempSync(join(tmpdir(), 'controlroom-check-'));
-afterAll(() => rmSync(dir, { recursive: true, force: true }));
+afterAll(() => discard(dir));
 
 let n = 0;
 function file(source: string): string {

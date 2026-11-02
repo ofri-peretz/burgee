@@ -11,6 +11,7 @@ import { pathToFileURL } from 'node:url';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import meow from './meow.js';
 import { buildHelp, normalizePackage, readPackageUp, setProcessTitle } from './meow/present.js';
 
@@ -154,7 +155,7 @@ describe('commands', () => {
 
 describe('the package meow reads and names the process after', () => {
   let dir = '';
-  afterEach(() => rmSync(dir, { recursive: true, force: true }));
+  afterEach(() => discard(dir));
 
   it('steps over a package.json that does not parse to the next one up, and reads none without importMeta', () => {
     dir = mkdtempSync(join(tmpdir(), 'burgee-meow-pkg-'));

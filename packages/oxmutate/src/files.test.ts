@@ -1,9 +1,10 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { globToRegExp, matchFiles } from './files.js';
 
 describe('mutate globs', () => {
@@ -39,7 +40,7 @@ describe('mutate globs', () => {
 
 describe('matchFiles', () => {
   const root = mkdtempSync(path.join(tmpdir(), 'oxmutate-files-'));
-  afterAll(() => rmSync(root, { recursive: true, force: true }));
+  afterAll(() => discard(root));
   const touch = (rel: string): void => {
     mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
     writeFileSync(path.join(root, rel), '');

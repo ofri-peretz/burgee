@@ -3,7 +3,7 @@
  * baseline must count as a regression; at or above it must not. A gate that has never
  * been shown to fail is not a gate.
  */
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
@@ -12,7 +12,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { scratchDirs } from './__fixtures__/scratch-dir.js';
+import { discard, scratchDirs } from './__fixtures__/scratch-dir.js';
 import { type Host, HOSTS } from './hosts.js';
 import { type Baseline, cjsLoad, DEPS_MARKER, type Grade, grade as gradeHost, hoistJestMocks, TSD_SCRIPT, installSuiteDeps, internalShimBody, jestGlobals, mochaCli, internalShimFrom, parseFlatTap, parseNodeTest, regressed, summarize, tsLoaderArgs, unsatisfiedPins } from './run.js';
 import { declarationName, type TsdAssertion, type TsdDiagnostic, tsdTap } from './tsd.js';
@@ -548,7 +548,7 @@ describe("a jest suite sees jest's execArgv, not vitest's (C1)", () => {
       const seen = execFileSync(process.execPath, ['--conditions', 'development', '--import', pathToFileURL(setup).href, '-e', 'process.stdout.write(JSON.stringify(process.execArgv))'], { encoding: 'utf8', shell: false });
       expect(JSON.parse(seen)).toEqual([]);
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      discard(dir);
     }
   });
 });
@@ -563,7 +563,7 @@ describe("mocha's entry across its majors (C1)", () => {
       writeFileSync(join(at, 'bin', 'mocha.js'), '');
       expect(mochaCli(at)).toBe(join(at, 'bin', 'mocha.js'));
     } finally {
-      rmSync(at, { recursive: true, force: true });
+      discard(at);
     }
   });
 });
@@ -586,7 +586,7 @@ describe('a CommonJS shim busts the incumbent only when the suite busted the shi
       // yargs 17's `parser.cjs` needs the first; signal-exit's `process-gone.js` the second.
       expect(JSON.parse(seen)).toEqual([true, false]);
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      discard(dir);
     }
   });
 });
@@ -669,11 +669,10 @@ describe('the tsd runner (extra-typings-drop-in R1)', () => {
   }, 300_000);
 
   afterAll(() => {
-    // Removed by an `rm` of its own that this hook does not wait for. Without tsd in it the
-    // directory is a handful of files, and under that same load unlinking them still took 64.9 s,
-    // past the hook's 60 s. `rm -rf` does not follow the link into the cache; a run killed first
-    // leaves a `.grade-*` directory, which `.gitignore` already covers.
-    if (process.platform !== 'win32') spawn('rm', ['-rf', vendorDir], { detached: true, stdio: 'ignore' }).unref();
+    // Discarded, not waited on. Without tsd in it the directory is a handful of files, and under
+    // that same load unlinking them still took 64.9 s, past the hook's 60 s. Neither the rename nor
+    // `rm -rf` follows the link into the cache.
+    discard(vendorDir);
   });
 
   const HEADER = ["import { expectError, expectType } from 'tsd';", "import { Command } from '../shim.js';", 'const program = new Command();'];

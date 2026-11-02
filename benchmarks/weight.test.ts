@@ -13,7 +13,7 @@
  * regression. So the version is checked against what `benchmarks/package.json` declares,
  * and a mismatch stops the run.
  */
-import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
 import { join, sep } from 'node:path';
 
 import { describe, expect, it, onTestFinished } from 'vitest';
@@ -22,6 +22,7 @@ import { bundle, installedDependencies, uniqueRecords } from './axes/weight.js';
 import { packageOf, packagesOf, PAIRS } from './fixtures/entry-points.js';
 import manifest from './package.json' with { type: 'json' };
 import { BENCH_ROOT, packageDir, satisfies } from './resolve.js';
+import { discard } from './scratch-dir.js';
 
 const declared: Record<string, string> = { ...manifest.dependencies, ...manifest.devDependencies };
 
@@ -141,7 +142,7 @@ describe('a peer the program brings is bundled once', () => {
       const w1 = PAIRS.find((p) => p.id === 'controlroom/ink');
       if (w1 === undefined) throw new Error('the controlroom/ink pair is gone');
       const scratch = mkdtempSync(join(BENCH_ROOT, '.fixtures-'));
-      onTestFinished(() => rmSync(scratch, { recursive: true, force: true }));
+      onTestFinished(() => discard(scratch));
       const copies = new Set(
         bundle(w1.ours, w1.id, scratch)
           .inputs.filter((input) => input.includes('react-reconciler/cjs/'))

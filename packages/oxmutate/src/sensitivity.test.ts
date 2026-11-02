@@ -6,12 +6,14 @@
  * none on the second.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { afterAll, describe, expect, it } from 'vitest';
+
+import { discard } from './__fixtures__/scratch-dir.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const pkg = path.join(here, '..');
@@ -39,7 +41,7 @@ interface Mutant {
 }
 
 const out = mkdtempSync(path.join(tmpdir(), 'oxmutate-sc5-'));
-afterAll(() => rmSync(out, { recursive: true, force: true }));
+afterAll(() => discard(out));
 
 const run = (dir: string): { status: number | null; out: string; mutants: Mutant[] } => {
   const reports = path.join(out, path.basename(dir));

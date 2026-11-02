@@ -1,15 +1,16 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { loadOptions } from './config.js';
 import { type MutantResult, type RunResult, type RunStats } from './coordinator.js';
 import { VERSION, describe as describeMutant, htmlReport, sarifReport, strykerReport, textSummary, writeReports } from './reports.js';
 
 const root = mkdtempSync(path.join(tmpdir(), 'oxmutate-reports-'));
-afterAll(() => rmSync(root, { recursive: true, force: true }));
+afterAll(() => discard(root));
 
 const stats = (s: Partial<RunStats> = {}): RunStats => ({
   files: 2,
@@ -318,7 +319,7 @@ describe('the HTML report', () => {
       expect(html).toContain('\n  <script>customElements.define("x", class {});</script>\n</head>');
       expect(html).not.toContain('cdn.jsdelivr.net');
     } finally {
-      rmSync(project, { recursive: true, force: true });
+      discard(project);
     }
   });
 });

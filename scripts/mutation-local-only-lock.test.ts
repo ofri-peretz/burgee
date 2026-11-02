@@ -26,13 +26,15 @@
  * own unit suite in `quality-full.yml` → `test` are not mutation runs, and are allowed.
  */
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { load as loadYaml } from 'js-yaml';
 import { beforeAll, describe, expect, it } from 'vitest';
+
+import { discard } from './scratch-dir.js';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const read = (file: string): string => readFileSync(join(ROOT, file), 'utf8');
@@ -197,7 +199,7 @@ describe('the weekly full run is a local script that does what mutation.yml did'
       expect(r.stdout).toContain('mutation.ts record');
       expect(existsSync(wt), 'a dry run creates no worktree').toBe(false);
     } finally {
-      rmSync(scratch, { recursive: true, force: true });
+      discard(scratch);
     }
   });
 
@@ -217,7 +219,7 @@ describe('the weekly full run is a local script that does what mutation.yml did'
       expect(r.status, `${r.stdout}${r.stderr}`).toBe(0);
       expect([...r.stdout.matchAll(/scripts\/mutation\.ts full --package /gu)]).toHaveLength(Object.keys((JSON.parse(read('.sdlc/bands/mutation-ratchets.json')) as { ratchets: object }).ratchets).length);
     } finally {
-      rmSync(repo, { recursive: true, force: true });
+      discard(repo);
     }
   });
 });

@@ -7,12 +7,13 @@
  * Each case names the line it holds. They were written against the source and then each one
  * was run against a copy with that line broken, and went red.
  */
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { defineCommand, defineProgram, resolveCommand, run, runCommand, sharedOptions } from './execute.js';
 import { ExitCode } from './exit-code.js';
 import { lazyRun, Manifest } from './manifest.js';
@@ -188,7 +189,7 @@ describe('every default run() takes from the process (ioOf, execute)', () => {
     try {
       await run(defineProgram({ name: 'app', commands: [] }), { argv: ['--version'], stdout: { write: (s) => out.push(s) }, exit: () => undefined });
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      discard(dir);
     }
     expect(out.join('')).toBe('9.8.7\n');
   });

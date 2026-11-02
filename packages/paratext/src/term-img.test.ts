@@ -16,13 +16,14 @@
  *   3. **The terminal table is upstream's**, including the four version floors that only
  *      appear in upstream's suite as refusals.
  */
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { afterAll, describe, expect, expectTypeOf, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { capabilities } from './capability.js';
 import terminalImage, { type Options, supportsInlineImage, type TerminalImageOptions, terminalImageFor, UnsupportedTerminalError } from './term-img.js';
 
@@ -123,7 +124,7 @@ describe('a path is read, and read late — D-20260930-paratext-term-img-path', 
   writeFileSync(file, bytes);
   const missing = join(dir, 'missing.jpg');
   afterAll(() => {
-    rmSync(dir, { recursive: true, force: true });
+    discard(dir);
   });
 
   const expected = `${OSC}1337;File=inline=1;size=4:AQIDBA==${BEL}`;

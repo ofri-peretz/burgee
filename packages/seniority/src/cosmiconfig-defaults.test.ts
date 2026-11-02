@@ -11,12 +11,13 @@
  * `require` reads as CommonJS, so `import()` fails and `require` runs the file's own code —
  * which can then succeed, throw, or throw exactly the complaint the rethrow rule keys on.
  */
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import {
   defaultLoaders,
   defaultLoadersSync,
@@ -33,7 +34,7 @@ import {
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'seniority-cosmiconfig-defaults-')));
 afterAll(() => {
-  rmSync(root, { recursive: true, force: true });
+  discard(root);
 });
 const file = (name: string, body: string): string => {
   const at = join(root, name);

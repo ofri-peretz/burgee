@@ -23,7 +23,7 @@
  * engine renders — so it gets the same four cases in its own shape below.
  */
 import { execFile } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -50,8 +50,10 @@ import { check as roundel } from '../packages/roundel/src/check.js';
 // eslint-disable-next-line import-next/no-relative-packages -- see above
 import { check as seniority } from '../packages/seniority/src/check.js';
 
+import { discard } from './scratch-dir.js';
+
 const dir = mkdtempSync(join(tmpdir(), 'plugin-check-'));
-afterAll(() => rmSync(dir, { recursive: true, force: true }));
+afterAll(() => discard(dir));
 
 let serial = 0;
 /** A plugin module on disk, because `check` takes a path — that is how an author runs it. */

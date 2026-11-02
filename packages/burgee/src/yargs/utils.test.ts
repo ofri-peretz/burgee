@@ -20,12 +20,13 @@
  * (816 of 816) — so the first two are also checked against the original regexes over every
  * short string of the characters that matter.
  */
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { discard } from '../__fixtures__/scratch-dir.js';
 import yargs from '../yargs.js';
 
 import { applyExtends, isConfigPath, parseCommand, type ParsedCommand } from './utils.js';
@@ -166,7 +167,7 @@ describe("pkgConf('__proto__') never reaches Object.prototype (#27)", () => {
       }
       expect(configObjects(y)).toEqual([]);
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      discard(dir);
     }
   });
 
@@ -179,7 +180,7 @@ describe("pkgConf('__proto__') never reaches Object.prototype (#27)", () => {
       expect(applyExtends(frozen, dir)).toEqual({ level: 2, base: true });
       expect(frozen).toEqual(config);
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      discard(dir);
     }
   });
 
@@ -189,7 +190,7 @@ describe("pkgConf('__proto__') never reaches Object.prototype (#27)", () => {
       writeFileSync(join(dir, 'package.json'), '{"name":"fixture","demo":{"level":3}}');
       expect(configObjects(yargs([]).pkgConf('demo', dir))).toEqual([{ level: 3 }]);
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      discard(dir);
     }
   });
 });

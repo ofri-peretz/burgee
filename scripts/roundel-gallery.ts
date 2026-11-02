@@ -74,7 +74,8 @@ function verdict(row: Row): string {
 /** The page, from whatever scheme files are in `dir`. */
 export function render(dir: string = SCHEMES): string {
   const rows = readdirSync(dir)
-    .filter((f) => !f.startsWith('.'))
+    // A TypeScript module there is the package's test scaffolding (`scratch-dir.ts`), not a scheme.
+    .filter((f) => !f.startsWith('.') && extname(f) !== '.ts')
     .sort((a, b) => a.localeCompare(b))
     .map((f) => read(dir, f));
   const table = rows.map((r) => `| \`${r.file}\` | ${r.format} | ${verdict(r)} | \`${r.theme.ground as string}\` | ${COLOURED.map((t) => cell(r.theme, t)).join(' | ')} |`);

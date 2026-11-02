@@ -16,11 +16,12 @@ import { dirname, join } from 'node:path';
 
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { defaultLoaders, lilconfig, lilconfigSync, type LilconfigResult, type LoaderSync, type Options } from './lilconfig.js';
 
 const roots: string[] = [];
 afterAll(() => {
-  for (const root of roots) rmSync(root, { recursive: true, force: true });
+  discard(...roots);
 });
 afterEach(() => {
   vi.restoreAllMocks();

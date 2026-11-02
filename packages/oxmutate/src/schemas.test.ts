@@ -10,13 +10,15 @@
  * dependency.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import { discard } from './__fixtures__/scratch-dir.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const pkg = path.join(here, '..');
@@ -56,7 +58,7 @@ type Report = { files: Record<string, { mutants: Record<string, unknown>[] }> };
 type Sarif = { runs: { tool: { driver: Record<string, unknown> }; results: unknown[] }[] };
 
 const out = mkdtempSync(path.join(tmpdir(), 'oxmutate-sc4-'));
-afterAll(() => rmSync(out, { recursive: true, force: true }));
+afterAll(() => discard(out));
 
 describe.skipIf(!ready)('the reports validate against their schemas (SC4)', () => {
   let report: Report;

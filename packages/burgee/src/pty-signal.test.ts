@@ -72,11 +72,13 @@
  * what the program registered.
  */
 import { execFileSync, spawn } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
+
+import { discard } from './__fixtures__/scratch-dir.js';
 
 /** `pty.fork()` in the standard library. Absent on Windows, so the probe answers for both. */
 function pythonWithPty(): string | undefined {
@@ -93,7 +95,7 @@ function pythonWithPty(): string | undefined {
 
 const python = pythonWithPty();
 const dir = mkdtempSync(join(tmpdir(), 'burgee-pty-'));
-afterAll(() => rmSync(dir, { recursive: true, force: true }));
+afterAll(() => discard(dir));
 
 /**
  * Allocate a pty, run `node <file>` on it, relay our stdin to the master, echo the slave back.

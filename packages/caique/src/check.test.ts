@@ -7,12 +7,13 @@
  * does first is `import()` one — a default export, a module of named exports, a file that
  * throws while it loads — and a stub of `import()` would test none of that.
  */
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { check, EXIT_OK, EXIT_RUNTIME, EXIT_USAGE } from './check.js';
 import { PluginError, registered } from './plugin.js';
 
@@ -27,7 +28,7 @@ beforeAll(() => {
 });
 
 afterAll(() => {
-  rmSync(dir, { recursive: true, force: true });
+  discard(dir);
   delete (globalThis as Record<string, unknown>)['__caiquePluginError'];
 });
 
