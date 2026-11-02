@@ -47,7 +47,11 @@ export const beatFile = (workDir: string, pid: number | undefined): string => pa
 // Captured when this module is evaluated, before any test file can install fake timers: a faked
 // clock would write a frozen time, and the watchdog would read a live worker as a stale one.
 const { setInterval: realSetInterval, clearInterval: realClearInterval } = globalThis;
-const realNow = Date.now.bind(Date);
+/**
+ * The time, from the clock this module saw when it was evaluated: a test's fake timers cannot move it.
+ * Every time the watchdog reads (a mutant's start, a beat) is written from it.
+ */
+export const realNow = Date.now.bind(Date);
 /** The beat this thread runs: one at a time, whatever re-evaluates this module. */
 // Stryker disable next-line StringLiteral: any key names one registry symbol on every evaluation of this module, which is all the key is for
 const BEAT_KEY = Symbol.for('oxmutate.heartbeat');

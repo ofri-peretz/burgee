@@ -26,7 +26,7 @@ import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 
-import { BEAT_ENV, markTest, startHeartbeat } from './heartbeat.js';
+import { BEAT_ENV, markTest, realNow, startHeartbeat } from './heartbeat.js';
 import { resolveEsm } from './resolve.js';
 import { ACTIVE_MUTANT_ENV, FILE_KEY, NAMESPACE, cwd, env, type Namespace } from './runtime.js';
 
@@ -367,7 +367,9 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     };
     for (const id of ids) {
       if (done.has(id)) continue;
-      if (progressPath) writeFileSync(progressPath, `${id} ${String(Date.now())}\n`);
+      // The real clock: a test that froze it (`vi.useFakeTimers()`, never undone) made every later
+      // mutant read as running since the freeze, and the watchdog stopped it at once (caique, 2026-11-02).
+      if (progressPath) writeFileSync(progressPath, `${id} ${String(realNow())}\n`);
       let { status, ms } = await runArmed(id);
       // A kill that follows unchecked runs may be one of their leftovers, which this run's own cleanup
       // (a `finally`) then wipes, so the batch canary would pass and vouch for a wrong kill. Survivors
@@ -477,7 +479,8 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     };
     while (rest.length) {
       const id = rest.shift() as string;
-      if (progressPath) writeFileSync(progressPath, `${id} ${String(Date.now())}\n`);
+      // The real clock, as above: the file's tests run again here, and may freeze it.
+      if (progressPath) writeFileSync(progressPath, `${id} ${String(realNow())}\n`);
       held.push({ id, verdict: await evaluate(id) });
       const left = snapshotDiff(before, snapshot());
       if (left.length) return back('the mutant left a trace', left);

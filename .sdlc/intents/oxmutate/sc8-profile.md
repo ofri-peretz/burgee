@@ -116,4 +116,28 @@ server, the count is unchanged, so this stays below the line. Not taken.
 
 ## 4. The full comparison on this machine
 
-_Filled in as the runs land; see below._
+Apple M4 Pro (14 cores, 48 GB), macOS 26.2, Node 24.12.0, Stryker 10.1.1, `concurrency: 4`,
+`timeoutMS: 10000`, the lane's own mutate list (`scripts/mutation.ts full`). Engines alternate
+S, O, O, S on one package. The 1-min load average is sampled every minute while each run goes.
+oxmutate runs with `strykerCompat: true`: 6,394 mutants against Stryker's 6,397. The oxmutate
+build is frozen at `2527452150` (#1427's head).
+
+### caique, round 1 (stopped after two runs; not a result)
+
+| Run | Engine | Wall | Load: mean / median / max | Verdicts |
+| :-- | :-- | --: | :-- | :-- |
+| S1 | Stryker | 4,153 s (69.2 min) | 26.9 / 24.5 / 71.3 | killed 5,187 · timeout 457 · survived 744 · no coverage 2 |
+| O1 | oxmutate | 8,084 s (134.7 min) | 24.6 / 20.5 / 85.3 | killed 5,271 · timeout 366 · survived 747 · no coverage 2 · ignored 8 |
+
+Mean loads were within 1.1x of each other, so the pair is comparable. **oxmutate lost, 1.95x
+slower.** The verdicts agree: Timeout is now 366 against Stryker's 457, where 1.1.0 reported 15.
+
+The profile of O1 found the cost. The warm phase took 5,977 s, against 1,475 s on the 10-31 CI
+run. There were 799 watchdog stops, 806 servers spawned and 1,104 units. 19 stops read 100 to
+1,055 s "elapsed": caique's tests call `vi.useFakeTimers()`, and the runner wrote each mutant's
+start time from `Date.now()`, which a test that never restores the clock freezes. Every later
+mutant in that worker then looked as if it had run since the freeze. It was stopped at once, its
+server killed, and it was sent to an isolated run. The fix writes the start from the real clock
+captured at load (`realNow`, #1436). The `fake-clock` fixture reproduces the defect: 2 stops before
+the fix, 0 after. Continuing the S, O, O, S round on a build with a known defect would only have
+measured that defect, so the round was stopped after O1 and restarts on the fixed build.
