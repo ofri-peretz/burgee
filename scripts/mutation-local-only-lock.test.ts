@@ -235,6 +235,18 @@ describe('launchd starts it on Saturday at 02:30', () => {
     expect(plist).toMatch(/<key>StartCalendarInterval<\/key>\s*<dict>\s*<key>Weekday<\/key>\s*<integer>6<\/integer>\s*<key>Hour<\/key>\s*<integer>2<\/integer>\s*<key>Minute<\/key>\s*<integer>30<\/integer>\s*<\/dict>/u);
   });
 
+  // The developer's checkout is usually on some feature branch, often without this script; the
+  // first install ran `npm run mutation:weekly` there and would have failed every Saturday. launchd
+  // runs the script from the dedicated worktree, put on origin/main first (2026-11-02).
+  it("runs from its own worktree on origin/main, never the developer's checkout", () => {
+    const command = /<string>-c<\/string>\s*<string>([^<]*)<\/string>/u.exec(plist)?.[1] ?? '';
+    const onMain = command.indexOf('switch -q --detach origin/main');
+    expect(onMain).toBeGreaterThan(command.indexOf('fetch -q origin main'));
+    expect(command.indexOf('cd "$W"')).toBeGreaterThan(onMain);
+    expect(command.indexOf('npm run mutation:weekly')).toBeGreaterThan(command.indexOf('cd "$W"'));
+    expect(command).not.toMatch(/cd "\$HOME\/repos\/ofriperetz\.dev\/burgee" /u);
+  });
+
   it('documents the install command in the script and the workflows README', () => {
     const install = `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/dev.burgee.mutation-weekly.plist`;
     expect(readIfThere(WEEKLY)).toContain(install);
