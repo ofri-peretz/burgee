@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { defineCommand, defineError, defineProgram, ExitCode, type RunContext, runCommand } from './index.js';
 import { Manifest, type OptionSpec } from './manifest.js';
 import { program as burgee } from './program.js';
@@ -207,7 +208,7 @@ describe('--skill prints an Agent Skill (agent-skill R2)', () => {
 const src = dirname(fileURLToPath(import.meta.url));
 // The real path: on macOS `/tmp` is `/private/tmp`, and the bin's directory is resolved through it.
 const dir = realpathSync(mkdtempSync(join(tmpdir(), 'burgee-skill-')));
-afterAll(() => rmSync(dir, { recursive: true, force: true }));
+afterAll(() => discard(dir));
 
 /** A package with a bin, and an entry exporting the demo-shaped program. */
 function project(bin: unknown): string {

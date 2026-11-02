@@ -7,7 +7,7 @@
  * schema over it. A host that starts refusing the example, or an example that stops contributing
  * to a host, fails here before the page says something the packages do not do.
  */
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -33,6 +33,8 @@ import { check as paratext } from '../packages/paratext/src/check.js';
 import { check as roundel } from '../packages/roundel/src/check.js';
 // eslint-disable-next-line import-next/no-relative-packages -- see above
 import { check as seniority } from '../packages/seniority/src/check.js';
+
+import { discard } from './scratch-dir.js';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const EXAMPLE = join(root, 'examples/plugins/acme.mjs');
@@ -92,7 +94,7 @@ describe('one plugin object extends every layer', () => {
       writeFileSync(file, "export default { name: 'nostatic', contract: 1, spinners: { bare: { frames: ['a', 'b'], interval: 80 } } };\n");
       expect(await burgee(file)).toMatchObject({ refused: { code: 'E_NO_STATIC_PROJECTION', message: expect.stringMatching(/^flagstaff: /u) as string, fix: expect.any(String) as string }, exitCode: 1 });
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      discard(dir);
     }
   });
 

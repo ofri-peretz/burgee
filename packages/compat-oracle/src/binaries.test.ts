@@ -3,12 +3,13 @@
  * every one. The lock over the committed tree is in `vendored-suite.test.ts`.
  */
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { executableAt, executableFormat, stripExecutables } from './binaries.js';
 
 const bytes = (...b: number[]): Uint8Array => Uint8Array.from(b);
@@ -63,7 +64,7 @@ describe('executableFormat', () => {
 describe('the sweep over a vendored copy', () => {
   let dir = '';
   afterEach(() => {
-    rmSync(dir, { recursive: true, force: true });
+    discard(dir);
   });
 
   it('reads a file on disk, including a PE whose signature sits past the first bytes read', () => {

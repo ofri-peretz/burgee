@@ -10,13 +10,14 @@
  */
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { type Host } from './hosts.js';
 import { execFile } from './spawn.js';
 import { latestVersion, registryTime } from './upstream.js';
@@ -62,7 +63,7 @@ const SUITE: Record<string, string> = {
 const made: string[] = [];
 
 afterEach(() => {
-  for (const dir of made.splice(0)) rmSync(dir, { recursive: true, force: true });
+  discard(...made.splice(0));
 });
 
 /** A local upstream with the suite above committed and tagged `v1.0.0`. */

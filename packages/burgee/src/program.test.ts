@@ -10,12 +10,13 @@
  * is replaced, and what is asserted is what the command hands it.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { runCommand } from './execute.js';
 import { ExitCode } from './exit-code.js';
 import { program } from './program.js';
@@ -32,7 +33,7 @@ beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'burgee-program-'));
 });
 afterEach(() => {
-  rmSync(dir, { recursive: true, force: true });
+  discard(dir);
   vi.restoreAllMocks();
   dev.mockClear();
 });

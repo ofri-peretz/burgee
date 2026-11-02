@@ -18,12 +18,13 @@
  * `escape.test.ts` for the escaping itself. The compat row proves POSIX parity; these prove
  * the rest.
  */
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import crossSpawn, { spawn, sync } from './cross-spawn.js';
 import { type Runtime } from './runtime.js';
 import { parse } from './spawn-args.js';
@@ -38,7 +39,7 @@ beforeAll(() => {
   chmodSync(echo, 0o755);
 });
 
-afterAll(() => rmSync(dir, { recursive: true, force: true }));
+afterAll(() => discard(dir));
 
 describe('the default export is callable, with the named exports on it', () => {
   it('is a function — `require("cross-spawn")(…)` must keep working', () => {

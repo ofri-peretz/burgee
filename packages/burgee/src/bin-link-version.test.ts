@@ -6,18 +6,20 @@
  * `turbo.json` makes `test` depend on `build`.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
+
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const OWN = (JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { version: string }).version;
 
 let dir = '';
-afterEach(() => rmSync(dir, { recursive: true, force: true }));
+afterEach(() => discard(dir));
 
 describe('burgee --version through a bin link', () => {
   it('prints burgee\'s own version, not the installing project\'s', () => {

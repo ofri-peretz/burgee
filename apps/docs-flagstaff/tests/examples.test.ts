@@ -18,10 +18,11 @@
  * run the same example.
  */
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { discard } from 'docs-chassis/scratch-dir';
 import { afterAll, describe, expect, it } from 'vitest';
 
 const APP = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -60,7 +61,7 @@ const all = pagesWithExamples();
 const shared = all.find((p) => p.path === 'getting-started.mdx')?.files ?? new Map<string, string>();
 const scratch: string[] = [];
 afterAll(() => {
-  for (const dir of scratch) rmSync(dir, { recursive: true, force: true });
+  discard(...scratch);
 });
 
 /** What the output policy reads; cleared unless a command sets it. */

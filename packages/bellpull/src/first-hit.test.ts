@@ -10,11 +10,13 @@
  * `node-which` façade built every candidate path before trying the first. Counting `statSync`
  * calls proves the walk ends where it should, which a timing could not do reliably on a runner.
  */
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { discard } from './__fixtures__/scratch-dir.js';
 
 vi.mock('node:fs', async (original) => {
   const real = await original<typeof import('node:fs')>();
@@ -38,7 +40,7 @@ beforeAll(() => {
 });
 
 afterAll(() => {
-  rmSync(root, { recursive: true, force: true });
+  discard(root);
 });
 
 beforeEach(() => {

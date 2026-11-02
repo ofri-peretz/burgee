@@ -7,7 +7,6 @@
  * records how each one failed. The fixtures are the trial's shapes cut down to the line that
  * mattered, not the projects themselves.
  */
-import { spawn } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -15,17 +14,18 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { ExitCode } from './exit-code.js';
 import { familyVersions, migrate, type MigrationReport, rewriteSource, scan, textOf, UnknownIncumbentError } from './migrate.js';
 
 /**
- * Every project this file makes, handed after its last test to an `rm` of its own that the hook does
- * not wait for — under the pre-push load, unlinking a scratch directory from Node took 64.9 s
+ * Every project this file makes, `discard`ed after its last test, which the hook does not wait
+ * for — under the pre-push load, unlinking a scratch directory from Node took 64.9 s
  * (#1137). Before this they were never removed: ~15k `burgee-migrate-*` a day in `$TMPDIR`.
  */
 const scratch: string[] = [];
 afterAll(() => {
-  if (scratch.length > 0 && process.platform !== 'win32') spawn('rm', ['-rf', ...scratch], { detached: true, stdio: 'ignore' }).unref();
+  discard(...scratch);
 });
 
 function project(files: Record<string, string>): string {

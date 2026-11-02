@@ -7,12 +7,13 @@
  * the one example pack is JSON. The module in the description is checked here the way an author
  * checks theirs, by `burgee check`, so it can never drift into one the check refuses.
  */
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { type CheckReport, checkPlugin } from './check.js';
 
 const schema = JSON.parse(readFileSync(new URL('locale-pack-schema.json', import.meta.url), 'utf8')) as {
@@ -24,7 +25,7 @@ const schema = JSON.parse(readFileSync(new URL('locale-pack-schema.json', import
 const whole = /`(export default \{.*?\};)`/u.exec(schema.description)?.[1];
 
 const dir = mkdtempSync(join(tmpdir(), 'burgee-pack-schema-'));
-afterAll(() => rmSync(dir, { recursive: true, force: true }));
+afterAll(() => discard(dir));
 
 describe('the locale pack schema shows a whole module (locale-pack-in-five R2)', () => {
   it('holds one, under 600 bytes, so it costs a reader little and is copied whole', () => {

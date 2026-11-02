@@ -27,6 +27,7 @@
     "./packages": "./src/packages.ts",
     "./root-layout": "./src/root-layout.tsx",
     "./routes": "./src/routes.ts",
+    "./scratch-dir": "./src/scratch-dir.ts",
     "./site": "./src/site.ts",
     "./source": "./src/source.ts",
     "./source-config": "./src/source-config.mjs",

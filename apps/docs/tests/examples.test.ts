@@ -19,10 +19,11 @@
  * so does a page whose files no longer import.
  */
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { discard } from 'docs-chassis/scratch-dir';
 import { afterAll, describe, expect, it } from 'vitest';
 
 const APP = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -66,7 +67,7 @@ function pagesWithExamples(dir: string = CONTENT): Page[] {
 const all = pagesWithExamples();
 const scratch: string[] = [];
 afterAll(() => {
-  for (const dir of scratch) rmSync(dir, { recursive: true, force: true });
+  discard(...scratch);
 });
 
 /**

@@ -6,13 +6,14 @@
  * Red before it was built: `--print-config` was not read, the run served `--mcp` on a closed
  * stdin, and printed nothing (`Unexpected end of JSON input`).
  */
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
 
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { defineCommand, defineProgram, execute } from './execute.js';
 import { Manifest } from './manifest.js';
 import { clientConfig } from './mcp-config.js';
@@ -21,7 +22,7 @@ import { host } from './runtime.js';
 const program = defineProgram({ name: 'tool', commands: [defineCommand({ name: 'hi', effects: 'read_only', run: () => 'hi' })] });
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'burgee-mcp-config-')));
-afterAll(() => rmSync(scratch, { recursive: true, force: true }));
+afterAll(() => discard(scratch));
 
 /** A package directory holding `bin.js`, with this `package.json`. */
 function packageWith(name: string, manifest: Record<string, unknown>): string {

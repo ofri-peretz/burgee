@@ -28,7 +28,7 @@
  *   - the model named on the page is the model the cited runs recorded, and the page is in the
  *     navigation.
  */
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -36,6 +36,8 @@ import { fileURLToPath } from 'node:url';
 import { CLAIMS } from 'benchmarks/claims.js';
 import { median } from 'benchmarks/stats.js';
 import { describe, expect, it } from 'vitest';
+
+import { discard } from './scratch-dir.js';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const PAGE = 'apps/docs/content/docs/what-an-agent-sees.mdx';
@@ -436,7 +438,7 @@ describe('the MCP lock can fail', () => {
       writeFileSync(join(dir, '2026-10-27-2222222-ci.json'), readingDoc(1));
       expect([...mcpReadings(dir).keys()]).toEqual(['2026-10-27-1111111-dispatch-42-ci.json']);
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      discard(dir);
     }
   });
 });

@@ -30,12 +30,13 @@
  * known to be able to fail rather than assumed to be.
  */
 import { execFileSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { escapeArgument, escapeCommand } from './escape.js';
 import { run } from './run.js';
 import { type Runtime } from './runtime.js';
@@ -335,7 +336,7 @@ describe('the argv array is the boundary, and a shell removes it', () => {
     chmodSync(echo, 0o755);
   });
 
-  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+  afterAll(() => discard(dir));
 
   /**
    * Vectors that mean something to the platform's own interpreter.
@@ -479,7 +480,7 @@ describe.runIf(WINDOWS)('a hostile argument through a real cmd-shim on Windows',
     writeFileSync(join(bin, 'echo-argv.cmd'), '@echo off\r\nnode "%~dp0echo-argv.mjs" %*\r\n');
   });
 
-  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+  afterAll(() => discard(dir));
 
   /** No override at all: the ambient environment, which is unambiguous by construction. */
   const plain = (): Runtime => ({ platform: process.platform, env: { ...process.env }, cwd: dir });

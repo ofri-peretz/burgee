@@ -1,10 +1,11 @@
 /** F1 / N8 / N9 — the program as data, from the manifest alone. */
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { runCommand } from './execute.js';
 import { defineCommand, defineProgram } from './index.js';
 import { Manifest } from './manifest.js';
@@ -132,7 +133,7 @@ describe('the clispec keys (clispec-conformance)', () => {
       // With no version anywhere there is none to publish, and none is invented.
       expect(JSON.parse((await runCommand(bare, ['--schema'], { entry: '/' })).stdout)).not.toHaveProperty('version');
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      discard(dir);
     }
   });
 

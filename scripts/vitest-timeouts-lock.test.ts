@@ -7,12 +7,14 @@
  * scratch installs, at `Hook timed out in 10000ms` — a different app each time, all green alone.
  * The nine docs apps had no vitest config at all, so they never got the clocks the packages had.
  */
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
+
+import { discard } from './scratch-dir.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
@@ -60,7 +62,7 @@ describe('vitest clocks', () => {
       mkdirSync(join(fake, 'apps/no-manifest'));
       expect(offClock(fake)).toEqual(['apps/bare', 'apps/default']);
     } finally {
-      rmSync(fake, { recursive: true, force: true });
+      discard(fake);
     }
   });
 

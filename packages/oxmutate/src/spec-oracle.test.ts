@@ -1,13 +1,14 @@
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { summarizeSpec, tracesFor, type SpecMutant, type SpecOracle } from './spec-oracle.js';
 
 const tmp = realpathSync(mkdtempSync(path.join(tmpdir(), 'oxmutate-spec-oracle-')));
-afterAll(() => rmSync(tmp, { recursive: true, force: true }));
+afterAll(() => discard(tmp));
 afterEach(() => vi.unstubAllEnvs());
 
 /**

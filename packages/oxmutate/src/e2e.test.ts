@@ -10,6 +10,8 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
+
 const here = path.dirname(fileURLToPath(import.meta.url));
 const pkg = path.join(here, '..');
 const fixture = path.join(pkg, 'test/fixtures/registry');
@@ -199,8 +201,8 @@ describe.skipIf(!native || !existsSync(bin))('Stryker options the run honours', 
   const registry = path.join(pkg, 'test/fixtures/registry');
   const spin = path.join(pkg, 'test/fixtures/spin');
   afterAll(() => {
-    rmSync(path.join(registry, 'reports'), { recursive: true, force: true });
-    rmSync(path.join(spin, 'reports'), { recursive: true, force: true });
+    discard(path.join(registry, 'reports'));
+    discard(path.join(spin, 'reports'));
   });
 
   it('buildCommand: a failing build stops the run before the dry run, with exit 3', () => {
@@ -236,7 +238,7 @@ describe.skipIf(!native || !existsSync(bin))('Stryker options the run honours', 
       // '../package.json' → '' reads this module's own source, so JSON.parse throws at import
       expect(mutants.find((m) => m.replacement === '""' && m.location.start.column === 57)?.status).toBe('Killed');
     } finally {
-      rmSync(path.join(loadError, 'reports'), { recursive: true, force: true });
+      discard(path.join(loadError, 'reports'));
     }
   });
 
@@ -251,7 +253,7 @@ describe.skipIf(!native || !existsSync(bin))('Stryker options the run honours', 
       expect(mutants.length).toBeGreaterThan(0);
       expect(mutants.filter((m) => m.status === 'Killed').length).toBeGreaterThan(0);
     } finally {
-      rmSync(path.join(projects, 'reports'), { recursive: true, force: true });
+      discard(path.join(projects, 'reports'));
     }
   });
 
@@ -284,14 +286,14 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('the frozen oracle (R14
   const original = readFileSync(path.join(registry, 'src/registry.spec.ts'), 'utf8');
 
   beforeAll(() => {
-    rmSync(repo, { recursive: true, force: true });
+    discard(repo);
     mkdirSync(path.join(repo, 'src'), { recursive: true });
     for (const f of ['package.json', 'vitest.config.mjs', 'oxmutate.config.json', 'src/registry.ts', 'src/registry.spec.ts']) writeFileSync(path.join(repo, f), readFileSync(path.join(registry, f)));
     git('init', '-q');
     git('add', '.');
     git('commit', '-q', '-m', 'base');
   });
-  afterAll(() => rmSync(repo, { recursive: true, force: true }));
+  afterAll(() => discard(repo));
 
   it('reports the mutants a change stopped detecting when it weakens a test, and exits 1', () => {
     writeFileSync(spec, original.replace("expect(list()).toEqual(['a']);", 'list();'));
@@ -316,7 +318,7 @@ const verdictOf = (m: ReportMutant): string => `${String(m.location.start.line)}
 
 describe.skipIf(!native || !existsSync(bin) || !nightly)('the command runner (testRunner: command)', () => {
   const registry = path.join(pkg, 'test/fixtures/registry');
-  afterAll(() => rmSync(path.join(registry, 'reports'), { recursive: true, force: true }));
+  afterAll(() => discard(path.join(registry, 'reports')));
 
   it('runs the command once per mutant in a sandbox and scores what the warm runner scores', () => {
     const sandboxes = (): string[] => (existsSync(path.join(registry, '.oxmutate-tmp')) ? readdirSync(path.join(registry, '.oxmutate-tmp')) : []);
@@ -336,7 +338,7 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('the command runner (te
 
 describe.skipIf(!native || !existsSync(bin))('a spec oracle (M3.5): model traces as a second verdict', () => {
   const fixture = path.join(pkg, 'test/fixtures/spec');
-  afterAll(() => rmSync(path.join(fixture, 'reports'), { recursive: true, force: true }));
+  afterAll(() => discard(path.join(fixture, 'reports')));
 
   it('reports the mutants only the model catches as test-spec gaps, with the trace, and leaves the score alone', () => {
     const r = runWith(fixture, {});
@@ -376,7 +378,7 @@ it.skipIf(!native || !existsSync(bin))('keeps a survivor whose confirmation run 
 
 describe.skipIf(!native || !existsSync(bin))("Stryker's mutate ranges", () => {
   const registry = path.join(pkg, 'test/fixtures/registry');
-  afterAll(() => rmSync(path.join(registry, 'reports'), { recursive: true, force: true }));
+  afterAll(() => discard(path.join(registry, 'reports')));
 
   it('mutates only what lies wholly inside src/registry.ts:5-7, the register function', () => {
     const r = runWith(registry, { mutate: ['src/registry.ts:5-7'] });

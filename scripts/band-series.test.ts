@@ -11,13 +11,14 @@
  * That is the worst way for this to fail. A band with too few points reports exactly what a
  * healthy quiet band reports, so the watcher looked like it was working the whole time.
  */
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { type BandConfig, chronological, collectBenchmark, DATED_JSON, evaluate, mergeObservations, type Observation } from './control-bands';
+import { discard } from './scratch-dir.js';
 
 describe('which files are a suite’s series', () => {
   it.each(['2026-09-09.json', '2026-09-09-5bc506c.json', '2026-09-10-abc1234.json', '2026-09-22-c0fa8a3-ci.json', '2026-09-22-c0fa8a3-local.json'])('%s is one', (f) => {
@@ -49,7 +50,7 @@ describe('collectBenchmark', () => {
       // and neither local one is — a published measurement included, when a laptop made it.
       expect(collectBenchmark(cfg, root).map((o) => o.value)).toEqual([1.2, 1.1, 1.3]);
     } finally {
-      rmSync(root, { recursive: true, force: true });
+      discard(root);
     }
   });
 });
@@ -81,7 +82,7 @@ describe('a series is in the order it was measured, not the order its hashes sor
       writeFileSync(join(dir, `2026-09-24-${sha}-ci.json`), JSON.stringify({ measured, machine: { ci: true }, bands: { r: { value: high ? 101 : 100 } } }));
     }
   });
-  afterAll(() => rmSync(root, { recursive: true, force: true }));
+  afterAll(() => discard(root));
 
   it('collectBenchmark returns the day in measured order', () => {
     const got = collectBenchmark(cfg, root);

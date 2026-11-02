@@ -9,17 +9,19 @@
  * map, which is the path a migrated program takes; `npm test` builds first.
  */
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { discard } from '../__fixtures__/scratch-dir.js';
+
 const MANIFEST = fileURLToPath(new URL('../../package.json', import.meta.url));
 const dir = mkdtempSync(join(tmpdir(), 'burgee-v17-require-'));
 afterAll(() => {
-  rmSync(dir, { recursive: true, force: true });
+  discard(dir);
 });
 
 let scripts = 0;

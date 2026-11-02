@@ -5,13 +5,14 @@
  * written first against a load without the cache-busting query and observed failing
  * (rule 4). W6 is measured on a generated 30-command CLI.
  */
-import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { dev, diffManifests, load } from './dev.js';
 
 const pkgRoot = fileURLToPath(new URL('..', import.meta.url));
@@ -89,7 +90,7 @@ const text = (m: Record<string, unknown>): string => (m['result'] as { content: 
 
 let dir = '';
 afterEach(() => {
-  if (dir !== '') rmSync(dir, { recursive: true, force: true });
+  if (dir !== '') discard(dir);
   dir = '';
 });
 

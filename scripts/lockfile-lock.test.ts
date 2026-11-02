@@ -37,7 +37,7 @@
  * `node_modules/@tailwindcss/oxide-wasm32-wasi -> @emnapi/core`, which is the error above.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,6 +46,7 @@ import { load as loadYaml } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
 
 import { type Lock, unresolved } from './lockfile-resolves.js';
+import { discard } from './scratch-dir.js';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -110,7 +111,7 @@ describe('the fast lane asks it before anything installs', () => {
       expect(refused.out).toMatch(/node_modules\/\S+ -> @emnapi\/(core|runtime) has no entry to resolve to/);
       expect(run(join(dir, 'committed.json'))).toEqual({ status: 0, out: expect.any(String) as string });
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      discard(dir);
     }
   });
 });

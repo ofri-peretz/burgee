@@ -8,12 +8,13 @@
  * and the competitor watch are fakes, and every path `main` writes to is a scratch directory
  * handed in through `Paths`, so this package's own `results.json` is never touched.
  */
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { active, gradable, HOSTS, type Host, hostNamed, PREVIOUS_MAJORS } from './hosts.js';
 import { liveRegistry } from './registry.js';
 import { main, type Paths, upstreamMode, verdict } from './report.js';
@@ -58,7 +59,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  rmSync(root, { recursive: true, force: true });
+  discard(root);
 });
 
 const byName = (name: string): Host => hostNamed(name) as Host;

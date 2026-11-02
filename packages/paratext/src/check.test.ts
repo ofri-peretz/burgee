@@ -7,16 +7,17 @@
  * an unknown flag), the two shapes a plugin module can export, both projections of every
  * capability in the report, and the one error `check` does not own and must not swallow.
  */
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { check, EXIT_OK, EXIT_RUNTIME, EXIT_USAGE } from './check.js';
 
 const dir = mkdtempSync(join(tmpdir(), 'paratext-check-'));
-afterAll(() => rmSync(dir, { recursive: true, force: true }));
+afterAll(() => discard(dir));
 
 let serial = 0;
 /** A plugin module on disk, because `check` takes a path — that is how an author runs it. */

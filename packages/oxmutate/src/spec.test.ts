@@ -1,13 +1,14 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { SPEC_TRACES_ENV, decode, loadTraces, readTrace } from './spec.js';
 
 const dir = mkdtempSync(path.join(tmpdir(), 'oxmutate-spec-'));
-afterAll(() => rmSync(dir, { recursive: true, force: true }));
+afterAll(() => discard(dir));
 afterEach(() => vi.unstubAllEnvs());
 
 const itf = (states: object[]): string => JSON.stringify({ '#meta': { format: 'ITF' }, vars: ['x'], states });

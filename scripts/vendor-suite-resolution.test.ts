@@ -17,7 +17,7 @@
  * was read is in the output.
  */
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -25,11 +25,13 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { discard } from './scratch-dir.js';
+
 const REPO_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const TSX = pathToFileURL(createRequire(import.meta.url).resolve('tsx')).href;
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'vendor-resolution-')));
 afterAll(() => {
-  rmSync(scratch, { recursive: true, force: true });
+  discard(scratch);
 });
 
 /** A checkout with the script and the oracle's sources and nothing installed, at `<parent>/worktree`. */

@@ -19,12 +19,13 @@
  * the same script never reaches `execve` there — `windows.test.ts` covers what happens instead.
  */
 import { ChildProcess } from 'node:child_process';
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { run, SpawnError, type ExitHost } from './run.js';
 import { type Runtime } from './runtime.js';
 import { NotFoundError } from './which.js';
@@ -33,7 +34,7 @@ const WINDOWS = process.platform === 'win32';
 const SPAWN = 60_000;
 
 const dir = mkdtempSync(join(tmpdir(), 'bellpull-run-'));
-afterAll(() => rmSync(dir, { recursive: true, force: true }));
+afterAll(() => discard(dir));
 
 const runtime: Runtime = { platform: process.platform, env: process.env, cwd: dir, uid: process.getuid?.(), gid: process.getgid?.() };
 
