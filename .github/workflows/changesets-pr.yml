@@ -32,7 +32,13 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+    # No `labeled`/`unlabeled`: a label event is a second run, and a second check suite, on the same
+    # head commit. Its cancelled twin can be the newer suite, which branch protection reads, and the
+    # PR sits BLOCKED with everything green (#1418). A label added at `gh pr create` is in the
+    # `opened` run; one changed later reaches it through pr-labels.yml, which re-runs this run,
+    # and `Changeset present` reads the labels live, so the re-run sees the change.
+    # scripts/pr-trigger-lock.test.ts.
+    types: [opened, synchronize, reopened]
   # `Changeset present` is a required check, and a required check with no `merge_group:` trigger
   # never reports inside a merge queue (scripts/required-checks-lock.test.ts).
   merge_group:
@@ -362,7 +368,9 @@ jobs:
           fetch-depth: 0
 
       # The five things the check reads, from wherever this event carries them. A pull request
-      # carries them all. A queue entry carries its two commits, and its ref names the PR
+      # carries them all, but its labels are read back live: the `opened` event can be built before
+      # a label `gh pr create --label` adds a second later, and no `labeled` run follows it now
+      # (pr-trigger-lock). The event's labels stand in only if the read fails. A queue entry carries its two commits, and its ref names the PR
       # (`gh-readonly-queue/main/pr-<n>-<sha>`), whose labels and author are read back so a
       # `skip-changeset` PR is not failed in the queue for a label the event does not carry. A
       # dispatch is the branch it ran on, against where it left main.
@@ -377,6 +385,7 @@ jobs:
           PR_REF: ${{ github.event.pull_request.head.ref }}
           PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
           PR_USER: ${{ github.event.pull_request.user.login }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           QUEUE_BASE: ${{ github.event.merge_group.base_sha }}
           QUEUE_HEAD: ${{ github.event.merge_group.head_sha }}
           QUEUE_REF: ${{ github.event.merge_group.head_ref }}
@@ -388,7 +397,8 @@ jobs:
           meta() { gh pr view "$1" --json headRefName,labels,author --jq '.headRefName, ([.labels[].name] | join(",")), (.author.login | sub("^app/(?<n>.+)$"; "\(.n)[bot]"))'; }
           case "$EVENT" in
             pull_request)
-              base=$PR_BASE; head=$PR_HEAD; ref=$PR_REF; labels=$PR_LABELS; author=$PR_USER ;;
+              base=$PR_BASE; head=$PR_HEAD; ref=$PR_REF; author=$PR_USER
+              { read -r _; read -r labels; read -r _; } < <(meta "$PR_NUMBER" || printf '\n%s\n\n' "$PR_LABELS") ;;
             merge_group)
               base=$QUEUE_BASE; head=$QUEUE_HEAD
               n=$(sed -E 's#^.*/pr-([0-9]+)-[0-9a-f]+$#\1#' <<<"$QUEUE_REF")

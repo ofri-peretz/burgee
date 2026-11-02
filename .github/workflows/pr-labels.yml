@@ -1,0 +1,108 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Labels
+
+run-name: >-
+  Labels · PR #${{ github.event.pull_request.number }} · ${{ github.event.action }} ${{ github.event.label.name }}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# A label changed after a pull request was opened, carried to the required checks that read it.
+#
+# The required-check workflows do not start on `labeled`/`unlabeled` any more. A label event there
+# was a second run, and a second check suite, on the same head commit: `gh pr create --label`
+# raised `opened` plus one `labeled` per label in the same second, concurrency cancelled all but
+# one, and branch protection reads a required context from the NEWEST suite that carries it — on
+# #1418 the cancelled one, so the PR sat BLOCKED with everything green.
+#
+# This file is the one place a label event lands. It reports no required check, and for any label
+# but the two below it runs no job. For those it RE-RUNS the pull request's own run of each
+# workflow that reads the label: a new attempt inside the same check suite, which supersedes the
+# old one without adding a suite (re-running a cancelled twin is what unblocked #1418 and #1349).
+# A dispatch would not do: a `workflow_dispatch` suite on the head commit is not among the PR's
+# checks, so it can neither pass nor fail a required one (#1433, measured). A re-run keeps the
+# event it re-runs, so every step that reads one of these labels also reads it back live.
+#
+#   skip-changeset  added or removed → changesets-pr.yml: `Changeset present` reads the labels
+#                   live, so removing the label can turn it red.
+#   run-full-ci     added → quality-full.yml, compat.yml, codeql.yml: their affected sets and the
+#                   CodeQL gate read the label live and select everything. A job-level `if:` still
+#                   reads the event: the compat floor and control cells, and Quality (Full) on a
+#                   draft, need the label when the PR is opened (or a push after it). Removing it
+#                   changes nothing that needs re-running.
+#
+# A run still in progress is cancelled first, then re-run: a re-run needs a finished run. A label
+# applied while the PR is opened (`gh pr create --label`) is already in the `opened` runs — on
+# #1418, #1429 and #1433 they read `skip-changeset`, applied a second after the PR — so a `labeled`
+# event within 30 s of the PR's creation re-runs nothing. A fork's pull request gets a read-only
+# token here; the step says so, and a push or a maintainer's re-run picks the label up.
+#
+# scripts/pr-trigger-lock.test.ts holds every label a required-check workflow reads to an arm here.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  pull_request:
+    branches: [main]
+    types: [labeled, unlabeled]
+
+# One label's events on one PR in order; a third event replaces the one still waiting. Never
+# cancelled mid-run: a cancel without its re-run leaves the check cancelled.
+concurrency:
+  group: pr-labels-${{ github.event.pull_request.number }}-${{ github.event.label.name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  rerun:
+    name: Re-run the checks a label changes
+    if: github.event.label.name == 'skip-changeset' || (github.event.action == 'labeled' && github.event.label.name == 'run-full-ci')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: write # gh run cancel / gh run rerun
+    steps:
+      - name: Re-run the pull request's runs of the workflows that read this label
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ACTION: ${{ github.event.action }}
+          LABEL: ${{ github.event.label.name }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          CREATED: ${{ github.event.pull_request.created_at }}
+          UPDATED: ${{ github.event.pull_request.updated_at }}
+        run: |
+          set -euo pipefail
+          case "$LABEL" in
+            skip-changeset) set -- changesets-pr.yml ;;
+            run-full-ci) set -- quality-full.yml compat.yml codeql.yml ;;
+            *) echo "::error::no arm for $LABEL"; exit 1 ;;
+          esac
+          if [ "$HEAD_REPO" != "$GITHUB_REPOSITORY" ]; then
+            echo "::notice::A fork's pull request gets a read-only token, which cannot re-run its checks. Push, or re-run them by hand, to pick up $ACTION $LABEL."
+            exit 0
+          fi
+          age=$(( $(date -d "$UPDATED" +%s) - $(date -d "$CREATED" +%s) ))
+          if [ "$ACTION" = labeled ] && [ "$age" -lt 30 ]; then
+            echo "::notice::$LABEL was applied ${age}s after the PR was opened, so the \`opened\` runs carry it; nothing to re-run."
+            exit 0
+          fi
+          for wf in "$@"; do
+            run=$(gh run list --workflow "$wf" --commit "$SHA" --event pull_request --limit 1 --json databaseId,status --jq '.[0] | "\(.databaseId) \(.status)"')
+            if [ -z "$run" ] || [ "$run" = "null null" ]; then
+              echo "::notice::no pull_request run of $wf on $SHA to re-run; it starts with the next push."
+              continue
+            fi
+            read -r id status <<<"$run"
+            if [ "$status" != completed ]; then
+              gh run cancel "$id" || true
+              gh run watch "$id" > /dev/null 2>&1 || true
+            fi
+            # A run that has just finished cancelling can refuse a re-run for a few seconds.
+            for attempt in 1 2 3 4 5 6; do
+              if gh run rerun "$id"; then break; fi
+              [ "$attempt" = 6 ] && { echo "::error::could not re-run $wf run $id"; exit 1; }
+              sleep 10
+            done
+            echo "- re-ran \`$wf\` run $id ($ACTION $LABEL)" >> "$GITHUB_STEP_SUMMARY"
+          done
