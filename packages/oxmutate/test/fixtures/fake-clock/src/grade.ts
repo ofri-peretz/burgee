@@ -1,9 +1,10 @@
-const A_FROM = 90;
-const B_FROM = 75;
-
 /** A grade for a score. Every mutant here is caught at once: none of them runs away. */
 export function grade(score: number): string {
-  if (score >= A_FROM) return 'A';
-  if (score >= B_FROM) return 'B';
+  // Inside the function, not at module level: a module constant's mutants are static, and each
+  // would cost an isolated run this fixture does not need.
+  const aFrom = 90;
+  const bFrom = 75;
+  if (score >= aFrom) return 'A';
+  if (score >= bFrom) return 'B';
   return 'C';
 }

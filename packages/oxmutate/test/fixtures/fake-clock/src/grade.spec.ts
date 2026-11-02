@@ -2,13 +2,13 @@ import { expect, it, vi } from 'vitest';
 
 import { grade } from './grade.js';
 
-const SPIN = 60_000_000;
+const SPIN = 25_000_000;
 const WEEK = 7;
 const A = 95;
 const B = 80;
 const C = 10;
 
-/** About 100 ms of real work, so a few mutants' runs add up past the watchdog's budget. */
+/** About 40 ms of real work, so a few mutants' runs add up past the watchdog's budget. */
 const spin = (): number => {
   let x = 0;
   for (let i = 0; i < SPIN; i++) x += i % WEEK;
