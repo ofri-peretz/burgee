@@ -424,8 +424,10 @@ it.skipIf(!native || !existsSync(bin))('times a mutant by the real clock, so a t
   // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the built package under test, present only after a build; the test is skipped without it
   const api = (await import(path.join(pkg, 'dist/index.js'))) as typeof import('./index.js');
   const result = await api.run(await api.loadOptions(dir, { reporters: [] }, path.join(dir, 'oxmutate.config.json')));
-  // No mutant of `grade` runs away, so none is stopped. (The thresholds are module constants: their
-  // mutants are static, and go to isolated runs whatever the clock says.)
+  // No mutant of `grade` runs away, and the fixture's 20 s budget is far past any real run, so the
+  // only stop there could be is one timed from the frozen epoch clock. The build before the fix
+  // stopped every mutant after the freeze; on a loaded CI runner a 400 ms budget made this flaky
+  // (main, run 41430279215), which the epoch clock and the long budget remove.
   expect(result.stats.watchdogKills).toBe(0);
   expect(result.mutants.filter((m) => m.status === 'Timeout')).toEqual([]);
 }, 60_000);
