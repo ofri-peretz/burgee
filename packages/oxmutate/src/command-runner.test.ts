@@ -10,8 +10,8 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { makeSandbox } from "./command-runner.js";
 import { discard } from "./__fixtures__/scratch-dir.js";
+import { makeSandbox } from "./command-runner.js";
 
 describe("makeSandbox", () => {
   it("keeps a tsconfig extends that climbs out of the project resolvable from the sandbox", () => {
