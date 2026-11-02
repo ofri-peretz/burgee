@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  The weekly full mutation run, on the owner's machine (D-20261101-no-mutation-in-gha):
+  `npm run mutation:weekly` (scripts/mutation-weekly.sh) every Saturday at 02:30 local time.
+  launchd runs a missed start when the Mac next wakes. `caffeinate -i` keeps it awake for the
+  run, which takes hours. PATH puts node 24, cargo (oxmutate's native core) and gh first.
+
+  Install (once):
+    cp tools/launchd/dev.burgee.mutation-weekly.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/dev.burgee.mutation-weekly.plist
+  Run now:  launchctl kickstart gui/$(id -u)/dev.burgee.mutation-weekly
+  Remove:   launchctl bootout gui/$(id -u)/dev.burgee.mutation-weekly
+
+  The script appends its own log to ~/Library/Logs/burgee-mutation-weekly.log; this file's
+  StandardOutPath only catches what fails before the script starts logging.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>dev.burgee.mutation-weekly</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-c</string>
+    <string>export PATH="$HOME/.nvm/versions/node/v24.12.0/bin:$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"; cd "$HOME/repos/ofriperetz.dev/burgee" &amp;&amp; exec /usr/bin/caffeinate -i npm run mutation:weekly</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Weekday</key>
+    <integer>6</integer>
+    <key>Hour</key>
+    <integer>2</integer>
+    <key>Minute</key>
+    <integer>30</integer>
+  </dict>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>LowPriorityIO</key>
+  <true/>
+  <key>Nice</key>
+  <integer>10</integer>
+  <key>StandardOutPath</key>
+  <string>/Users/ofri/Library/Logs/burgee-mutation-weekly.launchd.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/ofri/Library/Logs/burgee-mutation-weekly.launchd.log</string>
+</dict>
+</plist>

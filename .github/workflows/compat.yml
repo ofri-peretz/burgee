@@ -435,27 +435,6 @@ jobs:
           set -o pipefail
           { echo '## Cases above half their timeout'; echo; echo '```'; npx --no tsx scripts/slow-cases.mts vitest-durations; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
 
-  # The test cases too heavy for a pull request (D-20261101-tests-under-5s). No case on a pull
-  # request may take more than 5 s (scripts/vitest-case-budget-reporter.ts); the ones that need a
-  # whole mutation run or a real compiler each time are named in its NIGHTLY_ONLY, with that reason,
-  # and run only where BURGEE_NIGHTLY is set: here, nightly and on a dispatch. Every one of them is
-  # in one of the four oxmutate files below — `case-budget-lock.test.ts` holds the two lists together.
-  heavy-tests:
-    name: Heavy test cases (nightly)
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      BURGEE_NIGHTLY: "1"
-      OXMUTATE_REQUIRE_NATIVE: "1"
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: ./.github/actions/setup
-      - run: npx turbo run build --filter='./packages/*' --concurrency=4
-      # oxmutate's Rust core, which no `build` produces; quality-full.yml builds it the same way.
-      - name: oxmutate's native core
-        run: |
-          npm run build:native -w oxmutate
-      - name: The nightly-only cases
-        working-directory: packages/oxmutate
-        run: npx vitest run src/e2e.test.ts src/sensitivity.test.ts src/vitest5-regression.test.ts src/checker.test.ts
+  # No `heavy-tests` job: the NIGHTLY_ONLY cases (scripts/vitest-case-budget-reporter.ts) each run
+  # oxmutate end to end, and no mutation runs in GitHub Actions (D-20261101-no-mutation-in-gha).
+  # `npm run mutation:weekly` runs them with BURGEE_NIGHTLY set, before the full mutation runs.

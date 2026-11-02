@@ -35,10 +35,11 @@ pre-push:
     root-suite:
       priority: 2
       run: npx --no vitest run --config vitest.root.config.ts
-    # The changed-lines mutation lane, the same script CI's `Mutation (changed lines)` job runs
-    # (scripts/mutation-changed.sh), against origin/main. Before 2026-11-01 nothing local ran it,
-    # so a surviving mutant was first seen in CI. It skips in seconds when no package source line
-    # changed; otherwise it needs cargo for oxmutate's native core, and says `fix:` without it.
+    # The changed-lines mutation lane (scripts/mutation-changed.sh), against origin/main: the
+    # per-PR mutation gate. No workflow runs it (D-20261101-no-mutation-in-gha), so this hook is
+    # the only place a surviving mutant on a changed line is caught before merge. It skips in
+    # seconds when no package source line changed; otherwise it needs cargo for oxmutate's
+    # native core, and says `fix:` without it.
     mutation-changed:
       priority: 3
       run: npm run mutation:changed
