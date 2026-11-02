@@ -1,5 +1,13 @@
 # oxmutate
 
+## 1.2.1
+
+### Patch Changes
+
+- [#1436](https://github.com/ofri-peretz/burgee/pull/1436) [`a6b9f9a`](https://github.com/ofri-peretz/burgee/commit/a6b9f9aeec8962ee81bf96fb4cdd04c5dcf99077) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The watchdog now times each mutant by the real clock. Before, a test that froze the clock with `vi.useFakeTimers()` and never restored it made every later mutant in that file look as if it had been running since the freeze. The watchdog then stopped it however briefly it had run, and each stop cost a killed server and an isolated run. On a full caique run, such stops read 100 to 1,055 s "elapsed". Verdicts do not change, because a stopped mutant is decided again in an isolated run.
+
+- [#1436](https://github.com/ofri-peretz/burgee/pull/1436) [`a6b9f9a`](https://github.com/ofri-peretz/burgee/commit/a6b9f9aeec8962ee81bf96fb4cdd04c5dcf99077) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The tarball no longer ships comments in its JavaScript. The build now runs the same comment stripper every other package in the family runs. Excluding the native core, the pack shrinks from 63,247 to 49,937 bytes gzipped. Declarations keep their summaries.
+
 ## 1.2.0
 
 ### Minor Changes
