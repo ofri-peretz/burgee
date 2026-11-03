@@ -96,6 +96,8 @@ it.skipIf(!native || !existsSync(bin) || !nightly)('decides no kill on a previou
 // ESLint's RuleTester fails a case it has seen, so a test run again from the same collection fails
 // whatever the mutant: every canary read as pollution and each mutant cost a restart. The fixture's
 // survivors show the runs after the first were decided on the mutant, not on that failure (rerun.qnt).
+// mixed.spec.ts opens with a plain test and holds the RuleTester-shaped block in a describe: probing
+// only a file's first test missed it, and its mutants restarted again.
 it.skipIf(!native || !existsSync(bin) || !nightly)('runs a run-once test file (ESLint\'s RuleTester) from fresh collections, with no restart', () => {
   const dir = path.join(pkg, 'test/fixtures/run-once');
   const reportDir = path.join(dir, 'reports');
